@@ -1,13 +1,19 @@
 node_modules/
 dist/
+dist-ssr/
 coverage/
 playwright-report/
 test-results/
+*.local
 .env
 .env.*
 !.env.example
 amplify_outputs.json
 amplify/.config/
+.amplify/
 .DS_Store
 *.log
+.vscode/*
+!.vscode/extensions.json
+.idea/
 
