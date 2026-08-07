@@ -47,6 +47,36 @@
   margin: 0;
 }
 
+.actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.primaryAction,
+.secondaryAction {
+  font-weight: 600;
+  text-decoration: none;
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-pill);
+}
+
+.primaryAction {
+  background-color: var(--color-primary);
+  color: var(--color-primary-contrast);
+}
+
+.secondaryAction {
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+}
+
+.notice {
+  color: var(--color-text-muted);
+  max-width: 32rem;
+}
+
 .footer {
   padding: var(--space-4) var(--space-6);
   text-align: center;
