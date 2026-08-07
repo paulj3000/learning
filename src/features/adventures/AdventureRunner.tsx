@@ -6,22 +6,28 @@ import { NarrativeStep } from './steps/NarrativeStep';
 import { ChoiceStep } from './steps/ChoiceStep';
 import { NumberInputStep } from './steps/NumberInputStep';
 import { OrderingStep } from './steps/OrderingStep';
+import { CompanionBubble } from '../companion/CompanionBubble';
 import type { AdventureDefinition } from './engine/types';
+import type { AgeBandValue } from '../child-profile/constants';
 
 interface AdventureRunnerProps {
   childProfileId: string;
   definition: AdventureDefinition;
+  ageBand: AgeBandValue;
   backToMapHref: string;
 }
 
 /**
  * Dispatches the current step to its renderer and shows the hint ladder
  * after a wrong answer. All correctness/transition logic lives in
- * useAdventureSession; this component only renders what it is told.
+ * useAdventureSession; this component only renders what it is told,
+ * including Chatty's AI-phrased hint/celebration dialogue (Phase 4 —
+ * presentation only, never correctness).
  */
 export function AdventureRunner({
   childProfileId,
   definition,
+  ageBand,
   backToMapHref,
 }: AdventureRunnerProps) {
   const {
@@ -33,7 +39,8 @@ export function AdventureRunner({
     error,
     submitAnswer,
     requestHint,
-  } = useAdventureSession(childProfileId, definition);
+    companionTurn,
+  } = useAdventureSession(childProfileId, definition, ageBand);
 
   if (loadState === 'loading') {
     return <p>Loading your adventure...</p>;
@@ -52,6 +59,8 @@ export function AdventureRunner({
           {error}
         </p>
       ) : null}
+
+      <CompanionBubble state={companionTurn} />
 
       {presentation.kind === 'narrative' ? (
         <NarrativeStep

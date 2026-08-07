@@ -1,18 +1,22 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
+import { CHATTY_SYSTEM_PROMPT } from './chattyPersona';
 
 /**
- * Phase 1-3 schema (docs/DATA_MODEL.md): ParentProfile, ChildProfile,
- * CompanionProfile, and the Phase 3 adventure-engine models (AdventureSession,
- * AdventureAction, SkillEvidence, SkillProgress, WorldChange). All models use
- * owner authorization, so `.list()`/`.get()` calls from the client are
- * already scoped to the authenticated parent's own records — the owner is
- * always the signed-in parent (CLAUDE.md section 10), since children act
- * inside the parent's authenticated session rather than authenticating
+ * Phase 1-4 schema (docs/DATA_MODEL.md): ParentProfile, ChildProfile,
+ * CompanionProfile, the Phase 3 adventure-engine models (AdventureSession,
+ * AdventureAction, SkillEvidence, SkillProgress, WorldChange), and the
+ * Phase 4 AI-companion models (AIInteractionAudit, SafetyEvent) plus the
+ * `generateCompanionTurn` AI generation route. All models use owner
+ * authorization, so `.list()`/`.get()` calls from the client are already
+ * scoped to the authenticated parent's own records — the owner is always
+ * the signed-in parent (CLAUDE.md section 10), since children act inside
+ * the parent's authenticated session rather than authenticating
  * themselves. IslandLocation and AdventureTemplate/AdventureStepDefinition
  * remain content authored in source control (see
  * src/features/island/locations.ts and src/features/adventures/content/),
  * per DATA_MODEL.md's note to prefer that over a DB model for MVP.
  * @see https://docs.amplify.aws/react/build-a-backend/data/
+ * @see https://docs.amplify.aws/react/ai/concepts/generation-routes/
  */
 const schema = a.schema({
   AgeBand: a.enum(['SPROUT', 'PATHFINDER', 'EXPLORER']),
@@ -42,6 +46,8 @@ const schema = a.schema({
       skillEvidence: a.hasMany('SkillEvidence', 'childProfileId'),
       skillProgress: a.hasMany('SkillProgress', 'childProfileId'),
       worldChanges: a.hasMany('WorldChange', 'childProfileId'),
+      aiInteractionAudits: a.hasMany('AIInteractionAudit', 'childProfileId'),
+      safetyEvents: a.hasMany('SafetyEvent', 'childProfileId'),
     })
     .authorization((allow) => [allow.owner()]),
 
@@ -123,6 +129,115 @@ const schema = a.schema({
       changeKey: a.string().required(),
       payload: a.json(),
       sourceSessionId: a.string(),
+      createdAt: a.datetime().required(),
+    })
+    .authorization((allow) => [allow.owner()]),
+
+  // --- Phase 4: Safe AI Companion (docs/AI_AND_CHILD_SAFETY.md) ---
+
+  CompanionEmotion: a.enum(['CHEERFUL', 'CURIOUS', 'CALM', 'ENCOURAGING']),
+  CompanionIntent: a.enum(['NARRATE', 'ASK', 'HINT', 'CELEBRATE', 'REDIRECT']),
+  SafetyDisposition: a.enum(['ALLOW', 'REDIRECT', 'STOP']),
+
+  /** Matches AI_AND_CHILD_SAFETY.md's `CompanionTurn` structured-response example. */
+  CompanionChoice: a.customType({
+    id: a.string().required(),
+    label: a.string().required(),
+  }),
+
+  /**
+   * `emotion`/`intent`/`safetyDisposition` are plain strings here, not
+   * `a.ref()` enums, even though `CompanionEmotion`/`CompanionIntent`/
+   * `SafetyDisposition` exist as schema enums (used for the *argument*
+   * side of `generateCompanionTurn` below, and for our own code's writes
+   * to `AIInteractionAudit`/`SafetyEvent`). Declaring them as enums here
+   * too made AppSync reject the entire generation response whenever
+   * Bedrock's structured output didn't match the enum literal exactly —
+   * confirmed live: GraphQL nulled out the whole `CompanionTurn` object
+   * (including a possibly-fine `spokenText`) on an enum mismatch, with no
+   * visibility into what the model actually returned (no query logging
+   * configured). `src/features/companion/schema.ts`'s
+   * `validateCompanionTurn` already re-validates these exact same values
+   * at the application layer (CLAUDE.md section 13: "Validate all
+   * external and AI-generated data at runtime") — that TypeScript check is
+   * the real safety gate, so the GraphQL-level enum constraint was
+   * redundant and, in practice, less safe than a plain string here.
+   */
+  CompanionTurn: a.customType({
+    spokenText: a.string().required(),
+    emotion: a.string().required(),
+    intent: a.string().required(),
+    choices: a.ref('CompanionChoice').array(),
+    safetyDisposition: a.string().required(),
+  }),
+
+  /**
+   * Single request-response AI generation route (CLAUDE.md section 7 —
+   * structured generation, never a free-form chat route). The systemPrompt
+   * is fixed (chattyPersona.ts); everything call-specific is a typed
+   * argument, so prompt-context minimization
+   * (docs/AI_AND_CHILD_SAFETY.md) is enforced by the schema itself: there
+   * is no field here for a parent email, legal name, exact birthdate, or
+   * raw free-text history. `src/features/companion/schema.ts` re-validates
+   * every response against this same shape at runtime before it reaches a
+   * child (CLAUDE.md section 13: "Validate all external and AI-generated
+   * data at runtime").
+   */
+  generateCompanionTurn: a
+    .generation({
+      aiModel: a.ai.model('Claude Haiku 4.5'),
+      systemPrompt: CHATTY_SYSTEM_PROMPT,
+      inferenceConfiguration: { temperature: 0.4, maxTokens: 300 },
+    })
+    .arguments({
+      ageBand: a.ref('AgeBand').required(),
+      intent: a.ref('CompanionIntent').required(),
+      stepSummary: a.string().required(),
+      maxLength: a.integer().required(),
+      learningObjectiveCode: a.string(),
+      hintLevel: a.integer(),
+      authoredBaseText: a.string(),
+      allowedChoiceIds: a.string().array(),
+    })
+    .returns(a.ref('CompanionTurn'))
+    .authorization((allow) => [allow.authenticated()]),
+
+  ValidationStatus: a.enum(['VALID', 'INVALID_SCHEMA', 'INVALID_CONTENT', 'ERROR']),
+
+  /** Metadata only, per DATA_MODEL.md's AIInteractionAudit — never raw child text. */
+  AIInteractionAudit: a
+    .model({
+      childProfileId: a.id().required(),
+      childProfile: a.belongsTo('ChildProfile', 'childProfileId'),
+      sessionId: a.string(),
+      stepId: a.string(),
+      routeName: a.string().required(),
+      promptTemplateVersion: a.integer().required(),
+      modelId: a.string().required(),
+      inputCategory: a.string().required(),
+      outputSchemaVersion: a.integer().required(),
+      validationStatus: a.ref('ValidationStatus').required(),
+      safetyDisposition: a.ref('SafetyDisposition').required(),
+      fallbackUsed: a.boolean().required(),
+      latencyMs: a.integer(),
+      createdAt: a.datetime().required(),
+    })
+    .authorization((allow) => [allow.owner()]),
+
+  SafetyEventSeverity: a.enum(['LOW', 'MEDIUM', 'HIGH']),
+  SafetyEventSource: a.enum(['INPUT', 'OUTPUT', 'SYSTEM']),
+  SafetyEventReviewStatus: a.enum(['OPEN', 'REVIEWED', 'DISMISSED']),
+
+  SafetyEvent: a
+    .model({
+      childProfileId: a.id().required(),
+      childProfile: a.belongsTo('ChildProfile', 'childProfileId'),
+      sessionId: a.string(),
+      category: a.string().required(),
+      severity: a.ref('SafetyEventSeverity').required(),
+      source: a.ref('SafetyEventSource').required(),
+      actionTaken: a.string().required(),
+      reviewStatus: a.ref('SafetyEventReviewStatus').required(),
       createdAt: a.datetime().required(),
     })
     .authorization((allow) => [allow.owner()]),

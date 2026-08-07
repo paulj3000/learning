@@ -3,15 +3,29 @@
 ## Current state
 
 Phase 0 foundation, Phase 1 (parent accounts and child profiles), Phase 2
-(island shell), and Phase 3 (deterministic adventure engine) are complete.
-Pathfinder-band children can now play a full adventure ("Repair the
-Moonlight Bridge" in Pirate Builder Bay), get hints when stuck, and see a
-persistent world change on the island. No AI is involved yet — that's
-Phase 4.
+(island shell), Phase 3 (deterministic adventure engine), and Phase 4
+(safe AI companion) are complete. Pathfinder-band children can now play a
+full adventure ("Repair the Moonlight Bridge" in Pirate Builder Bay), get
+hints when stuck (now optionally AI-phrased by Chatty the Parrot, with an
+authored fallback), see Chatty celebrate correct answers, and see a
+persistent world change on the island. Every AI response is schema- and
+content-validated before it can reach a child, and falls back to authored
+copy on any failure; correctness and step transitions remain 100%
+deterministic and are never touched by AI.
+
+`generateCompanionTurn` has been confirmed working against **live Amazon
+Bedrock** in this session (not just structurally deployed) — a real signed-in
+parent, a real child profile, and a real HINT-intent call all the way through
+to a validated `CompanionTurn` and a written `AIInteractionAudit` row. Getting
+there required diagnosing and fixing two real upstream Amplify AI Kit gaps;
+both are documented in detail in "Known risks/TODOs" and in code comments at
+their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
+neither is obvious from the Amplify docs and both will matter again if the
+Bedrock model choice ever changes.
 
 ## Current phase
 
-Phase 3 — Deterministic Adventure Engine: complete.
+Phase 4 — Safe AI Companion: complete.
 
 ## Completed
 
@@ -162,6 +176,87 @@ Phase 3 — Deterministic Adventure Engine: complete.
   `MATCHING`/`SHORT_RESPONSE`/`CREATIVE_CHOICE`/`REFLECTION` have engine-level
   validators but no renderer yet — no authored content needs them until a
   later adventure.
+- **Phase 4 — AI generation route** (`amplify/data/resource.ts`): a
+  `generateCompanionTurn` Amplify AI Kit `a.generation()` route backed by
+  Bedrock (`Claude Haiku 4.5`), matching CLAUDE.md section 7's pipeline —
+  structured generation, never a free-form chat route. Its `.arguments()`
+  are the only per-call input (`ageBand`, `intent`, `stepSummary`,
+  `maxLength`, and optional `learningObjectiveCode`/`hintLevel`/
+  `authoredBaseText`/`allowedChoiceIds`); the system prompt is fixed, so
+  prompt-context minimization (docs/AI_AND_CHILD_SAFETY.md) is enforced by
+  the schema itself — there is no field for parent email, legal name,
+  exact birthdate, or raw free text. Returns a `CompanionTurn` custom type
+  matching `AI_AND_CHILD_SAFETY.md`'s structured-response example
+  (`spokenText`, `emotion`, `intent`, `choices?`, `safetyDisposition`).
+  Authorized via `allow.authenticated()` (custom operations have no owner
+  field to scope by). Also added: `AIInteractionAudit` and `SafetyEvent`
+  models (DATA_MODEL.md shapes, owner-authorized like every other Phase
+  1-3 model) and a `ValidationStatus` enum.
+- **Phase 4 — Chatty persona** (`amplify/data/chattyPersona.ts`): the
+  fixed system prompt for `generateCompanionTurn`, encoding CLAUDE.md
+  section 6 (warm/curious/playful/concise, AI-powered island magic, never
+  claims to be human/conscious) and every boundary in
+  `AI_AND_CHILD_SAFETY.md` "Companion boundaries" (no requests for contact
+  info, no secrecy, no dependency pressure, no unsafe topics, redirect to
+  a trusted adult when something is off). Exports
+  `CHATTY_PERSONA_VERSION`, written to every audit row as
+  `promptTemplateVersion` so a safety review can tell which prompt
+  produced a given interaction. Per CLAUDE.md section 7 ("No single model
+  instruction is considered sufficient"), this prompt is one layer among
+  several — it is never trusted on its own.
+- **Phase 4 — Validation and fallback pipeline**
+  (`src/features/companion/`): `schema.ts` defines the `CompanionTurn`
+  types independently of the generated Amplify `Schema` (the AI response
+  is treated as `unknown` until validated — CLAUDE.md section 13) and
+  `validateCompanionTurn` checks structure, that `intent` matches what was
+  requested (or has escalated to `REDIRECT`, which is always allowed),
+  spoken-text length against the caller's age-banded limit, and that any
+  offered `choices` are a subset of the caller-supplied
+  `allowedChoiceIds` — the model can never invent an action ID.
+  `src/lib/ai/contentSafety.ts` holds the reusable, heuristic URL and
+  personal-information-request detectors used by that validator.
+  `limits.ts` holds `MAX_SPOKEN_LENGTH_BY_AGE_BAND` (age-banded output
+  limits, CLAUDE.md section 3). `fallback.ts` holds one authored,
+  non-AI `CompanionTurn` per intent (CLAUDE.md section 7: "Every response
+  must have a safe fallback authored in code"); a HINT fallback prefers
+  the adventure's own authored hint text over the generic line when one
+  is available. `api.ts`'s `requestCompanionTurn` ties it together: calls
+  the route, validates the response, falls back to authored content on
+  any error/invalid output/non-`ALLOW` safety disposition, and always
+  resolves (never throws) so a companion turn is always safe to render.
+  It also writes one `AIInteractionAudit` row per call (metadata only —
+  route, prompt version, model ID, validation status, safety disposition,
+  fallback flag, latency; never raw child or AI text) and, whenever the
+  safety disposition is not `ALLOW`, one `SafetyEvent` row. Both writes
+  are best-effort (swallowed on failure) so a logging problem can never
+  block or hide a companion turn from the child.
+- **Phase 4 — Companion UI** (`useCompanionTurn.ts`,
+  `CompanionBubble.tsx`): a small state-machine hook
+  (`idle`/`loading`/`ready`/`error`) around `requestCompanionTurn`, and a
+  presentation component covering the loading, response, and fallback
+  states from `docs/TESTING_STRATEGY.md` — a validation failure or a
+  non-`ALLOW` disposition already becomes authored fallback content
+  upstream, so it renders exactly like any other companion turn rather
+  than as a distinct "invalid" state.
+- **Phase 4 — Adventure wiring** (`useAdventureSession.ts`,
+  `AdventureRunner.tsx`, `AdventurePage.tsx`): `useAdventureSession` now
+  takes the child's `ageBand` and fires a `CELEBRATE` companion turn after
+  any answer that resolves to `correct`, and a `HINT` companion turn
+  (grounded in the authored hint text via `authoredBaseText`) whenever
+  `requestHint` escalates the hint ladder. Both calls are fire-and-forget
+  local UI state — they never gate or influence `submitAnswer`'s call
+  into `getNextStepId`, so AI unavailability cannot block gameplay.
+  `AdventureRunner` renders a `CompanionBubble` for the current companion
+  turn. `AdventurePage` now fetches the child's profile (for `ageBand`),
+  matching the pattern already used by `IslandLocationPage`.
+- Unit tests for `contentSafety.ts`, `schema.ts`'s `validateCompanionTurn`
+  (12 cases: valid turn, non-object, empty text, unknown emotion,
+  intent/escalation rules, length limit, URL, personal-info request,
+  disallowed/allowed choices), and `fallback.ts` (every fallback turn
+  passes its own validator at the strictest age-band limit); component
+  tests for `CompanionBubble` (idle/loading/error/AI/fallback/choices) and
+  `useCompanionTurn` (idle -> loading -> ready, fallback surfaced as
+  `ready`, unexpected throw surfaced as `error`).
 - **Phase 3 — Location/log wiring**: `IslandLocationPage` now fetches the
   child's age band and this location's world changes, and shows "Start"/
   "Play again" when a template exists and the age band is supported, "not
@@ -178,12 +273,14 @@ Phase 3 — Deterministic Adventure Engine: complete.
 
 ## Next task
 
-Begin Phase 4 (Safe AI Companion) per `docs/ROADMAP.md`: a structured AI
-generation route, the Chatty persona template, age-banded output schemas and
-limits, a validation/fallback pipeline, audit metadata, and AI-assisted
-dialogue/hints layered onto Pirate Builder Bay's existing deterministic
-adventure (AI may vary presentation and hint phrasing but must never decide
-correctness or transitions — that stays in `src/features/adventures/engine/`).
+Begin Phase 5 (Storykeeper Castle) per `docs/ROADMAP.md`: a bounded
+collaborative story adventure where the child supplies characters, choices,
+and ideas, AI creates short scene variations (reusing the Phase 4
+`generateCompanionTurn` pattern — likely a second generation route or an
+extended `CompanionTurn`-shaped return for story beats), comprehension and
+sequencing moments, and a generated story artifact with parent-controlled
+retention (new territory: this is the first feature that persists an
+AI-generated artifact rather than only ever-validated structured dialogue).
 
 ## Verification (this session)
 
@@ -193,27 +290,155 @@ correctness or transitions — that stays in `src/features/adventures/engine/`).
   from one file, and `ParentGate.tsx` uses `role="dialog"` on a `div` rather
   than a native `<dialog>`; both deliberate, kept as warnings).
 - `npm run format:check` — passed.
-- `npm run test` — passed (18 files, 81 tests).
+- `npm run test` — passed (23 files, 120 tests).
 - `npm run build` — passed (same informational chunk-size warning for the
   `aws-amplify` SDK bundle as every prior phase; still a premature
   optimization for an MVP with no traffic yet).
-- `npm run test:e2e` — passed (3 tests, Chromium; unchanged from Phase 1/2 —
-  the new adventure routes require a signed-in parent against a real
-  deployed backend, which isn't reachable in this sandbox).
-- `npx ampx sandbox` was **not** run against a real AWS account this session
-  (requires AWS credentials; `.claude/settings.json` denies `aws:*` commands
-  in this environment, and deploying cloud resources is a user decision).
-  The backend was verified structurally instead: `amplify/data/resource.ts`
-  type-checks under `amplify/tsconfig.json`. One real Amplify constraint was
-  found this way: `a.ref(...)` (enum) fields do not support `.default()` in
-  the installed `@aws-amplify/data-schema` version (`RefType` has no
-  `default` method, unlike `a.boolean()`/`a.string()`, etc.) — `status` on
-  `AdventureSession` is `.ref('SessionStatus').required()` with no schema
-  default; `startSession` in `api.ts` sets `status: 'ACTIVE'` explicitly on
-  create instead.
+- `npm run test:e2e` — passed (3 tests, Chromium; unchanged from Phase 1-3 —
+  they still only cover unauthenticated routes).
+- `npx ampx sandbox` **was run** against a real AWS account (region
+  `us-west-1`) by the user and deployed successfully after one fix (see
+  below). With `amplify_outputs.json` now present, the full local suite
+  was re-run end to end and all still passed, and the dev server boots and
+  serves `200` against the live backend config.
+- **Deployed-schema verification**: read back the live
+  `amplify_outputs.json` and the synthesized CDK templates in
+  `.amplify/artifacts/cdk.out/` and confirmed, byte-for-byte, that they
+  match what `amplify/data/resource.ts` declares:
+  - `model_introspection.generations.generateCompanionTurn` exists with
+    exactly the 8 arguments declared in `resource.ts`, returning
+    `CompanionTurn`.
+  - `model_introspection.models` includes `AIInteractionAudit` and
+    `SafetyEvent`; `nonModels` includes `CompanionTurn`/`CompanionChoice`;
+    all 6 new enums are present.
+  - The generated `model-schema.graphql` shows the AppSync `@generation`
+    directive with `aiModel: "global.anthropic.claude-haiku-4-5-..."`, our
+    persona text verbatim (correctly escaped as a normal double-quoted
+    GraphQL string, `\n`-joined), and `@auth(rules: [{allow: private}])` —
+    confirming `allow.authenticated()` compiled as intended.
+  - The nested stack for the Bedrock HTTP data source grants its IAM role
+    exactly one statement: `bedrock:InvokeModel` scoped to
+    `arn:aws:bedrock:us-west-1::foundation-model/global.anthropic.claude-haiku-4-5-20251001-v1:0`
+    — least-privilege, no wildcard resource, auto-wired by Amplify AI Kit
+    with no `backend.ts` changes needed, as expected.
+- **One deploy-time bug found and fixed this session**: the persona prompt
+  in `amplify/data/chattyPersona.ts` used straight double quotes around
+  field names (`"intent"`, `"authoredBaseText"`, etc.). AI Kit embeds
+  `systemPrompt` as a plain double-quoted GraphQL string (not a `"""`
+  block string), so those inner quotes terminated the string literal
+  early and broke the generated SDL — surfaced as `ampx sandbox` failing
+  with `[InvalidSchemaError] ... Expected ":", found String`. Fixed by
+  switching to single quotes throughout the prompt; redeployed clean.
+  Lesson for any future AI Kit `systemPrompt` text: never use `"` inside
+  it.
+- **`generateCompanionTurn` was called against live Amazon Bedrock and
+  confirmed working, end to end.** The user signed up and confirmed a real
+  parent account; from there a throwaway "AI Live Check" child profile and
+  a direct `HINT`-intent call reached Bedrock for real (~1.4s latency),
+  returned a well-formed `CompanionTurn`, passed `validateCompanionTurn`,
+  and wrote an `AIInteractionAudit` row with `validationStatus: VALID` and
+  `fallbackUsed: false`. Getting there surfaced two real upstream Amplify
+  AI Kit gaps, both fixed this session and documented below and at their
+  fix sites: a cross-Region inference IAM permissions gap
+  (`amplify/backend.ts`) and a GraphQL enum serialization fragility
+  (`amplify/data/resource.ts`'s `CompanionTurn` type). The model's actual
+  behavior: for a `HINT` turn grounded with `authoredBaseText`, it
+  reused the authored text close to verbatim rather than rephrasing it —
+  safe (matches the "never contradict the authored text" instruction) but
+  not yet demonstrating creative rephrasing; worth another look once the
+  AI evaluation suite (below) exists to check this systematically rather
+  than from one sample.
 
 ## Known risks / TODOs
 
+- **Amplify AI Kit does not correctly grant IAM permissions for
+  cross-Region ("Global") Bedrock inference profiles** — confirmed via a
+  live `AccessDeniedException` that persisted through Bedrock model access
+  and an active AWS Marketplace subscription, then root-caused by reading
+  `@aws-amplify/graphql-generation-transformer`'s source directly: its
+  `createBedrockDataSourceRole` only ever grants `bedrock:InvokeModel` on
+  a single `foundation-model/<modelId>` ARN, with no handling for
+  `global.`-prefixed model IDs, which are actually a different IAM
+  resource type (`inference-profile`) requiring three separate ARNs (the
+  inference-profile ARN, a region-scoped foundation-model ARN, and an
+  unscoped global foundation-model ARN — all three are needed because a
+  Global profile can route to any commercial Region). `Claude Haiku 4.5`
+  has no direct in-Region option at all in `us-west-1` — only Geo/Global
+  routing — so this isn't avoidable by picking a different model while
+  staying in this Region. Matches an open upstream issue,
+  [aws-amplify/docs#8121](https://github.com/aws-amplify/docs/issues/8121)
+  ("AI kit does not support Cross-region inference"). **Fixed** with a CDK
+  escape-hatch in `amplify/backend.ts` that reaches
+  `backend.data.resources.nestedStacks['GenerationBedrockDataSource...Stack']`
+  and adds the missing policy statement directly to the auto-generated
+  role. This is inherently a bit fragile — it depends on Amplify's
+  internal (but deterministic, field-name-derived) construct naming not
+  changing — revisit if a future `@aws-amplify/backend`/`data-construct`
+  upgrade changes generation-route internals, or once upstream fixes
+  #8121 (at which point this patch likely becomes unnecessary).
+- **Amplify AI Kit's generated GraphQL schema declared `CompanionTurn`'s
+  `emotion`/`intent`/`safetyDisposition` as strict GraphQL enums, which
+  is unsafe for AI output.** Real Bedrock output was observed returning
+  correct values in unexpected case (`"curious"` instead of `"CURIOUS"`),
+  which AppSync's enum serialization rejects outright — and critically,
+  AppSync nulls out the *entire* response object when any nested field
+  fails to serialize, destroying an otherwise-fine `spokenText` along with
+  it, with no visibility into the raw value (no query logging configured).
+  **Fixed** by declaring those three fields as plain `a.string()` in
+  `amplify/data/resource.ts` and relying entirely on
+  `validateCompanionTurn`'s existing application-level check (which now
+  also normalizes case before comparing, in `schema.ts`'s
+  `normalizeEnumValue`). This is the correct end state, not just a
+  workaround: CLAUDE.md section 7 already says correctness/safety
+  validation belongs in application code, not a single upstream layer, and
+  in practice the GraphQL-level enum constraint was strictly less safe
+  than not having it, since a harmless casing difference triggered total
+  data loss on the whole payload rather than a targeted, recoverable
+  fallback.
+- Both fixes above still leave one open question for later: whether
+  `bedrock:InvokeModelWithResponseStream` is ever needed (the generation
+  transformer's resolver currently only issues a non-streaming
+  `InvokeModel` call, so it wasn't added) — revisit if Amplify AI Kit adds
+  streaming support for generation routes.
+- **`docs/TESTING_STRATEGY.md`'s "AI evaluation suite" (fixed test cases by
+  age band covering output length, vocabulary, PII requests, secrecy/
+  dependency language, unsafe topics, prompt injection, invalid action
+  IDs, misleading content, excessive praise/shame, hint-level correctness,
+  graceful uncertainty) has not been built.** What shipped instead is
+  `validateCompanionTurn`'s unit tests, which exercise the *validator*
+  against synthetic payloads, not a real model's actual behavior under
+  those conditions. Building the real eval suite needs a deployed
+  backend and is meaningfully separate work — track as a Phase 4 follow-up
+  before wider release, not blocking for this MVP milestone.
+- **Child free-text input is out of scope for this wiring.** The `intent`
+  values this phase sends to the model (`HINT`, `CELEBRATE`) never
+  include child-authored free text — hint requests and celebrations are
+  triggered by structured game state, not typed input, and no step
+  renderer for `SHORT_RESPONSE` exists yet (Phase 3 note, still true).
+  `docs/AI_AND_CHILD_SAFETY.md`'s "Child input policy" (reject/redirect
+  rules for contact details, sexual content, etc., applied to what a
+  *child* says) is therefore not yet exercised end-to-end; it becomes
+  relevant once a free-text or open-ended-choice step exists (expected in
+  Phase 5's collaborative storytelling).
+- `COMPANION_MODEL_ID` in `src/features/companion/api.ts` (written to
+  `AIInteractionAudit.modelId`) is a human-readable label
+  (`'anthropic.claude-haiku-4-5'`), not necessarily the exact Bedrock
+  `resourcePath` Amplify resolves `a.ai.model('Claude Haiku 4.5')` to
+  (`global.anthropic.claude-haiku-4-5-...`, per
+  `@aws-amplify/data-schema`'s internal model lookup table). Fine for
+  observability today; revisit if audit rows need to exactly match a
+  billing/model-selection record.
+- `AIInteractionAudit` and `SafetyEvent` are owner-authorized like every
+  other Phase 1-3 model, so a parent's authenticated session can read
+  their own child's rows directly — there is still no admin/reviewer
+  group (same gap already tracked for Phase 3's models). `CLAUDE.md`
+  section 2's "Administrator/content designer" reviewing flagged
+  interactions "without exposing unnecessary child data" is not yet
+  buildable until that role exists.
+- Bedrock model choice (`Claude Haiku 4.5`, chosen for low latency/cost on
+  short structured turns) is a placeholder, consistent with "Bedrock model
+  selection by region, capability, latency, and cost" already being listed
+  under "Decisions pending" before this phase.
 - `npm ci` fails with a false-positive `EUSAGE`/"Missing: X from lock file" error
   (`@opentelemetry/core@2.0.0`, `yaml@1.10.3`) even against a freshly generated
   `package-lock.json`. Root cause: `@aws-amplify/data-construct` and

@@ -20,6 +20,9 @@ import {
   upsertSkillProgress,
   type AdventureSession,
 } from './api';
+import { useCompanionTurn } from '../companion/useCompanionTurn';
+import type { CompanionTurnState } from '../companion/useCompanionTurn';
+import type { AgeBandValue } from '../child-profile/constants';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
@@ -55,6 +58,7 @@ export interface AdventureSessionState {
   error: string | null;
   submitAnswer: (answer: StepAnswer) => Promise<void>;
   requestHint: () => void;
+  companionTurn: CompanionTurnState;
 }
 
 /**
@@ -62,11 +66,14 @@ export interface AdventureSessionState {
  * the session, validates answers, escalates the hint ladder, and drives
  * every transition through the deterministic engine (CLAUDE.md section 7 —
  * no AI decides correctness or transitions). Keeps that logic out of
- * components entirely (CLAUDE.md section 13).
+ * components entirely (CLAUDE.md section 13). Also requests AI-phrased
+ * companion dialogue for hints and celebrations (Phase 4) — this only ever
+ * varies presentation; it never influences what `getNextStepId` decides.
  */
 export function useAdventureSession(
   childProfileId: string,
   definition: AdventureDefinition,
+  ageBand: AgeBandValue,
 ): AdventureSessionState {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [session, setSession] = useState<AdventureSession | null>(null);
@@ -74,6 +81,7 @@ export function useAdventureSession(
   const [submitting, setSubmitting] = useState(false);
   const [progressByStep, setProgressByStep] = useState<Record<string, StepProgress>>({});
   const autoAdvancedStepRef = useRef<string | null>(null);
+  const { state: companionTurn, request: requestCompanion } = useCompanionTurn();
 
   useEffect(() => {
     let cancelled = false;
@@ -193,6 +201,17 @@ export function useAdventureSession(
         if (correctness !== 'not_applicable') {
           await recordEvidenceForStep(currentStep, session.id, correctness, supportLevel);
         }
+        if (correctness === 'correct') {
+          void requestCompanion({
+            childProfileId,
+            ageBand,
+            intent: 'CELEBRATE',
+            stepSummary: currentStep.id,
+            sessionId: session.id,
+            stepId: currentStep.id,
+            learningObjectiveCode: currentStep.objectiveIds[0],
+          });
+        }
         const nextStepId = getNextStepId(currentStep, correctness);
         await advance(nextStepId);
       } catch {
@@ -201,19 +220,43 @@ export function useAdventureSession(
         setSubmitting(false);
       }
     },
-    [session, currentStep, currentProgress, advance, recordEvidenceForStep],
+    [
+      session,
+      currentStep,
+      currentProgress,
+      advance,
+      recordEvidenceForStep,
+      requestCompanion,
+      childProfileId,
+      ageBand,
+    ],
   );
 
   const requestHint = useCallback(() => {
     if (!currentStep) return;
+    const newLevel = nextHintLevel(progressByStep[currentStep.id]?.hintLevel ?? 0);
     setProgressByStep((prev) => ({
       ...prev,
       [currentStep.id]: {
-        hintLevel: nextHintLevel(prev[currentStep.id]?.hintLevel ?? 0),
+        hintLevel: newLevel,
         attemptNumber: prev[currentStep.id]?.attemptNumber ?? 0,
       },
     }));
-  }, [currentStep]);
+    const authoredHintText = getHintText(currentStep, newLevel);
+    if (authoredHintText && session) {
+      void requestCompanion({
+        childProfileId,
+        ageBand,
+        intent: 'HINT',
+        stepSummary: currentStep.id,
+        sessionId: session.id,
+        stepId: currentStep.id,
+        learningObjectiveCode: currentStep.objectiveIds[0],
+        hintLevel: newLevel,
+        authoredBaseText: authoredHintText,
+      });
+    }
+  }, [currentStep, progressByStep, session, requestCompanion, childProfileId, ageBand]);
 
   useEffect(() => {
     if (!session || !currentStep) return;
@@ -262,5 +305,6 @@ export function useAdventureSession(
     error,
     submitAnswer,
     requestHint,
+    companionTurn,
   };
 }
