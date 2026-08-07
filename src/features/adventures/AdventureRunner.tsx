@@ -6,6 +6,7 @@ import { NarrativeStep } from './steps/NarrativeStep';
 import { ChoiceStep } from './steps/ChoiceStep';
 import { NumberInputStep } from './steps/NumberInputStep';
 import { OrderingStep } from './steps/OrderingStep';
+import { ReflectionStep } from './steps/ReflectionStep';
 import { CompanionBubble } from '../companion/CompanionBubble';
 import type { AdventureDefinition } from './engine/types';
 import type { AgeBandValue } from '../child-profile/constants';
@@ -40,6 +41,7 @@ export function AdventureRunner({
     submitAnswer,
     requestHint,
     companionTurn,
+    storyScenes,
   } = useAdventureSession(childProfileId, definition, ageBand);
 
   if (loadState === 'loading') {
@@ -101,12 +103,41 @@ export function AdventureRunner({
         />
       ) : null}
 
+      {presentation.kind === 'creative-choice' ? (
+        <ChoiceStep
+          key={currentStep.id}
+          prompt={presentation.prompt}
+          options={presentation.options}
+          disabled={submitting}
+          onSelect={(optionId) => void submitAnswer({ kind: 'creative-choice', optionId })}
+        />
+      ) : null}
+
+      {presentation.kind === 'reflection' ? (
+        <ReflectionStep
+          key={currentStep.id}
+          prompt={presentation.prompt}
+          disabled={submitting}
+          onContinue={() => void submitAnswer({ kind: 'reflection' })}
+        />
+      ) : null}
+
       {presentation.kind === 'world-change' ? <p>{presentation.text}</p> : null}
 
       {presentation.kind === 'complete' ? (
         <div className={styles.completeCard}>
           <h1 className={styles.completeHeading}>Adventure complete!</h1>
           <p className={styles.completeText}>{presentation.text}</p>
+          {storyScenes.length > 0 ? (
+            <div className={styles.storyRecap}>
+              <h2 className={styles.storyRecapHeading}>Your story</h2>
+              {storyScenes.map((scene) => (
+                <p key={scene.stepId} className={styles.storyRecapText}>
+                  {scene.text}
+                </p>
+              ))}
+            </div>
+          ) : null}
           <Link to={backToMapHref}>Back to the map</Link>
         </div>
       ) : null}

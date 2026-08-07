@@ -16,9 +16,11 @@ import {
   recordAction,
   recordSkillEvidence,
   recordWorldChangeOnce,
+  saveStoryArtifact,
   startSession,
   upsertSkillProgress,
   type AdventureSession,
+  type StoryScene,
 } from './api';
 import { useCompanionTurn } from '../companion/useCompanionTurn';
 import type { CompanionTurnState } from '../companion/useCompanionTurn';
@@ -59,6 +61,8 @@ export interface AdventureSessionState {
   submitAnswer: (answer: StepAnswer) => Promise<void>;
   requestHint: () => void;
   companionTurn: CompanionTurnState;
+  /** AI-narrated story beats accumulated so far (Storykeeper Castle only; empty otherwise). */
+  storyScenes: StoryScene[];
 }
 
 /**
@@ -80,6 +84,7 @@ export function useAdventureSession(
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [progressByStep, setProgressByStep] = useState<Record<string, StepProgress>>({});
+  const [storyScenes, setStoryScenes] = useState<StoryScene[]>([]);
   const autoAdvancedStepRef = useRef<string | null>(null);
   const { state: companionTurn, request: requestCompanion } = useCompanionTurn();
 
@@ -212,6 +217,31 @@ export function useAdventureSession(
             learningObjectiveCode: currentStep.objectiveIds[0],
           });
         }
+        if (
+          currentStep.type === 'CREATIVE_CHOICE' &&
+          currentStep.presentation.kind === 'creative-choice' &&
+          answer.kind === 'creative-choice'
+        ) {
+          const chosenOption = currentStep.presentation.options.find(
+            (option) => option.id === answer.optionId,
+          );
+          const stepId = currentStep.id;
+          void requestCompanion({
+            childProfileId,
+            ageBand,
+            intent: 'NARRATE',
+            stepSummary: `Narrate a short story moment for "${chosenOption?.label ?? 'the child’s idea'}", the child's answer to "${currentStep.presentation.prompt}".`,
+            sessionId: session.id,
+            stepId,
+            learningObjectiveCode: currentStep.objectiveIds[0],
+          }).then((result) => {
+            if (!result) return;
+            setStoryScenes((prev) => [
+              ...prev,
+              { stepId, text: result.turn.spokenText, source: result.source },
+            ]);
+          });
+        }
         const nextStepId = getNextStepId(currentStep, correctness);
         await advance(nextStepId);
       } catch {
@@ -274,6 +304,15 @@ export function useAdventureSession(
             payload.changeKey,
             session.id,
           );
+          if (storyScenes.length > 0) {
+            await saveStoryArtifact(
+              childProfileId,
+              session.id,
+              definition.slug,
+              definition.title,
+              storyScenes,
+            );
+          }
           await advance(getNextStepId(currentStep, 'not_applicable'));
         } catch {
           setError('Something went wrong saving your progress on the island.');
@@ -293,7 +332,15 @@ export function useAdventureSession(
         }
       })();
     }
-  }, [session, currentStep, childProfileId, advance]);
+  }, [
+    session,
+    currentStep,
+    childProfileId,
+    advance,
+    storyScenes,
+    definition.slug,
+    definition.title,
+  ]);
 
   return {
     loadState,
@@ -306,5 +353,6 @@ export function useAdventureSession(
     submitAnswer,
     requestHint,
     companionTurn,
+    storyScenes,
   };
 }

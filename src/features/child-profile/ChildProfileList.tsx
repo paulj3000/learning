@@ -50,6 +50,12 @@ export function ChildProfileList({ childProfiles, onToggleActive }: ChildProfile
                 <Link className={styles.buttonSecondary} to={`/parent/children/${child.id}/edit`}>
                   Edit
                 </Link>
+                <Link
+                  className={styles.buttonSecondary}
+                  to={`/parent/children/${child.id}/stories`}
+                >
+                  Story keepsakes
+                </Link>
                 <button
                   className={styles.buttonSecondary}
                   type="button"

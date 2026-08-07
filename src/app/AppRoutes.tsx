@@ -8,6 +8,7 @@ import { ForgotPassword } from '../routes/ForgotPassword';
 import { ParentDashboard } from '../routes/ParentDashboard';
 import { ChildProfileNew } from '../routes/ChildProfileNew';
 import { ChildProfileEdit } from '../routes/ChildProfileEdit';
+import { StoryKeepsakes } from '../routes/StoryKeepsakes';
 import { WelcomeHarbor } from '../routes/WelcomeHarbor';
 import { IslandLocationPage } from '../routes/IslandLocationPage';
 import { AdventurePage } from '../routes/AdventurePage';
@@ -58,6 +59,14 @@ export function AppRoutes() {
         element={
           <RequireParent>
             <ChildProfileEdit />
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/parent/children/:childId/stories"
+        element={
+          <RequireParent>
+            <StoryKeepsakes />
           </RequireParent>
         }
       />

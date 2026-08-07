@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { requestCompanionTurn } from './api';
-import type { RequestCompanionTurnInput } from './api';
+import type { RequestCompanionTurnInput, CompanionTurnResult } from './api';
 import type { CompanionTurn } from './schema';
 
 export type CompanionTurnState =
@@ -11,7 +11,7 @@ export type CompanionTurnState =
 
 export interface UseCompanionTurn {
   state: CompanionTurnState;
-  request: (input: RequestCompanionTurnInput) => Promise<void>;
+  request: (input: RequestCompanionTurnInput) => Promise<CompanionTurnResult | undefined>;
 }
 
 /**
@@ -31,8 +31,10 @@ export function useCompanionTurn(): UseCompanionTurn {
     try {
       const result = await requestCompanionTurn(input);
       setState({ status: 'ready', turn: result.turn, source: result.source });
+      return result;
     } catch {
       setState({ status: 'error' });
+      return undefined;
     }
   }, []);
 

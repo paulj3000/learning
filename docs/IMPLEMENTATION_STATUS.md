@@ -3,15 +3,24 @@
 ## Current state
 
 Phase 0 foundation, Phase 1 (parent accounts and child profiles), Phase 2
-(island shell), Phase 3 (deterministic adventure engine), and Phase 4
-(safe AI companion) are complete. Pathfinder-band children can now play a
-full adventure ("Repair the Moonlight Bridge" in Pirate Builder Bay), get
-hints when stuck (now optionally AI-phrased by Chatty the Parrot, with an
-authored fallback), see Chatty celebrate correct answers, and see a
-persistent world change on the island. Every AI response is schema- and
-content-validated before it can reach a child, and falls back to authored
-copy on any failure; correctness and step transitions remain 100%
-deterministic and are never touched by AI.
+(island shell), Phase 3 (deterministic adventure engine), Phase 4 (safe AI
+companion), and Phase 5 (Storykeeper Castle) are complete. Pathfinder-band
+children can now play a full adventure in either of two locations: "Repair
+the Moonlight Bridge" in Pirate Builder Bay, and "The Storykeeper's Tale"
+in Storykeeper Castle, a bounded collaborative story where the child picks
+a hero and setting from curated options, Chatty narrates a short AI-varied
+scene for each choice, the child answers a comprehension check and orders
+the story's beats, and the finished story is saved as a parent-viewable,
+parent-deletable `StoryArtifact`. Both adventures get hints when stuck
+(optionally AI-phrased by Chatty the Parrot, with an authored fallback),
+see Chatty celebrate correct answers, and end in a persistent world change
+on the island. Every AI response is schema- and content-validated before
+it can reach a child, and falls back to authored copy on any failure;
+correctness and step transitions remain 100% deterministic and are never
+touched by AI — Storykeeper Castle's comprehension/sequencing steps are
+deliberately anchored to fixed, authored narrative text rather than to any
+AI-generated scene, so this holds even though the location "runs on" AI
+narration for its creative beats.
 
 `generateCompanionTurn` has been confirmed working against **live Amazon
 Bedrock** in this session (not just structurally deployed) — a real signed-in
@@ -25,7 +34,7 @@ Bedrock model choice ever changes.
 
 ## Current phase
 
-Phase 4 — Safe AI Companion: complete.
+Phase 5 — Storykeeper Castle: complete.
 
 ## Completed
 
@@ -270,19 +279,118 @@ Phase 4 — Safe AI Companion: complete.
   `OrderingStep`, `HintPanel`. No new route-level tests, consistent with
   every existing route (`WelcomeHarbor`, etc.) having none — they need a live
   backend to exercise meaningfully.
+- **Phase 5 — Data backend** (`amplify/data/resource.ts`): a `StoryArtifact`
+  model (`childProfileId`, `sessionId`, `templateSlug`, `title`, `scenes`
+  as `a.json()`, `createdAt`), owner-authorized like every other model, plus
+  a `hasMany`/`belongsTo` link to `ChildProfile`. No new AI generation
+  route: per the recommended, user-confirmed approach, scene narration
+  reuses the existing Phase 4 `generateCompanionTurn` route with
+  `intent: 'NARRATE'` rather than standing up a second Bedrock route and
+  repeating Phase 4's IAM/enum-safety wiring.
+- **Phase 5 — Companion layer** (`src/features/companion/useCompanionTurn.ts`):
+  `request` now returns the resolved `CompanionTurnResult` (previously
+  `Promise<void>`) so a caller can capture *which* scene text came back
+  for a specific step, not just observe the hook's single shared `state`.
+  Purely additive — every existing caller already discarded the return
+  value (`void requestCompanion(...)`).
+- **Phase 5 — Adventure content**
+  (`src/features/adventures/content/theStorykeepersTale.ts`): "The
+  Storykeeper's Tale", scoped to `ageBands: ['PATHFINDER']` (same
+  first-adventure-per-location precedent as Phase 3's Bridge adventure) —
+  meet Keeper Quill, pick a hero and a setting (`CREATIVE_CHOICE`, curated
+  options only, no free text per `docs/AI_AND_CHILD_SAFETY.md`'s child
+  input policy), a comprehension check and a sequencing/`ORDERING` step
+  both anchored to a **fixed, authored** narrative line rather than to any
+  AI-generated scene text (keeps correctness deterministic per CLAUDE.md
+  section 7 no matter what Chatty narrates), a `REFLECTION` beat, a
+  `WORLD_CHANGE` (`STORY_CREATED`/`FIRST_STORY_TOLD`), then `COMPLETE`.
+  Needed zero changes to the engine itself — every step type it uses
+  (`CREATIVE_CHOICE`, `REFLECTION` included) was already fully specified
+  and validated by the Phase 3 engine. Three new learning objectives added
+  to `learningObjectives.ts` (`creative-storytelling`,
+  `reading-comprehension`, `sequencing`); registered in `content/index.ts`.
+  `src/features/island/locations.ts` and `IslandLocationPage.tsx` needed
+  **no changes** — they already generically pick up any adventure whose
+  `locationSlug` matches and swap decoration text on a matching
+  `WorldChange`; same for `AdventureLog.tsx`.
+- **Phase 5 — Scene capture and story persistence**
+  (`src/features/adventures/useAdventureSession.ts`,
+  `src/features/adventures/api.ts`): on a `CREATIVE_CHOICE` answer, fires
+  a fire-and-forget `NARRATE` companion request (same "never gates
+  `getNextStepId`/`advance`" invariant as the existing HINT/CELEBRATE
+  calls) and, on resolution, appends `{ stepId, text, source }` to a new
+  `storyScenes` state array. When the adventure's `WORLD_CHANGE` step
+  auto-advances, if `storyScenes` is non-empty it's saved as one
+  `StoryArtifact` via the new `saveStoryArtifact` (not deduplicated like
+  `recordWorldChangeOnce` — each play-through is a distinct new story, not
+  a repeatable world state). `storyScenes` is returned from the hook.
+  **Known timing gap**: if the narration request for the *last*
+  `CREATIVE_CHOICE` step is still in flight when the child reaches
+  `WORLD_CHANGE`, that scene can be missed from the saved artifact — same
+  category of limitation as the existing in-memory hint-ladder note below,
+  accepted for MVP given the several intervening steps' worth of natural
+  delay in this adventure's authored flow.
+- **Phase 5 — UI** (`src/features/adventures/AdventureRunner.tsx`,
+  `src/features/adventures/steps/ReflectionStep.tsx`): `CREATIVE_CHOICE`
+  reuses the existing `ChoiceStep` component as-is (it never referenced
+  correctness); one new small `ReflectionStep` component (prompt +
+  Continue, no speaker line, since a reflection beat is the child's own
+  pause rather than a character's dialogue). The adventure's `complete`
+  card now shows a "Your story" recap of every captured scene when
+  `storyScenes` is non-empty.
+- **Phase 5 — Parent-facing story keepsakes** (`src/routes/StoryKeepsakes.tsx`,
+  new route `/parent/children/:childId/stories`): lists every saved
+  `StoryArtifact` for a child (title, date, scene count and text) with a
+  "Delete" button that reveals an inline "Are you sure? Delete / Cancel"
+  confirmation before calling the new `deleteStoryArtifact` — this is the
+  parent-controlled retention `docs/ROADMAP.md` calls for. Deliberately
+  view-and-delete only, per the user-confirmed scope: no auto-expiry/
+  retention-schedule setting, since that policy is still an open
+  "Decisions pending" item and building one now would pull that decision
+  forward. Linked from a new "Story keepsakes" entry per child card in
+  `ChildProfileList.tsx`.
+- Unit tests: `theStorykeepersTale.test.ts` (structural guard, same shape
+  as `repairTheMoonlightBridge.test.ts`, plus checks that creative-choice
+  steps offer curated options and that the comprehension check is anchored
+  to authored content); `ReflectionStep.test.tsx`; `useCompanionTurn.test.ts`
+  updated for the new `request` return type. No new tests for the thin
+  `api.ts` wrapper functions (`saveStoryArtifact`/`listStoryArtifacts`/
+  `deleteStoryArtifact`) or for `StoryKeepsakes.tsx` — consistent with the
+  existing, already-documented precedent that every other `api.ts` module
+  and every other route has none, since they need a live backend to
+  exercise meaningfully.
 
 ## Next task
 
-Begin Phase 5 (Storykeeper Castle) per `docs/ROADMAP.md`: a bounded
-collaborative story adventure where the child supplies characters, choices,
-and ideas, AI creates short scene variations (reusing the Phase 4
-`generateCompanionTurn` pattern — likely a second generation route or an
-extended `CompanionTurn`-shaped return for story beats), comprehension and
-sequencing moments, and a generated story artifact with parent-controlled
-retention (new territory: this is the first feature that persists an
-AI-generated artifact rather than only ever-validated structured dialogue).
+Begin Phase 6 (Wonderwild Forest) per `docs/ROADMAP.md`: curated Wonder
+Wall question categories, bounded curiosity-to-adventure generation, one
+complete nature/science adventure, evidence-based content templates and a
+source-review workflow, and a safe fallback when a question is out of
+scope.
 
-## Verification (this session)
+## Verification (Phase 5 session)
+
+- `npm run typecheck` — passed (`tsc -b` and `amplify/tsconfig.json`).
+- `npm run lint` — passed (same 2 pre-existing-style warnings as every prior
+  phase, not errors — see below).
+- `npm run format:check` — passed.
+- `npm run test` — passed (26 files, 138 tests, up from 23 files/120 tests).
+- `npm run build` — passed (same informational chunk-size warning as every
+  prior phase).
+- `npm run test:e2e` — passed (3 tests, Chromium; unchanged — they still
+  only cover unauthenticated routes).
+- **Not done this session**: no `ampx sandbox` deploy or live Bedrock call
+  against the new `StoryArtifact` model or the `NARRATE`-intent reuse of
+  `generateCompanionTurn` (no AWS credentials in this environment, same
+  constraint noted in every prior phase's automated portion). The schema
+  change is additive (one new model, one new relationship field) and the
+  AI route itself is unchanged from Phase 4's already-live-verified
+  `generateCompanionTurn`, so the risk surface is materially smaller than
+  Phase 4's — but this still needs a real `ampx sandbox` deploy and at
+  least one real Storykeeper Castle play-through to confirm end to end
+  before wider use.
+
+## Verification (Phase 4 session)
 
 - `npm run typecheck` — passed (`tsc -b` and `amplify/tsconfig.json`).
 - `npm run lint` — passed (same 2 pre-existing-style warnings as every prior
@@ -517,6 +625,31 @@ AI-generated artifact rather than only ever-validated structured dialogue).
   (client-side UI). There is no server-side guard, so a direct API call could
   create a fourth profile. Low severity (no cross-user exposure), but worth a
   custom mutation if this ever needs to be a real limit rather than a UI nudge.
+- **`StoryArtifact` deliberately stores full scene text, not metadata-only,
+  unlike `AIInteractionAudit`.** This is intentional (the whole point is a
+  parent-readable "generated story artifact" per `docs/ROADMAP.md`), but
+  every scene's text already passed `validateCompanionTurn`'s content-safety
+  checks before it was captured, so this does not reopen the "no raw child/AI
+  text" principle CLAUDE.md section 13 applies to logs/audits — it's a
+  different, explicitly-approved kind of record. Worth calling out
+  explicitly since it's the first model in the schema that stores validated
+  AI prose rather than only metadata about it.
+- **`StoryArtifact` has no admin/reviewer group access**, same gap already
+  tracked above for `AIInteractionAudit`/`SafetyEvent` and the Phase 3
+  models — there is still no admin role for CLAUDE.md section 2's
+  "Administrator/content designer" to review anything, including saved
+  stories, without going through a parent's own authenticated session.
+- **"The Storykeeper's Tale" is authored for `ageBands: ['PATHFINDER']`
+  only**, same scope note as "Repair the Moonlight Bridge" and for the same
+  reason: hand-authoring true per-band variants for a location's first
+  adventure was judged out of scope until there's a broader pattern to
+  validate against.
+- The late-narration race noted above under "Phase 5 — Scene capture and
+  story persistence" (a scene from the last `CREATIVE_CHOICE` step can be
+  missed from the saved artifact if its AI request is still in flight when
+  `WORLD_CHANGE` is reached) has not been reproduced or load-tested; it's a
+  theoretical race based on reading the code's async ordering, not an
+  observed failure.
 
 ## Decisions pending
 

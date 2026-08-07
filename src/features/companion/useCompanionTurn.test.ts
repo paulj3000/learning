@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useCompanionTurn } from './useCompanionTurn';
 import { requestCompanionTurn } from './api';
+import type { CompanionTurnResult } from './api';
 
 vi.mock('./api', () => ({
   requestCompanionTurn: vi.fn(),
@@ -34,7 +35,7 @@ describe('useCompanionTurn', () => {
     });
     const { result } = renderHook(() => useCompanionTurn());
 
-    let pending!: Promise<void>;
+    let pending!: Promise<CompanionTurnResult | undefined>;
     act(() => {
       pending = result.current.request(baseInput);
     });

@@ -48,6 +48,7 @@ const schema = a.schema({
       worldChanges: a.hasMany('WorldChange', 'childProfileId'),
       aiInteractionAudits: a.hasMany('AIInteractionAudit', 'childProfileId'),
       safetyEvents: a.hasMany('SafetyEvent', 'childProfileId'),
+      storyArtifacts: a.hasMany('StoryArtifact', 'childProfileId'),
     })
     .authorization((allow) => [allow.owner()]),
 
@@ -238,6 +239,32 @@ const schema = a.schema({
       source: a.ref('SafetyEventSource').required(),
       actionTaken: a.string().required(),
       reviewStatus: a.ref('SafetyEventReviewStatus').required(),
+      createdAt: a.datetime().required(),
+    })
+    .authorization((allow) => [allow.owner()]),
+
+  // --- Phase 5: Storykeeper Castle (docs/ROADMAP.md) ---
+
+  /**
+   * The assembled, saved collaborative story from one Storykeeper Castle
+   * play-through (docs/ROADMAP.md Phase 5: "generated story artifact with
+   * parent-controlled retention"). `scenes` is `a.json()` for the same
+   * reason `WorldChange.payload` already is: every scene's text already
+   * passed `validateCompanionTurn` before it was ever shown to the child
+   * (src/features/adventures/useAdventureSession.ts), so this is our own
+   * already-validated write, not untrusted input at this layer. Retention
+   * is parent-controlled by ordinary owner-authorized delete from
+   * src/routes/StoryKeepsakes.tsx — no auto-expiry policy yet (see
+   * "Decisions pending: retention schedule" in IMPLEMENTATION_STATUS.md).
+   */
+  StoryArtifact: a
+    .model({
+      childProfileId: a.id().required(),
+      childProfile: a.belongsTo('ChildProfile', 'childProfileId'),
+      sessionId: a.string().required(),
+      templateSlug: a.string().required(),
+      title: a.string().required(),
+      scenes: a.json().required(),
       createdAt: a.datetime().required(),
     })
     .authorization((allow) => [allow.owner()]),

@@ -19,4 +19,15 @@ export const LEARNING_OBJECTIVES: LearningObjective[] = [
     domain: 'executive-function',
     title: 'Following ordered instructions',
   },
+  {
+    code: 'creative-storytelling',
+    domain: 'creativity',
+    title: 'Creating story characters and settings',
+  },
+  {
+    code: 'reading-comprehension',
+    domain: 'literacy',
+    title: 'Understanding what a story says',
+  },
+  { code: 'sequencing', domain: 'literacy', title: 'Sequencing story events' },
 ];

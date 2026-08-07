@@ -5,6 +5,29 @@ import type { Schema } from '../../../amplify/data/resource';
 export type AdventureSession = Schema['AdventureSession']['type'];
 export type WorldChange = Schema['WorldChange']['type'];
 export type SkillProgress = Schema['SkillProgress']['type'];
+export type StoryArtifact = Schema['StoryArtifact']['type'];
+
+/** One AI-narrated (or authored-fallback) beat of a Storykeeper Castle story. */
+export interface StoryScene {
+  stepId: string;
+  text: string;
+  source: 'AI' | 'FALLBACK';
+}
+
+function isStoryScene(value: unknown): value is StoryScene {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as StoryScene).stepId === 'string' &&
+    typeof (value as StoryScene).text === 'string' &&
+    ((value as StoryScene).source === 'AI' || (value as StoryScene).source === 'FALLBACK')
+  );
+}
+
+/** `StoryArtifact.scenes` is untyped JSON on the wire; this is our own prior write, but parse defensively rather than trusting the shape. */
+export function parseStoryScenes(scenes: unknown): StoryScene[] {
+  return Array.isArray(scenes) ? scenes.filter(isStoryScene) : [];
+}
 
 const CORRECTNESS_TO_SCHEMA: Record<Correctness, Schema['Correctness']['type']> = {
   correct: 'CORRECT',
@@ -228,4 +251,45 @@ export async function listSessions(childProfileId: string): Promise<AdventureSes
     .sort((a: AdventureSession, b: AdventureSession) =>
       b.lastActivityAt.localeCompare(a.lastActivityAt),
     );
+}
+
+/**
+ * Saves one Storykeeper Castle play-through's assembled story
+ * (docs/ROADMAP.md Phase 5). Unlike `recordWorldChangeOnce`, this is not
+ * deduplicated by key: each play-through is a distinct new story the child
+ * created, not a repeatable world state.
+ */
+export async function saveStoryArtifact(
+  childProfileId: string,
+  sessionId: string,
+  templateSlug: string,
+  title: string,
+  scenes: StoryScene[],
+): Promise<void> {
+  const { errors } = await client.models.StoryArtifact.create({
+    childProfileId,
+    sessionId,
+    templateSlug,
+    title,
+    scenes,
+    createdAt: new Date().toISOString(),
+  });
+  if (errors?.length) {
+    throw new Error(errors[0]?.message ?? 'Could not save your story.');
+  }
+}
+
+export async function listStoryArtifacts(childProfileId: string): Promise<StoryArtifact[]> {
+  const { data } = await client.models.StoryArtifact.list();
+  return data
+    .filter((artifact: StoryArtifact) => artifact.childProfileId === childProfileId)
+    .sort((a: StoryArtifact, b: StoryArtifact) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/** Parent-controlled retention: a parent may permanently delete a saved story. */
+export async function deleteStoryArtifact(id: string): Promise<void> {
+  const { errors } = await client.models.StoryArtifact.delete({ id });
+  if (errors?.length) {
+    throw new Error(errors[0]?.message ?? 'Could not delete that story.');
+  }
 }
