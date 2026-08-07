@@ -5,15 +5,39 @@
       "Bash(npx:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(npm -v)",
+      "Bash(npm ci *)",
+      "Bash(npm install *)",
+      "Bash(gh run *)",
+      "Bash(npm ls *)",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(echo \"---exit $?---\")",
+      "Bash(git push *)",
+      "Bash(git -C /home/pdimitriu/Coding/learning show --stat 13c3936)",
+      "Bash(git -C /home/pdimitriu/Coding/learning show 13c3936)",
+      "Bash(git checkout *)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"exit code: $?\")",
+      "Read(//tmp/**)",
+      "Bash(cat /tmp/vite-dev.log *)",
+      "Bash(curl -s -o /tmp/signup-5173.html -w \"HTTP %{http_code}\\\\n\" http://localhost:5173/sign-up)",
+      "Bash(pkill -f \"vite\" -e)",
+      "Bash(nohup npm run dev)",
+      "Bash(disown)",
+      "Bash(npx prettier *)",
+      "Bash(curl -s -o /tmp/home.html -w \"HTTP %{http_code}\\\\n\" http://localhost:5173/)",
+      "Bash(TEST_PARENT_EMAIL='paulj1999@yahoo.com' TEST_PARENT_PASSWORD='Tester1234$' npx tsx live-check.ts)",
+      "WebSearch",
+      "Bash(python3 -c ' *)"
     ],
     "deny": [
       "Read(.env)",
       "Read(.env.*)",
       "Bash(rm -rf:*)",
-      "Bash(git push:*)",
       "Bash(aws:*)"
     ]
   }
 }
-
