@@ -13,13 +13,28 @@ import { IslandLocationPage } from '../routes/IslandLocationPage';
 import { AdventurePage } from '../routes/AdventurePage';
 import { AdventureLog } from '../routes/AdventureLog';
 import { RequireParent } from '../features/auth/RequireParent';
+import { RequireGuest } from '../features/auth/RequireGuest';
 
 export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/sign-up" element={<SignUp />} />
-      <Route path="/sign-in" element={<SignIn />} />
+      <Route
+        path="/sign-up"
+        element={
+          <RequireGuest>
+            <SignUp />
+          </RequireGuest>
+        }
+      />
+      <Route
+        path="/sign-in"
+        element={
+          <RequireGuest>
+            <SignIn />
+          </RequireGuest>
+        }
+      />
       <Route path="/confirm" element={<ConfirmSignUp />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route
