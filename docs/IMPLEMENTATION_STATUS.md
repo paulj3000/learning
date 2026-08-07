@@ -4,23 +4,33 @@
 
 Phase 0 foundation, Phase 1 (parent accounts and child profiles), Phase 2
 (island shell), Phase 3 (deterministic adventure engine), Phase 4 (safe AI
-companion), and Phase 5 (Storykeeper Castle) are complete. Pathfinder-band
-children can now play a full adventure in either of two locations: "Repair
-the Moonlight Bridge" in Pirate Builder Bay, and "The Storykeeper's Tale"
-in Storykeeper Castle, a bounded collaborative story where the child picks
-a hero and setting from curated options, Chatty narrates a short AI-varied
-scene for each choice, the child answers a comprehension check and orders
-the story's beats, and the finished story is saved as a parent-viewable,
-parent-deletable `StoryArtifact`. Both adventures get hints when stuck
+companion), Phase 5 (Storykeeper Castle), and Phase 6 (Wonderwild Forest)
+are complete. Pathfinder-band children can now play a full adventure in
+all three MVP locations: "Repair the Moonlight Bridge" in Pirate Builder
+Bay, "The Storykeeper's Tale" in Storykeeper Castle, and "Buzz and the
+Waggle Dance" in Wonderwild Forest. Storykeeper Castle is a bounded
+collaborative story where the child picks a hero and setting from curated
+options, Chatty narrates a short AI-varied scene for each choice, the
+child answers a comprehension check and orders the story's beats, and the
+finished story is saved as a parent-viewable, parent-deletable
+`StoryArtifact`. Wonderwild Forest is a bounded curiosity adventure: the
+child picks a question from a curated Wonder Wall (only "why do bees
+dance?" has a built adventure so far; every other question gets a calm,
+deterministic redirect into that same adventure rather than a dead end),
+shrinks into a beehive with an AI-narrated (but authored-text-grounded)
+scene, then observes and answers evidence-based questions about the
+honeybee waggle dance anchored to fixed, cited facts
+(`docs/CONTENT_SOURCES.md`). All three adventures get hints when stuck
 (optionally AI-phrased by Chatty the Parrot, with an authored fallback),
 see Chatty celebrate correct answers, and end in a persistent world change
 on the island. Every AI response is schema- and content-validated before
 it can reach a child, and falls back to authored copy on any failure;
 correctness and step transitions remain 100% deterministic and are never
-touched by AI — Storykeeper Castle's comprehension/sequencing steps are
-deliberately anchored to fixed, authored narrative text rather than to any
-AI-generated scene, so this holds even though the location "runs on" AI
-narration for its creative beats.
+touched by AI — Storykeeper Castle's comprehension/sequencing steps and
+Wonderwild Forest's observation/comprehension steps are deliberately
+anchored to fixed, authored text rather than to any AI-generated scene, so
+this holds even though both locations "run on" AI narration for part of
+their presentation.
 
 `generateCompanionTurn` has been confirmed working against **live Amazon
 Bedrock** in this session (not just structurally deployed) — a real signed-in
@@ -34,7 +44,7 @@ Bedrock model choice ever changes.
 
 ## Current phase
 
-Phase 5 — Storykeeper Castle: complete.
+Phase 6 — Wonderwild Forest: complete.
 
 ## Completed
 
@@ -360,13 +370,115 @@ Phase 5 — Storykeeper Castle: complete.
   and every other route has none, since they need a live backend to
   exercise meaningfully.
 
+- **Phase 6 — Content source-review workflow** (`docs/CONTENT_SOURCES.md`,
+  new): a short process document for Wonderwild Forest content
+  specifically, since it is the first location to make real factual
+  claims about the world rather than pure game logic or open fiction.
+  Requires every `wonderwild-forest` `AdventureDefinition` to carry a
+  "Sources" doc comment citing the claim, a checkable source, and a
+  last-checked date, and defines the MVP review step (a second person
+  verifies the citation during code review) until the Administrator/
+  content-designer role from `CLAUDE.md` section 2 exists.
+- **Phase 6 — Curated Wonder Wall content**
+  (`src/features/adventures/content/wonderWallQuestions.ts`, new): a
+  fixed catalog of curated curiosity questions across nature/science
+  categories (`WONDER_WALL_QUESTIONS`), plus
+  `WONDER_WALL_ANSWERED_QUESTION_ID` marking which one has a built
+  adventure so far. Kept as source-controlled content, same precedent as
+  `LEARNING_OBJECTIVES`/`ISLAND_LOCATIONS` — this is the "curated Wonder
+  Wall question categories" deliverable as its own reviewable content
+  artifact, decoupled from any one adventure's step file. Four new
+  science-domain learning objectives added to `learningObjectives.ts`
+  (`curious-questioning`, `cause-and-effect`, `observation`,
+  `science-comprehension`).
+- **Phase 6 — Engine: bounded AI narration for narrative steps**
+  (`src/features/adventures/engine/types.ts`,
+  `src/features/adventures/useAdventureSession.ts`): the one small,
+  deliberate engine extension this phase needed. `PresentationSpec`'s
+  `narrative` variant gained an optional `aiNarrated` flag; when a
+  `NARRATIVE` step sets it, `useAdventureSession` fires a fire-and-forget
+  `generateCompanionTurn` `NARRATE` call grounded with
+  `authoredBaseText: presentation.text` — the same "rephrase but never
+  contradict" grounding already used for `HINT` calls, just applied to a
+  full scene instead of a hint. This is "bounded curiosity-to-adventure
+  generation": the AI varies presentation, the authored text (always
+  rendered by `NarrativeStep` regardless of what Chatty says) remains the
+  deterministic source of truth, and the call never gates `advance`/
+  `getNextStepId`, matching every other AI trigger in this file. No
+  changes were needed to `validateCompanionTurn`, the persona prompt, or
+  the AI route itself — `authoredBaseText` grounding was already
+  intent-agnostic.
+- **Phase 6 — Adventure content**
+  (`src/features/adventures/content/buzzAndTheWaggleDance.ts`): "Buzz and
+  the Waggle Dance", Wonderwild Forest's first adventure, scoped to
+  `ageBands: ['PATHFINDER']` only (same first-adventure-per-location
+  precedent as Phases 3 and 5). Flow: a `wonder-wall` `CHOICE` step
+  presenting every `WONDER_WALL_QUESTIONS` option with no `hintPolicy` (a
+  deliberate, tested exception to "every answerable step gets a 5-level
+  ladder" — this step is a router, not a quiz to retry) — picking the
+  bees question (`correct`) goes straight to the adventure, picking any
+  other question (`incorrect`) goes to `wonder-wall-fallback`, a calm
+  authored `NARRATIVE` redirect that then always continues into the same
+  adventure. This is `docs/ROADMAP.md`'s "safe fallback when a question is
+  out of scope" — implemented as a plain, deterministic engine transition
+  rather than an AI safety check, since the boundary is "not authored
+  yet," not "unsafe content." From there: an `aiNarrated` shrinking scene,
+  an authored introduction to Buzz, a cause-and-effect `CHOICE` (what a
+  long waggle means) and a `NUMBER_INPUT` observation (count the waggles)
+  both with full 5-level hint ladders and self-referencing `incorrect`
+  transitions (retry in place, same pattern as existing content), a
+  comprehension `CHOICE` anchored to the authored fact, a `REFLECTION`,
+  a `WORLD_CHANGE` (`WONDER_DISCOVERED`/`WAGGLE_DANCE_DISCOVERED`), then
+  `COMPLETE`. Needed zero further engine changes beyond the `aiNarrated`
+  flag above — every step type used was already fully specified and
+  validated. Registered in `content/index.ts`.
+- **Phase 6 — Location copy**: `locations.ts`'s Wonderwild Forest
+  `decoration` text updated from "the first curiosity adventure is coming
+  soon" (now false) to "the Wonder Wall's questions are still waiting for
+  their first answer" (still accurate pre-any-completion world-state
+  copy, matching the existing Pirate Builder Bay/Storykeeper Castle
+  phrasing style). `IslandLocationPage.tsx` needed no changes — same
+  generic template-lookup-by-location-slug precedent as Phase 5.
+- Unit tests: `buzzAndTheWaggleDance.test.ts` (structural guard, same
+  shape as `repairTheMoonlightBridge.test.ts`/`theStorykeepersTale.test.ts`,
+  plus checks that the Wonder Wall step offers every curated question with
+  the bees question marked correct, that an out-of-scope pick routes
+  through the fallback step rather than a dead end, that exactly one step
+  is `aiNarrated`, and that the comprehension check is anchored to the
+  authored fact). No new tests for `useAdventureSession.ts`'s `aiNarrated`
+  trigger itself, consistent with the existing, already-documented
+  precedent that this hook has no direct unit tests (needs a live backend
+  to exercise meaningfully) — same as its Phase 4/5 HINT/CELEBRATE/NARRATE
+  triggers.
+
 ## Next task
 
-Begin Phase 6 (Wonderwild Forest) per `docs/ROADMAP.md`: curated Wonder
-Wall question categories, bounded curiosity-to-adventure generation, one
-complete nature/science adventure, evidence-based content templates and a
-source-review workflow, and a safe fallback when a question is out of
-scope.
+Begin Phase 7 (Parent Dashboard) per `docs/ROADMAP.md`: recent adventures,
+skills practiced, support and hint patterns, creations and world changes,
+controls for AI, voice, session time, and retention, and a plain-language
+weekly summary.
+
+## Verification (Phase 6 session)
+
+- `npm run typecheck` — passed (`tsc -b` and `amplify/tsconfig.json`).
+- `npm run lint` — passed (same 2 pre-existing-style warnings as every
+  prior phase, not errors).
+- `npm run format:check` — passed.
+- `npm run test` — passed (27 files, 150 tests, up from 26 files/138
+  tests).
+- `npm run build` — passed (same informational chunk-size warning as every
+  prior phase).
+- `npm run test:e2e` — passed (3 tests, Chromium; unchanged — they still
+  only cover unauthenticated routes).
+- **Not done this session**: no `ampx sandbox` deploy or live Bedrock call
+  exercising the new `aiNarrated`/`NARRATE` path on `shrink-into-hive` (no
+  AWS credentials in this environment, same constraint noted in every
+  prior phase). This phase made no backend schema changes at all — no new
+  models, fields, or AI routes — so the risk surface is smaller than
+  Phase 5's; the only new runtime behavior is a different call site into
+  the already-live-verified `generateCompanionTurn` route with an
+  `authoredBaseText` argument it already supported. Still needs a real
+  play-through to confirm end to end before wider use.
 
 ## Verification (Phase 5 session)
 
@@ -650,6 +762,27 @@ scope.
   `WORLD_CHANGE` is reached) has not been reproduced or load-tested; it's a
   theoretical race based on reading the code's async ordering, not an
   observed failure.
+
+- **"Buzz and the Waggle Dance" is authored for `ageBands: ['PATHFINDER']`
+  only**, and only one of the four curated `WONDER_WALL_QUESTIONS` has a
+  built adventure — same scope note as the other two locations' first
+  adventures, and for the same reason: hand-authoring true per-band
+  variants, or three more full adventures, for a location's first pass
+  was judged out of scope until there's a broader pattern to validate
+  against. The other three Wonder Wall questions are real, curated, and
+  visibly present to the child today; they just all currently redirect to
+  the bee adventure rather than their own content.
+- **The source-review workflow in `docs/CONTENT_SOURCES.md` is a
+  code-review convention (a doc comment plus a human check on the pull
+  request), not a structured, queryable, or enforced one.** There is no
+  admin/content-designer role yet (same gap tracked below for every other
+  model), so nothing currently stops a future `wonderwild-forest` adventure
+  from shipping without a "Sources" comment, or with one nobody actually
+  checked. Revisit once that role exists.
+- **`WonderWallQuestion` has no admin/reviewer group access or backing
+  model** — it is source-controlled content like `IslandLocation` and
+  `LearningObjective`, so this is the same already-tracked gap, not a new
+  one specific to Wonder Wall.
 
 ## Decisions pending
 

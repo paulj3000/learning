@@ -38,7 +38,19 @@ export interface WorldChangePayload {
 
 /** Content each step needs to render; kept concrete rather than a generic blob. */
 export type PresentationSpec =
-  | { kind: 'narrative'; speaker: string; text: string }
+  | {
+      kind: 'narrative';
+      speaker: string;
+      text: string;
+      /**
+       * When true, useAdventureSession also fires an AI NARRATE turn
+       * grounded on `text` (docs/ROADMAP.md Phase 6 "bounded
+       * curiosity-to-adventure generation") — Chatty may rephrase the
+       * scene in a fresh way, but `text` itself is always shown too and
+       * remains the deterministic, authored source of truth.
+       */
+      aiNarrated?: boolean;
+    }
   | { kind: 'number-input'; prompt: string; correctValue: number }
   | { kind: 'choice'; prompt: string; options: ChoiceOption[]; correctOptionId: string }
   | { kind: 'ordering'; prompt: string; items: ChoiceOption[]; correctOrder: string[] }

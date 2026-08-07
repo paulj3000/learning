@@ -31,7 +31,7 @@ export const ISLAND_LOCATIONS: IslandLocation[] = [
     description:
       'A forest full of safe, curious questions waiting to be explored, like why bees dance or how seeds travel. Great for observation and early science reasoning.',
     skills: ['Observation', 'Curiosity', 'Cause and effect'],
-    decoration: 'The Wonder Wall is quiet for now. The first curiosity adventure is coming soon.',
+    decoration: "The Wonder Wall's questions are still waiting for their first answer.",
   },
   {
     slug: 'storykeeper-castle',

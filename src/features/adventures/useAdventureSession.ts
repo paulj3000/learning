@@ -242,6 +242,23 @@ export function useAdventureSession(
             ]);
           });
         }
+        if (
+          currentStep.type === 'NARRATIVE' &&
+          currentStep.presentation.kind === 'narrative' &&
+          currentStep.presentation.aiNarrated &&
+          answer.kind === 'narrative'
+        ) {
+          void requestCompanion({
+            childProfileId,
+            ageBand,
+            intent: 'NARRATE',
+            stepSummary: currentStep.id,
+            sessionId: session.id,
+            stepId: currentStep.id,
+            learningObjectiveCode: currentStep.objectiveIds[0],
+            authoredBaseText: currentStep.presentation.text,
+          });
+        }
         const nextStepId = getNextStepId(currentStep, correctness);
         await advance(nextStepId);
       } catch {

@@ -30,4 +30,20 @@ export const LEARNING_OBJECTIVES: LearningObjective[] = [
     title: 'Understanding what a story says',
   },
   { code: 'sequencing', domain: 'literacy', title: 'Sequencing story events' },
+  {
+    code: 'curious-questioning',
+    domain: 'science',
+    title: 'Asking and exploring curious questions',
+  },
+  {
+    code: 'cause-and-effect',
+    domain: 'science',
+    title: 'Understanding cause and effect in nature',
+  },
+  { code: 'observation', domain: 'science', title: 'Careful observation of the natural world' },
+  {
+    code: 'science-comprehension',
+    domain: 'science',
+    title: 'Understanding a nature explanation',
+  },
 ];
