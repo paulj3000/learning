@@ -77,6 +77,7 @@ export function AdventurePage() {
         childProfileId={childId}
         definition={definition}
         ageBand={childProfile.ageBand}
+        aiEnabled={childProfile.aiEnabled ?? true}
         backToMapHref={`/island/${childId}/locations/${locationSlug}`}
       />
     </IslandLayout>

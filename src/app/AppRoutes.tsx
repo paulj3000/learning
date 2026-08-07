@@ -9,6 +9,7 @@ import { ParentDashboard } from '../routes/ParentDashboard';
 import { ChildProfileNew } from '../routes/ChildProfileNew';
 import { ChildProfileEdit } from '../routes/ChildProfileEdit';
 import { StoryKeepsakes } from '../routes/StoryKeepsakes';
+import { ChildDashboard } from '../routes/ChildDashboard';
 import { WelcomeHarbor } from '../routes/WelcomeHarbor';
 import { IslandLocationPage } from '../routes/IslandLocationPage';
 import { AdventurePage } from '../routes/AdventurePage';
@@ -67,6 +68,14 @@ export function AppRoutes() {
         element={
           <RequireParent>
             <StoryKeepsakes />
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/parent/children/:childId/dashboard"
+        element={
+          <RequireParent>
+            <ChildDashboard />
           </RequireParent>
         }
       />

@@ -4,8 +4,8 @@
 
 Phase 0 foundation, Phase 1 (parent accounts and child profiles), Phase 2
 (island shell), Phase 3 (deterministic adventure engine), Phase 4 (safe AI
-companion), Phase 5 (Storykeeper Castle), and Phase 6 (Wonderwild Forest)
-are complete. Pathfinder-band children can now play a full adventure in
+companion), Phase 5 (Storykeeper Castle), Phase 6 (Wonderwild Forest), and
+Phase 7 (parent dashboard) are complete. Pathfinder-band children can now play a full adventure in
 all three MVP locations: "Repair the Moonlight Bridge" in Pirate Builder
 Bay, "The Storykeeper's Tale" in Storykeeper Castle, and "Buzz and the
 Waggle Dance" in Wonderwild Forest. Storykeeper Castle is a bounded
@@ -44,7 +44,7 @@ Bedrock model choice ever changes.
 
 ## Current phase
 
-Phase 6 — Wonderwild Forest: complete.
+Phase 7 — Parent Dashboard: complete.
 
 ## Completed
 
@@ -451,12 +451,132 @@ Phase 6 — Wonderwild Forest: complete.
   to exercise meaningfully) — same as its Phase 4/5 HINT/CELEBRATE/NARRATE
   triggers.
 
+- **Phase 7 — AI kill switch** (`amplify/data/resource.ts`,
+  `src/features/child-profile/api.ts`,
+  `src/features/companion/api.ts`): added `ChildProfile.aiEnabled`
+  (`a.boolean().default(true)`) and `setChildProfileAIEnabled`. This field
+  is deliberately **not** `.required()` — see the bug note directly below
+  before changing that. `requestCompanionTurn`
+  takes an optional `aiEnabled` on `RequestCompanionTurnInput` (defaulting
+  to `true` so no existing caller needed to change) and, when explicitly
+  `false`, returns authored fallback content **before** calling the
+  Bedrock route or writing an `AIInteractionAudit` row at all — a
+  stronger guarantee than the existing validate-then-fallback pipeline,
+  since no child step data leaves the app for that family while AI is
+  off. `useAdventureSession` now takes a 4th `aiEnabled` argument and
+  threads it into every `HINT`/`CELEBRATE`/`NARRATE` call it makes;
+  `AdventureRunner`/`AdventurePage` pass `childProfile.aiEnabled` down
+  the same way `ageBand` already flows.
+- **Phase 7 — Dashboard aggregation** (`src/features/adventures/api.ts`,
+  `src/features/parent-dashboard/`, new): two small additions to the
+  existing adventures API — `listAllWorldChanges` (like the Phase 3
+  `listWorldChanges`, but across every location, for a dashboard rather
+  than one `IslandLocationPage`) and `listSkillProgress`. No new models
+  or fields were needed for "skills practiced," "support and hint
+  patterns," or "creations and world changes" — `SkillProgress`'s
+  existing `exposureCount`/`independentSuccessCount`/
+  `supportedSuccessCount` (Phase 3) already are that data.
+  `src/features/parent-dashboard/weeklySummary.ts`'s `buildWeeklySummary`
+  is a small pure function (same "deterministic content, no AI, no
+  backend" pattern as Phase 2's `getTodaysEvent`) that turns the last 7
+  days of sessions/skill practice/world changes/stories into a few plain
+  sentences — no model call, so it can never claim anything the records
+  below it don't already show, and no child data needs to reach a model
+  to produce it.
+  `src/features/parent-dashboard/api.ts`'s `clearAIHistory` is the
+  Phase 7 retention control other than stories: it permanently deletes
+  every `AIInteractionAudit`/`SafetyEvent` row for one child, separate
+  from the existing per-story delete in `StoryKeepsakes.tsx`.
+- **Phase 7 — UI** (`src/routes/ChildDashboard.tsx`, new route
+  `/parent/children/:childId/dashboard`, linked from
+  `ChildProfileList.tsx` as "Activity & controls"): one page per child
+  with five sections — a weekly summary, recent adventures (title via
+  `getAdventureTemplate`, status, last-activity date), skills practiced
+  (title via `LEARNING_OBJECTIVES`, with the practiced/needed-a-hint/
+  solved-alone counts spelled out in plain language), creations and
+  world changes (title via `getIslandLocation`, plus a link into the
+  existing story keepsakes page), and controls: an AI on/off toggle,
+  read-only voice/reading-mode and session-time display with a link to
+  the existing `ChildProfileEdit` form (deliberately not duplicating
+  that form here), and the new "clear AI history" retention action
+  behind the same inline "are you sure?" confirmation pattern
+  `StoryKeepsakes.tsx` already established for story deletion.
+
+### Bug found and fixed post-deploy: `aiEnabled` broke the existing parent dashboard
+
+The first version of this change shipped `aiEnabled` as
+`a.boolean().required().default(true)`, on the (wrong) assumption that
+`.default()` would cover every existing row. Against the user's real
+deployed backend, opening `/parent` threw `TypeError: Cannot read
+properties of null (reading 'nickname')` inside `ChildProfileList`.
+
+Root cause: `.default()` in Amplify Data only applies to rows created
+*after* the field is added — it does not backfill rows that already
+exist in the table. Every `ChildProfile` row created before this phase
+has no `aiEnabled` attribute stored in DynamoDB at all. Because the
+field was `.required()` (non-null in the GraphQL schema), AppSync's
+resolver couldn't return `null` for just that field — per GraphQL
+non-null propagation, the error bubbles up and nulls out the entire
+list item instead. `listChildProfiles()` was therefore returning
+`[null, ...]` for every parent with a pre-existing child profile, and
+`ChildProfileList` had no reason to expect a null entry in that array.
+
+Fix: dropped `.required()` (kept `.default(true)` for newly created
+rows) so a missing stored value resolves to `null` on just that one
+field rather than nulling the item, and coalesced `?? true` at every
+read site — `AdventurePage.tsx`, `ChildDashboard.tsx` (both the display
+and the toggle handler). `requestCompanionTurn`'s existing
+`input.aiEnabled === false` check already treated `null`/`undefined` as
+"on" correctly and needed no change.
+
+**Lesson for any future required-with-default field on an
+already-populated model**: `.default()` is a create-time convenience,
+not a migration. A newly added field on a table with existing rows
+needs to be optional, with `?? <default>` at every read site, unless a
+real backfill migration runs first.
+
+**Not yet done**: the running backend (`amplify_outputs.json`) needs a
+fresh `ampx sandbox`/deploy for this corrected schema to take effect —
+the fix here is in the source, not yet pushed to the live AppSync API
+the user was testing against.
+
 ## Next task
 
-Begin Phase 7 (Parent Dashboard) per `docs/ROADMAP.md`: recent adventures,
-skills practiced, support and hint patterns, creations and world changes,
-controls for AI, voice, session time, and retention, and a plain-language
-weekly summary.
+Begin Phase 8 (Hardening and Pilot) per `docs/ROADMAP.md`: threat
+modeling, authorization review, privacy and child-safety review,
+accessibility audit, load and cost tests, AI red-team tests, a data
+deletion flow, operational dashboards and alarms, and a closed parent
+pilot.
+
+## Verification (Phase 7 session)
+
+- `npm run typecheck` — passed (`tsc -b` and `amplify/tsconfig.json`).
+- `npm run lint` — passed (same 2 pre-existing-style warnings as every
+  prior phase, not errors).
+- `npm run format:check` — passed.
+- `npm run test` — passed (29 files, 158 tests, up from 27 files/150
+  tests).
+- `npm run build` — passed (same informational chunk-size warning as
+  every prior phase).
+- `npm run test:e2e` — passed (3 tests, Chromium; unchanged — they still
+  only cover unauthenticated routes).
+- **Not done this session**: no `ampx sandbox` deploy exercising the new
+  `ChildProfile.aiEnabled` field or the `AIInteractionAudit`/
+  `SafetyEvent` deletes against a live backend (no AWS credentials in
+  this environment, same constraint noted in every prior phase). The
+  schema change is additive (one new boolean field with a `default`, so
+  existing rows are unaffected) and the new deletes use the same
+  `client.models.*.delete()` shape already exercised by
+  `StoryKeepsakes.tsx`'s existing story deletion, so the risk surface is
+  small — but this still needs a real sandbox deploy and one real
+  "turn AI off, play a hint, confirm no Bedrock call and no audit row"
+  pass, and one real "clear history" pass, before wider use.
+- One incidental environment fix this session, unrelated to the feature
+  itself: the sandbox's `/home` filesystem was completely full (`npm run
+  build`/`typecheck` failed with `ENOSPC`), traced to a 2.8 GB npm
+  download cache; `npm cache clean --force` recovered ~8 GB and let every
+  check above run. Not a repository issue and needs no code change, but
+  worth knowing if a future session hits the same `ENOSPC` failure here.
 
 ## Verification (Phase 6 session)
 
@@ -783,6 +903,37 @@ weekly summary.
   model** — it is source-controlled content like `IslandLocation` and
   `LearningObjective`, so this is the same already-tracked gap, not a new
   one specific to Wonder Wall.
+
+- **"Voice" and "session time" controls on the Phase 7 dashboard are
+  read-only displays with a link to the existing `ChildProfileEdit` form,
+  not new inline editors.** `readingMode` and `sessionMinutes` already
+  existed (Phase 1) and are already editable there; building a second,
+  parallel editor for the same two fields on the dashboard was judged
+  needless duplication for this MVP pass. Revisit if user feedback wants
+  them editable in place.
+- **`ChildDashboard.tsx` has no automated tests**, consistent with the
+  already-documented, established precedent for every other route in
+  this app (`ParentDashboard`, `StoryKeepsakes`, `IslandLocationPage`,
+  etc.) — they all need a live backend to exercise meaningfully, so only
+  the pure logic underneath them (`buildWeeklySummary` here) is unit
+  tested.
+- **`clearAIHistory` has no automated test**, same already-documented
+  precedent as every other `api.ts` function that only wraps
+  `client.models.*` calls (e.g. `saveStoryArtifact`,
+  `listStoryArtifacts`) — it needs a live backend to exercise
+  meaningfully. `requestCompanionTurn`'s new `aiEnabled` short-circuit
+  *is* tested (`src/features/companion/api.test.ts`, new this phase)
+  because that branch never touches the network at all, so a mocked
+  `client` is enough to verify it.
+- **`ChildProfile.aiEnabled` has no server-side enforcement beyond the
+  client-side short-circuit in `requestCompanionTurn`.** A direct,
+  authenticated GraphQL call to `generateCompanionTurn` from outside this
+  app's own client code would still reach Bedrock regardless of the
+  flag, the same category of gap already tracked for `MAX_CHILD_PROFILES`
+  above. Low severity for MVP (the generation route already requires an
+  authenticated parent session and only that family's own data is ever
+  at stake), but worth a resolver-level check if this control needs to
+  be load-bearing rather than a parent-facing convenience switch.
 
 ## Decisions pending
 

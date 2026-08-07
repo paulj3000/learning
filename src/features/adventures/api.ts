@@ -211,6 +211,24 @@ export async function listWorldChanges(
   );
 }
 
+/** Every world change across every location, newest first (parent dashboard). */
+export async function listAllWorldChanges(childProfileId: string): Promise<WorldChange[]> {
+  const { data } = await client.models.WorldChange.list();
+  return data
+    .filter((change: WorldChange) => change.childProfileId === childProfileId)
+    .sort((a: WorldChange, b: WorldChange) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/** One row per (child, learning objective) the child has ever practiced (parent dashboard). */
+export async function listSkillProgress(childProfileId: string): Promise<SkillProgress[]> {
+  const { data } = await client.models.SkillProgress.list();
+  return data
+    .filter((row: SkillProgress) => row.childProfileId === childProfileId)
+    .sort((a: SkillProgress, b: SkillProgress) =>
+      (b.lastPracticedAt ?? '').localeCompare(a.lastPracticedAt ?? ''),
+    );
+}
+
 export async function hasWorldChange(
   childProfileId: string,
   locationSlug: string,

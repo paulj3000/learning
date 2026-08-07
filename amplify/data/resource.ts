@@ -41,6 +41,23 @@ const schema = a.schema({
       readingMode: a.ref('ReadingMode').required(),
       sessionMinutes: a.integer().required(),
       active: a.boolean().required().default(true),
+      /**
+       * Parent-facing AI kill switch (docs/ROADMAP.md Phase 7: "controls for
+       * AI, voice, session time, and retention"). When false,
+       * `requestCompanionTurn` (src/features/companion/api.ts) never calls
+       * the Bedrock route at all and returns authored fallback content
+       * directly — this is a stronger guarantee than relying on the
+       * existing validation/fallback pipeline, since it means no child data
+       * leaves the app for that family until a parent turns AI back on.
+       *
+       * Deliberately NOT `.required()`: `.default()` only applies to rows
+       * created after this field was added, not to rows that already
+       * existed in the table. A required field with no stored value makes
+       * AppSync null out the *entire* list item (GraphQL non-null
+       * propagation), not just the field — every call site must treat
+       * missing/null as "on" (`?? true`).
+       */
+      aiEnabled: a.boolean().default(true),
       companionProfile: a.hasOne('CompanionProfile', 'childProfileId'),
       adventureSessions: a.hasMany('AdventureSession', 'childProfileId'),
       skillEvidence: a.hasMany('SkillEvidence', 'childProfileId'),

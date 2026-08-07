@@ -78,6 +78,7 @@ export function useAdventureSession(
   childProfileId: string,
   definition: AdventureDefinition,
   ageBand: AgeBandValue,
+  aiEnabled: boolean,
 ): AdventureSessionState {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [session, setSession] = useState<AdventureSession | null>(null);
@@ -215,6 +216,7 @@ export function useAdventureSession(
             sessionId: session.id,
             stepId: currentStep.id,
             learningObjectiveCode: currentStep.objectiveIds[0],
+            aiEnabled,
           });
         }
         if (
@@ -234,6 +236,7 @@ export function useAdventureSession(
             sessionId: session.id,
             stepId,
             learningObjectiveCode: currentStep.objectiveIds[0],
+            aiEnabled,
           }).then((result) => {
             if (!result) return;
             setStoryScenes((prev) => [
@@ -257,6 +260,7 @@ export function useAdventureSession(
             stepId: currentStep.id,
             learningObjectiveCode: currentStep.objectiveIds[0],
             authoredBaseText: currentStep.presentation.text,
+            aiEnabled,
           });
         }
         const nextStepId = getNextStepId(currentStep, correctness);
@@ -276,6 +280,7 @@ export function useAdventureSession(
       requestCompanion,
       childProfileId,
       ageBand,
+      aiEnabled,
     ],
   );
 
@@ -301,9 +306,10 @@ export function useAdventureSession(
         learningObjectiveCode: currentStep.objectiveIds[0],
         hintLevel: newLevel,
         authoredBaseText: authoredHintText,
+        aiEnabled,
       });
     }
-  }, [currentStep, progressByStep, session, requestCompanion, childProfileId, ageBand]);
+  }, [currentStep, progressByStep, session, requestCompanion, childProfileId, ageBand, aiEnabled]);
 
   useEffect(() => {
     if (!session || !currentStep) return;

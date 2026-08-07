@@ -24,6 +24,14 @@ export interface RequestCompanionTurnInput {
   /** Authored, already-correct content the model may rephrase but not contradict. */
   authoredBaseText?: string;
   allowedChoiceIds?: string[];
+  /**
+   * Parent-facing AI control (docs/ROADMAP.md Phase 7,
+   * `ChildProfile.aiEnabled`). Defaults to `true` so every existing caller
+   * keeps working unchanged. When explicitly `false`, this call never
+   * reaches Bedrock at all — it returns authored fallback content
+   * immediately, before any network call or audit write.
+   */
+  aiEnabled?: boolean;
 }
 
 export interface CompanionTurnResult {
@@ -107,6 +115,10 @@ async function recordSafetyEvent(params: {
 export async function requestCompanionTurn(
   input: RequestCompanionTurnInput,
 ): Promise<CompanionTurnResult> {
+  if (input.aiEnabled === false) {
+    return { turn: authoredFallback(input), source: 'FALLBACK' };
+  }
+
   const maxLength = MAX_SPOKEN_LENGTH_BY_AGE_BAND[input.ageBand];
   const startedAt = Date.now();
 

@@ -15,6 +15,7 @@ interface AdventureRunnerProps {
   childProfileId: string;
   definition: AdventureDefinition;
   ageBand: AgeBandValue;
+  aiEnabled: boolean;
   backToMapHref: string;
 }
 
@@ -29,6 +30,7 @@ export function AdventureRunner({
   childProfileId,
   definition,
   ageBand,
+  aiEnabled,
   backToMapHref,
 }: AdventureRunnerProps) {
   const {
@@ -42,7 +44,7 @@ export function AdventureRunner({
     requestHint,
     companionTurn,
     storyScenes,
-  } = useAdventureSession(childProfileId, definition, ageBand);
+  } = useAdventureSession(childProfileId, definition, ageBand, aiEnabled);
 
   if (loadState === 'loading') {
     return <p>Loading your adventure...</p>;

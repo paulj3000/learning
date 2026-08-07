@@ -52,6 +52,12 @@ export function ChildProfileList({ childProfiles, onToggleActive }: ChildProfile
                 </Link>
                 <Link
                   className={styles.buttonSecondary}
+                  to={`/parent/children/${child.id}/dashboard`}
+                >
+                  Activity &amp; controls
+                </Link>
+                <Link
+                  className={styles.buttonSecondary}
                   to={`/parent/children/${child.id}/stories`}
                 >
                   Story keepsakes
