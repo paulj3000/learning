@@ -30,6 +30,8 @@ Phase 0 — Foundation: complete.
 - Repository folder skeleton for `src/features/*`, `src/lib`, `src/components` per
   `CLAUDE.md` section 8 (empty, `.gitkeep` placeholders only).
 - Local development and Amplify sandbox setup documented in `README.md`.
+- `amplify.yml` build spec added at repo root so Amplify Hosting builds the frontend
+  (`dist/`) and runs `ampx pipeline-deploy` for the backend.
 
 ## Next task
 
@@ -52,6 +54,16 @@ Begin Phase 1 (Parent Accounts and Child Profiles) per `docs/ROADMAP.md`: Cognit
 
 ## Known risks / TODOs
 
+- `npm ci` fails with a false-positive `EUSAGE`/"Missing: X from lock file" error
+  (`@opentelemetry/core@2.0.0`, `yaml@1.10.3`) even against a freshly generated
+  `package-lock.json`. Root cause: `@aws-amplify/data-construct` and
+  `@aws-amplify/graphql-api-construct` (pulled in transitively via
+  `@aws-amplify/backend-cli` → `aws-cdk-lib`) ship `bundledDependencies` with exact
+  pinned versions that npm's lockfile-integrity check for `npm ci` cannot reconcile.
+  `npm install` resolves and installs the same tree without error. Both
+  `.github/workflows/ci.yml` and the new `amplify.yml` were changed from `npm ci` to
+  `npm install` to work around this; revisit and switch back to `npm ci` once upstream
+  (`npm` or `@aws-amplify/*`) fixes the bundled-dependency/lockfile interaction.
 - `npm audit` reports vulnerabilities in dev-only transitive dependencies of the
   official `@aws-amplify/backend-cli` toolchain (GraphQL codegen and Relay-compiler
   packages: `lodash`, `immutable`, `brace-expansion`, etc.). These run only when
