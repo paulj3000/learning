@@ -31,7 +31,20 @@
       "Bash(curl -s -o /tmp/home.html -w \"HTTP %{http_code}\\\\n\" http://localhost:5173/)",
       "Bash(TEST_PARENT_EMAIL='paulj1999@yahoo.com' TEST_PARENT_PASSWORD='Tester1234$' npx tsx live-check.ts)",
       "WebSearch",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5173/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5174/)",
+      "Bash(npx vitest *)",
+      "Bash(npx playwright *)",
+      "Bash(git -C /home/pdimitriu/Coding/learning status --short)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" --max-time 5 https://cognito-idp.us-west-1.amazonaws.com/)",
+      "Bash(xargs -I{} echo {})",
+      "Bash(lsof -ti:5173 -sTCP:LISTEN)",
+      "Bash(xargs -r kill)",
+      "Bash(nohup npm run dev -- --port 5173)",
+      "Bash(timeout 30 bash -c 'until curl -sf http://localhost:5173 >/dev/null; do sleep 1; done')",
+      "Bash(chromium-cli --help)",
+      "Bash(node /tmp/claude-1000/-home-pdimitriu-Coding-learning/7f9fb455-4543-4db0-967b-9e009b5e91c8/scratchpad/drive.mjs)"
     ],
     "deny": [
       "Read(.env)",
