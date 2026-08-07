@@ -1,0 +1,231 @@
+import { client } from '../../lib/data-client';
+import type { Correctness } from './engine/types';
+import type { Schema } from '../../../amplify/data/resource';
+
+export type AdventureSession = Schema['AdventureSession']['type'];
+export type WorldChange = Schema['WorldChange']['type'];
+export type SkillProgress = Schema['SkillProgress']['type'];
+
+const CORRECTNESS_TO_SCHEMA: Record<Correctness, Schema['Correctness']['type']> = {
+  correct: 'CORRECT',
+  incorrect: 'INCORRECT',
+  partial: 'PARTIAL',
+  not_applicable: 'NOT_APPLICABLE',
+};
+
+/**
+ * Owner authorization scopes `.list()` to the caller's own records, so
+ * filtering client-side (same pattern as island/api.ts's CompanionProfile
+ * lookup) is enough to find this child's session for this template.
+ */
+export async function getActiveSession(
+  childProfileId: string,
+  templateSlug: string,
+): Promise<AdventureSession | null> {
+  const { data } = await client.models.AdventureSession.list();
+  return (
+    data.find(
+      (session: AdventureSession) =>
+        session.childProfileId === childProfileId &&
+        session.templateSlug === templateSlug &&
+        session.status === 'ACTIVE',
+    ) ?? null
+  );
+}
+
+export async function startSession(
+  childProfileId: string,
+  templateSlug: string,
+  templateVersion: number,
+  entryStepId: string,
+): Promise<AdventureSession> {
+  const now = new Date().toISOString();
+  const { data, errors } = await client.models.AdventureSession.create({
+    childProfileId,
+    templateSlug,
+    templateVersion,
+    status: 'ACTIVE',
+    currentStepId: entryStepId,
+    startedAt: now,
+    lastActivityAt: now,
+  });
+  if (!data) {
+    throw new Error(errors?.[0]?.message ?? 'Could not start the adventure.');
+  }
+  return data;
+}
+
+export async function advanceSession(
+  sessionId: string,
+  nextStepId: string,
+): Promise<AdventureSession> {
+  const { data, errors } = await client.models.AdventureSession.update({
+    id: sessionId,
+    currentStepId: nextStepId,
+    lastActivityAt: new Date().toISOString(),
+  });
+  if (!data) {
+    throw new Error(errors?.[0]?.message ?? 'Could not continue the adventure.');
+  }
+  return data;
+}
+
+export async function completeSession(sessionId: string): Promise<AdventureSession> {
+  const now = new Date().toISOString();
+  const { data, errors } = await client.models.AdventureSession.update({
+    id: sessionId,
+    status: 'COMPLETED',
+    completedAt: now,
+    lastActivityAt: now,
+  });
+  if (!data) {
+    throw new Error(errors?.[0]?.message ?? 'Could not finish the adventure.');
+  }
+  return data;
+}
+
+export interface RecordActionInput {
+  sessionId: string;
+  stepId: string;
+  actionType: string;
+  normalizedAnswer?: string;
+  correctness: Correctness;
+  hintLevel: number;
+  attemptNumber: number;
+}
+
+export async function recordAction(input: RecordActionInput): Promise<void> {
+  const { errors } = await client.models.AdventureAction.create({
+    sessionId: input.sessionId,
+    stepId: input.stepId,
+    actionType: input.actionType,
+    normalizedAnswer: input.normalizedAnswer,
+    correctness: CORRECTNESS_TO_SCHEMA[input.correctness],
+    hintLevel: input.hintLevel,
+    attemptNumber: input.attemptNumber,
+  });
+  if (errors?.length) {
+    throw new Error(errors[0]?.message ?? 'Could not record that action.');
+  }
+}
+
+export interface RecordSkillEvidenceInput {
+  childProfileId: string;
+  sessionId: string;
+  learningObjectiveCode: string;
+  evidenceType: string;
+  result: Correctness;
+  supportLevel: number;
+}
+
+export async function recordSkillEvidence(input: RecordSkillEvidenceInput): Promise<void> {
+  const { errors } = await client.models.SkillEvidence.create({
+    childProfileId: input.childProfileId,
+    sessionId: input.sessionId,
+    learningObjectiveCode: input.learningObjectiveCode,
+    evidenceType: input.evidenceType,
+    result: CORRECTNESS_TO_SCHEMA[input.result],
+    supportLevel: input.supportLevel,
+    observedAt: new Date().toISOString(),
+  });
+  if (errors?.length) {
+    throw new Error(errors[0]?.message ?? 'Could not record that skill evidence.');
+  }
+}
+
+/**
+ * One compact row per (child, objective), incremented rather than
+ * replaced, so progress accumulates across sessions (DATA_MODEL.md
+ * SkillProgress: "Do not label children with fixed ability judgments").
+ */
+export async function upsertSkillProgress(
+  childProfileId: string,
+  learningObjectiveCode: string,
+  supported: boolean,
+): Promise<void> {
+  const { data: existingRows } = await client.models.SkillProgress.list();
+  const existing = existingRows.find(
+    (row: SkillProgress) =>
+      row.childProfileId === childProfileId && row.learningObjectiveCode === learningObjectiveCode,
+  );
+  const now = new Date().toISOString();
+
+  if (!existing) {
+    const { errors } = await client.models.SkillProgress.create({
+      childProfileId,
+      learningObjectiveCode,
+      exposureCount: 1,
+      independentSuccessCount: supported ? 0 : 1,
+      supportedSuccessCount: supported ? 1 : 0,
+      lastPracticedAt: now,
+    });
+    if (errors?.length) {
+      throw new Error(errors[0]?.message ?? 'Could not record skill progress.');
+    }
+    return;
+  }
+
+  const { errors } = await client.models.SkillProgress.update({
+    id: existing.id,
+    exposureCount: existing.exposureCount + 1,
+    independentSuccessCount: existing.independentSuccessCount + (supported ? 0 : 1),
+    supportedSuccessCount: existing.supportedSuccessCount + (supported ? 1 : 0),
+    lastPracticedAt: now,
+  });
+  if (errors?.length) {
+    throw new Error(errors[0]?.message ?? 'Could not record skill progress.');
+  }
+}
+
+export async function listWorldChanges(
+  childProfileId: string,
+  locationSlug: string,
+): Promise<WorldChange[]> {
+  const { data } = await client.models.WorldChange.list();
+  return data.filter(
+    (change: WorldChange) =>
+      change.childProfileId === childProfileId && change.locationSlug === locationSlug,
+  );
+}
+
+export async function hasWorldChange(
+  childProfileId: string,
+  locationSlug: string,
+  changeKey: string,
+): Promise<boolean> {
+  const changes = await listWorldChanges(childProfileId, locationSlug);
+  return changes.some((change) => change.changeKey === changeKey);
+}
+
+/** Idempotent by `changeKey`: replaying the same adventure never duplicates a world change. */
+export async function recordWorldChangeOnce(
+  childProfileId: string,
+  locationSlug: string,
+  changeType: string,
+  changeKey: string,
+  sourceSessionId: string,
+): Promise<void> {
+  const alreadyExists = await hasWorldChange(childProfileId, locationSlug, changeKey);
+  if (alreadyExists) return;
+
+  const { errors } = await client.models.WorldChange.create({
+    childProfileId,
+    locationSlug,
+    changeType,
+    changeKey,
+    sourceSessionId,
+    createdAt: new Date().toISOString(),
+  });
+  if (errors?.length) {
+    throw new Error(errors[0]?.message ?? 'Could not save that change to the island.');
+  }
+}
+
+export async function listSessions(childProfileId: string): Promise<AdventureSession[]> {
+  const { data } = await client.models.AdventureSession.list();
+  return data
+    .filter((session: AdventureSession) => session.childProfileId === childProfileId)
+    .sort((a: AdventureSession, b: AdventureSession) =>
+      b.lastActivityAt.localeCompare(a.lastActivityAt),
+    );
+}

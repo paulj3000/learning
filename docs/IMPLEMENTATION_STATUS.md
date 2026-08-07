@@ -2,13 +2,16 @@
 
 ## Current state
 
-Phase 0 foundation, Phase 1 (parent accounts and child profiles), and Phase 2
-(island shell) are complete. The island is navigable with a chosen companion,
-but no adventures are playable yet — that's Phase 3.
+Phase 0 foundation, Phase 1 (parent accounts and child profiles), Phase 2
+(island shell), and Phase 3 (deterministic adventure engine) are complete.
+Pathfinder-band children can now play a full adventure ("Repair the
+Moonlight Bridge" in Pirate Builder Bay), get hints when stuck, and see a
+persistent world change on the island. No AI is involved yet — that's
+Phase 4.
 
 ## Current phase
 
-Phase 2 — Island Shell: complete.
+Phase 3 — Deterministic Adventure Engine: complete.
 
 ## Completed
 
@@ -112,37 +115,102 @@ Phase 2 — Island Shell: complete.
   real entries arrive with Phase 3's adventure sessions).
 - Unit/component tests added for the new island module (`events.test.ts`,
   `CompanionIntro.test.tsx`).
+- **Phase 3 — Engine** (`src/features/adventures/engine/`): concrete TypeScript
+  types for the `docs/ADVENTURE_ENGINE.md` step contract (`types.ts`); a pure
+  `validateStepAnswer` covering all 8 answerable/non-answerable step types
+  (`validators.ts`); a pure `getNextStepId` that reads a step's authored
+  `TransitionRule`s and throws on an unauthored path rather than silently
+  guessing (`transitions.ts`); and the 5-level hint ladder (`hints.ts`,
+  `nextHintLevel`/`isGuidedCompletion`/`getHintText`). No AI is involved
+  anywhere in this layer — every decision is a plain comparison against
+  authored content, per `CLAUDE.md` section 7.
+- **Phase 3 — Adventure content** (`src/features/adventures/content/`): a
+  small static `LEARNING_OBJECTIVES` list, and the full "Repair the Moonlight
+  Bridge" `AdventureDefinition` (`repairTheMoonlightBridge.ts`) specified in
+  `docs/ADVENTURE_ENGINE.md` — inspect the bridge, count missing planks,
+  choose the plank bundle that sums to the total, order planks shortest to
+  longest, three repair instructions, place the final plank, persist a
+  `BRIDGE_REPAIRED` world change, then complete. Kept as source-controlled
+  content rather than a DB model, per `DATA_MODEL.md`'s note for
+  `AdventureStepDefinition` (same approach Phase 2 used for `IslandLocation`).
+  **Scoped to `ageBands: ['PATHFINDER']` only** — see "Known risks/TODOs".
+- **Phase 3 — Data backend** (`amplify/data/resource.ts`): five new
+  owner-authorized models — `AdventureSession`, `AdventureAction`,
+  `SkillEvidence`, `SkillProgress`, `WorldChange` — plus `SessionStatus` and
+  `Correctness` enums, wired to `ChildProfile` with the same
+  `hasMany`/`belongsTo` pattern already used for `CompanionProfile`.
+  `difficultyState` from `DATA_MODEL.md`'s `AdventureSession` shape was
+  intentionally dropped (see "Known risks/TODOs").
+- **Phase 3 — API layer** (`src/features/adventures/api.ts`): session
+  start/resume/advance/complete, action + skill-evidence recording,
+  `upsertSkillProgress` (accumulates exposure/independent/supported counts
+  per child+objective rather than overwriting), and `recordWorldChangeOnce`
+  (idempotent by `changeKey`, so replaying an adventure never duplicates a
+  world change). Same list-then-filter, throw-on-missing-data style as
+  `child-profile/api.ts`/`island/api.ts`.
+- **Phase 3 — Orchestration** (`src/features/adventures/useAdventureSession.ts`):
+  a hook that loads or creates the session, validates each answer, escalates
+  the hint ladder, auto-persists the `WORLD_CHANGE` step and auto-completes
+  the session on reaching `COMPLETE`, and keeps every bit of this logic out
+  of components per `CLAUDE.md` section 13.
+- **Phase 3 — UI** (`src/features/adventures/steps/`, `AdventureRunner.tsx`,
+  `HintPanel.tsx`, `src/routes/AdventurePage.tsx`): renderer components for
+  the step types this adventure actually uses (`NarrativeStep`, `ChoiceStep`,
+  `NumberInputStep`, `OrderingStep` — up/down buttons, not drag-and-drop, so
+  it stays keyboard/tablet accessible with no new dependency); a new route
+  `/island/:childId/locations/:locationSlug/adventures/:templateSlug`.
+  `MATCHING`/`SHORT_RESPONSE`/`CREATIVE_CHOICE`/`REFLECTION` have engine-level
+  validators but no renderer yet — no authored content needs them until a
+  later adventure.
+- **Phase 3 — Location/log wiring**: `IslandLocationPage` now fetches the
+  child's age band and this location's world changes, and shows "Start"/
+  "Play again" when a template exists and the age band is supported, "not
+  available for your age yet" otherwise, and swaps the decoration text once
+  `BRIDGE_REPAIRED` exists. `AdventureLog` now lists real sessions
+  (title/status/date) instead of only the Phase 2 empty state.
+- Unit tests for the engine (`validators.test.ts`, `transitions.test.ts`,
+  `hints.test.ts`) and content (`repairTheMoonlightBridge.test.ts` — a
+  structural guard that every transition target exists and `COMPLETE` is
+  reachable); component tests for `NumberInputStep`, `ChoiceStep`,
+  `OrderingStep`, `HintPanel`. No new route-level tests, consistent with
+  every existing route (`WelcomeHarbor`, etc.) having none — they need a live
+  backend to exercise meaningfully.
 
 ## Next task
 
-Begin Phase 3 (Deterministic Adventure Engine) per `docs/ROADMAP.md`: the
-typed adventure definition format, state machine and transition validation,
-hint ladder, session persistence, skill-evidence and world-change events, and
-one complete Pirate Builder Bay adventure authored without AI — filling in
-the `/island/:childId/locations/pirate-builder-bay` shell added in Phase 2.
+Begin Phase 4 (Safe AI Companion) per `docs/ROADMAP.md`: a structured AI
+generation route, the Chatty persona template, age-banded output schemas and
+limits, a validation/fallback pipeline, audit metadata, and AI-assisted
+dialogue/hints layered onto Pirate Builder Bay's existing deterministic
+adventure (AI may vary presentation and hint phrasing but must never decide
+correctness or transitions — that stays in `src/features/adventures/engine/`).
 
 ## Verification (this session)
 
-- `npm run typecheck` — passed.
-- `npm run lint` — passed (same 2 pre-existing-style warnings as Phase 1, not
-  errors: `AuthContext.tsx` exports both a component and a hook from one
-  file, and `ParentGate.tsx` uses `role="dialog"` on a `div` rather than a
-  native `<dialog>`; both are deliberate, common, low-risk patterns, kept as
-  warnings rather than "fixed" into more complexity than needed).
+- `npm run typecheck` — passed (`tsc -b` and `amplify/tsconfig.json`).
+- `npm run lint` — passed (same 2 pre-existing-style warnings as every prior
+  phase, not errors: `AuthContext.tsx` exports both a component and a hook
+  from one file, and `ParentGate.tsx` uses `role="dialog"` on a `div` rather
+  than a native `<dialog>`; both deliberate, kept as warnings).
 - `npm run format:check` — passed.
-- `npm run test` — passed (10 files, 40 tests).
+- `npm run test` — passed (18 files, 81 tests).
 - `npm run build` — passed (same informational chunk-size warning for the
-  `aws-amplify` SDK bundle as Phase 1; still not addressed, still a premature
+  `aws-amplify` SDK bundle as every prior phase; still a premature
   optimization for an MVP with no traffic yet).
-- `npm run test:e2e` — passed (3 tests, Chromium; unchanged from Phase 1 —
-  the new island routes require a signed-in parent against a real deployed
-  backend, which isn't reachable in this sandbox, so no new e2e coverage was
-  added for them).
-- `npx ampx sandbox` was **not** run against a real AWS account this session (requires
-  AWS credentials; `.claude/settings.json` denies `aws:*` commands in this environment,
-  and deploying cloud resources is a user decision). The backend was verified
-  structurally instead: `amplify/auth/resource.ts` and `amplify/data/resource.ts`
-  type-check under `amplify/tsconfig.json`.
+- `npm run test:e2e` — passed (3 tests, Chromium; unchanged from Phase 1/2 —
+  the new adventure routes require a signed-in parent against a real
+  deployed backend, which isn't reachable in this sandbox).
+- `npx ampx sandbox` was **not** run against a real AWS account this session
+  (requires AWS credentials; `.claude/settings.json` denies `aws:*` commands
+  in this environment, and deploying cloud resources is a user decision).
+  The backend was verified structurally instead: `amplify/data/resource.ts`
+  type-checks under `amplify/tsconfig.json`. One real Amplify constraint was
+  found this way: `a.ref(...)` (enum) fields do not support `.default()` in
+  the installed `@aws-amplify/data-schema` version (`RefType` has no
+  `default` method, unlike `a.boolean()`/`a.string()`, etc.) — `status` on
+  `AdventureSession` is `.ref('SessionStatus').required()` with no schema
+  default; `startSession` in `api.ts` sets `status: 'ACTIVE'` explicitly on
+  create instead.
 
 ## Known risks / TODOs
 
@@ -189,14 +257,37 @@ the `/island/:childId/locations/pirate-builder-bay` shell added in Phase 2.
   accounts" and "child profile CRUD authorization," but that requires a
   deployed `ampx sandbox` (real Cognito + AppSync) — unavailable here (no AWS
   credentials, `.claude/settings.json` denies `aws:*`). What shipped instead:
-  `amplify/data/resource.ts` declares `allow.owner()` on `ParentProfile`,
-  `ChildProfile`, and (as of Phase 2) `CompanionProfile`, and the feature
-  `api.ts` modules rely on that (no manual owner filtering client-side). A
-  real test, once someone runs `ampx sandbox` with credentials, would: sign up
-  two parent users, have each create a child profile (and, for
-  `CompanionProfile`, a companion), and assert that parent A's authenticated
-  client cannot `get`/`list`/`update` parent B's records for any of the three
-  models (expect an authorization error or empty result, not the data).
+  `amplify/data/resource.ts` declares `allow.owner()` on every model,
+  including the five new Phase 3 models, and the feature `api.ts` modules
+  rely on that (no manual owner filtering client-side). A real test, once
+  someone runs `ampx sandbox` with credentials, would: sign up two parent
+  users, have each create a child profile and play through an adventure, and
+  assert that parent A's authenticated client cannot `get`/`list`/`update`
+  parent B's records for any model (expect an authorization error or empty
+  result, not the data) — plus `docs/TESTING_STRATEGY.md`'s "adventure
+  start/action/complete invariants" and "prevention of direct progress or
+  world-change forgery," which also need a live backend to verify a client
+  can't, say, `AdventureAction.create` a `CORRECT` result for a step it never
+  reached.
+- **"Repair the Moonlight Bridge" is authored for `ageBands: ['PATHFINDER']`
+  only.** Sprout/Explorer children see "not available for your age yet" on
+  Pirate Builder Bay (`IslandLocationPage.tsx`) instead of the adventure.
+  `CLAUDE.md` section 3 forbids showing content merely because it exists, and
+  hand-authoring true per-band difficulty variants for the very first
+  adventure was judged out of scope for "author one complete adventure" —
+  revisit once there's a second adventure to validate the pattern against.
+- `AdventureSession.difficultyState` from `DATA_MODEL.md` was dropped from
+  the schema: Phase 3 has no adaptive-difficulty state beyond the hint
+  ladder (which lives in-memory per play-through in
+  `useAdventureSession.ts`, not persisted). Add it back if/when adaptation
+  needs to survive a page reload or vary future content difficulty.
+- Hint-ladder level and attempt count for the *current* step are in-memory
+  only (`useAdventureSession.ts`'s `progressByStep`) and reset on a hard page
+  reload; `AdventureAction` rows persist the history, but resuming a session
+  after a reload restarts hint escalation from level 0 for whatever step the
+  child is on. Low severity (session `currentStepId` — the part required by
+  "session persistence and resume" — does persist correctly); revisit if
+  losing in-progress hint state proves disruptive in testing.
 - `MAX_CHILD_PROFILES` (3) is enforced only in `ChildProfileList.tsx`
   (client-side UI). There is no server-side guard, so a direct API call could
   create a fourth profile. Low severity (no cross-user exposure), but worth a

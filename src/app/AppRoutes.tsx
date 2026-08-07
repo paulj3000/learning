@@ -10,6 +10,7 @@ import { ChildProfileNew } from '../routes/ChildProfileNew';
 import { ChildProfileEdit } from '../routes/ChildProfileEdit';
 import { WelcomeHarbor } from '../routes/WelcomeHarbor';
 import { IslandLocationPage } from '../routes/IslandLocationPage';
+import { AdventurePage } from '../routes/AdventurePage';
 import { AdventureLog } from '../routes/AdventureLog';
 import { RequireParent } from '../features/auth/RequireParent';
 
@@ -58,6 +59,14 @@ export function AppRoutes() {
         element={
           <RequireParent>
             <IslandLocationPage />
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/locations/:locationSlug/adventures/:templateSlug"
+        element={
+          <RequireParent>
+            <AdventurePage />
           </RequireParent>
         }
       />

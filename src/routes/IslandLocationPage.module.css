@@ -54,3 +54,12 @@
   font-weight: 600;
   color: var(--color-primary);
 }
+
+.startLink {
+  align-self: flex-start;
+  font-weight: 600;
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-primary);
+  color: var(--color-primary-contrast);
+}

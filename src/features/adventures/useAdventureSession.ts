@@ -1,0 +1,266 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  getHintText,
+  getNextStepId,
+  getStep,
+  isGuidedCompletion,
+  nextHintLevel,
+  validateStepAnswer,
+} from './engine';
+import type { AdventureDefinition, AdventureStep, Correctness } from './engine/types';
+import type { StepAnswer } from './engine/validators';
+import {
+  advanceSession,
+  completeSession,
+  getActiveSession,
+  recordAction,
+  recordSkillEvidence,
+  recordWorldChangeOnce,
+  startSession,
+  upsertSkillProgress,
+  type AdventureSession,
+} from './api';
+
+type LoadState = 'loading' | 'ready' | 'error';
+
+interface StepProgress {
+  hintLevel: number;
+  attemptNumber: number;
+}
+
+function normalizeAnswer(answer: StepAnswer): string | undefined {
+  switch (answer.kind) {
+    case 'number-input':
+      return String(answer.value);
+    case 'choice':
+    case 'short-response':
+    case 'creative-choice':
+      return answer.optionId;
+    case 'ordering':
+      return answer.order.join(',');
+    case 'matching':
+      return answer.pairs.map((pair) => `${pair.leftId}:${pair.rightId}`).join(',');
+    default:
+      return undefined;
+  }
+}
+
+export interface AdventureSessionState {
+  loadState: LoadState;
+  session: AdventureSession | null;
+  currentStep: AdventureStep | null;
+  hintLevel: number;
+  hintText: string | undefined;
+  submitting: boolean;
+  error: string | null;
+  submitAnswer: (answer: StepAnswer) => Promise<void>;
+  requestHint: () => void;
+}
+
+/**
+ * Orchestrates one child's play-through of one adventure: loads or creates
+ * the session, validates answers, escalates the hint ladder, and drives
+ * every transition through the deterministic engine (CLAUDE.md section 7 —
+ * no AI decides correctness or transitions). Keeps that logic out of
+ * components entirely (CLAUDE.md section 13).
+ */
+export function useAdventureSession(
+  childProfileId: string,
+  definition: AdventureDefinition,
+): AdventureSessionState {
+  const [loadState, setLoadState] = useState<LoadState>('loading');
+  const [session, setSession] = useState<AdventureSession | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [progressByStep, setProgressByStep] = useState<Record<string, StepProgress>>({});
+  const autoAdvancedStepRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const existing = await getActiveSession(childProfileId, definition.slug);
+        const active =
+          existing ??
+          (await startSession(
+            childProfileId,
+            definition.slug,
+            definition.version,
+            definition.entryStepId,
+          ));
+        if (cancelled) return;
+        setSession(active);
+        setLoadState('ready');
+      } catch {
+        if (cancelled) return;
+        setLoadState('error');
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [childProfileId, definition.slug, definition.version, definition.entryStepId]);
+
+  const currentStep = session ? getStep(definition, session.currentStepId) : null;
+  const currentProgress = currentStep ? progressByStep[currentStep.id] : undefined;
+  const hintLevel = currentProgress?.hintLevel ?? 0;
+
+  const advance = useCallback(
+    async (nextStepId: string) => {
+      if (!session) return;
+      const updated = await advanceSession(session.id, nextStepId);
+      setSession(updated);
+    },
+    [session],
+  );
+
+  const recordEvidenceForStep = useCallback(
+    async (
+      step: AdventureStep,
+      sessionId: string,
+      correctness: Correctness,
+      supportLevel: number,
+    ) => {
+      for (const objectiveId of step.objectiveIds) {
+        await recordSkillEvidence({
+          childProfileId,
+          sessionId,
+          learningObjectiveCode: objectiveId,
+          evidenceType: step.type,
+          result: correctness,
+          supportLevel,
+        });
+        await upsertSkillProgress(childProfileId, objectiveId, supportLevel > 0);
+      }
+    },
+    [childProfileId],
+  );
+
+  const submitAnswer = useCallback(
+    async (answer: StepAnswer) => {
+      if (!session || !currentStep) return;
+      setSubmitting(true);
+      setError(null);
+      try {
+        let correctness = validateStepAnswer(currentStep, answer);
+        let supportLevel = currentProgress?.hintLevel ?? 0;
+        const attemptNumber = (currentProgress?.attemptNumber ?? 0) + 1;
+
+        const needsRetry =
+          (correctness === 'incorrect' || correctness === 'partial') && currentStep.hintPolicy;
+
+        if (needsRetry) {
+          const escalatedHintLevel = nextHintLevel(supportLevel);
+          setProgressByStep((prev) => ({
+            ...prev,
+            [currentStep.id]: { hintLevel: escalatedHintLevel, attemptNumber },
+          }));
+
+          if (isGuidedCompletion(escalatedHintLevel)) {
+            correctness = 'correct';
+            supportLevel = escalatedHintLevel;
+          } else {
+            await recordAction({
+              sessionId: session.id,
+              stepId: currentStep.id,
+              actionType: currentStep.type,
+              normalizedAnswer: normalizeAnswer(answer),
+              correctness,
+              hintLevel: escalatedHintLevel,
+              attemptNumber,
+            });
+            return;
+          }
+        } else {
+          setProgressByStep((prev) => ({
+            ...prev,
+            [currentStep.id]: { hintLevel: supportLevel, attemptNumber },
+          }));
+        }
+
+        await recordAction({
+          sessionId: session.id,
+          stepId: currentStep.id,
+          actionType: currentStep.type,
+          normalizedAnswer: normalizeAnswer(answer),
+          correctness,
+          hintLevel: supportLevel,
+          attemptNumber,
+        });
+        if (correctness !== 'not_applicable') {
+          await recordEvidenceForStep(currentStep, session.id, correctness, supportLevel);
+        }
+        const nextStepId = getNextStepId(currentStep, correctness);
+        await advance(nextStepId);
+      } catch {
+        setError('Something went wrong. Let’s try that again.');
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [session, currentStep, currentProgress, advance, recordEvidenceForStep],
+  );
+
+  const requestHint = useCallback(() => {
+    if (!currentStep) return;
+    setProgressByStep((prev) => ({
+      ...prev,
+      [currentStep.id]: {
+        hintLevel: nextHintLevel(prev[currentStep.id]?.hintLevel ?? 0),
+        attemptNumber: prev[currentStep.id]?.attemptNumber ?? 0,
+      },
+    }));
+  }, [currentStep]);
+
+  useEffect(() => {
+    if (!session || !currentStep) return;
+    if (autoAdvancedStepRef.current === currentStep.id) return;
+
+    if (currentStep.type === 'WORLD_CHANGE' && currentStep.presentation.kind === 'world-change') {
+      autoAdvancedStepRef.current = currentStep.id;
+      const { payload } = currentStep.presentation;
+      void (async () => {
+        try {
+          await recordWorldChangeOnce(
+            childProfileId,
+            payload.locationSlug,
+            payload.changeType,
+            payload.changeKey,
+            session.id,
+          );
+          await advance(getNextStepId(currentStep, 'not_applicable'));
+        } catch {
+          setError('Something went wrong saving your progress on the island.');
+        }
+      })();
+      return;
+    }
+
+    if (currentStep.type === 'COMPLETE' && session.status !== 'COMPLETED') {
+      autoAdvancedStepRef.current = currentStep.id;
+      void (async () => {
+        try {
+          const updated = await completeSession(session.id);
+          setSession(updated);
+        } catch {
+          setError('Something went wrong finishing the adventure.');
+        }
+      })();
+    }
+  }, [session, currentStep, childProfileId, advance]);
+
+  return {
+    loadState,
+    session,
+    currentStep,
+    hintLevel,
+    hintText: currentStep ? getHintText(currentStep, hintLevel) : undefined,
+    submitting,
+    error,
+    submitAnswer,
+    requestHint,
+  };
+}
