@@ -8,7 +8,9 @@ import { ForgotPassword } from '../routes/ForgotPassword';
 import { ParentDashboard } from '../routes/ParentDashboard';
 import { ChildProfileNew } from '../routes/ChildProfileNew';
 import { ChildProfileEdit } from '../routes/ChildProfileEdit';
-import { ChildModePlaceholder } from '../routes/ChildModePlaceholder';
+import { WelcomeHarbor } from '../routes/WelcomeHarbor';
+import { IslandLocationPage } from '../routes/IslandLocationPage';
+import { AdventureLog } from '../routes/AdventureLog';
 import { RequireParent } from '../features/auth/RequireParent';
 
 export function AppRoutes() {
@@ -47,7 +49,23 @@ export function AppRoutes() {
         path="/island/:childId"
         element={
           <RequireParent>
-            <ChildModePlaceholder />
+            <WelcomeHarbor />
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/locations/:locationSlug"
+        element={
+          <RequireParent>
+            <IslandLocationPage />
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/log"
+        element={
+          <RequireParent>
+            <AdventureLog />
           </RequireParent>
         }
       />

@@ -2,12 +2,13 @@
 
 ## Current state
 
-Phase 0 foundation and Phase 1 (parent accounts and child profiles) are complete.
-No island, companion, or adventure features exist yet.
+Phase 0 foundation, Phase 1 (parent accounts and child profiles), and Phase 2
+(island shell) are complete. The island is navigable with a chosen companion,
+but no adventures are playable yet — that's Phase 3.
 
 ## Current phase
 
-Phase 1 — Parent Accounts and Child Profiles: complete.
+Phase 2 — Island Shell: complete.
 
 ## Completed
 
@@ -68,35 +69,75 @@ Phase 1 — Parent Accounts and Child Profiles: complete.
 - **Phase 1 — Amplify config loading** (`src/lib/amplify-config.ts`): loads
   `amplify_outputs.json` via `import.meta.glob` (zero-match-safe) instead of a
   static import, since that file is gitignored and does not exist in CI or in a
-  fresh checkout; `configureAmplify()` no-ops and `isAmplifyConfigured` is
-  `false` when it's missing, so `dev`/`build`/`test`/`test:e2e` all still work
-  with no deployed backend.
+  fresh checkout; `isAmplifyConfigured` is `false` when it's missing, so
+  `dev`/`build`/`test`/`test:e2e` all still work with no deployed backend.
+  **Fixed after initial Phase 1 delivery:** `Amplify.configure()` now runs as a
+  side effect of importing this module, rather than via an exported function a
+  caller had to remember to invoke. The original version required `App.tsx` to
+  call `configureAmplify()`, but ES module evaluation order meant
+  `src/lib/data-client.ts`'s `generateClient()` always ran first regardless of
+  route, breaking every screen that touched the data client (surfaced as
+  "Client could not be generated..." on `/parent`). `data-client.ts` now
+  imports `amplify-config.ts` directly, immediately before calling
+  `generateClient()`, which guarantees correct ordering no matter what else is
+  going on in the wider import graph.
 - Unit/component tests added alongside every Phase 1 module (validators, forms,
   `ParentGate`, `ChildProfileForm`, `ChildProfileList`); `App.test.tsx` and
   `e2e/smoke.spec.ts` updated for the new landing page and extended with
   render-only checks for `/sign-up` and `/sign-in`.
+- **Phase 2 — Data backend** (`amplify/data/resource.ts`): added
+  `CompanionProfile` (owner-authorized, same pattern as `ChildProfile`), plus
+  a `hasOne`/`belongsTo` relationship between `ChildProfile` and
+  `CompanionProfile`. `cosmeticState` from `docs/DATA_MODEL.md` was
+  intentionally left off the model — it's marked optional there and nothing
+  in Phase 2 reads or writes it yet.
+- **Phase 2 — Island shell** (`src/features/island/`, new): `locations.ts`
+  (static content for the three MVP locations — Pirate Builder Bay,
+  Wonderwild Forest, Storykeeper Castle — since `docs/DATA_MODEL.md`'s
+  `IslandLocation` is "content-managed reference data" for an admin role that
+  doesn't exist yet); `events.ts` (a small curated, date-deterministic "today
+  on the island" message, no AI/backend); `api.ts`
+  (`getOrCreateCompanionProfile`/`getCompanionProfile`, same shape as the
+  Phase 1 child-profile API); `IslandLayout.tsx` (shared header/nav +
+  parent-gated exit for every child-mode screen, reusing the existing
+  `ParentGate` component rather than duplicating it); `CompanionIntro.tsx`
+  (first-visit "Meet Chatty the Parrot" companion-selection card).
+- **Phase 2 — Routes**: replaced the Phase 1 `ChildModePlaceholder` with
+  `WelcomeHarbor` (`/island/:childId` — companion intro on first visit, then
+  the map, today's event, and a log link, matching
+  `docs/PRODUCT_VISION.md`'s description of Welcome Harbor as the map/event/
+  companion/log hub), `IslandLocationPage`
+  (`/island/:childId/locations/:locationSlug` — static, described, not yet
+  playable), and `AdventureLog` (`/island/:childId/log` — empty-state shell;
+  real entries arrive with Phase 3's adventure sessions).
+- Unit/component tests added for the new island module (`events.test.ts`,
+  `CompanionIntro.test.tsx`).
 
 ## Next task
 
-Begin Phase 2 (Island Shell) per `docs/ROADMAP.md`: Welcome Harbor, the visual
-map, the three MVP adventure locations, companion selection, and the adventure
-log shell — filling in real content behind the `/island/:childId` placeholder
-route added in Phase 1.
+Begin Phase 3 (Deterministic Adventure Engine) per `docs/ROADMAP.md`: the
+typed adventure definition format, state machine and transition validation,
+hint ladder, session persistence, skill-evidence and world-change events, and
+one complete Pirate Builder Bay adventure authored without AI — filling in
+the `/island/:childId/locations/pirate-builder-bay` shell added in Phase 2.
 
 ## Verification (this session)
 
 - `npm run typecheck` — passed.
-- `npm run lint` — passed (2 pre-existing-style warnings, not errors: `AuthContext.tsx`
-  exports both a component and a hook from one file, and `ParentGate.tsx` uses
-  `role="dialog"` on a `div` rather than a native `<dialog>`; both are deliberate,
-  common, low-risk patterns, kept as warnings rather than "fixed" into more
-  complexity than Phase 1 needs).
+- `npm run lint` — passed (same 2 pre-existing-style warnings as Phase 1, not
+  errors: `AuthContext.tsx` exports both a component and a hook from one
+  file, and `ParentGate.tsx` uses `role="dialog"` on a `div` rather than a
+  native `<dialog>`; both are deliberate, common, low-risk patterns, kept as
+  warnings rather than "fixed" into more complexity than needed).
 - `npm run format:check` — passed.
-- `npm run test` — passed (8 files, 34 tests).
-- `npm run build` — passed (one informational chunk-size warning for the
-  `aws-amplify` SDK bundle; not addressed now, since code-splitting it is a
-  premature optimization for an MVP with no traffic yet).
-- `npm run test:e2e` — passed (3 tests, Chromium).
+- `npm run test` — passed (10 files, 40 tests).
+- `npm run build` — passed (same informational chunk-size warning for the
+  `aws-amplify` SDK bundle as Phase 1; still not addressed, still a premature
+  optimization for an MVP with no traffic yet).
+- `npm run test:e2e` — passed (3 tests, Chromium; unchanged from Phase 1 —
+  the new island routes require a signed-in parent against a real deployed
+  backend, which isn't reachable in this sandbox, so no new e2e coverage was
+  added for them).
 - `npx ampx sandbox` was **not** run against a real AWS account this session (requires
   AWS credentials; `.claude/settings.json` denies `aws:*` commands in this environment,
   and deploying cloud resources is a user decision). The backend was verified
@@ -148,13 +189,14 @@ route added in Phase 1.
   accounts" and "child profile CRUD authorization," but that requires a
   deployed `ampx sandbox` (real Cognito + AppSync) — unavailable here (no AWS
   credentials, `.claude/settings.json` denies `aws:*`). What shipped instead:
-  `amplify/data/resource.ts` declares `allow.owner()` on both `ParentProfile`
-  and `ChildProfile`, and `src/features/child-profile/api.ts` relies on that
-  (no manual owner filtering client-side). A real test, once someone runs
-  `ampx sandbox` with credentials, would: sign up two parent users, have each
-  create a child profile, and assert that parent A's authenticated client
-  cannot `get`/`list`/`update` parent B's `ChildProfile`/`ParentProfile`
-  records (expect an authorization error or empty result, not the data).
+  `amplify/data/resource.ts` declares `allow.owner()` on `ParentProfile`,
+  `ChildProfile`, and (as of Phase 2) `CompanionProfile`, and the feature
+  `api.ts` modules rely on that (no manual owner filtering client-side). A
+  real test, once someone runs `ampx sandbox` with credentials, would: sign up
+  two parent users, have each create a child profile (and, for
+  `CompanionProfile`, a companion), and assert that parent A's authenticated
+  client cannot `get`/`list`/`update` parent B's records for any of the three
+  models (expect an authorization error or empty result, not the data).
 - `MAX_CHILD_PROFILES` (3) is enforced only in `ChildProfileList.tsx`
   (client-side UI). There is no server-side guard, so a direct API call could
   create a fourth profile. Low severity (no cross-user exposure), but worth a

@@ -1,9 +1,12 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 
 /**
- * Phase 1 schema (docs/DATA_MODEL.md): ParentProfile and ChildProfile only.
- * Both models use owner authorization, so `.list()`/`.get()` calls from the
- * client are already scoped to the authenticated parent's own records.
+ * Phase 1 + 2 schema (docs/DATA_MODEL.md): ParentProfile, ChildProfile, and
+ * CompanionProfile. All three use owner authorization, so `.list()`/`.get()`
+ * calls from the client are already scoped to the authenticated parent's own
+ * records. IslandLocation, WorldChange, and AdventureSession are deferred:
+ * Phase 2 locations are static content and Phase 2 has no real adventures
+ * yet to produce world changes or sessions (see docs/ROADMAP.md Phase 3).
  * @see https://docs.amplify.aws/react/build-a-backend/data/
  */
 const schema = a.schema({
@@ -29,6 +32,19 @@ const schema = a.schema({
       readingMode: a.ref('ReadingMode').required(),
       sessionMinutes: a.integer().required(),
       active: a.boolean().required().default(true),
+      companionProfile: a.hasOne('CompanionProfile', 'childProfileId'),
+    })
+    .authorization((allow) => [allow.owner()]),
+
+  CompanionType: a.enum(['CHATTY_PARROT']),
+
+  CompanionProfile: a
+    .model({
+      childProfileId: a.id().required(),
+      childProfile: a.belongsTo('ChildProfile', 'childProfileId'),
+      companionType: a.ref('CompanionType').required(),
+      displayName: a.string().required(),
+      lastGreetingAt: a.datetime(),
     })
     .authorization((allow) => [allow.owner()]),
 });

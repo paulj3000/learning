@@ -1,0 +1,72 @@
+.intro {
+  width: 100%;
+  max-width: 40rem;
+  text-align: center;
+}
+
+.heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-display);
+  color: var(--color-primary);
+}
+
+.event {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-text-muted);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.mapHeading {
+  align-self: flex-start;
+  margin: 0;
+  font-size: var(--font-size-heading);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 60rem;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-6);
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.card:hover {
+  border-color: var(--color-primary);
+}
+
+.card:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--font-size-large);
+  font-weight: 700;
+}
+
+.cardTagline {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.logLink {
+  font-weight: 600;
+  color: var(--color-primary);
+}
