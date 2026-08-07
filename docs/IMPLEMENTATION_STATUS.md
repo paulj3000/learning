@@ -32,6 +32,13 @@ Phase 0 — Foundation: complete.
 - Local development and Amplify sandbox setup documented in `README.md`.
 - `amplify.yml` build spec added at repo root so Amplify Hosting builds the frontend
   (`dist/`) and runs `ampx pipeline-deploy` for the backend.
+- `amplify.yml` caching tightened: `npm install` now points at a repo-local
+  `.npm-cache` directory (via `npm config set cache`) and runs with
+  `--prefer-offline`, and that directory is added alongside `node_modules` to the
+  Amplify Hosting `cache.paths`. Amplify was already caching `node_modules`, but
+  `node_modules` cache-misses (e.g. any lockfile change) previously forced a full
+  re-download from the npm registry on every build; caching the npm download cache
+  too means those installs resolve from local disk instead.
 
 ## Next task
 
