@@ -1,0 +1,13 @@
+.avatarButton {
+  display: inline-flex;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--radius-lg);
+  line-height: 0;
+}
+
+.avatarButton:hover canvas {
+  filter: brightness(1.05);
+}

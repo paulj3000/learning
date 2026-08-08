@@ -699,14 +699,9 @@ live backend.
   image asset, same "no binary asset pipeline exists yet" reasoning as the
   plank-icon SVGs above. Draws in a fixed 200x200 logical coordinate space
   scaled to a `size` prop and to `devicePixelRatio` for crisp tablet
-  rendering. Accessibility: `role="img"` plus `aria-label="Chatty the
-  Parrot"` on the canvas (decorative pixels, real accessible name), with
-  fallback text content inside the `<canvas>` tag for non-canvas clients;
-  every call site still shows the visible "Chatty the Parrot" text label
-  next to it, so `docs/UX_AND_ACCESSIBILITY.md`'s "icon plus text, not icon
-  alone" rule holds. Wired into `CompanionBubble.tsx` (48px, new `.header`
-  row above the existing speaker/text) and `CompanionIntro.tsx`'s "Meet
-  Chatty" screen (140px, above the heading) — both previously text-only.
+  rendering. Wired into `CompanionBubble.tsx` (48px, new `.header` row
+  above the existing speaker/text) and `CompanionIntro.tsx`'s "Meet Chatty"
+  screen (140px, above the heading) — both previously text-only.
   `drawChatty` guards on `ctx` being non-null so it degrades quietly rather
   than throwing when `getContext('2d')` returns `null` (jsdom's real
   behavior with no `canvas` npm package installed, confirmed by a
@@ -715,7 +710,51 @@ live backend.
   `drawChatty` is actually invoked and calls real fill/stroke/arc/ellipse
   primitives. Visually confirmed the same throwaway-route-plus-Playwright-
   screenshot way as the plank icons, at three sizes, then reverted the
-  route (no diff in `AppRoutes.tsx`).
+  route (no diff in `AppRoutes.tsx`). **Superseded by the next entry**,
+  which replaced the plain `role="img"` canvas with a tappable button and
+  added shading and a click animation.
+- **Phase 8 - Chatty avatar: polish, gradients, and a click animation**
+  (`src/features/companion/ChattyAvatar.tsx`,
+  `src/features/companion/ChattyAvatar.module.css`, new): reworked
+  `drawChatty` to use radial/linear gradients (body, head, belly, wing,
+  beak) instead of flat fills, added contour strokes, a glossy head
+  highlight, and a soft ground shadow beneath the perch, for a less
+  flat/more toy-like look at every size. `drawChatty` now takes an
+  optional second `ChattyFrame` argument (`{ hop, wingFlap, tilt }`,
+  all defaulting to 0/standing) so the same drawing code can render both
+  the resting pose and any animated frame — no separate "animated"
+  drawing path to keep in sync. Tapping/clicking Chatty (now a real
+  `<button>` wrapping the canvas, not a bare canvas — CLAUDE.md section 13,
+  "accessible buttons over clickable divs" — so Enter/Space and the app's
+  normal focus-visible ring work too) plays a ~650ms hop-and-flap:
+  `requestAnimationFrame` steps `hopFrame(t)` through an eased sine hop,
+  a decaying wing flap, and a decaying side-to-side tilt, cancelled on
+  unmount or a second rapid click. Respects the OS
+  `prefers-reduced-motion` preference (checked directly via
+  `window.matchMedia`, since this animation is canvas-driven, not CSS, so
+  `global.css`'s existing reduced-motion media query doesn't reach it) by
+  skipping straight to a single still redraw instead of animating — the
+  one new accessibility-relevant behavior this entry adds. The canvas
+  itself is now `aria-hidden`; the button's `aria-label="Chatty the
+  Parrot. Tap to say hello!"` carries the accessible name, and every call
+  site still pairs it with the visible "Chatty the Parrot" text label per
+  `docs/UX_AND_ACCESSIBILITY.md`'s "icon plus text" rule. **No sound
+  yet** — deliberately deferred, since audio needs the parent
+  voice/microphone controls CLAUDE.md section 2 calls for, which don't
+  exist yet; adding a sound now would ship audio nothing can mute. Test
+  coverage extended: the fake-context test helper now stubs
+  `createLinearGradient`/`createRadialGradient` (returning a fake gradient
+  object) plus `save`/`restore`/`translate`/`rotate`, a mid-hop frame is
+  asserted to draw without throwing, and three new component tests cover
+  the button's accessible name/size, that a click starts a
+  `requestAnimationFrame` loop, and that a stubbed
+  `prefers-reduced-motion: reduce` skips the loop entirely (needed
+  `vi.stubGlobal('matchMedia', ...)` rather than `vi.spyOn` — jsdom does
+  not implement `window.matchMedia` at all, confirmed by a test failure
+  before this fix). Visually confirmed both the rest pose and a mid-hop
+  frame via the same throwaway-route-plus-Playwright-screenshot approach,
+  clicking one of two avatars on the page and confirming only that one
+  animates; route reverted (no diff in `AppRoutes.tsx`).
 
 ## Verification (Phase 8 session)
 
@@ -723,7 +762,7 @@ live backend.
 - `npm run lint` — passed (same 2 pre-existing-style warnings as every
   prior phase, not errors).
 - `npm run format:check` — passed.
-- `npm run test` — passed (32 files, 169 tests, up from 29 files/158
+- `npm run test` — passed (32 files, 172 tests, up from 29 files/158
   tests — `deletion.test.ts` and `ChattyAvatar.test.tsx` are new files; the
   plank-icon and `choose-bundle` group-sum tests were added to the
   existing `ChoiceStep.test.tsx`/`repairTheMoonlightBridge.test.ts`).
