@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import parentStyles from './ParentDashboard.module.css';
 import styles from './ChildDashboard.module.css';
 import { getChildProfile, setChildProfileAIEnabled } from '../features/child-profile/api';
 import type { ChildProfile } from '../features/child-profile/api';
+import { deleteChildProfileData } from '../features/child-profile/deletion';
 import {
   listAllWorldChanges,
   listSessions,
@@ -20,7 +21,8 @@ import { LEARNING_OBJECTIVES, getAdventureTemplate } from '../features/adventure
 import { getIslandLocation } from '../features/island/locations';
 import { AGE_BAND_LABELS, READING_MODE_OPTIONS } from '../features/child-profile/constants';
 import { buildWeeklySummary } from '../features/parent-dashboard/weeklySummary';
-import { clearAIHistory } from '../features/parent-dashboard/api';
+import { clearAIHistory, listSafetyEvents } from '../features/parent-dashboard/api';
+import type { SafetyEvent } from '../features/parent-dashboard/api';
 
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -30,6 +32,18 @@ const SESSION_STATUS_LABELS: Record<AdventureSession['status'], string> = {
   COMPLETED: 'Completed',
   ABANDONED: 'Not finished',
   SAFETY_STOPPED: 'Stopped for safety',
+};
+
+const SAFETY_SEVERITY_LABELS: Record<SafetyEvent['severity'], string> = {
+  LOW: 'Low',
+  MEDIUM: 'Medium',
+  HIGH: 'High',
+};
+
+const SAFETY_REVIEW_STATUS_LABELS: Record<SafetyEvent['reviewStatus'], string> = {
+  OPEN: 'Not yet reviewed by our team',
+  REVIEWED: 'Reviewed',
+  DISMISSED: 'Reviewed, no action needed',
 };
 
 function formatDate(isoDate: string): string {
@@ -81,16 +95,21 @@ function skillProgressMeta(row: SkillProgress): string {
  */
 export function ChildDashboard() {
   const { childId } = useParams<{ childId: string }>();
+  const navigate = useNavigate();
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
   const [sessions, setSessions] = useState<AdventureSession[]>([]);
   const [skillProgress, setSkillProgress] = useState<SkillProgress[]>([]);
   const [worldChanges, setWorldChanges] = useState<WorldChange[]>([]);
   const [stories, setStories] = useState<StoryArtifact[]>([]);
+  const [safetyEvents, setSafetyEvents] = useState<SafetyEvent[]>([]);
   const [savingAI, setSavingAI] = useState(false);
   const [confirmingClearHistory, setConfirmingClearHistory] = useState(false);
   const [clearingHistory, setClearingHistory] = useState(false);
   const [historyCleared, setHistoryCleared] = useState(false);
+  const [confirmingDeleteChild, setConfirmingDeleteChild] = useState(false);
+  const [deletingChild, setDeletingChild] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,13 +120,15 @@ export function ChildDashboard() {
         return;
       }
       try {
-        const [profile, sessionRows, skillRows, worldChangeRows, storyRows] = await Promise.all([
-          getChildProfile(childId),
-          listSessions(childId),
-          listSkillProgress(childId),
-          listAllWorldChanges(childId),
-          listStoryArtifacts(childId),
-        ]);
+        const [profile, sessionRows, skillRows, worldChangeRows, storyRows, safetyEventRows] =
+          await Promise.all([
+            getChildProfile(childId),
+            listSessions(childId),
+            listSkillProgress(childId),
+            listAllWorldChanges(childId),
+            listStoryArtifacts(childId),
+            listSafetyEvents(childId),
+          ]);
         if (cancelled) return;
         if (!profile) {
           setLoadState('not-found');
@@ -118,6 +139,7 @@ export function ChildDashboard() {
         setSkillProgress(skillRows);
         setWorldChanges(worldChangeRows);
         setStories(storyRows);
+        setSafetyEvents(safetyEventRows);
         setLoadState('ready');
       } catch {
         if (cancelled) return;
@@ -154,6 +176,21 @@ export function ChildDashboard() {
       setHistoryCleared(true);
     } finally {
       setClearingHistory(false);
+    }
+  }
+
+  async function handleDeleteChild() {
+    if (!childProfile) return;
+    setDeletingChild(true);
+    setDeleteError(null);
+    try {
+      await deleteChildProfileData(childProfile.id);
+      navigate('/parent');
+    } catch (error) {
+      setDeleteError(
+        error instanceof Error ? error.message : 'Could not delete this child profile.',
+      );
+      setDeletingChild(false);
     }
   }
 
@@ -259,6 +296,33 @@ export function ChildDashboard() {
             </section>
 
             <section className={styles.section}>
+              <h2 className={styles.heading}>Safety check-ins</h2>
+              <p className={styles.hint}>
+                Sometimes Chatty's AI response does not pass our safety checks. When that happens,
+                Chatty always uses a pre-written, reviewed reply instead, so your child never sees
+                an unchecked response. Here is when that happened for {childProfile.nickname}.
+              </p>
+              {safetyEvents.length === 0 ? (
+                <p className={styles.hint}>No safety check-ins yet.</p>
+              ) : (
+                <ul className={styles.list}>
+                  {safetyEvents.map((event) => (
+                    <li className={styles.card} key={event.id}>
+                      <p className={styles.cardTitle}>
+                        {SAFETY_SEVERITY_LABELS[event.severity]} &middot;{' '}
+                        {formatDate(event.createdAt)}
+                      </p>
+                      <p className={styles.cardMeta}>{event.actionTaken}</p>
+                      <p className={styles.cardMeta}>
+                        {SAFETY_REVIEW_STATUS_LABELS[event.reviewStatus]}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className={styles.section}>
               <h2 className={styles.heading}>Controls</h2>
 
               <div className={styles.controlRow}>
@@ -350,6 +414,51 @@ export function ChildDashboard() {
                     onClick={() => setConfirmingClearHistory(true)}
                   >
                     Clear history
+                  </button>
+                )}
+              </div>
+
+              <div className={styles.controlRow}>
+                <div>
+                  <p className={styles.controlLabel}>Delete this child's account</p>
+                  <p className={styles.hint}>
+                    Permanently deletes every adventure, saved story, skill record, and world change
+                    for {childProfile.nickname}. This cannot be undone.
+                  </p>
+                  {deleteError ? (
+                    <p className={parentStyles.error} role="alert">
+                      {deleteError}
+                    </p>
+                  ) : null}
+                </div>
+                {confirmingDeleteChild ? (
+                  <div className={styles.confirm} role="alert">
+                    <p className={styles.confirmText}>
+                      Delete {childProfile.nickname}'s account and all data for good?
+                    </p>
+                    <button
+                      className={styles.buttonDanger}
+                      type="button"
+                      disabled={deletingChild}
+                      onClick={() => void handleDeleteChild()}
+                    >
+                      Yes, delete everything
+                    </button>
+                    <button
+                      className={styles.buttonSecondary}
+                      type="button"
+                      onClick={() => setConfirmingDeleteChild(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    className={styles.buttonDanger}
+                    type="button"
+                    onClick={() => setConfirmingDeleteChild(true)}
+                  >
+                    Delete permanently
                   </button>
                 )}
               </div>

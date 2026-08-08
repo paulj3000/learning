@@ -4,18 +4,31 @@
  * (see docs/IMPLEMENTATION_STATUS.md, "Decisions pending").
  */
 :root {
-  /* Color */
+  /*
+   * Color. --color-primary, --color-accent, --color-warning,
+   * --color-focus-ring, and --color-border were darkened from their
+   * original placeholder values (docs/PRIVACY_AND_SAFETY_REVIEW.md's
+   * accessibility audit companion, "Phase 8"): the originals failed WCAG
+   * AA (4.5:1 text / 3:1 non-text) against --color-surface/
+   * --color-background, most visibly as low-contrast body text on
+   * Chatty's speaker name and choice buttons
+   * (CompanionBubble.module.css), a barely-visible keyboard focus ring
+   * (global.css), and a nearly invisible text-input border on every form
+   * (AuthForm.module.css, ChildProfileForm.module.css). Every color
+   * below now meets at least the relevant WCAG threshold against both
+   * --color-surface and --color-background.
+   */
   --color-background: #f4f9fb;
   --color-surface: #ffffff;
   --color-text: #1b2733;
   --color-text-muted: #4b5b68;
-  --color-primary: #1e88a8;
+  --color-primary: #166a82;
   --color-primary-contrast: #ffffff;
-  --color-accent: #2fb673;
-  --color-warning: #c77a1f;
+  --color-accent: #1c7a4b;
+  --color-warning: #93570d;
   --color-danger: #b3261e;
-  --color-focus-ring: #ffd166;
-  --color-border: #d8e3e8;
+  --color-focus-ring: #a35400;
+  --color-border: #6f8794;
 
   /* Spacing */
   --space-1: 0.25rem;

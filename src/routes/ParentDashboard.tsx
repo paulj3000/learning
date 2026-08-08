@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from './ParentDashboard.module.css';
 import { useAuth } from '../features/auth/AuthContext';
 import { ChildProfileList } from '../features/child-profile/ChildProfileList';
@@ -7,16 +8,21 @@ import {
   listChildProfiles,
   setChildProfileActive,
 } from '../features/child-profile/api';
+import { deleteAccountAndAllData } from '../features/child-profile/deletion';
 import type { ChildProfile, ParentProfile } from '../features/child-profile/api';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
 export function ParentDashboard() {
   const { signOut } = useAuth();
+  const navigate = useNavigate();
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [parentProfile, setParentProfile] = useState<ParentProfile | null>(null);
   const [childProfiles, setChildProfiles] = useState<ChildProfile[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingDeleteAccount, setConfirmingDeleteAccount] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,6 +53,20 @@ export function ParentDashboard() {
     setChildProfiles((current) => current.map((item) => (item.id === updated.id ? updated : item)));
   }
 
+  async function handleDeleteAccount() {
+    setDeletingAccount(true);
+    setDeleteAccountError(null);
+    try {
+      await deleteAccountAndAllData();
+      navigate('/');
+    } catch (deleteError) {
+      setDeleteAccountError(
+        deleteError instanceof Error ? deleteError.message : 'Could not delete your account.',
+      );
+      setDeletingAccount(false);
+    }
+  }
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -65,7 +85,51 @@ export function ParentDashboard() {
           </p>
         ) : null}
         {loadState === 'ready' ? (
-          <ChildProfileList childProfiles={childProfiles} onToggleActive={handleToggleActive} />
+          <div className={styles.content}>
+            <ChildProfileList childProfiles={childProfiles} onToggleActive={handleToggleActive} />
+            <section className={styles.dangerZone}>
+              <h2 className={styles.dangerHeading}>Delete account</h2>
+              <p className={styles.hint}>
+                Permanently deletes your parent account and every child profile, adventure, saved
+                story, and record beneath it. This cannot be undone.
+              </p>
+              {deleteAccountError ? (
+                <p className={styles.error} role="alert">
+                  {deleteAccountError}
+                </p>
+              ) : null}
+              {confirmingDeleteAccount ? (
+                <div className={styles.confirm} role="alert">
+                  <p className={styles.confirmText}>
+                    Delete your account and all family data for good?
+                  </p>
+                  <button
+                    className={styles.buttonDanger}
+                    type="button"
+                    disabled={deletingAccount}
+                    onClick={() => void handleDeleteAccount()}
+                  >
+                    Yes, delete everything
+                  </button>
+                  <button
+                    className={styles.buttonSecondary}
+                    type="button"
+                    onClick={() => setConfirmingDeleteAccount(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className={styles.buttonDanger}
+                  type="button"
+                  onClick={() => setConfirmingDeleteAccount(true)}
+                >
+                  Delete my account
+                </button>
+              )}
+            </section>
+          </div>
         ) : null}
       </main>
     </div>

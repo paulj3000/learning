@@ -44,7 +44,13 @@ Bedrock model choice ever changes.
 
 ## Current phase
 
-Phase 7 — Parent Dashboard: complete.
+Phase 7 — Parent Dashboard: complete. Phase 8 — Hardening and Pilot:
+partially complete this session (data deletion flow, authorization
+review, threat model, privacy/child-safety review including a shipped
+fix, and an accessibility audit including a shipped fix are done; load/
+cost tests, the AI red-team suite, operational dashboards/alarms, and the
+closed pilot itself remain blocked on a deployed AWS environment and real
+participants - see `docs/PILOT_READINESS.md`).
 
 ## Completed
 
@@ -542,11 +548,158 @@ the user was testing against.
 
 ## Next task
 
-Begin Phase 8 (Hardening and Pilot) per `docs/ROADMAP.md`: threat
-modeling, authorization review, privacy and child-safety review,
-accessibility audit, load and cost tests, AI red-team tests, a data
-deletion flow, operational dashboards and alarms, and a closed parent
-pilot.
+Phase 8 (Hardening and Pilot) is partially complete - see the Phase 8
+entry below for what shipped and `docs/PILOT_READINESS.md` for the four
+deliverables (load/cost tests, the AI red-team suite, operational
+dashboards/alarms, and the closed parent pilot itself) that genuinely
+need a deployed AWS environment and, eventually, real families, and so
+were written up as runbooks rather than executed. Once a sandbox is
+deployable: work through `docs/PILOT_READINESS.md` in order, starting
+with the live owner-isolation authorization test
+(`docs/AUTHORIZATION_REVIEW.md` section 5) and the AI evaluation/red-team
+suite (`docs/PILOT_READINESS.md` section 2), both of which several
+earlier phases' "Known risks/TODOs" have already flagged as needing a
+live backend.
+
+- **Phase 8 - Data deletion flow**
+  (`src/features/child-profile/deletion.ts`, new): the Phase 8 deliverable
+  from `docs/ROADMAP.md` that was fully buildable without a live backend.
+  `deleteChildProfileData` cascades a full, irreversible delete of every
+  record tied to one child across all 8 child-scoped models plus
+  `AdventureAction` (chained through `AdventureSession.sessionId`, since
+  it has no `childProfileId` of its own), then the `ChildProfile` row
+  itself - the "deletes" half of `docs/TESTING_STRATEGY.md`'s e2e path 9
+  ("Parent deletes or deactivates a child profile"), which only had a
+  deactivate/reactivate toggle before this phase.
+  `deleteAccountAndAllData` composes that per child, deletes every
+  `ParentProfile` row, then calls `aws-amplify/auth`'s `deleteUser()` to
+  remove the Cognito account itself (order matters: everything needing an
+  authenticated session runs before `deleteUser()`). Wired into two new
+  danger-zone UI sections: `ChildDashboard.tsx`'s "Delete this child's
+  account" (redirects to `/parent` on success) and `ParentDashboard.tsx`'s
+  new "Delete account" section (redirects to `/` on success), both
+  following the existing inline "are you sure?" confirm pattern already
+  established by `StoryKeepsakes.tsx`/Phase 7's "Clear history". Unit
+  tests (`deletion.test.ts`) mock the data client (same pattern as
+  `companion/api.test.ts`) and verify one child's records are deleted
+  while a second, unrelated child's same-shaped records are left alone,
+  and that `deleteAccountAndAllData` deletes child data and the parent
+  profile before calling `deleteUser()`, not after.
+- **Phase 8 - Authorization review** (`docs/AUTHORIZATION_REVIEW.md`,
+  new): a source-level review of every `amplify/data/resource.ts` auth
+  rule and every `list()`-then-filter call site in `src/features/*/api.ts`
+  against `docs/TESTING_STRATEGY.md`'s "Backend tests" invariants.
+  Confirmed all 11 models' `allow.owner()` rules are correct and
+  sufficient given the product's actual authorization boundary (children
+  never authenticate independently, ADR-001), and that client-side
+  `list()`-then-filter is safe only because owner scoping already applies
+  server-side before any client filter runs. No new authorization gap was
+  found; the two gaps already tracked since earlier phases
+  (`MAX_CHILD_PROFILES` and `ChildProfile.aiEnabled` being enforced
+  client-side only) were re-verified and given concrete remediation plans
+  for whoever has a deployable sandbox, deliberately **not** built this
+  session as an untested Lambda-backed custom mutation - the review's own
+  reasoning is that shipping authorization-relevant backend code with no
+  ability to deploy or exercise it is a worse risk than the low-severity
+  gap it would close (citing this repo's own history of exactly that kind
+  of bug: Phase 4's cross-Region IAM gap and enum-serialization issue,
+  and Phase 7's `aiEnabled` `.required()` bug, all of which only surfaced
+  against a live deploy). Section 5 turns
+  `docs/TESTING_STRATEGY.md`'s abstract "Backend tests" list into a
+  concrete pre-pilot checklist.
+- **Phase 8 - Threat model** (`docs/THREAT_MODEL.md`, new): assets,
+  actors, trust boundaries (matching `docs/ARCHITECTURE.md`'s system
+  diagram), and a STRIDE-organized threat/mitigation pass scoped to what
+  actually applies to a bounded, structured-generation children's product
+  rather than a generic web-app checklist. Confirms cross-family data
+  exposure - the threat this review weighted most heavily given the
+  product's actual users - has no open gap; the six open items it
+  surfaces are the same ones the authorization and privacy/safety reviews
+  already found, organized as a threat model rather than scattered phase
+  notes, plus one new item (no Bedrock rate limiting beyond AWS account
+  defaults, tracked in `docs/PILOT_READINESS.md`).
+- **Phase 8 - Privacy and child-safety review**
+  (`docs/PRIVACY_AND_SAFETY_REVIEW.md`, new): checked every requirement in
+  `docs/AI_AND_CHILD_SAFETY.md` (the 10-layer safety architecture, child
+  input policy, companion boundaries, prompt-context minimization,
+  structured-response validation rules, parent transparency, data
+  retention principle) against the actual implementation by reading the
+  code, not re-describing the spec. Found one concrete, actionable gap
+  beyond what was already tracked: `SafetyEvent` rows existed and were
+  owner-scoped, but had no parent-facing display, so a parent had no
+  in-product way to learn a `STOP`/`REDIRECT` safety escalation happened
+  for their child. **Closed in the same session** (not just documented):
+  added `listSafetyEvents` (`src/features/parent-dashboard/api.ts`, also
+  now exports the `SafetyEvent` type) and a new "Safety check-ins"
+  section on `ChildDashboard.tsx` showing severity, date, the plain-
+  language `actionTaken` string, and review status, with explanatory copy
+  that Chatty always substitutes a pre-written reply rather than showing
+  an unchecked one. Read-only, consistent with there being no
+  admin/reviewer role yet to actually action a `reviewStatus` change
+  (`docs/AUTHORIZATION_REVIEW.md` section 4.3). Every other gap the
+  review found was already reachable-or-not by an existing, tracked
+  limitation (e.g. the "reject or redirect" child-input rules being
+  currently unenforceable because no free-text child input exists yet to
+  enforce them against) rather than a new one.
+- **Phase 8 - Accessibility audit** (`docs/ACCESSIBILITY_AUDIT.md`, new):
+  a source-level pass confirming the app's accessibility fundamentals
+  (semantic buttons everywhere - no clickable divs found anywhere in
+  `src/`, focus-visible styling, a working skip link, `aria-live`/
+  `role="alert"` on `CompanionBubble.tsx`'s dynamic states, keyboard-
+  operable custom controls like `OrderingStep.tsx`'s up/down buttons,
+  reduced-motion support, correct form label association) were already
+  solid from earlier phases. Found and fixed one real, previously-
+  unnoticed class of issue: four `src/styles/tokens.css` color tokens
+  failed WCAG contrast against the backgrounds they're actually rendered
+  on - most consequentially `--color-accent` (2.61:1 on white, used for
+  **Chatty's speaker name and every AI-companion choice button**, the
+  most child-facing text in the product) and `--color-focus-ring`
+  (1.44:1, the global keyboard focus outline). Also fixed
+  `--color-primary` (links/buttons sitewide) and `--color-border` (was
+  nearly invisible as a text-input border on every parent-facing form).
+  All four were darkened within the same hue family (a contrast
+  correction, not a redesign) and now clear the relevant WCAG threshold
+  against both `--color-surface` and `--color-background`; fixing them at
+  the shared token source corrects every component that uses them at
+  once. `docs/ACCESSIBILITY_AUDIT.md` section 3 lists what this pass
+  could not cover (live screen-reader testing, automated contrast/axe
+  scanning, measured touch-target sizing) as pre-pilot follow-ups.
+- **Phase 8 - Pilot readiness runbooks** (`docs/PILOT_READINESS.md`,
+  new): concrete, executable runbooks for the four Phase 8 deliverables
+  that genuinely cannot be attempted in this environment - load and cost
+  tests, the AI red-team/evaluation suite, operational dashboards and
+  alarms, and the closed parent pilot itself - each blocked on either a
+  deployed AWS environment (no credentials available here, the same
+  constraint noted in every prior phase) or, for the pilot, real
+  recruited families. Includes a concrete pre-pilot readiness checklist
+  cross-referencing every other Phase 8 document's open items.
+
+## Verification (Phase 8 session)
+
+- `npm run typecheck` — passed (`tsc -b` and `amplify/tsconfig.json`).
+- `npm run lint` — passed (same 2 pre-existing-style warnings as every
+  prior phase, not errors).
+- `npm run format:check` — passed.
+- `npm run test` — passed (30 files, 161 tests, up from 29 files/158
+  tests — the one new file is `deletion.test.ts`).
+- `npm run build` — passed (same informational chunk-size warning as
+  every prior phase).
+- `npm run test:e2e` — passed (3 tests, Chromium; unchanged — they still
+  only cover unauthenticated routes).
+- **Not done this session**: no `ampx sandbox` deploy exercising the new
+  deletion flow, the `SafetyEvent`-visibility dashboard addition, or the
+  retuned color tokens against a live backend/real browser (no AWS
+  credentials in this environment, same constraint noted in every prior
+  phase). `deletion.ts`'s cascading deletes were verified with mocked-
+  client unit tests (`deletion.test.ts`) that check the right rows are
+  targeted and the right call ordering happens, not against real
+  DynamoDB data; `deleteUser()`'s actual Cognito-account-removal
+  behavior is entirely unverified here. The color-token contrast fixes
+  were verified by computing WCAG contrast ratios directly from the hex
+  values (exact for solid-color text-on-background pairs, which is every
+  case here), not by rendering the app and measuring. All of the above
+  are listed as concrete pre-pilot follow-ups in
+  `docs/PILOT_READINESS.md` and `docs/ACCESSIBILITY_AUDIT.md` section 3.
 
 ## Verification (Phase 7 session)
 
