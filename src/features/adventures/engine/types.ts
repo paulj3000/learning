@@ -28,6 +28,13 @@ export interface HintPolicy {
 export interface ChoiceOption {
   id: string;
   label: string;
+  /**
+   * Optional counts of visually-grouped items (e.g. a "2 planks + 2
+   * planks" bundle is `[2, 2]`) rendered as icons alongside `label` so a
+   * child can count them directly rather than only reading the sum.
+   * Decorative only — `label` remains the button's accessible name.
+   */
+  groups?: number[];
 }
 
 export interface WorldChangePayload {

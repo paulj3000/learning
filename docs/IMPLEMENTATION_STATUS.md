@@ -673,6 +673,49 @@ live backend.
   constraint noted in every prior phase) or, for the pilot, real
   recruited families. Includes a concrete pre-pilot readiness checklist
   cross-referencing every other Phase 8 document's open items.
+- **Phase 8 - Plank-counting visual for the bridge bundle-choice step**
+  (`src/features/adventures/engine/types.ts`,
+  `src/features/adventures/steps/ChoiceStep.tsx`,
+  `src/features/adventures/content/repairTheMoonlightBridge.ts`): `ChoiceOption`
+  gained an optional `groups?: number[]` (e.g. `[2, 2]`), and `ChoiceStep`
+  renders it as inline-SVG plank icons (no new dependency, no image asset
+  pipeline) grouped with a "+" divider, purely decorative
+  (`aria-hidden="true"`) so the button's accessible name stays the authored
+  text label. Wired into "Repair the Moonlight Bridge"'s `choose-bundle`
+  step so a Pathfinder-band child can count actual plank icons rather than
+  only reading arithmetic text, matching `docs/ADVENTURE_ENGINE.md`'s
+  "show manipulatives or visual groups" adaptation guidance. `groups` is
+  optional and only this one step's options use it; every other `CHOICE`/
+  `CREATIVE_CHOICE` step across all three adventures is unaffected.
+  Visually confirmed by temporarily mounting `ChoiceStep` on a throwaway
+  route, screenshotting it with Playwright against the Vite dev server,
+  then reverting the route (no route change in the final diff).
+- **Phase 8 - Chatty the Parrot avatar** (`src/features/companion/ChattyAvatar.tsx`,
+  new): Chatty had no graphical representation anywhere in the app before
+  this — every prior phase rendered "Chatty the Parrot" as a text label
+  only. `ChattyAvatar` draws a portrait with the HTML5 Canvas 2D API
+  (`drawChatty`, a pure function taking a `CanvasRenderingContext2D`, kept
+  separate from the React wrapper per CLAUDE.md section 13) rather than an
+  image asset, same "no binary asset pipeline exists yet" reasoning as the
+  plank-icon SVGs above. Draws in a fixed 200x200 logical coordinate space
+  scaled to a `size` prop and to `devicePixelRatio` for crisp tablet
+  rendering. Accessibility: `role="img"` plus `aria-label="Chatty the
+  Parrot"` on the canvas (decorative pixels, real accessible name), with
+  fallback text content inside the `<canvas>` tag for non-canvas clients;
+  every call site still shows the visible "Chatty the Parrot" text label
+  next to it, so `docs/UX_AND_ACCESSIBILITY.md`'s "icon plus text, not icon
+  alone" rule holds. Wired into `CompanionBubble.tsx` (48px, new `.header`
+  row above the existing speaker/text) and `CompanionIntro.tsx`'s "Meet
+  Chatty" screen (140px, above the heading) — both previously text-only.
+  `drawChatty` guards on `ctx` being non-null so it degrades quietly rather
+  than throwing when `getContext('2d')` returns `null` (jsdom's real
+  behavior with no `canvas` npm package installed, confirmed by a
+  dedicated test); `ChattyAvatar.test.tsx` also mocks
+  `HTMLCanvasElement.prototype.getContext` (no new dependency) to verify
+  `drawChatty` is actually invoked and calls real fill/stroke/arc/ellipse
+  primitives. Visually confirmed the same throwaway-route-plus-Playwright-
+  screenshot way as the plank icons, at three sizes, then reverted the
+  route (no diff in `AppRoutes.tsx`).
 
 ## Verification (Phase 8 session)
 
@@ -680,8 +723,14 @@ live backend.
 - `npm run lint` — passed (same 2 pre-existing-style warnings as every
   prior phase, not errors).
 - `npm run format:check` — passed.
-- `npm run test` — passed (30 files, 161 tests, up from 29 files/158
-  tests — the one new file is `deletion.test.ts`).
+- `npm run test` — passed (32 files, 169 tests, up from 29 files/158
+  tests — `deletion.test.ts` and `ChattyAvatar.test.tsx` are new files; the
+  plank-icon and `choose-bundle` group-sum tests were added to the
+  existing `ChoiceStep.test.tsx`/`repairTheMoonlightBridge.test.ts`).
+  jsdom logs (not fails on) "Not implemented: HTMLCanvasElement's
+  getContext()" for every unmocked `ChattyAvatar` mount — expected, real
+  jsdom behavior with no `canvas` npm package installed, and exactly what
+  one of `ChattyAvatar.test.tsx`'s tests deliberately exercises.
 - `npm run build` — passed (same informational chunk-size warning as
   every prior phase).
 - `npm run test:e2e` — passed (3 tests, Chromium; unchanged — they still

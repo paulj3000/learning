@@ -66,4 +66,19 @@ describe('REPAIR_THE_MOONLIGHT_BRIDGE', () => {
   it('is scoped to Pathfinders only', () => {
     expect(REPAIR_THE_MOONLIGHT_BRIDGE.ageBands).toEqual(['PATHFINDER']);
   });
+
+  it('gives the choose-bundle step plank icon groups that sum to the number Pirate Pip needs', () => {
+    const chooseBundleStep = REPAIR_THE_MOONLIGHT_BRIDGE.steps.find(
+      (step) => step.id === 'choose-bundle',
+    );
+    const presentation = chooseBundleStep?.presentation;
+    if (presentation?.kind !== 'choice') {
+      throw new Error('Expected choose-bundle to be a choice step.');
+    }
+    const correctOption = presentation.options.find(
+      (option) => option.id === presentation.correctOptionId,
+    );
+    const groupSum = correctOption?.groups?.reduce((total, count) => total + count, 0);
+    expect(groupSum).toBe(4);
+  });
 });

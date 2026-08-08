@@ -60,9 +60,9 @@ export const REPAIR_THE_MOONLIGHT_BRIDGE: AdventureDefinition = {
         kind: 'choice',
         prompt: 'Which bundle of planks adds up to what Pirate Pip needs?',
         options: [
-          { id: 'bundle-2-2', label: '2 planks + 2 planks' },
-          { id: 'bundle-1-2', label: '1 plank + 2 planks' },
-          { id: 'bundle-3-3', label: '3 planks + 3 planks' },
+          { id: 'bundle-2-2', label: '2 planks + 2 planks', groups: [2, 2] },
+          { id: 'bundle-1-2', label: '1 plank + 2 planks', groups: [1, 2] },
+          { id: 'bundle-3-3', label: '3 planks + 3 planks', groups: [3, 3] },
         ],
         correctOptionId: 'bundle-2-2',
       },

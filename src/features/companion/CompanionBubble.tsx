@@ -1,3 +1,4 @@
+import { ChattyAvatar } from './ChattyAvatar';
 import styles from './CompanionBubble.module.css';
 import type { CompanionTurnState } from './useCompanionTurn';
 
@@ -22,7 +23,10 @@ export function CompanionBubble({ state, onChoose }: CompanionBubbleProps) {
   if (state.status === 'loading') {
     return (
       <div className={styles.bubble} aria-live="polite">
-        <p className={styles.speaker}>Chatty the Parrot</p>
+        <div className={styles.header}>
+          <ChattyAvatar size={48} />
+          <p className={styles.speaker}>Chatty the Parrot</p>
+        </div>
         <p className={styles.loading}>Chatty is thinking...</p>
       </div>
     );
@@ -31,7 +35,10 @@ export function CompanionBubble({ state, onChoose }: CompanionBubbleProps) {
   if (state.status === 'error') {
     return (
       <div className={styles.bubble} role="alert">
-        <p className={styles.speaker}>Chatty the Parrot</p>
+        <div className={styles.header}>
+          <ChattyAvatar size={48} />
+          <p className={styles.speaker}>Chatty the Parrot</p>
+        </div>
         <p className={styles.text}>Chatty is resting for a moment.</p>
       </div>
     );
@@ -41,7 +48,10 @@ export function CompanionBubble({ state, onChoose }: CompanionBubbleProps) {
 
   return (
     <div className={styles.bubble} aria-live="polite" data-source={source}>
-      <p className={styles.speaker}>Chatty the Parrot</p>
+      <div className={styles.header}>
+        <ChattyAvatar size={48} />
+        <p className={styles.speaker}>Chatty the Parrot</p>
+      </div>
       <p className={styles.text}>{turn.spokenText}</p>
       {turn.choices?.length ? (
         <div className={styles.choices}>

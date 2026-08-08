@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ChattyAvatar } from '../companion/ChattyAvatar';
 import styles from './CompanionIntro.module.css';
 
 interface CompanionIntroProps {
@@ -29,6 +30,7 @@ export function CompanionIntro({ childNickname, onChoose }: CompanionIntroProps)
   return (
     <div className={styles.page}>
       <div className={styles.card}>
+        <ChattyAvatar size={140} />
         <h1 className={styles.heading}>Meet Chatty the Parrot</h1>
         <p className={styles.lead}>
           Hi {childNickname}! Chatty is a curious, friendly parrot who will explore the island with
