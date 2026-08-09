@@ -71,6 +71,36 @@ function normalizeEnumValue<T extends string>(
 }
 
 /**
+ * `emotion` synonym fallback. A live red-team run against real Bedrock
+ * output (docs/PILOT_READINESS.md section 2, scripts/ai-red-team.ts) found
+ * the model frequently invents a free-text mood word ("wonder", "playful",
+ * "warm and curious") instead of one of the four allowed values, even after
+ * `chattyPersona.ts` was tightened to spell them out explicitly — the same
+ * "no single model instruction is sufficient" reasoning CLAUDE.md section 7
+ * applies everywhere else. `emotion` is cosmetic (not currently rendered
+ * distinctly in the UI, and never a safety-relevant field), so a
+ * best-effort keyword match here is safe: on no match, this still falls
+ * through to `normalizeEnumValue`'s existing "reject and fall back to
+ * authored content" behavior rather than guessing wrong. Checked in a fixed
+ * category order, first match wins, so an ambiguous compound phrase (e.g.
+ * "warm and curious") resolves deterministically rather than by iteration
+ * order of the object literal.
+ */
+const EMOTION_SYNONYMS: { emotion: CompanionEmotion; keywords: RegExp }[] = [
+  { emotion: 'CHEERFUL', keywords: /\b(playful|joyful|happy|cheerful|excited|fun|delighted)\b/i },
+  { emotion: 'CURIOUS', keywords: /\b(curious|wonder(ing)?|intrigued|inquisitive)\b/i },
+  { emotion: 'CALM', keywords: /\b(calm|peaceful|gentle|relaxed|soothing|focused)\b/i },
+  { emotion: 'ENCOURAGING', keywords: /\b(encouraging|warm|supportive|proud|kind)\b/i },
+];
+
+function normalizeEmotion(value: unknown): CompanionEmotion | undefined {
+  const exact = normalizeEnumValue(value, EMOTIONS);
+  if (exact) return exact;
+  if (typeof value !== 'string') return undefined;
+  return EMOTION_SYNONYMS.find(({ keywords }) => keywords.test(value))?.emotion;
+}
+
+/**
  * Runtime schema + content-safety validation for one AI-generated
  * `CompanionTurn` (docs/AI_AND_CHILD_SAFETY.md validation rules). Returns a
  * typed, safe-to-render turn only when every check passes; callers must
@@ -90,7 +120,7 @@ export function validateCompanionTurn(
   if (typeof spokenText !== 'string' || spokenText.trim().length === 0) {
     return { valid: false, reason: 'spokenText was missing or empty.' };
   }
-  const emotion = normalizeEnumValue(raw.emotion, EMOTIONS);
+  const emotion = normalizeEmotion(raw.emotion);
   if (!emotion) {
     return { valid: false, reason: 'emotion was missing or not a known value.' };
   }

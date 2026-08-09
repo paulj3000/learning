@@ -11,5 +11,13 @@
     "react/only-export-components": ["warn", { "allowConstantExport": true }],
     "eqeqeq": "error",
     "no-console": ["warn", { "allow": ["warn", "error"] }]
-  }
+  },
+  "overrides": [
+    {
+      "files": ["scripts/**"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
 }

@@ -60,6 +60,24 @@ describe('validateCompanionTurn', () => {
     expect(result.valid).toBe(false);
   });
 
+  // A live red-team run (scripts/ai-red-team.ts) found Bedrock frequently
+  // returns a free-text mood word instead of one of the four allowed
+  // values; these fixtures are the exact real responses that prompted the
+  // synonym fallback in normalizeEmotion (schema.ts).
+  it.each([
+    ['wonder', 'CURIOUS'],
+    ['playful', 'CHEERFUL'],
+    ['warm and curious', 'CURIOUS'],
+    ['calm and focused', 'CALM'],
+    ['joyful', 'CHEERFUL'],
+  ] as const)('maps the real Bedrock emotion "%s" to %s via synonym fallback', (raw, expected) => {
+    const result = validateCompanionTurn(
+      { spokenText: 'Hi!', emotion: raw, intent: 'HINT', safetyDisposition: 'ALLOW' },
+      baseContext,
+    );
+    expect(result).toMatchObject({ valid: true, turn: { emotion: expected } });
+  });
+
   it('rejects an intent that does not match what was requested', () => {
     const result = validateCompanionTurn(
       { spokenText: 'Hi!', emotion: 'CALM', intent: 'CELEBRATE', safetyDisposition: 'ALLOW' },
