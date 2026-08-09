@@ -45,7 +45,11 @@
       "Bash(timeout 30 bash -c 'until curl -sf http://localhost:5173 >/dev/null; do sleep 1; done')",
       "Bash(chromium-cli --help)",
       "Bash(node /tmp/claude-1000/-home-pdimitriu-Coding-learning/7f9fb455-4543-4db0-967b-9e009b5e91c8/scratchpad/drive.mjs)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(env)",
+      "Read(//home/pdimitriu/.aws/**)",
+      "Bash(npx tsx *)",
+      "Bash(TEST_PARENT_EMAIL='paulj1999@yahoo.com' TEST_PARENT_PASSWORD='Tester1234$' npx tsx scripts/ai-red-team.ts)"
     ],
     "deny": [
       "Read(.env)",
