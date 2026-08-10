@@ -97,9 +97,44 @@ Prefer content definitions checked into source control for MVP. If persisted:
 - `status`: active, paused, completed, abandoned, safety_stopped
 - `currentStepId`
 - `difficultyState`
+- `coopSessionId` optional, set when this child's session is part of a
+  `CoopSession` (see below)
 - `startedAt`
 - `completedAt`
 - `lastActivityAt`
+
+## CoopSession
+
+See `docs/DECISIONS.md` ADR-006. Household-only for v1: all
+`participantChildProfileIds` must belong to `hostParentProfileId`, so this
+model needs no authorization primitive beyond the owner rule every other
+model already uses.
+
+- `id`
+- `hostParentProfileId` — owner; the one `ParentProfile` shared by every
+  participant
+- `templateId`
+- `templateVersion`
+- `participantChildProfileIds`: array, 2 for v1
+- `status`: active, completed, abandoned
+- `sharedState`: JSON — the merged, validated puzzle state (for example,
+  which slots are filled and by which child). Written only by the
+  deterministic engine from validated `AdventureAction`s, never directly
+  from client input.
+- `startedAt`
+- `completedAt`
+- `lastActivityAt`
+
+Each participant keeps their own `AdventureSession` and `AdventureAction`
+trail (linked via `coopSessionId`) so `SkillEvidence`/`SkillProgress` stay
+attributed to whichever child actually performed the action, per the
+existing per-child evidence model — `CoopSession` never becomes the record
+of who learned what.
+
+Presence (avatar position, join/leave) is intentionally not a stored model:
+it is ephemeral UI state carried by a subscription on `CoopSession`, not
+`AIInteractionAudit`- or `SafetyEvent`-relevant, since there is no
+expressive content to audit.
 
 ## AdventureAction
 Store the minimum evidence required:
@@ -150,6 +185,12 @@ Do not label children with fixed ability judgments.
 - `createdAt`
 
 Examples: bridge repaired, dragon hatched, garden planted, new path unlocked.
+
+When a `CoopSession` completes, persist one `WorldChange` per participating
+child (same `changeType`/`changeKey`/`payload`, each with its own
+`childProfileId` and `sourceSessionId` pointing at that child's own
+`AdventureSession`), so both children's islands reflect the shared outcome.
+No shared or merged island world state is introduced.
 
 ## AIInteractionAudit
 Metadata only by default:

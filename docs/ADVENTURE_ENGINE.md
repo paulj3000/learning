@@ -97,3 +97,24 @@ Help Pirate Pip repair a bridge before the moon rises.
 - award completion;
 - persist evidence and world change.
 
+## Co-op sessions (household only)
+
+See `docs/DECISIONS.md` ADR-006 and `docs/DATA_MODEL.md` `CoopSession`. Two
+children under the same `ParentProfile` can share one adventure instance.
+Only step types with an unambiguous, conflict-free merge rule are
+coop-eligible in v1: `NUMBER_INPUT`, `ORDERING`, `MATCHING`, and
+shared-construction `WORLD_CHANGE` steps (for example, placing a plank in a
+specific slot). `CHOICE`, `SHORT_RESPONSE`, `CREATIVE_CHOICE`, and
+`REFLECTION` stay single-child even inside a coop session, since they
+represent one child's own answer or idea rather than a shared construction —
+the other child's client shows a presence signal ("child B is answering"),
+never the response itself, and that step's evidence is recorded only against
+the child who answered.
+
+**Conflict resolution:** each shared slot is claimed atomically by whichever
+child's validated action reaches the engine first. A second child's action
+targeting an already-filled slot is rejected server-side; that client
+re-renders the already-updated `CoopSession.sharedState` rather than
+surfacing an error. No client ever overwrites another child's already-valid
+contribution.
+
