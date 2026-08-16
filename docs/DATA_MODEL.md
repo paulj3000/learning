@@ -192,6 +192,61 @@ child (same `changeType`/`changeKey`/`payload`, each with its own
 `AdventureSession`), so both children's islands reflect the shared outcome.
 No shared or merged island world state is introduced.
 
+## ChildWorldState
+
+Added for the explorable-world roadmap
+(`docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md` section 26,
+Phase 9+ in `docs/ROADMAP.md`). Separates permanent world progression (what
+the child's island physically looks like — "My Island") from individual
+story progress (`ChildStoryProgress`, below) and from the append-only
+`WorldChange` event log, of which this is the derived, queryable current
+view.
+
+- `id`
+- `childProfileId` — owner-scoped, one record per child
+- `unlockedLocations`: array of location/region IDs
+- `worldChanges`: array of `WorldChange.changeKey` currently in effect
+- `discoveredObjects`: array of world-object IDs the child has interacted
+  with at least once (roadmap section 17, "environmental curiosity")
+- `discoveredCharacters`: array of NPC/character IDs met
+- `completedStories`: array of `StoryDefinition.id`
+- `updatedAt`
+
+Deliberately avoids numeric experience points as the emotional center of
+the product (roadmap section 27) — the world state itself, not a score, is
+the record of achievement.
+
+## ChildStoryProgress
+
+Long-form stories (Phase 12, Story Engine) span multiple play sessions and
+need their own resumable progress record, distinct from the single-session
+`AdventureSession`.
+
+- `id`
+- `childProfileId`
+- `storyId` — a `StoryDefinition.id` (content-authored, not a DB model; see
+  "Content packs" below)
+- `currentChapterId`
+- `completedChapterIds`: array
+- `storyFlags`: JSON — bounded, authored flags only (for example, "dragon
+  revealed as protective, not evil"), never free-form child text
+- `startedAt`
+- `lastPlayedAt`
+- `completedAt` optional
+
+Chatty may summarize prior chapters when a child resumes, but only from
+these stored, authored flags and IDs — never from a persisted free-form
+transcript (ADR-004 still applies inside stories).
+
+### Content packs are not database models
+
+`StoryDefinition`, `StoryChapter`, `StoryScene`, and map/tile data are
+authored content, checked into source control (or later, a validated
+content-pack format per roadmap sections 21–22), the same way
+`AdventureTemplate`/`AdventureStepDefinition` content is today. They are
+identified by stable string IDs that the models above reference, but are
+never themselves rows a child or parent account can write.
+
 ## AIInteractionAudit
 Metadata only by default:
 - `id`

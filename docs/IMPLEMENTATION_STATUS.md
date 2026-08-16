@@ -53,6 +53,47 @@ and fixed a real validation bug are done; load/cost tests, operational
 dashboards/alarms, and the closed pilot itself remain blocked on
 operational tooling and real participants - see `docs/PILOT_READINESS.md`).
 
+`docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md` was added and
+adopted: `docs/ROADMAP.md` Phase 9 ("Motion and Embodiment") was replaced
+with a nine-phase explorable-world arc (Phase 9 World Engine Foundation
+through Phase 17 Household Co-Presence, which moved later), `docs/DECISIONS.md`
+gained ADR-007 (Phaser as the world-engine renderer), and
+`docs/DATA_MODEL.md`/`docs/ARCHITECTURE.md`/`docs/ADVENTURE_ENGINE.md` were
+updated for the new `ChildWorldState`/`ChildStoryProgress` models and the
+World Engine → Story Engine → Adventure Engine layering rule.
+
+Phase 9's first slice is built: `phaser` is now a dependency; a
+`PhaserGameContainer` React/Phaser boundary owns `Phaser.Game`'s lifecycle
+(single instantiation per `instanceKey`, clean `destroy()` on unmount); a
+Phaser-free `WorldEventBus` and a `WorldInteraction`/`isInteractionAvailable`
+object registry carry all gameplay-relevant signals out of Phaser scenes;
+and a prototype `WelcomeHarborScene` supports keyboard (arrow/WASD) and
+tap-to-move avatar movement, camera follow, world-bounds collision, and one
+interaction zone (the broken bridge) that pops a panel linking to the real
+Pirate Builder Bay location. Reached via a new, additive
+"Try walking around the island (new!)" link on the existing card-based
+Welcome Harbor at `/island/:childId/world` — the card-based flow is
+untouched and remains the primary accessible path (roadmap section 42).
+`phaser` runs a canvas-feature-detection side effect at import time that
+crashes under jsdom, so the route is lazy-loaded (`React.lazy`) to keep it
+out of the main bundle and out of the unit-test import graph; this was
+verified against the live dev server with a temporary, unauthenticated
+preview route (removed before this change was finalized) driven by
+Playwright — walking into the bridge zone correctly surfaced the panel and
+"Go there" correctly navigated toward Pirate Builder Bay.
+
+Not yet done (Phase 9 remainder): tilemaps (the harbor is hand-drawn
+Graphics primitives, not map data), a real world object registry beyond
+the single hardcoded bridge zone, the world event bus driving actual
+`startAdventureSession` calls (the panel only links to the route today),
+sprite animation beyond a static circle, an in-app accessible alternate
+*within* the world view itself (today the alternate is a link back to the
+separate card-based route), reduced-motion handling for ambient effects
+(none exist yet to gate), and automated end-to-end coverage of the walk
+flow (verified manually this session, not committed as a Playwright test,
+since it required an unauthenticated scaffold route that was deliberately
+not kept).
+
 ## Completed
 
 - Product concept documented.
@@ -826,6 +867,91 @@ below). Three items remain:
   reporting script legitimately needs to print, unlike application code).
   Full detail and the original runbook text in `docs/PILOT_READINESS.md`
   section 2.
+
+- **Phase 9 (World Engine Foundation) — Phaser proof of concept**
+  (`package.json`: `phaser` dependency; `src/features/island-map/`:
+  `PhaserGameContainer.tsx`+test, `worldEvents.ts`+test, `worldObjects.ts`+
+  test, `scenes/WelcomeHarborScene.ts`, `IslandWorldView.tsx`; new
+  `src/routes/IslandWorldPage.tsx`; `src/app/AppRoutes.tsx`;
+  `src/routes/WelcomeHarbor.tsx`): first code slice of the
+  `docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md` plan (see
+  "Current phase" above for the doc-reconciliation half of this session).
+  `PhaserGameContainer` owns `Phaser.Game`'s lifecycle behind a plain
+  `createConfig`/`instanceKey` contract — it reads `createConfig` once per
+  `instanceKey` (via a ref, not an effect dependency) and destroys the game
+  on unmount, so unrelated parent re-renders never tear down and rebuild
+  the game, tested by mocking the `phaser` module's `Game` class and
+  asserting instantiation/destroy counts. `WorldEventBus` (typed
+  `on`/`emit`/`removeAllListeners`) and `worldObjects.ts`
+  (`WorldInteraction`, `WorldRequirement`, `isInteractionAvailable`) are
+  deliberately Phaser-free so the actual game logic — not just the React
+  boundary — stays unit-tested without a rendering context (ADR-007's
+  testing note). `WelcomeHarborScene` is a hand-drawn-with-`Graphics`
+  placeholder harbor (no tile/image assets, same precedent as
+  `ChattyAvatar`/the plank icons): keyboard (arrow keys and WASD) and
+  tap-to-move avatar movement, world-bounds collision, camera follow, and
+  one interaction zone (the broken bridge, hardcoded rect — real map-driven
+  zones are a later Phase 9/10 item) that emits `INTERACTION_ZONE_ENTERED`/
+  `EXITED` every frame-transition and auto-fires `INTERACTION_TRIGGERED`
+  for `APPROACH`/`ENTER`-type interactions. `IslandWorldView` subscribes to
+  that bus, loads the child's real `WorldChange` keys
+  (`listAllWorldChanges`) to build the `WorldInteractionContext`, and shows
+  an accessible panel (`role="dialog"`) with a real `Link` to Pirate
+  Builder Bay on trigger. Reached via a new, purely additive "Try walking
+  around the island (new!)" link on the existing, unmodified card-based
+  Welcome Harbor at `/island/:childId/world` — the card grid remains the
+  primary, fully accessible route (roadmap section 42 requires walking
+  never be the *only* way to navigate).
+  **A real integration bug was found and fixed this session**: `phaser`
+  runs a canvas-feature-detection side effect at module-import time
+  (`checkInverseAlpha`), which throws under jsdom (no `canvas` package,
+  same limitation `ChattyAvatar.test.tsx` already works around at the
+  context level, but this is import-time, not call-time). Because
+  `AppRoutes.tsx` statically imports every route component,
+  `App.test.tsx` (which only renders `/`) was transitively importing
+  `phaser` and crashing the entire suite. Fixed by `React.lazy`-loading
+  `IslandWorldPage` behind a `Suspense` boundary — this also cleanly
+  splits Phaser (1.38 MB minified) into its own build chunk instead of
+  bloating the shared bundle every route pays for, confirmed by `npm run
+  build`'s per-chunk output.
+
+## Verification (Phase 9 session)
+
+- `npm run typecheck` — passed.
+- `npm run lint` — passed (same pre-existing-style warnings as every prior
+  phase, plus one new instance of the already-accepted `role="dialog"` on a
+  `div` pattern, not an error — `IslandWorldView`'s interaction panel,
+  same choice `ParentGate.tsx` already made).
+- `npm run format:check` — passed.
+- `npm run test` — passed (34 files, 196 tests: 19 new for
+  `island-map`, all others unchanged).
+- `npm run build` — passed; `IslandWorldPage`'s Phaser-containing chunk
+  (1.38 MB minified, 360 KB gzipped) is now separate from the main bundle
+  (603 KB), confirming the lazy-load split actually isolates it.
+- **Visually verified against the live dev server and the already-running
+  `ampx sandbox`** (no AWS or Cognito credentials available in this
+  environment, and no confirmed test parent account to sign in with — see
+  Known risks/TODOs), using the same throwaway-route-plus-Playwright-
+  screenshot approach as prior Chatty avatar verification: a temporary,
+  unauthenticated `/dev/island-world-preview` route mounted
+  `IslandWorldView` directly. Confirmed, with screenshots: the placeholder
+  harbor renders (water, sand, grass, the bridge rectangle, the avatar);
+  arrow-key movement works and is clamped at the world bounds; walking the
+  avatar into the bridge zone correctly surfaces the interaction panel
+  ("The broken bridge to Pirate Builder Bay" / "Go there" / "Not now");
+  clicking "Go there" navigates toward
+  `/island/preview-child/locations/pirate-builder-bay` (redirected to
+  `/sign-in` only because the preview route has no real session, which is
+  the correct `RequireParent` behavior, not a bug). Zero browser console
+  errors throughout. The preview route and its driver script were removed
+  before finishing (no diff in `AppRoutes.tsx`); `npm run typecheck`/
+  `test`/`lint`/`format:check` were re-run clean after removal to confirm
+  no residue.
+- **Not done this session**: no automated Playwright coverage of this flow
+  (would need a committed, auth-bypassing fixture, which was deliberately
+  not added — see remaining-work note in "Current phase" above); no
+  verification against a real signed-in parent account, since none was
+  available.
 
 ## Verification (Phase 8 session)
 

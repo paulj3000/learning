@@ -118,3 +118,25 @@ re-renders the already-updated `CoopSession.sharedState` rather than
 surfacing an error. No client ever overwrites another child's already-valid
 contribution.
 
+## World entry points (Phase 9+)
+
+Starting with `docs/ROADMAP.md` Phase 9, an adventure can also start from a
+`WorldInteraction` fired inside the explorable world
+(`docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md` section 8),
+not only from a location's card/route. The flow:
+
+```text
+Child approaches an interaction zone in a Phaser scene
+        -> world event bus emits an interaction-triggered event
+        -> React checks WorldInteraction.requirements (pure, Phaser-free logic)
+        -> if satisfied, the same startAdventureSession path used by the
+           route-based flow begins
+```
+
+The Adventure Engine itself does not change: it does not know or care
+whether it was entered by tapping a location card or by walking up to an
+object in the world. Requirement checks (has the child unlocked this
+location, is this adventure already complete) live in the world/object
+registry, not inside a Phaser scene, so they stay unit-testable without a
+rendering context.
+

@@ -103,31 +103,102 @@ Deliverables:
 - operational dashboards and alarms;
 - closed parent pilot.
 
-## Phase 9 — Motion and Embodiment
+## Phase 9 — World Engine Foundation
+
+Supersedes the earlier, narrower "Motion and Embodiment" phase. Full
+rationale, architecture, and worked examples are in
+`docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md` (sections
+5–9, 28, 40, 43); see also ADR-007 in `docs/DECISIONS.md`. The hop-animation
+precedent in `ChattyAvatar.tsx` (Canvas 2D, `requestAnimationFrame`,
+`prefers-reduced-motion` guard) remains the pattern for small self-contained
+portraits/icons, but is not extended into a general game engine — Phaser
+takes that role instead (ADR-007).
 
 Deliverables:
-- extract the hop-animation logic already in `ChattyAvatar.tsx` (easing,
-  `requestAnimationFrame` loop, `prefers-reduced-motion` guard) into a
-  shared hook so no second component reimplements it;
-- animate `WorldChange` as an assembly event (for example, planks flying in
-  and snapping to count) instead of a static before/after swap — the
-  highest-leverage item, since it is the literal mechanic behind "learning
-  makes the island grow" (CLAUDE.md pillar 2);
-- companion animation state machine (idle, walk, celebrate, hint-think)
-  driven by adventure-engine events rather than click-only;
-- avatar traversal between island locations on the map, replacing static
-  location cards with a path the avatar visibly walks;
-- build-mode placement interactions in Pirate Builder Bay (tap/drag-to-place
-  with snapping) for counting, measurement, and sequencing steps;
-- ambient idle life (waves, birds, background motion), cosmetic only, always
-  gated by `prefers-reduced-motion`.
+- Phaser integration and dependency addition;
+- a React/Phaser boundary component owning `Phaser.Game` lifecycle
+  (mount/unmount, no re-instantiation on unrelated re-renders);
+- avatar controller (keyboard and touch movement);
+- camera follow;
+- tilemaps;
+- collisions;
+- interaction zones (`WorldInteraction`, roadmap section 8);
+- sprite animation;
+- world object registry;
+- touch controls;
+- keyboard controls;
+- accessibility support, including a non-graphical alternate navigator
+  (roadmap section 42) — walking the world must never be the only way to
+  reach a location or adventure;
+- reduced-motion support for ambient/cosmetic world effects;
+- world event bus decoupling Phaser scenes from React/adventure state;
+- Adventure Engine integration (a `WorldInteraction` can start an existing
+  deterministic adventure).
 
-Constraints carried over from the existing `ChattyAvatar` precedent: Canvas
-2D + `requestAnimationFrame`, no new animation/game-engine dependency, and a
-coded reduced-motion fallback for every animated component (CLAUDE.md
-section 13).
+Success criterion (roadmap section 28): a child can walk around a prototype
+Welcome Harbor, interact with Chatty, approach an adventure object, and
+launch an existing deterministic adventure.
 
-## Phase 10 — Household Co-Presence
+## Phase 10 — Welcome Harbor
+
+Turn Welcome Harbor into the first production explorable environment:
+complete harbor map, environmental animations, NPC framework, Chatty follow
+behavior, doors, signs, interactive objects, adventure entrances, persistent
+world changes, initial avatar customization, location transitions. Do not
+build the rest of the island yet — Welcome Harbor proves the architecture
+(roadmap section 29).
+
+## Phase 11 — Pirate Builder Bay (Spatial)
+
+Convert "Repair the Moonlight Bridge" into the first fully spatial
+adventure: explore, discover the broken bridge, meet a character, find
+materials, complete the existing learning challenges, build the bridge,
+watch it assemble, walk across it, discover a new area. Proves that
+learning can directly modify navigation (roadmap section 30).
+
+## Phase 12 — Story Engine
+
+Add the Story Engine layer above the deterministic Adventure Engine:
+`StoryDefinition`, `StoryChapter`, `StoryScene`, story progress persistence
+(`ChildStoryProgress`, `docs/DATA_MODEL.md`), chapter transitions, story
+flags, authored branching, adventure embedding, story recap, story
+completion, world-change integration, content validation. Build one
+reference story: **The Dragon of Ember Mountain** (roadmap sections 10–12,
+31).
+
+## Phase 13 — Wonderwild Exploration
+
+Transform Wonderwild Forest from a question-selection interface into a
+discovery-driven environment (bee hive, pond, leaves, cave, night clearing).
+The existing Wonder Wall may remain as an optional interface, but discovery
+becomes the preferred path (roadmap section 32).
+
+## Phase 14 — Storykeeper Castle (Spatial)
+
+Turn the castle into a physical creative-story environment (Character
+Gallery, Setting Tower, Story Hall, Costume Room, Great Library,
+Illustration Studio) where children construct stories by visiting locations
+and making bounded creative choices (roadmap section 33).
+
+## Phase 15 — Adventure Library
+
+Introduce multiple full adventure arcs across fantasy, exploration,
+building, nature, and mystery themes, gated by age band and child interest
+rather than gender (roadmap sections 4, 34).
+
+## Phase 16 — Island Progression
+
+Connect story completion to larger world evolution: location unlocking,
+persistent construction, ecosystem restoration, new NPC arrivals,
+story-dependent environmental changes, secret locations, returning
+characters, seasonal world state (roadmap section 35).
+
+## Phase 17 — Household Co-Presence
+
+Deliberately last: sibling co-presence only makes sense once the
+single-player graphical world and Story Engine are stable (roadmap section
+36), since presence UI has nothing meaningful to render without Phase 9's
+avatar/world engine in place.
 
 Deliverables:
 - `CoopSession` Amplify model, owner-authorized to the shared

@@ -1,0 +1,59 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.instructions {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.status {
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.panelActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.goLink {
+  font-weight: 600;
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-primary);
+  color: var(--color-primary-contrast);
+}
+
+.dismissButton {
+  font-weight: 600;
+  color: var(--color-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-2);
+}
+
+.altNavLink {
+  align-self: flex-start;
+  font-weight: 600;
+  color: var(--color-primary);
+}

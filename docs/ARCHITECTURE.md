@@ -22,7 +22,9 @@ CloudWatch logs and operational metrics
 - `app`: providers, routing, bootstrap, global error handling.
 - `features/auth`: parent authentication.
 - `features/child-profile`: profile selection and parent-managed settings.
-- `features/island-map`: world state and navigation.
+- `features/island-map`: the explorable world (Phaser boundary, avatar
+  controller, camera, world event bus, interaction/object registry) and
+  world state/navigation. See "World engine layering" below.
 - `features/adventures`: rendering and adventure state transitions.
 - `features/companion`: Chatty presentation, narration queue, AI response display.
 - `features/parent-dashboard`: progress summaries and controls.
@@ -60,6 +62,25 @@ Use generation routes for structured, single-turn content such as:
 - parent-facing summary drafts.
 
 A long-lived conversation route may be evaluated later, but the MVP should favor controlled generation calls tied to explicit adventure steps.
+
+## World engine layering
+
+Per `docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md` section 40
+and ADR-007 in `docs/DECISIONS.md`:
+
+```text
+World Engine (Phaser: movement, maps, animation, collision)
+     -> Story Engine (chapters, scenes, narrative state, bounded choices)
+     -> Adventure Engine (deterministic challenge progression, validation, hints)
+     -> Learning Rules / AI Companion (evaluation / narration, never both)
+     -> World State (permanent consequences, unlocks, discoveries)
+```
+
+Each layer only talks to its direct neighbors, and only the layer named
+"Learning Rules" ever decides correctness. The World Engine communicates
+upward through a plain, Phaser-free world event bus (`worldEvents.ts` in
+`features/island-map`), not by calling adventure or AI code directly from
+inside a Phaser scene.
 
 ## State ownership
 

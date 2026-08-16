@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { Home } from '../routes/Home';
 import { NotFound } from '../routes/NotFound';
@@ -16,6 +17,18 @@ import { AdventurePage } from '../routes/AdventurePage';
 import { AdventureLog } from '../routes/AdventureLog';
 import { RequireParent } from '../features/auth/RequireParent';
 import { RequireGuest } from '../features/auth/RequireGuest';
+
+/**
+ * Lazy-loaded: this route (transitively) imports `phaser`, a large library
+ * with a canvas-feature-detection side effect that runs at import time and
+ * is incompatible with jsdom (docs/DECISIONS.md ADR-007's testing note).
+ * Code-splitting it here keeps that import out of every other route's
+ * bundle and out of the test import graph until a child actually opens the
+ * explorable world.
+ */
+const IslandWorldPage = lazy(() =>
+  import('../routes/IslandWorldPage').then((module) => ({ default: module.IslandWorldPage })),
+);
 
 export function AppRoutes() {
   return (
@@ -84,6 +97,16 @@ export function AppRoutes() {
         element={
           <RequireParent>
             <WelcomeHarbor />
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/world"
+        element={
+          <RequireParent>
+            <Suspense fallback={<p>Loading the island...</p>}>
+              <IslandWorldPage />
+            </Suspense>
           </RequireParent>
         }
       />

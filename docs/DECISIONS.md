@@ -71,5 +71,63 @@ separate, larger decision, not an incremental extension of this one.
   island still receives its own `WorldChange` record.
 
 See `docs/DATA_MODEL.md` (`CoopSession`) and `docs/ADVENTURE_ENGINE.md`
-("Co-op sessions") for the corresponding spec.
+("Co-op sessions") for the corresponding spec. Sequencing note: this ADR's
+feature now ships as Phase 17 in `docs/ROADMAP.md`, after the world engine
+(Phase 9) and Story Engine (Phase 12) are stable, since presence UI has
+nothing to render without an avatar/world to show it in.
+
+## ADR-007: Phaser as the world-engine rendering library
+
+Status: Accepted
+
+Learning Adventure Island adopts an explorable, avatar-controlled world
+(`docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md`), replacing
+the earlier, narrower "Motion and Embodiment" plan for `docs/ROADMAP.md`
+Phase 9. That plan assumed the existing hand-rolled Canvas 2D +
+`requestAnimationFrame` approach from `ChattyAvatar.tsx` would scale up to
+tilemaps, camera follow, collision, sprite animation, and NPC interaction.
+It does not: those are exactly the concerns a 2D game engine exists to
+solve, and hand-rolling them risks becoming an unmaintained, undertested
+game engine embedded inside a learning app.
+
+Learning Adventure Island adds **Phaser** (`phaser` on npm) as the renderer
+for the explorable world, per the source roadmap's section 7
+recommendation. This is a deliberate exception to CLAUDE.md section 13's
+"do not silently introduce a new dependency" — it is introduced here
+explicitly, with the parent's approval, specifically because Phase 9's
+scope (tilemaps, collision, camera, sprite animation) is what it is built
+for.
+
+**What does not change:**
+- `ChattyAvatar.tsx`'s Canvas 2D approach remains the pattern for small,
+  self-contained portraits and icons (companion portrait, plank-count
+  icons) — it is not retrofitted into or replaced by Phaser.
+- The deterministic Adventure Engine (ADR-002), structured AI output
+  (ADR-003), and server-side correctness remain unchanged. Phaser is a
+  presentation-layer addition only; it never decides correctness,
+  progression, or safety disposition.
+- No foundation-model or network code runs inside a Phaser scene.
+
+**Layering constraint (roadmap section 40), now an architectural rule:**
+
+```text
+World Engine (Phaser: movement, maps, animation, collision)
+     -> Story Engine (chapters, scenes, narrative state, bounded choices)
+     -> Adventure Engine (deterministic challenge progression, validation, hints)
+     -> Learning Rules / AI Companion (evaluation / narration, never both)
+     -> World State (permanent consequences, unlocks, discoveries)
+```
+
+No layer takes over responsibilities belonging to another layer. In
+particular, Phaser scenes may fire `WorldInteraction` events but must never
+themselves validate an answer, award progress, or call an AI route
+directly — those cross a React/world-event-bus boundary into existing,
+already-audited code paths.
+
+**Testing implication:** Phaser requires a real Canvas/WebGL rendering
+context that jsdom does not provide, so scene code is kept thin and
+Phaser-specific (uncovered by unit tests beyond smoke-level
+mount/unmount checks with `phaser` mocked); all game *logic* — the world
+event bus, the world object/interaction registry, requirement checks — is
+written as plain, Phaser-free TypeScript so it stays unit-testable.
 
