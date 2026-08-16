@@ -57,3 +57,41 @@
   font-weight: 600;
   color: var(--color-primary);
 }
+
+.error {
+  color: var(--color-danger);
+  margin: 0;
+}
+
+.thingsToDo {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+}
+
+.thingsToDo > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.thingsToDoList {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.thingsToDoButton {
+  width: 100%;
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+}

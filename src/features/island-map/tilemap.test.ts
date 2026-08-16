@@ -1,0 +1,63 @@
+import { describe, expect, it } from 'vitest';
+import {
+  BRIDGE_TILE_RECT,
+  GRID_COLS,
+  GRID_ROWS,
+  HARBOR_COLLIDING_TILES,
+  HARBOR_TILE_COLORS,
+  HARBOR_TILE_GRID,
+  HarborTile,
+  TILE_SIZE,
+  WORLD_HEIGHT,
+  WORLD_WIDTH,
+  buildHarborTileGrid,
+} from './tilemap';
+
+describe('buildHarborTileGrid', () => {
+  it('produces a grid matching the declared dimensions', () => {
+    const grid = buildHarborTileGrid();
+    expect(grid).toHaveLength(GRID_ROWS);
+    for (const row of grid) {
+      expect(row).toHaveLength(GRID_COLS);
+    }
+  });
+
+  it('derives world pixel size from the grid dimensions and tile size', () => {
+    expect(WORLD_WIDTH).toBe(GRID_COLS * TILE_SIZE);
+    expect(WORLD_HEIGHT).toBe(GRID_ROWS * TILE_SIZE);
+  });
+
+  it('has a color for every tile type it can produce', () => {
+    const usedTileIds = new Set(HARBOR_TILE_GRID.flat());
+    for (const tileId of usedTileIds) {
+      expect(HARBOR_TILE_COLORS[tileId]).toBeTypeOf('number');
+    }
+  });
+
+  it('marks water, and only water, as colliding', () => {
+    expect(HARBOR_COLLIDING_TILES).toEqual([HarborTile.WATER]);
+  });
+
+  it('places bridge-plank tiles inside the declared bridge rectangle', () => {
+    const grid = buildHarborTileGrid();
+    const { col, row, cols, rows } = BRIDGE_TILE_RECT;
+    for (let r = row; r < row + rows; r += 1) {
+      for (let c = col; c < col + cols; c += 1) {
+        expect(grid[r][c]).toBe(HarborTile.BRIDGE_PLANK);
+      }
+    }
+  });
+
+  it('never places bridge-plank tiles outside the declared rectangle', () => {
+    const grid = buildHarborTileGrid();
+    const { col, row, cols, rows } = BRIDGE_TILE_RECT;
+    for (let r = 0; r < GRID_ROWS; r += 1) {
+      for (let c = 0; c < GRID_COLS; c += 1) {
+        const insideBridgeRect = r >= row && r < row + rows && c >= col && c < col + cols;
+        if (!insideBridgeRect) {
+          expect(grid[r][c]).not.toBe(HarborTile.BRIDGE_PLANK);
+        }
+      }
+    }
+  });
+});

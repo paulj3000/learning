@@ -105,4 +105,21 @@ describe('WELCOME_HARBOR_INTERACTIONS', () => {
     expect(bridge).toBeDefined();
     expect(isInteractionAvailable(bridge!, { worldChangeKeys: [] })).toBe(true);
   });
+
+  it('wires the broken bridge to start the real Repair the Moonlight Bridge adventure', () => {
+    const bridge = findInteraction(WELCOME_HARBOR_INTERACTIONS, 'broken-bridge');
+    expect(bridge?.action).toEqual({
+      kind: 'START_ADVENTURE',
+      locationSlug: 'pirate-builder-bay',
+      templateSlug: 'repair-the-moonlight-bridge',
+    });
+  });
+
+  it('always makes talking to Chatty available and tap-triggered', () => {
+    const chatty = findInteraction(WELCOME_HARBOR_INTERACTIONS, 'talk-to-chatty');
+    expect(chatty).toBeDefined();
+    expect(chatty?.type).toBe('NPC');
+    expect(chatty?.trigger).toBe('TAP');
+    expect(isInteractionAvailable(chatty!, { worldChangeKeys: [] })).toBe(true);
+  });
 });

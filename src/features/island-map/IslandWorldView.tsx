@@ -1,25 +1,32 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Phaser from 'phaser';
 import styles from './IslandWorldView.module.css';
 import { PhaserGameContainer } from './PhaserGameContainer';
 import { WorldEventBus } from './worldEvents';
 import { WelcomeHarborScene, WORLD_HEIGHT, WORLD_WIDTH } from './scenes/WelcomeHarborScene';
-import { findInteraction, WELCOME_HARBOR_INTERACTIONS } from './worldObjects';
-import { listAllWorldChanges } from '../adventures/api';
+import {
+  findInteraction,
+  isInteractionAvailable,
+  WELCOME_HARBOR_INTERACTIONS,
+  type WorldAction,
+} from './worldObjects';
+import { listAllWorldChanges, resumeOrStartSession } from '../adventures/api';
+import { getAdventureTemplate } from '../adventures/content';
 
 interface IslandWorldViewProps {
   childId: string;
 }
 
 /**
- * The Phase 9 explorable Welcome Harbor prototype
+ * The Phase 9 explorable Welcome Harbor
  * (docs/ROADMAP.md Phase 9, docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md
  * section 28). Deliberately additive: the existing card-based `WelcomeHarbor`
- * route is untouched and remains the primary, fully accessible way to reach
- * every location — this view is reached by an opt-in link and always offers
- * a way back to it, since walking must never be the only way to navigate
- * the island (roadmap section 42).
+ * route is untouched and remains a fully accessible way to reach every
+ * location. Within this view itself, the "Things to do here" list
+ * (docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md section 42)
+ * offers the same interactions as walking around, so graphical movement is
+ * never the only way to use this screen.
  */
 export function IslandWorldView({ childId }: IslandWorldViewProps) {
   const [worldChangeKeys, setWorldChangeKeys] = useState<string[] | null>(null);
@@ -58,6 +65,16 @@ export function IslandWorldView({ childId }: IslandWorldViewProps) {
     ? findInteraction(WELCOME_HARBOR_INTERACTIONS, triggeredInteractionId)
     : undefined;
 
+  const availableInteractions = useMemo(
+    () =>
+      worldChangeKeys === null
+        ? []
+        : WELCOME_HARBOR_INTERACTIONS.filter((interaction) =>
+            isInteractionAvailable(interaction, { worldChangeKeys }),
+          ),
+    [worldChangeKeys],
+  );
+
   if (worldChangeKeys === null) {
     return (
       <div className={styles.wrapper}>
@@ -82,6 +99,22 @@ export function IslandWorldView({ childId }: IslandWorldViewProps) {
           onDismiss={() => setTriggeredInteractionId(null)}
         />
       ) : null}
+      <details className={styles.thingsToDo}>
+        <summary>Things to do here</summary>
+        <ul className={styles.thingsToDoList}>
+          {availableInteractions.map((interaction) => (
+            <li key={interaction.id}>
+              <button
+                type="button"
+                className={styles.thingsToDoButton}
+                onClick={() => setTriggeredInteractionId(interaction.id)}
+              >
+                {interaction.title}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </details>
       <Link className={styles.altNavLink} to={`/island/${childId}`}>
         Prefer not to walk? Use the location list instead
       </Link>
@@ -117,17 +150,79 @@ function InteractionPanel({ childId, interaction, onDismiss }: InteractionPanelP
     <div className={styles.panel} role="dialog" aria-label={interaction.title}>
       <h2 className={styles.panelTitle}>{interaction.title}</h2>
       <div className={styles.panelActions}>
-        {interaction.action.kind === 'NAVIGATE' ? (
-          <Link className={styles.goLink} to={`/island/${childId}/${interaction.action.to}`}>
-            Go there
-          </Link>
-        ) : (
-          <p>{interaction.action.message}</p>
-        )}
+        <InteractionPanelAction childId={childId} action={interaction.action} />
         <button type="button" className={styles.dismissButton} onClick={onDismiss}>
           Not now
         </button>
       </div>
     </div>
+  );
+}
+
+interface InteractionPanelActionProps {
+  childId: string;
+  action: WorldAction;
+}
+
+/**
+ * Resolves one `WorldAction` into UI. `START_ADVENTURE` is the world event
+ * bus actually driving the deterministic Adventure Engine (roadmap section
+ * 8): it creates or resumes the session before navigating, rather than only
+ * linking to a route.
+ */
+function InteractionPanelAction({ childId, action }: InteractionPanelActionProps) {
+  const navigate = useNavigate();
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (action.kind === 'NAVIGATE') {
+    return (
+      <Link className={styles.goLink} to={`/island/${childId}/${action.to}`}>
+        Go there
+      </Link>
+    );
+  }
+
+  if (action.kind === 'SHOW_MESSAGE') {
+    return <p>{action.message}</p>;
+  }
+
+  const startAdventureAction = action;
+
+  async function handleStart() {
+    const definition = getAdventureTemplate(startAdventureAction.templateSlug);
+    if (!definition) {
+      setError('This adventure is not available right now.');
+      return;
+    }
+    setStarting(true);
+    setError(null);
+    try {
+      await resumeOrStartSession(childId, definition);
+      navigate(
+        `/island/${childId}/locations/${startAdventureAction.locationSlug}/adventures/${startAdventureAction.templateSlug}`,
+      );
+    } catch {
+      setError('Something went wrong starting the adventure. Please try again.');
+      setStarting(false);
+    }
+  }
+
+  return (
+    <>
+      {error ? (
+        <p role="alert" className={styles.error}>
+          {error}
+        </p>
+      ) : null}
+      <button
+        type="button"
+        className={styles.goLink}
+        onClick={() => void handleStart()}
+        disabled={starting}
+      >
+        {starting ? 'Starting...' : 'Start the adventure'}
+      </button>
+    </>
   );
 }

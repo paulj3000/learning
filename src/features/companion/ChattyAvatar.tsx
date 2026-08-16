@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import styles from './ChattyAvatar.module.css';
+import { prefersReducedMotion } from '../../lib/motionPreference';
 
 const CHATTY_COLORS = {
   bodyGreenLight: '#4caf6b',
@@ -243,12 +244,6 @@ function hopFrame(t: number): ChattyFrame {
     wingFlap: Math.sin(Math.PI * 2 * eased) * (1 - t),
     tilt: Math.sin(Math.PI * 3 * eased) * 0.08 * (1 - t),
   };
-}
-
-function prefersReducedMotion(): boolean {
-  return typeof window.matchMedia === 'function'
-    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    : false;
 }
 
 interface ChattyAvatarProps {

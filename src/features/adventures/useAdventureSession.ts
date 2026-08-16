@@ -12,12 +12,11 @@ import type { StepAnswer } from './engine/validators';
 import {
   advanceSession,
   completeSession,
-  getActiveSession,
   recordAction,
   recordSkillEvidence,
   recordWorldChangeOnce,
+  resumeOrStartSession,
   saveStoryArtifact,
-  startSession,
   upsertSkillProgress,
   type AdventureSession,
   type StoryScene,
@@ -94,15 +93,7 @@ export function useAdventureSession(
 
     async function load() {
       try {
-        const existing = await getActiveSession(childProfileId, definition.slug);
-        const active =
-          existing ??
-          (await startSession(
-            childProfileId,
-            definition.slug,
-            definition.version,
-            definition.entryStepId,
-          ));
+        const active = await resumeOrStartSession(childProfileId, definition);
         if (cancelled) return;
         setSession(active);
         setLoadState('ready');
@@ -116,7 +107,7 @@ export function useAdventureSession(
     return () => {
       cancelled = true;
     };
-  }, [childProfileId, definition.slug, definition.version, definition.entryStepId]);
+  }, [childProfileId, definition]);
 
   const currentStep = session ? getStep(definition, session.currentStepId) : null;
   const currentProgress = currentStep ? progressByStep[currentStep.id] : undefined;

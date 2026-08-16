@@ -1,5 +1,5 @@
 import { client } from '../../lib/data-client';
-import type { Correctness } from './engine/types';
+import type { Correctness, AdventureDefinition } from './engine/types';
 import type { Schema } from '../../../amplify/data/resource';
 
 export type AdventureSession = Schema['AdventureSession']['type'];
@@ -76,6 +76,30 @@ export async function startSession(
     throw new Error(errors?.[0]?.message ?? 'Could not start the adventure.');
   }
   return data;
+}
+
+/**
+ * Resumes this child's active session for `definition`, or starts a new
+ * one. Shared by `useAdventureSession` (on mounting an adventure route) and
+ * the world engine's `START_ADVENTURE` interactions (docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md
+ * section 8's "World checks requirements -> Adventure Engine starts"), so
+ * approaching an adventure object in the world and opening the adventure
+ * route directly both create at most one active session.
+ */
+export async function resumeOrStartSession(
+  childProfileId: string,
+  definition: AdventureDefinition,
+): Promise<AdventureSession> {
+  const existing = await getActiveSession(childProfileId, definition.slug);
+  return (
+    existing ??
+    (await startSession(
+      childProfileId,
+      definition.slug,
+      definition.version,
+      definition.entryStepId,
+    ))
+  );
 }
 
 export async function advanceSession(

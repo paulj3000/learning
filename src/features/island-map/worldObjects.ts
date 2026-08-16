@@ -11,7 +11,9 @@ export type WorldRequirement =
   | { type: 'WORLD_CHANGE_ABSENT'; changeKey: string };
 
 export type WorldAction =
-  { kind: 'NAVIGATE'; to: string } | { kind: 'SHOW_MESSAGE'; message: string };
+  | { kind: 'NAVIGATE'; to: string }
+  | { kind: 'SHOW_MESSAGE'; message: string }
+  | { kind: 'START_ADVENTURE'; locationSlug: string; templateSlug: string };
 
 export interface WorldInteraction {
   id: string;
@@ -62,19 +64,36 @@ export function findInteraction(
 }
 
 /**
- * Welcome Harbor's Phase 9 prototype interactions. Only the bridge object is
- * wired to a real destination (the existing Pirate Builder Bay adventure);
- * everything else in the roadmap's "environmental curiosity" list (section
- * 17) arrives in later phases.
+ * Welcome Harbor's Phase 9 interactions. Walking up to the bridge starts the
+ * real "Repair the Moonlight Bridge" adventure directly (roadmap section 8's
+ * "Child approaches broken bridge -> ... -> Adventure Engine starts" flow);
+ * tapping Chatty greets the child. Everything else in the roadmap's
+ * "environmental curiosity" list (section 17) arrives in later phases.
  */
 export const WELCOME_HARBOR_INTERACTIONS: WorldInteraction[] = [
   {
     id: 'broken-bridge',
-    type: 'OBJECT',
+    type: 'ADVENTURE',
     trigger: 'APPROACH',
     title: 'The broken bridge to Pirate Builder Bay',
     targetId: 'pirate-builder-bay',
     requirements: [{ type: 'ALWAYS' }],
-    action: { kind: 'NAVIGATE', to: 'locations/pirate-builder-bay' },
+    action: {
+      kind: 'START_ADVENTURE',
+      locationSlug: 'pirate-builder-bay',
+      templateSlug: 'repair-the-moonlight-bridge',
+    },
+  },
+  {
+    id: 'talk-to-chatty',
+    type: 'NPC',
+    trigger: 'TAP',
+    title: 'Chatty the Parrot',
+    targetId: 'chatty',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'Squawk! Welcome to Welcome Harbor! That bridge over there needs some repairs.',
+    },
   },
 ];

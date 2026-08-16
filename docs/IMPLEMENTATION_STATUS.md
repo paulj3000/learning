@@ -62,37 +62,91 @@ gained ADR-007 (Phaser as the world-engine renderer), and
 updated for the new `ChildWorldState`/`ChildStoryProgress` models and the
 World Engine → Story Engine → Adventure Engine layering rule.
 
-Phase 9's first slice is built: `phaser` is now a dependency; a
-`PhaserGameContainer` React/Phaser boundary owns `Phaser.Game`'s lifecycle
-(single instantiation per `instanceKey`, clean `destroy()` on unmount); a
-Phaser-free `WorldEventBus` and a `WorldInteraction`/`isInteractionAvailable`
-object registry carry all gameplay-relevant signals out of Phaser scenes;
-and a prototype `WelcomeHarborScene` supports keyboard (arrow/WASD) and
-tap-to-move avatar movement, camera follow, world-bounds collision, and one
-interaction zone (the broken bridge) that pops a panel linking to the real
-Pirate Builder Bay location. Reached via a new, additive
-"Try walking around the island (new!)" link on the existing card-based
-Welcome Harbor at `/island/:childId/world` — the card-based flow is
-untouched and remains the primary accessible path (roadmap section 42).
-`phaser` runs a canvas-feature-detection side effect at import time that
-crashes under jsdom, so the route is lazy-loaded (`React.lazy`) to keep it
-out of the main bundle and out of the unit-test import graph; this was
-verified against the live dev server with a temporary, unauthenticated
-preview route (removed before this change was finalized) driven by
-Playwright — walking into the bridge zone correctly surfaced the panel and
-"Go there" correctly navigated toward Pirate Builder Bay.
+Phase 9 is now functionally complete against its roadmap deliverables and
+success criterion. Building on the first slice (`phaser` dependency,
+`PhaserGameContainer` React/Phaser lifecycle boundary, Phaser-free
+`WorldEventBus`), this session added:
 
-Not yet done (Phase 9 remainder): tilemaps (the harbor is hand-drawn
-Graphics primitives, not map data), a real world object registry beyond
-the single hardcoded bridge zone, the world event bus driving actual
-`startAdventureSession` calls (the panel only links to the route today),
-sprite animation beyond a static circle, an in-app accessible alternate
-*within* the world view itself (today the alternate is a link back to the
-separate card-based route), reduced-motion handling for ambient effects
-(none exist yet to gate), and automated end-to-end coverage of the walk
-flow (verified manually this session, not committed as a Playwright test,
-since it required an unauthenticated scaffold route that was deliberately
-not kept).
+- **Tilemaps**: `tilemap.ts` is a Phaser-free tile grid
+  (`buildHarborTileGrid`, 30x20 tiles at 32px) with a real tile type ↔
+  color mapping; `WelcomeHarborScene` turns it into an actual
+  `Phaser.Tilemaps.Tilemap` by generating a small tileset texture at
+  runtime (still no binary asset pipeline) and rendering a real
+  `TilemapLayer`, replacing the old hand-drawn `Graphics` ground.
+- **Collision**: water tiles are marked colliding
+  (`HARBOR_COLLIDING_TILES`) and the avatar has a real Arcade Physics
+  collider against the tile layer, replacing world-bounds-only collision.
+- **A real world object registry**: `zones.ts` holds Phaser-free pixel
+  geometry per interaction id (derived from tile coordinates), read by the
+  scene instead of a private hardcoded rect; `WELCOME_HARBOR_INTERACTIONS`
+  now has two entries (the bridge, and a `talk-to-chatty` NPC interaction),
+  with zone/interaction correspondence covered by `zones.test.ts`.
+- **The world event bus driving `startAdventureSession`**: a new
+  `START_ADVENTURE` `WorldAction` kind; the bridge interaction now
+  resolves the real "Repair the Moonlight Bridge" template and calls a new
+  shared `resumeOrStartSession` (`adventures/api.ts`, also now used by
+  `useAdventureSession` itself, removing the prior duplicated
+  create-or-resume logic) before navigating directly to the adventure
+  route — matching the roadmap's "child approaches broken bridge -> world
+  checks requirements -> Adventure Engine starts" flow, not just a link.
+- **Sprite animation and an NPC**: a procedurally drawn Chatty NPC sprite
+  (distinct from the avatar circle) sits in the world, idle-bobs via a
+  Phaser tween, and is tap/click-triggerable (`Phaser.Input.InputPlugin#hitTestPointer`
+  distinguishes an NPC tap from a move-here tap in the same pointerdown
+  handler) — the first `TAP`-triggered interaction, and the first `USE`/`TAP`
+  path actually wired end-to-end.
+- **An in-world accessible alternate**: `IslandWorldView` now renders a
+  "Things to do here" disclosure listing every currently-available
+  `WorldInteraction` as a real button, driving the same trigger handler as
+  walking into a zone or tapping the NPC — so the graphical canvas is
+  never the only way to use this specific screen (roadmap section 42),
+  independent of the separate card-based route link that was already
+  there.
+- **Reduced motion**: a shared `prefersReducedMotion()` helper
+  (`src/lib/motionPreference.ts`, extracted from `ChattyAvatar.tsx` rather
+  than duplicated) gates the scene's camera-follow smoothing (instant snap
+  instead of lerp) and the NPC's idle-bob tween; core movement stays fully
+  responsive either way.
+
+All of the above is reached via the existing additive "Try walking around
+the island (new!)" link on the card-based Welcome Harbor at
+`/island/:childId/world`; that card-based flow is untouched and remains a
+primary accessible path. `phaser` still runs a canvas-feature-detection
+side effect at import time that crashes under jsdom, so the route stays
+lazy-loaded (`React.lazy`).
+
+This session's manual verification (via a temporary, unauthenticated
+`/preview/world` route driven by Playwright against a production
+`build`+`preview` server, removed before the change was finalized) caught
+and fixed a real bug before it shipped: the tilemap layer was being added
+to the scene's display list *after* the avatar/NPC sprites, so it rendered
+on top and hid them completely. `create()` now creates the tile layer
+first (background), then the avatar and NPC, then wires the collider —
+confirmed via screenshots and functional checks: tile rendering, avatar
+sprite visibility, keyboard movement, tap-to-move, water collision not
+blocking valid land paths, NPC tap, the accessible list for both
+interactions, the bridge's `START_ADVENTURE` flow (fails gracefully with
+an authored error message in this unauthenticated preview since there is
+no real signed-in session/backend to persist a session against — the
+try/catch path itself is what was being verified), and `prefers-reduced-motion`
+emulation causing no errors. Separately, this surfaced a real dev-only
+(StrictMode) artifact worth knowing about if it recurs: `npm run dev`
+double-invokes `PhaserGameContainer`'s mount effect, and the first
+`Phaser.Game`'s `destroy(true)` did not remove its canvas before the
+second instance mounted, leaving two overlapping canvases and two
+competing input/update loops. This never happens in a production build
+(React strips the double-invoke there), which is why the project's own
+Playwright config builds+previews rather than using the dev server; it
+was not otherwise investigated or fixed this session.
+
+Not yet done (Phase 9 remainder, both pre-existing project-wide gaps
+rather than something newly deferred here): no authenticated Playwright
+e2e coverage exists anywhere in the repo yet (only three unauthenticated
+smoke checks in `e2e/smoke.spec.ts`; there is no Cognito sign-in /
+`storageState` harness to build the walk-flow test from `docs/TESTING_STRATEGY.md`'s
+critical-path list on top of); and NPC dialogue is a single static
+authored `SHOW_MESSAGE`, not AI-narrated (in scope for a later phase, not
+Phase 9's engine substrate).
 
 ## Completed
 
@@ -914,6 +968,19 @@ below). Three items remain:
   splits Phaser (1.38 MB minified) into its own build chunk instead of
   bloating the shared bundle every route pays for, confirmed by `npm run
   build`'s per-chunk output.
+
+- **Phase 9 completion session** (`src/features/island-map/`: new
+  `tilemap.ts`+test, `zones.ts`+test; `scenes/WelcomeHarborScene.ts` and
+  `worldObjects.ts`+test rewritten; `IslandWorldView.tsx`+new test and its
+  `.module.css`; `src/features/adventures/api.ts`: new
+  `resumeOrStartSession`+new `api.test.ts`; `useAdventureSession.ts`
+  refactored to use it; new `src/lib/motionPreference.ts`, extracted out of
+  `ChattyAvatar.tsx`): closes out every item the first slice's "not yet
+  done" list named — see "Current phase" above for the full description of
+  what each piece does and the display-order rendering bug this session
+  found and fixed while verifying it. `npm run test`: 38 files, 215 tests
+  (up from 34/196), all new tests passing; `npm run typecheck`/`lint`/
+  `format`/`build` all clean.
 
 ## Verification (Phase 9 session)
 
