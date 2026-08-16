@@ -62,10 +62,19 @@ gained ADR-007 (Phaser as the world-engine renderer), and
 updated for the new `ChildWorldState`/`ChildStoryProgress` models and the
 World Engine → Story Engine → Adventure Engine layering rule.
 
-Phase 9 is now functionally complete against its roadmap deliverables and
-success criterion. Building on the first slice (`phaser` dependency,
-`PhaserGameContainer` React/Phaser lifecycle boundary, Phaser-free
-`WorldEventBus`), this session added:
+Phase 9 is functionally complete against its roadmap deliverables and
+success criterion, and **Phase 10 — Welcome Harbor** (roadmap section 29)
+is now also functionally complete against its own deliverable list: complete
+harbor map, environmental animations, NPC framework, Chatty follow behavior,
+doors, signs, interactive objects, adventure entrances, persistent world
+changes, initial avatar customization, and location transitions. See the
+"Completed" section below (the block starting "Phase 10 — Welcome Harbor")
+for what shipped and two real rendering bugs manual verification caught and
+fixed before this was finalized.
+
+Phase 9 build notes follow; building on the first slice (`phaser`
+dependency, `PhaserGameContainer` React/Phaser lifecycle boundary,
+Phaser-free `WorldEventBus`), that session added:
 
 - **Tilemaps**: `tilemap.ts` is a Phaser-free tile grid
   (`buildHarborTileGrid`, 30x20 tiles at 32px) with a real tile type ↔
@@ -981,6 +990,120 @@ below). Three items remain:
   found and fixed while verifying it. `npm run test`: 38 files, 215 tests
   (up from 34/196), all new tests passing; `npm run typecheck`/`lint`/
   `format`/`build` all clean.
+
+- **Phase 10 — Welcome Harbor** (roadmap section 29). New Phaser-free,
+  unit-tested data modules — `src/features/island-map/npcs.ts`+test (a
+  data-driven NPC registry: spawn point, palette, follow distance, idle-bob
+  amplitude, replacing the single hardcoded NPC Phase 9 drew inline) and
+  `decor.ts`+test (static "environmental curiosity" props — a sign, a palm
+  tree, a door — plus ambient-only water-shimmer points, none of them
+  gated on any backend state, matching the roadmap's "some are purely
+  playful" framing) — plus a new `avatarAppearance.ts`+test that maps a
+  child's already-chosen `ChildProfile.avatarKey` (parent-picked once at
+  profile creation, `child-profile/constants.ts`'s `AVATAR_OPTIONS`) onto a
+  body/accent color and a small accessory shape (ears, antenna, fin,
+  spikes) for the world avatar sprite — no new UI or schema, only how the
+  avatar already picked elsewhere is *rendered* in the world. `tilemap.ts`
+  gained two tile ids (`BRIDGE_PLANK_REPAIRED`, `PATH`), two authored path
+  spurs (`FOREST_PATH_TILE_RECT`, `CASTLE_PATH_TILE_RECT`), and a pure
+  `applyTileOverride(grid, from, to)` used to swap the bridge tile's
+  visual once it's repaired. `worldObjects.ts`'s `WorldInteraction` gained
+  an optional `zoneId` so two interactions can share one `zones.ts`
+  rectangle without sharing an `id` — the broken bridge now requires
+  `WORLD_CHANGE_ABSENT: 'BRIDGE_REPAIRED'` and a new
+  `moonlight-bridge-crossing` interaction (same zone, opposite
+  requirement) offers `NAVIGATE` onward to Pirate Builder Bay's existing
+  card-based location page once it's repaired — the first real use of the
+  `WORLD_CHANGE_PRESENT`/`WORLD_CHANGE_ABSENT` requirement types, which
+  existed since Phase 9 but were unused until now. Two more always-available
+  `APPROACH` interactions (`forest-entrance`, `castle-entrance`) `NAVIGATE`
+  to Wonderwild Forest's and Storykeeper Castle's existing card-based
+  routes — deliberately not new spatial Phaser scenes, since those
+  locations don't have one yet (roadmap phases 13/14 are explicitly where
+  that happens); this phase's "location transitions"/"adventure entrances"
+  deliverables are scoped to walking up to a marked entrance and being
+  routed onward, not full spatial maps for every location. Three more
+  always-available `TAP` interactions (`dock-sign`, `palm-tree`,
+  `harbor-door`) are pure flavor, matching `decor.ts`.
+  `WelcomeHarborScene.ts` was rewritten to stay a thin renderer over all of
+  the above: `createZones()` now tolerates interactions with no zone entry
+  (TAP-triggered NPCs/decor get their position from `npcs.ts`/`decor.ts`
+  instead — `zones.ts`'s tests were narrowed accordingly, documented in
+  the test file itself as deliberate, not a regression);
+  `createTilemap()` swaps in `applyTileOverride`'s repaired grid when
+  `BRIDGE_REPAIRED` is present in the child's `WorldInteractionContext`;
+  the avatar's procedurally-drawn texture now reads `avatarAppearance.ts`
+  instead of a hardcoded yellow circle; Chatty now flies alongside the
+  avatar (`updateNpcFollow()`) instead of standing at a fixed dock spot;
+  and a small ambient-sway/water-shimmer pass runs every frame, all gated
+  by the existing `prefersReducedMotion()` alongside camera-follow and
+  NPC-follow smoothing exactly as Phase 9 already gated its own animation.
+  `IslandWorldPage.tsx` now fetches the child's `avatarKey` once (it was
+  already fetching the profile to confirm the child exists) and passes it
+  down as a required `IslandWorldView` prop, rather than `IslandWorldView`
+  independently re-fetching the same profile a second time.
+
+  **Two real rendering bugs were found and fixed this session by manual
+  verification** (same temporary, unauthenticated `/preview/world` route +
+  Playwright-against-a-production-build approach as the Phase 9 session,
+  removed before this change was finalized) — both were invisible from
+  reading the code or from the unit tests, which is exactly why this
+  project's process requires this step for every Phaser-scene change:
+  1. The avatar's accent-color stroke and every accessory shape (ears,
+     antenna, spikes) were drawn at or past the edge of the generated
+     texture canvas (`fillCircle`/`strokeCircle` at the full
+     `AVATAR_RADIUS`, and accessories at negative y). `generateTexture`
+     silently clips content outside its capture bounds, so the stroke and
+     every accessory rendered as nothing at all — invisible in every
+     avatarKey, not just a color problem. This bug already existed in
+     Phase 9's original hardcoded circle (its accent stroke was equally
+     invisible) but had no visible symptom then, since the plain yellow
+     fill alone was legible; it only became obvious once avatarKey-driven
+     accessories were added and simply never appeared. Fixed by insetting
+     the fill/stroke by 2px and redrawing every accessory shape fully
+     inside the `0..AVATAR_RADIUS*2` canvas.
+  2. `updateNpcFollow()`'s first implementation trailed a fixed-length
+     ring buffer of the avatar's recent positions. That produces a lag
+     only while the avatar is actively moving; once the avatar stands
+     still for longer than the buffer's time window (~0.5s — reading a
+     dialogue panel, deciding where to go), every buffered sample becomes
+     identical to the avatar's current position and Chatty fully closes
+     the gap, ending up visually stacked on the avatar. Confirmed via a
+     zoomed canvas-only screenshot after a few seconds with no input.
+     Rewritten as a distance-maintaining follow instead (`updateNpcFollow`
+     in `WelcomeHarborScene.ts`): each NPC eases toward whatever point is
+     exactly `followDistancePx` from the avatar along its current bearing
+     to the avatar, and simply stops once within that distance, so it
+     never overlaps the avatar whether the avatar is moving or at rest.
+     Idle bob is tracked as an offset from a separately stored
+     `baseX`/`baseY` rather than written into `sprite.y` directly, so it
+     cannot accumulate frame over frame the way baking it into the
+     position being lerped would.
+
+  `npm run test`: 41 files, 243 tests, all new tests passing — new this
+  session: `avatarAppearance.test.ts`, `npcs.test.ts`, `decor.test.ts`,
+  plus additions to `tilemap.test.ts`/`zones.test.ts`/`worldObjects.test.ts`/
+  `IslandWorldView.test.tsx`; `npm run typecheck`/`lint`/`format`/`build`
+  all clean.
+
+  **Not done, and why**: no real spatial Phaser scenes for Wonderwild
+  Forest, Storykeeper Castle (roadmap phases 13/14), or a fully spatial
+  Pirate Builder Bay (roadmap phase 11) — this phase's entrances/adventure
+  trigger only `NAVIGATE`/`START_ADVENTURE` into the existing card-based
+  routes for those locations, per the roadmap's own phase ordering. Doors
+  are flavor-only (`SHOW_MESSAGE`, no interior scene — there is nowhere
+  for a door to lead yet). There is still no in-world avatar customization
+  *UI*; the avatar's world appearance is only *rendered* differently now,
+  driven by the same `avatarKey` a parent already sets once at profile
+  creation. NPC follow has no obstacle avoidance or pathfinding, and
+  neither NPCs nor decor are Arcade colliders, so nothing currently stops
+  the avatar walking through them visually (Chatty flies, per roadmap
+  section 18, so this was an intentional simplification for the NPC; for
+  decor it's an acknowledged gap, low-severity since none of it blocks a
+  path). No controller support. No authenticated Playwright e2e coverage
+  exists yet for any of this (same pre-existing, project-wide gap Phase 9
+  already noted — there is still no Cognito sign-in/`storageState` harness
+  to build a real walk-flow test on top of).
 
 ## Verification (Phase 9 session)
 

@@ -100,10 +100,16 @@ describe('findInteraction', () => {
 });
 
 describe('WELCOME_HARBOR_INTERACTIONS', () => {
-  it('always makes the broken bridge available (no prerequisites yet)', () => {
+  it('has no duplicate interaction ids, even though two interactions share the bridge zone', () => {
+    const ids = WELCOME_HARBOR_INTERACTIONS.map((interaction) => interaction.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('offers the broken bridge only before it is repaired', () => {
     const bridge = findInteraction(WELCOME_HARBOR_INTERACTIONS, 'broken-bridge');
     expect(bridge).toBeDefined();
     expect(isInteractionAvailable(bridge!, { worldChangeKeys: [] })).toBe(true);
+    expect(isInteractionAvailable(bridge!, { worldChangeKeys: ['BRIDGE_REPAIRED'] })).toBe(false);
   });
 
   it('wires the broken bridge to start the real Repair the Moonlight Bridge adventure', () => {
@@ -115,11 +121,38 @@ describe('WELCOME_HARBOR_INTERACTIONS', () => {
     });
   });
 
+  it('offers the repaired crossing only after the bridge is repaired, sharing the bridge zone', () => {
+    const crossing = findInteraction(WELCOME_HARBOR_INTERACTIONS, 'moonlight-bridge-crossing');
+    expect(crossing).toBeDefined();
+    expect(crossing?.zoneId).toBe('broken-bridge');
+    expect(isInteractionAvailable(crossing!, { worldChangeKeys: [] })).toBe(false);
+    expect(isInteractionAvailable(crossing!, { worldChangeKeys: ['BRIDGE_REPAIRED'] })).toBe(true);
+    expect(crossing?.action).toEqual({ kind: 'NAVIGATE', to: 'locations/pirate-builder-bay' });
+  });
+
+  it('always offers the forest and castle entrances as NAVIGATE interactions', () => {
+    const forest = findInteraction(WELCOME_HARBOR_INTERACTIONS, 'forest-entrance');
+    const castle = findInteraction(WELCOME_HARBOR_INTERACTIONS, 'castle-entrance');
+    expect(isInteractionAvailable(forest!, { worldChangeKeys: [] })).toBe(true);
+    expect(forest?.action).toEqual({ kind: 'NAVIGATE', to: 'locations/wonderwild-forest' });
+    expect(isInteractionAvailable(castle!, { worldChangeKeys: [] })).toBe(true);
+    expect(castle?.action).toEqual({ kind: 'NAVIGATE', to: 'locations/storykeeper-castle' });
+  });
+
   it('always makes talking to Chatty available and tap-triggered', () => {
     const chatty = findInteraction(WELCOME_HARBOR_INTERACTIONS, 'talk-to-chatty');
     expect(chatty).toBeDefined();
     expect(chatty?.type).toBe('NPC');
     expect(chatty?.trigger).toBe('TAP');
     expect(isInteractionAvailable(chatty!, { worldChangeKeys: [] })).toBe(true);
+  });
+
+  it('always makes the flavor decor interactions available and tap-triggered', () => {
+    for (const id of ['dock-sign', 'palm-tree', 'harbor-door']) {
+      const decor = findInteraction(WELCOME_HARBOR_INTERACTIONS, id);
+      expect(decor).toBeDefined();
+      expect(decor?.trigger).toBe('TAP');
+      expect(isInteractionAvailable(decor!, { worldChangeKeys: [] })).toBe(true);
+    }
   });
 });

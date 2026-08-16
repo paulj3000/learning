@@ -6,9 +6,13 @@ import { getChildProfile } from '../features/child-profile/api';
 
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
+/** Fallback used if the profile has no avatarKey, matching `avatarAppearance.ts`'s own fallback intent. */
+const DEFAULT_AVATAR_KEY = 'FOX';
+
 export function IslandWorldPage() {
   const { childId } = useParams<{ childId: string }>();
   const [loadState, setLoadState] = useState<LoadState>('loading');
+  const [avatarKey, setAvatarKey] = useState(DEFAULT_AVATAR_KEY);
 
   useEffect(() => {
     let cancelled = false;
@@ -21,6 +25,9 @@ export function IslandWorldPage() {
       try {
         const child = await getChildProfile(childId);
         if (cancelled) return;
+        if (child) {
+          setAvatarKey(child.avatarKey);
+        }
         setLoadState(child ? 'ready' : 'not-found');
       } catch {
         if (cancelled) return;
@@ -55,7 +62,7 @@ export function IslandWorldPage() {
 
   return (
     <IslandLayout childId={childId}>
-      <IslandWorldView childId={childId} />
+      <IslandWorldView childId={childId} avatarKey={avatarKey} />
     </IslandLayout>
   );
 }

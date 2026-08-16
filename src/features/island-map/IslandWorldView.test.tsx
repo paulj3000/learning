@@ -38,7 +38,10 @@ function renderWorldView() {
   return render(
     <MemoryRouter initialEntries={['/island/child-1/world']}>
       <Routes>
-        <Route path="/island/:childId/world" element={<IslandWorldView childId="child-1" />} />
+        <Route
+          path="/island/:childId/world"
+          element={<IslandWorldView childId="child-1" avatarKey="FOX" />}
+        />
         <Route
           path="/island/:childId/locations/:locationSlug/adventures/:templateSlug"
           element={<p>Adventure route</p>}
@@ -70,6 +73,8 @@ describe('IslandWorldView', () => {
 
     expect(await screen.findByText('The broken bridge to Pirate Builder Bay')).toBeInTheDocument();
     expect(screen.getByText('Chatty the Parrot')).toBeInTheDocument();
+    expect(screen.getByText('The path into Wonderwild Forest')).toBeInTheDocument();
+    expect(screen.getByText('The path to Storykeeper Castle')).toBeInTheDocument();
   });
 
   it('starts the real adventure session and navigates there from the accessible list', async () => {
@@ -89,6 +94,17 @@ describe('IslandWorldView', () => {
       expect(resumeOrStartSessionMock).toHaveBeenCalledWith('child-1', REPAIR_THE_MOONLIGHT_BRIDGE);
     });
     expect(await screen.findByText('Adventure route')).toBeInTheDocument();
+  });
+
+  it('offers the repaired crossing instead of the adventure once the bridge is repaired', async () => {
+    listAllWorldChangesMock.mockResolvedValue([{ changeKey: 'BRIDGE_REPAIRED' } as never]);
+
+    renderWorldView();
+
+    expect(
+      await screen.findByText('The repaired bridge to Pirate Builder Bay'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('The broken bridge to Pirate Builder Bay')).not.toBeInTheDocument();
   });
 
   it('shows a plain message for a SHOW_MESSAGE interaction instead of trying to start a session', async () => {

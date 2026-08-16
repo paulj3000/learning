@@ -16,6 +16,8 @@ import { getAdventureTemplate } from '../adventures/content';
 
 interface IslandWorldViewProps {
   childId: string;
+  /** The child's already-chosen `ChildProfile.avatarKey`, resolved by the caller (`IslandWorldPage`). */
+  avatarKey: string;
 }
 
 /**
@@ -28,7 +30,7 @@ interface IslandWorldViewProps {
  * offers the same interactions as walking around, so graphical movement is
  * never the only way to use this screen.
  */
-export function IslandWorldView({ childId }: IslandWorldViewProps) {
+export function IslandWorldView({ childId, avatarKey }: IslandWorldViewProps) {
   const [worldChangeKeys, setWorldChangeKeys] = useState<string[] | null>(null);
   const [triggeredInteractionId, setTriggeredInteractionId] = useState<string | null>(null);
   const bus = useMemo(() => new WorldEventBus(), []);
@@ -90,7 +92,7 @@ export function IslandWorldView({ childId }: IslandWorldViewProps) {
       </p>
       <PhaserGameContainer
         instanceKey={childId}
-        createConfig={(parent) => buildGameConfig(parent, bus, worldChangeKeys)}
+        createConfig={(parent) => buildGameConfig(parent, bus, worldChangeKeys, avatarKey)}
       />
       {triggeredInteraction ? (
         <InteractionPanel
@@ -126,6 +128,7 @@ function buildGameConfig(
   parent: HTMLDivElement,
   bus: WorldEventBus,
   worldChangeKeys: string[],
+  avatarKey: string,
 ): Phaser.Types.Core.GameConfig {
   return {
     type: Phaser.AUTO,
@@ -135,7 +138,7 @@ function buildGameConfig(
     backgroundColor: '#1c3a52',
     physics: { default: 'arcade', arcade: { debug: false } },
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-    scene: [new WelcomeHarborScene(bus, { worldChangeKeys })],
+    scene: [new WelcomeHarborScene(bus, { worldChangeKeys }, avatarKey)],
   };
 }
 

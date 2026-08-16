@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyTileOverride,
   BRIDGE_TILE_RECT,
+  CASTLE_PATH_TILE_RECT,
+  FOREST_PATH_TILE_RECT,
   GRID_COLS,
   GRID_ROWS,
   HARBOR_COLLIDING_TILES,
@@ -59,5 +62,66 @@ describe('buildHarborTileGrid', () => {
         }
       }
     }
+  });
+
+  it.each([
+    ['forest', FOREST_PATH_TILE_RECT],
+    ['castle', CASTLE_PATH_TILE_RECT],
+  ])(
+    'places path tiles inside the declared %s entrance rectangle, and nowhere else',
+    (_name, rect) => {
+      const grid = buildHarborTileGrid();
+      const { col, row, cols, rows } = rect;
+      for (let r = row; r < row + rows; r += 1) {
+        for (let c = col; c < col + cols; c += 1) {
+          expect(grid[r][c]).toBe(HarborTile.PATH);
+        }
+      }
+    },
+  );
+
+  it('has a color for the repaired-bridge and path tiles', () => {
+    expect(HARBOR_TILE_COLORS[HarborTile.BRIDGE_PLANK_REPAIRED]).toBeTypeOf('number');
+    expect(HARBOR_TILE_COLORS[HarborTile.PATH]).toBeTypeOf('number');
+  });
+});
+
+describe('applyTileOverride', () => {
+  it('replaces every occurrence of one tile id with another', () => {
+    const grid = buildHarborTileGrid();
+    const overridden = applyTileOverride(
+      grid,
+      HarborTile.BRIDGE_PLANK,
+      HarborTile.BRIDGE_PLANK_REPAIRED,
+    );
+
+    expect(overridden.flat()).not.toContain(HarborTile.BRIDGE_PLANK);
+    const { col, row, cols, rows } = BRIDGE_TILE_RECT;
+    for (let r = row; r < row + rows; r += 1) {
+      for (let c = col; c < col + cols; c += 1) {
+        expect(overridden[r][c]).toBe(HarborTile.BRIDGE_PLANK_REPAIRED);
+      }
+    }
+  });
+
+  it('does not mutate the input grid', () => {
+    const grid = buildHarborTileGrid();
+    applyTileOverride(grid, HarborTile.BRIDGE_PLANK, HarborTile.BRIDGE_PLANK_REPAIRED);
+
+    const { col, row } = BRIDGE_TILE_RECT;
+    expect(grid[row][col]).toBe(HarborTile.BRIDGE_PLANK);
+  });
+
+  it('leaves other tile ids untouched', () => {
+    const grid = buildHarborTileGrid();
+    const overridden = applyTileOverride(
+      grid,
+      HarborTile.BRIDGE_PLANK,
+      HarborTile.BRIDGE_PLANK_REPAIRED,
+    );
+
+    expect(overridden.flat().filter((tile) => tile === HarborTile.WATER).length).toBe(
+      grid.flat().filter((tile) => tile === HarborTile.WATER).length,
+    );
   });
 });
