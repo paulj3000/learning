@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './AdventureRunner.module.css';
 import { useAdventureSession } from './useAdventureSession';
@@ -17,6 +18,15 @@ interface AdventureRunnerProps {
   ageBand: AgeBandValue;
   aiEnabled: boolean;
   backToMapHref: string;
+  /**
+   * Fired once, the first time this session reaches COMPLETED. Optional —
+   * every existing caller ignores it. Used by the Story Engine
+   * (src/features/story/) to know when a chapter's embedded adventure is
+   * done without polling the backend itself (docs/ARCHITECTURE.md's
+   * "World Engine -> Story Engine -> Adventure Engine" layering: the Story
+   * Engine only observes completion here, it never touches correctness).
+   */
+  onComplete?: () => void;
 }
 
 /**
@@ -32,9 +42,11 @@ export function AdventureRunner({
   ageBand,
   aiEnabled,
   backToMapHref,
+  onComplete,
 }: AdventureRunnerProps) {
   const {
     loadState,
+    session,
     currentStep,
     hintLevel,
     hintText,
@@ -45,6 +57,14 @@ export function AdventureRunner({
     companionTurn,
     storyScenes,
   } = useAdventureSession(childProfileId, definition, ageBand, aiEnabled);
+  const hasFiredOnComplete = useRef(false);
+
+  useEffect(() => {
+    if (session?.status === 'COMPLETED' && !hasFiredOnComplete.current) {
+      hasFiredOnComplete.current = true;
+      onComplete?.();
+    }
+  }, [session, onComplete]);
 
   if (loadState === 'loading') {
     return <p>Loading your adventure...</p>;

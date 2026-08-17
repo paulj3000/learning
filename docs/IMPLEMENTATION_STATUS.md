@@ -81,6 +81,14 @@ extraction of the rendering engine into a location-agnostic `LocationScene`
 and a real zone-vs-collision bug manual verification caught and fixed before
 this was finalized.
 
+**Phase 12 — Story Engine** (roadmap section 31) is now also functionally
+complete: a new `src/features/story/` module adds the Story Engine layer
+above the (unchanged) deterministic Adventure Engine, per
+`docs/ARCHITECTURE.md`'s "World Engine -> Story Engine -> Adventure Engine"
+layering, plus one reference story, "The Dragon of Ember Mountain," per the
+roadmap's own five-chapter outline. See the "Completed" section below (the
+block starting "Phase 12 — Story Engine") for the full breakdown.
+
 Phase 9 build notes follow; building on the first slice (`phaser`
 dependency, `PhaserGameContainer` React/Phaser lifecycle boundary,
 Phaser-free `WorldEventBus`), that session added:
@@ -1224,6 +1232,172 @@ below). Three items remain:
   Phase 9/10 apply here too (no authenticated Playwright e2e harness, NPC
   follow has no obstacle avoidance, decor is not a collider).
 
+- **Phase 12 — Story Engine** (roadmap section 31): a new `src/features/story/`
+  module, layered strictly above the unmodified Adventure Engine per
+  `docs/ARCHITECTURE.md`'s "World Engine -> Story Engine -> Adventure
+  Engine" rule — no existing engine, hook, or content file needed a
+  behavioral change, only one small additive prop (below).
+
+  **Data backend** (`amplify/data/resource.ts`): a `ChildStoryProgress`
+  model exactly matching the shape `docs/DATA_MODEL.md` already documented
+  ahead of time in the Phase 9 session (`childProfileId`, `storyId`,
+  `currentChapterId`, `completedChapterIds`, `storyFlags` as bounded JSON,
+  `startedAt`/`lastPlayedAt`/`completedAt`), owner-authorized like every
+  other model, plus a `hasMany`/`belongsTo` link to `ChildProfile`.
+
+  **Engine** (`src/features/story/engine/`, Phaser- and backend-free, unit
+  tested): `types.ts` defines `StoryDefinition`/`StoryChapter` and four
+  `StoryChapterScene` kinds — `NARRATIVE`, `CHOICE`, `ADVENTURE`, and
+  `REFLECTION` — deliberately narrower than the roadmap's own sketch
+  (dropping a separate `StoryRequirement`/`WORLD_CHANGE`-scene type):
+  chapter completion is just "every scene resolved," and every world change
+  in the reference story already comes from an embedded adventure's own
+  `WORLD_CHANGE` steps (unchanged Adventure Engine mechanism) plus one
+  story-level completion change recorded directly by `completeStory` — so
+  a parallel Story Engine world-change scene type would have been an
+  unused abstraction (CLAUDE.md section 13). "Authored branching"
+  (docs/ROADMAP.md Phase 12 deliverable) is `resolveNarrativeText`: a
+  `NARRATIVE` scene's `branches` picks one of a few authored lines by a
+  `storyFlags` value set earlier in the story — never AI output, never
+  child free text (docs/AI_AND_CHILD_SAFETY.md child input policy).
+  `validation.ts`'s `validateStoryDefinition` is the "content validation"
+  deliverable: a reusable structural guard (unique/reachable chapter ids,
+  a terminating `nextChapterId` chain, every `ADVENTURE` scene resolving to
+  a real template, every `CHOICE` scene having distinct, non-empty options)
+  that any future story's own content test can call, the same role
+  `repairTheMoonlightBridge.test.ts`'s inline checks played for a single
+  adventure — `engine/validation.test.ts` exercises each check directly
+  against synthetic broken stories.
+
+  **Adventure embedding**: four ordinary `AdventureDefinition`s
+  (`src/features/adventures/content/emberMountainChapterAdventures.ts`),
+  run through the completely unchanged Adventure Engine/`useAdventureSession`
+  — correctness for every graded challenge in the story stays 100%
+  deterministic, decided by the same code that already grades every other
+  adventure (CLAUDE.md section 7). `locationSlug: 'ember-mountain'` is a
+  deliberate story-only pseudo-location: it matches no entry in
+  `src/features/island/locations.ts`, so these four never surface on an
+  `IslandLocationPage` — only the Story Engine's own chapter runner ever
+  starts them. `src/features/adventures/AdventureRunner.tsx` gained one
+  optional, additive `onComplete?: () => void` prop (fires once, the first
+  time the session reaches `COMPLETED`) so the Story Engine can observe
+  completion without polling; every existing caller (`AdventurePage`)
+  ignores it and is unaffected. Four new learning objectives
+  (`patterns`, `animal-science`, `measurement`, `empathy`) were added to
+  `learningObjectives.ts` for skills the existing objective list didn't
+  cover yet.
+
+  **Orchestration** (`src/features/story/useStoryProgress.ts`,
+  `useStoryChapterRunner.ts`): mirrors `useAdventureSession`'s shape one
+  layer up — `useStoryProgress` loads/starts `ChildStoryProgress` and owns
+  chapter/story-level transitions and `storyFlags`; `useStoryChapterRunner`
+  drives one chapter's scene-by-scene playthrough. Scene position within a
+  chapter is in-memory only and resets to the first scene on a reload — the
+  same accepted tradeoff `useAdventureSession`'s hint ladder already makes
+  — safe here because the only scene kind with real persisted state is
+  `ADVENTURE` (its own `AdventureSession`), which the hook checks for
+  directly (`isAdventureSessionComplete`) rather than trusting scene
+  position across a reload: if a chapter's embedded adventure was already
+  completed in an earlier visit, the hook skips straight to a "you already
+  finished this part" prompt instead of re-embedding/re-starting it (which
+  would otherwise create a second `AdventureSession` row, since
+  `resumeOrStartSession` only resumes *active* sessions). When an
+  `ADVENTURE` scene's session completes live in the current render, the
+  embedded `AdventureRunner`'s own complete card is left on screen (with
+  its own recap) rather than being yanked away — a separate "Continue the
+  story" button (rendered by the Story Engine, not the Adventure Engine)
+  only appears once `onComplete` has fired, so nothing auto-navigates out
+  from under a child mid-read.
+
+  **UI** (`src/features/story/StoryChapterRunner.tsx`,
+  `src/routes/StoryPage.tsx`, new route
+  `/island/:childId/stories/:storySlug`): `StoryChapterRunner` reuses the
+  existing `NarrativeStep`/`ChoiceStep`/`ReflectionStep` components as-is
+  (all three were already generic, not Adventure-Engine-specific) plus the
+  real `AdventureRunner` for `ADVENTURE` scenes — no new step-renderer
+  components or CSS were needed. `StoryPage` mirrors `AdventurePage`'s
+  loading/error/age-gate shape, shows a deterministic recap
+  (`src/features/story/recap.ts`'s `buildStoryRecap`, same
+  "no model call, cannot claim anything the records don't show" precedent
+  as `buildWeeklySummary`) while a story is in progress and on its
+  completion screen (docs/ROADMAP.md "story recap"), and records the
+  story's own completion world change via `completeStory` on the final
+  chapter (docs/ROADMAP.md "story completion"/"world-change integration").
+  A new "Read The Dragon of Ember Mountain (new!)" link on
+  `WelcomeHarbor.tsx`, age-gated the same way `IslandLocationPage.tsx`
+  already gates its own adventure link, is the only entry point — the
+  story is not tied to any one of the four MVP locations, matching its own
+  layering position above them.
+
+  **Content**: "The Dragon of Ember Mountain"
+  (`src/features/story/content/dragonOfEmberMountain.ts`), authored to
+  roadmap section 12's five-chapter outline (The Broken Path, The
+  Whispering Forest, Dragon Tracks, The Dragon's Cave, Save the Dragon),
+  scoped to `supportedAgeBands: ['PATHFINDER']` only — the same
+  first-story precedent every location's first adventure already used.
+  Chapters 1/2/3/5 each embed one of the four new adventures; chapter 4
+  ("The Dragon's Cave") is narration plus one `REFLECTION` scene
+  (`empathy`) with no graded challenge, matching the roadmap's own
+  description of that chapter as the story's emotional turn rather than a
+  quiz. The `trackDirection` flag (a bounded, three-option `CHOICE` scene
+  at the end of chapter 3) is what chapter 4's `dragon-revelation`
+  `NARRATIVE` scene branches on — a concrete, tested "authored branching"
+  example matching `docs/DATA_MODEL.md`'s own sample flag ("dragon revealed
+  as protective, not evil"). `dragonOfEmberMountain.test.ts` runs
+  `validateStoryDefinition` against the real story (must return zero
+  errors) plus content-specific checks (five chapters in the roadmap's
+  order, one ending chapter, every embedded adventure slug real and
+  resolvable, the branch actually changes the rendered text per flag
+  value, chapter 4 ends on the empathy reflection).
+
+  New tests: `src/features/story/engine/validation.test.ts` (structural
+  guard checks against synthetic stories),
+  `src/features/story/content/dragonOfEmberMountain.test.ts`,
+  `src/features/adventures/content/emberMountainChapterAdventures.test.ts`
+  (same `describe.each`-parameterized structural guard every other
+  adventure content file already has), `src/features/story/recap.test.ts`,
+  and `src/features/story/StoryChapterRunner.test.tsx` — a real component
+  test (mocking `./api`, `../companion/api`, and `../adventures/AdventureRunner`)
+  covering every scene kind, the already-completed-adventure skip path, and
+  the empty-chapter completion path; this is a deliberate departure from
+  the project's usual "route-level components have no direct tests"
+  precedent, since `StoryChapterRunner` is genuinely new integration logic
+  (four scene kinds, an embedded child component, and a completion-timing
+  contract) rather than a thin wrapper around an already-tested hook the
+  way most routes are.
+
+## Verification (Phase 12 session)
+
+- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
+  `scripts/tsconfig.json`).
+- `npm run lint` — passed (same pre-existing-style warnings as every prior
+  phase, not errors; nothing new from this session's files).
+- `npm run format:check` — passed.
+- `npm run test` — passed (50 files, 325 tests, up from 45 files/271 tests
+  — new: `emberMountainChapterAdventures.test.ts`,
+  `story/engine/validation.test.ts`, `story/content/dragonOfEmberMountain.test.ts`,
+  `story/recap.test.ts`, `story/StoryChapterRunner.test.tsx`).
+- `npm run build` — passed (same informational chunk-size warning as every
+  prior phase).
+- `npm run test:e2e` — passed (3 tests, Chromium; unchanged — they still
+  only cover unauthenticated routes).
+- **Not done this session**: no `ampx sandbox` deploy exercising the new
+  `ChildStoryProgress` model against a live backend (no AWS credentials in
+  this environment — `.claude/settings.json` denies `aws:*` — same
+  constraint noted in every prior phase). The schema change is additive
+  (one new model, one new relationship field, same shape already documented
+  in `docs/DATA_MODEL.md` since the Phase 9 session), and every new
+  `client.models.ChildStoryProgress.*` call follows the exact
+  list-then-filter/create/update pattern already exercised by every other
+  `api.ts` module in this repo, so the risk surface is small — but this
+  still needs a real sandbox deploy and one real signed-in play-through of
+  "The Dragon of Ember Mountain" start to finish (including a page reload
+  mid-chapter, to exercise the already-completed-adventure skip path)
+  before wider use. No new AI route was added — the `aiNarrated` `NARRATIVE`
+  scenes reuse the already-live-verified `generateCompanionTurn` route with
+  `authoredBaseText` grounding, the same call shape Phase 6 already proved
+  end to end.
+
 ## Verification (Phase 9 session)
 
 - `npm run typecheck` — passed.
@@ -1717,6 +1891,43 @@ above).
   authenticated parent session and only that family's own data is ever
   at stake), but worth a resolver-level check if this control needs to
   be load-bearing rather than a parent-facing convenience switch.
+
+- **"The Dragon of Ember Mountain" is authored for
+  `supportedAgeBands: ['PATHFINDER']` only, and it is the only story**,
+  same first-content scope precedent as every location's first adventure.
+  Sprout/Explorer children see no story link at all on Welcome Harbor
+  (age-gated the same way `IslandLocationPage.tsx` already gates its own
+  adventure link) rather than a broken or unplayable one.
+- **A chapter's scene position resets to the start on a page reload**,
+  the same accepted tradeoff already tracked above for
+  `useAdventureSession`'s hint ladder. The one scene kind with real
+  persisted state (`ADVENTURE`) is unaffected — `isAdventureSessionComplete`
+  detects an already-finished embedded adventure and skips re-playing it —
+  but a reload mid-`NARRATIVE`/`CHOICE`/`REFLECTION` sequence within a
+  chapter restarts that chapter's non-adventure scenes from the top. Low
+  severity (at most a few extra taps, never lost progress or a duplicated
+  world change); revisit if this proves disruptive in testing, most likely
+  by persisting a scene index on `ChildStoryProgress` if a future story's
+  chapters get long enough for it to matter.
+- **No parent-dashboard visibility into story progress yet.**
+  `ChildDashboard.tsx` still only shows adventure sessions, skills, world
+  changes, and story *keepsakes* (Storykeeper Castle's `StoryArtifact`,
+  Phase 5) — not `ChildStoryProgress`. A parent cannot yet see "partway
+  through The Dragon of Ember Mountain, on chapter 3" anywhere. Not a
+  roadmap Phase 12 deliverable, but a natural Phase 7-dashboard-shaped
+  follow-up once there is more than one story to show.
+- **`ChildStoryProgress` has no admin/reviewer group access**, same
+  already-tracked gap as every other model in this schema — there is still
+  no admin role for CLAUDE.md section 2's "Administrator/content designer"
+  to review anything without going through a parent's own authenticated
+  session.
+- The Story Engine's `StoryChapterScene` union deliberately has no
+  `WORLD_CHANGE` scene kind of its own (see the "Completed" entry above for
+  why) — if a future story needs a world change that isn't the byproduct of
+  an embedded adventure or the story's own single completion change (for
+  example, a mid-story environmental change with no graded challenge behind
+  it), this union will need a fifth scene kind rather than being able to
+  reuse an existing one.
 
 ## Decisions pending
 

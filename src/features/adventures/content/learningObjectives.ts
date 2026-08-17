@@ -46,4 +46,12 @@ export const LEARNING_OBJECTIVES: LearningObjective[] = [
     domain: 'science',
     title: 'Understanding a nature explanation',
   },
+  { code: 'patterns', domain: 'numeracy', title: 'Recognizing and continuing patterns' },
+  { code: 'animal-science', domain: 'science', title: 'Learning how animals live and behave' },
+  { code: 'measurement', domain: 'numeracy', title: 'Measuring and comparing size' },
+  {
+    code: 'empathy',
+    domain: 'social-emotional',
+    title: "Understanding another's feelings and perspective",
+  },
 ];

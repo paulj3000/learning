@@ -66,6 +66,7 @@ const schema = a.schema({
       aiInteractionAudits: a.hasMany('AIInteractionAudit', 'childProfileId'),
       safetyEvents: a.hasMany('SafetyEvent', 'childProfileId'),
       storyArtifacts: a.hasMany('StoryArtifact', 'childProfileId'),
+      childStoryProgress: a.hasMany('ChildStoryProgress', 'childProfileId'),
     })
     .authorization((allow) => [allow.owner()]),
 
@@ -283,6 +284,34 @@ const schema = a.schema({
       title: a.string().required(),
       scenes: a.json().required(),
       createdAt: a.datetime().required(),
+    })
+    .authorization((allow) => [allow.owner()]),
+
+  // --- Phase 12: Story Engine (docs/ROADMAP.md, docs/DATA_MODEL.md ChildStoryProgress) ---
+
+  /**
+   * Resumable, multi-session progress through one authored long-form story
+   * (`StoryDefinition`, content-authored in source control, same "not a DB
+   * model" precedent as `AdventureTemplate`/`AdventureStepDefinition` — see
+   * src/features/story/content/). Distinct from the single-session
+   * `AdventureSession`: a story spans many chapters, each of which may embed
+   * one or more `AdventureSession`s of its own. `storyFlags` is bounded,
+   * authored-value JSON only (docs/DATA_MODEL.md: "never free-form child
+   * text") — e.g. `{ trackDirection: 'cave' }` — read back by later chapters
+   * to select authored narrative branches, never evaluated as arbitrary
+   * script.
+   */
+  ChildStoryProgress: a
+    .model({
+      childProfileId: a.id().required(),
+      childProfile: a.belongsTo('ChildProfile', 'childProfileId'),
+      storyId: a.string().required(),
+      currentChapterId: a.string().required(),
+      completedChapterIds: a.string().array(),
+      storyFlags: a.json(),
+      startedAt: a.datetime().required(),
+      lastPlayedAt: a.datetime().required(),
+      completedAt: a.datetime(),
     })
     .authorization((allow) => [allow.owner()]),
 });
