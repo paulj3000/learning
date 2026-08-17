@@ -35,6 +35,11 @@ const PirateBuilderBayWorldPage = lazy(() =>
     default: module.PirateBuilderBayWorldPage,
   })),
 );
+const WonderwildForestWorldPage = lazy(() =>
+  import('../routes/WonderwildForestWorldPage').then((module) => ({
+    default: module.WonderwildForestWorldPage,
+  })),
+);
 
 export function AppRoutes() {
   return (
@@ -122,6 +127,16 @@ export function AppRoutes() {
           <RequireParent>
             <Suspense fallback={<p>Loading Pirate Builder Bay...</p>}>
               <PirateBuilderBayWorldPage />
+            </Suspense>
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/world/wonderwild-forest"
+        element={
+          <RequireParent>
+            <Suspense fallback={<p>Loading Wonderwild Forest...</p>}>
+              <WonderwildForestWorldPage />
             </Suspense>
           </RequireParent>
         }

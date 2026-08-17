@@ -89,6 +89,17 @@ layering, plus one reference story, "The Dragon of Ember Mountain," per the
 roadmap's own five-chapter outline. See the "Completed" section below (the
 block starting "Phase 12 — Story Engine") for the full breakdown.
 
+**Phase 13 — Wonderwild Exploration** (roadmap section 32) is now also
+functionally complete: Wonderwild Forest is a third real spatial Phaser
+location (a discovery-driven bee hive/pond/leaf-pile/cave/night-clearing
+environment), reusing `LocationScene` with no engine changes beyond
+additive decor-drawing cases — the clearest evidence yet that Phase 11's
+engine extraction achieved its goal of making a new location a
+content-authoring task. See the "Completed" section below (the block
+starting "Phase 13 — Wonderwild Exploration") for what shipped, including
+the always-available tap-flavor interaction the hive's decor sprite needed
+to sidestep a real gap in the shared decor-binding pattern.
+
 Phase 9 build notes follow; building on the first slice (`phaser`
 dependency, `PhaserGameContainer` React/Phaser lifecycle boundary,
 Phaser-free `WorldEventBus`), that session added:
@@ -1365,6 +1376,106 @@ below). Three items remain:
   (four scene kinds, an embedded child component, and a completion-timing
   contract) rather than a thin wrapper around an already-tested hook the
   way most routes are.
+
+- **Phase 13 — Wonderwild Exploration** (roadmap section 32): turns
+  Wonderwild Forest from a question-selection interface into a
+  discovery-driven environment, the same "additive third spatial location"
+  pattern Phase 11 established for Pirate Builder Bay — `LocationScene`
+  needed no changes beyond new decor-drawing cases (below), confirming its
+  Phase 11 extraction genuinely made "add a location" a content-authoring
+  task at the world-map layer.
+
+  **New Phaser-free, unit-tested data modules**, same pattern as the bay's —
+  `wonderwildForestTilemap.ts` (a 30x20 grid: grass forest floor
+  everywhere, a colliding pond in the northeast, and a path spur back to
+  Welcome Harbor; the bee hive clearing is ordinary walkable grass, unlike
+  the bay's bridge, since nothing here is collision-gated), `wonderwildForestZones.ts`,
+  and `wonderwildForestDecor.ts` (the bee hive, a pond-side frog, a leaf
+  pile, a cave mouth, and a night clearing — the roadmap's own five
+  discovery-point examples: `Bee hive -> Waggle Dance`, `Pond -> Frog
+  adventure`, `Leaves -> Seasons adventure`, `Cave -> Geology`, `Night
+  clearing -> Astronomy`). `decor.ts`'s `DecorShape` union gained
+  `HIVE`/`FROG`/`LEAVES`/`CAVE`/`MOON`, drawn by `LocationScene`'s shared
+  `drawDecorSprite`.
+
+  `worldObjects.ts` gained `WONDERWILD_FOREST_INTERACTIONS`: walking up to
+  the hive starts the real "Buzz and the Waggle Dance" adventure directly,
+  the same `WORLD_CHANGE_ABSENT`/`WORLD_CHANGE_PRESENT` before/after pair
+  sharing one zone as the bay's bridge (`wonderwild-beehive`/
+  `wonderwild-beehive-discovered`, gated on `WAGGLE_DANCE_DISCOVERED`).
+  Tapping the hive sprite itself is a **third**, always-available interaction
+  (`wonderwild-beehive-peek`) rather than reusing either half of that pair —
+  a decor sprite binds to exactly one interaction id, but the pair is
+  mutually exclusive by design, so binding to either one would go silently
+  inert the moment the other became available; the dedicated tap-flavor
+  line sidesteps that while walking into the shared zone still correctly
+  resolves whichever of the two is currently available (`wonderwildForestDecor.ts`'s
+  header comment documents this in full; `wonderwildForestDecor.test.ts`
+  asserts the sprite is bound to the tap-only line specifically). The pond,
+  leaf pile, cave mouth, and night clearing are the roadmap's other four
+  discovery points; **none has a built adventure yet**, so each is an
+  honest, calm "not yet" flavor `SHOW_MESSAGE` rather than a dead end or a
+  fake adventure link — the same "boundary is 'not authored yet,' not
+  'unsafe'" framing `buzzAndTheWaggleDance.ts`'s Wonder Wall fallback
+  already established in Phase 6. The existing card-based Wonder Wall
+  adventure entry (`IslandLocationPage` -> "Start: Buzz and the Waggle
+  Dance") is completely unchanged and remains reachable exactly as before —
+  roadmap section 32's "the existing Wonder Wall may remain as an optional
+  interface."
+
+  A new `WonderwildForestWorldView.tsx` + `WonderwildForestWorldPage.tsx` +
+  `/island/:childId/world/wonderwild-forest` route (lazy-loaded, same
+  `phaser`-out-of-the-main-bundle reasoning as the other two world routes)
+  mirror the bay's Phase 11 view/page rather than threading a third config
+  prop through the shared, already-shipped `IslandWorldView` — same
+  duplication-is-cheaper-than-generalizing call Phase 11 made.
+  `IslandLocationPage.tsx` gained one conditional link ("Try exploring the
+  forest (new!)") when `location.slug === 'wonderwild-forest'`, matching
+  the existing bay-card precedent.
+
+  **Manual verification** (temporary, unauthenticated `/preview/wonderwild`
+  route mounting `WonderwildForestWorldView` directly + a hand-written
+  Playwright script driven against a production `build`+`preview` server,
+  same technique as Phases 9-11, removed before this change was finalized):
+  confirmed, with screenshots, that every new decor shape (hive, frog,
+  leaves, cave, moon) renders correctly with no clipping and zero browser
+  console errors; that holding the right arrow key long enough to walk the
+  avatar into the hive's zone correctly opens the "The buzzing bee hive"
+  interaction panel (the live, Phaser-side confirmation that
+  `wonderwildForestZones.ts`'s rectangle and `worldObjects.ts`'s zone-sharing
+  data are wired correctly, not just internally consistent per the unit
+  tests); that clicking "Start the adventure" in that panel fails
+  gracefully with the same authored error message the bay's preview already
+  demonstrated (no real backend in this unauthenticated preview); and that
+  `prefers-reduced-motion: reduce` emulation produced no errors. No new
+  rendering bug was found this session — unlike Phase 10 (the display-order
+  bug) and Phase 11 (the bridge-zone-on-a-colliding-tile bug), this phase
+  reused `LocationScene` completely unchanged aside from additive decor-draw
+  cases, so there was no new engine surface for a bug like those to hide in.
+
+  `npm run test`: 54 files, 352 tests, up from 50 files/325 tests — new this
+  session: `wonderwildForestTilemap.test.ts`, `wonderwildForestZones.test.ts`,
+  `wonderwildForestDecor.test.ts`, `WonderwildForestWorldView.test.tsx`, plus
+  additions to `worldObjects.test.ts`; `npm run typecheck`/`lint`/
+  `format:check`/`build`/`test:e2e` all clean.
+
+  **Not done, and why**: the four not-yet-built discovery points (pond,
+  leaves, cave, night clearing) have no adventure behind them — building
+  four full adventures (each needing its own learning objectives, content
+  sources, and tests, roughly the scope of Phase 6 on its own) was judged
+  out of proportion for one phase; the roadmap itself frames Phase 13 as
+  "the existing Wonder Wall may remain as an optional interface, but
+  discovery becomes the preferred path," not as a mandate to build every
+  example adventure at once, and `docs/ROADMAP.md` Phase 15 ("Adventure
+  Library") is explicitly where the broader adventure catalog grows. No NPC
+  in the forest (same as the bay — `LocationScene`'s NPC renderer is a
+  Chatty-specific parrot shape; nothing in this forest needed a following
+  character). Same pre-existing, project-wide gaps already noted for
+  Phases 9-11 apply here too (no authenticated Playwright e2e harness, no
+  live `ampx sandbox` exercise of the `WAGGLE_DANCE_DISCOVERED`-gated
+  interaction pair against a real signed-in session — this phase added no
+  new backend schema, so the risk surface is smaller than any phase that
+  did).
 
 ## Verification (Phase 12 session)
 

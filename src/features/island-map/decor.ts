@@ -11,15 +11,35 @@ import { findInteraction, WELCOME_HARBOR_INTERACTIONS } from './worldObjects';
 
 /**
  * `CHARACTER`/`ROPE`/`TOOLBOX`/`CHEST` were added for Pirate Builder Bay's
- * Phase 11 spatial scene (`pirateBuilderBayDecor.ts`); the shared scene
- * renderer (`scenes/LocationScene.ts`) draws all seven, so any location's
- * decor module can use any shape.
+ * Phase 11 spatial scene (`pirateBuilderBayDecor.ts`); `HIVE`/`FROG`/
+ * `LEAVES`/`CAVE`/`MOON` were added for Wonderwild Forest's Phase 13
+ * discovery points (`wonderwildForestDecor.ts`). The shared scene renderer
+ * (`scenes/LocationScene.ts`) draws all twelve, so any location's decor
+ * module can use any shape.
  */
-export type DecorShape = 'SIGN' | 'TREE' | 'DOOR' | 'CHARACTER' | 'ROPE' | 'TOOLBOX' | 'CHEST';
+export type DecorShape =
+  | 'SIGN'
+  | 'TREE'
+  | 'DOOR'
+  | 'CHARACTER'
+  | 'ROPE'
+  | 'TOOLBOX'
+  | 'CHEST'
+  | 'HIVE'
+  | 'FROG'
+  | 'LEAVES'
+  | 'CAVE'
+  | 'MOON';
 
 export interface DecorDefinition {
   id: string;
-  /** Must resolve to a `trigger: 'TAP'` entry in `WELCOME_HARBOR_INTERACTIONS`. */
+  /**
+   * The interaction this sprite fires when tapped. Usually `trigger: 'TAP'`,
+   * but a decor sprite may also share its position with an `APPROACH`-zoned
+   * interaction (e.g. Wonderwild Forest's bee hive, `wonderwildForestDecor.ts`)
+   * — tapping and walking into the zone then both resolve through the same
+   * `isInteractionAvailable`/`INTERACTION_TRIGGERED` path.
+   */
   interactionId: string;
   position: { x: number; y: number };
   shape: DecorShape;

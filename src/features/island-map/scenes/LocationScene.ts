@@ -359,6 +359,50 @@ export class LocationScene extends Phaser.Scene {
         graphics.fillStyle(0xf4d35e, 1);
         graphics.fillRect(10, 14, 4, 6);
         break;
+      case 'HIVE':
+        graphics.fillStyle(0xe8b923, 1);
+        graphics.fillEllipse(12, 20, 20, 22);
+        graphics.fillStyle(0xd9a066, 1);
+        graphics.fillRect(2, 14, 20, 3);
+        graphics.fillRect(3, 20, 18, 3);
+        graphics.fillStyle(0x3a2a12, 1);
+        graphics.fillCircle(12, 26, 3);
+        break;
+      case 'FROG':
+        graphics.fillStyle(0x4caf50, 1);
+        graphics.fillEllipse(12, 24, 18, 12);
+        graphics.fillCircle(6, 16, 4);
+        graphics.fillCircle(18, 16, 4);
+        graphics.fillStyle(0x1b2733, 1);
+        graphics.fillCircle(6, 15, 1.5);
+        graphics.fillCircle(18, 15, 1.5);
+        break;
+      case 'LEAVES':
+        graphics.fillStyle(0xd35400, 1);
+        graphics.fillEllipse(8, 24, 10, 6);
+        graphics.fillStyle(0xf2a541, 1);
+        graphics.fillEllipse(16, 22, 10, 6);
+        graphics.fillStyle(0xc0392b, 1);
+        graphics.fillEllipse(12, 27, 10, 6);
+        break;
+      case 'CAVE':
+        graphics.fillStyle(0x6b6b6b, 1);
+        graphics.fillCircle(12, 14, 12);
+        graphics.fillRect(0, 14, 24, 18);
+        graphics.fillStyle(0x14141c, 1);
+        graphics.fillEllipse(12, 24, 12, 16);
+        break;
+      case 'MOON':
+        graphics.fillStyle(0x1b2a4a, 1);
+        graphics.fillRoundedRect(0, 0, 24, 32, 4);
+        graphics.fillStyle(0xf4ecd8, 1);
+        graphics.fillCircle(13, 12, 8);
+        graphics.fillStyle(0x1b2a4a, 1);
+        graphics.fillCircle(17, 9, 7);
+        graphics.fillStyle(0xf4ecd8, 1);
+        graphics.fillCircle(6, 22, 1.5);
+        graphics.fillCircle(19, 24, 1.5);
+        break;
     }
     const textureKey = `${this.locationConfig.sceneKey}-decor-${decor.id}`;
     graphics.generateTexture(textureKey, size.width, size.height);

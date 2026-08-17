@@ -284,3 +284,125 @@ export const PIRATE_BUILDER_BAY_INTERACTIONS: WorldInteraction[] = [
     action: { kind: 'NAVIGATE', to: 'world' },
   },
 ];
+
+/**
+ * Wonderwild Forest's Phase 13 interactions
+ * (docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md section 32):
+ * turns the forest from a question-selection interface into a
+ * discovery-driven environment. Walking up to the bee hive starts the real
+ * "Buzz and the Waggle Dance" adventure directly, same
+ * `WORLD_CHANGE_ABSENT`/`WORLD_CHANGE_PRESENT` before/after pair sharing one
+ * zone as the bay's bridge; once discovered, the same spot narrates the
+ * payoff instead. Tapping the hive sprite itself always shows a short flavor
+ * line regardless of discovery state (`wonderwild-beehive-peek`), since a
+ * decor sprite can only bind to one interaction id but the zone it sits on
+ * needs two (see `wonderwildForestDecor.ts`'s header comment). The pond,
+ * leaf pile, cave mouth, and night clearing are the roadmap's other four
+ * discovery points (`Pond -> Frog adventure`, `Leaves -> Seasons adventure`,
+ * `Cave -> Geology`, `Night clearing -> Astronomy`); none has a built
+ * adventure yet, so each is an honest, calm "not yet" flavor interaction
+ * rather than a dead end or a fake adventure link — matching the existing
+ * Wonder Wall's own precedent for an out-of-scope curiosity question
+ * (`buzzAndTheWaggleDance.ts`'s `wonder-wall-fallback`). The existing
+ * card-based Wonder Wall adventure entry remains reachable from
+ * `IslandLocationPage` exactly as before (roadmap section 32: "the existing
+ * Wonder Wall may remain as an optional interface").
+ */
+export const WONDERWILD_FOREST_INTERACTIONS: WorldInteraction[] = [
+  {
+    id: 'wonderwild-beehive',
+    type: 'ADVENTURE',
+    trigger: 'APPROACH',
+    title: 'The buzzing bee hive',
+    targetId: 'wonderwild-forest',
+    requirements: [{ type: 'WORLD_CHANGE_ABSENT', changeKey: 'WAGGLE_DANCE_DISCOVERED' }],
+    action: {
+      kind: 'START_ADVENTURE',
+      locationSlug: 'wonderwild-forest',
+      templateSlug: 'buzz-and-the-waggle-dance',
+    },
+  },
+  {
+    id: 'wonderwild-beehive-discovered',
+    type: 'DISCOVERY',
+    trigger: 'APPROACH',
+    title: 'The hive you already discovered',
+    targetId: 'wonderwild-forest',
+    requirements: [{ type: 'WORLD_CHANGE_PRESENT', changeKey: 'WAGGLE_DANCE_DISCOVERED' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'You can still hear the gentle hum of the waggle dance inside the hive.',
+    },
+    zoneId: 'wonderwild-beehive',
+  },
+  {
+    id: 'wonderwild-beehive-peek',
+    type: 'OBJECT',
+    trigger: 'TAP',
+    title: 'Peek at the hive',
+    targetId: 'wonderwild-beehive',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'A hive of bees hums happily. Walk closer to find out what they are doing!',
+    },
+  },
+  {
+    id: 'wonderwild-pond-frog',
+    type: 'OBJECT',
+    trigger: 'TAP',
+    title: 'A quiet pond',
+    targetId: 'wonderwild-pond-frog',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message:
+        'A little frog blinks at you from a lily pad. Maybe there is an adventure here someday!',
+    },
+  },
+  {
+    id: 'wonderwild-leaf-pile',
+    type: 'OBJECT',
+    trigger: 'TAP',
+    title: 'A pile of leaves',
+    targetId: 'wonderwild-leaf-pile',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'Red, gold, and brown leaves rustle in a soft pile. They change with every season.',
+    },
+  },
+  {
+    id: 'wonderwild-cave',
+    type: 'DISCOVERY',
+    trigger: 'TAP',
+    title: 'A shadowy cave',
+    targetId: 'wonderwild-cave',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: "A dark cave mouth in the hillside. It's too dark to explore just yet.",
+    },
+  },
+  {
+    id: 'wonderwild-night-clearing',
+    type: 'DISCOVERY',
+    trigger: 'TAP',
+    title: 'A quiet clearing',
+    targetId: 'wonderwild-night-clearing',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'A peaceful clearing, perfect for imagining the stars coming out at night.',
+    },
+  },
+  {
+    id: 'wonderwild-harbor-exit',
+    type: 'LOCATION',
+    trigger: 'APPROACH',
+    title: 'The path back to Welcome Harbor',
+    targetId: 'welcome-harbor',
+    requirements: [{ type: 'ALWAYS' }],
+    action: { kind: 'NAVIGATE', to: 'world' },
+  },
+];

@@ -4,6 +4,7 @@ import {
   isInteractionAvailable,
   PIRATE_BUILDER_BAY_INTERACTIONS,
   WELCOME_HARBOR_INTERACTIONS,
+  WONDERWILD_FOREST_INTERACTIONS,
   type WorldInteraction,
 } from './worldObjects';
 
@@ -203,6 +204,72 @@ describe('PIRATE_BUILDER_BAY_INTERACTIONS', () => {
 
   it('always offers the exit back to Welcome Harbor as a NAVIGATE interaction', () => {
     const exit = findInteraction(PIRATE_BUILDER_BAY_INTERACTIONS, 'bay-harbor-exit');
+    expect(exit).toBeDefined();
+    expect(isInteractionAvailable(exit!, { worldChangeKeys: [] })).toBe(true);
+    expect(exit?.action).toEqual({ kind: 'NAVIGATE', to: 'world' });
+  });
+});
+
+describe('WONDERWILD_FOREST_INTERACTIONS', () => {
+  it('has no duplicate interaction ids, even though two interactions share the hive zone', () => {
+    const ids = WONDERWILD_FOREST_INTERACTIONS.map((interaction) => interaction.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('offers the bee hive only before it is discovered, and starts the real adventure', () => {
+    const hive = findInteraction(WONDERWILD_FOREST_INTERACTIONS, 'wonderwild-beehive');
+    expect(hive).toBeDefined();
+    expect(isInteractionAvailable(hive!, { worldChangeKeys: [] })).toBe(true);
+    expect(isInteractionAvailable(hive!, { worldChangeKeys: ['WAGGLE_DANCE_DISCOVERED'] })).toBe(
+      false,
+    );
+    expect(hive?.action).toEqual({
+      kind: 'START_ADVENTURE',
+      locationSlug: 'wonderwild-forest',
+      templateSlug: 'buzz-and-the-waggle-dance',
+    });
+  });
+
+  it('offers the already-discovered narration only after discovery, sharing the hive zone', () => {
+    const discovered = findInteraction(
+      WONDERWILD_FOREST_INTERACTIONS,
+      'wonderwild-beehive-discovered',
+    );
+    expect(discovered).toBeDefined();
+    expect(discovered?.zoneId).toBe('wonderwild-beehive');
+    expect(isInteractionAvailable(discovered!, { worldChangeKeys: [] })).toBe(false);
+    expect(
+      isInteractionAvailable(discovered!, { worldChangeKeys: ['WAGGLE_DANCE_DISCOVERED'] }),
+    ).toBe(true);
+  });
+
+  it('always makes tapping the hive available, regardless of discovery state', () => {
+    const peek = findInteraction(WONDERWILD_FOREST_INTERACTIONS, 'wonderwild-beehive-peek');
+    expect(peek).toBeDefined();
+    expect(peek?.trigger).toBe('TAP');
+    expect(isInteractionAvailable(peek!, { worldChangeKeys: [] })).toBe(true);
+    expect(isInteractionAvailable(peek!, { worldChangeKeys: ['WAGGLE_DANCE_DISCOVERED'] })).toBe(
+      true,
+    );
+  });
+
+  it('always makes the four not-yet-built discovery points available and tap-triggered', () => {
+    for (const id of [
+      'wonderwild-pond-frog',
+      'wonderwild-leaf-pile',
+      'wonderwild-cave',
+      'wonderwild-night-clearing',
+    ]) {
+      const discovery = findInteraction(WONDERWILD_FOREST_INTERACTIONS, id);
+      expect(discovery).toBeDefined();
+      expect(discovery?.trigger).toBe('TAP');
+      expect(discovery?.action.kind).toBe('SHOW_MESSAGE');
+      expect(isInteractionAvailable(discovery!, { worldChangeKeys: [] })).toBe(true);
+    }
+  });
+
+  it('always offers the exit back to Welcome Harbor as a NAVIGATE interaction', () => {
+    const exit = findInteraction(WONDERWILD_FOREST_INTERACTIONS, 'wonderwild-harbor-exit');
     expect(exit).toBeDefined();
     expect(isInteractionAvailable(exit!, { worldChangeKeys: [] })).toBe(true);
     expect(exit?.action).toEqual({ kind: 'NAVIGATE', to: 'world' });
