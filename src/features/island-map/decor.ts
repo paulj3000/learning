@@ -9,7 +9,13 @@
 import { TILE_SIZE } from './tilemap';
 import { findInteraction, WELCOME_HARBOR_INTERACTIONS } from './worldObjects';
 
-export type DecorShape = 'SIGN' | 'TREE' | 'DOOR';
+/**
+ * `CHARACTER`/`ROPE`/`TOOLBOX`/`CHEST` were added for Pirate Builder Bay's
+ * Phase 11 spatial scene (`pirateBuilderBayDecor.ts`); the shared scene
+ * renderer (`scenes/LocationScene.ts`) draws all seven, so any location's
+ * decor module can use any shape.
+ */
+export type DecorShape = 'SIGN' | 'TREE' | 'DOOR' | 'CHARACTER' | 'ROPE' | 'TOOLBOX' | 'CHEST';
 
 export interface DecorDefinition {
   id: string;

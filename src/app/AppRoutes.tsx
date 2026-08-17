@@ -29,6 +29,11 @@ import { RequireGuest } from '../features/auth/RequireGuest';
 const IslandWorldPage = lazy(() =>
   import('../routes/IslandWorldPage').then((module) => ({ default: module.IslandWorldPage })),
 );
+const PirateBuilderBayWorldPage = lazy(() =>
+  import('../routes/PirateBuilderBayWorldPage').then((module) => ({
+    default: module.PirateBuilderBayWorldPage,
+  })),
+);
 
 export function AppRoutes() {
   return (
@@ -106,6 +111,16 @@ export function AppRoutes() {
           <RequireParent>
             <Suspense fallback={<p>Loading the island...</p>}>
               <IslandWorldPage />
+            </Suspense>
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/world/pirate-builder-bay"
+        element={
+          <RequireParent>
+            <Suspense fallback={<p>Loading Pirate Builder Bay...</p>}>
+              <PirateBuilderBayWorldPage />
             </Suspense>
           </RequireParent>
         }

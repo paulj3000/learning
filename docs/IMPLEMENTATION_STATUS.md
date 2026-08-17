@@ -72,6 +72,15 @@ changes, initial avatar customization, and location transitions. See the
 for what shipped and two real rendering bugs manual verification caught and
 fixed before this was finalized.
 
+**Phase 11 — Pirate Builder Bay** (roadmap section 30) is now also
+functionally complete: Pirate Builder Bay is a second real spatial Phaser
+location, additive alongside Welcome Harbor rather than replacing its
+existing bridge shortcut. See the "Completed" section below (the block
+starting "Phase 11 — Pirate Builder Bay") for what shipped, including the
+extraction of the rendering engine into a location-agnostic `LocationScene`
+and a real zone-vs-collision bug manual verification caught and fixed before
+this was finalized.
+
 Phase 9 build notes follow; building on the first slice (`phaser`
 dependency, `PhaserGameContainer` React/Phaser lifecycle boundary,
 Phaser-free `WorldEventBus`), that session added:
@@ -1104,6 +1113,116 @@ below). Three items remain:
   exists yet for any of this (same pre-existing, project-wide gap Phase 9
   already noted — there is still no Cognito sign-in/`storageState` harness
   to build a real walk-flow test on top of).
+
+- **Phase 11 — Pirate Builder Bay** (roadmap section 30): the first
+  fully spatial adventure location, built additively alongside Welcome
+  Harbor rather than replacing its Phase 10 bridge shortcut (which still
+  starts "Repair the Moonlight Bridge" directly and still navigates to the
+  card-based location page once repaired — both untouched, both still
+  tested by the existing `worldObjects.test.ts`/`zones.test.ts` cases).
+
+  **The rendering engine was extracted first.** `WelcomeHarborScene.ts` was
+  a ~450-line class with every map/zone/NPC/decor/tile constant imported
+  directly from Welcome-Harbor-specific modules; adding a second location
+  needed the same engine, not a second copy of it. The engine moved to a
+  new `scenes/LocationScene.ts` taking a `LocationSceneConfig` (interactions,
+  zones, npcs, decor, water-shimmer points, tile grid/colors/colliding set,
+  a list of `{ changeKey, from, to }` tile-override rules, avatar spawn,
+  world dimensions); `WelcomeHarborScene.ts` and the new
+  `scenes/PirateBuilderBayScene.ts` are now both thin subclasses that just
+  supply their own config and keep their original constructor signature
+  (`bus, interactionContext, avatarKey`), so `IslandWorldView.tsx` needed no
+  changes at all. Texture/tileset keys are now namespaced by `sceneKey`
+  (`${sceneKey}-tileset`, `${sceneKey}-npc-${id}`, etc.) so two scene
+  instances never collide over the same Phaser texture cache.
+
+  **New Phaser-free, unit-tested data modules**, same pattern as Phase 10's
+  Harbor ones — `pirateBuilderBayTilemap.ts` (a 30x20 grid reusing
+  `tilemap.ts`'s `HarborTile` vocabulary rather than a second color
+  palette: a west dock/workshop area, a water channel splitting it from a
+  hidden cove to the east, a bridge-plank patch spanning the channel, and a
+  path spur back to Welcome Harbor), `pirateBuilderBayZones.ts`, and
+  `pirateBuilderBayDecor.ts` (Pirate Pip, a rope coil, a toolbox, and a
+  treasure chest in the cove). `decor.ts`'s `DecorShape` union gained
+  `CHARACTER`/`ROPE`/`TOOLBOX`/`CHEST`, drawn by `LocationScene`'s shared
+  `drawDecorSprite`. `worldObjects.ts` gained
+  `PIRATE_BUILDER_BAY_INTERACTIONS`: the broken bridge starts the same real
+  "Repair the Moonlight Bridge" session Harbor's shortcut already offers
+  (`resumeOrStartSession` makes starting it twice safe — a second attempt
+  just resumes or replays the already-completed session, so there is no
+  double-completion risk from having two routes into the same adventure);
+  Pirate Pip ("meet character"), the rope/toolbox ("find materials"), and a
+  cove treasure chest ("discover new area") are flavor `SHOW_MESSAGE`
+  interactions matching Harbor's decor precedent (roadmap section 17). The
+  cove needs no `WorldChange` requirement of its own to gate the chest —
+  the water channel's *collision* is what makes it physically unreachable
+  before the bridge is repaired; `applyTileOverride`'s existing
+  `BRIDGE_PLANK` → `BRIDGE_PLANK_REPAIRED` swap (identical mechanism to
+  Harbor's, reused via `LocationSceneConfig.tileOverrides`, and already
+  verified working there in Phase 10) is what opens it. A new
+  `gridGeometry.ts` extracted `isWithinBounds`/`isOnWalkableTile` as
+  generic, grid-parameterized functions so both locations' spawn/decor
+  placement tests could share them instead of duplicating two more
+  Harbor-specific helpers in `npcs.ts` (which now delegates to the shared
+  versions; its exported function names/signatures are unchanged).
+
+  A new `PirateBuilderBayWorldView.tsx` + `PirateBuilderBayWorldPage.tsx` +
+  `/island/:childId/world/pirate-builder-bay` route (lazy-loaded, same
+  `phaser`-out-of-the-main-bundle reasoning as `IslandWorldPage`) mirror
+  Welcome Harbor's Phase 9 view/page rather than threading a location
+  config prop through the already-shipped, tested `IslandWorldView` —
+  duplicating this small amount of wiring was judged cheaper and lower-risk
+  than generalizing a component with real production traffic through it
+  already. `IslandLocationPage.tsx` gained one conditional link ("Try
+  walking around the bay (new!)") when `location.slug ===
+  'pirate-builder-bay'`, matching the existing Harbor-card precedent
+  (`WelcomeHarbor.tsx`'s "Try walking around the island (new!)" link).
+
+  **One real bug was found and fixed this session by manual verification**
+  (temporary unauthenticated `/preview/bay` route + a hand-written
+  Playwright script driven against a production `build`+`preview` server,
+  same technique as Phase 9/10, removed before this change was finalized)
+  — invisible from reading the code or from the unit tests, which mock
+  `phaser` out entirely: the bridge's walk-in interaction zone was defined
+  as exactly the same rectangle as the bridge's tiles, and those tiles are
+  a *colliding* tile pre-repair (`BAY_COLLIDING_TILES` includes
+  `BRIDGE_PLANK`, unlike Harbor's decorative-only bridge, so the cove is
+  physically ungated). Arcade Physics stops the avatar's collider — and
+  therefore its center point, which the zone-overlap check reads — a few
+  pixels short of a colliding tile's edge, so the avatar's center could
+  never actually enter a zone drawn directly on top of a solid tile: the
+  "approach the broken bridge" interaction was geometrically unreachable
+  and could never fire. Fixed by giving the zone its own rectangle,
+  `BRIDGE_APPROACH_TILE_RECT` (a walkable sand column immediately west of
+  the bridge, `pirateBuilderBayTilemap.ts`), instead of reusing the bridge
+  tiles' own rectangle. Confirmed via the same script: walking the avatar
+  up to the new approach zone now correctly opens the "Start the adventure"
+  panel; screenshots also confirmed the tile/decor rendering (Pirate Pip,
+  rope, toolbox, the bridge, the chest visible but separated by the water
+  channel) and produced zero console errors. The post-repair tile-swap
+  itself was not re-verified live this session (it reuses the exact
+  `applyTileOverride` code path already confirmed working for Harbor in
+  Phase 10, gated only by which `changeKey` is present) — worth a live
+  check if this area is touched again.
+
+  `npm run test`: 45 files, 271 tests, all new tests passing — new this
+  session: `gridGeometry` is exercised via `npcs.test.ts` (unchanged
+  assertions, now routed through the shared helpers) and the six new
+  `pirateBuilderBay*.test.ts`/`PirateBuilderBayWorldView.test.tsx` files;
+  `npm run typecheck`/`lint`/`format:check`/`build` all clean.
+
+  **Not done, and why**: no NPC-style following character in the bay —
+  `LocationScene`'s NPC renderer draws a Chatty-specific parrot anatomy, so
+  Pirate Pip is a stationary `CHARACTER` decor sprite instead (accurate to
+  him standing at the bridge, but he cannot follow the avatar the way
+  Chatty does). No "watch the bridge assemble" animation — the repair
+  payoff is delivered as narration text (`bay-bridge-repaired`'s
+  `SHOW_MESSAGE`) plus the same instant tile-texture swap Harbor already
+  uses, not a bespoke build/assemble tween; worth adding if a future
+  session wants a stronger "watch it assemble" moment. No admin/content
+  gating changed. Same pre-existing, project-wide gaps already noted for
+  Phase 9/10 apply here too (no authenticated Playwright e2e harness, NPC
+  follow has no obstacle avoidance, decor is not a collider).
 
 ## Verification (Phase 9 session)
 

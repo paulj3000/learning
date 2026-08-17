@@ -55,6 +55,12 @@
   color: var(--color-primary);
 }
 
+.walkLink {
+  align-self: flex-start;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
 .startLink {
   align-self: flex-start;
   font-weight: 600;

@@ -181,3 +181,106 @@ export const WELCOME_HARBOR_INTERACTIONS: WorldInteraction[] = [
     },
   },
 ];
+
+/**
+ * Pirate Builder Bay's Phase 11 interactions
+ * (docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md section 30):
+ * the first fully spatial adventure location. Walking up to the bridge
+ * starts the same real "Repair the Moonlight Bridge" adventure Welcome
+ * Harbor's shortcut already offers (`resumeOrStartSession` makes starting it
+ * twice safe — the second attempt just resumes or replays the completed
+ * session); once repaired, the same spot narrates the payoff instead, and
+ * the water-channel collision (`pirateBuilderBayTilemap.ts`) — not a
+ * requirement here — is what actually opens the cove beyond it ("discover
+ * new area"). Tapping Pirate Pip is the "meet character" beat; the rope and
+ * toolbox are "find materials" flavor, same framing as Welcome Harbor's
+ * decor (roadmap section 17, "some are purely playful"). The treasure chest
+ * sits in the cove itself, so it needs no gating of its own: nothing can
+ * reach it before the bridge is repaired.
+ */
+export const PIRATE_BUILDER_BAY_INTERACTIONS: WorldInteraction[] = [
+  {
+    id: 'bay-broken-bridge',
+    type: 'ADVENTURE',
+    trigger: 'APPROACH',
+    title: 'The broken Moonlight Bridge',
+    targetId: 'pirate-builder-bay',
+    requirements: [{ type: 'WORLD_CHANGE_ABSENT', changeKey: 'BRIDGE_REPAIRED' }],
+    action: {
+      kind: 'START_ADVENTURE',
+      locationSlug: 'pirate-builder-bay',
+      templateSlug: 'repair-the-moonlight-bridge',
+    },
+  },
+  {
+    id: 'bay-bridge-repaired',
+    type: 'DISCOVERY',
+    trigger: 'APPROACH',
+    title: 'The repaired Moonlight Bridge',
+    targetId: 'pirate-builder-bay',
+    requirements: [{ type: 'WORLD_CHANGE_PRESENT', changeKey: 'BRIDGE_REPAIRED' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'You watch the last plank settle into place. The bridge glows in the moonlight!',
+    },
+    zoneId: 'bay-broken-bridge',
+  },
+  {
+    id: 'meet-pirate-pip',
+    type: 'NPC',
+    trigger: 'TAP',
+    title: 'Pirate Pip',
+    targetId: 'pirate-pip',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message:
+        "Ahoy! I'm Pirate Pip. That bridge to the cove needs fixing. Think you can help me find what's missing?",
+    },
+  },
+  {
+    id: 'bay-rope-coil',
+    type: 'OBJECT',
+    trigger: 'TAP',
+    title: 'A coil of rope',
+    targetId: 'bay-rope-coil',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'A coil of sturdy rope, ready for the next repair.',
+    },
+  },
+  {
+    id: 'bay-toolbox',
+    type: 'OBJECT',
+    trigger: 'TAP',
+    title: "Pirate Pip's toolbox",
+    targetId: 'bay-toolbox',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'Hammer, nails, and a measuring string, all ready to go.',
+    },
+  },
+  {
+    id: 'cove-treasure',
+    type: 'DISCOVERY',
+    trigger: 'TAP',
+    title: 'A hidden treasure chest',
+    targetId: 'cove-treasure',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'You found a hidden treasure chest in the cove! X marks the spot.',
+    },
+  },
+  {
+    id: 'bay-harbor-exit',
+    type: 'LOCATION',
+    trigger: 'APPROACH',
+    title: 'The path back to Welcome Harbor',
+    targetId: 'welcome-harbor',
+    requirements: [{ type: 'ALWAYS' }],
+    action: { kind: 'NAVIGATE', to: 'world' },
+  },
+];

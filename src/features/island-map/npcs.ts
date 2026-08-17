@@ -13,6 +13,7 @@ import {
   WORLD_WIDTH,
 } from './tilemap';
 import { findInteraction, WELCOME_HARBOR_INTERACTIONS } from './worldObjects';
+import { isOnWalkableTile as isOnWalkableGridTile, isWithinBounds } from './gridGeometry';
 
 export interface NpcPalette {
   body: number;
@@ -48,19 +49,12 @@ export const WELCOME_HARBOR_NPCS: NpcDefinition[] = [
   },
 ];
 
-function tileAt(x: number, y: number) {
-  const col = Math.floor(x / TILE_SIZE);
-  const row = Math.floor(y / TILE_SIZE);
-  return HARBOR_TILE_GRID[row]?.[col];
-}
-
 export function isWithinWorldBounds(x: number, y: number): boolean {
-  return x >= 0 && y >= 0 && x <= WORLD_WIDTH && y <= WORLD_HEIGHT;
+  return isWithinBounds(x, y, WORLD_WIDTH, WORLD_HEIGHT);
 }
 
 export function isOnWalkableTile(x: number, y: number): boolean {
-  const tile = tileAt(x, y);
-  return tile !== undefined && !(HARBOR_COLLIDING_TILES as readonly number[]).includes(tile);
+  return isOnWalkableGridTile(x, y, HARBOR_TILE_GRID, HARBOR_COLLIDING_TILES, TILE_SIZE);
 }
 
 /** Resolves an NPC's linked `WorldInteraction`, throwing if content authoring drifted apart. */

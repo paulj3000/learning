@@ -125,6 +125,11 @@ export function IslandLocationPage() {
         {template && !isAgeSupported ? (
           <p className={styles.decoration}>This adventure is not available for your age yet.</p>
         ) : null}
+        {location.slug === 'pirate-builder-bay' ? (
+          <Link className={styles.walkLink} to={`/island/${childId}/world/pirate-builder-bay`}>
+            Try walking around the bay (new!)
+          </Link>
+        ) : null}
         <Link className={styles.backLink} to={`/island/${childId}`}>
           Back to the map
         </Link>
