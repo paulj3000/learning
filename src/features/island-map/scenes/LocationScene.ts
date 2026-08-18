@@ -403,6 +403,55 @@ export class LocationScene extends Phaser.Scene {
         graphics.fillCircle(6, 22, 1.5);
         graphics.fillCircle(19, 24, 1.5);
         break;
+      case 'PORTRAIT':
+        graphics.fillStyle(0x8a5a34, 1);
+        graphics.fillRoundedRect(1, 1, 22, 28, 2);
+        graphics.fillStyle(0xf4ecd8, 1);
+        graphics.fillRect(4, 4, 16, 22);
+        graphics.fillStyle(0xd9a066, 1);
+        graphics.fillCircle(12, 12, 5);
+        graphics.fillStyle(0x2f5d8a, 1);
+        graphics.fillTriangle(6, 24, 18, 24, 12, 15);
+        break;
+      case 'WINDOW':
+        graphics.fillStyle(0x5a3d24, 1);
+        graphics.fillRoundedRect(0, 0, 24, 32, 4);
+        graphics.fillStyle(0x9fd8e8, 1);
+        graphics.fillRect(4, 4, 16, 22);
+        graphics.fillStyle(0x5a3d24, 1);
+        graphics.fillRect(11, 4, 2, 22);
+        graphics.fillRect(4, 14, 16, 2);
+        break;
+      case 'WARDROBE':
+        graphics.fillStyle(0x6b3f1d, 1);
+        graphics.fillRoundedRect(1, 0, 22, 32, 2);
+        graphics.fillStyle(0x8a5a34, 1);
+        graphics.fillRect(11, 0, 2, 32);
+        graphics.fillStyle(0xf4d35e, 1);
+        graphics.fillCircle(9, 16, 1.5);
+        graphics.fillCircle(15, 16, 1.5);
+        break;
+      case 'BOOKSHELF':
+        graphics.fillStyle(0x6b3f1d, 1);
+        graphics.fillRect(0, 0, 24, 32);
+        graphics.fillStyle(0xc0392b, 1);
+        graphics.fillRect(2, 3, 4, 10);
+        graphics.fillStyle(0x2f8f4e, 1);
+        graphics.fillRect(7, 3, 4, 10);
+        graphics.fillStyle(0x2f5d8a, 1);
+        graphics.fillRect(12, 3, 4, 10);
+        graphics.fillStyle(0xf2a541, 1);
+        graphics.fillRect(17, 3, 4, 10);
+        graphics.fillStyle(0xd9a066, 1);
+        graphics.fillRect(2, 17, 19, 10);
+        break;
+      case 'EASEL':
+        graphics.fillStyle(0x8a5a34, 1);
+        graphics.fillTriangle(2, 32, 8, 6, 12, 32);
+        graphics.fillTriangle(22, 32, 16, 6, 12, 32);
+        graphics.fillStyle(0xf4ecd8, 1);
+        graphics.fillRect(4, 8, 16, 16);
+        break;
     }
     const textureKey = `${this.locationConfig.sceneKey}-decor-${decor.id}`;
     graphics.generateTexture(textureKey, size.width, size.height);

@@ -13,9 +13,11 @@ import { findInteraction, WELCOME_HARBOR_INTERACTIONS } from './worldObjects';
  * `CHARACTER`/`ROPE`/`TOOLBOX`/`CHEST` were added for Pirate Builder Bay's
  * Phase 11 spatial scene (`pirateBuilderBayDecor.ts`); `HIVE`/`FROG`/
  * `LEAVES`/`CAVE`/`MOON` were added for Wonderwild Forest's Phase 13
- * discovery points (`wonderwildForestDecor.ts`). The shared scene renderer
- * (`scenes/LocationScene.ts`) draws all twelve, so any location's decor
- * module can use any shape.
+ * discovery points (`wonderwildForestDecor.ts`); `PORTRAIT`/`WINDOW`/
+ * `WARDROBE`/`BOOKSHELF`/`EASEL` were added for Storykeeper Castle's Phase 14
+ * creative-story rooms (`storykeeperCastleDecor.ts`). The shared scene
+ * renderer (`scenes/LocationScene.ts`) draws all seventeen, so any
+ * location's decor module can use any shape.
  */
 export type DecorShape =
   | 'SIGN'
@@ -29,7 +31,12 @@ export type DecorShape =
   | 'FROG'
   | 'LEAVES'
   | 'CAVE'
-  | 'MOON';
+  | 'MOON'
+  | 'PORTRAIT'
+  | 'WINDOW'
+  | 'WARDROBE'
+  | 'BOOKSHELF'
+  | 'EASEL';
 
 export interface DecorDefinition {
   id: string;

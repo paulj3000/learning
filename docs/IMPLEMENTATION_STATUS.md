@@ -100,6 +100,15 @@ starting "Phase 13 — Wonderwild Exploration") for what shipped, including
 the always-available tap-flavor interaction the hive's decor sprite needed
 to sidestep a real gap in the shared decor-binding pattern.
 
+**Phase 14 — Storykeeper Castle (Spatial)** (roadmap section 33) is now also
+functionally complete: Storykeeper Castle is a fourth real spatial Phaser
+location, the same "additive location" pattern Phases 11 and 13 established
+— `LocationScene` needed no engine changes beyond five new decor-drawing
+cases. See the "Completed" section below (the block starting "Phase 14 —
+Storykeeper Castle (Spatial)") for what shipped, including the reused
+"real interaction plus honest not-yet-built flavor points" framing Phase 13
+established.
+
 Phase 9 build notes follow; building on the first slice (`phaser`
 dependency, `PhaserGameContainer` React/Phaser lifecycle boundary,
 Phaser-free `WorldEventBus`), that session added:
@@ -1476,6 +1485,107 @@ below). Three items remain:
   interaction pair against a real signed-in session — this phase added no
   new backend schema, so the risk surface is smaller than any phase that
   did).
+
+- **Phase 14 — Storykeeper Castle (Spatial)** (roadmap section 33): turns
+  Storykeeper Castle into a physical creative-story environment, the same
+  "additive fourth spatial location" pattern Phases 11 and 13 established —
+  `LocationScene` needed no changes beyond new decor-drawing cases (below),
+  further confirming Phase 11's engine extraction.
+
+  **New Phaser-free, unit-tested data modules**, same pattern as the
+  forest's — `storykeeperCastleTilemap.ts` (a 30x20 grid: stone floor
+  everywhere via the existing `SAND` tile id, and a carpet-runner entrance
+  back to Welcome Harbor via `PATH`; nothing indoors collides, so
+  `STORYKEEPER_CASTLE_COLLIDING_TILES` is empty — same "ordinary walkable
+  ground, no adventure gated behind crossing anything" call Wonderwild
+  Forest's discovery points made), `storykeeperCastleZones.ts`, and
+  `storykeeperCastleDecor.ts` (Keeper Quill in the story hall, plus the
+  roadmap's own five other "potential areas": the Character Gallery,
+  Setting Tower, Costume Room, Great Library, and Illustration Studio).
+  `decor.ts`'s `DecorShape` union gained `PORTRAIT`/`WINDOW`/`WARDROBE`/
+  `BOOKSHELF`/`EASEL`, drawn by `LocationScene`'s shared `drawDecorSprite`.
+  Keeper Quill is a stationary `CHARACTER` decor sprite, not an NPC entry —
+  the same call `pirateBuilderBayDecor.ts` made for Pirate Pip, since
+  `LocationScene`'s NPC renderer is a Chatty-specific parrot shape.
+
+  `worldObjects.ts` gained `STORYKEEPER_CASTLE_INTERACTIONS`: walking into
+  the story hall starts the real "The Storykeeper's Tale" adventure
+  directly, the same `WORLD_CHANGE_ABSENT`/`WORLD_CHANGE_PRESENT`
+  before/after pair sharing one zone as the bay's bridge and the forest's
+  hive (`castle-story-hall`/`castle-story-hall-told`, gated on
+  `FIRST_STORY_TOLD`). Tapping Keeper Quill is a third, always-available
+  interaction (`talk-to-keeper-quill`), independent of the story hall's
+  discovery state — no pair-sharing conflict here, unlike the forest's hive
+  sprite, since Keeper Quill is a separate sprite standing apart from the
+  story hall's own walk-in zone. The Character Gallery, Setting Tower,
+  Costume Room, Great Library, and Illustration Studio are the roadmap's
+  other five "potential areas"; **none has bounded creative-choice content
+  of its own built yet**, so each is an honest, calm "not yet" flavor
+  `SHOW_MESSAGE` rather than a dead end or a fake adventure link — the same
+  framing `WONDERWILD_FOREST_INTERACTIONS` already established in Phase 13.
+  The existing card-based "The Storykeeper's Tale" entry
+  (`IslandLocationPage` -> "Start: The Storykeeper's Tale") is completely
+  unchanged and remains reachable exactly as before.
+
+  A new `StorykeeperCastleWorldView.tsx` + `StorykeeperCastleWorldPage.tsx`
+  + `/island/:childId/world/storykeeper-castle` route (lazy-loaded, same
+  `phaser`-out-of-the-main-bundle reasoning as the other three world routes)
+  mirror the forest's Phase 13 view/page rather than threading a fourth
+  config prop through the shared, already-shipped `IslandWorldView` — same
+  duplication-is-cheaper-than-generalizing call Phases 11 and 13 made.
+  `IslandLocationPage.tsx` gained one conditional link ("Try exploring the
+  castle (new!)") when `location.slug === 'storykeeper-castle'`, matching
+  the existing bay/forest-card precedent. `WELCOME_HARBOR_INTERACTIONS`'s
+  own `castle-entrance` interaction is unchanged — it still `NAVIGATE`s to
+  the card-based location page rather than jumping straight into this new
+  scene, same as `forest-entrance` already does for Wonderwild Forest; only
+  that interaction's header comment was updated, since it previously
+  referenced "roadmap phases 13/14" as not having their own spatial scenes
+  yet, which is no longer true.
+
+  **Manual verification** (temporary, unauthenticated `/preview/castle`
+  route mounting `StorykeeperCastleWorldView` directly + a hand-written
+  Playwright script driven against a production `build`+`preview` server,
+  same technique as Phases 9-11/13, removed before this change was
+  finalized): confirmed, with screenshots, that all six new/reused decor
+  shapes (the portrait, window, wardrobe, bookshelf, easel, and the reused
+  `CHARACTER` shape for Keeper Quill) render correctly with no clipping and
+  zero browser console errors; that holding the right arrow key long enough
+  to walk the avatar into the story hall's zone correctly auto-opens the
+  "Keeper Quill's story hall" interaction panel; that clicking "Start the
+  adventure" in that panel fails gracefully with the same authored error
+  message the bay's and forest's previews already demonstrated (no real
+  backend in this unauthenticated preview); and that every flavor room's
+  `SHOW_MESSAGE` (verified directly: "The Great Library") and its "Not now"
+  dismiss both work correctly. No new rendering bug was found this
+  session — same as Phase 13, this phase reused `LocationScene` completely
+  unchanged aside from additive decor-draw cases, so there was no new
+  engine surface for a bug like Phase 10's or Phase 11's to hide in.
+
+  `npm run test`: 58 files, 378 tests, up from 54 files/352 tests — new this
+  session: `storykeeperCastleTilemap.test.ts`, `storykeeperCastleZones.test.ts`,
+  `storykeeperCastleDecor.test.ts`, `StorykeeperCastleWorldView.test.tsx`,
+  plus additions to `worldObjects.test.ts`; `npm run typecheck`/`lint`/
+  `format:check`/`build`/`test:e2e` all clean.
+
+  **Not done, and why**: the five not-yet-built creative-story rooms
+  (Character Gallery, Setting Tower, Costume Room, Great Library,
+  Illustration Studio) have no bounded creative-choice content of their own
+  behind them — the roadmap itself lists them as "potential areas," not a
+  mandate to author distinct content for each at once, and building real
+  per-room content (portraits to choose a hero from, a tower view to choose
+  a setting from, and so on) would mean redesigning "The Storykeeper's
+  Tale" itself around a room-by-room structure rather than the "smallest
+  coherent change" this phase's own scope allows; `docs/ROADMAP.md` Phase 15
+  ("Adventure Library") is where the broader per-room adventure content is
+  the more natural fit. No NPC in the castle (same as the bay and forest —
+  `LocationScene`'s NPC renderer is a Chatty-specific parrot shape; Keeper
+  Quill stands in place rather than following the avatar). Same
+  pre-existing, project-wide gaps already noted for Phases 9-13 apply here
+  too (no authenticated Playwright e2e harness, no live `ampx sandbox`
+  exercise of the `FIRST_STORY_TOLD`-gated interaction pair against a real
+  signed-in session — this phase added no new backend schema, so the risk
+  surface is smaller than any phase that did).
 
 ## Verification (Phase 12 session)
 

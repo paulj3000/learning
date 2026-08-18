@@ -3,6 +3,7 @@ import {
   findInteraction,
   isInteractionAvailable,
   PIRATE_BUILDER_BAY_INTERACTIONS,
+  STORYKEEPER_CASTLE_INTERACTIONS,
   WELCOME_HARBOR_INTERACTIONS,
   WONDERWILD_FOREST_INTERACTIONS,
   type WorldInteraction,
@@ -270,6 +271,65 @@ describe('WONDERWILD_FOREST_INTERACTIONS', () => {
 
   it('always offers the exit back to Welcome Harbor as a NAVIGATE interaction', () => {
     const exit = findInteraction(WONDERWILD_FOREST_INTERACTIONS, 'wonderwild-harbor-exit');
+    expect(exit).toBeDefined();
+    expect(isInteractionAvailable(exit!, { worldChangeKeys: [] })).toBe(true);
+    expect(exit?.action).toEqual({ kind: 'NAVIGATE', to: 'world' });
+  });
+});
+
+describe('STORYKEEPER_CASTLE_INTERACTIONS', () => {
+  it('has no duplicate interaction ids, even though two interactions share the story hall zone', () => {
+    const ids = STORYKEEPER_CASTLE_INTERACTIONS.map((interaction) => interaction.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('offers the story hall only before the first story is told, and starts the real adventure', () => {
+    const hall = findInteraction(STORYKEEPER_CASTLE_INTERACTIONS, 'castle-story-hall');
+    expect(hall).toBeDefined();
+    expect(isInteractionAvailable(hall!, { worldChangeKeys: [] })).toBe(true);
+    expect(isInteractionAvailable(hall!, { worldChangeKeys: ['FIRST_STORY_TOLD'] })).toBe(false);
+    expect(hall?.action).toEqual({
+      kind: 'START_ADVENTURE',
+      locationSlug: 'storykeeper-castle',
+      templateSlug: 'the-storykeepers-tale',
+    });
+  });
+
+  it('offers the already-told narration only after the first story, sharing the story hall zone', () => {
+    const told = findInteraction(STORYKEEPER_CASTLE_INTERACTIONS, 'castle-story-hall-told');
+    expect(told).toBeDefined();
+    expect(told?.zoneId).toBe('castle-story-hall');
+    expect(isInteractionAvailable(told!, { worldChangeKeys: [] })).toBe(false);
+    expect(isInteractionAvailable(told!, { worldChangeKeys: ['FIRST_STORY_TOLD'] })).toBe(true);
+  });
+
+  it('always makes talking to Keeper Quill available and tap-triggered', () => {
+    const quill = findInteraction(STORYKEEPER_CASTLE_INTERACTIONS, 'talk-to-keeper-quill');
+    expect(quill).toBeDefined();
+    expect(quill?.type).toBe('NPC');
+    expect(quill?.trigger).toBe('TAP');
+    expect(isInteractionAvailable(quill!, { worldChangeKeys: [] })).toBe(true);
+    expect(isInteractionAvailable(quill!, { worldChangeKeys: ['FIRST_STORY_TOLD'] })).toBe(true);
+  });
+
+  it('always makes the five not-yet-built creative-story rooms available and tap-triggered', () => {
+    for (const id of [
+      'castle-character-gallery',
+      'castle-setting-tower',
+      'castle-costume-room',
+      'castle-great-library',
+      'castle-illustration-studio',
+    ]) {
+      const room = findInteraction(STORYKEEPER_CASTLE_INTERACTIONS, id);
+      expect(room).toBeDefined();
+      expect(room?.trigger).toBe('TAP');
+      expect(room?.action.kind).toBe('SHOW_MESSAGE');
+      expect(isInteractionAvailable(room!, { worldChangeKeys: [] })).toBe(true);
+    }
+  });
+
+  it('always offers the exit back to Welcome Harbor as a NAVIGATE interaction', () => {
+    const exit = findInteraction(STORYKEEPER_CASTLE_INTERACTIONS, 'castle-harbor-exit');
     expect(exit).toBeDefined();
     expect(isInteractionAvailable(exit!, { worldChangeKeys: [] })).toBe(true);
     expect(exit?.action).toEqual({ kind: 'NAVIGATE', to: 'world' });

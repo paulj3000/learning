@@ -40,6 +40,11 @@ const WonderwildForestWorldPage = lazy(() =>
     default: module.WonderwildForestWorldPage,
   })),
 );
+const StorykeeperCastleWorldPage = lazy(() =>
+  import('../routes/StorykeeperCastleWorldPage').then((module) => ({
+    default: module.StorykeeperCastleWorldPage,
+  })),
+);
 
 export function AppRoutes() {
   return (
@@ -137,6 +142,16 @@ export function AppRoutes() {
           <RequireParent>
             <Suspense fallback={<p>Loading Wonderwild Forest...</p>}>
               <WonderwildForestWorldPage />
+            </Suspense>
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/world/storykeeper-castle"
+        element={
+          <RequireParent>
+            <Suspense fallback={<p>Loading Storykeeper Castle...</p>}>
+              <StorykeeperCastleWorldPage />
             </Suspense>
           </RequireParent>
         }

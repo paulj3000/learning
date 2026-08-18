@@ -84,11 +84,14 @@ export function findInteraction(
  * ("persistent world changes"). Two more APPROACH interactions mark the
  * entrances toward Wonderwild Forest and Storykeeper Castle
  * ("adventure entrances" / "location transitions") — both `NAVIGATE` to the
- * existing card-based location routes rather than a new spatial scene, since
- * those locations don't have one yet (roadmap phases 13/14). Tapping Chatty
- * greets the child. Three flavor `OBJECT`/`DISCOVERY` interactions ("doors",
- * "signs", "interactive objects") are pure environmental curiosity (roadmap
- * section 17) with no gating and no backend state.
+ * existing card-based location routes rather than jumping straight into
+ * either location's own spatial scene (`WONDERWILD_FOREST_INTERACTIONS`/
+ * `STORYKEEPER_CASTLE_INTERACTIONS` below); each location's card-based page
+ * offers its own "try walking/exploring" link into that scene instead
+ * (`IslandLocationPage.tsx`). Tapping Chatty greets the child. Three flavor
+ * `OBJECT`/`DISCOVERY` interactions ("doors", "signs", "interactive
+ * objects") are pure environmental curiosity (roadmap section 17) with no
+ * gating and no backend state.
  */
 export const WELCOME_HARBOR_INTERACTIONS: WorldInteraction[] = [
   {
@@ -398,6 +401,141 @@ export const WONDERWILD_FOREST_INTERACTIONS: WorldInteraction[] = [
   },
   {
     id: 'wonderwild-harbor-exit',
+    type: 'LOCATION',
+    trigger: 'APPROACH',
+    title: 'The path back to Welcome Harbor',
+    targetId: 'welcome-harbor',
+    requirements: [{ type: 'ALWAYS' }],
+    action: { kind: 'NAVIGATE', to: 'world' },
+  },
+];
+
+/**
+ * Storykeeper Castle's Phase 14 interactions
+ * (docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md section 33):
+ * turns the castle into a physical creative-story environment. Walking into
+ * the story hall starts the real "The Storykeeper's Tale" adventure
+ * directly, the same `WORLD_CHANGE_ABSENT`/`WORLD_CHANGE_PRESENT`
+ * before/after pair sharing one zone as the bay's bridge and the forest's
+ * hive; once told, the same spot narrates the payoff instead. Tapping
+ * Keeper Quill (a stationary `CHARACTER` decor sprite, same call
+ * `pirateBuilderBayDecor.ts` made for Pirate Pip) is the "meet character"
+ * beat and is always available, independent of the story hall's discovery
+ * state. The Character Gallery, Setting Tower, Costume Room, Great Library,
+ * and Illustration Studio are the roadmap's own five other "potential
+ * areas"; none has bounded creative-choice content of its own built yet, so
+ * each is an honest, calm "not yet" flavor `SHOW_MESSAGE` rather than a dead
+ * end or a fake adventure link — the same framing `WONDERWILD_FOREST_INTERACTIONS`
+ * above already established for its own not-yet-built discovery points. The
+ * existing card-based "The Storykeeper's Tale" entry
+ * (`IslandLocationPage` -> "Start: The Storykeeper's Tale") remains
+ * reachable exactly as before.
+ */
+export const STORYKEEPER_CASTLE_INTERACTIONS: WorldInteraction[] = [
+  {
+    id: 'castle-story-hall',
+    type: 'ADVENTURE',
+    trigger: 'APPROACH',
+    title: "Keeper Quill's story hall",
+    targetId: 'storykeeper-castle',
+    requirements: [{ type: 'WORLD_CHANGE_ABSENT', changeKey: 'FIRST_STORY_TOLD' }],
+    action: {
+      kind: 'START_ADVENTURE',
+      locationSlug: 'storykeeper-castle',
+      templateSlug: 'the-storykeepers-tale',
+    },
+  },
+  {
+    id: 'castle-story-hall-told',
+    type: 'DISCOVERY',
+    trigger: 'APPROACH',
+    title: 'The story hall',
+    targetId: 'storykeeper-castle',
+    requirements: [{ type: 'WORLD_CHANGE_PRESENT', changeKey: 'FIRST_STORY_TOLD' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'Keeper Quill smiles. Your story already has a home on the shelf.',
+    },
+    zoneId: 'castle-story-hall',
+  },
+  {
+    id: 'talk-to-keeper-quill',
+    type: 'NPC',
+    trigger: 'TAP',
+    title: 'Keeper Quill',
+    targetId: 'keeper-quill',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message:
+        "Welcome to the castle! I keep all the island's stories here. Walk into the story hall whenever you are ready to tell a new one.",
+    },
+  },
+  {
+    id: 'castle-character-gallery',
+    type: 'OBJECT',
+    trigger: 'TAP',
+    title: 'The Character Gallery',
+    targetId: 'castle-character-gallery',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message:
+        'Portraits of brave heroes line the walls: puppies, dragons, foxes, and more. Maybe you will meet one in your next story!',
+    },
+  },
+  {
+    id: 'castle-setting-tower',
+    type: 'DISCOVERY',
+    trigger: 'TAP',
+    title: 'The Setting Tower',
+    targetId: 'castle-setting-tower',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message:
+        'From the tower window you can see floating islands, snowy mountains, and glowing caves. Every story needs a place to happen!',
+    },
+  },
+  {
+    id: 'castle-costume-room',
+    type: 'OBJECT',
+    trigger: 'TAP',
+    title: 'The Costume Room',
+    targetId: 'castle-costume-room',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message:
+        'Racks of costumes wait for every kind of hero. Maybe you will dress up for a story someday!',
+    },
+  },
+  {
+    id: 'castle-great-library',
+    type: 'DISCOVERY',
+    trigger: 'TAP',
+    title: 'The Great Library',
+    targetId: 'castle-great-library',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'Shelves and shelves of stories, old and new, wait to be read.',
+    },
+  },
+  {
+    id: 'castle-illustration-studio',
+    type: 'OBJECT',
+    trigger: 'TAP',
+    title: 'The Illustration Studio',
+    targetId: 'castle-illustration-studio',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'An easel with a blank page waits, ready for pictures once your story is told.',
+    },
+  },
+  {
+    id: 'castle-harbor-exit',
     type: 'LOCATION',
     trigger: 'APPROACH',
     title: 'The path back to Welcome Harbor',

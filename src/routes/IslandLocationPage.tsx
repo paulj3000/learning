@@ -135,6 +135,11 @@ export function IslandLocationPage() {
             Try exploring the forest (new!)
           </Link>
         ) : null}
+        {location.slug === 'storykeeper-castle' ? (
+          <Link className={styles.walkLink} to={`/island/${childId}/world/storykeeper-castle`}>
+            Try exploring the castle (new!)
+          </Link>
+        ) : null}
         <Link className={styles.backLink} to={`/island/${childId}`}>
           Back to the map
         </Link>
