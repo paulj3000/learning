@@ -7,7 +7,6 @@ import { ISLAND_LOCATIONS } from '../features/island/locations';
 import { getTodaysEvent } from '../features/island/events';
 import { getOrCreateCompanionProfile, getCompanionProfile } from '../features/island/api';
 import { getChildProfile } from '../features/child-profile/api';
-import { DRAGON_OF_EMBER_MOUNTAIN } from '../features/story/content';
 import type { CompanionProfile } from '../features/island/api';
 import type { ChildProfile } from '../features/child-profile/api';
 
@@ -104,14 +103,15 @@ export function WelcomeHarbor() {
       <Link className={styles.logLink} to={`/island/${childId}/world`}>
         Try walking around the island (new!)
       </Link>
-      {DRAGON_OF_EMBER_MOUNTAIN.supportedAgeBands.includes(childProfile.ageBand) ? (
-        <Link
-          className={styles.logLink}
-          to={`/island/${childId}/stories/${DRAGON_OF_EMBER_MOUNTAIN.slug}`}
-        >
-          Read {DRAGON_OF_EMBER_MOUNTAIN.title} (new!)
-        </Link>
-      ) : null}
+      {/*
+        Phase 15 replaced the single hardcoded "read The Dragon of Ember
+        Mountain" link with the Adventure Library, which age-gates and
+        interest-ranks every arc including that one. The harbor no longer
+        needs to know which stories exist.
+      */}
+      <Link className={styles.logLink} to={`/island/${childId}/library`}>
+        Open the adventure library (new!)
+      </Link>
     </IslandLayout>
   );
 }

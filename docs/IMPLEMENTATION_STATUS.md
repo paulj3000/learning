@@ -109,6 +109,15 @@ Storykeeper Castle (Spatial)") for what shipped, including the reused
 "real interaction plus honest not-yet-built flavor points" framing Phase 13
 established.
 
+**Phase 15 — Adventure Library** (roadmap section 34) is now also
+functionally complete: a new `src/features/library/` module turns "the one
+reference story" into a browsable, age-gated, interest-ranked shelf, and
+four new fully authored arcs (one per theme the reference story does not
+cover) join it, together spanning all three age bands including the first
+Sprout-playable content in the repository. See the "Completed" section
+below (the block starting "Phase 15 — Adventure Library") for what shipped,
+including the copy bug browser verification caught in the age-gate note.
+
 Phase 9 build notes follow; building on the first slice (`phaser`
 dependency, `PhaserGameContainer` React/Phaser lifecycle boundary,
 Phaser-free `WorldEventBus`), that session added:
@@ -1586,6 +1595,158 @@ below). Three items remain:
   exercise of the `FIRST_STORY_TOLD`-gated interaction pair against a real
   signed-in session — this phase added no new backend schema, so the risk
   surface is smaller than any phase that did).
+
+- **Phase 15 — Adventure Library** (roadmap section 34): introduces
+  multiple full adventure arcs across all five themes, "gated by age band
+  and child interest rather than gender" (docs/ROADMAP.md Phase 15). Two
+  separable pieces: a shelving/selection layer, and the content that fills
+  it.
+
+  **The library layer** (`src/features/library/`, new, Phaser-free and
+  unit-tested end to end): `interests.ts` holds the roadmap section 4
+  `AdventureInterest` vocabulary verbatim (15 tags) plus the single bridge
+  from the parent-facing `INTEREST_OPTIONS` a profile is actually created
+  with ("Fantasy" widens to `DRAGONS`/`MAGIC`/`FAIRIES`/`CASTLES`).
+  `Cooking` and `Sports` map to nothing on purpose: no arc is tagged for
+  them yet, and a loose mapping would quietly recommend an unrelated arc.
+  `themes.ts` holds the five themes; `catalog.ts` holds shelving metadata
+  (theme, interest tags, one-line blurb) kept deliberately separate from
+  `StoryDefinition` so the Story Engine never has to know what a theme is
+  in order to run a chapter, with `catalog.test.ts` asserting the catalog
+  and the story registry stay exactly in step (an arc can never ship
+  unshelved, or shelved unbuilt). `recommend.ts` is the actual gate, and
+  keeps its two rules deliberately unblended: **age band is a gate**
+  (`supportedAgeBands`, because reading volume and session length were
+  authored per band), **interest is only an ordering** (a matching tag
+  moves an arc up, a missing tag never removes one). Nothing reads gender,
+  and `ChildProfile` has no gender field to read, so section 4's "must not
+  be hard-locked by gender" rule is enforced by the schema rather than by
+  convention. Ties break on title so the shelf does not reshuffle between
+  visits.
+
+  `AdventureLibraryView.tsx` renders the shelf from that pure selection
+  (two headings, "Picked for you" and "More to explore", rather than one
+  ranked list a young child cannot see the ordering of); `AdventureLibraryPage.tsx`
+  + the `/island/:childId/library` route load only the child profile and
+  this child's `ChildStoryProgress` rows, the same page/view split Phases
+  9-14 used. Story progress is best effort: losing it costs the two status
+  labels ("Keep going", "You finished this one"), not the shelf.
+  `listStoryProgress` is the one new `api.ts` function, following the same
+  owner-scoped list-then-filter pattern as every other module.
+  `WelcomeHarbor.tsx`'s hardcoded "Read The Dragon of Ember Mountain" link
+  became one link to the library, so the harbor no longer needs to know
+  which stories exist.
+
+  **The content**: four new arcs, one per theme the reference story does
+  not cover, each three chapters with two embedded Adventure Engine
+  challenges, one bounded authored branch, one reflection, and its own
+  completion `WorldChange` — "Dinosaur Expedition" (exploration,
+  Pathfinder/Explorer), "Robot Rescue" (building, Pathfinder/Explorer),
+  "Save the Butterfly Garden" (nature, **Sprout**/Pathfinder), and "The
+  Castle's Secret Door" (mystery, Explorer only). Eight new
+  `AdventureDefinition`s back them. Every arc challenge carries a
+  story-only pseudo-location slug (`fossil-ridge`, `robot-repair-reef`,
+  `butterfly-garden`, `castle-secret-passage`) that matches no entry in
+  `src/features/island/locations.ts`, so `getAdventureTemplatesForLocation`
+  still returns exactly the one card-based adventure each real island
+  location already had — asserted directly, since a real slug here would
+  silently change what an `IslandLocationPage` offers.
+
+  Three things this content forced that are worth knowing about:
+  **(a)** `AdventureRunner` has no renderer for `MATCHING` or
+  `SHORT_RESPONSE` (only the other eight presentation kinds), a
+  pre-existing gap that would have shipped as a blank step; the new
+  `libraryArcAdventures.test.ts` now asserts renderability rather than
+  leaving it to whoever authors the ninth arc to rediscover. **(b)** The
+  Sprout band needed its own authoring shape rather than copied Pathfinder
+  steps: no `NUMBER_INPUT` (a 3-year-old is not expected to type a
+  numeral), no `ORDERING` (its up/down reordering is a multi-step
+  manipulation, not the one-step decision CLAUDE.md section 3 calls for),
+  every graded step a single three-option `CHOICE`, and adventures capped
+  at six steps so a full run fits a 5-8 minute session. That shape is
+  asserted, not just documented. **(c)** Three new `LEARNING_OBJECTIVES`
+  codes (`classification`, `subtraction-within-ten`, `vocabulary`); both
+  the arc and story suites assert every cited code exists, since an unknown
+  code degrades silently to a raw slug in the parent dashboard.
+
+  Nature and science claims (fossils and trace fossils, sauropod versus
+  theropod track shapes, butterfly nectar feeding and metamorphosis) carry
+  `sources` doc comments per `docs/CONTENT_SOURCES.md`, whose scope this
+  session widened from "Wonderwild Forest adventures" to "any adventure
+  making a factual claim", since Phase 15 put science content outside that
+  one location for the first time.
+
+  **Manual verification** (temporary, unauthenticated `/preview/library/:band`
+  route mounting `AdventureLibraryView` directly + a hand-written Playwright
+  script against a production `build`+`preview` server, same technique as
+  Phases 9-14, removed before this change was finalized): confirmed, with
+  screenshots, that all three age bands render the correct shelf (a Sprout
+  sees one arc, a Pathfinder four, an Explorer three), that the started and
+  finished status labels appear on the right cards, that there is no
+  horizontal page overflow at 1024px, and zero browser console errors
+  throughout; and separately that the real `/island/:childId/library` route
+  redirects an unauthenticated visitor to `/sign-in`, which is `RequireParent`
+  behaving correctly. This **caught one real copy bug**: the age-gate note
+  read "waiting for you when you are a little older", which is simply untrue
+  when the gated arc is the Sprout one and the reader is an Explorer. The
+  note is now direction-free ("waiting here for another day") and a
+  regression test asserts an Explorer is never told to grow up.
+
+  `npm run test`: 64 files, 547 tests, up from 58 files/378 tests — new this
+  session: `library/interests.test.ts`, `library/catalog.test.ts`,
+  `library/recommend.test.ts`, `library/AdventureLibraryView.test.tsx`,
+  `adventures/content/libraryArcAdventures.test.ts`, and
+  `story/content/libraryStories.test.ts`; `npm run typecheck`/`lint`/
+  `format:check`/`build`/`test:e2e` all clean, with no new lint warnings.
+
+  **Not done, and why**: the remaining ten of roadmap section 34's fifteen
+  candidate titles are not built, and are deliberately absent from the
+  catalog rather than present as disabled "coming soon" cards, which would
+  be a dead end dressed up as content (the same call Phases 13 and 14 made
+  for their un-authored discovery points); five real arcs covering all five
+  themes and all three age bands is what "multiple full adventure arcs
+  across fantasy, exploration, building, nature, and mystery themes" asks
+  for, and the shelf grows by adding one file plus one catalog row. "The
+  Dragon of Ember Mountain" is still Pathfinder-only (a Phase 12 scoping
+  decision), so an Explorer's shelf does not include the flagship fantasy
+  arc; widening it means re-checking its four embedded adventures against
+  Explorer reading levels, which belongs with that content, not here. No
+  arc is reachable from a spatial Phaser location yet — the library is a
+  page, not a building on the island; that is Phase 16 (Island Progression)
+  territory. Play behavior is not yet a recommendation signal (section 4
+  says "interests **and actual play behavior**"): `ChildStoryProgress` is
+  read only for status labels, since ranking on it needs a real signal
+  design, not a heuristic bolted onto a first shelf. And no `ampx sandbox`
+  deploy exercised `listStoryProgress` or a real signed-in play-through of
+  any new arc against a live backend (no AWS credentials in this
+  environment, same constraint as every prior phase); this phase added no
+  schema change, so the risk surface is one new list-then-filter call.
+
+## Verification (Phase 15 session)
+
+- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
+  `scripts/tsconfig.json`).
+- `npm run lint` — passed (14 warnings, all pre-existing: the accepted
+  `role="dialog"`-on-a-`div` pattern, two fast-refresh export warnings, and
+  `no-console` in the untracked `.tmp-verify/` scratch scripts; nothing new
+  from this session's files).
+- `npm run format:check` — passed.
+- `npm run test` — passed (64 files, 547 tests, up from 58 files/378).
+- `npm run build` — passed (same informational chunk-size warning as every
+  prior phase; the library page is plain React and stays in the main
+  bundle, unlike the four lazy-loaded Phaser world routes).
+- `npm run test:e2e` — passed (3 tests, Chromium; unchanged — they still
+  only cover unauthenticated routes).
+- **Browser-verified** against a production `build`+`preview` server through
+  a temporary, unauthenticated preview route, removed before finishing; see
+  the "Manual verification" paragraph in the Phase 15 block above for what
+  was confirmed and the copy bug it caught.
+- **Not done this session**: no `ampx sandbox` deploy, so `listStoryProgress`
+  and a real signed-in play-through of any of the four new arcs (start to
+  finish, including a reload mid-chapter) are unexercised against a live
+  backend. No schema change was made, so the untested surface is one new
+  owner-scoped `.list()` call plus content that runs through the already
+  live-verified Story and Adventure Engines.
 
 ## Verification (Phase 12 session)
 

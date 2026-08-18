@@ -16,6 +16,7 @@ import { IslandLocationPage } from '../routes/IslandLocationPage';
 import { AdventurePage } from '../routes/AdventurePage';
 import { AdventureLog } from '../routes/AdventureLog';
 import { StoryPage } from '../routes/StoryPage';
+import { AdventureLibraryPage } from '../routes/AdventureLibraryPage';
 import { RequireParent } from '../features/auth/RequireParent';
 import { RequireGuest } from '../features/auth/RequireGuest';
 
@@ -177,6 +178,14 @@ export function AppRoutes() {
         element={
           <RequireParent>
             <AdventureLog />
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/library"
+        element={
+          <RequireParent>
+            <AdventureLibraryPage />
           </RequireParent>
         }
       />

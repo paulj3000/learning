@@ -42,6 +42,18 @@ export async function getStoryProgress(
   );
 }
 
+/**
+ * Every story this child has started, used by the Adventure Library to mark
+ * a card "keep going" or "finished" (docs/ROADMAP.md Phase 15). Owner
+ * authorization scopes `.list()` to the caller's own records, so the
+ * `childProfileId` filter is a within-family narrowing, not the security
+ * boundary, same as `getStoryProgress` above.
+ */
+export async function listStoryProgress(childProfileId: string): Promise<ChildStoryProgress[]> {
+  const { data } = await client.models.ChildStoryProgress.list();
+  return data.filter((row: ChildStoryProgress) => row.childProfileId === childProfileId);
+}
+
 export async function startOrResumeStoryProgress(
   childProfileId: string,
   storyId: string,
