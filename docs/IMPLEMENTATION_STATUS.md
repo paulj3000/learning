@@ -2210,6 +2210,41 @@ actually rendered inside a real `Phaser.Game`.
     under one real parent have played a coop session live. Confirm both
     the first time this runs against a real `ampx sandbox`.
 
+## Post-Phase-17 deploy fix: circular nested-stack dependency
+
+The first real `ampx pipeline-deploy` after Phase 17 landed failed at the
+CDK deploy step (not synth, which had already passed) with
+`CloudformationStackCircularDependencyError` across the `OperationalMonitoring`,
+`data`, and `function` nested stacks. This is exactly the "Not
+deploy-verified" risk flagged above materializing: it could only surface
+once this ran against a real CI/CD pipeline with AWS credentials, which no
+session before this one had.
+
+Root cause: `claimCoopSlot` (`amplify/functions/claim-coop-slot/`) had a
+dependency edge in both directions between the `data` and (default) shared
+`function` nested stacks — `data` depended on it as the `claimCoopSlot`
+mutation's resolver (`.handler(a.handler.function(claimCoopSlot))`,
+`amplify/data/resource.ts`), while it depended back on `data` for its
+`CoopSession` table grant (`coopSessionTable.grantReadWriteData(...)`,
+`amplify/backend.ts`). `operationalMetrics` shares that same default
+`function` stack, which is why `OperationalMonitoring` (itself dependent on
+`data` for its AppSync alarms) was swept into the reported cycle too.
+
+Fix: `amplify/functions/claim-coop-slot/resource.ts` now sets
+`resourceGroupName: 'data'`, so the function is created inside the `data`
+nested stack itself rather than the shared `function` stack — both the
+resolver wiring and the table grant become same-stack references, and the
+cross-stack edge disappears. This is the exact resolution the CDK error
+message itself recommends for a function that is both a data resolver and
+a caller of the data API. `operationalMetrics` is unaffected and stays in
+the default `function` stack; nothing in `data`'s schema references it, so
+it never had a reverse edge to create a cycle.
+
+Verified `tsc --noEmit` and `vitest run` (82 files, 641 tests) both still
+pass. **Not deploy-verified** — same no-AWS-credentials constraint as
+every phase since Phase 8; confirm a real `ampx pipeline-deploy` succeeds
+end to end the first time this runs with credentials.
+
 ## Verification (Phase 17 session)
 
 - `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
