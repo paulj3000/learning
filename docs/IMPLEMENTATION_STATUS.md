@@ -155,16 +155,19 @@ variation: the Writing Room is reached from *inside* Storykeeper Castle
 itself (behind its existing Great Library bookshelf, matching the story's
 own "behind the last bookshelf" framing) rather than from Welcome Harbor,
 so it is also the first Phase 16 payoff whose own exit leads back into
-another location's spatial scene instead of to Welcome Harbor. See the
-"Completed" section below (the block starting "Phase 16 — Island
+another location's spatial scene instead of to Welcome Harbor. Fourth
+slice, same later session, resolving the one decision the third slice had
+left open: the user was asked directly how Robot Rescue's completion
+should get a visible payoff given the `robot-repair-reef` naming overlap
+with `docs/ROADMAP.md`'s "Post-MVP candidate," and chose "small payoff,
+different name" over building it as Robot Repair Reef or leaving it
+unbuilt. Bolt's Workshop ships that choice: same tiny secret-location
+pattern as the other three, named after the robot ("Bolt") rather than the
+reserved reef name, so the bigger future location's name stays available.
+See the "Completed" section below (the block starting "Phase 16 — Island
 Progression") for the full breakdown, including the deliberate decision
 *not* to add the `ChildWorldState` model `docs/DATA_MODEL.md` had already
-specified but never implemented. Still deliberately not built: a
-Robot-Rescue-driven location, since its pseudo-location slug
-(`robot-repair-reef`) collides in name with a `docs/ROADMAP.md` "Post-MVP
-candidate" that CLAUDE.md section 12 says needs explicit approval before
-real scope goes under that name — that decision was not revisited this
-session and remains open.
+specified but never implemented.
 
 Phase 9 build notes follow; building on the first slice (`phaser`
 dependency, `PhaserGameContainer` React/Phaser lifecycle boundary,
@@ -770,21 +773,22 @@ construction, ecosystem restoration, new NPC arrivals, story-dependent
 environmental changes, secret locations, returning characters, and
 seasonal world state — connecting story/adventure completion to lasting
 changes across the whole island rather than isolated per-location world
-changes. Three slices are now built across two sessions — see the
+changes. Four slices are now built across two sessions — see the
 "Completed" section's "Phase 16 — Island Progression" block for the full
-list. All eight roadmap deliverables now have at least one working example.
-Still open: a Robot-Rescue-driven fourth payoff location under the
-`robot-repair-reef` pseudo-location slug, deliberately not built since that
-name is already a `docs/ROADMAP.md` "Post-MVP candidate" and building real
-scope under it without approval would risk pre-committing to a bigger
-vision than a small Phase 16 payoff location — this needs a product
-decision, not more engineering. Also open: a `ChildWorldState` model scoped
-to just `discoveredObjects`/`discoveredCharacters` once a deliverable
-actually needs to remember what a child has seen or met (see
-`docs/DATA_MODEL.md`'s note); and, per every Phase 16 verification note
-below, a real `ampx sandbox` deploy and browser play-through of all five new
-locations, since none of this has ever actually rendered inside a real
-`Phaser.Game`.
+list. All eight roadmap deliverables now have at least one working example,
+and the one open product decision (whether/how to give Robot Rescue a
+payoff, given its `robot-repair-reef` pseudo-location slug's name collision
+with a `docs/ROADMAP.md` "Post-MVP candidate") was put to the user directly
+and resolved: build a small payoff under a distinct name, Bolt's Workshop,
+rather than building it as Robot Repair Reef or leaving it without one.
+Phase 16 has no further known open scope decisions. Still open,
+engineering rather than product: a `ChildWorldState` model scoped to just
+`discoveredObjects`/`discoveredCharacters` once a deliverable actually needs
+to remember what a child has seen or met (see `docs/DATA_MODEL.md`'s note);
+and, per every Phase 16 verification note below, a real `ampx sandbox`
+deploy and browser play-through of all four new locations (and the two
+existing locations' tile-override transforms), since none of this has ever
+actually rendered inside a real `Phaser.Game`.
 
 - **Phase 8 - Data deletion flow**
   (`src/features/child-profile/deletion.ts`, new): the Phase 8 deliverable
@@ -2053,6 +2057,33 @@ locations, since none of this has ever actually rendered inside a real
     decor content is exercised indirectly through each `*WorldView.test.tsx`
     asserting the rendered interaction titles/messages instead.
 
+  Fourth slice, same later session: **Bolt's Workshop**
+  (`boltsWorkshopTilemap.ts`/`Zones.ts`/`Decor.ts`,
+  `scenes/BoltsWorkshopScene.ts`, `BoltsWorkshopWorldView.tsx`,
+  `routes/BoltsWorkshopWorldPage.tsx`), resolving the Robot Rescue naming
+  question the third slice's own note had left open. Put directly to the
+  user via `AskUserQuestion` rather than decided unilaterally (CLAUDE.md
+  section 12: future locations need explicit approval); the user picked "a
+  small payoff under a different name" over building it as Robot Repair
+  Reef or skipping it. Unlocked by `ROBOT_RESCUE_COMPLETE`, reached from a
+  new gated `bolts-workshop-path` interaction in
+  `WELCOME_HARBOR_INTERACTIONS` (own new zone in `zones.ts`/`tilemap.ts`,
+  same pattern as the other three Welcome-Harbor-reached payoffs). Bolt
+  himself (new `ROBOT` `DecorShape`) is the "returning character" — the
+  robot the story rescues, rebuilt and back at work — plus a reused
+  `TOOLBOX` shape for his spare parts. `src/features/island/locations.ts`'s
+  new `bolts-workshop` entry deliberately does not reuse the
+  `robot-repair-reef` slug the story's own `completionWorldChange` already
+  writes to (same "story pseudo-location slug stays distinct from the real
+  `IslandLocation` slug" pattern the first slice already established for
+  `ember-mountain` vs `dragons-sanctuary`, here for a product-scope reason
+  rather than a technical-collision one). Unit tests:
+  `boltsWorkshopZones.test.ts`/`boltsWorkshopTilemap.test.ts`,
+  `BoltsWorkshopWorldView.test.tsx` (same shape as the other three
+  locations' own tests); `locations.test.ts` extended with a check that
+  `bolts-workshop`'s slug is *not* `robot-repair-reef`, and the "gated
+  locations overall" check rewritten for all four payoff slugs.
+
 ## Verification (Phase 15 session)
 
 - `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
@@ -2081,17 +2112,18 @@ locations, since none of this has ever actually rendered inside a real
 
 ## Verification (Phase 16 sessions)
 
-Covers all three slices, the third run in a separate later session.
+Covers all four slices; the third and fourth ran in a separate later
+session from the first two.
 
 - `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
   `scripts/tsconfig.json`) after every slice.
 - `npm run lint` — passed after every slice; the only new warnings across
-  all three are `role="dialog"` on each new `*WorldView.tsx`, the identical
+  all four are `role="dialog"` on each new `*WorldView.tsx`, the identical
   pre-existing pattern every prior `*WorldView.tsx` already has, not a new
   issue class.
 - `npm run format:check` / `prettier --write` — passed after formatting the
   files whose manual indentation didn't match Prettier's, each slice.
-- `npm run test` — passed (76 files, 609 tests, up from 64 files/547 before
+- `npm run test` — passed (79 files, 621 tests, up from 64 files/547 before
   Phase 16 started).
 - **Not done this session**: no `npm run build`/`test:e2e` run, and no
   `ampx sandbox` deploy or browser verification (no AWS credentials in this
@@ -2118,7 +2150,10 @@ Covers all three slices, the third run in a separate later session.
   the first two locations didn't exercise: the Writing Room's `NAVIGATE`
   target is `world/storykeeper-castle` rather than the `world`/`locations/...`
   shapes every other exit uses, worth specifically confirming it actually
-  lands back inside the castle scene rather than erroring or 404ing.
+  lands back inside the castle scene rather than erroring or 404ing. The
+  fourth slice adds a fourth never-rendered spatial location, Bolt's
+  Workshop, to the same backlog — no new codepath of its own, since it
+  follows the Fossil Ridge Camp/Dragon's Sanctuary exit shape exactly.
 
 ## Verification (Phase 12 session)
 

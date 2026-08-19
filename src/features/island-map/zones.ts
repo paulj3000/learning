@@ -11,6 +11,7 @@
  * dependency on Phaser so it stays unit-testable.
  */
 import {
+  BOLTS_WORKSHOP_PATH_TILE_RECT,
   BRIDGE_TILE_RECT,
   CASTLE_PATH_TILE_RECT,
   FOREST_PATH_TILE_RECT,
@@ -65,5 +66,11 @@ export const WELCOME_HARBOR_ZONES: Record<string, PixelRect> = {
     FOSSIL_RIDGE_PATH_TILE_RECT.row,
     FOSSIL_RIDGE_PATH_TILE_RECT.cols,
     FOSSIL_RIDGE_PATH_TILE_RECT.rows,
+  ),
+  'bolts-workshop-path': tileRectToPixels(
+    BOLTS_WORKSHOP_PATH_TILE_RECT.col,
+    BOLTS_WORKSHOP_PATH_TILE_RECT.row,
+    BOLTS_WORKSHOP_PATH_TILE_RECT.cols,
+    BOLTS_WORKSHOP_PATH_TILE_RECT.rows,
   ),
 };

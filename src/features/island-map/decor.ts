@@ -22,9 +22,11 @@ import { findInteraction, WELCOME_HARBOR_INTERACTIONS } from './worldObjects';
  * (`wonderwildForestDecor.ts`, gated by `requiredChangeKey` below);
  * `SKELETON` was added for Fossil Ridge Camp and `DESK` for the Writing
  * Room, Phase 16's second and third "story-dependent environmental change"
- * examples (`fossilRidgeCampDecor.ts`/`castleWritingRoomDecor.ts`). The
- * shared scene renderer (`scenes/LocationScene.ts`) draws all twenty-two,
- * so any location's decor module can use any shape.
+ * examples (`fossilRidgeCampDecor.ts`/`castleWritingRoomDecor.ts`); `ROBOT`
+ * was added for Bolt's Workshop, Phase 16's fourth
+ * (`boltsWorkshopDecor.ts`). The shared scene renderer
+ * (`scenes/LocationScene.ts`) draws all twenty-three, so any location's
+ * decor module can use any shape.
  */
 export type DecorShape =
   | 'SIGN'
@@ -48,7 +50,8 @@ export type DecorShape =
   | 'EGG'
   | 'BUTTERFLY'
   | 'SKELETON'
-  | 'DESK';
+  | 'DESK'
+  | 'ROBOT';
 
 export interface DecorDefinition {
   id: string;

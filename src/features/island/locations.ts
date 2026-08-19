@@ -91,6 +91,16 @@ export const ISLAND_LOCATIONS: IslandLocation[] = [
     decoration: 'Shelves of empty books wait for their first stories.',
     unlockRequirement: { changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE' },
   },
+  {
+    slug: 'bolts-workshop',
+    title: "Bolt's Workshop",
+    tagline: 'A secret spot, discovered by rescuing a harbor robot.',
+    description:
+      'Bolt the harbor robot is back together and rolling again. Stop by the workshop to see the repair up close.',
+    skills: ['Problem-solving', 'Empathy'],
+    decoration: 'Bolt rolls happily around the workshop, good as new.',
+    unlockRequirement: { changeKey: 'ROBOT_RESCUE_COMPLETE' },
+  },
 ];
 
 export function getIslandLocation(slug: string): IslandLocation | undefined {

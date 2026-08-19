@@ -173,6 +173,11 @@ export function IslandLocationPage() {
             Try exploring the room (new!)
           </Link>
         ) : null}
+        {location.slug === 'bolts-workshop' ? (
+          <Link className={styles.walkLink} to={`/island/${childId}/world/bolts-workshop`}>
+            Try exploring the workshop (new!)
+          </Link>
+        ) : null}
         <Link className={styles.backLink} to={`/island/${childId}`}>
           Back to the map
         </Link>

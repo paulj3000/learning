@@ -88,6 +88,16 @@ export const MOUNTAIN_PATH_TILE_RECT = { col: 20, row: 0, cols: 3, rows: 2 };
  */
 export const FOSSIL_RIDGE_PATH_TILE_RECT = { col: 8, row: 0, cols: 3, rows: 2 };
 
+/**
+ * Tile-space rectangle for the hidden path zone leading to Bolt's Workshop
+ * (docs/ROADMAP.md Phase 16, fourth "story-dependent environmental change"
+ * example). Same "no visible tell before the story completes" reasoning as
+ * `MOUNTAIN_PATH_TILE_RECT`. Deliberately named after the robot, not
+ * "Robot Repair Reef" — see `docs/IMPLEMENTATION_STATUS.md`'s Phase 16 note
+ * on why that name is reserved for a possible future, larger location.
+ */
+export const BOLTS_WORKSHOP_PATH_TILE_RECT = { col: 4, row: 3, cols: 3, rows: 2 };
+
 function fillTileRect(
   grid: HarborTileId[][],
   rect: { col: number; row: number; cols: number; rows: number },

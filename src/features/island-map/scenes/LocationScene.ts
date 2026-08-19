@@ -503,6 +503,17 @@ export class LocationScene extends Phaser.Scene {
         graphics.fillStyle(0xf4ecd8, 1);
         graphics.fillRect(7, 5, 10, 5);
         break;
+      case 'ROBOT':
+        graphics.fillStyle(0xb0b8bf, 1);
+        graphics.fillRoundedRect(4, 10, 16, 16, 3);
+        graphics.fillRect(7, 3, 10, 8);
+        graphics.fillStyle(0xf2a541, 1);
+        graphics.fillCircle(9, 7, 1.5);
+        graphics.fillCircle(15, 7, 1.5);
+        graphics.fillStyle(0x1b2733, 1);
+        graphics.fillRect(2, 22, 5, 8);
+        graphics.fillRect(17, 22, 5, 8);
+        break;
     }
     const textureKey = `${this.locationConfig.sceneKey}-decor-${decor.id}`;
     graphics.generateTexture(textureKey, size.width, size.height);

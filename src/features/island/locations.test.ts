@@ -46,13 +46,22 @@ describe('the Writing Room location', () => {
   });
 });
 
+describe("Bolt's Workshop location", () => {
+  it('is registered and gated on the Robot Rescue story completing, under a name distinct from Robot Repair Reef', () => {
+    const location = getIslandLocation('bolts-workshop');
+    expect(location).toBeDefined();
+    expect(location?.unlockRequirement).toEqual({ changeKey: 'ROBOT_RESCUE_COMPLETE' });
+    expect(location?.slug).not.toBe('robot-repair-reef');
+  });
+});
+
 describe('gated MVP locations overall', () => {
-  it('gates exactly the three story-payoff locations, leaving every original MVP location always-visible', () => {
+  it('gates exactly the four story-payoff locations, leaving every original MVP location always-visible', () => {
     const gatedSlugs = ISLAND_LOCATIONS.filter((item) => item.unlockRequirement).map(
       (item) => item.slug,
     );
     expect(gatedSlugs.sort()).toEqual(
-      ['castle-writing-room', 'dragons-sanctuary', 'fossil-ridge-camp'].sort(),
+      ['bolts-workshop', 'castle-writing-room', 'dragons-sanctuary', 'fossil-ridge-camp'].sort(),
     );
   });
 });

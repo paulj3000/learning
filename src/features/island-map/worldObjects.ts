@@ -203,6 +203,15 @@ export const WELCOME_HARBOR_INTERACTIONS: WorldInteraction[] = [
     requirements: [{ type: 'WORLD_CHANGE_PRESENT', changeKey: 'DINOSAUR_EXPEDITION_COMPLETE' }],
     action: { kind: 'NAVIGATE', to: 'locations/fossil-ridge-camp' },
   },
+  {
+    id: 'bolts-workshop-path',
+    type: 'LOCATION',
+    trigger: 'APPROACH',
+    title: 'A little door marked "Bolt\'s Workshop"',
+    targetId: 'bolts-workshop',
+    requirements: [{ type: 'WORLD_CHANGE_PRESENT', changeKey: 'ROBOT_RESCUE_COMPLETE' }],
+    action: { kind: 'NAVIGATE', to: 'locations/bolts-workshop' },
+  },
 ];
 
 /**
@@ -725,5 +734,51 @@ export const CASTLE_WRITING_ROOM_INTERACTIONS: WorldInteraction[] = [
     targetId: 'storykeeper-castle',
     requirements: [{ type: 'ALWAYS' }],
     action: { kind: 'NAVIGATE', to: 'world/storykeeper-castle' },
+  },
+];
+
+/**
+ * Bolt's Workshop's Phase 16 interactions (docs/ROADMAP.md Phase 16,
+ * "Island Progression"): the fourth "story-dependent environmental change"
+ * example, and the Robot Rescue decision's outcome (`docs/IMPLEMENTATION_STATUS.md`)
+ * — a small payoff under a name distinct from "Robot Repair Reef", the
+ * bigger, unapproved `docs/ROADMAP.md` "Post-MVP candidate" location. Every
+ * entry is unconditionally available, since reaching the location at all
+ * already requires `ROBOT_RESCUE_COMPLETE`.
+ */
+export const BOLTS_WORKSHOP_INTERACTIONS: WorldInteraction[] = [
+  {
+    id: 'meet-bolt',
+    type: 'NPC',
+    trigger: 'TAP',
+    title: 'Bolt',
+    targetId: 'bolt',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message:
+        'Bolt beeps a cheerful hello, wheels turning steadily, ready for a full day of work.',
+    },
+  },
+  {
+    id: 'bolts-workshop-toolbox',
+    type: 'OBJECT',
+    trigger: 'TAP',
+    title: "Bolt's spare parts",
+    targetId: 'bolts-workshop-toolbox',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'Neatly sorted bolts, wheels, and wires, ready for the next repair.',
+    },
+  },
+  {
+    id: 'bolts-workshop-harbor-exit',
+    type: 'LOCATION',
+    trigger: 'APPROACH',
+    title: 'The path back to Welcome Harbor',
+    targetId: 'welcome-harbor',
+    requirements: [{ type: 'ALWAYS' }],
+    action: { kind: 'NAVIGATE', to: 'world' },
   },
 ];

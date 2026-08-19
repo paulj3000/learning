@@ -61,6 +61,11 @@ const CastleWritingRoomWorldPage = lazy(() =>
     default: module.CastleWritingRoomWorldPage,
   })),
 );
+const BoltsWorkshopWorldPage = lazy(() =>
+  import('../routes/BoltsWorkshopWorldPage').then((module) => ({
+    default: module.BoltsWorkshopWorldPage,
+  })),
+);
 
 export function AppRoutes() {
   return (
@@ -198,6 +203,16 @@ export function AppRoutes() {
           <RequireParent>
             <Suspense fallback={<p>Loading the Writing Room...</p>}>
               <CastleWritingRoomWorldPage />
+            </Suspense>
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/world/bolts-workshop"
+        element={
+          <RequireParent>
+            <Suspense fallback={<p>Loading Bolt's Workshop...</p>}>
+              <BoltsWorkshopWorldPage />
             </Suspense>
           </RequireParent>
         }
