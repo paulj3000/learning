@@ -11,6 +11,7 @@ import { ChildProfileNew } from '../routes/ChildProfileNew';
 import { ChildProfileEdit } from '../routes/ChildProfileEdit';
 import { StoryKeepsakes } from '../routes/StoryKeepsakes';
 import { ChildDashboard } from '../routes/ChildDashboard';
+import { CoopSessionNew } from '../routes/CoopSessionNew';
 import { WelcomeHarbor } from '../routes/WelcomeHarbor';
 import { IslandLocationPage } from '../routes/IslandLocationPage';
 import { AdventurePage } from '../routes/AdventurePage';
@@ -126,6 +127,14 @@ export function AppRoutes() {
         element={
           <RequireParent>
             <ChildDashboard />
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/parent/coop/new"
+        element={
+          <RequireParent>
+            <CoopSessionNew />
           </RequireParent>
         }
       />

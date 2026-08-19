@@ -24,6 +24,9 @@ import {
 import { useCompanionTurn } from '../companion/useCompanionTurn';
 import type { CompanionTurnState } from '../companion/useCompanionTurn';
 import type { AgeBandValue } from '../child-profile/constants';
+import { claimCoopSlot, completeCoopSession } from '../coop/api';
+import { useCoopPresence } from '../coop/useCoopPresence';
+import { isCoopEligibleStepType, type CoopSharedState } from '../coop/types';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
@@ -62,6 +65,8 @@ export interface AdventureSessionState {
   companionTurn: CompanionTurnState;
   /** AI-narrated story beats accumulated so far (Storykeeper Castle only; empty otherwise). */
   storyScenes: StoryScene[];
+  /** Live shared state for a Phase 17 coop session, or empty when not playing one. */
+  coopSharedState: CoopSharedState;
 }
 
 /**
@@ -78,6 +83,8 @@ export function useAdventureSession(
   definition: AdventureDefinition,
   ageBand: AgeBandValue,
   aiEnabled: boolean,
+  /** Set only when this child is playing a Phase 17 household coop session alongside a sibling. */
+  coopSessionId?: string,
 ): AdventureSessionState {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [session, setSession] = useState<AdventureSession | null>(null);
@@ -87,6 +94,7 @@ export function useAdventureSession(
   const [storyScenes, setStoryScenes] = useState<StoryScene[]>([]);
   const autoAdvancedStepRef = useRef<string | null>(null);
   const { state: companionTurn, request: requestCompanion } = useCompanionTurn();
+  const { sharedState: coopSharedState } = useCoopPresence(coopSessionId, childProfileId);
 
   useEffect(() => {
     let cancelled = false;
@@ -209,6 +217,16 @@ export function useAdventureSession(
             learningObjectiveCode: currentStep.objectiveIds[0],
             aiEnabled,
           });
+          if (coopSessionId && isCoopEligibleStepType(currentStep.type)) {
+            // Fire-and-forget, same invariant as every other AI/companion
+            // call in this function: this never gates `getNextStepId`/
+            // `advance` below, so a coop-claim failure can never block this
+            // child's own, fully deterministic progress
+            // (docs/ADVENTURE_ENGINE.md "Co-op sessions").
+            void claimCoopSlot(coopSessionId, currentStep.id, childProfileId).catch(
+              () => undefined,
+            );
+          }
         }
         if (
           currentStep.type === 'CREATIVE_CHOICE' &&
@@ -272,6 +290,7 @@ export function useAdventureSession(
       childProfileId,
       ageBand,
       aiEnabled,
+      coopSessionId,
     ],
   );
 
@@ -311,6 +330,22 @@ export function useAdventureSession(
       const { payload } = currentStep.presentation;
       void (async () => {
         try {
+          if (coopSessionId) {
+            // A shared-construction WORLD_CHANGE step is itself
+            // coop-eligible (docs/ADVENTURE_ENGINE.md). Claiming it here
+            // records which child actually finished the shared build for
+            // presence purposes; the WorldChange write just below still
+            // happens independently for *this* child regardless of who
+            // claimed the step, since DATA_MODEL.md is explicit that a
+            // CoopSession must never become the record of who learned
+            // what — each participant's own client writes its own
+            // WorldChange when it reaches this step, giving "one
+            // WorldChange per participating child" for free rather than
+            // needing a special dual-write path here.
+            await claimCoopSlot(coopSessionId, currentStep.id, childProfileId).catch(
+              () => undefined,
+            );
+          }
           await recordWorldChangeOnce(
             childProfileId,
             payload.locationSlug,
@@ -318,6 +353,12 @@ export function useAdventureSession(
             payload.changeKey,
             session.id,
           );
+          if (coopSessionId) {
+            // Idempotent (always sets status/completedAt regardless of
+            // current value), so it is safe for both participants' clients
+            // to call this independently as each reaches this step.
+            await completeCoopSession(coopSessionId).catch(() => undefined);
+          }
           if (storyScenes.length > 0) {
             await saveStoryArtifact(
               childProfileId,
@@ -354,6 +395,7 @@ export function useAdventureSession(
     storyScenes,
     definition.slug,
     definition.title,
+    coopSessionId,
   ]);
 
   return {
@@ -368,5 +410,6 @@ export function useAdventureSession(
     requestHint,
     companionTurn,
     storyScenes,
+    coopSharedState,
   };
 }

@@ -18,6 +18,8 @@ interface AdventureRunnerProps {
   ageBand: AgeBandValue;
   aiEnabled: boolean;
   backToMapHref: string;
+  /** Set only when this child is playing a Phase 17 household coop session alongside a sibling. */
+  coopSessionId?: string;
   /**
    * Fired once, the first time this session reaches COMPLETED. Optional —
    * every existing caller ignores it. Used by the Story Engine
@@ -42,6 +44,7 @@ export function AdventureRunner({
   ageBand,
   aiEnabled,
   backToMapHref,
+  coopSessionId,
   onComplete,
 }: AdventureRunnerProps) {
   const {
@@ -56,7 +59,9 @@ export function AdventureRunner({
     requestHint,
     companionTurn,
     storyScenes,
-  } = useAdventureSession(childProfileId, definition, ageBand, aiEnabled);
+    coopSharedState,
+  } = useAdventureSession(childProfileId, definition, ageBand, aiEnabled, coopSessionId);
+  const isSharingWithSibling = coopSharedState.presence.some((id) => id !== childProfileId);
   const hasFiredOnComplete = useRef(false);
 
   useEffect(() => {
@@ -81,6 +86,14 @@ export function AdventureRunner({
       {error ? (
         <p className={styles.error} role="alert">
           {error}
+        </p>
+      ) : null}
+
+      {coopSessionId ? (
+        <p className={styles.coopPresence} role="status">
+          {isSharingWithSibling
+            ? 'Your sibling is playing this adventure with you right now!'
+            : 'Waiting for your sibling to join this shared adventure...'}
         </p>
       ) : null}
 

@@ -118,6 +118,28 @@ re-renders the already-updated `CoopSession.sharedState` rather than
 surfacing an error. No client ever overwrites another child's already-valid
 contribution.
 
+**Implementation (Phase 17, `src/features/adventures/useAdventureSession.ts`
++ `src/features/coop/`):** correctness and transitions stay completely
+untouched by coop status — `validateStepAnswer`/`getNextStepId` never take a
+`coopSessionId`. The only addition is that, whenever a coop-eligible step
+(`isCoopEligibleStepType`, `src/features/coop/types.ts`) is answered
+`correct` while a `coopSessionId` is present, `useAdventureSession` fires a
+fire-and-forget call to `claimCoopSlot` keyed by that step's own `id` —
+same "never gates `advance`" invariant as every existing AI/companion call
+in that function. `claimCoopSlot` is a function-backed custom mutation
+(`amplify/functions/claim-coop-slot/`) rather than a plain
+`CoopSession.update()`, specifically so its DynamoDB write can carry a
+`ConditionExpression` on that exact slot path — the actual mechanism behind
+"first write wins, second write rejected, not surfaced as an error." One
+adventure is wired end-to-end as the proof: "Repair the Moonlight Bridge"
+(`src/features/adventures/content/repairTheMoonlightBridge.ts`), whose
+`count-planks` (`NUMBER_INPUT`), `order-planks` (`ORDERING`), and
+`bridge-repaired` (`WORLD_CHANGE`, literally "placing a plank in a specific
+slot") steps are the first real coop-eligible slots in the codebase. No
+adventure content had to change — the mechanism is generic across any
+coop-eligible step type in any adventure once a `coopSessionId` is passed
+in.
+
 ## World entry points (Phase 9+)
 
 Starting with `docs/ROADMAP.md` Phase 9, an adventure can also start from a

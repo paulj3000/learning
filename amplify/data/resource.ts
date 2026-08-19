@@ -1,5 +1,6 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 import { CHATTY_SYSTEM_PROMPT } from './chattyPersona';
+import { claimCoopSlot } from '../functions/claim-coop-slot/resource';
 
 /**
  * Phase 1-4 schema (docs/DATA_MODEL.md): ParentProfile, ChildProfile,
@@ -97,6 +98,18 @@ const schema = a.schema({
       completedAt: a.datetime(),
       lastActivityAt: a.datetime().required(),
       actions: a.hasMany('AdventureAction', 'sessionId'),
+      /**
+       * Set only for a Phase 17 household co-op play-through (docs/DECISIONS.md
+       * ADR-006). Links this child's own private `AdventureSession` to the
+       * shared `CoopSession` both children joined, without making
+       * `CoopSession` a record of who learned what — this child's own
+       * `AdventureAction`/`SkillEvidence` trail is unaffected and stays
+       * attributed only to them. Deliberately not `.required()`: every
+       * `AdventureSession` row created before this phase has no value for
+       * it (same already-populated-table precedent as `ChildProfile.aiEnabled`
+       * above).
+       */
+      coopSessionId: a.string(),
     })
     .authorization((allow) => [allow.owner()]),
 
@@ -314,6 +327,83 @@ const schema = a.schema({
       completedAt: a.datetime(),
     })
     .authorization((allow) => [allow.owner()]),
+
+  // --- Phase 17: Household Co-Presence (docs/DECISIONS.md ADR-006, docs/DATA_MODEL.md CoopSession) ---
+
+  CoopSessionStatus: a.enum(['ACTIVE', 'COMPLETED', 'ABANDONED']),
+
+  /**
+   * Two `ChildProfile`s under the same `ParentProfile` sharing one
+   * adventure instance (household-only for v1; cross-family pairing is
+   * out of scope per ADR-006). `hostParentProfileId` is the owner-auth
+   * field rather than the implicit `owner` field every other model uses,
+   * because both participating children act under that one parent's
+   * authenticated session (ADR-006's "why household-only is an
+   * architectural constraint" section) — `.identityClaim('sub')` pins it
+   * to the stable Cognito `sub` (rather than the default compound
+   * `sub::username` owner string) so `amplify/functions/claim-coop-slot`
+   * can compare it directly against the Lambda's own AppSync identity
+   * context without reproducing Amplify's default owner-string format.
+   *
+   * `sharedState` holds `{ slots: Record<slotKey, childProfileId>,
+   * presence: string[] }`, written only by `claimCoopSlot` (slots — an
+   * atomic, conflict-resolved server write, never a direct client write)
+   * and by `src/features/coop/api.ts`'s `setCoopPresence` (presence — a
+   * best-effort, last-write-wins join/leave signal; ADR-006 explicitly
+   * excludes continuous cursor/telemetry-level presence from v1, so no
+   * stronger guarantee is needed there). Presence is intentionally not
+   * its own stored model (DATA_MODEL.md) — it rides inside this same
+   * JSON field instead, changes to which every participant observes
+   * through the model's own generated `onUpdate` subscription.
+   */
+  CoopSession: a
+    .model({
+      /**
+       * Deliberately NOT `.required()`, even though it is always set in
+       * practice: the client never supplies this field itself (see
+       * `startCoopSession`, src/features/coop/api.ts) — AppSync's owner
+       * authorization resolver auto-populates it from the caller's
+       * identity on create. A `.required()` field would force every
+       * `CoopSession.create()` call site to pass a value the server is
+       * going to overwrite anyway.
+       */
+      hostParentProfileId: a.string(),
+      templateSlug: a.string().required(),
+      templateVersion: a.integer().required(),
+      participantChildProfileIds: a.string().array().required(),
+      status: a.ref('CoopSessionStatus').required(),
+      sharedState: a.json(),
+      startedAt: a.datetime().required(),
+      completedAt: a.datetime(),
+      lastActivityAt: a.datetime().required(),
+    })
+    .authorization((allow) => [allow.ownerDefinedIn('hostParentProfileId').identityClaim('sub')]),
+
+  /**
+   * The one privileged write in this phase: atomically claims a
+   * coop-eligible step's shared slot (docs/ADVENTURE_ENGINE.md "Co-op
+   * sessions" — `NUMBER_INPUT`/`ORDERING`/`MATCHING`/shared-construction
+   * `WORLD_CHANGE` steps only). Backed by a function rather than a plain
+   * client update because "first write wins, second write rejected
+   * server-side without an error" needs a real conditional write — the
+   * generated `CoopSession.update()` mutation has no such guarantee, and
+   * bypassing AppSync's own authorization here means
+   * `amplify/functions/claim-coop-slot/handler.ts` re-checks
+   * host/participant/status itself before ever touching DynamoDB.
+   * `allow.authenticated()` (not `allow.owner()`) because a custom
+   * mutation has no model-level owner field of its own to scope by — same
+   * precedent as `generateCompanionTurn` above.
+   */
+  claimCoopSlot: a
+    .mutation()
+    .arguments({
+      coopSessionId: a.id().required(),
+      slotKey: a.string().required(),
+      childProfileId: a.id().required(),
+    })
+    .returns(a.ref('CoopSession'))
+    .authorization((allow) => [allow.authenticated()])
+    .handler(a.handler.function(claimCoopSlot)),
 });
 
 export type Schema = ClientSchema<typeof schema>;

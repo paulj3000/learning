@@ -12,8 +12,8 @@ rather than claimed as done.
 
 ## 1. Model-by-model rules
 
-Every model in `amplify/data/resource.ts` uses `allow.owner()` and nothing
-else:
+Every model in `amplify/data/resource.ts` **except `CoopSession`** (Phase
+17, see section 1a below) uses `allow.owner()` and nothing else:
 
 | Model | Auth rule | Owner field |
 |---|---|---|
@@ -47,6 +47,44 @@ that could leak cross-family data (`docs/AI_AND_CHILD_SAFETY.md`'s prompt
 context minimization - age band, intent, step summary, not a child ID),
 so any authenticated parent invoking it only ever affects their own
 request/response pair, never another family's stored data.
+
+## 1a. `CoopSession` and `claimCoopSlot` (Phase 17)
+
+`CoopSession` breaks the "one pattern for every model" rule above on
+purpose (docs/DECISIONS.md ADR-006, docs/DATA_MODEL.md `CoopSession`):
+
+- **Model-level rule**: `allow.ownerDefinedIn('hostParentProfileId').identityClaim('sub')`
+  rather than the default `allow.owner()`. Two `ChildProfile`s under one
+  `ParentProfile` need to read/write the same row, and both children act
+  inside that one parent's authenticated session — so scoping by the
+  parent's own identity (not a per-row implicit owner) is the correct rule,
+  not a relaxation of it. `.identityClaim('sub')` pins the field to the
+  stable Cognito `sub` specifically so `claimCoopSlot`'s Lambda (below) can
+  compare against it directly.
+- **`claimCoopSlot` is a function-backed custom mutation**
+  (`amplify/functions/claim-coop-slot/handler.ts`), which means it does
+  **not** go through AppSync's generated resolvers or the model-level rule
+  above at all — its Lambda has its own IAM role with a direct
+  `grantReadWriteData` on the `CoopSession` table (`amplify/backend.ts`).
+  The mutation's own `.authorization((allow) => [allow.authenticated()])`
+  only proves the caller is *some* signed-in parent; `decideClaim` inside
+  the handler is what actually re-checks that the caller's `sub` matches
+  the session's `hostParentProfileId`, that `childProfileId` is one of the
+  session's `participantChildProfileIds`, and that the session is still
+  `ACTIVE`, before ever writing. This is the one place in the whole
+  backend where "authorized to call the mutation" and "authorized to
+  perform this specific write" are deliberately different checks, because
+  bypassing AppSync's resolver for atomicity (see the ADR/DATA_MODEL docs
+  above) also means bypassing its authorization enforcement.
+- **Not deploy-verified**: same constraint as the rest of this document,
+  plus the specific open assumption called out in
+  `amplify/functions/claim-coop-slot/handler.ts`'s top comment (that
+  `sharedState` is stored as a native DynamoDB Map, not a JSON string) —
+  confirm both the authorization behavior and that assumption the first
+  time this runs against a real sandbox with two real child profiles under
+  one parent, and (separately) confirm a *second* parent's account cannot
+  read or claim into a `CoopSession` it does not own, the same live-account
+  test section 5 already ran for every other model.
 
 ## 2. Client-side query safety
 

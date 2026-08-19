@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { AdventureRunner } from '../features/adventures/AdventureRunner';
 import { getAdventureTemplate } from '../features/adventures/content';
@@ -16,6 +16,9 @@ export function AdventurePage() {
   }>();
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
+  const [searchParams] = useSearchParams();
+  /** Set only when this adventure was opened from a Phase 17 coop-session launch link (src/routes/CoopSessionNew.tsx). */
+  const coopSessionId = searchParams.get('coop') ?? undefined;
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +82,7 @@ export function AdventurePage() {
         ageBand={childProfile.ageBand}
         aiEnabled={childProfile.aiEnabled ?? true}
         backToMapHref={`/island/${childId}/locations/${locationSlug}`}
+        coopSessionId={coopSessionId}
       />
     </IslandLayout>
   );

@@ -10,6 +10,15 @@
   margin: 0;
 }
 
+.coopPresence {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-primary);
+}
+
 .completeCard {
   display: flex;
   flex-direction: column;

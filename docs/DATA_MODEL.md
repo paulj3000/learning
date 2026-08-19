@@ -107,34 +107,56 @@ Prefer content definitions checked into source control for MVP. If persisted:
 
 See `docs/DECISIONS.md` ADR-006. Household-only for v1: all
 `participantChildProfileIds` must belong to `hostParentProfileId`, so this
-model needs no authorization primitive beyond the owner rule every other
-model already uses.
+model needs no authorization primitive beyond an owner rule — but it is a
+*different* owner rule than every other model uses. Implemented in
+`amplify/data/resource.ts` as `allow.ownerDefinedIn('hostParentProfileId').identityClaim('sub')`
+rather than the default `allow.owner()`, since the field two children's
+clients both need to read/write is an explicit business field, not each
+model's usual implicit `owner`. See `docs/AUTHORIZATION_REVIEW.md` section
+1a for the full authorization writeup, including why the atomic slot-claim
+mutation below bypasses this rule entirely and re-implements its own check.
 
 - `id`
-- `hostParentProfileId` — owner; the one `ParentProfile` shared by every
-  participant
-- `templateId`
+- `hostParentProfileId` — owner (`.identityClaim('sub')`); the one
+  `ParentProfile` shared by every participant. Not `.required()` — the
+  client never supplies it; AppSync's owner-authorization resolver
+  auto-populates it from the caller's identity on create, same as every
+  other model's implicit `owner` field.
+- `templateSlug` (named to match `AdventureSession.templateSlug` and every
+  adventure-content module, not `templateId`)
 - `templateVersion`
 - `participantChildProfileIds`: array, 2 for v1
-- `status`: active, completed, abandoned
-- `sharedState`: JSON — the merged, validated puzzle state (for example,
-  which slots are filled and by which child). Written only by the
-  deterministic engine from validated `AdventureAction`s, never directly
-  from client input.
+- `status`: `ACTIVE`, `COMPLETED`, `ABANDONED`
+- `sharedState`: JSON, shaped `{ slots: Record<slotKey, childProfileId>,
+  presence: string[] }`. `slots` is written only by the `claimCoopSlot`
+  function-backed mutation (`amplify/functions/claim-coop-slot/`), which
+  does an atomic, conditional DynamoDB write keyed on the specific slot
+  path — never a plain client update, and never overwritten by a second
+  claim once a slot is filled. `presence` (see below) is a plain,
+  last-write-wins client update instead, since it carries no conflict risk
+  worth the same guarantee.
 - `startedAt`
 - `completedAt`
 - `lastActivityAt`
 
 Each participant keeps their own `AdventureSession` and `AdventureAction`
-trail (linked via `coopSessionId`) so `SkillEvidence`/`SkillProgress` stay
-attributed to whichever child actually performed the action, per the
-existing per-child evidence model — `CoopSession` never becomes the record
-of who learned what.
+trail (linked via `AdventureSession.coopSessionId`) so `SkillEvidence`/
+`SkillProgress` stay attributed to whichever child actually performed the
+action, per the existing per-child evidence model — `CoopSession` never
+becomes the record of who learned what. In practice this means each
+child's own `useAdventureSession` (`src/features/adventures/`) independently
+writes its own `WorldChange` when *that child* reaches a shared
+`WORLD_CHANGE` step, giving "one `WorldChange` per participating child"
+without `CoopSession` itself needing any dual-write logic.
 
-Presence (avatar position, join/leave) is intentionally not a stored model:
-it is ephemeral UI state carried by a subscription on `CoopSession`, not
+Presence (avatar position, join/leave) is intentionally not a stored
+model: it is ephemeral UI state carried by a subscription on
+`CoopSession` — specifically, `sharedState.presence` above, updated by
+`src/features/coop/api.ts`'s `setCoopPresence` and observed by every
+participant through the model's own generated `onUpdate` subscription — not
 `AIInteractionAudit`- or `SafetyEvent`-relevant, since there is no
-expressive content to audit.
+expressive content to audit. Per ADR-006, this is join/leave only, not
+continuous avatar-position telemetry.
 
 ## AdventureAction
 Store the minimum evidence required:

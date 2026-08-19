@@ -5,13 +5,14 @@ import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import { SnsAction } from 'aws-cdk-lib/aws-cloudwatch-actions';
 import { StreamViewType } from 'aws-cdk-lib/aws-dynamodb';
 import { PolicyStatement, ServicePrincipal, type Role } from 'aws-cdk-lib/aws-iam';
-import { StartingPosition } from 'aws-cdk-lib/aws-lambda';
+import { StartingPosition, type Function as LambdaFunction } from 'aws-cdk-lib/aws-lambda';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { Topic } from 'aws-cdk-lib/aws-sns';
 import { EmailSubscription } from 'aws-cdk-lib/aws-sns-subscriptions';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { operationalMetrics } from './functions/operational-metrics/resource';
+import { claimCoopSlot } from './functions/claim-coop-slot/resource';
 
 /**
  * Phase 1-4: parent auth, the application data model, and the
@@ -25,6 +26,7 @@ const backend = defineBackend({
   auth,
   data,
   operationalMetrics,
+  claimCoopSlot,
 });
 
 /**
@@ -324,3 +326,32 @@ new cloudwatch.Dashboard(monitoringStack, 'OperationalDashboard', {
     ],
   ],
 });
+
+/**
+ * Phase 17 — Household Co-Presence (docs/DECISIONS.md ADR-006).
+ * `claimCoopSlot`'s Lambda talks to the `CoopSession` table directly via
+ * the AWS SDK (amplify/functions/claim-coop-slot/handler.ts) rather than
+ * through an AppSync resolver, specifically so it can issue a conditional
+ * `UpdateItem` for atomic first-write-wins slot claims — something the
+ * generated `CoopSession.update()` mutation cannot do. That means it needs
+ * its own read/write grant on the table and its own way to find the table
+ * name, since it never goes through `backend.data`'s resolvers at request
+ * time.
+ */
+const coopSessionTable = backend.data.resources.tables['CoopSession'];
+if (!coopSessionTable) {
+  throw new Error(
+    'Could not find the generated CoopSession table to grant claimCoopSlot access to. ' +
+      'Amplify Data may have changed its table lookup key; see wireModelTableStream above for the same pattern.',
+  );
+}
+coopSessionTable.grantReadWriteData(backend.claimCoopSlot.resources.lambda);
+// `.resources.lambda` is typed as the generic CDK `IFunction` interface,
+// which has no `addEnvironment` — only the concrete `Function` class does.
+// Every Amplify-defined function is backed by a concrete `NodejsFunction`
+// (itself a `Function` subclass), same assumption `wireModelTableStream`
+// above already relies on for its own typed CDK access.
+(backend.claimCoopSlot.resources.lambda as LambdaFunction).addEnvironment(
+  'COOP_SESSION_TABLE_NAME',
+  coopSessionTable.tableName,
+);

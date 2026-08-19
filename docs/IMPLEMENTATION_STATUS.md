@@ -169,6 +169,20 @@ Progression") for the full breakdown, including the deliberate decision
 *not* to add the `ChildWorldState` model `docs/DATA_MODEL.md` had already
 specified but never implemented.
 
+**Phase 17 — Household Co-Presence** (roadmap section 36, `docs/DECISIONS.md`
+ADR-006) is now also functionally complete against its roadmap deliverable
+list: a `CoopSession` model with its own (non-default) owner rule,
+`AdventureSession.coopSessionId`, an atomic function-backed `claimCoopSlot`
+mutation for slot-claim conflict resolution, shared-state subscription
+wiring, ephemeral join/leave presence, per-child `WorldChange` writes on
+coop completion, and a parent-facing entry point — proved end-to-end
+against "Repair the Moonlight Bridge," the one adventure with coop-eligible
+steps authored so far. See the "Completed" section below (the block
+starting "Phase 17 — Household Co-Presence") for the full breakdown,
+including why this is real, working infrastructure generic to any
+coop-eligible step in any adventure, not a one-off special case wired only
+into the Bridge adventure's content itself.
+
 Phase 9 build notes follow; building on the first slice (`phaser`
 dependency, `PhaserGameContainer` React/Phaser lifecycle boundary,
 Phaser-free `WorldEventBus`), that session added:
@@ -2084,6 +2098,152 @@ actually rendered inside a real `Phaser.Game`.
   `bolts-workshop`'s slug is *not* `robot-repair-reef`, and the "gated
   locations overall" check rewritten for all four payoff slugs.
 
+- **Phase 17 — Household Co-Presence** (roadmap section 36,
+  `docs/DECISIONS.md` ADR-006): the last item of the explorable-world arc,
+  built now that the world engine (Phase 9) and Story Engine (Phase 12) are
+  stable, as the roadmap itself required.
+  - **Data backend** (`amplify/data/resource.ts`): a `CoopSession` model —
+    the only model in the schema that does *not* use the default
+    `allow.owner()`. Its `hostParentProfileId` field is the owner-auth
+    field instead (`allow.ownerDefinedIn('hostParentProfileId').identityClaim('sub')`),
+    since two `ChildProfile`s under one `ParentProfile` need to share the
+    same row; `.identityClaim('sub')` pins it to the stable Cognito `sub`
+    rather than the default compound owner string. `AdventureSession`
+    gained an optional `coopSessionId` (same "new field on an
+    already-populated table must not be `.required()`" precedent as
+    `ChildProfile.aiEnabled`, Phase 7). `docs/AUTHORIZATION_REVIEW.md`
+    section 1a is the full writeup.
+  - **Atomic slot-claim mutation** (`amplify/functions/claim-coop-slot/`,
+    wired in `amplify/backend.ts`): `claimCoopSlot`, a function-backed
+    custom mutation rather than a plain `CoopSession.update()`, because
+    "first write wins, second write rejected server-side without an
+    error" (`docs/ADVENTURE_ENGINE.md` "Co-op sessions") needs a real
+    conditional write the generated mutation cannot express. The Lambda
+    talks to DynamoDB directly via `@aws-sdk/client-dynamodb`/
+    `@aws-sdk/lib-dynamodb` (new devDependencies — both already present
+    transitively, pinned explicitly here since a Lambda bundle should not
+    depend on an undeclared transitive resolution), so it also has to
+    redo authorization itself (`decideClaim`, pure and unit-tested in
+    `handler.test.ts` the same way `operational-metrics/handler.ts`
+    already split `summarizeRecords` out for testability): caller `sub`
+    must match `hostParentProfileId`, `childProfileId` must be a
+    participant, and the session must be `ACTIVE`, before ever touching
+    the table. An open, undeployed assumption is called out in the
+    handler's own top comment: that Amplify's default DynamoDB resolver
+    mapping stores an `a.json()` object field as a native Map (`M`)
+    attribute, which the nested `sharedState.slots.<slotKey>`
+    `ConditionExpression` depends on.
+  - **Coop API and presence** (`src/features/coop/`, new): `api.ts`
+    (`startCoopSession`, `claimCoopSlot`, `setCoopPresence`,
+    `completeCoopSession`, `subscribeToCoopSession` — the last wraps the
+    model's own generated `onUpdate` subscription rather than a custom
+    one, since every write in this feature is already a `CoopSession`
+    update); `types.ts` (`isCoopEligibleStepType` —
+    `NUMBER_INPUT`/`ORDERING`/`MATCHING`/`WORLD_CHANGE`, matching
+    `docs/ADVENTURE_ENGINE.md` exactly — and `parseCoopSharedState`,
+    defensive JSON parsing in the same style as `parseStoryScenes`, Phase
+    5); `useCoopPresence.ts` (joins on mount, marks present, subscribes,
+    marks absent on unmount — the ephemeral, not-a-stored-model join/leave
+    signal `docs/DATA_MODEL.md` calls for, riding inside
+    `CoopSession.sharedState.presence` rather than its own model, since
+    ADR-006 explicitly excludes continuous/telemetry-level presence from
+    v1).
+  - **Engine wiring** (`src/features/adventures/useAdventureSession.ts`):
+    a 5th, optional `coopSessionId` argument. Correctness and transitions
+    stay completely untouched — `validateStepAnswer`/`getNextStepId` never
+    see it. The only addition: on a `correct` answer to a coop-eligible
+    step, a fire-and-forget `claimCoopSlot` call (same "never gates
+    `advance`" invariant as every existing AI/companion call in this
+    function); on the shared-construction `WORLD_CHANGE` step specifically,
+    a coop-slot claim followed by this child's own (unchanged)
+    `recordWorldChangeOnce` and then a best-effort, idempotent
+    `completeCoopSession`. **Dual `WorldChange` write on coop completion**
+    (`docs/DATA_MODEL.md`) needed no new write path at all — it already
+    falls out of each participant's own `useAdventureSession` instance
+    independently reaching the same `WORLD_CHANGE` step and writing its
+    own `WorldChange`, which is exactly the "never becomes the record of
+    who learned what" invariant `CoopSession` is supposed to preserve.
+  - **UI**: `AdventureRunner.tsx` shows a small "your sibling is playing
+    this with you" / "waiting for your sibling to join" presence banner
+    when `coopSessionId` is set; `AdventurePage.tsx` reads a `?coop=`
+    query-string param and threads it through.
+    `src/routes/CoopSessionNew.tsx` (new route `/parent/coop/new`, linked
+    from `ParentDashboard.tsx` as "Play together") is the parent-facing
+    entry point: pick two of this family's Pathfinder-band children (the
+    one age band the proof-of-concept template supports), starts a
+    `CoopSession`, then shows one launch link per child
+    (`/island/:childId/locations/:locationSlug/adventures/:templateSlug?coop=:id`)
+    for the parent to open on each child's own device or turn —
+    deliberately no invite/matchmaking system, per `docs/DATA_MODEL.md`'s
+    note that v1 is household-only and the parent already owns both
+    profiles.
+  - **Proof of concept, not full content breadth**: exactly one adventure
+    is coop-wired end-to-end, "Repair the Moonlight Bridge" — its
+    `count-planks` (`NUMBER_INPUT`), `order-planks` (`ORDERING`), and
+    `bridge-repaired` (`WORLD_CHANGE`, literally "placing a plank in a
+    specific slot", `docs/ADVENTURE_ENGINE.md`'s own example) steps are
+    the first real coop-eligible slots claimed in the codebase. No
+    adventure content had to change to make this true — the mechanism is
+    generic to any coop-eligible step in any adventure the moment a
+    `coopSessionId` is passed to `useAdventureSession`; every other
+    adventure remains single-player-only simply because nothing yet
+    launches it with one.
+  - Unit tests: `amplify/functions/claim-coop-slot/handler.test.ts` (7
+    cases covering `decideClaim`'s every branch — not-host,
+    not-participant, inactive, open slot, idempotent re-claim by the
+    claiming child, rejected claim by a different child, and an
+    unrelated still-open slot); `src/features/coop/types.test.ts`
+    (`isCoopEligibleStepType` for every step type, `parseCoopSharedState`
+    defensive parsing); `src/features/coop/api.test.ts` (mocked
+    `client`, same pattern as `companion/api.test.ts` — start/claim/
+    presence-join/presence-leave/complete/subscribe, including asserting
+    a slot claim goes through the `claimCoopSlot` mutation and never a
+    plain `CoopSession.update()`). No new test for
+    `useAdventureSession.ts`'s coop branch itself or for
+    `CoopSessionNew.tsx`, consistent with the already-documented,
+    project-wide precedent that this hook and every route component have
+    none — both need a live backend to exercise meaningfully.
+  - **Not deploy-verified**: same recurring constraint as every phase
+    since Phase 8 (no AWS credentials in this environment) — plus, unique
+    to this phase, the DynamoDB Map-attribute assumption above has never
+    been checked against a real table, and no two real child profiles
+    under one real parent have played a coop session live. Confirm both
+    the first time this runs against a real `ampx sandbox`.
+
+## Verification (Phase 17 session)
+
+- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
+  `scripts/tsconfig.json`), including the new `CoopSession` schema types,
+  `claimCoopSlot`'s `Schema['claimCoopSlot']['functionHandler']` typing,
+  and the CDK `IFunction` → `Function` cast in `amplify/backend.ts` needed
+  for `.addEnvironment`.
+- `npm run test` (`vitest run`) — 82 test files, 641 tests, all passing;
+  20 of those are new this phase (`amplify/functions/claim-coop-slot/handler.test.ts`,
+  `src/features/coop/types.test.ts`, `src/features/coop/api.test.ts`). No
+  existing test changed or broke.
+- `npm run lint` (`oxlint`) — clean (exit 0); two new warnings appeared
+  (`AdventureRunner.tsx`'s presence banner `role="status"`,
+  `useCoopPresence.ts`'s `setState`-in-effect) but both are the same
+  categories of warning already tolerated elsewhere in this codebase
+  (`role="dialog"` throughout `*WorldView.tsx`, `setState`-in-effect in
+  `AuthContext.tsx`) and do not fail the configured lint gate.
+- `npm run format:check` (`prettier --check .`) — clean.
+- `npm run test:e2e` (Playwright, builds + previews production `dist/`
+  per `docs/DECISIONS.md` ADR-007's testing note) — all 3 existing
+  unauthenticated smoke checks pass (`e2e/smoke.spec.ts`: home page,
+  sign-up form, sign-in form). This only confirms the production build
+  itself still succeeds and those three pre-existing, unauthenticated
+  routes still render — none of this phase's new routes/components are
+  reachable from an unauthenticated smoke test, so it is not evidence
+  the coop flow itself works, just that this phase did not break the
+  build or any existing page.
+- **Not run**: a real `ampx sandbox` deploy — same recurring constraint
+  as every phase since Phase 8 (no AWS credentials in this environment),
+  and this phase's live-deploy risk is higher than most (see the "Not
+  deploy-verified" note above). This remains the only way to actually
+  exercise `claimCoopSlot`, the `CoopSession` subscription, and a real
+  two-child coop play-through.
+
 ## Verification (Phase 15 session)
 
 - `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
@@ -2439,6 +2599,29 @@ above).
   than from one sample.
 
 ## Known risks / TODOs
+
+- **`claimCoopSlot`'s atomic slot claim depends on an unverified DynamoDB
+  storage assumption** (Phase 17): the nested `sharedState.slots.<slotKey>`
+  `ConditionExpression` in `amplify/functions/claim-coop-slot/handler.ts`
+  only works if Amplify's default resolver mapping stores a `CoopSession.sharedState`
+  `a.json()` object as a native DynamoDB Map (`M`), not a JSON-encoded
+  string — plausible from how AppSync's `$util.dynamodb.toMapValues()`
+  documented behavior works, but never checked against a real table (no
+  AWS credentials in this environment). If wrong, the first real coop
+  session's slot claims will fail loudly (a DynamoDB `ValidationException`
+  on the malformed attribute path) rather than silently misbehave, so this
+  is a "confirm before the first real family uses it" risk, not a
+  silent-data-corruption one. Confirm on the first `ampx sandbox` deploy.
+- **Only one adventure is coop-wired** (Phase 17): "Repair the Moonlight
+  Bridge" is the sole proof that `useAdventureSession`'s coop-eligible-step
+  claim mechanism works end-to-end; every other adventure in
+  `src/features/adventures/content/` is reachable only single-player today,
+  simply because `src/routes/CoopSessionNew.tsx`'s picker only offers that
+  one template. The engine-level mechanism itself is generic (any
+  `NUMBER_INPUT`/`ORDERING`/`MATCHING`/shared-construction `WORLD_CHANGE`
+  step becomes coop-eligible the moment a `coopSessionId` reaches
+  `useAdventureSession`), so widening this is a content/picker change, not
+  an engine change.
 
 - **Amplify AI Kit does not correctly grant IAM permissions for
   cross-Region ("Global") Bedrock inference profiles** — confirmed via a

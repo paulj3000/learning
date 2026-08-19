@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import styles from './ParentDashboard.module.css';
 import { useAuth } from '../features/auth/AuthContext';
 import { ChildProfileList } from '../features/child-profile/ChildProfileList';
@@ -87,6 +87,11 @@ export function ParentDashboard() {
         {loadState === 'ready' ? (
           <div className={styles.content}>
             <ChildProfileList childProfiles={childProfiles} onToggleActive={handleToggleActive} />
+            <p>
+              <Link to="/parent/coop/new">
+                Play together (shared adventure between two children)
+              </Link>
+            </p>
             <section className={styles.dangerZone}>
               <h2 className={styles.dangerHeading}>Delete account</h2>
               <p className={styles.hint}>
