@@ -2,14 +2,19 @@
 
 Four of `docs/ROADMAP.md`'s Phase 8 deliverables - load and cost tests,
 the AI red-team test suite, operational dashboards and alarms, and the
-closed parent pilot itself - cannot be executed in this environment: there
-are no AWS credentials available here, no deployed `ampx sandbox`, and (for
-the pilot) no real families. This is the same constraint every prior
-phase's `docs/IMPLEMENTATION_STATUS.md` verification notes have already
-recorded for anything requiring a live backend. Rather than skip these
-items silently, this document is the concrete runbook for each one, ready
-to execute the moment a deployable AWS environment and, eventually, real
-pilot participants exist.
+closed parent pilot itself - cannot be *verified against live AWS* in this
+environment: there are no AWS credentials available here (confirmed again
+this session - `npx ampx sandbox --once` failed immediately on an expired
+SSO token), no deployed `ampx sandbox`, and (for the pilot) no real
+families. This is the same constraint every prior phase's
+`docs/IMPLEMENTATION_STATUS.md` verification notes have already recorded
+for anything requiring a live backend. Rather than skip these items
+silently, this document is the concrete runbook for each one, ready to
+execute the moment a deployable AWS environment and, eventually, real
+pilot participants exist. One item, operational dashboards and alarms
+(section 3), turned out to be partly buildable *as code* even without a
+live environment - see that section for what shipped this session versus
+what still genuinely needs a deploy.
 
 ## 1. Load and cost tests
 
@@ -136,44 +141,82 @@ than a further prompt-tuning pass this session.
 
 ## 3. Operational dashboards and alarms
 
-**Why blocked here**: needs real CloudWatch log groups and metrics from a
-deployed backend to build dashboards/alarms against - there is nothing to
-point a dashboard at without a live environment.
+**Status: implemented as infrastructure-as-code this session, not yet
+deployed or verified against live AWS.** The earlier version of this
+section assumed dashboards/alarms need a deployed backend to be *built*
+against, since there was "nothing to point a dashboard at without a live
+environment." That turned out to be only half true: CloudWatch
+alarms/dashboards and an AWS Budget can be defined as CDK constructs that
+reference Amplify's generated AppSync API and DynamoDB table constructs by
+reference (not by needing them to already exist), so they can be written
+and typechecked without a deployed sandbox - only *seeing them fire on
+real data* needs one. `npx ampx sandbox` was attempted this session and
+failed immediately on expired SSO credentials
+(`[InvalidCredentialError] Failed to load default AWS credentials`)
+before reaching any CDK synth step, so nothing below has been exercised
+end-to-end; treat it as typechecked, carefully-reviewed code, not
+verified infrastructure.
 
-**Runbook, once a sandbox is deployed**:
+**What shipped** (`amplify/backend.ts`, `amplify/functions/operational-metrics/`):
 
-1. **Metrics to track**, per `docs/ARCHITECTURE.md`'s "Observability"
-   section and what's already captured in `AIInteractionAudit`: AI route
-   latency (`latencyMs`), validation-failure rate
-   (`validationStatus != VALID`), fallback rate (`fallbackUsed`), safety-
-   disposition breakdown (`safetyDisposition`), and `SafetyEvent` volume
-   by `severity`. All of this is already structured, queryable data in
-   DynamoDB (owner-scoped per family) - the work here is building
-   CloudWatch dashboards/metric filters over the Lambda/AppSync resolver
-   logs that back these writes, plus (separately) a small scheduled
-   aggregation if cross-family operational visibility is needed (which,
-   per `docs/AUTHORIZATION_REVIEW.md` section 4.3, has no admin role to
-   view it through yet either - these two gaps are linked).
-2. **Alarms to configure**:
-   - Bedrock cost/budget alarm (AWS Budgets or Cost Anomaly Detection) -
-     the most important one to have *before* a pilot begins, not after,
-     given `docs/THREAT_MODEL.md`'s open "Bedrock cost/quota exhaustion"
-     risk.
-   - AppSync 4xx/5xx error-rate alarm.
-   - `generateCompanionTurn` validation-failure-rate alarm (a sudden
-     spike would suggest either a Bedrock behavior change or a prompt/
-     schema regression - actionable and specific, unlike a generic error
-     rate).
-   - `SafetyEvent` volume alarm at `severity: HIGH` (a spike here is the
-     single most safety-relevant signal this system produces and should
-     page a human, not wait for a scheduled review).
-3. **This is also the natural point to finally build the human-review
-   half of `docs/AI_AND_CHILD_SAFETY.md`'s "Metadata audit and human
-   review workflow"** (layer 10, `docs/PRIVACY_AND_SAFETY_REVIEW.md`
-   section 1) - an alarm without anyone positioned to act on it is
-   incomplete. Even for a closed pilot, this can be "the alarm emails the
-   one person running the pilot," not a full admin role/UI - that remains
-   appropriately deferred (`docs/AUTHORIZATION_REVIEW.md` section 4.3).
+- **A DynamoDB Streams consumer** (`operationalMetrics`, this backend's
+  first Lambda function) on the `SafetyEvent` and `AIInteractionAudit`
+  tables. Both models are written directly by the browser
+  (`src/features/companion/api.ts`) with no server-side hook in the write
+  path, so a stream consumer turning each write into a CloudWatch
+  embedded-metric-format (EMF) log line is the only way to get a real
+  alarm on either one - there is no Lambda/resolver log to build a metric
+  filter over otherwise. See `handler.ts`'s doc comment for the exact
+  metrics (`SafetyEventCount` by `Severity`, `AIInteractionCount`,
+  `AIValidationFailureCount`, `AIFallbackUsedCount`,
+  `AISafetyDispositionCount` by `Disposition`, `AILatencyMs`), all under
+  the `LearningAdventureIsland/Safety` and `LearningAdventureIsland/AI`
+  namespaces. `summarizeRecords`/`emitSafetyMetrics`/`emitAiMetrics` are
+  pure and unit-tested (`handler.test.ts`); only the DynamoDB Streams
+  wiring and the EMF-to-real-metric behavior are unverified.
+- **All four alarms** from the original runbook below, each notifying a
+  new `OperationalAlertsTopic` SNS topic: the Bedrock cost/budget alarm
+  (`AWS::Budgets::Budget`, monthly, filtered to the Bedrock service, at
+  80% actual / 100% forecasted), the AppSync 4xx/5xx error-rate alarms
+  (on AppSync's built-in `AWS/AppSync` metrics), the
+  `generateCompanionTurn` validation-failure-rate alarm, and the
+  `SafetyEvent severity: HIGH` volume alarm - the last two fed by the new
+  stream consumer above.
+- **A CloudWatch dashboard** (`learning-adventure-island-operations`)
+  covering the metrics `docs/ARCHITECTURE.md`'s "Observability" section
+  already commits to tracking: AppSync errors, AI interaction
+  volume/validation-failure/fallback rate, AI response latency (p90), and
+  SafetyEvent volume by severity.
+
+**Before a pilot, whoever deploys this must**:
+
+1. Set `PILOT_ALERT_EMAIL` (the pilot operator's email) before running
+   `ampx sandbox`/`ampx pipeline-deploy` - with it unset, the topic and
+   every alarm still deploy, they just have no subscriber, which is safe
+   but not useful. This is deliberately just an email subscription, not a
+   full admin role/UI - `docs/AUTHORIZATION_REVIEW.md` section 4.3 already
+   defers that appropriately.
+2. Optionally set `PILOT_MONTHLY_BEDROCK_BUDGET_USD` (default `50`) to a
+   number that matches expected pilot size and section 1's cost-per-session
+   estimate once that's been run against real usage.
+3. Confirm the dashboard renders real data and every alarm actually fires
+   end-to-end the first time this deploys to a real sandbox - typechecking
+   this code is not the same as watching a HIGH-severity `SafetyEvent`
+   alarm actually page someone.
+4. Still missing, and explicitly out of scope for this pass: the
+   human-review half of `docs/AI_AND_CHILD_SAFETY.md`'s "Metadata audit
+   and human review workflow" (layer 10,
+   `docs/PRIVACY_AND_SAFETY_REVIEW.md` section 1). An alarm emailing the
+   pilot operator is not the same as a defined review process once they
+   get that email - that workflow (what they look at, what they do about
+   it) still needs to be written down before a pilot starts.
+5. Cross-family operational visibility (an aggregated view across all
+   pilot families, not just per-family owner-scoped `AIInteractionAudit`
+   rows) still has no admin role to view it through
+   (`docs/AUTHORIZATION_REVIEW.md` section 4.3) - the dashboard above is
+   account-level CloudWatch data, which is a reasonable interim substitute
+   for a closed pilot run by the account owner, but is not a per-family
+   admin UI.
 
 ## 4. Closed parent pilot
 

@@ -45,13 +45,25 @@ Bedrock model choice ever changes.
 ## Current phase
 
 Phase 7 — Parent Dashboard: complete. Phase 8 — Hardening and Pilot:
-partially complete across two sessions (data deletion flow, authorization
+partially complete across three sessions (data deletion flow, authorization
 review, threat model, privacy/child-safety review including a shipped
 fix, an accessibility audit including a shipped fix, and — once a
 deployed sandbox became available — a live AI red-team suite that found
-and fixed a real validation bug are done; load/cost tests, operational
-dashboards/alarms, and the closed pilot itself remain blocked on
-operational tooling and real participants - see `docs/PILOT_READINESS.md`).
+and fixed a real validation bug are done). This session added operational
+dashboards and alarms as infrastructure-as-code (`amplify/backend.ts`,
+`amplify/functions/operational-metrics/` — this backend's first Lambda
+function, a DynamoDB Streams consumer publishing CloudWatch custom
+metrics from `SafetyEvent`/`AIInteractionAudit` writes): a CloudWatch
+dashboard, a Bedrock cost/budget alarm, AppSync error-rate alarms, a
+`generateCompanionTurn` validation-failure alarm, and a HIGH-severity
+`SafetyEvent` alarm, all notifying a configurable SNS topic. This is
+typechecked and unit-tested (the pure summarization/EMF-emission logic)
+but **not deploy-verified** — no AWS credentials were available this
+session either (`npx ampx sandbox --once` failed immediately on an
+expired SSO token) — see `docs/PILOT_READINESS.md` section 3 for exactly
+what shipped versus what a real deploy still needs to confirm. Load/cost
+tests and the closed pilot itself remain blocked on operational tooling
+and real participants - see `docs/PILOT_READINESS.md`.
 
 `docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md` was added and
 adopted: `docs/ROADMAP.md` Phase 9 ("Motion and Embodiment") was replaced
@@ -976,6 +988,43 @@ below). Three items remain:
   reporting script legitimately needs to print, unlike application code).
   Full detail and the original runbook text in `docs/PILOT_READINESS.md`
   section 2.
+- **Phase 8 - Operational dashboards and alarms as infrastructure-as-code**
+  (`amplify/backend.ts`; `amplify/functions/operational-metrics/`, new):
+  the previous session's `docs/PILOT_READINESS.md` section 3 assumed this
+  needed a deployed backend just to *build* against — untrue for CDK code
+  that references generated constructs by reference rather than by needing
+  them to already exist, only for *seeing it fire on real data*, which
+  still needs a deploy. `operationalMetrics` is this backend's first
+  Lambda function: a DynamoDB Streams consumer on the `SafetyEvent` and
+  `AIInteractionAudit` tables (both written client-side with no
+  server-side hook otherwise available to build a metric off of), turning
+  each write into a CloudWatch embedded-metric-format log line
+  (`LearningAdventureIsland/Safety` and `LearningAdventureIsland/AI`
+  namespaces) with no AWS SDK dependency or extra IAM permission needed —
+  stdout *is* the publish call for EMF. `amplify/backend.ts` then wires up
+  everything `docs/PILOT_READINESS.md` section 3's original runbook
+  called for: an `OperationalAlertsTopic` SNS topic (subscribe an email via
+  `PILOT_ALERT_EMAIL` before deploying), a Bedrock monthly cost/budget
+  alarm (`AWS::Budgets::Budget`, configurable via
+  `PILOT_MONTHLY_BEDROCK_BUDGET_USD`, default $50, at 80% actual / 100%
+  forecasted), AppSync 4xx/5xx error-rate alarms on AppSync's built-in
+  metrics, a `generateCompanionTurn` validation-failure-rate alarm, a
+  HIGH-severity `SafetyEvent` volume alarm, and a CloudWatch dashboard
+  covering all of the above plus AI response latency (p90). New tests:
+  `handler.test.ts` covers the pure record-summarization and EMF-emission
+  logic (severity/validation-status/disposition counting, REMOVE-event and
+  missing-image handling, unrecognized-enum-value handling, one EMF log
+  line per metric group). `@types/aws-lambda` added as an explicit
+  devDependency (was already present transitively; now the direct import
+  in `handler.ts` is honest about depending on it).
+  **Not done and explicitly out of scope for this pass**: deploy
+  verification of any of the above (no AWS credentials were available this
+  session either — `npx ampx sandbox --once` failed immediately on an
+  expired SSO token, confirmed before writing any of this code), and the
+  human-review workflow half of `docs/AI_AND_CHILD_SAFETY.md` layer 10 (an
+  alarm emailing the pilot operator is not the same as a defined process
+  for what they do when it fires). Full detail in
+  `docs/PILOT_READINESS.md` section 3.
 
 - **Phase 9 (World Engine Foundation) — Phaser proof of concept**
   (`package.json`: `phaser` dependency; `src/features/island-map/`:

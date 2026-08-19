@@ -111,3 +111,14 @@ Track operational metadata without storing unnecessary child content:
 
 Do not put child names, raw voice, or free-form answers in routine logs.
 
+`AIInteractionAudit` and `SafetyEvent` (`docs/DATA_MODEL.md`) already carry
+this metadata as owner-scoped DynamoDB rows, written client-side. Since
+that write path has no server-side hook to attach a metric filter to, a
+DynamoDB Streams-triggered Lambda (`amplify/functions/operational-metrics/`,
+wired in `amplify/backend.ts`) turns each write into a CloudWatch
+custom metric, feeding the CloudWatch dashboard and alarms described in
+`docs/PILOT_READINESS.md` section 3. This is operational, account-level
+visibility, not the per-family admin review workflow
+(`docs/AI_AND_CHILD_SAFETY.md` layer 10), which remains a separate, not
+yet built, piece.
+
