@@ -1,14 +1,21 @@
 import { defineBackend } from '@aws-amplify/backend';
-import { Duration, Stack } from 'aws-cdk-lib';
+import { Duration, Names, Stack } from 'aws-cdk-lib';
 import * as budgets from 'aws-cdk-lib/aws-budgets';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import { SnsAction } from 'aws-cdk-lib/aws-cloudwatch-actions';
-import { StreamViewType } from 'aws-cdk-lib/aws-dynamodb';
+import { type ITable, StreamViewType } from 'aws-cdk-lib/aws-dynamodb';
 import { PolicyStatement, ServicePrincipal, type Role } from 'aws-cdk-lib/aws-iam';
-import { StartingPosition, type Function as LambdaFunction } from 'aws-cdk-lib/aws-lambda';
+import {
+  Code,
+  Function as CdkLambdaFunction,
+  Runtime,
+  StartingPosition,
+  type Function as LambdaFunction,
+} from 'aws-cdk-lib/aws-lambda';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { Topic } from 'aws-cdk-lib/aws-sns';
 import { EmailSubscription } from 'aws-cdk-lib/aws-sns-subscriptions';
+import { Trigger } from 'aws-cdk-lib/triggers';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { operationalMetrics } from './functions/operational-metrics/resource';
@@ -137,34 +144,80 @@ const alertAction = new SnsAction(operationalAlertsTopic);
 
 /**
  * Enables a DynamoDB stream on one of this backend's generated model
- * tables and wires `operationalMetrics` to consume it. Model tables are
- * exposed keyed by plain model name (`backend.data.resources.tables['SafetyEvent']`,
- * matching @aws-amplify/graphql-api-construct's own documented example),
- * so this looks the table up by that exact key and fails loudly at synth
- * time if Amplify ever changes that convention, rather than silently
- * wiring nothing.
+ * tables. Model tables are exposed keyed by plain model name
+ * (`backend.data.resources.tables['SafetyEvent']`, matching
+ * @aws-amplify/graphql-api-construct's own documented example), so this
+ * looks the table up by that exact key and fails loudly at synth time if
+ * Amplify ever changes that convention, rather than silently wiring
+ * nothing.
  */
-function wireModelTableStream(modelName: string): void {
+function enableModelTableStream(modelName: string): ITable {
   const streamConfig = backend.data.resources.cfnResources.amplifyDynamoDbTables[modelName];
   const table = backend.data.resources.tables[modelName];
   if (!streamConfig || !table) {
     throw new Error(
       `Could not find the "${modelName}" model's generated DynamoDB table to enable a stream on. ` +
         'Amplify Data may have changed its table lookup key (expected the plain model name); ' +
-        'see the comment above wireModelTableStream in amplify/backend.ts.',
+        'see the comment above enableModelTableStream in amplify/backend.ts.',
     );
   }
   streamConfig.streamSpecification = { streamViewType: StreamViewType.NEW_IMAGE };
-  backend.operationalMetrics.resources.lambda.addEventSource(
+  return table;
+}
+const safetyEventTable = enableModelTableStream('SafetyEvent');
+const aiInteractionAuditTable = enableModelTableStream('AIInteractionAudit');
+
+/**
+ * Enabling a DynamoDB Stream on an already-existing table
+ * (`enableModelTableStream` above) is asynchronous on AWS's side:
+ * CloudFormation reports the table's `UPDATE_COMPLETE` as soon as the
+ * `UpdateTable` API call is accepted, but the stream itself briefly sits
+ * in `ENABLING` before DynamoDB reports it `ENABLED`. The first real
+ * deploy of this phase failed exactly here: creating the
+ * `AWS::Lambda::EventSourceMapping`s below failed with "Stream ... is
+ * Disabled", immediately after CloudFormation had already reported the
+ * owning `data` stack `UPDATE_COMPLETE` — because the event source
+ * mappings live in the next nested stack and were created before the
+ * streams had actually finished activating.
+ *
+ * This `Trigger` forces a wait between the two: it only runs after both
+ * tables' stream-enabling updates complete (`executeAfter`), sleeps long
+ * enough for DynamoDB to finish activating both streams, and the event
+ * source mappings (`wireModelTableEventSource` below) are only created
+ * once it succeeds (`executeBefore`). 90 seconds is a generous margin
+ * over the "a few seconds, well under a minute" AWS documents for stream
+ * activation — there is no supported API to poll stream status and wait
+ * on that precisely instead.
+ */
+const streamActivationDelay = new CdkLambdaFunction(monitoringStack, 'DynamoStreamActivationDelay', {
+  runtime: Runtime.NODEJS_20_X,
+  handler: 'index.handler',
+  code: Code.fromInline(
+    'exports.handler = async () => { await new Promise((resolve) => setTimeout(resolve, 90_000)); };',
+  ),
+  timeout: Duration.minutes(3),
+});
+const streamActivationTrigger = new Trigger(monitoringStack, 'DynamoStreamActivationTrigger', {
+  handler: streamActivationDelay,
+  timeout: Duration.minutes(3),
+  executeAfter: [safetyEventTable, aiInteractionAuditTable],
+});
+
+/** Wires `operationalMetrics` to consume one model table's now-enabled stream, only after `trigger` has run. */
+function wireModelTableEventSource(table: ITable, trigger: Trigger): void {
+  const lambda = backend.operationalMetrics.resources.lambda;
+  lambda.addEventSource(
     new DynamoEventSource(table, {
       startingPosition: StartingPosition.LATEST,
       retryAttempts: 2,
       reportBatchItemFailures: false,
     }),
   );
+  const mapping = lambda.node.findChild(`DynamoDBEventSource:${Names.nodeUniqueId(table.node)}`);
+  trigger.executeBefore(mapping);
 }
-wireModelTableStream('SafetyEvent');
-wireModelTableStream('AIInteractionAudit');
+wireModelTableEventSource(safetyEventTable, streamActivationTrigger);
+wireModelTableEventSource(aiInteractionAuditTable, streamActivationTrigger);
 
 // --- AppSync 4xx/5xx error-rate alarms ---
 // AWS/AppSync's built-in metrics, not a custom one — read directly off

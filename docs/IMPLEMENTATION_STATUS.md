@@ -2245,6 +2245,54 @@ pass. **Not deploy-verified** — same no-AWS-credentials constraint as
 every phase since Phase 8; confirm a real `ampx pipeline-deploy` succeeds
 end to end the first time this runs with credentials.
 
+## Post-Phase-17 deploy fix #2: DynamoDB Stream activation race
+
+With the circular dependency above fixed, the next real
+`ampx pipeline-deploy` got dramatically further — it created the
+`CoopSession` table, both Lambda functions, and the whole
+`OperationalMonitoring` stack — but then failed creating the two
+`AWS::Lambda::EventSourceMapping`s that wire `operationalMetrics` to the
+`SafetyEvent`/`AIInteractionAudit` table streams: `Invalid request
+provided: Stream ... is Disabled. You cannot create a lambda mapping on a
+stream that is Disabled.` This rolled the whole stack back, including the
+`streamSpecification` change that had just enabled those streams, so a
+bare retry would hit the identical failure every time — it is not a
+transient/flaky error.
+
+Root cause: enabling a DynamoDB Stream on an already-existing table is
+asynchronous on AWS's side. CloudFormation reports the table's
+`UPDATE_COMPLETE` as soon as the `UpdateTable` API call is accepted, but
+the stream itself briefly sits in `ENABLING` before DynamoDB reports it
+`ENABLED`. `enableModelTableStream` (formerly `wireModelTableStream`,
+`amplify/backend.ts`) enables the stream in the `data` stack; the
+`AWS::Lambda::EventSourceMapping`s that consume it live in the next
+nested stack (`function`) and were being created immediately after
+`data` finished — CloudFormation had the ordering right, but that still
+wasn't enough wall-clock time for the stream to finish activating.
+
+Fix: `amplify/backend.ts` now inserts an explicit wait between the two,
+using CDK's `aws-cdk-lib/triggers` `Trigger` construct — the standard
+mechanism for exactly this "wait for AWS eventual consistency between two
+resources" class of problem. A small inline Lambda (`DynamoStreamActivationDelay`)
+sleeps 90 seconds; a `Trigger` (`DynamoStreamActivationTrigger`) runs it
+only after both tables' stream-enabling updates complete
+(`executeAfter`), and the event source mappings
+(`wireModelTableEventSource`) are only created once the trigger succeeds
+(`executeBefore`, applied to the `EventSourceMapping` construct found via
+`lambda.node.findChild(...)`, since `Function.addEventSource()` doesn't
+return it directly). 90 seconds is a generous margin over the "a few
+seconds, well under a minute" AWS documents for stream activation; there
+is no supported API to poll stream status and wait on that precisely
+instead.
+
+Verified `tsc --noEmit` and `vitest run` (84 files, 648 tests) both pass.
+**Not deploy-verified** — same no-AWS-credentials constraint as every
+phase since Phase 8, and this fix specifically cannot be confirmed
+without a real deploy: the 90-second margin is a documented-behavior
+estimate, not something provable locally. If a future deploy still hits
+"Stream ... is Disabled," increase the delay before assuming the
+mechanism itself is wrong.
+
 ## Verification (Phase 17 session)
 
 - `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
