@@ -183,6 +183,17 @@ export const WELCOME_HARBOR_INTERACTIONS: WorldInteraction[] = [
       message: 'You knock, but nobody is home right now. Maybe try again another day!',
     },
   },
+  {
+    id: 'mountain-path',
+    type: 'LOCATION',
+    trigger: 'APPROACH',
+    title: 'A hidden path up the mountain',
+    targetId: 'dragons-sanctuary',
+    requirements: [
+      { type: 'WORLD_CHANGE_PRESENT', changeKey: 'DRAGON_OF_EMBER_MOUNTAIN_COMPLETE' },
+    ],
+    action: { kind: 'NAVIGATE', to: 'locations/dragons-sanctuary' },
+  },
 ];
 
 /**
@@ -536,6 +547,56 @@ export const STORYKEEPER_CASTLE_INTERACTIONS: WorldInteraction[] = [
   },
   {
     id: 'castle-harbor-exit',
+    type: 'LOCATION',
+    trigger: 'APPROACH',
+    title: 'The path back to Welcome Harbor',
+    targetId: 'welcome-harbor',
+    requirements: [{ type: 'ALWAYS' }],
+    action: { kind: 'NAVIGATE', to: 'world' },
+  },
+];
+
+/**
+ * The Dragon's Sanctuary's Phase 16 interactions (docs/ROADMAP.md Phase 16,
+ * "Island Progression"): the first location that only exists because of a
+ * story, not an adventure of its own. Reaching this location at all already
+ * requires `DRAGON_OF_EMBER_MOUNTAIN_COMPLETE` (`WELCOME_HARBOR_INTERACTIONS`'s
+ * `mountain-path` above, and `IslandLocationPage`/`DragonsSanctuaryWorldPage`'s
+ * own checks), so every interaction here is unconditionally available — no
+ * child ever sees this scene without having already earned it. The dragon is
+ * a stationary `CHARACTER`-shaped decor sprite ("returning character"), the
+ * same pattern `PIRATE_BUILDER_BAY_INTERACTIONS` used for Pirate Pip, since
+ * `LocationScene`'s data-driven `npcs` framework is Chatty-specific
+ * (follow behavior only Chatty needs).
+ */
+export const DRAGONS_SANCTUARY_INTERACTIONS: WorldInteraction[] = [
+  {
+    id: 'meet-ember-dragon',
+    type: 'NPC',
+    trigger: 'TAP',
+    title: 'The dragon',
+    targetId: 'ember-dragon',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message:
+        'The dragon dips her head toward you. She remembers the child who helped her feel safe again.',
+    },
+  },
+  {
+    id: 'dragons-sanctuary-egg',
+    type: 'OBJECT',
+    trigger: 'TAP',
+    title: "The dragon's egg",
+    targetId: 'dragons-sanctuary-egg',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'The egg glows warm and safe, tucked close beside its mother.',
+    },
+  },
+  {
+    id: 'dragons-sanctuary-harbor-exit',
     type: 'LOCATION',
     trigger: 'APPROACH',
     title: 'The path back to Welcome Harbor',

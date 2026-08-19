@@ -46,6 +46,11 @@ const StorykeeperCastleWorldPage = lazy(() =>
     default: module.StorykeeperCastleWorldPage,
   })),
 );
+const DragonsSanctuaryWorldPage = lazy(() =>
+  import('../routes/DragonsSanctuaryWorldPage').then((module) => ({
+    default: module.DragonsSanctuaryWorldPage,
+  })),
+);
 
 export function AppRoutes() {
   return (
@@ -153,6 +158,16 @@ export function AppRoutes() {
           <RequireParent>
             <Suspense fallback={<p>Loading Storykeeper Castle...</p>}>
               <StorykeeperCastleWorldPage />
+            </Suspense>
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/world/dragons-sanctuary"
+        element={
+          <RequireParent>
+            <Suspense fallback={<p>Loading the Dragon's Sanctuary...</p>}>
+              <DragonsSanctuaryWorldPage />
             </Suspense>
           </RequireParent>
         }

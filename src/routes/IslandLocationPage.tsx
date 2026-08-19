@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import styles from './IslandLocationPage.module.css';
 import { IslandLayout } from '../features/island/IslandLayout';
-import { getIslandLocation } from '../features/island/locations';
+import { getIslandLocation, isLocationUnlocked } from '../features/island/locations';
 import { getAdventureTemplatesForLocation } from '../features/adventures/content';
-import { listWorldChanges } from '../features/adventures/api';
+import { listAllWorldChanges } from '../features/adventures/api';
 import { getChildProfile } from '../features/child-profile/api';
 import type { WorldChange } from '../features/adventures/api';
 import type { ChildProfile } from '../features/child-profile/api';
@@ -16,7 +16,7 @@ export function IslandLocationPage() {
   const location = locationSlug ? getIslandLocation(locationSlug) : undefined;
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
-  const [worldChanges, setWorldChanges] = useState<WorldChange[]>([]);
+  const [allWorldChanges, setAllWorldChanges] = useState<WorldChange[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,7 +29,7 @@ export function IslandLocationPage() {
       try {
         const [child, changes] = await Promise.all([
           getChildProfile(childId),
-          listWorldChanges(childId, location.slug),
+          listAllWorldChanges(childId),
         ]);
         if (cancelled) return;
         if (!child) {
@@ -37,7 +37,7 @@ export function IslandLocationPage() {
           return;
         }
         setChildProfile(child);
-        setWorldChanges(changes);
+        setAllWorldChanges(changes);
         setLoadState('ready');
       } catch {
         if (cancelled) return;
@@ -85,6 +85,24 @@ export function IslandLocationPage() {
     );
   }
 
+  const worldChangeKeys = allWorldChanges.map((change) => change.changeKey);
+  if (!isLocationUnlocked(location, worldChangeKeys)) {
+    return (
+      <IslandLayout childId={childId}>
+        <div className={styles.content}>
+          <p className={styles.decoration}>
+            This part of the island has not been discovered yet. Maybe a new story will lead you
+            here.
+          </p>
+          <Link className={styles.backLink} to={`/island/${childId}`}>
+            Back to the map
+          </Link>
+        </div>
+      </IslandLayout>
+    );
+  }
+
+  const worldChanges = allWorldChanges.filter((change) => change.locationSlug === location.slug);
   const template = getAdventureTemplatesForLocation(location.slug)[0];
   const isAgeSupported = template ? template.ageBands.includes(childProfile.ageBand) : false;
   const worldChangeStep = template?.steps.find((step) => step.type === 'WORLD_CHANGE');
@@ -138,6 +156,11 @@ export function IslandLocationPage() {
         {location.slug === 'storykeeper-castle' ? (
           <Link className={styles.walkLink} to={`/island/${childId}/world/storykeeper-castle`}>
             Try exploring the castle (new!)
+          </Link>
+        ) : null}
+        {location.slug === 'dragons-sanctuary' ? (
+          <Link className={styles.walkLink} to={`/island/${childId}/world/dragons-sanctuary`}>
+            Try exploring the sanctuary (new!)
           </Link>
         ) : null}
         <Link className={styles.backLink} to={`/island/${childId}`}>

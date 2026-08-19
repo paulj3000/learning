@@ -6,6 +6,25 @@ export interface IslandLocation {
   skills: string[];
   /** What the island currently looks like here, before any adventure runs. */
   decoration: string;
+  /**
+   * Present only for a secret/gated location (docs/ROADMAP.md Phase 16,
+   * "location unlocking"). Absent means always visible, matching every MVP
+   * location's existing behavior. `changeKey` is checked against the
+   * child's full `WorldChange` history, not just this location's own
+   * changes, since the unlocking event (e.g. finishing a story) usually
+   * happened somewhere else.
+   */
+  unlockRequirement?: { changeKey: string };
+}
+
+/** Whether `location` should currently be visible/reachable for this child. */
+export function isLocationUnlocked(
+  location: Pick<IslandLocation, 'unlockRequirement'>,
+  worldChangeKeys: readonly string[],
+): boolean {
+  return (
+    !location.unlockRequirement || worldChangeKeys.includes(location.unlockRequirement.changeKey)
+  );
 }
 
 /**
@@ -41,6 +60,16 @@ export const ISLAND_LOCATIONS: IslandLocation[] = [
       'A castle library where children help tell the story: predicting what happens next, sequencing events, and building vocabulary along the way.',
     skills: ['Prediction', 'Sequencing', 'Vocabulary'],
     decoration: 'The storybooks on the shelf are still blank. The first tale is coming soon.',
+  },
+  {
+    slug: 'dragons-sanctuary',
+    title: "The Dragon's Sanctuary",
+    tagline: "A secret spot, discovered by finishing a dragon's story.",
+    description:
+      'Once smoking and mysterious, this mountain hollow is now home to a dragon who trusts you. Come visit her and her egg, safe at last.',
+    skills: ['Empathy', 'Observation'],
+    decoration: 'The dragon rests peacefully beside her egg.',
+    unlockRequirement: { changeKey: 'DRAGON_OF_EMBER_MOUNTAIN_COMPLETE' },
   },
 ];
 

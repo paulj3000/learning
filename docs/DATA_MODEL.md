@@ -216,6 +216,22 @@ Deliberately avoids numeric experience points as the emotional center of
 the product (roadmap section 27) — the world state itself, not a score, is
 the record of achievement.
 
+**Scoping note (Phase 16, first slice):** this model is still not
+implemented as an actual `amplify/data/resource.ts` schema entry.
+`unlockedLocations`, `worldChanges`, and `completedStories` are already
+fully derivable at read time from the existing `WorldChange` and
+`ChildStoryProgress` records — Phase 16's first slice (location unlocking,
+proved via a new gated `dragons-sanctuary` location) uses that derivation
+directly (`src/features/island/locations.ts`'s `isLocationUnlocked`,
+fed by `listAllWorldChanges`) rather than adding a model that would just be
+a redundant, dual-write-risk copy of data that already exists (CLAUDE.md
+section 13: no premature abstraction). The two fields here that are *not*
+yet derivable from anything are `discoveredObjects`/`discoveredCharacters`
+— no `OBJECT`/`DISCOVERY`/`NPC` interaction tap is persisted anywhere today,
+each is stateless flavor text. Add this model, scoped to just those two
+fields, once a real deliverable needs to remember what a child has already
+seen or met.
+
 ## ChildStoryProgress
 
 Long-form stories (Phase 12, Story Engine) span multiple play sessions and

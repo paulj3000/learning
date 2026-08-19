@@ -54,6 +54,18 @@ export const FOREST_PATH_TILE_RECT = { col: 0, row: 9, cols: 3, rows: 2 };
 /** Tile-space rectangle for the path spur toward Storykeeper Castle's entrance (north edge). */
 export const CASTLE_PATH_TILE_RECT = { col: 12, row: 0, cols: 3, rows: 2 };
 
+/**
+ * Tile-space rectangle for the hidden mountain-path zone leading to the
+ * Dragon's Sanctuary (docs/ROADMAP.md Phase 16, "secret locations").
+ * Deliberately left un-painted in `buildHarborTileGrid` (ordinary sand)
+ * rather than given its own `PATH` tile like the forest/castle spurs above
+ * — a visibly trodden path would give away that something is here before
+ * "The Dragon of Ember Mountain" story is ever completed. Reaching this
+ * zone before then does nothing (`isInteractionAvailable` is false), same
+ * as walking onto any other not-yet-available interaction zone.
+ */
+export const MOUNTAIN_PATH_TILE_RECT = { col: 20, row: 0, cols: 3, rows: 2 };
+
 function fillTileRect(
   grid: HarborTileId[][],
   rect: { col: number; row: number; cols: number; rows: number },

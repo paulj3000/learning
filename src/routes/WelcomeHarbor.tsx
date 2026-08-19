@@ -3,10 +3,11 @@ import { Link, useParams } from 'react-router-dom';
 import styles from './WelcomeHarbor.module.css';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { CompanionIntro } from '../features/island/CompanionIntro';
-import { ISLAND_LOCATIONS } from '../features/island/locations';
+import { ISLAND_LOCATIONS, isLocationUnlocked } from '../features/island/locations';
 import { getTodaysEvent } from '../features/island/events';
 import { getOrCreateCompanionProfile, getCompanionProfile } from '../features/island/api';
 import { getChildProfile } from '../features/child-profile/api';
+import { listAllWorldChanges } from '../features/adventures/api';
 import type { CompanionProfile } from '../features/island/api';
 import type { ChildProfile } from '../features/child-profile/api';
 
@@ -17,6 +18,7 @@ export function WelcomeHarbor() {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
   const [companionProfile, setCompanionProfile] = useState<CompanionProfile | null>(null);
+  const [worldChangeKeys, setWorldChangeKeys] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -27,9 +29,10 @@ export function WelcomeHarbor() {
         return;
       }
       try {
-        const [child, companion] = await Promise.all([
+        const [child, companion, changes] = await Promise.all([
           getChildProfile(childId),
           getCompanionProfile(childId),
+          listAllWorldChanges(childId),
         ]);
         if (cancelled) return;
         if (!child) {
@@ -38,6 +41,7 @@ export function WelcomeHarbor() {
         }
         setChildProfile(child);
         setCompanionProfile(companion);
+        setWorldChangeKeys(changes.map((change) => change.changeKey));
         setLoadState('ready');
       } catch {
         if (cancelled) return;
@@ -85,16 +89,18 @@ export function WelcomeHarbor() {
 
       <h2 className={styles.mapHeading}>Where to next?</h2>
       <div className={styles.grid}>
-        {ISLAND_LOCATIONS.map((location) => (
-          <Link
-            className={styles.card}
-            key={location.slug}
-            to={`/island/${childId}/locations/${location.slug}`}
-          >
-            <p className={styles.cardTitle}>{location.title}</p>
-            <p className={styles.cardTagline}>{location.tagline}</p>
-          </Link>
-        ))}
+        {ISLAND_LOCATIONS.filter((location) => isLocationUnlocked(location, worldChangeKeys)).map(
+          (location) => (
+            <Link
+              className={styles.card}
+              key={location.slug}
+              to={`/island/${childId}/locations/${location.slug}`}
+            >
+              <p className={styles.cardTitle}>{location.title}</p>
+              <p className={styles.cardTagline}>{location.tagline}</p>
+            </Link>
+          ),
+        )}
       </div>
 
       <Link className={styles.logLink} to={`/island/${childId}/log`}>

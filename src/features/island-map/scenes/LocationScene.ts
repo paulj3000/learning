@@ -452,6 +452,24 @@ export class LocationScene extends Phaser.Scene {
         graphics.fillStyle(0xf4ecd8, 1);
         graphics.fillRect(4, 8, 16, 16);
         break;
+      case 'DRAGON':
+        graphics.fillStyle(0xd35400, 1);
+        graphics.fillTriangle(0, 22, 10, 10, 10, 26);
+        graphics.fillTriangle(23, 22, 14, 10, 14, 26);
+        graphics.fillEllipse(12, 22, 18, 16);
+        graphics.fillCircle(12, 10, 7);
+        graphics.fillStyle(0xf2a541, 1);
+        graphics.fillEllipse(12, 26, 8, 6);
+        graphics.fillStyle(0xf4d35e, 1);
+        graphics.fillCircle(10, 8, 1.5);
+        break;
+      case 'EGG':
+        graphics.fillStyle(0xf4d35e, 1);
+        graphics.fillEllipse(12, 20, 16, 20);
+        graphics.fillStyle(0xf2a541, 1);
+        graphics.fillCircle(9, 14, 2);
+        graphics.fillCircle(15, 22, 2);
+        break;
     }
     const textureKey = `${this.locationConfig.sceneKey}-decor-${decor.id}`;
     graphics.generateTexture(textureKey, size.width, size.height);

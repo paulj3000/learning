@@ -15,9 +15,11 @@ import { findInteraction, WELCOME_HARBOR_INTERACTIONS } from './worldObjects';
  * `LEAVES`/`CAVE`/`MOON` were added for Wonderwild Forest's Phase 13
  * discovery points (`wonderwildForestDecor.ts`); `PORTRAIT`/`WINDOW`/
  * `WARDROBE`/`BOOKSHELF`/`EASEL` were added for Storykeeper Castle's Phase 14
- * creative-story rooms (`storykeeperCastleDecor.ts`). The shared scene
- * renderer (`scenes/LocationScene.ts`) draws all seventeen, so any
- * location's decor module can use any shape.
+ * creative-story rooms (`storykeeperCastleDecor.ts`); `DRAGON`/`EGG` were
+ * added for the Dragon's Sanctuary, Phase 16's "returning character"
+ * example (`dragonsSanctuaryDecor.ts`). The shared scene renderer
+ * (`scenes/LocationScene.ts`) draws all nineteen, so any location's decor
+ * module can use any shape.
  */
 export type DecorShape =
   | 'SIGN'
@@ -36,7 +38,9 @@ export type DecorShape =
   | 'WINDOW'
   | 'WARDROBE'
   | 'BOOKSHELF'
-  | 'EASEL';
+  | 'EASEL'
+  | 'DRAGON'
+  | 'EGG';
 
 export interface DecorDefinition {
   id: string;
