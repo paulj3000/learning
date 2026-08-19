@@ -2291,7 +2291,68 @@ phase since Phase 8, and this fix specifically cannot be confirmed
 without a real deploy: the 90-second margin is a documented-behavior
 estimate, not something provable locally. If a future deploy still hits
 "Stream ... is Disabled," increase the delay before assuming the
-mechanism itself is wrong.
+mechanism itself is wrong. (The next deploy did still hit it, for a
+different reason — see fix #3 below. The wait this section adds turned
+out to be necessary but not sufficient.)
+
+## Post-Phase-17 deploy fix #3: stale `TableStreamArn` attribute
+
+The 90-second `Trigger` above did run (the deploy log shows
+`DynamoStreamActivationTrigger` taking ~100 seconds, completing at
+21:00:20), and the event source mappings were still created afterwards
+with the identical error: `Stream
+arn:aws:dynamodb:us-west-1:...:table/AIInteractionAudit-.../stream/2026-08-19T20:19:01.702
+is Disabled.` The stream ARN in that message is the tell: `20:19:01` is
+the creation timestamp of a stream from the *previous* build, which that
+build's rollback had disabled. The mappings were never pointed at the
+stream this build had just enabled, so no amount of waiting could have
+helped.
+
+Real root cause: `table.tableStreamArn` — the `TableStreamArn` attribute
+of Amplify's `Custom::AmplifyDynamoDBTable` resource, which
+`DynamoEventSource` uses — is stale on exactly the deploy that turns a
+stream on. Amplify's table-manager Lambda handles `Update` by describing
+the table first, then applying each computed change (including
+`getStreamUpdate`'s `UpdateTable`), and finally returning
+`Data.TableStreamArn` from that *pre-update* describe
+(`amplify-table-manager-handler`'s `Update` branch in
+`@aws-amplify/graphql-model-transformer`; its `isComplete` handler never
+revises the value). On a stream-enabling deploy the attribute therefore
+holds either nothing at all or, as here, the ARN of an older stream that
+is now disabled. The activation race diagnosed in fix #2 is real, but it
+was a second-order problem hiding behind this one.
+
+Fix, in `amplify/backend.ts`:
+
+- `liveStreamArn(modelName, table)` reads `LatestStreamArn` back from
+  DynamoDB itself, with an `AwsCustomResource` (`dynamodb:DescribeTable`,
+  scoped to that one table's ARN) that runs after
+  `streamActivationTrigger`. That value is the stream that is actually
+  live, and — because the lookup runs after the 90-second wait — it is
+  also past `ENABLING` by the time the mapping is created, so fix #2's
+  `Trigger` is still doing useful work.
+- `wireModelTableEventSource` now creates the mapping directly with
+  `lambda.addEventSourceMapping(...)` on that resolved ARN instead of
+  `addEventSource(new DynamoEventSource(table, ...))`, so nothing reads
+  the stale attribute.
+- `DynamoEventSource` also grants the consumer stream-read IAM access
+  derived from the same stale attribute, which would have left
+  `operationalMetrics` mapped to a stream it could not read. The grant is
+  now written by hand against `${table.tableArn}/stream/*` — stream ARNs
+  are the table ARN plus a creation timestamp, so that stays correct
+  across a table's streams being disabled and re-enabled.
+- The lookup's physical resource id embeds Amplify Hosting's `AWS_JOB_ID`
+  so it re-runs on every CI deploy. CloudFormation only re-invokes a
+  custom resource whose properties changed, and a cached ARN here would
+  fail silently — the mapping would point at a dead stream, metrics would
+  stop, and no alarm would fire.
+
+Verified `npm run typecheck`, `oxlint`, `prettier --check`, and
+`vitest run` (82 files, 641 tests) all pass. **Not deploy-verified** — same no-AWS-credentials
+constraint as every phase since Phase 8. If a deploy still fails here,
+check the stream timestamp in the error message first: an ARN whose
+timestamp predates the current build means the ARN is stale again, while
+a current timestamp means the activation wait is genuinely too short.
 
 ## Verification (Phase 17 session)
 
