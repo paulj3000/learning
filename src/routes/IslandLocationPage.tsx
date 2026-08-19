@@ -163,6 +163,16 @@ export function IslandLocationPage() {
             Try exploring the sanctuary (new!)
           </Link>
         ) : null}
+        {location.slug === 'fossil-ridge-camp' ? (
+          <Link className={styles.walkLink} to={`/island/${childId}/world/fossil-ridge-camp`}>
+            Try exploring the camp (new!)
+          </Link>
+        ) : null}
+        {location.slug === 'castle-writing-room' ? (
+          <Link className={styles.walkLink} to={`/island/${childId}/world/castle-writing-room`}>
+            Try exploring the room (new!)
+          </Link>
+        ) : null}
         <Link className={styles.backLink} to={`/island/${childId}`}>
           Back to the map
         </Link>

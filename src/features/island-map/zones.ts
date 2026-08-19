@@ -14,6 +14,7 @@ import {
   BRIDGE_TILE_RECT,
   CASTLE_PATH_TILE_RECT,
   FOREST_PATH_TILE_RECT,
+  FOSSIL_RIDGE_PATH_TILE_RECT,
   MOUNTAIN_PATH_TILE_RECT,
   TILE_SIZE,
 } from './tilemap';
@@ -58,5 +59,11 @@ export const WELCOME_HARBOR_ZONES: Record<string, PixelRect> = {
     MOUNTAIN_PATH_TILE_RECT.row,
     MOUNTAIN_PATH_TILE_RECT.cols,
     MOUNTAIN_PATH_TILE_RECT.rows,
+  ),
+  'fossil-ridge-path': tileRectToPixels(
+    FOSSIL_RIDGE_PATH_TILE_RECT.col,
+    FOSSIL_RIDGE_PATH_TILE_RECT.row,
+    FOSSIL_RIDGE_PATH_TILE_RECT.cols,
+    FOSSIL_RIDGE_PATH_TILE_RECT.rows,
   ),
 };

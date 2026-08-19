@@ -4,7 +4,11 @@
  * as `zones.ts`/`pirateBuilderBayZones.ts`/`wonderwildForestZones.ts` — see
  * `zones.ts`'s header comment for why this lives apart from `worldObjects.ts`.
  */
-import { HARBOR_EXIT_TILE_RECT, STORY_HALL_TILE_RECT } from './storykeeperCastleTilemap';
+import {
+  HARBOR_EXIT_TILE_RECT,
+  LAST_BOOKSHELF_TILE_RECT,
+  STORY_HALL_TILE_RECT,
+} from './storykeeperCastleTilemap';
 import { TILE_SIZE } from './tilemap';
 import type { PixelRect } from './zones';
 
@@ -29,5 +33,11 @@ export const STORYKEEPER_CASTLE_ZONES: Record<string, PixelRect> = {
     HARBOR_EXIT_TILE_RECT.row,
     HARBOR_EXIT_TILE_RECT.cols,
     HARBOR_EXIT_TILE_RECT.rows,
+  ),
+  'castle-last-bookshelf': tileRectToPixels(
+    LAST_BOOKSHELF_TILE_RECT.col,
+    LAST_BOOKSHELF_TILE_RECT.row,
+    LAST_BOOKSHELF_TILE_RECT.cols,
+    LAST_BOOKSHELF_TILE_RECT.rows,
   ),
 };

@@ -26,11 +26,33 @@ describe("the Dragon's Sanctuary location", () => {
       changeKey: 'DRAGON_OF_EMBER_MOUNTAIN_COMPLETE',
     });
   });
+});
 
-  it('is the only currently-gated MVP location, so every other location stays always-visible', () => {
+describe('Fossil Ridge Camp location', () => {
+  it('is registered and gated on the Dinosaur Expedition story completing', () => {
+    const location = getIslandLocation('fossil-ridge-camp');
+    expect(location).toBeDefined();
+    expect(location?.unlockRequirement).toEqual({ changeKey: 'DINOSAUR_EXPEDITION_COMPLETE' });
+  });
+});
+
+describe('the Writing Room location', () => {
+  it('is registered and gated on the Castle Secret Door story completing', () => {
+    const location = getIslandLocation('castle-writing-room');
+    expect(location).toBeDefined();
+    expect(location?.unlockRequirement).toEqual({
+      changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE',
+    });
+  });
+});
+
+describe('gated MVP locations overall', () => {
+  it('gates exactly the three story-payoff locations, leaving every original MVP location always-visible', () => {
     const gatedSlugs = ISLAND_LOCATIONS.filter((item) => item.unlockRequirement).map(
       (item) => item.slug,
     );
-    expect(gatedSlugs).toEqual(['dragons-sanctuary']);
+    expect(gatedSlugs.sort()).toEqual(
+      ['castle-writing-room', 'dragons-sanctuary', 'fossil-ridge-camp'].sort(),
+    );
   });
 });

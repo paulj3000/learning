@@ -131,8 +131,8 @@ Sprout-playable content in the repository. See the "Completed" section
 below (the block starting "Phase 15 — Adventure Library") for what shipped,
 including the copy bug browser verification caught in the age-gate note.
 
-**Phase 16 — Island Progression** (roadmap section 35) now has seven of its
-eight roadmap deliverables touched by a real, working example. First slice:
+**Phase 16 — Island Progression** (roadmap section 35) now has all eight
+roadmap deliverables touched by a real, working example. First slice:
 location unlocking and a secret location, proved end-to-end — completing
 "The Dragon of Ember Mountain" (Phase 12) unlocks a new, real spatial
 location, the Dragon's Sanctuary, where the dragon appears as a returning
@@ -145,18 +145,26 @@ NPC arrival (a butterfly that only appears in Wonderwild Forest once "Save
 the Butterfly Garden" is completed elsewhere — the one deliberate small
 engine extension this slice needed, `DecorDefinition.requiredChangeKey`),
 and seasonal world state (a real-world-date-driven note on Welcome Harbor,
-the one deliverable with no `WorldChange` to key off). See the "Completed"
-section below (the block starting "Phase 16 — Island Progression") for the
-full breakdown, including the deliberate decision *not* to add the
-`ChildWorldState` model `docs/DATA_MODEL.md` had already specified but never
-implemented. Not yet touched: "story-dependent environmental changes" only
-has the one Dragon-story example — three more ready-made story-completion
-hooks exist (`fossil-ridge`/`robot-repair-reef`/`castle-secret-passage`
-pseudo-locations from Phase 15's other arcs) but were deliberately left for
-a future session rather than picked unilaterally, since `robot-repair-reef`
-specifically shares its name with a `docs/ROADMAP.md` "Post-MVP candidate"
-location that CLAUDE.md section 12 says needs explicit approval before any
-real scope is built under that name.
+the one deliverable with no `WorldChange` to key off). Third slice, a later
+session, user-confirmed: two more story-dependent payoff locations, Fossil
+Ridge Camp ("Dinosaur Expedition") and the Writing Room ("The Castle's
+Secret Door") — the two ready-made hooks from the second slice's note that
+carried no naming-collision risk, following the exact same secret-location
+pattern the Dragon's Sanctuary established, including one deliberate
+variation: the Writing Room is reached from *inside* Storykeeper Castle
+itself (behind its existing Great Library bookshelf, matching the story's
+own "behind the last bookshelf" framing) rather than from Welcome Harbor,
+so it is also the first Phase 16 payoff whose own exit leads back into
+another location's spatial scene instead of to Welcome Harbor. See the
+"Completed" section below (the block starting "Phase 16 — Island
+Progression") for the full breakdown, including the deliberate decision
+*not* to add the `ChildWorldState` model `docs/DATA_MODEL.md` had already
+specified but never implemented. Still deliberately not built: a
+Robot-Rescue-driven location, since its pseudo-location slug
+(`robot-repair-reef`) collides in name with a `docs/ROADMAP.md` "Post-MVP
+candidate" that CLAUDE.md section 12 says needs explicit approval before
+real scope goes under that name — that decision was not revisited this
+session and remains open.
 
 Phase 9 build notes follow; building on the first slice (`phaser`
 dependency, `PhaserGameContainer` React/Phaser lifecycle boundary,
@@ -762,19 +770,21 @@ construction, ecosystem restoration, new NPC arrivals, story-dependent
 environmental changes, secret locations, returning characters, and
 seasonal world state — connecting story/adventure completion to lasting
 changes across the whole island rather than isolated per-location world
-changes. Two slices are now built in this session — see the "Completed"
-section's "Phase 16 — Island Progression" block for the full list. Still
-open for a future session: a second (or third) "story-dependent
-environmental change" example beyond the one Dragon's Sanctuary location —
-Dinosaur Expedition (`fossil-ridge`) and Castle's Secret Door
-(`castle-secret-passage`) are ready-made hooks with no scope concerns;
-Robot Rescue (`robot-repair-reef`) needs a product decision first, since
-that name is already a `docs/ROADMAP.md` "Post-MVP candidate" and building
-real scope under it without approval would risk pre-committing to a bigger
-vision than a small Phase 16 payoff location. Also open: a `ChildWorldState`
-model scoped to just `discoveredObjects`/`discoveredCharacters` once a
-deliverable actually needs to remember what a child has seen or met (see
-`docs/DATA_MODEL.md`'s note).
+changes. Three slices are now built across two sessions — see the
+"Completed" section's "Phase 16 — Island Progression" block for the full
+list. All eight roadmap deliverables now have at least one working example.
+Still open: a Robot-Rescue-driven fourth payoff location under the
+`robot-repair-reef` pseudo-location slug, deliberately not built since that
+name is already a `docs/ROADMAP.md` "Post-MVP candidate" and building real
+scope under it without approval would risk pre-committing to a bigger
+vision than a small Phase 16 payoff location — this needs a product
+decision, not more engineering. Also open: a `ChildWorldState` model scoped
+to just `discoveredObjects`/`discoveredCharacters` once a deliverable
+actually needs to remember what a child has seen or met (see
+`docs/DATA_MODEL.md`'s note); and, per every Phase 16 verification note
+below, a real `ampx sandbox` deploy and browser play-through of all five new
+locations, since none of this has ever actually rendered inside a real
+`Phaser.Game`.
 
 - **Phase 8 - Data deletion flow**
   (`src/features/child-profile/deletion.ts`, new): the Phase 8 deliverable
@@ -1989,6 +1999,60 @@ deliverable actually needs to remember what a child has seen or met (see
     pre-existing, already-documented precedent that no `scenes/*.ts` file
     has a unit test (Phaser dependency, needs a rendering context).
 
+  Third slice, a later session, at the user's explicit request to continue
+  with the two safe hooks the second slice's note had identified — two more
+  full "additive location" payoffs, same file set and pattern as the
+  Dragon's Sanctuary, no engine changes beyond what the second slice already
+  added:
+  - **Fossil Ridge Camp** (`fossilRidgeCampTilemap.ts`/`Zones.ts`/`Decor.ts`,
+    `scenes/FossilRidgeCampScene.ts`, `FossilRidgeCampWorldView.tsx`,
+    `routes/FossilRidgeCampWorldPage.tsx`): unlocked by
+    `DINOSAUR_EXPEDITION_COMPLETE`, reached from a new gated `fossil-ridge-path`
+    interaction in `WELCOME_HARBOR_INTERACTIONS` (same pattern as the
+    Dragon's `mountain-path`, its own new zone in `zones.ts`/`tilemap.ts`).
+    A fully assembled dinosaur skeleton (new `SKELETON` `DecorShape`) is the
+    "persistent construction" payoff — the story's own evidence ("round
+    feet, blunt toes, huge steps... a giant plant eater") echoed back once
+    assembled — plus the dig tools left at camp (reusing the existing
+    `TOOLBOX` shape).
+  - **The Writing Room** (`castleWritingRoomTilemap.ts`/`Zones.ts`/`Decor.ts`,
+    `scenes/CastleWritingRoomScene.ts`, `CastleWritingRoomWorldView.tsx`,
+    `routes/CastleWritingRoomWorldPage.tsx`): unlocked by
+    `THE_CASTLES_SECRET_DOOR_COMPLETE`. **The one deliberate variation from
+    the established pattern**: reached from *inside* Storykeeper Castle
+    itself, not Welcome Harbor — a new `castle-last-bookshelf` interaction
+    and zone (`storykeeperCastleTilemap.ts`'s new `LAST_BOOKSHELF_TILE_RECT`,
+    positioned around the castle's existing Great Library bookshelf prop)
+    matches the story's own "behind the last bookshelf" framing exactly, and
+    its own exit `NAVIGATE`s to `world/storykeeper-castle` rather than
+    `world` (Welcome Harbor) — the first Phase 16 payoff whose exit returns
+    into another location's spatial scene rather than to Welcome Harbor. The
+    room's own floor uses the `CARPET` tile as its *base* grid (not a
+    tile-override — there is nothing to transform now, since reaching this
+    location at all already means the story is done), and its writing desk
+    (new `DESK` `DecorShape`) sits beside the reused `BOOKSHELF` shape
+    Storykeeper Castle's own Phase 14 content already added.
+  - **`src/features/island/locations.ts`**: two new gated entries,
+    `fossil-ridge-camp` and `castle-writing-room`, same `unlockRequirement`
+    shape as `dragons-sanctuary`; `IslandLocationPage.tsx`'s per-slug walk-link
+    branches and `AppRoutes.tsx`'s lazy world routes both extended the same
+    way as the first slice.
+  - Unit tests: `fossilRidgeCampZones.test.ts`/`fossilRidgeCampTilemap.test.ts`,
+    `castleWritingRoomZones.test.ts`/`castleWritingRoomTilemap.test.ts` (same
+    structural-guard shape as every other location's own tests, including a
+    tile-by-tile check that `castleWritingRoomTilemap.ts` is `CARPET`
+    everywhere outside the exit path), `FossilRidgeCampWorldView.test.tsx`/
+    `CastleWritingRoomWorldView.test.tsx` (loading, locked/"not discovered
+    yet" state, and the unlocked scene rendering every interaction —
+    identical shape to `DragonsSanctuaryWorldView.test.tsx`); `locations.test.ts`
+    extended for both new locations and a rewritten "gated locations
+    overall" check now expecting all three payoff slugs.
+  - No standalone `*Decor.test.ts` file for either location's decor module,
+    consistent with the precedent this session's *first* slice already set
+    for `dragonsSanctuaryDecor.ts` (no such file exists for it either) —
+    decor content is exercised indirectly through each `*WorldView.test.tsx`
+    asserting the rendered interaction titles/messages instead.
+
 ## Verification (Phase 15 session)
 
 - `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
@@ -2015,18 +2079,20 @@ deliverable actually needs to remember what a child has seen or met (see
   owner-scoped `.list()` call plus content that runs through the already
   live-verified Story and Adventure Engines.
 
-## Verification (Phase 16 session)
+## Verification (Phase 16 sessions)
+
+Covers all three slices, the third run in a separate later session.
 
 - `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
-  `scripts/tsconfig.json`).
-- `npm run lint` — passed; the one new warning
-  (`DragonsSanctuaryWorldView.tsx`'s `role="dialog"`) is the identical
-  pre-existing pattern every other `*WorldView.tsx` already has, not a new
+  `scripts/tsconfig.json`) after every slice.
+- `npm run lint` — passed after every slice; the only new warnings across
+  all three are `role="dialog"` on each new `*WorldView.tsx`, the identical
+  pre-existing pattern every prior `*WorldView.tsx` already has, not a new
   issue class.
 - `npm run format:check` / `prettier --write` — passed after formatting the
-  files whose manual indentation didn't match Prettier's (across both
-  slices).
-- `npm run test` — passed (70 files, 585 tests, up from 64 files/547).
+  files whose manual indentation didn't match Prettier's, each slice.
+- `npm run test` — passed (76 files, 609 tests, up from 64 files/547 before
+  Phase 16 started).
 - **Not done this session**: no `npm run build`/`test:e2e` run, and no
   `ampx sandbox` deploy or browser verification (no AWS credentials in this
   environment, same constraint as every prior phase). This phase added no
@@ -2046,7 +2112,13 @@ deliverable actually needs to remember what a child has seen or met (see
   `requiredChangeKey`) that render only inside a real `Phaser.Game` — worth
   the same live check: complete "The Storykeeper's Tale"/"Buzz and the
   Waggle Dance"/"Save the Butterfly Garden" and confirm the castle floor,
-  forest floor, and butterfly actually appear.
+  forest floor, and butterfly actually appear. The third slice adds two
+  more never-rendered spatial locations to that same live-verification
+  backlog — Fossil Ridge Camp and the Writing Room — plus one new codepath
+  the first two locations didn't exercise: the Writing Room's `NAVIGATE`
+  target is `world/storykeeper-castle` rather than the `world`/`locations/...`
+  shapes every other exit uses, worth specifically confirming it actually
+  lands back inside the castle scene rather than erroring or 404ing.
 
 ## Verification (Phase 12 session)
 

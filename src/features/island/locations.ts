@@ -71,6 +71,26 @@ export const ISLAND_LOCATIONS: IslandLocation[] = [
     decoration: 'The dragon rests peacefully beside her egg.',
     unlockRequirement: { changeKey: 'DRAGON_OF_EMBER_MOUNTAIN_COMPLETE' },
   },
+  {
+    slug: 'fossil-ridge-camp',
+    title: 'Fossil Ridge Camp',
+    tagline: 'A secret spot, discovered by finishing a dinosaur mystery.',
+    description:
+      'The dig is finished, and a giant plant-eating dinosaur now stands fully assembled at camp. Come see what the evidence uncovered.',
+    skills: ['Observation', 'Reasoning'],
+    decoration: 'A huge assembled skeleton stands proudly at the ridge.',
+    unlockRequirement: { changeKey: 'DINOSAUR_EXPEDITION_COMPLETE' },
+  },
+  {
+    slug: 'castle-writing-room',
+    title: 'The Writing Room',
+    tagline: 'A secret spot, discovered by solving the castle mystery.',
+    description:
+      'A small round room behind the last bookshelf: a desk, a window, and shelves of empty books, left ready for whoever solved the door.',
+    skills: ['Curiosity', 'Creative writing'],
+    decoration: 'Shelves of empty books wait for their first stories.',
+    unlockRequirement: { changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE' },
+  },
 ];
 
 export function getIslandLocation(slug: string): IslandLocation | undefined {

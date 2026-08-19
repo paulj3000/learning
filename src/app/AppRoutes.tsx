@@ -51,6 +51,16 @@ const DragonsSanctuaryWorldPage = lazy(() =>
     default: module.DragonsSanctuaryWorldPage,
   })),
 );
+const FossilRidgeCampWorldPage = lazy(() =>
+  import('../routes/FossilRidgeCampWorldPage').then((module) => ({
+    default: module.FossilRidgeCampWorldPage,
+  })),
+);
+const CastleWritingRoomWorldPage = lazy(() =>
+  import('../routes/CastleWritingRoomWorldPage').then((module) => ({
+    default: module.CastleWritingRoomWorldPage,
+  })),
+);
 
 export function AppRoutes() {
   return (
@@ -168,6 +178,26 @@ export function AppRoutes() {
           <RequireParent>
             <Suspense fallback={<p>Loading the Dragon's Sanctuary...</p>}>
               <DragonsSanctuaryWorldPage />
+            </Suspense>
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/world/fossil-ridge-camp"
+        element={
+          <RequireParent>
+            <Suspense fallback={<p>Loading Fossil Ridge Camp...</p>}>
+              <FossilRidgeCampWorldPage />
+            </Suspense>
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/world/castle-writing-room"
+        element={
+          <RequireParent>
+            <Suspense fallback={<p>Loading the Writing Room...</p>}>
+              <CastleWritingRoomWorldPage />
             </Suspense>
           </RequireParent>
         }

@@ -80,6 +80,14 @@ export const CASTLE_PATH_TILE_RECT = { col: 12, row: 0, cols: 3, rows: 2 };
  */
 export const MOUNTAIN_PATH_TILE_RECT = { col: 20, row: 0, cols: 3, rows: 2 };
 
+/**
+ * Tile-space rectangle for the hidden path zone leading to Fossil Ridge
+ * Camp (docs/ROADMAP.md Phase 16, second "story-dependent environmental
+ * change" example, alongside the Dragon's Sanctuary). Same "no visible
+ * tell before the story completes" reasoning as `MOUNTAIN_PATH_TILE_RECT`.
+ */
+export const FOSSIL_RIDGE_PATH_TILE_RECT = { col: 8, row: 0, cols: 3, rows: 2 };
+
 function fillTileRect(
   grid: HarborTileId[][],
   rect: { col: number; row: number; cols: number; rows: number },

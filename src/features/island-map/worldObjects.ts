@@ -194,6 +194,15 @@ export const WELCOME_HARBOR_INTERACTIONS: WorldInteraction[] = [
     ],
     action: { kind: 'NAVIGATE', to: 'locations/dragons-sanctuary' },
   },
+  {
+    id: 'fossil-ridge-path',
+    type: 'LOCATION',
+    trigger: 'APPROACH',
+    title: 'A trail marked with fresh footprints',
+    targetId: 'fossil-ridge-camp',
+    requirements: [{ type: 'WORLD_CHANGE_PRESENT', changeKey: 'DINOSAUR_EXPEDITION_COMPLETE' }],
+    action: { kind: 'NAVIGATE', to: 'locations/fossil-ridge-camp' },
+  },
 ];
 
 /**
@@ -569,6 +578,15 @@ export const STORYKEEPER_CASTLE_INTERACTIONS: WorldInteraction[] = [
     requirements: [{ type: 'ALWAYS' }],
     action: { kind: 'NAVIGATE', to: 'world' },
   },
+  {
+    id: 'castle-last-bookshelf',
+    type: 'LOCATION',
+    trigger: 'APPROACH',
+    title: 'The last bookshelf, standing ajar',
+    targetId: 'castle-writing-room',
+    requirements: [{ type: 'WORLD_CHANGE_PRESENT', changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE' }],
+    action: { kind: 'NAVIGATE', to: 'locations/castle-writing-room' },
+  },
 ];
 
 /**
@@ -618,5 +636,94 @@ export const DRAGONS_SANCTUARY_INTERACTIONS: WorldInteraction[] = [
     targetId: 'welcome-harbor',
     requirements: [{ type: 'ALWAYS' }],
     action: { kind: 'NAVIGATE', to: 'world' },
+  },
+];
+
+/**
+ * Fossil Ridge Camp's Phase 16 interactions (docs/ROADMAP.md Phase 16,
+ * "Island Progression"): the second "story-dependent environmental change"
+ * example, alongside the Dragon's Sanctuary. Every entry is unconditionally
+ * available, since reaching the location at all already requires
+ * `DINOSAUR_EXPEDITION_COMPLETE`.
+ */
+export const FOSSIL_RIDGE_CAMP_INTERACTIONS: WorldInteraction[] = [
+  {
+    id: 'meet-the-fossil',
+    type: 'DISCOVERY',
+    trigger: 'TAP',
+    title: 'The assembled skeleton',
+    targetId: 'fossil-ridge-skeleton',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'Round feet, blunt toes, huge steps: a giant plant eater, fully assembled at last.',
+    },
+  },
+  {
+    id: 'fossil-ridge-dig-tools',
+    type: 'OBJECT',
+    trigger: 'TAP',
+    title: 'A set of dig tools',
+    targetId: 'fossil-ridge-dig-tools',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'Brushes, a sieve, and a notebook full of measurements, ready for the next dig.',
+    },
+  },
+  {
+    id: 'fossil-ridge-camp-harbor-exit',
+    type: 'LOCATION',
+    trigger: 'APPROACH',
+    title: 'The path back to Welcome Harbor',
+    targetId: 'welcome-harbor',
+    requirements: [{ type: 'ALWAYS' }],
+    action: { kind: 'NAVIGATE', to: 'world' },
+  },
+];
+
+/**
+ * The Writing Room's Phase 16 interactions (docs/ROADMAP.md Phase 16,
+ * "Island Progression"): the third "story-dependent environmental change"
+ * example. Reached from inside Storykeeper Castle itself
+ * (`STORYKEEPER_CASTLE_INTERACTIONS`'s `castle-last-bookshelf`, matching the
+ * story's own "behind the last bookshelf" framing) rather than from Welcome
+ * Harbor, so its own exit leads back into the castle, not to Welcome
+ * Harbor. Every entry here is unconditionally available, since reaching the
+ * location at all already requires `THE_CASTLES_SECRET_DOOR_COMPLETE`.
+ */
+export const CASTLE_WRITING_ROOM_INTERACTIONS: WorldInteraction[] = [
+  {
+    id: 'writing-room-desk',
+    type: 'DISCOVERY',
+    trigger: 'TAP',
+    title: 'The writing desk',
+    targetId: 'writing-room-desk',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'You solved it, so it is yours to use. The first empty book is waiting.',
+    },
+  },
+  {
+    id: 'writing-room-bookshelf',
+    type: 'OBJECT',
+    trigger: 'TAP',
+    title: 'Shelves of empty books',
+    targetId: 'writing-room-bookshelf',
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'Shelf after shelf of blank books, left ready by the old Storykeepers.',
+    },
+  },
+  {
+    id: 'writing-room-castle-exit',
+    type: 'LOCATION',
+    trigger: 'APPROACH',
+    title: 'The path back into the castle',
+    targetId: 'storykeeper-castle',
+    requirements: [{ type: 'ALWAYS' }],
+    action: { kind: 'NAVIGATE', to: 'world/storykeeper-castle' },
   },
 ];

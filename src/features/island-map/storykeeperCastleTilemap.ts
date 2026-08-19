@@ -36,6 +36,16 @@ export const HARBOR_EXIT_TILE_RECT = { col: 0, row: 9, cols: 2, rows: 3 };
  */
 export const STORY_HALL_TILE_RECT = { col: 14, row: 9, cols: 3, rows: 3 };
 
+/**
+ * Tile-space rectangle for the walk-in zone around the Great Library's
+ * bookshelf prop (`storykeeperCastleDecor.ts`'s `castle-great-library`, at
+ * col 24 row 16) — Phase 16's "behind the last bookshelf" reveal
+ * (docs/ROADMAP.md Phase 16), gated by `THE_CASTLES_SECRET_DOOR_COMPLETE`.
+ * Deliberately not a distinct tile/color, same "no visible tell before the
+ * story completes" reasoning as `tilemap.ts`'s `MOUNTAIN_PATH_TILE_RECT`.
+ */
+export const LAST_BOOKSHELF_TILE_RECT = { col: 23, row: 15, cols: 3, rows: 3 };
+
 /** Tiles the avatar cannot walk onto. Nothing indoors collides. */
 export const STORYKEEPER_CASTLE_COLLIDING_TILES: readonly HarborTileId[] = [];
 

@@ -19,9 +19,12 @@ import { findInteraction, WELCOME_HARBOR_INTERACTIONS } from './worldObjects';
  * added for the Dragon's Sanctuary, Phase 16's "returning character"
  * example (`dragonsSanctuaryDecor.ts`); `BUTTERFLY` was added for
  * Wonderwild Forest's Phase 16 "new NPC arrival" example
- * (`wonderwildForestDecor.ts`, gated by `requiredChangeKey` below). The
- * shared scene renderer (`scenes/LocationScene.ts`) draws all twenty, so
- * any location's decor module can use any shape.
+ * (`wonderwildForestDecor.ts`, gated by `requiredChangeKey` below);
+ * `SKELETON` was added for Fossil Ridge Camp and `DESK` for the Writing
+ * Room, Phase 16's second and third "story-dependent environmental change"
+ * examples (`fossilRidgeCampDecor.ts`/`castleWritingRoomDecor.ts`). The
+ * shared scene renderer (`scenes/LocationScene.ts`) draws all twenty-two,
+ * so any location's decor module can use any shape.
  */
 export type DecorShape =
   | 'SIGN'
@@ -43,7 +46,9 @@ export type DecorShape =
   | 'EASEL'
   | 'DRAGON'
   | 'EGG'
-  | 'BUTTERFLY';
+  | 'BUTTERFLY'
+  | 'SKELETON'
+  | 'DESK';
 
 export interface DecorDefinition {
   id: string;
