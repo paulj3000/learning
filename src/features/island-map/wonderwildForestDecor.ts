@@ -60,6 +60,20 @@ export const WONDERWILD_FOREST_DECOR: DecorDefinition[] = [
     shape: 'MOON',
     ambientAnimation: 'NONE',
   },
+  /**
+   * Phase 16's "new NPC arrival" example (docs/ROADMAP.md Phase 16): only
+   * drawn once "Save the Butterfly Garden" (`src/features/story/content/saveTheButterflyGarden.ts`)
+   * has been completed elsewhere on the island — see `requiredChangeKey`
+   * on `DecorDefinition` (`decor.ts`) and `LocationScene.ts`'s `createDecor`.
+   */
+  {
+    id: 'wonderwild-butterfly',
+    interactionId: 'wonderwild-butterfly',
+    position: { x: 18 * TILE_SIZE + TILE_SIZE / 2, y: 6 * TILE_SIZE + TILE_SIZE / 2 },
+    shape: 'BUTTERFLY',
+    ambientAnimation: 'SWAY',
+    requiredChangeKey: 'SAVE_THE_BUTTERFLY_GARDEN_COMPLETE',
+  },
 ];
 
 /** Resolves a decor entry's linked `WorldInteraction`, throwing if content authoring drifted apart. */

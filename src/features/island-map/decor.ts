@@ -17,9 +17,11 @@ import { findInteraction, WELCOME_HARBOR_INTERACTIONS } from './worldObjects';
  * `WARDROBE`/`BOOKSHELF`/`EASEL` were added for Storykeeper Castle's Phase 14
  * creative-story rooms (`storykeeperCastleDecor.ts`); `DRAGON`/`EGG` were
  * added for the Dragon's Sanctuary, Phase 16's "returning character"
- * example (`dragonsSanctuaryDecor.ts`). The shared scene renderer
- * (`scenes/LocationScene.ts`) draws all nineteen, so any location's decor
- * module can use any shape.
+ * example (`dragonsSanctuaryDecor.ts`); `BUTTERFLY` was added for
+ * Wonderwild Forest's Phase 16 "new NPC arrival" example
+ * (`wonderwildForestDecor.ts`, gated by `requiredChangeKey` below). The
+ * shared scene renderer (`scenes/LocationScene.ts`) draws all twenty, so
+ * any location's decor module can use any shape.
  */
 export type DecorShape =
   | 'SIGN'
@@ -40,7 +42,8 @@ export type DecorShape =
   | 'BOOKSHELF'
   | 'EASEL'
   | 'DRAGON'
-  | 'EGG';
+  | 'EGG'
+  | 'BUTTERFLY';
 
 export interface DecorDefinition {
   id: string;
@@ -55,6 +58,14 @@ export interface DecorDefinition {
   position: { x: number; y: number };
   shape: DecorShape;
   ambientAnimation: 'SWAY' | 'NONE';
+  /**
+   * When set, this sprite is only drawn once `changeKey` is in the child's
+   * `WorldChange` history (docs/ROADMAP.md Phase 16, "new NPC arrivals") —
+   * absent means always drawn, the existing behavior every prior location's
+   * decor already relied on. `scenes/LocationScene.ts`'s `createDecor` is
+   * the one place that reads this.
+   */
+  requiredChangeKey?: string;
 }
 
 // Kept clear of the avatar's spawn point (col ~3.75, row 10 in

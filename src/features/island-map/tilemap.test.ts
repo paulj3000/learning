@@ -84,6 +84,11 @@ describe('buildHarborTileGrid', () => {
     expect(HARBOR_TILE_COLORS[HarborTile.BRIDGE_PLANK_REPAIRED]).toBeTypeOf('number');
     expect(HARBOR_TILE_COLORS[HarborTile.PATH]).toBeTypeOf('number');
   });
+
+  it('has a color for the Phase 16 ecosystem-restoration and persistent-construction tiles', () => {
+    expect(HARBOR_TILE_COLORS[HarborTile.BLOOM]).toBeTypeOf('number');
+    expect(HARBOR_TILE_COLORS[HarborTile.CARPET]).toBeTypeOf('number');
+  });
 });
 
 describe('applyTileOverride', () => {

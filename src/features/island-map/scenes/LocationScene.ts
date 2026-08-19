@@ -291,6 +291,12 @@ export class LocationScene extends Phaser.Scene {
 
   private createDecor(): void {
     for (const decor of this.locationConfig.decor) {
+      if (
+        decor.requiredChangeKey &&
+        !this.interactionContext.worldChangeKeys.includes(decor.requiredChangeKey)
+      ) {
+        continue;
+      }
       const sprite = this.drawDecorSprite(decor);
       this.tappables.push({ gameObject: sprite, interactionId: decor.interactionId });
       if (decor.ambientAnimation === 'SWAY' && !this.reducedMotion) {
@@ -469,6 +475,16 @@ export class LocationScene extends Phaser.Scene {
         graphics.fillStyle(0xf2a541, 1);
         graphics.fillCircle(9, 14, 2);
         graphics.fillCircle(15, 22, 2);
+        break;
+      case 'BUTTERFLY':
+        graphics.fillStyle(0xe685c9, 1);
+        graphics.fillEllipse(7, 12, 10, 8);
+        graphics.fillEllipse(17, 12, 10, 8);
+        graphics.fillStyle(0xf4d35e, 1);
+        graphics.fillEllipse(8, 20, 7, 6);
+        graphics.fillEllipse(16, 20, 7, 6);
+        graphics.fillStyle(0x1b2733, 1);
+        graphics.fillRect(11, 8, 2, 18);
         break;
     }
     const textureKey = `${this.locationConfig.sceneKey}-decor-${decor.id}`;

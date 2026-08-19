@@ -411,6 +411,21 @@ export const WONDERWILD_FOREST_INTERACTIONS: WorldInteraction[] = [
     },
   },
   {
+    id: 'wonderwild-butterfly',
+    type: 'DISCOVERY',
+    trigger: 'TAP',
+    title: 'A visiting butterfly',
+    targetId: 'wonderwild-butterfly',
+    requirements: [
+      { type: 'WORLD_CHANGE_PRESENT', changeKey: 'SAVE_THE_BUTTERFLY_GARDEN_COMPLETE' },
+    ],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message:
+        'A bright butterfly drifts past. Word travels fast when a garden comes back to life!',
+    },
+  },
+  {
     id: 'wonderwild-harbor-exit',
     type: 'LOCATION',
     trigger: 'APPROACH',

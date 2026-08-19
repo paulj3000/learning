@@ -131,17 +131,32 @@ Sprout-playable content in the repository. See the "Completed" section
 below (the block starting "Phase 15 — Adventure Library") for what shipped,
 including the copy bug browser verification caught in the age-gate note.
 
-**Phase 16 — Island Progression** (roadmap section 35) has its first slice
-started: location unlocking and a secret location, proved end-to-end with
-one concrete example — completing "The Dragon of Ember Mountain" (Phase 12)
-now unlocks a new, real spatial location, the Dragon's Sanctuary, where the
-dragon appears as a returning character. See the "Completed" section below
-(the block starting "Phase 16 — Island Progression") for what shipped,
-including the deliberate decision *not* to add the `ChildWorldState` model
-`docs/DATA_MODEL.md` had already specified but never implemented. The
-remaining Phase 16 deliverables (persistent construction beyond the bridge,
-ecosystem restoration, further NPC arrivals, seasonal world state) are still
-open — see "Next task" below.
+**Phase 16 — Island Progression** (roadmap section 35) now has seven of its
+eight roadmap deliverables touched by a real, working example. First slice:
+location unlocking and a secret location, proved end-to-end — completing
+"The Dragon of Ember Mountain" (Phase 12) unlocks a new, real spatial
+location, the Dragon's Sanctuary, where the dragon appears as a returning
+character. Second slice, same session: persistent construction and
+ecosystem restoration (Storykeeper Castle's floor and Wonderwild Forest's
+whole forest floor now visually transform once their own story/adventure
+completes, the same tile-override mechanism the Moonlight Bridge already
+proved, just applied grid-wide instead of to one rectangle), a second new
+NPC arrival (a butterfly that only appears in Wonderwild Forest once "Save
+the Butterfly Garden" is completed elsewhere — the one deliberate small
+engine extension this slice needed, `DecorDefinition.requiredChangeKey`),
+and seasonal world state (a real-world-date-driven note on Welcome Harbor,
+the one deliverable with no `WorldChange` to key off). See the "Completed"
+section below (the block starting "Phase 16 — Island Progression") for the
+full breakdown, including the deliberate decision *not* to add the
+`ChildWorldState` model `docs/DATA_MODEL.md` had already specified but never
+implemented. Not yet touched: "story-dependent environmental changes" only
+has the one Dragon-story example — three more ready-made story-completion
+hooks exist (`fossil-ridge`/`robot-repair-reef`/`castle-secret-passage`
+pseudo-locations from Phase 15's other arcs) but were deliberately left for
+a future session rather than picked unilaterally, since `robot-repair-reef`
+specifically shares its name with a `docs/ROADMAP.md` "Post-MVP candidate"
+location that CLAUDE.md section 12 says needs explicit approval before any
+real scope is built under that name.
 
 Phase 9 build notes follow; building on the first slice (`phaser`
 dependency, `PhaserGameContainer` React/Phaser lifecycle boundary,
@@ -747,14 +762,19 @@ construction, ecosystem restoration, new NPC arrivals, story-dependent
 environmental changes, secret locations, returning characters, and
 seasonal world state — connecting story/adventure completion to lasting
 changes across the whole island rather than isolated per-location world
-changes. Its first slice (location unlocking + a secret location, using the
-existing Dragon story as the trigger) is now built — see the "Completed"
-section's "Phase 16 — Island Progression" block. Still open for a future
-session: persistent construction/ecosystem restoration content for the
-*existing* three MVP locations (today only the Moonlight Bridge does this),
-further NPC arrivals and returning characters beyond the one dragon
-example, and seasonal world state (roadmap section 35's one deliverable
-with no natural hook yet in any existing content).
+changes. Two slices are now built in this session — see the "Completed"
+section's "Phase 16 — Island Progression" block for the full list. Still
+open for a future session: a second (or third) "story-dependent
+environmental change" example beyond the one Dragon's Sanctuary location —
+Dinosaur Expedition (`fossil-ridge`) and Castle's Secret Door
+(`castle-secret-passage`) are ready-made hooks with no scope concerns;
+Robot Rescue (`robot-repair-reef`) needs a product decision first, since
+that name is already a `docs/ROADMAP.md` "Post-MVP candidate" and building
+real scope under it without approval would risk pre-committing to a bigger
+vision than a small Phase 16 payoff location. Also open: a `ChildWorldState`
+model scoped to just `discoveredObjects`/`discoveredCharacters` once a
+deliverable actually needs to remember what a child has seen or met (see
+`docs/DATA_MODEL.md`'s note).
 
 - **Phase 8 - Data deletion flow**
   (`src/features/child-profile/deletion.ts`, new): the Phase 8 deliverable
@@ -1915,6 +1935,60 @@ with no natural hook yet in any existing content).
     `worldObjects.test.ts` needed no changes since both already generically
     cover every interaction/zone in their respective registries.
 
+  Second slice, same session — persistent construction, ecosystem
+  restoration, a second NPC arrival, and seasonal world state, all still
+  with no schema change:
+  - **Two new `HarborTile` ids** (`tilemap.ts`): `BLOOM` (flowering ground)
+    and `CARPET` (a decorated floor), appended after `PATH` so every
+    existing tile id keeps its numeric value (`HarborTile` values double as
+    `HARBOR_TILE_COLORS` array indices — inserting instead of appending
+    would have silently reassigned every tile's color).
+  - **Persistent construction** (`scenes/StorykeeperCastleScene.ts`): a
+    `tileOverrides` entry swaps every `SAND` (stone floor) tile to `CARPET`
+    once `FIRST_STORY_TOLD` exists — the castle transforms once its first
+    story is told.
+  - **Ecosystem restoration** (`scenes/WonderwildForestScene.ts`): the same
+    mechanism swaps every `GRASS` tile to `BLOOM` once
+    `WAGGLE_DANCE_DISCOVERED` exists. Both reuse `LocationScene.createTilemap`'s
+    existing whole-grid find/replace (the same mechanism the Moonlight
+    Bridge's `BRIDGE_PLANK`→`BRIDGE_PLANK_REPAIRED` swap already proved) —
+    applied to every matching tile in the grid rather than one authored
+    rectangle, a deliberate choice ("the whole location changes because you
+    changed it" reads as a bigger, more legible payoff than a patch) that
+    needed no new code, only a different `from`/`to` pair.
+  - **A second new NPC arrival, and the one real engine extension this
+    slice needed** (`decor.ts`, `scenes/LocationScene.ts`): decor sprites
+    were previously always drawn regardless of world state — fine for every
+    location built so far, but "new NPC arrivals" as a roadmap deliverable
+    needs a sprite that is *absent* until something happens. Added
+    `DecorDefinition.requiredChangeKey?: string`; `LocationScene.createDecor`
+    now skips any decor entry whose key isn't yet in
+    `worldChangeKeys`. One new `DecorShape`, `BUTTERFLY`. Applied to
+    Wonderwild Forest (`wonderwildForestDecor.ts`): a butterfly only
+    appears once `SAVE_THE_BUTTERFLY_GARDEN_COMPLETE` is recorded (Phase
+    15's "Save the Butterfly Garden" arc, a story this session did not
+    otherwise touch — its `completionWorldChange` already existed and just
+    needed a payoff somewhere). The matching `wonderwild-butterfly` tap
+    interaction in `worldObjects.ts` is itself gated the same way, so it
+    also never appears in the accessible "Things to do here" list before
+    then — the sprite being invisible was not, on its own, enough to keep
+    it out of that list.
+  - **Seasonal world state** (`src/features/island/seasons.ts`, new): the
+    one Phase 16 deliverable with no `WorldChange`/story to key off, so it
+    is a small pure function of the real-world date instead, the same shape
+    as the pre-existing `events.ts`'s `getTodaysEvent` (deterministic,
+    stable across a day, no AI, no backend). `getSeason`/`getSeasonalIslandNote`
+    map the UTC month to one of four fixed notes. Wired into
+    `WelcomeHarbor.tsx` as a second line under the existing daily event.
+  - Unit tests: `tilemap.test.ts` (a color exists for both new tile ids);
+    `wonderwildForestDecor.test.ts` (the butterfly's `requiredChangeKey`);
+    `seasons.test.ts` (new — every UTC month maps to the right season,
+    including the December/January wrap, and the note is stable for a
+    given date). No new test for `LocationScene.createDecor`'s gating logic
+    itself or for the tile-override changes — consistent with the
+    pre-existing, already-documented precedent that no `scenes/*.ts` file
+    has a unit test (Phaser dependency, needs a rendering context).
+
 ## Verification (Phase 15 session)
 
 - `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
@@ -1950,8 +2024,9 @@ with no natural hook yet in any existing content).
   pre-existing pattern every other `*WorldView.tsx` already has, not a new
   issue class.
 - `npm run format:check` / `prettier --write` — passed after formatting the
-  three files whose manual indentation didn't match Prettier's.
-- `npm run test` — passed (69 files, 569 tests, up from 64 files/547).
+  files whose manual indentation didn't match Prettier's (across both
+  slices).
+- `npm run test` — passed (70 files, 585 tests, up from 64 files/547).
 - **Not done this session**: no `npm run build`/`test:e2e` run, and no
   `ampx sandbox` deploy or browser verification (no AWS credentials in this
   environment, same constraint as every prior phase). This phase added no
@@ -1965,7 +2040,13 @@ with no natural hook yet in any existing content).
   A real play-through — finishing the Dragon story, confirming the
   `mountain-path` reveal appears at Welcome Harbor, and walking into the
   Dragon's Sanctuary — should be the first thing checked against a live
-  deploy.
+  deploy. The second slice's two `tileOverrides` entries and the gated
+  butterfly decor are new `LocationScene` codepaths (whole-grid tile
+  find/replace with a second `from`/`to` pair; a decor entry skipped by
+  `requiredChangeKey`) that render only inside a real `Phaser.Game` — worth
+  the same live check: complete "The Storykeeper's Tale"/"Buzz and the
+  Waggle Dance"/"Save the Butterfly Garden" and confirm the castle floor,
+  forest floor, and butterfly actually appear.
 
 ## Verification (Phase 12 session)
 

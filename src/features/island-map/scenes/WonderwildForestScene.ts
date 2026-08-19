@@ -9,7 +9,7 @@ import {
   WORLD_HEIGHT,
   WORLD_WIDTH,
 } from '../wonderwildForestTilemap';
-import { HARBOR_TILE_COLORS, TILE_SIZE } from '../tilemap';
+import { HARBOR_TILE_COLORS, HarborTile, TILE_SIZE } from '../tilemap';
 
 export { WORLD_WIDTH, WORLD_HEIGHT };
 export const WONDERWILD_FOREST_SCENE_KEY = 'wonderwild-forest';
@@ -25,7 +25,13 @@ const WONDERWILD_FOREST_CONFIG: Omit<LocationSceneConfig, 'sceneKey'> = {
   tileGrid: WONDERWILD_FOREST_TILE_GRID,
   tileColors: HARBOR_TILE_COLORS,
   collidingTiles: WONDERWILD_COLLIDING_TILES,
-  tileOverrides: [],
+  tileOverrides: [
+    {
+      changeKey: 'WAGGLE_DANCE_DISCOVERED',
+      from: HarborTile.GRASS,
+      to: HarborTile.BLOOM,
+    },
+  ],
   avatarSpawn: AVATAR_START,
   worldWidth: WORLD_WIDTH,
   worldHeight: WORLD_HEIGHT,
@@ -39,6 +45,15 @@ const WONDERWILD_FOREST_CONFIG: Omit<LocationSceneConfig, 'sceneKey'> = {
  * the pond's collision — is this forest's own data bound to the shared
  * engine; no engine changes were needed beyond the new `DecorShape`s already
  * added to `scenes/LocationScene.ts`.
+ *
+ * The `tileOverrides` entry is Phase 16's "ecosystem restoration"
+ * (docs/ROADMAP.md Phase 16): once `WAGGLE_DANCE_DISCOVERED` is recorded
+ * (completing "Buzz and the Waggle Dance"), the whole forest floor blooms
+ * from `GRASS` to `BLOOM` — the same swap-the-whole-grid mechanism the
+ * bay's bridge repair already uses, just applied to every matching tile
+ * instead of one rectangle, since "the forest changes because you
+ * understood it" reads better as a sweeping change than a patch around one
+ * spot.
  */
 export class WonderwildForestScene extends LocationScene {
   constructor(bus: WorldEventBus, interactionContext: WorldInteractionContext, avatarKey: string) {

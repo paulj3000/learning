@@ -58,4 +58,9 @@ describe('WONDERWILD_FOREST_DECOR', () => {
     expect(hive).toBeDefined();
     expect(hive!.interactionId).toBe('wonderwild-beehive-peek');
   });
+
+  it('only draws the butterfly once the Butterfly Garden story has been completed', () => {
+    const butterfly = WONDERWILD_FOREST_DECOR.find((decor) => decor.id === 'wonderwild-butterfly');
+    expect(butterfly?.requiredChangeKey).toBe('SAVE_THE_BUTTERFLY_GARDEN_COMPLETE');
+  });
 });

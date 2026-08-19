@@ -9,7 +9,7 @@ import {
   WORLD_HEIGHT,
   WORLD_WIDTH,
 } from '../storykeeperCastleTilemap';
-import { HARBOR_TILE_COLORS, TILE_SIZE } from '../tilemap';
+import { HARBOR_TILE_COLORS, HarborTile, TILE_SIZE } from '../tilemap';
 
 export { WORLD_WIDTH, WORLD_HEIGHT };
 export const STORYKEEPER_CASTLE_SCENE_KEY = 'storykeeper-castle';
@@ -25,7 +25,13 @@ const STORYKEEPER_CASTLE_CONFIG: Omit<LocationSceneConfig, 'sceneKey'> = {
   tileGrid: STORYKEEPER_CASTLE_TILE_GRID,
   tileColors: HARBOR_TILE_COLORS,
   collidingTiles: STORYKEEPER_CASTLE_COLLIDING_TILES,
-  tileOverrides: [],
+  tileOverrides: [
+    {
+      changeKey: 'FIRST_STORY_TOLD',
+      from: HarborTile.SAND,
+      to: HarborTile.CARPET,
+    },
+  ],
   avatarSpawn: AVATAR_START,
   worldWidth: WORLD_WIDTH,
   worldHeight: WORLD_HEIGHT,
@@ -39,6 +45,12 @@ const STORYKEEPER_CASTLE_CONFIG: Omit<LocationSceneConfig, 'sceneKey'> = {
  * Pirate Pip). Everything else — tiles, zones, decor — is this castle's own
  * data bound to the shared engine; no engine changes were needed beyond the
  * new `DecorShape`s already added to `scenes/LocationScene.ts`.
+ *
+ * The `tileOverrides` entry is Phase 16's "persistent construction"
+ * (docs/ROADMAP.md Phase 16): once `FIRST_STORY_TOLD` is recorded
+ * (completing "The Storykeeper's Tale"), the whole stone floor becomes a
+ * carpeted `CARPET` floor, same whole-grid-swap reasoning as
+ * `WonderwildForestScene.ts`'s bloom.
  */
 export class StorykeeperCastleScene extends LocationScene {
   constructor(bus: WorldEventBus, interactionContext: WorldInteractionContext, avatarKey: string) {

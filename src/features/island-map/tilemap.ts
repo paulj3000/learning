@@ -25,6 +25,18 @@ export const HarborTile = {
   BRIDGE_PLANK_REPAIRED: 4,
   /** Trodden-dirt spurs leading toward the other locations' entrances. */
   PATH: 5,
+  /**
+   * Set in place of `GRASS` once a location's own "ecosystem restoration"
+   * `WorldChange` exists (docs/ROADMAP.md Phase 16), e.g. Wonderwild
+   * Forest's forest floor once `WAGGLE_DANCE_DISCOVERED` is recorded.
+   */
+  BLOOM: 6,
+  /**
+   * Set in place of `SAND` once a location's own "persistent construction"
+   * `WorldChange` exists (docs/ROADMAP.md Phase 16), e.g. Storykeeper
+   * Castle's stone floor once `FIRST_STORY_TOLD` is recorded.
+   */
+  CARPET: 7,
 } as const;
 
 export type HarborTileId = (typeof HarborTile)[keyof typeof HarborTile];
@@ -37,6 +49,8 @@ export const HARBOR_TILE_COLORS: readonly number[] = [
   0x8a5a34, // BRIDGE_PLANK
   0xd4a94e, // BRIDGE_PLANK_REPAIRED
   0xb08b62, // PATH
+  0xe685c9, // BLOOM
+  0xa8324c, // CARPET
 ];
 
 /** Tiles the avatar cannot walk onto. */
