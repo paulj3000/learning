@@ -185,7 +185,7 @@ export function ChildDashboard() {
     setDeleteError(null);
     try {
       await deleteChildProfileData(childProfile.id);
-      navigate('/parent');
+      navigate('/home');
     } catch (error) {
       setDeleteError(
         error instanceof Error ? error.message : 'Could not delete this child profile.',
@@ -213,7 +213,7 @@ export function ChildDashboard() {
         <h1 className={parentStyles.title}>
           {childProfile ? `${childProfile.nickname}'s activity` : 'Activity and controls'}
         </h1>
-        <Link to="/parent">Back to dashboard</Link>
+        <Link to="/home">Back to dashboard</Link>
       </header>
       <main className={parentStyles.main} id="main-content">
         {loadState === 'loading' ? <p>Loading activity...</p> : null}
@@ -289,7 +289,7 @@ export function ChildDashboard() {
                 </ul>
               )}
               {stories.length > 0 ? (
-                <Link className={styles.link} to={`/parent/children/${childProfile.id}/stories`}>
+                <Link className={styles.link} to={`/home/children/${childProfile.id}/stories`}>
                   View {stories.length} saved {stories.length === 1 ? 'story' : 'stories'}
                 </Link>
               ) : null}
@@ -356,7 +356,7 @@ export function ChildDashboard() {
                 </div>
                 <Link
                   className={styles.buttonSecondary}
-                  to={`/parent/children/${childProfile.id}/edit`}
+                  to={`/home/children/${childProfile.id}/edit`}
                 >
                   Change
                 </Link>
@@ -372,7 +372,7 @@ export function ChildDashboard() {
                 </div>
                 <Link
                   className={styles.buttonSecondary}
-                  to={`/parent/children/${childProfile.id}/edit`}
+                  to={`/home/children/${childProfile.id}/edit`}
                 >
                   Change
                 </Link>

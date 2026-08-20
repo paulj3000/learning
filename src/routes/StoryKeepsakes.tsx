@@ -79,7 +79,7 @@ export function StoryKeepsakes() {
         <h1 className={parentStyles.title}>
           {childProfile ? `${childProfile.nickname}'s story keepsakes` : 'Story keepsakes'}
         </h1>
-        <Link to="/parent">Back to dashboard</Link>
+        <Link to="/home">Back to dashboard</Link>
       </header>
       <main className={parentStyles.main} id="main-content">
         {loadState === 'loading' ? <p>Loading saved stories...</p> : null}

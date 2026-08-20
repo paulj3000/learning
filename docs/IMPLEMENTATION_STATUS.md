@@ -2354,6 +2354,192 @@ check the stream timestamp in the error message first: an ARN whose
 timestamp predates the current build means the ARN is stale again, while
 a current timestamp means the activation wait is genuinely too short.
 
+## Post-Phase-17: account menu, settings page, and `/parent` → `/home` route rename
+
+Not a roadmap phase — a parent-facing cleanup requested directly: the
+always-visible "Sign out" button and the huge "Delete account" button
+that both sat directly on the parent dashboard (`ParentDashboard.tsx`)
+were replaced with a small account menu, and account-level editing
+(name, email, password, delete account) moved to its own page.
+
+- **New: `src/components/UserMenu.tsx`/`.module.css`** — a user-icon
+  button in the dashboard header with `aria-haspopup="menu"` /
+  `aria-expanded`, opening a dropdown (`role="menu"`) with two
+  `menuitem`s: "Settings" (links to `/home/settings`) and, last, "Sign
+  out" (calls the existing `useAuth().signOut`). Closes on outside
+  click or Escape. `src/components/` was an empty scaffold directory
+  before this (only a `.gitkeep`) — first real component in it.
+- **New: `src/routes/AccountSettings.tsx`/`.module.css`**, route
+  `/home/settings` (`RequireParent`-guarded, same as every other
+  `/home*` route). Four sections: name, email, password, and the
+  "Delete account" danger zone moved verbatim out of
+  `ParentDashboard.tsx` (same confirm-then-delete pattern, same
+  `deleteAccountAndAllData()` call, same redirect to `/` on success).
+  Reuses existing style modules rather than duplicating them:
+  `ParentDashboard.module.css` for page chrome and the danger zone
+  (`.dangerZone`/`.buttonDanger`/`.confirm` are already shared across
+  `ChildDashboard.tsx` and `StoryKeepsakes.tsx`), `AuthForm.module.css`
+  for form field styling, and `validators.ts`/`errors.ts` for
+  validation and Cognito error copy — no new dependency.
+- **New: `src/features/auth/accountSettings.ts`** — thin wrappers
+  around `aws-amplify/auth`'s `updateUserAttributes` (email change,
+  reporting whether Cognito requires a confirmation code),
+  `confirmUserAttribute` (completes it), and `updatePassword`
+  (requires the current password; Cognito, not a passwordless flow).
+  Name changes go through a new `updateParentProfileDisplayName` in
+  `src/features/child-profile/api.ts` instead (it updates the
+  `ParentProfile` DynamoDB row, not a Cognito attribute — `displayName`
+  was already only sourced from Cognito at profile-creation time,
+  Phase 1, and never synced afterward).
+- **`errors.ts`**: added `AliasExistsException` ("That email address is
+  already in use by another account.") for the email-change flow,
+  Cognito's error when the new address is already an alias on a
+  different account.
+- **Route rename, `/parent*` → `/home*`**
+  (`src/app/AppRoutes.tsx` and every route/redirect that pointed at
+  it): `/parent` → `/home`, `/parent/children/new` →
+  `/home/children/new`, `/parent/children/:childId/edit` →
+  `/home/children/:childId/edit`, `/parent/children/:childId/stories` →
+  `/home/children/:childId/stories`,
+  `/parent/children/:childId/dashboard` →
+  `/home/children/:childId/dashboard`, `/parent/coop/new` →
+  `/home/coop/new`, plus the new `/home/settings`. Updated everywhere
+  a literal `/parent` path was `navigate()`d or linked to:
+  `RequireGuest.tsx`, `SignInForm.tsx`, `ConfirmSignUpForm.tsx`,
+  `IslandLayout.tsx`'s parent-gate exit, `ChildProfileNew.tsx`,
+  `ChildProfileEdit.tsx`, `ChildDashboard.tsx`, `StoryKeepsakes.tsx`,
+  `CoopSessionNew.tsx`, `ChildProfileList.tsx`, and
+  `RequireGuest.test.tsx`. The unrelated top-level `/` marketing
+  landing page (`Home.tsx`) is untouched and does not collide with the
+  new `/home` dashboard route. Historical phase notes earlier in this
+  file that quote the old `/parent` path (Phase 1's route list, the
+  `aiEnabled` bug-fix note, Phase 5/7/8/15 entries) are left as-is —
+  they describe what was true at the time, not a live route map;
+  `src/app/AppRoutes.tsx` is the source of truth for current routes.
+- **Tests added**: `src/components/UserMenu.test.tsx` (opens on click,
+  "Sign out" is last, clicking it calls `signOut` and closes the menu,
+  clicking outside closes it — mocks `useAuth`, same pattern as
+  `RequireGuest.test.tsx`) and
+  `src/features/auth/accountSettings.test.ts` (mocks `aws-amplify/auth`,
+  same pattern as `deletion.test.ts`; covers both the
+  confirmation-required and immediate-update branches of `changeEmail`).
+  `AccountSettings.tsx` itself has no automated test, the same
+  already-documented precedent as `ParentDashboard`/`ChildDashboard`/
+  `StoryKeepsakes` — it needs a live backend to exercise meaningfully.
+
+Verified `npm run typecheck`, `npm run lint`, and `npm test` (84 files,
+648 tests) all pass. Also added three `e2e/smoke.spec.ts` cases and ran
+`npm run test:e2e` (production build + Playwright/Chromium against the
+built preview server, 6/6 passed): `/home` and `/home/settings` both
+render `RequireParent`'s "island is not connected yet" guard rather
+than crashing or 404ing, and the old `/parent` path now correctly falls
+through to `NotFound` instead of resolving to anything. **Not
+deploy-verified beyond that** — same no-AWS-credentials constraint as
+every phase since Phase 8; there is no `amplify_outputs.json` in this
+environment, so `isAmplifyConfigured` is always `false` and the
+authenticated dashboard, the account menu's actual open/close/sign-out
+behavior in situ, and the three settings forms (especially the
+email-confirmation-code round trip, which needs a real Cognito user
+pool to exercise) could not be exercised in a live browser this
+session — `UserMenu.test.tsx` covers the menu's interactive behavior
+with a mocked `useAuth` instead. A real `ampx sandbox`/browser pass
+should confirm all of that against a live backend before this ships.
+
+## Post-Phase-17: admin section (read-only users, children, and progress)
+
+Not a roadmap phase — requested directly: "create an admin section... I
+should be able to see all of the users, children and the kids progress."
+This is the read-only "directory/progress" half of CLAUDE.md section 2's
+Administrator role (`docs/AUTHORIZATION_REVIEW.md` section 4.3, previously
+"no administrator role exists yet" — now partially built). The other half
+of that role — reviewing flagged `AIInteractionAudit`/`SafetyEvent` rows —
+is deliberately **not** touched this session; see "Known risks/TODOs"
+below for why.
+
+- **New Cognito group** (`amplify/auth/resource.ts`): `groups: ['Admins']`.
+  There is no self-serve way to join it (CLAUDE.md section 10: "Admin
+  access must be group-based and explicitly authorized") — an operator
+  grants it out-of-band: `aws cognito-idp admin-add-user-to-group
+  --user-pool-id <pool id> --username <email> --group-name Admins`.
+- **New authorization rule** (`amplify/data/resource.ts`): `ParentProfile`,
+  `ChildProfile`, `AdventureSession`, `SkillProgress`, and `WorldChange`
+  each gained `allow.group('Admins').to(['read'])` alongside their
+  existing `allow.owner()` rule — a second, independent rule that lets an
+  `Admins`-group caller's `.list()`/`.get()` return every parent's/child's
+  rows, not just their own. Deliberately scoped to exactly those five
+  models: `CompanionProfile`, `StoryArtifact`, `AIInteractionAudit`, and
+  `SafetyEvent` got no such rule, since they carry AI-narrated or
+  free-text-adjacent content and belong to the still-unbuilt
+  safety-review admin workflow, not this read-only directory.
+- **`AuthContext` gained `isAdmin`** (`src/features/auth/AuthContext.tsx`):
+  read from the signed-in user's ID token `cognito:groups` claim via
+  `fetchAuthSession()` (one extra call inside the existing `refresh()`,
+  alongside the `getCurrentUser()` call already made there), not a
+  separate model/query — group membership is a token claim, not
+  application data.
+- **New: `src/features/auth/RequireAdmin.tsx`** — mirrors
+  `RequireParent`'s `unconfigured`/`loading`/`unauthenticated` states
+  (redirects to `/sign-in` when unauthenticated), but an
+  authenticated-non-admin sees a plain "Not authorized" message rather
+  than a silent redirect, since redirecting somewhere else would be more
+  confusing than saying why the page didn't load.
+- **New: `src/features/admin/api.ts`** — `listAllParentProfiles`/
+  `listAllChildProfiles` (thin wrappers, same shape as every other
+  `api.ts` in this codebase), and a pure `groupChildrenByParent` (parents
+  sorted by display name, each with its own children, a child whose
+  parent row no longer exists is dropped rather than guessed into another
+  parent's group) — kept pure and separate from the fetch calls so it's
+  unit-testable without a backend, same "domain logic independent from
+  React components" precedent as `weeklySummary.ts`. Cross-child
+  aggregation (recent adventures, skills practiced, world changes) reuses
+  the *existing* `listSessions`/`listSkillProgress`/`listAllWorldChanges`
+  from `src/features/adventures/api.ts` unchanged — those already
+  list-then-filter by `childProfileId` client-side, so under the new
+  admin group-read rule they transparently return the requested child's
+  rows regardless of which parent owns them. No admin-specific
+  duplicates were written for those three.
+- **New routes** (`src/app/AppRoutes.tsx`, both `RequireAdmin`-guarded):
+  `/admin` (`AdminDashboard.tsx`) lists every parent with their children
+  (nickname, age band, active/deactivated), each child linking to
+  `/admin/children/:childId` (`AdminChildProgress.tsx`), a strict
+  read-only subset of `ChildDashboard.tsx` — profile basics, recent
+  adventures, skills practiced, creations/world changes — with no AI
+  toggle, no delete/retention controls, and no safety-event or
+  saved-story content (those stay parent-only and, for
+  safety/story data, not admin-readable at all per the schema change
+  above). Both new routes reuse `ParentDashboard.module.css`/
+  `ChildDashboard.module.css` rather than adding new stylesheets.
+- **`UserMenu.tsx`**: an "Admin" item now appears first in the dropdown,
+  only when `useAuth().isAdmin` is true, linking to `/admin`. Pure
+  discoverability — `RequireAdmin` is the actual gate, a non-admin who
+  guesses the URL still gets "Not authorized."
+- **Tests added**: `RequireAdmin.test.tsx` (five states, same pattern as
+  `RequireGuest.test.tsx`), `admin/api.test.ts` (four cases for
+  `groupChildrenByParent`: grouping, sort order, a parent with no
+  children, an orphaned child). `AdminDashboard.tsx`/
+  `AdminChildProgress.tsx` themselves have no automated test, the same
+  already-documented precedent as `ParentDashboard`/`ChildDashboard` —
+  they need a live backend to exercise meaningfully.
+  Adding the required `isAdmin` field to `AuthContextValue` meant
+  updating every existing `useAuth` mock: `RequireGuest.test.tsx` and
+  `UserMenu.test.tsx`'s three existing cases now pass `isAdmin: false`;
+  `UserMenu.test.tsx` also gained a fourth case asserting the "Admin"
+  item appears first (and "Sign out" stays last) when `isAdmin: true`.
+  One new `e2e/smoke.spec.ts` case (`/admin` shows the same
+  "not connected yet" guard as every other route when unconfigured).
+
+Verified `npm run typecheck`, `npm run lint`, and `npm test` (86 files,
+658 tests) all pass, and `npm run test:e2e` (production build +
+Playwright/Chromium, 7/7 passed). **Not deploy-verified beyond that** —
+same no-AWS-credentials constraint as every phase since Phase 8: there is
+no real `amplify_outputs.json` in this environment, so the actual
+`Admins`-group Cognito flow (a user really being in the group,
+`fetchAuthSession()` really returning that claim, the group-read
+authorization rule actually broadening `.list()` results at the AppSync
+layer) has not been exercised against a live backend. A real `ampx
+sandbox` deploy, `admin-add-user-to-group` call, and browser pass should
+confirm all of that before this ships — see "Known risks/TODOs" below.
+
 ## Verification (Phase 17 session)
 
 - `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
@@ -2744,6 +2930,48 @@ above).
 
 ## Known risks / TODOs
 
+- **Admin section: no live verification of the `Admins`-group authorization
+  path** (post-Phase-17): `allow.group('Admins').to(['read'])`
+  (`amplify/data/resource.ts`) has been typechecked and read carefully
+  against Amplify's documented group-authorization behavior, but never
+  exercised against a real Cognito user pool + AppSync API — same
+  no-AWS-credentials constraint as everything else since Phase 8. Confirm
+  on the first real deploy: add a real user to `Admins`
+  (`admin-add-user-to-group`), sign in as them, and confirm `/admin`
+  actually lists every family, not just that account's own.
+- **Admin identifies a family only by `ParentProfile.displayName`, not
+  email.** There is no Cognito Admin API call (`ListUsers`/`AdminGetUser`)
+  wired up to look up a parent's email from an admin session — that would
+  need its own privileged Lambda and IAM grant, real additional attack
+  surface this change deliberately did not add for a first cut.
+  `displayName` is set once at sign-up from the Cognito `name` attribute or
+  the email itself (`getOrCreateParentProfile`,
+  `src/features/child-profile/api.ts`) and never guaranteed unique or
+  present — two parents could show the same display name in `/admin`.
+  `ChildProfile.parentProfileId` is still the real, unambiguous grouping
+  key `groupChildrenByParent` uses; only the human-readable label is
+  approximate. Revisit if an admin ever needs to actually contact a family
+  by email from this screen.
+- **The admin directory has no pagination.** `listAllParentProfiles`/
+  `listAllChildProfiles` call `.list()` with no limit, same as every other
+  `.list()` call in this codebase (none of them paginate). Fine at pilot
+  scale; would need real pagination before a large number of families
+  makes `/admin` a very long single page.
+- **The safety-review half of the Administrator role
+  (CLAUDE.md section 2's "reviews flagged AI interactions... without
+  exposing unnecessary child data") is still not built.** This session
+  deliberately scoped to exactly what was asked — users, children,
+  progress — and gave `CompanionProfile`/`StoryArtifact`/
+  `AIInteractionAudit`/`SafetyEvent` no `Admins`-group rule at all (see
+  the comment atop `amplify/data/resource.ts`). Building that review
+  workflow is real additional scope: which fields an admin should see
+  (metadata only, per `docs/DATA_MODEL.md`'s "Metadata only by default"),
+  a `SafetyEvent.reviewStatus` transition mutation (currently only ever
+  set to `OPEN` at write time — nothing updates it to `REVIEWED`/
+  `DISMISSED` anywhere in this codebase), and the access-control question
+  of whether *every* admin should see *every* family's safety events or
+  whether that needs its own narrower role. Tracked here rather than
+  attempted as a scope-creep addition to this change.
 - **`claimCoopSlot`'s atomic slot claim depends on an unverified DynamoDB
   storage assumption** (Phase 17): the nested `sharedState.slots.<slotKey>`
   `ConditionExpression` in `amplify/functions/claim-coop-slot/handler.ts`

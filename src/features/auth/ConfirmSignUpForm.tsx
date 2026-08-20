@@ -43,7 +43,7 @@ export function ConfirmSignUpForm() {
       if (nextStep.signUpStep === 'COMPLETE_AUTO_SIGN_IN') {
         await autoSignIn();
       }
-      navigate('/parent', { replace: true });
+      navigate('/home', { replace: true });
     } catch (error) {
       setFormError(describeAuthError(error));
     } finally {

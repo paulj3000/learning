@@ -15,6 +15,7 @@ function renderAtSignIn(status: AuthStatus) {
   useAuthMock.mockReturnValue({
     status,
     userId: status === 'authenticated' ? 'parent-1' : null,
+    isAdmin: false,
     refresh: vi.fn(),
     signOut: vi.fn(),
   });
@@ -30,7 +31,7 @@ function renderAtSignIn(status: AuthStatus) {
             </RequireGuest>
           }
         />
-        <Route path="/parent" element={<p>Parent dashboard</p>} />
+        <Route path="/home" element={<p>Parent dashboard</p>} />
       </Routes>
     </MemoryRouter>,
   );

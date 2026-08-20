@@ -37,6 +37,17 @@ export async function getOrCreateParentProfile(): Promise<ParentProfile> {
   return created;
 }
 
+export async function updateParentProfileDisplayName(
+  id: string,
+  displayName: string,
+): Promise<ParentProfile> {
+  const { data, errors } = await client.models.ParentProfile.update({ id, displayName });
+  if (!data) {
+    throw new Error(errors?.[0]?.message ?? 'Could not update your name.');
+  }
+  return data;
+}
+
 export async function listChildProfiles(): Promise<ChildProfile[]> {
   const { data } = await client.models.ChildProfile.list();
   return data;

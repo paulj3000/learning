@@ -45,14 +45,14 @@ export function ChildProfileEdit() {
   async function handleSubmit(input: ChildProfileInput) {
     if (!childId) return;
     await updateChildProfile(childId, input);
-    navigate('/parent');
+    navigate('/home');
   }
 
   return (
     <div className={styles.page}>
       <header className={styles.header}>
         <h1 className={styles.title}>Edit child profile</h1>
-        <Link to="/parent">Back to dashboard</Link>
+        <Link to="/home">Back to dashboard</Link>
       </header>
       <main className={styles.main} id="main-content">
         {loadState === 'loading' ? <p>Loading profile...</p> : null}

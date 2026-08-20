@@ -167,9 +167,13 @@ children's app - not a general chat product).
   already passed `validateCompanionTurn`'s safety checks before capture.
 - **A safety event or audit row leaking to a party other than the
   relevant parent.** Mitigated by `allow.owner()` on `SafetyEvent`/
-  `AIInteractionAudit`; no admin group exists yet to leak *to* (see
-  `docs/AUTHORIZATION_REVIEW.md` section 4.3 - the flip side of "no admin
-  access" is "no admin over-exposure" either, for now).
+  `AIInteractionAudit` — the `Admins` Cognito group added for the
+  read-only admin directory (`docs/AUTHORIZATION_REVIEW.md` section 4.3,
+  updated) deliberately carries **no** rule on either model, so admin
+  group membership still cannot read them. `CompanionProfile` and
+  `StoryArtifact` are the same: admin-readable content stops at
+  `ParentProfile`/`ChildProfile`/`AdventureSession`/`SkillProgress`/
+  `WorldChange`.
 - **Parent PII (email, display name) reaching the AI model.** Explicitly
   prevented by `generateCompanionTurn`'s fixed argument schema - there is
   no field for it (`docs/AI_AND_CHILD_SAFETY.md` prompt-context
@@ -196,9 +200,14 @@ children's app - not a general chat product).
 ### Elevation of privilege
 
 - **A parent session reaching data or actions reserved for an
-  administrator role.** Not applicable - no administrator role exists yet
-  in this schema (`docs/AUTHORIZATION_REVIEW.md` section 4.3), so there is
-  nothing to escalate *to*. Revisit this section once that role is built.
+  administrator role.** A read-only `Admins` Cognito group now exists
+  (`docs/AUTHORIZATION_REVIEW.md` section 4.3, updated). A regular parent
+  session cannot self-escalate into it — group membership comes from a
+  signed Cognito ID token claim, set only by an out-of-band
+  `admin-add-user-to-group` call, not anything a client can request or
+  forge. The group itself grants read only (`.to(['read'])`), on five
+  models, none of them writable by that rule — there is no admin *write*
+  path to reach even once a real admin is compromised.
 - **A child's bounded interaction (taps, curated choices, short structured
   input) being used to make the AI take an action outside its intended
   scope** - e.g. prompt injection via a curated-choice label or a
@@ -232,7 +241,8 @@ current code:
    `docs/AUTHORIZATION_REVIEW.md` section 4.2.
 3. `MAX_CHILD_PROFILES` unenforced server-side (accepted, low severity) -
    `docs/AUTHORIZATION_REVIEW.md` section 4.1.
-4. No administrator role/group exists (out of MVP scope, tracked) -
+4. Administrator role: a read-only directory/progress view now exists;
+   the safety-event/AI-audit review half is still not built -
    `docs/AUTHORIZATION_REVIEW.md` section 4.3.
 5. AI evaluation suite (including prompt-injection test cases) not built -
    `docs/IMPLEMENTATION_STATUS.md` Phase 4 "Known risks/TODOs".

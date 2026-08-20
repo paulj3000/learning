@@ -40,7 +40,7 @@ export function IslandLayout({ childId, children }: IslandLayoutProps) {
           title="Return to parent space?"
           description="Answer this quick check to leave the island and manage profiles."
           onCancel={() => setShowGate(false)}
-          onSuccess={() => navigate('/parent')}
+          onSuccess={() => navigate('/home')}
         />
       ) : null}
     </div>

@@ -19,7 +19,7 @@ export function ChildProfileList({ childProfiles, onToggleActive }: ChildProfile
       <div className={styles.header}>
         <h2 className={styles.heading}>Child profiles</h2>
         {canAddChild ? (
-          <Link className={styles.addLink} to="/parent/children/new">
+          <Link className={styles.addLink} to="/home/children/new">
             Add child
           </Link>
         ) : (
@@ -47,18 +47,18 @@ export function ChildProfileList({ childProfiles, onToggleActive }: ChildProfile
                     Enter island
                   </Link>
                 ) : null}
-                <Link className={styles.buttonSecondary} to={`/parent/children/${child.id}/edit`}>
+                <Link className={styles.buttonSecondary} to={`/home/children/${child.id}/edit`}>
                   Edit
                 </Link>
                 <Link
                   className={styles.buttonSecondary}
-                  to={`/parent/children/${child.id}/dashboard`}
+                  to={`/home/children/${child.id}/dashboard`}
                 >
                   Activity &amp; controls
                 </Link>
                 <Link
                   className={styles.buttonSecondary}
-                  to={`/parent/children/${child.id}/stories`}
+                  to={`/home/children/${child.id}/stories`}
                 >
                   Story keepsakes
                 </Link>

@@ -38,7 +38,7 @@ export function SignInForm() {
         navigate('/confirm', { state: { email: email.trim() } });
         return;
       }
-      navigate(state?.from?.pathname ?? '/parent', { replace: true });
+      navigate(state?.from?.pathname ?? '/home', { replace: true });
     } catch (error) {
       setFormError(describeAuthError(error));
     } finally {

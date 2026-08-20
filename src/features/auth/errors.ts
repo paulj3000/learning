@@ -9,6 +9,7 @@ const FRIENDLY_MESSAGES: Record<string, string> = {
     'Choose a stronger password with at least 8 characters, including a number and a symbol.',
   LimitExceededException: 'Too many attempts. Please wait a moment and try again.',
   InvalidParameterException: 'Please check the information you entered and try again.',
+  AliasExistsException: 'That email address is already in use by another account.',
 };
 
 export function describeAuthError(error: unknown): string {

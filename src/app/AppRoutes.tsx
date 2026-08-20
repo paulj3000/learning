@@ -7,6 +7,7 @@ import { SignIn } from '../routes/SignIn';
 import { ConfirmSignUp } from '../routes/ConfirmSignUp';
 import { ForgotPassword } from '../routes/ForgotPassword';
 import { ParentDashboard } from '../routes/ParentDashboard';
+import { AccountSettings } from '../routes/AccountSettings';
 import { ChildProfileNew } from '../routes/ChildProfileNew';
 import { ChildProfileEdit } from '../routes/ChildProfileEdit';
 import { StoryKeepsakes } from '../routes/StoryKeepsakes';
@@ -18,8 +19,11 @@ import { AdventurePage } from '../routes/AdventurePage';
 import { AdventureLog } from '../routes/AdventureLog';
 import { StoryPage } from '../routes/StoryPage';
 import { AdventureLibraryPage } from '../routes/AdventureLibraryPage';
+import { AdminDashboard } from '../routes/AdminDashboard';
+import { AdminChildProgress } from '../routes/AdminChildProgress';
 import { RequireParent } from '../features/auth/RequireParent';
 import { RequireGuest } from '../features/auth/RequireGuest';
+import { RequireAdmin } from '../features/auth/RequireAdmin';
 
 /**
  * Lazy-loaded: this route (transitively) imports `phaser`, a large library
@@ -91,7 +95,7 @@ export function AppRoutes() {
       <Route path="/confirm" element={<ConfirmSignUp />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route
-        path="/parent"
+        path="/home"
         element={
           <RequireParent>
             <ParentDashboard />
@@ -99,7 +103,15 @@ export function AppRoutes() {
         }
       />
       <Route
-        path="/parent/children/new"
+        path="/home/settings"
+        element={
+          <RequireParent>
+            <AccountSettings />
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/home/children/new"
         element={
           <RequireParent>
             <ChildProfileNew />
@@ -107,7 +119,7 @@ export function AppRoutes() {
         }
       />
       <Route
-        path="/parent/children/:childId/edit"
+        path="/home/children/:childId/edit"
         element={
           <RequireParent>
             <ChildProfileEdit />
@@ -115,7 +127,7 @@ export function AppRoutes() {
         }
       />
       <Route
-        path="/parent/children/:childId/stories"
+        path="/home/children/:childId/stories"
         element={
           <RequireParent>
             <StoryKeepsakes />
@@ -123,7 +135,7 @@ export function AppRoutes() {
         }
       />
       <Route
-        path="/parent/children/:childId/dashboard"
+        path="/home/children/:childId/dashboard"
         element={
           <RequireParent>
             <ChildDashboard />
@@ -131,7 +143,7 @@ export function AppRoutes() {
         }
       />
       <Route
-        path="/parent/coop/new"
+        path="/home/coop/new"
         element={
           <RequireParent>
             <CoopSessionNew />
@@ -264,6 +276,22 @@ export function AppRoutes() {
           <RequireParent>
             <StoryPage />
           </RequireParent>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <RequireAdmin>
+            <AdminDashboard />
+          </RequireAdmin>
+        }
+      />
+      <Route
+        path="/admin/children/:childId"
+        element={
+          <RequireAdmin>
+            <AdminChildProgress />
+          </RequireAdmin>
         }
       />
       <Route path="*" element={<NotFound />} />

@@ -28,7 +28,7 @@ export function RequireGuest({ children }: { children: ReactNode }) {
   }
 
   if (status === 'authenticated') {
-    return <Navigate to={state?.from?.pathname ?? '/parent'} replace />;
+    return <Navigate to={state?.from?.pathname ?? '/home'} replace />;
   }
 
   return <>{children}</>;

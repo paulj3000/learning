@@ -93,7 +93,7 @@ export function CoopSessionNew() {
     <div className={styles.page}>
       <header className={styles.header}>
         <h1 className={styles.title}>Play together</h1>
-        <Link to="/parent">Back to dashboard</Link>
+        <Link to="/home">Back to dashboard</Link>
       </header>
       <main className={styles.main} id="main-content">
         <div className={styles.content}>

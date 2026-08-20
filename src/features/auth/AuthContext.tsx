@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { getCurrentUser, signOut as amplifySignOut } from 'aws-amplify/auth';
+import { fetchAuthSession, getCurrentUser, signOut as amplifySignOut } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
 import { isAmplifyConfigured } from '../../lib/amplify-config';
 
@@ -8,6 +8,15 @@ export type AuthStatus = 'unconfigured' | 'loading' | 'authenticated' | 'unauthe
 interface AuthContextValue {
   status: AuthStatus;
   userId: string | null;
+  /**
+   * Whether the signed-in user belongs to the Cognito `Admins` group
+   * (amplify/auth/resource.ts). Read from the ID token's `cognito:groups`
+   * claim rather than a separate call, since `fetchAuthSession` already
+   * has to run once per sign-in to get a fresh token. Always `false` while
+   * unauthenticated/unconfigured — `RequireAdmin` (src/features/auth/RequireAdmin.tsx)
+   * is what actually gates the admin section, this is just the signal it reads.
+   */
+  isAdmin: boolean;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -19,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAmplifyConfigured ? 'loading' : 'unconfigured',
   );
   const [userId, setUserId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   async function refresh(): Promise<void> {
     if (!isAmplifyConfigured) {
@@ -29,9 +39,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const user = await getCurrentUser();
       setUserId(user.userId);
+      const session = await fetchAuthSession();
+      const groups = session.tokens?.idToken?.payload['cognito:groups'];
+      setIsAdmin(Array.isArray(groups) && groups.includes('Admins'));
       setStatus('authenticated');
     } catch {
       setUserId(null);
+      setIsAdmin(false);
       setStatus('unauthenticated');
     }
   }
@@ -53,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ status, userId, refresh, signOut }}>
+    <AuthContext.Provider value={{ status, userId, isAdmin, refresh, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -7,7 +7,7 @@ import { claimCoopSlot } from '../functions/claim-coop-slot/resource';
  * CompanionProfile, the Phase 3 adventure-engine models (AdventureSession,
  * AdventureAction, SkillEvidence, SkillProgress, WorldChange), and the
  * Phase 4 AI-companion models (AIInteractionAudit, SafetyEvent) plus the
- * `generateCompanionTurn` AI generation route. All models use owner
+ * `generateCompanionTurn` AI generation route. Every model uses owner
  * authorization, so `.list()`/`.get()` calls from the client are already
  * scoped to the authenticated parent's own records — the owner is always
  * the signed-in parent (CLAUDE.md section 10), since children act inside
@@ -16,6 +16,19 @@ import { claimCoopSlot } from '../functions/claim-coop-slot/resource';
  * remain content authored in source control (see
  * src/features/island/locations.ts and src/features/adventures/content/),
  * per DATA_MODEL.md's note to prefer that over a DB model for MVP.
+ *
+ * `ParentProfile`, `ChildProfile`, `AdventureSession`, `SkillProgress`, and
+ * `WorldChange` additionally carry `allow.group('Admins').to(['read'])`
+ * (docs/AUTHORIZATION_REVIEW.md section 4.3, CLAUDE.md section 2's
+ * Administrator role): a second, independent authorization rule that lets
+ * a Cognito `Admins`-group member `.list()`/`.get()` every parent's/child's
+ * record, not just their own, for the read-only `src/features/admin/`
+ * dashboard (`docs/DATA_MODEL.md`'s "admin read only when explicitly
+ * required"). Deliberately narrow: `CompanionProfile`, `StoryArtifact`,
+ * `AIInteractionAudit`, and `SafetyEvent` are NOT admin-readable here —
+ * those carry AI-narrated or free-text-adjacent content and belong to the
+ * still-unbuilt safety-review admin workflow this phase does not attempt
+ * (see `docs/IMPLEMENTATION_STATUS.md`).
  * @see https://docs.amplify.aws/react/build-a-backend/data/
  * @see https://docs.amplify.aws/react/ai/concepts/generation-routes/
  */
@@ -29,7 +42,7 @@ const schema = a.schema({
       timezone: a.string(),
       childProfiles: a.hasMany('ChildProfile', 'parentProfileId'),
     })
-    .authorization((allow) => [allow.owner()]),
+    .authorization((allow) => [allow.owner(), allow.group('Admins').to(['read'])]),
 
   ChildProfile: a
     .model({
@@ -69,7 +82,7 @@ const schema = a.schema({
       storyArtifacts: a.hasMany('StoryArtifact', 'childProfileId'),
       childStoryProgress: a.hasMany('ChildStoryProgress', 'childProfileId'),
     })
-    .authorization((allow) => [allow.owner()]),
+    .authorization((allow) => [allow.owner(), allow.group('Admins').to(['read'])]),
 
   CompanionType: a.enum(['CHATTY_PARROT']),
 
@@ -111,7 +124,7 @@ const schema = a.schema({
        */
       coopSessionId: a.string(),
     })
-    .authorization((allow) => [allow.owner()]),
+    .authorization((allow) => [allow.owner(), allow.group('Admins').to(['read'])]),
 
   AdventureAction: a
     .model({
@@ -150,7 +163,7 @@ const schema = a.schema({
       recentLevel: a.string(),
       lastPracticedAt: a.datetime(),
     })
-    .authorization((allow) => [allow.owner()]),
+    .authorization((allow) => [allow.owner(), allow.group('Admins').to(['read'])]),
 
   WorldChange: a
     .model({
@@ -163,7 +176,7 @@ const schema = a.schema({
       sourceSessionId: a.string(),
       createdAt: a.datetime().required(),
     })
-    .authorization((allow) => [allow.owner()]),
+    .authorization((allow) => [allow.owner(), allow.group('Admins').to(['read'])]),
 
   // --- Phase 4: Safe AI Companion (docs/AI_AND_CHILD_SAFETY.md) ---
 
