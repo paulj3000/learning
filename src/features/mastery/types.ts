@@ -33,7 +33,16 @@ export interface SkillProgressCounts {
  */
 export interface MasteryDetail {
   skillId: string;
+  /** Displayed status, after `applyReviewDecay`. */
   status: SkillStatus;
+  /**
+   * Status before review decay. Differs from `status` exactly when decay
+   * fired (a `PROFICIENT`/`MASTERED` skill not practiced recently) — the
+   * Teaching Engine (Phase 21) uses this to tell "genuinely still
+   * developing" apart from "lapsed from mastery," which call for
+   * different lesson phases (`GUIDED_PRACTICE` vs `REVIEW`).
+   */
+  rawStatus: SkillStatus;
   errorPattern: ErrorPattern;
   exposureCount: number;
   independentSuccessCount: number;

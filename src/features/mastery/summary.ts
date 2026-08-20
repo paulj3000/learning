@@ -84,6 +84,7 @@ export function buildMasteryDetail(
     return {
       skillId,
       status: applyReviewDecay(rawStatus, counts.lastPracticedAt, now),
+      rawStatus,
       errorPattern: computeErrorPattern(counts),
       exposureCount: counts.exposureCount,
       independentSuccessCount: counts.independentSuccessCount,

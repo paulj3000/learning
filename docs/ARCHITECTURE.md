@@ -84,12 +84,14 @@ inside a Phaser scene.
 
 ## Platform engine boundaries (Phase 18)
 
-`docs/ROADMAP.md` Phases 18-30 name eight platform engines. This section
-documents each one's responsibility and current implementation status so
-that curriculum/mastery/interaction logic and adventure theme content
-never bleed into each other (CLAUDE.md's rule that curriculum logic must
-never reference theme content, and theme content must never compute
-mastery directly).
+`docs/ROADMAP.md` Phases 18-30 name eight platform engines; a ninth,
+the Teaching Engine, is introduced by name only at Phase 21 and added to
+this list when that phase was implemented, rather than at Phase 18. This
+section documents each one's responsibility and current implementation
+status so that curriculum/mastery/interaction logic and adventure theme
+content never bleed into each other (CLAUDE.md's rule that curriculum
+logic must never reference theme content, and theme content must never
+compute mastery directly).
 
 The "World engine layering" pipeline above (ADR-007) describes one
 interaction's data flow through two ends of the same engine: its first
@@ -129,25 +131,42 @@ which engine owns which model.
    (`src/features/story/api.ts`) — never from adventure content itself.
    `SkillEvidence`'s own write path (`recordSkillEvidence`) stays in the
    Adventure Engine's `api.ts` for now, not yet moved.
-6. **Interaction Engine** — not yet built (Phase 22). Will own the
+6. **Teaching Engine** (`src/features/teaching/`, Phase 21) — generalizes
+   the per-adventure hint ladder (`docs/ADVENTURE_ENGINE.md`,
+   `src/features/adventures/engine/hints.ts`) into a reusable, stateless
+   lesson-phase and scaffolding-level vocabulary. Owns no data model:
+   `deriveTeachingPhase` derives `INTRODUCE | DEMONSTRATE |
+   GUIDED_PRACTICE | INDEPENDENT_PRACTICE | APPLICATION | MASTERY_CHECK |
+   REVIEW` purely from the Mastery Engine's already-computed
+   `MasteryDetail`, and `ScaffoldingLevel` (`CONTEXTUAL_HINT |
+   VISUAL_REPRESENTATION | INTERACTIVE_MANIPULATIVE | GUIDED_DEMONSTRATION
+   | EQUIVALENT_RETRY_PROBLEM`) is numerically interchangeable with the
+   existing 1-5 `hintLevel`/`supportLevel` integers already recorded on
+   `AdventureAction`/`SkillEvidence`, verified equivalent in
+   `scaffolding.test.ts` against `hints.ts`'s `isGuidedCompletion`/
+   `nextHintLevel` rather than duplicating that mechanism. Assistance
+   level was already being recorded as mastery evidence before this
+   phase (`SkillEvidence.supportLevel`, since Phase 4/17); this phase adds
+   the reusable vocabulary on top, not a new recording path.
+7. **Interaction Engine** — not yet built (Phase 22). Will own the
    reusable cross-adventure interaction contract (drag/sort/measure/
    build/decode/converse) so gameplay mechanics are not re-implemented
    per adventure.
-7. **Reward/Economy Engine** — not yet built (Phase 24). Will own
+8. **Reward/Economy Engine** — not yet built (Phase 24). Will own
    inventory, collectibles, and reward tables, kept distinct from
    `WorldChange` (a world change is not a reward) and from
    `SkillProgress` (a reward is not proof of mastery).
-8. **AI Tutor Engine** — Chatty's structured generation calls:
+9. **AI Tutor Engine** — Chatty's structured generation calls:
    `CompanionProfile`, `AIInteractionAudit`, and the safe-context-builder/
    schema-validation/fallback pipeline (section 7, CLAUDE.md). Never
    determines correctness or mastery; only explains, hints, and narrates.
    Formalized as a contextual tutor bounded to current quest/skill/hint
    level at Phase 27.
-9. **Parent/Educator Engine** — the parent-facing reporting surface
-   (`features/parent-dashboard`). Has no data models of its own; it
-   composes read views over other engines' data (`AdventureSession`,
-   `SkillProgress`, `WorldChange`). Expanded with mastery-level and
-   next-focus reporting at Phase 30.
+10. **Parent/Educator Engine** — the parent-facing reporting surface
+    (`features/parent-dashboard`). Has no data models of its own; it
+    composes read views over other engines' data (`AdventureSession`,
+    `SkillProgress`, `WorldChange`). Expanded with mastery-level and
+    next-focus reporting at Phase 30.
 
 `ParentProfile`, `ChildProfile`, and `ParentConsent` belong to none of the
 above — they are Account/Platform data (Auth boundary, above), foundational

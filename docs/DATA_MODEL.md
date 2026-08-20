@@ -20,9 +20,10 @@ it but write through the owning engine's functions/api module only.
 | `AIInteractionAudit` | AI Tutor Engine |
 | `SafetyEvent` | Cross-cutting safety pipeline (`docs/AI_AND_CHILD_SAFETY.md`), not exclusive to any one engine |
 
-The Interaction Engine (Phase 22), Reward/Economy Engine (Phase 24), and
-Parent/Educator Engine (Phase 30, composes read views only) own no models
-listed above.
+The Teaching Engine (Phase 21, a pure derivation over Mastery Engine data —
+see `docs/ARCHITECTURE.md`), Interaction Engine (Phase 22), Reward/Economy
+Engine (Phase 24), and Parent/Educator Engine (Phase 30, composes read
+views only) own no models listed above.
 
 ## ParentProfile
 - `id`

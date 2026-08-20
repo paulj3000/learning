@@ -2721,6 +2721,75 @@ and the new required `consecutiveIndependentCorrect` field on an
 already-populated `SkillProgress` table have not been exercised against a
 live backend or existing rows.
 
+## Phase 21 — Teaching Engine
+
+New feature folder `src/features/teaching/`, generalizing the existing
+per-adventure hint ladder (`docs/ADVENTURE_ENGINE.md`,
+`src/features/adventures/engine/hints.ts`) into a reusable cross-adventure
+lesson state machine and scaffolding vocabulary, per the roadmap's own
+framing. Owns no data model — a pure, stateless derivation over the
+Mastery Engine's already-computed evidence, so this phase touches no
+schema and no existing call site.
+
+- **`types.ts`**: `TeachingPhase` (`INTRODUCE | DEMONSTRATE |
+  GUIDED_PRACTICE | INDEPENDENT_PRACTICE | APPLICATION | MASTERY_CHECK |
+  REVIEW`, the roadmap's own seven names) and `ScaffoldingLevel`
+  (`CONTEXTUAL_HINT | VISUAL_REPRESENTATION | INTERACTIVE_MANIPULATIVE |
+  GUIDED_DEMONSTRATION | EQUIVALENT_RETRY_PROBLEM`, the roadmap's own
+  five names — a formalization of the "Adaptation" list already in
+  `docs/ADVENTURE_ENGINE.md`, not a new idea).
+- **`scaffolding.ts`**: `scaffoldingLevelForHintLevel`/
+  `hintLevelForScaffoldingLevel` translate to and from the existing 1-5
+  `hintLevel`/`supportLevel` integers already recorded on
+  `AdventureAction`/`SkillEvidence`, so the new vocabulary is a labeling
+  layer over evidence already being recorded — no schema or authored
+  hint-text migration needed. `nextScaffoldingLevel` and
+  `shouldForceAdvancement` mirror `hints.ts`'s `nextHintLevel`/
+  `isGuidedCompletion` exactly; `shouldForceAdvancement` is this phase's
+  "a rule preventing repeated failure loops from stalling an adventure"
+  deliverable, proven (not just asserted) equivalent to the existing
+  `isGuidedCompletion` mechanism already enforcing this in
+  `useAdventureSession.ts`, via a direct equivalence test across hint
+  levels 0-6, rather than a second, parallel implementation of the same
+  rule.
+- **`phases.ts`**: `deriveTeachingPhase` derives a skill's lesson phase
+  purely from `MasteryDetail` (status, pre-decay `rawStatus`,
+  `errorPattern`, `exposureCount`) — see the function's own doc comment
+  for the branch-by-branch rationale (for example: a decayed skill
+  — `status !== rawStatus` — always resolves to `REVIEW` regardless of
+  the decayed status level, since a lapsed skill needs a refresher, not a
+  from-scratch re-teach). Thresholds are documented as initial, not
+  pedagogically validated, same honesty as Phase 20's constants.
+- **`src/features/mastery/types.ts`/`summary.ts`**: `MasteryDetail` gained
+  a `rawStatus` field (pre-decay status), needed by `deriveTeachingPhase`
+  to distinguish "genuinely still developing" from "lapsed from mastery."
+  `MasterySummary` (the safe, AI-Tutor/Director-facing view) is
+  unaffected — `rawStatus` is full-detail-only, same visibility rule as
+  every other `MasteryDetail` field.
+- **No existing UI or `useAdventureSession.ts` call site was changed.**
+  The existing hint ladder keeps running exactly as before; this phase
+  adds a verified-equivalent, reusable vocabulary alongside it for future
+  phases (a dashboard view of lesson phase, the Adventure Director,
+  Chatty-as-tutor) to consume, rather than migrating five already-authored
+  hint strings per step across every adventure content file.
+- **Confirmed: assistance level was already being recorded as mastery
+  evidence** (`SkillEvidence.supportLevel`, since Phase 4, feeding
+  `SkillProgress` since Phase 20) before this phase — no new recording
+  path was needed, only the reusable vocabulary layered on top.
+- **`docs/ARCHITECTURE.md`**: added the Teaching Engine as a ninth
+  platform engine (Phase 18's original list named eight; the roadmap
+  itself introduces this one only by name at Phase 21, so it is added to
+  the engine-boundaries doc here rather than backdated to Phase 18).
+  **`docs/DATA_MODEL.md`**: ownership-table footnote updated to include
+  it among the engines owning no models.
+- **Tests**: `scaffolding.test.ts` (12 cases, including the two
+  equivalence checks against `hints.ts`) and `phases.test.ts` (11 cases,
+  covering every branch of `deriveTeachingPhase` and a completeness check
+  that `TEACHING_PHASE_ORDER` has exactly the seven expected phases).
+
+Verified `npm run typecheck`, `npm run lint` (no new warnings), and
+`npm test` — 92 files, 726 tests, all pass (24 new from this phase).
+
 ## Verification (Phase 17 session)
 
 - `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
