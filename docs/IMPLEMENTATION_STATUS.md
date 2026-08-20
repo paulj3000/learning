@@ -2581,6 +2581,53 @@ No code changed. Verified `npm run typecheck`, `npm run lint`, and
 `npm test` (86 files, 658 tests) all pass unchanged from before this
 session's doc edits.
 
+## Phase 19 — Curriculum and Skill Graph
+
+New feature folder `src/features/curriculum/`, owned by the Learning
+Engine (Phase 18's ownership table). Deliberately kept as source-controlled
+content, not an Amplify Data model, matching the precedent already set by
+`AdventureTemplate`/`LearningObjective`.
+
+- **`types.ts`**: `Subject`, `Grade`, `Domain`, `Skill`, and
+  `CurriculumRepresentation` (`'numeric' | 'visual' | 'word-problem' |
+  'game-interaction'`). `Skill.standardsRefs` is optional and left
+  unpopulated in the seed content — "Formal curriculum framework mapping"
+  is still a pending decision, so no specific standards codes are
+  asserted yet.
+- **`content/mathGrade1To2.ts`**: the seed curriculum, one vertical slice
+  only per the roadmap's own scope note — grade 1-2 mathematics, three
+  domains (Counting and Cardinality, Operations and Algebraic Thinking,
+  Measurement and Data), six skills. `Skill.id` values reuse the existing
+  `learningObjectiveCode` strings (`counting-sets`, `addition-within-ten`,
+  `comparing-lengths`, `patterns`, `measurement`,
+  `subtraction-within-ten`) from `learningObjectives.ts`, so this is
+  additive structure over evidence already being recorded, not a
+  migration. Prerequisites chain sensibly (for example
+  `subtraction-within-ten` requires `addition-within-ten` requires
+  `counting-sets`).
+- **`queries.ts`**: pure functions only — `listSubjects`/`getSubject`,
+  `listGrades`/`getGrade`, `listDomains`/`getDomain`,
+  `listSkills`/`getSkill`, `listSkillsByAgeBand` (via each grade's
+  `ageBands`), `listPrerequisites` (resolves IDs to `Skill` objects), and
+  `isSkillUnlocked(skillId, knownSkillIds)` — the last one takes a
+  caller-supplied "known skills" set rather than reading `SkillProgress`
+  itself, so the Learning Engine stays opinion-free about what counts as
+  mastered; the Mastery Engine (Phase 20) is expected to call it with
+  real mastery data.
+- **`docs/DATA_MODEL.md`**: new "Curriculum content (Phase 19)" note
+  under `LearningObjective` explaining the relationship (structured
+  successor for the skills it covers; the flat list still governs every
+  other domain until they get the same treatment).
+- **Tests** (`queries.test.ts`, 13 cases): query behavior (including
+  unknown-ID lookups returning `undefined`/`[]` rather than throwing),
+  `isSkillUnlocked` true/false cases, and seed-content integrity checks
+  (every domain/grade/skill/prerequisite ID resolves, no duplicate IDs,
+  and the three numeracy skills "Repair the Moonlight Bridge" teaches are
+  all present in the graph).
+
+Verified `npm run typecheck`, `npm run lint` (no new warnings), and
+`npm test` — 87 files, 671 tests, all pass (13 new from this phase).
+
 ## Verification (Phase 17 session)
 
 - `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and

@@ -85,6 +85,24 @@ Content-managed reference data:
 - `ageBands`
 - `difficultyLevel`
 
+### Curriculum content (Phase 19): the structured successor to this list
+
+`Subject`, `Grade`, `Domain`, and `Skill` (`src/features/curriculum/types.ts`)
+are the Learning Engine's structured successor to this flat list, per
+`docs/ROADMAP.md` Phase 19: Subject -> Grade -> Domain -> Skill, with
+prerequisites, difficulty, and representations. Same "content packs are
+not database models" pattern as below: source-controlled content, not DB
+rows, queried through pure functions
+(`src/features/curriculum/queries.ts`). `Skill.id` values reuse the
+existing `code` strings above (already written to `SkillEvidence`/
+`SkillProgress` as `learningObjectiveCode`), so no data migration was
+needed to add this structure on top. The current seed
+(`src/features/curriculum/content/mathGrade1To2.ts`) is one vertical
+slice only — grade 1-2 mathematics, enough to cover the numeracy skills
+"Repair the Moonlight Bridge" already teaches — not a full curriculum;
+the flat list above still governs every other domain until they get the
+same treatment.
+
 ## AdventureTemplate
 - `id`
 - `locationId`
