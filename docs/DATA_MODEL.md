@@ -2,6 +2,28 @@
 
 This is a conceptual schema. Claude should translate it into Amplify Gen 2 TypeScript and verify relationship/index syntax against the installed Amplify packages.
 
+## Engine ownership (Phase 18)
+
+Per `docs/ARCHITECTURE.md`'s "Platform engine boundaries" section, each
+model below is authoritative to exactly one engine. Other engines may read
+it but write through the owning engine's functions/api module only.
+
+| Model | Owning engine |
+|---|---|
+| `ParentProfile`, `ChildProfile`, `ParentConsent` | Account/Platform (no single engine — foundational to all) |
+| `CompanionProfile` | AI Tutor Engine |
+| `IslandLocation`, `WorldChange`, `ChildWorldState` | World Engine |
+| `LearningObjective` | Learning Engine |
+| `AdventureTemplate`, `AdventureStepDefinition`, `AdventureSession`, `CoopSession`, `AdventureAction` | Adventure Engine |
+| `SkillEvidence`, `SkillProgress` | Mastery Engine |
+| `ChildStoryProgress` (and content-pack `StoryDefinition`/`StoryChapter`/`StoryScene`) | Story Engine |
+| `AIInteractionAudit` | AI Tutor Engine |
+| `SafetyEvent` | Cross-cutting safety pipeline (`docs/AI_AND_CHILD_SAFETY.md`), not exclusive to any one engine |
+
+The Interaction Engine (Phase 22), Reward/Economy Engine (Phase 24), and
+Parent/Educator Engine (Phase 30, composes read views only) own no models
+listed above.
+
 ## ParentProfile
 - `id`
 - `ownerUserId`

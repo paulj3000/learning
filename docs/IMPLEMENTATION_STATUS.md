@@ -2540,6 +2540,47 @@ layer) has not been exercised against a live backend. A real `ampx
 sandbox` deploy, `admin-add-user-to-group` call, and browser pass should
 confirm all of that before this ships — see "Known risks/TODOs" below.
 
+## Phase 18 — Engine Boundaries
+
+Docs-only phase, no user-facing feature, per `docs/ROADMAP.md` Phase 18's
+own scope note. Follows the August 2026 curriculum/mastery/platform-engine
+planning pack and ADR-008 (Three.js) reconciled into `docs/ROADMAP.md` as
+Phases 18-34 this session.
+
+- **`docs/ARCHITECTURE.md`**: new "Platform engine boundaries (Phase 18)"
+  section documents the responsibility of each of the eight named engines
+  (World, Story, Adventure, Learning, Mastery, Interaction, Reward/
+  Economy, AI Tutor, Parent/Educator), reconciling this with the
+  already-documented ADR-007 "World engine layering" pipeline (that
+  diagram's "World Engine" and "World State" stages are this section's
+  single World Engine's presentation and persistence halves, not two
+  engines). Also adds a target event-contract table for
+  `LearningRequested`, `InteractionCompleted`, `MasteryUpdated`,
+  `QuestAdvanced`, and `WorldStateChanged` — documentation only, ahead of
+  the engines (Phases 19-28) that will implement them; `WorldStateChanged`
+  already exists today as `WorldChange`, the other four do not exist as
+  code yet.
+- **`docs/DATA_MODEL.md`**: new "Engine ownership (Phase 18)" table
+  assigning every existing model to exactly one owning engine (or to
+  Account/Platform for `ParentProfile`/`ChildProfile`/`ParentConsent`,
+  which sit outside all eight engines; or to the cross-cutting safety
+  pipeline for `SafetyEvent`).
+- **Confirmed, by reading every file under `src/features/adventures/content/`
+  and `src/features/story/content/`**: no adventure or story template
+  computes or writes mastery state. The only call sites for
+  `upsertSkillProgress` anywhere in the codebase are
+  `useAdventureSession.ts` (Adventure Engine) and `src/features/story/api.ts`
+  (Story Engine), both passing through the same shared function in
+  `src/features/adventures/api.ts`. Phase 20 has no template-embedded
+  mastery logic to migrate. Recorded in `docs/ARCHITECTURE.md` alongside
+  the engine-boundary section rather than only here, since it is a
+  standing architectural fact future phases will rely on, not just a
+  one-time session note.
+
+No code changed. Verified `npm run typecheck`, `npm run lint`, and
+`npm test` (86 files, 658 tests) all pass unchanged from before this
+session's doc edits.
+
 ## Verification (Phase 17 session)
 
 - `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and

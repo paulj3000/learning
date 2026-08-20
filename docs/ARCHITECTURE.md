@@ -82,6 +82,104 @@ upward through a plain, Phaser-free world event bus (`worldEvents.ts` in
 `features/island-map`), not by calling adventure or AI code directly from
 inside a Phaser scene.
 
+## Platform engine boundaries (Phase 18)
+
+`docs/ROADMAP.md` Phases 18-30 name eight platform engines. This section
+documents each one's responsibility and current implementation status so
+that curriculum/mastery/interaction logic and adventure theme content
+never bleed into each other (CLAUDE.md's rule that curriculum logic must
+never reference theme content, and theme content must never compute
+mastery directly).
+
+The "World engine layering" pipeline above (ADR-007) describes one
+interaction's data flow through two ends of the same engine: its first
+stage, "World Engine," is this engine's presentation half (Phaser today,
+Three.js from Phase 31 per ADR-008); its last stage, "World State," is
+this engine's persistence half. They are documented separately there
+because that diagram is about data flow through *one request*, not about
+which engine owns which model.
+
+1. **World Engine** — spatial presentation (movement, maps, camera,
+   collision, animation via the world event bus, `features/island-map`)
+   and persistent world state (`WorldChange`, `ChildWorldState`,
+   `IslandLocation`). Never decides correctness or awards progress; only
+   renders and persists consequences other engines hand it.
+2. **Story Engine** — narrative structure: chapters, scenes, bounded
+   choices, `ChildStoryProgress`. Sits between the World Engine and the
+   Adventure Engine. Delivered at Phase 12.
+3. **Adventure Engine** — deterministic challenge progression:
+   `AdventureTemplate`, `AdventureStepDefinition`, `AdventureSession`,
+   `AdventureAction`, `CoopSession`, and step validation
+   (`src/features/adventures/engine/validators.ts`). Records raw
+   attempt/correctness evidence; never itself decides a skill's mastery
+   status.
+4. **Learning Engine** — curriculum content. Today, the flat
+   `LearningObjective` reference list; from Phase 19, a full
+   Subject -> Grade -> Domain -> Skill graph with prerequisites and
+   difficulty. Read-heavy: adventures and quests reference its objective/
+   skill IDs but never embed their own scoring logic (see confirmation
+   below).
+5. **Mastery Engine** — `SkillEvidence` and `SkillProgress`: turns raw
+   evidence into per-skill status. Today this is `upsertSkillProgress`
+   (`src/features/adventures/api.ts`), called only from the Adventure
+   Engine (`useAdventureSession.ts`) and the Story Engine
+   (`src/features/story/api.ts`) — never from adventure content itself.
+   Formalized into a standalone engine with status levels and decay rules
+   at Phase 20.
+6. **Interaction Engine** — not yet built (Phase 22). Will own the
+   reusable cross-adventure interaction contract (drag/sort/measure/
+   build/decode/converse) so gameplay mechanics are not re-implemented
+   per adventure.
+7. **Reward/Economy Engine** — not yet built (Phase 24). Will own
+   inventory, collectibles, and reward tables, kept distinct from
+   `WorldChange` (a world change is not a reward) and from
+   `SkillProgress` (a reward is not proof of mastery).
+8. **AI Tutor Engine** — Chatty's structured generation calls:
+   `CompanionProfile`, `AIInteractionAudit`, and the safe-context-builder/
+   schema-validation/fallback pipeline (section 7, CLAUDE.md). Never
+   determines correctness or mastery; only explains, hints, and narrates.
+   Formalized as a contextual tutor bounded to current quest/skill/hint
+   level at Phase 27.
+9. **Parent/Educator Engine** — the parent-facing reporting surface
+   (`features/parent-dashboard`). Has no data models of its own; it
+   composes read views over other engines' data (`AdventureSession`,
+   `SkillProgress`, `WorldChange`). Expanded with mastery-level and
+   next-focus reporting at Phase 30.
+
+`ParentProfile`, `ChildProfile`, and `ParentConsent` belong to none of the
+above — they are Account/Platform data (Auth boundary, above), foundational
+to every engine rather than owned by one.
+
+### Confirmed: no adventure content embeds mastery-calculation logic
+
+Reviewed for Phase 18: every file under `src/features/adventures/content/`
+and `src/features/story/content/` declares steps, validators, and
+`learningObjectiveIds` only. The only call sites for `upsertSkillProgress`
+in the whole codebase are `src/features/adventures/useAdventureSession.ts`
+(Adventure Engine) and `src/features/story/api.ts` (Story Engine), both
+passing through the same shared function in
+`src/features/adventures/api.ts`. No adventure or story template computes
+or writes mastery state itself, so Phase 20 has no template-embedded logic
+to migrate.
+
+### Event contracts between engines
+
+Target contracts for the engines above to exchange once each is built.
+`WorldStateChanged` already exists today as the `WorldChange` model/event;
+the other four are documented now, ahead of their owning engine, so
+Phases 19-28 build compatible interfaces instead of inventing this later.
+
+| Event | Producer -> Consumers | Payload (indicative) |
+|---|---|---|
+| `LearningRequested` | Adventure/Story/Quest Engine -> Learning Engine | `childProfileId`, `domain`/`subject`, `context` (adventure/quest ID) |
+| `InteractionCompleted` | Interaction Engine (Phase 22) / Adventure Engine -> Mastery Engine | `childProfileId`, `learningObjectiveId`/`skillId`, `interactionType`, `correctness`, `supportLevel`, `attemptNumber`, `sessionId` |
+| `MasteryUpdated` | Mastery Engine -> AI Tutor Engine, Adaptive Adventure Director (Phase 28), Parent/Educator Engine | `childProfileId`, `skillId`, `previousStatus`, `newStatus`, `evidenceCount` |
+| `QuestAdvanced` | Quest Engine (Phase 25) -> World Engine, NPC system (Phase 23), Reward/Economy Engine | `childProfileId`, `questId`, `objectiveId`, `questStatus` |
+| `WorldStateChanged` | World Engine (persistence half) -> World Engine (presentation half), NPC system, Quest Engine | `changeType`, `changeKey`, `payload`, `sourceSessionId` (today's `WorldChange` fields) |
+
+None of these are implemented as typed code today except `WorldStateChanged`
+(as `WorldChange`); this table is documentation only, per Phase 18's scope.
+
 ## State ownership
 
 - Canonical adventure state lives on the server.
