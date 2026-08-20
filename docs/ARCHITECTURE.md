@@ -119,13 +119,16 @@ which engine owns which model.
    difficulty. Read-heavy: adventures and quests reference its objective/
    skill IDs but never embed their own scoring logic (see confirmation
    below).
-5. **Mastery Engine** — `SkillEvidence` and `SkillProgress`: turns raw
-   evidence into per-skill status. Today this is `upsertSkillProgress`
-   (`src/features/adventures/api.ts`), called only from the Adventure
-   Engine (`useAdventureSession.ts`) and the Story Engine
+5. **Mastery Engine** (`src/features/mastery/`, Phase 20) — `SkillEvidence`
+   and `SkillProgress`: turns raw evidence into per-skill status
+   (`LOCKED | INTRODUCED | DEVELOPING | PROFICIENT | MASTERED`), an
+   error-pattern signal, and prerequisite-unlocking/review-decay rules.
+   `upsertSkillProgress` (formerly in `src/features/adventures/api.ts`,
+   moved here at Phase 20) is still called only from the Adventure Engine
+   (`useAdventureSession.ts`) and the Story Engine
    (`src/features/story/api.ts`) — never from adventure content itself.
-   Formalized into a standalone engine with status levels and decay rules
-   at Phase 20.
+   `SkillEvidence`'s own write path (`recordSkillEvidence`) stays in the
+   Adventure Engine's `api.ts` for now, not yet moved.
 6. **Interaction Engine** — not yet built (Phase 22). Will own the
    reusable cross-adventure interaction contract (drag/sort/measure/
    build/decode/converse) so gameplay mechanics are not re-implemented

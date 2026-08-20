@@ -224,17 +224,42 @@ Avoid storing raw audio or unrestricted free text by default.
 - `observedAt`
 
 ## SkillProgress
-A compact derived record:
+A compact derived record, owned by the Mastery Engine
+(`src/features/mastery/`, docs/ROADMAP.md Phase 20):
 - `id`
 - `childProfileId`
 - `learningObjectiveId`
 - `exposureCount`
 - `independentSuccessCount`
 - `supportedSuccessCount`
-- `recentLevel`
+- `recentLevel`: `SkillStatus` (`LOCKED | INTRODUCED | DEVELOPING | PROFICIENT | MASTERED`),
+  computed by `src/features/mastery/status.ts`'s `computeSkillStatus`. A
+  row's own stored value is never `LOCKED` — that status only exists at
+  read time for skills with no evidence yet and unmet prerequisites (see
+  `resolveSkillStatuses`); a row implies exposure, which is never locked.
+- `consecutiveIndependentCorrect`: streak of unsupported correct results,
+  most recent first; resets on any supported or incorrect/partial result.
+- `errorPattern`: `ErrorPattern` (`NONE | NEEDS_SUPPORT | INCONSISTENT | STALLED`),
+  a count-derived signal, computed by `src/features/mastery/errorPattern.ts`.
+  Not a semantic misconception taxonomy.
 - `lastPracticedAt`
 
-Do not label children with fixed ability judgments.
+Do not label children with fixed ability judgments. `recentLevel` is a
+read-time, decayable signal (`applyReviewDecay`, `docs/ROADMAP.md` Phase
+20's "review/decay rules"), not a permanent label: a status earned long
+ago and not practiced recently is presented one level lower without ever
+rewriting or discarding the underlying evidence.
+
+A success only counts as independent (`independentSuccessCount`) when the
+result is `correct` **and** no hint was used; a supported (hinted) correct
+result counts toward `supportedSuccessCount` instead; an incorrect,
+partial, or not-applicable result increments neither, only
+`exposureCount`. (Before Phase 20, this distinction was based on hint
+level alone rather than on `correctness`, which meant a final incorrect
+answer on a step with no hint policy — and a story `REFLECTION` scene's
+always-`not_applicable` result — were both miscounted as independent
+successes; fixed as part of this phase since the fix lives in the exact
+function this phase extends.)
 
 ## WorldChange
 - `id`

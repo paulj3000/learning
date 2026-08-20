@@ -5,18 +5,14 @@ import styles from './ChildDashboard.module.css';
 import { getChildProfile, setChildProfileAIEnabled } from '../features/child-profile/api';
 import type { ChildProfile } from '../features/child-profile/api';
 import { deleteChildProfileData } from '../features/child-profile/deletion';
-import {
-  listAllWorldChanges,
-  listSessions,
-  listSkillProgress,
-  listStoryArtifacts,
-} from '../features/adventures/api';
+import { listAllWorldChanges, listSessions, listStoryArtifacts } from '../features/adventures/api';
 import type {
   AdventureSession,
   SkillProgress,
   StoryArtifact,
   WorldChange,
 } from '../features/adventures/api';
+import { listSkillProgress } from '../features/mastery/api';
 import { LEARNING_OBJECTIVES, getAdventureTemplate } from '../features/adventures/content';
 import { getIslandLocation } from '../features/island/locations';
 import { AGE_BAND_LABELS, READING_MODE_OPTIONS } from '../features/child-profile/constants';

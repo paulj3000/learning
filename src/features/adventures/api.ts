@@ -180,50 +180,6 @@ export async function recordSkillEvidence(input: RecordSkillEvidenceInput): Prom
   }
 }
 
-/**
- * One compact row per (child, objective), incremented rather than
- * replaced, so progress accumulates across sessions (DATA_MODEL.md
- * SkillProgress: "Do not label children with fixed ability judgments").
- */
-export async function upsertSkillProgress(
-  childProfileId: string,
-  learningObjectiveCode: string,
-  supported: boolean,
-): Promise<void> {
-  const { data: existingRows } = await client.models.SkillProgress.list();
-  const existing = existingRows.find(
-    (row: SkillProgress) =>
-      row.childProfileId === childProfileId && row.learningObjectiveCode === learningObjectiveCode,
-  );
-  const now = new Date().toISOString();
-
-  if (!existing) {
-    const { errors } = await client.models.SkillProgress.create({
-      childProfileId,
-      learningObjectiveCode,
-      exposureCount: 1,
-      independentSuccessCount: supported ? 0 : 1,
-      supportedSuccessCount: supported ? 1 : 0,
-      lastPracticedAt: now,
-    });
-    if (errors?.length) {
-      throw new Error(errors[0]?.message ?? 'Could not record skill progress.');
-    }
-    return;
-  }
-
-  const { errors } = await client.models.SkillProgress.update({
-    id: existing.id,
-    exposureCount: existing.exposureCount + 1,
-    independentSuccessCount: existing.independentSuccessCount + (supported ? 0 : 1),
-    supportedSuccessCount: existing.supportedSuccessCount + (supported ? 1 : 0),
-    lastPracticedAt: now,
-  });
-  if (errors?.length) {
-    throw new Error(errors[0]?.message ?? 'Could not record skill progress.');
-  }
-}
-
 export async function listWorldChanges(
   childProfileId: string,
   locationSlug: string,
@@ -241,16 +197,6 @@ export async function listAllWorldChanges(childProfileId: string): Promise<World
   return data
     .filter((change: WorldChange) => change.childProfileId === childProfileId)
     .sort((a: WorldChange, b: WorldChange) => b.createdAt.localeCompare(a.createdAt));
-}
-
-/** One row per (child, learning objective) the child has ever practiced (parent dashboard). */
-export async function listSkillProgress(childProfileId: string): Promise<SkillProgress[]> {
-  const { data } = await client.models.SkillProgress.list();
-  return data
-    .filter((row: SkillProgress) => row.childProfileId === childProfileId)
-    .sort((a: SkillProgress, b: SkillProgress) =>
-      (b.lastPracticedAt ?? '').localeCompare(a.lastPracticedAt ?? ''),
-    );
 }
 
 export async function hasWorldChange(

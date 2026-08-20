@@ -2628,6 +2628,99 @@ content, not an Amplify Data model, matching the precedent already set by
 Verified `npm run typecheck`, `npm run lint` (no new warnings), and
 `npm test` — 87 files, 671 tests, all pass (13 new from this phase).
 
+## Phase 20 — Mastery Engine
+
+New feature folder `src/features/mastery/`, formalizing the Mastery
+Engine per Phase 18's own forecast ("formalized into a standalone engine
+... at Phase 20"). Extends `SkillProgress` rather than replacing it, per
+the roadmap's own scope note.
+
+- **Schema** (`amplify/data/resource.ts`): two new enums, `SkillStatus`
+  (`LOCKED | INTRODUCED | DEVELOPING | PROFICIENT | MASTERED`) and
+  `ErrorPattern` (`NONE | NEEDS_SUPPORT | INCONSISTENT | STALLED`).
+  `SkillProgress` gains `consecutiveIndependentCorrect` (new field) and
+  its previously-declared-but-never-written `recentLevel` is now typed
+  against `SkillStatus` and actually populated. Field kept as
+  `recentLevel` rather than renamed to `status`, since renaming an
+  Amplify model field is a drop+add at the DynamoDB layer, not a free
+  rename.
+- **`types.ts`**: `SkillStatus`, `ErrorPattern`, `SkillProgressCounts`
+  (DB-client-independent input shape), `MasteryDetail` (full detail, for
+  the owning parent's own dashboard only), and `MasterySummary` (skill ID
+  + status only — the safe view for the AI Tutor Engine (Phase 27) and
+  Adaptive Adventure Director (Phase 28), per the roadmap's "full mastery
+  detail is not sent to either").
+- **`status.ts`**: `computeSkillStatus` (pure, deterministic thresholds —
+  documented as initial values, not pedagogically validated, same honesty
+  as the "Decisions pending" list) and `applyReviewDecay` (the
+  "review/decay rules" deliverable — a read-time-only rule: a
+  `PROFICIENT`/`MASTERED` status not practiced for `REVIEW_DECAY_DAYS`
+  (21) steps back one level for display, without ever rewriting the
+  stored row, so evidence history is never lost to the passage of time).
+- **`errorPattern.ts`**: `computeErrorPattern`, a count-derived signal
+  (never-independent = `STALLED`, hint-reliant = `NEEDS_SUPPORT`, mixed =
+  `INCONSISTENT`) — deliberately not a semantic misconception taxonomy,
+  which would need per-step authored error categories, out of this
+  phase's scope.
+- **`summary.ts`**: `resolveSkillStatuses` walks the curriculum graph
+  (`src/features/curriculum`) recursively (memoized, with a cycle guard
+  that resolves to `LOCKED` defensively) to compute prerequisite-gated
+  status for every skill — the "prerequisite-unlocking" deliverable. A
+  stored `SkillProgress` row's own status is never `LOCKED`: a row
+  existing at all means `exposureCount >= 1`, and `computeSkillStatus`'s
+  `LOCKED` branch only applies at zero exposure, so `LOCKED` is purely a
+  read-time concept for skills with no evidence yet. `buildMasteryDetail`/
+  `buildMasterySummary` compose this with `applyReviewDecay` and
+  `computeErrorPattern` into the two views from `types.ts`.
+- **`api.ts`**: `upsertSkillProgress` and `listSkillProgress` **moved**
+  here from `src/features/adventures/api.ts` (Phase 18's ownership table
+  already named `SkillProgress` as Mastery Engine's, not Adventure
+  Engine's). `SkillEvidence`'s own write path (`recordSkillEvidence`)
+  stays in the Adventure Engine's `api.ts` for now — moving it too was
+  judged unnecessary scope for this phase's diff size, tracked as a
+  follow-up in "Known risks/TODOs." Call sites updated:
+  `useAdventureSession.ts` and `src/features/story/api.ts` now import
+  `upsertSkillProgress` from `../mastery/api`; `ChildDashboard.tsx` and
+  `AdminChildProgress.tsx` now import `listSkillProgress` the same way.
+  The `SkillProgress` *type* alias stays exported from
+  `src/features/adventures/api.ts` too (three existing consumers import
+  it from there) rather than migrating every type-only import for a
+  structurally-identical type.
+- **Bug found and fixed while extending this exact function**:
+  `upsertSkillProgress`'s old signature only took a `supported: boolean`
+  derived from hint level, so a final `incorrect` answer on a step with
+  no `hintPolicy` (supportLevel stays 0) — and a story `REFLECTION`
+  scene's always-`not_applicable` result — were both counted as
+  independent successes, since the old code only checked "was a hint
+  used," never "was the answer actually correct." New signature takes
+  the real `Correctness` plus `supportLevel`; a success only counts
+  (independent or supported) when `correctness === 'correct'`. No
+  existing test asserted the old behavior (grep found zero tests
+  referencing `upsertSkillProgress` before this phase), so this is a
+  silent-until-now correctness fix, not a test update.
+- **`docs/DATA_MODEL.md`**: `SkillProgress` section rewritten with the
+  new fields, the independent-vs-supported counting rule, and the bug fix
+  above documented in place. **`docs/ARCHITECTURE.md`**: Mastery Engine
+  bullet updated to point at the new location.
+- **Tests**: `status.test.ts` (13 cases), `errorPattern.test.ts` (7
+  cases), `summary.test.ts` (11 cases) — thresholds, decay boundaries
+  (including the exact-21-days edge), the two-level prerequisite chain
+  (`subtraction-within-ten` -> `addition-within-ten` -> `counting-sets`),
+  an unknown-skill-id defensive case, and an explicit assertion that
+  `buildMasterySummary` never leaks raw counts (`Object.keys` check).
+  `api.ts` itself has no test, consistent with the established
+  already-documented precedent for every other `api.ts` function that
+  only wraps `client.models.*` calls — it needs a live backend to
+  exercise meaningfully.
+
+Verified `npm run typecheck`, `npm run lint` (no new warnings), and
+`npm test` — 90 files, 702 tests, all pass (31 new from this phase). Not
+deploy-verified: no real `amplify_outputs.json` in this environment, same
+constraint as every schema change since Phase 8 — the two new enum fields
+and the new required `consecutiveIndependentCorrect` field on an
+already-populated `SkillProgress` table have not been exercised against a
+live backend or existing rows.
+
 ## Verification (Phase 17 session)
 
 - `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
@@ -3018,6 +3111,27 @@ above).
 
 ## Known risks / TODOs
 
+- **Phase 20: `SkillEvidence`'s write path (`recordSkillEvidence`) was not
+  moved into the Mastery Engine (`src/features/mastery/`) along with
+  `SkillProgress`'s.** It stays in `src/features/adventures/api.ts` for
+  now. Phase 18's ownership table names the Mastery Engine as authoritative
+  for both models; only `SkillProgress`'s read/write functions were
+  actually relocated this phase, to keep the diff bounded. Low severity —
+  it is still only ever called from the Adventure/Story Engines, same as
+  `upsertSkillProgress` was before this phase — but worth finishing the
+  move if `SkillEvidence` ever needs its own Mastery Engine logic (for
+  example, a future real error-pattern classifier reading raw evidence
+  history instead of `SkillProgress`'s aggregate counters).
+- **Phase 20: `SkillProgress.consecutiveIndependentCorrect` is a new
+  `.required().default(0)` field on an already-populated model.** Every
+  row created before this phase has no real value for it. Amplify/DynamoDB
+  defaults only apply to genuinely new items, not retroactively to
+  existing rows, the same already-documented category of gap as
+  `AdventureSession.coopSessionId` (Phase 17) and `ChildProfile.aiEnabled`
+  — not exercised against a live backend or pre-existing data in this
+  environment. Confirm on the first real deploy that reading an old row
+  returns a sane value (`0` or `null`, not an error) before this phase's
+  status computation runs against it.
 - **Admin section: no live verification of the `Admins`-group authorization
   path** (post-Phase-17): `allow.group('Admins').to(['read'])`
   (`amplify/data/resource.ts`) has been typechecked and read carefully

@@ -17,10 +17,10 @@ import {
   recordWorldChangeOnce,
   resumeOrStartSession,
   saveStoryArtifact,
-  upsertSkillProgress,
   type AdventureSession,
   type StoryScene,
 } from './api';
+import { upsertSkillProgress } from '../mastery/api';
 import { useCompanionTurn } from '../companion/useCompanionTurn';
 import type { CompanionTurnState } from '../companion/useCompanionTurn';
 import type { AgeBandValue } from '../child-profile/constants';
@@ -146,7 +146,7 @@ export function useAdventureSession(
           result: correctness,
           supportLevel,
         });
-        await upsertSkillProgress(childProfileId, objectiveId, supportLevel > 0);
+        await upsertSkillProgress(childProfileId, objectiveId, correctness, supportLevel);
       }
     },
     [childProfileId],

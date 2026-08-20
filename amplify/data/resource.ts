@@ -98,6 +98,9 @@ const schema = a.schema({
 
   SessionStatus: a.enum(['ACTIVE', 'PAUSED', 'COMPLETED', 'ABANDONED', 'SAFETY_STOPPED']),
   Correctness: a.enum(['CORRECT', 'INCORRECT', 'PARTIAL', 'NOT_APPLICABLE']),
+  // --- Phase 20: Mastery Engine (docs/ROADMAP.md, src/features/mastery/) ---
+  SkillStatus: a.enum(['LOCKED', 'INTRODUCED', 'DEVELOPING', 'PROFICIENT', 'MASTERED']),
+  ErrorPattern: a.enum(['NONE', 'NEEDS_SUPPORT', 'INCONSISTENT', 'STALLED']),
 
   AdventureSession: a
     .model({
@@ -160,7 +163,26 @@ const schema = a.schema({
       exposureCount: a.integer().required().default(0),
       independentSuccessCount: a.integer().required().default(0),
       supportedSuccessCount: a.integer().required().default(0),
-      recentLevel: a.string(),
+      /**
+       * Phase 20 Mastery Engine status, computed by
+       * `src/features/mastery/status.ts` and written by `upsertSkillProgress`
+       * on every evidence event. Was declared but never written before this
+       * phase (an unused free-text field) — now the actual "per-skill
+       * status" deliverable, typed against `SkillStatus` rather than a free
+       * string. Field name kept as `recentLevel` rather than renamed to
+       * `status`, since renaming an Amplify model field is a drop+add at
+       * the DynamoDB layer, not a free rename, and this field already means
+       * "this skill's most recently computed level."
+       */
+      recentLevel: a.ref('SkillStatus'),
+      /**
+       * Consecutive independent (unsupported) correct results, most recent
+       * first — resets to 0 on any supported completion or incorrect/partial
+       * result. Feeds both the MASTERED threshold and `errorPattern` below.
+       */
+      consecutiveIndependentCorrect: a.integer().required().default(0),
+      /** Phase 20 lightweight error-pattern signal, see `errorPattern.ts`. */
+      errorPattern: a.ref('ErrorPattern'),
       lastPracticedAt: a.datetime(),
     })
     .authorization((allow) => [allow.owner(), allow.group('Admins').to(['read'])]),

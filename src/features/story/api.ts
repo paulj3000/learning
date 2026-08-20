@@ -1,11 +1,7 @@
 import { client } from '../../lib/data-client';
-import {
-  listSessions,
-  recordSkillEvidence,
-  recordWorldChangeOnce,
-  upsertSkillProgress,
-} from '../adventures/api';
+import { listSessions, recordSkillEvidence, recordWorldChangeOnce } from '../adventures/api';
 import type { WorldChangePayload } from '../adventures/engine/types';
+import { upsertSkillProgress } from '../mastery/api';
 import type { Schema } from '../../../amplify/data/resource';
 
 export type ChildStoryProgress = Schema['ChildStoryProgress']['type'];
@@ -170,6 +166,6 @@ export async function recordStoryReflectionEvidence(
       result: 'not_applicable',
       supportLevel: 0,
     });
-    await upsertSkillProgress(childProfileId, objectiveId, false);
+    await upsertSkillProgress(childProfileId, objectiveId, 'not_applicable', 0);
   }
 }
