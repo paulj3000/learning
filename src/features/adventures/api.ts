@@ -139,6 +139,8 @@ export interface RecordActionInput {
   correctness: Correctness;
   hintLevel: number;
   attemptNumber: number;
+  /** Phase 22 Interaction Engine "duration capture" deliverable — see `src/features/interaction/evidence.ts`. */
+  durationMs?: number;
 }
 
 export async function recordAction(input: RecordActionInput): Promise<void> {
@@ -150,6 +152,7 @@ export async function recordAction(input: RecordActionInput): Promise<void> {
     correctness: CORRECTNESS_TO_SCHEMA[input.correctness],
     hintLevel: input.hintLevel,
     attemptNumber: input.attemptNumber,
+    durationMs: input.durationMs,
   });
   if (errors?.length) {
     throw new Error(errors[0]?.message ?? 'Could not record that action.');
@@ -163,6 +166,8 @@ export interface RecordSkillEvidenceInput {
   evidenceType: string;
   result: Correctness;
   supportLevel: number;
+  /** Phase 22 Interaction Engine "duration capture" deliverable — see `src/features/interaction/evidence.ts`. */
+  durationMs?: number;
 }
 
 export async function recordSkillEvidence(input: RecordSkillEvidenceInput): Promise<void> {
@@ -173,6 +178,7 @@ export async function recordSkillEvidence(input: RecordSkillEvidenceInput): Prom
     evidenceType: input.evidenceType,
     result: CORRECTNESS_TO_SCHEMA[input.result],
     supportLevel: input.supportLevel,
+    durationMs: input.durationMs,
     observedAt: new Date().toISOString(),
   });
   if (errors?.length) {

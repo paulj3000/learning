@@ -2790,6 +2790,85 @@ schema and no existing call site.
 Verified `npm run typecheck`, `npm run lint` (no new warnings), and
 `npm test` — 92 files, 726 tests, all pass (24 new from this phase).
 
+## Phase 22 — Gameplay Interaction Library
+
+New feature folder `src/features/interaction/`, a reusable,
+adventure-independent interaction contract across the roadmap's six named
+mechanics, plus themeable React components and the duration-capture
+schema addition the roadmap calls for.
+
+- **`types.ts`**: `InteractionMechanic` (`DRAG_SORT | SPLIT | MEASURE |
+  BUILD | DECODE | CONVERSE`), and — for each mechanic — separate
+  `InteractionSkillParams` (correctness-only data) and
+  `InteractionPresentation` (labels/copy only) discriminated unions, per
+  the deliverable "skill parameters kept separate from visual/story
+  presentation." Mirrors the existing per-step contract
+  (`PresentationSpec`/`StepAnswer` in `src/features/adventures/engine/`)
+  but adventure-independent. `InteractionEvidence` is the "attempt, hint,
+  duration, and result capture" output shape, using the Teaching Engine's
+  `ScaffoldingLevel` (Phase 21) rather than a raw integer.
+- **`evaluate.ts`**: `evaluateInteraction`, one deterministic branch per
+  mechanic, mirroring `validateStepAnswer`'s style exactly (AI never
+  decides correctness, CLAUDE.md section 7). Each mechanic supports
+  partial credit where it made sense (for example `DRAG_SORT` credits
+  items already in the right position; `BUILD`/`DECODE` credit partial
+  set/pair overlap); `CONVERSE` returns `not_applicable` when no response
+  is marked accepted, matching the existing `CREATIVE_CHOICE` precedent
+  for open/creative answers with no single right answer.
+- **`evidence.ts`**: `buildInteractionEvidence`, a pure function (not a
+  React hook — domain logic stays independent of components, CLAUDE.md
+  section 13) that assembles `InteractionEvidence` including a computed,
+  never-negative `durationMs`. `evidenceHintLevel` translates the
+  captured `ScaffoldingLevel` back to the existing 1-5 integer via Phase
+  21's `hintLevelForScaffoldingLevel`.
+- **`components/`**: six presentational components, one per mechanic
+  (`DragSortInteraction`, `SplitInteraction`, `MeasureInteraction`,
+  `BuildInteraction`, `DecodeInteraction`, `ConverseInteraction`), sharing
+  one CSS module (`Interaction.module.css`) built from the same design
+  tokens (`var(--color-*)`, `var(--space-*)`, etc.) already used by
+  `src/features/adventures/steps/StepShell.module.css`, for visual
+  consistency without a new theming abstraction the rest of the codebase
+  doesn't otherwise use. Every component is keyboard/touch/mouse
+  accessible by construction: real `<button>`/`<input>`/`<select>`
+  elements throughout, no native HTML5 drag-and-drop (mouse-only, poor
+  assistive-tech support) — `DragSortInteraction` reuses the existing
+  up/down-button reordering pattern already established by
+  `OrderingStep.tsx` rather than inventing a new one, and `DecodeInteraction`
+  uses native `<select>` dropdowns rather than a drag-to-match UI for the
+  same reason. `ConverseInteraction` only ever offers a curated, bounded
+  set of response buttons, never free text (CLAUDE.md section 2: no
+  unrestricted chat box for a child profile).
+- **Schema** (`amplify/data/resource.ts`): new optional `durationMs`
+  field on both `AdventureAction` and `SkillEvidence` — the "duration
+  capture" deliverable did not exist anywhere in the schema before this
+  phase. `recordAction`/`recordSkillEvidence`
+  (`src/features/adventures/api.ts`) gained an optional `durationMs`
+  parameter, passed through unchanged; every existing caller
+  (`useAdventureSession.ts`, `src/features/story/api.ts`) omits it, so
+  this is purely additive with no behavior change for existing adventures.
+- **Not wired into any live adventure content or `useAdventureSession.ts`**,
+  same "ready for a future phase to consume" precedent as Phases 19-21 —
+  the existing step components (`ChoiceStep`, `OrderingStep`,
+  `NumberInputStep`, etc.) are unchanged.
+- **`docs/ARCHITECTURE.md`**: Interaction Engine bullet updated from "not
+  yet built" to describe what was actually built. **`docs/DATA_MODEL.md`**:
+  `AdventureAction`/`SkillEvidence` sections document the new
+  `durationMs` field.
+- **Tests**: `evaluate.test.ts` (22 cases, all six mechanics' correct/
+  partial/incorrect/not_applicable branches plus a mismatched-mechanic
+  error case), `evidence.test.ts` (5 cases, including the
+  never-negative-duration guard), and one test file per component (27
+  cases total) following the existing `ChoiceStep.test.tsx`/
+  `OrderingStep.test.tsx` pattern — render, interaction, disabled state,
+  and submit-callback assertions via `@testing-library/react`/
+  `user-event`.
+
+Verified `npm run typecheck`, `npm run lint` (no new warnings), and
+`npm test` — 100 files, 776 tests, all pass (50 new from this phase). Not
+deploy-verified: the two new optional schema fields have not been
+exercised against a live backend, same standing constraint as every
+schema change since Phase 8.
+
 ## Verification (Phase 17 session)
 
 - `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and

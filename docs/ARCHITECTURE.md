@@ -148,10 +148,20 @@ which engine owns which model.
    level was already being recorded as mastery evidence before this
    phase (`SkillEvidence.supportLevel`, since Phase 4/17); this phase adds
    the reusable vocabulary on top, not a new recording path.
-7. **Interaction Engine** — not yet built (Phase 22). Will own the
-   reusable cross-adventure interaction contract (drag/sort/measure/
-   build/decode/converse) so gameplay mechanics are not re-implemented
-   per adventure.
+7. **Interaction Engine** (`src/features/interaction/`, Phase 22) — a
+   reusable, adventure-independent interaction contract across six named
+   mechanics (`DRAG_SORT`, `SPLIT`, `MEASURE`, `BUILD`, `DECODE`,
+   `CONVERSE`), each split into `skillParams` (correctness-only) and
+   `presentation` (labels/copy only) rather than one blob, plus themeable
+   React components for each and `evaluateInteraction` (deterministic,
+   mirrors `validateStepAnswer`). Owns no data model of its own — its
+   evidence output (`InteractionEvidence`: attempt, `ScaffoldingLevel`,
+   duration, result) is shaped to feed straight into the Adventure/
+   Mastery Engines' existing `recordAction`/`recordSkillEvidence`/
+   `upsertSkillProgress`. Not yet wired into any live adventure content
+   (same "ready for a future phase to consume" precedent as Phases 19-21);
+   the existing per-step components (`ChoiceStep`, `OrderingStep`, etc.)
+   are unchanged.
 8. **Reward/Economy Engine** — not yet built (Phase 24). Will own
    inventory, collectibles, and reward tables, kept distinct from
    `WorldChange` (a world change is not a reward) and from

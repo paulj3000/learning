@@ -139,6 +139,13 @@ const schema = a.schema({
       correctness: a.ref('Correctness').required(),
       hintLevel: a.integer().required().default(0),
       attemptNumber: a.integer().required(),
+      /**
+       * Phase 22 Interaction Engine "duration capture" deliverable —
+       * milliseconds from first presenting this step/interaction to this
+       * attempt's submission. Optional: every caller before this phase
+       * (the existing step types) does not measure or pass it.
+       */
+      durationMs: a.integer(),
     })
     .authorization((allow) => [allow.owner()]),
 
@@ -151,6 +158,8 @@ const schema = a.schema({
       evidenceType: a.string().required(),
       result: a.ref('Correctness').required(),
       supportLevel: a.integer().required(),
+      /** Phase 22 Interaction Engine "duration capture" deliverable, see `AdventureAction.durationMs`. */
+      durationMs: a.integer(),
       observedAt: a.datetime().required(),
     })
     .authorization((allow) => [allow.owner()]),

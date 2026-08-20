@@ -209,6 +209,8 @@ Store the minimum evidence required:
 - `correctness`: correct, incorrect, partial, not_applicable
 - `hintLevel`
 - `attemptNumber`
+- `durationMs` (optional; Phase 22 Interaction Engine "duration capture"
+  deliverable — no caller before that phase measured or set it)
 - `createdAt`
 
 Avoid storing raw audio or unrestricted free text by default.
@@ -222,6 +224,7 @@ Avoid storing raw audio or unrestricted free text by default.
 - `result`
 - `difficulty`
 - `supportLevel`
+- `durationMs` (optional, same Phase 22 deliverable as `AdventureAction.durationMs`)
 - `observedAt`
 
 ## SkillProgress
