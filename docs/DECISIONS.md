@@ -131,3 +131,79 @@ mount/unmount checks with `phaser` mocked); all game *logic* — the world
 event bus, the world object/interaction registry, requirement checks — is
 written as plain, Phaser-free TypeScript so it stays unit-testable.
 
+## ADR-008: Three.js first-person world supersedes Phaser as the next-generation renderer
+
+Status: Accepted, pending Sprouts (ages 3-4) accessibility validation before
+child-facing rollout
+
+This supersedes ADR-007's renderer choice, not the layering rule it
+established. Learning Adventure Island adopts **Three.js**
+(`three` on npm) as the rendering library for the next generation of the
+explorable world, moving from the currently shipped top-down/isometric
+Phaser view to a first-person 3D perspective: `PerspectiveCamera`,
+`Raycaster`-based interaction targeting, GLTF/GLB assets, and
+`AnimationMixer`-driven character/object animation.
+
+**Why this reverses the earlier 2D recommendation:** the source roadmap
+that produced ADR-007
+(`docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md` section 7)
+deliberately chose 2D/2.5D over full 3D for tablet performance, accessibility,
+touch interaction, camera simplicity, and asset cost, for a product whose
+youngest band is ages 3-4. A later planning pack makes first-person 3D an
+explicit product decision instead, reasoning that a first-person view
+strengthens the "I am exploring my island" feeling (section 2) more than a
+top-down map does. That tradeoff is accepted here, but the risk it
+reintroduces is not waved away: this ADR's status is deliberately marked
+pending on accessibility validation rather than fully closed.
+
+**What does not change:**
+- ADR-007's layering rule stands unchanged, with Three.js taking Phaser's
+  slot at the top:
+
+```text
+World Engine (Three.js: camera, scene graph, GLB assets, animation,
+              collision presentation, interaction targeting)
+     -> Story Engine (chapters, scenes, narrative state, bounded choices)
+     -> Adventure Engine (deterministic challenge progression, validation, hints)
+     -> Learning Rules / AI Companion (evaluation / narration, never both)
+     -> World State (permanent consequences, unlocks, discoveries)
+```
+
+- Three.js never decides correctness, mastery, quest completion, rewards,
+  or AI safety disposition. A Three.js scene may emit `WorldInteraction`-style
+  events (`PlayerEnteredZone`, `ObjectInteracted`, `NpcApproached`) but must
+  never itself validate an answer, award progress, or call an AI route
+  directly, matching ADR-007's existing constraint.
+- Durable domain state is keyed by stable semantic identifiers
+  (`regionId`, `zoneId`, `entityId`, `interactionId`, `worldStateKey`), never
+  by a Three.js object UUID, mesh reference, or raw camera transform.
+- `ChattyAvatar.tsx`'s Canvas 2D approach remains untouched for small,
+  self-contained portraits/icons, as under ADR-007.
+- The deterministic Adventure Engine (ADR-002), structured AI output
+  (ADR-003), and server-side correctness remain unchanged.
+
+**Migration, not rewrite:** Phaser is not retroactively erased from project
+history. The already-shipped Phaser world (Phases 9-11 in
+`docs/ROADMAP.md`) is the current production state and stays live until a
+Three.js vertical slice reaches feature parity on the same golden path
+(walk to the broken bridge, repair it, walk across it) and is play-tested.
+Phaser is retired from child-facing exploration only after that slice is
+verified, not on this ADR alone. See `docs/ROADMAP.md` Phases 31-34 for the
+migration sequence.
+
+**Open risk this ADR does not resolve:** first-person camera/look controls
+introduce accessibility and comfort concerns (fine motor control for
+look-around, motion sensitivity, disorientation) that a top-down/isometric
+view does not have, and that are more acute for the Sprouts band (ages 3-4,
+"voice-first and picture-first," "one-step decisions," CLAUDE.md section 3)
+than for Pathfinders or Explorers. The non-graphical alternate navigator
+already required by Phase 9 (roadmap section 42 — "walking the world must
+never be the only way to reach a location or adventure") carries forward as
+a hard requirement here, not an optional accessibility nicety, and Phase 31
+must include an explicit Sprouts playtest before any Three.js region ships
+as the primary path for that age band. If that validation fails for
+Sprouts, the fallback is not to abandon Three.js for Pathfinders/Explorers,
+but to keep (or restore) a non-first-person path — map navigator, fixed
+camera, or the existing Phaser view — as Sprouts' primary route through the
+world.
+

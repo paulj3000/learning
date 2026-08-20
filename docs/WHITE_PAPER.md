@@ -9,7 +9,7 @@
 
 Learning Adventure Island is an AI-powered learning world for children ages 3–8, built on AWS Amplify Gen 2. It is not a worksheet catalog or a general-purpose chatbot wrapped in a kid-friendly skin. It is a persistent, explorable island where a child's learning has a visible, lasting effect on the world itself: a bridge gets rebuilt because the child solved a measurement problem, a forest floor blooms because a story was finished, a dragon appears in a new sanctuary because an adventure was completed weeks earlier.
 
-As of this writing, the project has shipped a complete MVP (Phases 0–8 of the original roadmap: parent accounts, the island shell, a deterministic adventure engine, a safety-reviewed AI companion, three full learning locations, a parent dashboard, and a formal hardening/pilot phase), and has gone considerably further: a nine-phase "explorable world" arc (Phases 9–17) that replaced static location screens with a real 2D game world (Phaser), added a Story Engine layer, built five full narrative adventure arcs across all three age bands, connected story completion to lasting world-wide changes, and shipped household co-presence so siblings can play the same adventure together in real time.
+As of this writing, the project has shipped a complete MVP (Phases 0–8 of the original roadmap: parent accounts, the island shell, a deterministic adventure engine, a safety-reviewed AI companion, three full learning locations, a parent dashboard, and a formal hardening/pilot phase), and has gone considerably further: a nine-phase "explorable world" arc (Phases 9–17) that replaced static location screens with a real 2D game world (Phaser), added a Story Engine layer, built five full narrative adventure arcs across all three age bands, connected story completion to lasting world-wide changes, and shipped household co-presence so siblings can play the same adventure together in real time. A next-generation rendering direction has also been approved but not yet built: a first-person 3D world on Three.js, replacing Phaser as the child-facing renderer once a verified vertical slice reaches parity (Section 5).
 
 Phase 8's hardening work culminated in a **closed pilot run with real recruited families**, which surfaced no major issues. The product has been reviewed against a threat model, an authorization review, a privacy/child-safety review, and an accessibility audit — each of which found and fixed real issues rather than rubber-stamping the design. A live AI red-team pass against Amazon Bedrock (17 adversarial fixtures) recorded zero safety-boundary violations.
 
@@ -49,7 +49,7 @@ What differentiates this from "an AI chatbot for kids" is the combination of a p
 
 ## 4. The World, As Built Today
 
-The island currently has five real, spatially explorable locations, each rendered with a real 2D game engine (Phaser) rather than static screens:
+The island currently has five real, spatially explorable locations, each rendered with a real 2D game engine (Phaser) rather than static screens. This is the current, shipped, authoritative renderer; a first-person 3D successor built on Three.js is an approved direction, not yet built (Section 5).
 
 | Location | What happens there |
 |---|---|
@@ -100,6 +100,30 @@ No layer takes over another's responsibility. In particular, the Phaser renderin
 **Every AI call** follows the same pipeline: child action → adventure state machine → learning-objective selector → safe context builder → structured AI generation route → schema validation → safety-disposition check → approved UI component → progress event. Every route call carries an explicit adventure template ID, age band, allowed topic, learning objective, and maximum output length, and every response has an authored fallback in code — the model is never the only thing standing between a child and an unsafe response.
 
 Backend authorization is deny-by-default: every model uses Cognito owner-based authorization, verified by a source-level authorization review (Section 8) rather than assumed correct.
+
+### 5.1 Next-Generation Rendering: Three.js First-Person World (Approved, Not Yet Shipped)
+
+ADR-008 (`docs/DECISIONS.md`) records an approved, but not yet built, successor to the Phaser world: a first-person 3D perspective rendered with **Three.js** — `PerspectiveCamera`, `Raycaster`-based interaction targeting, GLTF/GLB assets, and `AnimationMixer`-driven animation, in place of Phaser's top-down/isometric view. The rationale is product, not technical: a first-person view is judged to make "I am exploring my island" land more strongly than a top-down map does.
+
+```text
+React / Vite / TypeScript
+  |
+  +-- Three.js first-person world
+  |     camera, movement, GLB assets, animation,
+  |     spatial interaction, collision, environment
+  |
+  +-- Story / Adventure / Learning / Mastery engines
+  |     deterministic application logic (unchanged)
+  |
+  +-- Amplify Gen 2
+        Auth, Data, Functions, AI routes, persistence (unchanged)
+```
+
+This is a presentation-layer migration, not a rewrite: the Adventure Engine, Story Engine, Learning/Mastery rules, AI safety pipeline, and Amplify persistence are untouched. The same layering discipline in Section 5's diagram applies with Three.js taking Phaser's slot — it never decides correctness, mastery, quest completion, or AI safety disposition, and durable domain state is keyed by stable semantic identifiers (`regionId`, `zoneId`, `entityId`), never a Three.js object UUID.
+
+**Migration honesty:** Phaser is not being retroactively erased from project history and stays the shipped, authoritative child-facing renderer until a Three.js vertical slice (`docs/ROADMAP.md` Phases 31–34) reaches feature parity on the existing "walk to the bridge, repair it, walk across it" golden path and is verified — not before. This document will be updated to describe Three.js as shipped only once that happens.
+
+**Open risk, deliberately not resolved by this decision alone:** first-person camera/look controls introduce accessibility and comfort concerns (fine motor control, motion sensitivity, disorientation) more acute for the Sprouts band (ages 3–4) than for Pathfinders or Explorers. ADR-008's status is explicitly conditional on a Sprouts playtest (Phase 32 exit criterion); if it fails for that band, Sprouts keeps a non-first-person primary route (map navigator, fixed camera, or the existing Phaser view) rather than being forced into first-person navigation.
 
 ---
 
@@ -155,12 +179,13 @@ Tracked explicitly, not hidden:
 - There is no admin/reviewer role or UI yet for the "metadata audit and human review" safety layer; safety events are currently only visible to the owning parent.
 - Bedrock model choice (Claude Haiku 4.5) is a deliberate placeholder pending a formal model-selection decision.
 - A `ChildWorldState` model (tracking discovered objects/characters) has been specified but deliberately not built until a concrete deliverable needs it.
+- The approved Three.js first-person world (ADR-008, Section 5.1) has an unresolved accessibility question for the Sprouts band (ages 3–4): first-person camera/look controls have not yet been playtested with that age group, and the roadmap's exit criterion for Phase 32 depends on that result.
 
 ---
 
 ## 10. Decisions Still Pending
 
-- Final visual design direction and art pipeline.
+- Final visual design direction and art pipeline — partially resolved at the architectural level by ADR-008 (perspective: first-person 3D; renderer: Three.js; runtime asset format: GLTF/GLB; aesthetic: stylized colorful low-poly; HUD: minimal; navigation: landmarks-first; learning: embedded in world objects where practical). Still pending: final character style, environment style guide, production art vendor/workflow, detailed performance budgets, and final accessibility tuning for first-person movement.
 - Bedrock model selection by region, capability, latency, and cost.
 - Text-to-speech provider and voice consent model.
 - Formal curriculum framework mapping.
@@ -178,7 +203,7 @@ By design, not by omission: social networking, child-to-child messaging, public 
 
 ## 12. What's Next
 
-With the explorable-world arc and household co-presence complete, the immediate frontier is widening rather than deepening: more adventures wired for co-op play, a Bedrock Guardrails evaluation, an admin/reviewer role for the safety-audit workflow, and the pending decisions in Section 10. Beyond that, the roadmap already names a second wave of locations — Robot Repair Reef, Creature Care Cove, Mystery Marsh, Invention Volcano, Make-Believe Market, and Music and Motion Lagoon — plus seasonal island events, additional AI companions, and educator/homeschool accounts, all held as post-MVP candidates rather than committed scope.
+With the explorable-world arc and household co-presence complete, the immediate frontier is widening rather than deepening: more adventures wired for co-op play, a Bedrock Guardrails evaluation, an admin/reviewer role for the safety-audit workflow, and the pending decisions in Section 10. Running alongside that work is the approved Three.js first-person migration (ADR-008, Section 5.1, `docs/ROADMAP.md` Phases 31–34): a world-foundation sandbox, a first-person rebuild of Welcome Harbor gated on a Sprouts accessibility playtest, a first-person rebuild of the Broken Bridge adventure proving full parity with the shipped Phaser experience, and the 3D art/asset pipeline behind both. Phaser stays the shipped renderer until that slice is verified. Beyond that, the roadmap already names a second wave of locations — Robot Repair Reef, Creature Care Cove, Mystery Marsh, Invention Volcano, Make-Believe Market, and Music and Motion Lagoon — plus seasonal island events, additional AI companions, and educator/homeschool accounts, all held as post-MVP candidates rather than committed scope.
 
 ---
 
