@@ -44,6 +44,9 @@ Authorization: owner only; admin read only when explicitly required.
 - `ageBand`: `SPROUT | PATHFINDER | EXPLORER`
 - `birthYearMonth` optional and discouraged unless needed
 - `avatarKey`
+- `avatarPhotoKey` optional: path in Amplify Storage of a parent-uploaded
+  photo used as this child's profile icon, or null when the child uses
+  their `avatarKey` character (the default)
 - `interests`: string array from curated values
 - `readingMode`: `VOICE_FIRST | READ_ALONG | INDEPENDENT`
 - `sessionMinutes`
@@ -51,6 +54,34 @@ Authorization: owner only; admin read only when explicitly required.
 - timestamps
 
 Authorization: owning parent. Child-facing client access occurs within the authenticated parent session and must be constrained by application routes.
+
+### Child profile photos
+
+`avatarPhotoKey` is only a pointer. The image itself lives in the Storage
+bucket defined in `amplify/storage/resource.ts` under
+`child-photos/{entity_id}/<uuid>.jpg`, where `{entity_id}` is the Cognito
+identity pool ID of the parent who uploaded it, and the only access rule
+on that prefix is `allow.entity('identity').to(['read', 'write',
+'delete'])`. No guest rule, no blanket authenticated rule, and - unlike
+this model's row-level rules - no `Admins` group rule: an administrator
+can read the `ChildProfile` row but resolves no image from it.
+
+Handling rules that the code enforces
+(`src/features/child-profile/avatarPhoto.ts`):
+
+- A photo is always optional, parent-uploaded, and removable at any time.
+- The browser centre-crops and re-encodes the picture to a 256px JPEG
+  before upload, which bounds object size and strips all EXIF metadata,
+  including GPS coordinates from a phone camera.
+- Nothing is uploaded until the parent saves the profile, so an abandoned
+  form stores no photo.
+- Replacing a photo writes a new object (fresh UUID) and deletes the old
+  one after the profile row is saved, never before.
+- Deleting a child profile deletes the photo object first and aborts the
+  deletion if that fails (`deleteChildProfileData`), so "delete my child's
+  data" cannot report success while the picture survives.
+- The photo is never included in AI prompt context, and no AI route or
+  backend function is granted access to the bucket.
 
 ## ParentConsent
 - `id`

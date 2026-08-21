@@ -71,6 +71,7 @@ export function ChildProfileEdit() {
               nickname: childProfile.nickname,
               ageBand: childProfile.ageBand,
               avatarKey: childProfile.avatarKey,
+              avatarPhotoKey: childProfile.avatarPhotoKey ?? null,
               interests: (childProfile.interests ?? []).filter((interest): interest is string =>
                 Boolean(interest),
               ),

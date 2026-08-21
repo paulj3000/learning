@@ -7,6 +7,7 @@ import { ISLAND_LOCATIONS, isLocationUnlocked } from '../features/island/locatio
 import { getTodaysEvent } from '../features/island/events';
 import { getSeasonalIslandNote } from '../features/island/seasons';
 import { getOrCreateCompanionProfile, getCompanionProfile } from '../features/island/api';
+import { ChildAvatar } from '../features/child-profile/ChildAvatar';
 import { getChildProfile } from '../features/child-profile/api';
 import { listAllWorldChanges } from '../features/adventures/api';
 import type { CompanionProfile } from '../features/island/api';
@@ -84,7 +85,15 @@ export function WelcomeHarbor() {
   return (
     <IslandLayout childId={childId}>
       <div className={styles.intro}>
-        <h1 className={styles.heading}>Welcome back, {childProfile.nickname}!</h1>
+        <div className={styles.greeting}>
+          {/* Decorative: the nickname is right there in the heading. */}
+          <ChildAvatar
+            avatarKey={childProfile.avatarKey}
+            photoKey={childProfile.avatarPhotoKey}
+            size="large"
+          />
+          <h1 className={styles.heading}>Welcome back, {childProfile.nickname}!</h1>
+        </div>
         <p className={styles.event}>{getTodaysEvent(new Date())}</p>
         <p className={styles.event}>{getSeasonalIslandNote(new Date())}</p>
       </div>

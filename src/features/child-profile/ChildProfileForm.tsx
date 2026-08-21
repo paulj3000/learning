@@ -12,6 +12,8 @@ import {
   type ReadingModeValue,
 } from './constants';
 import { validateInterests, validateNickname, validateSessionMinutes } from './validators';
+import { ChildPhotoField } from './ChildPhotoField';
+import { persistPhotoSelection, type PhotoSelection } from './avatarPhoto';
 import type { ChildProfileInput } from './api';
 
 interface ChildProfileFormProps {
@@ -39,6 +41,8 @@ export function ChildProfileForm({ initialValue, submitLabel, onSubmit }: ChildP
   const [sessionMinutes, setSessionMinutes] = useState(
     initialValue?.sessionMinutes ?? SESSION_MINUTES_RANGE.SPROUT.min,
   );
+  const [photoSelection, setPhotoSelection] = useState<PhotoSelection>({ kind: 'unchanged' });
+  const existingPhotoKey = initialValue?.avatarPhotoKey ?? null;
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,14 +69,20 @@ export function ChildProfileForm({ initialValue, submitLabel, onSubmit }: ChildP
 
     setIsSubmitting(true);
     try {
-      await onSubmit({
-        nickname: nickname.trim(),
-        ageBand,
-        avatarKey,
-        interests,
-        readingMode,
-        sessionMinutes,
-      });
+      // Uploads the chosen photo (if any) first, saves the profile with the
+      // resulting path, then cleans up a replaced photo - see
+      // `persistPhotoSelection` for why that order matters.
+      await persistPhotoSelection(photoSelection, existingPhotoKey, (avatarPhotoKey) =>
+        onSubmit({
+          nickname: nickname.trim(),
+          ageBand,
+          avatarKey,
+          avatarPhotoKey,
+          interests,
+          readingMode,
+          sessionMinutes,
+        }),
+      );
     } catch (error) {
       setFormError(
         error instanceof Error ? error.message : 'Something went wrong. Please try again.',
@@ -145,6 +155,14 @@ export function ChildProfileForm({ initialValue, submitLabel, onSubmit }: ChildP
           ))}
         </div>
       </fieldset>
+
+      <ChildPhotoField
+        avatarKey={avatarKey}
+        existingPhotoKey={existingPhotoKey}
+        selection={photoSelection}
+        onSelectionChange={setPhotoSelection}
+        disabled={isSubmitting}
+      />
 
       <fieldset className={styles.field}>
         <legend className={styles.label}>Interests</legend>

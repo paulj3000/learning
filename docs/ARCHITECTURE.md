@@ -42,6 +42,14 @@ Use owner-based authorization for parent-owned records and explicit group author
 ### Storage
 Use path-based access rules. Store only approved assets and generated artifacts. Do not allow arbitrary public uploads in the MVP.
 
+Defined in `amplify/storage/resource.ts`. Today it holds exactly one kind
+of object: the optional photo a parent uploads as a child's profile icon,
+under `child-photos/{entity_id}/`, readable and writable only by the
+Cognito identity that uploaded it (no guest, blanket-authenticated, group,
+or function access). Client-side handling, including the re-encode that
+strips EXIF metadata and the deletion guarantees, is specified in
+`docs/DATA_MODEL.md` under "Child profile photos".
+
 ### Functions
 Potential functions:
 - `startAdventureSession`

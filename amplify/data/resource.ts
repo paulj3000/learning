@@ -51,6 +51,27 @@ const schema = a.schema({
       nickname: a.string().required(),
       ageBand: a.ref('AgeBand').required(),
       avatarKey: a.string().required(),
+      /**
+       * S3 path of the optional photo a parent uploaded as this child's
+       * profile icon, or null when the child uses one of the authored
+       * `avatarKey` characters instead (the default - a photo is never
+       * required).
+       *
+       * The bytes live in Amplify Storage under
+       * `child-photos/<parent identity id>/<uuid>.jpg`
+       * (amplify/storage/resource.ts), which is readable only by the
+       * Cognito identity that uploaded it; this column just points at
+       * them. Deliberately *not* admin-readable in effect: the `Admins`
+       * group rule below lets an administrator read this row, but the
+       * storage bucket grants that group nothing, so the path resolves to
+       * no image for anyone but the owning parent.
+       *
+       * Optional rather than `.required()` for the same reason as
+       * `aiEnabled` below: every `ChildProfile` row that already exists
+       * predates this field, and a required field with no stored value
+       * makes AppSync null out the entire list item.
+       */
+      avatarPhotoKey: a.string(),
       interests: a.string().array(),
       readingMode: a.ref('ReadingMode').required(),
       sessionMinutes: a.integer().required(),

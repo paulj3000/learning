@@ -55,3 +55,27 @@ export const INTEREST_OPTIONS = [
   'Robots',
   'Fantasy',
 ] as const;
+
+/**
+ * How each authored avatar looks in the DOM (profile cards, the harbor
+ * greeting), used whenever a child profile has no uploaded photo.
+ * The in-world Phaser look for the same `avatarKey` lives separately in
+ * src/features/island-map/avatarAppearance.ts, which draws shapes rather
+ * than glyphs.
+ */
+export const AVATAR_EMOJI: Record<AvatarValue, string> = {
+  FOX: '\u{1F98A}',
+  OWL: '\u{1F989}',
+  OTTER: '\u{1F9A6}',
+  DRAGON: '\u{1F409}',
+  ROBOT: '\u{1F916}',
+  MERMAID: '\u{1F9DC}',
+};
+
+/** Used for a missing or unrecognized `avatarKey`, rather than rendering nothing. */
+export const DEFAULT_AVATAR_EMOJI = '\u{1F3DD}\u{FE0F}';
+
+export function getAvatarEmoji(avatarKey: string | null | undefined): string {
+  if (!avatarKey) return DEFAULT_AVATAR_EMOJI;
+  return AVATAR_EMOJI[avatarKey as AvatarValue] ?? DEFAULT_AVATAR_EMOJI;
+}

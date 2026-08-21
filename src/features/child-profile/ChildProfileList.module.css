@@ -44,6 +44,12 @@
   border-radius: var(--radius-lg);
 }
 
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .name {
   margin: 0;
   font-weight: 600;

@@ -3135,6 +3135,124 @@ backend, the same standing constraint as every schema change since Phase 8.
 - **Only Pathfinders copy**, matching every other authored content set
   today.
 
+## Child profile photos (parent-uploaded profile icons)
+
+A parent can now upload a photo of each child to use as that child's
+profile icon, alongside (not instead of) the authored `avatarKey`
+characters. Requested outside the roadmap's phase sequence, so it is
+recorded here rather than as a numbered phase.
+
+This is the first time this product can store a photograph of a child, so
+the implementation is built around limiting what that means rather than
+just around making upload work.
+
+- **`amplify/storage/resource.ts` — the first Amplify Storage resource in
+  this backend.** One prefix, `child-photos/{entity_id}/*`, with one rule:
+  `allow.entity('identity').to(['read', 'write', 'delete'])`. The
+  `{entity_id}` token resolves to the uploading parent's Cognito identity
+  pool ID per request, so a parent physically cannot read or overwrite
+  another family's object even with a hand-crafted key. There is no guest
+  rule, no blanket authenticated rule, no `Admins` group rule (unlike the
+  admin-readable *rows* in `amplify/data/resource.ts` — an administrator
+  reviewing progress has no reason to see a child's face), and no function
+  or AI-route access. Registered in `amplify/backend.ts`.
+- **`ChildProfile.avatarPhotoKey`** (optional, nullable) points at the
+  stored object. Optional rather than required for the same reason as
+  `aiEnabled`: a required field with no stored value makes AppSync null out
+  the whole list item for every row that predates the field.
+- **`src/features/child-profile/avatarPhoto.ts`** holds all of the photo
+  logic: type/size validation, the centre-crop maths, the canvas re-encode,
+  the upload/remove/signed-URL wrappers, and `persistPhotoSelection`.
+  - The browser centre-crops and re-encodes the picture to a 256px JPEG
+    before it is uploaded. That bounds the object size, and — the reason it
+    is done at all — drawing through a canvas discards every EXIF tag the
+    camera wrote, including GPS coordinates. `imageOrientation:
+    'from-image'` is passed to `createImageBitmap` so the rotation flag is
+    applied while decoding, since the re-encode then drops it.
+  - Nothing is uploaded while the parent is still editing. The prepared
+    icon sits in component state and only reaches S3 when the profile is
+    saved, so an abandoned form leaves no photo of a child stored anywhere.
+  - `persistPhotoSelection` fixes the write order: upload the new object,
+    save the profile row (which is what makes the new path authoritative),
+    then delete the object the profile no longer references. The cleanup is
+    best effort by design — a failure there leaves an orphaned 256px object
+    rather than failing a save the parent already sees as successful — and
+    a *failed save* never deletes the old photo.
+  - Every upload uses a fresh UUID file name, so replacing a photo can
+    never serve a stale cached copy of the previous one.
+  - Errors are re-thrown as authored, parent-safe messages; the raw storage
+    error is deliberately not surfaced or logged, since it carries the
+    bucket path and therefore the parent's identity ID.
+- **`ChildAvatar.tsx`** is the one place an icon is rendered: the photo if
+  one resolves, otherwise the authored avatar character (`AVATAR_EMOJI` in
+  `constants.ts`). `getChildPhotoUrl` never throws and returns null on any
+  failure — no Storage deployed yet, object deleted, credentials expired —
+  so a missing photo degrades to the character instead of breaking the
+  screen. Used on the parent's profile cards (`ChildProfileList`), in the
+  form's live preview, and in the child's harbor greeting
+  (`WelcomeHarbor`), decorative wherever the nickname is already adjacent.
+- **`ChildPhotoField.tsx`** is the parent-only control on the profile form:
+  preview, choose, remove, with in-context copy stating that the photo is
+  private to the account, is never sent to the AI companion, and can be
+  removed at any time.
+- **Deletion**: `deleteChildProfileData` deletes the stored image *before*
+  the row that points at it and aborts the whole deletion if that fails.
+  "Delete my child's data" must not report success over a photograph that
+  is still in S3.
+- **Docs**: `docs/DATA_MODEL.md` gains the field plus a "Child profile
+  photos" handling section, `docs/ARCHITECTURE.md`'s Storage section now
+  describes what is actually deployed, and
+  `docs/PRIVACY_AND_SAFETY_REVIEW.md` section 7's least-data finding is
+  amended — this is the first personal *content* about a child the product
+  can store, as opposed to metadata.
+
+### Known limitations (child profile photos)
+
+- **Not deployed or exercised against live AWS in this session**
+  (no credentials available — the same recurring constraint noted at the
+  top of `docs/PILOT_READINESS.md`). `amplify_outputs.json` in this working
+  tree still has no `storage` section, so the upload path has been verified
+  by unit tests against mocked `aws-amplify/storage`, not against a real
+  bucket. First `ampx sandbox` deploy should confirm: the identity-scoped
+  path actually resolves, a second parent account is denied on another
+  family's key, and `getUrl` returns a working signed URL.
+- **The canvas re-encode itself is not unit tested** — jsdom has no image
+  decoder or 2D context. The pure parts around it (`validatePhotoFile`,
+  `computeSquareCrop`) are tested directly, and `prepareIconBlob` is
+  stubbed in the form tests. Confirming that EXIF is really gone needs a
+  real browser: worth an e2e or manual check with a GPS-tagged photo.
+- **In-world avatars are unchanged.** The Phaser scenes still draw the
+  authored `avatarKey` character (`avatarAppearance.ts`); a photo is a
+  profile icon, not a sprite.
+- **No image content moderation.** Nothing inspects what the picture
+  depicts. That is defensible today because the photo is visible only to
+  the account that uploaded it and is never shared, published, or sent to a
+  model — but it becomes a real gap the moment any sharing, co-op
+  visibility, or admin-review surface is added.
+- **No storage retention schedule**, consistent with the existing
+  "no automated retention schedule" item under Decisions pending. A photo
+  persists until the parent removes it or deletes the profile.
+
+## Verification (child profile photos session)
+
+- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
+  `scripts/tsconfig.json`).
+- `npm run lint` — passed (no new warnings; the pre-existing
+  `prefer-tag-over-role` and `no-console` warnings are unchanged).
+- `npm run build` — passed.
+- `npx vitest run` — 115 files, 957 tests, all passing. New coverage:
+  `avatarPhoto.test.ts` (validation, crop maths, identity-scoped upload
+  path, safe error messages, and the upload/save/cleanup ordering including
+  "never delete the old photo when the save failed"), `ChildAvatar.test.tsx`
+  (photo, fallback character, decorative rendering, preview precedence),
+  new cases in `ChildProfileForm.test.tsx` (no-photo save, upload-then-save,
+  oversized file rejected, remove-and-delete, failed upload does not save),
+  and new cases in `deletion.test.ts` (photo deleted before the profile row,
+  nothing deleted for a child with no photo, profile kept when the photo
+  delete fails).
+- **Not verified against live AWS** — no Storage bucket is deployed in this
+  working tree; see "Known limitations (child profile photos)" above.
+
 ## Verification (Phase 17 session)
 
 - `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and

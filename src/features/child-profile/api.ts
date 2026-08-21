@@ -9,6 +9,14 @@ export interface ChildProfileInput {
   nickname: string;
   ageBand: ChildProfile['ageBand'];
   avatarKey: string;
+  /**
+   * Path of the parent-uploaded profile photo in Amplify Storage, or null
+   * when this child uses their authored `avatarKey` character as the icon.
+   * Written by `persistPhotoSelection` (avatarPhoto.ts), which uploads the
+   * image before this input reaches the API and cleans up any replaced
+   * object after it succeeds.
+   */
+  avatarPhotoKey: string | null;
   interests: string[];
   readingMode: ChildProfile['readingMode'];
   sessionMinutes: number;

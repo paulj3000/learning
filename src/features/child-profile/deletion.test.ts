@@ -12,6 +12,7 @@ const {
   storyArtifactList,
   companionProfileList,
   childProfileList,
+  childProfileGet,
   parentProfileList,
   deleteAdventureSession,
   deleteAdventureAction,
@@ -24,6 +25,7 @@ const {
   deleteCompanionProfile,
   deleteChildProfile,
   deleteParentProfile,
+  storageRemove,
 } = vi.hoisted(() => ({
   deleteUser: vi.fn(),
   sessionList: vi.fn(),
@@ -36,6 +38,7 @@ const {
   storyArtifactList: vi.fn(),
   companionProfileList: vi.fn(),
   childProfileList: vi.fn(),
+  childProfileGet: vi.fn(),
   parentProfileList: vi.fn(),
   deleteAdventureSession: vi.fn(),
   deleteAdventureAction: vi.fn(),
@@ -48,9 +51,16 @@ const {
   deleteCompanionProfile: vi.fn(),
   deleteChildProfile: vi.fn(),
   deleteParentProfile: vi.fn(),
+  storageRemove: vi.fn(),
 }));
 
 vi.mock('aws-amplify/auth', () => ({ deleteUser }));
+
+vi.mock('aws-amplify/storage', () => ({
+  remove: storageRemove,
+  getUrl: vi.fn(),
+  uploadData: vi.fn(),
+}));
 
 vi.mock('../../lib/data-client', () => ({
   client: {
@@ -64,7 +74,7 @@ vi.mock('../../lib/data-client', () => ({
       SafetyEvent: { list: safetyEventList, delete: deleteSafetyEvent },
       StoryArtifact: { list: storyArtifactList, delete: deleteStoryArtifact },
       CompanionProfile: { list: companionProfileList, delete: deleteCompanionProfile },
-      ChildProfile: { list: childProfileList, delete: deleteChildProfile },
+      ChildProfile: { list: childProfileList, get: childProfileGet, delete: deleteChildProfile },
       ParentProfile: { list: parentProfileList, delete: deleteParentProfile },
     },
   },
@@ -105,6 +115,8 @@ describe('deleteChildProfileData', () => {
     companionProfileList.mockResolvedValue({
       data: [{ id: 'companion-own', childProfileId: 'child-1' }],
     });
+    childProfileGet.mockResolvedValue({ data: { id: 'child-1', avatarPhotoKey: null } });
+    storageRemove.mockResolvedValue(undefined);
     deleteChildProfile.mockResolvedValue({ data: { id: 'child-1' }, errors: undefined });
   });
 
@@ -131,6 +143,41 @@ describe('deleteChildProfileData', () => {
 
     await expect(deleteChildProfileData('child-1')).rejects.toThrow('nope');
   });
+
+  it('deletes an uploaded profile photo before the profile row that points at it', async () => {
+    const calls: string[] = [];
+    childProfileGet.mockResolvedValue({
+      data: { id: 'child-1', avatarPhotoKey: 'child-photos/identity-1/photo.jpg' },
+    });
+    storageRemove.mockImplementation(async () => {
+      calls.push('removePhoto');
+    });
+    deleteChildProfile.mockImplementation(async (input: { id: string }) => {
+      calls.push('deleteChild');
+      return { data: { id: input.id }, errors: undefined };
+    });
+
+    await deleteChildProfileData('child-1');
+
+    expect(storageRemove).toHaveBeenCalledWith({ path: 'child-photos/identity-1/photo.jpg' });
+    expect(calls).toEqual(['removePhoto', 'deleteChild']);
+  });
+
+  it('does not delete anything from storage for a child with no photo', async () => {
+    await deleteChildProfileData('child-1');
+
+    expect(storageRemove).not.toHaveBeenCalled();
+  });
+
+  it('keeps the profile row when its photo could not be deleted', async () => {
+    childProfileGet.mockResolvedValue({
+      data: { id: 'child-1', avatarPhotoKey: 'child-photos/identity-1/photo.jpg' },
+    });
+    storageRemove.mockRejectedValue(new Error('network'));
+
+    await expect(deleteChildProfileData('child-1')).rejects.toThrow(/could not delete that photo/i);
+    expect(deleteChildProfile).not.toHaveBeenCalled();
+  });
 });
 
 describe('deleteAccountAndAllData', () => {
@@ -147,6 +194,8 @@ describe('deleteAccountAndAllData', () => {
     safetyEventList.mockResolvedValue({ data: [] });
     storyArtifactList.mockResolvedValue({ data: [] });
     companionProfileList.mockResolvedValue({ data: [] });
+    childProfileGet.mockResolvedValue({ data: { id: 'child-1', avatarPhotoKey: null } });
+    storageRemove.mockResolvedValue(undefined);
     deleteChildProfile.mockResolvedValue({ data: { id: 'child-1' }, errors: undefined });
     deleteParentProfile.mockResolvedValue({ data: { id: 'parent-1' }, errors: undefined });
   });

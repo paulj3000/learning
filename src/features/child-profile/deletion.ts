@@ -1,5 +1,6 @@
 import { deleteUser } from 'aws-amplify/auth';
 import { client } from '../../lib/data-client';
+import { removeChildPhoto } from './avatarPhoto';
 import type { Schema } from '../../../amplify/data/resource';
 
 type AdventureSession = Schema['AdventureSession']['type'];
@@ -23,6 +24,13 @@ type ParentProfile = Schema['ParentProfile']['type'];
  * carries a `childProfileId`, plus `AdventureAction` (chained through
  * `AdventureSession.sessionId`, since it has no `childProfileId` of its
  * own), then the `ChildProfile` row itself last.
+ *
+ * The child's uploaded profile photo, if they have one, is deleted from
+ * Amplify Storage before the row that points at it - and a failure there
+ * aborts the whole deletion rather than being swallowed. "Delete my
+ * child's data" has to mean the photograph too, and a parent needs to see
+ * an error if it could not be removed, not a success message over a
+ * picture of their child still sitting in S3.
  */
 export async function deleteChildProfileData(childProfileId: string): Promise<void> {
   const [
@@ -81,6 +89,11 @@ export async function deleteChildProfileData(childProfileId: string): Promise<vo
   ]);
 
   await Promise.all([...ownSessionIds].map((id) => client.models.AdventureSession.delete({ id })));
+
+  const { data: childProfile } = await client.models.ChildProfile.get({ id: childProfileId });
+  if (childProfile?.avatarPhotoKey) {
+    await removeChildPhoto(childProfile.avatarPhotoKey);
+  }
 
   const { errors } = await client.models.ChildProfile.delete({ id: childProfileId });
   if (errors?.length) {

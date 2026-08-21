@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './ChildProfileList.module.css';
+import { ChildAvatar } from './ChildAvatar';
 import { ParentGate } from './ParentGate';
 import { AGE_BAND_LABELS, MAX_CHILD_PROFILES } from './constants';
 import type { ChildProfile } from './api';
@@ -35,11 +36,15 @@ export function ChildProfileList({ childProfiles, onToggleActive }: ChildProfile
         <ul className={styles.list}>
           {childProfiles.map((child) => (
             <li className={styles.card} key={child.id}>
-              <div>
-                <p className={styles.name}>{child.nickname}</p>
-                <p className={styles.meta}>
-                  {AGE_BAND_LABELS[child.ageBand]} · {child.active ? 'Active' : 'Deactivated'}
-                </p>
+              <div className={styles.identity}>
+                {/* Decorative: the nickname beside it is the accessible name. */}
+                <ChildAvatar avatarKey={child.avatarKey} photoKey={child.avatarPhotoKey} />
+                <div>
+                  <p className={styles.name}>{child.nickname}</p>
+                  <p className={styles.meta}>
+                    {AGE_BAND_LABELS[child.ageBand]} · {child.active ? 'Active' : 'Deactivated'}
+                  </p>
+                </div>
               </div>
               <div className={styles.actions}>
                 {child.active ? (
@@ -56,10 +61,7 @@ export function ChildProfileList({ childProfiles, onToggleActive }: ChildProfile
                 >
                   Activity &amp; controls
                 </Link>
-                <Link
-                  className={styles.buttonSecondary}
-                  to={`/home/children/${child.id}/stories`}
-                >
+                <Link className={styles.buttonSecondary} to={`/home/children/${child.id}/stories`}>
                   Story keepsakes
                 </Link>
                 <button

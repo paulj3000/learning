@@ -22,6 +22,7 @@ import {
 import { Trigger } from 'aws-cdk-lib/triggers';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
+import { storage } from './storage/resource';
 import { operationalMetrics } from './functions/operational-metrics/resource';
 import { claimCoopSlot } from './functions/claim-coop-slot/resource';
 
@@ -30,12 +31,16 @@ import { claimCoopSlot } from './functions/claim-coop-slot/resource';
  * `generateCompanionTurn` AI generation route (amplify/data/resource.ts).
  * Phase 8 adds `operationalMetrics` (see the monitoring section at the
  * bottom of this file) — the first Lambda function in this backend.
- * Storage is added in a later roadmap phase per docs/ROADMAP.md.
+ * `storage` (amplify/storage/resource.ts) holds one thing: the optional
+ * child profile photo a parent may upload as their child's icon. Its
+ * access rules are identity-scoped to the uploading parent and are
+ * documented in full at that resource.
  * @see https://docs.amplify.aws/react/build-a-backend/
  */
 const backend = defineBackend({
   auth,
   data,
+  storage,
   operationalMetrics,
   claimCoopSlot,
 });

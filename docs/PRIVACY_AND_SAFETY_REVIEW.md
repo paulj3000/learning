@@ -188,7 +188,18 @@ before collecting free text or audio." Status:
 
 - Least-data principle - upheld structurally (no birthdate, legal name,
   contact info, or raw audio collected anywhere in the schema, confirmed
-  by reading `amplify/data/resource.ts` in full).
+  by reading `amplify/data/resource.ts` in full). **Amended after this
+  review**: the optional child profile photo (`ChildProfile.avatarPhotoKey`
+  plus the object in Amplify Storage) is the first personal *content*
+  about a child, as opposed to metadata, that this product can store -
+  and a photograph of a child under 8 is the most sensitive item in it.
+  It stays consistent with least-data only because every part of it is
+  opt-in and parent-controlled: no profile requires a photo, the picture
+  is re-encoded in the browser to a 256px JPEG that carries no EXIF or GPS
+  data, the object is readable only by the uploading parent's own Cognito
+  identity (not by other parents, not by the `Admins` group, not by any
+  Lambda or AI route), and a parent can remove it in one click. See
+  `docs/DATA_MODEL.md` "Child profile photos" for the full handling rules.
 - Operational telemetry vs. child content separation - upheld:
   `AIInteractionAudit`/`SafetyEvent` are metadata-only; `StoryArtifact` is
   the one deliberate, documented content-bearing model, already reviewed
@@ -196,7 +207,11 @@ before collecting free text or audio." Status:
 - Deletion behavior - now documented and implemented at three
   granularities: per-story (`StoryKeepsakes.tsx`, Phase 5), per-child
   AI-history (`clearAIHistory`, Phase 7), and, new this phase, full
-  per-child and full per-account deletion (`deletion.ts`). **No free text
+  per-child and full per-account deletion (`deletion.ts`). Child profile
+  photos are covered by the last of these, and deliberately fail loudly:
+  `deleteChildProfileData` deletes the stored image *before* the row that
+  points at it and aborts the whole deletion if the object cannot be
+  removed, rather than reporting success over a photo that still exists. **No free text
   or audio is collected at all yet**, so the "before collecting free text
   or audio" precondition in this principle has not yet been triggered -
   revisit this section specifically when/if a free-text or voice input
@@ -221,6 +236,11 @@ posture, not by ease of implementation:
    injection - the least-covered class of harms in the current pipeline.
 3. **Medium priority**: a dedicated "how we use AI" parent-facing
    explainer; evaluate Bedrock Guardrails as an added layer.
+   Also, now that child profile photos can be stored (section 7), the
+   parent-facing privacy explanation and any consent copy shown before a
+   pilot must name that category explicitly - the in-product field text
+   states where the photo goes and who can see it, but that is not a
+   substitute for the account-level disclosure.
 4. **Low priority / defer until relevant**: narration-token markup
    restriction (no token system exists yet to protect); free-text input
    classification (no free-text input exists yet to classify); automated
