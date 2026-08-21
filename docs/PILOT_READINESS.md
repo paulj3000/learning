@@ -182,7 +182,10 @@ verified infrastructure.
   `generateCompanionTurn` validation-failure-rate alarm, and the
   `SafetyEvent severity: HIGH` volume alarm - the last two fed by the new
   stream consumer above.
-- **A CloudWatch dashboard** (`learning-adventure-island-operations`)
+- **A CloudWatch dashboard** (named `<root stack name>-operations`, for
+  example `amplify-learningadventureisland-<user>-sandbox-<hash>-operations`;
+  the name is scoped per deployment because CloudWatch dashboard names are
+  unique per account and Region)
   covering the metrics `docs/ARCHITECTURE.md`'s "Observability" section
   already commits to tracking: AppSync errors, AI interaction
   volume/validation-failure/fallback rate, AI response latency (p90), and

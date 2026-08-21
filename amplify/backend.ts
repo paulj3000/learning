@@ -419,8 +419,20 @@ const safetyEventMetricFor = (severity: 'LOW' | 'MEDIUM' | 'HIGH') =>
     period: Duration.hours(1),
   });
 
+/**
+ * CloudWatch dashboard names are unique per account and Region, not per
+ * stack, so a hardcoded name can only ever be deployed once into an
+ * account. The Amplify Hosting branch deployment already owns
+ * `learning-adventure-island-operations`, so every `ampx sandbox` deploy
+ * failed with "learning-adventure-island-operations already exists in
+ * stack arn:...:amplify-<appId>-main-branch-...". That failure rolls the
+ * whole root stack update back, which is why the sandbox produced no
+ * stack outputs at all and `amplify_outputs.json` came back holding only
+ * `{"version": "1.5"}`. Scoping the name to the deploying root stack lets
+ * the sandbox and every branch each own their own dashboard.
+ */
 new cloudwatch.Dashboard(monitoringStack, 'OperationalDashboard', {
-  dashboardName: 'learning-adventure-island-operations',
+  dashboardName: `${backend.stack.stackName}-operations`,
   widgets: [
     [
       new cloudwatch.GraphWidget({
