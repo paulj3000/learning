@@ -85,8 +85,9 @@ inside a Phaser scene.
 ## Platform engine boundaries (Phase 18)
 
 `docs/ROADMAP.md` Phases 18-30 name eight platform engines; a ninth,
-the Teaching Engine, is introduced by name only at Phase 21 and added to
-this list when that phase was implemented, rather than at Phase 18. This
+the Teaching Engine, is introduced by name only at Phase 21, and a tenth,
+the NPC System, at Phase 23. Each was added to this list when its phase was
+implemented, rather than all at Phase 18. This
 section documents each one's responsibility and current implementation
 status so that curriculum/mastery/interaction logic and adventure theme
 content never bleed into each other (CLAUDE.md's rule that curriculum
@@ -162,17 +163,50 @@ which engine owns which model.
    (same "ready for a future phase to consume" precedent as Phases 19-21);
    the existing per-step components (`ChoiceStep`, `OrderingStep`, etc.)
    are unchanged.
-8. **Reward/Economy Engine** — not yet built (Phase 24). Will own
-   inventory, collectibles, and reward tables, kept distinct from
-   `WorldChange` (a world change is not a reward) and from
-   `SkillProgress` (a reward is not proof of mastery).
-9. **AI Tutor Engine** — Chatty's structured generation calls:
-   `CompanionProfile`, `AIInteractionAudit`, and the safe-context-builder/
-   schema-validation/fallback pipeline (section 7, CLAUDE.md). Never
-   determines correctness or mastery; only explains, hints, and narrates.
-   Formalized as a contextual tutor bounded to current quest/skill/hint
-   level at Phase 27.
-10. **Parent/Educator Engine** — the parent-facing reporting surface
+8. **NPC System** (`src/features/npc/`, Phase 23) — island characters as
+   persistent residents: identity, schedule, dialogue trees, conditional
+   dialogue, per-child memory flags, and relationship progression, owning
+   `ChildNpcState`. Deliberately split from `src/features/island-map/npcs.ts`,
+   which stays the World Engine's *presentation* half (spawn point, palette,
+   follow distance): the two are joined only by a stable semantic `NpcId`,
+   never a Phaser object reference, so ADR-008's Three.js migration moves
+   the body without touching what a character knows. What an NPC says is
+   selected deterministically by `selectDialogueNode` from authored content
+   and recorded state — never by a model. A node may opt in to Chatty
+   re-voicing it via `NpcNarrationHint`, which carries an authored
+   `fallbackText` and no child data at all; nothing in this module calls
+   Bedrock, so a Phase 27 caller adds age band and length caps from its own
+   safe-context builder. Quest-giving ships only the offer seam
+   (`NpcQuestOffer.questId`); objectives, progression, and rewards belong to
+   the Phase 25 Quest Engine, so `QUEST_COMPLETED` conditions stay dormant
+   until it exists.
+9. **Reward/Economy Engine** (`src/features/rewards/`, Phase 24) — owns
+   inventory, item definitions, collectible sets, and reward tables
+   (`ChildInventory`), kept distinct from `WorldChange` (a world change is
+   not a reward) and from `SkillProgress` (a reward is not proof of
+   mastery). Four safety properties hold across the engine, each asserted by
+   tests rather than left to convention: **nothing is random** (`resolveRewards`
+   is a pure function of trigger and table, so there is no drop chance to
+   tune into a compulsion loop — the structural answer to CLAUDE.md pillar
+   7's "no loot-box mechanics"); **rarity is descriptive, never a drop rate**
+   (it describes how hidden an item is in the authored world, is never read
+   during grant resolution, and never ranks children — the explorable-world
+   roadmap's section 19 rules out envy and rarity pressure outright);
+   **nothing is lost** (no currency, no sink, no consumption, no trading, no
+   expiry — the module surface deliberately has no `remove`/`spend`);
+   and **not every reward is educational** (`ItemDefinition` has nowhere to
+   record a learning objective, per the roadmap's own "some treasure is
+   simply treasure" rule). Inventory is a set of owned item IDs rather than
+   a quantity map, which rules out duplicate-farming by construction.
+   `grantRewards` is idempotent per reward rule, so replaying an adventure
+   re-grants nothing.
+10. **AI Tutor Engine** — Chatty's structured generation calls:
+    `CompanionProfile`, `AIInteractionAudit`, and the safe-context-builder/
+    schema-validation/fallback pipeline (section 7, CLAUDE.md). Never
+    determines correctness or mastery; only explains, hints, and narrates.
+    Formalized as a contextual tutor bounded to current quest/skill/hint
+    level at Phase 27.
+11. **Parent/Educator Engine** — the parent-facing reporting surface
     (`features/parent-dashboard`). Has no data models of its own; it
     composes read views over other engines' data (`AdventureSession`,
     `SkillProgress`, `WorldChange`). Expanded with mastery-level and

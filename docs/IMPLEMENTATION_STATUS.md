@@ -2869,6 +2869,272 @@ deploy-verified: the two new optional schema fields have not been
 exercised against a live backend, same standing constraint as every
 schema change since Phase 8.
 
+## Phase 23 — Persistent NPC System
+
+New feature folder `src/features/npc/`, giving the island's existing
+characters a memory. Every deliverable in the roadmap's Phase 23 list is
+implemented except quest *progression*, which is Phase 25's by design (see
+"Known limitations" below).
+
+- **`types.ts`**: `NpcDefinition` (identity, `homeLocationSlug`, schedule,
+  dialogue, quest offers), `DialogueNode`/`DialogueChoice`, the closed
+  `NpcCondition` union (`ALWAYS | MEMORY_FLAG | RELATIONSHIP_AT_LEAST |
+  WORLD_CHANGE | QUEST_COMPLETED | TIME_OF_DAY`), `RelationshipLevel`
+  (`STRANGER | ACQUAINTANCE | FRIEND | TRUSTED_FRIEND`), `NpcMemoryFlags`,
+  and `NpcNarrationHint`. Conditions are a closed authored set rather than
+  arbitrary predicates, so content stays serializable and reviewable by a
+  content designer — the same choice `WorldInteraction.requirements`
+  already made.
+- **Deliberately separate from `src/features/island-map/npcs.ts`**, which
+  stays the World Engine's presentation half (spawn point, palette, follow
+  distance). The two halves join only through a stable semantic `NpcId` and
+  `interactionId`, never a Phaser object reference, so ADR-008's Three.js
+  migration can move the body without touching what a character knows.
+- **`conditions.ts`**: `evaluateCondition`/`evaluateConditions`, a pure,
+  total `switch` in the style of `isLocationUnlocked`.
+- **`dialogue.ts`**: `selectDialogueNode` (first authored match wins, the
+  same convention as the hint ladder in `engine/hints.ts`),
+  `availableChoices`, `advanceDialogue`, and `dialogueOutcome`. What an NPC
+  says is decided by application code from authored content and recorded
+  state, never by a model (CLAUDE.md section 7). `DialogueNode.followUpOnly`
+  marks mid-conversation nodes so a broad-conditioned follow-up can never
+  shadow the general greeting and drop a child into the middle of an
+  exchange — a real hazard the tests caught during this phase, not a
+  theoretical one. `advanceDialogue` returns null rather than throwing on a
+  dangling `nextNodeId`, so a content typo ends a conversation warmly
+  instead of crashing a child's screen; `findDanglingChoices` is the
+  authoring-time check that catches the typo.
+- **`relationship.ts`**: four bounded levels with authored point
+  thresholds (documented as product constants, not validated pedagogy —
+  the same honesty Phase 20's mastery constants carry). Progression is
+  monotonic by construction: `awardRelationshipPoints` floors a negative or
+  malformed award at zero, so no content bug can cost a child a friendship,
+  and there is no decay, no streak, and no daily pressure (CLAUDE.md
+  pillar 7). Friendship only ever unlocks warmer greetings and new quests;
+  it never gates learning content.
+- **`memory.ts`**: pure flag reducers plus `parseMemoryFlags`, which
+  validates the stored JSON column on read and drops any non-boolean value
+  rather than trusting it into condition evaluation (CLAUDE.md section 13:
+  validate all external data at runtime). Flags are authored keys only —
+  they record *that* something happened, never anything a child said.
+- **`schedule.ts`**: `TimeOfDay` (`MORNING | AFTERNOON | EVENING`) buckets
+  rather than a simulated clock, and `resolveNpcLocation`, which falls back
+  to `homeLocationSlug` for any uncovered bucket. Reachability is the
+  safety property here: a child who only ever plays after dinner must never
+  be locked out of a quest-giver, so the resolver is total by construction
+  and `findUnreachableNpcs` asserts it in tests.
+- **`questGiver.ts`**: `availableQuestOffers`, `hasQuestToOffer`, and
+  `questGiversWithOffers` — the offer half of quest-giving only. The
+  `questId` string is the deliberate seam to the Phase 25 Quest Engine.
+- **`content/islandNpcs.ts`**: four authored characters (Pirate Pip,
+  Keeper Quill, Bolt, Ember), each bound to an existing `type: 'NPC'`
+  world interaction, so this phase gives existing bodies a memory rather
+  than adding new strangers to the island. Copy targets Pathfinders (5-6),
+  the only fully authored band today.
+- **Chatty integration point, not a Chatty integration**: `NpcNarrationHint`
+  is the bounded contract a Phase 27 caller fills in. It carries an
+  `allowedTopic` and an authored `fallbackText` and no child data at all;
+  nothing in `src/features/npc/` calls Bedrock. Narration is opt-in per
+  node, so adding an NPC does not silently add an AI surface — asserted by
+  a test that most authored dialogue stays authored-only.
+- **Schema** (`amplify/data/resource.ts`): new `ChildNpcState` model
+  (`allow.owner()`, Admins read-only) and `RelationshipLevel` enum, plus
+  the matching `hasMany` on `ChildProfile`. `relationshipPoints` is the
+  source of truth; `relationshipLevel` is stored alongside it purely so
+  parent/admin reads need not import the threshold table, and is recomputed
+  on every write.
+- **`api.ts`**: `getNpcState`, `listNpcStates`, `recordDialogueNode`, and
+  `clearNpcState`. Read-modify-write rather than an atomic increment, the
+  same tradeoff `upsertSkillProgress` already makes — a child talks to one
+  NPC on one device at a time, so the lost-update window is not a practical
+  concern; the co-op path that genuinely needed atomicity uses a Lambda.
+  `clearNpcState` is a parent-facing retention action, never reachable from
+  gameplay: characters must not forget a child as a game mechanic.
+- **Not yet wired into any world view or route**, the same "ready for a
+  future phase to consume" precedent as Phases 19-22. Tapping an NPC in the
+  Phaser world still shows its existing authored `WorldInteraction` copy;
+  nothing in the child-facing UI reads `ChildNpcState` yet.
+- **Docs**: `docs/ARCHITECTURE.md` gains an NPC System entry in "Platform
+  engine boundaries" (renumbering the Reward/AI Tutor/Parent engines);
+  `docs/DATA_MODEL.md` gains a `ChildNpcState` section and an engine-
+  ownership row.
+- **Tests**: 62 new cases across 7 files — `conditions.test.ts` (9),
+  `relationship.test.ts` (9, including a monotonicity sweep),
+  `memory.test.ts` (7, including malformed-JSON degradation),
+  `schedule.test.ts` (7, including bucket boundaries and reachability),
+  `dialogue.test.ts` (15, including the `followUpOnly` shadowing
+  regression), `questGiver.test.ts` (7), `content/islandNpcs.test.ts` (13,
+  content-integrity: the join to real world interactions, known location
+  slugs, no dangling choices, no em dashes in child-facing copy, and every
+  narration fallback matching its authored line), and `api.test.ts` (11,
+  with a mocked data client following the `coop/api.test.ts` pattern,
+  including cross-child isolation on both read and delete).
+
+Verified `npm run typecheck`, `npm run lint` (no new warnings), and
+`vitest run` — 108 files, 854 tests, all pass (62 new from this phase). Not
+deploy-verified: `ChildNpcState` has never been exercised against a live
+backend, the same standing constraint as every schema change since Phase 8.
+
+### Known limitations (Phase 23)
+
+- **Quest offers are inert.** This phase ships which NPC offers which
+  `questId` under which conditions, and nothing else — no objectives, no
+  progression, no rewards. That is Phase 25's model to define, and shipping
+  only the seam means Phase 25 need not migrate a guess made here.
+- **`QUEST_COMPLETED` conditions never pass today.** With no Quest Engine,
+  `NpcContext.completedQuestIds` is always empty, so any offer or dialogue
+  node gated on finishing another quest stays dormant. Offers gated on
+  memory flags, world changes, and relationship level all work now. This is
+  known and asserted by a test, not an oversight.
+- **Nothing sets `bridgeQuestCompleted` yet.** The roadmap's own example
+  flag is authored into Pip's dialogue conditions, but no adventure
+  completion path writes it — wiring `recordDialogueNode` and world-change
+  keys into `useAdventureSession.ts` is the follow-up that makes the cast
+  react to real play.
+- **Schedules are not surfaced in the world.** `resolveNpcLocation` is
+  correct and tested, but no Phaser scene consults it, so an NPC's rendered
+  body still sits wherever `island-map/npcs.ts` spawns it regardless of
+  time of day.
+- **No parent-dashboard or admin view of `ChildNpcState`.** A parent cannot
+  yet see "Pip and Sam are friends" anywhere, the same dashboard-shaped
+  follow-up already tracked for `ChildStoryProgress`.
+- **Only Pathfinders copy.** All four NPCs' dialogue targets ages 5-6,
+  matching every other authored content set today; Sprouts and Explorers
+  variants are unwritten.
+
+## Phase 24 — Inventory, Collectibles, and Rewards
+
+New feature folder `src/features/rewards/`, the Reward/Economy Engine.
+All four roadmap deliverables are implemented, including the explicit
+design rule that not every reward needs to be educational.
+
+**The design tension this phase had to resolve.** The roadmap asks for
+"item definitions, and rarity" (Phase 24), while
+`docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md` section 19
+requires avoiding "systems designed around envy, rarity pressure, or
+leaderboards." Both are satisfied by making rarity purely **descriptive** —
+it says how hidden an item is in the authored world, and is never read
+during grant resolution, never a drop weight, and never a status rank.
+`rewardTable.test.ts` asserts resolution ignores it.
+
+- **`types.ts`**: `ItemDefinition`, `ItemCategory` (`COLLECTIBLE | COSMETIC
+  | QUEST_ITEM | KEEPSAKE`), `ItemRarity`, `CollectibleSet`, the closed
+  `RewardTrigger` union (`ADVENTURE_COMPLETED | STORY_COMPLETED |
+  QUEST_COMPLETED | WORLD_CHANGE | NPC_RELATIONSHIP | DISCOVERY`),
+  `RewardRule`/`RewardTable`, and `Inventory`. Hidden collectibles are
+  ordinary collectibles flagged `hidden` rather than a fifth category, since
+  hiddenness is about how an item is found, not what it is. The four safety
+  properties the whole engine holds are documented at the top of this file
+  and each is separately tested.
+- **No randomness anywhere.** `resolveRewards` is a pure function of
+  (trigger, table): the same action always yields the same items for every
+  child, every time. There is no drop chance, no weighted roll, no pity
+  timer, and no "one of the following" — every matching rule grants
+  everything it names. This is the structural answer to CLAUDE.md pillar
+  7's "no loot-box mechanics": there is no randomness to tune, so there is
+  nothing to tune into a compulsion loop. Asserted by a 50-iteration
+  determinism test and by a test that no authored rule carries a
+  `chance`/`weight`/`oneOf`/`pity` field.
+- **Nothing is ever lost.** No currency, no sink, no consumption, no
+  trading, no expiry. `inventory.ts` has no `removeItem`/`spendItem`, and a
+  test inspects the module's real exports to assert none is added later
+  without a reviewer having to justify it.
+- **`inventory.ts`**: additive set operations over owned item IDs.
+  `addItems` ignores anything already owned, so re-granting is a no-op
+  rather than a duplicate — which is what makes replaying an adventure safe
+  to reward. `parseInventory` validates the stored column on read (CLAUDE.md
+  section 13), and `resolveInventory` drops an ID whose item was later
+  removed from content rather than crashing a child's backpack.
+- **`rewardTable.ts`**: `resolveRewards`, `rewardedItemIds`,
+  `triggersMatch` (structural equality over the closed union), and
+  `findUnknownRewardItemIds` as the authoring-time integrity check.
+- **`sets.ts`**: set completion progress, reported as "3 of 5 found" rather
+  than "2 missing" — the framing is deliberate, since the calm-engagement
+  pillar rules out copy that makes a partly-finished set feel like a debt.
+  Hidden collectibles are excluded from `visibleTotal` so a child is never
+  shown a slot they cannot know how to fill, but still count toward
+  completion when found. `pendingSetCompletionItems` lets a newly finished
+  set's cosmetic ride along in the same write, so finishing a set needs no
+  special-case call and cannot be missed.
+- **`content/islandItems.ts`**: 12 items, one collectible set (Harbor
+  Shells, including one hidden shell), and a 6-rule reward table. Every
+  trigger names an adventure slug, story slug, NPC ID, or world-change key
+  that exists in the codebase today, asserted against
+  `ADVENTURE_TEMPLATES`, `STORY_DEFINITIONS`, and `ISLAND_NPCS` — the table
+  cannot drift into rewarding content nobody can reach. Copy targets
+  Pathfinders (5-6), matching every other authored set.
+- **"Some treasure is simply treasure"** is enforced, not just stated:
+  `ItemDefinition` has no learning-objective field, a test asserts no item
+  has smuggled one in under another name, and a second test asserts the
+  island still has purely-for-delight collectibles and cosmetics so the set
+  cannot drift into being all quest items.
+- **`STORY_COMPLETED` uses `storySlug`, not `storyId`.** The
+  `ChildStoryProgress.storyId` column actually stores a
+  `StoryDefinition.slug` (see `src/features/story/api.ts` call sites), so
+  the trigger field is named for the value it really holds.
+- **Schema** (`amplify/data/resource.ts`): new `ChildInventory` model
+  (`allow.owner()`, Admins read-only) plus the matching `hasMany` on
+  `ChildProfile`. One row per child rather than one per item, since a
+  backpack is read whole every time it is shown.
+- **`api.ts`**: `getInventory`, `grantRewards`, and `clearInventory`.
+  `grantRewards` is idempotent per rule via `grantedRuleIds`, so replaying
+  an adventure grants nothing a second time and shows no second
+  celebration — which makes it safe to call on every completion without
+  tracking elsewhere whether it is a repeat. Read-modify-write, the same
+  tradeoff `upsertSkillProgress` and `recordDialogueNode` already make.
+  `clearInventory` is a parent-facing retention action, never reachable
+  from gameplay.
+- **Not yet wired into any adventure completion path, world view, or
+  route**, the same "ready for a future phase to consume" precedent as
+  Phases 19-23. Nothing calls `grantRewards` yet and there is no backpack
+  UI, so no child sees an item today.
+- **Docs**: `docs/ARCHITECTURE.md`'s Reward/Economy Engine entry updated
+  from "not yet built" to what was actually built;
+  `docs/DATA_MODEL.md` gains a `ChildInventory` section and an
+  engine-ownership row, and drops Reward/Economy from the "owns no models"
+  list.
+- **Tests**: 73 new cases across 5 files — `rewardTable.test.ts` (11,
+  including the determinism sweep and the rarity-is-not-a-drop-rate
+  assertion), `inventory.test.ts` (14, including the no-remove module
+  surface check and malformed-JSON degradation), `sets.test.ts` (14,
+  including hidden-item visibility and no-double-granting of set prizes),
+  `content/islandItems.test.ts` (22, content integrity against real
+  adventures/stories/NPCs plus both "simply treasure" assertions), and
+  `api.test.ts` (12, mocked data client following the `coop/api.test.ts`
+  pattern, including idempotency, cross-child isolation, and a
+  never-removes-owned-items check).
+
+Verified `npm run typecheck`, `npm run lint` (no new warnings), and
+`vitest run` — 113 files, 927 tests, all pass (73 new from this phase). Not
+deploy-verified: `ChildInventory` has never been exercised against a live
+backend, the same standing constraint as every schema change since Phase 8.
+
+### Known limitations (Phase 24)
+
+- **Nothing grants anything yet.** No adventure completion, story
+  completion, or NPC interaction calls `grantRewards`, so no child has a
+  backpack today. Wiring it into `useAdventureSession.ts` and
+  `src/features/story/api.ts` is the follow-up that makes the table live.
+- **No backpack UI.** There is no child-facing screen to see owned items or
+  set progress, and no parent-dashboard view of `ChildInventory`. The pure
+  read models (`resolveInventory`, `computeAllSetProgress`) exist and are
+  tested, so this is a presentation-layer follow-up.
+- **Cosmetics are owned but not equippable.** `CosmeticSlot` is authored
+  and validated, but nothing renders a cosmetic on the avatar —
+  `ChildProfile.avatarKey` is untouched by this phase. Avatar customization
+  is the explorable-world roadmap's section 19, not Phase 24.
+- **`QUEST_COMPLETED` and `DISCOVERY` triggers are dormant**, the same
+  shape as Phase 23's dormant quest conditions: no Quest Engine (Phase 25)
+  and no discovery system (Phase 26) exists to fire them. They are defined
+  now so those phases have a target to hit rather than a union to widen.
+- **Set completion is computed, never recorded.** There is no
+  `setCompletedAt` anywhere, so a caller cannot tell "just completed" from
+  "completed last week" except by watching `grantRewards`'s `newItemIds`.
+  Fine while nothing displays set history; revisit if a celebration needs
+  to fire exactly once from a cold page load.
+- **Only Pathfinders copy**, matching every other authored content set
+  today.
+
 ## Verification (Phase 17 session)
 
 - `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and

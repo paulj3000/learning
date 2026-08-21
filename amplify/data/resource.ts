@@ -81,6 +81,8 @@ const schema = a.schema({
       safetyEvents: a.hasMany('SafetyEvent', 'childProfileId'),
       storyArtifacts: a.hasMany('StoryArtifact', 'childProfileId'),
       childStoryProgress: a.hasMany('ChildStoryProgress', 'childProfileId'),
+      childNpcState: a.hasMany('ChildNpcState', 'childProfileId'),
+      childInventory: a.hasMany('ChildInventory', 'childProfileId'),
     })
     .authorization((allow) => [allow.owner(), allow.group('Admins').to(['read'])]),
 
@@ -422,6 +424,71 @@ const schema = a.schema({
       lastActivityAt: a.datetime().required(),
     })
     .authorization((allow) => [allow.ownerDefinedIn('hostParentProfileId').identityClaim('sub')]),
+
+  // --- Phase 23: Persistent NPC System (docs/ROADMAP.md Phase 23) ---
+
+  RelationshipLevel: a.enum(['STRANGER', 'ACQUAINTANCE', 'FRIEND', 'TRUSTED_FRIEND']),
+
+  /**
+   * One row per (child, NPC): what this character remembers about this
+   * child, and how well they know each other.
+   *
+   * Stores authored flag keys and integer points only, never anything a
+   * child said, wrote, or was asked (CLAUDE.md section 13). `memoryFlags` is
+   * a boolean map validated on read by `parseMemoryFlags`
+   * (src/features/npc/memory.ts) rather than trusted as stored, since a JSON
+   * column is external data at read time.
+   *
+   * `relationshipLevel` is stored alongside `relationshipPoints` even though
+   * it is derivable, so a parent-facing or admin read does not have to
+   * import the threshold table to display it. `relationshipPoints` is the
+   * source of truth; the level is recomputed on every write.
+   */
+  ChildNpcState: a
+    .model({
+      childProfileId: a.id().required(),
+      childProfile: a.belongsTo('ChildProfile', 'childProfileId'),
+      npcId: a.string().required(),
+      relationshipPoints: a.integer().required().default(0),
+      relationshipLevel: a.ref('RelationshipLevel').required(),
+      memoryFlags: a.json(),
+      seenNodeIds: a.string().array(),
+      firstMetAt: a.datetime().required(),
+      lastInteractedAt: a.datetime().required(),
+    })
+    .authorization((allow) => [allow.owner(), allow.group('Admins').to(['read'])]),
+
+  // --- Phase 24: Inventory, Collectibles, and Rewards (docs/ROADMAP.md Phase 24) ---
+
+  /**
+   * One row per child: the backpack, plus which reward rules have already
+   * fired.
+   *
+   * `ownedItemIds` is a set of authored `ItemDefinition.id` strings, never a
+   * quantity map — an item is owned or it is not, which rules out
+   * duplicate-farming by construction (see src/features/rewards/types.ts).
+   * Nothing is ever removed from it by gameplay: there is no currency, no
+   * sink, and no way to lose treasure. `clearInventory` is a parent-facing
+   * retention action only.
+   *
+   * `grantedRuleIds` records which `RewardRule`s already fired for this
+   * child, so replaying an adventure re-grants nothing and shows no second
+   * celebration. It is the idempotency key for the whole engine.
+   *
+   * Deliberately one row rather than one row per item: a backpack is read
+   * whole every time it is shown, and a child owns tens of items rather than
+   * thousands, so a row per item would add list-and-filter cost with no
+   * benefit. Revisit if items ever become numerous enough to page.
+   */
+  ChildInventory: a
+    .model({
+      childProfileId: a.id().required(),
+      childProfile: a.belongsTo('ChildProfile', 'childProfileId'),
+      ownedItemIds: a.string().array(),
+      grantedRuleIds: a.string().array(),
+      updatedAt: a.datetime().required(),
+    })
+    .authorization((allow) => [allow.owner(), allow.group('Admins').to(['read'])]),
 
   /**
    * The one privileged write in this phase: atomically claims a

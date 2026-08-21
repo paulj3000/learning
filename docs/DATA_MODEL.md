@@ -17,13 +17,15 @@ it but write through the owning engine's functions/api module only.
 | `AdventureTemplate`, `AdventureStepDefinition`, `AdventureSession`, `CoopSession`, `AdventureAction` | Adventure Engine |
 | `SkillEvidence`, `SkillProgress` | Mastery Engine |
 | `ChildStoryProgress` (and content-pack `StoryDefinition`/`StoryChapter`/`StoryScene`) | Story Engine |
+| `ChildNpcState` (and content-pack `NpcDefinition`) | NPC System (Phase 23) |
+| `ChildInventory` (and content-pack `ItemDefinition`/`CollectibleSet`/`RewardTable`) | Reward/Economy Engine (Phase 24) |
 | `AIInteractionAudit` | AI Tutor Engine |
 | `SafetyEvent` | Cross-cutting safety pipeline (`docs/AI_AND_CHILD_SAFETY.md`), not exclusive to any one engine |
 
 The Teaching Engine (Phase 21, a pure derivation over Mastery Engine data —
-see `docs/ARCHITECTURE.md`), Interaction Engine (Phase 22), Reward/Economy
-Engine (Phase 24), and Parent/Educator Engine (Phase 30, composes read
-views only) own no models listed above.
+see `docs/ARCHITECTURE.md`), Interaction Engine (Phase 22), and
+Parent/Educator Engine (Phase 30, composes read views only) own no models
+listed above.
 
 ## ParentProfile
 - `id`
@@ -353,6 +355,76 @@ content-pack format per roadmap sections 21–22), the same way
 `AdventureTemplate`/`AdventureStepDefinition` content is today. They are
 identified by stable string IDs that the models above reference, but are
 never themselves rows a child or parent account can write.
+
+## ChildNpcState
+
+Per-child, per-NPC memory and friendship (Phase 23, Persistent NPC System).
+One row per (child, NPC), created the first time a child talks to that
+character.
+
+- `id`
+- `childProfileId`
+- `npcId` — an `NpcDefinition.id` (content-authored, not a DB model; see
+  "Content packs" above)
+- `relationshipPoints`: integer — the source of truth for friendship
+- `relationshipLevel`: `STRANGER | ACQUAINTANCE | FRIEND | TRUSTED_FRIEND`
+  — derived from `relationshipPoints` and recomputed on every write, stored
+  only so parent/admin reads do not need the threshold table
+- `memoryFlags`: JSON — bounded, authored boolean flags only (for example
+  `bridgeQuestCompleted`), never free-form child text, exactly the same
+  constraint `ChildStoryProgress.storyFlags` carries
+- `seenNodeIds`: array — dialogue nodes already reached, so one-time
+  relationship awards stay one-time
+- `firstMetAt`
+- `lastInteractedAt`
+
+Friendship is monotonic: `relationshipPoints` never decreases and a level
+can never be lost, so a child who stops visiting is never penalized
+(CLAUDE.md pillar 7, calm engagement). Clearing this data is a parent-facing
+retention action (`clearNpcState`), never a game mechanic.
+
+Authored `NpcDefinition`, `DialogueNode`, and `NpcQuestOffer` content are
+content packs, not database models, under the same rule as
+`StoryDefinition` above.
+
+## ChildInventory
+
+A child's backpack (Phase 24, Reward/Economy Engine). One row per child,
+created the first time anything is granted.
+
+- `id`
+- `childProfileId`
+- `ownedItemIds`: array — authored `ItemDefinition.id` strings
+- `grantedRuleIds`: array — `RewardRule.id`s that have already fired for
+  this child
+- `updatedAt`
+
+`ownedItemIds` is a **set**, not a quantity map: an item is owned or it is
+not. That rules out duplicate-farming and "you need 47 more" grind by
+construction. Phase 25's `COLLECT` quest primitive counts distinct items in
+a set rather than stacks of one item, which is the same thing a child
+actually experiences ("find all five shells") without the grind.
+
+`grantedRuleIds` is the engine's idempotency key: `grantRewards` skips a
+rule that already fired, so replaying an adventure grants nothing a second
+time and shows no second celebration.
+
+Nothing is ever removed from `ownedItemIds` by gameplay. There is no
+currency, no sink, no consumption, no trading, and no expiry, so no child
+can be made to feel poorer than another
+(`docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md` section 19:
+"avoid systems designed around envy, rarity pressure, or leaderboards").
+`clearInventory` is a parent-facing retention action, never a game mechanic.
+
+Deliberately one row per child rather than one row per item: a backpack is
+read whole every time it is shown, and a child owns tens of items rather
+than thousands. Revisit if items ever become numerous enough to page.
+
+Authored `ItemDefinition`, `CollectibleSet`, and `RewardTable` content are
+content packs, not database models, under the same rule as
+`StoryDefinition` above. An `ItemDefinition` deliberately has no learning
+objective field: per the roadmap's Phase 24 design rule, "some treasure is
+simply treasure."
 
 ## AIInteractionAudit
 Metadata only by default:
