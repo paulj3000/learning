@@ -167,7 +167,13 @@ export const ISLAND_REWARD_TABLE: RewardTable = [
   },
   {
     id: 'reward-bridge-world-change',
-    trigger: { type: 'WORLD_CHANGE', changeKey: 'bridge-repaired' },
+    // Authored world-change keys are SCREAMING_SNAKE (see the adventure
+    // content packs); this rule spelled it kebab-case and so could never
+    // fire. Found while wiring the Phase 25 Quest Engine, which is the
+    // first thing that calls `grantRewards` at all - and asserted below by
+    // `islandItems.test.ts`, since a trigger key that matches nothing fails
+    // silently by design.
+    trigger: { type: 'WORLD_CHANGE', changeKey: 'BRIDGE_REPAIRED' },
     itemIds: ['spiral-shell'],
     message: 'A shell washed up while you worked. It is yours to keep.',
   },

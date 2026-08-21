@@ -17,6 +17,7 @@ import { findUnknownSetItemIds } from '../sets';
 import { ADVENTURE_TEMPLATES } from '../../adventures/content';
 import { STORY_DEFINITIONS } from '../../story/content';
 import { ISLAND_NPCS } from '../../npc/content';
+import { ISLAND_QUESTS } from '../../quests/content';
 import { RELATIONSHIP_LEVEL_ORDER } from '../../npc/types';
 
 const ITEM_IDS = ISLAND_ITEMS.map((item) => item.id);
@@ -166,6 +167,46 @@ describe('ISLAND_REWARD_TABLE', () => {
         (RELATIONSHIP_LEVEL_ORDER as readonly string[]).includes(rule.trigger.level),
         rule.id,
       ).toBe(true);
+    }
+  });
+
+  /**
+   * The gap that let a real bug ship: `reward-bridge-world-change` named
+   * `bridge-repaired` while every authored world change is
+   * `BRIDGE_REPAIRED`, so the rule could never fire. A trigger that matches
+   * nothing fails silently by design (`resolveRewards` simply returns no
+   * grants), so only a content test can catch it.
+   */
+  it('triggers on world-change keys some adventure can actually record', () => {
+    const authoredKeys = new Set(
+      ADVENTURE_TEMPLATES.flatMap((template) =>
+        template.steps
+          .map((step) => step.presentation)
+          .filter((presentation) => presentation.kind === 'world-change')
+          .map((presentation) => presentation.payload.changeKey),
+      ),
+    );
+    const questKeys = new Set(
+      ISLAND_QUESTS.flatMap((quest) => [
+        ...quest.stages.flatMap((stage) => (stage.worldChanges ?? []).map((c) => c.changeKey)),
+        ...(quest.completion.worldChanges ?? []).map((c) => c.changeKey),
+      ]),
+    );
+
+    for (const rule of ISLAND_REWARD_TABLE) {
+      if (rule.trigger.type !== 'WORLD_CHANGE') continue;
+      expect(
+        authoredKeys.has(rule.trigger.changeKey) || questKeys.has(rule.trigger.changeKey),
+        `${rule.id} triggers on "${rule.trigger.changeKey}", which nothing records`,
+      ).toBe(true);
+    }
+  });
+
+  it('triggers on quests that actually exist', () => {
+    const questIds = new Set(ISLAND_QUESTS.map((quest) => quest.id));
+    for (const rule of ISLAND_REWARD_TABLE) {
+      if (rule.trigger.type !== 'QUEST_COMPLETED') continue;
+      expect(questIds.has(rule.trigger.questId), rule.id).toBe(true);
     }
   });
 
