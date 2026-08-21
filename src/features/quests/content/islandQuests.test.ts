@@ -6,12 +6,14 @@ import { ISLAND_NPCS } from '../../npc/content';
 import { ISLAND_ITEMS } from '../../rewards/content';
 import { ADVENTURE_TEMPLATES } from '../../adventures/content';
 import { ISLAND_LOCATIONS } from '../../island/locations';
+import { ISLAND_DISCOVERY_IDS } from '../../discovery/content';
 import type { QuestDefinition } from '../types';
 
 const ADVENTURE_SLUGS = new Set(ADVENTURE_TEMPLATES.map((template) => template.slug));
 const ITEM_IDS = new Set(ISLAND_ITEMS.map((item) => item.id));
 const NPC_IDS = new Set(ISLAND_NPCS.map((npc) => npc.id));
 const LOCATION_SLUGS = new Set(ISLAND_LOCATIONS.map((location) => location.slug));
+const DISCOVERY_IDS = new Set(ISLAND_DISCOVERY_IDS);
 
 /** Every world-change key any authored adventure can actually record. */
 const ADVENTURE_WORLD_CHANGE_KEYS = new Set(
@@ -171,10 +173,11 @@ describe('island quest content', () => {
             expect(LOCATION_SLUGS.has(objective.locationSlug), `${where}: location`).toBe(true);
             break;
           case 'DISCOVER':
-            // Phase 26 owns discovery keys; nothing can satisfy one yet, so
-            // authoring one today would be exactly the dead end this test
-            // exists to prevent.
-            expect.fail(`${where}: DISCOVER is not satisfiable until Phase 26`);
+            // Phase 26 made this primitive satisfiable. The key must name an
+            // authored secret, for the same reason every other case here
+            // checks its own content: a `DISCOVER` objective naming a key
+            // nothing produces is a dead end a child could never leave.
+            expect(DISCOVERY_IDS.has(objective.discoveryKey), `${where}: discovery`).toBe(true);
             break;
           case 'LEARN':
             expect(objective.learningObjectiveCode.length).toBeGreaterThan(0);

@@ -105,6 +105,7 @@ const schema = a.schema({
       childNpcState: a.hasMany('ChildNpcState', 'childProfileId'),
       childInventory: a.hasMany('ChildInventory', 'childProfileId'),
       childQuestState: a.hasMany('ChildQuestState', 'childProfileId'),
+      childWorldState: a.hasMany('ChildWorldState', 'childProfileId'),
     })
     .authorization((allow) => [allow.owner(), allow.group('Admins').to(['read'])]),
 
@@ -552,6 +553,50 @@ const schema = a.schema({
       startedAt: a.datetime().required(),
       lastUpdatedAt: a.datetime().required(),
       completedAt: a.datetime(),
+    })
+    .authorization((allow) => [allow.owner(), allow.group('Admins').to(['read'])]),
+
+  // --- Phase 26: Exploration and Secrets (docs/ROADMAP.md Phase 26) ---
+
+  /**
+   * One row per child: what this child has found by exploring, and who they
+   * have met in the world (docs/DATA_MODEL.md "ChildWorldState").
+   *
+   * Deliberately scoped to exactly the two fields that data-model entry
+   * flagged as *not* derivable from anything else. `unlockedLocations`,
+   * `worldChanges`, and `completedStories` are still computed at read time
+   * from `WorldChange` and `ChildStoryProgress` (`isLocationUnlocked`,
+   * src/features/island/locations.ts) rather than copied here, because a
+   * stored copy of derivable data is a dual-write bug waiting to happen.
+   *
+   * `discoveredObjects` holds authored `DiscoveryDefinition.id` strings
+   * (src/features/discovery/content/) - the same values a quest's `DISCOVER`
+   * objective names, which is why Phase 25 could author that primitive and
+   * leave it dormant. `discoveredCharacters` holds authored NPC ids.
+   * Neither can ever hold anything a child typed, said, or drew
+   * (CLAUDE.md section 13): both are closed vocabularies checked against
+   * authored content on read (`parseDiscoveredIds`,
+   * src/features/discovery/discovery.ts), so an unknown id is dropped
+   * rather than trusted.
+   *
+   * `discoveredCharacters` overlaps `ChildNpcState` in spirit but not in
+   * job: `ChildNpcState` is the relationship and memory a *dialogue* builds
+   * up, written only by the NPC engine, while this is the flat "walked up
+   * and met them in the world" record the explorable scenes produce - and
+   * today the scenes are the only thing a child can actually reach, since
+   * no NPC conversation UI exists yet.
+   *
+   * One row rather than one row per discovery, same reasoning as
+   * `ChildInventory`: it is read whole every time a scene loads, and the
+   * authored discovery list is tens of entries, not thousands.
+   */
+  ChildWorldState: a
+    .model({
+      childProfileId: a.id().required(),
+      childProfile: a.belongsTo('ChildProfile', 'childProfileId'),
+      discoveredObjects: a.string().array(),
+      discoveredCharacters: a.string().array(),
+      updatedAt: a.datetime().required(),
     })
     .authorization((allow) => [allow.owner(), allow.group('Admins').to(['read'])]),
 

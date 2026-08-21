@@ -13,6 +13,7 @@ const {
   listSkillProgress,
   getInventory,
   grantRewards,
+  getWorldState,
 } = vi.hoisted(() => ({
   questList: vi.fn(),
   questCreate: vi.fn(),
@@ -26,6 +27,7 @@ const {
   listSkillProgress: vi.fn(),
   getInventory: vi.fn(),
   grantRewards: vi.fn(),
+  getWorldState: vi.fn(),
 }));
 
 vi.mock('../../lib/data-client', () => ({
@@ -44,6 +46,7 @@ vi.mock('../adventures/api', () => ({ listSessions, listAllWorldChanges, recordW
 vi.mock('../npc/api', () => ({ listNpcStates, setNpcMemoryFlagsForQuest }));
 vi.mock('../mastery/api', () => ({ listSkillProgress }));
 vi.mock('../rewards/api', () => ({ getInventory, grantRewards }));
+vi.mock('../discovery/api', () => ({ getWorldState }));
 
 import {
   buildQuestContext,
@@ -109,6 +112,7 @@ beforeEach(() => {
   listSkillProgress.mockResolvedValue([]);
   getInventory.mockResolvedValue({ ownedItemIds: [], grantedRuleIds: [] });
   grantRewards.mockResolvedValue({ newItemIds: [], messages: [], state: {} });
+  getWorldState.mockResolvedValue({ discoveredIds: [], metCharacterIds: [] });
 });
 
 describe('buildQuestContext', () => {
@@ -157,7 +161,25 @@ describe('buildQuestContext', () => {
     expect(context.relationshipLevels.bolt).toBe('STRANGER');
   });
 
-  it('leaves discovery keys empty until Phase 26 exists', async () => {
+  /**
+   * Phase 26 filled the field Phase 25 hard-coded empty. `DISCOVER` was
+   * authorable but dormant precisely because nothing could put anything
+   * here; this asserts the seam is now connected to the Discovery Engine
+   * rather than to a literal.
+   */
+  it('reads discovery keys from the Discovery Engine', async () => {
+    getWorldState.mockResolvedValue({
+      discoveredIds: ['harbor-tide-pool', 'bay-tide-tunnel'],
+      metCharacterIds: ['pirate-pip'],
+    });
+
+    expect((await buildQuestContext('child-1')).discoveryKeys).toEqual([
+      'harbor-tide-pool',
+      'bay-tide-tunnel',
+    ]);
+  });
+
+  it('leaves discovery keys empty for a child who has explored nothing', async () => {
     expect((await buildQuestContext('child-1')).discoveryKeys).toEqual([]);
   });
 });

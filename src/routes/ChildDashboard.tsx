@@ -18,6 +18,11 @@ import { getIslandLocation } from '../features/island/locations';
 import { AGE_BAND_LABELS, READING_MODE_OPTIONS } from '../features/child-profile/constants';
 import { buildWeeklySummary } from '../features/parent-dashboard/weeklySummary';
 import { clearAIHistory, listSafetyEvents } from '../features/parent-dashboard/api';
+import { getWorldState } from '../features/discovery/api';
+import { ISLAND_DISCOVERIES } from '../features/discovery/content';
+import { buildExplorationTelemetry, describeExploration } from '../features/discovery/telemetry';
+import { EMPTY_WORLD_STATE } from '../features/discovery/types';
+import type { WorldStateSnapshot } from '../features/discovery/types';
 import type { SafetyEvent } from '../features/parent-dashboard/api';
 
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
@@ -99,6 +104,7 @@ export function ChildDashboard() {
   const [worldChanges, setWorldChanges] = useState<WorldChange[]>([]);
   const [stories, setStories] = useState<StoryArtifact[]>([]);
   const [safetyEvents, setSafetyEvents] = useState<SafetyEvent[]>([]);
+  const [worldState, setWorldState] = useState<WorldStateSnapshot>(EMPTY_WORLD_STATE);
   const [savingAI, setSavingAI] = useState(false);
   const [confirmingClearHistory, setConfirmingClearHistory] = useState(false);
   const [clearingHistory, setClearingHistory] = useState(false);
@@ -116,15 +122,23 @@ export function ChildDashboard() {
         return;
       }
       try {
-        const [profile, sessionRows, skillRows, worldChangeRows, storyRows, safetyEventRows] =
-          await Promise.all([
-            getChildProfile(childId),
-            listSessions(childId),
-            listSkillProgress(childId),
-            listAllWorldChanges(childId),
-            listStoryArtifacts(childId),
-            listSafetyEvents(childId),
-          ]);
+        const [
+          profile,
+          sessionRows,
+          skillRows,
+          worldChangeRows,
+          storyRows,
+          safetyEventRows,
+          worldStateRow,
+        ] = await Promise.all([
+          getChildProfile(childId),
+          listSessions(childId),
+          listSkillProgress(childId),
+          listAllWorldChanges(childId),
+          listStoryArtifacts(childId),
+          listSafetyEvents(childId),
+          getWorldState(childId),
+        ]);
         if (cancelled) return;
         if (!profile) {
           setLoadState('not-found');
@@ -136,6 +150,7 @@ export function ChildDashboard() {
         setWorldChanges(worldChangeRows);
         setStories(storyRows);
         setSafetyEvents(safetyEventRows);
+        setWorldState(worldStateRow);
         setLoadState('ready');
       } catch {
         if (cancelled) return;
@@ -203,6 +218,21 @@ export function ChildDashboard() {
       })
     : [];
 
+  /**
+   * Phase 26's exploration telemetry, shown to the parent as the same plain
+   * language the rest of this page uses (docs/ROADMAP.md Phase 26). Derived
+   * from authored ids and counts only, never from anything a child said or
+   * typed (`src/features/discovery/telemetry.ts`), and it reports what was
+   * found rather than what is left - a parent seeing "2 of 6" would
+   * reasonably read the rest as homework.
+   */
+  const explorationLines = childProfile
+    ? describeExploration(
+        buildExplorationTelemetry(ISLAND_DISCOVERIES, worldState),
+        childProfile.nickname,
+      )
+    : [];
+
   return (
     <div className={parentStyles.page}>
       <header className={parentStyles.header}>
@@ -232,6 +262,17 @@ export function ChildDashboard() {
                 </p>
               ))}
             </section>
+
+            {explorationLines.length > 0 ? (
+              <section className={styles.section}>
+                <h2 className={styles.heading}>Exploring</h2>
+                {explorationLines.map((line) => (
+                  <p className={styles.summaryLine} key={line}>
+                    {line}
+                  </p>
+                ))}
+              </section>
+            ) : null}
 
             <section className={styles.section}>
               <h2 className={styles.heading}>Recent adventures</h2>

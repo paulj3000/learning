@@ -30,7 +30,34 @@ vi.mock('../adventures/content', () => ({
   getAdventureTemplate: vi.fn(),
 }));
 
+// Phase 26: every world view now joins world changes with the backpack and
+// the child's own discoveries (`useExplorableWorld`), so both reads have to
+// resolve or the whole context falls back to empty.
+vi.mock('../rewards/api', () => ({
+  getInventory: vi.fn(),
+}));
+
+vi.mock('../discovery/api', () => ({
+  getWorldState: vi.fn(),
+  recordCharacterMet: vi.fn(),
+  recordDiscovery: vi.fn(),
+  getDiscoveryDefinition: vi.fn(),
+}));
+
+import { getInventory } from '../rewards/api';
+import {
+  getDiscoveryDefinition,
+  recordCharacterMet,
+  recordDiscovery,
+  getWorldState,
+} from '../discovery/api';
+
 const listAllWorldChangesMock = vi.mocked(listAllWorldChanges);
+const getInventoryMock = vi.mocked(getInventory);
+const getWorldStateMock = vi.mocked(getWorldState);
+const getDiscoveryDefinitionMock = vi.mocked(getDiscoveryDefinition);
+const recordDiscoveryMock = vi.mocked(recordDiscovery);
+const recordCharacterMetMock = vi.mocked(recordCharacterMet);
 const resumeOrStartSessionMock = vi.mocked(resumeOrStartSession);
 const getAdventureTemplateMock = vi.mocked(getAdventureTemplate);
 
@@ -54,6 +81,14 @@ function renderWorldView() {
 describe('PirateBuilderBayWorldView', () => {
   beforeEach(() => {
     listAllWorldChangesMock.mockReset();
+    getInventoryMock.mockReset();
+    getWorldStateMock.mockReset();
+    getDiscoveryDefinitionMock.mockReset();
+    recordDiscoveryMock.mockReset();
+    recordCharacterMetMock.mockReset();
+    getInventoryMock.mockResolvedValue({ ownedItemIds: [], grantedRuleIds: [] });
+    getWorldStateMock.mockResolvedValue({ discoveredIds: [], metCharacterIds: [] });
+    recordCharacterMetMock.mockResolvedValue(undefined);
     resumeOrStartSessionMock.mockReset();
     getAdventureTemplateMock.mockReset();
   });
@@ -127,5 +162,80 @@ describe('PirateBuilderBayWorldView', () => {
     await user.click(screen.getByRole('button', { name: /not now/i }));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  /**
+   * Phase 26 (docs/ROADMAP.md Phase 26). A `DISCOVER` action is the one kind
+   * that writes: it records the find on open, rather than behind a button,
+   * because the child already did the thing that finds a secret.
+   */
+  describe('secrets', () => {
+    it('records the find and shows the reveal line when the child opens one', async () => {
+      const user = userEvent.setup();
+      listAllWorldChangesMock.mockResolvedValue([{ changeKey: 'BRIDGE_REPAIRED' } as never]);
+      getDiscoveryDefinitionMock.mockReturnValue({
+        id: 'bay-tide-tunnel',
+        locationSlug: 'x',
+        kind: 'HIDDEN_OBJECT',
+        title: 'A low tunnel under the cliff',
+        revealMessage: 'You found something wonderful.',
+        lockedMessage: 'Something is here, but not yet.',
+        requirements: [{ type: 'ALWAYS' }],
+      });
+      recordDiscoveryMock.mockResolvedValue({
+        outcome: {
+          discoveryId: 'bay-tide-tunnel',
+          title: 'A low tunnel under the cliff',
+          status: 'FOUND_NOW',
+          message: 'You found something wonderful.',
+        },
+        rewardMessages: ['A shell is yours to keep.'],
+        newItemIds: ['moon-shell'],
+      });
+
+      renderWorldView();
+      await user.click(await screen.findByText('A low tunnel under the cliff'));
+
+      expect(await screen.findByText('You found something wonderful.')).toBeInTheDocument();
+      // The authored celebration rides along in the same panel, so finding a
+      // thing and getting the thing are one beat rather than two screens.
+      expect(screen.getByText('A shell is yours to keep.')).toBeInTheDocument();
+      expect(recordDiscoveryMock).toHaveBeenCalledWith(
+        'child-1',
+        expect.objectContaining({ id: 'bay-tide-tunnel' }),
+      );
+    });
+
+    it('shows the calm locked line, not an error, for a secret that will not open yet', async () => {
+      const user = userEvent.setup();
+      listAllWorldChangesMock.mockResolvedValue([{ changeKey: 'BRIDGE_REPAIRED' } as never]);
+      getDiscoveryDefinitionMock.mockReturnValue({
+        id: 'bay-tide-tunnel',
+        locationSlug: 'x',
+        kind: 'LOCKED_DOOR',
+        title: 'A low tunnel under the cliff',
+        revealMessage: 'It opens.',
+        lockedMessage: 'It is locked, and the keyhole is an odd shape.',
+        requirements: [{ type: 'ITEM_OWNED', itemId: 'driftwood-key' }],
+      });
+      recordDiscoveryMock.mockResolvedValue({
+        outcome: {
+          discoveryId: 'bay-tide-tunnel',
+          title: 'A low tunnel under the cliff',
+          status: 'LOCKED',
+          message: 'It is locked, and the keyhole is an odd shape.',
+        },
+        rewardMessages: [],
+        newItemIds: [],
+      });
+
+      renderWorldView();
+      await user.click(await screen.findByText('A low tunnel under the cliff'));
+
+      expect(
+        await screen.findByText('It is locked, and the keyhole is an odd shape.'),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
   });
 });

@@ -19,6 +19,7 @@ import { STORY_DEFINITIONS } from '../../story/content';
 import { ISLAND_NPCS } from '../../npc/content';
 import { ISLAND_QUESTS } from '../../quests/content';
 import { RELATIONSHIP_LEVEL_ORDER } from '../../npc/types';
+import { ISLAND_DISCOVERIES, ISLAND_DISCOVERY_IDS } from '../../discovery/content';
 
 const ITEM_IDS = ISLAND_ITEMS.map((item) => item.id);
 
@@ -192,11 +193,20 @@ describe('ISLAND_REWARD_TABLE', () => {
         ...(quest.completion.worldChanges ?? []).map((c) => c.changeKey),
       ]),
     );
+    // Phase 26: a secret records a world change too, so a rule may
+    // legitimately trigger on one.
+    const discoveryKeys = new Set(
+      ISLAND_DISCOVERIES.map((discovery) => discovery.worldChange?.changeKey).filter(
+        (key): key is string => Boolean(key),
+      ),
+    );
 
     for (const rule of ISLAND_REWARD_TABLE) {
       if (rule.trigger.type !== 'WORLD_CHANGE') continue;
       expect(
-        authoredKeys.has(rule.trigger.changeKey) || questKeys.has(rule.trigger.changeKey),
+        authoredKeys.has(rule.trigger.changeKey) ||
+          questKeys.has(rule.trigger.changeKey) ||
+          discoveryKeys.has(rule.trigger.changeKey),
         `${rule.id} triggers on "${rule.trigger.changeKey}", which nothing records`,
       ).toBe(true);
     }
@@ -207,6 +217,51 @@ describe('ISLAND_REWARD_TABLE', () => {
     for (const rule of ISLAND_REWARD_TABLE) {
       if (rule.trigger.type !== 'QUEST_COMPLETED') continue;
       expect(questIds.has(rule.trigger.questId), rule.id).toBe(true);
+    }
+  });
+
+  /**
+   * Phase 26 gave `DISCOVERY` its first producer. Same rule as every other
+   * trigger here: a key that names no authored secret can never fire, and it
+   * fails silently by design, so only a content test catches it.
+   */
+  it('triggers on secrets that actually exist', () => {
+    const discoveryIds = new Set(ISLAND_DISCOVERY_IDS);
+    for (const rule of ISLAND_REWARD_TABLE) {
+      if (rule.trigger.type !== 'DISCOVERY') continue;
+      expect(discoveryIds.has(rule.trigger.discoveryKey), rule.id).toBe(true);
+    }
+  });
+
+  /**
+   * The other direction, and the one that matters to a child: a secret with
+   * no reward rule is a place they walk into that gives them nothing. Not
+   * every secret has to grant an item in principle, but every authored one
+   * does today, and losing that silently would be a regression nobody sees.
+   */
+  it('gives every authored secret something to find', () => {
+    const rewardedKeys = new Set(
+      ISLAND_REWARD_TABLE.filter((rule) => rule.trigger.type === 'DISCOVERY').map(
+        (rule) => (rule.trigger as { type: 'DISCOVERY'; discoveryKey: string }).discoveryKey,
+      ),
+    );
+    for (const discovery of ISLAND_DISCOVERIES) {
+      expect(rewardedKeys.has(discovery.id), `${discovery.id} grants nothing`).toBe(true);
+    }
+  });
+
+  /**
+   * Phase 24 authored four shells and a set prize, and three of the four had
+   * no source at all - `moon-shell`, `rainbow-shell`, and `singing-shell`
+   * were unobtainable, which also made `beachcomber-hat` unreachable. Phase
+   * 26 is what made the set completable, and this asserts it stays that way.
+   */
+  it('makes every item in every collectible set reachable', () => {
+    const grantable = new Set(ISLAND_REWARD_TABLE.flatMap((rule) => [...rule.itemIds]));
+    for (const set of ISLAND_COLLECTIBLE_SETS) {
+      for (const itemId of set.itemIds) {
+        expect(grantable.has(itemId), `${itemId} has no source`).toBe(true);
+      }
     }
   });
 

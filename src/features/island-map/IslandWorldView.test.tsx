@@ -30,7 +30,34 @@ vi.mock('../adventures/content', () => ({
   getAdventureTemplate: vi.fn(),
 }));
 
+// Phase 26: every world view now joins world changes with the backpack and
+// the child's own discoveries (`useExplorableWorld`), so both reads have to
+// resolve or the whole context falls back to empty.
+vi.mock('../rewards/api', () => ({
+  getInventory: vi.fn(),
+}));
+
+vi.mock('../discovery/api', () => ({
+  getWorldState: vi.fn(),
+  recordCharacterMet: vi.fn(),
+  recordDiscovery: vi.fn(),
+  getDiscoveryDefinition: vi.fn(),
+}));
+
+import { getInventory } from '../rewards/api';
+import {
+  getDiscoveryDefinition,
+  recordCharacterMet,
+  recordDiscovery,
+  getWorldState,
+} from '../discovery/api';
+
 const listAllWorldChangesMock = vi.mocked(listAllWorldChanges);
+const getInventoryMock = vi.mocked(getInventory);
+const getWorldStateMock = vi.mocked(getWorldState);
+const getDiscoveryDefinitionMock = vi.mocked(getDiscoveryDefinition);
+const recordDiscoveryMock = vi.mocked(recordDiscovery);
+const recordCharacterMetMock = vi.mocked(recordCharacterMet);
 const resumeOrStartSessionMock = vi.mocked(resumeOrStartSession);
 const getAdventureTemplateMock = vi.mocked(getAdventureTemplate);
 
@@ -54,6 +81,14 @@ function renderWorldView() {
 describe('IslandWorldView', () => {
   beforeEach(() => {
     listAllWorldChangesMock.mockReset();
+    getInventoryMock.mockReset();
+    getWorldStateMock.mockReset();
+    getDiscoveryDefinitionMock.mockReset();
+    recordDiscoveryMock.mockReset();
+    recordCharacterMetMock.mockReset();
+    getInventoryMock.mockResolvedValue({ ownedItemIds: [], grantedRuleIds: [] });
+    getWorldStateMock.mockResolvedValue({ discoveredIds: [], metCharacterIds: [] });
+    recordCharacterMetMock.mockResolvedValue(undefined);
     resumeOrStartSessionMock.mockReset();
     getAdventureTemplateMock.mockReset();
   });
@@ -127,5 +162,88 @@ describe('IslandWorldView', () => {
     await user.click(screen.getByRole('button', { name: /not now/i }));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  /**
+   * Phase 26 (docs/ROADMAP.md Phase 26). A `DISCOVER` action is the one kind
+   * that writes: it records the find on open, rather than behind a button,
+   * because the child already did the thing that finds a secret.
+   */
+  describe('secrets', () => {
+    it('records the find and shows the reveal line when the child opens one', async () => {
+      const user = userEvent.setup();
+      listAllWorldChangesMock.mockResolvedValue([]);
+      getDiscoveryDefinitionMock.mockReturnValue({
+        id: 'harbor-keepers-door',
+        locationSlug: 'x',
+        kind: 'HIDDEN_OBJECT',
+        title: "The harbor keeper's door",
+        revealMessage: 'You found something wonderful.',
+        lockedMessage: 'Something is here, but not yet.',
+        requirements: [{ type: 'ALWAYS' }],
+      });
+      recordDiscoveryMock.mockResolvedValue({
+        outcome: {
+          discoveryId: 'harbor-keepers-door',
+          title: "The harbor keeper's door",
+          status: 'FOUND_NOW',
+          message: 'You found something wonderful.',
+        },
+        rewardMessages: ['A shell is yours to keep.'],
+        newItemIds: ['moon-shell'],
+      });
+
+      renderWorldView();
+      await user.click(await screen.findByText("The harbor keeper's door"));
+
+      expect(await screen.findByText('You found something wonderful.')).toBeInTheDocument();
+      // The authored celebration rides along in the same panel, so finding a
+      // thing and getting the thing are one beat rather than two screens.
+      expect(screen.getByText('A shell is yours to keep.')).toBeInTheDocument();
+      expect(recordDiscoveryMock).toHaveBeenCalledWith(
+        'child-1',
+        expect.objectContaining({ id: 'harbor-keepers-door' }),
+      );
+    });
+
+    it('shows the calm locked line, not an error, for a secret that will not open yet', async () => {
+      const user = userEvent.setup();
+      listAllWorldChangesMock.mockResolvedValue([]);
+      getDiscoveryDefinitionMock.mockReturnValue({
+        id: 'harbor-keepers-door',
+        locationSlug: 'x',
+        kind: 'LOCKED_DOOR',
+        title: "The harbor keeper's door",
+        revealMessage: 'It opens.',
+        lockedMessage: 'It is locked, and the keyhole is an odd shape.',
+        requirements: [{ type: 'ITEM_OWNED', itemId: 'driftwood-key' }],
+      });
+      recordDiscoveryMock.mockResolvedValue({
+        outcome: {
+          discoveryId: 'harbor-keepers-door',
+          title: "The harbor keeper's door",
+          status: 'LOCKED',
+          message: 'It is locked, and the keyhole is an odd shape.',
+        },
+        rewardMessages: [],
+        newItemIds: [],
+      });
+
+      renderWorldView();
+      await user.click(await screen.findByText("The harbor keeper's door"));
+
+      expect(
+        await screen.findByText('It is locked, and the keyhole is an odd shape.'),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+  });
+
+  it('offers the unmarked walk-in secret in the accessible list too', async () => {
+    listAllWorldChangesMock.mockResolvedValue([]);
+
+    renderWorldView();
+
+    expect(await screen.findByText('A tide pool behind the rocks')).toBeInTheDocument();
   });
 });

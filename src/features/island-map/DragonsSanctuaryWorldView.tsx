@@ -10,9 +10,12 @@ import {
   isInteractionAvailable,
   DRAGONS_SANCTUARY_INTERACTIONS,
   type WorldAction,
+  type WorldInteractionContext,
 } from './worldObjects';
-import { listAllWorldChanges, resumeOrStartSession } from '../adventures/api';
+import { resumeOrStartSession } from '../adventures/api';
 import { getAdventureTemplate } from '../adventures/content';
+import { useExplorableWorld } from './useExplorableWorld';
+import { DiscoveryAction } from './DiscoveryAction';
 import { isLocationUnlocked } from '../island/locations';
 
 const UNLOCK_REQUIREMENT = { changeKey: 'DRAGON_OF_EMBER_MOUNTAIN_COMPLETE' };
@@ -37,27 +40,13 @@ interface DragonsSanctuaryWorldViewProps {
  * story has not been completed.
  */
 export function DragonsSanctuaryWorldView({ childId, avatarKey }: DragonsSanctuaryWorldViewProps) {
-  const [worldChangeKeys, setWorldChangeKeys] = useState<string[] | null>(null);
+  // Phase 26: the same world read as the four regions that hide something.
+  // This location has no secrets of its own today, but sharing one hook
+  // keeps every world view interchangeable, and adding a secret here later
+  // is then a content change rather than a component change.
+  const { context, refresh, noteCharacterMet } = useExplorableWorld(childId);
   const [triggeredInteractionId, setTriggeredInteractionId] = useState<string | null>(null);
   const bus = useMemo(() => new WorldEventBus(), []);
-
-  useEffect(() => {
-    let cancelled = false;
-    listAllWorldChanges(childId)
-      .then((changes) => {
-        if (!cancelled) {
-          setWorldChangeKeys(changes.map((change) => change.changeKey));
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setWorldChangeKeys([]);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [childId]);
 
   useEffect(() => {
     const unsubscribe = bus.on('INTERACTION_TRIGGERED', ({ interactionId }) => {
@@ -75,15 +64,22 @@ export function DragonsSanctuaryWorldView({ childId, avatarKey }: DragonsSanctua
 
   const availableInteractions = useMemo(
     () =>
-      worldChangeKeys === null
+      context === null
         ? []
         : DRAGONS_SANCTUARY_INTERACTIONS.filter((interaction) =>
-            isInteractionAvailable(interaction, { worldChangeKeys }),
+            isInteractionAvailable(interaction, context),
           ),
-    [worldChangeKeys],
+    [context],
   );
 
-  if (worldChangeKeys === null) {
+  /** Phase 26's `discoveredCharacters` half; see `IslandWorldView` for why. */
+  useEffect(() => {
+    if (triggeredInteraction?.type === 'NPC') {
+      noteCharacterMet(triggeredInteraction.targetId);
+    }
+  }, [triggeredInteraction, noteCharacterMet]);
+
+  if (context === null) {
     return (
       <div className={styles.wrapper}>
         <p className={styles.status}>Loading the Dragon's Sanctuary...</p>
@@ -91,7 +87,7 @@ export function DragonsSanctuaryWorldView({ childId, avatarKey }: DragonsSanctua
     );
   }
 
-  if (!isLocationUnlocked({ unlockRequirement: UNLOCK_REQUIREMENT }, worldChangeKeys)) {
+  if (!isLocationUnlocked({ unlockRequirement: UNLOCK_REQUIREMENT }, context.worldChangeKeys)) {
     return (
       <div className={styles.wrapper}>
         <p className={styles.status}>
@@ -111,13 +107,14 @@ export function DragonsSanctuaryWorldView({ childId, avatarKey }: DragonsSanctua
       </p>
       <PhaserGameContainer
         instanceKey={childId}
-        createConfig={(parent) => buildGameConfig(parent, bus, worldChangeKeys, avatarKey)}
+        createConfig={(parent) => buildGameConfig(parent, bus, context, avatarKey)}
       />
       {triggeredInteraction ? (
         <InteractionPanel
           childId={childId}
           interaction={triggeredInteraction}
           onDismiss={() => setTriggeredInteractionId(null)}
+          onDiscovered={() => void refresh()}
         />
       ) : null}
       <details className={styles.thingsToDo}>
@@ -146,7 +143,7 @@ export function DragonsSanctuaryWorldView({ childId, avatarKey }: DragonsSanctua
 function buildGameConfig(
   parent: HTMLDivElement,
   bus: WorldEventBus,
-  worldChangeKeys: string[],
+  interactionContext: WorldInteractionContext,
   avatarKey: string,
 ): Phaser.Types.Core.GameConfig {
   return {
@@ -157,7 +154,7 @@ function buildGameConfig(
     backgroundColor: '#4a2e1c',
     physics: { default: 'arcade', arcade: { debug: false } },
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-    scene: [new DragonsSanctuaryScene(bus, { worldChangeKeys }, avatarKey)],
+    scene: [new DragonsSanctuaryScene(bus, interactionContext, avatarKey)],
   };
 }
 
@@ -165,14 +162,24 @@ interface InteractionPanelProps {
   childId: string;
   interaction: (typeof DRAGONS_SANCTUARY_INTERACTIONS)[number];
   onDismiss: () => void;
+  onDiscovered: () => void;
 }
 
-function InteractionPanel({ childId, interaction, onDismiss }: InteractionPanelProps) {
+function InteractionPanel({
+  childId,
+  interaction,
+  onDismiss,
+  onDiscovered,
+}: InteractionPanelProps) {
   return (
     <div className={styles.panel} role="dialog" aria-label={interaction.title}>
       <h2 className={styles.panelTitle}>{interaction.title}</h2>
       <div className={styles.panelActions}>
-        <InteractionPanelAction childId={childId} action={interaction.action} />
+        <InteractionPanelAction
+          childId={childId}
+          action={interaction.action}
+          onDiscovered={onDiscovered}
+        />
         <button type="button" className={styles.dismissButton} onClick={onDismiss}>
           Not now
         </button>
@@ -184,6 +191,7 @@ function InteractionPanel({ childId, interaction, onDismiss }: InteractionPanelP
 interface InteractionPanelActionProps {
   childId: string;
   action: WorldAction;
+  onDiscovered: () => void;
 }
 
 /**
@@ -192,7 +200,7 @@ interface InteractionPanelActionProps {
  * action union) so this view stays a drop-in match for every other
  * location's `*WorldView`, matching their own already-shipped precedent.
  */
-function InteractionPanelAction({ childId, action }: InteractionPanelActionProps) {
+function InteractionPanelAction({ childId, action, onDiscovered }: InteractionPanelActionProps) {
   const navigate = useNavigate();
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -207,6 +215,19 @@ function InteractionPanelAction({ childId, action }: InteractionPanelActionProps
 
   if (action.kind === 'SHOW_MESSAGE') {
     return <p>{action.message}</p>;
+  }
+
+  // Phase 26. Nothing in this location authors a `DISCOVER` action yet; the
+  // branch is here so the union stays exhaustively handled and a secret
+  // added to this location later needs no component change.
+  if (action.kind === 'DISCOVER') {
+    return (
+      <DiscoveryAction
+        childId={childId}
+        discoveryId={action.discoveryId}
+        onDiscovered={onDiscovered}
+      />
+    );
   }
 
   const startAdventureAction = action;

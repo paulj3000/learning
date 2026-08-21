@@ -16,6 +16,7 @@ type ChildStoryProgress = Schema['ChildStoryProgress']['type'];
 type ChildNpcState = Schema['ChildNpcState']['type'];
 type ChildInventory = Schema['ChildInventory']['type'];
 type ChildQuestState = Schema['ChildQuestState']['type'];
+type ChildWorldState = Schema['ChildWorldState']['type'];
 type ParentProfile = Schema['ParentProfile']['type'];
 
 /**
@@ -32,7 +33,8 @@ type ParentProfile = Schema['ParentProfile']['type'];
  * Every model added since Phase 8 wrote this function had been missed:
  * `ChildStoryProgress` (Phase 12), `ChildNpcState` (Phase 23),
  * `ChildInventory` (Phase 24), and `ChildQuestState` (Phase 25) all survived
- * a "delete everything" until Phase 25 audited it. Adding a per-child model
+ * a "delete everything" until Phase 25 audited it. `ChildWorldState`
+ * (Phase 26) was added here in the same change that added the model. Adding a per-child model
  * without adding it here silently breaks the deletion promise in
  * `docs/AI_AND_CHILD_SAFETY.md`, so `deletion.test.ts` now asserts this
  * function touches every model in the schema that carries a
@@ -60,6 +62,7 @@ export async function deleteChildProfileData(childProfileId: string): Promise<vo
     { data: npcStates },
     { data: inventories },
     { data: questStates },
+    { data: worldStates },
   ] = await Promise.all([
     client.models.AdventureSession.list(),
     client.models.AdventureAction.list(),
@@ -74,6 +77,7 @@ export async function deleteChildProfileData(childProfileId: string): Promise<vo
     client.models.ChildNpcState.list(),
     client.models.ChildInventory.list(),
     client.models.ChildQuestState.list(),
+    client.models.ChildWorldState.list(),
   ]);
 
   const ownSessionIds = new Set(
@@ -119,6 +123,9 @@ export async function deleteChildProfileData(childProfileId: string): Promise<vo
     ...questStates
       .filter((row: ChildQuestState) => row.childProfileId === childProfileId)
       .map((row: ChildQuestState) => client.models.ChildQuestState.delete({ id: row.id })),
+    ...worldStates
+      .filter((row: ChildWorldState) => row.childProfileId === childProfileId)
+      .map((row: ChildWorldState) => client.models.ChildWorldState.delete({ id: row.id })),
   ]);
 
   await Promise.all([...ownSessionIds].map((id) => client.models.AdventureSession.delete({ id })));

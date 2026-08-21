@@ -44,20 +44,33 @@ Bedrock model choice ever changes.
 
 ## Current phase
 
-**Phases 0-25 are implemented.** The most recent is Phase 25 (Data-Driven
-Quest Engine) — see its section below, which also records two bugs it found
-in earlier phases (four per-child models that "delete my child's data" was
-missing, and a reward rule that could never fire). Phase 26 (Exploration and
-Secrets) is next, and it is what makes the `DISCOVER` quest primitive
-usable.
+**Phases 0-26 are implemented.** The most recent is Phase 26 (Exploration
+and Secrets) — see its section below. It adds the Discovery Engine
+(`src/features/discovery/`), the `ChildWorldState` model that
+`docs/DATA_MODEL.md` had been deferring since Phase 16, six authored secrets
+across the four explorable regions, and the first quest a child can actually
+start by themselves.
 
-One caveat that matters more than the phase number: Phases 22-24 shipped
-engines that gameplay does not call yet. The interaction library renders in
-no live adventure, no NPC dialogue screen exists, and nothing granted a
-reward until Phase 25 did. Phase 25 is wired in (adventure completion and
-the quest journal both drive it), but a child still cannot *accept* a quest
-in the world, because accepting one means talking to an NPC and there is no
-conversation UI. Closing that gap is worth more than the next phase.
+Phase 26 closes three seams earlier phases left open on purpose:
+
+- `QuestContext.discoveryKeys` was hard-coded empty since Phase 25, which is
+  why the `DISCOVER` quest primitive was authorable but dormant. It now
+  reads the Discovery Engine, and "The Quiet Places" is built on it.
+- Phase 24's `DISCOVERY` reward trigger had no producer. Six rules now fire
+  on it, and three of the four `harbor-shells` collectibles — which had no
+  source at all — are finally reachable.
+- Phase 24's `singing-shell` (hidden, RARE) and the `beachcomber-hat` set
+  prize were unobtainable. Finishing "The Quiet Places" grants the shell,
+  which completes the set, which grants the hat.
+
+**The caveat from Phase 25 still stands and is still the most valuable
+follow-up: there is no NPC conversation UI.** A child cannot accept a quest
+by talking to Pip, Quill, or Bolt, so the three Phase 25 quests remain
+unstartable in normal play. Phase 26 routes around that rather than fixing
+it — its own quest is given out by a *discovery* instead of a character —
+so one quest is now genuinely playable end to end, but the interaction
+library (Phase 22) still renders in no live adventure and the NPC dialogue
+system (Phase 23) still has no screen.
 
 The history below is kept as written at the time of each phase.
 
@@ -3294,6 +3307,189 @@ adventure, and a child with no quests started pays one list read.
 - **Not verified against live AWS.** `ChildQuestState` is a new model and
   has not been deployed; the sandbox deploy that would create its table had
   not been re-run at the end of this session.
+
+## Phase 26 — Exploration and Secrets
+
+New feature folder `src/features/discovery/`, the Discovery Engine, plus the
+`ChildWorldState` model, six authored secrets laid into the four explorable
+regions Phases 10/11/13/14 built, and the first quest on the island a child
+can start without an NPC. Every deliverable in the roadmap's Phase 26 list
+is implemented and wired into live gameplay.
+
+**A discovery is a place that keeps a secret, not a challenge.** It grades
+nothing, teaches nothing directly, and cannot be failed. Everything else
+follows from that: no secret gates an adventure, a story, or a location; a
+locked secret still says something warm about what is there; and the only
+things a discovery can do are say a line, put treasure in the backpack,
+change the island, and reveal a quest.
+
+- **`types.ts`**: `DiscoveryDefinition` (id, location, kind, both child-facing
+  lines, requirements, optional world change, optional quest it gives out),
+  the closed `DiscoveryRequirement` union (`ALWAYS`,
+  `WORLD_CHANGE_PRESENT`, `ITEM_OWNED`, `DISCOVERY_PRESENT`), and
+  `DiscoveryContext`. `DiscoveryKind` (`HIDDEN_CAVE`, `SECRET_PASSAGE`,
+  `LOCKED_DOOR`, `HIDDEN_OBJECT`) is purely descriptive — nothing branches
+  on it — so a designer can see the shape of the island's secrets at a
+  glance.
+- **`discovery.ts`**: pure rules. `resolveDiscovery` returns one of
+  `FOUND_NOW` / `ALREADY_FOUND` / `LOCKED` with the line to show.
+  `ALREADY_FOUND` deliberately shows the same reveal line as `FOUND_NOW`, so
+  a place a child liked reads the same way the second time rather than
+  degrading into "nothing here anymore". A found secret stays found even if
+  its requirement later stops holding.
+- **`telemetry.ts`**: `buildExplorationTelemetry` and `describeExploration`.
+  One derivation, two audiences — the operational shape and the parent's
+  plain-language lines come from the same numbers, so a parent can never be
+  told something the telemetry does not say.
+- **`api.ts`**: `getWorldState`, `buildDiscoveryContext` (three reads),
+  `recordDiscovery`, `recordCharacterMet`, `clearWorldState`. Writes to
+  neighbours go only through their public APIs (`recordWorldChangeOnce`,
+  `grantRewards`, `startQuest`/`syncQuestProgress`), never their tables, and
+  every side effect after the discovery row itself is individually
+  failure-tolerant: a secret that was found stays found even if a reward
+  write fails, because the alternative is a child watching a place they
+  found go back to being hidden.
+- **`ChildWorldState`** (amplify/data/resource.ts): owner-authorized, admin
+  read, one row per child, scoped to exactly the two fields
+  `docs/DATA_MODEL.md` flagged as not derivable —
+  `discoveredObjects`/`discoveredCharacters`. `unlockedLocations`,
+  `worldChanges`, and `completedStories` are still computed at read time
+  rather than stored.
+
+**The world layer.** `WorldRequirement` gained `ITEM_OWNED` and
+`DISCOVERY_PRESENT`; `WorldAction` gained `DISCOVER`, which carries only an
+id and no copy, so the world layer and the discovery content cannot drift
+apart on what a locked door says. `WorldInteractionContext` gained optional
+`ownedItemIds`/`discoveryIds` — optional so every existing call site keeps
+meaning what it said, and *absent is treated as empty*, which fails closed:
+a caller that forgets them hides a secret rather than leaving a locked door
+standing open. All eight world views now share one `useExplorableWorld`
+hook instead of eight copies of a three-way join.
+
+**The authored chain.** Four of the six secrets are unmarked `APPROACH`
+zones with no sprite at all — the secret is that a child walked somewhere
+nothing told them to go. Two reuse spots earlier phases authored as honest
+"not yet" flavor lines and made them real:
+
+```text
+Welcome Harbor      tide pool  ─────────────►  starts "The Quiet Places"
+Pirate Builder Bay  tide tunnel  ───────────►  driftwood key
+Welcome Harbor      keeper's door  ◄─────────  (needs the driftwood key)
+Wonderwild Forest   glowing moss  ──────────►  jar of glowing moss
+Wonderwild Forest   glowworm cave  ◄─────────  (needs the jar)
+Storykeeper Castle  tapestry stair
+```
+
+`harbor-door` ("nobody is home right now") and `wonderwild-cave` ("too dark
+to explore just yet") kept their ids and sprites, so the decor modules that
+bind to them still resolve.
+
+**"The Quiet Places"** is the roadmap's optional quest chain, and the first
+quest a child can start in normal play. It has no `giverNpcId`: finding the
+tide pool starts it, which is roadmap section 16's "child explores → finds
+something → story begins" flow, and also how it sidesteps the missing NPC
+conversation screen. Every objective is a `DISCOVER`, nothing in it is
+graded, and the keeper's door is optional because its key lives one secret
+away.
+
+**Rare-collectible spawning** means exactly one thing here: an item that
+exists in one out-of-the-way place, granted deterministically to whoever
+walks there. There is still no roll anywhere in `ISLAND_REWARD_TABLE`, and
+`rarity` still weights nothing.
+
+**Exploration telemetry** is a closed vocabulary by construction. Every
+value it can emit is an authored id or an integer; there is no field for a
+nickname, note, transcript, or session timestamp, and `telemetry.test.ts`
+asserts that by walking the emitted object at every depth and checking each
+string against the content pack. The parent-facing half reports what was
+found and never what is left — a parent seeing "2 of 6" would reasonably
+read the rest as homework.
+
+### Known limitations (Phase 26)
+
+- **Still no NPC conversation UI**, so the three Phase 25 quests remain
+  unstartable in normal play and Phase 22's interaction library still
+  renders in no live adventure. Phase 26 routed around this rather than
+  fixing it. This is still the most valuable follow-up in the codebase.
+- **`discoveredCharacters` is written only by the explorable scenes.** It
+  records "walked up and met them", which today is the only way a child can
+  meet anyone; when a dialogue screen exists, `ChildNpcState` and this
+  column will both be written, by different engines, for different reasons.
+  They are documented as distinct jobs rather than merged, but the overlap
+  is worth revisiting once dialogue ships.
+- **Tapping Chatty records nothing.** Chatty is a `CompanionProfile`, not an
+  `NpcDefinition`, so `recordCharacterMet` drops the id. That is correct
+  today and will look wrong the moment anyone expects the companion in a
+  "characters met" count.
+- **No log sink.** `buildExplorationTelemetry` produces the operational
+  shape, and the parent dashboard renders the human half, but nothing ships
+  the structured record anywhere — there is no client-side logger in this
+  codebase (`src/lib/` has no logging module), and inventing one was out of
+  scope for this phase.
+- **The Phaser scene does not see a refresh; the accessible list does.**
+  `PhaserGameContainer` reads its config once per `instanceKey` and never
+  again (Phase 9's deliberate "no recreation on unrelated re-renders"), so
+  after `refresh()` the "Things to do here" list reflects the new world
+  while the walkable scene still holds the context it mounted with. Nothing
+  authored today is gated at the *interaction* level on an item or a
+  discovery — every Phase 26 gate lives on the discovery itself — so the two
+  cannot currently disagree. The moment an interaction is authored with an
+  `ITEM_OWNED` or `DISCOVERY_PRESENT` requirement, they will, and the fix is
+  to key the container on something that changes with the world rather than
+  only on `childId`.
+- **The four Phase 16 locations hide nothing.** Dragon's Sanctuary, Fossil
+  Ridge Camp, the Castle Writing Room, and Bolt's Workshop share the same
+  hook and handle the `DISCOVER` action, so adding a secret to any of them
+  is a content change — but no content does yet.
+- **A secret's `lockedMessage` is checked for tone by a keyword test, not by
+  judgment.** `islandDiscoveries.test.ts` rejects "you can't", "not
+  allowed", and similar, which catches the obvious regressions and none of
+  the subtle ones.
+- **No parent-facing per-secret view.** The dashboard shows counts; it does
+  not name which places a child found, deliberately, since naming them would
+  turn a parent's page into a checklist.
+- **Copy targets Pathfinders**, matching every other authored content set.
+  "The Quiet Places" carries all three age bands (a Sprout who wanders into
+  the tide pool has already done its first stage), but `ageBands` still
+  filters nothing anywhere.
+- **`ChildWorldState` has no admin/reviewer group access beyond
+  `allow.group('Admins').to(['read'])`**, the same already-tracked gap as
+  every other model in this schema.
+
+## Verification (Phase 26 session)
+
+- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`,
+  `scripts/tsconfig.json`).
+- `npm run lint` — passed, 19 warnings, all pre-existing
+  (`prefer-tag-over-role` on the world views' interaction panels,
+  `no-console` in the untracked `.tmp-verify/` scratch directory); none new.
+- `npm run build` — passed.
+- `npx vitest run` — 125 files, 1120 tests, all passing (up from 1036).
+  84 new: `discovery.test.ts` (requirement evaluation, the three outcome
+  statuses, a found secret surviving a requirement that stops holding, the
+  fail-closed id validation), `telemetry.test.ts` (per-location and per-kind
+  counts, a deleted secret dropping out, and the structural no-free-text
+  assertion that walks the emitted object at every depth),
+  `content/islandDiscoveries.test.ts` (every requirement producible, the
+  whole chain explorable from a child who has done nothing, every secret
+  reachable from a world interaction, no secret gating learning content),
+  `api.test.ts` (idempotent recording, side-effect ordering, appending to an
+  existing row, failure tolerance, unknown-NPC drop), plus new cases in
+  `worldObjects.test.ts` (the two new requirement types and their
+  fail-closed direction, the secrets in all four regions), the four
+  secret-bearing world view tests (`FOUND_NOW` and `LOCKED` panels), and
+  `quests/api.test.ts` (`discoveryKeys` now read from the Discovery Engine),
+  `deletion.test.ts` (`ChildWorldState` coverage), `islandItems.test.ts`
+  (`DISCOVERY` triggers naming real secrets, every secret granting
+  something, and every collectible set finally being reachable), and the
+  four zone-geometry suites (every zone on walkable tiles, no two zones
+  overlapping).
+- **Not verified against live AWS.** `ChildWorldState` is a new model and
+  has not been deployed; no `ampx sandbox` deploy was run in this session,
+  so nothing here has been exercised against a real table or played in a
+  browser. Every world-layer change (the four new walk-in zones in
+  particular) shares the already-tracked gap that no Phase 16 or Phase 26
+  geometry has ever rendered inside a real `Phaser.Game`.
 
 ## Child profile photos (parent-uploaded profile icons)
 

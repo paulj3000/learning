@@ -4,7 +4,11 @@
  * as `zones.ts`/`pirateBuilderBayZones.ts` — see `zones.ts`'s header comment
  * for why this lives apart from `worldObjects.ts`.
  */
-import { BEEHIVE_TILE_RECT, HARBOR_EXIT_TILE_RECT } from './wonderwildForestTilemap';
+import {
+  BEEHIVE_TILE_RECT,
+  GLOW_MOSS_TILE_RECT,
+  HARBOR_EXIT_TILE_RECT,
+} from './wonderwildForestTilemap';
 import { TILE_SIZE } from './tilemap';
 import type { PixelRect } from './zones';
 
@@ -29,5 +33,12 @@ export const WONDERWILD_FOREST_ZONES: Record<string, PixelRect> = {
     HARBOR_EXIT_TILE_RECT.row,
     HARBOR_EXIT_TILE_RECT.cols,
     HARBOR_EXIT_TILE_RECT.rows,
+  ),
+  // Phase 26's unmarked secret, and the light the glowworm cave needs.
+  'wonderwild-glow-moss': tileRectToPixels(
+    GLOW_MOSS_TILE_RECT.col,
+    GLOW_MOSS_TILE_RECT.row,
+    GLOW_MOSS_TILE_RECT.cols,
+    GLOW_MOSS_TILE_RECT.rows,
   ),
 };

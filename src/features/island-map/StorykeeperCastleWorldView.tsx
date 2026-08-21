@@ -10,9 +10,12 @@ import {
   isInteractionAvailable,
   STORYKEEPER_CASTLE_INTERACTIONS,
   type WorldAction,
+  type WorldInteractionContext,
 } from './worldObjects';
-import { listAllWorldChanges, resumeOrStartSession } from '../adventures/api';
+import { resumeOrStartSession } from '../adventures/api';
 import { getAdventureTemplate } from '../adventures/content';
+import { useExplorableWorld } from './useExplorableWorld';
+import { DiscoveryAction } from './DiscoveryAction';
 
 interface StorykeeperCastleWorldViewProps {
   childId: string;
@@ -34,27 +37,12 @@ export function StorykeeperCastleWorldView({
   childId,
   avatarKey,
 }: StorykeeperCastleWorldViewProps) {
-  const [worldChangeKeys, setWorldChangeKeys] = useState<string[] | null>(null);
+  // Phase 26: world changes, backpack, and discoveries in one read, since a
+  // secret's availability can turn on any of the three
+  // (`useExplorableWorld`).
+  const { context, refresh, noteCharacterMet } = useExplorableWorld(childId);
   const [triggeredInteractionId, setTriggeredInteractionId] = useState<string | null>(null);
   const bus = useMemo(() => new WorldEventBus(), []);
-
-  useEffect(() => {
-    let cancelled = false;
-    listAllWorldChanges(childId)
-      .then((changes) => {
-        if (!cancelled) {
-          setWorldChangeKeys(changes.map((change) => change.changeKey));
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setWorldChangeKeys([]);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [childId]);
 
   useEffect(() => {
     const unsubscribe = bus.on('INTERACTION_TRIGGERED', ({ interactionId }) => {
@@ -72,15 +60,28 @@ export function StorykeeperCastleWorldView({
 
   const availableInteractions = useMemo(
     () =>
-      worldChangeKeys === null
+      context === null
         ? []
         : STORYKEEPER_CASTLE_INTERACTIONS.filter((interaction) =>
-            isInteractionAvailable(interaction, { worldChangeKeys }),
+            isInteractionAvailable(interaction, context),
           ),
-    [worldChangeKeys],
+    [context],
   );
 
-  if (worldChangeKeys === null) {
+  /**
+   * Phase 26's `discoveredCharacters` half (docs/DATA_MODEL.md
+   * "ChildWorldState"): meeting someone in the world is recorded, and until
+   * now nothing recorded it at all. Unknown ids are dropped by
+   * `recordCharacterMet`, so the companion (Chatty is not an `NpcDefinition`)
+   * simply records nothing.
+   */
+  useEffect(() => {
+    if (triggeredInteraction?.type === 'NPC') {
+      noteCharacterMet(triggeredInteraction.targetId);
+    }
+  }, [triggeredInteraction, noteCharacterMet]);
+
+  if (context === null) {
     return (
       <div className={styles.wrapper}>
         <p className={styles.status}>Loading Storykeeper Castle...</p>
@@ -95,13 +96,14 @@ export function StorykeeperCastleWorldView({
       </p>
       <PhaserGameContainer
         instanceKey={childId}
-        createConfig={(parent) => buildGameConfig(parent, bus, worldChangeKeys, avatarKey)}
+        createConfig={(parent) => buildGameConfig(parent, bus, context, avatarKey)}
       />
       {triggeredInteraction ? (
         <InteractionPanel
           childId={childId}
           interaction={triggeredInteraction}
           onDismiss={() => setTriggeredInteractionId(null)}
+          onDiscovered={() => void refresh()}
         />
       ) : null}
       <details className={styles.thingsToDo}>
@@ -130,7 +132,7 @@ export function StorykeeperCastleWorldView({
 function buildGameConfig(
   parent: HTMLDivElement,
   bus: WorldEventBus,
-  worldChangeKeys: string[],
+  interactionContext: WorldInteractionContext,
   avatarKey: string,
 ): Phaser.Types.Core.GameConfig {
   return {
@@ -141,7 +143,7 @@ function buildGameConfig(
     backgroundColor: '#1c3a52',
     physics: { default: 'arcade', arcade: { debug: false } },
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-    scene: [new StorykeeperCastleScene(bus, { worldChangeKeys }, avatarKey)],
+    scene: [new StorykeeperCastleScene(bus, interactionContext, avatarKey)],
   };
 }
 
@@ -149,14 +151,24 @@ interface InteractionPanelProps {
   childId: string;
   interaction: (typeof STORYKEEPER_CASTLE_INTERACTIONS)[number];
   onDismiss: () => void;
+  onDiscovered: () => void;
 }
 
-function InteractionPanel({ childId, interaction, onDismiss }: InteractionPanelProps) {
+function InteractionPanel({
+  childId,
+  interaction,
+  onDismiss,
+  onDiscovered,
+}: InteractionPanelProps) {
   return (
     <div className={styles.panel} role="dialog" aria-label={interaction.title}>
       <h2 className={styles.panelTitle}>{interaction.title}</h2>
       <div className={styles.panelActions}>
-        <InteractionPanelAction childId={childId} action={interaction.action} />
+        <InteractionPanelAction
+          childId={childId}
+          action={interaction.action}
+          onDiscovered={onDiscovered}
+        />
         <button type="button" className={styles.dismissButton} onClick={onDismiss}>
           Not now
         </button>
@@ -168,6 +180,7 @@ function InteractionPanel({ childId, interaction, onDismiss }: InteractionPanelP
 interface InteractionPanelActionProps {
   childId: string;
   action: WorldAction;
+  onDiscovered: () => void;
 }
 
 /**
@@ -176,7 +189,7 @@ interface InteractionPanelActionProps {
  * 8): it creates or resumes the session before navigating, rather than only
  * linking to a route.
  */
-function InteractionPanelAction({ childId, action }: InteractionPanelActionProps) {
+function InteractionPanelAction({ childId, action, onDiscovered }: InteractionPanelActionProps) {
   const navigate = useNavigate();
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -191,6 +204,18 @@ function InteractionPanelAction({ childId, action }: InteractionPanelActionProps
 
   if (action.kind === 'SHOW_MESSAGE') {
     return <p>{action.message}</p>;
+  }
+
+  // Phase 26. Owns its own copy and its own write, so a locked secret and an
+  // opened one are the same interaction from this view's point of view.
+  if (action.kind === 'DISCOVER') {
+    return (
+      <DiscoveryAction
+        childId={childId}
+        discoveryId={action.discoveryId}
+        onDiscovered={onDiscovered}
+      />
+    );
   }
 
   const startAdventureAction = action;

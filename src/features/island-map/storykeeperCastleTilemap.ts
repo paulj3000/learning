@@ -46,6 +46,13 @@ export const STORY_HALL_TILE_RECT = { col: 14, row: 9, cols: 3, rows: 3 };
  */
 export const LAST_BOOKSHELF_TILE_RECT = { col: 23, row: 15, cols: 3, rows: 3 };
 
+/**
+ * Phase 26's tapestry stair: the castle's south-west corner, clear of the
+ * costume room sprite (col 6, row 16), the story hall, and the last
+ * bookshelf's own zone at col 23. Unmarked.
+ */
+export const TAPESTRY_STAIR_TILE_RECT = { col: 10, row: 16, cols: 3, rows: 3 };
+
 /** Tiles the avatar cannot walk onto. Nothing indoors collides. */
 export const STORYKEEPER_CASTLE_COLLIDING_TILES: readonly HarborTileId[] = [];
 

@@ -38,6 +38,13 @@ export const POND_TILE_RECT = { col: 20, row: 3, cols: 6, rows: 6 };
  */
 export const BEEHIVE_TILE_RECT = { col: 14, row: 9, cols: 3, rows: 3 };
 
+/**
+ * Phase 26's glowing moss: the quiet south-west of the forest, clear of the
+ * harbor exit (col 0, rows 9-11), the night clearing sprite (col 10, row 16),
+ * and the pond. Unmarked, like every other Phase 26 walk-in secret.
+ */
+export const GLOW_MOSS_TILE_RECT = { col: 2, row: 16, cols: 3, rows: 3 };
+
 /** Tiles the avatar cannot walk onto. */
 export const WONDERWILD_COLLIDING_TILES: readonly HarborTileId[] = [HarborTile.WATER];
 

@@ -49,7 +49,7 @@ export type QuestId = string;
  * | `BUILD`    | a `WorldChange` key being recorded            | Phase 3  |
  * | `EXPLORE`  | having visited a location                     | Phase 9  |
  * | `LEARN`    | a skill reaching a mastery status             | Phase 20 |
- * | `DISCOVER` | a discovery key (Phase 26; dormant today)     | Phase 26 |
+ * | `DISCOVER` | a discovery key from an authored secret       | Phase 26 |
  */
 export type QuestObjectiveKind =
   | 'TALK_TO'
@@ -211,10 +211,9 @@ export interface QuestContext {
   /** Mastery status per `learningObjectiveCode` (Phase 20). */
   skillStatuses: Readonly<Record<string, SkillStatus>>;
   /**
-   * Discovery keys (Phase 26). Always empty today, exactly as
-   * `NpcContext.completedQuestIds` was empty before this phase existed: a
-   * `DISCOVER` objective is authorable now and simply never completes until
-   * Phase 26 ships a discovery system to fill this in.
+   * `DiscoveryDefinition.id` values this child has found (Phase 26). Filled
+   * from `ChildWorldState` by `buildQuestContext`; empty from Phase 25 until
+   * Phase 26 shipped the discovery system behind it.
    */
   discoveryKeys: readonly string[];
   /** Quest IDs this child has already finished, for prerequisites. */

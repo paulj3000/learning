@@ -100,6 +100,42 @@ export const ISLAND_ITEMS: ItemDefinition[] = [
     rarity: 'COMMON',
   },
 
+  // --- Exploration: the things secrets keep (docs/ROADMAP.md Phase 26). ---
+  // Two keys and two pieces of treasure. The keys are `QUEST_ITEM` rather
+  // than `COLLECTIBLE` because they are for opening something, and the
+  // backpack should not invite a child to feel they are missing one.
+  {
+    id: 'driftwood-key',
+    displayName: 'Driftwood Key',
+    description: 'A key carved out of a piece of driftwood, worn smooth by the sea.',
+    category: 'QUEST_ITEM',
+    rarity: 'UNCOMMON',
+  },
+  {
+    id: 'glowing-moss-jar',
+    displayName: 'Jar of Glowing Moss',
+    description: 'A little jar of soft green moss that never stops glowing.',
+    category: 'QUEST_ITEM',
+    rarity: 'COMMON',
+  },
+  {
+    id: 'glowworm-crystal',
+    displayName: 'Glowworm Crystal',
+    description: 'Clear as water, and it catches every light in the room.',
+    category: 'COLLECTIBLE',
+    rarity: 'RARE',
+    // Not in any set, and hidden: it exists in exactly one cave, and a child
+    // who never goes in should never see a gap where it would have been.
+    hidden: true,
+  },
+  {
+    id: 'blank-page-storybook',
+    displayName: 'The Book with a Blank Page',
+    description: 'An old storybook from the reading nook. The last page is still empty.',
+    category: 'KEEPSAKE',
+    rarity: 'UNCOMMON',
+  },
+
   // --- Cosmetics: creativity, not status. ---
   {
     id: 'explorer-backpack',
@@ -176,6 +212,59 @@ export const ISLAND_REWARD_TABLE: RewardTable = [
     trigger: { type: 'WORLD_CHANGE', changeKey: 'BRIDGE_REPAIRED' },
     itemIds: ['spiral-shell'],
     message: 'A shell washed up while you worked. It is yours to keep.',
+  },
+  // --- Phase 26: the secrets, and the one rare thing that closes the set. ---
+  //
+  // Every rule below is a `DISCOVERY` trigger, the seam Phase 24 defined and
+  // left dormant because nothing could be discovered yet. "Rare-collectible
+  // spawning" is exactly this and nothing more: a rare item that exists in
+  // one out-of-the-way place, granted deterministically to whoever walks
+  // there. There is still no roll anywhere in this table.
+  {
+    id: 'reward-harbor-tide-pool',
+    trigger: { type: 'DISCOVERY', discoveryKey: 'harbor-tide-pool' },
+    itemIds: ['moon-shell'],
+    message: 'A moon shell was waiting at the bottom of the pool.',
+  },
+  {
+    id: 'reward-bay-tide-tunnel',
+    trigger: { type: 'DISCOVERY', discoveryKey: 'bay-tide-tunnel' },
+    itemIds: ['driftwood-key'],
+    message: 'You take the driftwood key down off its nail.',
+  },
+  {
+    id: 'reward-harbor-keepers-door',
+    trigger: { type: 'DISCOVERY', discoveryKey: 'harbor-keepers-door' },
+    itemIds: ['rainbow-shell'],
+    message: 'The harbor keeper will not mind you keeping the rainbow shell.',
+  },
+  {
+    id: 'reward-wonderwild-glow-moss',
+    trigger: { type: 'DISCOVERY', discoveryKey: 'wonderwild-glow-moss' },
+    itemIds: ['glowing-moss-jar'],
+    message: 'Now you have a light of your own.',
+  },
+  {
+    id: 'reward-wonderwild-glowworm-cave',
+    trigger: { type: 'DISCOVERY', discoveryKey: 'wonderwild-glowworm-cave' },
+    itemIds: ['glowworm-crystal'],
+    message: 'You pick up the crystal. It glows for a while after you leave.',
+  },
+  {
+    id: 'reward-castle-tapestry-stair',
+    trigger: { type: 'DISCOVERY', discoveryKey: 'castle-tapestry-stair' },
+    itemIds: ['blank-page-storybook'],
+    message: 'You carry the book with the blank page down the stair with you.',
+  },
+  {
+    id: 'reward-quiet-places',
+    // The last shell in the harbor set, and the only way to get it. Finding
+    // every quiet place is what makes it appear, which also means the
+    // `harbor-shells` set finally has a complete path through the island -
+    // until this phase, three of its four shells had no source at all.
+    trigger: { type: 'QUEST_COMPLETED', questId: 'the-quiet-places' },
+    itemIds: ['singing-shell'],
+    message: 'A shell you have never seen before is sitting on the tide pool rock. Listen to it.',
   },
 ];
 

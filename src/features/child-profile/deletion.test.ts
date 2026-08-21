@@ -30,10 +30,12 @@ const {
   npcStateList,
   inventoryList,
   questStateList,
+  worldStateList,
   deleteStoryProgress,
   deleteNpcState,
   deleteInventory,
   deleteQuestState,
+  deleteWorldState,
 } = vi.hoisted(() => ({
   deleteUser: vi.fn(),
   sessionList: vi.fn(),
@@ -64,10 +66,12 @@ const {
   npcStateList: vi.fn(),
   inventoryList: vi.fn(),
   questStateList: vi.fn(),
+  worldStateList: vi.fn(),
   deleteStoryProgress: vi.fn(),
   deleteNpcState: vi.fn(),
   deleteInventory: vi.fn(),
   deleteQuestState: vi.fn(),
+  deleteWorldState: vi.fn(),
 }));
 
 vi.mock('aws-amplify/auth', () => ({ deleteUser }));
@@ -96,6 +100,7 @@ vi.mock('../../lib/data-client', () => ({
       ChildNpcState: { list: npcStateList, delete: deleteNpcState },
       ChildInventory: { list: inventoryList, delete: deleteInventory },
       ChildQuestState: { list: questStateList, delete: deleteQuestState },
+      ChildWorldState: { list: worldStateList, delete: deleteWorldState },
     },
   },
 }));
@@ -146,6 +151,12 @@ describe('deleteChildProfileData', () => {
       data: [{ id: 'story-progress-own', childProfileId: 'child-1' }],
     });
     npcStateList.mockResolvedValue({ data: [{ id: 'npc-own', childProfileId: 'child-1' }] });
+    worldStateList.mockResolvedValue({
+      data: [
+        { id: 'world-own', childProfileId: 'child-1' },
+        { id: 'world-other', childProfileId: 'child-2' },
+      ],
+    });
     inventoryList.mockResolvedValue({ data: [{ id: 'inventory-own', childProfileId: 'child-1' }] });
     questStateList.mockResolvedValue({
       data: [
@@ -176,13 +187,17 @@ describe('deleteChildProfileData', () => {
     expect(deleteInventory).toHaveBeenCalledWith({ id: 'inventory-own' });
     expect(deleteQuestState).toHaveBeenCalledWith({ id: 'quest-own' });
     expect(deleteQuestState).not.toHaveBeenCalledWith({ id: 'quest-other' });
+    expect(deleteWorldState).toHaveBeenCalledWith({ id: 'world-own' });
+    expect(deleteWorldState).not.toHaveBeenCalledWith({ id: 'world-other' });
     expect(deleteChildProfile).toHaveBeenCalledWith({ id: 'child-1' });
   });
 
   /**
    * Four models had been added since this function was written and none was
    * being deleted: story progress (Phase 12), NPC memory (Phase 23),
-   * inventory (Phase 24), and quest state (Phase 25). A per-child model that
+   * inventory (Phase 24), and quest state (Phase 25). Phase 26's
+   * `ChildWorldState` is the first one this test caught before it shipped,
+   * which is what it is for. A per-child model that
    * nothing deletes silently breaks the deletion promise in
    * docs/AI_AND_CHILD_SAFETY.md, so this asserts coverage against the schema
    * itself rather than against a list someone has to remember to update.

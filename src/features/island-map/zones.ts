@@ -17,6 +17,7 @@ import {
   FOREST_PATH_TILE_RECT,
   FOSSIL_RIDGE_PATH_TILE_RECT,
   MOUNTAIN_PATH_TILE_RECT,
+  TIDE_POOL_TILE_RECT,
   TILE_SIZE,
 } from './tilemap';
 
@@ -72,5 +73,13 @@ export const WELCOME_HARBOR_ZONES: Record<string, PixelRect> = {
     BOLTS_WORKSHOP_PATH_TILE_RECT.row,
     BOLTS_WORKSHOP_PATH_TILE_RECT.cols,
     BOLTS_WORKSHOP_PATH_TILE_RECT.rows,
+  ),
+  // Phase 26's unmarked secret. No decor sprite points at this rectangle,
+  // which is exactly what makes it a secret rather than a landmark.
+  'harbor-tide-pool': tileRectToPixels(
+    TIDE_POOL_TILE_RECT.col,
+    TIDE_POOL_TILE_RECT.row,
+    TIDE_POOL_TILE_RECT.cols,
+    TIDE_POOL_TILE_RECT.rows,
   ),
 };

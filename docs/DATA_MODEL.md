@@ -377,21 +377,45 @@ Deliberately avoids numeric experience points as the emotional center of
 the product (roadmap section 27) — the world state itself, not a score, is
 the record of achievement.
 
-**Scoping note (Phase 16, first slice):** this model is still not
-implemented as an actual `amplify/data/resource.ts` schema entry.
-`unlockedLocations`, `worldChanges`, and `completedStories` are already
-fully derivable at read time from the existing `WorldChange` and
-`ChildStoryProgress` records — Phase 16's first slice (location unlocking,
-proved via a new gated `dragons-sanctuary` location) uses that derivation
-directly (`src/features/island/locations.ts`'s `isLocationUnlocked`,
-fed by `listAllWorldChanges`) rather than adding a model that would just be
-a redundant, dual-write-risk copy of data that already exists (CLAUDE.md
-section 13: no premature abstraction). The two fields here that are *not*
-yet derivable from anything are `discoveredObjects`/`discoveredCharacters`
-— no `OBJECT`/`DISCOVERY`/`NPC` interaction tap is persisted anywhere today,
-each is stateless flavor text. Add this model, scoped to just those two
-fields, once a real deliverable needs to remember what a child has already
-seen or met.
+**Scoping note (Phase 26):** this model now exists in
+`amplify/data/resource.ts`, scoped to exactly two of the fields listed
+above:
+
+```ts
+ChildWorldState: {
+  childProfileId, discoveredObjects, discoveredCharacters, updatedAt
+}
+```
+
+`unlockedLocations`, `worldChanges`, and `completedStories` are deliberately
+still *not* stored. They are fully derivable at read time from the existing
+`WorldChange` and `ChildStoryProgress` records — Phase 16 uses that
+derivation directly (`src/features/island/locations.ts`'s
+`isLocationUnlocked`, fed by `listAllWorldChanges`), and a stored copy would
+be a redundant, dual-write-risk duplicate of data that already exists
+(CLAUDE.md section 13: no premature abstraction).
+
+`discoveredObjects`/`discoveredCharacters` were the two fields that were not
+derivable from anything, which is why Phase 16's note deferred the model
+until "a real deliverable needs to remember what a child has already seen or
+met". Phase 26 (Exploration and Secrets) is that deliverable:
+
+- `discoveredObjects` holds authored `DiscoveryDefinition.id` values
+  (`src/features/discovery/content/`), which are also the `discoveryKey`
+  values a quest's `DISCOVER` objective names — one vocabulary rather than
+  two, so a quest cannot name a key no secret produces.
+- `discoveredCharacters` holds authored NPC ids, recorded when a child meets
+  a character in an explorable scene. Distinct in job from `ChildNpcState`,
+  which is the relationship and memory a *dialogue* builds up and is written
+  only by the NPC engine.
+
+Both columns are closed vocabularies validated on read (`parseKnownIds`,
+`src/features/discovery/discovery.ts`) rather than trusted as stored, the
+same treatment `ChildNpcState.memoryFlags` gets. That is what makes it
+structurally impossible for this model to accumulate anything a child typed,
+said, or drew (CLAUDE.md section 13); an id this build does not define is
+dropped rather than surfaced. Deleted by `deleteChildProfileData` along with
+every other per-child model.
 
 ## ChildStoryProgress
 

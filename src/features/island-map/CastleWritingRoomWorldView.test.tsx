@@ -28,7 +28,34 @@ vi.mock('../adventures/content', () => ({
   getAdventureTemplate: vi.fn(),
 }));
 
+// Phase 26: every world view now joins world changes with the backpack and
+// the child's own discoveries (`useExplorableWorld`), so both reads have to
+// resolve or the whole context falls back to empty.
+vi.mock('../rewards/api', () => ({
+  getInventory: vi.fn(),
+}));
+
+vi.mock('../discovery/api', () => ({
+  getWorldState: vi.fn(),
+  recordCharacterMet: vi.fn(),
+  recordDiscovery: vi.fn(),
+  getDiscoveryDefinition: vi.fn(),
+}));
+
+import { getInventory } from '../rewards/api';
+import {
+  getDiscoveryDefinition,
+  recordCharacterMet,
+  recordDiscovery,
+  getWorldState,
+} from '../discovery/api';
+
 const listAllWorldChangesMock = vi.mocked(listAllWorldChanges);
+const getInventoryMock = vi.mocked(getInventory);
+const getWorldStateMock = vi.mocked(getWorldState);
+const getDiscoveryDefinitionMock = vi.mocked(getDiscoveryDefinition);
+const recordDiscoveryMock = vi.mocked(recordDiscovery);
+const recordCharacterMetMock = vi.mocked(recordCharacterMet);
 
 function renderWorldView() {
   return render(
@@ -47,6 +74,14 @@ function renderWorldView() {
 describe('CastleWritingRoomWorldView', () => {
   beforeEach(() => {
     listAllWorldChangesMock.mockReset();
+    getInventoryMock.mockReset();
+    getWorldStateMock.mockReset();
+    getDiscoveryDefinitionMock.mockReset();
+    recordDiscoveryMock.mockReset();
+    recordCharacterMetMock.mockReset();
+    getInventoryMock.mockResolvedValue({ ownedItemIds: [], grantedRuleIds: [] });
+    getWorldStateMock.mockResolvedValue({ discoveredIds: [], metCharacterIds: [] });
+    recordCharacterMetMock.mockResolvedValue(undefined);
   });
 
   it('shows a loading state before world changes resolve', () => {

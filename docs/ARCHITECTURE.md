@@ -94,8 +94,9 @@ inside a Phaser scene.
 
 `docs/ROADMAP.md` Phases 18-30 name eight platform engines; a ninth,
 the Teaching Engine, is introduced by name only at Phase 21, a tenth,
-the NPC System, at Phase 23, and an eleventh, the Quest Engine, at
-Phase 25. Each was added to this list when its phase was
+the NPC System, at Phase 23, an eleventh, the Quest Engine, at
+Phase 25, and a twelfth, the Discovery Engine, at Phase 26. Each was
+added to this list when its phase was
 implemented, rather than all at Phase 18. This
 section documents each one's responsibility and current implementation
 status so that curriculum/mastery/interaction logic and adventure theme
@@ -233,13 +234,41 @@ which engine owns which model.
     never their tables, and each is individually failure-tolerant so a
     finished quest cannot revert because a reward write failed. Correctness
     is entirely deterministic; no AI decides whether an objective is done.
-11. **AI Tutor Engine** — Chatty's structured generation calls:
+11. **Discovery Engine** (`src/features/discovery/`, Phase 26) — owns
+    authored secrets (hidden caves, secret passages, locked doors, hidden
+    objects), whether one opens for a given child, and the
+    `ChildWorldState` record of what has been found and who has been met.
+
+    It composes rather than duplicates, the same way the Quest Engine does:
+    a discovery's requirements read the backpack the Reward Engine owns and
+    the `WorldChange` log the World Engine owns, and finding one fires
+    `grantRewards` (`DISCOVERY` trigger), `recordWorldChangeOnce`, and
+    `startQuest`/`syncQuestProgress` through those engines' own public APIs.
+    It never writes another engine's table.
+
+    Two properties are structural rather than conventional. **Nothing is
+    random**: a secret's requirements and its grants are authored constants,
+    so "rare-collectible spawning" means an item that exists in one
+    out-of-the-way place, never an item that appears with some probability —
+    the Reward Engine's no-loot-box guarantee extends unchanged into
+    exploration. **Only authored ids are stored**: both `ChildWorldState`
+    columns are closed vocabularies validated on read, so the model cannot
+    accumulate child free-text (CLAUDE.md section 13), which is also what
+    makes the phase's exploration-telemetry deliverable safe by
+    construction — the telemetry record has nowhere to put anything but ids
+    and integers.
+
+    It fills the one field `QuestContext` had hard-coded empty since
+    Phase 25: `discoveryKeys`, which is what makes the `DISCOVER` quest
+    primitive satisfiable.
+
+12. **AI Tutor Engine** — Chatty's structured generation calls:
     `CompanionProfile`, `AIInteractionAudit`, and the safe-context-builder/
     schema-validation/fallback pipeline (section 7, CLAUDE.md). Never
     determines correctness or mastery; only explains, hints, and narrates.
     Formalized as a contextual tutor bounded to current quest/skill/hint
     level at Phase 27.
-12. **Parent/Educator Engine** — the parent-facing reporting surface
+13. **Parent/Educator Engine** — the parent-facing reporting surface
     (`features/parent-dashboard`). Has no data models of its own; it
     composes read views over other engines' data (`AdventureSession`,
     `SkillProgress`, `WorldChange`). Expanded with mastery-level and

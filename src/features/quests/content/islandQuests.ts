@@ -15,9 +15,10 @@ import type { QuestDefinition } from '../types';
  * 1. **Every objective must be satisfiable by content that exists today.**
  *    An objective naming an adventure slug, item, memory flag, or world
  *    change that nothing can produce is a dead end a child could walk into
- *    and never leave. That rules out `DISCOVER` (Phase 26 owns it) and
- *    `DELIVER` (no authored dialogue sets a delivery flag yet) until the
- *    content that feeds them ships.
+ *    and never leave. That still rules out `DELIVER` (no authored dialogue
+ *    sets a delivery flag yet). `DISCOVER` became satisfiable in Phase 26
+ *    and is used below by "The Quiet Places"; every key it names is checked
+ *    against `ISLAND_DISCOVERY_IDS` by the test.
  * 2. **A branch never leads somewhere harder to leave than the path it
  *    skipped.** Branches here exist to let a child who already did
  *    something skip repeating it, never to gate a reward behind a second
@@ -246,6 +247,108 @@ export const ISLAND_QUESTS: QuestDefinition[] = [
     ],
     completion: {
       journalNote: 'Every part has a bin now, and Bolt can find anything in one try.',
+    },
+  },
+  /**
+   * Phase 26's optional quest chain (docs/ROADMAP.md Phase 26).
+   *
+   * Three things make it unlike the three quests above, and all three are
+   * deliberate:
+   *
+   * - **No `giverNpcId`.** Nobody asks for this. It starts the moment a
+   *   child finds the first secret on their own
+   *   (`DiscoveryDefinition.startsQuestId`), which is roadmap section 16's
+   *   "child explores -> finds something -> story begins" flow rather than
+   *   accepting an errand. It is also why this quest is playable today at
+   *   all: accepting a quest from an NPC needs a conversation screen, and
+   *   there is not one yet.
+   * - **Every objective is `DISCOVER`.** Nothing here is graded, timed, or
+   *   failable, and the quest gates no learning content - it is entirely
+   *   made of looking around.
+   * - **All three age bands.** The other quests target readers because
+   *   their objectives run through multi-step adventures. A Sprout who
+   *   wanders into the tide pool has already done the first stage, so
+   *   excluding them would mean starting a quest and then hiding it.
+   *
+   * The stage order follows the only dependency the content actually has:
+   * the driftwood key is in the cove tunnel and the keeper's door needs it,
+   * so the door is an *optional* objective one stage later, never a wall.
+   */
+  {
+    id: 'the-quiet-places',
+    title: 'The Quiet Places',
+    summary: 'Find the corners of the island where nobody goes.',
+    ageBands: ['SPROUT', 'PATHFINDER', 'EXPLORER'],
+    prerequisites: [{ type: 'ALWAYS' }],
+    entryStageId: 'the-first-quiet-place',
+    stages: [
+      {
+        id: 'the-first-quiet-place',
+        title: 'Find the first quiet place',
+        objectives: [
+          {
+            id: 'quiet-places-tide-pool',
+            kind: 'DISCOVER',
+            discoveryKey: 'harbor-tide-pool',
+            label: 'Find the tide pool behind the rocks',
+          },
+        ],
+        // Already satisfied when the quest starts, since finding the tide
+        // pool is what starts it. A child sees this stage tick over
+        // immediately rather than being asked to redo what they just did.
+        nextStageId: 'look-a-little-further',
+      },
+      {
+        id: 'look-a-little-further',
+        title: 'Look a little further',
+        objectives: [
+          {
+            id: 'quiet-places-tide-tunnel',
+            kind: 'DISCOVER',
+            discoveryKey: 'bay-tide-tunnel',
+            label: 'Find what is at the back of the cove',
+          },
+          {
+            id: 'quiet-places-glow-moss',
+            kind: 'DISCOVER',
+            discoveryKey: 'wonderwild-glow-moss',
+            label: 'Find the light under the ferns',
+          },
+        ],
+        nextStageId: 'the-last-two',
+      },
+      {
+        id: 'the-last-two',
+        title: 'Find the last two',
+        objectives: [
+          {
+            id: 'quiet-places-glowworm-cave',
+            kind: 'DISCOVER',
+            discoveryKey: 'wonderwild-glowworm-cave',
+            label: 'See what is inside the dark cave',
+          },
+          {
+            id: 'quiet-places-tapestry-stair',
+            kind: 'DISCOVER',
+            discoveryKey: 'castle-tapestry-stair',
+            label: 'Find out why the tapestry moves',
+          },
+          {
+            id: 'quiet-places-keepers-door',
+            kind: 'DISCOVER',
+            discoveryKey: 'harbor-keepers-door',
+            label: "Open the harbor keeper's door",
+            optional: true,
+          },
+        ],
+      },
+    ],
+    completion: {
+      journalNote:
+        'You found every quiet place on the island. A shell nobody has ever heard is waiting for you at the tide pool.',
+      // No world change of its own: each secret already recorded one where
+      // it happened, and a fifth key recorded at no particular place would
+      // mean nothing to the island.
     },
   },
 ];

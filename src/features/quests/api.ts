@@ -9,9 +9,10 @@
  *
  * This module is also where the Quest Engine touches its neighbours, and it
  * only ever does so through their own public APIs: `recordWorldChangeOnce`
- * (Adventure Engine), `setNpcMemoryFlagsForQuest` (NPC System), and
- * `grantRewards` (Reward Engine). It never writes another engine's table
- * directly, per docs/ARCHITECTURE.md's engine boundaries.
+ * (Adventure Engine), `setNpcMemoryFlagsForQuest` (NPC System),
+ * `grantRewards` (Reward Engine), and `getWorldState` (Discovery Engine,
+ * Phase 26). It never writes another engine's table directly, per
+ * docs/ARCHITECTURE.md's engine boundaries.
  *
  * Authorization is the model's own `allow.owner()`: a parent reaches only
  * their own children's quest state, and Admins read only.
@@ -25,6 +26,7 @@ import type { RelationshipLevel } from '../npc/types';
 import type { SkillStatus } from '../mastery/types';
 import { listSkillProgress } from '../mastery/api';
 import { getInventory } from '../rewards/api';
+import { getWorldState } from '../discovery/api';
 import { advanceQuest, startQuest as startQuestState } from './quest';
 import { QUEST_DEFINITIONS } from './content';
 import type { QuestContext, QuestDefinition, QuestId, QuestState } from './types';
@@ -61,13 +63,14 @@ export async function listQuestStates(childProfileId: string): Promise<QuestStat
 /**
  * Assembles the snapshot the pure quest functions read.
  *
- * This is the whole integration surface of the Quest Engine: five reads
+ * This is the whole integration surface of the Quest Engine: six reads
  * against engines that already own their data, and no new bookkeeping
- * anywhere else in the app. Adding a sixth primitive later means adding a
- * field here, not threading a new event through every call site.
+ * anywhere else in the app. Adding a further primitive later means adding a
+ * field here, not threading a new event through every call site - Phase 26
+ * added `discoveryKeys` by adding exactly one read and one line.
  */
 export async function buildQuestContext(childProfileId: string): Promise<QuestContext> {
-  const [sessions, worldChanges, npcStates, skillProgress, inventory, questStates] =
+  const [sessions, worldChanges, npcStates, skillProgress, inventory, questStates, worldState] =
     await Promise.all([
       listSessions(childProfileId),
       listAllWorldChanges(childProfileId),
@@ -75,6 +78,7 @@ export async function buildQuestContext(childProfileId: string): Promise<QuestCo
       listSkillProgress(childProfileId),
       getInventory(childProfileId),
       listQuestStates(childProfileId),
+      getWorldState(childProfileId),
     ]);
 
   const npcMemoryFlags: Record<string, Record<string, boolean>> = {};
@@ -109,7 +113,10 @@ export async function buildQuestContext(childProfileId: string): Promise<QuestCo
     npcMemoryFlags,
     relationshipLevels,
     skillStatuses,
-    discoveryKeys: [],
+    // Phase 26. Was hard-coded empty from Phase 25 until a discovery system
+    // existed to fill it, which is exactly why `DISCOVER` was authorable but
+    // dormant (types.ts).
+    discoveryKeys: worldState.discoveredIds,
     completedQuestIds: questStates
       .filter((state) => state.status === 'COMPLETED')
       .map((state) => state.questId),

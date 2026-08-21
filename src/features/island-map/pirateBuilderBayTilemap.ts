@@ -49,6 +49,13 @@ export const BRIDGE_APPROACH_TILE_RECT = { col: 10, row: 5, cols: 2, rows: 5 };
 /** Tile-space rectangle for the path spur leading back toward Welcome Harbor (west edge). */
 export const HARBOR_EXIT_TILE_RECT = { col: 0, row: 9, cols: 2, rows: 2 };
 
+/**
+ * Phase 26's tide tunnel: the far back corner of the cove, past the channel
+ * (cols 12-15) and clear of the treasure chest at col 22. Reachable only
+ * across the repaired bridge, and marked by nothing.
+ */
+export const TIDE_TUNNEL_TILE_RECT = { col: 26, row: 10, cols: 3, rows: 3 };
+
 /** Tiles the avatar cannot walk onto until the bridge is repaired. */
 export const BAY_COLLIDING_TILES: readonly HarborTileId[] = [
   HarborTile.WATER,

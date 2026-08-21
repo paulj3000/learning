@@ -8,12 +8,27 @@
 export type WorldRequirement =
   | { type: 'ALWAYS' }
   | { type: 'WORLD_CHANGE_PRESENT'; changeKey: string }
-  | { type: 'WORLD_CHANGE_ABSENT'; changeKey: string };
+  | { type: 'WORLD_CHANGE_ABSENT'; changeKey: string }
+  /** Phase 26: the spot only exists once the child is carrying something. */
+  | { type: 'ITEM_OWNED'; itemId: string }
+  /** Phase 26: the spot only exists once another secret has been found. */
+  | { type: 'DISCOVERY_PRESENT'; discoveryId: string };
 
 export type WorldAction =
   | { kind: 'NAVIGATE'; to: string }
   | { kind: 'SHOW_MESSAGE'; message: string }
-  | { kind: 'START_ADVENTURE'; locationSlug: string; templateSlug: string };
+  | { kind: 'START_ADVENTURE'; locationSlug: string; templateSlug: string }
+  /**
+   * Phase 26: hands this spot to the Discovery Engine
+   * (src/features/discovery/), which owns whether the secret opens, what it
+   * says in either case, and what finding it grants.
+   *
+   * Deliberately carries only an id and no copy. A locked door has two
+   * child-facing lines, not one, and duplicating either of them here would
+   * let the world layer and the discovery content drift apart - so the
+   * authored `DiscoveryDefinition` is the single place both live.
+   */
+  | { kind: 'DISCOVER'; discoveryId: string };
 
 export interface WorldInteraction {
   id: string;
@@ -40,6 +55,22 @@ export interface WorldInteraction {
 export interface WorldInteractionContext {
   /** `WorldChange.changeKey`s already recorded for this child (docs/DATA_MODEL.md). */
   worldChangeKeys: readonly string[];
+  /**
+   * `ItemDefinition.id`s in this child's backpack (Phase 24), and
+   * `DiscoveryDefinition.id`s they have already found (Phase 26).
+   *
+   * Optional rather than required so the many existing call sites that only
+   * care about world changes - `LocationScene`'s own tests, and every
+   * pre-Phase-26 assertion - keep compiling and keep meaning what they said.
+   * Every live world view supplies all three (`useExplorableWorld`).
+   *
+   * Absent is treated as empty, which fails *closed*: a caller that omits
+   * them hides a secret rather than revealing one, and `worldObjects.test.ts`
+   * asserts that direction explicitly, since the opposite default would turn
+   * a forgotten field into a locked door standing open.
+   */
+  ownedItemIds?: readonly string[];
+  discoveryIds?: readonly string[];
 }
 
 function evaluateRequirement(
@@ -53,6 +84,10 @@ function evaluateRequirement(
       return context.worldChangeKeys.includes(requirement.changeKey);
     case 'WORLD_CHANGE_ABSENT':
       return !context.worldChangeKeys.includes(requirement.changeKey);
+    case 'ITEM_OWNED':
+      return (context.ownedItemIds ?? []).includes(requirement.itemId);
+    case 'DISCOVERY_PRESENT':
+      return (context.discoveryIds ?? []).includes(requirement.discoveryId);
   }
 }
 
@@ -171,6 +206,19 @@ export const WELCOME_HARBOR_INTERACTIONS: WorldInteraction[] = [
       message: 'You shake the palm tree. A coconut wobbles but stays put!',
     },
   },
+  /**
+   * Phase 26's locked door (docs/ROADMAP.md Phase 26). Was a flavor
+   * `SHOW_MESSAGE` through Phases 10 to 25; it now hands the same sprite to
+   * the Discovery Engine, which shows the "locked, and the keyhole is shaped
+   * like driftwood" line until the child is carrying the driftwood key from
+   * the bay's tide tunnel, and opens the room behind it after.
+   *
+   * The interaction itself stays unconditionally available on purpose. The
+   * requirement lives on the *discovery*, not here, so a child who cannot
+   * open the door yet still walks up to a door and is told something about
+   * it - rather than tapping a sprite that silently does nothing, which is
+   * what a `requirements` gate at this layer would produce.
+   */
   {
     id: 'harbor-door',
     type: 'DISCOVERY',
@@ -178,10 +226,24 @@ export const WELCOME_HARBOR_INTERACTIONS: WorldInteraction[] = [
     title: "The harbor keeper's door",
     targetId: 'harbor-door',
     requirements: [{ type: 'ALWAYS' }],
-    action: {
-      kind: 'SHOW_MESSAGE',
-      message: 'You knock, but nobody is home right now. Maybe try again another day!',
-    },
+    action: { kind: 'DISCOVER', discoveryId: 'harbor-keepers-door' },
+  },
+  /**
+   * Phase 26's free secret: an unmarked APPROACH zone in the quiet
+   * south-east corner of the beach, with no sprite and nothing pointing at
+   * it. A child finds it by wandering off the path, which is the whole point
+   * (explorable-world roadmap section 16). Finding it also starts "The Quiet
+   * Places" (src/features/quests/content/islandQuests.ts) - the discovery is
+   * the quest giver, since no NPC conversation screen exists yet.
+   */
+  {
+    id: 'harbor-tide-pool',
+    type: 'DISCOVERY',
+    trigger: 'APPROACH',
+    title: 'A tide pool behind the rocks',
+    targetId: 'harbor-tide-pool',
+    requirements: [{ type: 'ALWAYS' }],
+    action: { kind: 'DISCOVER', discoveryId: 'harbor-tide-pool' },
   },
   {
     id: 'mountain-path',
@@ -306,6 +368,25 @@ export const PIRATE_BUILDER_BAY_INTERACTIONS: WorldInteraction[] = [
       message: 'You found a hidden treasure chest in the cove! X marks the spot.',
     },
   },
+  /**
+   * Phase 26's secret passage. Sits at the back of the cove, which is only
+   * reachable across the repaired bridge, so the geometry gates it already;
+   * the `WORLD_CHANGE_PRESENT` requirement is here so the "Things to do
+   * here" list cannot offer a tunnel the child has no way to walk to
+   * (that list bypasses the avatar entirely, roadmap section 42).
+   *
+   * This is where the driftwood key lives, and it is the only place on the
+   * island that has one.
+   */
+  {
+    id: 'bay-tide-tunnel',
+    type: 'DISCOVERY',
+    trigger: 'APPROACH',
+    title: 'A low tunnel under the cliff',
+    targetId: 'bay-tide-tunnel',
+    requirements: [{ type: 'WORLD_CHANGE_PRESENT', changeKey: 'BRIDGE_REPAIRED' }],
+    action: { kind: 'DISCOVER', discoveryId: 'bay-tide-tunnel' },
+  },
   {
     id: 'bay-harbor-exit',
     type: 'LOCATION',
@@ -404,6 +485,12 @@ export const WONDERWILD_FOREST_INTERACTIONS: WorldInteraction[] = [
       message: 'Red, gold, and brown leaves rustle in a soft pile. They change with every season.',
     },
   },
+  /**
+   * Phase 26's hidden cave. Phase 13 authored this as an honest "not yet"
+   * flavor line ("too dark to explore just yet"); Phase 26 is the "yet". The
+   * light it needs is the jar of glowing moss hidden elsewhere in this same
+   * forest, so the whole chain is walkable without leaving Wonderwild.
+   */
   {
     id: 'wonderwild-cave',
     type: 'DISCOVERY',
@@ -411,10 +498,17 @@ export const WONDERWILD_FOREST_INTERACTIONS: WorldInteraction[] = [
     title: 'A shadowy cave',
     targetId: 'wonderwild-cave',
     requirements: [{ type: 'ALWAYS' }],
-    action: {
-      kind: 'SHOW_MESSAGE',
-      message: "A dark cave mouth in the hillside. It's too dark to explore just yet.",
-    },
+    action: { kind: 'DISCOVER', discoveryId: 'wonderwild-glowworm-cave' },
+  },
+  /** Phase 26's unmarked APPROACH zone, in the quiet south-west of the forest. */
+  {
+    id: 'wonderwild-glow-moss',
+    type: 'DISCOVERY',
+    trigger: 'APPROACH',
+    title: 'A green light under the ferns',
+    targetId: 'wonderwild-glow-moss',
+    requirements: [{ type: 'ALWAYS' }],
+    action: { kind: 'DISCOVER', discoveryId: 'wonderwild-glow-moss' },
   },
   {
     id: 'wonderwild-night-clearing',
@@ -586,6 +680,23 @@ export const STORYKEEPER_CASTLE_INTERACTIONS: WorldInteraction[] = [
     targetId: 'welcome-harbor',
     requirements: [{ type: 'ALWAYS' }],
     action: { kind: 'NAVIGATE', to: 'world' },
+  },
+  /**
+   * Phase 26's second secret passage: an unmarked APPROACH zone in the
+   * castle's south-west corner. Distinct from `castle-last-bookshelf`
+   * directly below, which is Phase 16's *story-unlocked* route into a whole
+   * separate location; this one leads nowhere at all, and that is the point.
+   * Some secrets are just a nice place to sit (roadmap section 17, "some are
+   * purely playful").
+   */
+  {
+    id: 'castle-tapestry-stair',
+    type: 'DISCOVERY',
+    trigger: 'APPROACH',
+    title: 'A tapestry that moves',
+    targetId: 'castle-tapestry-stair',
+    requirements: [{ type: 'ALWAYS' }],
+    action: { kind: 'DISCOVER', discoveryId: 'castle-tapestry-stair' },
   },
   {
     id: 'castle-last-bookshelf',

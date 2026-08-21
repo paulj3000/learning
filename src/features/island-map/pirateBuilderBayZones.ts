@@ -4,7 +4,11 @@
  * as `zones.ts` — see that file's header comment for why this lives apart
  * from `worldObjects.ts`.
  */
-import { BRIDGE_APPROACH_TILE_RECT, HARBOR_EXIT_TILE_RECT } from './pirateBuilderBayTilemap';
+import {
+  BRIDGE_APPROACH_TILE_RECT,
+  HARBOR_EXIT_TILE_RECT,
+  TIDE_TUNNEL_TILE_RECT,
+} from './pirateBuilderBayTilemap';
 import { TILE_SIZE } from './tilemap';
 import type { PixelRect } from './zones';
 
@@ -29,5 +33,13 @@ export const PIRATE_BUILDER_BAY_ZONES: Record<string, PixelRect> = {
     HARBOR_EXIT_TILE_RECT.row,
     HARBOR_EXIT_TILE_RECT.cols,
     HARBOR_EXIT_TILE_RECT.rows,
+  ),
+  // Phase 26's secret passage, unmarked for the same reason as the harbor's
+  // tide pool (`zones.ts`).
+  'bay-tide-tunnel': tileRectToPixels(
+    TIDE_TUNNEL_TILE_RECT.col,
+    TIDE_TUNNEL_TILE_RECT.row,
+    TIDE_TUNNEL_TILE_RECT.cols,
+    TIDE_TUNNEL_TILE_RECT.rows,
   ),
 };

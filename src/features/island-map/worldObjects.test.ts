@@ -254,11 +254,12 @@ describe('WONDERWILD_FOREST_INTERACTIONS', () => {
     );
   });
 
-  it('always makes the four not-yet-built discovery points available and tap-triggered', () => {
+  it('always makes the three not-yet-built discovery points available and tap-triggered', () => {
+    // The cave used to be the fourth. Phase 26 turned it into a real hidden
+    // cave with a `DISCOVER` action, so it is asserted separately below.
     for (const id of [
       'wonderwild-pond-frog',
       'wonderwild-leaf-pile',
-      'wonderwild-cave',
       'wonderwild-night-clearing',
     ]) {
       const discovery = findInteraction(WONDERWILD_FOREST_INTERACTIONS, id);
@@ -333,5 +334,131 @@ describe('STORYKEEPER_CASTLE_INTERACTIONS', () => {
     expect(exit).toBeDefined();
     expect(isInteractionAvailable(exit!, { worldChangeKeys: [] })).toBe(true);
     expect(exit?.action).toEqual({ kind: 'NAVIGATE', to: 'world' });
+  });
+});
+
+/**
+ * Phase 26 (docs/ROADMAP.md Phase 26). Two new requirement types and one new
+ * action, plus the secrets themselves laid into the four regions Phases 10,
+ * 11, 13, and 14 built.
+ */
+describe('Phase 26 requirements', () => {
+  function gated(requirements: WorldInteraction['requirements']): WorldInteraction {
+    return {
+      id: 'secret',
+      type: 'DISCOVERY',
+      trigger: 'APPROACH',
+      title: 'A secret',
+      targetId: 'secret',
+      requirements,
+      action: { kind: 'DISCOVER', discoveryId: 'secret' },
+    };
+  }
+
+  it('requires an item to be in the backpack', () => {
+    const interaction = gated([{ type: 'ITEM_OWNED', itemId: 'driftwood-key' }]);
+
+    expect(
+      isInteractionAvailable(interaction, { worldChangeKeys: [], ownedItemIds: ['driftwood-key'] }),
+    ).toBe(true);
+    expect(
+      isInteractionAvailable(interaction, { worldChangeKeys: [], ownedItemIds: ['moon-shell'] }),
+    ).toBe(false);
+  });
+
+  it('requires another secret to have been found', () => {
+    const interaction = gated([{ type: 'DISCOVERY_PRESENT', discoveryId: 'wonderwild-glow-moss' }]);
+
+    expect(
+      isInteractionAvailable(interaction, {
+        worldChangeKeys: [],
+        discoveryIds: ['wonderwild-glow-moss'],
+      }),
+    ).toBe(true);
+    expect(isInteractionAvailable(interaction, { worldChangeKeys: [], discoveryIds: [] })).toBe(
+      false,
+    );
+  });
+
+  /**
+   * The direction matters more than the behavior. `ownedItemIds` and
+   * `discoveryIds` are optional on `WorldInteractionContext`, so a caller
+   * that forgets them must hide a secret rather than reveal one: the
+   * opposite default would turn a forgotten field into a locked door
+   * standing open.
+   */
+  it('fails closed when the context omits the fields entirely', () => {
+    expect(
+      isInteractionAvailable(gated([{ type: 'ITEM_OWNED', itemId: 'driftwood-key' }]), {
+        worldChangeKeys: [],
+      }),
+    ).toBe(false);
+    expect(
+      isInteractionAvailable(gated([{ type: 'DISCOVERY_PRESENT', discoveryId: 'anything' }]), {
+        worldChangeKeys: [],
+      }),
+    ).toBe(false);
+  });
+});
+
+describe('Phase 26 secrets in the four explorable regions', () => {
+  const REGIONS: [string, WorldInteraction[]][] = [
+    ['Welcome Harbor', WELCOME_HARBOR_INTERACTIONS],
+    ['Pirate Builder Bay', PIRATE_BUILDER_BAY_INTERACTIONS],
+    ['Wonderwild Forest', WONDERWILD_FOREST_INTERACTIONS],
+    ['Storykeeper Castle', STORYKEEPER_CASTLE_INTERACTIONS],
+  ];
+
+  it('hides at least one secret in every region', () => {
+    for (const [name, interactions] of REGIONS) {
+      const secrets = interactions.filter((interaction) => interaction.action.kind === 'DISCOVER');
+      expect(secrets.length, `${name} hides nothing`).toBeGreaterThan(0);
+    }
+  });
+
+  it('has no duplicate ids after the new secrets were added', () => {
+    for (const [name, interactions] of REGIONS) {
+      const ids = interactions.map((interaction) => interaction.id);
+      expect(new Set(ids).size, `${name} has a duplicate id`).toBe(ids.length);
+    }
+  });
+
+  /**
+   * The harbor door and the forest cave were flavor `SHOW_MESSAGE` lines
+   * through Phases 10 to 25. Phase 26 gave both a real secret behind them,
+   * and both keep their original sprite and id so the decor modules that
+   * bind to them still resolve (`decor.ts`, `wonderwildForestDecor.ts`).
+   */
+  it('turns the two authored "not yet" spots into real secrets, keeping their ids', () => {
+    const door = findInteraction(WELCOME_HARBOR_INTERACTIONS, 'harbor-door');
+    expect(door?.action).toEqual({ kind: 'DISCOVER', discoveryId: 'harbor-keepers-door' });
+    // Unconditionally available: the gate lives on the discovery, so a child
+    // without the key still walks up to a door and is told about it, rather
+    // than tapping a sprite that does nothing.
+    expect(isInteractionAvailable(door!, { worldChangeKeys: [] })).toBe(true);
+
+    const cave = findInteraction(WONDERWILD_FOREST_INTERACTIONS, 'wonderwild-cave');
+    expect(cave?.action).toEqual({ kind: 'DISCOVER', discoveryId: 'wonderwild-glowworm-cave' });
+    expect(isInteractionAvailable(cave!, { worldChangeKeys: [] })).toBe(true);
+  });
+
+  it('keeps the cove tunnel out of the list until the bridge that reaches it is repaired', () => {
+    const tunnel = findInteraction(PIRATE_BUILDER_BAY_INTERACTIONS, 'bay-tide-tunnel');
+
+    expect(isInteractionAvailable(tunnel!, { worldChangeKeys: [] })).toBe(false);
+    expect(isInteractionAvailable(tunnel!, { worldChangeKeys: ['BRIDGE_REPAIRED'] })).toBe(true);
+  });
+
+  it('offers the unmarked walk-in secrets to a child who has done nothing yet', () => {
+    for (const [region, id] of [
+      [WELCOME_HARBOR_INTERACTIONS, 'harbor-tide-pool'],
+      [WONDERWILD_FOREST_INTERACTIONS, 'wonderwild-glow-moss'],
+      [STORYKEEPER_CASTLE_INTERACTIONS, 'castle-tapestry-stair'],
+    ] as [WorldInteraction[], string][]) {
+      const secret = findInteraction(region, id);
+      expect(secret, id).toBeDefined();
+      expect(secret?.trigger, id).toBe('APPROACH');
+      expect(isInteractionAvailable(secret!, { worldChangeKeys: [] }), id).toBe(true);
+    }
   });
 });

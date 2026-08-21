@@ -10,9 +10,12 @@ import {
   isInteractionAvailable,
   BOLTS_WORKSHOP_INTERACTIONS,
   type WorldAction,
+  type WorldInteractionContext,
 } from './worldObjects';
-import { listAllWorldChanges, resumeOrStartSession } from '../adventures/api';
+import { resumeOrStartSession } from '../adventures/api';
 import { getAdventureTemplate } from '../adventures/content';
+import { useExplorableWorld } from './useExplorableWorld';
+import { DiscoveryAction } from './DiscoveryAction';
 import { isLocationUnlocked } from '../island/locations';
 
 const UNLOCK_REQUIREMENT = { changeKey: 'ROBOT_RESCUE_COMPLETE' };
@@ -31,27 +34,13 @@ interface BoltsWorkshopWorldViewProps {
  * direct-URL unlock guard this location also needs.
  */
 export function BoltsWorkshopWorldView({ childId, avatarKey }: BoltsWorkshopWorldViewProps) {
-  const [worldChangeKeys, setWorldChangeKeys] = useState<string[] | null>(null);
+  // Phase 26: the same world read as the four regions that hide something.
+  // This location has no secrets of its own today, but sharing one hook
+  // keeps every world view interchangeable, and adding a secret here later
+  // is then a content change rather than a component change.
+  const { context, refresh, noteCharacterMet } = useExplorableWorld(childId);
   const [triggeredInteractionId, setTriggeredInteractionId] = useState<string | null>(null);
   const bus = useMemo(() => new WorldEventBus(), []);
-
-  useEffect(() => {
-    let cancelled = false;
-    listAllWorldChanges(childId)
-      .then((changes) => {
-        if (!cancelled) {
-          setWorldChangeKeys(changes.map((change) => change.changeKey));
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setWorldChangeKeys([]);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [childId]);
 
   useEffect(() => {
     const unsubscribe = bus.on('INTERACTION_TRIGGERED', ({ interactionId }) => {
@@ -69,15 +58,22 @@ export function BoltsWorkshopWorldView({ childId, avatarKey }: BoltsWorkshopWorl
 
   const availableInteractions = useMemo(
     () =>
-      worldChangeKeys === null
+      context === null
         ? []
         : BOLTS_WORKSHOP_INTERACTIONS.filter((interaction) =>
-            isInteractionAvailable(interaction, { worldChangeKeys }),
+            isInteractionAvailable(interaction, context),
           ),
-    [worldChangeKeys],
+    [context],
   );
 
-  if (worldChangeKeys === null) {
+  /** Phase 26's `discoveredCharacters` half; see `IslandWorldView` for why. */
+  useEffect(() => {
+    if (triggeredInteraction?.type === 'NPC') {
+      noteCharacterMet(triggeredInteraction.targetId);
+    }
+  }, [triggeredInteraction, noteCharacterMet]);
+
+  if (context === null) {
     return (
       <div className={styles.wrapper}>
         <p className={styles.status}>Loading Bolt's Workshop...</p>
@@ -85,7 +81,7 @@ export function BoltsWorkshopWorldView({ childId, avatarKey }: BoltsWorkshopWorl
     );
   }
 
-  if (!isLocationUnlocked({ unlockRequirement: UNLOCK_REQUIREMENT }, worldChangeKeys)) {
+  if (!isLocationUnlocked({ unlockRequirement: UNLOCK_REQUIREMENT }, context.worldChangeKeys)) {
     return (
       <div className={styles.wrapper}>
         <p className={styles.status}>
@@ -105,13 +101,14 @@ export function BoltsWorkshopWorldView({ childId, avatarKey }: BoltsWorkshopWorl
       </p>
       <PhaserGameContainer
         instanceKey={childId}
-        createConfig={(parent) => buildGameConfig(parent, bus, worldChangeKeys, avatarKey)}
+        createConfig={(parent) => buildGameConfig(parent, bus, context, avatarKey)}
       />
       {triggeredInteraction ? (
         <InteractionPanel
           childId={childId}
           interaction={triggeredInteraction}
           onDismiss={() => setTriggeredInteractionId(null)}
+          onDiscovered={() => void refresh()}
         />
       ) : null}
       <details className={styles.thingsToDo}>
@@ -140,7 +137,7 @@ export function BoltsWorkshopWorldView({ childId, avatarKey }: BoltsWorkshopWorl
 function buildGameConfig(
   parent: HTMLDivElement,
   bus: WorldEventBus,
-  worldChangeKeys: string[],
+  interactionContext: WorldInteractionContext,
   avatarKey: string,
 ): Phaser.Types.Core.GameConfig {
   return {
@@ -151,7 +148,7 @@ function buildGameConfig(
     backgroundColor: '#8a5a34',
     physics: { default: 'arcade', arcade: { debug: false } },
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-    scene: [new BoltsWorkshopScene(bus, { worldChangeKeys }, avatarKey)],
+    scene: [new BoltsWorkshopScene(bus, interactionContext, avatarKey)],
   };
 }
 
@@ -159,14 +156,24 @@ interface InteractionPanelProps {
   childId: string;
   interaction: (typeof BOLTS_WORKSHOP_INTERACTIONS)[number];
   onDismiss: () => void;
+  onDiscovered: () => void;
 }
 
-function InteractionPanel({ childId, interaction, onDismiss }: InteractionPanelProps) {
+function InteractionPanel({
+  childId,
+  interaction,
+  onDismiss,
+  onDiscovered,
+}: InteractionPanelProps) {
   return (
     <div className={styles.panel} role="dialog" aria-label={interaction.title}>
       <h2 className={styles.panelTitle}>{interaction.title}</h2>
       <div className={styles.panelActions}>
-        <InteractionPanelAction childId={childId} action={interaction.action} />
+        <InteractionPanelAction
+          childId={childId}
+          action={interaction.action}
+          onDiscovered={onDiscovered}
+        />
         <button type="button" className={styles.dismissButton} onClick={onDismiss}>
           Not now
         </button>
@@ -178,6 +185,7 @@ function InteractionPanel({ childId, interaction, onDismiss }: InteractionPanelP
 interface InteractionPanelActionProps {
   childId: string;
   action: WorldAction;
+  onDiscovered: () => void;
 }
 
 /**
@@ -186,7 +194,7 @@ interface InteractionPanelActionProps {
  * action union) so this view stays a drop-in match for every other
  * location's `*WorldView`, matching their own already-shipped precedent.
  */
-function InteractionPanelAction({ childId, action }: InteractionPanelActionProps) {
+function InteractionPanelAction({ childId, action, onDiscovered }: InteractionPanelActionProps) {
   const navigate = useNavigate();
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -201,6 +209,19 @@ function InteractionPanelAction({ childId, action }: InteractionPanelActionProps
 
   if (action.kind === 'SHOW_MESSAGE') {
     return <p>{action.message}</p>;
+  }
+
+  // Phase 26. Nothing in this location authors a `DISCOVER` action yet; the
+  // branch is here so the union stays exhaustively handled and a secret
+  // added to this location later needs no component change.
+  if (action.kind === 'DISCOVER') {
+    return (
+      <DiscoveryAction
+        childId={childId}
+        discoveryId={action.discoveryId}
+        onDiscovered={onDiscovered}
+      />
+    );
   }
 
   const startAdventureAction = action;

@@ -98,6 +98,14 @@ export const FOSSIL_RIDGE_PATH_TILE_RECT = { col: 8, row: 0, cols: 3, rows: 2 };
  */
 export const BOLTS_WORKSHOP_PATH_TILE_RECT = { col: 4, row: 3, cols: 3, rows: 2 };
 
+/**
+ * Phase 26's tide pool: the quiet south-east end of the beach, well clear of
+ * the bridge (col 24, rows 6-8), of every decor sprite, and of the water
+ * that starts at row 13. Nothing is drawn here - the secret is that a child
+ * walked somewhere nothing told them to go.
+ */
+export const TIDE_POOL_TILE_RECT = { col: 27, row: 10, cols: 3, rows: 3 };
+
 function fillTileRect(
   grid: HarborTileId[][],
   rect: { col: number; row: number; cols: number; rows: number },

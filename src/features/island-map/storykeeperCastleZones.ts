@@ -8,6 +8,7 @@ import {
   HARBOR_EXIT_TILE_RECT,
   LAST_BOOKSHELF_TILE_RECT,
   STORY_HALL_TILE_RECT,
+  TAPESTRY_STAIR_TILE_RECT,
 } from './storykeeperCastleTilemap';
 import { TILE_SIZE } from './tilemap';
 import type { PixelRect } from './zones';
@@ -39,5 +40,13 @@ export const STORYKEEPER_CASTLE_ZONES: Record<string, PixelRect> = {
     LAST_BOOKSHELF_TILE_RECT.row,
     LAST_BOOKSHELF_TILE_RECT.cols,
     LAST_BOOKSHELF_TILE_RECT.rows,
+  ),
+  // Phase 26's unmarked secret. Deliberately in the opposite corner from
+  // `castle-last-bookshelf` so the two never overlap or read as one thing.
+  'castle-tapestry-stair': tileRectToPixels(
+    TAPESTRY_STAIR_TILE_RECT.col,
+    TAPESTRY_STAIR_TILE_RECT.row,
+    TAPESTRY_STAIR_TILE_RECT.cols,
+    TAPESTRY_STAIR_TILE_RECT.rows,
   ),
 };
