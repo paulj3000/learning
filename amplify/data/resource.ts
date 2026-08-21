@@ -104,6 +104,7 @@ const schema = a.schema({
       childStoryProgress: a.hasMany('ChildStoryProgress', 'childProfileId'),
       childNpcState: a.hasMany('ChildNpcState', 'childProfileId'),
       childInventory: a.hasMany('ChildInventory', 'childProfileId'),
+      childQuestState: a.hasMany('ChildQuestState', 'childProfileId'),
     })
     .authorization((allow) => [allow.owner(), allow.group('Admins').to(['read'])]),
 
@@ -508,6 +509,49 @@ const schema = a.schema({
       ownedItemIds: a.string().array(),
       grantedRuleIds: a.string().array(),
       updatedAt: a.datetime().required(),
+    })
+    .authorization((allow) => [allow.owner(), allow.group('Admins').to(['read'])]),
+
+  // --- Phase 25: Data-Driven Quest Engine (docs/ROADMAP.md Phase 25) ---
+
+  QuestStatus: a.enum(['ACTIVE', 'COMPLETED']),
+
+  /**
+   * One row per (child, quest): where this child is in one authored quest.
+   *
+   * Deliberately small, because quest progress is *derived* rather than
+   * reported (src/features/quests/types.ts). Whether an objective is done is
+   * recomputed from state other engines already own - a completed
+   * `AdventureSession`, a `WorldChange`, a `ChildInventory` item, a
+   * `ChildNpcState` memory flag - so this row only records the things that
+   * cannot be derived: that the child accepted the quest, which stage they
+   * reached, and when they finished.
+   *
+   * That is what makes save/resume free and crash-safe: there is no event
+   * log here to fall out of sync with the world, and a child who does a
+   * quest's work before accepting the quest still gets credit for it.
+   *
+   * `AVAILABLE` is deliberately not a `QuestStatus`. A quest with no row is
+   * available if its prerequisites pass, so authoring a new quest offers it
+   * to every eligible child with no backfill.
+   *
+   * `completedObjectiveIds` includes optional objectives, since branching
+   * can turn on whether the child chose to do one (`OBJECTIVE_COMPLETED`).
+   * Every id in here and in `completedStageIds` is authored content, never
+   * anything a child typed (CLAUDE.md section 13).
+   */
+  ChildQuestState: a
+    .model({
+      childProfileId: a.id().required(),
+      childProfile: a.belongsTo('ChildProfile', 'childProfileId'),
+      questId: a.string().required(),
+      status: a.ref('QuestStatus').required(),
+      currentStageId: a.string().required(),
+      completedStageIds: a.string().array(),
+      completedObjectiveIds: a.string().array(),
+      startedAt: a.datetime().required(),
+      lastUpdatedAt: a.datetime().required(),
+      completedAt: a.datetime(),
     })
     .authorization((allow) => [allow.owner(), allow.group('Admins').to(['read'])]),
 

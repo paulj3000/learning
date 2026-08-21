@@ -44,6 +44,23 @@ Bedrock model choice ever changes.
 
 ## Current phase
 
+**Phases 0-25 are implemented.** The most recent is Phase 25 (Data-Driven
+Quest Engine) — see its section below, which also records two bugs it found
+in earlier phases (four per-child models that "delete my child's data" was
+missing, and a reward rule that could never fire). Phase 26 (Exploration and
+Secrets) is next, and it is what makes the `DISCOVER` quest primitive
+usable.
+
+One caveat that matters more than the phase number: Phases 22-24 shipped
+engines that gameplay does not call yet. The interaction library renders in
+no live adventure, no NPC dialogue screen exists, and nothing granted a
+reward until Phase 25 did. Phase 25 is wired in (adventure completion and
+the quest journal both drive it), but a child still cannot *accept* a quest
+in the world, because accepting one means talking to an NPC and there is no
+conversation UI. Closing that gap is worth more than the next phase.
+
+The history below is kept as written at the time of each phase.
+
 Phase 7 — Parent Dashboard: complete. **Phase 8 — Hardening and Pilot: complete.**
 Built up across several sessions (data deletion flow, authorization
 review, threat model, privacy/child-safety review including a shipped
@@ -3134,6 +3151,149 @@ backend, the same standing constraint as every schema change since Phase 8.
   to fire exactly once from a cold page load.
 - **Only Pathfinders copy**, matching every other authored content set
   today.
+
+## Phase 25 — Data-Driven Quest Engine
+
+New feature folder `src/features/quests/`, the Quest Engine, plus the
+child-facing quest journal at `/island/:childId/quests`. Every deliverable
+in the roadmap's Phase 25 list is implemented, and unlike Phases 22-24 this
+one is **wired into live gameplay** rather than shipped dormant.
+
+**The design decision everything else follows from: quest progress is
+derived, never reported.** `isObjectiveComplete` is a pure function of
+authored content and a `QuestContext` snapshot assembled from state the
+other engines already own — a completed `AdventureSession`, a
+`WorldChange`, a `ChildInventory` item, a `ChildNpcState` memory flag, a
+`SkillProgress` status. Three things fall out of that:
+
+- No call site has to remember to notify the Quest Engine, so quests cannot
+  silently stop tracking when a new feature forgets to emit an event.
+- A child who repairs the bridge *before* accepting the bridge quest gets
+  credit for it, instead of being asked to do it twice.
+- Save/resume needs no cursor, and there is no event log to fall out of
+  sync with the world after a crash or a lost write.
+
+It also satisfies the roadmap's own framing — quests "complement, rather
+than replace, the existing `AdventureTemplate`/`AdventureStep` model" —
+because a quest is a thin composition over subsystems that already exist
+rather than a parallel content format.
+
+- **`types.ts`**: the eleven roadmap primitives (`TALK_TO`, `FIND`,
+  `COLLECT`, `DELIVER`, `EXPLORE`, `SOLVE`, `BUILD`, `CRAFT`, `HELP_NPC`,
+  `DISCOVER`, `LEARN`) as a closed union, plus `QuestCondition`,
+  `QuestStage`, `QuestBranch`, `QuestDefinition`, and `QuestContext`. Each
+  primitive is documented with which existing engine satisfies it.
+- **`objectives.ts`**: one total `switch`, mirroring `evaluateCondition` in
+  the NPC system. `DELIVER` deliberately requires *both* halves (owning the
+  item and the recipient remembering it), since either alone is satisfiable
+  without the delivery having happened.
+- **`quest.ts`**: the state machine. `advanceQuest` walks forward through
+  every stage the world already satisfies rather than one per call, with a
+  `visited` guard so an authored branch cycle cannot hang a child's device.
+  It never stamps `completedAt` — the clock belongs to the impure caller.
+- **`journal.ts`**: the read model, ordered active → available → completed.
+  Quests whose prerequisites are unmet are omitted entirely rather than
+  shown locked, per CLAUDE.md pillar 7 and the calm-engagement rules.
+- **`api.ts`**: `buildQuestContext` (five reads against other engines),
+  `startQuest`, and `syncQuestProgress`. Writes to neighbours go only
+  through their public APIs (`recordWorldChangeOnce`,
+  `setNpcMemoryFlagsForQuest`, `grantRewards`), never their tables. Each
+  side effect is individually failure-tolerant: a finished quest stays
+  finished even if a reward write fails, because the alternative is a child
+  watching a completed quest revert.
+- **`ChildQuestState`** (amplify/data/resource.ts): owner-authorized, admin
+  read. Stores only what cannot be derived. `AVAILABLE` is deliberately not
+  a stored status, so authoring a new quest offers it to every eligible
+  child with no backfill.
+- **Content** (`content/islandQuests.ts`): the three quests Phase 23's NPCs
+  were already offering — `repair-the-bridge`, `tell-a-story-together`,
+  `sort-the-workshop` — whose `questId`s previously pointed at nothing.
+
+**Seams closed.** Phase 23 shipped `NpcQuestOffer.questId` pointing at a
+quest model that did not exist, and gated two dialogue conditions
+(`bridgeQuestCompleted` on Pip's own offer, `finishedAStory` on Quill's
+greeting) on flags nothing could set — so Pip would have asked for the
+bridge forever. `QuestCompletion.setsNpcMemoryFlags` plus the new narrow
+`setNpcMemoryFlagsForQuest` write closes both, asserted by a content test.
+Phase 24's `QUEST_COMPLETED` reward trigger is likewise live: completing a
+quest now calls `grantRewards`, which is the first thing in the codebase
+that calls it at all.
+
+**Wiring.** `useAdventureSession` calls `syncQuestProgress` after a session
+completes, and the journal calls it on open. Both are best-effort and
+unconditional: the call site does not need to know which quests name which
+adventure, and a child with no quests started pays one list read.
+
+### Bugs found and fixed while building this phase
+
+- **Four per-child models were never deleted.** `deleteChildProfileData`
+  covered nothing added since Phase 8: `ChildStoryProgress` (Phase 12),
+  `ChildNpcState` (Phase 23), `ChildInventory` (Phase 24), and this phase's
+  `ChildQuestState` all survived a parent's "delete all my child's data".
+  That silently broke the deletion promise in
+  `docs/AI_AND_CHILD_SAFETY.md`. All four are now deleted, and
+  `deletion.test.ts` asserts coverage **against the schema source itself**
+  rather than a hand-maintained list, so the next per-child model fails the
+  test until it is handled.
+- **A reward rule that could never fire.** `reward-bridge-world-change`
+  triggered on `changeKey: 'bridge-repaired'` while every authored world
+  change is SCREAMING_SNAKE (`BRIDGE_REPAIRED`). A trigger matching nothing
+  fails silently by design, so only a content test can catch it;
+  `islandItems.test.ts` now checks `WORLD_CHANGE` and `QUEST_COMPLETED`
+  triggers against real keys and real quest ids, alongside the existing
+  adventure/story/NPC checks.
+
+### Known limitations (Phase 25)
+
+- **Nothing offers a quest to a child in the world yet.** `startQuest`
+  exists and the journal lists available quests, but no NPC conversation
+  UI calls it — a child cannot yet *accept* a quest by talking to Pip,
+  because Phase 23 shipped no dialogue screen. Until then a quest can be
+  started only programmatically, which makes the journal's ACTIVE path
+  reachable in tests but not in normal play. This is the single most
+  valuable follow-up, and it is small.
+- **`DISCOVER` is authorable but never satisfiable**, exactly as
+  `QUEST_COMPLETED` was for Phase 23: `QuestContext.discoveryKeys` is
+  always empty until Phase 26 ships a discovery system. The content test
+  fails any quest that authors one, so this cannot strand a child.
+- **`DELIVER` is unused in shipped content** for the same reason: no
+  authored dialogue sets a delivery memory flag yet. The primitive and its
+  two-sided check are tested; the content is not there.
+- **`visitedLocationSlugs` is derived from world changes**, not from
+  footsteps — the World Engine does not persist location entry, and adding
+  a row per room entered would collect more about a child than the feature
+  needs. So `EXPLORE` today means "did something that changed this place",
+  which is narrower than it sounds.
+- **No parent-facing quest view.** `ChildQuestState` is admin-readable and
+  the journal is child-facing; the parent dashboard shows no quest summary.
+- **Quest rewards are authored but empty**: no `QUEST_COMPLETED` rule
+  exists in `ISLAND_REWARD_TABLE` yet, so finishing a quest grants nothing
+  today. The path is live and tested; only the content is missing.
+- **Only Pathfinder/Explorer copy**, matching every other authored content
+  set. `ageBands` is carried on every quest but nothing filters on it yet.
+
+## Verification (Phase 25 session)
+
+- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`,
+  `scripts/tsconfig.json`).
+- `npm run lint` — passed, 19 warnings, all pre-existing
+  (`prefer-tag-over-role`, `no-console` in `.tmp-verify/`); none new.
+- `npm run build` — passed.
+- `npx vitest run` — 121 files, 1036 tests, all passing (up from 959).
+  77 new: `objectives.test.ts` (every primitive, both DELIVER halves,
+  optional-objective semantics, the LEARN ladder), `quest.test.ts`
+  (multi-stage walk, branch precedence, cycle termination, unresolved stage
+  id, no-clock-in-a-pure-function), `journal.test.ts` (save/resume
+  projection, ordering, omission of ineligible quests), `api.test.ts`
+  (context assembly, idempotent start, side-effect ordering,
+  failure-tolerance), `content/islandQuests.test.ts` (every objective
+  names content that exists, reachability, termination, the closed Phase 23
+  flags), `QuestJournal.test.tsx` (stage display, screen-reader state,
+  error path), plus new cases in `deletion.test.ts` and
+  `islandItems.test.ts`.
+- **Not verified against live AWS.** `ChildQuestState` is a new model and
+  has not been deployed; the sandbox deploy that would create its table had
+  not been re-run at the end of this session.
 
 ## Child profile photos (parent-uploaded profile icons)
 

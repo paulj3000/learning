@@ -21,6 +21,7 @@ import {
   type StoryScene,
 } from './api';
 import { upsertSkillProgress } from '../mastery/api';
+import { syncQuestProgress } from '../quests/api';
 import { useCompanionTurn } from '../companion/useCompanionTurn';
 import type { CompanionTurnState } from '../companion/useCompanionTurn';
 import type { AgeBandValue } from '../child-profile/constants';
@@ -384,7 +385,20 @@ export function useAdventureSession(
           setSession(updated);
         } catch {
           setError('Something went wrong finishing the adventure.');
+          return;
         }
+        // Phase 25: finishing an adventure can finish a stage of a quest
+        // that composes it. `syncQuestProgress` recomputes every active
+        // quest from world state, so this call site does not need to know
+        // which quests (if any) name this adventure - and a child with no
+        // quests started pays one list read and stops.
+        //
+        // Deliberately after the session write and deliberately swallowed:
+        // the adventure is already complete and celebrated by this point,
+        // and a quest that could not be advanced now will advance the next
+        // time anything reads it, because quest progress is derived rather
+        // than reported (src/features/quests/types.ts).
+        await syncQuestProgress(childProfileId).catch(() => undefined);
       })();
     }
   }, [

@@ -17,6 +17,7 @@ import { WelcomeHarbor } from '../routes/WelcomeHarbor';
 import { IslandLocationPage } from '../routes/IslandLocationPage';
 import { AdventurePage } from '../routes/AdventurePage';
 import { AdventureLog } from '../routes/AdventureLog';
+import { QuestJournal } from '../routes/QuestJournal';
 import { StoryPage } from '../routes/StoryPage';
 import { AdventureLibraryPage } from '../routes/AdventureLibraryPage';
 import { AdminDashboard } from '../routes/AdminDashboard';
@@ -259,6 +260,14 @@ export function AppRoutes() {
         element={
           <RequireParent>
             <AdventureLog />
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/quests"
+        element={
+          <RequireParent>
+            <QuestJournal />
           </RequireParent>
         }
       />

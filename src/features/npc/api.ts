@@ -130,6 +130,52 @@ export async function recordDialogueNode(
 }
 
 /**
+ * Sets authored memory flags on one NPC without any dialogue having been
+ * shown - the write the Phase 25 Quest Engine needs when a quest ends.
+ *
+ * Phase 23 could set a flag only as a side effect of a child reading a
+ * dialogue node, which left flags like `bridgeQuestCompleted` (gating Pip's
+ * own offer) permanently unset, because the thing that completes the bridge
+ * quest is finishing the quest, not talking. This is the narrow, additive
+ * way to say "this character now knows the child did that".
+ *
+ * Deliberately narrow: it sets flags to true and touches nothing else. It
+ * awards no relationship points (those are earned by talking, not by
+ * bookkeeping), clears no flags, and creates a row for an NPC the child has
+ * never met only because a quest can be completed before its giver is ever
+ * spoken to.
+ */
+export async function setNpcMemoryFlagsForQuest(
+  childProfileId: string,
+  npcId: NpcId,
+  flags: readonly string[],
+): Promise<NpcRelationshipState> {
+  if (flags.length === 0) return getNpcState(childProfileId, npcId);
+
+  const row = await findRow(childProfileId, npcId);
+  const current = row ? toRelationshipState(row) : initialRelationshipState(npcId);
+  const memoryFlags = setMemoryFlags(current.memoryFlags, flags);
+  const now = new Date().toISOString();
+
+  if (row) {
+    await client.models.ChildNpcState.update({ id: row.id, memoryFlags, lastInteractedAt: now });
+  } else {
+    await client.models.ChildNpcState.create({
+      childProfileId,
+      npcId,
+      relationshipPoints: current.relationshipPoints,
+      relationshipLevel: relationshipLevelForPoints(current.relationshipPoints),
+      memoryFlags,
+      seenNodeIds: [...current.seenNodeIds],
+      firstMetAt: now,
+      lastInteractedAt: now,
+    });
+  }
+
+  return { ...current, memoryFlags };
+}
+
+/**
  * Deletes every NPC memory for a child. A parent-facing data action
  * (docs/AI_AND_CHILD_SAFETY.md retention controls), never reachable from
  * gameplay: characters must not forget a child as a game mechanic.

@@ -26,6 +26,14 @@ const {
   deleteChildProfile,
   deleteParentProfile,
   storageRemove,
+  storyProgressList,
+  npcStateList,
+  inventoryList,
+  questStateList,
+  deleteStoryProgress,
+  deleteNpcState,
+  deleteInventory,
+  deleteQuestState,
 } = vi.hoisted(() => ({
   deleteUser: vi.fn(),
   sessionList: vi.fn(),
@@ -52,6 +60,14 @@ const {
   deleteChildProfile: vi.fn(),
   deleteParentProfile: vi.fn(),
   storageRemove: vi.fn(),
+  storyProgressList: vi.fn(),
+  npcStateList: vi.fn(),
+  inventoryList: vi.fn(),
+  questStateList: vi.fn(),
+  deleteStoryProgress: vi.fn(),
+  deleteNpcState: vi.fn(),
+  deleteInventory: vi.fn(),
+  deleteQuestState: vi.fn(),
 }));
 
 vi.mock('aws-amplify/auth', () => ({ deleteUser }));
@@ -76,11 +92,20 @@ vi.mock('../../lib/data-client', () => ({
       CompanionProfile: { list: companionProfileList, delete: deleteCompanionProfile },
       ChildProfile: { list: childProfileList, get: childProfileGet, delete: deleteChildProfile },
       ParentProfile: { list: parentProfileList, delete: deleteParentProfile },
+      ChildStoryProgress: { list: storyProgressList, delete: deleteStoryProgress },
+      ChildNpcState: { list: npcStateList, delete: deleteNpcState },
+      ChildInventory: { list: inventoryList, delete: deleteInventory },
+      ChildQuestState: { list: questStateList, delete: deleteQuestState },
     },
   },
 }));
 
 import { deleteAccountAndAllData, deleteChildProfileData } from './deletion';
+// Read as text, not imported as modules: this test compares what the schema
+// declares against what the deletion function actually calls, which is a
+// property of the source rather than of any runtime value.
+import schemaSource from '../../../amplify/data/resource.ts?raw';
+import deletionSource from './deletion.ts?raw';
 
 describe('deleteChildProfileData', () => {
   beforeEach(() => {
@@ -117,6 +142,17 @@ describe('deleteChildProfileData', () => {
     });
     childProfileGet.mockResolvedValue({ data: { id: 'child-1', avatarPhotoKey: null } });
     storageRemove.mockResolvedValue(undefined);
+    storyProgressList.mockResolvedValue({
+      data: [{ id: 'story-progress-own', childProfileId: 'child-1' }],
+    });
+    npcStateList.mockResolvedValue({ data: [{ id: 'npc-own', childProfileId: 'child-1' }] });
+    inventoryList.mockResolvedValue({ data: [{ id: 'inventory-own', childProfileId: 'child-1' }] });
+    questStateList.mockResolvedValue({
+      data: [
+        { id: 'quest-own', childProfileId: 'child-1' },
+        { id: 'quest-other', childProfileId: 'child-2' },
+      ],
+    });
     deleteChildProfile.mockResolvedValue({ data: { id: 'child-1' }, errors: undefined });
   });
 
@@ -135,7 +171,39 @@ describe('deleteChildProfileData', () => {
     expect(deleteSafetyEvent).toHaveBeenCalledWith({ id: 'safety-own' });
     expect(deleteStoryArtifact).toHaveBeenCalledWith({ id: 'story-own' });
     expect(deleteCompanionProfile).toHaveBeenCalledWith({ id: 'companion-own' });
+    expect(deleteStoryProgress).toHaveBeenCalledWith({ id: 'story-progress-own' });
+    expect(deleteNpcState).toHaveBeenCalledWith({ id: 'npc-own' });
+    expect(deleteInventory).toHaveBeenCalledWith({ id: 'inventory-own' });
+    expect(deleteQuestState).toHaveBeenCalledWith({ id: 'quest-own' });
+    expect(deleteQuestState).not.toHaveBeenCalledWith({ id: 'quest-other' });
     expect(deleteChildProfile).toHaveBeenCalledWith({ id: 'child-1' });
+  });
+
+  /**
+   * Four models had been added since this function was written and none was
+   * being deleted: story progress (Phase 12), NPC memory (Phase 23),
+   * inventory (Phase 24), and quest state (Phase 25). A per-child model that
+   * nothing deletes silently breaks the deletion promise in
+   * docs/AI_AND_CHILD_SAFETY.md, so this asserts coverage against the schema
+   * itself rather than against a list someone has to remember to update.
+   */
+  it('deletes from every model in the schema that belongs to a child', () => {
+    // Every model whose own fields include `childProfileId` - i.e. every
+    // model that is a child's data - read from the schema itself rather than
+    // from a list someone has to remember to update here.
+    const childScopedModels = [
+      ...schemaSource.matchAll(/^  (\w+): a\n?\s*\.model\(\{([\s\S]*?)\n    \}\)/gm),
+    ]
+      .filter(([, , body]) => body.includes('childProfileId: a.id().required()'))
+      .map(([, name]) => name);
+    const deletedModels = new Set(
+      [...deletionSource.matchAll(/client\.models\.(\w+)\.delete/g)].map(([, name]) => name),
+    );
+
+    expect(childScopedModels.length).toBeGreaterThan(5);
+    for (const model of childScopedModels) {
+      expect([...deletedModels], `${model} is never deleted`).toContain(model);
+    }
   });
 
   it('throws when the final ChildProfile delete fails', async () => {
@@ -196,6 +264,10 @@ describe('deleteAccountAndAllData', () => {
     companionProfileList.mockResolvedValue({ data: [] });
     childProfileGet.mockResolvedValue({ data: { id: 'child-1', avatarPhotoKey: null } });
     storageRemove.mockResolvedValue(undefined);
+    storyProgressList.mockResolvedValue({ data: [] });
+    npcStateList.mockResolvedValue({ data: [] });
+    inventoryList.mockResolvedValue({ data: [] });
+    questStateList.mockResolvedValue({ data: [] });
     deleteChildProfile.mockResolvedValue({ data: { id: 'child-1' }, errors: undefined });
     deleteParentProfile.mockResolvedValue({ data: { id: 'parent-1' }, errors: undefined });
   });

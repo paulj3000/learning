@@ -19,6 +19,7 @@ it but write through the owning engine's functions/api module only.
 | `ChildStoryProgress` (and content-pack `StoryDefinition`/`StoryChapter`/`StoryScene`) | Story Engine |
 | `ChildNpcState` (and content-pack `NpcDefinition`) | NPC System (Phase 23) |
 | `ChildInventory` (and content-pack `ItemDefinition`/`CollectibleSet`/`RewardTable`) | Reward/Economy Engine (Phase 24) |
+| `ChildQuestState` (and content-pack `QuestDefinition`) | Quest Engine (Phase 25) |
 | `AIInteractionAudit` | AI Tutor Engine |
 | `SafetyEvent` | Cross-cutting safety pipeline (`docs/AI_AND_CHILD_SAFETY.md`), not exclusive to any one engine |
 
@@ -82,6 +83,42 @@ Handling rules that the code enforces
   data" cannot report success while the picture survives.
 - The photo is never included in AI prompt context, and no AI route or
   backend function is granted access to the bucket.
+
+## ChildQuestState
+- `id`
+- `childProfileId`
+- `questId`: an authored `QuestDefinition.id`
+- `status`: `ACTIVE | COMPLETED`
+- `currentStageId`
+- `completedStageIds`: string array
+- `completedObjectiveIds`: string array, including optional objectives
+- `startedAt`, `lastUpdatedAt`, `completedAt`
+
+Authorization: owning parent; admin read only.
+
+This row is deliberately small because **quest progress is derived, not
+reported** (`src/features/quests/types.ts`). Whether an objective is
+complete is recomputed from state other engines already own - a completed
+`AdventureSession`, a `WorldChange`, a `ChildInventory` item, a
+`ChildNpcState` memory flag, a `SkillProgress` status - so this model
+records only what cannot be derived: that the child accepted the quest,
+which stage they reached, and when they finished.
+
+Three consequences worth keeping when this model changes:
+
+- **Save/resume is free and cannot drift.** There is no event log here to
+  fall out of sync with the world, so reopening the journal recomputes the
+  child's real position, including credit for work done while the quest sat
+  untouched.
+- **`AVAILABLE` is not a stored status.** A quest with no row is available
+  when its prerequisites pass, so authoring a new quest offers it to every
+  eligible child with no backfill.
+- **Nothing here is child-authored.** Every stored id is authored content
+  (CLAUDE.md section 13); no free text, and nothing a child typed or said.
+
+Quest content itself (`QuestDefinition`, stages, objectives, branches) stays
+in source control under `src/features/quests/content/`, matching the
+existing preference for authored content over DB rows.
 
 ## ParentConsent
 - `id`

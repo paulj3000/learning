@@ -117,6 +117,9 @@ export function WelcomeHarbor() {
       <Link className={styles.logLink} to={`/island/${childId}/log`}>
         See your adventure log
       </Link>
+      <Link className={styles.logLink} to={`/island/${childId}/quests`}>
+        Open your quest journal (new!)
+      </Link>
       <Link className={styles.logLink} to={`/island/${childId}/world`}>
         Try walking around the island (new!)
       </Link>

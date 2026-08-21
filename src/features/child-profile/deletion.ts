@@ -12,6 +12,10 @@ type AIInteractionAudit = Schema['AIInteractionAudit']['type'];
 type SafetyEvent = Schema['SafetyEvent']['type'];
 type StoryArtifact = Schema['StoryArtifact']['type'];
 type CompanionProfile = Schema['CompanionProfile']['type'];
+type ChildStoryProgress = Schema['ChildStoryProgress']['type'];
+type ChildNpcState = Schema['ChildNpcState']['type'];
+type ChildInventory = Schema['ChildInventory']['type'];
+type ChildQuestState = Schema['ChildQuestState']['type'];
 type ParentProfile = Schema['ParentProfile']['type'];
 
 /**
@@ -24,6 +28,15 @@ type ParentProfile = Schema['ParentProfile']['type'];
  * carries a `childProfileId`, plus `AdventureAction` (chained through
  * `AdventureSession.sessionId`, since it has no `childProfileId` of its
  * own), then the `ChildProfile` row itself last.
+ *
+ * Every model added since Phase 8 wrote this function had been missed:
+ * `ChildStoryProgress` (Phase 12), `ChildNpcState` (Phase 23),
+ * `ChildInventory` (Phase 24), and `ChildQuestState` (Phase 25) all survived
+ * a "delete everything" until Phase 25 audited it. Adding a per-child model
+ * without adding it here silently breaks the deletion promise in
+ * `docs/AI_AND_CHILD_SAFETY.md`, so `deletion.test.ts` now asserts this
+ * function touches every model in the schema that carries a
+ * `childProfileId` - a new model fails that test until it is handled.
  *
  * The child's uploaded profile photo, if they have one, is deleted from
  * Amplify Storage before the row that points at it - and a failure there
@@ -43,6 +56,10 @@ export async function deleteChildProfileData(childProfileId: string): Promise<vo
     { data: safetyEvents },
     { data: storyArtifacts },
     { data: companionProfiles },
+    { data: storyProgress },
+    { data: npcStates },
+    { data: inventories },
+    { data: questStates },
   ] = await Promise.all([
     client.models.AdventureSession.list(),
     client.models.AdventureAction.list(),
@@ -53,6 +70,10 @@ export async function deleteChildProfileData(childProfileId: string): Promise<vo
     client.models.SafetyEvent.list(),
     client.models.StoryArtifact.list(),
     client.models.CompanionProfile.list(),
+    client.models.ChildStoryProgress.list(),
+    client.models.ChildNpcState.list(),
+    client.models.ChildInventory.list(),
+    client.models.ChildQuestState.list(),
   ]);
 
   const ownSessionIds = new Set(
@@ -86,6 +107,18 @@ export async function deleteChildProfileData(childProfileId: string): Promise<vo
     ...companionProfiles
       .filter((row: CompanionProfile) => row.childProfileId === childProfileId)
       .map((row: CompanionProfile) => client.models.CompanionProfile.delete({ id: row.id })),
+    ...storyProgress
+      .filter((row: ChildStoryProgress) => row.childProfileId === childProfileId)
+      .map((row: ChildStoryProgress) => client.models.ChildStoryProgress.delete({ id: row.id })),
+    ...npcStates
+      .filter((row: ChildNpcState) => row.childProfileId === childProfileId)
+      .map((row: ChildNpcState) => client.models.ChildNpcState.delete({ id: row.id })),
+    ...inventories
+      .filter((row: ChildInventory) => row.childProfileId === childProfileId)
+      .map((row: ChildInventory) => client.models.ChildInventory.delete({ id: row.id })),
+    ...questStates
+      .filter((row: ChildQuestState) => row.childProfileId === childProfileId)
+      .map((row: ChildQuestState) => client.models.ChildQuestState.delete({ id: row.id })),
   ]);
 
   await Promise.all([...ownSessionIds].map((id) => client.models.AdventureSession.delete({ id })));

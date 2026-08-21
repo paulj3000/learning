@@ -93,8 +93,9 @@ inside a Phaser scene.
 ## Platform engine boundaries (Phase 18)
 
 `docs/ROADMAP.md` Phases 18-30 name eight platform engines; a ninth,
-the Teaching Engine, is introduced by name only at Phase 21, and a tenth,
-the NPC System, at Phase 23. Each was added to this list when its phase was
+the Teaching Engine, is introduced by name only at Phase 21, a tenth,
+the NPC System, at Phase 23, and an eleventh, the Quest Engine, at
+Phase 25. Each was added to this list when its phase was
 implemented, rather than all at Phase 18. This
 section documents each one's responsibility and current implementation
 status so that curriculum/mastery/interaction logic and adventure theme
@@ -208,13 +209,37 @@ which engine owns which model.
    a quantity map, which rules out duplicate-farming by construction.
    `grantRewards` is idempotent per reward rule, so replaying an adventure
    re-grants nothing.
-10. **AI Tutor Engine** — Chatty's structured generation calls:
+10. **Quest Engine** (`src/features/quests/`, Phase 25) — owns quest
+    definitions, objectives, prerequisites, branching, the journal, and
+    `ChildQuestState`. It *composes* the other engines rather than
+    duplicating them: the roadmap requires it to complement, not replace,
+    `AdventureTemplate`/`AdventureStep`, so a `SOLVE` objective names an
+    adventure the Adventure Engine already runs, `COLLECT` names items the
+    Reward Engine already granted, `TALK_TO` names a memory flag the NPC
+    System already set, and `BUILD` names a `WorldChange` the world already
+    recorded.
+
+    The design property that follows: **quest progress is derived, never
+    reported.** `isObjectiveComplete` is a pure function of authored content
+    and a `QuestContext` snapshot assembled from state that already exists,
+    so no call site has to remember to notify the Quest Engine, a child gets
+    credit for work done before accepting a quest, and save/resume needs no
+    cursor that could drift from the world. `ChildQuestState` therefore
+    stores only what cannot be derived: that the quest was accepted, which
+    stage it reached, and when it ended.
+
+    Writes to neighbouring engines go through their public APIs only
+    (`recordWorldChangeOnce`, `setNpcMemoryFlagsForQuest`, `grantRewards`),
+    never their tables, and each is individually failure-tolerant so a
+    finished quest cannot revert because a reward write failed. Correctness
+    is entirely deterministic; no AI decides whether an objective is done.
+11. **AI Tutor Engine** — Chatty's structured generation calls:
     `CompanionProfile`, `AIInteractionAudit`, and the safe-context-builder/
     schema-validation/fallback pipeline (section 7, CLAUDE.md). Never
     determines correctness or mastery; only explains, hints, and narrates.
     Formalized as a contextual tutor bounded to current quest/skill/hint
     level at Phase 27.
-11. **Parent/Educator Engine** — the parent-facing reporting surface
+12. **Parent/Educator Engine** — the parent-facing reporting surface
     (`features/parent-dashboard`). Has no data models of its own; it
     composes read views over other engines' data (`AdventureSession`,
     `SkillProgress`, `WorldChange`). Expanded with mastery-level and
@@ -251,8 +276,13 @@ Phases 19-28 build compatible interfaces instead of inventing this later.
 | `QuestAdvanced` | Quest Engine (Phase 25) -> World Engine, NPC system (Phase 23), Reward/Economy Engine | `childProfileId`, `questId`, `objectiveId`, `questStatus` |
 | `WorldStateChanged` | World Engine (persistence half) -> World Engine (presentation half), NPC system, Quest Engine | `changeType`, `changeKey`, `payload`, `sourceSessionId` (today's `WorldChange` fields) |
 
-None of these are implemented as typed code today except `WorldStateChanged`
-(as `WorldChange`); this table is documentation only, per Phase 18's scope.
+None of these are implemented as a typed event bus today. `WorldStateChanged`
+exists as the `WorldChange` model, and Phase 25 realized `QuestAdvanced`'s
+*effects* without the event: `syncQuestProgress` returns the same payload
+this row describes (`questId`, newly completed objective IDs, status) and
+drives the three consumers directly through their public APIs. The
+remaining rows are documentation only, per Phase 18's scope; an actual bus
+is still worth introducing if a fourth consumer ever appears.
 
 ## State ownership
 

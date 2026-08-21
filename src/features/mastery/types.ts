@@ -10,6 +10,23 @@
 export type SkillStatus = 'LOCKED' | 'INTRODUCED' | 'DEVELOPING' | 'PROFICIENT' | 'MASTERED';
 
 /**
+ * The same ladder as an ordered list, so a caller can ask "is this status at
+ * least X?" without hardcoding the order at the comparison site. Lives here,
+ * next to the type it orders, for the same reason `RELATIONSHIP_LEVEL_ORDER`
+ * lives beside `RelationshipLevel` in src/features/npc/types.ts.
+ *
+ * Added for the Phase 25 Quest Engine's `LEARN` objective; `status.ts` still
+ * decides what a status *is*, and this only says how two of them compare.
+ */
+export const SKILL_STATUS_ORDER: readonly SkillStatus[] = [
+  'LOCKED',
+  'INTRODUCED',
+  'DEVELOPING',
+  'PROFICIENT',
+  'MASTERED',
+];
+
+/**
  * A lightweight, count-derived signal, not a semantic misconception
  * taxonomy (which would need per-step authored error categories, out of
  * this phase's scope). `STALLED` takes priority over `NEEDS_SUPPORT`,
