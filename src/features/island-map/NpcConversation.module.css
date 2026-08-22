@@ -1,0 +1,84 @@
+.conversation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.line {
+  margin: 0;
+  font-size: var(--font-size-large);
+  color: var(--color-text);
+}
+
+/*
+ * The friendship beat. Deliberately a warm sentence and never a meter, a
+ * score, or a number of points (CLAUDE.md pillar 7): the ladder exists to
+ * make a character feel like it remembers the child, not to give them a
+ * total to grow.
+ */
+.friendship {
+  margin: 0;
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+.offer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.offerSummary {
+  margin: 0;
+  font-weight: 600;
+}
+
+.offerButtons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.acceptButton {
+  font: inherit;
+  font-weight: 600;
+  padding: var(--space-3) var(--space-6);
+  border: none;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-primary);
+  color: var(--color-primary-contrast);
+  cursor: pointer;
+}
+
+.acceptButton:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.journalLink {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.endButton {
+  align-self: flex-start;
+  font: inherit;
+  font-weight: 600;
+  padding: var(--space-3) var(--space-6);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-danger);
+}

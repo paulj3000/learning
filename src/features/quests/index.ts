@@ -9,6 +9,7 @@ export * from './types';
 export * from './objectives';
 export * from './quest';
 export * from './journal';
+export * from './offers';
 export {
   buildQuestContext,
   clearQuestStates,

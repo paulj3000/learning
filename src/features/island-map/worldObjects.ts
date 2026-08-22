@@ -28,7 +28,17 @@ export type WorldAction =
    * let the world layer and the discovery content drift apart - so the
    * authored `DiscoveryDefinition` is the single place both live.
    */
-  | { kind: 'DISCOVER'; discoveryId: string };
+  | { kind: 'DISCOVER'; discoveryId: string }
+  /**
+   * Phase 26.5: hands this spot to the NPC System (src/features/npc/), which
+   * owns what the character says, what it remembers, and what it can ask for.
+   *
+   * Carries only an `NpcId` and no copy, for the same reason `DISCOVER`
+   * carries only an id: an NPC has a whole conditional dialogue tree rather
+   * than one line, and duplicating any of it here would let the world layer
+   * and the authored cast drift apart.
+   */
+  | { kind: 'TALK_TO'; npcId: string };
 
 export interface WorldInteraction {
   id: string;
@@ -326,11 +336,7 @@ export const PIRATE_BUILDER_BAY_INTERACTIONS: WorldInteraction[] = [
     title: 'Pirate Pip',
     targetId: 'pirate-pip',
     requirements: [{ type: 'ALWAYS' }],
-    action: {
-      kind: 'SHOW_MESSAGE',
-      message:
-        "Ahoy! I'm Pirate Pip. That bridge to the cove needs fixing. Think you can help me find what's missing?",
-    },
+    action: { kind: 'TALK_TO', npcId: 'pirate-pip' },
   },
   {
     id: 'bay-rope-coil',
@@ -603,11 +609,7 @@ export const STORYKEEPER_CASTLE_INTERACTIONS: WorldInteraction[] = [
     title: 'Keeper Quill',
     targetId: 'keeper-quill',
     requirements: [{ type: 'ALWAYS' }],
-    action: {
-      kind: 'SHOW_MESSAGE',
-      message:
-        "Welcome to the castle! I keep all the island's stories here. Walk into the story hall whenever you are ready to tell a new one.",
-    },
+    action: { kind: 'TALK_TO', npcId: 'keeper-quill' },
   },
   {
     id: 'castle-character-gallery',
@@ -730,11 +732,7 @@ export const DRAGONS_SANCTUARY_INTERACTIONS: WorldInteraction[] = [
     title: 'The dragon',
     targetId: 'ember-dragon',
     requirements: [{ type: 'ALWAYS' }],
-    action: {
-      kind: 'SHOW_MESSAGE',
-      message:
-        'The dragon dips her head toward you. She remembers the child who helped her feel safe again.',
-    },
+    action: { kind: 'TALK_TO', npcId: 'ember-dragon' },
   },
   {
     id: 'dragons-sanctuary-egg',
@@ -865,11 +863,7 @@ export const BOLTS_WORKSHOP_INTERACTIONS: WorldInteraction[] = [
     title: 'Bolt',
     targetId: 'bolt',
     requirements: [{ type: 'ALWAYS' }],
-    action: {
-      kind: 'SHOW_MESSAGE',
-      message:
-        'Bolt beeps a cheerful hello, wheels turning steadily, ready for a full day of work.',
-    },
+    action: { kind: 'TALK_TO', npcId: 'bolt' },
   },
   {
     id: 'bolts-workshop-toolbox',

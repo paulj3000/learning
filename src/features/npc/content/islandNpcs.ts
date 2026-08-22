@@ -58,8 +58,36 @@ export const ISLAND_NPCS: NpcDefinition[] = [
         id: 'pip-greeting',
         conditions: [{ type: 'ALWAYS' }],
         text: 'Ahoy! I am Pip, and this is my shipyard. There is always something to build here.',
-        choices: [{ id: 'pip-greeting-bye', label: 'Nice to meet you!' }],
+        choices: [
+          {
+            id: 'pip-greeting-ask',
+            label: 'What are you building?',
+            nextNodeId: 'pip-bridge-story',
+          },
+          { id: 'pip-greeting-bye', label: 'Nice to meet you!' },
+        ],
         setsMemoryFlags: ['metPip'],
+        awardsRelationshipPoints: 1,
+      },
+      {
+        /**
+         * The only way a first conversation can set `heardAboutBridge`, which
+         * the "repair-the-bridge" quest's opening objective waits on.
+         *
+         * Before this node existed, that flag was set only by
+         * `pip-bridge-offer`, which is gated on being an ACQUAINTANCE, and the
+         * only points Pip could award were the single point from his greeting.
+         * A child could therefore never hear about the bridge, so the quest's
+         * first stage could never complete. Nothing surfaced it until Phase 26.5
+         * gave children a way to actually hold a conversation;
+         * `reachableMemoryFlags` (../dialogue.ts) is now the standing check.
+         */
+        id: 'pip-bridge-story',
+        followUpOnly: true,
+        conditions: [{ type: 'ALWAYS' }],
+        text: 'The bridge to the cove lost half its planks in the last storm. I need someone good at counting to help me build it back.',
+        choices: [{ id: 'pip-bridge-story-bye', label: 'That sounds like a big job!' }],
+        setsMemoryFlags: ['heardAboutBridge'],
         awardsRelationshipPoints: 1,
       },
     ],

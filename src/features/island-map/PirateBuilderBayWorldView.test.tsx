@@ -21,6 +21,18 @@ vi.mock('./PhaserGameContainer', () => ({
   PhaserGameContainer: () => <div data-testid="phaser-game-container" />,
 }));
 
+/**
+ * Phase 26.5. Tapping a character now hands off to `NpcConversation`, which
+ * loads the Quest Engine's whole context; this file is about the world view
+ * routing the action to it, so the conversation is stubbed here and tested on
+ * its own in `NpcConversation.test.tsx`.
+ */
+vi.mock('./NpcConversation', () => ({
+  NpcConversation: ({ npcId }: { npcId: string }) => (
+    <div data-testid="npc-conversation">{npcId}</div>
+  ),
+}));
+
 vi.mock('../adventures/api', () => ({
   listAllWorldChanges: vi.fn(),
   resumeOrStartSession: vi.fn(),
@@ -142,14 +154,14 @@ describe('PirateBuilderBayWorldView', () => {
     expect(screen.queryByText('The broken Moonlight Bridge')).not.toBeInTheDocument();
   });
 
-  it('shows a plain message for a SHOW_MESSAGE interaction instead of trying to start a session', async () => {
+  it('opens a conversation with Pip instead of trying to start a session', async () => {
     const user = userEvent.setup();
     listAllWorldChangesMock.mockResolvedValue([]);
 
     renderWorldView();
     await user.click(await screen.findByText('Pirate Pip'));
 
-    expect(await screen.findByText(/ahoy/i)).toBeInTheDocument();
+    expect(await screen.findByTestId('npc-conversation')).toHaveTextContent('pirate-pip');
     expect(resumeOrStartSessionMock).not.toHaveBeenCalled();
   });
 

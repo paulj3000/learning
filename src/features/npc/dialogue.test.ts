@@ -5,9 +5,11 @@ import {
   dialogueOutcome,
   findDanglingChoices,
   findDialogueNode,
+  reachableDialogueNodes,
+  reachableMemoryFlags,
   selectDialogueNode,
 } from './dialogue';
-import type { NpcContext, NpcDefinition } from './types';
+import type { DialogueNode, NpcContext, NpcDefinition } from './types';
 
 const npc: NpcDefinition = {
   id: 'pirate-pip',
@@ -191,5 +193,147 @@ describe('findDanglingChoices', () => {
     expect(findDanglingChoices(broken)).toEqual([
       { nodeId: 'start', choiceId: 'go', nextNodeId: 'nowhere' },
     ]);
+  });
+});
+
+/** A cast of one, so each case below is only about its own dialogue shape. */
+function withDialogue(dialogue: DialogueNode[]): NpcDefinition {
+  return {
+    id: 'someone',
+    displayName: 'Someone',
+    role: 'test',
+    homeLocationSlug: 'welcome-harbor',
+    interactionId: 'meet-someone',
+    schedule: [],
+    dialogue,
+    questOffers: [],
+  };
+}
+
+describe('reachableDialogueNodes', () => {
+  it('reaches a follow-up only through a choice that points at it', () => {
+    const reached = reachableDialogueNodes(
+      withDialogue([
+        {
+          id: 'greeting',
+          conditions: [{ type: 'ALWAYS' }],
+          text: 'Hello!',
+          choices: [{ id: 'ask', label: 'Tell me more', nextNodeId: 'more' }],
+        },
+        {
+          id: 'more',
+          followUpOnly: true,
+          conditions: [{ type: 'ALWAYS' }],
+          text: 'More.',
+          choices: [],
+        },
+        {
+          id: 'orphan',
+          followUpOnly: true,
+          conditions: [{ type: 'ALWAYS' }],
+          text: 'Never.',
+          choices: [],
+        },
+      ]),
+    );
+
+    expect(reached.map((node) => node.id)).toEqual(['greeting', 'more']);
+  });
+
+  /**
+   * The failure mode this function exists for: relationship points come only
+   * from nodes, so a gate above what the reachable nodes award closes forever.
+   */
+  it('leaves out a node gated above the points talking can ever award', () => {
+    const reached = reachableDialogueNodes(
+      withDialogue([
+        {
+          id: 'gated',
+          conditions: [{ type: 'RELATIONSHIP_AT_LEAST', level: 'ACQUAINTANCE' }],
+          text: 'Only for friends.',
+          choices: [],
+          setsMemoryFlags: ['toldSecret'],
+        },
+        {
+          id: 'greeting',
+          conditions: [{ type: 'ALWAYS' }],
+          text: 'Hello!',
+          choices: [],
+          awardsRelationshipPoints: 1,
+        },
+      ]),
+    );
+
+    expect(reached.map((node) => node.id)).toEqual(['greeting']);
+  });
+
+  it('reaches that same node once enough points are actually earnable', () => {
+    const reached = reachableDialogueNodes(
+      withDialogue([
+        {
+          id: 'gated',
+          conditions: [{ type: 'RELATIONSHIP_AT_LEAST', level: 'ACQUAINTANCE' }],
+          text: 'Only for friends.',
+          choices: [],
+        },
+        {
+          id: 'greeting',
+          conditions: [{ type: 'ALWAYS' }],
+          text: 'Hello!',
+          choices: [{ id: 'ask', label: 'More?', nextNodeId: 'chat' }],
+          awardsRelationshipPoints: 1,
+        },
+        {
+          id: 'chat',
+          followUpOnly: true,
+          conditions: [{ type: 'ALWAYS' }],
+          text: 'A story.',
+          choices: [],
+          awardsRelationshipPoints: 1,
+        },
+      ]),
+    );
+
+    expect(reached.map((node) => node.id).sort()).toEqual(['chat', 'gated', 'greeting']);
+  });
+
+  it('assumes the world can supply conditions dialogue does not control', () => {
+    const reached = reachableDialogueNodes(
+      withDialogue([
+        {
+          id: 'after-the-bridge',
+          conditions: [{ type: 'WORLD_CHANGE', changeKey: 'BRIDGE_REPAIRED' }],
+          text: 'You fixed it!',
+          choices: [],
+        },
+      ]),
+    );
+
+    expect(reached.map((node) => node.id)).toEqual(['after-the-bridge']);
+  });
+});
+
+describe('reachableMemoryFlags', () => {
+  it('reports only the flags a child could talk their way into', () => {
+    const flags = reachableMemoryFlags(
+      withDialogue([
+        {
+          id: 'gated',
+          conditions: [{ type: 'RELATIONSHIP_AT_LEAST', level: 'FRIEND' }],
+          text: 'Secret.',
+          choices: [],
+          setsMemoryFlags: ['unreachableFlag'],
+        },
+        {
+          id: 'greeting',
+          conditions: [{ type: 'ALWAYS' }],
+          text: 'Hello!',
+          choices: [],
+          setsMemoryFlags: ['metThem'],
+        },
+      ]),
+    );
+
+    expect([...flags]).toEqual(['metThem']);
   });
 });

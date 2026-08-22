@@ -379,6 +379,28 @@ Deliverables:
 - exploration telemetry that follows the existing rule against logging
   child free-text (section 13).
 
+### Phase 26.5 — NPC Conversation UI
+
+Inserted ahead of Phase 27 rather than planned. Phases 22, 23, and 25 each
+shipped complete and unreachable: the Interaction Library rendered in no live
+screen, the NPC System decided what characters say with no way to talk to
+one, and the Quest Engine could run three quests that nothing could start,
+because starting them meant talking to Pip, Quill, or Bolt. Phase 26 routed
+around the gap by having a discovery give out its quest; this closes it.
+
+Deliverables:
+- a conversation screen reached by the `TALK_TO` world action, rendering the
+  dialogue node the Phase 23 engine selects and the bounded `CONVERSE`
+  choices the Phase 22 library draws (never free text, per CLAUDE.md
+  section 2, and never AI, per `DialogueNode.narration` staying opt-in for
+  Phase 27);
+- persistence of every node shown, so memory flags and friendship carry
+  between visits;
+- quest offers presented when the talking is done, gated on both the NPC's
+  own conditions and the quest being startable, and accepted in place;
+- an authoring check (`reachableMemoryFlags`) that a `TALK_TO` objective
+  never waits on a flag no conversation can set.
+
 ### Phase 27 — Chatty as Contextual AI Tutor
 
 Deliverables:

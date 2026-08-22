@@ -13,7 +13,14 @@
  * same convention as the hint ladder in `src/features/adventures/engine/hints.ts`.
  */
 import { evaluateConditions } from './conditions';
-import type { DialogueChoice, DialogueNode, NpcContext, NpcDefinition } from './types';
+import { RELATIONSHIP_THRESHOLDS } from './relationship';
+import type {
+  DialogueChoice,
+  DialogueNode,
+  NpcCondition,
+  NpcContext,
+  NpcDefinition,
+} from './types';
 
 /**
  * The opening line for a conversation: the first authored node that is not
@@ -89,4 +96,76 @@ export function findDanglingChoices(
         nextNodeId: choice.nextNodeId as string,
       })),
   );
+}
+
+/**
+ * Every dialogue node a child could ever actually reach by talking, starting
+ * from an unmet NPC and nothing else.
+ *
+ * An authoring-time check rather than a gameplay function, in the same spirit
+ * as `findDanglingChoices` above, and it exists because a subtler dead end
+ * than a dangling choice is possible: a node whose conditions no amount of
+ * *talking* can satisfy. Relationship points are only awarded by nodes, so a
+ * node gated on `RELATIONSHIP_AT_LEAST` above what the reachable nodes can
+ * award is unreachable forever, and a quest objective waiting on a flag that
+ * only such a node sets can never complete.
+ *
+ * The walk is deliberately optimistic about everything outside this module:
+ * `WORLD_CHANGE`, `QUEST_COMPLETED`, and `TIME_OF_DAY` conditions count as
+ * satisfiable, because the world really can supply them. It is pessimistic
+ * only about what dialogue itself must produce - memory flags and
+ * relationship points - which is exactly the loop that can close on itself.
+ */
+export function reachableDialogueNodes(npc: NpcDefinition): DialogueNode[] {
+  const reached = new Map<string, DialogueNode>();
+  const flags = new Set<string>();
+  let points = 0;
+
+  const satisfiable = (condition: NpcCondition): boolean => {
+    switch (condition.type) {
+      case 'ALWAYS':
+      case 'WORLD_CHANGE':
+      case 'QUEST_COMPLETED':
+      case 'TIME_OF_DAY':
+        return true;
+      case 'MEMORY_FLAG':
+        // `equals: false` matches a child who has never triggered the flag,
+        // which every child starts out being.
+        return condition.equals ? flags.has(condition.flag) : true;
+      case 'RELATIONSHIP_AT_LEAST':
+        return points >= RELATIONSHIP_THRESHOLDS[condition.level];
+    }
+  };
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const node of npc.dialogue) {
+      if (reached.has(node.id)) continue;
+      if (!node.conditions.every(satisfiable)) continue;
+
+      const reachableAsFollowUp = [...reached.values()].some((from) =>
+        from.choices.some(
+          (choice) => choice.nextNodeId === node.id && (choice.conditions ?? []).every(satisfiable),
+        ),
+      );
+      if (node.followUpOnly && !reachableAsFollowUp) continue;
+
+      reached.set(node.id, node);
+      for (const flag of node.setsMemoryFlags ?? []) flags.add(flag);
+      points += Math.max(0, Math.trunc(node.awardsRelationshipPoints ?? 0));
+      changed = true;
+    }
+  }
+
+  return [...reached.values()];
+}
+
+/**
+ * The memory flags an NPC can be talked into setting. What a `TALK_TO` or
+ * `HELP_NPC` quest objective must name to be completable
+ * (`src/features/quests/content/islandQuests.test.ts` asserts it).
+ */
+export function reachableMemoryFlags(npc: NpcDefinition): Set<string> {
+  return new Set(reachableDialogueNodes(npc).flatMap((node) => [...(node.setsMemoryFlags ?? [])]));
 }

@@ -16,6 +16,7 @@ import { resumeOrStartSession } from '../adventures/api';
 import { getAdventureTemplate } from '../adventures/content';
 import { useExplorableWorld } from './useExplorableWorld';
 import { DiscoveryAction } from './DiscoveryAction';
+import { NpcConversation } from './NpcConversation';
 import { isLocationUnlocked } from '../island/locations';
 
 const UNLOCK_REQUIREMENT = { changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE' };
@@ -176,6 +177,7 @@ function InteractionPanel({
           childId={childId}
           action={interaction.action}
           onDiscovered={onDiscovered}
+          onDismiss={onDismiss}
         />
         <button type="button" className={styles.dismissButton} onClick={onDismiss}>
           Not now
@@ -189,6 +191,7 @@ interface InteractionPanelActionProps {
   childId: string;
   action: WorldAction;
   onDiscovered: () => void;
+  onDismiss: () => void;
 }
 
 /**
@@ -197,7 +200,12 @@ interface InteractionPanelActionProps {
  * action union) so this view stays a drop-in match for every other
  * location's `*WorldView`, matching their own already-shipped precedent.
  */
-function InteractionPanelAction({ childId, action, onDiscovered }: InteractionPanelActionProps) {
+function InteractionPanelAction({
+  childId,
+  action,
+  onDiscovered,
+  onDismiss,
+}: InteractionPanelActionProps) {
   const navigate = useNavigate();
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -225,6 +233,14 @@ function InteractionPanelAction({ childId, action, onDiscovered }: InteractionPa
         onDiscovered={onDiscovered}
       />
     );
+  }
+
+  /**
+   * Phase 26.5. The character's whole conversation, quest offer included,
+   * belongs to the NPC and Quest engines; this view only says where it goes.
+   */
+  if (action.kind === 'TALK_TO') {
+    return <NpcConversation childId={childId} npcId={action.npcId} onEnd={onDismiss} />;
   }
 
   const startAdventureAction = action;

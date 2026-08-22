@@ -44,8 +44,15 @@ Bedrock model choice ever changes.
 
 ## Current phase
 
-**Phases 0-26 are implemented.** The most recent is Phase 26 (Exploration
-and Secrets) — see its section below. It adds the Discovery Engine
+**Phases 0-26.5 are implemented.** The most recent is Phase 26.5 (NPC
+Conversation UI) — see its section below. It closes the gap every phase
+since Phase 22 has carried forward: a child can now walk up to a character,
+hold a bounded conversation, and accept a quest from it, which makes all
+three Phase 25 quests startable in normal play and puts the Phase 22
+interaction library on a live screen for the first time.
+
+Phase 26 (Exploration and Secrets) came immediately before it — see its
+section below. It adds the Discovery Engine
 (`src/features/discovery/`), the `ChildWorldState` model that
 `docs/DATA_MODEL.md` had been deferring since Phase 16, six authored secrets
 across the four explorable regions, and the first quest a child can actually
@@ -63,14 +70,13 @@ Phase 26 closes three seams earlier phases left open on purpose:
   prize were unobtainable. Finishing "The Quiet Places" grants the shell,
   which completes the set, which grants the hat.
 
-**The caveat from Phase 25 still stands and is still the most valuable
-follow-up: there is no NPC conversation UI.** A child cannot accept a quest
-by talking to Pip, Quill, or Bolt, so the three Phase 25 quests remain
-unstartable in normal play. Phase 26 routes around that rather than fixing
-it — its own quest is given out by a *discovery* instead of a character —
-so one quest is now genuinely playable end to end, but the interaction
-library (Phase 22) still renders in no live adventure and the NPC dialogue
-system (Phase 23) still has no screen.
+**The caveat carried since Phase 25 is now resolved.** It read: "there is
+no NPC conversation UI. A child cannot accept a quest by talking to Pip,
+Quill, or Bolt, so the three Phase 25 quests remain unstartable in normal
+play." Phase 26.5 built that screen. Phase 26 had routed around the gap
+instead — its own quest is given out by a *discovery* rather than by a
+character — and that remains true and is still a good pattern; it is simply
+no longer the only one available.
 
 The history below is kept as written at the time of each phase.
 
@@ -3455,6 +3461,147 @@ read the rest as homework.
 - **`ChildWorldState` has no admin/reviewer group access beyond
   `allow.group('Admins').to(['read'])`**, the same already-tracked gap as
   every other model in this schema.
+
+## Phase 26.5 — NPC Conversation UI
+
+**Complete.** Three finished engines had been sitting behind one missing
+screen. The Interaction Library (Phase 22) rendered nowhere. The NPC System
+(Phase 23) decided what every character says, with no way for a child to
+talk to one. The Quest Engine (Phase 25) could run three quests that nothing
+could start, because starting them meant talking to Pip, Quill, or Bolt.
+Every phase since has restated this as the most valuable outstanding work.
+This phase is that screen, and it is deliberately thin: every decision it
+renders is made by a pure function in one of those three engines.
+
+### What a child can now do
+
+Tap a character in any explorable region and hold a conversation. The
+opening line is whatever `selectDialogueNode` picks for that child's memory,
+friendship level, recorded world changes, and time of day. Replies are the
+authored `DialogueChoice` list, rendered by the Interaction Library's own
+`CONVERSE` component. When the talking ends, whatever that character can ask
+for is offered, and accepting it starts the quest and links to the journal.
+
+Two properties are load-bearing rather than incidental, and both are
+asserted in tests:
+
+- **No AI is involved.** Nodes carrying a `narration` hint still render as
+  their authored text. Re-voicing them by Chatty is Phase 27's AI Tutor
+  Engine; adding a conversation screen must not silently open an AI surface.
+- **No free text, ever.** Replies are the authored choice list and nothing
+  else, per CLAUDE.md section 2's rule that a child never receives an
+  unrestricted chat box.
+
+### Files
+
+- `src/features/island-map/NpcConversation.tsx` (+ `.module.css`, `.test.tsx`)
+  — the screen. Loads once through `buildQuestContext`, since every field an
+  `NpcContext` needs is already in a `QuestContext`, then folds each recorded
+  node back into both contexts rather than reloading. That fold is not an
+  optimization: Bolt's own quest offer is gated on the `metBolt` flag his
+  greeting sets, so without it a child would say hello, be told nothing, and
+  have to walk away and come back before he could ask for help.
+- `src/features/quests/offers.ts` (+ `.test.ts`) — the pure join
+  `journal.ts` had already named in a comment but had nowhere to enforce:
+  an offer is shown only when the NPC's own conditions pass *and* the quest
+  is startable. Lives in `quests/` because the dependency direction is
+  already settled — the Quest Engine reads NPC state, never the reverse.
+- `src/features/island-map/worldObjects.ts` — a `TALK_TO` world action
+  carrying only an `NpcId`, and the four NPC interactions switched to it
+  from their single hard-coded `SHOW_MESSAGE` line. Chatty keeps its
+  message: it is a `CompanionProfile`, not an `NpcDefinition`.
+- All eight world views — one branch each, mirroring how `DISCOVER` was
+  wired in Phase 26. Four of them have no NPC today; they handle the action
+  anyway, so authoring a character into any region stays a content change.
+- `src/features/npc/dialogue.ts` — `reachableDialogueNodes` and
+  `reachableMemoryFlags`, authoring-time checks (see the bug below).
+
+### A real dead end this surfaced
+
+"Repair the Moonlight Bridge", the flagship quest, was uncompletable and
+nothing had noticed, because nothing could reach its first objective.
+
+That objective waits on Pip's `heardAboutBridge` memory flag. The only node
+that set the flag was `pip-bridge-offer`, gated on `RELATIONSHIP_AT_LEAST:
+ACQUAINTANCE`, which needs 2 relationship points. Relationship points are
+awarded only by dialogue nodes, and the only node Pip could reach awarded 1,
+once. So the gate could never open, the flag could never be set, and stage
+one could never complete. The existing content test passed the whole time:
+it checked that some authored node *sets* the flag, which was true, and had
+no way to know that node was unreachable.
+
+Two changes:
+
+- Pip gained `pip-bridge-story`, a follow-up node off his greeting where he
+  explains what happened to the bridge. It sets `heardAboutBridge` and awards
+  a point, so one conversation both satisfies the objective and makes him an
+  acquaintance, which is also better content than a gate.
+- `reachableMemoryFlags` walks the dialogue graph from an unmet NPC to a
+  fixpoint, pessimistic about what dialogue must produce itself (flags,
+  points) and optimistic about what the world can supply (world changes,
+  completed quests, time of day). `islandQuests.test.ts` now asserts every
+  `TALK_TO`/`HELP_NPC` objective waits on a flag inside that set. Reverting
+  Pip's fix makes that test fail with the exact diagnosis, which was checked
+  rather than assumed.
+
+### Known limitations (Phase 26.5)
+
+- **A conversation costs a full `buildQuestContext`** — seven parallel list
+  reads — even for Ember, who offers nothing and has one dialogue node. It
+  is the same load the quest journal already does on open, and it keeps the
+  two screens structurally unable to disagree about a child, which is worth
+  more than the reads at this scale. Revisit if talking to someone starts
+  feeling slow.
+- **A conversation is not resumable.** Reopening a character starts from
+  their opening line rather than where the child left off, the same accepted
+  tradeoff already tracked for `useAdventureSession`'s hint ladder and for
+  story chapter scenes. Nothing is lost, since every node's effects are
+  persisted as it is shown; only the position in the tree is forgotten.
+- **`recordDialogueNode` failures are swallowed.** A child offline still
+  gets to have the conversation, but the flags and friendship from it are
+  not saved, and nothing tells them so. An error where a character should be
+  would be worse, but this does mean a quest objective can be satisfied on
+  screen and not recorded.
+- **Only Pirate Pip, Keeper Quill, Bolt, and Ember are conversational.**
+  Chatty is deliberately excluded (not an `NpcDefinition`), and the four
+  Phase 16 regions with no cast have no one to talk to. Both are content
+  gaps rather than missing wiring.
+- **`ChildNpcState` and `ChildWorldState.discoveredCharacters` now both get
+  written when a child taps a character** — the first by this screen, the
+  second by the world view, for different reasons. Phase 26 flagged that
+  overlap as worth revisiting once dialogue shipped. It has shipped; the two
+  are still distinct records, and merging them is still open.
+- **Copy targets Pathfinders**, matching every other authored content set.
+  Dialogue is not age-banded at all today: `DialogueNode` has no `ageBands`
+  field, so a Sprout and an Explorer hear identical lines.
+- **The conversation is reachable only from the explorable world views**,
+  through the walk-up tap or the accessible "Things to do here" list that
+  mirrors it. The non-spatial location pages do not list characters, so a
+  child who never opens a world view never meets anyone.
+
+## Verification (Phase 26.5 session)
+
+- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`,
+  `scripts/tsconfig.json`).
+- `npm run lint` — passed, warnings only, all pre-existing
+  (`prefer-tag-over-role` on the world views' interaction panels,
+  `no-console` in the untracked `.tmp-verify/` scratch directory); none new.
+- `npx prettier --check` on every changed file — clean.
+- `npx vitest run` — 127 files, 1142 tests, all passing (up from 1120).
+  22 new: `NpcConversation.test.tsx` (8: the opening line and its recording,
+  following a choice to a follow-up, the quest offer and acceptance path
+  including the immediate `syncQuestProgress`, an offer unlocked by a flag
+  set earlier in the same conversation, no re-offer of a started quest,
+  ending through the caller, a calm offline line, an unknown character),
+  `offers.test.ts` (8, the pure join in both directions),
+  `dialogue.test.ts` (5, reachability including the points-gate case), and
+  `islandQuests.test.ts` (1, the standing check on `TALK_TO` flags). Three
+  existing world-view tests changed from asserting a hard-coded NPC message
+  to asserting the conversation is opened for the right `NpcId`.
+- **Not run:** the end-to-end bridge quest against a live backend. The flow
+  is verified by unit tests against mocked persistence, so the claim that
+  "repair-the-bridge" is now completable rests on the engines' own tests
+  plus the reachability proof above, not on a played session.
 
 ## Verification (Phase 26 session)
 

@@ -19,6 +19,18 @@ vi.mock('./PhaserGameContainer', () => ({
   PhaserGameContainer: () => <div data-testid="phaser-game-container" />,
 }));
 
+/**
+ * Phase 26.5. Tapping a character now hands off to `NpcConversation`, which
+ * loads the Quest Engine's whole context; this file is about the world view
+ * routing the action to it, so the conversation is stubbed here and tested on
+ * its own in `NpcConversation.test.tsx`.
+ */
+vi.mock('./NpcConversation', () => ({
+  NpcConversation: ({ npcId }: { npcId: string }) => (
+    <div data-testid="npc-conversation">{npcId}</div>
+  ),
+}));
+
 vi.mock('../adventures/api', () => ({
   listAllWorldChanges: vi.fn(),
   resumeOrStartSession: vi.fn(),
@@ -122,13 +134,13 @@ describe('BoltsWorkshopWorldView', () => {
     expect(screen.getByText('The path back to Welcome Harbor')).toBeInTheDocument();
   });
 
-  it('shows a plain message for tapping Bolt instead of trying to start a session', async () => {
+  it('opens a conversation with Bolt instead of trying to start a session', async () => {
     const user = userEvent.setup();
     listAllWorldChangesMock.mockResolvedValue([{ changeKey: 'ROBOT_RESCUE_COMPLETE' } as never]);
 
     renderWorldView();
     await user.click(await screen.findByText('Bolt'));
 
-    expect(await screen.findByText(/cheerful hello/i)).toBeInTheDocument();
+    expect(await screen.findByTestId('npc-conversation')).toHaveTextContent('bolt');
   });
 });

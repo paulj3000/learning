@@ -3,6 +3,7 @@ import { ISLAND_QUESTS } from './islandQuests';
 import { QUEST_DEFINITIONS, getQuestDefinition, getQuestsOfferedBy } from './index';
 import { allObjectives, getStage } from '../quest';
 import { ISLAND_NPCS } from '../../npc/content';
+import { reachableMemoryFlags } from '../../npc/dialogue';
 import { ISLAND_ITEMS } from '../../rewards/content';
 import { ADVENTURE_TEMPLATES } from '../../adventures/content';
 import { ISLAND_LOCATIONS } from '../../island/locations';
@@ -183,6 +184,29 @@ describe('island quest content', () => {
             expect(objective.learningObjectiveCode.length).toBeGreaterThan(0);
             break;
         }
+      }
+    }
+  });
+
+  /**
+   * Stricter than the flag check above, and the reason "repair-the-bridge"
+   * was quietly uncompletable until Phase 26.5: `heardAboutBridge` *was* set
+   * by an authored node, so the settable-flag check passed, but that node sat
+   * behind a relationship gate no amount of talking to Pip could open. A
+   * `TALK_TO` objective is only ever satisfied by talking, so the flag it
+   * waits on has to be reachable that way.
+   */
+  it('waits only on memory flags a child could actually talk their way into', () => {
+    const reachableByNpc = new Map(ISLAND_NPCS.map((npc) => [npc.id, reachableMemoryFlags(npc)]));
+
+    for (const quest of QUEST_DEFINITIONS) {
+      for (const objective of allObjectives(quest)) {
+        if (objective.kind !== 'TALK_TO' && objective.kind !== 'HELP_NPC') continue;
+        const reachable = reachableByNpc.get(objective.npcId);
+        expect(
+          reachable?.has(objective.memoryFlag),
+          `${quest.id}/${objective.id}: ${objective.npcId} can never be talked into setting ${objective.memoryFlag}`,
+        ).toBe(true);
       }
     }
   });
