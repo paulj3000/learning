@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import type { AgeBandValue } from '../child-profile/constants';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
@@ -38,7 +39,10 @@ vi.mock('../adventures/api', () => ({
   resumeOrStartSession: vi.fn(),
 }));
 
-vi.mock('../adventures/content', () => ({
+// Only `getAdventureTemplate` is stubbed; `isAdventureForAgeBand` keeps its
+// real implementation so the age gate is exercised rather than mocked away.
+vi.mock('../adventures/content', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../adventures/content')>()),
   getAdventureTemplate: vi.fn(),
 }));
 
@@ -73,13 +77,18 @@ const recordCharacterMetMock = vi.mocked(recordCharacterMet);
 const resumeOrStartSessionMock = vi.mocked(resumeOrStartSession);
 const getAdventureTemplateMock = vi.mocked(getAdventureTemplate);
 
-function renderWorldView() {
+// Defaults to the band every world-startable adventure is authored for,
+// so existing cases keep meaning what they said; the age-gate case passes
+// a different one.
+function renderWorldView(ageBand: AgeBandValue = 'PATHFINDER') {
   return render(
     <MemoryRouter initialEntries={['/island/child-1/world/pirate-builder-bay']}>
       <Routes>
         <Route
           path="/island/:childId/world/pirate-builder-bay"
-          element={<PirateBuilderBayWorldView childId="child-1" avatarKey="FOX" />}
+          element={
+            <PirateBuilderBayWorldView childId="child-1" avatarKey="FOX" ageBand={ageBand} />
+          }
         />
         <Route
           path="/island/:childId/locations/:locationSlug/adventures/:templateSlug"
@@ -143,6 +152,25 @@ describe('PirateBuilderBayWorldView', () => {
       expect(resumeOrStartSessionMock).toHaveBeenCalledWith('child-1', REPAIR_THE_MOONLIGHT_BRIDGE);
     });
     expect(await screen.findByText('Adventure route')).toBeInTheDocument();
+  });
+
+  /**
+   * The walking route enforces the same age gate the location page always
+   * has. Before this, a Sprout could be told on `IslandLocationPage` that
+   * the bridge was not for their age and then start it anyway by walking
+   * into it, because `START_ADVENTURE` went straight to the session.
+   */
+  it('refuses to start an adventure outside the child age band', async () => {
+    const user = userEvent.setup();
+    listAllWorldChangesMock.mockResolvedValue([]);
+    getAdventureTemplateMock.mockReturnValue(REPAIR_THE_MOONLIGHT_BRIDGE);
+
+    renderWorldView('SPROUT');
+    await user.click(await screen.findByText('The broken Moonlight Bridge'));
+
+    expect(await screen.findByText(/not available for your age yet/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /start the adventure/i })).not.toBeInTheDocument();
+    expect(resumeOrStartSessionMock).not.toHaveBeenCalled();
   });
 
   it('offers the repaired-bridge narration instead of the adventure once the bridge is repaired', async () => {

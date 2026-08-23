@@ -99,7 +99,7 @@ describe('questContextWithNpcState', () => {
 describe('offerableQuests', () => {
   it('offers a quest only when the NPC asks and the quest is startable', () => {
     const npcContext = npcContextFromQuestContext('pirate-pip', HEARD, 'MORNING');
-    const offers = offerableQuests(NPC, npcContext, [QUEST], [], HEARD);
+    const offers = offerableQuests(NPC, npcContext, [QUEST], [], HEARD, 'PATHFINDER');
 
     expect(offers).toHaveLength(1);
     expect(offers[0].definition.id).toBe('repair-the-bridge');
@@ -107,12 +107,14 @@ describe('offerableQuests', () => {
 
   it('stays quiet while the NPC own conditions are unmet', () => {
     const npcContext = npcContextFromQuestContext('pirate-pip', EMPTY_QUEST_CONTEXT, 'MORNING');
-    expect(offerableQuests(NPC, npcContext, [QUEST], [], EMPTY_QUEST_CONTEXT)).toEqual([]);
+    expect(
+      offerableQuests(NPC, npcContext, [QUEST], [], EMPTY_QUEST_CONTEXT, 'PATHFINDER'),
+    ).toEqual([]);
   });
 
   it('does not re-offer a quest the child has already started', () => {
     const npcContext = npcContextFromQuestContext('pirate-pip', HEARD, 'MORNING');
-    expect(offerableQuests(NPC, npcContext, [QUEST], [STARTED], HEARD)).toEqual([]);
+    expect(offerableQuests(NPC, npcContext, [QUEST], [STARTED], HEARD, 'PATHFINDER')).toEqual([]);
   });
 
   it('does not offer a quest whose prerequisites are unmet', () => {
@@ -121,11 +123,23 @@ describe('offerableQuests', () => {
       prerequisites: [{ type: 'QUEST_COMPLETED', questId: 'something-else' }],
     };
     const npcContext = npcContextFromQuestContext('pirate-pip', HEARD, 'MORNING');
-    expect(offerableQuests(NPC, npcContext, [gated], [], HEARD)).toEqual([]);
+    expect(offerableQuests(NPC, npcContext, [gated], [], HEARD, 'PATHFINDER')).toEqual([]);
+  });
+
+  /**
+   * `QuestDefinition.ageBands` was authored from Phase 25 and read by nothing
+   * until the conversation UI needed it. A quest wraps adventures the child
+   * may not be able to start, so offering one out of band promises work that
+   * cannot be finished.
+   */
+  it('does not offer a quest outside the child age band', () => {
+    const npcContext = npcContextFromQuestContext('pirate-pip', HEARD, 'MORNING');
+    expect(offerableQuests(NPC, npcContext, [QUEST], [], HEARD, 'SPROUT')).toEqual([]);
+    expect(offerableQuests(NPC, npcContext, [QUEST], [], HEARD, 'PATHFINDER')).toHaveLength(1);
   });
 
   it('drops an offer naming a quest that does not exist rather than showing it broken', () => {
     const npcContext = npcContextFromQuestContext('pirate-pip', HEARD, 'MORNING');
-    expect(offerableQuests(NPC, npcContext, [], [], HEARD)).toEqual([]);
+    expect(offerableQuests(NPC, npcContext, [], [], HEARD, 'PATHFINDER')).toEqual([]);
   });
 });

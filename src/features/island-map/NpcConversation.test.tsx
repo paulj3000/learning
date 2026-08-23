@@ -66,7 +66,7 @@ function fakeRecorder() {
 function renderConversation(npcId: string, onEnd = vi.fn()) {
   return render(
     <MemoryRouter>
-      <NpcConversation childId="child-1" npcId={npcId} onEnd={onEnd} />
+      <NpcConversation childId="child-1" npcId={npcId} ageBand="PATHFINDER" onEnd={onEnd} />
     </MemoryRouter>,
   );
 }

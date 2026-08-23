@@ -16,10 +16,13 @@ import {
   type OfferableQuest,
 } from '../quests/offers';
 import type { QuestContext, QuestState } from '../quests/types';
+import type { AgeBandValue } from '../child-profile/constants';
 
 interface NpcConversationProps {
   childId: string;
   npcId: string;
+  /** The child's own band; a character never asks for help with a quest outside it. */
+  ageBand: AgeBandValue;
   /** Closes the world view's interaction panel when the child says goodbye. */
   onEnd: () => void;
 }
@@ -49,7 +52,7 @@ interface NpcConversationProps {
  *   and nothing else, rendered by the Interaction Library's own bounded
  *   `CONVERSE` component, per CLAUDE.md section 2.
  */
-export function NpcConversation({ childId, npcId, onEnd }: NpcConversationProps) {
+export function NpcConversation({ childId, npcId, ageBand, onEnd }: NpcConversationProps) {
   const npc = findNpc(npcId);
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [questContext, setQuestContext] = useState<QuestContext | null>(null);
@@ -189,7 +192,7 @@ export function NpcConversation({ childId, npcId, onEnd }: NpcConversationProps)
   const choices = node && npcContext ? availableChoices(node, npcContext) : [];
   const offers =
     npcContext && questContext
-      ? offerableQuests(npc, npcContext, QUEST_DEFINITIONS, questStates, questContext)
+      ? offerableQuests(npc, npcContext, QUEST_DEFINITIONS, questStates, questContext, ageBand)
       : [];
 
   return (

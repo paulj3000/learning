@@ -3,16 +3,26 @@ import { useParams } from 'react-router-dom';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { CastleWritingRoomWorldView } from '../features/island-map/CastleWritingRoomWorldView';
 import { getChildProfile } from '../features/child-profile/api';
+import type { AgeBandValue } from '../features/child-profile/constants';
 
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
 /** Fallback used if the profile has no avatarKey, matching `avatarAppearance.ts`'s own fallback intent. */
 const DEFAULT_AVATAR_KEY = 'FOX';
 
+/**
+ * Fails closed. `SPROUT` supports the fewest adventures, so a profile that
+ * somehow renders a world view without having loaded (which the load states
+ * below already prevent) offers less rather than more. The alternative
+ * default would hand a three-year-old an Explorer adventure on a bug.
+ */
+const DEFAULT_AGE_BAND: AgeBandValue = 'SPROUT';
+
 export function CastleWritingRoomWorldPage() {
   const { childId } = useParams<{ childId: string }>();
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [avatarKey, setAvatarKey] = useState(DEFAULT_AVATAR_KEY);
+  const [ageBand, setAgeBand] = useState<AgeBandValue>(DEFAULT_AGE_BAND);
 
   useEffect(() => {
     let cancelled = false;
@@ -27,6 +37,7 @@ export function CastleWritingRoomWorldPage() {
         if (cancelled) return;
         if (child) {
           setAvatarKey(child.avatarKey);
+          setAgeBand(child.ageBand);
         }
         setLoadState(child ? 'ready' : 'not-found');
       } catch {
@@ -62,7 +73,7 @@ export function CastleWritingRoomWorldPage() {
 
   return (
     <IslandLayout childId={childId}>
-      <CastleWritingRoomWorldView childId={childId} avatarKey={avatarKey} />
+      <CastleWritingRoomWorldView childId={childId} avatarKey={avatarKey} ageBand={ageBand} />
     </IslandLayout>
   );
 }

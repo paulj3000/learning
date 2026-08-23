@@ -3590,6 +3590,50 @@ Two changes:
   mirrors it. The non-spatial location pages do not list characters, so a
   child who never opens a world view never meets anyone.
 
+## Age-band enforcement fix (post-Phase-27)
+
+**Complete.** A defect found while scoping content work, not a roadmap phase.
+
+`AdventureDefinition.ageBands` was enforced on `IslandLocationPage` from
+Phase 2 and by nothing on the explorable world route added in Phase 9. A
+`START_ADVENTURE` interaction went straight to `resumeOrStartSession`, so a
+child could be told "This adventure is not available for your age yet" on
+the location page and then start that same adventure by walking into it —
+from a "Try walking around the bay (new!)" link on the very page that had
+just refused them. All three world-startable adventures are authored
+`['PATHFINDER']` only, so every Sprout and Explorer using the promoted way
+to play was affected.
+
+CLAUDE.md section 3 ("never show content merely because it is available")
+and the Definition of Done's "age bands are respected" both make this a
+correctness bug rather than a polish item.
+
+- `isAdventureForAgeBand` (`src/features/adventures/content/index.ts`) is
+  the rule, named so it is greppable, since the failure was one route
+  quietly not applying it.
+- All eight world views take the child's `ageBand` and gate
+  `START_ADVENTURE` behind it, showing the same authored line the location
+  page uses. The eight world pages already loaded the profile for
+  `avatarKey`; they now pass the band too, defaulting to `SPROUT` so a bug
+  fails closed rather than handing a three-year-old an Explorer adventure.
+- `offerableQuests` (`src/features/quests/offers.ts`) now reads
+  `QuestDefinition.ageBands`, which had been authored since Phase 25 and
+  read by nothing. A quest wraps adventures the child may not be able to
+  start, so an out-of-band offer promised work that could not be finished.
+
+### Known limitations
+
+- **Out-of-band interactions are still listed**, and explain themselves when
+  opened, matching how `IslandLocationPage` shows the location and gates the
+  start. A child sees the place exists and is told it is not for them yet.
+- **Dialogue is still not age-banded.** `DialogueNode` has no `ageBands`
+  field, so every child hears identical lines from every character. Only the
+  quest *offer* is gated, not the conversation around it.
+- **Content remains unevenly distributed across bands**: of 15 authored
+  adventures, Sprouts can reach 2, Pathfinders 13, Explorers 6. Enforcing
+  the band correctly makes that imbalance visible rather than fixing it,
+  and authoring for Sprouts is the natural follow-on.
+
 ## Phase 27 — Chatty as Contextual AI Tutor
 
 **Complete.** Phase 4 gave Chatty a voice; this phase gives that voice a

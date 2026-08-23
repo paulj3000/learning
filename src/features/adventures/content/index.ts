@@ -1,4 +1,5 @@
 import type { AdventureDefinition } from '../engine/types';
+import type { AgeBandValue } from '../../child-profile/constants';
 import { REPAIR_THE_MOONLIGHT_BRIDGE } from './repairTheMoonlightBridge';
 import { THE_STORYKEEPERS_TALE } from './theStorykeepersTale';
 import { BUZZ_AND_THE_WAGGLE_DANCE } from './buzzAndTheWaggleDance';
@@ -27,6 +28,28 @@ export const ADVENTURE_TEMPLATES: AdventureDefinition[] = [
 
 export function getAdventureTemplate(slug: string): AdventureDefinition | undefined {
   return ADVENTURE_TEMPLATES.find((template) => template.slug === slug);
+}
+
+/**
+ * Whether this adventure is authored for this child's age band.
+ *
+ * A named function rather than an inline `ageBands.includes(...)` because
+ * the rule has to hold on *every* route that can start an adventure, and it
+ * did not: `IslandLocationPage` checked it from Phase 2, while the
+ * explorable world views (Phase 9 onward) started their `START_ADVENTURE`
+ * interactions without checking at all. A child could be told "not
+ * available for your age yet" on the location page and then be handed the
+ * same adventure by walking into it, which is the exact failure CLAUDE.md
+ * section 3 rules out ("never show content merely because it is
+ * available") and the Definition of Done's "age bands are respected" means.
+ *
+ * Grep for this name to find every place the guarantee is enforced.
+ */
+export function isAdventureForAgeBand(
+  template: AdventureDefinition,
+  ageBand: AgeBandValue,
+): boolean {
+  return template.ageBands.includes(ageBand);
 }
 
 export function getAdventureTemplatesForLocation(locationSlug: string): AdventureDefinition[] {

@@ -13,16 +13,19 @@ import {
   type WorldInteractionContext,
 } from './worldObjects';
 import { resumeOrStartSession } from '../adventures/api';
-import { getAdventureTemplate } from '../adventures/content';
+import { getAdventureTemplate, isAdventureForAgeBand } from '../adventures/content';
 import { useExplorableWorld } from './useExplorableWorld';
 import { DiscoveryAction } from './DiscoveryAction';
 import { NpcConversation } from './NpcConversation';
+import type { AgeBandValue } from '../child-profile/constants';
 import { isLocationUnlocked } from '../island/locations';
 
 const UNLOCK_REQUIREMENT = { changeKey: 'DRAGON_OF_EMBER_MOUNTAIN_COMPLETE' };
 
 interface DragonsSanctuaryWorldViewProps {
   childId: string;
+  /** The child's own `ChildProfile.ageBand`, resolved by the caller. Gates what may be started here. */
+  ageBand: AgeBandValue;
   /** The child's already-chosen `ChildProfile.avatarKey`, resolved by the caller (`DragonsSanctuaryWorldPage`). */
   avatarKey: string;
 }
@@ -40,7 +43,11 @@ interface DragonsSanctuaryWorldViewProps {
  * showing a calm "not discovered yet" message instead of the scene when the
  * story has not been completed.
  */
-export function DragonsSanctuaryWorldView({ childId, avatarKey }: DragonsSanctuaryWorldViewProps) {
+export function DragonsSanctuaryWorldView({
+  childId,
+  avatarKey,
+  ageBand,
+}: DragonsSanctuaryWorldViewProps) {
   // Phase 26: the same world read as the four regions that hide something.
   // This location has no secrets of its own today, but sharing one hook
   // keeps every world view interchangeable, and adding a secret here later
@@ -113,6 +120,7 @@ export function DragonsSanctuaryWorldView({ childId, avatarKey }: DragonsSanctua
       {triggeredInteraction ? (
         <InteractionPanel
           childId={childId}
+          ageBand={ageBand}
           interaction={triggeredInteraction}
           onDismiss={() => setTriggeredInteractionId(null)}
           onDiscovered={() => void refresh()}
@@ -161,6 +169,7 @@ function buildGameConfig(
 
 interface InteractionPanelProps {
   childId: string;
+  ageBand: AgeBandValue;
   interaction: (typeof DRAGONS_SANCTUARY_INTERACTIONS)[number];
   onDismiss: () => void;
   onDiscovered: () => void;
@@ -168,6 +177,7 @@ interface InteractionPanelProps {
 
 function InteractionPanel({
   childId,
+  ageBand,
   interaction,
   onDismiss,
   onDiscovered,
@@ -178,6 +188,7 @@ function InteractionPanel({
       <div className={styles.panelActions}>
         <InteractionPanelAction
           childId={childId}
+          ageBand={ageBand}
           action={interaction.action}
           onDiscovered={onDiscovered}
           onDismiss={onDismiss}
@@ -192,6 +203,7 @@ function InteractionPanel({
 
 interface InteractionPanelActionProps {
   childId: string;
+  ageBand: AgeBandValue;
   action: WorldAction;
   onDiscovered: () => void;
   onDismiss: () => void;
@@ -205,6 +217,7 @@ interface InteractionPanelActionProps {
  */
 function InteractionPanelAction({
   childId,
+  ageBand,
   action,
   onDiscovered,
   onDismiss,
@@ -243,13 +256,29 @@ function InteractionPanelAction({
    * belongs to the NPC and Quest engines; this view only says where it goes.
    */
   if (action.kind === 'TALK_TO') {
-    return <NpcConversation childId={childId} npcId={action.npcId} onEnd={onDismiss} />;
+    return (
+      <NpcConversation childId={childId} npcId={action.npcId} ageBand={ageBand} onEnd={onDismiss} />
+    );
   }
 
   const startAdventureAction = action;
 
+  const startTemplate = getAdventureTemplate(startAdventureAction.templateSlug);
+
+  /*
+   * The age gate `IslandLocationPage` has always applied, now applied on the
+   * walking route too. Before this, a child could be told an adventure was
+   * not for their band on the location page and then start that same
+   * adventure by walking into it, since `START_ADVENTURE` went straight to
+   * `resumeOrStartSession`. Same authored line as the location page, so a
+   * child meets one explanation rather than two.
+   */
+  if (startTemplate && !isAdventureForAgeBand(startTemplate, ageBand)) {
+    return <p>This adventure is not available for your age yet.</p>;
+  }
+
   async function handleStart() {
-    const definition = getAdventureTemplate(startAdventureAction.templateSlug);
+    const definition = startTemplate;
     if (!definition) {
       setError('This adventure is not available right now.');
       return;

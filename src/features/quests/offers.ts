@@ -20,6 +20,7 @@ import { relationshipLevelForPoints } from '../npc/relationship';
 import type { NpcContext, NpcDefinition, NpcQuestOffer, TimeOfDay } from '../npc/types';
 import { isQuestAvailable } from './quest';
 import type { QuestContext, QuestDefinition, QuestState } from './types';
+import type { AgeBandValue } from '../child-profile/constants';
 
 /**
  * The `NpcContext` for one character, read out of the snapshot the Quest
@@ -85,11 +86,18 @@ export function offerableQuests(
   definitions: readonly QuestDefinition[],
   states: readonly QuestState[],
   questContext: QuestContext,
+  ageBand: AgeBandValue,
 ): OfferableQuest[] {
   const byQuestId = new Map(states.map((state) => [state.questId, state]));
   return availableQuestOffers(npc, npcContext).flatMap((offer) => {
     const definition = definitions.find((candidate) => candidate.id === offer.questId);
     if (!definition) return [];
+    // `QuestDefinition.ageBands` was authored from Phase 25 and read by
+    // nothing until now, so a character would ask any child for help with
+    // any quest. A quest is a wrapper around adventures the child may not
+    // be able to start, so offering one out of band promises work that
+    // cannot be finished.
+    if (!definition.ageBands.includes(ageBand)) return [];
     if (!isQuestAvailable(definition, questContext, byQuestId.get(offer.questId))) return [];
     return [{ offer, definition }];
   });

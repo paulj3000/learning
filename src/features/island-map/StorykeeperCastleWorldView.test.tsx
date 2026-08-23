@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import type { AgeBandValue } from '../child-profile/constants';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
@@ -26,7 +27,10 @@ vi.mock('../adventures/api', () => ({
   resumeOrStartSession: vi.fn(),
 }));
 
-vi.mock('../adventures/content', () => ({
+// Only `getAdventureTemplate` is stubbed; `isAdventureForAgeBand` keeps its
+// real implementation so the age gate is exercised rather than mocked away.
+vi.mock('../adventures/content', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../adventures/content')>()),
   getAdventureTemplate: vi.fn(),
 }));
 
@@ -61,13 +65,18 @@ const recordCharacterMetMock = vi.mocked(recordCharacterMet);
 const resumeOrStartSessionMock = vi.mocked(resumeOrStartSession);
 const getAdventureTemplateMock = vi.mocked(getAdventureTemplate);
 
-function renderWorldView() {
+// Defaults to the band every world-startable adventure is authored for,
+// so existing cases keep meaning what they said; the age-gate case passes
+// a different one.
+function renderWorldView(ageBand: AgeBandValue = 'PATHFINDER') {
   return render(
     <MemoryRouter initialEntries={['/island/child-1/world/storykeeper-castle']}>
       <Routes>
         <Route
           path="/island/:childId/world/storykeeper-castle"
-          element={<StorykeeperCastleWorldView childId="child-1" avatarKey="FOX" />}
+          element={
+            <StorykeeperCastleWorldView childId="child-1" avatarKey="FOX" ageBand={ageBand} />
+          }
         />
         <Route
           path="/island/:childId/locations/:locationSlug/adventures/:templateSlug"
