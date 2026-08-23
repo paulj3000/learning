@@ -3,6 +3,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import parentStyles from './ParentDashboard.module.css';
 import styles from './ChildDashboard.module.css';
 import { getChildProfile, setChildProfileAIEnabled } from '../features/child-profile/api';
+import { suggestNextAdventure } from '../features/director/api';
+import { explainSelection } from '../features/director/explain';
+import { hasSkillBasedSignal } from '../features/director/select';
+import type { SelectionRecord } from '../features/director/types';
 import type { ChildProfile } from '../features/child-profile/api';
 import { deleteChildProfileData } from '../features/child-profile/deletion';
 import { listAllWorldChanges, listSessions, listStoryArtifacts } from '../features/adventures/api';
@@ -97,6 +101,7 @@ function skillProgressMeta(row: SkillProgress): string {
 export function ChildDashboard() {
   const { childId } = useParams<{ childId: string }>();
   const navigate = useNavigate();
+  const [suggestions, setSuggestions] = useState<SelectionRecord[]>([]);
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
   const [sessions, setSessions] = useState<AdventureSession[]>([]);
@@ -152,6 +157,21 @@ export function ChildDashboard() {
         setSafetyEvents(safetyEventRows);
         setWorldState(worldStateRow);
         setLoadState('ready');
+
+        // Phase 28. Loaded after the dashboard is already usable, and
+        // deliberately not awaited with the rest: a Director failure must
+        // cost this page nothing, since every other section stands alone.
+        void suggestNextAdventure(childId, profile.ageBand).then((suggestion) => {
+          if (cancelled) return;
+          // Shown only when the ranking is actually personalised. The seed
+          // curriculum covers one age band, so for the others every
+          // adventure ties and the order means nothing; presenting that as
+          // a suggestion would tell a parent something untrue
+          // (`hasSkillBasedSignal`).
+          setSuggestions(
+            hasSkillBasedSignal(suggestion.ranking) ? suggestion.ranking.slice(0, 3) : [],
+          );
+        });
       } catch {
         if (cancelled) return;
         setLoadState('error');
@@ -292,6 +312,31 @@ export function ChildDashboard() {
                 </ul>
               )}
             </section>
+
+            {suggestions.length > 0 ? (
+              <section className={styles.section}>
+                <h2 className={styles.heading}>What we would suggest next</h2>
+                {/*
+                  Phase 28's "explainable selection logs for adults", and the
+                  only place the Director's reasoning is ever rendered. The
+                  child's own screens show adventures in an order and no
+                  reasons at all: telling a child what they are weakest at is
+                  the remediation framing CLAUDE.md pillar 7 rules out.
+                */}
+                <p className={styles.hint}>
+                  Suggestions are ordered by what {childProfile.nickname} has been practicing. They
+                  are not shown to {childProfile.nickname} as reasons, and nothing is locked.
+                </p>
+                <ul className={styles.list}>
+                  {suggestions.map((record) => (
+                    <li className={styles.card} key={record.adventureSlug}>
+                      <p className={styles.cardTitle}>{record.title}</p>
+                      <p className={styles.cardMeta}>{explainSelection(record)}</p>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
 
             <section className={styles.section}>
               <h2 className={styles.heading}>Skills practiced</h2>

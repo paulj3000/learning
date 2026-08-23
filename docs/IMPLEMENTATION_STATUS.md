@@ -3590,6 +3590,91 @@ Two changes:
   mirrors it. The non-spatial location pages do not list characters, so a
   child who never opens a world view never meets anyone.
 
+## Phase 28 - Adaptive Adventure Director
+
+**Complete.** Ranks the adventures a child could play next, favouring skills
+they are still working on, and explains every ranking to an adult.
+
+`src/features/director/` is pure domain plus a thin `api.ts`, the same split
+`npc/`, `quests/`, and `mastery/` already use. No AI touches it: "what should
+this child do next" is a judgment about a child, and CLAUDE.md section 7
+keeps those in application code.
+
+### The four deliverables
+
+**Skill-needs ranking from Phase 20 summaries** (`needs.ts`). Reads
+`MasterySummary` - skill id and status - and never `MasteryDetail`, which is
+the split Phase 20 wrote into its own doc comment naming this engine as a
+consumer before it existed. `SKILL_NEED_WEIGHT` is a lookup rather than an
+inversion of the status ladder because both ends score zero for opposite
+reasons: a `MASTERED` skill needs no practice, and a `LOCKED` one has unmet
+prerequisites, so recommending it would put a child in front of work they
+were never prepared for.
+
+**Eligibility favouring weaker skills, without remediation framing**
+(`select.ts`). An adventure scores the summed need of the distinct skills it
+practises. Age band is the *only* hard filter, and it is the Adventure
+Engine's own `isAdventureForAgeBand` rather than a rule invented here -
+nothing in this engine withholds content, so a lower rank moves an adventure
+down a list and never off the island.
+
+**Story continuity and variety protection.** Continuing a story already begun
+adds a bonus; a completed adventure and a recently played one each take a
+penalty. Both are penalties rather than exclusions: replaying something you
+liked is a legitimate thing for a child to want, so repetition is damped, not
+forbidden. Only the three most recent sessions count, so something played
+weeks ago is not still being pushed down.
+
+**Explainable selection logs for adults** (`explain.ts`). `SelectionReason`
+is a closed union rather than free text, so a record stays machine-readable
+and cannot have a child-facing sentence smuggled into it. `explain.test.ts`
+asserts the output is addressed to an adult about *content* - it fails if a
+future edit starts writing "you" or "struggling" - because telling a child
+what they are weakest at is exactly the framing CLAUDE.md pillar 7 rules out.
+
+### Where it surfaces
+
+The parent dashboard's "What we would suggest next", which is the deliverable
+itself ("for adults/developers"). It loads after the page is already usable
+and is never awaited with the rest, so a Director failure costs the dashboard
+nothing.
+
+The child's own screens are unchanged. They show adventures in an order and
+no reasons at all.
+
+### The curriculum limits this more than the code does
+
+Verified against live sandbox data for all three age bands, which is how this
+came out: `listSkillsByAgeBand` returns **6 skills for PATHFINDER and none at
+all for SPROUT or EXPLORER**, because the seed curriculum authors exactly one
+grade (`mathGrade1To2`, `ageBands: ['PATHFINDER']`). For the other two bands
+every adventure ties at zero and the ranking is alphabetical - correct, and
+personalised by nothing.
+
+`hasSkillBasedSignal` exists for that: the dashboard shows the section only
+when the ranking actually carries skill-based signal, rather than presenting
+an alphabetical list to a parent as a recommendation. It is a truthfulness
+guard, not a feature flag, and it disappears on its own once the curriculum
+covers the other bands.
+
+### Known limitations
+
+- **Effectively inert for Sprouts and Explorers** until the curriculum covers
+  those bands. That is Phase 19 content work, not a Director change.
+- **No child-facing surface.** The roadmap's eligibility deliverable is met
+  by the ranking being available; nothing yet reorders what a child sees.
+  The Adventure Library still orders by interest alone, which was Phase 15's
+  own rule and is not wrong, just not adaptive.
+- **`storyIdForAdventure` is a caller-supplied hook and nothing supplies it
+  yet.** Continuity scoring is implemented and tested but dormant in the live
+  path, because mapping an adventure slug to its arc means reaching into
+  story content the Director deliberately does not import.
+- **Scores are sums, so a longer adventure can outrank a shorter one** that
+  targets a need more precisely. Fine at this content volume; worth revisiting
+  if a location ever holds many adventures per band.
+- **`SKILL_NEED_WEIGHT` is authored, not validated.** Documented as a product
+  constant in the same terms as the mastery and relationship thresholds.
+
 ## Live smoke test, story/co-op verification, and Explorer content
 
 ### `scripts/live-smoke.ts`
