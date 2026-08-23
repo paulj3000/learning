@@ -146,6 +146,28 @@ Content-managed reference data:
 - `minimumAgeBand`
 - `status`
 - `sortOrder`
+- `worldSlug` (Phase 29): which world this place belongs to. Required, so a
+  new location cannot land on the home island by omission.
+
+### World and travel content (Phase 29)
+
+`WorldDefinition` and `WorldContentPack` (`src/features/worlds/`) are
+source-controlled content, not database models, following the same pattern
+as `IslandLocation` and the Phase 19 curriculum graph above. Phase 29
+deliberately adds **no new persisted model at all**:
+
+- **Identity** stays `ChildProfile`. One child, one profile, every world.
+- **Inventory** stays `ChildInventory`. One backpack, every world; the world
+  an item came from is read from that world's content pack, never stored on
+  the row.
+- **Where a child has been** is an ordinary `WorldChange`
+  (`changeType: 'TRAVEL'`, `changeKey: 'ARRIVED_AT_<WORLD>'`,
+  `sourceSessionId: 'travel:<world-slug>'`), written through the Adventure
+  Engine's existing `recordWorldChangeOnce`. Arriving somewhere is a thing
+  that happened to the world, which is exactly what that model records.
+
+See ADR-009 in `docs/DECISIONS.md` for why per-world persistence was
+rejected rather than deferred.
 
 ## LearningObjective
 - `id`

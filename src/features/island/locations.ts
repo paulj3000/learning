@@ -1,5 +1,14 @@
+import { CREATURE_CARE_COVE_SLUG, HOME_WORLD_SLUG } from '../worlds/slugs';
+
 export interface IslandLocation {
   slug: string;
+  /**
+   * The world this place belongs to (docs/ROADMAP.md Phase 29). Required
+   * rather than defaulted, so a new location cannot quietly land on the home
+   * island because nobody said where it was; `packs.test.ts` asserts every
+   * location is claimed by exactly one world's content pack.
+   */
+  worldSlug: string;
   title: string;
   tagline: string;
   description: string;
@@ -36,6 +45,7 @@ export function isLocationUnlocked(
 export const ISLAND_LOCATIONS: IslandLocation[] = [
   {
     slug: 'pirate-builder-bay',
+    worldSlug: HOME_WORLD_SLUG,
     title: 'Pirate Builder Bay',
     tagline: 'Counting, measuring, and building with Pirate Pip.',
     description:
@@ -45,6 +55,7 @@ export const ISLAND_LOCATIONS: IslandLocation[] = [
   },
   {
     slug: 'wonderwild-forest',
+    worldSlug: HOME_WORLD_SLUG,
     title: 'Wonderwild Forest',
     tagline: 'Curious questions become nature adventures.',
     description:
@@ -54,6 +65,7 @@ export const ISLAND_LOCATIONS: IslandLocation[] = [
   },
   {
     slug: 'storykeeper-castle',
+    worldSlug: HOME_WORLD_SLUG,
     title: 'Storykeeper Castle',
     tagline: 'Collaborative stories, one choice at a time.',
     description:
@@ -63,6 +75,7 @@ export const ISLAND_LOCATIONS: IslandLocation[] = [
   },
   {
     slug: 'dragons-sanctuary',
+    worldSlug: HOME_WORLD_SLUG,
     title: "The Dragon's Sanctuary",
     tagline: "A secret spot, discovered by finishing a dragon's story.",
     description:
@@ -73,6 +86,7 @@ export const ISLAND_LOCATIONS: IslandLocation[] = [
   },
   {
     slug: 'fossil-ridge-camp',
+    worldSlug: HOME_WORLD_SLUG,
     title: 'Fossil Ridge Camp',
     tagline: 'A secret spot, discovered by finishing a dinosaur mystery.',
     description:
@@ -83,6 +97,7 @@ export const ISLAND_LOCATIONS: IslandLocation[] = [
   },
   {
     slug: 'castle-writing-room',
+    worldSlug: HOME_WORLD_SLUG,
     title: 'The Writing Room',
     tagline: 'A secret spot, discovered by solving the castle mystery.',
     description:
@@ -93,6 +108,7 @@ export const ISLAND_LOCATIONS: IslandLocation[] = [
   },
   {
     slug: 'bolts-workshop',
+    worldSlug: HOME_WORLD_SLUG,
     title: "Bolt's Workshop",
     tagline: 'A secret spot, discovered by rescuing a harbor robot.',
     description:
@@ -101,7 +117,49 @@ export const ISLAND_LOCATIONS: IslandLocation[] = [
     decoration: 'Bolt rolls happily around the workshop, good as new.',
     unlockRequirement: { changeKey: 'ROBOT_RESCUE_COMPLETE' },
   },
+  /**
+   * Creature Care Cove (docs/ROADMAP.md Phase 29). A second world, not a
+   * secret corner of the first: neither location is gated by an
+   * `unlockRequirement`, because the *route* is what a child earns, and
+   * gating the places inside a world they have just sailed to would charge
+   * them twice for the same journey.
+   */
+  {
+    slug: 'cove-care-beach',
+    worldSlug: CREATURE_CARE_COVE_SLUG,
+    title: 'The Care Beach',
+    tagline: 'Feeding, sorting, and looking after rescued sea creatures.',
+    description:
+      'A curve of pale sand lined with shallow care pens. Every creature here is waiting to get strong enough to swim home, and every one of them needs the right food, in the right amount, in the right order.',
+    skills: ['Counting', 'Sorting', 'Caring routines'],
+    decoration: 'The care pens are quiet. Nobody has been fed yet this morning.',
+  },
+  {
+    slug: 'lantern-tide-pools',
+    worldSlug: CREATURE_CARE_COVE_SLUG,
+    title: 'The Lantern Tide Pools',
+    tagline: 'A quiet place to sit and watch the water.',
+    description:
+      'Round pools left behind by the tide, each one holding a tiny world of its own. Nella hangs lanterns along the rocks so the pools can be visited after dark.',
+    skills: ['Observation', 'Curiosity'],
+    decoration: 'The lanterns along the rocks are unlit, waiting for someone to help at the cove.',
+  },
 ];
+
+/** Every location belonging to one world, in authored order (Phase 29). */
+export function listLocationsInWorld(worldSlug: string): IslandLocation[] {
+  return ISLAND_LOCATIONS.filter((location) => location.worldSlug === worldSlug);
+}
+
+/**
+ * The world a location belongs to, or `undefined` for a story-only
+ * pseudo-location slug (Phase 15's arc challenges carry slugs that are not
+ * places on any map). Callers must treat `undefined` as "not on a map",
+ * never as "the home island".
+ */
+export function getWorldSlugForLocation(locationSlug: string): string | undefined {
+  return getIslandLocation(locationSlug)?.worldSlug;
+}
 
 export function getIslandLocation(slug: string): IslandLocation | undefined {
   return ISLAND_LOCATIONS.find((location) => location.slug === slug);

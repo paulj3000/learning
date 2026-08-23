@@ -330,6 +330,34 @@ which engine owns which model.
     `SkillProgress`, `WorldChange`). Expanded with mastery-level and
     next-focus reporting at Phase 30.
 
+14. **World Registry and Travel System** (`src/features/worlds/`,
+    Phase 29) — owns the registry of worlds, the rules for which of them a
+    child can sail to, the content pack that says what each world contains,
+    and the grouped view of one backpack across several islands. Owns **no
+    data model**: identity stays `ChildProfile`, inventory stays
+    `ChildInventory`, and arriving somewhere is an ordinary `WorldChange`
+    written through `recordWorldChangeOnce` (ADR-009).
+
+    It composes rather than duplicates, the same way the Quest and Discovery
+    Engines do, and it is the thinnest of the engines on purpose: a world is
+    content, so almost everything a new island needs already exists.
+    Creature Care Cove, the second world, is three `AdventureDefinition`s, a
+    `QuestDefinition`, three `ItemDefinition`s, two `IslandLocation`s, a
+    `WorldDefinition`, and a manifest. No engine changed to make it playable,
+    though building it did surface two gaps in existing engines that a
+    single-world island had never exercised (see
+    `docs/IMPLEMENTATION_STATUS.md`, Phase 29).
+
+    Two properties are structural rather than conventional. **A world is a
+    package, not a code path**: every id a world owns is listed in its
+    `WorldContentPack`, and `packs.test.ts` asserts the union of all packs
+    covers every authored registry entry exactly once, so content cannot
+    ship belonging to no world or to two. **Reachability is a filter on
+    candidates, never a change to ranking**: the Adaptive Adventure Director
+    (Phase 28) is handed only adventures on islands the child can reach, so
+    `select.ts` keeps its stated boundary ("it ranks, it does not gate")
+    while a parent is never shown a suggestion nobody can act on.
+
 `ParentProfile`, `ChildProfile`, and `ParentConsent` belong to none of the
 above — they are Account/Platform data (Auth boundary, above), foundational
 to every engine rather than owned by one.

@@ -207,3 +207,64 @@ but to keep (or restore) a non-first-person path — map navigator, fixed
 camera, or the existing Phaser view — as Sprouts' primary route through the
 world.
 
+
+## ADR-009: A world is a content pack, not a code path or a second identity
+
+Status: Accepted
+
+`docs/ROADMAP.md` Phase 29 asks for "multiple islands and worlds", with a
+world/region registry, a travel system, shared player identity and inventory
+across worlds, and content packaging. Two designs were available for the
+persistence question, and this ADR records the one taken.
+
+**Decision.** A world is authored content plus a manifest. Phase 29 adds no
+Amplify model, no per-world profile, no per-world inventory, and no
+cross-world synchronisation step.
+
+- **Identity** is `ChildProfile`, unchanged. One child, one profile, every
+  island.
+- **Inventory** is `ChildInventory`, unchanged. One backpack, every island.
+  Which world a treasure came from is read from that world's content pack at
+  display time (`summarizeTravelPack`), never written onto the row.
+- **Having been somewhere** is an ordinary `WorldChange`
+  (`changeType: 'TRAVEL'`, `changeKey: 'ARRIVED_AT_<WORLD>'`), written
+  through the Adventure Engine's existing `recordWorldChangeOnce`, with
+  `sourceSessionId: 'travel:<world-slug>'` following the `discovery:<id>` and
+  `quest:<id>` provenance conventions already in use.
+
+**Why not per-world persistence.** The rejected alternative was a
+`ChildWorldProfile`-style row per (child, world), with its own inventory and
+progress. It fails on three counts, in order of seriousness:
+
+1. **It is wrong for the child.** A five year old who finds a shell at home
+   and sails to the cove has one bag, not two. Per-world inventory forces the
+   product to answer "which of my selves earned this?", and there is no
+   answer to that question a child in this age range should ever have to
+   think about. CLAUDE.md pillar 7's calm engagement and section 6's rule
+   against dependency both point the same way: travel should cost a child
+   nothing they already have.
+2. **It buys nothing today.** Every engine that could care about a world
+   already keys off content ids, not places: a reward rule fires on what was
+   done, a collectible set is finished wherever its last piece turns up, and
+   mastery is a fact about a child rather than about an island. There is no
+   behaviour a per-world row would enable that a content pack plus a
+   `WorldChange` does not.
+3. **It would be a migration.** Adding a per-child, per-world row after
+   children have progress is a backfill; adding it later, if a genuine need
+   appears, is the same backfill. Deferring costs nothing and keeps the
+   schema honest about what the product actually models.
+
+**What this ADR does not claim.** It does not claim worlds will never need
+persistence. If a future world needs state that is genuinely about the place
+rather than about the child (a shared seasonal state, a world-local
+construction), that is a new model with a new reason, and this decision
+should be revisited rather than stretched.
+
+**Consequence for content.** Because a world is content, adding one has to
+stay checkable by content rules rather than by review. Each world declares a
+`WorldContentPack` listing every id it owns, and `packs.test.ts` asserts the
+union of all packs covers every authored location, adventure, quest, item,
+set, NPC, discovery, and story exactly once. Content belonging to no world
+would have quietly opted out of every rule a world imposes, starting with
+which children can reach it; that is now a failing test rather than a silent
+gap.

@@ -426,6 +426,11 @@ Deliverables:
 
 ### Phase 29 — Multiple Islands and Worlds
 
+Implemented (`src/features/worlds/`, ADR-009; see
+`docs/IMPLEMENTATION_STATUS.md` for what shipped and what did not). The
+second world, Creature Care Cove, is reached by boat from Welcome Harbor
+once a child has helped at Pirate Builder Bay.
+
 Deliverables:
 - world/region registry and a travel system;
 - world-specific assets and rules built on the shared curriculum, mastery,
@@ -433,6 +438,10 @@ Deliverables:
   primarily a content-authoring task (section 39);
 - shared player identity and inventory across worlds;
 - content packaging and lazy loading.
+
+Carried forward: the cove is card-based, so it has no explorable map, no
+persistent NPCs, and no discoveries yet, and lazy loading covers pack
+manifests and world views rather than the authored content registries.
 
 ### Phase 30 — Parent/Educator Experience Expansion
 

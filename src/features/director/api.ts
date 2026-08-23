@@ -10,8 +10,10 @@
  * `buildMasteryDetail`: the Director is one of the two consumers Phase 20
  * wrote that split for.
  */
-import { listSessions } from '../adventures/api';
+import { listAllWorldChanges, listSessions } from '../adventures/api';
 import { ADVENTURE_TEMPLATES } from '../adventures/content';
+import { getWorldSlugForLocation } from '../island/locations';
+import { filterToReachableWorlds, reachableWorldSlugs } from '../worlds/travel';
 import type { AgeBandValue } from '../child-profile/constants';
 import { listSkillsByAgeBand } from '../curriculum/queries';
 import { listSkillProgress } from '../mastery/api';
@@ -62,6 +64,35 @@ export interface DirectorSuggestion {
 }
 
 /**
+ * Every adventure this child could actually start today (docs/ROADMAP.md
+ * Phase 29).
+ *
+ * Filtering happens here, in the candidate list, rather than inside
+ * `select.ts`, which states plainly that it "ranks, it does not gate". That
+ * boundary is worth keeping: an adventure on an island the child has not
+ * opened the route to yet is not badly ranked, it is not a candidate at all,
+ * and a suggestion nobody can act on would be a dead end dressed up as
+ * guidance. Adventures at story-only pseudo-locations belong to no world's
+ * map and are never filtered out.
+ */
+export async function listReachableAdventures(
+  childProfileId: string,
+  ageBand: AgeBandValue,
+): Promise<typeof ADVENTURE_TEMPLATES> {
+  const changes = await listAllWorldChanges(childProfileId).catch(() => []);
+  const reachable = reachableWorldSlugs(
+    changes.map((change) => change.changeKey),
+    ageBand,
+  );
+  return filterToReachableWorlds(
+    ADVENTURE_TEMPLATES,
+    (template) => template.locationSlug,
+    getWorldSlugForLocation,
+    reachable,
+  );
+}
+
+/**
  * What this child could do next, ranked. Never throws: a Director failure
  * must degrade to "no suggestion" rather than break a child's screen, since
  * every surface it feeds already works without it.
@@ -72,10 +103,13 @@ export async function suggestNextAdventure(
   storyIdForAdventure?: (slug: string) => string | undefined,
 ): Promise<DirectorSuggestion> {
   try {
-    const context = await buildDirectorContext(childProfileId, ageBand);
+    const [context, candidates] = await Promise.all([
+      buildDirectorContext(childProfileId, ageBand),
+      listReachableAdventures(childProfileId, ageBand),
+    ]);
     return {
-      ranking: rankAdventures(ADVENTURE_TEMPLATES, ageBand, context, storyIdForAdventure),
-      next: nextAdventure(ADVENTURE_TEMPLATES, ageBand, context, storyIdForAdventure),
+      ranking: rankAdventures(candidates, ageBand, context, storyIdForAdventure),
+      next: nextAdventure(candidates, ageBand, context, storyIdForAdventure),
     };
   } catch {
     return { ranking: [], next: undefined };

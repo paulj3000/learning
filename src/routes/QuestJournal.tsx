@@ -1,10 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import styles from './QuestJournal.module.css';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { buildQuestJournal } from '../features/quests/journal';
-import { buildQuestContext, listQuestStates, syncQuestProgress } from '../features/quests/api';
-import { QUEST_DEFINITIONS } from '../features/quests/content';
+import {
+  buildQuestContext,
+  listQuestStates,
+  startQuest,
+  syncQuestProgress,
+} from '../features/quests/api';
+import { QUEST_DEFINITIONS, getQuestDefinition } from '../features/quests/content';
 import { findNpc } from '../features/npc/content';
 import { getChildProfile } from '../features/child-profile/api';
 import type { QuestJournalEntry } from '../features/quests/journal';
@@ -25,11 +30,44 @@ const STATUS_LABELS: Record<QuestJournalEntry['status'], string> = {
  * last looked. It also persists that projection on open (`syncQuestProgress`)
  * so a quest finished by wandering gets its world changes and rewards even if
  * the child never returns to the adventure that completed it.
+ *
+ * An `AVAILABLE` quest can be started from here (Phase 29). Until a second
+ * world existed, every startable quest was either offered by an NPC in a
+ * conversation or opened by a discovery, so this screen could label a quest
+ * "You can start this" and leave it at that. Creature Care Cove has neither
+ * an explorable map nor a character to talk to, so its quest had no entrance
+ * at all: the journal was showing a door with no handle. Starting a quest
+ * here changes nothing about how progress works, since objectives stay
+ * derived from world state either way.
  */
 export function QuestJournal() {
   const { childId } = useParams<{ childId: string }>();
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [entries, setEntries] = useState<QuestJournalEntry[]>([]);
+  const [startingQuestId, setStartingQuestId] = useState<string | null>(null);
+  const [startError, setStartError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const handleStart = useCallback(
+    async (questId: string) => {
+      const definition = getQuestDefinition(questId);
+      if (!childId || !definition) return;
+      setStartingQuestId(questId);
+      setStartError(false);
+      try {
+        await startQuest(childId, definition);
+        // Reload rather than patch state locally: the first stage may already
+        // be complete from work the child did before accepting, and only a
+        // fresh projection knows that.
+        setReloadKey((key) => key + 1);
+      } catch {
+        setStartError(true);
+      } finally {
+        setStartingQuestId(null);
+      }
+    },
+    [childId],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -65,7 +103,7 @@ export function QuestJournal() {
     return () => {
       cancelled = true;
     };
-  }, [childId]);
+  }, [childId, reloadKey]);
 
   if (!childId) {
     return null;
@@ -80,6 +118,11 @@ export function QuestJournal() {
         {loadState === 'error' ? (
           <p className={styles.lead} role="alert">
             Something went wrong loading your quests.
+          </p>
+        ) : null}
+        {startError ? (
+          <p className={styles.lead} role="alert">
+            We could not start that quest. Try again in a moment.
           </p>
         ) : null}
         {loadState === 'ready' && entries.length === 0 ? (
@@ -124,6 +167,24 @@ export function QuestJournal() {
 
                   {entry.journalNote ? (
                     <p className={styles.entryNote}>{entry.journalNote}</p>
+                  ) : null}
+
+                  {entry.status === 'AVAILABLE' ? (
+                    <button
+                      className={styles.startButton}
+                      type="button"
+                      /*
+                        Several quests can be available at once, so the visible
+                        label alone would name every button the same thing for
+                        a screen reader. The visible text stays inside the
+                        accessible name rather than being replaced by it.
+                      */
+                      aria-label={`Start this quest: ${entry.title}`}
+                      onClick={() => void handleStart(entry.questId)}
+                      disabled={startingQuestId === entry.questId}
+                    >
+                      {startingQuestId === entry.questId ? 'Starting...' : 'Start this quest'}
+                    </button>
                   ) : null}
 
                   {entry.status === 'ACTIVE' ? (

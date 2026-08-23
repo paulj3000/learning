@@ -263,14 +263,14 @@ async function grantQuestRewards(
   questId: QuestId,
 ): Promise<readonly string[]> {
   try {
-    const [{ grantRewards }, { ISLAND_REWARD_TABLE, ISLAND_COLLECTIBLE_SETS, ISLAND_ITEMS }] =
+    const [{ grantRewards }, { ALL_REWARD_RULES, ALL_COLLECTIBLE_SETS, ALL_ITEMS }] =
       await Promise.all([import('../rewards/api'), import('../rewards/content')]);
     const result = await grantRewards(
       childProfileId,
       { type: 'QUEST_COMPLETED', questId },
-      ISLAND_REWARD_TABLE,
-      ISLAND_COLLECTIBLE_SETS,
-      ISLAND_ITEMS,
+      ALL_REWARD_RULES,
+      ALL_COLLECTIBLE_SETS,
+      ALL_ITEMS,
     );
     return result.messages;
   } catch {

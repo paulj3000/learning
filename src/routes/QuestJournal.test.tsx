@@ -1,20 +1,22 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const { buildQuestContext, listQuestStates, syncQuestProgress, getChildProfile } = vi.hoisted(
-  () => ({
+const { buildQuestContext, listQuestStates, syncQuestProgress, startQuest, getChildProfile } =
+  vi.hoisted(() => ({
     buildQuestContext: vi.fn(),
     listQuestStates: vi.fn(),
     syncQuestProgress: vi.fn(),
+    startQuest: vi.fn(),
     getChildProfile: vi.fn(),
-  }),
-);
+  }));
 
 vi.mock('../features/quests/api', () => ({
   buildQuestContext,
   listQuestStates,
   syncQuestProgress,
+  startQuest,
 }));
 
 // The journal hides quests authored for other age bands, so the route reads
@@ -50,6 +52,7 @@ const BRIDGE_STARTED: QuestState = {
 beforeEach(() => {
   vi.clearAllMocks();
   syncQuestProgress.mockResolvedValue([]);
+  startQuest.mockResolvedValue(undefined);
   listQuestStates.mockResolvedValue([]);
   buildQuestContext.mockResolvedValue(context());
   // Every authored quest the existing cases assert on is Pathfinder-facing.
@@ -149,5 +152,52 @@ describe('QuestJournal', () => {
     renderJournal();
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/went wrong loading your quests/i);
+  });
+});
+
+/**
+ * Phase 29. Before a second world existed, every startable quest was offered
+ * by an NPC in a conversation or opened by a discovery, so the journal could
+ * label one "You can start this" with no way to start it. Creature Care Cove
+ * has neither, so its quest had no entrance at all.
+ */
+describe('starting an available quest from the journal', () => {
+  it('starts the quest and reprojects the journal', async () => {
+    const user = userEvent.setup();
+    renderJournal();
+
+    const button = await screen.findByRole('button', {
+      name: 'Start this quest: The Moonlight Bridge',
+    });
+    await user.click(button);
+
+    await waitFor(() => expect(startQuest).toHaveBeenCalled());
+    expect(startQuest.mock.calls[0]?.[0]).toBe('child-1');
+    expect(startQuest.mock.calls[0]?.[1]).toMatchObject({ id: 'repair-the-bridge' });
+    // A reprojection, because the first stage may already be complete from
+    // work the child did before accepting.
+    await waitFor(() => expect(syncQuestProgress).toHaveBeenCalledTimes(2));
+  });
+
+  it('offers no start button for a quest already under way', async () => {
+    listQuestStates.mockResolvedValue([BRIDGE_STARTED]);
+    renderJournal();
+
+    await screen.findByText('The Moonlight Bridge');
+    expect(
+      screen.queryByRole('button', { name: 'Start this quest: The Moonlight Bridge' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('says so calmly when the quest cannot be started', async () => {
+    startQuest.mockRejectedValue(new Error('offline'));
+    const user = userEvent.setup();
+    renderJournal();
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Start this quest: The Moonlight Bridge' }),
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('We could not start that quest');
   });
 });

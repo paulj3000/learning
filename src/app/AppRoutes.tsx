@@ -18,6 +18,8 @@ import { IslandLocationPage } from '../routes/IslandLocationPage';
 import { AdventurePage } from '../routes/AdventurePage';
 import { AdventureLog } from '../routes/AdventureLog';
 import { QuestJournal } from '../routes/QuestJournal';
+import { TravelDeck } from '../routes/TravelDeck';
+import { WorldHubPage } from '../routes/WorldHubPage';
 import { StoryPage } from '../routes/StoryPage';
 import { AdventureLibraryPage } from '../routes/AdventureLibraryPage';
 import { AdminDashboard } from '../routes/AdminDashboard';
@@ -236,6 +238,27 @@ export function AppRoutes() {
             <Suspense fallback={<p>Loading Bolt's Workshop...</p>}>
               <BoltsWorkshopWorldPage />
             </Suspense>
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/travel"
+        element={
+          <RequireParent>
+            <TravelDeck />
+          </RequireParent>
+        }
+      />
+      {/*
+        Phase 29. Not lazy: a world hub is a card list, and the heavy
+        per-world assets (tilemaps, decor, Phaser scenes) are already
+        code-split behind the `/world/...` routes above.
+      */}
+      <Route
+        path="/island/:childId/worlds/:worldSlug"
+        element={
+          <RequireParent>
+            <WorldHubPage />
           </RequireParent>
         }
       />

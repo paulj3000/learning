@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import styles from './IslandLocationPage.module.css';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { getIslandLocation, isLocationUnlocked } from '../features/island/locations';
+import { getHomeWorld } from '../features/worlds/worlds';
 import { getAdventureTemplatesForLocation } from '../features/adventures/content';
 import { listAllWorldChanges } from '../features/adventures/api';
 import { getChildProfile } from '../features/child-profile/api';
@@ -14,6 +15,15 @@ type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 export function IslandLocationPage() {
   const { childId, locationSlug } = useParams<{ childId: string; locationSlug: string }>();
   const location = locationSlug ? getIslandLocation(locationSlug) : undefined;
+  /**
+   * Phase 29: "back to the map" has to mean the map this place is actually
+   * on. Sending a child standing at the cove back to the home harbor would
+   * quietly teleport them across the sea.
+   */
+  const backTo =
+    !location || location.worldSlug === getHomeWorld().slug
+      ? `/island/${childId ?? ''}`
+      : `/island/${childId ?? ''}/worlds/${location.worldSlug}`;
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
   const [allWorldChanges, setAllWorldChanges] = useState<WorldChange[]>([]);
@@ -60,7 +70,7 @@ export function IslandLocationPage() {
     return (
       <IslandLayout childId={childId}>
         <p role="alert">We could not find that part of the island.</p>
-        <Link className={styles.backLink} to={`/island/${childId}`}>
+        <Link className={styles.backLink} to={backTo}>
           Back to the map
         </Link>
       </IslandLayout>
@@ -78,7 +88,7 @@ export function IslandLocationPage() {
     return (
       <IslandLayout childId={childId}>
         <p role="alert">Something went wrong loading this part of the island.</p>
-        <Link className={styles.backLink} to={`/island/${childId}`}>
+        <Link className={styles.backLink} to={backTo}>
           Back to the map
         </Link>
       </IslandLayout>
@@ -94,7 +104,7 @@ export function IslandLocationPage() {
             This part of the island has not been discovered yet. Maybe a new story will lead you
             here.
           </p>
-          <Link className={styles.backLink} to={`/island/${childId}`}>
+          <Link className={styles.backLink} to={backTo}>
             Back to the map
           </Link>
         </div>
@@ -178,7 +188,7 @@ export function IslandLocationPage() {
             Try exploring the workshop (new!)
           </Link>
         ) : null}
-        <Link className={styles.backLink} to={`/island/${childId}`}>
+        <Link className={styles.backLink} to={backTo}>
           Back to the map
         </Link>
       </div>

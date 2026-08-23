@@ -4,14 +4,21 @@ import { QUEST_DEFINITIONS, getQuestDefinition, getQuestsOfferedBy } from './ind
 import { allObjectives, getStage } from '../quest';
 import { ISLAND_NPCS } from '../../npc/content';
 import { reachableMemoryFlags } from '../../npc/dialogue';
-import { ISLAND_ITEMS } from '../../rewards/content';
+import { ALL_ITEMS } from '../../rewards/content';
 import { ADVENTURE_TEMPLATES } from '../../adventures/content';
 import { ISLAND_LOCATIONS } from '../../island/locations';
 import { ISLAND_DISCOVERY_IDS } from '../../discovery/content';
 import type { QuestDefinition } from '../types';
 
 const ADVENTURE_SLUGS = new Set(ADVENTURE_TEMPLATES.map((template) => template.slug));
-const ITEM_IDS = new Set(ISLAND_ITEMS.map((item) => item.id));
+/**
+ * Phase 29: the assertions below run over `QUEST_DEFINITIONS`, which is now
+ * every world's quests rather than only the home island's, so the registries
+ * they are checked against have to be every world's too. Checking a cove
+ * quest's item against the island's items alone would fail an objective that
+ * is perfectly satisfiable.
+ */
+const ITEM_IDS = new Set(ALL_ITEMS.map((item) => item.id));
 const NPC_IDS = new Set(ISLAND_NPCS.map((npc) => npc.id));
 const LOCATION_SLUGS = new Set(ISLAND_LOCATIONS.map((location) => location.slug));
 const DISCOVERY_IDS = new Set(ISLAND_DISCOVERY_IDS);
@@ -31,7 +38,7 @@ const SETTABLE_MEMORY_FLAGS = new Set(
   ISLAND_NPCS.flatMap((npc) => npc.dialogue.flatMap((node) => [...(node.setsMemoryFlags ?? [])])),
 );
 /** Plus the flags quests themselves set on completion. */
-for (const quest of ISLAND_QUESTS) {
+for (const quest of QUEST_DEFINITIONS) {
   for (const entry of quest.completion.setsNpcMemoryFlags ?? []) {
     for (const flag of entry.flags) SETTABLE_MEMORY_FLAGS.add(flag);
   }
@@ -39,7 +46,7 @@ for (const quest of ISLAND_QUESTS) {
 
 /** Keys quests record themselves, which a later objective may legitimately watch for. */
 const QUEST_WORLD_CHANGE_KEYS = new Set(
-  ISLAND_QUESTS.flatMap((quest) => [
+  QUEST_DEFINITIONS.flatMap((quest) => [
     ...quest.stages.flatMap((stage) => (stage.worldChanges ?? []).map((c) => c.changeKey)),
     ...(quest.completion.worldChanges ?? []).map((c) => c.changeKey),
   ]),

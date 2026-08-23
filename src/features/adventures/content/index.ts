@@ -10,6 +10,7 @@ import { DINOSAUR_EXPEDITION_ADVENTURES } from './dinosaurExpeditionAdventures';
 import { ROBOT_RESCUE_ADVENTURES } from './robotRescueAdventures';
 import { BUTTERFLY_GARDEN_ADVENTURES } from './butterflyGardenAdventures';
 import { CASTLES_SECRET_DOOR_ADVENTURES } from './castlesSecretDoorAdventures';
+import { CREATURE_CARE_COVE_ADVENTURES } from './creatureCareCoveAdventures';
 
 /**
  * Every arc challenge below the first four entries carries a story-only
@@ -28,6 +29,9 @@ export const ADVENTURE_TEMPLATES: AdventureDefinition[] = [
   ...ROBOT_RESCUE_ADVENTURES,
   ...BUTTERFLY_GARDEN_ADVENTURES,
   ...CASTLES_SECRET_DOOR_ADVENTURES,
+  // Phase 29: a second world's content, registered exactly like the first
+  // world's. The engine has no notion of which island an adventure is on.
+  ...CREATURE_CARE_COVE_ADVENTURES,
 ];
 
 export function getAdventureTemplate(slug: string): AdventureDefinition | undefined {
@@ -94,6 +98,7 @@ export * from './dinosaurExpeditionAdventures';
 export * from './robotRescueAdventures';
 export * from './butterflyGardenAdventures';
 export * from './castlesSecretDoorAdventures';
+export * from './creatureCareCoveAdventures';
 export {
   REPAIR_THE_MOONLIGHT_BRIDGE,
   THREE_PLANKS_FOR_THE_BRIDGE,

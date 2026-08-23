@@ -25,7 +25,7 @@ import { client } from '../../lib/data-client';
 import type { Schema } from '../../../amplify/data/resource';
 import { listAllWorldChanges, recordWorldChangeOnce } from '../adventures/api';
 import { getInventory, grantRewards } from '../rewards/api';
-import { ISLAND_COLLECTIBLE_SETS, ISLAND_ITEMS, ISLAND_REWARD_TABLE } from '../rewards/content';
+import { ALL_COLLECTIBLE_SETS, ALL_ITEMS, ALL_REWARD_RULES } from '../rewards/content';
 import { ISLAND_NPCS } from '../npc/content';
 import { ISLAND_DISCOVERIES, ISLAND_DISCOVERY_IDS } from './content';
 import { addDiscoveredId, parseKnownIds, resolveDiscovery } from './discovery';
@@ -173,9 +173,9 @@ export async function recordDiscovery(
     const granted = await grantRewards(
       childProfileId,
       { type: 'DISCOVERY', discoveryKey: definition.id },
-      ISLAND_REWARD_TABLE,
-      ISLAND_COLLECTIBLE_SETS,
-      ISLAND_ITEMS,
+      ALL_REWARD_RULES,
+      ALL_COLLECTIBLE_SETS,
+      ALL_ITEMS,
     );
     rewardMessages = granted.messages;
     newItemIds = granted.newItemIds;

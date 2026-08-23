@@ -1,10 +1,21 @@
 import { ISLAND_QUESTS } from './islandQuests';
+import { CREATURE_CARE_COVE_QUESTS } from './creatureCareCoveQuests';
 import type { QuestDefinition, QuestId } from '../types';
 
 export * from './islandQuests';
+export * from './creatureCareCoveQuests';
 
-/** Every authored quest, in the order a content designer wrote them. */
-export const QUEST_DEFINITIONS: readonly QuestDefinition[] = ISLAND_QUESTS;
+/**
+ * Every authored quest, in the order a content designer wrote them, one
+ * world's pack after another (docs/ROADMAP.md Phase 29). The Quest Engine
+ * has no notion of which world a quest belongs to: a quest is available when
+ * its prerequisites pass, and a cove quest's prerequisite is having sailed
+ * to the cove.
+ */
+export const QUEST_DEFINITIONS: readonly QuestDefinition[] = [
+  ...ISLAND_QUESTS,
+  ...CREATURE_CARE_COVE_QUESTS,
+];
 
 export function getQuestDefinition(questId: QuestId): QuestDefinition | undefined {
   return QUEST_DEFINITIONS.find((definition) => definition.id === questId);

@@ -44,15 +44,23 @@ Bedrock model choice ever changes.
 
 ## Current phase
 
-**Phases 0-28 are implemented**, plus two follow-ups: "Curriculum band
+**Phases 0-29 are implemented**, plus two follow-ups: "Curriculum band
 coverage (Phase 19 follow-up)", which gave Sprouts and Explorers a
 curriculum at all, and "Phase 27 follow-up", which closed the two seams
 Phase 27 shipped with (Chatty re-voicing opted-in NPC lines, and a
 `SWITCH_REPRESENTATION` turn putting a real manipulative beside the step).
 Both are described in their own sections below.
 
-The most recent phase proper is Phase 28 (Adaptive Adventure Director).
-Phase 27 came before it — see its section below. Phase 4 gave Chatty a voice;
+The most recent phase proper is Phase 29 (Multiple Islands and Worlds): the
+island is no longer the world. A child who has helped Pip at the bay can sail
+from Welcome Harbor to Creature Care Cove, a second world with its own
+locations, adventures, quest, and treasure, carrying the same profile and the
+same backpack. The phase's real deliverable is that the second world needed no
+engine change to exist — it is content plus a manifest — and that content
+packs are now a checked invariant rather than a convention (see its section
+below, and ADR-009 in docs/DECISIONS.md). Phase 28 (Adaptive Adventure
+Director) came before it, and Phase 27 before that — see their sections
+below. Phase 4 gave Chatty a voice;
 Phase 27 gives that voice a curriculum boundary: a hint on a curriculum
 skill now goes through a safe context builder (skill, known prerequisites,
 current quest, hint level, allowed vocabulary, and nothing else), a closed
@@ -3754,6 +3762,227 @@ covers the other bands.
   if a location ever holds many adventures per band.
 - **`SKILL_NEED_WEIGHT` is authored, not validated.** Documented as a product
   constant in the same terms as the mastery and relationship thresholds.
+
+## Phase 29 - Multiple Islands and Worlds
+
+**Complete.** The island is no longer the world. A child who has helped Pip
+at Pirate Builder Bay can now walk down to the sailing dock, cross to a
+second island, and play three adventures authored for their own age band
+there, carrying the same profile and the same backpack.
+
+The point of the phase is not the second island. It is that the second
+island needed **no engine change to exist**: Creature Care Cove is three
+`AdventureDefinition`s, one `QuestDefinition`, three `ItemDefinition`s, two
+`IslandLocation`s, a `WorldDefinition`, and a manifest. That is the
+explorable-world roadmap's section 39 authoring principle ("the core
+application should not need substantial changes every time a dragon,
+dinosaur, princess, robot, scientist, pirate, or magical creature is
+introduced") stated as a working claim rather than an aspiration.
+
+### The four deliverables
+
+**World/region registry and a travel system** (`worlds.ts`, `travel.ts`).
+`WORLD_DEFINITIONS` is source-controlled content like `ISLAND_LOCATIONS`, and
+every `IslandLocation` now carries a required `worldSlug` - required rather
+than defaulted, so a new place cannot land on the home island because nobody
+said where it was. Travel is pure: worlds plus the child's own world changes
+plus their age band in, an ordered travel deck out.
+
+Two product rules are worth stating because they differ from rules already in
+the codebase:
+
+- **A closed route is shown, not hidden.** `isLocationUnlocked` hides a
+  secret location outright, because a secret that announces itself is not a
+  secret. A world is the opposite: the boat is visible from the beach, so a
+  locked destination renders with its authored `lockedHint` naming what would
+  open it. Same rule as `DiscoveryDefinition.lockedMessage`, opposite of the
+  rule for secret locations, and deliberately so.
+- **The route opens on any of several keys.** The cove opens on
+  `BRIDGE_REPAIRED` *or* `TIDE_GATE_SET`, because Sprouts and Pathfinders
+  repair the harbour bridge while Explorers at the same place set the tide
+  gate. A single-key requirement would have locked every seven and eight year
+  old out of the second world entirely - the same age-band gap the
+  post-Phase-27 fix was written to close, which is why `WorldTravelRequirement`
+  is `anyOfChangeKeys` from the start.
+
+**World-specific content on the shared engines** (`creatureCareCoveAdventures.ts`,
+`creatureCareCoveQuests.ts`, `creatureCareCoveItems.ts`, and two new
+locations). All three cove adventures are the same act at three bands -
+helping Nella through the morning care round - so all three record the same
+`COVE_CREATURES_FED` world change, following the precedent
+`THREE_PLANKS_FOR_THE_BRIDGE` set rather than the one
+`THE_TIDE_GATE_CALCULATION` set. That is what lets one quest and both reward
+rules serve every band: a per-band key would have quietly given Pathfinders a
+payoff nobody else could reach.
+
+**Shared identity and inventory across worlds** (`travelPack.ts`, ADR-009).
+There was nothing to build, and that is the deliverable. `ChildProfile` and
+`ChildInventory` are child-scoped rows, so one child has one identity and one
+backpack wherever they stand. Phase 29 added no per-world profile, no
+per-world inventory, and no merge step; ADR-009 records why that alternative
+was rejected rather than deferred. What was added is the *view*:
+`summarizeTravelPack` groups one backpack by the world each treasure came
+from, reading ownership from the content packs rather than storing it on the
+item, and surfaces anything unclaimed rather than hiding it.
+
+**Content packaging and lazy loading** (`packs/`, `validate.ts`). Each world
+declares a `WorldContentPack` listing every id it owns, written by hand
+rather than derived - a manifest that computed itself would agree with the
+registries by construction and could never catch anything. `packs.test.ts`
+asserts every pack names only content that exists, in a world that owns it;
+that no id is claimed twice; and that **no authored content is unclaimed by
+any world**. That last one is the invariant that makes packaging real:
+content belonging to no world has quietly opted out of every rule a world
+imposes, starting with which children can reach it, and nothing else in the
+codebase would have noticed.
+
+### Two gaps a second world exposed in existing engines
+
+Neither was introduced by this phase. Both were invisible while there was one
+island with characters on it, and both would have shipped the cove as
+content no child could finish.
+
+**Nothing fires a `WORLD_CHANGE` reward trigger.** Only two of the six
+`RewardTrigger` kinds are wired into live gameplay: `QUEST_COMPLETED`
+(`syncQuestProgress`) and `DISCOVERY` (`openDiscovery`). The other four are
+dormant platform-wide, which Phase 24 documented for two of them and which
+`reward-bridge-world-change` on the island has silently been subject to ever
+since. The cove's treasure was first authored on `COVE_CREATURES_FED`, which
+reads perfectly and grants nothing; it now hangs on the one trigger that
+fires, and `creatureCareCoveContent.test.ts` asserts every cove rule uses a
+live trigger so the next world cannot repeat it. Wiring the dormant triggers
+is Phase 24 work with a wide blast radius (every island rule would start
+granting), so it was deliberately not done here.
+
+**An available quest had no way to be started.** `syncQuestProgress` only
+advances quests with a stored row, and a row was only ever created by an NPC
+offer (`NpcConversation`) or by a discovery that starts one. Every island
+quest has one of those; the cove has neither, because both need an
+explorable map. The journal was showing "You can start this" above a door
+with no handle. It now has a "Start this quest" button for `AVAILABLE`
+entries, which also gives the island's own giver-less quest an entrance it
+never had. Progress stays derived either way, so a child who did the work
+before accepting gets credit on the next projection.
+
+### Two seams this closed
+
+**The Director could have suggested an island a child cannot sail to.**
+Phase 28 ranks over every authored adventure, so the moment a second world
+existed the parent dashboard could have led with "The Morning Care Round" for
+a child with no route to the cove - a suggestion nobody can act on, which is
+a dead end dressed up as guidance. Fixed in `director/api.ts`, by filtering
+the *candidate list* rather than by teaching `select.ts` to gate, so that
+module keeps its stated boundary ("it ranks, it does not gate"). Story-arc
+challenges at pseudo-locations are on no map and are never filtered.
+
+**"Back to the map" would have teleported a child home.** `IslandLocationPage`
+is shared by every location in every world, and its back link was hardcoded to
+Welcome Harbor. A child standing at the cove would have been quietly moved
+across the sea. It now resolves from the location's own `worldSlug`.
+
+### Where it surfaces
+
+- Welcome Harbor gains a "Sail to another island" link.
+- `/island/:childId/travel` is the sailing dock: every world this child could
+  see, open or closed, with a calm line about the backpack coming along.
+- `/island/:childId/worlds/:worldSlug` is a generic world hub - it renders
+  whatever world the route names out of the registry, so the tenth island
+  needs a `WorldDefinition` and some locations, not a tenth copy of the page.
+  The home world is deliberately not served here: Welcome Harbor has been its
+  hub since Phase 2, with onboarding, the daily event, and the seasonal note
+  attached to it.
+- The harbor's own map now lists only the home island's locations. Before
+  worlds existed that was every location there was.
+
+### Files
+
+New: `src/features/worlds/` (`slugs.ts`, `types.ts`, `worlds.ts`,
+`travel.ts`, `travelPack.ts`, `validate.ts`, `api.ts`, `index.ts`,
+`packs/index.ts`, `packs/homeIsland.ts`, `packs/creatureCareCove.ts`, plus
+`worlds.test.ts`, `travel.test.ts`, `travelPack.test.ts`, `packs.test.ts`,
+`creatureCareCoveContent.test.ts`);
+`src/features/adventures/content/creatureCareCoveAdventures.ts`;
+`src/features/quests/content/creatureCareCoveQuests.ts`;
+`src/features/rewards/content/creatureCareCoveItems.ts`;
+`src/routes/TravelDeck.tsx`, `src/routes/WorldHubPage.tsx` and their CSS
+modules; `src/features/director/reachability.test.ts`.
+
+Changed: `src/features/island/locations.ts` (required `worldSlug`, two cove
+locations, `listLocationsInWorld`, `getWorldSlugForLocation`);
+`src/features/rewards/content/index.ts` and
+`src/features/quests/content/index.ts` (cross-world aggregates `ALL_ITEMS`,
+`ALL_COLLECTIBLE_SETS`, `ALL_REWARD_RULES`, and a `QUEST_DEFINITIONS` that
+spans packs); `src/features/discovery/api.ts` and
+`src/features/quests/api.ts` (read the aggregates, so a cove item can be
+granted at all); `src/features/director/api.ts` (reachability filter);
+`src/app/AppRoutes.tsx`, `src/routes/WelcomeHarbor.tsx`,
+`src/routes/IslandLocationPage.tsx`; `src/routes/QuestJournal.tsx` and its
+test and CSS module (the "Start this quest" button);
+`src/features/quests/content/islandQuests.test.ts` (its cross-registry checks
+now run against every world's content, since the assertions loop over
+`QUEST_DEFINITIONS`).
+
+No Amplify schema change, so nothing here needs a deploy to be exercised.
+
+### Known limitations (Phase 29)
+
+- **Creature Care Cove has no explorable Phaser map.** It is a card-based
+  world, exactly as every MVP location was before Phase 9. That is what rules
+  out three things its pack deliberately does not contain: **no NPCs** (a
+  character can only be talked to from inside a world view, so Nella is
+  authored as an adventure `speaker` rather than an `NpcDefinition`), **no
+  discoveries** (a secret is walked up to in a scene), and **no stories**.
+  Authoring any of them today would have put content on the island that no
+  child could reach. Giving the cove a map is the natural next slice and is
+  purely additive.
+- **`lantern-tide-pools` is a quiet place with nothing to do.** It has a
+  description, a decoration, and the quest's completion world change, but no
+  adventure - the same shape as the four story-payoff locations
+  (`dragons-sanctuary`, `fossil-ridge-camp`, `castle-writing-room`,
+  `bolts-workshop`). It reads as somewhere to visit, not as a broken page,
+  but it is thinner than a location with content.
+- **Lazy loading covers pack manifests and world views, not the authored
+  content registries.** `ADVENTURE_TEMPLATES`, `ALL_ITEMS`,
+  `QUEST_DEFINITIONS` and their neighbours are still statically imported,
+  because engines read them synchronously (`getQuestDefinition`,
+  `resolveAdventureForAgeBand`, `grantRewards`) and making those async would
+  be a rewrite of every engine rather than a packaging change. The bytes that
+  actually dominate a world - tilemaps, decor, Phaser scenes - are already
+  code-split per route. Revisit when a world ships enough content for its
+  registry entries to matter, most likely by making the registries
+  registration-based so a pack can add itself on load.
+- **The cove's treasure arrives in one lump at quest completion**, rather
+  than a shell when the creatures are fed and an apron at the end, because
+  `WORLD_CHANGE` and `ADVENTURE_COMPLETED` triggers are dormant platform-wide
+  (above). The cove also has no collectible set for the same reason: a set
+  needs more than one granting moment to be a collection rather than a
+  formality. Splitting the grant back apart is a one-line content change once
+  those triggers are wired.
+- **Nella is not a persistent character.** She speaks in the adventures and
+  is named in the quest, but she has no memory, no relationship level, and no
+  schedule, because those all belong to Phase 23's NPC System, which needs a
+  map. A child who plays the care round twice gets the same lines both times.
+- **The travel deck has no world-to-world route restrictions.** Any unlocked
+  world is reachable from any other, since there are only two and both connect
+  to the same harbour. A future world reached only via another would need a
+  `from` constraint on the requirement, which `WorldTravelRequirement` does
+  not have.
+- **No parent-facing view of travel.** A `TRAVEL` world change is recorded and
+  will appear wherever world changes are already listed, but nothing yet says
+  "sailed to Creature Care Cove" in the parent dashboard's own vocabulary.
+  Phase 30 shape, not a Phase 29 deliverable.
+- **`TravelDeck.tsx` and `WorldHubPage.tsx` have no automated tests**, the
+  same already-documented precedent as every other route in this app: they
+  need a live backend to exercise meaningfully, so only the pure logic
+  underneath them (`travel.ts`, `travelPack.ts`, `validate.ts`) is unit
+  tested. `recordArrival` is likewise untested for the same reason its
+  neighbours in `quests/api.ts` and `discovery/api.ts` are.
+- **Not yet played against a live sandbox.** Everything above is verified by
+  1334 passing unit tests, a clean typecheck, and a clean production build,
+  but no child has actually sailed to the cove in a deployed environment.
+  `recordArrival`'s write path in particular has never run against real
+  AppSync - it uses `recordWorldChangeOnce`, which is well exercised, but the
+  `changeType: 'TRAVEL'` value itself is new.
 
 ## Live smoke test, story/co-op verification, and Explorer content
 

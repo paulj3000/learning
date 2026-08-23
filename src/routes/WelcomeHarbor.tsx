@@ -3,7 +3,8 @@ import { Link, useParams } from 'react-router-dom';
 import styles from './WelcomeHarbor.module.css';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { CompanionIntro } from '../features/island/CompanionIntro';
-import { ISLAND_LOCATIONS, isLocationUnlocked } from '../features/island/locations';
+import { isLocationUnlocked, listLocationsInWorld } from '../features/island/locations';
+import { getHomeWorld } from '../features/worlds/worlds';
 import { getTodaysEvent } from '../features/island/events';
 import { getSeasonalIslandNote } from '../features/island/seasons';
 import { getOrCreateCompanionProfile, getCompanionProfile } from '../features/island/api';
@@ -100,8 +101,15 @@ export function WelcomeHarbor() {
 
       <h2 className={styles.mapHeading}>Where to next?</h2>
       <div className={styles.grid}>
-        {ISLAND_LOCATIONS.filter((location) => isLocationUnlocked(location, worldChangeKeys)).map(
-          (location) => (
+        {/*
+          Phase 29: the harbor map shows the home island's own locations.
+          Before worlds existed this was every location there was; now a
+          second island's places are reached by sailing there, not by
+          appearing on this island's map.
+        */}
+        {listLocationsInWorld(getHomeWorld().slug)
+          .filter((location) => isLocationUnlocked(location, worldChangeKeys))
+          .map((location) => (
             <Link
               className={styles.card}
               key={location.slug}
@@ -110,8 +118,7 @@ export function WelcomeHarbor() {
               <p className={styles.cardTitle}>{location.title}</p>
               <p className={styles.cardTagline}>{location.tagline}</p>
             </Link>
-          ),
-        )}
+          ))}
       </div>
 
       <Link className={styles.logLink} to={`/island/${childId}/log`}>
@@ -119,6 +126,9 @@ export function WelcomeHarbor() {
       </Link>
       <Link className={styles.logLink} to={`/island/${childId}/quests`}>
         Open your quest journal (new!)
+      </Link>
+      <Link className={styles.logLink} to={`/island/${childId}/travel`}>
+        Sail to another island (new!)
       </Link>
       <Link className={styles.logLink} to={`/island/${childId}/world`}>
         Try walking around the island (new!)
