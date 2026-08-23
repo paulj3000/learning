@@ -15,6 +15,7 @@
 import { areRequiredObjectivesComplete, isObjectiveComplete } from './objectives';
 import { advanceQuest, getStage, isQuestAvailable } from './quest';
 import type { QuestContext, QuestDefinition, QuestId, QuestState } from './types';
+import type { AgeBandValue } from '../child-profile/constants';
 
 /** What the journal shows for one quest. `AVAILABLE` is derived, never stored. */
 export type JournalStatus = 'AVAILABLE' | 'ACTIVE' | 'COMPLETED';
@@ -117,9 +118,20 @@ export function buildQuestJournal(
   definitions: readonly QuestDefinition[],
   states: readonly QuestState[],
   context: QuestContext,
+  ageBand: AgeBandValue,
 ): QuestJournalEntry[] {
   const byQuestId = new Map(states.map((state) => [state.questId, state]));
   return definitions
+    .filter((definition) => {
+      // An out-of-band quest the child has never started is hidden for the
+      // same reason an unmet prerequisite is: no NPC will offer it and its
+      // adventures refuse to start, so listing it as "You can start this"
+      // advertises work the island will then decline to give. One that is
+      // already under way stays visible - taking a child's own quest out of
+      // their journal would be worse than showing it.
+      if (definition.ageBands.includes(ageBand)) return true;
+      return byQuestId.has(definition.id);
+    })
     .map((definition) => buildJournalEntry(definition, byQuestId.get(definition.id), context))
     .filter((entry): entry is QuestJournalEntry => entry !== undefined)
     .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);

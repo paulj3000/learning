@@ -1,4 +1,5 @@
 import type { AdventureStepType } from '../adventures/engine/types';
+import { decodeAwsJson } from '../../lib/awsJson';
 
 /**
  * Only these step types have "an unambiguous, conflict-free merge rule"
@@ -33,8 +34,9 @@ const EMPTY_SHARED_STATE: CoopSharedState = { slots: {}, presence: [] };
 
 /** `CoopSession.sharedState` is untyped JSON on the wire; parse defensively rather than trusting the shape. */
 export function parseCoopSharedState(value: unknown): CoopSharedState {
-  if (typeof value !== 'object' || value === null) return EMPTY_SHARED_STATE;
-  const candidate = value as Partial<CoopSharedState>;
+  const decoded = decodeAwsJson(value);
+  if (typeof decoded !== 'object' || decoded === null) return EMPTY_SHARED_STATE;
+  const candidate = decoded as Partial<CoopSharedState>;
   const slots =
     typeof candidate.slots === 'object' && candidate.slots !== null
       ? Object.fromEntries(

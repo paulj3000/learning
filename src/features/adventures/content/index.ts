@@ -1,6 +1,7 @@
 import type { AdventureDefinition } from '../engine/types';
 import type { AgeBandValue } from '../../child-profile/constants';
 import { REPAIR_THE_MOONLIGHT_BRIDGE } from './repairTheMoonlightBridge';
+import { THREE_PLANKS_FOR_THE_BRIDGE } from './threePlanksForTheBridge';
 import { THE_STORYKEEPERS_TALE } from './theStorykeepersTale';
 import { BUZZ_AND_THE_WAGGLE_DANCE } from './buzzAndTheWaggleDance';
 import { EMBER_MOUNTAIN_CHAPTER_ADVENTURES } from './emberMountainChapterAdventures';
@@ -17,6 +18,7 @@ import { CASTLES_SECRET_DOOR_ADVENTURES } from './castlesSecretDoorAdventures';
  */
 export const ADVENTURE_TEMPLATES: AdventureDefinition[] = [
   REPAIR_THE_MOONLIGHT_BRIDGE,
+  THREE_PLANKS_FOR_THE_BRIDGE,
   THE_STORYKEEPERS_TALE,
   BUZZ_AND_THE_WAGGLE_DANCE,
   ...EMBER_MOUNTAIN_CHAPTER_ADVENTURES,
@@ -52,6 +54,33 @@ export function isAdventureForAgeBand(
   return template.ageBands.includes(ageBand);
 }
 
+/**
+ * The adventure to run at `locationSlug` for this child, preferring the one
+ * the world interaction names.
+ *
+ * A world spot names one `templateSlug`, but a location can hold more than
+ * one adventure telling the same story at different bands - Pirate Builder
+ * Bay holds "Repair the Moonlight Bridge" (Pathfinder) and "Three Planks for
+ * the Bridge" (Sprout). Resolving here means the authored interaction stays a
+ * single entry and adding a band variant is purely a content change, rather
+ * than every world view growing a branch per band.
+ *
+ * Returns `undefined` when the location has nothing for this band, which
+ * callers must render as the authored "not available for your age yet" line
+ * rather than starting something anyway.
+ */
+export function resolveAdventureForAgeBand(
+  locationSlug: string,
+  preferredSlug: string,
+  ageBand: AgeBandValue,
+): AdventureDefinition | undefined {
+  const preferred = getAdventureTemplate(preferredSlug);
+  if (preferred && isAdventureForAgeBand(preferred, ageBand)) return preferred;
+  return getAdventureTemplatesForLocation(locationSlug).find((template) =>
+    isAdventureForAgeBand(template, ageBand),
+  );
+}
+
 export function getAdventureTemplatesForLocation(locationSlug: string): AdventureDefinition[] {
   return ADVENTURE_TEMPLATES.filter((template) => template.locationSlug === locationSlug);
 }
@@ -63,4 +92,9 @@ export * from './dinosaurExpeditionAdventures';
 export * from './robotRescueAdventures';
 export * from './butterflyGardenAdventures';
 export * from './castlesSecretDoorAdventures';
-export { REPAIR_THE_MOONLIGHT_BRIDGE, THE_STORYKEEPERS_TALE, BUZZ_AND_THE_WAGGLE_DANCE };
+export {
+  REPAIR_THE_MOONLIGHT_BRIDGE,
+  THREE_PLANKS_FOR_THE_BRIDGE,
+  THE_STORYKEEPERS_TALE,
+  BUZZ_AND_THE_WAGGLE_DANCE,
+};

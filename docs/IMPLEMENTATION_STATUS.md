@@ -3590,6 +3590,88 @@ Two changes:
   mirrors it. The non-spatial location pages do not list characters, so a
   child who never opens a world view never meets anyone.
 
+## AWSJSON encoding, journal age filter, and Sprout content
+
+Three follow-ups to the live verification below, done together because the
+first two were both found by it.
+
+### Every `a.json()` column was written wrong (all four)
+
+The `memoryFlags` defect documented below was not a one-off. Probing the
+deployed API confirmed the same failure on **every** `a.json()` column the
+app writes:
+
+| column | written as | AppSync |
+| --- | --- | --- |
+| `ChildNpcState.memoryFlags` | object | rejected |
+| `StoryArtifact.scenes` | object | rejected |
+| `ChildStoryProgress.storyFlags` | object | rejected |
+| `CoopSession.sharedState` | object | rejected |
+
+`a.json()` is AppSync's `AWSJSON`, which travels as a JSON-encoded string.
+`WorldChange.payload` is the fifth such column and is fine only because
+nothing ever writes it.
+
+The consequences differed by call site, which is why this hid for so long.
+`recordDialogueNode` swallows write failures, so NPC memory vanished
+silently. The story and co-op paths *throw*, so those features failed loudly
+instead - saving a story keepsake, starting a story, and recording a co-op
+slot were all broken against a real backend.
+
+Fixed with one shared, documented helper (`src/lib/awsJson.ts`:
+`encodeAwsJson` / `decodeAwsJson`) rather than four separate patches, since
+four independent authors made the same mistake. `decodeAwsJson` accepts both
+a JSON string (live reads) and an already-decoded value (tests and
+fixtures), so each module's existing parser works unchanged in both worlds.
+All four now round-trip against the live sandbox, checked with each
+module's own parser.
+
+### The quest journal advertised out-of-band quests
+
+A Sprout's journal listed "The Moonlight Bridge" as "You can start this"
+while no NPC would offer it and the adventure refused to start.
+`buildQuestJournal` now takes the child's band and hides out-of-band quests
+they have never started. A quest already under way stays visible: removing a
+child's own quest from their journal would be worse than showing it.
+
+### Pirate Builder Bay is playable for Sprouts
+
+Enforcing age bands made the content gap visible rather than creating it:
+every world-startable adventure was Pathfinder-only, so a Sprout could walk
+the island and start nothing anywhere in it.
+
+`three-planks-for-the-bridge` is the bay's bridge story told at Sprout scale
+(three-option choices, counting only to three, five-rung hint ladders that
+end by naming the answer, five steps). It records the same `BRIDGE_REPAIRED`
+world change as the Pathfinder version on purpose: the island should grow
+the same way for a younger child, and `isLocationUnlocked` already keys the
+route onward off that key.
+
+`resolveAdventureForAgeBand` lets one authored world interaction serve every
+band - it prefers the `templateSlug` the interaction names and falls back to
+another adventure at the same location that fits the child. Adding a band
+variant anywhere is now purely a content change. The old "exactly one
+adventure per real location" test is replaced by the rule that actually
+matters: no location may hold two adventures for the *same* band, or which
+one a child gets becomes an accident of authoring order.
+
+Verified live: the real Sprout profile now lands on
+`.../adventures/three-planks-for-the-bridge` from the bay's bridge spot.
+
+### Known limitations
+
+- **Explorers still have nothing at the three world locations.** The bay now
+  covers Sprout and Pathfinder; Wonderwild Forest and Storykeeper Castle
+  remain Pathfinder-only. An Explorer walking the island gets the same
+  "not available for your age yet" line a Sprout used to.
+- **`StoryArtifact` rows written before this fix do not exist** - the writes
+  were rejected, so there is nothing to migrate, but any child who "saved" a
+  story before today has no keepsake.
+- **`parseStoryScenes` and `parseStoryFlags` live in modules that import the
+  data client**, so they cannot be imported by a plain Node script. They are
+  thin shape filters over `decodeAwsJson` and are unit-tested, but moving
+  them to pure modules would let live checks use the real parsers.
+
 ## Live sandbox verification of Phases 26.5 and 27
 
 **Complete**, and it found two shipped defects that every unit test passed

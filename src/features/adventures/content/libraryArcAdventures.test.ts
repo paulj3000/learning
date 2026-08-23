@@ -127,10 +127,53 @@ describe('LIBRARY_ARC_ADVENTURES', () => {
     expect(new Set(slugs).size).toBe(8);
   });
 
-  it('keeps every real island location on exactly the adventure it already had', () => {
-    expect(getAdventureTemplatesForLocation('pirate-builder-bay')).toHaveLength(1);
-    expect(getAdventureTemplatesForLocation('wonderwild-forest')).toHaveLength(1);
-    expect(getAdventureTemplatesForLocation('storykeeper-castle')).toHaveLength(1);
+  /**
+   * Was "exactly one adventure per real location", which held until Pirate
+   * Builder Bay gained a Sprout variant of its bridge story. The rule that
+   * actually matters is unambiguity: `resolveAdventureForAgeBand` picks the
+   * first template at a location matching the child's band, so two matching
+   * the same band would make which one a child gets an accident of authoring
+   * order. Library arc adventures still may not live at a real location at
+   * all, which the pseudo-location test above covers.
+   */
+  it('leaves no real island location with two adventures for the same age band', () => {
+    for (const location of ISLAND_LOCATIONS) {
+      const templates = getAdventureTemplatesForLocation(location.slug);
+      for (const ageBand of ['SPROUT', 'PATHFINDER', 'EXPLORER'] as const) {
+        const matching = templates.filter((template) => template.ageBands.includes(ageBand));
+        expect(
+          matching.map((template) => template.slug),
+          `${location.slug} @ ${ageBand}`,
+        ).toHaveLength(matching.length > 0 ? 1 : 0);
+      }
+    }
+  });
+
+  it('gives Pirate Builder Bay an adventure for Sprouts as well as Pathfinders', () => {
+    const templates = getAdventureTemplatesForLocation('pirate-builder-bay');
+    expect(templates.filter((t) => t.ageBands.includes('SPROUT')).map((t) => t.slug)).toEqual([
+      'three-planks-for-the-bridge',
+    ]);
+    expect(templates.filter((t) => t.ageBands.includes('PATHFINDER')).map((t) => t.slug)).toEqual([
+      'repair-the-moonlight-bridge',
+    ]);
+  });
+
+  it('shapes the Sprout bay adventure for one-step decisions only', () => {
+    const sprout = getAdventureTemplatesForLocation('pirate-builder-bay').find((t) =>
+      t.ageBands.includes('SPROUT'),
+    );
+    expect(sprout).toBeDefined();
+    expect(sprout!.steps.length).toBeLessThanOrEqual(6);
+    for (const step of sprout!.steps) {
+      expect(step.type).not.toBe('NUMBER_INPUT');
+      expect(step.type).not.toBe('ORDERING');
+      if (step.presentation.kind === 'choice') {
+        // Three options is the Sprout ceiling (CLAUDE.md section 3).
+        expect(step.presentation.options.length).toBeLessThanOrEqual(3);
+        expect(step.hintPolicy?.ladder.length).toBe(5);
+      }
+    }
   });
 
   it('shapes the Sprout-playable nature arc for one-step decisions only', () => {

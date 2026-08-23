@@ -1,4 +1,5 @@
 import { client } from '../../lib/data-client';
+import { decodeAwsJson, encodeAwsJson } from '../../lib/awsJson';
 import type { Correctness, AdventureDefinition } from './engine/types';
 import type { Schema } from '../../../amplify/data/resource';
 
@@ -26,7 +27,8 @@ function isStoryScene(value: unknown): value is StoryScene {
 
 /** `StoryArtifact.scenes` is untyped JSON on the wire; this is our own prior write, but parse defensively rather than trusting the shape. */
 export function parseStoryScenes(scenes: unknown): StoryScene[] {
-  return Array.isArray(scenes) ? scenes.filter(isStoryScene) : [];
+  const decoded = decodeAwsJson(scenes);
+  return Array.isArray(decoded) ? decoded.filter(isStoryScene) : [];
 }
 
 const CORRECTNESS_TO_SCHEMA: Record<Correctness, Schema['Correctness']['type']> = {
@@ -265,7 +267,7 @@ export async function saveStoryArtifact(
     sessionId,
     templateSlug,
     title,
-    scenes,
+    scenes: encodeAwsJson(scenes),
     createdAt: new Date().toISOString(),
   });
   if (errors?.length) {

@@ -81,7 +81,9 @@ describe('coop api', () => {
         templateVersion: 1,
         participantChildProfileIds: ['child-a', 'child-b'],
         status: 'ACTIVE',
-        sharedState: { slots: {}, presence: [] },
+        // A JSON-encoded string, not an object: `sharedState` is `a.json()`
+        // and AppSync rejects a raw object outright (src/lib/awsJson.ts).
+        sharedState: JSON.stringify({ slots: {}, presence: [] }),
       }),
     );
   });
@@ -123,7 +125,10 @@ describe('coop api', () => {
     expect(updateCoopSession).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'coop-1',
-        sharedState: { slots: { 'count-planks': 'child-a' }, presence: ['child-a', 'child-b'] },
+        sharedState: JSON.stringify({
+          slots: { 'count-planks': 'child-a' },
+          presence: ['child-a', 'child-b'],
+        }),
       }),
     );
   });
@@ -136,7 +141,9 @@ describe('coop api', () => {
     await setCoopPresence('coop-1', 'child-b', false);
 
     expect(updateCoopSession).toHaveBeenCalledWith(
-      expect.objectContaining({ sharedState: { slots: {}, presence: ['child-a'] } }),
+      expect.objectContaining({
+        sharedState: JSON.stringify({ slots: {}, presence: ['child-a'] }),
+      }),
     );
   });
 

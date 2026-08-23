@@ -2,17 +2,24 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const { buildQuestContext, listQuestStates, syncQuestProgress } = vi.hoisted(() => ({
-  buildQuestContext: vi.fn(),
-  listQuestStates: vi.fn(),
-  syncQuestProgress: vi.fn(),
-}));
+const { buildQuestContext, listQuestStates, syncQuestProgress, getChildProfile } = vi.hoisted(
+  () => ({
+    buildQuestContext: vi.fn(),
+    listQuestStates: vi.fn(),
+    syncQuestProgress: vi.fn(),
+    getChildProfile: vi.fn(),
+  }),
+);
 
 vi.mock('../features/quests/api', () => ({
   buildQuestContext,
   listQuestStates,
   syncQuestProgress,
 }));
+
+// The journal hides quests authored for other age bands, so the route reads
+// the child's own band (`buildQuestJournal`).
+vi.mock('../features/child-profile/api', () => ({ getChildProfile }));
 
 import { QuestJournal } from './QuestJournal';
 import { EMPTY_QUEST_CONTEXT, type QuestContext, type QuestState } from '../features/quests/types';
@@ -45,6 +52,8 @@ beforeEach(() => {
   syncQuestProgress.mockResolvedValue([]);
   listQuestStates.mockResolvedValue([]);
   buildQuestContext.mockResolvedValue(context());
+  // Every authored quest the existing cases assert on is Pathfinder-facing.
+  getChildProfile.mockResolvedValue({ id: 'child-1', ageBand: 'PATHFINDER' });
 });
 
 describe('QuestJournal', () => {

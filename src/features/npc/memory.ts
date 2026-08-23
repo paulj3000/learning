@@ -12,6 +12,7 @@
  *    so an NPC cannot forget the child mid-visit; deliberate resets are a
  *    parent-facing data action (`clearNpcState` in `api.ts`), not gameplay.
  */
+import { decodeAwsJson, encodeAwsJson } from '../../lib/awsJson';
 import type { NpcMemoryFlags } from './types';
 
 export const EMPTY_MEMORY_FLAGS: NpcMemoryFlags = Object.freeze({});
@@ -42,20 +43,13 @@ export function parseMemoryFlags(raw: unknown): NpcMemoryFlags {
   // (see `serializeMemoryFlags`). A live read therefore hands back a string,
   // while an already-decoded object arrives from tests and from any client
   // that parsed it first, so both are accepted.
-  const value = typeof raw === 'string' ? safeParse(raw) : raw;
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return EMPTY_MEMORY_FLAGS;
+  const value = decodeAwsJson(raw);
+  if (value === null || typeof value !== 'object' || Array.isArray(value))
+    return EMPTY_MEMORY_FLAGS;
   const entries = Object.entries(value as Record<string, unknown>).filter(
     ([, entry]) => typeof entry === 'boolean',
   ) as [string, boolean][];
   return Object.fromEntries(entries);
-}
-
-function safeParse(raw: string): unknown {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -70,5 +64,5 @@ function safeParse(raw: string): unknown {
  * live sandbox; unit tests mock the client, which accepts anything.
  */
 export function serializeMemoryFlags(flags: NpcMemoryFlags): string {
-  return JSON.stringify(flags);
+  return encodeAwsJson(flags);
 }

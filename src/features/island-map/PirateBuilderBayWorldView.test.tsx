@@ -155,21 +155,36 @@ describe('PirateBuilderBayWorldView', () => {
   });
 
   /**
-   * The walking route enforces the same age gate the location page always
-   * has. Before this, a Sprout could be told on `IslandLocationPage` that
-   * the bridge was not for their age and then start it anyway by walking
-   * into it, because `START_ADVENTURE` went straight to the session.
+   * The walking route resolves a band-appropriate adventure rather than
+   * refusing outright: Pirate Builder Bay now holds a Sprout variant of the
+   * bridge story alongside the Pathfinder one, and one authored interaction
+   * serves both (`resolveAdventureForAgeBand`).
    */
-  it('refuses to start an adventure outside the child age band', async () => {
+  it('starts the Sprout variant of the bridge adventure for a Sprout', async () => {
     const user = userEvent.setup();
     listAllWorldChangesMock.mockResolvedValue([]);
-    getAdventureTemplateMock.mockReturnValue(REPAIR_THE_MOONLIGHT_BRIDGE);
+    resumeOrStartSessionMock.mockResolvedValue({ id: 'session-1' } as never);
 
     renderWorldView('SPROUT');
     await user.click(await screen.findByText('The broken Moonlight Bridge'));
+    await user.click(screen.getByRole('button', { name: /start the adventure/i }));
+
+    await waitFor(() => {
+      expect(resumeOrStartSessionMock).toHaveBeenCalledWith(
+        'child-1',
+        expect.objectContaining({ slug: 'three-planks-for-the-bridge' }),
+      );
+    });
+  });
+
+  it('refuses to start anything at a location with nothing for the child band', async () => {
+    const user = userEvent.setup();
+    listAllWorldChangesMock.mockResolvedValue([]);
+
+    renderWorldView('EXPLORER');
+    await user.click(await screen.findByText('The broken Moonlight Bridge'));
 
     expect(await screen.findByText(/not available for your age yet/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /start the adventure/i })).not.toBeInTheDocument();
     expect(resumeOrStartSessionMock).not.toHaveBeenCalled();
   });
 

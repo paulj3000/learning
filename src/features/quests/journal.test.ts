@@ -122,6 +122,7 @@ describe('buildQuestJournal', () => {
       [LOCKED_QUEST, third, QUEST],
       [finished, STARTED],
       context({ completedQuestIds: ['q2'] }),
+      'PATHFINDER',
     );
 
     expect(journal.map((entry) => [entry.questId, entry.status])).toEqual([
@@ -132,7 +133,27 @@ describe('buildQuestJournal', () => {
   });
 
   it('is empty when nothing is startable yet', () => {
-    expect(buildQuestJournal([LOCKED_QUEST], [], context())).toEqual([]);
+    expect(buildQuestJournal([LOCKED_QUEST], [], context(), 'PATHFINDER')).toEqual([]);
+  });
+
+  /**
+   * A Sprout's journal used to advertise "The Moonlight Bridge" as "You can
+   * start this" while no NPC would offer it and the adventure refused to
+   * start. Found by running the flow against a live sandbox with the only
+   * real child profile, which is a Sprout.
+   */
+  it('hides a quest authored for other age bands that the child has not started', () => {
+    const sproutOnly: QuestDefinition = { ...QUEST, id: 'q9', ageBands: ['SPROUT'] };
+    expect(buildQuestJournal([sproutOnly], [], context(), 'PATHFINDER')).toEqual([]);
+    expect(
+      buildQuestJournal([sproutOnly], [], context(), 'SPROUT').map((entry) => entry.questId),
+    ).toEqual(['q9']);
+  });
+
+  it('keeps an out-of-band quest the child has already started', () => {
+    const outOfBand: QuestDefinition = { ...QUEST, ageBands: ['SPROUT'] };
+    const journal = buildQuestJournal([outOfBand], [STARTED], context(), 'PATHFINDER');
+    expect(journal.map((entry) => [entry.questId, entry.status])).toEqual([['q1', 'ACTIVE']]);
   });
 });
 

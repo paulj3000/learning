@@ -6,6 +6,7 @@ import { buildQuestJournal } from '../features/quests/journal';
 import { buildQuestContext, listQuestStates, syncQuestProgress } from '../features/quests/api';
 import { QUEST_DEFINITIONS } from '../features/quests/content';
 import { findNpc } from '../features/npc/content';
+import { getChildProfile } from '../features/child-profile/api';
 import type { QuestJournalEntry } from '../features/quests/journal';
 
 type LoadState = 'loading' | 'ready' | 'error';
@@ -39,12 +40,20 @@ export function QuestJournal() {
         // Persist first, then read: a quest that finished elsewhere should
         // already show as finished the moment the journal opens.
         await syncQuestProgress(childId).catch(() => undefined);
-        const [context, states] = await Promise.all([
+        const [context, states, child] = await Promise.all([
           buildQuestContext(childId),
           listQuestStates(childId),
+          // The journal hides quests authored for other age bands, matching
+          // what the NPCs will actually offer and what the world will let the
+          // child start (`buildQuestJournal`).
+          getChildProfile(childId),
         ]);
         if (cancelled) return;
-        setEntries(buildQuestJournal(QUEST_DEFINITIONS, states, context));
+        if (!child) {
+          setLoadState('error');
+          return;
+        }
+        setEntries(buildQuestJournal(QUEST_DEFINITIONS, states, context, child.ageBand));
         setLoadState('ready');
       } catch {
         if (cancelled) return;

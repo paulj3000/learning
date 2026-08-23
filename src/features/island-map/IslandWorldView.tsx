@@ -13,7 +13,7 @@ import {
   type WorldInteractionContext,
 } from './worldObjects';
 import { resumeOrStartSession } from '../adventures/api';
-import { getAdventureTemplate, isAdventureForAgeBand } from '../adventures/content';
+import { resolveAdventureForAgeBand } from '../adventures/content';
 import { useExplorableWorld } from './useExplorableWorld';
 import { DiscoveryAction } from './DiscoveryAction';
 import { NpcConversation } from './NpcConversation';
@@ -244,7 +244,13 @@ function InteractionPanelAction({
 
   const startAdventureAction = action;
 
-  const startTemplate = getAdventureTemplate(startAdventureAction.templateSlug);
+  // Resolves a band-appropriate adventure at this spot, so one authored
+  // interaction serves every age band (`resolveAdventureForAgeBand`).
+  const startTemplate = resolveAdventureForAgeBand(
+    startAdventureAction.locationSlug,
+    startAdventureAction.templateSlug,
+    ageBand,
+  );
 
   /*
    * The age gate `IslandLocationPage` has always applied, now applied on the
@@ -254,7 +260,7 @@ function InteractionPanelAction({
    * `resumeOrStartSession`. Same authored line as the location page, so a
    * child meets one explanation rather than two.
    */
-  if (startTemplate && !isAdventureForAgeBand(startTemplate, ageBand)) {
+  if (!startTemplate) {
     return <p>This adventure is not available for your age yet.</p>;
   }
 
@@ -269,7 +275,7 @@ function InteractionPanelAction({
     try {
       await resumeOrStartSession(childId, definition);
       navigate(
-        `/island/${childId}/locations/${startAdventureAction.locationSlug}/adventures/${startAdventureAction.templateSlug}`,
+        `/island/${childId}/locations/${startAdventureAction.locationSlug}/adventures/${definition.slug}`,
       );
     } catch {
       setError('Something went wrong starting the adventure. Please try again.');

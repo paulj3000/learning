@@ -1,4 +1,5 @@
 import { client } from '../../lib/data-client';
+import { encodeAwsJson } from '../../lib/awsJson';
 import type { Schema } from '../../../amplify/data/resource';
 import { parseCoopSharedState, type CoopSharedState } from './types';
 
@@ -23,7 +24,7 @@ export async function startCoopSession(
     templateVersion,
     participantChildProfileIds,
     status: 'ACTIVE',
-    sharedState: { slots: {}, presence: [] },
+    sharedState: encodeAwsJson({ slots: {}, presence: [] }),
     startedAt: now,
     lastActivityAt: now,
   });
@@ -87,7 +88,7 @@ export async function setCoopPresence(
     : state.presence.filter((id) => id !== childProfileId);
   await client.models.CoopSession.update({
     id: coopSessionId,
-    sharedState: { ...state, presence },
+    sharedState: encodeAwsJson({ ...state, presence }),
     lastActivityAt: new Date().toISOString(),
   });
 }

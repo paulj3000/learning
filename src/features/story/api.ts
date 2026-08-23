@@ -1,4 +1,5 @@
 import { client } from '../../lib/data-client';
+import { decodeAwsJson, encodeAwsJson } from '../../lib/awsJson';
 import { listSessions, recordSkillEvidence, recordWorldChangeOnce } from '../adventures/api';
 import type { WorldChangePayload } from '../adventures/engine/types';
 import { upsertSkillProgress } from '../mastery/api';
@@ -8,9 +9,10 @@ export type ChildStoryProgress = Schema['ChildStoryProgress']['type'];
 
 /** `storyFlags` is untyped JSON on the wire; parse defensively rather than trusting the shape, same precedent as `parseStoryScenes` in adventures/api.ts. */
 export function parseStoryFlags(flags: unknown): Record<string, string> {
-  if (typeof flags !== 'object' || flags === null) return {};
+  const decoded = decodeAwsJson(flags);
+  if (typeof decoded !== 'object' || decoded === null) return {};
   const result: Record<string, string> = {};
-  for (const [key, value] of Object.entries(flags as Record<string, unknown>)) {
+  for (const [key, value] of Object.entries(decoded as Record<string, unknown>)) {
     if (typeof value === 'string') {
       result[key] = value;
     }
@@ -64,7 +66,7 @@ export async function startOrResumeStoryProgress(
     storyId,
     currentChapterId: entryChapterId,
     completedChapterIds: [],
-    storyFlags: {},
+    storyFlags: encodeAwsJson({}),
     startedAt: now,
     lastPlayedAt: now,
   });
@@ -83,7 +85,7 @@ export async function setStoryFlag(
   const flags = { ...parseStoryFlags(progress.storyFlags), [flagKey]: flagValue };
   const { data, errors } = await client.models.ChildStoryProgress.update({
     id: progress.id,
-    storyFlags: flags,
+    storyFlags: encodeAwsJson(flags),
     lastPlayedAt: new Date().toISOString(),
   });
   if (!data) {
