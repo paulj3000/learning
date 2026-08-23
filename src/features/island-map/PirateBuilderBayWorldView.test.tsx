@@ -177,15 +177,21 @@ describe('PirateBuilderBayWorldView', () => {
     });
   });
 
-  it('refuses to start anything at a location with nothing for the child band', async () => {
+  it('starts the Explorer variant for an Explorer', async () => {
     const user = userEvent.setup();
     listAllWorldChangesMock.mockResolvedValue([]);
+    resumeOrStartSessionMock.mockResolvedValue({ id: 'session-1' } as never);
 
     renderWorldView('EXPLORER');
     await user.click(await screen.findByText('The broken Moonlight Bridge'));
+    await user.click(screen.getByRole('button', { name: /start the adventure/i }));
 
-    expect(await screen.findByText(/not available for your age yet/i)).toBeInTheDocument();
-    expect(resumeOrStartSessionMock).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(resumeOrStartSessionMock).toHaveBeenCalledWith(
+        'child-1',
+        expect.objectContaining({ slug: 'the-tide-gate-calculation' }),
+      );
+    });
   });
 
   it('offers the repaired-bridge narration instead of the adventure once the bridge is repaired', async () => {

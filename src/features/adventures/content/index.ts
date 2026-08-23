@@ -2,6 +2,7 @@ import type { AdventureDefinition } from '../engine/types';
 import type { AgeBandValue } from '../../child-profile/constants';
 import { REPAIR_THE_MOONLIGHT_BRIDGE } from './repairTheMoonlightBridge';
 import { THREE_PLANKS_FOR_THE_BRIDGE } from './threePlanksForTheBridge';
+import { THE_TIDE_GATE_CALCULATION } from './theTideGateCalculation';
 import { THE_STORYKEEPERS_TALE } from './theStorykeepersTale';
 import { BUZZ_AND_THE_WAGGLE_DANCE } from './buzzAndTheWaggleDance';
 import { EMBER_MOUNTAIN_CHAPTER_ADVENTURES } from './emberMountainChapterAdventures';
@@ -19,6 +20,7 @@ import { CASTLES_SECRET_DOOR_ADVENTURES } from './castlesSecretDoorAdventures';
 export const ADVENTURE_TEMPLATES: AdventureDefinition[] = [
   REPAIR_THE_MOONLIGHT_BRIDGE,
   THREE_PLANKS_FOR_THE_BRIDGE,
+  THE_TIDE_GATE_CALCULATION,
   THE_STORYKEEPERS_TALE,
   BUZZ_AND_THE_WAGGLE_DANCE,
   ...EMBER_MOUNTAIN_CHAPTER_ADVENTURES,
@@ -95,6 +97,7 @@ export * from './castlesSecretDoorAdventures';
 export {
   REPAIR_THE_MOONLIGHT_BRIDGE,
   THREE_PLANKS_FOR_THE_BRIDGE,
+  THE_TIDE_GATE_CALCULATION,
   THE_STORYKEEPERS_TALE,
   BUZZ_AND_THE_WAGGLE_DANCE,
 };

@@ -258,4 +258,21 @@ describe('WonderwildForestWorldView', () => {
 
     expect(await screen.findByText('A green light under the ferns')).toBeInTheDocument();
   });
+
+  /**
+   * Wonderwild Forest is authored for Pathfinders only, so a Sprout is told
+   * so rather than being started into it. Pirate Builder Bay covers all three
+   * bands; this is the other half of `resolveAdventureForAgeBand`.
+   */
+  it('refuses to start anything for a band the location has no adventure for', async () => {
+    const user = userEvent.setup();
+    listAllWorldChangesMock.mockResolvedValue([]);
+
+    renderWorldView('SPROUT');
+    await user.click(await screen.findByText('The buzzing bee hive'));
+
+    expect(await screen.findByText(/not available for your age yet/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /start the adventure/i })).not.toBeInTheDocument();
+    expect(resumeOrStartSessionMock).not.toHaveBeenCalled();
+  });
 });

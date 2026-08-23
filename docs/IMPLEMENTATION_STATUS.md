@@ -3590,6 +3590,88 @@ Two changes:
   mirrors it. The non-spatial location pages do not list characters, so a
   child who never opens a world view never meets anyone.
 
+## Live smoke test, story/co-op verification, and Explorer content
+
+### `scripts/live-smoke.ts`
+
+Four defects this session shipped past 1200+ green unit tests, and every one
+was found by hand against a deployed backend. The pattern is structural
+rather than unlucky: a mocked data client accepts an object where AppSync
+demands an `AWSJSON` string, and no mock can fail with
+`AccessDeniedException`. Both classes are invisible to the test suite by
+construction.
+
+This script is the standing check. It signs in as a real parent and, for
+each persistence path, writes, reads back, and parses with the same function
+the app uses, then calls both generation routes for real and scores the raw
+replies with the production validators. Run it after any schema change, any
+new `a.json()` column, any new generation route, and before any deploy that
+matters. It writes and deletes its own rows, so point it at a sandbox.
+
+All nine checks pass against the current sandbox.
+
+### Story keepsakes and co-op, verified end to end
+
+Both features were broken outright until the AWSJSON fix, which meant
+nothing downstream of the first failed write had ever executed against a
+real backend. Both were re-verified rather than assumed:
+
+- **Co-op**, including `claimCoopSlot`. That Lambda updates
+  `sharedState.slots.<key>` by DynamoDB attribute path while the client now
+  writes the column as a JSON string, so the two could plausibly have
+  disagreed about the stored shape. They do not: the Lambda's claim is
+  written and read back correctly by `parseCoopSharedState`. Checked because
+  a mismatch would only ever appear once both halves had run, which had
+  never happened.
+- **Story keepsakes**, seeded through the real encoding and then rendered on
+  the parent page, showing both scenes and the scene count. The write half
+  is covered by the smoke test; this was the read/render half, which had
+  never run against real data.
+
+### Pirate Builder Bay covers all three age bands
+
+`the-tide-gate-calculation` is the bay's Explorer adventure. Deliberately not
+a third retelling of the bridge repair: Sprouts and Pathfinders both mend the
+bridge, and by ages 7-8 the interesting problem at a harbour is whether it
+survives the tide. It uses a two-step measurement total, a comparison, a
+reasoned prediction, and a rule applied to a number, per CLAUDE.md section
+3's Explorer band.
+
+It records its own `TIDE_GATE_SET` change rather than reusing
+`BRIDGE_REPAIRED`, because it is a different act at the same place.
+`three-planks-for-the-bridge` reuses the bridge key precisely because it *is*
+the same act at a younger band.
+
+Two content bugs were caught and fixed while authoring it, both of which
+would have reached a child: the gate-height rule said "at least 10
+centimetres above 145" while the correct answer was 150, with a hint ladder
+that stated the contradiction outright; and a 140 - 125 subtraction was
+tagged `subtraction-within-ten`.
+
+`adventureInvariants.test.ts` is new and covers *every* authored adventure
+rather than one arc: real objective codes, a `correctOptionId` that is
+actually offered, transitions that point at real steps, no em dashes, and no
+location holding two adventures for the same band.
+
+Verified live: real Sprout, Pathfinder, and Explorer profiles each start
+their own adventure from the same bridge spot in the bay.
+
+### Known limitations
+
+- **Wonderwild Forest and Storykeeper Castle are still Pathfinder-only.** A
+  Sprout or Explorer walking into either is told the adventure is not for
+  their age yet. The bay is the pattern to copy and the work is now purely
+  authoring.
+- **The smoke test covers one child, one skill, and one hint rung.** It
+  proves each path works, not that every authored vocabulary or age band
+  does.
+- **Nothing runs the smoke test automatically.** It needs credentials and a
+  deployed backend, so it is a command a person runs, not a CI step.
+- **The arithmetic in an authored adventure is still unchecked by anything
+  but review.** `adventureInvariants.test.ts` catches structural slips; the
+  contradiction between the gate rule and its answer was caught by reading
+  it back, not by a test.
+
 ## AWSJSON encoding, journal age filter, and Sprout content
 
 Three follow-ups to the live verification below, done together because the
