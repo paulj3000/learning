@@ -151,18 +151,67 @@ export const SKILL_VOCABULARY: Readonly<Record<string, readonly string[]>> = {
     'subtraction',
     'take away',
   ],
+  /*
+   * Phase 19's early-years slice (`earlyYears.ts`). Without an entry here a
+   * skill is not tutorable at all (`isTutorableSkill`), so the Sprout band
+   * would have had a curriculum but still no AI tutoring.
+   */
+  observation: [
+    'closer',
+    'different',
+    'look',
+    'looking',
+    'notice',
+    'noticed',
+    'same',
+    'see',
+    'shape',
+    'watch',
+  ],
+  classification: [
+    'belong',
+    'different',
+    'group',
+    'grouping',
+    'kind',
+    'match',
+    'same',
+    'set',
+    'sort',
+    'sorting',
+    'together',
+  ],
+  'cause-and-effect': [
+    'after',
+    'because',
+    'before',
+    'happen',
+    'happened',
+    'happens',
+    'made',
+    'next',
+    'reason',
+    'so',
+    'then',
+    'why',
+  ],
+  'animal-science': [
+    'animal',
+    'animals',
+    'eat',
+    'eats',
+    'food',
+    'home',
+    'live',
+    'lives',
+    'move',
+    'moves',
+    'nest',
+    'wing',
+    'wings',
+  ],
 };
 
-/**
- * Learning terms the validator watches for. Every entry is matched
- * case-insensitively on whole words, so morphological variants are listed
- * explicitly rather than stemmed - "add" must not match "address", and
- * "count" must not match "country".
- *
- * Only terms that name a *curriculum topic* belong here. Ordinary words a
- * warm explanation needs ("look", "try", "notice") are not curriculum
- * terms and must never be listed, or every turn would fall back.
- */
 export const CURRICULUM_TERMS: readonly string[] = [
   'add',
   'adding',
@@ -194,6 +243,9 @@ export const CURRICULUM_TERMS: readonly string[] = [
   'patterns',
   'percent',
   'place value',
+  'classify',
+  'classifying',
+  'sorting',
   'plus',
   'ratio',
   'rounding',

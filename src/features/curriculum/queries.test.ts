@@ -17,9 +17,17 @@ import {
 describe('curriculum queries', () => {
   it('lists subjects, grades, domains, and skills by parent id', () => {
     expect(listSubjects()).toEqual(SUBJECTS);
-    expect(listGrades('mathematics')).toEqual(GRADES);
-    expect(listDomains('grade-1-2')).toEqual(DOMAINS);
-    expect(listSkills('counting-and-cardinality')).toEqual([
+    // Asserted as relationships rather than against the whole global arrays:
+    // the seed now holds more than one subject and more than one grade, so
+    // "every grade" and "the maths grades" are no longer the same list.
+    expect(
+      listGrades('mathematics')
+        .map((grade) => grade.id)
+        .sort(),
+    ).toEqual(['grade-1-2', 'math-early-years']);
+    expect(listGrades('science').map((grade) => grade.id)).toEqual(['early-science']);
+    expect(listDomains('grade-1-2').every((domain) => domain.gradeId === 'grade-1-2')).toBe(true);
+    expect(listSkills('early-number')).toEqual([
       SKILLS.find((skill) => skill.id === 'counting-sets'),
     ]);
   });
@@ -31,13 +39,37 @@ describe('curriculum queries', () => {
     expect(getSkill('not-a-skill')).toBeUndefined();
   });
 
+  /**
+   * Every band must resolve to a non-empty skill set. An empty band is not a
+   * harmless gap: the Phase 28 Director ranks by the statuses of a child's
+   * own band's skills, so it cannot personalise anything for a band the
+   * curriculum does not cover, and the Phase 27 tutor will not tutor a skill
+   * the curriculum does not know. The seed authored `grade-1-2` alone until
+   * running the Director against live data made both consequences visible.
+   */
+  it('gives every age band a non-empty skill set', () => {
+    for (const ageBand of ['SPROUT', 'PATHFINDER', 'EXPLORER'] as const) {
+      expect(listSkillsByAgeBand(ageBand).length, ageBand).toBeGreaterThan(0);
+    }
+  });
+
   it('filters skills by age band through the grade they belong to', () => {
-    const pathfinderSkills = listSkillsByAgeBand('PATHFINDER');
-    expect(pathfinderSkills.map((skill) => skill.id).sort()).toEqual(
-      [...SKILLS].map((skill) => skill.id).sort(),
-    );
-    expect(listSkillsByAgeBand('SPROUT')).toEqual([]);
-    expect(listSkillsByAgeBand('EXPLORER')).toEqual([]);
+    const sprout = listSkillsByAgeBand('SPROUT').map((skill) => skill.id);
+    // A Sprout gets the early-years grades and nothing from grade 1-2.
+    expect(sprout).toContain('counting-sets');
+    expect(sprout).toContain('classification');
+    expect(sprout).not.toContain('subtraction-within-ten');
+
+    const explorer = listSkillsByAgeBand('EXPLORER').map((skill) => skill.id);
+    expect(explorer).toContain('measurement');
+    expect(explorer).toContain('comparing-lengths');
+
+    // A Pathfinder is served by both, so it sees everything the seed holds.
+    expect(
+      listSkillsByAgeBand('PATHFINDER')
+        .map((skill) => skill.id)
+        .sort(),
+    ).toEqual([...SKILLS].map((skill) => skill.id).sort());
   });
 
   it('resolves prerequisite skill ids into skill objects', () => {

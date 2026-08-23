@@ -4,7 +4,9 @@ import type { Domain, Grade, Skill, Subject } from '../types';
  * Seed curriculum: one vertical slice only (roadmap Phase 19), not every
  * grade and subject. Scoped to grade 1-2 mathematics, enough to cover the
  * numeracy skills "Repair the Moonlight Bridge" (Phase 9/11) already
- * teaches: `counting-sets`, `addition-within-ten`, `comparing-lengths`.
+ * teaches: `addition-within-ten` and `comparing-lengths`. `counting-sets`
+ * moved to `earlyYears.ts` so that Sprouts have numeracy of their own; it is
+ * still this grade's prerequisite root, across the grade boundary.
  * The remaining numeracy codes from `learningObjectives.ts`
  * (`subtraction-within-ten`, `measurement`, `patterns`) are included too,
  * since they belong to the same grade band and cost nothing extra to
@@ -20,7 +22,15 @@ export const MATH_GRADE_1_2: Grade = {
   id: 'grade-1-2',
   subjectId: MATH_SUBJECT.id,
   title: 'Grade 1-2',
-  ageBands: ['PATHFINDER'],
+  /**
+   * Serves Explorers as well as Pathfinders. The seed does not yet author a
+   * distinct grade-3 skill set, and an Explorer has not stopped practising
+   * measurement or arithmetic: `the-tide-gate-calculation` evidences
+   * `measurement` and `comparing-lengths` directly. Without this band an
+   * Explorer's curriculum would be empty, which is what the Phase 28
+   * Director found when it was first run against live data.
+   */
+  ageBands: ['PATHFINDER', 'EXPLORER'],
 };
 
 export const MATH_DOMAINS: Domain[] = [
@@ -42,15 +52,6 @@ export const MATH_DOMAINS: Domain[] = [
 ];
 
 export const MATH_SKILLS: Skill[] = [
-  {
-    id: 'counting-sets',
-    domainId: 'counting-and-cardinality',
-    title: 'Counting sets of objects',
-    description: 'Count a set of objects one at a time and give the total.',
-    prerequisiteSkillIds: [],
-    difficulty: 1,
-    representations: ['visual', 'game-interaction'],
-  },
   {
     id: 'comparing-lengths',
     domainId: 'measurement-and-data',

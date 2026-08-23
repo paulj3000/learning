@@ -3590,6 +3590,79 @@ Two changes:
   mirrors it. The non-spatial location pages do not list characters, so a
   child who never opens a world view never meets anyone.
 
+## Curriculum band coverage (Phase 19 follow-up)
+
+**Complete.** Closes the gap Phase 28 exposed: `listSkillsByAgeBand`
+returned six skills for Pathfinders and **nothing at all** for Sprouts and
+Explorers, because the seed authored a single grade banded `PATHFINDER`.
+
+Two engines were inert because of it, neither obviously:
+
+- the **Director** (Phase 28) ranks by the mastery statuses of a child's own
+  band's skills, so for two bands every adventure tied at zero and the order
+  was alphabetical;
+- the **AI Tutor** (Phase 27) only tutors a skill the curriculum knows *and*
+  has authored vocabulary for, so no Sprout or Explorer skill was tutorable.
+
+Both looked healthy. Nothing failed, nothing logged, and the unit tests had
+no opinion, because a curriculum with one grade in it is not malformed.
+
+### What changed
+
+`earlyYears.ts` adds a science subject with an `early-science` grade
+(observation, classification, cause-and-effect, animal-science) and a
+`math-early-years` grade holding `counting-sets`, which moved out of grade
+1-2 so Sprouts have numeracy of their own. `grade-1-2` now also serves
+Explorers.
+
+The band assignments follow from a structural constraint worth stating: a
+skill belongs to exactly one domain, so one grade, so one set of age bands.
+That is why grades here serve *two* bands rather than one. Counting a small
+set is genuinely the same skill at four and at six, and splitting it into
+two ids would break the `Skill.id === learningObjectiveCode` join every
+authored adventure depends on.
+
+Every skill added is named by a step in a shipped adventure, matching the
+original seed's "only what content practises" rule.
+
+`vocabulary.ts` gains permission lists for the four new science skills, and
+the tripwire gains the terms that name them, so a maths turn cannot wander
+into sorting and a sorting turn cannot wander into arithmetic.
+
+### Verified live
+
+| band | skills before | skills after |
+| --- | --- | --- |
+| Sprout | 0 | 5 |
+| Pathfinder | 6 | 10 |
+| Explorer | 0 | 5 |
+
+The Director now produces differentiated rankings for all three bands, and
+`classification` - untutorable an hour earlier - returns valid tutoring turns
+from live Bedrock at two hint rungs.
+
+One behaviour worth recording because it looks like a bug and is not: `the-
+tide-gate-calculation` does not top the Explorer ranking. It practises
+`measurement`, whose prerequisite `comparing-lengths` is not yet proficient
+for a child with no history, so measurement resolves to `LOCKED` and scores
+zero. The prerequisite graph is doing exactly what it should.
+
+`queries.test.ts` now asserts every age band resolves to a non-empty skill
+set, so a future curriculum edit cannot silently empty a band again.
+
+### Known limitations
+
+- **Explorer coverage is grade 1-2 rather than a grade-3 skill set.** An
+  Explorer practising measurement and arithmetic is true, but the seed does
+  not yet describe what is specific to ages 7-8.
+- **Literacy is still unmodelled.** `following-instructions`,
+  `reading-comprehension`, `sequencing`, `vocabulary`, and the storytelling
+  codes are real `learningObjectives.ts` entries with no curriculum skill, so
+  adventures evidencing them contribute nothing to ranking or tutoring.
+  `the-tide-gate-calculation` loses two of its four objectives that way.
+- **The new science skills have no live tutoring coverage beyond
+  `classification`**, which was spot-checked at two hint rungs.
+
 ## Phase 28 - Adaptive Adventure Director
 
 **Complete.** Ranks the adventures a child could play next, favouring skills
