@@ -26,14 +26,31 @@ vi.mock('../quests/api', () => ({
   syncQuestProgress: vi.fn(),
 }));
 
+vi.mock('../companion/api', () => ({
+  requestCompanionTurn: vi.fn(),
+}));
+
+vi.mock('../child-profile/api', () => ({
+  getChildProfile: vi.fn(),
+}));
+
 import { recordDialogueNode } from '../npc/api';
 import { buildQuestContext, listQuestStates, startQuest, syncQuestProgress } from '../quests/api';
+import { requestCompanionTurn } from '../companion/api';
+import { getChildProfile } from '../child-profile/api';
 
 const recordDialogueNodeMock = vi.mocked(recordDialogueNode);
 const buildQuestContextMock = vi.mocked(buildQuestContext);
 const listQuestStatesMock = vi.mocked(listQuestStates);
 const startQuestMock = vi.mocked(startQuest);
 const syncQuestProgressMock = vi.mocked(syncQuestProgress);
+const requestCompanionTurnMock = vi.mocked(requestCompanionTurn);
+const getChildProfileMock = vi.mocked(getChildProfile);
+
+/** Only the two fields this screen reads; the real row is much wider. */
+function childProfile(aiEnabled: boolean) {
+  return { id: 'child-1', aiEnabled } as unknown as Awaited<ReturnType<typeof getChildProfile>>;
+}
 
 /**
  * A stand-in for the real write that accumulates the way `recordDialogueNode`
@@ -77,6 +94,7 @@ beforeEach(() => {
   listQuestStatesMock.mockResolvedValue([]);
   recordDialogueNodeMock.mockImplementation(fakeRecorder());
   syncQuestProgressMock.mockResolvedValue([]);
+  getChildProfileMock.mockResolvedValue(childProfile(false));
 });
 
 describe('NpcConversation', () => {
@@ -204,5 +222,101 @@ describe('NpcConversation', () => {
 
     expect(await screen.findByText(/Someone waves hello/)).toBeInTheDocument();
     expect(buildQuestContextMock).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The Phase 23 seam `NpcNarrationHint` shipped and nothing filled in until
+ * Phase 27's follow-up. What is asserted here is the boundary, not the
+ * wording: which line is spoken and what happens next stay authored, and AI
+ * only ever changes how one opted-in line is phrased.
+ */
+describe('NpcConversation narration', () => {
+  it('re-voices a node that opted in, once a parent has AI on', async () => {
+    getChildProfileMock.mockResolvedValue(childProfile(true));
+    requestCompanionTurnMock.mockResolvedValue({
+      turn: {
+        spokenText: 'Mind the springs! Bolt fixes everything in this workshop.',
+        emotion: 'CHEERFUL',
+        intent: 'NARRATE',
+        safetyDisposition: 'ALLOW',
+      },
+      source: 'AI',
+    });
+
+    renderConversation('bolt');
+
+    expect(
+      await screen.findByText('Mind the springs! Bolt fixes everything in this workshop.'),
+    ).toBeInTheDocument();
+    expect(requestCompanionTurnMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        intent: 'NARRATE',
+        stepSummary: 'introducing a cluttered workshop full of springs and gears',
+        authoredBaseText:
+          'Careful where you step, there are springs everywhere. I am Bolt. I fix things.',
+      }),
+    );
+  });
+
+  it('keeps the authored line when the call falls back', async () => {
+    getChildProfileMock.mockResolvedValue(childProfile(true));
+    requestCompanionTurnMock.mockResolvedValue({
+      turn: {
+        spokenText: "Let's see what's next on the island!",
+        emotion: 'CURIOUS',
+        intent: 'NARRATE',
+        safetyDisposition: 'ALLOW',
+      },
+      source: 'FALLBACK',
+    });
+
+    renderConversation('bolt');
+
+    expect(await screen.findByText(/there are springs everywhere/)).toBeInTheDocument();
+  });
+
+  it('never calls the model when a parent has AI switched off', async () => {
+    getChildProfileMock.mockResolvedValue(childProfile(false));
+
+    renderConversation('bolt');
+
+    expect(await screen.findByText(/there are springs everywhere/)).toBeInTheDocument();
+    expect(requestCompanionTurnMock).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when the profile cannot be read', async () => {
+    getChildProfileMock.mockRejectedValue(new Error('offline'));
+
+    renderConversation('bolt');
+
+    expect(await screen.findByText(/there are springs everywhere/)).toBeInTheDocument();
+    expect(requestCompanionTurnMock).not.toHaveBeenCalled();
+  });
+
+  it('never re-voices a node that did not opt in', async () => {
+    getChildProfileMock.mockResolvedValue(childProfile(true));
+
+    renderConversation('pirate-pip');
+
+    expect(await screen.findByText(/Ahoy! I am Pip/)).toBeInTheDocument();
+    expect(requestCompanionTurnMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps the authored choices when a line is re-voiced', async () => {
+    getChildProfileMock.mockResolvedValue(childProfile(true));
+    requestCompanionTurnMock.mockResolvedValue({
+      turn: {
+        spokenText: 'Mind the springs! Bolt fixes everything in this workshop.',
+        emotion: 'CHEERFUL',
+        intent: 'NARRATE',
+        safetyDisposition: 'ALLOW',
+      },
+      source: 'AI',
+    });
+
+    renderConversation('bolt');
+
+    expect(await screen.findByRole('button', { name: 'Hello, Bolt!' })).toBeInTheDocument();
   });
 });

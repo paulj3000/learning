@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './NpcConversation.module.css';
 import { ConverseInteraction } from '../interaction/components/ConverseInteraction';
@@ -7,6 +7,8 @@ import { advanceDialogue, availableChoices, selectDialogueNode } from '../npc/di
 import { recordDialogueNode } from '../npc/api';
 import { timeOfDayForDate } from '../npc/schedule';
 import type { DialogueNode, NpcContext, NpcDefinition, RelationshipLevel } from '../npc/types';
+import { requestCompanionTurn } from '../companion/api';
+import { getChildProfile } from '../child-profile/api';
 import { buildQuestContext, listQuestStates, startQuest, syncQuestProgress } from '../quests/api';
 import { QUEST_DEFINITIONS } from '../quests/content';
 import {
@@ -44,10 +46,18 @@ interface NpcConversationProps {
  * Two properties are worth stating because they are load-bearing rather than
  * incidental:
  *
- * - **No AI is involved.** Nodes carrying a `narration` hint are still
- *   rendered as their authored text; re-voicing them by Chatty is Phase 27's
- *   AI Tutor Engine, and adding a conversation screen must not silently open
- *   an AI surface (`DialogueNode.narration`).
+ * - **AI only where a designer opted in.** A node is re-voiced by Chatty
+ *   only if it carries a `narration` hint (Phase 23's bounded contract,
+ *   filled in here after Phase 27). Everything else renders as its authored
+ *   text, and so does a narrated node whenever the call fails, the response
+ *   is rejected, or a parent has AI switched off. What Chatty may say is
+ *   bounded twice over: `allowedTopic` is the only topic sent, and
+ *   `fallbackText` (the authored line itself) is sent as `authoredBaseText`,
+ *   which the persona may rephrase but never contradict.
+ * - **AI never changes what happens.** Which node is shown, which choices
+ *   are offered, which flags are set, and whether a quest may be offered are
+ *   all decided before any generation call and are never re-read from it.
+ *   Re-voicing changes the wording of one line and nothing else.
  * - **No free text, ever.** Replies are the authored `DialogueChoice` list
  *   and nothing else, rendered by the Interaction Library's own bounded
  *   `CONVERSE` component, per CLAUDE.md section 2.
@@ -63,6 +73,24 @@ export function NpcConversation({ childId, npcId, ageBand, onEnd }: NpcConversat
   const [busy, setBusy] = useState(false);
   const [acceptedQuest, setAcceptedQuest] = useState<{ id: string; title: string } | null>(null);
   const [acceptError, setAcceptError] = useState<string | null>(null);
+  /**
+   * Chatty's re-voicing of the current node, or null for the authored line.
+   * Fails closed: `aiEnabled` starts false and is only raised once the
+   * profile actually says so, so a profile that cannot be read narrates
+   * nothing rather than narrating against a parent's setting.
+   */
+  const [narratedText, setNarratedText] = useState<string | null>(null);
+  /**
+   * A ref rather than state on purpose. `showNode` is a dependency of the
+   * load effect below, so making it depend on an `aiEnabled` *state* value
+   * that the same effect sets would re-run the whole load - re-reading the
+   * quest context and recording the opening node a second time. The ref is
+   * written before the opening node is shown, so the first line is narrated
+   * too.
+   */
+  const aiEnabledRef = useRef(false);
+  /** The node a narration call was started for, so a slow reply cannot land on a later line. */
+  const narratingNodeIdRef = useRef<string | null>(null);
 
   /**
    * Records that a node was shown, and folds what that changed back into both
@@ -76,6 +104,24 @@ export function NpcConversation({ childId, npcId, ageBand, onEnd }: NpcConversat
   const showNode = useCallback(
     async (next: DialogueNode) => {
       setNode(next);
+      setNarratedText(null);
+      narratingNodeIdRef.current = next.id;
+      if (next.narration && aiEnabledRef.current) {
+        // Fire-and-forget, exactly like the adventure runner's companion
+        // calls: the conversation is already on screen in its authored form,
+        // and re-voicing is presentation that arrives or does not.
+        void requestCompanionTurn({
+          childProfileId: childId,
+          ageBand,
+          intent: 'NARRATE',
+          stepSummary: next.narration.allowedTopic,
+          authoredBaseText: next.narration.fallbackText,
+          aiEnabled: true,
+        }).then((result) => {
+          if (narratingNodeIdRef.current !== next.id) return;
+          if (result.source === 'AI') setNarratedText(result.turn.spokenText);
+        });
+      }
       try {
         const result = await recordDialogueNode(childId, npcId, next);
         setNpcContext((previous) =>
@@ -106,7 +152,7 @@ export function NpcConversation({ childId, npcId, ageBand, onEnd }: NpcConversat
         // should be - would be worse and would teach nothing.
       }
     },
-    [childId, npcId, npc],
+    [childId, npcId, npc, ageBand],
   );
 
   useEffect(() => {
@@ -118,11 +164,16 @@ export function NpcConversation({ childId, npcId, ageBand, onEnd }: NpcConversat
         return;
       }
       try {
-        const [context, states] = await Promise.all([
+        const [context, states, child] = await Promise.all([
           buildQuestContext(childId),
           listQuestStates(childId),
+          // Read here rather than threaded through eight world views: the
+          // screen already loads its own context, and a failure to read it
+          // must mean "no AI", which a missing prop could not guarantee.
+          getChildProfile(childId).catch(() => null),
         ]);
         if (cancelled) return;
+        aiEnabledRef.current = child?.aiEnabled ?? false;
         const forNpc = npcContextFromQuestContext(npc.id, context, timeOfDayForDate(new Date()));
         setQuestContext(context);
         setNpcContext(forNpc);
@@ -202,7 +253,7 @@ export function NpcConversation({ childId, npcId, ageBand, onEnd }: NpcConversat
       {node ? (
         choices.length > 0 ? (
           <ConverseInteraction
-            prompt={node.text}
+            prompt={narratedText ?? node.text}
             responses={choices.map((choice) => ({ id: choice.id, label: choice.label }))}
             disabled={busy}
             onSelect={(choiceId) => void handleChoice(choiceId)}
@@ -211,7 +262,7 @@ export function NpcConversation({ childId, npcId, ageBand, onEnd }: NpcConversat
           // An authored node with no choice the child qualifies for still gets
           // read out; it just ends the exchange, which is what an empty
           // `choices` array already means (`advanceDialogue`).
-          <p className={styles.line}>{node.text}</p>
+          <p className={styles.line}>{narratedText ?? node.text}</p>
         )
       ) : null}
 

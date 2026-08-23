@@ -185,8 +185,12 @@ which engine owns which model.
    and recorded state — never by a model. A node may opt in to Chatty
    re-voicing it via `NpcNarrationHint`, which carries an authored
    `fallbackText` and no child data at all; nothing in this module calls
-   Bedrock, so a Phase 27 caller adds age band and length caps from its own
-   safe-context builder. Quest-giving ships only the offer seam
+   Bedrock. `NpcConversation.tsx` is that caller (added after Phase 27): it
+   adds age band and length caps, sends only `allowedTopic` and the authored
+   line, and re-voices nothing unless the node opted in and the child's own
+   profile says AI is on. Which node is shown, which flags are set, and
+   whether a quest may be offered are all decided before the call and never
+   re-read from it. Quest-giving ships only the offer seam
    (`NpcQuestOffer.questId`); objectives, progression, and rewards belong to
    the Phase 25 Quest Engine, so `QUEST_COMPLETED` conditions stay dormant
    until it exists.
@@ -304,6 +308,15 @@ which engine owns which model.
       the skill's authored vocabulary (`src/features/tutor/content/`), or if
       it names a representation the curriculum never authored for that
       skill.
+
+    A `SWITCH_REPRESENTATION` turn - the hint ladder's fourth rung - puts an
+    authored manipulative from Phase 22's interaction library beside the step
+    (`src/features/tutor/content/representationAids.ts`,
+    `RepresentationAid.tsx`). It is never graded (no evidence, no progress
+    write, no transition) and never AI-authored: the rung and the skill
+    choose it, so it appears whether the tutoring call succeeded, fell back,
+    or was never made. At most the model names which of the skill's own
+    authored representations to use.
 
     Tutoring is opt-in per skill (`isTutorableSkill`): a skill must be in
     the curriculum graph *and* have an authored vocabulary, so adding either

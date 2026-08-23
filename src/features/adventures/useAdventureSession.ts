@@ -27,6 +27,8 @@ import type { CompanionTurnState } from '../companion/useCompanionTurn';
 import { useTutorTurn } from '../tutor/useTutorTurn';
 import { isTutorableSkill } from '../tutor/context';
 import { toCompanionTurnState } from '../tutor/presentation';
+import { representationAidForTurn } from '../tutor/scaffold';
+import type { RepresentationAid } from '../tutor/content/representationAids';
 import type { AgeBandValue } from '../child-profile/constants';
 import { claimCoopSlot, completeCoopSession } from '../coop/api';
 import { useCoopPresence } from '../coop/useCoopPresence';
@@ -67,6 +69,13 @@ export interface AdventureSessionState {
   submitAnswer: (answer: StepAnswer) => Promise<void>;
   requestHint: () => void;
   companionTurn: CompanionTurnState;
+  /**
+   * The authored manipulative to show alongside the step, set only while the
+   * hint ladder is on its "partial scaffold" rung for a skill that has one
+   * (docs/ADVENTURE_ENGINE.md, `src/features/tutor/content/representationAids.ts`).
+   * Never graded and never part of a transition; see `RepresentationAid.tsx`.
+   */
+  representationAid: RepresentationAid | undefined;
   /** AI-narrated story beats accumulated so far (Storykeeper Castle only; empty otherwise). */
   storyScenes: StoryScene[];
   /** Live shared state for a Phase 17 coop session, or empty when not playing one. */
@@ -106,6 +115,8 @@ export function useAdventureSession(
    * in turns rather than stacking two bubbles on a child's screen.
    */
   const [lastSpeaker, setLastSpeaker] = useState<'companion' | 'tutor'>('companion');
+  /** Which step the current tutoring turn belongs to, so a scaffold cannot outlive its step. */
+  const [tutorStepId, setTutorStepId] = useState<string | null>(null);
   const { sharedState: coopSharedState } = useCoopPresence(coopSessionId, childProfileId);
 
   useEffect(() => {
@@ -330,6 +341,7 @@ export function useAdventureSession(
     // and the child sees the same authored hint text either way.
     if (skillId && isTutorableSkill(skillId)) {
       setLastSpeaker('tutor');
+      setTutorStepId(currentStep.id);
       void requestTutor({
         childProfileId,
         ageBand,
@@ -456,6 +468,15 @@ export function useAdventureSession(
     coopSessionId,
   ]);
 
+  // The rule itself is pure and lives in the tutor module
+  // (`representationAidForTurn`); `tutorStepId` is what keeps a scaffold
+  // from outliving the step it was offered for.
+  const representationAid = representationAidForTurn(
+    currentStep?.objectiveIds[0],
+    tutorTurn,
+    Boolean(currentStep && tutorStepId === currentStep.id),
+  );
+
   return {
     loadState,
     session,
@@ -467,6 +488,7 @@ export function useAdventureSession(
     submitAnswer,
     requestHint,
     companionTurn: lastSpeaker === 'tutor' ? toCompanionTurnState(tutorTurn) : companionTurn,
+    representationAid,
     storyScenes,
     coopSharedState,
   };

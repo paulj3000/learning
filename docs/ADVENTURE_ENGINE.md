@@ -71,6 +71,13 @@ a reply that uses a different one is rejected. The authored hint text for
 the rung is always what the child sees in the hint panel, with or without
 AI - a tutoring turn only varies how Chatty says it aloud alongside.
 
+Rung 4 ("partial scaffold") also puts an authored manipulative beside the
+step for skills that have one, drawn from the Phase 22 interaction library
+(`src/features/tutor/content/representationAids.ts`). It is a way of looking
+at the idea, not a second test of it: nothing about it is recorded, graded,
+or able to advance the adventure, and it appears on rung 4 whether or not
+the AI call happened.
+
 ## Example adventure: Repair the Moonlight Bridge
 
 ### Goal

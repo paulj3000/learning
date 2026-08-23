@@ -9,6 +9,7 @@ import { NumberInputStep } from './steps/NumberInputStep';
 import { OrderingStep } from './steps/OrderingStep';
 import { ReflectionStep } from './steps/ReflectionStep';
 import { CompanionBubble } from '../companion/CompanionBubble';
+import { RepresentationAid } from '../tutor/RepresentationAid';
 import type { AdventureDefinition } from './engine/types';
 import type { AgeBandValue } from '../child-profile/constants';
 
@@ -58,6 +59,7 @@ export function AdventureRunner({
     submitAnswer,
     requestHint,
     companionTurn,
+    representationAid,
     storyScenes,
     coopSharedState,
   } = useAdventureSession(childProfileId, definition, ageBand, aiEnabled, coopSessionId);
@@ -185,6 +187,8 @@ export function AdventureRunner({
           onRequestHint={requestHint}
         />
       ) : null}
+
+      {representationAid ? <RepresentationAid aid={representationAid} /> : null}
     </div>
   );
 }

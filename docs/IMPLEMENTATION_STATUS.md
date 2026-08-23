@@ -44,8 +44,15 @@ Bedrock model choice ever changes.
 
 ## Current phase
 
-**Phases 0-27 are implemented.** The most recent is Phase 27 (Chatty as
-Contextual AI Tutor) — see its section below. Phase 4 gave Chatty a voice;
+**Phases 0-28 are implemented**, plus two follow-ups: "Curriculum band
+coverage (Phase 19 follow-up)", which gave Sprouts and Explorers a
+curriculum at all, and "Phase 27 follow-up", which closed the two seams
+Phase 27 shipped with (Chatty re-voicing opted-in NPC lines, and a
+`SWITCH_REPRESENTATION` turn putting a real manipulative beside the step).
+Both are described in their own sections below.
+
+The most recent phase proper is Phase 28 (Adaptive Adventure Director).
+Phase 27 came before it — see its section below. Phase 4 gave Chatty a voice;
 Phase 27 gives that voice a curriculum boundary: a hint on a curriculum
 skill now goes through a safe context builder (skill, known prerequisites,
 current quest, hint level, allowed vocabulary, and nothing else), a closed
@@ -4181,18 +4188,9 @@ own, and the hint panel shows the same text regardless.
 - **Only six skills are tutorable**, all numeracy, all Pathfinder-band. The
   gate is content, not wiring: authoring a curriculum skill and a vocabulary
   list is all a new subject needs.
-- **The NPC narration seam is still unfilled.** `NpcNarrationHint` (Phase
-  23) is still the shape a caller must fill in, and no caller fills it yet.
-  Re-voicing an authored NPC line is a *narration* job rather than a
-  tutoring one, so it wants the companion route and a small amount of new
-  wiring in `NpcConversation.tsx`, not this phase's context builder. Every
-  dialogue node still renders as its authored text.
-- **`representation` is validated but not yet rendered.** A
-  `SWITCH_REPRESENTATION` turn can name a representation the curriculum
-  authored for that skill, and nothing in the UI changes in response — the
-  step's own component is what it is. Phase 22's interaction library is the
-  natural consumer, and wiring it is a real piece of work rather than a
-  line of code.
+- ~~**The NPC narration seam is still unfilled.**~~ and
+  ~~**`representation` is validated but not yet rendered.**~~ Both closed
+  immediately after this phase; see "Phase 27 follow-up" below.
 - **Two extra list reads per tutored hint** (skill progress, quest state),
   and only when the skill has prerequisites for the first one. Acceptable at
   hint frequency, and the same read-then-derive pattern the Quest Engine
@@ -4209,6 +4207,92 @@ own, and the hint panel shows the same text regardless.
   versus inconsistent, and the roadmap deliberately withholds it. That is
   the right call for this phase; if it is ever revisited, it should be as a
   bounded categorical hint, never as raw counts.
+
+## Phase 27 follow-up — closing the two seams
+
+**Complete.** Phase 27 shipped with two known gaps, both of the same kind:
+a capability that existed and could not be reached. Closing them is the same
+lesson Phase 26.5 wrote down, applied to a smaller surface.
+
+### Chatty can re-voice an NPC line
+
+`NpcNarrationHint` had been the shape "a Phase 27 caller must fill in" since
+Phase 23, and nothing filled it. `NpcConversation.tsx` is now that caller.
+
+A node is re-voiced only if a designer opted it in, and the opt-in is what
+bounds the call: `allowedTopic` is the only topic sent, and the authored line
+itself is sent as `authoredBaseText`, which the persona may rephrase but
+never contradict. Three properties are asserted rather than assumed:
+
+- **AI never changes what happens.** Which node is shown, which choices are
+  offered, which memory flags are set, and whether a quest may be offered are
+  all decided before any generation call and never re-read from it. Only the
+  wording of one line changes.
+- **It fails closed.** `aiEnabled` is read by the screen itself
+  (`getChildProfile`) rather than threaded through eight world views, and a
+  profile that cannot be read narrates nothing. A missing prop could not have
+  guaranteed that; a failed read now defaults to no AI rather than to AI.
+- **Only an AI-sourced turn replaces the authored text.** A fallback turn
+  renders the designer's line, not the companion's generic one, which is why
+  the fallback path shows exactly the approved copy.
+
+Two more nodes opted in as content (`quill-greeting`, `bolt-greeting`), so
+the path is reachable in normal play rather than only behind a completed
+bridge quest. Most dialogue stays authored-only, still asserted by
+`islandNpcs.test.ts`.
+
+One implementation note worth keeping: `aiEnabled` is held in a ref, not
+state. `showNode` is a dependency of the screen's load effect, so a state
+value that the same effect sets would re-run the whole load and record the
+opening node twice.
+
+### A `SWITCH_REPRESENTATION` turn now shows a manipulative
+
+The fourth rung of the hint ladder ("partial scaffold") had been a sentence
+Chatty says. It is now something a child can touch: an authored practice aid
+rendered by Phase 22's interaction library, beside the step they are stuck
+on.
+
+- `src/features/tutor/content/representationAids.ts` — six authored aids,
+  one per seed curriculum skill: counting five shells (`BUILD`), splitting
+  seven planks into two piles (`SPLIT`), ordering three ropes by length and
+  rebuilding a red/blue flag pattern (`DRAG_SORT`), measuring a plank in
+  shells (`MEASURE`), and matching taking-away stories to number sentences
+  (`DECODE`).
+- `src/features/tutor/RepresentationAid.tsx` — renders one, and is
+  deliberately **not graded**: no API call, no `SkillEvidence`, no
+  `upsertSkillProgress`, no step transition. `evaluateInteraction` is used
+  only to decide whether to add "that matches" to an authored line of
+  encouragement shown however the child answers. A child who plays with it
+  ten times is not ten failed attempts.
+- `src/features/tutor/scaffold.ts` — the pure rule for when an aid appears,
+  kept out of React. It requires the turn to be for the *current* step, so a
+  scaffold cannot follow a child to the next problem.
+
+The property that matters most: **the aid does not depend on AI.** It is
+chosen from the skill and the rung, and a fallback turn carries the same
+strategy, so rung four offers the manipulative whether the tutoring call
+succeeded, failed, or was never made because a parent switched AI off. The
+model at most names which authored representation to use, from the set the
+curriculum already lists for that skill.
+
+### Known limitations (follow-up)
+
+- **Aids exist only for the six numeracy skills.** The four science skills
+  added by the curriculum band-coverage follow-up (`observation`,
+  `classification`, `cause-and-effect`, `animal-science`) have tutoring
+  vocabulary but no authored manipulative, so rung four shows nothing extra
+  for them and Chatty's line stands alone. That is the intended "never
+  improvise" behavior rather than a bug, and authoring four more aids is a
+  content change.
+- **An aid's difficulty is fixed.** It does not vary with age band or with
+  how much trouble the child is having; it is one authored manipulative per
+  skill and representation.
+- **Narration is still one line at a time.** There is no continuity between
+  re-voiced lines in a conversation, by design: each call carries only that
+  node's `allowedTopic` and authored text.
+- **Still no live Bedrock verification** of either path, for the same reason
+  as the phase itself.
 
 ## Verification (Phase 27 session)
 
@@ -4228,6 +4312,18 @@ own, and the hint panel shows the same text regardless.
   `claimsLearningJudgment` cases.
 - **Not run:** a live `generateTutorTurn` call against real Bedrock, and a
   played hint in a browser. See the last two known limitations above.
+
+### Follow-up session (closing the two seams)
+
+- `npm run typecheck` — passed.
+- `npm run lint` — passed, warnings only, all pre-existing.
+- `npx vitest run` — all passing. New: `RepresentationAid.test.tsx` (5),
+  `representationAids.test.ts` (8, including that every authored aid is
+  solvable against its own evaluator), `scaffold.test.ts` (6, including that
+  the manipulative appears on a fallback turn and never follows a child to
+  the next step), and six new `NpcConversation.test.tsx` cases (re-voicing,
+  the authored line on fallback, AI off, an unreadable profile, a node that
+  did not opt in, and choices surviving a re-voiced line).
 
 ## Verification (Phase 26.5 session)
 

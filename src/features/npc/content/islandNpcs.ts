@@ -11,7 +11,9 @@
  *   so every child always has something to hear;
  * - copy is readable aloud and free of em dashes (CLAUDE.md section 13);
  * - only nodes that explicitly opt in via `narration` may ever be re-voiced
- *   by Chatty.
+ *   by Chatty, and the opt-in carries the authored line itself as the
+ *   fallback, so a failed or disabled call renders exactly this copy
+ *   (`NpcConversation.tsx` is the caller, added at Phase 27).
  *
  * Pathfinders (ages 5-6) is the only fully authored band today, so this copy
  * targets it, matching the existing adventure content.
@@ -126,6 +128,11 @@ export const ISLAND_NPCS: NpcDefinition[] = [
         conditions: [{ type: 'ALWAYS' }],
         text: 'Welcome to the castle library. Every story here is missing one thing: your ideas.',
         choices: [{ id: 'quill-greeting-bye', label: 'I have lots of ideas!' }],
+        narration: {
+          allowedTopic: 'welcoming the child into the castle library full of unfinished stories',
+          fallbackText:
+            'Welcome to the castle library. Every story here is missing one thing: your ideas.',
+        },
         setsMemoryFlags: ['metQuill'],
         awardsRelationshipPoints: 1,
       },
@@ -162,6 +169,11 @@ export const ISLAND_NPCS: NpcDefinition[] = [
         conditions: [{ type: 'ALWAYS' }],
         text: 'Careful where you step, there are springs everywhere. I am Bolt. I fix things.',
         choices: [{ id: 'bolt-greeting-bye', label: 'Hello, Bolt!' }],
+        narration: {
+          allowedTopic: 'introducing a cluttered workshop full of springs and gears',
+          fallbackText:
+            'Careful where you step, there are springs everywhere. I am Bolt. I fix things.',
+        },
         setsMemoryFlags: ['metBolt'],
         awardsRelationshipPoints: 1,
       },

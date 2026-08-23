@@ -9,6 +9,15 @@ export * from './context';
 export * from './schema';
 export * from './fallback';
 export * from './presentation';
+export * from './scaffold';
 export { requestTutorTurn, type RequestTutorTurnInput, type TutorTurnResult } from './api';
 export { useTutorTurn, type TutorTurnState, type UseTutorTurn } from './useTutorTurn';
-export { allowedVocabularyForSkill, CURRICULUM_TERMS, SKILL_VOCABULARY } from './content';
+export {
+  allowedVocabularyForSkill,
+  CURRICULUM_TERMS,
+  SKILL_VOCABULARY,
+  representationAidFor,
+  REPRESENTATION_AIDS,
+  type RepresentationAid,
+} from './content';
+export { RepresentationAid as RepresentationAidPanel } from './RepresentationAid';
