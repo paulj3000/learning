@@ -1,5 +1,6 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 import { CHATTY_SYSTEM_PROMPT } from './chattyPersona';
+import { TUTOR_SYSTEM_PROMPT } from './tutorPersona';
 import { claimCoopSlot } from '../functions/claim-coop-slot/resource';
 
 /**
@@ -301,6 +302,88 @@ const schema = a.schema({
       allowedChoiceIds: a.string().array(),
     })
     .returns(a.ref('CompanionTurn'))
+    .authorization((allow) => [allow.authenticated()]),
+
+  // --- Phase 27: Chatty as Contextual AI Tutor (docs/ROADMAP.md Phase 27) ---
+
+  /**
+   * The closed set of things Chatty is allowed to do while tutoring
+   * (roadmap Phase 27's "approved-strategies schema"). An enum here because
+   * this is an *argument*, not a response field: the Teaching Engine picks
+   * the strategy deterministically from the hint ladder
+   * (`src/features/tutor/strategy.ts`), so an unknown value is a bug on our
+   * side and should be rejected at the edge. The response's own `strategy`
+   * is a plain string for the reason `CompanionTurn` documents above.
+   */
+  TutorStrategy: a.enum([
+    'EXPLAIN',
+    'ASK_GUIDING_QUESTION',
+    'GIVE_HINT',
+    'ENCOURAGE',
+    'SWITCH_REPRESENTATION',
+  ]),
+
+  /**
+   * One tutoring turn. Deliberately narrower than `CompanionTurn`: there is
+   * no `choices` field at all, because a tutoring turn never drives
+   * gameplay - the adventure's own step renderer owns every action a child
+   * can take, and a model that cannot offer a choice cannot invent one.
+   *
+   * `representation` is only meaningful for the SWITCH_REPRESENTATION
+   * strategy and must be one of the skill's own authored
+   * `Skill.representations` (`src/features/curriculum/types.ts`);
+   * `validateTutorTurn` enforces both, so the model cannot invent a
+   * teaching modality the curriculum never authored for this skill.
+   */
+  TutorTurn: a.customType({
+    spokenText: a.string().required(),
+    strategy: a.string().required(),
+    representation: a.string(),
+    emotion: a.string().required(),
+    safetyDisposition: a.string().required(),
+  }),
+
+  /**
+   * The AI Tutor Engine's generation route (roadmap Phase 27). Separate
+   * from `generateCompanionTurn` on purpose: a different system prompt
+   * (`tutorPersona.ts`), a different response shape, a different audit
+   * `promptTemplateVersion`, and - most importantly - a different argument
+   * list, which is where prompt-context minimization is actually enforced
+   * (docs/AI_AND_CHILD_SAFETY.md "Prompt context minimization"). Every
+   * field below is either authored content (curriculum titles, quest
+   * titles, an approved hint string) or a bounded scalar. There is no field
+   * for a child profile id, nickname, age, mastery status, counts, error
+   * pattern, or interaction history, so the roadmap's "not a full child
+   * profile or history" is a property of the schema rather than a promise
+   * the caller has to keep. `src/features/tutor/context.ts` builds exactly
+   * this argument set and nothing else.
+   */
+  generateTutorTurn: a
+    .generation({
+      aiModel: a.ai.model('Claude Haiku 4.5'),
+      systemPrompt: TUTOR_SYSTEM_PROMPT,
+      inferenceConfiguration: { temperature: 0.4, maxTokens: 300 },
+    })
+    .arguments({
+      ageBand: a.ref('AgeBand').required(),
+      strategy: a.ref('TutorStrategy').required(),
+      maxLength: a.integer().required(),
+      /** Authored curriculum copy (`Skill.title`/`Skill.description`), never a child's own words. */
+      skillTitle: a.string().required(),
+      skillDescription: a.string(),
+      /** The complete list of learning words this turn may use. */
+      allowedVocabulary: a.string().array().required(),
+      /** Authored titles of prerequisites this child has already worked on. */
+      knownPrerequisiteTitles: a.string().array(),
+      /** `Skill.representations` for this skill, the only ones a switch may use. */
+      allowedRepresentations: a.string().array(),
+      /** Child-facing authored quest copy, for continuity of story only. */
+      questTitle: a.string(),
+      questStageTitle: a.string(),
+      hintLevel: a.integer(),
+      authoredBaseText: a.string(),
+    })
+    .returns(a.ref('TutorTurn'))
     .authorization((allow) => [allow.authenticated()]),
 
   ValidationStatus: a.enum(['VALID', 'INVALID_SCHEMA', 'INVALID_CONTENT', 'ERROR']),

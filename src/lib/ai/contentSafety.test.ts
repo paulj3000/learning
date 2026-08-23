@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { containsUrl, requestsPersonalInformation } from './contentSafety';
+import { claimsLearningJudgment, containsUrl, requestsPersonalInformation } from './contentSafety';
 
 describe('containsUrl', () => {
   it('flags http(s) links', () => {
@@ -30,5 +30,33 @@ describe('requestsPersonalInformation', () => {
 
   it('allows ordinary encouragement', () => {
     expect(requestsPersonalInformation('Great job counting those planks!')).toBe(false);
+  });
+});
+
+describe('claimsLearningJudgment', () => {
+  it('flags a claim that the child has mastered something', () => {
+    expect(claimsLearningJudgment('You have mastered counting!')).toBe(true);
+  });
+
+  it('flags a level or grade label put on the child', () => {
+    expect(claimsLearningJudgment('You are now at reading level 4.')).toBe(true);
+    expect(claimsLearningJudgment('That was grade 2 work.')).toBe(true);
+  });
+
+  it('flags an invented curriculum requirement', () => {
+    expect(claimsLearningJudgment('Next you need to learn multiplication.')).toBe(true);
+    expect(claimsLearningJudgment('Your homework is to practise this.')).toBe(true);
+  });
+
+  it('flags a comparison against other children', () => {
+    expect(claimsLearningJudgment('You are better at this than most kids.')).toBe(true);
+  });
+
+  it('allows praising the effort in front of it', () => {
+    expect(claimsLearningJudgment('You worked really hard on that. Nice counting!')).toBe(false);
+  });
+
+  it('allows an ordinary hint', () => {
+    expect(claimsLearningJudgment('Try counting the planks one at a time.')).toBe(false);
   });
 });

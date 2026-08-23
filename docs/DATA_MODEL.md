@@ -535,6 +535,13 @@ Metadata only by default:
 - `latencyMs`
 - timestamp
 
+Two `routeName` values are written today: `generateCompanionTurn` (Phase 4)
+and `generateTutorTurn` (Phase 27). Each carries its own
+`promptTemplateVersion`, from its own system prompt file, so a safety review
+can tell which persona produced a given interaction. A tutoring row's
+`inputCategory` is `TUTOR_<strategy>` — which approved strategy was asked
+for, never any part of what was said.
+
 ## SafetyEvent
 - `id`
 - `sessionId`

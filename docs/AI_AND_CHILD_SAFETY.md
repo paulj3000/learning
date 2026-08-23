@@ -88,6 +88,42 @@ Validation rules:
 - no markup except supported narration tokens;
 - invalid output invokes deterministic fallback.
 
+## Tutoring turns (Phase 27)
+
+Chatty's tutoring route (`generateTutorTurn`) is bounded more tightly than
+the companion route, because a tutoring turn is where a model would be most
+tempted to take over a decision that is not its own.
+
+Approved strategies, and nothing else:
+
+```ts
+type TutorStrategy =
+  | 'EXPLAIN'
+  | 'ASK_GUIDING_QUESTION'
+  | 'GIVE_HINT'
+  | 'ENCOURAGE'
+  | 'SWITCH_REPRESENTATION';
+```
+
+Which strategy applies is decided by the hint ladder above, in application
+code, before the call is made; the model echoes it back and a mismatch is
+rejected. Three things Chatty must never do while tutoring are enforced on
+the response rather than only asked for in the prompt:
+
+- **decide what a child has learned** - no mastery claim, level, grade,
+  pass/fail, or comparison to other children. That decision belongs to the
+  Mastery Engine, which computes it from recorded evidence;
+- **invent curriculum** - no learning term outside the skill's authored
+  vocabulary, and no representation the curriculum did not author for that
+  skill;
+- **be reached at all without a bounded context** - a skill with no
+  authored vocabulary is not tutored, and the authored hint ladder runs
+  instead.
+
+Tutoring context carries authored curriculum and quest copy plus the hint
+level. It never carries a child profile id, nickname, age, mastery status,
+counts, error pattern, history, or anything a child typed or said.
+
 ## Parent transparency
 
 Parents should be able to see:

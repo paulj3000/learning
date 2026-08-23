@@ -24,6 +24,9 @@ import { upsertSkillProgress } from '../mastery/api';
 import { syncQuestProgress } from '../quests/api';
 import { useCompanionTurn } from '../companion/useCompanionTurn';
 import type { CompanionTurnState } from '../companion/useCompanionTurn';
+import { useTutorTurn } from '../tutor/useTutorTurn';
+import { isTutorableSkill } from '../tutor/context';
+import { toCompanionTurnState } from '../tutor/presentation';
 import type { AgeBandValue } from '../child-profile/constants';
 import { claimCoopSlot, completeCoopSession } from '../coop/api';
 import { useCoopPresence } from '../coop/useCoopPresence';
@@ -95,6 +98,14 @@ export function useAdventureSession(
   const [storyScenes, setStoryScenes] = useState<StoryScene[]>([]);
   const autoAdvancedStepRef = useRef<string | null>(null);
   const { state: companionTurn, request: requestCompanion } = useCompanionTurn();
+  const { state: tutorTurn, request: requestTutor } = useTutorTurn();
+  /**
+   * Which of the two AI routes spoke most recently. Chatty is one character
+   * with one speech bubble (CLAUDE.md section 6), so the hint ladder's
+   * tutoring turns and the companion's narration/celebration turns take it
+   * in turns rather than stacking two bubbles on a child's screen.
+   */
+  const [lastSpeaker, setLastSpeaker] = useState<'companion' | 'tutor'>('companion');
   const { sharedState: coopSharedState } = useCoopPresence(coopSessionId, childProfileId);
 
   useEffect(() => {
@@ -208,6 +219,7 @@ export function useAdventureSession(
           await recordEvidenceForStep(currentStep, session.id, correctness, supportLevel);
         }
         if (correctness === 'correct') {
+          setLastSpeaker('companion');
           void requestCompanion({
             childProfileId,
             ageBand,
@@ -238,6 +250,7 @@ export function useAdventureSession(
             (option) => option.id === answer.optionId,
           );
           const stepId = currentStep.id;
+          setLastSpeaker('companion');
           void requestCompanion({
             childProfileId,
             ageBand,
@@ -261,6 +274,7 @@ export function useAdventureSession(
           currentStep.presentation.aiNarrated &&
           answer.kind === 'narrative'
         ) {
+          setLastSpeaker('companion');
           void requestCompanion({
             childProfileId,
             ageBand,
@@ -306,21 +320,51 @@ export function useAdventureSession(
       },
     }));
     const authoredHintText = getHintText(currentStep, newLevel);
-    if (authoredHintText && session) {
-      void requestCompanion({
+    if (!authoredHintText || !session) return;
+    const skillId = currentStep.objectiveIds[0];
+    // Phase 27: a hint on a skill the curriculum knows and a designer has
+    // authored tutoring vocabulary for goes to the AI Tutor Engine, which
+    // sends the skill, its known prerequisites, the current quest, and the
+    // rung of the ladder instead of a bare step id. Every other skill keeps
+    // the Phase 4 companion call unchanged - `isTutorableSkill` is the gate,
+    // and the child sees the same authored hint text either way.
+    if (skillId && isTutorableSkill(skillId)) {
+      setLastSpeaker('tutor');
+      void requestTutor({
         childProfileId,
         ageBand,
-        intent: 'HINT',
-        stepSummary: currentStep.id,
-        sessionId: session.id,
-        stepId: currentStep.id,
-        learningObjectiveCode: currentStep.objectiveIds[0],
+        skillId,
         hintLevel: newLevel,
         authoredBaseText: authoredHintText,
+        sessionId: session.id,
+        stepId: currentStep.id,
         aiEnabled,
       });
+      return;
     }
-  }, [currentStep, progressByStep, session, requestCompanion, childProfileId, ageBand, aiEnabled]);
+    setLastSpeaker('companion');
+    void requestCompanion({
+      childProfileId,
+      ageBand,
+      intent: 'HINT',
+      stepSummary: currentStep.id,
+      sessionId: session.id,
+      stepId: currentStep.id,
+      learningObjectiveCode: skillId,
+      hintLevel: newLevel,
+      authoredBaseText: authoredHintText,
+      aiEnabled,
+    });
+  }, [
+    currentStep,
+    progressByStep,
+    session,
+    requestCompanion,
+    requestTutor,
+    childProfileId,
+    ageBand,
+    aiEnabled,
+  ]);
 
   useEffect(() => {
     if (!session || !currentStep) return;
@@ -422,7 +466,7 @@ export function useAdventureSession(
     error,
     submitAnswer,
     requestHint,
-    companionTurn,
+    companionTurn: lastSpeaker === 'tutor' ? toCompanionTurnState(tutorTurn) : companionTurn,
     storyScenes,
     coopSharedState,
   };

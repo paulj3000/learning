@@ -262,12 +262,55 @@ which engine owns which model.
     Phase 25: `discoveryKeys`, which is what makes the `DISCOVER` quest
     primitive satisfiable.
 
-12. **AI Tutor Engine** — Chatty's structured generation calls:
+12. **AI Tutor Engine** (`src/features/companion/` Phase 4,
+    `src/features/tutor/` Phase 27) — Chatty's structured generation calls:
     `CompanionProfile`, `AIInteractionAudit`, and the safe-context-builder/
     schema-validation/fallback pipeline (section 7, CLAUDE.md). Never
     determines correctness or mastery; only explains, hints, and narrates.
-    Formalized as a contextual tutor bounded to current quest/skill/hint
-    level at Phase 27.
+
+    Two generation routes, deliberately separate rather than one route with
+    more arguments. `generateCompanionTurn` (Phase 4) narrates the island
+    and may offer authored choices. `generateTutorTurn` (Phase 27) teaches
+    one already-chosen skill with one already-chosen strategy, has no
+    `choices` field at all, and carries its own system prompt
+    (`amplify/data/tutorPersona.ts`) and its own `promptTemplateVersion` in
+    the audit trail. Keeping them apart means neither route's freedoms leak
+    into the other.
+
+    Three properties are structural rather than conventional:
+
+    - **The context is the contract.** `TutorContext`
+      (`src/features/tutor/types.ts`) is exactly the route's argument list,
+      and it has no field for a child profile id, nickname, age, mastery
+      status, counts, error pattern, session history, or free text. The
+      roadmap's "not a full child profile or history" is therefore a
+      property of the schema rather than a promise each caller keeps;
+      `buildTutorContext` is the only way to produce one, and a test asserts
+      the serialized result contains no mastery status. Prerequisite mastery
+      is read (from the Mastery Engine's already-summarized
+      `MasterySummary`) only to split prerequisite *titles* into known and
+      unknown; the statuses stay behind.
+    - **The strategy is not the model's to choose.** `strategyForHintLevel`
+      maps the existing 1-5 hint ladder (`docs/ADVENTURE_ENGINE.md`) onto
+      the five approved strategies (`ENCOURAGE`, `ASK_GUIDING_QUESTION`,
+      `GIVE_HINT`, `SWITCH_REPRESENTATION`, `EXPLAIN`), and
+      `validateTutorTurn` rejects any response that answers with a different
+      one. There is no `ASSESS`, `SET_GOAL`, or `ADVANCE` strategy to
+      reject, because none exists.
+    - **The skill boundary is enforced on the output, not just the prompt.**
+      A response is rejected if it judges the child (`claimsLearningJudgment`
+      in `src/lib/ai/contentSafety.ts` — deciding what a child has learned
+      belongs to the Mastery Engine), if it uses a curriculum term outside
+      the skill's authored vocabulary (`src/features/tutor/content/`), or if
+      it names a representation the curriculum never authored for that
+      skill.
+
+    Tutoring is opt-in per skill (`isTutorableSkill`): a skill must be in
+    the curriculum graph *and* have an authored vocabulary, so adding either
+    one alone never silently opens a new AI surface — the same default as
+    `NpcNarrationHint`. Skills outside the seed curriculum keep the Phase 4
+    companion path unchanged, and the authored hint ladder is complete
+    without either.
 13. **Parent/Educator Engine** — the parent-facing reporting surface
     (`features/parent-dashboard`). Has no data models of its own; it
     composes read views over other engines' data (`AdventureSession`,

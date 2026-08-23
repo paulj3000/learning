@@ -44,14 +44,25 @@ Bedrock model choice ever changes.
 
 ## Current phase
 
-**Phases 0-26.5 are implemented.** The most recent is Phase 26.5 (NPC
-Conversation UI) — see its section below. It closes the gap every phase
-since Phase 22 has carried forward: a child can now walk up to a character,
-hold a bounded conversation, and accept a quest from it, which makes all
-three Phase 25 quests startable in normal play and puts the Phase 22
-interaction library on a live screen for the first time.
+**Phases 0-27 are implemented.** The most recent is Phase 27 (Chatty as
+Contextual AI Tutor) — see its section below. Phase 4 gave Chatty a voice;
+Phase 27 gives that voice a curriculum boundary: a hint on a curriculum
+skill now goes through a safe context builder (skill, known prerequisites,
+current quest, hint level, allowed vocabulary, and nothing else), a closed
+set of five approved teaching strategies chosen by the hint ladder rather
+than by the model, and a validator that rejects any reply claiming what the
+child has mastered or wandering into curriculum it was not given. It is
+reachable in normal play from the moment it ships: asking for a hint in
+"Repair the Moonlight Bridge" runs through it.
 
-Phase 26 (Exploration and Secrets) came immediately before it — see its
+Phase 26.5 (NPC Conversation UI) came immediately before it — see its
+section below. It closes the gap every phase since Phase 22 had carried
+forward: a child can now walk up to a character, hold a bounded
+conversation, and accept a quest from it, which makes all three Phase 25
+quests startable in normal play and puts the Phase 22 interaction library on
+a live screen for the first time.
+
+Phase 26 (Exploration and Secrets) came before that — see its
 section below. It adds the Discovery Engine
 (`src/features/discovery/`), the `ChildWorldState` model that
 `docs/DATA_MODEL.md` had been deferring since Phase 16, six authored secrets
@@ -3578,6 +3589,176 @@ Two changes:
   through the walk-up tap or the accessible "Things to do here" list that
   mirrors it. The non-spatial location pages do not list characters, so a
   child who never opens a world view never meets anyone.
+
+## Phase 27 — Chatty as Contextual AI Tutor
+
+**Complete.** Phase 4 gave Chatty a voice; this phase gives that voice a
+curriculum boundary. Every deliverable in the roadmap's Phase 27 list is
+implemented, and unlike Phases 19-24 it is reachable in normal play from the
+moment it ships: asking for a hint in "Repair the Moonlight Bridge" now goes
+through it.
+
+### What changed for a child
+
+Nothing they would name, which is the point. Chatty already spoke when a
+child asked for a hint. On the three numeracy steps of the flagship
+adventure, what Chatty is *told* before speaking changed: instead of a step
+id, it now receives the skill being practised, its authored description, the
+prerequisites this child has already worked on, the quest and stage they are
+in the middle of, the rung of the hint ladder they have reached, and the
+complete list of learning words it may use. Everything else on the island
+keeps the Phase 4 path unchanged.
+
+### The three deliverables
+
+**A tutor context builder** (`src/features/tutor/context.ts`). The roadmap
+asks for "only current quest, current skill, known prerequisites, allowed
+vocabulary, and current hint level - not a full child profile or history".
+`TutorContext` *is* the generation route's argument list, and it has no
+field for a child profile id, nickname, age, mastery status, counts, error
+pattern, history, or free text - so the rule is a property of the schema
+rather than a promise each caller keeps. Prerequisite mastery is read
+through the Mastery Engine's already-summarized `MasterySummary` and used
+only to split prerequisite *titles* into known and unknown; the statuses
+never reach the wire. A test asserts this against the serialized context
+rather than the type, so a field added later has to pass it too.
+
+**An approved-strategies schema** (`src/features/tutor/types.ts`). Five
+strategies, in the roadmap's own words: `EXPLAIN`, `ASK_GUIDING_QUESTION`,
+`GIVE_HINT`, `ENCOURAGE`, `SWITCH_REPRESENTATION`. The other half of the
+deliverable - "cannot independently determine mastery, invent curriculum
+requirements, or bypass safety constraints" - is handled three ways:
+
+- there is no `ASSESS`, `SET_GOAL`, or `ADVANCE` strategy to reject, because
+  none exists;
+- which strategy applies is decided by `strategyForHintLevel` from the
+  existing 1-5 hint ladder, and a reply that answers with a different
+  strategy is rejected. The model is never asked what this child needs;
+- the response is checked for learning judgments (`claimsLearningJudgment`,
+  added to `src/lib/ai/contentSafety.ts`), for curriculum terms outside the
+  skill's authored vocabulary, and for representations the curriculum never
+  authored for that skill.
+
+**Response validation and deterministic fallback**
+(`src/features/tutor/schema.ts`, `fallback.ts`, `api.ts`). Structurally the
+same pipeline as Phase 4, reusing that module's enum and emotion
+normalizers rather than re-deriving them, so the two routes cannot drift on
+how they read a model's casing. Every failure path - route error, invalid
+schema, stray curriculum term, mastery claim, non-ALLOW disposition,
+context assembly failure - resolves to authored content, and the per-rung
+fallback is the adventure's own approved hint text wherever the rung is
+meant to give information at all (`ENCOURAGE` and `ASK_GUIDING_QUESTION`
+deliberately withhold it).
+
+### Files
+
+- `amplify/data/tutorPersona.ts` — the fixed system prompt and its own
+  `TUTOR_PERSONA_VERSION`, separate from `chattyPersona.ts` so neither
+  route's freedoms leak into the other and each has its own version in the
+  audit trail.
+- `amplify/data/resource.ts` — the `TutorStrategy` enum, the `TutorTurn`
+  custom type (no `choices` field at all: a tutoring turn never drives
+  gameplay), and the `generateTutorTurn` generation route. Response fields
+  are plain strings for the reason `CompanionTurn` already documents.
+- `src/features/tutor/` — `types.ts`, `strategy.ts`, `context.ts`,
+  `schema.ts`, `fallback.ts`, `presentation.ts`, `api.ts`,
+  `useTutorTurn.ts`, `index.ts`, and `content/vocabulary.ts`, with tests
+  beside each.
+- `src/lib/ai/contentSafety.ts` — `claimsLearningJudgment`, the shared
+  output check for "you have mastered", "you are at level 3", "next you need
+  to learn", "your homework is", and comparisons against other children.
+- `src/features/companion/schema.ts` — `normalizeEnumValue` and
+  `normalizeEmotion` exported for reuse; no behavior change.
+- `src/features/adventures/useAdventureSession.ts` — hints route to the
+  tutor when the step's skill is tutorable, and to the Phase 4 companion
+  otherwise. Chatty stays one character in one speech bubble: a
+  `lastSpeaker` flag decides which route's turn the existing
+  `CompanionBubble` renders, rather than stacking a second bubble on a
+  child's screen.
+
+### Authored vocabulary, and why the tripwire is inverted
+
+`content/vocabulary.ts` holds two lists doing opposite jobs. The permission
+list (per skill, plus a small shared core) is sent to the model as the
+complete set of learning words a turn may use. The tripwire list
+(`CURRICULUM_TERMS`) is used only by the validator: a curriculum term that
+appears in a response but is not on that skill's permission list means the
+model wandered into another skill, which is precisely the "invent curriculum
+requirements" failure a prompt cannot prevent. A counting lesson that starts
+talking about multiplication is rejected and the child sees the authored
+line instead.
+
+Matching is whole-word and case-insensitive, with morphological variants
+listed explicitly rather than stemmed, so "count" does not fire on "country"
+and "add" does not fire on "address". A content test asserts every authored
+skill can say its own title and description without tripping its own
+tripwire - the failure mode that would otherwise make a skill fall back on
+every single turn.
+
+### Tutoring is opt-in per skill
+
+`isTutorableSkill` requires both a curriculum skill *and* an authored
+vocabulary. Adding either alone opens no AI surface, the same default
+`DialogueNode.narration` set in Phase 23. In the current content that means
+the six seed numeracy skills are tutored and every literacy, science,
+creativity, and executive-function objective keeps the Phase 4 path — the
+seed curriculum is one vertical slice by Phase 19's own design, and a skill
+with no authored word list has nothing to bound a tutoring prompt with. The
+child loses nothing either way: the authored hint ladder is complete on its
+own, and the hint panel shows the same text regardless.
+
+### Known limitations (Phase 27)
+
+- **Only six skills are tutorable**, all numeracy, all Pathfinder-band. The
+  gate is content, not wiring: authoring a curriculum skill and a vocabulary
+  list is all a new subject needs.
+- **The NPC narration seam is still unfilled.** `NpcNarrationHint` (Phase
+  23) is still the shape a caller must fill in, and no caller fills it yet.
+  Re-voicing an authored NPC line is a *narration* job rather than a
+  tutoring one, so it wants the companion route and a small amount of new
+  wiring in `NpcConversation.tsx`, not this phase's context builder. Every
+  dialogue node still renders as its authored text.
+- **`representation` is validated but not yet rendered.** A
+  `SWITCH_REPRESENTATION` turn can name a representation the curriculum
+  authored for that skill, and nothing in the UI changes in response — the
+  step's own component is what it is. Phase 22's interaction library is the
+  natural consumer, and wiring it is a real piece of work rather than a
+  line of code.
+- **Two extra list reads per tutored hint** (skill progress, quest state),
+  and only when the skill has prerequisites for the first one. Acceptable at
+  hint frequency, and the same read-then-derive pattern the Quest Engine
+  already uses, but it is not free.
+- **No live Bedrock verification.** `generateCompanionTurn` was confirmed
+  against real Bedrock in an earlier session; `generateTutorTurn` has not
+  been. It is structurally identical (same model, same
+  `inferenceConfiguration`, same custom-type-of-strings response shape, the
+  shape that fix was needed for), and every failure path falls back to
+  authored content, but "the route deploys and returns a valid turn" is
+  asserted here by unit tests against a mocked client, not by a real call.
+- **The tutor never sees an error pattern.** `MasteryDetail.errorPattern`
+  would let Chatty phrase a hint differently for a child who is stalled
+  versus inconsistent, and the roadmap deliberately withholds it. That is
+  the right call for this phase; if it is ever revisited, it should be as a
+  bounded categorical hint, never as raw counts.
+
+## Verification (Phase 27 session)
+
+- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`,
+  `scripts/tsconfig.json`).
+- `npm run lint` — passed, warnings only, all pre-existing
+  (`prefer-tag-over-role`, `only-export-components`, `no-console` in the
+  untracked `.tmp-verify/` scratch directory); none new.
+- `npx prettier --write` on every changed file — clean.
+- `npx vitest run` — 133 files, 1203 tests, all passing (up from 1142).
+  61 new across `src/features/tutor/` (strategy ladder, context builder
+  including the "no child data on the wire" assertion, response validation
+  including the wrong-strategy, mastery-claim, stray-term, and
+  representation cases, the authored-vocabulary content invariants, the
+  request pipeline's fallback and audit behavior, and reachability from
+  authored adventure content) plus `contentSafety.test.ts`'s new
+  `claimsLearningJudgment` cases.
+- **Not run:** a live `generateTutorTurn` call against real Bedrock, and a
+  played hint in a browser. See the last two known limitations above.
 
 ## Verification (Phase 26.5 session)
 

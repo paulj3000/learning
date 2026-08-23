@@ -61,7 +61,7 @@ function isChoiceArray(value: unknown): value is CompanionChoice[] {
  * property, so match case-insensitively and normalize to the canonical
  * uppercase form rather than rejecting an otherwise-safe response.
  */
-function normalizeEnumValue<T extends string>(
+export function normalizeEnumValue<T extends string>(
   value: unknown,
   allowed: readonly T[],
 ): T | undefined {
@@ -93,7 +93,7 @@ const EMOTION_SYNONYMS: { emotion: CompanionEmotion; keywords: RegExp }[] = [
   { emotion: 'ENCOURAGING', keywords: /\b(encouraging|warm|supportive|proud|kind)\b/i },
 ];
 
-function normalizeEmotion(value: unknown): CompanionEmotion | undefined {
+export function normalizeEmotion(value: unknown): CompanionEmotion | undefined {
   const exact = normalizeEnumValue(value, EMOTIONS);
   if (exact) return exact;
   if (typeof value !== 'string') return undefined;

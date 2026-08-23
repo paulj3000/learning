@@ -63,6 +63,14 @@ Do not silently jump children far above or below their selected age band.
 
 Supported completion still counts as participation, but should not be recorded as independent mastery.
 
+From Phase 27, each rung also selects the AI Tutor Engine's strategy for
+that rung (`src/features/tutor/strategy.ts`): encouragement, guiding
+question, hint, switch of representation, explanation. The rung is chosen by
+this ladder in application code; the model is told which strategy to use and
+a reply that uses a different one is rejected. The authored hint text for
+the rung is always what the child sees in the hint panel, with or without
+AI - a tutoring turn only varies how Chatty says it aloud alongside.
+
 ## Example adventure: Repair the Moonlight Bridge
 
 ### Goal
