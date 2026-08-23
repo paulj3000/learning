@@ -3590,6 +3590,109 @@ Two changes:
   mirrors it. The non-spatial location pages do not list characters, so a
   child who never opens a world view never meets anyone.
 
+## Live sandbox verification of Phases 26.5 and 27
+
+**Complete**, and it found two shipped defects that every unit test passed
+over. Both are the same shape: a write or a call that fails at the network
+boundary, wrapped in a `catch` that degrades to authored content, so the
+child sees something sensible and nothing surfaces the failure. Mocked
+clients accept anything, so only a live run could find them.
+
+### Defect 1: every NPC memory write was silently discarded
+
+`ChildNpcState.memoryFlags` is `a.json()`, which is AppSync's `AWSJSON` and
+must be sent as a JSON-encoded **string**. `src/features/npc/api.ts` passed a
+raw object, and AppSync rejected the whole mutation with "Variable
+'memoryFlags' has an invalid value". Because `recordDialogueNode` swallows
+write failures (a child must never see an error for saying hello), the
+conversation played normally and **nothing persisted**: no memory flags, no
+friendship points, no seen nodes.
+
+This made the flagship quest uncompletable for a second, independent reason
+on top of the authoring dead end Phase 26.5 had already fixed. It was found
+by querying `ChildNpcState` after a conversation the browser had visibly
+completed and seeing no rows at all.
+
+Fixed by `serializeMemoryFlags` on write, with `parseMemoryFlags` accepting
+both a JSON string (live reads) and an already-decoded object (tests). The
+`api.test.ts` assertions now pin the wire contract - they previously asserted
+the object shape, which is exactly what let this through.
+
+**Not audited: the other four `a.json()` columns.** `StoryArtifact.scenes`,
+`ChildStoryProgress.storyFlags`, `CoopSession.sharedState`, and the audit
+`payload` are all written as raw objects by their own `api.ts` modules and
+are very likely broken in the same way. Only `memoryFlags` was confirmed and
+fixed here, because only it was in this session's verification path.
+
+### Defect 2: the Phase 27 tutor route could not call Bedrock at all
+
+`generateTutorTurn` failed every call with `AccessDeniedException: The model
+is disabled or this generation route is missing a necessary identity-based
+policy`.
+
+`amplify/backend.ts` patches the cross-Region inference grant onto the
+Bedrock IAM role, and it did so for `generateCompanionTurn` only. Every
+generation route gets its own nested stack and its own role, so Phase 27's
+route shipped with no grant. `requestTutorTurn` falls back to authored copy
+on any error, so in normal play the tutor would have served fallback text
+100% of the time while looking completely healthy.
+
+Fixed by extracting `grantBedrockInvoke(routeName)` and applying it to both
+routes. Adding a future route without calling it is the same trap, and the
+function's comment says so.
+
+### Verified after the fixes
+
+- **Phase 26.5, end to end in a browser against the live backend**: Pip's
+  authored greeting, the `pip-bridge-story` follow-up, the quest offer,
+  accepting it, and then the journal read back from the backend showing
+  "Doing now / Repair the moonlight bridge / Part 2 of 3". That last step is
+  the real proof: it only passes if `heardAboutBridge` round-tripped through
+  DynamoDB, which is precisely what Defect 1 was preventing.
+- **Phase 27, against live Bedrock**, calling the deployed route directly and
+  scoring each reply with the production `validateTutorTurn` (the same method
+  `scripts/ai-red-team.ts` uses for the companion route). Four of the five
+  hint-ladder rungs return a valid turn in ~2-3 seconds.
+
+### Prompt fixes found by that run
+
+The first live pass validated only 1 of 3 replies. Two prompt gaps, both now
+fixed in `tutorPersona.ts` (version bumped to 2):
+
+- The prompt never said to omit `representation` unless the strategy is
+  SWITCH_REPRESENTATION, so the model set it on ENCOURAGE and EXPLAIN turns
+  and the validator correctly threw the replies away. Now stated explicitly,
+  and the overreach stopped completely.
+- The length rule was a soft "keep at or under 'maxLength'". Now a hard
+  limit with a concrete sentence budget and an instruction to aim under
+  rather than at it, since a model cannot count characters.
+
+### Known limitations
+
+- **EXPLAIN still overshoots at PATHFINDER.** The deepest rung consistently
+  produces ~205 characters against a 200 limit, so it falls back. The
+  fallback for that rung prefers the step's own `authoredBaseText`, which is
+  reviewed content written for that exact step, so a child gets good help
+  either way. Tuning stopped here rather than over-fitting the prompt to one
+  skill; the honest fix is either a slightly larger PATHFINDER budget or an
+  EXPLAIN-specific one.
+- **One skill and one age band were exercised** (`counting-sets`,
+  PATHFINDER). The other authored vocabularies are unverified against a live
+  model.
+- **The browser run does not reach the tutor.** The hint button appears on
+  the step that evidences the skill, not the adventure's entry step, so the
+  Phase 27 check calls the route directly instead. The hint-to-tutor UI
+  wiring remains covered only by unit tests.
+- **A `PATHFINDER` test child was created** in the sandbox to run this, since
+  the only existing child is a `SPROUT` and every world-startable adventure
+  is Pathfinder-only. The Sprout run was itself useful: it confirmed the new
+  age gate correctly withholds both the quest offer and the adventure.
+- **The quest journal still advertises out-of-band quests.** A Sprout's
+  journal listed "The Moonlight Bridge" as "You can start this" even though
+  no NPC will offer it and the adventure refuses to start. `buildQuestJournal`
+  has no age filter; the age-band fix covered the conversation and the world,
+  not the journal. Found during this run and not yet fixed.
+
 ## Age-band enforcement fix (post-Phase-27)
 
 **Complete.** A defect found while scoping content work, not a roadmap phase.

@@ -12,7 +12,12 @@
 import { client } from '../../lib/data-client';
 import type { Schema } from '../../../amplify/data/resource';
 import { dialogueOutcome } from './dialogue';
-import { EMPTY_MEMORY_FLAGS, parseMemoryFlags, setMemoryFlags } from './memory';
+import {
+  EMPTY_MEMORY_FLAGS,
+  parseMemoryFlags,
+  serializeMemoryFlags,
+  setMemoryFlags,
+} from './memory';
 import { awardRelationshipPoints, relationshipLevelForPoints } from './relationship';
 import type { DialogueNode, NpcId, NpcRelationshipState, RelationshipLevel } from './types';
 
@@ -105,7 +110,7 @@ export async function recordDialogueNode(
       id: row.id,
       relationshipPoints: points,
       relationshipLevel: level,
-      memoryFlags,
+      memoryFlags: serializeMemoryFlags(memoryFlags),
       seenNodeIds: [...seenNodeIds],
       lastInteractedAt: now,
     });
@@ -115,7 +120,7 @@ export async function recordDialogueNode(
       npcId,
       relationshipPoints: points,
       relationshipLevel: level,
-      memoryFlags,
+      memoryFlags: serializeMemoryFlags(memoryFlags),
       seenNodeIds: [...seenNodeIds],
       firstMetAt: now,
       lastInteractedAt: now,
@@ -158,14 +163,18 @@ export async function setNpcMemoryFlagsForQuest(
   const now = new Date().toISOString();
 
   if (row) {
-    await client.models.ChildNpcState.update({ id: row.id, memoryFlags, lastInteractedAt: now });
+    await client.models.ChildNpcState.update({
+      id: row.id,
+      memoryFlags: serializeMemoryFlags(memoryFlags),
+      lastInteractedAt: now,
+    });
   } else {
     await client.models.ChildNpcState.create({
       childProfileId,
       npcId,
       relationshipPoints: current.relationshipPoints,
       relationshipLevel: relationshipLevelForPoints(current.relationshipPoints),
-      memoryFlags,
+      memoryFlags: serializeMemoryFlags(memoryFlags),
       seenNodeIds: [...current.seenNodeIds],
       firstMetAt: now,
       lastInteractedAt: now,

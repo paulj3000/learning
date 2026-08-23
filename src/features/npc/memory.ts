@@ -38,9 +38,37 @@ export function hasMemoryFlag(flags: NpcMemoryFlags, flag: string): boolean {
  * empty rather than propagating a malformed value into condition evaluation.
  */
 export function parseMemoryFlags(raw: unknown): NpcMemoryFlags {
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return EMPTY_MEMORY_FLAGS;
-  const entries = Object.entries(raw as Record<string, unknown>).filter(
-    ([, value]) => typeof value === 'boolean',
+  // `a.json()` is AppSync's AWSJSON, which travels as a JSON-encoded *string*
+  // (see `serializeMemoryFlags`). A live read therefore hands back a string,
+  // while an already-decoded object arrives from tests and from any client
+  // that parsed it first, so both are accepted.
+  const value = typeof raw === 'string' ? safeParse(raw) : raw;
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return EMPTY_MEMORY_FLAGS;
+  const entries = Object.entries(value as Record<string, unknown>).filter(
+    ([, entry]) => typeof entry === 'boolean',
   ) as [string, boolean][];
   return Object.fromEntries(entries);
+}
+
+function safeParse(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Encodes flags for the `memoryFlags` column.
+ *
+ * AppSync rejects a raw object for an `AWSJSON` variable outright
+ * ("Variable 'memoryFlags' has an invalid value"), and `recordDialogueNode`
+ * swallows write failures so a child never sees an error for saying hello -
+ * so passing an object here failed silently, and every NPC memory and
+ * friendship point was being dropped. Nothing caught it until Phase 26.5
+ * gave children a way to hold a conversation and the flow was run against a
+ * live sandbox; unit tests mock the client, which accepts anything.
+ */
+export function serializeMemoryFlags(flags: NpcMemoryFlags): string {
+  return JSON.stringify(flags);
 }

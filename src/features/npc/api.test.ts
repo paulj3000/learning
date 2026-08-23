@@ -106,7 +106,12 @@ describe('recordDialogueNode', () => {
     expect(written.childProfileId).toBe('child-1');
     expect(written.npcId).toBe('pirate-pip');
     expect(written.relationshipPoints).toBe(1);
-    expect(written.memoryFlags).toEqual({ metPip: true });
+    // A JSON-encoded *string*, not an object: `memoryFlags` is `a.json()`,
+    // and AppSync rejects a raw object for an AWSJSON variable. This
+    // assertion is the regression guard - the write failed silently against
+    // the live sandbox until Phase 26.5 exercised it.
+    expect(typeof written.memoryFlags).toBe('string');
+    expect(JSON.parse(written.memoryFlags as string)).toEqual({ metPip: true });
     expect(written.seenNodeIds).toEqual(['pip-greeting']);
     expect(written.firstMetAt).toBe(written.lastInteractedAt);
 
@@ -158,7 +163,8 @@ describe('recordDialogueNode', () => {
   it('merges new flags into stored ones', async () => {
     list.mockResolvedValue({ data: [row({ memoryFlags: { heardAboutBridge: true } })] });
     await recordDialogueNode('child-1', 'pirate-pip', greeting);
-    expect(update.mock.calls[0][0].memoryFlags).toEqual({
+    expect(typeof update.mock.calls[0][0].memoryFlags).toBe('string');
+    expect(JSON.parse(update.mock.calls[0][0].memoryFlags as string)).toEqual({
       heardAboutBridge: true,
       metPip: true,
     });

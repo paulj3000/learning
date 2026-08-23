@@ -76,32 +76,52 @@ const backend = defineBackend({
  * stable across redeploys as long as the route stays named
  * `generateCompanionTurn`.
  */
-const generationStack =
-  backend.data.resources.nestedStacks['GenerationBedrockDataSourceGenerateCompanionTurnStack'];
-const generationRole = generationStack?.node.findChild(
-  'GenerationBedrockDataSourceGenerateCompanionTurnIAMRole',
-) as Role | undefined;
+const bedrockModelId = 'anthropic.claude-haiku-4-5-20251001-v1:0';
 
-if (!generationRole) {
-  throw new Error(
-    'Could not find the generateCompanionTurn Bedrock IAM role to patch cross-Region ' +
-      'inference permissions onto. Amplify AI Kit may have changed its internal construct ' +
-      'naming; see the comment above this code for what changed.',
+/**
+ * Applies the cross-Region inference grant to one generation route.
+ *
+ * Every generation route gets its *own* nested stack and its own IAM role,
+ * so this has to be applied per route rather than once. Phase 27 added
+ * `generateTutorTurn` and did not, which left that route deployed but
+ * unable to invoke Bedrock: it failed with `AccessDeniedException` on every
+ * call, and because `requestTutorTurn` falls back to authored copy on any
+ * error, a child still got a sensible hint and nothing surfaced the
+ * failure. It was found by calling the deployed route directly rather than
+ * through the UI. Adding a route without calling this is the same trap, so
+ * keep this list in step with the `a.generation` routes in
+ * `amplify/data/resource.ts`.
+ */
+function grantBedrockInvoke(routeName: string): void {
+  const generationStack =
+    backend.data.resources.nestedStacks[`GenerationBedrockDataSource${routeName}Stack`];
+  const generationRole = generationStack?.node.findChild(
+    `GenerationBedrockDataSource${routeName}IAMRole`,
+  ) as Role | undefined;
+
+  if (!generationRole) {
+    throw new Error(
+      `Could not find the ${routeName} Bedrock IAM role to patch cross-Region ` +
+        'inference permissions onto. Amplify AI Kit may have changed its internal construct ' +
+        'naming; see the comment above this code for what changed.',
+    );
+  }
+
+  const stack = Stack.of(generationRole);
+  generationRole.addToPrincipalPolicy(
+    new PolicyStatement({
+      actions: ['bedrock:InvokeModel'],
+      resources: [
+        `arn:${stack.partition}:bedrock:${stack.region}:${stack.account}:inference-profile/global.${bedrockModelId}`,
+        `arn:${stack.partition}:bedrock:${stack.region}::foundation-model/${bedrockModelId}`,
+        `arn:${stack.partition}:bedrock:::foundation-model/${bedrockModelId}`,
+      ],
+    }),
   );
 }
 
-const bedrockModelId = 'anthropic.claude-haiku-4-5-20251001-v1:0';
-const stack = Stack.of(generationRole);
-generationRole.addToPrincipalPolicy(
-  new PolicyStatement({
-    actions: ['bedrock:InvokeModel'],
-    resources: [
-      `arn:${stack.partition}:bedrock:${stack.region}:${stack.account}:inference-profile/global.${bedrockModelId}`,
-      `arn:${stack.partition}:bedrock:${stack.region}::foundation-model/${bedrockModelId}`,
-      `arn:${stack.partition}:bedrock:::foundation-model/${bedrockModelId}`,
-    ],
-  }),
-);
+grantBedrockInvoke('GenerateCompanionTurn');
+grantBedrockInvoke('GenerateTutorTurn');
 
 /**
  * Phase 8 — Operational dashboards and alarms (docs/ROADMAP.md,
