@@ -672,6 +672,14 @@ const schema = a.schema({
    * One row rather than one row per discovery, same reasoning as
    * `ChildInventory`: it is read whole every time a scene loads, and the
    * authored discovery list is tens of entries, not thousands.
+   *
+   * `lastCheckpointId` was added at Phase 32 (`docs/ROADMAP.md`,
+   * "checkpoint-based position saving") for the Three.js explorable
+   * regions: an authored checkpoint id from
+   * `src/features/discovery/checkpoints.ts`, never a raw x/y/z coordinate a
+   * client could forge into an out-of-bounds or inside-a-wall spawn point.
+   * Validated on read the same way as the two array fields
+   * (`parseKnownId`, src/features/discovery/discovery.ts).
    */
   ChildWorldState: a
     .model({
@@ -679,6 +687,7 @@ const schema = a.schema({
       childProfile: a.belongsTo('ChildProfile', 'childProfileId'),
       discoveredObjects: a.string().array(),
       discoveredCharacters: a.string().array(),
+      lastCheckpointId: a.string(),
       updatedAt: a.datetime().required(),
     })
     .authorization((allow) => [allow.owner(), allow.group('Admins').to(['read'])]),

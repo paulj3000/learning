@@ -5,6 +5,7 @@ import {
   findDiscovery,
   isDiscoveryFound,
   isDiscoveryOpen,
+  parseKnownId,
   parseKnownIds,
   resolveDiscovery,
 } from './discovery';
@@ -158,5 +159,20 @@ describe('parseKnownIds', () => {
     ]);
     expect(parseKnownIds(null, known)).toEqual([]);
     expect(parseKnownIds('bay-tide-tunnel', known)).toEqual([]);
+  });
+});
+
+describe('parseKnownId', () => {
+  const known = ['welcome-harbor:dock', 'welcome-harbor:lookout'];
+
+  it('keeps a stored id the current build knows about', () => {
+    expect(parseKnownId('welcome-harbor:dock', known)).toBe('welcome-harbor:dock');
+  });
+
+  it('drops an unknown id, a non-string value, or a missing column', () => {
+    expect(parseKnownId('deleted-checkpoint', known)).toBeUndefined();
+    expect(parseKnownId(42, known)).toBeUndefined();
+    expect(parseKnownId(null, known)).toBeUndefined();
+    expect(parseKnownId(undefined, known)).toBeUndefined();
   });
 });

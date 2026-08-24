@@ -50,6 +50,7 @@ import {
   getWorldState,
   recordCharacterMet,
   recordDiscovery,
+  saveCheckpoint,
 } from './api';
 import type { DiscoveryContext, DiscoveryDefinition } from './types';
 
@@ -310,6 +311,56 @@ describe('recordCharacterMet', () => {
    */
   it('writes nothing for an id that is not an authored NPC', async () => {
     await recordCharacterMet('child-1', 'chatty');
+
+    expect(worldStateList).not.toHaveBeenCalled();
+    expect(worldStateCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('saveCheckpoint', () => {
+  it('records an authored checkpoint', async () => {
+    await saveCheckpoint('child-1', 'welcome-harbor:dock');
+
+    expect(worldStateCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ lastCheckpointId: 'welcome-harbor:dock' }),
+    );
+  });
+
+  it('writes nothing when the child is already at that checkpoint', async () => {
+    worldStateList.mockResolvedValue({
+      data: [{ id: 'r', childProfileId: 'child-1', lastCheckpointId: 'welcome-harbor:dock' }],
+    });
+
+    await saveCheckpoint('child-1', 'welcome-harbor:dock');
+
+    expect(worldStateUpdate).not.toHaveBeenCalled();
+  });
+
+  it('overwrites the previous checkpoint without losing discoveries already recorded', async () => {
+    worldStateList.mockResolvedValue({
+      data: [
+        {
+          id: 'r',
+          childProfileId: 'child-1',
+          discoveredObjects: ['harbor-tide-pool'],
+          lastCheckpointId: 'welcome-harbor:dock',
+        },
+      ],
+    });
+
+    await saveCheckpoint('child-1', 'welcome-harbor:lookout');
+
+    expect(worldStateUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'r',
+        discoveredObjects: ['harbor-tide-pool'],
+        lastCheckpointId: 'welcome-harbor:lookout',
+      }),
+    );
+  });
+
+  it('writes nothing for an id that is not an authored checkpoint', async () => {
+    await saveCheckpoint('child-1', 'not-a-real-checkpoint');
 
     expect(worldStateList).not.toHaveBeenCalled();
     expect(worldStateCreate).not.toHaveBeenCalled();

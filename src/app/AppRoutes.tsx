@@ -86,6 +86,13 @@ const ThreeSandboxWorldPage = lazy(() =>
   })),
 );
 
+/** Same lazy-loading rationale as `ThreeSandboxWorldPage` above, for Phase 32's real Welcome Harbor region. */
+const WelcomeHarborWorldPage = lazy(() =>
+  import('../routes/WelcomeHarborWorldPage').then((module) => ({
+    default: module.WelcomeHarborWorldPage,
+  })),
+);
+
 export function AppRoutes() {
   return (
     <Routes>
@@ -258,6 +265,16 @@ export function AppRoutes() {
           <RequireParent>
             <Suspense fallback={<p>Loading the sandbox...</p>}>
               <ThreeSandboxWorldPage />
+            </Suspense>
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/world/welcome-harbor-3d"
+        element={
+          <RequireParent>
+            <Suspense fallback={<p>Loading Welcome Harbor...</p>}>
+              <WelcomeHarborWorldPage />
             </Suspense>
           </RequireParent>
         }

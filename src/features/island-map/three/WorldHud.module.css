@@ -1,0 +1,128 @@
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-3);
+  pointer-events: none;
+}
+
+.topRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.cue {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 0.9rem;
+  max-width: 60%;
+}
+
+.companionCue {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+}
+
+.companionName {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.reticleWrap {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.reticle {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+}
+
+.reticleFocused {
+  border-color: #f4d35e;
+  background: rgba(244, 211, 94, 0.25);
+}
+
+.focusLabel {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.bottomRow {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  gap: var(--space-3);
+  pointer-events: none;
+}
+
+.toast {
+  margin: 0 auto;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 0.85rem;
+}
+
+.inventoryButton {
+  pointer-events: auto;
+  font-weight: 600;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  border: none;
+  cursor: pointer;
+}
+
+.inventoryPanel {
+  pointer-events: auto;
+  position: absolute;
+  bottom: calc(100% + var(--space-2));
+  right: 0;
+  width: 200px;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.inventoryPanelTitle {
+  margin: 0 0 var(--space-2);
+  font-size: 0.95rem;
+}
+
+.inventoryList {
+  margin: 0;
+  padding: 0 0 0 var(--space-4);
+  font-size: 0.85rem;
+}
+
+.inventoryEmpty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}

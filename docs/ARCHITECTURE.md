@@ -121,8 +121,24 @@ mesh reference, or raw camera transform — the same rule `npcs.ts`/`NpcId`
 already follows so a character's identity survives the migration
 untouched. Three.js never decides correctness, quest completion, or
 rewards, matching Phaser's own constraint above; the one place it reaches
-real domain code is `useSandboxBridge.ts`, which calls the *existing*
-`noteCharacterMet`/`recordCharacterMet` rather than reimplementing it.
+real domain code is `useSandboxBridge.ts`/`npcApproachBridge.ts`, which
+call the *existing* `noteCharacterMet`/`recordCharacterMet` rather than
+reimplementing it.
+
+**Phase 32** turns this boundary into Welcome Harbor, the first real
+Three.js region (`welcomeHarborScene.ts`), and adds one more instance of
+the same World Engine/World State direction rule above: checkpoint-based
+position saving. A checkpoint's *content* (id, region, x/z, spawn yaw)
+lives in `src/features/discovery/checkpoints.ts` — the World State layer,
+alongside `ChildWorldState` — not in `features/island-map/three/`, because
+a checkpoint is authored persisted state before it is anything about
+rendering, and World State must never depend upward on World Engine code.
+`welcomeHarborScene.ts` imports that content to place trigger volumes and
+resolve a spawn point; `discovery/api.ts`'s `saveCheckpoint` writes
+`ChildWorldState.lastCheckpointId` — one authored id, validated on read the
+same way `discoveredObjects`/`discoveredCharacters` already are, never a
+raw coordinate a client could forge into an out-of-bounds or
+inside-a-wall spawn.
 
 ## Platform engine boundaries (Phase 18)
 

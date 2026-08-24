@@ -129,6 +129,13 @@ export const EMPTY_DISCOVERY_CONTEXT: DiscoveryContext = {
 export interface WorldStateSnapshot {
   discoveredIds: readonly DiscoveryId[];
   metCharacterIds: readonly string[];
+  /**
+   * The id of the last authored checkpoint (`checkpoints.ts`) a child
+   * crossed in a 3D explorable region (docs/ROADMAP.md Phase 32). Absent
+   * until the child's first checkpoint, and - like the two fields above -
+   * only ever an authored id, never a raw coordinate.
+   */
+  lastCheckpointId?: string;
 }
 
 export const EMPTY_WORLD_STATE: WorldStateSnapshot = {

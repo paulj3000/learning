@@ -20,6 +20,7 @@ import {
 } from 'three';
 import type { ThreeEngineHandle } from './ThreeGameContainer';
 import { FirstPersonController } from './firstPersonController';
+import { attachPointerControls } from './pointerControls';
 import { loadPlaceholderNpc } from './placeholderNpcGltf';
 import { hasApproached, isInRange, isInsideZone } from './sandboxTriggers';
 import { SANDBOX_NPC_ID, type WorldEngineEventBus } from './worldEngineEvents';
@@ -59,7 +60,10 @@ export interface SandboxEngine extends ThreeEngineHandle {
  * (`firstPersonController.ts`, `sandboxTriggers.ts`, `placeholderNpcGltf.ts`,
  * `worldEngineEvents.ts`) is, independently.
  */
-export function createSandboxEngine(parent: HTMLDivElement, bus: WorldEngineEventBus): SandboxEngine {
+export function createSandboxEngine(
+  parent: HTMLDivElement,
+  bus: WorldEngineEventBus,
+): SandboxEngine {
   const scene = new Scene();
   scene.background = new Color(0x1c3a52);
 
@@ -75,10 +79,7 @@ export function createSandboxEngine(parent: HTMLDivElement, bus: WorldEngineEven
   sun.position.set(5, 10, 5);
   scene.add(sun);
 
-  const floor = new Mesh(
-    new PlaneGeometry(20, 20),
-    new MeshStandardMaterial({ color: 0x2f5d3a }),
-  );
+  const floor = new Mesh(new PlaneGeometry(20, 20), new MeshStandardMaterial({ color: 0x2f5d3a }));
   floor.rotation.x = -Math.PI / 2;
   scene.add(floor);
 
@@ -119,81 +120,6 @@ export function createSandboxEngine(parent: HTMLDivElement, bus: WorldEngineEven
     startPosition: new Vector3(0, 0, 3),
   });
 
-  const keysDown = new Set<string>();
-  const onKeyDown = (event: KeyboardEvent) => keysDown.add(event.key.toLowerCase());
-  const onKeyUp = (event: KeyboardEvent) => keysDown.delete(event.key.toLowerCase());
-  window.addEventListener('keydown', onKeyDown);
-  window.addEventListener('keyup', onKeyUp);
-
-  const onPointerLockClick = () => {
-    if (document.pointerLockElement !== renderer.domElement) {
-      void renderer.domElement.requestPointerLock();
-    }
-  };
-  renderer.domElement.addEventListener('click', onPointerLockClick);
-
-  const onMouseMove = (event: MouseEvent) => {
-    if (document.pointerLockElement !== renderer.domElement) return;
-    controller.applyLookDelta(event.movementX, event.movementY);
-  };
-  document.addEventListener('mousemove', onMouseMove);
-
-  // Minimal two-zone touch controls: left half of the canvas drags a move
-  // vector, right half drags the look direction, tuned for comfort (no
-  // instant snaps — movement still runs through the same eased controller).
-  const touchMoveVector = new Vector2(0, 0);
-  let moveTouchId: number | null = null;
-  let moveTouchStart = new Vector2(0, 0);
-  let lookTouchId: number | null = null;
-  let lookTouchLast = new Vector2(0, 0);
-
-  const onTouchStart = (event: TouchEvent) => {
-    const rect = renderer.domElement.getBoundingClientRect();
-    for (const touch of Array.from(event.changedTouches)) {
-      const x = touch.clientX - rect.left;
-      const isLeftHalf = x < rect.width / 2;
-      if (isLeftHalf && moveTouchId === null) {
-        moveTouchId = touch.identifier;
-        moveTouchStart = new Vector2(touch.clientX, touch.clientY);
-      } else if (!isLeftHalf && lookTouchId === null) {
-        lookTouchId = touch.identifier;
-        lookTouchLast = new Vector2(touch.clientX, touch.clientY);
-      }
-    }
-  };
-  const onTouchMove = (event: TouchEvent) => {
-    for (const touch of Array.from(event.changedTouches)) {
-      if (touch.identifier === moveTouchId) {
-        const dx = touch.clientX - moveTouchStart.x;
-        const dy = touch.clientY - moveTouchStart.y;
-        const maxRadius = 40;
-        touchMoveVector.set(
-          Math.max(-1, Math.min(1, dx / maxRadius)),
-          Math.max(-1, Math.min(1, dy / maxRadius)),
-        );
-      } else if (touch.identifier === lookTouchId) {
-        const dx = touch.clientX - lookTouchLast.x;
-        const dy = touch.clientY - lookTouchLast.y;
-        controller.applyLookDelta(dx * 8, dy * 8);
-        lookTouchLast = new Vector2(touch.clientX, touch.clientY);
-      }
-    }
-  };
-  const onTouchEnd = (event: TouchEvent) => {
-    for (const touch of Array.from(event.changedTouches)) {
-      if (touch.identifier === moveTouchId) {
-        moveTouchId = null;
-        touchMoveVector.set(0, 0);
-      } else if (touch.identifier === lookTouchId) {
-        lookTouchId = null;
-      }
-    }
-  };
-  renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: true });
-  renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: true });
-  renderer.domElement.addEventListener('touchend', onTouchEnd, { passive: true });
-  renderer.domElement.addEventListener('touchcancel', onTouchEnd, { passive: true });
-
   const raycaster = new Raycaster();
   raycaster.far = RAYCAST_RANGE_METERS;
 
@@ -202,20 +128,21 @@ export function createSandboxEngine(parent: HTMLDivElement, bus: WorldEngineEven
     const hits = raycaster.intersectObjects([collectibleMesh, buildSpotMesh], false);
     const hit = hits[0]?.object;
     if (hit === collectibleMesh) {
-      bus.emit('ObjectInteracted', { entityId: COLLECTIBLE_ID, interactionId: COLLECTIBLE_INTERACTION_ID });
+      bus.emit('ObjectInteracted', {
+        entityId: COLLECTIBLE_ID,
+        interactionId: COLLECTIBLE_INTERACTION_ID,
+      });
       bus.emit('CollectiblePickedUp', { entityId: COLLECTIBLE_ID });
       scene.remove(collectibleMesh);
     } else if (hit === buildSpotMesh) {
-      bus.emit('ObjectInteracted', { entityId: BUILD_SPOT_ID, interactionId: `${BUILD_SPOT_ID}:build` });
+      bus.emit('ObjectInteracted', {
+        entityId: BUILD_SPOT_ID,
+        interactionId: `${BUILD_SPOT_ID}:build`,
+      });
       bus.emit('BuildActionRequested', { entityId: BUILD_SPOT_ID });
     }
   }
-  const onKeyDownInteract = (event: KeyboardEvent) => {
-    if (event.key.toLowerCase() === 'e' || event.key === 'Enter') {
-      interact();
-    }
-  };
-  window.addEventListener('keydown', onKeyDownInteract);
+  const pointerControls = attachPointerControls(renderer, controller, { onInteract: interact });
 
   const unsubscribeNpcStateChanged = bus.on('NpcStateChanged', ({ entityId }) => {
     if (entityId !== SANDBOX_NPC_ID) return;
@@ -233,17 +160,7 @@ export function createSandboxEngine(parent: HTMLDivElement, bus: WorldEngineEven
   function frame(): void {
     const delta = Math.min(clock.getDelta(), 0.1);
 
-    const keyboardForward =
-      (keysDown.has('w') || keysDown.has('arrowup') ? 1 : 0) -
-      (keysDown.has('s') || keysDown.has('arrowdown') ? 1 : 0);
-    const keyboardStrafe =
-      (keysDown.has('d') || keysDown.has('arrowright') ? 1 : 0) -
-      (keysDown.has('a') || keysDown.has('arrowleft') ? 1 : 0);
-
-    controller.update(delta, {
-      forward: Math.max(-1, Math.min(1, keyboardForward - touchMoveVector.y)),
-      strafe: Math.max(-1, Math.min(1, keyboardStrafe + touchMoveVector.x)),
-    });
+    pointerControls.update(delta);
 
     camera.position.set(controller.position.x, EYE_HEIGHT, controller.position.z);
     // The controller's forward axis (+Z at yaw 0) is the opposite of a
@@ -274,19 +191,8 @@ export function createSandboxEngine(parent: HTMLDivElement, bus: WorldEngineEven
 
   function dispose(): void {
     cancelAnimationFrame(animationFrameId);
-    window.removeEventListener('keydown', onKeyDown);
-    window.removeEventListener('keyup', onKeyUp);
-    window.removeEventListener('keydown', onKeyDownInteract);
-    document.removeEventListener('mousemove', onMouseMove);
-    renderer.domElement.removeEventListener('click', onPointerLockClick);
-    renderer.domElement.removeEventListener('touchstart', onTouchStart);
-    renderer.domElement.removeEventListener('touchmove', onTouchMove);
-    renderer.domElement.removeEventListener('touchend', onTouchEnd);
-    renderer.domElement.removeEventListener('touchcancel', onTouchEnd);
+    pointerControls.dispose();
     unsubscribeNpcStateChanged();
-    if (document.pointerLockElement === renderer.domElement) {
-      document.exitPointerLock();
-    }
     renderer.dispose();
     parent.removeChild(renderer.domElement);
   }

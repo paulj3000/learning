@@ -151,6 +151,19 @@ export function WelcomeHarbor() {
       <Link className={styles.logLink} to={`/island/${childId}/world/three-sandbox`}>
         Peek at an early 3D preview (new!)
       </Link>
+      {/*
+        Phase 32: Welcome Harbor rebuilt as a real first-person region
+        (docs/ROADMAP.md Phase 32). Kept as an auxiliary link rather than
+        replacing the harbor's own card-based hub or the Phase 9 walking
+        route above: ADR-008's Sprouts (ages 3-4) accessibility playtest has
+        not run yet, so first-person navigation is not this band's primary
+        route until it does (docs/IMPLEMENTATION_STATUS.md "Known
+        limitations (Phase 32)"). Older bands can already use it as a real
+        alternative way to explore.
+      */}
+      <Link className={styles.logLink} to={`/island/${childId}/world/welcome-harbor-3d`}>
+        Explore the harbor in 3D (new!)
+      </Link>
     </IslandLayout>
   );
 }

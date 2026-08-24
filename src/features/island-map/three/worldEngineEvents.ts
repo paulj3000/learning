@@ -27,6 +27,15 @@ export type WorldEngineEventMap = {
   NpcApproached: { entityId: EntityId };
   CollectiblePickedUp: { entityId: EntityId };
   BuildActionRequested: { entityId: EntityId };
+  /**
+   * Phase 32: what the camera's crosshair is centered on right now, so a HUD
+   * reticle can read (e.g. "Pip") without the React layer running its own
+   * raycasts. Edge-triggered by the scene (fired only when the focused
+   * entity changes, `null` when nothing interactable is centered), the same
+   * "once per change, not once per frame" discipline `NpcApproached` already
+   * uses.
+   */
+  InteractableFocused: { entityId: EntityId | null };
   // domain -> Three.js
   QuestStateChanged: { questId: string; state: string };
   WorldStateChanged: { worldStateKey: WorldStateKey };

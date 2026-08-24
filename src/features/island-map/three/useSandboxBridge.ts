@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useNpcApproachBridge } from './npcApproachBridge';
 import { SANDBOX_NPC_ID, type WorldEngineEventBus } from './worldEngineEvents';
 
 /**
@@ -12,13 +12,15 @@ import { SANDBOX_NPC_ID, type WorldEngineEventBus } from './worldEngineEvents';
  * instead of this hook triggering a second, redundant fetch. On success,
  * emits `NpcStateChanged` back onto the bus so the scene can react
  * (Phase 31's inbound-direction proof).
+ *
+ * A thin, sandbox-fixed wrapper around `useNpcApproachBridge` (extracted at
+ * Phase 32 so Welcome Harbor's own NPC bridge does not duplicate this
+ * effect) so this module's own tests and `ThreeSandboxWorldView.tsx` need no
+ * changes.
  */
-export function useSandboxBridge(bus: WorldEngineEventBus, noteCharacterMet: (npcId: string) => void): void {
-  useEffect(() => {
-    return bus.on('NpcApproached', ({ entityId }) => {
-      if (entityId !== SANDBOX_NPC_ID) return;
-      noteCharacterMet(entityId);
-      bus.emit('NpcStateChanged', { entityId, metByChild: true });
-    });
-  }, [bus, noteCharacterMet]);
+export function useSandboxBridge(
+  bus: WorldEngineEventBus,
+  noteCharacterMet: (npcId: string) => void,
+): void {
+  useNpcApproachBridge(bus, SANDBOX_NPC_ID, noteCharacterMet);
 }

@@ -207,6 +207,16 @@ but to keep (or restore) a non-first-person path — map navigator, fixed
 camera, or the existing Phaser view — as Sprouts' primary route through the
 world.
 
+**Status update (Phase 32):** the playtest still has not run — it needs
+real 3-4-year-old testers, which no build environment can substitute
+(runbook in `docs/PILOT_READINESS.md` section 5). Phase 32 shipped Welcome
+Harbor's first-person region as a real, reachable option for every band
+regardless, while treating the *absence* of a playtest the same as a
+*failure* for the purpose of what counts as a band's primary route:
+Sprouts' primary path through the world remains the card-based hub and the
+Phaser view. This ADR's status stays "pending" until that playtest
+actually runs.
+
 
 ## ADR-009: A world is a content pack, not a code path or a second identity
 

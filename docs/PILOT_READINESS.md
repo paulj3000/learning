@@ -16,6 +16,13 @@ pilot participants exist. One item, operational dashboards and alarms
 live environment - see that section for what shipped this session versus
 what still genuinely needs a deploy.
 
+Section 5 is a fifth, later addition, not a Phase 8 deliverable: the
+Sprouts (ages 3-4) first-person accessibility playtest ADR-008 requires
+before `docs/ROADMAP.md` Phase 32's Three.js region can become that band's
+primary route. It shares this document's shape - real people this sandbox
+cannot provide, and a concrete runbook for when they are available - so it
+lives here rather than starting a second "blocked on real testers" file.
+
 ## 1. Load and cost tests
 
 **Why blocked here**: needs a deployed AppSync API, real DynamoDB tables,
@@ -258,6 +265,52 @@ Phase 8's other documents already established:
       everything in this repository's `docs/` is product-engineering
       analysis, not a substitute for that.
 
-None of the four items in this document were attempted this session
+## 5. Sprouts (ages 3-4) first-person accessibility playtest
+
+**Why blocked here**: ADR-008 in `docs/DECISIONS.md` requires a real
+playtest with 3-4-year-old children before Three.js first-person
+navigation (`docs/ROADMAP.md` Phase 31/32,
+`/island/:childId/world/welcome-harbor-3d`) can become that band's
+*primary* route through the world. No environment can substitute code, a
+simulated user, or an adult's read of the controls for this - the concern
+is fine motor control for look-around, motion sensitivity, and
+disorientation specific to the youngest band, and only watching actual
+Sprouts-age children attempt it answers that.
+
+**What Phase 32 did instead**: shipped the region as a real, functional,
+reachable option for every band (`WelcomeHarbor.tsx`'s "Explore the harbor
+in 3D" link), while keeping Sprouts' primary route unchanged - the
+card-based harbor hub and the Phase 9 Phaser top-down view. This is the
+conservative reading of ADR-008's own fallback clause ("If that playtest
+fails for Sprouts... it does not block the phase for the older bands"):
+treating an *unrun* playtest the same as a *failed* one for the purpose of
+what counts as a band's primary route, while not withholding the region
+itself from any band that can already reach it.
+
+**Runbook, once real Sprouts-age testers are available**:
+
+1. Recruit 4-6 children ages 3-4 across a range of prior screen/game
+   experience, with a parent or guardian present throughout.
+2. Sit each child with a tablet running the deployed app, opened directly
+   to `/island/:childId/world/welcome-harbor-3d` on a profile set to the
+   `SPROUT` age band.
+3. Observe, without prompting beyond the in-app instructions text
+   (`WelcomeHarborWorldView.tsx`'s `instructions` paragraph): can the
+   child move with the on-screen touch zones, look around, and reach Pip
+   without adult intervention? Note any signs of disorientation,
+   frustration, or motion discomfort, and how long it takes to complete
+   one full "walk to Pip and say hello" loop.
+4. Record results (pass/fail per child, plus qualitative notes) in this
+   document or `docs/ACCESSIBILITY_AUDIT.md`, then update ADR-008's status
+   line in `docs/DECISIONS.md` accordingly:
+   - **Passes**: first-person navigation may become Sprouts' primary
+     route too, and `WelcomeHarbor.tsx`'s framing can change from
+     auxiliary link to a promoted card.
+   - **Fails**: no code change is required - Sprouts already keeps its
+     non-first-person primary route today - but the ADR's status line
+     should move from "pending" to "resolved: Sprouts uses the map
+     navigator/Phaser view" so the open question stops being open.
+
+None of the five items in this document were attempted this session
 beyond producing the runbooks above; each genuinely requires
 infrastructure or people this sandbox does not have access to.

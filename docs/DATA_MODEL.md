@@ -399,13 +399,14 @@ Deliberately avoids numeric experience points as the emotional center of
 the product (roadmap section 27) — the world state itself, not a score, is
 the record of achievement.
 
-**Scoping note (Phase 26):** this model now exists in
+**Scoping note (Phase 26, extended Phase 32):** this model now exists in
 `amplify/data/resource.ts`, scoped to exactly two of the fields listed
-above:
+above plus one added at Phase 32:
 
 ```ts
 ChildWorldState: {
-  childProfileId, discoveredObjects, discoveredCharacters, updatedAt
+  childProfileId, discoveredObjects, discoveredCharacters, lastCheckpointId,
+  updatedAt
 }
 ```
 
@@ -438,6 +439,17 @@ structurally impossible for this model to accumulate anything a child typed,
 said, or drew (CLAUDE.md section 13); an id this build does not define is
 dropped rather than surfaced. Deleted by `deleteChildProfileData` along with
 every other per-child model.
+
+- `lastCheckpointId` (Phase 32) holds the id of the last authored checkpoint
+  a child crossed in a Three.js explorable region
+  (`src/features/discovery/checkpoints.ts`), validated on read the same way
+  as the two array columns (`parseKnownId`, singular sibling of
+  `parseKnownIds`). This is the roadmap's "checkpoint-based position saving
+  (never trusting raw coordinates as durable state)": the column is one
+  authored id, never an x/y/z a client could forge into an out-of-bounds or
+  inside-a-wall spawn. `src/features/discovery/api.ts`'s `saveCheckpoint`
+  writes it; `resolveSpawnCheckpoint` reads it back into a spawn position, or
+  a region's default checkpoint when absent or unrecognized.
 
 ## ChildStoryProgress
 

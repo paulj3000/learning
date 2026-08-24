@@ -44,23 +44,42 @@ Bedrock model choice ever changes.
 
 ## Current phase
 
-**Phases 0-31 are implemented**, plus two follow-ups: "Curriculum band
+**Phases 0-32 are implemented**, plus two follow-ups: "Curriculum band
 coverage (Phase 19 follow-up)", which gave Sprouts and Explorers a
 curriculum at all, and "Phase 27 follow-up", which closed the two seams
 Phase 27 shipped with (Chatty re-voicing opted-in NPC lines, and a
 `SWITCH_REPRESENTATION` turn putting a real manipulative beside the step).
 Both are described in their own sections below.
 
-The most recent phase proper is Phase 31 (Three.js World Foundation): per
-ADR-008 in `docs/DECISIONS.md`, the explorable world is migrating from
-Phaser to a first-person Three.js renderer, and this phase establishes the
-boundary before any real content is built on it — an engine-neutral event
-bus (`worldEngineEvents.ts`), stable semantic ids, and one child-facing
+The most recent phase proper is Phase 32 (First-Person Island Village /
+Welcome Harbor): the first real region built on Phase 31's Three.js
+boundary. A child can now walk into Welcome Harbor in first person
+(`/island/:childId/world/welcome-harbor-3d`), enter either of two
+buildings through a real doorway gap in their collision geometry, meet
+Pip (reusing the Phase 31 placeholder GLB and its real
+`recordCharacterMet`/`NpcConversation` wiring rather than duplicating
+either), watch one ambient gull loop over the water, and cross an
+authored checkpoint to save `ChildWorldState.lastCheckpointId` — an
+authored id, never a raw coordinate — so a returning child spawns back
+near where they left off instead of at the origin. A minimal HUD (quest
+cue, companion cue, a backpack peek, and a focus reticle) sits over the
+canvas as a plain, keyboard-reachable overlay, never inside the
+`aria-hidden` Three.js scene itself. Per ADR-008 and the roadmap's own
+exit criterion, this does **not** close Phase 32 outright: the Sprouts
+(ages 3-4) accessibility playtest has not run, so the region ships as a
+real option for every band but not yet as Sprouts' primary route. See
+its section below, including "Known limitations (Phase 32)".
+
+Phase 31 (Three.js World Foundation) came before it: per ADR-008 in
+`docs/DECISIONS.md`, the explorable world is migrating from Phaser to a
+first-person Three.js renderer, and that phase established the boundary
+before any real content was built on it — an engine-neutral event bus
+(`worldEngineEvents.ts`), stable semantic ids, and one child-facing
 sandbox scene (`/island/:childId/world/three-sandbox`) proving movement,
 GLB loading, an animated NPC, raycast interaction, and one real (not
 duplicated) domain-action trigger. The sandbox is deliberately unpolished
-and pre-content — no learning objective, placeholder art — since turning
-this boundary into a real region is Phase 32's job. See its section below.
+and pre-content — no learning objective, placeholder art — and is still
+live alongside the new region rather than replaced by it.
 
 Phase 30 (Parent/Educator Experience Expansion) came before it: the parent
 dashboard now surfaces two engines it had never actually read from before.
@@ -4244,6 +4263,192 @@ No Amplify schema change. 30 new unit tests, all passing; full suite
 - **`sandboxScene.ts` itself has no automated test**, matching the existing
   precedent for every `scenes/*.ts` Phaser file — it needs a real
   WebGL/DOM context to exercise meaningfully.
+
+## Phase 32 - First-Person Island Village / Welcome Harbor
+
+Covers Graphics Gate C: the first real region built on Phase 31's
+engine-neutral boundary, at `/island/:childId/world/welcome-harbor-3d`
+(`RequireParent`-gated, reached from an auxiliary link on the card-based
+harbor hub, `src/routes/WelcomeHarbor.tsx`). Every roadmap deliverable
+shipped: enterable buildings, NPC placement with proximity + raycast
+interaction, one ambient animated creature, a minimal child-readable HUD,
+checkpoint-based position saving, and a first pass at the performance-budget
+work (instancing). The Sprouts accessibility playtest the exit criterion
+also requires has not run — see "Known limitations" below, which is why
+this phase is complete on every *buildable* deliverable but the roadmap's
+own exit criterion is not fully closed.
+
+### What shipped
+
+- **`src/features/discovery/checkpoints.ts`** (+ test) — checkpoint-based
+  position saving, deliberately placed in the World State layer
+  (`src/features/discovery/`) rather than in `island-map/three/`: per
+  ADR-008, the World Engine may depend down on World State, never the
+  reverse, and a checkpoint is fundamentally a piece of persisted state (an
+  authored id) before it is anything about rendering. Exports the authored
+  `RegionCheckpoint` list (id, region, label, x/z, spawn yaw),
+  `resolveSpawnCheckpoint` (falls back to a region's first checkpoint for a
+  missing or foreign-region id, total by construction like
+  `resolveNpcLocation`), and the closed id vocabulary
+  `KNOWN_CHECKPOINT_IDS`.
+- **`ChildWorldState.lastCheckpointId`** — one new nullable string column
+  (`amplify/data/resource.ts`, `docs/DATA_MODEL.md`). Holds an authored
+  checkpoint id and nothing else — never an x/y/z a client could forge into
+  an out-of-bounds or inside-a-wall spawn, which is what "never trusting raw
+  coordinates as durable state" means concretely. Validated on read by the
+  new `parseKnownId` (`discovery.ts`), the singular sibling of the existing
+  `parseKnownIds`. `discovery/api.ts`'s new `saveCheckpoint` writes it,
+  idempotently (re-entering the same checkpoint's trigger volume writes
+  nothing).
+- **`src/features/island-map/three/welcomeHarborRegion.ts`** (+ test) — pure
+  content and geometry for the region: two `BuildingDefinition`s (a lookout
+  tower and a dockside shed, each missing one wall side as its real
+  doorway — not a solid box with a decal), the NPC spot, the ambient gull's
+  four-point loop path, and the instanced-crate cluster's ten positions. All
+  plain numbers, no `three` import, so a test can assert every checkpoint
+  and the NPC spot sit inside the walkable ground and outside every
+  building's footprint — the same "does the content make geometric sense"
+  discipline `adventureInvariants.test.ts` applies to authored adventures.
+- **`src/features/island-map/three/pointerControls.ts`** — desktop
+  keyboard/mouse (pointer-lock) and tablet/touch movement + look input,
+  extracted from the Phase 31 sandbox's inline listeners
+  (`sandboxScene.ts`) so this region's identical input needs (WASD/arrows,
+  drag-to-look, two-zone touch) do not duplicate ~90 lines of DOM wiring.
+  `sandboxScene.ts` was refactored to use it too; its own behavior is
+  unchanged (same key bindings, same touch zones, same interact key), and
+  the full suite plus a manual read of the diff confirmed nothing shifted.
+- **`src/features/island-map/three/welcomeHarborScene.ts`** (untested
+  rendering glue, same precedent as `sandboxScene.ts`) — the actual scene:
+  ground + water planes, boundary and building-wall `Box3` colliders built
+  from the region content (one collider per wall segment, so a building's
+  doorway side has no collider and is walkable), an `InstancedMesh` crate
+  cluster (roadmap: "instancing for repeated scenery" — one draw call for
+  ten crates instead of ten), Pip reusing the Phase 31 placeholder GLB and
+  its `AnimationMixer` nod clip, a `CatmullRomCurve3`-driven ambient gull
+  loop, and a checkpoint-aware spawn (`resolveSpawnCheckpoint` picks the
+  child's last saved checkpoint, or the region default). Emits
+  `NpcApproached`/`ObjectInteracted`/`PlayerEnteredZone` for checkpoints and
+  building interiors, plus one new event this phase added,
+  `InteractableFocused` (edge-triggered, `entityId` or `null`), so the HUD
+  reticle can react without running its own raycasts.
+- **`worldEngineEvents.ts`'s new `InteractableFocused` event** — the only
+  addition to the Phase 31 event vocabulary this phase needed; everything
+  else (checkpoints, building interiors) reuses the existing
+  `PlayerEnteredZone` with a new zone id rather than inventing a
+  parallel event.
+- **`src/features/island-map/three/npcApproachBridge.ts`** (+ test) — the
+  Phase 31 `useSandboxBridge` hook generalized to take an `npcId` parameter,
+  so Welcome Harbor's own NPC approach does not duplicate that effect.
+  `useSandboxBridge.ts` is now a two-line wrapper calling it with
+  `SANDBOX_NPC_ID`; its own tests and `ThreeSandboxWorldView.tsx` needed no
+  changes.
+- **`WorldHud.tsx`** (+ `.module.css`, + test) — the roadmap's "minimal
+  child-readable HUD (quest cue, companion cue, inventory entry point,
+  focus/interaction reticle)", as a plain overlay `<div>` positioned over
+  the (`aria-hidden`) Three.js canvas, not a scene object — consistent with
+  ADR-008's "Three.js never decides correctness" boundary, since the HUD
+  reads only what the view already computed from real domain calls. Every
+  part of it except the decorative reticle dot itself is a normal,
+  keyboard-reachable DOM element (`pointer-events: none` on the overlay,
+  `auto` on its own buttons only, so it never blocks pointer-lock clicks or
+  touch-drag look on the canvas beneath it). The backpack button is a real,
+  if minimal, "inventory entry point" — a popover listing owned item names
+  from `ALL_ITEMS` — not a full inventory management screen, since no such
+  screen exists anywhere in the app yet.
+- **`WelcomeHarborWorldView.tsx`** (+ test) / `src/routes/WelcomeHarborWorldPage.tsx`
+  — the child-facing view and route shell, parallel to
+  `PirateBuilderBayWorldView.tsx`/`PirateBuilderBayWorldPage.tsx`. Loads the
+  child's last checkpoint, companion, backpack, and active quest once up
+  front so the scene spawns at the right checkpoint on its very first
+  frame. Raycasting Pip opens the same `NpcConversation` component every
+  other explorable region already uses (age-gated the same way), rather
+  than a Phase-31-style bare `recordCharacterMet` call — this is a real
+  region, not a preview, so it gets the real conversation. The "Things to
+  do here" list offers the same interactions the graphical scene does
+  (roadmap section 42), and a link back to the card-based harbor hub covers
+  children who would rather not navigate in 3D at all.
+- **`docs/DATA_MODEL.md`, `docs/IMPLEMENTATION_STATUS.md`** — documented
+  the new column and this phase.
+
+### Files
+
+New: `src/features/discovery/checkpoints.ts` (+ test),
+`src/features/island-map/three/welcomeHarborRegion.ts` (+ test),
+`pointerControls.ts`, `welcomeHarborScene.ts` (untested glue),
+`npcApproachBridge.ts` (+ test), `WorldHud.tsx` (+ `.module.css`, + test),
+`WelcomeHarborWorldView.tsx` (+ test);
+`src/routes/WelcomeHarborWorldPage.tsx`.
+
+Changed: `amplify/data/resource.ts` (`ChildWorldState.lastCheckpointId`);
+`src/features/discovery/types.ts` (`WorldStateSnapshot.lastCheckpointId`);
+`src/features/discovery/discovery.ts` (+ `parseKnownId`); `discovery/api.ts`
+(+ `saveCheckpoint`, `toSnapshot`/`writeIds` carry the new field);
+`src/features/island-map/three/worldEngineEvents.ts`
+(+ `InteractableFocused`); `useSandboxBridge.ts` (now delegates to
+`npcApproachBridge.ts`); `sandboxScene.ts` (now delegates to
+`pointerControls.ts`, behavior unchanged); `src/app/AppRoutes.tsx`
+(lazy-loaded `/island/:childId/world/welcome-harbor-3d` route);
+`src/routes/WelcomeHarbor.tsx` (one new auxiliary link); `docs/DATA_MODEL.md`.
+
+One Amplify schema change (one nullable string column, additive). 39 new
+unit tests, all passing; full suite (1424 tests), typecheck, and lint all
+clean.
+
+### Known limitations (Phase 32)
+
+- **The Sprouts (ages 3-4) accessibility playtest ADR-008 requires has not
+  run.** This is the one roadmap deliverable this phase cannot close by
+  writing code — it needs real 3-4-year-old testers. Per the roadmap's own
+  fallback ("If that playtest fails for Sprouts, first-person navigation
+  ships for Pathfinders/Explorers while Sprouts keeps a non-first-person
+  primary route... it does not block the phase for the older bands"), this
+  build takes the conservative reading of the *absence* of a playtest the
+  same way: the region is real, functional, and reachable by every band
+  today, but `WelcomeHarbor.tsx` keeps it as an auxiliary link rather than
+  replacing the card-based hub or the Phase 9 Phaser walking route as
+  anyone's primary path, and Sprouts' primary route is unchanged. Recording
+  an actual playtest result belongs in `docs/PILOT_READINESS.md` or
+  `docs/ACCESSIBILITY_AUDIT.md`, not invented here.
+- **Not manually played in a browser this session**, same caveat as Phase
+  31's sandbox and for the same reason — verified by a clean typecheck, a
+  clean lint pass, and the full unit suite passing (including geometry
+  invariants over the region content), but the actual WebGL render path
+  (whether the lookout tower's doorway gap *feels* walkable, whether the
+  gull's loop reads as a bird and not a spinning cone) has not been
+  eyeballed in a running dev server.
+- **`welcomeHarborScene.ts` has no automated test**, matching the
+  established precedent for every `scenes/*.ts` Phaser file and
+  `sandboxScene.ts` — it needs a real WebGL/DOM context to exercise
+  meaningfully. The geometry and ids it reads are tested independently
+  (`welcomeHarborRegion.test.ts`, `checkpoints.test.ts`).
+- **Instancing is the only performance-budget item this phase actually
+  does.** The roadmap also names "LOD, lazy-loaded regions, compressed
+  GLB/textures" and profiling "on target tablets/Chromebooks, not only
+  development desktops" — none of that applies yet, because every asset in
+  this region is still a placeholder primitive (`Phase 34` owns the real
+  art pipeline) and there is exactly one region to lazy-load *between*
+  today. Revisit once Phase 33 adds a second region and Phase 34 adds real
+  GLB assets worth compressing.
+- **The ambient gull is a single colored cone, not a bird.** It proves the
+  "environmental animation" deliverable (a `CatmullRomCurve3` loop with
+  orientation following its direction of travel) without needing a second
+  hand-built placeholder GLB; real art is Phase 34's job either way.
+- **Building interiors are a toast, not a space with anything in them.**
+  Walking inside the lookout tower or the dockside shed fires a real
+  `PlayerEnteredZone` event and a HUD message, but neither interior holds
+  its own content, discovery, or NPC yet — "enterable" was this phase's
+  bar, not "has something to do inside," which the roadmap does not ask for
+  until a location actually needs it.
+- **The backpack HUD entry point is a read-only popover, not an inventory
+  screen.** No inventory management UI exists anywhere in the app yet
+  (`docs/IMPLEMENTATION_STATUS.md`'s earlier phases only ever reference
+  "the backpack" as a data concept); building the first one was judged out
+  of scope for a HUD "entry point," which the roadmap phrase does not
+  require to be a full screen.
+- **Only one NPC, one region, and three checkpoints are authored.** The
+  pattern (`welcomeHarborRegion.ts` + `checkpoints.ts`) is the one Phase 33
+  copies for Pirate Builder Bay's first-person migration; the current
+  numbers reflect one region's worth of content, not a ceiling.
 
 ## Live smoke test, story/co-op verification, and Explorer content
 

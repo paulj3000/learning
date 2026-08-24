@@ -128,3 +128,13 @@ export function parseKnownIds(stored: unknown, knownIds: readonly string[]): rea
   }
   return result;
 }
+
+/**
+ * Single-value sibling of `parseKnownIds`, for a column that holds at most
+ * one authored id (`ChildWorldState.lastCheckpointId`) rather than an
+ * array. Same reasoning: external data at read time, so an unknown or
+ * malformed value is dropped rather than trusted.
+ */
+export function parseKnownId(stored: unknown, knownIds: readonly string[]): string | undefined {
+  return typeof stored === 'string' && knownIds.includes(stored) ? stored : undefined;
+}

@@ -27,8 +27,9 @@ import { listAllWorldChanges, recordWorldChangeOnce } from '../adventures/api';
 import { getInventory, grantRewards } from '../rewards/api';
 import { ALL_COLLECTIBLE_SETS, ALL_ITEMS, ALL_REWARD_RULES } from '../rewards/content';
 import { ISLAND_NPCS } from '../npc/content';
+import { KNOWN_CHECKPOINT_IDS } from './checkpoints';
 import { ISLAND_DISCOVERIES, ISLAND_DISCOVERY_IDS } from './content';
-import { addDiscoveredId, parseKnownIds, resolveDiscovery } from './discovery';
+import { addDiscoveredId, parseKnownId, parseKnownIds, resolveDiscovery } from './discovery';
 import type {
   DiscoveryContext,
   DiscoveryDefinition,
@@ -46,6 +47,7 @@ function toSnapshot(row: ChildWorldStateRow): WorldStateSnapshot {
   return {
     discoveredIds: parseKnownIds(row.discoveredObjects, ISLAND_DISCOVERY_IDS),
     metCharacterIds: parseKnownIds(row.discoveredCharacters, KNOWN_NPC_IDS),
+    lastCheckpointId: parseKnownId(row.lastCheckpointId, KNOWN_CHECKPOINT_IDS),
   };
 }
 
@@ -91,6 +93,7 @@ async function writeIds(
   const fields = {
     discoveredObjects: [...snapshot.discoveredIds],
     discoveredCharacters: [...snapshot.metCharacterIds],
+    lastCheckpointId: snapshot.lastCheckpointId ?? null,
     updatedAt: now,
   };
   if (row) {
@@ -246,6 +249,23 @@ export async function recordCharacterMet(childProfileId: string, npcId: string):
     ...current,
     metCharacterIds: [...current.metCharacterIds, npcId],
   });
+}
+
+/**
+ * Records the last authored checkpoint (`checkpoints.ts`) a child crossed in
+ * a 3D explorable region (docs/ROADMAP.md Phase 32). Safe to call every
+ * time the scene detects the child inside a checkpoint's trigger volume:
+ * an unknown id is dropped (`saveCheckpoint` never trusts a raw
+ * coordinate, only an authored id, same closed-vocabulary contract as
+ * `recordCharacterMet`), and re-saving the checkpoint the child is already
+ * at writes nothing.
+ */
+export async function saveCheckpoint(childProfileId: string, checkpointId: string): Promise<void> {
+  if (!KNOWN_CHECKPOINT_IDS.includes(checkpointId)) return;
+  const row = await findRow(childProfileId);
+  const current = row ? toSnapshot(row) : EMPTY_WORLD_STATE;
+  if (current.lastCheckpointId === checkpointId) return;
+  await writeIds(childProfileId, row, { ...current, lastCheckpointId: checkpointId });
 }
 
 /** Looks up an authored discovery by the id a `DISCOVER` world action names. */
