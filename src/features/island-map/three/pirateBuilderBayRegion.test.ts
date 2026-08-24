@@ -7,11 +7,14 @@ import {
   CHANNEL_MIN_X,
   CHANNEL_NORTH_WATER,
   CHANNEL_SOUTH_WATER,
+  FOLIAGE_TREES,
   GROUND_HALF_EXTENT_X,
   GROUND_HALF_EXTENT_Z,
   HARBOR_EXIT_ZONE,
   NPC_SPOT,
+  PATH_RUN,
   PIRATE_BUILDER_BAY_REGION_CHECKPOINTS,
+  ROCKS,
   ROPE_COIL_SPOT,
   TIDE_TUNNEL_ZONE,
   TOOLBOX_SPOT,
@@ -97,6 +100,13 @@ describe('pirateBuilderBayRegion content', () => {
     expect(PIRATE_BUILDER_BAY_REGION_CHECKPOINTS.length).toBeGreaterThan(0);
     for (const checkpoint of PIRATE_BUILDER_BAY_REGION_CHECKPOINTS) {
       expect(insideGround(checkpoint.x, checkpoint.z)).toBe(true);
+    }
+  });
+
+  it('places the path run and foliage/rock accents within the walkable ground, on the dock side', () => {
+    for (const point of [PATH_RUN.from, PATH_RUN.to, ...FOLIAGE_TREES, ...ROCKS]) {
+      expect(insideGround(point.x, point.z)).toBe(true);
+      expect(point.x).toBeLessThan(CHANNEL_MIN_X);
     }
   });
 });

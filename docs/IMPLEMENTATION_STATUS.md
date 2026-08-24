@@ -4913,6 +4913,178 @@ correctness bug rather than a polish item.
   the band correctly makes that imbalance visible rather than fixing it,
   and authoring for Sprouts is the natural follow-on.
 
+## Phase 34 — 3D Art and Asset Pipeline
+
+Implemented. Full conventions (units, axes, pivots, collider-proxy
+decoupling, animation vocabulary, LOD/instancing, why the pack is
+generated rather than modeled) are in
+`docs/THREE_WORLD_ASSET_CONVENTIONS.md`; this entry covers what shipped and
+what's still open.
+
+There is no artist and no 3D modeling tool available in this environment.
+The approach taken (confirmed with the user before implementation):
+generate genuine, checked-in `.gltf` files programmatically and load them
+through the real `GLTFLoader.load()` fetch path, rather than either (a)
+building pipeline scaffolding with no real content behind it, or (b)
+sourcing a third-party asset pack (licensing, network dependency, and a
+poor fit for this world's bespoke needs - a specific broken/repaired
+bridge, a specific NPC).
+
+### What shipped
+
+- **`src/features/island-map/three/assets/primitives.ts`** (+ test) - pure
+  vertex-math builders (box, cone/cylinder, torus, vertical plane,
+  horizontal ground plane), ported faithfully from `three`'s own
+  `BoxGeometry`/`CylinderGeometry`/`TorusGeometry`/`PlaneGeometry` source
+  (`node_modules/three/src/geometries/*.js`), adapted to the ground-pivot
+  convention (base at `y=0`, not centered) documented in
+  `THREE_WORLD_ASSET_CONVENTIONS.md`.
+- **`assets/gltfAssembler.ts`** (+ test) - assembles a complete, valid,
+  single-file glTF 2.0 JSON document (base64-embedded buffer, no separate
+  `.bin`) from named primitive parts and optional TRS keyframe animations,
+  generalizing the one prior precedent in this codebase (the retired
+  `placeholderNpcGltf.ts`'s hand-authored inline triangle) to N
+  parts/materials/nodes/animations. Deliberately avoids `THREE.GLTFExporter`
+  (browser-DOM-oriented: expects `Blob`/canvas, risky to run in Node).
+  Every material is authored `doubleSided: true` (see conventions doc for
+  why).
+- **`assets/animationVocabulary.ts`** - the roadmap's clip-name list
+  verbatim (`Idle`, `Walk`, `Talk`, `Wave`, `Point`, `Celebrate`,
+  `ReactHappy`, `ReactConcerned`, `Open`, `Close`, `Activate`) as a typed
+  union.
+- **`assets/manifest.ts`** (+ test) - the typed registry of every generated
+  asset (id, url, kind, declared clips, optional LOD level). The test is an
+  authoring check in the spirit of Phase 26.5's `reachableMemoryFlags`:
+  every url resolves to a file the generator actually produced, every
+  declared clip name is drawn from the vocabulary, every `lod.lowDetailId`
+  points at a real entry.
+- **`assets/assetLoader.ts`** (+ test) - the runtime loader: `loadAsset`
+  (cached by id, real `GLTFLoader.load()` fetch, not `.parse()`),
+  `instantiateAsset` (a fresh scene-graph clone), `createInstancedMeshFromAsset`
+  (bakes the source mesh's authored transform into geometry before
+  instancing - see conventions doc for why), and `instantiateWithLod`
+  (builds a `THREE.LOD` from a manifest `lod` declaration).
+- **`sceneKit.ts`** (+ test) - the shared module both region scene files
+  should have had from Phase 32: `createSceneBootstrap` (camera/renderer/
+  lighting, previously duplicated verbatim in both files), `toBox3`, the
+  shared movement constants, and kit-composition helpers (`runPlacements`,
+  `placeKitRun`, `placeKitCluster`, `placeWithLod`).
+- **`scripts/generate-world-assets.ts`** (`npm run assets:generate`) - the
+  generator producing all 19 files below into `public/models/`. Pure
+  Node/fs, no `three` import.
+- **The first asset pack** (`public/models/*.gltf`, 1-12 KB each):
+  - Terrain kit: `ground-tile`, `rock`
+  - Building kit: `wall`, `roof`, `door` - composed by `sceneKit.ts` into
+    Welcome Harbor's two buildings, each wall panel's height scaled to that
+    building's own `height` (a real bug found and fixed during browser
+    verification - see below)
+  - Bridge: `bridge-plank` / `bridge-plank-repaired` - one geometry, two
+    materials (weathered vs. warm-gold-with-emissive), instanced
+    differently for the broken (gapped stubs + one fallen plank) vs.
+    repaired (continuous deck run) state, replacing
+    `pirateBuilderBayScene.ts`'s old inline branching `BoxGeometry`
+  - Fence/path kit: `fence`, `path` - used decoratively in both regions
+  - Foliage kit: `foliage-tree` (+ `foliage-tree-lod1`, the one concrete
+    LOD pair in this pack), `foliage-bush`
+  - One NPC: `npc-pip` - replaces the inline-triangle placeholder with a
+    4-part figure (`Body`/`Head`/`Hat`/`Arm`) and `Idle`/`Talk`/`Wave` TRS
+    clips; retires `placeholderNpcGltf.ts` and its test entirely (all three
+    call sites - `welcomeHarborScene.ts`, `pirateBuilderBayScene.ts`,
+    `sandboxScene.ts` - migrated to `assetLoader.ts`)
+  - One companion asset: `companion-chatty` - a parrot assembly (body/
+    wing/beak/eye/tail/perch) with an `Idle` clip, generated and
+    loader-tested. **Not placed in either 3D scene** - see Known
+    limitations.
+  - Quest props: `rope-coil`, `toolbox`, `treasure-chest` (2-part, with an
+    `Open` clip triggered once on interact - a visual flourish, not a
+    mechanically-required step), `signpost`
+  - One collectible: `collectible-gem` - a two-cone bipyramid with a
+    multi-keyframe `Idle` spin clip (a naive 2-keyframe 0-to-360° rotation
+    is degenerate for quaternion interpolation - see conventions doc),
+    placed in Welcome Harbor and wired to the same `CollectiblePickedUp`
+    event the Phase 31 sandbox established
+- **`welcomeHarborScene.ts`/`pirateBuilderBayScene.ts`/`sandboxScene.ts`**
+  migrated from inline primitive geometry to the asset pipeline above.
+  Welcome Harbor's ground is now a real 6x6 tiled instance of `ground-tile`
+  (the 24x24 region divides evenly); Pirate Builder Bay's ground stays a
+  single `PlaneGeometry` (its 32x14 footprint does not tile evenly at 4m,
+  and a mixed-size retrofit was not worth it for this pack - the `path`
+  kit piece gets real usage there instead, and `ground-tile`/`rock` are
+  proven via Welcome Harbor).
+- **`tsconfig.app.json`** gained `"node"` in `types`, and
+  **`src/test/setup.ts`** gained a narrow `fetch` override, so
+  `assetLoader.test.ts` can exercise the real, fetch-based
+  `GLTFLoader.load()` path (not just `.parse()`) against real generated
+  files from inside Vitest's jsdom environment. One real gotcha surfaced
+  and fixed while building this: `TextEncoder.encode(...).buffer` is a
+  Node-realm `ArrayBuffer`, which fails `instanceof ArrayBuffer` inside
+  jsdom-realm code - exactly what `GLTFLoader.parse()` checks to tell JSON
+  from binary GLB. The fix copies into a `Uint8Array` constructed from the
+  jsdom realm before returning it from the mocked `fetch`.
+- New region content: `FOLIAGE_TREES`/`FOLIAGE_BUSHES`/`FENCE_RUN`/
+  `COLLECTIBLE_SPOT` in `welcomeHarborRegion.ts`, `PATH_RUN`/`FOLIAGE_TREES`/
+  `ROCKS` in `pirateBuilderBayRegion.ts`, all pure data with geometric-
+  invariant tests matching the existing region-file pattern (positions
+  verified clear of buildings/water/each other).
+
+### Verification
+
+Beyond `npm run typecheck`, `npm run lint`, and the full unit suite (all
+clean), this phase was manually browser-tested (`npm run dev` + a
+temporary, unrouted-in-the-real-app harness mounting
+`createWelcomeHarborEngine`/`createPirateBuilderBayEngine` directly against
+a plain div, plus a bird's-eye debug camera reusing the real
+`assetLoader.ts`/`sceneKit.ts` code paths - both deleted after use, no
+trace left in the app) with zero console errors across every state
+checked: Welcome Harbor, Pirate Builder Bay broken, Pirate Builder Bay
+repaired. This caught one real bug before it shipped: the lookout tower
+(4m tall) rendered with its roof floating a full meter above its walls,
+because wall panels were built at a fixed 3m height regardless of building
+height. Fixed by scaling each wall panel's y-scale to
+`building.height / WALL_HEIGHT` (`welcomeHarborScene.ts`). The bird's-eye
+check also surfaced the `createInstancedMeshFromAsset` multi-part
+limitation documented above and in the conventions doc (found because the
+*debug harness* took an instancing shortcut for `foliage-tree` that the
+real shipped code does not take).
+
+### Known limitations
+
+- **`companion-chatty` is generated and loader-tested but not placed in
+  either 3D scene.** Chatty's HUD portrait (`ChattyAvatar.tsx`, Canvas 2D)
+  is the child's one clear "this is Chatty" anchor; adding a second,
+  different-looking Chatty inside the 3D world is a product/UX call (could
+  read as confusing to a Sprouts-band child), not just an asset one, and
+  was deliberately left for a future phase rather than decided unilaterally
+  here.
+- **LOD is proven on exactly one asset pair** (`foliage-tree`/
+  `foliage-tree-lod1`), not applied broadly. Every asset in this pack is
+  small enough that a second detail level would have nothing meaningful to
+  simplify; add more LOD pairs only when a real, measured performance
+  problem calls for one.
+- **`createInstancedMeshFromAsset` silently drops every part but the first
+  for a multi-part asset.** Only `foliage-tree` is multi-part in this pack,
+  and it is placed individually (not instanced) for exactly this reason -
+  see the conventions doc. A future multi-part kit piece needing many
+  repeated placements would need a new instancing approach, not this one.
+- **No LOD/instancing/compression size budget has been measured on target
+  tablets/Chromebooks.** Every asset is 1-12 KB (well under any plausible
+  budget at this pack's size), so this has not mattered yet; Phase 32's
+  "profiled on target tablets/Chromebooks" performance-budget item is still
+  open, now with real content to profile against instead of primitives.
+- **Corner joins between adjacent wall panels are not mitered** - two
+  perpendicular wall runs meeting at a building corner can show a thin
+  seam from some angles. Cosmetic only; collision is unaffected (colliders
+  are still authored `Box3` volumes, independent of the visual mesh, per
+  the collider-proxy convention).
+- **Ground tiling is asymmetric between regions** (Welcome Harbor tiles
+  `ground-tile`; Pirate Builder Bay keeps a single plane) - a deliberate
+  scope decision documented above and in the conventions doc, not an
+  oversight.
+- **`gltfAssembler.ts` has no skinning/skeleton support.** Every animation
+  in this pack is a TRS (translation/rotation/scale) node-transform clip;
+  a future asset needing genuine skeletal animation (a bending-limb walk
+  cycle, say) would need the assembler extended first.
+
 ## Phase 27 — Chatty as Contextual AI Tutor
 
 **Complete.** Phase 4 gave Chatty a voice; this phase gives that voice a

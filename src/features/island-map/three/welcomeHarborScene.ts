@@ -1,54 +1,53 @@
 import {
-  AmbientLight,
   AnimationMixer,
   Box3,
   BoxGeometry,
   CatmullRomCurve3,
   Clock,
-  Color,
   ConeGeometry,
-  DirectionalLight,
   DoubleSide,
-  InstancedMesh,
   Mesh,
   MeshStandardMaterial,
   Object3D,
-  PerspectiveCamera,
   PlaneGeometry,
   Raycaster,
-  Scene,
   Vector2,
   Vector3,
-  WebGLRenderer,
 } from 'three';
+import { createInstancedMeshFromAsset, loadAsset } from './assets/assetLoader';
 import { resolveSpawnCheckpoint } from '../../discovery/checkpoints';
 import type { ThreeEngineHandle } from './ThreeGameContainer';
 import { FirstPersonController } from './firstPersonController';
 import { attachPointerControls } from './pointerControls';
-import { loadPlaceholderNpc } from './placeholderNpcGltf';
 import { hasApproached, isInRange, isInsideZone } from './sandboxTriggers';
+import {
+  APPROACH_RANGE_METERS,
+  createSceneBootstrap,
+  EYE_HEIGHT,
+  placeKitCluster,
+  placeWithLod,
+  RAYCAST_RANGE_METERS,
+  runPlacements,
+  toBox3,
+  WALL_HEIGHT,
+} from './sceneKit';
 import {
   AMBIENT_GULL_PATH,
   BOUNDARY_WALLS,
   BUILDINGS,
+  COLLECTIBLE_ID,
+  COLLECTIBLE_SPOT,
+  FENCE_RUN,
+  FOLIAGE_BUSHES,
+  FOLIAGE_TREES,
   GROUND_HALF_EXTENT,
   NPC_ID,
   NPC_SPOT,
   REGION_ID,
   SCENERY_CLUSTER,
   WELCOME_HARBOR_REGION_CHECKPOINTS,
-  type RectZone,
 } from './welcomeHarborRegion';
 import type { WorldEngineEventBus } from './worldEngineEvents';
-
-const APPROACH_RANGE_METERS = 2.5;
-const RAYCAST_RANGE_METERS = 4;
-const EYE_HEIGHT = 1.6;
-const WALL_HEIGHT = 3;
-
-function toBox3(zone: RectZone, minY = -1, maxY = WALL_HEIGHT): Box3 {
-  return new Box3(new Vector3(zone.minX, minY, zone.minZ), new Vector3(zone.maxX, maxY, zone.maxZ));
-}
 
 /** One wall segment collider for a building side, sized from its footprint and which side is missing (the doorway). */
 function buildingWallColliders(building: (typeof BUILDINGS)[number]): Box3[] {
@@ -89,6 +88,26 @@ function buildingWallColliders(building: (typeof BUILDINGS)[number]): Box3[] {
   return colliders;
 }
 
+/** The two ground corners of one building wall side, for tiling `wall` kit-piece panels along it. */
+function wallSideRun(
+  building: (typeof BUILDINGS)[number],
+  side: 'north' | 'south' | 'east' | 'west',
+): { from: { x: number; z: number }; to: { x: number; z: number } } {
+  const { x, z, halfWidth, halfDepth } = building;
+  switch (side) {
+    case 'north':
+      return { from: { x: x - halfWidth, z: z - halfDepth }, to: { x: x + halfWidth, z: z - halfDepth } };
+    case 'south':
+      return { from: { x: x - halfWidth, z: z + halfDepth }, to: { x: x + halfWidth, z: z + halfDepth } };
+    case 'east':
+      return { from: { x: x + halfWidth, z: z - halfDepth }, to: { x: x + halfWidth, z: z + halfDepth } };
+    case 'west':
+      return { from: { x: x - halfWidth, z: z - halfDepth }, to: { x: x - halfWidth, z: z + halfDepth } };
+  }
+}
+
+const WALL_PANEL_WIDTH_METERS = 2;
+
 export interface WelcomeHarborEngine extends ThreeEngineHandle {
   /** Raycasts from the camera center and fires the matching event, if anything interactive is in range. */
   interact(): void;
@@ -101,92 +120,35 @@ export interface WelcomeHarborEngineOptions {
 
 /**
  * Welcome Harbor's Phase 32 first-person region (`docs/ROADMAP.md` Phase
- * 32: "Rebuilds Welcome Harbor ... as a polished first-person 3D space").
- * Builds on the Phase 31 sandbox's proven pieces
- * (`firstPersonController.ts`, `sandboxTriggers.ts`, `placeholderNpcGltf.ts`,
- * `pointerControls.ts`) rather than inventing new ones, and adds what the
- * sandbox deliberately left out: enterable buildings, checkpoint-based
- * spawning, an ambient animated creature, and instanced scenery.
+ * 32), re-pointed at real Phase 34 assets (`assets/manifest.ts`) instead of
+ * inline primitive geometry: kit-piece walls/roofs/doors compose the two
+ * buildings, `sceneKit.ts` owns the camera/renderer/lighting bootstrap both
+ * this file and `pirateBuilderBayScene.ts` used to duplicate, and Pip loads
+ * through the real `assetLoader.ts` fetch path instead of the retired
+ * `placeholderNpcGltf.ts` in-memory parse. See
+ * `docs/THREE_WORLD_ASSET_CONVENTIONS.md` for the pivot/scale/animation
+ * conventions every placement below relies on.
  *
- * Rendering glue, like every existing `scenes/*.ts` Phaser scene and
- * `sandboxScene.ts`: not unit tested here, since it needs a real
- * WebGL/DOM context. The geometry and ids it reads
- * (`welcomeHarborRegion.ts`, `discovery/checkpoints.ts`) are tested
- * independently.
+ * Rendering glue, like every existing `scenes/*.ts` Phaser scene: not unit
+ * tested here, since it needs a real WebGL/DOM context. The geometry and
+ * ids it reads (`welcomeHarborRegion.ts`, `discovery/checkpoints.ts`) and
+ * the asset pipeline it calls into (`assets/*.ts`, `sceneKit.ts`) are
+ * tested independently.
  */
 export function createWelcomeHarborEngine(
   parent: HTMLDivElement,
   bus: WorldEngineEventBus,
   options: WelcomeHarborEngineOptions = {},
 ): WelcomeHarborEngine {
-  const scene = new Scene();
-  scene.background = new Color(0x8fc7e6);
-
-  const camera = new PerspectiveCamera(70, parent.clientWidth / parent.clientHeight, 0.1, 150);
-  camera.rotation.order = 'YXZ';
-
-  const renderer = new WebGLRenderer({ antialias: true });
-  renderer.setSize(parent.clientWidth, parent.clientHeight);
-  parent.appendChild(renderer.domElement);
-
-  scene.add(new AmbientLight(0xffffff, 0.65));
-  const sun = new DirectionalLight(0xffffff, 0.8);
-  sun.position.set(8, 14, 6);
-  scene.add(sun);
-
-  const ground = new Mesh(
-    new PlaneGeometry(GROUND_HALF_EXTENT * 2, GROUND_HALF_EXTENT * 2),
-    new MeshStandardMaterial({ color: 0xd8c48a }),
-  );
-  ground.rotation.x = -Math.PI / 2;
-  scene.add(ground);
-
-  // The water at the region's south edge, where the ambient gull loops.
-  const water = new Mesh(
-    new PlaneGeometry(GROUND_HALF_EXTENT * 2, 8),
-    new MeshStandardMaterial({ color: 0x2f6f9e, side: DoubleSide }),
-  );
-  water.rotation.x = -Math.PI / 2;
-  water.position.set(0, -0.05, GROUND_HALF_EXTENT - 4);
-  scene.add(water);
+  const { scene, camera, renderer } = createSceneBootstrap(parent, 0x8fc7e6);
 
   // Boundary + building wall colliders, one Box3 per wall segment. Each
   // building's missing side (its `wallSides` omission) has no collider, so
   // it is a real doorway the child walks through, not a solid box with a
   // decal on it.
   const colliders: Box3[] = [...BOUNDARY_WALLS.map((wall) => toBox3(wall))];
-  const buildingMaterial = new MeshStandardMaterial({ color: 0x9c7a54 });
-  const roofMaterial = new MeshStandardMaterial({ color: 0x6b4a34 });
   for (const building of BUILDINGS) {
     colliders.push(...buildingWallColliders(building));
-
-    for (const side of building.wallSides) {
-      const wallWidth =
-        side === 'north' || side === 'south' ? building.halfWidth * 2 : building.halfDepth * 2;
-      const wallMesh = new Mesh(new PlaneGeometry(wallWidth, building.height), buildingMaterial);
-      wallMesh.position.set(building.x, building.height / 2, building.z);
-      if (side === 'north') {
-        wallMesh.position.z -= building.halfDepth;
-      } else if (side === 'south') {
-        wallMesh.position.z += building.halfDepth;
-        wallMesh.rotation.y = Math.PI;
-      } else if (side === 'east') {
-        wallMesh.position.x += building.halfWidth;
-        wallMesh.rotation.y = -Math.PI / 2;
-      } else {
-        wallMesh.position.x -= building.halfWidth;
-        wallMesh.rotation.y = Math.PI / 2;
-      }
-      scene.add(wallMesh);
-    }
-
-    const roof = new Mesh(
-      new ConeGeometry(Math.max(building.halfWidth, building.halfDepth) * 1.3, 1.4, 4),
-      roofMaterial,
-    );
-    roof.position.set(building.x, building.height + 0.7, building.z);
-    roof.rotation.y = Math.PI / 4;
-    scene.add(roof);
   }
 
   const controller = new FirstPersonController({ colliders });
@@ -195,47 +157,139 @@ export function createWelcomeHarborEngine(
   controller.position.set(spawn.x, 0, spawn.z);
   controller.yaw = spawn.yaw;
 
-  // Instanced crate cluster (roadmap performance-budget deliverable:
-  // "instancing for repeated scenery") — one draw call for every crate
-  // rather than one `Mesh` per crate.
-  const crateGeometry = new BoxGeometry(0.6, 0.6, 0.6);
-  const crateMaterial = new MeshStandardMaterial({ color: 0x8a5a34 });
-  const crates = new InstancedMesh(crateGeometry, crateMaterial, SCENERY_CLUSTER.length);
-  const crateTransform = new Object3D();
-  SCENERY_CLUSTER.forEach((position, index) => {
-    crateTransform.position.set(position.x, 0.3, position.z);
-    crateTransform.rotation.y = index * 0.6;
-    crateTransform.updateMatrix();
-    crates.setMatrixAt(index, crateTransform.matrix);
-  });
-  crates.instanceMatrix.needsUpdate = true;
-  scene.add(crates);
-
-  // Pip, reusing the same placeholder GLB and animation the Phase 31
-  // sandbox exercises — the same character, now placed in a real region.
+  // Pip, shown as a placeholder box until the real `npc-pip` asset resolves
+  // (a real network fetch now, unlike the retired in-memory placeholder).
   const npcPlaceholder = new Mesh(
     new BoxGeometry(0.4, 0.6, 0.2),
     new MeshStandardMaterial({ color: 0x2f8f4e }),
   );
   npcPlaceholder.position.set(NPC_SPOT.x, 0, NPC_SPOT.z);
-  npcPlaceholder.visible = true;
   scene.add(npcPlaceholder);
 
   let npcMixer: AnimationMixer | null = null;
   let npcMesh: Object3D = npcPlaceholder;
-  void loadPlaceholderNpc().then(({ scene: npcScene, clip }) => {
+  let collectibleMesh: Object3D | null = null;
+  const collectibleMixers: AnimationMixer[] = [];
+
+  async function loadWorldContent(): Promise<void> {
+    // Terrain kit: a 6x6 grid of ground-tile.gltf covers the 24x24 walkable
+    // ground exactly (GROUND_HALF_EXTENT=12), proving the kit-tiling
+    // approach the old single big PlaneGeometry never needed to.
+    const tileSize = 4;
+    const tilesPerSide = (GROUND_HALF_EXTENT * 2) / tileSize;
+    const groundTiles = Array.from({ length: tilesPerSide * tilesPerSide }, (_, index) => {
+      const ix = index % tilesPerSide;
+      const iz = Math.floor(index / tilesPerSide);
+      return {
+        x: -GROUND_HALF_EXTENT + tileSize / 2 + ix * tileSize,
+        z: -GROUND_HALF_EXTENT + tileSize / 2 + iz * tileSize,
+      };
+    });
+
+    // Building kit: every wall panel across both buildings tiled and
+    // instanced together (one draw call), one roof and one door per
+    // building (each scaled to that building's own footprint). `wall.gltf`
+    // is authored at `WALL_HEIGHT` (3m); each panel's y-scale stretches it
+    // to that building's actual height so the roof (placed at
+    // `building.height`) sits flush on top instead of floating over a gap
+    // for a taller building or sinking into a shorter one.
+    const wallRuns = BUILDINGS.flatMap((building) => {
+      const heightScale = building.height / WALL_HEIGHT;
+      return building.wallSides.flatMap((side) => {
+        const run = wallSideRun(building, side);
+        return runPlacements(run.from, run.to, WALL_PANEL_WIDTH_METERS).map((placement) => ({
+          ...placement,
+          scale: { y: heightScale },
+        }));
+      });
+    });
+    const roofPlacements = BUILDINGS.map((building) => {
+      const radius = Math.max(building.halfWidth, building.halfDepth) * 1.3;
+      return {
+        position: { x: building.x, y: building.height, z: building.z },
+        rotationY: Math.PI / 4,
+        scale: { x: radius / 1.5, y: 1, z: radius / 1.5 },
+      };
+    });
+    const doorPlacements = BUILDINGS.flatMap((building) => {
+      const missingSide = (['north', 'south', 'east', 'west'] as const).find(
+        (side) => !building.wallSides.includes(side),
+      );
+      if (!missingSide) return [];
+      const run = wallSideRun(building, missingSide);
+      return [{ position: { x: (run.from.x + run.to.x) / 2, y: 0, z: (run.from.z + run.to.z) / 2 } }];
+    });
+
+    const [groundInstanced, wallInstanced, roofInstanced, doorInstanced] = await Promise.all([
+      createInstancedMeshFromAsset('ground-tile', groundTiles.map((position) => ({ position: { x: position.x, y: 0, z: position.z } }))),
+      createInstancedMeshFromAsset('wall', wallRuns),
+      createInstancedMeshFromAsset('roof', roofPlacements),
+      createInstancedMeshFromAsset('door', doorPlacements),
+    ]);
+    scene.add(groundInstanced, wallInstanced, roofInstanced, doorInstanced);
+
+    // Water at the region's south edge, where the ambient gull loops -
+    // still a flat color plane (not a kit deliverable), unchanged.
+    const water = new Mesh(
+      new PlaneGeometry(GROUND_HALF_EXTENT * 2, 8),
+      new MeshStandardMaterial({ color: 0x2f6f9e, side: DoubleSide }),
+    );
+    water.rotation.x = -Math.PI / 2;
+    water.position.set(0, -0.05, GROUND_HALF_EXTENT - 4);
+    scene.add(water);
+
+    // Instanced crate cluster, now sourced from the `rock` terrain-kit
+    // piece instead of an inline BoxGeometry.
+    await placeKitCluster(
+      scene,
+      'rock',
+      SCENERY_CLUSTER.map((position, index) => ({ x: position.x, z: position.z, rotationY: index * 0.6 })),
+    );
+
+    // Foliage kit: trees individually placed (LOD-aware), bushes instanced.
+    await Promise.all(FOLIAGE_TREES.map((tree) => placeWithLod(scene, 'foliage-tree', tree)));
+    await placeKitCluster(scene, 'foliage-bush', FOLIAGE_BUSHES);
+
+    // A decorative fence run - no collider, purely visual.
+    const fenceInstanced = await createInstancedMeshFromAsset('fence', runPlacements(FENCE_RUN.from, FENCE_RUN.to, 1.2));
+    scene.add(fenceInstanced);
+
+    // The one collectible (roadmap: "one collectible"), wired to the same
+    // `CollectiblePickedUp` event the Phase 31 sandbox established.
+    const collectible = await loadAsset('collectible-gem');
+    const collectibleScene = collectible.scene.clone(true);
+    collectibleScene.position.set(COLLECTIBLE_SPOT.x, 0, COLLECTIBLE_SPOT.z);
+    scene.add(collectibleScene);
+    collectibleMesh = collectibleScene;
+    const idleClip = collectible.animations.find((clip) => clip.name === 'Idle');
+    if (idleClip) {
+      const mixer = new AnimationMixer(collectibleScene);
+      mixer.clipAction(idleClip).play();
+      collectibleMixers.push(mixer);
+    }
+
+    // Pip: swap the placeholder box for the real, animated asset.
+    const npc = await loadAsset('npc-pip');
+    const npcScene = npc.scene.clone(true);
     npcScene.position.set(NPC_SPOT.x, 0, NPC_SPOT.z);
     npcScene.name = 'Pip';
     scene.add(npcScene);
     npcPlaceholder.visible = false;
     npcMesh = npcScene;
-    npcMixer = new AnimationMixer(npcScene);
-    npcMixer.clipAction(clip).play();
-  });
+    const npcIdleClip = npc.animations.find((clip) => clip.name === 'Idle');
+    if (npcIdleClip) {
+      npcMixer = new AnimationMixer(npcScene);
+      npcMixer.clipAction(npcIdleClip).play();
+    }
+  }
+
+  void loadWorldContent();
 
   // The ambient gull: purely decorative environmental animation
   // (roadmap: "ambient creatures and environmental animation"), never
-  // raycast-interactive and never emits a domain event.
+  // raycast-interactive and never emits a domain event. Still a code-drawn
+  // primitive - the first asset pack does not include a bird, per
+  // `docs/IMPLEMENTATION_STATUS.md`'s Phase 34 entry.
   const gullPath = new CatmullRomCurve3(
     AMBIENT_GULL_PATH.map((point) => new Vector3(point.x, point.y, point.z)),
     true,
@@ -251,11 +305,26 @@ export function createWelcomeHarborEngine(
   const raycaster = new Raycaster();
   raycaster.far = RAYCAST_RANGE_METERS;
 
-  function interact(): void {
+  function raycastFocus(): string | null {
     raycaster.setFromCamera(new Vector2(0, 0), camera);
-    const hits = raycaster.intersectObject(npcMesh, true);
-    if (hits.length > 0) {
+    const npcHits = raycaster.intersectObject(npcMesh, true);
+    if (npcHits.length > 0) return NPC_ID;
+    if (collectibleMesh) {
+      const collectibleHits = raycaster.intersectObject(collectibleMesh, true);
+      if (collectibleHits.length > 0) return COLLECTIBLE_ID;
+    }
+    return null;
+  }
+
+  function interact(): void {
+    const focused = raycastFocus();
+    if (focused === NPC_ID) {
       bus.emit('ObjectInteracted', { entityId: NPC_ID, interactionId: `${NPC_ID}:talk` });
+    } else if (focused === COLLECTIBLE_ID && collectibleMesh) {
+      bus.emit('ObjectInteracted', { entityId: COLLECTIBLE_ID, interactionId: `${COLLECTIBLE_ID}:collect` });
+      bus.emit('CollectiblePickedUp', { entityId: COLLECTIBLE_ID });
+      scene.remove(collectibleMesh);
+      collectibleMesh = null;
     }
   }
   const pointerControls = attachPointerControls(renderer, controller, { onInteract: interact });
@@ -275,7 +344,7 @@ export function createWelcomeHarborEngine(
   }));
 
   let wasNearNpc = false;
-  let wasFocusedOnNpc = false;
+  let wasFocused: string | null = null;
   let gullT = 0;
   const clock = new Clock();
 
@@ -291,6 +360,7 @@ export function createWelcomeHarborEngine(
     camera.rotation.x = controller.pitch;
 
     npcMixer?.update(delta);
+    for (const mixer of collectibleMixers) mixer.update(delta);
 
     gullT = (gullT + delta * gullSpeed) % 1;
     const gullPoint = gullPath.getPointAt(gullT);
@@ -315,12 +385,11 @@ export function createWelcomeHarborEngine(
     }
     wasNearNpc = npcNearNow;
 
-    raycaster.setFromCamera(new Vector2(0, 0), camera);
-    const focusedOnNpcNow = raycaster.intersectObject(npcMesh, true).length > 0;
-    if (focusedOnNpcNow !== wasFocusedOnNpc) {
-      bus.emit('InteractableFocused', { entityId: focusedOnNpcNow ? NPC_ID : null });
+    const focusedNow = raycastFocus();
+    if (focusedNow !== wasFocused) {
+      bus.emit('InteractableFocused', { entityId: focusedNow });
     }
-    wasFocusedOnNpc = focusedOnNpcNow;
+    wasFocused = focusedNow;
 
     for (const checkpoint of checkpointZones) {
       const insideNow = isInsideZone(controller.position, checkpoint.zone);

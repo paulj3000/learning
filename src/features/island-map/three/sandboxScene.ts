@@ -18,10 +18,10 @@ import {
   Vector3,
   WebGLRenderer,
 } from 'three';
+import { loadAsset } from './assets/assetLoader';
 import type { ThreeEngineHandle } from './ThreeGameContainer';
 import { FirstPersonController } from './firstPersonController';
 import { attachPointerControls } from './pointerControls';
-import { loadPlaceholderNpc } from './placeholderNpcGltf';
 import { hasApproached, isInRange, isInsideZone } from './sandboxTriggers';
 import { SANDBOX_NPC_ID, type WorldEngineEventBus } from './worldEngineEvents';
 
@@ -57,8 +57,10 @@ export interface SandboxEngine extends ThreeEngineHandle {
  * emitting through `worldEngineEvents.ts` (`docs/ROADMAP.md` Phase 31).
  * This is rendering glue and, like every existing `scenes/*.ts` Phaser
  * scene, is not unit tested — the logic it depends on
- * (`firstPersonController.ts`, `sandboxTriggers.ts`, `placeholderNpcGltf.ts`,
- * `worldEngineEvents.ts`) is, independently.
+ * (`firstPersonController.ts`, `sandboxTriggers.ts`, `assets/assetLoader.ts`,
+ * `worldEngineEvents.ts`) is, independently. Pip now loads through the real
+ * `assetLoader.ts` fetch path (`docs/ROADMAP.md` Phase 34) instead of the
+ * retired `placeholderNpcGltf.ts` in-memory parse.
  */
 export function createSandboxEngine(
   parent: HTMLDivElement,
@@ -106,13 +108,17 @@ export function createSandboxEngine(
   scene.add(npcPlaceholder);
 
   let npcMixer: AnimationMixer | null = null;
-  void loadPlaceholderNpc().then(({ scene: npcScene, clip }) => {
+  void loadAsset('npc-pip').then((npc) => {
+    const npcScene = npc.scene.clone(true);
     npcScene.position.copy(NPC_POSITION);
     npcScene.name = 'Pip';
     scene.add(npcScene);
     npcPlaceholder.visible = false;
-    npcMixer = new AnimationMixer(npcScene);
-    npcMixer.clipAction(clip).play();
+    const idleClip = npc.animations.find((clip) => clip.name === 'Idle');
+    if (idleClip) {
+      npcMixer = new AnimationMixer(npcScene);
+      npcMixer.clipAction(idleClip).play();
+    }
   });
 
   const controller = new FirstPersonController({

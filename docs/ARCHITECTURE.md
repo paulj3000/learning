@@ -108,7 +108,7 @@ equivalent:
 
 | Phaser (2D) | Three.js (first-person 3D) |
 | --- | --- |
-| Tilemaps (`tilemap.ts`) | GLB regions (`GLTFLoader`) |
+| Tilemaps (`tilemap.ts`) | GLB/glTF kit pieces (`GLTFLoader`, see below) |
 | Top-down 8-directional movement | First-person controller (`firstPersonController.ts`) |
 | Per-tile collision | 3D collision volumes (`THREE.Box3`, axis-separated resolution) |
 | 2D proximity zones (`zones.ts`) | Trigger volumes (`sandboxTriggers.ts`'s `isInsideZone`/`hasApproached`) |
@@ -139,6 +139,21 @@ resolve a spawn point; `discovery/api.ts`'s `saveCheckpoint` writes
 same way `discoveredObjects`/`discoveredCharacters` already are, never a
 raw coordinate a client could forge into an out-of-bounds or
 inside-a-wall spawn.
+
+**Phase 34** replaces every inline primitive mesh both Phase 32/33 regions
+built (`BoxGeometry`, `ConeGeometry`, and so on, constructed directly in the
+scene files) with real, external, checked-in `.gltf` assets loaded through
+the genuine `GLTFLoader.load()` fetch path, under
+`features/island-map/three/assets/` (`primitives.ts`, `gltfAssembler.ts`,
+`manifest.ts`, `assetLoader.ts`) and a new `sceneKit.ts` that both region
+scene files now share instead of duplicating their camera/renderer/lighting
+bootstrap and collider-conversion helper. Full conventions — units, axes,
+pivots, collider-proxy decoupling, the animation-clip vocabulary,
+LOD/instancing, and why the pack is generated rather than modeled — are in
+`docs/THREE_WORLD_ASSET_CONVENTIONS.md`. This is a content/tooling change
+inside the existing World Engine presentation layer, not a new
+architectural layer: the event bus, semantic-id rule, and World Engine/World
+State direction above are unchanged.
 
 ## Platform engine boundaries (Phase 18)
 

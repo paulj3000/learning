@@ -3,6 +3,10 @@ import {
   AMBIENT_GULL_PATH,
   BOUNDARY_WALLS,
   BUILDINGS,
+  COLLECTIBLE_SPOT,
+  FENCE_RUN,
+  FOLIAGE_BUSHES,
+  FOLIAGE_TREES,
   GROUND_HALF_EXTENT,
   NPC_SPOT,
   SCENERY_CLUSTER,
@@ -10,6 +14,15 @@ import {
   findBuildingByInteriorZoneId,
   isInsideRect,
 } from './welcomeHarborRegion';
+
+/** Water occupies the region's south edge (`welcomeHarborScene.ts`'s water plane, z in [4, 12]). */
+const WATER_MIN_Z = 4;
+
+function insideBuildingFootprint(x: number, z: number): boolean {
+  return BUILDINGS.some(
+    (building) => Math.abs(x - building.x) < building.halfWidth && Math.abs(z - building.z) < building.halfDepth,
+  );
+}
 
 describe('isInsideRect', () => {
   const zone = { id: 'z', minX: -1, maxX: 1, minZ: -1, maxZ: 1 };
@@ -66,6 +79,29 @@ describe('welcomeHarborRegion content', () => {
   it('has four boundary walls and a closed gull loop of at least three points', () => {
     expect(BOUNDARY_WALLS).toHaveLength(4);
     expect(AMBIENT_GULL_PATH.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('places every foliage tree and bush on dry land, clear of buildings and water', () => {
+    for (const spot of [...FOLIAGE_TREES, ...FOLIAGE_BUSHES]) {
+      expect(Math.abs(spot.x)).toBeLessThan(GROUND_HALF_EXTENT);
+      expect(Math.abs(spot.z)).toBeLessThan(GROUND_HALF_EXTENT);
+      expect(spot.z).toBeLessThan(WATER_MIN_Z);
+      expect(insideBuildingFootprint(spot.x, spot.z)).toBe(false);
+    }
+  });
+
+  it('places the fence run on dry land, clear of buildings', () => {
+    for (const point of [FENCE_RUN.from, FENCE_RUN.to]) {
+      expect(Math.abs(point.x)).toBeLessThan(GROUND_HALF_EXTENT);
+      expect(point.z).toBeLessThan(WATER_MIN_Z);
+      expect(insideBuildingFootprint(point.x, point.z)).toBe(false);
+    }
+  });
+
+  it('places the collectible within the walkable ground, clear of buildings and water', () => {
+    expect(Math.abs(COLLECTIBLE_SPOT.x)).toBeLessThan(GROUND_HALF_EXTENT);
+    expect(COLLECTIBLE_SPOT.z).toBeLessThan(WATER_MIN_Z);
+    expect(insideBuildingFootprint(COLLECTIBLE_SPOT.x, COLLECTIBLE_SPOT.z)).toBe(false);
   });
 });
 

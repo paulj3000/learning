@@ -167,4 +167,26 @@ export const HARBOR_EXIT_ZONE: RectZone = {
   maxZ: 2,
 };
 
+/**
+ * A decorative path run leading up to the bridge approach on the dock side
+ * (`docs/ROADMAP.md` Phase 34: "modular kits ... paths"), and a couple of
+ * foliage/rock accents flanking the dock - the same kit pieces
+ * `welcomeHarborRegion.ts` places, reused here rather than region-specific
+ * assets, per the "modular kits ... composable across regions" deliverable.
+ */
+export const PATH_RUN: { from: { x: number; z: number }; to: { x: number; z: number } } = {
+  from: { x: -8, z: 3 },
+  to: { x: -6.5, z: 3 },
+};
+
+export const FOLIAGE_TREES: readonly { x: number; z: number }[] = [
+  { x: -13, z: -5 },
+  { x: -13, z: 5 },
+];
+
+export const ROCKS: readonly { x: number; z: number }[] = [
+  { x: -9.5, z: -5 },
+  { x: -8.5, z: -4.6 },
+];
+
 export const PIRATE_BUILDER_BAY_REGION_CHECKPOINTS = PIRATE_BUILDER_BAY_CHECKPOINTS;

@@ -145,6 +145,37 @@ export const SCENERY_CLUSTER: readonly { x: number; z: number }[] = Array.from(
   },
 );
 
+/**
+ * Foliage kit placements (`docs/ROADMAP.md` Phase 34: "foliage kit").
+ * Trees are placed individually (`placeWithLod` in `sceneKit.ts`) rather
+ * than instanced, since each needs its own distance check against the
+ * camera to swap in `foliage-tree-lod1` - the one concrete LOD pair in the
+ * first asset pack. Bushes have no LOD variant, so they are instanced
+ * (`FOLIAGE_BUSHES`) the same way `SCENERY_CLUSTER` already is.
+ */
+export const FOLIAGE_TREES: readonly { x: number; z: number }[] = [
+  { x: -10, z: -1 },
+  { x: 9.5, z: -2 },
+  { x: 2, z: -9.5 },
+];
+
+export const FOLIAGE_BUSHES: readonly { x: number; z: number }[] = [
+  { x: -4, z: -9.5 },
+  { x: -3, z: -9 },
+  { x: 9, z: -9 },
+  { x: 9.8, z: -8.5 },
+];
+
+/** A decorative fence run in the open field south of both buildings (roadmap: "modular kits ... fences"). No collider - purely visual, like the door kit piece. */
+export const FENCE_RUN: { from: { x: number; z: number }; to: { x: number; z: number } } = {
+  from: { x: -2, z: -9.5 },
+  to: { x: 2, z: -9.5 },
+};
+
+/** One collectible (roadmap: "one collectible"), wired to the same `CollectiblePickedUp` event the Phase 31 sandbox already established. */
+export const COLLECTIBLE_SPOT = { x: -1.5, z: -3 };
+export const COLLECTIBLE_ID = 'harbor-collectible-gem';
+
 export const WELCOME_HARBOR_REGION_CHECKPOINTS = WELCOME_HARBOR_CHECKPOINTS;
 
 export function findBuildingByInteriorZoneId(zoneId: string): BuildingDefinition | undefined {

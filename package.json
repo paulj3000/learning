@@ -19,7 +19,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "sandbox": "ampx sandbox",
-    "ai:red-team": "tsx scripts/ai-red-team.ts"
+    "ai:red-team": "tsx scripts/ai-red-team.ts",
+    "assets:generate": "tsx scripts/generate-world-assets.ts"
   },
   "keywords": [
     "education",
