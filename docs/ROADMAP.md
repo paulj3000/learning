@@ -445,7 +445,9 @@ manifests and world views rather than the authored content registries.
 
 ### Phase 30 — Parent/Educator Experience Expansion
 
-Extends the existing Phase 7 Parent Dashboard rather than replacing it.
+Implemented (`src/features/parent-dashboard/`; see
+`docs/IMPLEMENTATION_STATUS.md` for what shipped and what did not). Extends
+the existing Phase 7 Parent Dashboard rather than replacing it.
 
 Deliverables:
 - mastery-level summaries ("Measurement → PROFICIENT") sourced from

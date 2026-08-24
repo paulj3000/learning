@@ -44,15 +44,28 @@ Bedrock model choice ever changes.
 
 ## Current phase
 
-**Phases 0-29 are implemented**, plus two follow-ups: "Curriculum band
+**Phases 0-30 are implemented**, plus two follow-ups: "Curriculum band
 coverage (Phase 19 follow-up)", which gave Sprouts and Explorers a
 curriculum at all, and "Phase 27 follow-up", which closed the two seams
 Phase 27 shipped with (Chatty re-voicing opted-in NPC lines, and a
 `SWITCH_REPRESENTATION` turn putting a real manipulative beside the step).
 Both are described in their own sections below.
 
-The most recent phase proper is Phase 29 (Multiple Islands and Worlds): the
-island is no longer the world. A child who has helped Pip at the bay can sail
+The most recent phase proper is Phase 30 (Parent/Educator Experience
+Expansion): the parent dashboard now surfaces two engines it had never
+actually read from before. "Mastery by area" and the educator report both
+read `MasteryDetail` (Phase 20) grouped by curriculum domain — until this
+phase, `ChildDashboard.tsx` showed only raw `SkillProgress` counts and never
+called the Mastery Engine's own status computation at all. "Focus areas to
+consider" reads the Adaptive Adventure Director's `rankSkillNeeds` (Phase
+28) directly, so a parent's sense of what needs practice can never disagree
+with the Director's own. "Recent adventures" now shows an
+independent-vs-hinted line per session, from `AdventureAction` rows a
+child's hint ladder had already been writing since Phase 3 but nothing had
+ever read back. See its section below for what did and did not ship.
+
+Phase 29 (Multiple Islands and Worlds) came before it — see its section
+below. The island is no longer the world. A child who has helped Pip at the bay can sail
 from Welcome Harbor to Creature Care Cove, a second world with its own
 locations, adventures, quest, and treasure, carrying the same profile and the
 same backpack. The phase's real deliverable is that the second world needed no
@@ -3983,6 +3996,113 @@ No Amplify schema change, so nothing here needs a deploy to be exercised.
   `recordArrival`'s write path in particular has never run against real
   AppSync - it uses `recordWorldChangeOnce`, which is well exercised, but the
   `changeType: 'TRAVEL'` value itself is new.
+
+## Phase 30 - Parent/Educator Experience Expansion
+
+**Complete**, all four deliverables, extending the existing Phase 7 Parent
+Dashboard (`src/routes/ChildDashboard.tsx`) rather than replacing it, per
+docs/ROADMAP.md's own framing of this phase. No new route, no schema
+change, no new engine — everything below reads records already collected by
+the Mastery Engine (Phase 20), the Adaptive Adventure Director (Phase 28),
+and the Adventure Engine's own `AdventureAction` trail (Phase 3), and
+formats them for a parent for the first time.
+
+### The four deliverables
+
+**Mastery-level summaries** ("Measurement -> PROFICIENT"),
+`src/features/parent-dashboard/masteryOverview.ts`. Until this phase,
+`ChildDashboard.tsx` never called the Mastery Engine's own
+`computeSkillStatus` at all — its "Skills practiced" section showed raw
+`SkillProgress` counts (`exposureCount`, `independentSuccessCount`,
+`supportedSuccessCount`) with no status label. `buildDomainMasterySummaries`
+takes `MasteryDetail[]` (correctly, not `MasterySummary[]`: this is the
+owning parent's own dashboard, the one reader `MasteryDetail`'s own doc
+comment names), groups by curriculum domain via `getSkill(...).domainId` and
+`getDomain`, and reports the **weakest** practiced status in each domain
+rather than the strongest — a domain is never shown as further along than
+its least-advanced practiced skill, since overstating progress is a
+parent-trust failure (CLAUDE.md section 4.6) an understated summary is not.
+A domain with no practiced skill (`exposureCount === 0`) is omitted rather
+than shown as "not started", the same "report what was found" choice
+`describeExploration` already made for Phase 26.
+
+**Independent-vs-hinted reporting per adventure**,
+`src/features/parent-dashboard/adventureSupport.ts`. `AdventureAction` rows
+(hint level, correctness) have been written on every step since Phase 3, but
+nothing ever listed them again — there was no `listActionsForSessions` query
+at all. Added one (`src/features/adventures/api.ts`; `AdventureAction` has
+no `childProfileId` of its own, only `sessionId`, so it filters by this
+child's own session ids the same indirect way `listWorldChanges` already
+accepts for `WorldChange`'s owner scoping). `summarizeSupportBySession`
+counts `CORRECT` actions as independent (`hintLevel === 0`) or hinted
+(`hintLevel > 0`) per session — matching the precedent
+`SkillProgress.independentSuccessCount`/`supportedSuccessCount` already set,
+an incorrect attempt counts as neither. Rendered as a line on each "Recent
+adventures" card ("solved 2 steps alone - used a hint on 1 step").
+`summarizeSupportByTemplate` rolls the same counts up across every session
+of one adventure template, for the educator report below.
+
+**Suggested next-focus areas**, reusing the Director's own
+`rankSkillNeeds` (`src/features/director/needs.ts`, Phase 28) directly
+rather than writing a second ranking rule — a parent's "Focus areas to
+consider" section and the Director's own adventure choices can never
+silently disagree about what a child needs most, since they are now the
+same computation. Shown as a plain skill-title list under the existing
+"What we would suggest next" section, with the same "this is for you; it is
+never shown to \{child\}" framing CLAUDE.md pillar 7 already required for
+that section. No new gating: an age band without adventure content still
+gets real focus areas, since Phase 19's follow-up already gave every band
+its own curriculum skills, and `rankSkillNeeds` needs no adventure content
+at all — only `MasterySummary` rows.
+
+**Optional educator-oriented reporting**,
+`src/features/parent-dashboard/educatorReport.ts`. Deliberately not a new
+export pipeline or file format: "optional" per the roadmap means a
+parent-opt-in section, hidden behind a "Show educator report" toggle
+(`showEducatorReport` state) that is off by default. `buildEducatorReport`
+formats the same domain-mastery and per-template support data above as
+plain sentences a parent could read aloud or copy into a note to a teacher —
+no raw counts, no `AdventureAction`/`SkillProgress` ids, nothing beyond what
+the rest of the page already shows in a different shape.
+
+### Files
+
+New: `src/features/parent-dashboard/masteryOverview.ts` (+ test),
+`src/features/parent-dashboard/adventureSupport.ts` (+ test),
+`src/features/parent-dashboard/educatorReport.ts` (+ test).
+
+Changed: `src/features/adventures/api.ts` (`AdventureAction` type export,
+`listActionsForSessions`); `src/routes/ChildDashboard.tsx` (three new
+sections — "Focus areas to consider", "Mastery by area", "Educator report"
+— plus a per-session support line on "Recent adventures").
+
+No Amplify schema change, so nothing here needs a deploy to be exercised.
+
+### Known limitations (Phase 30)
+
+- **`ChildDashboard.tsx` still has no automated tests of its own**, the
+  same already-documented precedent as every other route in this app
+  (`ParentDashboard`, `StoryKeepsakes`, `IslandLocationPage`, `TravelDeck`,
+  etc.) — it needs a live backend to exercise meaningfully. Every pure
+  function underneath the three new sections
+  (`buildDomainMasterySummaries`, `summarizeSupportBySession`,
+  `summarizeSupportByTemplate`, `buildEducatorReport`) is unit tested; the
+  wiring in the route component itself is not.
+- **Not yet played against a live sandbox.** Verified by a clean typecheck,
+  a clean lint pass, and 1351 passing unit tests, but no parent has actually
+  opened the new sections in a deployed environment. `listActionsForSessions`
+  in particular has never run against real AppSync.
+- **The educator report has no export or print affordance** — it is a
+  toggled section of the same page, not a downloadable file. Revisit if a
+  real request for a portable format (PDF, printable view) shows up; building
+  one speculatively now would be exactly the premature abstraction CLAUDE.md
+  section 13 rules out.
+- **"Focus areas to consider" and "Mastery by area" both read
+  `listSkillsByAgeBand(childProfile.ageBand)` at render time**, recomputing
+  every skill status from `skillProgress` on each render rather than caching
+  it — consistent with how the rest of this page already works (`weeklySummary`,
+  `explorationLines` are likewise recomputed each render, not memoized), but
+  worth noting if the curriculum ever grows large enough for this to matter.
 
 ## Live smoke test, story/co-op verification, and Explorer content
 

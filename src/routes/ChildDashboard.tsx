@@ -6,22 +6,41 @@ import { getChildProfile, setChildProfileAIEnabled } from '../features/child-pro
 import { suggestNextAdventure } from '../features/director/api';
 import { explainSelection } from '../features/director/explain';
 import { hasSkillBasedSignal } from '../features/director/select';
+import { rankSkillNeeds } from '../features/director/needs';
 import type { SelectionRecord } from '../features/director/types';
 import type { ChildProfile } from '../features/child-profile/api';
 import { deleteChildProfileData } from '../features/child-profile/deletion';
-import { listAllWorldChanges, listSessions, listStoryArtifacts } from '../features/adventures/api';
+import {
+  listActionsForSessions,
+  listAllWorldChanges,
+  listSessions,
+  listStoryArtifacts,
+} from '../features/adventures/api';
 import type {
+  AdventureAction,
   AdventureSession,
   SkillProgress,
   StoryArtifact,
   WorldChange,
 } from '../features/adventures/api';
 import { listSkillProgress } from '../features/mastery/api';
+import { buildMasteryDetail, indexProgressBySkill } from '../features/mastery/summary';
 import { LEARNING_OBJECTIVES, getAdventureTemplate } from '../features/adventures/content';
 import { getIslandLocation } from '../features/island/locations';
+import { getSkill, listSkillsByAgeBand } from '../features/curriculum/queries';
 import { AGE_BAND_LABELS, READING_MODE_OPTIONS } from '../features/child-profile/constants';
 import { buildWeeklySummary } from '../features/parent-dashboard/weeklySummary';
 import { clearAIHistory, listSafetyEvents } from '../features/parent-dashboard/api';
+import {
+  summarizeSupportBySession,
+  summarizeSupportByTemplate,
+} from '../features/parent-dashboard/adventureSupport';
+import type { SessionSupportCounts } from '../features/parent-dashboard/adventureSupport';
+import {
+  SKILL_STATUS_LABELS,
+  buildDomainMasterySummaries,
+} from '../features/parent-dashboard/masteryOverview';
+import { buildEducatorReport } from '../features/parent-dashboard/educatorReport';
 import { getWorldState } from '../features/discovery/api';
 import { ISLAND_DISCOVERIES } from '../features/discovery/content';
 import { buildExplorationTelemetry, describeExploration } from '../features/discovery/telemetry';
@@ -71,6 +90,33 @@ function locationTitle(slug: string): string {
   return getIslandLocation(slug)?.title ?? slug;
 }
 
+function skillTitle(skillId: string): string {
+  return getSkill(skillId)?.title ?? skillId;
+}
+
+/**
+ * Phase 30's "independent-vs-hinted reporting per adventure", rendered as a
+ * card meta line next to a session's status/date, the same treatment
+ * `skillProgressMeta` already gives per-skill counts. Returns null for a
+ * session with no counted (`CORRECT`) actions yet, so an in-progress or
+ * abandoned session's card stays as it was before this phase.
+ */
+function sessionSupportMeta(counts: SessionSupportCounts | undefined): string | null {
+  if (!counts) return null;
+  const parts: string[] = [];
+  if (counts.independentCount > 0) {
+    parts.push(
+      `solved ${counts.independentCount} ${counts.independentCount === 1 ? 'step' : 'steps'} alone`,
+    );
+  }
+  if (counts.hintedCount > 0) {
+    parts.push(
+      `used a hint on ${counts.hintedCount} ${counts.hintedCount === 1 ? 'step' : 'steps'}`,
+    );
+  }
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
+
 function skillProgressMeta(row: SkillProgress): string {
   const parts = [`Practiced ${row.exposureCount} ${row.exposureCount === 1 ? 'time' : 'times'}`];
   if (row.supportedSuccessCount > 0) {
@@ -105,11 +151,13 @@ export function ChildDashboard() {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
   const [sessions, setSessions] = useState<AdventureSession[]>([]);
+  const [actions, setActions] = useState<AdventureAction[]>([]);
   const [skillProgress, setSkillProgress] = useState<SkillProgress[]>([]);
   const [worldChanges, setWorldChanges] = useState<WorldChange[]>([]);
   const [stories, setStories] = useState<StoryArtifact[]>([]);
   const [safetyEvents, setSafetyEvents] = useState<SafetyEvent[]>([]);
   const [worldState, setWorldState] = useState<WorldStateSnapshot>(EMPTY_WORLD_STATE);
+  const [showEducatorReport, setShowEducatorReport] = useState(false);
   const [savingAI, setSavingAI] = useState(false);
   const [confirmingClearHistory, setConfirmingClearHistory] = useState(false);
   const [clearingHistory, setClearingHistory] = useState(false);
@@ -157,6 +205,22 @@ export function ChildDashboard() {
         setSafetyEvents(safetyEventRows);
         setWorldState(worldStateRow);
         setLoadState('ready');
+
+        // Phase 30's per-adventure independent-vs-hinted reporting needs
+        // this child's own session ids first, so it is fetched after the
+        // rest rather than joined into the `Promise.all` above. Loaded
+        // after the dashboard is already usable, same non-blocking
+        // treatment as the Phase 28 suggestion below: an `AdventureAction`
+        // fetch failing must cost this page only its own two sections, not
+        // the rest of the dashboard.
+        void listActionsForSessions(sessionRows.map((session) => session.id))
+          .then((actionRows) => {
+            if (cancelled) return;
+            setActions(actionRows);
+          })
+          .catch(() => {
+            /* Leaves `actions` empty; support sections simply show nothing extra. */
+          });
 
         // Phase 28. Loaded after the dashboard is already usable, and
         // deliberately not awaited with the rest: a Director failure must
@@ -253,6 +317,54 @@ export function ChildDashboard() {
       )
     : [];
 
+  /**
+   * Phase 30's "mastery-level summaries sourced from Phase 20": the same
+   * `MasteryDetail` the Mastery Engine already computes from `skillProgress`
+   * for the raw "Skills practiced" list below, grouped by curriculum domain.
+   * Scoped to this child's own age band's skills, same reasoning
+   * `buildDirectorContext` already documents for Phase 28.
+   */
+  const masteryDetails = childProfile
+    ? buildMasteryDetail(
+        listSkillsByAgeBand(childProfile.ageBand).map((skill) => skill.id),
+        indexProgressBySkill(skillProgress),
+      )
+    : [];
+  const domainMasterySummaries = buildDomainMasterySummaries(masteryDetails);
+
+  /**
+   * Phase 30's "suggested next-focus areas sourced from Phase 28's
+   * eligibility ranking, shown to parents only, never as pressure surfaced
+   * to the child" — reuses the Director's own `rankSkillNeeds` rather than
+   * a second ranking rule, so a parent's "focus areas" and the Director's
+   * own adventure choices can never silently disagree about what a child
+   * needs most. Same child-facing prohibition as "What we would suggest
+   * next" above: this list appears only on this parent-only page.
+   */
+  const nextFocusAreas = rankSkillNeeds(masteryDetails)
+    .slice(0, 3)
+    .map((need) => skillTitle(need.skillId));
+
+  const sessionSupport = summarizeSupportBySession(actions);
+  const templateSupport = summarizeSupportByTemplate(sessions, sessionSupport);
+
+  /**
+   * Phase 30's optional educator-oriented reporting: the same records above,
+   * formatted as plain sentences a parent can read or copy, hidden behind
+   * `showEducatorReport` so it never appears by default.
+   */
+  const educatorReportLines = childProfile
+    ? buildEducatorReport({
+        nickname: childProfile.nickname,
+        ageBandLabel: AGE_BAND_LABELS[childProfile.ageBand],
+        completedAdventureCount: sessions.filter((session) => session.status === 'COMPLETED')
+          .length,
+        worldChangeCount: worldChanges.length,
+        domainSummaries: domainMasterySummaries,
+        templateSupport,
+      })
+    : [];
+
   return (
     <div className={parentStyles.page}>
       <header className={parentStyles.header}>
@@ -300,15 +412,19 @@ export function ChildDashboard() {
                 <p className={styles.hint}>No adventures started yet.</p>
               ) : (
                 <ul className={styles.list}>
-                  {sessions.slice(0, 8).map((session) => (
-                    <li className={styles.card} key={session.id}>
-                      <p className={styles.cardTitle}>{sessionTitle(session)}</p>
-                      <p className={styles.cardMeta}>
-                        {SESSION_STATUS_LABELS[session.status]} &middot;{' '}
-                        {formatDate(session.lastActivityAt)}
-                      </p>
-                    </li>
-                  ))}
+                  {sessions.slice(0, 8).map((session) => {
+                    const supportMeta = sessionSupportMeta(sessionSupport.get(session.id));
+                    return (
+                      <li className={styles.card} key={session.id}>
+                        <p className={styles.cardTitle}>{sessionTitle(session)}</p>
+                        <p className={styles.cardMeta}>
+                          {SESSION_STATUS_LABELS[session.status]} &middot;{' '}
+                          {formatDate(session.lastActivityAt)}
+                        </p>
+                        {supportMeta ? <p className={styles.cardMeta}>{supportMeta}</p> : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </section>
@@ -332,6 +448,38 @@ export function ChildDashboard() {
                     <li className={styles.card} key={record.adventureSlug}>
                       <p className={styles.cardTitle}>{record.title}</p>
                       <p className={styles.cardMeta}>{explainSelection(record)}</p>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {nextFocusAreas.length > 0 ? (
+              <section className={styles.section}>
+                <h2 className={styles.heading}>Focus areas to consider</h2>
+                <p className={styles.hint}>
+                  Skills {childProfile.nickname} would benefit from practicing most right now,
+                  ranked the same way as the adventure suggestions above. This is for you; it is
+                  never shown to {childProfile.nickname} and nothing is locked because of it.
+                </p>
+                <ul className={styles.list}>
+                  {nextFocusAreas.map((title) => (
+                    <li className={styles.card} key={title}>
+                      <p className={styles.cardTitle}>{title}</p>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {domainMasterySummaries.length > 0 ? (
+              <section className={styles.section}>
+                <h2 className={styles.heading}>Mastery by area</h2>
+                <ul className={styles.list}>
+                  {domainMasterySummaries.map((domain) => (
+                    <li className={styles.card} key={domain.domainId}>
+                      <p className={styles.cardTitle}>{domain.domainTitle}</p>
+                      <p className={styles.cardMeta}>{SKILL_STATUS_LABELS[domain.status]}</p>
                     </li>
                   ))}
                 </ul>
@@ -402,6 +550,28 @@ export function ChildDashboard() {
                   ))}
                 </ul>
               )}
+            </section>
+
+            <section className={styles.section}>
+              <h2 className={styles.heading}>Educator report</h2>
+              <p className={styles.hint}>
+                An optional plain-language summary of {childProfile.nickname}&apos;s progress,
+                written so you can share it with a teacher or tutor if you choose to.
+              </p>
+              <button
+                className={styles.buttonSecondary}
+                type="button"
+                onClick={() => setShowEducatorReport((shown) => !shown)}
+              >
+                {showEducatorReport ? 'Hide educator report' : 'Show educator report'}
+              </button>
+              {showEducatorReport
+                ? educatorReportLines.map((line) => (
+                    <p className={styles.summaryLine} key={line}>
+                      {line}
+                    </p>
+                  ))
+                : null}
             </section>
 
             <section className={styles.section}>

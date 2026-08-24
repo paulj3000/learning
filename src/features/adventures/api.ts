@@ -4,6 +4,7 @@ import type { Correctness, AdventureDefinition } from './engine/types';
 import type { Schema } from '../../../amplify/data/resource';
 
 export type AdventureSession = Schema['AdventureSession']['type'];
+export type AdventureAction = Schema['AdventureAction']['type'];
 export type WorldChange = Schema['WorldChange']['type'];
 export type SkillProgress = Schema['SkillProgress']['type'];
 export type StoryArtifact = Schema['StoryArtifact']['type'];
@@ -247,6 +248,24 @@ export async function listSessions(childProfileId: string): Promise<AdventureSes
     .sort((a: AdventureSession, b: AdventureSession) =>
       b.lastActivityAt.localeCompare(a.lastActivityAt),
     );
+}
+
+/**
+ * `AdventureAction` carries no `childProfileId` of its own (only
+ * `sessionId`, per `amplify/data/resource.ts`), so a child's own actions are
+ * reached through their own sessions rather than a direct owner-scoped
+ * filter, same indirection `listWorldChanges` already accepts for that
+ * model's owner scoping. Used by the Phase 30 parent dashboard to report
+ * independent-vs-hinted solving per adventure
+ * (`src/features/parent-dashboard/adventureSupport.ts`).
+ */
+export async function listActionsForSessions(
+  sessionIds: readonly string[],
+): Promise<AdventureAction[]> {
+  if (sessionIds.length === 0) return [];
+  const ids = new Set(sessionIds);
+  const { data } = await client.models.AdventureAction.list();
+  return data.filter((action: AdventureAction) => ids.has(action.sessionId));
 }
 
 /**
