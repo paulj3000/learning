@@ -158,6 +158,11 @@ export function IslandLocationPage() {
             Try walking around the bay (new!)
           </Link>
         ) : null}
+        {location.slug === 'pirate-builder-bay' ? (
+          <Link className={styles.walkLink} to={`/island/${childId}/world/pirate-builder-bay-3d`}>
+            Peek at an early 3D preview (new!)
+          </Link>
+        ) : null}
         {location.slug === 'wonderwild-forest' ? (
           <Link className={styles.walkLink} to={`/island/${childId}/world/wonderwild-forest`}>
             Try exploring the forest (new!)

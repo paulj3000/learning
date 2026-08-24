@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ALL_CHECKPOINTS,
   KNOWN_CHECKPOINT_IDS,
+  PIRATE_BUILDER_BAY_CHECKPOINTS,
   WELCOME_HARBOR_CHECKPOINTS,
   findCheckpoint,
   resolveSpawnCheckpoint,
@@ -14,6 +15,10 @@ describe('checkpoints content', () => {
 
   it('gives Welcome Harbor at least one checkpoint', () => {
     expect(WELCOME_HARBOR_CHECKPOINTS.length).toBeGreaterThan(0);
+  });
+
+  it('gives Pirate Builder Bay at least one checkpoint', () => {
+    expect(PIRATE_BUILDER_BAY_CHECKPOINTS.length).toBeGreaterThan(0);
   });
 
   it('every checkpoint belongs to a region and carries finite coordinates', () => {
@@ -55,5 +60,10 @@ describe('resolveSpawnCheckpoint', () => {
 
   it('throws for a region with no authored checkpoints', () => {
     expect(() => resolveSpawnCheckpoint('nowhere', undefined)).toThrow(/no checkpoints authored/i);
+  });
+
+  it('resolves within Pirate Builder Bay independently of Welcome Harbor', () => {
+    const resolved = resolveSpawnCheckpoint('pirate-builder-bay', undefined);
+    expect(resolved).toEqual(PIRATE_BUILDER_BAY_CHECKPOINTS[0]);
   });
 });

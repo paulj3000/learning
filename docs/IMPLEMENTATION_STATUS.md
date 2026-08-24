@@ -4450,6 +4450,158 @@ clean.
   copies for Pirate Builder Bay's first-person migration; the current
   numbers reflect one region's worth of content, not a ceiling.
 
+## Phase 33 - First-Person Broken Bridge / Pirate Builder Bay Migration
+
+Covers Graphics Gate D: re-implements "Repair the Moonlight Bridge"
+(Phase 11) in first person, at `/island/:childId/world/pirate-builder-bay-3d`
+(`RequireParent`-gated, reached from an auxiliary link on the location page,
+`src/routes/IslandLocationPage.tsx`, alongside the existing Phase 11 "Try
+walking around the bay" link). Named with a `3D` suffix
+(`PirateBuilderBayWorldPage3D`) because the Phase 11 Phaser route already
+owns the un-suffixed `PirateBuilderBayWorldPage`/`PirateBuilderBayWorldView`
+names.
+
+### What shipped
+
+- **`src/features/island-map/three/pirateBuilderBayRegion.ts`** (+ test) -
+  pure content and geometry, the same split `welcomeHarborRegion.ts`
+  established: a water channel (`CHANNEL_MIN_X`/`CHANNEL_MAX_X`) splits the
+  dock (west) from the cove (east), a bridge deck span
+  (`BRIDGE_SPAN`) crosses it, Pirate Pip's spot, the two flavor material
+  props (rope coil, toolbox), the treasure chest, the bridge approach zone,
+  and the Phase 26 tide-tunnel and harbor-exit zones. No `three` import, so
+  a test can assert the same "does the content make geometric sense"
+  invariants `welcomeHarborRegion.test.ts` does (materials on the dock
+  side, treasure on the cove side, checkpoints inside the walkable ground).
+- **`src/features/discovery/checkpoints.ts`'s new
+  `PIRATE_BUILDER_BAY_REGION_ID`/`PIRATE_BUILDER_BAY_CHECKPOINTS`** - three
+  checkpoints (dock, bridge approach, cove), appended to `ALL_CHECKPOINTS`
+  alongside Welcome Harbor's. No schema change: this still writes through
+  the same `ChildWorldState.lastCheckpointId` column Phase 32 added, now
+  shared by two regions' worth of authored ids.
+- **`src/features/island-map/three/pirateBuilderBayScene.ts`** (untested
+  rendering glue, same precedent as `welcomeHarborScene.ts`) - the actual
+  scene: ground, the two always-blocking water strips flanking the bridge
+  span, boundary colliders, `FirstPersonController` seeded from
+  `resolveSpawnCheckpoint`, `attachPointerControls`, `loadPlaceholderNpc`
+  for Pip, placeholder material/treasure meshes, and a raycast target list
+  (Pip, rope coil, toolbox, treasure chest) whose closest hit drives both
+  `interact()` and the per-frame `InteractableFocused` event. **The one
+  piece this region adds beyond Phase 32's pattern**: the bridge itself is
+  built as one of two genuinely different geometries depending on
+  `PirateBuilderBayEngineOptions.bridgeRepaired`, read once at
+  construction - broken (two plank stubs, a visible gap, a fallen plank,
+  and a real blocking collider over the deck span) or repaired (one
+  continuous deck mesh, no collider) - mirroring the Phaser scene's
+  `tileOverrides` mechanism (`scenes/PirateBuilderBayScene.ts`) rather than
+  animating a live transition. See "Known limitations" below for why that
+  reading of the roadmap's "actual geometry/state change" was chosen.
+- **`src/features/island-map/three/PirateBuilderBayWorldView.tsx`** (+
+  test) - deliberately combines two already-shipped patterns rather than
+  inventing a third: `WelcomeHarborWorldView.tsx`'s up-front
+  checkpoint/companion/quest/backpack load plus `WorldHud`, and the 2D
+  `PirateBuilderBayWorldView.tsx`'s `WorldInteraction`/
+  `InteractionPanelAction` handling. Both renderers of this bay share the
+  exact same authored content (`PIRATE_BUILDER_BAY_INTERACTIONS`,
+  `worldObjects.ts`, unchanged this phase): this view's only new job is
+  translating a spatial event (a raycast hit's `entityId`, a zone's
+  `zoneId`) into the interaction id the Phaser scene already resolves from
+  a walk-in zone or a tapped sprite, so starting the adventure, meeting
+  Pip, and finding both Phase 26 secrets behave identically in both
+  renderers - only the walking differs.
+- **`src/routes/PirateBuilderBayWorldPage3D.tsx`** - route shell, parallel
+  to `WelcomeHarborWorldPage.tsx`; `src/app/AppRoutes.tsx` (lazy-loaded
+  `/island/:childId/world/pirate-builder-bay-3d`); one new auxiliary link
+  on `IslandLocationPage.tsx`.
+
+### Files
+
+New: `src/features/island-map/three/pirateBuilderBayRegion.ts` (+ test),
+`pirateBuilderBayScene.ts` (untested glue), `PirateBuilderBayWorldView.tsx`
+(+ test); `src/routes/PirateBuilderBayWorldPage3D.tsx`.
+
+Changed: `src/features/discovery/checkpoints.ts` (+
+`PIRATE_BUILDER_BAY_REGION_ID`, `PIRATE_BUILDER_BAY_CHECKPOINTS`, + test);
+`src/app/AppRoutes.tsx` (lazy-loaded route); `src/routes/IslandLocationPage.tsx`
+(one new auxiliary link).
+
+No Amplify schema change - this phase adds checkpoint content, not a new
+column. 22 new unit tests, all passing; full suite (1446 tests), typecheck,
+and lint all clean.
+
+### Known limitations (Phase 33)
+
+- **Phaser is not retired.** Per ADR-008 in `docs/DECISIONS.md`, that
+  requires this slice to be "feature-complete and play-tested," and the
+  play-testing half cannot happen in this environment (same caveat Phase
+  31 and Phase 32 both recorded). `PirateBuilderBayWorldPage`/
+  `PirateBuilderBayWorldView.tsx` (Phase 11, Phaser) remain the production
+  route; this phase's `.../world/pirate-builder-bay-3d` route is a second,
+  auxiliary way to reach the same bay, exactly as Welcome Harbor's 3D
+  region has been since Phase 32.
+- **"Completes the existing measurement challenge using story-relevant 3D
+  objects where practical" is read as "the challenge stays exactly as
+  authored."** Starting the adventure from this scene still navigates away
+  to the existing, unchanged `/locations/pirate-builder-bay/adventures/
+  repair-the-moonlight-bridge` route - the same boundary the Phase 11
+  Phaser version already drew (its own `handleStart` does the same
+  navigate-away, never rendering the challenge inside the Phaser canvas
+  either). Re-authoring `count-planks`/`choose-bundle`/`order-planks` as
+  literal 3D manipulatives the child drags or stacks would be new
+  Adventure Engine presentation work, not a rendering-layer migration, and
+  the roadmap's own "where practical" hedge was read as permission to keep
+  parity with Phase 11 rather than expand its scope. Revisit if a future
+  phase wants spatial challenge interactions generally, across every
+  adventure, rather than one-off for this bay.
+- **"Searches the world for materials" and "participates in placing/
+  building the repair" reuse Phase 11's existing flavor-only objects and
+  challenge steps rather than adding new mechanically-required
+  gathering gameplay.** The rope coil and toolbox are raycast-interactable
+  the same way Pip and the treasure chest are, and "placing" the repair is
+  still the adventure's own `place-final-plank` `CHOICE` step (choosing
+  which gap: left/middle/right) - Phase 11 never made finding the rope or
+  toolbox a required input to the challenge, and Phase 33's brief is
+  feature parity with Phase 11's golden path (ADR-008), not a superset of
+  it. Revisit if playtesting shows the child expects tapping the materials
+  to do something mechanically, not just narratively.
+- **The bridge's broken-to-repaired change is a real geometry/collider
+  difference chosen at scene-construction time from `WorldChange` state,
+  not a live animated transition the child watches happen mid-visit.**
+  Read literally, "watches the bridge transform... as an actual geometry/
+  state change (not a UI badge flip)" is satisfied either way - the point
+  the roadmap phrase makes is contrastive (a real mesh swap, not a status
+  label), and the Phaser scene this phase reaches parity with has never
+  animated the swap live either (`tileOverrides` is also read once, at
+  `LocationScene` construction). A child who repairs the bridge and
+  returns to this 3D region afterward sees it already fixed, geometry and
+  collision both, and can walk across; they do not watch the planks
+  assemble in front of them while the adventure's own `WORLD_CHANGE` step
+  fires. Revisit if a future pass wants a live in-scene transform,
+  which would need the adventure route (or an equivalent overlay) to run
+  inside this scene rather than as a separate page - a materially bigger
+  change than this phase's own "migrate the renderer" scope.
+- **No Sprouts (ages 3-4) accessibility playtest has run for this region
+  either**, same standing ADR-008 gap as Phase 31 and Phase 32. This
+  region is reachable by every band today as an auxiliary link, never as
+  anyone's primary route.
+- **Not manually played in a browser this session**, same caveat as every
+  prior Three.js phase - verified by a clean typecheck, a clean lint pass,
+  and the full unit suite passing (including geometry invariants over the
+  region content), but the actual WebGL render path (whether the broken
+  bridge's gap reads as damage, whether the raycast reliably picks the
+  closest of four targets) has not been eyeballed in a running dev server.
+- **`pirateBuilderBayScene.ts` has no automated test**, matching the
+  established precedent for every `scenes/*.ts` Phaser file and
+  `welcomeHarborScene.ts` - it needs a real WebGL/DOM context to exercise
+  meaningfully. The geometry and ids it reads
+  (`pirateBuilderBayRegion.ts`, `discovery/checkpoints.ts`) are tested
+  independently.
+- **No HUD toast messages are wired for this region.** Welcome Harbor's
+  HUD shows a toast on entering a building interior; Pirate Builder Bay has
+  no enterable buildings, so `WorldHud`'s `toastMessage` prop is always
+  `null` here. Not a gap so much as this region simply having no content
+  that toast mechanism was built for.
+
 ## Live smoke test, story/co-op verification, and Explorer content
 
 ### `scripts/live-smoke.ts`

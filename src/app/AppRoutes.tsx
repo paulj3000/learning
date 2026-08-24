@@ -93,6 +93,17 @@ const WelcomeHarborWorldPage = lazy(() =>
   })),
 );
 
+/**
+ * Phase 33's first-person Pirate Builder Bay region, named with a `3D`
+ * suffix because `PirateBuilderBayWorldPage` above already owns the
+ * un-suffixed name for the Phase 11 Phaser route.
+ */
+const PirateBuilderBayWorldPage3D = lazy(() =>
+  import('../routes/PirateBuilderBayWorldPage3D').then((module) => ({
+    default: module.PirateBuilderBayWorldPage3D,
+  })),
+);
+
 export function AppRoutes() {
   return (
     <Routes>
@@ -275,6 +286,16 @@ export function AppRoutes() {
           <RequireParent>
             <Suspense fallback={<p>Loading Welcome Harbor...</p>}>
               <WelcomeHarborWorldPage />
+            </Suspense>
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/world/pirate-builder-bay-3d"
+        element={
+          <RequireParent>
+            <Suspense fallback={<p>Loading Pirate Builder Bay...</p>}>
+              <PirateBuilderBayWorldPage3D />
             </Suspense>
           </RequireParent>
         }
