@@ -1,4 +1,4 @@
-import { fetchUserAttributes } from 'aws-amplify/auth';
+import { fetchUserAttributes, getCurrentUser } from 'aws-amplify/auth';
 import { client } from '../../lib/data-client';
 import type { Schema } from '../../../amplify/data/resource';
 
@@ -70,15 +70,32 @@ export async function createChildProfile(
   parentProfileId: string,
   input: ChildProfileInput,
 ): Promise<ChildProfile> {
+  const { userId: ownerSub } = await getCurrentUser();
   const { data, errors } = await client.models.ChildProfile.create({
     parentProfileId,
     active: true,
+    ownerSub,
     ...input,
   });
   if (!data) {
     throw new Error(errors?.[0]?.message ?? 'Could not create the child profile.');
   }
   return data;
+}
+
+/**
+ * Backfills `ownerSub` for a `ChildProfile` row created before that field
+ * existed (docs/DECISIONS.md ADR-012): a self-healing, idempotent no-op once
+ * the row already has it, so a fresh profile pays this once and every later
+ * call is a single cheap read. Called from `useAdventureSession`'s load
+ * effect, since `submitAdventureAnswer` is the first caller that needs
+ * `ownerSub` to be present.
+ */
+export async function ensureChildProfileOwnerSub(childProfileId: string): Promise<void> {
+  const { data: profile } = await client.models.ChildProfile.get({ id: childProfileId });
+  if (!profile || profile.ownerSub) return;
+  const { userId: ownerSub } = await getCurrentUser();
+  await client.models.ChildProfile.update({ id: childProfileId, ownerSub });
 }
 
 export async function updateChildProfile(

@@ -52,6 +52,15 @@ Authorization: owner only; admin read only when explicitly required.
 - `readingMode`: `VOICE_FIRST | READ_ALONG | INDEPENDENT`
 - `sessionMinutes`
 - `active`
+- `ownerSub` optional: the parent's raw Cognito `sub`, mirrored here so
+  `submitAdventureAnswer` (Phase 37, docs/DECISIONS.md ADR-012) can
+  re-verify session ownership from inside a Lambda that bypasses AppSync's
+  own owner-authorization resolvers. Not a second authorization rule on
+  this model — a plain field, trustworthy only because the model's
+  existing `allow.owner()` rule already means only the legitimate owner
+  can write to this row at all. See `amplify/data/resource.ts`'s field
+  comment for the full reasoning and how it differs from `CoopSession`'s
+  `hostParentProfileId`.
 - timestamps
 
 Authorization: owning parent. Child-facing client access occurs within the authenticated parent session and must be constrained by application routes.

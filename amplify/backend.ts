@@ -25,6 +25,7 @@ import { data } from './data/resource';
 import { storage } from './storage/resource';
 import { operationalMetrics } from './functions/operational-metrics/resource';
 import { claimCoopSlot } from './functions/claim-coop-slot/resource';
+import { submitAdventureAnswer } from './functions/submit-adventure-answer/resource';
 
 /**
  * Phase 1-4: parent auth, the application data model, and the
@@ -43,6 +44,7 @@ const backend = defineBackend({
   storage,
   operationalMetrics,
   claimCoopSlot,
+  submitAdventureAnswer,
 });
 
 /**
@@ -508,4 +510,40 @@ coopSessionTable.grantReadWriteData(backend.claimCoopSlot.resources.lambda);
 (backend.claimCoopSlot.resources.lambda as LambdaFunction).addEnvironment(
   'COOP_SESSION_TABLE_NAME',
   coopSessionTable.tableName,
+);
+
+/**
+ * Phase 37 — first server-authoritative gameplay mutation (docs/DECISIONS.md
+ * ADR-012). `submitAdventureAnswer`'s Lambda reads `AdventureSession` and
+ * `ChildProfile` directly and writes `AdventureSession.currentStepId` /
+ * `lastActivityAt` directly, for the same "needs its own grant and its own
+ * way to find the table name" reason `claimCoopSlot` above does — it never
+ * goes through `backend.data`'s resolvers at request time either. Only
+ * read access is granted on `ChildProfile`: this function only ever reads
+ * `ownerSub` to re-verify session ownership (amplify/data/resource.ts) and
+ * never writes to that table.
+ */
+const adventureSessionTable = backend.data.resources.tables['AdventureSession'];
+if (!adventureSessionTable) {
+  throw new Error(
+    'Could not find the generated AdventureSession table to grant submitAdventureAnswer access to. ' +
+      'Amplify Data may have changed its table lookup key; see wireModelTableStream above for the same pattern.',
+  );
+}
+const childProfileTableForAnswers = backend.data.resources.tables['ChildProfile'];
+if (!childProfileTableForAnswers) {
+  throw new Error(
+    'Could not find the generated ChildProfile table to grant submitAdventureAnswer access to. ' +
+      'Amplify Data may have changed its table lookup key; see wireModelTableStream above for the same pattern.',
+  );
+}
+adventureSessionTable.grantReadWriteData(backend.submitAdventureAnswer.resources.lambda);
+childProfileTableForAnswers.grantReadData(backend.submitAdventureAnswer.resources.lambda);
+(backend.submitAdventureAnswer.resources.lambda as LambdaFunction).addEnvironment(
+  'ADVENTURE_SESSION_TABLE_NAME',
+  adventureSessionTable.tableName,
+);
+(backend.submitAdventureAnswer.resources.lambda as LambdaFunction).addEnvironment(
+  'CHILD_PROFILE_TABLE_NAME',
+  childProfileTableForAnswers.tableName,
 );

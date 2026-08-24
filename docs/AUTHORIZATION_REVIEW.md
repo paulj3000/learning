@@ -86,6 +86,64 @@ purpose (docs/DECISIONS.md ADR-006, docs/DATA_MODEL.md `CoopSession`):
   read or claim into a `CoopSession` it does not own, the same live-account
   test section 5 already ran for every other model.
 
+## 1b. `submitAdventureAnswer` (Phase 37)
+
+`submitAdventureAnswer` (docs/DECISIONS.md ADR-012) is the second
+function-backed custom mutation in this schema, and takes a different
+approach from `claimCoopSlot` to the same underlying problem — re-deriving
+ownership by hand once AppSync's own resolvers are bypassed:
+
+- **Model-level rule**: `ChildProfile` keeps its existing `allow.owner()`
+  rule unchanged. Rather than adding a second, field-scoped owner rule
+  (`CoopSession`'s `.identityClaim('sub')` pattern above), this mutation
+  adds one plain `a.string()` field, `ownerSub`, populated by ordinary
+  client code (`createChildProfile`/`ensureChildProfileOwnerSub`,
+  `src/features/child-profile/api.ts`) using the signed-in user's own
+  Cognito `sub`. Trustworthy without a second authorization rule because
+  only the legitimate owner can write to a `ChildProfile` row — and
+  therefore this field — at all under the rule already in place.
+- **`submitAdventureAnswer` is a function-backed custom mutation**
+  (`amplify/functions/submit-adventure-answer/handler.ts`), so it too does
+  **not** go through AppSync's generated resolvers or `ChildProfile`'s
+  model-level rule at request time — its Lambda has its own IAM role with
+  a direct `grantReadWriteData` on the `AdventureSession` table and
+  `grantReadData` on `ChildProfile` (`amplify/backend.ts`). The mutation's
+  own `.authorization((allow) => [allow.authenticated()])` only proves the
+  caller is *some* signed-in parent; the handler re-derives the real check
+  itself: it reads the session's `childProfileId`, reads that
+  `ChildProfile` row's `ownerSub`, and rejects unless it matches the
+  caller's own `sub` from `event.identity` — before ever reading the
+  answer or writing anything.
+- **Deliberately does not take `stepId` or `childProfileId` as
+  arguments.** The session's own stored `childProfileId` and
+  `currentStepId` are what the Lambda trusts, not a client-supplied value
+  claiming to match them — the same "the server derives identity, the
+  client does not assert it" principle as `claimCoopSlot`'s
+  `hostParentProfileId` check, applied without needing a second field on
+  `AdventureSession` itself.
+- **Explicit residual gap, not a defect**: `AdventureSession.update()`
+  remains a plain owner-authorized client mutation (needed by the
+  still-client-side `WORLD_CHANGE` auto-advance and terminal-`COMPLETE`
+  transitions, docs/ADVENTURE_ENGINE.md), so a caller sophisticated enough
+  to craft a raw GraphQL request could still bypass
+  `submitAdventureAnswer` and write `currentStepId`/`status` directly.
+  Every legitimate client (web today, Android eventually) goes through the
+  Lambda and gets a correctness verdict it cannot influence; closing the
+  raw-GraphQL bypass requires migrating the two remaining transition paths
+  too and then removing `update` from `AdventureSession`'s owner grant —
+  tracked in docs/DECISIONS.md ADR-012 as follow-up, not attempted here.
+  `AdventureAction`/`SkillEvidence`/`SkillProgress` remain plain
+  owner-authorized writes for the same reason and the same tracked
+  follow-up.
+- **Not deploy-verified**: same constraint as the rest of this document,
+  plus the specific open assumption called out in
+  `amplify/functions/submit-adventure-answer/handler.ts`'s top comment
+  (that an `UpdateExpression` touching only `currentStepId`/
+  `lastActivityAt` leaves the table's owner-authorization attribute
+  untouched) — confirm both the authorization behavior and that assumption
+  the first time this runs against a real sandbox, the same live-account
+  test section 5 already ran for every other model.
+
 ## 2. Client-side query safety
 
 Every `list()`-based read in `src/features/*/api.ts` (e.g.

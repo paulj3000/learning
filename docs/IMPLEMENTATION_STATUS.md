@@ -374,18 +374,23 @@ authored `SHOW_MESSAGE`, not AI-narrated (in scope for a later phase, not
 Phase 9's engine substrate).
 
 **Android platform integration (Phases 35-45): Phases 35-36 complete,
-Phases 37-45 roadmapped, not started.** `docs/ROADMAP.md` "Phases 35+ —
-Android Platform Integration" and ADR-010/ADR-011 in `docs/DECISIONS.md`
+Phase 37 partially complete (one of six write paths piloted), Phases
+38-45 roadmapped, not started.** `docs/ROADMAP.md` "Phases 35+ — Android
+Platform Integration" and ADR-010/ADR-011/ADR-012 in `docs/DECISIONS.md`
 document the plan for evolving the Amplify Gen 2 backend into a platform
 that a future Android client could consume alongside the web client (full
 detail in `docs/android/android.md`). Phase 35 (platform audit and
-boundary) and Phase 36 (canonical identity and content models) are done —
-see `docs/platform/CURRENT_PLATFORM_AUDIT.md`,
+boundary) and Phase 36 (canonical identity and content models) are fully
+done — see `docs/platform/CURRENT_PLATFORM_AUDIT.md`,
 `docs/platform/CANONICAL_CONTENT_MODEL.md`, and the "Phase 35"/"Phase 36"
-entries below. This remains documentation and audit/design only, with no
-production code changes: CLAUDE.md section 12 keeps native mobile
-applications out of scope until separately approved, and nothing in this
-backlog changes what has
+entries below. Phase 37 is the first phase in this backlog with real,
+shipped production code: `submitAdventureAnswer`
+(`amplify/functions/submit-adventure-answer/`) is a genuine, deployed-shaped
+Lambda the web client now calls for every graded adventure answer — see
+the "Phase 37" entry below for exactly what changed, what was verified,
+and what remains deliberately out of scope. CLAUDE.md section 12 still
+keeps native mobile applications out of scope until separately approved;
+nothing in this backlog changes what has
 actually shipped above.
 
 ## Completed
@@ -6027,6 +6032,158 @@ summarized here.
 - No tests added or changed; no schema, no runtime behavior changed.
   `npm run typecheck`, `npm run lint`, and `npm test` were re-run to
   confirm the doc-only change left the existing suite untouched.
+
+## Phase 37 — Learning State, Adventures/Quests, and Server-Authoritative Actions (pilot)
+
+**Partially complete — one of six write paths piloted, per new ADR-012 in
+`docs/DECISIONS.md`.** Unlike Phases 35-36, this phase ships real
+production code: `submitAdventureAnswer` is now the sole path by which a
+graded adventure step's correctness and resulting session transition are
+decided, closing the single highest-value gap the Phase 35 audit found
+(any answer to any question could previously be self-reported as
+`correctness: 'correct'` with a one-field change to a normal request).
+
+Files created:
+
+- `amplify/functions/submit-adventure-answer/resource.ts` — function
+  definition, `resourceGroupName: 'data'` (same circular-nested-stack-dependency
+  reason `claim-coop-slot/resource.ts` already documents).
+- `amplify/functions/submit-adventure-answer/handler.ts` — the Lambda.
+  Imports `validateStepAnswer`/`getNextStepId`/`nextHintLevel`/
+  `isGuidedCompletion` from `src/features/adventures/engine` and
+  `getAdventureTemplate` from `src/features/adventures/content` directly
+  (confirmed framework-free by the Phase 35 audit), so the answer key
+  never has to move to a database for this to be authoritative. Exports a
+  pure `decideSubmission` (mirrors `useAdventureSession.submitAnswer`'s
+  decision tree exactly: correct/incorrect/partial, retry-with-escalated-hint,
+  guided-completion override at max hint level) and a pure `isStepAnswer`
+  shape guard, both split out for unit testing without mocking AWS — same
+  pattern `claim-coop-slot/handler.ts`'s `decideClaim` already established.
+  Re-verifies session ownership via `ChildProfile.ownerSub` (see below)
+  before reading or writing anything, then — for an answer that advances
+  the session — writes `AdventureSession.currentStepId`/`lastActivityAt`
+  directly via DynamoDB `UpdateCommand`, bypassing AppSync the same way
+  `claim-coop-slot` already does for `CoopSession`.
+- `amplify/functions/submit-adventure-answer/handler.test.ts` — 10 tests
+  against `decideSubmission`/`isStepAnswer` covering: correct answer
+  advances; wrong answer with no hint policy still advances (nothing to
+  retry against); wrong answer with a hint policy retries and escalates
+  without advancing; the hint ladder reaching guided completion (level 5)
+  carries the child forward as correct; the ladder never escalates past
+  level 5; a not-applicable step (reflection) always advances, never
+  retries; a partial matching answer is treated the same as incorrect for
+  retry purposes; a kind mismatch throws (matching `validateStepAnswer`'s
+  own behavior); every well-formed answer kind is accepted by
+  `isStepAnswer` and every malformed shape is rejected.
+
+Files changed:
+
+- `amplify/data/resource.ts` — added `ChildProfile.ownerSub` (a plain,
+  optional `a.string()` field with no authorization rule of its own —
+  see its doc comment and docs/AUTHORIZATION_REVIEW.md section 1b for why
+  this, not a second `ownerDefinedIn` rule like `CoopSession`'s, was the
+  chosen approach); added the `submitAdventureAnswer` mutation and its
+  `AdventureAnswerResult` response type (plain strings for
+  `correctness`/`action`, not `a.ref()` enums, same reasoning as
+  `CompanionTurn`/`TutorTurn` above).
+- `amplify/backend.ts` — registered `submitAdventureAnswer`, granted its
+  Lambda `grantReadWriteData` on the `AdventureSession` table and
+  `grantReadData` (read-only — this function never writes `ChildProfile`)
+  on the `ChildProfile` table, wired `ADVENTURE_SESSION_TABLE_NAME`/
+  `CHILD_PROFILE_TABLE_NAME` environment variables, same pattern
+  `claimCoopSlot`'s wiring already established.
+- `src/features/adventures/api.ts` — added the `submitAdventureAnswer`
+  client wrapper. Passes `answer` as a plain object, **not**
+  `encodeAwsJson(answer)`: `tsc` itself rejected the encoded form with a
+  type error, revealing that a `a.json()` **mutation argument**'s
+  generated type is a plain JSON-value union, unlike an `a.json()`
+  **model field** (which `src/lib/awsJson.ts` correctly documents as
+  always traveling the wire as a string) — a real, code-verified
+  distinction neither this session nor any prior one had previously
+  encountered, since no earlier custom mutation in this schema took an
+  `a.json()` argument.
+- `src/features/adventures/useAdventureSession.ts` — `submitAnswer` now
+  calls `submitAdventureAnswer` instead of running `validateStepAnswer`
+  locally and branching on hint escalation itself; uses the mutation's
+  returned `correctness`/`supportLevel`/`action`/`nextStepId` for
+  everything downstream (recording the action, celebration/coop-claim
+  triggers, CREATIVE_CHOICE/NARRATIVE AI narration — all unchanged in
+  behavior, just now reading server-verified values). No longer calls
+  `advanceSession()` itself for this path: the Lambda already wrote the
+  new `currentStepId`, so the hook patches its own local `session` state
+  to match rather than making a second, redundant write that could
+  silently disagree with the server's own verdict. `advanceSession`/
+  `getNextStepId`/`completeSession` remain used, unchanged, by the
+  `WORLD_CHANGE` auto-advance and terminal `COMPLETE` effects — this
+  phase does not touch those two paths (see "known risk" below). The
+  load effect now also calls the new `ensureChildProfileOwnerSub` in
+  parallel with `resumeOrStartSession`, so a profile created before
+  `ownerSub` existed gets it backfilled before this child can submit an
+  answer.
+- `src/features/child-profile/api.ts` — `createChildProfile` now stamps
+  `ownerSub` from `getCurrentUser().userId` on every new row; added
+  `ensureChildProfileOwnerSub`, an idempotent self-heal for rows that
+  predate the field.
+- `src/features/adventures/api.test.ts`, new
+  `src/features/child-profile/api.test.ts` — tests for the new client
+  wrapper (raw-object argument shape, correctness mapping, RETRY vs
+  ADVANCE handling, error propagation) and for `ensureChildProfileOwnerSub`/
+  `createChildProfile`'s `ownerSub` handling respectively.
+- `docs/DATA_MODEL.md`, `docs/ADVENTURE_ENGINE.md`,
+  `docs/AUTHORIZATION_REVIEW.md` (new section 1b), `docs/ROADMAP.md` —
+  updated to document `ChildProfile.ownerSub`, where correctness is now
+  evaluated, the new mutation's authorization design, and this phase's
+  actual (partial) scope.
+
+Tests: `npm run typecheck` clean; `npm run lint` shows only pre-existing
+warnings in files this phase did not touch; `npm run format:check` shows
+only the same 50 pre-existing unformatted files noted since Phase 9's
+Playwright work (none newly introduced); `npm test` — 170 files, 1,502
+tests passing (10 new: `handler.test.ts`; the rest split across the two
+`api.test.ts` files above).
+
+**Known risks / explicit scope boundaries** (see ADR-012 for the full
+reasoning):
+
+- **`AdventureSession.update()` remains client-writable.** The
+  `WORLD_CHANGE` auto-advance and terminal `COMPLETE` transition still
+  call it directly, so a caller crafting a raw GraphQL request (not going
+  through this app's own client code) could still bypass
+  `submitAdventureAnswer` for those two transition kinds specifically.
+  Every legitimate client is protected; the schema-level door is not yet
+  fully closed. Closing it requires migrating those two paths too and then
+  removing `update` from the model's owner grant — tracked as follow-up,
+  not attempted here.
+- **`AdventureAction`/`SkillEvidence`/`SkillProgress` remain plain
+  owner-authorized client writes**, now populated from server-verified
+  values rather than client-computed ones, but still directly writable by
+  a raw GraphQL call bypassing this mutation. Same tracked follow-up as
+  above.
+- **Mastery, rewards, quests, NPC relationships, and discovery are
+  untouched** — the other five `NEEDS_MIGRATION` write paths the Phase 35
+  audit catalogued remain exactly as they were.
+- **Not deploy-verified against a real AWS environment** (no credentials
+  available in this sandbox, the same recurring constraint noted
+  throughout this document and `docs/AUTHORIZATION_REVIEW.md`). Two
+  specific open assumptions, both flagged in
+  `amplify/functions/submit-adventure-answer/handler.ts`'s own comments:
+  that an `UpdateExpression` touching only `currentStepId`/
+  `lastActivityAt` leaves `AdventureSession`'s owner-authorization
+  attribute untouched, and — now `tsc`-confirmed rather than assumed —
+  that AppSync deserializes an `AWSJSON` mutation *argument* before
+  invoking a Lambda resolver, unlike an `AWSJSON` model *field*. Confirm
+  both, plus the `ownerSub` backfill/authorization flow end to end with a
+  real signed-in parent and child, the first time this runs against a
+  real sandbox.
+- **`ChildProfile.ownerSub` is optional and unset for any row created
+  before this phase.** `ensureChildProfileOwnerSub` self-heals it on next
+  adventure play, but a family whose child profile predates this change
+  and who has not yet opened an adventure since upgrading will see
+  `submitAdventureAnswer` reject with "Not authorized for this adventure"
+  until that backfill runs once. No user-facing impact in this sandbox
+  (no real users yet), but worth a one-time backfill script if this ever
+  ships to an existing user base rather than relying purely on the
+  self-heal path.
 
 ## Known risks / TODOs
 

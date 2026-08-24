@@ -1,6 +1,7 @@
 import { client } from '../../lib/data-client';
 import { decodeAwsJson, encodeAwsJson } from '../../lib/awsJson';
 import type { Correctness, AdventureDefinition } from './engine/types';
+import type { StepAnswer } from './engine/validators';
 import type { Schema } from '../../../amplify/data/resource';
 
 export type AdventureSession = Schema['AdventureSession']['type'];
@@ -38,6 +39,63 @@ const CORRECTNESS_TO_SCHEMA: Record<Correctness, Schema['Correctness']['type']> 
   partial: 'PARTIAL',
   not_applicable: 'NOT_APPLICABLE',
 };
+
+const SCHEMA_TO_CORRECTNESS: Record<string, Correctness> = {
+  CORRECT: 'correct',
+  INCORRECT: 'incorrect',
+  PARTIAL: 'partial',
+  NOT_APPLICABLE: 'not_applicable',
+};
+
+export interface AdventureAnswerResult {
+  correctness: Correctness;
+  supportLevel: number;
+  action: 'RETRY' | 'ADVANCE';
+  /** Set only when `action` is `'ADVANCE'`. */
+  nextStepId: string | null;
+}
+
+/**
+ * The adventure engine's first server-authoritative mutation
+ * (docs/DECISIONS.md ADR-012): the Lambda behind this, not the caller,
+ * decides `correctness` and — when the answer advances the session —
+ * writes the session's new `currentStepId` itself. `useAdventureSession`
+ * calls this instead of running `validateStepAnswer`/`getNextStepId`
+ * locally and writing `AdventureSession` directly; see that hook for the
+ * full flow this replaces.
+ *
+ * `answer` is passed as a plain object, not `encodeAwsJson(answer)`.
+ * Unlike every `a.json()` *model field* in this schema (`src/lib/awsJson.ts`'s
+ * doc comment), the generated argument type for this mutation is a plain
+ * JSON-value union rather than `string` — confirmed by `tsc` itself
+ * rejecting the encoded form here with a type error; see the matching note
+ * in `amplify/functions/submit-adventure-answer/handler.ts`.
+ */
+export async function submitAdventureAnswer(
+  sessionId: string,
+  answer: StepAnswer,
+  hintLevel: number,
+): Promise<AdventureAnswerResult> {
+  const { data, errors } = await client.mutations.submitAdventureAnswer({
+    sessionId,
+    answer,
+    hintLevel,
+  });
+  if (!data) {
+    throw new Error(errors?.[0]?.message ?? 'Could not check that answer.');
+  }
+  const correctness = SCHEMA_TO_CORRECTNESS[data.correctness];
+  if (!correctness) {
+    throw new Error('Could not understand the result of that answer.');
+  }
+  const action = data.action === 'RETRY' ? 'RETRY' : 'ADVANCE';
+  return {
+    correctness,
+    supportLevel: data.supportLevel,
+    action,
+    nextStepId: action === 'ADVANCE' ? (data.nextStepId ?? null) : null,
+  };
+}
 
 /**
  * Owner authorization scopes `.list()` to the caller's own records, so

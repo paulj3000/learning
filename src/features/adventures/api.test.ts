@@ -1,8 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const { list, create } = vi.hoisted(() => ({
+const { list, create, submitAdventureAnswerMutation } = vi.hoisted(() => ({
   list: vi.fn(),
   create: vi.fn(),
+  submitAdventureAnswerMutation: vi.fn(),
 }));
 
 vi.mock('../../lib/data-client', () => ({
@@ -10,10 +11,13 @@ vi.mock('../../lib/data-client', () => ({
     models: {
       AdventureSession: { list, create },
     },
+    mutations: {
+      submitAdventureAnswer: submitAdventureAnswerMutation,
+    },
   },
 }));
 
-import { resumeOrStartSession } from './api';
+import { resumeOrStartSession, submitAdventureAnswer } from './api';
 import { REPAIR_THE_MOONLIGHT_BRIDGE } from './content';
 
 describe('resumeOrStartSession', () => {
@@ -67,5 +71,69 @@ describe('resumeOrStartSession', () => {
     await resumeOrStartSession('child-1', REPAIR_THE_MOONLIGHT_BRIDGE);
 
     expect(create).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('submitAdventureAnswer', () => {
+  beforeEach(() => {
+    submitAdventureAnswerMutation.mockReset();
+  });
+
+  it('sends the raw answer object, not an encoded string', async () => {
+    submitAdventureAnswerMutation.mockResolvedValueOnce({
+      data: { correctness: 'CORRECT', supportLevel: 0, action: 'ADVANCE', nextStepId: 'step-2' },
+      errors: undefined,
+    });
+
+    await submitAdventureAnswer('session-1', { kind: 'number-input', value: 4 }, 0);
+
+    expect(submitAdventureAnswerMutation).toHaveBeenCalledWith({
+      sessionId: 'session-1',
+      answer: { kind: 'number-input', value: 4 },
+      hintLevel: 0,
+    });
+  });
+
+  it('maps a server ADVANCE result to the lowercase Correctness type', async () => {
+    submitAdventureAnswerMutation.mockResolvedValueOnce({
+      data: { correctness: 'PARTIAL', supportLevel: 1, action: 'ADVANCE', nextStepId: 'step-3' },
+      errors: undefined,
+    });
+
+    const result = await submitAdventureAnswer('session-1', { kind: 'reflection' }, 1);
+
+    expect(result).toEqual({
+      correctness: 'partial',
+      supportLevel: 1,
+      action: 'ADVANCE',
+      nextStepId: 'step-3',
+    });
+  });
+
+  it('drops nextStepId when the server says to retry', async () => {
+    submitAdventureAnswerMutation.mockResolvedValueOnce({
+      data: { correctness: 'INCORRECT', supportLevel: 1, action: 'RETRY', nextStepId: 'step-1' },
+      errors: undefined,
+    });
+
+    const result = await submitAdventureAnswer('session-1', { kind: 'number-input', value: 1 }, 0);
+
+    expect(result).toEqual({
+      correctness: 'incorrect',
+      supportLevel: 1,
+      action: 'RETRY',
+      nextStepId: null,
+    });
+  });
+
+  it('throws when the mutation returns no data', async () => {
+    submitAdventureAnswerMutation.mockResolvedValueOnce({
+      data: null,
+      errors: [{ message: 'Not authorized for this adventure.' }],
+    });
+
+    await expect(
+      submitAdventureAnswer('session-1', { kind: 'number-input', value: 1 }, 0),
+    ).rejects.toThrow('Not authorized for this adventure.');
   });
 });

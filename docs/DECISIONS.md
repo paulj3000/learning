@@ -430,3 +430,97 @@ does not preclude Phase 37 or Phase 38 from designing their own models
 differently once they are reached — the curriculum-only boundary drawn
 here is deliberately conservative and may be revisited once there is a
 concrete reason to widen it.
+
+## ADR-012: `submitAdventureAnswer` is the first server-authoritative gameplay mutation; the pilot's scope is explicit, not exhaustive
+
+Status: Accepted
+
+`docs/ROADMAP.md` "Phase 37 — Learning State, Adventures/Quests, and
+Server-Authoritative Actions" is the single largest item in the Android
+backlog: docs/platform/CURRENT_PLATFORM_AUDIT.md's Phase 35 audit found
+that six gameplay engines (adventure correctness/completion, skill
+mastery, rewards, quests, NPC relationships, discovery) each decide an
+outcome client-side and write it straight to an owner-authorized Amplify
+Data model, with no server re-check anywhere except `claimCoopSlot`
+(Phase 17). Attempting all six at once was judged too large and too risky
+to the existing 1,400+-test suite for one pass. This ADR records what was
+built instead: a real, deployed-shaped pilot of exactly one path, chosen
+because every other engine's grading ultimately depends on it.
+
+**Decision.** `submitAdventureAnswer` (`amplify/data/resource.ts`,
+`amplify/functions/submit-adventure-answer/handler.ts`) is now the sole
+path by which a graded adventure step's correctness is decided and its
+session transition is written, for every legitimate client. The Lambda
+imports the exact same `validateStepAnswer`/`getNextStepId`/hint-ladder
+logic and adventure content (`src/features/adventures/engine`,
+`src/features/adventures/content`) the web client already shipped — the
+answer key does not need to move to a database for this to be
+authoritative, it only needs to run somewhere the caller cannot edit,
+which a Lambda already is. `useAdventureSession.submitAnswer`
+(`src/features/adventures/useAdventureSession.ts`) now calls this mutation
+instead of running that logic itself and writing `AdventureSession`
+directly.
+
+**Ownership re-verification: `ChildProfile.ownerSub`, not a second
+`ownerDefinedIn` rule.** `claimCoopSlot` (Phase 17) already established the
+pattern for a Lambda that bypasses AppSync's own owner-authorization
+resolvers: give it a field it can compare against the caller's raw Cognito
+`sub` directly. `CoopSession` did that by replacing its owner rule
+entirely with `allow.ownerDefinedIn('hostParentProfileId').identityClaim('sub')`.
+`AdventureSession` is a much older, more heavily used, `allow.owner()`
+model; changing its own authorization rule — or layering a second,
+independent `ownerDefinedIn` rule beside the default one — was not a risk
+worth taking with no way to deploy-verify the combination in this sandbox.
+Instead, `ChildProfile` gets one new **plain** field, `ownerSub`, with no
+authorization rule of its own: it inherits `ChildProfile`'s existing
+`allow.owner()`, so only the legitimate owner can ever write to that row
+(and therefore that field) in the first place, which is what makes a
+stored value trustworthy. `createChildProfile` sets it going forward;
+`ensureChildProfileOwnerSub` self-heals it for rows that predate the
+field, called from `useAdventureSession`'s load effect the same way
+`resumeOrStartSession` already is. See docs/AUTHORIZATION_REVIEW.md
+section 1b for the full comparison to `claimCoopSlot`'s approach.
+
+**Explicit residual scope boundary, documented rather than hidden.** This
+pilot does *not*:
+
+- Touch the `WORLD_CHANGE` auto-advance or terminal `COMPLETE` transition
+  (`docs/ADVENTURE_ENGINE.md`), which still call the plain, owner-authorized
+  `AdventureSession.update()` client-side. `AdventureSession.update()`
+  therefore remains reachable by a sufficiently sophisticated caller
+  crafting a raw GraphQL request directly, bypassing
+  `submitAdventureAnswer` entirely for those two transition kinds — a real
+  gap, not a false sense of security, and one that requires migrating
+  those two paths and then removing `update` from `AdventureSession`'s
+  owner grant to close, which is more than "pilot one path" was scoped to
+  mean.
+- Move `AdventureAction`/`SkillEvidence`/`SkillProgress` writes into the
+  Lambda. They remain plain client-side, owner-authorized writes, now
+  populated from this mutation's server-verified `correctness`/
+  `supportLevel` rather than from client-computed values — raising the bar
+  against casual tampering (the previous, trivial "just flip one field in
+  the request payload" exploit) without closing every path a raw GraphQL
+  call could still reach.
+- Touch mastery, rewards, quests, NPC relationships, or discovery at all —
+  the other five engines the Phase 35 audit flagged remain exactly as
+  they were, unaffected by this change, and are still Phase 37's own
+  remaining backlog.
+
+**Why ship a narrower, explicitly-scoped win rather than wait for a
+complete migration.** Every legitimate client — the web client today, any
+future Android client — now gets a genuinely tamper-resistant answer to
+"was this correct," which is both the single highest-value exploit the
+Phase 35 audit surfaced (self-reporting *any* answer as correct, on *any*
+graded step, was previously a one-field change to a normal request) and
+the foundation every other engine's grading already depends on. Waiting
+for a single pass that closes every model at once would mean shipping
+none of this progress now, for a backlog item ADR-010 already says carries
+no fixed timeline.
+
+**What this ADR does not claim.** It does not claim `AdventureSession` (or
+any other model touched by the remaining five engines) is now fully
+tamper-proof against a determined attacker with raw GraphQL access — only
+that the specific, highest-value client-side decision this pilot targeted
+no longer is. The residual gaps above are the concrete backlog for
+whichever future phase continues Phase 37, not oversights this ADR is
+unaware of.

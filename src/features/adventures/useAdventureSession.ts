@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  getHintText,
-  getNextStepId,
-  getStep,
-  isGuidedCompletion,
-  nextHintLevel,
-  validateStepAnswer,
-} from './engine';
+import { getHintText, getNextStepId, getStep, nextHintLevel } from './engine';
 import type { AdventureDefinition, AdventureStep, Correctness } from './engine/types';
 import type { StepAnswer } from './engine/validators';
 import {
@@ -17,6 +10,7 @@ import {
   recordWorldChangeOnce,
   resumeOrStartSession,
   saveStoryArtifact,
+  submitAdventureAnswer,
   type AdventureSession,
   type StoryScene,
 } from './api';
@@ -30,6 +24,7 @@ import { toCompanionTurnState } from '../tutor/presentation';
 import { representationAidForTurn } from '../tutor/scaffold';
 import type { RepresentationAid } from '../tutor/content/representationAids';
 import type { AgeBandValue } from '../child-profile/constants';
+import { ensureChildProfileOwnerSub } from '../child-profile/api';
 import { claimCoopSlot, completeCoopSession } from '../coop/api';
 import { useCoopPresence } from '../coop/useCoopPresence';
 import { isCoopEligibleStepType, type CoopSharedState } from '../coop/types';
@@ -124,7 +119,14 @@ export function useAdventureSession(
 
     async function load() {
       try {
-        const active = await resumeOrStartSession(childProfileId, definition);
+        // `submitAdventureAnswer` (docs/DECISIONS.md ADR-012) needs
+        // `ChildProfile.ownerSub` set to re-verify session ownership; a
+        // profile created before that field existed gets it backfilled here,
+        // once, before this child can submit an answer.
+        const [active] = await Promise.all([
+          resumeOrStartSession(childProfileId, definition),
+          ensureChildProfileOwnerSub(childProfileId),
+        ]);
         if (cancelled) return;
         setSession(active);
         setLoadState('ready');
@@ -181,41 +183,24 @@ export function useAdventureSession(
       setSubmitting(true);
       setError(null);
       try {
-        let correctness = validateStepAnswer(currentStep, answer);
-        let supportLevel = currentProgress?.hintLevel ?? 0;
+        const priorHintLevel = currentProgress?.hintLevel ?? 0;
         const attemptNumber = (currentProgress?.attemptNumber ?? 0) + 1;
 
-        const needsRetry =
-          (correctness === 'incorrect' || correctness === 'partial') && currentStep.hintPolicy;
+        // The server, not this code, decides correctness and (when the
+        // answer advances the session) writes the session's new
+        // `currentStepId` itself (docs/DECISIONS.md ADR-012) — this replaces
+        // both the local `validateStepAnswer`/`getNextStepId` calls and the
+        // `advanceSession()` write that used to follow them.
+        const { correctness, supportLevel, action, nextStepId } = await submitAdventureAnswer(
+          session.id,
+          answer,
+          priorHintLevel,
+        );
 
-        if (needsRetry) {
-          const escalatedHintLevel = nextHintLevel(supportLevel);
-          setProgressByStep((prev) => ({
-            ...prev,
-            [currentStep.id]: { hintLevel: escalatedHintLevel, attemptNumber },
-          }));
-
-          if (isGuidedCompletion(escalatedHintLevel)) {
-            correctness = 'correct';
-            supportLevel = escalatedHintLevel;
-          } else {
-            await recordAction({
-              sessionId: session.id,
-              stepId: currentStep.id,
-              actionType: currentStep.type,
-              normalizedAnswer: normalizeAnswer(answer),
-              correctness,
-              hintLevel: escalatedHintLevel,
-              attemptNumber,
-            });
-            return;
-          }
-        } else {
-          setProgressByStep((prev) => ({
-            ...prev,
-            [currentStep.id]: { hintLevel: supportLevel, attemptNumber },
-          }));
-        }
+        setProgressByStep((prev) => ({
+          ...prev,
+          [currentStep.id]: { hintLevel: supportLevel, attemptNumber },
+        }));
 
         await recordAction({
           sessionId: session.id,
@@ -226,6 +211,11 @@ export function useAdventureSession(
           hintLevel: supportLevel,
           attemptNumber,
         });
+
+        if (action === 'RETRY') {
+          return;
+        }
+
         if (correctness !== 'not_applicable') {
           await recordEvidenceForStep(currentStep, session.id, correctness, supportLevel);
         }
@@ -298,8 +288,17 @@ export function useAdventureSession(
             aiEnabled,
           });
         }
-        const nextStepId = getNextStepId(currentStep, correctness);
-        await advance(nextStepId);
+        // The Lambda already wrote this session's new `currentStepId`; a
+        // second client-side write would be redundant at best and, if this
+        // code ever computed a different value, would silently clobber the
+        // server's own verdict. Patch local state to match instead.
+        if (nextStepId) {
+          setSession((prev) =>
+            prev
+              ? { ...prev, currentStepId: nextStepId, lastActivityAt: new Date().toISOString() }
+              : prev,
+          );
+        }
       } catch {
         setError('Something went wrong. Let’s try that again.');
       } finally {
@@ -310,7 +309,6 @@ export function useAdventureSession(
       session,
       currentStep,
       currentProgress,
-      advance,
       recordEvidenceForStep,
       requestCompanion,
       childProfileId,

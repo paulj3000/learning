@@ -2,6 +2,7 @@ import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 import { CHATTY_SYSTEM_PROMPT } from './chattyPersona';
 import { TUTOR_SYSTEM_PROMPT } from './tutorPersona';
 import { claimCoopSlot } from '../functions/claim-coop-slot/resource';
+import { submitAdventureAnswer } from '../functions/submit-adventure-answer/resource';
 
 /**
  * Phase 1-4 schema (docs/DATA_MODEL.md): ParentProfile, ChildProfile,
@@ -73,6 +74,24 @@ const schema = a.schema({
        * makes AppSync null out the entire list item.
        */
       avatarPhotoKey: a.string(),
+      /**
+       * This child's parent's raw Cognito `sub`, mirrored here for
+       * `submitAdventureAnswer` (Phase 37, docs/DECISIONS.md ADR-012) to
+       * re-verify session ownership from inside a Lambda that bypasses
+       * AppSync's own owner-authorization resolvers. Unlike `CoopSession`'s
+       * `hostParentProfileId` (docs/AUTHORIZATION_REVIEW.md section 1a),
+       * this is a *plain* field with no `.identityClaim()`/`ownerDefinedIn`
+       * rule of its own — `ChildProfile` keeps its existing `allow.owner()`
+       * rule unchanged, so only the legitimate owner can ever write this
+       * row (and therefore this field) in the first place, which is what
+       * makes a stored value here trustworthy without needing a second,
+       * unverified owner-authorization rule on the same model. Populated by
+       * `createChildProfile` going forward and self-healed by
+       * `ensureChildProfileOwnerSub` (src/features/child-profile/api.ts) for
+       * rows that predate this field — same "not `.required()`, every row
+       * that predates this field has no value" precedent as `aiEnabled`.
+       */
+      ownerSub: a.string(),
       interests: a.string().array(),
       readingMode: a.ref('ReadingMode').required(),
       sessionMinutes: a.integer().required(),
@@ -717,6 +736,77 @@ const schema = a.schema({
     .returns(a.ref('CoopSession'))
     .authorization((allow) => [allow.authenticated()])
     .handler(a.handler.function(claimCoopSlot)),
+
+  // --- Phase 37: first server-authoritative gameplay mutation (docs/ROADMAP.md, docs/DECISIONS.md ADR-012) ---
+
+  /**
+   * Response shape for `submitAdventureAnswer` below. Plain strings for
+   * `correctness`/`action`, not `a.ref()` enums, for the exact reason
+   * `CompanionTurn` above documents: an enum-typed response field makes
+   * AppSync null out the whole object on any mismatch, with no visibility
+   * into why. `src/features/adventures/api.ts` re-validates these same
+   * values at the application layer.
+   */
+  AdventureAnswerResult: a.customType({
+    /** The server's own verdict: `'CORRECT' | 'INCORRECT' | 'PARTIAL' | 'NOT_APPLICABLE'`. */
+    correctness: a.string().required(),
+    /**
+     * The hint/support level this attempt should be recorded at —
+     * `hintLevel` unchanged, or escalated by one rung if this answer needed
+     * a retry (`src/features/adventures/engine/hints.ts`'s
+     * `nextHintLevel`).
+     */
+    supportLevel: a.integer().required(),
+    /** `'RETRY' | 'ADVANCE'` — whether the session actually moved on. */
+    action: a.string().required(),
+    /** Set only when `action` is `'ADVANCE'`; the session's new `currentStepId`. */
+    nextStepId: a.string(),
+  }),
+
+  /**
+   * The adventure engine's first server-authoritative mutation
+   * (docs/DECISIONS.md ADR-012): given a session and a raw answer, the
+   * Lambda — not the caller — decides correctness (re-running the exact
+   * same deterministic `validateStepAnswer`/`getNextStepId`/hint-ladder
+   * logic the client used to run itself, imported unchanged from
+   * `src/features/adventures/engine` and `src/features/adventures/content`)
+   * and, when the answer advances the session, writes the session's new
+   * `currentStepId` itself via a direct DynamoDB update — the same
+   * "bypass AppSync's resolvers, re-check authorization by hand" pattern
+   * `claimCoopSlot` already established, documented in full at
+   * `amplify/functions/submit-adventure-answer/handler.ts` and
+   * `docs/AUTHORIZATION_REVIEW.md` section 1b.
+   *
+   * `answer` is `a.json()` (AWSJSON — see `src/lib/awsJson.ts`'s doc
+   * comment on why every call site must `encodeAwsJson`/`decodeAwsJson`
+   * it) rather than a typed argument, because a `StepAnswer` is a
+   * discriminated union with no natural GraphQL input-type shape; the
+   * Lambda validates its structure defensively before use, the same as
+   * every other `a.json()` column in this schema.
+   *
+   * Deliberately does **not** take `stepId`: trusting the session's own
+   * stored `currentStepId` (not a client-supplied value) is what makes
+   * "answering a different step than you are actually on" impossible by
+   * construction, rather than a check that could be gotten wrong.
+   *
+   * Still writes `AdventureAction`/`SkillEvidence`/`SkillProgress` from the
+   * client afterward, using this mutation's returned, server-verified
+   * `correctness`/`supportLevel` — those three models, and the reward/
+   * quest/NPC/discovery engines downstream of them, remain plain
+   * owner-authorized client writes. See ADR-012 for why that residual gap
+   * is an explicit, documented scope boundary for this phase rather than
+   * an oversight.
+   */
+  submitAdventureAnswer: a
+    .mutation()
+    .arguments({
+      sessionId: a.id().required(),
+      answer: a.json().required(),
+      hintLevel: a.integer().required(),
+    })
+    .returns(a.ref('AdventureAnswerResult'))
+    .authorization((allow) => [allow.authenticated()])
+    .handler(a.handler.function(submitAdventureAnswer)),
 });
 
 export type Schema = ClientSchema<typeof schema>;

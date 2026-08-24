@@ -22,6 +22,21 @@ Supported MVP step types:
 
 AI may vary presentation inside a step but may not create unauthorized step transitions.
 
+**Where correctness is evaluated.** Through Phase 36, `validateStepAnswer`/
+`getNextStepId` ran entirely in the browser (`src/features/adventures/engine/`),
+trusted only because the web client itself shipped that code. As of Phase
+37 (docs/DECISIONS.md ADR-012), a graded step's answer is checked by
+`submitAdventureAnswer`, a server-side Lambda
+(`amplify/functions/submit-adventure-answer/handler.ts`) that imports the
+exact same deterministic engine and content modules and is the one that
+writes the session's resulting `currentStepId`. The rule "AI never decides
+correctness" is unchanged — this only moves *where* the same deterministic
+application code runs, from a context the caller can edit to one it
+cannot. `WORLD_CHANGE`'s always-`not_applicable` auto-advance and the
+terminal `COMPLETE` transition remain client-driven for now; see ADR-012
+for why closing those is separate, later work rather than part of this
+pass.
+
 ## Step contract
 
 ```ts

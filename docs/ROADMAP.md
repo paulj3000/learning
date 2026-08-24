@@ -618,7 +618,8 @@ rather than attempting all ~15 content areas at once.
 
 ### Phase 37 — Learning State, Adventures/Quests, and Server-Authoritative Actions
 
-Covers `docs/android/android.md` Phases 4-6. Persist learning progress
+**In progress — pilot complete for one of six write paths.** Covers
+`docs/android/android.md` Phases 4-6. Persist learning progress
 (`LessonProgress`, `SkillMastery`, `LearningEvent`) independent of device, so
 progress follows the child between web and Android rather than depending on
 browser storage. Make adventures and quests (`Adventure`, `Quest`,
@@ -628,6 +629,20 @@ sensitive game-state mutations (`completeQuestObjective`, `submitAnswer`,
 any client-side `player.xp += 100`-style mutation the Phase 35 audit
 surfaces — this generalizes the rule ADR-002/ADR-003 already apply to the
 Adventure Engine and AI companion to every gameplay mutation.
+
+Per ADR-012 in `docs/DECISIONS.md`, this phase was scoped down to a single,
+real, deployed-shaped pilot rather than attempted in full: `submitAdventureAnswer`
+now decides adventure-answer correctness and the resulting session
+transition server-side (`amplify/functions/submit-adventure-answer/handler.ts`),
+replacing the client-side `validateStepAnswer`/`getNextStepId` calls and
+direct `AdventureSession` write `useAdventureSession.ts` used to make. The
+other five write paths the Phase 35 audit flagged (skill mastery, rewards,
+quests, NPC relationships, discovery), the `WORLD_CHANGE`/`COMPLETE`
+transition paths, and the `Adventure`/`Quest`/`QuestObjective` content
+model itself remain exactly as they were — explicit, tracked follow-up
+rather than something this phase claims to have finished. See
+`docs/IMPLEMENTATION_STATUS.md`'s "Phase 37" entry for what was verified
+and what was not.
 
 ### Phase 38 — Inventory, World Schema, and Asset Catalog
 
