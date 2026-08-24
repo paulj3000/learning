@@ -278,3 +278,62 @@ set, NPC, discovery, and story exactly once. Content belonging to no world
 would have quietly opted out of every rule a world imposes, starting with
 which children can reach it; that is now a failing test rather than a silent
 gap.
+
+## ADR-010: Android is a second client of one Amplify Gen 2 platform, not a second backend
+
+Status: Accepted (platform-preparation scope only; native Android app
+development stays out of scope per CLAUDE.md section 12 until separately
+approved)
+
+A detailed platform roadmap for Android integration was authored at
+`docs/android/android.md` and needed a place in `docs/ROADMAP.md`. This ADR
+records the architectural rule that roadmap section runs on, so it does not
+have to be re-derived from a 28-phase document each time it is cited.
+
+**Decision.** Amplify Gen 2 remains the single source of truth for
+authentication, application data, learning content, gameplay state, and
+business logic. A future Android client is a renderer and input surface on
+top of that platform, exactly as the existing React web client is, per
+`docs/android/android.md` section 2:
+
+- **One backend, multiple clients.** Cognito identities, child profiles,
+  learning records, progress, inventory, rewards, quests, stories, world
+  definitions, and assets are shared. There is no separate Android database
+  and no Android-only backend.
+- **Clients render, backend decides.** Presentation, animation, input, and
+  device-specific rendering stay client-side. Learning progression, XP
+  awards, quest completion, inventory changes, unlock conditions, mastery
+  calculations, and world progression stay server-authoritative — the same
+  rule ADR-002 and ADR-003 already apply to the web client and the AI
+  companion.
+- **Content is data**, not React components, so a second client can read it
+  without duplicating it.
+- **The web client is no longer architecturally special.** Backend logic
+  must not assume requests originate from a browser (no dependence on
+  `localStorage`, cookies, or DOM APIs in shared business logic).
+
+**Why this doesn't reopen CLAUDE.md section 12.** Section 12 lists "native
+mobile applications" as out of scope until separately approved. That
+restriction is about shipping a child-facing Android app, not about whether
+the Amplify backend is written in a client-neutral way. The phases this ADR
+covers (`docs/ROADMAP.md` "Phases 35+ — Android Platform Integration") are
+backend audit, boundary-drawing, and API work that also benefits the
+existing web client (Phase 44 in particular refactors the web client onto
+the same platform-neutral APIs). No phase in that range ships an Android
+application; Phase 45 (Android Readiness Gate) is the checkpoint after which
+building the actual app would require the separate approval section 12
+requires.
+
+**Relationship to prior ADRs.** This does not change the rendering-layer
+decisions in ADR-007/ADR-008 (Phaser, then Three.js) or the content-model
+decision in ADR-009. Those govern how the *web* client's explorable world is
+built. A first-person Three.js world is a browser/WebGL concern; if an
+Android client is ever built, its own rendering stack (for example a native
+engine, or a WebView embedding the same web client) is a separate decision
+this ADR does not make.
+
+**What this ADR does not claim.** It does not commit the product to
+building an Android app on any particular timeline, and it does not claim
+the current backend already satisfies the "one backend, multiple clients"
+rule — Phase 35 (Platform Audit) exists precisely to find out where it
+doesn't yet.

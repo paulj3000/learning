@@ -563,6 +563,167 @@ Deliverables:
   island is not commissioned before that slice is proven fun and
   performant.
 
+## Phases 35+ — Android Platform Integration
+
+Full rationale, data models, API shapes, and worked examples are in
+`docs/android/android.md`; see also ADR-010 in `docs/DECISIONS.md`. That
+document defines its own 28-phase sequence (its Phase 0 through Phase 27);
+the phases below group that sequence at roadmap granularity and reference
+the source document's phase numbers for full detail rather than duplicating
+them here.
+
+The central rule, unchanged across every phase below: **Amplify Gen 2 is the
+source of truth. The web client and any future Android client are both
+clients of the same platform.** Android must not scrape, proxy through, or
+depend on the website; both connect directly to the same auth, data, APIs,
+storage, and server-side business logic (`docs/android/android.md` section
+1-2). This is backend audit, boundary, and API work — it prepares the
+platform for a second client and also benefits the existing web client
+(Phase 44 refactors the web client onto the same APIs). No phase in this
+range ships a child-facing Android application; per CLAUDE.md section 12,
+native mobile applications stay out of scope until separately approved, and
+Phase 45 (Android Readiness Gate) is the explicit checkpoint before that
+approval would even be sought.
+
+### Phase 35 — Platform Audit and Boundary
+
+Covers `docs/android/android.md` Phases 0-1. Audit every current Amplify
+resource, Lambda function, and piece of learning/quest/XP logic currently
+embedded in the React web client, classifying each as `CLIENT_ONLY`,
+`SHARED_DATA`, `SERVER_LOGIC`, `STATIC_ASSET`, or `NEEDS_MIGRATION` in a new
+`docs/platform/CURRENT_PLATFORM_AUDIT.md`. Then draw a client-neutral
+boundary around the backend: no backend function may assume React, Three.js,
+browser `localStorage`, cookies, or DOM APIs, and API naming moves from
+web-shaped (`POST /api/web/completeLesson`) to platform-neutral
+(`completeActivity(activityId, childId)`).
+
+### Phase 36 — Canonical Identity and Content Models
+
+Covers `docs/android/android.md` Phases 2-3. Separate Cognito authentication
+from application identity with a `ParentAccount` -> `ChildProfile` ->
+`PlayerProfile` chain, so gameplay state (level, XP, coins, current
+world/zone) is not stored in Cognito attributes. Move the learning-content
+hierarchy (`Subject` -> `Course` -> `Unit` -> `Lesson` -> `Activity` ->
+`Question`) out of React and into shared Amplify-backed models, so both
+clients render the same backend-defined lessons instead of duplicating
+content per client.
+
+### Phase 37 — Learning State, Adventures/Quests, and Server-Authoritative Actions
+
+Covers `docs/android/android.md` Phases 4-6. Persist learning progress
+(`LessonProgress`, `SkillMastery`, `LearningEvent`) independent of device, so
+progress follows the child between web and Android rather than depending on
+browser storage. Make adventures and quests (`Adventure`, `Quest`,
+`QuestObjective`) shared platform resources rather than web-only state. Move
+sensitive game-state mutations (`completeQuestObjective`, `submitAnswer`,
+`awardReward`, `unlockZone`) into validated backend operations, replacing
+any client-side `player.xp += 100`-style mutation the Phase 35 audit
+surfaces — this generalizes the rule ADR-002/ADR-003 already apply to the
+Adventure Engine and AI companion to every gameplay mutation.
+
+### Phase 38 — Inventory, World Schema, and Asset Catalog
+
+Covers `docs/android/android.md` Phases 7-9. One inventory system
+(`ItemDefinition`, `PlayerInventoryItem`) shared by all clients, so an item
+earned on web appears on Android. Move world structure
+(`WorldDefinition`, `ZoneDefinition`, `NPCDefinition`) out of Three.js-specific
+code where practical, so a zone definition can be interpreted by more than
+one renderer without tying world progression to Three.js implementation
+details (this complements, and does not reopen, ADR-007/ADR-008's rendering
+decisions). Centralize the GLB/texture/audio asset catalog in S3 with
+device-quality variants (`dragon-high.glb` / `-medium` / `-low`), referenced
+by clients through an asset ID rather than a hardcoded path.
+
+### Phase 39 — Manifest, Versioning, and Authorization
+
+Covers `docs/android/android.md` Phases 10-12. A `ContentManifest` with
+per-content-type version numbers, so a mobile client can request a delta
+instead of redownloading the full content library on every launch. API
+versioning (`apiVersion`, `minimumAndroidVersion`) protects installed
+Android builds, which may stay on a device for months, from silent backend
+response-format changes in a way the always-latest website does not need.
+Rework Amplify authorization rules for a multi-client environment
+(`PUBLIC` / `AUTHENTICATED` / `OWNER` / `PARENT` / `CHILD` / `ADMIN` /
+`SYSTEM` classification per model), so no privileged mutation depends merely
+on being authenticated and Android and web enforce identical rules.
+
+### Phase 40 — Device, Sync, and Offline Support
+
+Covers `docs/android/android.md` Phases 13-15. `DeviceRegistration` tracks
+clients (platform, app version, push token) without making device identity
+the source of truth — player identity stays account-based. Cross-device
+synchronization ensures completing content on one client is visible on the
+other, with the server remaining authoritative and local caches reconciling
+against it. Offline-safe API design requires a client-generated
+`requestId` on mutating calls so a queued, retried Android action cannot
+double-award XP, rewards, or quest completion.
+
+### Phase 41 — Events, Adaptive Learning, and Parent APIs
+
+Covers `docs/android/android.md` Phases 16-18. Standardize the event
+vocabulary (`LESSON_COMPLETED`, `QUESTION_ANSWERED`, `ACHIEVEMENT_EARNED`,
+...) and envelope so web and Android emit the same shape, with sensitive
+child information minimized per the existing rule against logging child
+free-text (CLAUDE.md section 13). Move adaptive-learning decisions
+(`getNextLearningActivity`) behind a shared API so recommendation logic is
+not duplicated per client. Expose parent features (`getChildDashboard`,
+`getWeeklyProgress`) as platform APIs independent of the website, so a
+future Android parent surface can reuse Phase 7/Phase 30's dashboard logic
+rather than re-implementing it.
+
+### Phase 42 — Environments, Config, and Cross-Platform Testing
+
+Covers `docs/android/android.md` Phases 19-21. Separate development/staging/
+production Amplify environments with an explicit mapping per build channel
+(Android debug -> development, Android QA -> staging, Play Store ->
+production), so a development build can never accidentally reach production
+child data. Generate Android client configuration from Amplify Gen 2 outputs
+(`npx ampx generate outputs`) rather than hand-maintaining duplicated
+AppSync/Cognito/S3 identifiers. Add cross-platform contract tests
+(auth, child profiles, learning, inventory, quests, world unlocks each
+verified web-writes-Android-reads and the reverse) as release-blocking
+integration tests, extending the existing authorization and adventure
+state-transition test requirements in CLAUDE.md section 11.
+
+### Phase 43 — Observability, Performance, and Security Hardening
+
+Covers `docs/android/android.md` Phases 22-24. Record platform/device/app-
+version metadata on every logged request so production issues can be
+filtered by client, and cross-device sync failures stay traceable. Review
+GraphQL query shape, pagination, and asset sizes for mobile traffic, so
+major Android screens use bounded queries instead of loading entire worlds
+or lesson libraries. Treat any released Android build as inspectable and
+modifiable: XP, currency, quest completion, inventory grants, and mastery
+must all be re-validated server-side, since client state can never be
+trusted, extending the same assumption the Adventure Engine already applies
+to the web client (ADR-002).
+
+### Phase 44 — Content Migration and Web Refactor
+
+Covers `docs/android/android.md` Phases 25-26. Migrate hardcoded web content
+(learning content, stories, quests, rewards, inventory definitions, NPC
+definitions, world definitions, asset catalog, in that order) into the
+shared platform models introduced above, keeping the web client functional
+throughout. Then refactor the web client itself to call the same
+platform-neutral backend operations an Android client would use (replacing
+client-side reward/quest-selection logic with backend calls), proving the
+shared-platform architecture works before any Android code depends on it.
+
+### Phase 45 — Android Readiness Gate
+
+Covers `docs/android/android.md` Phase 27. A checklist gate, not a feature:
+shared authentication, parent/child identity, backend-served learning
+content, server-persisted progress, quest models, server-authoritative
+rewards, backend-managed inventory, a shared asset catalog, API versioning,
+a content manifest, generatable Android configuration, cross-device
+integration tests, separated environments, and an idempotent mobile
+mutation strategy must all be in place (full checklist in
+`docs/android/android.md` section 30) before full Android feature
+development begins. Reaching this gate is also the point at which building
+a child-facing Android application would need the separate approval
+CLAUDE.md section 12 requires for native mobile applications — this phase
+does not grant that approval on its own.
+
 ## Post-MVP candidates
 
 - Robot Repair Reef;

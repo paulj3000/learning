@@ -373,6 +373,16 @@ critical-path list on top of); and NPC dialogue is a single static
 authored `SHOW_MESSAGE`, not AI-narrated (in scope for a later phase, not
 Phase 9's engine substrate).
 
+**Android platform integration (Phases 35-45): roadmapped, not started.**
+`docs/ROADMAP.md` "Phases 35+ — Android Platform Integration" and ADR-010
+in `docs/DECISIONS.md` now document the plan for evolving the Amplify
+Gen 2 backend into a platform that a future Android client could consume
+alongside the web client (full detail in `docs/android/android.md`). No
+Phase 35 work (platform audit) has begun. This is documentation only —
+CLAUDE.md section 12 keeps native mobile applications out of scope until
+separately approved, and nothing in this backlog changes what has actually
+shipped above.
+
 ## Completed
 
 - Product concept documented.
