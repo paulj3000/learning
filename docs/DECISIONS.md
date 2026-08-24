@@ -524,3 +524,71 @@ that the specific, highest-value client-side decision this pilot targeted
 no longer is. The residual gaps above are the concrete backlog for
 whichever future phase continues Phase 37, not oversights this ADR is
 unaware of.
+
+## ADR-013: Item/world/NPC/asset canonical models are designed, not migrated, in Phase 38; drop-rate and currency item fields are rejected
+
+Status: Accepted
+
+`docs/ROADMAP.md` "Phase 38 — Inventory, World Schema, and Asset Catalog"
+covers `docs/android/android.md` Phases 7-9. This ADR applies the same
+"design the target schema now, migrate only when a real second client
+needs it" treatment ADR-011 already established for Phase 36's curriculum
+content model, extended here to items, world/zone/NPC content, and the 3D
+asset catalog, and records one additional product-design rejection in the
+same spirit as ADR-011's XP/coins/level decision.
+
+**Decision, part A — no drop-rate rarity, no stackable/tradable items.**
+`docs/android/android.md` Phase 7 suggests `ItemDefinition` fields for
+`rarity` (implying scarcity/drop weighting), `stackable`, and `tradable`.
+This product's own `ItemDefinition` (`src/features/rewards/types.ts`)
+already has a `rarity` field, but its own doc comment already rules out
+the android.md reading: "emphatically NOT a drop chance, a power tier, or
+a status rank," asserted by `rewardTable.test.ts`. `stackable` and
+`tradable` do not exist and are not proposed: this product's inventory has
+no quantity (an item is owned or not) and no trading feature, per the same
+"no currency, no sink" design `rewardTable.ts` documents and the
+explorable-world roadmap's "avoid systems designed around envy, rarity
+pressure, or leaderboards." As with ADR-011's XP rejection, this is an
+existing, deliberate product decision the generic template does not
+know about, not a gap Phase 38 exists to fill.
+
+**Decision, part B — item/world/asset canonical models are designed, not
+migrated.** `docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md` records target
+Amplify Data schemas for `ItemDefinition`, `WorldDefinition`/
+`WorldContentPack`, and an asset catalog entry, grounded in this product's
+actual existing TypeScript types rather than android.md's generic ones.
+No model is added to `amplify/data/resource.ts`, no content moves out of
+TypeScript, and no asset moves to S3 this phase — same reasoning as
+ADR-011: ADR-009 already decided content is a pack, not a database row,
+and there is still no admin/content-designer write path for whoever would
+maintain these rows if they existed today.
+
+**Decision, part C — inventory server-authority stays Phase 37's tracked
+item, not duplicated under Phase 38.** `docs/android/android.md` Phase 7's
+own acceptance criteria include "inventory changes are server-authoritative,"
+which is `grantRewards` (`src/features/rewards/api.ts`) — one of the five
+remaining `NEEDS_MIGRATION` write paths ADR-012 already catalogued and
+explicitly deferred. It is not resolved here: unlike `submitAdventureAnswer`,
+a reward grant's legitimacy depends on quest/discovery/NPC state that is
+itself not yet server-verified, so it is not a well-isolated next pilot in
+the way the adventure-answer path was, and folding it into Phase 38 under
+a different name would duplicate an already-tracked backlog item rather
+than close it.
+
+**Decision, part D — NPC placement is not unified, and this document says
+so rather than guessing.** Investigating this product's actual NPC content
+surfaced three separate, un-unified representations (a dialogue/schedule
+"domain" NPC, a 2D Phaser placement NPC, and a 3D Three.js placement,
+joined only by shared string ids) across only two of ten island locations
+that have a Three.js region at all. `docs/android/android.md` Phase 8's
+own acceptance criterion — "the same zone definition can be interpreted by
+both clients" — is not yet true between this product's *own two existing
+web renderers*, before an Android renderer is even considered. This ADR
+does not resolve that design question; `docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md`
+section 5 records it as the concrete first question whichever future phase
+attempts this migration needs to answer.
+
+**What this ADR does not claim.** It does not migrate any content or
+asset, does not resolve the NPC-unification question, and does not close
+Phase 37's inventory-server-authority follow-up — all three are explicit,
+tracked gaps for future work, not oversights.

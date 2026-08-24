@@ -373,22 +373,26 @@ critical-path list on top of); and NPC dialogue is a single static
 authored `SHOW_MESSAGE`, not AI-narrated (in scope for a later phase, not
 Phase 9's engine substrate).
 
-**Android platform integration (Phases 35-45): Phases 35-36 complete,
-Phase 37 partially complete (one of six write paths piloted), Phases
-38-45 roadmapped, not started.** `docs/ROADMAP.md` "Phases 35+ — Android
+**Android platform integration (Phases 35-45): Phases 35, 36, and 38
+complete, Phase 37 partially complete (one of six write paths piloted),
+Phases 39-45 roadmapped, not started.** `docs/ROADMAP.md` "Phases 35+ — Android
 Platform Integration" and ADR-010/ADR-011/ADR-012 in `docs/DECISIONS.md`
 document the plan for evolving the Amplify Gen 2 backend into a platform
 that a future Android client could consume alongside the web client (full
 detail in `docs/android/android.md`). Phase 35 (platform audit and
-boundary) and Phase 36 (canonical identity and content models) are fully
-done — see `docs/platform/CURRENT_PLATFORM_AUDIT.md`,
-`docs/platform/CANONICAL_CONTENT_MODEL.md`, and the "Phase 35"/"Phase 36"
-entries below. Phase 37 is the first phase in this backlog with real,
-shipped production code: `submitAdventureAnswer`
+boundary), Phase 36 (canonical identity and content models), and Phase 38
+(item/world/asset model design) are fully done — see
+`docs/platform/CURRENT_PLATFORM_AUDIT.md`,
+`docs/platform/CANONICAL_CONTENT_MODEL.md`,
+`docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md`, and the "Phase 35"/"Phase
+36"/"Phase 38" entries below. Phase 37 is the only phase in this backlog
+so far with real, shipped production code: `submitAdventureAnswer`
 (`amplify/functions/submit-adventure-answer/`) is a genuine, deployed-shaped
 Lambda the web client now calls for every graded adventure answer — see
 the "Phase 37" entry below for exactly what changed, what was verified,
-and what remains deliberately out of scope. CLAUDE.md section 12 still
+and what remains deliberately out of scope (including inventory
+server-authority, which Phase 38 deliberately did not duplicate — see
+ADR-013). CLAUDE.md section 12 still
 keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
@@ -6184,6 +6188,62 @@ reasoning):
   (no real users yet), but worth a one-time backfill script if this ever
   ships to an existing user base rather than relying purely on the
   self-heal path.
+
+## Phase 38 — Inventory, World Schema, and Asset Catalog
+
+**Complete (design only, no production code changes), per new ADR-013 in
+`docs/DECISIONS.md`.** Covers `docs/android/android.md` Phases 7-9, scoped
+down the same way Phase 36 scoped its own content-model work.
+
+- **Created `docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md`**, target
+  Amplify Data schemas for `ItemDefinition`, `WorldDefinition`/
+  `WorldContentPack`, and an asset catalog entry, grounded in this
+  product's actual TypeScript types (`src/features/rewards/types.ts`,
+  `src/features/worlds/types.ts`, `src/features/island-map/three/assets/manifest.ts`)
+  rather than android.md's generic ones. No model was added to
+  `amplify/data/resource.ts`, no content moved out of TypeScript, no asset
+  moved to S3.
+- **Rejected two android.md-suggested `ItemDefinition` fields**: drop-rate
+  `rarity` and `stackable`/`tradable`. This product's own `rarity` field
+  already exists but is explicitly non-probabilistic by design
+  (`rewardTable.test.ts` asserts nothing reads it when granting); there is
+  no item quantity or trading feature, consistent with "no currency, no
+  sink" (`src/features/rewards/rewardTable.ts`). Same category of finding
+  as ADR-011's XP/coins rejection, recorded this time in ADR-013.
+- **Explicitly did not attempt "inventory changes are server-authoritative"**
+  (one of android.md Phase 7's own acceptance criteria) — that is
+  `grantRewards` (`src/features/rewards/api.ts`), already tracked as one
+  of Phase 37/ADR-012's five remaining `NEEDS_MIGRATION` write paths.
+  Unlike `submitAdventureAnswer`, a reward grant's legitimacy depends on
+  quest/discovery/NPC state that is itself not yet server-verified, so it
+  is not a well-isolated next pilot; folding it into Phase 38 under a new
+  name would have duplicated an already-tracked backlog item rather than
+  closed it.
+- **Real finding, not assumed away**: investigating this product's actual
+  NPC content surfaced three separate, un-unified representations (a
+  dialogue/schedule "domain" `NpcDefinition` in
+  `src/features/npc/types.ts`, a same-named but different 2D Phaser
+  placement `NpcDefinition` in `src/features/island-map/npcs.ts`, and a
+  third 3D Three.js placement in `welcomeHarborRegion.ts`/
+  `pirateBuilderBayRegion.ts`), joined only by shared string ids — and
+  only 2 of this product's 10 island locations have a Three.js region at
+  all; the other 7 still have only 2D Phaser-era zone files. android.md
+  Phase 8's own acceptance criterion — "the same zone definition can be
+  interpreted by both clients" — is not yet true between this product's
+  *own two existing web renderers*, before an Android renderer is even a
+  consideration. Recorded as the concrete first question for whichever
+  future phase attempts this migration, not resolved here.
+- **Also confirmed, as a positive finding requiring no design work**: the
+  3D asset catalog already satisfies android.md Phase 9's core rule
+  ("referenced by clients through an asset ID rather than a hardcoded
+  path") via `ASSET_MANIFEST`'s existing id-indirection
+  (`src/features/island-map/three/assets/manifest.ts`); what is genuinely
+  missing is S3 centralization and device-quality variants, both recorded
+  as design-only proposals in the new doc.
+- No tests added or changed; no schema, no runtime behavior changed.
+  `npm run typecheck`, `npm run lint`, `npm run format:check`, and
+  `npm test` were re-run to confirm the doc-only change left the existing
+  suite untouched.
 
 ## Known risks / TODOs
 

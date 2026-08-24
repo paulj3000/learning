@@ -646,16 +646,25 @@ and what was not.
 
 ### Phase 38 — Inventory, World Schema, and Asset Catalog
 
-Covers `docs/android/android.md` Phases 7-9. One inventory system
-(`ItemDefinition`, `PlayerInventoryItem`) shared by all clients, so an item
-earned on web appears on Android. Move world structure
-(`WorldDefinition`, `ZoneDefinition`, `NPCDefinition`) out of Three.js-specific
-code where practical, so a zone definition can be interpreted by more than
-one renderer without tying world progression to Three.js implementation
-details (this complements, and does not reopen, ADR-007/ADR-008's rendering
-decisions). Centralize the GLB/texture/audio asset catalog in S3 with
-device-quality variants (`dragon-high.glb` / `-medium` / `-low`), referenced
-by clients through an asset ID rather than a hardcoded path.
+**Complete (design only, per ADR-013 in `docs/DECISIONS.md`).** Covers
+`docs/android/android.md` Phases 7-9. `docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md`
+records target Amplify Data schemas for `ItemDefinition`,
+`WorldDefinition`/`WorldContentPack`, and an asset catalog entry, grounded
+in this product's actual TypeScript content — no model added, no content
+migrated, no asset moved to S3, same "design now, migrate when a real
+second client needs it" treatment Phase 36 already applied. Two
+android.md-suggested item fields (drop-rate `rarity`, `stackable`/
+`tradable`) are rejected outright as conflicting with this product's
+already-decided "no loot-box, no currency" design (ADR-013, same category
+as ADR-011's XP/coins rejection). "Inventory changes are server-authoritative"
+is explicitly *not* attempted here — it stays part of ADR-012's tracked
+Phase 37 follow-up, not duplicated under a new phase number. The design
+work also surfaced a real finding worth carrying forward: NPC placement
+today has three separate, un-unified representations (domain dialogue,
+2D Phaser placement, 3D Three.js placement) across only two of ten
+locations with a Three.js region at all — android.md's own "same zone
+definition, both clients" criterion is not yet true between this
+product's *own two existing web renderers*, let alone a third.
 
 ### Phase 39 — Manifest, Versioning, and Authorization
 
