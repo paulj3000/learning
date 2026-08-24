@@ -337,3 +337,96 @@ building an Android app on any particular timeline, and it does not claim
 the current backend already satisfies the "one backend, multiple clients"
 rule — Phase 35 (Platform Audit) exists precisely to find out where it
 doesn't yet.
+
+## ADR-011: No XP/coins/level economy; canonical content model is designed, not migrated, in Phase 36
+
+Status: Accepted
+
+`docs/ROADMAP.md` "Phase 36 — Canonical Identity and Content Models" covers
+`docs/android/android.md` Phase 2 (Canonical Identity Model) and Phase 3
+(Canonical Learning Content Model). Both are generic templates written
+without reference to this product's actual domain model or design
+philosophy, and two of their suggestions do not fit as written. This ADR
+records what was built instead and why.
+
+**Decision, part A — no `PlayerProfile` with level/XP/coins.**
+`docs/android/android.md` Phase 2 suggests a `ParentAccount -> ChildProfile
+-> PlayerProfile` chain, with `PlayerProfile` holding `level`, `xp`,
+`coins`, `currentWorldId`, `currentZoneId`. This is a generic mobile-game
+identity template, not a description of this product. CLAUDE.md pillar 7
+explicitly rules out "loot-box mechanics" as a dark pattern, and
+`docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md` section 27,
+"World Progression Instead of XP", is exactly this decision already made:
+"Avoid making numeric experience points the emotional center of the
+product... the world itself is the record of achievement." Phase 24's
+`ChildInventory` design already independently arrived at "there is no
+currency, no sink" for the same reason. Adding a numeric level/XP/coins
+model now, unused by any gameplay engine, would contradict a settled
+product decision for the sole benefit of matching a generic template
+literally.
+
+No `PlayerProfile` model was added. Cognito already stores zero gameplay
+attributes (`amplify/auth/resource.ts` declares only `loginWith`/`groups`),
+and `ParentProfile -> ChildProfile` is already the canonical identity
+chain, with every per-child gameplay fact already living in its own
+owner-scoped Amplify Data model (`SkillProgress`, `WorldChange`,
+`ChildInventory`, `ChildQuestState`, `ChildNpcState`, `ChildStoryProgress`,
+`ChildWorldState` — the last of which already carries
+`lastCheckpointId`, Phase 32's answer to "current world/zone position").
+Phase 2's actual acceptance criteria — a Cognito user may own multiple
+child profiles, each child has independent learning/gameplay state, and
+both web and Android would resolve the same child identity — are already
+met by the existing schema. This is the same kind of finding Phase 35 made
+about API naming: nothing needed to change, so nothing was added just to
+have added something.
+
+**Decision, part B — the canonical content model is designed, not
+migrated, and scoped to curriculum vocabulary only.**
+`docs/android/android.md` Phase 3 suggests moving a generic `Subject ->
+Course -> Unit -> Lesson -> Activity -> Question` hierarchy into shared
+backend models. This product's actual content spans roughly fifteen
+TypeScript-authored areas (catalogued in full in
+`docs/platform/CURRENT_PLATFORM_AUDIT.md` section 4): adventures, stories,
+quests, items, discoveries, NPCs, world/zone layouts, and the curriculum
+graph. Migrating all of it in one phase would be large (hundreds of files),
+risky (1,400+ existing tests exercise content that assumes it is
+synchronous, in-process TypeScript), and premature — `docs/ROADMAP.md`
+Phase 37 ("Learning State, Adventures/Quests, and Server-Authoritative
+Actions") and Phase 38 ("Inventory, World Schema, and Asset Catalog")
+already own the adventure/quest/item/discovery/NPC/world portions of that
+list as their own deliverables, so migrating them here would preempt and
+duplicate that work rather than prepare for it.
+
+`docs/platform/CANONICAL_CONTENT_MODEL.md` scopes Phase 36 to exactly the
+two content types CLAUDE.md section 9's "Required Domain Concepts" already
+names and that every other model already references only by an opaque
+`code`/`id` string: `LearningObjective` and the Phase 19 curriculum `Skill`
+graph. It records a target Amplify Data schema (`Subject`, `Grade`,
+`Domain`, `Skill`, with `LearningObjective` absorbed into `Skill` rather
+than kept as a second, driftable vocabulary) but adds no model to
+`amplify/data/resource.ts` and moves no content out of TypeScript this
+phase.
+
+**Why design now but migrate later, rather than either extreme.**
+ADR-009 already decided "a world is a content pack, not a code path or a
+second identity" and `docs/DATA_MODEL.md` already states a general
+preference for source-controlled content over database rows for MVP —
+content-in-code is a repeated, deliberate choice in this codebase, not an
+oversight Phase 36 exists to correct. Migrating the curriculum graph into
+live Amplify Data models today would add runtime read latency where there
+is none, and would need a real write path for content designers to use
+safely — but no admin/content-designer role exists yet
+(`docs/AUTHORIZATION_REVIEW.md` section 4.3, and every phase's "Known
+risks" section since Phase 3 has flagged this same gap). Paying that cost
+today buys nothing: no Android client exists to read the shared model, and
+ADR-010 already states this backlog "does not commit the product to
+building an Android app on any particular timeline." Recording the target
+shape now means a future migration — whenever one is actually motivated by
+a real second client — has a concrete schema to build against without the
+product paying for it before that day arrives.
+
+**What this ADR does not claim.** It does not migrate any content, and it
+does not preclude Phase 37 or Phase 38 from designing their own models
+differently once they are reached — the curriculum-only boundary drawn
+here is deliberately conservative and may be revisited once there is a
+concrete reason to widen it.

@@ -373,15 +373,20 @@ critical-path list on top of); and NPC dialogue is a single static
 authored `SHOW_MESSAGE`, not AI-narrated (in scope for a later phase, not
 Phase 9's engine substrate).
 
-**Android platform integration (Phases 35-45): roadmapped, not started.**
-`docs/ROADMAP.md` "Phases 35+ — Android Platform Integration" and ADR-010
-in `docs/DECISIONS.md` now document the plan for evolving the Amplify
-Gen 2 backend into a platform that a future Android client could consume
-alongside the web client (full detail in `docs/android/android.md`). No
-Phase 35 work (platform audit) has begun. This is documentation only —
-CLAUDE.md section 12 keeps native mobile applications out of scope until
-separately approved, and nothing in this backlog changes what has actually
-shipped above.
+**Android platform integration (Phases 35-45): Phases 35-36 complete,
+Phases 37-45 roadmapped, not started.** `docs/ROADMAP.md` "Phases 35+ —
+Android Platform Integration" and ADR-010/ADR-011 in `docs/DECISIONS.md`
+document the plan for evolving the Amplify Gen 2 backend into a platform
+that a future Android client could consume alongside the web client (full
+detail in `docs/android/android.md`). Phase 35 (platform audit and
+boundary) and Phase 36 (canonical identity and content models) are done —
+see `docs/platform/CURRENT_PLATFORM_AUDIT.md`,
+`docs/platform/CANONICAL_CONTENT_MODEL.md`, and the "Phase 35"/"Phase 36"
+entries below. This remains documentation and audit/design only, with no
+production code changes: CLAUDE.md section 12 keeps native mobile
+applications out of scope until separately approved, and nothing in this
+backlog changes what has
+actually shipped above.
 
 ## Completed
 
@@ -5918,6 +5923,110 @@ above).
   not yet demonstrating creative rephrasing; worth another look once the
   AI evaluation suite (below) exists to check this systematically rather
   than from one sample.
+
+## Phase 35 — Platform Audit and Boundary
+
+**Complete (documentation/audit only, no production code changes).** Covers
+`docs/android/android.md` Phase 0 (Platform Audit) and Phase 1 (Establish
+the Platform Boundary), grouped in `docs/ROADMAP.md` as "Phase 35". Per
+ADR-010, this phase exists to find out where the codebase already satisfies
+"Amplify Gen 2 is the source of truth, clients only render" and where it
+doesn't — not to fix every gap it finds.
+
+- **Created `docs/platform/CURRENT_PLATFORM_AUDIT.md`**, a source-level
+  read of every model in `amplify/data/resource.ts`, both Lambda functions,
+  and every `src/features/*/api.ts` call site, classifying each as
+  `SHARED_DATA`, `SERVER_LOGIC`, `CLIENT_ONLY`, `STATIC_ASSET`, or
+  `NEEDS_MIGRATION`.
+- **Two positive findings, needing no code change**: (1) there is no
+  `localStorage`/`sessionStorage` usage anywhere in `src/`, and no
+  REST-style `fetch()`/`/api/...` calls — every backend interaction already
+  goes through the generated Amplify Data client, and the three custom
+  operations (`claimCoopSlot`, `generateCompanionTurn`, `generateTutorTurn`)
+  are already named platform-neutrally, not web-shaped. (2) both Lambda
+  handlers (`claim-coop-slot`, `operational-metrics`) were confirmed to
+  make no assumption about React, Three.js, browser storage, cookies, or
+  DOM APIs. Phase 1's "backend business logic is client-neutral" and
+  "shared APIs have platform-neutral naming" acceptance criteria were
+  already met by the existing architecture; no renaming or restructuring
+  was needed.
+- **The real finding: almost no gameplay-outcome logic is actually
+  server-authoritative yet.** Every engine (adventures, mastery, rewards,
+  quests, NPC relationships, discovery) follows the same shape — a pure
+  decision module paired with an impure `api.ts` that computes the outcome
+  client-side and writes it straight to an owner-authorized Data model,
+  with no server-side re-check. `claimCoopSlot` (Phase 17) is the only
+  exception in the whole schema. This was an acceptable risk for a single
+  web client running code the product itself shipped; it becomes a real one
+  once a more easily modified client (Android) can call the same Amplify
+  Data operations directly. The audit's table of every such write path
+  (`recordAction`/`completeSession`, `upsertSkillProgress`, `grantRewards`,
+  `syncQuestProgress`, `recordDialogueNode`, `recordDiscovery`) is the
+  concrete backlog for `docs/ROADMAP.md` Phase 37
+  ("Server-Authoritative Actions"), not something this phase attempts to
+  fix.
+- **Second finding: all authored game content lives only as TypeScript
+  modules bundled into the web client** — adventures, stories, items,
+  discoveries, NPC content, quests, world/zone definitions, the curriculum
+  graph, and the 3D asset manifest all have no backend model behind them
+  today (full location table in the audit doc). An Android client cannot
+  import a TypeScript module, so this content would have to be hand-
+  duplicated and could drift — the problem `docs/ROADMAP.md` Phases 36 and
+  39 exist to solve.
+- **Third finding: a short, explicit list of genuinely web-specific code**
+  (first-person pointer-lock controls, canvas-based avatar-photo
+  cropping, `window.matchMedia`-based reduced-motion detection) that would
+  need an Android-native equivalent rather than a shared implementation —
+  listed so a future Android design doesn't have to rediscover it.
+- No tests added or changed: this phase produced one new documentation
+  file and edits to this status file only, per its "documentation only"
+  scope in `docs/ROADMAP.md`. `npm run typecheck`, `npm run lint`, and
+  `npm test` were re-run to confirm the doc-only change left the existing
+  suite untouched.
+
+## Phase 36 — Canonical Identity and Content Models
+
+**Complete (design/documentation only, no production code changes).**
+Covers `docs/android/android.md` Phase 2 (Canonical Identity Model) and
+Phase 3 (Canonical Learning Content Model), scoped down per a new
+ADR-011 in `docs/DECISIONS.md` — see that ADR for the full reasoning,
+summarized here.
+
+- **Identity half: already satisfied, nothing added.** `docs/android/android.md`
+  Phase 2 suggests a `ParentAccount -> ChildProfile -> PlayerProfile` chain
+  with `level`/`xp`/`coins`. No `PlayerProfile` model was added: numeric
+  XP/coins is not an oversight to fix but a deliberately rejected mechanic
+  (CLAUDE.md pillar 7's "no loot-box mechanics";
+  `docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md` section 27,
+  "World Progression Instead of XP"). Cognito already stores no gameplay
+  attributes, and `ParentProfile -> ChildProfile` plus the existing
+  per-child models (`SkillProgress`, `WorldChange`, `ChildInventory`,
+  `ChildQuestState`, `ChildNpcState`, `ChildStoryProgress`,
+  `ChildWorldState`) already satisfy "independent learning/gameplay state
+  per child, resolved identically by any client" — the same kind of
+  already-satisfied finding Phase 35 made for API naming.
+- **Created `docs/platform/CANONICAL_CONTENT_MODEL.md`**, a target Amplify
+  Data schema (`Subject`, `Grade`, `Domain`, `Skill`) for the curriculum
+  vocabulary — scoped to just `LearningObjective` and the Phase 19 `Skill`
+  graph, the two content types CLAUDE.md section 9 already names and that
+  every other model already references only by an opaque `code`/`id`
+  string. Recommends absorbing the flat 18-entry `LearningObjective` list
+  into the richer `Skill` graph (10 of 18 codes already have a `Skill`
+  entry; 8 do not yet) rather than migrating both as two permanently
+  parallel vocabularies. Deliberately excludes `AdventureTemplate`/
+  `AdventureStepDefinition` (Phase 37's job) and items/discoveries/NPCs/
+  world-zone content (Phase 38's job) — full boundary table in the doc.
+  **No model was added to `amplify/data/resource.ts` and no content moved
+  out of TypeScript**; this is a schema design for a future migration, not
+  the migration itself, per ADR-011's reasoning (ADR-009's existing
+  "content is a pack, not a database row" precedent, and the still-missing
+  admin/content-designer write path every phase since Phase 3 has flagged).
+- **Added ADR-011** to `docs/DECISIONS.md`, recording both decisions above
+  as one architectural record: reject the generic PlayerProfile/XP
+  template, and design-without-migrating the curriculum content model.
+- No tests added or changed; no schema, no runtime behavior changed.
+  `npm run typecheck`, `npm run lint`, and `npm test` were re-run to
+  confirm the doc-only change left the existing suite untouched.
 
 ## Known risks / TODOs
 

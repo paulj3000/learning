@@ -599,14 +599,22 @@ web-shaped (`POST /api/web/completeLesson`) to platform-neutral
 
 ### Phase 36 — Canonical Identity and Content Models
 
-Covers `docs/android/android.md` Phases 2-3. Separate Cognito authentication
-from application identity with a `ParentAccount` -> `ChildProfile` ->
-`PlayerProfile` chain, so gameplay state (level, XP, coins, current
-world/zone) is not stored in Cognito attributes. Move the learning-content
-hierarchy (`Subject` -> `Course` -> `Unit` -> `Lesson` -> `Activity` ->
-`Question`) out of React and into shared Amplify-backed models, so both
-clients render the same backend-defined lessons instead of duplicating
-content per client.
+**Complete** — see ADR-011 in `docs/DECISIONS.md`,
+`docs/platform/CANONICAL_CONTENT_MODEL.md`, and the "Phase 36" entry in
+`docs/IMPLEMENTATION_STATUS.md`. Covers `docs/android/android.md` Phases
+2-3, adapted rather than implemented literally: android.md's generic
+`ParentAccount -> ChildProfile -> PlayerProfile` chain with level/XP/coins
+was rejected outright (contradicts CLAUDE.md pillar 7 and this roadmap's
+own "World Progression Instead of XP" section) rather than built and left
+unused — Cognito already stores no gameplay attributes and
+`ParentProfile -> ChildProfile` plus the existing per-child models already
+satisfy the identity acceptance criteria, so no new model was needed. The
+generic `Subject` -> `Course` -> `Unit` -> `Lesson` -> `Activity` ->
+`Question` content hierarchy was scoped down to a design (not a migration)
+of just the curriculum vocabulary — `LearningObjective` and the Phase 19
+`Skill` graph — with `AdventureTemplate`/`AdventureStepDefinition` left to
+Phase 37 and items/discoveries/NPCs/world-zone content left to Phase 38,
+rather than attempting all ~15 content areas at once.
 
 ### Phase 37 — Learning State, Adventures/Quests, and Server-Authoritative Actions
 
