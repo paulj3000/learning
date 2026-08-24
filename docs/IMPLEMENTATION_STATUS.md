@@ -44,25 +44,36 @@ Bedrock model choice ever changes.
 
 ## Current phase
 
-**Phases 0-30 are implemented**, plus two follow-ups: "Curriculum band
+**Phases 0-31 are implemented**, plus two follow-ups: "Curriculum band
 coverage (Phase 19 follow-up)", which gave Sprouts and Explorers a
 curriculum at all, and "Phase 27 follow-up", which closed the two seams
 Phase 27 shipped with (Chatty re-voicing opted-in NPC lines, and a
 `SWITCH_REPRESENTATION` turn putting a real manipulative beside the step).
 Both are described in their own sections below.
 
-The most recent phase proper is Phase 30 (Parent/Educator Experience
-Expansion): the parent dashboard now surfaces two engines it had never
-actually read from before. "Mastery by area" and the educator report both
-read `MasteryDetail` (Phase 20) grouped by curriculum domain — until this
-phase, `ChildDashboard.tsx` showed only raw `SkillProgress` counts and never
-called the Mastery Engine's own status computation at all. "Focus areas to
-consider" reads the Adaptive Adventure Director's `rankSkillNeeds` (Phase
-28) directly, so a parent's sense of what needs practice can never disagree
-with the Director's own. "Recent adventures" now shows an
-independent-vs-hinted line per session, from `AdventureAction` rows a
-child's hint ladder had already been writing since Phase 3 but nothing had
-ever read back. See its section below for what did and did not ship.
+The most recent phase proper is Phase 31 (Three.js World Foundation): per
+ADR-008 in `docs/DECISIONS.md`, the explorable world is migrating from
+Phaser to a first-person Three.js renderer, and this phase establishes the
+boundary before any real content is built on it — an engine-neutral event
+bus (`worldEngineEvents.ts`), stable semantic ids, and one child-facing
+sandbox scene (`/island/:childId/world/three-sandbox`) proving movement,
+GLB loading, an animated NPC, raycast interaction, and one real (not
+duplicated) domain-action trigger. The sandbox is deliberately unpolished
+and pre-content — no learning objective, placeholder art — since turning
+this boundary into a real region is Phase 32's job. See its section below.
+
+Phase 30 (Parent/Educator Experience Expansion) came before it: the parent
+dashboard now surfaces two engines it had never actually read from before.
+"Mastery by area" and the educator report both read `MasteryDetail` (Phase
+20) grouped by curriculum domain — until this phase, `ChildDashboard.tsx`
+showed only raw `SkillProgress` counts and never called the Mastery
+Engine's own status computation at all. "Focus areas to consider" reads
+the Adaptive Adventure Director's `rankSkillNeeds` (Phase 28) directly, so
+a parent's sense of what needs practice can never disagree with the
+Director's own. "Recent adventures" now shows an independent-vs-hinted
+line per session, from `AdventureAction` rows a child's hint ladder had
+already been writing since Phase 3 but nothing had ever read back. See its
+section below for what did and did not ship.
 
 Phase 29 (Multiple Islands and Worlds) came before it — see its section
 below. The island is no longer the world. A child who has helped Pip at the bay can sail
@@ -4103,6 +4114,136 @@ No Amplify schema change, so nothing here needs a deploy to be exercised.
   it — consistent with how the rest of this page already works (`weeklySummary`,
   `explorationLines` are likewise recomputed each render, not memoized), but
   worth noting if the curriculum ever grows large enough for this to matter.
+
+## Phase 31 - Three.js World Foundation
+
+**Complete**, all four roadmap deliverables (engine-neutral world events,
+stable semantic identifiers, an isolated sandbox scene, and a documented
+Phaser-to-Three.js migration boundary), scoped exactly as narrow as
+`docs/ROADMAP.md`'s own framing: architecture proof, not new child content.
+Per ADR-008 in `docs/DECISIONS.md`, this adds Three.js as a second World
+Engine presentation alongside Phaser rather than replacing it — Phaser
+stays the production explorable world until a Three.js slice reaches
+feature parity at Phase 33.
+
+The sandbox is **child-facing** (`/island/:childId/world/three-sandbox`,
+`RequireParent`-gated), not hidden behind `/admin`: the product has not
+shipped yet, so there is no live audience to protect from an unpolished
+scene, and exercising the boundary on the real child route is a truer test
+of it. It is deliberately framed as an early, unfinished preview rather
+than a real location — no learning objective, no adventure template, no
+`IslandLocation` content entry, and its own copy says so ("an early look,
+not a full adventure yet"). Reachable from Welcome Harbor
+(`src/routes/WelcomeHarbor.tsx`, "Peek at an early 3D preview") alongside
+the other auxiliary links, not listed as a map location card.
+
+### What shipped
+
+- **`worldEngineEvents.ts`** — the Phaser-free typed event bus for the
+  Three.js boundary, mirroring `worldEvents.ts`'s shape (Phase 9) with its
+  own vocabulary: `PlayerEnteredZone`, `ObjectInteracted`, `NpcApproached`,
+  `CollectiblePickedUp`, `BuildActionRequested` outbound;
+  `QuestStateChanged`, `WorldStateChanged`, `InventoryChanged`,
+  `NpcStateChanged` inbound. Also exports the semantic-id type aliases the
+  roadmap calls for (`RegionId`, `ZoneId`, `EntityId`, `InteractionId`,
+  `WorldStateKey`).
+- **`firstPersonController.ts`** — movement/look state (position, yaw,
+  pitch, velocity), comfort-tuned per the roadmap (eased
+  acceleration/deceleration rather than instant start/stop, clamped camera
+  pitch, no forced cinematic motion), with axis-separated collision against
+  a small set of static box colliders. Pure math (`THREE.Vector3`/`Box3`),
+  no scene/camera/renderer, so it needs no GPU context to test.
+- **`sandboxTriggers.ts`** — the proximity/zone checks the scene calls each
+  frame, independent of movement math: `isInsideZone`, and an
+  edge-triggered `hasApproached` so `NpcApproached` fires once per approach
+  rather than once per frame while standing nearby.
+- **`placeholderNpcGltf.ts`** — a hand-built, minimal, untextured glTF
+  asset (a small box with a two-keyframe "nod" `AnimationClip`) standing in
+  for "Pip," embedded as JSON with a base64 data-URI buffer rather than a
+  checked-in binary asset. Loaded through the real `GLTFLoader().parse(...)`
+  — a genuine exercise of the GLB-loading pipeline the roadmap asks for,
+  even though the art itself is a placeholder (real art is Phase 34's job).
+  Parses cleanly in jsdom with no mocking, which was the one empirical
+  unknown going into this phase.
+- **`useSandboxBridge.ts`** — the one real domain-action wiring the
+  roadmap's "wired to trigger an existing quest/adventure action without
+  duplicating its business rule" calls for. Approaching the placeholder NPC
+  (identified by the real, already-authored npc id `pirate-pip`, not a
+  fake sandbox-only id) calls the existing `noteCharacterMet` (the same
+  helper every Phaser world view already uses, from `useExplorableWorld`),
+  which persists a real `ChildWorldState.metCharacterIds` entry, then emits
+  `NpcStateChanged` back onto the bus so the scene can react — exercising
+  both the outbound and inbound directions of the boundary, not only
+  outbound.
+- **`ThreeGameContainer.tsx`** — the Three.js sibling of
+  `PhaserGameContainer.tsx`, generic over any `{ dispose(): void }` engine
+  handle rather than typed to `three` directly, so it needs no `three` mock
+  in its own test (unlike `PhaserGameContainer.test.tsx`, which must mock
+  `phaser`'s default export).
+- **`sandboxScene.ts`** — the rendering glue: scene, camera, renderer,
+  boundary walls plus one obstacle collider, the placeholder NPC with an
+  `AnimationMixer`, one raycastable collectible, one build spot, one zone
+  volume, desktop keyboard + pointer-lock mouse look, and a minimal
+  two-zone touch scheme (left half drags movement, right half drags look).
+  Like every existing `scenes/*.ts` Phaser scene file, this one is not
+  unit tested — only manually verified — since it needs a real GPU/DOM
+  context; the logic it depends on is tested independently.
+- **`ThreeSandboxWorldView.tsx` / `src/routes/ThreeSandboxWorldPage.tsx`**
+  — the child-facing view and route shell, parallel to
+  `PirateBuilderBayWorldView.tsx`/`PirateBuilderBayWorldPage.tsx`. The
+  "Things to do here" panel offers a "Say hello to Pip" button that calls
+  `noteCharacterMet` directly (the same non-graphical alternate every other
+  world view already provides, roadmap section 42) and an "Interact"
+  button for the raycast action, so neither the one real domain trigger nor
+  the collectible interaction requires the 3D scene at all.
+- **`docs/ARCHITECTURE.md`** — a new "Phaser-to-Three.js migration
+  boundary" subsection under "World engine layering," mapping each
+  Phase 9-11 2D concern to its Three.js equivalent (tilemaps -> GLB
+  regions, top-down movement -> first-person controller, tile collision ->
+  3D collision volumes, 2D proximity zones -> trigger volumes, sprite
+  animation -> `AnimationMixer` clips).
+
+### Files
+
+New: `src/features/island-map/three/worldEngineEvents.ts` (+ test),
+`firstPersonController.ts` (+ test), `sandboxTriggers.ts` (+ test),
+`placeholderNpcGltf.ts` (+ test), `useSandboxBridge.ts` (+ test),
+`ThreeGameContainer.tsx` (+ `.module.css`, + test), `sandboxScene.ts`
+(untested glue), `ThreeSandboxWorldView.tsx` (+ test);
+`src/routes/ThreeSandboxWorldPage.tsx`.
+
+Changed: `package.json` (`three`, `@types/three`); `src/app/AppRoutes.tsx`
+(lazy-loaded `/island/:childId/world/three-sandbox` route, same
+code-splitting rationale as every other `/world/...` route);
+`src/routes/WelcomeHarbor.tsx` (one new auxiliary link);
+`docs/ARCHITECTURE.md`.
+
+No Amplify schema change. 30 new unit tests, all passing; full suite
+(1382 tests) and typecheck both clean.
+
+### Known limitations (Phase 31)
+
+- **No Sprouts (ages 3-4) accessibility playtest yet.** ADR-008 requires
+  one before any Three.js region ships as a band's *primary* path, but that
+  requirement attaches to Phase 32's exit criterion (a real region), not to
+  this phase's admittedly-rough sandbox. Tracked, not skipped.
+- **Touch controls are a minimal hand-rolled two-zone drag scheme**, not
+  final UX — no visible joystick graphic, no dead-zone tuning beyond a
+  fixed pixel radius. Phase 32 owns real touch UX polish.
+- **Only `NpcStateChanged` has a real producer.** `QuestStateChanged`,
+  `WorldStateChanged`, and `InventoryChanged` exist in
+  `worldEngineEvents.ts`'s type map (proving the bus supports the inbound
+  direction generally) but nothing emits them yet, since no real quest or
+  inventory system has a reason to talk to this sandbox until Phase 32+
+  content needs it.
+- **Not manually played in a browser this session** — verified by a clean
+  typecheck, a clean lint pass, and the full unit suite passing, including
+  a real (if minimal) `GLTFLoader().parse()` round-trip in jsdom. The
+  actual WebGL render path (movement feel, pointer-lock UX, the raycast
+  hitting the right mesh) has not been eyeballed in a running dev server.
+- **`sandboxScene.ts` itself has no automated test**, matching the existing
+  precedent for every `scenes/*.ts` Phaser file — it needs a real
+  WebGL/DOM context to exercise meaningfully.
 
 ## Live smoke test, story/co-op verification, and Explorer content
 

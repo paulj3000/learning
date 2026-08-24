@@ -74,6 +74,17 @@ const BoltsWorkshopWorldPage = lazy(() =>
     default: module.BoltsWorkshopWorldPage,
   })),
 );
+/**
+ * `three` is the same kind of large, canvas-touching dependency as
+ * `phaser` above, so the Phase 31 sandbox route is lazy-loaded for the
+ * same reason: keep it out of every other route's bundle and out of the
+ * test import graph until a child actually opens it.
+ */
+const ThreeSandboxWorldPage = lazy(() =>
+  import('../routes/ThreeSandboxWorldPage').then((module) => ({
+    default: module.ThreeSandboxWorldPage,
+  })),
+);
 
 export function AppRoutes() {
   return (
@@ -237,6 +248,16 @@ export function AppRoutes() {
           <RequireParent>
             <Suspense fallback={<p>Loading Bolt's Workshop...</p>}>
               <BoltsWorkshopWorldPage />
+            </Suspense>
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/world/three-sandbox"
+        element={
+          <RequireParent>
+            <Suspense fallback={<p>Loading the sandbox...</p>}>
+              <ThreeSandboxWorldPage />
             </Suspense>
           </RequireParent>
         }

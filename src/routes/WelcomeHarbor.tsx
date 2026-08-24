@@ -142,6 +142,15 @@ export function WelcomeHarbor() {
       <Link className={styles.logLink} to={`/island/${childId}/library`}>
         Open the adventure library (new!)
       </Link>
+      {/*
+        Phase 31: an early, intentionally rough look at the Three.js
+        first-person world the island is migrating toward (ADR-008 in
+        docs/DECISIONS.md), not a finished location, so it is not listed
+        as an `IslandLocation` card above.
+      */}
+      <Link className={styles.logLink} to={`/island/${childId}/world/three-sandbox`}>
+        Peek at an early 3D preview (new!)
+      </Link>
     </IslandLayout>
   );
 }

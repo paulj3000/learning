@@ -90,6 +90,40 @@ upward through a plain, Phaser-free world event bus (`worldEvents.ts` in
 `features/island-map`), not by calling adventure or AI code directly from
 inside a Phaser scene.
 
+### Phaser-to-Three.js migration boundary (Phase 31)
+
+`docs/ROADMAP.md` Phase 31 and ADR-008 in `docs/DECISIONS.md` add a second
+World Engine presentation, Three.js, alongside Phaser, live at the same
+time rather than replacing it (Phaser stays child-facing production until a
+Three.js slice reaches parity at Phase 33). Its code lives isolated inside
+`features/island-map/three/`, still inside the World Engine's existing
+presentation-layer home, and communicates upward through its own
+Phaser-free bus, `worldEngineEvents.ts`, mirroring `worldEvents.ts`'s shape
+but with its own event vocabulary — the two renderers' event contracts stay
+independent for the length of the migration, so neither can accidentally
+depend on the other's internals.
+
+Concern-by-concern, each Phase 9-11 Phaser mechanism maps to a Three.js
+equivalent:
+
+| Phaser (2D) | Three.js (first-person 3D) |
+| --- | --- |
+| Tilemaps (`tilemap.ts`) | GLB regions (`GLTFLoader`) |
+| Top-down 8-directional movement | First-person controller (`firstPersonController.ts`) |
+| Per-tile collision | 3D collision volumes (`THREE.Box3`, axis-separated resolution) |
+| 2D proximity zones (`zones.ts`) | Trigger volumes (`sandboxTriggers.ts`'s `isInsideZone`/`hasApproached`) |
+| Sprite animation | `AnimationMixer` clips |
+
+Durable domain state is keyed by the same kind of stable semantic ids on
+both sides (`RegionId`, `ZoneId`, `EntityId`, `InteractionId`,
+`WorldStateKey` in `worldEngineEvents.ts`), never a Three.js object UUID,
+mesh reference, or raw camera transform — the same rule `npcs.ts`/`NpcId`
+already follows so a character's identity survives the migration
+untouched. Three.js never decides correctness, quest completion, or
+rewards, matching Phaser's own constraint above; the one place it reaches
+real domain code is `useSandboxBridge.ts`, which calls the *existing*
+`noteCharacterMet`/`recordCharacterMet` rather than reimplementing it.
+
 ## Platform engine boundaries (Phase 18)
 
 `docs/ROADMAP.md` Phases 18-30 name eight platform engines; a ninth,
