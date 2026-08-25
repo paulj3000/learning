@@ -373,21 +373,24 @@ critical-path list on top of); and NPC dialogue is a single static
 authored `SHOW_MESSAGE`, not AI-narrated (in scope for a later phase, not
 Phase 9's engine substrate).
 
-**Android platform integration (Phases 35-45): Phases 35, 36, 38, and 39
-complete, Phase 37 partially complete (one of six write paths piloted),
-Phases 40-45 roadmapped, not started.** `docs/ROADMAP.md` "Phases 35+ —
-Android Platform Integration" and ADR-010 through ADR-014 in
-`docs/DECISIONS.md` document the plan for evolving the Amplify Gen 2
+**Android platform integration (Phases 35-45): Phases 35, 36, 38, 39, and
+40 complete, Phase 37 partially complete (one of six write paths
+piloted), Phases 41-45 roadmapped, not started.** `docs/ROADMAP.md`
+"Phases 35+ — Android Platform Integration" and ADR-010 through ADR-015
+in `docs/DECISIONS.md` document the plan for evolving the Amplify Gen 2
 backend into a platform that a future Android client could consume
 alongside the web client (full detail in `docs/android/android.md`).
 Phase 35 (platform audit and boundary), Phase 36 (canonical identity and
-content models), Phase 38 (item/world/asset model design), and Phase 39
-(authorization classification, manifest/versioning design) are fully
-done — see `docs/platform/CURRENT_PLATFORM_AUDIT.md`,
+content models), Phase 38 (item/world/asset model design), Phase 39
+(authorization classification, manifest/versioning design), and Phase 40
+(device/sync/offline-safety audit) are fully done — see
+`docs/platform/CURRENT_PLATFORM_AUDIT.md`,
 `docs/platform/CANONICAL_CONTENT_MODEL.md`,
 `docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md`,
-`docs/platform/MANIFEST_AND_API_VERSIONING.md`, and the "Phase 35"/"Phase
-36"/"Phase 38"/"Phase 39" entries below. Phase 37 is the only phase in
+`docs/platform/MANIFEST_AND_API_VERSIONING.md`,
+`docs/platform/DEVICE_SYNC_AND_OFFLINE_SAFETY.md`, and the "Phase 35"/
+"Phase 36"/"Phase 38"/"Phase 39"/"Phase 40" entries below. Phase 37 is the
+only phase in
 this backlog so far with real, shipped production code: `submitAdventureAnswer`
 (`amplify/functions/submit-adventure-answer/`) is a genuine, deployed-shaped
 Lambda the web client now calls for every graded adventure answer — see
@@ -6297,6 +6300,58 @@ versioning design only, per new ADR-014 in `docs/DECISIONS.md`.** Covers
   it), design manifest/versioning but do not build them (both are blocked
   on work — content migration, an installed client — that has not
   happened).
+- No tests added or changed; no schema, no runtime behavior changed.
+  `npm run typecheck`, `npm run lint`, `npm run format:check`, and
+  `npm test` were re-run to confirm the doc-only change left the existing
+  suite untouched.
+
+## Phase 40 — Device, Sync, and Offline Support
+
+**Complete — cross-device sync and write idempotency audited for real;
+device registration and a requestId model designed only, per new ADR-015
+in `docs/DECISIONS.md`.** Covers `docs/android/android.md` Phases 13-15.
+
+- **Created `docs/platform/DEVICE_SYNC_AND_OFFLINE_SAFETY.md`.**
+- **Cross-device sync, audited precisely rather than assumed**: every
+  model android.md's Phase 14 lists as needing to sync (minus
+  `XP`/`levels`/`coins`, already rejected by ADR-011) is already an
+  Amplify Data model with zero client-side caching anywhere in `src/`
+  (Phase 35's audit already confirmed no `localStorage`/`sessionStorage`
+  usage exists), so *sequential* cross-device consistency already holds
+  by construction. A full-tree search for
+  `onUpdate|onCreate|observeQuery|subscribe` found exactly one live
+  GraphQL subscription anywhere in this codebase —
+  `CoopSession.onUpdate` (Phase 17) — so *concurrent* live push between
+  two simultaneously open sessions does not hold for anything else.
+  Recorded as a known, low-priority gap: this product's calm-engagement
+  design does not encourage simultaneous multi-device play by one child.
+- **Write idempotency, audited engine by engine**: `grantRewards`
+  (`ChildInventory`), `recordWorldChangeOnce` (`WorldChange`),
+  `syncQuestProgress` (`ChildQuestState`), `recordDiscovery`/
+  `recordCharacterMet`/`saveCheckpoint` (`ChildWorldState`), and
+  `recordDialogueNode` (`ChildNpcState`) are all already idempotent by
+  construction — `grantedRuleIds`, `changeKey`, and membership checks
+  before array appends were already independently documented as
+  idempotent in `docs/ARCHITECTURE.md`/`docs/DATA_MODEL.md`, for reasons
+  that predate this phase and predate Android being a consideration
+  (mainly: replaying an adventure must never re-grant a reward).
+  `submitAdventureAnswer` fails loudly on a retry (a kind mismatch against
+  the now-advanced step) rather than silently double-advancing. The one
+  precise, narrow gap: `AdventureAction`/`SkillEvidence`/`StoryArtifact`
+  are plain, unconditional `.create()` calls with no natural
+  retry-collision key — but none of the three are aggregated reward or
+  progress state, so a duplicate is a minor data-quality issue (an
+  inflated attempt count on one parent-dashboard report), not a
+  duplicate-reward exploit. Noted that `AdventureAction` already has an
+  unenforced natural dedup key (`sessionId` + `stepId` + `attemptNumber`,
+  already computed client-side) that a future fix could reuse instead of
+  inventing a new `requestId` concept for just that one model.
+- **`DeviceRegistration` and `ProcessedCommand` (requestId-based dedup)
+  recorded as target shapes, not built** — neither has a real subject
+  yet: no second platform, no push-notification feature, and no offline
+  queue in this codebase that could actually produce a duplicate retry to
+  guard against.
+- **Added ADR-015** to `docs/DECISIONS.md`.
 - No tests added or changed; no schema, no runtime behavior changed.
   `npm run typecheck`, `npm run lint`, `npm run format:check`, and
   `npm test` were re-run to confirm the doc-only change left the existing

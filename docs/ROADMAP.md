@@ -687,14 +687,26 @@ either now would be real infrastructure with zero consumers.
 
 ### Phase 40 — Device, Sync, and Offline Support
 
-Covers `docs/android/android.md` Phases 13-15. `DeviceRegistration` tracks
-clients (platform, app version, push token) without making device identity
-the source of truth — player identity stays account-based. Cross-device
-synchronization ensures completing content on one client is visible on the
-other, with the server remaining authoritative and local caches reconciling
-against it. Offline-safe API design requires a client-generated
-`requestId` on mutating calls so a queued, retried Android action cannot
-double-award XP, rewards, or quest completion.
+**Complete — cross-device sync and write idempotency audited for real;
+device registration and a requestId model designed only, per ADR-015 in
+`docs/DECISIONS.md`.** Covers `docs/android/android.md` Phases 13-15.
+`docs/platform/DEVICE_SYNC_AND_OFFLINE_SAFETY.md` audits this product's
+*existing* sync and retry behavior rather than assuming a gap: every
+model android.md's Phase 14 lists as needing to synchronize already reads
+fresh from Amplify Data with zero client-side caching, so sequential
+cross-device consistency already holds; only concurrent live push does
+not (one subscription anywhere in the codebase, `CoopSession.onUpdate`).
+A pass through every write path found the offline-retry idempotency Phase
+15 asks for already independently built into the reward/world-change/
+quest/discovery/NPC engines — `grantedRuleIds`, `changeKey`, and
+recompute-rather-than-log patterns predate this phase and predate Android
+being a consideration at all. The one real, narrow gap: three append-only
+audit writes (`AdventureAction`, `SkillEvidence`, `StoryArtifact`) have no
+natural retry-collision key, though a duplicate there is a minor
+data-quality issue, not a duplicate-reward exploit. `DeviceRegistration`
+and a `requestId`-based `ProcessedCommand` model are designed but not
+built — neither has a real subject yet (no second platform, no offline
+queue).
 
 ### Phase 41 — Events, Adaptive Learning, and Parent APIs
 

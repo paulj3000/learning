@@ -653,3 +653,78 @@ section 5's live-backend checklist is unchanged by this pass), and it does
 not commit to when content manifests or API versioning will actually be
 built — only that building them now, with nothing to version and no
 installed client to protect, would be premature.
+
+## ADR-015: Cross-device sync and write idempotency are audited as they exist today; device registration and a requestId model are designed, not built
+
+Status: Accepted
+
+`docs/ROADMAP.md` "Phase 40 — Device, Sync, and Offline Support" covers
+`docs/android/android.md` Phases 13-15. As with Phase 39, the three
+sub-phases split on whether this product already has a real subject to
+examine.
+
+**Decision, part A — device registration is designed, not built.** No
+model is added for `DeviceRegistration`. Every one of android.md's stated
+uses (app-version tracking, telemetry, sync debugging, push notifications,
+security review, stale-device cleanup) presumes either a second platform
+or a push-notification feature, and this product has neither today.
+`docs/platform/DEVICE_SYNC_AND_OFFLINE_SAFETY.md` section 1 records a
+target shape.
+
+**Decision, part B — cross-device sync is audited, precisely, as it exists
+today.** Unlike device registration, this product already has real,
+inspectable sync behavior: every model android.md's Phase 14 lists as
+needing to synchronize (minus `XP`/`levels`/`coins`, already rejected by
+ADR-011) is already an Amplify Data model read fresh on every load, with
+no client-side cache anywhere in `src/` (confirmed by the Phase 35 audit).
+The finding is precise rather than a blanket "yes" or "no": *sequential*
+cross-device consistency (open on device B after finishing on device A)
+already holds by construction, because nothing is cached to go stale.
+*Concurrent* live push between two simultaneously-open sessions does not
+— a full-tree search found exactly one GraphQL subscription anywhere in
+this codebase (`CoopSession.onUpdate`, Phase 17's co-op feature, the one
+case actually designed around two devices needing to see each other's
+state in real time). This is recorded as a known, low-priority gap rather
+than fixed: this product's calm-engagement design (CLAUDE.md pillar 7)
+does not encourage simultaneous multi-device play by one child in the
+first place.
+
+**Decision, part C — write idempotency is audited engine by engine, and
+found to already hold almost everywhere.** `docs/android/android.md`
+Phase 15 asks for retry-safe mutations so a queued, retried Android action
+cannot double-award rewards or duplicate quest completion.
+`docs/platform/DEVICE_SYNC_AND_OFFLINE_SAFETY.md` section 3 checks every
+write path against this and finds the content-level idempotency this
+phase asks for was already independently built into this codebase's
+reward/world-change/quest/discovery/NPC engines, well before Android was
+under consideration (`grantedRuleIds`, `changeKey`, membership checks
+before array appends, and quest state that is recomputed rather than
+logged) — `docs/ARCHITECTURE.md` and `docs/DATA_MODEL.md` already use the
+word "idempotent" to describe several of these independently. The
+precise, narrow exception: three append-only audit/evidence writes
+(`AdventureAction`, `SkillEvidence`, `StoryArtifact` creates) have no
+natural collision key and would duplicate under a raw retry — but none of
+the three are aggregated reward/progress state, so a duplicate is a minor
+data-quality issue (an inflated attempt count on one parent-dashboard
+report), not a duplicate-reward exploit. A `requestId`-based
+`ProcessedCommand` design is recorded for these three specifically
+(section 4), not built, since there is no offline queue in this codebase
+today that could actually produce a duplicate retry to guard against.
+
+**Why this is a stronger finding than "audit passed."** This is not a case
+of discovering nothing was wrong because nothing was checked closely
+enough — `docs/DATA_MODEL.md` and `docs/ARCHITECTURE.md` already documented
+several of these idempotency guarantees independently, for reasons that
+had nothing to do with a future Android client (mainly: a child re-playing
+an adventure, or a page reload mid-session, must never re-grant a reward
+or re-count a discovery). Phase 40's contribution is confirming those
+guarantees generalize to the offline-retry framing android.md asks for,
+and precisely naming the three writes that do not.
+
+**What this ADR does not claim.** It does not claim any of this is
+deploy-verified against real concurrent devices or a real retried request
+(no AWS credentials in this sandbox, the same recurring constraint), does
+not build `DeviceRegistration` or `ProcessedCommand`, and does not resolve
+`upsertSkillProgress`'s accumulator-style sensitivity to genuine duplicate
+calls — a pre-existing property of the Mastery Engine unrelated to offline
+retries specifically, out of scope for this ADR.
