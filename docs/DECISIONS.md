@@ -804,3 +804,70 @@ specific `Scan`-vs-`Query`/GSI-name uncertainty its own handler comment
 documents), does not build a parent-dashboard query or a `DeviceRegistration`-backed
 event system, and does not change any of the Director's actual ranking
 rules — only where they run.
+
+## ADR-017: Environment/config/contract-test infrastructure is documented, not created; provisioning a real environment is an explicit human decision
+
+Status: Accepted
+
+`docs/ROADMAP.md` "Phase 42 — Environments, Config, and Cross-Platform
+Testing" covers `docs/android/android.md` Phases 19-21. Unlike every prior
+phase in this backlog, this one is not a code-vs-design split — it is a
+"do not take this action unilaterally" boundary. Creating a real
+`staging`/`production` Amplify branch environment provisions real AWS
+infrastructure (a second Cognito pool, AppSync API, set of DynamoDB
+tables, S3 bucket) with real cost and access-control consequences. That is
+an infrastructure action reserved for an explicit, human-authorized
+decision under this project's own operating rules, not something a
+documentation pass should do on a roadmap phase's authority alone.
+
+**Decision, part A — the environment-separation mechanism already
+exists; recorded, not built.** `amplify.yml`'s existing
+`ampx pipeline-deploy --branch $AWS_BRANCH` already gives this repo
+Amplify Hosting's standard branch-per-environment model: any new Git
+branch connected to Amplify Hosting already provisions its own fully
+isolated backend, using infrastructure already committed. What is
+missing is not a mechanism but branches — only `main` exists today.
+`docs/platform/ENVIRONMENTS_CONFIG_AND_CONTRACT_TESTS.md` records this
+finding and maps android.md's development/staging/production vocabulary
+onto it, without creating any branch or deciding branch-naming
+conventions, which are deployment-topology decisions for whoever operates
+the real AWS account.
+
+**Decision, part B — generated client configuration needs nothing new.**
+`docs/android/android.md` Phase 20's `npx ampx generate outputs` is
+already how the web client obtains its own configuration
+(`src/lib/amplify-config.ts`'s `amplify_outputs.json`, generated and
+gitignored, never hand-maintained) — an Android project would run the
+same Amplify Gen 2 tooling against the same backend. Nothing in this
+repository needs to change for this acceptance criterion to hold once an
+Android project exists.
+
+**Decision, part C — cross-platform contract tests are listed, not
+written, and their underlying claim is largely already audited.** No
+contract test can run without a second client to run it against. The
+target test list recorded in
+`docs/platform/ENVIRONMENTS_CONFIG_AND_CONTRACT_TESTS.md` section 3 is the
+concrete backlog for whenever one exists. Its underlying structural claim
+— a write through Amplify Data is visible to any other authenticated
+caller reading the same owner-scoped data — is not a new question:
+`docs/platform/DEVICE_SYNC_AND_OFFLINE_SAFETY.md` (Phase 40, ADR-015)
+already audited exactly this for cross-device sync and found it already
+true by construction (no client-side caching anywhere). A future
+Android/web contract-test suite exercises that same already-true property
+against a genuinely different client for the first time; it does not
+discover a new one.
+
+**Why this phase looks different from Phases 36-41.** Every prior phase
+in this backlog either designed a schema with nothing built, or built one
+well-scoped, low-risk, reversible piece of application code (a Lambda, a
+query). Phase 42's subject matter — cloud environments and billed
+infrastructure — is not reversible the same way a Lambda deploy is, and
+is explicitly out of this ADR's authority to create. Recording what
+already exists and what a human would need to decide is the whole,
+correctly-scoped deliverable here.
+
+**What this ADR does not claim.** It does not create any AWS resource,
+Git branch, or CI change, does not decide environment-to-branch naming
+conventions, and does not write any contract test — all three require
+either a second client or an explicit, separate human decision to
+provision real infrastructure.

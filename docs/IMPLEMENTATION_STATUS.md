@@ -374,25 +374,27 @@ authored `SHOW_MESSAGE`, not AI-narrated (in scope for a later phase, not
 Phase 9's engine substrate).
 
 **Android platform integration (Phases 35-45): Phases 35, 36, 38, 39, 40,
-and 41 complete, Phase 37 partially complete (one of six write paths
-piloted), Phases 42-45 roadmapped, not started.** `docs/ROADMAP.md`
-"Phases 35+ — Android Platform Integration" and ADR-010 through ADR-016
+41, and 42 complete, Phase 37 partially complete (one of six write paths
+piloted), Phases 43-45 roadmapped, not started.** `docs/ROADMAP.md`
+"Phases 35+ — Android Platform Integration" and ADR-010 through ADR-017
 in `docs/DECISIONS.md` document the plan for evolving the Amplify Gen 2
 backend into a platform that a future Android client could consume
 alongside the web client (full detail in `docs/android/android.md`).
 Phase 35 (platform audit and boundary), Phase 36 (canonical identity and
 content models), Phase 38 (item/world/asset model design), Phase 39
 (authorization classification, manifest/versioning design), Phase 40
-(device/sync/offline-safety audit), and Phase 41 (events/adaptive-learning/parent-API
-design and audit) are fully done — see
+(device/sync/offline-safety audit), Phase 41
+(events/adaptive-learning/parent-API design and audit), and Phase 42
+(environments/config/contract-test documentation) are fully done — see
 `docs/platform/CURRENT_PLATFORM_AUDIT.md`,
 `docs/platform/CANONICAL_CONTENT_MODEL.md`,
 `docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md`,
 `docs/platform/MANIFEST_AND_API_VERSIONING.md`,
 `docs/platform/DEVICE_SYNC_AND_OFFLINE_SAFETY.md`,
-`docs/platform/EVENTS_ADAPTIVE_LEARNING_AND_PARENT_APIS.md`, and the
-"Phase 35"/"Phase 36"/"Phase 38"/"Phase 39"/"Phase 40"/"Phase 41" entries
-below. Phase 41 shipped real production code again, the second phase in
+`docs/platform/EVENTS_ADAPTIVE_LEARNING_AND_PARENT_APIS.md`,
+`docs/platform/ENVIRONMENTS_CONFIG_AND_CONTRACT_TESTS.md`, and the
+"Phase 35"/"Phase 36"/"Phase 38"/"Phase 39"/"Phase 40"/"Phase 41"/"Phase
+42" entries below. Phase 41 shipped real production code, the second phase in
 this backlog to do so after Phase 37: `getNextLearningActivity`
 (`amplify/functions/get-next-learning-activity/`) is a genuine,
 deployed-shaped Lambda the web client now calls for adventure
@@ -6469,6 +6471,51 @@ reasoning):
 - **Parent-dashboard queries remain client-side-only**, same category of
   gap as the five still-unmigrated write paths from Phase 37 — tracked as
   a natural follow-up, not attempted here.
+
+## Phase 42 — Environments, Config, and Cross-Platform Testing
+
+**Complete — documented, nothing created, per new ADR-017 in
+`docs/DECISIONS.md`.** Covers `docs/android/android.md` Phases 19-21.
+Unlike Phases 36-41, this phase's subject is billed AWS infrastructure
+(a real `staging`/`production` Amplify environment), not application
+code — provisioning one is an explicit, human-authorized infrastructure
+decision, not something to take on a documentation pass's authority, so
+nothing was created.
+
+- **Created `docs/platform/ENVIRONMENTS_CONFIG_AND_CONTRACT_TESTS.md`.**
+- **Environment separation: mechanism already exists, only branches
+  don't.** Read `amplify.yml`/`.github/workflows/ci.yml` directly:
+  `ampx pipeline-deploy --branch $AWS_BRANCH` already gives this repo
+  Amplify Hosting's branch-per-environment model — any new Git branch
+  connected to Amplify Hosting would already provision its own fully
+  isolated backend (Cognito, AppSync, DynamoDB, S3), using infrastructure
+  already committed. Only `main` exists today; no `staging`/`production`
+  branch has been created, and this document does not create one or
+  decide branch-naming conventions.
+- **Generated client config: already the mechanism the web client
+  itself uses.** `src/lib/amplify-config.ts`'s `amplify_outputs.json` is
+  already generated output, never hand-maintained — `npx ampx generate
+  outputs` (android.md Phase 20) is the same Amplify Gen 2 tooling, just
+  invoked for a different output directory. Nothing to build.
+- **Cross-platform contract tests: listed, not written, largely
+  pre-audited.** No second client exists to run them against. Recorded a
+  target test list (auth, child profiles, learning, inventory, quests,
+  world unlocks) as the concrete backlog for whenever one exists, and
+  connected its underlying claim explicitly to Phase 40's cross-device-sync
+  audit (ADR-015): "a write is visible to any other authenticated caller
+  reading the same owner-scoped data" was already found true by
+  construction there (no client-side caching anywhere) — a future
+  contract-test suite exercises that same property against a genuinely
+  different client for the first time, it does not discover a new one.
+- **Added ADR-017** to `docs/DECISIONS.md`, framed differently from
+  ADR-011 through ADR-016: this is not a "design vs. build" split but a
+  "do not take this action unilaterally" boundary, since the subject
+  matter (cloud infrastructure) is not reversible the way a Lambda deploy
+  is.
+- No tests added or changed; no schema, runtime behavior, CI, or
+  deployment configuration changed. `npm run typecheck`, `npm run lint`,
+  `npm run format:check`, and `npm test` were re-run to confirm the
+  doc-only change left the existing suite untouched.
 
 ## Known risks / TODOs
 

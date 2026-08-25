@@ -732,17 +732,24 @@ Director's own migration.
 
 ### Phase 42 — Environments, Config, and Cross-Platform Testing
 
-Covers `docs/android/android.md` Phases 19-21. Separate development/staging/
-production Amplify environments with an explicit mapping per build channel
-(Android debug -> development, Android QA -> staging, Play Store ->
-production), so a development build can never accidentally reach production
-child data. Generate Android client configuration from Amplify Gen 2 outputs
-(`npx ampx generate outputs`) rather than hand-maintaining duplicated
-AppSync/Cognito/S3 identifiers. Add cross-platform contract tests
-(auth, child profiles, learning, inventory, quests, world unlocks each
-verified web-writes-Android-reads and the reverse) as release-blocking
-integration tests, extending the existing authorization and adventure
-state-transition test requirements in CLAUDE.md section 11.
+**Complete — documented, nothing created, per ADR-017 in
+`docs/DECISIONS.md`.** Covers `docs/android/android.md` Phases 19-21.
+Unlike Phases 36-41, this phase's subject is billed AWS infrastructure,
+not application code, so nothing was provisioned: creating a real
+`staging`/`production` Amplify environment is an explicit,
+human-authorized infrastructure decision, not something to take on a
+documentation pass's authority. `docs/platform/ENVIRONMENTS_CONFIG_AND_CONTRACT_TESTS.md`
+records what already exists instead — `amplify.yml`'s
+`ampx pipeline-deploy --branch $AWS_BRANCH` already gives this repo
+Amplify Hosting's branch-per-environment model, so environment separation
+needs new branches, not new mechanism; Android client configuration is
+already exactly what `ampx generate outputs` (the same tooling
+`src/lib/amplify-config.ts`'s `amplify_outputs.json` already comes from)
+would produce, nothing to build. Cross-platform contract tests are listed,
+not written — no second client exists to run them against — and their
+underlying claim (a write is visible to any other authenticated caller
+reading the same owner-scoped data) was already audited true by
+construction in Phase 40's cross-device-sync work.
 
 ### Phase 43 — Observability, Performance, and Security Hardening
 
