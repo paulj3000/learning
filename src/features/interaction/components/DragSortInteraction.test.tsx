@@ -11,7 +11,9 @@ const items = [
 
 describe('DragSortInteraction', () => {
   it('renders items in the given order', () => {
-    render(<DragSortInteraction prompt="Order them" items={items} disabled={false} onSubmit={vi.fn()} />);
+    render(
+      <DragSortInteraction prompt="Order them" items={items} disabled={false} onSubmit={vi.fn()} />,
+    );
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
       expect.stringContaining('Alpha'),
       expect.stringContaining('Beta'),
@@ -21,7 +23,9 @@ describe('DragSortInteraction', () => {
 
   it('moves an item up with the keyboard-accessible button', async () => {
     const user = userEvent.setup();
-    render(<DragSortInteraction prompt="Order them" items={items} disabled={false} onSubmit={vi.fn()} />);
+    render(
+      <DragSortInteraction prompt="Order them" items={items} disabled={false} onSubmit={vi.fn()} />,
+    );
 
     await user.click(screen.getByRole('button', { name: /move gamma up/i }));
 
@@ -33,7 +37,9 @@ describe('DragSortInteraction', () => {
   });
 
   it('disables moving the first item up and the last item down', () => {
-    render(<DragSortInteraction prompt="Order them" items={items} disabled={false} onSubmit={vi.fn()} />);
+    render(
+      <DragSortInteraction prompt="Order them" items={items} disabled={false} onSubmit={vi.fn()} />,
+    );
     expect(screen.getByRole('button', { name: /move alpha up/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /move gamma down/i })).toBeDisabled();
   });
@@ -41,7 +47,14 @@ describe('DragSortInteraction', () => {
   it('submits the current order', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
-    render(<DragSortInteraction prompt="Order them" items={items} disabled={false} onSubmit={onSubmit} />);
+    render(
+      <DragSortInteraction
+        prompt="Order them"
+        items={items}
+        disabled={false}
+        onSubmit={onSubmit}
+      />,
+    );
 
     await user.click(screen.getByRole('button', { name: /check my order/i }));
 

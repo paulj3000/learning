@@ -16,7 +16,11 @@ describe('FirstPersonController', () => {
   });
 
   it('decelerates toward zero rather than stopping instantly when input drops', () => {
-    const controller = new FirstPersonController({ acceleration: 100, deceleration: 5, maxSpeed: 4 });
+    const controller = new FirstPersonController({
+      acceleration: 100,
+      deceleration: 5,
+      maxSpeed: 4,
+    });
 
     // Get up to speed first (high acceleration so it's effectively at max).
     for (let i = 0; i < 20; i++) {

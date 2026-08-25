@@ -46,10 +46,7 @@ describe('ThreeGameContainer', () => {
   it('recreates the engine when instanceKey changes', () => {
     const firstEngine = fakeEngine();
     const secondEngine = fakeEngine();
-    const createEngine = vi
-      .fn()
-      .mockReturnValueOnce(firstEngine)
-      .mockReturnValueOnce(secondEngine);
+    const createEngine = vi.fn().mockReturnValueOnce(firstEngine).mockReturnValueOnce(secondEngine);
 
     const { rerender } = render(<ThreeGameContainer createEngine={createEngine} instanceKey="a" />);
     rerender(<ThreeGameContainer createEngine={createEngine} instanceKey="b" />);

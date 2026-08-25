@@ -37,7 +37,12 @@ export const ASSET_MANIFEST: readonly AssetManifestEntry[] = [
   { id: 'fence', url: '/models/fence.gltf', kind: 'kit-piece', clips: [] },
   { id: 'path', url: '/models/path.gltf', kind: 'kit-piece', clips: [] },
   { id: 'bridge-plank', url: '/models/bridge-plank.gltf', kind: 'kit-piece', clips: [] },
-  { id: 'bridge-plank-repaired', url: '/models/bridge-plank-repaired.gltf', kind: 'kit-piece', clips: [] },
+  {
+    id: 'bridge-plank-repaired',
+    url: '/models/bridge-plank-repaired.gltf',
+    kind: 'kit-piece',
+    clips: [],
+  },
   {
     id: 'foliage-tree',
     url: '/models/foliage-tree.gltf',
@@ -47,13 +52,28 @@ export const ASSET_MANIFEST: readonly AssetManifestEntry[] = [
   },
   { id: 'foliage-tree-lod1', url: '/models/foliage-tree-lod1.gltf', kind: 'kit-piece', clips: [] },
   { id: 'foliage-bush', url: '/models/foliage-bush.gltf', kind: 'kit-piece', clips: [] },
-  { id: 'npc-pip', url: '/models/npc-pip.gltf', kind: 'character', clips: ['Idle', 'Talk', 'Wave'] },
-  { id: 'companion-chatty', url: '/models/companion-chatty.gltf', kind: 'character', clips: ['Idle'] },
+  {
+    id: 'npc-pip',
+    url: '/models/npc-pip.gltf',
+    kind: 'character',
+    clips: ['Idle', 'Talk', 'Wave'],
+  },
+  {
+    id: 'companion-chatty',
+    url: '/models/companion-chatty.gltf',
+    kind: 'character',
+    clips: ['Idle'],
+  },
   { id: 'rope-coil', url: '/models/rope-coil.gltf', kind: 'prop', clips: [] },
   { id: 'toolbox', url: '/models/toolbox.gltf', kind: 'prop', clips: [] },
   { id: 'treasure-chest', url: '/models/treasure-chest.gltf', kind: 'prop', clips: ['Open'] },
   { id: 'signpost', url: '/models/signpost.gltf', kind: 'prop', clips: [] },
-  { id: 'collectible-gem', url: '/models/collectible-gem.gltf', kind: 'collectible', clips: ['Idle'] },
+  {
+    id: 'collectible-gem',
+    url: '/models/collectible-gem.gltf',
+    kind: 'collectible',
+    clips: ['Idle'],
+  },
 ] as const;
 
 export function getAssetManifestEntry(id: string): AssetManifestEntry {

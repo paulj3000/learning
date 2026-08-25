@@ -66,9 +66,7 @@ export function ParentDashboard() {
           <div className={styles.content}>
             <ChildProfileList childProfiles={childProfiles} onToggleActive={handleToggleActive} />
             <p>
-              <Link to="/home/coop/new">
-                Play together (shared adventure between two children)
-              </Link>
+              <Link to="/home/coop/new">Play together (shared adventure between two children)</Link>
             </p>
           </div>
         ) : null}

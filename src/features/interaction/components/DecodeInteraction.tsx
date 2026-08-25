@@ -27,7 +27,9 @@ export function DecodeInteraction({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (prompts.some((item) => !selections[item.id])) return;
-    onSubmit(prompts.map((item) => ({ promptId: item.id, answerId: selections[item.id] as string })));
+    onSubmit(
+      prompts.map((item) => ({ promptId: item.id, answerId: selections[item.id] as string })),
+    );
   }
 
   return (

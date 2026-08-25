@@ -52,7 +52,11 @@ export function ThreeSandboxWorldView({ childId }: ThreeSandboxWorldViewProps) {
         <summary>Things to do here</summary>
         <ul className={styles.thingsToDoList}>
           <li>
-            <button type="button" className={styles.thingsToDoButton} onClick={() => noteCharacterMet('pirate-pip')}>
+            <button
+              type="button"
+              className={styles.thingsToDoButton}
+              onClick={() => noteCharacterMet('pirate-pip')}
+            >
               Say hello to Pip
             </button>
           </li>

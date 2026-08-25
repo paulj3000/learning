@@ -5,11 +5,8 @@ import { buildBoxPrimitive, buildConePrimitive } from './primitives';
 
 function parse(document: Record<string, unknown>): Promise<GLTF> {
   return new Promise((resolve, reject) => {
-    new GLTFLoader().parse(
-      JSON.stringify(document),
-      '',
-      resolve,
-      (error: unknown) => reject(error instanceof Error ? error : new Error(String(error))),
+    new GLTFLoader().parse(JSON.stringify(document), '', resolve, (error: unknown) =>
+      reject(error instanceof Error ? error : new Error(String(error))),
     );
   });
 }
@@ -24,7 +21,11 @@ describe('hexToRgb01', () => {
 
 describe('assembleGltfDocument', () => {
   it('produces valid JSON accepted by the real GLTFLoader for a single static part', async () => {
-    const part: MeshPart = { name: 'Box', primitive: buildBoxPrimitive(1, 1, 1), color: hexToRgb01(0x808080) };
+    const part: MeshPart = {
+      name: 'Box',
+      primitive: buildBoxPrimitive(1, 1, 1),
+      color: hexToRgb01(0x808080),
+    };
     const document = assembleGltfDocument({ parts: [part] });
 
     const gltf = await parse(document);
@@ -36,7 +37,12 @@ describe('assembleGltfDocument', () => {
   it('assembles multiple named parts as independent root nodes with their own transforms', async () => {
     const parts: MeshPart[] = [
       { name: 'Body', primitive: buildBoxPrimitive(0.5, 0.7, 0.35), color: hexToRgb01(0x7a5230) },
-      { name: 'Head', primitive: buildBoxPrimitive(0.3, 0.3, 0.3), color: hexToRgb01(0xd9a670), translation: [0, 0.7, 0] },
+      {
+        name: 'Head',
+        primitive: buildBoxPrimitive(0.3, 0.3, 0.3),
+        color: hexToRgb01(0xd9a670),
+        translation: [0, 0.7, 0],
+      },
     ];
     const document = assembleGltfDocument({ parts });
 
@@ -75,20 +81,33 @@ describe('assembleGltfDocument', () => {
   });
 
   it('throws when an animation channel targets an unknown part', () => {
-    const parts: MeshPart[] = [{ name: 'Box', primitive: buildBoxPrimitive(1, 1, 1), color: hexToRgb01(0x808080) }];
+    const parts: MeshPart[] = [
+      { name: 'Box', primitive: buildBoxPrimitive(1, 1, 1), color: hexToRgb01(0x808080) },
+    ];
     expect(() =>
       assembleGltfDocument({
         parts,
         animations: [
-          { name: 'Idle', channels: [{ targetPart: 'DoesNotExist', path: 'translation', times: [0], values: [0, 0, 0] }] },
+          {
+            name: 'Idle',
+            channels: [
+              { targetPart: 'DoesNotExist', path: 'translation', times: [0], values: [0, 0, 0] },
+            ],
+          },
         ],
       }),
     ).toThrow(/unknown part/);
   });
 
   it('includes accessor min/max bounds on every POSITION accessor', () => {
-    const part: MeshPart = { name: 'Cone', primitive: buildConePrimitive(0.5, 1.4, 8), color: hexToRgb01(0x6b4a34) };
-    const document = assembleGltfDocument({ parts: [part] }) as { accessors: { type: string; min?: number[]; max?: number[] }[] };
+    const part: MeshPart = {
+      name: 'Cone',
+      primitive: buildConePrimitive(0.5, 1.4, 8),
+      color: hexToRgb01(0x6b4a34),
+    };
+    const document = assembleGltfDocument({ parts: [part] }) as {
+      accessors: { type: string; min?: number[]; max?: number[] }[];
+    };
     const positionAccessor = document.accessors[0];
     expect(positionAccessor.type).toBe('VEC3');
     expect(positionAccessor.min).toBeDefined();

@@ -1,1 +1,57 @@
-{"asset":{"version":"2.0","generator":"learning-adventure-island world-asset-pipeline"},"scene":0,"scenes":[{"nodes":[0]}],"nodes":[{"name":"Plank","mesh":0,"translation":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]}],"meshes":[{"name":"PlankMesh","primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":0,"mode":4}]}],"materials":[{"name":"PlankMaterial","pbrMetallicRoughness":{"baseColorFactor":[0.792156862745098,0.6549019607843137,0.40784313725490196,1],"metallicFactor":0.1,"roughnessFactor":0.85},"emissiveFactor":[0.2,0.15294117647058825,0.06666666666666667],"doubleSided":true}],"accessors":[{"bufferView":0,"componentType":5126,"count":24,"type":"VEC3","min":[-0.45,0,-1.5],"max":[0.45,0.15,1.5]},{"bufferView":1,"componentType":5126,"count":24,"type":"VEC3"},{"bufferView":2,"componentType":5123,"count":36,"type":"SCALAR"}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":288,"target":34962},{"buffer":0,"byteOffset":288,"byteLength":288,"target":34962},{"buffer":0,"byteOffset":576,"byteLength":72,"target":34963}],"buffers":[{"uri":"data:application/octet-stream;base64,ZmbmPpqZGT4AAMA/ZmbmPpqZGT4AAMC/ZmbmPgAAAAAAAMC/ZmbmPgAAAAAAAMA/ZmbmvpqZGT4AAMC/ZmbmvpqZGT4AAMA/ZmbmvgAAAAAAAMA/ZmbmvgAAAAAAAMC/ZmbmvpqZGT4AAMC/ZmbmPpqZGT4AAMC/ZmbmPpqZGT4AAMA/ZmbmvpqZGT4AAMA/ZmbmvgAAAAAAAMA/ZmbmPgAAAAAAAMA/ZmbmPgAAAAAAAMC/ZmbmvgAAAAAAAMC/ZmbmvpqZGT4AAMA/ZmbmPpqZGT4AAMA/ZmbmPgAAAAAAAMA/ZmbmvgAAAAAAAMA/ZmbmPpqZGT4AAMC/ZmbmvpqZGT4AAMC/ZmbmvgAAAAAAAMC/ZmbmPgAAAAAAAMC/AACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAABAAIAAAACAAMABAAFAAYABAAGAAcACAAJAAoACAAKAAsADAANAA4ADAAOAA8AEAARABIAEAASABMAFAAVABYAFAAWABcA","byteLength":648}]}
+{
+  "asset": { "version": "2.0", "generator": "learning-adventure-island world-asset-pipeline" },
+  "scene": 0,
+  "scenes": [{ "nodes": [0] }],
+  "nodes": [
+    {
+      "name": "Plank",
+      "mesh": 0,
+      "translation": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1]
+    }
+  ],
+  "meshes": [
+    {
+      "name": "PlankMesh",
+      "primitives": [
+        { "attributes": { "POSITION": 0, "NORMAL": 1 }, "indices": 2, "material": 0, "mode": 4 }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "PlankMaterial",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.792156862745098, 0.6549019607843137, 0.40784313725490196, 1],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.85
+      },
+      "emissiveFactor": [0.2, 0.15294117647058825, 0.06666666666666667],
+      "doubleSided": true
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "min": [-0.45, 0, -1.5],
+      "max": [0.45, 0.15, 1.5]
+    },
+    { "bufferView": 1, "componentType": 5126, "count": 24, "type": "VEC3" },
+    { "bufferView": 2, "componentType": 5123, "count": 36, "type": "SCALAR" }
+  ],
+  "bufferViews": [
+    { "buffer": 0, "byteOffset": 0, "byteLength": 288, "target": 34962 },
+    { "buffer": 0, "byteOffset": 288, "byteLength": 288, "target": 34962 },
+    { "buffer": 0, "byteOffset": 576, "byteLength": 72, "target": 34963 }
+  ],
+  "buffers": [
+    {
+      "uri": "data:application/octet-stream;base64,ZmbmPpqZGT4AAMA/ZmbmPpqZGT4AAMC/ZmbmPgAAAAAAAMC/ZmbmPgAAAAAAAMA/ZmbmvpqZGT4AAMC/ZmbmvpqZGT4AAMA/ZmbmvgAAAAAAAMA/ZmbmvgAAAAAAAMC/ZmbmvpqZGT4AAMC/ZmbmPpqZGT4AAMC/ZmbmPpqZGT4AAMA/ZmbmvpqZGT4AAMA/ZmbmvgAAAAAAAMA/ZmbmPgAAAAAAAMA/ZmbmPgAAAAAAAMC/ZmbmvgAAAAAAAMC/ZmbmvpqZGT4AAMA/ZmbmPpqZGT4AAMA/ZmbmPgAAAAAAAMA/ZmbmvgAAAAAAAMA/ZmbmPpqZGT4AAMC/ZmbmvpqZGT4AAMC/ZmbmvgAAAAAAAMC/ZmbmPgAAAAAAAMC/AACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAABAAIAAAACAAMABAAFAAYABAAGAAcACAAJAAoACAAKAAsADAANAA4ADAAOAA8AEAARABIAEAASABMAFAAVABYAFAAWABcA",
+      "byteLength": 648
+    }
+  ]
+}

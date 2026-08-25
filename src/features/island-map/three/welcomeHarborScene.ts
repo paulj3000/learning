@@ -96,13 +96,25 @@ function wallSideRun(
   const { x, z, halfWidth, halfDepth } = building;
   switch (side) {
     case 'north':
-      return { from: { x: x - halfWidth, z: z - halfDepth }, to: { x: x + halfWidth, z: z - halfDepth } };
+      return {
+        from: { x: x - halfWidth, z: z - halfDepth },
+        to: { x: x + halfWidth, z: z - halfDepth },
+      };
     case 'south':
-      return { from: { x: x - halfWidth, z: z + halfDepth }, to: { x: x + halfWidth, z: z + halfDepth } };
+      return {
+        from: { x: x - halfWidth, z: z + halfDepth },
+        to: { x: x + halfWidth, z: z + halfDepth },
+      };
     case 'east':
-      return { from: { x: x + halfWidth, z: z - halfDepth }, to: { x: x + halfWidth, z: z + halfDepth } };
+      return {
+        from: { x: x + halfWidth, z: z - halfDepth },
+        to: { x: x + halfWidth, z: z + halfDepth },
+      };
     case 'west':
-      return { from: { x: x - halfWidth, z: z - halfDepth }, to: { x: x - halfWidth, z: z + halfDepth } };
+      return {
+        from: { x: x - halfWidth, z: z - halfDepth },
+        to: { x: x - halfWidth, z: z + halfDepth },
+      };
   }
 }
 
@@ -217,11 +229,16 @@ export function createWelcomeHarborEngine(
       );
       if (!missingSide) return [];
       const run = wallSideRun(building, missingSide);
-      return [{ position: { x: (run.from.x + run.to.x) / 2, y: 0, z: (run.from.z + run.to.z) / 2 } }];
+      return [
+        { position: { x: (run.from.x + run.to.x) / 2, y: 0, z: (run.from.z + run.to.z) / 2 } },
+      ];
     });
 
     const [groundInstanced, wallInstanced, roofInstanced, doorInstanced] = await Promise.all([
-      createInstancedMeshFromAsset('ground-tile', groundTiles.map((position) => ({ position: { x: position.x, y: 0, z: position.z } }))),
+      createInstancedMeshFromAsset(
+        'ground-tile',
+        groundTiles.map((position) => ({ position: { x: position.x, y: 0, z: position.z } })),
+      ),
       createInstancedMeshFromAsset('wall', wallRuns),
       createInstancedMeshFromAsset('roof', roofPlacements),
       createInstancedMeshFromAsset('door', doorPlacements),
@@ -243,7 +260,11 @@ export function createWelcomeHarborEngine(
     await placeKitCluster(
       scene,
       'rock',
-      SCENERY_CLUSTER.map((position, index) => ({ x: position.x, z: position.z, rotationY: index * 0.6 })),
+      SCENERY_CLUSTER.map((position, index) => ({
+        x: position.x,
+        z: position.z,
+        rotationY: index * 0.6,
+      })),
     );
 
     // Foliage kit: trees individually placed (LOD-aware), bushes instanced.
@@ -251,7 +272,10 @@ export function createWelcomeHarborEngine(
     await placeKitCluster(scene, 'foliage-bush', FOLIAGE_BUSHES);
 
     // A decorative fence run - no collider, purely visual.
-    const fenceInstanced = await createInstancedMeshFromAsset('fence', runPlacements(FENCE_RUN.from, FENCE_RUN.to, 1.2));
+    const fenceInstanced = await createInstancedMeshFromAsset(
+      'fence',
+      runPlacements(FENCE_RUN.from, FENCE_RUN.to, 1.2),
+    );
     scene.add(fenceInstanced);
 
     // The one collectible (roadmap: "one collectible"), wired to the same
@@ -321,7 +345,10 @@ export function createWelcomeHarborEngine(
     if (focused === NPC_ID) {
       bus.emit('ObjectInteracted', { entityId: NPC_ID, interactionId: `${NPC_ID}:talk` });
     } else if (focused === COLLECTIBLE_ID && collectibleMesh) {
-      bus.emit('ObjectInteracted', { entityId: COLLECTIBLE_ID, interactionId: `${COLLECTIBLE_ID}:collect` });
+      bus.emit('ObjectInteracted', {
+        entityId: COLLECTIBLE_ID,
+        interactionId: `${COLLECTIBLE_ID}:collect`,
+      });
       bus.emit('CollectiblePickedUp', { entityId: COLLECTIBLE_ID });
       scene.remove(collectibleMesh);
       collectibleMesh = null;

@@ -54,7 +54,10 @@ function track(
   };
 }
 
-function quat(axis: readonly [number, number, number], angleRadians: number): [number, number, number, number] {
+function quat(
+  axis: readonly [number, number, number],
+  angleRadians: number,
+): [number, number, number, number] {
   const half = angleRadians / 2;
   const s = Math.sin(half);
   return [axis[0] * s, axis[1] * s, axis[2] * s, Math.cos(half)];
@@ -100,52 +103,82 @@ function spinYKeyframes(
 function idleBob(part: string, amplitude: number, periodSeconds = 1.2): AnimationClipDef {
   return {
     name: 'Idle',
-    channels: [track(part, 'translation', [
-      [0, 0, 0, 0],
-      [periodSeconds / 2, 0, amplitude, 0],
-      [periodSeconds, 0, 0, 0],
-    ])],
+    channels: [
+      track(part, 'translation', [
+        [0, 0, 0, 0],
+        [periodSeconds / 2, 0, amplitude, 0],
+        [periodSeconds, 0, 0, 0],
+      ]),
+    ],
   };
 }
 
 // --- terrain kit -------------------------------------------------------------
 
 function groundTile(): Record<string, unknown> {
-  const part: MeshPart = { name: 'Tile', primitive: buildGroundPlanePrimitive(4, 4), color: hexToRgb01(0xd8c48a) };
+  const part: MeshPart = {
+    name: 'Tile',
+    primitive: buildGroundPlanePrimitive(4, 4),
+    color: hexToRgb01(0xd8c48a),
+  };
   return assembleGltfDocument({ parts: [part] });
 }
 
 function rock(): Record<string, unknown> {
-  const part: MeshPart = { name: 'Rock', primitive: buildBoxPrimitive(0.5, 0.35, 0.4), color: hexToRgb01(0x8c8c94) };
+  const part: MeshPart = {
+    name: 'Rock',
+    primitive: buildBoxPrimitive(0.5, 0.35, 0.4),
+    color: hexToRgb01(0x8c8c94),
+  };
   return assembleGltfDocument({ parts: [part] });
 }
 
 // --- building kit --------------------------------------------------------
 
 function wall(): Record<string, unknown> {
-  const part: MeshPart = { name: 'Wall', primitive: buildPlanePrimitive(2, 3), color: hexToRgb01(0x9c7a54) };
+  const part: MeshPart = {
+    name: 'Wall',
+    primitive: buildPlanePrimitive(2, 3),
+    color: hexToRgb01(0x9c7a54),
+  };
   return assembleGltfDocument({ parts: [part] });
 }
 
 function roof(): Record<string, unknown> {
-  const part: MeshPart = { name: 'Roof', primitive: buildConePrimitive(1.5, 1.4, 4), color: hexToRgb01(0x6b4a34) };
+  const part: MeshPart = {
+    name: 'Roof',
+    primitive: buildConePrimitive(1.5, 1.4, 4),
+    color: hexToRgb01(0x6b4a34),
+  };
   return assembleGltfDocument({ parts: [part] });
 }
 
 function door(): Record<string, unknown> {
-  const part: MeshPart = { name: 'Door', primitive: buildPlanePrimitive(0.9, 1.9), color: hexToRgb01(0x4a3423) };
+  const part: MeshPart = {
+    name: 'Door',
+    primitive: buildPlanePrimitive(0.9, 1.9),
+    color: hexToRgb01(0x4a3423),
+  };
   return assembleGltfDocument({ parts: [part] });
 }
 
 // --- fence / path kit ------------------------------------------------------
 
 function fence(): Record<string, unknown> {
-  const part: MeshPart = { name: 'Fence', primitive: buildPlanePrimitive(1.2, 0.9), color: hexToRgb01(0x8a7a5a) };
+  const part: MeshPart = {
+    name: 'Fence',
+    primitive: buildPlanePrimitive(1.2, 0.9),
+    color: hexToRgb01(0x8a7a5a),
+  };
   return assembleGltfDocument({ parts: [part] });
 }
 
 function path(): Record<string, unknown> {
-  const part: MeshPart = { name: 'Path', primitive: buildGroundPlanePrimitive(1.5, 1.5), color: hexToRgb01(0xb9ab8c) };
+  const part: MeshPart = {
+    name: 'Path',
+    primitive: buildGroundPlanePrimitive(1.5, 1.5),
+    color: hexToRgb01(0xb9ab8c),
+  };
   return assembleGltfDocument({ parts: [part] });
 }
 
@@ -164,7 +197,11 @@ function bridgePlank(repaired: boolean): Record<string, unknown> {
 // --- foliage kit -----------------------------------------------------------
 
 function foliageTree(): Record<string, unknown> {
-  const trunk: MeshPart = { name: 'Trunk', primitive: buildCylinderPrimitive(0.12, 0.16, 1.0, 6), color: hexToRgb01(0x5a3d28) };
+  const trunk: MeshPart = {
+    name: 'Trunk',
+    primitive: buildCylinderPrimitive(0.12, 0.16, 1.0, 6),
+    color: hexToRgb01(0x5a3d28),
+  };
   const canopy: MeshPart = {
     name: 'Canopy',
     primitive: buildConePrimitive(0.9, 1.6, 8),
@@ -175,7 +212,11 @@ function foliageTree(): Record<string, unknown> {
 }
 
 function foliageTreeLod1(): Record<string, unknown> {
-  const part: MeshPart = { name: 'Canopy', primitive: buildConePrimitive(0.7, 1.8, 5), color: hexToRgb01(0x3f7d43) };
+  const part: MeshPart = {
+    name: 'Canopy',
+    primitive: buildConePrimitive(0.7, 1.8, 5),
+    color: hexToRgb01(0x3f7d43),
+  };
   return assembleGltfDocument({ parts: [part] });
 }
 
@@ -183,8 +224,18 @@ function foliageBush(): Record<string, unknown> {
   const color = hexToRgb01(0x4a8a4f);
   const parts: MeshPart[] = [
     { name: 'Clump1', primitive: buildBoxPrimitive(0.35, 0.3, 0.35), color },
-    { name: 'Clump2', primitive: buildBoxPrimitive(0.28, 0.24, 0.28), color, translation: [0.12, 0.08, 0.05] },
-    { name: 'Clump3', primitive: buildBoxPrimitive(0.28, 0.24, 0.28), color, translation: [-0.1, 0.05, -0.08] },
+    {
+      name: 'Clump2',
+      primitive: buildBoxPrimitive(0.28, 0.24, 0.28),
+      color,
+      translation: [0.12, 0.08, 0.05],
+    },
+    {
+      name: 'Clump3',
+      primitive: buildBoxPrimitive(0.28, 0.24, 0.28),
+      color,
+      translation: [-0.1, 0.05, -0.08],
+    },
   ];
   return assembleGltfDocument({ parts });
 }
@@ -195,37 +246,55 @@ function npcPip(): Record<string, unknown> {
   const bodyHeight = 0.7;
   const headSize = 0.32;
   const parts: MeshPart[] = [
-    { name: 'Body', primitive: buildBoxPrimitive(0.5, bodyHeight, 0.35), color: hexToRgb01(0x7a5230) },
-    { name: 'Head', primitive: buildBoxPrimitive(headSize, headSize, headSize), color: hexToRgb01(0xd9a670), translation: [0, bodyHeight, 0] },
+    {
+      name: 'Body',
+      primitive: buildBoxPrimitive(0.5, bodyHeight, 0.35),
+      color: hexToRgb01(0x7a5230),
+    },
+    {
+      name: 'Head',
+      primitive: buildBoxPrimitive(headSize, headSize, headSize),
+      color: hexToRgb01(0xd9a670),
+      translation: [0, bodyHeight, 0],
+    },
     {
       name: 'Hat',
       primitive: buildConePrimitive(0.28, 0.22, 4),
       color: hexToRgb01(0x241d18),
       translation: [0, bodyHeight + headSize, 0],
     },
-    { name: 'Arm', primitive: buildBoxPrimitive(0.1, 0.45, 0.1), color: hexToRgb01(0xd9a670), translation: [0.28, 0.2, 0] },
+    {
+      name: 'Arm',
+      primitive: buildBoxPrimitive(0.1, 0.45, 0.1),
+      color: hexToRgb01(0xd9a670),
+      translation: [0.28, 0.2, 0],
+    },
   ];
 
   const idle: AnimationClipDef = idleBob('Body', 0.03);
   const talk: AnimationClipDef = {
     name: 'Talk',
-    channels: [track('Head', 'rotation', [
-      [0, ...IDENTITY_QUAT],
-      [0.15, ...quat([1, 0, 0], 0.12)],
-      [0.3, ...IDENTITY_QUAT],
-      [0.45, ...quat([1, 0, 0], 0.12)],
-      [0.6, ...IDENTITY_QUAT],
-    ])],
+    channels: [
+      track('Head', 'rotation', [
+        [0, ...IDENTITY_QUAT],
+        [0.15, ...quat([1, 0, 0], 0.12)],
+        [0.3, ...IDENTITY_QUAT],
+        [0.45, ...quat([1, 0, 0], 0.12)],
+        [0.6, ...IDENTITY_QUAT],
+      ]),
+    ],
   };
   const wave: AnimationClipDef = {
     name: 'Wave',
-    channels: [track('Arm', 'rotation', [
-      [0, ...IDENTITY_QUAT],
-      [0.3, ...quat([0, 0, 1], -Math.PI / 3)],
-      [0.6, ...IDENTITY_QUAT],
-      [0.9, ...quat([0, 0, 1], -Math.PI / 3)],
-      [1.2, ...IDENTITY_QUAT],
-    ])],
+    channels: [
+      track('Arm', 'rotation', [
+        [0, ...IDENTITY_QUAT],
+        [0.3, ...quat([0, 0, 1], -Math.PI / 3)],
+        [0.6, ...IDENTITY_QUAT],
+        [0.9, ...quat([0, 0, 1], -Math.PI / 3)],
+        [1.2, ...IDENTITY_QUAT],
+      ]),
+    ],
   };
 
   return assembleGltfDocument({ parts, animations: [idle, talk, wave] });
@@ -235,10 +304,29 @@ function npcPip(): Record<string, unknown> {
 
 function companionChatty(): Record<string, unknown> {
   const parts: MeshPart[] = [
-    { name: 'Perch', primitive: buildCylinderPrimitive(0.05, 0.05, 0.15, 8), color: hexToRgb01(0x6b4a34) },
-    { name: 'Body', primitive: buildBoxPrimitive(0.22, 0.32, 0.22), color: hexToRgb01(0x2f9e52), translation: [0, 0.15, 0] },
-    { name: 'Wing', primitive: buildBoxPrimitive(0.05, 0.22, 0.16), color: hexToRgb01(0x1f7a3d), translation: [0.13, 0.3, 0] },
-    { name: 'Tail', primitive: buildBoxPrimitive(0.06, 0.18, 0.06), color: hexToRgb01(0xc23b3b), translation: [0, 0.15, -0.14] },
+    {
+      name: 'Perch',
+      primitive: buildCylinderPrimitive(0.05, 0.05, 0.15, 8),
+      color: hexToRgb01(0x6b4a34),
+    },
+    {
+      name: 'Body',
+      primitive: buildBoxPrimitive(0.22, 0.32, 0.22),
+      color: hexToRgb01(0x2f9e52),
+      translation: [0, 0.15, 0],
+    },
+    {
+      name: 'Wing',
+      primitive: buildBoxPrimitive(0.05, 0.22, 0.16),
+      color: hexToRgb01(0x1f7a3d),
+      translation: [0.13, 0.3, 0],
+    },
+    {
+      name: 'Tail',
+      primitive: buildBoxPrimitive(0.06, 0.18, 0.06),
+      color: hexToRgb01(0xc23b3b),
+      translation: [0, 0.15, -0.14],
+    },
     {
       name: 'Beak',
       primitive: buildConePrimitive(0.05, 0.12, 4),
@@ -246,7 +334,12 @@ function companionChatty(): Record<string, unknown> {
       translation: [0, 0.4, 0.1],
       rotation: quat([1, 0, 0], Math.PI / 2),
     },
-    { name: 'Eye', primitive: buildBoxPrimitive(0.04, 0.04, 0.04), color: hexToRgb01(0x1a1a1a), translation: [0.08, 0.42, 0.08] },
+    {
+      name: 'Eye',
+      primitive: buildBoxPrimitive(0.04, 0.04, 0.04),
+      color: hexToRgb01(0x1a1a1a),
+      translation: [0.08, 0.42, 0.08],
+    },
   ];
 
   const idle: AnimationClipDef = {
@@ -267,18 +360,30 @@ function companionChatty(): Record<string, unknown> {
 // --- quest props -----------------------------------------------------------
 
 function ropeCoil(): Record<string, unknown> {
-  const part: MeshPart = { name: 'Coil', primitive: buildTorusPrimitive(0.22, 0.07, 8, 16), color: hexToRgb01(0xb0793a) };
+  const part: MeshPart = {
+    name: 'Coil',
+    primitive: buildTorusPrimitive(0.22, 0.07, 8, 16),
+    color: hexToRgb01(0xb0793a),
+  };
   return assembleGltfDocument({ parts: [part] });
 }
 
 function toolbox(): Record<string, unknown> {
-  const part: MeshPart = { name: 'Box', primitive: buildBoxPrimitive(0.5, 0.3, 0.3), color: hexToRgb01(0x555f6b) };
+  const part: MeshPart = {
+    name: 'Box',
+    primitive: buildBoxPrimitive(0.5, 0.3, 0.3),
+    color: hexToRgb01(0x555f6b),
+  };
   return assembleGltfDocument({ parts: [part] });
 }
 
 function treasureChest(): Record<string, unknown> {
   const bodyHeight = 0.3;
-  const body: MeshPart = { name: 'Body', primitive: buildBoxPrimitive(0.6, bodyHeight, 0.4), color: hexToRgb01(0xd4a63a) };
+  const body: MeshPart = {
+    name: 'Body',
+    primitive: buildBoxPrimitive(0.6, bodyHeight, 0.4),
+    color: hexToRgb01(0xd4a63a),
+  };
   const lid: MeshPart = {
     name: 'Lid',
     primitive: buildBoxPrimitive(0.6, 0.12, 0.4),
@@ -287,16 +392,22 @@ function treasureChest(): Record<string, unknown> {
   };
   const openClip: AnimationClipDef = {
     name: 'Open',
-    channels: [track('Lid', 'rotation', [
-      [0, ...IDENTITY_QUAT],
-      [0.8, ...quat([1, 0, 0], -Math.PI / 2.2)],
-    ])],
+    channels: [
+      track('Lid', 'rotation', [
+        [0, ...IDENTITY_QUAT],
+        [0.8, ...quat([1, 0, 0], -Math.PI / 2.2)],
+      ]),
+    ],
   };
   return assembleGltfDocument({ parts: [body, lid], animations: [openClip] });
 }
 
 function signpost(): Record<string, unknown> {
-  const post: MeshPart = { name: 'Post', primitive: buildCylinderPrimitive(0.05, 0.05, 1.2, 8), color: hexToRgb01(0x6b4a34) };
+  const post: MeshPart = {
+    name: 'Post',
+    primitive: buildCylinderPrimitive(0.05, 0.05, 1.2, 8),
+    color: hexToRgb01(0x6b4a34),
+  };
   const plank: MeshPart = {
     name: 'Plank',
     primitive: buildBoxPrimitive(0.5, 0.15, 0.05),

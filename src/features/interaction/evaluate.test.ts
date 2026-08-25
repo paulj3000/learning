@@ -62,9 +62,9 @@ describe('evaluateInteraction', () => {
     };
 
     it('is correct within tolerance', () => {
-      expect(
-        evaluateInteraction(skillParams, { mechanic: 'MEASURE', value: 10.5 }),
-      ).toBe('correct');
+      expect(evaluateInteraction(skillParams, { mechanic: 'MEASURE', value: 10.5 })).toBe(
+        'correct',
+      );
     });
 
     it('is partial within double tolerance', () => {
@@ -191,7 +191,11 @@ describe('evaluateInteraction', () => {
   });
 
   it('throws when the answer mechanic does not match the skill params mechanic', () => {
-    const skillParams: InteractionSkillParams = { mechanic: 'MEASURE', targetValue: 1, tolerance: 1 };
+    const skillParams: InteractionSkillParams = {
+      mechanic: 'MEASURE',
+      targetValue: 1,
+      tolerance: 1,
+    };
     const answer: InteractionAnswer = { mechanic: 'CONVERSE', responseId: 'x' };
     expect(() => evaluateInteraction(skillParams, answer)).toThrow();
   });

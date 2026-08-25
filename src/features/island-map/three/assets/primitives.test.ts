@@ -18,7 +18,11 @@ function yBounds(positions: readonly number[]): { min: number; max: number } {
   return { min, max };
 }
 
-function assertWellFormed(mesh: { positions: number[]; normals: number[]; indices: number[] }): void {
+function assertWellFormed(mesh: {
+  positions: number[];
+  normals: number[];
+  indices: number[];
+}): void {
   expect(mesh.positions.length % 3).toBe(0);
   expect(mesh.normals.length).toBe(mesh.positions.length);
   expect(mesh.indices.length % 3).toBe(0);

@@ -11,13 +11,27 @@ const pieces = [
 
 describe('BuildInteraction', () => {
   it('renders every available piece as a toggle button', () => {
-    render(<BuildInteraction prompt="Build the cart" availablePieces={pieces} disabled={false} onSubmit={vi.fn()} />);
+    render(
+      <BuildInteraction
+        prompt="Build the cart"
+        availablePieces={pieces}
+        disabled={false}
+        onSubmit={vi.fn()}
+      />,
+    );
     expect(screen.getByRole('button', { name: 'Wheel' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('toggles a piece on and off', async () => {
     const user = userEvent.setup();
-    render(<BuildInteraction prompt="Build the cart" availablePieces={pieces} disabled={false} onSubmit={vi.fn()} />);
+    render(
+      <BuildInteraction
+        prompt="Build the cart"
+        availablePieces={pieces}
+        disabled={false}
+        onSubmit={vi.fn()}
+      />,
+    );
 
     const wheel = screen.getByRole('button', { name: 'Wheel' });
     await user.click(wheel);
@@ -28,7 +42,14 @@ describe('BuildInteraction', () => {
 
   it('keeps submit disabled until at least one piece is selected', async () => {
     const user = userEvent.setup();
-    render(<BuildInteraction prompt="Build the cart" availablePieces={pieces} disabled={false} onSubmit={vi.fn()} />);
+    render(
+      <BuildInteraction
+        prompt="Build the cart"
+        availablePieces={pieces}
+        disabled={false}
+        onSubmit={vi.fn()}
+      />,
+    );
 
     expect(screen.getByRole('button', { name: /build it/i })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Wheel' }));
@@ -38,7 +59,14 @@ describe('BuildInteraction', () => {
   it('submits every selected piece id', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
-    render(<BuildInteraction prompt="Build the cart" availablePieces={pieces} disabled={false} onSubmit={onSubmit} />);
+    render(
+      <BuildInteraction
+        prompt="Build the cart"
+        availablePieces={pieces}
+        disabled={false}
+        onSubmit={onSubmit}
+      />,
+    );
 
     await user.click(screen.getByRole('button', { name: 'Wheel' }));
     await user.click(screen.getByRole('button', { name: 'Axle' }));

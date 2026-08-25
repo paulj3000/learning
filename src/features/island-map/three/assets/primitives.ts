@@ -168,7 +168,11 @@ export function buildCylinderPrimitive(
 }
 
 /** A cone (a cylinder with `radiusTop = 0`), base-pivoted (y in [0, height], apex at the top). */
-export function buildConePrimitive(radius: number, height: number, radialSegments: number): PrimitiveMesh {
+export function buildConePrimitive(
+  radius: number,
+  height: number,
+  radialSegments: number,
+): PrimitiveMesh {
   return buildCylinderPrimitive(0, radius, height, radialSegments, false);
 }
 
@@ -235,10 +239,18 @@ export function buildPlanePrimitive(width: number, height: number): PrimitiveMes
   const heightHalf = height / 2;
   const mesh: PrimitiveMesh = {
     positions: [
-      -widthHalf, heightHalf, 0,
-      widthHalf, heightHalf, 0,
-      -widthHalf, -heightHalf, 0,
-      widthHalf, -heightHalf, 0,
+      -widthHalf,
+      heightHalf,
+      0,
+      widthHalf,
+      heightHalf,
+      0,
+      -widthHalf,
+      -heightHalf,
+      0,
+      widthHalf,
+      -heightHalf,
+      0,
     ],
     normals: [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
     indices: [0, 2, 1, 2, 3, 1],
@@ -255,10 +267,18 @@ export function buildGroundPlanePrimitive(width: number, depth: number): Primiti
   const depthHalf = depth / 2;
   return {
     positions: [
-      -widthHalf, 0, -depthHalf,
-      widthHalf, 0, -depthHalf,
-      widthHalf, 0, depthHalf,
-      -widthHalf, 0, depthHalf,
+      -widthHalf,
+      0,
+      -depthHalf,
+      widthHalf,
+      0,
+      -depthHalf,
+      widthHalf,
+      0,
+      depthHalf,
+      -widthHalf,
+      0,
+      depthHalf,
     ],
     normals: [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0],
     indices: [0, 1, 3, 1, 2, 3],

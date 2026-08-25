@@ -1,1 +1,56 @@
-{"asset":{"version":"2.0","generator":"learning-adventure-island world-asset-pipeline"},"scene":0,"scenes":[{"nodes":[0]}],"nodes":[{"name":"Roof","mesh":0,"translation":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]}],"meshes":[{"name":"RoofMesh","primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":0,"mode":4}]}],"materials":[{"name":"RoofMaterial","pbrMetallicRoughness":{"baseColorFactor":[0.4196078431372549,0.2901960784313726,0.20392156862745098,1],"metallicFactor":0.1,"roughnessFactor":0.85},"doubleSided":true}],"accessors":[{"bufferView":0,"componentType":5126,"count":19,"type":"VEC3","min":[-1.5,0,-1.5],"max":[1.5,1.4,1.5]},{"bufferView":1,"componentType":5126,"count":19,"type":"VEC3"},{"bufferView":2,"componentType":5123,"count":24,"type":"SCALAR"}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":228,"target":34962},{"buffer":0,"byteOffset":228,"byteLength":228,"target":34962},{"buffer":0,"byteOffset":456,"byteLength":48,"target":34963}],"buffers":[{"uri":"data:application/octet-stream;base64,AAAAADMzsz8AAAAAAAAAADMzsz8AAAAAAAAAADMzsz8AAACAAAAAgDMzsz8AAACAAAAAgDMzsz8AAAAAAAAAAAAAAAAAAMA/AADAPwAAAADKydMkyslTJQAAAAAAAMC/AADAvwAAAABY156lysnTpQAAAAAAAMA/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMA/AADAPwAAAADKydMkyslTJQAAAAAAAMC/AADAvwAAAABY156lysnTpQAAAAAAAMA/AAAAAHAmOz9prC4/aawuP3AmOz8NrUAkDa3AJHAmOz9prC6/aawuv3AmOz/KgRClDa1ApXAmOz9prC4/AAAAAHAmOz9prC4/aawuP3AmOz8NrUAkDa3AJHAmOz9prC6/aawuv3AmOz/KgRClDa1ApXAmOz9prC4/AAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAABQAGAAEABgAHAAIABwAIAAMACAAJAAQADwAOAAoAEAAPAAsAEQAQAAwAEgARAA0A","byteLength":504}]}
+{
+  "asset": { "version": "2.0", "generator": "learning-adventure-island world-asset-pipeline" },
+  "scene": 0,
+  "scenes": [{ "nodes": [0] }],
+  "nodes": [
+    {
+      "name": "Roof",
+      "mesh": 0,
+      "translation": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1]
+    }
+  ],
+  "meshes": [
+    {
+      "name": "RoofMesh",
+      "primitives": [
+        { "attributes": { "POSITION": 0, "NORMAL": 1 }, "indices": 2, "material": 0, "mode": 4 }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "RoofMaterial",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.4196078431372549, 0.2901960784313726, 0.20392156862745098, 1],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.85
+      },
+      "doubleSided": true
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 19,
+      "type": "VEC3",
+      "min": [-1.5, 0, -1.5],
+      "max": [1.5, 1.4, 1.5]
+    },
+    { "bufferView": 1, "componentType": 5126, "count": 19, "type": "VEC3" },
+    { "bufferView": 2, "componentType": 5123, "count": 24, "type": "SCALAR" }
+  ],
+  "bufferViews": [
+    { "buffer": 0, "byteOffset": 0, "byteLength": 228, "target": 34962 },
+    { "buffer": 0, "byteOffset": 228, "byteLength": 228, "target": 34962 },
+    { "buffer": 0, "byteOffset": 456, "byteLength": 48, "target": 34963 }
+  ],
+  "buffers": [
+    {
+      "uri": "data:application/octet-stream;base64,AAAAADMzsz8AAAAAAAAAADMzsz8AAAAAAAAAADMzsz8AAACAAAAAgDMzsz8AAACAAAAAgDMzsz8AAAAAAAAAAAAAAAAAAMA/AADAPwAAAADKydMkyslTJQAAAAAAAMC/AADAvwAAAABY156lysnTpQAAAAAAAMA/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMA/AADAPwAAAADKydMkyslTJQAAAAAAAMC/AADAvwAAAABY156lysnTpQAAAAAAAMA/AAAAAHAmOz9prC4/aawuP3AmOz8NrUAkDa3AJHAmOz9prC6/aawuv3AmOz/KgRClDa1ApXAmOz9prC4/AAAAAHAmOz9prC4/aawuP3AmOz8NrUAkDa3AJHAmOz9prC6/aawuv3AmOz/KgRClDa1ApXAmOz9prC4/AAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAABQAGAAEABgAHAAIABwAIAAMACAAJAAQADwAOAAoAEAAPAAsAEQAQAAwAEgARAA0A",
+      "byteLength": 504
+    }
+  ]
+}

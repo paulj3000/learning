@@ -12,7 +12,10 @@ import {
   validatePassword,
 } from '../features/auth/validators';
 import { changeEmail, changePassword, confirmEmailChange } from '../features/auth/accountSettings';
-import { getOrCreateParentProfile, updateParentProfileDisplayName } from '../features/child-profile/api';
+import {
+  getOrCreateParentProfile,
+  updateParentProfileDisplayName,
+} from '../features/child-profile/api';
 import { deleteAccountAndAllData } from '../features/child-profile/deletion';
 import type { ParentProfile } from '../features/child-profile/api';
 
@@ -165,8 +168,7 @@ export function AccountSettings() {
     const errors = {
       oldPassword: validatePassword(oldPassword) ?? undefined,
       newPassword: validatePassword(newPassword) ?? undefined,
-      confirmPassword:
-        newPassword === confirmPassword ? undefined : 'Passwords do not match.',
+      confirmPassword: newPassword === confirmPassword ? undefined : 'Passwords do not match.',
     };
     setPasswordFieldErrors(errors);
     if (errors.oldPassword || errors.newPassword || errors.confirmPassword) return;
@@ -334,10 +336,7 @@ export function AccountSettings() {
 
             <section className={styles.section}>
               <h2 className={styles.sectionHeading}>Password</h2>
-              <form
-                className={styles.form}
-                onSubmit={(event) => void handlePasswordSubmit(event)}
-              >
+              <form className={styles.form} onSubmit={(event) => void handlePasswordSubmit(event)}>
                 {passwordFormError ? (
                   <p className={formStyles.error} role="alert">
                     {passwordFormError}

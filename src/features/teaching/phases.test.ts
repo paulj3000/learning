@@ -29,18 +29,16 @@ describe('deriveTeachingPhase', () => {
   });
 
   it('is REVIEW whenever review decay has fired, regardless of the decayed status', () => {
-    expect(
-      deriveTeachingPhase(input({ status: 'DEVELOPING', rawStatus: 'MASTERED' })),
-    ).toBe('REVIEW');
-    expect(
-      deriveTeachingPhase(input({ status: 'PROFICIENT', rawStatus: 'MASTERED' })),
-    ).toBe('REVIEW');
+    expect(deriveTeachingPhase(input({ status: 'DEVELOPING', rawStatus: 'MASTERED' }))).toBe(
+      'REVIEW',
+    );
+    expect(deriveTeachingPhase(input({ status: 'PROFICIENT', rawStatus: 'MASTERED' }))).toBe(
+      'REVIEW',
+    );
   });
 
   it('is INTRODUCE for a LOCKED skill', () => {
-    expect(deriveTeachingPhase(input({ status: 'LOCKED', rawStatus: 'LOCKED' }))).toBe(
-      'INTRODUCE',
-    );
+    expect(deriveTeachingPhase(input({ status: 'LOCKED', rawStatus: 'LOCKED' }))).toBe('INTRODUCE');
   });
 
   it('is INTRODUCE for an INTRODUCED skill with no attempts yet', () => {

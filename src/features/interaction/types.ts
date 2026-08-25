@@ -15,7 +15,8 @@
 import type { Correctness } from '../adventures/engine/types';
 import type { ScaffoldingLevel } from '../teaching/types';
 
-export type InteractionMechanic = 'DRAG_SORT' | 'SPLIT' | 'MEASURE' | 'BUILD' | 'DECODE' | 'CONVERSE';
+export type InteractionMechanic =
+  'DRAG_SORT' | 'SPLIT' | 'MEASURE' | 'BUILD' | 'DECODE' | 'CONVERSE';
 
 export interface InteractionItem {
   id: string;

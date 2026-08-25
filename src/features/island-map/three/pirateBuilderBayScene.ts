@@ -163,7 +163,11 @@ export function createPirateBuilderBayEngine(
         { x: CHANNEL_MIN_X, z: 0 },
         { x: CHANNEL_MAX_X, z: 0 },
         plankWidth,
-      ).map((placement) => ({ ...placement, rotationY: 0, scale: { x: 1, y: 1, z: bridgeSpanLength / 3 } }));
+      ).map((placement) => ({
+        ...placement,
+        rotationY: 0,
+        scale: { x: 1, y: 1, z: bridgeSpanLength / 3 },
+      }));
       const deck = await createInstancedMeshFromAsset('bridge-plank-repaired', deckPlanks);
       scene.add(deck);
       // No collider over the deck span: it is a real doorway across the channel now.
@@ -185,7 +189,10 @@ export function createPirateBuilderBayEngine(
     // Terrain kit accents and a decorative path run leading toward the bridge.
     await placeKitCluster(scene, 'rock', ROCKS);
     await placeKitCluster(scene, 'foliage-tree', FOLIAGE_TREES);
-    const pathInstanced = await createInstancedMeshFromAsset('path', runPlacements(PATH_RUN.from, PATH_RUN.to, 1.5));
+    const pathInstanced = await createInstancedMeshFromAsset(
+      'path',
+      runPlacements(PATH_RUN.from, PATH_RUN.to, 1.5),
+    );
     scene.add(pathInstanced);
 
     // Quest props (roadmap: "quest props"), still flavor-only per this

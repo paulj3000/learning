@@ -102,7 +102,12 @@ function writeFloatBufferView(
   align4(bytes);
   const byteOffset = bytes.length;
   for (const value of values) pushFloat32LE(bytes, value);
-  bufferViews.push({ buffer: 0, byteOffset, byteLength: values.length * 4, ...(target !== undefined ? { target } : {}) });
+  bufferViews.push({
+    buffer: 0,
+    byteOffset,
+    byteLength: values.length * 4,
+    ...(target !== undefined ? { target } : {}),
+  });
   return bufferViews.length - 1;
 }
 
@@ -115,7 +120,12 @@ function writeUint16BufferView(
   align4(bytes);
   const byteOffset = bytes.length;
   for (const value of values) pushUint16LE(bytes, value);
-  bufferViews.push({ buffer: 0, byteOffset, byteLength: values.length * 2, ...(target !== undefined ? { target } : {}) });
+  bufferViews.push({
+    buffer: 0,
+    byteOffset,
+    byteLength: values.length * 2,
+    ...(target !== undefined ? { target } : {}),
+  });
   return bufferViews.length - 1;
 }
 
@@ -157,20 +167,41 @@ export function assembleGltfDocument(def: GltfDocumentDef): Record<string, unkno
     const posView = writeFloatBufferView(bytes, bufferViews, positions, ARRAY_BUFFER);
     const { min, max } = positionBounds(positions);
     const posAccessor = accessors.length;
-    accessors.push({ bufferView: posView, componentType: FLOAT, count: positions.length / 3, type: 'VEC3', min, max });
+    accessors.push({
+      bufferView: posView,
+      componentType: FLOAT,
+      count: positions.length / 3,
+      type: 'VEC3',
+      min,
+      max,
+    });
 
     const normView = writeFloatBufferView(bytes, bufferViews, normals, ARRAY_BUFFER);
     const normAccessor = accessors.length;
-    accessors.push({ bufferView: normView, componentType: FLOAT, count: normals.length / 3, type: 'VEC3' });
+    accessors.push({
+      bufferView: normView,
+      componentType: FLOAT,
+      count: normals.length / 3,
+      type: 'VEC3',
+    });
 
     const idxView = writeUint16BufferView(bytes, bufferViews, indices, ELEMENT_ARRAY_BUFFER);
     const idxAccessor = accessors.length;
-    accessors.push({ bufferView: idxView, componentType: UNSIGNED_SHORT, count: indices.length, type: 'SCALAR' });
+    accessors.push({
+      bufferView: idxView,
+      componentType: UNSIGNED_SHORT,
+      count: indices.length,
+      type: 'SCALAR',
+    });
 
     const materialIndex = materials.length;
     materials.push({
       name: `${part.name}Material`,
-      pbrMetallicRoughness: { baseColorFactor: [...part.color, 1], metallicFactor: 0.1, roughnessFactor: 0.85 },
+      pbrMetallicRoughness: {
+        baseColorFactor: [...part.color, 1],
+        metallicFactor: 0.1,
+        roughnessFactor: 0.85,
+      },
       ...(part.emissive ? { emissiveFactor: [...part.emissive] } : {}),
       // Every material in this pack is double-sided: a flat, untextured
       // color looks identical from either face, so this sidesteps needing
@@ -183,7 +214,14 @@ export function assembleGltfDocument(def: GltfDocumentDef): Record<string, unkno
     const meshIndex = meshes.length;
     meshes.push({
       name: `${part.name}Mesh`,
-      primitives: [{ attributes: { POSITION: posAccessor, NORMAL: normAccessor }, indices: idxAccessor, material: materialIndex, mode: 4 }],
+      primitives: [
+        {
+          attributes: { POSITION: posAccessor, NORMAL: normAccessor },
+          indices: idxAccessor,
+          material: materialIndex,
+          mode: 4,
+        },
+      ],
     });
 
     const nodeIndex = nodes.length;
@@ -251,7 +289,9 @@ export function assembleGltfDocument(def: GltfDocumentDef): Record<string, unkno
     accessors,
     bufferViews,
     ...(animations.length > 0 ? { animations } : {}),
-    buffers: [{ uri: `data:application/octet-stream;base64,${base64}`, byteLength: byteArray.length }],
+    buffers: [
+      { uri: `data:application/octet-stream;base64,${base64}`, byteLength: byteArray.length },
+    ],
   };
 }
 

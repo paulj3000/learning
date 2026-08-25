@@ -36,11 +36,8 @@ export function loadAsset(id: string): Promise<GLTF> {
         reject(error);
         return;
       }
-      loader.load(
-        resolveUrl(entry.url),
-        resolve,
-        undefined,
-        (error: unknown) => reject(error instanceof Error ? error : new Error(String(error))),
+      loader.load(resolveUrl(entry.url), resolve, undefined, (error: unknown) =>
+        reject(error instanceof Error ? error : new Error(String(error))),
       );
     });
     pendingById.set(id, pending);
@@ -95,7 +92,9 @@ export async function createInstancedMeshFromAsset(
   sourceMesh.updateMatrixWorld(true);
   const geometry = sourceMesh.geometry.clone();
   geometry.applyMatrix4(sourceMesh.matrixWorld);
-  const material = (Array.isArray(sourceMesh.material) ? sourceMesh.material[0] : sourceMesh.material) as Material;
+  const material = (
+    Array.isArray(sourceMesh.material) ? sourceMesh.material[0] : sourceMesh.material
+  ) as Material;
 
   const instanced = new InstancedMesh(geometry, material, placements.length);
   const transform = new Object3D();

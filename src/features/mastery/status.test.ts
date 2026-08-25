@@ -28,9 +28,9 @@ describe('computeSkillStatus', () => {
   });
 
   it('is INTRODUCED after exposure with no independent success yet', () => {
-    expect(
-      computeSkillStatus(counts({ exposureCount: 2, supportedSuccessCount: 2 }), true),
-    ).toBe('INTRODUCED');
+    expect(computeSkillStatus(counts({ exposureCount: 2, supportedSuccessCount: 2 }), true)).toBe(
+      'INTRODUCED',
+    );
   });
 
   it('is DEVELOPING with some independent success below the proficient threshold', () => {

@@ -1,1 +1,56 @@
-{"asset":{"version":"2.0","generator":"learning-adventure-island world-asset-pipeline"},"scene":0,"scenes":[{"nodes":[0]}],"nodes":[{"name":"Canopy","mesh":0,"translation":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]}],"meshes":[{"name":"CanopyMesh","primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":0,"mode":4}]}],"materials":[{"name":"CanopyMaterial","pbrMetallicRoughness":{"baseColorFactor":[0.24705882352941178,0.49019607843137253,0.2627450980392157,1],"metallicFactor":0.1,"roughnessFactor":0.85},"doubleSided":true}],"accessors":[{"bufferView":0,"componentType":5126,"count":23,"type":"VEC3","min":[-0.6657395614066075,0,-0.5663118960624631],"max":[0.6657395614066074,1.8,0.7]},{"bufferView":1,"componentType":5126,"count":23,"type":"VEC3"},{"bufferView":2,"componentType":5123,"count":30,"type":"SCALAR"}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":276,"target":34962},{"buffer":0,"byteOffset":276,"byteLength":276,"target":34962},{"buffer":0,"byteOffset":552,"byteLength":60,"target":34963}],"buffers":[{"uri":"data:application/octet-stream;base64,AAAAAGZm5j8AAAAAAAAAAGZm5j8AAAAAAAAAAGZm5j8AAACAAAAAgGZm5j8AAACAAAAAgGZm5j8AAAAAAAAAgGZm5j8AAAAAAAAAAAAAAAAzMzM/6G0qPwAAAADegF0+iKnSPgAAAADR+RC/iKnSvgAAAADR+RC/6G0qvwAAAADegF0+RatFpQAAAAAzMzM/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAzMzM/6G0qPwAAAADegF0+iKnSPgAAAADR+RC/iKnSvgAAAADR+RC/6G0qvwAAAADegF0+RatFpQAAAAAzMzM/AAAAAI6SuT7cl24/ZupiP46SuT5udZM+1z0MP46SuT6lBkG/1z0Mv46SuT6lBkG/Zupiv46SuT5udZM+fZeDpY6SuT7cl24/AAAAAI6SuT7cl24/ZupiP46SuT5udZM+1z0MP46SuT6lBkG/1z0Mv46SuT6lBkG/Zupiv46SuT5udZM+fZeDpY6SuT7cl24/AAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAABgAHAAEABwAIAAIACAAJAAMACQAKAAQACgALAAUAEgARAAwAEwASAA0AFAATAA4AFQAUAA8AFgAVABAA","byteLength":612}]}
+{
+  "asset": { "version": "2.0", "generator": "learning-adventure-island world-asset-pipeline" },
+  "scene": 0,
+  "scenes": [{ "nodes": [0] }],
+  "nodes": [
+    {
+      "name": "Canopy",
+      "mesh": 0,
+      "translation": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1]
+    }
+  ],
+  "meshes": [
+    {
+      "name": "CanopyMesh",
+      "primitives": [
+        { "attributes": { "POSITION": 0, "NORMAL": 1 }, "indices": 2, "material": 0, "mode": 4 }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "CanopyMaterial",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.24705882352941178, 0.49019607843137253, 0.2627450980392157, 1],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.85
+      },
+      "doubleSided": true
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 23,
+      "type": "VEC3",
+      "min": [-0.6657395614066075, 0, -0.5663118960624631],
+      "max": [0.6657395614066074, 1.8, 0.7]
+    },
+    { "bufferView": 1, "componentType": 5126, "count": 23, "type": "VEC3" },
+    { "bufferView": 2, "componentType": 5123, "count": 30, "type": "SCALAR" }
+  ],
+  "bufferViews": [
+    { "buffer": 0, "byteOffset": 0, "byteLength": 276, "target": 34962 },
+    { "buffer": 0, "byteOffset": 276, "byteLength": 276, "target": 34962 },
+    { "buffer": 0, "byteOffset": 552, "byteLength": 60, "target": 34963 }
+  ],
+  "buffers": [
+    {
+      "uri": "data:application/octet-stream;base64,AAAAAGZm5j8AAAAAAAAAAGZm5j8AAAAAAAAAAGZm5j8AAACAAAAAgGZm5j8AAACAAAAAgGZm5j8AAAAAAAAAgGZm5j8AAAAAAAAAAAAAAAAzMzM/6G0qPwAAAADegF0+iKnSPgAAAADR+RC/iKnSvgAAAADR+RC/6G0qvwAAAADegF0+RatFpQAAAAAzMzM/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAzMzM/6G0qPwAAAADegF0+iKnSPgAAAADR+RC/iKnSvgAAAADR+RC/6G0qvwAAAADegF0+RatFpQAAAAAzMzM/AAAAAI6SuT7cl24/ZupiP46SuT5udZM+1z0MP46SuT6lBkG/1z0Mv46SuT6lBkG/Zupiv46SuT5udZM+fZeDpY6SuT7cl24/AAAAAI6SuT7cl24/ZupiP46SuT5udZM+1z0MP46SuT6lBkG/1z0Mv46SuT6lBkG/Zupiv46SuT5udZM+fZeDpY6SuT7cl24/AAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAABgAHAAEABwAIAAIACAAJAAMACQAKAAQACgALAAUAEgARAAwAEwASAA0AFAATAA4AFQAUAA8AFgAVABAA",
+      "byteLength": 612
+    }
+  ]
+}

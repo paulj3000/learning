@@ -14,7 +14,10 @@ describe('useSandboxBridge', () => {
     bus.emit('NpcApproached', { entityId: SANDBOX_NPC_ID });
 
     expect(noteCharacterMet).toHaveBeenCalledWith(SANDBOX_NPC_ID);
-    expect(stateChangedListener).toHaveBeenCalledWith({ entityId: SANDBOX_NPC_ID, metByChild: true });
+    expect(stateChangedListener).toHaveBeenCalledWith({
+      entityId: SANDBOX_NPC_ID,
+      metByChild: true,
+    });
   });
 
   it('ignores an approach for an npc id it does not know about', () => {

@@ -8,7 +8,11 @@ import {
   Vector3,
   WebGLRenderer,
 } from 'three';
-import { createInstancedMeshFromAsset, instantiateWithLod, type InstancePlacement } from './assets/assetLoader';
+import {
+  createInstancedMeshFromAsset,
+  instantiateWithLod,
+  type InstancePlacement,
+} from './assets/assetLoader';
 
 /**
  * The shared scene-construction module `welcomeHarborScene.ts` and
@@ -45,7 +49,10 @@ export interface SceneBootstrap {
 }
 
 /** The camera + renderer + ambient/directional light rig both regions built identically, inline, until now. */
-export function createSceneBootstrap(parent: HTMLDivElement, backgroundColor: number): SceneBootstrap {
+export function createSceneBootstrap(
+  parent: HTMLDivElement,
+  backgroundColor: number,
+): SceneBootstrap {
   const scene = new Scene();
   scene.background = new Color(backgroundColor);
 
@@ -96,7 +103,10 @@ export async function placeKitRun(
   to: { x: number; z: number },
   segmentLength: number,
 ): Promise<void> {
-  const instanced = await createInstancedMeshFromAsset(assetId, runPlacements(from, to, segmentLength));
+  const instanced = await createInstancedMeshFromAsset(
+    assetId,
+    runPlacements(from, to, segmentLength),
+  );
   scene.add(instanced);
 }
 

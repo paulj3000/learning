@@ -42,7 +42,9 @@ describe('WorldEngineEventBus', () => {
   it('does not throw when emitting an event with no listeners', () => {
     const bus = new WorldEngineEventBus();
 
-    expect(() => bus.emit('BuildActionRequested', { entityId: 'sandbox-build-spot-1' })).not.toThrow();
+    expect(() =>
+      bus.emit('BuildActionRequested', { entityId: 'sandbox-build-spot-1' }),
+    ).not.toThrow();
   });
 
   it('delivers inbound domain -> Three.js events the same way as outbound ones', () => {
@@ -66,7 +68,10 @@ describe('WorldEngineEventBus', () => {
     unsubscribeSelf = bus.on('ObjectInteracted', selfRemoving);
     bus.on('ObjectInteracted', () => calls.push('other'));
 
-    const detail = { entityId: 'sandbox-collectible-1', interactionId: 'sandbox-collectible-1:collect' };
+    const detail = {
+      entityId: 'sandbox-collectible-1',
+      interactionId: 'sandbox-collectible-1:collect',
+    };
     expect(() => bus.emit('ObjectInteracted', detail)).not.toThrow();
     expect(calls).toEqual(['self-removing', 'other']);
 

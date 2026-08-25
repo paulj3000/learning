@@ -23,7 +23,12 @@ function moveItem<T>(list: T[], index: number, direction: -1 | 1): T[] {
  * events, which are mouse-only and poorly supported by assistive tech —
  * same choice already made in `src/features/adventures/steps/OrderingStep.tsx`.
  */
-export function DragSortInteraction({ prompt, items, disabled, onSubmit }: DragSortInteractionProps) {
+export function DragSortInteraction({
+  prompt,
+  items,
+  disabled,
+  onSubmit,
+}: DragSortInteractionProps) {
   const [order, setOrder] = useState(items);
 
   return (

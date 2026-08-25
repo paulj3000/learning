@@ -11,7 +11,12 @@ const responses = [
 describe('ConverseInteraction', () => {
   it('renders every response as a button', () => {
     render(
-      <ConverseInteraction prompt="What do you say?" responses={responses} disabled={false} onSelect={vi.fn()} />,
+      <ConverseInteraction
+        prompt="What do you say?"
+        responses={responses}
+        disabled={false}
+        onSelect={vi.fn()}
+      />,
     );
     expect(screen.getByRole('button', { name: 'Ask kindly' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Demand it' })).toBeInTheDocument();
@@ -21,7 +26,12 @@ describe('ConverseInteraction', () => {
     const onSelect = vi.fn();
     const user = userEvent.setup();
     render(
-      <ConverseInteraction prompt="What do you say?" responses={responses} disabled={false} onSelect={onSelect} />,
+      <ConverseInteraction
+        prompt="What do you say?"
+        responses={responses}
+        disabled={false}
+        onSelect={onSelect}
+      />,
     );
 
     await user.click(screen.getByRole('button', { name: 'Ask kindly' }));
@@ -30,7 +40,14 @@ describe('ConverseInteraction', () => {
   });
 
   it('disables every response while submitting', () => {
-    render(<ConverseInteraction prompt="What do you say?" responses={responses} disabled onSelect={vi.fn()} />);
+    render(
+      <ConverseInteraction
+        prompt="What do you say?"
+        responses={responses}
+        disabled
+        onSelect={vi.fn()}
+      />,
+    );
     expect(screen.getByRole('button', { name: 'Ask kindly' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Demand it' })).toBeDisabled();
   });

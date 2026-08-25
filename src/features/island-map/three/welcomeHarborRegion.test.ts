@@ -20,7 +20,9 @@ const WATER_MIN_Z = 4;
 
 function insideBuildingFootprint(x: number, z: number): boolean {
   return BUILDINGS.some(
-    (building) => Math.abs(x - building.x) < building.halfWidth && Math.abs(z - building.z) < building.halfDepth,
+    (building) =>
+      Math.abs(x - building.x) < building.halfWidth &&
+      Math.abs(z - building.z) < building.halfDepth,
   );
 }
 

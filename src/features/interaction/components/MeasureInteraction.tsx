@@ -35,7 +35,11 @@ export function MeasureInteraction({ prompt, unit, disabled, onSubmit }: Measure
         />
         <span className={styles.helperText}>{unit}</span>
       </span>
-      <button className={styles.primaryButton} type="submit" disabled={disabled || value.trim() === ''}>
+      <button
+        className={styles.primaryButton}
+        type="submit"
+        disabled={disabled || value.trim() === ''}
+      >
         Check my measurement
       </button>
     </form>

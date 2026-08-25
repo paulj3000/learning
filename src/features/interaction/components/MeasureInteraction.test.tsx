@@ -5,7 +5,14 @@ import { MeasureInteraction } from './MeasureInteraction';
 
 describe('MeasureInteraction', () => {
   it('renders the prompt and unit', () => {
-    render(<MeasureInteraction prompt="How long is the plank?" unit="cm" disabled={false} onSubmit={vi.fn()} />);
+    render(
+      <MeasureInteraction
+        prompt="How long is the plank?"
+        unit="cm"
+        disabled={false}
+        onSubmit={vi.fn()}
+      />,
+    );
     expect(screen.getByText('How long is the plank?')).toBeInTheDocument();
     expect(screen.getByText('cm')).toBeInTheDocument();
   });
@@ -21,7 +28,9 @@ describe('MeasureInteraction', () => {
   it('submits the entered value as a number', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
-    render(<MeasureInteraction prompt="How long?" unit="cm" disabled={false} onSubmit={onSubmit} />);
+    render(
+      <MeasureInteraction prompt="How long?" unit="cm" disabled={false} onSubmit={onSubmit} />,
+    );
 
     await user.type(screen.getByLabelText('How long?'), '12');
     await user.click(screen.getByRole('button', { name: /check my measurement/i }));

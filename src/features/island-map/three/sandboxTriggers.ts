@@ -27,6 +27,10 @@ export function hasApproached(
 }
 
 /** Companion check for `hasApproached`, so callers can track the "last frame" flag. */
-export function isInRange(position: Vector3, entityPosition: Vector3, thresholdMeters: number): boolean {
+export function isInRange(
+  position: Vector3,
+  entityPosition: Vector3,
+  thresholdMeters: number,
+): boolean {
   return position.distanceTo(entityPosition) <= thresholdMeters;
 }

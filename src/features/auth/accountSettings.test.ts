@@ -58,6 +58,9 @@ describe('changePassword', () => {
   it('passes the old and new password through to Amplify', async () => {
     updatePassword.mockReset();
     await changePassword('old-pass', 'new-pass');
-    expect(updatePassword).toHaveBeenCalledWith({ oldPassword: 'old-pass', newPassword: 'new-pass' });
+    expect(updatePassword).toHaveBeenCalledWith({
+      oldPassword: 'old-pass',
+      newPassword: 'new-pass',
+    });
   });
 });
