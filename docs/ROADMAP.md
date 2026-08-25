@@ -668,16 +668,22 @@ product's *own two existing web renderers*, let alone a third.
 
 ### Phase 39 — Manifest, Versioning, and Authorization
 
-Covers `docs/android/android.md` Phases 10-12. A `ContentManifest` with
-per-content-type version numbers, so a mobile client can request a delta
-instead of redownloading the full content library on every launch. API
-versioning (`apiVersion`, `minimumAndroidVersion`) protects installed
-Android builds, which may stay on a device for months, from silent backend
-response-format changes in a way the always-latest website does not need.
-Rework Amplify authorization rules for a multi-client environment
-(`PUBLIC` / `AUTHENTICATED` / `OWNER` / `PARENT` / `CHILD` / `ADMIN` /
-`SYSTEM` classification per model), so no privileged mutation depends merely
-on being authenticated and Android and web enforce identical rules.
+**Complete — authorization classified for real; manifest/versioning
+designed only, per ADR-014 in `docs/DECISIONS.md`.** Covers
+`docs/android/android.md` Phases 10-12. Every model and custom operation
+in `amplify/data/resource.ts` is now classified against the `PUBLIC` /
+`AUTHENTICATED` / `OWNER` / `PARENT` / `CHILD` / `ADMIN` / `SYSTEM`
+taxonomy (`docs/AUTHORIZATION_REVIEW.md` section 0) — real, complete audit
+work, since the schema already exists. Both of Phase 12's acceptance
+criteria already held: no privileged mutation depends merely on being
+authenticated, and parent-child ownership is enforced server-side (that
+second finding answers *who* may write, not *whether the value is true* —
+ADR-012's separate five-engine gap is unchanged and not reopened here).
+`ContentManifest` and API versioning (`docs/platform/MANIFEST_AND_API_VERSIONING.md`)
+are design-only: a manifest has nothing real to version until Phase
+36/38's designed-but-not-migrated content actually exists, and API
+versioning protects an installed client that does not exist yet — building
+either now would be real infrastructure with zero consumers.
 
 ### Phase 40 — Device, Sync, and Offline Support
 

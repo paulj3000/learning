@@ -10,6 +10,89 @@ sandbox has no AWS credentials (same constraint noted throughout
 Cognito + AppSync backend to verify, that is called out explicitly below
 rather than claimed as done.
 
+## 0. Multi-client data classification (Phase 39)
+
+`docs/android/android.md` Phase 12 asks every model to be classified
+against `PUBLIC | AUTHENTICATED | OWNER | PARENT | CHILD | ADMIN | SYSTEM`
+so no privileged mutation depends merely on being authenticated, ahead of
+a second client that could call these same APIs. This table is that
+classification, applied to the schema as it exists today; the underlying
+rules are unchanged by this pass — sections 1-1b already review each one
+in depth, this is an index over them in the taxonomy's own vocabulary.
+
+**One classification the taxonomy assumes does not apply here.** android.md
+treats `CHILD` as a distinct authenticated actor (its own `PlayerProgress`
+example: "Child session: read"). This product has no such actor: ADR-001
+means a child never authenticates — every write and read happens inside
+the signed-in parent's own session (CLAUDE.md section 10). Every row
+below that might read "PARENT + CHILD" in a generic mobile-game taxonomy
+is `OWNER` here, full stop; `CHILD` never appears as an independent grant
+in this schema, and should not until a decision changes ADR-001 itself.
+
+| Model / operation | Classification | Rule |
+|---|---|---|
+| `ParentProfile` | OWNER, ADMIN (read) | `allow.owner()`, `allow.group('Admins').to(['read'])` |
+| `ChildProfile` | OWNER, ADMIN (read) | same; `ownerSub` is SYSTEM-readable only via direct DynamoDB read inside `submitAdventureAnswer`'s Lambda, never over GraphQL |
+| `CompanionProfile` | OWNER | `allow.owner()` |
+| `AdventureSession` | OWNER, ADMIN (read), SYSTEM (write) | `allow.owner()` + Admins read; `submitAdventureAnswer`'s Lambda also has a direct `grantReadWriteData` IAM grant, bypassing this rule entirely for its own writes (section 1b) |
+| `AdventureAction` | OWNER | `allow.owner()` |
+| `SkillEvidence` | OWNER | `allow.owner()` |
+| `SkillProgress` | OWNER, ADMIN (read) | `allow.owner()` + Admins read |
+| `WorldChange` | OWNER, ADMIN (read) | `allow.owner()` + Admins read |
+| `AIInteractionAudit` | OWNER | `allow.owner()` — deliberately not ADMIN-readable (section 4.3's still-unbuilt safety-review workflow) |
+| `SafetyEvent` | OWNER | same as above |
+| `StoryArtifact` | OWNER | `allow.owner()` |
+| `ChildStoryProgress` | OWNER | `allow.owner()` |
+| `CoopSession` | OWNER (via `ownerDefinedIn('hostParentProfileId')`), SYSTEM (write) | not ADMIN-readable (ADR-006); `claimCoopSlot`'s Lambda has a direct table grant for its own writes (section 1a) |
+| `ChildNpcState` | OWNER, ADMIN (read) | `allow.owner()` + Admins read |
+| `ChildInventory` | OWNER, ADMIN (read) | `allow.owner()` + Admins read |
+| `ChildQuestState` | OWNER, ADMIN (read) | `allow.owner()` + Admins read |
+| `ChildWorldState` | OWNER, ADMIN (read) | `allow.owner()` + Admins read |
+| `generateCompanionTurn` | AUTHENTICATED | `allow.authenticated()` — correct, not a gap: the route persists nothing and takes no per-child identifier (prompt-context minimization, `docs/AI_AND_CHILD_SAFETY.md`), so there is no owned resource to scope by |
+| `generateTutorTurn` | AUTHENTICATED | same reasoning |
+| `claimCoopSlot` | AUTHENTICATED (mutation gate) + SYSTEM (handler re-derives the real check) | section 1a |
+| `submitAdventureAnswer` | AUTHENTICATED (mutation gate) + SYSTEM (handler re-derives the real check) | section 1b |
+
+**No model is `PUBLIC`.** `defaultAuthorizationMode: 'userPool'`
+(`amplify/data/resource.ts`) means every operation requires a signed-in
+Cognito user by default; nothing in this schema is reachable without
+authentication today. Worth revisiting only if Phase 36/38's still-
+unmigrated content models (`docs/platform/CANONICAL_CONTENT_MODEL.md`,
+`docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md`) are ever actually built —
+curriculum/item/world content carries no child-specific data, so
+`PUBLIC` read (or `AUTHENTICATED` read, at minimum) would be the right
+rule for those *when* they exist, not `OWNER`.
+
+**Acceptance criteria check, against this table:**
+
+- *"No privileged mutation depends merely on being authenticated."*
+  **Already true.** The only two `AUTHENTICATED`-gated operations that
+  touch persisted, owned data (`claimCoopSlot`, `submitAdventureAnswer`)
+  both re-derive real authorization inside their handler before writing
+  anything (sections 1a, 1b) — `allow.authenticated()` on the mutation
+  itself is not the actual security boundary for either. The two
+  generation routes touch no persisted resource at all, so "merely
+  authenticated" is the correct, sufficient rule for them, not a gap.
+- *"Parent-child ownership is enforced server-side."* **Already true for
+  *who* can write** — every data model's `allow.owner()`/
+  `ownerDefinedIn()` rule is enforced by AppSync itself, not client code.
+  **Not the same question as *whether what they write is true*** — five
+  engines (mastery, rewards, quests, NPC relationships, discovery) still
+  let the rightful owner write a self-computed, unverified value
+  (`docs/DECISIONS.md` ADR-012's tracked Phase 37 follow-up). This table
+  classifies access, not value-trustworthiness; conflating the two would
+  misreport ADR-012's already-tracked gap as newly found or newly closed
+  here.
+
+**Correction to section 5's table below**: the "Prevention of direct
+progress or world-change forgery" row was written before Phase 37. It
+still accurately describes `WorldChange`/`SkillProgress` and a *forged*
+`AdventureAction` (one bypassing `submitAdventureAnswer` entirely via a
+raw GraphQL call), but no longer accurately describes the normal path: as
+of `submitAdventureAnswer`, an `AdventureAction.correctness` value written
+through this app's own client code is server-verified, not
+client-computed. See ADR-012 for the precise, current boundary.
+
 ## 1. Model-by-model rules
 
 Every model in `amplify/data/resource.ts` **except `CoopSession`** (Phase

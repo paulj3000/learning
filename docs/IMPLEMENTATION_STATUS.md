@@ -373,20 +373,22 @@ critical-path list on top of); and NPC dialogue is a single static
 authored `SHOW_MESSAGE`, not AI-narrated (in scope for a later phase, not
 Phase 9's engine substrate).
 
-**Android platform integration (Phases 35-45): Phases 35, 36, and 38
+**Android platform integration (Phases 35-45): Phases 35, 36, 38, and 39
 complete, Phase 37 partially complete (one of six write paths piloted),
-Phases 39-45 roadmapped, not started.** `docs/ROADMAP.md` "Phases 35+ — Android
-Platform Integration" and ADR-010/ADR-011/ADR-012 in `docs/DECISIONS.md`
-document the plan for evolving the Amplify Gen 2 backend into a platform
-that a future Android client could consume alongside the web client (full
-detail in `docs/android/android.md`). Phase 35 (platform audit and
-boundary), Phase 36 (canonical identity and content models), and Phase 38
-(item/world/asset model design) are fully done — see
-`docs/platform/CURRENT_PLATFORM_AUDIT.md`,
+Phases 40-45 roadmapped, not started.** `docs/ROADMAP.md` "Phases 35+ —
+Android Platform Integration" and ADR-010 through ADR-014 in
+`docs/DECISIONS.md` document the plan for evolving the Amplify Gen 2
+backend into a platform that a future Android client could consume
+alongside the web client (full detail in `docs/android/android.md`).
+Phase 35 (platform audit and boundary), Phase 36 (canonical identity and
+content models), Phase 38 (item/world/asset model design), and Phase 39
+(authorization classification, manifest/versioning design) are fully
+done — see `docs/platform/CURRENT_PLATFORM_AUDIT.md`,
 `docs/platform/CANONICAL_CONTENT_MODEL.md`,
-`docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md`, and the "Phase 35"/"Phase
-36"/"Phase 38" entries below. Phase 37 is the only phase in this backlog
-so far with real, shipped production code: `submitAdventureAnswer`
+`docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md`,
+`docs/platform/MANIFEST_AND_API_VERSIONING.md`, and the "Phase 35"/"Phase
+36"/"Phase 38"/"Phase 39" entries below. Phase 37 is the only phase in
+this backlog so far with real, shipped production code: `submitAdventureAnswer`
 (`amplify/functions/submit-adventure-answer/`) is a genuine, deployed-shaped
 Lambda the web client now calls for every graded adventure answer — see
 the "Phase 37" entry below for exactly what changed, what was verified,
@@ -6240,6 +6242,61 @@ down the same way Phase 36 scoped its own content-model work.
   (`src/features/island-map/three/assets/manifest.ts`); what is genuinely
   missing is S3 centralization and device-quality variants, both recorded
   as design-only proposals in the new doc.
+- No tests added or changed; no schema, no runtime behavior changed.
+  `npm run typecheck`, `npm run lint`, `npm run format:check`, and
+  `npm test` were re-run to confirm the doc-only change left the existing
+  suite untouched.
+
+## Phase 39 — Manifest, Versioning, and Authorization
+
+**Complete — authorization classification done for real; manifest/API
+versioning design only, per new ADR-014 in `docs/DECISIONS.md`.** Covers
+`docs/android/android.md` Phases 10-12.
+
+- **Added `docs/AUTHORIZATION_REVIEW.md` section 0**, a full
+  model-by-model and operation-by-operation classification of every item
+  in `amplify/data/resource.ts` against android.md's `PUBLIC` /
+  `AUTHENTICATED` / `OWNER` / `PARENT` / `CHILD` / `ADMIN` / `SYSTEM`
+  taxonomy. Real, complete audit work rather than deferred design: the
+  schema already exists, so unlike Phases 36/38 there was no migration to
+  wait for. Confirms both of android.md Phase 12's acceptance criteria
+  already hold: no privileged mutation depends merely on being
+  authenticated (`claimCoopSlot`/`submitAdventureAnswer` both re-derive
+  real authorization inside their handler; the two AI generation routes
+  touch no persisted resource, so `AUTHENTICATED` alone is correct for
+  them), and parent-child ownership is enforced server-side by AppSync's
+  owner-authorization resolvers for every model. Explicitly distinguishes
+  that second finding from ADR-012's separate, still-open question
+  ("whether the value an owner writes is true," not "who may write it") so
+  the classification cannot be misread as having closed that gap.
+- **Recorded a taxonomy mismatch**: android.md's `CHILD` classification
+  assumes an independently authenticated child session, which ADR-001
+  rules out for this product entirely — every `CHILD`-shaped grant in the
+  generic taxonomy is `OWNER` here, since a child only ever acts inside
+  their parent's signed-in session.
+- **Corrected a pre-Phase-37 line in section 5's existing invariants
+  table** ("Prevention of direct progress or world-change forgery"): it no
+  longer accurately describes the normal `AdventureAction` write path
+  after `submitAdventureAnswer` shipped, though it still correctly
+  describes `WorldChange`/`SkillProgress` and a forged
+  `AdventureAction` written by bypassing the mutation entirely.
+- **Created `docs/platform/MANIFEST_AND_API_VERSIONING.md`**, target
+  shapes for a `ContentManifest` (per-content-type version counters
+  matching Phase 36/38's four designed-but-not-migrated content areas) and
+  a `PlatformConfig` query (`apiVersion`/`minimumAndroidVersion`/etc.).
+  Neither was added to `amplify/data/resource.ts`: a manifest has nothing
+  real to version until content actually lives in the backend, and API
+  versioning protects an installed client that does not exist yet — the
+  web client redeploys to latest on every merge and has no "stale
+  installed version" problem to protect against. Building either now
+  would be real, ongoing-maintenance infrastructure with zero consumers,
+  the same premature-cost reasoning ADR-011/ADR-013 already applied to
+  content/asset migration.
+- **Added ADR-014** to `docs/DECISIONS.md`, recording both decisions above
+  as one record: classify authorization for real now (nothing was blocking
+  it), design manifest/versioning but do not build them (both are blocked
+  on work — content migration, an installed client — that has not
+  happened).
 - No tests added or changed; no schema, no runtime behavior changed.
   `npm run typecheck`, `npm run lint`, `npm run format:check`, and
   `npm test` were re-run to confirm the doc-only change left the existing

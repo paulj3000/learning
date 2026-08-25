@@ -592,3 +592,64 @@ attempts this migration needs to answer.
 asset, does not resolve the NPC-unification question, and does not close
 Phase 37's inventory-server-authority follow-up — all three are explicit,
 tracked gaps for future work, not oversights.
+
+## ADR-014: Authorization is classified now; content manifest and API versioning are designed, not built, until they have something to protect
+
+Status: Accepted
+
+`docs/ROADMAP.md` "Phase 39 — Manifest, Versioning, and Authorization"
+covers `docs/android/android.md` Phases 10-12. The three sub-phases split
+cleanly on one question: does the work have a real subject to act on
+today? Authorization does — every model in `amplify/data/resource.ts`
+already exists and already has a rule. Content manifests and API
+versioning do not — they exist to protect content and clients that do not
+exist in this backend yet.
+
+**Decision, part A — authorization classification, done for real.**
+`docs/AUTHORIZATION_REVIEW.md` section 0 classifies every model and
+custom operation against android.md Phase 12's
+`PUBLIC | AUTHENTICATED | OWNER | PARENT | CHILD | ADMIN | SYSTEM`
+taxonomy. This is real, complete audit work, not deferred: the schema
+already exists, so there was no migration to wait for. It confirms both of
+Phase 12's acceptance criteria already hold — no privileged mutation
+depends merely on being authenticated (`claimCoopSlot` and
+`submitAdventureAnswer` both re-derive real authorization inside their
+handlers; the two AI generation routes touch no persisted resource, so
+`AUTHENTICATED` alone is correct for them, not a gap), and parent-child
+ownership is enforced server-side by AppSync's own owner-authorization
+resolvers for every model. It also records one taxonomy mismatch worth
+keeping: android.md's `CHILD` classification assumes a child has an
+independent authenticated session, which ADR-001 rules out for this
+product — every `CHILD`-shaped grant in the generic taxonomy collapses
+into `OWNER` here.
+
+**One thing this classification pass deliberately does not claim.**
+"Parent-child ownership is enforced server-side" answers *who* may write a
+row, not *whether the value they write is true* — that is
+`docs/DECISIONS.md` ADR-012's separate, already-tracked Phase 37 backlog
+(mastery, rewards, quests, NPC relationships, discovery still accept a
+self-computed value from their rightful owner). Section 0 states this
+distinction explicitly so the classification table cannot be read as
+having closed ADR-012's gap.
+
+**Decision, part B — content manifest and API versioning are designed,
+not built.** `docs/platform/MANIFEST_AND_API_VERSIONING.md` records target
+shapes for both, and builds neither. A content manifest's entire purpose
+is letting a client skip re-downloading content that has not changed — it
+has nothing real to version until Phase 36/38's designed-but-not-migrated
+content models actually exist as rows. API versioning exists to protect
+an *installed* client sitting on a device for months from a silent
+backend change; no such installed client exists, and the web client's
+"always redeploy latest" model has no equivalent problem to protect
+against. Building either now would be real, ongoing-maintenance
+infrastructure with zero consumers — the same category of premature cost
+ADR-011/ADR-013 already declined to pay for content and asset migration,
+applied here to the systems that would sit on top of that content once it
+exists.
+
+**What this ADR does not claim.** It does not claim every authorization
+rule in this schema is deploy-verified (docs/AUTHORIZATION_REVIEW.md
+section 5's live-backend checklist is unchanged by this pass), and it does
+not commit to when content manifests or API versioning will actually be
+built — only that building them now, with nothing to version and no
+installed client to protect, would be premature.
