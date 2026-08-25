@@ -710,16 +710,25 @@ queue).
 
 ### Phase 41 — Events, Adaptive Learning, and Parent APIs
 
-Covers `docs/android/android.md` Phases 16-18. Standardize the event
-vocabulary (`LESSON_COMPLETED`, `QUESTION_ANSWERED`, `ACHIEVEMENT_EARNED`,
-...) and envelope so web and Android emit the same shape, with sensitive
-child information minimized per the existing rule against logging child
-free-text (CLAUDE.md section 13). Move adaptive-learning decisions
-(`getNextLearningActivity`) behind a shared API so recommendation logic is
-not duplicated per client. Expose parent features (`getChildDashboard`,
-`getWeeklyProgress`) as platform APIs independent of the website, so a
-future Android parent surface can reuse Phase 7/Phase 30's dashboard logic
-rather than re-implementing it.
+**Complete — adaptive learning shipped as a real shared query; events and
+parent APIs handled as design/audit, per ADR-016 in `docs/DECISIONS.md`.**
+Covers `docs/android/android.md` Phases 16-18.
+`docs/platform/EVENTS_ADAPTIVE_LEARNING_AND_PARENT_APIS.md` maps
+android.md's event vocabulary onto this product's already-typed models
+(`AdventureSession`, `AdventureAction`, `ChildQuestState`, etc.) rather
+than building a parallel `Event` log — a generic envelope would duplicate
+data already recorded, more weakly typed. `getNextLearningActivity`
+(`amplify/functions/get-next-learning-activity/`) is real, shipped code:
+the already-existing Adaptive Adventure Director (Phase 28) now runs
+server-side, shared by any client, reusing Phase 37's `ChildProfile.ownerSub`
+ownership check — `src/routes/ChildDashboard.tsx` calls it in place of the
+old client-side ranking. Parent-facing APIs (`getChildDashboard`,
+`getWeeklyProgress`) are audited rather than newly built: the underlying
+assembly functions are already pure and already read only
+owner-authorized models, so both of Phase 18's acceptance criteria's
+underlying requirements already hold; promoting them to a shared query is
+left as a well-scoped follow-up rather than done in the same pass as the
+Director's own migration.
 
 ### Phase 42 — Environments, Config, and Cross-Platform Testing
 

@@ -3,9 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import parentStyles from './ParentDashboard.module.css';
 import styles from './ChildDashboard.module.css';
 import { getChildProfile, setChildProfileAIEnabled } from '../features/child-profile/api';
-import { suggestNextAdventure } from '../features/director/api';
+import { getNextLearningActivity } from '../features/director/api';
 import { explainSelection } from '../features/director/explain';
-import { hasSkillBasedSignal } from '../features/director/select';
 import { rankSkillNeeds } from '../features/director/needs';
 import type { SelectionRecord } from '../features/director/types';
 import type { ChildProfile } from '../features/child-profile/api';
@@ -222,19 +221,18 @@ export function ChildDashboard() {
             /* Leaves `actions` empty; support sections simply show nothing extra. */
           });
 
-        // Phase 28. Loaded after the dashboard is already usable, and
-        // deliberately not awaited with the rest: a Director failure must
-        // cost this page nothing, since every other section stands alone.
-        void suggestNextAdventure(childId, profile.ageBand).then((suggestion) => {
+        // Phase 28, server-ranked as of Phase 41. Loaded after the dashboard
+        // is already usable, and deliberately not awaited with the rest: a
+        // Director failure must cost this page nothing, since every other
+        // section stands alone.
+        void getNextLearningActivity(childId).then((suggestion) => {
           if (cancelled) return;
           // Shown only when the ranking is actually personalised. The seed
           // curriculum covers one age band, so for the others every
           // adventure ties and the order means nothing; presenting that as
           // a suggestion would tell a parent something untrue
-          // (`hasSkillBasedSignal`).
-          setSuggestions(
-            hasSkillBasedSignal(suggestion.ranking) ? suggestion.ranking.slice(0, 3) : [],
-          );
+          // (`hasPersonalizedSignal`, computed server-side).
+          setSuggestions(suggestion.hasPersonalizedSignal ? suggestion.ranking : []);
         });
       } catch {
         if (cancelled) return;

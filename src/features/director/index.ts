@@ -8,4 +8,5 @@ export * from './types';
 export * from './needs';
 export * from './select';
 export * from './explain';
-export { buildDirectorContext, suggestNextAdventure } from './api';
+export * from './reachability';
+export { getNextLearningActivity } from './api';

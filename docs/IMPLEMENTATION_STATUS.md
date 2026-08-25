@@ -373,25 +373,32 @@ critical-path list on top of); and NPC dialogue is a single static
 authored `SHOW_MESSAGE`, not AI-narrated (in scope for a later phase, not
 Phase 9's engine substrate).
 
-**Android platform integration (Phases 35-45): Phases 35, 36, 38, 39, and
-40 complete, Phase 37 partially complete (one of six write paths
-piloted), Phases 41-45 roadmapped, not started.** `docs/ROADMAP.md`
-"Phases 35+ — Android Platform Integration" and ADR-010 through ADR-015
+**Android platform integration (Phases 35-45): Phases 35, 36, 38, 39, 40,
+and 41 complete, Phase 37 partially complete (one of six write paths
+piloted), Phases 42-45 roadmapped, not started.** `docs/ROADMAP.md`
+"Phases 35+ — Android Platform Integration" and ADR-010 through ADR-016
 in `docs/DECISIONS.md` document the plan for evolving the Amplify Gen 2
 backend into a platform that a future Android client could consume
 alongside the web client (full detail in `docs/android/android.md`).
 Phase 35 (platform audit and boundary), Phase 36 (canonical identity and
 content models), Phase 38 (item/world/asset model design), Phase 39
-(authorization classification, manifest/versioning design), and Phase 40
-(device/sync/offline-safety audit) are fully done — see
+(authorization classification, manifest/versioning design), Phase 40
+(device/sync/offline-safety audit), and Phase 41 (events/adaptive-learning/parent-API
+design and audit) are fully done — see
 `docs/platform/CURRENT_PLATFORM_AUDIT.md`,
 `docs/platform/CANONICAL_CONTENT_MODEL.md`,
 `docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md`,
 `docs/platform/MANIFEST_AND_API_VERSIONING.md`,
-`docs/platform/DEVICE_SYNC_AND_OFFLINE_SAFETY.md`, and the "Phase 35"/
-"Phase 36"/"Phase 38"/"Phase 39"/"Phase 40" entries below. Phase 37 is the
-only phase in
-this backlog so far with real, shipped production code: `submitAdventureAnswer`
+`docs/platform/DEVICE_SYNC_AND_OFFLINE_SAFETY.md`,
+`docs/platform/EVENTS_ADAPTIVE_LEARNING_AND_PARENT_APIS.md`, and the
+"Phase 35"/"Phase 36"/"Phase 38"/"Phase 39"/"Phase 40"/"Phase 41" entries
+below. Phase 41 shipped real production code again, the second phase in
+this backlog to do so after Phase 37: `getNextLearningActivity`
+(`amplify/functions/get-next-learning-activity/`) is a genuine,
+deployed-shaped Lambda the web client now calls for adventure
+recommendations, reusing the ownership-check pattern
+`submitAdventureAnswer` established. Phase 37 itself remains only
+partially complete: `submitAdventureAnswer`
 (`amplify/functions/submit-adventure-answer/`) is a genuine, deployed-shaped
 Lambda the web client now calls for every graded adventure answer — see
 the "Phase 37" entry below for exactly what changed, what was verified,
@@ -6356,6 +6363,112 @@ in `docs/DECISIONS.md`.** Covers `docs/android/android.md` Phases 13-15.
   `npm run typecheck`, `npm run lint`, `npm run format:check`, and
   `npm test` were re-run to confirm the doc-only change left the existing
   suite untouched.
+
+## Phase 41 — Events, Adaptive Learning, and Parent APIs
+
+**Complete — adaptive learning shipped as real production code (the
+second phase in this backlog to do so, after Phase 37); events and parent
+APIs handled as design/audit, per new ADR-016 in `docs/DECISIONS.md`.**
+Covers `docs/android/android.md` Phases 16-18.
+
+Files created:
+
+- `docs/platform/EVENTS_ADAPTIVE_LEARNING_AND_PARENT_APIS.md`.
+- `amplify/functions/get-next-learning-activity/{resource,handler,handler.test}.ts`
+  — a Lambda backing the new `getNextLearningActivity` custom query.
+  Imports the Adaptive Adventure Director's exact same pure, already-tested
+  `select.ts`/`needs.ts` modules unchanged; its own job is only assembling
+  their `DirectorContext` input from DynamoDB (`Scan` + `FilterExpression`
+  on `childProfileId` for `AdventureSession`/`WorldChange`/`SkillProgress`,
+  a `GetCommand` by id for `ChildProfile`) and flattening the
+  `SelectionRecord[]` output for the wire (`SelectionReasonType`, a
+  discriminated union flattened to optional scalar fields, avoiding
+  `a.json()`'s unverified return-value wire behavior). Re-verifies the
+  caller's identity via `ChildProfile.ownerSub`, the same field/pattern
+  `submitAdventureAnswer` (Phase 37) established. 8 new tests against the
+  pure `flattenReason`/`toResult` functions.
+- `src/features/director/reachability.ts` (+ rewritten `reachability.test.ts`,
+  now mocking nothing) — the reachable-worlds filter extracted from the
+  deleted client-side `listReachableAdventures`, now shared by the web
+  client's history and this Lambda alike.
+
+Files changed:
+
+- `amplify/data/resource.ts` — added `SelectionReasonType`,
+  `NextAdventureSuggestion`, `NextLearningActivityResult` customTypes and
+  the `getNextLearningActivity` query (`allow.authenticated()`, same
+  reasoning as every other custom operation in this schema).
+- `amplify/backend.ts` — registered the function, granted it read-only
+  access to `AdventureSession`/`WorldChange`/`SkillProgress`/`ChildProfile`,
+  wired the matching table-name environment variables.
+- `src/features/director/api.ts` — rewritten. The old
+  `buildDirectorContext`/`listReachableAdventures`/`suggestNextAdventure`/
+  `DirectorSuggestion` are gone; replaced by one `getNextLearningActivity`
+  client wrapper that calls the new query and reconstructs its flattened
+  wire shape back into `SelectionRecord[]` for `explain.ts` to render, with
+  the same "never throws, degrades to no suggestion" contract the old code
+  had.
+- `src/features/director/index.ts` — export list updated to match.
+- `src/routes/ChildDashboard.tsx` — calls `getNextLearningActivity` in
+  place of the old client-side `suggestNextAdventure`; the "is this
+  actually personalized" gate (`hasSkillBasedSignal`) is now computed
+  server-side and returned as `hasPersonalizedSignal` rather than
+  recomputed client-side.
+- **`src/features/mastery/summary.ts`** — `indexProgressBySkill` now takes
+  a new, minimal structural `SkillProgressLike` type instead of the full
+  `Schema['SkillProgress']['type']` imported from the impure
+  `src/features/mastery/api.ts`. Not cosmetic: a Lambda's TypeScript
+  program reaching that type even via a type-only import also reaches
+  `import.meta.glob` (`src/lib/amplify-config.ts`), which
+  `amplify/tsconfig.json` has no Vite types for and failed to typecheck.
+  Every existing caller is unaffected (a full `SkillProgress` row already
+  satisfies the narrower shape); this also happens to decouple a pure
+  engine module from an impure client module at the type level, a small
+  win independent of this phase's motivation.
+
+**Event Architecture: design-only, no new model.**
+`docs/platform/EVENTS_ADAPTIVE_LEARNING_AND_PARENT_APIS.md` section 1
+checks every android.md example event type against this codebase's actual
+models and finds all but two (`ACHIEVEMENT_EARNED`, no achievement system
+exists; `SESSION_STARTED`/`SESSION_ENDED`, no app-usage-session concept
+exists) already recorded, more strongly typed than a generic envelope
+would be, by models already built and already read by exactly the systems
+that need them. No `Event` model was added.
+
+**Parent APIs: audited, not newly built.** The parent-dashboard assembly
+functions (`weeklySummary.ts`, `masteryOverview.ts`, `adventureSupport.ts`,
+`educatorReport.ts`) are already pure, framework-free, and read only
+already owner-authorized models — both of Phase 18's acceptance criteria's
+underlying requirements already hold. Not promoted to a shared Lambda
+query this phase: that would need to read a meaningfully larger table set
+than the Director's four, and this phase already shipped one complete
+example of the pattern; doing the one well was judged higher value than
+spreading effort across a second, larger Lambda in the same pass (same
+"pilot one path" reasoning ADR-012 already applied to Phase 37).
+
+Tests: `npm run typecheck` clean (after the `SkillProgressLike` fix above);
+`npm run lint` clean on every touched file; `npm test` — 171 files, 1,509
+tests passing (8 new in `get-next-learning-activity/handler.test.ts`; the
+rewritten `reachability.test.ts` keeps its existing 4 assertions, now
+unmocked).
+
+**Known risks / explicit scope boundaries** (see ADR-016 for the full
+reasoning):
+
+- **Not deploy-verified**, same recurring sandbox constraint as every
+  other Lambda in this repo — plus the specific, documented `Scan`-vs-
+  `Query`/unknown-GSI-name simplification in the handler's own comment.
+- **Coarser failure fallback than before**: the old client-side code
+  degraded a `WorldChange`-read failure specifically to "home-only
+  reachable worlds," while a `sessions`/`skillProgress` failure already
+  degraded to "no suggestion." The new Lambda reads all three in one
+  `Promise.all` with no per-table fallback, so any read failure now
+  degrades uniformly to "no suggestion shown" — a coarser but still safe,
+  non-breaking version of an existing contract, not considered worth extra
+  code to avoid.
+- **Parent-dashboard queries remain client-side-only**, same category of
+  gap as the five still-unmigrated write paths from Phase 37 — tracked as
+  a natural follow-up, not attempted here.
 
 ## Known risks / TODOs
 

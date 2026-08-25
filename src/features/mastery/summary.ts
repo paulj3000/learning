@@ -1,11 +1,31 @@
 import { getSkill } from '../curriculum/queries';
-import type { SkillProgress } from './api';
 import { computeErrorPattern } from './errorPattern';
 import { applyReviewDecay, computeSkillStatus, ZERO_SKILL_PROGRESS_COUNTS } from './status';
 import type { MasteryDetail, MasterySummary, SkillProgressCounts, SkillStatus } from './types';
 
+/**
+ * The subset of a `SkillProgress` row this module reads. Structural,
+ * rather than `Schema['SkillProgress']['type']` (`./api`), so this pure
+ * engine module has no dependency — not even a type-only one — on the
+ * impure Data-client module that type lives on. That coupling was
+ * previously harmless for the web client (both end up in the same
+ * bundle), but broke `amplify/functions/get-next-learning-activity/handler.ts`'s
+ * typecheck (Phase 41): a Lambda program that reaches `./api` even via a
+ * type-only import also reaches its `import.meta.glob` call
+ * (`src/lib/amplify-config.ts`), which `amplify/tsconfig.json` has no
+ * Vite types for. Any full `SkillProgress` row already satisfies this
+ * shape, so every existing caller is unaffected.
+ */
+export interface SkillProgressLike extends Omit<SkillProgressCounts, 'lastPracticedAt'> {
+  learningObjectiveCode: string;
+  /** Optional, matching how `Schema['SkillProgress']['type']` (`./api`) actually declares it. */
+  lastPracticedAt?: string | null;
+}
+
 /** Keys a child's `SkillProgress` rows by skill/learning-objective id. */
-export function indexProgressBySkill(rows: SkillProgress[]): Map<string, SkillProgressCounts> {
+export function indexProgressBySkill(
+  rows: readonly SkillProgressLike[],
+): Map<string, SkillProgressCounts> {
   const bySkill = new Map<string, SkillProgressCounts>();
   for (const row of rows) {
     bySkill.set(row.learningObjectiveCode, {

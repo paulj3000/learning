@@ -3,6 +3,7 @@ import { CHATTY_SYSTEM_PROMPT } from './chattyPersona';
 import { TUTOR_SYSTEM_PROMPT } from './tutorPersona';
 import { claimCoopSlot } from '../functions/claim-coop-slot/resource';
 import { submitAdventureAnswer } from '../functions/submit-adventure-answer/resource';
+import { getNextLearningActivity } from '../functions/get-next-learning-activity/resource';
 
 /**
  * Phase 1-4 schema (docs/DATA_MODEL.md): ParentProfile, ChildProfile,
@@ -807,6 +808,81 @@ const schema = a.schema({
     .returns(a.ref('AdventureAnswerResult'))
     .authorization((allow) => [allow.authenticated()])
     .handler(a.handler.function(submitAdventureAnswer)),
+
+  // --- Phase 41: shared adaptive-learning query (docs/ROADMAP.md, docs/DECISIONS.md ADR-016) ---
+
+  /**
+   * One flattened `SelectionReason` (`src/features/director/types.ts`).
+   * Plain optional scalar fields rather than a GraphQL union — Amplify Data
+   * customTypes have no union support, and the alternative (`a.json()`) has
+   * unverified return-value wire behavior (unlike an `a.json()` *argument*,
+   * confirmed by `tsc` in Phase 37 — see `submitAdventureAnswer` above; no
+   * prior custom operation in this schema has returned one to check the
+   * output side the same way). `kind` is the discriminator; only the
+   * fields that `kind` actually uses are populated, exactly mirroring
+   * `SelectionReason`'s discriminated union.
+   */
+  SelectionReasonType: a.customType({
+    kind: a.string().required(),
+    skillId: a.string(),
+    status: a.string(),
+    weight: a.integer(),
+    storyId: a.string(),
+    penalty: a.integer(),
+  }),
+
+  /** One ranked adventure, matching `SelectionRecord` (`src/features/director/types.ts`). */
+  NextAdventureSuggestion: a.customType({
+    adventureSlug: a.string().required(),
+    title: a.string().required(),
+    score: a.integer().required(),
+    reasons: a.ref('SelectionReasonType').array().required(),
+  }),
+
+  /**
+   * `getNextLearningActivity`'s response. `hasPersonalizedSignal` is the
+   * Director's own truthfulness guard (`hasSkillBasedSignal`,
+   * `src/features/director/select.ts`), computed server-side rather than
+   * left for each client to remember to call: the seed curriculum covers
+   * one age band, so for the others every adventure ties and presenting
+   * that tie as "personalized" would tell a parent something untrue.
+   */
+  NextLearningActivityResult: a.customType({
+    suggestions: a.ref('NextAdventureSuggestion').array().required(),
+    hasPersonalizedSignal: a.boolean().required(),
+  }),
+
+  /**
+   * The Adaptive Adventure Director (Phase 28) as a shared platform query
+   * (docs/DECISIONS.md ADR-016), matching `docs/android/android.md` Phase
+   * 17's `getNextLearningActivity(childProfileId)` example. Re-runs the
+   * exact same pure, already-tested ranking logic
+   * (`src/features/director/select.ts`/`needs.ts`) the web client used to
+   * run itself, now imported unchanged by this Lambda — same "share the
+   * pure decision code, not the answer key" pattern `submitAdventureAnswer`
+   * established. Read-only: unlike that mutation, a wrong or stale
+   * suggestion here is not a security concern (worst case, a child sees a
+   * less well-ordered list of adventures they could always already play),
+   * so this exists to keep web and a future Android client from
+   * duplicating — and silently diverging on — the same ranking algorithm,
+   * not to close a tampering gap.
+   *
+   * `childProfileId` is a required argument (a query has no session or
+   * owned row of its own to derive it from, unlike `submitAdventureAnswer`);
+   * the handler re-verifies it against the caller's own `sub` via
+   * `ChildProfile.ownerSub` before reading anything else, the same
+   * ownership check that mutation already established. `ageBand` is
+   * deliberately not a client-supplied argument: it is read from the
+   * `ChildProfile` row itself, since that is the field's actual source of
+   * truth and a client argument could otherwise claim a different band
+   * than the one this child is actually enrolled in.
+   */
+  getNextLearningActivity: a
+    .query()
+    .arguments({ childProfileId: a.id().required() })
+    .returns(a.ref('NextLearningActivityResult'))
+    .authorization((allow) => [allow.authenticated()])
+    .handler(a.handler.function(getNextLearningActivity)),
 });
 
 export type Schema = ClientSchema<typeof schema>;

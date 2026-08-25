@@ -1,117 +1,111 @@
 /**
- * Persistence-facing half of the Director (docs/ROADMAP.md Phase 28).
+ * Persistence-facing half of the Director (docs/ROADMAP.md Phase 28,
+ * Phase 41 / docs/DECISIONS.md ADR-16).
  *
- * The only impure module here. It assembles a `DirectorContext` from engines
- * that already own their data, through their own public APIs - the same
- * discipline `src/features/quests/api.ts` follows - and makes no decision of
- * its own, so every ranking rule stays unit-testable without a backend.
- *
- * It reads the Mastery Engine through `buildMasterySummary`, never
- * `buildMasteryDetail`: the Director is one of the two consumers Phase 20
- * wrote that split for.
+ * As of Phase 41, this no longer assembles a `DirectorContext` or ranks
+ * anything itself — that decision now runs once, server-side, in
+ * `amplify/functions/get-next-learning-activity/handler.ts`, shared by
+ * every client rather than reimplemented per client. This module's only
+ * job is calling that query and reconstructing its flattened wire shape
+ * back into the `SelectionRecord[]` this app's UI and `explain.ts` already
+ * know how to render — the same "client renders, backend decides"
+ * boundary `submitAdventureAnswer` already established for the Adventure
+ * Engine.
  */
-import { listAllWorldChanges, listSessions } from '../adventures/api';
-import { ADVENTURE_TEMPLATES } from '../adventures/content';
-import { getWorldSlugForLocation } from '../island/locations';
-import { filterToReachableWorlds, reachableWorldSlugs } from '../worlds/travel';
-import type { AgeBandValue } from '../child-profile/constants';
-import { listSkillsByAgeBand } from '../curriculum/queries';
-import { listSkillProgress } from '../mastery/api';
-import { buildMasterySummary, indexProgressBySkill } from '../mastery/summary';
-import { listStoryProgress } from '../story/api';
-import { nextAdventure, rankAdventures } from './select';
-import type { DirectorContext, SelectionRecord } from './types';
+import { client } from '../../lib/data-client';
+import type { Schema } from '../../../amplify/data/resource';
+import type { SelectionReason, SelectionRecord } from './types';
+import type { SkillStatus } from '../mastery/types';
+
+type WireSuggestion = Schema['NextAdventureSuggestion']['type'];
+type WireReason = Schema['SelectionReasonType']['type'];
+
+const SELECTION_REASON_KINDS: readonly SelectionReason['kind'][] = [
+  'PRACTISES_SKILL',
+  'CONTINUES_STORY',
+  'ALREADY_COMPLETED',
+  'PLAYED_RECENTLY',
+  'NO_SKILLS_NEEDED',
+];
 
 /**
- * Assembles what the Director may see about one child.
- *
- * Scoped to the skills authored for this child's own age band rather than
- * the whole curriculum: a Sprout has no need for an Explorer skill, and
- * summarizing every skill in the graph would put statuses in the context
- * that nothing could act on.
+ * Reconstructs one `SelectionReason` from its flattened wire shape.
+ * `kind` is external data at this boundary (CLAUDE.md section 13): an
+ * unrecognized value degrades to `NO_SKILLS_NEEDED` — the one reason with
+ * no further fields to get wrong — rather than throwing and losing the
+ * whole suggestion list over one malformed reason.
  */
-export async function buildDirectorContext(
-  childProfileId: string,
-  ageBand: AgeBandValue,
-): Promise<DirectorContext> {
-  const [sessions, progressRows, storyProgress] = await Promise.all([
-    listSessions(childProfileId),
-    listSkillProgress(childProfileId),
-    listStoryProgress(childProfileId).catch(() => []),
-  ]);
+function toSelectionReason(wire: WireReason): SelectionReason {
+  const kind = SELECTION_REASON_KINDS.includes(wire.kind as SelectionReason['kind'])
+    ? (wire.kind as SelectionReason['kind'])
+    : 'NO_SKILLS_NEEDED';
+  switch (kind) {
+    case 'PRACTISES_SKILL':
+      return {
+        kind,
+        skillId: wire.skillId ?? '',
+        status: (wire.status ?? 'LOCKED') as SkillStatus,
+        weight: wire.weight ?? 0,
+      };
+    case 'CONTINUES_STORY':
+      return { kind, storyId: wire.storyId ?? '' };
+    case 'ALREADY_COMPLETED':
+    case 'PLAYED_RECENTLY':
+      return { kind, penalty: wire.penalty ?? 0 };
+    case 'NO_SKILLS_NEEDED':
+      return { kind };
+  }
+}
 
-  const skillIds = listSkillsByAgeBand(ageBand).map((skill) => skill.id);
-  const masterySummaries = buildMasterySummary(skillIds, indexProgressBySkill(progressRows));
-
+function toSelectionRecord(wire: WireSuggestion): SelectionRecord {
   return {
-    masterySummaries,
-    completedAdventureSlugs: sessions
-      .filter((session) => session.status === 'COMPLETED')
-      .map((session) => session.templateSlug),
-    // `listSessions` already sorts newest first.
-    recentAdventureSlugs: sessions.map((session) => session.templateSlug),
-    storiesInProgress: storyProgress
-      .filter((progress) => !progress.completedAt)
-      .map((progress) => progress.storyId),
+    adventureSlug: wire.adventureSlug,
+    title: wire.title,
+    score: wire.score,
+    reasons: (wire.reasons ?? [])
+      .filter((reason): reason is WireReason => reason !== null && reason !== undefined)
+      .map(toSelectionReason),
   };
 }
 
-export interface DirectorSuggestion {
-  /** Best first. Adult-facing reasoning travels with each record. */
+export interface NextLearningActivity {
+  /** Up to 3, best first. Adult-facing reasoning travels with each record. */
   ranking: SelectionRecord[];
-  /** The one to lead with, or undefined when this band has no adventure at all. */
-  next: SelectionRecord | undefined;
+  /**
+   * Whether `ranking` reflects this child's actual skill practice, rather
+   * than an unauthored age band where every adventure ties
+   * (`hasSkillBasedSignal`, computed server-side). A caller must not
+   * present `ranking` as personalized when this is `false`.
+   */
+  hasPersonalizedSignal: boolean;
 }
 
-/**
- * Every adventure this child could actually start today (docs/ROADMAP.md
- * Phase 29).
- *
- * Filtering happens here, in the candidate list, rather than inside
- * `select.ts`, which states plainly that it "ranks, it does not gate". That
- * boundary is worth keeping: an adventure on an island the child has not
- * opened the route to yet is not badly ranked, it is not a candidate at all,
- * and a suggestion nobody can act on would be a dead end dressed up as
- * guidance. Adventures at story-only pseudo-locations belong to no world's
- * map and are never filtered out.
- */
-export async function listReachableAdventures(
-  childProfileId: string,
-  ageBand: AgeBandValue,
-): Promise<typeof ADVENTURE_TEMPLATES> {
-  const changes = await listAllWorldChanges(childProfileId).catch(() => []);
-  const reachable = reachableWorldSlugs(
-    changes.map((change) => change.changeKey),
-    ageBand,
-  );
-  return filterToReachableWorlds(
-    ADVENTURE_TEMPLATES,
-    (template) => template.locationSlug,
-    getWorldSlugForLocation,
-    reachable,
-  );
-}
+export const NO_SUGGESTION: NextLearningActivity = { ranking: [], hasPersonalizedSignal: false };
 
 /**
  * What this child could do next, ranked. Never throws: a Director failure
  * must degrade to "no suggestion" rather than break a child's screen, since
- * every surface it feeds already works without it.
+ * every surface it feeds already works without it — same contract this
+ * function had before Phase 41 moved the ranking itself server-side.
  */
-export async function suggestNextAdventure(
+export async function getNextLearningActivity(
   childProfileId: string,
-  ageBand: AgeBandValue,
-  storyIdForAdventure?: (slug: string) => string | undefined,
-): Promise<DirectorSuggestion> {
+): Promise<NextLearningActivity> {
   try {
-    const [context, candidates] = await Promise.all([
-      buildDirectorContext(childProfileId, ageBand),
-      listReachableAdventures(childProfileId, ageBand),
-    ]);
+    const { data, errors } = await client.queries.getNextLearningActivity({ childProfileId });
+    if (!data) {
+      throw new Error(errors?.[0]?.message ?? 'Could not load a suggestion.');
+    }
     return {
-      ranking: rankAdventures(candidates, ageBand, context, storyIdForAdventure),
-      next: nextAdventure(candidates, ageBand, context, storyIdForAdventure),
+      ranking: (data.suggestions ?? [])
+        .filter(
+          (suggestion): suggestion is WireSuggestion =>
+            suggestion !== null && suggestion !== undefined,
+        )
+        .map(toSelectionRecord),
+      hasPersonalizedSignal: data.hasPersonalizedSignal,
     };
   } catch {
-    return { ranking: [], next: undefined };
+    return NO_SUGGESTION;
   }
 }

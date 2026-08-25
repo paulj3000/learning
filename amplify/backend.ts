@@ -26,6 +26,7 @@ import { storage } from './storage/resource';
 import { operationalMetrics } from './functions/operational-metrics/resource';
 import { claimCoopSlot } from './functions/claim-coop-slot/resource';
 import { submitAdventureAnswer } from './functions/submit-adventure-answer/resource';
+import { getNextLearningActivity } from './functions/get-next-learning-activity/resource';
 
 /**
  * Phase 1-4: parent auth, the application data model, and the
@@ -45,6 +46,7 @@ const backend = defineBackend({
   operationalMetrics,
   claimCoopSlot,
   submitAdventureAnswer,
+  getNextLearningActivity,
 });
 
 /**
@@ -544,6 +546,49 @@ childProfileTableForAnswers.grantReadData(backend.submitAdventureAnswer.resource
   adventureSessionTable.tableName,
 );
 (backend.submitAdventureAnswer.resources.lambda as LambdaFunction).addEnvironment(
+  'CHILD_PROFILE_TABLE_NAME',
+  childProfileTableForAnswers.tableName,
+);
+
+/**
+ * Phase 41 — shared adaptive-learning query (docs/DECISIONS.md ADR-016).
+ * `getNextLearningActivity`'s Lambda reads `AdventureSession`,
+ * `WorldChange`, `SkillProgress`, and `ChildProfile` directly, same
+ * "needs its own grant and its own way to find each table name" reason as
+ * `submitAdventureAnswer` above. Read-only on every table: this function
+ * never writes anything.
+ */
+const worldChangeTable = backend.data.resources.tables['WorldChange'];
+if (!worldChangeTable) {
+  throw new Error(
+    'Could not find the generated WorldChange table to grant getNextLearningActivity access to. ' +
+      'Amplify Data may have changed its table lookup key; see wireModelTableStream above for the same pattern.',
+  );
+}
+const skillProgressTable = backend.data.resources.tables['SkillProgress'];
+if (!skillProgressTable) {
+  throw new Error(
+    'Could not find the generated SkillProgress table to grant getNextLearningActivity access to. ' +
+      'Amplify Data may have changed its table lookup key; see wireModelTableStream above for the same pattern.',
+  );
+}
+adventureSessionTable.grantReadData(backend.getNextLearningActivity.resources.lambda);
+worldChangeTable.grantReadData(backend.getNextLearningActivity.resources.lambda);
+skillProgressTable.grantReadData(backend.getNextLearningActivity.resources.lambda);
+childProfileTableForAnswers.grantReadData(backend.getNextLearningActivity.resources.lambda);
+(backend.getNextLearningActivity.resources.lambda as LambdaFunction).addEnvironment(
+  'ADVENTURE_SESSION_TABLE_NAME',
+  adventureSessionTable.tableName,
+);
+(backend.getNextLearningActivity.resources.lambda as LambdaFunction).addEnvironment(
+  'WORLD_CHANGE_TABLE_NAME',
+  worldChangeTable.tableName,
+);
+(backend.getNextLearningActivity.resources.lambda as LambdaFunction).addEnvironment(
+  'SKILL_PROGRESS_TABLE_NAME',
+  skillProgressTable.tableName,
+);
+(backend.getNextLearningActivity.resources.lambda as LambdaFunction).addEnvironment(
   'CHILD_PROFILE_TABLE_NAME',
   childProfileTableForAnswers.tableName,
 );

@@ -728,3 +728,79 @@ not build `DeviceRegistration` or `ProcessedCommand`, and does not resolve
 `upsertSkillProgress`'s accumulator-style sensitivity to genuine duplicate
 calls — a pre-existing property of the Mastery Engine unrelated to offline
 retries specifically, out of scope for this ADR.
+
+## ADR-016: Adaptive learning becomes a real shared query; events stay typed models, not a new generic log; parent APIs are audited, not yet promoted
+
+Status: Accepted
+
+`docs/ROADMAP.md` "Phase 41 — Events, Adaptive Learning, and Parent APIs"
+covers `docs/android/android.md` Phases 16-18. The three split on a
+different axis than Phase 39/40's "is there a real subject yet": here, all
+three have a real subject (event-worthy facts, a working recommendation
+engine, a working dashboard), but only one is worth building as a new
+shared Lambda-backed query right now.
+
+**Decision, part A — no generic event system.** `docs/android/android.md`
+Phase 16's event vocabulary (`LESSON_COMPLETED`, `QUESTION_ANSWERED`, ...)
+maps cleanly onto models this schema already has —
+`docs/platform/EVENTS_ADAPTIVE_LEARNING_AND_PARENT_APIS.md` section 1
+checks every example event type against this codebase and finds all but
+two (`ACHIEVEMENT_EARNED`, which has no real equivalent since there is no
+achievement system, and `SESSION_STARTED`/`SESSION_ENDED`, an app-usage
+concept this product does not track) already recorded, more strongly
+typed than a generic `payload: AWSJSON` would be, by exactly the models
+already built for them. Building a parallel `Event` model would duplicate
+data already recorded for no new capability; the one genuine gap
+(`deviceId`/`source` tagging) is ADR-015's already-deferred
+`DeviceRegistration`, not a reason to build a second system.
+
+**Decision, part B — the Adaptive Adventure Director becomes a real,
+shared, Lambda-backed query.** Unlike device registration or a content
+manifest, `docs/android/android.md` Phase 17's
+`getNextLearningActivity(childProfileId)` already had a complete answer in
+this codebase: the Director (`src/features/director/`, Phase 28) — pure,
+deterministic, already tested, just running only in the browser bundle.
+`getNextLearningActivity` (`amplify/functions/get-next-learning-activity/`)
+now runs that same unchanged logic server-side, reusing ADR-012's
+`ChildProfile.ownerSub` ownership check. This is meaningfully lower-risk
+than `submitAdventureAnswer`: read-only, no session-state write to guard,
+and a wrong ranking has no security consequence — the value is purely
+avoiding two clients silently reimplementing, and diverging on, the same
+recommendation algorithm. `src/routes/ChildDashboard.tsx` now calls it in
+place of the old client-side `suggestNextAdventure`, which is deleted
+along with `buildDirectorContext`/`listReachableAdventures`; the reachable-worlds
+filter they used is extracted to a new, independently useful pure module,
+`src/features/director/reachability.ts`.
+
+**One real architectural fix fell out of this work, not just a Lambda.**
+`src/features/mastery/summary.ts`'s `indexProgressBySkill` took its input
+type from the impure `src/features/mastery/api.ts` (which imports the
+browser Amplify Data client and, transitively, `import.meta.glob`). A
+Lambda's TypeScript program reaching that type — even only through a
+type-only import — fails to typecheck, since `amplify/tsconfig.json` has
+no Vite ambient types. Rather than widen that tsconfig for every future
+Lambda, `summary.ts` now declares its own minimal `SkillProgressLike`
+structural type, fully decoupling this pure engine module from the impure
+client module even at the type level — a small win independent of this
+phase's Android motivation, and non-breaking for every existing caller.
+
+**Decision, part C — parent APIs are audited, not promoted to a new
+Lambda this phase.** `docs/platform/EVENTS_ADAPTIVE_LEARNING_AND_PARENT_APIS.md`
+section 3 confirms the parent-dashboard assembly functions
+(`weeklySummary.ts`, `masteryOverview.ts`, `adventureSupport.ts`,
+`educatorReport.ts`) are already pure and already read only
+owner-authorized models — both of Phase 18's acceptance criteria's
+underlying requirements already hold. They are not promoted to a shared
+query this phase: a dashboard query would need to read a meaningfully
+larger set of tables than the Director's four, and this phase already
+shipped one complete, tested, production-shaped example of the pattern.
+Doing the one well was judged higher value than spreading the same effort
+across a second, larger Lambda in the same pass — the same "pilot one
+path" reasoning ADR-012 already applied to Phase 37's six write paths.
+
+**What this ADR does not claim.** It does not claim `getNextLearningActivity`
+is deploy-verified (the same recurring sandbox constraint, plus the
+specific `Scan`-vs-`Query`/GSI-name uncertainty its own handler comment
+documents), does not build a parent-dashboard query or a `DeviceRegistration`-backed
+event system, and does not change any of the Director's actual ranking
+rules — only where they run.
