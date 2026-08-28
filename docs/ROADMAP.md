@@ -563,6 +563,28 @@ Deliverables:
   island is not commissioned before that slice is proven fun and
   performant.
 
+### Storykeeper Castle — separate roadmap
+
+The next region migration after Phase 33's Pirate Builder Bay is
+Storykeeper Castle, and it is **deliberately not numbered into this
+sequence**. Its design is in
+`docs/STORYKEEPER_CASTLE_3D_STORYBOARD.md` (13 beats, floor plan,
+age-band routing, asset kit) and its build order is in
+`docs/STORYKEEPER_CASTLE_3D_ROADMAP.md`, which defines its own SC-0
+through SC-11 phase sequence.
+
+It is separate because it is independently buildable: it depends only on
+Phases 31–34 (the Three.js boundary, the region pattern, and the asset
+pipeline), it changes no engine, no schema, and no authored adventure or
+story text, and it neither blocks nor is blocked by the Android platform
+phases below. The two can proceed concurrently.
+
+Its critical vertical slice is SC-0 to SC-6, ending with a Pathfinder
+watching the story they just told slide onto a library shelf that was
+visibly empty when they walked in. Its SC-11 gate inherits Phase 32's
+outstanding Sprouts accessibility playtest requirement (ADR-008) — the
+card-based castle route is not retired for any band before that runs.
+
 ## Phases 35+ — Android Platform Integration
 
 Full rationale, data models, API shapes, and worked examples are in

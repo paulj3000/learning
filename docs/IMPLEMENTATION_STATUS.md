@@ -417,6 +417,35 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
+## Planned, not started — Storykeeper Castle first-person region
+
+Two design documents were added and **nothing was implemented**:
+`docs/STORYKEEPER_CASTLE_3D_STORYBOARD.md` (the 13-beat storyboard, floor
+plan, age-band routing, and asset kit) and
+`docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` (its own SC-0 through SC-11 build
+sequence, cross-referenced from `docs/ROADMAP.md`'s Phase 31+ section).
+No SC phase has been started, no file under `src/` or `public/models/`
+was touched, and the card-based Storykeeper Castle route remains the
+shipped, authoritative one for every band.
+
+Three findings from that design pass are worth recording here, since they
+describe the current build rather than the proposed one:
+
+- Storykeeper Castle is still Phaser. `storykeeperCastleTilemap.ts` fills
+  the whole grid with one tile and leaves `STORYKEEPER_CASTLE_COLLIDING_
+  TILES` empty, so the location has no walls, rooms, or doorways; its five
+  "story rooms" are five decor sprites that each resolve to a
+  `SHOW_MESSAGE` and nothing else.
+- The Character Gallery's flavour text names the same three heroes
+  (`puppy`, `dragon`, `fox`) that `the-storykeepers-tale`'s `choose-hero`
+  step asks the child to pick between, and the two have never been
+  connected in either direction.
+- The location has **no Sprouts adventure at all**:
+  `the-storykeepers-tale` is `ageBands: ['PATHFINDER']` and every
+  secret-door template is `['EXPLORER']`. Closing that needs new authored
+  content and the approval SC-10 is gated on.
+
+
 ## Completed
 
 - Product concept documented.
