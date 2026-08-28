@@ -1,6 +1,7 @@
 # Storykeeper Castle — First-Person Region Roadmap
 
-**Status:** Proposed. Nothing in this document is implemented.
+**Status:** SC-0 is implemented. SC-1 through SC-11 are proposed and not
+started.
 
 A standalone roadmap for rebuilding Storykeeper Castle as a first-person
 Three.js region. It has its own phase numbering (**SC-0** through
@@ -67,7 +68,7 @@ arrived. Stop there and re-evaluate before building SC-7 onward.
 
 ---
 
-## SC-0 — Region data and choice bindings
+## SC-0 — Region data and choice bindings — **DONE**
 
 Pure data and pure functions. No `three` import, no rendering, nothing
 child-facing. Everything here is unit tested, and every later phase reads
@@ -97,6 +98,41 @@ Exit criteria:
   `THE_STORYKEEPERS_TALE` or the secret-door templates actually contain.
   An unresolvable binding is a **test failure, never a runtime fallback**;
 - no file in this phase imports `three`.
+
+### What shipped
+
+- `three/storykeeperCastleRegion.ts` + test — eight rooms, seven archways,
+  every zone and entity spot, and `buildWallSegments`, which **derives**
+  wall colliders from room floors minus archway gaps rather than
+  hand-listing two dozen rects that would drift out of agreement with each
+  other. `isOnFloor` / `isBlocked` / `isWalkable` are its query surface.
+- `three/castleChoiceBindings.ts` + test — 15 bindings across the 5 steps
+  the storyboard stages as world objects, and the resolver the scene will
+  call.
+- `discovery/checkpoints.ts` — `STORYKEEPER_CASTLE_CHECKPOINTS`, five
+  authored spots, `entrance` first so a first-time child spawns at the
+  doors.
+- 52 new tests. No `three` import in any of it.
+
+Two things worth carrying into SC-2, both found by the tests rather than
+by reading:
+
+- **The three Setting Tower window zones met at their corners.** A single
+  step forward would have stood the child at two settings at once, and
+  `choose-setting` would have come down to listener order. The zones are
+  now provably disjoint, and the test that proves it is not optional
+  decoration — it is the only thing standing between that beat and a
+  nondeterministic choice.
+- **The pattern-lock carvings sat 0.72m from the nine counting stars.**
+  Close enough that a child counting nine could reasonably have counted the
+  lock's three stars too. The column moved to a clear 1.4m away, and the
+  test now floors that separation at 1m (roadmap A.10, risk 3).
+
+The reachability test flood-fills the floor on a 0.25m grid from the spawn
+checkpoint and asserts every room, checkpoint, and zone is reachable. It
+also re-runs the fill with the library archway sealed and asserts the Great
+Library becomes unreachable — otherwise the test would pass just as well
+against walls that were wrong.
 
 ## SC-1 — Castle asset kit
 

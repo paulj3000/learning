@@ -86,10 +86,66 @@ export const PIRATE_BUILDER_BAY_CHECKPOINTS: readonly RegionCheckpoint[] = [
   },
 ];
 
-/** Every authored checkpoint, across every region (Phase 32's Welcome Harbor, Phase 33's Pirate Builder Bay). */
+export const STORYKEEPER_CASTLE_REGION_ID = 'storykeeper-castle';
+
+/**
+ * Storykeeper Castle's checkpoints (`docs/STORYKEEPER_CASTLE_3D_ROADMAP.md`
+ * SC-0). One per room a child has a reason to come back to, and `entrance`
+ * is deliberately first: `resolveSpawnCheckpoint` falls back to a region's
+ * first authored checkpoint, and arriving at the doors is the only spawn
+ * that makes sense for a child who has never been here.
+ *
+ * Yaw follows `firstPersonController.ts`'s convention (`forwardX =
+ * sin(yaw)`, `forwardZ = cos(yaw)`): 0 faces +Z, PI/2 faces +X.
+ */
+export const STORYKEEPER_CASTLE_CHECKPOINTS: readonly RegionCheckpoint[] = [
+  {
+    id: 'storykeeper-castle:entrance',
+    regionId: STORYKEEPER_CASTLE_REGION_ID,
+    label: 'the castle doors',
+    x: -12,
+    z: 0,
+    yaw: Math.PI / 2,
+  },
+  {
+    id: 'storykeeper-castle:story-hall',
+    regionId: STORYKEEPER_CASTLE_REGION_ID,
+    label: 'the story hall',
+    x: -6,
+    z: 0,
+    yaw: Math.PI / 2,
+  },
+  {
+    id: 'storykeeper-castle:gallery',
+    regionId: STORYKEEPER_CASTLE_REGION_ID,
+    label: 'the Character Gallery',
+    x: -4.5,
+    z: 8,
+    yaw: 0,
+  },
+  {
+    id: 'storykeeper-castle:tower',
+    regionId: STORYKEEPER_CASTLE_REGION_ID,
+    label: 'the Setting Tower',
+    x: 7.5,
+    z: 7.5,
+    yaw: 0,
+  },
+  {
+    id: 'storykeeper-castle:library',
+    regionId: STORYKEEPER_CASTLE_REGION_ID,
+    label: 'the Great Library',
+    x: 7,
+    z: -6,
+    yaw: Math.PI / 2,
+  },
+];
+
+/** Every authored checkpoint, across every region (Phase 32's Welcome Harbor, Phase 33's Pirate Builder Bay, SC-0's Storykeeper Castle). */
 export const ALL_CHECKPOINTS: readonly RegionCheckpoint[] = [
   ...WELCOME_HARBOR_CHECKPOINTS,
   ...PIRATE_BUILDER_BAY_CHECKPOINTS,
+  ...STORYKEEPER_CASTLE_CHECKPOINTS,
 ];
 
 export const KNOWN_CHECKPOINT_IDS: readonly string[] = ALL_CHECKPOINTS.map(

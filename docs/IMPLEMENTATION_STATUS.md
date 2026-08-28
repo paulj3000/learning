@@ -417,19 +417,61 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Planned, not started — Storykeeper Castle first-person region
+## Storykeeper Castle first-person region — SC-0 complete
 
-Two design documents were added and **nothing was implemented**:
+Two design documents define this work:
 `docs/STORYKEEPER_CASTLE_3D_STORYBOARD.md` (the 13-beat storyboard, floor
 plan, age-band routing, and asset kit) and
 `docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` (its own SC-0 through SC-11 build
 sequence, cross-referenced from `docs/ROADMAP.md`'s Phase 31+ section).
-No SC phase has been started, no file under `src/` or `public/models/`
-was touched, and the card-based Storykeeper Castle route remains the
-shipped, authoritative one for every band.
 
-Three findings from that design pass are worth recording here, since they
-describe the current build rather than the proposed one:
+**SC-0 (region data and choice bindings) is implemented.** SC-1 through
+SC-11 are not started. Nothing child-facing has changed: no route, no
+scene, no asset, no adventure or story text, and the card-based
+Storykeeper Castle route remains the shipped, authoritative one for every
+band. What exists is the pure-data layer every later phase reads from:
+
+- `src/features/island-map/three/storykeeperCastleRegion.ts` — eight
+  rooms, seven archways, 13 trigger zones, and every entity spot, with
+  wall colliders **derived** by `buildWallSegments` from room floors minus
+  archway gaps rather than hand-listed. Hand-listing two dozen wall rects
+  and keeping each doorway consistent between the two rooms that share it
+  is exactly the authoring that drifts silently; deriving them means a
+  doorway cannot be open on one side and sealed on the other.
+- `src/features/island-map/three/castleChoiceBindings.ts` — the
+  entity-id to adventure-option-id map, 15 bindings across the five steps
+  the storyboard stages as world objects. This is what keeps the Adventure
+  Engine untouched: lighting a portrait resolves to `hero-fox` and hands
+  that to the same `choose-hero` step the card-based route already drives.
+- `src/features/discovery/checkpoints.ts` — `STORYKEEPER_CASTLE_CHECKPOINTS`,
+  five authored spots, `entrance` first so `resolveSpawnCheckpoint` puts a
+  first-time child at the doors.
+- 52 new tests. No file in SC-0 imports `three`.
+
+The bindings test is the authoring check, in both directions: every
+`optionId` must exist on the step it names, **and** every option of a bound
+step must have exactly one entity bound to it. The second half is the one
+that matters in practice — without it the Character Gallery could offer
+two heroes out of three and nothing would complain. An unresolvable
+binding is a test failure, never a runtime fallback.
+
+The region test flood-fills the floor on a 0.25m grid and asserts every
+room, checkpoint, and zone is reachable from spawn, then re-runs the fill
+with the library archway sealed and asserts the Great Library becomes
+unreachable — otherwise it would pass equally well against walls that were
+wrong.
+
+Two authoring errors it caught that reading would not have:
+
+- The three Setting Tower window zones met at their corners, so one step
+  forward would have stood the child at two settings at once and
+  `choose-setting` would have resolved by listener order.
+- The pattern-lock carvings sat 0.72m from the nine counting stars, close
+  enough that a child counting nine could reasonably have counted the
+  lock's three stars as well.
+
+Three findings from the design pass are worth recording here, since they
+describe the current shipped build rather than the proposed one:
 
 - Storykeeper Castle is still Phaser. `storykeeperCastleTilemap.ts` fills
   the whole grid with one tile and leaves `STORYKEEPER_CASTLE_COLLIDING_
