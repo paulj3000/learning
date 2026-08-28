@@ -1,0 +1,57 @@
+{
+  "asset": { "version": "2.0", "generator": "learning-adventure-island world-asset-pipeline" },
+  "scene": 0,
+  "scenes": [{ "nodes": [0] }],
+  "nodes": [
+    {
+      "name": "Star",
+      "mesh": 0,
+      "translation": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1]
+    }
+  ],
+  "meshes": [
+    {
+      "name": "StarMesh",
+      "primitives": [
+        { "attributes": { "POSITION": 0, "NORMAL": 1 }, "indices": 2, "material": 0, "mode": 4 }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "StarMaterial",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.8313725490196079, 0.6509803921568628, 0.22745098039215686, 1],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.85
+      },
+      "emissiveFactor": [0.2901960784313726, 0.1843137254901961, 0.047058823529411764],
+      "doubleSided": true
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 23,
+      "type": "VEC3",
+      "min": [-0.08559508646656383, 0, -0.07281152949374527],
+      "max": [0.08559508646656382, 0.035, 0.09]
+    },
+    { "bufferView": 1, "componentType": 5126, "count": 23, "type": "VEC3" },
+    { "bufferView": 2, "componentType": 5123, "count": 30, "type": "SCALAR" }
+  ],
+  "bufferViews": [
+    { "buffer": 0, "byteOffset": 0, "byteLength": 276, "target": 34962 },
+    { "buffer": 0, "byteOffset": 276, "byteLength": 276, "target": 34962 },
+    { "buffer": 0, "byteOffset": 552, "byteLength": 60, "target": 34963 }
+  ],
+  "buffers": [
+    {
+      "uri": "data:application/octet-stream;base64,AAAAAClcDz0AAAAAAAAAAClcDz0AAAAAAAAAAClcDz0AAACAAAAAgClcDz0AAACAAAAAgClcDz0AAAAAAAAAgClcDz0AAAAAAAAAAAAAAADsUbg9ekyvPQAAAAAB1eM8YK5YPQAAAAA2HpW9YK5YvQAAAAA2HpW9ekyvvQAAAAAB1eM8FFHLowAAAADsUbg9AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADsUbg9ekyvPQAAAAAB1eM8YK5YPQAAAAA2HpW9YK5YvQAAAAA2HpW9ekyvvQAAAAAB1eM8FFHLowAAAADsUbg9AAAAANyXbj+Okrk+bH2wPtyXbj9VYeU9TidaPtyXbj+dIZa+TidavtyXbj+dIZa+bH2wvtyXbj9VYeU9w7LMpNyXbj+Okrk+AAAAANyXbj+Okrk+bH2wPtyXbj9VYeU9TidaPtyXbj+dIZa+TidavtyXbj+dIZa+bH2wvtyXbj9VYeU9w7LMpNyXbj+Okrk+AAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAABgAHAAEABwAIAAIACAAJAAMACQAKAAQACgALAAUAEgARAAwAEwASAA0AFAATAA4AFQAUAA8AFgAVABAA",
+      "byteLength": 612
+    }
+  ]
+}

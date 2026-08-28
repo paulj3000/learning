@@ -417,7 +417,7 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Storykeeper Castle first-person region — SC-0 complete
+## Storykeeper Castle first-person region — SC-0 and SC-1 complete
 
 Two design documents define this work:
 `docs/STORYKEEPER_CASTLE_3D_STORYBOARD.md` (the 13-beat storyboard, floor
@@ -425,8 +425,8 @@ plan, age-band routing, and asset kit) and
 `docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` (its own SC-0 through SC-11 build
 sequence, cross-referenced from `docs/ROADMAP.md`'s Phase 31+ section).
 
-**SC-0 (region data and choice bindings) is implemented.** SC-1 through
-SC-11 are not started. Nothing child-facing has changed: no route, no
+**SC-0 (region data and choice bindings) and SC-1 (the castle asset kit)
+are implemented.** SC-2 through SC-11 are not started. Nothing child-facing has changed: no route, no
 scene, no asset, no adventure or story text, and the card-based
 Storykeeper Castle route remains the shipped, authoritative one for every
 band. What exists is the pure-data layer every later phase reads from:
@@ -460,6 +460,31 @@ room, checkpoint, and zone is reachable from spawn, then re-runs the fill
 with the library archway sealed and asserts the Great Library becomes
 unreachable — otherwise it would pass equally well against walls that were
 wrong.
+
+SC-1 added 59 assets to `public/models/` (78 total, 596 KB) through the
+existing Phase 34 generator, registered in `assets/manifest.ts` and covered
+by `assets/castleKit.test.ts`. The 19 pre-existing assets regenerate
+byte-identically, so nothing in the Phase 34 pack moved. Keeper Quill
+(`npc-quill`) is the only new character, built to `npcPip`'s recipe — a
+named multi-part node hierarchy with TRS clips, no skinning — with all six
+of its declared clips already in the approved vocabulary and deliberately
+no `Walk`.
+
+One correction to the roadmap came out of building it: SC-1's exit
+criterion said `npm run assets:generate` should reproduce `public/models/`
+byte-for-byte. It does not, and never did — the generator emits minified
+`JSON.stringify` output while `public/models` is not in `.prettierignore`,
+so the checked-in files are the pretty-printed ones. The real invariant is
+**generate, then `npm run format`**; skipping the format step leaves 78
+files failing `format:check`. The roadmap now says so.
+
+Two authoring decisions SC-1 made against Appendix A's estimate, both
+because a one-mesh asset cannot have a hole in it: `archway` and
+`window-frame` are multi-part and therefore placed individually rather than
+instanced. `assets/castleKit.test.ts` now asserts the instancing-safe list
+mesh-by-mesh rather than leaving it to a comment, since
+`createInstancedMeshFromAsset` keeps only the first mesh it finds with no
+error and no warning.
 
 Two authoring errors it caught that reading would not have:
 

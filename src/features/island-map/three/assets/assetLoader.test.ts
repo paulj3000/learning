@@ -35,12 +35,46 @@ describe('loadAsset', () => {
   it('rejects for an unknown asset id', async () => {
     await expect(loadAsset('does-not-exist')).rejects.toThrow(/unknown asset id/);
   });
+
+  /**
+   * SC-1 added the Storykeeper Castle kit
+   * (`docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` Appendix A). One case per new
+   * shape category, same representative-sample discipline as above rather
+   * than a per-asset suite - the castle's own authoring checks live in
+   * `castleKit.test.ts`.
+   */
+  it('loads a castle kit piece through the same real fetch path', async () => {
+    const gltf = await loadAsset('wall-stone');
+    expect(gltf.scene.getObjectByName('Wall')).toBeDefined();
+  });
+
+  it('loads a multi-part castle prop with every part intact', async () => {
+    const gltf = await loadAsset('archway');
+    for (const part of ['JambLeft', 'JambRight', 'Lintel']) {
+      expect(gltf.scene.getObjectByName(part), `archway is missing "${part}"`).toBeDefined();
+    }
+  });
 });
 
 describe('instantiateAsset', () => {
   it('loads the animated NPC with its declared clips', async () => {
     const gltf = await loadAsset('npc-pip');
     expect(gltf.animations.map((clip) => clip.name).sort()).toEqual(['Idle', 'Talk', 'Wave']);
+  });
+
+  it('loads Keeper Quill with all six clips and an arm to point with', async () => {
+    const gltf = await loadAsset('npc-quill');
+    expect(gltf.animations.map((clip) => clip.name).sort()).toEqual([
+      'Celebrate',
+      'Idle',
+      'Point',
+      'ReactConcerned',
+      'Talk',
+      'Wave',
+    ]);
+    const clone = await instantiateAsset('npc-quill');
+    expect(clone.getObjectByName('Body')).toBeDefined();
+    expect(clone.getObjectByName('Arm')).toBeDefined();
   });
 
   it('returns an independent clone each call', async () => {

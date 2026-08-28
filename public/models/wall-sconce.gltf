@@ -1,0 +1,56 @@
+{
+  "asset": { "version": "2.0", "generator": "learning-adventure-island world-asset-pipeline" },
+  "scene": 0,
+  "scenes": [{ "nodes": [0] }],
+  "nodes": [
+    {
+      "name": "Sconce",
+      "mesh": 0,
+      "translation": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1]
+    }
+  ],
+  "meshes": [
+    {
+      "name": "SconceMesh",
+      "primitives": [
+        { "attributes": { "POSITION": 0, "NORMAL": 1 }, "indices": 2, "material": 0, "mode": 4 }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "SconceMaterial",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.22745098039215686, 0.24705882352941178, 0.2823529411764706, 1],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.85
+      },
+      "doubleSided": true
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 27,
+      "type": "VEC3",
+      "min": [-0.09526279441628825, 0, -0.11],
+      "max": [0.09526279441628825, 0.26, 0.11]
+    },
+    { "bufferView": 1, "componentType": 5126, "count": 27, "type": "VEC3" },
+    { "bufferView": 2, "componentType": 5123, "count": 36, "type": "SCALAR" }
+  ],
+  "bufferViews": [
+    { "buffer": 0, "byteOffset": 0, "byteLength": 324, "target": 34962 },
+    { "buffer": 0, "byteOffset": 324, "byteLength": 324, "target": 34962 },
+    { "buffer": 0, "byteOffset": 648, "byteLength": 72, "target": 34963 }
+  ],
+  "buffers": [
+    {
+      "uri": "data:application/octet-stream;base64,AAAAALgehT4AAAAAAAAAALgehT4AAAAAAAAAALgehT4AAACAAAAAALgehT4AAACAAAAAgLgehT4AAACAAAAAgLgehT4AAAAAAAAAgLgehT4AAAAAAAAAAAAAAACuR+E9JBnDPQAAAACuR2E9JBnDPQAAAACuR2G9in94IwAAAACuR+G9JBnDvQAAAACuR2G9JBnDvQAAAACuR2E9in/4owAAAACuR+E9AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACuR+E9JBnDPQAAAACuR2E9JBnDPQAAAACuR2G9in94IwAAAACuR+G9JBnDvQAAAACuR2G9JBnDvQAAAACuR2E9in/4owAAAACuR+E9AAAAAOV+xz6DxGs/RS5MP+V+xz6DxOs+RS5MP+V+xz6DxOu+iggCJeV+xz6DxGu/RS5Mv+V+xz6DxOu+RS5Mv+V+xz6DxOs+igiCpeV+xz6DxGs/AAAAAOV+xz6DxGs/RS5MP+V+xz6DxOs+RS5MP+V+xz6DxOu+iggCJeV+xz6DxGu/RS5Mv+V+xz6DxOu+RS5Mv+V+xz6DxOs+igiCpeV+xz6DxGs/AAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAABwAIAAEACAAJAAIACQAKAAMACgALAAQACwAMAAUADAANAAYAFQAUAA4AFgAVAA8AFwAWABAAGAAXABEAGQAYABIAGgAZABMA",
+      "byteLength": 720
+    }
+  ]
+}

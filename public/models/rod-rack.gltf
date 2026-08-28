@@ -1,0 +1,91 @@
+{
+  "asset": { "version": "2.0", "generator": "learning-adventure-island world-asset-pipeline" },
+  "scene": 0,
+  "scenes": [{ "nodes": [0, 1] }],
+  "nodes": [
+    {
+      "name": "Base",
+      "mesh": 0,
+      "translation": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1]
+    },
+    {
+      "name": "BackBoard",
+      "mesh": 1,
+      "translation": [0, 0.08, -0.1],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1]
+    }
+  ],
+  "meshes": [
+    {
+      "name": "BaseMesh",
+      "primitives": [
+        { "attributes": { "POSITION": 0, "NORMAL": 1 }, "indices": 2, "material": 0, "mode": 4 }
+      ]
+    },
+    {
+      "name": "BackBoardMesh",
+      "primitives": [
+        { "attributes": { "POSITION": 3, "NORMAL": 4 }, "indices": 5, "material": 1, "mode": 4 }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "BaseMaterial",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.35294117647058826, 0.25098039215686274, 0.18823529411764706, 1],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.85
+      },
+      "doubleSided": true
+    },
+    {
+      "name": "BackBoardMaterial",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.47843137254901963, 0.35294117647058826, 0.23529411764705882, 1],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.85
+      },
+      "doubleSided": true
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "min": [-0.5, 0, -0.11],
+      "max": [0.5, 0.08, 0.11]
+    },
+    { "bufferView": 1, "componentType": 5126, "count": 24, "type": "VEC3" },
+    { "bufferView": 2, "componentType": 5123, "count": 36, "type": "SCALAR" },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "min": [-0.5, 0, 0],
+      "max": [0.5, 0.5, 0]
+    },
+    { "bufferView": 4, "componentType": 5126, "count": 4, "type": "VEC3" },
+    { "bufferView": 5, "componentType": 5123, "count": 6, "type": "SCALAR" }
+  ],
+  "bufferViews": [
+    { "buffer": 0, "byteOffset": 0, "byteLength": 288, "target": 34962 },
+    { "buffer": 0, "byteOffset": 288, "byteLength": 288, "target": 34962 },
+    { "buffer": 0, "byteOffset": 576, "byteLength": 72, "target": 34963 },
+    { "buffer": 0, "byteOffset": 648, "byteLength": 48, "target": 34962 },
+    { "buffer": 0, "byteOffset": 696, "byteLength": 48, "target": 34962 },
+    { "buffer": 0, "byteOffset": 744, "byteLength": 12, "target": 34963 }
+  ],
+  "buffers": [
+    {
+      "uri": "data:application/octet-stream;base64,AAAAPwrXoz2uR+E9AAAAPwrXoz2uR+G9AAAAPwAAAACuR+G9AAAAPwAAAACuR+E9AAAAvwrXoz2uR+G9AAAAvwrXoz2uR+E9AAAAvwAAAACuR+E9AAAAvwAAAACuR+G9AAAAvwrXoz2uR+G9AAAAPwrXoz2uR+G9AAAAPwrXoz2uR+E9AAAAvwrXoz2uR+E9AAAAvwAAAACuR+E9AAAAPwAAAACuR+E9AAAAPwAAAACuR+G9AAAAvwAAAACuR+G9AAAAvwrXoz2uR+E9AAAAPwrXoz2uR+E9AAAAPwAAAACuR+E9AAAAvwAAAACuR+E9AAAAPwrXoz2uR+G9AAAAvwrXoz2uR+G9AAAAvwAAAACuR+G9AAAAPwAAAACuR+G9AACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAABAAIAAAACAAMABAAFAAYABAAGAAcACAAJAAoACAAKAAsADAANAA4ADAAOAA8AEAARABIAEAASABMAFAAVABYAFAAWABcAAAAAvwAAAD8AAAAAAAAAPwAAAD8AAAAAAAAAvwAAAAAAAAAAAAAAPwAAAAAAAAAAAAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAACAAEAAgADAAEA",
+      "byteLength": 756
+    }
+  ]
+}
