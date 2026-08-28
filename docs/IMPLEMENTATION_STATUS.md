@@ -374,9 +374,9 @@ authored `SHOW_MESSAGE`, not AI-narrated (in scope for a later phase, not
 Phase 9's engine substrate).
 
 **Android platform integration (Phases 35-45): Phases 35, 36, 38, 39, 40,
-41, and 42 complete, Phase 37 partially complete (one of six write paths
-piloted), Phases 43-45 roadmapped, not started.** `docs/ROADMAP.md`
-"Phases 35+ — Android Platform Integration" and ADR-010 through ADR-017
+41, 42, and 43 complete, Phase 37 partially complete (one of six write
+paths piloted), Phases 44-45 roadmapped, not started.** `docs/ROADMAP.md`
+"Phases 35+ — Android Platform Integration" and ADR-010 through ADR-018
 in `docs/DECISIONS.md` document the plan for evolving the Amplify Gen 2
 backend into a platform that a future Android client could consume
 alongside the web client (full detail in `docs/android/android.md`).
@@ -384,29 +384,35 @@ Phase 35 (platform audit and boundary), Phase 36 (canonical identity and
 content models), Phase 38 (item/world/asset model design), Phase 39
 (authorization classification, manifest/versioning design), Phase 40
 (device/sync/offline-safety audit), Phase 41
-(events/adaptive-learning/parent-API design and audit), and Phase 42
-(environments/config/contract-test documentation) are fully done — see
+(events/adaptive-learning/parent-API design and audit), Phase 42
+(environments/config/contract-test documentation), and Phase 43
+(observability shipped for real; performance and remaining
+server-authoritative write paths audited) are fully done — see
 `docs/platform/CURRENT_PLATFORM_AUDIT.md`,
 `docs/platform/CANONICAL_CONTENT_MODEL.md`,
 `docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md`,
 `docs/platform/MANIFEST_AND_API_VERSIONING.md`,
 `docs/platform/DEVICE_SYNC_AND_OFFLINE_SAFETY.md`,
 `docs/platform/EVENTS_ADAPTIVE_LEARNING_AND_PARENT_APIS.md`,
-`docs/platform/ENVIRONMENTS_CONFIG_AND_CONTRACT_TESTS.md`, and the
+`docs/platform/ENVIRONMENTS_CONFIG_AND_CONTRACT_TESTS.md`,
+`docs/platform/OBSERVABILITY_PERFORMANCE_AND_SECURITY.md`, and the
 "Phase 35"/"Phase 36"/"Phase 38"/"Phase 39"/"Phase 40"/"Phase 41"/"Phase
-42" entries below. Phase 41 shipped real production code, the second phase in
-this backlog to do so after Phase 37: `getNextLearningActivity`
+42"/"Phase 43" entries below. Phase 41 shipped real production code, the
+second phase in this backlog to do so after Phase 37: `getNextLearningActivity`
 (`amplify/functions/get-next-learning-activity/`) is a genuine,
 deployed-shaped Lambda the web client now calls for adventure
 recommendations, reusing the ownership-check pattern
-`submitAdventureAnswer` established. Phase 37 itself remains only
+`submitAdventureAnswer` established. Phase 43 shipped the third piece of
+real production code, `amplify/functions/shared/requestLog.ts`, wired
+into all three custom Lambda resolvers. Phase 37 itself remains only
 partially complete: `submitAdventureAnswer`
 (`amplify/functions/submit-adventure-answer/`) is a genuine, deployed-shaped
 Lambda the web client now calls for every graded adventure answer — see
 the "Phase 37" entry below for exactly what changed, what was verified,
 and what remains deliberately out of scope (including inventory
 server-authority, which Phase 38 deliberately did not duplicate — see
-ADR-013). CLAUDE.md section 12 still
+ADR-013, and which Phase 43 re-confirmed with exact citations rather than
+closed — see ADR-018). CLAUDE.md section 12 still
 keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
@@ -6516,6 +6522,134 @@ nothing was created.
   deployment configuration changed. `npm run typecheck`, `npm run lint`,
   `npm run format:check`, and `npm test` were re-run to confirm the
   doc-only change left the existing suite untouched.
+
+## Phase 43 — Observability, Performance, and Security Hardening
+
+**Complete — structured request logging shipped for real; performance and
+the remaining server-authoritative write paths audited, per new ADR-018
+in `docs/DECISIONS.md`.** Covers `docs/android/android.md` Phases 22-24.
+Unlike Phase 42, this phase ships real production code, the third phase
+in this backlog to do so after Phases 37 and 41.
+
+Files created:
+
+- `amplify/functions/shared/requestLog.ts` — structured per-request
+  logging: `withRequestLog` wraps a resolver body and emits one JSON line
+  per invocation (`requestId`, `functionName`, `childProfileId`,
+  `platform`, `appVersion`, `result`, `errorCode`, `durationMs`) to
+  stdout, the same CloudWatch-Logs-is-the-publish-mechanism pattern
+  `operational-metrics/handler.ts`'s EMF lines already use, just for
+  request/response resolvers instead of a DynamoDB Streams consumer.
+  `platform`/`appVersion` read optional `x-app-platform`/`x-app-version`
+  request headers no client sends today — the shape is real, the values
+  are `null` until a second client exists to send them, same treatment
+  ADR-015 already gave `DeviceRegistration`. Pure header-parsing and
+  formatting functions (`clientPlatform`, `clientAppVersion`,
+  `errorCodeOf`, `formatRequestLog`) are split from the one `console.log`
+  side effect, same pattern `claim-coop-slot/handler.ts`'s `decideClaim`
+  already established.
+- `amplify/functions/shared/requestLog.test.ts` — 8 tests: header
+  case-insensitivity and absence for both headers, `Error`-vs-non-`Error`
+  throw handling, JSON serialization, and `withRequestLog`'s success/
+  failure paths (exactly one log line either way, correct `result`/
+  `errorCode`, the wrapped result returned or the original error
+  rethrown).
+- `docs/platform/OBSERVABILITY_PERFORMANCE_AND_SECURITY.md` — the full
+  three-part writeup: what observability shipped and why the
+  android.md-requested `deviceId`/`eventId`/API-version fields are not
+  yet in the log shape; the performance/cost review findings (every
+  `.list()` call already owner-scoped and fine at current data volume
+  except the already-tracked admin directory gap; every 3D asset a
+  placeholder Phase 34 will replace); and the security-hardening
+  re-audit table with exact file:line citations for all five remaining
+  client-authoritative write paths.
+
+Files changed:
+
+- `amplify/functions/claim-coop-slot/handler.ts`,
+  `amplify/functions/submit-adventure-answer/handler.ts`,
+  `amplify/functions/get-next-learning-activity/handler.ts` — each
+  handler's body now runs inside `withRequestLog`, passing
+  `context.awsRequestId` (the handler signature now takes `context` as a
+  second parameter, previously unused) and the resolver's own
+  `functionName`. `claimCoopSlot` and `getNextLearningActivity` pass
+  `childProfileId` straight from their arguments; `submitAdventureAnswer`
+  passes `null` — it only learns the session's `childProfileId` partway
+  through its own DynamoDB lookup, and logging `null` there was judged
+  better than restructuring already-tested control flow just to capture
+  it a few lines earlier.
+- `docs/DECISIONS.md` — added ADR-018.
+- `docs/ROADMAP.md` — Phase 43 entry marked complete with a summary of
+  what shipped vs. was audited.
+
+**Performance and cost review (audit, no code changes):** every
+`.list()` call in `src/features/*/api.ts` and
+`src/features/child-profile/deletion.ts` is owner-scoped to one family
+under Amplify Data's owner authorization — at this product's actual data
+volume (tens of rows per child), unbounded is fine. The one exception is
+already tracked, not new: `src/features/admin/api.ts`'s cross-family
+`.list()` calls (Phase 39's "no pagination" known risk, unchanged).
+`get-next-learning-activity`'s `Scan`+`FilterExpression` (Phase 41) and
+`CoopSession.onUpdate` (the only subscription in this codebase, Phase 17)
+were both already reviewed in prior phases; this pass found no new
+instance of either pattern. Every file in `public/models/` is a 4-16 KB
+hand-built placeholder GLTF (Phase 31-34), not real art — sizing a
+mobile-asset budget against it would produce a number with no bearing on
+Phase 34's eventual real pipeline.
+
+**Security hardening (audit against the ADR-012 gap, confirmed
+unchanged, not closed):** re-verified with exact citations that the five
+write paths ADR-012 (Phase 37) already flagged as client-authoritative
+still are: `SkillProgress` (`upsertSkillProgress`,
+`src/features/mastery/api.ts:36`, called from
+`src/features/adventures/useAdventureSession.ts:174` with client-held
+correctness), `ChildInventory` (`grantRewards`,
+`src/features/rewards/api.ts:86`), `ChildQuestState`
+(`startQuest`/`syncQuestProgress`, `src/features/quests/api.ts:127`/`:182`),
+`ChildNpcState` (`recordDialogueNode`, `src/features/npc/api.ts:87`), and
+`ChildWorldState` (`recordDiscovery`/`recordCharacterMet`,
+`src/features/discovery/api.ts:141`/`:243`). Every one carries only
+`allow.owner()` authorization: ownership is enforced server-side,
+correctness of the written value is not. Confirmed no dormant custom
+mutation exists for any of the three write actions —
+`amplify/data/resource.ts` still defines exactly two Lambda-backed custom
+mutations and one Lambda-backed query, unchanged since Phase 41. Not
+migrated: closing all five is production code comparable in scope to
+Phase 37's own single-path pilot, tracked as concrete follow-up (the
+audit table in `docs/platform/OBSERVABILITY_PERFORMANCE_AND_SECURITY.md`
+section 3 is the spec) rather than attempted on this phase's authority
+alone, and could not be verified against a live DynamoDB table in this
+sandbox regardless (no AWS credentials, the same recurring constraint as
+every prior phase).
+
+Tests: `npm run typecheck` clean; `npm run lint` shows only pre-existing
+warnings in files this phase did not touch; `npx prettier --check` clean
+on every new/changed file; `npm test` — all `amplify/functions` test
+files pass (41 tests, 8 new in `requestLog.test.ts`), no existing test
+changed or broken.
+
+**Known risks / explicit scope boundaries:**
+
+- **`submitAdventureAnswer`'s request log never carries a
+  `childProfileId`.** Documented above as a deliberate tradeoff against
+  restructuring tested control flow, but worth revisiting if this log
+  line ever needs to answer "which children hit errors on this function"
+  without cross-referencing `AdventureSession.childProfileId` separately.
+- **No CloudWatch dashboard or metric filter reads the new request-log
+  lines yet.** They exist in CloudWatch Logs the moment this deploys, but
+  nothing queries or alarms on them — `operational-metrics`' existing
+  EMF-based alarms (Phase 8) do not cover this new log shape. Real
+  follow-up once there is a live deploy to point a Logs Insights query or
+  metric filter at.
+- **The five client-authoritative write paths audited this phase remain
+  exactly as writable-by-a-raw-GraphQL-call as ADR-012 already
+  documented.** This phase changed nothing about that exposure; it only
+  made the existing gap more precisely documented (file:line citations
+  instead of a model-name list). Same low-severity-for-MVP reasoning
+  ADR-012 already gave: every legitimate client (this app's own code) is
+  still protected by going through the tested client wrappers; only a
+  caller crafting a raw request outside this app's own code could exploit
+  it, and there is no real user base yet for that to matter against.
 
 ## Known risks / TODOs
 

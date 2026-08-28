@@ -2,6 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import type { AppSyncIdentityCognito, AppSyncResolverEvent } from 'aws-lambda';
 import type { Schema } from '../../data/resource';
+import { withRequestLog } from '../shared/requestLog';
 
 /**
  * Custom Lambda resolver for the `claimCoopSlot` mutation
@@ -137,35 +138,47 @@ type ClaimCoopSlotEvent = AppSyncResolverEvent<{
 
 export const handler: Schema['claimCoopSlot']['functionHandler'] = async (
   event: ClaimCoopSlotEvent,
+  context,
 ) => {
   const { coopSessionId, slotKey, childProfileId } = event.arguments;
-  const callerSub = getCallerSub(event.identity);
 
-  const session = await getSession(coopSessionId);
-  if (!session) {
-    throw new Error('That shared adventure could not be found.');
-  }
+  return withRequestLog(
+    {
+      functionName: 'claimCoopSlot',
+      requestId: context.awsRequestId,
+      headers: event.request?.headers,
+      childProfileId,
+    },
+    async () => {
+      const callerSub = getCallerSub(event.identity);
 
-  const decision = decideClaim(session, callerSub, childProfileId, slotKey);
-  switch (decision.outcome) {
-    case 'not-host':
-      // A real authorization violation, unlike a slot conflict — this is
-      // not the benign "someone else got there first" case below, so it
-      // does surface as an error.
-      throw new Error('Not authorized to claim a slot in this shared adventure.');
-    case 'not-participant':
-      throw new Error('That child is not part of this shared adventure.');
-    case 'inactive':
-      throw new Error('This shared adventure is no longer active.');
-    case 'already-claimed-by-caller':
-      // Idempotent: this child already holds this slot, nothing to write.
-      return session;
-    case 'rejected':
-      // Rejected server-side, not surfaced as an error
-      // (docs/ADVENTURE_ENGINE.md "Co-op sessions"): the caller re-renders
-      // this already-current, already-claimed-by-someone-else state.
-      return session;
-    case 'claim':
-      return (await claimSlot(coopSessionId, slotKey, childProfileId)) ?? session;
-  }
+      const session = await getSession(coopSessionId);
+      if (!session) {
+        throw new Error('That shared adventure could not be found.');
+      }
+
+      const decision = decideClaim(session, callerSub, childProfileId, slotKey);
+      switch (decision.outcome) {
+        case 'not-host':
+          // A real authorization violation, unlike a slot conflict — this is
+          // not the benign "someone else got there first" case below, so it
+          // does surface as an error.
+          throw new Error('Not authorized to claim a slot in this shared adventure.');
+        case 'not-participant':
+          throw new Error('That child is not part of this shared adventure.');
+        case 'inactive':
+          throw new Error('This shared adventure is no longer active.');
+        case 'already-claimed-by-caller':
+          // Idempotent: this child already holds this slot, nothing to write.
+          return session;
+        case 'rejected':
+          // Rejected server-side, not surfaced as an error
+          // (docs/ADVENTURE_ENGINE.md "Co-op sessions"): the caller re-renders
+          // this already-current, already-claimed-by-someone-else state.
+          return session;
+        case 'claim':
+          return (await claimSlot(coopSessionId, slotKey, childProfileId)) ?? session;
+      }
+    },
+  );
 };

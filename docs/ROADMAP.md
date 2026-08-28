@@ -753,16 +753,26 @@ construction in Phase 40's cross-device-sync work.
 
 ### Phase 43 — Observability, Performance, and Security Hardening
 
-Covers `docs/android/android.md` Phases 22-24. Record platform/device/app-
-version metadata on every logged request so production issues can be
-filtered by client, and cross-device sync failures stay traceable. Review
-GraphQL query shape, pagination, and asset sizes for mobile traffic, so
-major Android screens use bounded queries instead of loading entire worlds
-or lesson libraries. Treat any released Android build as inspectable and
-modifiable: XP, currency, quest completion, inventory grants, and mastery
-must all be re-validated server-side, since client state can never be
-trusted, extending the same assumption the Adventure Engine already applies
-to the web client (ADR-002).
+**Complete — structured request logging shipped for real; performance and
+the remaining server-authoritative write paths audited, per new ADR-018
+in `docs/DECISIONS.md`.** Covers `docs/android/android.md` Phases 22-24.
+`amplify/functions/shared/requestLog.ts` records requestId, function name,
+childProfileId, platform/appVersion (from headers no client sends yet),
+result, error code, and duration on every invocation of the three custom
+Lambda resolvers, so production issues can be filtered by client and
+cross-device sync failures stay traceable — none of the three logged
+anything about their own invocations before this phase. GraphQL query
+shape, pagination, and asset sizes were reviewed
+(`docs/platform/OBSERVABILITY_PERFORMANCE_AND_SECURITY.md` section 2):
+every `.list()` call is already owner-scoped to one family at a data
+volume where pagination has no real benefit yet, except the
+already-tracked admin-directory gap; every 3D asset is a placeholder Phase
+34 will replace. Security hardening re-audited, with exact file:line
+citations, the five write paths (skill mastery, rewards, quests, NPC
+relationships, discovery) ADR-012 already flagged as client-authoritative
+— confirmed still true, not migrated: closing all five is real production
+code comparable in scope to Phase 37's own pilot, tracked as concrete
+follow-up rather than attempted on this phase's authority alone.
 
 ### Phase 44 — Content Migration and Web Refactor
 

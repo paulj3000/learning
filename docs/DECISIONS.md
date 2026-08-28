@@ -871,3 +871,78 @@ Git branch, or CI change, does not decide environment-to-branch naming
 conventions, and does not write any contract test — all three require
 either a second client or an explicit, separate human decision to
 provision real infrastructure.
+
+## ADR-018: Structured request logging ships for real; performance and the remaining server-authoritative write paths are audited, not built
+
+Status: Accepted
+
+`docs/ROADMAP.md` "Phase 43 — Observability, Performance, and Security
+Hardening" covers `docs/android/android.md` Phases 22-24. Unlike Phase 42
+(a single "do not act unilaterally" boundary) and unlike Phases 36-41
+(each one build-vs-design split along a single axis), this phase's three
+source phases are not the same kind of question, so they get three
+different treatments rather than one blanket decision.
+
+**Part A — observability ships as real code.** None of this backend's
+three synchronous custom Lambda resolvers (`claimCoopSlot`,
+`submitAdventureAnswer`, `getNextLearningActivity`) logged anything about
+their own invocations before this phase — a slow or failed call left no
+trace. `amplify/functions/shared/requestLog.ts` is new, small,
+unit-tested, framework-free application code, the same size and risk
+class as `claim-coop-slot`'s own `decideClaim` — a genuinely buildable
+piece with no billed-infrastructure or second-client dependency, unlike
+Phase 42's subject matter. It ships this phase. Full detail in
+`docs/platform/OBSERVABILITY_PERFORMANCE_AND_SECURITY.md` section 1,
+including which android.md-requested log fields (`deviceId`, `eventId`,
+API version) have no real subject yet and are deliberately not stubbed
+into the log shape until `DeviceRegistration`/`ContentManifest` (ADR-014,
+ADR-015) exist to give them one.
+
+**Part B — performance and cost review is an audit that changes
+nothing.** Every `.list()` call in this codebase already returns only one
+family's own rows under owner authorization, at a data volume (tens of
+rows per child) where pagination has no real benefit yet — except the
+admin directory's cross-family `.list()`, an already-tracked gap from
+Phase 39, not a new finding. Every 3D asset in `public/models/` is a 4-16
+KB hand-built placeholder Phase 34 will replace outright; sizing a
+mobile-appropriate budget against placeholder geometry would produce a
+number with no bearing on the real asset pipeline. Adding pagination or
+query narrowing with no second client and no measured cost problem would
+be designing for a hypothetical this product does not have yet (CLAUDE.md
+section 13). Full detail in
+`docs/platform/OBSERVABILITY_PERFORMANCE_AND_SECURITY.md` section 2.
+
+**Part C — the remaining five server-authoritative write paths are
+re-audited with exact citations, not migrated.** ADR-012 (Phase 37)
+already scoped its own work down to one pilot (`submitAdventureAnswer`)
+out of six flagged client-authoritative write paths, deliberately. This
+phase confirms — with file:line citations for each write function and
+client call site, not by assumption — that skill mastery
+(`SkillProgress`), rewards (`ChildInventory`), quests
+(`ChildQuestState`), NPC relationships (`ChildNpcState`), and discovery
+(`ChildWorldState`) are still exactly as client-authoritative as ADR-012
+described: server-enforced ownership, client-computed correctness. Table
+in `docs/platform/OBSERVABILITY_PERFORMANCE_AND_SECURITY.md` section 3.
+Migrating all five is real production code comparable in scope to Phase
+37's own pilot — a multi-resolver undertaking this phase does not
+attempt, both because ADR-012's original scoping decision stands
+unchanged and because none of it could be verified against a live
+DynamoDB table in this sandbox (no AWS credentials, the same recurring
+constraint as every prior phase). The audit table itself is the concrete
+spec for that follow-up.
+
+**Why this phase looks different from every prior one in this range.**
+Phases 36-41 each split cleanly into "build the small reversible piece,
+design the rest." Phase 42 was a single infrastructure-authority
+boundary. Phase 43 needed three separate treatments because its three
+source phases differ in kind: observability had a genuinely small,
+real, buildable gap; performance had no real gap at all at current scale;
+security hardening had a real, already-known, already-scoped gap too
+large to close in one more phase without reopening ADR-012's own scoping
+decision.
+
+**What this ADR does not claim.** It does not migrate any of the five
+remaining write paths to a Lambda resolver, does not add pagination or
+change any query, does not build a CloudWatch dashboard over the new
+request-log lines, and does not add rate limiting anywhere in this
+backend.

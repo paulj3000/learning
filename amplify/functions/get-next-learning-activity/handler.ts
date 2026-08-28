@@ -12,6 +12,7 @@ import {
   type SkillProgressLike,
 } from '../../../src/features/mastery/summary';
 import type { AgeBandValue } from '../../../src/features/child-profile/constants';
+import { withRequestLog } from '../shared/requestLog';
 
 /**
  * Custom Lambda resolver for the `getNextLearningActivity` query
@@ -174,39 +175,53 @@ async function scanByChildProfileId<T>(envVar: string, childProfileId: string): 
   return items;
 }
 
-export const handler: Schema['getNextLearningActivity']['functionHandler'] = async (event) => {
+export const handler: Schema['getNextLearningActivity']['functionHandler'] = async (
+  event,
+  context,
+) => {
   const { childProfileId } = event.arguments;
-  const callerSub = getCallerSub(event.identity);
 
-  const child = await getChildProfile(childProfileId);
-  if (!child?.ownerSub || child.ownerSub !== callerSub) {
-    throw new Error('Not authorized for this child profile.');
-  }
+  return withRequestLog(
+    {
+      functionName: 'getNextLearningActivity',
+      requestId: context.awsRequestId,
+      headers: event.request?.headers,
+      childProfileId,
+    },
+    async () => {
+      const callerSub = getCallerSub(event.identity);
 
-  const [sessions, worldChanges, progressRows] = await Promise.all([
-    scanByChildProfileId<AdventureSessionItem>('ADVENTURE_SESSION_TABLE_NAME', childProfileId),
-    scanByChildProfileId<WorldChangeItem>('WORLD_CHANGE_TABLE_NAME', childProfileId),
-    scanByChildProfileId<SkillProgressLike>('SKILL_PROGRESS_TABLE_NAME', childProfileId),
-  ]);
+      const child = await getChildProfile(childProfileId);
+      if (!child?.ownerSub || child.ownerSub !== callerSub) {
+        throw new Error('Not authorized for this child profile.');
+      }
 
-  const recentFirst = [...sessions].sort((a, b) =>
-    b.lastActivityAt.localeCompare(a.lastActivityAt),
+      const [sessions, worldChanges, progressRows] = await Promise.all([
+        scanByChildProfileId<AdventureSessionItem>('ADVENTURE_SESSION_TABLE_NAME', childProfileId),
+        scanByChildProfileId<WorldChangeItem>('WORLD_CHANGE_TABLE_NAME', childProfileId),
+        scanByChildProfileId<SkillProgressLike>('SKILL_PROGRESS_TABLE_NAME', childProfileId),
+      ]);
+
+      const recentFirst = [...sessions].sort((a, b) =>
+        b.lastActivityAt.localeCompare(a.lastActivityAt),
+      );
+      const skillIds = listSkillsByAgeBand(child.ageBand).map((skill) => skill.id);
+      const masterySummaries = buildMasterySummary(skillIds, indexProgressBySkill(progressRows));
+      const candidates = reachableAdventures(
+        worldChanges.map((change) => change.changeKey),
+        child.ageBand,
+      );
+
+      const ranking = rankAdventures(candidates, child.ageBand, {
+        masterySummaries,
+        completedAdventureSlugs: sessions
+          .filter((session) => session.status === 'COMPLETED')
+          .map((session) => session.templateSlug),
+        recentAdventureSlugs: recentFirst.map((session) => session.templateSlug),
+        storiesInProgress: [],
+      });
+
+      return toResult(ranking);
+    },
   );
-  const skillIds = listSkillsByAgeBand(child.ageBand).map((skill) => skill.id);
-  const masterySummaries = buildMasterySummary(skillIds, indexProgressBySkill(progressRows));
-  const candidates = reachableAdventures(
-    worldChanges.map((change) => change.changeKey),
-    child.ageBand,
-  );
-
-  const ranking = rankAdventures(candidates, child.ageBand, {
-    masterySummaries,
-    completedAdventureSlugs: sessions
-      .filter((session) => session.status === 'COMPLETED')
-      .map((session) => session.templateSlug),
-    recentAdventureSlugs: recentFirst.map((session) => session.templateSlug),
-    storiesInProgress: [],
-  });
-
-  return toResult(ranking);
 };

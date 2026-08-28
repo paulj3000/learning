@@ -12,6 +12,7 @@ import {
 } from '../../../src/features/adventures/engine';
 import type { AdventureStep, Correctness } from '../../../src/features/adventures/engine/types';
 import type { StepAnswer } from '../../../src/features/adventures/engine/validators';
+import { withRequestLog } from '../shared/requestLog';
 
 /**
  * Custom Lambda resolver for the `submitAdventureAnswer` mutation
@@ -209,43 +210,60 @@ const CORRECTNESS_TO_SCHEMA: Record<Correctness, string> = {
   not_applicable: 'NOT_APPLICABLE',
 };
 
-export const handler: Schema['submitAdventureAnswer']['functionHandler'] = async (event) => {
+export const handler: Schema['submitAdventureAnswer']['functionHandler'] = async (
+  event,
+  context,
+) => {
   const { sessionId, answer, hintLevel } = event.arguments;
-  const callerSub = getCallerSub(event.identity);
 
-  const session = await getSession(sessionId);
-  if (!session) {
-    throw new Error('That adventure could not be found.');
-  }
-  if (session.status !== 'ACTIVE') {
-    throw new Error('This adventure is no longer active.');
-  }
+  return withRequestLog(
+    {
+      functionName: 'submitAdventureAnswer',
+      requestId: context.awsRequestId,
+      headers: event.request?.headers,
+      // Not known until the session lookup below resolves it — logged as
+      // null rather than restructuring this already-tested control flow
+      // just to capture it earlier (see requestLog.ts's doc comment).
+      childProfileId: null,
+    },
+    async () => {
+      const callerSub = getCallerSub(event.identity);
 
-  const child = await getChildProfile(session.childProfileId);
-  if (!child?.ownerSub || child.ownerSub !== callerSub) {
-    throw new Error('Not authorized for this adventure.');
-  }
+      const session = await getSession(sessionId);
+      if (!session) {
+        throw new Error('That adventure could not be found.');
+      }
+      if (session.status !== 'ACTIVE') {
+        throw new Error('This adventure is no longer active.');
+      }
 
-  const definition = getAdventureTemplate(session.templateSlug);
-  if (!definition) {
-    throw new Error('That adventure’s content could not be found.');
-  }
-  const step = getStep(definition, session.currentStepId);
+      const child = await getChildProfile(session.childProfileId);
+      if (!child?.ownerSub || child.ownerSub !== callerSub) {
+        throw new Error('Not authorized for this adventure.');
+      }
 
-  if (!isStepAnswer(answer)) {
-    throw new Error('That answer could not be understood.');
-  }
+      const definition = getAdventureTemplate(session.templateSlug);
+      if (!definition) {
+        throw new Error('That adventure’s content could not be found.');
+      }
+      const step = getStep(definition, session.currentStepId);
 
-  const decision = decideSubmission(step, answer, hintLevel);
+      if (!isStepAnswer(answer)) {
+        throw new Error('That answer could not be understood.');
+      }
 
-  if (decision.action === 'ADVANCE' && decision.nextStepId) {
-    await advanceSession(sessionId, decision.nextStepId);
-  }
+      const decision = decideSubmission(step, answer, hintLevel);
 
-  return {
-    correctness: CORRECTNESS_TO_SCHEMA[decision.correctness],
-    supportLevel: decision.supportLevel,
-    action: decision.action,
-    nextStepId: decision.nextStepId ?? null,
-  };
+      if (decision.action === 'ADVANCE' && decision.nextStepId) {
+        await advanceSession(sessionId, decision.nextStepId);
+      }
+
+      return {
+        correctness: CORRECTNESS_TO_SCHEMA[decision.correctness],
+        supportLevel: decision.supportLevel,
+        action: decision.action,
+        nextStepId: decision.nextStepId ?? null,
+      };
+    },
+  );
 };
