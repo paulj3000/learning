@@ -485,6 +485,46 @@ free-text story input; open-ended chat with Keeper Quill; an NPC that
 follows the child; any timer, streak, or score; and retiring the
 card-based castle route ahead of SC-11.
 
+### Third-party asset kits — not yet
+
+**Decided 2026-08-28: no third-party castle kit is imported for now.** Every
+file in `public/models/` is generated from `scripts/generate-world-assets.ts`
+in this repo, and SC-1 shipped that way.
+
+This continues the call the generator's own header already documents for the
+Phase 34 pack (licensing, network dependency, and a poor fit for bespoke
+gameplay geometry), and four things make it sharper for the castle:
+
+- **Texture-free is load-bearing, not aesthetic.** No asset has a UV
+  accessor or an image reference, which is exactly what lets
+  `assetLoader.test.ts` run real `GLTFLoader.load()` calls inside jsdom -
+  no `HTMLImageElement`, no `ImageBitmap`. A textured import needs a whole
+  test strategy this pipeline does not have.
+- **Most of the castle is gameplay, not scenery.** A door with no handle
+  and one carving worn smooth; a shelf slot visibly empty until
+  `FIRST_STORY_TOLD`; three rods whose *lengths* are the graded answer to
+  `order-the-keys`; nine stars in rows of five and four. None of that is
+  purchasable, because the geometry is the puzzle.
+- **State-variant pairs need identical geometry.** Half the pack is
+  `X` / `X-lit` sharing exact vertices. Two downloaded models never match,
+  so the construction-time swap would visibly pop.
+- **Licensing on a children's product.** CC-BY needs attribution surfaced
+  where a parent can find it, and marketplace "royalty-free" terms often
+  exclude redistribution inside an app bundle.
+
+**When to revisit: after SC-6**, and for scenery only - bookshelves,
+tables, costume racks, filler picture frames. By then the region is
+walkable and it is clear what actually looks thin, and swapping an asset is
+a one-line manifest change. The gameplay-bearing assets stay generated
+regardless.
+
+If it is ever revisited, prefer CC0 (Kenney, Quaternius, the CC0 half of
+Poly Pizza) over CC-BY, and treat it as its own phase with its own
+conventions section: an import needs scale normalisation to 1 unit = 1
+metre, re-pivoting to ground-pivot (most packs are centre-pivoted), and
+either a texture-loading test path or a strip-textures-on-import step.
+None of those exist today.
+
 ---
 
 # Appendix A — Models and characters
