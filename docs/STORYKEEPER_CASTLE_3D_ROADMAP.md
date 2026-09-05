@@ -1,7 +1,8 @@
 # Storykeeper Castle — First-Person Region Roadmap
 
-**Status:** SC-0 and SC-1 are implemented. SC-2 through SC-11 are proposed
-and not started.
+**Status:** SC-0 through SC-4 are implemented. SC-5 through SC-11 are
+proposed and not started. **The critical vertical slice is SC-0 to SC-6**,
+so two phases remain before the stop-and-re-evaluate point.
 
 A standalone roadmap for rebuilding Storykeeper Castle as a first-person
 Three.js region. It has its own phase numbering (**SC-0** through
@@ -225,7 +226,7 @@ fox*. That is SC-4's playtest question. The mitigation is already in place —
 Quill names each aloud, the HUD card names them in text — so the silhouette
 is never the only cue.
 
-## SC-2 — The walkable shell
+## SC-2 — The walkable shell — **DONE**
 
 The castle as architecture, with nothing to do in it yet. This is the
 phase that makes the region real.
@@ -259,7 +260,77 @@ Exit criteria:
 - the existing card-based castle route still works and is still the
   default. This route is additive.
 
-## SC-3 — Keeper Quill (beats 1–2)
+### What shipped
+
+`three/storykeeperCastleScene.ts`, `three/StorykeeperCastleWorldView.tsx`
+and `routes/StorykeeperCastleWorldPage3D.tsx`, on
+`/island/:childId/world/storykeeper-castle-3d`, lazy-loaded and reachable
+from the castle's location page next to the existing Phaser link. The
+castle is built entirely from SC-0's numbers and SC-1's kit: eight room
+floors and eight ceilings as scaled `ground-tile-stone`/`ceiling-tile`
+slabs, every one of SC-0's derived `WALL_SEGMENTS` tiled in `wall-stone`,
+the seven `archway` pieces placed individually, a `carpet` run from the
+doors to Quill's lectern, and the `door` itself so the way out is visible
+from inside. Colliders are `WALL_SEGMENTS` and nothing else, so the walls
+the child sees and the walls that stop them are the same authored data.
+
+Three things worth carrying into SC-3:
+
+- **`runPlacements` was turning every kit panel 90 degrees**, and the
+  castle is nothing but panels. The helper aligned a piece's local **+Z**
+  with the run, but every piece tiled through it is authored width-first
+  (`wall`, `wall-stone` and `fence` are all `buildPlanePrimitive`, wide in
+  local X with their normal on +Z). A wall run therefore rendered as a row
+  of 2m fins standing across the run with 2m gaps between them. Welcome
+  Harbor's buildings and its fence have looked like that since Phase 34;
+  the same file's hand-placed doors, left at `rotationY` 0 on a north/south
+  side, were already using the correct convention and disagreeing with the
+  walls beside them. Fixed in `sceneKit.ts`, which fixes Welcome Harbor
+  too. Its test now asserts the *transformed direction* of a panel rather
+  than a raw angle, because asserting the angle is what let a 90-degree
+  error stand.
+- **Panels are drawn on each room's own inner face**, inset half a wall
+  thickness from the shared centre line, rather than on the line itself.
+  Rooms that share an edge produce two overlapping wall colliders by
+  design, and two coplanar panels in the same place would z-fight; two
+  faces half a metre apart is both correct and gives the archways a
+  readable depth to cut through.
+- **Each panel is scaled to the exact quotient of its run**, not tiled at a
+  whole 2m. An overhang here is not cosmetic: a wall next to a doorway is
+  usually not a multiple of the panel width, and the spare panel grows
+  straight across the archway gap and bricks up the door while the collider
+  still lets the child walk through it. `storykeeperCastleScene.test.ts`
+  holds that invariant, and it is the reason the scene file exports its two
+  pure placement helpers at all.
+
+That last test needed two attempts to be worth having. Written the obvious
+way it could not fail: a panel is a plane, so its footprint is a
+zero-thickness line, and a panel sitting legitimately on its inner face
+lands exactly on the gap rect's boundary where a strict overlap test always
+reports "no". It now inflates the panel's thin axis into the wall band the
+gap is cut through and allows a 1cm tolerance on the long axis, and it was
+checked by mutation — widening panels 1.6x and 2.4x both make it fail,
+which the first version did not.
+
+Deliberately **not** built, and not accidents: nothing is interactive.
+There is no Quill, no raycast target, and so no `interact()` on the engine
+handle and no "interact with what you're looking at" button, since offering
+one would be a promise the room cannot keep. The view takes no `ageBand`
+either — nothing in an empty castle is age-gated, and a prop nothing
+honours is worse than adding it in SC-3 alongside the first thing that
+needs it. The only thing the child can *do* is leave, through the existing
+authored `castle-harbor-exit`, which is reachable both by walking to the
+doors and from the "Things to do here" list (roadmap section 42).
+
+Two limitations to carry forward. **The light rig is unverified.** SC-2
+asks for the Great Library to read as the darkest point and the hearth
+corner as the warmest, and the per-room intensities that encode that are
+authored from reasoning about the floor plan, not from looking at it — no
+one has seen this region rendered. **And the region has never run in a real
+browser**, the same standing gap every scene file in this repo has: the
+placement maths is unit tested, the engine factory is not.
+
+## SC-3 — Keeper Quill (beats 1–2) — **DONE**
 
 Deliverables:
 - `npc-quill` placed at the lectern in the hub, `Idle` until approached;
@@ -277,7 +348,60 @@ Exit criteria:
 - the reticle names Quill on focus and the HUD cue reads correctly;
 - no new dialogue text is authored in this phase.
 
-## SC-4 — Choices become places (beats 3–4)
+### What shipped
+
+Keeper Quill stands at his lectern in the hub, `Idle`, facing the entry
+hall. Walking up fires `NpcApproached` and records the meeting through the
+**existing** `recordCharacterMet`; looking at him names him on the reticle;
+pressing E opens the **existing** `NpcConversation` on the **existing**
+`talk-to-keeper-quill` interaction id the Phaser castle already resolves
+him to. The story hall zone offers the unchanged `the-storykeepers-tale`,
+whose entry step is `meet-keeper-quill`, and swaps to the authored
+already-told line once `FIRST_STORY_TOLD` is recorded — the same split the
+Phaser castle makes and the same one the bay makes for its bridge.
+
+**No content was authored in this phase, which was the point.** Quill's
+dialogue, memory flags (`metQuill`), relationship points and the
+`tell-a-story-together` quest offer are the ones `islandNpcs.ts` and
+`islandQuests.ts` have held since Phases 23 and 25; this phase only
+translates a raycast and a zone into ids that already existed.
+
+Three things worth carrying into SC-4:
+
+- **Quill turns to point.** `Talk` loops while the conversation panel is
+  open and `Point` fires when it closes, held at its end per SC-1's note
+  that the gesture is wayfinding. He also *rotates* to face the north
+  archway to do it: an arm raised while still facing the child says
+  "somewhere", whereas turning to look where the arm goes says "there". Any
+  later clip returns him to facing the hall, so a child who comes back for
+  a second conversation is not talked to by someone facing away.
+- **Quill and his lectern are now solid.** SC-0 flagged the missing
+  collider explicitly, and walking through the person you are about to talk
+  to undoes the point of him being a place.
+- **The rooms are still empty on purpose.** The gallery, tower, studio and
+  library zones exist and the engine emits them, but nothing listens. Their
+  Phase 14 flavour `SHOW_MESSAGE` interactions were deliberately *not*
+  wired, because SC-4 replaces exactly those rooms with real learning
+  steps and would only be deleting them again.
+
+One test-quality note, because it cost real time and will recur in SC-4.
+Several of these tests were flaky rather than wrong: `findBy*` resolves
+from a MutationObserver callback that can run after React commits the DOM
+but before it flushes passive effects, and `ThreeGameContainer` builds the
+engine inside a `useEffect`. A test that emitted a bus event at that moment
+emitted into a `null` bus, silently did nothing, and failed on the next
+assertion — intermittently, depending on scheduling. Every such test now
+waits for the engine to exist before driving it
+(`renderAndWaitForEngine`), and the file was re-run six times to confirm.
+SC-4 adds three more spatially-driven steps and will need the same
+discipline.
+
+Limitations carried forward, both unchanged from SC-2: **the scene has
+never run in a real browser**, so Quill's placement, scale, facing and the
+legibility of the `Point` gesture are all unverified, and **the light rig
+is still unlooked-at**.
+
+## SC-4 — Choices become places (beats 3–4) — **DONE**
 
 The thesis, proved. The first phase where a learning step is driven by a
 place rather than a card.
@@ -301,6 +425,115 @@ Exit criteria:
   at, and that keeps the beat reachable for a band that cannot aim;
 - re-entering the region after a choice shows the chosen portrait still
   lit and the chosen window still bright.
+
+### What shipped
+
+The Character Gallery hangs three hero portraits on its north wall, aimed
+at by raycast; the Setting Tower has three windows with a backdrop beyond
+each, triggered by walking up to one. Both resolve through SC-0's bindings
+to the option ids `the-storykeepers-tale` already declares, and the
+adventure definition was not touched.
+
+**The shape that makes this honest is that the session moved into the
+room.** Starting the tale no longer navigates to the card route: the view
+holds one `useAdventureSession`, and looking at a portrait and pressing the
+same option on the card go through the *same* `submitAnswer`. "Identical
+session state" is therefore true by construction rather than by two
+implementations agreeing, and the test asserts it by comparing the actual
+recorded call arguments from both routes.
+
+To do that without a second card implementation, `AdventureRunner.tsx`'s
+rendering half was extracted unchanged into `AdventureStepCard.tsx`. The
+runner is now the hook plus that card; the castle is its own session plus
+the same card. No behaviour changed on the card route, and its 208 tests
+pass untouched.
+
+Three things worth carrying into SC-5:
+
+- **The roadmap's asset instructions for this phase were out of date, and
+  what SC-1 built is better.** SC-4 above asks for a swap to
+  `portrait-frame-lit` playing an `Activate` clip, and for the unchosen
+  windows to `Close`. None of those exist: SC-1 shipped *state variants*
+  (`portrait-fox` / `portrait-fox-lit`, `window-view-cave` /
+  `window-view-cave-lit`) with no clips at all, which is exactly what
+  `docs/THREE_WORLD_ASSET_CONVENTIONS.md` prefers over a runtime material
+  swap. Both variants load up front and choosing flips which is visible, so
+  a choice costs no fetch. The text above is left as written; this note is
+  the correction.
+- **The reticle names a portrait in the card's own words** ("A clever
+  fox"), read off the adventure definition rather than authored twice.
+- **Wall-mounted props measure themselves.** Every asset is
+  ground-pivoted while `WallMountedSpot.y` is a centre height, so placement
+  drops each model by half its own measured bounding box rather than by a
+  table of authored heights that would rot the first time an asset is
+  regenerated at a different size. Facing is derived from which room edge
+  the spot is nearest, so sliding a portrait along its wall cannot leave it
+  facing into the stonework.
+
+Two bugs found and closed while building this, both by mutation-testing
+assertions that had passed first time:
+
+- **The bus's `removeAllListeners()` was a live hazard.** The view's zone
+  effect called it on cleanup and re-runs whenever `FIRST_STORY_TOLD`
+  flips, which would have silently dropped the *session's* subscriptions
+  while it stayed mounted - leaving every portrait and window inert with
+  nothing in the console to show for it. Individual unsubscribes only, now.
+- **The "wrong step" guard was half-tested.** `choose-hero` and
+  `choose-setting` are not the only bound steps: SC-0 also binds the three
+  story plates to `order-the-story`, an ORDERING step whose answer is a
+  sequence rather than one option id. Dropping the spatial-step gate
+  initially broke no test, because the case being tested (a step with no
+  bindings at all) was already covered by the binding lookup itself. The
+  test now uses a plate on `order-the-story`, which is the case that will
+  actually bite in SC-5 when those plates are placed in the room.
+
+### Rendering verification (SC-2 to SC-4)
+
+**The castle has been looked at**, which closes the "never run in a
+browser" limitation for everything a still image can settle.
+`.tmp-verify/harness/` mounts the real engine with a stub bus and no
+backend; `.tmp-verify/castle-shots.mts` drives it through Chromium at each
+authored checkpoint and screenshots the result.
+
+Confirmed working: the castle reads as architecture from the doors, exactly
+as beat 1 describes; the Great Library is the darkest room; the portraits
+hang at eye height; and a chosen portrait is unmistakable, gold emissive
+frame and cream mount against brown and grey.
+
+Three real bugs found, none of which a test could see:
+
+1. **Every tower window opened onto blank stone.** The backdrop was offset
+   0.18m outward, but the gap to the wall panel is `WALL_MOUNT_CLEARANCE`
+   (0.05m), so all three sat inside the wall and behind the panel. Now
+   0.02m. An unchosen window shows SC-1's closed shutters; a chosen one
+   opens onto a bright emissive sky.
+2. **The windows floated 25cm off the floor** - a 2.7m frame centred on a
+   1.6m spot. Placement now has an explicit floor-standing case.
+3. **The hub had a hearth glow with no fireplace under it**, because SC-2
+   lit the corner and the prop belongs to SC-5. The `hearth` model is now
+   placed as scenery; beat 5's mantel interaction is still SC-5's.
+
+**SC-1's open playtest question is answered, in the negative.** The three
+silhouettes do not read as *puppy, dragon, fox* - the dragon reads as a
+small tree, a green cone on a dark box with its tail floating detached
+beside it. That is an SC-1 art decision, so nothing was changed here, but
+it is now a known answer rather than an open question, and it matters more
+because the portrait **is** the choice. The mitigations hold: Quill names
+each hero aloud, the card names them in text, and the reticle names the
+option in the card's own words.
+
+**The Welcome Harbor wall fix was verified before and after.** SC-2 changed
+a shipped region on reasoning alone; the same harness renders Welcome
+Harbor, and reverting the one-line change shows each building as a row of
+separated slabs with sky through the gaps and the roof floating, and the
+fence run as a single post. With the fix: solid walls, flush roofs, real
+doorways.
+
+Still unverified, being what a still image cannot settle: walking,
+collision, how the approach zones feel to enter, whether Quill's `Point`
+reads as "go that way", frame rate on a real tablet, and the whole flow
+against a live backend. The harness mounts the scene alone, so nothing here
+exercises `useAdventureSession`, AppSync or the HUD against real data.
 
 ## SC-5 — Hearth, lectern, and easel (beats 5–7)
 

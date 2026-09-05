@@ -104,6 +104,12 @@ const PirateBuilderBayWorldPage3D = lazy(() =>
   })),
 );
 
+const StorykeeperCastleWorldPage3D = lazy(() =>
+  import('../routes/StorykeeperCastleWorldPage3D').then((module) => ({
+    default: module.StorykeeperCastleWorldPage3D,
+  })),
+);
+
 export function AppRoutes() {
   return (
     <Routes>
@@ -296,6 +302,16 @@ export function AppRoutes() {
           <RequireParent>
             <Suspense fallback={<p>Loading Pirate Builder Bay...</p>}>
               <PirateBuilderBayWorldPage3D />
+            </Suspense>
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/world/storykeeper-castle-3d"
+        element={
+          <RequireParent>
+            <Suspense fallback={<p>Loading Storykeeper Castle...</p>}>
+              <StorykeeperCastleWorldPage3D />
             </Suspense>
           </RequireParent>
         }

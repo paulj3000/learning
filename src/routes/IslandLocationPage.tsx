@@ -173,6 +173,11 @@ export function IslandLocationPage() {
             Try exploring the castle (new!)
           </Link>
         ) : null}
+        {location.slug === 'storykeeper-castle' ? (
+          <Link className={styles.walkLink} to={`/island/${childId}/world/storykeeper-castle-3d`}>
+            Peek at an early 3D preview (new!)
+          </Link>
+        ) : null}
         {location.slug === 'dragons-sanctuary' ? (
           <Link className={styles.walkLink} to={`/island/${childId}/world/dragons-sanctuary`}>
             Try exploring the sanctuary (new!)

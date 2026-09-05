@@ -188,6 +188,28 @@ export function getCastleChoiceBindingsForStep(
   );
 }
 
+/**
+ * The entity that stands for one option, the reverse of
+ * `resolveCastleChoiceBinding`. SC-4 needs this direction as well as the
+ * forward one: a child who chose their hero from the HUD card, or who chose
+ * it yesterday and has just walked back in, has an option id recorded
+ * against the session and no entity - and the gallery still has to know
+ * which portrait to light.
+ */
+export function resolveCastleChoiceEntity(
+  templateSlug: string,
+  stepId: string,
+  optionId: string | null | undefined,
+): string | undefined {
+  if (!optionId) return undefined;
+  return CASTLE_CHOICE_BINDINGS.find(
+    (binding) =>
+      binding.templateSlug === templateSlug &&
+      binding.stepId === stepId &&
+      binding.optionId === optionId,
+  )?.entityId;
+}
+
 /** Whether this entity is one the region places at all. Used by the test; exported so SC-2's scene can assert it too. */
 export function isKnownCastleEntity(entityId: string): boolean {
   return ALL_ENTITY_IDS.includes(entityId);

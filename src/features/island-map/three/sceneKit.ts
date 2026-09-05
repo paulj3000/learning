@@ -48,10 +48,36 @@ export interface SceneBootstrap {
   renderer: WebGLRenderer;
 }
 
+/**
+ * The outdoor rig both Phase 32/33 regions were built against, kept as the
+ * default so neither changes: bright ambient fill plus a strong overhead
+ * sun.
+ */
+const DEFAULT_LIGHTING: Required<SceneLighting> = {
+  ambientIntensity: 0.65,
+  sunIntensity: 0.8,
+  sunPosition: { x: 8, y: 14, z: 6 },
+};
+
+/**
+ * Overrides for the bootstrap light rig. Indoor regions need a much darker
+ * fill than an open plot does - at the outdoor defaults every room of a
+ * castle reads equally lit, which flattens the architecture and makes
+ * "the Great Library is the darkest point" impossible to author
+ * (`docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` SC-2). Omitted fields keep the
+ * outdoor value.
+ */
+export interface SceneLighting {
+  ambientIntensity?: number;
+  sunIntensity?: number;
+  sunPosition?: { x: number; y: number; z: number };
+}
+
 /** The camera + renderer + ambient/directional light rig both regions built identically, inline, until now. */
 export function createSceneBootstrap(
   parent: HTMLDivElement,
   backgroundColor: number,
+  lighting: SceneLighting = {},
 ): SceneBootstrap {
   const scene = new Scene();
   scene.background = new Color(backgroundColor);
@@ -63,9 +89,10 @@ export function createSceneBootstrap(
   renderer.setSize(parent.clientWidth, parent.clientHeight);
   parent.appendChild(renderer.domElement);
 
-  scene.add(new AmbientLight(0xffffff, 0.65));
-  const sun = new DirectionalLight(0xffffff, 0.8);
-  sun.position.set(8, 14, 6);
+  const rig = { ...DEFAULT_LIGHTING, ...lighting };
+  scene.add(new AmbientLight(0xffffff, rig.ambientIntensity));
+  const sun = new DirectionalLight(0xffffff, rig.sunIntensity);
+  sun.position.set(rig.sunPosition.x, rig.sunPosition.y, rig.sunPosition.z);
   scene.add(sun);
 
   return { scene, camera, renderer };
@@ -87,7 +114,27 @@ export function runPlacements(
   const dz = to.z - from.z;
   const length = Math.hypot(dx, dz);
   const segments = Math.max(1, Math.round(length / segmentLength));
-  const angle = Math.atan2(dx, dz);
+  /*
+    Yaw that lays the piece's *width* (its local X) along the run, so a run
+    of panels reads as one continuous surface.
+
+    This used to be `atan2(dx, dz)`, which points a piece's local +Z along
+    the run instead - correct for something authored nose-first, but every
+    kit piece that gets tiled this way is a panel authored width-first:
+    `wall` and `wall-stone` are `buildPlanePrimitive(2, 3)` (2m across local
+    X, normal +Z) and `fence` is `buildPlanePrimitive(1.2, 0.9)`. Under the
+    old angle a north wall run along +X placed each 2m panel turned 90
+    degrees across the run, so a wall rendered as a row of separated fins
+    with 2m gaps between them rather than a wall. The same file's own
+    hand-placed doors (`welcomeHarborScene.ts`, `rotationY` left at 0 on a
+    north/south side) were already using this convention, which is what the
+    walls disagreed with.
+
+    `path` is a square ground tile, so its rotation is immaterial, and the
+    bay's bridge deck overrides `rotationY` to 0 explicitly - those are the
+    only other callers, so nothing else moves.
+  */
+  const angle = Math.atan2(dx, dz) - Math.PI / 2;
 
   return Array.from({ length: segments }, (_, index) => {
     const t = (index + 0.5) / segments;
