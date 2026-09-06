@@ -6,6 +6,7 @@ import { StorykeeperCastleWorldView } from './StorykeeperCastleWorldView';
 import type { WorldEngineEventBus } from './worldEngineEvents';
 import type { AgeBandValue } from '../../child-profile/constants';
 import { THE_STORYKEEPERS_TALE } from '../../adventures/content/theStorykeepersTale';
+import { SECRET_DOOR_CHAPTER_2_PATTERN_LOCK } from '../../adventures/content/castlesSecretDoorAdventures';
 import type { AdventureStep } from '../../adventures/engine/types';
 import type { StepAnswer } from '../../adventures/engine/validators';
 import type { Correctness } from '../../adventures/engine/types';
@@ -26,6 +27,9 @@ const showChosenSettingSpy = vi.fn();
 const resetBindingPlatesSpy = vi.fn();
 const showEaselPaintingSpy = vi.fn();
 const showStoryToldSpy = vi.fn();
+const resetLibraryCluesSpy = vi.fn();
+const resetPatternLockRodsSpy = vi.fn();
+const showSecretDoorOpenedSpy = vi.fn();
 let capturedBus: WorldEngineEventBus | null = null;
 
 vi.mock('./storykeeperCastleScene', () => ({
@@ -40,6 +44,9 @@ vi.mock('./storykeeperCastleScene', () => ({
       showChosenSetting: showChosenSettingSpy,
       showEaselPainting: showEaselPaintingSpy,
       showStoryTold: showStoryToldSpy,
+      resetLibraryClues: resetLibraryCluesSpy,
+      resetPatternLockRods: resetPatternLockRodsSpy,
+      showSecretDoorOpened: showSecretDoorOpenedSpy,
     };
   }),
 }));
@@ -98,16 +105,32 @@ vi.mock('../../story/useStoryProgress', () => ({
   },
 }));
 
+/**
+ * Stands in for the Story Engine's chapter runner, but *calls the seam* -
+ * the castle's own adventure renderer is the thing under test here, and it
+ * only ever runs because `StoryChapterRunner` hands it a scene. Handing it
+ * the real chapter-2 definition is exactly what the real runner does.
+ */
 vi.mock('../../story/StoryChapterRunner', () => ({
   StoryChapterRunner: ({
     storyProgressId: id,
     chapter,
+    renderAdventure,
   }: {
     storyProgressId: string;
     chapter: { id: string };
+    renderAdventure?: (props: Record<string, unknown>) => React.ReactNode;
   }) => (
     <div data-testid="story-chapter-runner">
       {id}:{chapter.id}
+      {renderAdventure?.({
+        childProfileId: 'child-1',
+        definition: SECRET_DOOR_CHAPTER_2_PATTERN_LOCK,
+        ageBand: 'EXPLORER',
+        aiEnabled: false,
+        backToMapHref: '/island/child-1/locations/storykeeper-castle',
+        onComplete: () => {},
+      })}
     </div>
   ),
 }));
@@ -180,10 +203,8 @@ const listQuestStatesMock = vi.mocked(listQuestStates);
 const getCompanionProfileMock = vi.mocked(getCompanionProfile);
 
 /** Puts the mocked session on a real authored step of the real tale. */
-function setStep(stepId: string | null): void {
-  currentStep = stepId
-    ? (THE_STORYKEEPERS_TALE.steps.find((step) => step.id === stepId) ?? null)
-    : null;
+function setStep(stepId: string | null, definition = THE_STORYKEEPERS_TALE): void {
+  currentStep = stepId ? (definition.steps.find((step) => step.id === stepId) ?? null) : null;
 }
 
 function viewTree(ageBand: AgeBandValue = 'PATHFINDER') {
@@ -242,6 +263,9 @@ describe('StorykeeperCastleWorldView', () => {
     resetBindingPlatesSpy.mockReset();
     showEaselPaintingSpy.mockReset();
     showStoryToldSpy.mockReset();
+    resetLibraryCluesSpy.mockReset();
+    resetPatternLockRodsSpy.mockReset();
+    showSecretDoorOpenedSpy.mockReset();
     submitAnswerSpy.mockReset();
     submitAnswerSpy.mockResolvedValue('correct');
     capturedBus = null;
@@ -1192,6 +1216,114 @@ describe('StorykeeperCastleWorldView', () => {
       await screen.findByRole('dialog', { name: /the last bookshelf, standing ajar/i }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /look at the door/i })).not.toBeInTheDocument();
+  });
+
+  // --- SC-9: the pattern lock (beat 10) -------------------------------------
+
+  /**
+   * The arc's chapters are rendered by the mocked `StoryChapterRunner`, so
+   * these drive the castle's own adventure renderer directly - it is the
+   * component ADR-019's seam hands the scene to, and the thing under test.
+   */
+  function renderChapterAdventure(stepId: string) {
+    setStep(stepId, SECRET_DOOR_CHAPTER_2_PATTERN_LOCK);
+    return renderAndWaitForEngine('EXPLORER');
+  }
+
+  it('answers order-the-keys by seating three rods in the lock', async () => {
+    await renderChapterAdventure('order-the-keys');
+    await enterTheSecretDoor();
+
+    act(() =>
+      capturedBus?.emit('BuildActionRequested', {
+        entityId: 'secret-door',
+        order: ['lock-rod-silver', 'lock-rod-iron', 'lock-rod-brass'],
+      }),
+    );
+
+    await waitFor(() => {
+      expect(submitAnswerSpy).toHaveBeenCalledWith({
+        kind: 'ordering',
+        order: ['short-rod', 'medium-rod', 'long-rod'],
+      });
+    });
+  });
+
+  it('takes the rods back out when the engine grades the order wrong', async () => {
+    submitAnswerSpy.mockResolvedValue('incorrect');
+
+    await renderChapterAdventure('order-the-keys');
+    await enterTheSecretDoor();
+    resetPatternLockRodsSpy.mockClear();
+
+    act(() =>
+      capturedBus?.emit('BuildActionRequested', {
+        entityId: 'secret-door',
+        order: ['lock-rod-brass', 'lock-rod-iron', 'lock-rod-silver'],
+      }),
+    );
+
+    await waitFor(() => {
+      expect(resetPatternLockRodsSpy).toHaveBeenCalled();
+    });
+    expect(playQuillClipSpy).toHaveBeenCalledWith('ReactConcerned');
+  });
+
+  /** An arrangement built for the wrong beat must not answer this one. */
+  it('ignores a clue arrangement while the rod step is open', async () => {
+    await renderChapterAdventure('order-the-keys');
+    await enterTheSecretDoor();
+
+    act(() =>
+      capturedBus?.emit('BuildActionRequested', {
+        entityId: 'library-clue-wall',
+        order: ['library-clue-diary', 'library-clue-map', 'library-clue-note'],
+      }),
+    );
+
+    expect(submitAnswerSpy).not.toHaveBeenCalled();
+  });
+
+  it('opens the door when the child reaches the world change', async () => {
+    await renderChapterAdventure('door-opened');
+    await enterTheSecretDoor();
+
+    await waitFor(() => {
+      expect(showSecretDoorOpenedSpy).toHaveBeenCalledWith(true);
+    });
+    expect(playQuillClipSpy).toHaveBeenCalledWith('Celebrate');
+  });
+
+  /**
+   * Beat 10's own change, written a chapter before the arc completes, so
+   * the door stands open for a returning child even mid-story. Built at
+   * construction rather than animated open again.
+   */
+  it('builds the door already open for a child who solved the lock before', async () => {
+    listAllWorldChangesMock.mockResolvedValue([
+      { changeKey: 'CASTLE_SECRET_DOOR_OPENED' } as never,
+    ]);
+
+    await renderAndWaitForEngine('EXPLORER');
+
+    await waitFor(() => {
+      expect(createEngineMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining({ secretDoorOpened: true }),
+      );
+    });
+    expect(showSecretDoorOpenedSpy).not.toHaveBeenCalled();
+  });
+
+  it('builds the door shut for a child who has not', async () => {
+    await renderAndWaitForEngine('EXPLORER');
+
+    expect(createEngineMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ secretDoorOpened: false }),
+    );
   });
 
   it('offers a link back to the non-3D location page', async () => {

@@ -604,7 +604,13 @@ export const LIBRARY_BOOKSHELF_SPOTS: readonly BookshelfPlacement[] = [
   // bookshelf swings out of.
   { entityId: 'library-shelf-east-a', x: LIBRARY_EAST_SHELF_X, z: -3.4, axis: 'z', width: 1.8 },
   { entityId: 'library-shelf-east-b', x: LIBRARY_EAST_SHELF_X, z: -5.3, axis: 'z', width: 1.8 },
-  { entityId: 'library-shelf-east-c', x: LIBRARY_EAST_SHELF_X, z: -7.2, axis: 'z', width: 1.8 },
+  /*
+    A short bay, and short on purpose: the last bookshelf moved onto this
+    wall in SC-9 (see `LAST_BOOKSHELF_SPOT` for why it could not stay on the
+    south wall), and the run between it and the shelf above is 1.65m. A
+    full-length shelf here would stand inside one or the other.
+  */
+  { entityId: 'library-shelf-east-c', x: LIBRARY_EAST_SHELF_X, z: -7, axis: 'z', width: 1.4 },
 ];
 
 export const LIBRARY_READING_TABLE_SPOTS: readonly EntitySpot[] = [
@@ -627,8 +633,24 @@ export const LIBRARY_CLUE_WALL_SPOT: WallMountedSpot = {
   z: LIBRARY_NORTH_WALL_Z,
 };
 
-/** The last bookshelf, in the far south-east corner - the deepest point in the castle. */
-export const LAST_BOOKSHELF_SPOT: EntitySpot = { entityId: 'last-bookshelf', x: 14, z: -9.55 };
+/**
+ * The last bookshelf, in the far south-east corner - the deepest point in
+ * the castle, and the thing beat 11's passage opens behind.
+ *
+ * **On the east wall, not the south**, which is a change SC-9 had to make.
+ * It was authored across the south wall at x 13.1 to 14.9, and the nine
+ * counting stars run from 11.6 to 13.6 on that same wall: SC-8 found the
+ * shelf standing in front of two of them, so a child counting beat 9's nine
+ * could only see seven. The south wall cannot hold the pattern lock, the
+ * door, two metres of stars and a 1.8m bookshelf while keeping the metre of
+ * clear space the counting task needs from the lock's own carvings. The
+ * corner is the same corner either way.
+ */
+export const LAST_BOOKSHELF_SPOT: EntitySpot = {
+  entityId: 'last-bookshelf',
+  x: LIBRARY_EAST_SHELF_X,
+  z: -8.75,
+};
 
 export const SECRET_DOOR_SPOT: WallMountedSpot = {
   entityId: 'secret-door',

@@ -26,6 +26,11 @@ import {
   seatedCluesToOrder,
 } from './castleLibraryClues';
 import {
+  ORDER_THE_KEYS_STEP_ID,
+  PATTERN_LOCK_ENTITY_ID,
+  seatedRodsToOrder,
+} from './castlePatternLock';
+import {
   findInteraction,
   isInteractionAvailable,
   STORYKEEPER_CASTLE_INTERACTIONS,
@@ -89,6 +94,14 @@ const TAPESTRY_NOOK_ZONE_ID = 'castle-tapestry-stair';
 const SECRET_DOOR_ZONE_ID = 'castle-last-bookshelf';
 const SECRET_DOOR_INTERACTION_ID = 'castle-secret-door';
 const SECRET_DOOR_CHANGE_KEY = 'THE_CASTLES_SECRET_DOOR_COMPLETE';
+/**
+ * Beat 10's own world change, written by chapter 2's `WORLD_CHANGE` step -
+ * distinct from the arc's completion key above, which chapter 3 writes. The
+ * door is ajar from the moment the lock is solved, which is a chapter
+ * earlier than the story being over.
+ */
+const DOOR_OPENED_CHANGE_KEY = 'CASTLE_SECRET_DOOR_OPENED';
+const DOOR_OPENED_STEP_ID = 'door-opened';
 
 const CHOOSE_HERO_STEP_ID = 'choose-hero';
 const CHOOSE_SETTING_STEP_ID = 'choose-setting';
@@ -203,6 +216,7 @@ export function StorykeeperCastleWorldView({
 
   const storyTold = interactionContext.worldChangeKeys.includes(FIRST_STORY_TOLD_CHANGE_KEY);
   const secretDoorOpened = interactionContext.worldChangeKeys.includes(SECRET_DOOR_CHANGE_KEY);
+  const doorStandsOpen = interactionContext.worldChangeKeys.includes(DOOR_OPENED_CHANGE_KEY);
 
   /**
    * Whether the Explorer arc is being played in this room right now.
@@ -536,6 +550,7 @@ export function StorykeeperCastleWorldView({
                 ? restoredChoices.settingOptionId
                 : null,
               storyTold,
+              secretDoorOpened: doorStandsOpen,
             })
           }
           onEngineReady={(engine) => {
@@ -882,6 +897,31 @@ function CastleTaleSession({
   );
 }
 
+/**
+ * The Explorer arc's two beats whose answer is an arrangement of things in
+ * the room. Described rather than coded twice: they differ only in which
+ * entity reports the row and which bindings translate it.
+ */
+const ARRANGEMENT_BEATS: readonly {
+  stepId: string;
+  targetEntityId: string;
+  toOrder: (seated: readonly string[]) => string[] | null;
+  reset: (engine: StorykeeperCastleEngine | null) => void;
+}[] = [
+  {
+    stepId: ORDER_THE_CLUES_STEP_ID,
+    targetEntityId: LIBRARY_CLUE_WALL_ENTITY_ID,
+    toOrder: seatedCluesToOrder,
+    reset: (engine) => engine?.resetLibraryClues(),
+  },
+  {
+    stepId: ORDER_THE_KEYS_STEP_ID,
+    targetEntityId: PATTERN_LOCK_ENTITY_ID,
+    toOrder: seatedRodsToOrder,
+    reset: (engine) => engine?.resetPatternLockRods(),
+  },
+];
+
 interface CastleSecretDoorStoryProps {
   childId: string;
   ageBand: AgeBandValue;
@@ -1028,30 +1068,56 @@ function CastleStoryAdventure({
   const stepId = currentStep?.id ?? null;
 
   /*
-    Beat 9. The three clues are picked up off the floor and pinned to the
-    library wall, and pinning the third reports the arrangement - the same
-    contract SC-5's binding lectern uses, through the same bindings, so the
-    ORDERING step grades a room exactly as it grades the HUD list.
+    The arc's two arrangement beats: three clues pinned to the library wall
+    (beat 9) and three rods seated in the lock (beat 10). They are the same
+    puzzle as SC-5's binding lectern and go through the same bindings, so
+    the ORDERING step grades a room exactly as it grades the HUD list.
+
+    Both are described here rather than written twice, because the only
+    thing that differs between them is which entity reports the arrangement
+    and which translation turns it into option ids.
   */
-  const pinningStepOpen = stepId === ORDER_THE_CLUES_STEP_ID;
+  /**
+   * Beat 10's payoff. Driven by the `WORLD_CHANGE` step being on screen
+   * rather than by a submit, for the same reason beat 8 is: a
+   * `WORLD_CHANGE` step has no answer to submit, so `useAdventureSession`
+   * writes the change and advances past it on its own. The step, its
+   * payload and its `changeKey` are untouched.
+   */
+  const hasOpenedDoorRef = useRef(false);
   useEffect(() => {
-    if (!pinningStepOpen) return;
-    engineRef.current?.resetLibraryClues();
-  }, [pinningStepOpen, engineRef]);
+    if (stepId !== DOOR_OPENED_STEP_ID || hasOpenedDoorRef.current) return;
+    hasOpenedDoorRef.current = true;
+    engineRef.current?.showSecretDoorOpened(true);
+    engineRef.current?.playQuillClip('Celebrate');
+  }, [stepId, engineRef]);
+
+  const arrangement = ARRANGEMENT_BEATS.find((beat) => beat.stepId === stepId) ?? null;
 
   useEffect(() => {
-    if (!pinningStepOpen) return;
+    if (!arrangement) return;
+    arrangement.reset(engineRef.current);
+  }, [arrangement, engineRef]);
+
+  useEffect(() => {
+    if (!arrangement) return;
     return bus.on('BuildActionRequested', ({ entityId, order }) => {
-      if (entityId !== LIBRARY_CLUE_WALL_ENTITY_ID) return;
-      const answer = seatedCluesToOrder(order ?? []);
+      if (entityId !== arrangement.targetEntityId) return;
+      const answer = arrangement.toOrder(order ?? []);
       if (!answer) return;
       void submitRef.current({ kind: 'ordering', order: answer }).then((correctness) => {
+        /*
+          Beat 6's promise, kept for all three: a wrong arrangement costs
+          nothing. Everything comes back to where it started, Quill looks
+          concerned, and the hint ladder has already advanced a rung because
+          this went through the same `submitAnswer` the card goes through.
+        */
         if (correctness === 'correct') return;
-        engineRef.current?.resetLibraryClues();
+        arrangement.reset(engineRef.current);
         engineRef.current?.playQuillClip('ReactConcerned');
       });
     });
-  }, [bus, pinningStepOpen, engineRef]);
+  }, [bus, arrangement, engineRef]);
 
   if (loadState === 'loading') {
     return <p className={styles.status}>Reading the clues...</p>;

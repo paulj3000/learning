@@ -1,0 +1,92 @@
+{
+  "asset": { "version": "2.0", "generator": "learning-adventure-island world-asset-pipeline" },
+  "scene": 0,
+  "scenes": [{ "nodes": [0, 1] }],
+  "nodes": [
+    {
+      "name": "MouthLight",
+      "mesh": 0,
+      "translation": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1]
+    },
+    {
+      "name": "MouthFrame",
+      "mesh": 1,
+      "translation": [0, 0, -0.3],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1]
+    }
+  ],
+  "meshes": [
+    {
+      "name": "MouthLightMesh",
+      "primitives": [
+        { "attributes": { "POSITION": 0, "NORMAL": 1 }, "indices": 2, "material": 0, "mode": 4 }
+      ]
+    },
+    {
+      "name": "MouthFrameMesh",
+      "primitives": [
+        { "attributes": { "POSITION": 3, "NORMAL": 4 }, "indices": 5, "material": 1, "mode": 4 }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "MouthLightMaterial",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.9411764705882353, 0.9019607843137255, 0.8470588235294118, 1],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.85
+      },
+      "emissiveFactor": [0.41568627450980394, 0.38823529411764707, 0.3137254901960784],
+      "doubleSided": true
+    },
+    {
+      "name": "MouthFrameMaterial",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.788235294117647, 0.5725490196078431, 0.1843137254901961, 1],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.85
+      },
+      "doubleSided": true
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "min": [-0.9, 0, 0],
+      "max": [0.9, 2.2, 0]
+    },
+    { "bufferView": 1, "componentType": 5126, "count": 4, "type": "VEC3" },
+    { "bufferView": 2, "componentType": 5123, "count": 6, "type": "SCALAR" },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 96,
+      "type": "VEC3",
+      "min": [-1.2990381056766582, 0, 0],
+      "max": [1.299038105676658, 3, 0.3]
+    },
+    { "bufferView": 4, "componentType": 5126, "count": 96, "type": "VEC3" },
+    { "bufferView": 5, "componentType": 5123, "count": 144, "type": "SCALAR" }
+  ],
+  "bufferViews": [
+    { "buffer": 0, "byteOffset": 0, "byteLength": 48, "target": 34962 },
+    { "buffer": 0, "byteOffset": 48, "byteLength": 48, "target": 34962 },
+    { "buffer": 0, "byteOffset": 96, "byteLength": 12, "target": 34963 },
+    { "buffer": 0, "byteOffset": 108, "byteLength": 1152, "target": 34962 },
+    { "buffer": 0, "byteOffset": 1260, "byteLength": 1152, "target": 34962 },
+    { "buffer": 0, "byteOffset": 2412, "byteLength": 288, "target": 34963 }
+  ],
+  "buffers": [
+    {
+      "uri": "data:application/octet-stream;base64,ZmZmv83MDEAAAAAAZmZmP83MDEAAAAAAZmZmvwAAAAAAAAAAZmZmPwAAAAAAAAAAAAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAACAAEAAgADAAEAysnTJAAAQECamZk+4UamvwAAEECamZk+bd9zvzMzA0CamZk+t0+bJGZmJkCamZk+4UamvwAAEECamZk+4UamvwAAQD+amZk+bd9zvzMzcz+amZk+bd9zvzMzA0CamZk+4UamvwAAQD+amZk+WNeepQAAAACamZk+kvdopc3MzD6amZk+bd9zvzMzcz+amZk+WNeepQAAAACamZk+4UamPwAAQD+amZk+bd9zPzMzcz+amZk+kvdopc3MzD6amZk+4UamPwAAQD+amZk+4UamPwAAEECamZk+bd9zPzMzA0CamZk+bd9zPzMzcz+amZk+4UamPwAAEECamZk+ysnTJAAAQECamZk+t0+bJGZmJkCamZk+bd9zPzMzA0CamZk+t0+bJGZmJkAAAAAAbd9zvzMzA0AAAAAA4UamvwAAEEAAAAAAysnTJAAAQEAAAAAAbd9zvzMzA0AAAAAAbd9zvzMzcz8AAAAA4UamvwAAQD8AAAAA4UamvwAAEEAAAAAAbd9zvzMzcz8AAAAAkvdopc3MzD4AAAAAWNeepQAAAAAAAAAA4UamvwAAQD8AAAAAkvdopc3MzD4AAAAAbd9zPzMzcz8AAAAA4UamPwAAQD8AAAAAWNeepQAAAAAAAAAAbd9zPzMzcz8AAAAAbd9zPzMzA0AAAAAA4UamPwAAEEAAAAAA4UamPwAAQD8AAAAAbd9zPzMzA0AAAAAAt0+bJGZmJkAAAAAAysnTJAAAQEAAAAAA4UamPwAAEEAAAAAAysnTJAAAQEAAAAAA4UamvwAAEEAAAAAA4UamvwAAEECamZk+ysnTJAAAQECamZk+4UamvwAAEEAAAAAA4UamvwAAQD8AAAAA4UamvwAAQD+amZk+4UamvwAAEECamZk+4UamvwAAQD8AAAAAWNeepQAAAAAAAAAAWNeepQAAAACamZk+4UamvwAAQD+amZk+WNeepQAAAAAAAAAA4UamPwAAQD8AAAAA4UamPwAAQD+amZk+WNeepQAAAACamZk+4UamPwAAQD8AAAAA4UamPwAAEEAAAAAA4UamPwAAEECamZk+4UamPwAAQD+amZk+4UamPwAAEEAAAAAAysnTJAAAQEAAAAAAysnTJAAAQECamZk+4UamPwAAEECamZk+bd9zvzMzA0AAAAAAt0+bJGZmJkAAAAAAt0+bJGZmJkCamZk+bd9zvzMzA0CamZk+bd9zvzMzcz8AAAAAbd9zvzMzA0AAAAAAbd9zvzMzA0CamZk+bd9zvzMzcz+amZk+kvdopc3MzD4AAAAAbd9zvzMzcz8AAAAAbd9zvzMzcz+amZk+kvdopc3MzD6amZk+bd9zPzMzcz8AAAAAkvdopc3MzD4AAAAAkvdopc3MzD6amZk+bd9zPzMzcz+amZk+bd9zPzMzA0AAAAAAbd9zPzMzcz8AAAAAbd9zPzMzcz+amZk+bd9zPzMzA0CamZk+t0+bJGZmJkAAAAAAbd9zPzMzA0AAAAAAbd9zPzMzA0CamZk+t0+bJGZmJkCamZk+AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAv9ezXT8AAAAAAAAAv9ezXT8AAAAAAAAAv9ezXT8AAAAAAAAAv9ezXT8AAAAAAACAv6MRxSUAAAAAAACAv6MRxSUAAAAAAACAv6MRxSUAAAAAAACAv6MRxSUAAAAAAAAAv9ezXb8AAAAAAAAAv9ezXb8AAAAAAAAAv9ezXb8AAAAAAAAAv9ezXb8AAAAAAAAAP9ezXb8AAAAAAAAAP9ezXb8AAAAAAAAAP9ezXb8AAAAAAAAAP9ezXb8AAAAAAACAP6MRxaUAAAAAAACAP6MRxaUAAAAAAACAP6MRxaUAAAAAAACAP6MRxaUAAAAAAAAAP9ezXT8AAAAAAAAAP9ezXT8AAAAAAAAAP9ezXT8AAAAAAAAAP9ezXT8AAAAAAAAAP9ezXb8AAAAAAAAAP9ezXb8AAAAAAAAAP9ezXb8AAAAAAAAAP9ezXb8AAAAAAACAP3tdhqUAAAAAAACAP3tdhqUAAAAAAACAP3tdhqUAAAAAAACAP3tdhqUAAAAAAAAAP9ezXT8AAAAAAAAAP9ezXT8AAAAAAAAAP9ezXT8AAAAAAAAAP9ezXT8AAAAAAAAAv9ezXT8AAAAAAAAAv9ezXT8AAAAAAAAAv9ezXT8AAAAAAAAAv9ezXT8AAAAAAACAv3tdBiYAAAAAAACAv3tdBiYAAAAAAACAv3tdBiYAAAAAAACAv3tdBiYAAAAAAAAAv9ezXb8AAAAAAAAAv9ezXb8AAAAAAAAAv9ezXb8AAAAAAAAAv9ezXb8AAAAAAAABAAIAAAACAAMABAAFAAYABAAGAAcACAAJAAoACAAKAAsADAANAA4ADAAOAA8AEAARABIAEAASABMAFAAVABYAFAAWABcAGAAZABoAGAAaABsAHAAdAB4AHAAeAB8AIAAhACIAIAAiACMAJAAlACYAJAAmACcAKAApACoAKAAqACsALAAtAC4ALAAuAC8AMAAxADIAMAAyADMANAA1ADYANAA2ADcAOAA5ADoAOAA6ADsAPAA9AD4APAA+AD8AQABBAEIAQABCAEMARABFAEYARABGAEcASABJAEoASABKAEsATABNAE4ATABOAE8AUABRAFIAUABSAFMAVABVAFYAVABWAFcAWABZAFoAWABaAFsAXABdAF4AXABeAF8A",
+      "byteLength": 2700
+    }
+  ]
+}

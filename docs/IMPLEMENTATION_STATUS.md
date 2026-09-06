@@ -417,14 +417,15 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Wonderwild Forest first-person region — WF-0 complete
+## Wonderwild Forest first-person region — WF-0 and WF-1 complete
 
 Two design documents define this work:
 `docs/WONDERWILD_FOREST_3D_STORYBOARD.md` (the 13-beat storyboard, two
 region plans, age-band routing, and asset kit) and
 `docs/WONDERWILD_FOREST_3D_ROADMAP.md` (its own WF-0 through WF-10 build
 order, with the asset inventory as Appendix A). **WF-0 (region data and
-question bindings) is implemented; WF-1 through WF-10 are not started.**
+question bindings) and WF-1 (the asset kit) are implemented; WF-2 through
+WF-10 are not started.**
 
 It follows the castle's method deliberately, and departs from it in one
 respect that shapes everything else. The castle's thesis was "choices
@@ -584,6 +585,66 @@ sliver threshold to 2.5m breaks the cover test, and moving two stone zones
 within 1.5m fails the separation test. A reachability test that cannot fail
 passes just as well against geometry that is wrong.
 
+### WF-1 — the forest and hive asset kit
+
+29 new assets in `public/models/` (108 total), a new Wonderwild section in
+`scripts/generate-world-assets.ts`, 29 manifest entries, a new
+`assets/wonderwildKit.test.ts` (16 tests) and three new cases in
+`assets/assetLoader.test.ts`. **The 79 pre-existing assets regenerate
+byte-identically**, so nothing in the Phase 34 or SC-1 packs was disturbed —
+which is what let this phase be built alongside live castle work without
+touching it.
+
+**Appendix A.9 risk 1 is closed, in the affirmative, and the opposite way to
+the castle.** SC-1 found `archway` could not be authored as one mesh: a hole
+in a flat panel needs geometry either side of it, so the natural authoring is
+two posts and a lintel, and `createInstancedMeshFromAsset` keeps only the
+first mesh it finds. A honeycomb cell poses the same problem and has a
+different answer. A new `buildHexRingPrismPrimitive` in `assets/primitives.ts`
+emits the whole hexagonal annulus as a single indexed mesh — 96 vertices, 48
+triangles, well inside uint16 — so the ~40 cells in the hive wall are one
+instanced draw call. The hive's cell count stands and WF-0's hive geometry
+needs no revision. Authoring the cell as six boxes in a hexagon, which is the
+obvious approach, would have been six parts and silently rendered one sixth of
+it.
+
+Four authoring decisions worth recording:
+
+- **The pack is half the castle's size because of what it does not author.**
+  SC-1's Appendix A.1 ruled out `ground-tile`, `foliage-tree` (with its
+  existing LOD level), `foliage-bush`, `rock`, `path` and `signpost` as having
+  no role indoors; every one is load-bearing in a forest and is reused
+  unchanged. 29 assets against 59.
+- **The seed emblem became a winged samara rather than a seed head.** Authored
+  as a teardrop it read as a second chrysalis two stones along, making two of
+  the four Wonder Wall questions indistinguishable at a glance. A maple key
+  also says *travel*, which is what "how do seeds travel" asks.
+- **`comb-cell-capped` is a solid hexagonal prism, not a ring with a lid** — a
+  lid would be a second part and cost the honey cells their instancing for no
+  visual gain, since the cap is all the child sees.
+- **Buzz ships with `Idle`, `Talk` and `Celebrate` and no waggle clip.**
+  `animationVocabulary.ts` has no `Waggle` or `Dance` name, SC-1 declined to
+  extend it, and extending it would be wrong regardless: beat 7 needs exactly
+  five discrete waggles, stopped at the end and replayable at no cost, which a
+  looping clip does not give cleanly. `Abdomen` exists as a named node for
+  WF-5's scene to drive, and a test asserts it survives cloning even though no
+  clip in the document targets it.
+
+The single-mesh guarantee was **mutation-checked**: re-authoring `comb-cell`
+as two parts — the exact defect that caught `archway` — fails both the kit
+test and the instancing round-trip. One of my own tests was wrong before any
+asset was: the ground-pivot check asserted positive height for every asset,
+which is false for the three `buildGroundPlanePrimitive` recolours and the
+bare flower patch, since a floor tile legitimately sits entirely at y = 0.
+
+**Not verified:** none of these assets has been looked at in a browser.
+Storyboard open question 3 — whether a room of 1.4m hexagons reads as "inside
+a beehive" rather than "inside a machine" — is WF-4's screenshot question, and
+A.9 risk 2 stays open until it runs. The four stone emblems carry the same
+silhouette risk SC-4 confirmed for the castle's hero portraits, with the same
+mitigations already in place: Chatty names the question aloud and the HUD card
+names it in text, so the emblem is never the only cue.
+
 ### Route decision: the 3D forest is the front door, not a preview
 
 Decided 2026-09-06, and a departure from how the castle shipped. SC-2 added
@@ -606,7 +667,7 @@ for any band before WF-10, every band can still reach the card route, and the
 age-band branch that decides the default is asserted in both directions so
 "primary for two bands" cannot quietly become "primary for everyone".
 
-## Storykeeper Castle first-person region — SC-0 through SC-6 complete, SC-7 and SC-8 partial
+## Storykeeper Castle first-person region — SC-0 through SC-6 and SC-8 complete, SC-9 all but its writing room, SC-7 partial
 
 Two design documents define this work:
 `docs/STORYKEEPER_CASTLE_3D_STORYBOARD.md` (the 13-beat storyboard, floor
@@ -1217,7 +1278,68 @@ ownership of `ChildStoryProgress`, and `StoryChapterRunner` gains an optional
 renderer for its `ADVENTURE` scenes so a region can hold the session the way
 SC-4's castle already holds the tale's.
 
+### ADR-019, and the Explorer arc in the room (SC-8 completed, SC-9 beat 10)
+
+ADR-019 settled what SC-7 and SC-8 both ran into: a story arc may be entered
+from a 3D region as well as from the Adventure Library, there is exactly one
+`ChildStoryProgress` either way, the Story Engine keeps sole ownership of
+it, and `StoryChapterRunner` gains an optional renderer for its `ADVENTURE`
+scenes so a region can hold the session the way SC-4's castle already holds
+the tale's. Three pieces landed on that:
+
+**The seam and the shared gate.** `StoryChapterRunner` takes an optional
+`renderAdventure`, defaulting to the embedded `AdventureRunner` so no
+existing caller changes; five tests hold it to being a rendering seam, with
+a custom renderer's completion routed through the Story Engine rather than
+letting it declare a chapter over. `story/engine/eligibility.ts` is now the
+one place a band gate is decided - `StoryPage`, `library/recommend.ts` and
+the castle all ask it, because reaching a Three.js object must never be a
+way past `supportedAgeBands`.
+
+**The castle as a second entry point.** A `START_STORY` world action carries
+only a story slug; the authored entry is the door with no handle, sharing
+the last bookshelf's zone the way Welcome Harbor's bridge pair share theirs.
+`useStoryProgress` mounts only once a child takes that entry point - it
+starts a row on mount, and every band walks through this castle, so hosting
+it on arrival would have created story progress for children the arc is not
+authored for. Both guards are tested and mutation-checked, and the required
+cross-entry resume test found a real stale-closure bug: the zone handler
+read `secretDoorOpened` without listing it as an effect dependency, so a
+child who had finished the arc was still offered its start.
+
+**Beats 9 and 10.** The three clues are picked up off the library floor and
+pinned to the wall; the three rods are taken off their rack and seated in
+the lock. Both drive their existing `ORDERING` steps. They are the second
+and third instances of beat 6's binding-lectern mechanic and share one
+implementation with it - `createSeatingPuzzle` in the scene,
+`seatedEntitiesToOrder` in the bindings - so all three pick up, seat, lift
+back out and report identically rather than three ways that agree today.
+
+On `CASTLE_SECRET_DOOR_OPENED` the worn carving is revealed as the moon it
+always was, the door swaps to `secret-door-ajar`, the last bookshelf swings
+aside and warm light spills across the library floor, all as state variants
+taken at construction as well as live.
+
+**SC-8's inherited conflict is resolved.** `LAST_BOOKSHELF_SPOT` ran
+straight through two of the nine counting stars. The south wall cannot hold
+the lock, the door, two metres of stars and a 1.8m bookshelf while keeping
+the metre of clear space the counting task needs, so the bookshelf moved to
+the east wall of the same corner and the shelf above it shortened.
+
+**Beat 11's Writing Room is not a 3D region.**
+`THE_CASTLES_SECRET_DOOR_COMPLETE` unlocks exactly the navigation it did
+before, into the existing card region, which exits back to the library and
+never to Welcome Harbor - so SC-9's third exit criterion holds and chapter
+3's `whatIsBehind` branch is untouched. What is missing is the storyboard's
+own small round room, which is a region file, a scene file and a route:
+SC-2-sized work rather than a finishing touch.
+
 ### Still not verified
+
+The cross-entry resume tests exercise the castle against a mocked Story
+Engine: they prove it asks for the same progress and opens the chapter that
+progress is on, but a genuine round trip through a live backend is not
+something this environment can run, the same constraint every phase has had.
 
 Everything a still image cannot settle: walking, collision, whether the
 approach zones feel right to enter, whether Quill's `Point` gesture reads

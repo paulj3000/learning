@@ -33,6 +33,8 @@ import {
   buildConePrimitive,
   buildCylinderPrimitive,
   buildGroundPlanePrimitive,
+  buildHexPrismPrimitive,
+  buildHexRingPrismPrimitive,
   buildPlanePrimitive,
   buildTorusPrimitive,
   type PrimitiveMesh,
@@ -1276,6 +1278,526 @@ function npcQuill(): Record<string, unknown> {
   });
 }
 
+// ===========================================================================
+// Wonderwild Forest (`docs/WONDERWILD_FOREST_3D_ROADMAP.md` WF-1)
+// ===========================================================================
+//
+// Appendix A of that roadmap is the inventory. Two things to know before
+// placing any of these:
+//
+// **This pack is about half the size of the castle's**, because the castle's
+// own Appendix A.1 ruled out the entire Phase 34 outdoor kit as having "no
+// role indoors" - and `ground-tile`, `foliage-tree` (with its existing LOD
+// level), `foliage-bush`, `rock`, `path` and `signpost` are all load-bearing
+// in a forest. They are reused as-is and are not re-authored here.
+//
+// **Only single-mesh assets may go through `createInstancedMeshFromAsset`.**
+// In this group that is every A.3 kit piece: `fern`, `flower-cluster`,
+// `mushroom-cluster`, `log-fallen`, `reed`, `lily-pad`, `standing-stone`,
+// `comb-cell` and `comb-cell-capped`. Everything else is multi-part and must
+// be placed individually.
+
+const WONDERWILD = {
+  mossFloor: 0x4a6b3a,
+  combFloor: 0xb07a2c,
+  dirtPath: 0x8a6f4a,
+  fernGreen: 0x35662f,
+  leafGreen: 0x4f8f43,
+  reedGreen: 0x6b8f47,
+  lilyGreen: 0x3f7a4a,
+  mushroomCap: 0xb5453a,
+  bark: 0x5a4030,
+  stone: 0x8b8f96,
+  stoneDark: 0x6a6e75,
+  wax: 0xc9922f,
+  waxLight: 0xe0b356,
+  honey: 0xe8a83c,
+  honeyGlow: 0x6b4a10,
+  bee: 0xd9a12b,
+  beeStripe: 0x33291a,
+  wing: 0xdfe7ef,
+  bloomPink: 0xd8629c,
+  bloomWhite: 0xf0e6d8,
+  bareEarth: 0x6f5a44,
+  caveDark: 0x22242a,
+  glowGreen: 0x6ee07a,
+  glowGreenEmissive: 0x1d5a26,
+  glowwormBlue: 0x8fe3f0,
+  glowwormEmissive: 0x1f4c58,
+  gold: 0xd4a63a,
+  goldEmissive: 0x4a3608,
+  butterflyWing: 0xe07a3c,
+  frogGreen: 0x5a8f47,
+  seedBrown: 0x9a7546,
+  sun: 0xe8bf4a,
+  chrysalis: 0x7fa85f,
+} as const;
+
+function forestPart(
+  name: string,
+  primitive: PrimitiveMesh,
+  color: number,
+  extra: Partial<Omit<MeshPart, 'name' | 'primitive' | 'color'>> = {},
+): MeshPart {
+  return { name, primitive, color: hexToRgb01(color), ...extra };
+}
+
+// --- A.2 recolours of existing geometry ------------------------------------
+
+const groundTileMoss = () =>
+  singleMeshAsset('Tile', buildGroundPlanePrimitive(4, 4), WONDERWILD.mossFloor);
+const groundTileComb = () =>
+  singleMeshAsset('Tile', buildGroundPlanePrimitive(4, 4), WONDERWILD.combFloor);
+const pathForest = () =>
+  singleMeshAsset('Path', buildGroundPlanePrimitive(1.5, 1.5), WONDERWILD.dirtPath);
+
+// --- A.3 kit pieces, every one single-mesh and instanced --------------------
+
+/** Ground cover, and what beat 11's glowing moss hides under. Wider than it is tall. */
+const fern = () => singleMeshAsset('Fern', buildConePrimitive(0.55, 0.4, 5), WONDERWILD.fernGreen);
+
+/** Beat 10's bloom. Placed only once `WAGGLE_DANCE_DISCOVERED` is present. */
+const flowerCluster = () =>
+  singleMeshAsset('Flowers', buildConePrimitive(0.3, 0.35, 6), WONDERWILD.bloomPink);
+
+/**
+ * A wide top on a narrow base, which is a mushroom silhouette in one mesh. A
+ * separate cap and stem would be two parts and could not be instanced.
+ */
+const mushroomCluster = () =>
+  singleMeshAsset('Mushroom', buildCylinderPrimitive(0.22, 0.06, 0.24, 8), WONDERWILD.mushroomCap);
+
+/** A cylinder laid on its side by a node rotation, which bakes into the instanced geometry. */
+const logFallen = () =>
+  assembleGltfDocument({
+    parts: [
+      forestPart('Log', buildCylinderPrimitive(0.22, 0.24, 2.2, 7), WONDERWILD.bark, {
+        rotation: quat([1, 0, 0], Math.PI / 2),
+        translation: [0, 0.23, 0],
+      }),
+    ],
+  });
+
+const reed = () =>
+  singleMeshAsset('Reed', buildCylinderPrimitive(0.03, 0.05, 1.2, 5), WONDERWILD.reedGreen);
+const lilyPad = () =>
+  singleMeshAsset('LilyPad', buildCylinderPrimitive(0.45, 0.45, 0.04, 9), WONDERWILD.lilyGreen);
+
+/** The night clearing's ring. Plain and uncarved - the four Wonder Wall stones are their own props. */
+const standingStone = () =>
+  singleMeshAsset('Stone', buildBoxPrimitive(0.5, 1.4, 0.4), WONDERWILD.stone);
+
+/**
+ * An open honeycomb cell: a hexagonal ring extruded into a tube, so it reads
+ * as a hole you could crawl into at bee scale.
+ *
+ * **Roadmap A.9 risk 1 is closed here, and in the opposite direction to the
+ * castle's `archway`.** That piece could not be one mesh, because a hole in a
+ * flat panel needs geometry either side of it and the obvious authoring is
+ * two posts and a lintel. A hexagonal ring has the same problem and a
+ * different answer: `buildHexRingPrismPrimitive` emits the whole annulus as
+ * one indexed mesh (96 vertices, 48 triangles), so the roughly forty cells in
+ * the hive wall are one instanced draw call rather than forty scene graphs.
+ * Authoring it as six boxes in a hexagon would have been six parts and
+ * `createInstancedMeshFromAsset` would have kept only the first.
+ *
+ * 1.4m tall, because at bee scale that is what a cell is next to a child
+ * whose eye height the controller fixes at 1.6m.
+ */
+const combCell = () =>
+  singleMeshAsset('Cell', buildHexRingPrismPrimitive(0.7, 0.52, 0.4), WONDERWILD.wax);
+
+/** A capped honey cell: the same hexagon, filled. The room's warm light comes from these. */
+const combCellCapped = () =>
+  singleMeshAsset(
+    'Cell',
+    buildHexPrismPrimitive(0.7, 0.36),
+    WONDERWILD.honey,
+    WONDERWILD.honeyGlow,
+  );
+
+// --- A.4 props, placed individually ----------------------------------------
+
+/**
+ * A Wonder Wall stone: a standing slab with one emblem carved proud of its
+ * face. The emblem must be geometry, not texture - this pack has no images -
+ * so each question gets its own model rather than one stone with four skins.
+ *
+ * `lit` is only ever passed for the bee stone (beat 10's world change). It
+ * adds emissive to the emblem and nothing else, so the pair share exact
+ * vertices and the construction-time swap cannot pop.
+ */
+function wonderStone(emblem: MeshPart[], lit = false): Record<string, unknown> {
+  const slab = forestPart('Stone', buildBoxPrimitive(0.9, 1.5, 0.25), WONDERWILD.stone);
+  const emblemParts = emblem.map((part) =>
+    lit ? { ...part, emissive: hexToRgb01(WONDERWILD.goldEmissive) } : part,
+  );
+  return assembleGltfDocument({ parts: [slab, ...emblemParts] });
+}
+
+/** Where an emblem sits: proud of the slab's front face, centred at chest height. */
+const EMBLEM_Z = 0.14;
+const EMBLEM_Y = 0.95;
+
+function beeEmblem(): MeshPart[] {
+  return [
+    forestPart('EmblemBody', buildCylinderPrimitive(0.11, 0.11, 0.3, 8), WONDERWILD.bee, {
+      rotation: quat([0, 0, 1], Math.PI / 2),
+      translation: [0.15, EMBLEM_Y, EMBLEM_Z],
+    }),
+    forestPart('EmblemStripe', buildBoxPrimitive(0.05, 0.2, 0.2), WONDERWILD.beeStripe, {
+      translation: [0.06, EMBLEM_Y - 0.1, EMBLEM_Z],
+    }),
+    forestPart('EmblemWing', buildPlanePrimitive(0.26, 0.14), WONDERWILD.wing, {
+      rotation: quat([0, 0, 1], 0.5),
+      translation: [0.02, EMBLEM_Y + 0.04, EMBLEM_Z + 0.02],
+    }),
+  ];
+}
+
+/**
+ * A winged samara rather than a round seed head, and deliberately so: the
+ * question is "how do seeds travel", and a maple key says travel in a way a
+ * ball does not. It also stops this emblem reading as the chrysalis two
+ * stones along, which a teardrop would have.
+ */
+function seedEmblem(): MeshPart[] {
+  return [
+    forestPart('EmblemSeed', buildCylinderPrimitive(0.08, 0.06, 0.12, 7), WONDERWILD.seedBrown, {
+      translation: [-0.14, EMBLEM_Y - 0.06, EMBLEM_Z],
+    }),
+    forestPart('EmblemWing', buildPlanePrimitive(0.44, 0.16), WONDERWILD.leafGreen, {
+      rotation: quat([0, 0, 1], -0.55),
+      translation: [0.1, EMBLEM_Y + 0.06, EMBLEM_Z],
+    }),
+  ];
+}
+
+function sunEmblem(): MeshPart[] {
+  return [
+    forestPart('EmblemDisc', buildCylinderPrimitive(0.17, 0.17, 0.06, 12), WONDERWILD.sun, {
+      rotation: quat([1, 0, 0], Math.PI / 2),
+      translation: [0, EMBLEM_Y, EMBLEM_Z],
+    }),
+    forestPart('EmblemRays', buildTorusPrimitive(0.28, 0.035, 6, 12), WONDERWILD.sun, {
+      translation: [0, EMBLEM_Y, EMBLEM_Z],
+    }),
+  ];
+}
+
+function chrysalisEmblem(): MeshPart[] {
+  return [
+    forestPart('EmblemCase', buildCylinderPrimitive(0.07, 0.15, 0.36, 8), WONDERWILD.chrysalis, {
+      rotation: quat([0, 0, 1], Math.PI),
+      translation: [0, EMBLEM_Y + 0.18, EMBLEM_Z],
+    }),
+    forestPart('EmblemStalk', buildCylinderPrimitive(0.02, 0.02, 0.1, 5), WONDERWILD.bark, {
+      translation: [0, EMBLEM_Y + 0.18, EMBLEM_Z],
+    }),
+  ];
+}
+
+/** A skep: three stacked bands, narrowing, with a dark entrance the child aims at. */
+const beehive = () =>
+  assembleGltfDocument({
+    parts: [
+      forestPart('HiveBase', buildCylinderPrimitive(0.5, 0.55, 0.34, 10), WONDERWILD.wax),
+      forestPart('HiveMid', buildCylinderPrimitive(0.4, 0.5, 0.3, 10), WONDERWILD.waxLight, {
+        translation: [0, 0.34, 0],
+      }),
+      forestPart('HiveTop', buildConePrimitive(0.4, 0.3, 10), WONDERWILD.wax, {
+        translation: [0, 0.64, 0],
+      }),
+      forestPart('HiveDoor', buildHexRingPrismPrimitive(0.16, 0.11, 0.08), WONDERWILD.beeStripe, {
+        translation: [0, 0.12, 0.5],
+      }),
+    ],
+  });
+
+/** Beat 9, seen from inside: the way out, with the forest a bright shape beyond it. */
+const hiveMouth = () =>
+  assembleGltfDocument({
+    parts: [
+      forestPart('MouthLight', buildPlanePrimitive(1.8, 2.2), WONDERWILD.bloomWhite, {
+        emissive: hexToRgb01(0x6a6350),
+      }),
+      forestPart('MouthFrame', buildHexRingPrismPrimitive(1.5, 1.1, 0.3), WONDERWILD.wax, {
+        translation: [0, 0, -0.3],
+      }),
+    ],
+  });
+
+const frog = () =>
+  assembleGltfDocument({
+    parts: [
+      forestPart('FrogBody', buildCylinderPrimitive(0.13, 0.16, 0.14, 8), WONDERWILD.frogGreen),
+      forestPart('FrogEyeL', buildCylinderPrimitive(0.04, 0.04, 0.05, 6), WONDERWILD.bloomWhite, {
+        translation: [-0.06, 0.14, 0.03],
+      }),
+      forestPart('FrogEyeR', buildCylinderPrimitive(0.04, 0.04, 0.05, 6), WONDERWILD.bloomWhite, {
+        translation: [0.06, 0.14, 0.03],
+      }),
+    ],
+  });
+
+/** Three flattened drifts in three autumn colours, offset so the pile reads as loose. */
+const leafPile = () =>
+  assembleGltfDocument({
+    parts: [
+      forestPart('LeavesRed', buildConePrimitive(0.8, 0.3, 7), 0xb5533a),
+      forestPart('LeavesGold', buildConePrimitive(0.62, 0.34, 7), 0xd39a3c, {
+        translation: [0.28, 0, 0.18],
+      }),
+      forestPart('LeavesBrown', buildConePrimitive(0.5, 0.26, 7), 0x8a6234, {
+        translation: [-0.3, 0, -0.15],
+      }),
+    ],
+  });
+
+const butterfly = () =>
+  assembleGltfDocument({
+    parts: [
+      forestPart('Body', buildCylinderPrimitive(0.02, 0.02, 0.22, 5), WONDERWILD.beeStripe, {
+        rotation: quat([1, 0, 0], Math.PI / 2),
+        translation: [0, 0.6, 0],
+      }),
+      forestPart('WingL', buildPlanePrimitive(0.26, 0.2), WONDERWILD.butterflyWing, {
+        rotation: quat([0, 1, 0], 0.6),
+        translation: [-0.13, 0.62, 0],
+      }),
+      forestPart('WingR', buildPlanePrimitive(0.26, 0.2), WONDERWILD.butterflyWing, {
+        rotation: quat([0, 1, 0], -0.6),
+        translation: [0.13, 0.62, 0],
+      }),
+    ],
+  });
+
+/** Beat 11. Emissive, because the whole find is "something under the ferns is glowing". */
+const glowMoss = () =>
+  assembleGltfDocument({
+    parts: [
+      forestPart('Moss', buildConePrimitive(0.42, 0.14, 8), WONDERWILD.glowGreen, {
+        emissive: hexToRgb01(WONDERWILD.glowGreenEmissive),
+      }),
+    ],
+  });
+
+/** Beat 12's payoff, seen from the cave mouth: a lit ceiling and the crystal below it. */
+const glowwormCeiling = () =>
+  assembleGltfDocument({
+    parts: [
+      forestPart('Ceiling', buildGroundPlanePrimitive(3.2, 2.6), WONDERWILD.caveDark, {
+        translation: [0, 2.4, 0],
+      }),
+      ...[
+        [-1.1, 2.32, -0.8],
+        [-0.3, 2.34, 0.4],
+        [0.5, 2.3, -0.5],
+        [1.0, 2.35, 0.7],
+        [0.1, 2.33, -1.0],
+        [-0.8, 2.31, 0.9],
+      ].map((translation, index) =>
+        forestPart(
+          `Glowworm${index}`,
+          buildBoxPrimitive(0.07, 0.07, 0.07),
+          WONDERWILD.glowwormBlue,
+          {
+            emissive: hexToRgb01(WONDERWILD.glowwormEmissive),
+            translation: translation as [number, number, number],
+          },
+        ),
+      ),
+    ],
+  });
+
+// --- A.5 state-variant pairs ------------------------------------------------
+
+/**
+ * Beat 10's flower patch. Unlike the `-lit` pairs, this is a real geometry
+ * change rather than a recolour - the `bridge-plank`/`bridge-plank-repaired`
+ * precedent - because the promised consequence is that flowers appear where
+ * there were none, and a recoloured patch of earth is not that.
+ *
+ * The bare half is placed in WF-2, not WF-6: beat 10's payoff has to land on
+ * ground the child already walked past and noticed.
+ */
+function flowerPatch(bloomed: boolean): Record<string, unknown> {
+  const earth = forestPart('Patch', buildGroundPlanePrimitive(2.4, 2.4), WONDERWILD.bareEarth);
+  if (!bloomed) return assembleGltfDocument({ parts: [earth] });
+
+  const blooms = [
+    [-0.7, 0, -0.5, WONDERWILD.bloomPink],
+    [0.2, 0, -0.7, WONDERWILD.bloomWhite],
+    [0.75, 0, 0.1, WONDERWILD.bloomPink],
+    [-0.2, 0, 0.6, WONDERWILD.bloomWhite],
+    [-0.85, 0, 0.55, WONDERWILD.bloomPink],
+    [0.5, 0, 0.8, WONDERWILD.bloomPink],
+  ].map(([x, y, z, color], index) =>
+    forestPart(`Bloom${index}`, buildConePrimitive(0.22, 0.3, 6), color as number, {
+      translation: [x as number, y as number, z as number],
+    }),
+  );
+  return assembleGltfDocument({ parts: [earth, ...blooms] });
+}
+
+/**
+ * Beat 12's cave. `lit` is what the jar of glowing moss buys: the same mouth,
+ * with the inside no longer a flat black hole. The gate is on the discovery's
+ * own `ITEM_OWNED` requirement, never on geometry.
+ */
+function caveMouth(lit: boolean): Record<string, unknown> {
+  return assembleGltfDocument({
+    parts: [
+      forestPart('Rock', buildBoxPrimitive(3.4, 2.6, 0.6), WONDERWILD.stoneDark),
+      forestPart('Opening', buildPlanePrimitive(1.7, 2), WONDERWILD.caveDark, {
+        translation: [0, 0, 0.32],
+        ...(lit
+          ? {
+              color: hexToRgb01(WONDERWILD.glowwormBlue),
+              emissive: hexToRgb01(WONDERWILD.glowwormEmissive),
+            }
+          : {}),
+      }),
+    ],
+  });
+}
+
+// --- A.6 the one new character: Buzz -----------------------------------------
+
+/**
+ * Buzz, the forest's only new character. Follows `npcPip` and `npcQuill`
+ * exactly: a named multi-part node hierarchy whose clips are TRS tracks on
+ * those nodes. No skinning, no skeleton, no bones.
+ *
+ * **The waggle run is deliberately not a clip here.** There is no `Waggle` or
+ * `Dance` name in `assets/animationVocabulary.ts`, SC-1 made a point of not
+ * extending that vocabulary, and extending it would be the wrong fix anyway:
+ * beat 7 needs exactly five discrete waggles, stopped at the end, replayable
+ * on demand and countable from a fixed viewpoint, and a looping glTF clip
+ * gives none of those cleanly. `wonderwildHiveScene.ts` (WF-5) drives the run
+ * as TRS motion on the cloned node, reading its length and repeat count from
+ * `wonderwildHiveRegion.ts`'s `BUZZ_WAGGLE_RUN` - which is itself asserted
+ * equal to `count-the-waggles`'s own `correctValue`.
+ *
+ * So the three clips below are the vocabulary's own, and `Abdomen` exists as
+ * a named node for the scene to oscillate rather than for any clip here.
+ *
+ * **Buzz must never go through `createInstancedMeshFromAsset`**, which keeps
+ * only the first mesh it finds and would render a floating abdomen. The three
+ * sister bees are `instantiateAsset` clones, which is why there are three of
+ * them and not twenty.
+ *
+ * No `Walk` clip: Buzz never leaves the dance floor and never follows the
+ * child.
+ */
+function npcBuzz(): Record<string, unknown> {
+  const bodyHeight = 0.5;
+  const parts: MeshPart[] = [
+    forestPart('Body', buildCylinderPrimitive(0.2, 0.17, bodyHeight, 9), WONDERWILD.bee),
+    forestPart('Stripe', buildCylinderPrimitive(0.205, 0.205, 0.09, 9), WONDERWILD.beeStripe, {
+      translation: [0, 0.28, 0],
+    }),
+    forestPart('Head', buildCylinderPrimitive(0.15, 0.15, 0.17, 9), WONDERWILD.beeStripe, {
+      translation: [0, bodyHeight, 0],
+    }),
+    forestPart('Abdomen', buildConePrimitive(0.18, 0.34, 9), WONDERWILD.bee, {
+      rotation: quat([1, 0, 0], -Math.PI / 2),
+      translation: [0, 0.16, -0.12],
+    }),
+    forestPart('WingL', buildPlanePrimitive(0.34, 0.16), WONDERWILD.wing, {
+      rotation: quat([0, 1, 0], 0.7),
+      translation: [-0.16, 0.44, -0.05],
+    }),
+    forestPart('WingR', buildPlanePrimitive(0.34, 0.16), WONDERWILD.wing, {
+      rotation: quat([0, 1, 0], -0.7),
+      translation: [0.16, 0.44, -0.05],
+    }),
+  ];
+
+  const idle = idleBob('Body', 0.02, 1.1);
+
+  const talk: AnimationClipDef = {
+    name: 'Talk',
+    channels: [
+      track('Head', 'rotation', [
+        [0, ...IDENTITY_QUAT],
+        [0.16, ...quat([1, 0, 0], 0.12)],
+        [0.32, ...IDENTITY_QUAT],
+        [0.48, ...quat([1, 0, 0], 0.12)],
+        [0.64, ...IDENTITY_QUAT],
+      ]),
+    ],
+  };
+
+  /** Beat 8, when the comprehension check is answered. A hop, and the wings open. */
+  const celebrate: AnimationClipDef = {
+    name: 'Celebrate',
+    channels: [
+      track('Body', 'translation', [
+        [0, 0, 0, 0],
+        [0.25, 0, 0.18, 0],
+        [0.5, 0, 0, 0],
+        [0.75, 0, 0.12, 0],
+        [1, 0, 0, 0],
+      ]),
+      track('WingL', 'rotation', [
+        [0, ...quat([0, 1, 0], 0.7)],
+        [0.25, ...quat([0, 1, 0], 1.1)],
+        [0.5, ...quat([0, 1, 0], 0.7)],
+        [0.75, ...quat([0, 1, 0], 1.1)],
+        [1, ...quat([0, 1, 0], 0.7)],
+      ]),
+      track('WingR', 'rotation', [
+        [0, ...quat([0, 1, 0], -0.7)],
+        [0.25, ...quat([0, 1, 0], -1.1)],
+        [0.5, ...quat([0, 1, 0], -0.7)],
+        [0.75, ...quat([0, 1, 0], -1.1)],
+        [1, ...quat([0, 1, 0], -0.7)],
+      ]),
+    ],
+  };
+
+  return assembleGltfDocument({ parts, animations: [idle, talk, celebrate] });
+}
+
+/** Every Wonderwild Forest asset, id -> builder. Merged into `ASSETS` below. */
+const WONDERWILD_ASSETS: Record<string, () => Record<string, unknown>> = {
+  // A.2 recolours
+  'ground-tile-moss': groundTileMoss,
+  'ground-tile-comb': groundTileComb,
+  'path-forest': pathForest,
+  // A.3 kit pieces (all single-mesh, all instanced)
+  fern,
+  'flower-cluster': flowerCluster,
+  'mushroom-cluster': mushroomCluster,
+  'log-fallen': logFallen,
+  reed,
+  'lily-pad': lilyPad,
+  'standing-stone': standingStone,
+  'comb-cell': combCell,
+  'comb-cell-capped': combCellCapped,
+  // A.4 props
+  'wonder-stone-seed': () => wonderStone(seedEmblem()),
+  'wonder-stone-sun': () => wonderStone(sunEmblem()),
+  'wonder-stone-chrysalis': () => wonderStone(chrysalisEmblem()),
+  beehive,
+  'hive-mouth': hiveMouth,
+  frog,
+  'leaf-pile': leafPile,
+  butterfly,
+  'glow-moss': glowMoss,
+  'glowworm-ceiling': glowwormCeiling,
+  // A.5 state-variant pairs
+  'wonder-stone-bee': () => wonderStone(beeEmblem(), false),
+  'wonder-stone-bee-lit': () => wonderStone(beeEmblem(), true),
+  'flower-patch-bare': () => flowerPatch(false),
+  'flower-patch-bloomed': () => flowerPatch(true),
+  'cave-mouth': () => caveMouth(false),
+  'cave-mouth-lit': () => caveMouth(true),
+  // A.6 the one new character
+  'npc-buzz': npcBuzz,
+};
+
 /** Every Storykeeper Castle asset, id -> builder. Merged into `ASSETS` below. */
 const CASTLE_ASSETS: Record<string, () => Record<string, unknown>> = {
   // A.2 recolours
@@ -1369,6 +1891,7 @@ const ASSETS: Record<string, () => Record<string, unknown>> = {
   signpost,
   'collectible-gem': collectibleGem,
   ...CASTLE_ASSETS,
+  ...WONDERWILD_ASSETS,
 };
 
 mkdirSync(OUTPUT_DIR, { recursive: true });

@@ -1,0 +1,57 @@
+{
+  "asset": { "version": "2.0", "generator": "learning-adventure-island world-asset-pipeline" },
+  "scene": 0,
+  "scenes": [{ "nodes": [0] }],
+  "nodes": [
+    {
+      "name": "Moss",
+      "mesh": 0,
+      "translation": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1]
+    }
+  ],
+  "meshes": [
+    {
+      "name": "MossMesh",
+      "primitives": [
+        { "attributes": { "POSITION": 0, "NORMAL": 1 }, "indices": 2, "material": 0, "mode": 4 }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "MossMaterial",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.43137254901960786, 0.8784313725490196, 0.47843137254901963, 1],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.85
+      },
+      "emissiveFactor": [0.11372549019607843, 0.35294117647058826, 0.14901960784313725],
+      "doubleSided": true
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 35,
+      "type": "VEC3",
+      "min": [-0.42, 0, -0.42],
+      "max": [0.42, 0.14, 0.42]
+    },
+    { "bufferView": 1, "componentType": 5126, "count": 35, "type": "VEC3" },
+    { "bufferView": 2, "componentType": 5123, "count": 48, "type": "SCALAR" }
+  ],
+  "bufferViews": [
+    { "buffer": 0, "byteOffset": 0, "byteLength": 420, "target": 34962 },
+    { "buffer": 0, "byteOffset": 420, "byteLength": 420, "target": 34962 },
+    { "buffer": 0, "byteOffset": 840, "byteLength": 96, "target": 34963 }
+  ],
+  "buffers": [
+    {
+      "uri": "data:application/octet-stream;base64,AAAAAClcDz4AAAAAAAAAAClcDz4AAAAAAAAAAClcDz4AAAAAAAAAAClcDz4AAACAAAAAAClcDz4AAACAAAAAgClcDz4AAACAAAAAgClcDz4AAACAAAAAgClcDz4AAAAAAAAAgClcDz4AAAAAAAAAAAAAAAA9Ctc+Zg6YPgAAAABmDpg+PQrXPgAAAADtM+0jZg6YPgAAAABmDpi+7TNtJAAAAAA9Cte+Zg6YvgAAAABmDpi+PQrXvgAAAADy5rGkZg6YvgAAAABmDpg+7TPtpAAAAAA9Ctc+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Ctc+Zg6YPgAAAABmDpg+PQrXPgAAAADtM+0jZg6YPgAAAABmDpi+7TNtJAAAAAA9Cte+Zg6YvgAAAABmDpi+PQrXvgAAAADy5rGkZg6YvgAAAABmDpg+7TPtpAAAAAA9Ctc+AAAAAOnccj+b6KE+LvlkPunccj8u+WQ+m+ihPunccj91mLIjLvlkPunccj8u+WS+dZgyJOnccj+b6KG+Lvlkvunccj8u+WS+m+ihvunccj9X8oWkLvlkvunccj8u+WQ+dZiypOnccj+b6KE+AAAAAOnccj+b6KE+LvlkPunccj8u+WQ+m+ihPunccj91mLIjLvlkPunccj8u+WS+dZgyJOnccj+b6KG+Lvlkvunccj8u+WS+m+ihvunccj9X8oWkLvlkvunccj8u+WQ+dZiypOnccj+b6KE+AAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAACQAKAAEACgALAAIACwAMAAMADAANAAQADQAOAAUADgAPAAYADwAQAAcAEAARAAgAGwAaABIAHAAbABMAHQAcABQAHgAdABUAHwAeABYAIAAfABcAIQAgABgAIgAhABkA",
+      "byteLength": 936
+    }
+  ]
+}

@@ -47,7 +47,11 @@ import {
   KEEPER_QUILL_ID,
   KEEPER_QUILL_SPOT,
   COUNTING_STAR_SPOTS,
+  LAST_BOOKSHELF_SPOT,
   LIBRARY_BOOKSHELF_SPOTS,
+  LOCK_CARVING_SPOTS,
+  LOCK_ROD_RACK_SPOT,
+  LOCK_ROD_SPOTS,
   LIBRARY_CLUE_SPOTS,
   LIBRARY_CLUE_WALL_SPOT,
   LIBRARY_READING_TABLE_SPOTS,
@@ -72,6 +76,11 @@ import {
 } from './storykeeperCastleRegion';
 import { BINDING_LECTERN_ENTITY_ID, isStoryPlateEntity } from './castleBindingLectern';
 import { isLibraryClueEntity, LIBRARY_CLUE_WALL_ENTITY_ID } from './castleLibraryClues';
+import {
+  isLockRodEntity,
+  LOCK_ROD_RACK_ENTITY_ID,
+  PATTERN_LOCK_ENTITY_ID,
+} from './castlePatternLock';
 import { EASEL_CANVASES, resolveEaselCanvas } from './castleEaselCanvas';
 import type { WorldEngineEventBus } from './worldEngineEvents';
 
@@ -364,6 +373,39 @@ const CLUE_ASSETS: Readonly<Record<string, string>> = {
  */
 const CLUE_PIN_OFFSETS_X: readonly number[] = [-0.55, 0, 0.55];
 
+/** Star, moon, star, moon, star - and one worn too smooth to read. */
+const LOCK_CARVING_ASSETS: Readonly<Record<string, string>> = {
+  'lock-carving-1-star': 'star-carving',
+  'lock-carving-2-moon': 'moon-carving',
+  'lock-carving-3-star': 'star-carving',
+  'lock-carving-4-moon': 'moon-carving',
+  'lock-carving-5-star': 'star-carving',
+  'lock-carving-worn': 'carving-worn',
+};
+
+/** Short silver, medium iron, long brass: the step grades by length. */
+const LOCK_ROD_ASSETS: Readonly<Record<string, string>> = {
+  'lock-rod-silver': 'rod-silver',
+  'lock-rod-iron': 'rod-iron',
+  'lock-rod-brass': 'rod-brass',
+};
+
+/**
+ * Where the three rods seat, in a row beside the pattern lock's carvings.
+ *
+ * Laid out along the wall rather than stacked, because `order-the-keys`
+ * grades by length and three rods lying side by side at the same height is
+ * the arrangement that lets a child compare their lengths without picking
+ * any of them up again (roadmap A.10, risk 2).
+ */
+const LOCK_ROD_SEAT_X = 11.4;
+const LOCK_ROD_SEAT_Z = -9.55;
+const LOCK_ROD_SLOT_OFFSETS_Y: readonly number[] = [0.75, 1.15, 1.55];
+
+/** The light through the opened door: warm, and the only bright thing in the castle's darkest room. */
+const DOORWAY_GLOW_COLOR = 0xffc98a;
+const DOORWAY_GLOW_INTENSITY = 7;
+
 const TAPESTRY_SWAY_RADIANS = 0.035;
 const TAPESTRY_SWAY_PERIOD_SECONDS = 4;
 
@@ -409,6 +451,15 @@ export interface StorykeeperCastleEngine extends ThreeEngineHandle {
    * picks up again from where they started.
    */
   resetLibraryClues(): void;
+  /** Beat 10's equivalent: takes every rod back out of the lock and returns it to the rack. */
+  resetPatternLockRods(): void;
+  /**
+   * Beat 10's payoff and beat 11's way in: the door ajar, the worn carving
+   * revealed as a moon, the last bookshelf swung aside, and warm light
+   * across the library floor. Taken at construction as well as live, so a
+   * returning child finds it open rather than watching it open again.
+   */
+  showSecretDoorOpened(opened: boolean): void;
   /**
    * Paints the Illustration Studio easel with the picture for this pair of
    * choices (`castleEaselCanvas.ts`), or blanks it when passed a pair that
@@ -446,6 +497,8 @@ export interface StorykeeperCastleEngineOptions {
   paintedSettingOptionId?: string | null;
   /** Whether this child has already earned `FIRST_STORY_TOLD`, read from their world changes. */
   storyTold?: boolean;
+  /** Whether this child has already opened the secret door (`CASTLE_SECRET_DOOR_OPENED`). */
+  secretDoorOpened?: boolean;
 }
 
 /**
@@ -704,8 +757,12 @@ export function createStorykeeperCastleEngine(
     /** Where each thing rests when it is not in a slot, and the height it rests at. */
     homes: readonly EntitySpot[];
     homeHeight: number;
-    /** Where the slots are, in order, and the height a seated thing sits at. */
-    slots: readonly { x: number; z: number }[];
+    /**
+     * Where the slots are, in order, and the height a seated thing sits at.
+     * A slot may name its own `y` - the plates and clues sit in a row at one
+     * height, but the pattern lock's rods seat up a wall.
+     */
+    slots: readonly { x: number; z: number; y?: number }[];
     slotHeight: number;
     /** The yaw a seated thing takes, so a row reads as a row. */
     seatedYaw: number;
@@ -749,7 +806,7 @@ export function createStorykeeperCastleEngine(
         const object = objects.get(entityId);
         const slot = options.slots[index];
         if (!object || !slot) return;
-        object.position.set(slot.x, slotHeight, slot.z);
+        object.position.set(slot.x, slot.y ?? slotHeight, slot.z);
         object.rotation.y = options.seatedYaw;
       });
     };
@@ -835,6 +892,63 @@ export function createStorykeeperCastleEngine(
 
   function resetLibraryClues(): void {
     cluePuzzle.reset();
+  }
+
+  /**
+   * Beat 10: three rods off a rack, seated into the lock shortest to
+   * longest. The third instance of the same puzzle as the plates and the
+   * clues, which is the whole reason `createSeatingPuzzle` exists.
+   *
+   * The step grades by *length*, so the three models must read as three
+   * lengths from where the child stands (roadmap A.10, risk 2). Seating
+   * them in a horizontal row beside the lock is what makes that comparison
+   * possible without picking them up again.
+   */
+  let patternLockMesh: Object3D | null = null;
+  let rodRackMesh: Object3D | null = null;
+  const rodPuzzle = createSeatingPuzzle({
+    targetEntityId: PATTERN_LOCK_ENTITY_ID,
+    homes: LOCK_ROD_SPOTS,
+    homeHeight: 0.62,
+    slots: LOCK_ROD_SLOT_OFFSETS_Y.map((offsetY) => ({
+      x: LOCK_ROD_SEAT_X,
+      z: LOCK_ROD_SEAT_Z,
+      y: offsetY,
+    })),
+    slotHeight: 0,
+    seatedYaw: 0,
+  });
+
+  function resetPatternLockRods(): void {
+    rodPuzzle.reset();
+  }
+
+  /*
+    Beat 10's payoff, and beat 11's way in. Two state variants and a light,
+    switched together by `CASTLE_SECRET_DOOR_OPENED` - the same
+    construction-time-or-live shape SC-6 uses for the book on the shelf, so
+    a returning child finds the door already ajar rather than watching it
+    open again.
+  */
+  let secretDoorOpen = options.secretDoorOpened ?? false;
+  const openedVariants: { opened: Object3D; shut: Object3D }[] = [];
+  const doorwayGlow = new PointLight(DOORWAY_GLOW_COLOR, 0, 0, 1.8);
+  doorwayGlow.position.set(SECRET_DOOR_SPOT.x, 1.4, SECRET_DOOR_SPOT.z + 0.9);
+  scene.add(doorwayGlow);
+
+  function applySecretDoorOpened(): void {
+    for (const variant of openedVariants) {
+      variant.opened.visible = secretDoorOpen;
+      variant.shut.visible = !secretDoorOpen;
+    }
+    // Warm light spilling across the library floor: the room's only bright
+    // thing, in the room authored as its darkest.
+    doorwayGlow.intensity = secretDoorOpen ? DOORWAY_GLOW_INTENSITY : 0;
+  }
+
+  function showSecretDoorOpened(opened: boolean): void {
+    secretDoorOpen = opened;
+    applySecretDoorOpened();
   }
 
   /*
@@ -1236,7 +1350,21 @@ export function createStorykeeperCastleEngine(
     if (!library) return;
 
     const southWallYaw = facingIntoRoom(SECRET_DOOR_SPOT, library.floor);
-    await placeWallMounted('secret-door', SECRET_DOOR_SPOT, southWallYaw);
+
+    /*
+      The door, in both states. Shut it is a door with no handle, no keyhole
+      and no visible hinges; ajar it is warm light and a way through. Both
+      load up front and visibility switches between them, so a child who
+      opened it yesterday finds it open on the first frame rather than
+      watching it open again (SC-6's precedent, and beat 10's own note that
+      the change is read once at construction).
+    */
+    const [doorShut, doorAjar] = await Promise.all([
+      placeWallMounted('secret-door', SECRET_DOOR_SPOT, southWallYaw),
+      placeWallMounted('secret-door-ajar', SECRET_DOOR_SPOT, southWallYaw),
+    ]);
+    patternLockMesh = doorShut;
+    openedVariants.push({ opened: doorAjar, shut: doorShut });
 
     /*
       The nine, placed one at a time rather than instanced.
@@ -1264,6 +1392,8 @@ export function createStorykeeperCastleEngine(
       scene.add(star);
     }
 
+    await loadPatternLock(southWallYaw);
+
     // The wall the three clues get pinned to.
     clueWallMesh = await placeWallMounted(
       'portrait-frame',
@@ -1278,6 +1408,85 @@ export function createStorykeeperCastleEngine(
       scene.add(clue);
       cluePuzzle.add(spot.entityId, clue);
     }
+  }
+
+  /**
+   * Beat 10's lock (SC-9): the carvings the pattern is read from, the rack
+   * the three rods rest on, and the last bookshelf that swings aside once
+   * the door is open.
+   *
+   * The carvings are a vertical column *beside* the door rather than a ring
+   * around it, which is SC-0's authoring and matters for beat 9: a child
+   * counting the nine stars above the door must never wonder whether the
+   * lock's own three stars belong to the count.
+   */
+  async function loadPatternLock(southWallYaw: number): Promise<void> {
+    for (const spot of LOCK_CARVING_SPOTS) {
+      const asset = LOCK_CARVING_ASSETS[spot.entityId];
+      if (!asset) continue;
+      if (spot.entityId === 'lock-carving-worn') {
+        /*
+          The one the child has to work out. Worn smooth until
+          `continue-the-pattern` is answered, then revealed as the moon it
+          always was - a state variant, not a material swap.
+        */
+        const [worn, revealed] = await Promise.all([
+          placeWallCarving('carving-worn', spot, southWallYaw),
+          placeWallCarving('carving-worn-revealed', spot, southWallYaw),
+        ]);
+        openedVariants.push({ opened: revealed, shut: worn });
+        continue;
+      }
+      await placeWallCarving(asset, spot, southWallYaw);
+    }
+
+    // The rack, and the three rods resting on it.
+    rodRackMesh = await instantiateAsset('rod-rack');
+    rodRackMesh.position.set(LOCK_ROD_RACK_SPOT.x, 0, LOCK_ROD_RACK_SPOT.z);
+    scene.add(rodRackMesh);
+
+    for (const spot of LOCK_ROD_SPOTS) {
+      const rod = await instantiateAsset(LOCK_ROD_ASSETS[spot.entityId] ?? 'rod-iron');
+      rod.name = spot.entityId;
+      scene.add(rod);
+      rodPuzzle.add(spot.entityId, rod);
+    }
+
+    /*
+      The last bookshelf, in the library's deepest corner, in both states.
+      Beat 11's way through is behind it.
+    */
+    const [shelfShut, shelfAjar] = await Promise.all([
+      instantiateAsset('bookshelf'),
+      instantiateAsset('bookshelf-ajar'),
+    ]);
+    for (const model of [shelfShut, shelfAjar]) {
+      model.position.set(LAST_BOOKSHELF_SPOT.x, 0, LAST_BOOKSHELF_SPOT.z);
+      model.rotation.y = -Math.PI / 2;
+      scene.add(model);
+    }
+    openedVariants.push({ opened: shelfAjar, shut: shelfShut });
+
+    applySecretDoorOpened();
+  }
+
+  /**
+   * A carving on a wall. `star-carving` and `moon-carving` are cones and
+   * cylinders standing on their base, so out of the asset they point at the
+   * ceiling; a quarter turn about x aims them out of the wall, the same
+   * correction beat 9's nine stars needed.
+   */
+  async function placeWallCarving(
+    assetId: string,
+    spot: WallMountedSpot,
+    yaw: number,
+  ): Promise<Object3D> {
+    const carving = await instantiateAsset(assetId);
+    carving.position.set(spot.x, spot.y, spot.z);
+    carving.rotation.x = -Math.PI / 2;
+    carving.rotation.y = yaw;
+    scene.add(carving);
+    return carving;
   }
 
   /** The clue wall hangs on the library's north wall, like the shelf slot. */
@@ -1398,6 +1607,13 @@ export function createStorykeeperCastleEngine(
       mesh: () => cluePuzzle.aimTarget(spot.entityId),
     })),
     { entityId: LIBRARY_CLUE_WALL_ENTITY_ID, mesh: () => clueWallMesh },
+    // Beat 10's three rods, the rack they rest on, and the lock they seat into.
+    ...LOCK_ROD_SPOTS.map((spot) => ({
+      entityId: spot.entityId,
+      mesh: () => rodPuzzle.aimTarget(spot.entityId),
+    })),
+    { entityId: LOCK_ROD_RACK_ENTITY_ID, mesh: () => rodRackMesh },
+    { entityId: PATTERN_LOCK_ENTITY_ID, mesh: () => patternLockMesh },
   ];
 
   const raycaster = new Raycaster();
@@ -1431,7 +1647,10 @@ export function createStorykeeperCastleEngine(
       already in a socket can be lifted back out, so a child who seats them
       in the wrong order can fix it without submitting first.
     */
-    const carryingSomething = platePuzzle.carriedId() !== null || cluePuzzle.carriedId() !== null;
+    const carryingSomething =
+      platePuzzle.carriedId() !== null ||
+      cluePuzzle.carriedId() !== null ||
+      rodPuzzle.carriedId() !== null;
 
     if (isStoryPlateEntity(focused)) {
       if (!carryingSomething) platePuzzle.pickUp(focused);
@@ -1447,6 +1666,14 @@ export function createStorykeeperCastleEngine(
     }
     if (focused === LIBRARY_CLUE_WALL_ENTITY_ID) {
       cluePuzzle.seatCarried();
+      return;
+    }
+    if (isLockRodEntity(focused)) {
+      if (!carryingSomething) rodPuzzle.pickUp(focused);
+      return;
+    }
+    if (focused === PATTERN_LOCK_ENTITY_ID) {
+      rodPuzzle.seatCarried();
       return;
     }
 
@@ -1494,7 +1721,8 @@ export function createStorykeeperCastleEngine(
     }
 
     // A carried plate rides in front of the eyes, held level like a tray.
-    const carried = platePuzzle.carriedObject() ?? cluePuzzle.carriedObject();
+    const carried =
+      platePuzzle.carriedObject() ?? cluePuzzle.carriedObject() ?? rodPuzzle.carriedObject();
     if (carried) {
       carried.position.set(
         controller.position.x + Math.sin(controller.yaw) * CARRY_FORWARD_METERS,
@@ -1545,7 +1773,9 @@ export function createStorykeeperCastleEngine(
     playQuillClip,
     resetBindingPlates,
     resetLibraryClues,
+    resetPatternLockRods,
     showChosenHero,
+    showSecretDoorOpened,
     showChosenSetting,
     showEaselPainting,
     showStoryTold,

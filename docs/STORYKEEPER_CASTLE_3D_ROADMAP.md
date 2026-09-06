@@ -1,10 +1,12 @@
 # Storykeeper Castle — First-Person Region Roadmap
 
 **Status:** SC-0 through SC-6 are implemented, which **completes the
-critical vertical slice**. SC-7 and SC-8 are **half implemented**: each has
-its world built and each is blocked on a prerequisite the roadmap assumed
-and that does not exist (SC-7's session clock, SC-8's story-in-the-room).
-SC-9 through SC-11 are not started.
+critical vertical slice**. **SC-8 is now complete** and **SC-9 is complete
+except for beat 11's writing room**, both unblocked by ADR-019, which
+settled how a story chapter may be played inside a region. SC-7 remains
+**half implemented**: beat 12's tapestry nook is built, and beat 13's calm
+stop is blocked on a session clock that does not exist anywhere in the
+product. SC-10 and SC-11 are not started.
 This is the stop-and-re-evaluate point: the region is now worth playtesting,
 and the rest of the roadmap is worth re-costing before any of it is built.
 
@@ -877,7 +879,26 @@ Two faults the screenshots caught, neither of which any test could:
   13.6) on the same wall, and the narrative needs that bookshelf to hide the
   door while the child needs to count the stars above it. Resolve it there.
 
-### What did not ship — the clues as a puzzle
+### The clues, wired (ADR-019)
+
+The half SC-8 stopped at is built. Storykeeper Castle is now a second entry
+point into `THE_CASTLES_SECRET_DOOR` - the door with no handle is an
+authored `START_STORY` interaction sharing the last bookshelf's zone - and
+the chapter's `ADVENTURE` scenes render through ADR-019's seam into a
+component that holds the session in the room. The three clues are picked up
+off the floor and pinned to the library wall, and the third pin reports the
+arrangement to the existing `ORDERING` step.
+
+One `ChildStoryProgress` either way: the castle calls `useStoryProgress`
+exactly as `StoryPage` does, mounted only once a child takes the entry
+point rather than on arrival, since it starts a row on mount and every band
+walks through this castle. The band gate is the story's own
+`supportedAgeBands` through `isStoryForAgeBand`.
+
+The account below is kept as the record of why this needed a decision
+first.
+
+### Why it needed ADR-019 — the clues as a puzzle
 
 The three clues are placed and visible; **picking them up and pinning them
 is not wired**, and the reason is worth stating plainly because SC-9 hits it
@@ -915,7 +936,7 @@ optional renderer for its `ADVENTURE` scenes so a region can hold the
 session the way SC-4's castle already holds the tale's. Beat 9's world is
 built and waiting for it.
 
-## SC-9 — The pattern lock and the writing room (beats 10–11)
+## SC-9 — The pattern lock and the writing room (beats 10–11) — **BEAT 10 DONE**
 
 Explorer arc, chapter 2 and 3.
 
@@ -939,6 +960,56 @@ Exit criteria:
 - the rod route has its HUD equivalent;
 - `THE_CASTLES_SECRET_DOOR_COMPLETE` unlocks the same navigation it does
   today.
+
+### What shipped — beat 10, the pattern lock
+
+The library's south wall is now the lock the chapter describes: star, moon,
+star, moon, star and one carving worn too smooth to read, in a column beside
+the door; three rods on a rack below it, short silver, medium iron, long
+brass; and the handleless door itself.
+
+Seating the three rods drives the existing `order-the-keys` step. That is
+the **third** instance of the same puzzle as beat 6's story plates and beat
+9's clues, and it is the third *instance* rather than the third
+implementation: SC-8 factored the mechanic into one `createSeatingPuzzle` in
+the scene and one `seatedEntitiesToOrder` in the bindings, so all three pick
+up, seat, lift back out and report identically. The view describes the two
+arrangement beats as data rather than coding them twice.
+
+The rods seat in a row at a single height on purpose. `order-the-keys`
+grades by *length*, so the three have to be comparable from where the child
+stands without picking any of them up again (roadmap A.10, risk 2) - which
+the screenshots confirm.
+
+On `CASTLE_SECRET_DOOR_OPENED` the worn carving is revealed as the moon it
+always was, the door swaps to `secret-door-ajar`, the last bookshelf swings
+aside, and warm light spills across the floor of the room the castle
+authors as its darkest. All four are state variants switched together, taken
+at construction as well as live, so a child who solved the lock yesterday
+finds it open on the first frame rather than watching it open again - SC-6's
+shape, and beat 10's own instruction.
+
+**SC-8's inherited conflict is resolved.** `LAST_BOOKSHELF_SPOT` was
+authored across the south wall at x 13.1 to 14.9, straight through two of
+beat 9's nine counting stars. That wall cannot hold the lock, the door, two
+metres of stars and a 1.8m bookshelf while keeping the metre of clear space
+the counting task needs from the lock's own carvings, so the bookshelf moved
+to the east wall of the same corner, and the shelf above it shortened to
+make room.
+
+### What did not ship — beat 11, the writing room
+
+The Writing Room is not a 3D region. `THE_CASTLES_SECRET_DOOR_COMPLETE`
+still unlocks exactly the navigation it did before - the ajar bookshelf
+leads to `locations/castle-writing-room`, the existing card/Phaser region,
+which exits back to the library and never to Welcome Harbor - so the third
+exit criterion holds and chapter 3's `whatIsBehind` branch is untouched.
+
+What is missing is the storyboard's "its own small region": a round room
+with one window, a desk and shelves of empty books, built the way SC-2 built
+the castle. That is a region file, a scene file and a route - an SC-2-sized
+piece of work rather than a finishing touch - and it is the only part of
+beats 10 and 11 that is about somewhere the castle does not yet go.
 
 ## SC-10 — Quill's Picture Story (Sprouts)
 
