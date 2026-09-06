@@ -18,6 +18,7 @@
   padding: var(--space-6);
   background-color: var(--color-surface);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
 }
 
 .heading {
@@ -61,6 +62,7 @@
   border: none;
   border-radius: var(--radius-pill);
   background-color: var(--color-primary);
+  box-shadow: var(--lip-primary);
   color: var(--color-primary-contrast);
   cursor: pointer;
 }

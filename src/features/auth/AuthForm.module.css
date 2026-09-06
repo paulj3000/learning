@@ -15,13 +15,14 @@
   max-width: 26rem;
   padding: var(--space-8) var(--space-6);
   background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
 }
 
 .heading {
   font-size: var(--font-size-heading);
-  color: var(--color-primary);
+  color: var(--color-text);
   margin: 0;
 }
 
@@ -86,6 +87,7 @@
   border: none;
   border-radius: var(--radius-pill);
   background-color: var(--color-primary);
+  box-shadow: var(--lip-primary);
   color: var(--color-primary-contrast);
   cursor: pointer;
 }

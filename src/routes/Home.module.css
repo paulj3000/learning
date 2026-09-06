@@ -37,7 +37,7 @@
 .heading {
   font-size: var(--font-size-display);
   margin: 0;
-  color: var(--color-primary);
+  color: var(--color-text);
 }
 
 .lead {
@@ -64,6 +64,7 @@
 
 .primaryAction {
   background-color: var(--color-primary);
+  box-shadow: var(--lip-primary);
   color: var(--color-primary-contrast);
 }
 

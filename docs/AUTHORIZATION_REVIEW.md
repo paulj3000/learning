@@ -348,7 +348,12 @@ cross-family by an admin. There is deliberately no self-serve way to join
 `Admins` (CLAUDE.md section 10); membership is granted out-of-band via
 `aws cognito-idp admin-add-user-to-group` (see the comment in
 `amplify/auth/resource.ts`), consistent with "Admin access must be
-group-based and explicitly authorized."
+group-based and explicitly authorized." `npm run grant-admin -- <email>`
+(`scripts/grant-admin.ts`) wraps that call, resolving the pool id and
+region from `amplify_outputs.json` and the email to its generated Cognito
+username; `--revoke` reverses it. The wrapper is operator convenience
+only, not a relaxation: it still requires AWS credentials for the
+deploying account, and nothing a client can reach invokes it.
 
 **Still not built**: CLAUDE.md section 2's other half — "reviews flagged AI
 interactions and generation failures" — remains unimplemented.

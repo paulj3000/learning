@@ -106,6 +106,15 @@ Not changed: `--color-text` (14.29:1), `--color-text-muted` (6.61-7.01:1),
   core child navigation") - this review is a source-level check for
   structural correctness (labels, roles, live regions), not a substitute
   for an actual VoiceOver/NVDA pass. Recommend before a real pilot.
+- **The token palette is now contrast-tested automatically**
+  (`src/styles/tokens.test.ts`, added with the visual redesign). It parses
+  `tokens.css` and asserts every pair this document checked by hand, plus
+  the ones the redesign added: text and status colours at 4.5:1 on all three
+  page surfaces, actions at 4.5:1 both as link text and behind their own
+  label colour, focus ring and input border at 3:1, and the playful accent
+  fills at 4.5:1 for the dark text they carry. It caught two real failures
+  while the new palette was being chosen. This is a check of the palette,
+  not of rendered pages; the gap below is narrowed, not closed.
 - **No automated contrast/axe scan against rendered pages** - the
   contrast numbers above were computed directly from the token hex
   values and the WCAG formula, not measured from a rendered DOM. This is

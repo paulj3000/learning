@@ -1,0 +1,38 @@
+/**
+ * Self-hosted webfonts.
+ *
+ * **Lexend** for headings and child-facing display text, **Figtree** for
+ * body copy. Both are variable fonts, one file each covering the whole
+ * weight range, latin subset only - 60KB for the pair.
+ *
+ * Self-hosted rather than linked from Google's CDN on purpose. A `<link>`
+ * to `fonts.googleapis.com` makes every page load of a children's product
+ * issue a third-party request carrying the child's IP and referrer, which
+ * is exactly the kind of quiet data flow `docs/PRIVACY_AND_SAFETY_REVIEW.md`
+ * exists to keep out. Two files in `public/fonts/` cost nothing and leak
+ * nothing.
+ *
+ * Both faces are licensed under the SIL Open Font License 1.1, which
+ * permits redistribution and self-hosting.
+ *
+ * Lexend is not only a stylistic choice: it was designed to reduce visual
+ * stress and improve reading proficiency, and is used in reading research
+ * with exactly this product's age range. `font-display: swap` means text is
+ * readable in the fallback face from the first paint.
+ */
+
+@font-face {
+  font-family: 'Lexend';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/lexend-variable-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Figtree';
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url('/fonts/figtree-variable-latin.woff2') format('woff2');
+}

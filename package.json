@@ -20,7 +20,8 @@
     "test:e2e": "playwright test",
     "sandbox": "ampx sandbox",
     "ai:red-team": "tsx scripts/ai-red-team.ts",
-    "assets:generate": "tsx scripts/generate-world-assets.ts"
+    "assets:generate": "tsx scripts/generate-world-assets.ts",
+    "grant-admin": "tsx scripts/grant-admin.ts"
   },
   "keywords": [
     "education",
