@@ -946,3 +946,81 @@ remaining write paths to a Lambda resolver, does not add pagination or
 change any query, does not build a CloudWatch dashboard over the new
 request-log lines, and does not add rate limiting anywhere in this
 backend.
+
+## ADR-019: A story chapter may be played inside a 3D region; the Story Engine keeps sole ownership of progress
+
+Status: Proposed
+
+`docs/STORYKEEPER_CASTLE_3D_STORYBOARD.md`'s age-band table gives Explorers
+"beats 1 to 13" in the first-person castle. Beats 9 to 11 are
+`THE_CASTLES_SECRET_DOOR`, an Explorer-only `StoryDefinition`. So the
+storyboard assumes an arc currently played from `StoryPage` can also be
+played from inside a world view - and nothing in this log has ever said so.
+SC-8 built beat 9's evidence (the door, the nine carved stars, the three
+clues) and stopped at that assumption; SC-9 cannot stop there, because its
+beat *is* the interaction rather than a number typed on a card.
+
+**The decision has three parts, and only the first is a product call.**
+
+### Part A - an arc may have a second place it is played, and only one place it is recorded
+
+A story chapter may be played from a 3D region as well as from `StoryPage`.
+This is a second *entry point*, not a second copy: the child is playing the
+same `ChildStoryProgress` row either way, and may leave the castle
+mid-chapter and finish it from the Adventure Library, or the reverse.
+
+Rejected alternative: running `secret-door-chapter-1-three-clues` in the
+castle as a standalone adventure, the way `the-storykeepers-tale` runs
+there. It is the cheap option and it is wrong - that adventure is an
+`ADVENTURE` scene inside a story, so a standalone session would advance no
+chapter, fire no `completionWorldChange`, and leave the child to play the
+same chapter again in the library afterwards. An arc with two entry points
+is a product decision; an arc with two *records* is a bug.
+
+### Part B - the Story Engine keeps ownership; the region borrows a renderer
+
+`useStoryProgress` continues to be the only thing that starts, advances, or
+completes a `ChildStoryProgress`. A world view that hosts a chapter calls it
+exactly as `StoryPage` does, and gains no new authority over story state.
+
+This preserves the layering `docs/ARCHITECTURE.md` sets out and ADR-008
+restates: World Engine code renders, World/Story State decides. A region
+that could advance a chapter on its own would be the same category of
+mistake as a region that wrote `ChildWorldState` directly.
+
+### Part C - `StoryChapterRunner` gains a seam for rendering an ADVENTURE scene
+
+`StoryChapterRunner` renders `ADVENTURE` scenes by embedding
+`AdventureRunner`, which owns its `useAdventureSession` internally. That is
+the whole obstacle: SC-4's method for making the castle drive a learning
+step is that **the view holds the session**, so both the room and the card
+submit through one `submitAnswer` and cannot drift. A component that owns
+its own session privately cannot be driven by a room.
+
+So `StoryChapterRunner` takes an optional renderer for its `ADVENTURE`
+scenes, defaulting to today's `AdventureRunner`. A region supplies one that
+holds the session itself and renders `AdventureStepCard` - the component
+SC-4 already extracted from `AdventureRunner` for exactly this purpose. No
+existing caller changes, `AdventureRunner` is untouched, and the castle gets
+the same "one session, two ways in" shape it already has for the tale.
+
+**What this explicitly does not license.** The seam is for *rendering*. It
+carries no ability to skip a scene, reorder a chapter, mark one complete, or
+grade an answer; every one of those stays where it is. A region that wanted
+any of them would need its own ADR.
+
+### Consequences
+
+- SC-9 becomes buildable, and so does SC-8's unbuilt half.
+- Two entry points to one arc need a resume story that holds up in both
+  directions. `useStoryChapterRunner` already skips an `ADVENTURE` scene
+  whose session is finished, which is the hard half; what is untested is a
+  child crossing between routes mid-chapter, and that is worth a test before
+  SC-9 rather than after.
+- `StoryPage` and the castle will both be able to start the arc, so the
+  castle needs the same Explorer-band gate `StoryPage` applies, or a
+  Pathfinder walks into a chapter authored for a band above them.
+- Nothing here says the castle *should* offer the arc, only that it may. The
+  entry point is still an authored `WorldInteraction` and can be added or
+  withheld per region.
+

@@ -907,9 +907,13 @@ it. SC-9 needs the same thing for chapter 2 and needs it more, since the
 pattern lock is three rods seated in a wall rather than a number typed on a
 card.
 
-**Recommendation:** decide the hosting question as an ADR before SC-9,
-covering who owns story progress when a chapter is played in a region.
-Beat 9's world is built and waiting for it.
+**Recommendation:** decide the hosting question before SC-9. Drafted as
+**ADR-019** in `docs/DECISIONS.md` (status: Proposed) - an arc may have a
+second entry point but only one record, the Story Engine keeps sole
+ownership of `ChildStoryProgress`, and `StoryChapterRunner` gains an
+optional renderer for its `ADVENTURE` scenes so a region can hold the
+session the way SC-4's castle already holds the tale's. Beat 9's world is
+built and waiting for it.
 
 ## SC-9 — The pattern lock and the writing room (beats 10–11)
 

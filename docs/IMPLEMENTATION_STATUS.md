@@ -1133,9 +1133,12 @@ chapter in the library afterwards.
 gives Explorers beats 1 to 13 in the castle, which can only mean the arc is
 played there, but no ADR says so and no phase budgets for it. SC-9 needs the
 same seam and needs it more, its beat being three rods seated in a wall
-rather than a number typed on a card. The recommendation recorded in the
-roadmap is to settle it as an ADR before SC-9, covering who owns story
-progress when a chapter is played inside a region.
+rather than a number typed on a card. It is now drafted as **ADR-019**
+in `docs/DECISIONS.md`, status Proposed and awaiting a decision: an arc may
+have a second entry point but only one record, the Story Engine keeps sole
+ownership of `ChildStoryProgress`, and `StoryChapterRunner` gains an optional
+renderer for its `ADVENTURE` scenes so a region can hold the session the way
+SC-4's castle already holds the tale's.
 
 ### Still not verified
 
