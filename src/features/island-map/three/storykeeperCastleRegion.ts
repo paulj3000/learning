@@ -414,6 +414,22 @@ export const STORY_PLATE_SPOTS: readonly EntitySpot[] = [
 ];
 
 /**
+ * Beat 12's nook: cushions on the floor in the hub's south-west corner,
+ * inside the `castle-tapestry-stair` zone and under the tapestry that
+ * sways.
+ *
+ * They are the only thing that marks the corner, and they mark it the way
+ * the storyboard wants it marked - by being a nice place to sit, found by a
+ * child who wandered over. No HUD cue, no map pin, no quest entry. The
+ * secret leads nowhere and rewards nothing beyond being found.
+ */
+export const TAPESTRY_NOOK_CUSHION_SPOTS: readonly EntitySpot[] = [
+  { entityId: 'nook-cushion-a', x: -8.3, z: -5.4 },
+  { entityId: 'nook-cushion-b', x: -7.75, z: -5.15 },
+  { entityId: 'nook-cushion-c', x: -8.15, z: -4.75 },
+];
+
+/**
  * Three tapestries, and it must stay at least three. The one in the
  * south-west corner hides Phase 26's unmarked secret (beat 12); if it were
  * the castle's only tapestry it would be a signpost pointing at itself.
@@ -735,6 +751,7 @@ export const FLOOR_SPOTS: readonly EntitySpot[] = [
   BINDING_LECTERN_SPOT,
   BINDING_TABLE_SPOT,
   ...STORY_PLATE_SPOTS,
+  ...TAPESTRY_NOOK_CUSHION_SPOTS,
   STUDIO_EASEL_SPOT,
   ...COSTUME_RACK_SPOTS,
   ...LIBRARY_BOOKSHELF_SPOTS,

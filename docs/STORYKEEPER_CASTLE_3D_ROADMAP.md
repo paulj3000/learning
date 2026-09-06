@@ -1,7 +1,9 @@
 # Storykeeper Castle — First-Person Region Roadmap
 
 **Status:** SC-0 through SC-6 are implemented, which **completes the
-critical vertical slice**. SC-7 through SC-11 are proposed and not started.
+critical vertical slice**. SC-7 is **half implemented**: beat 12's tapestry
+nook is built, and beat 13's calm stop is blocked on a prerequisite that
+turns out not to exist (see SC-7 below). SC-8 through SC-11 are not started.
 This is the stop-and-re-evaluate point: the region is now worth playtesting,
 and the rest of the roadmap is worth re-costing before any of it is built.
 
@@ -740,7 +742,7 @@ to 2.4. It is still the lowest number in the map, which is the claim SC-2
 actually makes; "dimmest room in the castle" and "you cannot make out the
 furniture" turned out not to be the same statement.
 
-## SC-7 — Secrets and the calm stop (beats 12–13)
+## SC-7 — Secrets and the calm stop (beats 12–13) — **PARTIAL**
 
 Parallel with SC-8 and SC-9.
 
@@ -763,6 +765,62 @@ Open question carried from the storyboard: whether the calm stop can be
 staged in-world rather than as an overlay. Confirm against the existing
 session-time implementation before building it, and fall back to the
 existing overlay if not.
+
+### What shipped — beat 12, the tapestry nook
+
+Three tapestries hang in the hub, the one in the south-west corner stirs
+very slightly, and three cushions lie on the floor beneath it. Walking into
+that corner fires the existing `DISCOVER castle-tapestry-stair` through the
+same `DiscoveryAction` the card-based castle and the other three regions
+render, so what a child finds - the authored message, the reward, the
+already-found case - has one implementation rather than two that agree
+today.
+
+**The sway is the only thing marking it**, and that is deliberate: it is
+diegetic, it reads as a draught rather than as a signpost at about two
+degrees every four seconds, and it stops entirely under
+`prefers-reduced-motion`. The nook is still findable without it, because the
+nook is a real place with cushions in it.
+
+Everything else about the beat is an absence, and the absences are tested.
+The tapestry is not a raycast target, so the reticle never names it; it
+fires no toast the way a checkpoint does; it is not in the "Things to do
+here" list; and it has no quest entry or map pin. A test asserts every one
+of those routes stays shut, and it catches a leak: adding the zone to the
+accessible list fails it. The two decoy tapestries are load-bearing rather
+than decorative - the region file's own words are that with exactly one
+tapestry the secret would be a signpost pointing at itself - so a test also
+asserts at least two of them, and that neither hangs inside the nook.
+
+### What did not ship — beat 13, the calm stop
+
+**The prerequisite it was to be built on does not exist.** This phase's own
+instruction was to "confirm against the existing session-time implementation
+before building it, and fall back to the existing overlay if not". Confirmed:
+there is no implementation and no overlay.
+
+`ChildProfile.sessionMinutes` is validated (`child-profile/validators.ts`),
+stored, editable on the profile form, and displayed on the parent dashboard.
+Nothing anywhere reads it at play time. Nothing counts elapsed session time,
+and nothing acts on the limit - the only file in `src/` that even mentions a
+timer is `ChattyAvatar.tsx`, animating a parrot. So MVP scope item 11,
+"Session time controls and a calm stopping point", is half built: the
+control exists, the stopping point never did.
+
+That makes beat 13 not a castle feature at all. Building a session timer
+inside `storykeeperCastleScene.ts` would put the app's only session-limit
+behaviour in one room of one location, reachable by one age band, which is
+exactly the drift every other constraint in this roadmap exists to prevent -
+and it would make this phase's third exit criterion, "session-time behaviour
+is otherwise identical to the card-based route", trivially unsatisfiable,
+since there is no card-based behaviour to be identical to.
+
+**Recommendation:** build the calm stop app-wide first, as its own piece of
+work outside this roadmap, then let the castle stage it in the room. The
+storyboard's version - Quill closing the book and gesturing at the reading
+nook - is a presentation layer over a session clock, and the clock is the
+part that has to exist and be trusted. The nook it gestures at is now built
+and waiting.
 
 ## SC-8 — Three clues and nine stars (beat 9)
 

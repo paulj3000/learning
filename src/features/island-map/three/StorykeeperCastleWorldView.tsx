@@ -29,6 +29,7 @@ import {
   type WorldInteractionContext,
 } from '../worldObjects';
 import { NpcConversation } from '../NpcConversation';
+import { DiscoveryAction } from '../DiscoveryAction';
 import { AdventureStepCard } from '../../adventures/AdventureStepCard';
 import { useAdventureSession } from '../../adventures/useAdventureSession';
 import { THE_STORYKEEPERS_TALE } from '../../adventures/content/theStorykeepersTale';
@@ -63,6 +64,13 @@ const FIRST_STORY_TOLD_CHANGE_KEY = 'FIRST_STORY_TOLD';
 const HARBOR_EXIT_ZONE_ID = 'castle-harbor-exit';
 const STORY_HALL_ZONE_ID = 'castle-story-hall';
 const TALK_TO_QUILL_INTERACTION_ID = 'talk-to-keeper-quill';
+/**
+ * Beat 12, the castle's one unmarked secret. It is an id and a zone and
+ * nothing else: it never appears in the reticle, in a toast, or in the
+ * "Things to do here" list, because a secret that announces itself is
+ * signage. Walking into the corner is the whole interaction.
+ */
+const TAPESTRY_NOOK_ZONE_ID = 'castle-tapestry-stair';
 
 const CHOOSE_HERO_STEP_ID = 'choose-hero';
 const CHOOSE_SETTING_STEP_ID = 'choose-setting';
@@ -346,6 +354,10 @@ export function StorykeeperCastleWorldView({
       }
       if (zoneId === STORY_HALL_ZONE_ID) {
         setTriggeredInteractionId(storyTold ? 'castle-story-hall-told' : 'castle-story-hall');
+        return;
+      }
+      if (zoneId === TAPESTRY_NOOK_ZONE_ID) {
+        setTriggeredInteractionId(TAPESTRY_NOOK_ZONE_ID);
       }
     });
     /*
@@ -397,6 +409,21 @@ export function StorykeeperCastleWorldView({
       engineRef.current?.showChosenSetting(entityId);
     }
   }, []);
+
+  /**
+   * Re-reads world state after a secret is found, so an already-found nook
+   * says so on the next visit rather than being offered again as new.
+   */
+  const handleDiscovered = useCallback(() => {
+    void getWorldState(childId)
+      .then((worldState) => {
+        setInteractionContext((context) => ({
+          ...context,
+          discoveryIds: worldState.discoveredIds,
+        }));
+      })
+      .catch(() => undefined);
+  }, [childId]);
 
   const handleTaleComplete = useCallback(() => {
     void listAllWorldChanges(childId)
@@ -502,6 +529,7 @@ export function StorykeeperCastleWorldView({
           interaction={triggeredInteraction}
           ageBand={ageBand}
           taleForBand={Boolean(taleForBand)}
+          onDiscovered={handleDiscovered}
           onStartTale={() => {
             setTaleActive(true);
             setTriggeredInteractionId(null);
@@ -804,6 +832,8 @@ interface InteractionPanelProps {
   ageBand: AgeBandValue;
   /** Whether the tale is authored for this child's band at all. */
   taleForBand: boolean;
+  /** Called once a secret is actually recorded, so the world view can re-read it. */
+  onDiscovered: () => void;
   onStartTale: () => void;
   onDismiss: () => void;
 }
@@ -813,6 +843,7 @@ function InteractionPanel({
   interaction,
   ageBand,
   taleForBand,
+  onDiscovered,
   onStartTale,
   onDismiss,
 }: InteractionPanelProps) {
@@ -825,6 +856,7 @@ function InteractionPanel({
           action={interaction.action}
           ageBand={ageBand}
           taleForBand={taleForBand}
+          onDiscovered={onDiscovered}
           onStartTale={onStartTale}
           onDismiss={onDismiss}
         />
@@ -841,13 +873,14 @@ interface InteractionPanelActionProps {
   action: WorldAction;
   ageBand: AgeBandValue;
   taleForBand: boolean;
+  onDiscovered: () => void;
   onStartTale: () => void;
   onDismiss: () => void;
 }
 
 /**
  * Resolves one `WorldAction` into UI. Only the kinds the castle actually
- * wires are handled; `DISCOVER` arrives with the two secrets in SC-7.
+ * wires are handled; `DISCOVER` arrived with beat 12's tapestry in SC-7.
  *
  * `START_ADVENTURE` is the one that behaves differently here from the bay:
  * it opens the tale *in this room* rather than navigating to the card
@@ -860,6 +893,7 @@ function InteractionPanelAction({
   action,
   ageBand,
   taleForBand,
+  onDiscovered,
   onStartTale,
   onDismiss,
 }: InteractionPanelActionProps) {
@@ -878,6 +912,22 @@ function InteractionPanelAction({
   if (action.kind === 'TALK_TO') {
     return (
       <NpcConversation childId={childId} npcId={action.npcId} ageBand={ageBand} onEnd={onDismiss} />
+    );
+  }
+
+  /*
+    Beat 12. The very same `DiscoveryAction` the card-based castle and the
+    other three regions render, so what a child finds behind the tapestry -
+    the authored message, the reward, the already-found case - is one
+    implementation rather than a second one that agrees today.
+  */
+  if (action.kind === 'DISCOVER') {
+    return (
+      <DiscoveryAction
+        childId={childId}
+        discoveryId={action.discoveryId}
+        onDiscovered={onDiscovered}
+      />
     );
   }
 

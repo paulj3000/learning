@@ -54,6 +54,8 @@ import {
   ROOMS,
   STORY_PLATE_SPOTS,
   STUDIO_EASEL_SPOT,
+  TAPESTRY_NOOK_CUSHION_SPOTS,
+  TAPESTRY_SPOTS,
   TOWER_WINDOW_SPOTS,
   WALL_SEGMENTS,
   WALL_THICKNESS,
@@ -338,6 +340,17 @@ const READING_TABLE_HALF = { width: 0.7, depth: 0.4, height: 0.8 };
 const CARPET_RUN_TO_QUILL = { from: { x: -14.5, z: 0 }, to: { x: -5, z: 0 } };
 const CARPET_RUN_THROUGH_HUB = { from: { x: -5, z: 0 }, to: { x: 2, z: 0 } };
 const CARPET_TILE_METERS = 1.5;
+
+/**
+ * Beat 12's sway. The tapestry in the hub's south-west corner stirs very
+ * slightly, and that movement is the *only* thing marking the castle's one
+ * unmarked secret: no HUD cue, no map pin, no reticle label, no quest
+ * entry. It has to be small enough to read as a draught rather than as a
+ * signpost, and big enough to catch the eye of a child who is standing
+ * still - about two degrees, once every four seconds.
+ */
+const TAPESTRY_SWAY_RADIANS = 0.035;
+const TAPESTRY_SWAY_PERIOD_SECONDS = 4;
 
 /** How far in front of the eyes a picked-up plate is carried, and how far below them. */
 const CARRY_FORWARD_METERS = 0.55;
@@ -950,6 +963,7 @@ export function createStorykeeperCastleEngine(
     await loadBindingLectern();
     await loadEasel();
     await loadGreatLibrary();
+    await loadTapestries();
     applyStoryTold();
 
     // Keeper Quill: swap the placeholder box for the real, animated asset.
@@ -1005,6 +1019,53 @@ export function createStorykeeperCastleEngine(
       HUD ordering list starts from.
     */
     resetBindingPlates();
+  }
+
+  /*
+    Beat 12. The swaying tapestry is held so `frame()` can stir it; the
+    other two hang still. Which is which is not a detail - a castle with
+    one tapestry would be a castle where the tapestry *is* the signpost.
+  */
+  let swayingTapestry: Object3D | null = null;
+  let swayingTapestryRestYaw = 0;
+  /**
+   * A child who has asked their system not to animate things gets a still
+   * tapestry. The secret is still findable: the nook is a real place with
+   * cushions in it, and walking into the corner is what finds it - the sway
+   * only invites the walk.
+   */
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /**
+   * Beat 12: three tapestries and a cushioned nook (SC-7), and the rest of
+   * the hub furnishing SC-2 owed.
+   */
+  async function loadTapestries(): Promise<void> {
+    const storyHallRoom = ROOMS.find((room) => room.id === 'story-hall');
+    if (!storyHallRoom) return;
+
+    for (const spot of TAPESTRY_SPOTS) {
+      const yaw = facingIntoRoom(spot, storyHallRoom.floor);
+      const tapestry = await placeWallMounted('tapestry', spot, yaw);
+      if (spot.entityId === 'castle-tapestry-stair') {
+        swayingTapestry = tapestry;
+        swayingTapestryRestYaw = yaw;
+      }
+    }
+
+    const cushions = await createInstancedMeshFromAsset(
+      'cushion',
+      TAPESTRY_NOOK_CUSHION_SPOTS.map((spot, index) => ({
+        position: { x: spot.x, y: 0, z: spot.z },
+        // A scattered rest angle each, so three identical cushions read as
+        // dropped there rather than as a placed set.
+        rotationY: (index * 2 * Math.PI) / 5,
+      })),
+    );
+    scene.add(cushions);
   }
 
   /**
@@ -1236,6 +1297,14 @@ export function createStorykeeperCastleEngine(
     camera.rotation.x = controller.pitch;
 
     quillMixer?.update(delta);
+
+    // Beat 12's draught. Nothing else in the castle moves on its own.
+    if (swayingTapestry && !prefersReducedMotion) {
+      swayingTapestry.rotation.y =
+        swayingTapestryRestYaw +
+        Math.sin((clock.elapsedTime * 2 * Math.PI) / TAPESTRY_SWAY_PERIOD_SECONDS) *
+          TAPESTRY_SWAY_RADIANS;
+    }
 
     // A carried plate rides in front of the eyes, held level like a tray.
     const carried = carriedPlateId ? findPlate(carriedPlateId) : undefined;

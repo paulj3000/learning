@@ -417,7 +417,7 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Storykeeper Castle first-person region — SC-0 through SC-6 complete (critical slice done)
+## Storykeeper Castle first-person region — SC-0 through SC-6 complete, SC-7 partial
 
 Two design documents define this work:
 `docs/STORYKEEPER_CASTLE_3D_STORYBOARD.md` (the 13-beat storyboard, floor
@@ -932,6 +932,48 @@ castle and gets the same single ceiling lamp as a two-metre corridor, so
 to 2.4. It remains the lowest number in the map, which is the claim SC-2
 actually makes - "dimmest room in the castle" and "you cannot make out the
 furniture" turned out not to be the same statement.
+
+### SC-7 — the tapestry nook (beat 12), and what beat 13 ran into
+
+Three tapestries now hang in the hub, the one in the south-west corner
+stirs slightly, and three cushions lie on the floor beneath it. Walking into
+that corner fires the existing `DISCOVER castle-tapestry-stair` through the
+same `DiscoveryAction` the card-based castle and the other three regions
+already render, so the authored message, the reward and the already-found
+case have one implementation rather than two.
+
+The sway is the only marker, deliberately: diegetic, about two degrees every
+four seconds so it reads as a draught rather than a signpost, and stopped
+entirely under `prefers-reduced-motion` (the nook stays findable without it,
+being a real place with cushions in it). Everything else about the beat is an
+absence - no reticle label, no toast, no "Things to do here" entry, no quest
+or map pin - and a test asserts each of those routes stays shut. It has been
+mutation-checked: adding the zone to the accessible list fails it. The two
+decoy tapestries are load-bearing, so a test also requires at least two and
+requires that neither hangs inside the nook.
+
+**Beat 13, the calm stop, was not built, because what it was to be built on
+does not exist.** SC-7's own instruction was to confirm against the existing
+session-time implementation first and fall back to the existing overlay if
+there was none. There is neither.
+
+`ChildProfile.sessionMinutes` is validated, stored, editable on the profile
+form and shown on the parent dashboard - and never read at play time.
+Nothing counts elapsed session time and nothing acts on the limit; the only
+file in `src/` that mentions a timer at all is `ChattyAvatar.tsx`, animating
+a parrot. **MVP scope item 11, "Session time controls and a calm stopping
+point", is therefore half built: the control exists, the stopping point
+never did.** That is a product-level gap this castle phase happened to
+surface rather than a castle-level one.
+
+Building a session clock inside `storykeeperCastleScene.ts` was rejected: it
+would put the app's only session-limit behaviour in one room of one location
+for one age band, which is the drift the whole roadmap is written to prevent,
+and it would make SC-7's own "identical to the card-based route" criterion
+unsatisfiable, there being no card-based behaviour to match. The
+recommendation recorded in the roadmap is to build the calm stop app-wide as
+its own piece of work, then let the castle stage it - the reading nook it
+gestures at is now built and waiting.
 
 ### Still not verified
 

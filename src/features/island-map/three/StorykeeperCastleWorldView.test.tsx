@@ -95,6 +95,8 @@ vi.mock('../../discovery/api', () => ({
   getWorldState: vi.fn(),
   saveCheckpoint: vi.fn(),
   recordCharacterMet: vi.fn(),
+  recordDiscovery: vi.fn(),
+  getDiscoveryDefinition: vi.fn(),
 }));
 
 vi.mock('../../rewards/api', () => ({
@@ -115,7 +117,13 @@ import {
   listActionsForSessions,
   listAllWorldChanges,
 } from '../../adventures/api';
-import { getWorldState, recordCharacterMet, saveCheckpoint } from '../../discovery/api';
+import {
+  getDiscoveryDefinition,
+  getWorldState,
+  recordCharacterMet,
+  recordDiscovery,
+  saveCheckpoint,
+} from '../../discovery/api';
 import { getInventory } from '../../rewards/api';
 import { listQuestStates } from '../../quests/api';
 import { getCompanionProfile } from '../../island/api';
@@ -127,6 +135,8 @@ const listActionsForSessionsMock = vi.mocked(listActionsForSessions);
 const getWorldStateMock = vi.mocked(getWorldState);
 const recordCharacterMetMock = vi.mocked(recordCharacterMet);
 const saveCheckpointMock = vi.mocked(saveCheckpoint);
+const recordDiscoveryMock = vi.mocked(recordDiscovery);
+const getDiscoveryDefinitionMock = vi.mocked(getDiscoveryDefinition);
 const getInventoryMock = vi.mocked(getInventory);
 const listQuestStatesMock = vi.mocked(listQuestStates);
 const getCompanionProfileMock = vi.mocked(getCompanionProfile);
@@ -217,6 +227,17 @@ describe('StorykeeperCastleWorldView', () => {
     getWorldStateMock.mockResolvedValue({ discoveredIds: [], metCharacterIds: [] });
     recordCharacterMetMock.mockResolvedValue(undefined);
     saveCheckpointMock.mockResolvedValue(undefined);
+    recordDiscoveryMock.mockReset();
+    getDiscoveryDefinitionMock.mockReset();
+    getDiscoveryDefinitionMock.mockReturnValue({
+      id: 'castle-tapestry-stair',
+      locationSlug: 'storykeeper-castle',
+      foundMessage: 'A cushioned nook, just big enough to sit in.',
+    } as never);
+    recordDiscoveryMock.mockResolvedValue({
+      outcome: { status: 'FOUND_NOW', message: 'A cushioned nook, just big enough to sit in.' },
+      rewardMessages: [],
+    } as never);
     getInventoryMock.mockResolvedValue({ ownedItemIds: [], grantedRuleIds: [] });
     listQuestStatesMock.mockResolvedValue([]);
     getCompanionProfileMock.mockResolvedValue(null);
@@ -975,6 +996,74 @@ describe('StorykeeperCastleWorldView', () => {
       expect.anything(),
       expect.objectContaining({ storyTold: false }),
     );
+  });
+
+  // --- SC-7: the tapestry nook (beat 12) -----------------------------------
+
+  /**
+   * Walking into the corner *is* the interaction. There is no button to
+   * press and nothing to aim at, which is what makes it a secret rather
+   * than a feature.
+   */
+  it('finds the nook when the child wanders into the corner', async () => {
+    await renderAndWaitForEngine();
+
+    act(() => capturedBus?.emit('PlayerEnteredZone', { zoneId: 'castle-tapestry-stair' }));
+
+    expect(
+      await screen.findByRole('dialog', { name: /a tapestry that moves/i }),
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(recordDiscoveryMock).toHaveBeenCalledWith('child-1', expect.anything());
+    });
+    expect(await screen.findByText(/a cushioned nook/i)).toBeInTheDocument();
+  });
+
+  /**
+   * SC-7's headline exit criterion: the tapestry stays **unmarked**. No HUD
+   * cue, no map pin, no reward beyond being found. Every route by which
+   * this castle tells a child that something is worth their attention is
+   * checked here, because the beat is worth nothing if any one of them
+   * leaks.
+   */
+  it('never advertises the nook anywhere in the HUD', async () => {
+    await renderAndWaitForEngine();
+
+    /*
+      Not in the accessible "Things to do here" list. jsdom renders a
+      collapsed <details>' contents, so this queries them without opening it
+      - the same way the existing "asks the engine to interact from the
+      accessible list" test reaches that button.
+    */
+    expect(screen.queryByRole('button', { name: /tapestry/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/tapestry/i)).not.toBeInTheDocument();
+
+    // Not on the reticle: it is an approach trigger and not a raycast target,
+    // so the scene never focuses it - but if it ever did, it would have no
+    // label to show.
+    act(() => capturedBus?.emit('InteractableFocused', { entityId: 'castle-tapestry-stair' }));
+    await waitFor(() => {
+      expect(screen.queryByText(/press e to talk/i)).not.toBeInTheDocument();
+    });
+
+    // And no toast fires on the way in, the way a checkpoint does.
+    act(() => capturedBus?.emit('PlayerEnteredZone', { zoneId: 'castle-tapestry-stair' }));
+    await screen.findByRole('dialog');
+    expect(screen.queryByText(/you found the/i)).not.toBeInTheDocument();
+    expect(saveCheckpointMock).not.toHaveBeenCalled();
+  });
+
+  it('lets the child leave the nook without taking anything from it', async () => {
+    const user = userEvent.setup();
+
+    await renderAndWaitForEngine();
+    act(() => capturedBus?.emit('PlayerEnteredZone', { zoneId: 'castle-tapestry-stair' }));
+    await screen.findByRole('dialog');
+
+    await user.click(screen.getByRole('button', { name: /not now/i }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText(/move: wasd or the arrow keys/i)).toBeInTheDocument();
   });
 
   it('offers a link back to the non-3D location page', async () => {

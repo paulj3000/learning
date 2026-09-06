@@ -3,6 +3,8 @@ import {
   ARCHWAYS,
   FLOOR_SPOTS,
   LIBRARY_BOOKSHELF_SPOTS,
+  TAPESTRY_NOOK_CUSHION_SPOTS,
+  isInsideRect,
   GROUND_HALF_EXTENT_X,
   GROUND_HALF_EXTENT_Z,
   ROOMS,
@@ -13,7 +15,6 @@ import {
   buildWallSegments,
   findZone,
   isBlocked,
-  isInsideRect,
   isOnFloor,
   isWalkable,
 } from './storykeeperCastleRegion';
@@ -402,6 +403,49 @@ describe('storykeeperCastleRegion library shelves', () => {
     expect(libraryArchway).toBeDefined();
     for (const shelf of FOOTPRINTS) {
       expect(overlaps(shelf, libraryArchway!.gap), `${shelf.id} blocks the archway`).toBe(false);
+    }
+  });
+});
+
+/**
+ * Beat 12 is the castle's one piece of pure play, and the only thing that
+ * makes it work is that it is *found*. Two properties carry that, and both
+ * are the kind that a later phase could undo without noticing.
+ */
+describe('storykeeperCastleRegion tapestry nook', () => {
+  const stairZone = findZone('castle-tapestry-stair');
+
+  it('puts every cushion inside the discovery zone, on reachable floor', () => {
+    expect(stairZone).toBeDefined();
+    for (const cushion of TAPESTRY_NOOK_CUSHION_SPOTS) {
+      expect(isWalkable(cushion.x, cushion.z), `"${cushion.entityId}" is not walkable`).toBe(true);
+      expect(
+        isInsideRect(cushion.x, cushion.z, stairZone!),
+        `"${cushion.entityId}" sits outside the nook it furnishes`,
+      ).toBe(true);
+      expect(
+        isReachable(REACHED, cushion.x, cushion.z),
+        `"${cushion.entityId}" is unreachable`,
+      ).toBe(true);
+    }
+  });
+
+  /**
+   * "If the castle has exactly one tapestry, the beat-12 secret is a
+   * signpost pointing at itself" - the region file's own words. The two
+   * decoys are load-bearing, not decoration.
+   */
+  it('hangs at least two tapestries that hide nothing', () => {
+    const tapestries = WALL_MOUNTED_SPOTS.filter((spot) => spot.entityId.includes('tapestry'));
+    expect(tapestries.length).toBeGreaterThanOrEqual(3);
+    const decoys = tapestries.filter((spot) => spot.entityId !== 'castle-tapestry-stair');
+    expect(decoys.length).toBeGreaterThanOrEqual(2);
+    // A decoy hung inside the discovery zone would give the secret away.
+    for (const decoy of decoys) {
+      expect(
+        isInsideRect(decoy.x, decoy.z, stairZone!),
+        `decoy "${decoy.entityId}" hangs in the nook it is meant to disguise`,
+      ).toBe(false);
     }
   });
 });
