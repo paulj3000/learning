@@ -3,10 +3,9 @@
 **Status:** SC-0 through SC-6 are implemented, which **completes the
 critical vertical slice**. **SC-8 is now complete** and **SC-9 is complete
 except for beat 11's writing room**, both unblocked by ADR-019, which
-settled how a story chapter may be played inside a region. SC-7 remains
-**half implemented**: beat 12's tapestry nook is built, and beat 13's calm
-stop is blocked on a session clock that does not exist anywhere in the
-product. **SC-10 is complete.** **SC-11's gate is open on one of three deliverables
+settled how a story chapter may be played inside a region. **SC-7 is complete**: beat 12's tapestry
+nook was built with the phase, and beat 13's calm stop landed once the
+product-wide session clock it needed was built. **SC-10 is complete.** **SC-11's gate is open on one of three deliverables
 and therefore does not pass**: the HUD-equivalence audit is done and is a
 test, but the Sprouts playtest has not run and no profiling pass has
 happened on target hardware. **The card-based castle remains every band's
@@ -749,7 +748,7 @@ to 2.4. It is still the lowest number in the map, which is the claim SC-2
 actually makes; "dimmest room in the castle" and "you cannot make out the
 furniture" turned out not to be the same statement.
 
-## SC-7 — Secrets and the calm stop (beats 12–13) — **PARTIAL**
+## SC-7 — Secrets and the calm stop (beats 12–13) — **DONE**
 
 Parallel with SC-8 and SC-9.
 
@@ -799,7 +798,46 @@ than decorative - the region file's own words are that with exactly one
 tapestry the secret would be a signpost pointing at itself - so a test also
 asserts at least two of them, and that neither hangs inside the nook.
 
-### What did not ship — beat 13, the calm stop
+### What shipped later — beat 13, the calm stop
+
+The prerequisite was built, and then the beat.
+
+**The session clock, product-wide.** `src/features/session/` now holds the
+piece MVP scope item 11 had been missing since the beginning:
+`sessionClock.ts` (pure rules), `useSessionClock.ts` (mounted once by
+`IslandLayout`, which wraps every child-mode screen) and `CalmStop.tsx`. The
+start time lives in `sessionStorage`, so walking from the map into an
+adventure and back does not restart the clock, and **nothing about how long
+a child played is written anywhere** - the limit is about this sitting, not
+a record to keep.
+
+**The castle stages it in the room**, which is what beat 13 asks for and
+what the open question below was about. Keeper Quill closes the book and
+looks toward the cushioned nook beat 12 put in the corner; the note beside
+the canvas says so in the castle's own voice rather than the default one.
+The castle reads the same clock `IslandLayout` reads - ADR-019's principle
+applied to time as much as to progress: a region presents, it does not own.
+
+**It suggests and stops there.** No countdown, no streak, no score, no
+come-back-or-lose. Nothing closes, nothing is taken away, and the next tap
+still works - a child mid-question is never interrupted, because the note
+sits beside the play rather than over it. Dismissed means dismissed for the
+sitting; a message that returns until it is obeyed is a gate wearing a
+friendly face. Most of `CalmStop.test.tsx` is those absences, asserted.
+
+A child whose parent set no limit is never told to stop: the absence of a
+setting is not a default of zero, and that is the mutation-checked case.
+
+**Open, and deliberately so: a hard stop.** This is the soft one. Whether a
+parent should be able to make the limit binding is a separate product
+decision, and a lockout mid-story for a three-year-old is the anxiety-driven
+design CLAUDE.md section 12 excludes - so it is not something to add without
+deciding it first.
+
+### The account of why it was blocked, kept
+
+The following was written when beat 13 could not be built, and is left as
+the record of the gap it found.
 
 **The prerequisite it was to be built on does not exist.** This phase's own
 instruction was to "confirm against the existing session-time implementation

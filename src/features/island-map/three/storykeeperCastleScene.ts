@@ -295,7 +295,7 @@ export type QuillClipName = 'Idle' | 'Talk' | 'Point' | 'ReactConcerned' | 'Cele
  * north archway toward the Character Gallery; beat 5 points at the hearth
  * mantel across the hub. Everything else looks back at the child.
  */
-export type QuillFacing = 'entry' | 'gallery' | 'hearth';
+export type QuillFacing = 'entry' | 'gallery' | 'hearth' | 'nook';
 
 /** Quill faces the entry hall, so a child walking in from the west is looked at rather than away from. */
 const QUILL_FACING_ENTRY_YAW = -Math.PI / 2;
@@ -313,10 +313,21 @@ const QUILL_FACING_GALLERY_YAW = 0;
  */
 const QUILL_FACING_HEARTH_YAW = yawTowards(KEEPER_QUILL_SPOT, HEARTH_MANTEL_SPOT);
 
+/**
+ * Beat 13's direction: the cushioned nook in the hub's south-west corner,
+ * the one beat 12 put there. Derived like the hearth's, so moving either
+ * the nook or Quill keeps the gesture pointing at the thing.
+ */
+const QUILL_FACING_NOOK_YAW = yawTowards(
+  KEEPER_QUILL_SPOT,
+  TAPESTRY_NOOK_CUSHION_SPOTS[0] ?? KEEPER_QUILL_SPOT,
+);
+
 const QUILL_FACING_YAW: Readonly<Record<QuillFacing, number>> = {
   entry: QUILL_FACING_ENTRY_YAW,
   gallery: QUILL_FACING_GALLERY_YAW,
   hearth: QUILL_FACING_HEARTH_YAW,
+  nook: QUILL_FACING_NOOK_YAW,
 };
 
 /** Half-extents of the colliders standing Quill and his lectern up as solid objects. */

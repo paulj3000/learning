@@ -60,6 +60,8 @@ import { ALL_ITEMS } from '../../rewards/content';
 import { listQuestStates } from '../../quests/api';
 import { getQuestDefinition } from '../../quests/content';
 import { getCompanionProfile } from '../../island/api';
+import { CalmStop } from '../../session/CalmStop';
+import { useSessionClock } from '../../session/useSessionClock';
 import type { AgeBandValue } from '../../child-profile/constants';
 import type { AdventureDefinition } from '../../adventures/engine/types';
 
@@ -237,6 +239,19 @@ export function StorykeeperCastleWorldView({
   /** Whether the tale is running in this room right now. */
   const [taleActive, setTaleActive] = useState(false);
   const [restoredChoices, setRestoredChoices] = useState<CastleChoiceState>(NO_CHOICES);
+
+  /**
+   * Beat 13, the calm stop. The same clock `IslandLayout` reads, not a
+   * second one - ADR-019's principle applies to time as much as to
+   * progress: a region presents, it does not own.
+   *
+   * The castle stages it in the room rather than as a note over it, which
+   * is the storyboard's whole point: Keeper Quill closes the book and looks
+   * toward the cushioned nook beat 12 put in the corner. It suggests, and
+   * that is all - nothing closes, nothing is taken away, and the next tap
+   * still works.
+   */
+  const { limitReached } = useSessionClock(childId);
 
   const bus = useMemo(() => new WorldEngineEventBus(), []);
   const engineRef = useRef<StorykeeperCastleEngine | null>(null);
@@ -464,6 +479,18 @@ export function StorykeeperCastleWorldView({
   }, [toast]);
 
   /**
+   * Quill's part of beat 13: he stops writing and looks toward the nook.
+   * Once, when the time passes - not repeated, and never while he is in the
+   * middle of speaking to the child.
+   */
+  const hasGesturedAtNookRef = useRef(false);
+  useEffect(() => {
+    if (!ready || !limitReached || hasGesturedAtNookRef.current) return;
+    hasGesturedAtNookRef.current = true;
+    engineRef.current?.playQuillClip('Point', 'nook');
+  }, [ready, limitReached]);
+
+  /**
    * Beat 2's gestures. `Talk` while the conversation panel is open, then
    * `Point` toward the north archway when it closes - the castle's only
    * wayfinding, and the reason it is driven from here rather than from the
@@ -642,6 +669,12 @@ export function StorykeeperCastleWorldView({
           onDismiss={() => setTriggeredInteractionId(null)}
         />
       ) : null}
+      <CalmStop limitReached={limitReached}>
+        <p>
+          Keeper Quill closes the book and looks over at the cushions in the corner. It is a good
+          place to sit for a while.
+        </p>
+      </CalmStop>
       <details className={styles.thingsToDo}>
         <summary>Things to do here</summary>
         <ul className={styles.thingsToDoList}>

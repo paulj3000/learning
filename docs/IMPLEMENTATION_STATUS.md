@@ -717,7 +717,7 @@ for any band before WF-10, every band can still reach the card route, and the
 age-band branch that decides the default is asserted in both directions so
 "primary for two bands" cannot quietly become "primary for everyone".
 
-## Storykeeper Castle first-person region — SC-0 to SC-10 built; SC-11's gate does NOT pass, so nothing is retired
+## Storykeeper Castle first-person region — SC-0 to SC-10 complete; SC-11's gate does NOT pass, so nothing is retired
 
 Two design documents define this work:
 `docs/STORYKEEPER_CASTLE_3D_STORYBOARD.md` (the 13-beat storyboard, floor
@@ -1252,8 +1252,12 @@ mutation-checked: adding the zone to the accessible list fails it. The two
 decoy tapestries are load-bearing, so a test also requires at least two and
 requires that neither hangs inside the nook.
 
-**Beat 13, the calm stop, was not built, because what it was to be built on
-does not exist.** SC-7's own instruction was to confirm against the existing
+**Beat 13, the calm stop, shipped later, once the thing it needed existed.**
+See "The calm stop" below. The account that follows is kept as the record of
+the gap this phase found.
+
+**Beat 13 was not built at the time, because what it was to be built on did
+not exist.** SC-7's own instruction was to confirm against the existing
 session-time implementation first and fall back to the existing overlay if
 there was none. There is neither.
 
@@ -1274,6 +1278,48 @@ unsatisfiable, there being no card-based behaviour to match. The
 recommendation recorded in the roadmap is to build the calm stop app-wide as
 its own piece of work, then let the castle stage it - the reading nook it
 gestures at is now built and waiting.
+
+### The calm stop — MVP scope item 11, finally whole
+
+`src/features/session/` is new and closes a promise the product has carried
+since the beginning. MVP scope item 11 asks for "session time controls **and
+a calm stopping point**"; only the control existed. `sessionMinutes` was
+validated per age band, stored, editable and displayed, and nothing anywhere
+read it at play time - a parent set twelve minutes and the app did not know.
+
+- `sessionClock.ts` - pure rules, no React and no timers, so they can be
+  tested without a clock.
+- `useSessionClock.ts` - mounted once by `IslandLayout`, which wraps every
+  child-mode screen, so one clock survives walking from the map into an
+  adventure and back.
+- `CalmStop.tsx` - a note beside the play, never a modal over it.
+
+The session start lives in `sessionStorage`, keyed per child. That is a
+deliberate reading: the limit is about *this sitting* rather than a lifetime
+total, it resets when the tab closes, and **nothing about how long a child
+played is written anywhere** - the same restraint CLAUDE.md section 13 asks
+for about logging children.
+
+It suggests and stops there. No countdown - the word "minutes" never reaches
+a child. No streak, score, or come-back-tomorrow: stopping is not a loss and
+playing on is not a win. No lockout: nothing closes, nothing is taken away,
+the next tap works, and a child mid-question is never interrupted. Dismissed
+stays dismissed for the sitting, because a message that returns until it is
+obeyed is a gate wearing a friendly face. Most of `CalmStop.test.tsx` is
+those absences asserted, since each is a dark pattern a well-meaning change
+could add without noticing.
+
+A child whose parent set no limit is never told to stop - the absence of a
+setting is not a default of zero, which is the mutation-checked case.
+
+Storykeeper Castle stages it in the room rather than as a note over it,
+which is storyboard beat 13: Quill closes the book and looks toward the
+cushioned nook beat 12 built. It reads the same clock `IslandLayout` reads,
+never a second one.
+
+**Deliberately not built: a hard stop.** Whether a parent may make the limit
+binding is a separate product decision, and a lockout mid-story for a
+three-year-old is the anxiety-driven design CLAUDE.md section 12 excludes.
 
 ### SC-8 — beat 9's evidence, and the hosting question it surfaced
 

@@ -136,6 +136,16 @@ vi.mock('../../story/StoryChapterRunner', () => ({
   ),
 }));
 
+/** The clock is `IslandLayout`'s; the castle only reads it. */
+let sessionLimitReached = false;
+vi.mock('../../session/useSessionClock', () => ({
+  useSessionClock: () => ({
+    elapsedMinutes: sessionLimitReached ? 12 : 1,
+    limitMinutes: 12,
+    limitReached: sessionLimitReached,
+  }),
+}));
+
 vi.mock('../NpcConversation', () => ({
   NpcConversation: ({ npcId, onEnd }: { npcId: string; onEnd: () => void }) => (
     <div data-testid="npc-conversation">
@@ -273,6 +283,7 @@ describe('StorykeeperCastleWorldView', () => {
     currentStep = null;
     sessionStatus = 'ACTIVE';
     hintLevel = 0;
+    sessionLimitReached = false;
     useStoryProgressSpy.mockClear();
     storyChapterId = 'three-clues';
     storyProgressId = 'story-progress-1';
@@ -1407,6 +1418,52 @@ describe('StorykeeperCastleWorldView', () => {
       expect.anything(),
       expect.objectContaining({ secretDoorOpened: false }),
     );
+  });
+
+  // --- SC-7 beat 13: the calm stop, staged in the room --------------------
+
+  it('says nothing about stopping before the parent-set time has passed', async () => {
+    await renderAndWaitForEngine();
+
+    expect(
+      screen.queryByRole('complementary', { name: /a good place to stop/i }),
+    ).not.toBeInTheDocument();
+    expect(playQuillClipSpy).not.toHaveBeenCalledWith('Point', 'nook');
+  });
+
+  /**
+   * The storyboard's beat 13: the stop is a place in the room, not a modal
+   * over it. Quill closes the book and looks at the cushioned nook beat 12
+   * put in the corner.
+   */
+  it('has Quill look toward the nook once the time has passed', async () => {
+    sessionLimitReached = true;
+
+    await renderAndWaitForEngine();
+
+    await waitFor(() => {
+      expect(playQuillClipSpy).toHaveBeenCalledWith('Point', 'nook');
+    });
+    expect(
+      await screen.findByRole('complementary', { name: /a good place to stop/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/closes the book and looks over at the cushions/i)).toBeInTheDocument();
+  });
+
+  /**
+   * It suggests and stops there. Nothing closes, nothing is taken away, and
+   * the castle is still fully playable - which is the difference between a
+   * calm stopping point and a lockout.
+   */
+  it('takes nothing away when it does', async () => {
+    sessionLimitReached = true;
+
+    await renderAndWaitForEngine();
+    await screen.findByRole('complementary', { name: /a good place to stop/i });
+
+    expect(screen.getByText(/move: wasd or the arrow keys/i)).toBeInTheDocument();
+    act(() => capturedBus?.emit('PlayerEnteredZone', { zoneId: 'castle-story-hall' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
   it('offers a link back to the non-3D location page', async () => {
