@@ -585,6 +585,38 @@ visibly empty when they walked in. Its SC-11 gate inherits Phase 32's
 outstanding Sprouts accessibility playtest requirement (ADR-008) — the
 card-based castle route is not retired for any band before that runs.
 
+### Wonderwild Forest — separate roadmap
+
+Wonderwild Forest follows the castle, and is **deliberately not numbered
+into this sequence** for the same reasons. Its design is in
+`docs/WONDERWILD_FOREST_3D_STORYBOARD.md` (13 beats, two region plans,
+age-band routing, asset kit) and its build order is in
+`docs/WONDERWILD_FOREST_3D_ROADMAP.md`, which defines its own WF-0 through
+WF-10 phase sequence.
+
+It depends only on Phases 31–34 and on the asset and region patterns the
+castle's SC-0 to SC-6 slice proved. It changes no engine, no schema, and no
+authored adventure or story text, and it neither blocks nor is blocked by
+the castle's remaining phases or the Android platform phases below. All
+three can proceed concurrently.
+
+Its thesis differs from the castle's, and the difference is the point.
+The castle moved menu *choices* into rooms. The forest's steps are mostly
+*observations* — `count-the-waggles` asks a child to count something that
+never happens — so the forest's job is to make the evidence real and leave
+the questions where they are. Its critical vertical slice is WF-0 to WF-6,
+ending with a Pathfinder counting five waggles that actually occur and
+coming back out to find the bare patch of earth they walked past covered in
+flowers.
+
+Two things it inherits rather than solves. Its WF-10 gate carries the same
+outstanding Sprouts accessibility playtest (ADR-008), with higher stakes:
+the shrink into the hive is the most motion-sensitive transition on the
+island and it sits on the Pathfinder critical path. And its calm stop
+(storyboard beat 13) has no phase at all, because SC-7 established that
+`ChildProfile.sessionMinutes` is never read at play time — MVP scope item
+11 is app-wide work that has to exist before either region can stage it.
+
 ## Phases 35+ — Android Platform Integration
 
 Full rationale, data models, API shapes, and worked examples are in

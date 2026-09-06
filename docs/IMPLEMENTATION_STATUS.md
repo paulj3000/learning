@@ -417,7 +417,119 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Storykeeper Castle first-person region — SC-0 through SC-6 complete, SC-7 partial
+## Wonderwild Forest first-person region — designed, not started
+
+Two design documents define this work:
+`docs/WONDERWILD_FOREST_3D_STORYBOARD.md` (the 13-beat storyboard, two
+region plans, age-band routing, and asset kit) and
+`docs/WONDERWILD_FOREST_3D_ROADMAP.md` (its own WF-0 through WF-10 build
+order, with the asset inventory as Appendix A). **No phase is
+implemented.** This entry records what was designed and what the design
+found, not what shipped.
+
+It follows the castle's method deliberately, and departs from it in one
+respect that shapes everything else. The castle's thesis was "choices
+become places", because every menu card `the-storykeepers-tale` asked
+already had a room authored for it. Wonderwild's steps are mostly not
+choices, they are observations: `count-the-waggles` asks a child to count
+something that never happens, and `observe-the-dance` describes a long
+waggle in prose. So the forest's thesis is **the evidence becomes real** —
+make the thing each question is about actually happen, and leave the
+question exactly where it is. Only one step moves into the world
+(`wonder-wall`), and it moves because it is currently asked in the wrong
+place.
+
+Six problems in the current forest drove the design, all visible in the
+files today:
+
+- **The forest is one flat rectangle of grass.**
+  `buildWonderwildForestTileGrid` fills every tile with `GRASS`;
+  `WONDERWILD_COLLIDING_TILES` is `[WATER]` and nothing else, so the pond
+  is the only thing in the location a child cannot walk through. The
+  forest's tilemap contains no tree of any kind.
+- **The Wonder Wall does not exist.** `buzzAndTheWaggleDance.ts`'s entry
+  step is `wonder-wall` and `wonderWallQuestions.ts` authors four curated
+  questions for it. There is no Wonder Wall in `wonderwildForestDecor.ts`,
+  none in `WONDERWILD_FOREST_INTERACTIONS`, and none anywhere else.
+- **The question is asked after the child has walked to the answer.**
+  Walking into the hive's zone fires `START_ADVENTURE`, whose first step
+  then asks which of four things the child is curious about; three of the
+  four redirect straight back to the bees they are standing in front of.
+- **The world change is the weakest on the island, weaker than the
+  castle's was.** `forest-changes` names two specific things — the Wonder
+  Wall lighting up and a new patch of flowers — and neither is built. What
+  happens is a `tileOverrides` recolour of every `GRASS` tile in the
+  location.
+- **One band of three has content, and it is the only location with no
+  second arc.** `buzz-and-the-waggle-dance` is `PATHFINDER` only; there is
+  no Sprouts adventure and no Explorer adventure. The castle at least had
+  the `EXPLORER` secret-door chapters.
+- **The best beat on the island is one sentence.** `shrink-into-hive` is
+  the only `aiNarrated` step in the location and the only moment anywhere
+  that a child changes scale. The child never goes inside the hive.
+
+Five design decisions worth recording, because each closes a question
+someone would otherwise reopen mid-build:
+
+- **The child does not shrink; the hive is built enormous.**
+  `firstPersonController.ts` is flat-plane at a fixed `EYE_HEIGHT` of
+  1.6m, with no scale term anywhere in the controller, the camera rig or
+  `sceneKit.ts`. So `wonderwild-hive` is authored in ordinary metres with a
+  1.4m honeycomb cell, and the transition is a **cut over a fade, never a
+  zoom** — a scale animation is the most motion-sensitive thing this island
+  could put in front of a three-year-old, and reduced motion is a stated
+  requirement.
+- **The comb is a floor, not a wall.** Real honeybees dance on vertical
+  comb; the controller has no vertical traversal. Nothing the adventure
+  *claims* changes, so this is a staging simplification and belongs as a
+  note in `docs/CONTENT_SOURCES.md`, not a factual correction.
+- **One view holding two regions, not two routes.** Two routes would be
+  simpler, and are rejected: SC-4's hardest-won property is that the room
+  and the HUD card drive one `useAdventureSession` in one view, which is
+  what makes "identical session state" true by construction rather than by
+  two implementations agreeing. Splitting the Pathfinder loop across two
+  views gives that back. This is the one place the roadmap comes near the
+  ADR-008 boundary, and WF-4 says to stop and write an ADR if it turns out
+  to need an engine change.
+- **The waggle run is scene-driven TRS motion, not a glTF clip, and no
+  animation clip is added.** Beat 7 needs exactly five discrete waggles,
+  stopped at the end, replayable on demand at no cost, and countable from a
+  fixed viewpoint. A looping clip gives none of those cleanly. Buzz ships
+  with `Idle`, `Talk` and `Celebrate`, all already in
+  `assets/animationVocabulary.ts`, so SC-1's decision not to extend that
+  vocabulary holds.
+- **The Explorer arc cannot go in the glowworm cave.** The cave is behind
+  `ITEM_OWNED glowing-moss-jar`, and `islandDiscoveries.ts`'s fourth
+  authoring rule is that no secret gates learning content. The proposal is
+  the Leaf Hollow instead, which is ungated, is one of the five discovery
+  points the explorable-world roadmap section 32 already names, and is the
+  place the Wonder Wall's own `wonder-seeds` stone points at — so building
+  it lights a second stone and turns a dead fallback into a real path.
+
+Two things this design deliberately does not claim:
+
+- **Beat 13, the calm stop, has no phase.** SC-7 established that
+  `ChildProfile.sessionMinutes` is validated, stored, editable and
+  displayed, and that nothing in `src/` reads it at play time. Putting a
+  session clock in `wonderwildForestScene.ts` would repeat exactly the
+  drift SC-7 refused. MVP scope item 11 is app-wide work that has to exist
+  before either region can stage it.
+- **Both content gaps need approval before anything is authored.** WF-8
+  ("Who Lives Here?", Sprouts) and WF-9 ("How Seeds Travel", Explorers) are
+  new `AdventureDefinition`s. WF-8 also needs its **own** `changeKey`:
+  reusing `WAGGLE_DANCE_DISCOVERED` would record in a parent summary that a
+  three-year-old discovered why bees dance. The castle's SC-10 could reuse
+  `FIRST_STORY_TOLD` because its Sprout does tell a story; this one cannot.
+
+The asset estimate is **about 29 new assets, one a character** — roughly
+half SC-1's 59, because the castle's Appendix A.1 ruled out the entire
+Phase 34 outdoor kit as having no role indoors and every one of those
+pieces is load-bearing in a forest. The riskiest single asset is
+`comb-cell`: the hive's draw budget depends on instancing it, and a hexagon
+with a hole in it is exactly the shape SC-1 discovered `archway` could not
+be authored as. WF-1 settles that before WF-4 is costed.
+
+## Storykeeper Castle first-person region — SC-0 through SC-6 complete, SC-7 and SC-8 partial
 
 Two design documents define this work:
 `docs/STORYKEEPER_CASTLE_3D_STORYBOARD.md` (the 13-beat storyboard, floor
@@ -974,6 +1086,56 @@ unsatisfiable, there being no card-based behaviour to match. The
 recommendation recorded in the roadmap is to build the calm stop app-wide as
 its own piece of work, then let the castle stage it - the reading nook it
 gestures at is now built and waiting.
+
+### SC-8 — beat 9's evidence, and the hosting question it surfaced
+
+The Great Library's south wall is now the scene chapter 1 describes: the
+door with no handle, **nine gold stars carved above it in two rows of five
+and four**, the three clues each in a different part of the room, and the
+wall they are pinned to.
+
+The stars are the phase. `count-the-stars` asks "5 in the top row and 4 in
+the bottom row, how many altogether?"; in the card build that is a number
+described in a sentence, and a child standing at that wall can now count
+nine objects that are really there. The step, prompt and `correctValue` are
+untouched - only the evidence became physical. They are placed from SC-0's
+authored positions, and the test asserting exactly nine in rows of five and
+four has existed since SC-0, so content and question cannot drift.
+
+Two faults the screenshots caught and no test could: the stars were lying
+flat (`star-carving` is a cone standing on its base - right for a floor
+decal, wrong for every authored use, all of which are wall carvings; they
+are now tipped a quarter turn about x, which is also why they are nine
+placements rather than one instanced run, `InstancePlacement` carrying only
+a y rotation), and the last bookshelf stood in front of two of them so only
+seven could be counted. That bookshelf is SC-9's prop, placed here
+opportunistically, and has been removed - **but SC-9 inherits the
+conflict**: `LAST_BOOKSHELF_SPOT` overlaps the star run on the same wall,
+and the narrative needs it to hide the door while the child needs to count
+the stars above it.
+
+**The clues are placed but not wired as a puzzle**, and the reason matters
+beyond this phase. `secret-door-chapter-1-three-clues` is not a location
+adventure: it is an `ADVENTURE` scene inside `THE_CASTLES_SECRET_DOOR`, a
+`StoryDefinition` played by the Story Engine, with `locationSlug:
+'castle-secret-passage'`. `StoryChapterRunner` renders that scene by
+embedding `AdventureRunner`, which owns its session internally - so the room
+cannot bind `CollectiblePickedUp` to it the way SC-4 bound the portraits,
+because SC-4's trick was precisely that the *view* holds the session.
+
+Driving beat 9 from the room needs the Explorer arc hosted in the region: a
+render-prop seam on `StoryChapterRunner` (about ten lines) plus the castle
+view holding story progress. Running the adventure standalone instead was
+rejected - it would fork `ChildStoryProgress` and let a child replay the
+chapter in the library afterwards.
+
+**The storyboard assumes this and never decides it.** Its age-band table
+gives Explorers beats 1 to 13 in the castle, which can only mean the arc is
+played there, but no ADR says so and no phase budgets for it. SC-9 needs the
+same seam and needs it more, its beat being three rods seated in a wall
+rather than a number typed on a card. The recommendation recorded in the
+roadmap is to settle it as an ADR before SC-9, covering who owns story
+progress when a chapter is played inside a region.
 
 ### Still not verified
 

@@ -46,9 +46,13 @@ import {
   GALLERY_PORTRAIT_SPOTS,
   KEEPER_QUILL_ID,
   KEEPER_QUILL_SPOT,
+  COUNTING_STAR_SPOTS,
   LIBRARY_BOOKSHELF_SPOTS,
+  LIBRARY_CLUE_SPOTS,
+  LIBRARY_CLUE_WALL_SPOT,
   LIBRARY_READING_TABLE_SPOTS,
   LIBRARY_SHELF_SLOT_SPOT,
+  SECRET_DOOR_SPOT,
   QUILL_LECTERN_SPOT,
   REGION_ID,
   ROOMS,
@@ -349,6 +353,13 @@ const CARPET_TILE_METERS = 1.5;
  * signpost, and big enough to catch the eye of a child who is standing
  * still - about two degrees, once every four seconds.
  */
+/** Which clue model stands at which authored spot; the two vocabularies differ, as elsewhere. */
+const CLUE_ASSETS: Readonly<Record<string, string>> = {
+  'library-clue-diary': 'clue-diary',
+  'library-clue-map': 'clue-map',
+  'library-clue-note': 'clue-note',
+};
+
 const TAPESTRY_SWAY_RADIANS = 0.035;
 const TAPESTRY_SWAY_PERIOD_SECONDS = 4;
 
@@ -1110,6 +1121,69 @@ export function createStorykeeperCastleEngine(
       placeWallMounted('story-book-shelved', LIBRARY_SHELF_SLOT_SPOT, yaw),
     ]);
     toldVariants.push({ told: shelved, untold: empty });
+
+    await loadSecretDoorWall();
+  }
+
+  /**
+   * Beat 9's evidence (SC-8): the door with no handle, the nine carved
+   * stars above it, the three clues, and the wall they get pinned to.
+   *
+   * The nine stars are the point of the whole beat. `count-the-stars` asks
+   * "5 in the top row and 4 in the bottom row, how many altogether?", and
+   * in the card-based build that is a number described in a sentence. Here
+   * the child can look up and count them. The answer stays deterministic
+   * and the step is untouched; only the evidence becomes physical - which
+   * is why the stars are placed from SC-0's authored positions rather than
+   * laid out here, and why `storykeeperCastleRegion.test.ts` asserts there
+   * are exactly nine of them in rows of five and four. Content and question
+   * cannot drift apart.
+   */
+  async function loadSecretDoorWall(): Promise<void> {
+    const library = ROOMS.find((room) => room.id === 'great-library');
+    if (!library) return;
+
+    const southWallYaw = facingIntoRoom(SECRET_DOOR_SPOT, library.floor);
+    await placeWallMounted('secret-door', SECRET_DOOR_SPOT, southWallYaw);
+
+    /*
+      The nine, placed one at a time rather than instanced.
+
+      `star-carving` is a five-sided cone standing on its base, so straight
+      out of the asset it points at the ceiling - correct for something on
+      the floor and wrong for every authored use of it, all of which are
+      carvings on a vertical wall. Tipping it a quarter turn about x aims it
+      out of the wall and into the room. `InstancePlacement` carries only a
+      y rotation, which is why this is nine placements instead of one
+      instanced run; nine is not worth a wider placement type, and SC-11 can
+      revisit it if profiling ever cares.
+
+      They must be countable from a single viewpoint without moving
+      (roadmap A.10, risk 3). That is a property of SC-0's positions rather
+      than of this call - the rows sit 0.35m apart and a clear 1.6m above
+      the pattern lock's own carvings, so a child counting nine is never
+      unsure which carvings belong to the count.
+    */
+    for (const spot of COUNTING_STAR_SPOTS) {
+      const star = await instantiateAsset('star-carving');
+      star.position.set(spot.x, spot.y, spot.z);
+      star.rotation.x = -Math.PI / 2;
+      star.rotation.y = southWallYaw;
+      scene.add(star);
+    }
+
+    // The wall the three clues get pinned to.
+    await placeWallMounted('portrait-frame', LIBRARY_CLUE_WALL_SPOT, yawIntoLibrary(library));
+
+    // The three clues, each in its own part of the room: three finds, not one.
+    for (const spot of LIBRARY_CLUE_SPOTS) {
+      await placeWithLod(scene, CLUE_ASSETS[spot.entityId] ?? 'clue-note', spot, 0);
+    }
+  }
+
+  /** The clue wall hangs on the library's north wall, like the shelf slot. */
+  function yawIntoLibrary(library: { floor: RectZone }): number {
+    return facingIntoRoom(LIBRARY_CLUE_WALL_SPOT, library.floor);
   }
 
   /** Beat 7: the easel, and all six canvas layers, hidden until a story earns one. */

@@ -1,9 +1,10 @@
 # Storykeeper Castle — First-Person Region Roadmap
 
 **Status:** SC-0 through SC-6 are implemented, which **completes the
-critical vertical slice**. SC-7 is **half implemented**: beat 12's tapestry
-nook is built, and beat 13's calm stop is blocked on a prerequisite that
-turns out not to exist (see SC-7 below). SC-8 through SC-11 are not started.
+critical vertical slice**. SC-7 and SC-8 are **half implemented**: each has
+its world built and each is blocked on a prerequisite the roadmap assumed
+and that does not exist (SC-7's session clock, SC-8's story-in-the-room).
+SC-9 through SC-11 are not started.
 This is the stop-and-re-evaluate point: the region is now worth playtesting,
 and the rest of the roadmap is worth re-costing before any of it is built.
 
@@ -822,7 +823,7 @@ nook - is a presentation layer over a session clock, and the clock is the
 part that has to exist and be trusted. The nook it gestures at is now built
 and waiting.
 
-## SC-8 — Three clues and nine stars (beat 9)
+## SC-8 — Three clues and nine stars (beat 9) — **PARTIAL**
 
 Explorer arc, chapter 1. Requires SC-2's Great Library.
 
@@ -842,6 +843,73 @@ Exit criteria:
   asserts there are exactly nine of them in rows of five and four —
   content and question can never drift apart;
 - the HUD equivalent for the number and ordering steps is available.
+
+### What shipped — beat 9's evidence
+
+The Great Library's south wall is now the scene the chapter describes: the
+door with no handle, **nine gold stars carved above it in two rows of five
+and four**, the three clues each in their own part of the room, and the wall
+they get pinned to.
+
+The stars are the point. `count-the-stars` asks "5 in the top row and 4 in
+the bottom row, how many altogether?", and in the card-based build that is a
+number described in a sentence. A child standing in front of that wall can
+now look up and count nine objects that are actually there. The step, its
+prompt and its `correctValue` are untouched - only the evidence became
+physical, which is exactly the trade the storyboard asks for.
+
+They are placed from SC-0's authored positions, and the test asserting there
+are exactly nine in rows of five and four has been there since SC-0, so the
+content and the question cannot drift apart.
+
+Two faults the screenshots caught, neither of which any test could:
+
+- **The stars were lying flat.** `star-carving` is a five-sided cone
+  standing on its base, so it points at the ceiling - right for a floor
+  decal and wrong for every authored use of it, all of which are carvings on
+  a vertical wall. They are now tipped a quarter turn about x, which is also
+  why they are nine placements rather than one instanced run:
+  `InstancePlacement` carries only a y rotation.
+- **The last bookshelf stood in front of two of them**, so only four and
+  three could be counted. It is SC-9's prop and was placed here
+  opportunistically; it has been removed. **SC-9 inherits the conflict**:
+  `LAST_BOOKSHELF_SPOT` (x 13.1 to 14.9) overlaps the star run (x 11.6 to
+  13.6) on the same wall, and the narrative needs that bookshelf to hide the
+  door while the child needs to count the stars above it. Resolve it there.
+
+### What did not ship — the clues as a puzzle
+
+The three clues are placed and visible; **picking them up and pinning them
+is not wired**, and the reason is worth stating plainly because SC-9 hits it
+harder.
+
+`secret-door-chapter-1-three-clues` is not a location adventure. It is an
+`ADVENTURE` scene inside `THE_CASTLES_SECRET_DOOR`, a `StoryDefinition`
+played by the Story Engine, and its `locationSlug` is `castle-secret-passage`
+rather than `storykeeper-castle`. `StoryChapterRunner` renders that scene by
+embedding `AdventureRunner`, which owns its own session internally - so the
+room cannot reach into it to bind `CollectiblePickedUp` the way SC-4 bound
+the portraits, because SC-4's whole trick was that *the view* holds the
+session.
+
+Making the room drive this beat therefore needs the Explorer story arc
+hosted in the region: a render-prop seam on `StoryChapterRunner` so a caller
+can supply its own adventure renderer, plus the castle view holding story
+progress. That is tractable - the seam is about ten lines - but it moves
+where an arc is *played* and it puts `ChildStoryProgress` in the hands of a
+world view, and running the adventure standalone instead would fork story
+progress and let a child replay the chapter in the library afterwards.
+
+**The storyboard assumes this and never decides it.** Its age-band table
+gives Explorers "beats 1 to 13" in the castle, which can only mean the arc
+is played here, but no ADR says so and no phase in this roadmap budgets for
+it. SC-9 needs the same thing for chapter 2 and needs it more, since the
+pattern lock is three rods seated in a wall rather than a number typed on a
+card.
+
+**Recommendation:** decide the hosting question as an ADR before SC-9,
+covering who owns story progress when a chapter is played in a region.
+Beat 9's world is built and waiting for it.
 
 ## SC-9 — The pattern lock and the writing room (beats 10–11)
 
