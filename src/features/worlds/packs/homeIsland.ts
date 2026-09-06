@@ -28,6 +28,7 @@ export const HOME_ISLAND_PACK: WorldContentPack = {
     'three-planks-for-the-bridge',
     'the-tide-gate-calculation',
     'the-storykeepers-tale',
+    'quills-picture-story',
     'buzz-and-the-waggle-dance',
     'dragon-chapter-1-broken-path',
     'dragon-chapter-2-whispering-forest',

@@ -417,15 +417,15 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Wonderwild Forest first-person region — WF-0 and WF-1 complete
+## Wonderwild Forest first-person region — WF-0 to WF-2 complete; the forest is walkable
 
 Two design documents define this work:
 `docs/WONDERWILD_FOREST_3D_STORYBOARD.md` (the 13-beat storyboard, two
 region plans, age-band routing, and asset kit) and
 `docs/WONDERWILD_FOREST_3D_ROADMAP.md` (its own WF-0 through WF-10 build
 order, with the asset inventory as Appendix A). **WF-0 (region data and
-question bindings) and WF-1 (the asset kit) are implemented; WF-2 through
-WF-10 are not started.**
+question bindings), WF-1 (the asset kit) and WF-2 (the walkable forest) are
+implemented; WF-3 through WF-10 are not started.**
 
 It follows the castle's method deliberately, and departs from it in one
 respect that shapes everything else. The castle's thesis was "choices
@@ -645,6 +645,56 @@ silhouette risk SC-4 confirmed for the castle's hero portraits, with the same
 mitigations already in place: Chatty names the question aloud and the HUD card
 names it in text, so the emblem is never the only cue.
 
+### WF-2 — the walkable forest
+
+`three/wonderwildForestScene.ts`, `three/WonderwildForestWorldView.tsx` and
+`routes/WonderwildForestWorldPage3D.tsx`, on
+`/island/:childId/world/wonderwild-forest-3d`. The forest is built from WF-0's
+numbers and WF-1's kit: an instanced moss floor over the whole region,
+`path-forest` on every drawn trail, ~80 instanced trees plus bushes and ferns
+through the derived tree line, the pond with reeds and lily pads, and every
+glade's props. Colliders are `COLLIDERS` and nothing else, so the trees the
+child sees and the trees that stop them are the same authored data.
+
+**The region is interactive from its first phase, unlike the castle's SC-2**,
+and the route decision below is why: SC-2 could ship an empty shell because
+the card route stayed the default, whereas this route *replaces* the card
+route for two bands, and shipping it emptier than what it replaces would be a
+regression dressed as progress. The eight flavour interactions
+`WONDERWILD_FOREST_INTERACTIONS` already authors are wired to the same ids and
+the same before/after pairs, including the hive clearing's
+`wonderwild-beehive` / `-discovered` split. The Wonder Wall stones are placed
+but emit nothing — WF-3 owns `wonder-wall`.
+
+Three findings, one of them a real defect:
+
+- **The first tree scatter produced fourteen trees for a whole forest.** It
+  gridded each `TREE_LINE_SEGMENTS` entry, but the tree line is derived by a
+  column sweep into many narrow strips, and a 1.5m strip has nothing left once
+  both edges are inset by a trunk radius — so density depended on how the
+  complement happened to be cut up, which is an implementation detail of
+  `buildTreeLineSegments`. `scatterPlacements` now samples the region and
+  rejects on the walkability predicate, with density set against the
+  **measured** tree-line area (449 m², 48% of the region). At one tree per
+  16 m² a child sees clean through the wall of trees while the colliders still
+  stop them, which reads as a bug rather than as a forest; it is now ~80 trees
+  at roughly one per 5.5 m², in one instanced draw call.
+- **The clearance check samples around the candidate, not just at it**, because
+  a tree has a trunk and one placed hard against a trail edge is off the trail
+  and still in the way.
+- **The view's load had an unhandled rejection.** Its `try/finally` already
+  said what it does when a read fails — render the forest anyway rather than
+  strand a child at the trailhead — but with no `catch` the rejection escaped
+  `void load()`. Found by writing the every-read-fails load-state test.
+
+**Not verified: the forest has never run in a browser.** The light rig, the
+scatter's density as seen from inside a glade, whether the bee's trail reads as
+more worn than its neighbours, and whether the Wonder Wall arc reads as an arc
+are all authored from reasoning about numbers. WF-2's exit criteria ask for a
+screenshot pass through the `.tmp-verify/harness/` pattern and **it has not
+run** — this phase's outstanding debt, and the castle's equivalent pass found
+eleven defects no test could see.
+
 ### Route decision: the 3D forest is the front door, not a preview
 
 Decided 2026-09-06, and a departure from how the castle shipped. SC-2 added
@@ -667,7 +717,7 @@ for any band before WF-10, every band can still reach the card route, and the
 age-band branch that decides the default is asserted in both directions so
 "primary for two bands" cannot quietly become "primary for everyone".
 
-## Storykeeper Castle first-person region — SC-0 through SC-6 and SC-8 complete, SC-9 all but its writing room, SC-7 partial
+## Storykeeper Castle first-person region — SC-0 to SC-6, SC-8 and SC-10 complete; SC-9 all but its writing room; SC-7 partial
 
 Two design documents define this work:
 `docs/STORYKEEPER_CASTLE_3D_STORYBOARD.md` (the 13-beat storyboard, floor
@@ -1333,6 +1383,50 @@ never to Welcome Harbor - so SC-9's third exit criterion holds and chapter
 3's `whatIsBehind` branch is untouched. What is missing is the storyboard's
 own small round room, which is a region file, a scene file and a route:
 SC-2-sized work rather than a finishing touch.
+
+### SC-10 — Quill's Picture Story, the castle's Sprouts content
+
+The castle had no Sprouts adventure at all: the tale is PATHFINDER only and
+the secret-door arc EXPLORER only, so a three-year-old could walk in and tap
+six sprites for six sentences. `quills-picture-story` is now authored for
+`SPROUT` - six steps, three of them one decision: who the story is about
+(walk to a portrait), where it happens (walk to a window), and what happened
+first (two plates at the lectern). It ends in the same `FIRST_STORY_TOLD`
+book on the same shelf a Pathfinder's story earns.
+
+Two options where the tale offers three, two beats to order where it offers
+three, labels that are the picture's name and nothing more, three-rung hint
+ladders instead of five. Authored content, not an engine change - every step
+type, transition and validator already existed.
+
+Three region-level things had to stop being tale-specific, each a real
+defect rather than a tidy-up:
+
+- **The gallery is an approach as well as a raycast.** Beat 3 was
+  raycast-only and a three-year-old cannot aim. The portraits have disjoint
+  approach zones now, for the same reason the tower's windows do, and the
+  reticle is hidden for Sprouts - nothing in this castle needs aiming.
+- **Bindings are template-scoped.** The fox portrait means `hero-fox` in the
+  tale and `picture-fox` here; an unqualified lookup returned whichever was
+  authored first, which would have submitted an option id the open step had
+  never heard of. Every lookup names its adventure, and both resolutions are
+  asserted.
+- **The room shows only the pieces the adventure uses.** The tale seats
+  three plates, the picture story two, out of the same three. The spare
+  leaves the table: a Sprout who filled a socket with a piece that could
+  never be part of an answer would be stuck with no way to understand why.
+
+The "answerable by walking there" set is now derived from the bindings
+rather than listed by step id. The hardcoded list held the tale's ids, which
+made the whole gallery inert for Sprouts - caught by a test, not by reading.
+
+ADR-008's Sprouts gate is untouched: the card-based castle remains every
+band's default and the 3D region is still offered as an optional preview, so
+this adds content without retiring a route.
+
+**Not verified: the five-to-eight-minute band target.** Six steps with three
+decisions is structurally well inside it and probably under it, but session
+length is something to watch a child do rather than infer from a step count.
 
 ### Still not verified
 

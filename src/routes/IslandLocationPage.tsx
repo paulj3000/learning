@@ -163,9 +163,30 @@ export function IslandLocationPage() {
             Peek at an early 3D preview (new!)
           </Link>
         ) : null}
+        {/*
+          Wonderwild Forest is the first region whose 3D route is the **front
+          door** rather than a preview (`docs/WONDERWILD_FOREST_3D_ROADMAP.md`
+          WF-2). Pathfinders and Explorers get it first and unlabelled; the
+          card-based route stays available underneath, for them and as the
+          default for Sprouts.
+
+          Sprouts are the exception ADR-008 requires: first-person navigation
+          is not their primary route until the accessibility playtest owed
+          from Phase 32 has run, and the shrink into the beehive makes that
+          gate matter more here than it did in the castle. Nothing is retired
+          for any band before WF-10 - this changes which route is offered
+          first, not which routes exist.
+        */}
+        {location.slug === 'wonderwild-forest' && childProfile.ageBand !== 'SPROUT' ? (
+          <Link className={styles.startLink} to={`/island/${childId}/world/wonderwild-forest-3d`}>
+            Walk into the forest
+          </Link>
+        ) : null}
         {location.slug === 'wonderwild-forest' ? (
           <Link className={styles.walkLink} to={`/island/${childId}/world/wonderwild-forest`}>
-            Try exploring the forest (new!)
+            {childProfile.ageBand === 'SPROUT'
+              ? 'Try exploring the forest (new!)'
+              : 'Explore the forest from above instead'}
           </Link>
         ) : null}
         {location.slug === 'storykeeper-castle' ? (

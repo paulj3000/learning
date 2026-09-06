@@ -110,6 +110,12 @@ const StorykeeperCastleWorldPage3D = lazy(() =>
   })),
 );
 
+const WonderwildForestWorldPage3D = lazy(() =>
+  import('../routes/WonderwildForestWorldPage3D').then((module) => ({
+    default: module.WonderwildForestWorldPage3D,
+  })),
+);
+
 export function AppRoutes() {
   return (
     <Routes>
@@ -302,6 +308,16 @@ export function AppRoutes() {
           <RequireParent>
             <Suspense fallback={<p>Loading Pirate Builder Bay...</p>}>
               <PirateBuilderBayWorldPage3D />
+            </Suspense>
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/world/wonderwild-forest-3d"
+        element={
+          <RequireParent>
+            <Suspense fallback={<p>Loading Wonderwild Forest...</p>}>
+              <WonderwildForestWorldPage3D />
             </Suspense>
           </RequireParent>
         }

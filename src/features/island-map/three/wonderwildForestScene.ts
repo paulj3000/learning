@@ -43,7 +43,6 @@ import {
   POND_WATER,
   REGION_ID,
   TRAILS,
-  TREE_LINE_SEGMENTS,
   WONDER_STONE_SPOTS,
   ZONES,
   type RectZone,
@@ -100,43 +99,52 @@ function seededRandom(seed: number): () => number {
 }
 
 /**
- * Scatters `spacing`-apart points through a set of rects, deterministically,
- * skipping anything that lands on walkable ground.
+ * Scatters `spacing`-apart points across an area, deterministically, keeping
+ * every one clear of walkable ground by at least `clearance` metres.
  *
- * **The skip is the point.** The tree line is derived as the complement of
- * the walkable set, so a point inside a segment is off-trail by construction
- * - but a tree has a trunk, and one placed hard against a segment edge
- * overhangs the trail beside it. `margin` insets the scatter, and the caller
- * passes `isWalkable` so the invariant is checked against the same predicate
- * the controller collides with rather than against a second copy of it.
+ * **It scatters over the area rather than over the tree-line segments, and
+ * that is a correction rather than a preference.** The first version walked
+ * `TREE_LINE_SEGMENTS` and gridded each one, which produced fourteen trees
+ * for a whole forest: the tree line is derived by a column sweep, so it is
+ * decomposed into many narrow strips, and a strip 1.5m wide has nothing left
+ * of it once both edges are inset by a trunk radius. Density then depended on
+ * how the complement happened to be cut up, which is an implementation
+ * detail of `buildTreeLineSegments` and nothing to do with how a forest
+ * should look. Sampling the region and rejecting on the walkability
+ * predicate gives even density however the complement is decomposed.
+ *
+ * The clearance check samples four points around the candidate rather than
+ * just the candidate itself, because a tree has a trunk: one placed hard
+ * against the edge of a trail is off the trail and still in the child's way.
  */
 export function scatterPlacements(
-  segments: readonly RectZone[],
+  area: RectZone,
   spacing: number,
   seed: number,
   walkable: (x: number, z: number) => boolean,
-  margin = 0.6,
+  clearance = 0.8,
 ): InstancePlacement[] {
   const random = seededRandom(seed);
+  const cols = Math.max(1, Math.floor((area.maxX - area.minX) / spacing));
+  const rows = Math.max(1, Math.floor((area.maxZ - area.minZ) / spacing));
+  const cellWidth = (area.maxX - area.minX) / cols;
+  const cellDepth = (area.maxZ - area.minZ) / rows;
+
   const placements: InstancePlacement[] = [];
-
-  for (const segment of segments) {
-    const minX = segment.minX + margin;
-    const maxX = segment.maxX - margin;
-    const minZ = segment.minZ + margin;
-    const maxZ = segment.maxZ - margin;
-    if (maxX <= minX || maxZ <= minZ) continue;
-
-    const cols = Math.max(1, Math.round((maxX - minX) / spacing));
-    const rows = Math.max(1, Math.round((maxZ - minZ) / spacing));
-    for (let col = 0; col < cols; col += 1) {
-      for (let row = 0; row < rows; row += 1) {
-        // Jitter inside the cell so the tree line does not read as a grid.
-        const x = minX + ((col + 0.15 + random() * 0.7) / cols) * (maxX - minX);
-        const z = minZ + ((row + 0.15 + random() * 0.7) / rows) * (maxZ - minZ);
-        if (walkable(x, z)) continue;
-        placements.push({ position: { x, y: 0, z }, rotationY: random() * Math.PI * 2 });
-      }
+  for (let col = 0; col < cols; col += 1) {
+    for (let row = 0; row < rows; row += 1) {
+      // Jitter inside the cell so the tree line does not read as a grid.
+      const x = area.minX + (col + 0.15 + random() * 0.7) * cellWidth;
+      const z = area.minZ + (row + 0.15 + random() * 0.7) * cellDepth;
+      const rotationY = random() * Math.PI * 2;
+      const blocksSomeone =
+        walkable(x, z) ||
+        walkable(x + clearance, z) ||
+        walkable(x - clearance, z) ||
+        walkable(x, z + clearance) ||
+        walkable(x, z - clearance);
+      if (blocksSomeone) continue;
+      placements.push({ position: { x, y: 0, z }, rotationY });
     }
   }
   return placements;
@@ -151,6 +159,15 @@ export function drawnTrailRects(): RectZone[] {
 
 const GROUND_TILE_SIZE = 4;
 const PATH_TILE_SIZE = 1.5;
+
+/** The whole region footprint, which the floor covers and the scatter samples. */
+const REGION_AREA: RectZone = {
+  id: 'region',
+  minX: -GROUND_HALF_EXTENT_X,
+  maxX: GROUND_HALF_EXTENT_X,
+  minZ: -GROUND_HALF_EXTENT_Z,
+  maxZ: GROUND_HALF_EXTENT_Z,
+};
 
 /**
  * Wonderwild Forest's first-person region (`docs/WONDERWILD_FOREST_3D_ROADMAP.md`
@@ -236,16 +253,10 @@ export function createWonderwildForestEngine(
     await placeKitCluster(
       scene,
       'ground-tile-moss',
-      tilePlacements(
-        {
-          id: 'ground',
-          minX: -GROUND_HALF_EXTENT_X,
-          maxX: GROUND_HALF_EXTENT_X,
-          minZ: -GROUND_HALF_EXTENT_Z,
-          maxZ: GROUND_HALF_EXTENT_Z,
-        },
-        GROUND_TILE_SIZE,
-      ).map((placement) => ({ x: placement.position.x, z: placement.position.z })),
+      tilePlacements(REGION_AREA, GROUND_TILE_SIZE).map((placement) => ({
+        x: placement.position.x,
+        z: placement.position.z,
+      })),
     );
 
     // The trails. The fern bank's connection is `none` and is deliberately
@@ -258,20 +269,27 @@ export function createWonderwildForestEngine(
         .map((placement) => ({ x: placement.position.x, z: placement.position.z })),
     );
 
-    // The tree line, scattered through the derived complement.
-    const trees = scatterPlacements(TREE_LINE_SEGMENTS, 3.4, 1337, isWalkable, 0.8);
+    /*
+      The tree line. Density is tuned against the *measured* tree-line area
+      (449 m2, 48% of the region) rather than guessed: at one tree per 16 m2
+      the "wall of trees" between glades is something a child can see clean
+      through while the colliders still stop them, which reads as a bug
+      rather than as a forest. ~80 trees puts it at roughly one per 5.5 m2.
+      All of them are one instanced draw call.
+    */
+    const trees = scatterPlacements(REGION_AREA, 1.5, 1337, isWalkable, 0.9);
     await placeKitCluster(
       scene,
       'foliage-tree',
       trees.map((p) => ({ x: p.position.x, z: p.position.z, rotationY: p.rotationY })),
     );
-    const bushes = scatterPlacements(TREE_LINE_SEGMENTS, 5.5, 90210, isWalkable, 1.2);
+    const bushes = scatterPlacements(REGION_AREA, 3.0, 90210, isWalkable, 0.6);
     await placeKitCluster(
       scene,
       'foliage-bush',
       bushes.map((p) => ({ x: p.position.x, z: p.position.z, rotationY: p.rotationY })),
     );
-    const ferns = scatterPlacements(TREE_LINE_SEGMENTS, 4.2, 5150, isWalkable, 1);
+    const ferns = scatterPlacements(REGION_AREA, 2.4, 5150, isWalkable, 0.4);
     await placeKitCluster(
       scene,
       'fern',

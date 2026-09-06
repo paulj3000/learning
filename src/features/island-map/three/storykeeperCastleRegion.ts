@@ -740,7 +740,26 @@ export const ZONES: readonly RectZone[] = [
   { id: 'castle-binding-lectern', minX: -1.8, maxX: 1.6, minZ: 0.6, maxZ: 1.3 },
   { id: 'castle-tapestry-stair', minX: -8.6, maxX: -7.2, minZ: -5.9, maxZ: -4.4 },
 
-  { id: 'castle-character-gallery', minX: -7, maxX: -2, minZ: 8, maxZ: 9.6 },
+  /*
+    Arrival, near the archway rather than at the far wall - it fires when
+    the child walks in, and leaves the wall itself to the three portrait
+    zones below.
+  */
+  { id: 'castle-character-gallery', minX: -7, maxX: -2, minZ: 6.6, maxZ: 7.6 },
+
+  /*
+    Standing in front of a portrait, which SC-10 needs and SC-4 did not:
+    beat 3 was a raycast, and a three-year-old cannot aim. The gallery now
+    works the way the Setting Tower always has - walk up to the thing and
+    you have chosen it - so nothing in this castle requires a reticle.
+
+    Like the tower's, these three must never touch: overlapping them would
+    let one step forward stand at two portraits at once, and the choice
+    would come down to listener order.
+  */
+  { id: 'gallery-portrait-puppy', minX: -7.3, maxX: -5.7, minZ: 8.6, maxZ: 9.6 },
+  { id: 'gallery-portrait-dragon', minX: -5.3, maxX: -3.7, minZ: 8.6, maxZ: 9.6 },
+  { id: 'gallery-portrait-fox', minX: -3.3, maxX: -1.7, minZ: 8.6, maxZ: 9.6 },
   { id: 'castle-costume-room', minX: -6, maxX: -3, minZ: -9, maxZ: -7 },
 
   // The tower: one zone for entering the room, then one per window. The

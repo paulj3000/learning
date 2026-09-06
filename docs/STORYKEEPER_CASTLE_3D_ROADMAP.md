@@ -6,7 +6,7 @@ except for beat 11's writing room**, both unblocked by ADR-019, which
 settled how a story chapter may be played inside a region. SC-7 remains
 **half implemented**: beat 12's tapestry nook is built, and beat 13's calm
 stop is blocked on a session clock that does not exist anywhere in the
-product. SC-10 and SC-11 are not started.
+product. **SC-10 is complete.** SC-11 is not started.
 This is the stop-and-re-evaluate point: the region is now worth playtesting,
 and the rest of the roadmap is worth re-costing before any of it is built.
 
@@ -1011,7 +1011,7 @@ the castle. That is a region file, a scene file and a route - an SC-2-sized
 piece of work rather than a finishing touch - and it is the only part of
 beats 10 and 11 that is about somewhere the castle does not yet go.
 
-## SC-10 — Quill's Picture Story (Sprouts)
+## SC-10 — Quill's Picture Story (Sprouts) — **DONE**
 
 **Gated on content approval. Do not author before it is granted.**
 
@@ -1037,6 +1037,54 @@ Exit criteria:
   authored content, not an engine change**;
 - a Sprouts session completes inside the 5-to-8-minute band target;
 - `adventureInvariants.test.ts` covers it like every other adventure.
+
+### What shipped
+
+Content approval was given, and `quills-picture-story` is authored:
+`ageBands: ['SPROUT']`, six steps, three of them a single decision. Walk to
+a portrait to choose who the story is about, walk to a window to choose
+where it happens, put two plates in order at the lectern, and the same
+`FIRST_STORY_TOLD` book lands on the same shelf in the same library that a
+Pathfinder's does. The castle does not keep a lesser shelf for younger
+children.
+
+Two options where the tale offers three, two beats to order where it offers
+three, option labels that are the picture's name and nothing more, and
+three-rung hint ladders rather than five - every rung a sentence a grown-up
+can read aloud without explaining it first. It is **authored content, not an
+engine change**: every step type, transition and validator already existed.
+
+Three things in the region had to become general rather than
+tale-specific, and each was a real defect rather than a tidy-up:
+
+- **The gallery is now an approach as well as a raycast.** Beat 3 was
+  raycast-only, and a three-year-old cannot aim. The three portraits have
+  approach zones of their own, disjoint from each other for exactly the
+  reason the tower's windows are - overlapping them would let one step
+  forward stand at two portraits at once. Nothing in this castle needs a
+  reticle now, and the reticle is hidden for Sprouts.
+- **Bindings are template-scoped.** The fox portrait means `hero-fox` in the
+  tale and `picture-fox` here, so an unqualified lookup returns whichever
+  was authored first - a silent cross-band bug that would submit an option
+  id the open step has never heard of. Every lookup now names its adventure,
+  and a test asserts both resolutions.
+- **The room shows only the pieces the adventure uses.** The tale seats
+  three plates and the picture story seats two, out of the same three. The
+  spare leaves the table, because a Sprout who filled a socket with a piece
+  that can never be part of an answer would be stuck with no way to
+  understand why.
+
+The step the view treats as "answerable by walking there" is now derived
+from the bindings rather than listed by id. The hardcoded list was the
+Pathfinder tale's step ids, which made the entire gallery inert for
+Sprouts - caught by a test rather than by reading.
+
+### Not verified
+
+**The five-to-eight-minute band target.** Six steps with three decisions is
+structurally well inside it, and probably under it, but session length is a
+thing to observe with a child rather than infer from a step count. It joins
+the list of questions only a playtest answers.
 
 ## SC-11 — Accessibility, performance, and the retirement gate
 

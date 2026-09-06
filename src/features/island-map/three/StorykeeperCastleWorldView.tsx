@@ -11,15 +11,13 @@ import { useNpcApproachBridge } from './npcApproachBridge';
 import { WorldHud, type WorldHudBackpackItem } from './WorldHud';
 import { KEEPER_QUILL_ID } from './storykeeperCastleRegion';
 import {
+  getCastleChoiceBindingsForStep,
   resolveCastleChoiceBinding,
+  seatedEntitiesToOrder,
   resolveCastleChoiceEntity,
   THE_STORYKEEPERS_TALE_SLUG,
 } from './castleChoiceBindings';
-import {
-  BINDING_LECTERN_ENTITY_ID,
-  ORDER_THE_STORY_STEP_ID,
-  seatedPlatesToOrder,
-} from './castleBindingLectern';
+import { BINDING_LECTERN_ENTITY_ID } from './castleBindingLectern';
 import {
   LIBRARY_CLUE_WALL_ENTITY_ID,
   ORDER_THE_CLUES_STEP_ID,
@@ -63,6 +61,7 @@ import { listQuestStates } from '../../quests/api';
 import { getQuestDefinition } from '../../quests/content';
 import { getCompanionProfile } from '../../island/api';
 import type { AgeBandValue } from '../../child-profile/constants';
+import type { AdventureDefinition } from '../../adventures/engine/types';
 
 interface StorykeeperCastleWorldViewProps {
   childId: string;
@@ -109,8 +108,32 @@ const COMPREHENSION_CHECK_STEP_ID = 'comprehension-check';
 const STORY_REFLECTION_STEP_ID = 'story-reflection';
 const STORY_WRITTEN_STEP_ID = 'story-written';
 
-/** The two `CREATIVE_CHOICE` steps SC-4 makes into places, answered by one world event each. */
-const SPATIAL_STEP_IDS: readonly string[] = [CHOOSE_HERO_STEP_ID, CHOOSE_SETTING_STEP_ID];
+/**
+ * Whether this step is one the room answers with a single world event -
+ * looking at a portrait, standing at a window.
+ *
+ * Derived from the bindings rather than listed, which SC-10 forced and
+ * which was the right shape anyway: the Sprouts adventure stages the same
+ * two beats under different step ids (`pick-the-animal`, `pick-the-place`),
+ * and a hardcoded list of the Pathfinder tale's ids silently made the whole
+ * gallery inert for three-year-olds. A step is spatial when this adventure
+ * binds entities to it and its answer is one option, which excludes the
+ * `ORDERING` beats - those are an arrangement, and the seating puzzles
+ * report those.
+ */
+/** Whether this step's answer is an arrangement of things this adventure binds. */
+function isArrangementStep(definition: AdventureDefinition, stepId: string): boolean {
+  const step = definition.steps.find((candidate) => candidate.id === stepId);
+  if (step?.presentation.kind !== 'ordering') return false;
+  return getCastleChoiceBindingsForStep(definition.slug, stepId).length > 0;
+}
+
+function isSpatialChoiceStep(definition: AdventureDefinition, stepId: string | null): boolean {
+  if (!stepId) return false;
+  const step = definition.steps.find((candidate) => candidate.id === stepId);
+  if (step?.presentation.kind !== 'creative-choice') return false;
+  return getCastleChoiceBindingsForStep(definition.slug, stepId).length > 0;
+}
 
 /**
  * The hint rung from which Keeper Quill starts pointing at the hearth
@@ -150,11 +173,15 @@ const NO_CHOICES: CastleChoiceState = {
  * portrait would *mean* ("A clever fox"), which is the same words the card
  * uses, because it is the same string.
  */
-function optionLabelForEntity(entityId: string): string | undefined {
+function optionLabelForEntity(
+  entityId: string,
+  definition: AdventureDefinition | undefined,
+): string | undefined {
   if (entityId === BINDING_LECTERN_ENTITY_ID) return 'The binding lectern';
-  const binding = resolveCastleChoiceBinding(entityId);
-  if (!binding || binding.templateSlug !== THE_STORYKEEPERS_TALE_SLUG) return undefined;
-  const step = THE_STORYKEEPERS_TALE.steps.find((candidate) => candidate.id === binding.stepId);
+  if (!definition) return undefined;
+  const binding = resolveCastleChoiceBinding(entityId, definition.slug);
+  if (!binding) return undefined;
+  const step = definition.steps.find((candidate) => candidate.id === binding.stepId);
   if (!step) return undefined;
   /*
     A portrait or a window is one of a step's options; a story plate is one
@@ -374,7 +401,7 @@ export function StorykeeperCastleWorldView({
       ordering card uses for it.
     */
     const offPickedUp = bus.on('CollectiblePickedUp', ({ entityId }) => {
-      const label = optionLabelForEntity(entityId);
+      const label = optionLabelForEntity(entityId, taleForBand);
       if (label) setToast(`You picked up: ${label}`);
     });
     const offFocus = bus.on('InteractableFocused', ({ entityId }) => {
@@ -385,7 +412,7 @@ export function StorykeeperCastleWorldView({
         );
         return;
       }
-      setFocusedLabel(entityId ? (optionLabelForEntity(entityId) ?? null) : null);
+      setFocusedLabel(entityId ? (optionLabelForEntity(entityId, taleForBand) ?? null) : null);
     });
     const offZone = bus.on('PlayerEnteredZone', ({ zoneId }) => {
       if (KNOWN_CHECKPOINT_IDS.includes(zoneId)) {
@@ -560,7 +587,13 @@ export function StorykeeperCastleWorldView({
         <WorldHud
           questCue={questCue}
           companionName={companionName}
-          focusedLabel={focusedLabel}
+          /*
+            SC-10: no reticle for Sprouts. Nothing in this castle needs
+            aiming any more - the gallery became an approach alongside the
+            tower in SC-10 - so a crosshair a three-year-old cannot use
+            would be decoration that implies a control they do not have.
+          */
+          focusedLabel={ageBand === 'SPROUT' ? null : focusedLabel}
           toastMessage={toast}
           backpackItems={backpackItems}
         />
@@ -572,6 +605,7 @@ export function StorykeeperCastleWorldView({
           aiEnabled={aiEnabled}
           bus={bus}
           engineRef={engineRef}
+          definition={taleForBand}
           restoredChoices={restoredChoices}
           onChoice={reflectChoice}
           onComplete={handleTaleComplete}
@@ -653,6 +687,14 @@ interface CastleTaleSessionProps {
    * component holds.
    */
   engineRef: React.RefObject<StorykeeperCastleEngine | null>;
+  /**
+   * The adventure this child's band actually gets here (SC-10). Pathfinders
+   * play "The Storykeeper's Tale"; Sprouts play "Quill's Picture Story",
+   * which is the same rooms and the same props asking two-option questions.
+   * Resolved by `resolveAdventureForAgeBand`, so the region offers what the
+   * content says rather than what this file assumes.
+   */
+  definition: AdventureDefinition;
   /** What this child already chose in a session left open, so beat 7 knows which picture to paint. */
   restoredChoices: CastleChoiceState;
   /** Called with every creative choice, whichever way it was made, so the room can light up. */
@@ -691,6 +733,7 @@ function CastleTaleSession({
   aiEnabled,
   bus,
   engineRef,
+  definition,
   restoredChoices,
   onChoice,
   onComplete,
@@ -709,7 +752,7 @@ function CastleTaleSession({
     companionTurn,
     representationAid,
     storyScenes,
-  } = useAdventureSession(childId, THE_STORYKEEPERS_TALE, ageBand, aiEnabled);
+  } = useAdventureSession(childId, definition, ageBand, aiEnabled);
 
   const hasFiredOnComplete = useRef(false);
   useEffect(() => {
@@ -817,17 +860,33 @@ function CastleTaleSession({
    * clearing whatever they were playing with, and every arrangement the
    * room reports outside this step is ignored.
    */
-  const orderingStepOpen = stepId === ORDER_THE_STORY_STEP_ID;
-  useEffect(() => {
-    if (!orderingStepOpen) return;
-    engineRef.current?.resetBindingPlates();
-  }, [orderingStepOpen, engineRef]);
+  const orderingStepId = stepId && isArrangementStep(definition, stepId) ? stepId : null;
+  const activePlates = useMemo(
+    () =>
+      orderingStepId
+        ? getCastleChoiceBindingsForStep(definition.slug, orderingStepId).map(
+            (binding) => binding.entityId,
+          )
+        : [],
+    [definition, orderingStepId],
+  );
 
   useEffect(() => {
-    if (!orderingStepOpen) return;
+    if (!orderingStepId) return;
+    /*
+      Only the plates this adventure orders. The tale seats three and the
+      Sprouts picture story seats two out of the same set, so the spare has
+      to leave the table - otherwise a three-year-old can fill a socket with
+      a piece that can never be part of an answer.
+    */
+    engineRef.current?.resetBindingPlates(activePlates);
+  }, [orderingStepId, activePlates, engineRef]);
+
+  useEffect(() => {
+    if (!orderingStepId) return;
     return bus.on('BuildActionRequested', ({ entityId, order }) => {
       if (entityId !== BINDING_LECTERN_ENTITY_ID) return;
-      const answer = seatedPlatesToOrder(order ?? []);
+      const answer = seatedEntitiesToOrder(definition.slug, orderingStepId, order ?? []);
       if (!answer) return;
       void submitRef.current({ kind: 'ordering', order: answer }).then((correctness) => {
         /*
@@ -839,19 +898,18 @@ function CastleTaleSession({
           `submitAnswer` the HUD list goes through.
         */
         if (correctness === 'correct') return;
-        engineRef.current?.resetBindingPlates();
+        engineRef.current?.resetBindingPlates(activePlates);
         engineRef.current?.playQuillClip('ReactConcerned');
       });
     });
-  }, [bus, orderingStepOpen, engineRef]);
+  }, [bus, orderingStepId, definition, activePlates, engineRef]);
 
   useEffect(() => {
-    if (!stepId || !SPATIAL_STEP_IDS.includes(stepId)) return;
+    if (!isSpatialChoiceStep(definition, stepId)) return;
 
     const answerWith = (entityId: string) => {
-      const binding = resolveCastleChoiceBinding(entityId);
+      const binding = resolveCastleChoiceBinding(entityId, definition.slug);
       if (!binding) return;
-      if (binding.templateSlug !== THE_STORYKEEPERS_TALE_SLUG) return;
       if (binding.stepId !== stepId) return;
       void submitRef.current({ kind: 'creative-choice', optionId: binding.optionId });
     };
@@ -865,7 +923,7 @@ function CastleTaleSession({
       offInteracted();
       offZone();
     };
-  }, [bus, stepId]);
+  }, [bus, stepId, definition]);
 
   if (loadState === 'loading') {
     return <p className={styles.status}>Opening your story...</p>;

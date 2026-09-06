@@ -4,8 +4,6 @@ import {
   GROUND_HALF_EXTENT_X,
   GROUND_HALF_EXTENT_Z,
   TRAILS,
-  TREE_LINE_SEGMENTS,
-  isInsideRect,
   isWalkable,
 } from './wonderwildForestRegion';
 import type { RectZone } from './wonderwildForestRegion';
@@ -63,13 +61,14 @@ describe('tilePlacements', () => {
 });
 
 describe('scatterPlacements', () => {
+  const TREES = () => scatterPlacements(GROUND, 1.5, 1337, isWalkable, 0.9);
+
   it('never puts a tree anywhere the child can walk', () => {
     // The defect this exists to prevent: a tree standing on a trail the
     // colliders say is open. It would be invisible to the region tests (the
     // geometry is right) and to every other test here (the scene is not
     // rendered), and a child would simply walk into nothing.
-    const placements = scatterPlacements(TREE_LINE_SEGMENTS, 3.4, 1337, isWalkable, 0.8);
-    expect(placements.length).toBeGreaterThan(20);
+    const placements = TREES();
     for (const placement of placements) {
       expect(
         isWalkable(placement.position.x, placement.position.z),
@@ -78,54 +77,79 @@ describe('scatterPlacements', () => {
     }
   });
 
-  it('keeps every scattered piece inside the region extents', () => {
-    for (const placement of scatterPlacements(TREE_LINE_SEGMENTS, 3.4, 1337, isWalkable, 0.8)) {
-      expect(Math.abs(placement.position.x)).toBeLessThanOrEqual(GROUND_HALF_EXTENT_X);
-      expect(Math.abs(placement.position.z)).toBeLessThanOrEqual(GROUND_HALF_EXTENT_Z);
+  it('keeps a trunk-width clearance off every trail edge', () => {
+    // Being off the trail is not enough: a tree has a trunk, and one placed
+    // hard against a trail edge is off the trail and still in the way.
+    const clearance = 0.9;
+    for (const { position } of scatterPlacements(GROUND, 1.5, 1337, isWalkable, clearance)) {
+      for (const [dx, dz] of [
+        [clearance, 0],
+        [-clearance, 0],
+        [0, clearance],
+        [0, -clearance],
+      ]) {
+        expect(
+          isWalkable(position.x + dx, position.z + dz),
+          `a trunk at (${position.x}, ${position.z}) overhangs a trail`,
+        ).toBe(false);
+      }
     }
   });
 
-  it('keeps a trunk-width margin off every trail edge', () => {
-    // Being off the trail is not enough: a tree has a trunk, and one placed
-    // hard against a segment edge overhangs the trail beside it.
-    const margin = 0.8;
-    const placements = scatterPlacements(TREE_LINE_SEGMENTS, 3.4, 1337, isWalkable, margin);
-    for (const placement of placements) {
-      const inSomeSegment = TREE_LINE_SEGMENTS.some((segment) =>
-        isInsideRect(placement.position.x, placement.position.z, {
-          ...segment,
-          minX: segment.minX + margin - 0.001,
-          maxX: segment.maxX - margin + 0.001,
-          minZ: segment.minZ + margin - 0.001,
-          maxZ: segment.maxZ - margin + 0.001,
-        }),
-      );
-      expect(inSomeSegment, 'a scattered piece sits outside the inset tree line').toBe(true);
+  it('fills the tree line densely enough to read as forest, not as scattered woodland', () => {
+    /*
+      This is the assertion that caught the real defect in this helper. The
+      first version scattered over `TREE_LINE_SEGMENTS` and gridded each one,
+      which produced *fourteen* trees for the whole forest, because the tree
+      line is derived by a column sweep into many narrow strips and a 1.5m
+      strip has nothing left once both edges are inset by a trunk radius.
+      Density depended on how the complement happened to be cut up, which is
+      an implementation detail of `buildTreeLineSegments`.
+
+      The floor is set from the measured tree-line area (~449 m2, 48% of the
+      region): at worse than one tree per 8 m2 a child can see clean through
+      the "wall of trees" between glades while the colliders still stop them,
+      which reads as a bug rather than as a forest.
+    */
+    const treeLineArea = 0.48 * (GROUND_HALF_EXTENT_X * 2) * (GROUND_HALF_EXTENT_Z * 2);
+    const trees = TREES();
+    expect(treeLineArea / trees.length).toBeLessThan(8);
+  });
+
+  it('keeps every scattered piece inside the region extents', () => {
+    for (const { position } of TREES()) {
+      expect(Math.abs(position.x)).toBeLessThanOrEqual(GROUND_HALF_EXTENT_X);
+      expect(Math.abs(position.z)).toBeLessThanOrEqual(GROUND_HALF_EXTENT_Z);
     }
   });
 
   it('is deterministic, so the forest looks the same on every load', () => {
     // Screenshots, and a child who walks out and back in, both depend on this.
-    const first = scatterPlacements(TREE_LINE_SEGMENTS, 3.4, 1337, isWalkable);
-    const second = scatterPlacements(TREE_LINE_SEGMENTS, 3.4, 1337, isWalkable);
-    expect(second).toEqual(first);
+    expect(scatterPlacements(GROUND, 1.5, 1337, isWalkable)).toEqual(
+      scatterPlacements(GROUND, 1.5, 1337, isWalkable),
+    );
   });
 
   it('gives different seeds different layouts, so tree and bush runs do not stack', () => {
-    const trees = scatterPlacements(TREE_LINE_SEGMENTS, 3.4, 1337, isWalkable);
-    const bushes = scatterPlacements(TREE_LINE_SEGMENTS, 3.4, 90210, isWalkable);
-    expect(bushes).not.toEqual(trees);
+    expect(scatterPlacements(GROUND, 1.5, 90210, isWalkable)).not.toEqual(
+      scatterPlacements(GROUND, 1.5, 1337, isWalkable),
+    );
   });
 
   it('thins out as spacing grows', () => {
-    const dense = scatterPlacements(TREE_LINE_SEGMENTS, 3, 1337, isWalkable);
-    const sparse = scatterPlacements(TREE_LINE_SEGMENTS, 6, 1337, isWalkable);
-    expect(sparse.length).toBeLessThan(dense.length);
+    expect(scatterPlacements(GROUND, 4, 1337, isWalkable).length).toBeLessThan(
+      scatterPlacements(GROUND, 2, 1337, isWalkable).length,
+    );
   });
 
-  it('drops a segment too thin to inset rather than emitting a sliver', () => {
-    const sliver: RectZone = { id: 'sliver', minX: 0, maxX: 0.4, minZ: 0, maxZ: 0.4 };
-    expect(scatterPlacements([sliver], 3, 1, () => false, 0.6)).toHaveLength(0);
+  it('emits nothing when everywhere is walkable', () => {
+    expect(scatterPlacements(GROUND, 3, 1, () => true)).toHaveLength(0);
+  });
+
+  it('lays every scattered piece on the ground plane', () => {
+    for (const { position } of TREES()) {
+      expect(position.y).toBe(0);
+    }
   });
 });
 

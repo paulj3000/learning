@@ -443,7 +443,7 @@ export interface StorykeeperCastleEngine extends ThreeEngineHandle {
    * order costs nothing: no plate is destroyed, none is hidden, and the
    * child picks up again from where they started.
    */
-  resetBindingPlates(): void;
+  resetBindingPlates(active?: readonly string[]): void;
   /**
    * Beat 9's equivalent: unpins every clue and lays the three back where
    * they were found. Called when `order-the-clues` opens, and when the
@@ -782,8 +782,17 @@ export function createStorykeeperCastleEngine(
     seatCarried(): void;
     /** Corrects the slot height once the thing holding the slots has loaded and can be measured. */
     setSlotHeight(height: number): void;
-    /** Empties every slot and lays everything back where it started. */
-    reset(): void;
+    /**
+     * Empties every slot and lays everything back where it started.
+     *
+     * `active` names the pieces the adventure being played actually uses,
+     * and the rest are hidden. Two adventures share these three plates: the
+     * Pathfinder tale orders three, the Sprouts picture story orders two.
+     * Leaving the spare on the table would let a three-year-old fill a slot
+     * with a piece that can never be part of an answer, and then be stuck
+     * with no idea why.
+     */
+    reset(active?: readonly string[]): void;
   }
 
   function createSeatingPuzzle(options: SeatingPuzzleOptions): SeatingPuzzle {
@@ -792,6 +801,8 @@ export function createStorykeeperCastleEngine(
     const seated: string[] = [];
     let carried: string | null = null;
     let slotHeight = options.slotHeight;
+    /** The pieces in play. Everything authored, until an adventure narrows it. */
+    let active: readonly string[] = options.homes.map((home) => home.entityId);
 
     const restAtHome = (entityId: string) => {
       const object = objects.get(entityId);
@@ -817,7 +828,8 @@ export function createStorykeeperCastleEngine(
         restAtHome(entityId);
       },
       has: (entityId) => homeById.has(entityId),
-      aimTarget: (entityId) => (carried === entityId ? null : (objects.get(entityId) ?? null)),
+      aimTarget: (entityId) =>
+        carried === entityId || !active.includes(entityId) ? null : (objects.get(entityId) ?? null),
       carriedId: () => carried,
       carriedObject: () => (carried ? (objects.get(carried) ?? null) : null),
       pickUp(entityId) {
@@ -830,11 +842,11 @@ export function createStorykeeperCastleEngine(
         bus.emit('CollectiblePickedUp', { entityId });
       },
       seatCarried() {
-        if (!carried || seated.length >= options.slots.length) return;
+        if (!carried || seated.length >= Math.min(active.length, options.slots.length)) return;
         seated.push(carried);
         carried = null;
         restSeated();
-        if (seated.length === options.slots.length) {
+        if (seated.length === active.length) {
           bus.emit('BuildActionRequested', {
             entityId: options.targetEntityId,
             order: [...seated],
@@ -845,10 +857,15 @@ export function createStorykeeperCastleEngine(
         slotHeight = height;
         restSeated();
       },
-      reset() {
+      reset(nextActive) {
         carried = null;
         seated.length = 0;
-        for (const home of options.homes) restAtHome(home.entityId);
+        if (nextActive && nextActive.length > 0) active = nextActive;
+        for (const home of options.homes) {
+          restAtHome(home.entityId);
+          const object = objects.get(home.entityId);
+          if (object) object.visible = active.includes(home.entityId);
+        }
       },
     };
   }
@@ -864,8 +881,8 @@ export function createStorykeeperCastleEngine(
     seatedYaw: bindingLecternYaw,
   });
 
-  function resetBindingPlates(): void {
-    platePuzzle.reset();
+  function resetBindingPlates(active?: readonly string[]): void {
+    platePuzzle.reset(active);
   }
 
   /**

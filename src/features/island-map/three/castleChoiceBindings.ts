@@ -50,6 +50,7 @@ export interface CastleChoiceBinding {
 }
 
 export const THE_STORYKEEPERS_TALE_SLUG = 'the-storykeepers-tale';
+export const QUILLS_PICTURE_STORY_SLUG = 'quills-picture-story';
 export const SECRET_DOOR_CHAPTER_1_SLUG = 'secret-door-chapter-1-three-clues';
 export const SECRET_DOOR_CHAPTER_2_SLUG = 'secret-door-chapter-2-pattern-lock';
 
@@ -115,6 +116,59 @@ export const CASTLE_CHOICE_BINDINGS: readonly CastleChoiceBinding[] = [
     optionId: 'beat-ending',
   },
 
+  /*
+    SC-10 - "Quill's Picture Story", the Sprouts adventure. The same
+    portraits, the same windows and the same plates as the Pathfinder tale,
+    bound to that adventure's own option ids.
+
+    Two of each rather than three: a Sprout is asked "which of these two?".
+    So the dragon portrait, the mountain window and the choice plate are
+    deliberately unbound here - they are still in the room, and walking up
+    to one during this adventure does nothing, which is the correct
+    behaviour for a thing that is not one of this story's options.
+
+    This is why every lookup in this file takes a template: one portrait now
+    stands for two different option ids depending on which adventure the
+    child is playing, and answering the wrong one would be a silent
+    cross-band bug.
+  */
+  {
+    entityId: 'gallery-portrait-puppy',
+    templateSlug: QUILLS_PICTURE_STORY_SLUG,
+    stepId: 'pick-the-animal',
+    optionId: 'picture-puppy',
+  },
+  {
+    entityId: 'gallery-portrait-fox',
+    templateSlug: QUILLS_PICTURE_STORY_SLUG,
+    stepId: 'pick-the-animal',
+    optionId: 'picture-fox',
+  },
+  {
+    entityId: 'tower-window-island',
+    templateSlug: QUILLS_PICTURE_STORY_SLUG,
+    stepId: 'pick-the-place',
+    optionId: 'picture-island',
+  },
+  {
+    entityId: 'tower-window-cave',
+    templateSlug: QUILLS_PICTURE_STORY_SLUG,
+    stepId: 'pick-the-place',
+    optionId: 'picture-cave',
+  },
+  {
+    entityId: 'story-plate-problem',
+    templateSlug: QUILLS_PICTURE_STORY_SLUG,
+    stepId: 'what-happened-first',
+    optionId: 'picture-problem',
+  },
+  {
+    entityId: 'story-plate-ending',
+    templateSlug: QUILLS_PICTURE_STORY_SLUG,
+    stepId: 'what-happened-first',
+    optionId: 'picture-ending',
+  },
+
   // Beat 9 - the three clues, pinned in the order they were written.
   {
     entityId: 'library-clue-diary',
@@ -173,9 +227,23 @@ export const BOUND_STEPS: readonly { templateSlug: string; stepId: string }[] = 
  * `undefined` as "this entity is not a learning choice", never as an error
  * to recover from - an entity that *should* have bound and does not is
  * caught by the test, not at runtime.
+ *
+ * **Pass `templateSlug` whenever the caller knows which adventure is being
+ * played**, which is every caller that is about to answer a step. Since
+ * SC-10 the same portrait stands for `hero-fox` in the Pathfinder tale and
+ * `picture-fox` in the Sprouts one, and an unqualified lookup returns
+ * whichever was authored first - a silent cross-band bug that would submit
+ * an option id the open step has never heard of.
  */
-export function resolveCastleChoiceBinding(entityId: string): CastleChoiceBinding | undefined {
-  return CASTLE_CHOICE_BINDINGS.find((binding) => binding.entityId === entityId);
+export function resolveCastleChoiceBinding(
+  entityId: string,
+  templateSlug?: string,
+): CastleChoiceBinding | undefined {
+  return CASTLE_CHOICE_BINDINGS.find(
+    (binding) =>
+      binding.entityId === entityId &&
+      (templateSlug === undefined || binding.templateSlug === templateSlug),
+  );
 }
 
 /** Every entity bound to one step, in authored order. */

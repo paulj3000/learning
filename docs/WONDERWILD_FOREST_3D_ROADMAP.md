@@ -1,7 +1,7 @@
 # Wonderwild Forest — First-Person Region Roadmap
 
-**Status:** WF-0 and WF-1 are implemented. WF-2 through WF-10 are proposed
-and not started.
+**Status:** WF-0, WF-1 and WF-2 are implemented, and the forest is walkable.
+WF-3 through WF-10 are proposed and not started.
 
 A standalone roadmap for rebuilding Wonderwild Forest as a first-person
 Three.js region. It has its own phase numbering (**WF-0** through
@@ -349,7 +349,7 @@ portraits, with the same mitigations already in place: Chatty names the
 question aloud and the HUD card names it in text, so the emblem is never the
 only cue.
 
-## WF-2 — The walkable forest
+## WF-2 — The walkable forest — **DONE**
 
 The forest as a place, with nothing to do in it yet. This is the phase that
 makes the region real.
@@ -411,6 +411,72 @@ Exit criteria:
   shipping a default that is wrong for a band and fixing it later;
 - a test asserts both halves of that branch, so "primary for two bands, not
   the third" cannot quietly become "primary for everyone".
+
+### What shipped
+
+`three/wonderwildForestScene.ts`, `three/WonderwildForestWorldView.tsx` and
+`routes/WonderwildForestWorldPage3D.tsx`, on
+`/island/:childId/world/wonderwild-forest-3d`, lazy-loaded and — for
+Pathfinders and Explorers — **linked first from the location page, as "Walk
+into the forest" rather than "Peek at an early 3D preview"**. The forest is
+built entirely from WF-0's numbers and WF-1's kit: an instanced moss floor
+over the whole region, `path-forest` on every drawn trail, ~80 instanced
+trees plus bushes and ferns through the derived tree line, the pond with its
+reeds and lily pads, and every glade's props. Colliders are `COLLIDERS` and
+nothing else, so the trees the child sees and the trees that stop them are
+the same authored data.
+
+**This region is interactive from its first phase, unlike the castle's SC-2**,
+and the default-route decision is why. SC-2 shipped a deliberately empty
+shell because the card route stayed the default and an empty castle promised
+nothing it could not keep. Here the 3D forest *replaces* the card route as
+what a Pathfinder opens, so shipping it emptier than the route it replaces
+would be a regression dressed as progress. The eight flavour interactions
+`WONDERWILD_FOREST_INTERACTIONS` already authors are wired to the same ids, in
+the same before/after pairs — including the hive clearing's
+`wonderwild-beehive` / `-discovered` split, which the Phaser forest shares on
+one zone. **The Wonder Wall itself is scenery**: WF-3 owns `wonder-wall`, and
+its four stones are placed so the hub is not an empty clearing.
+
+Three things worth carrying into WF-3, one of them a real defect:
+
+- **The first tree scatter produced fourteen trees for a whole forest.** It
+  walked `TREE_LINE_SEGMENTS` and gridded each one, but the tree line is
+  derived by a column sweep into many narrow strips, and a 1.5m strip has
+  nothing left of it once both edges are inset by a trunk radius. Density
+  therefore depended on how the complement happened to be cut up, which is an
+  implementation detail of `buildTreeLineSegments` and nothing to do with how
+  a forest should look. `scatterPlacements` now samples the region and rejects
+  on the walkability predicate. Density is set against the **measured**
+  tree-line area (449 m², 48% of the region): at one tree per 16 m² a child
+  can see clean through the wall of trees between glades while the colliders
+  still stop them, which reads as a bug rather than as a forest. It is now
+  ~80 trees, roughly one per 5.5 m², in one instanced draw call.
+- **The clearance check samples around the candidate, not just at it.** Being
+  off the trail is not enough: a tree has a trunk, and one placed hard against
+  a trail edge is off the trail and still in the child's way.
+- **The view's load had an unhandled rejection.** Its `try/finally` already
+  said what it does when a read fails — render the forest anyway, because a
+  child at the trailhead should not be stranded by a backpack request timing
+  out — but with no `catch` the rejection escaped `void load()`. The intent
+  held and the region rendered; the error just belonged to nobody. Found by
+  writing the every-read-fails test, which is now one of the two load-state
+  tests this phase owes.
+
+**Deliberately not built, and not accidents:** the Wonder Wall stones emit
+nothing (WF-3), there is no hive interior and no way in (WF-4), and beat 10's
+flower patch is placed in its bare state beside the worn trail but nothing
+swaps it (WF-6). The scene does read `WAGGLE_DANCE_DISCOVERED` at
+construction so a child who told the tale on the card route does not walk back
+into a forest that has forgotten it — the swap itself is still WF-6's.
+
+**Not verified: the forest has never run in a browser.** The light rig, the
+scatter's density *as seen from inside a glade*, whether the bee's trail
+actually reads as more worn than its neighbours, and whether the Wonder Wall
+arc reads as an arc are all authored from reasoning about the numbers. WF-2's
+own exit criteria ask for a screenshot pass through the `.tmp-verify/harness/`
+pattern and **it has not run** — that is this phase's outstanding debt, and
+the castle's equivalent pass found eleven defects no test could see.
 
 ## WF-3 — The Wonder Wall (beat 2)
 

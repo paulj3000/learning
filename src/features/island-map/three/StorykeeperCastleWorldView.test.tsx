@@ -7,6 +7,7 @@ import type { WorldEngineEventBus } from './worldEngineEvents';
 import type { AgeBandValue } from '../../child-profile/constants';
 import { THE_STORYKEEPERS_TALE } from '../../adventures/content/theStorykeepersTale';
 import { SECRET_DOOR_CHAPTER_2_PATTERN_LOCK } from '../../adventures/content/castlesSecretDoorAdventures';
+import { QUILLS_PICTURE_STORY } from '../../adventures/content/quillsPictureStory';
 import type { AdventureStep } from '../../adventures/engine/types';
 import type { StepAnswer } from '../../adventures/engine/validators';
 import type { Correctness } from '../../adventures/engine/types';
@@ -484,12 +485,94 @@ describe('StorykeeperCastleWorldView', () => {
     expect(playQuillClipSpy).not.toHaveBeenCalledWith('Point');
   });
 
-  it('declines to start the tale for a band it was not authored for', async () => {
+  /**
+   * SC-10 gave Sprouts their own adventure here, so this band is no longer
+   * turned away - the story hall offers "Quill's Picture Story" instead of
+   * the Pathfinder tale, resolved by `resolveAdventureForAgeBand` rather
+   * than by anything this view assumes.
+   */
+  it('offers Sprouts their own adventure rather than the Pathfinder tale', async () => {
+    const user = userEvent.setup();
+    setStep('pick-the-animal', QUILLS_PICTURE_STORY);
+
     await renderAndWaitForEngine('SPROUT');
+    act(() => capturedBus?.emit('PlayerEnteredZone', { zoneId: 'castle-story-hall' }));
+    await screen.findByRole('dialog', { name: /keeper quill's story hall/i });
+    await user.click(screen.getByRole('button', { name: /start the adventure/i }));
+
+    expect(await screen.findByText(/who is the story about\?/i)).toBeInTheDocument();
+    expect(screen.queryByText(/not available for your age yet/i)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Explorers still are: this location authors a Pathfinder tale and a
+   * Sprouts picture story, and their own content here is the secret-door
+   * arc, which is a story rather than a location adventure.
+   */
+  it('declines the location adventure for a band it was not authored for', async () => {
+    await renderAndWaitForEngine('EXPLORER');
 
     act(() => capturedBus?.emit('PlayerEnteredZone', { zoneId: 'castle-story-hall' }));
 
     expect(await screen.findByText(/not available for your age yet/i)).toBeInTheDocument();
+  });
+
+  /** SC-10: nothing in this castle needs aiming for a Sprout, so no crosshair. */
+  it('hides the reticle for Sprouts and shows it for everyone else', async () => {
+    await renderAndWaitForEngine('SPROUT');
+    act(() => capturedBus?.emit('InteractableFocused', { entityId: 'keeper-quill' }));
+    await waitFor(() => {
+      expect(screen.queryByText(/press e to talk/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it('answers a Sprouts choice by walking up to a portrait', async () => {
+    setStep('pick-the-animal', QUILLS_PICTURE_STORY);
+    getActiveSessionMock.mockResolvedValue({ id: 'session-1', status: 'ACTIVE' } as never);
+
+    await renderAndWaitForEngine('SPROUT');
+
+    act(() => capturedBus?.emit('PlayerEnteredZone', { zoneId: 'gallery-portrait-fox' }));
+
+    await waitFor(() => {
+      expect(submitAnswerSpy).toHaveBeenCalledWith({
+        kind: 'creative-choice',
+        optionId: 'picture-fox',
+      });
+    });
+  });
+
+  /**
+   * The cross-band bug the template-scoped bindings exist to prevent: the
+   * fox portrait means `hero-fox` in the tale and `picture-fox` here, and
+   * answering with the wrong one would submit an option the open step has
+   * never heard of.
+   */
+  it("never answers a Sprouts step with the Pathfinder tale's option id", async () => {
+    setStep('pick-the-animal', QUILLS_PICTURE_STORY);
+    getActiveSessionMock.mockResolvedValue({ id: 'session-1', status: 'ACTIVE' } as never);
+
+    await renderAndWaitForEngine('SPROUT');
+    act(() => capturedBus?.emit('PlayerEnteredZone', { zoneId: 'gallery-portrait-fox' }));
+
+    await waitFor(() => {
+      expect(submitAnswerSpy).toHaveBeenCalled();
+    });
+    expect(submitAnswerSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({ optionId: 'hero-fox' }),
+    );
+  });
+
+  /** A portrait this story does not offer is still just a picture on a wall. */
+  it('ignores a portrait that is not one of the Sprouts options', async () => {
+    setStep('pick-the-animal', QUILLS_PICTURE_STORY);
+    getActiveSessionMock.mockResolvedValue({ id: 'session-1', status: 'ACTIVE' } as never);
+
+    await renderAndWaitForEngine('SPROUT');
+
+    act(() => capturedBus?.emit('PlayerEnteredZone', { zoneId: 'gallery-portrait-dragon' }));
+
+    expect(submitAnswerSpy).not.toHaveBeenCalled();
   });
 
   it('offers the already-told narration once a story is on the shelf', async () => {
