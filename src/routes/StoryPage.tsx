@@ -4,6 +4,7 @@ import runnerStyles from '../features/adventures/AdventureRunner.module.css';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { StoryChapterRunner } from '../features/story/StoryChapterRunner';
 import { useStoryProgress } from '../features/story/useStoryProgress';
+import { isStoryForAgeBand } from '../features/story/engine/eligibility';
 import { getStoryDefinition } from '../features/story/content';
 import { buildStoryRecap } from '../features/story/recap';
 import { getChildProfile } from '../features/child-profile/api';
@@ -71,7 +72,7 @@ export function StoryPage() {
     );
   }
 
-  if (!story.supportedAgeBands.includes(childProfile.ageBand)) {
+  if (!isStoryForAgeBand(story, childProfile.ageBand)) {
     return (
       <IslandLayout childId={childId}>
         <h1>{story.title}</h1>

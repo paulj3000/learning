@@ -10,6 +10,56 @@ import { resolveNarrativeText } from './engine/types';
 import type { StoryChapter } from './engine/types';
 import { useStoryChapterRunner } from './useStoryChapterRunner';
 import type { AgeBandValue } from '../child-profile/constants';
+import type { AdventureDefinition } from '../adventures/engine/types';
+import type { ReactNode } from 'react';
+
+/**
+ * Everything a caller needs to render one `ADVENTURE` scene itself
+ * (ADR-019, part C).
+ *
+ * The default renderer is `AdventureRunner`, which owns its
+ * `useAdventureSession` privately - and that privacy is exactly what stops a
+ * 3D region driving a learning step from the room, because the castle's
+ * method since SC-4 has been that *the view* holds the session, so a
+ * portrait looked at and an option pressed on the card go through one
+ * `submitAnswer` and cannot drift.
+ *
+ * A region supplies a renderer that holds the session and renders
+ * `AdventureStepCard`, the component SC-4 extracted from `AdventureRunner`
+ * for precisely this. One attempt is still one `AdventureSession`: this
+ * changes who renders the scene, never how many sessions exist for it.
+ */
+export interface StoryAdventureRenderProps {
+  childProfileId: string;
+  definition: AdventureDefinition;
+  ageBand: AgeBandValue;
+  aiEnabled: boolean;
+  backToMapHref: string;
+  /** Call when the embedded adventure finishes. The Story Engine advances, not the caller. */
+  onComplete: () => void;
+}
+
+/** What an `ADVENTURE` scene renders when a caller does not say otherwise. */
+function defaultRenderAdventure({
+  childProfileId,
+  definition,
+  ageBand,
+  aiEnabled,
+  backToMapHref,
+  onComplete,
+}: StoryAdventureRenderProps): ReactNode {
+  return (
+    <AdventureRunner
+      key={definition.slug}
+      childProfileId={childProfileId}
+      definition={definition}
+      ageBand={ageBand}
+      aiEnabled={aiEnabled}
+      backToMapHref={backToMapHref}
+      onComplete={onComplete}
+    />
+  );
+}
 
 interface StoryChapterRunnerProps {
   childProfileId: string;
@@ -21,6 +71,17 @@ interface StoryChapterRunnerProps {
   backToStoryHref: string;
   onFlag: (flagKey: string, flagValue: string) => Promise<void>;
   onChapterComplete: () => Promise<void>;
+  /**
+   * Renders an `ADVENTURE` scene. Defaults to the embedded
+   * `AdventureRunner`, which is what every caller but a 3D region wants.
+   *
+   * This is a *rendering* seam and nothing more (ADR-019): it carries no
+   * ability to advance a chapter, skip or complete a scene, grade an
+   * answer, or create story progress. Those stay with the Story and
+   * Adventure Engines, and `StoryChapterRunner` stays canonical - there is
+   * deliberately no `CastleStoryRunner` for a region to reach for instead.
+   */
+  renderAdventure?: (props: StoryAdventureRenderProps) => ReactNode;
 }
 
 /**
@@ -41,6 +102,7 @@ export function StoryChapterRunner({
   backToStoryHref,
   onFlag,
   onChapterComplete,
+  renderAdventure,
 }: StoryChapterRunnerProps) {
   const {
     scene,
@@ -123,15 +185,14 @@ export function StoryChapterRunner({
           </div>
         ) : getAdventureTemplate(scene.templateSlug) ? (
           <>
-            <AdventureRunner
-              key={scene.id}
-              childProfileId={childProfileId}
-              definition={getAdventureTemplate(scene.templateSlug)!}
-              ageBand={ageBand}
-              aiEnabled={aiEnabled}
-              backToMapHref={backToStoryHref}
-              onComplete={handleAdventureComplete}
-            />
+            {(renderAdventure ?? defaultRenderAdventure)({
+              childProfileId,
+              definition: getAdventureTemplate(scene.templateSlug)!,
+              ageBand,
+              aiEnabled,
+              backToMapHref: backToStoryHref,
+              onComplete: handleAdventureComplete,
+            })}
             {adventureJustCompleted ? (
               <button
                 className={stepStyles.primaryButton}

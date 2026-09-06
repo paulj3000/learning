@@ -949,7 +949,7 @@ backend.
 
 ## ADR-019: A story chapter may be played inside a 3D region; the Story Engine keeps sole ownership of progress
 
-Status: Proposed
+Status: Accepted
 
 `docs/STORYKEEPER_CASTLE_3D_STORYBOARD.md`'s age-band table gives Explorers
 "beats 1 to 13" in the first-person castle. Beats 9 to 11 are
@@ -1004,14 +1004,64 @@ SC-4 already extracted from `AdventureRunner` for exactly this purpose. No
 existing caller changes, `AdventureRunner` is untouched, and the castle gets
 the same "one session, two ways in" shape it already has for the tale.
 
+One attempt is still one `AdventureSession`: the seam changes who renders
+the scene, never how many sessions exist for it.
+
 **What this explicitly does not license.** The seam is for *rendering*. It
-carries no ability to skip a scene, reorder a chapter, mark one complete, or
-grade an answer; every one of those stays where it is. A region that wanted
-any of them would need its own ADR.
+carries no ability to advance a chapter, skip a scene, complete a scene or
+chapter, grade an answer, or create or duplicate story progress; every one
+of those stays with the Story and Adventure Engines. Nor does it license a
+region-specific replacement for the Story Engine - there is no
+`CastleStoryRunner`, `ForestStoryRunner` or `ThreeJsStoryRunner`.
+`StoryChapterRunner` remains canonical. A region that wanted any of this
+would need its own ADR.
+
+### Canonical progress identity
+
+The rule the three parts above are all instances of:
+
+> **Entry point is presentation metadata, never progression identity.**
+> `ChildStoryProgress`, chapter state, adventure sessions, completion state
+> and the resulting world changes are keyed to the underlying
+> story/chapter/adventure identity, and are never duplicated or namespaced
+> by the route the child entered from - `StoryPage`, a castle, an NPC, a
+> quest, a discovery, or any other world interaction.
+
+So there is never a `castle-secret-door-progress` beside a
+`library-secret-door-progress`. There is progress for
+`THE_CASTLES_SECRET_DOOR`, and that is all there is. A child may start in
+the castle, walk out mid-chapter, open the Adventure Library and carry on
+from the same row - and the reverse.
+
+The Adventure Library is the persistent, location-independent way to find
+and resume a story. The 3D world offers contextual ways to discover and play
+the same one. **Stories belong to the Story Engine, not to their entry
+point.**
+
+### Age-band eligibility is the Story Engine's, not the region's
+
+A 3D region enforces the same story eligibility `StoryPage` does, by reusing
+that logic rather than restating it. Reaching a Three.js object must never
+be a way around a band gate: `THE_CASTLES_SECRET_DOOR` is Explorer-only from
+the Adventure Library, so it is Explorer-only from the castle.
+
+### A 3D entry point is authored, never automatic
+
+Accepting this does not put every story into the 3D world. An entry point
+stays an authored `WorldInteraction`, and content decides where a story can
+be found - `THE_CASTLES_SECRET_DOOR` in the Adventure Library and Storykeeper
+Castle, plausibly from a relevant NPC, and nowhere else unless someone
+authors it there.
 
 ### Consequences
 
 - SC-9 becomes buildable, and so does SC-8's unbuilt half.
+- **Cross-entry resume tests are required before SC-9 is complete.** Both
+  directions - start in the library and resume in the castle, start in the
+  castle and resume in the library - asserting that switching entry points
+  produces no duplicate `ChildStoryProgress`, no duplicate `AdventureSession`
+  for one attempt, no duplicate completion or `completionWorldChange`, no
+  lost progress, and no replay of a finished scene.
 - Two entry points to one arc need a resume story that holds up in both
   directions. `useStoryChapterRunner` already skips an `ADVENTURE` scene
   whose session is finished, which is the hard half; what is untested is a
