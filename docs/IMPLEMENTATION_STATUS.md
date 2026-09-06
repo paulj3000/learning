@@ -717,7 +717,7 @@ for any band before WF-10, every band can still reach the card route, and the
 age-band branch that decides the default is asserted in both directions so
 "primary for two bands" cannot quietly become "primary for everyone".
 
-## Storykeeper Castle first-person region — SC-0 to SC-6, SC-8 and SC-10 complete; SC-9 all but its writing room; SC-7 partial
+## Storykeeper Castle first-person region — SC-0 to SC-10 built; SC-11's gate does NOT pass, so nothing is retired
 
 Two design documents define this work:
 `docs/STORYKEEPER_CASTLE_3D_STORYBOARD.md` (the 13-beat storyboard, floor
@@ -1427,6 +1427,40 @@ this adds content without retiring a route.
 **Not verified: the five-to-eight-minute band target.** Six steps with three
 decisions is structurally well inside it and probably under it, but session
 length is something to watch a child do rather than infer from a step count.
+
+### SC-11 — the gate, which does not pass
+
+SC-11 is a gate rather than a feature: nothing in SC-2 to SC-10 may claim
+the castle is finished until it passes. **It does not pass.** One of its
+three deliverables is done and the other two need a child and a tablet, so
+**the card-based castle remains every band's route and nothing has been
+retired.**
+
+**Done - the HUD-equivalence audit, and it is a test rather than a
+paragraph.** `castleHudEquivalence.test.tsx` renders the real
+`AdventureStepCard` for every step the castle stages as a world object, and
+asserts that every option a child could walk to is on the card too, in the
+same words, with a control to commit it - and that every graded step of
+every castle adventure is answerable from the card alone. That is the
+standing constraint the whole roadmap inherits: walking, looking and aiming
+are never the only way to a learning objective. A prose audit would have been
+true the day it was written; this one fails the day someone binds a step the
+card cannot answer, which is mutation-checked.
+
+**Not done - the Sprouts playtest.** It has not run and no code substitutes
+for it. SC-10 raised the stakes: there is now content authored *for* Sprouts
+in this castle, so the question has moved from "can a three-year-old walk to
+Quill" to "can a three-year-old complete a learning objective this way".
+
+**Not done - the profiling pass.** Nothing has ever run on a tablet or
+Chromebook. Every frame in this entire roadmap was rendered by SwiftShader
+in a container, which says nothing about a real device. The Great Library is
+now the densest room it has ever been and is the one to measure.
+
+Runbooks for both are in `docs/PILOT_READINESS.md` section 5b. No LOD was
+added, deliberately - `bookshelf` is one instanced draw call, and adding a
+level of detail against no measurement would be optimising a number nobody
+has looked at. No standing constraint was relaxed, so no ADR is owed.
 
 ### Still not verified
 

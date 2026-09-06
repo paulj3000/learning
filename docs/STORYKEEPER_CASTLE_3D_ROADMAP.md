@@ -6,7 +6,11 @@ except for beat 11's writing room**, both unblocked by ADR-019, which
 settled how a story chapter may be played inside a region. SC-7 remains
 **half implemented**: beat 12's tapestry nook is built, and beat 13's calm
 stop is blocked on a session clock that does not exist anywhere in the
-product. **SC-10 is complete.** SC-11 is not started.
+product. **SC-10 is complete.** **SC-11's gate is open on one of three deliverables
+and therefore does not pass**: the HUD-equivalence audit is done and is a
+test, but the Sprouts playtest has not run and no profiling pass has
+happened on target hardware. **The card-based castle remains every band's
+route.**
 This is the stop-and-re-evaluate point: the region is now worth playtesting,
 and the rest of the roadmap is worth re-costing before any of it is built.
 
@@ -1086,7 +1090,7 @@ structurally well inside it, and probably under it, but session length is a
 thing to observe with a child rather than infer from a step count. It joins
 the list of questions only a playtest answers.
 
-## SC-11 — Accessibility, performance, and the retirement gate
+## SC-11 — Accessibility, performance, and the retirement gate — **NOT PASSED**
 
 A gate, not a feature. Nothing in SC-2 to SC-10 may claim the castle is
 finished before this passes.
@@ -1111,6 +1115,46 @@ Exit criteria:
 - performance is within budget on target hardware;
 - only then may the card-based castle route be retired for a band, and
   only for a band the playtest cleared.
+
+### Where the gate stands
+
+**It does not pass, and nothing is retired.** One of its three deliverables
+is done; the other two need a child and a tablet.
+
+**Done - the HUD-equivalence audit, as a test.**
+`castleHudEquivalence.test.tsx` renders the real `AdventureStepCard` for
+every step the castle stages as a world object and asserts that every option
+a child could walk to is on the card too, in the same words, with a control
+to commit it - and that every graded step of every castle adventure is
+answerable from the card alone. A prose audit would have been true on the
+day it was written; this fails the day someone binds a step the card cannot
+answer, which is the failure the standing constraint exists to prevent. It
+has been mutation-checked against exactly that.
+
+**Not done - the Sprouts playtest.** It has not run, and no code substitutes
+for it. The castle raises the stakes over Welcome Harbor's version: since
+SC-10 there is content authored *for* Sprouts here, so the question is no
+longer "can a three-year-old walk to Quill" but "can a three-year-old
+complete a learning objective this way". Runbook in
+`docs/PILOT_READINESS.md` section 5b.
+
+**Not done - the profiling pass.** Nothing has run on a tablet or
+Chromebook; every frame in this roadmap was rendered by SwiftShader in a
+container, which says nothing about a real device. The Great Library is now
+the densest room it has ever been - eleven instanced shelves, the
+secret-door wall with nine stars and six carvings, three rods, three clues -
+and it is the room to measure. Runbook in the same place.
+
+**No LOD was added**, deliberately. `bookshelf` is the one plausible
+candidate and it is one instanced draw call; adding a level of detail
+against no measurement would be optimising a number nobody has looked at,
+and this phase's own wording is "only if that profile shows a real budget
+problem".
+
+**No standing constraint was relaxed**, so no ADR is owed for one. ADR-008's
+Sprouts gate holds unchanged: the card-based castle is still every band's
+route and the region is still offered as an option, which is the
+conservative reading of an unrun playtest.
 
 ## Deliberately out of scope
 

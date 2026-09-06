@@ -311,6 +311,65 @@ itself from any band that can already reach it.
      should move from "pending" to "resolved: Sprouts uses the map
      navigator/Phaser view" so the open question stops being open.
 
-None of the five items in this document were attempted this session
+### 5b. The same playtest for Storykeeper Castle, and a profiling pass
+
+`docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` SC-11 is a **gate**: nothing in SC-2
+to SC-10 may claim the castle is finished until it passes. Two of its three
+exit criteria need people and hardware this sandbox does not have, and
+neither has happened, so **the gate is shut and the card-based castle
+remains every band's route**.
+
+The castle raises the stakes over Welcome Harbor's version of this playtest,
+because the castle now has content authored *for* Sprouts
+(`quills-picture-story`, SC-10) rather than a room they can only wander. The
+question is no longer "can a three-year-old walk to Pip" but "can a
+three-year-old complete a learning objective this way".
+
+**Playtest runbook** - as section 5 above, with these differences:
+
+1. Open `/island/:childId/world/storykeeper-castle-3d` on a `SPROUT`
+   profile, and let the child start the adventure from the story hall.
+2. The loop to observe is the whole of "Quill's Picture Story": walk to a
+   portrait, walk to a window, put two plates in order at the lectern.
+   Every one of those is an approach - nothing in the castle requires
+   aiming for this band, and the reticle is hidden for it.
+3. Record, per child: whether each of the three beats completed without
+   adult intervention, how long the whole adventure took (the band target
+   is 5-8 minutes, and this content is structurally shorter - if it runs
+   *under*, that is worth knowing too), and any sign of disorientation or
+   motion discomfort.
+4. Note separately whether the child noticed the tapestry nook. It is
+   deliberately unmarked, and "nobody ever finds it" and "it is a nice
+   surprise" are different results with different responses.
+
+**Profiling runbook** - on a target tablet or Chromebook, never a
+development desktop:
+
+1. Load `/island/:childId/world/storykeeper-castle-3d` and record **time to
+   first walkable frame**.
+2. Stand in the **Great Library** - the densest room, and now the densest it
+   has ever been: eleven instanced bookshelves, two reading tables, the
+   secret-door wall with nine carved stars and six lock carvings, three
+   rods, three clues, and the shelf slot. Record frame time and draw calls
+   there, then walk the hub-to-library route and record the worst frame.
+3. `bookshelf` is the one plausible LOD candidate (roadmap A.3). **Add LOD
+   only if that profile shows a real budget problem** - it is one instanced
+   draw call today, and adding a level of detail against no measurement
+   would be optimising a number nobody has looked at.
+
+**What has been done**: SC-11's third deliverable, the audit that every
+learning step in the region has a working HUD equivalent, is complete - and
+is a test rather than a paragraph
+(`src/features/island-map/three/castleHudEquivalence.test.tsx`). It renders
+the real `AdventureStepCard` for every step the castle stages as a world
+object and asserts every option a child could walk to is also on the card,
+with the same words; and that every graded step of every castle adventure is
+answerable from the card alone. A phase that binds a step the card cannot
+answer fails it.
+
+That audit says the routes exist. It cannot say a three-year-old can use
+them, which is what the playtest is for.
+
+None of the other items in this document were attempted this session
 beyond producing the runbooks above; each genuinely requires
 infrastructure or people this sandbox does not have access to.
