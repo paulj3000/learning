@@ -68,6 +68,7 @@ const CHOOSE_HERO_STEP_ID = 'choose-hero';
 const CHOOSE_SETTING_STEP_ID = 'choose-setting';
 const COMPREHENSION_CHECK_STEP_ID = 'comprehension-check';
 const STORY_REFLECTION_STEP_ID = 'story-reflection';
+const STORY_WRITTEN_STEP_ID = 'story-written';
 
 /** The two `CREATIVE_CHOICE` steps SC-4 makes into places, answered by one world event each. */
 const SPATIAL_STEP_IDS: readonly string[] = [CHOOSE_HERO_STEP_ID, CHOOSE_SETTING_STEP_ID];
@@ -467,6 +468,7 @@ export function StorykeeperCastleWorldView({
               paintedSettingOptionId: restoredChoices.easelPainted
                 ? restoredChoices.settingOptionId
                 : null,
+              storyTold,
             })
           }
           onEngineReady={(engine) => {
@@ -685,6 +687,30 @@ function CastleTaleSession({
     }
     wasPointingAtMantel.current = pointingAtMantel;
   }, [pointingAtMantel, engineRef]);
+
+  /**
+   * Beat 8. The book arrives on the shelf, the hearth lights, the carpet
+   * runs on through the hub, and Quill celebrates.
+   *
+   * Driven by the `WORLD_CHANGE` step *being on screen* rather than by a
+   * submit, because a `WORLD_CHANGE` step has no answer to submit:
+   * `useAdventureSession` writes the `WorldChange` and advances past it on
+   * its own. That step, its payload, and its `changeKey` are untouched -
+   * this only reacts to the child reaching it, so the book arrives while
+   * they are reading that Keeper Quill has bound their tale.
+   *
+   * Once per play-through. A child who has told a story before finds the
+   * castle already changed at construction instead (`storyTold`), which is
+   * the read-once shape SC-6 asks for rather than an animation replayed on
+   * every visit.
+   */
+  const hasCelebratedRef = useRef(false);
+  useEffect(() => {
+    if (stepId !== STORY_WRITTEN_STEP_ID || hasCelebratedRef.current) return;
+    hasCelebratedRef.current = true;
+    engineRef.current?.showStoryTold(true);
+    engineRef.current?.playQuillClip('Celebrate');
+  }, [stepId, engineRef]);
 
   /**
    * Beat 6. The lectern always works as furniture - a child can pick a

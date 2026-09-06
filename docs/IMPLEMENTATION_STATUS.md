@@ -417,7 +417,7 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Storykeeper Castle first-person region — SC-0 through SC-5 complete
+## Storykeeper Castle first-person region — SC-0 through SC-6 complete (critical slice done)
 
 Two design documents define this work:
 `docs/STORYKEEPER_CASTLE_3D_STORYBOARD.md` (the 13-beat storyboard, floor
@@ -427,10 +427,11 @@ sequence, cross-referenced from `docs/ROADMAP.md`'s Phase 31+ section).
 
 **SC-0 (region data and choice bindings), SC-1 (the castle asset kit),
 SC-2 (the walkable shell), SC-3 (Keeper Quill), SC-4 (choices become
-places) and SC-5 (the hearth, the binding lectern, and the easel) are
-implemented.** SC-6 through SC-11 are not started. The roadmap's critical
-vertical slice is SC-0 to SC-6, so one phase remains before its
-stop-and-re-evaluate point. No adventure or story text has changed, and the card-based
+places), SC-5 (the hearth, the binding lectern, and the easel) and SC-6
+(the book on the shelf) are implemented, which completes the roadmap's
+critical vertical slice.** SC-7 through SC-11 are not started, and the
+roadmap's own instruction at this point is to stop, playtest the region, and
+re-cost the rest before building any of it. No adventure or story text has changed, and the card-based
 Storykeeper Castle route remains the shipped, authoritative one for every
 band; SC-2 adds a third, additive way in
 (`/island/:childId/world/storykeeper-castle-3d`) alongside the existing
@@ -877,6 +878,60 @@ shared assets. That exposed a second one: the dragon's head hung out
 through the top of the picture, because the fit test checked the hero's
 *origin* rather than the hero's extent. All nine compositions were
 re-authored and re-shot, and all nine now sit inside their page.
+
+### SC-6 — the book on the shelf (beat 8)
+
+The world change, and the end of the slice. A Pathfinder can now walk into
+the castle, choose a hero by lighting a portrait, choose a setting by
+standing at a window, answer Quill at the hearth, seat three plates at the
+binding lectern, watch the easel paint their story, and find their book on a
+shelf that was visibly empty when they arrived.
+
+`FIRST_STORY_TOLD` toggles three state variants and one extra length of
+carpet - `story-book-shelved` over `shelf-slot-empty`, `hearth-lit` over
+`hearth`, and the runner carrying on through the hub - with Keeper Quill
+playing `Celebrate`. All four load up front and switch by visibility, the
+`bridge-plank`/`bridge-plank-repaired` precedent, so the change costs no
+fetch at the moment it happens and a returning child's castle is already
+changed on the first frame. The engine takes the same `showStoryTold` call
+at construction and from the room, which is what makes both true without two
+code paths.
+
+**It is driven by the `WORLD_CHANGE` step being on screen, not by a
+submit.** That step has no answer to submit - `useAdventureSession` writes
+the `WorldChange` and advances past it on its own - so wiring beat 8 to a
+submit would have looked right and never fired. The step, its payload and
+its `changeKey` are untouched.
+
+**The floor recolour the Phaser castle performs is deliberately not carried
+over.** The promised consequence is that the child's story has a home on a
+shelf, so the shelf is the consequence; a differently coloured floor is a
+mood change dressed as one.
+
+**SC-2's furnishing debt came due here.** The roadmap says the empty slot is
+"placed in SC-2" - it was not, and neither were the bookshelves, the reading
+tables, the tapestries, or the costume racks. SC-2 built eight rooms and
+furnished almost none of them. The library half is now paid, because beat
+8's payoff depends on it: eleven shelves in one instanced draw call
+(`bookshelf` is single-mesh for exactly this reason) plus the two reading
+tables, with the runs leaving clear every piece of wall SC-8 and SC-9 have
+already claimed, and a deliberate short bay beside the slot so it reads as a
+gap where a book should be rather than as an object on a wall. A region test
+now holds those spans, since they were worked out by hand: a shelf that
+creeps over the slot hides beat 8's whole payoff, and one that creeps over
+the secret door hides a room.
+
+**The tapestries and costume racks are still unplaced and still owed.** The
+tapestries matter for SC-7, which needs at least three of them or its
+unmarked secret becomes a signpost pointing at itself.
+
+Screenshots changed two things. Walking in, the library read as a black void
+rather than as a dark library: it is by some way the largest room in the
+castle and gets the same single ceiling lamp as a two-metre corridor, so
+`bookshelf` moved from `woodDark` to `woodMid` and the room's light from 1.4
+to 2.4. It remains the lowest number in the map, which is the claim SC-2
+actually makes - "dimmest room in the castle" and "you cannot make out the
+furniture" turned out not to be the same statement.
 
 ### Still not verified
 

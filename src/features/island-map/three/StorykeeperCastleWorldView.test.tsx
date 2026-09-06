@@ -25,6 +25,7 @@ const showChosenHeroSpy = vi.fn();
 const showChosenSettingSpy = vi.fn();
 const resetBindingPlatesSpy = vi.fn();
 const showEaselPaintingSpy = vi.fn();
+const showStoryToldSpy = vi.fn();
 let capturedBus: WorldEngineEventBus | null = null;
 
 vi.mock('./storykeeperCastleScene', () => ({
@@ -38,6 +39,7 @@ vi.mock('./storykeeperCastleScene', () => ({
       showChosenHero: showChosenHeroSpy,
       showChosenSetting: showChosenSettingSpy,
       showEaselPainting: showEaselPaintingSpy,
+      showStoryTold: showStoryToldSpy,
     };
   }),
 }));
@@ -191,6 +193,7 @@ describe('StorykeeperCastleWorldView', () => {
     showChosenSettingSpy.mockReset();
     resetBindingPlatesSpy.mockReset();
     showEaselPaintingSpy.mockReset();
+    showStoryToldSpy.mockReset();
     submitAnswerSpy.mockReset();
     submitAnswerSpy.mockResolvedValue('correct');
     capturedBus = null;
@@ -917,6 +920,61 @@ describe('StorykeeperCastleWorldView', () => {
         expect.objectContaining({ paintedHeroOptionId: null, paintedSettingOptionId: null }),
       );
     });
+  });
+
+  // --- SC-6: the book on the shelf (beat 8) --------------------------------
+
+  /**
+   * A `WORLD_CHANGE` step has no answer to submit - `useAdventureSession`
+   * writes the `WorldChange` and advances past it itself - so the castle
+   * has to change on the child *reaching* the step. Driving it off a submit
+   * would simply never fire.
+   */
+  it('puts the book on the shelf when the child reaches the world change', async () => {
+    await renderMidTale('story-written');
+
+    await waitFor(() => {
+      expect(showStoryToldSpy).toHaveBeenCalledWith(true);
+    });
+    expect(playQuillClipSpy).toHaveBeenCalledWith('Celebrate');
+  });
+
+  it('does not change the castle on any earlier step of the tale', async () => {
+    await renderMidTale('story-reflection');
+
+    expect(showStoryToldSpy).not.toHaveBeenCalled();
+    expect(playQuillClipSpy).not.toHaveBeenCalledWith('Celebrate');
+  });
+
+  /**
+   * SC-6's exit criterion: a child who completes the tale, leaves, and
+   * returns finds the book on the shelf and the hearth lit. Built at
+   * construction from their recorded world change, not replayed.
+   */
+  it('builds the castle already changed for a child who told a story before', async () => {
+    listAllWorldChangesMock.mockResolvedValue([{ changeKey: 'FIRST_STORY_TOLD' } as never]);
+
+    await renderAndWaitForEngine();
+
+    await waitFor(() => {
+      expect(createEngineMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining({ storyTold: true }),
+      );
+    });
+    // Built that way, rather than animated into place on arrival.
+    expect(showStoryToldSpy).not.toHaveBeenCalled();
+  });
+
+  it('builds the castle unchanged for a child who has not told one', async () => {
+    await renderAndWaitForEngine();
+
+    expect(createEngineMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ storyTold: false }),
+    );
   });
 
   it('offers a link back to the non-3D location page', async () => {

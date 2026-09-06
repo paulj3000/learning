@@ -545,7 +545,14 @@ const carpet = () => singleMeshAsset('Carpet', buildGroundPlanePrimitive(1.5, 1.
  * first mesh it finds - the trap `foliage-tree` already documents. A plain
  * slab silhouette in the right colour is the correct trade here.
  */
-const bookshelf = () => singleMeshAsset('Shelf', buildBoxPrimitive(1.8, 2.4, 0.4), CASTLE.woodDark);
+/**
+ * A library shelf. `woodMid` rather than `woodDark`: the Great Library is
+ * authored as the darkest room in the castle (SC-2), and at that light level
+ * a dark-wood shelf renders as a featureless black slab - a wall of them
+ * reads as a void rather than as books. It must stay **single-mesh**, since
+ * eleven of them are instanced into one draw call (A.8).
+ */
+const bookshelf = () => singleMeshAsset('Shelf', buildBoxPrimitive(1.8, 2.4, 0.4), CASTLE.woodMid);
 
 const tapestry = () => singleMeshAsset('Tapestry', buildPlanePrimitive(1.2, 2), CASTLE.cloth);
 const portraitFrame = () => singleMeshAsset('Frame', buildPlanePrimitive(0.7, 0.9), CASTLE.woodMid);

@@ -46,6 +46,9 @@ import {
   GALLERY_PORTRAIT_SPOTS,
   KEEPER_QUILL_ID,
   KEEPER_QUILL_SPOT,
+  LIBRARY_BOOKSHELF_SPOTS,
+  LIBRARY_READING_TABLE_SPOTS,
+  LIBRARY_SHELF_SLOT_SPOT,
   QUILL_LECTERN_SPOT,
   REGION_ID,
   ROOMS,
@@ -55,6 +58,7 @@ import {
   WALL_SEGMENTS,
   WALL_THICKNESS,
   ZONES,
+  type BookshelfPlacement,
   type EntitySpot,
   type RectZone,
   type RoomSide,
@@ -86,6 +90,13 @@ const CARPET_LIFT_METERS = 0.02;
  * Presentation only, which is why it lives here and not in
  * `storykeeperCastleRegion.ts` - that file must stay free of anything the
  * renderer owns (and free of any `three` import).
+ *
+ * The library was authored at 1.4 and raised to 2.4 in SC-6, when it turned
+ * out that "dimmest room in the castle" and "you cannot make out the
+ * furniture" are not the same statement. It is by some way the largest room
+ * here and gets the same single ceiling lamp as a two-metre corridor, so it
+ * was reading as a black void rather than as a dark library. It is still
+ * the lowest number in this map, which is the claim SC-2 actually makes.
  */
 const ROOM_LIGHT_INTENSITY: Readonly<Record<string, number>> = {
   'entry-hall': 3,
@@ -95,7 +106,7 @@ const ROOM_LIGHT_INTENSITY: Readonly<Record<string, number>> = {
   'east-corridor': 2.5,
   'setting-tower': 8,
   'illustration-studio': 5,
-  'great-library': 1.4,
+  'great-library': 2.4,
 };
 
 /**
@@ -265,7 +276,7 @@ export function bindingSocketPositions(
   }));
 }
 
-export type QuillClipName = 'Idle' | 'Talk' | 'Point' | 'ReactConcerned';
+export type QuillClipName = 'Idle' | 'Talk' | 'Point' | 'ReactConcerned' | 'Celebrate';
 
 /**
  * What Quill turns to look at while a clip plays. Beat 2 points through the
@@ -311,6 +322,23 @@ const BINDING_LECTERN_HALF = { width: 0.68, depth: 0.26, height: 1.1 };
 const BINDING_TABLE_HALF = { width: 0.72, depth: 0.35, height: 0.85 };
 const EASEL_HALF = { width: 0.45, depth: 0.35, height: 1.6 };
 
+/** `bookshelf` is authored 1.8m wide and 0.4m deep, and every shelf run scales from that. */
+const BOOKSHELF_WIDTH_METERS = 1.8;
+const BOOKSHELF_DEPTH_METERS = 0.4;
+const BOOKSHELF_HEIGHT_METERS = 2.4;
+/** `reading-table`, from `tableWithLegs(1.4, 0.8, 0.72, ...)`. */
+const READING_TABLE_HALF = { width: 0.7, depth: 0.4, height: 0.8 };
+
+/**
+ * The carpet runner, in two pieces. The first is laid from the doors to
+ * Keeper Quill and is always there; the second carries on through the hub
+ * and appears only once the child's story is on the shelf (beat 8), so the
+ * castle reads as having opened up rather than as having been decorated.
+ */
+const CARPET_RUN_TO_QUILL = { from: { x: -14.5, z: 0 }, to: { x: -5, z: 0 } };
+const CARPET_RUN_THROUGH_HUB = { from: { x: -5, z: 0 }, to: { x: 2, z: 0 } };
+const CARPET_TILE_METERS = 1.5;
+
 /** How far in front of the eyes a picked-up plate is carried, and how far below them. */
 const CARRY_FORWARD_METERS = 0.55;
 const CARRY_DROP_METERS = 0.5;
@@ -355,6 +383,19 @@ export interface StorykeeperCastleEngine extends ThreeEngineHandle {
    * painted on the first frame.
    */
   showEaselPainting(heroOptionId: string | null, settingOptionId: string | null): void;
+  /**
+   * Beat 8, the world change. Puts the castle into its told-a-story state:
+   * the bound book on the Great Library's shelf, the hearth lit, and the
+   * carpet running on through the hub.
+   *
+   * The engine takes the same call at construction (`storyTold`) and from
+   * the room when the `WORLD_CHANGE` step lands, so a child who finishes
+   * the tale watches it happen and one who comes back tomorrow simply finds
+   * it done - the same read-once-at-construction shape
+   * `pirateBuilderBayRegion.ts` documents for the repaired bridge, and not
+   * an animation replayed on every visit.
+   */
+  showStoryTold(told: boolean): void;
 }
 
 export interface StorykeeperCastleEngineOptions {
@@ -368,6 +409,8 @@ export interface StorykeeperCastleEngineOptions {
   paintedHeroOptionId?: string | null;
   /** The setting option id, likewise. Both are needed before the easel paints anything. */
   paintedSettingOptionId?: string | null;
+  /** Whether this child has already earned `FIRST_STORY_TOLD`, read from their world changes. */
+  storyTold?: boolean;
 }
 
 /**
@@ -477,6 +520,23 @@ export function createStorykeeperCastleEngine(
     propCollider(BINDING_LECTERN_SPOT, BINDING_LECTERN_HALF, bindingLecternYaw),
     propCollider(BINDING_TABLE_SPOT, BINDING_TABLE_HALF, bindingTableYaw),
     propCollider(STUDIO_EASEL_SPOT, EASEL_HALF, easelYaw),
+    /*
+      A bookshelf is 2.4m of solid wood standing 0.4m proud of the wall it
+      backs onto, well clear of that wall's own collider - so without these
+      the child walks through the library's furniture.
+    */
+    ...LIBRARY_BOOKSHELF_SPOTS.map((shelf) =>
+      propCollider(
+        shelf,
+        {
+          width: shelf.width / 2,
+          depth: BOOKSHELF_DEPTH_METERS / 2,
+          height: BOOKSHELF_HEIGHT_METERS,
+        },
+        shelf.axis === 'x' ? 0 : Math.PI / 2,
+      ),
+    ),
+    ...LIBRARY_READING_TABLE_SPOTS.map((spot) => propCollider(spot, READING_TABLE_HALF, 0)),
   ];
   const controller = new FirstPersonController({ colliders });
 
@@ -524,7 +584,7 @@ export function createStorykeeperCastleEngine(
   let quillAction: AnimationAction | null = null;
 
   /** The clips that play once and hold, rather than looping. */
-  const HELD_CLIPS: readonly QuillClipName[] = ['Point', 'ReactConcerned'];
+  const HELD_CLIPS: readonly QuillClipName[] = ['Point', 'ReactConcerned', 'Celebrate'];
 
   function playQuillClip(clip: QuillClipName, facing?: QuillFacing): void {
     const mixer = quillMixer;
@@ -723,6 +783,34 @@ export function createStorykeeperCastleEngine(
     applyEaselPainting();
   }
 
+  /*
+    Beat 8, the world change. Three state variants and one extra length of
+    carpet, all loaded up front and toggled by visibility - the
+    `bridge-plank`/`bridge-plank-repaired` precedent
+    (`docs/THREE_WORLD_ASSET_CONVENTIONS.md`), so the change costs no fetch
+    at the moment it happens and a returning child's castle is already
+    changed on the first frame.
+
+    Deliberately *not* carried over from the Phaser castle: its floor
+    recolour. The promised consequence is that the child's story has a home
+    on a shelf, so the shelf is the consequence; a differently coloured
+    floor is a mood change dressed up as one.
+  */
+  let storyTold = options.storyTold ?? false;
+  const toldVariants: { told: Object3D; untold: Object3D }[] = [];
+
+  function applyStoryTold(): void {
+    for (const variant of toldVariants) {
+      variant.told.visible = storyTold;
+      variant.untold.visible = !storyTold;
+    }
+  }
+
+  function showStoryTold(told: boolean): void {
+    storyTold = told;
+    applyStoryTold();
+  }
+
   /**
    * Places a wall-mounted prop. Every asset in the pack is ground-pivoted,
    * including the wall-mounted ones (SC-1 made that a single convention on
@@ -802,17 +890,34 @@ export function createStorykeeperCastleEngine(
       ),
     );
 
-    // A carpet from the doors to Keeper Quill's lectern. The only
-    // wayfinding in the castle, and deliberately the kind that cannot be
-    // wrong: it points at the hub every route passes through anyway.
-    const carpet = await createInstancedMeshFromAsset(
-      'carpet',
-      runPlacements({ x: -14.5, z: 0 }, { x: -5, z: 0 }, 1.5).map((placement) => ({
-        ...placement,
-        position: { ...placement.position, y: CARPET_LIFT_METERS },
-      })),
-    );
-    scene.add(carpet);
+    /*
+      A carpet from the doors to Keeper Quill's lectern. The only wayfinding
+      in the castle, and deliberately the kind that cannot be wrong: it
+      points at the hub every route passes through anyway.
+
+      Beat 8 extends it on through the hub, so the second run is built the
+      same way and simply hidden until the story is told.
+    */
+    const carpetRun = (run: { from: { x: number; z: number }; to: { x: number; z: number } }) =>
+      createInstancedMeshFromAsset(
+        'carpet',
+        runPlacements(run.from, run.to, CARPET_TILE_METERS).map((placement) => ({
+          ...placement,
+          position: { ...placement.position, y: CARPET_LIFT_METERS },
+        })),
+      );
+
+    const [carpet, carpetExtension] = await Promise.all([
+      carpetRun(CARPET_RUN_TO_QUILL),
+      carpetRun(CARPET_RUN_THROUGH_HUB),
+    ]);
+    scene.add(carpet, carpetExtension);
+    /*
+      An extension with no "before" state: an empty Object3D stands in for
+      the untold half of the pair, so `applyStoryTold` can treat it exactly
+      like the two real state variants rather than special-casing it.
+    */
+    toldVariants.push({ told: carpetExtension, untold: new Object3D() });
 
     // The doors themselves, so the way out is a thing you can see from
     // inside rather than an invisible trigger on a blank wall.
@@ -824,19 +929,28 @@ export function createStorykeeperCastleEngine(
     );
 
     /*
-      The hearth. Placed here rather than with beat 5's mantel interaction
-      (SC-5) because SC-2 lit this corner as the warmest in the castle and
-      then left nothing under the light: the south wall of the hub had a
-      bright orange glow on it and no fireplace, which reads as a bug rather
-      than as firelight. Found by looking at the room.
+      The hearth, in both states. SC-2 lit this corner as the warmest in the
+      castle and left nothing under the light, so the fireplace itself was
+      placed then; beat 8 lights it, which is the second half of the pair
+      SC-1 authored (`hearth` / `hearth-lit`).
     */
-    await placeWithLod(scene, 'hearth', HEARTH_SPOT, 0);
+    const [hearth, hearthLit] = await Promise.all([
+      instantiateAsset('hearth'),
+      instantiateAsset('hearth-lit'),
+    ]);
+    for (const model of [hearth, hearthLit]) {
+      model.position.set(HEARTH_SPOT.x, 0, HEARTH_SPOT.z);
+      scene.add(model);
+    }
+    toldVariants.push({ told: hearthLit, untold: hearth });
 
     // Beat 2: Quill's lectern, with the blank page the story fills.
     await placeWithLod(scene, 'lectern', QUILL_LECTERN_SPOT, QUILL_FACING_ENTRY_YAW);
 
     await loadBindingLectern();
     await loadEasel();
+    await loadGreatLibrary();
+    applyStoryTold();
 
     // Keeper Quill: swap the placeholder box for the real, animated asset.
     const quill = await loadAsset('npc-quill');
@@ -850,7 +964,7 @@ export function createStorykeeperCastleEngine(
 
     quillMixer = new AnimationMixer(quillScene);
     quillClips = new Map(
-      (['Idle', 'Talk', 'Point'] as const).flatMap((name) => {
+      (['Idle', 'Talk', 'Point', 'ReactConcerned', 'Celebrate'] as const).flatMap((name) => {
         const clip = quill.animations.find((candidate) => candidate.name === name);
         return clip ? [[name, clip] as const] : [];
       }),
@@ -891,6 +1005,50 @@ export function createStorykeeperCastleEngine(
       HUD ordering list starts from.
     */
     resetBindingPlates();
+  }
+
+  /**
+   * The Great Library, and beat 8's shelf slot (SC-6).
+   *
+   * The shelves are the debt SC-2 left: it built the room and furnished
+   * none of it. They are not decoration here - beat 8's payoff is a book
+   * arriving in a slot the child has already walked past and noticed, and a
+   * lone slot on a bare wall is not something anyone notices. Flanked by
+   * shelves, with a deliberate short bay beside it, it reads as a gap where
+   * a book should be.
+   *
+   * Every shelf is one draw call: `bookshelf` is authored single-mesh
+   * precisely so a wall of them can be instanced, and the per-shelf `width`
+   * rides in as an x scale.
+   */
+  async function loadGreatLibrary(): Promise<void> {
+    const library = ROOMS.find((room) => room.id === 'great-library');
+    if (!library) return;
+
+    const shelfPlacement = (shelf: BookshelfPlacement) => ({
+      position: { x: shelf.x, y: 0, z: shelf.z },
+      // A shelf on a side wall is the same model turned a quarter turn.
+      rotationY: shelf.axis === 'x' ? 0 : -Math.PI / 2,
+      scale: { x: shelf.width / BOOKSHELF_WIDTH_METERS },
+    });
+
+    const shelves = await createInstancedMeshFromAsset(
+      'bookshelf',
+      LIBRARY_BOOKSHELF_SPOTS.map(shelfPlacement),
+    );
+    scene.add(shelves);
+
+    for (const spot of LIBRARY_READING_TABLE_SPOTS) {
+      await placeWithLod(scene, 'reading-table', spot, 0);
+    }
+
+    // Beat 8's slot: empty on every visit until the tale is told.
+    const yaw = facingIntoRoom(LIBRARY_SHELF_SLOT_SPOT, library.floor);
+    const [empty, shelved] = await Promise.all([
+      placeWallMounted('shelf-slot-empty', LIBRARY_SHELF_SLOT_SPOT, yaw),
+      placeWallMounted('story-book-shelved', LIBRARY_SHELF_SLOT_SPOT, yaw),
+    ]);
+    toldVariants.push({ told: shelved, untold: empty });
   }
 
   /** Beat 7: the easel, and all six canvas layers, hidden until a story earns one. */
@@ -1133,5 +1291,6 @@ export function createStorykeeperCastleEngine(
     showChosenHero,
     showChosenSetting,
     showEaselPainting,
+    showStoryTold,
   };
 }

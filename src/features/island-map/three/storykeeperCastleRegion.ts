@@ -533,6 +533,64 @@ export const LIBRARY_SHELF_SLOT_SPOT: WallMountedSpot = {
   z: LIBRARY_NORTH_WALL_Z,
 };
 
+/**
+ * How far a floor-standing prop's centre sits from the wall band it backs
+ * onto: half the depth of `bookshelf` and `shelf-slot-empty` alike. The
+ * value is what `LAST_BOOKSHELF_SPOT` below was already authored with, made
+ * explicit so the eleven shelves added for SC-6 sit on the same line.
+ */
+const WALL_BACKED_DEPTH_OFFSET = 0.2;
+
+const LIBRARY_NORTH_SHELF_Z = -2 - WALL_THICKNESS / 2 - WALL_BACKED_DEPTH_OFFSET;
+const LIBRARY_SOUTH_SHELF_Z = -10 + WALL_THICKNESS / 2 + WALL_BACKED_DEPTH_OFFSET;
+const LIBRARY_WEST_SHELF_X = 5 + WALL_THICKNESS / 2 + WALL_BACKED_DEPTH_OFFSET;
+const LIBRARY_EAST_SHELF_X = 15 - WALL_THICKNESS / 2 - WALL_BACKED_DEPTH_OFFSET;
+
+/** A bookshelf standing against a wall: which way its 1.8m run lies, and how much of it to use. */
+export interface BookshelfPlacement extends EntitySpot {
+  /** The axis the run lies along. `bookshelf` is authored 1.8m wide, 0.4m deep. */
+  axis: 'x' | 'z';
+  /** Metres of shelf. Under 1.8 scales the model down, for a short bay. */
+  width: number;
+}
+
+/**
+ * The Great Library's bookshelves, which SC-2 owed and never placed
+ * (`docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` A.3). SC-6 needs them for a
+ * reason beyond furnishing a bare room: beat 8's payoff is a book arriving
+ * in a slot the child has walked past and *noticed*, and a lone slot on an
+ * empty wall is not something anyone notices. Flanked by shelves it reads
+ * as what it is, a gap where a book should be.
+ *
+ * The runs deliberately leave the wall real estate SC-8 and SC-9 have
+ * already claimed clear: a bay either side of the shelf slot, a bay at the
+ * clue wall, the whole south-east stretch for the pattern lock, the nine
+ * counting stars and the secret door, and the west wall's archway.
+ */
+export const LIBRARY_BOOKSHELF_SPOTS: readonly BookshelfPlacement[] = [
+  // North wall. The short bay is what makes the shelf slot a gap rather
+  // than the end of a run.
+  { entityId: 'library-shelf-north-a', x: 5.95, z: LIBRARY_NORTH_SHELF_Z, axis: 'x', width: 1 },
+  { entityId: 'library-shelf-north-b', x: 8.45, z: LIBRARY_NORTH_SHELF_Z, axis: 'x', width: 1.8 },
+  { entityId: 'library-shelf-north-c', x: 11.4, z: LIBRARY_NORTH_SHELF_Z, axis: 'x', width: 1.8 },
+  { entityId: 'library-shelf-north-d', x: 13.2, z: LIBRARY_NORTH_SHELF_Z, axis: 'x', width: 1.8 },
+
+  // South wall, west half only: everything east of x = 9.5 belongs to the
+  // pattern lock, the counting stars, and the secret door.
+  { entityId: 'library-shelf-south-a', x: 6.2, z: LIBRARY_SOUTH_SHELF_Z, axis: 'x', width: 1.8 },
+  { entityId: 'library-shelf-south-b', x: 8.1, z: LIBRARY_SOUTH_SHELF_Z, axis: 'x', width: 1.8 },
+
+  // West wall, either side of the archway in from the corridor.
+  { entityId: 'library-shelf-west-a', x: LIBRARY_WEST_SHELF_X, z: -3.8, axis: 'z', width: 1.8 },
+  { entityId: 'library-shelf-west-b', x: LIBRARY_WEST_SHELF_X, z: -8.3, axis: 'z', width: 1.8 },
+
+  // East wall, stopping clear of the south-east corner SC-9's last
+  // bookshelf swings out of.
+  { entityId: 'library-shelf-east-a', x: LIBRARY_EAST_SHELF_X, z: -3.4, axis: 'z', width: 1.8 },
+  { entityId: 'library-shelf-east-b', x: LIBRARY_EAST_SHELF_X, z: -5.3, axis: 'z', width: 1.8 },
+  { entityId: 'library-shelf-east-c', x: LIBRARY_EAST_SHELF_X, z: -7.2, axis: 'z', width: 1.8 },
+];
+
 export const LIBRARY_READING_TABLE_SPOTS: readonly EntitySpot[] = [
   { entityId: 'library-reading-table-a', x: 8, z: -5 },
   { entityId: 'library-reading-table-b', x: 11.5, z: -7 },
@@ -679,6 +737,7 @@ export const FLOOR_SPOTS: readonly EntitySpot[] = [
   ...STORY_PLATE_SPOTS,
   STUDIO_EASEL_SPOT,
   ...COSTUME_RACK_SPOTS,
+  ...LIBRARY_BOOKSHELF_SPOTS,
   ...LIBRARY_READING_TABLE_SPOTS,
   ...LIBRARY_CLUE_SPOTS,
   LAST_BOOKSHELF_SPOT,

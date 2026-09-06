@@ -1,8 +1,9 @@
 # Storykeeper Castle — First-Person Region Roadmap
 
-**Status:** SC-0 through SC-5 are implemented. SC-6 through SC-11 are
-proposed and not started. **The critical vertical slice is SC-0 to SC-6**,
-so one phase remains before the stop-and-re-evaluate point.
+**Status:** SC-0 through SC-6 are implemented, which **completes the
+critical vertical slice**. SC-7 through SC-11 are proposed and not started.
+This is the stop-and-re-evaluate point: the region is now worth playtesting,
+and the rest of the roadmap is worth re-costing before any of it is built.
 
 A standalone roadmap for rebuilding Storykeeper Castle as a first-person
 Three.js region. It has its own phase numbering (**SC-0** through
@@ -660,7 +661,7 @@ view test driving a real `BuildActionRequested` through to `submitAnswer`).
 Also still unverified, as for SC-2 to SC-4: how any of this feels on a real
 tablet, and the whole flow against a live backend.
 
-## SC-6 — The book on the shelf (beat 8)
+## SC-6 — The book on the shelf (beat 8) — **DONE**
 
 The world change, and the end of the critical slice.
 
@@ -683,6 +684,61 @@ Exit criteria:
 
 **Stop and re-evaluate here.** This is the point at which the region is
 worth playtesting and the rest of the roadmap is worth re-costing.
+
+### What shipped
+
+The world change, and with it the slice. A Pathfinder can now walk into the
+castle, choose a hero by lighting a portrait, choose a setting by standing
+at a window, answer Quill at the hearth, seat three plates at the binding
+lectern, watch the easel paint their story, and find their book on a shelf
+that was visibly empty when they arrived.
+
+`FIRST_STORY_TOLD` toggles three state variants and one extra length of
+carpet - `story-book-shelved` over `shelf-slot-empty`, `hearth-lit` over
+`hearth`, and the runner carrying on through the hub - with Quill playing
+`Celebrate`. All four load up front and switch by visibility, so the change
+costs no fetch when it happens and a returning child's castle is already
+changed on the first frame. The engine takes the same `showStoryTold` call
+at construction and from the room, which is what makes both true at once.
+
+**Driven by the `WORLD_CHANGE` step being on screen, not by a submit.** A
+`WORLD_CHANGE` step has no answer to submit: `useAdventureSession` writes
+the `WorldChange` and advances past it itself. Wiring beat 8 to a submit
+would simply never have fired. The step, its payload and its `changeKey` are
+untouched.
+
+**The floor recolour the Phaser castle performs is deliberately not carried
+over**, per the exit criteria. The promised consequence is that the child's
+story has a home on a shelf, so the shelf is the consequence.
+
+**SC-2's real debt came due here.** SC-6's first deliverable says the empty
+slot is "placed in SC-2" - it was not, and neither were the bookshelves, the
+reading tables, the tapestries, or the costume racks. SC-2 built the rooms
+and furnished almost none of them. The library half of that is now paid,
+because beat 8's payoff needs it: a book arriving in a slot the child has
+walked past and *noticed*, and a lone slot on a bare wall is not something
+anyone notices. Eleven shelves (one instanced draw call, `bookshelf` being
+single-mesh for exactly this reason) and the two reading tables are placed,
+with the runs leaving clear every piece of wall SC-8 and SC-9 have already
+claimed and a deliberate short bay beside the slot, so it reads as a gap
+where a book should be. **The tapestries and costume racks remain unplaced,
+and are still owed** - the tapestries by SC-7, which needs at least three of
+them or its secret is a signpost pointing at itself.
+
+### Rendering verification (SC-6)
+
+Looked at before and after, at the slot, the hearth, and the carpet. The
+slot reads as a gap between two shelves and the gold book arriving in it is
+unmistakable; the lit hearth reads as fire, with SC-5's mantel marks still
+legible against it; the runner visibly continues past Keeper Quill.
+
+Two things the screenshots changed. Walking in, the library read as a black
+void rather than a dark library - it is by some way the largest room in the
+castle and gets the same single ceiling lamp as a two-metre corridor, so
+`bookshelf` moved from `woodDark` to `woodMid` and the room's light from 1.4
+to 2.4. It is still the lowest number in the map, which is the claim SC-2
+actually makes; "dimmest room in the castle" and "you cannot make out the
+furniture" turned out not to be the same statement.
 
 ## SC-7 — Secrets and the calm stop (beats 12–13)
 
