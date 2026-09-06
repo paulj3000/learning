@@ -142,10 +142,95 @@ export const STORYKEEPER_CASTLE_CHECKPOINTS: readonly RegionCheckpoint[] = [
 ];
 
 /** Every authored checkpoint, across every region (Phase 32's Welcome Harbor, Phase 33's Pirate Builder Bay, SC-0's Storykeeper Castle). */
+export const WONDERWILD_FOREST_REGION_ID = 'wonderwild-forest';
+
+/**
+ * Wonderwild Forest's checkpoints (`docs/WONDERWILD_FOREST_3D_ROADMAP.md`
+ * WF-0). One per glade a child has a reason to come back to, and
+ * `harbor-path` is deliberately first: `resolveSpawnCheckpoint` falls back to
+ * a region's first authored checkpoint, and arriving at the way in is the
+ * only spawn that makes sense for a child who has never been here.
+ *
+ * `pond` sits on the bank rather than out on the water, which is a collider
+ * (`wonderwildForestRegion.ts`'s `POND_WATER`). A checkpoint a child cannot
+ * stand on is a spawn point that strands them.
+ */
+export const WONDERWILD_FOREST_CHECKPOINTS: readonly RegionCheckpoint[] = [
+  {
+    id: 'wonderwild-forest:harbor-path',
+    regionId: WONDERWILD_FOREST_REGION_ID,
+    label: 'the path into the forest',
+    x: -16,
+    z: 0,
+    yaw: Math.PI / 2,
+  },
+  {
+    id: 'wonderwild-forest:wonder-wall',
+    regionId: WONDERWILD_FOREST_REGION_ID,
+    label: 'the Wonder Wall',
+    x: 0,
+    z: -2,
+    yaw: 0,
+  },
+  {
+    id: 'wonderwild-forest:hive-clearing',
+    regionId: WONDERWILD_FOREST_REGION_ID,
+    label: 'the hive clearing',
+    x: 12,
+    z: 0,
+    yaw: Math.PI / 2,
+  },
+  {
+    id: 'wonderwild-forest:pond',
+    regionId: WONDERWILD_FOREST_REGION_ID,
+    label: 'the pond',
+    x: 9,
+    z: 6.8,
+    yaw: 0,
+  },
+  {
+    id: 'wonderwild-forest:cave-mouth',
+    regionId: WONDERWILD_FOREST_REGION_ID,
+    label: 'the cave mouth',
+    x: 11,
+    z: -8,
+    yaw: Math.PI,
+  },
+];
+
+export const WONDERWILD_HIVE_REGION_ID = 'wonderwild-hive';
+
+/**
+ * Inside the beehive (`docs/WONDERWILD_FOREST_3D_ROADMAP.md` WF-0). Its own
+ * region, entered only by being shrunk mid-adventure and left only through
+ * the hive mouth - which is why it is a region here and not an
+ * `ISLAND_LOCATIONS` entry.
+ */
+export const WONDERWILD_HIVE_CHECKPOINTS: readonly RegionCheckpoint[] = [
+  {
+    id: 'wonderwild-hive:entrance',
+    regionId: WONDERWILD_HIVE_REGION_ID,
+    label: 'the hive mouth',
+    x: -5,
+    z: 0,
+    yaw: Math.PI / 2,
+  },
+  {
+    id: 'wonderwild-hive:dance-floor',
+    regionId: WONDERWILD_HIVE_REGION_ID,
+    label: 'the dance floor',
+    x: 0,
+    z: -2,
+    yaw: 0,
+  },
+];
+
 export const ALL_CHECKPOINTS: readonly RegionCheckpoint[] = [
   ...WELCOME_HARBOR_CHECKPOINTS,
   ...PIRATE_BUILDER_BAY_CHECKPOINTS,
   ...STORYKEEPER_CASTLE_CHECKPOINTS,
+  ...WONDERWILD_FOREST_CHECKPOINTS,
+  ...WONDERWILD_HIVE_CHECKPOINTS,
 ];
 
 export const KNOWN_CHECKPOINT_IDS: readonly string[] = ALL_CHECKPOINTS.map(

@@ -3,7 +3,7 @@ import {
   BINDING_SOCKET_LOCAL_X,
   STORY_PLATE_SPOTS,
 } from './storykeeperCastleRegion';
-import { resolveCastleChoiceBinding, THE_STORYKEEPERS_TALE_SLUG } from './castleChoiceBindings';
+import { seatedEntitiesToOrder, THE_STORYKEEPERS_TALE_SLUG } from './castleChoiceBindings';
 
 /**
  * Beat 6's binding lectern, as pure logic
@@ -65,20 +65,5 @@ export function isStoryPlateEntity(entityId: string): boolean {
  * the child.
  */
 export function seatedPlatesToOrder(seated: readonly string[]): string[] | null {
-  if (seated.length !== BINDING_SOCKET_COUNT) return null;
-  if (new Set(seated).size !== seated.length) return null;
-
-  const order: string[] = [];
-  for (const entityId of seated) {
-    const binding = resolveCastleChoiceBinding(entityId);
-    if (
-      !binding ||
-      binding.templateSlug !== THE_STORYKEEPERS_TALE_SLUG ||
-      binding.stepId !== ORDER_THE_STORY_STEP_ID
-    ) {
-      return null;
-    }
-    order.push(binding.optionId);
-  }
-  return order;
+  return seatedEntitiesToOrder(THE_STORYKEEPERS_TALE_SLUG, ORDER_THE_STORY_STEP_ID, seated);
 }

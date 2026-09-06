@@ -1,6 +1,7 @@
 # Wonderwild Forest — First-Person Region Roadmap
 
-**Status:** WF-0 through WF-10 are proposed. **Nothing here is started.**
+**Status:** WF-0 is implemented. WF-1 through WF-10 are proposed and not
+started.
 
 A standalone roadmap for rebuilding Wonderwild Forest as a first-person
 Three.js region. It has its own phase numbering (**WF-0** through
@@ -37,9 +38,18 @@ below inherits them:
 - **The shrink is a cut, not a zoom.** Reduced motion is a stated
   accessibility requirement and a scale animation is the most
   motion-sensitive thing this island could contain.
-- **ADR-008's Sprouts gate still applies.** The existing card-based forest
-  route is not retired for any band by any phase below except WF-10, and not
-  for Sprouts until the accessibility playtest owed from Phase 32 has run.
+- **The 3D forest is the primary route, not a preview.** From WF-2 the
+  first-person region is what a Pathfinder or Explorer gets when they open
+  Wonderwild Forest. This differs from the castle, whose 3D route SC-2 shipped
+  as an additive second link beside the Phaser one, and it is a deliberate
+  product call rather than a drift: a region offered as an experiment beside
+  the "real" one is a region nobody plays and nobody can playtest.
+- **ADR-008's Sprouts gate still applies, and it is the one exception.**
+  Sprouts keep the card-based route as their default until the accessibility
+  playtest owed from Phase 32 has run - the gate is a band-by-band gate, and
+  the shrink into the hive is the most motion-sensitive transition on the
+  island. The card route is not *retired* for any band before WF-10; it stops
+  being the **default** for the older two bands at WF-2.
 
 ## Dependency order
 
@@ -89,7 +99,7 @@ one in this roadmap that does not lose a learning step.
 
 ---
 
-## WF-0 — Region data and question bindings
+## WF-0 — Region data and question bindings — **DONE**
 
 Pure data and pure functions. No `three` import, no rendering, nothing
 child-facing. Everything here is unit tested, and every later phase reads
@@ -147,6 +157,67 @@ Exit criteria:
   listener order; four stones in an arc is the same trap with one more
   chance to fall into it;
 - no file in this phase imports `three`.
+
+### What shipped
+
+- `three/wonderwildForestRegion.ts` + test — eight glades, seven trails,
+  every zone and entity spot, and `buildTreeLineSegments`, which **derives**
+  the tree line as the exact complement of the walkable set by a column sweep
+  rather than hand-listing the two dozen rects that would have to bound eight
+  irregular glades. `isOnOpenGround` / `isBlocked` / `isWalkable` are its
+  query surface.
+- `three/wonderwildHiveRegion.ts` + test — the hive interior, its four comb
+  walls, the dance floor, Buzz, three sisters, and the two waggle runs.
+- `three/wonderWallBindings.ts` + test — four bindings on the one step the
+  forest stages as world objects, and the resolvers both directions.
+- `discovery/checkpoints.ts` — `WONDERWILD_FOREST_CHECKPOINTS` (five) and
+  `WONDERWILD_HIVE_CHECKPOINTS` (two), each region's way-in first so a
+  first-time child spawns there.
+- 66 new tests. No `three` import in any of it.
+
+Four things worth carrying into WF-2, three of them found by the tests rather
+than by reading:
+
+- **Inverting the castle's geometry model was the right call, and the cover
+  test is the reason.** The castle authors floors and derives walls; a forest
+  has neither, so this region authors the walkable set and derives the trees
+  around it. The test that samples every 0.25m of the region and asserts each
+  point is either open ground or tree line is what makes that safe, and it is
+  not decoration: raising the sliver threshold to 2.5m makes it fail, which is
+  exactly the hole a hand-listed tree line would have had somewhere.
+- **The harbor path glade ran to the region boundary.** The child could stand
+  on the western edge of the world with nothing rendered beyond them, because
+  the derived tree line has nothing to close behind a glade that reaches the
+  extent. The glade now stops at x -17.5 and the exit zone moved in with it.
+- **The night-clearing trail was exactly as wide as the bee's.** Beat 2's only
+  wayfinding is that the bee's trail is visibly more worn than its neighbours,
+  and a "faint" trail the same width as the "worn" one makes `TrailWear` a
+  label rather than a fact. The test now floors the worn trail strictly wider
+  than every faint one.
+- **The fern bank needed a connection that is not a trail.** Beat 11's glowing
+  moss is unmarked, and a path leading to it would be a signpost pointing at
+  the one thing the storyboard insists nothing points at. `TrailWear` gained a
+  `'none'` case — walkable ground with nothing drawn on it — so the child can
+  wander off the trail and there is somewhere to wander. Tests assert the fern
+  bank's only connection is `'none'` and that no drawn trail passes within 2m
+  of the moss.
+
+The reachability test flood-fills open ground on a 0.25m grid from the spawn
+checkpoint and asserts every glade, checkpoint, and zone is reachable. It also
+re-runs the fill with the bee's trail removed and asserts the hive clearing
+becomes unreachable — otherwise it would pass just as well against a tree line
+that was wrong everywhere. All three invariants were checked by mutation
+before being trusted.
+
+**One deliberate addition beyond the storyboard.** Each wonder stone gets an
+approach zone as well as being a raycast target. The storyboard's age-band
+table gives Sprouts `APPROACH` only, so a stone that could only be aimed at
+would put beat 2 out of reach of a band that cannot aim — and of anyone using
+the region without precise pointer control (explorable-world roadmap section
+42). The four zones are asserted disjoint and at least 1.5m apart, which is
+the castle's tower-window defect caught before it could happen: overlapping
+them would let one step forward stand at two questions at once and leave
+`wonder-wall` to listener order.
 
 ## WF-1 — Forest and hive asset kit
 
@@ -258,8 +329,16 @@ Exit criteria:
   (windows opening onto blank stone, windows floating 25cm off the floor, a
   hearth glow with no fireplace under it) were placement bugs of exactly the
   kind a glade full of ferns will produce;
-- the existing card-based forest route still works and is still the
-  default. This route is additive.
+- **the 3D region is the default route into Wonderwild Forest for
+  Pathfinders and Explorers**, reached from the island map and
+  `IslandLocationPage` without a "try walking" opt-in, with the card-based
+  route still working and still linked as the alternative;
+- **Sprouts still get the card-based route by default**, per ADR-008. The
+  age-band branch that decides this is authored in WF-2 even though the
+  Sprouts adventure does not exist until WF-8, because the alternative is
+  shipping a default that is wrong for a band and fixing it later;
+- a test asserts both halves of that branch, so "primary for two bands, not
+  the third" cannot quietly become "primary for everyone".
 
 ## WF-3 — The Wonder Wall (beat 2)
 
@@ -580,8 +659,10 @@ Exit criteria:
 - the shrink specifically is cleared for motion sensitivity, or it is
   replaced with a hold-and-fade the playtest does clear;
 - performance is within budget on target hardware;
-- only then may the card-based forest route be retired for a band, and only
-  for a band the playtest cleared.
+- only then may the card-based forest route be **retired** for a band, and
+  only for a band the playtest cleared. Being the default since WF-2 is not
+  retirement: until this gate passes, every band can still reach the card
+  route, and Sprouts still start there.
 
 ## Deliberately out of scope
 

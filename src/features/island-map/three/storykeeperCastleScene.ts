@@ -70,11 +70,8 @@ import {
   type RoomSide,
   type WallMountedSpot,
 } from './storykeeperCastleRegion';
-import {
-  BINDING_LECTERN_ENTITY_ID,
-  BINDING_SOCKET_COUNT,
-  isStoryPlateEntity,
-} from './castleBindingLectern';
+import { BINDING_LECTERN_ENTITY_ID, isStoryPlateEntity } from './castleBindingLectern';
+import { isLibraryClueEntity, LIBRARY_CLUE_WALL_ENTITY_ID } from './castleLibraryClues';
 import { EASEL_CANVASES, resolveEaselCanvas } from './castleEaselCanvas';
 import type { WorldEngineEventBus } from './worldEngineEvents';
 
@@ -360,6 +357,13 @@ const CLUE_ASSETS: Readonly<Record<string, string>> = {
   'library-clue-note': 'clue-note',
 };
 
+/**
+ * Where the three clues pin, across the library wall. Wide enough apart
+ * that a child can tell which one they are aiming at from where they stand,
+ * and in the same left-to-right reading order as the card's list.
+ */
+const CLUE_PIN_OFFSETS_X: readonly number[] = [-0.55, 0, 0.55];
+
 const TAPESTRY_SWAY_RADIANS = 0.035;
 const TAPESTRY_SWAY_PERIOD_SECONDS = 4;
 
@@ -398,6 +402,13 @@ export interface StorykeeperCastleEngine extends ThreeEngineHandle {
    * child picks up again from where they started.
    */
   resetBindingPlates(): void;
+  /**
+   * Beat 9's equivalent: unpins every clue and lays the three back where
+   * they were found. Called when `order-the-clues` opens, and when the
+   * engine grades a pinned row wrong - nothing is destroyed and the child
+   * picks up again from where they started.
+   */
+  resetLibraryClues(): void;
   /**
    * Paints the Illustration Studio easel with the picture for this pair of
    * choices (`castleEaselCanvas.ts`), or blanks it when passed a pair that
@@ -672,77 +683,158 @@ export function createStorykeeperCastleEngine(
     applyVariants(windowVariants, chosenSettingEntityId);
   }
 
-  /*
-    Beat 6, the binding lectern. The scene owns where the plates *are*; it
-    owns no part of whether the order is right. Seating the last plate emits
-    the arrangement and stops - `castleBindingLectern.ts` turns it into an
-    answer and the ORDERING step grades it.
-  */
-  interface StoryPlate {
-    entityId: string;
-    object: Object3D;
-    /** Where it lies on the table, and where `resetBindingPlates` puts it back. */
-    home: EntitySpot;
+  /**
+   * A "carry one thing, seat it in a row of slots, report the row" puzzle.
+   *
+   * The castle has two of these and SC-9 adds a third: three story plates
+   * into a lectern (beat 6), three clues onto a wall (beat 9), three rods
+   * into a lock (beat 10). They differ only in what the things are and
+   * where the slots sit, so they share one implementation - if they did
+   * not, the day one of them stopped letting a child lift a seated item
+   * back out would be the day two beats disagreed about whether a mistake
+   * costs anything.
+   *
+   * The scene owns where things *are* and no part of whether the row is
+   * right: seating the last one emits the arrangement and stops. The
+   * bindings turn it into an answer and the Adventure Engine grades it.
+   */
+  interface SeatingPuzzleOptions {
+    /** The entity a completed row is reported against - the lectern, the wall, the lock. */
+    targetEntityId: string;
+    /** Where each thing rests when it is not in a slot, and the height it rests at. */
+    homes: readonly EntitySpot[];
+    homeHeight: number;
+    /** Where the slots are, in order, and the height a seated thing sits at. */
+    slots: readonly { x: number; z: number }[];
+    slotHeight: number;
+    /** The yaw a seated thing takes, so a row reads as a row. */
+    seatedYaw: number;
   }
 
-  const storyPlates: StoryPlate[] = [];
-  const socketPositions = bindingSocketPositions(BINDING_LECTERN_SPOT, bindingLecternYaw);
-  /** Measured off the loaded lectern rather than authored, so a regenerated model cannot leave plates floating. */
-  let socketHeight = 1.07;
-  let carriedPlateId: string | null = null;
-  const seatedPlateIds: string[] = [];
-
-  function findPlate(entityId: string): StoryPlate | undefined {
-    return storyPlates.find((plate) => plate.entityId === entityId);
+  interface SeatingPuzzle {
+    /** Registers the loaded model for one authored entity. */
+    add(entityId: string, object: Object3D): void;
+    has(entityId: string): boolean;
+    /** The model to aim at, or `null` while it is in the child's hands. */
+    aimTarget(entityId: string): Object3D | null;
+    carriedId(): string | null;
+    carriedObject(): Object3D | null;
+    /** Picks one up, lifting it back out of a slot if that is where it was. */
+    pickUp(entityId: string): void;
+    /** Seats what is carried in the next free slot, reporting the row once it is full. */
+    seatCarried(): void;
+    /** Corrects the slot height once the thing holding the slots has loaded and can be measured. */
+    setSlotHeight(height: number): void;
+    /** Empties every slot and lays everything back where it started. */
+    reset(): void;
   }
 
-  /** Lays one plate flat on the table where it started. */
-  function restPlateAtHome(plate: StoryPlate): void {
-    plate.object.position.set(plate.home.x, BINDING_TABLE_HALF.height - 0.03, plate.home.z);
-    plate.object.rotation.y = 0;
+  function createSeatingPuzzle(options: SeatingPuzzleOptions): SeatingPuzzle {
+    const objects = new Map<string, Object3D>();
+    const homeById = new Map(options.homes.map((home) => [home.entityId, home]));
+    const seated: string[] = [];
+    let carried: string | null = null;
+    let slotHeight = options.slotHeight;
+
+    const restAtHome = (entityId: string) => {
+      const object = objects.get(entityId);
+      const home = homeById.get(entityId);
+      if (!object || !home) return;
+      object.position.set(home.x, options.homeHeight, home.z);
+      object.rotation.y = 0;
+    };
+
+    const restSeated = () => {
+      seated.forEach((entityId, index) => {
+        const object = objects.get(entityId);
+        const slot = options.slots[index];
+        if (!object || !slot) return;
+        object.position.set(slot.x, slotHeight, slot.z);
+        object.rotation.y = options.seatedYaw;
+      });
+    };
+
+    return {
+      add(entityId, object) {
+        objects.set(entityId, object);
+        restAtHome(entityId);
+      },
+      has: (entityId) => homeById.has(entityId),
+      aimTarget: (entityId) => (carried === entityId ? null : (objects.get(entityId) ?? null)),
+      carriedId: () => carried,
+      carriedObject: () => (carried ? (objects.get(carried) ?? null) : null),
+      pickUp(entityId) {
+        const seatedAt = seated.indexOf(entityId);
+        if (seatedAt >= 0) {
+          seated.splice(seatedAt, 1);
+          restSeated();
+        }
+        carried = entityId;
+        bus.emit('CollectiblePickedUp', { entityId });
+      },
+      seatCarried() {
+        if (!carried || seated.length >= options.slots.length) return;
+        seated.push(carried);
+        carried = null;
+        restSeated();
+        if (seated.length === options.slots.length) {
+          bus.emit('BuildActionRequested', {
+            entityId: options.targetEntityId,
+            order: [...seated],
+          });
+        }
+      },
+      setSlotHeight(height) {
+        slotHeight = height;
+        restSeated();
+      },
+      reset() {
+        carried = null;
+        seated.length = 0;
+        for (const home of options.homes) restAtHome(home.entityId);
+      },
+    };
   }
 
-  /** Seats the plates currently in the sockets, filling from socket one with no gaps. */
-  function restSeatedPlates(): void {
-    seatedPlateIds.forEach((entityId, index) => {
-      const plate = findPlate(entityId);
-      const socket = socketPositions[index];
-      if (!plate || !socket) return;
-      plate.object.position.set(socket.x, socketHeight, socket.z);
-      plate.object.rotation.y = bindingLecternYaw;
-    });
-  }
+  /** Beat 6: three story plates into the binding lectern's three sockets. */
+  const platePuzzle = createSeatingPuzzle({
+    targetEntityId: BINDING_LECTERN_ENTITY_ID,
+    homes: STORY_PLATE_SPOTS,
+    homeHeight: BINDING_TABLE_HALF.height - 0.03,
+    slots: bindingSocketPositions(BINDING_LECTERN_SPOT, bindingLecternYaw),
+    /** Measured off the loaded lectern, so a regenerated model cannot leave plates floating. */
+    slotHeight: 1.07,
+    seatedYaw: bindingLecternYaw,
+  });
 
   function resetBindingPlates(): void {
-    carriedPlateId = null;
-    seatedPlateIds.length = 0;
-    for (const plate of storyPlates) {
-      restPlateAtHome(plate);
-    }
+    platePuzzle.reset();
   }
 
-  function pickUpPlate(entityId: string): void {
-    const seatedAt = seatedPlateIds.indexOf(entityId);
-    if (seatedAt >= 0) {
-      seatedPlateIds.splice(seatedAt, 1);
-      restSeatedPlates();
-    }
-    carriedPlateId = entityId;
-    bus.emit('CollectiblePickedUp', { entityId });
-  }
+  /**
+   * Beat 9: three clues off the library floor, pinned to the library wall.
+   *
+   * The pins sit level with the clue wall, spread along it, in the same
+   * left-to-right run the plates use - the arrangement the child builds is
+   * the arrangement the ORDERING step grades, and it should look like the
+   * list on the card.
+   */
+  let clueWallMesh: Object3D | null = null;
+  const cluePuzzle = createSeatingPuzzle({
+    targetEntityId: LIBRARY_CLUE_WALL_ENTITY_ID,
+    homes: LIBRARY_CLUE_SPOTS,
+    /** Clues lie where they were dropped: on a table top, a shelf, the floor. */
+    homeHeight: 0.78,
+    slots: CLUE_PIN_OFFSETS_X.map((offset) => ({
+      x: LIBRARY_CLUE_WALL_SPOT.x + offset,
+      z: LIBRARY_CLUE_WALL_SPOT.z,
+    })),
+    slotHeight: LIBRARY_CLUE_WALL_SPOT.y,
+    seatedYaw: 0,
+  });
 
-  function seatCarriedPlate(): void {
-    const entityId = carriedPlateId;
-    if (!entityId || seatedPlateIds.length >= BINDING_SOCKET_COUNT) return;
-    seatedPlateIds.push(entityId);
-    carriedPlateId = null;
-    restSeatedPlates();
-    if (seatedPlateIds.length === BINDING_SOCKET_COUNT) {
-      bus.emit('BuildActionRequested', {
-        entityId: BINDING_LECTERN_ENTITY_ID,
-        order: [...seatedPlateIds],
-      });
-    }
+  function resetLibraryClues(): void {
+    cluePuzzle.reset();
   }
 
   /*
@@ -1012,7 +1104,7 @@ export function createStorykeeperCastleEngine(
     lectern.rotation.y = bindingLecternYaw;
     lectern.name = 'Binding lectern';
     scene.add(lectern);
-    socketHeight = new Box3().setFromObject(lectern).max.y;
+    platePuzzle.setSlotHeight(new Box3().setFromObject(lectern).max.y);
     bindingLecternMesh = lectern;
 
     await placeWithLod(scene, 'binding-table', BINDING_TABLE_SPOT, bindingTableYaw);
@@ -1021,7 +1113,7 @@ export function createStorykeeperCastleEngine(
       const object = await instantiateAsset(spot.entityId);
       object.name = spot.entityId;
       scene.add(object);
-      storyPlates.push({ entityId: spot.entityId, object, home: spot });
+      platePuzzle.add(spot.entityId, object);
     }
     /*
       Lay them out through the same call the wrong-order path uses, so
@@ -1173,11 +1265,18 @@ export function createStorykeeperCastleEngine(
     }
 
     // The wall the three clues get pinned to.
-    await placeWallMounted('portrait-frame', LIBRARY_CLUE_WALL_SPOT, yawIntoLibrary(library));
+    clueWallMesh = await placeWallMounted(
+      'portrait-frame',
+      LIBRARY_CLUE_WALL_SPOT,
+      yawIntoLibrary(library),
+    );
 
     // The three clues, each in its own part of the room: three finds, not one.
     for (const spot of LIBRARY_CLUE_SPOTS) {
-      await placeWithLod(scene, CLUE_ASSETS[spot.entityId] ?? 'clue-note', spot, 0);
+      const clue = await instantiateAsset(CLUE_ASSETS[spot.entityId] ?? 'clue-note');
+      clue.name = spot.entityId;
+      scene.add(clue);
+      cluePuzzle.add(spot.entityId, clue);
     }
   }
 
@@ -1290,10 +1389,15 @@ export function createStorykeeperCastleEngine(
     */
     ...STORY_PLATE_SPOTS.map((spot) => ({
       entityId: spot.entityId,
-      mesh: () =>
-        carriedPlateId === spot.entityId ? null : (findPlate(spot.entityId)?.object ?? null),
+      mesh: () => platePuzzle.aimTarget(spot.entityId),
     })),
     { entityId: BINDING_LECTERN_ENTITY_ID, mesh: () => bindingLecternMesh },
+    // Beat 9's three clues, and the wall they get pinned to.
+    ...LIBRARY_CLUE_SPOTS.map((spot) => ({
+      entityId: spot.entityId,
+      mesh: () => cluePuzzle.aimTarget(spot.entityId),
+    })),
+    { entityId: LIBRARY_CLUE_WALL_ENTITY_ID, mesh: () => clueWallMesh },
   ];
 
   const raycaster = new Raycaster();
@@ -1327,13 +1431,22 @@ export function createStorykeeperCastleEngine(
       already in a socket can be lifted back out, so a child who seats them
       in the wrong order can fix it without submitting first.
     */
+    const carryingSomething = platePuzzle.carriedId() !== null || cluePuzzle.carriedId() !== null;
+
     if (isStoryPlateEntity(focused)) {
-      if (carriedPlateId) return;
-      pickUpPlate(focused);
+      if (!carryingSomething) platePuzzle.pickUp(focused);
       return;
     }
     if (focused === BINDING_LECTERN_ENTITY_ID) {
-      if (carriedPlateId) seatCarriedPlate();
+      platePuzzle.seatCarried();
+      return;
+    }
+    if (isLibraryClueEntity(focused)) {
+      if (!carryingSomething) cluePuzzle.pickUp(focused);
+      return;
+    }
+    if (focused === LIBRARY_CLUE_WALL_ENTITY_ID) {
+      cluePuzzle.seatCarried();
       return;
     }
 
@@ -1381,14 +1494,14 @@ export function createStorykeeperCastleEngine(
     }
 
     // A carried plate rides in front of the eyes, held level like a tray.
-    const carried = carriedPlateId ? findPlate(carriedPlateId) : undefined;
+    const carried = platePuzzle.carriedObject() ?? cluePuzzle.carriedObject();
     if (carried) {
-      carried.object.position.set(
+      carried.position.set(
         controller.position.x + Math.sin(controller.yaw) * CARRY_FORWARD_METERS,
         EYE_HEIGHT - CARRY_DROP_METERS,
         controller.position.z + Math.cos(controller.yaw) * CARRY_FORWARD_METERS,
       );
-      carried.object.rotation.y = controller.yaw;
+      carried.rotation.y = controller.yaw;
     }
 
     // Beat 2. `NpcApproached` fires on the crossing, not every frame inside
@@ -1431,6 +1544,7 @@ export function createStorykeeperCastleEngine(
     interact,
     playQuillClip,
     resetBindingPlates,
+    resetLibraryClues,
     showChosenHero,
     showChosenSetting,
     showEaselPainting,

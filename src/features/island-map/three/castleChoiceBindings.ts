@@ -210,6 +210,45 @@ export function resolveCastleChoiceEntity(
   )?.entityId;
 }
 
+/**
+ * The ordering answer a row of seated entities stands for, or `null` when
+ * the row is not an answer at all.
+ *
+ * Two beats in this castle are the same puzzle wearing different clothes:
+ * three story plates seated in a lectern (beat 6) and three clues pinned to
+ * a wall (beat 9). Both turn *an arrangement of things in a room* into the
+ * `{ kind: 'ordering', order }` the HUD list would have submitted, and both
+ * must do it identically or one of them grades differently from its own
+ * card. So the translation lives here once, beside the bindings it reads.
+ *
+ * `null` rather than a partial order for the cases that are a caller's
+ * mistake rather than a child's: the wrong number of things, the same thing
+ * twice, or an entity that is not bound to this step. Each is an authoring
+ * error caught by a test, so returning `null` keeps a malformed row from
+ * reaching `submitAnswer` and being recorded as a wrong answer against the
+ * child.
+ *
+ * It decides nothing about correctness. A wrong order comes back happily;
+ * whether it is wrong is the Adventure Engine's business.
+ */
+export function seatedEntitiesToOrder(
+  templateSlug: string,
+  stepId: string,
+  seated: readonly string[],
+): string[] | null {
+  const bound = getCastleChoiceBindingsForStep(templateSlug, stepId);
+  if (seated.length !== bound.length) return null;
+  if (new Set(seated).size !== seated.length) return null;
+
+  const order: string[] = [];
+  for (const entityId of seated) {
+    const binding = bound.find((candidate) => candidate.entityId === entityId);
+    if (!binding) return null;
+    order.push(binding.optionId);
+  }
+  return order;
+}
+
 /** Whether this entity is one the region places at all. Used by the test; exported so SC-2's scene can assert it too. */
 export function isKnownCastleEntity(entityId: string): boolean {
   return ALL_ENTITY_IDS.includes(entityId);

@@ -417,15 +417,14 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Wonderwild Forest first-person region — designed, not started
+## Wonderwild Forest first-person region — WF-0 complete
 
 Two design documents define this work:
 `docs/WONDERWILD_FOREST_3D_STORYBOARD.md` (the 13-beat storyboard, two
 region plans, age-band routing, and asset kit) and
 `docs/WONDERWILD_FOREST_3D_ROADMAP.md` (its own WF-0 through WF-10 build
-order, with the asset inventory as Appendix A). **No phase is
-implemented.** This entry records what was designed and what the design
-found, not what shipped.
+order, with the asset inventory as Appendix A). **WF-0 (region data and
+question bindings) is implemented; WF-1 through WF-10 are not started.**
 
 It follows the castle's method deliberately, and departs from it in one
 respect that shapes everything else. The castle's thesis was "choices
@@ -528,6 +527,84 @@ pieces is load-bearing in a forest. The riskiest single asset is
 `comb-cell`: the hive's draw budget depends on instancing it, and a hexagon
 with a hole in it is exactly the shape SC-1 discovered `archway` could not
 be authored as. WF-1 settles that before WF-4 is costed.
+
+### WF-0 — region data and question bindings
+
+Three new pure-data modules and one append, 66 new tests, no `three` import
+anywhere in it:
+
+- `three/wonderwildForestRegion.ts` — eight glades, seven trails, eleven
+  zones, and every entity spot.
+- `three/wonderwildHiveRegion.ts` — the hive interior, the dance floor, Buzz
+  and three sisters, and the two waggle runs.
+- `three/wonderWallBindings.ts` — four bindings on `wonder-wall`, the one
+  step this region stages as world objects.
+- `discovery/checkpoints.ts` — five forest checkpoints and two hive ones.
+
+**The castle's geometry model is inverted here, and that is the phase's real
+content.** `storykeeperCastleRegion.ts` authors room floors and *derives
+walls* by subtracting doorway gaps. A forest has neither rooms nor doorways,
+so this region authors the walkable set — glades plus trails — and **derives
+the tree line as its exact complement** by a column sweep
+(`buildTreeLineSegments`). Three things follow: there is no gap to leave open
+by accident, no boundary walls are needed because the complement runs to the
+ground extents, and the collider list is roughly twenty wide boxes rather
+than thirty wall slivers.
+
+Four things the tests found or forced, none visible by reading:
+
+- **The harbor path glade ran to the region boundary**, so a child could
+  stand on the western edge of the world with nothing rendered beyond them —
+  the derived tree line has nothing to close behind a glade that reaches the
+  extent. The glade stops at x -17.5 now and the exit zone moved with it.
+- **The night-clearing trail was exactly as wide as the bee's.** Beat 2's
+  only wayfinding is that the bee's trail reads as more worn than its
+  neighbours; a "faint" trail the same width makes `TrailWear` a label rather
+  than a fact. The test now floors the worn trail strictly widest.
+- **The fern bank needed a connection that is not a trail.** Beat 11's
+  glowing moss is unmarked, and a path to it would be a signpost pointing at
+  the one thing that must not be pointed at. `TrailWear` gained a `'none'`
+  case — walkable ground with nothing drawn on it — so there is somewhere to
+  wander off the trail *to*. Tests assert the fern bank's only connection is
+  `'none'` and no drawn trail passes within 2m of the moss.
+- **Each wonder stone got an approach zone as well as a raycast target**,
+  beyond what the storyboard asked. Sprouts get `APPROACH` only, so a stone
+  that could only be aimed at would put beat 2 out of reach of a band that
+  cannot aim. The four zones are asserted disjoint and at least 1.5m apart —
+  the castle's tower-window defect caught before it could happen.
+
+`BUZZ_WAGGLE_RUN.waggleCount` is asserted equal to `count-the-waggles`'s own
+`correctValue` read off `BUZZ_AND_THE_WAGGLE_DANCE`, rather than typed twice,
+so the dance the child counts and the number the engine grades cannot drift
+apart. The same check the castle's nine carved stars get.
+
+Every invariant was **mutation-checked before being trusted**: severing the
+bee's trail from the hub strands the hive clearing, raising the tree line's
+sliver threshold to 2.5m breaks the cover test, and moving two stone zones
+within 1.5m fails the separation test. A reachability test that cannot fail
+passes just as well against geometry that is wrong.
+
+### Route decision: the 3D forest is the front door, not a preview
+
+Decided 2026-09-06, and a departure from how the castle shipped. SC-2 added
+the first-person castle as an additive second link beside the Phaser one,
+with the card route still the default for every band. From WF-2 the
+first-person forest is instead **what opening Wonderwild Forest gives a
+Pathfinder or an Explorer**, with the card-based route still working and
+still linked as the alternative.
+
+The reasoning is that a region offered as an experiment beside the "real"
+one is a region nobody plays and nobody can playtest, and the pattern itself
+is no longer what is being proved out — the castle proved it.
+
+**ADR-008's Sprouts gate is the one exception and it holds.** Sprouts keep
+the card route as their default until the accessibility playtest owed from
+Phase 32 has run, which matters more here than it did in the castle because
+the shrink into the hive is the most motion-sensitive transition on the
+island. Being the default from WF-2 is **not** retirement: nothing is retired
+for any band before WF-10, every band can still reach the card route, and the
+age-band branch that decides the default is asserted in both directions so
+"primary for two bands" cannot quietly become "primary for everyone".
 
 ## Storykeeper Castle first-person region — SC-0 through SC-6 complete, SC-7 and SC-8 partial
 

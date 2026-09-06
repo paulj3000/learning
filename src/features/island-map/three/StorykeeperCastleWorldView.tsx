@@ -21,6 +21,11 @@ import {
   seatedPlatesToOrder,
 } from './castleBindingLectern';
 import {
+  LIBRARY_CLUE_WALL_ENTITY_ID,
+  ORDER_THE_CLUES_STEP_ID,
+  seatedCluesToOrder,
+} from './castleLibraryClues';
+import {
   findInteraction,
   isInteractionAvailable,
   STORYKEEPER_CASTLE_INTERACTIONS,
@@ -30,6 +35,11 @@ import {
 } from '../worldObjects';
 import { NpcConversation } from '../NpcConversation';
 import { DiscoveryAction } from '../DiscoveryAction';
+import { StoryChapterRunner } from '../../story/StoryChapterRunner';
+import type { StoryAdventureRenderProps } from '../../story/StoryChapterRunner';
+import { useStoryProgress } from '../../story/useStoryProgress';
+import { isStoryForAgeBand } from '../../story/engine/eligibility';
+import { THE_CASTLES_SECRET_DOOR } from '../../story/content/theCastlesSecretDoor';
 import { AdventureStepCard } from '../../adventures/AdventureStepCard';
 import { useAdventureSession } from '../../adventures/useAdventureSession';
 import { THE_STORYKEEPERS_TALE } from '../../adventures/content/theStorykeepersTale';
@@ -71,6 +81,14 @@ const TALK_TO_QUILL_INTERACTION_ID = 'talk-to-keeper-quill';
  * signage. Walking into the corner is the whole interaction.
  */
 const TAPESTRY_NOOK_ZONE_ID = 'castle-tapestry-stair';
+/**
+ * Beat 9's approach. One zone, two authored interactions: the door with no
+ * handle while the arc is unfinished, and the bookshelf standing ajar once
+ * it is - the same pair the story hall already uses for `FIRST_STORY_TOLD`.
+ */
+const SECRET_DOOR_ZONE_ID = 'castle-last-bookshelf';
+const SECRET_DOOR_INTERACTION_ID = 'castle-secret-door';
+const SECRET_DOOR_CHANGE_KEY = 'THE_CASTLES_SECRET_DOOR_COMPLETE';
 
 const CHOOSE_HERO_STEP_ID = 'choose-hero';
 const CHOOSE_SETTING_STEP_ID = 'choose-setting';
@@ -184,6 +202,22 @@ export function StorykeeperCastleWorldView({
   const engineRef = useRef<StorykeeperCastleEngine | null>(null);
 
   const storyTold = interactionContext.worldChangeKeys.includes(FIRST_STORY_TOLD_CHANGE_KEY);
+  const secretDoorOpened = interactionContext.worldChangeKeys.includes(SECRET_DOOR_CHANGE_KEY);
+
+  /**
+   * Whether the Explorer arc is being played in this room right now.
+   *
+   * Deliberately not mounted just because a child walked in.
+   * `useStoryProgress` starts or resumes a `ChildStoryProgress` on mount, so
+   * hosting it unconditionally would create a row for every child who
+   * entered the castle - including the Pathfinders and Sprouts this arc is
+   * not authored for. It mounts when a child takes the authored entry point
+   * and not before.
+   */
+  const [secretDoorActive, setSecretDoorActive] = useState(false);
+
+  /** ADR-019: the Story Engine's own gate, asked rather than restated here. */
+  const secretDoorForBand = isStoryForAgeBand(THE_CASTLES_SECRET_DOOR, ageBand);
 
   const taleForBand = useMemo(
     () =>
@@ -358,6 +392,12 @@ export function StorykeeperCastleWorldView({
       }
       if (zoneId === TAPESTRY_NOOK_ZONE_ID) {
         setTriggeredInteractionId(TAPESTRY_NOOK_ZONE_ID);
+        return;
+      }
+      if (zoneId === SECRET_DOOR_ZONE_ID) {
+        setTriggeredInteractionId(
+          secretDoorOpened ? SECRET_DOOR_ZONE_ID : SECRET_DOOR_INTERACTION_ID,
+        );
       }
     });
     /*
@@ -374,7 +414,7 @@ export function StorykeeperCastleWorldView({
       offFocus();
       offZone();
     };
-  }, [bus, childId, storyTold]);
+  }, [bus, childId, storyTold, secretDoorOpened]);
 
   useEffect(() => {
     if (!toast) return;
@@ -523,6 +563,17 @@ export function StorykeeperCastleWorldView({
           backToMapHref={`/island/${childId}/locations/storykeeper-castle`}
         />
       ) : null}
+      {secretDoorActive && secretDoorForBand ? (
+        <CastleSecretDoorStory
+          childId={childId}
+          ageBand={ageBand}
+          aiEnabled={aiEnabled}
+          bus={bus}
+          engineRef={engineRef}
+          onComplete={handleTaleComplete}
+          backToMapHref={`/island/${childId}/locations/storykeeper-castle`}
+        />
+      ) : null}
       {triggeredInteraction ? (
         <InteractionPanel
           childId={childId}
@@ -532,6 +583,11 @@ export function StorykeeperCastleWorldView({
           onDiscovered={handleDiscovered}
           onStartTale={() => {
             setTaleActive(true);
+            setTriggeredInteractionId(null);
+          }}
+          storyForBand={secretDoorForBand}
+          onStartStory={() => {
+            setSecretDoorActive(true);
             setTriggeredInteractionId(null);
           }}
           onDismiss={() => setTriggeredInteractionId(null)}
@@ -826,15 +882,217 @@ function CastleTaleSession({
   );
 }
 
+interface CastleSecretDoorStoryProps {
+  childId: string;
+  ageBand: AgeBandValue;
+  aiEnabled: boolean;
+  bus: WorldEngineEventBus;
+  engineRef: React.RefObject<StorykeeperCastleEngine | null>;
+  onComplete: () => void;
+  backToMapHref: string;
+}
+
+/**
+ * "The Castle's Secret Door", played in the room it is about (ADR-019).
+ *
+ * This is the castle's *second entry point* into that arc, not a second copy
+ * of it. `useStoryProgress` is the Story Engine's own hook, called exactly
+ * as `StoryPage` calls it, so there is one `ChildStoryProgress` for this
+ * child and this story however they reached it - a child can start here,
+ * walk out mid-chapter, open the Adventure Library and carry on from the
+ * same row, and the reverse. Entry point is presentation metadata, never
+ * progression identity.
+ *
+ * The one thing this adds to `StoryPage`'s arrangement is `renderAdventure`:
+ * the chapter's `ADVENTURE` scenes are rendered by a component that holds
+ * the session here in the room, so the clues on the library floor and the
+ * options on the card go through one `submitAnswer`. Everything else -
+ * which scene is current, when a chapter is over, whether the story is
+ * complete - stays with the Story Engine, which is why nothing below calls
+ * anything but `completeChapter`.
+ */
+function CastleSecretDoorStory({
+  childId,
+  ageBand,
+  aiEnabled,
+  bus,
+  engineRef,
+  onComplete,
+  backToMapHref,
+}: CastleSecretDoorStoryProps) {
+  const { loadState, progress, chapter, flags, setFlag, completeChapter } = useStoryProgress(
+    childId,
+    THE_CASTLES_SECRET_DOOR,
+  );
+
+  const hasFiredOnComplete = useRef(false);
+  useEffect(() => {
+    if (loadState === 'ready' && chapter === null && !hasFiredOnComplete.current) {
+      hasFiredOnComplete.current = true;
+      onComplete();
+    }
+  }, [loadState, chapter, onComplete]);
+
+  if (loadState === 'loading') {
+    return <p className={styles.status}>Opening the door...</p>;
+  }
+  if (loadState === 'error' || !progress) {
+    return (
+      <p className={styles.status} role="alert">
+        Something went wrong opening this story.
+      </p>
+    );
+  }
+  if (!chapter) {
+    return (
+      <div className={styles.panel}>
+        <p>The door is open, and the room behind it is yours to visit.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.panel}>
+      <StoryChapterRunner
+        childProfileId={childId}
+        ageBand={ageBand}
+        aiEnabled={aiEnabled}
+        storyProgressId={progress.id}
+        chapter={chapter}
+        flags={flags}
+        backToStoryHref={backToMapHref}
+        onFlag={setFlag}
+        onChapterComplete={completeChapter}
+        renderAdventure={(adventure) => (
+          <CastleStoryAdventure
+            key={adventure.definition.slug}
+            {...adventure}
+            bus={bus}
+            engineRef={engineRef}
+          />
+        )}
+      />
+    </div>
+  );
+}
+
+interface CastleStoryAdventureProps extends StoryAdventureRenderProps {
+  bus: WorldEngineEventBus;
+  engineRef: React.RefObject<StorykeeperCastleEngine | null>;
+}
+
+/**
+ * One `ADVENTURE` scene of the secret-door arc, with its session held here
+ * so the room can drive it - the same shape `CastleTaleSession` uses for
+ * the tale, and the reason ADR-019 needed a renderer seam at all.
+ *
+ * It renders `AdventureStepCard`, the very component the card route renders,
+ * so every step has its HUD equivalent by construction rather than by a
+ * second implementation agreeing.
+ */
+function CastleStoryAdventure({
+  childProfileId,
+  definition,
+  ageBand,
+  aiEnabled,
+  backToMapHref,
+  onComplete,
+  bus,
+  engineRef,
+}: CastleStoryAdventureProps) {
+  const {
+    loadState,
+    session,
+    currentStep,
+    hintLevel,
+    hintText,
+    submitting,
+    error,
+    submitAnswer,
+    requestHint,
+    companionTurn,
+    representationAid,
+    storyScenes,
+  } = useAdventureSession(childProfileId, definition, ageBand, aiEnabled);
+
+  const hasFiredOnComplete = useRef(false);
+  useEffect(() => {
+    if (session?.status === 'COMPLETED' && !hasFiredOnComplete.current) {
+      hasFiredOnComplete.current = true;
+      onComplete();
+    }
+  }, [session, onComplete]);
+
+  const submitRef = useRef(submitAnswer);
+  submitRef.current = submitAnswer;
+  const stepId = currentStep?.id ?? null;
+
+  /*
+    Beat 9. The three clues are picked up off the floor and pinned to the
+    library wall, and pinning the third reports the arrangement - the same
+    contract SC-5's binding lectern uses, through the same bindings, so the
+    ORDERING step grades a room exactly as it grades the HUD list.
+  */
+  const pinningStepOpen = stepId === ORDER_THE_CLUES_STEP_ID;
+  useEffect(() => {
+    if (!pinningStepOpen) return;
+    engineRef.current?.resetLibraryClues();
+  }, [pinningStepOpen, engineRef]);
+
+  useEffect(() => {
+    if (!pinningStepOpen) return;
+    return bus.on('BuildActionRequested', ({ entityId, order }) => {
+      if (entityId !== LIBRARY_CLUE_WALL_ENTITY_ID) return;
+      const answer = seatedCluesToOrder(order ?? []);
+      if (!answer) return;
+      void submitRef.current({ kind: 'ordering', order: answer }).then((correctness) => {
+        if (correctness === 'correct') return;
+        engineRef.current?.resetLibraryClues();
+        engineRef.current?.playQuillClip('ReactConcerned');
+      });
+    });
+  }, [bus, pinningStepOpen, engineRef]);
+
+  if (loadState === 'loading') {
+    return <p className={styles.status}>Reading the clues...</p>;
+  }
+  if (loadState === 'error' || !currentStep) {
+    return (
+      <p className={styles.status} role="alert">
+        Something went wrong opening this part of the story.
+      </p>
+    );
+  }
+
+  return (
+    <AdventureStepCard
+      currentStep={currentStep}
+      submitting={submitting}
+      error={error}
+      submitAnswer={submitAnswer}
+      hintLevel={hintLevel}
+      hintText={hintText}
+      requestHint={requestHint}
+      companionTurn={companionTurn}
+      representationAid={representationAid}
+      storyScenes={storyScenes}
+      backToMapHref={backToMapHref}
+    />
+  );
+}
+
 interface InteractionPanelProps {
   childId: string;
   interaction: WorldInteraction;
   ageBand: AgeBandValue;
   /** Whether the tale is authored for this child's band at all. */
   taleForBand: boolean;
+  /** Whether this child's band may play the Explorer arc at all (the Story Engine's answer). */
+  storyForBand: boolean;
   /** Called once a secret is actually recorded, so the world view can re-read it. */
   onDiscovered: () => void;
   onStartTale: () => void;
+  onStartStory: () => void;
   onDismiss: () => void;
 }
 
@@ -843,8 +1101,10 @@ function InteractionPanel({
   interaction,
   ageBand,
   taleForBand,
+  storyForBand,
   onDiscovered,
   onStartTale,
+  onStartStory,
   onDismiss,
 }: InteractionPanelProps) {
   return (
@@ -856,8 +1116,10 @@ function InteractionPanel({
           action={interaction.action}
           ageBand={ageBand}
           taleForBand={taleForBand}
+          storyForBand={storyForBand}
           onDiscovered={onDiscovered}
           onStartTale={onStartTale}
+          onStartStory={onStartStory}
           onDismiss={onDismiss}
         />
         <button type="button" className={styles.dismissButton} onClick={onDismiss}>
@@ -873,8 +1135,10 @@ interface InteractionPanelActionProps {
   action: WorldAction;
   ageBand: AgeBandValue;
   taleForBand: boolean;
+  storyForBand: boolean;
   onDiscovered: () => void;
   onStartTale: () => void;
+  onStartStory: () => void;
   onDismiss: () => void;
 }
 
@@ -893,8 +1157,10 @@ function InteractionPanelAction({
   action,
   ageBand,
   taleForBand,
+  storyForBand,
   onDiscovered,
   onStartTale,
+  onStartStory,
   onDismiss,
 }: InteractionPanelActionProps) {
   if (action.kind === 'NAVIGATE') {
@@ -928,6 +1194,23 @@ function InteractionPanelAction({
         discoveryId={action.discoveryId}
         onDiscovered={onDiscovered}
       />
+    );
+  }
+
+  /*
+    ADR-019's authored 3D entry point. The band gate is the Story Engine's
+    own `supportedAgeBands`, asked through `isStoryForAgeBand` by the view -
+    walking up to a door is never a way past it. The message is the same one
+    `StoryPage` shows for the same reason.
+  */
+  if (action.kind === 'START_STORY') {
+    if (!storyForBand) {
+      return <p>This story is not available for your age yet.</p>;
+    }
+    return (
+      <button type="button" className={styles.goLink} onClick={onStartStory}>
+        Look at the door
+      </button>
     );
   }
 

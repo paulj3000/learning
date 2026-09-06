@@ -566,10 +566,19 @@ stone already points at**. Building it lights a second stone, turns a dead
 fallback into a real path, and proves the Wonder Wall is a surface that
 grows rather than a menu with three broken entries.
 
-**ADR-008's Sprouts gate still applies.** First-person navigation is not
-Sprouts' primary route until the accessibility playtest Phase 32 still owes
-has run. Until then the card-based forest route stays the Sprouts default
-and this region is an option, not a replacement.
+**This region is the front door, not a preview.** For Pathfinders and
+Explorers the first-person forest is what opening Wonderwild Forest gives
+you from WF-2 onward; the card-based route stays available and linked, but it
+stops being the default. The castle shipped its 3D route as an additive
+second link and that was the right call for a region being proved out. The
+forest is not being proved out - the pattern is - and a region offered beside
+the "real" one is a region nobody plays and nobody can playtest.
+
+**ADR-008's Sprouts gate is the one exception, and it holds.** First-person
+navigation is not Sprouts' primary route until the accessibility playtest
+Phase 32 still owes has run, and the shrink into the hive makes that gate
+matter more here than it did in the castle. Until it clears, Sprouts start on
+the card-based route. Nothing is *retired* for any band before WF-10.
 
 ## 6. Asset additions
 

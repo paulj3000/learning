@@ -38,7 +38,19 @@ export type WorldAction =
    * than one line, and duplicating any of it here would let the world layer
    * and the authored cast drift apart.
    */
-  | { kind: 'TALK_TO'; npcId: string };
+  | { kind: 'TALK_TO'; npcId: string }
+  /**
+   * Opens a Story Engine arc *in this region* (ADR-019). Carries only a
+   * story slug, for the same reason `DISCOVER` carries only an id and
+   * `TALK_TO` only an NPC: the arc's chapters, eligibility and progress
+   * belong to the Story Engine, and restating any of it here would let the
+   * world layer and the authored story drift apart.
+   *
+   * This is a second *entry point*, never a second copy. The child plays the
+   * same `ChildStoryProgress` they would from the Adventure Library, and may
+   * cross between the two mid-chapter in either direction.
+   */
+  | { kind: 'START_STORY'; storySlug: string };
 
 export interface WorldInteraction {
   id: string;
@@ -699,6 +711,33 @@ export const STORYKEEPER_CASTLE_INTERACTIONS: WorldInteraction[] = [
     targetId: 'castle-tapestry-stair',
     requirements: [{ type: 'ALWAYS' }],
     action: { kind: 'DISCOVER', discoveryId: 'castle-tapestry-stair' },
+  },
+  /**
+   * ADR-019's first authored 3D story entry point. The Adventure Library is
+   * still the location-independent way to find and resume this arc; this is
+   * the contextual one, standing in front of the door the story is about.
+   *
+   * Explorer-only, and not because this entry says so: the gate is
+   * `THE_CASTLES_SECRET_DOOR.supportedAgeBands`, asked through the Story
+   * Engine's own `isStoryForAgeBand`. Reaching a Three.js object is never a
+   * way around a band gate.
+   */
+  {
+    id: 'castle-secret-door',
+    type: 'ADVENTURE',
+    trigger: 'APPROACH',
+    title: 'A door with no handle',
+    targetId: 'castle-secret-passage',
+    requirements: [{ type: 'WORLD_CHANGE_ABSENT', changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE' }],
+    action: { kind: 'START_STORY', storySlug: 'the-castles-secret-door' },
+    /*
+      Shares the bookshelf's zone rather than claiming one of its own: this
+      and `castle-last-bookshelf` are the same spot before and after the
+      arc, the way `broken-bridge`/`moonlight-bridge-crossing` are in
+      Welcome Harbor. Their requirements are complementary, so exactly one
+      of the two is ever available.
+    */
+    zoneId: 'castle-last-bookshelf',
   },
   {
     id: 'castle-last-bookshelf',

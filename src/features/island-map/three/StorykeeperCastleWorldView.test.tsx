@@ -74,6 +74,44 @@ vi.mock('../../adventures/useAdventureSession', () => ({
   })),
 }));
 
+/**
+ * The Story Engine is mocked at its own boundary, not replaced. What these
+ * tests need to see is that the castle *asks* it - one `useStoryProgress`
+ * for one child and one story, whatever route they arrived by - and that it
+ * never reaches past it to decide anything itself.
+ */
+const useStoryProgressSpy = vi.fn();
+let storyChapterId: string | null = 'three-clues';
+let storyProgressId = 'story-progress-1';
+
+vi.mock('../../story/useStoryProgress', () => ({
+  useStoryProgress: (childProfileId: string, story: { slug: string }) => {
+    useStoryProgressSpy(childProfileId, story.slug);
+    return {
+      loadState: 'ready',
+      progress: { id: storyProgressId, currentChapterId: storyChapterId },
+      chapter: storyChapterId ? { id: storyChapterId, title: 'Three Clues', scenes: [] } : null,
+      flags: {},
+      setFlag: vi.fn(),
+      completeChapter: vi.fn(),
+    };
+  },
+}));
+
+vi.mock('../../story/StoryChapterRunner', () => ({
+  StoryChapterRunner: ({
+    storyProgressId: id,
+    chapter,
+  }: {
+    storyProgressId: string;
+    chapter: { id: string };
+  }) => (
+    <div data-testid="story-chapter-runner">
+      {id}:{chapter.id}
+    </div>
+  ),
+}));
+
 vi.mock('../NpcConversation', () => ({
   NpcConversation: ({ npcId, onEnd }: { npcId: string; onEnd: () => void }) => (
     <div data-testid="npc-conversation">
@@ -210,6 +248,9 @@ describe('StorykeeperCastleWorldView', () => {
     currentStep = null;
     sessionStatus = 'ACTIVE';
     hintLevel = 0;
+    useStoryProgressSpy.mockClear();
+    storyChapterId = 'three-clues';
+    storyProgressId = 'story-progress-1';
     createEngineMock.mockClear();
     listAllWorldChangesMock.mockReset();
     getActiveSessionMock.mockReset();
@@ -1064,6 +1105,93 @@ describe('StorykeeperCastleWorldView', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByText(/move: wasd or the arrow keys/i)).toBeInTheDocument();
+  });
+
+  // --- ADR-019: the castle as a second entry point into the Explorer arc ---
+
+  /** Walks the child up to the door and takes the authored entry point. */
+  async function enterTheSecretDoor(): Promise<void> {
+    const user = userEvent.setup();
+    act(() => capturedBus?.emit('PlayerEnteredZone', { zoneId: 'castle-last-bookshelf' }));
+    await screen.findByRole('dialog', { name: /a door with no handle/i });
+    await user.click(screen.getByRole('button', { name: /look at the door/i }));
+  }
+
+  it('offers the arc at the door, and opens it in the room', async () => {
+    await renderAndWaitForEngine('EXPLORER');
+
+    await enterTheSecretDoor();
+
+    expect(await screen.findByTestId('story-chapter-runner')).toBeInTheDocument();
+    // Still in the castle: the arc is played here, not navigated away to.
+    expect(screen.getByText(/move: wasd or the arrow keys/i)).toBeInTheDocument();
+  });
+
+  /**
+   * ADR-019: "reaching a Three.js object must never bypass Story Engine
+   * eligibility". The gate is the story's own `supportedAgeBands`, asked
+   * through `isStoryForAgeBand`, and this arc is Explorer-only.
+   */
+  it('refuses the arc to a band the Story Engine does not allow', async () => {
+    await renderAndWaitForEngine('PATHFINDER');
+
+    act(() => capturedBus?.emit('PlayerEnteredZone', { zoneId: 'castle-last-bookshelf' }));
+
+    expect(await screen.findByText(/not available for your age yet/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /look at the door/i })).not.toBeInTheDocument();
+    expect(useStoryProgressSpy).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The canonical-progress rule, at the point it would be easiest to break.
+   * `useStoryProgress` starts or resumes a row on mount, so hosting it
+   * unconditionally would create story progress for every child who walked
+   * into the castle - including the bands this arc is not authored for.
+   */
+  it('creates no story progress for a child who only walks through', async () => {
+    await renderAndWaitForEngine('EXPLORER');
+
+    act(() => capturedBus?.emit('PlayerEnteredZone', { zoneId: 'castle-story-hall' }));
+    await screen.findByRole('dialog');
+
+    expect(useStoryProgressSpy).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('story-chapter-runner')).not.toBeInTheDocument();
+  });
+
+  /**
+   * ADR-019's required cross-entry resume test, castle direction: the arc
+   * entered from the castle asks the Story Engine for the same child and the
+   * same story `StoryPage` would, so there is one `ChildStoryProgress` and
+   * the room resumes whatever chapter it is on rather than restarting.
+   */
+  it('resumes the same story progress a library visit would', async () => {
+    storyProgressId = 'progress-started-in-the-library';
+    storyChapterId = 'the-pattern-lock';
+
+    await renderAndWaitForEngine('EXPLORER');
+    await enterTheSecretDoor();
+
+    expect(useStoryProgressSpy).toHaveBeenCalledWith('child-1', 'the-castles-secret-door');
+    // Not keyed or namespaced by the route the child arrived through.
+    expect(useStoryProgressSpy).toHaveBeenCalledTimes(1);
+    // And it opens on the chapter that progress is actually on.
+    expect(await screen.findByTestId('story-chapter-runner')).toHaveTextContent(
+      'progress-started-in-the-library:the-pattern-lock',
+    );
+  });
+
+  it('shows the way through once the arc is already finished', async () => {
+    listAllWorldChangesMock.mockResolvedValue([
+      { changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE' } as never,
+    ]);
+
+    await renderAndWaitForEngine('EXPLORER');
+    act(() => capturedBus?.emit('PlayerEnteredZone', { zoneId: 'castle-last-bookshelf' }));
+
+    expect(
+      await screen.findByRole('dialog', { name: /the last bookshelf, standing ajar/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /look at the door/i })).not.toBeInTheDocument();
   });
 
   it('offers a link back to the non-3D location page', async () => {
