@@ -417,7 +417,7 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Storykeeper Castle first-person region — SC-0 through SC-4 complete
+## Storykeeper Castle first-person region — SC-0 through SC-5 complete
 
 Two design documents define this work:
 `docs/STORYKEEPER_CASTLE_3D_STORYBOARD.md` (the 13-beat storyboard, floor
@@ -426,10 +426,11 @@ plan, age-band routing, and asset kit) and
 sequence, cross-referenced from `docs/ROADMAP.md`'s Phase 31+ section).
 
 **SC-0 (region data and choice bindings), SC-1 (the castle asset kit),
-SC-2 (the walkable shell), SC-3 (Keeper Quill) and SC-4 (choices become
-places) are implemented.** SC-5 through SC-11 are not started. The
-roadmap's critical vertical slice is SC-0 to SC-6, so two phases remain
-before its stop-and-re-evaluate point. No adventure or story text has changed, and the card-based
+SC-2 (the walkable shell), SC-3 (Keeper Quill), SC-4 (choices become
+places) and SC-5 (the hearth, the binding lectern, and the easel) are
+implemented.** SC-6 through SC-11 are not started. The roadmap's critical
+vertical slice is SC-0 to SC-6, so one phase remains before its
+stop-and-re-evaluate point. No adventure or story text has changed, and the card-based
 Storykeeper Castle route remains the shipped, authoritative one for every
 band; SC-2 adds a third, additive way in
 (`/island/:childId/world/storykeeper-castle-3d`) alongside the existing
@@ -780,6 +781,103 @@ Tower is authored as a square room while the storyboard calls it round -
 SC-0's `RectZone` vocabulary has no other shape, which is a known and
 deliberate simplification.
 
+### SC-5 — the hearth, the binding lectern, and the easel (beats 5 to 7)
+
+The last phase before the roadmap's stop-and-re-evaluate point. Three
+things the child does in the room, and one thing they deliberately do not.
+
+**The binding lectern (beat 6) is the phase.** It is the first interaction
+in this region that is a puzzle rather than a message: a plate is picked up
+(`CollectiblePickedUp`), carried in front of the child, and seated in one
+of three sockets, and seating the third emits `BuildActionRequested`
+carrying the arrangement. The scene owns every bit of the physical state
+and no part of the verdict - `castleBindingLectern.ts` turns an arrangement
+of entity ids into option ids through SC-0's bindings, and the existing
+`ORDERING` step grades it exactly as it grades the HUD list. A seated plate
+can be lifted back out, so a child who spots their own mistake can fix it
+before submitting.
+
+`useAdventureSession.submitAnswer` now resolves with the server's verdict
+rather than `void`. Beat 6 promises that a wrong order lifts the plates
+back onto the table and that nothing is lost, and the room cannot know it
+was wrong without either that verdict or a second copy of grading that
+ADR-012 deliberately keeps server-side. `AdventureStepCard` takes the wider
+return type and ignores the value; every decision it could make on a
+verdict is one the engine has already made.
+
+**Beat 5 stays a HUD card, and gets a gesture instead.** The comprehension
+check tests what Quill *said*, so hiding its answer in the room would turn
+a reading-comprehension check into a spatial search. From rung 3 of the
+existing five-rung ladder onward, Quill turns and points at the hearth
+mantel, and turns back when the step is answered. The code reads
+`hintLevel` and never writes one, and `theStorykeepersTale.test.ts` now
+pins all five rungs verbatim - so the 3D room can never quietly become a
+reason to edit a step the card route also runs.
+
+**Beat 7 is nine authored pictures out of seven assets.**
+`castleEaselCanvas.ts` holds the 3x3 table keyed by (hero, setting); each
+row authors what composition cannot infer - where on that backdrop this
+hero stands, and how big. No AI image generation.
+
+Three things SC-0 and SC-1 had already shipped were changed, each found by
+building on top of them:
+
+- **The three plates lay on the table in the correct story order.** A child
+  who seated them left to right without reading them would have scored a
+  sequencing step they never did - and no engine test could see it, because
+  the answer arriving at the engine is genuinely correct. They now start in
+  the step's own authored `items` order, which is the same shuffled order
+  the HUD list starts in. Both halves are asserted.
+- **The plate table stood behind the lectern**, so from anywhere the child
+  could see the sockets, the lectern was between them and the plates. Beat
+  6 is three pickups, which made it three walks around the furniture and
+  back. They now stand side by side facing the room.
+- **A new `binding-lectern` asset, and carved marks on the hearth's
+  mantel.** Appendix A assumed one `lectern` model would serve Quill's
+  reading stand and the binding lectern both, but `story-plate-*` is 0.34m
+  wide and three of them need a metre of desk against that model's 0.6m.
+  The mantel departs from the storyboard's literal `HERO · PROBLEM ·
+  ENDING`: this pack is texture-free, so words would mean extruding letter
+  geometry, for a child who is being asked to *recall* what Quill said. It
+  carries three groups of counted marks instead - one, two, three - the
+  same language `storyPlate` already chose, and no more of a giveaway than
+  hint rung 3's own words.
+
+**One bug fixed in shipped SC-4 code.** Its session-resume path - walk back
+into the castle and find your portrait still lit - never worked. It looked
+for recorded actions with `correctness === 'CORRECT'`, but `choose-hero`
+and `choose-setting` are `CREATIVE_CHOICE` steps, and a creative choice has
+no right answer, so every one of them is graded `not_applicable` and stored
+as `NOT_APPLICABLE`. The filter now excludes only rejected answers. Found
+while wiring the easel, which reads the same two answers.
+
+### Rendering verification (SC-5)
+
+Beat 6 and beat 7 were driven through the same `.tmp-verify/harness/` the
+earlier phases used, with the real touch-look controls and the real `e`
+key. The harness gained an `at=x,z,yaw` parameter that appends a checkpoint
+of its own (`ALL_CHECKPOINTS` is `readonly` only to the type checker):
+walking to a spot on simulated keystrokes proved far too imprecise to put a
+reticle on a 34cm plate.
+
+Confirmed working: the mantel's three groups of marks read clearly in the
+firelight; the workstation reads as one, with the plates' notches and the
+lectern's three empty sockets both legible from where a child stands; a
+picked-up plate rides visibly in front of the camera and leaves the table;
+and a seated plate sits in its socket with the remaining sockets visibly
+empty.
+
+**One real defect found, in beat 7.** The canvas layers are built from the
+same primitives as everything else, so a mountain peak is a 30cm-radius
+cone - which on an easel reads as a sculpture leaning out of the page
+rather than a picture, its base rim projecting below the backdrop. Every
+layer is now squashed to a couple of millimetres deep, turning each into
+the flat-colour silhouette the storyboard asks for without re-authoring six
+shared assets. That exposed a second one: the dragon's head hung out
+through the top of the picture, because the fit test checked the hero's
+*origin* rather than the hero's extent. All nine compositions were
+re-authored and re-shot, and all nine now sit inside their page.
+
 ### Still not verified
 
 Everything a still image cannot settle: walking, collision, whether the
@@ -788,6 +886,15 @@ as "go that way", frame rate on a real tablet, and the whole flow against a
 live backend (auth, session writes, checkpoint persistence). The harness
 mounts the scene alone, so nothing above exercises `useAdventureSession`,
 AppSync, or the HUD against real data.
+
+Specific to SC-5: **the third plate's submit has not been driven in a
+browser.** Two seats in a row work and are in the screenshots; the
+harness's aim then missed the last plate left on the table, and chasing
+that further was judged a poor use of time given the path is covered by
+tests on both sides of the boundary - `castleBindingLectern.test.ts` on
+turning an arrangement into an answer, and the view test driving a real
+`BuildActionRequested` through to `submitAnswer` and back through the
+wrong-order reset.
 
 
 ## Completed

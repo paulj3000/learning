@@ -115,6 +115,7 @@ export const ASSET_MANIFEST: readonly AssetManifestEntry[] = [
   { id: 'bookshelf-ajar', url: '/models/bookshelf-ajar.gltf', kind: 'kit-piece', clips: [] },
 
   { id: 'lectern', url: '/models/lectern.gltf', kind: 'prop', clips: [] },
+  { id: 'binding-lectern', url: '/models/binding-lectern.gltf', kind: 'prop', clips: [] },
   { id: 'binding-table', url: '/models/binding-table.gltf', kind: 'prop', clips: [] },
   { id: 'story-plate-problem', url: '/models/story-plate-problem.gltf', kind: 'prop', clips: [] },
   { id: 'story-plate-choice', url: '/models/story-plate-choice.gltf', kind: 'prop', clips: [] },

@@ -1,6 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { archwayRotationY, wallPanelPlacements } from './storykeeperCastleScene';
-import { ARCHWAYS, ROOMS, WALL_SEGMENTS, WALL_THICKNESS } from './storykeeperCastleRegion';
+import {
+  archwayRotationY,
+  bindingSocketPositions,
+  wallPanelPlacements,
+  yawTowards,
+} from './storykeeperCastleScene';
+import {
+  ARCHWAYS,
+  BINDING_LECTERN_SPOT,
+  BINDING_SOCKET_LOCAL_X,
+  HEARTH_MANTEL_SPOT,
+  KEEPER_QUILL_SPOT,
+  ROOMS,
+  STORY_PLATE_SPOTS,
+  WALL_SEGMENTS,
+  WALL_THICKNESS,
+  isWalkable,
+} from './storykeeperCastleRegion';
 
 /**
  * `createStorykeeperCastleEngine` itself stays untested, like every other
@@ -150,5 +166,87 @@ describe('archwayRotationY', () => {
       const depth = archway.gap.maxZ - archway.gap.minZ;
       expect(Math.abs(width - depth), archway.id).toBeGreaterThan(1);
     }
+  });
+});
+
+/**
+ * SC-5's placement maths. Both functions below produce numbers a child sees
+ * the consequences of and no test above could catch: a sign error in the
+ * socket transform seats plate one where plate three belongs, so the child
+ * reads their own answer back in the wrong order with nothing anywhere
+ * reporting a fault, and a sign error in `yawTowards` has Quill gesture at
+ * a blank wall while the hint text says "look at the mantel".
+ */
+describe('bindingSocketPositions', () => {
+  const yaws = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
+
+  it('gives one socket per authored offset, in the authored order', () => {
+    for (const yaw of yaws) {
+      expect(bindingSocketPositions(BINDING_LECTERN_SPOT, yaw)).toHaveLength(
+        BINDING_SOCKET_LOCAL_X.length,
+      );
+    }
+  });
+
+  it('keeps the sockets in a straight line, evenly spaced, centred on the lectern', () => {
+    for (const yaw of yaws) {
+      const sockets = bindingSocketPositions(BINDING_LECTERN_SPOT, yaw);
+      const gaps = sockets
+        .slice(1)
+        .map((socket, index) =>
+          Math.hypot(socket.x - sockets[index].x, socket.z - sockets[index].z),
+        );
+      for (const gap of gaps) {
+        expect(gap, `yaw ${yaw}`).toBeCloseTo(
+          BINDING_SOCKET_LOCAL_X[1] - BINDING_SOCKET_LOCAL_X[0],
+        );
+      }
+      // The middle offset is 0, so the middle socket is the lectern itself.
+      expect(sockets[1].x, `yaw ${yaw}`).toBeCloseTo(BINDING_LECTERN_SPOT.x);
+      expect(sockets[1].z, `yaw ${yaw}`).toBeCloseTo(BINDING_LECTERN_SPOT.z);
+    }
+  });
+
+  /**
+   * A socket inside a wall, or outside the room, is a plate the child can
+   * see and never reach. The lectern is turned by `facingIntoRoom`, so this
+   * has to hold for every right angle rather than for the one it happens to
+   * take today.
+   */
+  it('leaves every socket, and every plate on the table, on reachable floor', () => {
+    for (const yaw of yaws) {
+      for (const socket of bindingSocketPositions(BINDING_LECTERN_SPOT, yaw)) {
+        expect(isWalkable(socket.x, socket.z), `yaw ${yaw}`).toBe(true);
+      }
+    }
+    for (const plate of STORY_PLATE_SPOTS) {
+      expect(isWalkable(plate.x, plate.z), plate.entityId).toBe(true);
+    }
+  });
+});
+
+describe('yawTowards', () => {
+  /** `firstPersonController.ts`'s convention: forward is `(sin(yaw), cos(yaw))`. */
+  function forwardFrom(yaw: number) {
+    return { x: Math.sin(yaw), z: Math.cos(yaw) };
+  }
+
+  it('turns Keeper Quill to actually look at the hearth mantel', () => {
+    const yaw = yawTowards(KEEPER_QUILL_SPOT, HEARTH_MANTEL_SPOT);
+    const forward = forwardFrom(yaw);
+    const toMantel = {
+      x: HEARTH_MANTEL_SPOT.x - KEEPER_QUILL_SPOT.x,
+      z: HEARTH_MANTEL_SPOT.z - KEEPER_QUILL_SPOT.z,
+    };
+    const length = Math.hypot(toMantel.x, toMantel.z);
+    // Unit forward dotted with the unit direction to the mantel is 1 only
+    // if he is looking straight at it.
+    expect((forward.x * toMantel.x + forward.z * toMantel.z) / length).toBeCloseTo(1);
+  });
+
+  it('agrees with the two facings SC-3 authored by hand', () => {
+    // Due north (the gallery archway) is yaw 0; due west (the entry hall) is -PI/2.
+    expect(yawTowards({ x: 0, z: 0 }, { x: 0, z: 5 })).toBeCloseTo(0);
+    expect(yawTowards({ x: 0, z: 0 }, { x: -5, z: 0 })).toBeCloseTo(-Math.PI / 2);
   });
 });

@@ -15,7 +15,7 @@ import {
   type AnimationAction,
   type AnimationClip,
 } from 'three';
-import { createInstancedMeshFromAsset, loadAsset } from './assets/assetLoader';
+import { createInstancedMeshFromAsset, instantiateAsset, loadAsset } from './assets/assetLoader';
 import {
   resolveSpawnCheckpoint,
   STORYKEEPER_CASTLE_CHECKPOINTS,
@@ -36,8 +36,12 @@ import {
 } from './sceneKit';
 import {
   ARCHWAYS,
+  BINDING_LECTERN_SPOT,
+  BINDING_SOCKET_LOCAL_X,
+  BINDING_TABLE_SPOT,
   CASTLE_DOORS_SPOT,
   GALLERY_FILLER_FRAME_SPOTS,
+  HEARTH_MANTEL_SPOT,
   HEARTH_SPOT,
   GALLERY_PORTRAIT_SPOTS,
   KEEPER_QUILL_ID,
@@ -45,14 +49,23 @@ import {
   QUILL_LECTERN_SPOT,
   REGION_ID,
   ROOMS,
+  STORY_PLATE_SPOTS,
+  STUDIO_EASEL_SPOT,
   TOWER_WINDOW_SPOTS,
   WALL_SEGMENTS,
   WALL_THICKNESS,
   ZONES,
+  type EntitySpot,
   type RectZone,
   type RoomSide,
   type WallMountedSpot,
 } from './storykeeperCastleRegion';
+import {
+  BINDING_LECTERN_ENTITY_ID,
+  BINDING_SOCKET_COUNT,
+  isStoryPlateEntity,
+} from './castleBindingLectern';
+import { EASEL_CANVASES, resolveEaselCanvas } from './castleEaselCanvas';
 import type { WorldEngineEventBus } from './worldEngineEvents';
 
 /** `ground-tile-stone` and `ceiling-tile` are both authored as 4x4 slabs, so both scale from the same number. */
@@ -220,7 +233,46 @@ function facingIntoRoom(spot: { x: number; z: number }, floor: RectZone): number
   return Math.PI / 2;
 }
 
-export type QuillClipName = 'Idle' | 'Talk' | 'Point';
+/**
+ * The yaw that turns something at `from` to look at `to`, in the same
+ * forward convention `firstPersonController.ts` uses: forward is
+ * `(sin(yaw), cos(yaw))`. Exported for the test, because "Quill points at
+ * the mantel" is a claim about a number that no rendering test can check
+ * and a wrong sign would silently have him gesture at a wall.
+ */
+export function yawTowards(from: { x: number; z: number }, to: { x: number; z: number }): number {
+  return Math.atan2(to.x - from.x, to.z - from.z);
+}
+
+/**
+ * Where the three plates land on the binding lectern, in world x/z.
+ *
+ * `BINDING_SOCKET_LOCAL_X` is authored in the lectern's own frame (SC-0's
+ * file owns the offsets; the same three numbers cut the sockets into the
+ * model in `scripts/generate-world-assets.ts`), so this is the one place
+ * that turns them by the lectern's facing. Exported and tested: a sign
+ * error here seats plate one where plate three should go, and the child
+ * would be reading their own answer back in the wrong order with nothing
+ * anywhere reporting a fault.
+ */
+export function bindingSocketPositions(
+  spot: { x: number; z: number },
+  yaw: number,
+): { x: number; z: number }[] {
+  return BINDING_SOCKET_LOCAL_X.map((offsetX) => ({
+    x: spot.x + offsetX * Math.cos(yaw),
+    z: spot.z - offsetX * Math.sin(yaw),
+  }));
+}
+
+export type QuillClipName = 'Idle' | 'Talk' | 'Point' | 'ReactConcerned';
+
+/**
+ * What Quill turns to look at while a clip plays. Beat 2 points through the
+ * north archway toward the Character Gallery; beat 5 points at the hearth
+ * mantel across the hub. Everything else looks back at the child.
+ */
+export type QuillFacing = 'entry' | 'gallery' | 'hearth';
 
 /** Quill faces the entry hall, so a child walking in from the west is looked at rather than away from. */
 const QUILL_FACING_ENTRY_YAW = -Math.PI / 2;
@@ -231,10 +283,37 @@ const QUILL_FACING_ENTRY_YAW = -Math.PI / 2;
  * look where the arm goes says "there".
  */
 const QUILL_FACING_GALLERY_YAW = 0;
+/**
+ * Beat 5's direction: across the hub at the hearth mantel. Derived rather
+ * than authored, so moving either the hearth or Quill in
+ * `storykeeperCastleRegion.ts` keeps the gesture pointing at the thing.
+ */
+const QUILL_FACING_HEARTH_YAW = yawTowards(KEEPER_QUILL_SPOT, HEARTH_MANTEL_SPOT);
+
+const QUILL_FACING_YAW: Readonly<Record<QuillFacing, number>> = {
+  entry: QUILL_FACING_ENTRY_YAW,
+  gallery: QUILL_FACING_GALLERY_YAW,
+  hearth: QUILL_FACING_HEARTH_YAW,
+};
 
 /** Half-extents of the colliders standing Quill and his lectern up as solid objects. */
 const QUILL_COLLIDER_HALF_METERS = 0.45;
 const LECTERN_COLLIDER_HALF_METERS = 0.35;
+
+/**
+ * The binding lectern faces the room, so its 1.3m desk runs across whatever
+ * axis that leaves; the table is placed unturned, with its 1.4m top along x
+ * where `STORY_PLATE_SPOTS` spreads the plates. Half-extents rather than a
+ * measured `Box3` because colliders are handed to `FirstPersonController`
+ * at construction, before any asset has loaded.
+ */
+const BINDING_LECTERN_HALF = { width: 0.68, depth: 0.26, height: 1.1 };
+const BINDING_TABLE_HALF = { width: 0.72, depth: 0.35, height: 0.85 };
+const EASEL_HALF = { width: 0.45, depth: 0.35, height: 1.6 };
+
+/** How far in front of the eyes a picked-up plate is carried, and how far below them. */
+const CARRY_FORWARD_METERS = 0.55;
+const CARRY_DROP_METERS = 0.5;
 
 export interface StorykeeperCastleEngine extends ThreeEngineHandle {
   /** Raycasts from the camera center and fires the matching event, if anything interactive is in range. */
@@ -249,13 +328,33 @@ export interface StorykeeperCastleEngine extends ThreeEngineHandle {
   /** The Setting Tower's equivalent: brightens the chosen view, shutters the other two. */
   showChosenSetting(entityId: string | null): void;
   /**
-   * Plays one authored clip on Keeper Quill. `Talk` and `Idle` loop;
-   * `Point` plays once and *holds* at its end, per SC-1's note that the
-   * gesture is wayfinding the child needs still there when they look up
-   * from the HUD. A no-op until the asset has loaded, which is why nothing
-   * about the conversation depends on it.
+   * Plays one authored clip on Keeper Quill, turning him to face `facing`
+   * while it runs. `Talk` and `Idle` loop; `Point` and `ReactConcerned`
+   * play once and *hold* at their end, per SC-1's note that the gesture is
+   * wayfinding the child needs still there when they look up from the HUD.
+   * A no-op until the asset has loaded, which is why nothing about the
+   * conversation depends on it.
    */
-  playQuillClip(clip: QuillClipName): void;
+  playQuillClip(clip: QuillClipName, facing?: QuillFacing): void;
+  /**
+   * Lifts every story plate back onto the table and empties the sockets.
+   *
+   * Called when `order-the-story` opens (so the step always starts from a
+   * clean table, whatever the child was playing with beforehand) and when
+   * the engine grades a seated order wrong. Beat 6 is explicit that a wrong
+   * order costs nothing: no plate is destroyed, none is hidden, and the
+   * child picks up again from where they started.
+   */
+  resetBindingPlates(): void;
+  /**
+   * Paints the Illustration Studio easel with the picture for this pair of
+   * choices (`castleEaselCanvas.ts`), or blanks it when passed a pair that
+   * is not yet complete. Safe to call before the assets have loaded, the
+   * same as `showChosenHero`: the choice is remembered and applied on
+   * arrival, which is what lets a resumed session find the page already
+   * painted on the first frame.
+   */
+  showEaselPainting(heroOptionId: string | null, settingOptionId: string | null): void;
 }
 
 export interface StorykeeperCastleEngineOptions {
@@ -265,6 +364,10 @@ export interface StorykeeperCastleEngineOptions {
   chosenHeroEntityId?: string | null;
   /** The tower window this child has already stood at in an open session, if any. */
   chosenSettingEntityId?: string | null;
+  /** The hero option id this child has already chosen, if the easel is already earned. */
+  paintedHeroOptionId?: string | null;
+  /** The setting option id, likewise. Both are needed before the easel paints anything. */
+  paintedSettingOptionId?: string | null;
 }
 
 /**
@@ -274,10 +377,19 @@ export interface StorykeeperCastleEngineOptions {
  * (`storykeeperCastleRegion.ts`) out of SC-1's kit (`assets/manifest.ts`)
  * through `sceneKit.ts`'s shared helpers.
  *
- * SC-3 added the one thing in it: Keeper Quill at his lectern in the hub,
- * `Idle` until approached. He is the only raycast target, so `interact()`
- * can only ever mean "talk to Quill" today; the first learning step becomes
- * a place in SC-4, and the rooms stay empty until then.
+ * SC-3 put Keeper Quill at his lectern in the hub, SC-4 hung the three hero
+ * portraits and opened the three tower windows, and SC-5 furnished the two
+ * rooms where the story is *made*: the binding lectern with its three
+ * sockets and three plates (beat 6), and the Illustration Studio easel
+ * (beat 7).
+ *
+ * Beat 6 is the first interaction in this region that is a puzzle rather
+ * than a message. The scene owns all of it - which plate is in the child's
+ * hands, which sockets are filled, where a lifted plate goes back to - and
+ * owns no part of whether the arrangement is right: seating the third plate
+ * emits `BuildActionRequested` carrying the order and stops there.
+ * `castleBindingLectern.ts` turns that into an option-id answer and the
+ * `ORDERING` step grades it, exactly as it grades the HUD list.
  *
  * It is also the first *indoor* region, and that drives two things nothing
  * outdoors needed. Rooms are walls with holes in them, so wall colliders
@@ -320,10 +432,51 @@ export function createStorykeeperCastleEngine(
       new Vector3(spot.x + half, height, spot.z + half),
     );
 
+  /**
+   * A rectangular prop's collider, with its footprint turned by `yaw`. Every
+   * yaw in this region is a right angle, so turning a footprint is a swap
+   * rather than a rotation.
+   */
+  const propCollider = (
+    spot: { x: number; z: number },
+    half: { width: number; depth: number; height: number },
+    yaw: number,
+  ) => {
+    const turned = Math.abs(Math.sin(yaw)) > 0.5;
+    const halfX = turned ? half.depth : half.width;
+    const halfZ = turned ? half.width : half.depth;
+    return new Box3(
+      new Vector3(spot.x - halfX, 0, spot.z - halfZ),
+      new Vector3(spot.x + halfX, half.height, spot.z + halfZ),
+    );
+  };
+
+  /*
+    Both face south, toward the child rather than toward the room. The child
+    arrives from the entry hall in the west and reads the workstation from
+    in front of it, so `facingIntoRoom` - which would turn the lectern west
+    to face the nearest wall - is the wrong rule for a piece of furniture
+    with a working side. Facing south also lays the lectern's three sockets
+    and the table's three plates out left to right across the child's view,
+    which is the arrangement the ordering card shows.
+  */
+  const bindingLecternYaw = Math.PI;
+  const bindingTableYaw = 0;
+  /*
+    An easel is looked at from the front, and the only way into the studio
+    is the archway on its west wall - so it faces the doorway rather than
+    whichever wall `facingIntoRoom` finds nearest (which is a tie here
+    anyway, the easel sitting dead centre of a 5x4 room).
+  */
+  const easelYaw = -Math.PI / 2;
+
   const colliders: Box3[] = [
     ...WALL_SEGMENTS.map((wall) => toBox3(wall, 0, WALL_HEIGHT)),
     standingCollider(KEEPER_QUILL_SPOT, QUILL_COLLIDER_HALF_METERS, 2),
     standingCollider(QUILL_LECTERN_SPOT, LECTERN_COLLIDER_HALF_METERS, 1.2),
+    propCollider(BINDING_LECTERN_SPOT, BINDING_LECTERN_HALF, bindingLecternYaw),
+    propCollider(BINDING_TABLE_SPOT, BINDING_TABLE_HALF, bindingTableYaw),
+    propCollider(STUDIO_EASEL_SPOT, EASEL_HALF, easelYaw),
   ];
   const controller = new FirstPersonController({ colliders });
 
@@ -370,7 +523,10 @@ export function createStorykeeperCastleEngine(
   let quillClips = new Map<QuillClipName, AnimationClip>();
   let quillAction: AnimationAction | null = null;
 
-  function playQuillClip(clip: QuillClipName): void {
+  /** The clips that play once and hold, rather than looping. */
+  const HELD_CLIPS: readonly QuillClipName[] = ['Point', 'ReactConcerned'];
+
+  function playQuillClip(clip: QuillClipName, facing?: QuillFacing): void {
     const mixer = quillMixer;
     const authored = quillClips.get(clip);
     if (!mixer || !authored) return;
@@ -380,20 +536,22 @@ export function createStorykeeperCastleEngine(
       quillAction.fadeOut(0.2);
     }
     next.reset();
-    if (clip === 'Point') {
+    const held = HELD_CLIPS.includes(clip);
+    if (held) {
       next.setLoop(LoopOnce, 1);
       next.clampWhenFinished = true;
-      quillMesh.rotation.y = QUILL_FACING_GALLERY_YAW;
     } else {
       next.setLoop(LoopRepeat, Infinity);
       next.clampWhenFinished = false;
-      /*
-        Turn back to face the hall. `Point` leaves Quill looking north and
-        holds there, so without this a child who comes back for a second
-        conversation is talked to by someone facing away from them.
-      */
-      quillMesh.rotation.y = QUILL_FACING_ENTRY_YAW;
     }
+    /*
+      Where he looks. `Point` defaults to the gallery archway (beat 2's
+      wayfinding, unchanged from SC-3); everything else defaults to the
+      hall, which is also what turns him back after a held gesture - without
+      it a child returning for a second conversation is talked to by someone
+      still facing away from them.
+    */
+    quillMesh.rotation.y = QUILL_FACING_YAW[facing ?? (clip === 'Point' ? 'gallery' : 'entry')];
     next.fadeIn(0.2).play();
     quillAction = next;
   }
@@ -428,6 +586,141 @@ export function createStorykeeperCastleEngine(
   function showChosenSetting(entityId: string | null): void {
     chosenSettingEntityId = entityId;
     applyVariants(windowVariants, chosenSettingEntityId);
+  }
+
+  /*
+    Beat 6, the binding lectern. The scene owns where the plates *are*; it
+    owns no part of whether the order is right. Seating the last plate emits
+    the arrangement and stops - `castleBindingLectern.ts` turns it into an
+    answer and the ORDERING step grades it.
+  */
+  interface StoryPlate {
+    entityId: string;
+    object: Object3D;
+    /** Where it lies on the table, and where `resetBindingPlates` puts it back. */
+    home: EntitySpot;
+  }
+
+  const storyPlates: StoryPlate[] = [];
+  const socketPositions = bindingSocketPositions(BINDING_LECTERN_SPOT, bindingLecternYaw);
+  /** Measured off the loaded lectern rather than authored, so a regenerated model cannot leave plates floating. */
+  let socketHeight = 1.07;
+  let carriedPlateId: string | null = null;
+  const seatedPlateIds: string[] = [];
+
+  function findPlate(entityId: string): StoryPlate | undefined {
+    return storyPlates.find((plate) => plate.entityId === entityId);
+  }
+
+  /** Lays one plate flat on the table where it started. */
+  function restPlateAtHome(plate: StoryPlate): void {
+    plate.object.position.set(plate.home.x, BINDING_TABLE_HALF.height - 0.03, plate.home.z);
+    plate.object.rotation.y = 0;
+  }
+
+  /** Seats the plates currently in the sockets, filling from socket one with no gaps. */
+  function restSeatedPlates(): void {
+    seatedPlateIds.forEach((entityId, index) => {
+      const plate = findPlate(entityId);
+      const socket = socketPositions[index];
+      if (!plate || !socket) return;
+      plate.object.position.set(socket.x, socketHeight, socket.z);
+      plate.object.rotation.y = bindingLecternYaw;
+    });
+  }
+
+  function resetBindingPlates(): void {
+    carriedPlateId = null;
+    seatedPlateIds.length = 0;
+    for (const plate of storyPlates) {
+      restPlateAtHome(plate);
+    }
+  }
+
+  function pickUpPlate(entityId: string): void {
+    const seatedAt = seatedPlateIds.indexOf(entityId);
+    if (seatedAt >= 0) {
+      seatedPlateIds.splice(seatedAt, 1);
+      restSeatedPlates();
+    }
+    carriedPlateId = entityId;
+    bus.emit('CollectiblePickedUp', { entityId });
+  }
+
+  function seatCarriedPlate(): void {
+    const entityId = carriedPlateId;
+    if (!entityId || seatedPlateIds.length >= BINDING_SOCKET_COUNT) return;
+    seatedPlateIds.push(entityId);
+    carriedPlateId = null;
+    restSeatedPlates();
+    if (seatedPlateIds.length === BINDING_SOCKET_COUNT) {
+      bus.emit('BuildActionRequested', {
+        entityId: BINDING_LECTERN_ENTITY_ID,
+        order: [...seatedPlateIds],
+      });
+    }
+  }
+
+  /*
+    Beat 7, the easel. All six canvas layers load up front and choosing
+    flips which two are visible - the same state-variant convention the
+    portraits and windows already use, so the picture costs no fetch at the
+    moment the child finishes their story.
+  */
+  /** The lectern itself, once loaded: the raycast target a carried plate is seated on. */
+  let bindingLecternMesh: Object3D | null = null;
+
+  const easelGroup = new Object3D();
+  easelGroup.position.set(STUDIO_EASEL_SPOT.x, 0, STUDIO_EASEL_SPOT.z);
+  easelGroup.rotation.y = easelYaw;
+  scene.add(easelGroup);
+  const canvasLayers = new Map<string, Object3D>();
+  let paintedHeroOptionId: string | null = options.paintedHeroOptionId ?? null;
+  let paintedSettingOptionId: string | null = options.paintedSettingOptionId ?? null;
+
+  /** Where the backdrop's own bottom-centre sits on the easel's page, in the easel's local frame. */
+  const EASEL_PAGE_ORIGIN = { y: 0.91, z: 0.07 };
+
+  /**
+   * How far a canvas layer is squashed along its own depth axis.
+   *
+   * The pack's canvas pieces are built from the same primitives as
+   * everything else, so a mountain peak is a 30cm-radius cone and a hero's
+   * head is a cone too - and a cone standing 30cm out of a page is a
+   * sculpture, not a picture. Looked at on the easel they read exactly like
+   * that: the peak's base rim projects below the backdrop and the whole
+   * thing catches the light in three dimensions.
+   *
+   * Squashing each layer to a couple of millimetres deep turns every one of
+   * them into the flat-colour silhouette the storyboard asks for, without
+   * re-authoring six shared assets - and it keeps the composition strictly
+   * inside the page, since nothing can lean out of it any more.
+   */
+  const CANVAS_FLATTEN = 0.02;
+
+  function applyEaselPainting(): void {
+    const painting = resolveEaselCanvas(paintedHeroOptionId, paintedSettingOptionId);
+    for (const [assetId, layer] of canvasLayers) {
+      layer.visible =
+        painting !== undefined &&
+        (assetId === painting.heroAssetId || assetId === painting.settingAssetId);
+    }
+    if (!painting) return;
+    const hero = canvasLayers.get(painting.heroAssetId);
+    if (hero) {
+      hero.position.set(
+        painting.heroOffset.x,
+        EASEL_PAGE_ORIGIN.y + painting.heroOffset.y,
+        EASEL_PAGE_ORIGIN.z + 0.02,
+      );
+      hero.scale.set(painting.heroScale, painting.heroScale, CANVAS_FLATTEN);
+    }
+  }
+
+  function showEaselPainting(heroOptionId: string | null, settingOptionId: string | null): void {
+    paintedHeroOptionId = heroOptionId;
+    paintedSettingOptionId = settingOptionId;
+    applyEaselPainting();
   }
 
   /**
@@ -542,6 +835,9 @@ export function createStorykeeperCastleEngine(
     // Beat 2: Quill's lectern, with the blank page the story fills.
     await placeWithLod(scene, 'lectern', QUILL_LECTERN_SPOT, QUILL_FACING_ENTRY_YAW);
 
+    await loadBindingLectern();
+    await loadEasel();
+
     // Keeper Quill: swap the placeholder box for the real, animated asset.
     const quill = await loadAsset('npc-quill');
     const quillScene = quill.scene.clone(true);
@@ -562,6 +858,57 @@ export function createStorykeeperCastleEngine(
     playQuillClip('Idle');
 
     await loadChoiceRooms();
+  }
+
+  /**
+   * Beat 6: the binding lectern, its table, and the three plates. The
+   * lectern's own height is measured rather than authored - a seated plate
+   * has to sit *in* the socket, and a regenerated model with a taller
+   * pillar would otherwise leave three plates hovering above it with
+   * nothing to report the fault.
+   */
+  async function loadBindingLectern(): Promise<void> {
+    const lectern = await instantiateAsset('binding-lectern');
+    lectern.position.set(BINDING_LECTERN_SPOT.x, 0, BINDING_LECTERN_SPOT.z);
+    lectern.rotation.y = bindingLecternYaw;
+    lectern.name = 'Binding lectern';
+    scene.add(lectern);
+    socketHeight = new Box3().setFromObject(lectern).max.y;
+    bindingLecternMesh = lectern;
+
+    await placeWithLod(scene, 'binding-table', BINDING_TABLE_SPOT, bindingTableYaw);
+
+    for (const spot of STORY_PLATE_SPOTS) {
+      const object = await instantiateAsset(spot.entityId);
+      object.name = spot.entityId;
+      scene.add(object);
+      storyPlates.push({ entityId: spot.entityId, object, home: spot });
+    }
+    /*
+      Lay them out through the same call the wrong-order path uses, so
+      "where a plate rests" has exactly one implementation. A session
+      resumed mid-step starts from a clean table, which is also what the
+      HUD ordering list starts from.
+    */
+    resetBindingPlates();
+  }
+
+  /** Beat 7: the easel, and all six canvas layers, hidden until a story earns one. */
+  async function loadEasel(): Promise<void> {
+    await placeWithLod(scene, 'easel', STUDIO_EASEL_SPOT, easelYaw);
+
+    const layerIds = new Set(
+      EASEL_CANVASES.flatMap((entry) => [entry.settingAssetId, entry.heroAssetId]),
+    );
+    for (const assetId of layerIds) {
+      const layer = await instantiateAsset(assetId);
+      layer.position.set(0, EASEL_PAGE_ORIGIN.y, EASEL_PAGE_ORIGIN.z);
+      layer.scale.z = CANVAS_FLATTEN;
+      layer.visible = false;
+      easelGroup.add(layer);
+      canvasLayers.set(assetId, layer);
+    }
+    applyEaselPainting();
   }
 
   /**
@@ -642,6 +989,18 @@ export function createStorykeeperCastleEngine(
         return variant.lit.visible ? variant.lit : variant.plain;
       },
     })),
+    /*
+      Beat 6. A carried plate is excluded from its own raycast: it hangs
+      15cm off the end of the camera, so leaving it in would make it the
+      nearest hit every frame and the child could never aim at anything
+      else, the lectern included.
+    */
+    ...STORY_PLATE_SPOTS.map((spot) => ({
+      entityId: spot.entityId,
+      mesh: () =>
+        carriedPlateId === spot.entityId ? null : (findPlate(spot.entityId)?.object ?? null),
+    })),
+    { entityId: BINDING_LECTERN_ENTITY_ID, mesh: () => bindingLecternMesh },
   ];
 
   const raycaster = new Raycaster();
@@ -666,6 +1025,25 @@ export function createStorykeeperCastleEngine(
   function interact(): void {
     const focused = raycastFocus();
     if (!focused) return;
+
+    /*
+      Beat 6 is the one interaction in the castle that is not "tell the
+      domain something happened" - picking a plate up and putting it down
+      are moves inside a physical puzzle, and only the completed
+      arrangement is worth an event. One plate at a time, and a plate
+      already in a socket can be lifted back out, so a child who seats them
+      in the wrong order can fix it without submitting first.
+    */
+    if (isStoryPlateEntity(focused)) {
+      if (carriedPlateId) return;
+      pickUpPlate(focused);
+      return;
+    }
+    if (focused === BINDING_LECTERN_ENTITY_ID) {
+      if (carriedPlateId) seatCarriedPlate();
+      return;
+    }
+
     bus.emit('ObjectInteracted', { entityId: focused, interactionId: `${focused}:interact` });
   }
 
@@ -700,6 +1078,17 @@ export function createStorykeeperCastleEngine(
     camera.rotation.x = controller.pitch;
 
     quillMixer?.update(delta);
+
+    // A carried plate rides in front of the eyes, held level like a tray.
+    const carried = carriedPlateId ? findPlate(carriedPlateId) : undefined;
+    if (carried) {
+      carried.object.position.set(
+        controller.position.x + Math.sin(controller.yaw) * CARRY_FORWARD_METERS,
+        EYE_HEIGHT - CARRY_DROP_METERS,
+        controller.position.z + Math.cos(controller.yaw) * CARRY_FORWARD_METERS,
+      );
+      carried.object.rotation.y = controller.yaw;
+    }
 
     // Beat 2. `NpcApproached` fires on the crossing, not every frame inside
     // the radius, so `recordCharacterMet` is written once per approach.
@@ -736,5 +1125,13 @@ export function createStorykeeperCastleEngine(
     parent.removeChild(renderer.domElement);
   }
 
-  return { dispose, interact, playQuillClip, showChosenHero, showChosenSetting };
+  return {
+    dispose,
+    interact,
+    playQuillClip,
+    resetBindingPlates,
+    showChosenHero,
+    showChosenSetting,
+    showEaselPainting,
+  };
 }

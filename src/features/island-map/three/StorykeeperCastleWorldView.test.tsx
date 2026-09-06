@@ -8,6 +8,8 @@ import type { AgeBandValue } from '../../child-profile/constants';
 import { THE_STORYKEEPERS_TALE } from '../../adventures/content/theStorykeepersTale';
 import type { AdventureStep } from '../../adventures/engine/types';
 import type { StepAnswer } from '../../adventures/engine/validators';
+import type { Correctness } from '../../adventures/engine/types';
+import { STORY_PLATE_ENTITY_IDS } from './castleBindingLectern';
 
 /**
  * The scene needs a real WebGL context, so it is stubbed - but the stub
@@ -21,6 +23,8 @@ const interactSpy = vi.fn();
 const playQuillClipSpy = vi.fn();
 const showChosenHeroSpy = vi.fn();
 const showChosenSettingSpy = vi.fn();
+const resetBindingPlatesSpy = vi.fn();
+const showEaselPaintingSpy = vi.fn();
 let capturedBus: WorldEngineEventBus | null = null;
 
 vi.mock('./storykeeperCastleScene', () => ({
@@ -30,8 +34,10 @@ vi.mock('./storykeeperCastleScene', () => ({
       dispose: disposeSpy,
       interact: interactSpy,
       playQuillClip: playQuillClipSpy,
+      resetBindingPlates: resetBindingPlatesSpy,
       showChosenHero: showChosenHeroSpy,
       showChosenSetting: showChosenSettingSpy,
+      showEaselPainting: showEaselPaintingSpy,
     };
   }),
 }));
@@ -42,16 +48,18 @@ vi.mock('./storykeeperCastleScene', () => ({
  * own; what SC-4 has to prove is that a room and a card both arrive at that
  * one function with the same argument.
  */
-const submitAnswerSpy = vi.fn<(answer: StepAnswer) => Promise<void>>();
+const submitAnswerSpy = vi.fn<(answer: StepAnswer) => Promise<Correctness | null>>();
 let currentStep: AdventureStep | null = null;
 let sessionStatus: string | null = null;
+/** The rung the mocked session is on, so beat 5's gesture can be driven up the ladder. */
+let hintLevel = 0;
 
 vi.mock('../../adventures/useAdventureSession', () => ({
   useAdventureSession: vi.fn(() => ({
     loadState: 'ready',
     session: sessionStatus ? { id: 'session-1', status: sessionStatus } : null,
     currentStep,
-    hintLevel: 0,
+    hintLevel,
     hintText: undefined,
     submitting: false,
     error: null,
@@ -128,8 +136,8 @@ function setStep(stepId: string | null): void {
     : null;
 }
 
-function renderView(ageBand: AgeBandValue = 'PATHFINDER') {
-  return render(
+function viewTree(ageBand: AgeBandValue = 'PATHFINDER') {
+  return (
     <MemoryRouter initialEntries={['/island/child-1/world/storykeeper-castle-3d']}>
       <Routes>
         <Route
@@ -140,8 +148,12 @@ function renderView(ageBand: AgeBandValue = 'PATHFINDER') {
         />
         <Route path="/island/:childId/world" element={<p>Island map</p>} />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
+}
+
+function renderView(ageBand: AgeBandValue = 'PATHFINDER') {
+  return render(viewTree(ageBand));
 }
 
 /**
@@ -177,11 +189,14 @@ describe('StorykeeperCastleWorldView', () => {
     playQuillClipSpy.mockReset();
     showChosenHeroSpy.mockReset();
     showChosenSettingSpy.mockReset();
+    resetBindingPlatesSpy.mockReset();
+    showEaselPaintingSpy.mockReset();
     submitAnswerSpy.mockReset();
-    submitAnswerSpy.mockResolvedValue(undefined);
+    submitAnswerSpy.mockResolvedValue('correct');
     capturedBus = null;
     currentStep = null;
     sessionStatus = 'ACTIVE';
+    hintLevel = 0;
     createEngineMock.mockClear();
     listAllWorldChangesMock.mockReset();
     getActiveSessionMock.mockReset();
@@ -624,6 +639,284 @@ describe('StorykeeperCastleWorldView', () => {
     await user.click(screen.getByRole('button', { name: /interact with what you're looking at/i }));
 
     expect(interactSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // --- SC-5: hearth, lectern, and easel (beats 5-7) -------------------------
+
+  /**
+   * Beat 5. The comprehension check stays a HUD card on purpose - hiding its
+   * answer in the room would turn a reading-comprehension check into a
+   * spatial search - so the room's contribution is a *gesture*, and the
+   * gesture follows the authored ladder rather than replacing a rung of it.
+   */
+  it('has Quill point at the mantel from hint rung 3, and not before', async () => {
+    hintLevel = 2;
+    const { rerender } = await renderMidTale('comprehension-check');
+    expect(playQuillClipSpy).not.toHaveBeenCalledWith('Point', 'hearth');
+
+    /*
+      The same tree, re-rendered: the child asked for another hint on the
+      step they are already on. Handing `rerender` a *different* tree would
+      remount the view and quietly turn this into a test of a fresh mount at
+      rung 3, which is not the thing that has to work.
+    */
+    hintLevel = 3;
+    rerender(viewTree());
+
+    await waitFor(() => {
+      expect(playQuillClipSpy).toHaveBeenCalledWith('Point', 'hearth');
+    });
+  });
+
+  it('does not point at the mantel on a step the mantel says nothing about', async () => {
+    hintLevel = 5;
+
+    await renderMidTale('order-the-story');
+
+    expect(playQuillClipSpy).not.toHaveBeenCalledWith('Point', 'hearth');
+  });
+
+  /** Beat 6. Three plates seated become the same answer the HUD list submits. */
+  it('answers order-the-story by seating three plates in the lectern', async () => {
+    await renderMidTale('order-the-story');
+
+    act(() =>
+      capturedBus?.emit('BuildActionRequested', {
+        entityId: 'binding-lectern',
+        order: ['story-plate-problem', 'story-plate-choice', 'story-plate-ending'],
+      }),
+    );
+
+    await waitFor(() => {
+      expect(submitAnswerSpy).toHaveBeenCalledWith({
+        kind: 'ordering',
+        order: ['beat-problem', 'beat-choice', 'beat-ending'],
+      });
+    });
+  });
+
+  /**
+   * SC-5's headline exit criterion, the same shape as SC-4's. The plates
+   * start on the table in the step's own authored item order and the HUD
+   * list starts in that order too, so seating them untouched and submitting
+   * the list untouched must produce the identical payload.
+   */
+  it('produces an identical order whether the child uses the plates or the list', async () => {
+    const user = userEvent.setup();
+
+    await renderMidTale('order-the-story');
+    act(() =>
+      capturedBus?.emit('BuildActionRequested', {
+        entityId: 'binding-lectern',
+        order: STORY_PLATE_ENTITY_IDS,
+      }),
+    );
+    await waitFor(() => {
+      expect(submitAnswerSpy).toHaveBeenCalledTimes(1);
+    });
+    const fromTheRoom = submitAnswerSpy.mock.calls[0];
+
+    submitAnswerSpy.mockClear();
+    await user.click(screen.getByRole('button', { name: /check my order/i }));
+    await waitFor(() => {
+      expect(submitAnswerSpy).toHaveBeenCalledTimes(1);
+    });
+
+    expect(fromTheRoom).toEqual(submitAnswerSpy.mock.calls[0]);
+  });
+
+  /**
+   * Beat 6's promise on a wrong order: nothing is destroyed, nothing is
+   * lost, the plates come back to the table and Quill looks concerned. The
+   * verdict comes from the engine, never from a comparison made here.
+   */
+  it('lifts the plates back onto the table when the engine grades the order wrong', async () => {
+    submitAnswerSpy.mockResolvedValue('incorrect');
+
+    await renderMidTale('order-the-story');
+    resetBindingPlatesSpy.mockClear();
+
+    act(() =>
+      capturedBus?.emit('BuildActionRequested', {
+        entityId: 'binding-lectern',
+        order: ['story-plate-ending', 'story-plate-choice', 'story-plate-problem'],
+      }),
+    );
+
+    await waitFor(() => {
+      expect(resetBindingPlatesSpy).toHaveBeenCalled();
+    });
+    expect(playQuillClipSpy).toHaveBeenCalledWith('ReactConcerned');
+  });
+
+  it('leaves the plates where the child put them when the order is right', async () => {
+    await renderMidTale('order-the-story');
+    resetBindingPlatesSpy.mockClear();
+
+    act(() =>
+      capturedBus?.emit('BuildActionRequested', {
+        entityId: 'binding-lectern',
+        order: ['story-plate-problem', 'story-plate-choice', 'story-plate-ending'],
+      }),
+    );
+
+    await waitFor(() => {
+      expect(submitAnswerSpy).toHaveBeenCalled();
+    });
+    expect(resetBindingPlatesSpy).not.toHaveBeenCalled();
+    expect(playQuillClipSpy).not.toHaveBeenCalledWith('ReactConcerned');
+  });
+
+  /** The lectern is furniture the whole time, so the step starts from a clean table. */
+  it('clears the lectern when the ordering step opens', async () => {
+    await renderMidTale('order-the-story');
+
+    await waitFor(() => {
+      expect(resetBindingPlatesSpy).toHaveBeenCalled();
+    });
+  });
+
+  it('ignores an arrangement built while a different step is open', async () => {
+    await renderMidTale('comprehension-check');
+
+    act(() =>
+      capturedBus?.emit('BuildActionRequested', {
+        entityId: 'binding-lectern',
+        order: ['story-plate-problem', 'story-plate-choice', 'story-plate-ending'],
+      }),
+    );
+
+    expect(submitAnswerSpy).not.toHaveBeenCalled();
+  });
+
+  it('ignores an incomplete arrangement rather than submitting a partial answer', async () => {
+    await renderMidTale('order-the-story');
+
+    act(() =>
+      capturedBus?.emit('BuildActionRequested', {
+        entityId: 'binding-lectern',
+        order: ['story-plate-problem'],
+      }),
+    );
+
+    expect(submitAnswerSpy).not.toHaveBeenCalled();
+  });
+
+  it("names a plate on the reticle in the ordering card's own words", async () => {
+    await renderMidTale('order-the-story');
+
+    act(() => capturedBus?.emit('InteractableFocused', { entityId: 'story-plate-problem' }));
+
+    expect(
+      await screen.findByText(/the hero finds a problem: press e to talk/i),
+    ).toBeInTheDocument();
+  });
+
+  it('says what the child just picked up, since the reticle cannot', async () => {
+    await renderMidTale('order-the-story');
+
+    act(() => capturedBus?.emit('CollectiblePickedUp', { entityId: 'story-plate-ending' }));
+
+    expect(
+      await screen.findByText(/you picked up: the story reaches a happy ending/i),
+    ).toBeInTheDocument();
+  });
+
+  /** Beat 7. The easel fills with the picture for this child's own two choices. */
+  it('paints the easel when the child reflects on their story', async () => {
+    const user = userEvent.setup();
+    getActiveSessionMock.mockResolvedValue({ id: 'session-7', status: 'ACTIVE' } as never);
+    listActionsForSessionsMock.mockResolvedValue([
+      {
+        sessionId: 'session-7',
+        stepId: 'choose-hero',
+        correctness: 'NOT_APPLICABLE',
+        normalizedAnswer: 'hero-fox',
+      },
+      {
+        sessionId: 'session-7',
+        stepId: 'choose-setting',
+        correctness: 'NOT_APPLICABLE',
+        normalizedAnswer: 'setting-cave',
+      },
+    ] as never);
+    setStep('story-reflection');
+
+    await renderAndWaitForEngine();
+    await user.click(await screen.findByRole('button', { name: /i pictured it|continue|next/i }));
+
+    await waitFor(() => {
+      expect(showEaselPaintingSpy).toHaveBeenCalledWith('hero-fox', 'setting-cave');
+    });
+  });
+
+  /**
+   * A creative choice is graded `not_applicable`, never `correct` - which is
+   * exactly what SC-4's resume filter used to look for, so none of this was
+   * reaching the room at all. Both halves are asserted: the portraits SC-4
+   * lights, and the painted easel SC-5 adds.
+   */
+  it('restores a session whose choices the engine graded not-applicable', async () => {
+    setStep('complete');
+    getActiveSessionMock.mockResolvedValue({ id: 'session-9', status: 'ACTIVE' } as never);
+    listActionsForSessionsMock.mockResolvedValue([
+      {
+        sessionId: 'session-9',
+        stepId: 'choose-hero',
+        correctness: 'NOT_APPLICABLE',
+        normalizedAnswer: 'hero-puppy',
+      },
+      {
+        sessionId: 'session-9',
+        stepId: 'choose-setting',
+        correctness: 'NOT_APPLICABLE',
+        normalizedAnswer: 'setting-island',
+      },
+      {
+        sessionId: 'session-9',
+        stepId: 'story-reflection',
+        correctness: 'NOT_APPLICABLE',
+        normalizedAnswer: undefined,
+      },
+    ] as never);
+
+    await renderAndWaitForEngine();
+
+    await waitFor(() => {
+      expect(createEngineMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining({
+          chosenHeroEntityId: 'gallery-portrait-puppy',
+          chosenSettingEntityId: 'tower-window-island',
+          paintedHeroOptionId: 'hero-puppy',
+          paintedSettingOptionId: 'setting-island',
+        }),
+      );
+    });
+  });
+
+  it('leaves the easel blank for a session that has not reached the studio yet', async () => {
+    setStep('order-the-story');
+    getActiveSessionMock.mockResolvedValue({ id: 'session-8', status: 'ACTIVE' } as never);
+    listActionsForSessionsMock.mockResolvedValue([
+      {
+        sessionId: 'session-8',
+        stepId: 'choose-hero',
+        correctness: 'NOT_APPLICABLE',
+        normalizedAnswer: 'hero-puppy',
+      },
+    ] as never);
+
+    await renderAndWaitForEngine();
+
+    await waitFor(() => {
+      expect(createEngineMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining({ paintedHeroOptionId: null, paintedSettingOptionId: null }),
+      );
+    });
   });
 
   it('offers a link back to the non-3D location page', async () => {

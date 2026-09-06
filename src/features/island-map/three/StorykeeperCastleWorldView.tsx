@@ -16,6 +16,11 @@ import {
   THE_STORYKEEPERS_TALE_SLUG,
 } from './castleChoiceBindings';
 import {
+  BINDING_LECTERN_ENTITY_ID,
+  ORDER_THE_STORY_STEP_ID,
+  seatedPlatesToOrder,
+} from './castleBindingLectern';
+import {
   findInteraction,
   isInteractionAvailable,
   STORYKEEPER_CASTLE_INTERACTIONS,
@@ -61,17 +66,43 @@ const TALK_TO_QUILL_INTERACTION_ID = 'talk-to-keeper-quill';
 
 const CHOOSE_HERO_STEP_ID = 'choose-hero';
 const CHOOSE_SETTING_STEP_ID = 'choose-setting';
+const COMPREHENSION_CHECK_STEP_ID = 'comprehension-check';
+const STORY_REFLECTION_STEP_ID = 'story-reflection';
 
-/** The two steps SC-4 makes into places. Everything else in the tale stays a card. */
+/** The two `CREATIVE_CHOICE` steps SC-4 makes into places, answered by one world event each. */
 const SPATIAL_STEP_IDS: readonly string[] = [CHOOSE_HERO_STEP_ID, CHOOSE_SETTING_STEP_ID];
+
+/**
+ * The hint rung from which Keeper Quill starts pointing at the hearth
+ * mantel (storyboard beat 5). Rung 3 is "Keeper Quill named three things a
+ * story needs", so the gesture arrives with the words that make it mean
+ * something and not before.
+ *
+ * The physical hint **follows** the authored ladder: it never replaces a
+ * rung, reorders one, skips one, or advances the level itself. Everything
+ * about escalation stays in `useAdventureSession`, and
+ * `theStorykeepersTale.test.ts` pins the five rungs this reads against.
+ */
+const QUILL_POINTS_AT_MANTEL_FROM_RUNG = 3;
 
 /** The chosen entity for each bound step, restored from an open session. */
 export interface CastleChoiceState {
   heroEntityId: string | null;
   settingEntityId: string | null;
+  /** The option ids behind those two, which is what the easel's picture is keyed by. */
+  heroOptionId: string | null;
+  settingOptionId: string | null;
+  /** Whether this session already reached beat 7, so the easel is already painted. */
+  easelPainted: boolean;
 }
 
-const NO_CHOICES: CastleChoiceState = { heroEntityId: null, settingEntityId: null };
+const NO_CHOICES: CastleChoiceState = {
+  heroEntityId: null,
+  settingEntityId: null,
+  heroOptionId: null,
+  settingOptionId: null,
+  easelPainted: false,
+};
 
 /**
  * The child-facing label of one bound option, read off the adventure
@@ -80,18 +111,31 @@ const NO_CHOICES: CastleChoiceState = { heroEntityId: null, settingEntityId: nul
  * uses, because it is the same string.
  */
 function optionLabelForEntity(entityId: string): string | undefined {
+  if (entityId === BINDING_LECTERN_ENTITY_ID) return 'The binding lectern';
   const binding = resolveCastleChoiceBinding(entityId);
   if (!binding || binding.templateSlug !== THE_STORYKEEPERS_TALE_SLUG) return undefined;
   const step = THE_STORYKEEPERS_TALE.steps.find((candidate) => candidate.id === binding.stepId);
-  if (!step || step.presentation.kind !== 'creative-choice') return undefined;
-  return step.presentation.options.find((option) => option.id === binding.optionId)?.label;
+  if (!step) return undefined;
+  /*
+    A portrait or a window is one of a step's options; a story plate is one
+    of an ordering step's items. Both read off the adventure definition, so
+    the reticle says what the card says, in the card's own words.
+  */
+  if (step.presentation.kind === 'creative-choice') {
+    return step.presentation.options.find((option) => option.id === binding.optionId)?.label;
+  }
+  if (step.presentation.kind === 'ordering') {
+    return step.presentation.items.find((item) => item.id === binding.optionId)?.label;
+  }
+  return undefined;
 }
 
 /**
  * Storykeeper Castle's first-person view
  * (`docs/STORYKEEPER_CASTLE_3D_ROADMAP.md`: SC-2's shell, SC-3's Keeper
- * Quill, SC-4's Character Gallery and Setting Tower). Additive - the
- * card-based castle and the Phaser castle both stay exactly as they are.
+ * Quill, SC-4's Character Gallery and Setting Tower, SC-5's hearth,
+ * binding lectern and easel). Additive - the card-based castle and the
+ * Phaser castle both stay exactly as they are.
  *
  * SC-4 is the phase where a learning step becomes a place, and the shape
  * that makes it honest is that **the session lives here**. Starting the
@@ -188,23 +232,49 @@ export function StorykeeperCastleWorldView({
           setTaleActive(true);
           const actions = await listActionsForSessions([openSession.id]);
           if (cancelled) return;
+          /*
+            The last answer this child gave to a step, excluding ones the
+            engine rejected.
+
+            The filter used to be `correctness === 'CORRECT'`, which never
+            matched anything it is asked about: `choose-hero` and
+            `choose-setting` are `CREATIVE_CHOICE` steps, and a creative
+            choice has no right answer, so `validateStepAnswer` grades every
+            one of them `not_applicable` and `recordAction` stores
+            `NOT_APPLICABLE`. SC-4's whole resume path - walk back into the
+            castle and find your portrait still lit - was therefore dead,
+            silently, with the session data sitting right there. Found while
+            wiring the easel, which reads the same two answers.
+          */
           const answerFor = (stepId: string) =>
             actions
-              .filter((action) => action.stepId === stepId && action.correctness === 'CORRECT')
+              .filter((action) => action.stepId === stepId && action.correctness !== 'INCORRECT')
               .at(-1)?.normalizedAnswer;
+
+          const heroOptionId = answerFor(CHOOSE_HERO_STEP_ID) ?? null;
+          const settingOptionId = answerFor(CHOOSE_SETTING_STEP_ID) ?? null;
           setRestoredChoices({
             heroEntityId:
               resolveCastleChoiceEntity(
                 THE_STORYKEEPERS_TALE_SLUG,
                 CHOOSE_HERO_STEP_ID,
-                answerFor(CHOOSE_HERO_STEP_ID),
+                heroOptionId,
               ) ?? null,
             settingEntityId:
               resolveCastleChoiceEntity(
                 THE_STORYKEEPERS_TALE_SLUG,
                 CHOOSE_SETTING_STEP_ID,
-                answerFor(CHOOSE_SETTING_STEP_ID),
+                settingOptionId,
               ) ?? null,
+            heroOptionId,
+            settingOptionId,
+            /*
+              Beat 7 is a REFLECTION step: nothing about it is graded, so
+              the only record it leaves is that it was answered at all. A
+              child who painted the easel and walked out finds it painted
+              when they walk back in, rather than blank again.
+            */
+            easelPainted: actions.some((action) => action.stepId === STORY_REFLECTION_STEP_ID),
           });
         }
       } catch {
@@ -239,6 +309,16 @@ export function StorykeeperCastleWorldView({
       if (entityId === KEEPER_QUILL_ID) {
         setTriggeredInteractionId(TALK_TO_QUILL_INTERACTION_ID);
       }
+    });
+    /*
+      Beat 6. A plate leaves the table and rides in front of the camera,
+      where the child can see it but the reticle deliberately cannot read it
+      - so the HUD says what is in their hands, in the same words the
+      ordering card uses for it.
+    */
+    const offPickedUp = bus.on('CollectiblePickedUp', ({ entityId }) => {
+      const label = optionLabelForEntity(entityId);
+      if (label) setToast(`You picked up: ${label}`);
     });
     const offFocus = bus.on('InteractableFocused', ({ entityId }) => {
       if (entityId === KEEPER_QUILL_ID) {
@@ -277,6 +357,7 @@ export function StorykeeperCastleWorldView({
     */
     return () => {
       offInteracted();
+      offPickedUp();
       offFocus();
       offZone();
     };
@@ -380,6 +461,12 @@ export function StorykeeperCastleWorldView({
               startCheckpointId,
               chosenHeroEntityId: restoredChoices.heroEntityId,
               chosenSettingEntityId: restoredChoices.settingEntityId,
+              paintedHeroOptionId: restoredChoices.easelPainted
+                ? restoredChoices.heroOptionId
+                : null,
+              paintedSettingOptionId: restoredChoices.easelPainted
+                ? restoredChoices.settingOptionId
+                : null,
             })
           }
           onEngineReady={(engine) => {
@@ -400,6 +487,8 @@ export function StorykeeperCastleWorldView({
           ageBand={ageBand}
           aiEnabled={aiEnabled}
           bus={bus}
+          engineRef={engineRef}
+          restoredChoices={restoredChoices}
           onChoice={reflectChoice}
           onComplete={handleTaleComplete}
           backToMapHref={`/island/${childId}/locations/storykeeper-castle`}
@@ -455,6 +544,16 @@ interface CastleTaleSessionProps {
   ageBand: AgeBandValue;
   aiEnabled: boolean;
   bus: WorldEngineEventBus;
+  /**
+   * The live scene. SC-4's two beats only ever needed to *listen* to the
+   * room, so the bus was enough; SC-5's three need to talk back to it -
+   * lift the plates, turn Quill toward the mantel, paint the easel - and
+   * every one of those is a consequence of session state only this
+   * component holds.
+   */
+  engineRef: React.RefObject<StorykeeperCastleEngine | null>;
+  /** What this child already chose in a session left open, so beat 7 knows which picture to paint. */
+  restoredChoices: CastleChoiceState;
   /** Called with every creative choice, whichever way it was made, so the room can light up. */
   onChoice: (stepId: string, optionId: string) => void;
   onComplete: () => void;
@@ -475,12 +574,23 @@ interface CastleTaleSessionProps {
  * Walking past the tower during `choose-hero` does nothing, and no event
  * can skip the child ahead: the binding must name the current step or it is
  * ignored.
+ *
+ * SC-5 adds the three beats that need the traffic to run the other way as
+ * well, because each is a consequence of session state rather than of the
+ * room: Quill points at the mantel from rung 3 of the hint ladder (beat 5),
+ * three seated plates become an `ORDERING` answer and lift back off when it
+ * is wrong (beat 6), and the easel paints itself when the child reflects
+ * (beat 7). Every one of them still reads the engine's verdict rather than
+ * forming its own - `resetBindingPlates` runs on `correctness !== 'correct'`
+ * as decided server-side (ADR-012), never on anything this file compared.
  */
 function CastleTaleSession({
   childId,
   ageBand,
   aiEnabled,
   bus,
+  engineRef,
+  restoredChoices,
   onChoice,
   onComplete,
   backToMapHref,
@@ -509,6 +619,17 @@ function CastleTaleSession({
   }, [session, onComplete]);
 
   /**
+   * The story so far, as option ids: which hero, which setting. Beat 7's
+   * picture is keyed by the pair (`castleEaselCanvas.ts`), and it has to
+   * hold whichever way each was chosen - a portrait looked at, or the same
+   * option pressed on the card.
+   */
+  const [choices, setChoices] = useState<{ hero: string | null; setting: string | null }>({
+    hero: restoredChoices.heroOptionId,
+    setting: restoredChoices.settingOptionId,
+  });
+
+  /**
    * The one submit both routes use. Reflecting the choice here rather than
    * at each call site is what makes the card light the portrait too: a
    * child who answers from the card still sees their hero lit when they
@@ -519,14 +640,85 @@ function CastleTaleSession({
     async (answer: StepAnswer) => {
       if (answer.kind === 'creative-choice' && stepId) {
         onChoice(stepId, answer.optionId);
+        if (stepId === CHOOSE_HERO_STEP_ID) {
+          setChoices((prev) => ({ ...prev, hero: answer.optionId }));
+        } else if (stepId === CHOOSE_SETTING_STEP_ID) {
+          setChoices((prev) => ({ ...prev, setting: answer.optionId }));
+        }
       }
-      await submitAnswer(answer);
+      /*
+        Beat 7. The easel fills as the child says they have pictured their
+        story, not after some later step - the reflection *is* the picture,
+        and painting it here means a child standing in the studio watches
+        the page fill while one who is elsewhere finds it painted when they
+        walk in. Nothing is graded (`REFLECTION` is `not_applicable`), so
+        this is presentation reacting to a step, never a step outcome.
+      */
+      if (answer.kind === 'reflection' && stepId === STORY_REFLECTION_STEP_ID) {
+        engineRef.current?.showEaselPainting(choices.hero, choices.setting);
+      }
+      return submitAnswer(answer);
     },
-    [submitAnswer, stepId, onChoice],
+    [submitAnswer, stepId, onChoice, engineRef, choices],
   );
 
   const submitRef = useRef(submitAnswerAndReflect);
   submitRef.current = submitAnswerAndReflect;
+
+  /**
+   * Beat 5's physical hint. Quill turns and points at the hearth mantel
+   * from rung 3 of the *existing* ladder onward, and turns back to the hall
+   * when the check is answered.
+   *
+   * This reads `hintLevel`; it never writes one. The rung the child is on,
+   * when it advances, and what each rung says all stay exactly where they
+   * were, in `theStorykeepersTale.ts` and `useAdventureSession`.
+   */
+  const pointingAtMantel =
+    stepId === COMPREHENSION_CHECK_STEP_ID && hintLevel >= QUILL_POINTS_AT_MANTEL_FROM_RUNG;
+  const wasPointingAtMantel = useRef(false);
+  useEffect(() => {
+    if (pointingAtMantel) {
+      engineRef.current?.playQuillClip('Point', 'hearth');
+    } else if (wasPointingAtMantel.current) {
+      engineRef.current?.playQuillClip('Idle');
+    }
+    wasPointingAtMantel.current = pointingAtMantel;
+  }, [pointingAtMantel, engineRef]);
+
+  /**
+   * Beat 6. The lectern always works as furniture - a child can pick a
+   * plate up and put it down whenever they like - so the step starts by
+   * clearing whatever they were playing with, and every arrangement the
+   * room reports outside this step is ignored.
+   */
+  const orderingStepOpen = stepId === ORDER_THE_STORY_STEP_ID;
+  useEffect(() => {
+    if (!orderingStepOpen) return;
+    engineRef.current?.resetBindingPlates();
+  }, [orderingStepOpen, engineRef]);
+
+  useEffect(() => {
+    if (!orderingStepOpen) return;
+    return bus.on('BuildActionRequested', ({ entityId, order }) => {
+      if (entityId !== BINDING_LECTERN_ENTITY_ID) return;
+      const answer = seatedPlatesToOrder(order ?? []);
+      if (!answer) return;
+      void submitRef.current({ kind: 'ordering', order: answer }).then((correctness) => {
+        /*
+          Beat 6's promise on a wrong order: the plates lift back out and
+          settle on the table, Quill looks concerned, and nothing is lost.
+          The child picks up again from exactly where they started, with
+          the hint ladder one rung further along - which the engine has
+          already advanced, because this went through the same
+          `submitAnswer` the HUD list goes through.
+        */
+        if (correctness === 'correct') return;
+        engineRef.current?.resetBindingPlates();
+        engineRef.current?.playQuillClip('ReactConcerned');
+      });
+    });
+  }, [bus, orderingStepOpen, engineRef]);
 
   useEffect(() => {
     if (!stepId || !SPATIAL_STEP_IDS.includes(stepId)) return;

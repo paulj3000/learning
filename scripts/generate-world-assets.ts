@@ -37,6 +37,7 @@ import {
   buildTorusPrimitive,
   type PrimitiveMesh,
 } from '../src/features/island-map/three/assets/primitives';
+import { BINDING_SOCKET_LOCAL_X } from '../src/features/island-map/three/storykeeperCastleRegion';
 
 const OUTPUT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'models');
 
@@ -607,6 +608,34 @@ function lectern(): Record<string, unknown> {
 }
 
 /**
+ * Beat 6's binding lectern, and a separate asset from Quill's `lectern` for
+ * one measurable reason: `story-plate-*` is 0.34m wide, so three plates side
+ * by side need a metre of desk and `lectern`'s is 0.6m. Widening the shared
+ * asset would have put three sockets on Quill's reading stand as well, which
+ * is a different piece of furniture doing a different job.
+ *
+ * The sockets are cut at `BINDING_SOCKET_LOCAL_X`, the same authored offsets
+ * `storykeeperCastleScene.ts` seats plates at, so the recess the child aims
+ * at and the place the plate lands cannot drift apart.
+ */
+function bindingLectern(): Record<string, unknown> {
+  const parts: MeshPart[] = [
+    castlePart('Pillar', buildBoxPrimitive(0.9, 0.95, 0.34), CASTLE.woodDark),
+    castlePart('Desk', buildBoxPrimitive(1.3, 0.1, 0.46), CASTLE.woodMid, {
+      translation: [0, 0.95, 0],
+    }),
+  ];
+  BINDING_SOCKET_LOCAL_X.forEach((offsetX, index) => {
+    parts.push(
+      castlePart(`Socket${index + 1}`, buildBoxPrimitive(0.38, 0.02, 0.28), CASTLE.stoneDark, {
+        translation: [offsetX, 1.05, 0],
+      }),
+    );
+  });
+  return assembleGltfDocument({ parts });
+}
+
+/**
  * The three story-beat plates of beat 6. The carved marks are *counted*
  * notches - one, two, three - rather than three different pictures, because
  * a five-year-old can compare one notch against two far more reliably than
@@ -650,8 +679,15 @@ function tableWithLegs(
 const readingTable = () =>
   assembleGltfDocument({ parts: tableWithLegs(1.4, 0.8, 0.72, CASTLE.woodMid, CASTLE.woodDark) });
 
+/**
+ * The table beat 6's plates start on. 1.4m wide because three 0.34m plates
+ * laid out at `STORY_PLATE_SPOTS`' spacing need it - at the 1.1m it was
+ * first authored at, the outer two plates hung over the edge in mid-air.
+ */
 const bindingTable = () =>
-  assembleGltfDocument({ parts: tableWithLegs(1.1, 0.6, 0.75, CASTLE.woodLight, CASTLE.woodDark) });
+  assembleGltfDocument({
+    parts: tableWithLegs(1.4, 0.65, 0.75, CASTLE.woodLight, CASTLE.woodDark),
+  });
 
 const writingDesk = () =>
   assembleGltfDocument({
@@ -879,6 +915,39 @@ function windowView(
   return assembleGltfDocument({ parts });
 }
 
+/**
+ * Beat 5's mantel carving. The storyboard asks for the words HERO . PROBLEM
+ * . ENDING; this pack is texture-free by construction
+ * (`docs/THREE_WORLD_ASSET_CONVENTIONS.md`), so the only way to put words on
+ * stone here is to extrude letter geometry, and a Pathfinder is being asked
+ * to *recall* what Quill said rather than to read a mantel.
+ *
+ * So the mantel says the same thing in the same language `storyPlate` above
+ * already chose, and for the same reason: three groups of counted marks -
+ * one, two, three. It reads as "a story is three things, in order", which is
+ * exactly the support hint rung 3 gives in words ("Keeper Quill named three
+ * things a story needs") and no more. The three groups also visually rhyme
+ * with the three plates the child is about to seat.
+ */
+function mantelMarks(): MeshPart[] {
+  const parts: MeshPart[] = [];
+  [1, 2, 3].forEach((count, group) => {
+    for (let mark = 0; mark < count; mark += 1) {
+      parts.push(
+        castlePart(
+          `MantelMark${group + 1}x${mark + 1}`,
+          buildBoxPrimitive(0.05, 0.08, 0.02),
+          0x4b515c,
+          {
+            translation: [-0.78 + group * 0.78 + (mark - (count - 1) / 2) * 0.09, 1.97, 0.35],
+          },
+        ),
+      );
+    }
+  });
+  return parts;
+}
+
 /** The hub hearth. `hearth-lit` swaps in on `FIRST_STORY_TOLD` (beat 8). */
 function hearth(lit: boolean): Record<string, unknown> {
   const parts: MeshPart[] = [
@@ -890,6 +959,7 @@ function hearth(lit: boolean): Record<string, unknown> {
     castlePart('Mantel', buildBoxPrimitive(2.6, 0.22, 0.7), CASTLE.stoneWall, {
       translation: [0, 1.9, 0],
     }),
+    ...mantelMarks(),
   ];
   if (lit) {
     parts.push(
@@ -1218,6 +1288,7 @@ const CASTLE_ASSETS: Record<string, () => Record<string, unknown>> = {
   'wall-sconce-lit': () => wallSconce(true),
   // A.4 props
   lectern,
+  'binding-lectern': bindingLectern,
   'binding-table': bindingTable,
   'story-plate-problem': () => storyPlate(1, CASTLE.stoneWall),
   'story-plate-choice': () => storyPlate(2, CASTLE.stoneWall),

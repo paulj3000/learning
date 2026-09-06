@@ -1,8 +1,8 @@
 # Storykeeper Castle — First-Person Region Roadmap
 
-**Status:** SC-0 through SC-4 are implemented. SC-5 through SC-11 are
+**Status:** SC-0 through SC-5 are implemented. SC-6 through SC-11 are
 proposed and not started. **The critical vertical slice is SC-0 to SC-6**,
-so two phases remain before the stop-and-re-evaluate point.
+so one phase remains before the stop-and-re-evaluate point.
 
 A standalone roadmap for rebuilding Storykeeper Castle as a first-person
 Three.js region. It has its own phase numbering (**SC-0** through
@@ -535,7 +535,7 @@ reads as "go that way", frame rate on a real tablet, and the whole flow
 against a live backend. The harness mounts the scene alone, so nothing here
 exercises `useAdventureSession`, AppSync or the HUD against real data.
 
-## SC-5 — Hearth, lectern, and easel (beats 5–7)
+## SC-5 — Hearth, lectern, and easel (beats 5–7) — **DONE**
 
 Deliverables:
 - the hearth with `HERO · PROBLEM · ENDING` carved in the mantel, and the
@@ -562,6 +562,103 @@ Exit criteria:
 - the plate route and the HUD list route produce identical session state;
 - the hint ladder's rung sequence is unchanged, asserted in a test;
 - **no AI image generation.** The easel is authored colour and geometry.
+
+### What shipped
+
+All four, and the phase divides cleanly into one puzzle and three smaller
+pieces.
+
+**The binding lectern is the puzzle.** The child picks up a stone plate
+(`CollectiblePickedUp`), carries it in front of them, and seats it in one
+of three sockets; the sockets fill in the order the plates are seated, and
+seating the third emits `BuildActionRequested` carrying that arrangement.
+The scene owns all of the physical state - what is in the child's hands,
+which sockets are filled, where a lifted plate goes back to - and owns no
+part of whether the arrangement is right. `castleBindingLectern.ts` turns
+the arrangement into option ids through SC-0's bindings and the existing
+`ORDERING` step grades it, exactly as it grades the HUD list. A plate
+already in a socket can be lifted back out, so a child who spots their own
+mistake can fix it without submitting first.
+
+`useAdventureSession.submitAnswer` now resolves with the server's verdict
+(it returned `void`). Beat 6 promises that a wrong order lifts the plates
+back onto the table and that nothing is lost, and the room cannot know it
+was wrong without either that verdict or a second copy of the grading that
+ADR-012 deliberately keeps server-side. `AdventureStepCard` ignores the new
+return value; every decision it could make on a verdict the engine has
+already made.
+
+**Beat 5 is a gesture, not an object.** The comprehension check stays a HUD
+card, as the storyboard insists. From rung 3 of the *existing* ladder Quill
+turns and points at the hearth mantel, and turns back when the step is
+answered. The code reads `hintLevel` and never writes one;
+`theStorykeepersTale.test.ts` now pins all five rungs verbatim, so the 3D
+room can never quietly become a reason to edit a step the card route also
+runs.
+
+**Beat 7 is nine authored pictures out of seven assets.**
+`castleEaselCanvas.ts` holds the 3x3 table keyed by (hero, setting); each
+row authors what composition cannot infer - where on that backdrop this
+hero stands, and how big. No AI image generation, and no cross-product of
+finished canvases.
+
+Three changes to things SC-0 and SC-1 had already shipped, all of them
+found by building on top of them:
+
+- **The plates lay on the table in the correct story order**, so a child
+  who seated them left to right without reading them scored a sequencing
+  step they had not done - a bug no engine test can see, because the answer
+  it receives is genuinely correct. They now start in the step's own
+  authored `items` order, the same shuffled order the HUD list starts in.
+  Both halves are asserted.
+- **The table stood behind the lectern**, so from anywhere the child could
+  see the sockets the lectern was between them and the plates. Beat 6 is
+  three pickups; that was three walks around the furniture and back. They
+  now stand side by side, facing the room.
+- **A new `binding-lectern` asset**, and three carved marks added to the
+  hearth's mantel. A.4 assumed one `lectern` would serve both jobs, but
+  `story-plate-*` is 0.34m wide and three of them need a metre of desk
+  against that model's 0.6m. The mantel departs from the storyboard's
+  literal `HERO · PROBLEM · ENDING`: this pack is texture-free, so words
+  would mean extruding letter geometry for a child who is being asked to
+  *recall* what Quill said. It carries three groups of counted marks
+  instead - one, two, three - the same language `storyPlate` already chose
+  and no more of a giveaway than hint rung 3's own words.
+
+### Rendering verification (SC-5)
+
+**Beat 6 and beat 7 have been looked at**, through the same
+`.tmp-verify/harness/` that SC-2 to SC-4 used, driven with the real touch
+look controls and the real `e` key. The harness gained an `at=x,z,yaw`
+param that appends a checkpoint of its own: walking to a spot on simulated
+keystrokes is far too imprecise to put a reticle on a 34cm plate.
+
+Confirmed working: the mantel's three groups of marks read clearly in the
+firelight; the workstation reads as a workstation, with the plates' notches
+and the lectern's three empty sockets both legible from where a child
+stands; a picked-up plate rides visibly in front of the camera and leaves
+the table; and a seated plate sits in its socket while the remaining ones
+stay visibly empty.
+
+**One real defect found, in beat 7, that no test could have caught.** The
+canvas layers are built from the same primitives as everything else, so a
+mountain peak is a 30cm-radius cone - and on an easel that reads as a
+sculpture leaning out of the page, not a picture. Every layer is now
+squashed to a couple of millimetres deep, which turns each one into the
+flat-colour silhouette the storyboard asks for without re-authoring six
+shared assets. A second defect came with it: the dragon's head hung out
+through the top of the picture, because the fit test checked the hero's
+*origin* rather than the hero. All nine compositions were then re-authored
+and re-shot, and all nine now sit inside their page.
+
+Still unverified: **the third plate's submit has not been driven in a
+browser**. Two seats in a row work and are in the screenshots; the harness's
+aim then missed the last plate on the table, and chasing that further was
+judged not worth the time given the path is covered by tests on both sides
+of the boundary (`castleBindingLectern.test.ts` on the arrangement, and the
+view test driving a real `BuildActionRequested` through to `submitAnswer`).
+Also still unverified, as for SC-2 to SC-4: how any of this feels on a real
+tablet, and the whole flow against a live backend.
 
 ## SC-6 — The book on the shelf (beat 8)
 

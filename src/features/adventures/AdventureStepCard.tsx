@@ -18,7 +18,14 @@ export interface AdventureStepCardProps {
   currentStep: AdventureStep;
   submitting: boolean;
   error: string | null;
-  submitAnswer: (answer: StepAnswer) => void | Promise<void>;
+  /**
+   * `Promise<unknown>` rather than `Promise<void>` because
+   * `useAdventureSession.submitAnswer` resolves with the server's verdict
+   * for callers that need it. This card never reads it: every decision it
+   * could make on a verdict is one the engine has already made, and the new
+   * step arrives as a prop.
+   */
+  submitAnswer: (answer: StepAnswer) => void | Promise<unknown>;
   hintLevel: number;
   hintText: string | undefined;
   requestHint: () => void;

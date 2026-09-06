@@ -363,15 +363,54 @@ export const HEARTH_MANTEL_SPOT: WallMountedSpot = {
   z: -6 + WALL_THICKNESS / 2 + WALL_MOUNT_CLEARANCE,
 };
 
-/** The binding lectern of beat 6, with three sockets, and the table its plates start on. */
+/**
+ * The binding lectern of beat 6, with three sockets, and the table its
+ * plates start on - **side by side**, both facing south into the room.
+ *
+ * SC-0 put the table 1.2m *behind* the lectern, and walking the room proved
+ * that unworkable: from anywhere the child can stand and see the sockets,
+ * the lectern is between them and the plates, so every single pickup meant
+ * walking around the furniture and back. Beat 6 is three pickups. Beside
+ * each other, the child stands once and turns their head - the plates on
+ * their left, the sockets on their right, both about a metre away.
+ */
 export const BINDING_LECTERN_SPOT: EntitySpot = { entityId: 'binding-lectern', x: 1, z: 2 };
-export const BINDING_TABLE_SPOT: EntitySpot = { entityId: 'binding-table', x: 1, z: 3.2 };
+export const BINDING_TABLE_SPOT: EntitySpot = { entityId: 'binding-table', x: -1.4, z: 2 };
 
-/** The three story-beat plates. Their entity ids bind to `order-the-story`'s items (`castleChoiceBindings.ts`). */
+/**
+ * The three sockets across the binding lectern's desk, left to right as the
+ * child faces it, as offsets along the lectern's **own local x axis**.
+ *
+ * Local rather than world for the same reason nothing else in this file
+ * carries a rotation: which way the lectern faces is presentation, and
+ * `storykeeperCastleScene.ts` owns it (`facingIntoRoom`). Authored world
+ * x/z here would silently rot the first time the lectern is turned.
+ *
+ * The same three numbers are read by `scripts/generate-world-assets.ts` to
+ * cut the sockets into the model, so the recesses the child sees and the
+ * places a plate lands are one authored fact rather than two that agree
+ * today. 0.42m apart holds three 0.34m-wide `story-plate-*` models with a
+ * finger's gap between them.
+ */
+export const BINDING_SOCKET_LOCAL_X: readonly number[] = [-0.42, 0, 0.42];
+
+/**
+ * The three story-beat plates, on the table they start on. Their entity ids
+ * bind to `order-the-story`'s items (`castleChoiceBindings.ts`).
+ *
+ * **They lie in the adventure's own authored item order, which is not the
+ * correct story order**, and that is load-bearing rather than incidental.
+ * SC-0 laid them out problem, choice, ending - the answer - so a child who
+ * seated them left to right without reading them scored a sequencing step
+ * they had not done, while a child on the HUD list got the shuffled order
+ * `theStorykeepersTale.ts` deliberately authors. Two routes to one step must
+ * start from the same arrangement, and neither may be the answer.
+ * `castleBindingLectern.test.ts` holds both halves of that.
+ */
 export const STORY_PLATE_SPOTS: readonly EntitySpot[] = [
-  { entityId: 'story-plate-problem', x: 0.2, z: 3.2 },
-  { entityId: 'story-plate-choice', x: 1, z: 3.2 },
-  { entityId: 'story-plate-ending', x: 1.8, z: 3.2 },
+  { entityId: 'story-plate-choice', x: -1.8, z: 2 },
+  { entityId: 'story-plate-ending', x: -1.4, z: 2 },
+  { entityId: 'story-plate-problem', x: -1, z: 2 },
 ];
 
 /**
@@ -600,7 +639,9 @@ export const ZONES: readonly RectZone[] = [
   // The hub. Fires as the child crosses toward Quill from the entry archway,
   // rather than once they are already on top of them.
   { id: 'castle-story-hall', minX: -7, maxX: -5, minZ: -1.5, maxZ: 1.5 },
-  { id: 'castle-binding-lectern', minX: 0, maxX: 2, minZ: 1, maxZ: 3 },
+  // The standing strip south of the lectern and its table, where a child
+  // can reach the plates and the sockets without moving their feet.
+  { id: 'castle-binding-lectern', minX: -1.8, maxX: 1.6, minZ: 0.6, maxZ: 1.3 },
   { id: 'castle-tapestry-stair', minX: -8.6, maxX: -7.2, minZ: -5.9, maxZ: -4.4 },
 
   { id: 'castle-character-gallery', minX: -7, maxX: -2, minZ: 8, maxZ: 9.6 },
