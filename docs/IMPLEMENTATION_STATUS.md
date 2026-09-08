@@ -729,9 +729,12 @@ sequence, cross-referenced from `docs/ROADMAP.md`'s Phase 31+ section).
 SC-2 (the walkable shell), SC-3 (Keeper Quill), SC-4 (choices become
 places), SC-5 (the hearth, the binding lectern, and the easel) and SC-6
 (the book on the shelf) are implemented, which completes the roadmap's
-critical vertical slice.** SC-7 through SC-11 are not started, and the
-roadmap's own instruction at this point is to stop, playtest the region, and
-re-cost the rest before building any of it. No adventure or story text has changed, and the card-based
+critical vertical slice.** SC-7 through SC-10 shipped after this paragraph
+was first written and have their own subsections below; SC-11's gate does
+not pass. The roadmap's instruction at the slice was to stop, playtest the
+region, and re-cost the rest before building any of it, and the re-cost has
+now happened - see "Storykeeper Castle re-scoped" below and
+`docs/regions/storykeeper_castle_reconciliation.md`. No adventure or story text has changed, and the card-based
 Storykeeper Castle route remains the shipped, authoritative one for every
 band; SC-2 adds a third, additive way in
 (`/island/:childId/world/storykeeper-castle-3d`) alongside the existing
@@ -1531,6 +1534,87 @@ turning an arrangement into an answer, and the view test driving a real
 `BuildActionRequested` through to `submitAnswer` and back through the
 wrong-order reset.
 
+
+## Storykeeper Castle re-scoped — SC-0 to SC-10 do not satisfy the upgrade roadmap
+
+`docs/regions/storykeeper_castle.md` is a new upgrade roadmap for
+Storykeeper Castle (its own Phases 0 to 14: a Great Storybook premise, nine
+rooms, an AI Castle Director, an ambient event system, artifacts and Lost
+Story Pages, castle progression and rank, and Amazon Polly voice with S3
+MP3 caching). Its section 1 names the result of the SC-0 to SC-10 build as
+the thing to fix - "transform Storykeeper Castle from a mostly static 3D
+walkthrough into the narrative heart of Learning Adventure Island."
+
+That makes it a **re-scope, not a continuation**, and the SC roadmap's
+status should be read accordingly:
+`docs/regions/storykeeper_castle_reconciliation.md` maps the built work
+onto the upgrade roadmap's 14 phases, with the measurements behind each
+claim. The headline results:
+
+- **0 phases Done, 8 Partial, 7 Absent.** Against the upgrade roadmap's
+  own section 44 Definition of Done, 5 of 14 criteria pass, 4 are partial,
+  5 fail. Against its section 43 first milestone, 2 of 15 items exist.
+- **The blocking problem is art, not systems.** All 108 `.gltf` files in
+  `public/models/` are generated from primitives; **0 have a texture or
+  image reference**; 279 meshes across the whole pack, 2.6 per asset; 7
+  have animation clips. Keeper Quill is five untextured boxes. That is a
+  legible grey-box, which is what `scripts/generate-world-assets.ts` says
+  it is, and it does not meet the upgrade roadmap's section 4 art
+  direction at any level of polish.
+- **The two floor plans share one room.** The SC build's eight rooms and
+  the upgrade roadmap's nine overlap only at the Grand Library. The Great
+  Storybook premise and the five-rank ladder exist nowhere in the codebase.
+- **Nothing in this project makes a sound.** No Polly, no S3 audio, no
+  MP3, no `AudioListener`, no `speechSynthesis`, no subtitles. Six sections
+  of the upgrade roadmap (17 to 22) have zero corresponding code.
+
+**What survives the re-scope is the engineering, not the content.** The
+engine-untouched constraint and `castleChoiceBindings.ts`; HUD equivalence
+as an executable test; ADR-019's single story-progress record; derived wall
+colliders; the `createSeatingPuzzle` factoring; `src/features/npc/` and
+`ChildNpcState`, which are closer to the upgrade roadmap's sections 13 and
+14 than any other system it describes; and the whole learning stack, whose
+AI-proposes-engine-validates rule is section 12 restated. A re-scope is
+affordable precisely because ten phases of 3D work changed no adventure
+step and no authored text.
+
+**The third-party asset decision of 2026-08-28 is re-opened by its own
+terms.** It set the trigger "when to revisit: after SC-6," and SC-6 through
+SC-10 have shipped. Its reasoning still holds for gameplay-bearing geometry
+- a door with no handle, a shelf slot empty until `FIRST_STORY_TOLD`, three
+rods whose lengths are the graded answer, nine stars in rows of five and
+four; none of that is purchasable because the geometry is the puzzle - and
+that half should be restated rather than dropped. What changed is the bar:
+the old decision weighed "what looks thin," and the upgrade roadmap weighs
+"showable to a child."
+
+The expensive prerequisite is named in that decision already and has not
+been built: **a textured-asset test path**. Today `assetLoader.test.ts` runs
+real `GLTFLoader.load()` calls inside jsdom precisely because no asset has a
+UV accessor or an image reference. Whatever replaces that has to exist
+before the first textured file lands.
+
+**Recommended next step, not authorised:** decide the asset question as its
+own ADR with the import costs priced (scale normalisation, ground-pivot
+re-pivoting, the texture test path, a licence ledger); if yes, build the
+test path first, then import scenery into one room and prove the manifest
+swap is a one-line change with no game-logic edit; then re-cost the
+remaining phases against a room that actually looks like a castle. Starting
+at the upgrade roadmap's Phase 0 schema work would build a Castle Director
+for a castle nobody can look at.
+
+**SC-11's two owed items should run regardless** - the Sprouts
+accessibility playtest and a profiling pass on real hardware - because they
+are cheap and they gate everything. Nothing is retired for any band, and
+under a re-scope nothing should be.
+
+Five decisions are recorded as blocked on a human in the reconciliation's
+section 8: the asset-kit question; which castle is being built; whether to
+adopt the Great Storybook premise (which would reframe SC-10's Sprouts
+content); Amazon Polly, whose consent half `docs/PRIVACY_AND_SAFETY_REVIEW.md`
+has not been asked and which "Decisions pending" already lists as open; and
+whether SC-11's retirement gate still means anything against a castle whose
+content layer is being replaced.
 
 ## Completed
 

@@ -13,6 +13,19 @@ route.**
 This is the stop-and-re-evaluate point: the region is now worth playtesting,
 and the rest of the roadmap is worth re-costing before any of it is built.
 
+**That re-cost has happened, and it supersedes this roadmap's scope.**
+`docs/regions/storykeeper_castle.md` is a new upgrade roadmap whose section
+1 names the result of SC-0 to SC-10 - "a mostly static 3D walkthrough" - as
+the thing to fix. It is a re-scope rather than a continuation: it shares one
+room with this roadmap's floor plan, adds a Great Storybook premise, an AI
+Castle Director, ambient events, artifacts, castle progression and Amazon
+Polly voice, and it raises the art bar past what this project's generated,
+texture-free asset pack can meet.
+`docs/regions/storykeeper_castle_reconciliation.md` maps what SC-0 to SC-10
+built onto that roadmap's 14 phases and records which decisions this one
+made are re-opened by it - the third-party asset decision below chief among
+them. **Read the reconciliation before starting any SC phase from here.**
+
 A standalone roadmap for rebuilding Storykeeper Castle as a first-person
 Three.js region. It has its own phase numbering (**SC-0** through
 **SC-11**) deliberately, so it can be built independently of, and
@@ -1230,7 +1243,17 @@ gameplay geometry), and four things make it sharper for the castle:
   exclude redistribution inside an app bundle.
 
 **When to revisit: after SC-6**, and for scenery only - bookshelves,
-tables, costume racks, filler picture frames. By then the region is
+tables, costume racks, filler picture frames.
+
+> **This trigger has fired.** SC-6 through SC-10 shipped, and
+> `docs/regions/storykeeper_castle.md` raises the bar this decision was
+> weighed against from "what looks thin" to "showable to a child," which
+> untextured primitives do not clear at any level of scenery polish. The
+> gameplay-geometry half of this decision still holds and should be
+> restated, not dropped. See
+> `docs/regions/storykeeper_castle_reconciliation.md` sections 6 and 7; the
+> prerequisite named below - a texture-loading test path - is the expensive
+> part and must be built before the first textured file lands. By then the region is
 walkable and it is clear what actually looks thin, and swapping an asset is
 a one-line manifest change. The gameplay-bearing assets stay generated
 regardless.
