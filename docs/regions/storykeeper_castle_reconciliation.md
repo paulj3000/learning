@@ -240,8 +240,9 @@ wrong constraint.
 
 **Start with the art pipeline, scoped narrowly:**
 
-1. **Decide the asset question** as its own ADR, with the four costs in
-   section 6 priced. The output is a yes/no on third-party CC0 kits for
+1. **Decide the asset question** as its own ADR - **now drafted as ADR-020
+   ("Where the castle's art comes from"), Status: Proposed** - with the four
+   costs in section 6 priced. The output is a yes/no on third-party CC0 kits for
    scenery, plus a decision on whether the pipeline gains a texture path at
    all. Everything else waits on this.
 2. **If yes: build the textured-asset test path first**, before importing
@@ -267,7 +268,13 @@ container. Runbooks are in `docs/PILOT_READINESS.md` section 5b.
 
 1. **Third-party CC0 asset kits: yes or no**, and if yes, whether the
    pipeline gains a real texture path or strips on import. Blocks
-   everything else.
+   everything else. **Drafted as ADR-020**, which measured the split that
+   reframes it: only 16 of the castle's 60 assets are importable scenery,
+   so a scenery-only import cannot reach the upgrade roadmap's bar. ADR-020
+   proposes giving the *generated* pipeline a material story first. It is
+   Proposed, not Accepted, and it explicitly leaves the art-sourcing
+   question - commission, buy, or accept a stylised generated look - open
+   as a budget and product call.
 2. **Which castle is being built** - the SC floor plan extended, or the
    upgrade roadmap's nine rooms. They share one room, so this is close to a
    restart of the region's content layer. The engine layer survives either

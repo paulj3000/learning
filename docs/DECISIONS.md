@@ -1074,3 +1074,188 @@ authors it there.
   entry point is still an authored `WorldInteraction` and can be added or
   withheld per region.
 
+
+## ADR-020: Where the castle's art comes from
+
+Status: Proposed
+
+`docs/regions/storykeeper_castle.md` asks for "stylized fantasy, low-poly to
+moderate-poly, warm and colorful, exaggerated silhouettes, slightly magical,
+Roblox / Prodigy / animated-adventure feeling." Every asset this project has
+is generated from primitives by `scripts/generate-world-assets.ts`, and
+**none of the 108 has a texture, a UV accessor, or an image reference**. The
+pack averages 2.6 meshes per asset; Keeper Quill is five untextured boxes.
+That is a legible grey-box, which is what the generator's own header says it
+is, and it does not meet that art direction at any level of polish.
+
+ADR-nothing covers this today. The nearest thing is a decision recorded in
+prose in `docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` on 2026-08-28
+("Third-party asset kits - not yet"), which deferred the question and set
+its own revisit trigger: "when to revisit: after SC-6, and for scenery
+only." SC-6 through SC-10 have shipped, so the trigger has fired. This ADR
+exists to settle the question that deferral left open, because it blocks
+every other phase of the upgrade roadmap - a Castle Director, ambient
+events and a Trophy Room rendered in untextured boxes produce a more
+sophisticated grey-box.
+
+### Three measurements that reframe the question
+
+**1. Scenery-only import addresses about a quarter of the castle.** Of the
+60 castle assets in `assets/manifest.ts`, roughly **44 are gameplay-bearing
+and 16 are scenery**. Gameplay-bearing means the geometry *is* the rule: 22
+assets are state-variant pairs that must share exact vertices (`hearth` /
+`hearth-lit`, `carving-worn` / `carving-worn-revealed`, `secret-door` /
+`secret-door-ajar`, three portraits and three window views with their lit
+twins); the three rods are graded by *length*; the nine stars are counted;
+six clue and story-plate assets are named directly in
+`castleChoiceBindings.ts`; the six easel canvases are the cross-product of
+the child's two choices.
+
+The importable 16 are `archway`, `binding-table`, `carpet`, `ceiling-tile`,
+`costume-rack`, `cushion`, `ground-tile-stone`, `lectern`, `portrait-frame`,
+`reading-table`, `rod-rack`, `round-window`, `tapestry`, `wall-stone`,
+`window-frame`, `writing-desk`.
+
+So the 2026-08-28 deferral's own proposed remedy - import scenery, keep
+gameplay geometry generated - **cannot solve the problem the upgrade
+roadmap poses.** Swap all 16 and roughly three quarters of what a child
+looks at is still untextured primitives, including every object they are
+asked to interact with. This is the finding that makes the old framing
+insufficient rather than merely dated.
+
+**2. Visual swaps are already safe, by an existing decision.** Collision is
+deliberately decoupled from the visual mesh: authored `RectZone` data
+becomes a `Box3` collider via `sceneKit.ts`'s `toBox3`, and a kit piece's
+bounding box is never read to derive collision
+(`docs/THREE_WORLD_ASSET_CONVENTIONS.md`, "Collider proxy" - "a swapped-in
+prettier wall mesh later does not silently change where the child can
+walk"). Interaction targets resolve through the loaded scene root or a named
+part, with a documented `InteractionAnchor` escape hatch for awkward
+silhouettes. `manifest.ts` resolves every asset by id, so no component holds
+a URL.
+
+This is the good news, and it was earned: **the pipeline was built so the
+art can be replaced without touching game logic.** Whatever this ADR
+decides, it is a change to asset production, not to the engine.
+
+**3. The texture test path is the shared prerequisite, not an
+implementation detail.** `assetLoader.test.ts` runs real
+`GLTFLoader.load()` calls inside jsdom against real checked-in files, via a
+narrow `/models/*.gltf` fetch polyfill in `src/test/setup.ts`. That works
+**only** because no asset has an image: there is no `HTMLImageElement` and
+no `ImageBitmap` in that environment. The first textured file to land
+silently removes the pack's only integration-level proof that its output is
+loadable, and nothing replaces it.
+
+Every option below except A needs that path built first.
+
+### The options
+
+**A. Change nothing.** Keep generating untextured primitives. Costs
+nothing, keeps every current property, and fails the upgrade roadmap's
+section 4 outright. Recorded only to be rejected: it is the status quo, and
+the status quo is why the castle cannot be shown to a child.
+
+**B. Import third-party CC0 scenery.** Kenney, Quaternius, the CC0 half of
+Poly Pizza. Needs scale normalisation to 1 unit = 1 metre, re-pivoting to
+ground-pivot (most packs are centre-pivoted), a licence ledger surfaced
+where a parent can find it, and the texture test path. **Reaches 16 of 60
+castle assets.** Cheap per asset, bounded, and by measurement 1 it is not
+sufficient on its own.
+
+**C. Give the generated pipeline a real material story.** Extend
+`gltfAssembler.ts` so generated assets can carry either textures (UV
+accessors plus embedded images) or, at lower risk, `COLOR_0` vertex colours
+and richer per-part materials. Reaches **all 60** castle assets and every
+other asset on the island, keeps identical vertices for state-variant pairs,
+keeps exact geometry for graded puzzles, and keeps everything bespoke and
+licence-clean. The vertex-colour variant has a real advantage worth
+weighing: it adds visual richness **without** an image reference, so the
+jsdom test strategy survives untouched and prerequisite 3 does not arise.
+
+**D. Replace the art wholesale**, including gameplay geometry, from a kit or
+a commissioned artist. Highest ceiling and the only option that plausibly
+reaches "Roblox / Prodigy feeling" outright. Also the most expensive, and it
+breaks the identical-vertex property that ten phases of state-variant swaps
+depend on, so every one of the 22 pairs would need re-authoring and
+re-verifying.
+
+### Proposed decision
+
+**C first, then B for the 16, with D deferred to a product and budget
+decision that is not this ADR's to make.**
+
+1. **Build the material story in the generator (C)**, starting with the
+   vertex-colour variant because it lifts all 60 assets while leaving the
+   test strategy intact. Only escalate to real textures if vertex colours
+   demonstrably fall short, and if so, build the texture test path as its
+   own change before the first textured file is checked in.
+2. **Then import CC0 scenery for the 16 (B)** if it still looks worth it,
+   and prove the manifest swap is a one-line change with no game-logic edit
+   - which is the upgrade roadmap's own Phase 1 exit criterion and
+   something the current registry was designed for.
+3. **Re-cost the upgrade roadmap against one finished room** before
+   building any of its systems.
+
+**The honest limit of this recommendation: C is necessary but probably not
+sufficient.** Textured or vertex-coloured 2.6-mesh box assemblies are better
+boxes. Geometry density and actual art direction need a person, and there is
+no artist in this environment - which is the generator's own stated premise.
+So this ADR settles the *architecture* question (where art enters the
+pipeline, and what has to be true before it can) and explicitly does not
+settle the *sourcing* question (whether to commission art, buy a
+higher-fidelity pack, or accept a stylised generated look as the product's
+identity). That is a budget and product call. It should be made knowing
+that the pipeline is now ready to receive art from any of those sources
+without a game-logic change.
+
+### What this does not license
+
+- **No gameplay-bearing asset is imported.** The 44 stay generated. A door
+  with no handle, a shelf slot empty until `FIRST_STORY_TOLD`, three rods
+  whose lengths are the graded answer, and nine stars in rows of five and
+  four are not purchasable, because the geometry is the puzzle. This half
+  of the 2026-08-28 decision is restated, not dropped.
+- **No state-variant pair is split across sources.** Both halves of a pair
+  come from the same producer, or the construction-time swap visibly pops.
+- **No CC-BY asset without an attribution surface a parent can reach**, and
+  no marketplace asset whose terms exclude redistribution inside an app
+  bundle. Prefer CC0.
+- **No change to collision, interaction, or binding authoring.** If an
+  import appears to need one, that is the signal to stop and write a
+  separate ADR, not to relax the boundary.
+- **No AI-generated imagery or textures.** Out of scope in both castle
+  roadmaps and unchanged here.
+
+### Consequences
+
+- `docs/THREE_WORLD_ASSET_CONVENTIONS.md`'s "Texture-free, by design"
+  section is superseded on acceptance and needs rewriting, along with a new
+  section on whichever material path is chosen.
+- An asset licence ledger becomes owed the moment any third-party file
+  lands, and needs a parent-reachable attribution surface, which is a UI
+  change and not only a docs one.
+- `assetLoader.test.ts` and `src/test/setup.ts` are the blast radius for the
+  texture variant. Under the vertex-colour variant they are untouched,
+  which is most of that variant's argument.
+- SC-11's profiling pass becomes more urgent, not less: richer materials on
+  the Great Library, already the densest room on the island, is exactly the
+  change that wants a measurement on real hardware first. It has still never
+  run outside SwiftShader in a container.
+- Nothing about age bands, safety, authorization, or the adventure and
+  story engines is affected. This ADR is confined to asset production.
+
+### To price before accepting
+
+None of these numbers exist yet, and the decision is better made with them:
+
+1. Generator work for vertex colours across 108 assets, versus the same for
+   textures plus a jsdom texture-loading test path.
+2. Per-asset import cost for the 16 - normalisation, re-pivoting, and
+   visual check against the room they sit in.
+3. Whether a CC0 kit exists whose style matches 44 generated assets it will
+   stand beside. A mixed-fidelity room may read worse than a consistent
+   grey-box one, and the upgrade roadmap's section 4 warns about exactly
+   this ("avoid mixing highly realistic assets with cartoon assets").
+4. The sourcing question in the paragraph above, which is the one that
+   actually determines whether the castle becomes showable.

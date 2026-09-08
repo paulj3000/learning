@@ -1594,6 +1594,23 @@ real `GLTFLoader.load()` calls inside jsdom precisely because no asset has a
 UV accessor or an image reference. Whatever replaces that has to exist
 before the first textured file lands.
 
+**Now drafted as ADR-020** ("Where the castle's art comes from", Status:
+Proposed). Drafting it produced one measurement that reframes the question:
+of the castle's 60 assets, roughly **44 are gameplay-bearing and only 16 are
+importable scenery** - 22 are state-variant pairs needing identical
+vertices, the three rods are graded by length, the nine stars are counted,
+and six clue and story-plate assets are named directly in
+`castleChoiceBindings.ts`. So the 2026-08-28 deferral's own proposed remedy,
+"import scenery and keep gameplay geometry generated," cannot reach the
+upgrade roadmap's bar: swap all 16 and three quarters of what a child looks
+at is still untextured primitives, including every object they interact
+with. ADR-020 therefore proposes giving the *generated* pipeline a material
+story first - starting with vertex colours, which lift all 60 assets and
+leave the jsdom test strategy untouched - and treats a scenery import as a
+second, optional step. It also records the honest limit: better-shaded box
+assemblies are still box assemblies, so the art-*sourcing* question stays
+open as a budget and product call.
+
 **Recommended next step, not authorised:** decide the asset question as its
 own ADR with the import costs priced (scale normalisation, ground-pivot
 re-pivoting, the texture test path, a licence ledger); if yes, build the

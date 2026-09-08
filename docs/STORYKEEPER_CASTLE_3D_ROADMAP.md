@@ -1243,7 +1243,10 @@ gameplay geometry), and four things make it sharper for the castle:
   exclude redistribution inside an app bundle.
 
 **When to revisit: after SC-6**, and for scenery only - bookshelves,
-tables, costume racks, filler picture frames.
+tables, costume racks, filler picture frames. By then the region is
+walkable and it is clear what actually looks thin, and swapping an asset is
+a one-line manifest change. The gameplay-bearing assets stay generated
+regardless.
 
 > **This trigger has fired.** SC-6 through SC-10 shipped, and
 > `docs/regions/storykeeper_castle.md` raises the bar this decision was
@@ -1253,10 +1256,17 @@ tables, costume racks, filler picture frames.
 > restated, not dropped. See
 > `docs/regions/storykeeper_castle_reconciliation.md` sections 6 and 7; the
 > prerequisite named below - a texture-loading test path - is the expensive
-> part and must be built before the first textured file lands. By then the region is
-walkable and it is clear what actually looks thin, and swapping an asset is
-a one-line manifest change. The gameplay-bearing assets stay generated
-regardless.
+> part and must be built before the first textured file lands.
+>
+> **Superseded in scope by ADR-020** ("Where the castle's art comes from",
+> Status: Proposed), which measured what "scenery only" actually reaches:
+> **16 of the castle's 60 assets.** The other 44 are gameplay-bearing - 22
+> state-variant pairs needing identical vertices, three rods graded by
+> length, nine counted stars, six assets named in `castleChoiceBindings.ts`,
+> six easel canvases. So this deferral's own remedy cannot clear the new
+> bar on its own, and ADR-020 proposes a material story for the *generated*
+> pipeline first. The paragraph above remains correct about gameplay
+> geometry, and ADR-020 restates it rather than dropping it.
 
 If it is ever revisited, prefer CC0 (Kenney, Quaternius, the CC0 half of
 Poly Pizza) over CC-BY, and treat it as its own phase with its own
