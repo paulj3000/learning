@@ -1254,7 +1254,9 @@ None of these numbers exist yet, and the decision is better made with them:
 2. Per-asset import cost for the 16 - normalisation, re-pivoting, and
    visual check against the room they sit in.
 3. Whether a CC0 kit exists whose style matches 44 generated assets it will
-   stand beside. A mixed-fidelity room may read worse than a consistent
+   stand beside. **Partly answered:** see `docs/ASSET_SOURCING.md`, which
+   names The Complete KayKit (CC0, glTF native, $150) as the candidate and
+   prices the audio and Polly work alongside it. A mixed-fidelity room may read worse than a consistent
    grey-box one, and the upgrade roadmap's section 4 warns about exactly
    this ("avoid mixing highly realistic assets with cartoon assets").
 4. The sourcing question in the paragraph above, which is the one that
