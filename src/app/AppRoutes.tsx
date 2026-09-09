@@ -116,6 +116,17 @@ const WonderwildForestWorldPage3D = lazy(() =>
   })),
 );
 
+/**
+ * Clockwork Harbor (`docs/regions/clockwork.md`). No `3D` suffix: unlike the
+ * bay and the castle, this region has no earlier Phaser route to disambiguate
+ * from - it is first-person from its first commit.
+ */
+const ClockworkHarborWorldPage = lazy(() =>
+  import('../routes/ClockworkHarborWorldPage').then((module) => ({
+    default: module.ClockworkHarborWorldPage,
+  })),
+);
+
 export function AppRoutes() {
   return (
     <Routes>
@@ -328,6 +339,16 @@ export function AppRoutes() {
           <RequireParent>
             <Suspense fallback={<p>Loading Storykeeper Castle...</p>}>
               <StorykeeperCastleWorldPage3D />
+            </Suspense>
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/world/clockwork-harbor"
+        element={
+          <RequireParent>
+            <Suspense fallback={<p>Loading Clockwork Harbor...</p>}>
+              <ClockworkHarborWorldPage />
             </Suspense>
           </RequireParent>
         }

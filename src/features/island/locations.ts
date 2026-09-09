@@ -117,6 +117,30 @@ export const ISLAND_LOCATIONS: IslandLocation[] = [
     decoration: 'Bolt rolls happily around the workshop, good as new.',
     unlockRequirement: { changeKey: 'ROBOT_RESCUE_COMPLETE' },
   },
+  {
+    /**
+     * Clockwork Harbor (`docs/regions/clockwork.md`). A major explorable
+     * region of the home island, not a second world: section 1 calls it "a
+     * major explorable region within Learning Adventure Island", so it is an
+     * `ISLAND_LOCATIONS` entry with its own first-person region id, the same
+     * shape Storykeeper Castle already has.
+     *
+     * Ungated on purpose. The roadmap names a "Required progression" field in
+     * section 6 but never says what would gate the harbor, and section 31's
+     * definition of done opens with "enter and freely explore". Inventing an
+     * `unlockRequirement` here would author a lock the roadmap did not ask
+     * for; the harbor gates its own *interior* progress instead, through
+     * `clockworkHarborState.ts`.
+     */
+    slug: 'clockwork-harbor',
+    worldSlug: HOME_WORLD_SLUG,
+    title: 'Clockwork Harbor',
+    tagline: 'A seaside town of gears and machines that needs fixing.',
+    description:
+      'A colorful harbor town run by an old machine under the streets. The lighthouse has gone dark, the bridge is stuck, and something small and mechanical is taking pieces away. Great for building, measuring, patterns, and figuring things out.',
+    skills: ['Building', 'Patterns', 'Measurement', 'Figuring things out'],
+    decoration: 'The lighthouse is dark and the harbor gate is shut. Nobody knows why yet.',
+  },
   /**
    * Creature Care Cove (docs/ROADMAP.md Phase 29). A second world, not a
    * secret corner of the first: neither location is gated by an

@@ -225,12 +225,81 @@ export const WONDERWILD_HIVE_CHECKPOINTS: readonly RegionCheckpoint[] = [
   },
 ];
 
+export const CLOCKWORK_HARBOR_REGION_ID = 'clockwork-harbor';
+
+/**
+ * Clockwork Harbor's checkpoints (`docs/regions/clockwork.md` section 5,
+ * "Region Layout", and section 9's Phase 3 build list). One per district a
+ * child has a reason to walk back to, and `harbor-entrance` is deliberately
+ * first: `resolveSpawnCheckpoint` falls back to a region's first authored
+ * checkpoint, and arriving at the harbor gate is the only spawn that makes
+ * sense for a child who has never been here.
+ *
+ * `lighthouse-lamp` sits inside the lighthouse rather than on its doorstep,
+ * so a child who left mid-repair comes back to the machine they were
+ * working on instead of to the bottom of the stairs.
+ *
+ * Yaw follows `firstPersonController.ts`'s convention (`forwardX =
+ * sin(yaw)`, `forwardZ = cos(yaw)`): 0 faces +Z, PI/2 faces +X.
+ */
+export const CLOCKWORK_HARBOR_CHECKPOINTS: readonly RegionCheckpoint[] = [
+  {
+    id: 'clockwork-harbor:harbor-entrance',
+    regionId: CLOCKWORK_HARBOR_REGION_ID,
+    label: 'the harbor gate',
+    x: 0,
+    z: 18,
+    yaw: Math.PI,
+  },
+  {
+    id: 'clockwork-harbor:docks',
+    regionId: CLOCKWORK_HARBOR_REGION_ID,
+    label: 'the docks',
+    x: 0,
+    z: 8,
+    yaw: Math.PI,
+  },
+  {
+    id: 'clockwork-harbor:lighthouse-door',
+    regionId: CLOCKWORK_HARBOR_REGION_ID,
+    label: 'the lighthouse door',
+    /*
+      Outside the tower, on its doorstep. The lighthouse's open side is its
+      east wall (`clockworkHarborRegion.ts`'s `LIGHTHOUSE.wallSides` omits
+      `east`, at x = -12), so this sits just clear of the interior and faces
+      back into the doorway - a child returning here arrives at the door
+      rather than already standing in the machine room, which is what
+      `lighthouse-lamp` is for.
+    */
+    x: -11,
+    z: 0,
+    yaw: -Math.PI / 2,
+  },
+  {
+    id: 'clockwork-harbor:lighthouse-lamp',
+    regionId: CLOCKWORK_HARBOR_REGION_ID,
+    label: 'the lighthouse machine room',
+    x: -16.5,
+    z: 0,
+    yaw: Math.PI / 2,
+  },
+  {
+    id: 'clockwork-harbor:marketplace',
+    regionId: CLOCKWORK_HARBOR_REGION_ID,
+    label: 'the marketplace',
+    x: 6,
+    z: -6,
+    yaw: 0,
+  },
+];
+
 export const ALL_CHECKPOINTS: readonly RegionCheckpoint[] = [
   ...WELCOME_HARBOR_CHECKPOINTS,
   ...PIRATE_BUILDER_BAY_CHECKPOINTS,
   ...STORYKEEPER_CASTLE_CHECKPOINTS,
   ...WONDERWILD_FOREST_CHECKPOINTS,
   ...WONDERWILD_HIVE_CHECKPOINTS,
+  ...CLOCKWORK_HARBOR_CHECKPOINTS,
 ];
 
 export const KNOWN_CHECKPOINT_IDS: readonly string[] = ALL_CHECKPOINTS.map(

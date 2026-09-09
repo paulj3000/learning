@@ -7867,6 +7867,154 @@ changed or broken.
   caller crafting a raw request outside this app's own code could exploit
   it, and there is no real user base yet for that to matter against.
 
+## Clockwork Harbor — Milestone 1 (Foundation) and the first walkable slice
+
+Source roadmap: `docs/regions/clockwork.md`. This is its "Recommended
+Implementation Order" Milestone 1 (Region, World state, Quest state, Learning
+Profile, Challenge engine) plus enough of Milestone 2 (Playable Harbor) that
+the region can actually be walked into rather than only reasoned about.
+
+### What shipped
+
+**Region registration (roadmap section 6).** `clockwork-harbor` is an
+`ISLAND_LOCATIONS` entry on the home island, not a second world: section 1
+calls it "a major explorable region within Learning Adventure Island", which
+is the same shape Storykeeper Castle already has. It is claimed by
+`HOME_ISLAND_PACK`, so `packs.test.ts`'s "every location belongs to exactly
+one world" assertion covers it. Five checkpoints are authored in
+`src/features/discovery/checkpoints.ts` (gate, docks, lighthouse door,
+lighthouse machine room, marketplace), with `harbor-entrance` first so a
+first-time visitor spawns at the gate.
+
+It is deliberately **ungated**. Section 6 names a "Required progression"
+field but never says what would gate the harbor, and section 31's definition
+of done opens with "enter and freely explore" — so inventing an
+`unlockRequirement` would have authored a lock the roadmap did not ask for.
+
+**Harbor world state and region progress (section 6)** —
+`src/features/clockwork-harbor/`. Both are **derived from existing
+`WorldChange` rows**, not stored in a new model. The roadmap writes them as
+JSON documents to persist, but this codebase already records durable "this
+happened" facts as `WorldChange` keyed by `changeKey`, which the parent
+dashboard, quest conditions, and `isLocationUnlocked` all already read. A
+second store would have given the harbor a private history none of those
+could see, and two sources of truth for "has this child fixed the
+lighthouse?". Harbor change keys carry a `CLOCKWORK_` prefix because they
+share one flat per-child namespace with every other region.
+
+`companionCogUnlocked` is derived from `marketMysterySolved` rather than
+recorded separately, since section 11 sets them in the same completion block
+— so there is no history in which a child solved the mystery but did not get
+Cog. `MASTERED` requires the finale *and* all twelve Golden Gears, so a child
+who finished the story still has somewhere to go (section 31: "return after
+completing the story and find new activities").
+
+**Learning Profile (section 7)** — `src/features/learning-profile/`. Placed
+outside the region folder because section 32 asks that it become shared
+island infrastructure. Its goal is section 7's one-liner: "Separate
+educational difficulty from age."
+
+This is a **read-time aggregate over `SkillProgress`**, not a parallel store.
+The island already counts exposures and independent successes per skill via
+`upsertSkillProgress`, written from every adventure step anywhere on the
+island and already interpreted by the Mastery Engine. Persisting a second set
+of counters would mean two systems counting the same answers, and a
+per-domain store would be blind to everything a child did before Clockwork
+Harbor existed — a child who had been practicing counting in Pirate Builder
+Bay for a month would have arrived at the harbor as a beginner. What is
+genuinely new is the coarse six-domain grouping above the curriculum's
+fine-grained skills, and the 1-6 difficulty scale a challenge can be authored
+against (`SkillStatus` answers "how well is this known", which is a different
+question from "how hard should the next puzzle be").
+
+**Adaptive Challenge Engine (section 8)** — `src/features/challenges/`. Also
+shared, per section 32. Carries the challenge model, the six solution shapes,
+and section 8's support ladder (`Contextual Hint -> Second Attempt -> Visual
+Demonstration -> Simplified Version`). Every function is pure and every
+`hintLevel` is authored, so correctness never depends on a model being
+reachable — CLAUDE.md section 7 and the roadmap's own section 15 both require
+this. AI may phrase a hint; it never decides whether a child was right.
+
+Section 8's rule that "failure should NOT immediately reduce skill level" is
+enforced structurally rather than by a special case: `selectChallengeLevel`
+only reads cumulative evidence, so one wrong answer moves successes not at
+all. Difficulty relief comes from the ladder (`OFFER_SIMPLER`), which is
+scoped to the challenge in front of the child and forgotten afterward, rather
+than from a demotion that would follow them around.
+
+**The walkable region (section 9's Phase 3 list).**
+`clockworkHarborRegion.ts` holds pure geometry (numbers, no `three` import,
+unit-tested); `clockworkHarborScene.ts` is the only file that turns it into
+`three` objects, matching the split every other region uses. Built: harbor
+entrance, dock deck over water, lighthouse exterior *and* interior with the
+machine room, a four-stall marketplace, the clock tower, the Harbor Master
+and Professor Ticktock, three Golden Gears, and an ambient gull. Route:
+`/island/:childId/world/clockwork-harbor`, code-split like every other world
+page.
+
+The districts section 5 places past the drawbridge (Inventor District,
+Menagerie, Workshop, tunnels, Heart of the Harbor) are **absent rather than
+stubbed** — an empty room a child can walk into is a worse promise than a gate
+that has not opened yet.
+
+Section 2.3's persistent world change is wired end to end for chapter one:
+`lighthouseFixed` reaches the scene as an option (the World Engine never reads
+World State itself, per ADR-008), and decides the sky, the ambient light, the
+lamp's emissive, whether the gear turns, and whether the harbor gate is closed
+and colliding. A returning child sees a lit harbor on the first frame rather
+than a flicker from broken to fixed.
+
+### Tests
+
+79 new tests, all passing, and the full suite is green at 1953. Beyond the
+engine unit tests, the region geometry tests assert the invariants that keep a
+child from being stranded: no checkpoint inside a collider or off the plot, no
+NPC stuck in geometry, the dock deck walkable end to end, open water solid, and
+no two district trigger volumes overlapping. One of these caught a real bug
+during the build — the "lighthouse door" checkpoint was authored *inside* the
+machine room, so a returning child would have spawned past the doorway; it is
+now on the doorstep at x=-11, clear of the interior.
+
+### Known limitations (Clockwork Harbor, this milestone)
+
+- **No chapter-one challenge content is authored yet.** The engine, the
+  ladder, and the lighthouse mechanism's interaction all exist and are tested,
+  but no `Challenge` variants are written, so interacting with the machine
+  currently shows an authored line pointing the child at the Harbor Master
+  rather than starting the puzzle. Nothing about the lighthouse repair is
+  reachable end to end yet, and `CLOCKWORK_LIGHTHOUSE_FIXED` is never
+  recorded by gameplay. This is the next increment, not a gap in what shipped.
+- **Three of the six learning domains have no curriculum skills.**
+  `reading`, `vocabulary`, and `spatial` are listed in `LEARNING_DOMAINS` and
+  tested as intentionally unmapped (`DOMAINS_WITHOUT_CURRICULUM_SKILLS`),
+  because `SKILLS` currently authors ten skills across math and early science
+  only. They report level 1 with zero confidence, which is an absence of data,
+  not a low score — `hasEvidence` lets callers tell those apart, and
+  `selectChallengeLevel` refuses to scale an unevidenced domain. Authoring
+  reading/vocabulary/spatial skills is a prerequisite for section 11's Market
+  Mystery and section 13's spatial creature puzzles.
+- **Machinery and the cast are placeholder primitives.** Section 21's
+  mechanical asset inventory (gears, valves, pipes, generators) and its own
+  characters do not exist in `assets/manifest.ts`, so the mechanism, lamp,
+  gate, and clock are code-drawn from `three` primitives, and both NPCs reuse
+  `npc-pip`. None of them carries game state — the ids come from the region
+  module — so swapping in real GLBs changes no logic. Same interim status
+  `docs/IMPLEMENTATION_STATUS.md` already records for Welcome Harbor's gull.
+- **NPC dialogue is the existing generic `NpcConversation`.** The Harbor
+  Master and Professor Ticktock have no authored character definitions yet, so
+  section 15's Socratic hint progression and the Polly/S3 voice pipeline
+  (sections 15 and 28) are untouched.
+- **No AI, by design and by sequencing.** CLAUDE.md section 16 is explicit
+  that the core must be playable deterministically first. Everything shipped
+  here is pure and testable without a model.
+- **`ChildCastleProgress`-style per-region querying is not needed yet.** The
+  derived projection reads a child's full `WorldChange` list, which is one
+  list call the view already makes. If the harbor's history grows large enough
+  that this matters, the fix is a location-filtered query
+  (`listWorldChanges`), not a new model.
+- **No E2E coverage.** The region has unit tests but no Playwright journey;
+  the existing `e2e/` suite does not cover it.
+
 ## Known risks / TODOs
 
 - **Phase 20: `SkillEvidence`'s write path (`recordSkillEvidence`) was not

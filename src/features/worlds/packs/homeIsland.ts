@@ -22,6 +22,7 @@ export const HOME_ISLAND_PACK: WorldContentPack = {
     'fossil-ridge-camp',
     'castle-writing-room',
     'bolts-workshop',
+    'clockwork-harbor',
   ],
   adventureSlugs: [
     'repair-the-moonlight-bridge',
