@@ -129,22 +129,29 @@ describe('LIBRARY_ARC_ADVENTURES', () => {
 
   /**
    * Was "exactly one adventure per real location", which held until Pirate
-   * Builder Bay gained a Sprout variant of its bridge story. The rule that
-   * actually matters is unambiguity: `resolveAdventureForAgeBand` picks the
-   * first template at a location matching the child's band, so two matching
-   * the same band would make which one a child gets an accident of authoring
-   * order. Library arc adventures still may not live at a real location at
-   * all, which the pseudo-location test above covers.
+   * Builder Bay gained a Sprout variant of its bridge story, and then
+   * "at most one per band", which held until Clockwork Harbor authored
+   * level-indexed variants. The rule that actually matters, and always did, is
+   * unambiguity: a child must never get one adventure rather than another by
+   * accident of authoring order.
+   *
+   * `adventureInvariants.test.ts` owns the canonical statement of this,
+   * including the requirement that a levelled group carry distinct levels.
+   * What is checked here is the narrower thing this file is about: the library
+   * arc must not be what makes a real location ambiguous. Library arc
+   * adventures may also live at no real location at all, which the
+   * pseudo-location test above covers.
    */
-  it('leaves no real island location with two adventures for the same age band', () => {
+  it('leaves no real island location ambiguous for an age band', () => {
     for (const location of ISLAND_LOCATIONS) {
       const templates = getAdventureTemplatesForLocation(location.slug);
       for (const ageBand of ['SPROUT', 'PATHFINDER', 'EXPLORER'] as const) {
         const matching = templates.filter((template) => template.ageBands.includes(ageBand));
+        if (matching.length <= 1) continue;
         expect(
-          matching.map((template) => template.slug),
-          `${location.slug} @ ${ageBand}`,
-        ).toHaveLength(matching.length > 0 ? 1 : 0);
+          matching.every((template) => template.skillLevel !== undefined),
+          `${location.slug} @ ${ageBand}: several adventures, but not all level-indexed`,
+        ).toBe(true);
       }
     }
   });

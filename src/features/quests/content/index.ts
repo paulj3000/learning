@@ -1,9 +1,11 @@
 import { ISLAND_QUESTS } from './islandQuests';
 import { CREATURE_CARE_COVE_QUESTS } from './creatureCareCoveQuests';
+import { CLOCKWORK_HARBOR_QUESTS } from './clockworkHarborQuests';
 import type { QuestDefinition, QuestId } from '../types';
 
 export * from './islandQuests';
 export * from './creatureCareCoveQuests';
+export * from './clockworkHarborQuests';
 
 /**
  * Every authored quest, in the order a content designer wrote them, one
@@ -15,6 +17,7 @@ export * from './creatureCareCoveQuests';
 export const QUEST_DEFINITIONS: readonly QuestDefinition[] = [
   ...ISLAND_QUESTS,
   ...CREATURE_CARE_COVE_QUESTS,
+  ...CLOCKWORK_HARBOR_QUESTS,
 ];
 
 export function getQuestDefinition(questId: QuestId): QuestDefinition | undefined {

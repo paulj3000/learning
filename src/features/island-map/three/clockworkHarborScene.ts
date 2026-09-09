@@ -473,10 +473,10 @@ export function createClockworkHarborEngine(
 
     if (focused === LIGHTHOUSE_MECHANISM.id) {
       /*
-        The scene asks for the challenge; it never grades one. `gradeChallenge`
-        in `src/features/challenges/engine.ts` decides correctness, and the
-        view records the world change - so a client that forged this event
-        still cannot repair the lighthouse.
+        The scene asks for the adventure; it never grades one. The Adventure
+        Engine's `validateStepAnswer` decides correctness and
+        `useAdventureSession` writes the world change - so a client that
+        forged this event still cannot repair the lighthouse.
       */
       bus.emit('ObjectInteracted', { entityId: focused, interactionId: `${focused}:use` });
       return;

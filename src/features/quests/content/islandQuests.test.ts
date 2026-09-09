@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ISLAND_QUESTS } from './islandQuests';
 import { QUEST_DEFINITIONS, getQuestDefinition, getQuestsOfferedBy } from './index';
 import { allObjectives, getStage } from '../quest';
-import { ISLAND_NPCS } from '../../npc/content';
+import { ALL_NPCS } from '../../npc/content';
 import { reachableMemoryFlags } from '../../npc/dialogue';
 import { ALL_ITEMS } from '../../rewards/content';
 import { ADVENTURE_TEMPLATES } from '../../adventures/content';
@@ -19,7 +19,7 @@ const ADVENTURE_SLUGS = new Set(ADVENTURE_TEMPLATES.map((template) => template.s
  * is perfectly satisfiable.
  */
 const ITEM_IDS = new Set(ALL_ITEMS.map((item) => item.id));
-const NPC_IDS = new Set(ISLAND_NPCS.map((npc) => npc.id));
+const NPC_IDS = new Set(ALL_NPCS.map((npc) => npc.id));
 const LOCATION_SLUGS = new Set(ISLAND_LOCATIONS.map((location) => location.slug));
 const DISCOVERY_IDS = new Set(ISLAND_DISCOVERY_IDS);
 
@@ -35,7 +35,7 @@ const ADVENTURE_WORLD_CHANGE_KEYS = new Set(
 
 /** Every memory flag some authored dialogue node can actually set. */
 const SETTABLE_MEMORY_FLAGS = new Set(
-  ISLAND_NPCS.flatMap((npc) => npc.dialogue.flatMap((node) => [...(node.setsMemoryFlags ?? [])])),
+  ALL_NPCS.flatMap((npc) => npc.dialogue.flatMap((node) => [...(node.setsMemoryFlags ?? [])])),
 );
 /** Plus the flags quests themselves set on completion. */
 for (const quest of QUEST_DEFINITIONS) {
@@ -54,7 +54,7 @@ const QUEST_WORLD_CHANGE_KEYS = new Set(
 
 describe('island quest content', () => {
   it('defines a quest for every questId an NPC offers', () => {
-    const offeredIds = ISLAND_NPCS.flatMap((npc) => npc.questOffers.map((offer) => offer.questId));
+    const offeredIds = ALL_NPCS.flatMap((npc) => npc.questOffers.map((offer) => offer.questId));
 
     expect(offeredIds.length).toBeGreaterThan(0);
     for (const questId of offeredIds) {
@@ -204,7 +204,7 @@ describe('island quest content', () => {
    * waits on has to be reachable that way.
    */
   it('waits only on memory flags a child could actually talk their way into', () => {
-    const reachableByNpc = new Map(ISLAND_NPCS.map((npc) => [npc.id, reachableMemoryFlags(npc)]));
+    const reachableByNpc = new Map(ALL_NPCS.map((npc) => [npc.id, reachableMemoryFlags(npc)]));
 
     for (const quest of QUEST_DEFINITIONS) {
       for (const objective of allObjectives(quest)) {

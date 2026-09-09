@@ -1,4 +1,5 @@
 import type { AgeBandValue } from '../../child-profile/constants';
+import type { LearningDomain, SkillLevel } from '../../learning-profile/types';
 
 /** The 10 MVP step types from docs/ADVENTURE_ENGINE.md. */
 export type AdventureStepType =
@@ -91,6 +92,24 @@ export interface AdventureDefinition {
   ageBands: AgeBandValue[];
   entryStepId: string;
   steps: AdventureStep[];
+  /**
+   * Which reasoning domain this variant practices, and how hard it is
+   * (`docs/regions/clockwork.md` section 7's 1-6 scale).
+   *
+   * Optional, and absent on every adventure authored before Clockwork
+   * Harbor. `ageBands` remains the primary selector and nothing about
+   * `resolveAdventureForAgeBand` changes; these two fields let a *second*
+   * selector, `resolveAdventureForSkillLevel` in `src/features/adaptive/`,
+   * choose among several same-age variants by what the child has actually
+   * demonstrated rather than by how old they are - which is the whole point
+   * of that roadmap's section 2.2, "One World, Multiple Skill Levels".
+   *
+   * They live on `AdventureDefinition` rather than in a lookup beside it so
+   * that a variant cannot be authored without its difficulty being visible in
+   * the same object, and so any region can opt in.
+   */
+  skillDomain?: LearningDomain;
+  skillLevel?: SkillLevel;
 }
 
 export function getStep(definition: AdventureDefinition, stepId: string): AdventureStep {

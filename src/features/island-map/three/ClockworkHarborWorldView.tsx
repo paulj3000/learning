@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import styles from '../IslandWorldView.module.css';
 import { ThreeGameContainer } from './ThreeGameContainer';
 import { createClockworkHarborEngine, type ClockworkHarborEngine } from './clockworkHarborScene';
@@ -22,6 +22,10 @@ import { ALL_ITEMS } from '../../rewards/content';
 import { listQuestStates } from '../../quests/api';
 import { getQuestDefinition } from '../../quests/content';
 import { getCompanionProfile } from '../../island/api';
+import { listSkillProgress } from '../../mastery/api';
+import { computeLearningProfile, domainProfile } from '../../learning-profile/profile';
+import { resolveAdventureForSkillLevel, selectDifficultyLevel } from '../../adaptive/selection';
+import { DARK_LIGHTHOUSE_ADVENTURES } from '../../adventures/content';
 import { deriveClockworkHarborState } from '../../clockwork-harbor/state';
 import type { ClockworkHarborState } from '../../clockwork-harbor/types';
 import type { AgeBandValue } from '../../child-profile/constants';
@@ -65,22 +69,84 @@ export function ClockworkHarborWorldView({ childId, ageBand }: ClockworkHarborWo
   const [focusedLabel, setFocusedLabel] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [conversationNpcId, setConversationNpcId] = useState<string | null>(null);
+  /**
+   * Which of the three authored lighthouse variants this child gets
+   * (`docs/regions/clockwork.md` section 2.2). Resolved up front from their
+   * demonstrated Learning Profile rather than at the moment they touch the
+   * machine, so pressing E never waits on a network read.
+   */
+  const [lighthouseSlug, setLighthouseSlug] = useState<string | null>(null);
 
+  const navigate = useNavigate();
   const bus = useMemo(() => new WorldEngineEventBus(), []);
+
+  /**
+   * Using the machine, as the scene's `ObjectInteracted` listener sees it.
+   *
+   * Held in a ref so the bus subscription below never has to be torn down and
+   * rebuilt when the chosen variant or the harbor's state resolves. Re-running
+   * that effect would drop listeners mid-frame while the scene is emitting.
+   */
+  const startLighthouseRef = useRef<() => void>(() => {});
+  startLighthouseRef.current = () => {
+    if (harborState?.lighthouseFixed) {
+      setToast('The machine is humming along. The lamp is already turning.');
+      return;
+    }
+    if (!lighthouseSlug) {
+      setToast('The machine is quiet. Ask the Harbor Master about it.');
+      return;
+    }
+    navigate(`/island/${childId}/locations/clockwork-harbor/adventures/${lighthouseSlug}`);
+  };
   const engineRef = useRef<ClockworkHarborEngine | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const [worldState, worldChanges, companion, inventory, questStates] = await Promise.all([
-          getWorldState(childId),
-          listAllWorldChanges(childId),
-          getCompanionProfile(childId),
-          getInventory(childId),
-          listQuestStates(childId),
-        ]);
+        const [worldState, worldChanges, companion, inventory, questStates, skillProgress] =
+          await Promise.all([
+            getWorldState(childId),
+            listAllWorldChanges(childId),
+            getCompanionProfile(childId),
+            getInventory(childId),
+            listQuestStates(childId),
+            listSkillProgress(childId),
+          ]);
         if (cancelled) return;
+
+        /*
+          The adaptive selection, in three steps and no more: aggregate the
+          evidence the island already records into a Learning Profile, ask what
+          difficulty this child's math domain is ready for, then pick the
+          authored variant nearest that level. All three are pure functions;
+          nothing here decides whether an answer is right, which stays with the
+          Adventure Engine.
+
+          Falling back to the age-band variant would be wrong here - every
+          variant is authored for this location, so `resolveAdventureForSkillLevel`
+          always finds one - but the null guard stays, because a content edit
+          that unlevelled all three should degrade to "no puzzle offered"
+          rather than to a crash at the machine.
+        */
+        const profile = computeLearningProfile(
+          skillProgress.map((row) => ({
+            skillId: row.learningObjectiveCode,
+            counts: {
+              exposureCount: row.exposureCount,
+              independentSuccessCount: row.independentSuccessCount,
+              supportedSuccessCount: row.supportedSuccessCount,
+              consecutiveIndependentCorrect: row.consecutiveIndependentCorrect,
+              lastPracticedAt: row.lastPracticedAt,
+            },
+          })),
+        );
+        const level = selectDifficultyLevel(domainProfile(profile, 'math'));
+        const variantsForBand = DARK_LIGHTHOUSE_ADVENTURES.filter((variant) =>
+          variant.ageBands.includes(ageBand),
+        );
+        setLighthouseSlug(resolveAdventureForSkillLevel(variantsForBand, level)?.slug ?? null);
         setStartCheckpointId(worldState.lastCheckpointId);
         setHarborState(deriveClockworkHarborState(worldChanges.map((change) => change.changeKey)));
         setCompanionName(companion?.displayName ?? null);
@@ -108,7 +174,9 @@ export function ClockworkHarborWorldView({ childId, ageBand }: ClockworkHarborWo
     return () => {
       cancelled = true;
     };
-  }, [childId]);
+    // `ageBand` narrows which variants are candidates, so a change to it has
+    // to re-resolve the chosen one.
+  }, [childId, ageBand]);
 
   const noteCharacterMet = useCallback(
     (npcId: string) => {
@@ -127,10 +195,7 @@ export function ClockworkHarborWorldView({ childId, ageBand }: ClockworkHarborWo
         return;
       }
       if (entityId === LIGHTHOUSE_MECHANISM.id) {
-        // Chapter one's challenge is not authored yet (see the page's own
-        // note); until it is, the machine says what it needs rather than
-        // silently doing nothing.
-        setToast('The machine is missing its power cells. Ask the Harbor Master about it.');
+        startLighthouseRef.current();
       }
     });
     const offFocus = bus.on('InteractableFocused', ({ entityId }) => {
@@ -245,6 +310,15 @@ export function ClockworkHarborWorldView({ childId, ageBand }: ClockworkHarborWo
               onClick={() => setConversationNpcId(PROFESSOR_TICKTOCK_ID)}
             >
               Talk to Professor Ticktock
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              className={styles.thingsToDoButton}
+              onClick={() => startLighthouseRef.current()}
+            >
+              Look at the machine inside the lighthouse
             </button>
           </li>
           <li>

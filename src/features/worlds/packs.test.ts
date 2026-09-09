@@ -12,7 +12,7 @@ import { ISLAND_LOCATIONS } from '../island/locations';
 import { ADVENTURE_TEMPLATES } from '../adventures/content';
 import { QUEST_DEFINITIONS } from '../quests/content';
 import { ALL_COLLECTIBLE_SETS, ALL_ITEMS } from '../rewards/content';
-import { ISLAND_NPCS } from '../npc/content';
+import { ALL_NPCS } from '../npc/content';
 import { ISLAND_DISCOVERIES } from '../discovery/content';
 import { STORY_DEFINITIONS } from '../story/content';
 import type { WorldContentPack, WorldContentRegistries } from './types';
@@ -30,7 +30,7 @@ const registries: WorldContentRegistries = {
   quests: QUEST_DEFINITIONS.map((quest) => ({ id: quest.id })),
   items: ALL_ITEMS.map((item) => ({ id: item.id })),
   collectibleSets: ALL_COLLECTIBLE_SETS.map((set) => ({ id: set.id })),
-  npcs: ISLAND_NPCS.map((npc) => ({ id: npc.id })),
+  npcs: ALL_NPCS.map((npc) => ({ id: npc.id })),
   discoveries: ISLAND_DISCOVERIES.map((discovery) => ({ id: discovery.id })),
   stories: STORY_DEFINITIONS.map((story) => ({ slug: story.slug })),
 };

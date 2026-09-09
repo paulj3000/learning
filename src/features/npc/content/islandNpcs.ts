@@ -210,7 +210,3 @@ export const ISLAND_NPCS: NpcDefinition[] = [
     questOffers: [],
   },
 ];
-
-export function findNpc(npcId: string): NpcDefinition | null {
-  return ISLAND_NPCS.find((npc) => npc.id === npcId) ?? null;
-}

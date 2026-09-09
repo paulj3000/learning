@@ -7927,13 +7927,11 @@ fine-grained skills, and the 1-6 difficulty scale a challenge can be authored
 against (`SkillStatus` answers "how well is this known", which is a different
 question from "how hard should the next puzzle be").
 
-**Adaptive Challenge Engine (section 8)** — `src/features/challenges/`. Also
-shared, per section 32. Carries the challenge model, the six solution shapes,
-and section 8's support ladder (`Contextual Hint -> Second Attempt -> Visual
-Demonstration -> Simplified Version`). Every function is pure and every
-`hintLevel` is authored, so correctness never depends on a model being
-reachable — CLAUDE.md section 7 and the roadmap's own section 15 both require
-this. AI may phrase a hint; it never decides whether a child was right.
+**Adaptive Challenge Engine (section 8)** — originally
+`src/features/challenges/`, **since reconciled away**; see "Clockwork Harbor —
+reconciliation and Chapter One" below. It duplicated grading, hints and
+transitions that the Adventure Engine had owned since Phase 3. What survives is
+the selection half, in `src/features/adaptive/`.
 
 Section 8's rule that "failure should NOT immediately reduce skill level" is
 enforced structurally rather than by a special case: `selectChallengeLevel`
@@ -8078,6 +8076,110 @@ suite green at 1969, `tsc --noEmit` clean, `oxlint` clean.
 - **No E2E coverage** of the switcher or the lists; the change is unit-tested
   only.
 
+
+## Clockwork Harbor — reconciliation and Chapter One
+
+### The reconciliation
+
+The Adaptive Challenge Engine shipped in the previous entry duplicated the
+Adventure Engine. `PresentationSpec` already covered number/choice/ordering/
+matching prompts and their answers, `validateStepAnswer` already graded them,
+`HintPolicy` plus `getHintText` already ran a hint ladder, `getNextStepId`
+already handled wrong answers, and `FallbackPresentation` already guaranteed
+authored copy — all since Phase 3. Running a second implementation would have
+meant two places deciding whether a child was right.
+
+This was an inconsistency in the previous entry's own reasoning, not a
+considered trade: the Learning Profile was deliberately derived from the
+Mastery Engine rather than built beside it, and the same check simply was not
+applied here.
+
+`src/features/challenges/` is gone. `src/features/adaptive/` keeps the half the
+Adventure Engine genuinely lacked — **which authored variant this child should
+be served**, since that engine selects by `ageBands` and section 2.2 wants
+difficulty to follow demonstrated skill. Two functions:
+`selectDifficultyLevel` (unchanged rules, renamed) and
+`resolveAdventureForSkillLevel`.
+
+`AdventureDefinition` gained optional `skillDomain`/`skillLevel`. Absent on
+every adventure authored before this, so nothing else changes.
+
+Two invariants moved rather than being relaxed. "Never two adventures for the
+same band at one location" existed because `resolveAdventureForAgeBand` took
+the first match, making the choice an accident of authoring order. Level
+indexing removes that ambiguity, so the rule is now "never *ambiguous*": a
+group sharing a band must be fully level-indexed with distinct levels. And
+`resolveAdventureForAgeBand` itself now sorts by level and takes the gentlest
+match, so even without a profile its answer is deterministic rather than
+order-dependent.
+
+`findNpc` moved from `islandNpcs.ts` to the content index over a new
+`ALL_NPCS`. It had searched one region's cast; the harbor's cast is authored
+separately, and a lookup that could not see it would have let
+`NpcConversation` open a panel for the Harbor Master and find nobody home. Two
+tests (`islandQuests.test.ts`, `packs.test.ts`) were checking authored content
+against `ISLAND_NPCS` while asserting over every world's quests and packs —
+the same mismatch their own Phase 29 comments describe — and now use
+`ALL_NPCS`.
+
+### Chapter One: The Dark Lighthouse
+
+Three variants of one story beat (`docs/regions/clockwork.md` section 10), not
+three stories: same title, same location, and all three record the same
+`CLOCKWORK_LIGHTHOUSE_FIXED`, so the harbor grows the same way whichever a
+child plays. Level 1 counts the empty slots; level 3 works out how many
+crystals cover nine units at three each; level 5 infers the shortfall from a
+gauge first, then groups it.
+
+The roadmap's own example uses multiplication. The curriculum authors no
+multiplication skill, and an `objectiveIds` entry naming a skill that does not
+exist would write evidence against nothing — so the same "how many cells?"
+shape is expressed as repeated addition and as a two-step subtract-then-group
+problem. This is recorded under known gaps below.
+
+The Harbor Master and Professor Ticktock now have real NPC definitions. They
+had been standing in the 3D region since the first commit with nothing behind
+them, so the view could open a conversation panel for either and find nothing
+to say. The Harbor Master offers `light-the-harbor`, an ordinary
+`QuestDefinition` beside the island's existing four (section 6: the harbor
+"must use the shared LAI quest system"). Its `BUILD` objective watches the
+world change rather than one variant's slug, so a child served any variant can
+finish it, and a branch lets a child who lit the lighthouse before ever
+speaking to the Harbor Master skip ahead rather than redo it.
+
+In the 3D region, using the lighthouse machine now launches the variant chosen
+from the child's Learning Profile. The selection is resolved on load, not at
+the moment of interaction, so pressing E never waits on a network read. It is
+also offered as a plain button in "Things to do here", so walking is never the
+only route to it.
+
+### Tests
+
+15 new tests for the chapter and 11 for the reconciled selector; full suite
+green at 1973.
+
+### Known limitations (Chapter One)
+
+- **The adventure opens on its own page, not at the machine.** Using the
+  mechanism navigates to the existing adventure route, which is Pirate Builder
+  Bay's proven pattern. Storykeeper Castle runs `useAdventureSession` inline
+  inside its 3D view, and that is what the harbor eventually wants — the puzzle
+  happening at the machine rather than on a separate screen. Deferred
+  deliberately to keep this increment reviewable.
+- **The curriculum has no multiplication skill**, so level 5 is a two-step
+  problem within ten rather than the roadmap's own 56-units-at-8-each example.
+  Authoring one would let the numbers grow with no change beyond content.
+- **Only three of six levels are authored.** Levels 2, 4 and 6 have no
+  variant; `resolveAdventureForSkillLevel` serves the nearest, preferring the
+  easier on a tie.
+- **Professor Ticktock offers no quest and gives no hints.** Section 15's
+  Socratic hint progression is not built; he stays in character and points at
+  what is happening.
+- **The lighthouse repair has not been played end to end against a live
+  backend.** It is unit-tested and typechecks, but no child has run the whole
+  loop through a real `AdventureSession` to a written `WorldChange`.
+- **No E2E coverage**, and the 3D verification was done against a harness that
+  bypasses auth, not the real route.
 
 ## Known risks / TODOs
 
