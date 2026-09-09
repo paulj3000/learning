@@ -98,8 +98,42 @@ export const ASSET_MANIFEST: readonly AssetManifestEntry[] = [
   // No LOD is declared. `bookshelf` is the one plausible candidate (~16
   // placements in the densest room); SC-11 adds it only if profiling on a
   // target tablet asks for it.
-  { id: 'ground-tile-stone', url: '/models/ground-tile-stone.gltf', kind: 'kit-piece', clips: [] },
-  { id: 'ceiling-tile', url: '/models/ceiling-tile.gltf', kind: 'kit-piece', clips: [] },
+  /**
+   * The island's first two **imported** assets, from KayKit Dungeon
+   * Remastered (CC0) - see `docs/ASSET_LICENCES.md` for provenance and
+   * `docs/THREE_WORLD_ASSET_CONVENTIONS.md` ("Imported assets") for the
+   * rules they follow.
+   *
+   * They need no scale or pivot normalisation, which is the whole reason
+   * these two went first: both are authored as 4x4m slabs centred on x/z,
+   * exactly the `SLAB_SIZE_METERS` grid `storykeeperCastleScene.ts` already
+   * places on. Both are single-mesh with one material, so they still go
+   * through `createInstancedMeshFromAsset`.
+   *
+   * The one difference from the generated planes they replace is thickness:
+   * these are solid slabs spanning y `[-0.1, +0.05]` rather than flat
+   * surfaces at y=0, so the scene offsets them (`FLOOR_SLAB_TOP_OFFSET` /
+   * `CEILING_SLAB_BOTTOM_OFFSET`) to keep the walkable surface at y=0 and
+   * the ceiling underside at `WALL_HEIGHT`. Being solid is also why the
+   * ceiling needs no flip: its underside is a real face, where the
+   * generated `ceiling-tile` was an upward plane relying on `doubleSided`.
+   *
+   * `ground-tile-stone.gltf` and `ceiling-tile.gltf` are still generated
+   * and still on disk, so reverting this swap is these two urls and the two
+   * offsets, nothing else.
+   */
+  {
+    id: 'ground-tile-stone',
+    url: '/models/kaykit-floor-tile-large.glb',
+    kind: 'kit-piece',
+    clips: [],
+  },
+  {
+    id: 'ceiling-tile',
+    url: '/models/kaykit-floor-wood-large-dark.glb',
+    kind: 'kit-piece',
+    clips: [],
+  },
   { id: 'wall-stone', url: '/models/wall-stone.gltf', kind: 'kit-piece', clips: [] },
   { id: 'carpet', url: '/models/carpet.gltf', kind: 'kit-piece', clips: [] },
   { id: 'archway', url: '/models/archway.gltf', kind: 'kit-piece', clips: [] },

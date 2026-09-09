@@ -12,7 +12,12 @@ describe('ASSET_MANIFEST authoring check', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('resolves every url to a file scripts/generate-world-assets.ts actually produced', () => {
+  /**
+   * Most entries resolve to a file `scripts/generate-world-assets.ts`
+   * produced; a few (see `docs/ASSET_LICENCES.md`) resolve to an imported
+   * `.glb` checked in beside them. Either way the url must name a real file.
+   */
+  it('resolves every url to a real file on disk', () => {
     for (const entry of ASSET_MANIFEST) {
       const filePath = join(PUBLIC_DIR, entry.url.replace(/^\//, ''));
       expect(existsSync(filePath), `${entry.id} -> ${entry.url} does not exist on disk`).toBe(true);

@@ -29,11 +29,21 @@ interface GltfDocument {
   materials: { pbrMetallicRoughness?: Record<string, unknown> }[];
 }
 
+/**
+ * Reads an asset's glTF document off disk, from either form: a generated
+ * `.gltf` is JSON already, an imported `.glb` carries the same JSON as its
+ * first chunk (12-byte header, then a length-prefixed JSON chunk) with the
+ * binary buffer after it. Both give the same shape to assert against.
+ */
 function readGltf(id: string): GltfDocument {
   const entry = getAssetManifestEntry(id);
-  return JSON.parse(
-    readFileSync(join(PUBLIC_DIR, entry.url.replace(/^\//, '')), 'utf8'),
-  ) as GltfDocument;
+  const filePath = join(PUBLIC_DIR, entry.url.replace(/^\//, ''));
+  if (!entry.url.endsWith('.glb')) {
+    return JSON.parse(readFileSync(filePath, 'utf8')) as GltfDocument;
+  }
+  const binary = readFileSync(filePath);
+  const jsonChunkLength = binary.readUInt32LE(12);
+  return JSON.parse(binary.subarray(20, 20 + jsonChunkLength).toString('utf8')) as GltfDocument;
 }
 
 /** Bounding box on the y axis, in the document's own mesh space. */
@@ -53,12 +63,27 @@ function maxY(document: GltfDocument): number {
 }
 
 /**
+ * The two castle assets that are **imported**, not generated (KayKit Dungeon
+ * Remastered, CC0 - `docs/ASSET_LICENCES.md`). They are held apart from the
+ * list below because three of the generated kit's authoring conventions do
+ * not apply to them and should not be quietly relaxed to fit:
+ *
+ * - they carry a texture atlas, where a generated asset carries none;
+ * - their materials use `baseColorTexture`, not a flat `baseColorFactor`;
+ * - they are centre-pivoted slabs spanning y `[-0.1, +0.05]`, so they are
+ *   not ground-pivoted the way every authored piece is.
+ *
+ * `describe('imported castle kit')` below is what holds them to *their*
+ * contract instead. Keeping the split explicit is the point: it stays
+ * visible which assets this project authored and which it did not.
+ */
+const IMPORTED_CASTLE_ASSET_IDS: readonly string[] = ['ground-tile-stone', 'ceiling-tile'];
+
+/**
  * Every castle asset id, taken from the manifest rather than re-listed, so a
  * new entry is covered by the convention checks the moment it is added.
  */
-const CASTLE_ASSET_IDS: readonly string[] = [
-  'ground-tile-stone',
-  'ceiling-tile',
+const GENERATED_CASTLE_ASSET_IDS: readonly string[] = [
   'wall-stone',
   'carpet',
   'archway',
@@ -117,6 +142,12 @@ const CASTLE_ASSET_IDS: readonly string[] = [
   'canvas-setting-mountain',
   'canvas-setting-cave',
   'npc-quill',
+];
+
+/** Every castle asset, whichever pipeline produced it - registration and `kind` apply to all of them. */
+const CASTLE_ASSET_IDS: readonly string[] = [
+  ...IMPORTED_CASTLE_ASSET_IDS,
+  ...GENERATED_CASTLE_ASSET_IDS,
 ];
 
 /**
@@ -203,13 +234,17 @@ describe('castle kit instancing safety', () => {
 
 describe('castle kit conventions', () => {
   /**
-   * Texture-free is not a shortcut, it is what keeps every asset loadable in
-   * Vitest's jsdom environment - no `HTMLImageElement`, no `ImageBitmap`.
-   * One textured asset would need its own test strategy for the
-   * texture-loading path, and nothing in this pipeline provides one.
+   * Texture-free is what every *generated* asset stays, and the reason is no
+   * longer "nothing can load a texture in jsdom" - `src/test/setup.ts` now
+   * has the image-decoding stubs that make a textured file loadable there.
+   * The reason now is that the generator has no material story: it emits
+   * flat `baseColorFactor` values and no UVs, so a generated document
+   * referencing a texture would mean something went wrong, not that
+   * someone got ambitious. Imported assets are exempt by construction and
+   * checked separately below.
    */
   it('references no image, texture, or UV coordinate anywhere', () => {
-    for (const id of CASTLE_ASSET_IDS) {
+    for (const id of GENERATED_CASTLE_ASSET_IDS) {
       const document = readGltf(id);
       expect(document.images, `"${id}" references an image`).toBeUndefined();
       expect(document.textures, `"${id}" references a texture`).toBeUndefined();
@@ -224,7 +259,7 @@ describe('castle kit conventions', () => {
   });
 
   it('gives every material a flat base color', () => {
-    for (const id of CASTLE_ASSET_IDS) {
+    for (const id of GENERATED_CASTLE_ASSET_IDS) {
       const document = readGltf(id);
       expect(document.materials.length, `"${id}" has no materials`).toBeGreaterThan(0);
       for (const material of document.materials) {
@@ -234,7 +269,7 @@ describe('castle kit conventions', () => {
   });
 
   it('keeps every asset ground-pivoted, with nothing below its own base', () => {
-    for (const id of CASTLE_ASSET_IDS) {
+    for (const id of GENERATED_CASTLE_ASSET_IDS) {
       const document = readGltf(id);
       const lowest = Math.min(
         ...document.accessors
@@ -246,8 +281,98 @@ describe('castle kit conventions', () => {
   });
 
   it('mounts nothing taller than the 3m wall height it hangs on', () => {
-    for (const id of CASTLE_ASSET_IDS) {
+    for (const id of GENERATED_CASTLE_ASSET_IDS) {
       expect(meshSpaceHeight(readGltf(id)), `"${id}" is taller than a wall`).toBeLessThanOrEqual(3);
+    }
+  });
+});
+
+/**
+ * The import contract. These are the properties that made KayKit's floor
+ * slabs safe to drop in without normalisation, and each one is a way a
+ * future import could look fine in a viewer and still be wrong here.
+ */
+describe('imported castle kit', () => {
+  it('matches the 4x4 slab grid the castle places on, so no scale normalisation is needed', () => {
+    for (const id of IMPORTED_CASTLE_ASSET_IDS) {
+      const document = readGltf(id);
+      const positions = document.accessors.filter(
+        (accessor) => accessor.type === 'VEC3' && accessor.min && accessor.max,
+      );
+      const width =
+        Math.max(...positions.map((a) => a.max![0])) - Math.min(...positions.map((a) => a.min![0]));
+      const depth =
+        Math.max(...positions.map((a) => a.max![2])) - Math.min(...positions.map((a) => a.min![2]));
+      expect(width, `"${id}" is not 4m wide`).toBeCloseTo(4, 3);
+      expect(depth, `"${id}" is not 4m deep`).toBeCloseTo(4, 3);
+    }
+  });
+
+  it('centres each slab on x/z, matching how slabPlacements positions it', () => {
+    for (const id of IMPORTED_CASTLE_ASSET_IDS) {
+      const document = readGltf(id);
+      const positions = document.accessors.filter(
+        (accessor) => accessor.type === 'VEC3' && accessor.min && accessor.max,
+      );
+      for (const axis of [0, 2]) {
+        const min = Math.min(...positions.map((a) => a.min![axis]));
+        const max = Math.max(...positions.map((a) => a.max![axis]));
+        expect(min + max, `"${id}" is not centred on axis ${axis}`).toBeCloseTo(0, 3);
+      }
+    }
+  });
+
+  /**
+   * The offsets in `storykeeperCastleScene.ts` are derived from these two
+   * numbers. If a future re-import changes the slab's thickness, this is
+   * what says so, rather than the floor silently drifting off y=0.
+   */
+  it('spans the slab thickness the scene offsets assume', () => {
+    for (const id of IMPORTED_CASTLE_ASSET_IDS) {
+      const document = readGltf(id);
+      const ys = document.accessors
+        .filter((accessor) => accessor.type === 'VEC3' && accessor.min && accessor.max)
+        .flatMap((accessor) => [accessor.min![1], accessor.max![1]]);
+      expect(Math.min(...ys), `"${id}" bottom face moved`).toBeCloseTo(-0.1, 3);
+      expect(Math.max(...ys), `"${id}" top face moved`).toBeCloseTo(0.05, 3);
+    }
+  });
+
+  it('stays single-mesh, so it can still be instanced', () => {
+    for (const id of IMPORTED_CASTLE_ASSET_IDS) {
+      expect(readGltf(id).meshes.length, `"${id}" is no longer single-mesh`).toBe(1);
+      expect(INSTANCING_SAFE_IDS).toContain(id);
+    }
+  });
+
+  /**
+   * A self-contained file. An imported asset referencing its texture by URI
+   * would need a second file placed beside it in `public/models/`, and would
+   * 404 in the browser the moment someone moved one and not the other.
+   */
+  it('embeds its texture in the file rather than referencing an external one', () => {
+    for (const id of IMPORTED_CASTLE_ASSET_IDS) {
+      const document = readGltf(id) as GltfDocument & {
+        images?: { uri?: string; bufferView?: number }[];
+      };
+      expect(document.images?.length, `"${id}" has no embedded image`).toBe(1);
+      expect(document.images![0].bufferView, `"${id}" image is not a bufferView`).toBeDefined();
+      expect(
+        document.images![0].uri,
+        `"${id}" references an external texture file`,
+      ).toBeUndefined();
+    }
+  });
+
+  /**
+   * `GLTFLoader` silently returns an incomplete scene for an unsupported
+   * required extension, so an import that needs one (Draco, KTX2, a
+   * material extension) must be caught here rather than in a dark room.
+   */
+  it('requires no glTF extension the loader is not configured for', () => {
+    for (const id of IMPORTED_CASTLE_ASSET_IDS) {
+      const document = readGltf(id) as GltfDocument & { extensionsRequired?: string[] };
+      expect(document.extensionsRequired ?? [], `"${id}" requires an extension`).toEqual([]);
     }
   });
 });

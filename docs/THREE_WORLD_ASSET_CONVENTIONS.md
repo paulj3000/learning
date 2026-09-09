@@ -170,21 +170,72 @@ future multi-part kit piece that needs many repeated placements would need
 either an instancing helper that batches per sub-mesh, or to stay on the
 individual-placement path.
 
-## Texture-free, by design
+## Texture-free, by design (generated assets)
 
-No asset in this pack has a texture, a UV-mapped `TEXCOORD_0` accessor, or
+No **generated** asset has a texture, a UV-mapped `TEXCOORD_0` accessor, or
 an image reference - every material is a flat `baseColorFactor` (optionally
-with `emissiveFactor`). This is not a temporary shortcut: it sidesteps
-`Image`/canvas loading entirely, which is what keeps every asset in this
-pack loadable and testable in Vitest's jsdom environment (no
-`HTMLImageElement`, no `ImageBitmap`) as well as in a real browser. A future
-textured asset would need its own test strategy for the texture-loading
-path; nothing here provides one.
+with `emissiveFactor`). This is not a temporary shortcut: the generator has
+no material story, so a generated document referencing a texture means
+something went wrong rather than that someone got ambitious.
+`castleKit.test.ts` and `wonderwildKit.test.ts` enforce it per pack.
+
+It used to be load-bearing for a second reason - it sidestepped
+`Image`/canvas loading entirely, which is what kept every asset testable in
+Vitest's jsdom environment (no `HTMLImageElement`, no `ImageBitmap`) - and
+this document used to say a future textured asset "would need its own test
+strategy for the texture-loading path; nothing here provides one."
+
+**That path now exists.** See "Imported assets" below.
+
+## Imported assets
+
+Not every asset is generated any more. `docs/ASSET_LICENCES.md` is the
+ledger of every third-party file checked in, its source and its licence;
+ADR-020 is the decision that governs when one may be.
+
+An import follows the same conventions as a generated asset wherever they
+apply - 1 unit = 1 metre, +Y up, collision still authored as `RectZone` data
+rather than derived from the mesh - and differs in three ways that are
+recorded per asset rather than assumed:
+
+- **It may be binary `.glb`.** `assetLoader.ts` resolves by manifest id, so
+  the container is invisible to callers; the fetch polyfill in
+  `src/test/setup.ts` serves both, reading a `.glb` as bytes and never
+  decoding it as utf-8.
+- **It may carry a texture**, embedded as a `bufferView` image. Prefer a
+  self-contained file: an external texture URI needs a second file placed
+  beside it and 404s the moment one moves and the other does not.
+- **It may not be ground-pivoted.** Most kits centre-pivot. Rather than
+  re-authoring the file, the placing code carries a named offset - see
+  `FLOOR_SLAB_TOP_OFFSET` in `storykeeperCastleScene.ts` - and a test pins
+  the dimension that offset was derived from, so a re-import that changes
+  the mesh fails loudly instead of drifting.
+
+The import contract is `describe('imported castle kit')` in
+`castleKit.test.ts`: grid fit, pivot, single-mesh where instanced, embedded
+texture, and no required glTF extension (`GLTFLoader` returns an incomplete
+scene for an unsupported required extension rather than throwing).
+
+### The texture test path
+
+A GLB's texture is a `bufferView` PNG. `GLTFLoader` turns it into a `Blob`,
+takes an object URL, and hands that to `ImageLoader`, which sets `img.src`
+and waits for a `load` event. jsdom has no image decoder, so that event
+never fires and `GLTFLoader.load()` **hangs rather than failing** - a
+20-second test timeout with no error, which is a genuinely confusing way to
+discover the problem.
+
+`stubImageDecoding()` in `src/test/setup.ts` resolves the image half so the
+rest of the round trip stays under test. What it proves: the file is
+fetched, its container parsed, its `bufferView` image found, and its
+material and texture wired onto the mesh. What it does not prove: that the
+PNG bytes decode to a valid image. jsdom cannot rasterise one at any level
+of effort, so that check belongs to a browser (Playwright) run.
 
 ## File layout and format
 
-Every asset is a single, self-contained `.gltf` **JSON** file (not binary
-`.glb`) with its buffer embedded as a base64 data URI, under
+Every *generated* asset is a single, self-contained `.gltf` **JSON** file
+(not binary `.glb`) with its buffer embedded as a base64 data URI, under
 `public/models/*.gltf` - no separate `.bin`, no `assetsInclude` change
 needed in `vite.config.ts` (Vite serves `public/` as static files as-is).
 This trades a slightly larger JSON file (base64 is ~33% bigger than raw

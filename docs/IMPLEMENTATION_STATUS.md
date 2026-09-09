@@ -8342,6 +8342,92 @@ found and removed.
 - **No E2E coverage.** The region has unit tests but no Playwright journey.
 
 
+## Storykeeper Castle — first imported art (floors and ceiling)
+
+The first third-party assets on the island, and the first proof that
+ADR-020's central claim holds: **the art can be replaced without touching
+game logic.** Two of the Great Library's four structural pieces now come
+from a kit instead of the generator.
+
+### What shipped
+
+- **Two imported assets**, from KayKit Dungeon Remastered 1.0 (CC0):
+  `kaykit-floor-tile-large.glb` and `kaykit-floor-wood-large-dark.glb` in
+  `public/models/`, registered under the existing manifest ids
+  `ground-tile-stone` and `ceiling-tile`. A stone floor and a dark wood
+  ceiling, so the two surfaces still read as different materials the way the
+  generated pair's colours did.
+- **`docs/ASSET_LICENCES.md`**, the licence ledger ADR-020 says is owed the
+  moment a third-party file lands, plus the checklist for adding another.
+- **The texture test path**, ADR-020's named prerequisite, built because the
+  asset needing it arrived. `stubImageDecoding()` in `src/test/setup.ts`.
+- **`.glb` support** in the test fetch polyfill (binary, never decoded as
+  utf-8) and in `castleKit.test.ts`'s `readGltf` (JSON chunk extraction).
+- **An import contract**, `describe('imported castle kit')` in
+  `castleKit.test.ts`: grid fit, x/z centring, slab thickness, single-mesh,
+  embedded rather than external texture, no required glTF extension.
+
+### Why these two went first
+
+They need **no normalisation at all**. Measured before download: both are
+4x4m slabs centred on x/z, which is already `SLAB_SIZE_METERS`; both are
+single-mesh with one material, so both still go through
+`createInstancedMeshFromAsset`; both have a single root node with an identity
+transform. The entire code change is two manifest urls and two y offsets
+(`FLOOR_SLAB_TOP_OFFSET`, `CEILING_SLAB_BOTTOM_OFFSET`) for slab thickness,
+since these are solid slabs spanning y `[-0.1, +0.05]` where the generated
+pieces were flat planes at y=0.
+
+Being solid is also why the ceiling needs no flip: its underside is a real
+face, where the generated `ceiling-tile` was an upward-facing plane relying
+on `doubleSided`.
+
+### The thing worth knowing about the texture path
+
+Without the stubs, a textured `.glb` does not fail in jsdom - **it hangs.**
+`GLTFLoader` turns the `bufferView` PNG into a Blob, takes an object URL,
+hands it to `ImageLoader`, and waits for a `load` event jsdom never fires.
+The symptom is a 20-second test timeout with no error, which is a confusing
+way to meet the problem. This was confirmed empirically before the stubs
+were written, not predicted.
+
+What the stubs prove: the file is fetched, its container parsed, its image
+found, and its material and texture wired onto the mesh. What they do not
+prove: that the PNG bytes decode. jsdom cannot rasterise an image at any
+level of effort, so that belongs to a browser run.
+
+### Limitations
+
+- **Not visually verified.** Tests, typecheck, lint and build pass, and the
+  GLBs are confirmed to ship into `dist/models/`, but nobody has looked at
+  the room. The floor is a different material with a different texel density
+  beside 58 generated primitives, and whether that reads better or worse is
+  exactly the mixed-fidelity question ADR-020 raises. This is the next step,
+  and it is a judgement no test makes.
+- **Walls and archways deliberately not swapped.** KayKit's dungeon module is
+  a 4m grid with 4m-tall walls; ours is a 4m floor grid with 2m-wide,
+  3m-tall wall panels. Floors matched exactly, walls do not. Closing that gap
+  means either non-uniform scaling (which stretches the stonework) or raising
+  `WALL_HEIGHT` from 3 to 4, which flows into every `toBox3` collider ceiling
+  and every room's proportions against `EYE_HEIGHT`. That is a decision to
+  make deliberately, not a normalisation to perform. `wall_arched` is
+  likewise an arch *cut into a wall panel*, not the free-standing 3-part
+  frame `archwayRotationY` and the seven `ARCHWAYS` gaps assume.
+- **ADR-020 is still Proposed**, and this change runs ahead of its
+  recommended order (option C, a material story in the generator, then B for
+  the importable 16). It was done as the cheap end of B first because these
+  two assets happened to need no normalisation - a measurement, not a
+  reversal of the ADR. The ADR should be revisited with a room to look at.
+- **The generated `ground-tile-stone.gltf` and `ceiling-tile.gltf` remain**
+  on disk and are still produced by the generator, so reverting is two urls
+  and two offsets.
+- **One full-suite flake observed once** in `StoryChapterRunner.test.tsx`
+  (`onChapterComplete` called 0 times instead of 1) on the first full run
+  after this change; not reproduced in eight subsequent runs, and the file
+  passes in isolation both with and without the change. Unattributed rather
+  than dismissed.
+
+
 ## Known risks / TODOs
 
 - **Phase 20: `SkillEvidence`'s write path (`recordSkillEvidence`) was not

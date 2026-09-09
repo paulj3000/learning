@@ -86,6 +86,18 @@ import type { WorldEngineEventBus } from './worldEngineEvents';
 
 /** `ground-tile-stone` and `ceiling-tile` are both authored as 4x4 slabs, so both scale from the same number. */
 const SLAB_SIZE_METERS = 4;
+/**
+ * Both slabs are imported KayKit pieces (`assets/manifest.ts`), and unlike
+ * the generated planes they replaced they have thickness: the mesh spans y
+ * `[-0.1, +0.05]` around its origin. These two offsets put the surface a
+ * child actually meets where the rest of the region already assumes it is -
+ * the floor's top face at y=0 (matching `firstPersonController.ts`'s ground
+ * plane and every `toBox3` collider), and the ceiling's underside at
+ * `WALL_HEIGHT`. Without them the floor sits 5cm proud and the ceiling
+ * hangs 10cm low.
+ */
+const FLOOR_SLAB_TOP_OFFSET = -0.05;
+const CEILING_SLAB_BOTTOM_OFFSET = 0.1;
 /** `wall-stone` is `buildPlanePrimitive(2, 3)`: 2m across, and exactly `WALL_HEIGHT` tall. */
 const WALL_PANEL_WIDTH_METERS = 2;
 /** Kept off the floor plane by a hair so the two coplanar surfaces cannot z-fight. */
@@ -1124,8 +1136,11 @@ export function createStorykeeperCastleEngine(
     const wallPlacements = WALL_SEGMENTS.flatMap(wallPanelPlacements);
 
     const [floors, ceilings, walls] = await Promise.all([
-      createInstancedMeshFromAsset('ground-tile-stone', slabPlacements(0)),
-      createInstancedMeshFromAsset('ceiling-tile', slabPlacements(WALL_HEIGHT)),
+      createInstancedMeshFromAsset('ground-tile-stone', slabPlacements(FLOOR_SLAB_TOP_OFFSET)),
+      createInstancedMeshFromAsset(
+        'ceiling-tile',
+        slabPlacements(WALL_HEIGHT + CEILING_SLAB_BOTTOM_OFFSET),
+      ),
       createInstancedMeshFromAsset('wall-stone', wallPlacements),
     ]);
     scene.add(floors, ceilings, walls);

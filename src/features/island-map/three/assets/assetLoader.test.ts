@@ -1,4 +1,4 @@
-import { InstancedMesh, LOD } from 'three';
+import { InstancedMesh, LOD, type Mesh, type MeshStandardMaterial } from 'three';
 import { describe, expect, it } from 'vitest';
 import {
   createInstancedMeshFromAsset,
@@ -65,6 +65,23 @@ describe('loadAsset', () => {
   it('loads the hexagonal comb cell, hole and all, through the real fetch path', async () => {
     const gltf = await loadAsset('comb-cell');
     expect(gltf.scene.getObjectByName('Cell')).toBeDefined();
+  });
+
+  /**
+   * The first **imported**, binary, textured asset (KayKit Dungeon
+   * Remastered, CC0 - `docs/ASSET_LICENCES.md`), which exercises three
+   * things no generated `.gltf` did: the `.glb` container, a `bufferView`
+   * PNG texture, and therefore the image-decoding stubs in
+   * `src/test/setup.ts`. Without those stubs this call does not fail, it
+   * hangs - `GLTFLoader` waits forever on a `load` event jsdom never fires -
+   * which is the failure mode worth having a named test for.
+   */
+  it('loads an imported textured .glb, texture wired onto the mesh', async () => {
+    const gltf = await loadAsset('ground-tile-stone');
+    const mesh = gltf.scene.getObjectByName('floor_tile_large') as Mesh | undefined;
+    expect(mesh).toBeDefined();
+    const material = mesh!.material as MeshStandardMaterial;
+    expect(material.map, 'the atlas texture did not reach the material').not.toBeNull();
   });
 });
 
