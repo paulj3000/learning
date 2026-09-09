@@ -293,6 +293,97 @@ export const CLOCKWORK_HARBOR_CHECKPOINTS: readonly RegionCheckpoint[] = [
   },
 ];
 
+export const DRAGONS_SANCTUARY_REGION_ID = 'dragons-sanctuary';
+
+/**
+ * The Dragon's Sanctuary's checkpoints (`docs/regions/dragons-sanctuary-
+ * roadmap.md` Phase 1, "Minimum Explorable Sanctuary").
+ *
+ * `gate` is first, and deliberately: `resolveSpawnCheckpoint` falls back to
+ * a region's first authored checkpoint, and a child who has never been here
+ * arrives through the gate. Walking in past the ruined arch and seeing the
+ * valley open up is the region's whole first impression; spawning anywhere
+ * else would spend it.
+ *
+ * `forge-hearth` sits inside the forge rather than on its doorstep, for the
+ * reason `clockwork-harbor:lighthouse-lamp` does: a child who left partway
+ * through Rekindle the Forge comes back to the hearth they were working on,
+ * not to the door.
+ *
+ * No checkpoint is authored at the crystal cavern or the hatchery. Both are
+ * sealed in this phase, and a checkpoint is a place a child has stood - one
+ * authored at a gate they cannot open would be a spawn point they can never
+ * legitimately save at.
+ *
+ * Yaw follows `firstPersonController.ts`'s convention (`forwardX =
+ * sin(yaw)`, `forwardZ = cos(yaw)`): 0 faces +Z, PI/2 faces +X. The valley
+ * runs south to north, so most of these face -Z (`Math.PI`), inward.
+ */
+export const DRAGONS_SANCTUARY_CHECKPOINTS: readonly RegionCheckpoint[] = [
+  {
+    id: 'dragons-sanctuary:gate',
+    regionId: DRAGONS_SANCTUARY_REGION_ID,
+    label: 'the sanctuary gate',
+    x: 0,
+    z: 21,
+    yaw: Math.PI,
+  },
+  {
+    id: 'dragons-sanctuary:valley',
+    regionId: DRAGONS_SANCTUARY_REGION_ID,
+    label: 'the central valley',
+    x: 0,
+    z: 6,
+    yaw: Math.PI,
+  },
+  {
+    id: 'dragons-sanctuary:roost',
+    regionId: DRAGONS_SANCTUARY_REGION_ID,
+    label: "Ember's roost",
+    x: 0,
+    z: -12,
+    yaw: Math.PI,
+  },
+  {
+    id: 'dragons-sanctuary:lodge-door',
+    regionId: DRAGONS_SANCTUARY_REGION_ID,
+    label: 'the Keeper Lodge door',
+    /*
+      On the doorstep, not inside. The lodge's open side is its east wall
+      (`dragonsSanctuaryRegion.ts`'s `KEEPER_LODGE.wallSides` omits `east`,
+      at x = -14), so this stands just clear of it facing back through the
+      doorway.
+    */
+    x: -13,
+    z: 3,
+    yaw: -Math.PI / 2,
+  },
+  {
+    id: 'dragons-sanctuary:forge-door',
+    regionId: DRAGONS_SANCTUARY_REGION_ID,
+    label: 'the forge door',
+    x: 13,
+    z: 3,
+    yaw: Math.PI / 2,
+  },
+  {
+    id: 'dragons-sanctuary:forge-hearth',
+    regionId: DRAGONS_SANCTUARY_REGION_ID,
+    label: 'the forge hearth',
+    x: 18,
+    z: 3,
+    yaw: Math.PI / 2,
+  },
+  {
+    id: 'dragons-sanctuary:sky-cliff-view',
+    regionId: DRAGONS_SANCTUARY_REGION_ID,
+    label: 'the sky cliff lookout',
+    x: 0,
+    z: -24,
+    yaw: Math.PI,
+  },
+];
+
 export const ALL_CHECKPOINTS: readonly RegionCheckpoint[] = [
   ...WELCOME_HARBOR_CHECKPOINTS,
   ...PIRATE_BUILDER_BAY_CHECKPOINTS,
@@ -300,6 +391,7 @@ export const ALL_CHECKPOINTS: readonly RegionCheckpoint[] = [
   ...WONDERWILD_FOREST_CHECKPOINTS,
   ...WONDERWILD_HIVE_CHECKPOINTS,
   ...CLOCKWORK_HARBOR_CHECKPOINTS,
+  ...DRAGONS_SANCTUARY_CHECKPOINTS,
 ];
 
 export const KNOWN_CHECKPOINT_IDS: readonly string[] = ALL_CHECKPOINTS.map(

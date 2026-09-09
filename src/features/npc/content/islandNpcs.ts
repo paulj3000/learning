@@ -186,10 +186,41 @@ export const ISLAND_NPCS: NpcDefinition[] = [
       },
     ],
   },
+  /*
+    Ember (`docs/regions/dragons-sanctuary-roadmap.md` Phase 2, "Ember and the
+    Sanctuary Introduction").
+
+    She was authored for the one-screen arrival scene at the end of "The
+    Dragon of Ember Mountain", with a single line thanking the child. The
+    sanctuary is now an explorable region and she is its first dragon, so she
+    gains the forge story - but she is deliberately *extended* rather than
+    replaced, and a second `ember` definition written for the 3D region was
+    deleted in favour of this one.
+
+    That matters more than tidiness. The reconciliation document's section 6.3
+    named a story collision: this location unlocks on
+    `DRAGON_OF_EMBER_MOUNTAIN_COMPLETE`, at the end of a story about making a
+    frightened dragon feel safe, while the roadmap's Phase 2 opens on a ruined
+    sanctuary its dragons have abandoned. Her existing opening line - "You are
+    the one who helped me. I remember." - already resolves it: she is not a
+    stranger asking a favour, she is someone the child has already helped,
+    showing them what she cannot fix alone. Two Embers would have thrown that
+    away and given the child a dragon who had forgotten them.
+
+    Phase 4 names five more dragons (Zephyr, Terra, Tide, Luna, the Elder).
+    They are absent rather than stubbed: a dragon a child can walk up to and
+    get nothing from is a worse promise than a roost that is visibly empty.
+
+    Every line here is authored. `narration` hints mark what Chatty may
+    re-voice, bounded by `allowedTopic` and anchored to `fallbackText`;
+    nothing in this file lets a model decide what happens (ADR-002/003,
+    CLAUDE.md section 7). Phase 5's contextual AI dialogue and Polly voice are
+    not built, and Polly is still a pending provider decision.
+  */
   {
     id: 'ember-dragon',
     displayName: 'Ember',
-    role: "Young dragon at the Dragon's Sanctuary. Appears only after the Ember Mountain story.",
+    role: "Young dragon at the Dragon's Sanctuary. Appears only after the Ember Mountain story, and asks the child to help relight the forge.",
     homeLocationSlug: 'dragons-sanctuary',
     interactionId: 'meet-ember-dragon',
     schedule: [
@@ -199,14 +230,93 @@ export const ISLAND_NPCS: NpcDefinition[] = [
     ],
     dialogue: [
       {
+        /*
+          The forge is lit. Ordered first so it wins selection over every other
+          opening line: a child who fixed this place must never be greeted by a
+          dragon who has not noticed.
+        */
+        id: 'ember-forge-thanks',
+        conditions: [{ type: 'MEMORY_FLAG', flag: 'forgeLit', equals: true }],
+        text: 'Look at it! Warm all the way to the back wall. I had almost stopped believing it would light again. Thank you.',
+        choices: [{ id: 'ember-thanks-bye', label: 'It looks wonderful.' }],
+        awardsRelationshipPoints: 3,
+        narration: {
+          allowedTopic: 'a dragon delighted that the sanctuary forge is burning again',
+          fallbackText:
+            'Look at it! Warm all the way to the back wall. I had almost stopped believing it would light again. Thank you.',
+        },
+      },
+      {
+        id: 'ember-runes-all-found',
+        conditions: [{ type: 'MEMORY_FLAG', flag: 'allRunesFound', equals: true }],
+        text: 'All three! You found all three. Take them to the hearth and set them in the sockets. I would do it myself, but my claws are far too big for the little slots.',
+        choices: [{ id: 'ember-runes-bye', label: 'I will go and set them.' }],
+        awardsRelationshipPoints: 2,
+        narration: {
+          allowedTopic: 'a dragon urging the child to set three found runes into the forge hearth',
+          fallbackText:
+            'All three! You found all three. Take them to the hearth and set them in the sockets. I would do it myself, but my claws are far too big for the little slots.',
+        },
+      },
+      {
+        id: 'ember-runes-hint',
+        conditions: [{ type: 'MEMORY_FLAG', flag: 'heardAboutForge', equals: true }],
+        text: 'Three fire runes, and they are not lost so much as scattered. One rolled behind the Keeper Lodge. One is down among the boulders. And one is out on the cold ledge where you can see the sky cliffs.',
+        choices: [{ id: 'ember-hint-bye', label: 'I will look for them.' }],
+        narration: {
+          allowedTopic: 'a dragon describing where three fire runes came to rest around the valley',
+          fallbackText:
+            'Three fire runes, and they are not lost so much as scattered. One rolled behind the Keeper Lodge. One is down among the boulders. And one is out on the cold ledge where you can see the sky cliffs.',
+        },
+      },
+      {
+        /*
+          Her original line, kept word for word. It is the child's welcome and
+          the proof she remembers them, and it stays the greeting for a child
+          who has not yet asked what happened here.
+        */
         id: 'ember-greeting',
         conditions: [{ type: 'ALWAYS' }],
         text: 'You are the one who helped me. I remember. This sanctuary is yours to visit anytime.',
-        choices: [{ id: 'ember-greeting-bye', label: 'Thank you, Ember!' }],
+        choices: [
+          {
+            id: 'ember-greeting-ask',
+            label: 'Why is it so empty?',
+            nextNodeId: 'ember-forge-story',
+          },
+          { id: 'ember-greeting-bye', label: 'Thank you, Ember!' },
+        ],
         setsMemoryFlags: ['metEmber'],
         awardsRelationshipPoints: 2,
       },
+      {
+        /*
+          The follow-up to "Why is it so empty?". `followUpOnly` keeps it out
+          of opening-line selection, and it is the un-gated route to
+          `heardAboutForge`, so a child who has not built a relationship yet
+          can still start the quest.
+        */
+        id: 'ember-forge-story',
+        followUpOnly: true,
+        conditions: [{ type: 'ALWAYS' }],
+        text: 'The forge went out. That is what happened. Everything here ran on its warmth, and when it stopped, the hatchery went cold and the others left one by one. I cannot light it. It needs its three fire runes, and I cannot find them.',
+        choices: [{ id: 'ember-story-bye', label: 'I could look for them.' }],
+        setsMemoryFlags: ['heardAboutForge'],
+        narration: {
+          allowedTopic:
+            'a dragon explaining that the sanctuary forge went out and needs three missing runes',
+          fallbackText:
+            'The forge went out. That is what happened. Everything here ran on its warmth, and when it stopped, the hatchery went cold and the others left one by one. I cannot light it. It needs its three fire runes, and I cannot find them.',
+        },
+      },
     ],
+    /*
+      No quest offer yet. `rekindle-the-forge` is not authored in
+      `quests/content/`, and pointing an offer at a quest id that does not
+      exist would open a conversation whose accept button leads nowhere. The
+      quest is the next increment; the dialogue above already carries the
+      story it will hang on.
+    */
     questOffers: [],
   },
 ];

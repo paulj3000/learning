@@ -8181,6 +8181,167 @@ green at 1973.
 - **No E2E coverage**, and the 3D verification was done against a harness that
   bypasses auth, not the real route.
 
+## The Dragon's Sanctuary — 3D region foundation and the first walkable slice
+
+Source roadmap: `docs/regions/dragons-sanctuary-roadmap.md`, read through
+`docs/regions/dragons-sanctuary-reconciliation.md`. This is its Phase 1
+("Minimum Explorable Sanctuary") plus the exploration half of Phase 2
+("Rekindle the Forge"): a child can enter the sanctuary, cross the valley,
+meet Ember, hear why the forge went out, find all three fire runes, walk up to
+both sealed gates, and collect dragon scales. What is not here is the graded
+challenge at the hearth; see the limitations below.
+
+### The decision this entry is built on
+
+**ADR-021: Phaser 2D views are phased out; new regions are authored in
+Three.js only.** ADR-008 had left the two renderers coexisting until a
+Three.js slice reached parity. Six regions later, that condition is met, and
+the direction is now explicit. The sanctuary is the first region built under
+it and authors no tilemap.
+
+The reconciliation document's section 2 originally recommended the Storykeeper
+Castle pattern (a 2D view and a 3D view side by side, on separate routes).
+That recommendation is withdrawn in the same document, and
+`DragonsSanctuaryWorldPage` now renders the first-person view directly — no
+`3D`-suffixed sibling route, because there is no second view to disambiguate
+from.
+
+### What shipped
+
+**Region geometry** — `src/features/island-map/three/dragonsSanctuaryRegion.ts`.
+Pure numbers, no `three` import, the same split `clockworkHarborRegion.ts`
+uses. Phase 1's eight areas as disjoint trigger volumes (gate, central valley,
+Ember's roost, Keeper Lodge, forge, crystal cavern gate, hatchery, sky cliff
+lookout), boundary walls, two enterable buildings with a real gap for a
+doorway, roost stones, valley boulders, two sealed gates, three fire runes,
+three hearth sockets, and three dragon scales.
+
+One deliberate departure from `clockworkHarborScene.ts`: building wall
+colliders are **derived in the region module** (`buildingWallColliders`) rather
+than recomputed in the scene. Clockwork Harbor computes its lighthouse wall
+boxes inside the scene file, so the walls a child bumps into are covered by no
+unit test. Deriving them means the "no checkpoint is inside a collider" and
+"the doorway is really open" invariants test the same geometry the controller
+uses.
+
+**Checkpoints** — seven in `src/features/discovery/checkpoints.ts`, per ADR-008
+(the World Engine depends downward on World State, never the reverse).
+`gate` is first so a first-time visitor arrives through the arch;
+`forge-hearth` sits inside the forge, following `clockwork-harbor:
+lighthouse-lamp`, so a child who left mid-quest returns to the work rather than
+to the door. None is authored at a sealed gate — a checkpoint is a place a
+child has stood.
+
+**Region state** — `src/features/dragons-sanctuary/`. Phase 0.3 proposes six
+new persistence models; none is created. The sanctuary's state is a
+**projection** of existing `WorldChange` rows, the same answer Clockwork
+Harbor reached one milestone earlier and the one ADR-005 implies:
+`deriveDragonsSanctuaryState` takes change keys and returns forge status,
+runes found, scales found, unlocks, and Phase 9's restoration stage.
+`deriveRestorationStage` deliberately returns nothing above
+`HATCHERY_RESTORED`, because Phase 4 has not authored the quests that would
+earn the top two rungs and reporting a stage the sanctuary cannot render would
+be worse than stopping honestly.
+
+**The scene** — `dragonsSanctuaryScene.ts`. First-person, on the existing kit
+(`sceneKit`, `firstPersonController`, `pointerControls`, `sandboxTriggers`,
+`worldEngineEvents`). It renders state and never decides it: `forgeLit` and
+`foundRuneIds` arrive as options. A found rune is drawn in its socket and not
+in the valley, so a returning child sees their own progress in the room rather
+than in a counter.
+
+**Ember** — extended in place in `npc/content/islandNpcs.ts`, not re-authored.
+A separate `dragonsSanctuaryNpcs.ts` was written and then deleted: `ember-
+dragon` has existed since the Ember Mountain story ended here, and her opening
+line ("You are the one who helped me. I remember.") already resolves the story
+collision the reconciliation document's section 6.3 flagged. She is not a
+stranger asking a favour; she is someone the child has already helped, showing
+them what she cannot fix alone. Two Embers would have given the child a dragon
+who had forgotten them.
+
+**The view** — `three/DragonsSanctuaryWorldView.tsx`, parallel to
+`ClockworkHarborWorldView.tsx`. Its "Things to do here" list is not a
+convenience: ADR-021 removes one of the two non-first-person routes ADR-008
+was relying on while the Sprouts playtest is unrun, so the card-based hub and
+these buttons are now the only one. Four tests assert it.
+
+### Three faults the tests caught before anyone looked at the region
+
+Worth recording, because all three were invisible to a reading of the numbers:
+
+1. **Two checkpoints sat in a 1-meter gap between zones**, so the HUD could
+   not name where the child had spawned.
+2. **The ember rune was 10 meters from the sky rune**, which collapsed two of
+   the child's three searches into one walk.
+3. **Both sealed gates were narrower than the areas they sealed** (8 meters
+   across a 12-meter zone, on a plot 26 wide), so a child could have strolled
+   round the side of a door the region had just told them was shut. That is
+   worse than having no door: it teaches a child that the sanctuary's promises
+   are decorative. Gates now span from the valley side to the plot wall.
+
+### Tests
+
+- `three/dragonsSanctuaryRegion.test.ts` — 49 tests: region identity and spawn
+  resolution, standable checkpoints, enterable buildings and open doorways,
+  disjoint labelled areas, sealed gates that are solid and approachable and
+  never phrased as a refusal, Ember's placement, rune and socket placement,
+  collectibles, and a crossable valley.
+- `dragons-sanctuary/state.test.ts` — 14 tests, including that the state
+  vocabulary names exactly the props the region places, that every change key
+  is region-prefixed, and that the restoration ladder never moves backward.
+- `three/DragonsSanctuaryWorldView.test.tsx` — 16 tests, including the
+  non-first-person route assertions.
+- Full suite: **202 files, 2065 tests, all passing.** Typecheck clean. Lint
+  reports no errors; the one warning on the new view (`prefer-tag-over-role`)
+  is the same one every other world view carries.
+
+`packs.test.ts`'s "leaves no authored content unclaimed by any world"
+invariant caught the duplicate Ember, which is how the second definition was
+found and removed.
+
+### Known limitations (Dragon's Sanctuary, this slice)
+
+- **The hearth challenge is not authored.** No `AdventureDefinition` variants
+  exist for the sanctuary, so interacting with the hearth shows an authored
+  line pointing the child at Ember rather than starting the puzzle.
+  `DRAGONS_SANCTUARY_FORGE_LIT` is never recorded by gameplay, and Phase 2 is
+  therefore not reachable end to end. Same interim state Clockwork Harbor's
+  lighthouse shipped in; this is the next increment.
+- **No quest.** `rekindle-the-forge` is not in `quests/content/`, so Ember's
+  `questOffers` is empty and the HUD quest cue never names it. Her dialogue
+  already carries the story it will hang on.
+- **Rune progress is recorded but not yet gated on.** Finding all three sets
+  `hasAllFireRunes`, and nothing consumes it, because the thing it would gate
+  is the unauthored challenge. Ember's `allRunesFound` dialogue node is
+  likewise authored but unreachable until something sets that memory flag.
+- **The 2D artefacts are superseded but not deleted.**
+  `island-map/dragonsSanctuaryTilemap.ts`, `dragonsSanctuaryZones.ts`,
+  `dragonsSanctuaryDecor.ts`, and the 2D `DragonsSanctuaryWorldView.tsx` are
+  no longer referenced by any route. ADR-021 sequences removal after the 3D
+  region is verified in the running app, which has not happened yet, so they
+  stay for now. Nothing new should be authored into them.
+- **Everything distinctive is a primitive placeholder.** The roadmap's asset
+  list (sanctuary gate, forge, roosts, lodge, cliffs, crystals, rune stones,
+  and a rigged Ember with thirteen animation clips) does not exist in
+  `assets/manifest.ts`. Ember is a cone, two spheres and two boxes, with
+  `npc-pip` standing beside her for a readable silhouette. None of it carries
+  game state — the ids come from the region module — so swapping in real art
+  changes no logic. ADR-020 is the open question, and this region raises its
+  stakes rather than resolving it.
+- **No AI, by design and by sequencing.** CLAUDE.md section 16 is explicit
+  that the core must be playable deterministically first. Phase 5's contextual
+  dragon dialogue is untouched, and Polly remains a pending provider decision
+  (see "Decisions pending" below).
+- **Two ADRs the roadmap needs are still unwritten**: that age band governs
+  presentation while skill level governs difficulty (the reconciliation
+  document's section 6.1 — this slice does not depend on it, but Phase 3
+  does), and dragon growth state for Phase 6's egg lifecycle.
+- **The Sprouts accessibility playtest is now more load-bearing, not less.**
+  ADR-021 leaves one non-first-person route rather than two. Runbook in
+  `docs/PILOT_READINESS.md` section 5.
+- **No E2E coverage.** The region has unit tests but no Playwright journey.
+
+
 ## Known risks / TODOs
 
 - **Phase 20: `SkillEvidence`'s write path (`recordSkillEvidence`) was not

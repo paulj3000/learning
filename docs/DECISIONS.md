@@ -1261,3 +1261,71 @@ None of these numbers exist yet, and the decision is better made with them:
    this ("avoid mixing highly realistic assets with cartoon assets").
 4. The sourcing question in the paragraph above, which is the one that
    actually determines whether the castle becomes showable.
+
+
+## ADR-021: Phaser 2D views are phased out; new regions are authored in Three.js only
+
+Status: Accepted (direction set 2026-09-09); retirement of each existing
+Phaser view is sequenced, not immediate
+
+ADR-008 adopted Three.js as the next-generation renderer but deliberately
+left the two renderers coexisting: "Phaser is not retroactively erased...
+the already-shipped Phaser world is the current production state and stays
+live until a Three.js vertical slice reaches feature parity." That was the
+right call while the Three.js path was one unproven region. It is no longer
+the state of the build: Welcome Harbor, Pirate Builder Bay, Storykeeper
+Castle, Wonderwild Forest, the Wonderwild hive, and Clockwork Harbor all
+have first-person regions, and the shared kit under
+`src/features/island-map/three/` (`sceneKit.ts`, `firstPersonController.ts`,
+`pointerControls.ts`, `sandboxTriggers.ts`, `npcApproachBridge.ts`,
+`worldEngineEvents.ts`, `assets/`) is where region work actually happens.
+
+**The decision.** Three.js is the renderer. New regions are authored
+first-person and 3D only, with no 2D counterpart. The Dragon's Sanctuary is
+the first region built under this rule and authors no tilemap. The existing
+Phaser views are phased out rather than maintained in parallel.
+
+**What "phased out" means, precisely.** Not a mass deletion in one change.
+Per view: the 3D region reaches parity, the route is switched to it, that
+is verified, and only then are the view's `*Tilemap.ts`, `*Zones.ts`,
+`*Decor.ts`, and `*WorldView.tsx` removed. Until a view's turn comes it
+keeps working; what stops immediately is *authoring new content into it*.
+A region that exists in both today is not a region to improve in both.
+
+**What does not change.** Everything ADR-008 kept: the layering rule, the
+constraint that a Three.js scene never validates an answer or awards
+progress, durable state keyed by semantic ids rather than object UUIDs, and
+`ChattyAvatar.tsx`'s Canvas 2D portraits, which are not a world renderer
+and are unaffected.
+
+**The risk this accepts, stated plainly.** ADR-008's open risk was
+accessibility and comfort for Sprouts (ages 3-4) under a first-person
+camera, and its Phase 32 status update named "the card-based hub and the
+Phaser view" as Sprouts' primary route while the playtest remained unrun.
+That playtest still has not run. Removing the Phaser view removes one of
+those two fallbacks.
+
+The requirement it was protecting survives in the other: the non-graphical
+alternate navigator - the card-based location hub - is a hard requirement,
+not an optional nicety, and it stays. A child must always be able to reach
+any location and any adventure without walking there. This ADR does not
+license removing that, and a Three.js region that is the *only* way to reach
+its content would violate it regardless of renderer.
+
+Two consequences follow, and both are obligations rather than notes:
+
+1. The Sprouts playtest becomes more load-bearing, not less, because there
+   is now one fallback rather than two. `docs/PILOT_READINESS.md` section 5
+   still holds the runbook.
+2. Each Phaser retirement must confirm the card-based route to that
+   location's content still works before the view is deleted.
+
+**Consequences.**
+- `docs/regions/dragons-sanctuary-reconciliation.md` section 2's earlier
+  recommendation to follow Storykeeper Castle's dual-view pattern is
+  withdrawn by this ADR.
+- The Dragon's Sanctuary's existing 2D artefacts are superseded on the day
+  the 3D region takes its route.
+- `scripts/generate-world-assets.ts` and the GLB pipeline become the only
+  art pipeline that matters, which sharpens ADR-020 rather than resolving
+  it: every region is now downstream of the untextured-primitive problem.
