@@ -25,6 +25,7 @@ import {
   CLOCKWORK_HARBOR_REGION_CHECKPOINTS,
   DISTRICT_ZONES,
   DOCK_CLUTTER,
+  DOCK_DECK,
   GOLDEN_GEAR_SPOTS,
   GROUND_HALF_EXTENT,
   HARBOR_GATE,
@@ -387,16 +388,48 @@ export function createClockworkHarborEngine(
 
   void loadWorldContent();
 
-  // Harbor water, at the mouth where the gulls loop.
+  /*
+    Harbor water, at the mouth where the gulls loop.
+
+    Sits just *above* the ground tiles (y = 0.02), not below them. The ground
+    kit tiles the whole plot with opaque geometry at y = 0, so water authored
+    underneath it renders as nothing at all - which left the harbor reading as
+    flat brown ground that a child then walked into an invisible wall on,
+    because `WATER_ZONES` are colliders. Found by looking at the region rather
+    than by a test: every geometry invariant still passed, since the numbers
+    were right and only the draw order was wrong.
+
+    Floating the sheet on top is the fix that cannot leave a hole. Punching the
+    ground tiles out under each zone would need the 4m tile grid to line up
+    with the water rects, and it does not.
+  */
   for (const water of WATER_ZONES) {
     const plane = new Mesh(
       new PlaneGeometry(water.maxX - water.minX, water.maxZ - water.minZ),
       new MeshStandardMaterial({ color: 0x2f6f9e, side: DoubleSide }),
     );
     plane.rotation.x = -Math.PI / 2;
-    plane.position.set((water.minX + water.maxX) / 2, -0.05, (water.minZ + water.maxZ) / 2);
+    plane.position.set((water.minX + water.maxX) / 2, 0.02, (water.minZ + water.maxZ) / 2);
     scene.add(plane);
   }
+
+  /*
+    The dock deck itself. `DOCK_DECK` was authored as a walkable rect and
+    tested as one (the "deck is clear of the water colliders" invariant), but
+    nothing ever drew it - so "the docks" was an empty patch of ground between
+    two now-visible stretches of water. Raised a little above the waterline so
+    it reads as a pier rather than a puddle.
+  */
+  const deck = new Mesh(
+    new BoxGeometry(DOCK_DECK.maxX - DOCK_DECK.minX, 0.18, DOCK_DECK.maxZ - DOCK_DECK.minZ),
+    new MeshStandardMaterial({ color: 0x8a6a45 }),
+  );
+  deck.position.set(
+    (DOCK_DECK.minX + DOCK_DECK.maxX) / 2,
+    0.09,
+    (DOCK_DECK.minZ + DOCK_DECK.maxZ) / 2,
+  );
+  scene.add(deck);
 
   const gullPath = new CatmullRomCurve3(
     AMBIENT_GULL_PATH.map((point) => new Vector3(point.x, point.y, point.z)),

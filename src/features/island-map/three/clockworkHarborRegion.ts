@@ -217,7 +217,15 @@ export const HARBOR_GATE = {
 export const DOCK_CLUTTER: readonly { x: number; z: number }[] = Array.from(
   { length: 12 },
   (_, index) => ({
-    x: index % 2 === 0 ? -4.2 : 4.2,
+    /*
+      Just inside the deck's edges (it spans x -3..3), not outside them. These
+      were at +/-4.2, which is inside `WATER_ZONES` - so once the water became
+      visible the crates were floating on it. The original test only asserted
+      they were clear of the deck, which they were; `isInsideRect` against the
+      water zones is the invariant that actually catches this, and is now
+      asserted too.
+    */
+    x: index % 2 === 0 ? -2.6 : 2.6,
     z: 5 + Math.floor(index / 2) * 1.6,
   }),
 );

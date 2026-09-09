@@ -165,9 +165,16 @@ describe('the dock and the water', () => {
     }
   });
 
-  it('places dock clutter off the deck itself', () => {
+  it('places dock clutter on the deck, not floating on the water', () => {
     for (const crate of DOCK_CLUTTER) {
-      expect(isInsideRect(crate.x, crate.z, DOCK_DECK), 'clutter blocks the deck').toBe(false);
+      const inWater = WATER_ZONES.some((water) => isInsideRect(crate.x, crate.z, water));
+      expect(inWater, `crate at ${crate.x},${crate.z} floats on the water`).toBe(false);
+      // And positively on the pier, rather than merely not in the sea - the
+      // whole point of the cluster is to dress the deck a child walks down.
+      expect(
+        isInsideRect(crate.x, crate.z, DOCK_DECK),
+        `crate at ${crate.x},${crate.z} is not on the deck`,
+      ).toBe(true);
     }
   });
 });
