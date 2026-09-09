@@ -8015,6 +8015,70 @@ now on the doorstep at x=-11, clear of the interior.
 - **No E2E coverage.** The region has unit tests but no Playwright journey;
   the existing `e2e/` suite does not cover it.
 
+## Parent dashboard — child switcher and flat region/section lists
+
+### What shipped
+
+The parent dashboard's page-filling list of child cards is gone. Choosing a
+child is now a header dropdown (`ChildSwitcher`), sitting beside the account
+menu it copies its behavior from: click or Escape outside closes it, the
+current child is `aria-checked` on a `menuitemradio`, and "Add child" is the
+last item until `MAX_CHILD_PROFILES` is reached. This is a display control on a
+parent-authenticated page, not child sign-in; per-child sign-in is still ahead.
+
+Below it the dashboard is two flat lists, both deliberately complete rather
+than nested:
+
+- **Island places.** Every authored region on every world, from
+  `listAllRegions` (`src/features/island/regionOverview.ts`), in authored
+  order. Unlike the child-facing map, secret places are *not* filtered out —
+  they show as "Not discovered yet" and are not links until the selected
+  child's `WorldChange` keys satisfy the `unlockRequirement`. A parent-only
+  view, so it spoils nothing for the child.
+- **Dashboard sections.** Every section of the parent dashboard, from
+  `listDashboardSections` (`src/features/parent-dashboard/dashboardSections.ts`).
+  The eleven sections that currently live inside `ChildDashboard` link to
+  their anchors; story keepsakes, profile details, and play-together link to
+  the pages they already have. The plan is to separate these into pages of
+  their own, which is why the list is data rather than hand-written links.
+
+`ChildDashboard` grew the matching `id`s (from the shared
+`CHILD_DASHBOARD_SECTION_IDS`, so the anchor and the markup cannot drift) plus
+`tabIndex={-1}` and an effect that scrolls and focuses the target once loading
+finishes — the browser's own fragment scroll finds nothing on arrival, because
+the sections do not exist until the data does.
+
+`ChildProfileList` was replaced by `ChildProfileSummary`: the same per-card
+actions (Enter island, Edit, and a `ParentGate`-protected
+deactivate/reactivate), shown once for the child in view.
+
+### Tests
+
+20 new tests across `ParentDashboard`, `ChildSwitcher`, `ChildProfileSummary`,
+`regionOverview`, and `dashboardSections`; the deleted `ChildProfileList`
+suite's two behavioral assertions were carried over rather than dropped. Full
+suite green at 1969, `tsc --noEmit` clean, `oxlint` clean.
+
+### Known limitations (parent dashboard lists)
+
+- **The two lists are a holding pattern, on purpose.** The user asked for all
+  regions and all sections as flat lists "for now", ahead of per-child login
+  and of splitting the dashboard sections into their own routes. Neither list
+  is grouped, filtered, or ranked, and neither shows per-region progress —
+  "Island places" reports only unlocked/not-discovered and which world a place
+  belongs to.
+- **The selected child is not remembered.** Switching children is component
+  state; a reload returns to the first profile. Deliberate until child sign-in
+  decides where that belongs.
+- **Anchor links land on a section, not a page.** Until the sections are split
+  out, following one loads the whole `ChildDashboard` and scrolls. A section
+  that renders conditionally (Exploring, suggestions, focus areas, mastery)
+  has nothing to scroll to when that child has no data for it, and the link
+  quietly lands at the top of the page instead.
+- **No E2E coverage** of the switcher or the lists; the change is unit-tested
+  only.
+
+
 ## Known risks / TODOs
 
 - **Phase 20: `SkillEvidence`'s write path (`recordSkillEvidence`) was not

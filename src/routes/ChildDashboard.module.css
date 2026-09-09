@@ -113,3 +113,9 @@
   margin: 0;
   font-weight: 600;
 }
+
+/* Sections are focus targets for the parent dashboard's anchor links. */
+.section:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 4px;
+}

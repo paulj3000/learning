@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import parentStyles from './ParentDashboard.module.css';
 import styles from './ChildDashboard.module.css';
 import { getChildProfile, setChildProfileAIEnabled } from '../features/child-profile/api';
@@ -29,6 +29,7 @@ import { getIslandLocation } from '../features/island/locations';
 import { getSkill, listSkillsByAgeBand } from '../features/curriculum/queries';
 import { AGE_BAND_LABELS, READING_MODE_OPTIONS } from '../features/child-profile/constants';
 import { buildWeeklySummary } from '../features/parent-dashboard/weeklySummary';
+import { CHILD_DASHBOARD_SECTION_IDS } from '../features/parent-dashboard/dashboardSections';
 import { clearAIHistory, listSafetyEvents } from '../features/parent-dashboard/api';
 import {
   summarizeSupportBySession,
@@ -146,6 +147,7 @@ function skillProgressMeta(row: SkillProgress): string {
 export function ChildDashboard() {
   const { childId } = useParams<{ childId: string }>();
   const navigate = useNavigate();
+  const { hash } = useLocation();
   const [suggestions, setSuggestions] = useState<SelectionRecord[]>([]);
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
@@ -164,6 +166,22 @@ export function ChildDashboard() {
   const [confirmingDeleteChild, setConfirmingDeleteChild] = useState(false);
   const [deletingChild, setDeletingChild] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  /**
+   * The parent dashboard links straight to a section of this page by anchor
+   * (`listDashboardSections`). The sections do not exist until the data has
+   * loaded, so the browser's own fragment scroll has nothing to find on
+   * arrival and this has to run again once the page is ready. Focus moves
+   * with the scroll (the sections carry `tabIndex={-1}`) so a keyboard or
+   * screen reader user lands in the section, not back at the top.
+   */
+  useEffect(() => {
+    if (loadState !== 'ready' || !hash) return;
+    const target = document.getElementById(hash.slice(1));
+    if (!target) return;
+    target.scrollIntoView();
+    target.focus({ preventScroll: true });
+  }, [hash, loadState]);
 
   useEffect(() => {
     let cancelled = false;
@@ -384,7 +402,11 @@ export function ChildDashboard() {
 
         {loadState === 'ready' && childProfile ? (
           <div className={styles.sections}>
-            <section className={styles.section}>
+            <section
+              className={styles.section}
+              id={CHILD_DASHBOARD_SECTION_IDS.thisWeek}
+              tabIndex={-1}
+            >
               <h2 className={styles.heading}>This week</h2>
               {weeklySummary.map((line) => (
                 <p className={styles.summaryLine} key={line}>
@@ -394,7 +416,11 @@ export function ChildDashboard() {
             </section>
 
             {explorationLines.length > 0 ? (
-              <section className={styles.section}>
+              <section
+                className={styles.section}
+                id={CHILD_DASHBOARD_SECTION_IDS.exploring}
+                tabIndex={-1}
+              >
                 <h2 className={styles.heading}>Exploring</h2>
                 {explorationLines.map((line) => (
                   <p className={styles.summaryLine} key={line}>
@@ -404,7 +430,11 @@ export function ChildDashboard() {
               </section>
             ) : null}
 
-            <section className={styles.section}>
+            <section
+              className={styles.section}
+              id={CHILD_DASHBOARD_SECTION_IDS.recentAdventures}
+              tabIndex={-1}
+            >
               <h2 className={styles.heading}>Recent adventures</h2>
               {sessions.length === 0 ? (
                 <p className={styles.hint}>No adventures started yet.</p>
@@ -428,7 +458,11 @@ export function ChildDashboard() {
             </section>
 
             {suggestions.length > 0 ? (
-              <section className={styles.section}>
+              <section
+                className={styles.section}
+                id={CHILD_DASHBOARD_SECTION_IDS.suggestedNext}
+                tabIndex={-1}
+              >
                 <h2 className={styles.heading}>What we would suggest next</h2>
                 {/*
                   Phase 28's "explainable selection logs for adults", and the
@@ -453,7 +487,11 @@ export function ChildDashboard() {
             ) : null}
 
             {nextFocusAreas.length > 0 ? (
-              <section className={styles.section}>
+              <section
+                className={styles.section}
+                id={CHILD_DASHBOARD_SECTION_IDS.focusAreas}
+                tabIndex={-1}
+              >
                 <h2 className={styles.heading}>Focus areas to consider</h2>
                 <p className={styles.hint}>
                   Skills {childProfile.nickname} would benefit from practicing most right now,
@@ -471,7 +509,11 @@ export function ChildDashboard() {
             ) : null}
 
             {domainMasterySummaries.length > 0 ? (
-              <section className={styles.section}>
+              <section
+                className={styles.section}
+                id={CHILD_DASHBOARD_SECTION_IDS.masteryByArea}
+                tabIndex={-1}
+              >
                 <h2 className={styles.heading}>Mastery by area</h2>
                 <ul className={styles.list}>
                   {domainMasterySummaries.map((domain) => (
@@ -484,7 +526,11 @@ export function ChildDashboard() {
               </section>
             ) : null}
 
-            <section className={styles.section}>
+            <section
+              className={styles.section}
+              id={CHILD_DASHBOARD_SECTION_IDS.skillsPracticed}
+              tabIndex={-1}
+            >
               <h2 className={styles.heading}>Skills practiced</h2>
               {skillProgress.length === 0 ? (
                 <p className={styles.hint}>No skills practiced yet.</p>
@@ -502,7 +548,11 @@ export function ChildDashboard() {
               )}
             </section>
 
-            <section className={styles.section}>
+            <section
+              className={styles.section}
+              id={CHILD_DASHBOARD_SECTION_IDS.creations}
+              tabIndex={-1}
+            >
               <h2 className={styles.heading}>Creations and world changes</h2>
               {worldChanges.length === 0 ? (
                 <p className={styles.hint}>Nothing has changed on the island yet.</p>
@@ -523,7 +573,11 @@ export function ChildDashboard() {
               ) : null}
             </section>
 
-            <section className={styles.section}>
+            <section
+              className={styles.section}
+              id={CHILD_DASHBOARD_SECTION_IDS.safetyCheckIns}
+              tabIndex={-1}
+            >
               <h2 className={styles.heading}>Safety check-ins</h2>
               <p className={styles.hint}>
                 Sometimes Chatty's AI response does not pass our safety checks. When that happens,
@@ -550,7 +604,11 @@ export function ChildDashboard() {
               )}
             </section>
 
-            <section className={styles.section}>
+            <section
+              className={styles.section}
+              id={CHILD_DASHBOARD_SECTION_IDS.educatorReport}
+              tabIndex={-1}
+            >
               <h2 className={styles.heading}>Educator report</h2>
               <p className={styles.hint}>
                 An optional plain-language summary of {childProfile.nickname}&apos;s progress,
@@ -572,7 +630,11 @@ export function ChildDashboard() {
                 : null}
             </section>
 
-            <section className={styles.section}>
+            <section
+              className={styles.section}
+              id={CHILD_DASHBOARD_SECTION_IDS.controls}
+              tabIndex={-1}
+            >
               <h2 className={styles.heading}>Controls</h2>
 
               <div className={styles.controlRow}>

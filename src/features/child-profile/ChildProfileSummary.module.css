@@ -1,42 +1,8 @@
-.section {
+.summary {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-4);
-  width: 100%;
-  max-width: 40rem;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.heading {
-  margin: 0;
-  font-size: var(--font-size-heading);
-}
-
-.hint {
-  color: var(--color-text-muted);
-  margin: 0;
-}
-
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
   flex-wrap: wrap;
   padding: var(--space-4);
   background-color: var(--color-surface);
@@ -53,7 +19,8 @@
 
 .name {
   margin: 0;
-  font-weight: 600;
+  font-size: var(--font-size-large);
+  font-weight: var(--font-weight-strong);
 }
 
 .meta {
@@ -68,10 +35,9 @@
   flex-wrap: wrap;
 }
 
-.addLink,
 .button {
   font: inherit;
-  font-weight: 600;
+  font-weight: var(--font-weight-strong);
   text-decoration: none;
   padding: var(--space-2) var(--space-4);
   border: none;
