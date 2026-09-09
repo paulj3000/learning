@@ -3,6 +3,8 @@ import { SKILLS } from '../../curriculum/content/index';
 import { resolveAdventureForSkillLevel } from '../../adaptive/selection';
 import { getQuestDefinition } from '../../quests/content';
 import { allObjectives } from '../../quests/quest';
+import { getNextStepId, getStep, validateStepAnswer } from '../engine';
+import type { AdventureDefinition, AdventureStep, StepAnswer } from '../engine';
 import { DARK_LIGHTHOUSE_ADVENTURES } from './darkLighthouseAdventures';
 import { getAdventureTemplatesForLocation, resolveAdventureForAgeBand } from './index';
 
@@ -140,5 +142,141 @@ describe('the light-the-harbor quest', () => {
       ),
     );
     expect(skip).toBeDefined();
+  });
+});
+
+/**
+ * Drives a variant through the real Adventure Engine, answering each graded
+ * step the way a child who gets it right would.
+ *
+ * Stronger than the reachability walk every other adventure's test does
+ * (`repairTheMoonlightBridge.test.ts`): that one follows the authored
+ * `correct` edges directly, while this hands real answers to
+ * `validateStepAnswer` and lets `getNextStepId` decide where they lead. So it
+ * covers the engine wiring as well as the graph - a step whose presentation
+ * kind and transitions disagree fails here and passes there.
+ *
+ * What it deliberately does *not* prove is that an authored answer is the
+ * right answer to its own prompt. It reads `correctValue` and hands it back,
+ * so it is self-consistent by construction: a prompt edited from "9 units" to
+ * "12 units" without touching `correctValue` sails through. That is what
+ * "checks the arithmetic each prompt actually asks for" below is for, and the
+ * two tests were confirmed to fail independently.
+ */
+function playThrough(
+  definition: AdventureDefinition,
+  answerFor: (step: AdventureStep) => StepAnswer,
+): { visited: string[]; worldChangeKeys: string[] } {
+  const visited: string[] = [];
+  const worldChangeKeys: string[] = [];
+  let currentId: string | undefined = definition.entryStepId;
+
+  while (currentId) {
+    // A revisit means the correct answer looped, which would strand a child.
+    expect(visited, `${definition.slug} revisited ${currentId}`).not.toContain(currentId);
+    visited.push(currentId);
+
+    const step: AdventureStep = getStep(definition, currentId);
+    if (step.presentation.kind === 'world-change') {
+      worldChangeKeys.push(step.presentation.payload.changeKey);
+    }
+    if (step.type === 'COMPLETE') break;
+
+    const correctness = validateStepAnswer(step, answerFor(step));
+    expect(correctness, `${definition.slug}/${step.id}`).not.toBe('incorrect');
+    currentId = getNextStepId(step, correctness);
+  }
+
+  return { visited, worldChangeKeys };
+}
+
+/** The answer a child who has worked it out would give. */
+function correctAnswer(step: AdventureStep): StepAnswer {
+  switch (step.presentation.kind) {
+    case 'number-input':
+      return { kind: 'number-input', value: step.presentation.correctValue };
+    case 'choice':
+      return { kind: 'choice', optionId: step.presentation.correctOptionId };
+    case 'narrative':
+      return { kind: 'narrative' };
+    case 'world-change':
+      return { kind: 'world-change' };
+    default:
+      throw new Error(`No answer authored for presentation "${step.presentation.kind}"`);
+  }
+}
+
+describe('playing The Dark Lighthouse through the real engine', () => {
+  for (const variant of DARK_LIGHTHOUSE_ADVENTURES) {
+    describe(variant.slug, () => {
+      it('reaches COMPLETE when every answer is right', () => {
+        const { visited } = playThrough(variant, correctAnswer);
+        expect(getStep(variant, visited[visited.length - 1]).type).toBe('COMPLETE');
+      });
+
+      it('records the lighthouse repair on the way, exactly once', () => {
+        const { worldChangeKeys } = playThrough(variant, correctAnswer);
+        expect(worldChangeKeys).toEqual(['CLOCKWORK_LIGHTHOUSE_FIXED']);
+      });
+
+      it('visits every authored step, so none is stranded', () => {
+        const { visited } = playThrough(variant, correctAnswer);
+        expect(new Set(visited).size).toBe(variant.steps.length);
+      });
+
+      it('sends a wrong answer somewhere that is not the end', () => {
+        // The child gets another go rather than being pushed past the puzzle.
+        for (const step of variant.steps) {
+          if (step.presentation.kind === 'number-input') {
+            const wrong = validateStepAnswer(step, {
+              kind: 'number-input',
+              value: step.presentation.correctValue + 1,
+            });
+            expect(wrong).toBe('incorrect');
+            const next = getStep(variant, getNextStepId(step, wrong));
+            expect(next.type, `${variant.slug}/${step.id}`).not.toBe('COMPLETE');
+            expect(next.type, `${variant.slug}/${step.id}`).not.toBe('WORLD_CHANGE');
+          }
+          if (step.presentation.kind === 'choice') {
+            // Bound to a local so the narrowing survives into the callback.
+            const choice = step.presentation;
+            const wrongOption = choice.options.find(
+              (option) => option.id !== choice.correctOptionId,
+            );
+            const wrong = validateStepAnswer(step, {
+              kind: 'choice',
+              optionId: wrongOption!.id,
+            });
+            expect(wrong).toBe('incorrect');
+            const next = getStep(variant, getNextStepId(step, wrong));
+            expect(next.type, `${variant.slug}/${step.id}`).not.toBe('COMPLETE');
+            expect(next.type, `${variant.slug}/${step.id}`).not.toBe('WORLD_CHANGE');
+          }
+        }
+      });
+    });
+  }
+
+  it('checks the arithmetic each prompt actually asks for', () => {
+    // The prompts are the specification; these are the sums worked by hand.
+    // If a prompt's numbers are edited without its `correctValue`, this fails.
+    const answerIn = (slug: string, stepId: string) => {
+      const step = getStep(
+        DARK_LIGHTHOUSE_ADVENTURES.find((v) => v.slug === slug)!,
+        stepId,
+      );
+      if (step.presentation.kind === 'number-input') return step.presentation.correctValue;
+      if (step.presentation.kind === 'choice') return step.presentation.correctOptionId;
+      throw new Error('not a graded step');
+    };
+
+    // Three empty slots, counted.
+    expect(answerIn('the-dark-lighthouse-counting', 'count-the-slots')).toBe('three');
+    // 9 units needed, 3 per crystal: 3 + 3 + 3.
+    expect(answerIn('the-dark-lighthouse-groups', 'how-many-crystals')).toBe(9 / 3);
+    // Needs 10, gauge reads 4: the gap is 6.
+    expect(answerIn('the-dark-lighthouse-two-step', 'how-much-is-missing')).toBe(10 - 4);
+    // Those 6 units at 3 per crystal: 2 crystals.
+    expect(answerIn('the-dark-lighthouse-two-step', 'how-many-crystals')).toBe(6 / 3);
   });
 });
