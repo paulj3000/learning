@@ -421,6 +421,67 @@ function signpost(): Record<string, unknown> {
   return assembleGltfDocument({ parts: [post, plank] });
 }
 
+// --- Pirate Builder Bay dock kit -------------------------------------------
+
+/**
+ * The dock kit Pirate Builder Bay needed and the pack never had. Before
+ * this the whole region's visible inventory was two bridge stubs, two
+ * rocks, two trees and four sub-metre props on a bare sand plane, so a
+ * child standing on the dock had nothing at human scale to read the space
+ * against - see `docs/IMPLEMENTATION_STATUS.md`'s Phase 34 set-dressing
+ * entry.
+ *
+ * Crate, barrel and mooring post are deliberately single-mesh so
+ * `createInstancedMeshFromAsset` can place a whole stack or a whole
+ * jetty's worth of posts in one draw call. The shipwreck is the one
+ * multi-part piece here, placed as a single clone like the other props.
+ */
+const crate = () => singleMeshAsset('Crate', buildBoxPrimitive(0.8, 0.8, 0.8), 0x9c7742);
+const barrel = () =>
+  singleMeshAsset('Barrel', buildCylinderPrimitive(0.3, 0.34, 0.9, 10), 0x7a5533);
+const mooringPost = () =>
+  singleMeshAsset('Post', buildCylinderPrimitive(0.16, 0.2, 1.6, 8), 0x6b4a34);
+
+/**
+ * The cove's landmark: a beached hull with a snapped, leaning mast, so the
+ * east half of the region reads as somewhere worth crossing the bridge for
+ * rather than as blank sand with a chest on it. Listed tilt is baked into
+ * the asset (rather than applied at placement) because every part has to
+ * lean together, mast and sail included.
+ */
+function shipwreck(): Record<string, unknown> {
+  const listTilt = quat([0, 0, 1], 0.22);
+  const mastTilt = quat([0, 0, 1], 0.5);
+  const hull: MeshPart = {
+    name: 'Hull',
+    primitive: buildBoxPrimitive(6, 1.8, 2.2),
+    color: hexToRgb01(0x6f4b30),
+    rotation: listTilt,
+  };
+  const rail: MeshPart = {
+    name: 'Rail',
+    primitive: buildBoxPrimitive(6.4, 0.22, 2.6),
+    color: hexToRgb01(0x8a6a45),
+    translation: [0, 1.7, 0],
+    rotation: listTilt,
+  };
+  const mast: MeshPart = {
+    name: 'Mast',
+    primitive: buildCylinderPrimitive(0.12, 0.2, 4.2, 8),
+    color: hexToRgb01(0x5a3d28),
+    translation: [0.5, 1.6, 0],
+    rotation: mastTilt,
+  };
+  const sail: MeshPart = {
+    name: 'Sail',
+    primitive: buildBoxPrimitive(2.2, 2.4, 0.06),
+    color: hexToRgb01(0xe4dcc4),
+    translation: [-0.55, 2.3, 0],
+    rotation: mastTilt,
+  };
+  return assembleGltfDocument({ parts: [hull, rail, mast, sail] });
+}
+
 // --- one collectible ---------------------------------------------------
 
 function collectibleGem(): Record<string, unknown> {
@@ -1889,6 +1950,10 @@ const ASSETS: Record<string, () => Record<string, unknown>> = {
   toolbox,
   'treasure-chest': treasureChest,
   signpost,
+  crate,
+  barrel,
+  'mooring-post': mooringPost,
+  shipwreck,
   'collectible-gem': collectibleGem,
   ...CASTLE_ASSETS,
   ...WONDERWILD_ASSETS,

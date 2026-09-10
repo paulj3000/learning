@@ -170,6 +170,31 @@ future multi-part kit piece that needs many repeated placements would need
 either an instancing helper that batches per sub-mesh, or to stay on the
 individual-placement path.
 
+Two updates to the paragraph above. `foliage-tree` is no longer
+multi-part: since the Kenney swap it resolves to `kenney-tree-large.glb`,
+a single mesh with a single primitive, which is why Pirate Builder Bay can
+put it through `placeKitCluster` (→ `createInstancedMeshFromAsset`)
+safely. And Pirate Builder Bay's dock kit was authored against this rule
+from the start - `crate`, `barrel` and `mooring-post` are deliberately
+single-mesh because every one of them is placed by instancing, while
+`shipwreck` is multi-part and placed as one clone.
+`assets/bayDockKit.test.ts` asserts exactly that split, so the rule fails
+a test rather than silently dropping geometry.
+
+## Ground quads: winding, not just normals
+
+A flat ground quad has to be **wound** counter-clockwise seen from `+y`,
+not merely carry `+y` normals. Every material this pack emits is
+`doubleSided` (`gltfAssembler.ts`), and three.js flips the shading normal
+on back faces - so a quad whose winding disagrees with its declared normal
+is lit from underneath and renders dark, with no error and nothing missing
+from the scene graph. `buildGroundPlanePrimitive` shipped with the winding
+backwards, which is why `path.gltf` read as grey asphalt on Pirate Builder
+Bay's light sand, and it affected every flat piece built from it: paths,
+carpets, ground tiles, the castle ceiling. `primitives.test.ts` now checks
+the winding against the declared normal; the older test checked normals
+alone and could not catch it.
+
 ## Texture-free, by design (generated assets)
 
 No **generated** asset has a texture, a UV-mapped `TEXCOORD_0` accessor, or

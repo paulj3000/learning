@@ -281,7 +281,18 @@ export function buildGroundPlanePrimitive(width: number, depth: number): Primiti
       depthHalf,
     ],
     normals: [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0],
-    indices: [0, 1, 3, 1, 2, 3],
+    /*
+      Wound counter-clockwise seen from +y, so the quad's *front* face is
+      the one you stand on. This used to be `[0, 1, 3, 1, 2, 3]`, which
+      winds the other way: every material this pack emits is
+      `doubleSided` (`gltfAssembler.ts`), and three.js flips the shading
+      normal on back faces, so a ground quad seen from above was lit as if
+      its normal pointed at the sea floor. That is why `path.gltf` read as
+      grey asphalt on Pirate Builder Bay's sand rather than as a lighter
+      sandy path, and it applied to every flat piece built from this
+      primitive - paths, carpets, ground tiles, the castle ceiling.
+    */
+    indices: [0, 3, 1, 1, 3, 2],
   };
 }
 

@@ -8641,6 +8641,116 @@ Nineteen CC0 archives are now on disk (532 MB, git-ignored, checksummed in
   modular-men pack, and section 7 is unchanged.
 
 
+## Pirate Builder Bay — the missing water, and a region that is now a place
+
+Reported from play: "when I play Pirate Builder, I only see a little swatch
+of land, a tree, a box and a hoop." That was an accurate description of
+what the region rendered. Reproduced by driving the real
+`createPirateBuilderBayEngine` in a headless Chromium harness and dumping
+its scene graph, which found no loading failure at all — every asset the
+scene asked for resolved. The region was simply that empty, on top of two
+real bugs.
+
+### Bug 1 — the bay had no visible water
+
+`pirateBuilderBayScene.ts` drew the ground as **one opaque 32x14 plane
+across the whole region**, channel included, and then placed the two water
+quads at `y = -0.05`: five centimetres *underneath* it. So the water
+channel that splits the dock from the cove — the region's entire premise,
+and the thing the broken bridge crosses — was completely hidden. A child
+walked toward the bridge across flat sand and stopped dead at an
+unexplained invisible wall.
+
+The fix authors the ground as two rects either side of the channel
+(`DOCK_GROUND` / `COVE_GROUND`) and draws the channel as a box between
+them, its top at `WATER_SURFACE_Y` and its bed at `CHANNEL_BED_Y`, so the
+gap has sides rather than being a plane you can see past at a grazing
+angle. `CHANNEL_SURFACE` is drawn unbroken under the bridge deck, while
+the two `CHANNEL_*_WATER` rects stay exactly as authored, because those
+are collider volumes and must keep flanking the deck for the
+`BRIDGE_REPAIRED` swap to keep working.
+
+### Bug 2 — flat ground quads were lit from underneath
+
+The path tiles read as grey asphalt on light sand. The cause is in
+`primitives.ts`: `buildGroundPlanePrimitive` declared `+y` normals but
+wound its two triangles the other way. Every material this pack emits is
+`doubleSided` (`gltfAssembler.ts`), and three.js flips the shading normal
+on back faces, so a ground quad seen from above was shaded as if its
+normal pointed at the sea floor. One index array fixes it, and it applies
+to **every** flat piece built from this primitive — paths, carpets, ground
+tiles, the castle ceiling — all of which have been rendering dark since
+they were authored. `primitives.test.ts` now asserts the winding agrees
+with the declared normal, which the old test (normals only) could not
+catch.
+
+A third, smaller one: the fallen bridge plank was placed at `y = -0.4`
+under the full-extent ground plane, which buried two thirds of it and left
+a brown slab lying in the sand. It now sits half sunk against the dock
+bank.
+
+### The set dressing
+
+The rest was not breakage. The region's whole visible inventory was 13
+objects over a 32x14m plot: one sand plane, two bridge stubs, two 0.31m
+rocks, two trees, a single 1.5m path tile, four sub-metre props and Pip.
+Over half the region (the cove, x 3 to 16) held exactly one 0.6m chest.
+There was no sea beyond the plot, so the sand ended in mid-air, and the
+boundary walls were colliders with no mesh, so a child bumped into
+nothing.
+
+Added, all authored in `pirateBuilderBayRegion.ts` and placed by
+`pirateBuilderBayScene.ts`:
+
+- **Open sea to the horizon** (`SEA_HALF_EXTENT`), so the region ends at a
+  skyline rather than at the edge of the sand.
+- **A visible shoreline** — instanced boulder lines along the plot edges
+  (`SHORE_ROCK_RUNS`), which deliberately skip the two channel mouths
+  (water) and the Welcome Harbor exit (a doorway, not a wall). The
+  boundary colliders finally have something to be.
+- **A dock**: a jetty of `bridge-plank` running out over the sea off the
+  south shore with mooring posts at its corners, scenery beyond the
+  boundary collider rather than walkable ground.
+- **Cargo at a child's own scale** — stacked crates and barrels, the first
+  things in this region sized like a five-year-old rather than like a
+  pebble.
+- **A landmark in the cove**: a beached `shipwreck` with a leaning mast,
+  so the far side is somewhere worth repairing a bridge to reach. Its
+  footprint is a real collider.
+- **The tide tunnel gets a mouth** — two oversized boulders framing Phase
+  26's secret instead of an unmarked patch of sand.
+- **A path that goes somewhere**: the single tile is now a run from the
+  Welcome Harbor exit through the spawn checkpoint to the bridge, picked
+  up again on the cove side toward the treasure.
+
+### New assets
+
+`crate`, `barrel` and `mooring-post` are single-mesh on purpose:
+`createInstancedMeshFromAsset` instances only an asset's *first* mesh, so a
+multi-part crate would silently render as its first part alone everywhere
+it is placed. `shipwreck` is multi-part and placed as one clone.
+`bayDockKit.test.ts` is the authoring check for exactly that rule, plus
+ground pivots and the sizes each piece has to hit to read correctly.
+
+### Known limitations
+
+- **Still no building on the dock.** Welcome Harbor composes shacks from
+  `wall`/`roof`/`door` via a `BuildingDefinition` type and
+  `buildingWallColliders`, both of which live in `welcomeHarborRegion.ts`.
+  Reusing that here means lifting them into `sceneKit.ts` first, which is
+  a refactor of a shipped region rather than a fix to a broken one, so it
+  was left out of this pass.
+- **The trees are conifers on a pirate island.** They are the Kenney
+  castle-kit pines the shared kit already carries; a palm would need a new
+  multi-part asset and therefore could not be instanced with the rest of
+  the foliage.
+- **The sea is a flat colour, not animated.** No wave motion, no shoreline
+  foam, and the channel water is a plain box.
+- **The 2D Phaser route is untouched.** `/island/:childId/world/
+  pirate-builder-bay` still renders the Phase 11 tilemap; only the 3D
+  route (`-3d`) changed.
+
+
 ## Known risks / TODOs
 
 - **Phase 20: `SkillEvidence`'s write path (`recordSkillEvidence`) was not

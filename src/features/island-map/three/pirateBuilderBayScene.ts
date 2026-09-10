@@ -30,19 +30,29 @@ import {
   toBox3,
 } from './sceneKit';
 import {
+  BARRELS,
   BOUNDARY_WALLS,
   BRIDGE_APPROACH_ZONE,
   BRIDGE_MAX_Z,
   BRIDGE_MIN_Z,
   BRIDGE_SPAN,
+  CHANNEL_BED_Y,
   CHANNEL_MAX_X,
   CHANNEL_MIN_X,
   CHANNEL_NORTH_WATER,
   CHANNEL_SOUTH_WATER,
+  CHANNEL_SURFACE,
+  COVE_GROUND,
+  COVE_PATH_RUN,
+  COVE_ROCKS,
+  COVE_TREES,
+  CRATES,
+  DOCK_GROUND,
   FOLIAGE_TREES,
-  GROUND_HALF_EXTENT_X,
-  GROUND_HALF_EXTENT_Z,
   HARBOR_EXIT_ZONE,
+  JETTY_PLANK_WIDTH,
+  JETTY_RUN,
+  MOORING_POSTS,
   NPC_ID,
   NPC_SPOT,
   PATH_RUN,
@@ -50,11 +60,19 @@ import {
   ROCKS,
   ROPE_COIL_ID,
   ROPE_COIL_SPOT,
+  SEA_HALF_EXTENT,
+  SHIPWRECK,
+  SHORE_ROCK_RUNS,
+  SHORE_ROCK_SCALE,
+  SHORE_ROCK_SPACING,
+  SOLID_PROPS,
+  TIDE_TUNNEL_BOULDERS,
   TIDE_TUNNEL_ZONE,
   TOOLBOX_ID,
   TOOLBOX_SPOT,
   TREASURE_ID,
   TREASURE_SPOT,
+  WATER_SURFACE_Y,
   type RectZone,
 } from './pirateBuilderBayRegion';
 import type { WorldEngineEventBus } from './worldEngineEvents';
@@ -96,31 +114,59 @@ export function createPirateBuilderBayEngine(
 ): PirateBuilderBayEngine {
   const { scene, camera, renderer } = createSceneBootstrap(parent, 0x9fd4ec);
 
-  const ground = new Mesh(
-    new PlaneGeometry(GROUND_HALF_EXTENT_X * 2, GROUND_HALF_EXTENT_Z * 2),
-    new MeshStandardMaterial({ color: 0xdccf9a }),
-  );
-  ground.rotation.x = -Math.PI / 2;
-  scene.add(ground);
-
-  const waterMaterial = new MeshStandardMaterial({ color: 0x2f6f9e, side: DoubleSide });
-  function addWater(zone: RectZone): void {
-    const water = new Mesh(
+  /*
+    Sand either side of the channel, not one plane across the whole region.
+    The single full-extent plane this replaces sat *above* the water quads
+    (ground at y=0, water at y=-0.05), so the bay's defining feature - the
+    channel the broken bridge crosses - was completely hidden and the child
+    walked into an invisible wall on bare sand.
+  */
+  const sandMaterial = new MeshStandardMaterial({ color: 0xdccf9a });
+  function addGround(zone: RectZone): void {
+    const patch = new Mesh(
       new PlaneGeometry(zone.maxX - zone.minX, zone.maxZ - zone.minZ),
-      waterMaterial,
+      sandMaterial,
     );
-    water.rotation.x = -Math.PI / 2;
-    water.position.set((zone.minX + zone.maxX) / 2, -0.05, (zone.minZ + zone.maxZ) / 2);
-    scene.add(water);
+    patch.rotation.x = -Math.PI / 2;
+    patch.position.set((zone.minX + zone.maxX) / 2, 0, (zone.minZ + zone.maxZ) / 2);
+    scene.add(patch);
   }
-  addWater(CHANNEL_NORTH_WATER);
-  addWater(CHANNEL_SOUTH_WATER);
+  addGround(DOCK_GROUND);
+  addGround(COVE_GROUND);
 
-  // Boundary colliders only - no visible wall mesh, matching
-  // `welcomeHarborScene.ts`'s outer boundary (the ground plane's own extent
-  // reads as the plot edge).
+  // The channel, as a box rather than a plane, so its sides read as banks
+  // and no camera angle can see past the water into the background.
+  const channelWidth = CHANNEL_SURFACE.maxX - CHANNEL_SURFACE.minX;
+  const channelDepth = CHANNEL_SURFACE.maxZ - CHANNEL_SURFACE.minZ;
+  const channelHeight = WATER_SURFACE_Y - CHANNEL_BED_Y;
+  const channel = new Mesh(
+    new BoxGeometry(channelWidth, channelHeight, channelDepth),
+    new MeshStandardMaterial({ color: 0x2f6f9e }),
+  );
+  channel.position.set(
+    (CHANNEL_SURFACE.minX + CHANNEL_SURFACE.maxX) / 2,
+    WATER_SURFACE_Y - channelHeight / 2,
+    (CHANNEL_SURFACE.minZ + CHANNEL_SURFACE.maxZ) / 2,
+  );
+  scene.add(channel);
+
+  // Open sea out to the horizon, so the region stops at a skyline instead
+  // of at the edge of the sand with sky underneath it.
+  const sea = new Mesh(
+    new PlaneGeometry(SEA_HALF_EXTENT * 2, SEA_HALF_EXTENT * 2),
+    new MeshStandardMaterial({ color: 0x3a7fae, side: DoubleSide }),
+  );
+  sea.rotation.x = -Math.PI / 2;
+  sea.position.y = WATER_SURFACE_Y;
+  scene.add(sea);
+
+  // Boundary colliders, plus the footprints of the props a child would
+  // otherwise walk straight through (the wreck, the crate stacks). The
+  // boundary itself is now also *visible*, as the shore boulder lines
+  // placed in `loadWorldContent`.
   const colliders: Box3[] = [
     ...BOUNDARY_WALLS.map((wall) => toBox3(wall)),
+    ...SOLID_PROPS.map((prop) => toBox3(prop)),
     toBox3(CHANNEL_NORTH_WATER, -1, 4),
     toBox3(CHANNEL_SOUTH_WATER, -1, 4),
   ];
@@ -181,19 +227,95 @@ export function createPirateBuilderBayEngine(
       // One fallen plank, tilted into the gap, for visible damage flavor.
       const fallenPlank = await loadAsset('bridge-plank');
       const fallenScene = fallenPlank.scene.clone(true);
-      fallenScene.position.set(0.4, -0.4, 0.6);
-      fallenScene.rotation.set(0.9, 0.3, 0.4);
+      // Half sunk against the dock bank, one end still out of the water.
+      // It used to be placed at y=-0.4 under a ground plane that spanned
+      // the channel, which buried two thirds of it and read as a brown
+      // slab lying in the sand.
+      fallenScene.position.set(CHANNEL_MIN_X + 0.5, WATER_SURFACE_Y - 0.1, 2.4);
+      fallenScene.rotation.set(0.1, 1.15, 0.35);
       scene.add(fallenScene);
     }
 
-    // Terrain kit accents and a decorative path run leading toward the bridge.
-    await placeKitCluster(scene, 'rock', ROCKS);
-    await placeKitCluster(scene, 'foliage-tree', FOLIAGE_TREES);
+    // Terrain kit accents, and the path across the dock picked up again on
+    // the cove side. Both path runs are lifted a hair above the sand
+    // because `path.gltf` is a flat ground quad and would otherwise
+    // z-fight the ground plane it lies on.
+    await placeKitCluster(scene, 'rock', [...ROCKS, ...COVE_ROCKS]);
+    await placeKitCluster(scene, 'foliage-tree', [...FOLIAGE_TREES, ...COVE_TREES]);
     const pathInstanced = await createInstancedMeshFromAsset(
       'path',
-      runPlacements(PATH_RUN.from, PATH_RUN.to, 1.5),
+      [
+        ...runPlacements(PATH_RUN.from, PATH_RUN.to, 1.5),
+        ...runPlacements(COVE_PATH_RUN.from, COVE_PATH_RUN.to, 1.5),
+      ].map((placement) => ({ ...placement, position: { ...placement.position, y: 0.01 } })),
     );
     scene.add(pathInstanced);
+
+    // The shoreline: boulder lines standing in for the boundary colliders,
+    // which until now had no mesh at all, plus two oversized boulders
+    // framing the tide tunnel so Phase 26's secret has a mouth.
+    const shoreRocks = SHORE_ROCK_RUNS.flatMap((run) =>
+      runPlacements(run.from, run.to, SHORE_ROCK_SPACING).map((placement, index) => ({
+        ...placement,
+        rotationY: index * 1.1,
+        scale: { x: SHORE_ROCK_SCALE, y: SHORE_ROCK_SCALE * 0.8, z: SHORE_ROCK_SCALE },
+      })),
+    );
+    const boulders = await createInstancedMeshFromAsset('rock', [
+      ...shoreRocks,
+      ...TIDE_TUNNEL_BOULDERS.map((boulder) => ({
+        position: { x: boulder.x, y: 0, z: boulder.z },
+        rotationY: boulder.x,
+        scale: { x: boulder.scale, y: boulder.scale, z: boulder.scale },
+      })),
+    ]);
+    scene.add(boulders);
+
+    // The dock: a jetty out over the open sea off the south shore, built
+    // from the same `bridge-plank` piece the bridge uses, with mooring
+    // posts at its corners. Decoration outside the boundary collider - it
+    // is there so the dock reads as a dock from anywhere on the west side.
+    const jettyDeck = await createInstancedMeshFromAsset(
+      'bridge-plank',
+      runPlacements(JETTY_RUN.from, JETTY_RUN.to, JETTY_PLANK_WIDTH).map((placement) => ({
+        ...placement,
+        position: { ...placement.position, y: WATER_SURFACE_Y + 0.35 },
+      })),
+    );
+    scene.add(jettyDeck);
+    const posts = await createInstancedMeshFromAsset(
+      'mooring-post',
+      MOORING_POSTS.map((post) => ({ position: { x: post.x, y: CHANNEL_BED_Y, z: post.z } })),
+    );
+    scene.add(posts);
+
+    // Cargo: the only things in this region at a child's own scale. Some
+    // crates are stacked (`y > 0`) and every one is turned a little, so a
+    // stack reads as stacked cargo rather than as a texture.
+    const crates = await createInstancedMeshFromAsset(
+      'crate',
+      CRATES.map((crate) => ({
+        position: { x: crate.x, y: crate.y ?? 0, z: crate.z },
+        rotationY: crate.rotationY ?? 0,
+      })),
+    );
+    scene.add(crates);
+    const barrels = await createInstancedMeshFromAsset(
+      'barrel',
+      BARRELS.map((barrel, index) => ({
+        position: { x: barrel.x, y: 0, z: barrel.z },
+        rotationY: index * 0.7,
+      })),
+    );
+    scene.add(barrels);
+
+    // The cove's landmark, and the reason the east half is worth crossing
+    // the bridge for. Its footprint is already in `colliders`.
+    const wreck = await loadAsset('shipwreck');
+    const wreckScene = wreck.scene.clone(true);
+    wreckScene.position.set(SHIPWRECK.x, 0, SHIPWRECK.z);
+    wreckScene.rotation.y = SHIPWRECK.rotationY;
+    scene.add(wreckScene);
 
     // Quest props (roadmap: "quest props"), still flavor-only per this
     // region's own header comment - now real loaded assets instead of

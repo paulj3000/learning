@@ -129,6 +129,15 @@ export const ASSET_MANIFEST: readonly AssetManifestEntry[] = [
   { id: 'toolbox', url: '/models/toolbox.gltf', kind: 'prop', clips: [] },
   { id: 'treasure-chest', url: '/models/treasure-chest.gltf', kind: 'prop', clips: ['Open'] },
   { id: 'signpost', url: '/models/signpost.gltf', kind: 'prop', clips: [] },
+  /**
+   * Pirate Builder Bay's dock kit (`scripts/generate-world-assets.ts`).
+   * Crate, barrel and mooring post are single-mesh so they can be
+   * instanced; the shipwreck is a multi-part landmark placed as one clone.
+   */
+  { id: 'crate', url: '/models/crate.gltf', kind: 'kit-piece', clips: [] },
+  { id: 'barrel', url: '/models/barrel.gltf', kind: 'kit-piece', clips: [] },
+  { id: 'mooring-post', url: '/models/mooring-post.gltf', kind: 'kit-piece', clips: [] },
+  { id: 'shipwreck', url: '/models/shipwreck.gltf', kind: 'prop', clips: [] },
   {
     id: 'collectible-gem',
     url: '/models/collectible-gem.gltf',
