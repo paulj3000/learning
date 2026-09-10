@@ -18,3 +18,10 @@ amplify/.config/
 !.vscode/extensions.json
 .idea/
 
+
+# Third-party art packs. These are the *source* archives the importer reads,
+# not build output: 283 MB and growing, re-downloadable from the urls in
+# docs/ASSET_SOURCING.md, and verifiable against the sha256 recorded for each
+# in docs/ASSET_LICENCES.md. What ships is the handful of normalised files
+# the importer writes into public/models/, which are checked in.
+assets/*.zip

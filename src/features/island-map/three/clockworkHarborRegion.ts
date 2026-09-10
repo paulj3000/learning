@@ -176,9 +176,27 @@ export const CLOCK_TOWER = { id: 'clock-tower', x: 13, z: -12, halfSize: 2.5, he
  * built yet, and an NPC section 15 makes the harbor's hint-giver needs to be
  * reachable from the first chapter.
  */
-export const NPC_SPOTS: readonly { id: string; label: string; x: number; z: number }[] = [
-  { id: 'harbor-master', label: 'the Harbor Master', x: 0, z: 12 },
-  { id: 'professor-ticktock', label: 'Professor Ticktock', x: 2, z: -3 },
+export const NPC_SPOTS: readonly {
+  id: string;
+  label: string;
+  x: number;
+  z: number;
+  /**
+   * The manifest asset each one wears. Both pointed at `npc-pip` until the
+   * Modular Men import, which is why the Harbor Master and Professor
+   * Ticktock used to be the same pirate as each other. Ticktock's is a
+   * stand-in, not his final model - see `docs/MODELS_NEEDED.md` section 7.
+   */
+  assetId: string;
+}[] = [
+  { id: 'harbor-master', label: 'the Harbor Master', x: 0, z: 12, assetId: 'npc-harbor-master' },
+  {
+    id: 'professor-ticktock',
+    label: 'Professor Ticktock',
+    x: 2,
+    z: -3,
+    assetId: 'npc-professor-ticktock',
+  },
 ];
 
 export const HARBOR_MASTER_ID = 'harbor-master';

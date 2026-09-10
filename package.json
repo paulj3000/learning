@@ -21,6 +21,8 @@
     "sandbox": "ampx sandbox",
     "ai:red-team": "tsx scripts/ai-red-team.ts",
     "assets:generate": "tsx scripts/generate-world-assets.ts",
+    "assets:import-kenney": "tsx scripts/import-kenney-assets.ts",
+    "assets:import-characters": "tsx scripts/import-character-assets.ts",
     "grant-admin": "tsx scripts/grant-admin.ts"
   },
   "keywords": [

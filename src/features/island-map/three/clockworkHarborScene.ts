@@ -366,10 +366,12 @@ export function createClockworkHarborEngine(
       DOCK_CLUTTER.map((crate, index) => ({ x: crate.x, z: crate.z, rotationY: index * 0.7 })),
     );
 
-    // The Harbor Master and Professor Ticktock reuse the existing character
-    // asset until section 21's own cast is authored.
+    // The Harbor Master and Professor Ticktock each wear their own imported
+    // character now (Quaternius Ultimate Modular Men, CC0) rather than both
+    // borrowing `npc-pip`. Section 21's own cast is still unauthored, and
+    // Ticktock's remains a stand-in for a bespoke model.
     for (const npc of NPC_SPOTS) {
-      const asset = await loadAsset('npc-pip');
+      const asset = await loadAsset(npc.assetId);
       const npcScene = asset.scene.clone(true);
       npcScene.position.set(npc.x, 0, npc.z);
       npcScene.name = npc.label;

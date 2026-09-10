@@ -68,6 +68,11 @@ argued, or delete it.
 | --- | --- | --- | --- |
 | `public/models/kaykit-floor-tile-large.glb` | KayKit Dungeon Remastered 1.0, `floor_tile_large.gltf.glb` | CC0 1.0 Universal | None |
 | `public/models/kaykit-floor-wood-large-dark.glb` | KayKit Dungeon Remastered 1.0, `floor_wood_large_dark.gltf.glb` | CC0 1.0 Universal | None |
+| `public/models/kenney-rock-small.glb` | Kenney Fantasy Town Kit 2.0, `Models/GLB format/rock-small.glb` | CC0 1.0 Universal | None |
+| `public/models/kenney-tree-large.glb` | Kenney Castle Kit 2.0, `Models/GLB format/tree-large.glb` | CC0 1.0 Universal | None |
+| `public/models/kenney-tree-small.glb` | Kenney Castle Kit 2.0, `Models/GLB format/tree-small.glb` | CC0 1.0 Universal | None |
+| `public/models/npc-harbor-master.gltf` | Quaternius Ultimate Modular Men (Feb 2022), `Individual Characters/glTF/Worker.gltf` | CC0 1.0 Universal | None |
+| `public/models/npc-professor-ticktock.gltf` | Quaternius Ultimate Modular Men (Feb 2022), `Individual Characters/glTF/Suit.gltf` | CC0 1.0 Universal | None |
 
 **Source:** Kay Lousberg, KayKit Dungeon Remastered.
 https://github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0
@@ -75,6 +80,75 @@ https://github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0
 published at https://kaylousberg.itch.io/kaykit-dungeon-remastered.
 
 **Retrieved:** 2026-09-09, from the repository's `main` branch.
+
+**Source:** Kenney (www.kenney.nl), Castle Kit 2.0 and Fantasy Town Kit 2.0,
+free downloads from https://kenney.nl/assets/castle-kit and
+https://kenney.nl/assets. Each `.glb` above is a normalised copy produced by
+`scripts/import-kenney-assets.ts`, not the shipped file as downloaded - see
+"Source archives" below.
+
+**Retrieved:** 2026-09-09.
+
+Kenney's own `License.txt` reads: *"You can use this content for personal,
+educational, and commercial purposes. Support by crediting 'Kenney' or
+'www.kenney.nl' (this is not a requirement)."*
+
+**Source:** Quaternius (https://quaternius.com), Ultimate Modular Men,
+February 2022 release. Each is a normalised copy produced by
+`scripts/import-character-assets.ts` - clip-stripped and pruned, not the
+file as downloaded.
+
+**Retrieved:** 2026-09-09.
+
+### Source archives — not shipped, not in git
+
+The packs these were imported from live under `assets/*.zip`, which
+`.gitignore` excludes: **532 MB across 19 archives**, against roughly 2.1 MB
+of models actually shipped. They are the input to
+`npm run assets:import-kenney` and `npm run assets:import-characters`, so
+anyone re-running those needs them back. Re-download from the urls in
+`docs/ASSET_SOURCING.md` and check against these.
+
+**Imported from:**
+
+| Archive | Licence | sha256 |
+| --- | --- | --- |
+| `kenney_castle-kit.zip` | CC0 1.0 | `921f3f73927bb23106cae34bc21d5ab4b033a9fc120475e96f714a406e3169df` |
+| `kenney_fantasy-town-kit_2.0.zip` | CC0 1.0 | `1a7530c09f4d2fa2cdee259876f089334f8b1f27fa86a0c4f54ef86cdd8676ef` |
+| `Ultimate Modular Men- Feb 2022-...zip` | CC0 1.0 | `28cc9441559facb49a48260da818968259ce7288c2fb5227c720bcbe9c41cb1e` |
+
+**On disk, nothing imported yet.** Recorded because the checklist below
+governs any third-party file on disk, not only the ones that ship:
+
+| Archive | Licence | sha256 |
+| --- | --- | --- |
+| `kenney_modular-dungeon-kit_1.0.zip` | CC0 1.0 | `dd0aa6776db8912283cdca60161dee6a8839bbda3558eba2ea501419eb5b4623` |
+| `kenney_pirate-kit.zip` | CC0 1.0 | `667ed2caf92954ddb98f7b7cede831fe99ab75063c26b25e23d32715bee9c943` |
+| `kenney_pirate-pack.zip` (2D sprites, no models) | CC0 1.0 | `91a0a43446910357e38b877971a94c06e6b3d9d28c035e51c107a1731e84f76a` |
+| `kenney_watercraft-pack.zip` | CC0 1.0 | `cd1470c1cf441c7f46d0944ae6d0d897242365dc97677c5079b3238965d659f3` |
+| `kenney_music-jingles.zip` | CC0 1.0 | `b729ba57959bd58793d2c5cafa348aaf2655d354f3da35ec4729e03ec77197b8` |
+| `kenney_ui-audio.zip` | CC0 1.0 | `946fc23a63d535d693eb31b2eabb80c8c28d6351e2186b344ceb71b2cb1d5eb6` |
+| `kenney_rpg-audio.zip` | CC0 1.0 | `6dbeaf8544da958d8f2adcb4a4a4b76c1ade34a05f8ab9edccd327da7375f38b` |
+| `kenney_impact-sounds.zip` | CC0 1.0 | `029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8` |
+| `kenney_interface-sounds.zip` | CC0 1.0 | `f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232` |
+| `KayKit-Dungeon-Remastered-1.0-main.zip` | CC0 1.0 | `8e92aa460f5be4252dff0cf030f92846ab74b875ce4756076ecce75b5d0c9bee` |
+| `Fantasy Props MegaKit[Pro].zip` (Quaternius) | CC0 1.0 | `ca9d92a71ea6cce60ba2f6f275444da8e8541d3ab6ee4b97ec5f959cb19cf9cb` |
+| `Updated Modular Dungeon - May 2019.zip` (Quaternius) | CC0 1.0 | `bb9959ffd2c80b28bcd4ea574eaf4c9dd62a70fda4d61dbc5d6f5193a3f94630` |
+| `Animated Fish Pack by @Quaternius-...zip` | CC0 1.0 | `e7f24dba71a637c679e7ad89dc7b42a35f15a13112b8066100a76e5f8bce41be` |
+| `Cute Fish Pack - Feb 2020-...zip` (Quaternius) | CC0 1.0 | `69e0bddfc605afaf95fad9e12ceaf379d367e5738c21e55a2eff6fc14a766ff3` |
+
+**Broken downloads, do not trust these two.** Both fail `unzip -t`:
+
+| Archive | sha256 of the truncated file | What to do |
+| --- | --- | --- |
+| `Ultimate Monsters-...zip` | `afc84c3f305f4f8c5314a22fe80d7f112ae2c437985747e71f54bf7448b6da7e` | Re-download; it is the only near-miss for Ember |
+| `Fantasy Props MegaKit[Source].zip` | `bb0a75762695d8f91ed3c4c83809c0e9a868c1b0d64293a542cb42aee62a1add` | Delete. `[Pro]` already holds all 211 models; Source only adds engine projects |
+
+The MegaKit's `License_Pro.txt` confirms the paid Patreon tier is **still
+CC0** - *"You can buy the SOURCE version"* refers to engine projects and
+shaders, not to different licence terms - so the Pro archive carries no
+obligation the free packs do not. Quaternius's `License.txt` and Kenney's
+say the same: CC0, credit welcome but not required.
 
 ### What CC0 means for this project
 
@@ -109,6 +183,56 @@ only adjustment is a y offset for slab thickness, documented at
 The generated `ground-tile-stone.gltf` and `ceiling-tile.gltf` are still on
 disk and still produced by the generator, so reverting the swap is two urls
 in the manifest and two offsets in the scene.
+
+### The three Kenney nature props
+
+These take over the shared kit's `rock`, `foliage-tree` and
+`foliage-tree-lod1` ids, so they appear wherever those are already placed:
+Welcome Harbor, Pirate Builder Bay, Clockwork Harbor and the Dragon's
+Sanctuary place `rock`; the first two and Wonderwild Forest place the tree.
+No scene file changed - the swap is three manifest urls.
+
+Unlike the KayKit slabs these **did** need normalising, and
+`scripts/import-kenney-assets.ts` is that work, done reproducibly rather
+than by hand: Kenney's castle kit is authored on a 1-unit module (its wall
+is 1.00 x 1.31 x 1.00), each source file references a shared
+`Textures/colormap.png` by relative uri, and the three kits do not share
+one atlas. The importer downscales each model to fit inside the box of the
+generated asset it replaces, bakes that scale into the vertices so the root
+stays identity, and embeds the kit's own atlas as a `bufferView` so the
+file is self-contained. `assets/kenneyImports.test.ts` pins all of it.
+
+The generated `rock.gltf`, `foliage-tree.gltf` and `foliage-tree-lod1.gltf`
+are still on disk, so reverting is three urls.
+
+### The two Clockwork Harbor characters
+
+`npc-harbor-master` and `npc-professor-ticktock` are placed by
+`clockworkHarborScene.ts` at the two spots in `NPC_SPOTS`. Before this both
+loaded `npc-pip`, so the Harbor Master and Professor Ticktock were the same
+pirate as each other.
+
+Like the KayKit slabs and unlike the Kenney scenery, these need **no scale
+or pivot normalisation**: measured before use, both are ~1.86m and
+ground-pivoted as authored, with a single root. They also carry **no
+textures** - every material is a flat `baseColorFactor` - which is what
+makes them sit beside the untextured generated kit rather than beside the
+Kenney atlases.
+
+What they needed was subtraction, and it is the licence-adjacent part worth
+recording here: the source pack ships **24 clips per character, most of them
+combat** (`Gun_Shoot`, `Sword_Slash`, `Punch_*`, `Kick_*`, `Death`,
+`HitRecieve`). CC0 permits shipping them; this product's audience does not.
+`scripts/import-character-assets.ts` removes them from the file rather than
+leaving them unreferenced, keeps the three that map onto
+`animationVocabulary.ts` (`Idle`, `Walk`, `Wave`), and prunes the orphaned
+buffer data - 2797 accessors down to 402, 2.9 MB down to 824 KB.
+`assets/characterImports.test.ts` is what stops a re-import putting them
+back.
+
+Nine of the eleven characters were **not** imported, listed with reasons in
+the importer's `EXCLUDED` table. Two of those reasons are content ones
+(`Swat`, `Punk`); the rest is simply that no named role is waiting.
 
 ---
 

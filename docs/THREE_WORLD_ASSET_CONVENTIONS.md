@@ -211,10 +211,83 @@ recorded per asset rather than assumed:
   the dimension that offset was derived from, so a re-import that changes
   the mesh fails loudly instead of drifting.
 
-The import contract is `describe('imported castle kit')` in
-`castleKit.test.ts`: grid fit, pivot, single-mesh where instanced, embedded
-texture, and no required glTF extension (`GLTFLoader` returns an incomplete
-scene for an unsupported required extension rather than throwing).
+- **It may not be at metre scale.** Kenney's kits are authored on a 1-unit
+  module: a castle wall is 1.00 x 1.31 x 1.00, so dropped in unchanged it
+  stands below a child's 1.6m `EYE_HEIGHT`. `scripts/import-kenney-assets.ts`
+  normalises this at import rather than at placement, by the rule below.
+
+### Normalising an import's scale
+
+An import declares the **generated asset whose manifest id it takes over**,
+and is scaled by the largest uniform factor that still fits inside that
+asset's bounding box **on all three axes**.
+
+Fitting inside, rather than matching one axis, is the part that matters.
+Collision is authored as `RectZone` data around the generated original, so
+a mesh that fits inside it cannot poke through the collider - the one way
+a pure art swap can change where a child *appears* able to walk. Uniform,
+because non-uniform scaling visibly stretches a texture atlas.
+
+The scale is baked into the POSITION data, not onto the node, so the root
+transform stays identity. A node transform would survive
+`createInstancedMeshFromAsset` (it bakes `matrixWorld`) but only for
+single-node files, and identity roots are what the import contracts pin.
+Uniform scale leaves NORMAL and TANGENT valid, so only POSITION is rewritten.
+
+For an LOD pair, **both levels are fitted to the near level's box**, not to
+their own. The collider belongs to the object rather than to the detail
+level, and one shared box is what lands both levels on the same height so
+the swap at `distanceMeters` has no vertical pop.
+
+### Importing a rigged character
+
+A character import is a different job from a scenery import, and
+`scripts/import-character-assets.ts` is where it lives. Two rules govern it.
+
+**The vocabulary is closed, and imports are renamed to it.** An imported
+character declares clips from `animationVocabulary.ts` or it declares
+fewer - the vocabulary is never widened to accommodate a pack. In practice
+a general-purpose character pack maps onto very little of it: of the 24
+clips Quaternius's Ultimate Modular Men ship, three (`Idle`, `Walk`,
+`Wave`) map without inventing a meaning, and the rest are dropped. Where a
+source clip is plainly useful but ambiguous - `Interact` could be `Point`,
+`Talk` or `Activate` - it is dropped rather than guessed, because a wrong
+name inside a closed vocabulary is worse than a missing clip.
+
+**A clip that cannot be shown to a child is removed from the file, not left
+unreferenced.** Character packs are overwhelmingly built for combat, and
+this product is for ages 3 to 8. A `Gun_Shoot` or `Death` clip that nothing
+ever plays is still in the bundle and still discoverable. The content half
+of `characterImports.test.ts` is what keeps a re-import from restoring
+them.
+
+Dropping most of a character's clips leaves most of the document
+unreachable, so the importer also **prunes**: it walks reachability from
+meshes, skins and the surviving clips, rebuilds the binary buffer from only
+those bufferViews, and renumbers every accessor and bufferView index. It
+drops `TEXCOORD_*` too when no material samples a texture, since an
+untextured character cannot read its own uvs. On these files that is 2797
+accessors down to 402, and 2.9 MB down to 824 KB.
+
+Renumbering is the risky part: an off-by-one still parses as JSON and still
+looks plausible, and only fails visibly at render. That is why the contract
+ends with a real `GLTFLoader` round trip asserting the rig binds and every
+surviving clip has tracks, rather than reading the document as JSON alone.
+
+### The import contracts
+
+Three files, split by which kit they cover:
+
+- `describe('imported castle kit')` in `castleKit.test.ts` — the KayKit
+  floor and ceiling slabs.
+- `kenneyImports.test.ts` — the shared kit's nature props.
+- `characterImports.test.ts` — the rigged characters.
+
+Between them they pin grid fit, scale fit, pivot, identity roots,
+single-mesh where instanced, embedded texture, clip vocabulary, absence of
+combat clips, buffer packing, and no required glTF extension (`GLTFLoader`
+returns an incomplete scene for an unsupported required extension rather
+than throwing).
 
 ### The texture test path
 
@@ -250,9 +323,34 @@ this convention extends indefinitely.
 npm run assets:generate
 ```
 
-Runs `scripts/generate-world-assets.ts` (via `tsx`) and rewrites every file
-in `public/models/`. The output is checked in, not built at deploy time -
-regenerate and commit after changing any asset's authoring in that script.
+Runs `scripts/generate-world-assets.ts` (via `tsx`) and rewrites every
+*generated* `.gltf` in `public/models/`. The output is checked in, not built
+at deploy time - regenerate and commit after changing any asset's authoring
+in that script.
+
+It does not touch the imported `.glb` files, which have their own command:
+
+```
+npm run assets:import-kenney
+```
+
+Runs `scripts/import-kenney-assets.ts`, which reads the CC0 archives under
+`assets/*.zip` and writes the normalised `kenney-*.glb` files.
+
+```
+npm run assets:import-characters
+```
+
+Runs `scripts/import-character-assets.ts` for the rigged characters, per
+the rules above.
+
+Both read their zips in place through `scripts/assets/zipReader.ts`, a
+minimal `node:zlib` reader rather than a dependency. Those archives are
+**git-ignored** - 532 MB against about 2.1 MB of shipped models - so
+re-running either needs them downloaded again, from the urls in
+`docs/ASSET_SOURCING.md` and verifiable against the sha256s in
+`docs/ASSET_LICENCES.md`. Both importers' output is checked in, so a normal
+clone never needs to run them.
 
 ## Testing
 

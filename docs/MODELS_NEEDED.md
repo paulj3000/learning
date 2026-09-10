@@ -13,9 +13,20 @@ ledger of what has actually been imported so far.
 
 ## 1. Where things stand
 
-`public/models/` holds **110 files**: 108 generated from primitives by
-`scripts/generate-world-assets.ts`, and 2 imported (KayKit, CC0). Every one
-resolves from `src/features/island-map/three/assets/manifest.ts`.
+`public/models/` holds **115 files**: 108 generated from primitives by
+`scripts/generate-world-assets.ts`, and 7 imported (2 KayKit, 3 Kenney,
+2 Quaternius, all CC0). Every one resolves from
+`src/features/island-map/three/assets/manifest.ts`.
+
+The three Kenney imports are the shared kit's `rock` and both levels of
+`foliage-tree`, so they land in four regions at once without a scene edit -
+see `docs/ASSET_LICENCES.md`. The generated originals stay on disk, so each
+swap reverts to one url.
+
+The two Quaternius imports are Clockwork Harbor's **Harbor Master** and
+**Professor Ticktock**, who until now were both `npc-pip` and so were the
+same pirate as each other. Ticktock's is a stand-in, not the answer - see
+section 7, which still lists him as bespoke.
 
 | Region | Models | Scene built | Still needed |
 | --- | --- | --- | --- |
@@ -25,7 +36,7 @@ resolves from `src/features/island-map/three/assets/manifest.ts`.
 | Wonderwild Forest (surface) | 29 | Yes | Nothing |
 | Wonderwild Hive | Authored, unplaced | **No** | **Nothing — needs a scene, not models** |
 | The Writing Room | Authored, unplaced | **No** | **Nothing — needs a scene, not models** |
-| Clockwork Harbor | Borrowed only | Yes | **~32** |
+| Clockwork Harbor | Borrowed + 2 imported NPCs | Yes | **~30** |
 | The Dragon's Sanctuary | Borrowed only | Yes | **~13 + a rigged dragon** |
 | Fossil Ridge Camp | None | No | **~6** |
 | Bolt's Workshop | None | No | **~8** |
@@ -72,7 +83,7 @@ Checked against the pack's actual 203-file listing, not guessed:
 | `tapestry` | `banner_*` — **42 of them**, 7 shapes × 6 colours | Good match, embarrassment of riches | Free (CC0) |
 | `portrait-frame` | `banner_shield_*` | Plausible, not a portrait frame | Free (CC0) |
 | `window-frame`, `round-window` | `wall_window_open`, `wall_window_closed`, `wall_archedwindow_open`, `wall_archedwindow_gated` | Windows *in wall panels*, same mismatch as `wall_arched`. No free-standing frame, no round window | Free (CC0) |
-| `carpet` | **None.** No rug or carpet anywhere in the pack | Look elsewhere (Kenney Castle Kit, KayKit Furniture Bits) | — |
+| `carpet` | **None.** No rug or carpet anywhere in the pack | **Kenney is out too** — measured 2026-09-09, neither the Castle Kit nor the Fantasy Town nor the Modular Dungeon kit contains a rug. Try Quaternius Fantasy Props MegaKit or KayKit Furniture Bits | — |
 | `cushion` | **None** in Dungeon | KayKit Furniture Bits | $150 bundle |
 | `lectern`, `rod-rack`, `costume-rack` | **None** | Keep generated | — |
 
@@ -102,6 +113,27 @@ collider ceiling and every room's proportions against `EYE_HEIGHT = 1.6`.
 Measured from the actual files: `wall` and `wall_arched` are both
 4 × 4 × 1m, single-mesh, ground-pivoted, identity root transform.
 
+**A second kit now says the same thing, which changes how this reads.**
+Kenney's Modular Dungeon Kit 1.0, measured 2026-09-09, is also a 4m grid
+with 4m-tall walls: `template-floor` is 4.000 × 0 × 4.000 (an exact match
+for `SLAB_SIZE_METERS` and for the generated `ground-tile`),
+`template-wall` is 4.000 wide × **4.150** tall, `corridor` 4 × 4.150 × 4,
+and its prebuilt rooms are 12 × 12 and 20 × 20. Two independent CC0
+producers converging on a 4m module is evidence that **`WALL_HEIGHT = 3` is
+the outlier**, not that both kits are awkward. Raising it to 4 stops being
+a concession to one pack and starts being alignment with the format, which
+is an argument ADR-020 did not have available when it deferred this.
+
+It is still a real decision - it flows into every `toBox3` collider ceiling
+and every room's proportions against `EYE_HEIGHT = 1.6` - and it still
+wants its own ADR. But it is now the single change that unblocks
+architecture from *three* kits at once, so it is the highest-leverage item
+on this page.
+
+**What the dungeon kit does not have:** any furniture at all. It is purely
+architectural - corridors, rooms, walls, floors, gates, stairs - so it does
+nothing for `carpet`, `cushion`, `reading-table` or the rest of §3.
+
 ---
 
 ## 4. Clockwork Harbor — ~32 models
@@ -118,8 +150,9 @@ harbor-specific object is inline `BoxGeometry`/`TorusGeometry`.
 | Underground tunnels | KayKit Dungeon | Free (CC0) |
 | Gears, levers, valves, pipes, cranks, chains, pulleys, gauges | KayKit Platformer Pack (gears only); rest unmatched | $150 bundle + bespoke |
 | Generators, power crystals, ancient machinery | No CC0 match found | Bespoke |
-| Harbor Master, sailors, merchants, fishermen, dock workers | KayKit Character Pack Adventurers + Character Animations; [Quaternius Ultimate Modular Men](https://quaternius.com/packs/ultimatemodularcharacters.html) (11 chars, 24 anims, glTF) | $150 bundle / Free (CC0) |
-| Professor Ticktock | Bespoke — a named character | See §7 |
+| ~~Harbor Master~~ **done** | Quaternius Ultimate Modular Men, `Worker` | Free (CC0) |
+| Sailors, merchants, fishermen, dock workers | Same pack — 9 more characters sit unimported, waiting on scene authoring rather than on a download | Free (CC0) |
+| Professor Ticktock | Bespoke — a named character. **A stand-in is now in place** (`Suit` from Ultimate Modular Men), which replaces a worse one rather than closing the row | See §7 |
 | Cog, Clockwork Fox, Brass Turtle, Gearwing Owl, Springtail Rabbit, Copper Crab | **Nothing exists.** Six bespoke clockwork creatures | See §7 |
 
 **The honest read:** the town is buyable, the machinery mostly is not, and
@@ -200,8 +233,14 @@ is the pack most likely to contain a usable starting point for Ember.
 | --- | --- | --- | --- | --- |
 | [KayKit Dungeon Remastered](https://github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0) | CC0 | **glTF** (203 files), FBX, OBJ | **Free** | Downloaded and measured |
 | [The Complete KayKit](https://kaylousberg.itch.io/kaykit-complete) | CC0 | glTF, FBX, OBJ | **$150**, 22 packs, includes future releases | Page read |
-| [Kenney](https://kenney.nl/assets) — Pirate Kit (70), Pirate Pack (190), Watercraft Kit (45), Castle Kit 2.0 (75), Fantasy Town Kit | CC0 | **Formats not stated on the pages** — confirm before planning | **Free** | Page read; formats unconfirmed |
-| [Quaternius](https://quaternius.com/) | CC0 | Varies by pack — **Ultimate packs include glTF, several older packs are FBX/OBJ/Blend only** | **Free** | Page read per pack |
+| [Kenney](https://kenney.nl/assets) — Castle Kit 2.0 (76), Fantasy Town Kit 2.0 (167), Modular Dungeon Kit 1.0 (39) | CC0 | **GLB**, FBX, OBJ, plus a shared `Textures/colormap.png` per pack | **Free** | Downloaded and measured |
+| [Kenney Pirate Kit](https://kenney.nl/assets/pirate-kit) (72) + [Watercraft Pack](https://kenney.nl/assets) (46) | CC0 | GLB, FBX, OBJ | **Free** | Downloaded and listed |
+| [Kenney Pirate Pack](https://kenney.nl/assets/pirate-pack) | CC0 | **2D sprites — 403 PNGs, zero 3D models** | **Free** | Downloaded; earlier listing as "190 models" was wrong |
+| [Quaternius Ultimate Modular Men](https://quaternius.com/packs/ultimatemodularcharacters.html) (11) | CC0 | **glTF** (self-contained, embedded buffers), FBX, Blend | **Free** | Downloaded, measured, 2 imported |
+| [Quaternius Animated Fish](https://quaternius.com/packs/animatedfish.html) (7), [Cute Fish](https://quaternius.com/packs/cutefish.html) (52) | CC0 | **FBX, OBJ, Blend only — no glTF** | **Free** | Downloaded and listed |
+| [Quaternius Fantasy Props MegaKit](https://quaternius.com/) `[Pro]` | CC0 (the paid tier too — `License_Pro.txt`) | **glTF** (211 models, `.gltf` + external `.bin`), FBX, OBJ, **PBR textures** (BaseColor/Normal/ORM) | **Free / Patreon** | Downloaded, listed, not yet measured |
+| [Quaternius Modular Dungeon](https://quaternius.itch.io/lowpoly-modular-dungeon-pack) (May 2019) | CC0 | **FBX, OBJ, Blend only — no glTF** | **Free** | Downloaded and listed |
+| [Quaternius](https://quaternius.com/) — other packs | CC0 | Varies by pack — **Ultimate packs include glTF, several older packs are FBX/OBJ/Blend only** | **Free** | Page read per pack |
 | [Poly Pizza](https://poly.pizza/) (Google Poly archive) | **CC-BY 3.0** | glTF, FBX, OBJ | Free + attribution surface | Licence verified |
 | [Synty POLYGON](https://syntystore.com/collections/polygon) | One-time purchase licence | FBX (conversion needed) | **~$40–100 per pack** | Per `ASSET_SOURCING.md`, 2026-09-08 |
 | Commission | Work-for-hire | As specified | **No verified quote** | Not priced |

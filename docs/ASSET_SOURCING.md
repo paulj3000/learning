@@ -17,6 +17,93 @@ audio half can start today for nothing.
 
 ---
 
+## 0. What has been brought in so far
+
+**Updated 2026-09-09.** Nineteen CC0 archives are on disk under `assets/`,
+totalling **532 MB**. Git ignores them: they are the *input* to the
+importers, not something to ship, and their sha256s are in
+`docs/ASSET_LICENCES.md` so a re-download is verifiable. **Nothing here was
+paid for**, including the Quaternius `[Pro]` tier, which is still CC0.
+
+### Models
+
+| Archive | Models | Formats | Status |
+| --- | --- | --- | --- |
+| Kenney Castle Kit 2.0 | 76 | GLB, FBX, OBJ | **2 imported** — `tree-large`, `tree-small` |
+| Kenney Fantasy Town Kit 2.0 | 167 | GLB, FBX, OBJ | **1 imported** — `rock-small` |
+| Quaternius Ultimate Modular Men | 11 | **glTF**, FBX, Blend | **2 imported** — `Worker`, `Suit` |
+| Kenney Pirate Kit | 72 | GLB, FBX, OBJ | Listed, nothing imported |
+| Kenney Watercraft Pack | 46 | GLB, FBX, OBJ | Listed, nothing imported |
+| Kenney Modular Dungeon Kit 1.0 | 39 | GLB, FBX, OBJ | Measured — blocked on the wall-height decision |
+| KayKit Dungeon Remastered 1.0 | 203 | **GLB**, OBJ | Now local. 2 files already shipped from an earlier download |
+| Quaternius Fantasy Props MegaKit `[Pro]` | 211 | glTF + `.bin`, FBX, OBJ | Listed — PBR-textured, a different style family |
+| Quaternius Modular Dungeon (2019) | 48 | **FBX, OBJ, Blend — no glTF** | Listed — needs a conversion step |
+| Quaternius Cute Fish | 52 | **FBX, OBJ, Blend — no glTF** | Listed — same |
+| Quaternius Animated Fish | 7 | **FBX, OBJ, Blend — no glTF** | Listed — same |
+| Kenney Pirate Pack | **0** | 403 PNGs | **2D sprite pack.** Not a 3D kit; earlier notes calling it "190 models" were wrong |
+
+### Audio — 420 sounds, and no player for them
+
+| Archive | Sounds |
+| --- | --- |
+| Kenney Impact Sounds | 130 `.ogg` |
+| Kenney Interface Sounds | 100 `.ogg` |
+| Kenney Music Jingles | 86 `.ogg` |
+| Kenney RPG Audio | 52 `.ogg` |
+| Kenney UI Audio | 52 `.ogg` |
+
+Section 1's point stands and has not been acted on: this project still has
+**no audio code at all**. These files cannot be "imported" the way a model
+can - they need a sound manifest, a loader, `AudioListener` /
+`PositionalAudio` wiring, and a parent-facing mute and volume control before
+one of them plays. That is a subsystem, and it is the largest single item
+still outstanding on this page.
+
+### Two broken downloads
+
+| Archive | Problem |
+| --- | --- |
+| `Ultimate Monsters` | Truncated, fails `unzip -t`. Worth re-downloading: it is the only near-miss for Ember |
+| `Fantasy Props MegaKit[Source]` | Truncated, and redundant. `[Pro]` already holds all 211 models; Source adds only Unity/Unreal/Godot projects. Delete it |
+
+**Still not downloaded:** Quaternius Ultimate Nature
+(https://quaternius.com/packs/ultimatenature.html), which section 5 of
+`MODELS_NEEDED.md` names for the Dragon's Sanctuary.
+
+### What actually ships
+
+Seven files, about 2.1 MB, checked in under `public/models/`:
+
+| File | Serves | Note |
+| --- | --- | --- |
+| `kaykit-floor-tile-large.glb` | `ground-tile-stone` | No normalisation needed |
+| `kaykit-floor-wood-large-dark.glb` | `ceiling-tile` | No normalisation needed |
+| `kenney-rock-small.glb` | `rock` | Scaled 0.302 |
+| `kenney-tree-large.glb` | `foliage-tree` | Scaled 1.406 |
+| `kenney-tree-small.glb` | `foliage-tree-lod1` | Scaled 1.927 |
+| `npc-harbor-master.gltf` | `npc-harbor-master` | 24 clips stripped to 3, 2.9 MB to 824 KB |
+| `npc-professor-ticktock.gltf` | `npc-professor-ticktock` | Stand-in for a bespoke character |
+
+The five scenery files take over ids the shared kit already places, so no
+scene file changed for them. The two characters are new ids: before them,
+Clockwork Harbor's Harbor Master and Professor Ticktock were both
+`npc-pip`, and so were the same pirate as each other.
+
+### Three corrections measurement forced
+
+1. **Kenney's kits are on a 1-unit module, not a metre one.** A castle wall
+   out of the box is 1.31m tall, below a child's 1.6m eye height. "Drop it
+   in and it works" was never true for these packs.
+2. **Quaternius's characters are the opposite** - already ~1.86m,
+   ground-pivoted, and **untextured**, which makes them a closer style
+   match to the generated kit than any textured pack. What they need is
+   subtraction: 24 clips each, most of them combat, in a product for 3- to
+   8-year-olds.
+3. **The `carpet` hope is dead.** None of the three Kenney kits contains a
+   rug. The MegaKit is the next place to look.
+
+---
+
 ## 1. Buy audio first, not art
 
 This project currently has **no audio of any kind**: no music, no footsteps,
@@ -108,15 +195,33 @@ https://kaylousberg.itch.io/kaykit-dungeon-pack
 
 ### Free CC0 supplements
 
-| Pack | Where | Notes |
-| --- | --- | --- |
-| Kenney Castle Kit 2.0 | https://kenney.nl/assets/castle-kit | 75 models, complete remake of the 2017 original |
-| Kenney Modular Dungeon Kit | https://kenney.nl/assets | Interiors |
-| Kenney Fantasy Town Kit | https://kenney.nl/assets | Exteriors |
-| Quaternius Modular Dungeon | https://quaternius.itch.io/lowpoly-modular-dungeon-pack | |
-| Quaternius Fantasy Props MegaKit | https://quaternius.itch.io/fantasy-props-megakit | |
+**Downloaded and measured 2026-09-09.** Every Kenney pack on this page is a
+free download from kenney.nl; the "Get All-in-1 bundle" button beside each
+Download is an optional convenience purchase of the same CC0 files, not a
+requirement. The archives are kept under `assets/*.zip`, which git ignores -
+their sha256s are in `docs/ASSET_LICENCES.md` so a re-download is
+verifiable.
 
-All CC0. Quaternius ships FBX, OBJ and glTF with shared texture sets.
+| Pack | Where | Formats | What it actually contains |
+| --- | --- | --- | --- |
+| Kenney Castle Kit 2.0 | https://kenney.nl/assets/castle-kit | GLB, FBX, OBJ | 76 models. Exterior: towers, walls, gates, bridges, flags, siege engines, trees, rocks. **1-unit module** - its wall is 1.00 x 1.31 x 1.00 |
+| Kenney Modular Dungeon Kit 1.0 | https://kenney.nl/assets | GLB, FBX, OBJ | 39 models, architecture only. **4m grid, 4.15m walls** - see `MODELS_NEEDED.md` §3 |
+| Kenney Fantasy Town Kit 2.0 | https://kenney.nl/assets | GLB, FBX, OBJ | 167 models. Buildings, roofs, walls, market stalls, fountains, roads, carts, trees, rocks. 1-unit module |
+| Quaternius Modular Dungeon | https://quaternius.itch.io/lowpoly-modular-dungeon-pack | **FBX, OBJ, Blend - no glTF** | 48 models, good furniture (tables, chairs, chests, pedestals, columns). Needs a conversion step |
+| Quaternius Fantasy Props MegaKit `[Pro]` | https://quaternius.itch.io/fantasy-props-megakit | **glTF** (+ external `.bin`), FBX, OBJ | 211 models, **PBR textures** (BaseColor/Normal/ORM). The Pro tier is still CC0 |
+
+All CC0, including the Quaternius Pro tier (`License_Pro.txt`).
+
+**Two things measurement changed about this section.** Kenney's kits are
+authored on a **1-unit module**, not a metre one, so a castle wall out of
+the box is 1.31m tall - below a child's 1.6m eye height. Anything from
+these packs needs uniform downscaling, which
+`scripts/import-kenney-assets.ts` now does. And every Kenney `.glb`
+references a shared `Textures/colormap.png` by relative uri, with a
+**different atlas per pack**, so each import has to embed its own or 404.
+
+**The `carpet` hope in `MODELS_NEEDED.md` is dead.** None of the three
+Kenney kits contains a rug. The MegaKit is the next place to look.
 
 ---
 

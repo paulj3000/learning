@@ -30,7 +30,15 @@ export interface AssetManifestEntry {
 
 export const ASSET_MANIFEST: readonly AssetManifestEntry[] = [
   { id: 'ground-tile', url: '/models/ground-tile.gltf', kind: 'kit-piece', clips: [] },
-  { id: 'rock', url: '/models/rock.gltf', kind: 'kit-piece', clips: [] },
+  /**
+   * Imported from Kenney's Fantasy Town Kit (CC0) by
+   * `scripts/import-kenney-assets.ts`, which downscaled it to fit inside
+   * the generated `rock.gltf`'s box on every axis - see that script's
+   * header for why fitting inside rather than matching one axis is the
+   * rule. `rock.gltf` is still generated and still on disk, so reverting
+   * this swap is this one url.
+   */
+  { id: 'rock', url: '/models/kenney-rock-small.glb', kind: 'kit-piece', clips: [] },
   { id: 'wall', url: '/models/wall.gltf', kind: 'kit-piece', clips: [] },
   { id: 'roof', url: '/models/roof.gltf', kind: 'kit-piece', clips: [] },
   { id: 'door', url: '/models/door.gltf', kind: 'kit-piece', clips: [] },
@@ -43,14 +51,32 @@ export const ASSET_MANIFEST: readonly AssetManifestEntry[] = [
     kind: 'kit-piece',
     clips: [],
   },
+  /**
+   * Imported from Kenney's Castle Kit (CC0), both halves of the LOD pair
+   * together. Swapping only the near level would pop at `distanceMeters`
+   * from a textured import to an untextured generated cone, which is worse
+   * than not swapping at all.
+   *
+   * Kenney ships no LOD levels, so `tree-small` stands in as the low
+   * detail level of `tree-large`: the same tree from the same pack at 164
+   * triangles against 229. Both are scaled to fit inside the *near* level's
+   * box - `foliage-tree.gltf`'s, not `foliage-tree-lod1.gltf`'s - because
+   * the collider a child walks into belongs to the tree rather than to the
+   * detail level, and because sharing one box lands both at exactly 2.600m
+   * so the swap has no vertical pop. The honest cost is 14% of silhouette
+   * width at 14 metres, which is the closest a pack without LODs gets.
+   *
+   * `foliage-bush` stays generated: neither the castle nor the town kit
+   * contains a bush, and a hedge segment is the wrong shape.
+   */
   {
     id: 'foliage-tree',
-    url: '/models/foliage-tree.gltf',
+    url: '/models/kenney-tree-large.glb',
     kind: 'kit-piece',
     clips: [],
     lod: { lowDetailId: 'foliage-tree-lod1', distanceMeters: 14 },
   },
-  { id: 'foliage-tree-lod1', url: '/models/foliage-tree-lod1.gltf', kind: 'kit-piece', clips: [] },
+  { id: 'foliage-tree-lod1', url: '/models/kenney-tree-small.glb', kind: 'kit-piece', clips: [] },
   { id: 'foliage-bush', url: '/models/foliage-bush.gltf', kind: 'kit-piece', clips: [] },
   {
     id: 'npc-pip',
@@ -63,6 +89,41 @@ export const ASSET_MANIFEST: readonly AssetManifestEntry[] = [
     url: '/models/companion-chatty.gltf',
     kind: 'character',
     clips: ['Idle'],
+  },
+  /**
+   * Clockwork Harbor's two named NPCs, imported from Quaternius's Ultimate
+   * Modular Men (CC0) by `scripts/import-character-assets.ts`. Before this
+   * both loaded `npc-pip`, so the Harbor Master and Professor Ticktock were
+   * the same pirate as each other and as Pip.
+   *
+   * They need no scale or pivot normalisation - both are ~1.86m and
+   * ground-pivoted as authored - and carry no textures, which is why they
+   * sit beside the generated kit rather than beside the Kenney imports.
+   *
+   * **Three clips, from a source that ships 24.** The pack is built for
+   * combat (`Gun_Shoot`, `Sword_Slash`, `Punch_*`, `Death`), none of which
+   * belongs in a product for 3- to 8-year-olds, and the importer strips
+   * them from the file rather than leaving them unreferenced. The rest are
+   * dropped because `ANIMATION_CLIP_NAMES` is closed: an import is renamed
+   * to the vocabulary, never the other way round. That is also why neither
+   * declares `Talk` where `npc-pip` does - this pack has no truthful
+   * source for it, and Clockwork Harbor only ever plays `Idle`.
+   *
+   * Professor Ticktock is a **stand-in**: `docs/MODELS_NEEDED.md` section 7
+   * still lists him as bespoke, and this replaces a worse stand-in rather
+   * than closing that row.
+   */
+  {
+    id: 'npc-harbor-master',
+    url: '/models/npc-harbor-master.gltf',
+    kind: 'character',
+    clips: ['Idle', 'Walk', 'Wave'],
+  },
+  {
+    id: 'npc-professor-ticktock',
+    url: '/models/npc-professor-ticktock.gltf',
+    kind: 'character',
+    clips: ['Idle', 'Walk', 'Wave'],
   },
   { id: 'rope-coil', url: '/models/rope-coil.gltf', kind: 'prop', clips: [] },
   { id: 'toolbox', url: '/models/toolbox.gltf', kind: 'prop', clips: [] },

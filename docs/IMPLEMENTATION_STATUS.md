@@ -8428,6 +8428,219 @@ level of effort, so that belongs to a browser run.
   than dismissed.
 
 
+## Shared kit — Kenney nature props, and five CC0 archives measured
+
+The second import, and the first that needed **normalisation**. Three Kenney
+CC0 models take over the shared kit's `rock`, `foliage-tree` and
+`foliage-tree-lod1` ids, so they appear in four regions at once - Welcome
+Harbor, Pirate Builder Bay, Clockwork Harbor and the Dragon's Sanctuary
+place `rock`; the first two and Wonderwild Forest place the tree - **with no
+scene file changed.** The whole code change is three manifest urls.
+
+### What shipped
+
+- **Three imported assets** in `public/models/` (~76 KB total):
+  `kenney-rock-small.glb` (Fantasy Town Kit 2.0),
+  `kenney-tree-large.glb` and `kenney-tree-small.glb` (Castle Kit 2.0).
+- **`scripts/import-kenney-assets.ts`** and `npm run assets:import-kenney`:
+  a declarative import table plus a minimal zip reader built on `node:zlib`,
+  so no new dependency and no extracted copy of a 271 MB pack. Verified
+  deterministic - a second run is byte-identical.
+- **`assets/kenneyImports.test.ts`**, the import contract for these: the
+  scale-fit rule, ground pivot, identity roots, embedded texture,
+  single-mesh, no required extension, and that the generated originals are
+  still on disk.
+- **`assets/*.zip` git-ignored**, with a sha256 per archive in
+  `docs/ASSET_LICENCES.md` so a re-download is verifiable. 271 MB of source
+  against 76 KB shipped is not a thing to put in git history.
+
+### The normalisation rule, and why it is "fit inside"
+
+**Kenney's kits are authored on a 1-unit module, not a metre one.** Their
+castle wall is 1.00 x 1.31 x 1.00, so at 1 unit = 1 metre a child at
+`EYE_HEIGHT` 1.6 sees over every wall in the box. This is the fact that
+makes these imports different from the KayKit floors, which needed nothing.
+
+Each import declares the generated asset whose id it takes over, and is
+scaled by the largest uniform factor that still fits inside that asset's
+bounding box **on all three axes**. Fitting inside rather than matching one
+axis is deliberate: collision is authored as `RectZone` data around the
+generated original, so a mesh that fits inside cannot poke through the
+collider - the one way a pure art swap can change where a child *appears*
+able to walk. The scale is baked into POSITION data rather than onto the
+node, keeping roots identity; uniform scale leaves NORMAL and TANGENT valid.
+
+Both tree levels are fitted to the **near** level's box, not their own, so
+they land on exactly 2.600m and the LOD swap has no vertical pop.
+
+### Judgement calls worth seeing
+
+- **The rock comes from the town kit, not the castle kit**, which was the
+  obvious source. Castle `rocks-small` is a wide flat cluster: fitted to the
+  same box it comes out 0.18m tall against the generated boulder's 0.35m.
+  The town kit's is a real boulder and keeps its height at 0.31m.
+- **`foliage-bush` was not swapped.** Neither kit contains a bush; a hedge
+  segment is the wrong shape. It stays generated.
+- **Both LOD halves were swapped or neither.** Swapping only the near level
+  would pop from a textured import to an untextured generated cone at 14m,
+  which is worse than not swapping. Kenney ships no LOD levels, so
+  `tree-small` stands in as the low detail of `tree-large` - same pack, 164
+  triangles against 229. The honest cost is 14% of silhouette width at 14m.
+
+### What the other four archives settled
+
+Five CC0 archives are on disk; three had nothing imported, and measuring
+them answered open questions in `docs/MODELS_NEEDED.md`:
+
+- **Formats confirmed.** That file recorded Kenney's formats as *"not stated
+  on the pages - confirm before planning"*. They are GLB, FBX and OBJ, plus a
+  shared `Textures/colormap.png` **per pack** - three kits, three different
+  atlases, so each import embeds its own.
+- **The `carpet` hope is dead.** MODELS_NEEDED §3 suggested looking at the
+  Kenney Castle Kit for the rug KayKit lacks. None of the three Kenney kits
+  contains one.
+- **A second kit independently confirms the 4m wall module.** Kenney's
+  Modular Dungeon Kit is a 4m grid with 4.15m walls, exactly like KayKit,
+  against this project's `WALL_HEIGHT = 3`. Two independent CC0 producers
+  converging is evidence that **3 is the outlier**, which is an argument
+  ADR-020 did not have when it deferred this. Still a real decision - it
+  flows into every `toBox3` collider ceiling and every room's proportions -
+  but it is now the single change that unblocks architecture from three kits.
+- **Quaternius Modular Dungeon has the furniture and no glTF.** Tables,
+  chairs, chests, pedestals, columns - FBX, OBJ and Blend only. Needs a
+  conversion step this repo does not have.
+- **Quaternius Fantasy Props MegaKit `[Pro]` is CC0 too**, confirmed in
+  `License_Pro.txt`; the paid tier buys engine projects and shaders, not
+  different terms. It ships glTF, but PBR-textured (BaseColor/Normal/ORM),
+  which is a different style family from both the flat-shaded generated kit
+  and Kenney's palette atlases.
+
+### Limitations
+
+- **Not visually verified.** Tests, typecheck, lint and build pass and all
+  three GLBs ship into `dist/models/`, but nobody has looked at a scene.
+  Whether a textured Kenney tree reads well beside untextured generated
+  primitives is the mixed-fidelity question ADR-020 raises, and no test
+  answers it.
+- **Two texture atlases now ship** for three models, because the rock comes
+  from a different pack than the trees. Same artist and the same flat-palette
+  style, so the cost is ~11 KB rather than a visual seam - but it is a
+  mixing decision, made deliberately.
+- **The generated `rock.gltf`, `foliage-tree.gltf` and
+  `foliage-tree-lod1.gltf` remain** on disk and are still produced by the
+  generator, so reverting is three urls.
+- **Architecture, furniture and characters are all still blocked**, on the
+  wall-height decision, a format/style problem, and commission money
+  respectively. Only scenery with no gameplay role, no state-variant partner
+  and no grid dependency was unblocked today.
+- **One full-suite flake observed once** in `SignUpForm.test.tsx` (a 5s
+  timeout) during the 213-second full run; passes in isolation, and is an
+  auth form with no relationship to assets. Unattributed rather than
+  dismissed.
+
+
+## Clockwork Harbor — its two named NPCs stop being the same pirate
+
+The third import, and the first **character**. The Harbor Master and
+Professor Ticktock both loaded `npc-pip`, so the region's two named NPCs
+were identical to each other and to Pirate Pip. They now wear their own
+imported models.
+
+### What shipped
+
+- **Two rigged CC0 characters**, from Quaternius Ultimate Modular Men:
+  `npc-harbor-master.gltf` (824 KB, from `Worker`) and
+  `npc-professor-ticktock.gltf` (1134 KB, from `Suit`).
+- **`scripts/import-character-assets.ts`** and
+  `npm run assets:import-characters`.
+- **`scripts/assets/zipReader.ts`**, the zip reader extracted out of the
+  Kenney importer so both share it.
+- **`assets/characterImports.test.ts`**, split into content checks,
+  structural checks, and a real `GLTFLoader` round trip.
+- **`NPC_SPOTS` gained an `assetId`**, so the scene loads per-NPC instead of
+  hard-coding `npc-pip` for every spot.
+
+### The content decision, which is the point of this change
+
+The source pack ships **24 clips per character and most of them are
+combat**: `Gun_Shoot`, `Sword_Slash`, `Punch_Left/Right`,
+`Kick_Left/Right`, `Death`, `HitRecieve`, `Idle_Gun*`. This is a product
+for children aged 3 to 8.
+
+CC0 permits shipping them, and nothing in the scene would ever play them.
+That is not sufficient: a `Death` clip in the bundle is discoverable
+whether or not it plays. The importer **removes them from the file**, and
+`characterImports.test.ts` asserts against a forbidden-name pattern so a
+re-import cannot quietly restore them.
+
+Three clips survive - `Idle`, `Walk`, `Wave` - because those are the three
+that map onto `animationVocabulary.ts` without inventing a meaning.
+`Interact` is the judgement call: plainly useful, but whether it reads as
+`Point`, `Talk` or `Activate` cannot be settled without watching it play,
+and there is no viewer here. It was dropped rather than guessed, since a
+wrong name inside a closed vocabulary is worse than a missing clip. Neither
+character declares `Talk` where `npc-pip` does, and that costs nothing:
+Clockwork Harbor only ever plays `Idle`.
+
+**Nine of the eleven characters were not imported**, listed with reasons in
+the importer's `EXCLUDED` table. Two are content exclusions (`Swat` is
+militarised, `Punk` is off-theme); the rest is that no named role is
+waiting, and importing ahead of a scene is the hoarding both
+`ASSET_SOURCING.md` section 5 and `MODELS_NEEDED.md` section 2 warn about.
+
+### Why the prune had to happen, and why it is tested the way it is
+
+Dropping 21 of 24 clips leaves ~85% of the document unreachable. Deleting
+only the `animations` entries would have shrunk the clip list and left
+every keyframe byte in the buffer, so the importer walks reachability from
+meshes, skins and the surviving clips, rebuilds the binary buffer from just
+those bufferViews, and renumbers every accessor and bufferView index. It
+also drops `TEXCOORD_*`, which is provably unread here because **no
+material samples a texture** - 2797 accessors to 402, 2.9 MB to 824 KB.
+
+Renumbering is the dangerous part. An off-by-one still parses as JSON,
+still passes every structural assertion that reads the document as data,
+and fails only at render. So the contract ends with a real `GLTFLoader`
+round trip that asserts the skinned mesh survives, has vertices, and that
+every surviving clip has tracks and non-zero duration. That test is the one
+that actually proves the transform.
+
+### What the other sixteen archives settled
+
+Nineteen CC0 archives are now on disk (532 MB, git-ignored, checksummed in
+`docs/ASSET_LICENCES.md`). Surveying them corrected the docs in three ways:
+
+- **Kenney Pirate Pack is a 2D sprite pack** - 403 PNGs, zero 3D models.
+  `MODELS_NEEDED.md` listed it as "190 models" beside the Pirate Kit.
+- **Quaternius's fish packs ship no glTF** (FBX/OBJ/Blend only), so The
+  Care Beach still needs a conversion step, exactly as its row warned.
+- **Two downloads are corrupt**: `Ultimate Monsters` (truncated - the only
+  near-miss for Ember, worth re-fetching) and `Fantasy Props
+  MegaKit[Source]` (truncated and redundant; `[Pro]` holds all 211 models).
+  Quaternius Ultimate Nature was never downloaded.
+
+### Limitations
+
+- **Not visually verified.** Tests, typecheck, lint and build pass and both
+  characters ship into `dist/models/`, but nobody has looked at the harbor.
+  Whether an untextured Quaternius man reads well beside the generated kit
+  is the mixed-fidelity question, and no test answers it.
+- **Professor Ticktock is a stand-in, not a solution.**
+  `MODELS_NEEDED.md` section 7 still lists him as bespoke - a named
+  clockwork character no pack contains. `Suit` is simply the closest of
+  eleven. This replaced a worse stand-in; it did not close the row.
+- **~1 MB per character** after pruning, against a few KB for a generated
+  kit piece. That is normal for a rigged character and the region
+  lazy-loads, but it is the first asset on the island where size is worth
+  watching on a tablet.
+- **Only three clips.** Any future scene wanting `Talk`, `Point`,
+  `Celebrate` or the `React*` pair from these characters will not find
+  them, and the honest fix is a viewer session over the dropped clips, not
+  a rename.
+- **Ember and Bolt are untouched.** A dragon and a robot are not in a
+  modular-men pack, and section 7 is unchanged.
+
+
 ## Known risks / TODOs
 
 - **Phase 20: `SkillEvidence`'s write path (`recordSkillEvidence`) was not
