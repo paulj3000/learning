@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import parentStyles from './ParentDashboard.module.css';
-import styles from './ChildDashboard.module.css';
+import { useParams } from 'react-router-dom';
 import { getChildProfile } from '../features/child-profile/api';
 import type { ChildProfile } from '../features/child-profile/api';
 import { listAllParentProfiles } from '../features/admin/api';
@@ -12,6 +10,50 @@ import { listSkillProgress } from '../features/mastery/api';
 import { LEARNING_OBJECTIVES, getAdventureTemplate } from '../features/adventures/content';
 import { getIslandLocation } from '../features/island/locations';
 import { AGE_BAND_LABELS, READING_MODE_OPTIONS } from '../features/child-profile/constants';
+import { AdminPageHeader } from '../features/admin/AdminPageHeader';
+import { Alert } from '../features/admin/ui/Alert';
+import { Card, CardContent, CardHeader, CardTitle } from '../features/admin/ui/Card';
+
+interface ProgressItem {
+  key: string;
+  title: string;
+  meta: string;
+}
+
+/** One card of the progress page: a heading and a list, or a muted empty line. */
+function ProgressSection({
+  title,
+  emptyText,
+  items,
+}: {
+  title: string;
+  emptyText: string;
+  items: ProgressItem[];
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle asChild>
+          <h2>{title}</h2>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{emptyText}</p>
+        ) : (
+          <ul className="divide-y rounded-lg border">
+            {items.map((item) => (
+              <li className="grid gap-0.5 px-4 py-3" key={item.key}>
+                <p className="font-medium">{item.title}</p>
+                <p className="text-sm text-muted-foreground">{item.meta}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -119,95 +161,88 @@ export function AdminChildProgress() {
     };
   }, [childId]);
 
+  const profileFacts: { label: string; value: string }[] = childProfile
+    ? [
+        { label: 'Parent', value: parentProfile?.displayName ?? 'Unknown' },
+        { label: 'Age band', value: AGE_BAND_LABELS[childProfile.ageBand] },
+        {
+          label: 'Reading mode',
+          value:
+            READING_MODE_OPTIONS.find((option) => option.value === childProfile.readingMode)
+              ?.label ?? childProfile.readingMode,
+        },
+        { label: 'Status', value: childProfile.active ? 'Active' : 'Deactivated' },
+      ]
+    : [];
+
   return (
-    <div className={parentStyles.page}>
-      <header className={parentStyles.header}>
-        <h1 className={parentStyles.title}>
-          {childProfile ? `${childProfile.nickname}'s progress` : 'Child progress'}
-        </h1>
-        <Link to="/admin">Back to admin</Link>
-      </header>
-      <main className={parentStyles.main} id="main-content">
-        {loadState === 'loading' ? <p>Loading progress...</p> : null}
-        {loadState === 'not-found' ? (
-          <p role="alert">We could not find that child profile.</p>
-        ) : null}
-        {loadState === 'error' ? (
-          <p className={parentStyles.error} role="alert">
-            Something went wrong loading this progress.
-          </p>
-        ) : null}
+    <>
+      <AdminPageHeader
+        title={childProfile ? `${childProfile.nickname}'s progress` : 'Child progress'}
+        back={{ to: '/admin', label: 'Back to families' }}
+      />
+      {loadState === 'loading' ? (
+        <p className="text-sm text-muted-foreground">Loading progress...</p>
+      ) : null}
+      {loadState === 'not-found' ? (
+        <Alert variant="destructive" role="alert">
+          We could not find that child profile.
+        </Alert>
+      ) : null}
+      {loadState === 'error' ? (
+        <Alert variant="destructive" role="alert">
+          Something went wrong loading this progress.
+        </Alert>
+      ) : null}
 
-        {loadState === 'ready' && childProfile ? (
-          <div className={styles.sections}>
-            <section className={styles.section}>
-              <h2 className={styles.heading}>Profile</h2>
-              <p className={styles.summaryLine}>
-                Parent: {parentProfile?.displayName ?? 'Unknown'}
-              </p>
-              <p className={styles.summaryLine}>{AGE_BAND_LABELS[childProfile.ageBand]}</p>
-              <p className={styles.summaryLine}>
-                {READING_MODE_OPTIONS.find((option) => option.value === childProfile.readingMode)
-                  ?.label ?? childProfile.readingMode}
-              </p>
-              <p className={styles.summaryLine}>{childProfile.active ? 'Active' : 'Deactivated'}</p>
-            </section>
-
-            <section className={styles.section}>
-              <h2 className={styles.heading}>Recent adventures</h2>
-              {sessions.length === 0 ? (
-                <p className={styles.hint}>No adventures started yet.</p>
-              ) : (
-                <ul className={styles.list}>
-                  {sessions.slice(0, 8).map((session) => (
-                    <li className={styles.card} key={session.id}>
-                      <p className={styles.cardTitle}>{sessionTitle(session)}</p>
-                      <p className={styles.cardMeta}>
-                        {SESSION_STATUS_LABELS[session.status]} &middot;{' '}
-                        {formatDate(session.lastActivityAt)}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section className={styles.section}>
-              <h2 className={styles.heading}>Skills practiced</h2>
-              {skillProgress.length === 0 ? (
-                <p className={styles.hint}>No skills practiced yet.</p>
-              ) : (
-                <ul className={styles.list}>
-                  {skillProgress.map((row) => (
-                    <li className={styles.card} key={row.id}>
-                      <p className={styles.cardTitle}>
-                        {objectiveTitle(row.learningObjectiveCode)}
-                      </p>
-                      <p className={styles.cardMeta}>{skillProgressMeta(row)}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section className={styles.section}>
-              <h2 className={styles.heading}>Creations and world changes</h2>
-              {worldChanges.length === 0 ? (
-                <p className={styles.hint}>Nothing has changed on the island yet.</p>
-              ) : (
-                <ul className={styles.list}>
-                  {worldChanges.map((change) => (
-                    <li className={styles.card} key={change.id}>
-                      <p className={styles.cardTitle}>{locationTitle(change.locationSlug)}</p>
-                      <p className={styles.cardMeta}>{formatDate(change.createdAt)}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          </div>
-        ) : null}
-      </main>
-    </div>
+      {loadState === 'ready' && childProfile ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle asChild>
+                <h2>Profile</h2>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+                {profileFacts.map((fact) => (
+                  <div className="contents" key={fact.label}>
+                    <dt className="text-muted-foreground">{fact.label}</dt>
+                    <dd className="font-medium">{fact.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </CardContent>
+          </Card>
+          <ProgressSection
+            title="Recent adventures"
+            emptyText="No adventures started yet."
+            items={sessions.slice(0, 8).map((session) => ({
+              key: session.id,
+              title: sessionTitle(session),
+              meta: `${SESSION_STATUS_LABELS[session.status]} · ${formatDate(session.lastActivityAt)}`,
+            }))}
+          />
+          <ProgressSection
+            title="Skills practiced"
+            emptyText="No skills practiced yet."
+            items={skillProgress.map((row) => ({
+              key: row.id,
+              title: objectiveTitle(row.learningObjectiveCode),
+              meta: skillProgressMeta(row),
+            }))}
+          />
+          <ProgressSection
+            title="Creations and world changes"
+            emptyText="Nothing has changed on the island yet."
+            items={worldChanges.map((change) => ({
+              key: change.id,
+              title: locationTitle(change.locationSlug),
+              meta: formatDate(change.createdAt),
+            }))}
+          />
+        </div>
+      ) : null}
+    </>
   );
 }

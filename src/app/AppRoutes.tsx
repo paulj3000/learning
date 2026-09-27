@@ -30,6 +30,7 @@ import { AdminNewModelAsset } from '../routes/AdminNewModelAsset';
 import { RequireParent } from '../features/auth/RequireParent';
 import { RequireGuest } from '../features/auth/RequireGuest';
 import { RequireAdmin } from '../features/auth/RequireAdmin';
+import { AdminLayout } from '../features/admin/AdminLayout';
 
 /**
  * Lazy-loaded: this route (transitively) imports `phaser`, a large library
@@ -425,46 +426,21 @@ export function AppRoutes() {
           </RequireParent>
         }
       />
+      {/* One RequireAdmin gate and one AdminLayout (Tailwind, ADR-023) for every admin page. */}
       <Route
         path="/admin"
         element={
           <RequireAdmin>
-            <AdminDashboard />
+            <AdminLayout />
           </RequireAdmin>
         }
-      />
-      <Route
-        path="/admin/children/:childId"
-        element={
-          <RequireAdmin>
-            <AdminChildProgress />
-          </RequireAdmin>
-        }
-      />
-      <Route
-        path="/admin/assets"
-        element={
-          <RequireAdmin>
-            <AdminAssets />
-          </RequireAdmin>
-        }
-      />
-      <Route
-        path="/admin/assets/models"
-        element={
-          <RequireAdmin>
-            <AdminModelAssets />
-          </RequireAdmin>
-        }
-      />
-      <Route
-        path="/admin/assets/models/new"
-        element={
-          <RequireAdmin>
-            <AdminNewModelAsset />
-          </RequireAdmin>
-        }
-      />
+      >
+        <Route index element={<AdminDashboard />} />
+        <Route path="children/:childId" element={<AdminChildProgress />} />
+        <Route path="assets" element={<AdminAssets />} />
+        <Route path="assets/models" element={<AdminModelAssets />} />
+        <Route path="assets/models/new" element={<AdminNewModelAsset />} />
+      </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

@@ -1,12 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import parentStyles from './ParentDashboard.module.css';
-import styles from '../features/assets/AssetAdmin.module.css';
 import { listModelAssets } from '../features/assets/assetService';
 import { formatFileSize } from '../features/assets/config';
 import { ASSET_CATEGORY_LABELS, ASSET_STATUS_LABELS, type Asset } from '../features/assets/types';
 import { getWorld } from '../features/worlds/worlds';
 import { ISLAND_LOCATIONS } from '../features/island/locations';
+import { AdminPageHeader } from '../features/admin/AdminPageHeader';
+import { Alert } from '../features/admin/ui/Alert';
+import { Badge } from '../features/admin/ui/Badge';
+import { Button } from '../features/admin/ui/Button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../features/admin/ui/Table';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
@@ -63,73 +73,75 @@ export function AdminModelAssets() {
   }, [load]);
 
   return (
-    <div className={parentStyles.page}>
-      <header className={parentStyles.header}>
-        <h1 className={parentStyles.title}>Models</h1>
-        <Link to="/admin/assets">Back to assets</Link>
-      </header>
-      <main className={parentStyles.main} id="main-content">
-        <div className={styles.content}>
-          {uploadedName ? (
-            <p className={styles.notice} role="status">
-              Uploaded "{uploadedName}" as a draft. It is not visible to children.
-            </p>
-          ) : null}
-          <div className={styles.toolbar}>
-            <p className={styles.hint}>GLB models stored in S3, referenced by asset id.</p>
-            <Link className={styles.button} to="/admin/assets/models/new">
-              Upload a model
-            </Link>
-          </div>
+    <>
+      <AdminPageHeader
+        title="Models"
+        description="GLB models stored in S3, referenced by asset id."
+        back={{ to: '/admin/assets', label: 'Back to assets' }}
+        actions={
+          <Button asChild>
+            <Link to="/admin/assets/models/new">Upload a model</Link>
+          </Button>
+        }
+      />
+      <div className="grid gap-4">
+        {uploadedName ? (
+          <Alert variant="success" role="status">
+            Uploaded "{uploadedName}" as a draft. It is not visible to children.
+          </Alert>
+        ) : null}
 
-          {loadState === 'loading' ? <p>Loading models...</p> : null}
-          {loadState === 'error' ? (
-            <div className={styles.actions}>
-              <p className={styles.error} role="alert">
-                The model list could not be loaded. Check your connection and try again.
-              </p>
-              <button className={styles.buttonSecondary} type="button" onClick={() => void load()}>
-                Try again
-              </button>
-            </div>
-          ) : null}
-          {loadState === 'ready' && assets.length === 0 ? (
-            <p className={styles.hint}>No models have been uploaded yet.</p>
-          ) : null}
-          {loadState === 'ready' && assets.length > 0 ? (
-            <div className={styles.tableWrap}>
-              <table className={styles.table} aria-label="Uploaded models">
-                <thead>
-                  <tr>
-                    <th scope="col">Name</th>
-                    <th scope="col">Category</th>
-                    <th scope="col">World</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Version</th>
-                    <th scope="col">File size</th>
-                    <th scope="col">Updated</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {assets.map((asset) => (
-                    <tr key={asset.id}>
-                      <th scope="row">{asset.name}</th>
-                      <td>{ASSET_CATEGORY_LABELS[asset.category]}</td>
-                      <td>{placeLabel(asset)}</td>
-                      <td>
-                        <span className={styles.status}>{ASSET_STATUS_LABELS[asset.status]}</span>
-                      </td>
-                      <td>v{asset.currentVersion}</td>
-                      <td>{formatFileSize(asset.fileSize)}</td>
-                      <td>{formatUpdated(asset.updatedAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </div>
-      </main>
-    </div>
+        {loadState === 'loading' ? (
+          <p className="text-sm text-muted-foreground">Loading models...</p>
+        ) : null}
+        {loadState === 'error' ? (
+          <div className="grid justify-items-start gap-3">
+            <Alert variant="destructive" role="alert">
+              The model list could not be loaded. Check your connection and try again.
+            </Alert>
+            <Button variant="outline" type="button" onClick={() => void load()}>
+              Try again
+            </Button>
+          </div>
+        ) : null}
+        {loadState === 'ready' && assets.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No models have been uploaded yet.</p>
+        ) : null}
+        {loadState === 'ready' && assets.length > 0 ? (
+          <div className="rounded-xl border bg-card shadow-sm">
+            <Table aria-label="Uploaded models">
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">Name</TableHead>
+                  <TableHead scope="col">Category</TableHead>
+                  <TableHead scope="col">World</TableHead>
+                  <TableHead scope="col">Status</TableHead>
+                  <TableHead scope="col">Version</TableHead>
+                  <TableHead scope="col">File size</TableHead>
+                  <TableHead scope="col">Updated</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {assets.map((asset) => (
+                  <TableRow key={asset.id}>
+                    <TableHead scope="row" className="text-foreground">
+                      {asset.name}
+                    </TableHead>
+                    <TableCell>{ASSET_CATEGORY_LABELS[asset.category]}</TableCell>
+                    <TableCell>{placeLabel(asset)}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{ASSET_STATUS_LABELS[asset.status]}</Badge>
+                    </TableCell>
+                    <TableCell>v{asset.currentVersion}</TableCell>
+                    <TableCell>{formatFileSize(asset.fileSize)}</TableCell>
+                    <TableCell>{formatUpdated(asset.updatedAt)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ) : null}
+      </div>
+    </>
   );
 }

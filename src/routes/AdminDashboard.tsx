@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import parentStyles from './ParentDashboard.module.css';
-import styles from './ChildDashboard.module.css';
 import {
   listAllChildProfiles,
   listAllParentProfiles,
@@ -9,6 +7,16 @@ import {
 } from '../features/admin/api';
 import type { ParentWithChildren } from '../features/admin/api';
 import { AGE_BAND_LABELS } from '../features/child-profile/constants';
+import { AdminPageHeader } from '../features/admin/AdminPageHeader';
+import { Alert } from '../features/admin/ui/Alert';
+import { Badge } from '../features/admin/ui/Badge';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../features/admin/ui/Card';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
@@ -50,55 +58,68 @@ export function AdminDashboard() {
   }, []);
 
   return (
-    <div className={parentStyles.page}>
-      <header className={parentStyles.header}>
-        <h1 className={parentStyles.title}>Admin</h1>
-        <nav aria-label="Admin sections" className={parentStyles.headerLeft}>
-          <Link to="/admin/assets">Game assets</Link>
-          <Link to="/home">Back to my dashboard</Link>
-        </nav>
-      </header>
-      <main className={parentStyles.main} id="main-content">
-        {loadState === 'loading' ? <p>Loading families...</p> : null}
-        {loadState === 'error' ? (
-          <p className={parentStyles.error} role="alert">
-            Something went wrong loading the admin directory.
-          </p>
-        ) : null}
-        {loadState === 'ready' ? (
-          <div className={styles.sections}>
-            {groups.length === 0 ? <p className={styles.hint}>No parent accounts yet.</p> : null}
-            {groups.map(({ parent, children }) => (
-              <section className={styles.section} key={parent.id}>
-                <h2 className={styles.heading}>{parent.displayName}</h2>
-                <p className={styles.hint}>
+    <>
+      <AdminPageHeader
+        title="Families"
+        description="Every parent account and their child profiles. Read only."
+      />
+      {loadState === 'loading' ? (
+        <p className="text-sm text-muted-foreground">Loading families...</p>
+      ) : null}
+      {loadState === 'error' ? (
+        <Alert variant="destructive" role="alert">
+          Something went wrong loading the admin directory.
+        </Alert>
+      ) : null}
+      {loadState === 'ready' && groups.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No parent accounts yet.</p>
+      ) : null}
+      {loadState === 'ready' && groups.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          {groups.map(({ parent, children }) => (
+            <Card key={parent.id}>
+              <CardHeader>
+                <CardTitle asChild>
+                  <h2>{parent.displayName}</h2>
+                </CardTitle>
+                <CardDescription>
                   {parent.timezone ?? 'No timezone on file'} &middot; {children.length}{' '}
                   {children.length === 1 ? 'child' : 'children'}
-                </p>
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 {children.length === 0 ? (
-                  <p className={styles.hint}>No child profiles yet.</p>
+                  <p className="text-sm text-muted-foreground">No child profiles yet.</p>
                 ) : (
-                  <ul className={styles.list}>
+                  <ul className="divide-y rounded-lg border">
                     {children.map((child) => (
-                      <li className={styles.card} key={child.id}>
-                        <p className={styles.cardTitle}>
-                          <Link className={styles.link} to={`/admin/children/${child.id}`}>
+                      <li
+                        className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
+                        key={child.id}
+                      >
+                        <div className="grid gap-0.5">
+                          <Link
+                            className="font-medium text-primary hover:underline"
+                            to={`/admin/children/${child.id}`}
+                          >
                             {child.nickname}
                           </Link>
-                        </p>
-                        <p className={styles.cardMeta}>
-                          {AGE_BAND_LABELS[child.ageBand]} &middot;{' '}
+                          <span className="text-sm text-muted-foreground">
+                            {AGE_BAND_LABELS[child.ageBand]}
+                          </span>
+                        </div>
+                        <Badge variant={child.active ? 'secondary' : 'outline'}>
                           {child.active ? 'Active' : 'Deactivated'}
-                        </p>
+                        </Badge>
                       </li>
                     ))}
                   </ul>
                 )}
-              </section>
-            ))}
-          </div>
-        ) : null}
-      </main>
-    </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : null}
+    </>
   );
 }

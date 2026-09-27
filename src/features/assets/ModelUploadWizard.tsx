@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
-import styles from './AssetAdmin.module.css';
 import { MODEL_FILE_EXTENSION, MODEL_MAX_UPLOAD_MB, formatFileSize } from './config';
 import {
   GLB_HEADER_BYTES,
@@ -27,6 +26,11 @@ import {
 } from './types';
 import { WORLD_DEFINITIONS } from '../worlds/worlds';
 import { ISLAND_LOCATIONS } from '../island/locations';
+import { Alert } from '../admin/ui/Alert';
+import { Button } from '../admin/ui/Button';
+import { FieldHint, Input, Label, NativeSelect, Textarea } from '../admin/ui/FormControls';
+import { cn } from '../admin/ui/cn';
+import { alertVariants } from '../admin/ui/variants';
 
 type Step = 'file' | 'details' | 'upload';
 type UploadState = 'uploading' | 'failed';
@@ -59,20 +63,27 @@ interface ModelUploadWizardProps {
 function IssueList({ issues }: { issues: readonly CheckIssue[] }) {
   if (issues.length === 0) return null;
   return (
-    <ul className={styles.issues}>
+    <ul className="grid gap-2">
       {issues.map((issue) => (
         <li
           key={issue.code}
-          className={issue.severity === 'error' ? styles.error : styles.warning}
+          className={alertVariants({
+            variant: issue.severity === 'error' ? 'destructive' : 'warning',
+          })}
           role={issue.severity === 'error' ? 'alert' : undefined}
         >
-          {issue.severity === 'error' ? 'Error: ' : 'Warning: '}
+          <span className="font-semibold">
+            {issue.severity === 'error' ? 'Error: ' : 'Warning: '}
+          </span>
           {issue.message}
         </li>
       ))}
     </ul>
   );
 }
+
+/** The white panel each step's form sits in. */
+const PANEL_CLASS = 'grid max-w-2xl gap-5 rounded-xl border bg-card p-6 shadow-sm';
 
 /**
  * The three-step model upload wizard (docs/android/ASSET_MANAGEMENT.md
@@ -189,12 +200,17 @@ export function ModelUploadWizard({
   }
 
   return (
-    <div className={styles.content}>
-      <ol className={styles.steps} aria-label="Upload steps">
+    <div className="grid gap-6">
+      <ol className="flex flex-wrap gap-2" aria-label="Upload steps">
         {STEPS.map(({ id, label }) => (
           <li
             key={id}
-            className={id === step ? styles.stepCurrent : undefined}
+            className={cn(
+              'rounded-full border px-3 py-1 text-sm',
+              id === step
+                ? 'border-primary bg-card font-semibold text-foreground'
+                : 'text-muted-foreground',
+            )}
             aria-current={id === step ? 'step' : undefined}
           >
             {label}
@@ -203,30 +219,28 @@ export function ModelUploadWizard({
       </ol>
 
       {step === 'file' ? (
-        <form className={styles.form} onSubmit={handleFileNext} noValidate>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="model-file">
-              Model file
-            </label>
-            <input
+        <form className={PANEL_CLASS} onSubmit={handleFileNext} noValidate>
+          <div className="grid gap-2">
+            <Label htmlFor="model-file">Model file</Label>
+            <Input
               id="model-file"
-              className={styles.input}
               type="file"
               accept={`${MODEL_FILE_EXTENSION},model/gltf-binary`}
               onChange={(event) => void handleFileChange(event)}
             />
-            <p className={styles.hint}>GLB (glTF Binary) only, up to {MODEL_MAX_UPLOAD_MB} MB.</p>
+            <FieldHint>GLB (glTF Binary) only, up to {MODEL_MAX_UPLOAD_MB} MB.</FieldHint>
           </div>
           {file ? (
-            <p className={styles.fileFacts}>
+            <p className="text-sm text-muted-foreground">
               {file.name} &middot; {formatFileSize(file.size)}
             </p>
           ) : null}
-          {isCheckingFile ? <p className={styles.hint}>Checking the file...</p> : null}
+          {isCheckingFile ? <FieldHint>Checking the file...</FieldHint> : null}
           <IssueList issues={fileIssues} />
           {fileWarnings.length > 0 && !hasErrors(fileIssues) ? (
-            <label className={styles.checkboxRow}>
+            <label className="flex items-start gap-2 text-sm">
               <input
+                className="mt-0.5 size-4 accent-primary"
                 type="checkbox"
                 checked={warningsAcknowledged}
                 onChange={(event) => setWarningsAcknowledged(event.target.checked)}
@@ -234,9 +248,8 @@ export function ModelUploadWizard({
               I have reviewed the warnings and want to continue.
             </label>
           ) : null}
-          <div className={styles.actions}>
-            <button
-              className={styles.button}
+          <div className="flex flex-wrap gap-3">
+            <Button
               type="submit"
               disabled={
                 !file ||
@@ -246,178 +259,147 @@ export function ModelUploadWizard({
               }
             >
               Next
-            </button>
-            <button className={styles.buttonSecondary} type="button" onClick={onCancel}>
+            </Button>
+            <Button variant="outline" type="button" onClick={onCancel}>
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       ) : null}
 
       {step === 'details' ? (
-        <form className={styles.form} onSubmit={handleDetailsSubmit} noValidate>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="model-name">
-              Name
-            </label>
-            <input
+        <form className={PANEL_CLASS} onSubmit={handleDetailsSubmit} noValidate>
+          <div className="grid gap-2">
+            <Label htmlFor="model-name">Name</Label>
+            <Input
               id="model-name"
-              className={styles.input}
               value={details.name}
               onChange={(event) => updateDetail('name', event.target.value)}
             />
           </div>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="model-description">
-              Description
-            </label>
-            <textarea
+          <div className="grid gap-2">
+            <Label htmlFor="model-description">Description</Label>
+            <Textarea
               id="model-description"
-              className={styles.input}
               rows={3}
               value={details.description}
               onChange={(event) => updateDetail('description', event.target.value)}
             />
           </div>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="model-category">
-              Category
-            </label>
-            <select
-              id="model-category"
-              className={styles.input}
-              value={details.category}
-              onChange={(event) => updateDetail('category', event.target.value as AssetCategory)}
-            >
-              {ASSET_CATEGORIES.map((category) => (
-                <option key={category} value={category}>
-                  {ASSET_CATEGORY_LABELS[category]}
-                </option>
-              ))}
-            </select>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="model-category">Category</Label>
+              <NativeSelect
+                id="model-category"
+                value={details.category}
+                onChange={(event) => updateDetail('category', event.target.value as AssetCategory)}
+              >
+                {ASSET_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {ASSET_CATEGORY_LABELS[category]}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="model-source">Source</Label>
+              <NativeSelect
+                id="model-source"
+                value={details.source}
+                onChange={(event) => updateDetail('source', event.target.value as AssetSource)}
+              >
+                {ASSET_SOURCES.map((source) => (
+                  <option key={source} value={source}>
+                    {ASSET_SOURCE_LABELS[source]}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="model-world">World (optional)</Label>
+              <NativeSelect
+                id="model-world"
+                value={details.worldId}
+                onChange={(event) => updateDetail('worldId', event.target.value)}
+              >
+                <option value="">Any world (reusable)</option>
+                {WORLD_DEFINITIONS.map((world) => (
+                  <option key={world.slug} value={world.slug}>
+                    {world.title}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="model-region">Region (optional)</Label>
+              <NativeSelect
+                id="model-region"
+                value={details.regionId}
+                disabled={!details.worldId}
+                onChange={(event) => updateDetail('regionId', event.target.value)}
+              >
+                <option value="">Any region</option>
+                {regions.map((location) => (
+                  <option key={location.slug} value={location.slug}>
+                    {location.title}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
           </div>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="model-world">
-              World (optional)
-            </label>
-            <select
-              id="model-world"
-              className={styles.input}
-              value={details.worldId}
-              onChange={(event) => updateDetail('worldId', event.target.value)}
-            >
-              <option value="">Any world (reusable)</option>
-              {WORLD_DEFINITIONS.map((world) => (
-                <option key={world.slug} value={world.slug}>
-                  {world.title}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="model-region">
-              Region (optional)
-            </label>
-            <select
-              id="model-region"
-              className={styles.input}
-              value={details.regionId}
-              disabled={!details.worldId}
-              onChange={(event) => updateDetail('regionId', event.target.value)}
-            >
-              <option value="">Any region</option>
-              {regions.map((location) => (
-                <option key={location.slug} value={location.slug}>
-                  {location.title}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="model-source">
-              Source
-            </label>
-            <select
-              id="model-source"
-              className={styles.input}
-              value={details.source}
-              onChange={(event) => updateDetail('source', event.target.value as AssetSource)}
-            >
-              {ASSET_SOURCES.map((source) => (
-                <option key={source} value={source}>
-                  {ASSET_SOURCE_LABELS[source]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="model-source-notes">
-              Source notes (optional)
-            </label>
-            <textarea
+          <div className="grid gap-2">
+            <Label htmlFor="model-source-notes">Source notes (optional)</Label>
+            <Textarea
               id="model-source-notes"
-              className={styles.input}
               rows={2}
               value={details.sourceNotes}
               onChange={(event) => updateDetail('sourceNotes', event.target.value)}
             />
-            <p className={styles.hint}>
+            <FieldHint>
               Pack name, artist, and licence. Record the licence in docs/ASSET_LICENCES.md too.
-            </p>
+            </FieldHint>
           </div>
           <IssueList issues={detailIssues} />
-          <div className={styles.actions}>
-            <button className={styles.button} type="submit">
-              Upload model
-            </button>
-            <button
-              className={styles.buttonSecondary}
-              type="button"
-              onClick={() => setStep('file')}
-            >
+          <div className="flex flex-wrap gap-3">
+            <Button type="submit">Upload model</Button>
+            <Button variant="outline" type="button" onClick={() => setStep('file')}>
               Back
-            </button>
+            </Button>
           </div>
         </form>
       ) : null}
 
       {step === 'upload' ? (
-        <div className={styles.form}>
+        <div className={PANEL_CLASS}>
           {uploadState === 'uploading' ? (
             <>
-              <p role="status">Uploading... {percent}%</p>
+              <p className="text-sm font-medium" role="status">
+                Uploading... {percent}%
+              </p>
               <progress
-                className={styles.progress}
+                className="h-2 w-full accent-primary"
                 max={100}
                 value={percent}
                 aria-label="Upload progress"
               />
-              <div className={styles.actions}>
-                <button
-                  className={styles.buttonSecondary}
-                  type="button"
-                  onClick={() => handleRef.current?.cancel()}
-                >
+              <div className="flex flex-wrap gap-3">
+                <Button variant="outline" type="button" onClick={() => handleRef.current?.cancel()}>
                   Cancel upload
-                </button>
+                </Button>
               </div>
             </>
           ) : (
             <>
-              <p className={styles.error} role="alert">
+              <Alert variant="destructive" role="alert">
                 {uploadError}
-              </p>
-              <div className={styles.actions}>
-                <button className={styles.button} type="button" onClick={beginUpload}>
+              </Alert>
+              <div className="flex flex-wrap gap-3">
+                <Button type="button" onClick={beginUpload}>
                   Try again
-                </button>
-                <button
-                  className={styles.buttonSecondary}
-                  type="button"
-                  onClick={() => setStep('details')}
-                >
+                </Button>
+                <Button variant="outline" type="button" onClick={() => setStep('details')}>
                   Back to details
-                </button>
+                </Button>
               </div>
             </>
           )}

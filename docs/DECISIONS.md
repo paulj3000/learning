@@ -1391,3 +1391,94 @@ separate migration decision.
   so the limit guards against mistakes rather than attacks.
 - Rules are verified structurally in `src/features/assets/authorization.test.ts`;
   the live check is listed in `docs/AUTHORIZATION_REVIEW.md` section 5.
+
+## ADR-023: The admin section is styled with Tailwind CSS and shadcn/ui; the rest of the app stays on CSS Modules
+
+Status: Accepted (2026-09-27)
+
+CLAUDE.md section 8 sets the styling baseline as "CSS Modules or a small
+token-based styling system", unless an ADR changes it. This ADR changes it
+for `/admin/*` only.
+
+**Context.** The admin section (families directory, child progress, game
+assets, model list, upload wizard) is internal tooling: tables, forms,
+status badges and alerts, used by adults on a desktop. It had been borrowing
+the parent dashboard's CSS modules plus its own `AssetAdmin.module.css`,
+and each new admin page meant restating the same table, form and button
+styles. The island's look (chunky buttons with a pressable lip, display
+headings) is designed for children and is the wrong register for dense
+admin screens.
+
+**The decision.**
+
+- Tailwind CSS v4 (`tailwindcss`, `@tailwindcss/vite`, dev dependencies)
+  compiles one stylesheet, `src/features/admin/admin.css`, imported only by
+  `src/features/admin/AdminLayout.tsx`.
+- shadcn/ui components are **vendored**, not installed: Button, Badge,
+  Alert, Card, Table, Label, Input, Textarea and Native Select live in
+  `src/features/admin/ui/` as our own source. Their runtime dependencies are
+  `clsx`, `tailwind-merge`, `class-variance-authority` and
+  `@radix-ui/react-slot` (for `asChild`, so a router `Link` can look like a
+  button and still be a link). No other Radix packages, no icon library, no
+  `@/` path alias; the shadcn CLI is not used, because it needs that alias.
+- Every `/admin/*` route renders inside `AdminLayout` (a nested route under
+  one `RequireAdmin` gate), which owns the top bar, the section nav and the
+  page's `<main id="main-content">`.
+- The admin palette is shadcn/ui's semantic names (`primary`, `muted`,
+  `border`, `destructive`...) mapped onto the existing tokens in
+  `src/styles/tokens.css`. No new colours, so every text/background pair is
+  one `tokens.test.ts` already checks.
+
+**How it is kept away from children's pages.** Three mechanisms, each
+covered by `src/features/admin/adminCss.test.ts`:
+
+1. *No theme variables on `:root`.* tokens.css already defines
+   `--color-*`, `--radius-*`, `--shadow-*` and `--font-*`, exactly the
+   namespaces Tailwind's theme uses. Both `@theme` sources are imported as
+   `reference inline`, so Tailwind writes resolved values into each utility
+   and emits no variables. The test compiles `admin.css` and fails on any
+   custom property other than Tailwind's private `--tw-*` ones.
+2. *Scoped reset.* Tailwind's global Preflight is not imported. An adapted
+   copy lives inside `@scope (.admin-root)`, the class only `AdminLayout`
+   sets. The test fails if any element selector appears outside that scope.
+3. *global.css steps aside for buttons.* The island's button rules (the lip,
+   the press, the hover brighten) have up to 0,2,1 specificity and would
+   beat any single utility class. They now carry
+   `:where(:not(.admin-root *))`, which adds no specificity, so the ~35 CSS
+   modules that override them are unaffected. The test fails if a `button`
+   rule in global.css lacks the exclusion.
+
+Utilities are unlayered on purpose: global.css is unlayered, and an
+unlayered rule beats any layered one, so layered utilities would lose to its
+bare `a` and heading rules. Utility generation is limited to admin files
+(`source(none)` plus explicit `@source` paths); a new admin file elsewhere
+must be added to that list.
+
+**Alternatives considered.**
+
+- *Bootstrap.* Faster to a finished-looking page, but it ships a large
+  stylesheet, its own palette (to be overridden to match the tokens), JS for
+  interactive parts, and a global reset (Reboot) that is much harder to
+  confine than a hand-scoped Preflight.
+- *daisyUI.* Fewest dependencies (a plugin, no JS), but less accessibility
+  behaviour built in and a more generic look.
+- *Tailwind Plus / Catalyst.* The most polished application screens, but
+  paid, and Catalyst adds Headless UI.
+- *Keep CSS Modules for admin.* Viable, and what the rest of the app does.
+  Rejected for admin because tables, forms and statuses were being
+  re-authored per page; a small component set is cheaper to extend.
+
+**Consequences.**
+
+- Two styling systems in one app. The boundary is the route: `/admin/*`
+  is Tailwind, everything else is CSS Modules. Child-facing and parent-facing
+  code must not import from `src/features/admin/ui/`.
+- `@scope` needs a 2024+ browser (Chrome 118, Safari 17.4, Firefox 146).
+  Acceptable for an internal tool; in an older browser the admin pages
+  render with browser-default margins and list bullets, not broken.
+- shadcn/ui upstream fixes are not pulled in automatically; vendored files
+  are updated by hand. The deliberate deviations (no `outline-none`, so the
+  island's tested focus ring stays; no dark-mode variants; Alert without a
+  hard-coded `role`) are listed in `src/features/admin/ui/variants.ts`.
+- `AssetAdmin.module.css` is deleted; the admin pages no longer import
+  `ParentDashboard.module.css` or `ChildDashboard.module.css`.

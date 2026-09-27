@@ -417,6 +417,62 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
+## Admin section restyled with Tailwind CSS and shadcn/ui — complete, not yet seen in a browser
+
+Decision: ADR-023.
+
+Every `/admin/*` page now renders inside one `AdminLayout`
+(`src/features/admin/AdminLayout.tsx`): a top bar with "Families" and "Game
+assets" section links (the current one marked `aria-current="page"`), a
+"Back to my dashboard" link, and the page's `<main id="main-content">`. The
+routes are nested under a single `RequireAdmin` in `src/app/AppRoutes.tsx`;
+the URLs are unchanged. The five pages (`AdminDashboard`,
+`AdminChildProgress`, `AdminAssets`, `AdminModelAssets`,
+`AdminNewModelAsset`) and `ModelUploadWizard` use vendored shadcn/ui
+components from `src/features/admin/ui/` instead of CSS modules. Page
+logic, loading/empty/error states, roles and labels are unchanged; only
+markup and classes moved. The directory's `<h1>` now reads "Families"
+instead of "Admin".
+
+**Built**
+
+- `src/features/admin/admin.css`: Tailwind theme and utilities with no
+  `:root` variables, shadcn/ui colour names mapped to island tokens, and
+  Preflight adapted inside `@scope (.admin-root)`.
+- `src/features/admin/ui/`: Button, Badge, Alert, Card, Table, Label,
+  Input, Textarea, NativeSelect, FieldHint, `cn`, and the variant recipes.
+- `src/features/admin/AdminPageHeader.tsx`: title, description, back link
+  and actions for each page.
+- `src/styles/global.css`: button rules exclude `.admin-root`.
+- `vite.config.ts`: `@tailwindcss/vite` plugin.
+- Removed `src/features/assets/AssetAdmin.module.css`.
+- New dependencies: `clsx`, `tailwind-merge`, `class-variance-authority`,
+  `@radix-ui/react-slot`; dev: `tailwindcss`, `@tailwindcss/vite`.
+
+**Tests:** 7 new. `adminCss.test.ts` compiles the real `admin.css` and
+fails if a custom property escapes onto `:root`, if an element selector
+sits outside the admin scope, or if a global.css button rule loses its
+admin exclusion (checked by temporarily removing `reference` from the
+theme: all three compile checks failed as intended).
+`AdminLayout.test.tsx` covers the main landmark, the scope class and the
+active nav link. The existing admin page and wizard tests pass unchanged.
+Full suite: 214 files, 2200 tests passing; typecheck clean; build clean,
+and the built CSS has no `:root` block besides tokens.css's own; no new
+lint findings.
+
+**Not verified**
+
+- Not looked at in a browser. The admin pages need a signed-in
+  `Admins`-group account against a running backend, which this change did
+  not have, so layout and spacing are checked only by the build output and
+  tests.
+- `package-lock.json` in this repo was not regenerated: the repo is a
+  member of an npm workspace one level up, so `npm install` updated that
+  workspace's lockfile instead. CI and Amplify run `npm install`, which
+  resolves from `package.json`, so this does not block a build; running
+  `npm install --package-lock-only` in a standalone copy of the repo and
+  committing the result would bring the lockfile back in step.
+
 ## Model Asset Manager — Phases 1-2 complete (foundation and upload)
 
 Spec: `docs/android/ASSET_MANAGEMENT.md`. Decision: ADR-022.

@@ -1,0 +1,220 @@
+/**
+ * Tailwind CSS for the admin section only (docs/DECISIONS.md ADR-023).
+ *
+ * The rest of the app is CSS Modules on top of src/styles/tokens.css, and
+ * nothing in this file may change how a child's page looks. Three rules keep
+ * it that way:
+ *
+ * 1. **No theme variables on `:root`.** tokens.css already owns `--color-*`,
+ *    `--radius-*`, `--shadow-*` and `--font-*`, the same namespaces Tailwind's
+ *    theme uses. Both theme imports below are `reference` + `inline`: Tailwind
+ *    reads them to build utilities and writes the resolved value into each
+ *    utility, but emits no variables. `adminCss.test.ts` compiles this file
+ *    and fails if a single custom property escapes onto `:root`.
+ * 2. **Utilities only from admin files.** `source(none)` turns off automatic
+ *    detection, so only the `@source` paths below generate classes. A new
+ *    admin file outside these paths needs adding here, or its classes will
+ *    silently do nothing.
+ * 3. **The reset is scoped.** Tailwind's Preflight is global; the adapted
+ *    copy at the bottom lives inside `@scope (.admin-root)`, the class
+ *    `AdminLayout` puts on its outermost element.
+ *
+ * Utilities are deliberately unlayered. global.css is unlayered too, and an
+ * unlayered rule beats any layered one regardless of specificity, so layered
+ * utilities would lose to global.css's bare `a` and `h1` rules.
+ */
+
+@import 'tailwindcss/theme.css' theme(reference inline);
+@import 'tailwindcss/utilities.css' source(none);
+
+@source './';
+@source '../../routes/Admin*.tsx';
+@source '../assets/ModelUploadWizard.tsx';
+
+/**
+ * shadcn/ui's semantic colour names, mapped onto the island's tokens rather
+ * than restating hex values: every pair here is already contrast-checked by
+ * src/styles/tokens.test.ts.
+ */
+@theme reference inline {
+  --color-background: var(--color-surface-sunk);
+  --color-foreground: var(--color-text);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-text);
+  --color-primary: var(--color-primary);
+  --color-primary-foreground: var(--color-primary-contrast);
+  --color-secondary: var(--color-surface-sunk);
+  --color-secondary-foreground: var(--color-text);
+  --color-muted: var(--color-surface-sunk);
+  --color-muted-foreground: var(--color-text-muted);
+  --color-accent: var(--color-surface-sunk);
+  --color-accent-foreground: var(--color-text);
+  --color-destructive: var(--color-danger);
+  --color-warning: var(--color-warning);
+  --color-success: var(--color-success);
+  --color-border: var(--color-border-subtle);
+  --color-input: var(--color-border);
+  --color-ring: var(--color-focus-ring);
+  --font-sans: var(--font-family-base);
+}
+
+/**
+ * Tailwind v4's Preflight (MIT, https://tailwindcss.com), scoped to the admin
+ * subtree and trimmed of the document-level rules that only make sense on
+ * `html`. Additions beyond Preflight are marked "island:": they undo the
+ * global.css element rules (heading face, link colour) that would otherwise
+ * leak into admin pages. Inside `@scope` these win over global.css's rules
+ * of equal specificity by scope proximity, not by source order.
+ */
+@scope (.admin-root) {
+  :scope {
+    min-height: 100vh;
+    background-color: var(--color-surface-sunk);
+    color: var(--color-text);
+    font-family: var(--font-family-base);
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    tab-size: 4;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+    /* shadcn/ui's `* { @apply border-border }`, so a bare `border` is subtle. */
+    border-color: var(--color-border-subtle);
+  }
+
+  hr {
+    height: 0;
+    color: inherit;
+    border-top-width: 1px;
+  }
+
+  abbr:where([title]) {
+    text-decoration: underline dotted;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-size: inherit;
+    font-weight: inherit;
+    /* island: global.css sets the display face on h1-h3. */
+    font-family: inherit;
+    letter-spacing: inherit;
+    line-height: inherit;
+    color: inherit;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: inherit;
+  }
+
+  b,
+  strong {
+    font-weight: bolder;
+  }
+
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family:
+      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+      monospace;
+    font-size: 1em;
+  }
+
+  small {
+    font-size: 80%;
+  }
+
+  table {
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+  }
+
+  progress {
+    vertical-align: baseline;
+  }
+
+  summary {
+    display: list-item;
+  }
+
+  ol,
+  ul,
+  menu {
+    list-style: none;
+  }
+
+  img,
+  svg,
+  video,
+  canvas,
+  audio,
+  iframe,
+  embed,
+  object {
+    display: block;
+    vertical-align: middle;
+  }
+
+  img,
+  video {
+    max-width: 100%;
+    height: auto;
+  }
+
+  button,
+  input,
+  select,
+  optgroup,
+  textarea,
+  ::file-selector-button {
+    font: inherit;
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    border-radius: 0;
+    background-color: transparent;
+    opacity: 1;
+  }
+
+  ::file-selector-button {
+    margin-inline-end: 4px;
+  }
+
+  ::placeholder {
+    opacity: 1;
+    color: var(--color-text-muted);
+  }
+
+  textarea {
+    resize: vertical;
+  }
+
+  button,
+  input:where([type='button'], [type='reset'], [type='submit']),
+  ::file-selector-button {
+    appearance: button;
+  }
+
+  [hidden]:where(:not([hidden='until-found'])) {
+    display: none !important;
+  }
+}
