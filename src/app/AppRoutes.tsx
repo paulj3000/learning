@@ -24,6 +24,9 @@ import { StoryPage } from '../routes/StoryPage';
 import { AdventureLibraryPage } from '../routes/AdventureLibraryPage';
 import { AdminDashboard } from '../routes/AdminDashboard';
 import { AdminChildProgress } from '../routes/AdminChildProgress';
+import { AdminAssets } from '../routes/AdminAssets';
+import { AdminModelAssets } from '../routes/AdminModelAssets';
+import { AdminNewModelAsset } from '../routes/AdminNewModelAsset';
 import { RequireParent } from '../features/auth/RequireParent';
 import { RequireGuest } from '../features/auth/RequireGuest';
 import { RequireAdmin } from '../features/auth/RequireAdmin';
@@ -435,6 +438,30 @@ export function AppRoutes() {
         element={
           <RequireAdmin>
             <AdminChildProgress />
+          </RequireAdmin>
+        }
+      />
+      <Route
+        path="/admin/assets"
+        element={
+          <RequireAdmin>
+            <AdminAssets />
+          </RequireAdmin>
+        }
+      />
+      <Route
+        path="/admin/assets/models"
+        element={
+          <RequireAdmin>
+            <AdminModelAssets />
+          </RequireAdmin>
+        }
+      />
+      <Route
+        path="/admin/assets/models/new"
+        element={
+          <RequireAdmin>
+            <AdminNewModelAsset />
           </RequireAdmin>
         }
       />

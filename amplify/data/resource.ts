@@ -883,6 +883,106 @@ const schema = a.schema({
     .returns(a.ref('NextLearningActivityResult'))
     .authorization((allow) => [allow.authenticated()])
     .handler(a.handler.function(getNextLearningActivity)),
+
+  // --- Model Asset Manager, Phases 1-2 (docs/android/ASSET_MANAGEMENT.md, docs/DECISIONS.md ADR-022) ---
+
+  AssetType: a.enum(['MODEL_3D', 'TEXTURE', 'ANIMATION', 'AUDIO', 'IMAGE', 'ENVIRONMENT', 'OTHER']),
+  AssetCategory: a.enum([
+    'CHARACTER',
+    'NPC',
+    'CREATURE',
+    'BUILDING',
+    'PROP',
+    'VEGETATION',
+    'VEHICLE',
+    'QUEST_ITEM',
+    'ENVIRONMENT',
+    'DECORATION',
+    'OTHER',
+  ]),
+  /**
+   * `DRAFT` is where every upload lands today. Phase 3 (GLTFLoader
+   * validation) is what will move an asset through `PROCESSING` to `READY`
+   * or `ERROR`, and Phase 5 adds the explicit admin publish step; nothing in
+   * Phases 1-2 can write `PUBLISHED`, so an upload never reaches a child.
+   */
+  AssetStatus: a.enum(['DRAFT', 'PROCESSING', 'READY', 'PUBLISHED', 'ARCHIVED', 'ERROR']),
+  AssetSource: a.enum(['THIRD_PARTY_PACK', 'COMMISSIONED', 'IN_HOUSE', 'AI_TOOL', 'OTHER']),
+
+  /**
+   * One logical game asset (a model, and later a texture, animation, or
+   * audio clip). Game content refers to an asset by `id` or by `slug`; the
+   * actual bytes live in S3 under a versioned key held by `AssetVersion`,
+   * and `currentVersionId`/`s3Key` here mirror whichever version is active so
+   * a reader needs one `get` rather than two.
+   *
+   * `slug` deliberately shares a namespace with the bundled
+   * `ASSET_MANIFEST` ids (`src/features/island-map/three/assets/manifest.ts`),
+   * matching the `AssetCatalogEntry` design in
+   * `docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md`: a published asset whose
+   * slug equals a bundled id is what will let an S3 model stand in for a
+   * bundled one without touching scene code (`src/features/assets/assetService.ts`).
+   *
+   * `worldId`/`regionId` are slugs from the source-controlled
+   * `WORLD_DEFINITIONS`/`ISLAND_LOCATIONS` registries, not foreign keys:
+   * neither is a database model (ADR-013).
+   *
+   * Admins-group only, for every operation (docs/AUTHORIZATION_REVIEW.md
+   * section 0). No owner rule and no parent read: a parent session gets
+   * "Unauthorized" on every call, which `assetService.resolveModelUrl`
+   * treats as "use the bundled model". Child-facing reads of *published*
+   * assets need a status-filtered query that a model-level rule cannot
+   * express, and arrive with Phase 5's publishing work.
+   */
+  Asset: a
+    .model({
+      name: a.string().required(),
+      slug: a.string().required(),
+      description: a.string(),
+      assetType: a.ref('AssetType').required(),
+      category: a.ref('AssetCategory').required(),
+      status: a.ref('AssetStatus').required(),
+      currentVersion: a.integer().required(),
+      currentVersionId: a.id().required(),
+      s3Key: a.string().required(),
+      fileName: a.string().required(),
+      originalFileName: a.string().required(),
+      mimeType: a.string().required(),
+      fileSize: a.integer().required(),
+      thumbnailKey: a.string(),
+      source: a.ref('AssetSource').required(),
+      sourceNotes: a.string(),
+      worldId: a.string(),
+      regionId: a.string(),
+      /** Extracted model statistics (Phase 3). AWSJSON: see `src/lib/awsJson.ts`. */
+      metadata: a.json(),
+      createdBy: a.string().required(),
+      lastModifiedBy: a.string().required(),
+      publishedBy: a.string(),
+      publishedAt: a.datetime(),
+      versions: a.hasMany('AssetVersion', 'assetId'),
+    })
+    .authorization((allow) => [allow.group('Admins')]),
+
+  /**
+   * One immutable uploaded file for an `Asset`. Replacing a model (Phase 6)
+   * adds a row and a new S3 object under a new `v{n}/` key rather than
+   * overwriting either, so older versions stay available for rollback and
+   * a versioned URL can be cached forever.
+   */
+  AssetVersion: a
+    .model({
+      assetId: a.id().required(),
+      asset: a.belongsTo('Asset', 'assetId'),
+      version: a.integer().required(),
+      s3Key: a.string().required(),
+      fileName: a.string().required(),
+      originalFileName: a.string().required(),
+      fileSize: a.integer().required(),
+      metadata: a.json(),
+      uploadedBy: a.string().required(),
+    })
+    .authorization((allow) => [allow.group('Admins')]),
 });
 
 export type Schema = ClientSchema<typeof schema>;

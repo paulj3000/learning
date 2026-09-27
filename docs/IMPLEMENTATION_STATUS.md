@@ -417,6 +417,64 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
+## Model Asset Manager — Phases 1-2 complete (foundation and upload)
+
+Spec: `docs/android/ASSET_MANAGEMENT.md`. Decision: ADR-022.
+
+An administrator can open `/admin/assets`, go to Models, and upload a GLB
+through a three-step wizard at `/admin/assets/models/new`. The file is
+checked before upload (`.glb` only, glTF 2.0 header, header length matches
+the file, 50 MB limit, 10 MB warning, duplicate file name warning,
+unique name/slug), uploaded to S3 with a live percentage and a cancel
+button, and only then recorded as a `DRAFT` `Asset` plus its first
+`AssetVersion`. If either record fails, the record and the S3 object are
+removed again, so a failure leaves nothing behind. The model list shows
+every upload with category, world/region, status, version, size, and
+date, with loading, empty, error-with-retry, and "uploaded as draft"
+states.
+
+**Built**
+
+- Schema: `AssetType`, `AssetCategory`, `AssetStatus`, `AssetSource`
+  enums; `Asset` and `AssetVersion` models, Admins group only
+  (`amplify/data/resource.ts`).
+- Storage: `assets/*` prefix, Admins group only (`amplify/storage/resource.ts`).
+- `src/features/assets/`: `assetService.ts` (list, get, published-only
+  get, current version, signed URL, `resolveModelUrl` with bundled
+  fallback), `modelUpload.ts` (ordered upload and cleanup, typed
+  `AssetUploadError`), `modelFileChecks.ts`, `storageKeys.ts`,
+  `config.ts`, `ModelUploadWizard.tsx`.
+- Routes: `/admin/assets`, `/admin/assets/models`,
+  `/admin/assets/models/new`, all behind `RequireAdmin`; a "Game assets"
+  link on `/admin`.
+
+**Tests:** 82 new (file checks, slugs, keys, upload ordering and every
+failure/cancel path, service fallbacks, schema/storage rules read from
+source, wizard flow, list states). Full suite: 212 files, 2193 tests
+passing before these docs; typecheck clean; no new lint findings beyond
+the codebase's existing `role="status"` convention.
+
+**Not verified**
+
+- Nothing has run against a deployed sandbox. The schema and storage
+  changes need `npx ampx sandbox` (or a deploy) before the pages can load
+  real data, and the live authorization checks in
+  `docs/AUTHORIZATION_REVIEW.md` section 5 are still to do.
+- No real large-file or network-drop upload has been tried; those paths
+  are covered by mocked tests only.
+
+**Deliberately not done yet**
+
+- `assetLoader.ts` does not call `resolveModelUrl`. Asset records are
+  Admins-only, so from a parent's session every lookup would fail; this
+  waits for Phase 5's published-only read path (ADR-022).
+- No `/admin/assets/models/:id` or `/edit` pages, no GLTFLoader validation,
+  no preview, no publishing: Phases 3-5.
+- The spec's "use the existing toast system": there is none, so messages
+  are inline `role="alert"` / `role="status"` text, like the rest of the
+  admin pages.
+- Upload limits are browser-enforced only (acceptable: admin-only writes).
+
 ## Wonderwild Forest first-person region — WF-0 to WF-2 complete; the forest is walkable
 
 Two design documents define this work:

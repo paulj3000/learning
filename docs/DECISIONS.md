@@ -1329,3 +1329,65 @@ Two consequences follow, and both are obligations rather than notes:
 - `scripts/generate-world-assets.ts` and the GLB pipeline become the only
   art pipeline that matters, which sharpens ADR-020 rather than resolving
   it: every region is now downstream of the untextured-primitive problem.
+
+## ADR-022: Uploaded models live in S3 behind Admins-only Asset records; the bundled manifest stays the runtime fallback
+
+Status: Accepted (2026-09-27), covering Phases 1-2 of
+`docs/android/ASSET_MANAGEMENT.md`
+
+ADR-014 said the content manifest would be "designed, not built, until it
+has something to protect". The Model Asset Manager is that something:
+administrators now need to bring in GLB models from outside the
+generate/import scripts (commissioned characters, AI modeling tools,
+packs too large to commit), and those models need a home that is not the
+Git repository.
+
+**The decision.**
+
+- A generic `Asset` model plus an immutable `AssetVersion` per uploaded
+  file (`amplify/data/resource.ts`). Game content will refer to an asset by
+  id or slug, never by file name. `Asset.slug` shares a namespace with the
+  bundled `ASSET_MANIFEST` ids, as the `AssetCatalogEntry` design in
+  `docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md` already proposed.
+- Files go to the existing Amplify Storage bucket under a new
+  `assets/*` prefix, one object per version
+  (`assets/models/<folder>/<assetId>/v<n>/model.glb`), so a replacement
+  never overwrites bytes that may be cached.
+- Both models and the storage prefix are **Admins-group only** for every
+  operation. Parents, and so children, get nothing.
+- Uploads land as `DRAFT`. Nothing in Phases 1-2 can publish.
+- `src/features/assets/assetService.ts` is the only code that turns an
+  asset reference into a URL. `resolveModelUrl(id)` prefers a published
+  asset with a matching slug and otherwise returns the bundled
+  `public/models/` file.
+
+**Why the bundled manifest stays authoritative at runtime.** Today every
+region loads about 3 MB of committed models and works offline. Serving
+children's worlds from S3 would add a network dependency, a new failure
+mode mid-session, and a cost for Android's planned offline mode, in
+exchange for nothing children can see yet. So the bundled file is always
+the fallback, and `assetLoader.ts` is deliberately **not** wired to
+`resolveModelUrl` until Phase 5 gives parents a published-only read path.
+Wiring it earlier would add a guaranteed "Unauthorized" call to every
+scene load.
+
+**Why Admins-only reads, even for published assets.** A model-level rule
+cannot say "authenticated users may read rows whose status is
+`PUBLISHED`". Granting `allow.authenticated().to(['read'])` would expose
+drafts, source notes, and admin user ids to every parent. The published
+read path will be a narrow custom query or a generated manifest (Phase 5),
+not a wider model rule.
+
+**What this does not change.** The generated and imported assets in
+`public/models/` stay committed, stay under test, and stay the way scenes
+load today. "Do not place GLBs in Git" from ASSET_MANAGEMENT.md applies to
+admin-uploaded models, not to the existing pipeline; moving those is a
+separate migration decision.
+
+**Consequences.**
+
+- Upload limits (`MODEL_MAX_UPLOAD_MB`, `MODEL_WARN_UPLOAD_MB`) are
+  enforced in the browser only. Acceptable because only admins can write,
+  so the limit guards against mistakes rather than attacks.
+- Rules are verified structurally in `src/features/assets/authorization.test.ts`;
+  the live check is listed in `docs/AUTHORIZATION_REVIEW.md` section 5.

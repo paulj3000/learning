@@ -597,3 +597,35 @@ for, never any part of what was said.
 
 Sensitive content should be redacted or stored separately with strict retention only when genuinely necessary for review.
 
+
+## Asset
+Admin-managed game asset (docs/android/ASSET_MANAGEMENT.md, ADR-022). Holds
+no child data. Admins-group only for every operation.
+
+- `id`
+- `name`, `slug` (unique by convention; shares a namespace with bundled `ASSET_MANIFEST` ids)
+- `description`
+- `assetType`: `MODEL_3D`, `TEXTURE`, `ANIMATION`, `AUDIO`, `IMAGE`, `ENVIRONMENT`, `OTHER`
+- `category`: `CHARACTER`, `NPC`, `CREATURE`, `BUILDING`, `PROP`, `VEGETATION`, `VEHICLE`, `QUEST_ITEM`, `ENVIRONMENT`, `DECORATION`, `OTHER`
+- `status`: `DRAFT`, `PROCESSING`, `READY`, `PUBLISHED`, `ARCHIVED`, `ERROR` (uploads land as `DRAFT`)
+- `currentVersion`, `currentVersionId`: the active `AssetVersion`
+- `s3Key`, `fileName`, `originalFileName`, `mimeType`, `fileSize`: mirror the active version
+- `thumbnailKey`
+- `source`: `THIRD_PARTY_PACK`, `COMMISSIONED`, `IN_HOUSE`, `AI_TOOL`, `OTHER`; `sourceNotes`
+- `worldId`, `regionId`: optional slugs from `WORLD_DEFINITIONS` / `ISLAND_LOCATIONS`
+- `metadata`: AWSJSON, extracted model statistics (Phase 3)
+- `createdBy`, `lastModifiedBy`, `publishedBy`, `publishedAt`: Cognito user ids of admins
+- timestamps
+
+## AssetVersion
+One immutable uploaded file for an `Asset`. Never overwritten; replacing a
+model adds a row and a new S3 object.
+
+- `id`
+- `assetId`
+- `version`
+- `s3Key`: `assets/models/<category folder>/<assetId>/v<version>/model.glb`
+- `fileName`, `originalFileName`, `fileSize`
+- `metadata`
+- `uploadedBy`
+- timestamps

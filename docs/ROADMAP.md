@@ -854,6 +854,29 @@ a child-facing Android application would need the separate approval
 CLAUDE.md section 12 requires for native mobile applications — this phase
 does not grant that approval on its own.
 
+## Model Asset Manager (docs/android/ASSET_MANAGEMENT.md)
+
+An admin-only system for uploading, validating, previewing, publishing,
+and versioning 3D models in S3, so game content refers to logical asset
+ids instead of files (ADR-022). Nine phases, in the spec's own order:
+
+1. **Foundation. Complete.** `Asset`/`AssetVersion` schema and enums,
+   Admins-only data and storage rules, `assetService.ts` with bundled
+   fallback, `/admin/assets` and `/admin/assets/models`.
+2. **Upload. Complete.** GLB selection with header/size/duplicate checks,
+   details form, S3 upload with progress and cancel, draft record creation
+   only after S3 succeeds, cleanup on failure.
+3. **Validation.** GLTFLoader load, metadata extraction, PASS/WARNING/ERROR
+   results, `DRAFT -> PROCESSING -> READY | ERROR`.
+4. **Three.js viewer.** Reusable `<ModelPreview />` with orbit controls,
+   camera fitting, grid, skeleton/bounding box, animation playback.
+5. **Publishing.** Explicit publish/archive; a published-only read path
+   for parents so `assetLoader.ts` can finally call `resolveModelUrl`.
+6. **Versioning.** Replace model, version history, rollback.
+7. **Character integration.** `modelAssetId` on code-defined NPC content.
+8. **Usage tracking.** "Used by", guarding archive/delete.
+9. **Performance and polish.** Thumbnails, search, filters, budgets.
+
 ## Post-MVP candidates
 
 - Robot Repair Reef;

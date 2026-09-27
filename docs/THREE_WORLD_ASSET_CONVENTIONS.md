@@ -330,6 +330,35 @@ material and texture wired onto the mesh. What it does not prove: that the
 PNG bytes decode to a valid image. jsdom cannot rasterise one at any level
 of effort, so that check belongs to a browser (Playwright) run.
 
+## Uploaded models (Model Asset Manager)
+
+Models that do not come from `scripts/generate-world-assets.ts` or the
+import scripts can be uploaded by an administrator at
+`/admin/assets/models/new` (ADR-022). They go to S3, not to
+`public/models/`, and land as drafts that children never see.
+
+Requirements checked before upload (`src/features/assets/modelFileChecks.ts`):
+
+- **Format:** `.glb` (glTF 2.0 binary) only. The file's 12-byte header must
+  say glTF version 2 and match the file's real length, which catches
+  renamed files and truncated exports.
+- **Size:** hard limit `MODEL_MAX_UPLOAD_MB`, default 50 MB; warning above
+  `MODEL_WARN_UPLOAD_MB`, default 10 MB. Override either with the Vite env
+  vars `VITE_MODEL_MAX_UPLOAD_MB` / `VITE_MODEL_WARN_UPLOAD_MB`. The whole
+  bundled world is about 3 MB, so a single model over 10 MB deserves a
+  second look before a child's tablet downloads it.
+- **Naming:** the display name becomes the asset's slug (`Pirate Captain`
+  -> `pirate-captain`), which must be unique. Use the same id a bundled
+  manifest entry uses only when the upload is meant to replace that model
+  once published.
+- **Duplicates:** re-uploading a file name already on record is a warning,
+  because a newer version belongs on the existing asset (Phase 6's
+  "Replace model"), not in a second one.
+
+The same scale, pivot, and animation-name rules above apply to uploaded
+models. Phase 3's GLTFLoader validation will check them automatically;
+until then they are the uploader's responsibility.
+
 ## File layout and format
 
 Every *generated* asset is a single, self-contained `.gltf` **JSON** file
