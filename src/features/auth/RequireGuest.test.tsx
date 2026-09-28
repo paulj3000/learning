@@ -16,6 +16,7 @@ function renderAtSignIn(status: AuthStatus) {
     status,
     userId: status === 'authenticated' ? 'parent-1' : null,
     isAdmin: false,
+    isSuperuser: false,
     refresh: vi.fn(),
     signOut: vi.fn(),
   });

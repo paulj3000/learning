@@ -629,3 +629,43 @@ model adds a row and a new S3 object.
 - `metadata`
 - `uploadedBy`
 - timestamps
+
+## Island
+Admin catalog record for one island (ADR-024,
+docs/ISLAND_ADVENTURE_MANAGEMENT.md). An overlay on the source-controlled
+`ISLAND_LOCATIONS` entry with the same `slug`; no row means available.
+Admins create/read/update; signed-in parents read; no one deletes.
+
+- `id`
+- `slug` (secondary index; unique by client check; fixed once created)
+- `name`, `shortDescription`, `description`
+- `active`: `false` hides the island and makes every adventure on it unplayable
+- `sortOrder`
+- `thumbnailKey` (not used yet)
+- `createdBy`, `updatedBy`: Cognito user ids, readable by Admins only (field-level rule)
+- timestamps
+
+## Adventure
+Admin catalog record for one adventure (ADR-024). `slug` joins to an
+`ADVENTURE_TEMPLATES` entry; child history (`AdventureSession.templateSlug`)
+is keyed by that slug, never by this row's id. Admins create/read/update;
+`Superusers` delete; signed-in parents read.
+
+- `id`
+- `islandId` (secondary index) -> `Island`
+- `slug` (secondary index), `name`, `shortDescription`, `description`
+- `active`: playable only when both this and its island are active
+- `sortOrder`, `thumbnailKey`
+- `createdBy`, `updatedBy` (Admins-only fields)
+- timestamps
+
+## AdventureModel
+Which existing `Asset` records an adventure uses. A join row, so a model is
+shared without copying its GLB. Admins only.
+
+- `id`
+- `adventureId` -> `Adventure`
+- `assetId` -> `Asset`
+- `role`: an `AssetCategory`, or null for "same as the asset's category"
+- `sortOrder`
+- timestamps

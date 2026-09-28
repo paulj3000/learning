@@ -3,6 +3,7 @@ import { decodeAwsJson, encodeAwsJson } from '../../lib/awsJson';
 import type { Correctness, AdventureDefinition } from './engine/types';
 import type { StepAnswer } from './engine/validators';
 import type { Schema } from '../../../amplify/data/resource';
+import { assertAdventureAvailable } from '../catalog/availabilityApi';
 
 export type AdventureSession = Schema['AdventureSession']['type'];
 export type AdventureAction = Schema['AdventureAction']['type'];
@@ -146,11 +147,19 @@ export async function startSession(
  * section 8's "World checks requirements -> Adventure Engine starts"), so
  * approaching an adventure object in the world and opening the adventure
  * route directly both create at most one active session.
+ *
+ * Also the one place every route goes through to play an adventure, so it
+ * is where the admin catalog's active flags are enforced for children
+ * (docs/ISLAND_ADVENTURE_MANAGEMENT.md section 17): an adventure, or one on
+ * an island, that an admin deactivated throws `AdventureUnavailableError`
+ * instead of starting or resuming. An existing session is left untouched,
+ * so the child's progress is still there if the adventure is reactivated.
  */
 export async function resumeOrStartSession(
   childProfileId: string,
   definition: AdventureDefinition,
 ): Promise<AdventureSession> {
+  await assertAdventureAvailable(definition);
   const existing = await getActiveSession(childProfileId, definition.slug);
   return (
     existing ??

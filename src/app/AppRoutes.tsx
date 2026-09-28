@@ -27,6 +27,12 @@ import { AdminChildProgress } from '../routes/AdminChildProgress';
 import { AdminAssets } from '../routes/AdminAssets';
 import { AdminModelAssets } from '../routes/AdminModelAssets';
 import { AdminNewModelAsset } from '../routes/AdminNewModelAsset';
+import { AdminIslands } from '../routes/AdminIslands';
+import { AdminIslandForm } from '../routes/AdminIslandForm';
+import { AdminIslandDetail } from '../routes/AdminIslandDetail';
+import { AdminAdventures } from '../routes/AdminAdventures';
+import { AdminAdventureForm } from '../routes/AdminAdventureForm';
+import { AdminAdventureDetail } from '../routes/AdminAdventureDetail';
 import { RequireParent } from '../features/auth/RequireParent';
 import { RequireGuest } from '../features/auth/RequireGuest';
 import { RequireAdmin } from '../features/auth/RequireAdmin';
@@ -440,6 +446,16 @@ export function AppRoutes() {
         <Route path="assets" element={<AdminAssets />} />
         <Route path="assets/models" element={<AdminModelAssets />} />
         <Route path="assets/models/new" element={<AdminNewModelAsset />} />
+        {/* Islands & Adventures catalog (docs/ISLAND_ADVENTURE_MANAGEMENT.md, ADR-024). */}
+        <Route path="islands" element={<AdminIslands />} />
+        <Route path="islands/new" element={<AdminIslandForm />} />
+        <Route path="islands/:islandId" element={<AdminIslandDetail />} />
+        <Route path="islands/:islandId/edit" element={<AdminIslandForm />} />
+        <Route path="islands/:islandId/adventures/new" element={<AdminAdventureForm />} />
+        <Route path="adventures" element={<AdminAdventures />} />
+        <Route path="adventures/new" element={<AdminAdventureForm />} />
+        <Route path="adventures/:adventureId" element={<AdminAdventureDetail />} />
+        <Route path="adventures/:adventureId/edit" element={<AdminAdventureForm />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

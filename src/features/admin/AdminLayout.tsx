@@ -11,6 +11,8 @@ interface AdminNavItem {
 
 const ADMIN_NAV: AdminNavItem[] = [
   { to: '/admin', label: 'Families', end: true },
+  { to: '/admin/islands', label: 'Islands' },
+  { to: '/admin/adventures', label: 'Adventures' },
   { to: '/admin/assets', label: 'Game assets' },
 ];
 

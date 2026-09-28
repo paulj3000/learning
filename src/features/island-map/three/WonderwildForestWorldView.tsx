@@ -15,6 +15,7 @@ import {
 import { DiscoveryAction } from '../DiscoveryAction';
 import { NpcConversation } from '../NpcConversation';
 import { resumeOrStartSession, listAllWorldChanges } from '../../adventures/api';
+import { adventureStartErrorMessage } from '../../catalog/availabilityApi';
 import { resolveAdventureForAgeBand } from '../../adventures/content';
 import { getWorldState, saveCheckpoint } from '../../discovery/api';
 import { KNOWN_CHECKPOINT_IDS } from '../../discovery/checkpoints';
@@ -409,8 +410,8 @@ function InteractionPanelAction({
       navigate(
         `/island/${childId}/locations/${startAdventureAction.locationSlug}/adventures/${definition.slug}`,
       );
-    } catch {
-      setError('Something went wrong starting the adventure. Please try again.');
+    } catch (startError) {
+      setError(adventureStartErrorMessage(startError));
       setStarting(false);
     }
   }

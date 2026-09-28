@@ -6,6 +6,8 @@ import { getIslandLocation, isLocationUnlocked } from '../features/island/locati
 import { getHomeWorld } from '../features/worlds/worlds';
 import { getAdventureTemplatesForLocation } from '../features/adventures/content';
 import { listAllWorldChanges } from '../features/adventures/api';
+import { isIslandAvailable } from '../features/catalog/availability';
+import { loadCatalogSnapshot } from '../features/catalog/availabilityApi';
 import { getChildProfile } from '../features/child-profile/api';
 import type { WorldChange } from '../features/adventures/api';
 import type { ChildProfile } from '../features/child-profile/api';
@@ -27,6 +29,7 @@ export function IslandLocationPage() {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
   const [allWorldChanges, setAllWorldChanges] = useState<WorldChange[]>([]);
+  const [isAvailable, setIsAvailable] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,9 +40,10 @@ export function IslandLocationPage() {
         return;
       }
       try {
-        const [child, changes] = await Promise.all([
+        const [child, changes, catalog] = await Promise.all([
           getChildProfile(childId),
           listAllWorldChanges(childId),
+          loadCatalogSnapshot(),
         ]);
         if (cancelled) return;
         if (!child) {
@@ -48,6 +52,7 @@ export function IslandLocationPage() {
         }
         setChildProfile(child);
         setAllWorldChanges(changes);
+        setIsAvailable(isIslandAvailable(catalog, location.slug));
         setLoadState('ready');
       } catch {
         if (cancelled) return;
@@ -96,6 +101,22 @@ export function IslandLocationPage() {
   }
 
   const worldChangeKeys = allWorldChanges.map((change) => change.changeKey);
+  if (!isAvailable) {
+    // Deactivated by an admin (ADR-024): a bookmarked URL still lands somewhere calm.
+    return (
+      <IslandLayout childId={childId}>
+        <div className={styles.content}>
+          <p className={styles.decoration}>
+            This part of the island is resting right now. Let us explore somewhere else.
+          </p>
+          <Link className={styles.backLink} to={backTo}>
+            Back to the map
+          </Link>
+        </div>
+      </IslandLayout>
+    );
+  }
+
   if (!isLocationUnlocked(location, worldChangeKeys)) {
     return (
       <IslandLayout childId={childId}>

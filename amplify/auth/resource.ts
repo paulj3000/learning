@@ -16,11 +16,18 @@ import { defineAuth } from '@aws-amplify/backend';
  * --username <email> --group-name Admins`, or the wrapper that reads the
  * pool id out of `amplify_outputs.json` for you:
  * `npm run grant-admin -- <email>` (`scripts/grant-admin.ts`).
+ *
+ * `Superusers` (docs/ISLAND_ADVENTURE_MANAGEMENT.md section 3, ADR-024) is
+ * not a second role system: a Superuser is an `Admins` member who is also in
+ * `Superusers`, so every existing `allow.group('Admins')` rule already covers
+ * them and the extra group only ever adds destructive permissions (today,
+ * deleting an `Adventure` catalog record). Granted the same out-of-band way:
+ * `npm run grant-admin -- <email> --superuser`.
  * @see https://docs.amplify.aws/react/build-a-backend/auth/
  */
 export const auth = defineAuth({
   loginWith: {
     email: true,
   },
-  groups: ['Admins'],
+  groups: ['Admins', 'Superusers'],
 });

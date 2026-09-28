@@ -44,6 +44,7 @@ const CANDIDATES = [
   'hover:bg-accent',
   'md:grid-cols-2',
   'accent-primary',
+  'divide-y',
 ];
 
 async function buildAdminCss(): Promise<string> {
@@ -98,7 +99,19 @@ describe('admin.css (ADR-023)', () => {
       .map((match) => match[1].trim())
       .filter((prelude) => prelude.length > 0 && !prelude.startsWith('@'));
     expect(selectors.length).toBeGreaterThan(0);
-    expect(selectors.filter((selector) => !selector.startsWith('.'))).toEqual([]);
+    // Utilities are class-keyed, directly or inside Tailwind's zero-specificity :where(.x ...).
+    expect(selectors.filter((selector) => !/^(\.|:where\(\.)/.test(selector))).toEqual([]);
+  });
+});
+
+describe('admin.css reset layering', () => {
+  it('keeps the element reset in a cascade layer, below :where() utilities like divide-y', async () => {
+    const css = await buildAdminCss();
+    // Unlayered, the reset's `*` would tie with divide-y's zero specificity
+    // and win by scope proximity, removing every divider.
+    expect(css).toMatch(/@layer admin-reset\s*\{\s*@scope \(\.admin-root\)\s*\{\s*\*/);
+    const unlayered = stripBlocks(css, '@layer admin-reset {');
+    expect(unlayered).not.toMatch(/border:\s*0 solid/);
   });
 });
 

@@ -12,6 +12,12 @@
  *
  *   npx tsx scripts/grant-admin.ts you@example.com
  *   npx tsx scripts/grant-admin.ts you@example.com --revoke
+ *   npx tsx scripts/grant-admin.ts you@example.com --superuser
+ *   npx tsx scripts/grant-admin.ts you@example.com --superuser --revoke
+ *
+ * `--superuser` targets the `Superusers` group instead (ADR-024). Granting it
+ * also grants `Admins`, since a Superuser is an admin with extra destructive
+ * permissions, not a separate role; revoking it removes only `Superusers`.
  *
  * Requires the AWS CLI on PATH and credentials for the account that deployed
  * the backend (`cognito-idp:ListUsers`, `AdminAddUserToGroup`,
@@ -26,14 +32,17 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
-const GROUP = 'Admins';
+const ADMINS = 'Admins';
+const SUPERUSERS = 'Superusers';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const args = process.argv.slice(2);
 const revoke = args.includes('--revoke');
+const superuser = args.includes('--superuser');
+const GROUP = superuser ? SUPERUSERS : ADMINS;
 const email = args.find((arg) => !arg.startsWith('--'));
 if (!email) {
-  console.error('Usage: npx tsx scripts/grant-admin.ts <email> [--revoke]');
+  console.error('Usage: npx tsx scripts/grant-admin.ts <email> [--superuser] [--revoke]');
   process.exit(2);
 }
 
@@ -96,16 +105,19 @@ if (users.length > 1) {
 }
 const { Username: username, UserStatus: userStatus } = users[0]!;
 
-aws([
-  'cognito-idp',
-  revoke ? 'admin-remove-user-from-group' : 'admin-add-user-to-group',
-  '--user-pool-id',
-  userPoolId,
-  '--username',
-  username,
-  '--group-name',
-  GROUP,
-]);
+const targetGroups = superuser && !revoke ? [ADMINS, SUPERUSERS] : [GROUP];
+for (const group of targetGroups) {
+  aws([
+    'cognito-idp',
+    revoke ? 'admin-remove-user-from-group' : 'admin-add-user-to-group',
+    '--user-pool-id',
+    userPoolId,
+    '--username',
+    username,
+    '--group-name',
+    group,
+  ]);
+}
 
 const groups =
   (

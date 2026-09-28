@@ -983,6 +983,89 @@ const schema = a.schema({
       uploadedBy: a.string().required(),
     })
     .authorization((allow) => [allow.group('Admins')]),
+
+  // --- Islands & Adventures admin catalog (docs/ISLAND_ADVENTURE_MANAGEMENT.md, docs/DECISIONS.md ADR-024) ---
+
+  /**
+   * The admin catalog record for one island (an `ISLAND_LOCATIONS` region).
+   * A catalog overlay, not the content itself: `slug` is the join to the
+   * source-controlled location, which stays the playable definition
+   * (ADR-009/011/013). An island with no catalog row is available, so the
+   * game keeps working in an environment nobody has imported into yet; a row
+   * with `active: false` hides the island and makes every adventure on it
+   * unplayable (`src/features/catalog/availability.ts`) without touching
+   * the adventures' own `active` flags.
+   *
+   * Signed-in parents may read, because the child app needs the active flags
+   * to decide what to show. `createdBy`/`updatedBy` are Admins-only at the
+   * field level, so a parent's read never carries who edited the catalog.
+   * No one may delete an island (section 19); deactivating is the only way
+   * to take one out of play.
+   */
+  Island: a
+    .model({
+      slug: a.string().required(),
+      name: a.string().required(),
+      shortDescription: a.string(),
+      description: a.string(),
+      active: a.boolean().required(),
+      sortOrder: a.integer().required(),
+      thumbnailKey: a.string(),
+      createdBy: a.string().authorization((allow) => [allow.group('Admins')]),
+      updatedBy: a.string().authorization((allow) => [allow.group('Admins')]),
+      adventures: a.hasMany('Adventure', 'islandId'),
+    })
+    .secondaryIndexes((index) => [index('slug')])
+    .authorization((allow) => [
+      allow.group('Admins').to(['create', 'read', 'update']),
+      allow.authenticated().to(['read']),
+    ]),
+
+  /**
+   * The admin catalog record for one adventure. `slug` joins to an
+   * `ADVENTURE_TEMPLATES` entry; a record whose slug has no template is a
+   * catalog entry for content not yet authored, and is never playable.
+   * Deleting is `Superusers` only and never touches `AdventureSession` or
+   * any other child history, which is keyed by `templateSlug`, not by this
+   * record's id (section 18).
+   */
+  Adventure: a
+    .model({
+      islandId: a.id().required(),
+      island: a.belongsTo('Island', 'islandId'),
+      slug: a.string().required(),
+      name: a.string().required(),
+      shortDescription: a.string(),
+      description: a.string(),
+      active: a.boolean().required(),
+      sortOrder: a.integer().required(),
+      thumbnailKey: a.string(),
+      createdBy: a.string().authorization((allow) => [allow.group('Admins')]),
+      updatedBy: a.string().authorization((allow) => [allow.group('Admins')]),
+      models: a.hasMany('AdventureModel', 'adventureId'),
+    })
+    .secondaryIndexes((index) => [index('slug'), index('islandId')])
+    .authorization((allow) => [
+      allow.group('Admins').to(['create', 'read', 'update']),
+      allow.group('Superusers').to(['delete']),
+      allow.authenticated().to(['read']),
+    ]),
+
+  /**
+   * Which existing `Asset` records an adventure uses. A join row, so one
+   * model can appear in many adventures without copying its GLB, and
+   * `role` reuses `AssetCategory` rather than inventing a second taxonomy
+   * (section 9). Admins only: the child app never reads it.
+   */
+  AdventureModel: a
+    .model({
+      adventureId: a.id().required(),
+      adventure: a.belongsTo('Adventure', 'adventureId'),
+      assetId: a.id().required(),
+      role: a.ref('AssetCategory'),
+      sortOrder: a.integer().required(),
+    })
+    .authorization((allow) => [allow.group('Admins')]),
 });
 
 export type Schema = ClientSchema<typeof schema>;

@@ -21,11 +21,11 @@ const ASSET_TYPES: AssetTypeEntry[] = [
     description: 'GLB models for characters, props, buildings, and environments.',
     to: '/admin/assets/models',
   },
-  { title: 'Textures', description: 'Shared PNG, JPG, WEBP, and KTX2 textures. Not built yet.' },
-  { title: 'Animations', description: 'Reusable animation clips. Not built yet.' },
-  { title: 'Audio', description: 'Voices, music, and sound effects. Not built yet.' },
-  { title: 'Images', description: 'Illustrations and interface art. Not built yet.' },
-  { title: 'Environments', description: 'Skyboxes and lighting setups. Not built yet.' },
+  { title: 'Textures', description: 'Shared PNG, JPG, WEBP, and KTX2 textures.' },
+  { title: 'Animations', description: 'Reusable animation clips.' },
+  { title: 'Audio', description: 'Voices, music, and sound effects.' },
+  { title: 'Images', description: 'Illustrations and interface art.' },
+  { title: 'Environments', description: 'Skyboxes and lighting setups.' },
 ];
 
 /** `/admin/assets`: the Model Asset Manager's entry point. Reachable only through `RequireAdmin`. */
@@ -36,7 +36,7 @@ export function AdminAssets() {
         title="Game assets"
         description="Assets are stored in S3 and referenced by id. Uploading an asset never makes it visible to children; an administrator has to publish it first."
       />
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {ASSET_TYPES.map((type) => (
           <li key={type.title}>
             <Card className="h-full">

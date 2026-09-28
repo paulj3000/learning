@@ -84,7 +84,7 @@ export function AdminModelAssets() {
           </Button>
         }
       />
-      <div className="grid gap-4">
+      <div className="grid grid-cols-1 gap-4">
         {uploadedName ? (
           <Alert variant="success" role="status">
             Uploaded "{uploadedName}" as a draft. It is not visible to children.

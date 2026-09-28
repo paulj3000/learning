@@ -8,7 +8,9 @@ import { useAuth } from '../features/auth/AuthContext';
  * dropdown with "Settings" and, last, "Sign out" (CLAUDE.md section 4's
  * "calm engagement" favors one small, predictable control here over a
  * second header button competing for attention). An "Admin" item appears
- * first only for a Cognito `Admins`-group member (`useAuth().isAdmin`) —
+ * between them only for a Cognito `Admins`-group member (`useAuth().isAdmin`,
+ * docs/ISLAND_ADVENTURE_MANAGEMENT.md section 5); for anyone else it is not
+ * rendered at all, so no gap or separator is left behind —
  * the actual gate is `RequireAdmin` on the `/admin` route, this is only
  * discoverability for the account that already has access.
  */
@@ -56,6 +58,14 @@ export function UserMenu() {
       </button>
       {open ? (
         <div className={styles.menu} role="menu">
+          <Link
+            className={styles.menuItem}
+            role="menuitem"
+            to="/home/settings"
+            onClick={() => setOpen(false)}
+          >
+            Settings
+          </Link>
           {isAdmin ? (
             <Link
               className={styles.menuItem}
@@ -66,14 +76,6 @@ export function UserMenu() {
               Admin
             </Link>
           ) : null}
-          <Link
-            className={styles.menuItem}
-            role="menuitem"
-            to="/home/settings"
-            onClick={() => setOpen(false)}
-          >
-            Settings
-          </Link>
           <button
             className={styles.menuItemButton}
             role="menuitem"

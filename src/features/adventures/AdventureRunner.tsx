@@ -74,7 +74,7 @@ export function AdventureRunner({
     return <p>Loading your adventure...</p>;
   }
   if (loadState === 'error' || !currentStep) {
-    return <p role="alert">Something went wrong loading this adventure.</p>;
+    return <p role="alert">{error ?? 'Something went wrong loading this adventure.'}</p>;
   }
 
   return (

@@ -10,6 +10,7 @@ function renderAt(path: string) {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<p>Families page</p>} />
           <Route path="assets/models" element={<p>Models page</p>} />
+          <Route path="islands/:islandId" element={<p>Island page</p>} />
         </Route>
       </Routes>
     </MemoryRouter>,
@@ -34,6 +35,29 @@ describe('AdminLayout', () => {
     );
     expect(within(nav).getByRole('link', { name: 'Families' })).not.toHaveAttribute('aria-current');
     expect(screen.getByText('Models page')).toBeInTheDocument();
+  });
+
+  it('links to Islands and Adventures, and marks Islands current on an island page', () => {
+    renderAt('/admin/islands/island-1');
+    const nav = screen.getByRole('navigation', { name: 'Admin sections' });
+    expect(within(nav).getByRole('link', { name: 'Islands' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(within(nav).getByRole('link', { name: 'Adventures' })).toHaveAttribute(
+      'href',
+      '/admin/adventures',
+    );
+  });
+
+  it('links to Families, Islands, Adventures, and Game assets', () => {
+    renderAt('/admin');
+    const nav = screen.getByRole('navigation', { name: 'Admin sections' });
+    expect(
+      within(nav)
+        .getAllByRole('link')
+        .map((link) => link.getAttribute('href')),
+    ).toEqual(['/admin', '/admin/islands', '/admin/adventures', '/admin/assets']);
   });
 
   it('links back to the parent dashboard', () => {

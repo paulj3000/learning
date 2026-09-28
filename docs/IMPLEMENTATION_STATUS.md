@@ -417,7 +417,63 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Admin section restyled with Tailwind CSS and shadcn/ui — complete, not yet seen in a browser
+## Islands & Adventures admin catalog — built and unit-tested; NOT deployed or seen in a browser
+
+Spec: `docs/ISLAND_ADVENTURE_MANAGEMENT.md`. Decision: ADR-024 (catalog
+overlay on source-controlled content, `Superusers` group, delete guard,
+404 for non-admins).
+
+**Built**
+
+- Schema: `Island`, `Adventure`, `AdventureModel` models; `Superusers`
+  Cognito group (`amplify/auth/resource.ts`); `grant-admin --superuser`.
+- `AuthContext.isSuperuser`; `RequireAdmin` renders `NotFound` for
+  signed-in non-admins; the user menu reads Settings, Admin, Sign out.
+- Admin pages: `/admin/islands`, `/admin/islands/new`,
+  `/admin/islands/:islandId`, `/admin/islands/:islandId/edit`,
+  `/admin/islands/:islandId/adventures/new`, `/admin/adventures` (search,
+  island and status filters), `/admin/adventures/new`,
+  `/admin/adventures/:adventureId`, `/admin/adventures/:adventureId/edit`.
+  Islands and Adventures links in the admin nav.
+- "Import game content" creates catalog rows for every existing island and
+  adventure without overwriting existing rows.
+- Adventure detail: description, island link, playability, a Models
+  section (list, add an existing uploaded model with a role, remove), and
+  Superuser-only delete behind an inline confirmation that is refused when
+  the adventure has game content or has been played.
+- Child side: `resumeOrStartSession` refuses a deactivated adventure (or
+  one on a deactivated island) with a calm message; `WelcomeHarbor`,
+  `WorldHubPage`, and `IslandLocationPage` hide or rest deactivated islands.
+- Domain logic in `src/features/catalog/` (availability, validation,
+  import plan, delete guard, template-to-island mapping); data service in
+  `src/features/admin/catalogApi.ts`.
+
+**Tests**: `src/features/catalog/*.test.ts` (truth table, validation,
+import, delete guard, schema authorization rules),
+`src/routes/AdminIslandsAndAdventures.test.tsx` (list, create, detail,
+activate/deactivate, filters, models, admin vs superuser delete,
+confirmation, blocked delete), `RequireAdmin.test.tsx` (404 for non-admins
+at four admin URLs), `UserMenu.test.tsx`, `AdminLayout.test.tsx`,
+`adventures/api.test.ts` (gate and fail-open). Full suite: 218 files,
+2274 tests passing; `tsc -b` and Prettier clean.
+
+**Not done / risks**
+
+- Not deployed: the schema needs `npm run sandbox` (or the pipeline), and
+  the live authorization checks in `docs/AUTHORIZATION_REVIEW.md` section 5
+  are still to run. After deploying, run "Import game content" once per
+  environment; until then everything stays available.
+- Not looked at in a browser.
+- `STORY_ARC_ISLANDS` is an editorial mapping (for example `butterfly-garden`
+  under Wonderwild Forest); deactivating one of those islands also stops
+  that story's challenges.
+- The child-side gate fails open and is client-enforced (ADR-024
+  consequences). The Story Engine still lists a story whose challenges are
+  deactivated; the child sees the calm "resting" message at the challenge.
+- No thumbnails, no model detail links (no `/admin/assets/models/:id` yet),
+  no audit events.
+
+## Admin section restyled with Tailwind CSS and shadcn/ui — complete, checked in a browser against fixture data
 
 Decision: ADR-023.
 
@@ -449,23 +505,41 @@ instead of "Admin".
 - New dependencies: `clsx`, `tailwind-merge`, `class-variance-authority`,
   `@radix-ui/react-slot`; dev: `tailwindcss`, `@tailwindcss/vite`.
 
-**Tests:** 7 new. `adminCss.test.ts` compiles the real `admin.css` and
+**Tests:** 8 new. `adminCss.test.ts` compiles the real `admin.css` and
 fails if a custom property escapes onto `:root`, if an element selector
 sits outside the admin scope, or if a global.css button rule loses its
 admin exclusion (checked by temporarily removing `reference` from the
 theme: all three compile checks failed as intended).
 `AdminLayout.test.tsx` covers the main landmark, the scope class and the
 active nav link. The existing admin page and wizard tests pass unchanged.
-Full suite: 214 files, 2200 tests passing; typecheck clean; build clean,
+Full suite: 214 files, 2201 tests passing; typecheck clean; build clean,
 and the built CSS has no `:root` block besides tokens.css's own; no new
 lint findings.
 
 **Not verified**
 
-- Not looked at in a browser. The admin pages need a signed-in
-  `Admins`-group account against a running backend, which this change did
-  not have, so layout and spacing are checked only by the build output and
-  tests.
+- Not seen against real data. The browser check below used fixture data,
+  because the pages need a signed-in `Admins`-group account against a
+  running backend, which it did not have.
+
+**Browser check (fixture data).** A throwaway Vite harness rendered the
+real `AdminLayout` and all five pages in headless Chromium, with the real
+`global.css` loaded and only the data modules (AppSync/Cognito calls)
+swapped for fixtures. Screenshots at 1280px and 390px, the upload wizard
+driven to step 2, and computed styles checked: `:root` still holds the
+island's `--color-primary` and `--radius-lg`, and a button outside the
+admin shell keeps its lip. It found two bugs the unit tests could not,
+both fixed:
+
+- The models table widened the page to 866px on a phone instead of
+  scrolling inside its card: a grid column without an explicit size grows
+  to fit its content. The admin grids now use `grid-cols-1`
+  (`minmax(0, 1fr)`).
+- `divide-y` dividers never drew. Tailwind v4 writes them as zero-specificity
+  `:where()` selectors, which tied with the scoped reset's `*` and lost on
+  scope proximity. The reset now sits in `@layer admin-reset`, below every
+  utility, as the real Preflight does; a test pins this (and fails when the
+  layer is removed).
 - `package-lock.json` in this repo was not regenerated: the repo is a
   member of an npm workspace one level up, so `npm install` updated that
   workspace's lockfile instead. CI and Amplify run `npm install`, which

@@ -17,7 +17,8 @@
  *    silently do nothing.
  * 3. **The reset is scoped.** Tailwind's Preflight is global; the adapted
  *    copy at the bottom lives inside `@scope (.admin-root)`, the class
- *    `AdminLayout` puts on its outermost element.
+ *    `AdminLayout` puts on its outermost element, and in a cascade layer
+ *    so every utility beats it.
  *
  * Utilities are deliberately unlayered. global.css is unlayered too, and an
  * unlayered rule beats any layered one regardless of specificity, so layered
@@ -59,12 +60,11 @@
 }
 
 /**
- * Tailwind v4's Preflight (MIT, https://tailwindcss.com), scoped to the admin
- * subtree and trimmed of the document-level rules that only make sense on
- * `html`. Additions beyond Preflight are marked "island:": they undo the
- * global.css element rules (heading face, link colour) that would otherwise
- * leak into admin pages. Inside `@scope` these win over global.css's rules
- * of equal specificity by scope proximity, not by source order.
+ * Unlayered, so these beat global.css's own unlayered rules on the same
+ * elements: at equal specificity a scoped rule wins by scope proximity.
+ * Only what global.css would otherwise leak into admin pages (the island's
+ * heading face and link colour) lives here; everything else is the reset
+ * below.
  */
 @scope (.admin-root) {
   :scope {
@@ -79,38 +79,9 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  *,
-  ::after,
-  ::before,
-  ::backdrop,
-  ::file-selector-button {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    border: 0 solid;
-    /* shadcn/ui's `* { @apply border-border }`, so a bare `border` is subtle. */
-    border-color: var(--color-border-subtle);
-  }
-
-  hr {
-    height: 0;
-    color: inherit;
-    border-top-width: 1px;
-  }
-
-  abbr:where([title]) {
-    text-decoration: underline dotted;
-  }
-
   h1,
   h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-size: inherit;
-    font-weight: inherit;
-    /* island: global.css sets the display face on h1-h3. */
+  h3 {
     font-family: inherit;
     letter-spacing: inherit;
     line-height: inherit;
@@ -121,100 +92,148 @@
     color: inherit;
     text-decoration: inherit;
   }
+}
 
-  b,
-  strong {
-    font-weight: bolder;
-  }
+/**
+ * Tailwind v4's Preflight (MIT, https://tailwindcss.com), scoped to the admin
+ * subtree and trimmed of the document-level rules that only make sense on
+ * `html`.
+ *
+ * It must sit in a cascade layer, as the real Preflight does. Tailwind
+ * writes some utilities with zero specificity (`divide-y` and `space-y-*`
+ * are `:where(...)` selectors); unlayered, this reset's zero-specificity `*`
+ * would tie with them and win by scope proximity, silently removing every
+ * divider. Layered, it loses to all unlayered utilities.
+ */
+@layer admin-reset {
+  @scope (.admin-root) {
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      border: 0 solid;
+      /* shadcn/ui's `* { @apply border-border }`, so a bare `border` is subtle. */
+      border-color: var(--color-border-subtle);
+    }
 
-  code,
-  kbd,
-  samp,
-  pre {
-    font-family:
-      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-      monospace;
-    font-size: 1em;
-  }
+    hr {
+      height: 0;
+      color: inherit;
+      border-top-width: 1px;
+    }
 
-  small {
-    font-size: 80%;
-  }
+    abbr:where([title]) {
+      text-decoration: underline dotted;
+    }
 
-  table {
-    text-indent: 0;
-    border-color: inherit;
-    border-collapse: collapse;
-  }
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      font-size: inherit;
+      font-weight: inherit;
+    }
 
-  progress {
-    vertical-align: baseline;
-  }
+    b,
+    strong {
+      font-weight: bolder;
+    }
 
-  summary {
-    display: list-item;
-  }
+    code,
+    kbd,
+    samp,
+    pre {
+      font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+        monospace;
+      font-size: 1em;
+    }
 
-  ol,
-  ul,
-  menu {
-    list-style: none;
-  }
+    small {
+      font-size: 80%;
+    }
 
-  img,
-  svg,
-  video,
-  canvas,
-  audio,
-  iframe,
-  embed,
-  object {
-    display: block;
-    vertical-align: middle;
-  }
+    table {
+      text-indent: 0;
+      border-color: inherit;
+      border-collapse: collapse;
+    }
 
-  img,
-  video {
-    max-width: 100%;
-    height: auto;
-  }
+    progress {
+      vertical-align: baseline;
+    }
 
-  button,
-  input,
-  select,
-  optgroup,
-  textarea,
-  ::file-selector-button {
-    font: inherit;
-    font-feature-settings: inherit;
-    font-variation-settings: inherit;
-    letter-spacing: inherit;
-    color: inherit;
-    border-radius: 0;
-    background-color: transparent;
-    opacity: 1;
-  }
+    summary {
+      display: list-item;
+    }
 
-  ::file-selector-button {
-    margin-inline-end: 4px;
-  }
+    ol,
+    ul,
+    menu {
+      list-style: none;
+    }
 
-  ::placeholder {
-    opacity: 1;
-    color: var(--color-text-muted);
-  }
+    img,
+    svg,
+    video,
+    canvas,
+    audio,
+    iframe,
+    embed,
+    object {
+      display: block;
+      vertical-align: middle;
+    }
 
-  textarea {
-    resize: vertical;
-  }
+    img,
+    video {
+      max-width: 100%;
+      height: auto;
+    }
 
-  button,
-  input:where([type='button'], [type='reset'], [type='submit']),
-  ::file-selector-button {
-    appearance: button;
-  }
+    button,
+    input,
+    select,
+    optgroup,
+    textarea,
+    ::file-selector-button {
+      font: inherit;
+      font-feature-settings: inherit;
+      font-variation-settings: inherit;
+      letter-spacing: inherit;
+      color: inherit;
+      border-radius: 0;
+      background-color: transparent;
+      opacity: 1;
+    }
 
-  [hidden]:where(:not([hidden='until-found'])) {
-    display: none !important;
+    ::file-selector-button {
+      margin-inline-end: 4px;
+    }
+
+    ::placeholder {
+      opacity: 1;
+      color: var(--color-text-muted);
+    }
+
+    textarea {
+      resize: vertical;
+    }
+
+    button,
+    input:where([type='button'], [type='reset'], [type='submit']),
+    ::file-selector-button {
+      appearance: button;
+    }
+
+    [hidden]:where(:not([hidden='until-found'])) {
+      display: none !important;
+    }
   }
 }

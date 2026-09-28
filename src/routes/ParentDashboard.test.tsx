@@ -25,6 +25,7 @@ vi.mock('../features/auth/AuthContext', () => ({
     status: 'authenticated',
     userId: 'parent-1',
     isAdmin: false,
+    isSuperuser: false,
     refresh: vi.fn(),
     signOut: vi.fn(),
   }),

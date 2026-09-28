@@ -75,7 +75,7 @@ export function AdminDashboard() {
         <p className="text-sm text-muted-foreground">No parent accounts yet.</p>
       ) : null}
       {loadState === 'ready' && groups.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {groups.map(({ parent, children }) => (
             <Card key={parent.id}>
               <CardHeader>

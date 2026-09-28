@@ -200,7 +200,7 @@ export function ModelUploadWizard({
   }
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <ol className="flex flex-wrap gap-2" aria-label="Upload steps">
         {STEPS.map(({ id, label }) => (
           <li

@@ -17,8 +17,26 @@ interface AuthContextValue {
    * is what actually gates the admin section, this is just the signal it reads.
    */
   isAdmin: boolean;
+  /**
+   * Whether the signed-in admin is also in `Superusers` (ADR-024), which is
+   * what unlocks destructive admin actions such as deleting an adventure.
+   * Only ever `true` alongside `isAdmin`; the backend enforces the same rule
+   * on its own (`allow.group('Superusers')` in amplify/data/resource.ts).
+   */
+  isSuperuser: boolean;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
+}
+
+/**
+ * Admin flags from an ID token's `cognito:groups` claim. A `Superusers`
+ * member who is not also in `Admins` gets neither flag: every admin page and
+ * read is `Admins`-gated, so that account could not use the admin section.
+ */
+export function adminAccessFromGroups(groups: unknown): { isAdmin: boolean; isSuperuser: boolean } {
+  const list = Array.isArray(groups) ? groups : [];
+  const isAdmin = list.includes('Admins');
+  return { isAdmin, isSuperuser: isAdmin && list.includes('Superusers') };
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -29,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperuser, setIsSuperuser] = useState(false);
 
   async function refresh(): Promise<void> {
     if (!isAmplifyConfigured) {
@@ -41,11 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUserId(user.userId);
       const session = await fetchAuthSession();
       const groups = session.tokens?.idToken?.payload['cognito:groups'];
-      setIsAdmin(Array.isArray(groups) && groups.includes('Admins'));
+      const access = adminAccessFromGroups(groups);
+      setIsAdmin(access.isAdmin);
+      setIsSuperuser(access.isSuperuser);
       setStatus('authenticated');
     } catch {
       setUserId(null);
       setIsAdmin(false);
+      setIsSuperuser(false);
       setStatus('unauthenticated');
     }
   }
@@ -67,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ status, userId, isAdmin, refresh, signOut }}>
+    <AuthContext.Provider value={{ status, userId, isAdmin, isSuperuser, refresh, signOut }}>
       {children}
     </AuthContext.Provider>
   );

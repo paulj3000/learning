@@ -18,6 +18,7 @@ describe('UserMenu', () => {
       status: 'authenticated',
       userId: 'parent-1',
       isAdmin: false,
+      isSuperuser: false,
       refresh: vi.fn(),
       signOut,
     });
@@ -43,6 +44,7 @@ describe('UserMenu', () => {
       status: 'authenticated',
       userId: 'parent-1',
       isAdmin: false,
+      isSuperuser: false,
       refresh: vi.fn(),
       signOut,
     });
@@ -60,12 +62,13 @@ describe('UserMenu', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
-  it('shows an Admin item first for an admin user, with Sign out still last', async () => {
+  it('shows Settings, Admin, Sign out in that order for an admin user', async () => {
     const signOut = vi.fn();
     useAuthMock.mockReturnValue({
       status: 'authenticated',
       userId: 'admin-1',
       isAdmin: true,
+      isSuperuser: false,
       refresh: vi.fn(),
       signOut,
     });
@@ -80,9 +83,51 @@ describe('UserMenu', () => {
 
     const items = screen.getAllByRole('menuitem');
     expect(items).toHaveLength(3);
-    expect(items[0]).toHaveTextContent('Admin');
-    expect(items[1]).toHaveTextContent('Settings');
+    expect(items[0]).toHaveTextContent('Settings');
+    expect(items[1]).toHaveTextContent('Admin');
+    expect(items[1]).toHaveAttribute('href', '/admin');
     expect(items[2]).toHaveTextContent('Sign out');
+  });
+
+  it('shows the Admin item for a superuser too', async () => {
+    useAuthMock.mockReturnValue({
+      status: 'authenticated',
+      userId: 'super-1',
+      isAdmin: true,
+      isSuperuser: true,
+      refresh: vi.fn(),
+      signOut: vi.fn(),
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <UserMenu />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /account menu/i }));
+    expect(screen.getByRole('menuitem', { name: 'Admin' })).toBeInTheDocument();
+  });
+
+  it('leaves no Admin item, and no empty slot, for a non-admin', async () => {
+    useAuthMock.mockReturnValue({
+      status: 'authenticated',
+      userId: 'parent-1',
+      isAdmin: false,
+      isSuperuser: false,
+      refresh: vi.fn(),
+      signOut: vi.fn(),
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <UserMenu />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /account menu/i }));
+    expect(screen.queryByRole('menuitem', { name: 'Admin' })).toBeNull();
+    expect(screen.getByRole('menu').children).toHaveLength(2);
   });
 
   it('closes the menu when clicking outside', async () => {
@@ -91,6 +136,7 @@ describe('UserMenu', () => {
       status: 'authenticated',
       userId: 'parent-1',
       isAdmin: false,
+      isSuperuser: false,
       refresh: vi.fn(),
       signOut,
     });

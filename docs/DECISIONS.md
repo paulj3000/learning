@@ -1440,7 +1440,10 @@ covered by `src/features/admin/adminCss.test.ts`:
    custom property other than Tailwind's private `--tw-*` ones.
 2. *Scoped reset.* Tailwind's global Preflight is not imported. An adapted
    copy lives inside `@scope (.admin-root)`, the class only `AdminLayout`
-   sets. The test fails if any element selector appears outside that scope.
+   sets, and inside `@layer admin-reset`: some utilities (`divide-y`,
+   `space-y-*`) have zero specificity, and an unlayered scoped reset would
+   beat them on scope proximity. The test fails if any element selector
+   appears outside that scope, or if the reset leaves its layer.
 3. *global.css steps aside for buttons.* The island's button rules (the lip,
    the press, the hover brighten) have up to 0,2,1 specificity and would
    beat any single utility class. They now carry
@@ -1482,3 +1485,80 @@ must be added to that list.
   hard-coded `role`) are listed in `src/features/admin/ui/variants.ts`.
 - `AssetAdmin.module.css` is deleted; the admin pages no longer import
   `ParentDashboard.module.css` or `ChildDashboard.module.css`.
+
+## ADR-024: Islands and Adventures are an admin catalog overlaid on source-controlled content; Superusers are Admins with one extra group
+
+Status: Accepted (2026-09-27)
+
+`docs/ISLAND_ADVENTURE_MANAGEMENT.md` asks for admin pages that list,
+create, activate, and deactivate Islands and Adventures, with
+Superuser-only adventure deletion. It also says to prefer the established
+architecture over a parallel system, and the established architecture is
+that islands (`ISLAND_LOCATIONS`) and adventures (`ADVENTURE_TEMPLATES`)
+are TypeScript content packs, not database rows (ADR-009, ADR-011,
+ADR-013).
+
+**Decision, part A: a catalog overlay, not a content migration.** Three
+new models, `Island`, `Adventure`, and `AdventureModel`
+(amplify/data/resource.ts), hold what an administrator manages: name,
+descriptions, `active`, `sortOrder`, and which existing `Asset` records an
+adventure uses. `slug` is the join to the content: an `Island.slug` is an
+`ISLAND_LOCATIONS` slug, an `Adventure.slug` is an `ADVENTURE_TEMPLATES`
+slug. Steps, challenges, and grading stay in code. An admin-created record
+whose slug has no content is a catalog entry for content not yet authored
+and is never playable; the admin pages label it "No game content yet".
+"Import game content" on `/admin/islands` creates a row for every
+source-controlled island and adventure that has none, never overwriting an
+existing row. Story-arc adventures use pseudo-location slugs, so
+`STORY_ARC_ISLANDS` (`src/features/catalog/islandForTemplate.ts`) files
+each arc under the island its story leads to.
+
+**Decision, part B: absence means available.** A slug with no catalog row
+is playable, so a fresh environment and every test keep working before
+anyone imports. Only `active: false` takes content out of play:
+`isAdventureAvailable` (`src/features/catalog/availability.ts`) is
+`island.active && adventure.active`, and an adventure without its own row
+follows its code island's row. Deactivating an island never rewrites its
+adventures' flags. Enforcement is in `resumeOrStartSession`, the single
+path every route uses to start or resume play, plus the location lists
+(`WelcomeHarbor`, `WorldHubPage`) and `IslandLocationPage`. The child-side
+read fails open to "everything available": the catalog is a release
+control over curated content, not a safety boundary.
+
+**Decision, part C: Superusers are Admins plus one group.** A new
+`Superusers` Cognito group grants only `Adventure` delete. A Superuser is
+an `Admins` member who is also in `Superusers` (`adminAccessFromGroups` in
+`AuthContext.tsx`; `npm run grant-admin -- <email> --superuser` adds both).
+No second role system.
+
+**Decision, part D: deletion never touches child history, and is refused
+when it would mislead.** `AdventureSession` and everything under it are
+keyed by `templateSlug`, not by the catalog row's id, so deleting a row
+cannot cascade into progress. `deleteBlockReason` still refuses two cases:
+the slug has game content (without a row it would become available
+again), or any `AdventureSession` references it (deactivate instead). In
+practice only unplayed, admin-created entries can be deleted. Islands
+cannot be deleted by anyone (no delete rule).
+
+**Decision, part E: non-admins see the standard 404.** `RequireAdmin`
+renders `NotFound` for a signed-in non-admin instead of "Not authorized",
+so the admin section's routes are not disclosed. Signed-out visitors are
+still sent to sign-in, as for every protected route.
+
+**Consequences**
+
+- Signed-in parents can read `Island`/`Adventure` rows, including names of
+  inactive or unreleased entries; `createdBy`/`updatedBy` are Admins-only
+  at the field level and the child app reads through an explicit
+  selection set. Accepted: catalog names are not sensitive.
+- A parent who blocks the catalog request can still play an inactive
+  adventure (fail-open), and `AdventureSession.create` is owner-writable,
+  so the gate is not server-enforced. Same accepted limitation class as
+  `docs/AUTHORIZATION_REVIEW.md` section 5's progress-forgery row.
+- Slug uniqueness is checked by the client (`listIslandBySlug` /
+  `listAdventureBySlug`); DynamoDB cannot enforce it on a secondary index.
+- No thumbnails yet: the asset system has no image assets. No audit
+  events: there is no audit subsystem, and every write carries
+  `updatedBy` so one can be added cleanly.
+- The schema change needs a sandbox/pipeline deploy before any of this
+  works against a real backend.

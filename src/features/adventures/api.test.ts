@@ -1,15 +1,21 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const { list, create, submitAdventureAnswerMutation } = vi.hoisted(() => ({
-  list: vi.fn(),
-  create: vi.fn(),
-  submitAdventureAnswerMutation: vi.fn(),
-}));
+const { list, create, submitAdventureAnswerMutation, islandList, adventureList } = vi.hoisted(
+  () => ({
+    list: vi.fn(),
+    create: vi.fn(),
+    submitAdventureAnswerMutation: vi.fn(),
+    islandList: vi.fn(),
+    adventureList: vi.fn(),
+  }),
+);
 
 vi.mock('../../lib/data-client', () => ({
   client: {
     models: {
       AdventureSession: { list, create },
+      Island: { list: islandList },
+      Adventure: { list: adventureList },
     },
     mutations: {
       submitAdventureAnswer: submitAdventureAnswerMutation,
@@ -19,6 +25,72 @@ vi.mock('../../lib/data-client', () => ({
 
 import { resumeOrStartSession, submitAdventureAnswer } from './api';
 import { REPAIR_THE_MOONLIGHT_BRIDGE } from './content';
+import { AdventureUnavailableError } from '../catalog/availabilityApi';
+
+beforeEach(() => {
+  islandList.mockReset().mockResolvedValue({ data: [] });
+  adventureList.mockReset().mockResolvedValue({ data: [] });
+});
+
+describe('resumeOrStartSession and the admin catalog (ADR-024)', () => {
+  beforeEach(() => {
+    list.mockReset();
+    create.mockReset();
+  });
+
+  const PIRATE_BAY = { id: 'island-1', slug: 'pirate-builder-bay', active: true };
+  const BRIDGE = { slug: REPAIR_THE_MOONLIGHT_BRIDGE.slug, islandId: 'island-1', active: true };
+
+  it.each([
+    ['the adventure is inactive', { ...PIRATE_BAY }, { ...BRIDGE, active: false }],
+    ['its island is inactive', { ...PIRATE_BAY, active: false }, { ...BRIDGE }],
+    ['its island is inactive and it has no row of its own', { ...PIRATE_BAY, active: false }, null],
+  ])(
+    'refuses to start or resume when %s, leaving sessions untouched',
+    async (_, islandRow, adventureRow) => {
+      islandList.mockResolvedValue({ data: [islandRow] });
+      adventureList.mockResolvedValue({ data: adventureRow ? [adventureRow] : [] });
+
+      await expect(
+        resumeOrStartSession('child-1', REPAIR_THE_MOONLIGHT_BRIDGE),
+      ).rejects.toBeInstanceOf(AdventureUnavailableError);
+      expect(list).not.toHaveBeenCalled();
+      expect(create).not.toHaveBeenCalled();
+    },
+  );
+
+  it('starts normally when both the island and the adventure are active', async () => {
+    islandList.mockResolvedValue({ data: [PIRATE_BAY] });
+    adventureList.mockResolvedValue({ data: [BRIDGE] });
+    list.mockResolvedValueOnce({ data: [] });
+    create.mockResolvedValueOnce({ data: { id: 'session-3' }, errors: undefined });
+
+    await expect(resumeOrStartSession('child-1', REPAIR_THE_MOONLIGHT_BRIDGE)).resolves.toEqual({
+      id: 'session-3',
+    });
+  });
+
+  it('reads only the availability fields, never the admin-only audit fields', async () => {
+    list.mockResolvedValueOnce({ data: [] });
+    create.mockResolvedValueOnce({ data: { id: 'session-4' }, errors: undefined });
+    await resumeOrStartSession('child-1', REPAIR_THE_MOONLIGHT_BRIDGE);
+    expect(islandList).toHaveBeenCalledWith(
+      expect.objectContaining({ selectionSet: ['id', 'slug', 'active'] }),
+    );
+    expect(adventureList).toHaveBeenCalledWith(
+      expect.objectContaining({ selectionSet: ['slug', 'islandId', 'active'] }),
+    );
+  });
+
+  it('fails open when the catalog cannot be read', async () => {
+    islandList.mockRejectedValue(new Error('network'));
+    list.mockResolvedValueOnce({ data: [] });
+    create.mockResolvedValueOnce({ data: { id: 'session-5' }, errors: undefined });
+    await expect(resumeOrStartSession('child-1', REPAIR_THE_MOONLIGHT_BRIDGE)).resolves.toEqual({
+      id: 'session-5',
+    });
+  });
+});
 
 describe('resumeOrStartSession', () => {
   beforeEach(() => {

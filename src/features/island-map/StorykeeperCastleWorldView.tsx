@@ -13,6 +13,7 @@ import {
   type WorldInteractionContext,
 } from './worldObjects';
 import { resumeOrStartSession } from '../adventures/api';
+import { adventureStartErrorMessage } from '../catalog/availabilityApi';
 import { resolveAdventureForAgeBand } from '../adventures/content';
 import { useExplorableWorld } from './useExplorableWorld';
 import { DiscoveryAction } from './DiscoveryAction';
@@ -290,8 +291,8 @@ function InteractionPanelAction({
       navigate(
         `/island/${childId}/locations/${startAdventureAction.locationSlug}/adventures/${definition.slug}`,
       );
-    } catch {
-      setError('Something went wrong starting the adventure. Please try again.');
+    } catch (startError) {
+      setError(adventureStartErrorMessage(startError));
       setStarting(false);
     }
   }
