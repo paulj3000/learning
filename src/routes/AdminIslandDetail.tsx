@@ -12,6 +12,7 @@ import {
 import type { CatalogFlashState } from '../features/admin/catalog/formValues';
 import { formatDate } from '../features/admin/catalog/formValues';
 import { ActiveBadge } from '../features/admin/catalog/ActiveBadge';
+import { SceneModelList } from '../features/admin/catalog/SceneModelList';
 import { getIslandLocation } from '../features/island/locations';
 import { AdminPageHeader } from '../features/admin/AdminPageHeader';
 import { Alert } from '../features/admin/ui/Alert';
@@ -30,7 +31,8 @@ type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
 /**
  * `/admin/islands/:islandId`: one island and every adventure filed under it,
- * active or not (docs/ISLAND_ADVENTURE_MANAGEMENT.md section 12).
+ * active or not (docs/ISLAND_ADVENTURE_MANAGEMENT.md section 12), and the
+ * models its 3D scene loads.
  */
 export function AdminIslandDetail() {
   const { islandId = '' } = useParams<{ islandId: string }>();
@@ -257,6 +259,8 @@ export function AdminIslandDetail() {
             )}
           </CardContent>
         </Card>
+
+        <SceneModelList islandSlug={island.slug} islandName={island.name} />
       </div>
     </>
   );

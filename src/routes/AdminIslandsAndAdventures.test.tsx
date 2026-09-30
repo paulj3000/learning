@@ -240,6 +240,33 @@ describe('AdminIslandDetail', () => {
     expect(api.setIslandActive).toHaveBeenCalledWith('dragons', false, 'admin-1');
     expect(await screen.findByRole('status')).toHaveTextContent(/is inactive/);
   });
+
+  it("lists the models Pirate Builder Bay's scene loads", async () => {
+    api.getIsland.mockResolvedValue(
+      island({ id: 'bay', slug: 'pirate-builder-bay', name: 'Pirate Builder Bay' }),
+    );
+    api.listAdventuresByIsland.mockResolvedValue([]);
+    renderRoutes('/admin/islands/bay');
+
+    const table = await screen.findByRole('table', { name: 'Scene models on Pirate Builder Bay' });
+    const shipwreck = within(table).getByRole('rowheader', { name: 'shipwreck' }).closest('tr');
+    expect(shipwreck).toHaveTextContent('Prop');
+    expect(shipwreck).toHaveTextContent('/models/shipwreck.gltf');
+    expect(
+      within(table).getByRole('rowheader', { name: 'npc-pip' }).closest('tr'),
+    ).toHaveTextContent('Character');
+  });
+
+  it('says when an island has no catalogued scene models', async () => {
+    api.getIsland.mockResolvedValue(DRAGONS);
+    api.listAdventuresByIsland.mockResolvedValue([]);
+    renderRoutes('/admin/islands/dragons');
+
+    expect(
+      await screen.findByText("The models for this island's scene have not been catalogued yet."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('table', { name: /Scene models/ })).not.toBeInTheDocument();
+  });
 });
 
 describe('AdminAdventureForm from an island', () => {

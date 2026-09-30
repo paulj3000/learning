@@ -482,6 +482,17 @@ Create Adventure
 
 button that creates an Adventure already associated with the current Island.
 
+Below the Adventures, display a read-only:
+
+```text
+Scene models
+```
+
+listing the models the Island's 3D scene loads (model id, kind, file). These
+come from the static asset manifest (`public/models/`), not from the S3-backed
+`Asset` records in section 9, so they cannot be assigned or removed here. An
+Island whose scene is not catalogued in `SCENE_ASSET_IDS` says so instead.
+
 ---
 
 # 13. Adventure List

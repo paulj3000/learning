@@ -417,6 +417,17 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
+## First-person controls no longer scroll the page — unit-tested; NOT yet checked on a device
+
+Reported from a real play session: walking forward made "the screen pan up".
+The camera was fine; the page was scrolling under the game. Touch drags on
+the canvas were also handled by the browser as page scrolls (no
+`touch-action: none`), and the arrow keys and space scrolled the page as well
+as moving the player. `ThreeGameContainer.module.css` now sets
+`touch-action: none` on the canvas, and `pointerControls.ts` calls
+`preventDefault` on arrow and space key presses unless the focus is in a form
+field. This is shared code, so every first-person region gets the fix.
+
 ## Islands & Adventures admin catalog — built and unit-tested; NOT deployed or seen in a browser
 
 Spec: `docs/ISLAND_ADVENTURE_MANAGEMENT.md`. Decision: ADR-024 (catalog
@@ -444,6 +455,12 @@ overlay on source-controlled content, `Superusers` group, delete guard,
 - Child side: `resumeOrStartSession` refuses a deactivated adventure (or
   one on a deactivated island) with a calm message; `WelcomeHarbor`,
   `WorldHubPage`, and `IslandLocationPage` hide or rest deactivated islands.
+- Island detail: a read-only **Scene models** section listing the models
+  the island's 3D scene loads (id, kind, file under `public/models/`),
+  from `SCENE_ASSET_IDS` in
+  `src/features/island-map/three/assets/sceneAssets.ts`. Only Pirate
+  Builder Bay is catalogued; other islands say so. These are the static
+  manifest models, not S3 `Asset` records, so nothing here is editable.
 - Domain logic in `src/features/catalog/` (availability, validation,
   import plan, delete guard, template-to-island mapping); data service in
   `src/features/admin/catalogApi.ts`.
@@ -452,10 +469,12 @@ overlay on source-controlled content, `Superusers` group, delete guard,
 import, delete guard, schema authorization rules),
 `src/routes/AdminIslandsAndAdventures.test.tsx` (list, create, detail,
 activate/deactivate, filters, models, admin vs superuser delete,
-confirmation, blocked delete), `RequireAdmin.test.tsx` (404 for non-admins
+confirmation, blocked delete, scene models), `sceneAssets.test.ts` (each
+catalogued list matches the manifest ids its scene file names),
+`RequireAdmin.test.tsx` (404 for non-admins
 at four admin URLs), `UserMenu.test.tsx`, `AdminLayout.test.tsx`,
-`adventures/api.test.ts` (gate and fail-open). Full suite: 218 files,
-2274 tests passing; `tsc -b` and Prettier clean.
+`adventures/api.test.ts` (gate and fail-open). Full suite: 219 files,
+2280 tests passing; `tsc -b` and Prettier clean.
 
 **Not done / risks**
 
@@ -472,6 +491,10 @@ at four admin URLs), `UserMenu.test.tsx`, `AdminLayout.test.tsx`,
   deactivated; the child sees the calm "resting" message at the challenge.
 - No thumbnails, no model detail links (no `/admin/assets/models/:id` yet),
   no audit events.
+- Scene models are catalogued for Pirate Builder Bay only. The other
+  scenes (Welcome Harbor, Storykeeper Castle, Wonderwild Forest, Clockwork
+  Harbor, Dragon's Sanctuary) load some ids through variables, so the
+  source check in `sceneAssets.test.ts` cannot cover them as written.
 
 ## Admin section restyled with Tailwind CSS and shadcn/ui — complete, checked in a browser against fixture data
 
