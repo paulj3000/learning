@@ -3,6 +3,7 @@ import {
   type WorldInteraction,
   type WorldInteractionContext,
 } from '../../worldObjects';
+import { findCheckpoint } from '../../../discovery/checkpoints';
 import type { CollectibleSpec, NpcPlacementSpec, ThreeLocationManifest } from './locationManifest';
 
 /**
@@ -101,6 +102,25 @@ export function walkInInteractionForZone(
       (interaction.zoneId ?? interaction.id) === zoneId &&
       isInteractionAvailable(interaction, context),
   );
+}
+
+/**
+ * A region's own line about a checkpoint, with `{checkpoint}` replaced by
+ * the authored label the World State layer owns (`discovery/checkpoints.ts`,
+ * ADR-008). `undefined` when the region authors none, which is every region
+ * that would rather say nothing.
+ */
+export function checkpointToast(
+  manifest: ThreeLocationManifest,
+  kind: 'found' | 'returning',
+  checkpointId: string,
+): string | undefined {
+  const template = manifest.copy.checkpointToasts?.[kind];
+  if (!template) return undefined;
+  if (!manifest.checkpoints.ids.includes(checkpointId)) return undefined;
+  const label = findCheckpoint(checkpointId)?.label;
+  if (!label) return undefined;
+  return template.replace('{checkpoint}', label);
 }
 
 /** The authored toast for stepping into a building or zone, if any. */

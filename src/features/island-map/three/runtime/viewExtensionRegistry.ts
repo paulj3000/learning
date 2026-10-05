@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import type { AgeBandValue } from '../../../child-profile/constants';
-import type { WorldInteraction } from '../../worldObjects';
+import type { WorldInteraction, WorldInteractionContext } from '../../worldObjects';
+import type { WorldEngineEventBus } from '../worldEngineEvents';
 import { createRegistry, type Registry } from './extensionRegistry';
 import type { JsonValue } from './locationManifest';
 
@@ -23,6 +24,41 @@ export interface LocationViewExtensionOverlayProps {
   refreshWorld(): Promise<void>;
 }
 
+/**
+ * What a persistent companion gets. Where an `Overlay` is opened by one
+ * interaction and closed again, a `Companion` is mounted for the whole visit
+ * - which is what a region whose learning *runs in the room* needs: the
+ * castle resumes a session left open yesterday, drives an NPC's gestures
+ * from the rung of the hint ladder the child is on, and turns a row of
+ * seated plates into an answer. None of that can wait for a child to open
+ * a panel.
+ */
+export interface LocationCompanionProps {
+  childId: string;
+  ageBand: AgeBandValue;
+  /** The parent's AI setting for this child, as every adventure host needs it. */
+  aiEnabled: boolean;
+  config: { readonly [key: string]: JsonValue };
+  /** The region's event bus, for a companion that listens to the room. */
+  bus: WorldEngineEventBus;
+  /** Whatever the scene half returned as `api`, or `null` before the engine is up. */
+  sceneApi: unknown;
+  /** The child's world state as the view last read it. */
+  worldState: WorldInteractionContext;
+  /**
+   * The interaction this extension claimed and the child just opened, or
+   * `null`. The view renders nothing itself for a claimed interaction, so a
+   * companion decides what opening it means.
+   */
+  openedInteraction: WorldInteraction | null;
+  /** Clears `openedInteraction`, as a panel's "Not now" does. */
+  onCloseInteraction(): void;
+  /** Says something in the HUD, the same toast a zone or a pickup uses. */
+  showToast(message: string): void;
+  /** Re-reads world changes, inventory and discoveries. */
+  refreshWorld(): Promise<void>;
+}
+
 export interface LocationViewExtension {
   id: string;
   /**
@@ -34,7 +70,13 @@ export interface LocationViewExtension {
     interaction: WorldInteraction,
     context: { ageBand: AgeBandValue; config: { readonly [key: string]: JsonValue } },
   ): boolean;
-  Overlay: ComponentType<LocationViewExtensionOverlayProps>;
+  /**
+   * Rendered when a claimed interaction opens. Omit it when the extension
+   * uses a `Companion` instead, which then receives `openedInteraction`.
+   */
+  Overlay?: ComponentType<LocationViewExtensionOverlayProps>;
+  /** Mounted for the whole visit, whenever the manifest declares this extension. */
+  Companion?: ComponentType<LocationCompanionProps>;
 }
 
 export type LocationViewExtensionRegistry = Registry<LocationViewExtension>;

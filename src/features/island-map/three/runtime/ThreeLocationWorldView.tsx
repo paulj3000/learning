@@ -28,6 +28,7 @@ import {
 import { sourceLocationManifestRepository } from './manifests';
 import {
   availableInteractions,
+  checkpointToast,
   focusLabel,
   findCollectibleByEntityId,
   findNpcByEntityId,
@@ -37,6 +38,8 @@ import {
   zoneEnterMessage,
 } from './manifestBindings';
 import { WorldActionPanel } from './WorldActionPanel';
+import { CalmStop } from '../../../session/CalmStop';
+import { useSessionClock } from '../../../session/useSessionClock';
 import type { LocationViewExtensionRegistry } from './viewExtensionRegistry';
 import { SOURCE_VIEW_EXTENSIONS } from '../extensions';
 
@@ -59,6 +62,12 @@ export interface ThreeLocationWorldViewProps {
   regionId: string;
   /** The child's own `ChildProfile.ageBand`, resolved by the route. Gates NPC talk and adventures. */
   ageBand: AgeBandValue;
+  /**
+   * The parent's AI setting for this child, resolved by the route. Only an
+   * extension that hosts an adventure in the room needs it, for the same
+   * reason `AdventurePage` does; it defaults to off, which fails closed.
+   */
+  aiEnabled?: boolean;
   /** Where manifests come from. Defaults to the source-controlled repository. */
   repository?: LocationManifestRepository;
   /** The React halves of world extensions. Defaults to the shipped ones (`../extensions`). */
@@ -81,6 +90,8 @@ type ManifestState =
 
 interface WorldSnapshot {
   startCheckpointId?: string;
+  /** True when the up-front read failed, so the view can say so calmly. */
+  unavailable?: boolean;
   companionName: string | null;
   questCue: string | null;
   backpackItems: readonly WorldHudBackpackItem[];
@@ -126,7 +137,7 @@ async function loadWorldSnapshot(childId: string): Promise<WorldSnapshot> {
       },
     };
   } catch {
-    return EMPTY_SNAPSHOT;
+    return { ...EMPTY_SNAPSHOT, unavailable: true };
   }
 }
 
@@ -134,6 +145,7 @@ export function ThreeLocationWorldView({
   childId,
   regionId,
   ageBand,
+  aiEnabled = false,
   repository = sourceLocationManifestRepository,
   viewExtensions = SOURCE_VIEW_EXTENSIONS,
 }: ThreeLocationWorldViewProps) {
@@ -142,7 +154,18 @@ export function ThreeLocationWorldView({
   const [focusedLabel, setFocusedLabel] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [openInteraction, setOpenInteraction] = useState<WorldInteraction | null>(null);
-  const [openExtensionId, setOpenExtensionId] = useState<string | null>(null);
+  /** An interaction an extension claimed, and which extension claimed it. */
+  const [claimed, setClaimed] = useState<{
+    extensionId: string;
+    interaction: WorldInteraction;
+  } | null>(null);
+
+  /*
+    The island's own session clock, not a second one: a region presents the
+    calm stopping point, it does not own the time (ADR-019 applied to time).
+    Only a region that authors `copy.calmStop` shows anything.
+  */
+  const { limitReached } = useSessionClock(childId);
 
   const bus = useMemo(() => new WorldEngineEventBus(), []);
   const engineRef = useRef<LocationEngine | null>(null);
@@ -209,7 +232,7 @@ export function ThreeLocationWorldView({
         document.exitPointerLock();
       }
       setOpenInteraction(null);
-      setOpenExtensionId(claimant.extensionId);
+      setClaimed({ extensionId: claimant.extensionId, interaction });
     },
     [ageBand, manifest, viewExtensions],
   );
@@ -259,6 +282,8 @@ export function ThreeLocationWorldView({
       bus.on('PlayerEnteredZone', ({ zoneId }) => {
         if (checkpointIds.has(zoneId)) {
           void saveCheckpoint(childId, zoneId).catch(() => undefined);
+          const found = checkpointToast(manifest, 'found', zoneId);
+          if (found) setToast(found);
           return;
         }
         const message = zoneEnterMessage(manifest, zoneId);
@@ -271,6 +296,18 @@ export function ThreeLocationWorldView({
       for (const unsubscribe of unsubscribes) unsubscribe();
     };
   }, [bus, childId, manifest, openInteractionFor, refreshWorld]);
+
+  /*
+    "You are back at the pond." Said once, when a returning child's saved
+    checkpoint lands, so the first thing the region tells them is where they
+    are rather than what to do.
+  */
+  const returningCheckpointId = snapshot?.startCheckpointId;
+  useEffect(() => {
+    if (!manifest || !returningCheckpointId) return;
+    const message = checkpointToast(manifest, 'returning', returningCheckpointId);
+    if (message) setToast(message);
+  }, [manifest, returningCheckpointId]);
 
   useEffect(() => {
     if (!toast) return;
@@ -302,16 +339,29 @@ export function ThreeLocationWorldView({
   }
 
   const startCheckpointId = snapshot.startCheckpointId;
-  const openBinding = openExtensionId
-    ? manifest.extensions.find((binding) => binding.extensionId === openExtensionId)
+  const openBinding = claimed
+    ? manifest.extensions.find((binding) => binding.extensionId === claimed.extensionId)
     : undefined;
   const openExtensionDefinition = openBinding
     ? viewExtensions.get(openBinding.extensionId)
     : undefined;
+  const OpenOverlay = openExtensionDefinition?.Overlay;
   const openExtension =
-    openBinding && openExtensionDefinition
-      ? { extension: openExtensionDefinition, config: openBinding.config }
+    openBinding && openExtensionDefinition && OpenOverlay
+      ? { extension: openExtensionDefinition, Overlay: OpenOverlay, config: openBinding.config }
       : null;
+  /*
+    Companions: mounted for the whole visit, not opened by an interaction.
+    A region whose learning runs in the room needs one - the castle resumes a
+    session left open yesterday and drives gestures from the hint ladder -
+    and it receives the interaction it claimed rather than the view
+    rendering a panel for it.
+  */
+  const companions = manifest.extensions.flatMap((binding) => {
+    const extension = viewExtensions.get(binding.extensionId);
+    const Companion = extension?.Companion;
+    return Companion ? [{ id: binding.extensionId, Companion, config: binding.config }] : [];
+  });
   const thingsToDo = availableInteractions(manifest, snapshot.context);
   const altNavPath = manifest.copy.altNav.to
     ? `/island/${childId}/${manifest.copy.altNav.to}`
@@ -319,10 +369,14 @@ export function ThreeLocationWorldView({
 
   const statusLine = resolveStatusLine(manifest, snapshot.context);
   const thingsToDoNotes = resolveThingsToDoNotes(manifest, snapshot.context);
+  const reticleSuppressed = (manifest.noReticleBands ?? []).includes(ageBand);
 
   return (
     <div className={styles.wrapper}>
       <p className={styles.instructions}>{manifest.copy.instructions}</p>
+      {snapshot.unavailable && manifest.copy.progressUnavailable ? (
+        <p className={styles.status}>{manifest.copy.progressUnavailable}</p>
+      ) : null}
       {statusLine ? <p className={styles.status}>{statusLine}</p> : null}
       <WorldStage>
         <ThreeGameContainer
@@ -343,21 +397,42 @@ export function ThreeLocationWorldView({
         <WorldHud
           questCue={snapshot.questCue}
           companionName={snapshot.companionName}
-          focusedLabel={focusedLabel}
+          focusedLabel={reticleSuppressed ? null : focusedLabel}
           toastMessage={toast}
           backpackItems={snapshot.backpackItems}
         />
         {openExtension ? (
-          <openExtension.extension.Overlay
+          <openExtension.Overlay
             childId={childId}
             ageBand={ageBand}
             config={openExtension.config}
             sceneApi={engineRef.current?.extensionApi(openExtension.extension.id) ?? null}
-            onClose={() => setOpenExtensionId(null)}
+            onClose={() => setClaimed(null)}
             refreshWorld={refreshWorld}
           />
         ) : null}
       </WorldStage>
+      {companions.map(({ id, Companion, config }) => (
+        <Companion
+          key={id}
+          childId={childId}
+          ageBand={ageBand}
+          aiEnabled={aiEnabled}
+          config={config}
+          bus={bus}
+          sceneApi={engineRef.current?.extensionApi(id) ?? null}
+          worldState={snapshot.context}
+          openedInteraction={claimed?.extensionId === id ? claimed.interaction : null}
+          onCloseInteraction={() => setClaimed(null)}
+          showToast={setToast}
+          refreshWorld={refreshWorld}
+        />
+      ))}
+      {manifest.copy.calmStop ? (
+        <CalmStop limitReached={limitReached}>
+          <p>{manifest.copy.calmStop}</p>
+        </CalmStop>
+      ) : null}
       {openInteraction ? (
         <WorldActionPanel
           childId={childId}

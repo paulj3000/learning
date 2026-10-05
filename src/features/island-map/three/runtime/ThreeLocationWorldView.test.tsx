@@ -73,6 +73,7 @@ vi.mock('../../../adventures/api', () => ({
 vi.mock('../../../rewards/api', () => ({ getInventory: vi.fn() }));
 vi.mock('../../../quests/api', () => ({ listQuestStates: vi.fn() }));
 vi.mock('../../../island/api', () => ({ getCompanionProfile: vi.fn() }));
+vi.mock('../../../child-profile/api', () => ({ getChildProfile: vi.fn(async () => null) }));
 
 import { getWorldState, recordCharacterMet, saveCheckpoint } from '../../../discovery/api';
 import { listAllWorldChanges, recordWorldChangeOnce } from '../../../adventures/api';
@@ -147,6 +148,22 @@ const WITH_PICKUP: ThreeLocationManifest = {
     pickUpMessage: 'You found a shining gem.',
     worldChange: { changeType: 'COLLECTIBLE_FOUND', changeKey: GEM_FOUND },
   })),
+};
+
+/** A region that authors the calm stop, the checkpoint toasts and no reticle for Sprouts. */
+const WITH_CASTLE_COPY: ThreeLocationManifest = {
+  ...WELCOME_HARBOR_MANIFEST,
+  regionId: 'copy-cove',
+  noReticleBands: ['SPROUT'],
+  copy: {
+    ...WELCOME_HARBOR_MANIFEST.copy,
+    calmStop: 'Pip sits down on the dock. It is a good place to rest.',
+    progressUnavailable: 'We could not load your backpack just now.',
+    checkpointToasts: {
+      found: 'You found {checkpoint}.',
+      returning: 'You are back at {checkpoint}.',
+    },
+  },
 };
 
 function renderView(
@@ -336,6 +353,49 @@ describe('ThreeLocationWorldView', () => {
     await screen.findByText(/Walk up to Pip/);
     await emit('CollectiblePickedUp', { entityId: 'harbor-collectible-gem' });
     expect(screen.getByText('You found a shining gem.')).toBeInTheDocument();
+  });
+
+  it('says the region’s own line about a checkpoint, found and returning (Phase 9)', async () => {
+    const repository = repositoryOf(WITH_CASTLE_COPY);
+    renderView('copy-cove', repository);
+    // The saved checkpoint, said once as the region opens.
+    expect(await screen.findByText('You are back at the dockside shed.')).toBeInTheDocument();
+
+    await emit('PlayerEnteredZone', { zoneId: 'welcome-harbor:lookout' });
+    expect(await screen.findByText('You found the lookout tower.')).toBeInTheDocument();
+  });
+
+  it('says nothing about checkpoints in a region that authors no line', async () => {
+    renderView();
+    await screen.findByText(/Walk up to Pip/);
+    expect(screen.queryByText(/You are back at/)).not.toBeInTheDocument();
+    await emit('PlayerEnteredZone', { zoneId: 'welcome-harbor:lookout' });
+    expect(screen.queryByText(/You found/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the crosshair label from a band the region says should not have one', async () => {
+    const repository = repositoryOf(WITH_CASTLE_COPY);
+    render(
+      <MemoryRouter>
+        <ThreeLocationWorldView
+          childId="child-1"
+          regionId="copy-cove"
+          ageBand="SPROUT"
+          repository={repository}
+        />
+      </MemoryRouter>,
+    );
+    await screen.findByText(/Walk up to Pip/);
+    await emit('InteractableFocused', { entityId: 'pirate-pip' });
+    expect(screen.queryByText(/press E to talk/)).not.toBeInTheDocument();
+  });
+
+  it('says so calmly when the child’s progress could not be read', async () => {
+    getWorldStateMock.mockRejectedValue(new Error('offline'));
+    renderView('copy-cove', repositoryOf(WITH_CASTLE_COPY));
+    expect(
+      await screen.findByText('We could not load your backpack just now.'),
+    ).toBeInTheDocument();
   });
 
   it('stops listening and disposes the scene on unmount', async () => {

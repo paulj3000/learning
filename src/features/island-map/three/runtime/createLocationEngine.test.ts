@@ -163,6 +163,132 @@ describe('createLocationEngine: focus and interaction', () => {
   });
 });
 
+describe('createLocationEngine: indoor vocabulary (Phase 9)', () => {
+  /** A harbour with a placed light, a wall-mounted prop and a ceiling. */
+  function indoorManifest(): ThreeLocationManifest {
+    return {
+      ...WELCOME_HARBOR_MANIFEST,
+      lights: [
+        {
+          id: 'hearth-light',
+          kind: 'POINT',
+          position: { x: 0, y: 1.5, z: 0 },
+          color: 0xffb066,
+          intensity: 9,
+          distance: 12,
+        },
+        {
+          id: 'doorway-glow',
+          kind: 'POINT',
+          position: { x: 2, y: 1.5, z: 0 },
+          color: 0xffffff,
+          intensity: 4,
+          requirements: [{ type: 'WORLD_CHANGE_PRESENT', changeKey: 'DOOR_OPEN' }],
+        },
+      ],
+      props: [
+        {
+          entityId: 'wall-portrait',
+          assetId: 'gem',
+          position: { x: 3, z: 3 },
+          elevation: 1.5,
+          label: 'a portrait',
+          interactionId: 'meet-pirate-pip',
+        },
+      ],
+      scenery: [
+        {
+          kind: 'TILED_GROUND',
+          id: 'ceiling',
+          assetId: 'ground-tile',
+          area: { id: 'ceiling:area', minX: -4, maxX: 4, minZ: -4, maxZ: 4 },
+          tileSize: 4,
+          y: 3,
+        },
+      ],
+    };
+  }
+
+  it('places a light, and leaves out one whose requirements are not met', () => {
+    const dark = mount({ manifest: indoorManifest() });
+    dark.runFrames(1);
+    const hearth = dark.scene().getObjectByName('hearth-light');
+    expect(hearth?.type).toBe('PointLight');
+    expect(dark.scene().getObjectByName('doorway-glow')).toBeUndefined();
+
+    const open = mount({
+      manifest: indoorManifest(),
+      worldState: { worldChangeKeys: ['DOOR_OPEN'], ownedItemIds: [], discoveryIds: [] },
+    });
+    open.runFrames(1);
+    expect(open.scene().getObjectByName('doorway-glow')).toBeDefined();
+  });
+
+  it('mounts a wall-mounted prop at its authored height', async () => {
+    const harness = mount({ manifest: indoorManifest() });
+    await harness.engine.ready;
+    harness.runFrames(1);
+    expect(harness.scene().getObjectByName('a portrait')?.position.toArray()).toEqual([3, 1.5, 3]);
+  });
+
+  it('tiles a ceiling at its own height', async () => {
+    const harness = mount({ manifest: indoorManifest() });
+    await harness.engine.ready;
+    const ceiling = vi
+      .mocked(harness.deps.assets.instanced)
+      .mock.calls.find((call) => call[0] === 'ground-tile');
+    expect(ceiling?.[1].every((placement) => placement.position.y === 3)).toBe(true);
+  });
+
+  it('lets an extension take over what interacting with an entity does', async () => {
+    const handled: string[] = [];
+    const extension: WorldExtension = {
+      id: 'puzzle',
+      mount(context: WorldExtensionContext) {
+        const stop = context.interceptInteract((entityId) => {
+          if (entityId !== 'pirate-pip') return false;
+          handled.push(entityId);
+          return true;
+        });
+        return { dispose: stop };
+      },
+    };
+    const manifest: ThreeLocationManifest = {
+      ...WELCOME_HARBOR_MANIFEST,
+      extensions: [{ extensionId: 'puzzle', config: {} }],
+    };
+    const harness = mount({ manifest, extensions: [extension] });
+    await harness.engine.ready;
+    harness.setDrive(standAt(1.5, 1, FACE_SOUTH));
+    harness.runFrames(1);
+    harness.engine.interact();
+    expect(handled).toEqual(['pirate-pip']);
+    // The runtime emitted nothing: the extension owns this one.
+    expect(named(harness.events, 'ObjectInteracted')).toEqual([]);
+  });
+
+  it('hands an extension an NPC’s own animation state', async () => {
+    let clips: readonly { name: string }[] = [];
+    const extension: WorldExtension = {
+      id: 'puzzle',
+      mount(context: WorldExtensionContext) {
+        // Asked after the model loads, which is why this waits a frame.
+        context.onFrame(() => {
+          clips = context.npcAnimator('pirate-pip')?.clips ?? [];
+        });
+      },
+    };
+    const manifest: ThreeLocationManifest = {
+      ...WELCOME_HARBOR_MANIFEST,
+      extensions: [{ extensionId: 'puzzle', config: {} }],
+    };
+    const harness = mount({ manifest, extensions: [extension] });
+    await harness.engine.ready;
+    harness.runFrames(1);
+    expect(clips.map((clip) => clip.name)).toEqual(['Idle']);
+  });
+});
+
 describe('createLocationEngine: assets', () => {
   it('keeps an NPC’s placeholder when its model fails to load, without failing the region (AS3)', async () => {
     const harness = mount({

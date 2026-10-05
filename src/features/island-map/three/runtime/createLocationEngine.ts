@@ -15,6 +15,7 @@ import {
   MeshStandardMaterial,
   PerspectiveCamera,
   PlaneGeometry,
+  PointLight,
   Raycaster,
   Scene,
   Vector2,
@@ -242,6 +243,27 @@ export function createLocationEngine<R extends RendererLike>(
   sun.position.set(lighting.sunPosition.x, lighting.sunPosition.y, lighting.sunPosition.z);
   scene.add(sun);
 
+  /*
+    Placed lights, for the rooms the sun does not reach. Gated ones are
+    included or left out with everything else that reads world state, so a
+    doorway that only glows once it is open is a light with a requirement
+    rather than a line of code in a scene.
+  */
+  const placedLights = new Map<string, PointLight>();
+  for (const light of manifest.lights ?? []) {
+    if (!areRequirementsMet(light.requirements, worldState)) continue;
+    const point = new PointLight(
+      light.color,
+      light.intensity,
+      light.distance ?? 0,
+      light.decay ?? 2,
+    );
+    point.position.set(light.position.x, light.position.y, light.position.z);
+    point.name = light.id;
+    scene.add(point);
+    placedLights.set(light.id, point);
+  }
+
   const renderer = deps.createRenderer();
   renderer.setSize(parent.clientWidth, parent.clientHeight);
   parent.appendChild(renderer.domElement);
@@ -272,6 +294,8 @@ export function createLocationEngine<R extends RendererLike>(
   const focusTargets: FocusTarget[] = [];
   const npcAnimators = new Map<string, NpcAnimator>();
   const sceneryRoots = new Map<string, Object3D>();
+  /** Extensions that take over what interacting with one of their entities does. */
+  const interactHandlers = new Set<(entityId: string) => boolean>();
   /** Roots of NPCs, props and collectibles, so an extension can fill one in. */
   const entityRoots = new Map<string, Object3D>();
   const pending: Promise<void>[] = [];
@@ -362,7 +386,7 @@ export function createLocationEngine<R extends RendererLike>(
   for (const prop of presentProps) {
     const root = new Group();
     root.name = prop.label;
-    root.position.set(prop.position.x, 0, prop.position.z);
+    root.position.set(prop.position.x, prop.elevation ?? 0, prop.position.z);
     root.rotation.y = prop.rotationY ?? 0;
     scene.add(root);
     entityRoots.set(prop.entityId, root);
@@ -473,7 +497,7 @@ export function createLocationEngine<R extends RendererLike>(
     switch (item.kind) {
       case 'TILED_GROUND': {
         const tiles = tiledGroundPlacements(item.area, item.tileSize, item.coverage).map(
-          (tile) => ({ position: { x: tile.x, y: 0, z: tile.z } }),
+          (tile) => ({ position: { x: tile.x, y: item.y ?? 0, z: tile.z } }),
         );
         track(placeInstanced(root, item.assetId, tiles), `scenery ${item.id}`);
         return;
@@ -625,6 +649,11 @@ export function createLocationEngine<R extends RendererLike>(
     if (disposed) return;
     const target = raycastFocus();
     if (!target) return;
+    // An extension may own this entity's interaction entirely (a plate going
+    // into a socket is a move inside a puzzle, not a domain event).
+    for (const handler of interactHandlers) {
+      if (handler(target.entityId)) return;
+    }
     switch (target.kind) {
       case 'NPC':
         bus.emit('ObjectInteracted', {
@@ -675,6 +704,11 @@ export function createLocationEngine<R extends RendererLike>(
         entityRoot: (entityId) => entityRoots.get(entityId),
         worldState,
         playNpcGesture,
+        npcAnimator: (entityId) => npcAnimators.get(entityId),
+        interceptInteract: (handler) => {
+          interactHandlers.add(handler);
+          return () => interactHandlers.delete(handler);
+        },
         loadModel: (assetId) => deps.assets.loadModel(assetId),
         onFrame: (callback) => {
           frameCallbacks.add(callback);

@@ -232,6 +232,12 @@ export function validateLocationManifest(
     }
   };
 
+  const checkElevation = (elevation: number | undefined, path: string) => {
+    if (elevation !== undefined && !Number.isFinite(elevation)) {
+      report('INVALID_VALUE', path, 'must be a number of meters');
+    }
+  };
+
   const interactionIds = new Set(manifest.interactions.map((interaction) => interaction.id));
   const checkInteractionRef = (interactionId: string | undefined, path: string) => {
     if (interactionId !== undefined && !interactionIds.has(interactionId)) {
@@ -343,6 +349,7 @@ export function validateLocationManifest(
     checkInteractionRef(prop.interactionId, `${path}.interactionId`);
     requireText(prop.label, `${path}.label`, report);
     checkRequirements(prop.requirements, `${path}.requirements`);
+    checkElevation(prop.elevation, `${path}.elevation`);
   });
 
   manifest.collectibles.forEach((collectible, index) => {
@@ -350,9 +357,7 @@ export function validateLocationManifest(
     claimSceneId(collectible.entityId, `${path}.entityId`);
     checkEntityAsset(collectible.assetId, `${path}.assetId`, collectible.idleClip);
     checkInBounds(collectible.position, `${path}.position`);
-    if (collectible.elevation !== undefined && !Number.isFinite(collectible.elevation)) {
-      report('INVALID_VALUE', `${path}.elevation`, 'must be a number of meters');
-    }
+    checkElevation(collectible.elevation, `${path}.elevation`);
     requireText(collectible.label, `${path}.label`, report);
     checkRequirements(collectible.requirements, `${path}.requirements`);
     if (collectible.pickUpMessage !== undefined) {
@@ -363,6 +368,18 @@ export function validateLocationManifest(
 
   manifest.zones.forEach((zone, index) => {
     checkRect(zone.rect, `zones[${index}].rect`);
+  });
+
+  manifest.lights?.forEach((light, index) => {
+    const path = `lights[${index}]`;
+    claimSceneId(light.id, `${path}.id`);
+    if (!(Number.isFinite(light.intensity) && light.intensity >= 0)) {
+      report('INVALID_VALUE', `${path}.intensity`, 'must be zero or more');
+    }
+    if (light.distance !== undefined && !(Number.isFinite(light.distance) && light.distance >= 0)) {
+      report('INVALID_VALUE', `${path}.distance`, 'must be zero or more');
+    }
+    checkRequirements(light.requirements, `${path}.requirements`);
   });
 
   manifest.ambient.forEach((ambient, index) => {

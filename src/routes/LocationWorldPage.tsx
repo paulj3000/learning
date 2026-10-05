@@ -27,6 +27,13 @@ export function LocationWorldPage() {
   const { childId, regionId } = useParams<{ childId: string; regionId: string }>();
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [ageBand, setAgeBand] = useState<AgeBandValue>(DEFAULT_AGE_BAND);
+  /**
+   * Fails closed too: no profile read means no AI, matching `AdventurePage`'s
+   * own default of the stored flag. Only a region whose learning runs in the
+   * room uses it (an adventure host needs it for the same reason the card
+   * route does).
+   */
+  const [aiEnabled, setAiEnabled] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,6 +48,7 @@ export function LocationWorldPage() {
         if (cancelled) return;
         if (child) {
           setAgeBand(child.ageBand);
+          setAiEnabled(child.aiEnabled ?? true);
         }
         setLoadState(child ? 'ready' : 'not-found');
       } catch {
@@ -81,6 +89,7 @@ export function LocationWorldPage() {
         childId={childId}
         regionId={regionId}
         ageBand={ageBand}
+        aiEnabled={aiEnabled}
       />
     </IslandLayout>
   );

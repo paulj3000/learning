@@ -1,4 +1,5 @@
 import type { WorldInteraction, WorldRequirement } from '../../worldObjects';
+import type { AgeBandValue } from '../../../child-profile/constants';
 import type { AdventureStepBinding } from './adventureStepBindings';
 
 /**
@@ -187,6 +188,8 @@ export type ScenerySpec = SceneryBase &
         assetId: string;
         area: RectZone;
         tileSize: number;
+        /** Height of the grid, for a ceiling as well as a floor. Defaults to 0. */
+        y?: number;
         /**
          * How the grid meets the edges of `area`:
          *
@@ -291,6 +294,11 @@ export interface NpcPlacementSpec {
 export interface PropSpec {
   entityId: string;
   /**
+   * Height above the floor, for something mounted on a wall (a portrait, a
+   * window, a carving) rather than standing on the ground. Defaults to 0.
+   */
+  elevation?: number;
+  /**
    * Absent means an extension draws this one: the runtime still creates its
    * root group, raycasts it and interacts with it, and the extension puts
    * geometry inside through `WorldExtensionContext.entityRoot`. That is how
@@ -361,6 +369,27 @@ export interface ZoneSpec {
   enterMessage?: string;
 }
 
+/**
+ * One placed light. Indoors, a region needs more than a sun: a doorway that
+ * glows, a hearth corner that is the warmest place in the castle, a library
+ * that is its darkest. The outdoor rig (`environment.lighting`) cannot say
+ * any of that, and a scene that placed its own lights would be the renderer
+ * owning content again.
+ */
+export interface LightSpec {
+  id: string;
+  kind: 'POINT';
+  position: Vec3;
+  /** 24-bit RGB. */
+  color: number;
+  intensity: number;
+  /** Where the light falls to nothing. 0 means never (three's default). */
+  distance?: number;
+  decay?: number;
+  /** Present only while these hold, evaluated when the scene is built. */
+  requirements?: readonly WorldRequirement[];
+}
+
 /** Purely decorative movement. Never interactive, never emits a domain event. */
 export interface AmbientSpec {
   kind: 'SPLINE_LOOP';
@@ -410,6 +439,26 @@ export interface LocationCopy {
    */
   thingsToDoNotes?: readonly StatusLine[];
   /**
+   * What the region says when the session's time is up (`CalmStop`). A
+   * region that authors it gets the island's calm stopping point staged
+   * where the child is standing; one that does not is unchanged. Nothing
+   * closes and nothing is taken away either way (pillar 7).
+   */
+  calmStop?: string;
+  /** Shown when the child's progress could not be read, instead of failing silently. */
+  progressUnavailable?: string;
+  /**
+   * Toasts about the child's own place in the region. `{checkpoint}` is
+   * replaced with the authored checkpoint label, so the copy stays the
+   * region's and the labels stay the World State layer's.
+   */
+  checkpointToasts?: {
+    /** On crossing one, e.g. "You found {checkpoint}." */
+    found?: string;
+    /** On arriving back at a saved one, e.g. "You are back at {checkpoint}." */
+    returning?: string;
+  };
+  /**
    * The non-graphical way out (roadmap section 42: walking in 3D is never
    * the only way to use a screen). `to` follows `WorldAction` NAVIGATE's
    * convention: a path relative to `/island/:childId/`, `''` for the hub.
@@ -443,9 +492,18 @@ export interface ThreeLocationManifest {
   props: readonly PropSpec[];
   collectibles: readonly CollectibleSpec[];
   zones: readonly ZoneSpec[];
+  /** Placed lights, for a region the sun does not reach. */
+  lights?: readonly LightSpec[];
   ambient: readonly AmbientSpec[];
   /** Reuses the existing interaction vocabulary verbatim; see `worldObjects.ts`. */
   interactions: readonly WorldInteraction[];
+  /**
+   * Age bands that get no crosshair label in this region. A region where
+   * nothing needs aiming - every choice is somewhere you stand - would
+   * otherwise show a three-year-old a reticle implying a control they do not
+   * have (`docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` SC-10).
+   */
+  noReticleBands?: readonly AgeBandValue[];
   /**
    * Which things in this region stand for which options of which adventure
    * steps (Phase 8, `adventureStepBindings.ts`). Empty for a region whose

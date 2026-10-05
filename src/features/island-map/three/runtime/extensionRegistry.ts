@@ -1,4 +1,4 @@
-import type { AnimationClip, Box3, Camera, Object3D, Scene } from 'three';
+import type { AnimationClip, AnimationMixer, Box3, Camera, Object3D, Scene } from 'three';
 import type { WorldEngineEventBus } from '../worldEngineEvents';
 import type { WorldInteractionContext } from '../../worldObjects';
 import type { JsonValue, ThreeLocationManifest } from './locationManifest';
@@ -49,12 +49,36 @@ export interface WorldExtensionContext {
   worldState: WorldInteractionContext;
   /** Plays an NPC clip `repetitions` times, then returns the NPC to its idle clip. */
   playNpcGesture(entityId: string, clip: string, repetitions: number): void;
+  /**
+   * An NPC's own animation state, for a mechanic that needs more than
+   * "play it a few times": a clip that plays once and *holds* at its end,
+   * because the gesture is wayfinding the child needs still there when they
+   * look up from the HUD.
+   */
+  npcAnimator(entityId: string): NpcAnimation | undefined;
+  /**
+   * Takes over what interacting with an entity does. The handler is called
+   * with the focused entity id before the runtime emits anything; returning
+   * true means the extension handled it and no `ObjectInteracted` follows.
+   *
+   * This is for moves *inside* a physical puzzle - picking a plate up, or
+   * seating it - which are not "tell the domain something happened" and only
+   * become an event once the arrangement is complete.
+   */
+  interceptInteract(handler: (entityId: string) => boolean): () => void;
   /** Loads a model through the runtime's asset pipeline. */
   loadModel(assetId: string): Promise<LoadedModel>;
   /** Runs `callback` once per frame with the frame's delta in seconds. Returns an unsubscribe. */
   onFrame(callback: (deltaSeconds: number) => void): () => void;
   /** The runtime's monotonic clock, in milliseconds. */
   now(): number;
+}
+
+/** One NPC's mixer and the clips its asset authors. */
+export interface NpcAnimation {
+  mixer: AnimationMixer;
+  clips: readonly AnimationClip[];
+  idle?: AnimationClip;
 }
 
 export interface WorldExtensionMount {
