@@ -20,6 +20,7 @@ import {
   type LocationEngine,
 } from './createLocationEngine';
 import type { ThreeLocationManifest } from './locationManifest';
+import { resolveStatusLine, resolveThingsToDoNotes } from './sceneLayout';
 import {
   LocationManifestNotFoundError,
   type LocationManifestRepository,
@@ -316,9 +317,13 @@ export function ThreeLocationWorldView({
     ? `/island/${childId}/${manifest.copy.altNav.to}`
     : `/island/${childId}`;
 
+  const statusLine = resolveStatusLine(manifest, snapshot.context);
+  const thingsToDoNotes = resolveThingsToDoNotes(manifest, snapshot.context);
+
   return (
     <div className={styles.wrapper}>
       <p className={styles.instructions}>{manifest.copy.instructions}</p>
+      {statusLine ? <p className={styles.status}>{statusLine}</p> : null}
       <WorldStage>
         <ThreeGameContainer
           instanceKey={`${childId}:${manifest.regionId}`}
@@ -386,6 +391,11 @@ export function ThreeLocationWorldView({
             </button>
           </li>
         </ul>
+        {thingsToDoNotes.map((note) => (
+          <p key={note} className={styles.status}>
+            {note}
+          </p>
+        ))}
       </details>
       <Link className={styles.altNavLink} to={altNavPath}>
         {manifest.copy.altNav.label}

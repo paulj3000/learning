@@ -40,4 +40,19 @@ describe('AppRoutes: manifest-driven 3D locations', () => {
       'child-1 welcome-harbor',
     );
   });
+
+  it('keeps every migrated region’s own pre-generic URL working', async () => {
+    // Each region's old URL becomes a redirect as it migrates (Phases 6, 7
+    // and 9), so a bookmark or an old link never dead-ends.
+    for (const [path, expected] of [
+      ['/island/child-1/world/pirate-builder-bay-3d', 'child-1 pirate-builder-bay'],
+      ['/island/child-1/world/wonderwild-forest-3d', 'child-1 wonderwild-forest'],
+      ['/island/child-1/world/clockwork-harbor', 'child-1 clockwork-harbor'],
+      ['/island/child-1/world/dragons-sanctuary', 'child-1 dragons-sanctuary'],
+    ] as const) {
+      const view = renderAt(path);
+      expect(await screen.findByTestId('location-world-page')).toHaveTextContent(expected);
+      view.unmount();
+    }
+  });
 });

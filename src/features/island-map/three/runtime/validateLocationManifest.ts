@@ -217,6 +217,21 @@ export function validateLocationManifest(
     }
   };
 
+  /**
+   * An entity's asset, which may be absent: that means an extension draws it
+   * (`PropSpec.assetId`). A region with no extensions and a missing asset
+   * would simply have an invisible, interactable hole in it.
+   */
+  const checkEntityAsset = (assetId: string | undefined, path: string, clip?: string) => {
+    if (assetId !== undefined) {
+      checkAsset(assetId, path, clip);
+      return;
+    }
+    if (manifest.extensions.length === 0) {
+      report('UNKNOWN_ASSET', path, 'no assetId, and no extension that could draw this one');
+    }
+  };
+
   const interactionIds = new Set(manifest.interactions.map((interaction) => interaction.id));
   const checkInteractionRef = (interactionId: string | undefined, path: string) => {
     if (interactionId !== undefined && !interactionIds.has(interactionId)) {
@@ -263,6 +278,24 @@ export function validateLocationManifest(
         checkAsset(item.assetId, `${path}.assetId`);
         requirePositive(item.tileSize, `${path}.tileSize`, report);
         checkRect(item.area, `${path}.area`);
+        if (
+          item.coverage !== undefined &&
+          item.coverage !== 'INSIDE' &&
+          item.coverage !== 'COVER'
+        ) {
+          report('INVALID_VALUE', `${path}.coverage`, 'must be INSIDE or COVER');
+        }
+        break;
+      case 'SCATTER':
+        checkAsset(item.assetId, `${path}.assetId`);
+        checkRect(item.area, `${path}.area`);
+        requirePositive(item.spacing, `${path}.spacing`, report);
+        if (!Number.isInteger(item.seed)) {
+          report('INVALID_VALUE', `${path}.seed`, 'must be an integer, so the scatter is stable');
+        }
+        if (!(Number.isFinite(item.clearance) && item.clearance >= 0)) {
+          report('INVALID_VALUE', `${path}.clearance`, 'must be zero or more meters');
+        }
         break;
       case 'FLAT_PLANE':
         checkRect(item.area, `${path}.area`);
@@ -274,7 +307,7 @@ export function validateLocationManifest(
         }
         break;
       case 'MODEL':
-        checkAsset(item.assetId, `${path}.assetId`);
+        checkAsset(item.assetId, `${path}.assetId`, item.idleClip);
         break;
       case 'CLUSTER':
       case 'LOD_PLACEMENTS':
@@ -305,17 +338,21 @@ export function validateLocationManifest(
   manifest.props.forEach((prop, index) => {
     const path = `props[${index}]`;
     claimSceneId(prop.entityId, `${path}.entityId`);
-    checkAsset(prop.assetId, `${path}.assetId`, prop.interactClip);
+    checkEntityAsset(prop.assetId, `${path}.assetId`, prop.interactClip);
     checkInBounds(prop.position, `${path}.position`);
     checkInteractionRef(prop.interactionId, `${path}.interactionId`);
     requireText(prop.label, `${path}.label`, report);
+    checkRequirements(prop.requirements, `${path}.requirements`);
   });
 
   manifest.collectibles.forEach((collectible, index) => {
     const path = `collectibles[${index}]`;
     claimSceneId(collectible.entityId, `${path}.entityId`);
-    checkAsset(collectible.assetId, `${path}.assetId`, collectible.idleClip);
+    checkEntityAsset(collectible.assetId, `${path}.assetId`, collectible.idleClip);
     checkInBounds(collectible.position, `${path}.position`);
+    if (collectible.elevation !== undefined && !Number.isFinite(collectible.elevation)) {
+      report('INVALID_VALUE', `${path}.elevation`, 'must be a number of meters');
+    }
     requireText(collectible.label, `${path}.label`, report);
     checkRequirements(collectible.requirements, `${path}.requirements`);
     if (collectible.pickUpMessage !== undefined) {
@@ -404,6 +441,25 @@ export function validateLocationManifest(
         `no registered extension "${extension.extensionId}"`,
       );
     }
+  });
+
+  manifest.environment.variants?.forEach((variant, index) => {
+    const path = `environment.variants[${index}]`;
+    checkRequirements(variant.requirements, `${path}.requirements`);
+    if (variant.backgroundColor === undefined && variant.lighting === undefined) {
+      report('INVALID_VALUE', path, 'a variant must change the colour, the lighting, or both');
+    }
+  });
+
+  manifest.copy.statusLines?.forEach((line, index) => {
+    const path = `copy.statusLines[${index}]`;
+    requireText(line.text, `${path}.text`, report);
+    checkRequirements(line.requirements, `${path}.requirements`);
+  });
+  manifest.copy.thingsToDoNotes?.forEach((note, index) => {
+    const path = `copy.thingsToDoNotes[${index}]`;
+    requireText(note.text, `${path}.text`, report);
+    checkRequirements(note.requirements, `${path}.requirements`);
   });
 
   requireText(manifest.title, 'title', report);
@@ -537,6 +593,7 @@ function checkRequirement(
       }
       return;
     case 'ITEM_OWNED':
+    case 'ITEM_ABSENT':
       if (!registries.itemIds.includes(requirement.itemId)) {
         report('UNKNOWN_ITEM', `${path}.itemId`, `no item "${requirement.itemId}"`);
       }

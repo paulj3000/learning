@@ -54,9 +54,12 @@ import {
   buildingRoofPlacement,
   buildingWallPlacements,
   NO_WORLD_STATE,
+  resolveEnvironment,
+  scatterPlacements,
   solidColliders,
   tiledGroundPlacements,
   triggerVolumes,
+  walkableProbe,
   type BoxBounds,
 } from './sceneLayout';
 import { WorldTriggerTracker } from './worldTriggerTracker';
@@ -220,7 +223,10 @@ export function createLocationEngine<R extends RendererLike>(
 
   // Scene, camera, lights, renderer.
   const scene = new Scene();
-  scene.background = new Color(manifest.environment.backgroundColor);
+  // The environment this child's world state resolves to: a harbour whose
+  // lighthouse turns again has a different sky from one that is still dark.
+  const environment = resolveEnvironment(manifest, worldState);
+  scene.background = new Color(environment.backgroundColor);
   const camera = new PerspectiveCamera(
     70,
     parent.clientWidth > 0 && parent.clientHeight > 0
@@ -230,7 +236,7 @@ export function createLocationEngine<R extends RendererLike>(
     150,
   );
   camera.rotation.order = 'YXZ';
-  const lighting = { ...DEFAULT_LIGHTING, ...manifest.environment.lighting };
+  const lighting = { ...DEFAULT_LIGHTING, ...environment.lighting };
   scene.add(new AmbientLight(0xffffff, lighting.ambientIntensity));
   const sun = new DirectionalLight(0xffffff, lighting.sunIntensity);
   sun.position.set(lighting.sunPosition.x, lighting.sunPosition.y, lighting.sunPosition.z);
@@ -248,6 +254,8 @@ export function createLocationEngine<R extends RendererLike>(
   }));
   const colliders = solids.map((solid) => solid.box);
   const controller = new FirstPersonController({ colliders });
+  /** Where the child could stand, which is where `SCATTER` scenery must not go. */
+  const walkable = walkableProbe(manifest, worldState);
   const spawn = resolveSpawnCheckpoint(manifest.regionId, options.startCheckpointId);
   controller.position.set(spawn.x, 0, spawn.z);
   controller.yaw = spawn.yaw;
@@ -264,6 +272,8 @@ export function createLocationEngine<R extends RendererLike>(
   const focusTargets: FocusTarget[] = [];
   const npcAnimators = new Map<string, NpcAnimator>();
   const sceneryRoots = new Map<string, Object3D>();
+  /** Roots of NPCs, props and collectibles, so an extension can fill one in. */
+  const entityRoots = new Map<string, Object3D>();
   const pending: Promise<void>[] = [];
 
   function track(work: Promise<void>, what: string): void {
@@ -308,6 +318,7 @@ export function createLocationEngine<R extends RendererLike>(
     placeholder.position.y = NPC_PLACEHOLDER_SIZE.height / 2;
     root.add(placeholder);
     scene.add(root);
+    entityRoots.set(npc.entityId, root);
     focusTargets.push({ entityId: npc.entityId, kind: 'NPC', root });
 
     track(
@@ -339,13 +350,22 @@ export function createLocationEngine<R extends RendererLike>(
     action.play();
   }
 
-  // Props: interactive objects bound to an interaction.
-  for (const prop of manifest.props) {
+  /*
+    Props: interactive objects bound to an interaction. Gated ones are
+    included or left out once, when the scene is built, like scenery and
+    colliders - so a dark cave and a lit one are two props sharing an
+    interaction rather than a branch in here.
+  */
+  const presentProps = manifest.props.filter((prop) =>
+    areRequirementsMet(prop.requirements, worldState),
+  );
+  for (const prop of presentProps) {
     const root = new Group();
     root.name = prop.label;
     root.position.set(prop.position.x, 0, prop.position.z);
     root.rotation.y = prop.rotationY ?? 0;
     scene.add(root);
+    entityRoots.set(prop.entityId, root);
     let interactAction: AnimationAction | null = null;
     let interacted = false;
     focusTargets.push({
@@ -361,8 +381,12 @@ export function createLocationEngine<R extends RendererLike>(
       },
     });
 
+    // No `assetId` means an extension fills this root in (placeholder
+    // machinery); focus, label and interaction are unchanged either way.
+    if (prop.assetId === undefined) continue;
+    const assetId = prop.assetId;
     track(
-      deps.assets.loadModel(prop.assetId).then(({ scene: source, animations }) => {
+      deps.assets.loadModel(assetId).then(({ scene: source, animations }) => {
         const model = source.clone(true);
         if (!addWhenLive(model, root)) return;
         const clip = prop.interactClip
@@ -390,12 +414,15 @@ export function createLocationEngine<R extends RendererLike>(
   for (const collectible of presentCollectibles) {
     const root = new Group();
     root.name = collectible.label;
-    root.position.set(collectible.position.x, 0, collectible.position.z);
+    root.position.set(collectible.position.x, collectible.elevation ?? 0, collectible.position.z);
     scene.add(root);
+    entityRoots.set(collectible.entityId, root);
     focusTargets.push({ entityId: collectible.entityId, kind: 'COLLECTIBLE', root });
 
+    if (collectible.assetId === undefined) continue;
+    const assetId = collectible.assetId;
     track(
-      deps.assets.loadModel(collectible.assetId).then(({ scene: source, animations }) => {
+      deps.assets.loadModel(assetId).then(({ scene: source, animations }) => {
         const model = source.clone(true);
         if (!addWhenLive(model, root)) return;
         loopIdle(model, animations, collectible.idleClip);
@@ -445,10 +472,21 @@ export function createLocationEngine<R extends RendererLike>(
     sceneryRoots.set(item.id, root);
     switch (item.kind) {
       case 'TILED_GROUND': {
-        const tiles = tiledGroundPlacements(item.area, item.tileSize).map((tile) => ({
-          position: { x: tile.x, y: 0, z: tile.z },
-        }));
+        const tiles = tiledGroundPlacements(item.area, item.tileSize, item.coverage).map(
+          (tile) => ({ position: { x: tile.x, y: 0, z: tile.z } }),
+        );
         track(placeInstanced(root, item.assetId, tiles), `scenery ${item.id}`);
+        return;
+      }
+      case 'SCATTER': {
+        const scattered = scatterPlacements(
+          item.area,
+          item.spacing,
+          item.seed,
+          walkable,
+          item.clearance,
+        );
+        track(placeInstanced(root, item.assetId, scattered), `scenery ${item.id}`);
         return;
       }
       case 'FLAT_PLANE': {
@@ -499,14 +537,15 @@ export function createLocationEngine<R extends RendererLike>(
         return;
       case 'MODEL':
         track(
-          deps.assets.loadModel(item.assetId).then(({ scene: source }) => {
+          deps.assets.loadModel(item.assetId).then(({ scene: source, animations }) => {
             const model = source.clone(true);
             model.position.set(item.position.x, item.position.y, item.position.z);
             if (item.rotation)
               model.rotation.set(item.rotation.x, item.rotation.y, item.rotation.z);
             if (item.scale)
               model.scale.set(item.scale.x ?? 1, item.scale.y ?? 1, item.scale.z ?? 1);
-            addWhenLive(model, root);
+            if (!addWhenLive(model, root)) return;
+            if (item.idleClip) loopIdle(model, animations, item.idleClip);
           }),
           `scenery ${item.id}`,
         );
@@ -633,6 +672,8 @@ export function createLocationEngine<R extends RendererLike>(
         addCollider: (box) => colliders.push(box),
         removeCollider,
         sceneryRoot: (id) => sceneryRoots.get(id),
+        entityRoot: (entityId) => entityRoots.get(entityId),
+        worldState,
         playNpcGesture,
         loadModel: (assetId) => deps.assets.loadModel(assetId),
         onFrame: (callback) => {

@@ -11,6 +11,14 @@ export type WorldRequirement =
   | { type: 'WORLD_CHANGE_ABSENT'; changeKey: string }
   /** Phase 26: the spot only exists once the child is carrying something. */
   | { type: 'ITEM_OWNED'; itemId: string }
+  /**
+   * The mirror of `ITEM_OWNED`, as `WORLD_CHANGE_ABSENT` mirrors
+   * `WORLD_CHANGE_PRESENT` (engine Phase 9). It is what lets a thing have a
+   * before and an after without a branch in a renderer: a dark cave mouth
+   * requires the jar to be absent, the lit one requires it owned, and
+   * exactly one of them is ever built.
+   */
+  | { type: 'ITEM_ABSENT'; itemId: string }
   /** Phase 26: the spot only exists once another secret has been found. */
   | { type: 'DISCOVERY_PRESENT'; discoveryId: string };
 
@@ -108,6 +116,8 @@ function evaluateRequirement(
       return !context.worldChangeKeys.includes(requirement.changeKey);
     case 'ITEM_OWNED':
       return (context.ownedItemIds ?? []).includes(requirement.itemId);
+    case 'ITEM_ABSENT':
+      return !(context.ownedItemIds ?? []).includes(requirement.itemId);
     case 'DISCOVERY_PRESENT':
       return (context.discoveryIds ?? []).includes(requirement.discoveryId);
   }

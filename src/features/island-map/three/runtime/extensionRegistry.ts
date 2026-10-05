@@ -1,5 +1,6 @@
 import type { AnimationClip, Box3, Camera, Object3D, Scene } from 'three';
 import type { WorldEngineEventBus } from '../worldEngineEvents';
+import type { WorldInteractionContext } from '../../worldObjects';
 import type { JsonValue, ThreeLocationManifest } from './locationManifest';
 
 /**
@@ -36,6 +37,16 @@ export interface WorldExtensionContext {
   removeCollider(id: string): boolean;
   /** The root object of a scenery item by its manifest id, or `undefined` if its requirements left it out. */
   sceneryRoot(id: string): Object3D | undefined;
+  /**
+   * The root object of an NPC, prop or collectible by its entity id, or
+   * `undefined` if its requirements left it out. An entity the manifest
+   * declares with no `assetId` has an empty root waiting for exactly this:
+   * the extension puts its geometry inside, and the runtime keeps owning
+   * focus, labels, interaction and pickup.
+   */
+  entityRoot(entityId: string): Object3D | undefined;
+  /** The child's world state, for a mechanic that is built differently once something has changed. */
+  worldState: WorldInteractionContext;
   /** Plays an NPC clip `repetitions` times, then returns the NPC to its idle clip. */
   playNpcGesture(entityId: string, clip: string, repetitions: number): void;
   /** Loads a model through the runtime's asset pipeline. */

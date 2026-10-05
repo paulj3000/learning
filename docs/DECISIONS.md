@@ -1565,7 +1565,7 @@ still sent to sign-in, as for every protected route.
 
 ## ADR-025: Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies
 
-Status: Accepted (2026-10-04). Phases 1 to 8 of `docs/engine/10_IMPLEMENTATION_PHASES.md` are built; Welcome Harbor and Pirate Builder Bay run on the generic route.
+Status: Accepted (2026-10-04). Phases 1 to 8 of `docs/engine/10_IMPLEMENTATION_PHASES.md` are built, and Phase 9 for four of five regions: Welcome Harbor, Pirate Builder Bay, Wonderwild Forest, Clockwork Harbor and the Dragon's Sanctuary run on the generic route. Storykeeper Castle does not yet.
 
 Adding a 3D region currently means a new route page, `*WorldView.tsx`,
 `*Scene.ts` and `*Region.ts`. The audit
@@ -1678,6 +1678,52 @@ adventure step (the castle's own session UI stays its own until Phase 9
 migrates it), prop world changes (Dragon's Sanctuary's runes, which carry
 a carry-and-place mechanic that wants an extension), and requirement-gated
 lighting, which no migrated region needs yet.
+
+**Decision, part I: a region's placeholder art is an extension, not
+manifest vocabulary.** Phase 9 migrated three more regions, and each needed
+something the manifest could not say. Two became generic vocabulary, because
+they are what *any* region wants:
+
+- `SCATTER` scenery and `TILED_GROUND` `coverage: 'COVER'` - deterministic
+  placements through the part of a region a child cannot walk on, and a tiled
+  grid that covers its area edge to edge. Wonderwild Forest's tree line is
+  derived as the complement of its walkable set, so its trees cannot be hand
+  listed; `walkableProbe` reads the same colliders the controller does, and
+  the manifest test proves the scatter lands exactly where the per-region
+  scene put it.
+- `environment.variants`, `copy.statusLines` and `copy.thingsToDoNotes` -
+  requirement-gated sky, lighting, and the one-line "the lighthouse is dark"
+  status each region's view used to compute with a ternary. Also
+  `ITEM_ABSENT`, the mirror of `ITEM_OWNED` (a dark cave mouth and a lit one
+  are two props with opposite requirements), `elevation` on a collectible
+  (a gear on a roof line) and `requirements` on a prop.
+
+The third thing stayed bespoke, and the shape it took is the decision worth
+recording. Clockwork Harbor's machinery and the Dragon's Sanctuary's hearth,
+sockets, gates and dragon are `three` primitives standing in for asset
+inventories neither roadmap has authored yet. Rather than grow the manifest a
+geometry language for a torus a GLB will replace, **an interactive entity may
+declare no `assetId` at all**: the runtime still creates its root, raycasts
+it, labels it and interacts with it, and an extension fills that root in
+through `WorldExtensionContext.entityRoot`. So `clockwork-machinery` and
+`sanctuary-art` own nothing but appearance - every focus, label, interaction
+and pickup stays generic, and when the real art lands the manifest gains
+`assetId`s and the extensions shrink to the parts that actually move.
+
+Two behaviour changes came with the migration, both deliberate:
+- Picking up a Golden Gear now records `goldenGearChangeKey`, so it stays
+  found. The per-region view only toasted, which is the bug the audit
+  recorded against Clockwork Harbor.
+- The sanctuary's three rune hints are now per rune, so a hint for a rune the
+  child already has stops being shown instead of a count quietly going down.
+
+**Storykeeper Castle is not migrated.** It is the one region whose bespoke
+part is not art but *behaviour*: an in-world adventure host, a story host,
+three seating puzzles, a composite easel, carrying a plate in front of the
+camera, an NPC gesture director, and a ten-method scene API, across 3,200
+lines with 69 view tests. Moving that behind extension ids is a piece of work
+in its own right, and a half-migrated castle would put the most intricate
+learning flow in the app at risk. Its own route is untouched until then.
 
 **Consequences.**
 - `runtime/manifests/welcomeHarbor.ts` expresses Welcome Harbor with zero

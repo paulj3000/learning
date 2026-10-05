@@ -417,7 +417,7 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 8 complete; Welcome Harbor and Pirate Builder Bay 3D run on the generic route; NOT yet seen by a person or on a device
+## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 8 complete, Phase 9 for four of five regions; Storykeeper Castle still has its own; NOT yet seen by a person or on a device
 
 Roadmap: `docs/engine/` (README, then `10_IMPLEMENTATION_PHASES.md`).
 Decision: ADR-025. Goal: a new ordinary 3D location needs a manifest, not a
@@ -745,9 +745,140 @@ looks like 10-plus failing files and is not.
   `requirements`, which covers asset swaps by world state; no migrated
   region changes its lighting, so the field would be untested vocabulary.
 
-**Next: Phase 9.** Migrate Wonderwild Forest, Clockwork Harbor, Dragon's
-Sanctuary and Storykeeper Castle, moving the two real binding tables into
-their manifests as each region lands.
+**Phase 9 (remaining region migrations), three of four regions done.**
+ADR-025 part I. Wonderwild Forest, Clockwork Harbor and the Dragon's
+Sanctuary now run on the generic route; Storykeeper Castle does not, and
+that is explained at the end of this section rather than hidden.
+
+Each region's old URL is a `LegacyLocationWorldRedirect`, its dedicated page
+is gone, and its old view and scene stay in the tree unrouted as the parity
+reference (the Phase 5 and 7 pattern).
+
+**Wonderwild Forest** — `/island/:childId/explore/wonderwild-forest`.
+- `runtime/manifests/wonderwildForest.ts`, built from
+  `wonderwildForestRegion.ts`'s constants. The forest is the first migrated
+  region whose ground is *derived*: its tree line is the complement of the
+  walkable set, so its trees cannot be hand listed.
+- New generic vocabulary: `SCATTER` scenery (deterministic placements through
+  the part of a region the child cannot walk on, from `walkableProbe` over
+  the manifest's own colliders and bounds) and `TILED_GROUND`
+  `coverage: 'COVER'` (a centred grid that covers its area edge to edge; the
+  default would leave a bare strip at the north edge of the floor). Also
+  `MODEL` `idleClip`, for Chatty perched on the centre stone, and
+  `requirements` on a prop.
+- `wonderwildForest.test.ts` (13) proves the equivalences the `SCATTER`
+  vocabulary rests on: the generic walkability probe agrees with the region's
+  own `isWalkable` at every half-metre of the region, and all three scatters
+  land in exactly the places `wonderwildForestScene.ts` scattered them, with
+  the same seeds. The floor and every drawn trail tile to the same places too.
+- `wonderwildForestParity.test.tsx` (22) reruns every assertion of
+  `WonderwildForestWorldView.test.tsx`, plus the wiring the old view had and
+  never tested (the glow-moss walk-in, a gated prop's reticle, the zones
+  authored for a later phase doing nothing).
+- `wonderwildForest.engine.test.ts` (15): the real runtime stops a child at
+  the derived tree line, keeps them out of the pond, fires the hive clearing
+  under the id its interactions name, shows the dark cave to a child with no
+  jar and the lit one to a child carrying it, leaves the butterfly out until
+  the garden is saved, blooms the flower patch and lights the bee stone for a
+  child who told the tale, and perches Chatty with her idle clip.
+- Zone renames (ids are never persisted, ADR-025 part G): the hive clearing
+  becomes `wonderwild-beehive`, the id the authored interactions already
+  name, so the before/after hive pair resolves from requirements instead of
+  from a branch in the view. Three dead zones gain an `:approach` suffix
+  because entity and zone ids share one namespace in the generic runtime.
+- `adventureBindings` is empty on purpose: the forest's table
+  (`wonderWallBindings.ts`) is authored, but its four carved stones are still
+  scenery until WF-3 makes them answer the `wonder-wall` step, and binding an
+  entity nothing places is what `findAdventureBindingIssues` refuses.
+
+**Clockwork Harbor** — `/island/:childId/explore/clockwork-harbor`.
+- `runtime/manifests/clockworkHarbor.ts`. The first migrated region with no
+  authored `WorldInteraction`s at all: its view dispatched on entity-id sets
+  (`if (NPC_LABELS[entityId])`, `entityId.startsWith('golden-gear-')`). Those
+  are now four interactions in the existing vocabulary, with the ids the
+  scene already emitted.
+- New generic vocabulary: `environment.variants` (the sky lifts and the light
+  comes up once the lighthouse turns again), `copy.statusLines` (the one-line
+  status above the canvas), `copy.thingsToDoNotes`, `elevation` on a
+  collectible, and an interactive entity with **no `assetId`** - the runtime
+  creates its root and keeps focus, label, interaction and pickup, and an
+  extension fills the root in through `entityRoot`.
+- Two extensions: `clockwork-machinery` (the mechanism, the lamp, the clock
+  hand, the gears - code primitives standing in for section 21's unauthored
+  asset inventory) and `adaptive-adventure-entrance` (the machine opens
+  whichever Dark Lighthouse variant the child's demonstrated maths is ready
+  for, which a `START_ADVENTURE` interaction cannot express). The second is
+  reusable by any levelled entrance.
+- **One deliberate behaviour change:** picking up a Golden Gear records
+  `goldenGearChangeKey`, so it stays found. The per-region view only toasted
+  it - the live bug the audit recorded, since `deriveClockworkHarborState`
+  already read that key. Validation now refuses a collectible world change
+  without the matching `WORLD_CHANGE_ABSENT` gate, so no region can re-make
+  it.
+- Tests: `clockworkHarbor.test.ts` (9), `clockworkHarborParity.test.tsx` (10,
+  the first tests this region's view behaviour has ever had - it had no view
+  test and no UI entry point), `clockworkHarbor.engine.test.ts` (8: the
+  machine and the gears are focusable and interactable with no art of their
+  own, the gate shuts only while the harbour is dark, the mechanism gear
+  turns only once it runs).
+- Still no UI entry point of its own, as before: the region is reachable by
+  URL. Giving it a door is product work, not migration.
+
+**The Dragon's Sanctuary** — `/island/:childId/explore/dragons-sanctuary`.
+- `runtime/manifests/dragonsSanctuary.ts`. Same entity-id-map dispatch as
+  Clockwork, now six interactions - including each sealed gate's authored
+  `lockedMessage`, which a locked door owes a child (pillar 7: a promise,
+  never a refusal).
+- The two collectible families are where the migration pays for itself:
+  finding a fire rune and finding a dragon scale were two near-identical
+  blocks in the view, each calling `recordWorldChangeOnce` with
+  `exploration:<propId>` provenance. Both are now `worldChange` on a
+  collectible, gated on the key they record, so a rune a child has taken is
+  not in the valley next time. The runes carry a second gate on `FORGE_LIT`,
+  because a lit forge means all three are in their sockets.
+- `sanctuary-art` draws the hearth and its fire bowl, the firelight, the
+  sockets (each glowing once its own rune is found), the rune stones, the
+  gate slabs and seams, the scales, Ember's silhouette and the sky cliffs.
+  The two buildings' walls are *not* in the extension or the collider list:
+  the runtime derives them from the buildings, so the walls a child bumps
+  into and the walls they see are one declaration.
+- **One deliberate improvement:** the three rune hints are per rune, so a
+  hint for a rune the child already has stops being shown, where the old copy
+  counted down in one sentence.
+- Tests: `dragonsSanctuary.test.ts` (9), `dragonsSanctuaryParity.test.tsx`
+  (16, every assertion of `DragonsSanctuaryWorldView.test.tsx`),
+  `dragonsSanctuary.engine.test.ts` (8: a sealed gate stops a child rather
+  than letting them round it, a rune with no art of its own is focusable and
+  takeable once, the lodge doorway is a real gap, the hearth gains its
+  firelight only when the forge burns).
+
+**Storykeeper Castle is NOT migrated**, and this is the honest reason rather
+than a deferral dressed as a plan. Every other region's bespoke part is
+*art*; the castle's is *behaviour*: an in-world adventure host
+(`CastleTaleSession`), a story host (`CastleSecretDoorStory`), a third
+near-duplicate host (`CastleStoryAdventure`), three seating puzzles, a
+composite easel, carrying a plate in front of the camera, an NPC gesture
+director with a clip-and-facing vocabulary, the Sprout reticle rule, and a
+ten-method scene API - 1,388 view lines, 1,829 scene lines and five helper
+modules, covered by 69 view tests and a HUD-equivalence suite. Moving that
+behind extension ids is a phase of its own, and a half-migrated castle would
+put the most intricate learning flow in the app at risk. `world/storykeeper-castle-3d`
+and its page are untouched. What it needs, in order: indoor room-graph walls
+as generic vocabulary (rooms minus archway gaps, which
+`storykeeperCastleRegion.ts` already derives), a `seating-puzzle` extension
+(the castle uses the same one three times), an `easel-canvas` extension, and
+an in-world *adventure host* extension - the one genuinely new piece, since
+no existing extension renders a step of an open `AdventureSession` inside a
+region.
+
+Totals: the full suite is 249 files and 2599 tests, all passing (up from 240
+and 2488); typecheck,
+lint, format and build pass. Run it with `npx vitest run --maxWorkers=2` on a
+modest machine.
+
+**Next: finish Phase 9 by migrating Storykeeper Castle**, then Phase 10
+(asset integration cleanup) and Phase 16's legacy removal, which is when the
+five unrouted per-region views and scenes come out of the tree.
 
 ## First-person controls no longer scroll the page — unit-tested; NOT yet checked on a device
 

@@ -74,10 +74,28 @@ export interface LightingSpec {
   sunPosition?: Vec3;
 }
 
+/**
+ * One state-dependent override of the environment, merged field by field
+ * over the base. The first variant whose requirements hold wins, so order is
+ * most specific first.
+ *
+ * This is how a region *looks* different once a child has changed it: a
+ * harbour whose sky lifts and whose light comes up when its lighthouse
+ * turns again. The alternative was a scene that reads world state itself,
+ * which is what every per-region scene used to do.
+ */
+export interface EnvironmentVariant {
+  requirements?: readonly WorldRequirement[];
+  backgroundColor?: number;
+  lighting?: LightingSpec;
+}
+
 export interface EnvironmentSpec {
   /** Sky/clear colour as a 24-bit RGB integer (e.g. `0x8fc7e6`). */
   backgroundColor: number;
   lighting?: LightingSpec;
+  /** Overrides for a changed world; first match wins. */
+  variants?: readonly EnvironmentVariant[];
 }
 
 /**
@@ -130,6 +148,9 @@ export interface BuildingSpec {
   doorAssetId?: string;
 }
 
+/** How a tiled grid meets the edges of its area; see `TILED_GROUND`. */
+export type TileCoverage = 'INSIDE' | 'COVER';
+
 /** Per-axis scale; an omitted axis is 1. */
 export interface ScaleSpec {
   x?: number;
@@ -166,6 +187,16 @@ export type ScenerySpec = SceneryBase &
         assetId: string;
         area: RectZone;
         tileSize: number;
+        /**
+         * How the grid meets the edges of `area`:
+         *
+         * - `INSIDE` (the default): tiles sit wholly inside it, and a partial
+         *   last row or column is dropped. Right for a floor inside walls.
+         * - `COVER`: the grid is centred and rounded up, so it covers the
+         *   whole area and spills slightly past it. Right for open ground and
+         *   for trails, where a bare strip at the far edge would show.
+         */
+        coverage?: TileCoverage;
       } /** A flat colour plane (water, sand) lying on `area` at height `y`. */
     | {
         kind: 'FLAT_PLANE';
@@ -196,6 +227,31 @@ export type ScenerySpec = SceneryBase &
         position: Vec3;
         rotation?: Vec3;
         scale?: ScaleSpec;
+        /**
+         * A clip to loop forever once the model loads, for decoration that
+         * breathes (a companion perched on a stone). Scenery is never
+         * interactive, so this is the only animation it can have.
+         */
+        idleClip?: string;
+      } /**
+     * Many copies of one kit piece scattered deterministically through the
+     * part of the region the child *cannot* walk on: a tree line, a scree
+     * field, a reed bed. Authoring the positions by hand is what a derived
+     * boundary is meant to avoid, so the runtime samples `area` on a
+     * `spacing` grid, jitters each candidate inside its cell from `seed`,
+     * and keeps only those where neither the candidate nor a point
+     * `clearance` metres away on either axis is somewhere the child could
+     * stand. One instanced draw call, and the same forest on every load.
+     */
+    | {
+        kind: 'SCATTER';
+        assetId: string;
+        area: RectZone;
+        spacing: number;
+        /** Any integer. The same seed always yields the same scatter. */
+        seed: number;
+        /** How far from walkable ground a piece must sit, in meters. */
+        clearance: number;
       } /** A straight run of a vertical kit piece (fence, wall, path) tiled between two points. */
     | {
         kind: 'RUN';
@@ -234,7 +290,14 @@ export interface NpcPlacementSpec {
  */
 export interface PropSpec {
   entityId: string;
-  assetId: string;
+  /**
+   * Absent means an extension draws this one: the runtime still creates its
+   * root group, raycasts it and interacts with it, and the extension puts
+   * geometry inside through `WorldExtensionContext.entityRoot`. That is how
+   * placeholder machinery stays out of the manifest without giving up the
+   * generic focus, label and interaction handling.
+   */
+  assetId?: string;
   position: GroundPoint;
   rotationY?: number;
   /** Child-facing crosshair label. */
@@ -242,6 +305,13 @@ export interface PropSpec {
   interactionId: string;
   /** A clip played once, held on its last frame, the first time the child interacts (a chest lid opening). */
   interactClip?: string;
+  /**
+   * Present only while these hold, evaluated when the scene is built. Absent
+   * means always. Two props sharing one `interactionId` with opposite
+   * requirements is how a thing changes with the world (a dark cave and a
+   * lit one), the same shape scenery already uses.
+   */
+  requirements?: readonly WorldRequirement[];
 }
 
 /**
@@ -264,8 +334,11 @@ export interface WorldChangeBinding {
 /** A pick-up-able object: interacting emits `CollectiblePickedUp` and removes it from the scene. */
 export interface CollectibleSpec {
   entityId: string;
-  assetId: string;
+  /** Absent means an extension draws it, as on `PropSpec`. */
+  assetId?: string;
   position: GroundPoint;
+  /** Height above the ground, for something resting on a roof line or a railing. Defaults to 0. */
+  elevation?: number;
   label: string;
   idleClip?: string;
   /**
@@ -312,10 +385,30 @@ export interface ExtensionBinding {
   config: { readonly [key: string]: JsonValue };
 }
 
+/** One line of state-dependent copy above the stage; the first match is shown. */
+export interface StatusLine {
+  requirements?: readonly WorldRequirement[];
+  text: string;
+}
+
 /** Child-facing screen copy around the canvas. All readable aloud and localizable. */
 export interface LocationCopy {
   loading: string;
   instructions: string;
+  /**
+   * What this place is like right now, in one sentence: "The lighthouse is
+   * dark. The Harbor Master is waiting on the dock." The first line whose
+   * requirements hold is shown, so a region can tell a child what they
+   * changed without a scene reading world state.
+   */
+  statusLines?: readonly StatusLine[];
+  /**
+   * Closing notes inside "Things to do here" - how many gears are hidden, or
+   * where to look for a rune. Unlike `statusLines`, **every** note whose
+   * requirements hold is shown, so a region authors them to be mutually
+   * exclusive wherever two would contradict each other.
+   */
+  thingsToDoNotes?: readonly StatusLine[];
   /**
    * The non-graphical way out (roadmap section 42: walking in 3D is never
    * the only way to use a screen). `to` follows `WorldAction` NAVIGATE's

@@ -6,7 +6,9 @@ import type {
   BuildingSpec,
   GroundPoint,
   RectZone,
+  LightingSpec,
   ThreeLocationManifest,
+  TileCoverage,
   WallSide,
 } from './locationManifest';
 
@@ -182,20 +184,123 @@ export function buildingDoorPlacement(building: BuildingSpec): InstancePlacement
   return { position: { x: (run.from.x + run.to.x) / 2, y: 0, z: (run.from.z + run.to.z) / 2 } };
 }
 
-/** Centres of a square tile grid covering `area`. A partial last row/column is dropped, not stretched. */
-export function tiledGroundPlacements(area: Omit<RectZone, 'id'>, tileSize: number): GroundPoint[] {
-  const columns = Math.floor((area.maxX - area.minX) / tileSize);
-  const rows = Math.floor((area.maxZ - area.minZ) / tileSize);
+/**
+ * Centres of a square tile grid over `area`.
+ *
+ * `INSIDE` keeps every tile within the area and drops a partial last row or
+ * column, which is what a floor inside walls wants. `COVER` centres the grid
+ * and rounds the count up instead, so the area is covered edge to edge and
+ * the overhang falls outside - what open ground and trails want, where a
+ * dropped last row reads as a bare strip at the far edge.
+ */
+export function tiledGroundPlacements(
+  area: Omit<RectZone, 'id'>,
+  tileSize: number,
+  coverage: TileCoverage = 'INSIDE',
+): GroundPoint[] {
+  const width = area.maxX - area.minX;
+  const depth = area.maxZ - area.minZ;
+  const cover = coverage === 'COVER';
+  const columns = cover ? Math.max(1, Math.ceil(width / tileSize)) : Math.floor(width / tileSize);
+  const rows = cover ? Math.max(1, Math.ceil(depth / tileSize)) : Math.floor(depth / tileSize);
+  const firstX = cover
+    ? (area.minX + area.maxX) / 2 - ((columns - 1) * tileSize) / 2
+    : area.minX + tileSize / 2;
+  const firstZ = cover
+    ? (area.minZ + area.maxZ) / 2 - ((rows - 1) * tileSize) / 2
+    : area.minZ + tileSize / 2;
   const tiles: GroundPoint[] = [];
   for (let row = 0; row < rows; row += 1) {
     for (let column = 0; column < columns; column += 1) {
-      tiles.push({
-        x: area.minX + tileSize / 2 + column * tileSize,
-        z: area.minZ + tileSize / 2 + row * tileSize,
-      });
+      tiles.push({ x: firstX + column * tileSize, z: firstZ + row * tileSize });
     }
   }
   return tiles;
+}
+
+/** A tiny deterministic PRNG, so a scatter looks the same on every load and in every screenshot. */
+function seededRandom(seed: number): () => number {
+  let state = seed >>> 0 || 1;
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+/**
+ * Deterministic placements for a `SCATTER` scenery item: sample `area` on a
+ * `spacing` grid, jitter each candidate inside its own cell, and keep only
+ * the ones that are nowhere near anywhere the child can stand.
+ *
+ * Lifted unchanged from `wonderwildForestScene.ts`, which still re-exports
+ * it, so a migrated forest scatters its trees in exactly the same places.
+ * Two things in it are deliberate rather than incidental:
+ *
+ * - **It samples the area, not the blocked rects.** The forest's tree line is
+ *   derived as the complement of its walkable set, so it arrives as many
+ *   narrow strips, and gridding each one gave fourteen trees for a whole
+ *   forest. Density would then depend on how the complement happened to be
+ *   cut up, which is an implementation detail and nothing to do with how a
+ *   forest should look.
+ * - **Clearance is checked four points around the candidate**, not just at
+ *   it, because a tree has a trunk: one placed hard against the edge of a
+ *   trail is off the trail and still in the child's way.
+ */
+export function scatterPlacements(
+  area: Omit<RectZone, 'id'>,
+  spacing: number,
+  seed: number,
+  walkable: (x: number, z: number) => boolean,
+  clearance = 0.8,
+): InstancePlacement[] {
+  const random = seededRandom(seed);
+  const cols = Math.max(1, Math.floor((area.maxX - area.minX) / spacing));
+  const rows = Math.max(1, Math.floor((area.maxZ - area.minZ) / spacing));
+  const cellWidth = (area.maxX - area.minX) / cols;
+  const cellDepth = (area.maxZ - area.minZ) / rows;
+
+  const placements: InstancePlacement[] = [];
+  for (let col = 0; col < cols; col += 1) {
+    for (let row = 0; row < rows; row += 1) {
+      // Jitter inside the cell so the scatter does not read as a grid.
+      const x = area.minX + (col + 0.15 + random() * 0.7) * cellWidth;
+      const z = area.minZ + (row + 0.15 + random() * 0.7) * cellDepth;
+      const rotationY = random() * Math.PI * 2;
+      const blocksSomeone =
+        walkable(x, z) ||
+        walkable(x + clearance, z) ||
+        walkable(x - clearance, z) ||
+        walkable(x, z + clearance) ||
+        walkable(x, z - clearance);
+      if (blocksSomeone) continue;
+      placements.push({ position: { x, y: 0, z }, rotationY });
+    }
+  }
+  return placements;
+}
+
+/**
+ * Whether a child could stand at a ground point: inside the walkable bounds
+ * and in none of the manifest's own colliders.
+ *
+ * Building walls and the derived boundary are deliberately not consulted.
+ * The boundary sits *outside* the bounds, which this already excludes, and a
+ * building's walls are drawn from its own kit rather than scattered into.
+ */
+export function walkableProbe(
+  manifest: ThreeLocationManifest,
+  context: WorldInteractionContext = NO_WORLD_STATE,
+): (x: number, z: number) => boolean {
+  const { halfExtentX, halfExtentZ } = manifest.bounds;
+  const blocked = manifest.colliders
+    .filter((collider) => areRequirementsMet(collider.requirements, context))
+    .map((collider) => collider.rect);
+  return (x, z) => {
+    if (Math.abs(x) > halfExtentX || Math.abs(z) > halfExtentZ) return false;
+    return !blocked.some(
+      (rect) => x >= rect.minX && x <= rect.maxX && z >= rect.minZ && z <= rect.maxZ,
+    );
+  };
 }
 
 /** A solid box, with the manifest collider id it came from when it has one. */
@@ -225,6 +330,45 @@ export function solidColliders(
       })),
     ...manifest.buildings.flatMap(buildingWallColliders).map((box) => ({ box })),
   ];
+}
+
+/**
+ * The environment this world state resolves to: the base sky and lighting
+ * with the first matching variant merged over it, field by field.
+ */
+export function resolveEnvironment(
+  manifest: ThreeLocationManifest,
+  context: WorldInteractionContext = NO_WORLD_STATE,
+): { backgroundColor: number; lighting?: LightingSpec } {
+  const variant = manifest.environment.variants?.find((candidate) =>
+    areRequirementsMet(candidate.requirements, context),
+  );
+  return {
+    backgroundColor: variant?.backgroundColor ?? manifest.environment.backgroundColor,
+    lighting:
+      variant?.lighting || manifest.environment.lighting
+        ? { ...manifest.environment.lighting, ...variant?.lighting }
+        : undefined,
+  };
+}
+
+/** The first status line whose requirements hold, or `undefined` when a region authors none. */
+export function resolveStatusLine(
+  manifest: ThreeLocationManifest,
+  context: WorldInteractionContext = NO_WORLD_STATE,
+): string | undefined {
+  return manifest.copy.statusLines?.find((line) => areRequirementsMet(line.requirements, context))
+    ?.text;
+}
+
+/** Every "things to do" note whose requirements hold, in authored order. */
+export function resolveThingsToDoNotes(
+  manifest: ThreeLocationManifest,
+  context: WorldInteractionContext = NO_WORLD_STATE,
+): string[] {
+  return (manifest.copy.thingsToDoNotes ?? [])
+    .filter((note) => areRequirementsMet(note.requirements, context))
+    .map((note) => note.text);
 }
 
 export type TriggerKind = 'CHECKPOINT' | 'INTERIOR' | 'ZONE';

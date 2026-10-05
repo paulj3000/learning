@@ -17,8 +17,11 @@ import { WelcomeHarbor } from '../routes/WelcomeHarbor';
 import { LegacyLocationWorldRedirect } from '../routes/LegacyLocationWorldRedirect';
 import { LOCATION_WORLD_ROUTE } from '../features/island-map/three/runtime/locationWorldPath';
 import {
+  CLOCKWORK_HARBOR_REGION_ID,
+  DRAGONS_SANCTUARY_REGION_ID,
   PIRATE_BUILDER_BAY_REGION_ID,
   WELCOME_HARBOR_REGION_ID,
+  WONDERWILD_FOREST_REGION_ID,
 } from '../features/discovery/checkpoints';
 import { IslandLocationPage } from '../routes/IslandLocationPage';
 import { AdventurePage } from '../routes/AdventurePage';
@@ -70,11 +73,6 @@ const StorykeeperCastleWorldPage = lazy(() =>
     default: module.StorykeeperCastleWorldPage,
   })),
 );
-const DragonsSanctuaryWorldPage = lazy(() =>
-  import('../routes/DragonsSanctuaryWorldPage').then((module) => ({
-    default: module.DragonsSanctuaryWorldPage,
-  })),
-);
 const FossilRidgeCampWorldPage = lazy(() =>
   import('../routes/FossilRidgeCampWorldPage').then((module) => ({
     default: module.FossilRidgeCampWorldPage,
@@ -116,23 +114,6 @@ const LocationWorldPage = lazy(() =>
 const StorykeeperCastleWorldPage3D = lazy(() =>
   import('../routes/StorykeeperCastleWorldPage3D').then((module) => ({
     default: module.StorykeeperCastleWorldPage3D,
-  })),
-);
-
-const WonderwildForestWorldPage3D = lazy(() =>
-  import('../routes/WonderwildForestWorldPage3D').then((module) => ({
-    default: module.WonderwildForestWorldPage3D,
-  })),
-);
-
-/**
- * Clockwork Harbor (`docs/regions/clockwork.md`). No `3D` suffix: unlike the
- * bay and the castle, this region has no earlier Phaser route to disambiguate
- * from - it is first-person from its first commit.
- */
-const ClockworkHarborWorldPage = lazy(() =>
-  import('../routes/ClockworkHarborWorldPage').then((module) => ({
-    default: module.ClockworkHarborWorldPage,
   })),
 );
 
@@ -264,13 +245,7 @@ export function AppRoutes() {
       />
       <Route
         path="/island/:childId/world/dragons-sanctuary"
-        element={
-          <RequireParent>
-            <Suspense fallback={<p>Loading the Dragon's Sanctuary...</p>}>
-              <DragonsSanctuaryWorldPage />
-            </Suspense>
-          </RequireParent>
-        }
+        element={<LegacyLocationWorldRedirect regionId={DRAGONS_SANCTUARY_REGION_ID} />}
       />
       <Route
         path="/island/:childId/world/fossil-ridge-camp"
@@ -333,13 +308,7 @@ export function AppRoutes() {
       />
       <Route
         path="/island/:childId/world/wonderwild-forest-3d"
-        element={
-          <RequireParent>
-            <Suspense fallback={<p>Loading Wonderwild Forest...</p>}>
-              <WonderwildForestWorldPage3D />
-            </Suspense>
-          </RequireParent>
-        }
+        element={<LegacyLocationWorldRedirect regionId={WONDERWILD_FOREST_REGION_ID} />}
       />
       <Route
         path="/island/:childId/world/storykeeper-castle-3d"
@@ -351,15 +320,14 @@ export function AppRoutes() {
           </RequireParent>
         }
       />
+      {/*
+        Clockwork Harbor (`docs/regions/clockwork.md`). No `3D` suffix: unlike
+        the bay and the castle, it never had a Phaser route to disambiguate
+        from. Engine Phase 9 moved it onto the generic one.
+      */}
       <Route
         path="/island/:childId/world/clockwork-harbor"
-        element={
-          <RequireParent>
-            <Suspense fallback={<p>Loading Clockwork Harbor...</p>}>
-              <ClockworkHarborWorldPage />
-            </Suspense>
-          </RequireParent>
-        }
+        element={<LegacyLocationWorldRedirect regionId={CLOCKWORK_HARBOR_REGION_ID} />}
       />
       <Route
         path="/island/:childId/travel"

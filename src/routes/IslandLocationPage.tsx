@@ -12,7 +12,11 @@ import { getChildProfile } from '../features/child-profile/api';
 import type { WorldChange } from '../features/adventures/api';
 import type { ChildProfile } from '../features/child-profile/api';
 import { locationWorldPath } from '../features/island-map/three/runtime/locationWorldPath';
-import { PIRATE_BUILDER_BAY_REGION_ID } from '../features/discovery/checkpoints';
+import {
+  DRAGONS_SANCTUARY_REGION_ID,
+  PIRATE_BUILDER_BAY_REGION_ID,
+  WONDERWILD_FOREST_REGION_ID,
+} from '../features/discovery/checkpoints';
 
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -204,7 +208,10 @@ export function IslandLocationPage() {
           first, not which routes exist.
         */}
         {location.slug === 'wonderwild-forest' && childProfile.ageBand !== 'SPROUT' ? (
-          <Link className={styles.startLink} to={`/island/${childId}/world/wonderwild-forest-3d`}>
+          <Link
+            className={styles.startLink}
+            to={locationWorldPath(childId, WONDERWILD_FOREST_REGION_ID)}
+          >
             Walk into the forest
           </Link>
         ) : null}
@@ -226,7 +233,10 @@ export function IslandLocationPage() {
           </Link>
         ) : null}
         {location.slug === 'dragons-sanctuary' ? (
-          <Link className={styles.walkLink} to={`/island/${childId}/world/dragons-sanctuary`}>
+          <Link
+            className={styles.walkLink}
+            to={locationWorldPath(childId, DRAGONS_SANCTUARY_REGION_ID)}
+          >
             Try exploring the sanctuary (new!)
           </Link>
         ) : null}
