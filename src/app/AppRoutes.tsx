@@ -14,6 +14,9 @@ import { StoryKeepsakes } from '../routes/StoryKeepsakes';
 import { ChildDashboard } from '../routes/ChildDashboard';
 import { CoopSessionNew } from '../routes/CoopSessionNew';
 import { WelcomeHarbor } from '../routes/WelcomeHarbor';
+import { LegacyLocationWorldRedirect } from '../routes/LegacyLocationWorldRedirect';
+import { LOCATION_WORLD_ROUTE } from '../features/island-map/three/runtime/locationWorldPath';
+import { WELCOME_HARBOR_REGION_ID } from '../features/discovery/checkpoints';
 import { IslandLocationPage } from '../routes/IslandLocationPage';
 import { AdventurePage } from '../routes/AdventurePage';
 import { AdventureLog } from '../routes/AdventureLog';
@@ -96,10 +99,14 @@ const ThreeSandboxWorldPage = lazy(() =>
   })),
 );
 
-/** Same lazy-loading rationale as `ThreeSandboxWorldPage` above, for Phase 32's real Welcome Harbor region. */
-const WelcomeHarborWorldPage = lazy(() =>
-  import('../routes/WelcomeHarborWorldPage').then((module) => ({
-    default: module.WelcomeHarborWorldPage,
+/**
+ * The one page for every manifest-driven 3D location (engine Phase 6,
+ * ADR-025), lazy for the same reason as `ThreeSandboxWorldPage` above: it
+ * pulls in `three`. Welcome Harbor was the first region on it.
+ */
+const LocationWorldPage = lazy(() =>
+  import('../routes/LocationWorldPage').then((module) => ({
+    default: module.LocationWorldPage,
   })),
 );
 
@@ -314,14 +321,19 @@ export function AppRoutes() {
         }
       />
       <Route
-        path="/island/:childId/world/welcome-harbor-3d"
+        path={LOCATION_WORLD_ROUTE}
         element={
           <RequireParent>
-            <Suspense fallback={<p>Loading Welcome Harbor...</p>}>
-              <WelcomeHarborWorldPage />
+            <Suspense fallback={<p>Loading...</p>}>
+              <LocationWorldPage />
             </Suspense>
           </RequireParent>
         }
+      />
+      {/* Pre-Phase-6 URL, kept working for bookmarks and old links. */}
+      <Route
+        path="/island/:childId/world/welcome-harbor-3d"
+        element={<LegacyLocationWorldRedirect regionId={WELCOME_HARBOR_REGION_ID} />}
       />
       <Route
         path="/island/:childId/world/pirate-builder-bay-3d"

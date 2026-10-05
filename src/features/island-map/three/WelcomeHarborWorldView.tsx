@@ -20,7 +20,7 @@ import type { AgeBandValue } from '../../child-profile/constants';
 
 interface WelcomeHarborWorldViewProps {
   childId: string;
-  /** The child's own `ChildProfile.ageBand`, resolved by `WelcomeHarborWorldPage`. Gates the NPC conversation. */
+  /** The child's own `ChildProfile.ageBand`. Gates the NPC conversation. Unrouted since engine Phase 5; kept as the parity reference. */
   ageBand: AgeBandValue;
 }
 

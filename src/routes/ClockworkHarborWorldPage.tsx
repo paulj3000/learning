@@ -8,7 +8,7 @@ import type { AgeBandValue } from '../features/child-profile/constants';
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
 /**
- * Fails closed, matching `WelcomeHarborWorldPage.tsx`: `SPROUT` supports the
+ * Fails closed, matching `LocationWorldPage.tsx`: `SPROUT` supports the
  * fewest conversation branches, so a profile that somehow renders this view
  * without having loaded offers less rather than more.
  */
@@ -16,7 +16,7 @@ const DEFAULT_AGE_BAND: AgeBandValue = 'SPROUT';
 
 /**
  * Route shell for Clockwork Harbor (`docs/regions/clockwork.md` section 9),
- * mirroring `WelcomeHarborWorldPage.tsx`: confirms the child profile exists
+ * mirroring `LocationWorldPage.tsx`: confirms the child profile exists
  * and resolves their age band before handing off to the view, since the
  * region's NPC conversations are age-gated the same way every other
  * explorable region's are.

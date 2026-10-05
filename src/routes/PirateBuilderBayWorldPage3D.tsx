@@ -8,7 +8,7 @@ import type { AgeBandValue } from '../features/child-profile/constants';
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
 /**
- * Fails closed, matching `PirateBuilderBayWorldPage.tsx`/`WelcomeHarborWorldPage.tsx`:
+ * Fails closed, matching `PirateBuilderBayWorldPage.tsx`/`LocationWorldPage.tsx`:
  * `SPROUT` supports the fewest conversation branches, so a profile that
  * somehow renders this view without having loaded offers less rather than
  * more.
@@ -19,7 +19,7 @@ const DEFAULT_AGE_BAND: AgeBandValue = 'SPROUT';
  * Route shell for the Phase 33 first-person Pirate Builder Bay region
  * (`docs/ROADMAP.md` Phase 33), named with a `3D` suffix because
  * `PirateBuilderBayWorldPage.tsx` (the Phase 11 Phaser route) already owns
- * the un-suffixed name. Mirrors `WelcomeHarborWorldPage.tsx`: confirms the
+ * the un-suffixed name. Mirrors `LocationWorldPage.tsx`: confirms the
  * child profile exists and resolves their age band before handing off to
  * the view, since the NPC conversation and the adventure start are both
  * age-gated the same way every other explorable region's is.

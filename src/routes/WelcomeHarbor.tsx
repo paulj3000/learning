@@ -13,6 +13,8 @@ import { getChildProfile } from '../features/child-profile/api';
 import { listAllWorldChanges } from '../features/adventures/api';
 import { isIslandAvailable } from '../features/catalog/availability';
 import { loadCatalogSnapshot } from '../features/catalog/availabilityApi';
+import { locationWorldPath } from '../features/island-map/three/runtime/locationWorldPath';
+import { WELCOME_HARBOR_REGION_ID } from '../features/discovery/checkpoints';
 import type { CompanionProfile } from '../features/island/api';
 import type { ChildProfile } from '../features/child-profile/api';
 
@@ -172,7 +174,7 @@ export function WelcomeHarbor() {
         limitations (Phase 32)"). Older bands can already use it as a real
         alternative way to explore.
       */}
-      <Link className={styles.logLink} to={`/island/${childId}/world/welcome-harbor-3d`}>
+      <Link className={styles.logLink} to={locationWorldPath(childId, WELCOME_HARBOR_REGION_ID)}>
         Explore the harbor in 3D (new!)
       </Link>
     </IslandLayout>

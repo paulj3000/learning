@@ -417,7 +417,7 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 5 complete; Welcome Harbor 3D runs on it; NOT yet seen by a person or on a device
+## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 6 complete; Welcome Harbor 3D runs on the generic route; NOT yet seen by a person or on a device
 
 Roadmap: `docs/engine/` (README, then `10_IMPLEMENTATION_PHASES.md`).
 Decision: ADR-025. Goal: a new ordinary 3D location needs a manifest, not a
@@ -559,10 +559,30 @@ tablet (touch controls, pointer lock, the conversation dialog end to end
 against a real backend). Headless SwiftShader proves rendering, collision
 and events, not feel.
 
-**Next: Phase 6.** One generic route
-(`/island/:childId/location/:regionId` or the closest existing shape) for
-every manifest-driven location, with `world/welcome-harbor-3d` kept as a
-redirect.
+**Phase 6 (generic routing), complete.** ADR-025 part F.
+- `/island/:childId/explore/:regionId` (`LOCATION_WORLD_ROUTE`,
+  `runtime/locationWorldPath.ts`) renders `src/routes/LocationWorldPage.tsx`
+  for any region: profile check, age band, then `ThreeLocationWorldView`.
+  `explore/` avoids the 2D card's `locations/` and the Phaser `world/*`.
+- `/island/:childId/world/welcome-harbor-3d` is now a
+  `LegacyLocationWorldRedirect` to `explore/welcome-harbor` (history
+  replaced, query kept). `WelcomeHarborWorldPage.tsx` and its test are
+  removed; the hub's "Explore the harbor in 3D" link uses
+  `locationWorldPath()`.
+- Tests: `LocationWorldPage.test.tsx` (region and age band handed through,
+  two unrelated regions on one page for acceptance A1, missing or unreadable
+  profile), `LegacyLocationWorldRedirect.test.tsx`,
+  `locationWorldPath.test.ts` (round trip through the route pattern,
+  encoding, no overlap with `locations/` or `world/*`), and
+  `src/app/AppRoutes.locationWorld.test.tsx`, which drives the real route
+  table for both the new URL and the legacy one.
+- `docs/PILOT_READINESS.md`'s Sprout playtest now names the new URL.
+
+The other 3D regions keep their dedicated routes until each migrates
+(Phases 7 and 9). Each one's old URL then becomes a redirect the same way.
+
+**Next: Phase 7.** Migrate a structurally different region, expected to be
+Pirate Builder Bay with `tide-trial` as the first registered extension.
 
 ## First-person controls no longer scroll the page — unit-tested; NOT yet checked on a device
 

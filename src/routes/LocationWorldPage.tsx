@@ -2,35 +2,29 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { ThreeLocationWorldView } from '../features/island-map/three/runtime/ThreeLocationWorldView';
-import { WELCOME_HARBOR_REGION_ID } from '../features/discovery/checkpoints';
 import { getChildProfile } from '../features/child-profile/api';
 import type { AgeBandValue } from '../features/child-profile/constants';
 
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
 /**
- * Fails closed, matching `PirateBuilderBayWorldPage.tsx`: `SPROUT` supports
- * the fewest conversation branches, so a profile that somehow renders this
- * view without having loaded offers less rather than more.
+ * Fails closed, matching every per-region world page: `SPROUT` supports the
+ * fewest conversation branches, so a profile that somehow renders the view
+ * without having loaded offers less rather than more.
  */
 const DEFAULT_AGE_BAND: AgeBandValue = 'SPROUT';
 
 /**
- * Route shell for the Phase 32 Welcome Harbor first-person region
- * (`docs/ROADMAP.md` Phase 32), mirroring `PirateBuilderBayWorldPage.tsx`:
- * confirms the child profile exists and resolves their age band before
- * handing off to the view, since the region's one NPC conversation is
- * age-gated the same way every other explorable region's is.
- *
- * Since engine Phase 5 (`docs/engine/10_IMPLEMENTATION_PHASES.md`, ADR-025)
- * the view is the generic `ThreeLocationWorldView` reading Welcome Harbor's
- * manifest (`three/runtime/manifests/welcomeHarbor.ts`), the reference
- * migration. `WelcomeHarborWorldView`/`welcomeHarborScene.ts` stay in the
- * tree, unrouted, until the parity notes in `docs/IMPLEMENTATION_STATUS.md`
- * are signed off; Phase 6 then folds this page into the generic route.
+ * The one route page for every manifest-driven 3D location
+ * (`/island/:childId/explore/:regionId`, engine Phase 6, ADR-025). It
+ * replaces the near-identical per-region shells (`*WorldPage3D.tsx`): it
+ * confirms the child profile exists, resolves its age band, and hands the
+ * region id to `ThreeLocationWorldView`, which loads the manifest and says
+ * calmly when a region has none. Adding an ordinary location never touches
+ * this file or `AppRoutes.tsx`.
  */
-export function WelcomeHarborWorldPage() {
-  const { childId } = useParams<{ childId: string }>();
+export function LocationWorldPage() {
+  const { childId, regionId } = useParams<{ childId: string; regionId: string }>();
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [ageBand, setAgeBand] = useState<AgeBandValue>(DEFAULT_AGE_BAND);
 
@@ -61,21 +55,21 @@ export function WelcomeHarborWorldPage() {
     };
   }, [childId]);
 
-  if (!childId) {
+  if (!childId || !regionId) {
     return null;
   }
 
   if (loadState === 'loading') {
     return (
       <IslandLayout childId={childId}>
-        <p>Loading Welcome Harbor...</p>
+        <p>Loading...</p>
       </IslandLayout>
     );
   }
   if (loadState === 'not-found' || loadState === 'error') {
     return (
       <IslandLayout childId={childId}>
-        <p role="alert">Something went wrong loading Welcome Harbor.</p>
+        <p role="alert">Something went wrong loading this part of the island.</p>
       </IslandLayout>
     );
   }
@@ -83,8 +77,9 @@ export function WelcomeHarborWorldPage() {
   return (
     <IslandLayout childId={childId}>
       <ThreeLocationWorldView
+        key={regionId}
         childId={childId}
-        regionId={WELCOME_HARBOR_REGION_ID}
+        regionId={regionId}
         ageBand={ageBand}
       />
     </IslandLayout>

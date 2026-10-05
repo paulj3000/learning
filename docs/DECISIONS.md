@@ -1565,7 +1565,7 @@ still sent to sign-in, as for every protected route.
 
 ## ADR-025: Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies
 
-Status: Accepted (2026-10-04). Phases 1 to 4 of `docs/engine/10_IMPLEMENTATION_PHASES.md` are built (contract, repository, runtime, view); no region is routed through them yet.
+Status: Accepted (2026-10-04). Phases 1 to 6 of `docs/engine/10_IMPLEMENTATION_PHASES.md` are built; Welcome Harbor is the first region on the generic route.
 
 Adding a 3D region currently means a new route page, `*WorldView.tsx`,
 `*Scene.ts` and `*Region.ts`. The audit
@@ -1612,6 +1612,18 @@ from source-controlled content today, and an Admin publish step can pass
 the published catalog later. The extension registry is empty until the
 first bespoke mechanic moves behind it, so a manifest declaring an
 extension fails validation until then.
+
+**Decision, part F: one route, `/island/:childId/explore/:regionId`.**
+`LocationWorldPage` serves every manifest-driven location, and the view
+reports a region with no manifest calmly. The roadmap suggested
+`location/:locationSlug`, but `locations/:locationSlug` already belongs to
+the 2D location card and `world/*` to the Phaser pages, so a distinct
+`explore/` segment keeps the three apart instead of one letter apart. The
+parameter is the region id (part D), not a location slug. A region's old
+per-region URL becomes a `LegacyLocationWorldRedirect` (history replaced,
+query string kept) when that region moves over; `world/welcome-harbor-3d`
+is the first. Links use `locationWorldPath()` rather than building the
+string.
 
 **Consequences.**
 - `runtime/manifests/welcomeHarbor.ts` expresses Welcome Harbor with zero

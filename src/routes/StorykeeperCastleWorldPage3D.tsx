@@ -9,7 +9,7 @@ type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
 /**
  * Fails closed, matching `PirateBuilderBayWorldPage3D.tsx`/
- * `WelcomeHarborWorldPage.tsx`: `SPROUT` supports the fewest conversation
+ * `LocationWorldPage.tsx`: `SPROUT` supports the fewest conversation
  * branches, so a profile that somehow renders this view without having
  * loaded offers less rather than more.
  */
