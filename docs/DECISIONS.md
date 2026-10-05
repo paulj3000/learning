@@ -1562,3 +1562,66 @@ still sent to sign-in, as for every protected route.
   `updatedBy` so one can be added cleanly.
 - The schema change needs a sandbox/pipeline deploy before any of this
   works against a real backend.
+
+## ADR-025: Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies
+
+Status: Accepted (2026-10-04). Phase 1 of `docs/engine/10_IMPLEMENTATION_PHASES.md` is built; the runtime that renders a manifest is not.
+
+Adding a 3D region currently means a new route page, `*WorldView.tsx`,
+`*Scene.ts` and `*Region.ts`. The audit
+(`docs/platform/THREE_LOCATION_DUPLICATION_AUDIT.md`) found that most of
+that code is the same skeleton repeated six times, and that every
+`*Region.ts` is already plain numbers.
+
+**Decision, part A: one manifest type, plain JSON.**
+`ThreeLocationManifest`
+(`src/features/island-map/three/runtime/locationManifest.ts`) describes
+what a region contains and where: bounds, environment, checkpoints,
+colliders, open-sided buildings, decorative scenery (tiled ground, flat
+planes, instanced clusters, LOD placements, kit runs), NPC placements,
+collectibles, trigger zones, ambient movers, interactions, extensions and
+screen copy. It holds no functions, `three` objects or React components.
+`validateLocationManifest` rejects anything that is not plain JSON, so a
+manifest can later become an Admin draft and published snapshot without
+changing meaning.
+
+**Decision, part B: reuse, don't fork, the binding vocabulary.** A
+manifest's `interactions` are `WorldInteraction`s from
+`src/features/island-map/worldObjects.ts`, unchanged. An entity names an
+interaction id, and the existing `WorldAction` (TALK_TO, DISCOVER,
+START_ADVENTURE, START_STORY, NAVIGATE, SHOW_MESSAGE) hands off to the
+engine that owns the meaning. The manifest adds no adventure, quest,
+discovery or mastery semantics of its own.
+
+**Decision, part C: checkpoints stay in the World State layer.** The
+manifest lists checkpoint ids, not positions. `discovery/checkpoints.ts`
+keeps owning ids, labels and coordinates (ADR-008). Validation requires
+the list to equal the region's authored checkpoints in authored order,
+because `resolveSpawnCheckpoint` falls back to the first. Saved
+`ChildWorldState.lastCheckpointId` values stay valid.
+
+**Decision, part D: the key is the region id, not the location slug.**
+`regionId` is the same string `RegionCheckpoint.regionId` uses. Welcome
+Harbor is the hub, not an `IslandLocation`, so `locationSlug` is optional
+and validated against `ISLAND_LOCATIONS` (including world ownership) when
+present.
+
+**Decision, part E: validation takes registries as input.** The same
+pattern as `worlds/validate.ts`. `SOURCE_MANIFEST_REGISTRIES` builds them
+from source-controlled content today, and an Admin publish step can pass
+the published catalog later. The extension registry is empty until the
+first bespoke mechanic moves behind it, so a manifest declaring an
+extension fails validation until then.
+
+**Consequences.**
+- `runtime/manifests/welcomeHarbor.ts` expresses Welcome Harbor with zero
+  extensions, built from `welcomeHarborRegion.ts`'s constants so the two
+  cannot drift. Nothing renders it yet, and the existing scene is
+  untouched.
+- Collectible `label` is new data. Welcome Harbor's scene shows no
+  crosshair label for its gem today. If the generic runtime renders one,
+  that is a visible change to confirm at parity time.
+- Still open: the generic runtime (Phase 3), the generic view (Phase 4),
+  world-change variants (Phase 8), and whether checkpoint positions move
+  into the manifest when Admin authoring arrives. That last question
+  changes ADR-008's layering and needs its own decision.

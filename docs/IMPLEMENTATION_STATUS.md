@@ -417,6 +417,46 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
+## Generic Three.js location engine (`docs/engine/`) — Phases 0 and 1 complete; nothing renders a manifest yet
+
+Roadmap: `docs/engine/` (README, then `10_IMPLEMENTATION_PHASES.md`).
+Decision: ADR-025. Goal: a new ordinary 3D location needs a manifest, not a
+new route, view, scene and region module.
+
+**Phase 0 (baseline and audit), complete.**
+`docs/platform/THREE_LOCATION_DUPLICATION_AUDIT.md` covers the baseline
+results, every dedicated 3D route/view/scene/region, the shared utilities to
+build on, the duplicated skeleton, per-region classification, the bespoke
+mechanics that need extensions, and the migration order. The baseline was
+all green (222 test files, 2318 tests) after restoring missing packages in
+the parent npm workspace.
+
+**Phase 1 (serializable manifest contract), complete.** New files under
+`src/features/island-map/three/runtime/`:
+- `locationManifest.ts`: `ThreeLocationManifest` and its parts. Interactions
+  reuse `WorldInteraction` unchanged; checkpoints are referenced by id.
+- `validateLocationManifest.ts`: pure validator with injected registries.
+  It checks plain-JSON-ness, schema version, world/location ownership,
+  exact checkpoint list, unique scene ids, rect sanity, bounds, assets and
+  their clips, NPCs, interaction references, walk-in zones, every
+  `WorldAction` target (adventure in the right location, discovery, story,
+  NPC), extensions, and non-empty child-facing copy.
+- `sourceManifestRegistries.ts`: the source-controlled registries.
+- `manifests/welcomeHarbor.ts`: Welcome Harbor as a manifest (the reference
+  region), built from `welcomeHarborRegion.ts` constants. Zero extensions.
+- Tests: `validateLocationManifest.test.ts` (fixture covering every issue
+  kind, JSON round trip) and `manifests/welcomeHarbor.test.ts` (valid
+  against real registries, JSON round trip, preserved checkpoint and entity
+  ids, Pip routed through `TALK_TO`, building toasts unchanged). 26 tests.
+
+No existing code changed, so player behaviour is unchanged.
+
+**Next: Phase 2 then 3.** Phase 2 is a manifest repository (lookup by
+`regionId`, clear missing-manifest error). Phase 3 is the generic scene
+builder from the shared skeleton in the audit's section 3, tested before any
+region uses it. Phase 4 adds one generic view, and Phase 5 renders Welcome
+Harbor through it with parity tests while the old route stays.
+
 ## First-person controls no longer scroll the page — unit-tested; NOT yet checked on a device
 
 Reported from a real play session: walking forward made "the screen pan up".
