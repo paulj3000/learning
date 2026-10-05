@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -146,12 +146,14 @@ function renderView(
   );
 }
 
-function emit<Name extends Parameters<WorldEngineEventBus['emit']>[0]>(
+/** Plays the scene's part once the view has mounted it; fails rather than silently doing nothing. */
+async function emit<Name extends Parameters<WorldEngineEventBus['emit']>[0]>(
   name: Name,
   detail: Parameters<WorldEngineEventBus['emit']>[1] & object,
 ) {
+  await waitFor(() => expect(engine.bus).not.toBeNull());
   act(() => {
-    engine.bus?.emit(name, detail as never);
+    engine.bus!.emit(name, detail as never);
   });
 }
 
@@ -176,7 +178,7 @@ describe('ThreeLocationWorldView', () => {
   it('shows the manifest’s copy and spawns at the saved checkpoint', async () => {
     renderView();
     expect(await screen.findByText(/Walk up to Pip and press E/)).toBeInTheDocument();
-    expect(engine.options).toEqual({ startCheckpointId: 'welcome-harbor:shed' });
+    await waitFor(() => expect(engine.options?.startCheckpointId).toBe('welcome-harbor:shed'));
     expect(
       screen.getByRole('link', { name: 'Prefer not to walk in 3D? Go back to the harbor' }),
     ).toHaveAttribute('href', '/island/child-1');
@@ -186,7 +188,8 @@ describe('ThreeLocationWorldView', () => {
     getWorldStateMock.mockRejectedValue(new Error('offline'));
     renderView();
     await screen.findByText(/Walk up to Pip/);
-    expect(engine.options).toEqual({ startCheckpointId: undefined });
+    await waitFor(() => expect(engine.options).not.toBeNull());
+    expect(engine.options?.startCheckpointId).toBeUndefined();
   });
 
   it('says calmly when a location has no manifest', async () => {
@@ -215,8 +218,8 @@ describe('ThreeLocationWorldView', () => {
   it('saves only this location’s authored checkpoints', async () => {
     renderView();
     await screen.findByText(/Walk up to Pip/);
-    emit('PlayerEnteredZone', { zoneId: 'welcome-harbor:lookout' });
-    emit('PlayerEnteredZone', { zoneId: 'pirate-builder-bay:dock' });
+    await emit('PlayerEnteredZone', { zoneId: 'welcome-harbor:lookout' });
+    await emit('PlayerEnteredZone', { zoneId: 'pirate-builder-bay:dock' });
     expect(saveCheckpoint).toHaveBeenCalledTimes(1);
     expect(saveCheckpoint).toHaveBeenCalledWith('child-1', 'welcome-harbor:lookout');
   });
@@ -224,24 +227,24 @@ describe('ThreeLocationWorldView', () => {
   it('shows the authored toast on entering a building', async () => {
     renderView();
     await screen.findByText(/Walk up to Pip/);
-    emit('PlayerEnteredZone', { zoneId: 'lookout-tower:interior' });
+    await emit('PlayerEnteredZone', { zoneId: 'lookout-tower:interior' });
     expect(screen.getByText("You're inside the lookout tower.")).toBeInTheDocument();
   });
 
   it('records meeting an NPC when the child walks up to them', async () => {
     renderView();
     await screen.findByText(/Walk up to Pip/);
-    emit('NpcApproached', { entityId: 'pirate-pip' });
+    await emit('NpcApproached', { entityId: 'pirate-pip' });
     expect(recordCharacterMet).toHaveBeenCalledWith('child-1', 'pirate-pip');
   });
 
   it('labels the NPC in the crosshair and opens their conversation on interact', async () => {
     renderView();
     await screen.findByText(/Walk up to Pip/);
-    emit('InteractableFocused', { entityId: 'pirate-pip' });
+    await emit('InteractableFocused', { entityId: 'pirate-pip' });
     expect(screen.getByText('Pip: press E to talk')).toBeInTheDocument();
 
-    emit('ObjectInteracted', { entityId: 'pirate-pip', interactionId: 'pirate-pip:talk' });
+    await emit('ObjectInteracted', { entityId: 'pirate-pip', interactionId: 'pirate-pip:talk' });
     expect(screen.getByRole('dialog', { name: 'Say hello to Pip' })).toBeInTheDocument();
     expect(screen.getByTestId('npc-conversation')).toHaveTextContent('pirate-pip');
   });
@@ -269,7 +272,7 @@ describe('ThreeLocationWorldView', () => {
     );
     expect(screen.queryByRole('button', { name: 'Sail on' })).not.toBeInTheDocument();
 
-    emit('PlayerEnteredZone', { zoneId: 'cove-cave' });
+    await emit('PlayerEnteredZone', { zoneId: 'cove-cave' });
     expect(screen.getByText('A dark cave.')).toBeInTheDocument();
     expect(screen.getByRole('dialog', { name: 'Peek into the cave' })).toBeInTheDocument();
 

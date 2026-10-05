@@ -417,7 +417,7 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 6 complete; Welcome Harbor 3D runs on the generic route; NOT yet seen by a person or on a device
+## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 7 complete; Welcome Harbor and Pirate Builder Bay 3D run on the generic route; NOT yet seen by a person or on a device
 
 Roadmap: `docs/engine/` (README, then `10_IMPLEMENTATION_PHASES.md`).
 Decision: ADR-025. Goal: a new ordinary 3D location needs a manifest, not a
@@ -581,8 +581,100 @@ and events, not feel.
 The other 3D regions keep their dedicated routes until each migrates
 (Phases 7 and 9). Each one's old URL then becomes a redirect the same way.
 
-**Next: Phase 7.** Migrate a structurally different region, expected to be
-Pirate Builder Bay with `tide-trial` as the first registered extension.
+**Phase 7 (second, structurally different region), complete.** ADR-025
+part G. Pirate Builder Bay's 3D page now runs on the generic engine and
+view: `/island/:childId/explore/pirate-builder-bay`, with
+`world/pirate-builder-bay-3d` redirecting there.
+`PirateBuilderBayWorldPage3D.tsx` is removed; the location page's 3D link
+uses `locationWorldPath()`.
+
+What Bay needed, all generic:
+- Manifest vocabulary: `BOX` and `MODEL` scenery, cluster `scale`, `props`
+  (label, interaction, optional one-shot `interactClip`), and
+  `requirements` on scenery and colliders. Validation covers all of it,
+  including `ITEM_OWNED`/`DISCOVERY_PRESENT` requirement targets (new
+  `itemIds` registry). `worldObjects.ts` exports `areRequirementsMet`, which
+  `isInteractionAvailable` now uses.
+- Engine: every scenery item gets a root group addressable by id, gated
+  scenery and colliders are built from the child's world state (the view
+  passes it as `worldState`), props are focusable and interactable, NPCs
+  return to idle after a gesture, a collider can be removed by id, a failing
+  extension mount is skipped with a warning, and `extensionApi(id)` hands an
+  extension's API to the view.
+- Extensions, as two halves under one id: `three/extensions/tideTrial/`
+  holds the scene half (`tideTrialScene.ts`, ported from the Bay scene's
+  tide code; geometry from config and the manifest's own channel and sea),
+  the config parser (`tideTrialConfig.ts`), and the React half
+  (`tideTrialViewExtension.ts`, `TideTrialOverlay.tsx`, wrapping the
+  unchanged `TideTrialPanel`). It claims `bay-broken-bridge` for Explorers on
+  every way in, and records `BRIDGE_REPAIRED` with source
+  `exploration:beat-the-tide` on a win. `three/extensions/index.ts` is the
+  shipped registry; the runtime imports no mechanic.
+- `runtime/manifests/pirateBuilderBay.ts`: Bay built from
+  `pirateBuilderBayRegion.ts`'s constants and the shared
+  `PIRATE_BUILDER_BAY_INTERACTIONS`. All semantic ids are unchanged. The
+  only renamed id is the bridge approach zone: it is now
+  `bay-broken-bridge`, the zone those interactions already name, instead of
+  `bay-bridge-approach` translated in the view. Zone ids are never
+  persisted.
+
+Parity evidence:
+- `manifests/pirateBuilderBayParity.test.tsx`: all 10 assertions of
+  `PirateBuilderBayWorldView.test.tsx` against the generic view, the real
+  manifest and the real tide-trial overlay (the Explorer detour, the full
+  win including `recordWorldChangeOnce` arguments, repaired-bridge
+  narration, Pip, dismiss, companion, way-out link), plus 7 for wiring the
+  old view never tested (world state handed to the scene, bridge zone for
+  Pathfinder and Explorer, entered twice opening one trial, mended-bridge
+  narration, prop label and interaction, bridge-approach checkpoint save,
+  harbor exit).
+- `manifests/pirateBuilderBay.engine.test.ts`: the real runtime and the real
+  tide-trial scene extension. The broken bridge stops a child at the gap;
+  the mended one lets them cross. Broken versus mended scenery is built from
+  world state; the channel box spans bed to surface; the fallen plank keeps
+  its full rotation. Props are focused and interacted with by id; the
+  chest's `Open` clip plays once. The extension's API hides and restores the
+  broken bridge, runs a tide that rises and moves the sea, opens the bridge
+  for walking on `complete`, and releases a waiting tide on dispose.
+- `extensions/tideTrial/tideTrialConfig.test.ts`: config parsing and bad
+  fields, and the claim rules (Explorers only, the bridge only, nothing on
+  broken config).
+- Browser check (headless SwiftShader WebGL, both engines from the same
+  checkpoint, harness and screenshots in `.tmp-verify/phase7/`): dock
+  0.005%, bridge 0%, cove 0.004%, mended bridge 0% pixel difference. Driving
+  Beat the Tide through each engine's scene API matched exactly at the start
+  and after a deck change (0%). After the tide, both show the same scene
+  with the planks floating away; the planks sit in slightly different places
+  because headless frame timing differed (1.2%). Both read the water from
+  40 to 145 cm. No page errors.
+
+Also: the shared engine test harness moved to `runtime/testing/engineHarness.ts`,
+and the view tests' event helpers now wait for the stub engine instead of
+silently doing nothing when it has not mounted yet (two flaked under full
+suite load).
+
+Known differences from the old Bay view:
+- Checkpoint triggers are the generic 3 m squares around each authored
+  checkpoint, where the old scene hand-wrote a 2 m by 3 m box for the dock and
+  cove and reused the approach zone for the bridge. The ids saved are
+  unchanged; a save may fire a step earlier or later.
+- Interacting with a prop emits `<id>:interact` (unchanged) and with Pip
+  `pirate-pip:talk` (was `:interact`). Nothing reads that suffix.
+
+`PirateBuilderBayWorldView.tsx`, `pirateBuilderBayScene.ts` and their test
+stay, unrouted, as the parity reference (the scene now re-exports
+`TideTrialScene` from the extension).
+
+Totals: the full suite is 239 files and 2458 tests, all passing;
+typecheck, lint and build pass.
+
+**Still not verified:** a person playing either region in a real browser or
+on a tablet, including an Explorer playing Beat the Tide end to end against
+a real backend.
+
+**Next: Phase 8.** Move the remaining direct region bindings into
+declarative manifest bindings. Then Phase 9 migrates Wonderwild Forest,
+Clockwork Harbor, Dragon's Sanctuary and Storykeeper Castle.
 
 ## First-person controls no longer scroll the page — unit-tested; NOT yet checked on a device
 

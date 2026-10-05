@@ -69,7 +69,28 @@ describe('solidColliders', () => {
     };
     const boxes = solidColliders(manifest);
     expect(boxes).toHaveLength(4 + 1 + 6);
-    expect(boxes[4]).toEqual({ minX: 0, minY: -1, minZ: 0, maxX: 1, maxY: 0.5, maxZ: 1 });
+    expect(boxes[4]).toEqual({
+      id: 'rock',
+      box: { minX: 0, minY: -1, minZ: 0, maxX: 1, maxY: 0.5, maxZ: 1 },
+    });
+  });
+
+  it('includes a gated collider only while its requirements hold', () => {
+    const manifest = {
+      ...WELCOME_HARBOR_MANIFEST,
+      colliders: [
+        {
+          rect: { id: 'broken-bridge', minX: 0, maxX: 1, minZ: 0, maxZ: 1 },
+          requirements: [{ type: 'WORLD_CHANGE_ABSENT' as const, changeKey: 'BRIDGE_REPAIRED' }],
+        },
+      ],
+    };
+    const ids = (keys: string[]) =>
+      solidColliders(manifest, { worldChangeKeys: keys }).flatMap((collider) =>
+        collider.id ? [collider.id] : [],
+      );
+    expect(ids([])).toEqual(['broken-bridge']);
+    expect(ids(['BRIDGE_REPAIRED'])).toEqual([]);
   });
 });
 

@@ -8,8 +8,7 @@ import type { AgeBandValue } from '../features/child-profile/constants';
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
 /**
- * Fails closed, matching `PirateBuilderBayWorldPage3D.tsx`/
- * `LocationWorldPage.tsx`: `SPROUT` supports the fewest conversation
+ * Fails closed, matching `LocationWorldPage.tsx`: `SPROUT` supports the fewest conversation
  * branches, so a profile that somehow renders this view without having
  * loaded offers less rather than more.
  */

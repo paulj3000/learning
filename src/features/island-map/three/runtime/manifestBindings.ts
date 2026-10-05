@@ -22,16 +22,21 @@ export function findNpcByEntityId(
 /**
  * The child-facing crosshair label for a focused entity, or `null`.
  *
- * NPCs only, for now: `WorldHud` renders every label as "<label>: press E
+ * NPCs and props only: `WorldHud` renders every label as "<label>: press E
  * to talk", which would be wrong for a collectible. Collectible labels stay
- * in the manifest for when the HUD can take a verb.
+ * in the manifest for when the HUD can take a verb. (Props already read
+ * "press E to talk" in Pirate Builder Bay's own view, so that is unchanged.)
  */
 export function focusLabel(
   manifest: ThreeLocationManifest,
   entityId: string | null,
 ): string | null {
   if (entityId === null) return null;
-  return findNpcByEntityId(manifest, entityId)?.label ?? null;
+  return (
+    findNpcByEntityId(manifest, entityId)?.label ??
+    manifest.props.find((prop) => prop.entityId === entityId)?.label ??
+    null
+  );
 }
 
 /** The interaction an interacted entity is bound to, if it is bound and currently available. */
@@ -40,7 +45,9 @@ export function interactionForEntity(
   entityId: string,
   context: WorldInteractionContext,
 ): WorldInteraction | undefined {
-  const interactionId = findNpcByEntityId(manifest, entityId)?.interactionId;
+  const interactionId =
+    findNpcByEntityId(manifest, entityId)?.interactionId ??
+    manifest.props.find((prop) => prop.entityId === entityId)?.interactionId;
   if (!interactionId) return undefined;
   const interaction = manifest.interactions.find((candidate) => candidate.id === interactionId);
   return interaction && isInteractionAvailable(interaction, context) ? interaction : undefined;

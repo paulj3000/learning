@@ -28,6 +28,7 @@ const REGISTRIES: LocationManifestRegistries = {
   adventures: [{ slug: 'find-the-shells', locationSlug: 'test-cove' }],
   discoveryIds: ['cove-secret'],
   storySlugs: ['cove-story'],
+  itemIds: ['shell-bucket'],
   extensionIds: ['tide-trial'],
 };
 
@@ -93,6 +94,16 @@ function validManifest(): ThreeLocationManifest {
         idleClip: 'Idle',
         placeholderColor: 0x00ff00,
         interactionId: 'talk-to-guide',
+      },
+    ],
+    props: [
+      {
+        entityId: 'chest',
+        assetId: 'gem',
+        position: { x: 3, z: -3 },
+        label: 'A chest',
+        interactionId: 'cove-tale',
+        interactClip: 'Idle',
       },
     ],
     collectibles: [

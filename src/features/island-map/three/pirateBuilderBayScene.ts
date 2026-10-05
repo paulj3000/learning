@@ -83,28 +83,11 @@ import {
   type RectZone,
 } from './pirateBuilderBayRegion';
 import type { WorldEngineEventBus } from './worldEngineEvents';
+import type { TideTrialScene } from './extensions/tideTrial/tideTrialScene';
 import { TIDE_BOARD, TIDE_DURATION_MS, tideLevelAt } from '../tideTrial';
 
-/**
- * The scene half of "Beat the Tide" (`../tideTrial.ts`). Rendering only:
- * the React panel owns the challenge's state and calls these in order, and
- * nothing here decides whether the child succeeded. The one judgement the
- * scene makes for itself is when the rising water reaches the deck, which
- * is the moment the planks visibly lift off.
- */
-export interface TideTrialScene {
-  /** The tide goes out, the broken bridge clears away, and a new deck stands at `deckCm`. */
-  begin(deckCm: number): void;
-  setDeckHeight(deckCm: number): void;
-  /** Brings the tide in (and the storm wave on top), reporting each new level. Resolves when the water peaks. */
-  runTide(onLevel: (waterCm: number) => void): Promise<void>;
-  /** After a flood or a too-steep deck: fresh planks at `deckCm`, and the tide goes back out. */
-  rebuild(deckCm: number): void;
-  /** Success: the deck stays, becomes walkable, and the water settles below it. */
-  complete(): void;
-  /** Leaving without success: back to the broken bridge and the usual water. */
-  cancel(): void;
-}
+/** Moved to the `tide-trial` world extension (engine Phase 7); re-exported for this legacy scene. */
+export type { TideTrialScene };
 
 export interface PirateBuilderBayEngine extends ThreeEngineHandle {
   /** Raycasts from the camera center and fires the matching event, if anything interactive is in range. */

@@ -16,7 +16,10 @@ import { CoopSessionNew } from '../routes/CoopSessionNew';
 import { WelcomeHarbor } from '../routes/WelcomeHarbor';
 import { LegacyLocationWorldRedirect } from '../routes/LegacyLocationWorldRedirect';
 import { LOCATION_WORLD_ROUTE } from '../features/island-map/three/runtime/locationWorldPath';
-import { WELCOME_HARBOR_REGION_ID } from '../features/discovery/checkpoints';
+import {
+  PIRATE_BUILDER_BAY_REGION_ID,
+  WELCOME_HARBOR_REGION_ID,
+} from '../features/discovery/checkpoints';
 import { IslandLocationPage } from '../routes/IslandLocationPage';
 import { AdventurePage } from '../routes/AdventurePage';
 import { AdventureLog } from '../routes/AdventureLog';
@@ -107,17 +110,6 @@ const ThreeSandboxWorldPage = lazy(() =>
 const LocationWorldPage = lazy(() =>
   import('../routes/LocationWorldPage').then((module) => ({
     default: module.LocationWorldPage,
-  })),
-);
-
-/**
- * Phase 33's first-person Pirate Builder Bay region, named with a `3D`
- * suffix because `PirateBuilderBayWorldPage` above already owns the
- * un-suffixed name for the Phase 11 Phaser route.
- */
-const PirateBuilderBayWorldPage3D = lazy(() =>
-  import('../routes/PirateBuilderBayWorldPage3D').then((module) => ({
-    default: module.PirateBuilderBayWorldPage3D,
   })),
 );
 
@@ -337,13 +329,7 @@ export function AppRoutes() {
       />
       <Route
         path="/island/:childId/world/pirate-builder-bay-3d"
-        element={
-          <RequireParent>
-            <Suspense fallback={<p>Loading Pirate Builder Bay...</p>}>
-              <PirateBuilderBayWorldPage3D />
-            </Suspense>
-          </RequireParent>
-        }
+        element={<LegacyLocationWorldRedirect regionId={PIRATE_BUILDER_BAY_REGION_ID} />}
       />
       <Route
         path="/island/:childId/world/wonderwild-forest-3d"

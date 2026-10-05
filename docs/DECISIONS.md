@@ -1565,7 +1565,7 @@ still sent to sign-in, as for every protected route.
 
 ## ADR-025: Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies
 
-Status: Accepted (2026-10-04). Phases 1 to 6 of `docs/engine/10_IMPLEMENTATION_PHASES.md` are built; Welcome Harbor is the first region on the generic route.
+Status: Accepted (2026-10-04). Phases 1 to 7 of `docs/engine/10_IMPLEMENTATION_PHASES.md` are built; Welcome Harbor and Pirate Builder Bay run on the generic route.
 
 Adding a 3D region currently means a new route page, `*WorldView.tsx`,
 `*Scene.ts` and `*Region.ts`. The audit
@@ -1624,6 +1624,28 @@ per-region URL becomes a `LegacyLocationWorldRedirect` (history replaced,
 query string kept) when that region moves over; `world/welcome-harbor-3d`
 is the first. Links use `locationWorldPath()` rather than building the
 string.
+
+**Decision, part G: an extension has a scene half and a React half under
+one id.** The scene half (`WorldExtension`, `runtime/extensionRegistry.ts`)
+is mounted by the engine with a deliberately small context: add or remove
+a collider by id, find a scenery item's root by id, play an NPC gesture,
+load a model, per-frame callbacks, a clock. It may return an `api`. The
+React half (`LocationViewExtension`, `runtime/viewExtensionRegistry.ts`)
+may claim an interaction for some children, which the view checks on every
+way into an interaction, and renders an overlay on the stage, receiving
+the scene half's `api`. Config is plain JSON that the extension parses and
+validates itself at runtime. The shipped registries live in
+`three/extensions/index.ts`, outside `runtime/`, so the runtime imports no
+mechanic. The first extension is `tide-trial` (Pirate Builder Bay's "Beat
+the Tide"), moved out of `pirateBuilderBayScene.ts` and
+`PirateBuilderBayWorldView.tsx` with its behaviour unchanged.
+
+Migrating a second, structurally different region added generic vocabulary
+rather than special cases: `BOX` and `MODEL` scenery, per-instance cluster
+scale, interactive `props` with an optional one-shot clip, and
+`requirements` (the existing `WorldRequirement`) on scenery and colliders,
+evaluated once when the scene is built. A broken versus mended bridge is
+two scenery items and a collider with opposite requirements, not a branch.
 
 **Consequences.**
 - `runtime/manifests/welcomeHarbor.ts` expresses Welcome Harbor with zero

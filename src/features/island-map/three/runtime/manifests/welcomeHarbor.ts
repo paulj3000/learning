@@ -139,6 +139,8 @@ export const WELCOME_HARBOR_MANIFEST: ThreeLocationManifest = {
     },
   ],
 
+  props: [],
+
   collectibles: [
     {
       entityId: COLLECTIBLE_ID,

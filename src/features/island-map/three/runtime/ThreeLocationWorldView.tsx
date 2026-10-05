@@ -34,6 +34,8 @@ import {
   zoneEnterMessage,
 } from './manifestBindings';
 import { WorldActionPanel } from './WorldActionPanel';
+import type { LocationViewExtensionRegistry } from './viewExtensionRegistry';
+import { SOURCE_VIEW_EXTENSIONS } from '../extensions';
 
 /**
  * The one React view for any manifest-driven 3D location
@@ -56,6 +58,8 @@ export interface ThreeLocationWorldViewProps {
   ageBand: AgeBandValue;
   /** Where manifests come from. Defaults to the source-controlled repository. */
   repository?: LocationManifestRepository;
+  /** The React halves of world extensions. Defaults to the shipped ones (`../extensions`). */
+  viewExtensions?: LocationViewExtensionRegistry;
 }
 
 const TOAST_DURATION_MS = 4000;
@@ -128,12 +132,14 @@ export function ThreeLocationWorldView({
   regionId,
   ageBand,
   repository = sourceLocationManifestRepository,
+  viewExtensions = SOURCE_VIEW_EXTENSIONS,
 }: ThreeLocationWorldViewProps) {
   const [manifestState, setManifestState] = useState<ManifestState>({ status: 'loading' });
   const [snapshot, setSnapshot] = useState<WorldSnapshot | null>(null);
   const [focusedLabel, setFocusedLabel] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [openInteraction, setOpenInteraction] = useState<WorldInteraction | null>(null);
+  const [openExtensionId, setOpenExtensionId] = useState<string | null>(null);
 
   const bus = useMemo(() => new WorldEngineEventBus(), []);
   const engineRef = useRef<LocationEngine | null>(null);
@@ -172,11 +178,38 @@ export function ThreeLocationWorldView({
 
   const manifest = manifestState.status === 'ready' ? manifestState.manifest : null;
 
-  const refreshAfterDiscovery = useCallback(async () => {
+  const refreshWorld = useCallback(async () => {
     const loaded = await loadWorldSnapshot(childId);
     // Keep the spawn the scene was built with; only what is available changes.
     setSnapshot((previous) => ({ ...loaded, startCheckpointId: previous?.startCheckpointId }));
   }, [childId]);
+
+  /**
+   * Every way into an interaction goes through here (walking up, tapping,
+   * the list), so an extension that takes an interaction over for this
+   * child (an Explorer's tide trial) cannot be skipped by one entry point.
+   */
+  const openInteractionFor = useCallback(
+    (interaction: WorldInteraction) => {
+      if (!manifest) return;
+      const claimant = manifest.extensions.find((binding) =>
+        viewExtensions
+          .get(binding.extensionId)
+          ?.claimsInteraction(interaction, { ageBand, config: binding.config }),
+      );
+      if (!claimant) {
+        setOpenInteraction(interaction);
+        return;
+      }
+      // Free the mouse for the overlay's buttons.
+      if (typeof document !== 'undefined' && document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+      setOpenInteraction(null);
+      setOpenExtensionId(claimant.extensionId);
+    },
+    [ageBand, manifest, viewExtensions],
+  );
 
   useEffect(() => {
     if (!manifest) return;
@@ -195,7 +228,7 @@ export function ThreeLocationWorldView({
       }),
       bus.on('ObjectInteracted', ({ entityId }) => {
         const interaction = interactionForEntity(manifest, entityId, contextRef.current);
-        if (interaction) setOpenInteraction(interaction);
+        if (interaction) openInteractionFor(interaction);
       }),
       bus.on('PlayerEnteredZone', ({ zoneId }) => {
         if (checkpointIds.has(zoneId)) {
@@ -205,13 +238,13 @@ export function ThreeLocationWorldView({
         const message = zoneEnterMessage(manifest, zoneId);
         if (message) setToast(message);
         const interaction = walkInInteractionForZone(manifest, zoneId, contextRef.current);
-        if (interaction) setOpenInteraction(interaction);
+        if (interaction) openInteractionFor(interaction);
       }),
     ];
     return () => {
       for (const unsubscribe of unsubscribes) unsubscribe();
     };
-  }, [bus, childId, manifest]);
+  }, [bus, childId, manifest, openInteractionFor]);
 
   useEffect(() => {
     if (!toast) return;
@@ -243,6 +276,16 @@ export function ThreeLocationWorldView({
   }
 
   const startCheckpointId = snapshot.startCheckpointId;
+  const openBinding = openExtensionId
+    ? manifest.extensions.find((binding) => binding.extensionId === openExtensionId)
+    : undefined;
+  const openExtensionDefinition = openBinding
+    ? viewExtensions.get(openBinding.extensionId)
+    : undefined;
+  const openExtension =
+    openBinding && openExtensionDefinition
+      ? { extension: openExtensionDefinition, config: openBinding.config }
+      : null;
   const thingsToDo = availableInteractions(manifest, snapshot.context);
   const altNavPath = manifest.copy.altNav.to
     ? `/island/${childId}/${manifest.copy.altNav.to}`
@@ -259,7 +302,7 @@ export function ThreeLocationWorldView({
               parent,
               bus,
               manifest,
-              { startCheckpointId },
+              { startCheckpointId, worldState: snapshot.context },
               DEFAULT_LOCATION_ENGINE_DEPS,
             )
           }
@@ -274,6 +317,16 @@ export function ThreeLocationWorldView({
           toastMessage={toast}
           backpackItems={snapshot.backpackItems}
         />
+        {openExtension ? (
+          <openExtension.extension.Overlay
+            childId={childId}
+            ageBand={ageBand}
+            config={openExtension.config}
+            sceneApi={engineRef.current?.extensionApi(openExtension.extension.id) ?? null}
+            onClose={() => setOpenExtensionId(null)}
+            refreshWorld={refreshWorld}
+          />
+        ) : null}
       </WorldStage>
       {openInteraction ? (
         <WorldActionPanel
@@ -281,7 +334,7 @@ export function ThreeLocationWorldView({
           ageBand={ageBand}
           interaction={openInteraction}
           onDismiss={() => setOpenInteraction(null)}
-          onDiscovered={() => void refreshAfterDiscovery()}
+          onDiscovered={() => void refreshWorld()}
         />
       ) : null}
       <details className={styles.thingsToDo}>
@@ -292,7 +345,7 @@ export function ThreeLocationWorldView({
               <button
                 type="button"
                 className={styles.thingsToDoButton}
-                onClick={() => setOpenInteraction(interaction)}
+                onClick={() => openInteractionFor(interaction)}
               >
                 {interaction.title}
               </button>

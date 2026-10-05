@@ -13,7 +13,7 @@ import {
   tideBoardLines,
   tideTrialReducer,
 } from '../tideTrial';
-import type { TideTrialScene } from './pirateBuilderBayScene';
+import type { TideTrialScene } from './extensions/tideTrial/tideTrialScene';
 
 export interface TideTrialPanelProps {
   /** The bay engine's tide controls, or `null` before the engine is up (the panel still plays; the scene just stays still). */

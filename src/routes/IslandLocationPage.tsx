@@ -11,6 +11,8 @@ import { loadCatalogSnapshot } from '../features/catalog/availabilityApi';
 import { getChildProfile } from '../features/child-profile/api';
 import type { WorldChange } from '../features/adventures/api';
 import type { ChildProfile } from '../features/child-profile/api';
+import { locationWorldPath } from '../features/island-map/three/runtime/locationWorldPath';
+import { PIRATE_BUILDER_BAY_REGION_ID } from '../features/discovery/checkpoints';
 
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -180,7 +182,10 @@ export function IslandLocationPage() {
           </Link>
         ) : null}
         {location.slug === 'pirate-builder-bay' ? (
-          <Link className={styles.walkLink} to={`/island/${childId}/world/pirate-builder-bay-3d`}>
+          <Link
+            className={styles.walkLink}
+            to={locationWorldPath(childId, PIRATE_BUILDER_BAY_REGION_ID)}
+          >
             Peek at an early 3D preview (new!)
           </Link>
         ) : null}

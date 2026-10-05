@@ -1,4 +1,4 @@
-import type { WorldInteraction } from '../../worldObjects';
+import type { WorldInteraction, WorldRequirement } from '../../worldObjects';
 
 /**
  * The serializable contract a generic Three.js location runtime reads
@@ -93,9 +93,12 @@ export interface CheckpointSpec {
 
 /** A solid, invisible collider. Visible geometry that should block movement declares its own collider instead. */
 export interface ColliderSpec {
+  /** `rect.id` is how an extension removes this collider (e.g. a bridge once it is mended). */
   rect: RectZone;
   minY?: number;
   maxY?: number;
+  /** Present only while these hold, evaluated when the scene is built. Absent means always. */
+  requirements?: readonly WorldRequirement[];
 }
 
 /**
@@ -123,33 +126,81 @@ export interface BuildingSpec {
   doorAssetId?: string;
 }
 
+/** Per-axis scale; an omitted axis is 1. */
+export interface ScaleSpec {
+  x?: number;
+  y?: number;
+  z?: number;
+}
+
 /** One instance of a kit piece within a cluster. */
 export interface ClusterPosition {
   x: number;
   z: number;
   y?: number;
   rotationY?: number;
+  scale?: ScaleSpec;
+}
+
+/**
+ * Fields every scenery kind shares. `id` is also how an extension finds the
+ * item's root object (`WorldExtensionContext.sceneryRoot`), for a mechanic
+ * that moves water or hides a broken bridge.
+ */
+interface SceneryBase {
+  id: string;
+  /** Present only while these hold, evaluated when the scene is built. Absent means always. */
+  requirements?: readonly WorldRequirement[];
 }
 
 /** Decorative scene content with no domain meaning. Never raycast-interactive. */
-export type ScenerySpec =
-  /** A square grid of a ground-tile kit piece covering `area`. */
-  | { kind: 'TILED_GROUND'; id: string; assetId: string; area: RectZone; tileSize: number }
-  /** A flat colour plane (water, sand) lying on `area` at height `y`. */
-  | { kind: 'FLAT_PLANE'; id: string; color: number; area: RectZone; y: number }
-  /** One instanced draw call of a kit piece at many positions. */
-  | { kind: 'CLUSTER'; id: string; assetId: string; positions: readonly ClusterPosition[] }
-  /** Individually placed, LOD-aware copies of one piece (e.g. trees with a low-detail variant). */
-  | { kind: 'LOD_PLACEMENTS'; id: string; assetId: string; positions: readonly ClusterPosition[] }
-  /** A straight run of a vertical kit piece (fence, wall, path) tiled between two points. */
-  | {
-      kind: 'RUN';
-      id: string;
-      assetId: string;
-      from: GroundPoint;
-      to: GroundPoint;
-      segmentLength: number;
-    };
+export type ScenerySpec = SceneryBase &
+  (
+    | /** A square grid of a ground-tile kit piece covering `area`. */
+      {
+        kind: 'TILED_GROUND';
+        assetId: string;
+        area: RectZone;
+        tileSize: number;
+      } /** A flat colour plane (water, sand) lying on `area` at height `y`. */
+    | {
+        kind: 'FLAT_PLANE';
+        color: number;
+        area: RectZone;
+        y: number;
+      } /** A solid colour box over `area` from `minY` to `maxY` (a water channel, a quay wall). */
+    | {
+        kind: 'BOX';
+        color: number;
+        area: RectZone;
+        minY: number;
+        maxY: number;
+      } /** One instanced draw call of a kit piece at many positions. */
+    | {
+        kind: 'CLUSTER';
+        assetId: string;
+        positions: readonly ClusterPosition[];
+      } /** Individually placed, LOD-aware copies of one piece (e.g. trees with a low-detail variant). */
+    | {
+        kind: 'LOD_PLACEMENTS';
+        assetId: string;
+        positions: readonly ClusterPosition[];
+      } /** One model placed once, with a full rotation (a shipwreck, a fallen plank). */
+    | {
+        kind: 'MODEL';
+        assetId: string;
+        position: Vec3;
+        rotation?: Vec3;
+        scale?: ScaleSpec;
+      } /** A straight run of a vertical kit piece (fence, wall, path) tiled between two points. */
+    | {
+        kind: 'RUN';
+        assetId: string;
+        from: GroundPoint;
+        to: GroundPoint;
+        segmentLength: number;
+      }
+  );
 
 export type ScenerySpecKind = ScenerySpec['kind'];
 
@@ -170,6 +221,23 @@ export interface NpcPlacementSpec {
   placeholderColor: number;
   /** The `WorldInteraction` a tap/interact on this NPC triggers. */
   interactionId?: string;
+}
+
+/**
+ * An object the child can look at and interact with (a toolbox, a treasure
+ * chest). Interacting emits `ObjectInteracted` with `entityId`; what that
+ * means comes from its `WorldInteraction`.
+ */
+export interface PropSpec {
+  entityId: string;
+  assetId: string;
+  position: GroundPoint;
+  rotationY?: number;
+  /** Child-facing crosshair label. */
+  label: string;
+  interactionId: string;
+  /** A clip played once, held on its last frame, the first time the child interacts (a chest lid opening). */
+  interactClip?: string;
 }
 
 /** A pick-up-able object: interacting emits `CollectiblePickedUp` and removes it from the scene. */
@@ -247,6 +315,7 @@ export interface ThreeLocationManifest {
   buildings: readonly BuildingSpec[];
   scenery: readonly ScenerySpec[];
   npcs: readonly NpcPlacementSpec[];
+  props: readonly PropSpec[];
   collectibles: readonly CollectibleSpec[];
   zones: readonly ZoneSpec[];
   ambient: readonly AmbientSpec[];

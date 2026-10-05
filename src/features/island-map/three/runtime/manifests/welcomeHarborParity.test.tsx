@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -63,9 +63,11 @@ function renderHarbor() {
   );
 }
 
-function emit(run: (bus: WorldEngineEventBus) => void) {
+/** Plays the scene's part once the view has mounted it; fails rather than silently doing nothing. */
+async function emit(run: (bus: WorldEngineEventBus) => void) {
+  await waitFor(() => expect(engine.bus).not.toBeNull());
   act(() => {
-    if (engine.bus) run(engine.bus);
+    run(engine.bus!);
   });
 }
 
@@ -128,14 +130,14 @@ describe('Welcome Harbor on the generic view: parity with WelcomeHarborWorldView
     });
     renderHarbor();
     await screen.findByText(/move: wasd/i);
-    expect(engine.options).toEqual({ startCheckpointId: 'welcome-harbor:lookout' });
+    await waitFor(() => expect(engine.options?.startCheckpointId).toBe('welcome-harbor:lookout'));
   });
 
   it('saves each harbour checkpoint the child walks into', async () => {
     renderHarbor();
     await screen.findByText(/move: wasd/i);
     for (const zoneId of ['welcome-harbor:dock', 'welcome-harbor:lookout', 'welcome-harbor:shed']) {
-      emit((bus) => bus.emit('PlayerEnteredZone', { zoneId }));
+      await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId }));
     }
     expect(vi.mocked(saveCheckpoint).mock.calls).toEqual([
       ['child-1', 'welcome-harbor:dock'],
@@ -147,9 +149,9 @@ describe('Welcome Harbor on the generic view: parity with WelcomeHarborWorldView
   it('shows the same toasts on stepping into either building', async () => {
     renderHarbor();
     await screen.findByText(/move: wasd/i);
-    emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'lookout-tower:interior' }));
+    await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'lookout-tower:interior' }));
     expect(screen.getByText("You're inside the lookout tower.")).toBeInTheDocument();
-    emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'dockside-shed:interior' }));
+    await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'dockside-shed:interior' }));
     expect(screen.getByText("You're inside the dockside shed.")).toBeInTheDocument();
   });
 
@@ -157,7 +159,7 @@ describe('Welcome Harbor on the generic view: parity with WelcomeHarborWorldView
     renderHarbor();
     await screen.findByText(/move: wasd/i);
     const stateChanges: unknown[] = [];
-    emit((bus) => {
+    await emit((bus) => {
       bus.on('NpcStateChanged', (detail) => stateChanges.push(detail));
       bus.emit('NpcApproached', { entityId: 'pirate-pip' });
     });
@@ -168,16 +170,16 @@ describe('Welcome Harbor on the generic view: parity with WelcomeHarborWorldView
   it('labels Pip in the crosshair, and only Pip', async () => {
     renderHarbor();
     await screen.findByText(/move: wasd/i);
-    emit((bus) => bus.emit('InteractableFocused', { entityId: 'pirate-pip' }));
+    await emit((bus) => bus.emit('InteractableFocused', { entityId: 'pirate-pip' }));
     expect(screen.getByText('Pip: press E to talk')).toBeInTheDocument();
-    emit((bus) => bus.emit('InteractableFocused', { entityId: 'harbor-collectible-gem' }));
+    await emit((bus) => bus.emit('InteractableFocused', { entityId: 'harbor-collectible-gem' }));
     expect(screen.queryByText(/press E to talk/)).not.toBeInTheDocument();
   });
 
   it('opens the conversation with Pip when the child interacts with him in the scene', async () => {
     renderHarbor();
     await screen.findByText(/move: wasd/i);
-    emit((bus) =>
+    await emit((bus) =>
       bus.emit('ObjectInteracted', { entityId: 'pirate-pip', interactionId: 'pirate-pip:talk' }),
     );
     expect(screen.getByTestId('npc-conversation')).toHaveTextContent('pirate-pip');

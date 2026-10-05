@@ -113,15 +113,27 @@ function evaluateRequirement(
   }
 }
 
+/**
+ * Whether every requirement in `requirements` is currently satisfied. Absent
+ * or empty means always. Shared by interactions and by the generic 3D
+ * runtime's manifest scenery and colliders (ADR-025).
+ */
+export function areRequirementsMet(
+  requirements: readonly WorldRequirement[] | undefined,
+  context: WorldInteractionContext,
+): boolean {
+  if (!requirements || requirements.length === 0) {
+    return true;
+  }
+  return requirements.every((requirement) => evaluateRequirement(requirement, context));
+}
+
 /** Whether every requirement on this interaction is currently satisfied. */
 export function isInteractionAvailable(
   interaction: WorldInteraction,
   context: WorldInteractionContext,
 ): boolean {
-  if (!interaction.requirements || interaction.requirements.length === 0) {
-    return true;
-  }
-  return interaction.requirements.every((requirement) => evaluateRequirement(requirement, context));
+  return areRequirementsMet(interaction.requirements, context);
 }
 
 export function findInteraction(

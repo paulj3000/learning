@@ -1,4 +1,4 @@
-import type { WorldAction, WorldInteraction } from '../../worldObjects';
+import type { WorldAction, WorldInteraction, WorldRequirement } from '../../worldObjects';
 import {
   LOCATION_MANIFEST_SCHEMA_VERSION,
   type GroundPoint,
@@ -28,6 +28,8 @@ export interface LocationManifestRegistries {
   locations: readonly { slug: string; worldSlug: string }[];
   adventures: readonly { slug: string; locationSlug: string }[];
   discoveryIds: readonly string[];
+  /** `ItemDefinition.id`s, for `ITEM_OWNED` requirements. */
+  itemIds: readonly string[];
   storySlugs: readonly string[];
   /** Ids registered in the world-extension registry. */
   extensionIds: readonly string[];
@@ -50,6 +52,7 @@ export type LocationManifestIssueKind =
   | 'UNKNOWN_INTERACTION'
   | 'UNKNOWN_ZONE'
   | 'UNKNOWN_DISCOVERY'
+  | 'UNKNOWN_ITEM'
   | 'UNKNOWN_ADVENTURE'
   | 'ADVENTURE_IN_WRONG_LOCATION'
   | 'UNKNOWN_STORY'
@@ -206,8 +209,18 @@ export function validateLocationManifest(
     }
   };
 
+  const checkRequirements = (
+    requirements: readonly WorldRequirement[] | undefined,
+    path: string,
+  ) => {
+    requirements?.forEach((requirement, index) => {
+      checkRequirement(requirement, `${path}[${index}]`, registries, report);
+    });
+  };
+
   manifest.colliders.forEach((collider, index) => {
     checkRect(collider.rect, `colliders[${index}].rect`);
+    checkRequirements(collider.requirements, `colliders[${index}].requirements`);
   });
 
   manifest.buildings.forEach((building, index) => {
@@ -229,6 +242,7 @@ export function validateLocationManifest(
   manifest.scenery.forEach((item, index) => {
     const path = `scenery[${index}]`;
     claimSceneId(item.id, `${path}.id`);
+    checkRequirements(item.requirements, `${path}.requirements`);
     switch (item.kind) {
       case 'TILED_GROUND':
         checkAsset(item.assetId, `${path}.assetId`);
@@ -237,6 +251,15 @@ export function validateLocationManifest(
         break;
       case 'FLAT_PLANE':
         checkRect(item.area, `${path}.area`);
+        break;
+      case 'BOX':
+        checkRect(item.area, `${path}.area`);
+        if (!(item.minY < item.maxY)) {
+          report('INVALID_VALUE', `${path}.maxY`, 'a box needs minY < maxY');
+        }
+        break;
+      case 'MODEL':
+        checkAsset(item.assetId, `${path}.assetId`);
         break;
       case 'CLUSTER':
       case 'LOD_PLACEMENTS':
@@ -262,6 +285,15 @@ export function validateLocationManifest(
     checkInBounds(npc.position, `${path}.position`);
     checkInteractionRef(npc.interactionId, `${path}.interactionId`);
     requireText(npc.label, `${path}.label`, report);
+  });
+
+  manifest.props.forEach((prop, index) => {
+    const path = `props[${index}]`;
+    claimSceneId(prop.entityId, `${path}.entityId`);
+    checkAsset(prop.assetId, `${path}.assetId`, prop.interactClip);
+    checkInBounds(prop.position, `${path}.position`);
+    checkInteractionRef(prop.interactionId, `${path}.interactionId`);
+    requireText(prop.label, `${path}.label`, report);
   });
 
   manifest.collectibles.forEach((collectible, index) => {
@@ -308,6 +340,7 @@ export function validateLocationManifest(
       }
     }
     checkAction(interaction.action, `${path}.action`, registries, report);
+    checkRequirements(interaction.requirements, `${path}.requirements`);
   });
 
   manifest.extensions.forEach((extension, index) => {
@@ -380,6 +413,35 @@ function checkAction(
       return;
     case 'NAVIGATE':
       // Route paths are not a registry yet, so there is nothing to resolve against.
+      return;
+  }
+}
+
+function checkRequirement(
+  requirement: WorldRequirement,
+  path: string,
+  registries: LocationManifestRegistries,
+  report: Report,
+): void {
+  switch (requirement.type) {
+    case 'DISCOVERY_PRESENT':
+      if (!registries.discoveryIds.includes(requirement.discoveryId)) {
+        report(
+          'UNKNOWN_DISCOVERY',
+          `${path}.discoveryId`,
+          `no discovery "${requirement.discoveryId}"`,
+        );
+      }
+      return;
+    case 'ITEM_OWNED':
+      if (!registries.itemIds.includes(requirement.itemId)) {
+        report('UNKNOWN_ITEM', `${path}.itemId`, `no item "${requirement.itemId}"`);
+      }
+      return;
+    case 'ALWAYS':
+    case 'WORLD_CHANGE_PRESENT':
+    case 'WORLD_CHANGE_ABSENT':
+      // World-change keys are authored per adventure, with no registry to check against yet.
       return;
   }
 }

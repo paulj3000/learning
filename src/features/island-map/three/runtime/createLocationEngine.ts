@@ -9,6 +9,8 @@ import {
   DirectionalLight,
   DoubleSide,
   Group,
+  LoopOnce,
+  LoopRepeat,
   Mesh,
   MeshStandardMaterial,
   PerspectiveCamera,
@@ -18,6 +20,7 @@ import {
   Vector2,
   Vector3,
   WebGLRenderer,
+  type AnimationAction,
   type AnimationClip,
   type BufferGeometry,
   type Camera,
@@ -31,6 +34,7 @@ import {
   type InstancePlacement,
 } from '../assets/assetLoader';
 import { ALL_CHECKPOINTS, resolveSpawnCheckpoint } from '../../../discovery/checkpoints';
+import { areRequirementsMet, type WorldInteractionContext } from '../../worldObjects';
 import { FirstPersonController } from '../firstPersonController';
 import { attachPointerControls, type PointerControls } from '../pointerControls';
 import {
@@ -42,16 +46,14 @@ import {
 } from '../sceneKit';
 import type { ThreeEngineHandle } from '../ThreeGameContainer';
 import type { WorldEngineEventBus } from '../worldEngineEvents';
-import {
-  SOURCE_WORLD_EXTENSIONS,
-  type WorldExtensionCleanup,
-  type WorldExtensionRegistry,
-} from './extensionRegistry';
-import type { ScenerySpec, ThreeLocationManifest } from './locationManifest';
+import { SOURCE_WORLD_EXTENSIONS } from '../extensions';
+import type { LoadedModel, WorldExtensionMount, WorldExtensionRegistry } from './extensionRegistry';
+import type { ScaleSpec, ScenerySpec, ThreeLocationManifest } from './locationManifest';
 import {
   buildingDoorPlacement,
   buildingRoofPlacement,
   buildingWallPlacements,
+  NO_WORLD_STATE,
   solidColliders,
   tiledGroundPlacements,
   triggerVolumes,
@@ -59,17 +61,24 @@ import {
 } from './sceneLayout';
 import { WorldTriggerTracker } from './worldTriggerTracker';
 
+export type { LoadedModel } from './extensionRegistry';
+
 /**
  * The generic Three.js location runtime (`docs/engine/03_GENERIC_3D_WORLD_RUNTIME.md`,
- * `docs/engine/10_IMPLEMENTATION_PHASES.md` Phase 3). One function that
- * turns any `ThreeLocationManifest` into a walkable first-person scene,
- * replacing the skeleton each `*Scene.ts` repeats: bootstrap, colliders,
- * controller and spawn, scenery, NPCs, collectibles, ambient movers,
- * raycast focus and interact, edge-triggered events, frame loop, disposal.
+ * `docs/engine/10_IMPLEMENTATION_PHASES.md` Phases 3 and 7). One function
+ * that turns any `ThreeLocationManifest` into a walkable first-person
+ * scene, replacing the skeleton each `*Scene.ts` repeats: bootstrap,
+ * colliders, controller and spawn, scenery, NPCs, props, collectibles,
+ * ambient movers, raycast focus and interact, edge-triggered events, frame
+ * loop, disposal.
  *
  * It never branches on a location slug or region id. Everything
  * region-specific comes from the manifest, and anything bespoke comes from
- * an extension the manifest names (`extensionRegistry.ts`).
+ * an extension the manifest names (`extensionRegistry.ts`). Scenery and
+ * colliders with `requirements` are included or left out once, when the
+ * scene is built, against the child's world state; a change during the
+ * visit is the job of whatever caused it (an extension), as it was in the
+ * per-region scenes.
  *
  * Its browser- and network-facing pieces (renderer, asset loading, input,
  * resize, frame scheduling) are injected through `LocationEngineDeps`, so
@@ -88,11 +97,6 @@ export interface RendererLike {
   setSize(width: number, height: number): void;
   render(scene: Scene, camera: Camera): void;
   dispose(): void;
-}
-
-export interface LoadedModel {
-  scene: Object3D;
-  animations: readonly AnimationClip[];
 }
 
 export interface LocationEngineAssets {
@@ -140,6 +144,8 @@ export const DEFAULT_LOCATION_ENGINE_DEPS: LocationEngineDeps<WebGLRenderer> = {
 export interface LocationEngine extends ThreeEngineHandle {
   /** Raycasts from the screen centre and acts on whatever interactive entity is there. */
   interact(): void;
+  /** What a mounted extension returned as `api`, for its React half. `undefined` if none. */
+  extensionApi(extensionId: string): unknown;
   /** Settles once every asynchronously loaded piece has been placed or has failed. Never rejects. */
   readonly ready: Promise<void>;
 }
@@ -147,6 +153,8 @@ export interface LocationEngine extends ThreeEngineHandle {
 export interface LocationEngineOptions {
   /** The child's last saved checkpoint (`ChildWorldState.lastCheckpointId`), if any. */
   startCheckpointId?: string;
+  /** What `requirements` on scenery and colliders are checked against. Defaults to no world state. */
+  worldState?: WorldInteractionContext;
 }
 
 /** The outdoor rig `sceneKit.createSceneBootstrap` defaults to; manifest lighting overrides per field. */
@@ -161,12 +169,21 @@ const NPC_PLACEHOLDER_SIZE = { width: 0.4, height: 0.6, depth: 0.2 };
 /** Frames longer than this (a background tab) are clamped so the player cannot tunnel through walls. */
 const MAX_FRAME_SECONDS = 0.1;
 
-type EntityKind = 'NPC' | 'COLLECTIBLE';
+type EntityKind = 'NPC' | 'PROP' | 'COLLECTIBLE';
 
 interface FocusTarget {
   entityId: string;
   kind: EntityKind;
   root: Object3D;
+  /** Props only: plays the authored interact clip the first time. */
+  onFirstInteract?: () => void;
+}
+
+/** An NPC's animation state, so an extension can play a gesture and have it return to idle. */
+interface NpcAnimator {
+  mixer: AnimationMixer;
+  clips: readonly AnimationClip[];
+  idle?: AnimationClip;
 }
 
 function toBox3(bounds: BoxBounds): Box3 {
@@ -174,6 +191,10 @@ function toBox3(bounds: BoxBounds): Box3 {
     new Vector3(bounds.minX, bounds.minY, bounds.minZ),
     new Vector3(bounds.maxX, bounds.maxY, bounds.maxZ),
   );
+}
+
+function scaleOf(scale: ScaleSpec | undefined): InstancePlacement['scale'] {
+  return scale ? { x: scale.x, y: scale.y, z: scale.z } : undefined;
 }
 
 export function createLocationEngine<R extends RendererLike>(
@@ -184,11 +205,12 @@ export function createLocationEngine<R extends RendererLike>(
   deps: LocationEngineDeps<R>,
 ): LocationEngine {
   let disposed = false;
+  const worldState = options.worldState ?? NO_WORLD_STATE;
   const ownedGeometries: BufferGeometry[] = [];
   const ownedMaterials: Material[] = [];
   const mixers: AnimationMixer[] = [];
   const frameCallbacks = new Set<(deltaSeconds: number) => void>();
-  const extensionCleanups: WorldExtensionCleanup[] = [];
+  const extensionMounts = new Map<string, WorldExtensionMount>();
 
   function ownMesh(geometry: BufferGeometry, material: Material): Mesh {
     ownedGeometries.push(geometry);
@@ -218,16 +240,30 @@ export function createLocationEngine<R extends RendererLike>(
   renderer.setSize(parent.clientWidth, parent.clientHeight);
   parent.appendChild(renderer.domElement);
 
-  // Movement: colliders, controller, spawn at an authored checkpoint.
-  const colliders = solidColliders(manifest).map(toBox3);
+  // Movement: colliders (gated ones only while their requirements hold),
+  // controller, spawn at an authored checkpoint.
+  const solids = solidColliders(manifest, worldState).map((solid) => ({
+    id: solid.id,
+    box: toBox3(solid.box),
+  }));
+  const colliders = solids.map((solid) => solid.box);
   const controller = new FirstPersonController({ colliders });
   const spawn = resolveSpawnCheckpoint(manifest.regionId, options.startCheckpointId);
   controller.position.set(spawn.x, 0, spawn.z);
   controller.yaw = spawn.yaw;
 
-  // Interactive entities, each under its own root group so a model swap
-  // never changes what the raycast targets.
+  function removeCollider(id: string): boolean {
+    const solid = solids.find((candidate) => candidate.id === id);
+    if (!solid) return false;
+    const index = colliders.indexOf(solid.box);
+    if (index < 0) return false;
+    colliders.splice(index, 1);
+    return true;
+  }
+
   const focusTargets: FocusTarget[] = [];
+  const npcAnimators = new Map<string, NpcAnimator>();
+  const sceneryRoots = new Map<string, Object3D>();
   const pending: Promise<void>[] = [];
 
   function track(work: Promise<void>, what: string): void {
@@ -246,15 +282,16 @@ export function createLocationEngine<R extends RendererLike>(
     return true;
   }
 
-  function playIdle(model: Object3D, animations: readonly AnimationClip[], clip?: string): void {
-    if (!clip) return;
-    const idle = animations.find((candidate) => candidate.name === clip);
-    if (!idle) return;
+  function loopIdle(model: Object3D, animations: readonly AnimationClip[], clip?: string) {
+    const idle = clip ? animations.find((candidate) => candidate.name === clip) : undefined;
     const mixer = new AnimationMixer(model);
-    mixer.clipAction(idle).play();
+    if (idle) mixer.clipAction(idle).play();
     mixers.push(mixer);
+    return { mixer, idle };
   }
 
+  // NPCs: a placeholder box under a root group until the model arrives, so
+  // a model swap never changes what the raycast targets.
   for (const npc of manifest.npcs) {
     const root = new Group();
     root.name = npc.label;
@@ -279,9 +316,65 @@ export function createLocationEngine<R extends RendererLike>(
         if (!addWhenLive(model, root)) return;
         // Removed, not hidden: a raycast does not skip invisible meshes.
         root.remove(placeholder);
-        playIdle(model, animations, npc.idleClip);
+        const { mixer, idle } = loopIdle(model, animations, npc.idleClip);
+        // A gesture plays a few times, then the NPC goes back to idling.
+        mixer.addEventListener('finished', () => {
+          mixer.stopAllAction();
+          if (idle) mixer.clipAction(idle).play();
+        });
+        npcAnimators.set(npc.entityId, { mixer, clips: animations, idle });
       }),
       `npc ${npc.entityId}`,
+    );
+  }
+
+  function playNpcGesture(entityId: string, clipName: string, repetitions: number): void {
+    const animator = npcAnimators.get(entityId);
+    const clip = animator?.clips.find((candidate) => candidate.name === clipName);
+    if (!animator || !clip) return;
+    animator.mixer.stopAllAction();
+    const action = animator.mixer.clipAction(clip);
+    action.reset();
+    action.setLoop(LoopRepeat, repetitions);
+    action.play();
+  }
+
+  // Props: interactive objects bound to an interaction.
+  for (const prop of manifest.props) {
+    const root = new Group();
+    root.name = prop.label;
+    root.position.set(prop.position.x, 0, prop.position.z);
+    root.rotation.y = prop.rotationY ?? 0;
+    scene.add(root);
+    let interactAction: AnimationAction | null = null;
+    let interacted = false;
+    focusTargets.push({
+      entityId: prop.entityId,
+      kind: 'PROP',
+      root,
+      onFirstInteract: () => {
+        if (interacted || !interactAction) return;
+        interacted = true;
+        interactAction.setLoop(LoopOnce, 1);
+        interactAction.clampWhenFinished = true;
+        interactAction.play();
+      },
+    });
+
+    track(
+      deps.assets.loadModel(prop.assetId).then(({ scene: source, animations }) => {
+        const model = source.clone(true);
+        if (!addWhenLive(model, root)) return;
+        const clip = prop.interactClip
+          ? animations.find((candidate) => candidate.name === prop.interactClip)
+          : undefined;
+        if (clip) {
+          const mixer = new AnimationMixer(model);
+          mixers.push(mixer);
+          interactAction = mixer.clipAction(clip);
+        }
+      }),
+      `prop ${prop.entityId}`,
     );
   }
 
@@ -296,10 +389,22 @@ export function createLocationEngine<R extends RendererLike>(
       deps.assets.loadModel(collectible.assetId).then(({ scene: source, animations }) => {
         const model = source.clone(true);
         if (!addWhenLive(model, root)) return;
-        playIdle(model, animations, collectible.idleClip);
+        loopIdle(model, animations, collectible.idleClip);
       }),
       `collectible ${collectible.entityId}`,
     );
+  }
+
+  async function placeInstanced(
+    into: Object3D,
+    assetId: string,
+    placements: readonly InstancePlacement[],
+  ): Promise<void> {
+    if (placements.length === 0) return;
+    const instanced = await deps.assets.instanced(assetId, placements);
+    if (!addWhenLive(instanced, into)) return;
+    // The loader clones geometry per instanced mesh; the material stays shared with the cache.
+    if (instanced instanceof Mesh) ownedGeometries.push(instanced.geometry);
   }
 
   // Buildings: one instanced draw call per kit piece across every building.
@@ -315,27 +420,26 @@ export function createLocationEngine<R extends RendererLike>(
     if (building.doorAssetId && door) addPlacements(building.doorAssetId, [door]);
   }
   for (const [assetId, placements] of placementsByAsset) {
-    track(placeInstanced(assetId, placements), `building piece ${assetId}`);
+    track(placeInstanced(scene, assetId, placements), `building piece ${assetId}`);
   }
 
-  async function placeInstanced(
-    assetId: string,
-    placements: readonly InstancePlacement[],
-  ): Promise<void> {
-    if (placements.length === 0) return;
-    const instanced = await deps.assets.instanced(assetId, placements);
-    if (!addWhenLive(instanced)) return;
-    // The loader clones geometry per instanced mesh; the material stays shared with the cache.
-    if (instanced instanceof Mesh) ownedGeometries.push(instanced.geometry);
-  }
-
+  /**
+   * Every scenery item gets its own root group, created now, so an
+   * extension can find it by id (`sceneryRoot`) before its content loads.
+   * A flat plane's and a box's root sit at their anchor, so moving or
+   * scaling the root moves the surface (the tide trial's water).
+   */
   function buildScenery(item: ScenerySpec): void {
+    const root = new Group();
+    root.name = item.id;
+    scene.add(root);
+    sceneryRoots.set(item.id, root);
     switch (item.kind) {
       case 'TILED_GROUND': {
         const tiles = tiledGroundPlacements(item.area, item.tileSize).map((tile) => ({
           position: { x: tile.x, y: 0, z: tile.z },
         }));
-        track(placeInstanced(item.assetId, tiles), `scenery ${item.id}`);
+        track(placeInstanced(root, item.assetId, tiles), `scenery ${item.id}`);
         return;
       }
       case 'FLAT_PLANE': {
@@ -346,16 +450,30 @@ export function createLocationEngine<R extends RendererLike>(
           new MeshStandardMaterial({ color: item.color, side: DoubleSide }),
         );
         plane.rotation.x = -Math.PI / 2;
-        plane.position.set(item.area.minX + width / 2, item.y, item.area.minZ + depth / 2);
-        scene.add(plane);
+        root.position.set(item.area.minX + width / 2, item.y, item.area.minZ + depth / 2);
+        root.add(plane);
+        return;
+      }
+      case 'BOX': {
+        const width = item.area.maxX - item.area.minX;
+        const depth = item.area.maxZ - item.area.minZ;
+        const height = item.maxY - item.minY;
+        const box = ownMesh(
+          new BoxGeometry(width, height, depth),
+          new MeshStandardMaterial({ color: item.color }),
+        );
+        box.position.y = height / 2;
+        root.position.set(item.area.minX + width / 2, item.minY, item.area.minZ + depth / 2);
+        root.add(box);
         return;
       }
       case 'CLUSTER': {
         const placements = item.positions.map((position) => ({
           position: { x: position.x, y: position.y ?? 0, z: position.z },
           rotationY: position.rotationY,
+          scale: scaleOf(position.scale),
         }));
-        track(placeInstanced(item.assetId, placements), `scenery ${item.id}`);
+        track(placeInstanced(root, item.assetId, placements), `scenery ${item.id}`);
         return;
       }
       case 'LOD_PLACEMENTS':
@@ -364,21 +482,37 @@ export function createLocationEngine<R extends RendererLike>(
             deps.assets.withLod(item.assetId).then((object) => {
               object.position.set(position.x, position.y ?? 0, position.z);
               object.rotation.y = position.rotationY ?? 0;
-              addWhenLive(object);
+              addWhenLive(object, root);
             }),
             `scenery ${item.id}`,
           );
         }
         return;
+      case 'MODEL':
+        track(
+          deps.assets.loadModel(item.assetId).then(({ scene: source }) => {
+            const model = source.clone(true);
+            model.position.set(item.position.x, item.position.y, item.position.z);
+            if (item.rotation)
+              model.rotation.set(item.rotation.x, item.rotation.y, item.rotation.z);
+            if (item.scale)
+              model.scale.set(item.scale.x ?? 1, item.scale.y ?? 1, item.scale.z ?? 1);
+            addWhenLive(model, root);
+          }),
+          `scenery ${item.id}`,
+        );
+        return;
       case 'RUN':
         track(
-          placeInstanced(item.assetId, runPlacements(item.from, item.to, item.segmentLength)),
+          placeInstanced(root, item.assetId, runPlacements(item.from, item.to, item.segmentLength)),
           `scenery ${item.id}`,
         );
         return;
     }
   }
-  manifest.scenery.forEach(buildScenery);
+  manifest.scenery
+    .filter((item) => areRequirementsMet(item.requirements, worldState))
+    .forEach(buildScenery);
 
   // Ambient movers: decorative, never raycast-interactive, never emit events.
   for (const ambient of manifest.ambient) {
@@ -443,45 +577,68 @@ export function createLocationEngine<R extends RendererLike>(
     if (disposed) return;
     const target = raycastFocus();
     if (!target) return;
-    if (target.kind === 'NPC') {
-      bus.emit('ObjectInteracted', {
-        entityId: target.entityId,
-        interactionId: `${target.entityId}:talk`,
-      });
-      return;
+    switch (target.kind) {
+      case 'NPC':
+        bus.emit('ObjectInteracted', {
+          entityId: target.entityId,
+          interactionId: `${target.entityId}:talk`,
+        });
+        return;
+      case 'PROP':
+        bus.emit('ObjectInteracted', {
+          entityId: target.entityId,
+          interactionId: `${target.entityId}:interact`,
+        });
+        target.onFirstInteract?.();
+        return;
+      case 'COLLECTIBLE':
+        bus.emit('ObjectInteracted', {
+          entityId: target.entityId,
+          interactionId: `${target.entityId}:collect`,
+        });
+        bus.emit('CollectiblePickedUp', { entityId: target.entityId });
+        scene.remove(target.root);
+        focusTargets.splice(focusTargets.indexOf(target), 1);
+        return;
     }
-    bus.emit('ObjectInteracted', {
-      entityId: target.entityId,
-      interactionId: `${target.entityId}:collect`,
-    });
-    bus.emit('CollectiblePickedUp', { entityId: target.entityId });
-    scene.remove(target.root);
-    focusTargets.splice(focusTargets.indexOf(target), 1);
   }
 
   const controls = deps.attachControls(renderer, controller, { onInteract: interact });
   const stopFitting = deps.fitToParent(parent, camera, renderer);
 
-  // Extensions the manifest declares, found by id, never by location.
+  // Extensions the manifest declares, found by id, never by location. A
+  // broken one is skipped with a warning rather than taking the region down.
   for (const binding of manifest.extensions) {
     const extension = deps.extensions.get(binding.extensionId);
     if (!extension) {
       console.warn(`[location ${manifest.regionId}] unknown extension ${binding.extensionId}`);
       continue;
     }
-    const cleanup = extension.mount({
-      scene,
-      camera,
-      bus,
-      manifest,
-      config: binding.config,
-      addCollider: (box) => colliders.push(box),
-      onFrame: (callback) => {
-        frameCallbacks.add(callback);
-        return () => frameCallbacks.delete(callback);
-      },
-    });
-    if (cleanup) extensionCleanups.push(cleanup);
+    try {
+      const mounted = extension.mount({
+        scene,
+        camera,
+        bus,
+        manifest,
+        config: binding.config,
+        addCollider: (box) => colliders.push(box),
+        removeCollider,
+        sceneryRoot: (id) => sceneryRoots.get(id),
+        playNpcGesture,
+        loadModel: (assetId) => deps.assets.loadModel(assetId),
+        onFrame: (callback) => {
+          frameCallbacks.add(callback);
+          return () => frameCallbacks.delete(callback);
+        },
+        now: () => deps.now(),
+      });
+      extensionMounts.set(binding.extensionId, mounted ?? {});
+    } catch (error) {
+      console.warn(
+        `[location ${manifest.regionId}] extension ${binding.extensionId} failed to mount`,
+        error,
+      );
+    }
   }
 
   const tracker = new WorldTriggerTracker(
@@ -529,7 +686,7 @@ export function createLocationEngine<R extends RendererLike>(
     deps.cancelFrame(frameHandle);
     controls.dispose();
     stopFitting();
-    for (const cleanup of extensionCleanups) cleanup();
+    for (const mounted of extensionMounts.values()) mounted.dispose?.();
     frameCallbacks.clear();
     for (const mixer of mixers) {
       mixer.stopAllAction();
@@ -546,5 +703,10 @@ export function createLocationEngine<R extends RendererLike>(
 
   const ready = Promise.all(pending).then(() => undefined);
 
-  return { dispose, interact, ready };
+  return {
+    dispose,
+    interact,
+    extensionApi: (extensionId) => extensionMounts.get(extensionId)?.api,
+    ready,
+  };
 }

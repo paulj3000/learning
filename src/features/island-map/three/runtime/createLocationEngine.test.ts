@@ -1,26 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import {
-  AnimationClip,
-  Box3,
-  BoxGeometry,
-  Group,
-  Mesh,
-  MeshBasicMaterial,
-  type Object3D,
-  type PerspectiveCamera,
-  type Scene,
-  Vector3,
-} from 'three';
-import {
-  createLocationEngine,
-  type LocationEngineDeps,
-  type LoadedModel,
-} from './createLocationEngine';
-import { createWorldExtensionRegistry, type WorldExtension } from './extensionRegistry';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Box3, Group, Mesh, Vector3, type Object3D } from 'three';
+import type { LoadedModel } from './createLocationEngine';
+import type { WorldExtension, WorldExtensionContext } from './extensionRegistry';
 import { WELCOME_HARBOR_MANIFEST } from './manifests/welcomeHarbor';
-import type { ThreeLocationManifest } from './locationManifest';
-import type { FirstPersonController } from '../firstPersonController';
-import { WorldEngineEventBus, type WorldEngineEventMap } from '../worldEngineEvents';
+import {
+  FACE_NORTH,
+  FACE_SOUTH,
+  mount,
+  named,
+  pipChildHeights,
+  standAt,
+  standingBox,
+  walk,
+} from './testing/engineHarness';
 
 /**
  * The generic runtime driven entirely through injected fakes: a renderer
@@ -30,172 +22,6 @@ import { WorldEngineEventBus, type WorldEngineEventMap } from '../worldEngineEve
  * triggers, disposal) is the real code. Covers the world-runtime acceptance
  * tests in `docs/engine/11_ACCEPTANCE_TESTS.md` (W1 to W7, AS3, B4).
  */
-
-/** A 1.8 m tall box standing on the ground, so an eye-height ray hits it. */
-function standingBox(): LoadedModel {
-  const geometry = new BoxGeometry(0.6, 1.8, 0.6);
-  geometry.translate(0, 0.9, 0);
-  return {
-    scene: new Mesh(geometry, new MeshBasicMaterial()),
-    animations: [new AnimationClip('Idle', 1, [])],
-  };
-}
-
-type Drive = (controller: FirstPersonController, deltaSeconds: number) => void;
-
-interface Harness {
-  engine: ReturnType<typeof createLocationEngine>;
-  parent: HTMLDivElement;
-  deps: LocationEngineDeps<FakeRenderer>;
-  renderer: FakeRenderer;
-  controls: { update: Mock<(deltaSeconds: number) => void>; dispose: Mock<() => void> };
-  stopFitting: Mock<() => void>;
-  events: { name: keyof WorldEngineEventMap; detail: unknown }[];
-  runFrames(count: number, milliseconds?: number): void;
-  setDrive(drive: Drive): void;
-  pressInteractKey(): void;
-  camera(): PerspectiveCamera;
-  scene(): Scene;
-}
-
-interface FakeRenderer {
-  domElement: HTMLCanvasElement;
-  setSize: Mock<(width: number, height: number) => void>;
-  render: Mock<(scene: Scene, camera: PerspectiveCamera) => void>;
-  dispose: Mock<() => void>;
-}
-
-function mount(
-  options: {
-    manifest?: ThreeLocationManifest;
-    startCheckpointId?: string;
-    loadModel?: (assetId: string) => Promise<LoadedModel>;
-    extensions?: readonly WorldExtension[];
-    parent?: HTMLDivElement;
-  } = {},
-): Harness {
-  const parent = options.parent ?? document.createElement('div');
-  const queued: (() => void)[] = [];
-  let handle = 0;
-  let clock = 0;
-  let drive: Drive = () => undefined;
-  let onInteract: () => void = () => undefined;
-  let controller: FirstPersonController | null = null;
-
-  const renderer: FakeRenderer = {
-    domElement: document.createElement('canvas'),
-    setSize: vi.fn<(width: number, height: number) => void>(),
-    render: vi.fn<(scene: Scene, camera: PerspectiveCamera) => void>(),
-    dispose: vi.fn<() => void>(),
-  };
-  const controls = {
-    update: vi.fn((delta: number) => {
-      if (controller) drive(controller, delta);
-    }),
-    dispose: vi.fn<() => void>(),
-  };
-  const stopFitting = vi.fn<() => void>();
-  const deps: LocationEngineDeps<FakeRenderer> = {
-    createRenderer: () => renderer,
-    assets: {
-      loadModel: options.loadModel ?? (async () => standingBox()),
-      instanced: vi.fn(async () => new Mesh(new BoxGeometry(), new MeshBasicMaterial())),
-      withLod: vi.fn(async () => new Group()),
-    },
-    attachControls: (_renderer, attached, attachOptions) => {
-      controller = attached;
-      onInteract = attachOptions.onInteract;
-      return controls;
-    },
-    fitToParent: () => stopFitting,
-    requestFrame: (callback) => {
-      queued.push(callback);
-      handle += 1;
-      return handle;
-    },
-    cancelFrame: vi.fn(),
-    now: () => clock,
-    extensions: createWorldExtensionRegistry(options.extensions ?? []),
-  };
-
-  const bus = new WorldEngineEventBus();
-  const events: Harness['events'] = [];
-  for (const name of [
-    'NpcApproached',
-    'InteractableFocused',
-    'PlayerEnteredZone',
-    'ObjectInteracted',
-    'CollectiblePickedUp',
-  ] as const) {
-    bus.on(name, (detail) => events.push({ name, detail }));
-  }
-
-  const engine = createLocationEngine(
-    parent,
-    bus,
-    options.manifest ?? WELCOME_HARBOR_MANIFEST,
-    { startCheckpointId: options.startCheckpointId },
-    deps,
-  );
-
-  const lastRender = () => {
-    const call = renderer.render.mock.calls.at(-1);
-    if (!call) throw new Error('nothing rendered yet');
-    return call;
-  };
-
-  return {
-    engine,
-    parent,
-    deps,
-    renderer,
-    controls,
-    stopFitting,
-    events,
-    runFrames(count, milliseconds = 16) {
-      for (let index = 0; index < count; index += 1) {
-        clock += milliseconds;
-        queued.shift()?.();
-      }
-    },
-    setDrive(next) {
-      drive = next;
-    },
-    pressInteractKey: () => onInteract(),
-    camera: () => lastRender()[1],
-    scene: () => lastRender()[0],
-  };
-}
-
-/** Puts the player at a spot facing a direction, without walking there. */
-function standAt(x: number, z: number, yaw: number): Drive {
-  return (controller) => {
-    controller.position.set(x, 0, z);
-    controller.yaw = yaw;
-    controller.pitch = 0;
-  };
-}
-
-function walk(yaw: number): Drive {
-  return (controller, delta) => {
-    controller.yaw = yaw;
-    controller.update(delta, { forward: 1, strafe: 0 });
-  };
-}
-
-const named = (events: Harness['events'], name: keyof WorldEngineEventMap) =>
-  events.filter((event) => event.name === name).map((event) => event.detail);
-
-/** Heights of what stands at Pip's spot: 0.6 is the placeholder box, 1.8 the loaded model. */
-function pipChildHeights(scene: Scene): number[] {
-  const pip = scene.getObjectByName('Pip');
-  if (!pip) throw new Error('Pip is not in the scene');
-  return pip.children.map((child) => ((child as Mesh).geometry as BoxGeometry).parameters.height);
-}
-
-/** yaw 0 faces +Z and PI faces -Z (`firstPersonController.ts`). */
-const FACE_SOUTH = Math.PI;
-const FACE_NORTH = 0;
 
 let warn: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
@@ -358,9 +184,9 @@ describe('createLocationEngine: extensions', () => {
     const onFrame = vi.fn();
     const extension: WorldExtension = {
       id: 'test-bell',
-      mount: vi.fn((context) => {
+      mount: vi.fn((context: WorldExtensionContext) => {
         context.onFrame(onFrame);
-        return cleanup;
+        return { dispose: cleanup, api: { rings: 'ding' } };
       }),
     };
     const harness = mount({
@@ -373,6 +199,9 @@ describe('createLocationEngine: extensions', () => {
     expect(extension.mount).toHaveBeenCalledWith(expect.objectContaining({ config: { rings: 3 } }));
     harness.runFrames(3);
     expect(onFrame).toHaveBeenCalledTimes(3);
+
+    expect(harness.engine.extensionApi('test-bell')).toEqual({ rings: 'ding' });
+    expect(harness.engine.extensionApi('not-mounted')).toBeUndefined();
 
     harness.engine.dispose();
     harness.engine.dispose();

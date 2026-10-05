@@ -1,4 +1,5 @@
 import type { InstancePlacement } from '../assets/assetLoader';
+import { areRequirementsMet, type WorldInteractionContext } from '../../worldObjects';
 import { runPlacements, WALL_HEIGHT } from '../sceneKit';
 import type {
   BoundsSpec,
@@ -39,6 +40,13 @@ const INTERIOR_MAX_Y = 6;
 const CHECKPOINT_MAX_Y = 3;
 /** Wall collider half-thickness either side of a building's footprint edge. */
 const BUILDING_WALL_HALF_THICKNESS = 0.2;
+/** A child with no world changes, items or discoveries: what requirements see when none is given. */
+export const NO_WORLD_STATE: WorldInteractionContext = {
+  worldChangeKeys: [],
+  ownedItemIds: [],
+  discoveryIds: [],
+};
+
 /** Width of one `wall` kit panel, which a building side is tiled with. */
 export const WALL_PANEL_WIDTH_METERS = 2;
 
@@ -190,14 +198,32 @@ export function tiledGroundPlacements(area: Omit<RectZone, 'id'>, tileSize: numb
   return tiles;
 }
 
-/** Every solid box the player cannot walk through: boundary, authored colliders, building walls. */
-export function solidColliders(manifest: ThreeLocationManifest): BoxBounds[] {
+/** A solid box, with the manifest collider id it came from when it has one. */
+export interface SolidCollider {
+  /** The authored `ColliderSpec.rect.id`; absent for boundary and building walls. */
+  id?: string;
+  box: BoxBounds;
+}
+
+/**
+ * Every solid box the player cannot walk through: boundary, authored
+ * colliders whose requirements hold in `context`, and building walls.
+ */
+export function solidColliders(
+  manifest: ThreeLocationManifest,
+  context: WorldInteractionContext = NO_WORLD_STATE,
+): SolidCollider[] {
   return [
-    ...boundaryWallRects(manifest.bounds).map((rect) => rectToBox(rect, RECT_MIN_Y, WALL_HEIGHT)),
-    ...manifest.colliders.map((collider) =>
-      rectToBox(collider.rect, collider.minY ?? RECT_MIN_Y, collider.maxY ?? WALL_HEIGHT),
-    ),
-    ...manifest.buildings.flatMap(buildingWallColliders),
+    ...boundaryWallRects(manifest.bounds).map((rect) => ({
+      box: rectToBox(rect, RECT_MIN_Y, WALL_HEIGHT),
+    })),
+    ...manifest.colliders
+      .filter((collider) => areRequirementsMet(collider.requirements, context))
+      .map((collider) => ({
+        id: collider.rect.id,
+        box: rectToBox(collider.rect, collider.minY ?? RECT_MIN_Y, collider.maxY ?? WALL_HEIGHT),
+      })),
+    ...manifest.buildings.flatMap(buildingWallColliders).map((box) => ({ box })),
   ];
 }
 
