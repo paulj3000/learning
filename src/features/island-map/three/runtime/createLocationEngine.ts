@@ -49,7 +49,12 @@ import type { ThreeEngineHandle } from '../ThreeGameContainer';
 import type { WorldEngineEventBus } from '../worldEngineEvents';
 import { SOURCE_WORLD_EXTENSIONS } from '../extensions';
 import type { LoadedModel, WorldExtensionMount, WorldExtensionRegistry } from './extensionRegistry';
-import type { ScaleSpec, ScenerySpec, ThreeLocationManifest } from './locationManifest';
+import type {
+  ModelAnchor,
+  ScaleSpec,
+  ScenerySpec,
+  ThreeLocationManifest,
+} from './locationManifest';
 import {
   buildingDoorPlacement,
   buildingRoofPlacement,
@@ -179,6 +184,8 @@ interface FocusTarget {
   entityId: string;
   kind: EntityKind;
   root: Object3D;
+  /** False while an extension is carrying it; see `setFocusable`. */
+  focusable: boolean;
   /** Props only: plays the authored interact clip the first time. */
   onFirstInteract?: () => void;
 }
@@ -195,6 +202,16 @@ function toBox3(bounds: BoxBounds): Box3 {
     new Vector3(bounds.minX, bounds.minY, bounds.minZ),
     new Vector3(bounds.maxX, bounds.maxY, bounds.maxZ),
   );
+}
+
+/**
+ * How far to drop a ground-pivoted model so its middle sits where the
+ * manifest put it. Zero for the default `BOTTOM` anchor, and measured from
+ * the loaded model for `CENTRE` - half its own height, after any scale.
+ */
+function centreDrop(model: Object3D, anchor: ModelAnchor | undefined): number {
+  if (anchor !== 'CENTRE') return 0;
+  return new Box3().setFromObject(model).getSize(new Vector3()).y / 2;
 }
 
 function scaleOf(scale: ScaleSpec | undefined): InstancePlacement['scale'] {
@@ -343,7 +360,7 @@ export function createLocationEngine<R extends RendererLike>(
     root.add(placeholder);
     scene.add(root);
     entityRoots.set(npc.entityId, root);
-    focusTargets.push({ entityId: npc.entityId, kind: 'NPC', root });
+    focusTargets.push({ entityId: npc.entityId, kind: 'NPC', root, focusable: true });
 
     track(
       deps.assets.loadModel(npc.assetId).then(({ scene: source, animations }) => {
@@ -396,6 +413,7 @@ export function createLocationEngine<R extends RendererLike>(
       entityId: prop.entityId,
       kind: 'PROP',
       root,
+      focusable: true,
       onFirstInteract: () => {
         if (interacted || !interactAction) return;
         interacted = true;
@@ -412,6 +430,9 @@ export function createLocationEngine<R extends RendererLike>(
     track(
       deps.assets.loadModel(assetId).then(({ scene: source, animations }) => {
         const model = source.clone(true);
+        // A wall-mounted prop's `elevation` is where its middle sits, so the
+        // ground-pivoted model drops by half its own measured height.
+        model.position.y -= centreDrop(model, prop.anchor);
         if (!addWhenLive(model, root)) return;
         const clip = prop.interactClip
           ? animations.find((candidate) => candidate.name === prop.interactClip)
@@ -441,7 +462,12 @@ export function createLocationEngine<R extends RendererLike>(
     root.position.set(collectible.position.x, collectible.elevation ?? 0, collectible.position.z);
     scene.add(root);
     entityRoots.set(collectible.entityId, root);
-    focusTargets.push({ entityId: collectible.entityId, kind: 'COLLECTIBLE', root });
+    focusTargets.push({
+      entityId: collectible.entityId,
+      kind: 'COLLECTIBLE',
+      root,
+      focusable: true,
+    });
 
     if (collectible.assetId === undefined) continue;
     const assetId = collectible.assetId;
@@ -563,11 +589,15 @@ export function createLocationEngine<R extends RendererLike>(
         track(
           deps.assets.loadModel(item.assetId).then(({ scene: source, animations }) => {
             const model = source.clone(true);
-            model.position.set(item.position.x, item.position.y, item.position.z);
             if (item.rotation)
               model.rotation.set(item.rotation.x, item.rotation.y, item.rotation.z);
             if (item.scale)
               model.scale.set(item.scale.x ?? 1, item.scale.y ?? 1, item.scale.z ?? 1);
+            model.position.set(
+              item.position.x,
+              item.position.y - centreDrop(model, item.anchor),
+              item.position.z,
+            );
             if (!addWhenLive(model, root)) return;
             if (item.idleClip) loopIdle(model, animations, item.idleClip);
           }),
@@ -625,13 +655,14 @@ export function createLocationEngine<R extends RendererLike>(
   const screenCentre = new Vector2(0, 0);
 
   function raycastFocus(): FocusTarget | null {
-    if (focusTargets.length === 0) return null;
+    const aimable = focusTargets.filter((target) => target.focusable);
+    if (aimable.length === 0) return null;
     // Raycasts read world matrices, which otherwise only refresh inside
     // `render`; a model swapped in since the last frame would be missed.
-    for (const target of focusTargets) target.root.updateMatrixWorld(true);
+    for (const target of aimable) target.root.updateMatrixWorld(true);
     raycaster.setFromCamera(screenCentre, camera);
     const hits = raycaster.intersectObjects(
-      focusTargets.map((target) => target.root),
+      aimable.map((target) => target.root),
       true,
     );
     for (const hit of hits) {
@@ -708,6 +739,10 @@ export function createLocationEngine<R extends RendererLike>(
         interceptInteract: (handler) => {
           interactHandlers.add(handler);
           return () => interactHandlers.delete(handler);
+        },
+        setFocusable: (entityId, focusable) => {
+          const target = focusTargets.find((candidate) => candidate.entityId === entityId);
+          if (target) target.focusable = focusable;
         },
         loadModel: (assetId) => deps.assets.loadModel(assetId),
         onFrame: (callback) => {

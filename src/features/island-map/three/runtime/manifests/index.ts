@@ -6,6 +6,7 @@ import { PIRATE_BUILDER_BAY_MANIFEST } from './pirateBuilderBay';
 import { WONDERWILD_FOREST_MANIFEST } from './wonderwildForest';
 import { CLOCKWORK_HARBOR_MANIFEST } from './clockworkHarbor';
 import { DRAGONS_SANCTUARY_MANIFEST } from './dragonsSanctuary';
+import { STORYKEEPER_CASTLE_MANIFEST } from './storykeeperCastle';
 
 /**
  * Every source-controlled location manifest. Adding an ordinary location
@@ -17,6 +18,7 @@ export const SOURCE_LOCATION_MANIFESTS: readonly ThreeLocationManifest[] = [
   WONDERWILD_FOREST_MANIFEST,
   CLOCKWORK_HARBOR_MANIFEST,
   DRAGONS_SANCTUARY_MANIFEST,
+  STORYKEEPER_CASTLE_MANIFEST,
 ];
 
 /** The repository the app uses today. */

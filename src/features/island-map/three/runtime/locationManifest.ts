@@ -149,6 +149,9 @@ export interface BuildingSpec {
   doorAssetId?: string;
 }
 
+/** What a model's `y` means: where it stands, or where its middle sits. */
+export type ModelAnchor = 'BOTTOM' | 'CENTRE';
+
 /** How a tiled grid meets the edges of its area; see `TILED_GROUND`. */
 export type TileCoverage = 'INSIDE' | 'COVER';
 
@@ -236,6 +239,15 @@ export type ScenerySpec = SceneryBase &
          * interactive, so this is the only animation it can have.
          */
         idleClip?: string;
+        /**
+         * What `position.y` means. `BOTTOM` (the default) stands the model
+         * on it, as every asset in the pack is ground-pivoted. `CENTRE`
+         * measures the loaded model and drops it by half its own height,
+         * which is what a *mounted* height means for a portrait or a
+         * tapestry - and measuring beats a table of authored heights that
+         * rots the first time an asset is regenerated at a new size.
+         */
+        anchor?: ModelAnchor;
       } /**
      * Many copies of one kit piece scattered deterministically through the
      * part of the region the child *cannot* walk on: a tree line, a scree
@@ -310,7 +322,15 @@ export interface PropSpec {
   rotationY?: number;
   /** Child-facing crosshair label. */
   label: string;
-  interactionId: string;
+  /**
+   * What interacting with it means. Absent means an extension owns that
+   * (`WorldExtensionContext.interceptInteract`): a plate the child picks up
+   * and a lectern they seat it in are moves inside a puzzle, not domain
+   * events, and only the finished arrangement is worth one.
+   */
+  interactionId?: string;
+  /** As on a `MODEL`: `CENTRE` drops a wall-mounted prop by half its height. */
+  anchor?: ModelAnchor;
   /** A clip played once, held on its last frame, the first time the child interacts (a chest lid opening). */
   interactClip?: string;
   /**

@@ -490,23 +490,6 @@ describe('validateLocationManifest', () => {
     ).toEqual(['DUPLICATE_BINDING', 'UNBOUND_STEP_OPTION']);
   });
 
-  it('rejects a binding into an adventure authored for another location', () => {
-    const base = validManifest();
-    expect(
-      kinds({
-        ...base,
-        adventureBindings: [
-          {
-            entityId: 'chest',
-            templateSlug: 'far-cove-tale',
-            stepId: 'pick-a-shell',
-            optionId: 'shell-pink',
-          },
-        ],
-      }),
-    ).toEqual(['UNKNOWN_ADVENTURE_STEP', 'ADVENTURE_IN_WRONG_LOCATION']);
-  });
-
   it('rejects an extension the registry does not know', () => {
     const base = validManifest();
     expect(

@@ -279,6 +279,92 @@ export function scatterPlacements(
   return placements;
 }
 
+/** Which way is "into the room" for a wall on this side of a floor. */
+const INWARD_OFFSET: Readonly<Record<WallSide, { x: number; z: number }>> = {
+  north: { x: 0, z: -1 },
+  south: { x: 0, z: 1 },
+  east: { x: -1, z: 0 },
+  west: { x: 1, z: 0 },
+};
+
+/** The centre line of a wall rect, running along its long axis. */
+export function wallCentreLine(wall: Omit<RectZone, 'id'>): {
+  from: GroundPoint;
+  to: GroundPoint;
+} {
+  const centreX = (wall.minX + wall.maxX) / 2;
+  const centreZ = (wall.minZ + wall.maxZ) / 2;
+  return wall.maxX - wall.minX >= wall.maxZ - wall.minZ
+    ? { from: { x: wall.minX, z: centreZ }, to: { x: wall.maxX, z: centreZ } }
+    : { from: { x: centreX, z: wall.minZ }, to: { x: centreX, z: wall.maxZ } };
+}
+
+/**
+ * Panel placements covering one interior wall segment exactly, on its own
+ * room-facing side (engine Phase 9, lifted from `storykeeperCastleScene.ts`).
+ *
+ * Two things in it are load-bearing rather than cosmetic:
+ *
+ * - **Each room draws its own face.** Interior wall colliders straddle the
+ *   edge they sit on, so a shared wall produces two overlapping colliders;
+ *   drawing both rooms' panels on the centre line would put two coplanar
+ *   surfaces in the same place and make them shimmer. Insetting each onto
+ *   its own side is both correct - a shared wall has two faces - and gives
+ *   the wall a readable thickness in a doorway.
+ * - **Panels are scaled to the exact quotient.** Tiling whole panels would
+ *   overhang a wall whose length is not a multiple of the panel width, and
+ *   an overhang here is not cosmetic: it grows across an archway gap and
+ *   bricks up a doorway the collider still lets the child walk through.
+ */
+export function wallPanelPlacements(
+  wall: Omit<RectZone, 'id'>,
+  side: WallSide,
+  panelWidth: number,
+  wallThickness: number,
+): InstancePlacement[] {
+  const offset = INWARD_OFFSET[side];
+  const inset = wallThickness / 2;
+  const line = wallCentreLine(wall);
+  const from = { x: line.from.x + offset.x * inset, z: line.from.z + offset.z * inset };
+  const to = { x: line.to.x + offset.x * inset, z: line.to.z + offset.z * inset };
+
+  const length = Math.hypot(to.x - from.x, to.z - from.z);
+  const segments = Math.max(1, Math.round(length / panelWidth));
+  const exactWidth = length / segments;
+
+  return runPlacements(from, to, panelWidth).map((placement) => ({
+    ...placement,
+    scale: { x: exactWidth / panelWidth },
+  }));
+}
+
+/**
+ * The yaw that turns something standing against a wall to face into its
+ * room, from which of the room's four edges it is nearest. Derived rather
+ * than authored per spot, so moving a portrait along its wall cannot leave
+ * it facing into the stonework.
+ */
+export function facingIntoRoom(spot: GroundPoint, floor: Omit<RectZone, 'id'>): number {
+  const toNorth = floor.maxZ - spot.z;
+  const toSouth = spot.z - floor.minZ;
+  const toEast = floor.maxX - spot.x;
+  const toWest = spot.x - floor.minX;
+  const nearest = Math.min(toNorth, toSouth, toEast, toWest);
+  if (nearest === toNorth) return Math.PI;
+  if (nearest === toSouth) return 0;
+  if (nearest === toEast) return -Math.PI / 2;
+  return Math.PI / 2;
+}
+
+/**
+ * The yaw that turns something at `from` to look at `to`, in the forward
+ * convention `firstPersonController.ts` uses: forward is
+ * `(sin(yaw), cos(yaw))`.
+ */
+export function yawTowards(from: GroundPoint, to: GroundPoint): number {
+  return Math.atan2(to.x - from.x, to.z - from.z);
+}
+
 /**
  * Whether a child could stand at a ground point: inside the walkable bounds
  * and in none of the manifest's own colliders.

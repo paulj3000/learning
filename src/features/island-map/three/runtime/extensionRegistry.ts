@@ -66,6 +66,13 @@ export interface WorldExtensionContext {
    * become an event once the arrangement is complete.
    */
   interceptInteract(handler: (entityId: string) => boolean): () => void;
+  /**
+   * Takes one of its entities out of the reticle's reach, or puts it back.
+   * A thing in the child's hands rides in front of the camera, so leaving it
+   * focusable would make it the nearest hit every frame and the child could
+   * never aim at anywhere to put it down.
+   */
+  setFocusable(entityId: string, focusable: boolean): void;
   /** Loads a model through the runtime's asset pipeline. */
   loadModel(assetId: string): Promise<LoadedModel>;
   /** Runs `callback` once per frame with the frame's delta in seconds. Returns an unsubscribe. */

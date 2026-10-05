@@ -124,6 +124,7 @@ export function mount(
     'PlayerEnteredZone',
     'ObjectInteracted',
     'CollectiblePickedUp',
+    'BuildActionRequested',
   ] as const) {
     bus.on(name, (detail) => events.push({ name, detail }));
   }

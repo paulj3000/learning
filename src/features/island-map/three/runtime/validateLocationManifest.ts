@@ -245,6 +245,25 @@ export function validateLocationManifest(
     }
   };
 
+  /**
+   * A prop with no interaction is one an extension owns entirely (a plate
+   * going into a socket). With no extension to own it, it is a thing the
+   * child can aim at that answers nothing.
+   */
+  const checkPropInteraction = (interactionId: string | undefined, path: string) => {
+    if (interactionId !== undefined) {
+      checkInteractionRef(interactionId, path);
+      return;
+    }
+    if (manifest.extensions.length === 0) {
+      report(
+        'UNKNOWN_INTERACTION',
+        path,
+        'no interactionId, and no extension that could own this one',
+      );
+    }
+  };
+
   const checkRequirements = (
     requirements: readonly WorldRequirement[] | undefined,
     path: string,
@@ -346,7 +365,7 @@ export function validateLocationManifest(
     claimSceneId(prop.entityId, `${path}.entityId`);
     checkEntityAsset(prop.assetId, `${path}.assetId`, prop.interactClip);
     checkInBounds(prop.position, `${path}.position`);
-    checkInteractionRef(prop.interactionId, `${path}.interactionId`);
+    checkPropInteraction(prop.interactionId, `${path}.interactionId`);
     requireText(prop.label, `${path}.label`, report);
     checkRequirements(prop.requirements, `${path}.requirements`);
     checkElevation(prop.elevation, `${path}.elevation`);
@@ -422,10 +441,17 @@ export function validateLocationManifest(
     binding type, so the regions whose tables have not moved into a manifest
     yet are checked by the same code (`adventureStepBindings.ts`).
   */
+  /*
+    What this region places, which a binding may name: its characters, its
+    props, its collectibles - and its zones, because a choice can be a place
+    you stand rather than a thing you look at (a tower window is the
+    castle's, and the reason a band that cannot aim can still answer).
+  */
   const placedEntityIds = [
     ...manifest.npcs.map((npc) => npc.entityId),
     ...manifest.props.map((prop) => prop.entityId),
     ...manifest.collectibles.map((collectible) => collectible.entityId),
+    ...manifest.zones.map((zone) => zone.rect.id),
   ];
   issues.push(
     ...findAdventureBindingIssues(manifest.adventureBindings, {
@@ -433,22 +459,13 @@ export function validateLocationManifest(
       placedEntityIds,
     }),
   );
-  manifest.adventureBindings.forEach((binding, index) => {
-    const adventure = registries.adventures.find(
-      (candidate) => candidate.slug === binding.templateSlug,
-    );
-    if (
-      adventure &&
-      manifest.locationSlug !== undefined &&
-      adventure.locationSlug !== manifest.locationSlug
-    ) {
-      report(
-        'ADVENTURE_IN_WRONG_LOCATION',
-        `adventureBindings[${index}].templateSlug`,
-        `"${adventure.slug}" is authored for "${adventure.locationSlug}", not "${manifest.locationSlug}"`,
-      );
-    }
-  });
+  /*
+    Deliberately *not* checked: that a bound adventure is authored for this
+    manifest's own location. A story arc's chapters are authored against the
+    arc rather than the room that hosts them - the castle's secret-door
+    chapters belong to `castle-secret-passage` - so a region binding them is
+    correct rather than suspect.
+  */
 
   manifest.extensions.forEach((extension, index) => {
     if (!registries.extensionIds.includes(extension.extensionId)) {
