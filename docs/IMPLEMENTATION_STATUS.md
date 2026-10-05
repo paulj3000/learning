@@ -417,7 +417,7 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 4 complete; built and unit-tested, NOT routed or seen in a browser
+## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 5 complete; Welcome Harbor 3D runs on it; NOT yet seen by a person or on a device
 
 Roadmap: `docs/engine/` (README, then `10_IMPLEMENTATION_PHASES.md`).
 Decision: ADR-025. Goal: a new ordinary 3D location needs a manifest, not a
@@ -503,28 +503,66 @@ exports `sourceLocationManifestRepository`.
   same view (acceptance A1), including a walk-in discovery that unlocks a
   gated interaction.
 
-Totals: 82 runtime tests across 9 files. The full suite is 231 files and
-2400 tests, all passing; typecheck and lint pass.
+Totals after Phase 5: 95 runtime and page tests. The full suite is 233
+files and 2413 tests, all passing; typecheck and lint pass.
 
-**Known differences from today's Welcome Harbor view (to check at Phase 5
-parity):**
+**Phase 5 (reference region migration), complete.**
+`/island/:childId/world/welcome-harbor-3d` (`WelcomeHarborWorldPage.tsx`)
+now renders `ThreeLocationWorldView` with region `welcome-harbor`, reading
+`manifests/welcomeHarbor.ts`. Semantic ids are unchanged: checkpoints
+`welcome-harbor:{dock,lookout,shed}`, entities `pirate-pip` and
+`harbor-collectible-gem`, zones `lookout-tower:interior` and
+`dockside-shed:interior`. Saved `lastCheckpointId` values keep working.
+
+Parity evidence:
+- `manifests/welcomeHarborParity.test.tsx` reruns every assertion of
+  `WelcomeHarborWorldView.test.tsx` against the generic view with the real
+  manifest and repository: loading copy, instructions, empty backpack, Pip
+  from "Things to do here", companion name, the way-out link. It adds the
+  wiring the old view had but never tested: spawn at the saved checkpoint,
+  all three checkpoint saves, both building toasts, NPC met plus
+  `NpcStateChanged`, Pip's crosshair label, and interacting with Pip.
+- `src/routes/WelcomeHarborWorldPage.test.tsx` (new): the page hands the
+  child's age band and `welcome-harbor` to the generic view, and shows an
+  error rather than the world for a missing profile.
+- Browser check (headless Chromium, SwiftShader WebGL, a throwaway harness
+  outside `src/` rendering both engines from the same checkpoint;
+  screenshots and scripts in the untracked `.tmp-verify/phase5/`):
+  - Pixel difference between old and new: dock 0.012% (the gem and Pip,
+    mid idle animation), shed 0%, lookout 0.133% (the gull alone, see
+    below).
+  - Holding W from the dock with the real keyboard controls, both engines
+    emit the same events (`welcome-harbor:dock`, then `NpcApproached`
+    `pirate-pip`) and stop at the same boundary, with identical final
+    frames.
+  - No page errors. The only console warnings were `THREE.Clock`
+    deprecations, all from the old engine; the generic one does not use
+    `Clock`.
+
+Known, intended differences from the old view:
 - Interacting with Pip opens a dialog titled "Say hello to Pip" (with a "Not
   now" button) around the same `NpcConversation`, not a bare conversation
   dialog labelled "Pip".
-- The ambient gull's cone now points along its flight path. The old scene's
-  `lookAt` discarded its intended tilt.
-- Raycast focus picks the nearest hit, rather than always preferring the NPC
-  when it and the gem overlap.
+- The ambient gull's cone points along its flight path; the old scene's
+  `lookAt` discarded its intended tilt, so it flew upright. Confirmed in the
+  lookout screenshot.
+- Raycast focus picks the nearest hit, rather than always preferring Pip
+  when he and the gem overlap.
 
-**Not done:** nothing routes to the generic view yet (Phase 6), and no
-region renders through it (Phase 5), so no child can reach it and none of
-it has been seen in a real browser or on a device. `createLocationEngine.ts`
-imports `sceneKit.fitRendererToParent`, which is part of the uncommitted
-full screen work, so it must be committed with or after that work.
+`WelcomeHarborWorldView.tsx`, `welcomeHarborScene.ts` and their test stay in
+the tree, unrouted, as the parity reference. They are removed in Phase 16
+(or earlier once a person has played the new harbour), together with
+`welcomeHarborRegion.ts` once the manifest stops importing its constants.
 
-**Next: Phase 5.** Route Welcome Harbor's 3D page through
-`ThreeLocationWorldView` with parity checks in a browser, keeping the old
-view until parity is confirmed.
+**Still not verified:** a person playing it in a real browser and on a
+tablet (touch controls, pointer lock, the conversation dialog end to end
+against a real backend). Headless SwiftShader proves rendering, collision
+and events, not feel.
+
+**Next: Phase 6.** One generic route
+(`/island/:childId/location/:regionId` or the closest existing shape) for
+every manifest-driven location, with `world/welcome-harbor-3d` kept as a
+redirect.
 
 ## First-person controls no longer scroll the page — unit-tested; NOT yet checked on a device
 

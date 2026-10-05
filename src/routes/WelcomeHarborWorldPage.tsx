@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { IslandLayout } from '../features/island/IslandLayout';
-import { WelcomeHarborWorldView } from '../features/island-map/three/WelcomeHarborWorldView';
+import { ThreeLocationWorldView } from '../features/island-map/three/runtime/ThreeLocationWorldView';
+import { WELCOME_HARBOR_REGION_ID } from '../features/discovery/checkpoints';
 import { getChildProfile } from '../features/child-profile/api';
 import type { AgeBandValue } from '../features/child-profile/constants';
 
@@ -20,6 +21,13 @@ const DEFAULT_AGE_BAND: AgeBandValue = 'SPROUT';
  * confirms the child profile exists and resolves their age band before
  * handing off to the view, since the region's one NPC conversation is
  * age-gated the same way every other explorable region's is.
+ *
+ * Since engine Phase 5 (`docs/engine/10_IMPLEMENTATION_PHASES.md`, ADR-025)
+ * the view is the generic `ThreeLocationWorldView` reading Welcome Harbor's
+ * manifest (`three/runtime/manifests/welcomeHarbor.ts`), the reference
+ * migration. `WelcomeHarborWorldView`/`welcomeHarborScene.ts` stay in the
+ * tree, unrouted, until the parity notes in `docs/IMPLEMENTATION_STATUS.md`
+ * are signed off; Phase 6 then folds this page into the generic route.
  */
 export function WelcomeHarborWorldPage() {
   const { childId } = useParams<{ childId: string }>();
@@ -74,7 +82,11 @@ export function WelcomeHarborWorldPage() {
 
   return (
     <IslandLayout childId={childId}>
-      <WelcomeHarborWorldView childId={childId} ageBand={ageBand} />
+      <ThreeLocationWorldView
+        childId={childId}
+        regionId={WELCOME_HARBOR_REGION_ID}
+        ageBand={ageBand}
+      />
     </IslandLayout>
   );
 }
