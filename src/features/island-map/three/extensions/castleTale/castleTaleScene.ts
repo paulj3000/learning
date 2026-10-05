@@ -78,11 +78,44 @@ const DOORWAY_GLOW_INTENSITY = 7;
 const CARRY_FORWARD_METERS = 0.55;
 const CARRY_DROP_METERS = 0.5;
 
+/**
+ * The state variants this extension places that its config does not name:
+ * each is the one asset of its kind in the castle, so it stays a constant
+ * rather than a config field. Declared through `assetIds` with the config's
+ * own portraits and windows and every easel layer.
+ */
+const CASTLE_TALE_ASSETS = {
+  hearth: 'hearth',
+  hearthLit: 'hearth-lit',
+  shelfSlotEmpty: 'shelf-slot-empty',
+  storyBookShelved: 'story-book-shelved',
+  carpet: 'carpet',
+  secretDoor: 'secret-door',
+  secretDoorAjar: 'secret-door-ajar',
+  carvingWorn: 'carving-worn',
+  carvingWornRevealed: 'carving-worn-revealed',
+  bookshelf: 'bookshelf',
+  bookshelfAjar: 'bookshelf-ajar',
+} as const;
+
+const EASEL_LAYER_ASSET_IDS: readonly string[] = [
+  ...new Set(EASEL_CANVASES.flatMap((entry) => [entry.settingAssetId, entry.heroAssetId])),
+];
+
 const yawTowards = (from: { x: number; z: number }, to: { x: number; z: number }) =>
   Math.atan2(to.x - from.x, to.z - from.z);
 
 export const castleTaleExtension: WorldExtension = {
   id: CASTLE_TALE_EXTENSION_ID,
+  assetIds(rawConfig) {
+    const config = tryParseCastleTaleConfig(rawConfig);
+    if (!config) return [];
+    return [
+      ...Object.values(CASTLE_TALE_ASSETS),
+      ...[...config.portraits, ...config.windows].flatMap((pair) => [pair.plain, pair.lit]),
+      ...EASEL_LAYER_ASSET_IDS,
+    ];
+  },
   mount(context: WorldExtensionContext) {
     const parsed = tryParseCastleTaleConfig(context.config);
     if (!parsed) {
@@ -342,14 +375,18 @@ export const castleTaleExtension: WorldExtension = {
 
       // Beat 8: the hearth lit, the book on the shelf, the carpet running on.
       const [hearth, hearthLit] = await Promise.all([
-        place('hearth', config.hearth, 0),
-        place('hearth-lit', config.hearth, 0),
+        place(CASTLE_TALE_ASSETS.hearth, config.hearth, 0),
+        place(CASTLE_TALE_ASSETS.hearthLit, config.hearth, 0),
       ]);
       if (hearth && hearthLit) toldVariants.push({ told: hearthLit, untold: hearth });
 
       const [slotEmpty, shelved] = await Promise.all([
-        place('shelf-slot-empty', config.shelfSlot, config.shelfSlot.yaw, { centre: true }),
-        place('story-book-shelved', config.shelfSlot, config.shelfSlot.yaw, { centre: true }),
+        place(CASTLE_TALE_ASSETS.shelfSlotEmpty, config.shelfSlot, config.shelfSlot.yaw, {
+          centre: true,
+        }),
+        place(CASTLE_TALE_ASSETS.storyBookShelved, config.shelfSlot, config.shelfSlot.yaw, {
+          centre: true,
+        }),
       ]);
       if (slotEmpty && shelved) toldVariants.push({ told: shelved, untold: slotEmpty });
 
@@ -358,7 +395,7 @@ export const castleTaleExtension: WorldExtension = {
       loaded.push(carpetExtension);
       await Promise.all(
         config.carpetExtension.map((tile) =>
-          place('carpet', tile, tile.rotationY, { parent: carpetExtension }),
+          place(CASTLE_TALE_ASSETS.carpet, tile, tile.rotationY, { parent: carpetExtension }),
         ),
       );
       // An extension with no "before" state: an empty object stands in for
@@ -375,25 +412,31 @@ export const castleTaleExtension: WorldExtension = {
       const doorRoot = context.entityRoot('secret-door');
       if (doorRoot) {
         const [shut, ajar] = await Promise.all([
-          place('secret-door', { x: 0, z: 0 }, 0, { centre: true, parent: doorRoot }),
-          place('secret-door-ajar', { x: 0, z: 0 }, 0, { centre: true, parent: doorRoot }),
+          place(CASTLE_TALE_ASSETS.secretDoor, { x: 0, z: 0 }, 0, {
+            centre: true,
+            parent: doorRoot,
+          }),
+          place(CASTLE_TALE_ASSETS.secretDoorAjar, { x: 0, z: 0 }, 0, {
+            centre: true,
+            parent: doorRoot,
+          }),
         ]);
         if (shut && ajar) openedVariants.push({ opened: ajar, shut });
       }
 
       const [worn, revealed] = await Promise.all([
-        place('carving-worn', config.wornCarving, config.wornCarving.yaw, {
+        place(CASTLE_TALE_ASSETS.carvingWorn, config.wornCarving, config.wornCarving.yaw, {
           rotationX: -Math.PI / 2,
         }),
-        place('carving-worn-revealed', config.wornCarving, config.wornCarving.yaw, {
+        place(CASTLE_TALE_ASSETS.carvingWornRevealed, config.wornCarving, config.wornCarving.yaw, {
           rotationX: -Math.PI / 2,
         }),
       ]);
       if (worn && revealed) openedVariants.push({ opened: revealed, shut: worn });
 
       const [shelfShut, shelfAjar] = await Promise.all([
-        place('bookshelf', config.lastBookshelf, config.lastBookshelf.yaw),
-        place('bookshelf-ajar', config.lastBookshelf, config.lastBookshelf.yaw),
+        place(CASTLE_TALE_ASSETS.bookshelf, config.lastBookshelf, config.lastBookshelf.yaw),
+        place(CASTLE_TALE_ASSETS.bookshelfAjar, config.lastBookshelf, config.lastBookshelf.yaw),
       ]);
       if (shelfShut && shelfAjar) openedVariants.push({ opened: shelfAjar, shut: shelfShut });
 
@@ -404,10 +447,7 @@ export const castleTaleExtension: WorldExtension = {
 
       // Beat 7: every canvas layer, loaded up front and hidden until a story
       // earns one, so the picture costs no fetch at the moment it is painted.
-      const layerIds = new Set(
-        EASEL_CANVASES.flatMap((entry) => [entry.settingAssetId, entry.heroAssetId]),
-      );
-      for (const assetId of layerIds) {
+      for (const assetId of EASEL_LAYER_ASSET_IDS) {
         const layer = await place(assetId, { x: 0, y: EASEL_PAGE_ORIGIN.y, z: 0 }, 0, {
           parent: easelGroup,
         });

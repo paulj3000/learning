@@ -1750,6 +1750,34 @@ construction-time options the per-region engine took. A manifest-built scene
 has no equivalent, so restored session state is applied by an effect as soon
 as the scene exists, which is idempotent and order-independent.
 
+**Decision, part K: an asset id reaches a loader only through a resolver,
+and an extension declares what it loads.** Engine Phase 10 (asset
+integration cleanup). Three rules:
+
+1. `AssetResolver` (`three/assets/assetResolver.ts`) is the one step between
+   an id and a url. `assetLoader.ts` is now `createAssetLoader(resolver)`,
+   and the module-level functions every scene calls are one loader bound to
+   `BUNDLED_ASSET_RESOLVER`. `assetService.ts`'s published-slug lookup is
+   the second resolver, `PUBLISHED_ASSET_RESOLVER`. It is **not** handed to
+   the child's scene. `Asset` is Admins-only until the asset manager's
+   publishing phase gives parents a published-only read path (ADR-022), and
+   before then it would add a lookup that always fails to every scene load.
+   When that path exists, switching is one line in `assetLoader.ts`.
+2. A world extension declares `assetIds(config)`. The validator checks those
+   ids against the catalogue like the manifest's own, and the runtime
+   rejects `loadModel` for any id the binding did not declare. Enforcing it
+   is what makes the declaration trustworthy enough to drive (3).
+3. Per-location asset usage is derived from manifests and declarations
+   (`runtime/locationAssetUsage.ts`), not kept by hand. The admin Island
+   page's "Scene models" now covers every 3D location rather than Pirate
+   Builder Bay alone, and the same index is what a future delete guard on
+   `Asset` will read (`docs/engine/06_ASSET_SYSTEM.md` "Admin Asset Usage").
+
+No new asset model (acceptance AS1): `Asset`/`AssetVersion` are unchanged,
+and a published `Asset.slug` still shares its namespace with the bundled
+catalogue's ids. Hard-coded asset paths are confined to the bundled
+catalogue, and `noHardCodedAssetUrls.test.ts` keeps them there.
+
 **Not checked for an adventure binding:** that the bound adventure is
 authored for the manifest's own location. A story arc's chapters belong to
 the arc rather than the room that hosts them (the castle's are authored for

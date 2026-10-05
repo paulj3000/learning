@@ -257,13 +257,27 @@ describe('AdminIslandDetail', () => {
     ).toHaveTextContent('Character');
   });
 
-  it('says when an island has no catalogued scene models', async () => {
-    api.getIsland.mockResolvedValue(DRAGONS);
+  it('lists the models an extension loads as well as the manifest’s own', async () => {
+    api.getIsland.mockResolvedValue(
+      island({ id: 'castle', slug: 'storykeeper-castle', name: 'Storykeeper Castle' }),
+    );
     api.listAdventuresByIsland.mockResolvedValue([]);
-    renderRoutes('/admin/islands/dragons');
+    renderRoutes('/admin/islands/castle');
+
+    const table = await screen.findByRole('table', { name: 'Scene models on Storykeeper Castle' });
+    // `hearth-lit` appears only once a story is told, placed by `castle-tale`.
+    expect(within(table).getByRole('rowheader', { name: 'hearth-lit' })).toBeInTheDocument();
+  });
+
+  it('says when an island has no 3D scene', async () => {
+    api.getIsland.mockResolvedValue(
+      island({ id: 'fossils', slug: 'fossil-ridge-camp', name: 'Fossil Ridge Camp' }),
+    );
+    api.listAdventuresByIsland.mockResolvedValue([]);
+    renderRoutes('/admin/islands/fossils');
 
     expect(
-      await screen.findByText("The models for this island's scene have not been catalogued yet."),
+      await screen.findByText('This island has no 3D scene yet, so it loads no models.'),
     ).toBeInTheDocument();
     expect(screen.queryByRole('table', { name: /Scene models/ })).not.toBeInTheDocument();
   });

@@ -2,6 +2,7 @@ import type { WorldAction, WorldInteraction, WorldRequirement } from '../../worl
 import {
   LOCATION_MANIFEST_SCHEMA_VERSION,
   type CollectibleSpec,
+  type ExtensionBinding,
   type GroundPoint,
   type RectZone,
   type ThreeLocationManifest,
@@ -44,6 +45,12 @@ export interface LocationManifestRegistries {
   storySlugs: readonly string[];
   /** Ids registered in the world-extension registry. */
   extensionIds: readonly string[];
+  /**
+   * The asset ids an extension binding declares it loads
+   * (`WorldExtension.assetIds`, engine Phase 10), checked like the
+   * manifest's own. Absent means no extension declares any.
+   */
+  extensionAssetIds?(binding: ExtensionBinding): readonly string[];
 }
 
 export type LocationManifestIssueKind =
@@ -474,6 +481,9 @@ export function validateLocationManifest(
         `extensions[${index}].extensionId`,
         `no registered extension "${extension.extensionId}"`,
       );
+    }
+    for (const assetId of registries.extensionAssetIds?.(extension) ?? []) {
+      checkAsset(assetId, `extensions[${index}].config`);
     }
   });
 

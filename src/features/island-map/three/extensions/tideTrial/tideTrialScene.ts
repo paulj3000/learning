@@ -11,7 +11,7 @@ import {
 } from 'three';
 import { TIDE_BOARD, TIDE_DURATION_MS, tideLevelAt } from '../../../tideTrial';
 import type { WorldExtension, WorldExtensionMount } from '../../runtime/extensionRegistry';
-import { parseTideTrialConfig } from './tideTrialConfig';
+import { parseTideTrialConfig, tryParseTideTrialConfig } from './tideTrialConfig';
 
 export const TIDE_TRIAL_EXTENSION_ID = 'tide-trial';
 
@@ -96,6 +96,10 @@ function drawTideBoard(heightMeters: number): CanvasTexture | null {
 
 export const tideTrialSceneExtension: WorldExtension = {
   id: TIDE_TRIAL_EXTENSION_ID,
+  assetIds(config) {
+    const parsed = tryParseTideTrialConfig(config);
+    return parsed ? [parsed.plankAssetId] : [];
+  },
   mount(context): WorldExtensionMount {
     const config = parseTideTrialConfig(context.config);
     const channelSpec = context.manifest.scenery.find(

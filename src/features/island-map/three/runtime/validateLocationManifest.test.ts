@@ -497,6 +497,28 @@ describe('validateLocationManifest', () => {
     ).toEqual(['UNKNOWN_EXTENSION']);
   });
 
+  it('checks the assets an extension declares against the catalogue (AS3, engine Phase 10)', () => {
+    const base = validManifest();
+    const lantern = (asset: string) => ({
+      ...base,
+      extensions: [{ extensionId: 'tide-lantern', config: { asset } }],
+    });
+    const registries: LocationManifestRegistries = {
+      ...REGISTRIES,
+      extensionIds: [...REGISTRIES.extensionIds, 'tide-lantern'],
+      extensionAssetIds: (binding) => [String(binding.config.asset)],
+    };
+
+    expect(validateLocationManifest(lantern('gem'), registries)).toEqual([]);
+    expect(validateLocationManifest(lantern('lantern-typo'), registries)).toEqual([
+      {
+        kind: 'UNKNOWN_ASSET',
+        path: 'extensions[0].config',
+        detail: 'no asset "lantern-typo"',
+      },
+    ]);
+  });
+
   it('rejects empty child-facing copy', () => {
     const base = validManifest();
     expect(kinds({ ...base, copy: { ...base.copy, instructions: '' } })).toEqual(['MISSING_COPY']);

@@ -722,6 +722,10 @@ export function createLocationEngine<R extends RendererLike>(
       console.warn(`[location ${manifest.regionId}] unknown extension ${binding.extensionId}`);
       continue;
     }
+    // What this binding declared it loads (engine Phase 10). Enforced here so
+    // the validator and the usage index, which read the declaration, can
+    // never disagree with what the extension really fetches.
+    const declaredAssetIds = new Set(extension.assetIds?.(binding.config) ?? []);
     try {
       const mounted = extension.mount({
         scene,
@@ -744,7 +748,14 @@ export function createLocationEngine<R extends RendererLike>(
           const target = focusTargets.find((candidate) => candidate.entityId === entityId);
           if (target) target.focusable = focusable;
         },
-        loadModel: (assetId) => deps.assets.loadModel(assetId),
+        loadModel: (assetId) =>
+          declaredAssetIds.has(assetId)
+            ? deps.assets.loadModel(assetId)
+            : Promise.reject(
+                new Error(
+                  `extension ${binding.extensionId} loaded "${assetId}" without declaring it in assetIds`,
+                ),
+              ),
         onFrame: (callback) => {
           frameCallbacks.add(callback);
           return () => frameCallbacks.delete(callback);

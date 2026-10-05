@@ -1,6 +1,6 @@
 import { getUrl } from 'aws-amplify/storage';
 import { client } from '../../lib/data-client';
-import { getAssetManifestEntry } from '../island-map/three/assets/manifest';
+import { resolveBundledAsset, type AssetResolver } from '../island-map/three/assets/assetResolver';
 import type { Asset, AssetVersion } from './types';
 
 /**
@@ -15,10 +15,13 @@ import type { Asset, AssetVersion } from './types';
  * refused, and a refused lookup has to degrade to "use what ships with the
  * app", never to a broken scene.
  *
- * What is deliberately not here yet: `assetLoader.ts` still loads straight
- * from the bundled `ASSET_MANIFEST` and does not call `resolveModelUrl`.
- * Wiring it in before Phase 5 gives parents a published-only read path would
- * add a guaranteed-to-fail network call to every child's scene load.
+ * `PUBLISHED_ASSET_RESOLVER` is this file's `AssetResolver`
+ * (`src/features/island-map/three/assets/assetResolver.ts`, engine Phase
+ * 10), so the 3D runtime can take it without knowing any of the above. What
+ * is deliberately not done yet is handing it to the child's scene: until
+ * Phase 5 gives parents a published-only read path, it would add a
+ * guaranteed-to-fail network call to every child's scene load, so
+ * `assetLoader.ts` stays on the bundled resolver.
  */
 
 /** Signed S3 URLs stay valid this long; long enough for a slow GLB download to finish. */
@@ -92,21 +95,29 @@ async function findPublishedAssetBySlug(slug: string): Promise<Asset | null> {
 }
 
 /**
- * The runtime URL for a model the game knows by its bundled manifest id.
+ * Resolves a model the game knows by its bundled manifest id.
  *
  * A published asset whose `slug` equals the manifest id wins, so a new
  * model can replace a bundled one without editing scene code. Anything
  * else (no such asset, not published, not authorized, S3 unreachable)
  * falls back to the file that ships in `public/models/`, which keeps every
- * region playable offline. Throws only for an id the manifest does not
+ * region playable offline. Rejects only for an id the manifest does not
  * know, which is an authoring error, exactly as `getAssetManifestEntry` does.
  */
+export const PUBLISHED_ASSET_RESOLVER: AssetResolver = {
+  async resolve(id) {
+    const bundled = resolveBundledAsset(id);
+    const published = await findPublishedAssetBySlug(id);
+    if (published) {
+      const url = await getAssetUrl(published);
+      if (url) return { id, url, source: 'PUBLISHED' };
+    }
+    return bundled;
+  },
+};
+
+/** The runtime URL for a model the game knows by its bundled manifest id. */
 export async function resolveModelUrl(manifestId: string): Promise<string> {
-  const bundled = getAssetManifestEntry(manifestId);
-  const published = await findPublishedAssetBySlug(manifestId);
-  if (published) {
-    const url = await getAssetUrl(published);
-    if (url) return url;
-  }
-  return bundled.url;
+  const resolved = await PUBLISHED_ASSET_RESOLVER.resolve(manifestId);
+  return resolved.url;
 }

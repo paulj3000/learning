@@ -7,7 +7,7 @@ import { ISLAND_LOCATIONS } from '../../../island/locations';
 import { ADVENTURE_TEMPLATES } from '../../../adventures/content';
 import { STORY_DEFINITIONS } from '../../../story/content';
 import { ALL_ITEMS } from '../../../rewards/content';
-import { SOURCE_EXTENSION_IDS } from '../extensions';
+import { SOURCE_EXTENSION_IDS, SOURCE_WORLD_EXTENSIONS } from '../extensions';
 import type { LocationManifestRegistries } from './validateLocationManifest';
 
 /**
@@ -18,7 +18,9 @@ import type { LocationManifestRegistries } from './validateLocationManifest';
  *
  * `extensionIds` comes from the shipped extension registries
  * (`../extensions/index.ts`), so a manifest naming an unregistered
- * mechanic fails validation.
+ * mechanic fails validation, and `extensionAssetIds` asks the registered
+ * scene half what a binding loads, so a typo in an extension's config fails
+ * here rather than as a missing model mid-visit.
  */
 export const SOURCE_MANIFEST_REGISTRIES: LocationManifestRegistries = {
   assets: ASSET_MANIFEST,
@@ -31,4 +33,6 @@ export const SOURCE_MANIFEST_REGISTRIES: LocationManifestRegistries = {
   storySlugs: STORY_DEFINITIONS.map((story) => story.slug),
   itemIds: ALL_ITEMS.map((item) => item.id),
   extensionIds: SOURCE_EXTENSION_IDS,
+  extensionAssetIds: (binding) =>
+    SOURCE_WORLD_EXTENSIONS.get(binding.extensionId)?.assetIds?.(binding.config) ?? [],
 };

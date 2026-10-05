@@ -73,7 +73,11 @@ export interface WorldExtensionContext {
    * never aim at anywhere to put it down.
    */
   setFocusable(entityId: string, focusable: boolean): void;
-  /** Loads a model through the runtime's asset pipeline. */
+  /**
+   * Loads a model through the runtime's asset pipeline. Only ids the
+   * extension declared in `assetIds` for this binding: anything else rejects,
+   * so a declaration can never quietly fall behind what is really loaded.
+   */
   loadModel(assetId: string): Promise<LoadedModel>;
   /** Runs `callback` once per frame with the frame's delta in seconds. Returns an unsubscribe. */
   onFrame(callback: (deltaSeconds: number) => void): () => void;
@@ -97,6 +101,15 @@ export interface WorldExtensionMount {
 
 export interface WorldExtension {
   id: string;
+  /**
+   * Every asset id this extension may load for a binding with `config`
+   * (engine Phase 10). The manifest validator checks them against the asset
+   * catalogue and the usage index counts them, exactly as it does the
+   * manifest's own `assetId`s. Omit it for an extension that loads nothing.
+   * Must not throw: an unreadable config declares nothing, and `mount` is
+   * where that is reported.
+   */
+  assetIds?(config: { readonly [key: string]: JsonValue }): readonly string[];
   mount(context: WorldExtensionContext): WorldExtensionMount | void;
 }
 

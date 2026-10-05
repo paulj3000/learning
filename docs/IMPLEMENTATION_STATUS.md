@@ -417,7 +417,7 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 9 complete; every 3D region runs on the generic route; NOT yet seen by a person or on a device
+## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 10 complete; every 3D region runs on the generic route; NOT yet seen by a person or on a device
 
 Roadmap: `docs/engine/` (README, then `10_IMPLEMENTATION_PHASES.md`).
 Decision: ADR-025. Goal: a new ordinary 3D location needs a manifest, not a
@@ -932,11 +932,70 @@ concurrency the heavier jsdom files time their workers out, which looks like
 failures and is not (`ModelUploadWizard.test.tsx` flaked that way on the
 last full run and passes alone).
 
-**Next: Phase 10** (asset integration cleanup), then Phase 11's Admin
-location editor. Phase 16's legacy removal is when the six unrouted
-per-region views and scenes come out of the tree - they stay for now as the
-parity reference, which is what every migration in this phase was checked
-against.
+**Phase 10 (asset integration cleanup), complete.** ADR-025 part K. Asset
+ids now go through one resolver, extensions declare what they load, and
+which location uses which asset comes from the manifests.
+
+- `three/assets/assetResolver.ts` (new): `AssetResolver` and
+  `BUNDLED_ASSET_RESOLVER`, the one step from an asset id to a url
+  (acceptance AS2). `assetLoader.ts` is now `createAssetLoader(resolver,
+  fetchGltf)`. Its module-level `loadAsset`/`instantiateAsset`/
+  `createInstancedMeshFromAsset`/`instantiateWithLod` are one loader bound
+  to the bundled resolver, so no caller changed.
+- `src/features/assets/assetService.ts`: the published-slug lookup is now
+  `PUBLISHED_ASSET_RESOLVER`, and `resolveModelUrl` is built on it.
+  **Deliberately not wired into the child's scene**: `Asset` is
+  Admins-only until the asset manager's Phase 5 adds a published-only read
+  path for parents (`docs/android/ASSET_MANAGEMENT.md`, open decision), so
+  wiring it now would add a lookup that always fails to every scene load.
+- `WorldExtension.assetIds(config)` (new). `castle-tale` declares its state
+  variants, portraits, windows and easel layers. `tide-trial` declares its
+  plank. The engine rejects `loadModel` for an id the binding did not
+  declare, and the validator checks declared ids against the catalogue
+  (`extensions[i].config`, `UNKNOWN_ASSET`), so a typo in extension config
+  fails validation rather than appearing as a missing model during a visit
+  (AS3). The castle's hard-coded variant ids now sit in one
+  `CASTLE_TALE_ASSETS` constant.
+- `runtime/locationAssetUsage.ts` (new) derives each location's asset ids
+  from its manifest, its extensions' declarations and LOD pairs.
+  `sourceLocationAssetUsage.ts` applies that to the shipped content. The
+  admin Island page's "Scene models" reads it, so it now covers all six 3D
+  locations instead of Pirate Builder Bay alone. The hand-kept
+  `assets/sceneAssets.ts` (and its grep-the-scene-file test) is deleted.
+- Hard-coded urls: an audit found none outside the bundled catalogue
+  (`assets/manifest.ts`). `noHardCodedAssetUrls.test.ts` now fails if a
+  `/models/`, `/textures/` or `/audio/` literal appears anywhere else in
+  `src/`, or if any file names an S3, CloudFront or Amplify host.
+- AS1: no new asset model. `Asset`/`AssetVersion` are unchanged.
+
+Tests: `assetResolver.test.ts` (bundled resolution for every catalogue id;
+the loader fetches whatever url the resolver returns, resolves each id
+once, never fetches an id the resolver refuses, and resolves both halves of
+an LOD pair through it), `PUBLISHED_ASSET_RESOLVER` reporting its source,
+an engine case for the declared-assets rule, a validator case for extension
+assets, `locationAssetUsage.test.ts` (every reference kind, de-duplication,
+regions per asset, shipped manifests reference only known assets, the
+castle's extension-only assets counted, the hub found by region id), the url
+guard, and two admin page cases (an extension-only model listed; an island
+with no 3D scene). Full suite: 254 files and 2687 tests, all passing (up
+from 252 and 2672); typecheck, lint, format and build pass. Not looked at in
+a browser, though no rendering path changed: every scene still loads the
+same bundled files.
+
+Not done, on purpose:
+- Environment GLBs (`AssetType.ENVIRONMENT`), character modularity and
+  semantic attachment points (`06_ASSET_SYSTEM.md`). No manifest needs them
+  yet, so there is nothing to integrate.
+- A delete guard on `Asset`. Admins cannot delete an asset yet (the only
+  `Asset.delete` is the upload wizard's rollback). When they can,
+  `getSourceAssetUsage()` is the dependency check to call.
+- The unrouted per-region scenes still call the bundled loader directly.
+  They go in Phase 16.
+
+**Next: Phase 11** (Admin location editor v1). Phase 16's legacy removal is
+when the six unrouted per-region views and scenes come out of the tree.
+They stay for now as the parity reference, which is what every migration in
+Phase 9 was checked against.
 
 ## First-person controls no longer scroll the page — unit-tested; NOT yet checked on a device
 
@@ -998,7 +1057,9 @@ overlay on source-controlled content, `Superusers` group, delete guard,
   the island's 3D scene loads (id, kind, file under `public/models/`),
   from `SCENE_ASSET_IDS` in
   `src/features/island-map/three/assets/sceneAssets.ts`. Only Pirate
-  Builder Bay is catalogued; other islands say so. These are the static
+  Builder Bay is catalogued; other islands say so. *(Superseded by engine
+  Phase 10: the list is now derived from every location manifest, and
+  `sceneAssets.ts` is gone.)* These are the static
   manifest models, not S3 `Asset` records, so nothing here is editable.
 - Domain logic in `src/features/catalog/` (availability, validation,
   import plan, delete guard, template-to-island mapping); data service in

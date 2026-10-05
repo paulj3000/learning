@@ -1,4 +1,4 @@
-import { getSceneAssets } from '../../island-map/three/assets/sceneAssets';
+import { getLocationAssets } from '../../island-map/three/runtime/sourceLocationAssetUsage';
 import type { AssetKind } from '../../island-map/three/assets/manifest';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/Table';
@@ -12,7 +12,8 @@ const KIND_LABELS: Record<AssetKind, string> = {
 
 /**
  * The Scene models section of an island's admin page: the models its 3D
- * scene loads, read from `SCENE_ASSET_IDS` and the asset manifest. Read-only
+ * scene loads, derived from the island's location manifest (and what its
+ * extensions declare) rather than a hand-kept list (engine Phase 10). Read-only
  * on purpose. These files ship with the app in `public/models/`, not in the
  * S3-backed asset manager, so there is nothing here an admin can change.
  */
@@ -23,7 +24,7 @@ export function SceneModelList({
   islandSlug: string;
   islandName: string;
 }) {
-  const entries = getSceneAssets(islandSlug);
+  const entries = getLocationAssets(islandSlug);
 
   return (
     <Card>
@@ -35,7 +36,7 @@ export function SceneModelList({
       <CardContent className="grid gap-3">
         {entries === undefined ? (
           <p className="text-sm text-muted-foreground">
-            The models for this island&apos;s scene have not been catalogued yet.
+            This island has no 3D scene yet, so it loads no models.
           </p>
         ) : (
           <>

@@ -23,6 +23,7 @@ import {
   getCurrentVersion,
   getPublishedAsset,
   listModelAssets,
+  PUBLISHED_ASSET_RESOLVER,
   resolveModelUrl,
 } from './assetService';
 import type { Asset } from './types';
@@ -141,5 +142,23 @@ describe('resolveModelUrl', () => {
   it('still throws for an id the bundled manifest does not know', async () => {
     await expect(resolveModelUrl('no-such-asset')).rejects.toThrow();
     expect(assetList).not.toHaveBeenCalled();
+  });
+});
+
+describe('PUBLISHED_ASSET_RESOLVER', () => {
+  it('says which source won, so a caller can tell a stand-in from the bundled file', async () => {
+    assetList.mockResolvedValue({ data: [asset()] });
+    await expect(PUBLISHED_ASSET_RESOLVER.resolve('rock')).resolves.toEqual({
+      id: 'rock',
+      url: 'https://bucket.example/signed',
+      source: 'PUBLISHED',
+    });
+
+    assetList.mockRejectedValue(new Error('Unauthorized'));
+    await expect(PUBLISHED_ASSET_RESOLVER.resolve('rock')).resolves.toEqual({
+      id: 'rock',
+      url: '/models/kenney-rock-small.glb',
+      source: 'BUNDLED',
+    });
   });
 });

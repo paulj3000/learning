@@ -387,6 +387,45 @@ describe('createLocationEngine: extensions', () => {
     expect(harness.camera().position.z).toBeLessThan(9.5);
   });
 
+  it('loads only the assets an extension declared for its binding (engine Phase 10)', async () => {
+    const loaded: string[] = [];
+    let attempt: Promise<[PromiseSettledResult<LoadedModel>, PromiseSettledResult<LoadedModel>]> =
+      Promise.reject(new Error('extension never mounted'));
+    mount({
+      manifest: {
+        ...WELCOME_HARBOR_MANIFEST,
+        extensions: [{ extensionId: 'test-lamp', config: { lamp: 'rock' } }],
+      },
+      loadModel: (assetId) => {
+        loaded.push(assetId);
+        return Promise.resolve(standingBox());
+      },
+      extensions: [
+        {
+          id: 'test-lamp',
+          assetIds: (config) => [String(config.lamp)],
+          mount: (context) => {
+            attempt = Promise.allSettled([
+              context.loadModel('rock'),
+              context.loadModel('treasure-chest'),
+            ]);
+          },
+        },
+      ],
+    });
+
+    const [declared, undeclared] = await attempt;
+    expect(declared.status).toBe('fulfilled');
+    expect(undeclared).toMatchObject({
+      status: 'rejected',
+      reason: expect.objectContaining({
+        message: expect.stringContaining('without declaring it'),
+      }),
+    });
+    expect(loaded).toContain('rock');
+    expect(loaded).not.toContain('treasure-chest');
+  });
+
   it('skips an unknown extension instead of failing the region', () => {
     const harness = mount({
       manifest: {
