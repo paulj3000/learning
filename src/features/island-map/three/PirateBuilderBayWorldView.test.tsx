@@ -6,8 +6,21 @@ import type { AgeBandValue } from '../../child-profile/constants';
 import { PirateBuilderBayWorldView } from './PirateBuilderBayWorldView';
 import { REPAIR_THE_MOONLIGHT_BRIDGE } from '../../adventures/content/repairTheMoonlightBridge';
 
+const fakeTideTrial = vi.hoisted(() => ({
+  begin: vi.fn(),
+  setDeckHeight: vi.fn(),
+  runTide: vi.fn(() => Promise.resolve()),
+  rebuild: vi.fn(),
+  complete: vi.fn(),
+  cancel: vi.fn(),
+}));
+
 vi.mock('./pirateBuilderBayScene', () => ({
-  createPirateBuilderBayEngine: vi.fn(() => ({ dispose: vi.fn(), interact: vi.fn() })),
+  createPirateBuilderBayEngine: vi.fn(() => ({
+    dispose: vi.fn(),
+    interact: vi.fn(),
+    tideTrial: fakeTideTrial,
+  })),
 }));
 
 /**
@@ -27,6 +40,7 @@ vi.mock('../NpcConversation', () => ({
 vi.mock('../../adventures/api', () => ({
   listAllWorldChanges: vi.fn(),
   resumeOrStartSession: vi.fn(),
+  recordWorldChangeOnce: vi.fn(),
 }));
 
 vi.mock('../../discovery/api', () => ({
@@ -49,7 +63,11 @@ vi.mock('../../island/api', () => ({
   getCompanionProfile: vi.fn(),
 }));
 
-import { listAllWorldChanges, resumeOrStartSession } from '../../adventures/api';
+import {
+  listAllWorldChanges,
+  recordWorldChangeOnce,
+  resumeOrStartSession,
+} from '../../adventures/api';
 import { getWorldState, recordCharacterMet, saveCheckpoint } from '../../discovery/api';
 import { getInventory } from '../../rewards/api';
 import { listQuestStates } from '../../quests/api';
@@ -57,6 +75,7 @@ import { getCompanionProfile } from '../../island/api';
 
 const listAllWorldChangesMock = vi.mocked(listAllWorldChanges);
 const resumeOrStartSessionMock = vi.mocked(resumeOrStartSession);
+const recordWorldChangeOnceMock = vi.mocked(recordWorldChangeOnce);
 const getWorldStateMock = vi.mocked(getWorldState);
 const recordCharacterMetMock = vi.mocked(recordCharacterMet);
 const saveCheckpointMock = vi.mocked(saveCheckpoint);
@@ -91,6 +110,9 @@ describe('PirateBuilderBayWorldView', () => {
     getInventoryMock.mockReset();
     listQuestStatesMock.mockReset();
     getCompanionProfileMock.mockReset();
+    recordWorldChangeOnceMock.mockReset();
+    recordWorldChangeOnceMock.mockResolvedValue(undefined);
+    Object.values(fakeTideTrial).forEach((fn) => fn.mockClear());
 
     listAllWorldChangesMock.mockResolvedValue([]);
     getWorldStateMock.mockResolvedValue({ discoveredIds: [], metCharacterIds: [] });
@@ -136,6 +158,45 @@ describe('PirateBuilderBayWorldView', () => {
       expect(resumeOrStartSessionMock).toHaveBeenCalledWith('child-1', REPAIR_THE_MOONLIGHT_BRIDGE);
     });
     expect(await screen.findByText('Adventure route')).toBeInTheDocument();
+  });
+
+  it('gives an Explorer the in-scene Beat the Tide challenge instead of the card adventure', async () => {
+    const user = userEvent.setup();
+
+    renderView('EXPLORER');
+    await user.click(await screen.findByText('The broken Moonlight Bridge'));
+
+    expect(screen.getByRole('region', { name: 'Beat the Tide' })).toBeInTheDocument();
+    expect(fakeTideTrial.begin).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: /start the adventure/i })).not.toBeInTheDocument();
+    expect(resumeOrStartSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("repairs the bridge for real when an Explorer's deck survives the tide", async () => {
+    const user = userEvent.setup();
+
+    renderView('EXPLORER');
+    await user.click(await screen.findByText('The broken Moonlight Bridge'));
+    for (let step = 0; step < 4; step += 1) {
+      await user.click(screen.getByRole('button', { name: 'Raise the deck' }));
+    }
+    await user.click(screen.getByRole('button', { name: /bring in the tide/i }));
+
+    expect(
+      await screen.findByRole('button', { name: 'Walk across the bridge' }),
+    ).toBeInTheDocument();
+    expect(fakeTideTrial.complete).toHaveBeenCalledTimes(1);
+    expect(recordWorldChangeOnceMock).toHaveBeenCalledWith(
+      'child-1',
+      'pirate-builder-bay',
+      'REPAIR',
+      'BRIDGE_REPAIRED',
+      'exploration:beat-the-tide',
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Walk across the bridge' }));
+    expect(screen.queryByRole('region', { name: 'Beat the Tide' })).not.toBeInTheDocument();
+    expect(fakeTideTrial.cancel).not.toHaveBeenCalled();
   });
 
   it('offers the repaired-bridge narration instead of the adventure once the bridge is repaired', async () => {

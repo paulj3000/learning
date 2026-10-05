@@ -6,6 +6,7 @@ import { WORLD_DEFINITIONS } from '../../../worlds/worlds';
 import { ISLAND_LOCATIONS } from '../../../island/locations';
 import { ADVENTURE_TEMPLATES } from '../../../adventures/content';
 import { STORY_DEFINITIONS } from '../../../story/content';
+import { SOURCE_WORLD_EXTENSIONS } from './extensionRegistry';
 import type { LocationManifestRegistries } from './validateLocationManifest';
 
 /**
@@ -14,10 +15,10 @@ import type { LocationManifestRegistries } from './validateLocationManifest';
  * catalog (`docs/engine/02_CONTENT_MODEL_STRATEGY.md`); the validator itself
  * does not change.
  *
- * `extensionIds` is empty until the first bespoke mechanic moves behind the
- * world-extension registry (`docs/engine/10_IMPLEMENTATION_PHASES.md`
- * Phase 7), so any manifest declaring an extension fails validation until
- * then, as it should.
+ * `extensionIds` comes from the shipped extension registry, which is empty
+ * until the first bespoke mechanic moves behind it
+ * (`docs/engine/10_IMPLEMENTATION_PHASES.md` Phase 7), so any manifest
+ * declaring an extension fails validation until then, as it should.
  */
 export const SOURCE_MANIFEST_REGISTRIES: LocationManifestRegistries = {
   assets: ASSET_MANIFEST,
@@ -28,5 +29,5 @@ export const SOURCE_MANIFEST_REGISTRIES: LocationManifestRegistries = {
   adventures: ADVENTURE_TEMPLATES,
   discoveryIds: ISLAND_DISCOVERIES.map((discovery) => discovery.id),
   storySlugs: STORY_DEFINITIONS.map((story) => story.slug),
-  extensionIds: [],
+  extensionIds: SOURCE_WORLD_EXTENSIONS.ids(),
 };

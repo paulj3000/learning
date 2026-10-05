@@ -20,6 +20,7 @@ import { attachPointerControls } from './pointerControls';
 import { isInsideZone } from './sandboxTriggers';
 import {
   createSceneBootstrap,
+  fitRendererToParent,
   EYE_HEIGHT,
   placeKitCluster,
   RAYCAST_RANGE_METERS,
@@ -445,6 +446,7 @@ export function createWonderwildForestEngine(
     bus.emit('ObjectInteracted', { entityId: focused, interactionId: focused });
   }
   const pointerControls = attachPointerControls(renderer, controller, { onInteract: interact });
+  const stopFittingRenderer = fitRendererToParent(parent, camera, renderer);
 
   const approachZones = ZONES.map((zone) => ({
     id: zone.id,
@@ -503,6 +505,7 @@ export function createWonderwildForestEngine(
   function dispose(): void {
     cancelAnimationFrame(animationFrameId);
     pointerControls.dispose();
+    stopFittingRenderer();
     renderer.dispose();
     parent.removeChild(renderer.domElement);
   }

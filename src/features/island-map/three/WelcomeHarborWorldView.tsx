@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from '../IslandWorldView.module.css';
 import { ThreeGameContainer } from './ThreeGameContainer';
+import { WorldStage } from './WorldStage';
 import { createWelcomeHarborEngine, type WelcomeHarborEngine } from './welcomeHarborScene';
 import { WorldEngineEventBus } from './worldEngineEvents';
 import { useNpcApproachBridge } from './npcApproachBridge';
@@ -138,7 +139,7 @@ export function WelcomeHarborWorldView({ childId, ageBand }: WelcomeHarborWorldV
         fingers on a touch screen: left side to move, right side to look). Walk up to Pip and press
         E, or use the button below, to say hello.
       </p>
-      <div style={{ position: 'relative' }}>
+      <WorldStage>
         <ThreeGameContainer
           instanceKey={childId}
           createEngine={(parent) => createWelcomeHarborEngine(parent, bus, { startCheckpointId })}
@@ -153,7 +154,7 @@ export function WelcomeHarborWorldView({ childId, ageBand }: WelcomeHarborWorldV
           toastMessage={toast}
           backpackItems={backpackItems}
         />
-      </div>
+      </WorldStage>
       {conversationOpen ? (
         <div className={styles.panel} role="dialog" aria-label="Pip">
           <NpcConversation

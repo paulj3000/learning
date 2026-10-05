@@ -10,4 +10,13 @@
   display: block;
   width: 100%;
   height: 100%;
+  /* The canvas owns its drags (move/look); without this the browser also scrolls the page. */
+  touch-action: none;
+}
+
+/* Full screen (WorldStage): fill the space the stage is given instead of holding 4:3. */
+:fullscreen .container {
+  aspect-ratio: auto;
+  height: 100%;
+  border-radius: 0;
 }

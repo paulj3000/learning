@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styles from '../IslandWorldView.module.css';
 import { ThreeGameContainer } from './ThreeGameContainer';
+import { WorldStage } from './WorldStage';
 import { createWonderwildForestEngine, type WonderwildForestEngine } from './wonderwildForestScene';
 import { WorldEngineEventBus } from './worldEngineEvents';
 import { WorldHud, type WorldHudBackpackItem } from './WorldHud';
@@ -230,7 +231,7 @@ export function WonderwildForestWorldView({ childId, ageBand }: WonderwildForest
         fingers on a touch screen: left side to move, right side to look). Walk up to something and
         press E, or use the button below, to interact with it.
       </p>
-      <div style={{ position: 'relative' }}>
+      <WorldStage>
         <ThreeGameContainer
           instanceKey={childId}
           createEngine={(parent) =>
@@ -252,7 +253,7 @@ export function WonderwildForestWorldView({ childId, ageBand }: WonderwildForest
           toastMessage={null}
           backpackItems={backpackItems}
         />
-      </div>
+      </WorldStage>
       {triggeredInteraction ? (
         <InteractionPanel
           childId={childId}

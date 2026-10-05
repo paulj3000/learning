@@ -1,3 +1,4 @@
+import { fitRendererToParent } from './sceneKit';
 import {
   AmbientLight,
   AnimationMixer,
@@ -149,6 +150,7 @@ export function createSandboxEngine(
     }
   }
   const pointerControls = attachPointerControls(renderer, controller, { onInteract: interact });
+  const stopFittingRenderer = fitRendererToParent(parent, camera, renderer);
 
   const unsubscribeNpcStateChanged = bus.on('NpcStateChanged', ({ entityId }) => {
     if (entityId !== SANDBOX_NPC_ID) return;
@@ -198,6 +200,7 @@ export function createSandboxEngine(
   function dispose(): void {
     cancelAnimationFrame(animationFrameId);
     pointerControls.dispose();
+    stopFittingRenderer();
     unsubscribeNpcStateChanged();
     renderer.dispose();
     parent.removeChild(renderer.domElement);

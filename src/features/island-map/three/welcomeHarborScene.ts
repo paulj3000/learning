@@ -23,6 +23,7 @@ import { hasApproached, isInRange, isInsideZone } from './sandboxTriggers';
 import {
   APPROACH_RANGE_METERS,
   createSceneBootstrap,
+  fitRendererToParent,
   EYE_HEIGHT,
   placeKitCluster,
   placeWithLod,
@@ -355,6 +356,7 @@ export function createWelcomeHarborEngine(
     }
   }
   const pointerControls = attachPointerControls(renderer, controller, { onInteract: interact });
+  const stopFittingRenderer = fitRendererToParent(parent, camera, renderer);
 
   const checkpointZones = WELCOME_HARBOR_REGION_CHECKPOINTS.map((checkpoint) => ({
     id: checkpoint.id,
@@ -442,6 +444,7 @@ export function createWelcomeHarborEngine(
   function dispose(): void {
     cancelAnimationFrame(animationFrameId);
     pointerControls.dispose();
+    stopFittingRenderer();
     renderer.dispose();
     parent.removeChild(renderer.domElement);
   }

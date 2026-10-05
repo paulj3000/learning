@@ -417,7 +417,7 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Generic Three.js location engine (`docs/engine/`) — Phases 0 and 1 complete; nothing renders a manifest yet
+## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 4 complete; built and unit-tested, NOT routed or seen in a browser
 
 Roadmap: `docs/engine/` (README, then `10_IMPLEMENTATION_PHASES.md`).
 Decision: ADR-025. Goal: a new ordinary 3D location needs a manifest, not a
@@ -449,13 +449,82 @@ the parent npm workspace.
   against real registries, JSON round trip, preserved checkpoint and entity
   ids, Pip routed through `TALK_TO`, building toasts unchanged). 26 tests.
 
-No existing code changed, so player behaviour is unchanged.
+**Phase 2 (manifest repository), complete.** `locationManifestRepository.ts`
+defines the `LocationManifestRepository` interface the runtime reads through
+(acceptance A4) and a source-controlled implementation: lookup by
+`regionId`, validation on first request (cached), typed
+`LocationManifestNotFoundError`/`InvalidLocationManifestError`, and a
+duplicate-region guard. `manifests/index.ts` lists the shipped manifests and
+exports `sourceLocationManifestRepository`.
 
-**Next: Phase 2 then 3.** Phase 2 is a manifest repository (lookup by
-`regionId`, clear missing-manifest error). Phase 3 is the generic scene
-builder from the shared skeleton in the audit's section 3, tested before any
-region uses it. Phase 4 adds one generic view, and Phase 5 renders Welcome
-Harbor through it with parity tests while the old route stays.
+**Phase 3 (generic scene builder), complete.**
+- `sceneLayout.ts`: pure layout math lifted from `welcomeHarborScene.ts`
+  (boundary walls, building colliders, wall/roof/door placements, ground
+  tiles, colliders, checkpoint/interior/zone triggers). Tests prove it
+  reproduces Welcome Harbor's hand-written boundary walls and ground grid.
+- `worldTriggerTracker.ts`: the edge-triggered zone/approach/focus logic
+  every `frame()` duplicated.
+- `extensionRegistry.ts`: `WorldExtension`, a registry by id, and the
+  shipped (empty) registry. The validator's extension ids now come from it.
+- `createLocationEngine.ts`: one runtime for any manifest. Renderer, assets,
+  input, resize and frame scheduling are injected (`LocationEngineDeps`),
+  with `DEFAULT_LOCATION_ENGINE_DEPS` wiring the real ones, so the whole
+  runtime runs in jsdom. It loads assets failure-tolerantly (a failed model
+  keeps its placeholder), never adds a model that resolves after dispose,
+  refreshes entity matrices before raycasting, and on dispose frees only
+  what it created (loaded glTF data is shared through `assetLoader.ts`'s
+  cache).
+- `noLocationBranching.test.ts` (acceptance A2) fails if any runtime file
+  outside `manifests/` names a location slug or region id.
+- `createLocationEngine.test.ts` covers acceptance W1 to W7, AS3 and B4
+  against the real Welcome Harbor manifest: spawn (first time, saved,
+  foreign checkpoint), checkpoint trigger, boundary collision, doorway,
+  interior zone and back wall, one NPC approach, NPC and collectible
+  interaction by entity id, empty-air interact, placeholder kept on a failed
+  load, scenery built, ambient gull moving, extension mount/config/frame/
+  collider/cleanup, unknown extension skipped, and disposal (loop, input,
+  resize, renderer, canvas, repeated mounts, late loads).
+
+**Phase 4 (generic world view), complete.**
+- `ThreeLocationWorldView.tsx`: one view for any manifest. It loads the
+  manifest, then world state, companion, inventory, quests and world
+  changes, then mounts the engine at the saved checkpoint. It saves only
+  this manifest's checkpoints, records NPCs met, shows NPC crosshair labels
+  and authored toasts, opens bound and walk-in interactions (respecting
+  requirements), refreshes availability after a discovery, offers every
+  interaction in "Things to do here", and has calm not-found and error
+  states. Listeners are unsubscribed one by one, never with
+  `removeAllListeners`.
+- `WorldActionPanel.tsx`: the shared `WorldAction` dialog. `START_STORY`
+  links to the Story Engine's own page (`/island/:childId/stories/:slug`)
+  instead of rendering nothing, as the per-region copies do.
+- `manifestBindings.ts`: pure event-to-meaning lookups.
+- Tests render Welcome Harbor and an unrelated fixture location through the
+  same view (acceptance A1), including a walk-in discovery that unlocks a
+  gated interaction.
+
+Totals: 82 runtime tests across 9 files. The full suite is 231 files and
+2400 tests, all passing; typecheck and lint pass.
+
+**Known differences from today's Welcome Harbor view (to check at Phase 5
+parity):**
+- Interacting with Pip opens a dialog titled "Say hello to Pip" (with a "Not
+  now" button) around the same `NpcConversation`, not a bare conversation
+  dialog labelled "Pip".
+- The ambient gull's cone now points along its flight path. The old scene's
+  `lookAt` discarded its intended tilt.
+- Raycast focus picks the nearest hit, rather than always preferring the NPC
+  when it and the gem overlap.
+
+**Not done:** nothing routes to the generic view yet (Phase 6), and no
+region renders through it (Phase 5), so no child can reach it and none of
+it has been seen in a real browser or on a device. `createLocationEngine.ts`
+imports `sceneKit.fitRendererToParent`, which is part of the uncommitted
+full screen work, so it must be committed with or after that work.
+
+**Next: Phase 5.** Route Welcome Harbor's 3D page through
+`ThreeLocationWorldView` with parity checks in a browser, keeping the old
+view until parity is confirmed.
 
 ## First-person controls no longer scroll the page — unit-tested; NOT yet checked on a device
 
@@ -467,6 +536,24 @@ as moving the player. `ThreeGameContainer.module.css` now sets
 `touch-action: none` on the canvas, and `pointerControls.ts` calls
 `preventDefault` on arrow and space key presses unless the focus is in a form
 field. This is shared code, so every first-person region gets the fix.
+
+### Full screen mode — unit-tested; NOT yet checked in a real browser
+
+Every first-person region now has a "Full screen" button on the canvas
+(`WorldStage.tsx`, which replaces each view's inline `position: relative`
+div). It puts the whole world view in full screen, not only the canvas, so
+interaction panels and story sessions stay reachable. In full screen the view
+is one viewport-high column: the 3D stage fills the space left over, panels
+scroll inside themselves, and the instructions and the "Prefer not to walk in
+3D?" link are hidden. The button is hidden when the browser has no element
+full screen (`document.fullscreenEnabled`, which rules out iPhone Safari).
+Leaving the region exits full screen.
+
+The renderer used to keep the pixel size it had on mount, so resizing (full
+screen, tablet rotation, window resize) stretched the picture.
+`sceneKit.fitRendererToParent` now uses a `ResizeObserver` to keep the
+renderer size and camera aspect matched to the container. Every scene calls
+it, including the sandbox.
 
 ## Islands & Adventures admin catalog — built and unit-tested; NOT deployed or seen in a browser
 

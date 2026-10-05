@@ -1565,7 +1565,7 @@ still sent to sign-in, as for every protected route.
 
 ## ADR-025: Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies
 
-Status: Accepted (2026-10-04). Phase 1 of `docs/engine/10_IMPLEMENTATION_PHASES.md` is built; the runtime that renders a manifest is not.
+Status: Accepted (2026-10-04). Phases 1 to 4 of `docs/engine/10_IMPLEMENTATION_PHASES.md` are built (contract, repository, runtime, view); no region is routed through them yet.
 
 Adding a 3D region currently means a new route page, `*WorldView.tsx`,
 `*Scene.ts` and `*Region.ts`. The audit
@@ -1618,10 +1618,16 @@ extension fails validation until then.
   extensions, built from `welcomeHarborRegion.ts`'s constants so the two
   cannot drift. Nothing renders it yet, and the existing scene is
   untouched.
-- Collectible `label` is new data. Welcome Harbor's scene shows no
-  crosshair label for its gem today. If the generic runtime renders one,
-  that is a visible change to confirm at parity time.
-- Still open: the generic runtime (Phase 3), the generic view (Phase 4),
-  world-change variants (Phase 8), and whether checkpoint positions move
-  into the manifest when Admin authoring arrives. That last question
-  changes ADR-008's layering and needs its own decision.
+- Collectible `label` is authored but not yet shown: `WorldHud` renders
+  every crosshair label as "<label>: press E to talk", so only NPCs get one
+  (`manifestBindings.focusLabel`) until the HUD can take a verb.
+- The runtime (`createLocationEngine.ts`) takes its renderer, assets, input,
+  resize and frame scheduling as injected dependencies. That is what lets
+  the runtime acceptance tests (W1 to W7) run in jsdom. Disposal frees only
+  runtime-created geometry and materials, because loaded glTF data is shared
+  through the asset loader's cache.
+- Bespoke behaviour is mounted from `extensionRegistry.ts` by id. The
+  runtime directory may not name any location (`noLocationBranching.test.ts`).
+- Still open: world-change variants (Phase 8), and whether checkpoint
+  positions move into the manifest when Admin authoring arrives. That last
+  question changes ADR-008's layering and needs its own decision.

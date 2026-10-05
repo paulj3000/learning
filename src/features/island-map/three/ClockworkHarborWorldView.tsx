@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styles from '../IslandWorldView.module.css';
 import { ThreeGameContainer } from './ThreeGameContainer';
+import { WorldStage } from './WorldStage';
 import { createClockworkHarborEngine, type ClockworkHarborEngine } from './clockworkHarborScene';
 import { WorldEngineEventBus } from './worldEngineEvents';
 import { WorldHud, type WorldHudBackpackItem } from './WorldHud';
@@ -260,7 +261,7 @@ export function ClockworkHarborWorldView({ childId, ageBand }: ClockworkHarborWo
           ? 'The lighthouse is turning again, and the harbor gate is open.'
           : 'The lighthouse is dark. The Harbor Master is waiting on the dock.'}
       </p>
-      <div style={{ position: 'relative' }}>
+      <WorldStage>
         <ThreeGameContainer
           instanceKey={`${childId}:${String(harborState.lighthouseFixed)}`}
           createEngine={(parent) =>
@@ -280,7 +281,7 @@ export function ClockworkHarborWorldView({ childId, ageBand }: ClockworkHarborWo
           toastMessage={toast}
           backpackItems={backpackItems}
         />
-      </div>
+      </WorldStage>
       {conversationNpcId ? (
         <div className={styles.panel} role="dialog" aria-label={NPC_LABELS[conversationNpcId]}>
           <NpcConversation

@@ -99,6 +99,32 @@ export function createSceneBootstrap(
 }
 
 /**
+ * Keeps the renderer's drawing size and the camera's aspect matched to
+ * `parent` as it resizes (window resize, rotating a tablet, entering or
+ * leaving full screen via `WorldStage.tsx`). Without it the canvas stays at
+ * the pixel size it had on mount. Returns the disconnect to call on dispose.
+ */
+export function fitRendererToParent(
+  parent: HTMLElement,
+  camera: PerspectiveCamera,
+  renderer: WebGLRenderer,
+): () => void {
+  if (typeof ResizeObserver === 'undefined') {
+    return () => undefined;
+  }
+  const observer = new ResizeObserver(() => {
+    const width = parent.clientWidth;
+    const height = parent.clientHeight;
+    if (width === 0 || height === 0) return;
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height);
+  });
+  observer.observe(parent);
+  return () => observer.disconnect();
+}
+
+/**
  * Pure placement math for one straight run of a kit piece (wall/fence/path)
  * between two points, tiled by `segmentLength` - split out from
  * `placeKitRun` so callers that build one wall out of several runs (one per

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from '../IslandWorldView.module.css';
 import { ThreeGameContainer } from './ThreeGameContainer';
+import { WorldStage } from './WorldStage';
 import { createDragonsSanctuaryEngine, type DragonsSanctuaryEngine } from './dragonsSanctuaryScene';
 import { WorldEngineEventBus } from './worldEngineEvents';
 import { WorldHud, type WorldHudBackpackItem } from './WorldHud';
@@ -263,7 +264,7 @@ export function DragonsSanctuaryWorldView({ childId, ageBand }: DragonsSanctuary
             ? 'You have all three fire runes. The hearth is waiting.'
             : `The forge is cold and dark. Ember is waiting up at her roost.`}
       </p>
-      <div style={{ position: 'relative' }}>
+      <WorldStage>
         <ThreeGameContainer
           instanceKey={`${childId}:${String(sanctuaryState.forgeLit)}:${runeIdsFound.length}`}
           createEngine={(parent) =>
@@ -284,7 +285,7 @@ export function DragonsSanctuaryWorldView({ childId, ageBand }: DragonsSanctuary
           toastMessage={toast}
           backpackItems={backpackItems}
         />
-      </div>
+      </WorldStage>
       {conversationNpcId ? (
         <div className={styles.panel} role="dialog" aria-label={NPC_LABELS[conversationNpcId]}>
           <NpcConversation

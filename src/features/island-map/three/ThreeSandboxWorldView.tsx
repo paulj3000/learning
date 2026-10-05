@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 import styles from '../IslandWorldView.module.css';
 import { ThreeGameContainer } from './ThreeGameContainer';
+import { WorldStage } from './WorldStage';
 import { createSandboxEngine, type SandboxEngine } from './sandboxScene';
 import { useSandboxBridge } from './useSandboxBridge';
 import { WorldEngineEventBus } from './worldEngineEvents';
@@ -41,13 +42,15 @@ export function ThreeSandboxWorldView({ childId }: ThreeSandboxWorldViewProps) {
         the screen, then move your mouse (or drag with two fingers on a touch screen: left side to
         move, right side to look). Walk up to Pip to say hello.
       </p>
-      <ThreeGameContainer
-        instanceKey={childId}
-        createEngine={(parent) => createSandboxEngine(parent, bus)}
-        onEngineReady={(engine) => {
-          engineRef.current = engine;
-        }}
-      />
+      <WorldStage>
+        <ThreeGameContainer
+          instanceKey={childId}
+          createEngine={(parent) => createSandboxEngine(parent, bus)}
+          onEngineReady={(engine) => {
+            engineRef.current = engine;
+          }}
+        />
+      </WorldStage>
       <details className={styles.thingsToDo}>
         <summary>Things to do here</summary>
         <ul className={styles.thingsToDoList}>

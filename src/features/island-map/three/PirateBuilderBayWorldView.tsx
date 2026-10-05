@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styles from '../IslandWorldView.module.css';
 import { ThreeGameContainer } from './ThreeGameContainer';
+import { WorldStage } from './WorldStage';
 import { createPirateBuilderBayEngine, type PirateBuilderBayEngine } from './pirateBuilderBayScene';
 import { WorldEngineEventBus } from './worldEngineEvents';
 import { useNpcApproachBridge } from './npcApproachBridge';
 import { WorldHud, type WorldHudBackpackItem } from './WorldHud';
 import { NPC_ID } from './pirateBuilderBayRegion';
+import { TideTrialPanel } from './TideTrialPanel';
 import {
   findInteraction,
   isInteractionAvailable,
@@ -16,7 +18,11 @@ import {
 } from '../worldObjects';
 import { DiscoveryAction } from '../DiscoveryAction';
 import { NpcConversation } from '../NpcConversation';
-import { resumeOrStartSession, listAllWorldChanges } from '../../adventures/api';
+import {
+  resumeOrStartSession,
+  listAllWorldChanges,
+  recordWorldChangeOnce,
+} from '../../adventures/api';
 import { adventureStartErrorMessage } from '../../catalog/availabilityApi';
 import { resolveAdventureForAgeBand } from '../../adventures/content';
 import { getWorldState, recordCharacterMet, saveCheckpoint } from '../../discovery/api';
@@ -35,6 +41,18 @@ interface PirateBuilderBayWorldViewProps {
 }
 
 const BRIDGE_REPAIRED_CHANGE_KEY = 'BRIDGE_REPAIRED';
+const BROKEN_BRIDGE_INTERACTION_ID = 'bay-broken-bridge';
+
+/**
+ * Explorers mend the bridge in the scene ("Beat the Tide", `../tideTrial.ts`)
+ * instead of through the card adventure. The card route resolved an Explorer
+ * to "The Tide Gate Calculation", which opens "The bridge stands" in front
+ * of a broken bridge and records `TIDE_GATE_SET`, not `BRIDGE_REPAIRED`, so
+ * an Explorer could never cross to the cove.
+ */
+function usesTideTrial(ageBand: AgeBandValue): boolean {
+  return ageBand === 'EXPLORER';
+}
 
 /**
  * Pirate Builder Bay's Phase 33 first-person view (`docs/ROADMAP.md` Phase
@@ -70,12 +88,28 @@ export function PirateBuilderBayWorldView({ childId, ageBand }: PirateBuilderBay
     worldChangeKeys: [],
   });
   const [focusedLabel, setFocusedLabel] = useState<string | null>(null);
-  const [triggeredInteractionId, setTriggeredInteractionId] = useState<string | null>(null);
+  const [triggeredInteractionId, setTriggeredInteractionIdRaw] = useState<string | null>(null);
+  const [tideTrialOpen, setTideTrialOpen] = useState(false);
 
   const bus = useMemo(() => new WorldEngineEventBus(), []);
   const engineRef = useRef<PirateBuilderBayEngine | null>(null);
 
   const bridgeRepaired = interactionContext.worldChangeKeys.includes(BRIDGE_REPAIRED_CHANGE_KEY);
+
+  /** Every way into an interaction goes through here, so the Explorer bridge detour cannot be skipped by one entry point. */
+  const setTriggeredInteractionId = useCallback(
+    (id: string | null) => {
+      if (id === BROKEN_BRIDGE_INTERACTION_ID && usesTideTrial(ageBand)) {
+        // Free the mouse for the panel's buttons.
+        if (document.pointerLockElement) document.exitPointerLock();
+        setTriggeredInteractionIdRaw(null);
+        setTideTrialOpen(true);
+        return;
+      }
+      setTriggeredInteractionIdRaw(id);
+    },
+    [ageBand],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -152,6 +186,18 @@ export function PirateBuilderBayWorldView({ childId, ageBand }: PirateBuilderBay
   );
   useNpcApproachBridge(bus, NPC_ID, noteCharacterMet);
 
+  /*
+    Read through refs rather than listed as dependencies: this effect's
+    cleanup calls `bus.removeAllListeners()`, which also drops the listener
+    `useNpcApproachBridge` registered, so re-running it mid-visit (the bridge
+    becoming repaired, the tide panel opening) would silently stop Pip's
+    approach being recorded.
+  */
+  const bridgeRepairedRef = useRef(bridgeRepaired);
+  bridgeRepairedRef.current = bridgeRepaired;
+  const tideTrialOpenRef = useRef(tideTrialOpen);
+  tideTrialOpenRef.current = tideTrialOpen;
+
   useEffect(() => {
     const offInteracted = bus.on('ObjectInteracted', ({ entityId }) => {
       setTriggeredInteractionId(entityId === NPC_ID ? 'meet-pirate-pip' : entityId);
@@ -171,7 +217,10 @@ export function PirateBuilderBayWorldView({ childId, ageBand }: PirateBuilderBay
         return;
       }
       if (zoneId === 'bay-bridge-approach') {
-        setTriggeredInteractionId(bridgeRepaired ? 'bay-bridge-repaired' : 'bay-broken-bridge');
+        if (tideTrialOpenRef.current) return;
+        setTriggeredInteractionId(
+          bridgeRepairedRef.current ? 'bay-bridge-repaired' : BROKEN_BRIDGE_INTERACTION_ID,
+        );
         return;
       }
       if (zoneId === 'bay-tide-tunnel' || zoneId === 'bay-harbor-exit') {
@@ -184,7 +233,7 @@ export function PirateBuilderBayWorldView({ childId, ageBand }: PirateBuilderBay
       offZone();
       bus.removeAllListeners();
     };
-  }, [bus, childId, bridgeRepaired]);
+  }, [bus, childId, setTriggeredInteractionId]);
 
   const triggeredInteraction = triggeredInteractionId
     ? findInteraction(PIRATE_BUILDER_BAY_INTERACTIONS, triggeredInteractionId)
@@ -213,7 +262,7 @@ export function PirateBuilderBayWorldView({ childId, ageBand }: PirateBuilderBay
         fingers on a touch screen: left side to move, right side to look). Walk up to something and
         press E, or use the button below, to interact with it.
       </p>
-      <div style={{ position: 'relative' }}>
+      <WorldStage>
         <ThreeGameContainer
           instanceKey={childId}
           createEngine={(parent) =>
@@ -230,7 +279,24 @@ export function PirateBuilderBayWorldView({ childId, ageBand }: PirateBuilderBay
           toastMessage={null}
           backpackItems={backpackItems}
         />
-      </div>
+        {tideTrialOpen ? (
+          <TideTrialPanel
+            scene={engineRef.current?.tideTrial ?? null}
+            onWon={async () => {
+              // Provenance follows `DragonsSanctuaryWorldView`'s `exploration:<id>`: no adventure session is involved.
+              await recordWorldChangeOnce(
+                childId,
+                'pirate-builder-bay',
+                'REPAIR',
+                BRIDGE_REPAIRED_CHANGE_KEY,
+                'exploration:beat-the-tide',
+              );
+              refresh();
+            }}
+            onClose={() => setTideTrialOpen(false)}
+          />
+        ) : null}
+      </WorldStage>
       {triggeredInteraction ? (
         <InteractionPanel
           childId={childId}

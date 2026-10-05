@@ -42,6 +42,7 @@ import { hasApproached, isInRange, isInsideZone } from './sandboxTriggers';
 import {
   APPROACH_RANGE_METERS,
   createSceneBootstrap,
+  fitRendererToParent,
   EYE_HEIGHT,
   placeKitCluster,
   RAYCAST_RANGE_METERS,
@@ -488,6 +489,7 @@ export function createClockworkHarborEngine(
   }
 
   const pointerControls = attachPointerControls(renderer, controller, { onInteract: interact });
+  const stopFittingRenderer = fitRendererToParent(parent, camera, renderer);
 
   const checkpointZones = CLOCKWORK_HARBOR_REGION_CHECKPOINTS.map((checkpoint) => ({
     id: checkpoint.id,
@@ -577,6 +579,7 @@ export function createClockworkHarborEngine(
   function dispose(): void {
     cancelAnimationFrame(animationFrameId);
     pointerControls.dispose();
+    stopFittingRenderer();
     renderer.dispose();
     parent.removeChild(renderer.domElement);
   }

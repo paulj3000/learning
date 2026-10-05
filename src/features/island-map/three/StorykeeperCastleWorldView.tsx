@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from '../IslandWorldView.module.css';
 import { ThreeGameContainer } from './ThreeGameContainer';
+import { WorldStage } from './WorldStage';
 import {
   createStorykeeperCastleEngine,
   type StorykeeperCastleEngine,
@@ -589,7 +590,7 @@ export function StorykeeperCastleWorldView({
           We could not load your backpack just now. You can still explore the castle.
         </p>
       ) : null}
-      <div style={{ position: 'relative' }}>
+      <WorldStage>
         <ThreeGameContainer
           instanceKey={childId}
           createEngine={(parent: HTMLDivElement): StorykeeperCastleEngine =>
@@ -624,7 +625,7 @@ export function StorykeeperCastleWorldView({
           toastMessage={toast}
           backpackItems={backpackItems}
         />
-      </div>
+      </WorldStage>
       {taleActive && taleForBand ? (
         <CastleTaleSession
           childId={childId}

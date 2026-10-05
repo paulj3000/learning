@@ -96,3 +96,29 @@
   padding: var(--space-3) var(--space-4);
   cursor: pointer;
 }
+
+/*
+  Full screen (WorldStage.tsx): one viewport-high column. The 3D stage takes
+  whatever height is left, and panels below it scroll inside themselves, so
+  the page itself never needs scrolling while a child walks around.
+*/
+.wrapper:fullscreen {
+  box-sizing: border-box;
+  height: 100%;
+  padding: var(--space-3);
+  gap: var(--space-3);
+  overflow: hidden;
+  background: var(--color-background);
+}
+
+.wrapper:fullscreen > .instructions,
+.wrapper:fullscreen > .altNavLink {
+  display: none;
+}
+
+.wrapper:fullscreen > :not([data-world-stage]) {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 45vh;
+  overflow: auto;
+}

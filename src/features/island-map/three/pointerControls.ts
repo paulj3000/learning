@@ -6,6 +6,15 @@ export interface PointerControlsOptions {
   onInteract?: () => void;
 }
 
+const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ']);
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+  );
+}
+
 export interface PointerControls {
   /** Reads this frame's held/dragged input and advances `controller` by `deltaSeconds`. Call once per frame. */
   update(deltaSeconds: number): void;
@@ -36,6 +45,11 @@ export function attachPointerControls(
 ): PointerControls {
   const keysDown = new Set<string>();
   const onKeyDown = (event: KeyboardEvent) => {
+    // Arrow keys and space move the player, so stop them also scrolling the
+    // page - but leave them alone in form fields (e.g. an adventure's number input).
+    if (SCROLL_KEYS.has(event.key) && !isEditableTarget(event.target)) {
+      event.preventDefault();
+    }
     keysDown.add(event.key.toLowerCase());
     if (event.key.toLowerCase() === 'e' || event.key === 'Enter') {
       options.onInteract?.();

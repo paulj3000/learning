@@ -27,6 +27,7 @@ import { hasApproached, isInRange, isInsideZone } from './sandboxTriggers';
 import {
   APPROACH_RANGE_METERS,
   createSceneBootstrap,
+  fitRendererToParent,
   EYE_HEIGHT,
   placeWithLod,
   RAYCAST_RANGE_METERS,
@@ -1724,6 +1725,7 @@ export function createStorykeeperCastleEngine(
   }
 
   const pointerControls = attachPointerControls(renderer, controller, { onInteract: interact });
+  const stopFittingRenderer = fitRendererToParent(parent, camera, renderer);
 
   const approachZones = ZONES.map((zone) => ({
     id: zone.id,
@@ -1806,6 +1808,7 @@ export function createStorykeeperCastleEngine(
   function dispose(): void {
     cancelAnimationFrame(animationFrameId);
     pointerControls.dispose();
+    stopFittingRenderer();
     renderer.dispose();
     parent.removeChild(renderer.domElement);
   }

@@ -2,9 +2,12 @@ import {
   AnimationMixer,
   Box3,
   BoxGeometry,
+  CanvasTexture,
   Clock,
   DoubleSide,
+  Group,
   LoopOnce,
+  LoopRepeat,
   Mesh,
   MeshStandardMaterial,
   Object3D,
@@ -23,6 +26,7 @@ import { hasApproached, isInRange, isInsideZone } from './sandboxTriggers';
 import {
   APPROACH_RANGE_METERS,
   createSceneBootstrap,
+  fitRendererToParent,
   EYE_HEIGHT,
   placeKitCluster,
   RAYCAST_RANGE_METERS,
@@ -66,8 +70,11 @@ import {
   SHORE_ROCK_SCALE,
   SHORE_ROCK_SPACING,
   SOLID_PROPS,
+  TIDE_BANK_TOP_CM,
+  TIDE_POST_SPOT,
   TIDE_TUNNEL_BOULDERS,
   TIDE_TUNNEL_ZONE,
+  tideCmToWorldY,
   TOOLBOX_ID,
   TOOLBOX_SPOT,
   TREASURE_ID,
@@ -76,10 +83,33 @@ import {
   type RectZone,
 } from './pirateBuilderBayRegion';
 import type { WorldEngineEventBus } from './worldEngineEvents';
+import { TIDE_BOARD, TIDE_DURATION_MS, tideLevelAt } from '../tideTrial';
+
+/**
+ * The scene half of "Beat the Tide" (`../tideTrial.ts`). Rendering only:
+ * the React panel owns the challenge's state and calls these in order, and
+ * nothing here decides whether the child succeeded. The one judgement the
+ * scene makes for itself is when the rising water reaches the deck, which
+ * is the moment the planks visibly lift off.
+ */
+export interface TideTrialScene {
+  /** The tide goes out, the broken bridge clears away, and a new deck stands at `deckCm`. */
+  begin(deckCm: number): void;
+  setDeckHeight(deckCm: number): void;
+  /** Brings the tide in (and the storm wave on top), reporting each new level. Resolves when the water peaks. */
+  runTide(onLevel: (waterCm: number) => void): Promise<void>;
+  /** After a flood or a too-steep deck: fresh planks at `deckCm`, and the tide goes back out. */
+  rebuild(deckCm: number): void;
+  /** Success: the deck stays, becomes walkable, and the water settles below it. */
+  complete(): void;
+  /** Leaving without success: back to the broken bridge and the usual water. */
+  cancel(): void;
+}
 
 export interface PirateBuilderBayEngine extends ThreeEngineHandle {
   /** Raycasts from the camera center and fires the matching event, if anything interactive is in range. */
   interact(): void;
+  tideTrial: TideTrialScene;
 }
 
 export interface PirateBuilderBayEngineOptions {
@@ -150,6 +180,17 @@ export function createPirateBuilderBayEngine(
   );
   scene.add(channel);
 
+  // Stone quay walls down both banks. Hidden behind the water at its usual
+  // level; they matter when "Beat the Tide" sends the tide out, which would
+  // otherwise leave the sand either side floating over an empty gap.
+  const quayMaterial = new MeshStandardMaterial({ color: 0x8a8274 });
+  const quayHeight = 0 - CHANNEL_BED_Y;
+  for (const wallX of [CHANNEL_MIN_X - 0.101, CHANNEL_MAX_X + 0.101]) {
+    const wall = new Mesh(new BoxGeometry(0.2, quayHeight, channelDepth), quayMaterial);
+    wall.position.set(wallX, CHANNEL_BED_Y + quayHeight / 2, channel.position.z);
+    scene.add(wall);
+  }
+
   // Open sea out to the horizon, so the region stops at a skyline instead
   // of at the edge of the sand with sky underneath it.
   const sea = new Mesh(
@@ -170,8 +211,9 @@ export function createPirateBuilderBayEngine(
     toBox3(CHANNEL_NORTH_WATER, -1, 4),
     toBox3(CHANNEL_SOUTH_WATER, -1, 4),
   ];
+  const bridgeCollider = toBox3(BRIDGE_SPAN, -1, 4);
   if (!options.bridgeRepaired) {
-    colliders.push(toBox3(BRIDGE_SPAN, -1, 4));
+    colliders.push(bridgeCollider);
   }
 
   const controller = new FirstPersonController({ colliders });
@@ -196,6 +238,10 @@ export function createPirateBuilderBayEngine(
   let treasureMixer: AnimationMixer | null = null;
   let treasureOpenClip: AnimationClip | null = null;
   let treasureOpened = false;
+  /** The broken bridge's stubs and fallen plank, cleared away while a new deck is built. */
+  const brokenBridgeParts: Object3D[] = [];
+  let pipClips: AnimationClip[] = [];
+  let tideTrialActive = false;
 
   async function loadWorldContent(): Promise<void> {
     // The bridge: an actual geometry/collider difference between broken and
@@ -224,6 +270,7 @@ export function createPirateBuilderBayEngine(
       ];
       const stubs = await createInstancedMeshFromAsset('bridge-plank', brokenPlanks);
       scene.add(stubs);
+      brokenBridgeParts.push(stubs);
       // One fallen plank, tilted into the gap, for visible damage flavor.
       const fallenPlank = await loadAsset('bridge-plank');
       const fallenScene = fallenPlank.scene.clone(true);
@@ -234,6 +281,9 @@ export function createPirateBuilderBayEngine(
       fallenScene.position.set(CHANNEL_MIN_X + 0.5, WATER_SURFACE_Y - 0.1, 2.4);
       fallenScene.rotation.set(0.1, 1.15, 0.35);
       scene.add(fallenScene);
+      brokenBridgeParts.push(fallenScene);
+      // A trial begun before the assets arrived has already cleared the bridge.
+      for (const part of brokenBridgeParts) part.visible = !tideTrialActive;
     }
 
     // Terrain kit accents, and the path across the dock picked up again on
@@ -362,8 +412,15 @@ export function createPirateBuilderBayEngine(
     npcMesh = npcScene;
     const idleClip = npc.animations.find((clip) => clip.name === 'Idle');
     if (idleClip) {
-      npcMixer = new AnimationMixer(npcScene);
-      npcMixer.clipAction(idleClip).play();
+      const mixer = new AnimationMixer(npcScene);
+      mixer.clipAction(idleClip).play();
+      // A gesture (`playPipGesture`) plays a few times, then Pip goes back to idling.
+      mixer.addEventListener('finished', () => {
+        mixer.stopAllAction();
+        mixer.clipAction(idleClip).play();
+      });
+      npcMixer = mixer;
+      pipClips = npc.animations;
     }
   }
 
@@ -410,7 +467,260 @@ export function createPirateBuilderBayEngine(
       treasureOpened = true;
     }
   }
+
+  // ---- "Beat the Tide" -------------------------------------------------
+
+  function playPipGesture(clipName: 'Talk' | 'Wave', repetitions: number): void {
+    const clip = pipClips.find((candidate) => candidate.name === clipName);
+    if (!npcMixer || !clip) return;
+    npcMixer.stopAllAction();
+    const action = npcMixer.clipAction(clip);
+    action.reset();
+    action.setLoop(LoopRepeat, repetitions);
+    action.play();
+  }
+
+  /** The water the scene opened with, in tide-board centimetres. */
+  const restingWaterCm =
+    ((WATER_SURFACE_Y - CHANNEL_BED_Y) / (0 - CHANNEL_BED_Y)) * TIDE_BANK_TOP_CM;
+  /** Where the water settles once the new deck stands: comfortably under any deck that passed. */
+  const settledWaterCm = 120;
+  let waterCm = restingWaterCm;
+
+  /** Moves the channel's water and the open sea together, so the channel never shows a step where it meets the sea. */
+  function setWaterLevel(cm: number): void {
+    waterCm = cm;
+    const surfaceY = tideCmToWorldY(cm);
+    const depth = Math.max(0.01, surfaceY - CHANNEL_BED_Y);
+    channel.scale.y = depth / channelHeight;
+    channel.position.y = CHANNEL_BED_Y + depth / 2;
+    // A centimetre under the channel's surface: coplanar, the two would z-fight along the seam.
+    sea.position.y = surfaceY - 0.01;
+  }
+
+  interface WaterAnimation {
+    startedAt: number;
+    durationMs: number;
+    levelAt: (elapsedMs: number) => number;
+    onLevel?: (cm: number) => void;
+    resolve: () => void;
+  }
+  let waterAnimation: WaterAnimation | null = null;
+
+  function animateWater(
+    durationMs: number,
+    levelAt: (elapsedMs: number) => number,
+    onLevel?: (cm: number) => void,
+  ): Promise<void> {
+    // A newer animation replaces an unfinished one; the old one's caller is released rather than left hanging.
+    waterAnimation?.resolve();
+    return new Promise((resolve) => {
+      waterAnimation = { startedAt: performance.now(), durationMs, levelAt, onLevel, resolve };
+    });
+  }
+
+  function easeWaterTo(targetCm: number, durationMs: number): void {
+    const fromCm = waterCm;
+    void animateWater(durationMs, (elapsed) => {
+      const t = Math.min(1, elapsed / durationMs);
+      return fromCm + (targetCm - fromCm) * (1 - (1 - t) ** 2);
+    });
+  }
+
+  // The tide board: red and white bands every 10 cm, numbered every 20 cm,
+  // from the channel bed (0 cm) to just above the banks (200 cm).
+  const tideBoardTopCm = 200;
+  const tideBoardHeight = tideCmToWorldY(tideBoardTopCm) - CHANNEL_BED_Y;
+  const tideBoardWidth = 0.8;
+  function drawTideBoard(): CanvasTexture | null {
+    const canvas = document.createElement('canvas');
+    canvas.height = 1024;
+    // Matching the board's own proportions, so the numbers are not stretched.
+    canvas.width = Math.round((canvas.height * tideBoardWidth) / tideBoardHeight);
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+    context.fillStyle = '#f4efe1';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    const pxPerCm = canvas.height / tideBoardTopCm;
+    for (let cm = 0; cm < tideBoardTopCm; cm += 10) {
+      context.fillStyle = (cm / 10) % 2 === 0 ? '#c8372d' : '#ffffff';
+      context.fillRect(0, canvas.height - (cm + 10) * pxPerCm, 200, 10 * pxPerCm);
+    }
+    context.fillStyle = '#1d2a33';
+    context.font = 'bold 92px sans-serif';
+    context.textBaseline = 'middle';
+    for (let cm = 20; cm < tideBoardTopCm; cm += 20) {
+      const y = canvas.height - cm * pxPerCm;
+      context.fillRect(200, y - 4, 50, 8);
+      context.fillText(String(cm), 280, y);
+    }
+    return new CanvasTexture(canvas);
+  }
+
+  const tideTrialGroup = new Group();
+  tideTrialGroup.visible = false;
+  scene.add(tideTrialGroup);
+
+  const tidePost = new Mesh(
+    new BoxGeometry(0.12, tideBoardHeight + 0.2, 0.12),
+    new MeshStandardMaterial({ color: 0x5b4632 }),
+  );
+  tidePost.position.set(
+    TIDE_POST_SPOT.x + 0.08,
+    CHANNEL_BED_Y + (tideBoardHeight + 0.2) / 2,
+    TIDE_POST_SPOT.z,
+  );
+  tideTrialGroup.add(tidePost);
+  const tideBoardTexture = drawTideBoard();
+  if (tideBoardTexture) {
+    const board = new Mesh(
+      new PlaneGeometry(tideBoardWidth, tideBoardHeight),
+      new MeshStandardMaterial({ map: tideBoardTexture }),
+    );
+    // A plane faces +z; turn it to face west, at the dock side.
+    board.rotation.y = -Math.PI / 2;
+    board.position.set(TIDE_POST_SPOT.x, CHANNEL_BED_Y + tideBoardHeight / 2, TIDE_POST_SPOT.z);
+    tideTrialGroup.add(board);
+  }
+
+  // The deck's support posts, stretched from the bed to wherever the deck is.
+  const deckPostMaterial = new MeshStandardMaterial({ color: 0x6b4a2b });
+  const deckPosts = [-1.5, 1.5].flatMap((x) =>
+    [BRIDGE_MIN_Z + 0.15, BRIDGE_MAX_Z - 0.15].map((z) => {
+      const post = new Mesh(new BoxGeometry(0.14, 1, 0.14), deckPostMaterial);
+      post.position.set(x, 0, z);
+      tideTrialGroup.add(post);
+      return post;
+    }),
+  );
+
+  // The deck: six planks laid across the channel, each 0.9 m wide and as long as the span.
+  const deckPlankXs = [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5];
+  let deckPlanks: Object3D[] = [];
+  let deckCm = TIDE_BOARD.lowWaterCm;
+  interface FloatingPlank {
+    plank: Object3D;
+    driftPerSecond: number;
+    spinPerSecond: number;
+  }
+  let floatingPlanks: FloatingPlank[] = [];
+
+  async function loadDeckPlanks(): Promise<void> {
+    const plankAsset = await loadAsset('bridge-plank');
+    deckPlanks = deckPlankXs.map((x) => {
+      const plank = plankAsset.scene.clone(true);
+      plank.position.set(x, 0, 0);
+      tideTrialGroup.add(plank);
+      return plank;
+    });
+    placeDeck(deckCm);
+  }
+
+  function placeDeck(cm: number): void {
+    deckCm = cm;
+    const deckY = tideCmToWorldY(cm);
+    for (const [index, plank] of deckPlanks.entries()) {
+      plank.visible = true;
+      plank.position.set(deckPlankXs[index] ?? 0, deckY, 0);
+      plank.rotation.set(0, 0, 0);
+    }
+    const postHeight = deckY - CHANNEL_BED_Y;
+    for (const post of deckPosts) {
+      post.scale.y = postHeight;
+      post.position.y = CHANNEL_BED_Y + postHeight / 2;
+    }
+    floatingPlanks = [];
+  }
+
+  function startFloatingAway(): void {
+    playPipGesture('Talk', 2);
+    floatingPlanks = deckPlanks.map((plank, index) => ({
+      plank,
+      // Alternate planks drift out opposite ends of the channel, at different speeds.
+      driftPerSecond: (index % 2 === 0 ? 1 : -1) * (0.7 + 0.2 * index),
+      spinPerSecond: (index % 2 === 0 ? 0.5 : -0.4) * (1 + index * 0.1),
+    }));
+  }
+
+  function updateTideTrial(deltaSeconds: number): void {
+    if (waterAnimation) {
+      const animation = waterAnimation;
+      const elapsed = performance.now() - animation.startedAt;
+      const level = animation.levelAt(Math.min(elapsed, animation.durationMs));
+      setWaterLevel(level);
+      animation.onLevel?.(Math.round(level));
+      if (elapsed >= animation.durationMs) {
+        waterAnimation = null;
+        animation.resolve();
+      }
+    }
+    if (floatingPlanks.length > 0) {
+      const surfaceY = tideCmToWorldY(waterCm);
+      for (const floating of floatingPlanks) {
+        const { plank } = floating;
+        if (!plank.visible) continue;
+        // Riding on the surface, a little low in the water.
+        plank.position.y = surfaceY - 0.08;
+        plank.position.z += floating.driftPerSecond * deltaSeconds;
+        plank.rotation.y += floating.spinPerSecond * deltaSeconds;
+        if (Math.abs(plank.position.z) > 14) plank.visible = false;
+      }
+    }
+  }
+
+  const tideTrial: TideTrialScene = {
+    begin(startDeckCm) {
+      tideTrialActive = true;
+      for (const part of brokenBridgeParts) part.visible = false;
+      tideTrialGroup.visible = true;
+      deckCm = startDeckCm;
+      if (deckPlanks.length === 0) {
+        void loadDeckPlanks();
+      } else {
+        placeDeck(startDeckCm);
+      }
+      easeWaterTo(TIDE_BOARD.lowWaterCm, 1800);
+      playPipGesture('Talk', 2);
+    },
+    setDeckHeight(cm) {
+      placeDeck(cm);
+    },
+    runTide(onLevel) {
+      let flooded = false;
+      return animateWater(
+        TIDE_DURATION_MS,
+        (elapsed) => tideLevelAt(elapsed),
+        (cm) => {
+          // Water level with the underside of the deck is enough to lift it (`evaluateDeck`).
+          if (!flooded && cm >= deckCm) {
+            flooded = true;
+            startFloatingAway();
+          }
+          onLevel(cm);
+        },
+      );
+    },
+    rebuild(cm) {
+      placeDeck(cm);
+      easeWaterTo(TIDE_BOARD.lowWaterCm, 1500);
+    },
+    complete() {
+      const colliderIndex = colliders.indexOf(bridgeCollider);
+      if (colliderIndex >= 0) colliders.splice(colliderIndex, 1);
+      easeWaterTo(settledWaterCm, 2500);
+      playPipGesture('Wave', 3);
+    },
+    cancel() {
+      tideTrialActive = false;
+      tideTrialGroup.visible = false;
+      for (const part of brokenBridgeParts) part.visible = true;
+      floatingPlanks = [];
+      easeWaterTo(restingWaterCm, 1500);
+    },
+  };
+
   const pointerControls = attachPointerControls(renderer, controller, { onInteract: interact });
+  const stopFittingRenderer = fitRendererToParent(parent, camera, renderer);
 
   const approachZones = [
     { id: BRIDGE_APPROACH_ZONE.id, zone: toBox3(BRIDGE_APPROACH_ZONE, -1, 3), wasInside: false },
@@ -450,6 +760,7 @@ export function createPirateBuilderBayEngine(
 
     npcMixer?.update(delta);
     treasureMixer?.update(delta);
+    updateTideTrial(delta);
 
     const npcNearNow = isInRange(
       controller.position,
@@ -497,10 +808,15 @@ export function createPirateBuilderBayEngine(
 
   function dispose(): void {
     cancelAnimationFrame(animationFrameId);
+    // Release anyone awaiting a tide, so an unmounted panel's promise does not hang.
+    waterAnimation?.resolve();
+    waterAnimation = null;
+    tideBoardTexture?.dispose();
     pointerControls.dispose();
+    stopFittingRenderer();
     renderer.dispose();
     parent.removeChild(renderer.domElement);
   }
 
-  return { dispose, interact };
+  return { dispose, interact, tideTrial };
 }
