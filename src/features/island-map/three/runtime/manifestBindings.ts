@@ -139,7 +139,8 @@ export function availableInteractions(
   manifest: ThreeLocationManifest,
   context: WorldInteractionContext,
 ): WorldInteraction[] {
-  return manifest.interactions.filter((interaction) =>
-    isInteractionAvailable(interaction, context),
+  const hidden = new Set(manifest.hiddenInteractionIds ?? []);
+  return manifest.interactions.filter(
+    (interaction) => !hidden.has(interaction.id) && isInteractionAvailable(interaction, context),
   );
 }

@@ -20,6 +20,7 @@ import {
   CLOCKWORK_HARBOR_REGION_ID,
   DRAGONS_SANCTUARY_REGION_ID,
   PIRATE_BUILDER_BAY_REGION_ID,
+  STORYKEEPER_CASTLE_REGION_ID,
   WELCOME_HARBOR_REGION_ID,
   WONDERWILD_FOREST_REGION_ID,
 } from '../features/discovery/checkpoints';
@@ -108,12 +109,6 @@ const ThreeSandboxWorldPage = lazy(() =>
 const LocationWorldPage = lazy(() =>
   import('../routes/LocationWorldPage').then((module) => ({
     default: module.LocationWorldPage,
-  })),
-);
-
-const StorykeeperCastleWorldPage3D = lazy(() =>
-  import('../routes/StorykeeperCastleWorldPage3D').then((module) => ({
-    default: module.StorykeeperCastleWorldPage3D,
   })),
 );
 
@@ -312,13 +307,7 @@ export function AppRoutes() {
       />
       <Route
         path="/island/:childId/world/storykeeper-castle-3d"
-        element={
-          <RequireParent>
-            <Suspense fallback={<p>Loading Storykeeper Castle...</p>}>
-              <StorykeeperCastleWorldPage3D />
-            </Suspense>
-          </RequireParent>
-        }
+        element={<LegacyLocationWorldRedirect regionId={STORYKEEPER_CASTLE_REGION_ID} />}
       />
       {/*
         Clockwork Harbor (`docs/regions/clockwork.md`). No `3D` suffix: unlike

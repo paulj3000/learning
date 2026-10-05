@@ -6,6 +6,7 @@ import { clockworkMachineryExtension } from './clockworkMachinery/clockworkMachi
 import { adaptiveAdventureEntranceViewExtension } from './adaptiveAdventureEntrance/adaptiveAdventureEntranceViewExtension';
 import { sanctuaryArtExtension } from './sanctuaryArt/sanctuaryArtScene';
 import { castleTaleExtension } from './castleTale/castleTaleScene';
+import { castleTaleViewExtension } from './castleTale/castleTaleViewExtension';
 
 /**
  * Every bespoke world mechanic the app ships (ADR-025). A manifest names an
@@ -35,6 +36,7 @@ export const SOURCE_WORLD_EXTENSIONS = createWorldExtensionRegistry([
 export const SOURCE_VIEW_EXTENSIONS = createViewExtensionRegistry([
   tideTrialViewExtension,
   adaptiveAdventureEntranceViewExtension,
+  castleTaleViewExtension,
 ]);
 
 /** Every extension id with a scene half, a React half, or both. */

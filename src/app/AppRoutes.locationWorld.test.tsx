@@ -49,6 +49,7 @@ describe('AppRoutes: manifest-driven 3D locations', () => {
       ['/island/child-1/world/wonderwild-forest-3d', 'child-1 wonderwild-forest'],
       ['/island/child-1/world/clockwork-harbor', 'child-1 clockwork-harbor'],
       ['/island/child-1/world/dragons-sanctuary', 'child-1 dragons-sanctuary'],
+      ['/island/child-1/world/storykeeper-castle-3d', 'child-1 storykeeper-castle'],
     ] as const) {
       const view = renderAt(path);
       expect(await screen.findByTestId('location-world-page')).toHaveTextContent(expected);

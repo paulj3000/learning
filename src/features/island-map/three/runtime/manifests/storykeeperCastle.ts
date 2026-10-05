@@ -680,6 +680,22 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
     },
   ],
 
+  /*
+    Beat 12's secret is a zone and nothing else: it never appears in the
+    reticle, in a toast, or in this list. And the five room taps the Phaser
+    castle authors (`castle-character-gallery` and friends) are descriptions
+    of rooms a child in here is standing in, which the per-region view also
+    left out of its list.
+  */
+  hiddenInteractionIds: [
+    'castle-tapestry-stair',
+    'castle-character-gallery',
+    'castle-setting-tower',
+    'castle-costume-room',
+    'castle-great-library',
+    'castle-illustration-studio',
+  ],
+
   noReticleBands: ['SPROUT'],
 
   copy: {

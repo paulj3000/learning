@@ -50,11 +50,27 @@ export interface LocationCompanionProps {
    * `null`. The view renders nothing itself for a claimed interaction, so a
    * companion decides what opening it means.
    */
-  openedInteraction: WorldInteraction | null;
-  /** Clears `openedInteraction`, as a panel's "Not now" does. */
+  claimedInteraction: WorldInteraction | null;
+  /**
+   * Whatever interaction is open on screen right now, claimed or not, for a
+   * companion that reacts to one it does not own: the castle's Keeper Quill
+   * talks while his own conversation panel is up and points through the
+   * archway when it closes, and that panel is the generic one.
+   */
+  openInteraction: WorldInteraction | null;
+  /** Clears the claimed interaction, as a panel's "Not now" does. */
   onCloseInteraction(): void;
   /** Says something in the HUD, the same toast a zone or a pickup uses. */
   showToast(message: string): void;
+  /**
+   * Overrides what the crosshair says. A companion that knows an entity
+   * better than the manifest does uses it: a portrait's label is "A clever
+   * fox" - the option's own words, from the adventure being played - rather
+   * than "a portrait".
+   */
+  setFocusLabel(label: string | null): void;
+  /** Whether the session's time is up, for a region that stages a calm stop in the room. */
+  limitReached: boolean;
   /** Re-reads world changes, inventory and discoveries. */
   refreshWorld(): Promise<void>;
 }

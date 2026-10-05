@@ -169,6 +169,13 @@ export function ThreeLocationWorldView({
 
   const bus = useMemo(() => new WorldEngineEventBus(), []);
   const engineRef = useRef<LocationEngine | null>(null);
+  /*
+    Also in state, not only in the ref: a companion is handed the scene
+    half's `api`, and a ref assignment does not re-render - so a companion
+    mounted before the engine was ready would hold `null` for the whole
+    visit and quietly do nothing.
+  */
+  const [engine, setEngine] = useState<LocationEngine | null>(null);
   // Read by bus listeners, so a refreshed context never forces re-subscribing.
   const contextRef = useRef<WorldInteractionContext>(EMPTY_CONTEXT);
   useEffect(() => {
@@ -390,8 +397,9 @@ export function ThreeLocationWorldView({
               DEFAULT_LOCATION_ENGINE_DEPS,
             )
           }
-          onEngineReady={(engine) => {
-            engineRef.current = engine;
+          onEngineReady={(ready) => {
+            engineRef.current = ready;
+            setEngine(ready);
           }}
         />
         <WorldHud
@@ -406,7 +414,7 @@ export function ThreeLocationWorldView({
             childId={childId}
             ageBand={ageBand}
             config={openExtension.config}
-            sceneApi={engineRef.current?.extensionApi(openExtension.extension.id) ?? null}
+            sceneApi={engine?.extensionApi(openExtension.extension.id) ?? null}
             onClose={() => setClaimed(null)}
             refreshWorld={refreshWorld}
           />
@@ -420,11 +428,14 @@ export function ThreeLocationWorldView({
           aiEnabled={aiEnabled}
           config={config}
           bus={bus}
-          sceneApi={engineRef.current?.extensionApi(id) ?? null}
+          sceneApi={engine?.extensionApi(id) ?? null}
           worldState={snapshot.context}
-          openedInteraction={claimed?.extensionId === id ? claimed.interaction : null}
+          claimedInteraction={claimed?.extensionId === id ? claimed.interaction : null}
+          openInteraction={openInteraction ?? claimed?.interaction ?? null}
           onCloseInteraction={() => setClaimed(null)}
           showToast={setToast}
+          setFocusLabel={setFocusedLabel}
+          limitReached={limitReached}
           refreshWorld={refreshWorld}
         />
       ))}

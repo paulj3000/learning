@@ -15,6 +15,7 @@ import { locationWorldPath } from '../features/island-map/three/runtime/location
 import {
   DRAGONS_SANCTUARY_REGION_ID,
   PIRATE_BUILDER_BAY_REGION_ID,
+  STORYKEEPER_CASTLE_REGION_ID,
   WONDERWILD_FOREST_REGION_ID,
 } from '../features/discovery/checkpoints';
 
@@ -228,7 +229,10 @@ export function IslandLocationPage() {
           </Link>
         ) : null}
         {location.slug === 'storykeeper-castle' ? (
-          <Link className={styles.walkLink} to={`/island/${childId}/world/storykeeper-castle-3d`}>
+          <Link
+            className={styles.walkLink}
+            to={locationWorldPath(childId, STORYKEEPER_CASTLE_REGION_ID)}
+          >
             Peek at an early 3D preview (new!)
           </Link>
         ) : null}

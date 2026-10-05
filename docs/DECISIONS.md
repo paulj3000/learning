@@ -1565,7 +1565,7 @@ still sent to sign-in, as for every protected route.
 
 ## ADR-025: Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies
 
-Status: Accepted (2026-10-04). Phases 1 to 8 of `docs/engine/10_IMPLEMENTATION_PHASES.md` are built, and Phase 9 for four of five regions: Welcome Harbor, Pirate Builder Bay, Wonderwild Forest, Clockwork Harbor and the Dragon's Sanctuary run on the generic route. Storykeeper Castle does not yet.
+Status: Accepted (2026-10-04). Phases 1 to 9 of `docs/engine/10_IMPLEMENTATION_PHASES.md` are built: every active 3D region - Welcome Harbor, Pirate Builder Bay, Wonderwild Forest, Clockwork Harbor, the Dragon's Sanctuary and Storykeeper Castle - runs on the generic route.
 
 Adding a 3D region currently means a new route page, `*WorldView.tsx`,
 `*Scene.ts` and `*Region.ts`. The audit
@@ -1717,13 +1717,44 @@ Two behaviour changes came with the migration, both deliberate:
 - The sanctuary's three rune hints are now per rune, so a hint for a rune the
   child already has stops being shown instead of a count quietly going down.
 
-**Storykeeper Castle is not migrated.** It is the one region whose bespoke
-part is not art but *behaviour*: an in-world adventure host, a story host,
-three seating puzzles, a composite easel, carrying a plate in front of the
-camera, an NPC gesture director, and a ten-method scene API, across 3,200
-lines with 69 view tests. Moving that behind extension ids is a piece of work
-in its own right, and a half-migrated castle would put the most intricate
-learning flow in the app at risk. Its own route is untouched until then.
+**Decision, part J: a region whose learning runs in the room gets a
+companion, not an overlay.** Storykeeper Castle was the last region to
+migrate and the only one whose bespoke part was *behaviour* rather than art,
+and that difference is what the extension API had to grow for.
+
+An `Overlay` opens when a child opens an interaction and closes again. The
+castle needs three things that cannot wait for that: a session left open
+yesterday resumes with the child's portrait already lit, Keeper Quill's
+gestures follow the rung of the hint ladder they are on, and the reticle says
+the option's own words from whichever of two adventures their band plays. So
+a view extension may now declare a `Companion`, mounted for the whole visit,
+which receives the region's event bus, the child's world state, the AI
+setting, a toast, a focus-label override, the session clock's `limitReached`,
+and both the interaction it claimed and whatever panel is open. The scene
+half gained `interceptInteract` (a plate going into a socket is a move inside
+a puzzle, not a domain event), `npcAnimator` (a gesture that plays once and
+*holds*, because wayfinding must still be there when the child looks up from
+the HUD) and `setFocusable` (a thing in the child's hands leaves the
+reticle's reach).
+
+What that bought: the castle's view-level branching is gone rather than
+moved. Its authored interactions already carried the requirements the view
+used to switch on - the story hall before and after a story is told, the
+secret door before and after the arc - so the generic walk-in path resolves
+all of them, and the two that open *learning in the room* are the only ones
+the extension claims. The manifest carries the rooms, every derived wall,
+the light per room, the twenty zones and the castle's own binding table.
+
+One thing this part deliberately does not do: give the companion the
+construction-time options the per-region engine took. A manifest-built scene
+has no equivalent, so restored session state is applied by an effect as soon
+as the scene exists, which is idempotent and order-independent.
+
+**Not checked for an adventure binding:** that the bound adventure is
+authored for the manifest's own location. A story arc's chapters belong to
+the arc rather than the room that hosts them (the castle's are authored for
+`castle-secret-passage`), so a region binding them is correct rather than
+suspect.
 
 **Consequences.**
 - `runtime/manifests/welcomeHarbor.ts` expresses Welcome Harbor with zero

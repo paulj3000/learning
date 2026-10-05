@@ -91,6 +91,8 @@ describe('Wonderwild Forest route, by age band', () => {
     renderLocation('storykeeper-castle', 'PATHFINDER');
     expect(
       await screen.findByRole('link', { name: /Peek at an early 3D preview/ }),
-    ).toHaveAttribute('href', '/island/child-1/world/storykeeper-castle-3d');
+      // Engine Phase 9: the castle runs on the generic route now. What it is
+      // *called* is still a preview, which is SC-11's call to change.
+    ).toHaveAttribute('href', '/island/child-1/explore/storykeeper-castle');
   });
 });

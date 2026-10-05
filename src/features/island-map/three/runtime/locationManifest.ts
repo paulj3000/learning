@@ -518,6 +518,13 @@ export interface ThreeLocationManifest {
   /** Reuses the existing interaction vocabulary verbatim; see `worldObjects.ts`. */
   interactions: readonly WorldInteraction[];
   /**
+   * Interactions kept out of "Things to do here" - the one case being a
+   * secret. The castle's swaying tapestry is an id and a zone and nothing
+   * else, because a secret that announces itself in a list is signage
+   * (storyboard beat 12). It stays reachable by walking into the corner.
+   */
+  hiddenInteractionIds?: readonly string[];
+  /**
    * Age bands that get no crosshair label in this region. A region where
    * nothing needs aiming - every choice is somewhere you stand - would
    * otherwise show a three-year-old a reticle implying a control they do not

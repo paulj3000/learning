@@ -417,7 +417,7 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 8 complete, Phase 9 for four of five regions; Storykeeper Castle still has its own; NOT yet seen by a person or on a device
+## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 9 complete; every 3D region runs on the generic route; NOT yet seen by a person or on a device
 
 Roadmap: `docs/engine/` (README, then `10_IMPLEMENTATION_PHASES.md`).
 Decision: ADR-025. Goal: a new ordinary 3D location needs a manifest, not a
@@ -852,33 +852,91 @@ reference (the Phase 5 and 7 pattern).
   takeable once, the lodge doorway is a real gap, the hearth gains its
   firelight only when the forge burns).
 
-**Storykeeper Castle is NOT migrated**, and this is the honest reason rather
-than a deferral dressed as a plan. Every other region's bespoke part is
-*art*; the castle's is *behaviour*: an in-world adventure host
-(`CastleTaleSession`), a story host (`CastleSecretDoorStory`), a third
-near-duplicate host (`CastleStoryAdventure`), three seating puzzles, a
-composite easel, carrying a plate in front of the camera, an NPC gesture
-director with a clip-and-facing vocabulary, the Sprout reticle rule, and a
-ten-method scene API - 1,388 view lines, 1,829 scene lines and five helper
-modules, covered by 69 view tests and a HUD-equivalence suite. Moving that
-behind extension ids is a phase of its own, and a half-migrated castle would
-put the most intricate learning flow in the app at risk. `world/storykeeper-castle-3d`
-and its page are untouched. What it needs, in order: indoor room-graph walls
-as generic vocabulary (rooms minus archway gaps, which
-`storykeeperCastleRegion.ts` already derives), a `seating-puzzle` extension
-(the castle uses the same one three times), an `easel-canvas` extension, and
-an in-world *adventure host* extension - the one genuinely new piece, since
+**Storykeeper Castle, migrated last** —
+`/island/:childId/explore/storykeeper-castle`. It was the only region whose
+bespoke part was *behaviour* rather than art, and it came in three steps,
+each committed on its own.
+
+**Step 1 — the vocabulary an indoor region needs.** `lights` (placed,
+requirement-gated point lights: indoors a region needs more than a sun, and
+a scene that placed its own would be the renderer owning content again),
+`elevation` on a prop and `y` on `TILED_GROUND`, a `CENTRE` model anchor
+that measures a loaded model and drops it by half its height (what a
+*mounted* height means for a portrait), `copy.calmStop`,
+`copy.progressUnavailable`, `copy.checkpointToasts` with a `{checkpoint}`
+placeholder resolved from the label the World State layer owns,
+`noReticleBands` (SC-10's rule that a band which cannot aim is shown no
+crosshair), `hiddenInteractionIds` (a secret that announces itself in a list
+is signage), and `aiEnabled` reaching the view through `LocationWorldPage`,
+failing closed. The generic view now reads the island's own session clock
+and stages the calm stop where the child is standing, for any region that
+authors the copy.
+
+**Step 2 — the manifest and the scene half.** `runtime/manifests/storykeeperCastle.ts`
+carries one floor and one ceiling slab per room scaled to its footprint,
+every derived wall segment as a collider with its panels from the generic
+`wallPanelPlacements`, the seven archways, the carpet to Quill, eleven
+bookshelves, nine counting stars, five lock carvings, one lamp per room plus
+the doorway and the hearth, all twenty zones, and
+`STORYKEEPER_CASTLE_INTERACTIONS` unchanged. The castle's own binding table
+moved here from `castleChoiceBindings.ts`, which is what Phase 8 promised.
+`castle-tale`'s scene half owns the state variants that flip mid-visit (a
+portrait lit, a window brightened, the hearth burning, the book shelved, the
+carpet running on, the door ajar, the worn carving revealed), Keeper Quill's
+gestures, the three seating puzzles behind one implementation
+(`seatingPuzzle.ts`), and beat 7's easel composed from seven layers.
+
+**Step 3 — the React half.** A `Companion`, new to the extension API and the
+reason the castle needed one: an `Overlay` opens when a child opens an
+interaction, and three of the castle's behaviours cannot wait for that - a
+session left open yesterday resumes with the portrait already lit, Quill's
+gestures follow the rung of the hint ladder, and the reticle says the
+option's own words. `CastleTaleSession`, `CastleSecretDoorStory` and
+`CastleStoryAdventure` moved behind it unchanged.
+
+What the migration *removed* rather than moved: the view's
+`if (zoneId === ...)` chain. The authored interactions already carried the
+requirements it switched on, so the generic walk-in path resolves every one
+of them, and only the two that open learning in the room are claimed.
+
+Tests: 11 manifest, 11 engine (the rooms are walls with holes in them, three
+plates picked up and seated through the generic focus and interact path with
+the arrangement arriving as one `BuildActionRequested`, the castle built
+already changed for a child who told a story) and 44 parity cases covering
+every behaviour family of the old view's 69 - the shell, Quill, the bands,
+the tale, the lectern, a resumed session, the arc, the nook and the calm
+stop.
+
+Known differences, all cosmetic and all deliberate: Quill's stand-in box is
+the runtime's size rather than the castle's own; the region's costume racks
+are still unplaced (the per-region scene never placed them either); the three
+gallery zones and the swaying tapestry's scenery id gained suffixes because
+entity and zone ids share one namespace in the generic runtime, and
+`castle-tale` strips the suffix before resolving a binding.
+
+**What the castle cost, for the record.** It was deferred once, with an
+estimate: indoor walls as generic vocabulary, a shared seating puzzle, the
+easel, and an in-world adventure host - "the one genuinely new piece, since
 no existing extension renders a step of an open `AdventureSession` inside a
-region.
+region". That held. The host turned out to need one more thing than
+expected, which is what step 1's `Companion` is: a React half mounted for
+the whole visit rather than opened by an interaction. Its 1,388 view lines
+and 1,829 scene lines are now a 718-line manifest, a 488-line scene
+extension, a 159-line shared seating puzzle and three host components moved
+across unchanged.
 
-Totals: the full suite is 249 files and 2599 tests, all passing (up from 240
-and 2488); typecheck,
-lint, format and build pass. Run it with `npx vitest run --maxWorkers=2` on a
-modest machine.
+Totals after the castle: the full suite is 252 files and 2672 tests (up from
+239 and 2458 before this phase); typecheck, lint, format and build pass. Run
+it with `npx vitest run --maxWorkers=2` on a modest machine: at full
+concurrency the heavier jsdom files time their workers out, which looks like
+failures and is not (`ModelUploadWizard.test.tsx` flaked that way on the
+last full run and passes alone).
 
-**Next: finish Phase 9 by migrating Storykeeper Castle**, then Phase 10
-(asset integration cleanup) and Phase 16's legacy removal, which is when the
-five unrouted per-region views and scenes come out of the tree.
+**Next: Phase 10** (asset integration cleanup), then Phase 11's Admin
+location editor. Phase 16's legacy removal is when the six unrouted
+per-region views and scenes come out of the tree - they stay for now as the
+parity reference, which is what every migration in this phase was checked
+against.
 
 ## First-person controls no longer scroll the page — unit-tested; NOT yet checked on a device
 
