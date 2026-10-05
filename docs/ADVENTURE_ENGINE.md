@@ -192,3 +192,22 @@ location, is this adventure already complete) live in the world/object
 registry, not inside a Phaser scene, so they stay unit-testable without a
 rendering context.
 
+### Step bindings (engine roadmap Phase 8)
+
+A 3D region may also bind a *thing in the room* to an *option of a step*: a
+portrait is `choose-hero`'s `hero-fox`, a carved stone is `wonder-wall`'s
+`wonder-bees`, a row of seated plates is an `ordering` answer. That
+relationship is declarative data, `AdventureStepBinding`
+(`src/features/island-map/three/runtime/adventureStepBindings.ts`), carried
+by a region's manifest or, until its region migrates, by
+`castleChoiceBindings.ts` / `wonderWallBindings.ts`.
+
+The engine still does not change, and the rule is the same one as above, one
+level finer: a binding resolves to an option id the step already declares
+and stops. Correctness, transitions, hints and mastery stay here. A binding
+is always qualified by its adventure, because one portrait can stand for a
+different option in each of two age bands' adventures.
+`findAdventureBindingIssues` is the authoring check: an option a step does
+not declare, or a step option no thing in the room stands for, is a failing
+test rather than a runtime fallback.
+

@@ -7,7 +7,7 @@ import { WorldHud, type WorldHudBackpackItem } from '../WorldHud';
 import { WorldEngineEventBus } from '../worldEngineEvents';
 import type { WorldInteraction, WorldInteractionContext } from '../../worldObjects';
 import { getWorldState, recordCharacterMet, saveCheckpoint } from '../../../discovery/api';
-import { listAllWorldChanges } from '../../../adventures/api';
+import { listAllWorldChanges, recordWorldChangeOnce } from '../../../adventures/api';
 import { getInventory } from '../../../rewards/api';
 import { ALL_ITEMS } from '../../../rewards/content';
 import { listQuestStates } from '../../../quests/api';
@@ -28,8 +28,10 @@ import { sourceLocationManifestRepository } from './manifests';
 import {
   availableInteractions,
   focusLabel,
+  findCollectibleByEntityId,
   findNpcByEntityId,
   interactionForEntity,
+  pickUpWorldChange,
   walkInInteractionForZone,
   zoneEnterMessage,
 } from './manifestBindings';
@@ -230,6 +232,29 @@ export function ThreeLocationWorldView({
         const interaction = interactionForEntity(manifest, entityId, contextRef.current);
         if (interaction) openInteractionFor(interaction);
       }),
+      /*
+        Picking something up, as the manifest declares it (Phase 8): the
+        authored toast, and the one durable fact. `recordWorldChangeOnce` is
+        the island's existing idempotent write path, so a double pickup
+        records one find, and the refresh is what makes a spot that needed
+        this find available without leaving the region.
+      */
+      bus.on('CollectiblePickedUp', ({ entityId }) => {
+        const collectible = findCollectibleByEntityId(manifest, entityId);
+        if (!collectible) return;
+        if (collectible.pickUpMessage) setToast(collectible.pickUpMessage);
+        const change = pickUpWorldChange(manifest, entityId);
+        if (!change) return;
+        void recordWorldChangeOnce(
+          childId,
+          change.locationSlug,
+          change.changeType,
+          change.changeKey,
+          change.source,
+        )
+          .then(() => refreshWorld())
+          .catch(() => undefined);
+      }),
       bus.on('PlayerEnteredZone', ({ zoneId }) => {
         if (checkpointIds.has(zoneId)) {
           void saveCheckpoint(childId, zoneId).catch(() => undefined);
@@ -244,7 +269,7 @@ export function ThreeLocationWorldView({
     return () => {
       for (const unsubscribe of unsubscribes) unsubscribe();
     };
-  }, [bus, childId, manifest, openInteractionFor]);
+  }, [bus, childId, manifest, openInteractionFor, refreshWorld]);
 
   useEffect(() => {
     if (!toast) return;

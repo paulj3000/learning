@@ -356,6 +356,8 @@ export const PIRATE_BUILDER_BAY_MANIFEST: ThreeLocationManifest = {
 
   interactions: PIRATE_BUILDER_BAY_INTERACTIONS,
 
+  adventureBindings: [],
+
   extensions: [
     {
       extensionId: TIDE_TRIAL_EXTENSION_ID,

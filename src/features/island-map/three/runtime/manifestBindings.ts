@@ -3,7 +3,7 @@ import {
   type WorldInteraction,
   type WorldInteractionContext,
 } from '../../worldObjects';
-import type { NpcPlacementSpec, ThreeLocationManifest } from './locationManifest';
+import type { CollectibleSpec, NpcPlacementSpec, ThreeLocationManifest } from './locationManifest';
 
 /**
  * Pure lookups from the semantic ids a scene emits to what the manifest
@@ -17,6 +17,38 @@ export function findNpcByEntityId(
   entityId: string,
 ): NpcPlacementSpec | undefined {
   return manifest.npcs.find((npc) => npc.entityId === entityId);
+}
+
+export function findCollectibleByEntityId(
+  manifest: ThreeLocationManifest,
+  entityId: string,
+): CollectibleSpec | undefined {
+  return manifest.collectibles.find((collectible) => collectible.entityId === entityId);
+}
+
+/**
+ * Where a picked-up collectible's world change is recorded, or `undefined`
+ * when picking it up changes nothing durable.
+ *
+ * The location defaults to the manifest's own, which is the usual case; a
+ * region that is not an `IslandLocation` (the harbour hub) has to name one,
+ * and validation requires it.
+ */
+export function pickUpWorldChange(
+  manifest: ThreeLocationManifest,
+  entityId: string,
+): { locationSlug: string; changeType: string; changeKey: string; source: string } | undefined {
+  const change = findCollectibleByEntityId(manifest, entityId)?.worldChange;
+  if (!change) return undefined;
+  const locationSlug = change.locationSlug ?? manifest.locationSlug;
+  if (locationSlug === undefined) return undefined;
+  return {
+    locationSlug,
+    changeType: change.changeType,
+    changeKey: change.changeKey,
+    // Not an adventure session, so provenance says where it really came from.
+    source: `exploration:${entityId}`,
+  };
 }
 
 /**

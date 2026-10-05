@@ -1,10 +1,16 @@
 import type { WorldAction, WorldInteraction, WorldRequirement } from '../../worldObjects';
 import {
   LOCATION_MANIFEST_SCHEMA_VERSION,
+  type CollectibleSpec,
   type GroundPoint,
   type RectZone,
   type ThreeLocationManifest,
 } from './locationManifest';
+import {
+  findAdventureBindingIssues,
+  type AdventureBindingIssueKind,
+  type BindableStep,
+} from './adventureStepBindings';
 
 /**
  * Pure validation for `ThreeLocationManifest`
@@ -26,7 +32,12 @@ export interface LocationManifestRegistries {
   checkpoints: readonly { id: string; regionId: string }[];
   worldSlugs: readonly string[];
   locations: readonly { slug: string; worldSlug: string }[];
-  adventures: readonly { slug: string; locationSlug: string }[];
+  /**
+   * `steps` lets an `adventureBindings` entry be checked against the options
+   * the step really declares. A registry entry without steps carries none,
+   * so any binding into it is reported rather than silently skipped.
+   */
+  adventures: readonly { slug: string; locationSlug: string; steps?: readonly BindableStep[] }[];
   discoveryIds: readonly string[];
   /** `ItemDefinition.id`s, for `ITEM_OWNED` requirements. */
   itemIds: readonly string[];
@@ -57,7 +68,11 @@ export type LocationManifestIssueKind =
   | 'ADVENTURE_IN_WRONG_LOCATION'
   | 'UNKNOWN_STORY'
   | 'UNKNOWN_EXTENSION'
-  | 'MISSING_COPY';
+  | 'MISSING_COPY'
+  /** A world change nothing can stop coming back: see `checkCollectibleWorldChange`. */
+  | 'UNGATED_WORLD_CHANGE'
+  /** Every `adventureBindings` problem, reported by `adventureStepBindings.ts`. */
+  | AdventureBindingIssueKind;
 
 /** One thing wrong with a manifest. Developer/author-facing; never shown to a child. */
 export interface LocationManifestIssue {
@@ -302,6 +317,11 @@ export function validateLocationManifest(
     checkAsset(collectible.assetId, `${path}.assetId`, collectible.idleClip);
     checkInBounds(collectible.position, `${path}.position`);
     requireText(collectible.label, `${path}.label`, report);
+    checkRequirements(collectible.requirements, `${path}.requirements`);
+    if (collectible.pickUpMessage !== undefined) {
+      requireText(collectible.pickUpMessage, `${path}.pickUpMessage`, report);
+    }
+    checkCollectibleWorldChange(collectible, path, manifest, registries, report);
   });
 
   manifest.zones.forEach((zone, index) => {
@@ -343,6 +363,39 @@ export function validateLocationManifest(
     checkRequirements(interaction.requirements, `${path}.requirements`);
   });
 
+  /*
+    Adventure step bindings (Phase 8). The generic check lives beside the
+    binding type, so the regions whose tables have not moved into a manifest
+    yet are checked by the same code (`adventureStepBindings.ts`).
+  */
+  const placedEntityIds = [
+    ...manifest.npcs.map((npc) => npc.entityId),
+    ...manifest.props.map((prop) => prop.entityId),
+    ...manifest.collectibles.map((collectible) => collectible.entityId),
+  ];
+  issues.push(
+    ...findAdventureBindingIssues(manifest.adventureBindings, {
+      adventures: registries.adventures,
+      placedEntityIds,
+    }),
+  );
+  manifest.adventureBindings.forEach((binding, index) => {
+    const adventure = registries.adventures.find(
+      (candidate) => candidate.slug === binding.templateSlug,
+    );
+    if (
+      adventure &&
+      manifest.locationSlug !== undefined &&
+      adventure.locationSlug !== manifest.locationSlug
+    ) {
+      report(
+        'ADVENTURE_IN_WRONG_LOCATION',
+        `adventureBindings[${index}].templateSlug`,
+        `"${adventure.slug}" is authored for "${adventure.locationSlug}", not "${manifest.locationSlug}"`,
+      );
+    }
+  });
+
   manifest.extensions.forEach((extension, index) => {
     if (!registries.extensionIds.includes(extension.extensionId)) {
       report(
@@ -362,6 +415,56 @@ export function validateLocationManifest(
 }
 
 type Report = (kind: LocationManifestIssueKind, path: string, detail: string) => void;
+
+/**
+ * A collectible's `worldChange`, if it has one: a real location to record
+ * against, non-empty keys, and - the check this exists for - a
+ * `WORLD_CHANGE_ABSENT` requirement on the same key.
+ *
+ * Without that requirement the write is pointless: the thing is picked up,
+ * the change is recorded, and the next visit builds the scene with it still
+ * standing there to be picked up again. That is the live Clockwork Harbor
+ * bug the duplication audit recorded (golden gears reappear every visit),
+ * and it is an authoring mistake a validator can refuse rather than a bug
+ * each region gets to make once.
+ */
+function checkCollectibleWorldChange(
+  collectible: CollectibleSpec,
+  path: string,
+  manifest: ThreeLocationManifest,
+  registries: LocationManifestRegistries,
+  report: Report,
+): void {
+  const change = collectible.worldChange;
+  if (!change) return;
+  if (change.changeType.trim().length === 0) {
+    report('INVALID_VALUE', `${path}.worldChange.changeType`, 'must not be empty');
+  }
+  if (change.changeKey.trim().length === 0) {
+    report('INVALID_VALUE', `${path}.worldChange.changeKey`, 'must not be empty');
+  }
+  const locationSlug = change.locationSlug ?? manifest.locationSlug;
+  if (locationSlug === undefined) {
+    report(
+      'INVALID_VALUE',
+      `${path}.worldChange.locationSlug`,
+      'this region has no locationSlug, so the change must name one',
+    );
+  } else if (!registries.locations.some((location) => location.slug === locationSlug)) {
+    report('UNKNOWN_LOCATION', `${path}.worldChange.locationSlug`, `no location "${locationSlug}"`);
+  }
+  const gated = collectible.requirements?.some(
+    (requirement) =>
+      requirement.type === 'WORLD_CHANGE_ABSENT' && requirement.changeKey === change.changeKey,
+  );
+  if (!gated) {
+    report(
+      'UNGATED_WORLD_CHANGE',
+      `${path}.requirements`,
+      `needs a WORLD_CHANGE_ABSENT requirement on "${change.changeKey}", or it comes back after being picked up`,
+    );
+  }
+}
 
 function isWalkInTrigger(interaction: WorldInteraction): boolean {
   return interaction.trigger === 'APPROACH' || interaction.trigger === 'ENTER';

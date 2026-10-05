@@ -378,7 +378,16 @@ export function createLocationEngine<R extends RendererLike>(
     );
   }
 
-  for (const collectible of manifest.collectibles) {
+  /*
+    Only the collectibles this child's world state allows. One that records a
+    world change carries a `WORLD_CHANGE_ABSENT` requirement on its own key
+    (validation requires it), so once it has been picked up it is simply
+    never built again, which is what keeps it picked up (Phase 8).
+  */
+  const presentCollectibles = manifest.collectibles.filter((collectible) =>
+    areRequirementsMet(collectible.requirements, worldState),
+  );
+  for (const collectible of presentCollectibles) {
     const root = new Group();
     root.name = collectible.label;
     root.position.set(collectible.position.x, 0, collectible.position.z);

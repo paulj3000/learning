@@ -67,6 +67,7 @@ vi.mock('../../../discovery/api', () => ({
 }));
 vi.mock('../../../adventures/api', () => ({
   listAllWorldChanges: vi.fn(),
+  recordWorldChangeOnce: vi.fn(),
   resumeOrStartSession: vi.fn(),
 }));
 vi.mock('../../../rewards/api', () => ({ getInventory: vi.fn() }));
@@ -74,13 +75,14 @@ vi.mock('../../../quests/api', () => ({ listQuestStates: vi.fn() }));
 vi.mock('../../../island/api', () => ({ getCompanionProfile: vi.fn() }));
 
 import { getWorldState, recordCharacterMet, saveCheckpoint } from '../../../discovery/api';
-import { listAllWorldChanges } from '../../../adventures/api';
+import { listAllWorldChanges, recordWorldChangeOnce } from '../../../adventures/api';
 import { getInventory } from '../../../rewards/api';
 import { listQuestStates } from '../../../quests/api';
 import { getCompanionProfile } from '../../../island/api';
 
 const getWorldStateMock = vi.mocked(getWorldState);
 const listAllWorldChangesMock = vi.mocked(listAllWorldChanges);
+const recordWorldChangeOnceMock = vi.mocked(recordWorldChangeOnce);
 
 function repositoryOf(...manifests: ThreeLocationManifest[]): LocationManifestRepository {
   return {
@@ -130,6 +132,23 @@ const TEST_COVE: ThreeLocationManifest = {
   },
 };
 
+/**
+ * The harbour's gem, given the Phase 8 pickup binding: an authored toast and
+ * one durable fact, gated on that same fact so it stays picked up.
+ */
+const GEM_FOUND = 'HARBOR_GEM_FOUND';
+const WITH_PICKUP: ThreeLocationManifest = {
+  ...WELCOME_HARBOR_MANIFEST,
+  regionId: 'pickup-cove',
+  locationSlug: 'pirate-builder-bay',
+  collectibles: WELCOME_HARBOR_MANIFEST.collectibles.map((collectible) => ({
+    ...collectible,
+    requirements: [{ type: 'WORLD_CHANGE_ABSENT', changeKey: GEM_FOUND }],
+    pickUpMessage: 'You found a shining gem.',
+    worldChange: { changeType: 'COLLECTIBLE_FOUND', changeKey: GEM_FOUND },
+  })),
+};
+
 function renderView(
   regionId = 'welcome-harbor',
   repository = repositoryOf(WELCOME_HARBOR_MANIFEST, TEST_COVE),
@@ -170,6 +189,7 @@ describe('ThreeLocationWorldView', () => {
     vi.mocked(recordCharacterMet).mockResolvedValue(undefined);
     vi.mocked(saveCheckpoint).mockResolvedValue(undefined);
     listAllWorldChangesMock.mockResolvedValue([]);
+    recordWorldChangeOnceMock.mockResolvedValue(undefined);
     vi.mocked(getInventory).mockResolvedValue({ ownedItemIds: [], grantedRuleIds: [] });
     vi.mocked(listQuestStates).mockResolvedValue([]);
     vi.mocked(getCompanionProfile).mockResolvedValue(null);
@@ -279,6 +299,43 @@ describe('ThreeLocationWorldView', () => {
     getWorldStateMock.mockResolvedValue({ discoveredIds: ['cove-secret'], metCharacterIds: [] });
     await user.click(screen.getByRole('button', { name: 'discover cove-secret' }));
     expect(await screen.findByRole('button', { name: 'Sail on' })).toBeInTheDocument();
+  });
+
+  it('records a picked-up collectible as one durable fact, with the authored toast (Phase 8)', async () => {
+    renderView('pickup-cove', repositoryOf(WITH_PICKUP));
+    await screen.findByText(/Walk up to Pip/);
+    await emit('CollectiblePickedUp', { entityId: 'harbor-collectible-gem' });
+
+    expect(screen.getByText('You found a shining gem.')).toBeInTheDocument();
+    expect(recordWorldChangeOnceMock).toHaveBeenCalledWith(
+      'child-1',
+      'pirate-builder-bay',
+      'COLLECTIBLE_FOUND',
+      GEM_FOUND,
+      'exploration:harbor-collectible-gem',
+    );
+    // The write path is idempotent, so a second pickup is still one find.
+    await emit('CollectiblePickedUp', { entityId: 'harbor-collectible-gem' });
+    expect(recordWorldChangeOnceMock).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(listAllWorldChangesMock).toHaveBeenCalledTimes(3));
+  });
+
+  it('records nothing for a collectible the manifest binds to no world change', async () => {
+    renderView();
+    await screen.findByText(/Walk up to Pip/);
+    await emit('CollectiblePickedUp', { entityId: 'harbor-collectible-gem' });
+    expect(recordWorldChangeOnceMock).not.toHaveBeenCalled();
+
+    await emit('CollectiblePickedUp', { entityId: 'not-a-collectible' });
+    expect(recordWorldChangeOnceMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps showing the region when recording a pickup fails', async () => {
+    recordWorldChangeOnceMock.mockRejectedValue(new Error('offline'));
+    renderView('pickup-cove', repositoryOf(WITH_PICKUP));
+    await screen.findByText(/Walk up to Pip/);
+    await emit('CollectiblePickedUp', { entityId: 'harbor-collectible-gem' });
+    expect(screen.getByText('You found a shining gem.')).toBeInTheDocument();
   });
 
   it('stops listening and disposes the scene on unmount', async () => {

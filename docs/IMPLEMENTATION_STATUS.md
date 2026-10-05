@@ -417,7 +417,7 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 7 complete; Welcome Harbor and Pirate Builder Bay 3D run on the generic route; NOT yet seen by a person or on a device
+## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 8 complete; Welcome Harbor and Pirate Builder Bay 3D run on the generic route; NOT yet seen by a person or on a device
 
 Roadmap: `docs/engine/` (README, then `10_IMPLEMENTATION_PHASES.md`).
 Decision: ADR-025. Goal: a new ordinary 3D location needs a manifest, not a
@@ -672,9 +672,82 @@ typecheck, lint and build pass.
 on a tablet, including an Explorer playing Beat the Tide end to end against
 a real backend.
 
-**Next: Phase 8.** Move the remaining direct region bindings into
-declarative manifest bindings. Then Phase 9 migrates Wonderwild Forest,
-Clockwork Harbor, Dragon's Sanctuary and Storykeeper Castle.
+**Phase 8 (interaction binding layer), complete.** ADR-025 part H. The two
+kinds of direct binding the audit found in region code are now declarative
+vocabulary, and the engines they bind to are untouched.
+
+Adventure step bindings:
+- `runtime/adventureStepBindings.ts`: `AdventureStepBinding` (entity,
+  template, step, option) and every lookup over a table of them, which the
+  castle and the forest each had their own copy of: forward (qualified by
+  adventure), reverse (which thing to light for an option already recorded
+  on the session), per step, the distinct bound steps, and a seated row to
+  the `{ kind: 'ordering', order }` an ORDERING step grades.
+- `findAdventureBindingIssues` is the authoring check, as a list of issues
+  rather than a throw: the adventure, step and option must exist; every
+  option of a bound step must have exactly one entity (or a room offers
+  three of four questions and nothing complains); an entity may answer one
+  step per adventure and no more (two age bands out of one set of rooms is
+  fine, two steps of one adventure is not); every bound entity must be one
+  the region places.
+- `ThreeLocationManifest.adventureBindings` carries a region's table.
+  Validation runs the shared check with this manifest's own NPCs, props and
+  collectibles as the placement list, and additionally refuses a binding
+  into an adventure authored for another location.
+- `castleChoiceBindings.ts` and `wonderWallBindings.ts` keep their authored
+  tables and their region-specific slugs, and delegate every lookup. Their
+  own tests are unchanged and still pass, which is what makes this a
+  de-duplication rather than a rewrite; `adventureStepBindings.test.ts`
+  additionally runs the generic check over both real tables against the real
+  `ADVENTURE_TEMPLATES`, and both come back clean.
+- Both shipped manifests declare `adventureBindings: []`: neither Welcome
+  Harbor nor Pirate Builder Bay answers an adventure step from a thing in
+  the room. The two real tables move into their manifests in Phase 9, with
+  no change in meaning.
+
+Pickup world changes:
+- `CollectibleSpec` gains `requirements`, `pickUpMessage` and `worldChange`
+  (`{ changeType, changeKey, locationSlug? }`, defaulting to the manifest's
+  own location). The view records it through the existing idempotent
+  `recordWorldChangeOnce` with provenance `exploration:<entityId>` - the
+  convention `recordDiscovery` set, since nothing here came from an
+  adventure session - then refreshes, so a spot that needed this find opens
+  without leaving the region. The engine leaves out a collectible whose
+  requirements the world state does not meet.
+- Validation refuses a `worldChange` without the matching
+  `WORLD_CHANGE_ABSENT` requirement on the same key. That is the live
+  Clockwork Harbor bug in the audit (golden gears recorded as found and
+  built again every visit), now an authoring error a region cannot re-make.
+
+Tests: 20 in `adventureStepBindings.test.ts` (the lookups, every issue kind,
+and the two real shipped tables against the real `ADVENTURE_TEMPLATES`), 6
+more in `validateLocationManifest.test.ts` (ungated change, empty or unknown
+change location, empty pick-up message, the binding issue kinds, a binding
+into another location's adventure), 3 in `ThreeLocationWorldView.test.tsx`
+(the toast and one recorded fact with exact arguments, nothing recorded for
+an unbound collectible, and a failed write that still leaves the region
+playable) and 1 in `createLocationEngine.test.ts` (a gem already found is
+not in the scene to find again). Full suite: 240 files and 2488 tests, all
+passing (up from 239 and 2458); typecheck, lint and format pass. Run the
+suite with `npx vitest run --maxWorkers=2` on a modest machine: at default
+concurrency the heavier jsdom/Three files time their workers out, which
+looks like 10-plus failing files and is not.
+
+**Deliberately not in Phase 8**, each with the reason:
+- a generic in-world *host* for an adventure step. The castle's
+  `CastleTaleSession` is the only one that exists, and it migrates with the
+  castle in Phase 9; building a second one now would be a guess at what it
+  needs.
+- `worldChange` on props. Dragon's Sanctuary's runes are the candidate, and
+  they come with carrying and placing - a mechanic that wants an extension,
+  not a field.
+- requirement-gated lighting and background. Scenery already takes
+  `requirements`, which covers asset swaps by world state; no migrated
+  region changes its lighting, so the field would be untested vocabulary.
+
+**Next: Phase 9.** Migrate Wonderwild Forest, Clockwork Harbor, Dragon's
+Sanctuary and Storykeeper Castle, moving the two real binding tables into
+their manifests as each region lands.
 
 ## First-person controls no longer scroll the page — unit-tested; NOT yet checked on a device
 

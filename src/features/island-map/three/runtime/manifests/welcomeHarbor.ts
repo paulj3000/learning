@@ -174,6 +174,8 @@ export const WELCOME_HARBOR_MANIFEST: ThreeLocationManifest = {
     },
   ],
 
+  adventureBindings: [],
+
   extensions: [],
 
   copy: {

@@ -1,4 +1,5 @@
 import type { WorldInteraction, WorldRequirement } from '../../worldObjects';
+import type { AdventureStepBinding } from './adventureStepBindings';
 
 /**
  * The serializable contract a generic Three.js location runtime reads
@@ -22,6 +23,9 @@ import type { WorldInteraction, WorldRequirement } from '../../worldObjects';
  * unchanged: a manifest entity names an interaction id, and the interaction's
  * existing `WorldAction` (TALK_TO, DISCOVER, START_ADVENTURE, START_STORY,
  * NAVIGATE, SHOW_MESSAGE) hands off to the engine that owns the meaning.
+ * `adventureBindings` (Phase 8) is the one step finer: a thing in the room
+ * standing for an option of an adventure step the Adventure Engine still
+ * owns. See `adventureStepBindings.ts`.
  */
 
 export const LOCATION_MANIFEST_SCHEMA_VERSION = 1;
@@ -240,6 +244,23 @@ export interface PropSpec {
   interactClip?: string;
 }
 
+/**
+ * The durable fact some world action records, as data rather than as a call
+ * site (Phase 8). The write path is unchanged: the view hands this to
+ * `recordWorldChangeOnce`, which is idempotent, with provenance
+ * `exploration:<entityId>` - the convention `recordDiscovery` set with
+ * `discovery:<id>`, since nothing here came from an adventure session and
+ * inventing a session id would make the column lie.
+ */
+export interface WorldChangeBinding {
+  /** `WorldChange.changeType`, e.g. `COLLECTIBLE_FOUND`. */
+  changeType: string;
+  /** `WorldChange.changeKey`: the key the island's own content already uses. */
+  changeKey: string;
+  /** Defaults to the manifest's `locationSlug`. Set it only for a region that is not a location. */
+  locationSlug?: string;
+}
+
 /** A pick-up-able object: interacting emits `CollectiblePickedUp` and removes it from the scene. */
 export interface CollectibleSpec {
   entityId: string;
@@ -247,6 +268,17 @@ export interface CollectibleSpec {
   position: GroundPoint;
   label: string;
   idleClip?: string;
+  /**
+   * Present only while these hold, evaluated when the scene is built.
+   * Absent means always - which, for a collectible that records a world
+   * change, would mean it comes back on the next visit, so validation
+   * requires the matching `WORLD_CHANGE_ABSENT` requirement.
+   */
+  requirements?: readonly WorldRequirement[];
+  /** Child-facing toast shown on picking it up, readable aloud. */
+  pickUpMessage?: string;
+  /** What picking it up durably changes about the island, if anything. */
+  worldChange?: WorldChangeBinding;
 }
 
 /** A trigger rectangle that emits `PlayerEnteredZone` with `rect.id`. */
@@ -321,6 +353,13 @@ export interface ThreeLocationManifest {
   ambient: readonly AmbientSpec[];
   /** Reuses the existing interaction vocabulary verbatim; see `worldObjects.ts`. */
   interactions: readonly WorldInteraction[];
+  /**
+   * Which things in this region stand for which options of which adventure
+   * steps (Phase 8, `adventureStepBindings.ts`). Empty for a region whose
+   * learning all happens on HUD cards; the Adventure Engine still owns every
+   * transition and every judgement of correctness.
+   */
+  adventureBindings: readonly AdventureStepBinding[];
   extensions: readonly ExtensionBinding[];
   copy: LocationCopy;
 }

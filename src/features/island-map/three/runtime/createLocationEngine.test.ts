@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Box3, Group, Mesh, Vector3, type Object3D } from 'three';
 import type { LoadedModel } from './createLocationEngine';
 import type { WorldExtension, WorldExtensionContext } from './extensionRegistry';
+import type { ThreeLocationManifest } from './locationManifest';
 import { WELCOME_HARBOR_MANIFEST } from './manifests/welcomeHarbor';
 import {
   FACE_NORTH,
@@ -118,6 +119,38 @@ describe('createLocationEngine: focus and interaction', () => {
       { entityId: 'harbor-collectible-gem' },
     ]);
     expect(named(harness.events, 'InteractableFocused').at(-1)).toEqual({ entityId: null });
+  });
+
+  it('leaves out a collectible whose world change the child has already recorded (Phase 8)', async () => {
+    // What keeps a picked-up thing picked up: the scene is simply not built
+    // with it next time, so it cannot be focused or collected twice.
+    const manifest: ThreeLocationManifest = {
+      ...WELCOME_HARBOR_MANIFEST,
+      collectibles: WELCOME_HARBOR_MANIFEST.collectibles.map((collectible) => ({
+        ...collectible,
+        requirements: [{ type: 'WORLD_CHANGE_ABSENT', changeKey: 'HARBOR_GEM_FOUND' }],
+        worldChange: { changeType: 'COLLECTIBLE_FOUND', changeKey: 'HARBOR_GEM_FOUND' },
+      })),
+    };
+    const stillThere = mount({ manifest });
+    await stillThere.engine.ready;
+    stillThere.setDrive(standAt(-1.5, -1, FACE_SOUTH));
+    stillThere.runFrames(1);
+    expect(named(stillThere.events, 'InteractableFocused')).toEqual([
+      { entityId: 'harbor-collectible-gem' },
+    ]);
+
+    const alreadyFound = mount({
+      manifest,
+      worldState: { worldChangeKeys: ['HARBOR_GEM_FOUND'], ownedItemIds: [], discoveryIds: [] },
+    });
+    await alreadyFound.engine.ready;
+    alreadyFound.setDrive(standAt(-1.5, -1, FACE_SOUTH));
+    alreadyFound.runFrames(1);
+    // Nothing to focus, so not even a focus change: the gem is not in the scene.
+    expect(named(alreadyFound.events, 'InteractableFocused')).toEqual([]);
+    alreadyFound.engine.interact();
+    expect(named(alreadyFound.events, 'CollectiblePickedUp')).toEqual([]);
   });
 
   it('does nothing when interacting with empty air', async () => {

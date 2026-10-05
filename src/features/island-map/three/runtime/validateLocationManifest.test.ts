@@ -25,7 +25,23 @@ const REGISTRIES: LocationManifestRegistries = {
     { slug: 'test-cove', worldSlug: 'home' },
     { slug: 'far-cove', worldSlug: 'away' },
   ],
-  adventures: [{ slug: 'find-the-shells', locationSlug: 'test-cove' }],
+  adventures: [
+    {
+      slug: 'find-the-shells',
+      locationSlug: 'test-cove',
+      steps: [
+        {
+          id: 'pick-a-shell',
+          presentation: {
+            kind: 'choice',
+            options: [{ id: 'shell-pink' }, { id: 'shell-white' }],
+          },
+        },
+        { id: 'tell-about-it', presentation: { kind: 'narrative' } },
+      ],
+    },
+    { slug: 'far-cove-tale', locationSlug: 'far-cove' },
+  ],
   discoveryIds: ['cove-secret'],
   storySlugs: ['cove-story'],
   itemIds: ['shell-bucket'],
@@ -113,6 +129,9 @@ function validManifest(): ThreeLocationManifest {
         position: { x: -1, z: 2 },
         label: 'a shell',
         idleClip: 'Idle',
+        requirements: [{ type: 'WORLD_CHANGE_ABSENT', changeKey: 'SHELL_FOUND' }],
+        pickUpMessage: 'You picked up a shell.',
+        worldChange: { changeType: 'COLLECTIBLE_FOUND', changeKey: 'SHELL_FOUND' },
       },
     ],
     zones: [{ rect: { id: 'tide-pool', minX: 4, maxX: 6, minZ: -2, maxZ: 0 } }],
@@ -176,6 +195,25 @@ function validManifest(): ThreeLocationManifest {
         action: { kind: 'NAVIGATE', to: '' },
       },
     ],
+    /*
+      Two things in the room standing for the two options of one step. The
+      chest and the shell are what this fixture places, so they are what can
+      be bound; the step's own options are unchanged by the binding.
+    */
+    adventureBindings: [
+      {
+        entityId: 'chest',
+        templateSlug: 'find-the-shells',
+        stepId: 'pick-a-shell',
+        optionId: 'shell-pink',
+      },
+      {
+        entityId: 'shell',
+        templateSlug: 'find-the-shells',
+        stepId: 'pick-a-shell',
+        optionId: 'shell-white',
+      },
+    ],
     extensions: [{ extensionId: 'tide-trial', config: { boardSize: 3, labels: ['a', 'b'] } }],
     copy: {
       loading: 'Loading Test Cove...',
@@ -234,13 +272,24 @@ describe('validateLocationManifest', () => {
   });
 
   it('rejects an unknown world, an unknown location, and a location owned by another world', () => {
-    expect(kinds({ ...validManifest(), worldSlug: 'nowhere', locationSlug: undefined })).toEqual([
-      'UNKNOWN_WORLD',
-    ]);
-    expect(kinds({ ...validManifest(), locationSlug: 'missing' })).toEqual(['UNKNOWN_LOCATION']);
-    expect(kinds({ ...validManifest(), locationSlug: 'far-cove' })).toEqual([
-      'LOCATION_IN_WRONG_WORLD',
-    ]);
+    /*
+      The fixture's pickup records against the manifest's own location, and
+      its bindings name an adventure authored for it, so both cascade when the
+      location changes. Left out here to keep this about identity; each has
+      its own test below.
+    */
+    const identity = (overrides: Partial<ThreeLocationManifest>): LocationManifestIssueKind[] => {
+      const base = validManifest();
+      return kinds({
+        ...base,
+        collectibles: [{ ...base.collectibles[0]!, worldChange: undefined }],
+        adventureBindings: [],
+        ...overrides,
+      });
+    };
+    expect(identity({ worldSlug: 'nowhere', locationSlug: undefined })).toEqual(['UNKNOWN_WORLD']);
+    expect(identity({ locationSlug: 'missing' })).toEqual(['UNKNOWN_LOCATION']);
+    expect(identity({ locationSlug: 'far-cove' })).toEqual(['LOCATION_IN_WRONG_WORLD']);
   });
 
   it('requires exactly the region’s authored checkpoints, in authored order', () => {
@@ -351,6 +400,111 @@ describe('validateLocationManifest', () => {
     expect(kinds({ ...base, interactions: [...base.interactions, base.interactions[0]!] })).toEqual(
       ['DUPLICATE_ID'],
     );
+  });
+
+  it('rejects a collectible world change nothing can ever stop coming back', () => {
+    // The live Clockwork Harbor bug the audit recorded: the gear is recorded
+    // as found and then built again on the next visit.
+    const base = validManifest();
+    const ungated = { ...base.collectibles[0]!, requirements: undefined };
+    expect(kinds({ ...base, collectibles: [ungated] })).toEqual(['UNGATED_WORLD_CHANGE']);
+    const wrongKey = {
+      ...base.collectibles[0]!,
+      requirements: [{ type: 'WORLD_CHANGE_ABSENT' as const, changeKey: 'SOMETHING_ELSE' }],
+    };
+    expect(kinds({ ...base, collectibles: [wrongKey] })).toEqual(['UNGATED_WORLD_CHANGE']);
+  });
+
+  it('rejects a collectible world change with empty keys, an unknown location, or no location at all', () => {
+    const base = validManifest();
+    const collectible = base.collectibles[0]!;
+    expect(
+      kinds({
+        ...base,
+        collectibles: [
+          { ...collectible, worldChange: { ...collectible.worldChange!, changeType: ' ' } },
+        ],
+      }),
+    ).toEqual(['INVALID_VALUE']);
+    expect(
+      kinds({
+        ...base,
+        collectibles: [
+          {
+            ...collectible,
+            worldChange: { ...collectible.worldChange!, locationSlug: 'nowhere' },
+          },
+        ],
+      }),
+    ).toEqual(['UNKNOWN_LOCATION']);
+    // A region that is not a location (the harbour hub) has to name one.
+    expect(kinds({ ...base, locationSlug: undefined, collectibles: [collectible] })).toEqual([
+      'INVALID_VALUE',
+    ]);
+  });
+
+  it('rejects an empty pick-up message', () => {
+    const base = validManifest();
+    expect(
+      kinds({ ...base, collectibles: [{ ...base.collectibles[0]!, pickUpMessage: '  ' }] }),
+    ).toEqual(['MISSING_COPY']);
+  });
+
+  it('resolves every adventure step binding against the real step and its options', () => {
+    const base = validManifest();
+    const [first, second] = base.adventureBindings;
+    const withBindings = (...bindings: ThreeLocationManifest['adventureBindings']) => ({
+      ...base,
+      adventureBindings: bindings,
+    });
+    expect(kinds(withBindings({ ...first!, templateSlug: 'nope' }, second!))).toEqual([
+      'UNKNOWN_ADVENTURE',
+      'UNBOUND_STEP_OPTION',
+    ]);
+    expect(kinds(withBindings({ ...first!, stepId: 'tell-about-it' }, second!))).toEqual([
+      'UNKNOWN_STEP_OPTION',
+      'UNBOUND_STEP_OPTION',
+    ]);
+    expect(kinds(withBindings({ ...first!, optionId: 'shell-blue' }, second!))).toEqual([
+      'UNKNOWN_STEP_OPTION',
+      'UNBOUND_STEP_OPTION',
+    ]);
+    expect(kinds(withBindings({ ...first!, entityId: 'not-here' }, second!))).toEqual([
+      'UNPLACED_ENTITY',
+    ]);
+  });
+
+  it('rejects a step whose options are not all bound, and an entity bound twice in one adventure', () => {
+    const base = validManifest();
+    const [first, second] = base.adventureBindings;
+    // One option of a bound step with no entity: the room offers one of two
+    // choices and nothing else complains.
+    expect(kinds({ ...base, adventureBindings: [first!] })).toEqual(['UNBOUND_STEP_OPTION']);
+    expect(
+      kinds({
+        ...base,
+        adventureBindings: [first!, second!, { ...second!, optionId: 'shell-pink' }],
+      }),
+      // `shell-pink` now has two entities, which is the same mistake seen
+      // from the option's side.
+    ).toEqual(['DUPLICATE_BINDING', 'UNBOUND_STEP_OPTION']);
+  });
+
+  it('rejects a binding into an adventure authored for another location', () => {
+    const base = validManifest();
+    expect(
+      kinds({
+        ...base,
+        adventureBindings: [
+          {
+            entityId: 'chest',
+            templateSlug: 'far-cove-tale',
+            stepId: 'pick-a-shell',
+            optionId: 'shell-pink',
+          },
+        ],
+      }),
+    ).toEqual(['UNKNOWN_ADVENTURE_STEP', 'ADVENTURE_IN_WRONG_LOCATION']);
   });
 
   it('rejects an extension the registry does not know', () => {

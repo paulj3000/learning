@@ -1565,7 +1565,7 @@ still sent to sign-in, as for every protected route.
 
 ## ADR-025: Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies
 
-Status: Accepted (2026-10-04). Phases 1 to 7 of `docs/engine/10_IMPLEMENTATION_PHASES.md` are built; Welcome Harbor and Pirate Builder Bay run on the generic route.
+Status: Accepted (2026-10-04). Phases 1 to 8 of `docs/engine/10_IMPLEMENTATION_PHASES.md` are built; Welcome Harbor and Pirate Builder Bay run on the generic route.
 
 Adding a 3D region currently means a new route page, `*WorldView.tsx`,
 `*Scene.ts` and `*Region.ts`. The audit
@@ -1646,6 +1646,38 @@ scale, interactive `props` with an optional one-shot clip, and
 `requirements` (the existing `WorldRequirement`) on scenery and colliders,
 evaluated once when the scene is built. A broken versus mended bridge is
 two scenery items and a collider with opposite requirements, not a branch.
+
+**Decision, part H: a binding is data, and the engine it binds to is
+unchanged.** Phase 8 moved the two kinds of direct binding the audit found
+in region code behind declarative vocabulary:
+
+- **Adventure step bindings.** A thing in a room standing for an option of
+  an adventure step is `AdventureStepBinding`
+  (`runtime/adventureStepBindings.ts`), and every lookup over a table of
+  them - forward, reverse, per step, and a seated row to an `ordering`
+  answer - lives there once. `castleChoiceBindings.ts` and
+  `wonderWallBindings.ts` keep their authored tables and delegate, and
+  `ThreeLocationManifest.adventureBindings` is where each table moves when
+  its region migrates. `findAdventureBindingIssues` is the authoring check,
+  run against the real adventure content: the adventure, step and option
+  must exist, every option of a bound step must have exactly one entity, an
+  entity may mean one thing per adventure (one set of rooms, two age bands)
+  and no more, and every bound entity must be placed. The Adventure Engine
+  still owns every transition, hint and judgement of correctness; a binding
+  resolves to an option id and stops.
+- **Pickup world changes.** A collectible may declare `worldChange`, which
+  the view hands to the existing idempotent `recordWorldChangeOnce` with
+  provenance `exploration:<entityId>`, plus an authored `pickUpMessage`.
+  Validation requires the matching `WORLD_CHANGE_ABSENT` requirement on the
+  same collectible, so a recorded pickup cannot reappear on the next visit -
+  the live Clockwork Harbor bug the audit recorded, refused by the
+  validator rather than re-made per region.
+
+What Phase 8 deliberately did not add: a generic in-world *host* for an
+adventure step (the castle's own session UI stays its own until Phase 9
+migrates it), prop world changes (Dragon's Sanctuary's runes, which carry
+a carry-and-place mechanic that wants an extension), and requirement-gated
+lighting, which no migrated region needs yet.
 
 **Consequences.**
 - `runtime/manifests/welcomeHarbor.ts` expresses Welcome Harbor with zero
