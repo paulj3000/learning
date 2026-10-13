@@ -978,7 +978,11 @@ regions per asset, shipped manifests reference only known assets, the
 castle's extension-only assets counted, the hub found by region id), the url
 guard, and two admin page cases (an extension-only model listed; an island
 with no 3D scene). Full suite: 254 files and 2687 tests, all passing (up
-from 252 and 2672); typecheck, lint, format and build pass. Not looked at in
+from 252 and 2672); typecheck, lint, format and build pass. (Correction: that
+run also reported one unhandled rejection, which makes Vitest exit non-zero.
+The declared-assets engine test seeded its result with an eager
+`Promise.reject` that nothing ever awaited. Fixed; the engine suite now exits
+cleanly.) Not looked at in
 a browser, though no rendering path changed: every scene still loads the
 same bundled files.
 

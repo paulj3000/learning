@@ -389,8 +389,9 @@ describe('createLocationEngine: extensions', () => {
 
   it('loads only the assets an extension declared for its binding (engine Phase 10)', async () => {
     const loaded: string[] = [];
-    let attempt: Promise<[PromiseSettledResult<LoadedModel>, PromiseSettledResult<LoadedModel>]> =
-      Promise.reject(new Error('extension never mounted'));
+    const mounted: {
+      attempt?: Promise<[PromiseSettledResult<LoadedModel>, PromiseSettledResult<LoadedModel>]>;
+    } = {};
     mount({
       manifest: {
         ...WELCOME_HARBOR_MANIFEST,
@@ -405,7 +406,7 @@ describe('createLocationEngine: extensions', () => {
           id: 'test-lamp',
           assetIds: (config) => [String(config.lamp)],
           mount: (context) => {
-            attempt = Promise.allSettled([
+            mounted.attempt = Promise.allSettled([
               context.loadModel('rock'),
               context.loadModel('treasure-chest'),
             ]);
@@ -414,7 +415,8 @@ describe('createLocationEngine: extensions', () => {
       ],
     });
 
-    const [declared, undeclared] = await attempt;
+    if (!mounted.attempt) throw new Error('extension never mounted');
+    const [declared, undeclared] = await mounted.attempt;
     expect(declared.status).toBe('fulfilled');
     expect(undeclared).toMatchObject({
       status: 'rejected',
