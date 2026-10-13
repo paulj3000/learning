@@ -66,10 +66,9 @@ import {
  * extension rather than written into the runtime.
  *
  * Built from `pirateBuilderBayRegion.ts`'s constants, like
- * `welcomeHarbor.ts`, so the two cannot drift while the old scene is the
- * parity reference. Literals not imported here (colours, heights, the
- * fallen plank's angle, scale factors) are copied from
- * `pirateBuilderBayScene.ts`, where they are hard-coded.
+ * `welcomeHarbor.ts`. Literals not imported here (colours, heights, the
+ * fallen plank's angle, scale factors) were copied from the old per-region
+ * scene, removed in engine Phase 16.
  *
  * Interactions are the same `PIRATE_BUILDER_BAY_INTERACTIONS` the 2D view
  * uses, so both renderers keep resolving the same authored ids. The bridge

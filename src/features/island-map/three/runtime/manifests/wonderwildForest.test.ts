@@ -3,11 +3,6 @@ import { SOURCE_MANIFEST_REGISTRIES } from '../sourceManifestRegistries';
 import { validateLocationManifest } from '../validateLocationManifest';
 import { scatterPlacements, tiledGroundPlacements, walkableProbe } from '../sceneLayout';
 import {
-  drawnTrailRects,
-  scatterPlacements as scenePlacements,
-  tilePlacements,
-} from '../../wonderwildForestScene';
-import {
   COLLIDERS as REGION_COLLIDERS,
   GROUND_HALF_EXTENT_X,
   GROUND_HALF_EXTENT_Z,
@@ -16,19 +11,6 @@ import {
 } from '../../wonderwildForestRegion';
 import { WONDERWILD_FOREST_MANIFEST as MANIFEST } from './wonderwildForest';
 import type { ThreeLocationManifest } from '../locationManifest';
-
-const REGION_AREA = {
-  id: 'region',
-  minX: -GROUND_HALF_EXTENT_X,
-  maxX: GROUND_HALF_EXTENT_X,
-  minZ: -GROUND_HALF_EXTENT_Z,
-  maxZ: GROUND_HALF_EXTENT_Z,
-};
-
-/** Tile order is irrelevant to an instanced draw call, so compare the sets. */
-function sortedPoints(points: readonly { x: number; z: number }[]) {
-  return [...points].sort((a, b) => a.x - b.x || a.z - b.z);
-}
 
 function sceneryOfKind<Kind extends ThreeLocationManifest['scenery'][number]['kind']>(kind: Kind) {
   return MANIFEST.scenery.filter(
@@ -82,53 +64,22 @@ describe('Wonderwild Forest manifest', () => {
     expect(ids).toContain('wonderwild-harbor-exit');
   });
 
-  it('places the forest floor exactly where the per-region scene tiled it', () => {
+  it('covers the whole forest floor, which is why it tiles with COVER', () => {
     const floor = sceneryOfKind('TILED_GROUND').find((item) => item.id === 'forest-floor');
     expect(floor).toBeDefined();
-    const generic = tiledGroundPlacements(floor!.area, floor!.tileSize, floor!.coverage);
-    const perRegion = tilePlacements(REGION_AREA, 4).map((placement) => ({
-      x: placement.position.x,
-      z: placement.position.z,
-    }));
-    expect(sortedPoints(generic)).toEqual(sortedPoints(perRegion));
-    // And `COVER` is why: the default would drop the far row and show a bare strip.
-    expect(tiledGroundPlacements(floor!.area, floor!.tileSize).length).toBeLessThan(generic.length);
+    const covered = tiledGroundPlacements(floor!.area, floor!.tileSize, floor!.coverage);
+    // The default would drop the far row and show a bare strip.
+    expect(tiledGroundPlacements(floor!.area, floor!.tileSize).length).toBeLessThan(covered.length);
   });
 
-  it('draws every trail the per-region scene drew, and not the fern bank’s non-path', () => {
+  it('draws no tile on the fern bank’s non-path', () => {
     const trails = sceneryOfKind('TILED_GROUND').filter((item) => item.id !== 'forest-floor');
-    const drawn = drawnTrailRects();
-    expect(trails.map((item) => item.area.id).sort()).toEqual(drawn.map((rect) => rect.id).sort());
+    expect(trails.length).toBeGreaterThan(0);
     expect(trails.map((item) => item.area.id)).not.toContain('trail:hub-to-fern-bank:0');
-    for (const trail of trails) {
-      const rect = drawn.find((candidate) => candidate.id === trail.area.id)!;
-      expect(
-        sortedPoints(tiledGroundPlacements(trail.area, trail.tileSize, trail.coverage)),
-      ).toEqual(
-        sortedPoints(
-          tilePlacements(rect, 1.5).map((placement) => ({
-            x: placement.position.x,
-            z: placement.position.z,
-          })),
-        ),
-      );
-    }
   });
 
-  it('scatters trees, bushes and ferns into exactly the places the per-region scene did', () => {
-    /*
-      The equivalence the `SCATTER` vocabulary rests on: the generic
-      walkability probe (inside the bounds, outside every authored collider)
-      agrees with the forest's own `isWalkable` (on open ground, not in the
-      trees or the water), because the tree line *is* the complement of the
-      open ground. Same seeds, same spacing, same placements.
-    */
+  it('scatters trees, bushes and ferns only where no child can stand', () => {
     const probe = walkableProbe(MANIFEST);
-    const expected = {
-      'tree-line': scenePlacements(REGION_AREA, 1.5, 1337, isWalkable, 0.9),
-      'undergrowth-bushes': scenePlacements(REGION_AREA, 3, 90210, isWalkable, 0.6),
-      'undergrowth-ferns': scenePlacements(REGION_AREA, 2.4, 5150, isWalkable, 0.4),
-    };
     for (const item of sceneryOfKind('SCATTER')) {
       const placements = scatterPlacements(
         item.area,
@@ -137,8 +88,10 @@ describe('Wonderwild Forest manifest', () => {
         probe,
         item.clearance,
       );
-      expect(placements).toEqual(expected[item.id as keyof typeof expected]);
       expect(placements.length).toBeGreaterThan(20);
+      for (const { position } of placements) {
+        expect(isWalkable(position.x, position.z)).toBe(false);
+      }
     }
   });
 

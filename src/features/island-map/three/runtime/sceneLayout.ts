@@ -232,8 +232,8 @@ function seededRandom(seed: number): () => number {
  * `spacing` grid, jitter each candidate inside its own cell, and keep only
  * the ones that are nowhere near anywhere the child can stand.
  *
- * Lifted unchanged from `wonderwildForestScene.ts`, which still re-exports
- * it, so a migrated forest scatters its trees in exactly the same places.
+ * Lifted unchanged from the forest's old per-region scene, so the migrated
+ * forest scatters its trees in exactly the same places.
  * Two things in it are deliberate rather than incidental:
  *
  * - **It samples the area, not the blocked rects.** The forest's tree line is

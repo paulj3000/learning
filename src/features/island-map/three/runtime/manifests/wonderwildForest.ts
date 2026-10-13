@@ -93,7 +93,7 @@ const ZONE_SPECS: readonly ZoneSpec[] = ZONES.map((zone) => ({
 
 /**
  * The tree line to head height, and the pond only knee-deep, exactly as
- * `wonderwildForestScene.ts` built them.
+ * the old per-region scene built them.
  */
 const COLLIDERS: readonly ColliderSpec[] = [
   ...TREE_LINE_SEGMENTS.map((rect) => ({ rect: { ...rect }, minY: -1, maxY: 6 })),

@@ -10,9 +10,8 @@ import {
  *
  * Plain numbers rather than `THREE.Vector3`/`THREE.Box3`, the same split
  * `welcomeHarborRegion.ts` and `wonderwildForestRegion.ts` use: this file
- * stays unit-testable with no rendering context, and
- * `clockworkHarborScene.ts` is the only place these numbers become `three`
- * objects.
+ * stays unit-testable with no rendering context, and the region's manifest
+ * (`runtime/manifests/clockworkHarbor.ts`) is built from these numbers.
  *
  * Section 9 is explicit about not building the whole town first. What is
  * authored here is its list and nothing beyond it: harbor entrance, dock,

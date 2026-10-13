@@ -7,8 +7,8 @@ import { WELCOME_HARBOR_CHECKPOINTS, WELCOME_HARBOR_REGION_ID } from '../../disc
  * ambient creature's flight path, and its instanced scenery sit. Plain
  * numbers rather than `THREE.Vector3`/`THREE.Box3`, mirroring
  * `worldObjects.ts`/`zones.ts`'s split from their Phaser scene files, so
- * this stays unit-testable without a rendering context - `welcomeHarborScene.ts`
- * is the only file that turns these numbers into `three` objects.
+ * this stays unit-testable without a rendering context. The region's
+ * manifest (`runtime/manifests/welcomeHarbor.ts`) is built from these numbers.
  *
  * Checkpoint *positions* are authored here (an authored id needs a place to
  * spawn); the checkpoint *id vocabulary and persistence* live one layer

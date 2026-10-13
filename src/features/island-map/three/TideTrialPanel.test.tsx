@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TideTrialPanel } from './TideTrialPanel';
-import type { TideTrialScene } from './pirateBuilderBayScene';
+import type { TideTrialScene } from './extensions/tideTrial/tideTrialScene';
 
 function fakeScene(levels: number[] = [60, 120, 145]): TideTrialScene {
   return {

@@ -8,15 +8,15 @@ import {
  * (`docs/ROADMAP.md` Phase 33, "First-Person Broken Bridge / Pirate Builder
  * Bay Migration"). Same split as `welcomeHarborRegion.ts`: plain numbers,
  * no `three` import, so this stays unit-testable without a rendering
- * context - `pirateBuilderBayScene.ts` is the only file that turns these
- * numbers into `three` objects.
+ * context. The region's manifest (`runtime/manifests/pirateBuilderBay.ts`)
+ * is built from these numbers.
  *
  * Unlike Welcome Harbor, this region's whole point is a single gate: a
  * water channel splits the dock (west) from the cove (east), and only the
  * bridge deck crosses it. `BRIDGE_REPAIRED` (the same `WorldChange.changeKey`
  * the existing "Repair the Moonlight Bridge" adventure already writes,
  * `adventures/content/repairTheMoonlightBridge.ts`) decides which bridge
- * geometry `pirateBuilderBayScene.ts` builds - a real mesh/collider swap at
+ * geometry the scene builds - a real mesh/collider swap at
  * scene-construction time, the Three.js equivalent of the Phaser scene's
  * `tileOverrides` mechanism (`scenes/PirateBuilderBayScene.ts`), not a
  * live mid-session animation. See `docs/IMPLEMENTATION_STATUS.md`'s Phase
@@ -108,8 +108,7 @@ export const CHANNEL_SOUTH_WATER: RectZone = {
 
 /**
  * The bridge deck's own footprint - a real collider only while unrepaired
- * (`pirateBuilderBayScene.ts` includes this in the collider list only when
- * `bridgeRepaired` is false). Once repaired, this span has no collider at
+ * (the manifest gates this collider on `BRIDGE_REPAIRED` being absent). Once repaired, this span has no collider at
  * all, so the child walks straight across it.
  */
 export const BRIDGE_SPAN: RectZone = {

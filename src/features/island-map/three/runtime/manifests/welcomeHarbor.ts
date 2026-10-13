@@ -19,19 +19,13 @@ import { LOCATION_MANIFEST_SCHEMA_VERSION, type ThreeLocationManifest } from '..
 /**
  * Welcome Harbor's first-person region expressed as a `ThreeLocationManifest`:
  * the reference migration (`docs/engine/09_MIGRATION_PLAN.md`, "Reference
- * Migration Choice"). Not rendered by anything yet. It exists in Phase 1 to
- * prove the manifest vocabulary can describe a real region with zero
- * extensions, and `welcomeHarbor.test.ts` checks it against what
- * `welcomeHarborScene.ts` actually builds.
+ * Migration Choice"), rendered by the generic runtime since engine Phase 5,
+ * with zero extensions.
  *
  * Built from `welcomeHarborRegion.ts`'s constants rather than restating
- * them, so the two cannot drift while both exist. Once the generic runtime
- * renders this manifest (Phase 5), the numbers move here and the region
- * module retires.
- *
- * Every literal below that is not imported (asset ids, clip names, colours,
- * the checkpoint trigger size, the gull's speed) is copied from
- * `welcomeHarborScene.ts`, where it is currently hard-coded.
+ * them. Every literal below that is not imported (asset ids, clip names,
+ * colours, the checkpoint trigger size, the gull's speed) was copied from
+ * the old per-region scene, removed in engine Phase 16.
  */
 
 const PIP_INTERACTION_ID = 'harbor-say-hello-to-pip';

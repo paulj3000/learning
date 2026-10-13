@@ -9,8 +9,8 @@ import type { ThreeLocationManifest } from '../locationManifest';
 /**
  * The Phase 1 proof that the manifest vocabulary can describe a real region
  * (`docs/engine/09_MIGRATION_PLAN.md` step 5) before any runtime renders it.
- * Parity with what `welcomeHarborScene.ts` builds is checked against the
- * same region constants the scene reads.
+ * Parity with what the old per-region scene built is checked against the
+ * same region constants it read.
  */
 describe('WELCOME_HARBOR_MANIFEST', () => {
   it('validates against the source-controlled registries with no issues', () => {

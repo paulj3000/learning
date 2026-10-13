@@ -417,7 +417,7 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 10 complete; every 3D region runs on the generic route; NOT yet seen by a person or on a device
+## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 10, 16 (3D regions) and 17 complete; every 3D region runs on the generic route; NOT yet seen by a person or on a device
 
 Roadmap: `docs/engine/` (README, then `10_IMPLEMENTATION_PHASES.md`).
 Decision: ADR-025. Goal: a new ordinary 3D location needs a manifest, not a
@@ -996,10 +996,90 @@ Not done, on purpose:
 - The unrouted per-region scenes still call the bundled loader directly.
   They go in Phase 16.
 
-**Next: Phase 11** (Admin location editor v1). Phase 16's legacy removal is
-when the six unrouted per-region views and scenes come out of the tree.
-They stay for now as the parity reference, which is what every migration in
-Phase 9 was checked against.
+**Phase 17 (extensibility proof), complete, done ahead of Phases 11 to 16.**
+It was moved forward because it tests the manifest abstraction the editor
+phases will be built on. A location nobody shipped, "Test Explorer Cove"
+(`runtime/testing/testExplorerCove.ts`), uses only existing mechanics and
+content: an environment with a state variant, a spawn, two checkpoints, a
+manifest collider, Pip (`TALK_TO`), the `harbor-tide-pool` discovery (the
+first objective of the existing "The Quiet Places" quest), an entrance to
+"Repair the Moonlight Bridge", a collectible bound to one durable world
+change, and a boat whose `NAVIGATE` goes to the travel deck. No extensions.
+
+- `testExplorerCove.engine.test.ts` (8 tests): the real runtime builds the
+  cove: spawn (first visit and saved), checkpoint reported, the sea wall
+  collides, the tide pool zone fires, Pip approached, Pip and the signpost
+  focused and interacted by entity id, the shell picked up once and absent
+  once found, and disposal.
+- `testExplorerCove.test.tsx` (13 tests): the manifest validates with zero
+  issues against the real registries, round-trips through JSON (A3) and
+  loads through the same `createSourceManifestRepository` construction the
+  app uses (A4). Played through `ThreeLocationWorldView`, it shows its copy
+  and status line, spawns at the saved checkpoint, saves its checkpoint with
+  its own toast, records meeting Pip and opens his conversation, offers the
+  discovery on walking into the pool, starts the adventure through the
+  existing `resumeOrStartSession`, records the shell as one world change,
+  and links the boat to `/island/:childId/travel`. A final check scans every
+  non-test file under `src/` and fails if any names the cove.
+
+**Result: PASS.** The cove needed no route, WorldView, scene, region
+module, extension or runtime conditional.
+
+**The one thing it needed outside its manifest, and why it matters for
+Phase 12.** Its checkpoints. Checkpoint ids, labels and positions belong
+to the World State catalogue (`discovery/checkpoints.ts`, ADR-008), and
+three things read that module directly rather than through the manifest
+repository:
+- the engine (`resolveSpawnCheckpoint` and `ALL_CHECKPOINTS` in
+  `createLocationEngine.ts`);
+- the view's checkpoint toast (`findCheckpoint` in `manifestBindings.ts`);
+- persistence. `discovery/api.ts` drops any checkpoint id outside
+  `KNOWN_CHECKPOINT_IDS`, both on save and on read.
+
+For a location authored in source, adding its checkpoints to that
+catalogue is ordinary content work, which is all the tests do (through a
+module mock, so no child can reach the cove). For a location published
+from the database (Phase 12), it is a blocker: such a location's
+checkpoints would never save. Phase 12 needs a published checkpoint
+catalogue that the engine, the view and `discovery/api.ts` all read. Not
+fixed here, because the right shape depends on Phase 12's storage.
+
+**Phase 16 (legacy cleanup), complete for the 3D regions.** The six
+per-region 3D views and scenes are gone: 19 files and 10,824 lines.
+Nothing routed to them since Phases 5 to 9; they had stayed as the parity
+reference. Removed:
+`{WelcomeHarbor,PirateBuilderBay,WonderwildForest,StorykeeperCastle,
+ClockworkHarbor,DragonsSanctuary}WorldView.tsx`, their five tests, the six
+`*Scene.ts` files, `wonderwildForestScene.test.ts` and
+`storykeeperCastleScene.test.ts`.
+
+- The `*Parity.test.tsx` files stay. They run the old views' assertions
+  against the generic view and never imported the old code, so they are now
+  the regression tests for each region.
+- `TideTrialPanel.test.tsx` takes `TideTrialScene` from the `tide-trial`
+  extension.
+- `manifests/wonderwildForest.test.ts` lost three cases that compared the
+  manifest's floor, trails and scatter with the deleted scene's output, so
+  the region's look is now pinned only by the manifest itself. Three
+  replacements check what those comparisons protected: the floor tiles
+  with `COVER`, the fern bank's non-path draws no tile, and no scattered
+  tree, bush or fern stands where a child can walk. The cell-by-cell
+  walkability agreement test is unchanged.
+- Comments that described the deleted files in the present tense were
+  updated. Comments recording where code was moved from were left alone.
+
+What stays, deliberately:
+- The `*Region.ts` modules. The manifests and several live modules
+  (`castleChoiceBindings.ts`, `wonderWallBindings.ts`, `castleTaleScene.ts`) are built from their constants.
+- The Phaser 2D views (`src/features/island-map/*WorldView.tsx` and their
+  `/world/*` routes). ADR-021 retires each one only after its 3D
+  replacement has been checked by a person, and that has not happened yet.
+- `ThreeSandboxWorldView.tsx` and the Phase 31 sandbox route, which are not
+  a migrated region.
+
+**Next:** Phase 11 (Admin location editor v1), with the checkpoint
+catalogue gap above as a known input to Phase 12. Still owed by a person:
+playing all six regions in a real browser and on a tablet.
 
 ## First-person controls no longer scroll the page — unit-tested; NOT yet checked on a device
 
