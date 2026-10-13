@@ -9646,6 +9646,36 @@ ground pivots and the sizes each piece has to hit to read correctly.
   route (`-3d`) changed.
 
 
+## Math Mayhem multiplayer — Phase 0 (baseline verification)
+
+Phase 0 of `docs/MATH_MAYHEM_MULTIPLAYER_ROADMAP.md`, on branch
+`feature/math-mayhem-multiplayer-foundation`. No production code changed.
+
+**Acceptance criteria:** existing regions are not regressed; baseline
+findings and blockers are documented; no new island features.
+
+- **Automated baseline, all green:** typecheck, lint (no errors), 249 test
+  files / 2,567 tests, build. Matches `docs/engine/ENGINE_OVERVIEW.md`.
+- **Browser rendering check:** all six manifests mounted through the real
+  `createLocationEngine` in headless Chromium with no page errors or failed
+  asset requests; walking forward fired the expected zone and NPC events.
+  This is automated, not a playtest.
+- **Not done:** a human playtest on desktop or tablet (engine gap 1 stands),
+  and in-browser NPC panels, pickups, checkpoint persistence and navigation
+  (need a signed-in parent; no credentials in this session).
+- **Architecture decision:** ADR-026 (Proposed): Colyseus room server over
+  WSS, pure room-rule modules, Cognito ID token plus `ownerSub` check,
+  household-only parties, nothing persisted per frame, idempotent
+  conditional reward writes, feature-flagged and off by default.
+- **Conflicts found:** cross-family play (ADR-006, CLAUDE.md section 12),
+  continuous presence (ADR-006 v1), random rarity drops (ADR-013, pillar 7).
+- **Pre-existing gap noticed:** no keyboard turning in first-person
+  controls.
+
+Full record: `docs/multiplayer/PHASE_0_BASELINE.md`. Phase 1 waits on
+review of ADR-026 and the decisions below.
+
+
 ## Known risks / TODOs
 
 - **Phase 20: `SkillEvidence`'s write path (`recordSkillEvidence`) was not
@@ -10016,6 +10046,14 @@ ground pivots and the sizes each piece has to hit to read correctly.
   reuse an existing one.
 
 ## Decisions pending
+
+- ADR-026 (multiplayer transport, hosting, identity, rewards): accept,
+  amend or reject; approve its four new dependencies and the always-on
+  room-server cost.
+- Multiplayer party scope for the MVP: household-only (recommended,
+  ADR-006) or cross-family (needs its own consent and sharing decision).
+- Whether Math Mayhem Phase 6 spawns may use randomness or rarity tiers,
+  which ADR-013 and CLAUDE.md pillar 7 currently rule out.
 
 - Final visual design direction and art pipeline.
 - Bedrock model selection by region, capability, latency, and cost.

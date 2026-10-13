@@ -1802,3 +1802,115 @@ suspect.
 - Still open: world-change variants (Phase 8), and whether checkpoint
   positions move into the manifest when Admin authoring arrives. That last
   question changes ADR-008's layering and needs its own decision.
+
+## ADR-026: Multiplayer runs on a separate authoritative room server over WebSocket; the engine only renders it
+
+Status: Proposed (2026-10-12). Written for Phase 0 of
+`docs/MATH_MAYHEM_MULTIPLAYER_ROADMAP.md`. Nothing here is built, and no
+dependency has been added. Findings behind it:
+`docs/multiplayer/PHASE_0_BASELINE.md`.
+
+**Context.** The roadmap asks for real-time shared rooms: presence,
+synchronised movement, a cooperative objective, server-decided spawns and
+rewards. The only shared-session mechanism today is `CoopSession`
+(ADR-006), where every change is an AppSync mutation, so every update is a
+DynamoDB write. That suits discrete co-op actions. It does not suit
+movement at several updates a second, which the roadmap rules out writing
+to DynamoDB.
+
+**Decision, part A: transport and hosting.** Options considered:
+
+| Option | Authoritative in-memory state | Per-update DB write | New deps | Always-on cost |
+|---|---|---|---|---|
+| Extend `CoopSession` (AppSync mutations + subscriptions) | no | yes | none | none |
+| API Gateway WebSocket + Lambda | no (state must live in DynamoDB) | yes | none | none |
+| AppSync Events (managed pub/sub) | no (relay; logic per message in handlers) | no for relay, yes for any authoritative check | none | none |
+| Plain `ws` Node server on ECS Fargate | yes | no | `ws` | Fargate task + load balancer |
+| **Colyseus Node server on ECS Fargate** | yes | no | `colyseus`, `@colyseus/schema`, `colyseus.js` | Fargate task + load balancer |
+
+Proposed: **Colyseus** (Node.js, TypeScript) over WSS. It already provides
+rooms, seat reservation, capacity, heartbeats and reconnection tokens,
+which are most of Phase 1. The serverless options cannot hold authoritative
+room state without a database write per decision.
+
+Room logic (presence, movement validation, the vault state machine, spawn
+decisions) is written as **pure TypeScript modules with no Colyseus
+import**, tested in Vitest like the adventure engine. A thin Colyseus room
+wraps them. If Colyseus proves wrong, swapping to `ws` replaces the wrapper,
+not the rules. The client talks to a `MultiplayerTransport` interface, so
+tests use an in-memory transport and the engine never imports a network
+library.
+
+Hosting: local Node process for development (`ws://localhost`, dev origin
+only). Production, later and only once Phase 1 passes locally: one ECS
+Fargate task behind an Application Load Balancer with an ACM certificate
+(TLS terminates there), declared as custom CDK in `amplify/backend.ts`
+beside the existing custom resources, with a cost budget alarm like the
+Bedrock one. One task means no cross-node presence store is needed; scaling
+past one task is out of scope for the first playable milestone.
+
+**Decision, part B: world instance ownership.** A room is one instance of
+one region for one party: key `(regionId, partyId)`. The server owns its
+state in memory and drops it when the last player leaves or after a grace
+period. The Three.js runtime stays a renderer: a registered scene extension
+draws remote players and spawns, and the view half sends inputs. No region
+check enters `runtime/` (`noLocationBranching.test.ts` still applies).
+
+**Decision, part C: player identity.** The client sends its Cognito **ID
+token** and the chosen `childProfileId` when joining. The server:
+
+1. verifies the token's signature, issuer, audience and expiry against the
+   user pool's public keys (`aws-jwt-verify`, a fourth new dependency);
+2. reads that `ChildProfile` from DynamoDB (read-only IAM on that one
+   table) and requires `ownerSub === token.sub`, the same check
+   `claimCoopSlot` and `submitAdventureAnswer` make;
+3. assigns the player id itself. It never trusts a client-supplied child id,
+   display name or room membership.
+
+Other clients receive only a server-assigned player id, `avatarKey` and a
+slot colour. No nickname, photo, parent data or age band crosses the wire.
+Reconnects re-present a token; a seat whose token expired is released.
+
+**Decision, part D: who may share a room.** Unchanged from ADR-006 for the
+MVP: **children of the same parent account only**, possibly on two devices
+signed in to that account. Cross-family parties need their own decision
+(consent, a sharing model across owners, moderation and abuse response)
+and are not covered here. Public matchmaking stays off.
+
+**Decision, part E: what is persisted.** Nothing per frame. Positions,
+presence and spawn state live only in room memory. Durable outcomes go
+through the existing domain paths: answers through `submitAdventureAnswer`,
+world changes as `WorldChange`, items into `ChildInventory`. The server
+logs counts and timings (rooms, players, message rates, latency) keyed by a
+room id, never child ids, names or positions.
+
+**Decision, part F: rewards.** The room server decides that a child earned
+a cooperative reward. The grant is a conditional DynamoDB write to that
+child's `ChildInventory` keyed on a stable rule id (the idempotency key
+`grantRewards` already uses), so a replay or reconnect cannot grant twice.
+It reuses the pure `src/features/rewards/` modules, as the Lambdas reuse
+adventure code. Exact wiring is a Phase 4 decision.
+
+**Decision, part G: movement authority.** Client-predicted, server-checked.
+Each client moves locally as today and sends its pose at most 10 times a
+second; the server rejects poses outside the manifest bounds or faster than
+the walk speed plus a tolerance, and broadcasts snapshots that clients
+interpolate. Remote avatars are never colliders, trigger volumes or focus
+targets, so they cannot set off another child's NPC, checkpoint or pickup.
+
+**Decision, part H: feature flag.** Multiplayer is off unless all of these
+hold: a build flag (`VITE_MULTIPLAYER_ENABLED`) and a server URL
+(`VITE_MULTIPLAYER_URL`) are set, the region's manifest opts in through a
+registered extension, and (from Phase 3) the parent has turned it on. Every
+existing region stays single-player.
+
+**Consequences.**
+- Amends ADR-006's v1 deferral of "continuous cursor/telemetry-level
+  presence" for rooms on this server. ADR-006's rule that **no free-form
+  input crosses between children** is unchanged: Phase 3's signals are a
+  fixed, authored set.
+- Adds four runtime dependencies and one always-on service with a monthly
+  cost. Both need approval before Phase 1.
+- Roadmap Phase 6 (rarity tiers, rare random drops) conflicts with ADR-013
+  part A and CLAUDE.md pillar 7. This ADR does not resolve that. Phase 6
+  needs its own decision first.
