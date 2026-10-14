@@ -1805,10 +1805,10 @@ suspect.
 
 ## ADR-026: Multiplayer runs on a separate authoritative room server over WebSocket; the engine only renders it
 
-Status: Proposed (2026-10-12). Written for Phase 0 of
-`docs/MATH_MAYHEM_MULTIPLAYER_ROADMAP.md`. Nothing here is built, and no
-dependency has been added. Findings behind it:
-`docs/multiplayer/PHASE_0_BASELINE.md`.
+Status: Accepted (2026-10-13), with the amendments at the end of this
+entry. Written for Phase 0 of `docs/MATH_MAYHEM_MULTIPLAYER_ROADMAP.md`;
+findings behind it: `docs/multiplayer/PHASE_0_BASELINE.md`. Phase 1 is
+built on it: `docs/multiplayer/MULTIPLAYER_SERVER.md`.
 
 **Context.** The roadmap asks for real-time shared rooms: presence,
 synchronised movement, a cooperative objective, server-decided spawns and
@@ -1914,3 +1914,20 @@ existing region stays single-player.
 - Roadmap Phase 6 (rarity tiers, rare random drops) conflicts with ADR-013
   part A and CLAUDE.md pillar 7. This ADR does not resolve that. Phase 6
   needs its own decision first.
+
+**Amendments on acceptance (2026-10-13).**
+- *Packages.* Colyseus is now 0.18 and its browser client was renamed, so
+  the installed set is `@colyseus/core` and `@colyseus/ws-transport` (in
+  place of the `colyseus` meta-package, which also pulls in a monitor,
+  playground, Redis drivers and an auth module), `@colyseus/sdk` (the
+  renamed `colyseus.js`), `aws-jwt-verify`, and `express`, a required peer
+  of the WebSocket transport. All are pinned to exact versions at least two
+  weeks old. `@colyseus/schema` is only a transitive dependency: rooms send
+  plain, runtime-validated messages rather than schema state.
+- *Part C, step 2.* The server reads the child profile from **AppSync with
+  the caller's own ID token** instead of DynamoDB through its own IAM role.
+  `ChildProfile`'s owner rule then does the ownership check, the `ownerSub`
+  comparison still runs on top, and the server needs no AWS credentials or
+  table names.
+- *Part D.* Confirmed by the product owner: same-family rooms only for the
+  MVP.

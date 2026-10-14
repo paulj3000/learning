@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { ThreeLocationWorldView } from '../features/island-map/three/runtime/ThreeLocationWorldView';
+import { locationRepositoryForThisBuild } from '../features/multiplayer/devMultiplayerRepository';
 import { getChildProfile } from '../features/child-profile/api';
 import type { AgeBandValue } from '../features/child-profile/constants';
 
@@ -90,6 +91,7 @@ export function LocationWorldPage() {
         regionId={regionId}
         ageBand={ageBand}
         aiEnabled={aiEnabled}
+        repository={locationRepositoryForThisBuild}
       />
     </IslandLayout>
   );

@@ -9672,8 +9672,54 @@ findings and blockers are documented; no new island features.
 - **Pre-existing gap noticed:** no keyboard turning in first-person
   controls.
 
-Full record: `docs/multiplayer/PHASE_0_BASELINE.md`. Phase 1 waits on
-review of ADR-026 and the decisions below.
+Full record: `docs/multiplayer/PHASE_0_BASELINE.md`. Reviewed 2026-10-13:
+ADR-026 accepted, same-family rooms only, the human playtest carried as an
+open blocker.
+
+
+## Math Mayhem multiplayer — Phase 1 (room foundation)
+
+Phase 1 of `docs/MATH_MAYHEM_MULTIPLAYER_ROADMAP.md`: a reusable
+multiplayer client, an authoritative room server, and an "Explorers here"
+panel, all switched off by default. Full guide:
+`docs/multiplayer/MULTIPLAYER_SERVER.md`.
+
+**Acceptance criteria and status:**
+
+| Criterion | Status |
+|---|---|
+| Two sessions join one room | Passed in the integration test (real server, real SDK, real WebSockets) |
+| One leaving updates presence | Passed, for consented leave and for a dropped connection |
+| Unauthorized connections fail | Passed: missing or forged token, another family's child, another family's room, disallowed origin. The real process also refuses forged tokens against the live Cognito pool |
+| Reconnect does not duplicate the player | Passed: seat held and returned after a drop; a second screen takes over the seat |
+| Existing region tests still pass | Passed: 261 files, 2,649 tests; typecheck, lint and build clean |
+
+**Built:**
+- Shared pure modules in `src/features/multiplayer/`: protocol and
+  validators, room rules, household key, config, client service, presence
+  hook and copy, a dev-only repository wrapper.
+- `server/multiplayer/`: Colyseus room server, Cognito ID-token
+  verification, child ownership via AppSync with the parent's own token,
+  origin allowlist, CORS, heartbeat, message-rate and size limits, token
+  expiry sweep, id-free event log. `npm run mp:dev`.
+- `multiplayer-presence` view extension. Companions now receive `regionId`.
+  No shipped manifest binds it, so every region stays single-player.
+- Packages (ADR-026 amendments): `@colyseus/core`, `@colyseus/ws-transport`,
+  `@colyseus/sdk`, `aws-jwt-verify`, `express`, all pinned. The SDK is
+  code-split (163 KB) and only fetched when a room is joined.
+
+**Not done / open:**
+- The two-browser check with a real parent account (steps in the guide).
+  On 2026-10-13 the product owner reported the local setup working; which
+  individual steps were checked was not recorded, so they stay open here.
+- Hosting: nothing is deployed; no AWS resources or cost yet.
+- Production needs request rate limiting in front of matchmaking (Colyseus
+  creates a room before authenticating) and a load balancer that does not
+  log query strings (the SDK puts the token in the WebSocket URL).
+- This repo's `package-lock.json` has been stale since Phase 8 (local
+  installs resolve through a parent npm workspace). CI uses `npm install`,
+  so it is unaffected; the new packages are in `package.json` only.
+- The engine playtest blocker from Phase 0 still stands.
 
 
 ## Known risks / TODOs
@@ -10047,11 +10093,8 @@ review of ADR-026 and the decisions below.
 
 ## Decisions pending
 
-- ADR-026 (multiplayer transport, hosting, identity, rewards): accept,
-  amend or reject; approve its four new dependencies and the always-on
-  room-server cost.
-- Multiplayer party scope for the MVP: household-only (recommended,
-  ADR-006) or cross-family (needs its own consent and sharing decision).
+- Multiplayer hosting: approve the always-on room-server cost (ECS
+  Fargate behind an ALB) before anything is deployed (ADR-026).
 - Whether Math Mayhem Phase 6 spawns may use randomness or rarity tiers,
   which ADR-013 and CLAUDE.md pillar 7 currently rule out.
 

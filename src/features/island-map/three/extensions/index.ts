@@ -7,6 +7,7 @@ import { adaptiveAdventureEntranceViewExtension } from './adaptiveAdventureEntra
 import { sanctuaryArtExtension } from './sanctuaryArt/sanctuaryArtScene';
 import { castleTaleExtension } from './castleTale/castleTaleScene';
 import { castleTaleViewExtension } from './castleTale/castleTaleViewExtension';
+import { multiplayerPresenceViewExtension } from './multiplayerPresence/multiplayerPresenceViewExtension';
 
 /**
  * Every bespoke world mechanic the app ships (ADR-025). A manifest names an
@@ -37,6 +38,7 @@ export const SOURCE_VIEW_EXTENSIONS = createViewExtensionRegistry([
   tideTrialViewExtension,
   adaptiveAdventureEntranceViewExtension,
   castleTaleViewExtension,
+  multiplayerPresenceViewExtension,
 ]);
 
 /** Every extension id with a scene half, a React half, or both. */

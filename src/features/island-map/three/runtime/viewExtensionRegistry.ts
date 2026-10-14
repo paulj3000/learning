@@ -35,6 +35,8 @@ export interface LocationViewExtensionOverlayProps {
  */
 export interface LocationCompanionProps {
   childId: string;
+  /** The manifest's region id, for a companion that needs to know where the child is. */
+  regionId: string;
   ageBand: AgeBandValue;
   /** The parent's AI setting for this child, as every adventure host needs it. */
   aiEnabled: boolean;

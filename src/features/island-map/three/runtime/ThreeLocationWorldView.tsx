@@ -424,6 +424,7 @@ export function ThreeLocationWorldView({
         <Companion
           key={id}
           childId={childId}
+          regionId={regionId}
           ageBand={ageBand}
           aiEnabled={aiEnabled}
           config={config}
