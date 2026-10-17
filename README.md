@@ -51,6 +51,25 @@ gitignored and must never be committed, since it can contain
 environment-specific endpoint and identifier values. Do not commit `.env`
 files either.
 
+### Python tooling (for the future Django backend in `lai/`)
+
+Python 3.12. One tool chain: a `.venv` created with the standard library `venv`, `pip`, pinned
+`requirements-dev.txt` (ruff and pytest, direct and transitive), and ruff plus pytest configured
+in `pyproject.toml`. No Django code exists yet. Run from the repository root:
+
+```bash
+make py-install        # create .venv and install the pinned tooling
+make py-lint           # ruff check
+make py-format-check   # ruff format --check (make py-format to fix)
+make py-test           # pytest (tests/)
+make py-check          # all three
+make check             # Python checks, then typecheck, lint, format, tests, build
+make up                # optional local PostgreSQL 16 (docker compose); nothing uses it yet
+```
+
+Secrets and per-developer settings go in `.env` files, which are gitignored. A committed
+`.env.example` arrives with the Django project (LAI-0204).
+
 ### Available scripts
 
 The frontend lives in `react/` (an npm workspace). Run every command below from the

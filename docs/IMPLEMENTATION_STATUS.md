@@ -7217,3 +7217,29 @@ publishes `react/dist`; the root `package.json` declares the `react` workspace. 
 gitignored `dist/` from the pre-move build remains at the root and is unused.
 
 Still unverified: an Amplify Hosting build with this layout.
+
+## LAI-0202: Python tooling (2026-10-17)
+
+Tooling only. No Django, models, or application behaviour. No change to `react/`, `amplify/`,
+`amplify.yml`, CI, or AWS. Starting commit `c8fcd71`.
+
+Created: `pyproject.toml` (ruff and pytest config, `requires-python >=3.12`), `.python-version`
+(3.12), `requirements.txt` (empty by design; Django and DRF arrive in LAI-0204 with a recorded
+decision), `requirements-dev.txt` (ruff 0.17.0, pytest 9.1.1, and their four transitive
+dependencies, all pinned with `==`), `Makefile`, `docker-compose.yml` (PostgreSQL 16, unused so
+far), `tests/repo/test_python_tooling.py` (3 tooling checks). Changed: `.gitignore`,
+`README.md`, `tasks/TASK_TRACKER.md`, `docs/DJANGO_MIGRATION_ROADMAP.md`. Conventions follow
+FinWin (`/Coding/flintwin`, read only): same ruff rule set, 100 columns, py312, venv plus pip,
+exact pins, compose service shape.
+
+Decisions: one package manager (pip in a venv; no uv, poetry, or pip-tools). No Python type
+checker yet; the choice is deferred to LAI-0204, when Django stubs matter. `lai/` is not
+created.
+
+Verification (actually run): `make py-check` passed (ruff check, ruff format check, 3 pytest
+tests); a second fresh venv installed from `requirements-dev.txt` produced an identical
+`pip freeze`; `docker compose config -q` valid (no container started); `make js-check`
+passed (typecheck, lint, format:check, 175 files / 1,578 tests, build).
+
+Deviation from the roadmap acceptance: no CI Python job was added, per the owner's instruction
+to add CI later. The `make` targets run the same commands CI will use, with no local paths.

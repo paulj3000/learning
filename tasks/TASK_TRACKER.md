@@ -22,7 +22,7 @@ before touching AWS.
 ## Phase 2 — Repo restructure and Django skeleton
 
 - [x] **LAI-0201** Move the frontend to `react/` (depends: 0101). DONE: merged locally as d27f554 (not pushed) and re-verified on the merged tree. The Amplify Hosting build with the new layout is still unverified until a real deploy
-- [ ] **LAI-0202** Python tooling (depends: 0201)
+- [x] **LAI-0202** Python tooling (depends: 0201). DONE; the CI Python job is deliberately not added yet (owner: CI later)
 - [ ] **LAI-0203** Engine import boundary guard (depends: 0201)
 - [ ] **LAI-0204** Django project skeleton (depends: 0202)
 - [ ] **LAI-0205** DRF conventions (depends: 0204)

@@ -1,0 +1,12 @@
+# Python tooling for the whole repository, fully pinned (direct and transitive) so installs
+# are reproducible. Install:
+#   python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+# or simply: make py-install
+-r requirements.txt
+ruff==0.17.0
+pytest==9.1.1
+# transitive dependencies of pytest
+iniconfig==2.3.1
+packaging==26.3
+pluggy==1.7.0
+Pygments==2.21.0

@@ -1,0 +1,24 @@
+# Repo-wide Python tooling config (ruff, pytest) for the Django project that will live in lai/.
+# This file declares tooling only; it is not an installable package.
+[project]
+name = "learning-adventure-island-tooling"
+version = "0.0.0"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["node_modules", "react", "amplify", ".venv"]
+src = ["lai"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S603", "S607"]
+"lai/**/tests/**" = ["S101", "S105", "S106", "S311"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-p no:cacheprovider"

@@ -1,0 +1,22 @@
+# Local development only. Never used for deployed environments.
+# Nothing in the repository connects to this database yet (the Django project arrives in LAI-0204).
+services:
+  db:
+    # Keep the major version aligned with the RDS engine version chosen in LAI-1002.
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lai}
+      POSTGRES_USER: ${POSTGRES_USER:-lai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-dev-only-password}
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - lai_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  lai_pgdata:

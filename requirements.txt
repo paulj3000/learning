@@ -1,0 +1,3 @@
+# Application runtime dependencies for the future Django backend (lai/), pinned.
+# Intentionally empty in LAI-0202. LAI-0204 adds Django and Django REST Framework together
+# with a note in docs/DECISIONS.md (CLAUDE.md: no silent new dependencies).

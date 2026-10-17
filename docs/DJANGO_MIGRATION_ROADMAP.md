@@ -114,7 +114,7 @@ lockfile, and the existing `amplify.yml` and CI commands working; (2) `.oxlintrc
 `package-lock.json` was regenerated for the workspace (see IMPLEMENTATION_STATUS). The
 Amplify Hosting build with this layout is **unverified** (no deploy was run).
 
-**LAI-0202 Python tooling.** Depends: 0201. Risk L. Acceptance: `pyproject.toml`
+**LAI-0202 Python tooling. DONE (see IMPLEMENTATION_STATUS; no CI job yet, no type checker yet).** Depends: 0201. Risk L. Acceptance: `pyproject.toml`
 (ruff, pytest), `requirements*.txt`, `docker-compose.yml` (PostgreSQL 16), `Makefile` `check`
 target running Python and npm gates; CI Python job green on an empty test. No new runtime
 dependency without a recorded note in `docs/DECISIONS.md` (CLAUDE.md "do not silently
