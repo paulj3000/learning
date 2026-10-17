@@ -1,5 +1,5 @@
 {
-  "name": "learning-adventure-island",
+  "name": "learning-adventure-island-root",
   "version": "0.1.0",
   "description": "AI-powered educational adventures for children built with AWS Amplify Gen 2.",
   "private": true,
@@ -8,64 +8,21 @@
   "engines": {
     "node": ">=22.0.0"
   },
+  "workspaces": [
+    "react"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview",
-    "typecheck": "tsc -b && tsc --noEmit -p amplify/tsconfig.json && tsc --noEmit -p scripts/tsconfig.json",
+    "dev": "npm run dev -w react",
+    "build": "npm run build -w react",
+    "preview": "npm run preview -w react",
+    "typecheck": "npm run typecheck -w react",
     "lint": "oxlint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
-    "test:e2e": "playwright test",
+    "test": "npm run test -w react",
+    "test:e2e": "npm run test:e2e -w react",
     "sandbox": "ampx sandbox",
     "ai:red-team": "tsx scripts/ai-red-team.ts",
     "assets:generate": "tsx scripts/generate-world-assets.ts"
-  },
-  "keywords": [
-    "education",
-    "kids",
-    "ai",
-    "learning",
-    "adventure",
-    "aws",
-    "amplify",
-    "react",
-    "typescript"
-  ],
-  "author": "",
-  "dependencies": {
-    "aws-amplify": "^6.20.0",
-    "phaser": "^4.2.1",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.2",
-    "three": "^0.185.1"
-  },
-  "devDependencies": {
-    "@aws-amplify/backend": "^1.24.0",
-    "@aws-amplify/backend-cli": "^1.9.0",
-    "@aws-sdk/client-dynamodb": "^3.1112.0",
-    "@aws-sdk/lib-dynamodb": "^3.1112.0",
-    "@playwright/test": "^1.62.1",
-    "@testing-library/jest-dom": "^7.0.0",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.3",
-    "@types/aws-lambda": "^8.10.162",
-    "@types/node": "^26.1.2",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "@types/three": "^0.185.4",
-    "@vitejs/plugin-react": "^6.0.5",
-    "aws-cdk-lib": "^2.263.0",
-    "constructs": "^10.8.1",
-    "esbuild": "^0.28.1",
-    "jsdom": "^30.0.1",
-    "oxlint": "^1.77.0",
-    "prettier": "^3.9.6",
-    "tsx": "^4.23.9",
-    "typescript": "^5.9.3",
-    "vite": "^8.2.1",
-    "vitest": "^4.1.10"
   }
 }

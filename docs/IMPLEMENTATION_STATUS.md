@@ -7173,3 +7173,33 @@ Tests: not run (docs-only). Baseline before the change: 175 files, 1,578 tests p
 
 Next: LAI-0201 remains the first implementation task, gated on LAI-0101 and ADR-019
 acceptance. LAI-2001 to 2003 are docs-only and may run beside it.
+
+## LAI-0201: move the frontend to `react/` (2026-10-17)
+
+Branch `lai-0201-move-frontend-to-react` (worktree `/Coding/learning-lai0201`). No gameplay,
+route, API, auth, or Amplify infrastructure change. Not pushed, not deployed, not merged.
+
+Moved with `git mv`: `src/`, `public/`, `index.html`, `vite.config.ts`, `tsconfig*.json`,
+`e2e/`, `playwright.config.ts`, `package.json` into `react/`. New thin root `package.json`
+(npm workspace). Changed paths only: `amplify/functions/*` and `scripts/*` import
+`react/src/...`; `react/src/**` imports `../amplify/...` one level higher; the
+`amplify_outputs.json` glob; `amplify.yml` `baseDirectory`; `react/vite.config.ts` test
+`include` (keeps the 5 Lambda test files); `scripts/generate-world-assets.ts` output dir.
+
+Verification (run from the repository root, clean install): typecheck pass; lint pass, 17
+warnings (same as before); format:check pass; `npm test` 175 files, 1,578 tests, same as the
+baseline; `npm run build` pass, 121 files with an identical file list, byte total within 16
+bytes of the original when `amplify_outputs.json` is present; Playwright 7 of 7 passed with no
+`amplify_outputs.json`.
+
+Not verified: an Amplify Hosting build with the new layout (owner approval required first);
+the Vite dev server (could not be run in this session); `npm run sandbox`, `ai:red-team`,
+`assets:generate`, `live-smoke` (need AWS or were not run).
+
+Notes: `package-lock.json` was regenerated for the workspace. The previous lock lacked entries
+for several declared packages (for example `three`, `@types/three`, the DynamoDB SDK clients)
+and 20 AWS SDK packages moved by patch version. Comments in `amplify/` that say `src/...`
+were left as they were.
+
+An `ampx sandbox` process was running in the original checkout; the move was done in a
+separate worktree so that it could not trigger a sandbox redeploy.

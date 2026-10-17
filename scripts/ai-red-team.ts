@@ -39,10 +39,10 @@ import { Amplify } from 'aws-amplify';
 import { signIn, signOut, getCurrentUser } from 'aws-amplify/auth';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../amplify/data/resource';
-import { validateCompanionTurn } from '../src/features/companion/schema';
-import type { CompanionIntent } from '../src/features/companion/schema';
-import { MAX_SPOKEN_LENGTH_BY_AGE_BAND } from '../src/features/companion/limits';
-import type { AgeBandValue } from '../src/features/child-profile/constants';
+import { validateCompanionTurn } from '../react/src/features/companion/schema';
+import type { CompanionIntent } from '../react/src/features/companion/schema';
+import { MAX_SPOKEN_LENGTH_BY_AGE_BAND } from '../react/src/features/companion/limits';
+import type { AgeBandValue } from '../react/src/features/child-profile/constants';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

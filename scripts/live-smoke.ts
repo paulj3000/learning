@@ -31,12 +31,12 @@ import { Amplify } from 'aws-amplify';
 import { signIn, signOut } from 'aws-amplify/auth';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../amplify/data/resource';
-import { validateCompanionTurn } from '../src/features/companion/schema';
-import { validateTutorTurn } from '../src/features/tutor/schema';
-import { buildTutorContext } from '../src/features/tutor/context';
-import { parseMemoryFlags } from '../src/features/npc/memory';
-import { parseCoopSharedState } from '../src/features/coop/types';
-import { decodeAwsJson, encodeAwsJson } from '../src/lib/awsJson';
+import { validateCompanionTurn } from '../react/src/features/companion/schema';
+import { validateTutorTurn } from '../react/src/features/tutor/schema';
+import { buildTutorContext } from '../react/src/features/tutor/context';
+import { parseMemoryFlags } from '../react/src/features/npc/memory';
+import { parseCoopSharedState } from '../react/src/features/coop/types';
+import { decodeAwsJson, encodeAwsJson } from '../react/src/lib/awsJson';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 Amplify.configure(JSON.parse(readFileSync(resolve(__dirname, '../amplify_outputs.json'), 'utf-8')));

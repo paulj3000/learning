@@ -21,7 +21,7 @@ before touching AWS.
 
 ## Phase 2 — Repo restructure and Django skeleton
 
-- [ ] **LAI-0201** Move the frontend to `react/` (depends: 0101)
+- [~] **LAI-0201** Move the frontend to `react/` (depends: 0101). IMPLEMENTED on branch `lai-0201-move-frontend-to-react`, verified locally; awaiting owner approval before merge (Amplify build path changed, hosting build unverified)
 - [ ] **LAI-0202** Python tooling (depends: 0201)
 - [ ] **LAI-0203** Engine import boundary guard (depends: 0201)
 - [ ] **LAI-0204** Django project skeleton (depends: 0202)

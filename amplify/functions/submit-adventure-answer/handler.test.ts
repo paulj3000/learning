@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { decideSubmission, isStepAnswer } from './handler';
-import type { AdventureStep } from '../../../src/features/adventures/engine/types';
+import type { AdventureStep } from '../../../react/src/features/adventures/engine/types';
 
 function makeStep(overrides: Partial<AdventureStep>): AdventureStep {
   return {
