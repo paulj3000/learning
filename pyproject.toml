@@ -17,8 +17,12 @@ select = ["E", "F", "W", "I", "B", "UP", "S"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S603", "S607"]
 "lai/**/tests/**" = ["S101", "S105", "S106", "S311"]
+"lai/config/settings/*.py" = ["F403", "F405"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+pythonpath = ["lai"]
+testpaths = ["tests", "lai"]
+markers = ["postgres: needs the docker-compose PostgreSQL (skipped when unreachable)"]
 python_files = ["test_*.py"]
 addopts = "-p no:cacheprovider"

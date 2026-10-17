@@ -7243,3 +7243,33 @@ passed (typecheck, lint, format:check, 175 files / 1,578 tests, build).
 
 Deviation from the roadmap acceptance: no CI Python job was added, per the owner's instruction
 to add CI later. The `make` targets run the same commands CI will use, with no local paths.
+
+## LAI-0204: Django project skeleton (2026-10-17)
+
+Starting commit `f0a4f53`. No change to `react/`, `amplify/`, `game`, CI, or AWS. Not pushed.
+
+Created: `lai/` with `manage.py`, `config/{urls,asgi,wsgi}.py`, `config/settings/{base,local,test,production}.py`,
+`apps/core` (health view, urls, tests), `conftest.py`. Changed: `requirements*.txt`, `pyproject.toml`
+(pytest-django, `lai` on the path), `Makefile`, `README.md`, `docs/DECISIONS.md` (ADR-021),
+tracker and roadmap. Dependencies: Django 6.1.2 (the owner chose the latest stable release over
+the 5.2 LTS; reasons and the support-window trade-off are in ADR-021), DRF 3.18.3, psycopg 3.3.6.
+
+Behaviour: `GET /api/v1/health/` returns 200 `{"status":"ok","service":"learning-adventure-island"}`,
+no auth, no database, no AWS, `Cache-Control: no-store`; POST/PUT/PATCH/DELETE return 405; HEAD
+and OPTIONS allowed. DRF defaults deny every other view. Only `rest_framework` and `apps.core`
+are installed, so `migrate` has no framework tables to create yet (auth arrives with LAI-0301).
+
+Verification, all actually run: `manage.py check` clean; `makemigrations --check` no changes;
+`migrate` ran against the compose PostgreSQL 16; `ruff check` and `ruff format --check` clean;
+29 pytest tests pass with PostgreSQL up (`make py-test-db`, which does not skip); a live
+`runserver` answered the health request; a fresh venv gave an identical `pip freeze` and
+`pip check` is clean; `manage.py check --deploy` with production settings reports only W003 and
+W021 (explained in ADR-021). `make js-check` passed (typecheck, lint, format, 175 files / 1,578 tests, build).
+
+Environment note: host port 5432 was already used by another project's container (`flintwin-db-1`),
+which was left untouched; this project's database was started with `POSTGRES_PORT=5433`.
+
+Deferred or limitations: no Cognito authentication, no CORS (same-origin by design), no request
+logging middleware or error envelope (LAI-0205), no readiness endpoint, no gunicorn or container
+image, no type checker, and the CI Python job (LAI-0206). Production settings are untested against a real
+deployment because none exists.

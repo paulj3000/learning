@@ -1094,3 +1094,40 @@ Convert everything in one step (rejected: each world must stay playable until ve
 Sprouts accessibility becomes a Three.js problem; `phaser` leaves `package.json`; ADR-008's
 Phaser fallback clause and `docs/ROADMAP.md` Phase 33 wording (Phaser retired after the Bay
 slice only) are widened; CLAUDE.md gains section 19.
+
+## ADR-021: Django 6.1, DRF 3.18, and psycopg 3 for the backend skeleton
+
+Status: **Accepted** (project owner, 2026-10-17). Implements sub-decisions 1 and 2 of ADR-019
+(Accepted in part); it does not settle any ADR-019 open gate.
+
+**Decision.** Exact pins, installed with `pip` into a venv (no other package manager):
+
+| Package | Version | Why |
+|---|---|---|
+| Django | 6.1.2 | Latest stable release per djangoproject.com/download on 2026-10-17. Requires Python 3.12 or newer (classifiers 3.12 to 3.14), matching `.python-version` |
+| djangorestframework | 3.18.3 | Latest; its metadata lists Django 5.2, 6.0, and 6.1 |
+| psycopg[binary] | 3.3.6 | PostgreSQL driver (psycopg 3). Used by Django's `postgresql` backend |
+| asgiref, sqlparse, psycopg-binary, typing_extensions | 3.12.1, 0.6.0, 3.3.6, 4.16.0 | Transitive pins for reproducible installs |
+
+pytest-django 4.14.0 was added as a dev dependency. Ruff 0.17.0 and pytest 9.1.1 are unchanged.
+Settings use the standard library only (no django-environ). No CORS, gunicorn, or JWT library
+is added yet.
+
+**Why 6.1 and not the 5.2 LTS.** The owner chose the latest stable release for a new
+application. The ecosystem fits: DRF and psycopg already support it, so there was no
+incompatibility to report. **Trade-off accepted knowingly:** per the Django download page,
+5.2 LTS has extended support until April 2028, while 6.1 has mainstream support until April
+2027 and extended support until December 2027. The project therefore commits to moving to a
+newer supported Django release before December 2027, and to reading each release's notes
+rather than skipping versions. This is an upgrade obligation, tracked as a risk, not a
+blocker.
+
+**Verified.** `pip check` clean; a fresh venv from `requirements-dev.txt` reproduces the same
+`pip freeze`; `manage.py check`, `makemigrations --check`, and `migrate` run; 29 pytest tests
+pass including a PostgreSQL 16 test.
+
+**Deferred on purpose.** `django.contrib.auth`, contenttypes, sessions, and admin are not
+installed, so no default user table exists before the users task (LAI-0301) chooses the user
+model. `check --deploy` reports W003 (no CSRF middleware; the API is stateless and will use
+bearer tokens, revisit in LAI-0402) and W021 (HSTS preload not enabled; it commits a domain
+permanently, decide when a domain exists).

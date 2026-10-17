@@ -128,10 +128,15 @@ guard only: LAI-2101 replaces it with the same rule applied to `game/` (and adds
 client and `react/` imports to the forbidden list). The `island-map/scenes/**` clause goes
 away when Phaser is removed (LAI-2304).
 
-**LAI-0204 Django project skeleton.** Depends: 0202. Risk L. Acceptance: `lai/` with
+**LAI-0204 Django project skeleton. DONE (Django 6.1.2, ADR-021).** Depends: 0202. Risk L. Acceptance: `lai/` with
 `config/settings/{base,local,production,test}.py`, `apps/core`, `GET /api/v1/health`,
 `manage.py check` clean, pytest passes against Postgres. Files: `lai/**`. Rollback: delete
 `lai/`. Deploy: none.
+
+**LAI-0206 Python CI job (added to carry LAI-0202's deferred CI criterion).** Depends: 0204.
+Risk L. **APPROVAL: owner, because it edits `.github/workflows/ci.yml`.** Acceptance: a separate
+CI job installs `requirements-dev.txt`, starts PostgreSQL 16 as a service, and runs `make
+py-check` and `make py-test-db`; the existing JavaScript jobs are unchanged and stay green.
 
 **LAI-0205 DRF conventions.** Depends: 0204. Risk L. Acceptance: typed error envelope with
 safe messages, cursor pagination, request-log middleware that logs no child free text or

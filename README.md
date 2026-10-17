@@ -53,7 +53,11 @@ files either.
 
 ### Python tooling (for the future Django backend in `lai/`)
 
-Python 3.12. One tool chain: a `.venv` created with the standard library `venv`, `pip`, pinned
+Python 3.12. The Django project is `lai/` (Django 6.1, DRF 3.18, psycopg 3; ADR-021) with
+settings split into `base`, `local`, `test`, and `production` under `lai/config/settings/`.
+Local and test settings use the compose database on loopback; production settings refuse to
+load unless `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, and `DATABASE_URL` are set. If the
+compose database runs on a non-default port, export `POSTGRES_PORT` for every command. One tool chain: a `.venv` created with the standard library `venv`, `pip`, pinned
 `requirements-dev.txt` (ruff and pytest, direct and transitive), and ruff plus pytest configured
 in `pyproject.toml`. No Django code exists yet. Run from the repository root:
 
@@ -64,7 +68,12 @@ make py-format-check   # ruff format --check (make py-format to fix)
 make py-test           # pytest (tests/)
 make py-check          # all three
 make check             # Python checks, then typecheck, lint, format, tests, build
-make up                # optional local PostgreSQL 16 (docker compose); nothing uses it yet
+make up                # local PostgreSQL 16 via docker compose (POSTGRES_PORT=5433 make up if 5432 is taken)
+make django-check      # manage.py check (no database needed)
+make migrate-check     # makemigrations --check
+make migrate           # apply framework migrations (needs make up)
+make runserver         # Django dev server; GET http://127.0.0.1:8000/api/v1/health/
+make py-test-db        # like py-test, but PostgreSQL tests fail instead of skipping
 ```
 
 Secrets and per-developer settings go in `.env` files, which are gitignored. A committed

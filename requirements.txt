@@ -1,3 +1,10 @@
-# Application runtime dependencies for the future Django backend (lai/), pinned.
-# Intentionally empty in LAI-0202. LAI-0204 adds Django and Django REST Framework together
-# with a note in docs/DECISIONS.md (CLAUDE.md: no silent new dependencies).
+# Application runtime dependencies for the Django backend (lai/), pinned. Added in LAI-0204;
+# the choice is recorded in docs/DECISIONS.md (ADR-021).
+Django==6.1.2
+djangorestframework==3.18.3
+psycopg[binary]==3.3.6
+# transitive dependencies, pinned for reproducible installs
+asgiref==3.12.1
+psycopg-binary==3.3.6
+sqlparse==0.6.0
+typing_extensions==4.16.0

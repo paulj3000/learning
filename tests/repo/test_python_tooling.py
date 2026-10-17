@@ -11,7 +11,7 @@ def test_pyproject_declares_python_312_tooling():
     config = tomllib.loads((ROOT / "pyproject.toml").read_text())
     assert config["project"]["requires-python"] == ">=3.12"
     assert config["tool"]["ruff"]["target-version"] == "py312"
-    assert config["tool"]["pytest"]["ini_options"]["testpaths"] == ["tests"]
+    assert config["tool"]["pytest"]["ini_options"]["testpaths"] == ["tests", "lai"]
 
 
 def test_requirements_are_exactly_pinned():
