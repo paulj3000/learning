@@ -331,3 +331,25 @@ Read these before major work:
 - `docs/TESTING_STRATEGY.md`
 - `docs/IMPLEMENTATION_STATUS.md`
 
+
+## 18. Proposed backend migration (not in effect)
+
+ADR-019 in `docs/DECISIONS.md` proposes moving the backend from Amplify Gen 2 to Django + DRF.
+It is **Proposed**: section 8 above remains the technology baseline. Do not begin any Track A
+task (Phases 1 to 13) in `tasks/TASK_TRACKER.md` until the project owner accepts ADR-019, and
+stop for approval at every task marked APPROVAL in `docs/DJANGO_MIGRATION_ROADMAP.md`. Never
+touch deployed AWS resources without explicit approval.
+
+## 19. Accepted game engine decision (in effect)
+
+ADR-020 is **Accepted**: Three.js is the only gameplay renderer, and Phaser is to be retired
+after every Phaser world is converted and verified. Rules for Claude:
+- Do not add features to Phaser worlds. Bug fixes only, until the world is deleted.
+- Any new playable environment is Three.js. Menus, HUD, dashboards, and admin stay React.
+- Do not delete a Phaser world until its Three.js replacement passes parity tests and visual
+  validation, and the Sprouts gate (LAI-2303) allows it.
+- The engine never validates answers, awards progress, or calls AI; it emits typed events.
+- Engine code must not import React, Django clients, Amplify, or AWS SDKs once it is in `game/`.
+- Track B tasks (LAI-2001 to 2305) follow `docs/DJANGO_MIGRATION_ROADMAP.md` Phases 20 to 23.
+  Docs-only LAI-2001 to 2003 do not wait for ADR-019; code tasks wait for LAI-0201. Never
+  combine a backend domain change with a world conversion in one task.

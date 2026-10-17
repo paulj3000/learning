@@ -7124,3 +7124,52 @@ changed or broken.
 - Formal curriculum framework mapping.
 - Legal/privacy review and retention schedule.
 
+
+## Django migration Phase 0: assessment only (docs, 2026-10-17)
+
+Read-only migration assessment and repository audit. **No application source, `amplify/`
+code, package, CI, or infrastructure changed; nothing deployed.**
+
+Created: `docs/DJANGO_MIGRATION_ASSESSMENT.md`, `docs/CURRENT_AWS_RESOURCE_INVENTORY.md`,
+`docs/IAM_ROLE_AUDIT.md`, `docs/DJANGO_TARGET_ARCHITECTURE.md`,
+`docs/DJANGO_MIGRATION_ROADMAP.md`, `tasks/TASK_TRACKER.md`. Appended: ADR-019 (Proposed) in
+`docs/DECISIONS.md`; pointer sections in `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`,
+`docs/ROADMAP.md`; pointers in `README.md` and `CLAUDE.md`.
+
+Findings that matter most: authoritative Lambda logic imports TypeScript from `src/features`
+(a Python backend cannot run it); engine scene code never touches the backend (clean
+boundary); 40 IAM roles per environment in the local synth, 17 of them one-per-model;
+Cognito pool is owned by the Amplify stack and must be detached before any stack deletion.
+
+Not verified: any deployed AWS state (no AWS CLI access in the session). Open questions are in
+`docs/DJANGO_MIGRATION_ASSESSMENT.md` section 16. Baseline: 175 test files, 1,578 tests
+passing before this change (docs-only, so unchanged).
+
+Next (after the owner accepts ADR-019): LAI-0201, move the frontend to `react/`.
+
+## ADR-020: Three.js mandatory, Phaser retirement planned (docs, 2026-10-17)
+
+Documentation and planning only. **No application source, `package.json`, `amplify/`, CI, or
+infrastructure changed; nothing deployed; Phaser not removed; LAI-0201 not started.**
+
+Created: `docs/THREEJS_ENGINE_CONVERSION.md` (inventory, conversion matrix, engine
+architecture, budgets, risks). Changed: `docs/DECISIONS.md` (ADR-020 Accepted; ADR-019
+sub-decisions 6 and 7 superseded; status notes on ADR-007 and ADR-008),
+`docs/DJANGO_MIGRATION_ASSESSMENT.md`, `docs/DJANGO_TARGET_ARCHITECTURE.md`,
+`docs/DJANGO_MIGRATION_ROADMAP.md` (Track B, Phases 20 to 23, LAI-2001 to 2305),
+`tasks/TASK_TRACKER.md`, `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, `README.md`, `CLAUDE.md`
+(new section 19).
+
+Finding that corrects Phase 0: there are **eight** Phaser worlds, not seven (Welcome Harbor,
+Pirate Builder Bay, Wonderwild Forest, Storykeeper Castle, Dragon's Sanctuary, Fossil Ridge
+Camp, Castle Writing Room, Bolt's Workshop). Two already have Three.js versions, one has Three.js
+region data only, five have none.
+
+Not verified: reachable adventures and rewards for the four small worlds, `AnimationMixer`
+use, any performance figure, target devices. Assigned to LAI-2001 and LAI-2002. Proposed
+performance budgets are targets, not measurements.
+
+Tests: not run (docs-only). Baseline before the change: 175 files, 1,578 tests passing.
+
+Next: LAI-0201 remains the first implementation task, gated on LAI-0101 and ADR-019
+acceptance. LAI-2001 to 2003 are docs-only and may run beside it.

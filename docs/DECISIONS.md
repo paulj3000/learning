@@ -78,7 +78,8 @@ nothing to render without an avatar/world to show it in.
 
 ## ADR-007: Phaser as the world-engine rendering library
 
-Status: Accepted
+Status: Accepted. **Retirement mandated by ADR-020**: no new Phaser gameplay; Phaser is
+removed once every Phaser world is converted and verified.
 
 Learning Adventure Island adopts an explorable, avatar-controlled world
 (`docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md`), replacing
@@ -134,7 +135,9 @@ written as plain, Phaser-free TypeScript so it stays unit-testable.
 ## ADR-008: Three.js first-person world supersedes Phaser as the next-generation renderer
 
 Status: Accepted, pending Sprouts (ages 3-4) accessibility validation before
-child-facing rollout
+child-facing rollout. **Amended by ADR-020**: Phaser may no longer serve as the permanent
+Sprouts fallback; the fallback is a guided camera profile inside the Three.js engine. The
+Sprouts playtest requirement itself is unchanged.
 
 This supersedes ADR-007's renderer choice, not the layering rule it
 established. Learning Adventure Island adopts **Three.js**
@@ -946,3 +949,107 @@ remaining write paths to a Lambda resolver, does not add pagination or
 change any query, does not build a CloudWatch dashboard over the new
 request-log lines, and does not add rate limiting anywhere in this
 backend.
+
+## ADR-019: Migrate the backend from Amplify Gen 2 to Django + DRF incrementally
+
+Status: **Proposed** (no implementation has begun; every sub-decision below is Proposed,
+none is Accepted). If accepted, this ADR supersedes the "one Amplify Gen 2 platform" rule in
+ADR-010 and the Amplify baseline in `CLAUDE.md` section 8. Until then both remain in force.
+
+**Amended by ADR-020 (Accepted).** Sub-decisions 6 and 7 below are superseded; the target
+shape in `docs/DJANGO_TARGET_ARCHITECTURE.md` now includes a first-class `game/` package.
+Sub-decisions 1 to 5 and 8 to 12 are unchanged and remain Proposed. Accepting ADR-020 does not
+accept any of them.
+
+Evidence and analysis: `docs/DJANGO_MIGRATION_ASSESSMENT.md`,
+`docs/CURRENT_AWS_RESOURCE_INVENTORY.md`, `docs/IAM_ROLE_AUDIT.md`. Target:
+`docs/DJANGO_TARGET_ARCHITECTURE.md`. Sequence: `docs/DJANGO_MIGRATION_ROADMAP.md`.
+
+**Context.** The product is growing into a platform (islands, quests, rewards, inventory,
+progression, co-op, admin). Five of six gameplay write paths are client-authoritative
+(`docs/platform/CURRENT_PLATFORM_AUDIT.md`). Each persisted model adds a DynamoDB table and an
+IAM role (40 roles per environment in the local synth, 17 of them one-per-model). The IAM
+quota is raisable, so it is not the reason. The reason is that a relational, service-layer
+backend fits the platform direction better than adding more AppSync resolvers, and that new
+content should be data rows, not infrastructure.
+
+| # | Sub-decision | Status | Note |
+|---|---|---|---|
+| 1 | Django + Django REST Framework backend (`lai/`) | Proposed | Incremental strangler; Amplify untouched until cutover |
+| 2 | PostgreSQL as the relational store | Proposed | Replaces 17 DynamoDB tables |
+| 3 | Retain Cognito for authentication | Proposed | Django validates JWTs; pool must be detached from the Amplify stack before it is deleted |
+| 4 | Retain S3 for binaries; metadata in PostgreSQL | Proposed | Child photos via presigned URLs |
+| 5 | Retain React | Proposed | Moves to `react/` |
+| 6 | ~~Retain Three.js and Phaser engines unchanged~~ | **Superseded by ADR-020** (Accepted) | Three.js is the only gameplay renderer; Phaser is retired after conversion |
+| 7 | ~~Separate engine from platform concerns; `game/` extraction deferred~~ | **Superseded by ADR-020** (Accepted) | `game/` is a first-class package; the engine boundary is a requirement, not a deferral |
+| 8 | Authoritative rules reimplemented in Python with shared golden vectors; content exported to versioned JSON | Proposed | Alternative (Node rules service) rejected unless this proves too divergent |
+| 9 | Bedrock called from Django (boto3), replacing Amplify AI Kit routes | Proposed | Personas, limits, validation, fallbacks, audit preserved |
+| 10 | EC2 + Docker for development; ECS Fargate as production candidate | Proposed | No Kubernetes, microservices, queues |
+| 11 | Django Channels + Redis only if a measured need appears | Proposed | Co-op needs only slot claims and low-rate state |
+| 12 | Incremental Amplify retirement, with Cognito detached first | Proposed | Phases 12-13 in the roadmap |
+
+**Alternatives considered.** Stay on Amplify and raise the IAM quota (lowest effort; leaves
+the client-authoritative write paths to be fixed with more Lambdas). Amplify Gen 2 with a
+single generic content table (fewer roles, loses relational integrity).
+
+**Consequences if accepted.** Python enters the stack; a second implementation of the game
+rules must be kept in lockstep by tests; fixed monthly infrastructure cost rises; Android
+plans (ADR-010, `docs/android/android.md`) change from "Amplify client libraries" to "REST
+API".
+
+**Open questions.** See `docs/DJANGO_MIGRATION_ASSESSMENT.md` section 16.
+
+
+## ADR-020: Three.js is the exclusive gameplay renderer; Phaser is retired; `game/` is a first-class package
+
+Status: **Accepted** (project owner, 2026-10-17). Independent of ADR-019: it is in effect
+whether or not the Django migration is accepted.
+
+Detail: `docs/THREEJS_ENGINE_CONVERSION.md` (inventory, conversion matrix, engine
+architecture). Tasks: `docs/DJANGO_MIGRATION_ROADMAP.md` Phases 20 to 23.
+
+**Context.** The repository runs two gameplay renderers: Phaser 4 for eight 2D worlds
+(`LocationScene` and eight subclasses) and Three.js for Welcome Harbor, Pirate Builder Bay, a
+sandbox, and Storykeeper Castle region data. ADR-008 already named Three.js the
+next-generation renderer but left Phaser live and as the Sprouts fallback. The Phase 0
+assessment then recommended preserving both and deferring `game/`. Maintaining two engines
+duplicates interaction, input, and accessibility work and blocks one reusable adventure
+platform.
+
+**Decision.**
+
+1. Every playable island and adventure runs on one Three.js engine. No other gameplay
+   renderer is supported in the final architecture.
+2. Phaser and all 2D gameplay rendering are retired after each world's replacement passes
+   parity tests and visual validation, and the Sprouts gate. Existing 2D gameplay rules,
+   educational objectives, progression, rewards, and content are reused; the renderer is
+   replaced, not the game.
+3. Scope of "gameplay": playable environments only. React menus, HUD overlays, dashboards,
+   the card-based hub, the Canvas 2D companion portrait, and admin pages stay conventional
+   2D UI.
+4. The engine is extracted to a top-level `game/` package (reverses the Phase 0 deferral). It
+   imports nothing from React, Django clients, Amplify, or AWS SDKs. React consumes it through
+   a defined interface and receives typed, semantic-ID events from it.
+5. Islands and adventures are data (`WorldDefinition` plus catalog content). A new one needs no
+   new renderer, route, or AWS infrastructure.
+6. The engine continues to follow ADR-007 and ADR-008's layering: it never validates answers,
+   awards progress, decides mastery, or calls AI.
+7. Sprouts get a guided Three.js camera and control profile; the ADR-008 playtest requirement
+   stands. Until it passes, the card hub and the existing Phaser view remain Sprouts'
+   primary route and block LAI-2304.
+8. Effective immediately: **no new Phaser features.** Bug fixes to existing Phaser worlds are
+   allowed until they are deleted.
+
+**Not decided here.** Real-time multiplayer or shared 3D presence (co-op today is shared
+adventure state; shared presence conflicts with CLAUDE.md section 12 unless separately
+approved). The conversion doc's performance budgets are proposed targets until the owner
+confirms target devices. Whether the Castle Writing Room merges into the Castle's SC-9.
+
+**Alternatives considered.** Keep both engines (Phase 0 recommendation; rejected by the
+owner). Render 2D worlds as textures inside Three.js (rejected: not genuine 3D play).
+Convert everything in one step (rejected: each world must stay playable until verified).
+
+**Consequences.** Large art and engineering effort for five worlds with no 3D counterpart;
+Sprouts accessibility becomes a Three.js problem; `phaser` leaves `package.json`; ADR-008's
+Phaser fallback clause and `docs/ROADMAP.md` Phase 33 wording (Phaser retired after the Bay
+slice only) are widened; CLAUDE.md gains section 19.

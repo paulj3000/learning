@@ -833,3 +833,19 @@ does not grant that approval on its own.
 - multilingual narration;
 - local or pre-generated content modes for lower latency.
 
+
+## Accepted engine track: Three.js only (ADR-020)
+
+Widens Phases 31 to 34: Phaser is retired for **all eight** Phaser worlds, not only after the
+Pirate Builder Bay slice (Phase 33), and the engine moves into a first-class `game/` package.
+Tasks are LAI-2001 to LAI-2305 in `docs/DJANGO_MIGRATION_ROADMAP.md` Phases 20 to 23, tracked
+in `tasks/TASK_TRACKER.md`. This does not renumber any phase here. Phase 32's note that the
+Phaser view is Sprouts' fallback is superseded by a guided Three.js profile; the Sprouts
+playtest requirement stands.
+
+## Proposed backend migration track (separate)
+
+A Django migration roadmap (`docs/DJANGO_MIGRATION_ROADMAP.md`, tracker `tasks/TASK_TRACKER.md`,
+ADR-019 **Proposed**) runs beside this product roadmap and does not renumber any phase here.
+It must not start before the project owner accepts ADR-019. The engine track above does not
+depend on it, except that code tasks wait for LAI-0201 (the move to `react/`).

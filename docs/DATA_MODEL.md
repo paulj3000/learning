@@ -597,3 +597,9 @@ for, never any part of what was said.
 
 Sensitive content should be redacted or stored separately with strict retention only when genuinely necessary for review.
 
+
+## Proposed relational mapping (not in effect)
+
+`docs/DJANGO_MIGRATION_ASSESSMENT.md` section 6 maps each model above to a proposed Django app
+and PostgreSQL table, with difficulty and data-loss risk. This document remains authoritative
+for the current Amplify schema.

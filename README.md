@@ -65,3 +65,15 @@ npm run test            # run Vitest unit/component tests
 npm run test:e2e        # run Playwright end-to-end tests
 npm run sandbox          # start a personal Amplify cloud sandbox
 ```
+
+## Game engine direction (accepted)
+
+All playable worlds will run on one Three.js engine; Phaser will be retired after each world is
+converted and verified (ADR-020, `docs/THREEJS_ENGINE_CONVERSION.md`). Phaser is still in the
+code today and nothing has been removed yet.
+
+## Backend migration (proposed)
+
+A migration from Amplify Gen 2 to Django is under assessment, not in progress. See
+`docs/DJANGO_MIGRATION_ASSESSMENT.md` and ADR-019 in `docs/DECISIONS.md`. Until ADR-019 is
+accepted, everything above describes how the project works.

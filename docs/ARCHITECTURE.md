@@ -502,3 +502,20 @@ visibility, not the per-family admin review workflow
 (`docs/AI_AND_CHILD_SAFETY.md` layer 10), which remains a separate, not
 yet built, piece.
 
+
+## Accepted: Three.js is the only gameplay renderer (ADR-020)
+
+Direction in effect; the code has not changed yet. Every playable environment will run on one
+Three.js engine in a top-level `game/` package; Phaser and all 2D gameplay rendering will be
+removed world by world after parity and visual verification. Today both renderers still
+exist, so the "World engine layering" described above remains accurate for the code as it is.
+No new Phaser features. React keeps menus, HUD, dashboards, and admin. Detail:
+`docs/THREEJS_ENGINE_CONVERSION.md`; decision: ADR-020 in `docs/DECISIONS.md`.
+
+## Proposed backend migration (not in effect)
+
+The architecture above is current and authoritative. A migration from Amplify Gen 2 to
+Django + DRF + PostgreSQL, retaining Cognito, S3, React, and the Three.js engine (Phaser is retired by ADR-020), is
+**proposed** in ADR-019 (`docs/DECISIONS.md`). Assessment:
+`docs/DJANGO_MIGRATION_ASSESSMENT.md`; target: `docs/DJANGO_TARGET_ARCHITECTURE.md`; sequence:
+`docs/DJANGO_MIGRATION_ROADMAP.md`. Nothing in this document changes unless ADR-019 is accepted.
