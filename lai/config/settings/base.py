@@ -24,6 +24,7 @@ INSTALLED_APPS = [
 # No sessions, no cookies, no CSRF middleware: the API is stateless and will authenticate with
 # Cognito bearer tokens. Revisit in LAI-0402 if that changes.
 MIDDLEWARE = [
+    "apps.core.middleware.RequestContextMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -45,6 +46,7 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
     "UNAUTHENTICATED_USER": None,
+    "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
 }
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -54,12 +56,30 @@ SECURE_REFERRER_POLICY = "same-origin"
 # No CORS: the browser reaches the API same-origin (CloudFront path routing, see
 # docs/DJANGO_TARGET_ARCHITECTURE.md). No CORS package is installed on purpose.
 
-# Console logging only. Never log request bodies, headers, child names, or free text.
+# Console logging only. Never log request bodies, headers, cookies, tokens, query strings,
+# child names, or free text. `lai.request` writes the single access line per request.
+# django.request is limited to ERROR (unexpected 500s with a traceback) so 4xx responses are
+# not logged a second time with their raw path. django.server (runserver) is discarded because
+# it logs full request lines, query strings included.
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "formatters": {"plain": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"}},
-    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "plain"}},
+    "filters": {"request_id": {"()": "apps.core.middleware.RequestIdLogFilter"}},
+    "formatters": {
+        "plain": {"format": "%(asctime)s %(levelname)s %(name)s [req=%(request_id)s] %(message)s"}
+    },
+    "handlers": {
+        "discard": {"class": "logging.NullHandler"},
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "plain",
+            "filters": ["request_id"],
+        },
+    },
+    "loggers": {
+        "django.request": {"level": "ERROR"},
+        "django.server": {"handlers": ["discard"], "propagate": False},
+    },
     "root": {"handlers": ["console"], "level": os.environ.get("DJANGO_LOG_LEVEL", "INFO")},
 }
 

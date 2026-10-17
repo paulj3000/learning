@@ -83,3 +83,13 @@ PostgreSQL 16 service container; `make py-lint`, `py-format-check`, `django-chec
 `migrate-check`, `py-test-db`). `py-test-db` fails instead of skipping when the database is
 unreachable, so a broken service cannot make the Python job pass silently. Test counts are
 baselines, not asserted by CI.
+
+## Django API conventions tests (LAI-0205)
+
+`lai/apps/core/tests/test_api_conventions.py` drives real HTTP through the Django test client, using
+throwaway routes in `tests/urls.py` (selected by the `api_urls` fixture): the error envelope for
+validation, parse, media-type, authentication, permission, not-found, method, throttle, host, and
+unexpected-exception cases; headers (`Allow`, `WWW-Authenticate`, `Retry-After`); request-ID
+generation, acceptance, and rejection (including newline and over-length values); access-log
+content, absence of secrets and query strings, and no duplicate lines; deny by default; and a
+guard that only the health route is public and all routes are under `api/v1/`.

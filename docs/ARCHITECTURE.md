@@ -519,3 +519,62 @@ Django + DRF + PostgreSQL, retaining Cognito, S3, React, and the Three.js engine
 **proposed** in ADR-019 (`docs/DECISIONS.md`). Assessment:
 `docs/DJANGO_MIGRATION_ASSESSMENT.md`; target: `docs/DJANGO_TARGET_ARCHITECTURE.md`; sequence:
 `docs/DJANGO_MIGRATION_ROADMAP.md`. Nothing in this document changes unless ADR-019 is accepted.
+
+## Django API conventions (LAI-0205)
+
+Applies to `lai/` (Django + DRF). The Amplify backend is unchanged until cutover.
+
+**Namespace and versioning.** All routes are under `/api/v1/`, one `include` per app in
+`lai/config/urls.py`. Additive changes stay in v1; a breaking change gets a new `/api/v2/` prefix
+beside v1. A test fails if a route is added outside `api/v1/`. There is no v2.
+
+**Success responses** are plain JSON, not wrapped (the health body is unchanged).
+
+**Error contract** (all errors, any status):
+
+```json
+{
+  "error": {
+    "code": "validation_error",
+    "message": "Invalid request.",
+    "details": { "name": [{ "message": "This field is required.", "code": "required" }] }
+  },
+  "request_id": "d78969a05e7e4d1781bce29f5da105a9"
+}
+```
+
+`code` is a stable lowercase identifier: `validation_error`, `parse_error`,
+`authentication_failed`, `not_authenticated`, `permission_denied`, `not_found`,
+`method_not_allowed`, `not_acceptable`, `unsupported_media_type`, `throttled`, `bad_request`,
+`server_error`, and `error` for any other DRF error. `message` is a fixed string, never the text of
+a raised exception. `details` appears only for validation errors (per-field lists of `message` plus
+Django's validation `code`; non-field errors sit under `non_field_errors`). Statuses and the
+`Allow`, `WWW-Authenticate`, and `Retry-After` headers are DRF's own. Without any authenticator
+installed an unauthenticated request is `403 permission_denied`; once a bearer authenticator exists
+(LAI-0402) it becomes `401 not_authenticated` with `WWW-Authenticate`.
+
+**Validation.** Use serializers and `serializer.is_valid(raise_exception=True)`; never hand-build a
+400. Reference views are in `apps/core/tests/urls.py`.
+
+**Handler boundary.** `api_exception_handler` covers exceptions raised inside a DRF view. Anything
+outside the view lifecycle (unmatched URLs, host validation, middleware errors, unexpected
+crashes) is answered by the Django-level JSON handlers (`handler400/403/404/500`) in the same
+envelope. Unexpected exceptions are logged with a traceback by `django.request` and return a safe
+`500 server_error`. Exception messages are logged server-side, so code must not put child data in
+exception text. Limitation: with `DEBUG=True` (local only) Django shows its own HTML debug pages.
+
+**Request IDs.** `X-Request-ID` is accepted from the caller only if it fully matches
+`[A-Za-z0-9._-]{8,64}`; otherwise a UUID hex is generated. It is echoed on every response, carried
+in the `request_id` of every error body, and attached to every log line. It is for correlation
+only and is not an authentication or uniqueness guarantee.
+
+**Logging policy.** One access line per request from `lai.request`: method, matched route pattern
+(unmatched requests log `-`), status, duration. Never the raw path, query string, headers,
+cookies, tokens, bodies, or user data. `django.request` is limited to ERROR and `django.server`
+is discarded so there are no duplicate or query-string-bearing lines. Console only.
+
+**Security defaults.** Deny by default: `IsAuthenticated` is the default permission; only the
+health view opts into `AllowAny` (a test fails if any other route becomes public). No session or
+cookie authentication and no CORS. Cognito bearer-token transport, browser token storage, the CSRF
+policy, and XSS considerations are decided in LAI-0402; see ADR-021 on W003. There is no
+`docs/SECURITY.md`; security decisions live in ADR-021 and this section.

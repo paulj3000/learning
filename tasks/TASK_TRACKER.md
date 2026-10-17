@@ -25,8 +25,9 @@ before touching AWS.
 - [x] **LAI-0202** Python tooling (depends: 0201). Done; its deferred CI criterion was delivered by LAI-0206
 - [ ] **LAI-0203** Engine import boundary guard (depends: 0201)
 - [x] **LAI-0204** Django project skeleton (depends: 0202). DONE locally: Django 6.1.2, DRF 3.18.3, psycopg 3.3.6 (ADR-021); health endpoint; verified against PostgreSQL 16
-- [ ] **LAI-0205** DRF conventions (depends: 0204)
-- [x] **LAI-0206** Python CI job (carries LAI-0202's deferred CI criterion). DONE locally; the first GitHub-hosted run is still outstanding (depends: 0204)
+- [x] **LAI-0205** DRF conventions (depends: 0204). DONE locally: error contract, exception handler, request IDs, access log, deny by default. Two roadmap criteria deliberately not done here: cursor pagination (moves to the first list endpoint, LAI-0502) and OpenAPI generation (LAI-0207)
+- [ ] **LAI-0207** Committed OpenAPI schema generation (split from LAI-0205; needs a recorded dependency decision for PyYAML and uritemplate) (depends: 0205)
+- [x] **LAI-0206** Python CI job (carries LAI-0202's deferred CI criterion). DONE locally; REMOTE VERIFICATION PENDING until the first GitHub-hosted run succeeds (depends: 0204)
 
 ## Phase 3 — Content export and relational models
 

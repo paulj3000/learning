@@ -7296,3 +7296,29 @@ Not verified: any GitHub-hosted run. Remaining remote gates: first run on GitHub
 port mapping, pip cache, runner Python 3.12 patch), and confirmation that `contents: read` is
 sufficient for the existing jobs. Also recorded: ADR-021 now states precisely when omitting CSRF
 middleware is acceptable (W003); LAI-0402 owns that decision.
+
+## LAI-0205: DRF API conventions (2026-10-17)
+
+Starting commit `bfb323c`. Changed only `lai/`, docs, and the tracker. No React, Three.js, Phaser,
+Amplify, AWS, CI, model, or auth change. Not pushed. **GitHub Actions remote verification is still
+pending** (the first hosted run has not happened).
+
+Added: `apps/core/exceptions.py` (error envelope, DRF handler, Django-level JSON 400/403/404/500
+handlers), `request_context.py` and `middleware.py` (request IDs and one access-log line),
+`tests/urls.py` and `tests/test_api_conventions.py`; wired in `config/settings/base.py` and
+`config/urls.py`. Contract and policies: `docs/ARCHITECTURE.md`, "Django API conventions".
+
+Verified (run): ruff lint and format clean; `manage.py check` and `makemigrations --check` clean;
+62 pytest tests pass against PostgreSQL 16 (`make py-test-db`), up from 29; a live `runserver`
+echoed a supplied `X-Request-ID`, logged `GET api/v1/health/ 200` and `GET - 404` without the query
+string. `make js-check` passed (typecheck, lint, format, 175 files / 1,578 tests, build).
+
+Deviations and concerns: (1) cursor pagination and OpenAPI generation, two criteria in the
+roadmap text, were not built: pagination has nothing to paginate until a model exists (first list
+endpoint, LAI-0502) and OpenAPI needs two new dependencies that need a recorded decision (new task
+LAI-0207). (2) Success responses are not wrapped, per the brief. (3) Validation `details` carry
+`{message, code}` objects rather than bare strings so clients get stable codes. (4) Unauthenticated
+requests are 403, not 401, until an authenticator exists (LAI-0402). (5) With `DEBUG=True`,
+Django's HTML debug pages bypass the JSON handlers (local only). (6) Exception text is logged
+server-side. (7) The PostgreSQL test prints a Django RuntimeWarning that it cannot use the
+`postgres` maintenance database (the compose role is not allowed to); harmless, tests use `test_lai`.
