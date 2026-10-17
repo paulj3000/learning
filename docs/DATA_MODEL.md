@@ -603,3 +603,24 @@ Sensitive content should be redacted or stored separately with strict retention 
 `docs/DJANGO_MIGRATION_ASSESSMENT.md` section 6 maps each model above to a proposed Django app
 and PostgreSQL table, with difficulty and data-loss risk. This document remains authoritative
 for the current Amplify schema.
+
+## Django mapping: parent and child identity (LAI-0301, ADR-022)
+
+Implemented in `lai/apps/users/` (schema only; no data has been imported). This document remains
+authoritative for the Amplify schema until cutover.
+
+| Amplify | Django | Notes |
+|---|---|---|
+| `ParentProfile` (owner = Cognito) | `users.ParentAccount` (the user model) | Adds `cognito_sub` (unique, immutable). `displayName`, `timezone` kept; no email, no permission flags, no password |
+| `ChildProfile.parentProfileId` | `ChildProfile.parent` (FK, `PROTECT`) | Not editable after creation |
+| `ChildProfile.ownerSub` | dropped | Ownership is the foreign key |
+| `nickname` | `nickname` (1 to 30, not blank) | |
+| `ageBand`, `readingMode` | `age_band`, `reading_mode` (choices plus DB check) | |
+| `sessionMinutes` | `session_minutes` | DB check ties the range to the age band (5-8, 8-12, 10-18) |
+| `avatarKey`, `avatarPhotoKey` | `avatar_key`, `avatar_photo_key` | Photo path null becomes `""` |
+| `interests` | `interests` (array, up to 5) | |
+| `active`, `aiEnabled` | `active`, `ai_enabled` | |
+| `CompanionProfile`, `ParentConsent` | not yet | LAI-0307, LAI-0308 |
+
+Admin read access (`allow.group('Admins').to(['read'])`) has no Django equivalent yet; it arrives
+with LAI-0404. Deletion and ownership rules are in ADR-022.

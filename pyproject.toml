@@ -18,6 +18,7 @@ select = ["E", "F", "W", "I", "B", "UP", "S"]
 "tests/**" = ["S101", "S603", "S607"]
 "lai/**/tests/**" = ["S101", "S105", "S106", "S311"]
 "lai/config/settings/*.py" = ["F403", "F405"]
+"lai/**/migrations/*.py" = ["E501"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.test"

@@ -111,5 +111,7 @@ def test_postgres_16_connection_and_framework_migrations():
     call_command("migrate", "--check", verbosity=0)
 
 
+@pytest.mark.postgres
+@pytest.mark.django_db
 def test_no_pending_model_changes():
     call_command("makemigrations", "--check", "--dry-run", verbosity=0)

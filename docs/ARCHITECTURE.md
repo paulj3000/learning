@@ -578,3 +578,10 @@ health view opts into `AllowAny` (a test fails if any other route becomes public
 cookie authentication and no CORS. Cognito bearer-token transport, browser token storage, the CSRF
 policy, and XSS considerations are decided in LAI-0402; see ADR-021 on W003. There is no
 `docs/SECURITY.md`; security decisions live in ADR-021 and this section.
+
+## Django identity model (LAI-0301)
+
+Cognito proves identity; `users.ParentAccount` (keyed by the immutable Cognito `sub`) is the
+application account and Django's user model; `users.ChildProfile` is a profile a parent manages and
+never a login. Child data is reached only through its parent (`apps/users/services.py`). See ADR-022
+in `docs/DECISIONS.md` and the mapping in `docs/DATA_MODEL.md`. No API exposes these models yet.

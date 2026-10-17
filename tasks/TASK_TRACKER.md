@@ -26,12 +26,15 @@ before touching AWS.
 - [ ] **LAI-0203** Engine import boundary guard (depends: 0201)
 - [x] **LAI-0204** Django project skeleton (depends: 0202). DONE locally: Django 6.1.2, DRF 3.18.3, psycopg 3.3.6 (ADR-021); health endpoint; verified against PostgreSQL 16
 - [x] **LAI-0205** DRF conventions (depends: 0204). DONE locally: error contract, exception handler, request IDs, access log, deny by default. Two roadmap criteria deliberately not done here: cursor pagination (moves to the first list endpoint, LAI-0502) and OpenAPI generation (LAI-0207)
+- [ ] **LAI-0208** Privacy review of server-side logging and exception messages before any production deployment (gate G8) (depends: 0205)
 - [ ] **LAI-0207** Committed OpenAPI schema generation (split from LAI-0205; needs a recorded dependency decision for PyYAML and uritemplate) (depends: 0205)
 - [x] **LAI-0206** Python CI job (carries LAI-0202's deferred CI criterion). DONE locally; REMOTE VERIFICATION PENDING until the first GitHub-hosted run succeeds (depends: 0204)
 
 ## Phase 3 — Content export and relational models
 
-- [ ] **LAI-0301** Users domain models (depends: 0204)
+- [x] **LAI-0301** Users domain models (depends: 0204). DONE locally: `ParentAccount` (user model) and `ChildProfile` (ADR-022). CompanionProfile and ParentConsent split out to 0307 and 0308
+- [ ] **LAI-0307** CompanionProfile model (split from 0301) (depends: 0301)
+- [ ] **LAI-0308** ParentConsent model (split from 0301; needs a privacy design first, it was never implemented in Amplify) (depends: 0301)
 - [ ] **LAI-0302** Content export to versioned JSON (depends: 0201)
 - [ ] **LAI-0303** Golden vectors (depends: 0302)
 - [ ] **LAI-0304** Catalog models and loader (depends: 0302, 0301)

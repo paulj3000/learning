@@ -7322,3 +7322,25 @@ requests are 403, not 401, until an authenticator exists (LAI-0402). (5) With `D
 Django's HTML debug pages bypass the JSON handlers (local only). (6) Exception text is logged
 server-side. (7) The PostgreSQL test prints a Django RuntimeWarning that it cannot use the
 `postgres` maintenance database (the compose role is not allowed to); harmless, tests use `test_lai`.
+
+## LAI-0301: parent and child identity models (2026-10-17)
+
+Starting commit `452858e`. Only `lai/`, docs, `pyproject.toml`, and the tracker changed. No React,
+Three.js, Phaser, Amplify, AWS, CI, or Cognito change; no data imported; not pushed. GitHub Actions
+remote verification is still pending.
+
+Created `lai/apps/users/` (models, services, migration `0001_initial`, 41 tests). Settings:
+`AUTH_USER_MODEL = "users.ParentAccount"`; `apps.users` and `django.contrib.postgres` (for the
+interests array) installed; auth, contenttypes, admin, and sessions still not installed. Decision,
+deletion semantics, cap behaviour, and risks: ADR-022. Amplify findings: `ParentProfile` and
+`ChildProfile` are owner-scoped by Cognito; the child carries a mirrored `ownerSub`; the cap of 3 is
+enforced only in the UI and counts all profiles; deletion is a client-orchestrated hard delete
+including the S3 photo and the Cognito user; `ParentConsent` is documented but not implemented.
+
+Verified (run): ruff lint and format clean; `manage.py check` and `makemigrations --check` clean;
+`migrate` applied `users.0001_initial` to a fresh PostgreSQL 16 database; 104 pytest tests pass with
+PostgreSQL up (`make py-test-db`), up from 63. `make js-check` passed (175 files / 1,578 tests, build).
+
+Not done on purpose: CompanionProfile and ParentConsent (LAI-0307, LAI-0308), Django admin,
+authenticated API authorization tests (recorded for LAI-0402 and LAI-0502), the deletion service
+(LAI-0602), and the logging privacy review (new gate G8, LAI-0208).

@@ -13,13 +13,19 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 # Deliberately minimal. django.contrib.auth, contenttypes, sessions and admin are NOT installed:
-# installing auth now would create the default user table before the users task (LAI-0301)
-# decides the user model, and a swappable user model is painful to change after migrations.
-# Cognito JWT authentication (LAI-0402) and the admin (LAI-0404) add them deliberately.
+# the user model is `users.ParentAccount` (a plain AbstractBaseUser with no permission tables or
+# superuser flag), so auth's Group/Permission tables would be unused, and leaving the app out
+# means there is no `createsuperuser` path around Cognito. The admin (LAI-0404) adds auth,
+# contenttypes, sessions and messages deliberately.
 INSTALLED_APPS = [
+    "django.contrib.postgres",  # ArrayField for ChildProfile.interests
     "rest_framework",
     "apps.core",
+    "apps.users",
 ]
+
+# The parent account is the user model (LAI-0301, ADR-022). Set before any migration is applied.
+AUTH_USER_MODEL = "users.ParentAccount"
 
 # No sessions, no cookies, no CSRF middleware: the API is stateless and will authenticate with
 # Cognito bearer tokens. Revisit in LAI-0402 if that changes.

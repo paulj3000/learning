@@ -1017,6 +1017,7 @@ not new AWS infrastructure.
 | G5 | Whether data loss on pre-pilot sandbox data is acceptable (assessment Q5) | Phase 11 scope |
 | G6 | Security gates: tenant isolation harness passing, deny-by-default authorization reproduced in Django | Any Django endpoint serving child data |
 | G7 | Every AWS-touching task (Phase 10 onward) | Explicit per-task approval, as marked APPROVAL |
+| G8 | Privacy review of server-side logging, including exception messages and tracebacks, which can carry child or family data even though API clients never see them (owner, 2026-10-17; tracked as LAI-0208) | Any production deployment |
 
 **Alternatives considered.** Stay on Amplify and raise the IAM quota (lowest effort; leaves
 the client-authoritative write paths to be fixed with more Lambdas). Amplify Gen 2 with a
@@ -1143,3 +1144,67 @@ authentication credential is ever carried in a cookie. LAI-0402 (Cognito JWT aut
 state how the token is stored and sent, and if any cookie is used, enable CSRF protection
 before merging. Until LAI-0402, no endpoint accepts a credential, so nothing is exposed. A
 separate concern, token storage in the browser (XSS exposure), is also LAI-0402's to decide.
+
+## ADR-022: `ParentAccount` is the Django user model; `ChildProfile` is a managed profile, not a login
+
+Status: **Accepted** (project owner, 2026-10-17; implemented in LAI-0301). Implements ADR-019
+sub-decisions 1 to 3 for identity. Settled before any migration was applied, because swapping
+`AUTH_USER_MODEL` afterwards is hard.
+
+**Three identities, kept apart.**
+1. *Cognito identity*: proves who is signed in. Only the immutable `sub` claim is stored.
+2. *Parent application identity*: `users.ParentAccount`, keyed by a UUID, with `cognito_sub`
+   unique, non-blank, and immutable (enforced in `save()` and by a check constraint).
+3. *Child player identity*: `users.ChildProfile`, owned by exactly one parent. A child has no
+   email, password, Cognito identity, or Django login. Children never authenticate.
+
+**Option chosen: A, one model.** `ParentAccount` (an `AbstractBaseUser`) is the user model. Option B
+(a user model plus a separate `ParentAccount` one-to-one) was rejected: it adds a table and a join
+for no current benefit, and the Amplify side is also a single `ParentProfile`. Trade-off: an
+administrator who is not a parent is still a `ParentAccount` row (with `is_staff`), so the name
+reflects the main role. If administrators later need a separate model, that is a data migration,
+not a user-model swap.
+
+**What the model deliberately omits.** No email (mutable, personal, never an identity key); no
+`PermissionsMixin`, so no `is_superuser` flag and no Django Group/Permission tables; no usable
+password (the inherited column holds an unusable value; `create_user` and `create_superuser` raise).
+`django.contrib.auth`, contenttypes, sessions and admin are not installed; there is no Django
+`createsuperuser` path around Cognito. Administrative access will be mapped from the Cognito
+`Admins` group in LAI-0404, which will install what it needs.
+
+**Django admin: not enabled.** Enabling it now would give staff an unscoped view of child records.
+The React admin remains the customer-facing admin surface.
+
+**Households: not introduced.** One parent account owns its children. A multi-adult household
+(as in FinWin) is a different concept and is not required by the current schema or roadmap.
+
+**Ownership model.** Every read of child data goes through a parent: `ChildProfile.objects.owned_by`
+and `apps/users/services.py`. A missing id and another parent's id raise the same error
+(`ChildProfileNotFound`), so ids cannot be probed. Model `__str__`/`__repr__` use ids only so logs
+and exception messages built from a model carry no nickname. These guarantees are model and
+service level; authenticated API authorization tests are recorded for LAI-0402 and the endpoint
+tasks (LAI-0502 onward) and must be written there.
+
+**Deletion.** Current behaviour (read from `react/src/features/child-profile/deletion.ts`) is a hard
+delete, orchestrated by the client: every child-scoped row, the profile photo in S3, the child, then
+for account deletion the parent row and the Cognito user. There is no soft delete, retention window,
+or async deletion. Django mirrors this with `ChildProfile.parent` as `PROTECT`: a parent cannot be
+deleted while children exist, so a photo in S3 or child data can never be orphaned by an accidental
+cascade. The deletion service (LAI-0602) deletes children explicitly; rows that belong to a child
+will `CASCADE` from the child. The `active` flag is a deactivation, not deletion.
+
+**Three-profile cap.** Enforced in `create_child_profile` under a row lock on the parent, counting
+every profile, active or not, as the current app does. The roadmap text said "active"; the code
+counts all, and the code was preserved. No database constraint can express the cap.
+
+**Not in this task (deviation from the roadmap text).** `CompanionProfile` (exists in Amplify) and
+`ParentConsent` (documented in `docs/DATA_MODEL.md` but never implemented in Amplify) were left out:
+neither is identity, and consent needs a privacy design rather than a copy. Tracked as LAI-0307
+and LAI-0308.
+
+**Known risks.** Existing Amplify rows may violate constraints that the new database enforces
+(session minutes outside the band's range, nicknames over 30 characters, a `displayName` over 80
+characters, which is often the parent's email, i.e. personal data). The import (LAI-1102) must
+report and resolve these, not silently truncate. The assumption that Amplify ids are UUID strings
+is unverified until LAI-1101.
+

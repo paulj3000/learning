@@ -147,7 +147,7 @@ log-redaction rule.
 
 ### Phase 3 - Content export and relational models
 
-**LAI-0301 Users domain models.** Depends: 0204. Risk M. Acceptance: `ParentAccount`
+**LAI-0301 Users domain models. DONE locally (ADR-022); `CompanionProfile` and `ParentConsent` split to LAI-0307 and LAI-0308; the cap counts all profiles, as the app does.** Depends: 0204. Risk M. Acceptance: `ParentAccount`
 (`cognito_sub` unique), `ChildProfile` (all fields of the Amplify model incl. age band,
 reading mode, session minutes, `ai_enabled`, `owner_sub` equivalent via FK), `CompanionProfile`,
 `ParentConsent`; maximum three active child profiles enforced in the service (CLAUDE.md
