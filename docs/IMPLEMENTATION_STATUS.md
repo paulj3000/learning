@@ -7203,3 +7203,17 @@ were left as they were.
 
 An `ampx sandbox` process was running in the original checkout; the move was done in a
 separate worktree so that it could not trigger a sandbox redeploy.
+
+## LAI-0201 merged and re-verified (2026-10-17)
+
+`lai-0201-move-frontend-to-react` merged into `storykeeper-castle-3d-storyboard-and-roadmap`
+with `--no-ff` (merge commit `d27f554`). Not pushed, not deployed. The `ampx sandbox` process
+seen earlier belongs to another project (`/Coding/pjsstocks`) and was left alone.
+
+On the merged tree after `npm ci`: typecheck pass; lint pass (17 warnings, unchanged);
+format:check pass; 175 files, 1,578 tests pass; build pass; Playwright 7 of 7 pass (run with
+the local gitignored `amplify_outputs.json` set aside and then restored). `amplify.yml`
+publishes `react/dist`; the root `package.json` declares the `react` workspace. A stale
+gitignored `dist/` from the pre-move build remains at the root and is unused.
+
+Still unverified: an Amplify Hosting build with this layout.
