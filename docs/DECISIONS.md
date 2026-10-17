@@ -1011,12 +1011,13 @@ not new AWS infrastructure.
 | Gate | Unresolved item | Blocks |
 |---|---|---|
 | G1 | Does a production Amplify app with real family data exist, and in which account and region? (assessment Q1, Q2) | Phase 10 deploys, Phase 11 data migration, Phase 12 cutover |
-| G2 | Cognito ownership and detach plan (LAI-0401, LAI-0405) | LAI-0402 onward for production, LAI-1302 |
+| G2 | Cognito ownership and detach plan (LAI-0401 recorded in ADR-024; LAI-0405 remains) | LAI-0402 onward for production, LAI-1302 |
 | G3 | Android direction (assessment Q3) | API shape decisions that serve Android |
 | G4 | Rules in Python with golden vectors versus a Node rules service (assessment Q4, sub-decision 8) | LAI-0302 and Phase 6 |
 | G5 | Whether data loss on pre-pilot sandbox data is acceptable (assessment Q5) | Phase 11 scope |
 | G6 | Security gates: tenant isolation harness passing, deny-by-default authorization reproduced in Django | Any Django endpoint serving child data |
 | G7 | Every AWS-touching task (Phase 10 onward) | Explicit per-task approval, as marked APPROVAL |
+| G9 | `ParentConsent` privacy design (LAI-0308). Consent is a legal and privacy matter, not a player-profile attribute; it must be designed and approved before the migrated platform handles live children's data (owner, 2026-10-17) | Phase 11 data migration, any production traffic with real family data |
 | G8 | Privacy review of server-side logging, including exception messages and tracebacks, which can carry child or family data even though API clients never see them (owner, 2026-10-17; tracked as LAI-0208) | Any production deployment |
 
 **Alternatives considered.** Stay on Amplify and raise the IAM quota (lowest effort; leaves
@@ -1207,4 +1208,105 @@ and LAI-0308.
 characters, which is often the parent's email, i.e. personal data). The import (LAI-1102) must
 report and resolve these, not silently truncate. The assumption that Amplify ids are UUID strings
 is unverified until LAI-1101.
+
+## ADR-024: Cognito remains the authentication authority; Django validates bearer access tokens
+
+Status: **Accepted in part** (project owner, 2026-10-17; LAI-0401). Accepted items are listed
+first. Everything marked *Recommended* or listed under "Open gates" is **not** approved and must
+not be built as if it were. No code, Amplify, Cognito, or AWS change was made.
+
+### Evidence: how authentication works today
+
+| Question | Finding | Source |
+|---|---|---|
+| Provider and sign-in | Cognito user pool, email as username, SRP password flow, public SPA app client (no client secret), OAuth code flow enabled | `amplify/auth/resource.ts`; synthesized template (a local sandbox, not a deployed pool) |
+| Where tokens live | `localStorage` (access, ID, and refresh tokens plus clock drift), with an in-memory fallback if storage is unavailable. The app never calls `setKeyValueStorage`, so the library default applies. No cookies, no `sessionStorage` | `@aws-amplify/core` `DefaultStorage`, `@aws-amplify/auth` token provider, v6.20.0; no override in `react/src` |
+| JavaScript-readable | Yes, all three tokens, persistently | same |
+| Reload / browser restart | Session survives both. Tokens are refreshed by the SDK automatically | library behaviour |
+| Refresh token lifetime | Not set in repo configuration, so the Cognito default applies (30 days). Access and ID tokens default to 60 minutes. **Deployed values unverified** (gate G1) | synthesized template has no validity settings |
+| Sign-out | `signOut()` without `global`: revokes this device's refresh token at Cognito when revocable, then clears local tokens. Other devices keep working. No global sign-out is used | `signOut.ts` in the SDK; `AuthContext.tsx` |
+| Which token reaches AppSync | The **access token** (not the ID token) | `@aws-amplify/api-graphql` `graphqlAuth.ts` |
+| Admin check | Server side: AppSync `allow.group('Admins')` on read-only rules. Client side: `AuthContext` reads `cognito:groups` from the **ID token** and `RequireAdmin` hides routes. That client check is a UI convenience only | `amplify/data/resource.ts`, `AuthContext.tsx`, `RequireAdmin.tsx` |
+| Who can sign up | Open email sign-up (there is a sign-up form) | `SignUpForm.tsx` |
+
+Compatibility: Django can use exactly what Amplify already sends. `fetchAuthSession()` returns the
+access token; React attaches it as `Authorization: Bearer`. Nothing in the current login or refresh
+flow has to change for the header transport.
+
+### Accepted
+
+1. Cognito stays the authentication authority; no second password system, no Django sessions, no
+   Django password authentication.
+2. API credential: the Cognito **access token** in `Authorization: Bearer <token>`. Never from a
+   query string. Never an ID token. No cookie-based API credential. Any proposal to use cookies
+   needs a new security decision covering CSRF, cookie scope, SameSite, HttpOnly, Secure, session
+   lifecycle, and deployment topology.
+3. Verification of every token (LAI-0402): signature against the pool's JWKS using only the
+   expected algorithm (RS256; never `none` or an HMAC algorithm); `iss` equals the configured
+   pool; `exp` and, when present, `nbf`; `token_use == "access"`; `client_id` in the configured
+   allow-list (access tokens carry `client_id`, not `aud`; ID tokens carry `aud`); a known `kid`.
+   A token from another pool or app client, or malformed, expired, wrongly signed, or unsigned,
+   is rejected. JWKS caching is bounded, supports key rotation, and never trusts an unknown key.
+   No network call to AWS in unit tests (locally generated RSA keys).
+4. Identity: the immutable Cognito `sub` maps to `ParentAccount.cognito_sub`. Never email or
+   display name.
+5. Child access: always through the authenticated parent (ADR-022). A client-supplied child UUID
+   is never sufficient. Another parent's id is indistinguishable from a missing one.
+6. Administrative authority is decided on the server from verified claims, never from frontend
+   route visibility. A `ParentAccount` is not an administrator by default.
+7. Error semantics, inside the LAI-0205 envelope: missing, invalid, or expired credentials are 401
+   with `WWW-Authenticate: Bearer`; valid credentials without permission are 403. No token,
+   claim, or account detail in a response or a log.
+8. `localStorage`/`sessionStorage` token exposure is a known XSS risk (OWASP); see gate A1.
+   Existing login and refresh behaviour must not be broken without an approved migration plan.
+9. Cognito resources (pool, app client, groups, users) must survive the migration (gate G2).
+
+### Recommended (not approved)
+
+- **JWT library:** PyJWT with the `crypto` extra (`PyJWT[crypto]`, latest 2.15.1 on 2026-10-17),
+  the same library FinWin uses. Exact pins for it and `cryptography` would be added in LAI-0402
+  with a note here. **A dependency approval is required** (LAI-0401's roadmap criterion).
+- **Parameters:** clock-skew leeway 30 s; JWKS cached for 3,600 s; on an unknown `kid` refetch at
+  most once per 60 s, and otherwise reject (so a forged `kid` cannot trigger a fetch per request);
+  allow-list of client ids in a setting (initially the existing web client). **No new
+  "Django-facing" app client**: the browser client already issues the tokens, and creating a client
+  changes the Amplify-managed pool (needs approval and belongs to a deployment task).
+- **Scopes:** tokens from SRP sign-in carry only `aws.cognito.signin.user.admin`; no custom
+  resource server or scopes exist. Do not require OAuth scopes until a resource server is
+  designed.
+
+### Open gates (decisions the evidence does not settle)
+
+| Gate | Question | Recommendation | Blocks |
+|---|---|---|---|
+| A1 | **Browser token persistence.** The current store is persistent and JS-readable, including a 30-day refresh token. Options: (a) keep as is; (b) keep, plus strict CSP, no inline script, dependency review, and a shorter refresh-token lifetime (an Amplify-managed pool change); (c) memory-only tokens (loses the session on every reload, which breaks tablet use); (d) backend-for-frontend with the refresh token in an HttpOnly cookie held by Django (needs the cookie decision in item 2) | (a) until cutover so nothing breaks, with (b) as the minimum hardening before real family data reaches Django, and (d) evaluated against the children's-data risk before LAI-1203. Do not copy tokens into app state or any other storage of our own | Production cutover (LAI-1203), not LAI-0402 |
+| A2 | **Onboarding.** A valid Cognito user with no `ParentAccount`: auto-provision, or require explicit onboarding? | Explicit but cheap: reads never write. An idempotent `POST /api/v1/me/` provisions (the unique `cognito_sub` plus `get_or_create` handle retries and races); until then protected endpoints return 403 `account_not_provisioned`. Display name is not in the access token, so it starts blank | LAI-0402 |
+| A3 | **Revocation latency.** A verified JWT stays valid until `exp` even after sign-out or refresh-token revocation, because local verification cannot see revocation | Accept up to the access-token lifetime (default 60 min, unverified) for ordinary reads. For high-risk actions (child or account deletion, consent changes, any admin action) re-check with Cognito `GetUser` on the presented token and require recent `auth_time`. Consider a shorter access-token lifetime (pool change, needs approval) | LAI-0402 design, LAI-0602 |
+| A4 | **Admin design** | Admin is derived per request from the `cognito:groups` claim of the verified access token (contains `Admins`); no stored flag, so removing the group takes effect at the next token (at most the token lifetime). Read-only first. A separate admin code path (not the parent-scoped one) with an audit record for every access to a child's data: admin sub, action, target id, request id, never child content. `ParentAccount.is_staff` stays unused; Django admin stays off until LAI-0404 | LAI-0404 |
+| A5 | **Dependency and parameter approval** for the Recommended list above | Approve or amend | LAI-0402 |
+| A6 | **Cognito ownership and deployed settings** (existing gate G1/G2): token validities, `EnableTokenRevocation`, deletion protection, whether a production pool with real users exists | Read-only evidence (LAI-0103), then the runbook (LAI-0405) | Any production use |
+
+Consequence of the user model (ADR-022): there is no Django superuser or permission table, so
+Django's built-in permission checks and admin cannot be used as they are. Authorization is
+application-level: ownership scoping for parents, claim-based checks for administrators.
+
+### Privacy and logging requirements (feed LAI-0208, gate G8)
+
+Never log an access, ID, or refresh token, or a full or partial JWT. Never log arbitrary claims
+(`sub` only when an audit need is documented; otherwise the local UUID). Authentication failures
+return the same 401 body for every cause (malformed, expired, wrong pool, wrong client, bad
+signature), with a coarse internal reason code in logs, so a caller cannot probe which part failed
+or whether an account exists. Child personal data must not appear in exception messages or
+tracebacks. JWKS fetch failures fail closed (reject the token, 401 or 503 per policy), log without
+the token, and never fall back to unverified decoding. Administrative actions need an audit log
+(A4). The LAI-0205 request-id and access-log policy already excludes headers, so `Authorization`
+is not logged today.
+
+### Cognito resource ownership
+
+The pool belongs to the Amplify-managed stack. Before any Amplify stack is deleted, the pool, its
+app client, the `Admins` group, and all users must be detached or retained so that user ids (`sub`
+values, which are what `ParentAccount` is keyed on), the pool id, and client ids stay unchanged;
+otherwise every parent mapping breaks. No stack deletion is authorized by this ADR. The procedure
+is LAI-0405 (human-reviewed) and the detach in LAI-1302; production existence is gate G1.
 

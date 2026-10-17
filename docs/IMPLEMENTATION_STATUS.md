@@ -7344,3 +7344,27 @@ PostgreSQL up (`make py-test-db`), up from 63. `make js-check` passed (175 files
 Not done on purpose: CompanionProfile and ParentConsent (LAI-0307, LAI-0308), Django admin,
 authenticated API authorization tests (recorded for LAI-0402 and LAI-0502), the deletion service
 (LAI-0602), and the logging privacy review (new gate G8, LAI-0208).
+
+## LAI-0401: Cognito authentication architecture decisions (2026-10-17)
+
+Starting commit `d2778ef`. Documentation only: `docs/DECISIONS.md` (ADR-024, gate G9, G2 note),
+`docs/ARCHITECTURE.md`, `docs/DJANGO_MIGRATION_ROADMAP.md`, `tasks/TASK_TRACKER.md`, this file. No
+code, Django model, React, Amplify, Cognito, CI, or AWS change; no token or secret recorded.
+
+Inspected: `amplify/auth/resource.ts`, the synthesized auth template, `AuthContext.tsx`,
+`RequireAdmin.tsx`, `data-client.ts`, and the installed Amplify SDK source (v6.20.0) for token
+storage, sign-out, and which token GraphQL sends. Findings are in ADR-024. Key facts: tokens live in
+`localStorage` (persistent, JS-readable, including the refresh token); GraphQL already sends the
+access token, so a Bearer header needs no change to sign-in; the client-side admin check is UI-only.
+
+Accepted (owner): the architecture, Bearer access tokens, the verification list, `sub` identity,
+parent-scoped child access, server-verified admin, no cookie credentials. Not approved, recorded
+as gates A1 to A6: browser persistence, onboarding policy, revocation handling, admin design, the
+PyJWT dependency and parameters, deployed Cognito settings. LAI-0402 is therefore blocked until the
+owner decides A2, A3, and A5. New gate G9: `ParentConsent` privacy design before live children's
+data.
+
+Unverified: the deployed pool's token lifetimes and revocation setting (only a local sandbox
+template was readable). Verification: `git status` shows only documentation files; the Django
+models and `lai/` are unchanged. Tests were not run (documentation only); the last full run (104
+Python tests, 1,578 JavaScript tests) was on `d2778ef`.

@@ -34,7 +34,7 @@ before touching AWS.
 
 - [x] **LAI-0301** Users domain models (depends: 0204). DONE locally: `ParentAccount` (user model) and `ChildProfile` (ADR-022). CompanionProfile and ParentConsent split out to 0307 and 0308
 - [ ] **LAI-0307** CompanionProfile model (split from 0301) (depends: 0301)
-- [ ] **LAI-0308** ParentConsent model (split from 0301; needs a privacy design first, it was never implemented in Amplify) (depends: 0301)
+- [ ] **LAI-0308** ParentConsent privacy design, then model (split from 0301; never implemented in Amplify). REQUIRED GATE G9 before the migrated platform handles live children's data (depends: 0301)
 - [ ] **LAI-0302** Content export to versioned JSON (depends: 0201)
 - [ ] **LAI-0303** Golden vectors (depends: 0302)
 - [ ] **LAI-0304** Catalog models and loader (depends: 0302, 0301)
@@ -43,8 +43,8 @@ before touching AWS.
 
 ## Phase 4 — Cognito integration and authorization
 
-- [ ] **LAI-0401** Auth decisions (depends: 0204)
-- [ ] **LAI-0402** Cognito JWT authentication (depends: 0401, 0301)
+- [x] **LAI-0401** Auth decisions (depends: 0204). DONE as decisions (ADR-024, docs only). Open gates A1 to A6 are not approved
+- [ ] **LAI-0402** Cognito JWT authentication (depends: 0401, 0301). BLOCKED on owner decisions A2 (onboarding), A3 (revocation), A5 (PyJWT and parameters)
 - [ ] **LAI-0403** Tenant isolation harness (depends: 0402)
 - [ ] **LAI-0404** Admin group and Django admin gating (depends: 0402)
 - [ ] **LAI-0405** Cognito ownership runbook (depends: 0103)

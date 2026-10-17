@@ -181,7 +181,7 @@ WorldState, StoryProgress, NpcRelationship), `inventory` (InventoryItem), `quest
 
 ### Phase 4 - Cognito integration and authorization
 
-**LAI-0401 Auth decisions.** Depends: 0204. Risk L. **APPROVAL: dependency choice.**
+**LAI-0401 Auth decisions. DONE as decisions (ADR-024); gates A1 to A6 stay open, LAI-0402 is blocked on A2, A3, and A5.** Depends: 0204. Risk L. **APPROVAL: dependency choice.**
 Acceptance: ADR records JWT library, accepted token type(s), clock-skew tolerance, JWKS
 cache TTL, and the new Django-facing Cognito app client.
 

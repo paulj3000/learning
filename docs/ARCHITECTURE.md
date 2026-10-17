@@ -585,3 +585,12 @@ Cognito proves identity; `users.ParentAccount` (keyed by the immutable Cognito `
 application account and Django's user model; `users.ChildProfile` is a profile a parent manages and
 never a login. Child data is reached only through its parent (`apps/users/services.py`). See ADR-022
 in `docs/DECISIONS.md` and the mapping in `docs/DATA_MODEL.md`. No API exposes these models yet.
+
+## Authentication architecture (LAI-0401, ADR-024)
+
+Cognito issues tokens; React sends the Cognito **access token** as `Authorization: Bearer`;
+Django verifies it against the pool JWKS and resolves `ParentAccount` by the immutable `sub`;
+child data is reached only through that parent. No Django sessions, passwords, or cookie
+credentials. Today the Amplify SDK keeps tokens in `localStorage` (readable by page JavaScript);
+that, onboarding, revocation latency, and the admin design are open gates in ADR-024. Not
+implemented yet: LAI-0402.
