@@ -90,7 +90,9 @@ output size, so later phases can prove no regression. Files: docs only.
 
 ### Phase 2 - Repo restructure and Django skeleton
 
-**LAI-0201 Move the frontend to `react/`.** Depends: 0101. Risk M. **APPROVAL: before merge
+**LAI-0201 Move the frontend to `react/`. IMPLEMENTED on branch
+`lai-0201-move-frontend-to-react`, pending owner approval before merge; as-built deviations are
+listed at the end of this task.** Depends: 0101. Risk M. **APPROVAL: before merge
 (changes the Amplify build path).** Acceptance: `git mv` of `src/`, `public/`, `index.html`,
 `vite.config.ts`, `tsconfig*.json`, `e2e/`, `playwright.config.ts`, `.oxlintrc.json`,
 `.prettier*`, `package.json` to `react/`; `amplify/` imports of `../../../src/features/...`
@@ -98,6 +100,19 @@ updated to `../../react/src/features/...`; `amplify.yml` and CI use `react/`; al
 files and 1,578 tests still pass; `npm run build` output identical in route/chunk list.
 Tests: full unit suite, typecheck (app, amplify, scripts), Playwright smoke. Rollback: revert
 the commit (pure moves). Deploy: Amplify Hosting appRoot must be set before merge.
+
+*LAI-0201 as built (deviations from the list above, each forced by the move).* `amplify/`
+and `scripts/` stay at the repository root, so (1) a thin root `package.json` declares the
+npm workspace `react` and delegates every script, which keeps one `node_modules`, one
+lockfile, and the existing `amplify.yml` and CI commands working; (2) `.oxlintrc.json`,
+`.prettierrc.json`, and `.prettierignore` stay at the root because they govern `amplify/`,
+`scripts/`, and docs as well; (3) `react/vite.config.ts` now also collects the five
+`amplify/**/*.test.ts` files, which a bare move would have silently dropped; (4) the
+`amplify_outputs.json` glob in `react/src/lib/amplify-config.ts` points at the root file;
+(5) `amplify.yml` `baseDirectory` is `react/dist`; (6) `amplify/` and `scripts/` import
+`react/src/...`, and `react/src/` imports `../amplify/...` one level further up; (7)
+`package-lock.json` was regenerated for the workspace (see IMPLEMENTATION_STATUS). The
+Amplify Hosting build with this layout is **unverified** (no deploy was run).
 
 **LAI-0202 Python tooling.** Depends: 0201. Risk L. Acceptance: `pyproject.toml`
 (ruff, pytest), `requirements*.txt`, `docker-compose.yml` (PostgreSQL 16), `Makefile` `check`

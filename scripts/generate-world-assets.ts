@@ -27,7 +27,7 @@ import {
   type AnimationChannelDef,
   type AnimationClipDef,
   type MeshPart,
-} from '../src/features/island-map/three/assets/gltfAssembler';
+} from '../react/src/features/island-map/three/assets/gltfAssembler';
 import {
   buildBoxPrimitive,
   buildConePrimitive,
@@ -36,9 +36,15 @@ import {
   buildPlanePrimitive,
   buildTorusPrimitive,
   type PrimitiveMesh,
-} from '../src/features/island-map/three/assets/primitives';
+} from '../react/src/features/island-map/three/assets/primitives';
 
-const OUTPUT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'models');
+const OUTPUT_DIR = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  'react',
+  'public',
+  'models',
+);
 
 // --- small authoring helpers -----------------------------------------------
 

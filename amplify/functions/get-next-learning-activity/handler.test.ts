@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { flattenReason, toResult } from './handler';
-import type { SelectionRecord } from '../../../src/features/director/types';
+import type { SelectionRecord } from '../../../react/src/features/director/types';
 
 describe('flattenReason', () => {
   it('flattens PRACTISES_SKILL, nulling fields the other kinds would use', () => {

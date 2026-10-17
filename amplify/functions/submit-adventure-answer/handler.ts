@@ -2,16 +2,19 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import type { AppSyncIdentityCognito, AppSyncResolverEvent } from 'aws-lambda';
 import type { Schema } from '../../data/resource';
-import { getAdventureTemplate } from '../../../src/features/adventures/content';
+import { getAdventureTemplate } from '../../../react/src/features/adventures/content';
 import {
   getNextStepId,
   getStep,
   isGuidedCompletion,
   nextHintLevel,
   validateStepAnswer,
-} from '../../../src/features/adventures/engine';
-import type { AdventureStep, Correctness } from '../../../src/features/adventures/engine/types';
-import type { StepAnswer } from '../../../src/features/adventures/engine/validators';
+} from '../../../react/src/features/adventures/engine';
+import type {
+  AdventureStep,
+  Correctness,
+} from '../../../react/src/features/adventures/engine/types';
+import type { StepAnswer } from '../../../react/src/features/adventures/engine/validators';
 import { withRequestLog } from '../shared/requestLog';
 
 /**

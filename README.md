@@ -53,6 +53,10 @@ files either.
 
 ### Available scripts
 
+The frontend lives in `react/` (an npm workspace). Run every command below from the
+repository root; the root scripts delegate to it. `amplify/`, `scripts/`, `docs/`, and `tasks/`
+stay at the root. Older docs that say `src/features/...` now mean `react/src/features/...`.
+
 ```bash
 npm run dev          # start the Vite dev server
 npm run build         # typecheck and build for production

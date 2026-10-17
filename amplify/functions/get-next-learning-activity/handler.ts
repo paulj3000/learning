@@ -2,16 +2,16 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import type { AppSyncIdentityCognito, AppSyncResolverEvent } from 'aws-lambda';
 import type { Schema } from '../../data/resource';
-import { hasSkillBasedSignal, rankAdventures } from '../../../src/features/director/select';
-import { reachableAdventures } from '../../../src/features/director/reachability';
-import type { SelectionRecord, SelectionReason } from '../../../src/features/director/types';
-import { listSkillsByAgeBand } from '../../../src/features/curriculum/queries';
+import { hasSkillBasedSignal, rankAdventures } from '../../../react/src/features/director/select';
+import { reachableAdventures } from '../../../react/src/features/director/reachability';
+import type { SelectionRecord, SelectionReason } from '../../../react/src/features/director/types';
+import { listSkillsByAgeBand } from '../../../react/src/features/curriculum/queries';
 import {
   buildMasterySummary,
   indexProgressBySkill,
   type SkillProgressLike,
-} from '../../../src/features/mastery/summary';
-import type { AgeBandValue } from '../../../src/features/child-profile/constants';
+} from '../../../react/src/features/mastery/summary';
+import type { AgeBandValue } from '../../../react/src/features/child-profile/constants';
 import { withRequestLog } from '../shared/requestLog';
 
 /**
