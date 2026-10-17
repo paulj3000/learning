@@ -1129,5 +1129,17 @@ pass including a PostgreSQL 16 test.
 **Deferred on purpose.** `django.contrib.auth`, contenttypes, sessions, and admin are not
 installed, so no default user table exists before the users task (LAI-0301) chooses the user
 model. `check --deploy` reports W003 (no CSRF middleware; the API is stateless and will use
-bearer tokens, revisit in LAI-0402) and W021 (HSTS preload not enabled; it commits a domain
+bearer tokens, revisit in LAI-0402, see below) and W021 (HSTS preload not enabled; it commits a domain
 permanently, decide when a domain exists).
+
+**CSRF and W003, stated precisely (not resolved).** Stateless does not by itself mean CSRF-safe.
+CSRF works because browsers attach cookies automatically to cross-site requests. A bearer token
+that JavaScript reads from memory and sends in an `Authorization` header is not attached
+automatically, so classic CSRF does not apply to it. The same API becomes CSRF-exposed if the
+credential travels in a cookie (a session cookie, or a JWT stored in a cookie), because the
+browser then sends it without the page's consent. W003 is therefore **acknowledged, not
+resolved**. The condition under which omitting `CsrfViewMiddleware` is acceptable is: no
+authentication credential is ever carried in a cookie. LAI-0402 (Cognito JWT authentication) must
+state how the token is stored and sent, and if any cookie is used, enable CSRF protection
+before merging. Until LAI-0402, no endpoint accepts a credential, so nothing is exposed. A
+separate concern, token storage in the browser (XSS exposure), is also LAI-0402's to decide.

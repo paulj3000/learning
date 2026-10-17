@@ -22,11 +22,11 @@ before touching AWS.
 ## Phase 2 — Repo restructure and Django skeleton
 
 - [x] **LAI-0201** Move the frontend to `react/` (depends: 0101). DONE: merged locally as d27f554 (not pushed) and re-verified on the merged tree. The Amplify Hosting build with the new layout is still unverified until a real deploy
-- [x] **LAI-0202** Python tooling (depends: 0201). Done except one acceptance criterion: the CI Python job was deferred by the owner. OUTSTANDING, owned by LAI-0206
+- [x] **LAI-0202** Python tooling (depends: 0201). Done; its deferred CI criterion was delivered by LAI-0206
 - [ ] **LAI-0203** Engine import boundary guard (depends: 0201)
 - [x] **LAI-0204** Django project skeleton (depends: 0202). DONE locally: Django 6.1.2, DRF 3.18.3, psycopg 3.3.6 (ADR-021); health endpoint; verified against PostgreSQL 16
 - [ ] **LAI-0205** DRF conventions (depends: 0204)
-- [ ] **LAI-0206** Python CI job (outstanding LAI-0202 criterion; new task, added 2026-10-17): add a CI job running `make py-check` and `make py-test-db` with a PostgreSQL 16 service (depends: 0204; needs owner go-ahead to change CI)
+- [x] **LAI-0206** Python CI job (carries LAI-0202's deferred CI criterion). DONE locally; the first GitHub-hosted run is still outstanding (depends: 0204)
 
 ## Phase 3 — Content export and relational models
 

@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# Least privilege: every job only reads the repository. No job uses secrets, deploys, or
+# talks to AWS.
+permissions:
+  contents: read
+
 jobs:
   checks:
     name: Typecheck, lint, unit test, build
@@ -55,3 +60,54 @@ jobs:
 
       - name: Run Playwright tests
         run: npm run test:e2e
+
+  python:
+    name: Python, Django, PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: lai
+          POSTGRES_USER: lai
+          POSTGRES_PASSWORD: local-dev-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lai -d lai"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      # Throwaway service container on the runner. The values match the defaults in
+      # lai/config/settings/base.py; they are not secrets and no real data is involved.
+      POSTGRES_USER: lai
+      POSTGRES_PASSWORD: local-dev-only-password
+      POSTGRES_DB: lai
+      POSTGRES_PORT: '5432'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install pinned dependencies
+        run: make py-install
+
+      - name: Ruff lint
+        run: make py-lint
+
+      - name: Ruff format check
+        run: make py-format-check
+
+      - name: Django system checks
+        run: make django-check
+
+      - name: Django migration check
+        run: make migrate-check
+
+      - name: Pytest (PostgreSQL tests must run, not skip)
+        run: make py-test-db

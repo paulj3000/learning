@@ -133,7 +133,7 @@ away when Phaser is removed (LAI-2304).
 `manage.py check` clean, pytest passes against Postgres. Files: `lai/**`. Rollback: delete
 `lai/`. Deploy: none.
 
-**LAI-0206 Python CI job (added to carry LAI-0202's deferred CI criterion).** Depends: 0204.
+**LAI-0206 Python CI job (added to carry LAI-0202's deferred CI criterion). DONE locally; remote run pending.** Depends: 0204.
 Risk L. **APPROVAL: owner, because it edits `.github/workflows/ci.yml`.** Acceptance: a separate
 CI job installs `requirements-dev.txt`, starts PostgreSQL 16 as a service, and runs `make
 py-check` and `make py-test-db`; the existing JavaScript jobs are unchanged and stay green.

@@ -7273,3 +7273,26 @@ Deferred or limitations: no Cognito authentication, no CORS (same-origin by desi
 logging middleware or error envelope (LAI-0205), no readiness endpoint, no gunicorn or container
 image, no type checker, and the CI Python job (LAI-0206). Production settings are untested against a real
 deployment because none exists.
+
+## LAI-0206: Python CI job (2026-10-17)
+
+Starting commit `edd9b2b`. Only `.github/workflows/ci.yml` was changed (owner-authorized for this
+task); no React, Phaser, Three.js, Amplify, model, or auth change. Not pushed.
+
+CI changes: top-level `permissions: contents: read` (applies to the existing jobs too, which
+only check out code and cache npm); new `python` job (Python 3.12 with pip caching keyed on
+`requirements-dev.txt`, `postgres:16-alpine` service with throwaway credentials that match the
+repository defaults, then `make py-install`, `py-lint`, `py-format-check`, `django-check`,
+`migrate-check`, `py-test-db`). The existing `checks` and `e2e` jobs are otherwise unchanged. The
+PostgreSQL test now also asserts it runs in an isolated `test_` database.
+
+Verified locally, actually run: `actionlint` (Docker image) exit 0 on the workflow; prettier
+check on the workflow; the job's exact make steps in a clean copy of the tracked files with a
+new venv and the compose PostgreSQL 16 (29 tests pass); with the database stopped `make
+py-test-db` fails (28 passed, 1 error), proving a missing service cannot pass silently;
+`make js-check` passed (typecheck, lint, format, 175 files / 1,578 tests, build).
+
+Not verified: any GitHub-hosted run. Remaining remote gates: first run on GitHub Actions (services
+port mapping, pip cache, runner Python 3.12 patch), and confirmation that `contents: read` is
+sufficient for the existing jobs. Also recorded: ADR-021 now states precisely when omitting CSRF
+middleware is acceptable (W003); LAI-0402 owns that decision.

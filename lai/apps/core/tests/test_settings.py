@@ -102,6 +102,8 @@ def test_django_system_check_is_clean():
 def test_postgres_16_connection_and_framework_migrations():
     from django.db import connection
 
+    # pytest-django swapped in an isolated database; the developer's own database is untouched.
+    assert connection.settings_dict["NAME"].startswith("test_")
     with connection.cursor() as cursor:
         cursor.execute("SELECT 1")
         assert cursor.fetchone() == (1,)
