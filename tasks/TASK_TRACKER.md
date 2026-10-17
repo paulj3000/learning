@@ -13,7 +13,7 @@ before touching AWS.
 
 ## Phase 1 — Governance and baseline
 
-- [ ] **LAI-0101** Resolve open decisions (depends: assessment)
+- [x] **LAI-0101** Resolve open decisions (depends: assessment). DONE WITH OPEN GATES: ADR-019 Accepted in part; gates G1 to G7 stay open (see ADR-019). Assessment Q1 to Q5 are recorded as open, not answered
 - [ ] **LAI-0102** Tracker tooling (depends: 0101)
 - [ ] **LAI-0103** Capture deployed AWS evidence (read-only) (depends: 0101)
 - [ ] **LAI-0104** Relieve IAM pressure independently (depends: 0103)
@@ -133,7 +133,7 @@ before touching AWS.
 - [ ] **LAI-2204** Storykeeper Castle gate (depends: 2103, 2104, SC-2 to SC-9)
 - [ ] **LAI-2205** Dragon's Sanctuary (depends: 2103, 2104)
 - [ ] **LAI-2206** Fossil Ridge Camp (depends: 2103, 2104)
-- [ ] **LAI-2207** Castle Writing Room (depends: 2103, 2104, SC-9 decision)
+- [ ] **LAI-2207** Castle Writing Room, consolidated into SC-9 (depends: 2204, SC-9)
 - [ ] **LAI-2208** Bolt's Workshop (depends: 2103, 2104)
 
 ## Phase 23 — Verification and Phaser retirement

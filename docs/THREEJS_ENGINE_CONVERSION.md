@@ -1,6 +1,7 @@
 # Three.js Engine Conversion (Migration B)
 
-Status: **Accepted direction (ADR-020), plan only.** No application code was changed to
+Status: **Accepted direction (ADR-020), plan only. Owner decisions of 2026-10-17 are
+incorporated.** No application code was changed to
 produce this document. Decision: `docs/DECISIONS.md` ADR-020. Task detail:
 `docs/DJANGO_MIGRATION_ROADMAP.md` Phases 20 to 23. Tracker: `tasks/TASK_TRACKER.md`.
 
@@ -67,7 +68,7 @@ Interaction counts are `id:` entries in each `*_INTERACTIONS` table in `worldObj
 | 4 | Storykeeper Castle (`storykeeper-castle`) | 11 | Comprehension, sequencing, vocabulary, adventure `the-storykeepers-tale` | `FIRST_STORY_TOLD` | Always | `StorykeeperCastleWorldView.test`, tilemap/zones/decor tests | **Data only**: `three/storykeeperCastleRegion.ts` (674), `castleChoiceBindings.ts`, asset kit (SC-0, SC-1 done). No scene yet (SC-2 onward) |
 | 5 | Dragon's Sanctuary (`dragons-sanctuary`) | 3 (NPC, object, exit) | Locations table lists Empathy, Observation; no adventure is started here | none | `DRAGON_OF_EMBER_MOUNTAIN_COMPLETE` | `DragonsSanctuaryWorldView.test`, tilemap/zones tests | None |
 | 6 | Fossil Ridge Camp (`fossil-ridge-camp`) | 3 | Observation, Reasoning (locations table); none started here | none | `DINOSAUR_EXPEDITION_COMPLETE` | `FossilRidgeCampWorldView.test`, tilemap/zones tests | None |
-| 7 | Castle Writing Room (`castle-writing-room`) | 3 | Curiosity, Creative writing (locations table); none started here | none | `THE_CASTLES_SECRET_DOOR_COMPLETE` | `CastleWritingRoomWorldView.test`, tilemap/zones tests | None. **Overlaps SC-9** (see section 6) |
+| 7 | Castle Writing Room (`castle-writing-room`) | 3 | Curiosity, Creative writing (locations table); none started here | none | `THE_CASTLES_SECRET_DOOR_COMPLETE` | `CastleWritingRoomWorldView.test`, tilemap/zones tests | None. **Same experience as the SC-9 Writing Room region**, consolidated (section 6) |
 | 8 | Bolt's Workshop (`bolts-workshop`) | 3 | Problem-solving, Empathy (locations table); none started here | none | `ROBOT_RESCUE_COMPLETE` | `BoltsWorkshopWorldView.test`, tilemap/zones tests | None |
 
 Also present, not Phaser: the Three.js sandbox (`three/sandboxScene.ts`, 207 lines, route
@@ -153,45 +154,51 @@ Candidate `game/src` areas, each earning its directory from existing code:
 
 ### 4.2 Input and camera strategy
 
-The owner's mandate removes Phaser as the fallback for the youngest band. ADR-008 left
-Sprouts (ages 3 to 4) on the card hub **and the Phaser view** because the Sprouts
-first-person playtest has not run (`docs/PILOT_READINESS.md` section 5). So the engine must
-ship more than a first-person profile:
+The mandate removes Phaser as the fallback for the youngest band. ADR-008 left Sprouts (ages
+3 to 4) on the card hub **and the Phaser view** because the Sprouts first-person playtest has
+not run (`docs/PILOT_READINESS.md` section 5). The engine therefore ships **control
+profiles**, which are configurations of one engine, never separate renderers (owner decision):
 
-| Profile | For | Controls |
+| Profile | For | Behaviour |
 |---|---|---|
-| First-person | Pathfinders, Explorers (existing) | Keyboard and mouse pointer-lock; touch look and move |
-| Guided third-person or fixed-camera, tap-to-move | Sprouts, and anyone for whom look controls are hard | Tap or click a destination; no free look; large targets; reduced-motion safe. Replaces the Phaser tap-to-move behaviour |
-| HUD equivalents | All | Every learning step reachable from the React HUD, as `docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` SC-11 already requires |
+| Sprouts guided (conditionally approved) | Ages 3 to 4 | Tap-to-move, assisted camera, large interaction targets, minimal reading, simplified movement, age-appropriate feedback. No free look. Reduced-motion safe |
+| Younger elementary | Ages 5 to 6 | Simplified third-person or first-person; fewer simultaneous controls |
+| Older children | Ages 7 to 8 | More conventional third-person or first-person movement and camera control (owner's phrase: Roblox-like) |
+| HUD equivalents | All | Every learning step reachable from the React HUD, as SC-11 requires |
 
-Keyboard-only and screen-reader reachability of every interaction stays a hard requirement.
-Mobile strategy: touch is first-class on tablets (CLAUDE.md "tablet-first"). Gamepad is not
-required and is not planned.
+Profile choice derives from the child profile's age band and demonstrated ability, as
+CLAUDE.md section 3 requires. The existing first-person controller becomes the first-person
+configuration. The Sprouts usability test and the gameplay parity gate must pass before Phaser
+is retired. Keyboard-only and screen-reader reachability stay hard requirements. Touch is
+first-class. Gamepad is not planned.
 
 ### 4.3 Content architecture
 
-Hierarchy: Island, then Adventure (Quests, Challenges, Rewards), as in the owner's brief. An
+Authoritative hierarchy (owner): Island (themed world), then Adventure (playable experience),
+then Quests, Challenges, Objectives, Rewards. An
 Island is a `WorldDefinition` bundle plus catalog rows; an Adventure is catalog content
 loaded by the engine. Adding either must not require new AWS infrastructure, new React
 routes, or a new renderer. Today routes are hand-written per world in `AppRoutes.tsx`; the
 target is one parameterised world route driven by the catalog. LAI-2103 delivers this.
 
-### 4.4 Performance budgets (proposed, to be validated)
+### 4.4 Performance objectives (provisional)
 
 No budget exists today (`docs/WHITE_PAPER.md` lists "detailed performance budgets" as pending).
-These are **proposed targets**, not measurements. LAI-2002 captures the current baseline and
-LAI-2105 turns them into automated checks; LAI-2302 validates on real hardware. The target
-device list is an open question (section 8).
+The owner set these **provisional planning targets**. They are not measurements and not
+release requirements until representative devices, test scenes, and a method exist.
 
-| Metric | Proposed target | Rationale |
+| Device class | Target FPS | Interaction |
 |---|---|---|
-| Frame rate | 30 fps sustained minimum, 60 fps goal, on the target tablet/Chromebook | Tablet-first |
-| Draw calls per frame | 150 or fewer in the densest room | SC-11 already profiles this; instancing exists |
-| Time to first walkable frame | 4 s or less on the target device, after the route chunk loads | Short sessions for ages 3 to 8 |
-| Per-world download | 5 MB or less compressed, lazy-loaded per world | Existing routes are lazy-loaded |
-| Memory | No growth across 5 enter/exit cycles (dispose correctness) | Matches `ThreeGameContainer` dispose contract |
+| Desktop or laptop | 60 | Keyboard and mouse |
+| Modern iPad or tablet | 30 or more | Touch |
+| Modern smartphone | 30 or more | Touch |
 
-Numbers are starting points for the owner to confirm, not facts about current performance.
+Further proposed metrics, also unconfirmed: draw calls of 150 or fewer in the densest room;
+4 s or less to first walkable frame; 5 MB or less compressed per lazy-loaded world; no memory
+growth across 5 enter/exit cycles. LAI-2002 captures a labelled desktop baseline, LAI-2105
+(after LAI-0201 and the `game/` work) builds the repeatable harness, and LAI-2302 selects
+representative devices and validates on them. No performance infrastructure is introduced
+during the repository restructuring (LAI-0201).
 
 ## 5. Conversion matrix
 
@@ -207,7 +214,7 @@ changes. Phaser for a world is deleted only in LAI-2304, after its row is verifi
 | Storykeeper Castle | Interaction table (11); `storykeeperCastleRegion.ts`; SC-0, SC-1 | Delivered by SC-2 to SC-11 in `docs/STORYKEEPER_CASTLE_3D_ROADMAP.md`; LAI-2204 is the **gate**, not a duplicate plan | 11 interactions mapped to castle rooms; `FIRST_STORY_TOLD` visible | LAI-2204 |
 | Dragon's Sanctuary | Interaction table (3); unlock key; layout hints | Small cave region, dragon and egg models, calm ambient animation | 3 interactions; locked until the unlock key; exit | LAI-2205 |
 | Fossil Ridge Camp | Interaction table (3); unlock key | Small camp region, assembled skeleton, dig tools | same pattern | LAI-2206 |
-| Castle Writing Room | Interaction table (3); unlock key | Reconcile with SC-9 first (section 6); then a small round room | same pattern | LAI-2207 |
+| Castle Writing Room | Interaction table (3); unlock key | None separate: consolidated into the SC-9 Writing Room region (section 6) | same pattern | LAI-2207 |
 | Bolt's Workshop | Interaction table (3); unlock key; `bolt` NPC | Small workshop region, Bolt model with roll animation | same pattern | LAI-2208 |
 
 Suggested order after the engine is extracted: the four 3-interaction worlds first (they
@@ -218,11 +225,28 @@ says so.
 
 ## 6. Known conflicts to resolve
 
-1. **Castle Writing Room versus SC-9.** The Storykeeper Castle roadmap's SC-9 builds "the
-   pattern lock and the writing room" inside the first-person castle. The 2D Castle Writing
-   Room is a separate world unlocked by `THE_CASTLES_SECRET_DOOR_COMPLETE`. They may be the
-   same destination. LAI-2207 must decide (merge into SC-9, or keep as a separate world) and
-   record it before any work.
+1. **Castle Writing Room versus SC-9: decided, consolidated.** Comparison of
+   `CASTLE_WRITING_ROOM_INTERACTIONS` (`worldObjects.ts`) with SC-9 in
+   `docs/STORYKEEPER_CASTLE_3D_ROADMAP.md`:
+   - SC-9 builds two things: the secret-door puzzle (`continue-the-pattern`,
+     `order-the-keys`, `what-does-ajar-mean`, chapter 3 prediction) and "the Writing Room as
+     its own small region reached through the ajar bookshelf, exiting back into the library,
+     never to Welcome Harbor, matching what `CASTLE_WRITING_ROOM_INTERACTIONS` already
+     specifies". SC-9 also says `THE_CASTLES_SECRET_DOOR_COMPLETE` unlocks the same
+     navigation as today.
+   - The 2D Castle Writing Room is the **destination** only: three interactions (writing
+     desk, shelves of empty books, exit to the castle), no adventure of its own.
+   - Therefore they are the same experience: the room is the SC-9 region, not a separate
+     world. Decision: **one canonical definition, the SC-9 Writing Room region.** LAI-2207
+     does not build a second room. It becomes a parity gate that checks the SC-9 region
+     against the 2D table.
+   - Unique behaviour to preserve (not stated in SC-9, so must be added to its spec): the
+     desk message "You solved it, so it is yours to use. The first empty book is waiting.";
+     the shelves message "Shelf after shelf of blank books, left ready by the old
+     Storykeepers."; exit navigates to the castle (`world/storykeeper-castle`); the room is
+     reachable only after `THE_CASTLES_SECRET_DOOR_COMPLETE`.
+   - LAI-2207 now depends on SC-9 and on LAI-2204. The `writing-desk` asset is already in the
+     Castle asset inventory. Gameplay was not altered by this decision.
 2. **ADR-008 Sprouts fallback.** ADR-008 and `docs/ROADMAP.md` Phase 32 name the Phaser view
    as Sprouts' primary route until the playtest passes. ADR-020 removes that fallback; the
    replacement is the guided Three.js profile (section 4.2). Until LAI-2303 clears it,
@@ -240,23 +264,23 @@ says so.
 | R3 | Performance on low-end tablets is unmeasured; Three.js can be heavier than 2D tilemaps | Baseline in LAI-2002; budgets in LAI-2105; real-device pass in LAI-2302 |
 | R4 | `game/` extraction touches many import paths; engine imports feature data | Do extraction after LAI-0201 (once), move files without behaviour change, invert the checkpoint import, keep tests green per step |
 | R5 | `game/` outside `react/` needs a build story (workspace or path alias) and a place for the `three` dependency | LAI-2003 decides and records it; any new tooling is a recorded decision, not a silent dependency |
-| R6 | Owner's diagram says "multiplayer-ready sessions". Today co-op is two children sharing adventure state, not shared 3D presence (assessment section 9). Real-time shared worlds would conflict with CLAUDE.md section 12 unless approved | `networking/` is **not** built. The engine only keeps state serialisable and ID-keyed. Any shared-space feature needs its own approved ADR |
+| R6 | (Deferred by the owner.) Owner's diagram says "multiplayer-ready sessions". Today co-op is two children sharing adventure state, not shared 3D presence (assessment section 9). Real-time shared worlds would conflict with CLAUDE.md section 12 unless approved | `networking/` is **not** built. The engine only keeps state serialisable and ID-keyed. Any shared-space feature needs its own approved ADR |
 | R7 | Shared CSS and components used by both stacks (`IslandWorldView.module.css`) | Relocate before deletion (section 2.4) |
 | R8 | Content drift while the same gameplay exists twice | Interaction tables stay single-source in `worldObjects.ts`; both renderers read them; no new Phaser features (ADR-020) |
 | R9 | Python port of rules (Migration A) and engine extraction (Migration B) both move `src/` | Sequence: LAI-0201 first, then game extraction; never in one task (section 9) |
 | R10 | Art cost: stylised 3D characters and props for five new worlds | Procedural asset generator and kit conventions exist; third-party kit decision stays deferred per the Castle roadmap |
 | R11 | Physics expectation: only AABB exists | LAI-2003 states explicitly whether AABB is sufficient; adding a physics library is a recorded decision |
 
-## 8. Open questions for the owner
+## 8. Owner decisions (2026-10-17) and what remains open
 
-1. Target devices for budgets (specific tablet and Chromebook models)?
-2. Is the guided third-person profile acceptable as Sprouts' in-engine mode, and is the React
-   card hub acceptable as the non-graphical navigator (it is conventional UI, not a game
-   environment)?
-3. Castle Writing Room: merge into SC-9 or keep as its own world?
-4. Do the four small worlds need new educational content, or are they reward showcases only
-   (current code suggests the latter)?
-5. Confirm there is no intent for real-time shared 3D presence (R6).
+| Question | Decision |
+|---|---|
+| Guided Sprouts profile | Approved conditionally; must pass usability testing before Phaser is retired |
+| Target devices | Desktop, tablets, modern smartphones; provisional FPS targets in 4.4; representative test devices still to be chosen (LAI-2302) |
+| Castle Writing Room versus SC-9 | Consolidate if equivalent. Compared and consolidated (section 6) |
+| Shared 3D multiplayer presence | Deferred |
+| React card hub as non-graphical navigator | Not explicitly answered; treated as conventional UI. Confirm |
+| Do the four small worlds need new educational content? | Open; LAI-2001 reports what the code shows |
 
 ## 9. Dependencies and parallelism
 

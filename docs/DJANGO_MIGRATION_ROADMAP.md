@@ -364,7 +364,8 @@ camera profiles including the Sprouts guided profile; in-engine versus route-bas
 transitions; whether AABB collision suffices (R11); how `game/` is built and consumed
 (workspace or path alias, where `three` is declared, TypeScript project references) with any
 new tooling recorded as a decision; the confirmed performance budgets and target devices;
-the Castle Writing Room versus SC-9 decision. Rollback: revert the doc.
+the confirmed device list and measurement method (the Castle Writing Room versus SC-9
+decision is already recorded, conversion doc section 6). Rollback: revert the doc.
 
 ### Phase 21 - Engine extraction into `game/` (Track B)
 
@@ -448,12 +449,15 @@ and performance gate has passed.
 
 **LAI-2206 Fossil Ridge Camp.** 3 interactions; unlock `DINOSAUR_EXPEDITION_COMPLETE`.
 
-**LAI-2207 Castle Writing Room.** First record the SC-9 decision, then 3 interactions;
-unlock `THE_CASTLES_SECRET_DOOR_COMPLETE`.
+**LAI-2207 Castle Writing Room (consolidated into SC-9).** Decision recorded in the
+conversion doc section 6: the room is the SC-9 region, not a separate world. This task builds
+no second room. It adds the 2D table's unique behaviour to the SC-9 spec (desk and shelf
+messages, exit to the castle, unlock `THE_CASTLES_SECRET_DOOR_COMPLETE`) and verifies parity
+of the SC-9 region against the 3 interactions. Depends additionally: SC-9, LAI-2204.
 
 **LAI-2208 Bolt's Workshop.** 3 interactions; unlock `ROBOT_RESCUE_COMPLETE`; Bolt NPC.
 
-Recommended order: 2205, 2206, 2208, 2207, 2203, then 2201, 2202, and 2204 as the castle
+Recommended order: 2205, 2206, 2208, 2203, then 2201, 2202, and 2204 and 2207 as the castle
 track allows. Not a dependency.
 
 ### Phase 23 - Verification and Phaser retirement (Track B)

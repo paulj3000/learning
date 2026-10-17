@@ -438,6 +438,12 @@ as still current; ADR-019 must explicitly supersede it if accepted.
 
 ## 16. Open questions (need a human)
 
+**Status after the owner review of 2026-10-17 (LAI-0101).** None of the five questions below
+was answered with facts. The owner approved the architectural direction and explicitly kept
+operational, data, and security items gated. They are recorded as gates G1 to G5 in ADR-019
+and each remains **open**: Q1 and Q2 (G1), Q3 (G3), Q4 (G4), Q5 (G5). None of them blocks
+LAI-0201, a pure rename. They block the tasks listed beside each gate in ADR-019.
+
 1. Is there a **production Amplify app** (branch `main`) with real family data, or only
    sandboxes? `amplify.yml` and the "pilot" docs imply a hosting app exists; the repo cannot
    confirm it. Decides whether Phase 10 (data migration) is real or a no-op.

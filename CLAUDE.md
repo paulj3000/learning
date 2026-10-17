@@ -334,11 +334,14 @@ Read these before major work:
 
 ## 18. Proposed backend migration (not in effect)
 
-ADR-019 in `docs/DECISIONS.md` proposes moving the backend from Amplify Gen 2 to Django + DRF.
-It is **Proposed**: section 8 above remains the technology baseline. Do not begin any Track A
-task (Phases 1 to 13) in `tasks/TASK_TRACKER.md` until the project owner accepts ADR-019, and
-stop for approval at every task marked APPROVAL in `docs/DJANGO_MIGRATION_ROADMAP.md`. Never
-touch deployed AWS resources without explicit approval.
+ADR-019 in `docs/DECISIONS.md` moves the backend from Amplify Gen 2 to Django + DRF. It is
+**Accepted in part**: the architectural direction (Django + DRF, PostgreSQL, React 19,
+Cognito initially, S3, FinWin-style layout) is approved; section 8 above remains the
+**deployed and operating** baseline until cutover. Operational, data, and security items are
+open gates (G1 to G7 in the ADR) and must not be assumed settled. Track A tasks (Phases 1 to
+13) may proceed in order, skipping nothing, and stop for approval at every task marked
+APPROVAL in `docs/DJANGO_MIGRATION_ROADMAP.md`. Never delete or change deployed Amplify or
+AWS resources, migrate production data, or deploy without explicit approval.
 
 ## 19. Accepted game engine decision (in effect)
 

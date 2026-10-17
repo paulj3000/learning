@@ -952,9 +952,15 @@ backend.
 
 ## ADR-019: Migrate the backend from Amplify Gen 2 to Django + DRF incrementally
 
-Status: **Proposed** (no implementation has begun; every sub-decision below is Proposed,
-none is Accepted). If accepted, this ADR supersedes the "one Amplify Gen 2 platform" rule in
-ADR-010 and the Amplify baseline in `CLAUDE.md` section 8. Until then both remain in force.
+Status: **Accepted in part** (project owner, 2026-10-17). The architectural direction below
+is approved. Operational, data, and security decisions are **not** accepted and stay gated
+(see "Open gates"). Approval authorizes planning and the non-deploying implementation tasks
+in `docs/DJANGO_MIGRATION_ROADMAP.md`. It does **not** authorize deleting or changing
+deployed Amplify resources, migrating production data, deploying, or retiring Phaser.
+
+The "one Amplify Gen 2 platform" rule in ADR-010 and the Amplify baseline in `CLAUDE.md`
+section 8 remain the **deployed and operating baseline until cutover** (Phases 12 and 13).
+ADR-010 is superseded only when LAI-1303 completes.
 
 **Amended by ADR-020 (Accepted).** Sub-decisions 6 and 7 below are superseded; the target
 shape in `docs/DJANGO_TARGET_ARCHITECTURE.md` now includes a first-class `game/` package.
@@ -975,18 +981,42 @@ content should be data rows, not infrastructure.
 
 | # | Sub-decision | Status | Note |
 |---|---|---|---|
-| 1 | Django + Django REST Framework backend (`lai/`) | Proposed | Incremental strangler; Amplify untouched until cutover |
-| 2 | PostgreSQL as the relational store | Proposed | Replaces 17 DynamoDB tables |
-| 3 | Retain Cognito for authentication | Proposed | Django validates JWTs; pool must be detached from the Amplify stack before it is deleted |
-| 4 | Retain S3 for binaries; metadata in PostgreSQL | Proposed | Child photos via presigned URLs |
-| 5 | Retain React | Proposed | Moves to `react/` |
+| 1 | Django + Django REST Framework backend (`lai/`) | **Accepted** (direction) | Incremental strangler; Amplify untouched until cutover |
+| 2 | PostgreSQL as the relational store | **Accepted** (direction) | Replaces 17 DynamoDB tables. Schema and data migration remain gated |
+| 3 | Retain Cognito for authentication | **Accepted** (initially) | Django validates JWTs. Pool ownership and detach plan remain gated (gate G2) |
+| 4 | Retain S3 for binaries; metadata in PostgreSQL | **Accepted** (direction) | Child photos via presigned URLs; object migration remains gated |
+| 5 | Retain React (React 19 + TypeScript) | **Accepted** | Moves to `react/` (LAI-0201) |
 | 6 | ~~Retain Three.js and Phaser engines unchanged~~ | **Superseded by ADR-020** (Accepted) | Three.js is the only gameplay renderer; Phaser is retired after conversion |
 | 7 | ~~Separate engine from platform concerns; `game/` extraction deferred~~ | **Superseded by ADR-020** (Accepted) | `game/` is a first-class package; the engine boundary is a requirement, not a deferral |
-| 8 | Authoritative rules reimplemented in Python with shared golden vectors; content exported to versioned JSON | Proposed | Alternative (Node rules service) rejected unless this proves too divergent |
+| 8 | Authoritative rules reimplemented in Python with shared golden vectors; content exported to versioned JSON | Proposed (gate G4) | Not settled by the owner. Blocks LAI-0302 onward, not LAI-0201 |
 | 9 | Bedrock called from Django (boto3), replacing Amplify AI Kit routes | Proposed | Personas, limits, validation, fallbacks, audit preserved |
 | 10 | EC2 + Docker for development; ECS Fargate as production candidate | Proposed | No Kubernetes, microservices, queues |
 | 11 | Django Channels + Redis only if a measured need appears | Proposed | Co-op needs only slot claims and low-rate state |
 | 12 | Incremental Amplify retirement, with Cognito detached first | Proposed | Phases 12-13 in the roadmap |
+
+**Repository conventions.** FinWin-style layout (approved): `react/`, `lai/`, `game/`,
+`infra/`, `ci/`, `deploy/`, `docs/`, `tasks/`, `tests/`. Directories are created only when a
+task needs a file in them.
+
+**Preserved by the migration.** Existing gameplay, educational rules, progression, and assets.
+Existing content definitions stay where they are until migration into Django models is
+separately authorized and verified.
+
+**Authoritative hierarchy.** Island (themed world), then Adventure (playable experience), then
+Quests, Challenges, Objectives, Rewards. New islands and adventures are data or configuration,
+not new AWS infrastructure.
+
+**Open gates (not accepted by this approval).**
+
+| Gate | Unresolved item | Blocks |
+|---|---|---|
+| G1 | Does a production Amplify app with real family data exist, and in which account and region? (assessment Q1, Q2) | Phase 10 deploys, Phase 11 data migration, Phase 12 cutover |
+| G2 | Cognito ownership and detach plan (LAI-0401, LAI-0405) | LAI-0402 onward for production, LAI-1302 |
+| G3 | Android direction (assessment Q3) | API shape decisions that serve Android |
+| G4 | Rules in Python with golden vectors versus a Node rules service (assessment Q4, sub-decision 8) | LAI-0302 and Phase 6 |
+| G5 | Whether data loss on pre-pilot sandbox data is acceptable (assessment Q5) | Phase 11 scope |
+| G6 | Security gates: tenant isolation harness passing, deny-by-default authorization reproduced in Django | Any Django endpoint serving child data |
+| G7 | Every AWS-touching task (Phase 10 onward) | Explicit per-task approval, as marked APPROVAL |
 
 **Alternatives considered.** Stay on Amplify and raise the IAM quota (lowest effort; leaves
 the client-authoritative write paths to be fixed with more Lambdas). Amplify Gen 2 with a
@@ -1034,16 +1064,27 @@ platform.
    new renderer, route, or AWS infrastructure.
 6. The engine continues to follow ADR-007 and ADR-008's layering: it never validates answers,
    awards progress, decides mastery, or calls AI.
-7. Sprouts get a guided Three.js camera and control profile; the ADR-008 playtest requirement
-   stands. Until it passes, the card hub and the existing Phaser view remain Sprouts'
-   primary route and block LAI-2304.
+7. Sprouts get a guided Three.js camera and control profile (conditionally approved by the
+   owner); the ADR-008 playtest requirement stands. Until the Sprouts usability and gameplay
+   parity gates pass, the card hub and the existing Phaser view remain Sprouts' primary route
+   and block LAI-2304. Control profiles are configurations of one engine, never separate
+   renderers: Sprouts (ages 3 to 4) tap-to-move with assisted camera, large targets, minimal
+   reading; younger elementary simplified third-person or first-person; older children more
+   conventional third-person or first-person movement and camera control.
 8. Effective immediately: **no new Phaser features.** Bug fixes to existing Phaser worlds are
    allowed until they are deleted.
 
-**Not decided here.** Real-time multiplayer or shared 3D presence (co-op today is shared
-adventure state; shared presence conflicts with CLAUDE.md section 12 unless separately
-approved). The conversion doc's performance budgets are proposed targets until the owner
-confirms target devices. Whether the Castle Writing Room merges into the Castle's SC-9.
+**Deferred.** Shared 3D multiplayer presence (owner: defer). Co-op today is shared adventure
+state; shared presence conflicts with CLAUDE.md section 12 unless separately approved.
+
+**Provisional performance targets (owner, 2026-10-17).** Desktop or laptop 60 FPS with
+keyboard and mouse; modern tablet 30+ FPS with touch; modern smartphone 30+ FPS with touch.
+These are planning targets, not measured figures and not release requirements until
+representative devices, test scenes, and a measurement method are established (LAI-2002,
+LAI-2105, LAI-2302).
+
+**Castle Writing Room versus SC-9: decided.** Consolidated; see
+`docs/THREEJS_ENGINE_CONVERSION.md` section 6.
 
 **Alternatives considered.** Keep both engines (Phase 0 recommendation; rejected by the
 owner). Render 2D worlds as textures inside Three.js (rejected: not genuine 3D play).
