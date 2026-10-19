@@ -592,5 +592,6 @@ Cognito issues tokens; React sends the Cognito **access token** as `Authorizatio
 Django verifies it against the pool JWKS and resolves `ParentAccount` by the immutable `sub`;
 child data is reached only through that parent. No Django sessions, passwords, or cookie
 credentials. Today the Amplify SDK keeps tokens in `localStorage` (readable by page JavaScript);
-that, onboarding, revocation latency, and the admin design are open gates in ADR-024. Not
-implemented yet: LAI-0402.
+that, onboarding, revocation latency, and the admin design are open gates in ADR-024. Owner decisions of 2026-10-18 approved
+explicit `POST /api/v1/me/` onboarding, PyJWT/RS256 verification with a bounded JWKS cache, and
+claim-derived administration; sensitive actions stay blocked until LAI-0209.

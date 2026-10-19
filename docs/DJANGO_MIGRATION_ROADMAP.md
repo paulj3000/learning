@@ -181,7 +181,7 @@ WorldState, StoryProgress, NpcRelationship), `inventory` (InventoryItem), `quest
 
 ### Phase 4 - Cognito integration and authorization
 
-**LAI-0401 Auth decisions. DONE as decisions (ADR-024); gates A1 to A6 stay open, LAI-0402 is blocked on A2, A3, and A5.** Depends: 0204. Risk L. **APPROVAL: dependency choice.**
+**LAI-0401 Auth decisions. DONE as decisions (ADR-024); gates A1 to A6 stay open, A2 to A5 were decided on 2026-10-18; A1 and A6 stay open and block production cutover.** Depends: 0204. Risk L. **APPROVAL: dependency choice.**
 Acceptance: ADR records JWT library, accepted token type(s), clock-skew tolerance, JWKS
 cache TTL, and the new Django-facing Cognito app client.
 
@@ -189,6 +189,12 @@ cache TTL, and the new Django-facing Cognito app client.
 authentication class validates signature (JWKS), `iss`, `token_use`, `client_id`, `exp`;
 upserts `ParentAccount`; rejects tokens signed by a different key, expired, wrong audience,
 and unsigned. Tests use locally generated RSA keys; no AWS calls in unit tests.
+
+**LAI-0209 Revocation-aware verification for sensitive actions (added 2026-10-18, ADR-024 A3).**
+Depends: 0402. Risk H. Acceptance: a written specification, then an implementation and tests, of recent
+authentication plus a revocation-aware check that fails closed; replaces `SensitiveActionBlocked`.
+Blocks account and child deletion (LAI-0602), consent changes (LAI-0308), and privileged admin
+mutations (LAI-0404).
 
 **LAI-0403 Tenant isolation harness.** Depends: 0402. Risk H. Acceptance: `ChildScopedViewSet`
 base class; a test enumerates every registered route and asserts it is either public-listed

@@ -1211,9 +1211,9 @@ is unverified until LAI-1101.
 
 ## ADR-024: Cognito remains the authentication authority; Django validates bearer access tokens
 
-Status: **Accepted in part** (project owner, 2026-10-17; LAI-0401). Accepted items are listed
-first. Everything marked *Recommended* or listed under "Open gates" is **not** approved and must
-not be built as if it were. No code, Amplify, Cognito, or AWS change was made.
+Status: **Accepted in part** (project owner, 2026-10-17; gates A2 to A5 decided 2026-10-18).
+Gates A1 and A6 remain open and must not be treated as approved. Section "Owner decisions of
+2026-10-18" below supersedes the matching *Recommended* text and the A2 to A5 rows.
 
 ### Evidence: how authentication works today
 
@@ -1261,7 +1261,7 @@ flow has to change for the header transport.
    Existing login and refresh behaviour must not be broken without an approved migration plan.
 9. Cognito resources (pool, app client, groups, users) must survive the migration (gate G2).
 
-### Recommended (not approved)
+### Recommended (superseded by the 2026-10-18 decisions below where they overlap)
 
 - **JWT library:** PyJWT with the `crypto` extra (`PyJWT[crypto]`, latest 2.15.1 on 2026-10-17),
   the same library FinWin uses. Exact pins for it and `cryptography` would be added in LAI-0402
@@ -1309,4 +1309,42 @@ app client, the `Admins` group, and all users must be detached or retained so th
 values, which are what `ParentAccount` is keyed on), the pool id, and client ids stay unchanged;
 otherwise every parent mapping breaks. No stack deletion is authorized by this ADR. The procedure
 is LAI-0405 (human-reviewed) and the detach in LAI-1302; production existence is gate G1.
+
+### Owner decisions of 2026-10-18 (gates A2 to A5)
+
+**A2, onboarding: approved.** `POST /api/v1/me/` provisions a `ParentAccount` explicitly, using only
+the verified Cognito `sub`. It is idempotent (an existing account is returned, never changed),
+safe under concurrent requests (the unique `cognito_sub`), and the only place an account is created.
+GET requests never create accounts. Until provisioned, account-dependent endpoints return
+`403 account_not_provisioned`. Provisioning creates no child profiles and grants no privileges.
+
+**A3, revocation: conditionally approved.** For ordinary operations a locally verified access token
+is valid until it expires. Local verification (signature, `exp`, `auth_time`) does **not** show that
+a session or token has not been revoked, and `auth_time` alone is never treated as proof of
+non-revocation. Account deletion, consent changes, and privileged administrative mutations require
+recent authentication plus a revocation-aware check, must fail closed if that check cannot run,
+and **must not be exposed** until that mechanism is separately specified, implemented, and tested
+(tracked as LAI-0209). LAI-0402 therefore ships a permission class, `SensitiveActionBlocked`, that
+denies every request; any such endpoint must declare it until LAI-0209 replaces it.
+
+**A4, administration: approved.** Administrative authority is derived on every relevant request
+from the `cognito:groups` claim of a cryptographically verified access token. No Django superuser
+or unrestricted permission is granted. Implementation is LAI-0404; LAI-0402 only carries the
+verified groups on the request.
+
+**A5, JWT verification: approved.** PyJWT 2.15.1 with the `crypto` extra; RS256 only; 30 s leeway;
+JWKS cached for 3,600 s; at most one refresh attempt per 60 s **including after failures**; 5 s
+network timeout; explicit issuer and client-id allow-list; `token_use == "access"`, `sub`, `exp`,
+and `nbf` (when present) validated; ID tokens rejected; unverified claims never trusted; no new
+Cognito app client. PyJWT's `PyJWKClient` refetches the key set on every unknown `kid` with no
+cooldown, so it does not meet the refresh policy; LAI-0402 uses a small bounded wrapper
+(`apps/users/jwks.py`) with tests. Choices made by LAI-0402 inside this approval: a JWKS outage
+returns `503` `authentication_unavailable` (not 401, so clients do not sign users out during an
+outage); an expired cache that cannot be refreshed fails closed; responses larger than 64 KiB or
+key sets over 20 keys are rejected.
+
+**Still open.** A1 (browser session persistence): `localStorage` behaviour stays during development,
+LAI-0402 does not touch token storage, and production cutover is blocked until a browser-session
+security decision is made. A6 (deployed Cognito settings) requires read-only AWS inspection; no
+Cognito resource may be deleted, replaced, or reconfigured.
 
