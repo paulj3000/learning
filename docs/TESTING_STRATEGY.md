@@ -104,3 +104,25 @@ unexpected-exception cases; headers (`Allow`, `WWW-Authenticate`, `Retry-After`)
 generation, acceptance, and rejection (including newline and over-length values); access-log
 content, absence of secrets and query strings, and no duplicate lines; deny by default; and a
 guard that only the health route is public and all routes are under `api/v1/`.
+
+## Child-scoped endpoint checklist (LAI-0403)
+
+Fixtures in `lai/conftest.py`: `cognito`, `token_for(sub, **claims)`, `api(parent_or_sub)`, and
+`families` (two parents, two children each, distinctive synthetic nicknames). Every new endpoint under
+`/api/v1/children/<uuid:child_id>/...` must have tests for all of these, using those fixtures:
+
+1. own child allowed, for each of the parent's children;
+2. the other family's child: 404 `not_found`; an unknown id: the identical response;
+3. no token 401, invalid or expired token 401, unprovisioned identity 403, inactive parent 403;
+4. every write: the foreign child is not changed and no INSERT/UPDATE/DELETE runs before the error;
+5. a parent or child id in the body or query string is ignored;
+6. a nested record id that belongs to a different child of the **same** parent is 404;
+7. an `Admins` token gets no cross-family access;
+8. error bodies and logs contain no nickname, interest, subject, token, or foreign id.
+
+`apps/users/tests/test_tenant_isolation.py` also holds structural guards that fail if a route is
+neither public, parent-scoped, nor a `ChildScopedMixin` view with `<uuid:child_id>`; if non-test code
+queries `ChildProfile.objects` outside `services.py`; or if a view reads a parent from the request.
+Mutation check performed once by hand (not automated): dropping the parent filter, dropping the
+nested filter, and adding a direct ORM lookup each turned the suite red. The structural guards are
+text and route checks, not proof; reviewers must still read new endpoints.

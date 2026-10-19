@@ -624,3 +624,11 @@ authoritative for the Amplify schema until cutover.
 
 Admin read access (`allow.group('Admins').to(['read'])`) has no Django equivalent yet; it arrives
 with LAI-0404. Deletion and ownership rules are in ADR-022.
+
+### Ownership invariants for every child-scoped model (LAI-0403)
+
+A future model owned by a child (progress, inventory, quests, rewards, sessions) must: have a
+non-null `child` foreign key to `ChildProfile` (so `queryset.filter(child=...)` works); be read and
+written only through `ChildScopedMixin.scoped` / `get_scoped_object`; never take a parent or child id
+from a request body or query string as authority; and cascade from the child when the child is deleted
+(ADR-022). A record id alone never identifies data.

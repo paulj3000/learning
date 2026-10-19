@@ -196,7 +196,7 @@ authentication plus a revocation-aware check that fails closed; replaces `Sensit
 Blocks account and child deletion (LAI-0602), consent changes (LAI-0308), and privileged admin
 mutations (LAI-0404).
 
-**LAI-0403 Tenant isolation harness.** Depends: 0402. Risk H. Acceptance: `ChildScopedViewSet`
+**LAI-0403 Tenant isolation harness. DONE locally; the base class is a mixin (`ChildScopedMixin`) plus `ChildScopedAPIView` rather than a ViewSet, because no ViewSet exists yet and the mixin works with either.** Depends: 0402. Risk H. Acceptance: `ChildScopedViewSet`
 base class; a test enumerates every registered route and asserts it is either public-listed
 (health) or child/parent scoped; two-family fixtures prove a parent gets 404 on another
 family's child for every endpoint. This is the replacement for AppSync owner rules and must

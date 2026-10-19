@@ -12,49 +12,29 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from django.db import connection
 from django.test import Client
 
-from apps.users import authentication
 from apps.users.authentication import verify_access_token
-from apps.users.jwks import JwksCache
 from apps.users.models import ParentAccount
 
-from .helpers import CLIENT_ID, ISSUER, POOL_ID, REGION, KeyPair, access_claims, jwks_body
+from .helpers import CLIENT_ID, ISSUER, KeyPair, access_claims
 
 pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
 
 ME = "/api/v1/me/"
 
 
-class Network:
-    def __init__(self, *pairs):
-        self.body = jwks_body(*pairs)
-        self.error = None
-        self.calls = 0
-
-    def __call__(self, url, timeout):
-        self.calls += 1
-        if self.error:
-            raise self.error
-        return self.body
+@pytest.fixture
+def key(cognito_key):
+    return cognito_key
 
 
 @pytest.fixture
-def key():
-    return KeyPair("kid-1")
-
-
-@pytest.fixture
-def network(key):
-    return Network(key)
+def network(cognito_network):
+    return cognito_network
 
 
 @pytest.fixture(autouse=True)
-def cognito(settings, monkeypatch, network):
-    settings.COGNITO_REGION = REGION
-    settings.COGNITO_USER_POOL_ID = POOL_ID
-    settings.COGNITO_ALLOWED_CLIENT_IDS = [CLIENT_ID]
-    cache = JwksCache(f"{ISSUER}/.well-known/jwks.json", fetcher=network)
-    monkeypatch.setattr(authentication, "get_jwks_cache", lambda issuer: cache)
-    return cache
+def _configured(cognito):
+    return cognito
 
 
 def call(token=None, *, method="get", path=ME, scheme="Bearer", **extra):

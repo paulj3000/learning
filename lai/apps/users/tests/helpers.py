@@ -60,3 +60,18 @@ def access_claims(sub="sub-parent-a", **overrides) -> dict:
     }
     claims.update(overrides)
     return {k: v for k, v in claims.items() if v is not None}
+
+
+class Network:
+    """A fake JWKS endpoint: counts calls, serves a key set, or raises."""
+
+    def __init__(self, *pairs: KeyPair):
+        self.body = jwks_body(*pairs)
+        self.error: Exception | None = None
+        self.calls = 0
+
+    def __call__(self, url, timeout):
+        self.calls += 1
+        if self.error:
+            raise self.error
+        return self.body

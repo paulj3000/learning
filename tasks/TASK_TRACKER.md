@@ -46,7 +46,7 @@ before touching AWS.
 
 - [x] **LAI-0401** Auth decisions (depends: 0204). DONE as decisions (ADR-024, docs only). Open gates A1 to A6 are not approved
 - [x] **LAI-0402** Cognito JWT authentication (depends: 0401, 0301). DONE locally 2026-10-18: PyJWT verifier, bounded JWKS cache, `POST /api/v1/me/` onboarding. Verified only against locally generated keys, never a real Cognito token (gate A6)
-- [ ] **LAI-0403** Tenant isolation harness (depends: 0402)
+- [x] **LAI-0403** Tenant isolation harness (depends: 0402). DONE locally: `ChildScopedMixin`/`ChildScopedAPIView`, shared fixtures, route checker, authorization matrix. Nested-record behaviour is proven against a stand-in queryset only; real nested-model tests are required in each model's own task
 - [ ] **LAI-0404** Admin group and Django admin gating (depends: 0402)
 - [ ] **LAI-0405** Cognito ownership runbook (depends: 0103)
 

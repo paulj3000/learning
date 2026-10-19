@@ -603,3 +603,16 @@ identical body for every cause, `WWW-Authenticate: Bearer`), 503 `authentication
 (signing keys unobtainable, fails closed), 403 `account_not_provisioned`, 403
 `sensitive_action_unavailable`. Configuration: `COGNITO_REGION`, `COGNITO_USER_POOL_ID`,
 `COGNITO_ALLOWED_CLIENT_IDS` (all required in production; empty means every token is rejected).
+
+## Tenant isolation (LAI-0403)
+
+One parent is the ownership boundary (no households, no sharing). `apps/users/scoping.py`:
+`ChildScopedMixin` (and `ChildScopedAPIView`) resolves `self.child` from `<uuid:child_id>` **through the
+authenticated parent** after authentication and permissions, so the order of answers is 401, then
+403 (`account_not_provisioned`), then 404. A foreign child and an unknown child take the same code
+path and give the same `not_found` response (same status, body, and headers; the same number of
+queries). Child-owned records are fetched only with `self.scoped(queryset)` or
+`self.get_scoped_object(queryset, pk)`, which add `child=self.child`; a nested id from the URL is never
+looked up alone. An `Admins` claim changes nothing here: cross-family administration is a separate,
+audited path (LAI-0404). The helpers do not secure an endpoint that does not use them; see the
+checklist in `docs/TESTING_STRATEGY.md`.

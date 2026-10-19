@@ -7409,3 +7409,31 @@ Security limitations and open gates (explicit):
 6. One account lookup per authenticated request; no caching.
 7. React does not call Django yet. Nothing in the frontend changed.
 8. The logging privacy review (gate G8, LAI-0208) is still required before production.
+
+## LAI-0403: tenant isolation harness (2026-10-18)
+
+Starting commit `716845b`. Only `lai/` (no schema change; `makemigrations --check` clean), docs, and
+the tracker. No React, Three.js, Phaser, Amplify, AWS, CI, token storage, or CRUD endpoint. Not pushed.
+GitHub Actions remote verification is still pending.
+
+Added: `apps/users/scoping.py` (`ChildScopedMixin`, `ChildScopedAPIView`), shared fixtures in
+`lai/conftest.py` (`cognito`, `token_for`, `api`, `families`) with `Network` in `tests/helpers.py`,
+private probe routes (`tests/probe_urls.py`, id-only responses, test-only), and 29 tests in
+`tests/test_tenant_isolation.py`: the authorization matrix (own children allowed; other family 404;
+unknown id identical to foreign, including query count; 401 for no, invalid, or expired token; 403 for
+unprovisioned and inactive), writes (foreign child unchanged, zero write queries, spoofed parent in body
+or query ignored), `Admins` token gets no bypass, nested-record pattern, route enumeration, ORM-access
+and request-parent guards, and log contents.
+
+Verified (run): ruff lint and format clean; `manage.py check` and `makemigrations --check` clean; 183
+pytest tests pass against PostgreSQL 16 (`make py-test-db`), up from 154 (29 new). A manual mutation check
+turned the suite red for: parent filter dropped (21 errors, via fixtures), nested filter dropped (2
+failures), a direct `ChildProfile.objects` lookup added (1 failure). JavaScript suite: see the last
+line of this entry.
+
+Limits, stated plainly: (1) nested-record scoping is proven against a stand-in queryset, not a real
+child-owned model, because none exists and none was invented; each model's task must add the real
+tests from the checklist. (2) The structural guards are textual and route-level; they do not prove an
+endpoint is safe. (3) The probe routes are not an API. (4) Response timing is not tested. (5) The
+administrator path, sensitive-action verification, live Cognito verification, the logging privacy
+review (LAI-0208), and the browser-storage decision remain open (LAI-0404, LAI-0209, A6, G8, A1).
