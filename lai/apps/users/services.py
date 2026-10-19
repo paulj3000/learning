@@ -50,3 +50,15 @@ def create_child_profile(parent: ParentAccount, **fields) -> ChildProfile:
         child.full_clean()
         child.save()
         return child
+
+
+def provision_parent_account(cognito_sub: str) -> tuple[ParentAccount, bool]:
+    """Create the account for a verified Cognito `sub` if absent. Returns (account, created).
+
+    Race-safe: `cognito_sub` is unique and `get_or_create` retries after an IntegrityError, so
+    concurrent first requests produce exactly one row. Never rewrites an existing account.
+    Callers must pass a `sub` taken from a verified token.
+    """
+    if not cognito_sub or not cognito_sub.strip():
+        raise ValueError("cognito_sub is required")
+    return ParentAccount.objects.get_or_create(cognito_sub=cognito_sub)

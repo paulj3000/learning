@@ -45,30 +45,59 @@ def test_local_settings_use_database_url_when_given(monkeypatch):
     assert (db["USER"], db["HOST"], db["PORT"], db["NAME"]) == ("a", "localhost", "5544", "thing")
 
 
+PROD_ENV = {
+    "DJANGO_SECRET_KEY": "x" * 50,
+    "DJANGO_ALLOWED_HOSTS": "api.example.test",
+    "DATABASE_URL": "postgresql://u:p@db.internal:5432/lai",
+    "COGNITO_REGION": "us-test-1",
+    "COGNITO_USER_POOL_ID": "us-test-1_TESTPOOL1",
+    "COGNITO_ALLOWED_CLIENT_IDS": "client-one,client-two",
+}
+
+
+def _prod_env(monkeypatch, **overrides):
+    for name, value in {**PROD_ENV, **overrides}.items():
+        if value is None:
+            monkeypatch.delenv(name, raising=False)
+        else:
+            monkeypatch.setenv(name, value)
+
+
 def test_production_fails_without_required_values(monkeypatch):
-    for name in ("DJANGO_SECRET_KEY", "DJANGO_ALLOWED_HOSTS", "DATABASE_URL"):
-        monkeypatch.delenv(name, raising=False)
+    _prod_env(monkeypatch, **{name: None for name in PROD_ENV})
     with pytest.raises(ImproperlyConfigured, match="DJANGO_SECRET_KEY"):
         _load("config.settings.production")
 
 
 @pytest.mark.parametrize("hosts", ["", "*"])
 def test_production_rejects_missing_or_wildcard_hosts(monkeypatch, hosts):
-    monkeypatch.setenv("DJANGO_SECRET_KEY", "x" * 50)
-    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@db.internal:5432/lai")
-    monkeypatch.setenv("DJANGO_ALLOWED_HOSTS", hosts)
+    _prod_env(monkeypatch, DJANGO_ALLOWED_HOSTS=hosts)
     with pytest.raises(ImproperlyConfigured, match="DJANGO_ALLOWED_HOSTS"):
         _load("config.settings.production")
 
 
+@pytest.mark.parametrize(
+    "name, value",
+    [
+        ("COGNITO_REGION", None),
+        ("COGNITO_USER_POOL_ID", None),
+        ("COGNITO_ALLOWED_CLIENT_IDS", None),
+        ("COGNITO_ALLOWED_CLIENT_IDS", " , "),
+        ("COGNITO_USER_POOL_ID", "eu-test-9_OTHERREGION"),
+    ],
+)
+def test_production_requires_consistent_cognito_settings(monkeypatch, name, value):
+    _prod_env(monkeypatch, **{name: value})
+    with pytest.raises(ImproperlyConfigured):
+        _load("config.settings.production")
+
+
 def test_production_is_secure_when_configured(monkeypatch):
-    monkeypatch.setenv("DJANGO_SECRET_KEY", "x" * 50)
-    monkeypatch.setenv("DJANGO_ALLOWED_HOSTS", "api.example.test")
-    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@db.internal:5432/lai")
-    monkeypatch.delenv("DJANGO_TRUST_PROXY_SSL_HEADER", raising=False)
+    _prod_env(monkeypatch, DJANGO_TRUST_PROXY_SSL_HEADER=None)
     prod = _load("config.settings.production")
     assert prod.DEBUG is False
     assert prod.ALLOWED_HOSTS == ["api.example.test"]
+    assert prod.COGNITO_ALLOWED_CLIENT_IDS == ["client-one", "client-two"]
     assert prod.SECURE_SSL_REDIRECT is True
     assert prod.SESSION_COOKIE_SECURE and prod.CSRF_COOKIE_SECURE
     assert prod.SECURE_HSTS_SECONDS > 0

@@ -7368,3 +7368,44 @@ Unverified: the deployed pool's token lifetimes and revocation setting (only a l
 template was readable). Verification: `git status` shows only documentation files; the Django
 models and `lai/` are unchanged. Tests were not run (documentation only); the last full run (104
 Python tests, 1,578 JavaScript tests) was on `d2778ef`.
+
+## LAI-0402: Cognito JWT authentication (2026-10-18)
+
+Owner decisions A2, A3 (conditional), A4, A5 were recorded first in commit `0683d06`; this entry is the
+implementation. Starting commit `0683d06`. Only `lai/`, `requirements.txt`, docs, and the tracker
+changed. No React, Three.js, Phaser, Amplify, Cognito, AWS, or CI change; token storage untouched
+(gate A1). Not pushed. GitHub Actions remote verification is still pending.
+
+Dependencies (exact pins): `PyJWT[crypto]==2.15.1`, `cryptography==50.0.2`, `cffi==2.1.1`,
+`pycparser==3.11`. Ruff, pytest, Django, DRF unchanged.
+
+Behaviour: every API view requires a verified Cognito access token mapping to an active
+`ParentAccount` unless it opts out. Verified: RS256 only, issuer, `exp`, `nbf`, `token_use=access`,
+`client_id` allow-list, `sub`, 30 s leeway, tokens over 4,096 characters rejected, headers only (a
+query-string token is ignored). `POST /api/v1/me/` provisions once (201) and is idempotent (200);
+`GET /api/v1/me/` never creates (403 `account_not_provisioned` until provisioned). JWKS: 3,600 s
+cache, one network attempt per 60 s counting failures, 5 s timeout, 64 KiB and 20-key limits,
+https only. `jwt.PyJWKClient` was checked and rejected: it refetches on every unknown `kid`.
+Errors: see `docs/ARCHITECTURE.md`. `SensitiveActionBlocked` denies everything and is the required
+permission for any deletion, consent, or privileged admin mutation until LAI-0209; no such endpoint
+exists.
+
+Verified (run): ruff lint and format clean; `manage.py check` clean; 154 pytest tests pass against
+PostgreSQL 16 (`make py-test-db`), up from 104, including a concurrent onboarding race; a fresh
+venv gave an identical `pip freeze`; `check --deploy` with production settings reports only W003
+and W021. `make js-check` passed (typecheck, lint, format, 175 files / 1,578 tests, build).
+
+Security limitations and open gates (explicit):
+1. Verified only with locally generated keys and Cognito-shaped tokens, never a real Cognito
+   token or the real JWKS endpoint. Claim names (`client_id`, `token_use`, `cognito:groups`) follow
+   AWS documentation. First contact with a real pool needs read-only inspection (A6).
+2. No revocation-aware check (A3): a revoked or signed-out token works until `exp` (default 60
+   minutes, unverified). Sensitive actions are blocked until LAI-0209.
+3. A1 open: the browser keeps tokens in `localStorage`; production cutover is blocked on a
+   browser-session decision.
+4. The key cache is per process, so with N worker processes the worst case is N fetches a minute.
+5. No throttling of repeated failed authentication; no administrative authorization yet (LAI-0404);
+   groups are carried on the verified token but grant nothing.
+6. One account lookup per authenticated request; no caching.
+7. React does not call Django yet. Nothing in the frontend changed.
+8. The logging privacy review (gate G8, LAI-0208) is still required before production.

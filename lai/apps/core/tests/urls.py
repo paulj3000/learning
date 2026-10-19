@@ -10,6 +10,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.users.permissions import SensitiveActionBlocked
 from config.urls import handler400, handler403, handler404, handler500  # noqa: F401
 from config.urls import urlpatterns as real_patterns
 
@@ -40,6 +41,13 @@ class DefaultsView(APIView):
 
     def get(self, request):  # pragma: no cover - must never run
         return Response({"leak": True})
+
+
+class SensitiveView(APIView):
+    permission_classes = [SensitiveActionBlocked]
+
+    def post(self, request):  # pragma: no cover - must never run
+        return Response({"done": True})
 
 
 class BearerOnly(BaseAuthentication):
@@ -76,6 +84,7 @@ urlpatterns = [
     path("api/v1/example/validate/", ValidateView.as_view()),
     path("api/v1/example/defaults/", DefaultsView.as_view()),
     path("api/v1/example/bearer/", BearerView.as_view()),
+    path("api/v1/example/sensitive/", SensitiveView.as_view()),
     path("api/v1/example/raise/<str:kind>/", RaisingView.as_view()),
     *real_patterns,
 ]

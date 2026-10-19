@@ -31,6 +31,12 @@ _KNOWN = [
     (exceptions.UnsupportedMediaType, "unsupported_media_type", "Unsupported media type."),
     (exceptions.Throttled, "throttled", "Too many requests."),
 ]
+# Errors with their own stable code, declared by the exception class (`default_code`).
+_CODED = {
+    "account_not_provisioned": "Account setup is required.",
+    "sensitive_action_unavailable": "This action is not available.",
+    "authentication_unavailable": "Authentication is temporarily unavailable.",
+}
 _PASSTHROUGH_HEADERS = {"Allow", "WWW-Authenticate", "Retry-After"}
 
 
@@ -61,6 +67,9 @@ def api_exception_handler(exc, context):
         if isinstance(exc, cls):
             code, message = known_code, known_message
             break
+    own_code = getattr(type(exc), "default_code", None)  # a subclass's own code wins
+    if own_code in _CODED:
+        code, message = own_code, _CODED[own_code]
     details = _validation_details(exc) if isinstance(exc, exceptions.ValidationError) else None
     headers = {name: value for name, value in response.items() if name in _PASSTHROUGH_HEADERS}
     return Response(

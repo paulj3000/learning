@@ -595,3 +595,11 @@ credentials. Today the Amplify SDK keeps tokens in `localStorage` (readable by p
 that, onboarding, revocation latency, and the admin design are open gates in ADR-024. Owner decisions of 2026-10-18 approved
 explicit `POST /api/v1/me/` onboarding, PyJWT/RS256 verification with a bounded JWKS cache, and
 claim-derived administration; sensitive actions stay blocked until LAI-0209.
+**Implemented in LAI-0402:** `apps/users/authentication.py` (verifier and DRF authenticator),
+`jwks.py` (bounded key cache), `permissions.py` (`IsProvisionedParent` as the API-wide default,
+`IsVerifiedPrincipal` for onboarding, `SensitiveActionBlocked`), `views.py` (`/api/v1/me/`). Errors:
+401 `not_authenticated` (no credentials) or `authentication_failed` (any invalid token, one
+identical body for every cause, `WWW-Authenticate: Bearer`), 503 `authentication_unavailable`
+(signing keys unobtainable, fails closed), 403 `account_not_provisioned`, 403
+`sensitive_action_unavailable`. Configuration: `COGNITO_REGION`, `COGNITO_USER_POOL_ID`,
+`COGNITO_ALLOWED_CLIENT_IDS` (all required in production; empty means every token is rejected).

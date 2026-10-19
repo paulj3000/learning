@@ -44,11 +44,12 @@ USE_I18N = False
 USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Deny by default (CLAUDE.md section 10): with no authentication class installed yet, every view
-# that does not opt out with AllowAny rejects the request. JSON in, JSON out.
+# Deny by default (CLAUDE.md section 10): every view needs a verified Cognito access token that
+# maps to an active ParentAccount unless it opts out explicitly (the health view uses AllowAny;
+# onboarding uses IsVerifiedPrincipal). JSON in, JSON out.
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
-    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    "DEFAULT_AUTHENTICATION_CLASSES": ["apps.users.authentication.CognitoJWTAuthentication"],
+    "DEFAULT_PERMISSION_CLASSES": ["apps.users.permissions.IsProvisionedParent"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
     "UNAUTHENTICATED_USER": None,
@@ -127,3 +128,11 @@ def compose_database() -> dict:
     name = os.environ.get("POSTGRES_DB", "lai")
     port = os.environ.get("POSTGRES_PORT", "5432")
     return database_from_url(f"postgresql://{user}:{password}@127.0.0.1:{port}/{name}")
+
+
+# Cognito (ADR-024). No defaults: if any is empty, every bearer token is rejected (fail closed).
+# Production settings require all three. The client ids are an allow-list; the Amplify web app
+# client is the only one in use and no new app client is created.
+COGNITO_REGION = os.environ.get("COGNITO_REGION", "").strip()
+COGNITO_USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID", "").strip()
+COGNITO_ALLOWED_CLIENT_IDS = env_list("COGNITO_ALLOWED_CLIENT_IDS")

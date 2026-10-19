@@ -74,6 +74,17 @@ npm run build
 ```
 
 
+## Authentication tests (LAI-0402)
+
+`apps/users/tests/` generates RSA keys and Cognito-shaped access tokens locally and injects a fake
+key-set fetcher, so no test touches AWS or a real pool: `test_jwks.py` (cache TTL, the 60 s refresh
+cooldown including after failures, rotation, fail-closed, size and shape limits, https only,
+the 5 s timeout) and `test_authentication.py` (valid, expired, leeway edges, wrong issuer, other
+pool, wrong client, ID token, missing claims, wrong signature, tampered payload, `alg` confusion
+and `none`, unknown or missing `kid`, query-string tokens, outage behaviour, onboarding idempotency
+and a concurrent-creation race, log contents, blocked sensitive actions). They need PostgreSQL
+(`make py-test-db`). Not covered: a token from a real Cognito pool.
+
 ## Continuous integration (`.github/workflows/ci.yml`)
 
 Three jobs, all with read-only repository permissions, no secrets, and no AWS access:

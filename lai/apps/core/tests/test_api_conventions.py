@@ -92,10 +92,9 @@ def test_unsupported_media_type(api_urls, client):
 
 
 def test_deny_by_default_without_credentials(api_urls, client):
-    # No authenticator is installed yet, so DRF answers 403 permission_denied (not 401). Once
-    # LAI-0402 adds a bearer authenticator the same request becomes 401 not_authenticated.
     response = client.get("/api/v1/example/defaults/")
-    body = assert_error(response, 403, "permission_denied", "You do not have permission.")
+    body = assert_error(response, 401, "not_authenticated", "Authentication is required.")
+    assert response["WWW-Authenticate"] == "Bearer"
     assert "leak" not in json.dumps(body)
 
 
@@ -107,7 +106,7 @@ def test_bearer_scheme_gives_401_with_www_authenticate(api_urls, client):
 
 def test_authentication_failed_does_not_echo_detail(api_urls, client):
     response = client.get("/api/v1/example/raise/failed/")
-    assert_error(response, 403, "authentication_failed", "Authentication failed.")
+    assert_error(response, 401, "authentication_failed", "Authentication failed.")
     assert "Ann" not in response.content.decode()
 
 
@@ -283,7 +282,10 @@ def test_every_route_lives_under_api_v1():
 
 
 def test_project_never_enables_cookie_based_api_authentication(settings):
-    assert settings.REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] == []
+    # Bearer-header authentication only: no session or cookie authentication class.
+    assert settings.REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] == [
+        "apps.users.authentication.CognitoJWTAuthentication"
+    ]
     assert "django.contrib.sessions" not in settings.INSTALLED_APPS
     assert not any("csrf" in name.lower() for name in settings.MIDDLEWARE)
 

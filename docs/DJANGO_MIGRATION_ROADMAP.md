@@ -185,7 +185,7 @@ WorldState, StoryProgress, NpcRelationship), `inventory` (InventoryItem), `quest
 Acceptance: ADR records JWT library, accepted token type(s), clock-skew tolerance, JWKS
 cache TTL, and the new Django-facing Cognito app client.
 
-**LAI-0402 Cognito JWT authentication.** Depends: 0401, 0301. Risk H. Acceptance: DRF
+**LAI-0402 Cognito JWT authentication. DONE locally (ADR-024); `ParentAccount` is created only by the explicit `POST /api/v1/me/`, not upserted during authentication.** Depends: 0401, 0301. Risk H. Acceptance: DRF
 authentication class validates signature (JWKS), `iss`, `token_use`, `client_id`, `exp`;
 upserts `ParentAccount`; rejects tokens signed by a different key, expired, wrong audience,
 and unsigned. Tests use locally generated RSA keys; no AWS calls in unit tests.

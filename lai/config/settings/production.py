@@ -36,3 +36,13 @@ SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+
+# Cognito (ADR-024): all three are mandatory. Without them every request would be rejected, so
+# refuse to start rather than run an API nobody can use. Values come only from the environment.
+COGNITO_REGION = _required("COGNITO_REGION")
+COGNITO_USER_POOL_ID = _required("COGNITO_USER_POOL_ID")
+COGNITO_ALLOWED_CLIENT_IDS = env_list("COGNITO_ALLOWED_CLIENT_IDS")
+if not COGNITO_ALLOWED_CLIENT_IDS:
+    raise ImproperlyConfigured("COGNITO_ALLOWED_CLIENT_IDS must list the allowed app client ids.")
+if not COGNITO_USER_POOL_ID.startswith(COGNITO_REGION + "_"):
+    raise ImproperlyConfigured("COGNITO_USER_POOL_ID must belong to COGNITO_REGION.")

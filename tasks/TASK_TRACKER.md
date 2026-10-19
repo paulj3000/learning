@@ -45,7 +45,7 @@ before touching AWS.
 ## Phase 4 — Cognito integration and authorization
 
 - [x] **LAI-0401** Auth decisions (depends: 0204). DONE as decisions (ADR-024, docs only). Open gates A1 to A6 are not approved
-- [ ] **LAI-0402** Cognito JWT authentication (depends: 0401, 0301). UNBLOCKED 2026-10-18 by owner decisions A2, A3, A5 (ADR-024)
+- [x] **LAI-0402** Cognito JWT authentication (depends: 0401, 0301). DONE locally 2026-10-18: PyJWT verifier, bounded JWKS cache, `POST /api/v1/me/` onboarding. Verified only against locally generated keys, never a real Cognito token (gate A6)
 - [ ] **LAI-0403** Tenant isolation harness (depends: 0402)
 - [ ] **LAI-0404** Admin group and Django admin gating (depends: 0402)
 - [ ] **LAI-0405** Cognito ownership runbook (depends: 0103)
