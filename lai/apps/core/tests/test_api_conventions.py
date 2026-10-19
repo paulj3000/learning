@@ -5,7 +5,7 @@ import pytest
 from django.test import Client
 from django.urls import URLPattern, URLResolver
 
-from apps.core.middleware import RequestIdLogFilter
+from apps.core.privacy import RequestIdLogFilter
 from apps.core.request_context import choose_request_id
 
 

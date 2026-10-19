@@ -1,15 +1,15 @@
 import logging
 import time
 
+from .privacy import SAFE_METHODS
 from .request_context import (
     REQUEST_ID_HEADER,
     choose_request_id,
-    get_request_id,
     reset_request_id,
     set_request_id,
 )
 
-access_logger = logging.getLogger("lai.request")
+access_logger = logging.getLogger("lai.request")  # one line per request; see privacy.py
 
 
 class RequestContextMiddleware:
@@ -40,17 +40,9 @@ class RequestContextMiddleware:
             route = (match.route if match else "") or "-"
             access_logger.info(
                 "%s %s %s %dms",
-                request.method,
+                request.method if request.method in SAFE_METHODS else "OTHER",
                 route,
                 status,
                 (time.monotonic() - started) * 1000,
             )
             reset_request_id(token)
-
-
-class RequestIdLogFilter(logging.Filter):
-    """Adds `request_id` to every log record (`-` outside a request)."""
-
-    def filter(self, record):
-        record.request_id = get_request_id() or "-"
-        return True

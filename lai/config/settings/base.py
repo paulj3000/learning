@@ -63,31 +63,55 @@ SECURE_REFERRER_POLICY = "same-origin"
 # No CORS: the browser reaches the API same-origin (CloudFront path routing, see
 # docs/DJANGO_TARGET_ARCHITECTURE.md). No CORS package is installed on purpose.
 
-# Console logging only. Never log request bodies, headers, cookies, tokens, query strings,
-# child names, or free text. `lai.request` writes the single access line per request.
-# django.request is limited to ERROR (unexpected 500s with a traceback) so 4xx responses are
-# not logged a second time with their raw path. django.server (runserver) is discarded because
-# it logs full request lines, query strings included.
+# Console logging only, through apps/core/privacy.py (ADR-025). Never log request bodies, headers,
+# cookies, tokens, query strings, raw paths, exception messages, child names, or free text.
+# * `lai.request` writes the single access line per request (route pattern, never the raw path).
+# * Exceptions print as type plus file:line:function only; raw tracebacks are a local opt-in.
+# * The "django" logger gets NO handlers of its own (Django's default would attach one that emails
+#   full request reports to ADMINS and one that bypasses our formatter); records reach the root.
+# * django.request is limited to ERROR (unexpected 500s) so 4xx are not logged twice.
+# * django.db.backends is pinned above DEBUG: at DEBUG it logs every SQL statement with its
+#   parameters (nicknames, subs). django.server (runserver) is discarded: it logs full request
+#   lines, query strings included.
+# * The root level can be raised but never lowered below INFO.
+LOG_RAW_EXCEPTIONS = False  # local.py may opt in; test and production force False
+ADMINS: list = []  # error-report email is not used; keep it impossible by accident
+MANAGERS: list = []
+DEFAULT_EXCEPTION_REPORTER_FILTER = "apps.core.reporting.PrivacyExceptionReporterFilter"
+
+_LEVELS = {"INFO", "WARNING", "ERROR", "CRITICAL"}
+_requested_level = os.environ.get("DJANGO_LOG_LEVEL", "INFO").strip().upper()
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "filters": {"request_id": {"()": "apps.core.middleware.RequestIdLogFilter"}},
+    "filters": {
+        "request_id": {"()": "apps.core.privacy.RequestIdLogFilter"},
+        "privacy": {"()": "apps.core.privacy.PrivacyFilter"},
+    },
     "formatters": {
-        "plain": {"format": "%(asctime)s %(levelname)s %(name)s [req=%(request_id)s] %(message)s"}
+        "plain": {
+            "()": "apps.core.privacy.PrivacyFormatter",
+            "format": "%(asctime)s %(levelname)s %(name)s [req=%(request_id)s] %(message)s",
+        }
     },
     "handlers": {
         "discard": {"class": "logging.NullHandler"},
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "plain",
-            "filters": ["request_id"],
+            "filters": ["request_id", "privacy"],
         },
     },
     "loggers": {
+        "django": {"handlers": [], "level": "INFO", "propagate": True},
         "django.request": {"level": "ERROR"},
+        "django.db.backends": {"level": "WARNING"},
         "django.server": {"handlers": ["discard"], "propagate": False},
     },
-    "root": {"handlers": ["console"], "level": os.environ.get("DJANGO_LOG_LEVEL", "INFO")},
+    "root": {
+        "handlers": ["console"],
+        "level": _requested_level if _requested_level in _LEVELS else "INFO",
+    },
 }
 
 LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}

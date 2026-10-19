@@ -7437,3 +7437,28 @@ tests from the checklist. (2) The structural guards are textual and route-level;
 endpoint is safe. (3) The probe routes are not an API. (4) Response timing is not tested. (5) The
 administrator path, sensitive-action verification, live Cognito verification, the logging privacy
 review (LAI-0208), and the browser-storage decision remain open (LAI-0404, LAI-0209, A6, G8, A1).
+
+## LAI-0208: privacy-safe logging (2026-10-19)
+
+Starting commit `3abecc3`. Only `lai/`, docs, and the tracker. No schema, JWT semantics, ownership rule,
+success response, React, Three.js, Phaser, Amplify, Cognito, or AWS change; no new dependency. Not pushed.
+GitHub Actions remote verification is still pending.
+
+Findings (reproduced before fixing): unexpected exceptions logged their messages (nickname, email, and
+interest sentinels appeared), Django's request-failure line carried the raw path, Django's default `django`
+logger had an `AdminEmailHandler`, and debug pages showed local variables and cookie values. Details,
+the full audit table, and limits: `docs/ARCHITECTURE.md` "Logging and privacy" and ADR-025.
+
+Added: `apps/core/privacy.py` (formatter, filters), `apps/core/reporting.py` (error-report filter),
+logging and settings changes in `config/settings/{base,local,production,test}.py`,
+`@sensitive_variables` on the token verifier, sanitized HTTP method in the access line, and 28 tests
+(`test_privacy_logging.py` and its helpers).
+
+Verified (run): ruff lint and format clean; `manage.py check` and `makemigrations --check` clean; 211 pytest
+tests pass against PostgreSQL 16 (`make py-test-db`); hand-mutation of six controls turned the suite red
+as described in `docs/TESTING_STRATEGY.md`. `make js-check` passed (175 files / 1,578 tests, build).
+
+Remaining privacy exposure (explicit): everything in gate G10 (server, proxy, load balancer, CDN,
+CloudWatch, PostgreSQL logs, monitoring) is unverified because it does not exist yet; local `DEBUG=True`
+pages show messages, URLs, and GET parameters; management-command and `warnings` output; developers
+writing private data into a log message or printing it. Raw tracebacks stay a local, opt-in tool.

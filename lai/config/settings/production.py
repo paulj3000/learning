@@ -20,6 +20,7 @@ def _required(name: str) -> str:
 
 
 DEBUG = False
+LOG_RAW_EXCEPTIONS = False  # never from the environment in production
 SECRET_KEY = _required("DJANGO_SECRET_KEY")
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS")
 if not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS:

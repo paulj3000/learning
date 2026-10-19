@@ -13,6 +13,7 @@ from functools import lru_cache
 
 import jwt
 from django.conf import settings
+from django.views.decorators.debug import sensitive_variables
 from rest_framework.authentication import BaseAuthentication, get_authorization_header
 from rest_framework.exceptions import APIException, AuthenticationFailed
 
@@ -78,6 +79,7 @@ def get_jwks_cache(issuer: str) -> JwksCache:
     return _cache_for(issuer)
 
 
+@sensitive_variables()
 def verify_access_token(token: str) -> VerifiedToken:
     """Verify a Cognito access token; raises AuthenticationFailed or AuthenticationUnavailable."""
     configured = _cognito_settings()
@@ -153,6 +155,7 @@ class CognitoJWTAuthentication(BaseAuthentication):
     def authenticate_header(self, request):
         return "Bearer"
 
+    @sensitive_variables()
     def authenticate(self, request):
         parts = get_authorization_header(request).split()
         if not parts or parts[0].lower() != self.keyword.encode():

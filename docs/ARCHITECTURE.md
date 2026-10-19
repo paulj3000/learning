@@ -616,3 +616,38 @@ queries). Child-owned records are fetched only with `self.scoped(queryset)` or
 looked up alone. An `Admins` claim changes nothing here: cross-family administration is a separate,
 audited path (LAI-0404). The helpers do not secure an endpoint that does not use them; see the
 checklist in `docs/TESTING_STRATEGY.md`.
+
+## Logging and privacy (LAI-0208, ADR-025)
+
+**Policy.** Logs say what kind of failure happened and where, never which data was involved. Never in an
+application log or error report: tokens (access, ID, refresh), Authorization headers, cookies, Cognito
+`sub` values or JWT claims, child nicknames, interests, reading settings or photo paths, parent email,
+request or response bodies, query strings, raw URL paths (they contain child ids), database credentials
+or statements with parameters, and exception messages. Allowed: method (standard set), matched route
+pattern, status, duration, request id, exception type, `file:line:function`, coarse reason codes.
+
+**Paths audited (repository code only).**
+
+| Path | Finding | State |
+|---|---|---|
+| Access log | Route pattern only; method not sanitized | Method now limited to the standard set |
+| DRF exception handler | Fixed messages; logs nothing | Unchanged. Note: some DRF messages echo the submitted value back to the same caller (for example an invalid choice); not logged |
+| Django JSON error handlers | Fixed messages | Unchanged |
+| Authentication and JWT failures | Reason codes only | Unchanged; tested through the real handler |
+| JWKS failures | Exception type name only | Unchanged |
+| Model validation | Not yet exposed by any API | Future endpoints must map Django `ValidationError` to the API error contract (LAI-0502) |
+| Database exceptions | **Leaked**: PostgreSQL quotes values in the message | Fixed by the formatter |
+| Unexpected exceptions | **Leaked**: message in traceback, raw path in Django's line | Fixed |
+| Dev server | `runserver` logs query strings | Discarded |
+| Logging configuration | **Exposure**: default `django` logger emails reports to `ADMINS` and bypasses our formatter | Handlers removed; `ADMINS` empty |
+| Framework reports | Debug pages showed local variables and cookie values | Hidden |
+| SQL logging | Would log statements with parameters at DEBUG | Pinned off; root cannot go below INFO |
+
+**Not covered.** Local `DEBUG=True` pages still show the exception message, the URL, and GET parameters, so a
+developer running real family data locally can expose it; use synthetic data. Output of management
+commands and pytest, Python `warnings` text (a database connection warning names host and user), and any
+future third-party library that writes its own logs are outside these controls. Developers can still bypass
+them by printing (a test forbids `print(`) or by writing private data into a log *message*; a rule and a
+review, not code, prevents that. Not inspected, because no such system exists in the repository: web or
+ASGI server access logs, load balancer, CDN, CloudWatch, PostgreSQL server logs, monitoring vendors.
+Those are gate G10 (LAI-0210), required before production.

@@ -11,6 +11,7 @@ from .base import *  # noqa: F403
 from .base import LOOPBACK_HOSTS, compose_database
 
 DEBUG = False
+LOG_RAW_EXCEPTIONS = False
 SECRET_KEY = "test-only-not-a-secret"  # noqa: S105
 ALLOWED_HOSTS = ["testserver", "localhost"]
 

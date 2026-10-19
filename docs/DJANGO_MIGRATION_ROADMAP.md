@@ -138,6 +138,8 @@ Risk L. **APPROVAL: owner, because it edits `.github/workflows/ci.yml`.** Accept
 CI job installs `requirements-dev.txt`, starts PostgreSQL 16 as a service, and runs `make
 py-check` and `make py-test-db`; the existing JavaScript jobs are unchanged and stay green.
 
+**LAI-0208 Logging privacy review. DONE locally for the application layer (ADR-025); the deployed part is LAI-0210 / gate G10.** Depends: 0205.
+
 **LAI-0207 Committed OpenAPI schema generation (split from LAI-0205).** Depends: 0205. Risk L. Acceptance: a recorded decision on the two extra dependencies DRF schema generation needs (PyYAML, uritemplate) or an alternative; a schema file generated from the views and checked in CI for drift.
 
 **LAI-0205 DRF conventions. DONE locally (see IMPLEMENTATION_STATUS); cursor pagination and OpenAPI generation split out: pagination arrives with the first list endpoint (LAI-0502), OpenAPI is LAI-0207.** Depends: 0204. Risk L. Acceptance: typed error envelope with

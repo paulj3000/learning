@@ -126,3 +126,19 @@ queries `ChildProfile.objects` outside `services.py`; or if a view reads a paren
 Mutation check performed once by hand (not automated): dropping the parent filter, dropping the
 nested filter, and adding a direct ORM lookup each turned the suite red. The structural guards are
 text and route checks, not proof; reviewers must still read new endpoints.
+
+## Privacy logging tests (LAI-0208)
+
+`apps/core/tests/test_privacy_logging.py` triggers real failures through test-only routes
+(`privacy_urls.py`) carrying synthetic sentinel strings (`sentinels.py`: nickname, email, interest, sub,
+local variable, query value, path segment, database password, cookie, bearer) and asserts none appears in
+the API response or in the output of the project's actual configured console handler (the fixture swaps
+that handler's stream, so the real filters and formatter run). Covered: plain, chained, context-suppressed,
+database, and `logger.exception` failures; raw paths and query strings; debug pages (locals, cookies,
+credential headers); `django.security` messages; SQL logging; log-level floor; no email handlers;
+production forcing `DEBUG=False` and raw tracebacks off; misconfiguration errors not echoing secrets;
+forged request ids and HTTP methods; authentication failures; no `print(` in app code. It also asserts that
+useful diagnostics survive (exception type, location, route, status, request id).
+The controls were checked by hand-mutation (each weakened once, the suite turned red; the SQL pin is
+defence in depth with Django's `django` logger level, so removing only one layer is correctly not
+detected). The sentinel approach proves absence of those strings, not of private data in general.

@@ -26,7 +26,8 @@ before touching AWS.
 - [ ] **LAI-0203** Engine import boundary guard (depends: 0201)
 - [x] **LAI-0204** Django project skeleton (depends: 0202). DONE locally: Django 6.1.2, DRF 3.18.3, psycopg 3.3.6 (ADR-021); health endpoint; verified against PostgreSQL 16
 - [x] **LAI-0205** DRF conventions (depends: 0204). DONE locally: error contract, exception handler, request IDs, access log, deny by default. Two roadmap criteria deliberately not done here: cursor pagination (moves to the first list endpoint, LAI-0502) and OpenAPI generation (LAI-0207)
-- [ ] **LAI-0208** Privacy review of server-side logging and exception messages before any production deployment (gate G8) (depends: 0205)
+- [x] **LAI-0208** Privacy review of server-side logging (application layer) (depends: 0205). DONE locally (ADR-025). Deployed logging remains open as gate G10 (LAI-0210)
+- [ ] **LAI-0210** Deployed logging verification: server and proxy access logs, load balancer, CDN, CloudWatch, PostgreSQL server logs, monitoring (gate G10). Required before production; needs the infrastructure to exist (depends: 1004)
 - [ ] **LAI-0209** Revocation-aware verification and recent-authentication check for sensitive actions (ADR-024 A3). Specify, implement, test. Blocks account/child deletion (0602), consent changes (0308), and privileged admin mutations (0404) (depends: 0402)
 - [ ] **LAI-0207** Committed OpenAPI schema generation (split from LAI-0205; needs a recorded dependency decision for PyYAML and uritemplate) (depends: 0205)
 - [x] **LAI-0206** Python CI job (carries LAI-0202's deferred CI criterion). DONE locally; REMOTE VERIFICATION PENDING until the first GitHub-hosted run succeeds (depends: 0204)

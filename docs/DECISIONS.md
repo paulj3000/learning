@@ -1018,7 +1018,8 @@ not new AWS infrastructure.
 | G6 | Security gates: tenant isolation harness passing, deny-by-default authorization reproduced in Django | Any Django endpoint serving child data |
 | G7 | Every AWS-touching task (Phase 10 onward) | Explicit per-task approval, as marked APPROVAL |
 | G9 | `ParentConsent` privacy design (LAI-0308). Consent is a legal and privacy matter, not a player-profile attribute; it must be designed and approved before the migrated platform handles live children's data (owner, 2026-10-17) | Phase 11 data migration, any production traffic with real family data |
-| G8 | Privacy review of server-side logging, including exception messages and tracebacks, which can carry child or family data even though API clients never see them (owner, 2026-10-17; tracked as LAI-0208) | Any production deployment |
+| G8 | Privacy review of server-side logging, including exception messages and tracebacks, which can carry child or family data even though API clients never see them (owner, 2026-10-17). **Application-layer part done in LAI-0208 (ADR-025); the deployed part is open as G10** | Any production deployment |
+| G10 | Deployed logging verification: web server and proxy access logs (a default access log records the full URL including the query string), load balancer and CDN logs, CloudWatch retention and access, the PostgreSQL server log (can record statements and the values in error DETAIL lines), any future monitoring vendor, and container stdout capture. Child ids appear in URL paths, so infrastructure logs are not free of identifiers by default (LAI-0210) | Any production deployment |
 
 **Alternatives considered.** Stay on Amplify and raise the IAM quota (lowest effort; leaves
 the client-authoritative write paths to be fixed with more Lambdas). Amplify Gen 2 with a
@@ -1347,4 +1348,35 @@ key sets over 20 keys are rejected.
 LAI-0402 does not touch token storage, and production cutover is blocked until a browser-session
 security decision is made. A6 (deployed Cognito settings) requires read-only AWS inspection; no
 Cognito resource may be deleted, replaced, or reconfigured.
+
+## ADR-025: Exceptions are logged as type and location, never as message
+
+Status: **Accepted** (implemented in LAI-0208; the owner required a privacy review of server-side logging
+before more APIs handle children's data).
+
+**Finding.** The API already returned fixed error messages, but the server wrote the opposite: an
+unexpected exception was logged by Django with a full traceback, including the exception message, and
+with the raw request path. Reproduced before the fix: a synthetic nickname, parent email, and interest
+interpolated into an exception message all appeared in the log. Database errors are worse, because
+PostgreSQL quotes the offending values (`Key (cognito_sub)=(...) already exists`). Django's default
+`django` logger also carries a handler that emails full request reports to `ADMINS`.
+
+**Decision.**
+1. Exceptions are rendered as the exception type and `file:line in function` for the whole cause and
+   context chain. No message, no source line, no local variables (`apps/core/privacy.py`). This applies to
+   every logger, including application code calling `logger.exception()`.
+2. Django's request-failure line uses the matched route pattern, never the raw path; the request object is
+   removed from every record; `django.security.*` details are withheld (they echo header values).
+3. The `django` logger has no handlers of its own, `ADMINS` and `MANAGERS` are empty, the SQL logger cannot
+   run at DEBUG, `django.server` is discarded, and the root level cannot be set below INFO.
+4. Django debug pages and error reports hide all local variables and all cookie values; the token
+   verification functions are also marked `@sensitive_variables`.
+5. Raw tracebacks are possible only with `LAI_LOG_RAW_EXCEPTIONS=1` under **local** settings. Production and
+   test settings force it off regardless of the environment.
+6. Logged HTTP methods outside the standard set appear as `OTHER`.
+
+**Trade-off.** Diagnosis is harder: a developer sees where and what kind, not why. That is deliberate. When a
+message is needed, reproduce locally with synthetic data and the raw opt-in.
+
+**What this does not cover** is listed under "Logging and privacy" in `docs/ARCHITECTURE.md` and in gate G10.
 
