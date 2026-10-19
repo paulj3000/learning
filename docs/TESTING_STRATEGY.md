@@ -142,3 +142,18 @@ useful diagnostics survive (exception type, location, route, status, request id)
 The controls were checked by hand-mutation (each weakened once, the suite turned red; the SQL pin is
 defence in depth with Django's `django` logger level, so removing only one layer is correctly not
 detected). The sentinel approach proves absence of those strings, not of private data in general.
+
+## Content export tests (LAI-0302)
+
+`react/src/features/content-export/contentExport.test.ts` (38 tests): two exports are byte-identical; the
+committed `content/` files equal a fresh export (so edited content cannot ship without re-exporting); every
+exported collection deep-equals its TypeScript source in authored order; record counts are pinned; ids and
+representative rules (an adventure's steps, transitions and hint ladders, a travel requirement, a location
+unlock, checkpoints) are unchanged; mutated copies prove the integrity checker reports duplicates, dangling
+steps, objectives, items, NPCs, islands, skills, and navigation targets; unsupported values (function, Date,
+Map, NaN, undefined in arrays, symbol, class instance) fail with their path; the validator rejects unknown
+fields, missing fields, wrong types, bad enums, and unmatched variants; the manifest has digests and no
+timestamps; and the export runs in a child Node process with a scrubbed environment (no AWS variables).
+Hand-mutation check: editing an item without re-exporting, and making a content module import the Amplify
+data client, each turned the suite red. The built-in validator only supports the schema keywords the
+schema uses; the Python side must use a full JSON Schema validator.

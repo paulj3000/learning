@@ -7462,3 +7462,27 @@ Remaining privacy exposure (explicit): everything in gate G10 (server, proxy, lo
 CloudWatch, PostgreSQL logs, monitoring) is unverified because it does not exist yet; local `DEBUG=True`
 pages show messages, URLs, and GET parameters; management-command and `warnings` output; developers
 writing private data into a log message or printing it. Raw tracebacks stay a local, opt-in tool.
+
+## LAI-0302: deterministic content export (2026-10-19)
+
+Starting commit `9c8747f`. New: `react/src/features/content-export/` (builder, strict JSON converter, JSON
+Schema and validator, integrity checker, file renderer, 38 tests), `scripts/export-content.ts`, committed
+`content/` (13 files), npm scripts `content:export` and `content:check`, `.prettierignore` entries for the
+generated JSON. **No gameplay, content, runtime loading, Django, Three.js, Phaser, Amplify, AWS, or CI
+change; no new dependency.** Not pushed. GitHub Actions remote verification is still pending.
+
+Exported (counts): islands 2, locations 9, adventures 20, learning objectives 18, Wonder Wall questions 4,
+stories 5, quests 5, items 19, collectible sets 1, reward rules 14, NPCs 4, discoveries 6, checkpoints 11,
+interaction tables 8, curriculum 2/3/6/10 (subjects/grades/domains/skills), assets 78. Two runs are
+byte-identical; the integrity checker found no reference errors in the existing content. It reported three
+ambiguities (pseudo-locations for adventures and stories, and the hub with no location record) which are
+recorded in the manifest and in `docs/DATA_MODEL.md` and were not "fixed". Everything not exported, and
+why, is listed in `docs/DATA_MODEL.md`.
+
+Deviation from the roadmap text: the script is `scripts/export-content.ts` (where the repository's other
+scripts live), not `react/scripts/`; the builder and its tests are under `react/src` so Vitest runs them.
+Spatial data is intentionally excluded.
+
+Verified (run): `npm run content:export` twice (identical) and `content:check`; ruff, `manage.py check`,
+and 211 Python tests against PostgreSQL 16; typecheck, lint, and format clean; `make js-check` passed with
+176 files / 1,616 tests (the 1,578 existing tests plus the 38 new ones), so no existing behaviour changed.

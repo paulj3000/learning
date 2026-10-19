@@ -1,0 +1,126 @@
+{
+  "contentDigest": "0090293283032a177ea0b0350098a33b0460f806f16c64b8b28bd6728c961e42",
+  "exportTool": {
+    "name": "lai-content-export",
+    "version": "1.0.0"
+  },
+  "files": [
+    {
+      "counts": {
+        "islands": 2
+      },
+      "path": "islands.json",
+      "sha256": "7ffcdb90284501f27f407b03f1718c41cec968cb28ddbbca25d00951dcd14d7e"
+    },
+    {
+      "counts": {
+        "locations": 9
+      },
+      "path": "locations.json",
+      "sha256": "7928ca72fed8371e7805eadd0ed2d8caff3189da88e941b68559a692564db473"
+    },
+    {
+      "counts": {
+        "adventures": 20,
+        "learningObjectives": 18,
+        "wonderWallQuestions": 4
+      },
+      "path": "adventures.json",
+      "sha256": "ce41d63a4a3c1fd088d5258e14602059a1a06adadd0a2e168b47fc1b619cb443"
+    },
+    {
+      "counts": {
+        "stories": 5
+      },
+      "path": "stories.json",
+      "sha256": "0c1306e1fa1a3870c032951e09207dd053d2a58b6f484bf934a4e8f83b0d8e52"
+    },
+    {
+      "counts": {
+        "quests": 5
+      },
+      "path": "quests.json",
+      "sha256": "298109686b4babc6f57f77812a0fc84f340ac1862d9d1fb1c91077681919fe70"
+    },
+    {
+      "counts": {
+        "collectibleSets": 1,
+        "items": 19,
+        "rewardRules": 14
+      },
+      "path": "rewards.json",
+      "sha256": "ca49eb79ae611ea8cea3493269513f50ec8bf6ad1990d74112bc4a06389357f9"
+    },
+    {
+      "counts": {
+        "npcs": 4
+      },
+      "path": "npcs.json",
+      "sha256": "40f7ef2eed43dfdbc72057c5a6bf9935c1418ec1ef5b3a147a81fe91c6739ba6"
+    },
+    {
+      "counts": {
+        "checkpoints": 11,
+        "discoveries": 6
+      },
+      "path": "discoveries.json",
+      "sha256": "c697141d8944e431eae3ec5529bd8a0e3022d09ed3152b9cbb7787bd5218704f"
+    },
+    {
+      "counts": {
+        "interactions": 8
+      },
+      "path": "interactions.json",
+      "sha256": "84c992d820e729ddec66353930d0fa328fcb1476acc63fc53e679bba41866e19"
+    },
+    {
+      "counts": {
+        "domains": 6,
+        "grades": 3,
+        "skills": 10,
+        "subjects": 2
+      },
+      "path": "curriculum.json",
+      "sha256": "00cdcb9a52fbffa8e730c54b37b5b0ed23b36f1b881e3b53df55072675415ae3"
+    },
+    {
+      "counts": {
+        "assets": 78
+      },
+      "path": "assets.json",
+      "sha256": "697328ee92de6c40f5e0f6d7e15af091c65e5017e6b4090bacd4309fd562f4e7"
+    }
+  ],
+  "knownAmbiguities": [
+    {
+      "detail": "These adventure locationSlug values have no IslandLocation. The source comments call them story-only pseudo-locations for story-arc challenges. They are exported as written; no location record was invented.",
+      "ids": [
+        "butterfly-garden",
+        "castle-secret-passage",
+        "ember-mountain",
+        "fossil-ridge",
+        "robot-repair-reef"
+      ],
+      "kind": "adventure-location-without-record"
+    },
+    {
+      "detail": "Interaction tables and checkpoints exist for these regions but no IslandLocation does. Welcome Harbor is the home hub. It is exported under its authoring key; it was not added to locations.",
+      "ids": [
+        "welcome-harbor"
+      ],
+      "kind": "region-without-location-record"
+    },
+    {
+      "detail": "These story completionWorldChange.locationSlug values have no IslandLocation (they name story-only places). They are exported as written; no location record was invented.",
+      "ids": [
+        "butterfly-garden",
+        "castle-secret-passage",
+        "ember-mountain",
+        "fossil-ridge",
+        "robot-repair-reef"
+      ],
+      "kind": "story-location-without-record"
+    }
+  ],
+  "schemaVersion": 1
+}

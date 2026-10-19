@@ -1,0 +1,197 @@
+{
+  "checkpoints": [
+    {
+      "id": "welcome-harbor:dock",
+      "label": "the dock",
+      "regionId": "welcome-harbor",
+      "x": 0,
+      "yaw": 3.141592653589793,
+      "z": 8
+    },
+    {
+      "id": "welcome-harbor:lookout",
+      "label": "the lookout tower",
+      "regionId": "welcome-harbor",
+      "x": -7,
+      "yaw": 0,
+      "z": -3
+    },
+    {
+      "id": "welcome-harbor:shed",
+      "label": "the dockside shed",
+      "regionId": "welcome-harbor",
+      "x": 7,
+      "yaw": 3.141592653589793,
+      "z": -3
+    },
+    {
+      "id": "pirate-builder-bay:dock",
+      "label": "the dock",
+      "regionId": "pirate-builder-bay",
+      "x": -8,
+      "yaw": 1.5707963267948966,
+      "z": 0
+    },
+    {
+      "id": "pirate-builder-bay:bridge-approach",
+      "label": "the bridge",
+      "regionId": "pirate-builder-bay",
+      "x": -5,
+      "yaw": 1.5707963267948966,
+      "z": 0
+    },
+    {
+      "id": "pirate-builder-bay:cove",
+      "label": "the cove",
+      "regionId": "pirate-builder-bay",
+      "x": 9,
+      "yaw": -1.5707963267948966,
+      "z": 0
+    },
+    {
+      "id": "storykeeper-castle:entrance",
+      "label": "the castle doors",
+      "regionId": "storykeeper-castle",
+      "x": -12,
+      "yaw": 1.5707963267948966,
+      "z": 0
+    },
+    {
+      "id": "storykeeper-castle:story-hall",
+      "label": "the story hall",
+      "regionId": "storykeeper-castle",
+      "x": -6,
+      "yaw": 1.5707963267948966,
+      "z": 0
+    },
+    {
+      "id": "storykeeper-castle:gallery",
+      "label": "the Character Gallery",
+      "regionId": "storykeeper-castle",
+      "x": -4.5,
+      "yaw": 0,
+      "z": 8
+    },
+    {
+      "id": "storykeeper-castle:tower",
+      "label": "the Setting Tower",
+      "regionId": "storykeeper-castle",
+      "x": 7.5,
+      "yaw": 0,
+      "z": 7.5
+    },
+    {
+      "id": "storykeeper-castle:library",
+      "label": "the Great Library",
+      "regionId": "storykeeper-castle",
+      "x": 7,
+      "yaw": 1.5707963267948966,
+      "z": -6
+    }
+  ],
+  "discoveries": [
+    {
+      "id": "harbor-tide-pool",
+      "kind": "HIDDEN_OBJECT",
+      "locationSlug": "welcome-harbor",
+      "lockedMessage": "Water glints between the rocks down at the quiet end of the beach.",
+      "requirements": [
+        {
+          "type": "ALWAYS"
+        }
+      ],
+      "revealMessage": "Behind the rocks is a little pool left by the tide. A pale, round shell rests at the bottom, and you can keep it.",
+      "startsQuestId": "the-quiet-places",
+      "title": "A tide pool behind the rocks"
+    },
+    {
+      "id": "harbor-keepers-door",
+      "kind": "LOCKED_DOOR",
+      "locationSlug": "welcome-harbor",
+      "lockedMessage": "You knock, but nobody is home. The door is locked, and the keyhole is shaped like a little piece of driftwood.",
+      "requirements": [
+        {
+          "itemId": "driftwood-key",
+          "type": "ITEM_OWNED"
+        }
+      ],
+      "revealMessage": "The driftwood key turns, and the door swings open. Inside is a tidy room full of lanterns, rope, and one shell that shows every color at once.",
+      "title": "The harbor keeper's door",
+      "worldChange": {
+        "changeKey": "HARBOR_KEEPERS_DOOR_OPENED",
+        "changeType": "CREATE",
+        "locationSlug": "welcome-harbor"
+      }
+    },
+    {
+      "id": "bay-tide-tunnel",
+      "kind": "SECRET_PASSAGE",
+      "locationSlug": "pirate-builder-bay",
+      "lockedMessage": "Something dark and low sits at the back of the cove, on the far side of the broken bridge.",
+      "requirements": [
+        {
+          "changeKey": "BRIDGE_REPAIRED",
+          "type": "WORLD_CHANGE_PRESENT"
+        }
+      ],
+      "revealMessage": "A tunnel runs under the cliff, just tall enough for you. On a nail at the end hangs a key carved out of driftwood.",
+      "title": "A low tunnel under the cliff",
+      "worldChange": {
+        "changeKey": "COVE_TIDE_TUNNEL_FOUND",
+        "changeType": "CREATE",
+        "locationSlug": "pirate-builder-bay"
+      }
+    },
+    {
+      "id": "wonderwild-glow-moss",
+      "kind": "HIDDEN_OBJECT",
+      "locationSlug": "wonderwild-forest",
+      "lockedMessage": "Something under the ferns is giving off a faint green light.",
+      "requirements": [
+        {
+          "type": "ALWAYS"
+        }
+      ],
+      "revealMessage": "Under the ferns is a patch of moss that glows soft green. You scoop a little into a jar. It keeps glowing.",
+      "title": "A patch of glowing moss"
+    },
+    {
+      "id": "wonderwild-glowworm-cave",
+      "kind": "HIDDEN_CAVE",
+      "locationSlug": "wonderwild-forest",
+      "lockedMessage": "A dark cave mouth in the hillside. It is too dark to see anything inside. You would need a light of your own.",
+      "requirements": [
+        {
+          "itemId": "glowing-moss-jar",
+          "type": "ITEM_OWNED"
+        }
+      ],
+      "revealMessage": "You hold up the jar of glowing moss and the whole cave answers. Thousands of tiny glowworms light up the ceiling like stars, and a clear crystal sits by your foot.",
+      "title": "The glowworm cave",
+      "worldChange": {
+        "changeKey": "GLOWWORM_CAVE_FOUND",
+        "changeType": "CREATE",
+        "locationSlug": "wonderwild-forest"
+      }
+    },
+    {
+      "id": "castle-tapestry-stair",
+      "kind": "SECRET_PASSAGE",
+      "locationSlug": "storykeeper-castle",
+      "lockedMessage": "One of the tapestries in the corner is moving, just a little, as if it breathes.",
+      "requirements": [
+        {
+          "type": "ALWAYS"
+        }
+      ],
+      "revealMessage": "Behind the tapestry a narrow stair spirals up to a tiny reading nook. There is a cushion, a window, and one storybook whose last page is still blank.",
+      "title": "A stair behind the tapestry",
+      "worldChange": {
+        "changeKey": "CASTLE_READING_NOOK_FOUND",
+        "changeType": "CREATE",
+        "locationSlug": "storykeeper-castle"
+      }
+    }
+  ],
+  "schemaVersion": 1
+}

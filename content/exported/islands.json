@@ -1,0 +1,143 @@
+{
+  "islands": [
+    {
+      "description": "The island where you started. Pip is building in the bay, Quill is writing in the castle, and the forest is full of questions.",
+      "isHome": true,
+      "pack": {
+        "adventureSlugs": [
+          "repair-the-moonlight-bridge",
+          "three-planks-for-the-bridge",
+          "the-tide-gate-calculation",
+          "the-storykeepers-tale",
+          "buzz-and-the-waggle-dance",
+          "dragon-chapter-1-broken-path",
+          "dragon-chapter-2-whispering-forest",
+          "dragon-chapter-3-dragon-tracks",
+          "dragon-chapter-5-save-the-dragon",
+          "dino-chapter-1-fossil-dig",
+          "dino-chapter-2-footprint-trail",
+          "robot-chapter-1-gather-parts",
+          "robot-chapter-2-build-it-back",
+          "butterfly-chapter-1-quiet-garden",
+          "butterfly-chapter-2-plant-the-flowers",
+          "secret-door-chapter-1-three-clues",
+          "secret-door-chapter-2-pattern-lock"
+        ],
+        "collectibleSetIds": [
+          "harbor-shells"
+        ],
+        "discoveryIds": [
+          "harbor-tide-pool",
+          "harbor-keepers-door",
+          "bay-tide-tunnel",
+          "wonderwild-glow-moss",
+          "wonderwild-glowworm-cave",
+          "castle-tapestry-stair"
+        ],
+        "itemIds": [
+          "spiral-shell",
+          "moon-shell",
+          "rainbow-shell",
+          "singing-shell",
+          "beachcomber-hat",
+          "bridge-builders-hammer",
+          "bee-dance-notebook",
+          "storykeepers-quill",
+          "ember-scale",
+          "friendship-knot",
+          "driftwood-key",
+          "glowing-moss-jar",
+          "glowworm-crystal",
+          "blank-page-storybook",
+          "explorer-backpack",
+          "star-lantern"
+        ],
+        "locationSlugs": [
+          "pirate-builder-bay",
+          "wonderwild-forest",
+          "storykeeper-castle",
+          "dragons-sanctuary",
+          "fossil-ridge-camp",
+          "castle-writing-room",
+          "bolts-workshop"
+        ],
+        "npcIds": [
+          "pirate-pip",
+          "keeper-quill",
+          "bolt",
+          "ember-dragon"
+        ],
+        "questIds": [
+          "repair-the-bridge",
+          "tell-a-story-together",
+          "sort-the-workshop",
+          "the-quiet-places"
+        ],
+        "storySlugs": [
+          "dragon-of-ember-mountain",
+          "dinosaur-expedition",
+          "robot-rescue",
+          "save-the-butterfly-garden",
+          "the-castles-secret-door"
+        ],
+        "version": 1
+      },
+      "slug": "learning-adventure-island",
+      "supportedAgeBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "tagline": "Your home island, with the harbor, the bay, the forest, and the castle.",
+      "title": "Learning Adventure Island"
+    },
+    {
+      "arrival": {
+        "changeKey": "ARRIVED_AT_CREATURE_CARE_COVE",
+        "locationSlug": "cove-care-beach",
+        "text": "The boat slides onto pale sand. Along the beach, someone is counting buckets out loud."
+      },
+      "description": "A curved beach with shallow pools and a row of care pens. Nella the cove keeper looks after sea creatures here until they are strong enough to swim home again.",
+      "pack": {
+        "adventureSlugs": [
+          "breakfast-at-the-cove",
+          "the-morning-care-round",
+          "the-cove-care-plan"
+        ],
+        "collectibleSetIds": [],
+        "discoveryIds": [],
+        "itemIds": [
+          "lantern-shell",
+          "keepers-tally-book",
+          "cove-keepers-apron"
+        ],
+        "locationSlugs": [
+          "cove-care-beach",
+          "lantern-tide-pools"
+        ],
+        "npcIds": [],
+        "questIds": [
+          "helping-at-the-cove"
+        ],
+        "storySlugs": [],
+        "version": 1
+      },
+      "slug": "creature-care-cove",
+      "supportedAgeBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "tagline": "A small island where rescued sea creatures rest before they go home.",
+      "title": "Creature Care Cove",
+      "travelRequirement": {
+        "anyOfChangeKeys": [
+          "BRIDGE_REPAIRED",
+          "TIDE_GATE_SET"
+        ],
+        "lockedHint": "The little boat at the end of the dock is not ready yet. Help Pip at Pirate Builder Bay, and he will get it sailing."
+      }
+    }
+  ],
+  "schemaVersion": 1
+}

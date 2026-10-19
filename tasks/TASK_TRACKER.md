@@ -37,7 +37,7 @@ before touching AWS.
 - [x] **LAI-0301** Users domain models (depends: 0204). DONE locally: `ParentAccount` (user model) and `ChildProfile` (ADR-022). CompanionProfile and ParentConsent split out to 0307 and 0308
 - [ ] **LAI-0307** CompanionProfile model (split from 0301) (depends: 0301)
 - [ ] **LAI-0308** ParentConsent privacy design, then model (split from 0301; never implemented in Amplify). REQUIRED GATE G9 before the migrated platform handles live children's data (depends: 0301)
-- [ ] **LAI-0302** Content export to versioned JSON (depends: 0201)
+- [x] **LAI-0302** Content export to versioned JSON (depends: 0201). DONE locally: 13 files under `content/`, schema v1, 38 tests. Spatial data and logic are not exported (see DATA_MODEL.md)
 - [ ] **LAI-0303** Golden vectors (depends: 0302)
 - [ ] **LAI-0304** Catalog models and loader (depends: 0302, 0301)
 - [ ] **LAI-0305** Progress models (depends: 0301, 0304)

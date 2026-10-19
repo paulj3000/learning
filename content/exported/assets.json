@@ -1,0 +1,496 @@
+{
+  "assets": [
+    {
+      "clips": [],
+      "id": "ground-tile",
+      "kind": "kit-piece",
+      "url": "/models/ground-tile.gltf"
+    },
+    {
+      "clips": [],
+      "id": "rock",
+      "kind": "kit-piece",
+      "url": "/models/rock.gltf"
+    },
+    {
+      "clips": [],
+      "id": "wall",
+      "kind": "kit-piece",
+      "url": "/models/wall.gltf"
+    },
+    {
+      "clips": [],
+      "id": "roof",
+      "kind": "kit-piece",
+      "url": "/models/roof.gltf"
+    },
+    {
+      "clips": [],
+      "id": "door",
+      "kind": "kit-piece",
+      "url": "/models/door.gltf"
+    },
+    {
+      "clips": [],
+      "id": "fence",
+      "kind": "kit-piece",
+      "url": "/models/fence.gltf"
+    },
+    {
+      "clips": [],
+      "id": "path",
+      "kind": "kit-piece",
+      "url": "/models/path.gltf"
+    },
+    {
+      "clips": [],
+      "id": "bridge-plank",
+      "kind": "kit-piece",
+      "url": "/models/bridge-plank.gltf"
+    },
+    {
+      "clips": [],
+      "id": "bridge-plank-repaired",
+      "kind": "kit-piece",
+      "url": "/models/bridge-plank-repaired.gltf"
+    },
+    {
+      "clips": [],
+      "id": "foliage-tree",
+      "kind": "kit-piece",
+      "lod": {
+        "distanceMeters": 14,
+        "lowDetailId": "foliage-tree-lod1"
+      },
+      "url": "/models/foliage-tree.gltf"
+    },
+    {
+      "clips": [],
+      "id": "foliage-tree-lod1",
+      "kind": "kit-piece",
+      "url": "/models/foliage-tree-lod1.gltf"
+    },
+    {
+      "clips": [],
+      "id": "foliage-bush",
+      "kind": "kit-piece",
+      "url": "/models/foliage-bush.gltf"
+    },
+    {
+      "clips": [
+        "Idle",
+        "Talk",
+        "Wave"
+      ],
+      "id": "npc-pip",
+      "kind": "character",
+      "url": "/models/npc-pip.gltf"
+    },
+    {
+      "clips": [
+        "Idle"
+      ],
+      "id": "companion-chatty",
+      "kind": "character",
+      "url": "/models/companion-chatty.gltf"
+    },
+    {
+      "clips": [],
+      "id": "rope-coil",
+      "kind": "prop",
+      "url": "/models/rope-coil.gltf"
+    },
+    {
+      "clips": [],
+      "id": "toolbox",
+      "kind": "prop",
+      "url": "/models/toolbox.gltf"
+    },
+    {
+      "clips": [
+        "Open"
+      ],
+      "id": "treasure-chest",
+      "kind": "prop",
+      "url": "/models/treasure-chest.gltf"
+    },
+    {
+      "clips": [],
+      "id": "signpost",
+      "kind": "prop",
+      "url": "/models/signpost.gltf"
+    },
+    {
+      "clips": [
+        "Idle"
+      ],
+      "id": "collectible-gem",
+      "kind": "collectible",
+      "url": "/models/collectible-gem.gltf"
+    },
+    {
+      "clips": [],
+      "id": "ground-tile-stone",
+      "kind": "kit-piece",
+      "url": "/models/ground-tile-stone.gltf"
+    },
+    {
+      "clips": [],
+      "id": "ceiling-tile",
+      "kind": "kit-piece",
+      "url": "/models/ceiling-tile.gltf"
+    },
+    {
+      "clips": [],
+      "id": "wall-stone",
+      "kind": "kit-piece",
+      "url": "/models/wall-stone.gltf"
+    },
+    {
+      "clips": [],
+      "id": "carpet",
+      "kind": "kit-piece",
+      "url": "/models/carpet.gltf"
+    },
+    {
+      "clips": [],
+      "id": "archway",
+      "kind": "kit-piece",
+      "url": "/models/archway.gltf"
+    },
+    {
+      "clips": [],
+      "id": "bookshelf",
+      "kind": "kit-piece",
+      "url": "/models/bookshelf.gltf"
+    },
+    {
+      "clips": [],
+      "id": "portrait-frame",
+      "kind": "kit-piece",
+      "url": "/models/portrait-frame.gltf"
+    },
+    {
+      "clips": [],
+      "id": "tapestry",
+      "kind": "kit-piece",
+      "url": "/models/tapestry.gltf"
+    },
+    {
+      "clips": [],
+      "id": "cushion",
+      "kind": "kit-piece",
+      "url": "/models/cushion.gltf"
+    },
+    {
+      "clips": [],
+      "id": "star-carving",
+      "kind": "kit-piece",
+      "url": "/models/star-carving.gltf"
+    },
+    {
+      "clips": [],
+      "id": "moon-carving",
+      "kind": "kit-piece",
+      "url": "/models/moon-carving.gltf"
+    },
+    {
+      "clips": [],
+      "id": "wall-sconce",
+      "kind": "kit-piece",
+      "url": "/models/wall-sconce.gltf"
+    },
+    {
+      "clips": [],
+      "id": "wall-sconce-lit",
+      "kind": "kit-piece",
+      "url": "/models/wall-sconce-lit.gltf"
+    },
+    {
+      "clips": [],
+      "id": "window-frame",
+      "kind": "kit-piece",
+      "url": "/models/window-frame.gltf"
+    },
+    {
+      "clips": [],
+      "id": "bookshelf-ajar",
+      "kind": "kit-piece",
+      "url": "/models/bookshelf-ajar.gltf"
+    },
+    {
+      "clips": [],
+      "id": "lectern",
+      "kind": "prop",
+      "url": "/models/lectern.gltf"
+    },
+    {
+      "clips": [],
+      "id": "binding-table",
+      "kind": "prop",
+      "url": "/models/binding-table.gltf"
+    },
+    {
+      "clips": [],
+      "id": "story-plate-problem",
+      "kind": "prop",
+      "url": "/models/story-plate-problem.gltf"
+    },
+    {
+      "clips": [],
+      "id": "story-plate-choice",
+      "kind": "prop",
+      "url": "/models/story-plate-choice.gltf"
+    },
+    {
+      "clips": [],
+      "id": "story-plate-ending",
+      "kind": "prop",
+      "url": "/models/story-plate-ending.gltf"
+    },
+    {
+      "clips": [],
+      "id": "reading-table",
+      "kind": "prop",
+      "url": "/models/reading-table.gltf"
+    },
+    {
+      "clips": [],
+      "id": "costume-rack",
+      "kind": "prop",
+      "url": "/models/costume-rack.gltf"
+    },
+    {
+      "clips": [],
+      "id": "clue-diary",
+      "kind": "prop",
+      "url": "/models/clue-diary.gltf"
+    },
+    {
+      "clips": [],
+      "id": "clue-map",
+      "kind": "prop",
+      "url": "/models/clue-map.gltf"
+    },
+    {
+      "clips": [],
+      "id": "clue-note",
+      "kind": "prop",
+      "url": "/models/clue-note.gltf"
+    },
+    {
+      "clips": [],
+      "id": "rod-rack",
+      "kind": "prop",
+      "url": "/models/rod-rack.gltf"
+    },
+    {
+      "clips": [],
+      "id": "rod-silver",
+      "kind": "prop",
+      "url": "/models/rod-silver.gltf"
+    },
+    {
+      "clips": [],
+      "id": "rod-iron",
+      "kind": "prop",
+      "url": "/models/rod-iron.gltf"
+    },
+    {
+      "clips": [],
+      "id": "rod-brass",
+      "kind": "prop",
+      "url": "/models/rod-brass.gltf"
+    },
+    {
+      "clips": [],
+      "id": "writing-desk",
+      "kind": "prop",
+      "url": "/models/writing-desk.gltf"
+    },
+    {
+      "clips": [],
+      "id": "round-window",
+      "kind": "prop",
+      "url": "/models/round-window.gltf"
+    },
+    {
+      "clips": [],
+      "id": "portrait-puppy",
+      "kind": "prop",
+      "url": "/models/portrait-puppy.gltf"
+    },
+    {
+      "clips": [],
+      "id": "portrait-puppy-lit",
+      "kind": "prop",
+      "url": "/models/portrait-puppy-lit.gltf"
+    },
+    {
+      "clips": [],
+      "id": "portrait-dragon",
+      "kind": "prop",
+      "url": "/models/portrait-dragon.gltf"
+    },
+    {
+      "clips": [],
+      "id": "portrait-dragon-lit",
+      "kind": "prop",
+      "url": "/models/portrait-dragon-lit.gltf"
+    },
+    {
+      "clips": [],
+      "id": "portrait-fox",
+      "kind": "prop",
+      "url": "/models/portrait-fox.gltf"
+    },
+    {
+      "clips": [],
+      "id": "portrait-fox-lit",
+      "kind": "prop",
+      "url": "/models/portrait-fox-lit.gltf"
+    },
+    {
+      "clips": [],
+      "id": "window-view-island",
+      "kind": "prop",
+      "url": "/models/window-view-island.gltf"
+    },
+    {
+      "clips": [],
+      "id": "window-view-island-lit",
+      "kind": "prop",
+      "url": "/models/window-view-island-lit.gltf"
+    },
+    {
+      "clips": [],
+      "id": "window-view-mountain",
+      "kind": "prop",
+      "url": "/models/window-view-mountain.gltf"
+    },
+    {
+      "clips": [],
+      "id": "window-view-mountain-lit",
+      "kind": "prop",
+      "url": "/models/window-view-mountain-lit.gltf"
+    },
+    {
+      "clips": [],
+      "id": "window-view-cave",
+      "kind": "prop",
+      "url": "/models/window-view-cave.gltf"
+    },
+    {
+      "clips": [],
+      "id": "window-view-cave-lit",
+      "kind": "prop",
+      "url": "/models/window-view-cave-lit.gltf"
+    },
+    {
+      "clips": [],
+      "id": "hearth",
+      "kind": "prop",
+      "url": "/models/hearth.gltf"
+    },
+    {
+      "clips": [],
+      "id": "hearth-lit",
+      "kind": "prop",
+      "url": "/models/hearth-lit.gltf"
+    },
+    {
+      "clips": [],
+      "id": "shelf-slot-empty",
+      "kind": "prop",
+      "url": "/models/shelf-slot-empty.gltf"
+    },
+    {
+      "clips": [],
+      "id": "story-book-shelved",
+      "kind": "prop",
+      "url": "/models/story-book-shelved.gltf"
+    },
+    {
+      "clips": [],
+      "id": "carving-worn",
+      "kind": "prop",
+      "url": "/models/carving-worn.gltf"
+    },
+    {
+      "clips": [],
+      "id": "carving-worn-revealed",
+      "kind": "prop",
+      "url": "/models/carving-worn-revealed.gltf"
+    },
+    {
+      "clips": [],
+      "id": "secret-door",
+      "kind": "prop",
+      "url": "/models/secret-door.gltf"
+    },
+    {
+      "clips": [],
+      "id": "easel",
+      "kind": "prop",
+      "url": "/models/easel.gltf"
+    },
+    {
+      "clips": [],
+      "id": "canvas-hero-puppy",
+      "kind": "prop",
+      "url": "/models/canvas-hero-puppy.gltf"
+    },
+    {
+      "clips": [],
+      "id": "canvas-hero-dragon",
+      "kind": "prop",
+      "url": "/models/canvas-hero-dragon.gltf"
+    },
+    {
+      "clips": [],
+      "id": "canvas-hero-fox",
+      "kind": "prop",
+      "url": "/models/canvas-hero-fox.gltf"
+    },
+    {
+      "clips": [],
+      "id": "canvas-setting-island",
+      "kind": "prop",
+      "url": "/models/canvas-setting-island.gltf"
+    },
+    {
+      "clips": [],
+      "id": "canvas-setting-mountain",
+      "kind": "prop",
+      "url": "/models/canvas-setting-mountain.gltf"
+    },
+    {
+      "clips": [],
+      "id": "canvas-setting-cave",
+      "kind": "prop",
+      "url": "/models/canvas-setting-cave.gltf"
+    },
+    {
+      "clips": [
+        "Open"
+      ],
+      "id": "secret-door-ajar",
+      "kind": "prop",
+      "url": "/models/secret-door-ajar.gltf"
+    },
+    {
+      "clips": [
+        "Idle",
+        "Talk",
+        "Wave",
+        "Point",
+        "Celebrate",
+        "ReactConcerned"
+      ],
+      "id": "npc-quill",
+      "kind": "character",
+      "url": "/models/npc-quill.gltf"
+    }
+  ],
+  "schemaVersion": 1
+}

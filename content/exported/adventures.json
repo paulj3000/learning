@@ -1,0 +1,4555 @@
+{
+  "adventures": [
+    {
+      "ageBands": [
+        "PATHFINDER"
+      ],
+      "entryStepId": "inspect-bridge",
+      "locationSlug": "pirate-builder-bay",
+      "slug": "repair-the-moonlight-bridge",
+      "steps": [
+        {
+          "fallback": {
+            "text": "The bridge needs repairing before the moon rises."
+          },
+          "id": "inspect-bridge",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Pirate Pip",
+            "text": "Ahoy! The bridge into the bay has planks missing, and the moon rises soon. Will you help me repair it?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "count-planks",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "There are 4 missing planks."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You can do this! Let's count the missing planks together.",
+              "Look closely at the gaps in the bridge deck.",
+              "Try touching each gap and counting out loud: one, two, three...",
+              "There are gaps at the start, the middle, and two more near the end.",
+              "There are 4 missing planks. Type 4 to keep going."
+            ]
+          },
+          "id": "count-planks",
+          "objectiveIds": [
+            "counting-sets"
+          ],
+          "presentation": {
+            "correctValue": 4,
+            "kind": "number-input",
+            "prompt": "How many planks are missing from the bridge?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "choose-bundle",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "count-planks",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "The bundle with 2 planks and 2 planks makes 4 planks."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You've got this! Which bundle adds up to what Pirate Pip needs?",
+              "Pirate Pip needs 4 planks in total.",
+              "Add the two numbers in each bundle together.",
+              "2 planks plus 2 planks makes 4 planks.",
+              "The bundle with 2 planks and 2 planks is the one you need."
+            ]
+          },
+          "id": "choose-bundle",
+          "objectiveIds": [
+            "addition-within-ten"
+          ],
+          "presentation": {
+            "correctOptionId": "bundle-2-2",
+            "kind": "choice",
+            "options": [
+              {
+                "groups": [
+                  2,
+                  2
+                ],
+                "id": "bundle-2-2",
+                "label": "2 planks + 2 planks"
+              },
+              {
+                "groups": [
+                  1,
+                  2
+                ],
+                "id": "bundle-1-2",
+                "label": "1 plank + 2 planks"
+              },
+              {
+                "groups": [
+                  3,
+                  3
+                ],
+                "id": "bundle-3-3",
+                "label": "3 planks + 3 planks"
+              }
+            ],
+            "prompt": "Which bundle of planks adds up to what Pirate Pip needs?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "order-planks",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "choose-bundle",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "Shortest, then medium, then longest."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Nice work so far! Let's put these planks in order.",
+              "Look at how long each plank is.",
+              "Find the shortest plank first, then work up to the longest.",
+              "The short plank goes first, then the medium plank.",
+              "Shortest, then medium, then longest: that is the order."
+            ]
+          },
+          "id": "order-planks",
+          "objectiveIds": [
+            "comparing-lengths"
+          ],
+          "presentation": {
+            "correctOrder": [
+              "short-plank",
+              "medium-plank",
+              "long-plank"
+            ],
+            "items": [
+              {
+                "id": "medium-plank",
+                "label": "Medium plank"
+              },
+              {
+                "id": "long-plank",
+                "label": "Long plank"
+              },
+              {
+                "id": "short-plank",
+                "label": "Short plank"
+              }
+            ],
+            "kind": "ordering",
+            "prompt": "Put the planks in order from shortest to longest."
+          },
+          "transitions": [
+            {
+              "nextStepId": "instruction-one",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "order-planks",
+              "when": "incorrect"
+            }
+          ],
+          "type": "ORDERING"
+        },
+        {
+          "fallback": {
+            "text": "First, hold the plank steady against the gap."
+          },
+          "id": "instruction-one",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Pirate Pip",
+            "text": "First, hold the plank steady against the gap."
+          },
+          "transitions": [
+            {
+              "nextStepId": "instruction-two",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "Next, line up the nail holes with the beam."
+          },
+          "id": "instruction-two",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Pirate Pip",
+            "text": "Next, line up the nail holes with the beam."
+          },
+          "transitions": [
+            {
+              "nextStepId": "instruction-three",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "Last, hammer the nail in firmly."
+          },
+          "id": "instruction-three",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Pirate Pip",
+            "text": "Last, hammer the nail in firmly. Now, where does the final plank go?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "place-final-plank",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The final plank goes in the middle gap."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Almost there! One more plank to place.",
+              "Look for the last empty gap in the bridge.",
+              "Pirate Pip pointed at the middle of the bridge earlier.",
+              "The gap right in the middle is still empty.",
+              "Place the final plank in the middle gap."
+            ]
+          },
+          "id": "place-final-plank",
+          "objectiveIds": [
+            "following-instructions"
+          ],
+          "presentation": {
+            "correctOptionId": "middle-gap",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "left-gap",
+                "label": "The left gap"
+              },
+              {
+                "id": "middle-gap",
+                "label": "The middle gap"
+              },
+              {
+                "id": "right-gap",
+                "label": "The right gap"
+              }
+            ],
+            "prompt": "Where does the final plank go?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "bridge-repaired",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "place-final-plank",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "The Moonlight Bridge is repaired!"
+          },
+          "id": "bridge-repaired",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "BRIDGE_REPAIRED",
+              "changeType": "REPAIR",
+              "locationSlug": "pirate-builder-bay"
+            },
+            "text": "The last plank slides into place. The Moonlight Bridge is repaired!"
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "You repaired the Moonlight Bridge!"
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "You repaired the Moonlight Bridge! The path across Pirate Builder Bay is open."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "Repair the Moonlight Bridge",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "SPROUT"
+      ],
+      "entryStepId": "pip-needs-help",
+      "locationSlug": "pirate-builder-bay",
+      "slug": "three-planks-for-the-bridge",
+      "steps": [
+        {
+          "fallback": {
+            "text": "Pip needs help fixing the bridge."
+          },
+          "id": "pip-needs-help",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "Pip is fixing the bridge. Some planks are missing. Let us help him find them!"
+          },
+          "transitions": [
+            {
+              "nextStepId": "count-the-gaps",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "There are three holes in the bridge."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Let us count the holes together.",
+              "Point at each hole in the bridge.",
+              "Count them out loud: one, two...",
+              "There is one more hole after two.",
+              "There are three holes. Tap \"Three holes\"."
+            ]
+          },
+          "id": "count-the-gaps",
+          "objectiveIds": [
+            "counting-sets"
+          ],
+          "presentation": {
+            "correctOptionId": "three",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "two",
+                "label": "Two holes"
+              },
+              {
+                "id": "three",
+                "label": "Three holes"
+              },
+              {
+                "id": "five",
+                "label": "Five holes"
+              }
+            ],
+            "prompt": "Look at the bridge. How many holes need a new plank?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "which-plank-fits",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "count-the-gaps",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "A flat wooden plank is the right shape to walk on."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Good thinking! Feet need something flat.",
+              "A round barrel would roll away.",
+              "Rope is too bendy to stand on.",
+              "Look for the flat piece of wood.",
+              "It is the plank. Tap \"A flat wooden plank\"."
+            ]
+          },
+          "id": "which-plank-fits",
+          "objectiveIds": [
+            "classification"
+          ],
+          "presentation": {
+            "correctOptionId": "plank",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "plank",
+                "label": "A flat wooden plank"
+              },
+              {
+                "id": "rope",
+                "label": "A coil of rope"
+              },
+              {
+                "id": "barrel",
+                "label": "A round barrel"
+              }
+            ],
+            "prompt": "Pip needs something flat to walk on. Which one should we give him?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "why-it-fits",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "which-plank-fits",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "The bridge is mended, so we can walk across it."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "The holes are all filled in now.",
+              "The bridge is not broken any more.",
+              "What do you do on a finished bridge?",
+              "You use your feet to go across it.",
+              "We can walk across! Tap \"We can walk across\"."
+            ]
+          },
+          "id": "why-it-fits",
+          "objectiveIds": [
+            "cause-and-effect"
+          ],
+          "presentation": {
+            "correctOptionId": "cross",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "cross",
+                "label": "We can walk across"
+              },
+              {
+                "id": "swim",
+                "label": "We have to swim"
+              },
+              {
+                "id": "wait",
+                "label": "We wait for rain"
+              }
+            ],
+            "prompt": "We laid the three planks down. What happens now?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "pip-says-thank-you",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "why-it-fits",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "Pip waves his hat to say thank you."
+          },
+          "id": "pip-says-thank-you",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "Pip waves his hat at you. Three planks, three holes, one mended bridge. You did that!"
+          },
+          "transitions": [
+            {
+              "nextStepId": "bridge-mended",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The bridge is mended."
+          },
+          "id": "bridge-mended",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "BRIDGE_REPAIRED",
+              "changeType": "REPAIR",
+              "locationSlug": "pirate-builder-bay"
+            },
+            "text": "The bridge is whole again, and the lanterns along it glow in the moonlight."
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        }
+      ],
+      "title": "Three Planks for the Bridge",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "EXPLORER"
+      ],
+      "entryStepId": "pip-has-a-problem",
+      "locationSlug": "pirate-builder-bay",
+      "slug": "the-tide-gate-calculation",
+      "steps": [
+        {
+          "fallback": {
+            "text": "Pip needs help setting the tide gate before tonight."
+          },
+          "id": "pip-has-a-problem",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Pirate Pip",
+            "text": "The bridge stands, but the spring tide comes tonight. If the water rises above the deck, my new planks float away. Help me work out how high to set the tide gate."
+          },
+          "transitions": [
+            {
+              "nextStepId": "read-the-tide-board",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The water will reach 125 centimetres."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Take your time. Two measurements are given, and you need their total.",
+              "Start from low water and add the rise on top of it.",
+              "Set it out as 40 + 85, then add the tens and the ones separately.",
+              "40 + 80 is 120, and there are 5 more centimetres to add.",
+              "The water reaches 125 centimetres. Type 125 to keep going."
+            ]
+          },
+          "id": "read-the-tide-board",
+          "objectiveIds": [
+            "measurement"
+          ],
+          "presentation": {
+            "correctValue": 125,
+            "kind": "number-input",
+            "prompt": "The harbour board reads: low water 40 centimetres, and tonight the tide rises 85 centimetres above that. How high will the water reach, in centimetres?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "how-much-clearance",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "read-the-tide-board",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "There are 15 centimetres of clearance."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Good. Now compare the deck height with the water height you found.",
+              "Clearance is the gap between them, so this is a subtraction.",
+              "Set it out as 140 - 125.",
+              "125 plus 5 is 130, and 10 more makes 140.",
+              "The clearance is 15 centimetres. Type 15 to keep going."
+            ]
+          },
+          "id": "how-much-clearance",
+          "objectiveIds": [
+            "comparing-lengths"
+          ],
+          "presentation": {
+            "correctValue": 15,
+            "kind": "number-input",
+            "prompt": "The bridge deck sits at 140 centimetres. How many centimetres of clearance are left above the water?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "predict-the-risk",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "how-much-clearance",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "A 20 centimetre storm surge is more than 15 centimetres of clearance, so the water would come over the deck."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Compare the two numbers you have: the clearance, and the storm rise.",
+              "The clearance is 15 centimetres. The storm adds 20.",
+              "Is 20 bigger or smaller than 15?",
+              "20 is bigger than 15, so the water would pass the deck height.",
+              "The water would come over the deck. Choose that answer."
+            ]
+          },
+          "id": "predict-the-risk",
+          "objectiveIds": [
+            "cause-and-effect"
+          ],
+          "presentation": {
+            "correctOptionId": "over",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "over",
+                "label": "The water would come over the deck"
+              },
+              {
+                "id": "just-under",
+                "label": "The water would stop just under the deck"
+              },
+              {
+                "id": "no-change",
+                "label": "The storm would make no difference"
+              }
+            ],
+            "prompt": "A storm would push the water 20 centimetres higher than tonight’s tide. With 15 centimetres of clearance, what should Pip expect if a storm arrives?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "choose-the-gate-height",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "predict-the-risk",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "The gate should be set at 150 centimetres."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Read the rule again: at least 5 centimetres above the highest water.",
+              "The highest water he expects is 145 centimetres.",
+              "So the gate needs to be at 145 + 5 or higher.",
+              "145 + 5 is 150, so 150 centimetres is the lowest setting that follows the rule.",
+              "The answer is 150 centimetres. Choose that setting."
+            ]
+          },
+          "id": "choose-the-gate-height",
+          "objectiveIds": [
+            "following-instructions"
+          ],
+          "presentation": {
+            "correctOptionId": "one-fifty",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "one-forty",
+                "label": "140 centimetres"
+              },
+              {
+                "id": "one-fifty",
+                "label": "150 centimetres"
+              },
+              {
+                "id": "one-thirty",
+                "label": "130 centimetres"
+              }
+            ],
+            "prompt": "Pip’s rule is to set the gate at least 5 centimetres above the highest water he expects. The highest he expects is a storm tide at 145 centimetres. Which setting follows his rule?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "pip-sets-the-gate",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "choose-the-gate-height",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "Pip will set the tide gate tonight."
+          },
+          "id": "pip-sets-the-gate",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Pirate Pip",
+            "text": "You worked that out properly, with numbers instead of guessing. I will set the gate tonight and sleep easy."
+          },
+          "transitions": [
+            {
+              "nextStepId": "tide-gate-set",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The tide gate is set."
+          },
+          "id": "tide-gate-set",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "TIDE_GATE_SET",
+              "changeType": "CREATE",
+              "locationSlug": "pirate-builder-bay"
+            },
+            "text": "A tall tide gate now stands at the mouth of the bay, its measuring post painted in bright bands."
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        }
+      ],
+      "title": "The Tide Gate Calculation",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "PATHFINDER"
+      ],
+      "entryStepId": "meet-keeper-quill",
+      "locationSlug": "storykeeper-castle",
+      "slug": "the-storykeepers-tale",
+      "steps": [
+        {
+          "fallback": {
+            "text": "Keeper Quill needs help telling a brand new story."
+          },
+          "id": "meet-keeper-quill",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Keeper Quill",
+            "text": "Welcome to the castle library! I keep all the island stories here, but today’s page is empty. Will you help me tell a brand new tale?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "choose-hero",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "A brave hero is ready for an adventure."
+          },
+          "id": "choose-hero",
+          "objectiveIds": [
+            "creative-storytelling"
+          ],
+          "presentation": {
+            "kind": "creative-choice",
+            "options": [
+              {
+                "id": "hero-puppy",
+                "label": "A brave puppy"
+              },
+              {
+                "id": "hero-dragon",
+                "label": "A curious dragon"
+              },
+              {
+                "id": "hero-fox",
+                "label": "A clever fox"
+              }
+            ],
+            "prompt": "Who should be the hero of today's story?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "choose-setting",
+              "when": "always"
+            }
+          ],
+          "type": "CREATIVE_CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "The story takes place somewhere new and exciting."
+          },
+          "id": "choose-setting",
+          "objectiveIds": [
+            "creative-storytelling"
+          ],
+          "presentation": {
+            "kind": "creative-choice",
+            "options": [
+              {
+                "id": "setting-island",
+                "label": "A floating island"
+              },
+              {
+                "id": "setting-mountain",
+                "label": "A snowy mountain"
+              },
+              {
+                "id": "setting-cave",
+                "label": "A hidden glowing cave"
+              }
+            ],
+            "prompt": "Where does the story take place?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "keeper-explains-rules",
+              "when": "always"
+            }
+          ],
+          "type": "CREATIVE_CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "Every good story needs a hero, a problem, and a happy ending."
+          },
+          "id": "keeper-explains-rules",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Keeper Quill",
+            "text": "Every good story needs three things: a hero, a problem to solve, and a happy ending. Let’s see if you remember!"
+          },
+          "transitions": [
+            {
+              "nextStepId": "comprehension-check",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "Every good story needs a hero, a problem, and a happy ending."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You've got this! What did Keeper Quill say every good story needs?",
+              "Think back to what Keeper Quill just told you.",
+              "Keeper Quill named three things a story needs.",
+              "Keeper Quill said: a hero, a problem, and a happy ending.",
+              "The answer is \"A hero, a problem, and a happy ending.\""
+            ]
+          },
+          "id": "comprehension-check",
+          "objectiveIds": [
+            "reading-comprehension"
+          ],
+          "presentation": {
+            "correctOptionId": "opt-three-things",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "opt-three-things",
+                "label": "A hero, a problem, and a happy ending"
+              },
+              {
+                "id": "opt-treasure",
+                "label": "A hidden treasure map"
+              },
+              {
+                "id": "opt-song",
+                "label": "A magical song"
+              }
+            ],
+            "prompt": "What did Keeper Quill say every good story needs?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "order-the-story",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "comprehension-check",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "First the problem, then the choice, then the happy ending."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Nice work so far! Let's put the story beats in order.",
+              "Think about what has to happen first in a story.",
+              "A story starts with a problem, then a choice, then an ending.",
+              "The problem comes first, then the brave choice.",
+              "The order is: the problem, the choice, then the happy ending."
+            ]
+          },
+          "id": "order-the-story",
+          "objectiveIds": [
+            "sequencing"
+          ],
+          "presentation": {
+            "correctOrder": [
+              "beat-problem",
+              "beat-choice",
+              "beat-ending"
+            ],
+            "items": [
+              {
+                "id": "beat-choice",
+                "label": "The hero makes a brave choice"
+              },
+              {
+                "id": "beat-ending",
+                "label": "The story reaches a happy ending"
+              },
+              {
+                "id": "beat-problem",
+                "label": "The hero finds a problem"
+              }
+            ],
+            "kind": "ordering",
+            "prompt": "Put these story beats in the right order."
+          },
+          "transitions": [
+            {
+              "nextStepId": "story-reflection",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "order-the-story",
+              "when": "incorrect"
+            }
+          ],
+          "type": "ORDERING"
+        },
+        {
+          "fallback": {
+            "text": "Picture your story before it is bound into a book."
+          },
+          "id": "story-reflection",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "reflection",
+            "prompt": "Before Keeper Quill binds your tale, take a moment to picture it: your hero, the setting, and how it ends."
+          },
+          "transitions": [
+            {
+              "nextStepId": "story-written",
+              "when": "always"
+            }
+          ],
+          "type": "REFLECTION"
+        },
+        {
+          "fallback": {
+            "text": "Your story is bound into a brand new book!"
+          },
+          "id": "story-written",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "FIRST_STORY_TOLD",
+              "changeType": "STORY_CREATED",
+              "locationSlug": "storykeeper-castle"
+            },
+            "text": "Keeper Quill binds your tale into a brand new book for the castle library!"
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "You told a brand new story together!"
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "You and Keeper Quill told a brand new story together! It now has a home in the castle library."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "The Storykeeper's Tale",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "PATHFINDER"
+      ],
+      "entryStepId": "wonder-wall",
+      "locationSlug": "wonderwild-forest",
+      "slug": "buzz-and-the-waggle-dance",
+      "steps": [
+        {
+          "fallback": {
+            "text": "Today's question is: why do bees dance?"
+          },
+          "id": "wonder-wall",
+          "objectiveIds": [
+            "curious-questioning"
+          ],
+          "presentation": {
+            "correctOptionId": "wonder-bees",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "wonder-bees",
+                "label": "Why do bees dance?"
+              },
+              {
+                "id": "wonder-seeds",
+                "label": "How do seeds travel?"
+              },
+              {
+                "id": "wonder-sky",
+                "label": "Why is the sky blue?"
+              },
+              {
+                "id": "wonder-butterfly",
+                "label": "How does a caterpillar become a butterfly?"
+              }
+            ],
+            "prompt": "The Wonder Wall is covered in curious questions. What are you curious about today?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "shrink-into-hive",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "wonder-wall-fallback",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "Let's explore why bees dance today."
+          },
+          "id": "wonder-wall-fallback",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "That is a wonderful question! That part of the forest is still growing, so let’s explore why bees dance today instead."
+          },
+          "transitions": [
+            {
+              "nextStepId": "shrink-into-hive",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "Island magic shrinks you down to the door of a buzzing beehive."
+          },
+          "id": "shrink-into-hive",
+          "objectiveIds": [],
+          "presentation": {
+            "aiNarrated": true,
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "Hold on tight! A little island magic shrinks you down, down, down, until you are standing right at the door of a buzzing beehive."
+          },
+          "transitions": [
+            {
+              "nextStepId": "meet-buzz",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "Buzz is wiggling back and forth while the other bees watch."
+          },
+          "id": "meet-buzz",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "This is Buzz! She just flew back from a flower patch, and now she is wiggling back and forth on the honeycomb while her sisters watch closely."
+          },
+          "transitions": [
+            {
+              "nextStepId": "observe-the-dance",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "A long waggle means the flowers are far away from the hive."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You're a great observer! What does a long waggle tell the other bees?",
+              "Think about how far Buzz just flew to reach the flowers.",
+              "The longer Buzz dances, the more she has to tell the other bees.",
+              "A long waggle means a long trip: the flowers are far from the hive.",
+              "The answer is \"The flowers are far away.\""
+            ]
+          },
+          "id": "observe-the-dance",
+          "objectiveIds": [
+            "cause-and-effect"
+          ],
+          "presentation": {
+            "correctOptionId": "opt-far-away",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "opt-far-away",
+                "label": "The flowers are far away"
+              },
+              {
+                "id": "opt-next-door",
+                "label": "The flowers are right next to the hive"
+              },
+              {
+                "id": "opt-bedtime",
+                "label": "It is time to sleep"
+              }
+            ],
+            "prompt": "Buzz waggles for a long time before turning around. What is she telling the other bees?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "count-the-waggles",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "observe-the-dance",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "Buzz waggled 5 times before turning around."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Watch Buzz closely and count each waggle.",
+              "Try counting out loud as she moves.",
+              "She waggles more than three times, but fewer than seven.",
+              "Count carefully: 1, 2, 3, 4...",
+              "Buzz waggled 5 times."
+            ]
+          },
+          "id": "count-the-waggles",
+          "objectiveIds": [
+            "observation"
+          ],
+          "presentation": {
+            "correctValue": 5,
+            "kind": "number-input",
+            "prompt": "Watch closely. How many times does Buzz waggle her body before she turns around?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "science-comprehension-check",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "count-the-waggles",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "Buzz dances to tell the other bees where to find flowers."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You've got this! Why did Buzz do her waggle dance?",
+              "Think about what Buzz just showed the other bees.",
+              "Buzz found something the whole hive needs to know about.",
+              "Buzz is telling the other bees exactly where to find flowers.",
+              "The answer is \"To tell the other bees where to find flowers.\""
+            ]
+          },
+          "id": "science-comprehension-check",
+          "objectiveIds": [
+            "science-comprehension"
+          ],
+          "presentation": {
+            "correctOptionId": "opt-tell-flowers",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "opt-tell-flowers",
+                "label": "To tell the other bees where to find flowers"
+              },
+              {
+                "id": "opt-warm-wings",
+                "label": "To warm up her wings"
+              },
+              {
+                "id": "opt-goodnight",
+                "label": "To say goodnight"
+              }
+            ],
+            "prompt": "Why does Buzz do a waggle dance?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "wonder-reflection",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "science-comprehension-check",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "Think of one more question you are curious about in nature."
+          },
+          "id": "wonder-reflection",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "reflection",
+            "prompt": "Buzz is proud to share her hive with you. Before you head back, think of one more question you are curious about in nature."
+          },
+          "transitions": [
+            {
+              "nextStepId": "forest-changes",
+              "when": "always"
+            }
+          ],
+          "type": "REFLECTION"
+        },
+        {
+          "fallback": {
+            "text": "The Wonder Wall lights up and new flowers bloom in the forest!"
+          },
+          "id": "forest-changes",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "WAGGLE_DANCE_DISCOVERED",
+              "changeType": "WONDER_DISCOVERED",
+              "locationSlug": "wonderwild-forest"
+            },
+            "text": "The Wonder Wall lights up with a picture of a waggling bee, and a new patch of flowers blooms in Wonderwild Forest!"
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "You discovered why bees dance!"
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "You helped uncover one of Wonderwild Forest’s best-kept secrets: why bees dance! The Wonder Wall will remember this discovery."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "Buzz and the Waggle Dance",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "PATHFINDER"
+      ],
+      "entryStepId": "inspect-path",
+      "locationSlug": "ember-mountain",
+      "slug": "dragon-chapter-1-broken-path",
+      "steps": [
+        {
+          "fallback": {
+            "text": "The mountain path has crumbled away. Let’s rebuild it."
+          },
+          "id": "inspect-path",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "The mountain path has crumbled away in the middle, and smoke is still curling up from beyond the peak. We will need to rebuild it, stone by stone."
+          },
+          "transitions": [
+            {
+              "nextStepId": "count-missing-stones",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "There are 3 missing stone slabs."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You can do this! Let's count the gaps in the path together.",
+              "Look closely at each broken stretch of stone.",
+              "Touch each gap and count out loud as you go.",
+              "There is one gap near the start and two more further up.",
+              "There are 3 missing stone slabs. Type 3 to keep going."
+            ]
+          },
+          "id": "count-missing-stones",
+          "objectiveIds": [
+            "counting-sets"
+          ],
+          "presentation": {
+            "correctValue": 3,
+            "kind": "number-input",
+            "prompt": "How many stone slabs are missing from the path?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "order-stone-slabs",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "count-missing-stones",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "Shortest, then medium, then longest."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Nice work so far! Let's measure these slabs.",
+              "Look at how long each stone slab is.",
+              "Find the shortest slab first, then work up to the longest.",
+              "The short slab goes first, then the medium slab.",
+              "Shortest, then medium, then longest: that is the order."
+            ]
+          },
+          "id": "order-stone-slabs",
+          "objectiveIds": [
+            "measurement"
+          ],
+          "presentation": {
+            "correctOrder": [
+              "short-slab",
+              "medium-slab",
+              "long-slab"
+            ],
+            "items": [
+              {
+                "id": "medium-slab",
+                "label": "Medium slab"
+              },
+              {
+                "id": "long-slab",
+                "label": "Long slab"
+              },
+              {
+                "id": "short-slab",
+                "label": "Short slab"
+              }
+            ],
+            "kind": "ordering",
+            "prompt": "Put the stone slabs in order from shortest to longest so they fit the path."
+          },
+          "transitions": [
+            {
+              "nextStepId": "path-rebuilt-narration",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "order-stone-slabs",
+              "when": "incorrect"
+            }
+          ],
+          "type": "ORDERING"
+        },
+        {
+          "fallback": {
+            "text": "The path is whole again, stretching toward the mountain."
+          },
+          "id": "path-rebuilt-narration",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "The stones lock into place and the path stretches on toward the mountain, smoke and all."
+          },
+          "transitions": [
+            {
+              "nextStepId": "path-repaired",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The mountain path is repaired."
+          },
+          "id": "path-repaired",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "MOUNTAIN_PATH_REPAIRED",
+              "changeType": "REPAIR",
+              "locationSlug": "ember-mountain"
+            },
+            "text": "The mountain path is repaired, stone by stone."
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "You rebuilt the mountain path!"
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "You rebuilt the mountain path! The way toward Ember Mountain is finally clear."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "The Broken Path",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "PATHFINDER"
+      ],
+      "entryStepId": "enter-forest",
+      "locationSlug": "ember-mountain",
+      "slug": "dragon-chapter-2-whispering-forest",
+      "steps": [
+        {
+          "fallback": {
+            "text": "A fox left a note, and a trail of leaves winds into the forest."
+          },
+          "id": "enter-forest",
+          "objectiveIds": [],
+          "presentation": {
+            "aiNarrated": true,
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "The trees here lean in close and seem to whisper. A little fox left a note pinned to a branch, and a trail of colored leaves winds deeper into the forest."
+          },
+          "transitions": [
+            {
+              "nextStepId": "read-the-note",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "Follow the trail as it starts to get dark, just like the note says."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You're a good reader! What did the note say about foxes?",
+              "The note tells you something about when foxes are awake.",
+              "Foxes hunt by night, not in the middle of the day.",
+              "\"Shadows grow long\" means evening is coming.",
+              "Follow the trail as it starts to get dark."
+            ]
+          },
+          "id": "read-the-note",
+          "objectiveIds": [
+            "reading-comprehension",
+            "animal-science"
+          ],
+          "presentation": {
+            "correctOptionId": "opt-wait-for-evening",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "opt-wait-for-evening",
+                "label": "Follow the trail as it starts to get dark"
+              },
+              {
+                "id": "opt-follow-noon",
+                "label": "Follow the trail right at midday"
+              },
+              {
+                "id": "opt-ignore-note",
+                "label": "Leave the note where it is and turn back"
+              }
+            ],
+            "prompt": "The note says: \"Foxes rest by day and hunt by night. Follow the trail when the shadows grow long.\" What should you do?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "leaf-pattern",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "read-the-note",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "The pattern repeats, so the next leaf is red."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You're a great pattern-spotter! What repeats in this trail?",
+              "Look at the order: red, gold, red, gold...",
+              "The two colors keep taking turns.",
+              "After gold, the pattern starts over again.",
+              "The next leaf is red."
+            ]
+          },
+          "id": "leaf-pattern",
+          "objectiveIds": [
+            "patterns"
+          ],
+          "presentation": {
+            "correctOptionId": "opt-red",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "opt-red",
+                "label": "Red"
+              },
+              {
+                "id": "opt-gold",
+                "label": "Gold"
+              },
+              {
+                "id": "opt-green",
+                "label": "Green"
+              }
+            ],
+            "prompt": "The leaves on the trail go red, gold, red, gold. What color comes next?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "forest-clues-found",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "leaf-pattern",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "The trail of clues leads to the foot of Ember Mountain."
+          },
+          "id": "forest-clues-found",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "WHISPERING_FOREST_CLUES_FOUND",
+              "changeType": "DISCOVERY",
+              "locationSlug": "ember-mountain"
+            },
+            "text": "The trail of clues leads all the way to the foot of Ember Mountain."
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "You followed the clues to the mountain."
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "You followed the forest creatures’ clues all the way to the mountain."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "The Whispering Forest",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "PATHFINDER"
+      ],
+      "entryStepId": "find-tracks",
+      "locationSlug": "ember-mountain",
+      "slug": "dragon-chapter-3-dragon-tracks",
+      "steps": [
+        {
+          "fallback": {
+            "text": "Huge footprints press deep into the ash."
+          },
+          "id": "find-tracks",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "Huge footprints press deep into the ash here. Whatever made these tracks is enormous."
+          },
+          "transitions": [
+            {
+              "nextStepId": "measure-track",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The track is 6 claw-lengths long."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You're a careful measurer! Line the ruler up with the track.",
+              "Start measuring from the heel of the track.",
+              "Count each claw-length as you move along the print.",
+              "It is more than five claw-lengths, but fewer than seven.",
+              "The track is 6 claw-lengths long."
+            ]
+          },
+          "id": "measure-track",
+          "objectiveIds": [
+            "measurement"
+          ],
+          "presentation": {
+            "correctValue": 6,
+            "kind": "number-input",
+            "prompt": "Line up your claw-length ruler along the track. How many claw-lengths long is it?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "compare-tracks",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "measure-track",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "The large, freshest track is the one to follow."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You're a sharp observer! Look closely at all three tracks.",
+              "Think about which track looks newest and deepest in the ash.",
+              "A deeper, fresher track means it was made more recently.",
+              "The large track is the deepest and freshest of the three.",
+              "Follow the large track."
+            ]
+          },
+          "id": "compare-tracks",
+          "objectiveIds": [
+            "comparing-lengths",
+            "observation"
+          ],
+          "presentation": {
+            "correctOptionId": "opt-large",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "opt-large",
+                "label": "The large track, since it is freshest and deepest"
+              },
+              {
+                "id": "opt-small",
+                "label": "The small track, since it is easiest to follow"
+              },
+              {
+                "id": "opt-medium",
+                "label": "The medium track, since it is in the middle"
+              }
+            ],
+            "prompt": "You spot three tracks: small, medium, and large. Which one should you follow?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "tracks-measured",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "compare-tracks",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "The tracks lead up toward a dark cave."
+          },
+          "id": "tracks-measured",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "DRAGON_TRACKS_MEASURED",
+              "changeType": "DISCOVERY",
+              "locationSlug": "ember-mountain"
+            },
+            "text": "You mark the trail of tracks leading up toward a dark cave."
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "The tracks lead higher up the mountain."
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "You measured and compared the tracks. They lead somewhere higher up the mountain."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "Dragon Tracks",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "PATHFINDER"
+      ],
+      "entryStepId": "what-the-dragon-needs",
+      "locationSlug": "ember-mountain",
+      "slug": "dragon-chapter-5-save-the-dragon",
+      "steps": [
+        {
+          "fallback": {
+            "text": "The dragon needs a warm, safe place to keep her egg."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You understand her already! What would help a scared, protective dragon?",
+              "Think about why she is guarding her egg so closely.",
+              "A frightened parent needs somewhere calm and warm to settle.",
+              "Loud parties would only frighten her more.",
+              "She needs a warm, safe place to keep the egg."
+            ]
+          },
+          "id": "what-the-dragon-needs",
+          "objectiveIds": [
+            "cause-and-effect"
+          ],
+          "presentation": {
+            "correctOptionId": "opt-safe-warm-place",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "opt-safe-warm-place",
+                "label": "A warm, safe place to keep the egg"
+              },
+              {
+                "id": "opt-loud-party",
+                "label": "A loud, noisy party to cheer her up"
+              },
+              {
+                "id": "opt-left-alone",
+                "label": "To be left completely alone forever"
+              }
+            ],
+            "prompt": "The dragon is curled tight around her egg, still shaking. What does she need most?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "count-warming-stones",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "what-the-dragon-needs",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "There are 7 warming stones."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You're doing great! Let's count the warming stones together.",
+              "Look at each stone glowing near the fire.",
+              "Count them out loud, one at a time.",
+              "There are more than five, but fewer than nine.",
+              "There are 7 warming stones."
+            ]
+          },
+          "id": "count-warming-stones",
+          "objectiveIds": [
+            "counting-sets"
+          ],
+          "presentation": {
+            "correctValue": 7,
+            "kind": "number-input",
+            "prompt": "Warm stones from the mountain fire will ring the nest. How many stones do you have?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "nest-rebuilt-narration",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "count-warming-stones",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "The dragon uncurls a little, finally able to rest."
+          },
+          "id": "nest-rebuilt-narration",
+          "objectiveIds": [],
+          "presentation": {
+            "aiNarrated": true,
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "You ring the nest with warm stones. The dragon finally uncurls, just a little, and lets out a long, tired breath of smoke."
+          },
+          "transitions": [
+            {
+              "nextStepId": "dragon-rescued",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The dragon and her egg are safe."
+          },
+          "id": "dragon-rescued",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "DRAGON_RESCUED",
+              "changeType": "RESCUE",
+              "locationSlug": "ember-mountain"
+            },
+            "text": "The dragon and her egg are safe at last."
+          },
+          "transitions": [
+            {
+              "nextStepId": "mountain-restored",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "The smoke clears and green shoots appear on the mountain."
+          },
+          "id": "mountain-restored",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "EMBER_MOUNTAIN_RESTORED",
+              "changeType": "RESTORATION",
+              "locationSlug": "ember-mountain"
+            },
+            "text": "The smoke over Ember Mountain clears, and green shoots begin to push up through the ash."
+          },
+          "transitions": [
+            {
+              "nextStepId": "cave-unlocked",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "The dragon’s cave is open to you now."
+          },
+          "id": "cave-unlocked",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "DRAGON_CAVE_UNLOCKED",
+              "changeType": "UNLOCK",
+              "locationSlug": "ember-mountain"
+            },
+            "text": "The dragon invites you to visit her cave whenever you like."
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "You saved the dragon and restored Ember Mountain!"
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "You saved the dragon and restored Ember Mountain! The island has changed because of what you learned."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "Save the Dragon",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "entryStepId": "arrive-at-the-ridge",
+      "locationSlug": "fossil-ridge",
+      "slug": "dino-chapter-1-fossil-dig",
+      "steps": [
+        {
+          "fallback": {
+            "text": "Something huge is buried in Fossil Ridge. Let’s dig it out."
+          },
+          "id": "arrive-at-the-ridge",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "Fossil Ridge! Something huge is buried in this sandy cliff, and the wind has just uncovered the first piece of it. Shall we dig it out together?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "choose-the-tool",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "A soft brush is the gentle tool for uncovering a fossil."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Good thinking! Fossil hunters work very gently.",
+              "The bone is old and brittle, so nothing heavy or splashy.",
+              "We want to move sand away one grain at a time.",
+              "Think of the softest tool on the table.",
+              "A soft brush is the right tool. Choose the soft brush to keep going."
+            ]
+          },
+          "id": "choose-the-tool",
+          "objectiveIds": [
+            "following-instructions"
+          ],
+          "presentation": {
+            "correctOptionId": "soft-brush",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "soft-brush",
+                "label": "A soft brush"
+              },
+              {
+                "id": "heavy-hammer",
+                "label": "A heavy hammer"
+              },
+              {
+                "id": "water-bucket",
+                "label": "A bucket of water"
+              }
+            ],
+            "prompt": "Fossil bone breaks easily. Which tool should we use to clear the sand off it?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "count-the-bones",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "choose-the-tool",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "There are 6 bones in the sand."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You can do this! Let’s count the bones together.",
+              "Start at the left end of the row and work across.",
+              "Touch each bone and say the number out loud.",
+              "There are four long bones and two shorter ones.",
+              "There are 6 bones. Type 6 to keep going."
+            ]
+          },
+          "id": "count-the-bones",
+          "objectiveIds": [
+            "counting-sets"
+          ],
+          "presentation": {
+            "correctValue": 6,
+            "kind": "number-input",
+            "prompt": "You brush the sand away and long curved bones appear. How many bones can you see?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "order-the-dig-steps",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "count-the-bones",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "Brush first, then draw the map, then lift the bone."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Nice work so far! Let’s think about what comes first.",
+              "You cannot draw a bone you have not uncovered yet.",
+              "Uncovering comes first, and lifting comes last.",
+              "Brush the sand away, then draw the map, then lift.",
+              "The order is: brush the sand, draw where it was lying, lift the bone."
+            ]
+          },
+          "id": "order-the-dig-steps",
+          "objectiveIds": [
+            "sequencing"
+          ],
+          "presentation": {
+            "correctOrder": [
+              "brush-sand",
+              "draw-map",
+              "lift-bone"
+            ],
+            "items": [
+              {
+                "id": "lift-bone",
+                "label": "Lift the bone into the crate"
+              },
+              {
+                "id": "brush-sand",
+                "label": "Brush the sand away"
+              },
+              {
+                "id": "draw-map",
+                "label": "Draw where the bone was lying"
+              }
+            ],
+            "kind": "ordering",
+            "prompt": "Put the fossil hunter’s steps in the right order."
+          },
+          "transitions": [
+            {
+              "nextStepId": "dig-site-narration",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "order-the-dig-steps",
+              "when": "incorrect"
+            }
+          ],
+          "type": "ORDERING"
+        },
+        {
+          "fallback": {
+            "text": "Fossil Ridge has a real dig site now."
+          },
+          "id": "dig-site-narration",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "Six bones, safe in the crate, and a map of exactly where they lay. Fossil Ridge has a real dig site now."
+          },
+          "transitions": [
+            {
+              "nextStepId": "dig-site-opened",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "A dig site is open on Fossil Ridge."
+          },
+          "id": "dig-site-opened",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "FOSSIL_DIG_SITE_OPENED",
+              "changeType": "CREATE",
+              "locationSlug": "fossil-ridge"
+            },
+            "text": "A proper dig site is open on Fossil Ridge, with crates, brushes, and a map."
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "You opened the dig site!"
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "You opened the dig site! Six ancient bones are safe, and something even bigger is waiting nearby."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "The Fossil Dig",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "entryStepId": "find-the-trail",
+      "locationSlug": "fossil-ridge",
+      "slug": "dino-chapter-2-footprint-trail",
+      "steps": [
+        {
+          "fallback": {
+            "text": "There are ancient footprints turned to stone on the flat rock."
+          },
+          "id": "find-the-trail",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "Look at the flat rock behind the dig site. Those dips are not puddles. They are footprints, turned to stone a very long time ago."
+          },
+          "transitions": [
+            {
+              "nextStepId": "add-the-prints",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "4 and 3 more makes 7 footprints."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You can do this! Let’s put the two groups together.",
+              "Start with the 4 sunny prints in your head.",
+              "Now count on: 5, 6, 7.",
+              "4 and 3 more makes seven.",
+              "The answer is 7. Type 7 to keep going."
+            ]
+          },
+          "id": "add-the-prints",
+          "objectiveIds": [
+            "addition-within-ten"
+          ],
+          "presentation": {
+            "correctValue": 7,
+            "kind": "number-input",
+            "prompt": "There are 4 footprints on the sunny side of the rock and 3 on the shady side. How many footprints are there altogether?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "order-the-prints",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "add-the-prints",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "Hand sized, then plate sized, then wheel sized."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Good start! Let’s compare their sizes.",
+              "Picture each print next to the others.",
+              "A hand is smaller than a dinner plate.",
+              "A dinner plate is smaller than a wheel.",
+              "Hand, then dinner plate, then wheel: that is the order."
+            ]
+          },
+          "id": "order-the-prints",
+          "objectiveIds": [
+            "comparing-lengths"
+          ],
+          "presentation": {
+            "correctOrder": [
+              "small-print",
+              "middle-print",
+              "huge-print"
+            ],
+            "items": [
+              {
+                "id": "huge-print",
+                "label": "A print as wide as a wheel"
+              },
+              {
+                "id": "small-print",
+                "label": "A print the size of your hand"
+              },
+              {
+                "id": "middle-print",
+                "label": "A print the size of a dinner plate"
+              }
+            ],
+            "kind": "ordering",
+            "prompt": "Line the three footprints up from smallest to biggest."
+          },
+          "transitions": [
+            {
+              "nextStepId": "who-made-the-print",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "order-the-prints",
+              "when": "incorrect"
+            }
+          ],
+          "type": "ORDERING"
+        },
+        {
+          "fallback": {
+            "text": "A very big animal with wide, round feet walked here."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Great observing! Look at the shape and the spacing.",
+              "A round print as wide as a wheel needs a wide, round foot.",
+              "Far apart steps mean long legs.",
+              "Think big, heavy, and slow, not small and quick.",
+              "A very big animal with wide, round feet walked here. Choose that one."
+            ]
+          },
+          "id": "who-made-the-print",
+          "objectiveIds": [
+            "observation"
+          ],
+          "presentation": {
+            "correctOptionId": "big-and-heavy",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "big-and-heavy",
+                "label": "A very big animal with wide, round feet walked here"
+              },
+              {
+                "id": "tiny-and-quick",
+                "label": "A tiny animal with thin toes hopped here"
+              },
+              {
+                "id": "nothing-at-all",
+                "label": "The rock just cracked that way on its own"
+              }
+            ],
+            "prompt": "The biggest print is round with short, blunt toes, and the steps between prints are very far apart. What does that tell us?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "trail-narration",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "who-made-the-print",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "The whole footprint trail is mapped."
+          },
+          "id": "trail-narration",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "You have mapped the whole trail, from the smallest print to the enormous one, and it leads straight along the ridge."
+          },
+          "transitions": [
+            {
+              "nextStepId": "trail-mapped",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The footprint trail is mapped."
+          },
+          "id": "trail-mapped",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "FOOTPRINT_TRAIL_MAPPED",
+              "changeType": "CREATE",
+              "locationSlug": "fossil-ridge"
+            },
+            "text": "The footprint trail is mapped, with a marker beside every print."
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "You mapped the footprint trail!"
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "You mapped the footprint trail! Now comes the best question of all: who left it?"
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "The Footprint Trail",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "entryStepId": "find-bolt",
+      "locationSlug": "robot-repair-reef",
+      "slug": "robot-chapter-1-gather-parts",
+      "steps": [
+        {
+          "fallback": {
+            "text": "Bolt the harbor robot has stopped. Let’s find the missing parts."
+          },
+          "id": "find-bolt",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "Here is Bolt, the little harbor robot, stopped still at the edge of the reef with parts scattered all around. Let’s find everything Bolt needs."
+          },
+          "transitions": [
+            {
+              "nextStepId": "sort-the-part",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "A gear is a wheel with teeth around its edge."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Good thinking! Let’s look at the shapes.",
+              "A gear turns and pushes another gear along.",
+              "For that, it needs teeth around the outside.",
+              "Only one of these is a wheel with teeth.",
+              "The flat wheel with teeth is the gear. Choose that one."
+            ]
+          },
+          "id": "sort-the-part",
+          "objectiveIds": [
+            "classification"
+          ],
+          "presentation": {
+            "correctOptionId": "toothed-wheel",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "toothed-wheel",
+                "label": "A flat wheel with teeth all around its edge"
+              },
+              {
+                "id": "coil",
+                "label": "A springy coil that squashes flat"
+              },
+              {
+                "id": "lamp",
+                "label": "A round glass lamp"
+              }
+            ],
+            "prompt": "Bolt needs a gear. Which one of these is a gear?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "count-the-bolts",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "sort-the-part",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "4 bolts and 4 more bolts makes 8."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You can do this! There are two arms to think about.",
+              "One arm takes 4 bolts. The other arm takes 4 bolts too.",
+              "Put the two groups of 4 together.",
+              "Count on from 4: 5, 6, 7, 8.",
+              "4 and 4 makes 8. Type 8 to keep going."
+            ]
+          },
+          "id": "count-the-bolts",
+          "objectiveIds": [
+            "addition-within-ten"
+          ],
+          "presentation": {
+            "correctValue": 8,
+            "kind": "number-input",
+            "prompt": "Each of Bolt’s arms needs 4 bolts. How many bolts do we need for both arms altogether?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "order-the-wires",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "count-the-bolts",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "Short red, then medium blue, then long green."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Nice work! Let’s compare the wires.",
+              "Look at how far each wire stretches.",
+              "Find the shortest wire and put it at the top.",
+              "The red wire is shortest, and the green wire is longest.",
+              "Short red, then medium blue, then long green."
+            ]
+          },
+          "id": "order-the-wires",
+          "objectiveIds": [
+            "comparing-lengths"
+          ],
+          "presentation": {
+            "correctOrder": [
+              "short-wire",
+              "medium-wire",
+              "long-wire"
+            ],
+            "items": [
+              {
+                "id": "long-wire",
+                "label": "The long green wire"
+              },
+              {
+                "id": "short-wire",
+                "label": "The short red wire"
+              },
+              {
+                "id": "medium-wire",
+                "label": "The medium blue wire"
+              }
+            ],
+            "kind": "ordering",
+            "prompt": "Line the wires up from shortest to longest so each one reaches the right socket."
+          },
+          "transitions": [
+            {
+              "nextStepId": "parts-narration",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "order-the-wires",
+              "when": "incorrect"
+            }
+          ],
+          "type": "ORDERING"
+        },
+        {
+          "fallback": {
+            "text": "Everything Bolt needs is on the workbench now."
+          },
+          "id": "parts-narration",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "Gear, bolts, wires, all lined up on the workbench. Everything Bolt needs is finally in one place."
+          },
+          "transitions": [
+            {
+              "nextStepId": "workbench-ready",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The workbench on the reef is ready."
+          },
+          "id": "workbench-ready",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "ROBOT_WORKBENCH_READY",
+              "changeType": "CREATE",
+              "locationSlug": "robot-repair-reef"
+            },
+            "text": "A tidy workbench stands on the reef, stacked with every part Bolt needs."
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "You found every part Bolt needs!"
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "You found every part! Now for the tricky bit: putting Bolt back together."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "Gather the Parts",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "entryStepId": "open-the-manual",
+      "locationSlug": "robot-repair-reef",
+      "slug": "robot-chapter-2-build-it-back",
+      "steps": [
+        {
+          "fallback": {
+            "text": "Bolt’s repair book says to build from the bottom up."
+          },
+          "id": "open-the-manual",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "Bolt’s little repair book is still in the toolbox, salty but readable. It says to build from the bottom up."
+          },
+          "transitions": [
+            {
+              "nextStepId": "order-the-build",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "Wheels first, then body, then arms, then head."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Great start! The book says bottom to top.",
+              "What sits on the ground? That part goes first.",
+              "Wheels first, then the body sits on top of them.",
+              "Arms go on the body, and the head goes on last.",
+              "Wheels, body, arms, head. That is the order."
+            ]
+          },
+          "id": "order-the-build",
+          "objectiveIds": [
+            "following-instructions"
+          ],
+          "presentation": {
+            "correctOrder": [
+              "bolt-wheels",
+              "stack-body",
+              "attach-arms",
+              "fit-head"
+            ],
+            "items": [
+              {
+                "id": "fit-head",
+                "label": "Fit the head"
+              },
+              {
+                "id": "bolt-wheels",
+                "label": "Bolt on the wheels"
+              },
+              {
+                "id": "attach-arms",
+                "label": "Attach the arms"
+              },
+              {
+                "id": "stack-body",
+                "label": "Stack the body on the wheels"
+              }
+            ],
+            "kind": "ordering",
+            "prompt": "Follow the repair book. Put the building steps in order, from the bottom up."
+          },
+          "transitions": [
+            {
+              "nextStepId": "panel-pattern",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "order-the-build",
+              "when": "incorrect"
+            }
+          ],
+          "type": "ORDERING"
+        },
+        {
+          "fallback": {
+            "text": "The pattern swaps red and blue, so blue comes next."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You are good at patterns! Say the colors out loud.",
+              "Red, blue, red, blue, red.",
+              "The pattern keeps swapping between two colors.",
+              "After a red light, which color always comes?",
+              "Blue comes next. Choose blue to keep going."
+            ]
+          },
+          "id": "panel-pattern",
+          "objectiveIds": [
+            "patterns"
+          ],
+          "presentation": {
+            "correctOptionId": "blue",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "blue",
+                "label": "Blue"
+              },
+              {
+                "id": "red",
+                "label": "Red"
+              },
+              {
+                "id": "green",
+                "label": "Green"
+              }
+            ],
+            "prompt": "Bolt’s panel lights up in a pattern: red, blue, red, blue, red. Which light comes next?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "count-the-lights",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "panel-pattern",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "7 lights take away 2 dark ones leaves 5 shining."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You can do this! Start with all 7 lights.",
+              "Two of the seven are not shining.",
+              "Take those 2 away from 7.",
+              "Count back from 7: 6, 5.",
+              "7 take away 2 is 5. Type 5 to keep going."
+            ]
+          },
+          "id": "count-the-lights",
+          "objectiveIds": [
+            "subtraction-within-ten"
+          ],
+          "presentation": {
+            "correctValue": 5,
+            "kind": "number-input",
+            "prompt": "Bolt has 7 lights. 2 of them are still dark. How many lights are shining?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "bolt-whirrs",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "count-the-lights",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "Bolt whirrs, clicks, and rolls forward again."
+          },
+          "id": "bolt-whirrs",
+          "objectiveIds": [],
+          "presentation": {
+            "aiNarrated": true,
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "A whirr, a click, and Bolt rolls forward one careful turn of the wheels. You rebuilt a robot!"
+          },
+          "transitions": [
+            {
+              "nextStepId": "bolt-rebuilt",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "Bolt is running again."
+          },
+          "id": "bolt-rebuilt",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "ROBOT_BOLT_REBUILT",
+              "changeType": "REPAIR",
+              "locationSlug": "robot-repair-reef"
+            },
+            "text": "Bolt the harbor robot is running again, rolling up and down the reef."
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "You built Bolt back together!"
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "You built Bolt back together! The reef has its helper again."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "Build It Back",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER"
+      ],
+      "entryStepId": "the-garden-is-quiet",
+      "locationSlug": "butterfly-garden",
+      "slug": "butterfly-chapter-1-quiet-garden",
+      "steps": [
+        {
+          "fallback": {
+            "text": "The butterfly garden is very quiet today."
+          },
+          "id": "the-garden-is-quiet",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "This garden used to be full of butterflies. Today it is very quiet. Let’s look and see why."
+          },
+          "transitions": [
+            {
+              "nextStepId": "count-the-butterflies",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "There is one butterfly left in the garden."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Let’s count together.",
+              "Look at the flat grey stone.",
+              "Point at each butterfly you can see.",
+              "There is just one butterfly on the stone.",
+              "The answer is one butterfly. Tap \"One butterfly\"."
+            ]
+          },
+          "id": "count-the-butterflies",
+          "objectiveIds": [
+            "counting-sets"
+          ],
+          "presentation": {
+            "correctOptionId": "one",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "one",
+                "label": "One butterfly"
+              },
+              {
+                "id": "two",
+                "label": "Two butterflies"
+              },
+              {
+                "id": "three",
+                "label": "Three butterflies"
+              }
+            ],
+            "prompt": "Only one butterfly is left, resting on a stone. How many butterflies do you see?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "what-butterflies-drink",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "count-the-butterflies",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "Butterflies drink sweet nectar from flowers."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Good wondering! It is a drink.",
+              "It is sweet, like juice.",
+              "It hides deep inside a flower.",
+              "It starts with the sound \"nnn\".",
+              "It is called nectar. Tap \"Nectar\"."
+            ]
+          },
+          "id": "what-butterflies-drink",
+          "objectiveIds": [
+            "animal-science"
+          ],
+          "presentation": {
+            "correctOptionId": "nectar",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "nectar",
+                "label": "Nectar"
+              },
+              {
+                "id": "sand",
+                "label": "Sand"
+              },
+              {
+                "id": "stones",
+                "label": "Stones"
+              }
+            ],
+            "prompt": "Butterflies drink something sweet from inside flowers. What is it called?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "the-empty-beds",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "what-butterflies-drink",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "The flower beds are empty, so there is no nectar."
+          },
+          "id": "the-empty-beds",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "Now we know. The flower beds are empty, so there is no nectar to drink. No wonder the butterflies flew away."
+          },
+          "transitions": [
+            {
+              "nextStepId": "garden-understood",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "There is a new sign by the garden gate."
+          },
+          "id": "garden-understood",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "BUTTERFLY_GARDEN_SURVEYED",
+              "changeType": "CREATE",
+              "locationSlug": "butterfly-garden"
+            },
+            "text": "A little sign now stands by the garden gate: \"Empty beds. Flowers needed.\""
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "You worked out why the garden is quiet!"
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "You worked out why the garden is quiet. Next, let’s fill it with flowers."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "The Quiet Garden",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER"
+      ],
+      "entryStepId": "seeds-in-hand",
+      "locationSlug": "butterfly-garden",
+      "slug": "butterfly-chapter-2-plant-the-flowers",
+      "steps": [
+        {
+          "fallback": {
+            "text": "We have seeds and a watering can."
+          },
+          "id": "seeds-in-hand",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "Here is a bag of seeds and a watering can. Let’s plant this garden back to life."
+          },
+          "transitions": [
+            {
+              "nextStepId": "what-grows-nectar",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "Flower seeds grow real flowers full of nectar."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You remember where nectar hides.",
+              "Nectar is inside real flowers.",
+              "We need something that will grow.",
+              "Paper and pebbles never grow into flowers.",
+              "Flower seeds grow real flowers. Tap \"Flower seeds\"."
+            ]
+          },
+          "id": "what-grows-nectar",
+          "objectiveIds": [
+            "cause-and-effect"
+          ],
+          "presentation": {
+            "correctOptionId": "flower-seeds",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "flower-seeds",
+                "label": "Flower seeds"
+              },
+              {
+                "id": "paper-flags",
+                "label": "Paper flags"
+              },
+              {
+                "id": "pebbles",
+                "label": "Pebbles"
+              }
+            ],
+            "prompt": "Which one should we plant so butterflies have nectar to drink?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "life-cycle-first",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "what-grows-nectar",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "A butterfly starts as a tiny egg."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Let’s think about the very beginning.",
+              "Which one is the smallest of all?",
+              "The caterpillar has to come out of something.",
+              "It comes out of a tiny egg on a leaf.",
+              "A tiny egg comes first. Tap \"A tiny egg\"."
+            ]
+          },
+          "id": "life-cycle-first",
+          "objectiveIds": [
+            "sequencing"
+          ],
+          "presentation": {
+            "correctOptionId": "egg",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "egg",
+                "label": "A tiny egg"
+              },
+              {
+                "id": "caterpillar",
+                "label": "A hungry caterpillar"
+              },
+              {
+                "id": "butterfly",
+                "label": "A flying butterfly"
+              }
+            ],
+            "prompt": "A butterfly starts very small. What comes first of all?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "leaves-for-caterpillars",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "life-cycle-first",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "We plant leafy plants for caterpillars and flowers for butterflies."
+          },
+          "id": "leaves-for-caterpillars",
+          "objectiveIds": [],
+          "presentation": {
+            "aiNarrated": true,
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "So we need leafy plants too, for the caterpillars to munch, and flowers for the butterflies to drink from. In go the seeds, and out comes the water."
+          },
+          "transitions": [
+            {
+              "nextStepId": "garden-replanted",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The butterfly garden is planted again."
+          },
+          "id": "garden-replanted",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "BUTTERFLY_GARDEN_REPLANTED",
+              "changeType": "RESTORE",
+              "locationSlug": "butterfly-garden"
+            },
+            "text": "The butterfly garden is planted again, with rows of flowers and leafy green plants."
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "You planted the whole garden!"
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "You planted the whole garden! Now we wait and watch."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "Plant the Flowers",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "EXPLORER"
+      ],
+      "entryStepId": "the-door-with-no-handle",
+      "locationSlug": "castle-secret-passage",
+      "slug": "secret-door-chapter-1-three-clues",
+      "steps": [
+        {
+          "fallback": {
+            "text": "There is a door with no handle behind the last bookshelf."
+          },
+          "id": "the-door-with-no-handle",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Keeper Quill",
+            "text": "Behind the last bookshelf there is a door with no handle, no keyhole, and no hinges you can see. I have never opened it. Perhaps you can."
+          },
+          "transitions": [
+            {
+              "nextStepId": "read-the-note",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The note points to a pattern in the carved stars above the door."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Good reading! Let’s look at the note again.",
+              "The note says the door is \"not pulled\", so it is not about handles or keys.",
+              "It says the door \"listens for\" something.",
+              "Read the last three words: \"the stars above it\".",
+              "The note points to a pattern in the carved stars. Choose that one."
+            ]
+          },
+          "id": "read-the-note",
+          "objectiveIds": [
+            "reading-comprehension"
+          ],
+          "presentation": {
+            "correctOptionId": "a-pattern",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "a-pattern",
+                "label": "A pattern in the carved stars above the door"
+              },
+              {
+                "id": "a-hidden-key",
+                "label": "A key hidden somewhere in the library"
+              },
+              {
+                "id": "a-magic-word",
+                "label": "A magic word to shout at the door"
+              }
+            ],
+            "prompt": "A folded note is tucked into the frame. It reads: \"The door has no handle, for it is not pulled. It listens for the pattern of the stars above it.\" What does the note tell us to look for?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "order-the-clues",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "read-the-note",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "The diary page came first, then the map, then the note."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Nice work. Think about the story these clues tell.",
+              "Something has to be built before anyone can write directions to it.",
+              "The diary page is about building the door, so it came first.",
+              "Then someone marked the shelf on a map.",
+              "Diary page, then map, then the note about the stars."
+            ]
+          },
+          "id": "order-the-clues",
+          "objectiveIds": [
+            "sequencing"
+          ],
+          "presentation": {
+            "correctOrder": [
+              "clue-diary",
+              "clue-map",
+              "clue-note"
+            ],
+            "items": [
+              {
+                "id": "clue-map",
+                "label": "A map of the library, marked \"the last shelf\""
+              },
+              {
+                "id": "clue-note",
+                "label": "The folded note about the stars"
+              },
+              {
+                "id": "clue-diary",
+                "label": "A diary page: \"Today we built a door\""
+              }
+            ],
+            "kind": "ordering",
+            "prompt": "Three clues were left behind, each dated. Put them in the order they were written."
+          },
+          "transitions": [
+            {
+              "nextStepId": "count-the-stars",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "order-the-clues",
+              "when": "incorrect"
+            }
+          ],
+          "type": "ORDERING"
+        },
+        {
+          "fallback": {
+            "text": "5 stars and 4 stars make 9 carved stars."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You can do this. There are two rows to add.",
+              "Hold the 5 from the top row in your head.",
+              "Count on 4 more: 6, 7, 8, 9.",
+              "5 and 4 make nine.",
+              "There are 9 carved stars. Type 9 to keep going."
+            ]
+          },
+          "id": "count-the-stars",
+          "objectiveIds": [
+            "addition-within-ten"
+          ],
+          "presentation": {
+            "correctValue": 9,
+            "kind": "number-input",
+            "prompt": "Above the door there are 5 carved stars in the top row and 4 in the bottom row. How many carved stars are there altogether?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "clues-narration",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "count-the-stars",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "You have gathered all three clues."
+          },
+          "id": "clues-narration",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Keeper Quill",
+            "text": "Nine stars, three clues, and a door that listens. You have found more in one afternoon than I have in years."
+          },
+          "transitions": [
+            {
+              "nextStepId": "clues-collected",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The three clues are pinned on the library wall."
+          },
+          "id": "clues-collected",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "SECRET_DOOR_CLUES_COLLECTED",
+              "changeType": "CREATE",
+              "locationSlug": "castle-secret-passage"
+            },
+            "text": "The three clues are pinned side by side on the library wall, under the nine carved stars."
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "You gathered every clue!"
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "You gathered every clue! Now you know what the door is waiting for: a pattern."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "Three Clues",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "EXPLORER"
+      ],
+      "entryStepId": "study-the-stars",
+      "locationSlug": "castle-secret-passage",
+      "slug": "secret-door-chapter-2-pattern-lock",
+      "steps": [
+        {
+          "fallback": {
+            "text": "The carvings go star, moon, star, moon, star, and then one worn smooth."
+          },
+          "id": "study-the-stars",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Keeper Quill",
+            "text": "Look closely at the carvings. They are not all stars. Star, moon, star, moon, star, and then one carving worn too smooth to read."
+          },
+          "transitions": [
+            {
+              "nextStepId": "continue-the-pattern",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The pattern takes turns, so the worn carving is a moon."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You are close. Say the carvings out loud in order.",
+              "Star, moon, star, moon, star.",
+              "Two shapes keep taking turns.",
+              "Every star is followed by a moon.",
+              "The worn carving is a moon. Choose the moon."
+            ]
+          },
+          "id": "continue-the-pattern",
+          "objectiveIds": [
+            "patterns"
+          ],
+          "presentation": {
+            "correctOptionId": "moon",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "moon",
+                "label": "A moon"
+              },
+              {
+                "id": "star",
+                "label": "A star"
+              },
+              {
+                "id": "sun",
+                "label": "A sun"
+              }
+            ],
+            "prompt": "Star, moon, star, moon, star. Which carving must the worn one be?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "order-the-keys",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "continue-the-pattern",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "Short silver, then medium iron, then long brass."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Careful measuring wins here.",
+              "Hold the rods side by side in your mind.",
+              "Which rod would disappear into the deepest slot?",
+              "The silver rod is shortest and the brass rod is longest.",
+              "Short silver, then medium iron, then long brass."
+            ]
+          },
+          "id": "order-the-keys",
+          "objectiveIds": [
+            "measurement"
+          ],
+          "presentation": {
+            "correctOrder": [
+              "short-rod",
+              "medium-rod",
+              "long-rod"
+            ],
+            "items": [
+              {
+                "id": "long-rod",
+                "label": "The long brass rod"
+              },
+              {
+                "id": "medium-rod",
+                "label": "The medium iron rod"
+              },
+              {
+                "id": "short-rod",
+                "label": "The short silver rod"
+              }
+            ],
+            "kind": "ordering",
+            "prompt": "Three slots open in the door, each a different depth. Put the rods in order from shortest to longest."
+          },
+          "transitions": [
+            {
+              "nextStepId": "what-does-ajar-mean",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "order-the-keys",
+              "when": "incorrect"
+            }
+          ],
+          "type": "ORDERING"
+        },
+        {
+          "fallback": {
+            "text": "\"Ajar\" means open a little way."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "New word! Let’s work it out from the sentence.",
+              "The door swings, so something is moving.",
+              "A locked door cannot swing at all.",
+              "It is open, but only a little way.",
+              "\"Ajar\" means open a little way. Choose that one."
+            ]
+          },
+          "id": "what-does-ajar-mean",
+          "objectiveIds": [
+            "vocabulary"
+          ],
+          "presentation": {
+            "correctOptionId": "open-a-little",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "open-a-little",
+                "label": "Open a little way"
+              },
+              {
+                "id": "locked-tight",
+                "label": "Locked tight"
+              },
+              {
+                "id": "painted-blue",
+                "label": "Painted blue"
+              }
+            ],
+            "prompt": "The door swings ajar. What does \"ajar\" mean?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "door-opens-narration",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "what-does-ajar-mean",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "The door swings ajar and warm light spills out."
+          },
+          "id": "door-opens-narration",
+          "objectiveIds": [],
+          "presentation": {
+            "aiNarrated": true,
+            "kind": "narrative",
+            "speaker": "Keeper Quill",
+            "text": "The rods slide home, the moon carving glows for a moment, and the door swings ajar. Warm light spills out across the library floor."
+          },
+          "transitions": [
+            {
+              "nextStepId": "door-opened",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The secret door stands open."
+          },
+          "id": "door-opened",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "CASTLE_SECRET_DOOR_OPENED",
+              "changeType": "UNLOCK",
+              "locationSlug": "castle-secret-passage"
+            },
+            "text": "The secret door stands open, and the passage behind it is lit again."
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "You opened the secret door!"
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "You solved the pattern lock and opened the door! Time to see what is inside."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "The Pattern Lock",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "SPROUT"
+      ],
+      "entryStepId": "nella-says-hello",
+      "locationSlug": "cove-care-beach",
+      "slug": "breakfast-at-the-cove",
+      "steps": [
+        {
+          "fallback": {
+            "text": "Nella needs help feeding the creatures at the cove."
+          },
+          "id": "nella-says-hello",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Nella the cove keeper",
+            "text": "Good morning! Everyone here is hungry, and I only have two hands. Will you help me feed them?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "which-bucket",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The turtle eats the green weed."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Look at the buckets. One of them is green.",
+              "The turtle eats green weed, so we want the green one.",
+              "The bucket of green weed is the one. Tap it to bring it over."
+            ]
+          },
+          "id": "which-bucket",
+          "objectiveIds": [
+            "classification"
+          ],
+          "presentation": {
+            "correctOptionId": "weed",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "weed",
+                "label": "The bucket of green weed"
+              },
+              {
+                "id": "fish",
+                "label": "The bucket of silver fish"
+              },
+              {
+                "id": "shells",
+                "label": "The bucket of round shells"
+              }
+            ],
+            "prompt": "The little sea turtle eats green weed. Which bucket should we bring her?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "how-many-fish",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "which-bucket",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "Two crabs need 2 fish."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Count the crabs with me. One crab, two crabs.",
+              "Each crab gets one fish, so we need the same number of fish as crabs.",
+              "There are two crabs, so we need 2 fish. Tap the two fish."
+            ]
+          },
+          "id": "how-many-fish",
+          "objectiveIds": [
+            "counting-sets"
+          ],
+          "presentation": {
+            "correctOptionId": "two",
+            "kind": "choice",
+            "options": [
+              {
+                "groups": [
+                  1
+                ],
+                "id": "one",
+                "label": "1 fish"
+              },
+              {
+                "groups": [
+                  1,
+                  1
+                ],
+                "id": "two",
+                "label": "2 fish"
+              },
+              {
+                "groups": [
+                  1,
+                  1,
+                  1
+                ],
+                "id": "three",
+                "label": "3 fish"
+              }
+            ],
+            "prompt": "Two crabs are waiting, and each crab gets one fish. How many fish do we need?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "the-sleeping-seal",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "how-many-fish",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "We leave the food and let the sleeping seal rest."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "How do you feel when someone wakes you up too soon?",
+              "A sleepy seal is a growing seal. Her food can wait for her.",
+              "We leave her food and let her sleep. Tap that one."
+            ]
+          },
+          "id": "the-sleeping-seal",
+          "objectiveIds": [
+            "empathy"
+          ],
+          "presentation": {
+            "correctOptionId": "wait",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "wait",
+                "label": "Leave her food and let her sleep"
+              },
+              {
+                "id": "wake",
+                "label": "Wake her up right now"
+              },
+              {
+                "id": "skip",
+                "label": "Take her food away again"
+              }
+            ],
+            "prompt": "The baby seal is fast asleep in her warm pen. What should we do?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "nella-is-glad",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "the-sleeping-seal",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "Everyone at the cove has been fed."
+          },
+          "id": "nella-is-glad",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Nella the cove keeper",
+            "text": "Everybody is fed, and nobody got the wrong breakfast. You are a good helper."
+          },
+          "transitions": [
+            {
+              "nextStepId": "creatures-fed",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The creatures at the cove have been fed."
+          },
+          "id": "creatures-fed",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "COVE_CREATURES_FED",
+              "changeType": "UPDATE",
+              "locationSlug": "cove-care-beach"
+            },
+            "text": "The care pens are full of happy noises. Every creature at the cove has had breakfast."
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        }
+      ],
+      "title": "Breakfast at the Cove",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "PATHFINDER"
+      ],
+      "entryStepId": "nella-needs-a-hand",
+      "locationSlug": "cove-care-beach",
+      "slug": "the-morning-care-round",
+      "steps": [
+        {
+          "fallback": {
+            "text": "Nella needs help with the morning care round."
+          },
+          "id": "nella-needs-a-hand",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Nella the cove keeper",
+            "text": "Every morning I do the care round: fresh water, food, a check on each pen, and then the log book. Come and do it with me."
+          },
+          "transitions": [
+            {
+              "nextStepId": "how-many-buckets",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "Three pens with two buckets each need 6 buckets."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Take your time. Count the pens first, then the buckets each one needs.",
+              "Three pens, and every pen wants two buckets.",
+              "Count two for the first pen, two for the second, two for the third.",
+              "That is 2 and 2 and 2 altogether.",
+              "Two, four, six. We carry 6 buckets. Choose that one."
+            ]
+          },
+          "id": "how-many-buckets",
+          "objectiveIds": [
+            "counting-sets"
+          ],
+          "presentation": {
+            "correctOptionId": "six",
+            "kind": "choice",
+            "options": [
+              {
+                "groups": [
+                  2,
+                  2,
+                  1
+                ],
+                "id": "five",
+                "label": "5 buckets"
+              },
+              {
+                "groups": [
+                  2,
+                  2,
+                  2
+                ],
+                "id": "six",
+                "label": "6 buckets"
+              },
+              {
+                "groups": [
+                  2,
+                  2,
+                  3
+                ],
+                "id": "seven",
+                "label": "7 buckets"
+              }
+            ],
+            "prompt": "There are three care pens, and each pen needs two buckets of fresh water. How many buckets do we carry?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "order-the-round",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "how-many-buckets",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "Water first, then food, then the check, then the log book."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Think about the very first thing a thirsty creature needs.",
+              "Clean water comes before food, so nobody eats in a dirty pen.",
+              "After feeding, Nella walks past every pen to see how everyone looks.",
+              "Writing it down is always last, because you can only write what already happened.",
+              "The order is water, then food, then the check, then the log book."
+            ]
+          },
+          "id": "order-the-round",
+          "objectiveIds": [
+            "sequencing"
+          ],
+          "presentation": {
+            "correctOrder": [
+              "water",
+              "feed",
+              "check",
+              "log"
+            ],
+            "items": [
+              {
+                "id": "water",
+                "label": "Fill every pen with fresh water"
+              },
+              {
+                "id": "feed",
+                "label": "Give each creature its own food"
+              },
+              {
+                "id": "check",
+                "label": "Check that everybody looks well"
+              },
+              {
+                "id": "log",
+                "label": "Write what happened in the log book"
+              }
+            ],
+            "kind": "ordering",
+            "prompt": "Put the care round in the order Nella does it."
+          },
+          "transitions": [
+            {
+              "nextStepId": "the-turtle-tells-us-something",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "order-the-round",
+              "when": "incorrect"
+            }
+          ],
+          "type": "ORDERING"
+        },
+        {
+          "fallback": {
+            "text": "The turtle needs deeper water in her pen."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Watch where she bumps. It is always the shallow end.",
+              "A turtle swims. What happens when the water is too shallow to swim in?",
+              "She keeps running out of water before she runs out of swimming.",
+              "She is asking for deeper water. Choose that answer."
+            ]
+          },
+          "id": "the-turtle-tells-us-something",
+          "objectiveIds": [
+            "cause-and-effect"
+          ],
+          "presentation": {
+            "correctOptionId": "deeper",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "deeper",
+                "label": "She needs deeper water to swim in"
+              },
+              {
+                "id": "hungry",
+                "label": "She wants a second breakfast"
+              },
+              {
+                "id": "nothing",
+                "label": "Turtles bump into things for no reason"
+              }
+            ],
+            "prompt": "The sea turtle keeps bumping her nose on the shallow end of her pen. What is she telling us?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "nella-writes-it-down",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "the-turtle-tells-us-something",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "Nella writes the care round in her log book."
+          },
+          "id": "nella-writes-it-down",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Nella the cove keeper",
+            "text": "Water, food, a good look at everyone, and now the log book. I am writing down what you noticed about the turtle. That is how she gets a deeper pen tomorrow."
+          },
+          "transitions": [
+            {
+              "nextStepId": "creatures-fed",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The creatures at the cove have been cared for."
+          },
+          "id": "creatures-fed",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "COVE_CREATURES_FED",
+              "changeType": "UPDATE",
+              "locationSlug": "cove-care-beach"
+            },
+            "text": "Every pen at the cove holds clean water and a fed, settled creature. The log book has today on its page."
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        }
+      ],
+      "title": "The Morning Care Round",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "EXPLORER"
+      ],
+      "entryStepId": "the-supply-boat-problem",
+      "locationSlug": "cove-care-beach",
+      "slug": "the-cove-care-plan",
+      "steps": [
+        {
+          "fallback": {
+            "text": "Nella needs help planning the food supply at the cove."
+          },
+          "id": "the-supply-boat-problem",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Nella the cove keeper",
+            "text": "The supply boat only comes every few days, so I have to plan the food instead of guessing. Work the numbers through with me and we will get it right."
+          },
+          "transitions": [
+            {
+              "nextStepId": "food-per-day",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The cove uses 23 pieces of food a day."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Take your time. Two numbers are given, and you need their total.",
+              "One day of food is the turtle’s share added to the seal’s share.",
+              "Set it out as 14 + 9.",
+              "14 + 6 is 20, and there are 3 more to add.",
+              "The cove uses 23 pieces a day. Type 23 to keep going."
+            ]
+          },
+          "id": "food-per-day",
+          "objectiveIds": [
+            "measurement"
+          ],
+          "presentation": {
+            "correctValue": 23,
+            "kind": "number-input",
+            "prompt": "The log book says the sea turtle eats 14 pieces of food a day and the seal eats 9. How many pieces does the cove use in one day?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "what-is-left-in-the-crate",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "food-per-day",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "There are 17 pieces of food left in the crate."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Good. Now take today’s round out of what the crate held.",
+              "What is left is the gap between 40 and one day of food, so this is a subtraction.",
+              "Set it out as 40 - 23.",
+              "23 plus 7 is 30, and 10 more makes 40.",
+              "There are 17 pieces left. Type 17 to keep going."
+            ]
+          },
+          "id": "what-is-left-in-the-crate",
+          "objectiveIds": [
+            "measurement"
+          ],
+          "presentation": {
+            "correctValue": 17,
+            "kind": "number-input",
+            "prompt": "The supply crate started this morning with 40 pieces. After today’s round, how many pieces are left?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "will-it-last",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "what-is-left-in-the-crate",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "17 pieces is less than the 46 needed for two days, so the cove would run short."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Compare two numbers: what is left, and what two more days would cost.",
+              "Two days at 23 pieces each is 23 + 23.",
+              "That is 46 pieces needed, and the crate holds 17.",
+              "Is 17 bigger or smaller than 46?",
+              "17 is far smaller than 46, so the cove runs short. Choose that answer."
+            ]
+          },
+          "id": "will-it-last",
+          "objectiveIds": [
+            "cause-and-effect"
+          ],
+          "presentation": {
+            "correctOptionId": "short",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "short",
+                "label": "The cove will run short before the boat arrives"
+              },
+              {
+                "id": "exact",
+                "label": "The food will last exactly until the boat arrives"
+              },
+              {
+                "id": "spare",
+                "label": "There will be food left over when the boat arrives"
+              }
+            ],
+            "prompt": "The supply boat arrives in two more days, and each day costs 23 pieces. What should Nella expect from the 17 pieces left?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "how-much-to-order",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "will-it-last",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "Two days plus a spare day is 69 pieces."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Read the rule again. It asks for two things added together.",
+              "Two days of food, and then one spare day on top.",
+              "A day is 23 pieces, so start with 23 + 23 for the two days.",
+              "That is 46, and the spare day adds one more 23.",
+              "46 + 23 is 69, so she orders 69 pieces. Choose that one."
+            ]
+          },
+          "id": "how-much-to-order",
+          "objectiveIds": [
+            "following-instructions"
+          ],
+          "presentation": {
+            "correctOptionId": "sixty-nine",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "forty-six",
+                "label": "46 pieces"
+              },
+              {
+                "id": "sixty-nine",
+                "label": "69 pieces"
+              },
+              {
+                "id": "twenty-three",
+                "label": "23 pieces"
+              }
+            ],
+            "prompt": "Nella’s rule is to order enough for every day until the boat returns, plus one spare day. The boat returns in two days. How many pieces should she order?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "nella-signs-the-order",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "how-much-to-order",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "Nella orders 69 pieces of food for the cove."
+          },
+          "id": "nella-signs-the-order",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Nella the cove keeper",
+            "text": "Sixty nine it is, and a spare day so nobody here ever waits for a boat. You planned that with numbers instead of hoping. That is the whole job."
+          },
+          "transitions": [
+            {
+              "nextStepId": "creatures-fed",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The creatures at the cove have been cared for."
+          },
+          "id": "creatures-fed",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "COVE_CREATURES_FED",
+              "changeType": "UPDATE",
+              "locationSlug": "cove-care-beach"
+            },
+            "text": "The care round is done and the order is written. Every pen at the cove is fed, and the crate will not run empty."
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        }
+      ],
+      "title": "The Cove Care Plan",
+      "version": 1
+    }
+  ],
+  "learningObjectives": [
+    {
+      "code": "counting-sets",
+      "domain": "numeracy",
+      "title": "Counting sets of objects"
+    },
+    {
+      "code": "addition-within-ten",
+      "domain": "numeracy",
+      "title": "Addition within ten"
+    },
+    {
+      "code": "comparing-lengths",
+      "domain": "numeracy",
+      "title": "Comparing and ordering lengths"
+    },
+    {
+      "code": "following-instructions",
+      "domain": "executive-function",
+      "title": "Following ordered instructions"
+    },
+    {
+      "code": "creative-storytelling",
+      "domain": "creativity",
+      "title": "Creating story characters and settings"
+    },
+    {
+      "code": "reading-comprehension",
+      "domain": "literacy",
+      "title": "Understanding what a story says"
+    },
+    {
+      "code": "sequencing",
+      "domain": "literacy",
+      "title": "Sequencing story events"
+    },
+    {
+      "code": "curious-questioning",
+      "domain": "science",
+      "title": "Asking and exploring curious questions"
+    },
+    {
+      "code": "cause-and-effect",
+      "domain": "science",
+      "title": "Understanding cause and effect in nature"
+    },
+    {
+      "code": "observation",
+      "domain": "science",
+      "title": "Careful observation of the natural world"
+    },
+    {
+      "code": "science-comprehension",
+      "domain": "science",
+      "title": "Understanding a nature explanation"
+    },
+    {
+      "code": "patterns",
+      "domain": "numeracy",
+      "title": "Recognizing and continuing patterns"
+    },
+    {
+      "code": "animal-science",
+      "domain": "science",
+      "title": "Learning how animals live and behave"
+    },
+    {
+      "code": "measurement",
+      "domain": "numeracy",
+      "title": "Measuring and comparing size"
+    },
+    {
+      "code": "empathy",
+      "domain": "social-emotional",
+      "title": "Understanding another's feelings and perspective"
+    },
+    {
+      "code": "classification",
+      "domain": "science",
+      "title": "Sorting things by what they are"
+    },
+    {
+      "code": "subtraction-within-ten",
+      "domain": "numeracy",
+      "title": "Subtraction within ten"
+    },
+    {
+      "code": "vocabulary",
+      "domain": "literacy",
+      "title": "Learning and using new words"
+    }
+  ],
+  "schemaVersion": 1,
+  "wonderWallQuestions": [
+    {
+      "category": "Animals",
+      "id": "wonder-bees",
+      "question": "Why do bees dance?"
+    },
+    {
+      "category": "Plants",
+      "id": "wonder-seeds",
+      "question": "How do seeds travel?"
+    },
+    {
+      "category": "Sky and Weather",
+      "id": "wonder-sky",
+      "question": "Why is the sky blue?"
+    },
+    {
+      "category": "Growing and Changing",
+      "id": "wonder-butterfly",
+      "question": "How does a caterpillar become a butterfly?"
+    }
+  ]
+}

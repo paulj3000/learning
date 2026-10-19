@@ -23,6 +23,8 @@
     "test:e2e": "npm run test:e2e -w react",
     "sandbox": "ampx sandbox",
     "ai:red-team": "tsx scripts/ai-red-team.ts",
-    "assets:generate": "tsx scripts/generate-world-assets.ts"
+    "assets:generate": "tsx scripts/generate-world-assets.ts",
+    "content:export": "tsx scripts/export-content.ts",
+    "content:check": "tsx scripts/export-content.ts --check"
   }
 }

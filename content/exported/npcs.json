@@ -1,0 +1,329 @@
+{
+  "npcs": [
+    {
+      "dialogue": [
+        {
+          "awardsRelationshipPoints": 3,
+          "choices": [
+            {
+              "id": "pip-thanks-bye",
+              "label": "You are welcome!"
+            }
+          ],
+          "conditions": [
+            {
+              "equals": true,
+              "flag": "bridgeQuestCompleted",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "id": "pip-bridge-thanks",
+          "narration": {
+            "allowedTopic": "thanking the child for repairing the harbor bridge",
+            "fallbackText": "You fixed my bridge! Every crew in the bay walks across it now. Thank you, friend."
+          },
+          "text": "You fixed my bridge! Every crew in the bay walks across it now. Thank you, friend."
+        },
+        {
+          "awardsRelationshipPoints": 2,
+          "choices": [
+            {
+              "id": "pip-accept-bridge",
+              "label": "Yes, let us fix it!"
+            },
+            {
+              "id": "pip-later-bridge",
+              "label": "Maybe later."
+            }
+          ],
+          "conditions": [
+            {
+              "level": "ACQUAINTANCE",
+              "type": "RELATIONSHIP_AT_LEAST"
+            }
+          ],
+          "id": "pip-bridge-offer",
+          "setsMemoryFlags": [
+            "heardAboutBridge"
+          ],
+          "text": "Good to see you again. The bridge is still broken. Would you help me count the planks?"
+        },
+        {
+          "awardsRelationshipPoints": 1,
+          "choices": [
+            {
+              "id": "pip-greeting-ask",
+              "label": "What are you building?",
+              "nextNodeId": "pip-bridge-story"
+            },
+            {
+              "id": "pip-greeting-bye",
+              "label": "Nice to meet you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "id": "pip-greeting",
+          "setsMemoryFlags": [
+            "metPip"
+          ],
+          "text": "Ahoy! I am Pip, and this is my shipyard. There is always something to build here."
+        },
+        {
+          "awardsRelationshipPoints": 1,
+          "choices": [
+            {
+              "id": "pip-bridge-story-bye",
+              "label": "That sounds like a big job!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "pip-bridge-story",
+          "setsMemoryFlags": [
+            "heardAboutBridge"
+          ],
+          "text": "The bridge to the cove lost half its planks in the last storm. I need someone good at counting to help me build it back."
+        }
+      ],
+      "displayName": "Pirate Pip",
+      "homeLocationSlug": "pirate-builder-bay",
+      "id": "pirate-pip",
+      "interactionId": "meet-pirate-pip",
+      "questOffers": [
+        {
+          "conditions": [
+            {
+              "equals": false,
+              "flag": "bridgeQuestCompleted",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "questId": "repair-the-bridge",
+          "summary": "Help Pip count and measure planks to repair the harbor bridge."
+        }
+      ],
+      "role": "Shipyard foreman at Pirate Builder Bay. Offers the bridge repair quest.",
+      "schedule": [
+        {
+          "locationSlug": "pirate-builder-bay",
+          "timeOfDay": "MORNING"
+        },
+        {
+          "locationSlug": "pirate-builder-bay",
+          "timeOfDay": "AFTERNOON"
+        },
+        {
+          "locationSlug": "welcome-harbor",
+          "timeOfDay": "EVENING"
+        }
+      ]
+    },
+    {
+      "dialogue": [
+        {
+          "awardsRelationshipPoints": 2,
+          "choices": [
+            {
+              "id": "quill-new-story",
+              "label": "Yes, a new story!"
+            },
+            {
+              "id": "quill-just-visiting",
+              "label": "I am just visiting."
+            }
+          ],
+          "conditions": [
+            {
+              "equals": true,
+              "flag": "finishedAStory",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "id": "quill-returning-author",
+          "text": "The story you made is on my shelf now. Shall we start a new one?"
+        },
+        {
+          "awardsRelationshipPoints": 1,
+          "choices": [
+            {
+              "id": "quill-greeting-bye",
+              "label": "I have lots of ideas!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "id": "quill-greeting",
+          "narration": {
+            "allowedTopic": "welcoming the child into the castle library full of unfinished stories",
+            "fallbackText": "Welcome to the castle library. Every story here is missing one thing: your ideas."
+          },
+          "setsMemoryFlags": [
+            "metQuill"
+          ],
+          "text": "Welcome to the castle library. Every story here is missing one thing: your ideas."
+        }
+      ],
+      "displayName": "Keeper Quill",
+      "homeLocationSlug": "storykeeper-castle",
+      "id": "keeper-quill",
+      "interactionId": "talk-to-keeper-quill",
+      "questOffers": [
+        {
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "questId": "tell-a-story-together",
+          "summary": "Build a story with Keeper Quill, one choice at a time."
+        }
+      ],
+      "role": "Storykeeper Castle librarian. Invites children to build a story together.",
+      "schedule": [
+        {
+          "locationSlug": "storykeeper-castle",
+          "timeOfDay": "MORNING"
+        },
+        {
+          "locationSlug": "castle-writing-room",
+          "timeOfDay": "AFTERNOON"
+        },
+        {
+          "locationSlug": "storykeeper-castle",
+          "timeOfDay": "EVENING"
+        }
+      ]
+    },
+    {
+      "dialogue": [
+        {
+          "awardsRelationshipPoints": 2,
+          "choices": [
+            {
+              "id": "bolt-friend-bye",
+              "label": "Show me!"
+            }
+          ],
+          "conditions": [
+            {
+              "level": "FRIEND",
+              "type": "RELATIONSHIP_AT_LEAST"
+            }
+          ],
+          "id": "bolt-friend-greeting",
+          "text": "My favorite helper is back. I saved the interesting gears for you."
+        },
+        {
+          "awardsRelationshipPoints": 1,
+          "choices": [
+            {
+              "id": "bolt-greeting-bye",
+              "label": "Hello, Bolt!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "id": "bolt-greeting",
+          "narration": {
+            "allowedTopic": "introducing a cluttered workshop full of springs and gears",
+            "fallbackText": "Careful where you step, there are springs everywhere. I am Bolt. I fix things."
+          },
+          "setsMemoryFlags": [
+            "metBolt"
+          ],
+          "text": "Careful where you step, there are springs everywhere. I am Bolt. I fix things."
+        }
+      ],
+      "displayName": "Bolt",
+      "homeLocationSlug": "bolts-workshop",
+      "id": "bolt",
+      "interactionId": "meet-bolt",
+      "questOffers": [
+        {
+          "conditions": [
+            {
+              "equals": true,
+              "flag": "metBolt",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "questId": "sort-the-workshop",
+          "summary": "Help Bolt sort the workshop parts into the right bins."
+        }
+      ],
+      "role": "Tinkerer at Bolt's Workshop. Offers building and sorting work.",
+      "schedule": [
+        {
+          "locationSlug": "bolts-workshop",
+          "timeOfDay": "MORNING"
+        },
+        {
+          "locationSlug": "bolts-workshop",
+          "timeOfDay": "AFTERNOON"
+        },
+        {
+          "locationSlug": "bolts-workshop",
+          "timeOfDay": "EVENING"
+        }
+      ]
+    },
+    {
+      "dialogue": [
+        {
+          "awardsRelationshipPoints": 2,
+          "choices": [
+            {
+              "id": "ember-greeting-bye",
+              "label": "Thank you, Ember!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "id": "ember-greeting",
+          "setsMemoryFlags": [
+            "metEmber"
+          ],
+          "text": "You are the one who helped me. I remember. This sanctuary is yours to visit anytime."
+        }
+      ],
+      "displayName": "Ember",
+      "homeLocationSlug": "dragons-sanctuary",
+      "id": "ember-dragon",
+      "interactionId": "meet-ember-dragon",
+      "questOffers": [],
+      "role": "Young dragon at the Dragon's Sanctuary. Appears only after the Ember Mountain story.",
+      "schedule": [
+        {
+          "locationSlug": "dragons-sanctuary",
+          "timeOfDay": "MORNING"
+        },
+        {
+          "locationSlug": "dragons-sanctuary",
+          "timeOfDay": "AFTERNOON"
+        },
+        {
+          "locationSlug": "dragons-sanctuary",
+          "timeOfDay": "EVENING"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 1
+}

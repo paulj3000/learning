@@ -651,3 +651,11 @@ them by printing (a test forbids `print(`) or by writing private data into a log
 review, not code, prevents that. Not inspected, because no such system exists in the repository: web or
 ASGI server access logs, load balancer, CDN, CloudWatch, PostgreSQL server logs, monitoring vendors.
 Those are gate G10 (LAI-0210), required before production.
+
+## Content export (LAI-0302)
+
+TypeScript content is exported read-only to `content/` (schema, 11 data files, manifest). The export
+runs the existing typed content modules at build time in plain Node: a trusted boundary guarded by a test
+that no module it imports reaches React, Amplify, Three.js, Phaser, or an `api.ts`. Django (LAI-0304) and
+the future Three.js world loader are the intended consumers; neither exists yet. Details, the hierarchy
+mapping, and gaps: `docs/DATA_MODEL.md`.

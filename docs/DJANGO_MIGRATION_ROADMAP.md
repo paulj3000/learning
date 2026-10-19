@@ -155,7 +155,7 @@ reading mode, session minutes, `ai_enabled`, `owner_sub` equivalent via FK), `Co
 `ParentConsent`; maximum three active child profiles enforced in the service (CLAUDE.md
 section 11); migrations. Data: schema only. Tests: model and service tests.
 
-**LAI-0302 Content export to versioned JSON.** Depends: 0201. Risk M. Acceptance: a Node
+**LAI-0302 Content export to versioned JSON. DONE locally (script is `scripts/export-content.ts`; spatial data deferred).** Depends: 0201. Risk M. Acceptance: a Node
 script (`react/scripts/export-content.ts`) writes a content package for adventures, quests,
 items/reward table, curriculum, worlds, locations, NPC definitions, discovery/checkpoints,
 asset manifest, with a `schemaVersion` and a JSON Schema; an existing Vitest invariant test

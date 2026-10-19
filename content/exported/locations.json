@@ -1,0 +1,130 @@
+{
+  "locations": [
+    {
+      "decoration": "The bridge into the bay is still broken. A repair quest is coming soon.",
+      "description": "A busy shipyard where crews count, measure, and build to keep the bay running. Great for counting, measurement, ordering, and following instructions.",
+      "skills": [
+        "Counting",
+        "Measurement",
+        "Ordering",
+        "Instructions"
+      ],
+      "slug": "pirate-builder-bay",
+      "tagline": "Counting, measuring, and building with Pirate Pip.",
+      "title": "Pirate Builder Bay",
+      "worldSlug": "learning-adventure-island"
+    },
+    {
+      "decoration": "The Wonder Wall's questions are still waiting for their first answer.",
+      "description": "A forest full of safe, curious questions waiting to be explored, like why bees dance or how seeds travel. Great for observation and early science reasoning.",
+      "skills": [
+        "Observation",
+        "Curiosity",
+        "Cause and effect"
+      ],
+      "slug": "wonderwild-forest",
+      "tagline": "Curious questions become nature adventures.",
+      "title": "Wonderwild Forest",
+      "worldSlug": "learning-adventure-island"
+    },
+    {
+      "decoration": "The storybooks on the shelf are still blank. The first tale is coming soon.",
+      "description": "A castle library where children help tell the story: predicting what happens next, sequencing events, and building vocabulary along the way.",
+      "skills": [
+        "Prediction",
+        "Sequencing",
+        "Vocabulary"
+      ],
+      "slug": "storykeeper-castle",
+      "tagline": "Collaborative stories, one choice at a time.",
+      "title": "Storykeeper Castle",
+      "worldSlug": "learning-adventure-island"
+    },
+    {
+      "decoration": "The dragon rests peacefully beside her egg.",
+      "description": "Once smoking and mysterious, this mountain hollow is now home to a dragon who trusts you. Come visit her and her egg, safe at last.",
+      "skills": [
+        "Empathy",
+        "Observation"
+      ],
+      "slug": "dragons-sanctuary",
+      "tagline": "A secret spot, discovered by finishing a dragon's story.",
+      "title": "The Dragon's Sanctuary",
+      "unlockRequirement": {
+        "changeKey": "DRAGON_OF_EMBER_MOUNTAIN_COMPLETE"
+      },
+      "worldSlug": "learning-adventure-island"
+    },
+    {
+      "decoration": "A huge assembled skeleton stands proudly at the ridge.",
+      "description": "The dig is finished, and a giant plant-eating dinosaur now stands fully assembled at camp. Come see what the evidence uncovered.",
+      "skills": [
+        "Observation",
+        "Reasoning"
+      ],
+      "slug": "fossil-ridge-camp",
+      "tagline": "A secret spot, discovered by finishing a dinosaur mystery.",
+      "title": "Fossil Ridge Camp",
+      "unlockRequirement": {
+        "changeKey": "DINOSAUR_EXPEDITION_COMPLETE"
+      },
+      "worldSlug": "learning-adventure-island"
+    },
+    {
+      "decoration": "Shelves of empty books wait for their first stories.",
+      "description": "A small round room behind the last bookshelf: a desk, a window, and shelves of empty books, left ready for whoever solved the door.",
+      "skills": [
+        "Curiosity",
+        "Creative writing"
+      ],
+      "slug": "castle-writing-room",
+      "tagline": "A secret spot, discovered by solving the castle mystery.",
+      "title": "The Writing Room",
+      "unlockRequirement": {
+        "changeKey": "THE_CASTLES_SECRET_DOOR_COMPLETE"
+      },
+      "worldSlug": "learning-adventure-island"
+    },
+    {
+      "decoration": "Bolt rolls happily around the workshop, good as new.",
+      "description": "Bolt the harbor robot is back together and rolling again. Stop by the workshop to see the repair up close.",
+      "skills": [
+        "Problem-solving",
+        "Empathy"
+      ],
+      "slug": "bolts-workshop",
+      "tagline": "A secret spot, discovered by rescuing a harbor robot.",
+      "title": "Bolt's Workshop",
+      "unlockRequirement": {
+        "changeKey": "ROBOT_RESCUE_COMPLETE"
+      },
+      "worldSlug": "learning-adventure-island"
+    },
+    {
+      "decoration": "The care pens are quiet. Nobody has been fed yet this morning.",
+      "description": "A curve of pale sand lined with shallow care pens. Every creature here is waiting to get strong enough to swim home, and every one of them needs the right food, in the right amount, in the right order.",
+      "skills": [
+        "Counting",
+        "Sorting",
+        "Caring routines"
+      ],
+      "slug": "cove-care-beach",
+      "tagline": "Feeding, sorting, and looking after rescued sea creatures.",
+      "title": "The Care Beach",
+      "worldSlug": "creature-care-cove"
+    },
+    {
+      "decoration": "The lanterns along the rocks are unlit, waiting for someone to help at the cove.",
+      "description": "Round pools left behind by the tide, each one holding a tiny world of its own. Nella hangs lanterns along the rocks so the pools can be visited after dark.",
+      "skills": [
+        "Observation",
+        "Curiosity"
+      ],
+      "slug": "lantern-tide-pools",
+      "tagline": "A quiet place to sit and watch the water.",
+      "title": "The Lantern Tide Pools",
+      "worldSlug": "creature-care-cove"
+    }
+  ],
+  "schemaVersion": 1
+}

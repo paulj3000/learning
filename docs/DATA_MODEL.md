@@ -632,3 +632,79 @@ non-null `child` foreign key to `ChildProfile` (so `queryset.filter(child=...)` 
 written only through `ChildScopedMixin.scoped` / `get_scoped_object`; never take a parent or child id
 from a request body or query string as authority; and cascade from the child when the child is deleted
 (ADR-022). A record id alone never identifies data.
+
+## Exported game content (LAI-0302)
+
+Authored game content stays in TypeScript and is exported, read-only, to versioned JSON under
+`content/` (committed): `content/schema/content.schema.json` and `content/exported/*.json` with a
+`manifest.json`. Nothing at runtime reads these files yet; gameplay loads its TypeScript as before.
+
+**Commands.** `npm run content:export` writes the files; `npm run content:check` fails if they differ from
+what the sources produce (the Vitest suite enforces the same). Source: `react/src/features/content-export/`
+(builder, strict converter, schema and validator, integrity checks, file rendering) and
+`scripts/export-content.ts`. No network, AWS, browser, or credentials.
+
+**Format.** `schemaVersion: 1`. Each file is `{ "schemaVersion": 1, "<collection>": [...] }`; objects have
+sorted keys, two-space indent, trailing newline, no timestamps. Records keep authored order (order is
+meaningful: adventure lookup by location, reward-rule order). Closed schema: an unknown field or shape
+fails the export until the schema is changed on purpose. `manifest.json` lists each file with its SHA-256,
+record counts, the export tool and version, a digest over all files, and `knownAmbiguities`.
+
+| File | Collections (count) |
+|---|---|
+| islands.json | islands (2), each with its content pack |
+| locations.json | locations (9) |
+| adventures.json | adventures (20), learningObjectives (18), wonderWallQuestions (4) |
+| stories.json | stories (5) |
+| quests.json | quests (5) |
+| rewards.json | items (19), collectibleSets (1), rewardRules (14) |
+| npcs.json | npcs (4), with dialogue and quest offers |
+| discoveries.json | discoveries (6), checkpoints (11) |
+| interactions.json | per-region world interaction tables (8) |
+| curriculum.json | subjects (2), grades (3), domains (6), skills (10) |
+| assets.json | 3D asset manifest entries (78) |
+
+**Mapping onto the approved hierarchy** (Island > Adventure > Quests, Objectives, Challenges, Rewards). What
+the code actually has is one more level and several cross-links, reported rather than reshaped:
+
+| Approved term | In the code | Note |
+|---|---|---|
+| Island | `WorldDefinition` + `WorldContentPack` (2: Learning Adventure Island, Creature Care Cove) | Exported as `islands` with `pack` |
+| (none) | `IslandLocation` (9), the places inside an island and the unit of the Phaser/Three.js regions | A level between Island and Adventure that the hierarchy does not name. Kept as `locations` |
+| Adventure | `AdventureDefinition` (20), each tied to one location | Several are age-band variants of one story |
+| Challenge | An `AdventureStep` of an answerable type, inside an adventure | Not a separate record |
+| Objective | Two things: `LearningObjective` (educational) and `QuestObjective` (a quest task) | Kept separate, not merged |
+| Quest | `QuestDefinition` (5), **not nested in an adventure**; it references adventures (`SOLVE`), items, NPCs | A cross-cutting layer |
+| Reward | `RewardRule` (14) keyed by a trigger (adventure, story, quest, world change, ...), plus items and sets | Not owned by the adventure either |
+| (none) | `StoryDefinition` (5) chaptered stories that run adventures | Another cross-link |
+
+**Known ambiguities (in the manifest).** (1) Five adventures and five stories name locations that have no
+`IslandLocation` (`butterfly-garden`, `castle-secret-passage`, `ember-mountain`, `fossil-ridge`,
+`robot-repair-reef`); the source calls them story-only pseudo-locations. (2) `welcome-harbor` has an
+interaction table and checkpoints but no `IslandLocation`; it is the home hub. Neither was "fixed". Also:
+`nextStepId: "complete"` ends an adventure without a step of that name (an engine convention the existing
+invariants test already allows).
+
+**Not exportable as data, or not exported yet.**
+- *Logic needing a rule specification or a Python implementation (LAI-0303 golden vectors, Phase 6):* answer
+  validation (`validateStepAnswer`), hint escalation, step transitions, reward resolution, quest and
+  objective evaluation, NPC condition evaluation, the learning-activity director's ranking, mastery
+  counters, and age-band gating. The export carries their *inputs* (conditions, ladders, tables), not their
+  behaviour; no function is serialized (the converter rejects functions).
+- *Spatial content, deliberately not exported:* 2D zone rectangles, tile grids and decor (pixels, 32 px
+  tiles on a 30x20 grid, 960x640), and the three first-person region modules (meters). Interactions keep
+  their `zoneId` strings so they can be re-bound. Checkpoints (meters and radians) are exported unchanged.
+  Converting any of it to a Three.js `WorldDefinition` belongs to LAI-2103 and LAI-2201 to 2208.
+- *Inventoried, not exported:* tutor vocabulary and representation aids, the AI personas (in `amplify/data`),
+  the adventure library's themes and interests, and island events and seasons (not inspected in depth).
+  They are not in the roadmap's export list; add them when a Django model needs them.
+
+**Later Django mapping (LAI-0304, not built).** Keep four things apart: *content definition* (a row per
+island, location, adventure, quest, item, ... from these files), *published content version* (the
+manifest's `contentDigest` plus per-record `version`, so a published set is immutable and importable),
+*session* (an `AdventureSession` that records the adventure version it started on; Amplify already stores
+`templateVersion`), and *player progress and inventory* (per child, referencing content by stable string
+id). Completion is never stored inside a definition. Compatibility rule for progress: an id that
+disappears or changes meaning needs an explicit migration entry; an adventure's `version` only increases;
+a session keeps the version it began with. The importer must be idempotent, validate with a full JSON
+Schema validator, and fail on any unknown reference.

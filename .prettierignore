@@ -9,3 +9,6 @@ amplify/.config
 docs
 CLAUDE.md
 START_HERE.md
+# generated, byte-exact exports (npm run content:export); formatting is canonical already
+content/exported
+content/schema

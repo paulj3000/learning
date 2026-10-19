@@ -1,0 +1,396 @@
+{
+  "quests": [
+    {
+      "ageBands": [
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You and Pip rebuilt the moonlight bridge. Lanterns line it now.",
+        "setsNpcMemoryFlags": [
+          {
+            "flags": [
+              "bridgeQuestCompleted"
+            ],
+            "npcId": "pirate-pip"
+          }
+        ]
+      },
+      "entryStageId": "hear-pip-out",
+      "giverNpcId": "pirate-pip",
+      "id": "repair-the-bridge",
+      "prerequisites": [
+        {
+          "type": "ALWAYS"
+        }
+      ],
+      "stages": [
+        {
+          "branches": [
+            {
+              "conditions": [
+                {
+                  "changeKey": "BRIDGE_REPAIRED",
+                  "type": "WORLD_CHANGE"
+                }
+              ],
+              "nextStageId": "bridge-stands-again"
+            }
+          ],
+          "id": "hear-pip-out",
+          "nextStageId": "fix-the-bridge",
+          "objectives": [
+            {
+              "id": "bridge-talk-to-pip",
+              "kind": "TALK_TO",
+              "label": "Talk to Pip at the shipyard",
+              "memoryFlag": "heardAboutBridge",
+              "npcId": "pirate-pip"
+            }
+          ],
+          "title": "Ask Pip about the bridge"
+        },
+        {
+          "id": "fix-the-bridge",
+          "nextStageId": "bridge-stands-again",
+          "objectives": [
+            {
+              "adventureSlug": "repair-the-moonlight-bridge",
+              "id": "bridge-solve-adventure",
+              "kind": "SOLVE",
+              "label": "Finish the bridge repair with Pip"
+            },
+            {
+              "id": "bridge-find-shell",
+              "itemId": "spiral-shell",
+              "kind": "FIND",
+              "label": "Pick up the shell that washes ashore while you work",
+              "optional": true
+            }
+          ],
+          "title": "Repair the moonlight bridge"
+        },
+        {
+          "id": "bridge-stands-again",
+          "objectives": [
+            {
+              "changeKey": "BRIDGE_REPAIRED",
+              "id": "bridge-world-change",
+              "kind": "BUILD",
+              "label": "See the bridge standing again"
+            }
+          ],
+          "title": "Cross the finished bridge",
+          "worldChanges": [
+            {
+              "changeKey": "HARBOR_BRIDGE_LANTERNS_LIT",
+              "changeType": "CREATE",
+              "locationSlug": "pirate-builder-bay"
+            }
+          ]
+        }
+      ],
+      "summary": "Help Pip count and measure planks to repair the harbor bridge.",
+      "title": "The Moonlight Bridge"
+    },
+    {
+      "ageBands": [
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "Your story sits on Keeper Quill's shelf, with your name on it.",
+        "setsNpcMemoryFlags": [
+          {
+            "flags": [
+              "finishedAStory"
+            ],
+            "npcId": "keeper-quill"
+          }
+        ]
+      },
+      "entryStageId": "meet-quill",
+      "giverNpcId": "keeper-quill",
+      "id": "tell-a-story-together",
+      "prerequisites": [
+        {
+          "type": "ALWAYS"
+        }
+      ],
+      "stages": [
+        {
+          "id": "meet-quill",
+          "nextStageId": "tell-the-tale",
+          "objectives": [
+            {
+              "id": "story-talk-to-quill",
+              "kind": "TALK_TO",
+              "label": "Meet Keeper Quill in the library",
+              "memoryFlag": "metQuill",
+              "npcId": "keeper-quill"
+            }
+          ],
+          "title": "Visit the castle library"
+        },
+        {
+          "id": "tell-the-tale",
+          "nextStageId": "shelve-the-story",
+          "objectives": [
+            {
+              "adventureSlug": "the-storykeepers-tale",
+              "id": "story-solve-adventure",
+              "kind": "SOLVE",
+              "label": "Finish The Storykeeper's Tale"
+            },
+            {
+              "id": "story-keep-the-quill",
+              "itemId": "storykeepers-quill",
+              "kind": "FIND",
+              "label": "Keep the feather pen Quill gives you",
+              "optional": true
+            }
+          ],
+          "title": "Make a story together"
+        },
+        {
+          "id": "shelve-the-story",
+          "objectives": [
+            {
+              "changeKey": "FIRST_STORY_TOLD",
+              "id": "story-world-change",
+              "kind": "BUILD",
+              "label": "See your story added to the library shelf"
+            }
+          ],
+          "title": "Put your story on the shelf"
+        }
+      ],
+      "summary": "Build a story with Keeper Quill, one choice at a time.",
+      "title": "A Story for the Shelf"
+    },
+    {
+      "ageBands": [
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "Every part has a bin now, and Bolt can find anything in one try."
+      },
+      "entryStageId": "meet-bolt",
+      "giverNpcId": "bolt",
+      "id": "sort-the-workshop",
+      "prerequisites": [
+        {
+          "type": "ALWAYS"
+        }
+      ],
+      "stages": [
+        {
+          "branches": [
+            {
+              "conditions": [
+                {
+                  "changeKey": "ROBOT_BOLT_REBUILT",
+                  "type": "WORLD_CHANGE"
+                }
+              ],
+              "nextStageId": "workshop-tidy"
+            }
+          ],
+          "id": "meet-bolt",
+          "nextStageId": "gather-the-parts",
+          "objectives": [
+            {
+              "id": "workshop-talk-to-bolt",
+              "kind": "TALK_TO",
+              "label": "Say hello to Bolt",
+              "memoryFlag": "metBolt",
+              "npcId": "bolt"
+            }
+          ],
+          "title": "Find Bolt in the workshop"
+        },
+        {
+          "id": "gather-the-parts",
+          "nextStageId": "build-it-back",
+          "objectives": [
+            {
+              "adventureSlug": "robot-chapter-1-gather-parts",
+              "id": "workshop-solve-gather",
+              "kind": "SOLVE",
+              "label": "Sort the scattered parts with Bolt"
+            }
+          ],
+          "title": "Sort every part into its bin"
+        },
+        {
+          "id": "build-it-back",
+          "nextStageId": "workshop-tidy",
+          "objectives": [
+            {
+              "adventureSlug": "robot-chapter-2-build-it-back",
+              "id": "workshop-solve-rebuild",
+              "kind": "SOLVE",
+              "label": "Rebuild Bolt from the sorted parts"
+            }
+          ],
+          "title": "Put Bolt back together"
+        },
+        {
+          "id": "workshop-tidy",
+          "objectives": [
+            {
+              "changeKey": "ROBOT_WORKBENCH_READY",
+              "id": "workshop-world-change",
+              "kind": "BUILD",
+              "label": "See the workbench stacked and ready"
+            }
+          ],
+          "title": "Admire the tidy workshop",
+          "worldChanges": [
+            {
+              "changeKey": "WORKSHOP_SORTED",
+              "changeType": "CREATE",
+              "locationSlug": "bolts-workshop"
+            }
+          ]
+        }
+      ],
+      "summary": "Help Bolt sort the workshop parts into the right bins.",
+      "title": "Bolt's Scattered Parts"
+    },
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You found every quiet place on the island. A shell nobody has ever heard is waiting for you at the tide pool."
+      },
+      "entryStageId": "the-first-quiet-place",
+      "id": "the-quiet-places",
+      "prerequisites": [
+        {
+          "type": "ALWAYS"
+        }
+      ],
+      "stages": [
+        {
+          "id": "the-first-quiet-place",
+          "nextStageId": "look-a-little-further",
+          "objectives": [
+            {
+              "discoveryKey": "harbor-tide-pool",
+              "id": "quiet-places-tide-pool",
+              "kind": "DISCOVER",
+              "label": "Find the tide pool behind the rocks"
+            }
+          ],
+          "title": "Find the first quiet place"
+        },
+        {
+          "id": "look-a-little-further",
+          "nextStageId": "the-last-two",
+          "objectives": [
+            {
+              "discoveryKey": "bay-tide-tunnel",
+              "id": "quiet-places-tide-tunnel",
+              "kind": "DISCOVER",
+              "label": "Find what is at the back of the cove"
+            },
+            {
+              "discoveryKey": "wonderwild-glow-moss",
+              "id": "quiet-places-glow-moss",
+              "kind": "DISCOVER",
+              "label": "Find the light under the ferns"
+            }
+          ],
+          "title": "Look a little further"
+        },
+        {
+          "id": "the-last-two",
+          "objectives": [
+            {
+              "discoveryKey": "wonderwild-glowworm-cave",
+              "id": "quiet-places-glowworm-cave",
+              "kind": "DISCOVER",
+              "label": "See what is inside the dark cave"
+            },
+            {
+              "discoveryKey": "castle-tapestry-stair",
+              "id": "quiet-places-tapestry-stair",
+              "kind": "DISCOVER",
+              "label": "Find out why the tapestry moves"
+            },
+            {
+              "discoveryKey": "harbor-keepers-door",
+              "id": "quiet-places-keepers-door",
+              "kind": "DISCOVER",
+              "label": "Open the harbor keeper's door",
+              "optional": true
+            }
+          ],
+          "title": "Find the last two"
+        }
+      ],
+      "summary": "Find the corners of the island where nobody goes.",
+      "title": "The Quiet Places"
+    },
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You did a whole care round at the cove. Nella lit the lanterns along the tide pools so you can visit them any time.",
+        "worldChanges": [
+          {
+            "changeKey": "COVE_LANTERNS_LIT",
+            "changeType": "UPDATE",
+            "locationSlug": "lantern-tide-pools"
+          }
+        ]
+      },
+      "entryStageId": "find-your-way-around",
+      "id": "helping-at-the-cove",
+      "prerequisites": [
+        {
+          "changeKey": "ARRIVED_AT_CREATURE_CARE_COVE",
+          "type": "WORLD_CHANGE"
+        }
+      ],
+      "stages": [
+        {
+          "id": "find-your-way-around",
+          "nextStageId": "do-the-care-round",
+          "objectives": [
+            {
+              "id": "cove-explore-beach",
+              "kind": "EXPLORE",
+              "label": "Arrive at the care beach",
+              "locationSlug": "cove-care-beach"
+            }
+          ],
+          "title": "Walk the care beach"
+        },
+        {
+          "id": "do-the-care-round",
+          "objectives": [
+            {
+              "changeKey": "COVE_CREATURES_FED",
+              "id": "cove-creatures-fed",
+              "kind": "BUILD",
+              "label": "See every creature at the cove fed and settled"
+            }
+          ],
+          "title": "Help with the morning care round"
+        }
+      ],
+      "summary": "Help Nella through a morning care round, and the cove lights its lanterns for you.",
+      "title": "Helping at the Cove"
+    }
+  ],
+  "schemaVersion": 1
+}

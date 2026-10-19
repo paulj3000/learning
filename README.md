@@ -95,6 +95,8 @@ npm run format         # format with Prettier
 npm run format:check   # check formatting without writing
 npm run test            # run Vitest unit/component tests
 npm run test:e2e        # run Playwright end-to-end tests
+npm run content:export  # write content/ (versioned JSON export of the game content)
+npm run content:check   # fail if content/ is out of date
 npm run sandbox          # start a personal Amplify cloud sandbox
 ```
 

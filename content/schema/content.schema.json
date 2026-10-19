@@ -1,0 +1,3165 @@
+{
+  "$defs": {
+    "adventure": {
+      "additionalProperties": false,
+      "properties": {
+        "ageBands": {
+          "items": {
+            "enum": [
+              "SPROUT",
+              "PATHFINDER",
+              "EXPLORER"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "entryStepId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "locationSlug": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "slug": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/adventureStep"
+          },
+          "type": "array"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "slug",
+        "version",
+        "title",
+        "locationSlug",
+        "ageBands",
+        "entryStepId",
+        "steps"
+      ],
+      "type": "object"
+    },
+    "adventureStep": {
+      "additionalProperties": false,
+      "properties": {
+        "fallback": {
+          "additionalProperties": false,
+          "properties": {
+            "text": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        },
+        "hintPolicy": {
+          "additionalProperties": false,
+          "properties": {
+            "ladder": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "ladder"
+          ],
+          "type": "object"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectiveIds": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "presentation": {
+          "$ref": "#/$defs/presentation"
+        },
+        "transitions": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "nextStepId": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "when": {
+                "enum": [
+                  "correct",
+                  "incorrect",
+                  "partial",
+                  "always"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "when",
+              "nextStepId"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "type": {
+          "enum": [
+            "NARRATIVE",
+            "CHOICE",
+            "NUMBER_INPUT",
+            "ORDERING",
+            "MATCHING",
+            "SHORT_RESPONSE",
+            "CREATIVE_CHOICE",
+            "REFLECTION",
+            "WORLD_CHANGE",
+            "COMPLETE"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "objectiveIds",
+        "presentation",
+        "transitions",
+        "fallback"
+      ],
+      "type": "object"
+    },
+    "asset": {
+      "additionalProperties": false,
+      "properties": {
+        "clips": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "kit-piece",
+            "character",
+            "prop",
+            "collectible"
+          ],
+          "type": "string"
+        },
+        "lod": {
+          "additionalProperties": false,
+          "properties": {
+            "distanceMeters": {
+              "type": "number"
+            },
+            "lowDetailId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "lowDetailId",
+            "distanceMeters"
+          ],
+          "type": "object"
+        },
+        "url": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "url",
+        "kind",
+        "clips"
+      ],
+      "type": "object"
+    },
+    "checkpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "regionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "yaw": {
+          "type": "number"
+        },
+        "z": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "regionId",
+        "label",
+        "x",
+        "z",
+        "yaw"
+      ],
+      "type": "object"
+    },
+    "choiceOption": {
+      "additionalProperties": false,
+      "properties": {
+        "groups": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "type": "object"
+    },
+    "collectibleSet": {
+      "additionalProperties": false,
+      "properties": {
+        "completionItemId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "completionMessage": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "displayName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "itemIds": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "displayName",
+        "completionMessage",
+        "itemIds"
+      ],
+      "type": "object"
+    },
+    "discovery": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "HIDDEN_CAVE",
+            "SECRET_PASSAGE",
+            "LOCKED_DOOR",
+            "HIDDEN_OBJECT"
+          ],
+          "type": "string"
+        },
+        "locationSlug": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "lockedMessage": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "requirements": {
+          "items": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "ALWAYS"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "changeKey": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "WORLD_CHANGE_PRESENT"
+                  }
+                },
+                "required": [
+                  "type",
+                  "changeKey"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "itemId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "ITEM_OWNED"
+                  }
+                },
+                "required": [
+                  "type",
+                  "itemId"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "discoveryId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "DISCOVERY_PRESENT"
+                  }
+                },
+                "required": [
+                  "type",
+                  "discoveryId"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        "revealMessage": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "startsQuestId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "worldChange": {
+          "$ref": "#/$defs/questWorldChange"
+        }
+      },
+      "required": [
+        "id",
+        "locationSlug",
+        "kind",
+        "title",
+        "revealMessage",
+        "lockedMessage",
+        "requirements"
+      ],
+      "type": "object"
+    },
+    "domain": {
+      "additionalProperties": false,
+      "properties": {
+        "gradeId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "gradeId",
+        "title"
+      ],
+      "type": "object"
+    },
+    "file:adventures.json": {
+      "additionalProperties": false,
+      "properties": {
+        "adventures": {
+          "items": {
+            "$ref": "#/$defs/adventure"
+          },
+          "type": "array"
+        },
+        "learningObjectives": {
+          "items": {
+            "$ref": "#/$defs/learningObjective"
+          },
+          "type": "array"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "wonderWallQuestions": {
+          "items": {
+            "$ref": "#/$defs/wonderWallQuestion"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "adventures",
+        "learningObjectives",
+        "wonderWallQuestions"
+      ],
+      "type": "object"
+    },
+    "file:assets.json": {
+      "additionalProperties": false,
+      "properties": {
+        "assets": {
+          "items": {
+            "$ref": "#/$defs/asset"
+          },
+          "type": "array"
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "assets"
+      ],
+      "type": "object"
+    },
+    "file:curriculum.json": {
+      "additionalProperties": false,
+      "properties": {
+        "domains": {
+          "items": {
+            "$ref": "#/$defs/domain"
+          },
+          "type": "array"
+        },
+        "grades": {
+          "items": {
+            "$ref": "#/$defs/grade"
+          },
+          "type": "array"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "skills": {
+          "items": {
+            "$ref": "#/$defs/skill"
+          },
+          "type": "array"
+        },
+        "subjects": {
+          "items": {
+            "$ref": "#/$defs/subject"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "subjects",
+        "grades",
+        "domains",
+        "skills"
+      ],
+      "type": "object"
+    },
+    "file:discoveries.json": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpoints": {
+          "items": {
+            "$ref": "#/$defs/checkpoint"
+          },
+          "type": "array"
+        },
+        "discoveries": {
+          "items": {
+            "$ref": "#/$defs/discovery"
+          },
+          "type": "array"
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "discoveries",
+        "checkpoints"
+      ],
+      "type": "object"
+    },
+    "file:interactions.json": {
+      "additionalProperties": false,
+      "properties": {
+        "interactions": {
+          "items": {
+            "$ref": "#/$defs/regionInteractions"
+          },
+          "type": "array"
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "interactions"
+      ],
+      "type": "object"
+    },
+    "file:islands.json": {
+      "additionalProperties": false,
+      "properties": {
+        "islands": {
+          "items": {
+            "$ref": "#/$defs/island"
+          },
+          "type": "array"
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "islands"
+      ],
+      "type": "object"
+    },
+    "file:locations.json": {
+      "additionalProperties": false,
+      "properties": {
+        "locations": {
+          "items": {
+            "$ref": "#/$defs/location"
+          },
+          "type": "array"
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "locations"
+      ],
+      "type": "object"
+    },
+    "file:npcs.json": {
+      "additionalProperties": false,
+      "properties": {
+        "npcs": {
+          "items": {
+            "$ref": "#/$defs/npc"
+          },
+          "type": "array"
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "npcs"
+      ],
+      "type": "object"
+    },
+    "file:quests.json": {
+      "additionalProperties": false,
+      "properties": {
+        "quests": {
+          "items": {
+            "$ref": "#/$defs/quest"
+          },
+          "type": "array"
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "quests"
+      ],
+      "type": "object"
+    },
+    "file:rewards.json": {
+      "additionalProperties": false,
+      "properties": {
+        "collectibleSets": {
+          "items": {
+            "$ref": "#/$defs/collectibleSet"
+          },
+          "type": "array"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/item"
+          },
+          "type": "array"
+        },
+        "rewardRules": {
+          "items": {
+            "$ref": "#/$defs/rewardRule"
+          },
+          "type": "array"
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "items",
+        "collectibleSets",
+        "rewardRules"
+      ],
+      "type": "object"
+    },
+    "file:stories.json": {
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "stories": {
+          "items": {
+            "$ref": "#/$defs/story"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "stories"
+      ],
+      "type": "object"
+    },
+    "grade": {
+      "additionalProperties": false,
+      "properties": {
+        "ageBands": {
+          "items": {
+            "enum": [
+              "SPROUT",
+              "PATHFINDER",
+              "EXPLORER"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "subjectId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "subjectId",
+        "title",
+        "ageBands"
+      ],
+      "type": "object"
+    },
+    "interaction": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "NAVIGATE"
+                },
+                "to": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "to"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "SHOW_MESSAGE"
+                },
+                "message": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "message"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "START_ADVENTURE"
+                },
+                "locationSlug": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "templateSlug": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "locationSlug",
+                "templateSlug"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "discoveryId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "DISCOVER"
+                }
+              },
+              "required": [
+                "kind",
+                "discoveryId"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "TALK_TO"
+                },
+                "npcId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "npcId"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "requirements": {
+          "items": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "ALWAYS"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "changeKey": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "WORLD_CHANGE_PRESENT"
+                  }
+                },
+                "required": [
+                  "type",
+                  "changeKey"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "changeKey": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "WORLD_CHANGE_ABSENT"
+                  }
+                },
+                "required": [
+                  "type",
+                  "changeKey"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "itemId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "ITEM_OWNED"
+                  }
+                },
+                "required": [
+                  "type",
+                  "itemId"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "discoveryId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "DISCOVERY_PRESENT"
+                  }
+                },
+                "required": [
+                  "type",
+                  "discoveryId"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        "targetId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "trigger": {
+          "enum": [
+            "TAP",
+            "APPROACH",
+            "ENTER",
+            "USE"
+          ],
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "NPC",
+            "OBJECT",
+            "LOCATION",
+            "DISCOVERY",
+            "ADVENTURE"
+          ],
+          "type": "string"
+        },
+        "zoneId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "trigger",
+        "title",
+        "targetId",
+        "action"
+      ],
+      "type": "object"
+    },
+    "island": {
+      "additionalProperties": false,
+      "properties": {
+        "arrival": {
+          "additionalProperties": false,
+          "properties": {
+            "changeKey": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "locationSlug": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "text": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "locationSlug",
+            "text",
+            "changeKey"
+          ],
+          "type": "object"
+        },
+        "description": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "isHome": {
+          "type": "boolean"
+        },
+        "pack": {
+          "additionalProperties": false,
+          "properties": {
+            "adventureSlugs": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "collectibleSetIds": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "discoveryIds": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "itemIds": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "locationSlugs": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "npcIds": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "questIds": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "storySlugs": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "version": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "version",
+            "locationSlugs",
+            "adventureSlugs",
+            "questIds",
+            "itemIds",
+            "collectibleSetIds",
+            "npcIds",
+            "discoveryIds",
+            "storySlugs"
+          ],
+          "type": "object"
+        },
+        "slug": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "supportedAgeBands": {
+          "items": {
+            "enum": [
+              "SPROUT",
+              "PATHFINDER",
+              "EXPLORER"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "tagline": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "travelRequirement": {
+          "additionalProperties": false,
+          "properties": {
+            "anyOfChangeKeys": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "lockedHint": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "anyOfChangeKeys",
+            "lockedHint"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "slug",
+        "title",
+        "tagline",
+        "description",
+        "supportedAgeBands",
+        "pack"
+      ],
+      "type": "object"
+    },
+    "item": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "enum": [
+            "COLLECTIBLE",
+            "COSMETIC",
+            "QUEST_ITEM",
+            "KEEPSAKE"
+          ],
+          "type": "string"
+        },
+        "cosmeticSlot": {
+          "enum": [
+            "HAT",
+            "BACKPACK",
+            "ACCESSORY",
+            "OUTFIT"
+          ],
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "displayName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "hidden": {
+          "type": "boolean"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "rarity": {
+          "enum": [
+            "COMMON",
+            "UNCOMMON",
+            "RARE"
+          ],
+          "type": "string"
+        },
+        "setId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "displayName",
+        "description",
+        "category",
+        "rarity"
+      ],
+      "type": "object"
+    },
+    "learningObjective": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "domain": {
+          "enum": [
+            "literacy",
+            "numeracy",
+            "science",
+            "creativity",
+            "social-emotional",
+            "executive-function"
+          ],
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "domain",
+        "title"
+      ],
+      "type": "object"
+    },
+    "location": {
+      "additionalProperties": false,
+      "properties": {
+        "decoration": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "skills": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "slug": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "tagline": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "unlockRequirement": {
+          "additionalProperties": false,
+          "properties": {
+            "changeKey": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "changeKey"
+          ],
+          "type": "object"
+        },
+        "worldSlug": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "slug",
+        "worldSlug",
+        "title",
+        "tagline",
+        "description",
+        "skills",
+        "decoration"
+      ],
+      "type": "object"
+    },
+    "manifest": {
+      "additionalProperties": false,
+      "properties": {
+        "contentDigest": {
+          "maxLength": 64,
+          "minLength": 64,
+          "type": "string"
+        },
+        "exportTool": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "version": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "version"
+          ],
+          "type": "object"
+        },
+        "files": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "counts": {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              "path": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "sha256": {
+                "maxLength": 64,
+                "minLength": 64,
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "sha256",
+              "counts"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "knownAmbiguities": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "detail": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "ids": {
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "ids",
+              "detail"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "exportTool",
+        "contentDigest",
+        "files",
+        "knownAmbiguities"
+      ],
+      "type": "object"
+    },
+    "npc": {
+      "additionalProperties": false,
+      "properties": {
+        "dialogue": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "awardsRelationshipPoints": {
+                "type": "number"
+              },
+              "choices": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "conditions": {
+                      "items": {
+                        "$ref": "#/$defs/npcCondition"
+                      },
+                      "type": "array"
+                    },
+                    "id": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "label": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "nextNodeId": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "label"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "conditions": {
+                "items": {
+                  "$ref": "#/$defs/npcCondition"
+                },
+                "type": "array"
+              },
+              "followUpOnly": {
+                "type": "boolean"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "narration": {
+                "additionalProperties": false,
+                "properties": {
+                  "allowedTopic": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "fallbackText": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "allowedTopic",
+                  "fallbackText"
+                ],
+                "type": "object"
+              },
+              "setsMemoryFlags": {
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "text": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "conditions",
+              "text",
+              "choices"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "displayName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "homeLocationSlug": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "interactionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "questOffers": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "conditions": {
+                "items": {
+                  "$ref": "#/$defs/npcCondition"
+                },
+                "type": "array"
+              },
+              "questId": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "summary": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "questId",
+              "summary",
+              "conditions"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "role": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schedule": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "locationSlug": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "timeOfDay": {
+                "enum": [
+                  "MORNING",
+                  "AFTERNOON",
+                  "EVENING"
+                ],
+                "type": "string"
+              },
+              "zoneId": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "timeOfDay",
+              "locationSlug"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "displayName",
+        "role",
+        "homeLocationSlug",
+        "interactionId",
+        "schedule",
+        "dialogue",
+        "questOffers"
+      ],
+      "type": "object"
+    },
+    "npcCondition": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "ALWAYS"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "equals": {
+              "type": "boolean"
+            },
+            "flag": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": {
+              "const": "MEMORY_FLAG"
+            }
+          },
+          "required": [
+            "type",
+            "flag",
+            "equals"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "level": {
+              "$ref": "#/$defs/relationshipLevel"
+            },
+            "type": {
+              "const": "RELATIONSHIP_AT_LEAST"
+            }
+          },
+          "required": [
+            "type",
+            "level"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "changeKey": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": {
+              "const": "WORLD_CHANGE"
+            }
+          },
+          "required": [
+            "type",
+            "changeKey"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "questId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": {
+              "const": "QUEST_COMPLETED"
+            }
+          },
+          "required": [
+            "type",
+            "questId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "timeOfDay": {
+              "enum": [
+                "MORNING",
+                "AFTERNOON",
+                "EVENING"
+              ],
+              "type": "string"
+            },
+            "type": {
+              "const": "TIME_OF_DAY"
+            }
+          },
+          "required": [
+            "type",
+            "timeOfDay"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "presentation": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "aiNarrated": {
+              "type": "boolean"
+            },
+            "kind": {
+              "const": "narrative"
+            },
+            "speaker": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "text": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "speaker",
+            "text"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "correctValue": {
+              "type": "number"
+            },
+            "kind": {
+              "const": "number-input"
+            },
+            "prompt": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "prompt",
+            "correctValue"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "correctOptionId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "const": "choice"
+            },
+            "options": {
+              "items": {
+                "$ref": "#/$defs/choiceOption"
+              },
+              "type": "array"
+            },
+            "prompt": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "prompt",
+            "options",
+            "correctOptionId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "correctOrder": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "items": {
+              "items": {
+                "$ref": "#/$defs/choiceOption"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "ordering"
+            },
+            "prompt": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "prompt",
+            "items",
+            "correctOrder"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "matching"
+            },
+            "pairs": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "leftId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "rightId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "leftId",
+                  "rightId"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "prompt": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "prompt",
+            "pairs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "acceptedOptionIds": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "short-response"
+            },
+            "options": {
+              "items": {
+                "$ref": "#/$defs/choiceOption"
+              },
+              "type": "array"
+            },
+            "prompt": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "prompt",
+            "options",
+            "acceptedOptionIds"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "creative-choice"
+            },
+            "options": {
+              "items": {
+                "$ref": "#/$defs/choiceOption"
+              },
+              "type": "array"
+            },
+            "prompt": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "prompt",
+            "options"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "reflection"
+            },
+            "prompt": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "prompt"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "world-change"
+            },
+            "payload": {
+              "$ref": "#/$defs/worldChangePayload"
+            },
+            "text": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "text",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "complete"
+            },
+            "text": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "text"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "quest": {
+      "additionalProperties": false,
+      "properties": {
+        "ageBands": {
+          "items": {
+            "enum": [
+              "SPROUT",
+              "PATHFINDER",
+              "EXPLORER"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "completion": {
+          "additionalProperties": false,
+          "properties": {
+            "journalNote": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "setsNpcMemoryFlags": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "flags": {
+                    "items": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "npcId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "npcId",
+                  "flags"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "worldChanges": {
+              "items": {
+                "$ref": "#/$defs/questWorldChange"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "journalNote"
+          ],
+          "type": "object"
+        },
+        "entryStageId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "giverNpcId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "prerequisites": {
+          "items": {
+            "$ref": "#/$defs/questCondition"
+          },
+          "type": "array"
+        },
+        "stages": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "branches": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "conditions": {
+                      "items": {
+                        "$ref": "#/$defs/questCondition"
+                      },
+                      "type": "array"
+                    },
+                    "nextStageId": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "conditions",
+                    "nextStageId"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "nextStageId": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "objectives": {
+                "items": {
+                  "$ref": "#/$defs/questObjective"
+                },
+                "type": "array"
+              },
+              "title": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "worldChanges": {
+                "items": {
+                  "$ref": "#/$defs/questWorldChange"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "objectives"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "summary": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "summary",
+        "ageBands",
+        "prerequisites",
+        "entryStageId",
+        "stages",
+        "completion"
+      ],
+      "type": "object"
+    },
+    "questCondition": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "ALWAYS"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "questId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": {
+              "const": "QUEST_COMPLETED"
+            }
+          },
+          "required": [
+            "type",
+            "questId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "changeKey": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": {
+              "const": "WORLD_CHANGE"
+            }
+          },
+          "required": [
+            "type",
+            "changeKey"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "itemId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": {
+              "const": "ITEM_OWNED"
+            }
+          },
+          "required": [
+            "type",
+            "itemId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "level": {
+              "$ref": "#/$defs/relationshipLevel"
+            },
+            "npcId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": {
+              "const": "RELATIONSHIP_AT_LEAST"
+            }
+          },
+          "required": [
+            "type",
+            "npcId",
+            "level"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "objectiveId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": {
+              "const": "OBJECTIVE_COMPLETED"
+            }
+          },
+          "required": [
+            "type",
+            "objectiveId"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "questObjective": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "const": "TALK_TO"
+            },
+            "label": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "memoryFlag": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "npcId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "optional": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "label",
+            "npcId",
+            "memoryFlag"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "const": "HELP_NPC"
+            },
+            "label": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "memoryFlag": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "npcId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "optional": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "label",
+            "npcId",
+            "memoryFlag"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "itemId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "const": "DELIVER"
+            },
+            "label": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "memoryFlag": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "npcId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "optional": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "label",
+            "itemId",
+            "npcId",
+            "memoryFlag"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "itemId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "const": "FIND"
+            },
+            "label": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "optional": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "label",
+            "itemId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "itemId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "const": "CRAFT"
+            },
+            "label": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "optional": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "label",
+            "itemId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "itemIds": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "COLLECT"
+            },
+            "label": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "optional": {
+              "type": "boolean"
+            },
+            "requiredCount": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "label",
+            "itemIds"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "adventureSlug": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "const": "SOLVE"
+            },
+            "label": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "optional": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "label",
+            "adventureSlug"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "changeKey": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "const": "BUILD"
+            },
+            "label": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "optional": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "label",
+            "changeKey"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "const": "EXPLORE"
+            },
+            "label": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "locationSlug": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "optional": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "label",
+            "locationSlug"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "atLeast": {
+              "enum": [
+                "LOCKED",
+                "INTRODUCED",
+                "DEVELOPING",
+                "PROFICIENT",
+                "MASTERED"
+              ],
+              "type": "string"
+            },
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "const": "LEARN"
+            },
+            "label": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "learningObjectiveCode": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "optional": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "label",
+            "learningObjectiveCode",
+            "atLeast"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "discoveryKey": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "const": "DISCOVER"
+            },
+            "label": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "optional": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "label",
+            "discoveryKey"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "questWorldChange": {
+      "additionalProperties": false,
+      "properties": {
+        "changeKey": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "changeType": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "locationSlug": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "locationSlug",
+        "changeType",
+        "changeKey"
+      ],
+      "type": "object"
+    },
+    "regionInteractions": {
+      "additionalProperties": false,
+      "properties": {
+        "interactions": {
+          "items": {
+            "$ref": "#/$defs/interaction"
+          },
+          "type": "array"
+        },
+        "regionSlug": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "regionSlug",
+        "interactions"
+      ],
+      "type": "object"
+    },
+    "relationshipLevel": {
+      "enum": [
+        "STRANGER",
+        "ACQUAINTANCE",
+        "FRIEND",
+        "TRUSTED_FRIEND"
+      ],
+      "type": "string"
+    },
+    "rewardRule": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "itemIds": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "message": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "trigger": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "templateSlug": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": {
+                  "const": "ADVENTURE_COMPLETED"
+                }
+              },
+              "required": [
+                "type",
+                "templateSlug"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "storySlug": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": {
+                  "const": "STORY_COMPLETED"
+                }
+              },
+              "required": [
+                "type",
+                "storySlug"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "questId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": {
+                  "const": "QUEST_COMPLETED"
+                }
+              },
+              "required": [
+                "type",
+                "questId"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "changeKey": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": {
+                  "const": "WORLD_CHANGE"
+                }
+              },
+              "required": [
+                "type",
+                "changeKey"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "level": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "npcId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": {
+                  "const": "NPC_RELATIONSHIP"
+                }
+              },
+              "required": [
+                "type",
+                "npcId",
+                "level"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "discoveryKey": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": {
+                  "const": "DISCOVERY"
+                }
+              },
+              "required": [
+                "type",
+                "discoveryKey"
+              ],
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "trigger",
+        "itemIds",
+        "message"
+      ],
+      "type": "object"
+    },
+    "skill": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "difficulty": {
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "domainId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "prerequisiteSkillIds": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "representations": {
+          "items": {
+            "enum": [
+              "numeric",
+              "visual",
+              "word-problem",
+              "game-interaction"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "standardsRefs": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "domainId",
+        "title",
+        "description",
+        "prerequisiteSkillIds",
+        "difficulty",
+        "representations"
+      ],
+      "type": "object"
+    },
+    "story": {
+      "additionalProperties": false,
+      "properties": {
+        "chapters": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "nextChapterId": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "scenes": {
+                "items": {
+                  "$ref": "#/$defs/storyScene"
+                },
+                "type": "array"
+              },
+              "title": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "scenes"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "completionWorldChange": {
+          "$ref": "#/$defs/worldChangePayload"
+        },
+        "description": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "entryChapterId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "slug": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "supportedAgeBands": {
+          "items": {
+            "enum": [
+              "SPROUT",
+              "PATHFINDER",
+              "EXPLORER"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "slug",
+        "title",
+        "description",
+        "supportedAgeBands",
+        "entryChapterId",
+        "chapters",
+        "completionWorldChange"
+      ],
+      "type": "object"
+    },
+    "storyScene": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "aiNarrated": {
+              "type": "boolean"
+            },
+            "branches": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "text": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "when": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "equals": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "flagKey": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "flagKey",
+                      "equals"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "when",
+                  "text"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "const": "NARRATIVE"
+            },
+            "speaker": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "text": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "speaker",
+            "text"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "flagKey": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "const": "CHOICE"
+            },
+            "options": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "flagValue": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "groups": {
+                    "items": {
+                      "type": "number"
+                    },
+                    "type": "array"
+                  },
+                  "id": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "label": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "label",
+                  "flagValue"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "prompt": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "prompt",
+            "flagKey",
+            "options"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "const": "ADVENTURE"
+            },
+            "templateSlug": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "templateSlug"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "const": "REFLECTION"
+            },
+            "objectiveIds": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "prompt": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "prompt",
+            "objectiveIds"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "subject": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title"
+      ],
+      "type": "object"
+    },
+    "wonderWallQuestion": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "enum": [
+            "Animals",
+            "Plants",
+            "Sky and Weather",
+            "Growing and Changing"
+          ],
+          "type": "string"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "question": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "category",
+        "question"
+      ],
+      "type": "object"
+    },
+    "worldChangePayload": {
+      "additionalProperties": false,
+      "properties": {
+        "changeKey": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "changeType": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "locationSlug": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "changeType",
+        "changeKey",
+        "locationSlug"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "content.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Schema for content/exported/*.json. Each file is validated against its entry in \"x-files\". Closed objects: unknown fields are errors.",
+  "title": "Learning Adventure Island exported content",
+  "x-files": {
+    "adventures.json": "#/$defs/file:adventures.json",
+    "assets.json": "#/$defs/file:assets.json",
+    "curriculum.json": "#/$defs/file:curriculum.json",
+    "discoveries.json": "#/$defs/file:discoveries.json",
+    "interactions.json": "#/$defs/file:interactions.json",
+    "islands.json": "#/$defs/file:islands.json",
+    "locations.json": "#/$defs/file:locations.json",
+    "manifest.json": "#/$defs/manifest",
+    "npcs.json": "#/$defs/file:npcs.json",
+    "quests.json": "#/$defs/file:quests.json",
+    "rewards.json": "#/$defs/file:rewards.json",
+    "stories.json": "#/$defs/file:stories.json"
+  },
+  "x-schemaVersion": 1
+}

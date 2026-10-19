@@ -1,0 +1,213 @@
+{
+  "domains": [
+    {
+      "gradeId": "math-early-years",
+      "id": "early-number",
+      "title": "Early Number"
+    },
+    {
+      "gradeId": "grade-1-2",
+      "id": "counting-and-cardinality",
+      "title": "Counting and Cardinality"
+    },
+    {
+      "gradeId": "grade-1-2",
+      "id": "operations-and-algebraic-thinking",
+      "title": "Operations and Algebraic Thinking"
+    },
+    {
+      "gradeId": "grade-1-2",
+      "id": "measurement-and-data",
+      "title": "Measurement and Data"
+    },
+    {
+      "gradeId": "early-science",
+      "id": "observing-and-sorting",
+      "title": "Observing and Sorting"
+    },
+    {
+      "gradeId": "early-science",
+      "id": "living-things",
+      "title": "Living Things"
+    }
+  ],
+  "grades": [
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER"
+      ],
+      "id": "math-early-years",
+      "subjectId": "mathematics",
+      "title": "First numbers"
+    },
+    {
+      "ageBands": [
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "id": "grade-1-2",
+      "subjectId": "mathematics",
+      "title": "Grade 1-2"
+    },
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER"
+      ],
+      "id": "early-science",
+      "subjectId": "science",
+      "title": "First look at the world"
+    }
+  ],
+  "schemaVersion": 1,
+  "skills": [
+    {
+      "description": "Count a set of objects one at a time and give the total.",
+      "difficulty": 1,
+      "domainId": "early-number",
+      "id": "counting-sets",
+      "prerequisiteSkillIds": [],
+      "representations": [
+        "visual",
+        "game-interaction"
+      ],
+      "title": "Counting sets of objects"
+    },
+    {
+      "description": "Compare two or more objects by length, directly or by sight.",
+      "difficulty": 1,
+      "domainId": "measurement-and-data",
+      "id": "comparing-lengths",
+      "prerequisiteSkillIds": [],
+      "representations": [
+        "visual",
+        "game-interaction"
+      ],
+      "title": "Comparing and ordering lengths"
+    },
+    {
+      "description": "Add two small groups to find a total of ten or fewer.",
+      "difficulty": 2,
+      "domainId": "operations-and-algebraic-thinking",
+      "id": "addition-within-ten",
+      "prerequisiteSkillIds": [
+        "counting-sets"
+      ],
+      "representations": [
+        "numeric",
+        "visual",
+        "game-interaction"
+      ],
+      "title": "Addition within ten"
+    },
+    {
+      "description": "Identify a repeating pattern and predict what comes next.",
+      "difficulty": 2,
+      "domainId": "operations-and-algebraic-thinking",
+      "id": "patterns",
+      "prerequisiteSkillIds": [
+        "counting-sets"
+      ],
+      "representations": [
+        "visual",
+        "game-interaction"
+      ],
+      "title": "Recognizing and continuing patterns"
+    },
+    {
+      "description": "Measure an object using a non-standard or standard unit and compare results.",
+      "difficulty": 3,
+      "domainId": "measurement-and-data",
+      "id": "measurement",
+      "prerequisiteSkillIds": [
+        "comparing-lengths"
+      ],
+      "representations": [
+        "visual",
+        "numeric",
+        "game-interaction"
+      ],
+      "title": "Measuring and comparing size"
+    },
+    {
+      "description": "Take away part of a group of ten or fewer and find how many remain.",
+      "difficulty": 3,
+      "domainId": "operations-and-algebraic-thinking",
+      "id": "subtraction-within-ten",
+      "prerequisiteSkillIds": [
+        "addition-within-ten"
+      ],
+      "representations": [
+        "numeric",
+        "word-problem"
+      ],
+      "title": "Subtraction within ten"
+    },
+    {
+      "description": "Look closely at something and say what you notice about it.",
+      "difficulty": 1,
+      "domainId": "observing-and-sorting",
+      "id": "observation",
+      "prerequisiteSkillIds": [],
+      "representations": [
+        "visual",
+        "game-interaction"
+      ],
+      "title": "Careful observation of the natural world"
+    },
+    {
+      "description": "Put things into groups by shape, colour, or what they are used for.",
+      "difficulty": 1,
+      "domainId": "observing-and-sorting",
+      "id": "classification",
+      "prerequisiteSkillIds": [
+        "observation"
+      ],
+      "representations": [
+        "visual",
+        "game-interaction"
+      ],
+      "title": "Sorting things by what they are"
+    },
+    {
+      "description": "Say what happens next, and why one thing made another thing happen.",
+      "difficulty": 2,
+      "domainId": "observing-and-sorting",
+      "id": "cause-and-effect",
+      "prerequisiteSkillIds": [
+        "observation"
+      ],
+      "representations": [
+        "visual",
+        "word-problem",
+        "game-interaction"
+      ],
+      "title": "Understanding cause and effect"
+    },
+    {
+      "description": "Find out what an animal eats, where it lives, and how it moves.",
+      "difficulty": 2,
+      "domainId": "living-things",
+      "id": "animal-science",
+      "prerequisiteSkillIds": [
+        "observation"
+      ],
+      "representations": [
+        "visual",
+        "word-problem"
+      ],
+      "title": "Learning how animals live and behave"
+    }
+  ],
+  "subjects": [
+    {
+      "id": "mathematics",
+      "title": "Mathematics"
+    },
+    {
+      "id": "science",
+      "title": "Science and the natural world"
+    }
+  ]
+}
