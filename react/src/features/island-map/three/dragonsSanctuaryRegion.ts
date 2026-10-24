@@ -16,7 +16,7 @@ import {
  *
  * ## This region has no 2D counterpart
  *
- * Per ADR-021 the sanctuary is authored first-person and 3D only. The 2D
+ * Per ADR-029 the sanctuary is authored first-person and 3D only. The 2D
  * Phaser artefacts that carry the same name (`dragonsSanctuaryTilemap.ts`,
  * `dragonsSanctuaryZones.ts`, `dragonsSanctuaryDecor.ts`) are the previous
  * one-screen arrival scene and are superseded, not extended. Nothing here

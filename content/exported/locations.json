@@ -101,6 +101,20 @@
       "worldSlug": "learning-adventure-island"
     },
     {
+      "decoration": "The lighthouse is dark and the harbor gate is shut. Nobody knows why yet.",
+      "description": "A colorful harbor town run by an old machine under the streets. The lighthouse has gone dark, the bridge is stuck, and something small and mechanical is taking pieces away. Great for building, measuring, patterns, and figuring things out.",
+      "skills": [
+        "Building",
+        "Patterns",
+        "Measurement",
+        "Figuring things out"
+      ],
+      "slug": "clockwork-harbor",
+      "tagline": "A seaside town of gears and machines that needs fixing.",
+      "title": "Clockwork Harbor",
+      "worldSlug": "learning-adventure-island"
+    },
+    {
       "decoration": "The care pens are quiet. Nobody has been fed yet this morning.",
       "description": "A curve of pale sand lined with shallow care pens. Every creature here is waiting to get strong enough to swim home, and every one of them needs the right food, in the right amount, in the right order.",
       "skills": [
@@ -126,5 +140,5 @@
       "worldSlug": "creature-care-cove"
     }
   ],
-  "schemaVersion": 1
+  "schemaVersion": 2
 }

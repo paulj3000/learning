@@ -8,6 +8,7 @@
  * Keywords used: type, enum, const, required, properties, additionalProperties, items, minItems,
  * minLength, minimum, maximum, oneOf, $ref (to #/$defs only).
  */
+import { LEARNING_DOMAINS } from '../learning-profile/types';
 import { FILE_LAYOUT, SCHEMA_VERSION, type ContentFileName } from './types';
 
 type Schema = Record<string, unknown>;
@@ -80,15 +81,22 @@ const defs: Record<string, Schema> = {
     },
     { hintPolicy: obj({ ladder: texts }) },
   ),
-  adventure: obj({
-    slug: text,
-    version: int,
-    title: text,
-    locationSlug: text,
-    ageBands,
-    entryStepId: text,
-    steps: arr(ref('adventureStep')),
-  }),
+  adventure: obj(
+    {
+      slug: text,
+      version: int,
+      title: text,
+      locationSlug: text,
+      ageBands,
+      entryStepId: text,
+      steps: arr(ref('adventureStep')),
+    },
+    {
+      /** Both optional and independent of `ageBands`; absent on adventures authored before schema 2. */
+      skillDomain: enumOf(...LEARNING_DOMAINS),
+      skillLevel: { type: 'integer', minimum: 1, maximum: 6 },
+    },
+  ),
   learningObjective: obj({
     code: text,
     domain: enumOf(
@@ -305,6 +313,7 @@ const defs: Record<string, Schema> = {
         START_ADVENTURE: [{ locationSlug: text, templateSlug: text }],
         DISCOVER: [{ discoveryId: text }],
         TALK_TO: [{ npcId: text }],
+        START_STORY: [{ storySlug: text }],
       }),
     },
     {

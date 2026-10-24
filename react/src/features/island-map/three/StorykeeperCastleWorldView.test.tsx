@@ -1225,7 +1225,7 @@ describe('StorykeeperCastleWorldView', () => {
     expect(screen.getByText(/move: wasd or the arrow keys/i)).toBeInTheDocument();
   });
 
-  // --- ADR-019: the castle as a second entry point into the Explorer arc ---
+  // --- ADR-027: the castle as a second entry point into the Explorer arc ---
 
   /** Walks the child up to the door and takes the authored entry point. */
   async function enterTheSecretDoor(): Promise<void> {
@@ -1246,7 +1246,7 @@ describe('StorykeeperCastleWorldView', () => {
   });
 
   /**
-   * ADR-019: "reaching a Three.js object must never bypass Story Engine
+   * ADR-027: "reaching a Three.js object must never bypass Story Engine
    * eligibility". The gate is the story's own `supportedAgeBands`, asked
    * through `isStoryForAgeBand`, and this arc is Explorer-only.
    */
@@ -1277,7 +1277,7 @@ describe('StorykeeperCastleWorldView', () => {
   });
 
   /**
-   * ADR-019's required cross-entry resume test, castle direction: the arc
+   * ADR-027's required cross-entry resume test, castle direction: the arc
    * entered from the castle asks the Story Engine for the same child and the
    * same story `StoryPage` would, so there is one `ChildStoryProgress` and
    * the room resumes whatever chapter it is on rather than restarting.
@@ -1317,7 +1317,7 @@ describe('StorykeeperCastleWorldView', () => {
   /**
    * The arc's chapters are rendered by the mocked `StoryChapterRunner`, so
    * these drive the castle's own adventure renderer directly - it is the
-   * component ADR-019's seam hands the scene to, and the thing under test.
+   * component ADR-027's seam hands the scene to, and the thing under test.
    */
   function renderChapterAdventure(stepId: string) {
     setStep(stepId, SECRET_DOOR_CHAPTER_2_PATTERN_LOCK);

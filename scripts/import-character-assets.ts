@@ -1,6 +1,6 @@
 /**
  * Imports rigged CC0 characters from the packs under `assets/*.zip` into
- * `public/models/`, keeping only the animation clips this project's closed
+ * `react/public/models/`, keeping only the animation clips this project's closed
  * vocabulary actually names.
  *
  * The companion to `scripts/import-kenney-assets.ts`, and a different job.
@@ -57,7 +57,7 @@ import { listZipEntries, readZipEntry } from './assets/zipReader';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ZIP_DIR = resolve(REPO_ROOT, 'assets');
-const OUTPUT_DIR = resolve(REPO_ROOT, 'public', 'models');
+const OUTPUT_DIR = resolve(REPO_ROOT, 'react', 'public', 'models');
 
 /**
  * Source clip name -> vocabulary name. Every value must be in
@@ -78,7 +78,7 @@ interface CharacterSpec {
   zip: string;
   /** The `.gltf` basename inside the pack, e.g. `Worker`. */
   sourceName: string;
-  /** Output basename under `public/models/`, without extension. */
+  /** Output basename under `react/public/models/`, without extension. */
   out: string;
   /** Manifest id this file is imported to serve, for the log line. */
   servesId: string;

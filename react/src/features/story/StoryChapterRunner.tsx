@@ -15,7 +15,7 @@ import type { ReactNode } from 'react';
 
 /**
  * Everything a caller needs to render one `ADVENTURE` scene itself
- * (ADR-019, part C).
+ * (ADR-027, part C).
  *
  * The default renderer is `AdventureRunner`, which owns its
  * `useAdventureSession` privately - and that privacy is exactly what stops a
@@ -75,7 +75,7 @@ interface StoryChapterRunnerProps {
    * Renders an `ADVENTURE` scene. Defaults to the embedded
    * `AdventureRunner`, which is what every caller but a 3D region wants.
    *
-   * This is a *rendering* seam and nothing more (ADR-019): it carries no
+   * This is a *rendering* seam and nothing more (ADR-027): it carries no
    * ability to advance a chapter, skip or complete a scene, grade an
    * answer, or create story progress. Those stay with the Story and
    * Adventure Engines, and `StoryChapterRunner` stays canonical - there is

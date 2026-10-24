@@ -177,7 +177,7 @@ describe('StoryChapterRunner', () => {
 });
 
 /**
- * ADR-019 part C. The seam exists so a 3D region can hold the adventure
+ * ADR-027 part C. The seam exists so a 3D region can hold the adventure
  * session itself; what these guard is that it stays a *rendering* seam -
  * the default is unchanged for every existing caller, and a custom renderer
  * can only report completion back through the Story Engine.

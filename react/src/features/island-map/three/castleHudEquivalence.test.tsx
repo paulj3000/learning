@@ -37,7 +37,7 @@ import type { AdventureDefinition, AdventureStep } from '../../adventures/engine
 /** Every adventure a child can play inside this region, whatever their band. */
 const CASTLE_ADVENTURES: readonly AdventureDefinition[] = [
   ...getAdventureTemplatesForLocation('storykeeper-castle'),
-  // The Explorer arc is a story hosted here (ADR-019); its chapters are
+  // The Explorer arc is a story hosted here (ADR-027); its chapters are
   // authored against `castle-secret-passage` but played in this room.
   SECRET_DOOR_CHAPTER_1_THREE_CLUES,
   SECRET_DOOR_CHAPTER_2_PATTERN_LOCK,

@@ -16,7 +16,7 @@ The system should initially concentrate on `.glb` models used by Three.js, but t
 
 # Implementation Status and Next Steps
 
-_Last updated 2026-09-27. The numbered spec sections below are unchanged; this section tracks progress against them. Architecture decisions are in `docs/DECISIONS.md` ADR-022; detailed status is in `docs/IMPLEMENTATION_STATUS.md`._
+_Last updated 2026-09-27. The numbered spec sections below are unchanged; this section tracks progress against them. Architecture decisions are in `docs/DECISIONS.md` ADR-030; detailed status is in `docs/IMPLEMENTATION_STATUS.md`._
 
 ## Progress by phase
 
@@ -44,7 +44,7 @@ _Last updated 2026-09-27. The numbered spec sections below are unchanged; this s
 
 ## How this implementation differs from the spec
 
-- **Children still load bundled models.** `assetLoader.ts` is not wired to `resolveModelUrl` yet. Asset records are Admins-only, so from a parent's session every lookup would fail. This waits for Phase 5 (ADR-022).
+- **Children still load bundled models.** `assetLoader.ts` is not wired to `resolveModelUrl` yet. Asset records are Admins-only, so from a parent's session every lookup would fail. This waits for Phase 5 (ADR-030).
 - **Existing GLBs stay in Git.** "Do not place GLBs in Git" applies to admin-uploaded models. The generated and imported models in `public/models/` (about 3 MB) stay committed and keep the world playable offline. Moving them is a separate migration decision.
 - **No toast system exists**, so messages are inline `role="alert"` / `role="status"` text, like the other admin pages.
 - **No Character or World database models exist.** NPCs, worlds, and regions are defined in TypeScript. World/region fields hold slugs from `WORLD_DEFINITIONS` / `ISLAND_LOCATIONS`, and Phases 7-8 must work against code-defined content.

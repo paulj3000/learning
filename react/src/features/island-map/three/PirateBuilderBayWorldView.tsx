@@ -354,7 +354,7 @@ function InteractionPanelAction({
   }
 
   /*
-    ADR-019's `START_STORY` opens a Story Engine arc in the region that
+    ADR-027's `START_STORY` opens a Story Engine arc in the region that
     authored it. No interaction here authors one, and a 3D story entry point
     is authored rather than automatic, so there is nothing to render.
   */

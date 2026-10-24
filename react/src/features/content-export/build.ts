@@ -15,7 +15,7 @@ import { DISCOVERY_DEFINITIONS } from '../discovery/content/index';
 import { ISLAND_LOCATIONS } from '../island/locations';
 import { ASSET_MANIFEST } from '../island-map/three/assets/manifest';
 import * as worldObjects from '../island-map/worldObjects';
-import { ISLAND_NPCS } from '../npc/content/islandNpcs';
+import { ALL_NPCS } from '../npc/content/index';
 import { QUEST_DEFINITIONS } from '../quests/content/index';
 import { ALL_COLLECTIBLE_SETS, ALL_ITEMS, ALL_REWARD_RULES } from '../rewards/content/index';
 import { STORY_DEFINITIONS } from '../story/content/index';
@@ -62,7 +62,7 @@ export async function buildContentPackage(): Promise<ContentPackage> {
     items: [...ALL_ITEMS],
     collectibleSets: [...ALL_COLLECTIBLE_SETS],
     rewardRules: [...ALL_REWARD_RULES],
-    npcs: [...ISLAND_NPCS],
+    npcs: [...ALL_NPCS],
     discoveries: [...DISCOVERY_DEFINITIONS],
     checkpoints: [...ALL_CHECKPOINTS],
     interactions,

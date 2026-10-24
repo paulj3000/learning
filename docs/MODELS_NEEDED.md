@@ -6,7 +6,7 @@ should be re-checked before any purchase.
 What this is: the per-region inventory of 3D models the island still needs,
 where each might come from, and what it would cost. It is the "what" to
 `docs/ASSET_SOURCING.md`'s "which kit and why", and it inherits its rules
-from **ADR-020** (`docs/DECISIONS.md`). `docs/ASSET_LICENCES.md` is the
+from **ADR-028** (`docs/DECISIONS.md`). `docs/ASSET_LICENCES.md` is the
 ledger of what has actually been imported so far.
 
 ---
@@ -54,7 +54,7 @@ the cheapest visible progress on this whole page.
 
 ## 2. The rule that shapes every row below
 
-ADR-020 measured that of the castle's 60 assets, **44 are gameplay-bearing
+ADR-028 measured that of the castle's 60 assets, **44 are gameplay-bearing
 and 16 are importable scenery.** Gameplay-bearing means the geometry *is* the
 rule: three rods graded by length, nine countable stars, 22 state-variant
 pairs that must share exact vertices. **Those are not purchasable at any
@@ -88,7 +88,7 @@ Checked against the pack's actual 203-file listing, not guessed:
 | `lectern`, `rod-rack`, `costume-rack` | **None** | Keep generated | — |
 
 **One bonus find outside the importable 16.** `wall-sconce` / `wall-sconce-lit`
-is a state-variant pair, so ADR-020 normally keeps it generated — but KayKit
+is a state-variant pair, so ADR-028 normally keeps it generated — but KayKit
 ships **`torch` / `torch_lit` / `torch_mounted`**, both halves from the same
 producer, which is exactly what that rule asks for. Measured: `torch` is
 1.042m tall, `torch_lit` 1.126m, so they are *not* identical vertices — the
@@ -122,7 +122,7 @@ and its prebuilt rooms are 12 × 12 and 20 × 20. Two independent CC0
 producers converging on a 4m module is evidence that **`WALL_HEIGHT = 3` is
 the outlier**, not that both kits are awkward. Raising it to 4 stops being
 a concession to one pack and starts being alignment with the format, which
-is an argument ADR-020 did not have available when it deferred this.
+is an argument ADR-028 did not have available when it deferred this.
 
 It is still a real decision - it flows into every `toBox3` collider ceiling
 and every room's proportions against `EYE_HEIGHT = 1.6` - and it still
@@ -247,7 +247,7 @@ is the pack most likely to contain a usable starting point for Ember.
 
 ### Two licence rules that are not negotiable
 
-1. **Prefer CC0.** ADR-020: *"No CC-BY asset without an attribution surface a
+1. **Prefer CC0.** ADR-028: *"No CC-BY asset without an attribution surface a
    parent can reach."* No such surface exists in the app today. Any CC-BY
    asset must ship that surface as part of the same change — that is a UI
    change, not a docs one.
@@ -278,7 +278,7 @@ authoring time.
    need scenes, not purchases. Cheapest visible progress available.
 2. **Look at the castle floor.** Two imported slabs are in; nobody has seen
    the room. Whether bought art beside 58 generated primitives reads better
-   or worse is the mixed-fidelity question ADR-020 raises, and it decides
+   or worse is the mixed-fidelity question ADR-028 raises, and it decides
    everything below.
 3. **Settle `WALL_HEIGHT`.** It gates the castle's remaining 14 and every
    KayKit interior in Clockwork Harbor and the Sanctuary.

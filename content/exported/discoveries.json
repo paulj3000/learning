@@ -87,6 +87,158 @@
       "x": 7,
       "yaw": 1.5707963267948966,
       "z": -6
+    },
+    {
+      "id": "wonderwild-forest:harbor-path",
+      "label": "the path into the forest",
+      "regionId": "wonderwild-forest",
+      "x": -16,
+      "yaw": 1.5707963267948966,
+      "z": 0
+    },
+    {
+      "id": "wonderwild-forest:wonder-wall",
+      "label": "the Wonder Wall",
+      "regionId": "wonderwild-forest",
+      "x": 0,
+      "yaw": 0,
+      "z": -2
+    },
+    {
+      "id": "wonderwild-forest:hive-clearing",
+      "label": "the hive clearing",
+      "regionId": "wonderwild-forest",
+      "x": 12,
+      "yaw": 1.5707963267948966,
+      "z": 0
+    },
+    {
+      "id": "wonderwild-forest:pond",
+      "label": "the pond",
+      "regionId": "wonderwild-forest",
+      "x": 9,
+      "yaw": 0,
+      "z": 6.8
+    },
+    {
+      "id": "wonderwild-forest:cave-mouth",
+      "label": "the cave mouth",
+      "regionId": "wonderwild-forest",
+      "x": 11,
+      "yaw": 3.141592653589793,
+      "z": -8
+    },
+    {
+      "id": "wonderwild-hive:entrance",
+      "label": "the hive mouth",
+      "regionId": "wonderwild-hive",
+      "x": -5,
+      "yaw": 1.5707963267948966,
+      "z": 0
+    },
+    {
+      "id": "wonderwild-hive:dance-floor",
+      "label": "the dance floor",
+      "regionId": "wonderwild-hive",
+      "x": 0,
+      "yaw": 0,
+      "z": -2
+    },
+    {
+      "id": "clockwork-harbor:harbor-entrance",
+      "label": "the harbor gate",
+      "regionId": "clockwork-harbor",
+      "x": 0,
+      "yaw": 3.141592653589793,
+      "z": 18
+    },
+    {
+      "id": "clockwork-harbor:docks",
+      "label": "the docks",
+      "regionId": "clockwork-harbor",
+      "x": 0,
+      "yaw": 3.141592653589793,
+      "z": 8
+    },
+    {
+      "id": "clockwork-harbor:lighthouse-door",
+      "label": "the lighthouse door",
+      "regionId": "clockwork-harbor",
+      "x": -11,
+      "yaw": -1.5707963267948966,
+      "z": 0
+    },
+    {
+      "id": "clockwork-harbor:lighthouse-lamp",
+      "label": "the lighthouse machine room",
+      "regionId": "clockwork-harbor",
+      "x": -16.5,
+      "yaw": 1.5707963267948966,
+      "z": 0
+    },
+    {
+      "id": "clockwork-harbor:marketplace",
+      "label": "the marketplace",
+      "regionId": "clockwork-harbor",
+      "x": 6,
+      "yaw": 0,
+      "z": -6
+    },
+    {
+      "id": "dragons-sanctuary:gate",
+      "label": "the sanctuary gate",
+      "regionId": "dragons-sanctuary",
+      "x": 0,
+      "yaw": 3.141592653589793,
+      "z": 21
+    },
+    {
+      "id": "dragons-sanctuary:valley",
+      "label": "the central valley",
+      "regionId": "dragons-sanctuary",
+      "x": 0,
+      "yaw": 3.141592653589793,
+      "z": 6
+    },
+    {
+      "id": "dragons-sanctuary:roost",
+      "label": "Ember's roost",
+      "regionId": "dragons-sanctuary",
+      "x": 0,
+      "yaw": 3.141592653589793,
+      "z": -12
+    },
+    {
+      "id": "dragons-sanctuary:lodge-door",
+      "label": "the Keeper Lodge door",
+      "regionId": "dragons-sanctuary",
+      "x": -13,
+      "yaw": -1.5707963267948966,
+      "z": 3
+    },
+    {
+      "id": "dragons-sanctuary:forge-door",
+      "label": "the forge door",
+      "regionId": "dragons-sanctuary",
+      "x": 13,
+      "yaw": 1.5707963267948966,
+      "z": 3
+    },
+    {
+      "id": "dragons-sanctuary:forge-hearth",
+      "label": "the forge hearth",
+      "regionId": "dragons-sanctuary",
+      "x": 18,
+      "yaw": 1.5707963267948966,
+      "z": 3
+    },
+    {
+      "id": "dragons-sanctuary:sky-cliff-view",
+      "label": "the sky cliff lookout",
+      "regionId": "dragons-sanctuary",
+      "x": 0,
+      "yaw": 3.141592653589793,
+      "z": -24
     }
   ],
   "discoveries": [
@@ -193,5 +345,5 @@
       }
     }
   ],
-  "schemaVersion": 1
+  "schemaVersion": 2
 }

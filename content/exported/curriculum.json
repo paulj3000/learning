@@ -60,7 +60,7 @@
       "title": "First look at the world"
     }
   ],
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "skills": [
     {
       "description": "Count a set of objects one at a time and give the total.",

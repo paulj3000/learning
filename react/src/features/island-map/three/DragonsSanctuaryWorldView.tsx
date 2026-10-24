@@ -59,7 +59,7 @@ const SCALE_IDS = new Set(DRAGON_SCALE_SPOTS.map((scale) => scale.id));
  * `WorldEngineEventBus`, real domain wiring for Ember, and a "Things to do
  * here" list offering everything the graphical scene can do.
  *
- * That list is not a convenience here, it is a requirement. ADR-021 phases
+ * That list is not a convenience here, it is a requirement. ADR-029 phases
  * out the 2D Phaser views, which removes one of the two non-first-person
  * routes ADR-008 was relying on while the Sprouts accessibility playtest
  * remains unrun. The other route - the card-based hub, and every button below

@@ -1046,6 +1046,201 @@
     },
     {
       "ageBands": [
+        "SPROUT"
+      ],
+      "entryStepId": "quill-says-hello",
+      "locationSlug": "storykeeper-castle",
+      "slug": "quills-picture-story",
+      "steps": [
+        {
+          "fallback": {
+            "text": "Keeper Quill wants to make a picture story."
+          },
+          "id": "quill-says-hello",
+          "objectiveIds": [],
+          "presentation": {
+            "aiNarrated": true,
+            "kind": "narrative",
+            "speaker": "Keeper Quill",
+            "text": "Hello! Let us make a picture story together."
+          },
+          "transitions": [
+            {
+              "nextStepId": "pick-the-animal",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "The story is about a friendly animal."
+          },
+          "id": "pick-the-animal",
+          "objectiveIds": [
+            "vocabulary",
+            "classification"
+          ],
+          "presentation": {
+            "kind": "creative-choice",
+            "options": [
+              {
+                "id": "picture-puppy",
+                "label": "The puppy"
+              },
+              {
+                "id": "picture-fox",
+                "label": "The fox"
+              }
+            ],
+            "prompt": "Who is the story about?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "pick-the-place",
+              "when": "always"
+            }
+          ],
+          "type": "CREATIVE_CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "The story happens somewhere new."
+          },
+          "id": "pick-the-place",
+          "objectiveIds": [
+            "vocabulary",
+            "observation"
+          ],
+          "presentation": {
+            "kind": "creative-choice",
+            "options": [
+              {
+                "id": "picture-island",
+                "label": "On the island"
+              },
+              {
+                "id": "picture-cave",
+                "label": "In the cave"
+              }
+            ],
+            "prompt": "Where does the story happen?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "what-happened-first",
+              "when": "always"
+            }
+          ],
+          "type": "CREATIVE_CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "They got lost first, and then they found a friend."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Which one happened at the start?",
+              "They had to get lost before they could find a friend.",
+              "Getting lost happened first."
+            ]
+          },
+          "id": "what-happened-first",
+          "objectiveIds": [
+            "sequencing"
+          ],
+          "presentation": {
+            "correctOrder": [
+              "picture-problem",
+              "picture-ending"
+            ],
+            "items": [
+              {
+                "id": "picture-ending",
+                "label": "They found a friend"
+              },
+              {
+                "id": "picture-problem",
+                "label": "They got lost"
+              }
+            ],
+            "kind": "ordering",
+            "prompt": "What happened first?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "quill-writes-it-down",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "what-happened-first",
+              "when": "incorrect"
+            }
+          ],
+          "type": "ORDERING"
+        },
+        {
+          "fallback": {
+            "text": "Keeper Quill writes the story down."
+          },
+          "id": "quill-writes-it-down",
+          "objectiveIds": [],
+          "presentation": {
+            "aiNarrated": true,
+            "kind": "narrative",
+            "speaker": "Keeper Quill",
+            "text": "What a good story. I will write it down for you."
+          },
+          "transitions": [
+            {
+              "nextStepId": "picture-story-made",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "Your picture story is a real book now!"
+          },
+          "id": "picture-story-made",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "FIRST_STORY_TOLD",
+              "changeType": "STORY_CREATED",
+              "locationSlug": "storykeeper-castle"
+            },
+            "text": "Your picture story is a real book now, on the castle shelf!"
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "You made a picture story!"
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "You made a picture story with Keeper Quill!"
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "Quill's Picture Story",
+      "version": 1
+    },
+    {
+      "ageBands": [
         "PATHFINDER"
       ],
       "entryStepId": "wonder-wall",
@@ -4435,6 +4630,378 @@
       ],
       "title": "The Cove Care Plan",
       "version": 1
+    },
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER"
+      ],
+      "entryStepId": "the-lamp-is-dark",
+      "locationSlug": "clockwork-harbor",
+      "skillDomain": "math",
+      "skillLevel": 1,
+      "slug": "the-dark-lighthouse-counting",
+      "steps": [
+        {
+          "fallback": {
+            "text": "The lighthouse lamp is dark. Its machine needs crystals."
+          },
+          "id": "the-lamp-is-dark",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Chatty the Parrot",
+            "text": "The big lamp at the top of the lighthouse has gone dark. Inside, there is a machine with empty slots. It needs its glowing crystals back!"
+          },
+          "transitions": [
+            {
+              "nextStepId": "count-the-slots",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "Count the empty slots on the machine."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Let us count the empty slots together.",
+              "Point at each empty slot on the machine.",
+              "Count them out loud: one, two...",
+              "There is one more slot after two.",
+              "There are three slots. Tap \"Three slots\"."
+            ]
+          },
+          "id": "count-the-slots",
+          "objectiveIds": [
+            "counting-sets"
+          ],
+          "presentation": {
+            "correctOptionId": "three",
+            "kind": "choice",
+            "options": [
+              {
+                "groups": [
+                  2
+                ],
+                "id": "two",
+                "label": "Two slots"
+              },
+              {
+                "groups": [
+                  3
+                ],
+                "id": "three",
+                "label": "Three slots"
+              },
+              {
+                "groups": [
+                  5
+                ],
+                "id": "five",
+                "label": "Five slots"
+              }
+            ],
+            "prompt": "Look at the machine. How many empty slots need a crystal?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "the-lighthouse-turns",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "count-the-slots",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "The lighthouse is turning again."
+          },
+          "id": "the-lighthouse-turns",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "CLOCKWORK_LIGHTHOUSE_FIXED",
+              "changeType": "REPAIR",
+              "locationSlug": "clockwork-harbor"
+            },
+            "text": "Deep under the floor something heavy begins to turn. The great lamp glows, then blazes, and a beam sweeps out across the water. Far off, a ship sounds its horn."
+          },
+          "transitions": [
+            {
+              "nextStepId": "chapter-one-done",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "You lit the lighthouse."
+          },
+          "id": "chapter-one-done",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "You lit the lighthouse! The harbor gate is open now. There is a marketplace just past the docks."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "The Dark Lighthouse",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "entryStepId": "the-harbor-master-asks",
+      "locationSlug": "clockwork-harbor",
+      "skillDomain": "math",
+      "skillLevel": 3,
+      "slug": "the-dark-lighthouse-groups",
+      "steps": [
+        {
+          "fallback": {
+            "text": "The lighthouse machine needs nine units of power. Each crystal gives three units."
+          },
+          "id": "the-harbor-master-asks",
+          "objectiveIds": [],
+          "presentation": {
+            "aiNarrated": true,
+            "kind": "narrative",
+            "speaker": "The Harbor Master",
+            "text": "No ship can come in while the lighthouse is dark, so the gate stays shut. The machine inside needs nine units of power before the lamp will turn. Every crystal you slot in gives three units."
+          },
+          "transitions": [
+            {
+              "nextStepId": "how-many-crystals",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "Nine units are needed and each crystal gives three."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "One crystal gives three units. Is that enough for nine?",
+              "Try counting up in threes: three, six...",
+              "Three, six, nine. How many numbers did you say?",
+              "You counted three numbers to reach nine.",
+              "Three crystals give nine units. The answer is 3."
+            ]
+          },
+          "id": "how-many-crystals",
+          "objectiveIds": [
+            "addition-within-ten",
+            "patterns"
+          ],
+          "presentation": {
+            "correctValue": 3,
+            "kind": "number-input",
+            "prompt": "The lamp needs 9 units of power. Each crystal gives 3 units. How many crystals should you slot in?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "the-lighthouse-turns",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "how-many-crystals",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "The lighthouse is turning again."
+          },
+          "id": "the-lighthouse-turns",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "CLOCKWORK_LIGHTHOUSE_FIXED",
+              "changeType": "REPAIR",
+              "locationSlug": "clockwork-harbor"
+            },
+            "text": "Deep under the floor something heavy begins to turn. The great lamp glows, then blazes, and a beam sweeps out across the water. Far off, a ship sounds its horn."
+          },
+          "transitions": [
+            {
+              "nextStepId": "chapter-one-done",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "The lighthouse turns again and the harbor gate is open."
+          },
+          "id": "chapter-one-done",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "The beam is sweeping the water again and the harbor gate has swung open. The Harbor Master says the marketplace is just past the docks, and that something odd has been happening there."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "The Dark Lighthouse",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "EXPLORER"
+      ],
+      "entryStepId": "the-gauge-reads-low",
+      "locationSlug": "clockwork-harbor",
+      "skillDomain": "math",
+      "skillLevel": 5,
+      "slug": "the-dark-lighthouse-two-step",
+      "steps": [
+        {
+          "fallback": {
+            "text": "The lamp needs ten units. The gauge reads four. Each crystal is worth three units."
+          },
+          "id": "the-gauge-reads-low",
+          "objectiveIds": [],
+          "presentation": {
+            "aiNarrated": true,
+            "kind": "narrative",
+            "speaker": "The Harbor Master",
+            "text": "The lamp will not turn under ten units of power. The gauge on the machine reads four, and it has been stuck there since the trouble started. There is a crate of crystals by the stairs, and each one is worth three units."
+          },
+          "transitions": [
+            {
+              "nextStepId": "how-much-is-missing",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "Work out the gap between four units and ten units."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "You are looking for the gap between what it has and what it needs.",
+              "Start at four and count up to ten.",
+              "Four, five, six, seven, eight, nine, ten. How many steps was that?",
+              "Ten take away four is what you want.",
+              "The machine still needs 6 units."
+            ]
+          },
+          "id": "how-much-is-missing",
+          "objectiveIds": [
+            "subtraction-within-ten"
+          ],
+          "presentation": {
+            "correctValue": 6,
+            "kind": "number-input",
+            "prompt": "The lamp needs 10 units and the gauge already reads 4. How many more units does the machine still need?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "how-many-crystals",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "how-much-is-missing",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "Six units are needed and each crystal gives three."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "One crystal gives three. Is one enough for six?",
+              "Try counting up in threes until you reach six.",
+              "Three, six. That is two steps.",
+              "Two crystals give three and three.",
+              "Two crystals cover six units. The answer is 2."
+            ]
+          },
+          "id": "how-many-crystals",
+          "objectiveIds": [
+            "addition-within-ten",
+            "patterns"
+          ],
+          "presentation": {
+            "correctValue": 2,
+            "kind": "number-input",
+            "prompt": "Each crystal is worth 3 units. How many crystals will cover those 6 units?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "the-lighthouse-turns",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "how-many-crystals",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "The lighthouse is turning again."
+          },
+          "id": "the-lighthouse-turns",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "CLOCKWORK_LIGHTHOUSE_FIXED",
+              "changeType": "REPAIR",
+              "locationSlug": "clockwork-harbor"
+            },
+            "text": "Deep under the floor something heavy begins to turn. The great lamp glows, then blazes, and a beam sweeps out across the water. Far off, a ship sounds its horn."
+          },
+          "transitions": [
+            {
+              "nextStepId": "chapter-one-done",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "The lighthouse turns again and the harbor gate is open."
+          },
+          "id": "chapter-one-done",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "The beam sweeps the water again and the harbor gate swings open. The Harbor Master is already worrying about something else: one of the Great Harbor Gears has gone missing from the marketplace."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "The Dark Lighthouse",
+      "version": 1
     }
   ],
   "learningObjectives": [
@@ -4529,7 +5096,7 @@
       "title": "Learning and using new words"
     }
   ],
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "wonderWallQuestions": [
     {
       "category": "Animals",

@@ -1381,7 +1381,20 @@ message is needed, reproduce locally with synthetic data and the raw opt-in.
 **What this does not cover** is listed under "Logging and privacy" in `docs/ARCHITECTURE.md` and in gate G10.
 
 
-## ADR-019: A story chapter may be played inside a 3D region; the Story Engine keeps sole ownership of progress
+## Renumbering map (post-merge reconciliation, 2026-10-24)
+
+Two lines of work both used ADR-019 to ADR-022. The Django migration decisions keep their numbers. The Storykeeper Castle, Wonderwild and Clockwork decisions were renumbered. They are different decisions, so none was consolidated. ADR-023 and ADR-026 are not used here but are taken on `origin/main` (Tailwind admin styling; multiplayer room server), as are different texts for 024 and 025, so new ADRs on this line should start at ADR-031 and a future merge of `origin/main` needs its own reconciliation.
+
+| Old (incoming line) | New | Title |
+|---|---|---|
+| ADR-019 | ADR-027 | A story chapter may be played inside a 3D region |
+| ADR-020 | ADR-028 | Where the castle's art comes from |
+| ADR-021 | ADR-029 | Phaser 2D views are phased out; new regions are authored in Three.js only |
+| ADR-022 | ADR-030 | Uploaded models live in S3 behind Admins-only Asset records |
+
+## ADR-027: A story chapter may be played inside a 3D region; the Story Engine keeps sole ownership of progress
+
+> Renumbered in the post-merge reconciliation (was ADR-019 on the Storykeeper Castle line; the incoming Storykeeper Castle / Wonderwild / Clockwork line collided with the Django migration ADR-019 to ADR-022). Text and status are unchanged.
 
 Status: Accepted
 
@@ -1509,7 +1522,9 @@ authors it there.
   withheld per region.
 
 
-## ADR-020: Where the castle's art comes from
+## ADR-028: Where the castle's art comes from
+
+> Renumbered in the post-merge reconciliation (was ADR-020; the incoming Storykeeper Castle / Wonderwild / Clockwork line collided with the Django migration ADR-019 to ADR-022). Text and status are unchanged.
 
 Status: Proposed
 
@@ -1697,7 +1712,9 @@ None of these numbers exist yet, and the decision is better made with them:
    actually determines whether the castle becomes showable.
 
 
-## ADR-021: Phaser 2D views are phased out; new regions are authored in Three.js only
+## ADR-029: Phaser 2D views are phased out; new regions are authored in Three.js only
+
+> Renumbered in the post-merge reconciliation (was ADR-021; the incoming Storykeeper Castle / Wonderwild / Clockwork line collided with the Django migration ADR-019 to ADR-022). Text and status are unchanged. Related, not duplicate: ADR-020 (Django line) is the owner-accepted decision to retire Phaser entirely and make `game/` a package; this ADR is the narrower, earlier rule for sequencing 2D view removal and authoring new regions. Neither supersedes the other.
 
 Status: Accepted (direction set 2026-09-09); retirement of each existing
 Phaser view is sequenced, not immediate
@@ -1761,10 +1778,12 @@ Two consequences follow, and both are obligations rather than notes:
 - The Dragon's Sanctuary's existing 2D artefacts are superseded on the day
   the 3D region takes its route.
 - `scripts/generate-world-assets.ts` and the GLB pipeline become the only
-  art pipeline that matters, which sharpens ADR-020 rather than resolving
+  art pipeline that matters, which sharpens ADR-028 rather than resolving
   it: every region is now downstream of the untextured-primitive problem.
 
-## ADR-022: Uploaded models live in S3 behind Admins-only Asset records; the bundled manifest stays the runtime fallback
+## ADR-030: Uploaded models live in S3 behind Admins-only Asset records; the bundled manifest stays the runtime fallback
+
+> Renumbered in the post-merge reconciliation (was ADR-022; the incoming Storykeeper Castle / Wonderwild / Clockwork line collided with the Django migration ADR-019 to ADR-022). Text and status are unchanged.
 
 Status: Accepted (2026-09-27), covering Phases 1-2 of
 `docs/android/ASSET_MANAGEMENT.md`

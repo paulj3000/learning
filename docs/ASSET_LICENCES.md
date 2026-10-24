@@ -3,7 +3,7 @@
 Every third-party file checked into this repository, where it came from, and
 what its licence obliges us to do.
 
-**ADR-020** ("Where the castle's art comes from", `docs/DECISIONS.md`) says
+**ADR-028** ("Where the castle's art comes from", `docs/DECISIONS.md`) says
 an asset licence ledger "becomes owed the moment any third-party file
 lands". This is that ledger.
 
@@ -156,7 +156,7 @@ CC0 is a public-domain dedication: commercial use is permitted, no
 attribution is required, and there is no obligation to surface a credit
 anywhere a parent can reach. That is exactly why it was preferred.
 
-ADR-020's rule is *"No CC-BY asset without an attribution surface a parent
+ADR-028's rule is *"No CC-BY asset without an attribution surface a parent
 can reach"*. **No such surface exists in the app today, and none is owed
 while every import is CC0.** The moment a CC-BY asset is proposed, building
 that surface is part of the cost of accepting it, not a follow-up.
@@ -247,9 +247,9 @@ Before checking one in:
 
 1. **Prefer CC0.** A CC-BY asset costs an attribution surface (see above)
    and needs that surface built as part of the same change.
-2. **Check the state-variant rule.** ADR-020: both halves of a state pair
+2. **Check the state-variant rule.** ADR-028: both halves of a state pair
    come from the same producer, or the construction-time swap visibly pops.
-3. **Check it is not gameplay-bearing.** ADR-020 keeps the castle's 44
+3. **Check it is not gameplay-bearing.** ADR-028 keeps the castle's 44
    gameplay-bearing assets generated - where the geometry *is* the rule
    (rods graded by length, nine countable stars), it is not purchasable.
 4. **Add a row to the table above**, with the retrieval date.

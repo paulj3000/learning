@@ -242,7 +242,7 @@ export function StorykeeperCastleWorldView({
 
   /**
    * Beat 13, the calm stop. The same clock `IslandLayout` reads, not a
-   * second one - ADR-019's principle applies to time as much as to
+   * second one - ADR-027's principle applies to time as much as to
    * progress: a region presents, it does not own.
    *
    * The castle stages it in the room rather than as a note over it, which
@@ -272,7 +272,7 @@ export function StorykeeperCastleWorldView({
    */
   const [secretDoorActive, setSecretDoorActive] = useState(false);
 
-  /** ADR-019: the Story Engine's own gate, asked rather than restated here. */
+  /** ADR-027: the Story Engine's own gate, asked rather than restated here. */
   const secretDoorForBand = isStoryForAgeBand(THE_CASTLES_SECRET_DOOR, ageBand);
 
   const taleForBand = useMemo(
@@ -1024,7 +1024,7 @@ interface CastleSecretDoorStoryProps {
 }
 
 /**
- * "The Castle's Secret Door", played in the room it is about (ADR-019).
+ * "The Castle's Secret Door", played in the room it is about (ADR-027).
  *
  * This is the castle's *second entry point* into that arc, not a second copy
  * of it. `useStoryProgress` is the Story Engine's own hook, called exactly
@@ -1115,7 +1115,7 @@ interface CastleStoryAdventureProps extends StoryAdventureRenderProps {
 /**
  * One `ADVENTURE` scene of the secret-door arc, with its session held here
  * so the room can drive it - the same shape `CastleTaleSession` uses for
- * the tale, and the reason ADR-019 needed a renderer seam at all.
+ * the tale, and the reason ADR-027 needed a renderer seam at all.
  *
  * It renders `AdventureStepCard`, the very component the card route renders,
  * so every step has its HUD equivalent by construction rather than by a
@@ -1355,7 +1355,7 @@ function InteractionPanelAction({
   }
 
   /*
-    ADR-019's authored 3D entry point. The band gate is the Story Engine's
+    ADR-027's authored 3D entry point. The band gate is the Story Engine's
     own `supportedAgeBands`, asked through `isStoryForAgeBand` by the view -
     walking up to a door is never a way past it. The message is the same one
     `StoryPage` shows for the same reason.

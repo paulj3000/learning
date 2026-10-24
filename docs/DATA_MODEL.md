@@ -644,7 +644,7 @@ what the sources produce (the Vitest suite enforces the same). Source: `react/sr
 (builder, strict converter, schema and validator, integrity checks, file rendering) and
 `scripts/export-content.ts`. No network, AWS, browser, or credentials.
 
-**Format.** `schemaVersion: 1`. Each file is `{ "schemaVersion": 1, "<collection>": [...] }`; objects have
+**Format.** `schemaVersion: 2`. Each file is `{ "schemaVersion": 2, "<collection>": [...] }`; objects have
 sorted keys, two-space indent, trailing newline, no timestamps. Records keep authored order (order is
 meaningful: adventure lookup by location, reward-rule order). Closed schema: an unknown field or shape
 fails the export until the schema is changed on purpose. `manifest.json` lists each file with its SHA-256,
@@ -653,16 +653,16 @@ record counts, the export tool and version, a digest over all files, and `knownA
 | File | Collections (count) |
 |---|---|
 | islands.json | islands (2), each with its content pack |
-| locations.json | locations (9) |
-| adventures.json | adventures (20), learningObjectives (18), wonderWallQuestions (4) |
+| locations.json | locations (10) |
+| adventures.json | adventures (24), learningObjectives (18), wonderWallQuestions (4) |
 | stories.json | stories (5) |
-| quests.json | quests (5) |
+| quests.json | quests (6) |
 | rewards.json | items (19), collectibleSets (1), rewardRules (14) |
-| npcs.json | npcs (4), with dialogue and quest offers |
-| discoveries.json | discoveries (6), checkpoints (11) |
+| npcs.json | npcs (6), with dialogue and quest offers |
+| discoveries.json | discoveries (6), checkpoints (30) |
 | interactions.json | per-region world interaction tables (8) |
 | curriculum.json | subjects (2), grades (3), domains (6), skills (10) |
-| assets.json | 3D asset manifest entries (78) |
+| assets.json | 3D asset manifest entries (114) |
 
 **Mapping onto the approved hierarchy** (Island > Adventure > Quests, Objectives, Challenges, Rewards). What
 the code actually has is one more level and several cross-links, reported rather than reshaped:
@@ -670,11 +670,11 @@ the code actually has is one more level and several cross-links, reported rather
 | Approved term | In the code | Note |
 |---|---|---|
 | Island | `WorldDefinition` + `WorldContentPack` (2: Learning Adventure Island, Creature Care Cove) | Exported as `islands` with `pack` |
-| (none) | `IslandLocation` (9), the places inside an island and the unit of the Phaser/Three.js regions | A level between Island and Adventure that the hierarchy does not name. Kept as `locations` |
-| Adventure | `AdventureDefinition` (20), each tied to one location | Several are age-band variants of one story |
+| (none) | `IslandLocation` (10), the places inside an island and the unit of the Phaser/Three.js regions | A level between Island and Adventure that the hierarchy does not name. Kept as `locations` |
+| Adventure | `AdventureDefinition` (24), each tied to one location | Several are age-band variants of one story |
 | Challenge | An `AdventureStep` of an answerable type, inside an adventure | Not a separate record |
 | Objective | Two things: `LearningObjective` (educational) and `QuestObjective` (a quest task) | Kept separate, not merged |
-| Quest | `QuestDefinition` (5), **not nested in an adventure**; it references adventures (`SOLVE`), items, NPCs | A cross-cutting layer |
+| Quest | `QuestDefinition` (6), **not nested in an adventure**; it references adventures (`SOLVE`), items, NPCs | A cross-cutting layer |
 | Reward | `RewardRule` (14) keyed by a trigger (adventure, story, quest, world change, ...), plus items and sets | Not owned by the adventure either |
 | (none) | `StoryDefinition` (5) chaptered stories that run adventures | Another cross-link |
 
@@ -684,6 +684,27 @@ the code actually has is one more level and several cross-links, reported rather
 interaction table and checkpoints but no `IslandLocation`; it is the home hub. Neither was "fixed". Also:
 `nextStepId: "complete"` ends an adventure without a step of that name (an engine convention the existing
 invariants test already allows).
+
+**Schema version 2 (post-merge reconciliation).** Version 2 is a contract change: a version 1 validator
+rejects version 2 files, though every version 1 file is still valid content. It adds:
+- `adventure.skillDomain` (optional): one of `math`, `reading`, `vocabulary`, `logic`, `science`, `spatial`
+  (the `LEARNING_DOMAINS` of `learning-profile/types.ts`; the export schema reads that list, so the two cannot
+  drift). `adventure.skillLevel` (optional): an integer 1 to 6 (`SkillLevel`; 6 is the open-ended challenge
+  band). Both are independent of `ageBands`, which stays the primary selector, and both are absent on
+  adventures authored before Clockwork Harbor. They are exported as authored; no progression rule is added.
+  Future Django: nullable `skill_domain` (choices) and `skill_level` (small integer, check 1 to 6) on the
+  adventure variant row, with variants of one story grouped by the story's stable slug.
+  Note this `skillDomain` is the six Learning Profile domains, not the curriculum `Domain` records
+  (`curriculum.json`) and not the `LearningObjective.domain` values; do not merge them.
+- interaction action `START_STORY` `{ kind, storySlug }`: opens a Story Engine arc from a region; the slug must
+  resolve to an exported story (integrity check). Carries no chapter or progress data by design (ADR-027).
+  Currently used once (`the-castles-secret-door`).
+- `npcs.json` now comes from `ALL_NPCS`, adding `harbor-master` and `professor-ticktock` (Clockwork Harbor).
+  Their `interactionId` values resolve to no `WorldInteraction` because Clockwork Harbor has no interaction
+  table; this is a declared ambiguity (`npc-interaction-without-record`), allowed only for that region.
+- The region `wonderwild-hive` (inside the beehive) is a recognised adventure passage region: it has two
+  checkpoints and no `IslandLocation` by design (declared ambiguity `adventure-passage-region`). Listing it
+  does not assert that a playable scene exists; geometry is not exported.
 
 **Not exportable as data, or not exported yet.**
 - *Logic needing a rule specification or a Python implementation (LAI-0303 golden vectors, Phase 6):* answer
@@ -710,7 +731,7 @@ a session keeps the version it began with. The importer must be idempotent, vali
 Schema validator, and fail on any unknown reference.
 
 ## Asset
-Admin-managed game asset (docs/android/ASSET_MANAGEMENT.md, ADR-022). Holds
+Admin-managed game asset (docs/android/ASSET_MANAGEMENT.md, ADR-030). Holds
 no child data. Admins-group only for every operation.
 
 - `id`

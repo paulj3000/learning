@@ -70,7 +70,7 @@ pattern - a 2D view at the `island-map/` root and a 3D one under
 **That recommendation is withdrawn.** The direction is: the Dragon's
 Sanctuary is authored as a first-person Three.js region from the start,
 with no 2D counterpart, and the 2D Phaser views across the project are
-phased out rather than maintained in parallel. See ADR-021.
+phased out rather than maintained in parallel. See ADR-029.
 
 Concretely, for this region: `dragonsSanctuaryTilemap.ts`,
 `dragonsSanctuaryZones.ts`, `dragonsSanctuaryDecor.ts`, and the 2D
@@ -354,7 +354,7 @@ roadmap's Phase 1 says "do not block engineering on final art", which is
 correct and is what every region has done. But its Definition of Done
 assumes a sanctuary a child wants to inhabit, and thirteen animation clips
 on a rigged dragon is a materially larger ask than another primitive
-assembly. ADR-020 is the open question here; the sanctuary does not reopen
+assembly. ADR-028 is the open question here; the sanctuary does not reopen
 it, but it does raise the stakes on it.
 
 ### 6.6 AI boundaries are already decided, and the roadmap agrees
@@ -379,7 +379,7 @@ Phase 0.4 asks for seven ADRs. Four are already answered:
 | Skill challenge integration | **ADR-002**; but section 6.1's age-band/skill-level split needs a new ADR |
 | AI NPC boundaries | **ADR-002/003/004** |
 | Polly audio caching | blocked on the pending TTS provider decision (section 6.4) |
-| GLB asset strategy | **ADR-020**, open |
+| GLB asset strategy | **ADR-028**, open |
 
 So the real ADR backlog is two: **age band governs presentation, skill level
 governs difficulty**, and **dragon growth state**.

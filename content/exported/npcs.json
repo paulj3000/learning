@@ -284,8 +284,78 @@
     {
       "dialogue": [
         {
+          "awardsRelationshipPoints": 3,
+          "choices": [
+            {
+              "id": "ember-thanks-bye",
+              "label": "It looks wonderful."
+            }
+          ],
+          "conditions": [
+            {
+              "equals": true,
+              "flag": "forgeLit",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "id": "ember-forge-thanks",
+          "narration": {
+            "allowedTopic": "a dragon delighted that the sanctuary forge is burning again",
+            "fallbackText": "Look at it! Warm all the way to the back wall. I had almost stopped believing it would light again. Thank you."
+          },
+          "text": "Look at it! Warm all the way to the back wall. I had almost stopped believing it would light again. Thank you."
+        },
+        {
           "awardsRelationshipPoints": 2,
           "choices": [
+            {
+              "id": "ember-runes-bye",
+              "label": "I will go and set them."
+            }
+          ],
+          "conditions": [
+            {
+              "equals": true,
+              "flag": "allRunesFound",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "id": "ember-runes-all-found",
+          "narration": {
+            "allowedTopic": "a dragon urging the child to set three found runes into the forge hearth",
+            "fallbackText": "All three! You found all three. Take them to the hearth and set them in the sockets. I would do it myself, but my claws are far too big for the little slots."
+          },
+          "text": "All three! You found all three. Take them to the hearth and set them in the sockets. I would do it myself, but my claws are far too big for the little slots."
+        },
+        {
+          "choices": [
+            {
+              "id": "ember-hint-bye",
+              "label": "I will look for them."
+            }
+          ],
+          "conditions": [
+            {
+              "equals": true,
+              "flag": "heardAboutForge",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "id": "ember-runes-hint",
+          "narration": {
+            "allowedTopic": "a dragon describing where three fire runes came to rest around the valley",
+            "fallbackText": "Three fire runes, and they are not lost so much as scattered. One rolled behind the Keeper Lodge. One is down among the boulders. And one is out on the cold ledge where you can see the sky cliffs."
+          },
+          "text": "Three fire runes, and they are not lost so much as scattered. One rolled behind the Keeper Lodge. One is down among the boulders. And one is out on the cold ledge where you can see the sky cliffs."
+        },
+        {
+          "awardsRelationshipPoints": 2,
+          "choices": [
+            {
+              "id": "ember-greeting-ask",
+              "label": "Why is it so empty?",
+              "nextNodeId": "ember-forge-story"
+            },
             {
               "id": "ember-greeting-bye",
               "label": "Thank you, Ember!"
@@ -301,6 +371,29 @@
             "metEmber"
           ],
           "text": "You are the one who helped me. I remember. This sanctuary is yours to visit anytime."
+        },
+        {
+          "choices": [
+            {
+              "id": "ember-story-bye",
+              "label": "I could look for them."
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "ember-forge-story",
+          "narration": {
+            "allowedTopic": "a dragon explaining that the sanctuary forge went out and needs three missing runes",
+            "fallbackText": "The forge went out. That is what happened. Everything here ran on its warmth, and when it stopped, the hatchery went cold and the others left one by one. I cannot light it. It needs its three fire runes, and I cannot find them."
+          },
+          "setsMemoryFlags": [
+            "heardAboutForge"
+          ],
+          "text": "The forge went out. That is what happened. Everything here ran on its warmth, and when it stopped, the hatchery went cold and the others left one by one. I cannot light it. It needs its three fire runes, and I cannot find them."
         }
       ],
       "displayName": "Ember",
@@ -308,7 +401,7 @@
       "id": "ember-dragon",
       "interactionId": "meet-ember-dragon",
       "questOffers": [],
-      "role": "Young dragon at the Dragon's Sanctuary. Appears only after the Ember Mountain story.",
+      "role": "Young dragon at the Dragon's Sanctuary. Appears only after the Ember Mountain story, and asks the child to help relight the forge.",
       "schedule": [
         {
           "locationSlug": "dragons-sanctuary",
@@ -323,7 +416,200 @@
           "timeOfDay": "EVENING"
         }
       ]
+    },
+    {
+      "dialogue": [
+        {
+          "awardsRelationshipPoints": 3,
+          "choices": [
+            {
+              "id": "harbor-master-thanks-bye",
+              "label": "I am glad it works!"
+            }
+          ],
+          "conditions": [
+            {
+              "equals": true,
+              "flag": "lighthouseLit",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "id": "harbor-master-lighthouse-thanks",
+          "narration": {
+            "allowedTopic": "thanking the child for relighting the harbor lighthouse",
+            "fallbackText": "You got the old lamp turning! Ships have been coming in all morning. I will not forget it."
+          },
+          "text": "You got the old lamp turning! Ships have been coming in all morning. I will not forget it."
+        },
+        {
+          "awardsRelationshipPoints": 1,
+          "choices": [
+            {
+              "id": "harbor-master-accept",
+              "label": "Yes, let us fix it!"
+            },
+            {
+              "id": "harbor-master-later",
+              "label": "Maybe later."
+            }
+          ],
+          "conditions": [
+            {
+              "level": "ACQUAINTANCE",
+              "type": "RELATIONSHIP_AT_LEAST"
+            }
+          ],
+          "id": "harbor-master-lighthouse-offer",
+          "narration": {
+            "allowedTopic": "asking the child for help restarting the lighthouse machine",
+            "fallbackText": "I cannot open the gate while the lighthouse is dark. Would you take a look at the machine?"
+          },
+          "setsMemoryFlags": [
+            "heardAboutLighthouse"
+          ],
+          "text": "I cannot open the gate while the lighthouse is dark. It would not be safe. The machine inside stopped, and I am no good with machines. Would you take a look?"
+        },
+        {
+          "awardsRelationshipPoints": 1,
+          "choices": [
+            {
+              "id": "harbor-master-greeting-ask",
+              "label": "What happened here?",
+              "nextNodeId": "harbor-master-lighthouse-story"
+            },
+            {
+              "id": "harbor-master-greeting-bye",
+              "label": "I will look around."
+            }
+          ],
+          "conditions": [],
+          "id": "harbor-master-greeting",
+          "narration": {
+            "allowedTopic": "welcoming the child to a harbor town whose machines have stopped",
+            "fallbackText": "Welcome to Clockwork Harbor. It is quieter than it should be. Half the town has stopped ticking."
+          },
+          "setsMemoryFlags": [
+            "metHarborMaster"
+          ],
+          "text": "Welcome to Clockwork Harbor. It is quieter than it should be, I am afraid. Half the town has stopped ticking."
+        },
+        {
+          "choices": [
+            {
+              "id": "harbor-master-story-bye",
+              "label": "I could take a look."
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "harbor-master-lighthouse-story",
+          "narration": {
+            "allowedTopic": "explaining that the harbor gate stays shut while the lighthouse is dark",
+            "fallbackText": "The lighthouse stopped. No light, no safe way in, so the gate stays shut and the ships wait."
+          },
+          "setsMemoryFlags": [
+            "heardAboutLighthouse"
+          ],
+          "text": "The lighthouse stopped, is what happened. No light, no safe way in, so the gate stays shut and the ships wait out there in the dark. The machine that turns it is inside, and it is beyond me."
+        }
+      ],
+      "displayName": "The Harbor Master",
+      "homeLocationSlug": "clockwork-harbor",
+      "id": "harbor-master",
+      "interactionId": "meet-the-harbor-master",
+      "questOffers": [
+        {
+          "conditions": [],
+          "questId": "light-the-harbor",
+          "summary": "Help the Harbor Master get the lighthouse turning again."
+        }
+      ],
+      "role": "Keeper of the harbor gate at Clockwork Harbor. Offers the lighthouse repair quest.",
+      "schedule": [
+        {
+          "locationSlug": "clockwork-harbor",
+          "timeOfDay": "MORNING"
+        },
+        {
+          "locationSlug": "clockwork-harbor",
+          "timeOfDay": "AFTERNOON"
+        },
+        {
+          "locationSlug": "clockwork-harbor",
+          "timeOfDay": "EVENING"
+        }
+      ]
+    },
+    {
+      "dialogue": [
+        {
+          "awardsRelationshipPoints": 2,
+          "choices": [
+            {
+              "id": "ticktock-listen",
+              "label": "I can hear it."
+            }
+          ],
+          "conditions": [
+            {
+              "equals": true,
+              "flag": "lighthouseLit",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "id": "ticktock-after-lighthouse",
+          "narration": {
+            "allowedTopic": "hinting that something older beneath the harbor is still failing",
+            "fallbackText": "The lamp is turning! But that is not the real trouble. Something older, further down, is running badly."
+          },
+          "text": "The lamp is turning! Good. But listen - that is not the real trouble. Something much older, much further down, is running badly. Can you hear it?"
+        },
+        {
+          "awardsRelationshipPoints": 1,
+          "choices": [
+            {
+              "id": "ticktock-greeting-ask",
+              "label": "What do the notebooks say?"
+            },
+            {
+              "id": "ticktock-greeting-bye",
+              "label": "I will let you work."
+            }
+          ],
+          "conditions": [],
+          "id": "ticktock-greeting",
+          "narration": {
+            "allowedTopic": "an inventor puzzling over harbor machinery that has started failing",
+            "fallbackText": "Gears, gears, gears. Everything here runs on them, and lately they run backward, or not at all."
+          },
+          "text": "Gears, gears, gears. Everything here runs on them, and lately they run backward, or not at all. I have three notebooks full of it and no answer yet."
+        }
+      ],
+      "displayName": "Professor Ticktock",
+      "homeLocationSlug": "clockwork-harbor",
+      "id": "professor-ticktock",
+      "interactionId": "meet-professor-ticktock",
+      "questOffers": [],
+      "role": "Inventor at Clockwork Harbor. Explains how the harbor machinery works.",
+      "schedule": [
+        {
+          "locationSlug": "clockwork-harbor",
+          "timeOfDay": "MORNING"
+        },
+        {
+          "locationSlug": "clockwork-harbor",
+          "timeOfDay": "AFTERNOON"
+        },
+        {
+          "locationSlug": "clockwork-harbor",
+          "timeOfDay": "EVENING"
+        }
+      ]
     }
   ],
-  "schemaVersion": 1
+  "schemaVersion": 2
 }

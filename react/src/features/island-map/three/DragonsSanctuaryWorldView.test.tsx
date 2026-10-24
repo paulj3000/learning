@@ -220,7 +220,7 @@ describe('walking around', () => {
 
 describe('reaching everything without walking', () => {
   /*
-    ADR-021 removes the 2D view, which was one of the two non-first-person
+    ADR-029 removes the 2D view, which was one of the two non-first-person
     routes ADR-008 relied on while the Sprouts playtest is unrun. These
     assertions are what is left holding that requirement up.
   */

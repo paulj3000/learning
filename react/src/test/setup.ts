@@ -22,7 +22,7 @@ const PUBLIC_DIR = resolve(process.cwd(), 'public');
 const realFetch = globalThis.fetch?.bind(globalThis);
 
 /**
- * The texture test path ADR-020 named as the prerequisite for the first
+ * The texture test path ADR-028 named as the prerequisite for the first
  * textured asset, built here because that asset has now landed.
  *
  * A GLB carries its texture as a `bufferView` PNG. `GLTFLoader` turns that

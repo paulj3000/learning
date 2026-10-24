@@ -80,7 +80,7 @@ import type { WorldEngineEventBus } from './worldEngineEvents';
  * state**: the ids they answer to come from the region module, so swapping in
  * real art changes no logic. Ember in particular is a cone and two spheres
  * standing where a dragon goes, and no amount of lighting will make her
- * anything else until the rig lands (ADR-020).
+ * anything else until the rig lands (ADR-028).
  *
  * ## The scene renders state, it never decides it
  *

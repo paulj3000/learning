@@ -884,7 +884,7 @@ const schema = a.schema({
     .authorization((allow) => [allow.authenticated()])
     .handler(a.handler.function(getNextLearningActivity)),
 
-  // --- Model Asset Manager, Phases 1-2 (docs/android/ASSET_MANAGEMENT.md, docs/DECISIONS.md ADR-022) ---
+  // --- Model Asset Manager, Phases 1-2 (docs/android/ASSET_MANAGEMENT.md, docs/DECISIONS.md ADR-030) ---
 
   AssetType: a.enum(['MODEL_3D', 'TEXTURE', 'ANIMATION', 'AUDIO', 'IMAGE', 'ENVIRONMENT', 'OTHER']),
   AssetCategory: a.enum([

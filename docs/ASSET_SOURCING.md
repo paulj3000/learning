@@ -3,7 +3,7 @@
 **Researched 2026-09-08.** Prices and licences were checked on that date and
 should be re-checked before purchase.
 
-This is the concrete options-and-prices half of **ADR-020** ("Where the
+This is the concrete options-and-prices half of **ADR-028** ("Where the
 castle's art comes from", `docs/DECISIONS.md`), whose "To price before
 accepting" section item 3 asks whether a CC0 kit exists in a style that can
 stand beside this project's generated assets. It does. This file names it.
@@ -173,7 +173,7 @@ at no extra cost.
 
 Why this one for **this** project specifically:
 
-- **CC0.** This deletes one of ADR-020's four named import costs outright:
+- **CC0.** This deletes one of ADR-028's four named import costs outright:
   no attribution surface a parent must reach, no licence ledger, no
   redistribution question about shipping models inside an app bundle.
 - **Ships glTF natively.** The Dungeon Pack provides `.gltf` alongside FBX
@@ -289,7 +289,7 @@ widened to the import.
 
 ## 6. Sequencing — buy before authoring, not after
 
-ADR-020 measured that 44 of the castle's 60 assets are gameplay-bearing and
+ADR-028 measured that 44 of the castle's 60 assets are gameplay-bearing and
 only 16 are importable scenery, which makes a kit purchase look close to
 useless.
 
@@ -306,7 +306,7 @@ puzzle-bearing pieces stay generated. That only works if the kit is chosen
 *before* the rooms are authored, which is exactly the decision point the
 project is at now.
 
-The import work each bought asset still needs is unchanged from ADR-020:
+The import work each bought asset still needs is unchanged from ADR-028:
 scale normalisation to 1 unit = 1 metre, re-pivoting to ground-pivot (most
 packs are centre-pivoted), and a visual check against the room it sits in.
 Collision is already decoupled from the visual mesh
@@ -319,7 +319,7 @@ mesh cannot silently change where a child can walk.
 
 1. **Tonight, free:** download the Kenney audio packs. Nothing about them
    requires a decision.
-2. **This week, $150:** The Complete KayKit, if ADR-020 is accepted.
+2. **This week, $150:** The Complete KayKit, if ADR-028 is accepted.
 3. **Then:** wire Polly for the authored lines only, generative engine, S3
    cache, subtitles. Confirm the consent question first.
 4. **Then:** re-skin one room - the Great Library is the densest and the

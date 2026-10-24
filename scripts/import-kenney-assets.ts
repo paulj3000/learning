@@ -1,8 +1,8 @@
 /**
- * Imports the Kenney CC0 kits in `assets/*.zip` into `public/models/`,
+ * Imports the Kenney CC0 kits in `assets/*.zip` into `react/public/models/`,
  * normalising each file to this project's conventions on the way in.
  *
- * ADR-020 governs when a third-party file may be checked in;
+ * ADR-028 governs when a third-party file may be checked in;
  * `docs/ASSET_LICENCES.md` is the ledger of the ones that have been. This
  * script is the "import work each bought asset still needs" that
  * `docs/ASSET_SOURCING.md` section 6 names, done once and reproducibly
@@ -46,7 +46,7 @@ import { readZipEntry } from './assets/zipReader';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ZIP_DIR = resolve(REPO_ROOT, 'assets');
-const OUTPUT_DIR = resolve(REPO_ROOT, 'public', 'models');
+const OUTPUT_DIR = resolve(REPO_ROOT, 'react', 'public', 'models');
 
 /** The bounding box of the generated asset an import takes over from. */
 interface Envelope {
@@ -62,7 +62,7 @@ interface ImportSpec {
   entry: string;
   /** Path of the shared colormap inside that zip. */
   texture: string;
-  /** Output basename under `public/models/`, without extension. */
+  /** Output basename under `react/public/models/`, without extension. */
   out: string;
   /** Manifest id this file is imported to serve, for the log line. */
   servesId: string;

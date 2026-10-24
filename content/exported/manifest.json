@@ -1,5 +1,5 @@
 {
-  "contentDigest": "0090293283032a177ea0b0350098a33b0460f806f16c64b8b28bd6728c961e42",
+  "contentDigest": "b00a1e9c564de860b0e3a1167a55bdd566548582b6f9685ddc605c1f1e608907",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -10,37 +10,37 @@
         "islands": 2
       },
       "path": "islands.json",
-      "sha256": "7ffcdb90284501f27f407b03f1718c41cec968cb28ddbbca25d00951dcd14d7e"
+      "sha256": "6d8049a610268821380b654be667da153d534d6a19e67427eaf47aee47f53023"
     },
     {
       "counts": {
-        "locations": 9
+        "locations": 10
       },
       "path": "locations.json",
-      "sha256": "7928ca72fed8371e7805eadd0ed2d8caff3189da88e941b68559a692564db473"
+      "sha256": "f3575059ee5e91ff90668a78a689f97d23a42d821e38c6d01af6abb571908865"
     },
     {
       "counts": {
-        "adventures": 20,
+        "adventures": 24,
         "learningObjectives": 18,
         "wonderWallQuestions": 4
       },
       "path": "adventures.json",
-      "sha256": "ce41d63a4a3c1fd088d5258e14602059a1a06adadd0a2e168b47fc1b619cb443"
+      "sha256": "af8623d7e619a8d583669876aac32c9e205b79622c0fdb809e047662aeeb61ee"
     },
     {
       "counts": {
         "stories": 5
       },
       "path": "stories.json",
-      "sha256": "0c1306e1fa1a3870c032951e09207dd053d2a58b6f484bf934a4e8f83b0d8e52"
+      "sha256": "e53458385a4f6d784a9274fa3a129ed689d6f47c21f04cf2e9b42b675045837d"
     },
     {
       "counts": {
-        "quests": 5
+        "quests": 6
       },
       "path": "quests.json",
-      "sha256": "298109686b4babc6f57f77812a0fc84f340ac1862d9d1fb1c91077681919fe70"
+      "sha256": "242331c51ab3b76125a561c20a21d5f443aa6e23669d8e2fcae0a168476b1d04"
     },
     {
       "counts": {
@@ -49,29 +49,29 @@
         "rewardRules": 14
       },
       "path": "rewards.json",
-      "sha256": "ca49eb79ae611ea8cea3493269513f50ec8bf6ad1990d74112bc4a06389357f9"
+      "sha256": "4f8a81bb0a1aa175b0936f2705430577c7402480bca61f6a96569d203c662e1e"
     },
     {
       "counts": {
-        "npcs": 4
+        "npcs": 6
       },
       "path": "npcs.json",
-      "sha256": "40f7ef2eed43dfdbc72057c5a6bf9935c1418ec1ef5b3a147a81fe91c6739ba6"
+      "sha256": "646e3b3928c0c020c3d0ff1c6a71f9e60f954762ea8f1bc265beddd75c91426b"
     },
     {
       "counts": {
-        "checkpoints": 11,
+        "checkpoints": 30,
         "discoveries": 6
       },
       "path": "discoveries.json",
-      "sha256": "c697141d8944e431eae3ec5529bd8a0e3022d09ed3152b9cbb7787bd5218704f"
+      "sha256": "f9f7290429519aa655d899d08853d255fc8830973edde70cd333d3a941bf36a5"
     },
     {
       "counts": {
         "interactions": 8
       },
       "path": "interactions.json",
-      "sha256": "84c992d820e729ddec66353930d0fa328fcb1476acc63fc53e679bba41866e19"
+      "sha256": "fa9a9888a304794cf185f81dcc1f1013e71c40da4326cdb8dc872dbfa20d5bab"
     },
     {
       "counts": {
@@ -81,14 +81,14 @@
         "subjects": 2
       },
       "path": "curriculum.json",
-      "sha256": "00cdcb9a52fbffa8e730c54b37b5b0ed23b36f1b881e3b53df55072675415ae3"
+      "sha256": "ac7443bc0b350b9a524dea1d2b8bccfc371b3b67494faeb7372ec69a362b63fc"
     },
     {
       "counts": {
-        "assets": 78
+        "assets": 114
       },
       "path": "assets.json",
-      "sha256": "697328ee92de6c40f5e0f6d7e15af091c65e5017e6b4090bacd4309fd562f4e7"
+      "sha256": "5dfd58c8fc115d71010ceb5b8edffc57867d5ab5852bfefc8ae28f0ec6a62d3b"
     }
   ],
   "knownAmbiguities": [
@@ -102,6 +102,21 @@
         "robot-repair-reef"
       ],
       "kind": "adventure-location-without-record"
+    },
+    {
+      "detail": "These regions have checkpoints but no IslandLocation by design: an adventure passes through them and a child cannot choose to visit. They are exported as checkpoint metadata only. Their listing here does not assert that a playable scene exists; geometry and scenes are not part of the content export.",
+      "ids": [
+        "wonderwild-hive"
+      ],
+      "kind": "adventure-passage-region"
+    },
+    {
+      "detail": "These NPCs name an interactionId but their home region has no WorldInteraction table (Clockwork Harbor is a 3D-only region that opens conversations by NPC id). The ids are exported as written; no interaction was invented.",
+      "ids": [
+        "harbor-master",
+        "professor-ticktock"
+      ],
+      "kind": "npc-interaction-without-record"
     },
     {
       "detail": "Interaction tables and checkpoints exist for these regions but no IslandLocation does. Welcome Harbor is the home hub. It is exported under its authoring key; it was not added to locations.",
@@ -122,5 +137,5 @@
       "kind": "story-location-without-record"
     }
   ],
-  "schemaVersion": 1
+  "schemaVersion": 2
 }

@@ -18,7 +18,7 @@ const DEFAULT_AGE_BAND: AgeBandValue = 'SPROUT';
 /**
  * The Dragon's Sanctuary's page.
  *
- * Points at the first-person Three.js view since ADR-021: the region is 3D
+ * Points at the first-person Three.js view since ADR-029: the region is 3D
  * only, and the 2D `island-map/DragonsSanctuaryWorldView.tsx` it used to
  * render is superseded. There is no `3D`-suffixed sibling route the way
  * Storykeeper Castle has one, because there is no second view to

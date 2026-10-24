@@ -216,7 +216,7 @@ strategy for the texture-loading path; nothing here provides one."
 
 Not every asset is generated any more. `docs/ASSET_LICENCES.md` is the
 ledger of every third-party file checked in, its source and its licence;
-ADR-020 is the decision that governs when one may be.
+ADR-028 is the decision that governs when one may be.
 
 An import follows the same conventions as a generated asset wherever they
 apply - 1 unit = 1 metre, +Y up, collision still authored as `RectZone` data
@@ -334,7 +334,7 @@ of effort, so that check belongs to a browser (Playwright) run.
 
 Models that do not come from `scripts/generate-world-assets.ts` or the
 import scripts can be uploaded by an administrator at
-`/admin/assets/models/new` (ADR-022). They go to S3, not to
+`/admin/assets/models/new` (ADR-030). They go to S3, not to
 `public/models/`, and land as drafts that children never see.
 
 Requirements checked before upload (`src/features/assets/modelFileChecks.ts`):

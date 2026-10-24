@@ -390,7 +390,104 @@
       ],
       "summary": "Help Nella through a morning care round, and the cove lights its lanterns for you.",
       "title": "Helping at the Cove"
+    },
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You got the lighthouse turning again. Its beam sweeps the water, and the harbor gate is open.",
+        "setsNpcMemoryFlags": [
+          {
+            "flags": [
+              "lighthouseLit"
+            ],
+            "npcId": "harbor-master"
+          },
+          {
+            "flags": [
+              "lighthouseLit"
+            ],
+            "npcId": "professor-ticktock"
+          }
+        ]
+      },
+      "entryStageId": "hear-the-harbor-master-out",
+      "giverNpcId": "harbor-master",
+      "id": "light-the-harbor",
+      "prerequisites": [
+        {
+          "type": "ALWAYS"
+        }
+      ],
+      "stages": [
+        {
+          "branches": [
+            {
+              "conditions": [
+                {
+                  "changeKey": "CLOCKWORK_LIGHTHOUSE_FIXED",
+                  "type": "WORLD_CHANGE"
+                }
+              ],
+              "nextStageId": "the-lamp-turns-again"
+            }
+          ],
+          "id": "hear-the-harbor-master-out",
+          "nextStageId": "restart-the-machine",
+          "objectives": [
+            {
+              "id": "lighthouse-talk-to-harbor-master",
+              "kind": "TALK_TO",
+              "label": "Talk to the Harbor Master on the docks",
+              "memoryFlag": "heardAboutLighthouse",
+              "npcId": "harbor-master"
+            }
+          ],
+          "title": "Ask the Harbor Master about the gate"
+        },
+        {
+          "branches": [
+            {
+              "conditions": [
+                {
+                  "changeKey": "CLOCKWORK_LIGHTHOUSE_FIXED",
+                  "type": "WORLD_CHANGE"
+                }
+              ],
+              "nextStageId": "the-lamp-turns-again"
+            }
+          ],
+          "id": "restart-the-machine",
+          "nextStageId": "the-lamp-turns-again",
+          "objectives": [
+            {
+              "adventureSlug": "the-dark-lighthouse-groups",
+              "id": "lighthouse-solve",
+              "kind": "SOLVE",
+              "label": "Power up the machine inside the lighthouse"
+            }
+          ],
+          "title": "Get the lighthouse machine running"
+        },
+        {
+          "id": "the-lamp-turns-again",
+          "objectives": [
+            {
+              "changeKey": "CLOCKWORK_LIGHTHOUSE_FIXED",
+              "id": "lighthouse-world-change",
+              "kind": "BUILD",
+              "label": "The lighthouse turns again"
+            }
+          ],
+          "title": "See the harbor gate open"
+        }
+      ],
+      "summary": "Help the Harbor Master get the lighthouse turning again.",
+      "title": "The Dark Lighthouse"
     }
   ],
-  "schemaVersion": 1
+  "schemaVersion": 2
 }

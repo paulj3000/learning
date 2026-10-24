@@ -51,7 +51,7 @@ strips EXIF metadata and the deletion guarantees, is specified in
 `docs/DATA_MODEL.md` under "Child profile photos".
 
 The second prefix, `assets/*`, holds admin-uploaded game assets for the
-Model Asset Manager (ADR-022): Admins group only, one object per version
+Model Asset Manager (ADR-030): Admins group only, one object per version
 (`assets/models/<folder>/<assetId>/v<n>/model.glb`), each referenced by an
 `Asset`/`AssetVersion` record rather than by path. Runtime resolution goes
 through `src/features/assets/assetService.ts`, which falls back to the
@@ -667,3 +667,7 @@ runs the existing typed content modules at build time in plain Node: a trusted b
 that no module it imports reaches React, Amplify, Three.js, Phaser, or an `api.ts`. Django (LAI-0304) and
 the future Three.js world loader are the intended consumers; neither exists yet. Details, the hierarchy
 mapping, and gaps: `docs/DATA_MODEL.md`.
+
+## Content export contract (post-merge note)
+
+The content export is at `schemaVersion: 2` (adventure skill metadata, `START_STORY`). It reads the `ALL_NPCS` registry, not a single region's cast. Details: `docs/DATA_MODEL.md`. ADR numbers 027 to 030 are the Storykeeper Castle / Wonderwild / Clockwork decisions (formerly 019 to 022 on that line).

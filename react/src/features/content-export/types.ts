@@ -13,8 +13,14 @@ import type { CollectibleSet, ItemDefinition, RewardRule } from '../rewards/type
 import type { StoryDefinition } from '../story/engine/types';
 import type { WorldContentPack, WorldDefinition } from '../worlds/types';
 
-/** Bumped whenever the shape of an exported file changes incompatibly. */
-export const SCHEMA_VERSION = 1;
+/**
+ * Bumped whenever the shape of an exported file changes incompatibly.
+ *
+ * 2: adventures gain optional `skillDomain` and `skillLevel`; interaction actions gain
+ *    `START_STORY`. Every version 1 file is still valid content, but a version 1 validator rejects
+ *    version 2 files, so the version moves. See docs/DATA_MODEL.md.
+ */
+export const SCHEMA_VERSION = 2;
 export const EXPORT_TOOL = { name: 'lai-content-export', version: '1.0.0' } as const;
 
 export interface IslandEntry extends WorldDefinition {

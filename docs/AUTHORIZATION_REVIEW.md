@@ -52,7 +52,7 @@ in this schema, and should not until a decision changes ADR-001 itself.
 | `generateTutorTurn` | AUTHENTICATED | same reasoning |
 | `claimCoopSlot` | AUTHENTICATED (mutation gate) + SYSTEM (handler re-derives the real check) | section 1a |
 | `submitAdventureAnswer` | AUTHENTICATED (mutation gate) + SYSTEM (handler re-derives the real check) | section 1b |
-| `Asset` | ADMIN | `allow.group('Admins')`, every operation; no owner, parent, or guest rule (ADR-022). Holds no child data |
+| `Asset` | ADMIN | `allow.group('Admins')`, every operation; no owner, parent, or guest rule (ADR-030). Holds no child data |
 | `AssetVersion` | ADMIN | same as `Asset` |
 | Storage `assets/*` | ADMIN | `allow.groups(['Admins']).to(['read', 'write', 'delete'])` (`amplify/storage/resource.ts`) |
 

@@ -419,7 +419,7 @@ actually shipped above.
 
 ## Model Asset Manager — Phases 1-2 complete (foundation and upload)
 
-Spec: `docs/android/ASSET_MANAGEMENT.md`. Decision: ADR-022.
+Spec: `docs/android/ASSET_MANAGEMENT.md`. Decision: ADR-030.
 
 An administrator can open `/admin/assets`, go to Models, and upload a GLB
 through a three-step wizard at `/admin/assets/models/new`. The file is
@@ -467,7 +467,7 @@ the codebase's existing `role="status"` convention.
 
 - `assetLoader.ts` does not call `resolveModelUrl`. Asset records are
   Admins-only, so from a parent's session every lookup would fail; this
-  waits for Phase 5's published-only read path (ADR-022).
+  waits for Phase 5's published-only read path (ADR-030).
 - No `/admin/assets/models/:id` or `/edit` pages, no GLTFLoader validation,
   no preview, no publishing: Phases 3-5.
 - The spec's "use the existing toast system": there is none, so messages
@@ -1428,16 +1428,16 @@ chapter in the library afterwards.
 gives Explorers beats 1 to 13 in the castle, which can only mean the arc is
 played there, but no ADR says so and no phase budgets for it. SC-9 needs the
 same seam and needs it more, its beat being three rods seated in a wall
-rather than a number typed on a card. It is now drafted as **ADR-019**
+rather than a number typed on a card. It is now drafted as **ADR-027**
 in `docs/DECISIONS.md`, status Proposed and awaiting a decision: an arc may
 have a second entry point but only one record, the Story Engine keeps sole
 ownership of `ChildStoryProgress`, and `StoryChapterRunner` gains an optional
 renderer for its `ADVENTURE` scenes so a region can hold the session the way
 SC-4's castle already holds the tale's.
 
-### ADR-019, and the Explorer arc in the room (SC-8 completed, SC-9 beat 10)
+### ADR-027, and the Explorer arc in the room (SC-8 completed, SC-9 beat 10)
 
-ADR-019 settled what SC-7 and SC-8 both ran into: a story arc may be entered
+ADR-027 settled what SC-7 and SC-8 both ran into: a story arc may be entered
 from a 3D region as well as from the Adventure Library, there is exactly one
 `ChildStoryProgress` either way, the Story Engine keeps sole ownership of
 it, and `StoryChapterRunner` gains an optional renderer for its `ADVENTURE`
@@ -1628,7 +1628,7 @@ claim. The headline results:
 
 **What survives the re-scope is the engineering, not the content.** The
 engine-untouched constraint and `castleChoiceBindings.ts`; HUD equivalence
-as an executable test; ADR-019's single story-progress record; derived wall
+as an executable test; ADR-027's single story-progress record; derived wall
 colliders; the `createSeatingPuzzle` factoring; `src/features/npc/` and
 `ChildNpcState`, which are closer to the upgrade roadmap's sections 13 and
 14 than any other system it describes; and the whole learning stack, whose
@@ -1652,7 +1652,7 @@ real `GLTFLoader.load()` calls inside jsdom precisely because no asset has a
 UV accessor or an image reference. Whatever replaces that has to exist
 before the first textured file lands.
 
-**Now drafted as ADR-020** ("Where the castle's art comes from", Status:
+**Now drafted as ADR-028** ("Where the castle's art comes from", Status:
 Proposed). Drafting it produced one measurement that reframes the question:
 of the castle's 60 assets, roughly **44 are gameplay-bearing and only 16 are
 importable scenery** - 22 are state-variant pairs needing identical
@@ -1662,7 +1662,7 @@ and six clue and story-plate assets are named directly in
 "import scenery and keep gameplay geometry generated," cannot reach the
 upgrade roadmap's bar: swap all 16 and three quarters of what a child looks
 at is still untextured primitives, including every object they interact
-with. ADR-020 therefore proposes giving the *generated* pipeline a material
+with. ADR-028 therefore proposes giving the *generated* pipeline a material
 story first - starting with vertex colours, which lift all 60 assets and
 leave the jsdom test strategy untouched - and treats a scenery import as a
 second, optional step. It also records the honest limit: better-shaded box
@@ -8251,7 +8251,7 @@ challenge at the hearth; see the limitations below.
 
 ### The decision this entry is built on
 
-**ADR-021: Phaser 2D views are phased out; new regions are authored in
+**ADR-029: Phaser 2D views are phased out; new regions are authored in
 Three.js only.** ADR-008 had left the two renderers coexisting until a
 Three.js slice reached parity. Six regions later, that condition is met, and
 the direction is now explicit. The sanctuary is the first region built under
@@ -8319,7 +8319,7 @@ who had forgotten them.
 
 **The view** — `three/DragonsSanctuaryWorldView.tsx`, parallel to
 `ClockworkHarborWorldView.tsx`. Its "Things to do here" list is not a
-convenience: ADR-021 removes one of the two non-first-person routes ADR-008
+convenience: ADR-029 removes one of the two non-first-person routes ADR-008
 was relying on while the Sprouts playtest is unrun, so the card-based hub and
 these buttons are now the only one. Four tests assert it.
 
@@ -8375,7 +8375,7 @@ found and removed.
 - **The 2D artefacts are superseded but not deleted.**
   `island-map/dragonsSanctuaryTilemap.ts`, `dragonsSanctuaryZones.ts`,
   `dragonsSanctuaryDecor.ts`, and the 2D `DragonsSanctuaryWorldView.tsx` are
-  no longer referenced by any route. ADR-021 sequences removal after the 3D
+  no longer referenced by any route. ADR-029 sequences removal after the 3D
   region is verified in the running app, which has not happened yet, so they
   stay for now. Nothing new should be authored into them.
 - **Everything distinctive is a primitive placeholder.** The roadmap's asset
@@ -8384,7 +8384,7 @@ found and removed.
   `assets/manifest.ts`. Ember is a cone, two spheres and two boxes, with
   `npc-pip` standing beside her for a readable silhouette. None of it carries
   game state — the ids come from the region module — so swapping in real art
-  changes no logic. ADR-020 is the open question, and this region raises its
+  changes no logic. ADR-028 is the open question, and this region raises its
   stakes rather than resolving it.
 - **No AI, by design and by sequencing.** CLAUDE.md section 16 is explicit
   that the core must be playable deterministically first. Phase 5's contextual
@@ -8395,7 +8395,7 @@ found and removed.
   document's section 6.1 — this slice does not depend on it, but Phase 3
   does), and dragon growth state for Phase 6's egg lifecycle.
 - **The Sprouts accessibility playtest is now more load-bearing, not less.**
-  ADR-021 leaves one non-first-person route rather than two. Runbook in
+  ADR-029 leaves one non-first-person route rather than two. Runbook in
   `docs/PILOT_READINESS.md` section 5.
 - **No E2E coverage.** The region has unit tests but no Playwright journey.
 
@@ -8403,7 +8403,7 @@ found and removed.
 ## Storykeeper Castle — first imported art (floors and ceiling)
 
 The first third-party assets on the island, and the first proof that
-ADR-020's central claim holds: **the art can be replaced without touching
+ADR-028's central claim holds: **the art can be replaced without touching
 game logic.** Two of the Great Library's four structural pieces now come
 from a kit instead of the generator.
 
@@ -8415,9 +8415,9 @@ from a kit instead of the generator.
   `ground-tile-stone` and `ceiling-tile`. A stone floor and a dark wood
   ceiling, so the two surfaces still read as different materials the way the
   generated pair's colours did.
-- **`docs/ASSET_LICENCES.md`**, the licence ledger ADR-020 says is owed the
+- **`docs/ASSET_LICENCES.md`**, the licence ledger ADR-028 says is owed the
   moment a third-party file lands, plus the checklist for adding another.
-- **The texture test path**, ADR-020's named prerequisite, built because the
+- **The texture test path**, ADR-028's named prerequisite, built because the
   asset needing it arrived. `stubImageDecoding()` in `src/test/setup.ts`.
 - **`.glb` support** in the test fetch polyfill (binary, never decoded as
   utf-8) and in `castleKit.test.ts`'s `readGltf` (JSON chunk extraction).
@@ -8460,7 +8460,7 @@ level of effort, so that belongs to a browser run.
   GLBs are confirmed to ship into `dist/models/`, but nobody has looked at
   the room. The floor is a different material with a different texel density
   beside 58 generated primitives, and whether that reads better or worse is
-  exactly the mixed-fidelity question ADR-020 raises. This is the next step,
+  exactly the mixed-fidelity question ADR-028 raises. This is the next step,
   and it is a judgement no test makes.
 - **Walls and archways deliberately not swapped.** KayKit's dungeon module is
   a 4m grid with 4m-tall walls; ours is a 4m floor grid with 2m-wide,
@@ -8471,7 +8471,7 @@ level of effort, so that belongs to a browser run.
   make deliberately, not a normalisation to perform. `wall_arched` is
   likewise an arch *cut into a wall panel*, not the free-standing 3-part
   frame `archwayRotationY` and the seven `ARCHWAYS` gaps assume.
-- **ADR-020 is still Proposed**, and this change runs ahead of its
+- **ADR-028 is still Proposed**, and this change runs ahead of its
   recommended order (option C, a material story in the generator, then B for
   the importable 16). It was done as the cheap end of B first because these
   two assets happened to need no normalisation - a measurement, not a
@@ -8561,7 +8561,7 @@ them answered open questions in `docs/MODELS_NEEDED.md`:
   Modular Dungeon Kit is a 4m grid with 4.15m walls, exactly like KayKit,
   against this project's `WALL_HEIGHT = 3`. Two independent CC0 producers
   converging is evidence that **3 is the outlier**, which is an argument
-  ADR-020 did not have when it deferred this. Still a real decision - it
+  ADR-028 did not have when it deferred this. Still a real decision - it
   flows into every `toBox3` collider ceiling and every room's proportions -
   but it is now the single change that unblocks architecture from three kits.
 - **Quaternius Modular Dungeon has the furniture and no glTF.** Tables,
@@ -8578,7 +8578,7 @@ them answered open questions in `docs/MODELS_NEEDED.md`:
 - **Not visually verified.** Tests, typecheck, lint and build pass and all
   three GLBs ship into `dist/models/`, but nobody has looked at a scene.
   Whether a textured Kenney tree reads well beside untextured generated
-  primitives is the mixed-fidelity question ADR-020 raises, and no test
+  primitives is the mixed-fidelity question ADR-028 raises, and no test
   answers it.
 - **Two texture atlases now ship** for three models, because the rock comes
   from a different pack than the trees. Same artist and the same flat-palette
@@ -9548,3 +9548,15 @@ Spatial data is intentionally excluded.
 Verified (run): `npm run content:export` twice (identical) and `content:check`; ruff, `manage.py check`,
 and 211 Python tests against PostgreSQL 16; typecheck, lint, and format clean; `make js-check` passed with
 176 files / 1,616 tests (the 1,578 existing tests plus the 38 new ones), so no existing behaviour changed.
+
+## Post-merge reconciliation: content export and ADR numbering (2026-10-24)
+
+Not a migration roadmap task and not a completion of one. After merging `origin/storykeeper-castle-3d-storyboard-and-roadmap` (merge commit `eadcec5`, local only) into the Django migration branch, the content export failed on content the other line added. This change reconciles it.
+
+- **Root causes of the 9 failing `contentExport` tests:** (1) `build.ts` exported `ISLAND_NPCS` instead of the `ALL_NPCS` registry, so `harbor-master` and `professor-ticktock` were referenced by the island pack and quest but never exported; (2) `wonderwild-hive` checkpoints named a region that is deliberately not an `IslandLocation`; (3) the exporter schema was closed against `skillDomain`/`skillLevel` and the `START_STORY` action; (4) test expectations (record counts, ambiguity list, `schemaVersion`) predated the merged content. No test was weakened; counts were updated to the verified output.
+- **Schema version 1 to 2** (contract change; see `docs/DATA_MODEL.md`): optional `adventure.skillDomain` (the six Learning Profile domains) and `skillLevel` (integer 1 to 6); interaction action `START_STORY { storySlug }` with a referential check that the story exists.
+- **Declared, not invented:** `wonderwild-hive` is an explicit adventure passage region (`ADVENTURE_PASSAGE_REGION_SLUGS`); Clockwork Harbor NPC `interactionId`s resolve to nothing because the region has no interaction table (allowed only there). Both are recorded in the manifest's `knownAmbiguities`. Neither claims a playable scene.
+- **ADR renumbering:** the incoming ADR-019 to ADR-022 became ADR-027 to ADR-030 (references updated line by line from `git blame` provenance, 101 lines). Django ADR-019 to ADR-022, ADR-024 and ADR-025 are unchanged. See the mapping in `docs/DECISIONS.md`.
+- **Path fixes:** `amplify/` imports in `react/src/features/assets`, `react/public/models` output in the two import scripts, one stale `ChildProfileList` comment.
+- **Verification:** typecheck clean; lint warnings only; Prettier clean; Vitest 213 files / 2246 tests pass; build passes; `content:check` up to date and two exports are byte-identical; Ruff, format, `manage.py check`, `makemigrations --check` clean; pytest 211 pass against PostgreSQL 16 (run on port 5433 because 5432 was held by another project's database); Playwright 7 of 7 pass only when `amplify_outputs.json` is absent, because three smoke tests assert the unconfigured guard (this is the existing precondition, not a regression).
+- **Known open:** `origin/main` also uses ADR-019 to ADR-026 for its own decisions (including 023 to 026, Math Mayhem multiplayer). A future merge of `origin/main` will collide again and needs its own reconciliation. Nothing was pushed or deployed.

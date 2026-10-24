@@ -858,7 +858,7 @@ does not grant that approval on its own.
 
 An admin-only system for uploading, validating, previewing, publishing,
 and versioning 3D models in S3, so game content refers to logical asset
-ids instead of files (ADR-022). Nine phases, in the spec's own order:
+ids instead of files (ADR-030). Nine phases, in the spec's own order:
 
 1. **Foundation. Complete.** `Asset`/`AssetVersion` schema and enums,
    Admins-only data and storage rules, `assetService.ts` with bundled

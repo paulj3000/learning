@@ -40,7 +40,7 @@ export type WorldAction =
    */
   | { kind: 'TALK_TO'; npcId: string }
   /**
-   * Opens a Story Engine arc *in this region* (ADR-019). Carries only a
+   * Opens a Story Engine arc *in this region* (ADR-027). Carries only a
    * story slug, for the same reason `DISCOVER` carries only an id and
    * `TALK_TO` only an NPC: the arc's chapters, eligibility and progress
    * belong to the Story Engine, and restating any of it here would let the
@@ -713,7 +713,7 @@ export const STORYKEEPER_CASTLE_INTERACTIONS: WorldInteraction[] = [
     action: { kind: 'DISCOVER', discoveryId: 'castle-tapestry-stair' },
   },
   /**
-   * ADR-019's first authored 3D story entry point. The Adventure Library is
+   * ADR-027's first authored 3D story entry point. The Adventure Library is
    * still the location-independent way to find and resume this arc; this is
    * the contextual one, standing in front of the door the story is about.
    *

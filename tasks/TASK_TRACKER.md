@@ -9,6 +9,7 @@ it; Track B code tasks wait for LAI-0201. A task marked in the roadmap as APPROV
 before touching AWS.
 
 - [x] **LAI-0001** Phase 0 migration assessment and documentation
+- [x] **POST-MERGE-01** Reconcile merged content export and duplicate ADR ids (not a roadmap task). DONE locally: export schema v2, ADR-027 to ADR-030 renumbered from the incoming line; see `docs/IMPLEMENTATION_STATUS.md`. Not pushed.
 - [x] **LAI-0002** Record ADR-020 (Three.js exclusive) and plan Track B (docs only, this change set)
 
 ## Phase 1 — Governance and baseline

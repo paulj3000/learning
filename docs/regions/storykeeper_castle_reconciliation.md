@@ -100,7 +100,7 @@ rather than replace.
 
 | Phase | Status | What exists today |
 | --- | --- | --- |
-| **0** Architecture decision | **Partial** | The castle/story boundary is settled and is the strongest thing here: ADR-019 gives the Story Engine sole ownership of progress, so a chapter played inside a 3D region writes one progress record. Absent: castle event schema, `ChildCastleProgress` schema, Castle Director schema, voice architecture. |
+| **0** Architecture decision | **Partial** | The castle/story boundary is settled and is the strongest thing here: ADR-027 gives the Story Engine sole ownership of progress, so a chapter played inside a 3D region writes one progress record. Absent: castle event schema, `ChildCastleProgress` schema, Castle Director schema, voice architecture. |
 | **1** Asset pipeline | **Partial** | `assets/manifest.ts` (typed registry, id-resolved, no hard-coded URLs), `assetLoader.ts`, `gltfAssembler.ts`, `docs/THREE_WORLD_ASSET_CONVENTIONS.md` (units, pivots, colliders, interaction anchors, animation vocabulary, LOD, instancing). Absent: any texture path, Draco/Meshopt/KTX2, Blender export rules, an asset licence ledger, and any third-party kit. The registry lacks the doc's `version`, `preload priority`, `scale` and `interaction points` fields. |
 | **2** Grand Hall vertical slice | **Partial** | The mechanics are all real - `firstPersonController.ts`, derived wall colliders, interaction raycast, Keeper Quill with six clips, doors. But it is the SC floor plan, not a Grand Hall; there is no Great Storybook and no artifact pedestal. |
 | **3** Library vertical slice | **Partial** | The strongest SC work maps here. `great-library` has bookshelves, the book that slides onto a visibly empty shelf (SC-6), the sliding-bookshelf secret door and pattern lock (SC-9 beat 10), and three clues as separate finds (SC-8). Physical story discovery launching the same chapter as the normal interface is **done** and is exactly this phase's exit criterion. Absent: portal book, floating-book event, Lost Story Page. |
@@ -135,7 +135,7 @@ Tally: **0 Done, 8 Partial, 7 Absent.**
 | NPC voice via Amazon Polly | ✗ |
 | Generated MP3s cached in S3 | ✗ |
 | Works without AI | ✓ |
-| Progress compatible with the story system | ✓ ADR-019 |
+| Progress compatible with the story system | ✓ ADR-027 |
 
 **5 pass, 4 partial, 5 fail.** The five failures are the five that produce
 the feeling the roadmap is aiming at: *"I wonder what changed in the castle
@@ -169,7 +169,7 @@ and art, not its engineering. These hold regardless of what happens next:
   every step staged as a world object and asserts each walkable option is
   on the card in the same words. It fails the day someone binds a step the
   card cannot answer. Any new room inherits this for free.
-- **ADR-019.** One story-progress record regardless of entry point. This is
+- **ADR-027.** One story-progress record regardless of entry point. This is
   the upgrade roadmap's section 16, already settled and already tested.
 - **Derived wall colliders.** `buildWallSegments` derives walls from room
   floors minus archway gaps, so a doorway cannot be open on one side and
@@ -240,7 +240,7 @@ wrong constraint.
 
 **Start with the art pipeline, scoped narrowly:**
 
-1. **Decide the asset question** as its own ADR - **now drafted as ADR-020
+1. **Decide the asset question** as its own ADR - **now drafted as ADR-028
    ("Where the castle's art comes from"), Status: Proposed** - with the four
    costs in section 6 priced. The output is a yes/no on third-party CC0 kits for
    scenery, plus a decision on whether the pipeline gains a texture path at
@@ -268,9 +268,9 @@ container. Runbooks are in `docs/PILOT_READINESS.md` section 5b.
 
 1. **Third-party CC0 asset kits: yes or no**, and if yes, whether the
    pipeline gains a real texture path or strips on import. Blocks
-   everything else. **Drafted as ADR-020**, which measured the split that
+   everything else. **Drafted as ADR-028**, which measured the split that
    reframes it: only 16 of the castle's 60 assets are importable scenery,
-   so a scenery-only import cannot reach the upgrade roadmap's bar. ADR-020
+   so a scenery-only import cannot reach the upgrade roadmap's bar. ADR-028
    proposes giving the *generated* pipeline a material story first. It is
    Proposed, not Accepted, and it explicitly leaves the art-sourcing
    question - commission, buy, or accept a stylised generated look - open

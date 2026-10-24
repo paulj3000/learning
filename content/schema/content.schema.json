@@ -22,6 +22,22 @@
           "minLength": 1,
           "type": "string"
         },
+        "skillDomain": {
+          "enum": [
+            "math",
+            "reading",
+            "vocabulary",
+            "logic",
+            "science",
+            "spatial"
+          ],
+          "type": "string"
+        },
+        "skillLevel": {
+          "maximum": 6,
+          "minimum": 1,
+          "type": "integer"
+        },
         "slug": {
           "minLength": 1,
           "type": "string"
@@ -456,7 +472,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 1
+          "const": 2
         },
         "wonderWallQuestions": {
           "items": {
@@ -483,7 +499,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 1
+          "const": 2
         }
       },
       "required": [
@@ -508,7 +524,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 1
+          "const": 2
         },
         "skills": {
           "items": {
@@ -548,7 +564,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 1
+          "const": 2
         }
       },
       "required": [
@@ -568,7 +584,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 1
+          "const": 2
         }
       },
       "required": [
@@ -587,7 +603,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 1
+          "const": 2
         }
       },
       "required": [
@@ -606,7 +622,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 1
+          "const": 2
         }
       },
       "required": [
@@ -625,7 +641,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 1
+          "const": 2
         }
       },
       "required": [
@@ -644,7 +660,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 1
+          "const": 2
         }
       },
       "required": [
@@ -675,7 +691,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 1
+          "const": 2
         }
       },
       "required": [
@@ -690,7 +706,7 @@
       "additionalProperties": false,
       "properties": {
         "schemaVersion": {
-          "const": 1
+          "const": 2
         },
         "stories": {
           "items": {
@@ -832,6 +848,23 @@
               "required": [
                 "kind",
                 "npcId"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "START_STORY"
+                },
+                "storySlug": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "storySlug"
               ],
               "type": "object"
             }
@@ -1366,7 +1399,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 1
+          "const": 2
         }
       },
       "required": [
@@ -3161,5 +3194,5 @@
     "rewards.json": "#/$defs/file:rewards.json",
     "stories.json": "#/$defs/file:stories.json"
   },
-  "x-schemaVersion": 1
+  "x-schemaVersion": 2
 }

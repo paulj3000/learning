@@ -680,6 +680,24 @@
         },
         {
           "action": {
+            "kind": "START_STORY",
+            "storySlug": "the-castles-secret-door"
+          },
+          "id": "castle-secret-door",
+          "requirements": [
+            {
+              "changeKey": "THE_CASTLES_SECRET_DOOR_COMPLETE",
+              "type": "WORLD_CHANGE_ABSENT"
+            }
+          ],
+          "targetId": "castle-secret-passage",
+          "title": "A door with no handle",
+          "trigger": "APPROACH",
+          "type": "ADVENTURE",
+          "zoneId": "castle-last-bookshelf"
+        },
+        {
+          "action": {
             "kind": "NAVIGATE",
             "to": "locations/castle-writing-room"
           },
@@ -911,5 +929,5 @@
       "regionSlug": "bolts-workshop"
     }
   ],
-  "schemaVersion": 1
+  "schemaVersion": 2
 }

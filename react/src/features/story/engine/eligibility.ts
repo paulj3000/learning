@@ -4,7 +4,7 @@ import type { StoryDefinition } from './types';
 /**
  * Whether this child's age band may play this story at all.
  *
- * One line, and it earns its own module because ADR-019 turned it into a
+ * One line, and it earns its own module because ADR-027 turned it into a
  * rule with more than one enforcer: a story arc may now be entered from the
  * Adventure Library *and* from a 3D region, and "reaching a Three.js object
  * must never bypass Story Engine eligibility". Two call sites restating

@@ -6,6 +6,7 @@
  * cleanly onto the Island > Adventure hierarchy; they are recorded in the manifest and never
  * "fixed" by inventing a record.
  */
+import { CLOCKWORK_HARBOR_REGION_ID, WONDERWILD_HIVE_REGION_ID } from '../discovery/checkpoints';
 import type { ContentPackage } from './types';
 
 export interface Ambiguity {
@@ -27,6 +28,20 @@ export const TERMINAL_STEP_ID = 'complete';
 
 /** Region keys that have interaction tables or checkpoints but no `IslandLocation` record. */
 export const HUB_REGION_SLUG = 'welcome-harbor';
+
+/**
+ * Regions that are real, authored 3D regions with checkpoints but are deliberately not
+ * `IslandLocation` records: a child cannot choose to visit them, an adventure passes through them.
+ * Listed explicitly (never inferred) so a typo in a region id still fails the export. Being listed
+ * here says the region is a legitimate content reference, not that it is playable.
+ */
+/**
+ * Regions whose NPCs are placed by the 3D scene and have no `WorldInteraction` table. An NPC there may
+ * carry an `interactionId` that resolves to nothing; the same id in any other region is an error.
+ */
+export const regionsWithoutInteractionTable: readonly string[] = [CLOCKWORK_HARBOR_REGION_ID];
+
+export const ADVENTURE_PASSAGE_REGION_SLUGS: readonly string[] = [WONDERWILD_HIVE_REGION_ID];
 
 function ids<T>(items: readonly T[], pick: (item: T) => string): Set<string> {
   return new Set(items.map(pick));
@@ -85,7 +100,11 @@ export function checkIntegrity(pkg: ContentPackage): IntegrityReport {
   const interactionIds = ids(allInteractions, (x) => x.id);
   const skillIds = ids(pkg.skills, (x) => x.id);
   const assetIds = ids(pkg.assets, (x) => x.id);
-  const regionSlugs = new Set([...locationSlugs, HUB_REGION_SLUG]);
+  const regionSlugs = new Set([
+    ...locationSlugs,
+    HUB_REGION_SLUG,
+    ...ADVENTURE_PASSAGE_REGION_SLUGS,
+  ]);
   const changeKeys = new Set<string>();
 
   // Islands and their packs
@@ -261,10 +280,20 @@ export function checkIntegrity(pkg: ContentPackage): IntegrityReport {
   }
 
   // NPCs
+  const npcsWithoutInteraction: string[] = [];
   for (const npc of pkg.npcs) {
     const from = `npc "${npc.id}"`;
     known(from, 'home location', npc.homeLocationSlug, regionSlugs);
-    known(from, 'interaction', npc.interactionId, interactionIds);
+    if (interactionIds.has(npc.interactionId)) {
+      // resolved
+    } else if (
+      regionsWithoutInteractionTable.includes(npc.homeLocationSlug) &&
+      !pkg.interactions.some((r) => r.regionSlug === npc.homeLocationSlug)
+    ) {
+      npcsWithoutInteraction.push(npc.id);
+    } else {
+      errors.push(`${from}: unknown interaction "${npc.interactionId}"`);
+    }
     for (const entry of npc.schedule)
       known(from, 'schedule location', entry.locationSlug, regionSlugs);
     const nodeIds = ids(npc.dialogue, (n) => n.id);
@@ -301,6 +330,7 @@ export function checkIntegrity(pkg: ContentPackage): IntegrityReport {
     }
     if (a.kind === 'DISCOVER') known(from, 'discovery', a.discoveryId, discoveryIds);
     if (a.kind === 'TALK_TO') known(from, 'npc', a.npcId, npcIds);
+    if (a.kind === 'START_STORY') known(from, 'story', a.storySlug, storySlugs);
     if (a.kind === 'NAVIGATE') {
       const to = a.to;
       if (to.startsWith('locations/')) known(from, 'location', to.slice(10), locationSlugs);
@@ -317,13 +347,33 @@ export function checkIntegrity(pkg: ContentPackage): IntegrityReport {
       ...pkg.interactions.map((r) => r.regionSlug),
       ...pkg.checkpoints.map((c) => c.regionId),
     ]),
-  ].filter((slug) => !locationSlugs.has(slug));
+  ].filter((slug) => !locationSlugs.has(slug) && !ADVENTURE_PASSAGE_REGION_SLUGS.includes(slug));
   if (hubOnly.length > 0) {
     ambiguities.push({
       kind: 'region-without-location-record',
       ids: hubOnly.sort(),
       detail:
         'Interaction tables and checkpoints exist for these regions but no IslandLocation does. Welcome Harbor is the home hub. It is exported under its authoring key; it was not added to locations.',
+    });
+  }
+
+  if (npcsWithoutInteraction.length > 0) {
+    ambiguities.push({
+      kind: 'npc-interaction-without-record',
+      ids: npcsWithoutInteraction.sort(),
+      detail:
+        'These NPCs name an interactionId but their home region has no WorldInteraction table (Clockwork Harbor is a 3D-only region that opens conversations by NPC id). The ids are exported as written; no interaction was invented.',
+    });
+  }
+  const passage = ADVENTURE_PASSAGE_REGION_SLUGS.filter((slug) =>
+    pkg.checkpoints.some((c) => c.regionId === slug),
+  );
+  if (passage.length > 0) {
+    ambiguities.push({
+      kind: 'adventure-passage-region',
+      ids: [...passage].sort(),
+      detail:
+        'These regions have checkpoints but no IslandLocation by design: an adventure passes through them and a child cannot choose to visit. They are exported as checkpoint metadata only. Their listing here does not assert that a playable scene exists; geometry and scenes are not part of the content export.',
     });
   }
 

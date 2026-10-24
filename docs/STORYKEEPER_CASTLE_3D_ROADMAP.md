@@ -2,7 +2,7 @@
 
 **Status:** SC-0 through SC-6 are implemented, which **completes the
 critical vertical slice**. **SC-8 is now complete** and **SC-9 is complete
-except for beat 11's writing room**, both unblocked by ADR-019, which
+except for beat 11's writing room**, both unblocked by ADR-027, which
 settled how a story chapter may be played inside a region. **SC-7 is complete**: beat 12's tapestry
 nook was built with the phase, and beat 13's calm stop landed once the
 product-wide session clock it needed was built. **SC-10 is complete.** **SC-11's gate is open on one of three deliverables
@@ -828,7 +828,7 @@ a record to keep.
 what the open question below was about. Keeper Quill closes the book and
 looks toward the cushioned nook beat 12 put in the corner; the note beside
 the canvas says so in the castle's own voice rather than the default one.
-The castle reads the same clock `IslandLayout` reads - ADR-019's principle
+The castle reads the same clock `IslandLayout` reads - ADR-027's principle
 applied to time as much as to progress: a region presents, it does not own.
 
 **It suggests and stops there.** No countdown, no streak, no score, no
@@ -934,12 +934,12 @@ Two faults the screenshots caught, neither of which any test could:
   13.6) on the same wall, and the narrative needs that bookshelf to hide the
   door while the child needs to count the stars above it. Resolve it there.
 
-### The clues, wired (ADR-019)
+### The clues, wired (ADR-027)
 
 The half SC-8 stopped at is built. Storykeeper Castle is now a second entry
 point into `THE_CASTLES_SECRET_DOOR` - the door with no handle is an
 authored `START_STORY` interaction sharing the last bookshelf's zone - and
-the chapter's `ADVENTURE` scenes render through ADR-019's seam into a
+the chapter's `ADVENTURE` scenes render through ADR-027's seam into a
 component that holds the session in the room. The three clues are picked up
 off the floor and pinned to the library wall, and the third pin reports the
 arrangement to the existing `ORDERING` step.
@@ -953,7 +953,7 @@ walks through this castle. The band gate is the story's own
 The account below is kept as the record of why this needed a decision
 first.
 
-### Why it needed ADR-019 — the clues as a puzzle
+### Why it needed ADR-027 — the clues as a puzzle
 
 The three clues are placed and visible; **picking them up and pinning them
 is not wired**, and the reason is worth stating plainly because SC-9 hits it
@@ -984,7 +984,7 @@ pattern lock is three rods seated in a wall rather than a number typed on a
 card.
 
 **Recommendation:** decide the hosting question before SC-9. Drafted as
-**ADR-019** in `docs/DECISIONS.md` (status: Proposed) - an arc may have a
+**ADR-027** in `docs/DECISIONS.md` (status: Proposed) - an arc may have a
 second entry point but only one record, the Story Engine keeps sole
 ownership of `ChildStoryProgress`, and `StoryChapterRunner` gains an
 optional renderer for its `ADVENTURE` scenes so a region can hold the
@@ -1258,15 +1258,15 @@ regardless.
 > prerequisite named below - a texture-loading test path - is the expensive
 > part and must be built before the first textured file lands.
 >
-> **Superseded in scope by ADR-020** ("Where the castle's art comes from",
+> **Superseded in scope by ADR-028** ("Where the castle's art comes from",
 > Status: Proposed), which measured what "scenery only" actually reaches:
 > **16 of the castle's 60 assets.** The other 44 are gameplay-bearing - 22
 > state-variant pairs needing identical vertices, three rods graded by
 > length, nine counted stars, six assets named in `castleChoiceBindings.ts`,
 > six easel canvases. So this deferral's own remedy cannot clear the new
-> bar on its own, and ADR-020 proposes a material story for the *generated*
+> bar on its own, and ADR-028 proposes a material story for the *generated*
 > pipeline first. The paragraph above remains correct about gameplay
-> geometry, and ADR-020 restates it rather than dropping it.
+> geometry, and ADR-028 restates it rather than dropping it.
 
 If it is ever revisited, prefer CC0 (Kenney, Quaternius, the CC0 half of
 Poly Pizza) over CC-BY, and treat it as its own phase with its own

@@ -10,7 +10,7 @@
       "clips": [],
       "id": "rock",
       "kind": "kit-piece",
-      "url": "/models/rock.gltf"
+      "url": "/models/kenney-rock-small.glb"
     },
     {
       "clips": [],
@@ -62,13 +62,13 @@
         "distanceMeters": 14,
         "lowDetailId": "foliage-tree-lod1"
       },
-      "url": "/models/foliage-tree.gltf"
+      "url": "/models/kenney-tree-large.glb"
     },
     {
       "clips": [],
       "id": "foliage-tree-lod1",
       "kind": "kit-piece",
-      "url": "/models/foliage-tree-lod1.gltf"
+      "url": "/models/kenney-tree-small.glb"
     },
     {
       "clips": [],
@@ -93,6 +93,26 @@
       "id": "companion-chatty",
       "kind": "character",
       "url": "/models/companion-chatty.gltf"
+    },
+    {
+      "clips": [
+        "Idle",
+        "Walk",
+        "Wave"
+      ],
+      "id": "npc-harbor-master",
+      "kind": "character",
+      "url": "/models/npc-harbor-master.gltf"
+    },
+    {
+      "clips": [
+        "Idle",
+        "Walk",
+        "Wave"
+      ],
+      "id": "npc-professor-ticktock",
+      "kind": "character",
+      "url": "/models/npc-professor-ticktock.gltf"
     },
     {
       "clips": [],
@@ -121,6 +141,30 @@
       "url": "/models/signpost.gltf"
     },
     {
+      "clips": [],
+      "id": "crate",
+      "kind": "kit-piece",
+      "url": "/models/crate.gltf"
+    },
+    {
+      "clips": [],
+      "id": "barrel",
+      "kind": "kit-piece",
+      "url": "/models/barrel.gltf"
+    },
+    {
+      "clips": [],
+      "id": "mooring-post",
+      "kind": "kit-piece",
+      "url": "/models/mooring-post.gltf"
+    },
+    {
+      "clips": [],
+      "id": "shipwreck",
+      "kind": "prop",
+      "url": "/models/shipwreck.gltf"
+    },
+    {
       "clips": [
         "Idle"
       ],
@@ -132,13 +176,13 @@
       "clips": [],
       "id": "ground-tile-stone",
       "kind": "kit-piece",
-      "url": "/models/ground-tile-stone.gltf"
+      "url": "/models/kaykit-floor-tile-large.glb"
     },
     {
       "clips": [],
       "id": "ceiling-tile",
       "kind": "kit-piece",
-      "url": "/models/ceiling-tile.gltf"
+      "url": "/models/kaykit-floor-wood-large-dark.glb"
     },
     {
       "clips": [],
@@ -223,6 +267,12 @@
       "id": "lectern",
       "kind": "prop",
       "url": "/models/lectern.gltf"
+    },
+    {
+      "clips": [],
+      "id": "binding-lectern",
+      "kind": "prop",
+      "url": "/models/binding-lectern.gltf"
     },
     {
       "clips": [],
@@ -490,7 +540,185 @@
       "id": "npc-quill",
       "kind": "character",
       "url": "/models/npc-quill.gltf"
+    },
+    {
+      "clips": [],
+      "id": "ground-tile-moss",
+      "kind": "kit-piece",
+      "url": "/models/ground-tile-moss.gltf"
+    },
+    {
+      "clips": [],
+      "id": "ground-tile-comb",
+      "kind": "kit-piece",
+      "url": "/models/ground-tile-comb.gltf"
+    },
+    {
+      "clips": [],
+      "id": "path-forest",
+      "kind": "kit-piece",
+      "url": "/models/path-forest.gltf"
+    },
+    {
+      "clips": [],
+      "id": "fern",
+      "kind": "kit-piece",
+      "url": "/models/fern.gltf"
+    },
+    {
+      "clips": [],
+      "id": "flower-cluster",
+      "kind": "kit-piece",
+      "url": "/models/flower-cluster.gltf"
+    },
+    {
+      "clips": [],
+      "id": "mushroom-cluster",
+      "kind": "kit-piece",
+      "url": "/models/mushroom-cluster.gltf"
+    },
+    {
+      "clips": [],
+      "id": "log-fallen",
+      "kind": "kit-piece",
+      "url": "/models/log-fallen.gltf"
+    },
+    {
+      "clips": [],
+      "id": "reed",
+      "kind": "kit-piece",
+      "url": "/models/reed.gltf"
+    },
+    {
+      "clips": [],
+      "id": "lily-pad",
+      "kind": "kit-piece",
+      "url": "/models/lily-pad.gltf"
+    },
+    {
+      "clips": [],
+      "id": "standing-stone",
+      "kind": "kit-piece",
+      "url": "/models/standing-stone.gltf"
+    },
+    {
+      "clips": [],
+      "id": "comb-cell",
+      "kind": "kit-piece",
+      "url": "/models/comb-cell.gltf"
+    },
+    {
+      "clips": [],
+      "id": "comb-cell-capped",
+      "kind": "kit-piece",
+      "url": "/models/comb-cell-capped.gltf"
+    },
+    {
+      "clips": [],
+      "id": "wonder-stone-bee",
+      "kind": "prop",
+      "url": "/models/wonder-stone-bee.gltf"
+    },
+    {
+      "clips": [],
+      "id": "wonder-stone-bee-lit",
+      "kind": "prop",
+      "url": "/models/wonder-stone-bee-lit.gltf"
+    },
+    {
+      "clips": [],
+      "id": "wonder-stone-seed",
+      "kind": "prop",
+      "url": "/models/wonder-stone-seed.gltf"
+    },
+    {
+      "clips": [],
+      "id": "wonder-stone-sun",
+      "kind": "prop",
+      "url": "/models/wonder-stone-sun.gltf"
+    },
+    {
+      "clips": [],
+      "id": "wonder-stone-chrysalis",
+      "kind": "prop",
+      "url": "/models/wonder-stone-chrysalis.gltf"
+    },
+    {
+      "clips": [],
+      "id": "beehive",
+      "kind": "prop",
+      "url": "/models/beehive.gltf"
+    },
+    {
+      "clips": [],
+      "id": "hive-mouth",
+      "kind": "prop",
+      "url": "/models/hive-mouth.gltf"
+    },
+    {
+      "clips": [],
+      "id": "frog",
+      "kind": "prop",
+      "url": "/models/frog.gltf"
+    },
+    {
+      "clips": [],
+      "id": "leaf-pile",
+      "kind": "prop",
+      "url": "/models/leaf-pile.gltf"
+    },
+    {
+      "clips": [],
+      "id": "butterfly",
+      "kind": "prop",
+      "url": "/models/butterfly.gltf"
+    },
+    {
+      "clips": [],
+      "id": "glow-moss",
+      "kind": "prop",
+      "url": "/models/glow-moss.gltf"
+    },
+    {
+      "clips": [],
+      "id": "glowworm-ceiling",
+      "kind": "prop",
+      "url": "/models/glowworm-ceiling.gltf"
+    },
+    {
+      "clips": [],
+      "id": "flower-patch-bare",
+      "kind": "prop",
+      "url": "/models/flower-patch-bare.gltf"
+    },
+    {
+      "clips": [],
+      "id": "flower-patch-bloomed",
+      "kind": "prop",
+      "url": "/models/flower-patch-bloomed.gltf"
+    },
+    {
+      "clips": [],
+      "id": "cave-mouth",
+      "kind": "prop",
+      "url": "/models/cave-mouth.gltf"
+    },
+    {
+      "clips": [],
+      "id": "cave-mouth-lit",
+      "kind": "prop",
+      "url": "/models/cave-mouth-lit.gltf"
+    },
+    {
+      "clips": [
+        "Idle",
+        "Talk",
+        "Celebrate"
+      ],
+      "id": "npc-buzz",
+      "kind": "character",
+      "url": "/models/npc-buzz.gltf"
     }
   ],
-  "schemaVersion": 1
+  "schemaVersion": 2
 }
