@@ -218,3 +218,23 @@ timestamps; and the export runs in a child Node process with a scrubbed environm
 Hand-mutation check: editing an item without re-exporting, and making a content module import the Amplify
 data client, each turned the suite red. The built-in validator only supports the schema keywords the
 schema uses; the Python side must use a full JSON Schema validator.
+
+## Golden vectors (LAI-0303)
+
+`tests/golden/*.json` pin the deterministic rules Python takes over in Phase 6 (ADR-019
+sub-decision 8): answer validation, step transitions and the hint ladder, reward resolution,
+quest objectives, conditions and progress, mastery counters, status, error pattern and review
+decay, and the director's ranking and reachability. Inputs are authored in
+`react/src/test/golden/buildGoldenVectors.ts`; every expected value is produced by running the
+TypeScript function, so a vector cannot assert a rule the code does not have. Each file
+carries `schemaVersion`, its source files, per function the Python name and argument order,
+and `notes` listing behaviour no document specifies.
+
+- `npm run golden:generate` rewrites the files; `npm run golden:check` and
+  `react/src/test/golden/goldenVectors.test.ts` fail when they are stale.
+- Regenerate after changing a rule (then update the Python port in the same change) and after
+  any content change: the `director-content` suite runs on the shipped content and records the
+  content export's `contentDigest`.
+- `tests/golden/test_golden_vectors.py` checks the format from Python. A Phase 6 port adds its
+  own pytest over `golden_vectors.cases(suite, function)`; inputs arrive as snake_case keyword
+  arguments, and a `throws` case must raise.

@@ -27,6 +27,8 @@
     "assets:generate": "tsx scripts/generate-world-assets.ts",
     "content:export": "tsx scripts/export-content.ts",
     "content:check": "tsx scripts/export-content.ts --check",
+    "golden:generate": "tsx scripts/generate-golden-vectors.ts",
+    "golden:check": "tsx scripts/generate-golden-vectors.ts --check",
     "adr:check": "tsx scripts/check-adrs.ts",
     "assets:import-kenney": "tsx scripts/import-kenney-assets.ts",
     "assets:import-characters": "tsx scripts/import-character-assets.ts",

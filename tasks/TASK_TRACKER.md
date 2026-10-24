@@ -40,7 +40,7 @@ before touching AWS.
 - [ ] **LAI-0307** CompanionProfile model (split from 0301) (depends: 0301)
 - [ ] **LAI-0308** ParentConsent privacy design, then model (split from 0301; never implemented in Amplify). REQUIRED GATE G9 before the migrated platform handles live children's data (depends: 0301)
 - [x] **LAI-0302** Content export to versioned JSON (depends: 0201). DONE locally: 13 files under `content/`, schema v1, 38 tests. Spatial data and logic are not exported (see DATA_MODEL.md)
-- [ ] **LAI-0303** Golden vectors (depends: 0302)
+- [x] **LAI-0303** Golden vectors (depends: 0302). DONE locally: `tests/golden/*.json` (6 suites), Vitest stale check, pytest format check; no Python rules yet (Phase 6)
 - [ ] **LAI-0304** Catalog models and loader (depends: 0302, 0301)
 - [ ] **LAI-0305** Progress models (depends: 0301, 0304)
 - [ ] **LAI-0306** Audit models (depends: 0301)
@@ -81,6 +81,7 @@ before touching AWS.
 
 - [ ] **LAI-0801** Django admin for catalogs (depends: 0304, 0404)
 - [ ] **LAI-0802** React admin views on Django (depends: 0505, 0404)
+- [ ] **LAI-0805** Spatial layout administration in Django Admin (depends: 0801, 0304, 2103, and a spatial-content ADR first)
 
 ## Phase 9 — Realtime (co-op) and storage
 

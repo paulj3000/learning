@@ -1,0 +1,2335 @@
+{
+  "schemaVersion": 1,
+  "suite": "rewards",
+  "description": "Deterministic reward resolution: every matching rule grants, no randomness (ADR-011).",
+  "sources": [
+    "react/src/features/rewards/rewardTable.ts"
+  ],
+  "notes": [
+    "resolveRewards: NPC_RELATIONSHIP matches the exact level only; reaching a higher level does not also grant lower-level rules.",
+    "rewardedItemIds: de-duplicates in first-seen order."
+  ],
+  "functions": {
+    "resolveRewards": {
+      "python": "resolve_rewards",
+      "args": [
+        "table",
+        "trigger"
+      ],
+      "cases": [
+        {
+          "name": "two rules match one adventure, in authored order",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "ADVENTURE_COMPLETED",
+              "templateSlug": "bridge"
+            }
+          },
+          "expected": [
+            {
+              "ruleId": "bridge-shell",
+              "itemIds": [
+                "shell"
+              ],
+              "message": "A shell"
+            },
+            {
+              "ruleId": "bridge-flag",
+              "itemIds": [
+                "flag",
+                "shell"
+              ],
+              "message": "A flag"
+            }
+          ]
+        },
+        {
+          "name": "story completed",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "STORY_COMPLETED",
+              "storySlug": "ember"
+            }
+          },
+          "expected": [
+            {
+              "ruleId": "story-book",
+              "itemIds": [
+                "book"
+              ],
+              "message": "A book"
+            }
+          ]
+        },
+        {
+          "name": "quest completed",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "QUEST_COMPLETED",
+              "questId": "repair"
+            }
+          },
+          "expected": [
+            {
+              "ruleId": "quest-map",
+              "itemIds": [
+                "map"
+              ],
+              "message": "A map"
+            }
+          ]
+        },
+        {
+          "name": "world change",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "WORLD_CHANGE",
+              "changeKey": "lighthouse-lit"
+            }
+          },
+          "expected": [
+            {
+              "ruleId": "change-lamp",
+              "itemIds": [
+                "lamp"
+              ],
+              "message": "A lamp"
+            }
+          ]
+        },
+        {
+          "name": "relationship at the exact level",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "NPC_RELATIONSHIP",
+              "npcId": "pip",
+              "level": "FRIEND"
+            }
+          },
+          "expected": [
+            {
+              "ruleId": "pip-friend",
+              "itemIds": [
+                "badge"
+              ],
+              "message": "A badge"
+            }
+          ]
+        },
+        {
+          "name": "relationship at a higher level does not match",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "NPC_RELATIONSHIP",
+              "npcId": "pip",
+              "level": "TRUSTED_FRIEND"
+            }
+          },
+          "expected": []
+        },
+        {
+          "name": "relationship with another npc",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "NPC_RELATIONSHIP",
+              "npcId": "quill",
+              "level": "FRIEND"
+            }
+          },
+          "expected": []
+        },
+        {
+          "name": "discovery",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "DISCOVERY",
+              "discoveryKey": "fossil"
+            }
+          },
+          "expected": [
+            {
+              "ruleId": "discover-fossil",
+              "itemIds": [
+                "fossil"
+              ],
+              "message": "A fossil"
+            }
+          ]
+        },
+        {
+          "name": "a rule may grant no items",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "DISCOVERY",
+              "discoveryKey": "nothing"
+            }
+          },
+          "expected": [
+            {
+              "ruleId": "empty-grant",
+              "itemIds": [],
+              "message": "Well done"
+            }
+          ]
+        },
+        {
+          "name": "unknown adventure grants nothing",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "ADVENTURE_COMPLETED",
+              "templateSlug": "unknown"
+            }
+          },
+          "expected": []
+        },
+        {
+          "name": "same key under another trigger type does not match",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "STORY_COMPLETED",
+              "storySlug": "bridge"
+            }
+          },
+          "expected": []
+        },
+        {
+          "name": "empty table",
+          "input": {
+            "table": [],
+            "trigger": {
+              "type": "QUEST_COMPLETED",
+              "questId": "repair"
+            }
+          },
+          "expected": []
+        }
+      ]
+    },
+    "rewardedItemIds": {
+      "python": "rewarded_item_ids",
+      "args": [
+        "table",
+        "trigger"
+      ],
+      "cases": [
+        {
+          "name": "two rules match one adventure, in authored order",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "ADVENTURE_COMPLETED",
+              "templateSlug": "bridge"
+            }
+          },
+          "expected": [
+            "shell",
+            "flag"
+          ]
+        },
+        {
+          "name": "story completed",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "STORY_COMPLETED",
+              "storySlug": "ember"
+            }
+          },
+          "expected": [
+            "book"
+          ]
+        },
+        {
+          "name": "quest completed",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "QUEST_COMPLETED",
+              "questId": "repair"
+            }
+          },
+          "expected": [
+            "map"
+          ]
+        },
+        {
+          "name": "world change",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "WORLD_CHANGE",
+              "changeKey": "lighthouse-lit"
+            }
+          },
+          "expected": [
+            "lamp"
+          ]
+        },
+        {
+          "name": "relationship at the exact level",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "NPC_RELATIONSHIP",
+              "npcId": "pip",
+              "level": "FRIEND"
+            }
+          },
+          "expected": [
+            "badge"
+          ]
+        },
+        {
+          "name": "relationship at a higher level does not match",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "NPC_RELATIONSHIP",
+              "npcId": "pip",
+              "level": "TRUSTED_FRIEND"
+            }
+          },
+          "expected": []
+        },
+        {
+          "name": "relationship with another npc",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "NPC_RELATIONSHIP",
+              "npcId": "quill",
+              "level": "FRIEND"
+            }
+          },
+          "expected": []
+        },
+        {
+          "name": "discovery",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "DISCOVERY",
+              "discoveryKey": "fossil"
+            }
+          },
+          "expected": [
+            "fossil"
+          ]
+        },
+        {
+          "name": "a rule may grant no items",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "DISCOVERY",
+              "discoveryKey": "nothing"
+            }
+          },
+          "expected": []
+        },
+        {
+          "name": "unknown adventure grants nothing",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "ADVENTURE_COMPLETED",
+              "templateSlug": "unknown"
+            }
+          },
+          "expected": []
+        },
+        {
+          "name": "same key under another trigger type does not match",
+          "input": {
+            "table": [
+              {
+                "id": "bridge-shell",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "shell"
+                ],
+                "message": "A shell"
+              },
+              {
+                "id": "bridge-flag",
+                "trigger": {
+                  "type": "ADVENTURE_COMPLETED",
+                  "templateSlug": "bridge"
+                },
+                "itemIds": [
+                  "flag",
+                  "shell"
+                ],
+                "message": "A flag"
+              },
+              {
+                "id": "story-book",
+                "trigger": {
+                  "type": "STORY_COMPLETED",
+                  "storySlug": "ember"
+                },
+                "itemIds": [
+                  "book"
+                ],
+                "message": "A book"
+              },
+              {
+                "id": "quest-map",
+                "trigger": {
+                  "type": "QUEST_COMPLETED",
+                  "questId": "repair"
+                },
+                "itemIds": [
+                  "map"
+                ],
+                "message": "A map"
+              },
+              {
+                "id": "change-lamp",
+                "trigger": {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "lighthouse-lit"
+                },
+                "itemIds": [
+                  "lamp"
+                ],
+                "message": "A lamp"
+              },
+              {
+                "id": "pip-friend",
+                "trigger": {
+                  "type": "NPC_RELATIONSHIP",
+                  "npcId": "pip",
+                  "level": "FRIEND"
+                },
+                "itemIds": [
+                  "badge"
+                ],
+                "message": "A badge"
+              },
+              {
+                "id": "discover-fossil",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "fossil"
+                },
+                "itemIds": [
+                  "fossil"
+                ],
+                "message": "A fossil"
+              },
+              {
+                "id": "empty-grant",
+                "trigger": {
+                  "type": "DISCOVERY",
+                  "discoveryKey": "nothing"
+                },
+                "itemIds": [],
+                "message": "Well done"
+              }
+            ],
+            "trigger": {
+              "type": "STORY_COMPLETED",
+              "storySlug": "bridge"
+            }
+          },
+          "expected": []
+        },
+        {
+          "name": "empty table",
+          "input": {
+            "table": [],
+            "trigger": {
+              "type": "QUEST_COMPLETED",
+              "questId": "repair"
+            }
+          },
+          "expected": []
+        }
+      ]
+    }
+  }
+}

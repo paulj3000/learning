@@ -1,0 +1,1591 @@
+{
+  "schemaVersion": 1,
+  "suite": "adventure-engine",
+  "description": "Answer evaluation, step transitions and the hint ladder.",
+  "sources": [
+    "react/src/features/adventures/engine/validators.ts",
+    "react/src/features/adventures/engine/transitions.ts",
+    "react/src/features/adventures/engine/hints.ts"
+  ],
+  "notes": [
+    "validateStepAnswer: a matching answer that repeats one correct pair as many times as there are pairs counts as correct, because only the length and each pair are checked. No document says whether that is intended.",
+    "validateStepAnswer: number answers compare with exact equality; no tolerance is specified.",
+    "validateStepAnswer: reflection, narrative, world-change and complete steps return not_applicable for any answer kind; only gradable steps reject a mismatched kind.",
+    "nextHintLevel: inputs are not validated; a negative level returns level + 1, and fractional levels are not rejected."
+  ],
+  "functions": {
+    "validateStepAnswer": {
+      "python": "validate_step_answer",
+      "args": [
+        "step",
+        "answer"
+      ],
+      "cases": [
+        {
+          "name": "number: correct",
+          "input": {
+            "step": {
+              "id": "count",
+              "type": "NUMBER_INPUT",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "number-input",
+                "prompt": "How many?",
+                "correctValue": 4
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "number-input",
+              "value": 4
+            }
+          },
+          "expected": "correct"
+        },
+        {
+          "name": "number: incorrect",
+          "input": {
+            "step": {
+              "id": "count",
+              "type": "NUMBER_INPUT",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "number-input",
+                "prompt": "How many?",
+                "correctValue": 4
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "number-input",
+              "value": 5
+            }
+          },
+          "expected": "incorrect"
+        },
+        {
+          "name": "number: off by one below",
+          "input": {
+            "step": {
+              "id": "count",
+              "type": "NUMBER_INPUT",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "number-input",
+                "prompt": "How many?",
+                "correctValue": 4
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "number-input",
+              "value": 3
+            }
+          },
+          "expected": "incorrect"
+        },
+        {
+          "name": "number: negative",
+          "input": {
+            "step": {
+              "id": "count",
+              "type": "NUMBER_INPUT",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "number-input",
+                "prompt": "How many?",
+                "correctValue": 4
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "number-input",
+              "value": -4
+            }
+          },
+          "expected": "incorrect"
+        },
+        {
+          "name": "number: fractional near miss",
+          "input": {
+            "step": {
+              "id": "count",
+              "type": "NUMBER_INPUT",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "number-input",
+                "prompt": "How many?",
+                "correctValue": 4
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "number-input",
+              "value": 4.5
+            }
+          },
+          "expected": "incorrect"
+        },
+        {
+          "name": "number: zero is a valid correct value",
+          "input": {
+            "step": {
+              "id": "zero",
+              "type": "NUMBER_INPUT",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "number-input",
+                "prompt": "How many?",
+                "correctValue": 0
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "number-input",
+              "value": 0
+            }
+          },
+          "expected": "correct"
+        },
+        {
+          "name": "choice: correct",
+          "input": {
+            "step": {
+              "id": "pick",
+              "type": "CHOICE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "choice",
+                "prompt": "Pick",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "correctOptionId": "b"
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "choice",
+              "optionId": "b"
+            }
+          },
+          "expected": "correct"
+        },
+        {
+          "name": "choice: incorrect",
+          "input": {
+            "step": {
+              "id": "pick",
+              "type": "CHOICE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "choice",
+                "prompt": "Pick",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "correctOptionId": "b"
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "choice",
+              "optionId": "a"
+            }
+          },
+          "expected": "incorrect"
+        },
+        {
+          "name": "choice: unknown option id",
+          "input": {
+            "step": {
+              "id": "pick",
+              "type": "CHOICE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "choice",
+                "prompt": "Pick",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "correctOptionId": "b"
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "choice",
+              "optionId": "zzz"
+            }
+          },
+          "expected": "incorrect"
+        },
+        {
+          "name": "ordering: correct",
+          "input": {
+            "step": {
+              "id": "order",
+              "type": "ORDERING",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "ordering",
+                "prompt": "Order",
+                "items": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "correctOrder": [
+                  "a",
+                  "b",
+                  "c"
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "ordering",
+              "order": [
+                "a",
+                "b",
+                "c"
+              ]
+            }
+          },
+          "expected": "correct"
+        },
+        {
+          "name": "ordering: wrong order",
+          "input": {
+            "step": {
+              "id": "order",
+              "type": "ORDERING",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "ordering",
+                "prompt": "Order",
+                "items": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "correctOrder": [
+                  "a",
+                  "b",
+                  "c"
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "ordering",
+              "order": [
+                "b",
+                "a",
+                "c"
+              ]
+            }
+          },
+          "expected": "incorrect"
+        },
+        {
+          "name": "ordering: too short",
+          "input": {
+            "step": {
+              "id": "order",
+              "type": "ORDERING",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "ordering",
+                "prompt": "Order",
+                "items": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "correctOrder": [
+                  "a",
+                  "b",
+                  "c"
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "ordering",
+              "order": [
+                "a",
+                "b"
+              ]
+            }
+          },
+          "expected": "incorrect"
+        },
+        {
+          "name": "ordering: too long",
+          "input": {
+            "step": {
+              "id": "order",
+              "type": "ORDERING",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "ordering",
+                "prompt": "Order",
+                "items": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "correctOrder": [
+                  "a",
+                  "b",
+                  "c"
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "ordering",
+              "order": [
+                "a",
+                "b",
+                "c",
+                "c"
+              ]
+            }
+          },
+          "expected": "incorrect"
+        },
+        {
+          "name": "ordering: empty",
+          "input": {
+            "step": {
+              "id": "order",
+              "type": "ORDERING",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "ordering",
+                "prompt": "Order",
+                "items": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "correctOrder": [
+                  "a",
+                  "b",
+                  "c"
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "ordering",
+              "order": []
+            }
+          },
+          "expected": "incorrect"
+        },
+        {
+          "name": "matching: all pairs correct",
+          "input": {
+            "step": {
+              "id": "match",
+              "type": "MATCHING",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "matching",
+                "prompt": "Match",
+                "pairs": [
+                  {
+                    "leftId": "cat",
+                    "rightId": "meow"
+                  },
+                  {
+                    "leftId": "dog",
+                    "rightId": "woof"
+                  }
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "matching",
+              "pairs": [
+                {
+                  "leftId": "cat",
+                  "rightId": "meow"
+                },
+                {
+                  "leftId": "dog",
+                  "rightId": "woof"
+                }
+              ]
+            }
+          },
+          "expected": "correct"
+        },
+        {
+          "name": "matching: all pairs correct in another order",
+          "input": {
+            "step": {
+              "id": "match",
+              "type": "MATCHING",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "matching",
+                "prompt": "Match",
+                "pairs": [
+                  {
+                    "leftId": "cat",
+                    "rightId": "meow"
+                  },
+                  {
+                    "leftId": "dog",
+                    "rightId": "woof"
+                  }
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "matching",
+              "pairs": [
+                {
+                  "leftId": "dog",
+                  "rightId": "woof"
+                },
+                {
+                  "leftId": "cat",
+                  "rightId": "meow"
+                }
+              ]
+            }
+          },
+          "expected": "correct"
+        },
+        {
+          "name": "matching: one of two correct is partial",
+          "input": {
+            "step": {
+              "id": "match",
+              "type": "MATCHING",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "matching",
+                "prompt": "Match",
+                "pairs": [
+                  {
+                    "leftId": "cat",
+                    "rightId": "meow"
+                  },
+                  {
+                    "leftId": "dog",
+                    "rightId": "woof"
+                  }
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "matching",
+              "pairs": [
+                {
+                  "leftId": "cat",
+                  "rightId": "meow"
+                },
+                {
+                  "leftId": "dog",
+                  "rightId": "meow"
+                }
+              ]
+            }
+          },
+          "expected": "partial"
+        },
+        {
+          "name": "matching: none correct",
+          "input": {
+            "step": {
+              "id": "match",
+              "type": "MATCHING",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "matching",
+                "prompt": "Match",
+                "pairs": [
+                  {
+                    "leftId": "cat",
+                    "rightId": "meow"
+                  },
+                  {
+                    "leftId": "dog",
+                    "rightId": "woof"
+                  }
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "matching",
+              "pairs": [
+                {
+                  "leftId": "cat",
+                  "rightId": "woof"
+                },
+                {
+                  "leftId": "dog",
+                  "rightId": "meow"
+                }
+              ]
+            }
+          },
+          "expected": "incorrect"
+        },
+        {
+          "name": "matching: one correct pair but too few pairs is partial",
+          "input": {
+            "step": {
+              "id": "match",
+              "type": "MATCHING",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "matching",
+                "prompt": "Match",
+                "pairs": [
+                  {
+                    "leftId": "cat",
+                    "rightId": "meow"
+                  },
+                  {
+                    "leftId": "dog",
+                    "rightId": "woof"
+                  }
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "matching",
+              "pairs": [
+                {
+                  "leftId": "cat",
+                  "rightId": "meow"
+                }
+              ]
+            }
+          },
+          "expected": "partial"
+        },
+        {
+          "name": "matching: no pairs",
+          "input": {
+            "step": {
+              "id": "match",
+              "type": "MATCHING",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "matching",
+                "prompt": "Match",
+                "pairs": [
+                  {
+                    "leftId": "cat",
+                    "rightId": "meow"
+                  },
+                  {
+                    "leftId": "dog",
+                    "rightId": "woof"
+                  }
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "matching",
+              "pairs": []
+            }
+          },
+          "expected": "incorrect"
+        },
+        {
+          "name": "matching: the same correct pair twice counts as correct",
+          "input": {
+            "step": {
+              "id": "match",
+              "type": "MATCHING",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "matching",
+                "prompt": "Match",
+                "pairs": [
+                  {
+                    "leftId": "cat",
+                    "rightId": "meow"
+                  },
+                  {
+                    "leftId": "dog",
+                    "rightId": "woof"
+                  }
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "matching",
+              "pairs": [
+                {
+                  "leftId": "cat",
+                  "rightId": "meow"
+                },
+                {
+                  "leftId": "cat",
+                  "rightId": "meow"
+                }
+              ]
+            }
+          },
+          "expected": "correct"
+        },
+        {
+          "name": "short response: first accepted option",
+          "input": {
+            "step": {
+              "id": "short",
+              "type": "SHORT_RESPONSE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "short-response",
+                "prompt": "Why?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "acceptedOptionIds": [
+                  "a",
+                  "c"
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "short-response",
+              "optionId": "a"
+            }
+          },
+          "expected": "correct"
+        },
+        {
+          "name": "short response: second accepted option",
+          "input": {
+            "step": {
+              "id": "short",
+              "type": "SHORT_RESPONSE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "short-response",
+                "prompt": "Why?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "acceptedOptionIds": [
+                  "a",
+                  "c"
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "short-response",
+              "optionId": "c"
+            }
+          },
+          "expected": "correct"
+        },
+        {
+          "name": "short response: not accepted",
+          "input": {
+            "step": {
+              "id": "short",
+              "type": "SHORT_RESPONSE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "short-response",
+                "prompt": "Why?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "acceptedOptionIds": [
+                  "a",
+                  "c"
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "short-response",
+              "optionId": "b"
+            }
+          },
+          "expected": "incorrect"
+        },
+        {
+          "name": "creative choice: never graded",
+          "input": {
+            "step": {
+              "id": "create",
+              "type": "CREATIVE_CHOICE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "creative-choice",
+                "prompt": "Choose",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "creative-choice",
+              "optionId": "a"
+            }
+          },
+          "expected": "not_applicable"
+        },
+        {
+          "name": "reflection: never graded",
+          "input": {
+            "step": {
+              "id": "reflect",
+              "type": "REFLECTION",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "reflection",
+                "prompt": "How did it feel?"
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "reflection"
+            }
+          },
+          "expected": "not_applicable"
+        },
+        {
+          "name": "narrative: never graded",
+          "input": {
+            "step": {
+              "id": "story",
+              "type": "NARRATIVE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "narrative",
+                "speaker": "Chatty",
+                "text": "Hello"
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "narrative"
+            }
+          },
+          "expected": "not_applicable"
+        },
+        {
+          "name": "world change: never graded",
+          "input": {
+            "step": {
+              "id": "change",
+              "type": "WORLD_CHANGE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "world-change",
+                "text": "The bridge is fixed",
+                "payload": {
+                  "changeType": "REPAIR",
+                  "changeKey": "bridge",
+                  "locationSlug": "bay"
+                }
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "world-change"
+            }
+          },
+          "expected": "not_applicable"
+        },
+        {
+          "name": "complete: never graded",
+          "input": {
+            "step": {
+              "id": "done",
+              "type": "COMPLETE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "complete",
+                "text": "Well done"
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "narrative"
+            }
+          },
+          "expected": "not_applicable"
+        },
+        {
+          "name": "reflection: any answer kind is not graded",
+          "input": {
+            "step": {
+              "id": "reflect",
+              "type": "REFLECTION",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "reflection",
+                "prompt": "How did it feel?"
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "choice",
+              "optionId": "a"
+            }
+          },
+          "expected": "not_applicable"
+        },
+        {
+          "name": "invalid: choice answer to a number step",
+          "input": {
+            "step": {
+              "id": "count",
+              "type": "NUMBER_INPUT",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "number-input",
+                "prompt": "How many?",
+                "correctValue": 4
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "choice",
+              "optionId": "a"
+            }
+          },
+          "throws": true
+        },
+        {
+          "name": "invalid: number answer to an ordering step",
+          "input": {
+            "step": {
+              "id": "order",
+              "type": "ORDERING",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "ordering",
+                "prompt": "Order",
+                "items": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "correctOrder": [
+                  "a",
+                  "b",
+                  "c"
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "number-input",
+              "value": 1
+            }
+          },
+          "throws": true
+        },
+        {
+          "name": "invalid: narrative answer to a creative step",
+          "input": {
+            "step": {
+              "id": "create",
+              "type": "CREATIVE_CHOICE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "creative-choice",
+                "prompt": "Choose",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ]
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "answer": {
+              "kind": "narrative"
+            }
+          },
+          "throws": true
+        }
+      ]
+    },
+    "getNextStepId": {
+      "python": "next_step_id",
+      "args": [
+        "step",
+        "correctness"
+      ],
+      "cases": [
+        {
+          "name": "correct takes its specific rule",
+          "input": {
+            "step": {
+              "id": "branch",
+              "type": "CHOICE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "choice",
+                "prompt": "Pick",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "correctOptionId": "b"
+              },
+              "transitions": [
+                {
+                  "when": "correct",
+                  "nextStepId": "celebrate"
+                },
+                {
+                  "when": "incorrect",
+                  "nextStepId": "hint"
+                },
+                {
+                  "when": "always",
+                  "nextStepId": "continue"
+                }
+              ],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "correctness": "correct"
+          },
+          "expected": "celebrate"
+        },
+        {
+          "name": "incorrect takes its specific rule",
+          "input": {
+            "step": {
+              "id": "branch",
+              "type": "CHOICE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "choice",
+                "prompt": "Pick",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "correctOptionId": "b"
+              },
+              "transitions": [
+                {
+                  "when": "correct",
+                  "nextStepId": "celebrate"
+                },
+                {
+                  "when": "incorrect",
+                  "nextStepId": "hint"
+                },
+                {
+                  "when": "always",
+                  "nextStepId": "continue"
+                }
+              ],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "correctness": "incorrect"
+          },
+          "expected": "hint"
+        },
+        {
+          "name": "partial with no rule falls back to always",
+          "input": {
+            "step": {
+              "id": "branch",
+              "type": "CHOICE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "choice",
+                "prompt": "Pick",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "correctOptionId": "b"
+              },
+              "transitions": [
+                {
+                  "when": "correct",
+                  "nextStepId": "celebrate"
+                },
+                {
+                  "when": "incorrect",
+                  "nextStepId": "hint"
+                },
+                {
+                  "when": "always",
+                  "nextStepId": "continue"
+                }
+              ],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "correctness": "partial"
+          },
+          "expected": "continue"
+        },
+        {
+          "name": "not_applicable falls back to always",
+          "input": {
+            "step": {
+              "id": "branch",
+              "type": "CHOICE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "choice",
+                "prompt": "Pick",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "correctOptionId": "b"
+              },
+              "transitions": [
+                {
+                  "when": "correct",
+                  "nextStepId": "celebrate"
+                },
+                {
+                  "when": "incorrect",
+                  "nextStepId": "hint"
+                },
+                {
+                  "when": "always",
+                  "nextStepId": "continue"
+                }
+              ],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "correctness": "not_applicable"
+          },
+          "expected": "continue"
+        },
+        {
+          "name": "a specific rule wins over an earlier always",
+          "input": {
+            "step": {
+              "id": "always-first",
+              "type": "CHOICE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "choice",
+                "prompt": "Pick",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "correctOptionId": "b"
+              },
+              "transitions": [
+                {
+                  "when": "always",
+                  "nextStepId": "continue"
+                },
+                {
+                  "when": "correct",
+                  "nextStepId": "celebrate"
+                }
+              ],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "correctness": "correct"
+          },
+          "expected": "celebrate"
+        },
+        {
+          "name": "the first of two matching rules wins",
+          "input": {
+            "step": {
+              "id": "duplicate",
+              "type": "CHOICE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "choice",
+                "prompt": "Pick",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "correctOptionId": "b"
+              },
+              "transitions": [
+                {
+                  "when": "correct",
+                  "nextStepId": "first"
+                },
+                {
+                  "when": "correct",
+                  "nextStepId": "second"
+                }
+              ],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "correctness": "correct"
+          },
+          "expected": "first"
+        },
+        {
+          "name": "invalid: no rule and no always fallback",
+          "input": {
+            "step": {
+              "id": "no-fallback",
+              "type": "CHOICE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "choice",
+                "prompt": "Pick",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "A"
+                  },
+                  {
+                    "id": "b",
+                    "label": "B"
+                  },
+                  {
+                    "id": "c",
+                    "label": "C"
+                  }
+                ],
+                "correctOptionId": "b"
+              },
+              "transitions": [
+                {
+                  "when": "correct",
+                  "nextStepId": "celebrate"
+                }
+              ],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "correctness": "incorrect"
+          },
+          "throws": true
+        },
+        {
+          "name": "invalid: a step with no transitions",
+          "input": {
+            "step": {
+              "id": "done",
+              "type": "COMPLETE",
+              "objectiveIds": [],
+              "presentation": {
+                "kind": "complete",
+                "text": "Well done"
+              },
+              "transitions": [],
+              "fallback": {
+                "text": "fallback"
+              }
+            },
+            "correctness": "not_applicable"
+          },
+          "throws": true
+        }
+      ]
+    },
+    "nextHintLevel": {
+      "python": "next_hint_level",
+      "args": [
+        "currentLevel"
+      ],
+      "cases": [
+        {
+          "name": "level 0",
+          "input": {
+            "currentLevel": 0
+          },
+          "expected": 1
+        },
+        {
+          "name": "level 1",
+          "input": {
+            "currentLevel": 1
+          },
+          "expected": 2
+        },
+        {
+          "name": "level 2",
+          "input": {
+            "currentLevel": 2
+          },
+          "expected": 3
+        },
+        {
+          "name": "level 3",
+          "input": {
+            "currentLevel": 3
+          },
+          "expected": 4
+        },
+        {
+          "name": "level 4",
+          "input": {
+            "currentLevel": 4
+          },
+          "expected": 5
+        },
+        {
+          "name": "level 5",
+          "input": {
+            "currentLevel": 5
+          },
+          "expected": 5
+        },
+        {
+          "name": "above the ladder (6) clamps to 5",
+          "input": {
+            "currentLevel": 6
+          },
+          "expected": 5
+        },
+        {
+          "name": "above the ladder (99) clamps to 5",
+          "input": {
+            "currentLevel": 99
+          },
+          "expected": 5
+        },
+        {
+          "name": "negative level -1",
+          "input": {
+            "currentLevel": -1
+          },
+          "expected": 0
+        }
+      ]
+    }
+  }
+}

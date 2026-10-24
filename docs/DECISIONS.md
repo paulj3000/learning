@@ -40,7 +40,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-016 | Adaptive learning becomes a real shared query; events stay typed models, not a new generic log; parent APIs are audited, not yet promoted | Accepted | Base (shared by all branches) |  |
 | ADR-017 | Environment/config/contract-test infrastructure is documented, not created; provisioning a real environment is an explicit human decision | Accepted | Base (shared by all branches) |  |
 | ADR-018 | Structured request logging ships for real; performance and the remaining server-authoritative write paths are audited, not built | Accepted | Base (shared by all branches) |  |
-| ADR-019 | Migrate the backend from Amplify Gen 2 to Django + DRF incrementally | Accepted in part | Django migration line |  |
+| ADR-019 | Migrate the backend from Amplify Gen 2 to Django + DRF incrementally | Accepted in part | Django migration line | Sub-decision 8 accepted and gate G4 resolved 2026-10-24 (Python rules, Django content authority, versioned JSON) |
 | ADR-020 | Three.js is the exclusive gameplay renderer; Phaser is retired; `game/` is a first-class package | Accepted | Django migration line |  |
 | ADR-021 | Django 6.1, DRF 3.18, and psycopg 3 for the backend skeleton | Accepted | Django migration line |  |
 | ADR-022 | `ParentAccount` is the Django user model; `ChildProfile` is a managed profile, not a login | Accepted | Django migration line |  |
@@ -52,7 +52,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-028 | Where the castle's art comes from | Proposed | Storykeeper Castle line | Renumbered from ADR-020 |
 | ADR-029 | Phaser 2D views are phased out; new regions are authored in Three.js only | Accepted | Storykeeper Castle line | Renumbered from ADR-021. Related to ADR-020, not a duplicate |
 | ADR-030 | Uploaded models live in S3 behind Admins-only Asset records; the bundled manifest stays the runtime fallback | Accepted | Storykeeper Castle line | Renumbered from ADR-022 |
-| ADR-031 | Islands and Adventures are an admin catalog overlaid on source-controlled content; Superusers are Admins with one extra group | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-024 on `origin/main` |
+| ADR-031 | Islands and Adventures are an admin catalog overlaid on source-controlled content; Superusers are Admins with one extra group | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-024 on `origin/main`. To be superseded when LAI-0801/0802 move catalog editing to Django (ADR-019 sub-decision 8) |
 | ADR-032 | Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-025 on `origin/main` |
 
 ## ADR-001: Parent-owned accounts
@@ -1020,7 +1020,9 @@ ADR-010 is superseded only when LAI-1303 completes.
 **Amended by ADR-020 (Accepted).** Sub-decisions 6 and 7 below are superseded; the target
 shape in `docs/DJANGO_TARGET_ARCHITECTURE.md` now includes a first-class `game/` package.
 Sub-decisions 1 to 5 and 8 to 12 are unchanged and remain Proposed. Accepting ADR-020 does not
-accept any of them.
+accept any of them. (Status as of 2026-10-24: the table below is current; sub-decisions 1 to 5
+are accepted as direction, and sub-decision 8 is accepted by the amendment that follows the
+open gates.)
 
 Evidence and analysis: `docs/DJANGO_MIGRATION_ASSESSMENT.md`,
 `docs/CURRENT_AWS_RESOURCE_INVENTORY.md`, `docs/IAM_ROLE_AUDIT.md`. Target:
@@ -1043,7 +1045,7 @@ content should be data rows, not infrastructure.
 | 5 | Retain React (React 19 + TypeScript) | **Accepted** | Moves to `react/` (LAI-0201) |
 | 6 | ~~Retain Three.js and Phaser engines unchanged~~ | **Superseded by ADR-020** (Accepted) | Three.js is the only gameplay renderer; Phaser is retired after conversion |
 | 7 | ~~Separate engine from platform concerns; `game/` extraction deferred~~ | **Superseded by ADR-020** (Accepted) | `game/` is a first-class package; the engine boundary is a requirement, not a deferral |
-| 8 | Authoritative rules reimplemented in Python with shared golden vectors; content exported to versioned JSON | Proposed (gate G4) | Not settled by the owner. Blocks LAI-0302 onward, not LAI-0201 |
+| 8 | Authoritative rules reimplemented in Python with shared golden vectors; content exported to versioned JSON | **Accepted** (owner, 2026-10-24) | Gate G4 resolved: Python is authoritative, no Node rules service; Django becomes the content authority with versioned JSON as the interchange. See "Amendment: sub-decision 8 and gate G4" below |
 | 9 | Bedrock called from Django (boto3), replacing Amplify AI Kit routes | Proposed | Personas, limits, validation, fallbacks, audit preserved |
 | 10 | EC2 + Docker for development; ECS Fargate as production candidate | Proposed | No Kubernetes, microservices, queues |
 | 11 | Django Channels + Redis only if a measured need appears | Proposed | Co-op needs only slot claims and low-rate state |
@@ -1068,13 +1070,41 @@ not new AWS infrastructure.
 | G1 | Does a production Amplify app with real family data exist, and in which account and region? (assessment Q1, Q2) | Phase 10 deploys, Phase 11 data migration, Phase 12 cutover |
 | G2 | Cognito ownership and detach plan (LAI-0401 recorded in ADR-024; LAI-0405 remains) | LAI-0402 onward for production, LAI-1302 |
 | G3 | Android direction (assessment Q3) | API shape decisions that serve Android |
-| G4 | Rules in Python with golden vectors versus a Node rules service (assessment Q4, sub-decision 8) | LAI-0302 and Phase 6 |
+| G4 | ~~Rules in Python with golden vectors versus a Node rules service (assessment Q4, sub-decision 8)~~ **Resolved 2026-10-24: Python, with golden vectors** (see the amendment below) | Nothing; formerly LAI-0302 and Phase 6 |
 | G5 | Whether data loss on pre-pilot sandbox data is acceptable (assessment Q5) | Phase 11 scope |
 | G6 | Security gates: tenant isolation harness passing, deny-by-default authorization reproduced in Django | Any Django endpoint serving child data |
 | G7 | Every AWS-touching task (Phase 10 onward) | Explicit per-task approval, as marked APPROVAL |
 | G9 | `ParentConsent` privacy design (LAI-0308). Consent is a legal and privacy matter, not a player-profile attribute; it must be designed and approved before the migrated platform handles live children's data (owner, 2026-10-17) | Phase 11 data migration, any production traffic with real family data |
 | G8 | Privacy review of server-side logging, including exception messages and tracebacks, which can carry child or family data even though API clients never see them (owner, 2026-10-17). **Application-layer part done in LAI-0208 (ADR-025); the deployed part is open as G10** | Any production deployment |
 | G10 | Deployed logging verification: web server and proxy access logs (a default access log records the full URL including the query string), load balancer and CDN logs, CloudWatch retention and access, the PostgreSQL server log (can record statements and the values in error DETAIL lines), any future monitoring vendor, and container stdout capture. Child ids appear in URL paths, so infrastructure logs are not free of identifiers by default (LAI-0210) | Any production deployment |
+
+**Amendment: sub-decision 8 and gate G4 (project owner, 2026-10-24).** Accepted.
+
+- *Rules.* Django/Python owns server-authoritative gameplay rules: answer validation, step
+  transitions, hint levels, progression and mastery counters, reward resolution, quest
+  progress, and the director's ranking. No Node rules service. The Three.js client and the
+  React app may run the same deterministic logic for presentation, instant feedback, and
+  local previews, but nothing they compute awards rewards or advances protected progression
+  once the server path for that rule exists (Phase 6). Wherever one rule exists in both
+  TypeScript and Python, shared golden vectors (`tests/golden/*.json`, LAI-0303) prove the
+  two agree; a divergence fails CI.
+- *Content.* Django is the authoritative content source. JSON is the versioned interchange
+  contract the frontend and the engine consume, with an explicit schema version
+  (`content/schema/content.schema.json`, `schemaVersion`), additive changes within a
+  version, and a documented migration for a breaking one. React gains no independently
+  editable content source.
+- *Transition, so this does not contradict decisions still in force.* Until the Django
+  catalog exists and a cutover task makes its admin the editing surface, the TypeScript
+  content modules remain the authoring input: `npm run content:export` produces the JSON,
+  and LAI-0304's `load_content` loads it. After that cutover the direction reverses
+  (Django data is the source, JSON is exported from it). ADR-009 and ADR-013 still hold for
+  what a content pack is; only where it lives moves. ADR-031's Amplify catalog overlay is the
+  existing React-editable overlay; it gains no new content fields and is superseded when
+  LAI-0801/LAI-0802 move catalog editing to Django. ADR-032's spatial manifests stay in
+  source until a separate decision covers spatial content (recorded as LAI-0805).
+- *Not decided here.* How a breaking schema version is migrated in stored data, and whether
+  the client keeps a bundled content copy for offline play, are left to LAI-0304 and
+  LAI-0503.
 
 **Alternatives considered.** Stay on Amplify and raise the IAM quota (lowest effort; leaves
 the client-authoritative write paths to be fixed with more Lambdas). Amplify Gen 2 with a

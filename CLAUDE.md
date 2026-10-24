@@ -341,7 +341,7 @@ ADR-019 in `docs/DECISIONS.md` moves the backend from Amplify Gen 2 to Django + 
 **Accepted in part**: the architectural direction (Django + DRF, PostgreSQL, React 19,
 Cognito initially, S3, FinWin-style layout) is approved; section 8 above remains the
 **deployed and operating** baseline until cutover. Operational, data, and security items are
-open gates (G1 to G7 in the ADR) and must not be assumed settled. Track A tasks (Phases 1 to
+open gates (G1 to G10 in the ADR; G4 is resolved: Python rules, Django content authority) and must not be assumed settled. Track A tasks (Phases 1 to
 13) may proceed in order, skipping nothing, and stop for approval at every task marked
 APPROVAL in `docs/DJANGO_MIGRATION_ROADMAP.md`. Never delete or change deployed Amplify or
 AWS resources, migrate production data, or deploy without explicit approval.
