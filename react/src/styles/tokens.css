@@ -1,36 +1,90 @@
 /**
  * Design tokens for Learning Adventure Island.
- * Placeholder values pending final visual design direction
- * (see docs/IMPLEMENTATION_STATUS.md, "Decisions pending").
+ *
+ * The visual direction is a warm, chunky, storybook-game look: a cream page
+ * rather than a clinical white one, deep forest green as the structural
+ * colour, a single hot orange reserved for "do this next", and buttons with
+ * a solid darker lip along the bottom edge so they read as physically
+ * pressable to a five-year-old. Bright secondary colours (sun, lime, sky,
+ * grape) exist for celebration and wayfinding, never for body text.
+ *
+ * **Every colour pair below is contrast-tested, not eyeballed.**
+ * `tokens.test.ts` parses this file and asserts the WCAG ratios, which
+ * closes the gap `docs/ACCESSIBILITY_AUDIT.md` recorded as "no automated
+ * contrast scan - the numbers were computed by hand from the token hexes".
+ * The tokens are the one place those numbers can be checked mechanically,
+ * because the rest of the app reads them rather than restating them.
+ *
+ * A note on the warm background, since it is the change that touches
+ * everything: on cream (#f7e9db) a colour needs to be slightly darker than
+ * it would on white to clear the same threshold. The primary orange here is
+ * one step down the ramp from the brightest one for exactly that reason -
+ * the brighter orange reaches 3.4:1 on cream and fails AA for text.
  */
-:root {
-  /*
-   * Color. --color-primary, --color-accent, --color-warning,
-   * --color-focus-ring, and --color-border were darkened from their
-   * original placeholder values (docs/PRIVACY_AND_SAFETY_REVIEW.md's
-   * accessibility audit companion, "Phase 8"): the originals failed WCAG
-   * AA (4.5:1 text / 3:1 non-text) against --color-surface/
-   * --color-background, most visibly as low-contrast body text on
-   * Chatty's speaker name and choice buttons
-   * (CompanionBubble.module.css), a barely-visible keyboard focus ring
-   * (global.css), and a nearly invisible text-input border on every form
-   * (AuthForm.module.css, ChildProfileForm.module.css). Every color
-   * below now meets at least the relevant WCAG threshold against both
-   * --color-surface and --color-background.
-   */
-  --color-background: #f4f9fb;
-  --color-surface: #ffffff;
-  --color-text: #1b2733;
-  --color-text-muted: #4b5b68;
-  --color-primary: #166a82;
-  --color-primary-contrast: #ffffff;
-  --color-accent: #1c7a4b;
-  --color-warning: #93570d;
-  --color-danger: #b3261e;
-  --color-focus-ring: #a35400;
-  --color-border: #6f8794;
 
-  /* Spacing */
+:root {
+  /* --- Surfaces ------------------------------------------------------- */
+  /** The page. Warm cream, the single most defining choice in this palette. */
+  --color-background: #f7e9db;
+  /** Cards, panels, inputs: a warm near-white that reads as paper on the cream. */
+  --color-surface: #fefdfb;
+  /** A deep surface for HUDs, world views, and anything overlaying the 3D canvas. */
+  --color-surface-deep: #102323;
+  /** Slightly sunk areas inside a surface: table stripes, wells, disabled fields. */
+  --color-surface-sunk: #f3ece3;
+
+  /* --- Text ----------------------------------------------------------- */
+  /** 14.0:1 on background, 16.4:1 on surface. */
+  --color-text: #1a1e26;
+  /** 7.2:1 on background, 8.4:1 on surface - comfortably past AA for body text. */
+  --color-text-muted: #4d4c4b;
+  /** For text on --color-surface-deep and on any filled brand colour. */
+  --color-text-on-deep: #fefdfb;
+
+  /* --- Actions -------------------------------------------------------- */
+  /**
+   * The one "do this next" colour, used sparingly. 4.6:1 on the cream
+   * background and 5.5:1 behind white label text, so it works both as a
+   * link colour and as a filled button.
+   */
+  --color-primary: #c03a00;
+  --color-primary-contrast: #ffffff;
+  /** The lip and the pressed state: the same orange, two steps darker. */
+  --color-primary-deep: #843005;
+
+  /** Structural, calm, and the secondary button: deep forest green. */
+  --color-accent: #214949;
+  --color-accent-contrast: #fefdfb;
+  --color-accent-deep: #102323;
+
+  /* --- Status --------------------------------------------------------- */
+  --color-warning: #755e00;
+  --color-danger: #932641;
+  --color-success: #396810;
+  /**
+   * Deliberately a different hue from every action colour, so a keyboard
+   * focus ring is never mistaken for a hover or a selected state. 7.1:1 on
+   * the background, well past WCAG 1.4.11's 3:1 for non-text.
+   */
+  --color-focus-ring: #4139b4;
+  /** 4.4:1 on the background: an input's edge is visible without shouting. */
+  --color-border: #6d6c6a;
+  /** A hairline between rows and sections, where a full border would be noise. */
+  --color-border-subtle: #e4d8ca;
+
+  /* --- Playful accents ------------------------------------------------ */
+  /**
+   * Celebration, badges, map pins, progress. **Fills and shapes only** -
+   * none of these clears 4.5:1 on cream, so none may carry body text. Put
+   * --color-text on them instead, which every one of them passes.
+   */
+  --color-sun: #ffc900;
+  --color-lime: #95c13d;
+  --color-sky: #29bcd7;
+  --color-grape: #bfafef;
+  --color-blossom: #fe96be;
+
+  /* --- Spacing -------------------------------------------------------- */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -39,25 +93,60 @@
   --space-8: 2rem;
   --space-12: 3rem;
 
-  /* Typography */
-  --font-family-base: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* --- Typography ----------------------------------------------------- */
+  /**
+   * Figtree for reading, Lexend for headings and anything a child reads
+   * aloud (see `fonts.css` for why Lexend, and why both are self-hosted).
+   * Atkinson Hyperlegible stays in the fallback stack: it was named here
+   * from the start and never actually loaded, so anyone who has it
+   * installed keeps it.
+   */
+  --font-family-base:
+    'Figtree', 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-family-display: 'Lexend', 'Figtree', system-ui, -apple-system, sans-serif;
   --font-size-body: 1rem;
   --font-size-large: 1.25rem;
   --font-size-heading: 1.75rem;
   --font-size-display: 2.5rem;
   --line-height-base: 1.5;
+  --font-weight-body: 400;
+  --font-weight-strong: 600;
+  --font-weight-display: 700;
+  /** Headings tighten slightly; child-facing display text stays open. */
+  --letter-spacing-display: -0.01em;
 
-  /* Shape */
-  --radius-md: 0.75rem;
+  /* --- Shape ---------------------------------------------------------- */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.875rem;
   --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
   --radius-pill: 999px;
 
-  /* Motion */
+  /* --- Depth ---------------------------------------------------------- */
+  /**
+   * The signature of this look: a solid band of a darker shade along the
+   * bottom edge, rather than a blur. It reads as a physical, pressable
+   * surface - and unlike a soft drop shadow it survives being printed,
+   * screenshotted, or looked at on a cheap tablet in daylight.
+   */
+  --lip-primary: inset 0 -4px 0 0 var(--color-primary-deep);
+  --lip-accent: inset 0 -4px 0 0 var(--color-accent-deep);
+  --lip-surface: inset 0 -4px 0 0 var(--color-border-subtle);
+  --shadow-card: 0 2px 8px rgb(26 30 38 / 6%);
+  --shadow-raised: 0 8px 24px rgb(26 30 38 / 10%);
+
+  /* --- Motion --------------------------------------------------------- */
   --transition-fast: 150ms ease;
+  /** A press should feel like a press: fast down, no bounce back up. */
+  --transition-press: 90ms ease-out;
+  /** How far a pressable thing sinks when held. Matches the 4px lip. */
+  --press-travel: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
     --transition-fast: 0ms;
+    --transition-press: 0ms;
+    --press-travel: 0px;
   }
 }

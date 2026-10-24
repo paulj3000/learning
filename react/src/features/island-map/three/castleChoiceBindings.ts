@@ -50,6 +50,7 @@ export interface CastleChoiceBinding {
 }
 
 export const THE_STORYKEEPERS_TALE_SLUG = 'the-storykeepers-tale';
+export const QUILLS_PICTURE_STORY_SLUG = 'quills-picture-story';
 export const SECRET_DOOR_CHAPTER_1_SLUG = 'secret-door-chapter-1-three-clues';
 export const SECRET_DOOR_CHAPTER_2_SLUG = 'secret-door-chapter-2-pattern-lock';
 
@@ -115,6 +116,59 @@ export const CASTLE_CHOICE_BINDINGS: readonly CastleChoiceBinding[] = [
     optionId: 'beat-ending',
   },
 
+  /*
+    SC-10 - "Quill's Picture Story", the Sprouts adventure. The same
+    portraits, the same windows and the same plates as the Pathfinder tale,
+    bound to that adventure's own option ids.
+
+    Two of each rather than three: a Sprout is asked "which of these two?".
+    So the dragon portrait, the mountain window and the choice plate are
+    deliberately unbound here - they are still in the room, and walking up
+    to one during this adventure does nothing, which is the correct
+    behaviour for a thing that is not one of this story's options.
+
+    This is why every lookup in this file takes a template: one portrait now
+    stands for two different option ids depending on which adventure the
+    child is playing, and answering the wrong one would be a silent
+    cross-band bug.
+  */
+  {
+    entityId: 'gallery-portrait-puppy',
+    templateSlug: QUILLS_PICTURE_STORY_SLUG,
+    stepId: 'pick-the-animal',
+    optionId: 'picture-puppy',
+  },
+  {
+    entityId: 'gallery-portrait-fox',
+    templateSlug: QUILLS_PICTURE_STORY_SLUG,
+    stepId: 'pick-the-animal',
+    optionId: 'picture-fox',
+  },
+  {
+    entityId: 'tower-window-island',
+    templateSlug: QUILLS_PICTURE_STORY_SLUG,
+    stepId: 'pick-the-place',
+    optionId: 'picture-island',
+  },
+  {
+    entityId: 'tower-window-cave',
+    templateSlug: QUILLS_PICTURE_STORY_SLUG,
+    stepId: 'pick-the-place',
+    optionId: 'picture-cave',
+  },
+  {
+    entityId: 'story-plate-problem',
+    templateSlug: QUILLS_PICTURE_STORY_SLUG,
+    stepId: 'what-happened-first',
+    optionId: 'picture-problem',
+  },
+  {
+    entityId: 'story-plate-ending',
+    templateSlug: QUILLS_PICTURE_STORY_SLUG,
+    stepId: 'what-happened-first',
+    optionId: 'picture-ending',
+  },
+
   // Beat 9 - the three clues, pinned in the order they were written.
   {
     entityId: 'library-clue-diary',
@@ -173,9 +227,23 @@ export const BOUND_STEPS: readonly { templateSlug: string; stepId: string }[] = 
  * `undefined` as "this entity is not a learning choice", never as an error
  * to recover from - an entity that *should* have bound and does not is
  * caught by the test, not at runtime.
+ *
+ * **Pass `templateSlug` whenever the caller knows which adventure is being
+ * played**, which is every caller that is about to answer a step. Since
+ * SC-10 the same portrait stands for `hero-fox` in the Pathfinder tale and
+ * `picture-fox` in the Sprouts one, and an unqualified lookup returns
+ * whichever was authored first - a silent cross-band bug that would submit
+ * an option id the open step has never heard of.
  */
-export function resolveCastleChoiceBinding(entityId: string): CastleChoiceBinding | undefined {
-  return CASTLE_CHOICE_BINDINGS.find((binding) => binding.entityId === entityId);
+export function resolveCastleChoiceBinding(
+  entityId: string,
+  templateSlug?: string,
+): CastleChoiceBinding | undefined {
+  return CASTLE_CHOICE_BINDINGS.find(
+    (binding) =>
+      binding.entityId === entityId &&
+      (templateSlug === undefined || binding.templateSlug === templateSlug),
+  );
 }
 
 /** Every entity bound to one step, in authored order. */
@@ -186,6 +254,67 @@ export function getCastleChoiceBindingsForStep(
   return CASTLE_CHOICE_BINDINGS.filter(
     (binding) => binding.templateSlug === templateSlug && binding.stepId === stepId,
   );
+}
+
+/**
+ * The entity that stands for one option, the reverse of
+ * `resolveCastleChoiceBinding`. SC-4 needs this direction as well as the
+ * forward one: a child who chose their hero from the HUD card, or who chose
+ * it yesterday and has just walked back in, has an option id recorded
+ * against the session and no entity - and the gallery still has to know
+ * which portrait to light.
+ */
+export function resolveCastleChoiceEntity(
+  templateSlug: string,
+  stepId: string,
+  optionId: string | null | undefined,
+): string | undefined {
+  if (!optionId) return undefined;
+  return CASTLE_CHOICE_BINDINGS.find(
+    (binding) =>
+      binding.templateSlug === templateSlug &&
+      binding.stepId === stepId &&
+      binding.optionId === optionId,
+  )?.entityId;
+}
+
+/**
+ * The ordering answer a row of seated entities stands for, or `null` when
+ * the row is not an answer at all.
+ *
+ * Two beats in this castle are the same puzzle wearing different clothes:
+ * three story plates seated in a lectern (beat 6) and three clues pinned to
+ * a wall (beat 9). Both turn *an arrangement of things in a room* into the
+ * `{ kind: 'ordering', order }` the HUD list would have submitted, and both
+ * must do it identically or one of them grades differently from its own
+ * card. So the translation lives here once, beside the bindings it reads.
+ *
+ * `null` rather than a partial order for the cases that are a caller's
+ * mistake rather than a child's: the wrong number of things, the same thing
+ * twice, or an entity that is not bound to this step. Each is an authoring
+ * error caught by a test, so returning `null` keeps a malformed row from
+ * reaching `submitAnswer` and being recorded as a wrong answer against the
+ * child.
+ *
+ * It decides nothing about correctness. A wrong order comes back happily;
+ * whether it is wrong is the Adventure Engine's business.
+ */
+export function seatedEntitiesToOrder(
+  templateSlug: string,
+  stepId: string,
+  seated: readonly string[],
+): string[] | null {
+  const bound = getCastleChoiceBindingsForStep(templateSlug, stepId);
+  if (seated.length !== bound.length) return null;
+  if (new Set(seated).size !== seated.length) return null;
+
+  const order: string[] = [];
+  for (const entityId of seated) {
+    const binding = bound.find((candidate) => candidate.entityId === entityId);
+    if (!binding) return null;
+    order.push(binding.optionId);
+  }
+  return order;
 }
 
 /** Whether this entity is one the region places at all. Used by the test; exported so SC-2's scene can assert it too. */

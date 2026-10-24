@@ -27,9 +27,46 @@ function optionIdsOf(step: AdventureStep): string[] {
 }
 
 describe('castleChoiceBindings authoring', () => {
-  it('binds no entity twice', () => {
-    const ids = CASTLE_CHOICE_BINDINGS.map((binding) => binding.entityId);
-    expect(new Set(ids).size).toBe(ids.length);
+  /**
+   * SC-0 asserted that no entity was bound twice at all. SC-10 made that
+   * false on purpose: the same three portraits stand for `choose-hero` in
+   * the Pathfinder tale and for `pick-the-animal` in the Sprouts one, which
+   * is the whole point of the castle offering two adventures out of one set
+   * of rooms.
+   *
+   * What the original invariant actually protected is unchanged and still
+   * asserted: **within one adventure**, an entity means exactly one thing.
+   * A portrait that answered two steps of the same story would fire
+   * whichever the lookup found first.
+   */
+  it('binds no entity twice within one adventure', () => {
+    const byTemplate = new Map<string, string[]>();
+    for (const binding of CASTLE_CHOICE_BINDINGS) {
+      byTemplate.set(binding.templateSlug, [
+        ...(byTemplate.get(binding.templateSlug) ?? []),
+        binding.entityId,
+      ]);
+    }
+    for (const [templateSlug, ids] of byTemplate) {
+      expect(new Set(ids).size, `${templateSlug} binds an entity twice`).toBe(ids.length);
+    }
+  });
+
+  /**
+   * The corollary, and the bug this pair exists to prevent: an unqualified
+   * lookup of a shared entity is ambiguous, so every caller about to answer
+   * a step must name its template. Asking for one returns that one.
+   */
+  it('resolves a shared entity to the adventure that asked', () => {
+    expect(
+      resolveCastleChoiceBinding('gallery-portrait-fox', 'the-storykeepers-tale')?.optionId,
+    ).toBe('hero-fox');
+    expect(
+      resolveCastleChoiceBinding('gallery-portrait-fox', 'quills-picture-story')?.optionId,
+    ).toBe('picture-fox');
+    expect(
+      resolveCastleChoiceBinding('gallery-portrait-fox', 'secret-door-chapter-1-three-clues'),
+    ).toBeUndefined();
   });
 
   it('binds only entities the region actually places', () => {
@@ -87,10 +124,13 @@ describe('castleChoiceBindings authoring', () => {
     }
   });
 
-  it('covers the five steps the storyboard stages as world objects', () => {
+  it('covers every step the storyboard stages as a world object', () => {
     expect(
       BOUND_STEPS.map(({ templateSlug, stepId }) => `${templateSlug}/${stepId}`).sort(),
     ).toEqual([
+      'quills-picture-story/pick-the-animal',
+      'quills-picture-story/pick-the-place',
+      'quills-picture-story/what-happened-first',
       'secret-door-chapter-1-three-clues/order-the-clues',
       'secret-door-chapter-2-pattern-lock/order-the-keys',
       'the-storykeepers-tale/choose-hero',

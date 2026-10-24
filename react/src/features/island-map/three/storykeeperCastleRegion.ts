@@ -363,15 +363,70 @@ export const HEARTH_MANTEL_SPOT: WallMountedSpot = {
   z: -6 + WALL_THICKNESS / 2 + WALL_MOUNT_CLEARANCE,
 };
 
-/** The binding lectern of beat 6, with three sockets, and the table its plates start on. */
+/**
+ * The binding lectern of beat 6, with three sockets, and the table its
+ * plates start on - **side by side**, both facing south into the room.
+ *
+ * SC-0 put the table 1.2m *behind* the lectern, and walking the room proved
+ * that unworkable: from anywhere the child can stand and see the sockets,
+ * the lectern is between them and the plates, so every single pickup meant
+ * walking around the furniture and back. Beat 6 is three pickups. Beside
+ * each other, the child stands once and turns their head - the plates on
+ * their left, the sockets on their right, both about a metre away.
+ */
 export const BINDING_LECTERN_SPOT: EntitySpot = { entityId: 'binding-lectern', x: 1, z: 2 };
-export const BINDING_TABLE_SPOT: EntitySpot = { entityId: 'binding-table', x: 1, z: 3.2 };
+export const BINDING_TABLE_SPOT: EntitySpot = { entityId: 'binding-table', x: -1.4, z: 2 };
 
-/** The three story-beat plates. Their entity ids bind to `order-the-story`'s items (`castleChoiceBindings.ts`). */
+/**
+ * The three sockets across the binding lectern's desk, left to right as the
+ * child faces it, as offsets along the lectern's **own local x axis**.
+ *
+ * Local rather than world for the same reason nothing else in this file
+ * carries a rotation: which way the lectern faces is presentation, and
+ * `storykeeperCastleScene.ts` owns it (`facingIntoRoom`). Authored world
+ * x/z here would silently rot the first time the lectern is turned.
+ *
+ * The same three numbers are read by `scripts/generate-world-assets.ts` to
+ * cut the sockets into the model, so the recesses the child sees and the
+ * places a plate lands are one authored fact rather than two that agree
+ * today. 0.42m apart holds three 0.34m-wide `story-plate-*` models with a
+ * finger's gap between them.
+ */
+export const BINDING_SOCKET_LOCAL_X: readonly number[] = [-0.42, 0, 0.42];
+
+/**
+ * The three story-beat plates, on the table they start on. Their entity ids
+ * bind to `order-the-story`'s items (`castleChoiceBindings.ts`).
+ *
+ * **They lie in the adventure's own authored item order, which is not the
+ * correct story order**, and that is load-bearing rather than incidental.
+ * SC-0 laid them out problem, choice, ending - the answer - so a child who
+ * seated them left to right without reading them scored a sequencing step
+ * they had not done, while a child on the HUD list got the shuffled order
+ * `theStorykeepersTale.ts` deliberately authors. Two routes to one step must
+ * start from the same arrangement, and neither may be the answer.
+ * `castleBindingLectern.test.ts` holds both halves of that.
+ */
 export const STORY_PLATE_SPOTS: readonly EntitySpot[] = [
-  { entityId: 'story-plate-problem', x: 0.2, z: 3.2 },
-  { entityId: 'story-plate-choice', x: 1, z: 3.2 },
-  { entityId: 'story-plate-ending', x: 1.8, z: 3.2 },
+  { entityId: 'story-plate-choice', x: -1.8, z: 2 },
+  { entityId: 'story-plate-ending', x: -1.4, z: 2 },
+  { entityId: 'story-plate-problem', x: -1, z: 2 },
+];
+
+/**
+ * Beat 12's nook: cushions on the floor in the hub's south-west corner,
+ * inside the `castle-tapestry-stair` zone and under the tapestry that
+ * sways.
+ *
+ * They are the only thing that marks the corner, and they mark it the way
+ * the storyboard wants it marked - by being a nice place to sit, found by a
+ * child who wandered over. No HUD cue, no map pin, no quest entry. The
+ * secret leads nowhere and rewards nothing beyond being found.
+ */
+export const TAPESTRY_NOOK_CUSHION_SPOTS: readonly EntitySpot[] = [
+  { entityId: 'nook-cushion-a', x: -8.3, z: -5.4 },
+  { entityId: 'nook-cushion-b', x: -7.75, z: -5.15 },
+  { entityId: 'nook-cushion-c', x: -8.15, z: -4.75 },
 ];
 
 /**
@@ -494,6 +549,70 @@ export const LIBRARY_SHELF_SLOT_SPOT: WallMountedSpot = {
   z: LIBRARY_NORTH_WALL_Z,
 };
 
+/**
+ * How far a floor-standing prop's centre sits from the wall band it backs
+ * onto: half the depth of `bookshelf` and `shelf-slot-empty` alike. The
+ * value is what `LAST_BOOKSHELF_SPOT` below was already authored with, made
+ * explicit so the eleven shelves added for SC-6 sit on the same line.
+ */
+const WALL_BACKED_DEPTH_OFFSET = 0.2;
+
+const LIBRARY_NORTH_SHELF_Z = -2 - WALL_THICKNESS / 2 - WALL_BACKED_DEPTH_OFFSET;
+const LIBRARY_SOUTH_SHELF_Z = -10 + WALL_THICKNESS / 2 + WALL_BACKED_DEPTH_OFFSET;
+const LIBRARY_WEST_SHELF_X = 5 + WALL_THICKNESS / 2 + WALL_BACKED_DEPTH_OFFSET;
+const LIBRARY_EAST_SHELF_X = 15 - WALL_THICKNESS / 2 - WALL_BACKED_DEPTH_OFFSET;
+
+/** A bookshelf standing against a wall: which way its 1.8m run lies, and how much of it to use. */
+export interface BookshelfPlacement extends EntitySpot {
+  /** The axis the run lies along. `bookshelf` is authored 1.8m wide, 0.4m deep. */
+  axis: 'x' | 'z';
+  /** Metres of shelf. Under 1.8 scales the model down, for a short bay. */
+  width: number;
+}
+
+/**
+ * The Great Library's bookshelves, which SC-2 owed and never placed
+ * (`docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` A.3). SC-6 needs them for a
+ * reason beyond furnishing a bare room: beat 8's payoff is a book arriving
+ * in a slot the child has walked past and *noticed*, and a lone slot on an
+ * empty wall is not something anyone notices. Flanked by shelves it reads
+ * as what it is, a gap where a book should be.
+ *
+ * The runs deliberately leave the wall real estate SC-8 and SC-9 have
+ * already claimed clear: a bay either side of the shelf slot, a bay at the
+ * clue wall, the whole south-east stretch for the pattern lock, the nine
+ * counting stars and the secret door, and the west wall's archway.
+ */
+export const LIBRARY_BOOKSHELF_SPOTS: readonly BookshelfPlacement[] = [
+  // North wall. The short bay is what makes the shelf slot a gap rather
+  // than the end of a run.
+  { entityId: 'library-shelf-north-a', x: 5.95, z: LIBRARY_NORTH_SHELF_Z, axis: 'x', width: 1 },
+  { entityId: 'library-shelf-north-b', x: 8.45, z: LIBRARY_NORTH_SHELF_Z, axis: 'x', width: 1.8 },
+  { entityId: 'library-shelf-north-c', x: 11.4, z: LIBRARY_NORTH_SHELF_Z, axis: 'x', width: 1.8 },
+  { entityId: 'library-shelf-north-d', x: 13.2, z: LIBRARY_NORTH_SHELF_Z, axis: 'x', width: 1.8 },
+
+  // South wall, west half only: everything east of x = 9.5 belongs to the
+  // pattern lock, the counting stars, and the secret door.
+  { entityId: 'library-shelf-south-a', x: 6.2, z: LIBRARY_SOUTH_SHELF_Z, axis: 'x', width: 1.8 },
+  { entityId: 'library-shelf-south-b', x: 8.1, z: LIBRARY_SOUTH_SHELF_Z, axis: 'x', width: 1.8 },
+
+  // West wall, either side of the archway in from the corridor.
+  { entityId: 'library-shelf-west-a', x: LIBRARY_WEST_SHELF_X, z: -3.8, axis: 'z', width: 1.8 },
+  { entityId: 'library-shelf-west-b', x: LIBRARY_WEST_SHELF_X, z: -8.3, axis: 'z', width: 1.8 },
+
+  // East wall, stopping clear of the south-east corner SC-9's last
+  // bookshelf swings out of.
+  { entityId: 'library-shelf-east-a', x: LIBRARY_EAST_SHELF_X, z: -3.4, axis: 'z', width: 1.8 },
+  { entityId: 'library-shelf-east-b', x: LIBRARY_EAST_SHELF_X, z: -5.3, axis: 'z', width: 1.8 },
+  /*
+    A short bay, and short on purpose: the last bookshelf moved onto this
+    wall in SC-9 (see `LAST_BOOKSHELF_SPOT` for why it could not stay on the
+    south wall), and the run between it and the shelf above is 1.65m. A
+    full-length shelf here would stand inside one or the other.
+  */
+  { entityId: 'library-shelf-east-c', x: LIBRARY_EAST_SHELF_X, z: -7, axis: 'z', width: 1.4 },
+];
+
 export const LIBRARY_READING_TABLE_SPOTS: readonly EntitySpot[] = [
   { entityId: 'library-reading-table-a', x: 8, z: -5 },
   { entityId: 'library-reading-table-b', x: 11.5, z: -7 },
@@ -514,8 +633,24 @@ export const LIBRARY_CLUE_WALL_SPOT: WallMountedSpot = {
   z: LIBRARY_NORTH_WALL_Z,
 };
 
-/** The last bookshelf, in the far south-east corner - the deepest point in the castle. */
-export const LAST_BOOKSHELF_SPOT: EntitySpot = { entityId: 'last-bookshelf', x: 14, z: -9.55 };
+/**
+ * The last bookshelf, in the far south-east corner - the deepest point in
+ * the castle, and the thing beat 11's passage opens behind.
+ *
+ * **On the east wall, not the south**, which is a change SC-9 had to make.
+ * It was authored across the south wall at x 13.1 to 14.9, and the nine
+ * counting stars run from 11.6 to 13.6 on that same wall: SC-8 found the
+ * shelf standing in front of two of them, so a child counting beat 9's nine
+ * could only see seven. The south wall cannot hold the pattern lock, the
+ * door, two metres of stars and a 1.8m bookshelf while keeping the metre of
+ * clear space the counting task needs from the lock's own carvings. The
+ * corner is the same corner either way.
+ */
+export const LAST_BOOKSHELF_SPOT: EntitySpot = {
+  entityId: 'last-bookshelf',
+  x: LIBRARY_EAST_SHELF_X,
+  z: -8.75,
+};
 
 export const SECRET_DOOR_SPOT: WallMountedSpot = {
   entityId: 'secret-door',
@@ -600,10 +735,31 @@ export const ZONES: readonly RectZone[] = [
   // The hub. Fires as the child crosses toward Quill from the entry archway,
   // rather than once they are already on top of them.
   { id: 'castle-story-hall', minX: -7, maxX: -5, minZ: -1.5, maxZ: 1.5 },
-  { id: 'castle-binding-lectern', minX: 0, maxX: 2, minZ: 1, maxZ: 3 },
+  // The standing strip south of the lectern and its table, where a child
+  // can reach the plates and the sockets without moving their feet.
+  { id: 'castle-binding-lectern', minX: -1.8, maxX: 1.6, minZ: 0.6, maxZ: 1.3 },
   { id: 'castle-tapestry-stair', minX: -8.6, maxX: -7.2, minZ: -5.9, maxZ: -4.4 },
 
-  { id: 'castle-character-gallery', minX: -7, maxX: -2, minZ: 8, maxZ: 9.6 },
+  /*
+    Arrival, near the archway rather than at the far wall - it fires when
+    the child walks in, and leaves the wall itself to the three portrait
+    zones below.
+  */
+  { id: 'castle-character-gallery', minX: -7, maxX: -2, minZ: 6.6, maxZ: 7.6 },
+
+  /*
+    Standing in front of a portrait, which SC-10 needs and SC-4 did not:
+    beat 3 was a raycast, and a three-year-old cannot aim. The gallery now
+    works the way the Setting Tower always has - walk up to the thing and
+    you have chosen it - so nothing in this castle requires a reticle.
+
+    Like the tower's, these three must never touch: overlapping them would
+    let one step forward stand at two portraits at once, and the choice
+    would come down to listener order.
+  */
+  { id: 'gallery-portrait-puppy', minX: -7.3, maxX: -5.7, minZ: 8.6, maxZ: 9.6 },
+  { id: 'gallery-portrait-dragon', minX: -5.3, maxX: -3.7, minZ: 8.6, maxZ: 9.6 },
+  { id: 'gallery-portrait-fox', minX: -3.3, maxX: -1.7, minZ: 8.6, maxZ: 9.6 },
   { id: 'castle-costume-room', minX: -6, maxX: -3, minZ: -9, maxZ: -7 },
 
   // The tower: one zone for entering the room, then one per window. The
@@ -636,8 +792,10 @@ export const FLOOR_SPOTS: readonly EntitySpot[] = [
   BINDING_LECTERN_SPOT,
   BINDING_TABLE_SPOT,
   ...STORY_PLATE_SPOTS,
+  ...TAPESTRY_NOOK_CUSHION_SPOTS,
   STUDIO_EASEL_SPOT,
   ...COSTUME_RACK_SPOTS,
+  ...LIBRARY_BOOKSHELF_SPOTS,
   ...LIBRARY_READING_TABLE_SPOTS,
   ...LIBRARY_CLUE_SPOTS,
   LAST_BOOKSHELF_SPOT,

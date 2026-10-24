@@ -61,7 +61,20 @@ export interface AdventureSessionState {
   hintText: string | undefined;
   submitting: boolean;
   error: string | null;
-  submitAnswer: (answer: StepAnswer) => Promise<void>;
+  /**
+   * Grades and records one answer. Resolves with the *server's* verdict on
+   * it, or `null` when there was nothing to grade (no open session) or the
+   * submit failed - so a caller that has to react to being wrong can, and
+   * one that does not can keep ignoring the result.
+   *
+   * The first such caller is Storykeeper Castle's binding lectern
+   * (`docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` SC-5): three stone plates
+   * seated in three sockets have to lift back onto the table when the order
+   * is wrong, and the room cannot work that out for itself without
+   * duplicating the grading this hook deliberately keeps server-side
+   * (ADR-012).
+   */
+  submitAnswer: (answer: StepAnswer) => Promise<Correctness | null>;
   requestHint: () => void;
   companionTurn: CompanionTurnState;
   /**
@@ -178,8 +191,8 @@ export function useAdventureSession(
   );
 
   const submitAnswer = useCallback(
-    async (answer: StepAnswer) => {
-      if (!session || !currentStep) return;
+    async (answer: StepAnswer): Promise<Correctness | null> => {
+      if (!session || !currentStep) return null;
       setSubmitting(true);
       setError(null);
       try {
@@ -213,7 +226,7 @@ export function useAdventureSession(
         });
 
         if (action === 'RETRY') {
-          return;
+          return correctness;
         }
 
         if (correctness !== 'not_applicable') {
@@ -299,8 +312,10 @@ export function useAdventureSession(
               : prev,
           );
         }
+        return correctness;
       } catch {
         setError('Something went wrong. Let’s try that again.');
+        return null;
       } finally {
         setSubmitting(false);
       }

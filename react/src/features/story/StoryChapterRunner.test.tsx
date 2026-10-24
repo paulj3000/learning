@@ -175,3 +175,97 @@ describe('StoryChapterRunner', () => {
     expect(props.onChapterComplete).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * ADR-019 part C. The seam exists so a 3D region can hold the adventure
+ * session itself; what these guard is that it stays a *rendering* seam -
+ * the default is unchanged for every existing caller, and a custom renderer
+ * can only report completion back through the Story Engine.
+ */
+describe('StoryChapterRunner adventure renderer seam', () => {
+  const SLUG = 'dragon-chapter-1-broken-path';
+  const adventureChapter = (): StoryChapter => ({
+    id: 'chapter-1',
+    title: 'Chapter One',
+    scenes: [{ id: 'scene-1', kind: 'ADVENTURE', templateSlug: SLUG }],
+  });
+
+  beforeEach(() => {
+    isAdventureSessionCompleteMock.mockResolvedValue(false);
+  });
+
+  it('renders the embedded AdventureRunner when no renderer is supplied', async () => {
+    render(<StoryChapterRunner {...baseProps(adventureChapter())} />);
+
+    expect(await screen.findByText('Mock embedded adventure')).toBeInTheDocument();
+  });
+
+  it('lets a caller render the ADVENTURE scene itself', async () => {
+    render(
+      <StoryChapterRunner
+        {...baseProps(adventureChapter())}
+        renderAdventure={() => <p>castle renderer</p>}
+      />,
+    );
+
+    expect(await screen.findByText('castle renderer')).toBeInTheDocument();
+    expect(screen.queryByText('Mock embedded adventure')).not.toBeInTheDocument();
+  });
+
+  it("hands the custom renderer the scene's own template and audience", async () => {
+    const renderAdventure = vi.fn(() => <p>castle renderer</p>);
+
+    render(
+      <StoryChapterRunner {...baseProps(adventureChapter())} renderAdventure={renderAdventure} />,
+    );
+    await screen.findByText('castle renderer');
+
+    expect(renderAdventure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        childProfileId: 'child-1',
+        ageBand: 'PATHFINDER',
+        definition: expect.objectContaining({ slug: SLUG }),
+        onComplete: expect.any(Function),
+      }),
+    );
+  });
+
+  /**
+   * The seam must never become a way for a region to decide a chapter is
+   * over. The renderer reports that the adventure finished; the Story
+   * Engine is what acts on it.
+   */
+  it("routes a custom renderer's completion through the Story Engine", async () => {
+    const user = userEvent.setup();
+    const props = baseProps(adventureChapter());
+
+    render(
+      <StoryChapterRunner
+        {...props}
+        renderAdventure={({ onComplete }) => (
+          <button type="button" onClick={onComplete}>
+            finish
+          </button>
+        )}
+      />,
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'finish' }));
+    await user.click(await screen.findByRole('button', { name: /continue the story/i }));
+
+    expect(props.onChapterComplete).toHaveBeenCalledTimes(1);
+  });
+
+  /** A scene already finished elsewhere is still skipped, renderer or not. */
+  it('does not call a custom renderer for an already-completed scene', async () => {
+    const renderAdventure = vi.fn(() => <p>castle renderer</p>);
+    isAdventureSessionCompleteMock.mockResolvedValue(true);
+
+    render(
+      <StoryChapterRunner {...baseProps(adventureChapter())} renderAdventure={renderAdventure} />,
+    );
+
+    expect(await screen.findByText(/already finished this part/i)).toBeInTheDocument();
+    expect(renderAdventure).not.toHaveBeenCalled();
+  });
+});

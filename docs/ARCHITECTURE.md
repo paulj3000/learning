@@ -50,6 +50,14 @@ or function access). Client-side handling, including the re-encode that
 strips EXIF metadata and the deletion guarantees, is specified in
 `docs/DATA_MODEL.md` under "Child profile photos".
 
+The second prefix, `assets/*`, holds admin-uploaded game assets for the
+Model Asset Manager (ADR-022): Admins group only, one object per version
+(`assets/models/<folder>/<assetId>/v<n>/model.glb`), each referenced by an
+`Asset`/`AssetVersion` record rather than by path. Runtime resolution goes
+through `src/features/assets/assetService.ts`, which falls back to the
+bundled `public/models/` file whenever no published S3 asset can be
+resolved, so children's regions keep working offline.
+
 ### Functions
 Potential functions:
 - `startAdventureSession`

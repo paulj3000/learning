@@ -13,7 +13,9 @@ import { defineAuth } from '@aws-amplify/backend';
  * section 10 ("Admin access must be group-based and explicitly
  * authorized"), granting it is an out-of-band operator action:
  * `aws cognito-idp admin-add-user-to-group --user-pool-id <pool id>
- * --username <email> --group-name Admins`.
+ * --username <email> --group-name Admins`, or the wrapper that reads the
+ * pool id out of `amplify_outputs.json` for you:
+ * `npm run grant-admin -- <email>` (`scripts/grant-admin.ts`).
  * @see https://docs.amplify.aws/react/build-a-backend/auth/
  */
 export const auth = defineAuth({

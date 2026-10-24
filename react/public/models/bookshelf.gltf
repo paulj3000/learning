@@ -23,7 +23,7 @@
     {
       "name": "ShelfMaterial",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [0.35294117647058826, 0.25098039215686274, 0.18823529411764706, 1],
+        "baseColorFactor": [0.47843137254901963, 0.35294117647058826, 0.23529411764705882, 1],
         "metallicFactor": 0.1,
         "roughnessFactor": 0.85
       },

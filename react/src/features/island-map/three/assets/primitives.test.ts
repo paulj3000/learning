@@ -126,6 +126,22 @@ describe('buildPlanePrimitive', () => {
   });
 });
 
+/** The geometric normal of one triangle, from its winding - the direction its front face points. */
+function triangleNormalY(
+  positions: readonly number[],
+  indices: readonly number[],
+  triangle: number,
+): number {
+  const at = (slot: number) => {
+    const base = indices[triangle * 3 + slot] * 3;
+    return [positions[base], positions[base + 1], positions[base + 2]] as const;
+  };
+  const [a, b, c] = [at(0), at(1), at(2)];
+  const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]] as const;
+  const ac = [c[0] - a[0], c[1] - a[1], c[2] - a[2]] as const;
+  return ab[2] * ac[0] - ab[0] * ac[2];
+}
+
 describe('buildGroundPlanePrimitive', () => {
   it('produces a single quad already flat on the ground (y=0 everywhere), facing +y', () => {
     const mesh = buildGroundPlanePrimitive(4, 4);
@@ -136,6 +152,20 @@ describe('buildGroundPlanePrimitive', () => {
     }
     for (let i = 1; i < mesh.normals.length; i += 3) {
       expect(mesh.normals[i]).toBeCloseTo(1);
+    }
+  });
+
+  /**
+   * Every material this pack emits is `doubleSided`, and three.js flips the
+   * shading normal on back faces - so a ground quad whose winding disagrees
+   * with its declared normal is lit from underneath and renders dark. That
+   * bug made `path.gltf` read as grey asphalt on Pirate Builder Bay's sand.
+   */
+  it('winds both triangles so their front face agrees with the declared +y normal', () => {
+    const mesh = buildGroundPlanePrimitive(4, 4);
+    expect(mesh.indices.length / 3).toBe(2);
+    for (let triangle = 0; triangle < 2; triangle += 1) {
+      expect(triangleNormalY(mesh.positions, mesh.indices, triangle)).toBeGreaterThan(0);
     }
   });
 });

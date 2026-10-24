@@ -68,16 +68,35 @@ describe('every authored adventure', () => {
 
 describe('band coverage at real island locations', () => {
   /**
-   * `resolveAdventureForAgeBand` takes the first template at a location
-   * matching the child's band, so two matching the same band would make which
-   * one a child gets an accident of authoring order.
+   * Two adventures matching one band at one location used to be forbidden
+   * outright, because `resolveAdventureForAgeBand` took the first match and a
+   * second would have made which one a child got an accident of authoring
+   * order.
+   *
+   * Level-indexed variants (`skillLevel`, `docs/regions/clockwork.md` section
+   * 2.2) are the deliberate exception: several may share a band, because the
+   * child's Learning Profile picks between them via
+   * `resolveAdventureForSkillLevel`. The rule is therefore not "at most one"
+   * but "never ambiguous", which is what it was always really protecting - so
+   * a levelled group must carry *distinct* levels, and must not be mixed with
+   * an unlevelled template competing for the same band.
    */
-  it('never offers two adventures for the same band at one location', () => {
+  it('never leaves two adventures ambiguous for the same band at one location', () => {
     for (const location of ISLAND_LOCATIONS) {
       const templates = getAdventureTemplatesForLocation(location.slug);
       for (const ageBand of ['SPROUT', 'PATHFINDER', 'EXPLORER'] as const) {
         const matching = templates.filter((template) => template.ageBands.includes(ageBand));
-        expect(matching.length, `${location.slug} @ ${ageBand}`).toBeLessThanOrEqual(1);
+        const where = `${location.slug} @ ${ageBand}`;
+        if (matching.length <= 1) continue;
+
+        const levels = matching.map((template) => template.skillLevel);
+        expect(
+          levels.every((level) => level !== undefined),
+          `${where}: several adventures, but not all are level-indexed`,
+        ).toBe(true);
+        expect(new Set(levels).size, `${where}: two variants share a skill level`).toBe(
+          levels.length,
+        );
       }
     }
   });

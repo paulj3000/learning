@@ -417,7 +417,365 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
-## Storykeeper Castle first-person region — SC-0 and SC-1 complete
+## Model Asset Manager — Phases 1-2 complete (foundation and upload)
+
+Spec: `docs/android/ASSET_MANAGEMENT.md`. Decision: ADR-022.
+
+An administrator can open `/admin/assets`, go to Models, and upload a GLB
+through a three-step wizard at `/admin/assets/models/new`. The file is
+checked before upload (`.glb` only, glTF 2.0 header, header length matches
+the file, 50 MB limit, 10 MB warning, duplicate file name warning,
+unique name/slug), uploaded to S3 with a live percentage and a cancel
+button, and only then recorded as a `DRAFT` `Asset` plus its first
+`AssetVersion`. If either record fails, the record and the S3 object are
+removed again, so a failure leaves nothing behind. The model list shows
+every upload with category, world/region, status, version, size, and
+date, with loading, empty, error-with-retry, and "uploaded as draft"
+states.
+
+**Built**
+
+- Schema: `AssetType`, `AssetCategory`, `AssetStatus`, `AssetSource`
+  enums; `Asset` and `AssetVersion` models, Admins group only
+  (`amplify/data/resource.ts`).
+- Storage: `assets/*` prefix, Admins group only (`amplify/storage/resource.ts`).
+- `src/features/assets/`: `assetService.ts` (list, get, published-only
+  get, current version, signed URL, `resolveModelUrl` with bundled
+  fallback), `modelUpload.ts` (ordered upload and cleanup, typed
+  `AssetUploadError`), `modelFileChecks.ts`, `storageKeys.ts`,
+  `config.ts`, `ModelUploadWizard.tsx`.
+- Routes: `/admin/assets`, `/admin/assets/models`,
+  `/admin/assets/models/new`, all behind `RequireAdmin`; a "Game assets"
+  link on `/admin`.
+
+**Tests:** 82 new (file checks, slugs, keys, upload ordering and every
+failure/cancel path, service fallbacks, schema/storage rules read from
+source, wizard flow, list states). Full suite: 212 files, 2193 tests
+passing before these docs; typecheck clean; no new lint findings beyond
+the codebase's existing `role="status"` convention.
+
+**Not verified**
+
+- Nothing has run against a deployed sandbox. The schema and storage
+  changes need `npx ampx sandbox` (or a deploy) before the pages can load
+  real data, and the live authorization checks in
+  `docs/AUTHORIZATION_REVIEW.md` section 5 are still to do.
+- No real large-file or network-drop upload has been tried; those paths
+  are covered by mocked tests only.
+
+**Deliberately not done yet**
+
+- `assetLoader.ts` does not call `resolveModelUrl`. Asset records are
+  Admins-only, so from a parent's session every lookup would fail; this
+  waits for Phase 5's published-only read path (ADR-022).
+- No `/admin/assets/models/:id` or `/edit` pages, no GLTFLoader validation,
+  no preview, no publishing: Phases 3-5.
+- The spec's "use the existing toast system": there is none, so messages
+  are inline `role="alert"` / `role="status"` text, like the rest of the
+  admin pages.
+- Upload limits are browser-enforced only (acceptable: admin-only writes).
+
+## Wonderwild Forest first-person region — WF-0 to WF-2 complete; the forest is walkable
+
+Two design documents define this work:
+`docs/WONDERWILD_FOREST_3D_STORYBOARD.md` (the 13-beat storyboard, two
+region plans, age-band routing, and asset kit) and
+`docs/WONDERWILD_FOREST_3D_ROADMAP.md` (its own WF-0 through WF-10 build
+order, with the asset inventory as Appendix A). **WF-0 (region data and
+question bindings), WF-1 (the asset kit) and WF-2 (the walkable forest) are
+implemented; WF-3 through WF-10 are not started.**
+
+It follows the castle's method deliberately, and departs from it in one
+respect that shapes everything else. The castle's thesis was "choices
+become places", because every menu card `the-storykeepers-tale` asked
+already had a room authored for it. Wonderwild's steps are mostly not
+choices, they are observations: `count-the-waggles` asks a child to count
+something that never happens, and `observe-the-dance` describes a long
+waggle in prose. So the forest's thesis is **the evidence becomes real** —
+make the thing each question is about actually happen, and leave the
+question exactly where it is. Only one step moves into the world
+(`wonder-wall`), and it moves because it is currently asked in the wrong
+place.
+
+Six problems in the current forest drove the design, all visible in the
+files today:
+
+- **The forest is one flat rectangle of grass.**
+  `buildWonderwildForestTileGrid` fills every tile with `GRASS`;
+  `WONDERWILD_COLLIDING_TILES` is `[WATER]` and nothing else, so the pond
+  is the only thing in the location a child cannot walk through. The
+  forest's tilemap contains no tree of any kind.
+- **The Wonder Wall does not exist.** `buzzAndTheWaggleDance.ts`'s entry
+  step is `wonder-wall` and `wonderWallQuestions.ts` authors four curated
+  questions for it. There is no Wonder Wall in `wonderwildForestDecor.ts`,
+  none in `WONDERWILD_FOREST_INTERACTIONS`, and none anywhere else.
+- **The question is asked after the child has walked to the answer.**
+  Walking into the hive's zone fires `START_ADVENTURE`, whose first step
+  then asks which of four things the child is curious about; three of the
+  four redirect straight back to the bees they are standing in front of.
+- **The world change is the weakest on the island, weaker than the
+  castle's was.** `forest-changes` names two specific things — the Wonder
+  Wall lighting up and a new patch of flowers — and neither is built. What
+  happens is a `tileOverrides` recolour of every `GRASS` tile in the
+  location.
+- **One band of three has content, and it is the only location with no
+  second arc.** `buzz-and-the-waggle-dance` is `PATHFINDER` only; there is
+  no Sprouts adventure and no Explorer adventure. The castle at least had
+  the `EXPLORER` secret-door chapters.
+- **The best beat on the island is one sentence.** `shrink-into-hive` is
+  the only `aiNarrated` step in the location and the only moment anywhere
+  that a child changes scale. The child never goes inside the hive.
+
+Five design decisions worth recording, because each closes a question
+someone would otherwise reopen mid-build:
+
+- **The child does not shrink; the hive is built enormous.**
+  `firstPersonController.ts` is flat-plane at a fixed `EYE_HEIGHT` of
+  1.6m, with no scale term anywhere in the controller, the camera rig or
+  `sceneKit.ts`. So `wonderwild-hive` is authored in ordinary metres with a
+  1.4m honeycomb cell, and the transition is a **cut over a fade, never a
+  zoom** — a scale animation is the most motion-sensitive thing this island
+  could put in front of a three-year-old, and reduced motion is a stated
+  requirement.
+- **The comb is a floor, not a wall.** Real honeybees dance on vertical
+  comb; the controller has no vertical traversal. Nothing the adventure
+  *claims* changes, so this is a staging simplification and belongs as a
+  note in `docs/CONTENT_SOURCES.md`, not a factual correction.
+- **One view holding two regions, not two routes.** Two routes would be
+  simpler, and are rejected: SC-4's hardest-won property is that the room
+  and the HUD card drive one `useAdventureSession` in one view, which is
+  what makes "identical session state" true by construction rather than by
+  two implementations agreeing. Splitting the Pathfinder loop across two
+  views gives that back. This is the one place the roadmap comes near the
+  ADR-008 boundary, and WF-4 says to stop and write an ADR if it turns out
+  to need an engine change.
+- **The waggle run is scene-driven TRS motion, not a glTF clip, and no
+  animation clip is added.** Beat 7 needs exactly five discrete waggles,
+  stopped at the end, replayable on demand at no cost, and countable from a
+  fixed viewpoint. A looping clip gives none of those cleanly. Buzz ships
+  with `Idle`, `Talk` and `Celebrate`, all already in
+  `assets/animationVocabulary.ts`, so SC-1's decision not to extend that
+  vocabulary holds.
+- **The Explorer arc cannot go in the glowworm cave.** The cave is behind
+  `ITEM_OWNED glowing-moss-jar`, and `islandDiscoveries.ts`'s fourth
+  authoring rule is that no secret gates learning content. The proposal is
+  the Leaf Hollow instead, which is ungated, is one of the five discovery
+  points the explorable-world roadmap section 32 already names, and is the
+  place the Wonder Wall's own `wonder-seeds` stone points at — so building
+  it lights a second stone and turns a dead fallback into a real path.
+
+Two things this design deliberately does not claim:
+
+- **Beat 13, the calm stop, has no phase.** SC-7 established that
+  `ChildProfile.sessionMinutes` is validated, stored, editable and
+  displayed, and that nothing in `src/` reads it at play time. Putting a
+  session clock in `wonderwildForestScene.ts` would repeat exactly the
+  drift SC-7 refused. MVP scope item 11 is app-wide work that has to exist
+  before either region can stage it.
+- **Both content gaps need approval before anything is authored.** WF-8
+  ("Who Lives Here?", Sprouts) and WF-9 ("How Seeds Travel", Explorers) are
+  new `AdventureDefinition`s. WF-8 also needs its **own** `changeKey`:
+  reusing `WAGGLE_DANCE_DISCOVERED` would record in a parent summary that a
+  three-year-old discovered why bees dance. The castle's SC-10 could reuse
+  `FIRST_STORY_TOLD` because its Sprout does tell a story; this one cannot.
+
+The asset estimate is **about 29 new assets, one a character** — roughly
+half SC-1's 59, because the castle's Appendix A.1 ruled out the entire
+Phase 34 outdoor kit as having no role indoors and every one of those
+pieces is load-bearing in a forest. The riskiest single asset is
+`comb-cell`: the hive's draw budget depends on instancing it, and a hexagon
+with a hole in it is exactly the shape SC-1 discovered `archway` could not
+be authored as. WF-1 settles that before WF-4 is costed.
+
+### WF-0 — region data and question bindings
+
+Three new pure-data modules and one append, 66 new tests, no `three` import
+anywhere in it:
+
+- `three/wonderwildForestRegion.ts` — eight glades, seven trails, eleven
+  zones, and every entity spot.
+- `three/wonderwildHiveRegion.ts` — the hive interior, the dance floor, Buzz
+  and three sisters, and the two waggle runs.
+- `three/wonderWallBindings.ts` — four bindings on `wonder-wall`, the one
+  step this region stages as world objects.
+- `discovery/checkpoints.ts` — five forest checkpoints and two hive ones.
+
+**The castle's geometry model is inverted here, and that is the phase's real
+content.** `storykeeperCastleRegion.ts` authors room floors and *derives
+walls* by subtracting doorway gaps. A forest has neither rooms nor doorways,
+so this region authors the walkable set — glades plus trails — and **derives
+the tree line as its exact complement** by a column sweep
+(`buildTreeLineSegments`). Three things follow: there is no gap to leave open
+by accident, no boundary walls are needed because the complement runs to the
+ground extents, and the collider list is roughly twenty wide boxes rather
+than thirty wall slivers.
+
+Four things the tests found or forced, none visible by reading:
+
+- **The harbor path glade ran to the region boundary**, so a child could
+  stand on the western edge of the world with nothing rendered beyond them —
+  the derived tree line has nothing to close behind a glade that reaches the
+  extent. The glade stops at x -17.5 now and the exit zone moved with it.
+- **The night-clearing trail was exactly as wide as the bee's.** Beat 2's
+  only wayfinding is that the bee's trail reads as more worn than its
+  neighbours; a "faint" trail the same width makes `TrailWear` a label rather
+  than a fact. The test now floors the worn trail strictly widest.
+- **The fern bank needed a connection that is not a trail.** Beat 11's
+  glowing moss is unmarked, and a path to it would be a signpost pointing at
+  the one thing that must not be pointed at. `TrailWear` gained a `'none'`
+  case — walkable ground with nothing drawn on it — so there is somewhere to
+  wander off the trail *to*. Tests assert the fern bank's only connection is
+  `'none'` and no drawn trail passes within 2m of the moss.
+- **Each wonder stone got an approach zone as well as a raycast target**,
+  beyond what the storyboard asked. Sprouts get `APPROACH` only, so a stone
+  that could only be aimed at would put beat 2 out of reach of a band that
+  cannot aim. The four zones are asserted disjoint and at least 1.5m apart —
+  the castle's tower-window defect caught before it could happen.
+
+`BUZZ_WAGGLE_RUN.waggleCount` is asserted equal to `count-the-waggles`'s own
+`correctValue` read off `BUZZ_AND_THE_WAGGLE_DANCE`, rather than typed twice,
+so the dance the child counts and the number the engine grades cannot drift
+apart. The same check the castle's nine carved stars get.
+
+Every invariant was **mutation-checked before being trusted**: severing the
+bee's trail from the hub strands the hive clearing, raising the tree line's
+sliver threshold to 2.5m breaks the cover test, and moving two stone zones
+within 1.5m fails the separation test. A reachability test that cannot fail
+passes just as well against geometry that is wrong.
+
+### WF-1 — the forest and hive asset kit
+
+29 new assets in `public/models/` (108 total), a new Wonderwild section in
+`scripts/generate-world-assets.ts`, 29 manifest entries, a new
+`assets/wonderwildKit.test.ts` (16 tests) and three new cases in
+`assets/assetLoader.test.ts`. **The 79 pre-existing assets regenerate
+byte-identically**, so nothing in the Phase 34 or SC-1 packs was disturbed —
+which is what let this phase be built alongside live castle work without
+touching it.
+
+**Appendix A.9 risk 1 is closed, in the affirmative, and the opposite way to
+the castle.** SC-1 found `archway` could not be authored as one mesh: a hole
+in a flat panel needs geometry either side of it, so the natural authoring is
+two posts and a lintel, and `createInstancedMeshFromAsset` keeps only the
+first mesh it finds. A honeycomb cell poses the same problem and has a
+different answer. A new `buildHexRingPrismPrimitive` in `assets/primitives.ts`
+emits the whole hexagonal annulus as a single indexed mesh — 96 vertices, 48
+triangles, well inside uint16 — so the ~40 cells in the hive wall are one
+instanced draw call. The hive's cell count stands and WF-0's hive geometry
+needs no revision. Authoring the cell as six boxes in a hexagon, which is the
+obvious approach, would have been six parts and silently rendered one sixth of
+it.
+
+Four authoring decisions worth recording:
+
+- **The pack is half the castle's size because of what it does not author.**
+  SC-1's Appendix A.1 ruled out `ground-tile`, `foliage-tree` (with its
+  existing LOD level), `foliage-bush`, `rock`, `path` and `signpost` as having
+  no role indoors; every one is load-bearing in a forest and is reused
+  unchanged. 29 assets against 59.
+- **The seed emblem became a winged samara rather than a seed head.** Authored
+  as a teardrop it read as a second chrysalis two stones along, making two of
+  the four Wonder Wall questions indistinguishable at a glance. A maple key
+  also says *travel*, which is what "how do seeds travel" asks.
+- **`comb-cell-capped` is a solid hexagonal prism, not a ring with a lid** — a
+  lid would be a second part and cost the honey cells their instancing for no
+  visual gain, since the cap is all the child sees.
+- **Buzz ships with `Idle`, `Talk` and `Celebrate` and no waggle clip.**
+  `animationVocabulary.ts` has no `Waggle` or `Dance` name, SC-1 declined to
+  extend it, and extending it would be wrong regardless: beat 7 needs exactly
+  five discrete waggles, stopped at the end and replayable at no cost, which a
+  looping clip does not give cleanly. `Abdomen` exists as a named node for
+  WF-5's scene to drive, and a test asserts it survives cloning even though no
+  clip in the document targets it.
+
+The single-mesh guarantee was **mutation-checked**: re-authoring `comb-cell`
+as two parts — the exact defect that caught `archway` — fails both the kit
+test and the instancing round-trip. One of my own tests was wrong before any
+asset was: the ground-pivot check asserted positive height for every asset,
+which is false for the three `buildGroundPlanePrimitive` recolours and the
+bare flower patch, since a floor tile legitimately sits entirely at y = 0.
+
+**Not verified:** none of these assets has been looked at in a browser.
+Storyboard open question 3 — whether a room of 1.4m hexagons reads as "inside
+a beehive" rather than "inside a machine" — is WF-4's screenshot question, and
+A.9 risk 2 stays open until it runs. The four stone emblems carry the same
+silhouette risk SC-4 confirmed for the castle's hero portraits, with the same
+mitigations already in place: Chatty names the question aloud and the HUD card
+names it in text, so the emblem is never the only cue.
+
+### WF-2 — the walkable forest
+
+`three/wonderwildForestScene.ts`, `three/WonderwildForestWorldView.tsx` and
+`routes/WonderwildForestWorldPage3D.tsx`, on
+`/island/:childId/world/wonderwild-forest-3d`. The forest is built from WF-0's
+numbers and WF-1's kit: an instanced moss floor over the whole region,
+`path-forest` on every drawn trail, ~80 instanced trees plus bushes and ferns
+through the derived tree line, the pond with reeds and lily pads, and every
+glade's props. Colliders are `COLLIDERS` and nothing else, so the trees the
+child sees and the trees that stop them are the same authored data.
+
+**The region is interactive from its first phase, unlike the castle's SC-2**,
+and the route decision below is why: SC-2 could ship an empty shell because
+the card route stayed the default, whereas this route *replaces* the card
+route for two bands, and shipping it emptier than what it replaces would be a
+regression dressed as progress. The eight flavour interactions
+`WONDERWILD_FOREST_INTERACTIONS` already authors are wired to the same ids and
+the same before/after pairs, including the hive clearing's
+`wonderwild-beehive` / `-discovered` split. The Wonder Wall stones are placed
+but emit nothing — WF-3 owns `wonder-wall`.
+
+Three findings, one of them a real defect:
+
+- **The first tree scatter produced fourteen trees for a whole forest.** It
+  gridded each `TREE_LINE_SEGMENTS` entry, but the tree line is derived by a
+  column sweep into many narrow strips, and a 1.5m strip has nothing left once
+  both edges are inset by a trunk radius — so density depended on how the
+  complement happened to be cut up, which is an implementation detail of
+  `buildTreeLineSegments`. `scatterPlacements` now samples the region and
+  rejects on the walkability predicate, with density set against the
+  **measured** tree-line area (449 m², 48% of the region). At one tree per
+  16 m² a child sees clean through the wall of trees while the colliders still
+  stop them, which reads as a bug rather than as a forest; it is now ~80 trees
+  at roughly one per 5.5 m², in one instanced draw call.
+- **The clearance check samples around the candidate, not just at it**, because
+  a tree has a trunk and one placed hard against a trail edge is off the trail
+  and still in the way.
+- **The view's load had an unhandled rejection.** Its `try/finally` already
+  said what it does when a read fails — render the forest anyway rather than
+  strand a child at the trailhead — but with no `catch` the rejection escaped
+  `void load()`. Found by writing the every-read-fails load-state test.
+
+**Not verified: the forest has never run in a browser.** The light rig, the
+scatter's density as seen from inside a glade, whether the bee's trail reads as
+more worn than its neighbours, and whether the Wonder Wall arc reads as an arc
+are all authored from reasoning about numbers. WF-2's exit criteria ask for a
+screenshot pass through the `.tmp-verify/harness/` pattern and **it has not
+run** — this phase's outstanding debt, and the castle's equivalent pass found
+eleven defects no test could see.
+
+### Route decision: the 3D forest is the front door, not a preview
+
+Decided 2026-09-06, and a departure from how the castle shipped. SC-2 added
+the first-person castle as an additive second link beside the Phaser one,
+with the card route still the default for every band. From WF-2 the
+first-person forest is instead **what opening Wonderwild Forest gives a
+Pathfinder or an Explorer**, with the card-based route still working and
+still linked as the alternative.
+
+The reasoning is that a region offered as an experiment beside the "real"
+one is a region nobody plays and nobody can playtest, and the pattern itself
+is no longer what is being proved out — the castle proved it.
+
+**ADR-008's Sprouts gate is the one exception and it holds.** Sprouts keep
+the card route as their default until the accessibility playtest owed from
+Phase 32 has run, which matters more here than it did in the castle because
+the shrink into the hive is the most motion-sensitive transition on the
+island. Being the default from WF-2 is **not** retirement: nothing is retired
+for any band before WF-10, every band can still reach the card route, and the
+age-band branch that decides the default is asserted in both directions so
+"primary for two bands" cannot quietly become "primary for everyone".
+
+## Storykeeper Castle first-person region — SC-0 to SC-10 complete; SC-11's gate does NOT pass, so nothing is retired
 
 Two design documents define this work:
 `docs/STORYKEEPER_CASTLE_3D_STORYBOARD.md` (the 13-beat storyboard, floor
@@ -425,11 +783,21 @@ plan, age-band routing, and asset kit) and
 `docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` (its own SC-0 through SC-11 build
 sequence, cross-referenced from `docs/ROADMAP.md`'s Phase 31+ section).
 
-**SC-0 (region data and choice bindings) and SC-1 (the castle asset kit)
-are implemented.** SC-2 through SC-11 are not started. Nothing child-facing has changed: no route, no
-scene, no asset, no adventure or story text, and the card-based
+**SC-0 (region data and choice bindings), SC-1 (the castle asset kit),
+SC-2 (the walkable shell), SC-3 (Keeper Quill), SC-4 (choices become
+places), SC-5 (the hearth, the binding lectern, and the easel) and SC-6
+(the book on the shelf) are implemented, which completes the roadmap's
+critical vertical slice.** SC-7 through SC-10 shipped after this paragraph
+was first written and have their own subsections below; SC-11's gate does
+not pass. The roadmap's instruction at the slice was to stop, playtest the
+region, and re-cost the rest before building any of it, and the re-cost has
+now happened - see "Storykeeper Castle re-scoped" below and
+`docs/regions/storykeeper_castle_reconciliation.md`. No adventure or story text has changed, and the card-based
 Storykeeper Castle route remains the shipped, authoritative one for every
-band. What exists is the pure-data layer every later phase reads from:
+band; SC-2 adds a third, additive way in
+(`/island/:childId/world/storykeeper-castle-3d`) alongside the existing
+Phaser castle. What exists is the pure-data layer every later phase reads
+from:
 
 - `src/features/island-map/three/storykeeperCastleRegion.ts` — eight
   rooms, seven archways, 13 trigger zones, and every entity spot, with
@@ -512,6 +880,816 @@ describe the current shipped build rather than the proposed one:
   secret-door template is `['EXPLORER']`. Closing that needs new authored
   content and the approval SC-10 is gated on.
 
+### SC-2 — the walkable shell
+
+The castle is now somewhere a child can walk, and deliberately nothing
+more. `three/storykeeperCastleScene.ts` builds it from SC-0's numbers and
+SC-1's kit — eight room floors and eight ceilings as scaled slabs, every
+derived wall segment tiled in `wall-stone`, the seven archways placed
+individually (multi-part, so never instanced), a carpet from the doors to
+Quill's lectern, and the doors themselves. Wall colliders are SC-0's
+`WALL_SEGMENTS` and nothing else, so what the child sees and what stops
+them are the same authored data. `three/StorykeeperCastleWorldView.tsx`
+and `routes/StorykeeperCastleWorldPage3D.tsx` put it on a lazy-loaded
+route, linked from the castle's location page next to the Phaser one.
+
+It is the first indoor region, which forced two changes nothing outdoors
+needed: every room gets a ceiling (outdoors the sky was the ceiling), and
+`createSceneBootstrap` gained an optional `lighting` override so the
+interior can be dimmed far below the outdoor rig — at the outdoor defaults
+every room reads equally lit, and "the Great Library is the darkest point"
+becomes unauthorable. Both existing regions keep the outdoor values by
+default and are unchanged by it.
+
+**One pre-existing bug fixed on the way, affecting a shipped region.**
+`runPlacements` (`sceneKit.ts`) aligned a kit piece's local **+Z** with its
+run, but every piece tiled through it is authored width-first — `wall`,
+`wall-stone` and `fence` are all `buildPlanePrimitive`, wide in local X
+with their normal on +Z. So each 2m panel was placed turned 90 degrees
+across its run, and a wall rendered as a row of fins with 2m gaps between
+them rather than a wall. Welcome Harbor's two buildings and its fence have
+looked like that since Phase 34. The tell was inside the same file: its
+hand-placed doors, left at `rotationY` 0 on a north/south side, were
+already using the correct convention and disagreeing with the walls beside
+them. Confirmed against the real `.gltf` accessor extents before changing
+anything, since the fix moves geometry in a region that has shipped.
+
+`sceneKit.test.ts` had asserted the raw angle, which is exactly why a
+90-degree error could sit there passing; it now asserts the transformed
+direction of a panel's width axis, plus the concrete
+door-and-wall-agreement case.
+
+`storykeeperCastleScene.test.ts` is new and holds the one castle invariant
+a collider test cannot see: a wall panel drawn across an archway leaves the
+doorway walkable but shows the child a wall, which they will obey. Panels
+are therefore scaled to the exact quotient of their run rather than tiled
+at a whole 2m, and inset onto each room's own inner face so that two rooms
+sharing an edge get two surfaces rather than two coplanar ones that
+z-fight. The archway assertion needed a second attempt to be worth
+anything — written the obvious way it could never fail, because a panel is
+a zero-thickness plane that lands exactly on the gap boundary — and it was
+mutation-checked at 1.6x and 2.4x panel width before being trusted.
+
+Deliberately absent, and not oversights: no NPC, no raycast target, no
+`interact()` on the engine handle, and no `ageBand` on the view. Nothing in
+an empty castle is age-gated or interactive yet; SC-3 brings Quill and with
+him the first thing that needs either. The only thing to *do* is leave,
+through the existing authored `castle-harbor-exit`, reachable both by
+walking to the doors and from the "Things to do here" list.
+
+Known limitations:
+
+- **The light rig is unverified.** The per-room intensities encoding "the
+  Great Library is darkest, the hearth corner warmest" are reasoned from
+  the floor plan, not seen. Nobody has looked at this region rendered.
+- **The scene has never run in a real browser**, the same standing gap
+  every scene file in this repo carries: the placement maths is unit
+  tested, `createStorykeeperCastleEngine` is not.
+- **The Welcome Harbor wall fix is likewise unverified visually.** It is
+  right by construction and by the asset's own geometry, but confirming it
+  needs someone to look at the harbor.
+
+### SC-3 — Keeper Quill (beats 1 and 2)
+
+The castle now has someone in it. Quill stands at his lectern in the hub,
+`Idle` and facing the entry hall; walking up records the meeting, looking
+at him names him on the reticle, and pressing E opens his conversation.
+The story hall offers the tale, which opens on its own `meet-keeper-quill`
+step.
+
+**This phase authored no content whatsoever**, which is the whole shape of
+it. Quill's dialogue, his `metQuill` memory flag, his relationship points
+and the `tell-a-story-together` quest offer are the ones
+`npc/content/islandNpcs.ts` and `quests/content/islandQuests.ts` have held
+since Phases 23 and 25. `recordCharacterMet`, `useNpcApproachBridge` and
+`NpcConversation` are the Phase 26.5/32 components Pip already uses. The
+interaction id is `talk-to-keeper-quill`, the same one the Phaser castle
+resolves him to, and the adventure is the unchanged
+`the-storykeepers-tale`. Everything new here translates a raycast hit or a
+zone crossing into one of those existing ids.
+
+Two behaviours worth recording:
+
+- **Quill turns to point.** `Talk` loops while the conversation is open;
+  `Point` fires when it closes and is held rather than sprung back, per
+  SC-1's note that the gesture is wayfinding the child needs still there
+  when they look up from the HUD. He rotates to face the north archway to
+  do it, because an arm raised while still facing the child says
+  "somewhere" and turning to look where the arm goes says "there". Any
+  later clip turns him back to face the hall, so a returning child is not
+  talked to by someone facing away from them.
+- **Quill and his lectern got colliders.** SC-0 explicitly left this debt
+  ("SC-2/SC-3 owe Quill a collider of their own"), and walking through the
+  person you are about to talk to undoes the point of him being a place.
+
+The gallery, tower, studio and library zones are still deliberately
+unwired. Their Phase 14 flavour messages exist and could have been
+connected in an afternoon, but SC-4 replaces exactly those rooms with real
+`choose-hero`/`choose-setting` steps, so wiring them now would only be
+work to undo.
+
+**A flaky-test class was found and closed here**, and it is worth knowing
+about because SC-4 adds three more spatially-driven steps. Several of these
+tests failed intermittently rather than consistently: `findBy*` resolves
+from a MutationObserver callback that can run after React has committed the
+DOM but before it flushes passive effects, and `ThreeGameContainer` builds
+the engine inside a `useEffect`. A test that emitted a world event at that
+moment emitted it into a `null` bus, silently did nothing, and then failed
+on the assertion after it — depending purely on scheduling. Every affected
+test now waits for the engine to exist before driving it, and the file was
+re-run six times to confirm the flake is gone.
+
+Known limitations, both inherited from SC-2 and neither closed by this
+phase: **the scene has never run in a real browser**, so Quill's placement,
+scale, facing, and above all whether the `Point` gesture actually reads as
+"go that way" to a five-year-old are entirely unverified; and **the light
+rig is still unlooked-at**. Quill's legibility is a playtest question the
+storyboard already owns for SC-4's portraits, and it now applies to him too.
+
+### SC-4 — choices become places (beats 3 and 4)
+
+The phase the whole roadmap is for: a learning step answered by going
+somewhere. The Character Gallery hangs three hero portraits, aimed at by
+raycast; the Setting Tower has three windows with a backdrop beyond each,
+triggered by walking up to one (an approach, not a raycast, so the beat
+stays reachable for a band that cannot aim). Both resolve through SC-0's
+bindings into option ids `the-storykeepers-tale` already declares.
+**The adventure definition was not touched.**
+
+**The session moved into the room, and that is what makes the claim
+honest.** Starting the tale no longer navigates away to the card route:
+the view holds one `useAdventureSession`, and looking at a portrait and
+pressing the same option on the card below the canvas go through the same
+`submitAnswer`. "Choosing through the room and choosing through the card
+produce identical session state" is therefore true by construction, not by
+two implementations agreeing, and the test proves it by comparing the
+recorded call arguments from both routes.
+
+Doing that without writing a second card meant extracting
+`AdventureRunner.tsx`'s rendering half, unchanged, into
+`AdventureStepCard.tsx`. The runner is now the hook plus that card; the
+castle is its own session plus the same card. No behaviour changed on the
+card route and its tests passed untouched.
+
+Also worth recording:
+
+- **A session is never started by walking in.** The view reads
+  `getActiveSession` (a read, not a create) and only mounts the session if
+  one is already open or the child presses Start. A child who wanders
+  through the castle and leaves has started nothing.
+- **Re-entry restores the room from answers the session already recorded.**
+  The lit portrait and bright window are read back from `AdventureAction`
+  rows through a new reverse binding lookup, so there is no new
+  persistence and nothing a client could forge into a state the engine
+  never agreed to.
+- **The roadmap's asset instructions for this phase were stale.** SC-4 asks
+  for a `portrait-frame-lit` swap playing an `Activate` clip and for
+  unchosen windows to `Close`. None of those exist: SC-1 shipped state
+  variants with no clips, which is what
+  `docs/THREE_WORLD_ASSET_CONVENTIONS.md` prefers anyway. Both variants
+  load up front and choosing flips visibility. The roadmap now carries the
+  correction next to the original text.
+
+**Two real bugs were found by mutation-testing assertions that had passed
+on the first run**, which is becoming the pattern worth keeping in this
+area:
+
+- `WorldEngineEventBus.removeAllListeners()` was being called in the view's
+  zone-effect cleanup. That effect re-runs whenever `FIRST_STORY_TOLD`
+  flips, and clearing the whole bus would have silently dropped the
+  *session's* own subscriptions while it stayed mounted - every portrait
+  and window inert, nothing logged. Individual unsubscribes only, now.
+- The "wrong step" guard was only half-tested. `choose-hero` and
+  `choose-setting` are not the only bound steps: SC-0 also binds the three
+  story plates to `order-the-story`, an ORDERING step whose answer is a
+  sequence, not one option id. Removing the spatial-step gate broke no test
+  at first, because the case under test (a step with no bindings) was
+  already covered by the binding lookup. The test now uses a plate on
+  `order-the-story` - the case that will actually bite in SC-5, when those
+  plates are placed in the room.
+
+### Rendering verification (SC-2 to SC-4)
+
+**The castle has now been looked at.** The limitation carried since SC-2 -
+"none of this has run in a browser" - is closed for everything a still
+image can settle. `.tmp-verify/harness/` holds a throwaway page that mounts
+the real engine with a stub event bus and no backend, and
+`.tmp-verify/castle-shots.mts` drives it through Chromium (SwiftShader) at
+each authored checkpoint, screenshotting the result. No auth, no AppSync,
+no deployed sandbox: the scene is the only thing under test.
+
+What it confirmed working: the castle reads as architecture from the doors
+(walls, ceiling, archway, carpet, Quill small in the distance, exactly as
+beat 1 describes); the Great Library really is the darkest room; the three
+portraits hang correctly at eye height in the gallery; and a chosen
+portrait is unmistakable - gold emissive frame and cream mount against the
+brown frame and grey mount of the other two.
+
+**Three real bugs it found, none of which any test could see:**
+
+1. **Every tower window opened onto blank stone.** The window backdrop was
+   placed 0.18m outward from its authored spot, but the gap between that
+   spot and the wall panel is `WALL_MOUNT_CLEARANCE`, 0.05m - so all three
+   backdrops sat *inside* the 0.5m-thick wall, behind the panel. A window
+   frame does not cut a hole in the wall, so anything past the wall plane
+   simply is not there. The offset is now 0.02m and the windows work: an
+   unchosen one shows SC-1's closed brown shutters, a chosen one opens onto
+   a bright emissive sky with a floating island. That chosen/unchosen
+   reading is now the clearest thing in the castle.
+2. **The tower windows floated 25cm off the floor.** `window-frame` is 2.7m
+   tall and was being centred on its authored 1.6m spot, which is right for
+   a portrait and wrong for a floor-to-ceiling window (storyboard beat 4).
+   Placement now has an explicit floor-standing case for them.
+3. **The hub had a bright orange glow on its south wall and no fireplace
+   under it.** SC-2 lit the hearth corner as the castle's warmest and left
+   nothing there to be the source, because the hearth prop belongs to
+   SC-5's beat. Reading as a rendering bug rather than as firelight, the
+   `hearth` model is now placed - scenery only; beat 5's mantel interaction
+   is still SC-5's.
+
+**And it settled SC-1's open playtest question, in the negative.** SC-1
+asked "whether a five-year-old reads the three portrait silhouettes as
+*puppy, dragon, fox*", and called it SC-4's playtest question. Looking at
+them: **no.** The dragon reads as a small tree - a green cone on a dark
+green box, with its tail cone floating detached to one side. The fox and
+puppy are similarly abstract. This is an SC-1 art decision rather than an
+SC-4 code bug, so nothing was changed here, but it is now a known answer
+rather than an open question, and it matters more than it did because the
+portrait **is** the choice. The mitigations do hold: Quill names each hero
+aloud, the HUD card names them in text, and the reticle now names the
+option in the card's own words ("A curious dragon"), so a child is never
+left to read the silhouette unaided.
+
+### The Welcome Harbor wall fix, verified before and after
+
+SC-2's `runPlacements` fix changed a **shipped** region, and the claim that
+Welcome Harbor had been rendering wrongly since Phase 34 was, until now,
+reasoning rather than evidence. The same harness renders Welcome Harbor,
+and the before/after is unambiguous
+(`.tmp-verify/castle/h0-dock-BEFORE-FIX.png` versus `h1-dock.png`, taken by
+temporarily reverting the one-line change):
+
+- **Before:** each building is a row of separated slabs standing crosswise
+  to its own wall line, with sky visible through the gaps between them and
+  the roof floating over the top. The decorative fence run is a single
+  post.
+- **After:** solid continuous walls, roofs sitting flush, real doorways,
+  and a fence that is a fence.
+
+Two smaller things the session noticed and did not act on: `THREE.Clock` is
+deprecated in the installed Three.js version and is used by all three scene
+files (a warning at every mount, no behaviour change), and the Setting
+Tower is authored as a square room while the storyboard calls it round -
+SC-0's `RectZone` vocabulary has no other shape, which is a known and
+deliberate simplification.
+
+### SC-5 — the hearth, the binding lectern, and the easel (beats 5 to 7)
+
+The last phase before the roadmap's stop-and-re-evaluate point. Three
+things the child does in the room, and one thing they deliberately do not.
+
+**The binding lectern (beat 6) is the phase.** It is the first interaction
+in this region that is a puzzle rather than a message: a plate is picked up
+(`CollectiblePickedUp`), carried in front of the child, and seated in one
+of three sockets, and seating the third emits `BuildActionRequested`
+carrying the arrangement. The scene owns every bit of the physical state
+and no part of the verdict - `castleBindingLectern.ts` turns an arrangement
+of entity ids into option ids through SC-0's bindings, and the existing
+`ORDERING` step grades it exactly as it grades the HUD list. A seated plate
+can be lifted back out, so a child who spots their own mistake can fix it
+before submitting.
+
+`useAdventureSession.submitAnswer` now resolves with the server's verdict
+rather than `void`. Beat 6 promises that a wrong order lifts the plates
+back onto the table and that nothing is lost, and the room cannot know it
+was wrong without either that verdict or a second copy of grading that
+ADR-012 deliberately keeps server-side. `AdventureStepCard` takes the wider
+return type and ignores the value; every decision it could make on a
+verdict is one the engine has already made.
+
+**Beat 5 stays a HUD card, and gets a gesture instead.** The comprehension
+check tests what Quill *said*, so hiding its answer in the room would turn
+a reading-comprehension check into a spatial search. From rung 3 of the
+existing five-rung ladder onward, Quill turns and points at the hearth
+mantel, and turns back when the step is answered. The code reads
+`hintLevel` and never writes one, and `theStorykeepersTale.test.ts` now
+pins all five rungs verbatim - so the 3D room can never quietly become a
+reason to edit a step the card route also runs.
+
+**Beat 7 is nine authored pictures out of seven assets.**
+`castleEaselCanvas.ts` holds the 3x3 table keyed by (hero, setting); each
+row authors what composition cannot infer - where on that backdrop this
+hero stands, and how big. No AI image generation.
+
+Three things SC-0 and SC-1 had already shipped were changed, each found by
+building on top of them:
+
+- **The three plates lay on the table in the correct story order.** A child
+  who seated them left to right without reading them would have scored a
+  sequencing step they never did - and no engine test could see it, because
+  the answer arriving at the engine is genuinely correct. They now start in
+  the step's own authored `items` order, which is the same shuffled order
+  the HUD list starts in. Both halves are asserted.
+- **The plate table stood behind the lectern**, so from anywhere the child
+  could see the sockets, the lectern was between them and the plates. Beat
+  6 is three pickups, which made it three walks around the furniture and
+  back. They now stand side by side facing the room.
+- **A new `binding-lectern` asset, and carved marks on the hearth's
+  mantel.** Appendix A assumed one `lectern` model would serve Quill's
+  reading stand and the binding lectern both, but `story-plate-*` is 0.34m
+  wide and three of them need a metre of desk against that model's 0.6m.
+  The mantel departs from the storyboard's literal `HERO · PROBLEM ·
+  ENDING`: this pack is texture-free, so words would mean extruding letter
+  geometry, for a child who is being asked to *recall* what Quill said. It
+  carries three groups of counted marks instead - one, two, three - the
+  same language `storyPlate` already chose, and no more of a giveaway than
+  hint rung 3's own words.
+
+**One bug fixed in shipped SC-4 code.** Its session-resume path - walk back
+into the castle and find your portrait still lit - never worked. It looked
+for recorded actions with `correctness === 'CORRECT'`, but `choose-hero`
+and `choose-setting` are `CREATIVE_CHOICE` steps, and a creative choice has
+no right answer, so every one of them is graded `not_applicable` and stored
+as `NOT_APPLICABLE`. The filter now excludes only rejected answers. Found
+while wiring the easel, which reads the same two answers.
+
+### Rendering verification (SC-5)
+
+Beat 6 and beat 7 were driven through the same `.tmp-verify/harness/` the
+earlier phases used, with the real touch-look controls and the real `e`
+key. The harness gained an `at=x,z,yaw` parameter that appends a checkpoint
+of its own (`ALL_CHECKPOINTS` is `readonly` only to the type checker):
+walking to a spot on simulated keystrokes proved far too imprecise to put a
+reticle on a 34cm plate.
+
+Confirmed working: the mantel's three groups of marks read clearly in the
+firelight; the workstation reads as one, with the plates' notches and the
+lectern's three empty sockets both legible from where a child stands; a
+picked-up plate rides visibly in front of the camera and leaves the table;
+and a seated plate sits in its socket with the remaining sockets visibly
+empty.
+
+**One real defect found, in beat 7.** The canvas layers are built from the
+same primitives as everything else, so a mountain peak is a 30cm-radius
+cone - which on an easel reads as a sculpture leaning out of the page
+rather than a picture, its base rim projecting below the backdrop. Every
+layer is now squashed to a couple of millimetres deep, turning each into
+the flat-colour silhouette the storyboard asks for without re-authoring six
+shared assets. That exposed a second one: the dragon's head hung out
+through the top of the picture, because the fit test checked the hero's
+*origin* rather than the hero's extent. All nine compositions were
+re-authored and re-shot, and all nine now sit inside their page.
+
+### SC-6 — the book on the shelf (beat 8)
+
+The world change, and the end of the slice. A Pathfinder can now walk into
+the castle, choose a hero by lighting a portrait, choose a setting by
+standing at a window, answer Quill at the hearth, seat three plates at the
+binding lectern, watch the easel paint their story, and find their book on a
+shelf that was visibly empty when they arrived.
+
+`FIRST_STORY_TOLD` toggles three state variants and one extra length of
+carpet - `story-book-shelved` over `shelf-slot-empty`, `hearth-lit` over
+`hearth`, and the runner carrying on through the hub - with Keeper Quill
+playing `Celebrate`. All four load up front and switch by visibility, the
+`bridge-plank`/`bridge-plank-repaired` precedent, so the change costs no
+fetch at the moment it happens and a returning child's castle is already
+changed on the first frame. The engine takes the same `showStoryTold` call
+at construction and from the room, which is what makes both true without two
+code paths.
+
+**It is driven by the `WORLD_CHANGE` step being on screen, not by a
+submit.** That step has no answer to submit - `useAdventureSession` writes
+the `WorldChange` and advances past it on its own - so wiring beat 8 to a
+submit would have looked right and never fired. The step, its payload and
+its `changeKey` are untouched.
+
+**The floor recolour the Phaser castle performs is deliberately not carried
+over.** The promised consequence is that the child's story has a home on a
+shelf, so the shelf is the consequence; a differently coloured floor is a
+mood change dressed as one.
+
+**SC-2's furnishing debt came due here.** The roadmap says the empty slot is
+"placed in SC-2" - it was not, and neither were the bookshelves, the reading
+tables, the tapestries, or the costume racks. SC-2 built eight rooms and
+furnished almost none of them. The library half is now paid, because beat
+8's payoff depends on it: eleven shelves in one instanced draw call
+(`bookshelf` is single-mesh for exactly this reason) plus the two reading
+tables, with the runs leaving clear every piece of wall SC-8 and SC-9 have
+already claimed, and a deliberate short bay beside the slot so it reads as a
+gap where a book should be rather than as an object on a wall. A region test
+now holds those spans, since they were worked out by hand: a shelf that
+creeps over the slot hides beat 8's whole payoff, and one that creeps over
+the secret door hides a room.
+
+**The tapestries and costume racks are still unplaced and still owed.** The
+tapestries matter for SC-7, which needs at least three of them or its
+unmarked secret becomes a signpost pointing at itself.
+
+Screenshots changed two things. Walking in, the library read as a black void
+rather than as a dark library: it is by some way the largest room in the
+castle and gets the same single ceiling lamp as a two-metre corridor, so
+`bookshelf` moved from `woodDark` to `woodMid` and the room's light from 1.4
+to 2.4. It remains the lowest number in the map, which is the claim SC-2
+actually makes - "dimmest room in the castle" and "you cannot make out the
+furniture" turned out not to be the same statement.
+
+### SC-7 — the tapestry nook (beat 12), and what beat 13 ran into
+
+Three tapestries now hang in the hub, the one in the south-west corner
+stirs slightly, and three cushions lie on the floor beneath it. Walking into
+that corner fires the existing `DISCOVER castle-tapestry-stair` through the
+same `DiscoveryAction` the card-based castle and the other three regions
+already render, so the authored message, the reward and the already-found
+case have one implementation rather than two.
+
+The sway is the only marker, deliberately: diegetic, about two degrees every
+four seconds so it reads as a draught rather than a signpost, and stopped
+entirely under `prefers-reduced-motion` (the nook stays findable without it,
+being a real place with cushions in it). Everything else about the beat is an
+absence - no reticle label, no toast, no "Things to do here" entry, no quest
+or map pin - and a test asserts each of those routes stays shut. It has been
+mutation-checked: adding the zone to the accessible list fails it. The two
+decoy tapestries are load-bearing, so a test also requires at least two and
+requires that neither hangs inside the nook.
+
+**Beat 13, the calm stop, shipped later, once the thing it needed existed.**
+See "The calm stop" below. The account that follows is kept as the record of
+the gap this phase found.
+
+**Beat 13 was not built at the time, because what it was to be built on did
+not exist.** SC-7's own instruction was to confirm against the existing
+session-time implementation first and fall back to the existing overlay if
+there was none. There is neither.
+
+`ChildProfile.sessionMinutes` is validated, stored, editable on the profile
+form and shown on the parent dashboard - and never read at play time.
+Nothing counts elapsed session time and nothing acts on the limit; the only
+file in `src/` that mentions a timer at all is `ChattyAvatar.tsx`, animating
+a parrot. **MVP scope item 11, "Session time controls and a calm stopping
+point", is therefore half built: the control exists, the stopping point
+never did.** That is a product-level gap this castle phase happened to
+surface rather than a castle-level one.
+
+Building a session clock inside `storykeeperCastleScene.ts` was rejected: it
+would put the app's only session-limit behaviour in one room of one location
+for one age band, which is the drift the whole roadmap is written to prevent,
+and it would make SC-7's own "identical to the card-based route" criterion
+unsatisfiable, there being no card-based behaviour to match. The
+recommendation recorded in the roadmap is to build the calm stop app-wide as
+its own piece of work, then let the castle stage it - the reading nook it
+gestures at is now built and waiting.
+
+### The calm stop — MVP scope item 11, finally whole
+
+`src/features/session/` is new and closes a promise the product has carried
+since the beginning. MVP scope item 11 asks for "session time controls **and
+a calm stopping point**"; only the control existed. `sessionMinutes` was
+validated per age band, stored, editable and displayed, and nothing anywhere
+read it at play time - a parent set twelve minutes and the app did not know.
+
+- `sessionClock.ts` - pure rules, no React and no timers, so they can be
+  tested without a clock.
+- `useSessionClock.ts` - mounted once by `IslandLayout`, which wraps every
+  child-mode screen, so one clock survives walking from the map into an
+  adventure and back.
+- `CalmStop.tsx` - a note beside the play, never a modal over it.
+
+The session start lives in `sessionStorage`, keyed per child. That is a
+deliberate reading: the limit is about *this sitting* rather than a lifetime
+total, it resets when the tab closes, and **nothing about how long a child
+played is written anywhere** - the same restraint CLAUDE.md section 13 asks
+for about logging children.
+
+It suggests and stops there. No countdown - the word "minutes" never reaches
+a child. No streak, score, or come-back-tomorrow: stopping is not a loss and
+playing on is not a win. No lockout: nothing closes, nothing is taken away,
+the next tap works, and a child mid-question is never interrupted. Dismissed
+stays dismissed for the sitting, because a message that returns until it is
+obeyed is a gate wearing a friendly face. Most of `CalmStop.test.tsx` is
+those absences asserted, since each is a dark pattern a well-meaning change
+could add without noticing.
+
+A child whose parent set no limit is never told to stop - the absence of a
+setting is not a default of zero, which is the mutation-checked case.
+
+Storykeeper Castle stages it in the room rather than as a note over it,
+which is storyboard beat 13: Quill closes the book and looks toward the
+cushioned nook beat 12 built. It reads the same clock `IslandLayout` reads,
+never a second one.
+
+**Deliberately not built: a hard stop.** Whether a parent may make the limit
+binding is a separate product decision, and a lockout mid-story for a
+three-year-old is the anxiety-driven design CLAUDE.md section 12 excludes.
+
+### SC-8 — beat 9's evidence, and the hosting question it surfaced
+
+The Great Library's south wall is now the scene chapter 1 describes: the
+door with no handle, **nine gold stars carved above it in two rows of five
+and four**, the three clues each in a different part of the room, and the
+wall they are pinned to.
+
+The stars are the phase. `count-the-stars` asks "5 in the top row and 4 in
+the bottom row, how many altogether?"; in the card build that is a number
+described in a sentence, and a child standing at that wall can now count
+nine objects that are really there. The step, prompt and `correctValue` are
+untouched - only the evidence became physical. They are placed from SC-0's
+authored positions, and the test asserting exactly nine in rows of five and
+four has existed since SC-0, so content and question cannot drift.
+
+Two faults the screenshots caught and no test could: the stars were lying
+flat (`star-carving` is a cone standing on its base - right for a floor
+decal, wrong for every authored use, all of which are wall carvings; they
+are now tipped a quarter turn about x, which is also why they are nine
+placements rather than one instanced run, `InstancePlacement` carrying only
+a y rotation), and the last bookshelf stood in front of two of them so only
+seven could be counted. That bookshelf is SC-9's prop, placed here
+opportunistically, and has been removed - **but SC-9 inherits the
+conflict**: `LAST_BOOKSHELF_SPOT` overlaps the star run on the same wall,
+and the narrative needs it to hide the door while the child needs to count
+the stars above it.
+
+**The clues are placed but not wired as a puzzle**, and the reason matters
+beyond this phase. `secret-door-chapter-1-three-clues` is not a location
+adventure: it is an `ADVENTURE` scene inside `THE_CASTLES_SECRET_DOOR`, a
+`StoryDefinition` played by the Story Engine, with `locationSlug:
+'castle-secret-passage'`. `StoryChapterRunner` renders that scene by
+embedding `AdventureRunner`, which owns its session internally - so the room
+cannot bind `CollectiblePickedUp` to it the way SC-4 bound the portraits,
+because SC-4's trick was precisely that the *view* holds the session.
+
+Driving beat 9 from the room needs the Explorer arc hosted in the region: a
+render-prop seam on `StoryChapterRunner` (about ten lines) plus the castle
+view holding story progress. Running the adventure standalone instead was
+rejected - it would fork `ChildStoryProgress` and let a child replay the
+chapter in the library afterwards.
+
+**The storyboard assumes this and never decides it.** Its age-band table
+gives Explorers beats 1 to 13 in the castle, which can only mean the arc is
+played there, but no ADR says so and no phase budgets for it. SC-9 needs the
+same seam and needs it more, its beat being three rods seated in a wall
+rather than a number typed on a card. It is now drafted as **ADR-019**
+in `docs/DECISIONS.md`, status Proposed and awaiting a decision: an arc may
+have a second entry point but only one record, the Story Engine keeps sole
+ownership of `ChildStoryProgress`, and `StoryChapterRunner` gains an optional
+renderer for its `ADVENTURE` scenes so a region can hold the session the way
+SC-4's castle already holds the tale's.
+
+### ADR-019, and the Explorer arc in the room (SC-8 completed, SC-9 beat 10)
+
+ADR-019 settled what SC-7 and SC-8 both ran into: a story arc may be entered
+from a 3D region as well as from the Adventure Library, there is exactly one
+`ChildStoryProgress` either way, the Story Engine keeps sole ownership of
+it, and `StoryChapterRunner` gains an optional renderer for its `ADVENTURE`
+scenes so a region can hold the session the way SC-4's castle already holds
+the tale's. Three pieces landed on that:
+
+**The seam and the shared gate.** `StoryChapterRunner` takes an optional
+`renderAdventure`, defaulting to the embedded `AdventureRunner` so no
+existing caller changes; five tests hold it to being a rendering seam, with
+a custom renderer's completion routed through the Story Engine rather than
+letting it declare a chapter over. `story/engine/eligibility.ts` is now the
+one place a band gate is decided - `StoryPage`, `library/recommend.ts` and
+the castle all ask it, because reaching a Three.js object must never be a
+way past `supportedAgeBands`.
+
+**The castle as a second entry point.** A `START_STORY` world action carries
+only a story slug; the authored entry is the door with no handle, sharing
+the last bookshelf's zone the way Welcome Harbor's bridge pair share theirs.
+`useStoryProgress` mounts only once a child takes that entry point - it
+starts a row on mount, and every band walks through this castle, so hosting
+it on arrival would have created story progress for children the arc is not
+authored for. Both guards are tested and mutation-checked, and the required
+cross-entry resume test found a real stale-closure bug: the zone handler
+read `secretDoorOpened` without listing it as an effect dependency, so a
+child who had finished the arc was still offered its start.
+
+**Beats 9 and 10.** The three clues are picked up off the library floor and
+pinned to the wall; the three rods are taken off their rack and seated in
+the lock. Both drive their existing `ORDERING` steps. They are the second
+and third instances of beat 6's binding-lectern mechanic and share one
+implementation with it - `createSeatingPuzzle` in the scene,
+`seatedEntitiesToOrder` in the bindings - so all three pick up, seat, lift
+back out and report identically rather than three ways that agree today.
+
+On `CASTLE_SECRET_DOOR_OPENED` the worn carving is revealed as the moon it
+always was, the door swaps to `secret-door-ajar`, the last bookshelf swings
+aside and warm light spills across the library floor, all as state variants
+taken at construction as well as live.
+
+**SC-8's inherited conflict is resolved.** `LAST_BOOKSHELF_SPOT` ran
+straight through two of the nine counting stars. The south wall cannot hold
+the lock, the door, two metres of stars and a 1.8m bookshelf while keeping
+the metre of clear space the counting task needs, so the bookshelf moved to
+the east wall of the same corner and the shelf above it shortened.
+
+**Beat 11's Writing Room is not a 3D region.**
+`THE_CASTLES_SECRET_DOOR_COMPLETE` unlocks exactly the navigation it did
+before, into the existing card region, which exits back to the library and
+never to Welcome Harbor - so SC-9's third exit criterion holds and chapter
+3's `whatIsBehind` branch is untouched. What is missing is the storyboard's
+own small round room, which is a region file, a scene file and a route:
+SC-2-sized work rather than a finishing touch.
+
+### SC-10 — Quill's Picture Story, the castle's Sprouts content
+
+The castle had no Sprouts adventure at all: the tale is PATHFINDER only and
+the secret-door arc EXPLORER only, so a three-year-old could walk in and tap
+six sprites for six sentences. `quills-picture-story` is now authored for
+`SPROUT` - six steps, three of them one decision: who the story is about
+(walk to a portrait), where it happens (walk to a window), and what happened
+first (two plates at the lectern). It ends in the same `FIRST_STORY_TOLD`
+book on the same shelf a Pathfinder's story earns.
+
+Two options where the tale offers three, two beats to order where it offers
+three, labels that are the picture's name and nothing more, three-rung hint
+ladders instead of five. Authored content, not an engine change - every step
+type, transition and validator already existed.
+
+Three region-level things had to stop being tale-specific, each a real
+defect rather than a tidy-up:
+
+- **The gallery is an approach as well as a raycast.** Beat 3 was
+  raycast-only and a three-year-old cannot aim. The portraits have disjoint
+  approach zones now, for the same reason the tower's windows do, and the
+  reticle is hidden for Sprouts - nothing in this castle needs aiming.
+- **Bindings are template-scoped.** The fox portrait means `hero-fox` in the
+  tale and `picture-fox` here; an unqualified lookup returned whichever was
+  authored first, which would have submitted an option id the open step had
+  never heard of. Every lookup names its adventure, and both resolutions are
+  asserted.
+- **The room shows only the pieces the adventure uses.** The tale seats
+  three plates, the picture story two, out of the same three. The spare
+  leaves the table: a Sprout who filled a socket with a piece that could
+  never be part of an answer would be stuck with no way to understand why.
+
+The "answerable by walking there" set is now derived from the bindings
+rather than listed by step id. The hardcoded list held the tale's ids, which
+made the whole gallery inert for Sprouts - caught by a test, not by reading.
+
+ADR-008's Sprouts gate is untouched: the card-based castle remains every
+band's default and the 3D region is still offered as an optional preview, so
+this adds content without retiring a route.
+
+**Not verified: the five-to-eight-minute band target.** Six steps with three
+decisions is structurally well inside it and probably under it, but session
+length is something to watch a child do rather than infer from a step count.
+
+### SC-11 — the gate, which does not pass
+
+SC-11 is a gate rather than a feature: nothing in SC-2 to SC-10 may claim
+the castle is finished until it passes. **It does not pass.** One of its
+three deliverables is done and the other two need a child and a tablet, so
+**the card-based castle remains every band's route and nothing has been
+retired.**
+
+**Done - the HUD-equivalence audit, and it is a test rather than a
+paragraph.** `castleHudEquivalence.test.tsx` renders the real
+`AdventureStepCard` for every step the castle stages as a world object, and
+asserts that every option a child could walk to is on the card too, in the
+same words, with a control to commit it - and that every graded step of
+every castle adventure is answerable from the card alone. That is the
+standing constraint the whole roadmap inherits: walking, looking and aiming
+are never the only way to a learning objective. A prose audit would have been
+true the day it was written; this one fails the day someone binds a step the
+card cannot answer, which is mutation-checked.
+
+**Not done - the Sprouts playtest.** It has not run and no code substitutes
+for it. SC-10 raised the stakes: there is now content authored *for* Sprouts
+in this castle, so the question has moved from "can a three-year-old walk to
+Quill" to "can a three-year-old complete a learning objective this way".
+
+**Not done - the profiling pass.** Nothing has ever run on a tablet or
+Chromebook. Every frame in this entire roadmap was rendered by SwiftShader
+in a container, which says nothing about a real device. The Great Library is
+now the densest room it has ever been and is the one to measure.
+
+Runbooks for both are in `docs/PILOT_READINESS.md` section 5b. No LOD was
+added, deliberately - `bookshelf` is one instanced draw call, and adding a
+level of detail against no measurement would be optimising a number nobody
+has looked at. No standing constraint was relaxed, so no ADR is owed.
+
+### Still not verified
+
+The cross-entry resume tests exercise the castle against a mocked Story
+Engine: they prove it asks for the same progress and opens the chapter that
+progress is on, but a genuine round trip through a live backend is not
+something this environment can run, the same constraint every phase has had.
+
+Everything a still image cannot settle: walking, collision, whether the
+approach zones feel right to enter, whether Quill's `Point` gesture reads
+as "go that way", frame rate on a real tablet, and the whole flow against a
+live backend (auth, session writes, checkpoint persistence). The harness
+mounts the scene alone, so nothing above exercises `useAdventureSession`,
+AppSync, or the HUD against real data.
+
+Specific to SC-5: **the third plate's submit has not been driven in a
+browser.** Two seats in a row work and are in the screenshots; the
+harness's aim then missed the last plate left on the table, and chasing
+that further was judged a poor use of time given the path is covered by
+tests on both sides of the boundary - `castleBindingLectern.test.ts` on
+turning an arrangement into an answer, and the view test driving a real
+`BuildActionRequested` through to `submitAnswer` and back through the
+wrong-order reset.
+
+
+## Storykeeper Castle re-scoped — SC-0 to SC-10 do not satisfy the upgrade roadmap
+
+`docs/regions/storykeeper_castle.md` is a new upgrade roadmap for
+Storykeeper Castle (its own Phases 0 to 14: a Great Storybook premise, nine
+rooms, an AI Castle Director, an ambient event system, artifacts and Lost
+Story Pages, castle progression and rank, and Amazon Polly voice with S3
+MP3 caching). Its section 1 names the result of the SC-0 to SC-10 build as
+the thing to fix - "transform Storykeeper Castle from a mostly static 3D
+walkthrough into the narrative heart of Learning Adventure Island."
+
+That makes it a **re-scope, not a continuation**, and the SC roadmap's
+status should be read accordingly:
+`docs/regions/storykeeper_castle_reconciliation.md` maps the built work
+onto the upgrade roadmap's 14 phases, with the measurements behind each
+claim. The headline results:
+
+- **0 phases Done, 8 Partial, 7 Absent.** Against the upgrade roadmap's
+  own section 44 Definition of Done, 5 of 14 criteria pass, 4 are partial,
+  5 fail. Against its section 43 first milestone, 2 of 15 items exist.
+- **The blocking problem is art, not systems.** All 108 `.gltf` files in
+  `public/models/` are generated from primitives; **0 have a texture or
+  image reference**; 279 meshes across the whole pack, 2.6 per asset; 7
+  have animation clips. Keeper Quill is five untextured boxes. That is a
+  legible grey-box, which is what `scripts/generate-world-assets.ts` says
+  it is, and it does not meet the upgrade roadmap's section 4 art
+  direction at any level of polish.
+- **The two floor plans share one room.** The SC build's eight rooms and
+  the upgrade roadmap's nine overlap only at the Grand Library. The Great
+  Storybook premise and the five-rank ladder exist nowhere in the codebase.
+- **Nothing in this project makes a sound.** No Polly, no S3 audio, no
+  MP3, no `AudioListener`, no `speechSynthesis`, no subtitles. Six sections
+  of the upgrade roadmap (17 to 22) have zero corresponding code.
+
+**What survives the re-scope is the engineering, not the content.** The
+engine-untouched constraint and `castleChoiceBindings.ts`; HUD equivalence
+as an executable test; ADR-019's single story-progress record; derived wall
+colliders; the `createSeatingPuzzle` factoring; `src/features/npc/` and
+`ChildNpcState`, which are closer to the upgrade roadmap's sections 13 and
+14 than any other system it describes; and the whole learning stack, whose
+AI-proposes-engine-validates rule is section 12 restated. A re-scope is
+affordable precisely because ten phases of 3D work changed no adventure
+step and no authored text.
+
+**The third-party asset decision of 2026-08-28 is re-opened by its own
+terms.** It set the trigger "when to revisit: after SC-6," and SC-6 through
+SC-10 have shipped. Its reasoning still holds for gameplay-bearing geometry
+- a door with no handle, a shelf slot empty until `FIRST_STORY_TOLD`, three
+rods whose lengths are the graded answer, nine stars in rows of five and
+four; none of that is purchasable because the geometry is the puzzle - and
+that half should be restated rather than dropped. What changed is the bar:
+the old decision weighed "what looks thin," and the upgrade roadmap weighs
+"showable to a child."
+
+The expensive prerequisite is named in that decision already and has not
+been built: **a textured-asset test path**. Today `assetLoader.test.ts` runs
+real `GLTFLoader.load()` calls inside jsdom precisely because no asset has a
+UV accessor or an image reference. Whatever replaces that has to exist
+before the first textured file lands.
+
+**Now drafted as ADR-020** ("Where the castle's art comes from", Status:
+Proposed). Drafting it produced one measurement that reframes the question:
+of the castle's 60 assets, roughly **44 are gameplay-bearing and only 16 are
+importable scenery** - 22 are state-variant pairs needing identical
+vertices, the three rods are graded by length, the nine stars are counted,
+and six clue and story-plate assets are named directly in
+`castleChoiceBindings.ts`. So the 2026-08-28 deferral's own proposed remedy,
+"import scenery and keep gameplay geometry generated," cannot reach the
+upgrade roadmap's bar: swap all 16 and three quarters of what a child looks
+at is still untextured primitives, including every object they interact
+with. ADR-020 therefore proposes giving the *generated* pipeline a material
+story first - starting with vertex colours, which lift all 60 assets and
+leave the jsdom test strategy untouched - and treats a scenery import as a
+second, optional step. It also records the honest limit: better-shaded box
+assemblies are still box assemblies, so the art-*sourcing* question stays
+open as a budget and product call.
+
+**Recommended next step, not authorised:** decide the asset question as its
+own ADR with the import costs priced (scale normalisation, ground-pivot
+re-pivoting, the texture test path, a licence ledger); if yes, build the
+test path first, then import scenery into one room and prove the manifest
+swap is a one-line change with no game-logic edit; then re-cost the
+remaining phases against a room that actually looks like a castle. Starting
+at the upgrade roadmap's Phase 0 schema work would build a Castle Director
+for a castle nobody can look at.
+
+**SC-11's two owed items should run regardless** - the Sprouts
+accessibility playtest and a profiling pass on real hardware - because they
+are cheap and they gate everything. Nothing is retired for any band, and
+under a re-scope nothing should be.
+
+Five decisions are recorded as blocked on a human in the reconciliation's
+section 8: the asset-kit question; which castle is being built; whether to
+adopt the Great Storybook premise (which would reframe SC-10's Sprouts
+content); Amazon Polly, whose consent half `docs/PRIVACY_AND_SAFETY_REVIEW.md`
+has not been asked and which "Decisions pending" already lists as open; and
+whether SC-11's retirement gate still means anything against a castle whose
+content layer is being replaced.
 
 ## Completed
 
@@ -6746,6 +7924,890 @@ changed or broken.
   still protected by going through the tested client wrappers; only a
   caller crafting a raw request outside this app's own code could exploit
   it, and there is no real user base yet for that to matter against.
+
+## Clockwork Harbor — Milestone 1 (Foundation) and the first walkable slice
+
+Source roadmap: `docs/regions/clockwork.md`. This is its "Recommended
+Implementation Order" Milestone 1 (Region, World state, Quest state, Learning
+Profile, Challenge engine) plus enough of Milestone 2 (Playable Harbor) that
+the region can actually be walked into rather than only reasoned about.
+
+### What shipped
+
+**Region registration (roadmap section 6).** `clockwork-harbor` is an
+`ISLAND_LOCATIONS` entry on the home island, not a second world: section 1
+calls it "a major explorable region within Learning Adventure Island", which
+is the same shape Storykeeper Castle already has. It is claimed by
+`HOME_ISLAND_PACK`, so `packs.test.ts`'s "every location belongs to exactly
+one world" assertion covers it. Five checkpoints are authored in
+`src/features/discovery/checkpoints.ts` (gate, docks, lighthouse door,
+lighthouse machine room, marketplace), with `harbor-entrance` first so a
+first-time visitor spawns at the gate.
+
+It is deliberately **ungated**. Section 6 names a "Required progression"
+field but never says what would gate the harbor, and section 31's definition
+of done opens with "enter and freely explore" — so inventing an
+`unlockRequirement` would have authored a lock the roadmap did not ask for.
+
+**Harbor world state and region progress (section 6)** —
+`src/features/clockwork-harbor/`. Both are **derived from existing
+`WorldChange` rows**, not stored in a new model. The roadmap writes them as
+JSON documents to persist, but this codebase already records durable "this
+happened" facts as `WorldChange` keyed by `changeKey`, which the parent
+dashboard, quest conditions, and `isLocationUnlocked` all already read. A
+second store would have given the harbor a private history none of those
+could see, and two sources of truth for "has this child fixed the
+lighthouse?". Harbor change keys carry a `CLOCKWORK_` prefix because they
+share one flat per-child namespace with every other region.
+
+`companionCogUnlocked` is derived from `marketMysterySolved` rather than
+recorded separately, since section 11 sets them in the same completion block
+— so there is no history in which a child solved the mystery but did not get
+Cog. `MASTERED` requires the finale *and* all twelve Golden Gears, so a child
+who finished the story still has somewhere to go (section 31: "return after
+completing the story and find new activities").
+
+**Learning Profile (section 7)** — `src/features/learning-profile/`. Placed
+outside the region folder because section 32 asks that it become shared
+island infrastructure. Its goal is section 7's one-liner: "Separate
+educational difficulty from age."
+
+This is a **read-time aggregate over `SkillProgress`**, not a parallel store.
+The island already counts exposures and independent successes per skill via
+`upsertSkillProgress`, written from every adventure step anywhere on the
+island and already interpreted by the Mastery Engine. Persisting a second set
+of counters would mean two systems counting the same answers, and a
+per-domain store would be blind to everything a child did before Clockwork
+Harbor existed — a child who had been practicing counting in Pirate Builder
+Bay for a month would have arrived at the harbor as a beginner. What is
+genuinely new is the coarse six-domain grouping above the curriculum's
+fine-grained skills, and the 1-6 difficulty scale a challenge can be authored
+against (`SkillStatus` answers "how well is this known", which is a different
+question from "how hard should the next puzzle be").
+
+**Adaptive Challenge Engine (section 8)** — originally
+`src/features/challenges/`, **since reconciled away**; see "Clockwork Harbor —
+reconciliation and Chapter One" below. It duplicated grading, hints and
+transitions that the Adventure Engine had owned since Phase 3. What survives is
+the selection half, in `src/features/adaptive/`.
+
+Section 8's rule that "failure should NOT immediately reduce skill level" is
+enforced structurally rather than by a special case: `selectChallengeLevel`
+only reads cumulative evidence, so one wrong answer moves successes not at
+all. Difficulty relief comes from the ladder (`OFFER_SIMPLER`), which is
+scoped to the challenge in front of the child and forgotten afterward, rather
+than from a demotion that would follow them around.
+
+**The walkable region (section 9's Phase 3 list).**
+`clockworkHarborRegion.ts` holds pure geometry (numbers, no `three` import,
+unit-tested); `clockworkHarborScene.ts` is the only file that turns it into
+`three` objects, matching the split every other region uses. Built: harbor
+entrance, dock deck over water, lighthouse exterior *and* interior with the
+machine room, a four-stall marketplace, the clock tower, the Harbor Master
+and Professor Ticktock, three Golden Gears, and an ambient gull. Route:
+`/island/:childId/world/clockwork-harbor`, code-split like every other world
+page.
+
+The districts section 5 places past the drawbridge (Inventor District,
+Menagerie, Workshop, tunnels, Heart of the Harbor) are **absent rather than
+stubbed** — an empty room a child can walk into is a worse promise than a gate
+that has not opened yet.
+
+Section 2.3's persistent world change is wired end to end for chapter one:
+`lighthouseFixed` reaches the scene as an option (the World Engine never reads
+World State itself, per ADR-008), and decides the sky, the ambient light, the
+lamp's emissive, whether the gear turns, and whether the harbor gate is closed
+and colliding. A returning child sees a lit harbor on the first frame rather
+than a flicker from broken to fixed.
+
+### Tests
+
+79 new tests, all passing, and the full suite is green at 1953. Beyond the
+engine unit tests, the region geometry tests assert the invariants that keep a
+child from being stranded: no checkpoint inside a collider or off the plot, no
+NPC stuck in geometry, the dock deck walkable end to end, open water solid, and
+no two district trigger volumes overlapping. One of these caught a real bug
+during the build — the "lighthouse door" checkpoint was authored *inside* the
+machine room, so a returning child would have spawned past the doorway; it is
+now on the doorstep at x=-11, clear of the interior.
+
+### Known limitations (Clockwork Harbor, this milestone)
+
+- **No chapter-one challenge content is authored yet.** The engine, the
+  ladder, and the lighthouse mechanism's interaction all exist and are tested,
+  but no `Challenge` variants are written, so interacting with the machine
+  currently shows an authored line pointing the child at the Harbor Master
+  rather than starting the puzzle. Nothing about the lighthouse repair is
+  reachable end to end yet, and `CLOCKWORK_LIGHTHOUSE_FIXED` is never
+  recorded by gameplay. This is the next increment, not a gap in what shipped.
+- **Three of the six learning domains have no curriculum skills.**
+  `reading`, `vocabulary`, and `spatial` are listed in `LEARNING_DOMAINS` and
+  tested as intentionally unmapped (`DOMAINS_WITHOUT_CURRICULUM_SKILLS`),
+  because `SKILLS` currently authors ten skills across math and early science
+  only. They report level 1 with zero confidence, which is an absence of data,
+  not a low score — `hasEvidence` lets callers tell those apart, and
+  `selectChallengeLevel` refuses to scale an unevidenced domain. Authoring
+  reading/vocabulary/spatial skills is a prerequisite for section 11's Market
+  Mystery and section 13's spatial creature puzzles.
+- **Machinery and the cast are placeholder primitives.** Section 21's
+  mechanical asset inventory (gears, valves, pipes, generators) and its own
+  characters do not exist in `assets/manifest.ts`, so the mechanism, lamp,
+  gate, and clock are code-drawn from `three` primitives, and both NPCs reuse
+  `npc-pip`. None of them carries game state — the ids come from the region
+  module — so swapping in real GLBs changes no logic. Same interim status
+  `docs/IMPLEMENTATION_STATUS.md` already records for Welcome Harbor's gull.
+- **NPC dialogue is the existing generic `NpcConversation`.** The Harbor
+  Master and Professor Ticktock have no authored character definitions yet, so
+  section 15's Socratic hint progression and the Polly/S3 voice pipeline
+  (sections 15 and 28) are untouched.
+- **No AI, by design and by sequencing.** CLAUDE.md section 16 is explicit
+  that the core must be playable deterministically first. Everything shipped
+  here is pure and testable without a model.
+- **`ChildCastleProgress`-style per-region querying is not needed yet.** The
+  derived projection reads a child's full `WorldChange` list, which is one
+  list call the view already makes. If the harbor's history grows large enough
+  that this matters, the fix is a location-filtered query
+  (`listWorldChanges`), not a new model.
+- **No E2E coverage.** The region has unit tests but no Playwright journey;
+  the existing `e2e/` suite does not cover it.
+
+## Parent dashboard — child switcher and flat region/section lists
+
+### What shipped
+
+The parent dashboard's page-filling list of child cards is gone. Choosing a
+child is now a header dropdown (`ChildSwitcher`), sitting beside the account
+menu it copies its behavior from: click or Escape outside closes it, the
+current child is `aria-checked` on a `menuitemradio`, and "Add child" is the
+last item until `MAX_CHILD_PROFILES` is reached. This is a display control on a
+parent-authenticated page, not child sign-in; per-child sign-in is still ahead.
+
+Below it the dashboard is two flat lists, both deliberately complete rather
+than nested:
+
+- **Island places.** Every authored region on every world, from
+  `listAllRegions` (`src/features/island/regionOverview.ts`), in authored
+  order. Unlike the child-facing map, secret places are *not* filtered out —
+  they show as "Not discovered yet" and are not links until the selected
+  child's `WorldChange` keys satisfy the `unlockRequirement`. A parent-only
+  view, so it spoils nothing for the child.
+- **Dashboard sections.** Every section of the parent dashboard, from
+  `listDashboardSections` (`src/features/parent-dashboard/dashboardSections.ts`).
+  The eleven sections that currently live inside `ChildDashboard` link to
+  their anchors; story keepsakes, profile details, and play-together link to
+  the pages they already have. The plan is to separate these into pages of
+  their own, which is why the list is data rather than hand-written links.
+
+`ChildDashboard` grew the matching `id`s (from the shared
+`CHILD_DASHBOARD_SECTION_IDS`, so the anchor and the markup cannot drift) plus
+`tabIndex={-1}` and an effect that scrolls and focuses the target once loading
+finishes — the browser's own fragment scroll finds nothing on arrival, because
+the sections do not exist until the data does.
+
+`ChildProfileList` was replaced by `ChildProfileSummary`: the same per-card
+actions (Enter island, Edit, and a `ParentGate`-protected
+deactivate/reactivate), shown once for the child in view.
+
+### Tests
+
+20 new tests across `ParentDashboard`, `ChildSwitcher`, `ChildProfileSummary`,
+`regionOverview`, and `dashboardSections`; the deleted `ChildProfileList`
+suite's two behavioral assertions were carried over rather than dropped. Full
+suite green at 1969, `tsc --noEmit` clean, `oxlint` clean.
+
+### Known limitations (parent dashboard lists)
+
+- **The two lists are a holding pattern, on purpose.** The user asked for all
+  regions and all sections as flat lists "for now", ahead of per-child login
+  and of splitting the dashboard sections into their own routes. Neither list
+  is grouped, filtered, or ranked, and neither shows per-region progress —
+  "Island places" reports only unlocked/not-discovered and which world a place
+  belongs to.
+- **The selected child is not remembered.** Switching children is component
+  state; a reload returns to the first profile. Deliberate until child sign-in
+  decides where that belongs.
+- **Anchor links land on a section, not a page.** Until the sections are split
+  out, following one loads the whole `ChildDashboard` and scrolls. A section
+  that renders conditionally (Exploring, suggestions, focus areas, mastery)
+  has nothing to scroll to when that child has no data for it, and the link
+  quietly lands at the top of the page instead.
+- **No E2E coverage** of the switcher or the lists; the change is unit-tested
+  only.
+
+
+## Clockwork Harbor — reconciliation and Chapter One
+
+### The reconciliation
+
+The Adaptive Challenge Engine shipped in the previous entry duplicated the
+Adventure Engine. `PresentationSpec` already covered number/choice/ordering/
+matching prompts and their answers, `validateStepAnswer` already graded them,
+`HintPolicy` plus `getHintText` already ran a hint ladder, `getNextStepId`
+already handled wrong answers, and `FallbackPresentation` already guaranteed
+authored copy — all since Phase 3. Running a second implementation would have
+meant two places deciding whether a child was right.
+
+This was an inconsistency in the previous entry's own reasoning, not a
+considered trade: the Learning Profile was deliberately derived from the
+Mastery Engine rather than built beside it, and the same check simply was not
+applied here.
+
+`src/features/challenges/` is gone. `src/features/adaptive/` keeps the half the
+Adventure Engine genuinely lacked — **which authored variant this child should
+be served**, since that engine selects by `ageBands` and section 2.2 wants
+difficulty to follow demonstrated skill. Two functions:
+`selectDifficultyLevel` (unchanged rules, renamed) and
+`resolveAdventureForSkillLevel`.
+
+`AdventureDefinition` gained optional `skillDomain`/`skillLevel`. Absent on
+every adventure authored before this, so nothing else changes.
+
+Two invariants moved rather than being relaxed. "Never two adventures for the
+same band at one location" existed because `resolveAdventureForAgeBand` took
+the first match, making the choice an accident of authoring order. Level
+indexing removes that ambiguity, so the rule is now "never *ambiguous*": a
+group sharing a band must be fully level-indexed with distinct levels. And
+`resolveAdventureForAgeBand` itself now sorts by level and takes the gentlest
+match, so even without a profile its answer is deterministic rather than
+order-dependent.
+
+`findNpc` moved from `islandNpcs.ts` to the content index over a new
+`ALL_NPCS`. It had searched one region's cast; the harbor's cast is authored
+separately, and a lookup that could not see it would have let
+`NpcConversation` open a panel for the Harbor Master and find nobody home. Two
+tests (`islandQuests.test.ts`, `packs.test.ts`) were checking authored content
+against `ISLAND_NPCS` while asserting over every world's quests and packs —
+the same mismatch their own Phase 29 comments describe — and now use
+`ALL_NPCS`.
+
+### Chapter One: The Dark Lighthouse
+
+Three variants of one story beat (`docs/regions/clockwork.md` section 10), not
+three stories: same title, same location, and all three record the same
+`CLOCKWORK_LIGHTHOUSE_FIXED`, so the harbor grows the same way whichever a
+child plays. Level 1 counts the empty slots; level 3 works out how many
+crystals cover nine units at three each; level 5 infers the shortfall from a
+gauge first, then groups it.
+
+The roadmap's own example uses multiplication. The curriculum authors no
+multiplication skill, and an `objectiveIds` entry naming a skill that does not
+exist would write evidence against nothing — so the same "how many cells?"
+shape is expressed as repeated addition and as a two-step subtract-then-group
+problem. This is recorded under known gaps below.
+
+The Harbor Master and Professor Ticktock now have real NPC definitions. They
+had been standing in the 3D region since the first commit with nothing behind
+them, so the view could open a conversation panel for either and find nothing
+to say. The Harbor Master offers `light-the-harbor`, an ordinary
+`QuestDefinition` beside the island's existing four (section 6: the harbor
+"must use the shared LAI quest system"). Its `BUILD` objective watches the
+world change rather than one variant's slug, so a child served any variant can
+finish it, and a branch lets a child who lit the lighthouse before ever
+speaking to the Harbor Master skip ahead rather than redo it.
+
+In the 3D region, using the lighthouse machine now launches the variant chosen
+from the child's Learning Profile. The selection is resolved on load, not at
+the moment of interaction, so pressing E never waits on a network read. It is
+also offered as a plain button in "Things to do here", so walking is never the
+only route to it.
+
+### Tests
+
+15 new tests for the chapter and 11 for the reconciled selector; full suite
+green at 1973.
+
+### Known limitations (Chapter One)
+
+- **The adventure opens on its own page, not at the machine.** Using the
+  mechanism navigates to the existing adventure route, which is Pirate Builder
+  Bay's proven pattern. Storykeeper Castle runs `useAdventureSession` inline
+  inside its 3D view, and that is what the harbor eventually wants — the puzzle
+  happening at the machine rather than on a separate screen. Deferred
+  deliberately to keep this increment reviewable.
+- **The curriculum has no multiplication skill**, so level 5 is a two-step
+  problem within ten rather than the roadmap's own 56-units-at-8-each example.
+  Authoring one would let the numbers grow with no change beyond content.
+- **Only three of six levels are authored.** Levels 2, 4 and 6 have no
+  variant; `resolveAdventureForSkillLevel` serves the nearest, preferring the
+  easier on a tie.
+- **Professor Ticktock offers no quest and gives no hints.** Section 15's
+  Socratic hint progression is not built; he stays in character and points at
+  what is happening.
+- **The lighthouse repair has not been played end to end against a live
+  backend.** It is unit-tested and typechecks, but no child has run the whole
+  loop through a real `AdventureSession` to a written `WorldChange`.
+- **No E2E coverage**, and the 3D verification was done against a harness that
+  bypasses auth, not the real route.
+
+## The Dragon's Sanctuary — 3D region foundation and the first walkable slice
+
+Source roadmap: `docs/regions/dragons-sanctuary-roadmap.md`, read through
+`docs/regions/dragons-sanctuary-reconciliation.md`. This is its Phase 1
+("Minimum Explorable Sanctuary") plus the exploration half of Phase 2
+("Rekindle the Forge"): a child can enter the sanctuary, cross the valley,
+meet Ember, hear why the forge went out, find all three fire runes, walk up to
+both sealed gates, and collect dragon scales. What is not here is the graded
+challenge at the hearth; see the limitations below.
+
+### The decision this entry is built on
+
+**ADR-021: Phaser 2D views are phased out; new regions are authored in
+Three.js only.** ADR-008 had left the two renderers coexisting until a
+Three.js slice reached parity. Six regions later, that condition is met, and
+the direction is now explicit. The sanctuary is the first region built under
+it and authors no tilemap.
+
+The reconciliation document's section 2 originally recommended the Storykeeper
+Castle pattern (a 2D view and a 3D view side by side, on separate routes).
+That recommendation is withdrawn in the same document, and
+`DragonsSanctuaryWorldPage` now renders the first-person view directly — no
+`3D`-suffixed sibling route, because there is no second view to disambiguate
+from.
+
+### What shipped
+
+**Region geometry** — `src/features/island-map/three/dragonsSanctuaryRegion.ts`.
+Pure numbers, no `three` import, the same split `clockworkHarborRegion.ts`
+uses. Phase 1's eight areas as disjoint trigger volumes (gate, central valley,
+Ember's roost, Keeper Lodge, forge, crystal cavern gate, hatchery, sky cliff
+lookout), boundary walls, two enterable buildings with a real gap for a
+doorway, roost stones, valley boulders, two sealed gates, three fire runes,
+three hearth sockets, and three dragon scales.
+
+One deliberate departure from `clockworkHarborScene.ts`: building wall
+colliders are **derived in the region module** (`buildingWallColliders`) rather
+than recomputed in the scene. Clockwork Harbor computes its lighthouse wall
+boxes inside the scene file, so the walls a child bumps into are covered by no
+unit test. Deriving them means the "no checkpoint is inside a collider" and
+"the doorway is really open" invariants test the same geometry the controller
+uses.
+
+**Checkpoints** — seven in `src/features/discovery/checkpoints.ts`, per ADR-008
+(the World Engine depends downward on World State, never the reverse).
+`gate` is first so a first-time visitor arrives through the arch;
+`forge-hearth` sits inside the forge, following `clockwork-harbor:
+lighthouse-lamp`, so a child who left mid-quest returns to the work rather than
+to the door. None is authored at a sealed gate — a checkpoint is a place a
+child has stood.
+
+**Region state** — `src/features/dragons-sanctuary/`. Phase 0.3 proposes six
+new persistence models; none is created. The sanctuary's state is a
+**projection** of existing `WorldChange` rows, the same answer Clockwork
+Harbor reached one milestone earlier and the one ADR-005 implies:
+`deriveDragonsSanctuaryState` takes change keys and returns forge status,
+runes found, scales found, unlocks, and Phase 9's restoration stage.
+`deriveRestorationStage` deliberately returns nothing above
+`HATCHERY_RESTORED`, because Phase 4 has not authored the quests that would
+earn the top two rungs and reporting a stage the sanctuary cannot render would
+be worse than stopping honestly.
+
+**The scene** — `dragonsSanctuaryScene.ts`. First-person, on the existing kit
+(`sceneKit`, `firstPersonController`, `pointerControls`, `sandboxTriggers`,
+`worldEngineEvents`). It renders state and never decides it: `forgeLit` and
+`foundRuneIds` arrive as options. A found rune is drawn in its socket and not
+in the valley, so a returning child sees their own progress in the room rather
+than in a counter.
+
+**Ember** — extended in place in `npc/content/islandNpcs.ts`, not re-authored.
+A separate `dragonsSanctuaryNpcs.ts` was written and then deleted: `ember-
+dragon` has existed since the Ember Mountain story ended here, and her opening
+line ("You are the one who helped me. I remember.") already resolves the story
+collision the reconciliation document's section 6.3 flagged. She is not a
+stranger asking a favour; she is someone the child has already helped, showing
+them what she cannot fix alone. Two Embers would have given the child a dragon
+who had forgotten them.
+
+**The view** — `three/DragonsSanctuaryWorldView.tsx`, parallel to
+`ClockworkHarborWorldView.tsx`. Its "Things to do here" list is not a
+convenience: ADR-021 removes one of the two non-first-person routes ADR-008
+was relying on while the Sprouts playtest is unrun, so the card-based hub and
+these buttons are now the only one. Four tests assert it.
+
+### Three faults the tests caught before anyone looked at the region
+
+Worth recording, because all three were invisible to a reading of the numbers:
+
+1. **Two checkpoints sat in a 1-meter gap between zones**, so the HUD could
+   not name where the child had spawned.
+2. **The ember rune was 10 meters from the sky rune**, which collapsed two of
+   the child's three searches into one walk.
+3. **Both sealed gates were narrower than the areas they sealed** (8 meters
+   across a 12-meter zone, on a plot 26 wide), so a child could have strolled
+   round the side of a door the region had just told them was shut. That is
+   worse than having no door: it teaches a child that the sanctuary's promises
+   are decorative. Gates now span from the valley side to the plot wall.
+
+### Tests
+
+- `three/dragonsSanctuaryRegion.test.ts` — 49 tests: region identity and spawn
+  resolution, standable checkpoints, enterable buildings and open doorways,
+  disjoint labelled areas, sealed gates that are solid and approachable and
+  never phrased as a refusal, Ember's placement, rune and socket placement,
+  collectibles, and a crossable valley.
+- `dragons-sanctuary/state.test.ts` — 14 tests, including that the state
+  vocabulary names exactly the props the region places, that every change key
+  is region-prefixed, and that the restoration ladder never moves backward.
+- `three/DragonsSanctuaryWorldView.test.tsx` — 16 tests, including the
+  non-first-person route assertions.
+- Full suite: **202 files, 2065 tests, all passing.** Typecheck clean. Lint
+  reports no errors; the one warning on the new view (`prefer-tag-over-role`)
+  is the same one every other world view carries.
+
+`packs.test.ts`'s "leaves no authored content unclaimed by any world"
+invariant caught the duplicate Ember, which is how the second definition was
+found and removed.
+
+### Known limitations (Dragon's Sanctuary, this slice)
+
+- **The hearth challenge is not authored.** No `AdventureDefinition` variants
+  exist for the sanctuary, so interacting with the hearth shows an authored
+  line pointing the child at Ember rather than starting the puzzle.
+  `DRAGONS_SANCTUARY_FORGE_LIT` is never recorded by gameplay, and Phase 2 is
+  therefore not reachable end to end. Same interim state Clockwork Harbor's
+  lighthouse shipped in; this is the next increment.
+- **No quest.** `rekindle-the-forge` is not in `quests/content/`, so Ember's
+  `questOffers` is empty and the HUD quest cue never names it. Her dialogue
+  already carries the story it will hang on.
+- **Rune progress is recorded but not yet gated on.** Finding all three sets
+  `hasAllFireRunes`, and nothing consumes it, because the thing it would gate
+  is the unauthored challenge. Ember's `allRunesFound` dialogue node is
+  likewise authored but unreachable until something sets that memory flag.
+- **The 2D artefacts are superseded but not deleted.**
+  `island-map/dragonsSanctuaryTilemap.ts`, `dragonsSanctuaryZones.ts`,
+  `dragonsSanctuaryDecor.ts`, and the 2D `DragonsSanctuaryWorldView.tsx` are
+  no longer referenced by any route. ADR-021 sequences removal after the 3D
+  region is verified in the running app, which has not happened yet, so they
+  stay for now. Nothing new should be authored into them.
+- **Everything distinctive is a primitive placeholder.** The roadmap's asset
+  list (sanctuary gate, forge, roosts, lodge, cliffs, crystals, rune stones,
+  and a rigged Ember with thirteen animation clips) does not exist in
+  `assets/manifest.ts`. Ember is a cone, two spheres and two boxes, with
+  `npc-pip` standing beside her for a readable silhouette. None of it carries
+  game state — the ids come from the region module — so swapping in real art
+  changes no logic. ADR-020 is the open question, and this region raises its
+  stakes rather than resolving it.
+- **No AI, by design and by sequencing.** CLAUDE.md section 16 is explicit
+  that the core must be playable deterministically first. Phase 5's contextual
+  dragon dialogue is untouched, and Polly remains a pending provider decision
+  (see "Decisions pending" below).
+- **Two ADRs the roadmap needs are still unwritten**: that age band governs
+  presentation while skill level governs difficulty (the reconciliation
+  document's section 6.1 — this slice does not depend on it, but Phase 3
+  does), and dragon growth state for Phase 6's egg lifecycle.
+- **The Sprouts accessibility playtest is now more load-bearing, not less.**
+  ADR-021 leaves one non-first-person route rather than two. Runbook in
+  `docs/PILOT_READINESS.md` section 5.
+- **No E2E coverage.** The region has unit tests but no Playwright journey.
+
+
+## Storykeeper Castle — first imported art (floors and ceiling)
+
+The first third-party assets on the island, and the first proof that
+ADR-020's central claim holds: **the art can be replaced without touching
+game logic.** Two of the Great Library's four structural pieces now come
+from a kit instead of the generator.
+
+### What shipped
+
+- **Two imported assets**, from KayKit Dungeon Remastered 1.0 (CC0):
+  `kaykit-floor-tile-large.glb` and `kaykit-floor-wood-large-dark.glb` in
+  `public/models/`, registered under the existing manifest ids
+  `ground-tile-stone` and `ceiling-tile`. A stone floor and a dark wood
+  ceiling, so the two surfaces still read as different materials the way the
+  generated pair's colours did.
+- **`docs/ASSET_LICENCES.md`**, the licence ledger ADR-020 says is owed the
+  moment a third-party file lands, plus the checklist for adding another.
+- **The texture test path**, ADR-020's named prerequisite, built because the
+  asset needing it arrived. `stubImageDecoding()` in `src/test/setup.ts`.
+- **`.glb` support** in the test fetch polyfill (binary, never decoded as
+  utf-8) and in `castleKit.test.ts`'s `readGltf` (JSON chunk extraction).
+- **An import contract**, `describe('imported castle kit')` in
+  `castleKit.test.ts`: grid fit, x/z centring, slab thickness, single-mesh,
+  embedded rather than external texture, no required glTF extension.
+
+### Why these two went first
+
+They need **no normalisation at all**. Measured before download: both are
+4x4m slabs centred on x/z, which is already `SLAB_SIZE_METERS`; both are
+single-mesh with one material, so both still go through
+`createInstancedMeshFromAsset`; both have a single root node with an identity
+transform. The entire code change is two manifest urls and two y offsets
+(`FLOOR_SLAB_TOP_OFFSET`, `CEILING_SLAB_BOTTOM_OFFSET`) for slab thickness,
+since these are solid slabs spanning y `[-0.1, +0.05]` where the generated
+pieces were flat planes at y=0.
+
+Being solid is also why the ceiling needs no flip: its underside is a real
+face, where the generated `ceiling-tile` was an upward-facing plane relying
+on `doubleSided`.
+
+### The thing worth knowing about the texture path
+
+Without the stubs, a textured `.glb` does not fail in jsdom - **it hangs.**
+`GLTFLoader` turns the `bufferView` PNG into a Blob, takes an object URL,
+hands it to `ImageLoader`, and waits for a `load` event jsdom never fires.
+The symptom is a 20-second test timeout with no error, which is a confusing
+way to meet the problem. This was confirmed empirically before the stubs
+were written, not predicted.
+
+What the stubs prove: the file is fetched, its container parsed, its image
+found, and its material and texture wired onto the mesh. What they do not
+prove: that the PNG bytes decode. jsdom cannot rasterise an image at any
+level of effort, so that belongs to a browser run.
+
+### Limitations
+
+- **Not visually verified.** Tests, typecheck, lint and build pass, and the
+  GLBs are confirmed to ship into `dist/models/`, but nobody has looked at
+  the room. The floor is a different material with a different texel density
+  beside 58 generated primitives, and whether that reads better or worse is
+  exactly the mixed-fidelity question ADR-020 raises. This is the next step,
+  and it is a judgement no test makes.
+- **Walls and archways deliberately not swapped.** KayKit's dungeon module is
+  a 4m grid with 4m-tall walls; ours is a 4m floor grid with 2m-wide,
+  3m-tall wall panels. Floors matched exactly, walls do not. Closing that gap
+  means either non-uniform scaling (which stretches the stonework) or raising
+  `WALL_HEIGHT` from 3 to 4, which flows into every `toBox3` collider ceiling
+  and every room's proportions against `EYE_HEIGHT`. That is a decision to
+  make deliberately, not a normalisation to perform. `wall_arched` is
+  likewise an arch *cut into a wall panel*, not the free-standing 3-part
+  frame `archwayRotationY` and the seven `ARCHWAYS` gaps assume.
+- **ADR-020 is still Proposed**, and this change runs ahead of its
+  recommended order (option C, a material story in the generator, then B for
+  the importable 16). It was done as the cheap end of B first because these
+  two assets happened to need no normalisation - a measurement, not a
+  reversal of the ADR. The ADR should be revisited with a room to look at.
+- **The generated `ground-tile-stone.gltf` and `ceiling-tile.gltf` remain**
+  on disk and are still produced by the generator, so reverting is two urls
+  and two offsets.
+- **One full-suite flake observed once** in `StoryChapterRunner.test.tsx`
+  (`onChapterComplete` called 0 times instead of 1) on the first full run
+  after this change; not reproduced in eight subsequent runs, and the file
+  passes in isolation both with and without the change. Unattributed rather
+  than dismissed.
+
+
+## Shared kit — Kenney nature props, and five CC0 archives measured
+
+The second import, and the first that needed **normalisation**. Three Kenney
+CC0 models take over the shared kit's `rock`, `foliage-tree` and
+`foliage-tree-lod1` ids, so they appear in four regions at once - Welcome
+Harbor, Pirate Builder Bay, Clockwork Harbor and the Dragon's Sanctuary
+place `rock`; the first two and Wonderwild Forest place the tree - **with no
+scene file changed.** The whole code change is three manifest urls.
+
+### What shipped
+
+- **Three imported assets** in `public/models/` (~76 KB total):
+  `kenney-rock-small.glb` (Fantasy Town Kit 2.0),
+  `kenney-tree-large.glb` and `kenney-tree-small.glb` (Castle Kit 2.0).
+- **`scripts/import-kenney-assets.ts`** and `npm run assets:import-kenney`:
+  a declarative import table plus a minimal zip reader built on `node:zlib`,
+  so no new dependency and no extracted copy of a 271 MB pack. Verified
+  deterministic - a second run is byte-identical.
+- **`assets/kenneyImports.test.ts`**, the import contract for these: the
+  scale-fit rule, ground pivot, identity roots, embedded texture,
+  single-mesh, no required extension, and that the generated originals are
+  still on disk.
+- **`assets/*.zip` git-ignored**, with a sha256 per archive in
+  `docs/ASSET_LICENCES.md` so a re-download is verifiable. 271 MB of source
+  against 76 KB shipped is not a thing to put in git history.
+
+### The normalisation rule, and why it is "fit inside"
+
+**Kenney's kits are authored on a 1-unit module, not a metre one.** Their
+castle wall is 1.00 x 1.31 x 1.00, so at 1 unit = 1 metre a child at
+`EYE_HEIGHT` 1.6 sees over every wall in the box. This is the fact that
+makes these imports different from the KayKit floors, which needed nothing.
+
+Each import declares the generated asset whose id it takes over, and is
+scaled by the largest uniform factor that still fits inside that asset's
+bounding box **on all three axes**. Fitting inside rather than matching one
+axis is deliberate: collision is authored as `RectZone` data around the
+generated original, so a mesh that fits inside cannot poke through the
+collider - the one way a pure art swap can change where a child *appears*
+able to walk. The scale is baked into POSITION data rather than onto the
+node, keeping roots identity; uniform scale leaves NORMAL and TANGENT valid.
+
+Both tree levels are fitted to the **near** level's box, not their own, so
+they land on exactly 2.600m and the LOD swap has no vertical pop.
+
+### Judgement calls worth seeing
+
+- **The rock comes from the town kit, not the castle kit**, which was the
+  obvious source. Castle `rocks-small` is a wide flat cluster: fitted to the
+  same box it comes out 0.18m tall against the generated boulder's 0.35m.
+  The town kit's is a real boulder and keeps its height at 0.31m.
+- **`foliage-bush` was not swapped.** Neither kit contains a bush; a hedge
+  segment is the wrong shape. It stays generated.
+- **Both LOD halves were swapped or neither.** Swapping only the near level
+  would pop from a textured import to an untextured generated cone at 14m,
+  which is worse than not swapping. Kenney ships no LOD levels, so
+  `tree-small` stands in as the low detail of `tree-large` - same pack, 164
+  triangles against 229. The honest cost is 14% of silhouette width at 14m.
+
+### What the other four archives settled
+
+Five CC0 archives are on disk; three had nothing imported, and measuring
+them answered open questions in `docs/MODELS_NEEDED.md`:
+
+- **Formats confirmed.** That file recorded Kenney's formats as *"not stated
+  on the pages - confirm before planning"*. They are GLB, FBX and OBJ, plus a
+  shared `Textures/colormap.png` **per pack** - three kits, three different
+  atlases, so each import embeds its own.
+- **The `carpet` hope is dead.** MODELS_NEEDED §3 suggested looking at the
+  Kenney Castle Kit for the rug KayKit lacks. None of the three Kenney kits
+  contains one.
+- **A second kit independently confirms the 4m wall module.** Kenney's
+  Modular Dungeon Kit is a 4m grid with 4.15m walls, exactly like KayKit,
+  against this project's `WALL_HEIGHT = 3`. Two independent CC0 producers
+  converging is evidence that **3 is the outlier**, which is an argument
+  ADR-020 did not have when it deferred this. Still a real decision - it
+  flows into every `toBox3` collider ceiling and every room's proportions -
+  but it is now the single change that unblocks architecture from three kits.
+- **Quaternius Modular Dungeon has the furniture and no glTF.** Tables,
+  chairs, chests, pedestals, columns - FBX, OBJ and Blend only. Needs a
+  conversion step this repo does not have.
+- **Quaternius Fantasy Props MegaKit `[Pro]` is CC0 too**, confirmed in
+  `License_Pro.txt`; the paid tier buys engine projects and shaders, not
+  different terms. It ships glTF, but PBR-textured (BaseColor/Normal/ORM),
+  which is a different style family from both the flat-shaded generated kit
+  and Kenney's palette atlases.
+
+### Limitations
+
+- **Not visually verified.** Tests, typecheck, lint and build pass and all
+  three GLBs ship into `dist/models/`, but nobody has looked at a scene.
+  Whether a textured Kenney tree reads well beside untextured generated
+  primitives is the mixed-fidelity question ADR-020 raises, and no test
+  answers it.
+- **Two texture atlases now ship** for three models, because the rock comes
+  from a different pack than the trees. Same artist and the same flat-palette
+  style, so the cost is ~11 KB rather than a visual seam - but it is a
+  mixing decision, made deliberately.
+- **The generated `rock.gltf`, `foliage-tree.gltf` and
+  `foliage-tree-lod1.gltf` remain** on disk and are still produced by the
+  generator, so reverting is three urls.
+- **Architecture, furniture and characters are all still blocked**, on the
+  wall-height decision, a format/style problem, and commission money
+  respectively. Only scenery with no gameplay role, no state-variant partner
+  and no grid dependency was unblocked today.
+- **One full-suite flake observed once** in `SignUpForm.test.tsx` (a 5s
+  timeout) during the 213-second full run; passes in isolation, and is an
+  auth form with no relationship to assets. Unattributed rather than
+  dismissed.
+
+
+## Clockwork Harbor — its two named NPCs stop being the same pirate
+
+The third import, and the first **character**. The Harbor Master and
+Professor Ticktock both loaded `npc-pip`, so the region's two named NPCs
+were identical to each other and to Pirate Pip. They now wear their own
+imported models.
+
+### What shipped
+
+- **Two rigged CC0 characters**, from Quaternius Ultimate Modular Men:
+  `npc-harbor-master.gltf` (824 KB, from `Worker`) and
+  `npc-professor-ticktock.gltf` (1134 KB, from `Suit`).
+- **`scripts/import-character-assets.ts`** and
+  `npm run assets:import-characters`.
+- **`scripts/assets/zipReader.ts`**, the zip reader extracted out of the
+  Kenney importer so both share it.
+- **`assets/characterImports.test.ts`**, split into content checks,
+  structural checks, and a real `GLTFLoader` round trip.
+- **`NPC_SPOTS` gained an `assetId`**, so the scene loads per-NPC instead of
+  hard-coding `npc-pip` for every spot.
+
+### The content decision, which is the point of this change
+
+The source pack ships **24 clips per character and most of them are
+combat**: `Gun_Shoot`, `Sword_Slash`, `Punch_Left/Right`,
+`Kick_Left/Right`, `Death`, `HitRecieve`, `Idle_Gun*`. This is a product
+for children aged 3 to 8.
+
+CC0 permits shipping them, and nothing in the scene would ever play them.
+That is not sufficient: a `Death` clip in the bundle is discoverable
+whether or not it plays. The importer **removes them from the file**, and
+`characterImports.test.ts` asserts against a forbidden-name pattern so a
+re-import cannot quietly restore them.
+
+Three clips survive - `Idle`, `Walk`, `Wave` - because those are the three
+that map onto `animationVocabulary.ts` without inventing a meaning.
+`Interact` is the judgement call: plainly useful, but whether it reads as
+`Point`, `Talk` or `Activate` cannot be settled without watching it play,
+and there is no viewer here. It was dropped rather than guessed, since a
+wrong name inside a closed vocabulary is worse than a missing clip. Neither
+character declares `Talk` where `npc-pip` does, and that costs nothing:
+Clockwork Harbor only ever plays `Idle`.
+
+**Nine of the eleven characters were not imported**, listed with reasons in
+the importer's `EXCLUDED` table. Two are content exclusions (`Swat` is
+militarised, `Punk` is off-theme); the rest is that no named role is
+waiting, and importing ahead of a scene is the hoarding both
+`ASSET_SOURCING.md` section 5 and `MODELS_NEEDED.md` section 2 warn about.
+
+### Why the prune had to happen, and why it is tested the way it is
+
+Dropping 21 of 24 clips leaves ~85% of the document unreachable. Deleting
+only the `animations` entries would have shrunk the clip list and left
+every keyframe byte in the buffer, so the importer walks reachability from
+meshes, skins and the surviving clips, rebuilds the binary buffer from just
+those bufferViews, and renumbers every accessor and bufferView index. It
+also drops `TEXCOORD_*`, which is provably unread here because **no
+material samples a texture** - 2797 accessors to 402, 2.9 MB to 824 KB.
+
+Renumbering is the dangerous part. An off-by-one still parses as JSON,
+still passes every structural assertion that reads the document as data,
+and fails only at render. So the contract ends with a real `GLTFLoader`
+round trip that asserts the skinned mesh survives, has vertices, and that
+every surviving clip has tracks and non-zero duration. That test is the one
+that actually proves the transform.
+
+### What the other sixteen archives settled
+
+Nineteen CC0 archives are now on disk (532 MB, git-ignored, checksummed in
+`docs/ASSET_LICENCES.md`). Surveying them corrected the docs in three ways:
+
+- **Kenney Pirate Pack is a 2D sprite pack** - 403 PNGs, zero 3D models.
+  `MODELS_NEEDED.md` listed it as "190 models" beside the Pirate Kit.
+- **Quaternius's fish packs ship no glTF** (FBX/OBJ/Blend only), so The
+  Care Beach still needs a conversion step, exactly as its row warned.
+- **Two downloads are corrupt**: `Ultimate Monsters` (truncated - the only
+  near-miss for Ember, worth re-fetching) and `Fantasy Props
+  MegaKit[Source]` (truncated and redundant; `[Pro]` holds all 211 models).
+  Quaternius Ultimate Nature was never downloaded.
+
+### Limitations
+
+- **Not visually verified.** Tests, typecheck, lint and build pass and both
+  characters ship into `dist/models/`, but nobody has looked at the harbor.
+  Whether an untextured Quaternius man reads well beside the generated kit
+  is the mixed-fidelity question, and no test answers it.
+- **Professor Ticktock is a stand-in, not a solution.**
+  `MODELS_NEEDED.md` section 7 still lists him as bespoke - a named
+  clockwork character no pack contains. `Suit` is simply the closest of
+  eleven. This replaced a worse stand-in; it did not close the row.
+- **~1 MB per character** after pruning, against a few KB for a generated
+  kit piece. That is normal for a rigged character and the region
+  lazy-loads, but it is the first asset on the island where size is worth
+  watching on a tablet.
+- **Only three clips.** Any future scene wanting `Talk`, `Point`,
+  `Celebrate` or the `React*` pair from these characters will not find
+  them, and the honest fix is a viewer session over the dropped clips, not
+  a rename.
+- **Ember and Bolt are untouched.** A dragon and a robot are not in a
+  modular-men pack, and section 7 is unchanged.
+
+
+## Pirate Builder Bay — the missing water, and a region that is now a place
+
+Reported from play: "when I play Pirate Builder, I only see a little swatch
+of land, a tree, a box and a hoop." That was an accurate description of
+what the region rendered. Reproduced by driving the real
+`createPirateBuilderBayEngine` in a headless Chromium harness and dumping
+its scene graph, which found no loading failure at all — every asset the
+scene asked for resolved. The region was simply that empty, on top of two
+real bugs.
+
+### Bug 1 — the bay had no visible water
+
+`pirateBuilderBayScene.ts` drew the ground as **one opaque 32x14 plane
+across the whole region**, channel included, and then placed the two water
+quads at `y = -0.05`: five centimetres *underneath* it. So the water
+channel that splits the dock from the cove — the region's entire premise,
+and the thing the broken bridge crosses — was completely hidden. A child
+walked toward the bridge across flat sand and stopped dead at an
+unexplained invisible wall.
+
+The fix authors the ground as two rects either side of the channel
+(`DOCK_GROUND` / `COVE_GROUND`) and draws the channel as a box between
+them, its top at `WATER_SURFACE_Y` and its bed at `CHANNEL_BED_Y`, so the
+gap has sides rather than being a plane you can see past at a grazing
+angle. `CHANNEL_SURFACE` is drawn unbroken under the bridge deck, while
+the two `CHANNEL_*_WATER` rects stay exactly as authored, because those
+are collider volumes and must keep flanking the deck for the
+`BRIDGE_REPAIRED` swap to keep working.
+
+### Bug 2 — flat ground quads were lit from underneath
+
+The path tiles read as grey asphalt on light sand. The cause is in
+`primitives.ts`: `buildGroundPlanePrimitive` declared `+y` normals but
+wound its two triangles the other way. Every material this pack emits is
+`doubleSided` (`gltfAssembler.ts`), and three.js flips the shading normal
+on back faces, so a ground quad seen from above was shaded as if its
+normal pointed at the sea floor. One index array fixes it, and it applies
+to **every** flat piece built from this primitive — paths, carpets, ground
+tiles, the castle ceiling — all of which have been rendering dark since
+they were authored. `primitives.test.ts` now asserts the winding agrees
+with the declared normal, which the old test (normals only) could not
+catch.
+
+A third, smaller one: the fallen bridge plank was placed at `y = -0.4`
+under the full-extent ground plane, which buried two thirds of it and left
+a brown slab lying in the sand. It now sits half sunk against the dock
+bank.
+
+### The set dressing
+
+The rest was not breakage. The region's whole visible inventory was 13
+objects over a 32x14m plot: one sand plane, two bridge stubs, two 0.31m
+rocks, two trees, a single 1.5m path tile, four sub-metre props and Pip.
+Over half the region (the cove, x 3 to 16) held exactly one 0.6m chest.
+There was no sea beyond the plot, so the sand ended in mid-air, and the
+boundary walls were colliders with no mesh, so a child bumped into
+nothing.
+
+Added, all authored in `pirateBuilderBayRegion.ts` and placed by
+`pirateBuilderBayScene.ts`:
+
+- **Open sea to the horizon** (`SEA_HALF_EXTENT`), so the region ends at a
+  skyline rather than at the edge of the sand.
+- **A visible shoreline** — instanced boulder lines along the plot edges
+  (`SHORE_ROCK_RUNS`), which deliberately skip the two channel mouths
+  (water) and the Welcome Harbor exit (a doorway, not a wall). The
+  boundary colliders finally have something to be.
+- **A dock**: a jetty of `bridge-plank` running out over the sea off the
+  south shore with mooring posts at its corners, scenery beyond the
+  boundary collider rather than walkable ground.
+- **Cargo at a child's own scale** — stacked crates and barrels, the first
+  things in this region sized like a five-year-old rather than like a
+  pebble.
+- **A landmark in the cove**: a beached `shipwreck` with a leaning mast,
+  so the far side is somewhere worth repairing a bridge to reach. Its
+  footprint is a real collider.
+- **The tide tunnel gets a mouth** — two oversized boulders framing Phase
+  26's secret instead of an unmarked patch of sand.
+- **A path that goes somewhere**: the single tile is now a run from the
+  Welcome Harbor exit through the spawn checkpoint to the bridge, picked
+  up again on the cove side toward the treasure.
+
+### New assets
+
+`crate`, `barrel` and `mooring-post` are single-mesh on purpose:
+`createInstancedMeshFromAsset` instances only an asset's *first* mesh, so a
+multi-part crate would silently render as its first part alone everywhere
+it is placed. `shipwreck` is multi-part and placed as one clone.
+`bayDockKit.test.ts` is the authoring check for exactly that rule, plus
+ground pivots and the sizes each piece has to hit to read correctly.
+
+### Known limitations
+
+- **Still no building on the dock.** Welcome Harbor composes shacks from
+  `wall`/`roof`/`door` via a `BuildingDefinition` type and
+  `buildingWallColliders`, both of which live in `welcomeHarborRegion.ts`.
+  Reusing that here means lifting them into `sceneKit.ts` first, which is
+  a refactor of a shipped region rather than a fix to a broken one, so it
+  was left out of this pass.
+- **The trees are conifers on a pirate island.** They are the Kenney
+  castle-kit pines the shared kit already carries; a palm would need a new
+  multi-part asset and therefore could not be instanced with the rest of
+  the foliage.
+- **The sea is a flat colour, not animated.** No wave motion, no shoreline
+  foam, and the channel water is a plain box.
+- **The 2D Phaser route is untouched.** `/island/:childId/world/
+  pirate-builder-bay` still renders the Phase 11 tilemap; only the 3D
+  route (`-3d`) changed.
+
 
 ## Known risks / TODOs
 

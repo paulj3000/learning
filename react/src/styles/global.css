@@ -1,3 +1,4 @@
+@import './fonts.css';
 @import './tokens.css';
 
 *,
@@ -17,13 +18,31 @@ body {
   color: var(--color-text);
   font-family: var(--font-family-base);
   font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
   line-height: var(--line-height-base);
+  /* The cream page is warm; keep glyph edges from going muddy on it. */
+  -webkit-font-smoothing: antialiased;
 }
 
 #root {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/**
+ * Headings are the display face. Child-facing copy is read aloud as often
+ * as it is read, so headings are set large, tight and heavy rather than
+ * decorative.
+ */
+h1,
+h2,
+h3 {
+  font-family: var(--font-family-display);
+  font-weight: var(--font-weight-display);
+  letter-spacing: var(--letter-spacing-display);
+  line-height: 1.2;
+  color: var(--color-text);
 }
 
 img {
@@ -33,11 +52,62 @@ img {
 
 a {
   color: var(--color-primary);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
 }
 
 :focus-visible {
   outline: 3px solid var(--color-focus-ring);
   outline-offset: 2px;
+}
+
+/**
+ * The pressable surface, and the one thing that makes this look what it is.
+ *
+ * Every button in the app gets a solid darker band along its bottom edge
+ * and sinks into it when held, so it reads as a physical object to a child
+ * who cannot yet read its label. Applied to bare `button` so the ~35 CSS
+ * modules inherit it without each restating it; anything that needs to opt
+ * out (an icon-only control, a link styled as text) overrides `box-shadow`
+ * locally, which every module already has the specificity to do.
+ *
+ * Colour is deliberately *not* set here. Modules own their own foreground
+ * and background; this rule only owns shape, weight, and the press.
+ */
+button {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: var(--font-weight-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--lip-surface);
+  transition:
+    transform var(--transition-press),
+    box-shadow var(--transition-press),
+    filter var(--transition-fast);
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+button:not(:disabled):hover {
+  filter: brightness(1.06);
+}
+
+/**
+ * The press. Moving the button down by the same distance the lip is tall
+ * and shrinking the lip to match is what sells it as travel rather than as
+ * a colour change. Both collapse to nothing under reduced motion, because
+ * the tokens do.
+ */
+button:not(:disabled):active {
+  transform: translateY(var(--press-travel));
+  box-shadow: inset 0 -2px 0 0 rgb(26 30 38 / 18%);
+}
+
+button:disabled {
+  box-shadow: none;
+  opacity: 0.55;
 }
 
 .skip-link {
@@ -49,6 +119,7 @@ a {
   color: var(--color-text);
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
 }
 
 .skip-link:focus {

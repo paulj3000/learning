@@ -1,0 +1,230 @@
+/* Shared styles for the Model Asset Manager's admin pages
+   (src/routes/AdminAssets*.tsx and the upload wizard). Page chrome comes
+   from ParentDashboard.module.css, like the other admin pages. */
+
+.content {
+  width: 100%;
+  max-width: 64rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--font-size-heading);
+}
+
+.hint {
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.typeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--space-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.typeCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.typeTitle {
+  margin: 0;
+  font-size: var(--font-size-large);
+}
+
+.link {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border-subtle);
+  white-space: nowrap;
+}
+
+.table th {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.status {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface-sunk);
+  font-size: 0.875rem;
+}
+
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  color: var(--color-text-muted);
+}
+
+.stepCurrent {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 40rem;
+  padding: var(--space-6);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.label {
+  font-weight: 600;
+}
+
+.input {
+  font: inherit;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+.input:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.issues {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.error,
+.warning,
+.notice {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+}
+
+.error {
+  border: 1px solid var(--color-danger);
+  background-color: color-mix(in srgb, var(--color-danger) 10%, var(--color-surface));
+}
+
+.warning {
+  border: 1px solid var(--color-warning);
+  background-color: color-mix(in srgb, var(--color-warning) 12%, var(--color-surface));
+}
+
+.notice {
+  border: 1px solid var(--color-success);
+  background-color: color-mix(in srgb, var(--color-success) 10%, var(--color-surface));
+}
+
+.fileFacts {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.progress {
+  width: 100%;
+  height: 1rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.button {
+  font: inherit;
+  font-weight: 600;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-primary);
+  color: var(--color-primary-contrast);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.button:focus-visible,
+.buttonSecondary:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.buttonSecondary {
+  composes: button;
+  background-color: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}

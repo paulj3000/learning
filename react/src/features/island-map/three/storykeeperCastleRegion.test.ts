@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   ARCHWAYS,
   FLOOR_SPOTS,
+  LIBRARY_BOOKSHELF_SPOTS,
+  TAPESTRY_NOOK_CUSHION_SPOTS,
+  isInsideRect,
   GROUND_HALF_EXTENT_X,
   GROUND_HALF_EXTENT_Z,
   ROOMS,
@@ -12,7 +15,6 @@ import {
   buildWallSegments,
   findZone,
   isBlocked,
-  isInsideRect,
   isOnFloor,
   isWalkable,
 } from './storykeeperCastleRegion';
@@ -317,6 +319,133 @@ describe('storykeeperCastleRegion zones', () => {
         secret.minZ < zone.maxZ &&
         zone.minZ < secret.maxZ;
       expect(overlapping, `the tapestry secret overlaps "${zone.id}"`).toBe(false);
+    }
+  });
+});
+
+/**
+ * The Great Library's shelves (SC-6). Their spans were worked out by hand
+ * against a wall that SC-8 and SC-9 have already claimed most of, and
+ * hand-worked spans are exactly what drifts: a shelf that creeps over the
+ * empty slot hides beat 8's whole payoff, and one that creeps over the
+ * secret door hides a room.
+ */
+describe('storykeeperCastleRegion library shelves', () => {
+  const SHELF_DEPTH = 0.4;
+
+  function footprint(shelf: (typeof LIBRARY_BOOKSHELF_SPOTS)[number]) {
+    const halfAlong = shelf.width / 2;
+    const halfAcross = SHELF_DEPTH / 2;
+    const halfX = shelf.axis === 'x' ? halfAlong : halfAcross;
+    const halfZ = shelf.axis === 'x' ? halfAcross : halfAlong;
+    return {
+      id: shelf.entityId,
+      minX: shelf.x - halfX,
+      maxX: shelf.x + halfX,
+      minZ: shelf.z - halfZ,
+      maxZ: shelf.z + halfZ,
+    };
+  }
+
+  const FOOTPRINTS = LIBRARY_BOOKSHELF_SPOTS.map(footprint);
+  const overlaps = (
+    a: { minX: number; maxX: number; minZ: number; maxZ: number },
+    b: { minX: number; maxX: number; minZ: number; maxZ: number },
+    tolerance = 0.001,
+  ) =>
+    Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX) > tolerance &&
+    Math.min(a.maxZ, b.maxZ) - Math.max(a.minZ, b.minZ) > tolerance;
+
+  it('stands every shelf on the library floor, clear of the walls', () => {
+    for (const shelf of LIBRARY_BOOKSHELF_SPOTS) {
+      expect(isOnFloor(shelf.x, shelf.z), `"${shelf.entityId}" is off the floor`).toBe(true);
+      expect(isBlocked(shelf.x, shelf.z), `"${shelf.entityId}" is inside a wall`).toBe(false);
+    }
+  });
+
+  it('never stands two shelves in the same place', () => {
+    for (let i = 0; i < FOOTPRINTS.length; i += 1) {
+      for (let j = i + 1; j < FOOTPRINTS.length; j += 1) {
+        expect(
+          overlaps(FOOTPRINTS[i], FOOTPRINTS[j]),
+          `${FOOTPRINTS[i].id} overlaps ${FOOTPRINTS[j].id}`,
+        ).toBe(false);
+      }
+    }
+  });
+
+  /**
+   * The one that beat 8 depends on. The slot is a 0.42m gap in the wall; a
+   * shelf across it would hide the empty slot before the story and the book
+   * after it, and nothing would report a fault.
+   */
+  it('leaves every wall-mounted library feature uncovered', () => {
+    const libraryFeatures = WALL_MOUNTED_SPOTS.filter(
+      (spot) =>
+        spot.entityId.startsWith('library-') ||
+        spot.entityId === 'secret-door' ||
+        spot.entityId.startsWith('counting-star-') ||
+        spot.entityId.startsWith('lock-carving-'),
+    );
+    expect(libraryFeatures.length).toBeGreaterThan(0);
+    for (const feature of libraryFeatures) {
+      const spot = { minX: feature.x, maxX: feature.x, minZ: feature.z, maxZ: feature.z };
+      for (const shelf of FOOTPRINTS) {
+        expect(overlaps(shelf, spot, -0.25), `${shelf.id} covers "${feature.entityId}"`).toBe(
+          false,
+        );
+      }
+    }
+  });
+
+  it('never stands a shelf in the library archway', () => {
+    const libraryArchway = ARCHWAYS.find((archway) => archway.id === 'arch-library');
+    expect(libraryArchway).toBeDefined();
+    for (const shelf of FOOTPRINTS) {
+      expect(overlaps(shelf, libraryArchway!.gap), `${shelf.id} blocks the archway`).toBe(false);
+    }
+  });
+});
+
+/**
+ * Beat 12 is the castle's one piece of pure play, and the only thing that
+ * makes it work is that it is *found*. Two properties carry that, and both
+ * are the kind that a later phase could undo without noticing.
+ */
+describe('storykeeperCastleRegion tapestry nook', () => {
+  const stairZone = findZone('castle-tapestry-stair');
+
+  it('puts every cushion inside the discovery zone, on reachable floor', () => {
+    expect(stairZone).toBeDefined();
+    for (const cushion of TAPESTRY_NOOK_CUSHION_SPOTS) {
+      expect(isWalkable(cushion.x, cushion.z), `"${cushion.entityId}" is not walkable`).toBe(true);
+      expect(
+        isInsideRect(cushion.x, cushion.z, stairZone!),
+        `"${cushion.entityId}" sits outside the nook it furnishes`,
+      ).toBe(true);
+      expect(
+        isReachable(REACHED, cushion.x, cushion.z),
+        `"${cushion.entityId}" is unreachable`,
+      ).toBe(true);
+    }
+  });
+
+  /**
+   * "If the castle has exactly one tapestry, the beat-12 secret is a
+   * signpost pointing at itself" - the region file's own words. The two
+   * decoys are load-bearing, not decoration.
+   */
+  it('hangs at least two tapestries that hide nothing', () => {
+    const tapestries = WALL_MOUNTED_SPOTS.filter((spot) => spot.entityId.includes('tapestry'));
+    expect(tapestries.length).toBeGreaterThanOrEqual(3);
+    const decoys = tapestries.filter((spot) => spot.entityId !== 'castle-tapestry-stair');
+    expect(decoys.length).toBeGreaterThanOrEqual(2);
+    // A decoy hung inside the discovery zone would give the secret away.
+    for (const decoy of decoys) {
+      expect(
+        isInsideRect(decoy.x, decoy.z, stairZone!),
+        `decoy "${decoy.entityId}" hangs in the nook it is meant to disguise`,
+      ).toBe(false);
     }
   });
 });

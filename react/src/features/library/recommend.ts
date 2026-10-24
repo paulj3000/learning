@@ -1,6 +1,7 @@
 import type { AgeBandValue } from '../child-profile/constants';
 import { listLibraryArcs, type LibraryArc } from './catalog';
 import { toAdventureInterests, type AdventureInterest } from './interests';
+import { isStoryForAgeBand } from '../story/engine/eligibility';
 
 /**
  * Which arcs a given child sees, and in what order (docs/ROADMAP.md Phase
@@ -56,7 +57,7 @@ export function selectLibraryForChild(audience: LibraryAudience): LibrarySelecti
   };
 
   for (const arc of listLibraryArcs()) {
-    if (!arc.story.supportedAgeBands.includes(audience.ageBand)) {
+    if (!isStoryForAgeBand(arc.story, audience.ageBand)) {
       selection.notYetForThisAge.push(arc);
       continue;
     }

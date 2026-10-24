@@ -1,0 +1,57 @@
+{
+  "asset": { "version": "2.0", "generator": "learning-adventure-island world-asset-pipeline" },
+  "scene": 0,
+  "scenes": [{ "nodes": [0] }],
+  "nodes": [
+    {
+      "name": "Cell",
+      "mesh": 0,
+      "translation": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1]
+    }
+  ],
+  "meshes": [
+    {
+      "name": "CellMesh",
+      "primitives": [
+        { "attributes": { "POSITION": 0, "NORMAL": 1 }, "indices": 2, "material": 0, "mode": 4 }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "CellMaterial",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.9098039215686274, 0.6588235294117647, 0.23529411764705882, 1],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.85
+      },
+      "emissiveFactor": [0.4196078431372549, 0.2901960784313726, 0.06274509803921569],
+      "doubleSided": true
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 38,
+      "type": "VEC3",
+      "min": [-0.6062177826491071, 0, 0],
+      "max": [0.606217782649107, 1.4, 0.36]
+    },
+    { "bufferView": 1, "componentType": 5126, "count": 38, "type": "VEC3" },
+    { "bufferView": 2, "componentType": 5123, "count": 72, "type": "SCALAR" }
+  ],
+  "bufferViews": [
+    { "buffer": 0, "byteOffset": 0, "byteLength": 456, "target": 34962 },
+    { "buffer": 0, "byteOffset": 456, "byteLength": 456, "target": 34962 },
+    { "buffer": 0, "byteOffset": 912, "byteLength": 144, "target": 34963 }
+  ],
+  "buffers": [
+    {
+      "uri": "data:application/octet-stream;base64,AAAAADMzMz/sUbg+RatFJDMzsz/sUbg+FzEbv2Zmhj/sUbg+FzEbvzMzsz7sUbg+dEAUpQAAAADsUbg+FzEbPzMzsz7sUbg+FzEbP2Zmhj/sUbg+AAAAADMzMz8AAAAARatFJDMzsz8AAAAAFzEbv2Zmhj8AAAAAFzEbvzMzsz4AAAAAdEAUpQAAAAAAAAAAFzEbPzMzsz4AAAAAFzEbP2Zmhj8AAAAARatFJDMzsz8AAAAAFzEbv2Zmhj8AAAAAFzEbv2Zmhj/sUbg+RatFJDMzsz/sUbg+FzEbv2Zmhj8AAAAAFzEbvzMzsz4AAAAAFzEbvzMzsz7sUbg+FzEbv2Zmhj/sUbg+FzEbvzMzsz4AAAAAdEAUpQAAAAAAAAAAdEAUpQAAAADsUbg+FzEbvzMzsz7sUbg+dEAUpQAAAAAAAAAAFzEbPzMzsz4AAAAAFzEbPzMzsz7sUbg+dEAUpQAAAADsUbg+FzEbPzMzsz4AAAAAFzEbP2Zmhj8AAAAAFzEbP2Zmhj/sUbg+FzEbPzMzsz7sUbg+FzEbP2Zmhj8AAAAARatFJDMzsz8AAAAARatFJDMzsz/sUbg+FzEbP2Zmhj/sUbg+AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAv9ezXT8AAAAAAAAAv9ezXT8AAAAAAAAAv9ezXT8AAAAAAAAAv9ezXT8AAAAAAACAvy8l0yUAAAAAAACAvy8l0yUAAAAAAACAvy8l0yUAAAAAAACAvy8l0yUAAAAAAAAAv9ezXb8AAAAAAAAAv9ezXb8AAAAAAAAAv9ezXb8AAAAAAAAAv9ezXb8AAAAAAAAAP9ezXb8AAAAAAAAAP9ezXb8AAAAAAAAAP9ezXb8AAAAAAAAAP9ezXb8AAAAAAACAPy8l06UAAAAAAACAPy8l06UAAAAAAACAPy8l06UAAAAAAACAPy8l06UAAAAAAAAAP9ezXT8AAAAAAAAAP9ezXT8AAAAAAAAAP9ezXT8AAAAAAAAAP9ezXT8AAAAAAAABAAIAAAACAAMAAAADAAQAAAAEAAUAAAAFAAYAAAAGAAEABwAJAAgABwAKAAkABwALAAoABwAMAAsABwANAAwABwAIAA0ADgAPABAADgAQABEAEgATABQAEgAUABUAFgAXABgAFgAYABkAGgAbABwAGgAcAB0AHgAfACAAHgAgACEAIgAjACQAIgAkACUA",
+      "byteLength": 1056
+    }
+  ]
+}

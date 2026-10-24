@@ -1,4 +1,4 @@
-import { InstancedMesh, LOD } from 'three';
+import { InstancedMesh, LOD, type Mesh, type MeshStandardMaterial } from 'three';
 import { describe, expect, it } from 'vitest';
 import {
   createInstancedMeshFromAsset,
@@ -54,6 +54,35 @@ describe('loadAsset', () => {
       expect(gltf.scene.getObjectByName(part), `archway is missing "${part}"`).toBeDefined();
     }
   });
+
+  /**
+   * WF-1 added the Wonderwild Forest kit
+   * (`docs/WONDERWILD_FOREST_3D_ROADMAP.md` Appendix A). One case for its one
+   * genuinely new shape category - the hexagonal ring, which is the first
+   * primitive in this pack with a hole through it - plus the character.
+   * Wonderwild's own authoring checks live in `wonderwildKit.test.ts`.
+   */
+  it('loads the hexagonal comb cell, hole and all, through the real fetch path', async () => {
+    const gltf = await loadAsset('comb-cell');
+    expect(gltf.scene.getObjectByName('Cell')).toBeDefined();
+  });
+
+  /**
+   * The first **imported**, binary, textured asset (KayKit Dungeon
+   * Remastered, CC0 - `docs/ASSET_LICENCES.md`), which exercises three
+   * things no generated `.gltf` did: the `.glb` container, a `bufferView`
+   * PNG texture, and therefore the image-decoding stubs in
+   * `src/test/setup.ts`. Without those stubs this call does not fail, it
+   * hangs - `GLTFLoader` waits forever on a `load` event jsdom never fires -
+   * which is the failure mode worth having a named test for.
+   */
+  it('loads an imported textured .glb, texture wired onto the mesh', async () => {
+    const gltf = await loadAsset('ground-tile-stone');
+    const mesh = gltf.scene.getObjectByName('floor_tile_large') as Mesh | undefined;
+    expect(mesh).toBeDefined();
+    const material = mesh!.material as MeshStandardMaterial;
+    expect(material.map, 'the atlas texture did not reach the material').not.toBeNull();
+  });
 });
 
 describe('instantiateAsset', () => {
@@ -77,6 +106,17 @@ describe('instantiateAsset', () => {
     expect(clone.getObjectByName('Arm')).toBeDefined();
   });
 
+  it('loads Buzz with her three clips and the abdomen the scene waggles', async () => {
+    const gltf = await loadAsset('npc-buzz');
+    expect(gltf.animations.map((clip) => clip.name).sort()).toEqual(['Celebrate', 'Idle', 'Talk']);
+    const clone = await instantiateAsset('npc-buzz');
+    expect(clone.getObjectByName('Body')).toBeDefined();
+    // Beat 7's five waggles are TRS motion the scene drives on this node, not
+    // a clip - so the node has to survive cloning even though no animation in
+    // the document targets it.
+    expect(clone.getObjectByName('Abdomen')).toBeDefined();
+  });
+
   it('returns an independent clone each call', async () => {
     const first = await instantiateAsset('npc-pip');
     const second = await instantiateAsset('npc-pip');
@@ -95,6 +135,22 @@ describe('createInstancedMeshFromAsset', () => {
     const instanced = await createInstancedMeshFromAsset('foliage-bush', placements);
     expect(instanced).toBeInstanceOf(InstancedMesh);
     expect(instanced.count).toBe(placements.length);
+  });
+
+  /**
+   * The hive wall places roughly forty comb cells, so instancing them is not
+   * optional. This is the runtime half of the claim `wonderwildKit.test.ts`
+   * makes about the document: one mesh on disk, and one real `InstancedMesh`
+   * with the hole intact after `createInstancedMeshFromAsset` has taken the
+   * first mesh it found.
+   */
+  it('instances the comb cell, keeping the whole ring rather than a fragment', async () => {
+    const placements = [{ position: { x: 0, y: 0, z: 0 } }, { position: { x: 1.3, y: 0, z: 0 } }];
+    const instanced = await createInstancedMeshFromAsset('comb-cell', placements);
+    expect(instanced).toBeInstanceOf(InstancedMesh);
+    expect(instanced.count).toBe(placements.length);
+    // 96 vertices is the whole ring; a fragment would be a fraction of that.
+    expect(instanced.geometry.getAttribute('position').count).toBe(96);
   });
 });
 

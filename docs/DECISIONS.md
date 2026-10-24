@@ -1380,3 +1380,448 @@ message is needed, reproduce locally with synthetic data and the raw opt-in.
 
 **What this does not cover** is listed under "Logging and privacy" in `docs/ARCHITECTURE.md` and in gate G10.
 
+
+## ADR-019: A story chapter may be played inside a 3D region; the Story Engine keeps sole ownership of progress
+
+Status: Accepted
+
+`docs/STORYKEEPER_CASTLE_3D_STORYBOARD.md`'s age-band table gives Explorers
+"beats 1 to 13" in the first-person castle. Beats 9 to 11 are
+`THE_CASTLES_SECRET_DOOR`, an Explorer-only `StoryDefinition`. So the
+storyboard assumes an arc currently played from `StoryPage` can also be
+played from inside a world view - and nothing in this log has ever said so.
+SC-8 built beat 9's evidence (the door, the nine carved stars, the three
+clues) and stopped at that assumption; SC-9 cannot stop there, because its
+beat *is* the interaction rather than a number typed on a card.
+
+**The decision has three parts, and only the first is a product call.**
+
+### Part A - an arc may have a second place it is played, and only one place it is recorded
+
+A story chapter may be played from a 3D region as well as from `StoryPage`.
+This is a second *entry point*, not a second copy: the child is playing the
+same `ChildStoryProgress` row either way, and may leave the castle
+mid-chapter and finish it from the Adventure Library, or the reverse.
+
+Rejected alternative: running `secret-door-chapter-1-three-clues` in the
+castle as a standalone adventure, the way `the-storykeepers-tale` runs
+there. It is the cheap option and it is wrong - that adventure is an
+`ADVENTURE` scene inside a story, so a standalone session would advance no
+chapter, fire no `completionWorldChange`, and leave the child to play the
+same chapter again in the library afterwards. An arc with two entry points
+is a product decision; an arc with two *records* is a bug.
+
+### Part B - the Story Engine keeps ownership; the region borrows a renderer
+
+`useStoryProgress` continues to be the only thing that starts, advances, or
+completes a `ChildStoryProgress`. A world view that hosts a chapter calls it
+exactly as `StoryPage` does, and gains no new authority over story state.
+
+This preserves the layering `docs/ARCHITECTURE.md` sets out and ADR-008
+restates: World Engine code renders, World/Story State decides. A region
+that could advance a chapter on its own would be the same category of
+mistake as a region that wrote `ChildWorldState` directly.
+
+### Part C - `StoryChapterRunner` gains a seam for rendering an ADVENTURE scene
+
+`StoryChapterRunner` renders `ADVENTURE` scenes by embedding
+`AdventureRunner`, which owns its `useAdventureSession` internally. That is
+the whole obstacle: SC-4's method for making the castle drive a learning
+step is that **the view holds the session**, so both the room and the card
+submit through one `submitAnswer` and cannot drift. A component that owns
+its own session privately cannot be driven by a room.
+
+So `StoryChapterRunner` takes an optional renderer for its `ADVENTURE`
+scenes, defaulting to today's `AdventureRunner`. A region supplies one that
+holds the session itself and renders `AdventureStepCard` - the component
+SC-4 already extracted from `AdventureRunner` for exactly this purpose. No
+existing caller changes, `AdventureRunner` is untouched, and the castle gets
+the same "one session, two ways in" shape it already has for the tale.
+
+One attempt is still one `AdventureSession`: the seam changes who renders
+the scene, never how many sessions exist for it.
+
+**What this explicitly does not license.** The seam is for *rendering*. It
+carries no ability to advance a chapter, skip a scene, complete a scene or
+chapter, grade an answer, or create or duplicate story progress; every one
+of those stays with the Story and Adventure Engines. Nor does it license a
+region-specific replacement for the Story Engine - there is no
+`CastleStoryRunner`, `ForestStoryRunner` or `ThreeJsStoryRunner`.
+`StoryChapterRunner` remains canonical. A region that wanted any of this
+would need its own ADR.
+
+### Canonical progress identity
+
+The rule the three parts above are all instances of:
+
+> **Entry point is presentation metadata, never progression identity.**
+> `ChildStoryProgress`, chapter state, adventure sessions, completion state
+> and the resulting world changes are keyed to the underlying
+> story/chapter/adventure identity, and are never duplicated or namespaced
+> by the route the child entered from - `StoryPage`, a castle, an NPC, a
+> quest, a discovery, or any other world interaction.
+
+So there is never a `castle-secret-door-progress` beside a
+`library-secret-door-progress`. There is progress for
+`THE_CASTLES_SECRET_DOOR`, and that is all there is. A child may start in
+the castle, walk out mid-chapter, open the Adventure Library and carry on
+from the same row - and the reverse.
+
+The Adventure Library is the persistent, location-independent way to find
+and resume a story. The 3D world offers contextual ways to discover and play
+the same one. **Stories belong to the Story Engine, not to their entry
+point.**
+
+### Age-band eligibility is the Story Engine's, not the region's
+
+A 3D region enforces the same story eligibility `StoryPage` does, by reusing
+that logic rather than restating it. Reaching a Three.js object must never
+be a way around a band gate: `THE_CASTLES_SECRET_DOOR` is Explorer-only from
+the Adventure Library, so it is Explorer-only from the castle.
+
+### A 3D entry point is authored, never automatic
+
+Accepting this does not put every story into the 3D world. An entry point
+stays an authored `WorldInteraction`, and content decides where a story can
+be found - `THE_CASTLES_SECRET_DOOR` in the Adventure Library and Storykeeper
+Castle, plausibly from a relevant NPC, and nowhere else unless someone
+authors it there.
+
+### Consequences
+
+- SC-9 becomes buildable, and so does SC-8's unbuilt half.
+- **Cross-entry resume tests are required before SC-9 is complete.** Both
+  directions - start in the library and resume in the castle, start in the
+  castle and resume in the library - asserting that switching entry points
+  produces no duplicate `ChildStoryProgress`, no duplicate `AdventureSession`
+  for one attempt, no duplicate completion or `completionWorldChange`, no
+  lost progress, and no replay of a finished scene.
+- Two entry points to one arc need a resume story that holds up in both
+  directions. `useStoryChapterRunner` already skips an `ADVENTURE` scene
+  whose session is finished, which is the hard half; what is untested is a
+  child crossing between routes mid-chapter, and that is worth a test before
+  SC-9 rather than after.
+- `StoryPage` and the castle will both be able to start the arc, so the
+  castle needs the same Explorer-band gate `StoryPage` applies, or a
+  Pathfinder walks into a chapter authored for a band above them.
+- Nothing here says the castle *should* offer the arc, only that it may. The
+  entry point is still an authored `WorldInteraction` and can be added or
+  withheld per region.
+
+
+## ADR-020: Where the castle's art comes from
+
+Status: Proposed
+
+`docs/regions/storykeeper_castle.md` asks for "stylized fantasy, low-poly to
+moderate-poly, warm and colorful, exaggerated silhouettes, slightly magical,
+Roblox / Prodigy / animated-adventure feeling." Every asset this project has
+is generated from primitives by `scripts/generate-world-assets.ts`, and
+**none of the 108 has a texture, a UV accessor, or an image reference**. The
+pack averages 2.6 meshes per asset; Keeper Quill is five untextured boxes.
+That is a legible grey-box, which is what the generator's own header says it
+is, and it does not meet that art direction at any level of polish.
+
+ADR-nothing covers this today. The nearest thing is a decision recorded in
+prose in `docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` on 2026-08-28
+("Third-party asset kits - not yet"), which deferred the question and set
+its own revisit trigger: "when to revisit: after SC-6, and for scenery
+only." SC-6 through SC-10 have shipped, so the trigger has fired. This ADR
+exists to settle the question that deferral left open, because it blocks
+every other phase of the upgrade roadmap - a Castle Director, ambient
+events and a Trophy Room rendered in untextured boxes produce a more
+sophisticated grey-box.
+
+### Three measurements that reframe the question
+
+**1. Scenery-only import addresses about a quarter of the castle.** Of the
+60 castle assets in `assets/manifest.ts`, roughly **44 are gameplay-bearing
+and 16 are scenery**. Gameplay-bearing means the geometry *is* the rule: 22
+assets are state-variant pairs that must share exact vertices (`hearth` /
+`hearth-lit`, `carving-worn` / `carving-worn-revealed`, `secret-door` /
+`secret-door-ajar`, three portraits and three window views with their lit
+twins); the three rods are graded by *length*; the nine stars are counted;
+six clue and story-plate assets are named directly in
+`castleChoiceBindings.ts`; the six easel canvases are the cross-product of
+the child's two choices.
+
+The importable 16 are `archway`, `binding-table`, `carpet`, `ceiling-tile`,
+`costume-rack`, `cushion`, `ground-tile-stone`, `lectern`, `portrait-frame`,
+`reading-table`, `rod-rack`, `round-window`, `tapestry`, `wall-stone`,
+`window-frame`, `writing-desk`.
+
+So the 2026-08-28 deferral's own proposed remedy - import scenery, keep
+gameplay geometry generated - **cannot solve the problem the upgrade
+roadmap poses.** Swap all 16 and roughly three quarters of what a child
+looks at is still untextured primitives, including every object they are
+asked to interact with. This is the finding that makes the old framing
+insufficient rather than merely dated.
+
+**2. Visual swaps are already safe, by an existing decision.** Collision is
+deliberately decoupled from the visual mesh: authored `RectZone` data
+becomes a `Box3` collider via `sceneKit.ts`'s `toBox3`, and a kit piece's
+bounding box is never read to derive collision
+(`docs/THREE_WORLD_ASSET_CONVENTIONS.md`, "Collider proxy" - "a swapped-in
+prettier wall mesh later does not silently change where the child can
+walk"). Interaction targets resolve through the loaded scene root or a named
+part, with a documented `InteractionAnchor` escape hatch for awkward
+silhouettes. `manifest.ts` resolves every asset by id, so no component holds
+a URL.
+
+This is the good news, and it was earned: **the pipeline was built so the
+art can be replaced without touching game logic.** Whatever this ADR
+decides, it is a change to asset production, not to the engine.
+
+**3. The texture test path is the shared prerequisite, not an
+implementation detail.** `assetLoader.test.ts` runs real
+`GLTFLoader.load()` calls inside jsdom against real checked-in files, via a
+narrow `/models/*.gltf` fetch polyfill in `src/test/setup.ts`. That works
+**only** because no asset has an image: there is no `HTMLImageElement` and
+no `ImageBitmap` in that environment. The first textured file to land
+silently removes the pack's only integration-level proof that its output is
+loadable, and nothing replaces it.
+
+Every option below except A needs that path built first.
+
+### The options
+
+**A. Change nothing.** Keep generating untextured primitives. Costs
+nothing, keeps every current property, and fails the upgrade roadmap's
+section 4 outright. Recorded only to be rejected: it is the status quo, and
+the status quo is why the castle cannot be shown to a child.
+
+**B. Import third-party CC0 scenery.** Kenney, Quaternius, the CC0 half of
+Poly Pizza. Needs scale normalisation to 1 unit = 1 metre, re-pivoting to
+ground-pivot (most packs are centre-pivoted), a licence ledger surfaced
+where a parent can find it, and the texture test path. **Reaches 16 of 60
+castle assets.** Cheap per asset, bounded, and by measurement 1 it is not
+sufficient on its own.
+
+**C. Give the generated pipeline a real material story.** Extend
+`gltfAssembler.ts` so generated assets can carry either textures (UV
+accessors plus embedded images) or, at lower risk, `COLOR_0` vertex colours
+and richer per-part materials. Reaches **all 60** castle assets and every
+other asset on the island, keeps identical vertices for state-variant pairs,
+keeps exact geometry for graded puzzles, and keeps everything bespoke and
+licence-clean. The vertex-colour variant has a real advantage worth
+weighing: it adds visual richness **without** an image reference, so the
+jsdom test strategy survives untouched and prerequisite 3 does not arise.
+
+**D. Replace the art wholesale**, including gameplay geometry, from a kit or
+a commissioned artist. Highest ceiling and the only option that plausibly
+reaches "Roblox / Prodigy feeling" outright. Also the most expensive, and it
+breaks the identical-vertex property that ten phases of state-variant swaps
+depend on, so every one of the 22 pairs would need re-authoring and
+re-verifying.
+
+### Proposed decision
+
+**C first, then B for the 16, with D deferred to a product and budget
+decision that is not this ADR's to make.**
+
+1. **Build the material story in the generator (C)**, starting with the
+   vertex-colour variant because it lifts all 60 assets while leaving the
+   test strategy intact. Only escalate to real textures if vertex colours
+   demonstrably fall short, and if so, build the texture test path as its
+   own change before the first textured file is checked in.
+2. **Then import CC0 scenery for the 16 (B)** if it still looks worth it,
+   and prove the manifest swap is a one-line change with no game-logic edit
+   - which is the upgrade roadmap's own Phase 1 exit criterion and
+   something the current registry was designed for.
+3. **Re-cost the upgrade roadmap against one finished room** before
+   building any of its systems.
+
+**The honest limit of this recommendation: C is necessary but probably not
+sufficient.** Textured or vertex-coloured 2.6-mesh box assemblies are better
+boxes. Geometry density and actual art direction need a person, and there is
+no artist in this environment - which is the generator's own stated premise.
+So this ADR settles the *architecture* question (where art enters the
+pipeline, and what has to be true before it can) and explicitly does not
+settle the *sourcing* question (whether to commission art, buy a
+higher-fidelity pack, or accept a stylised generated look as the product's
+identity). That is a budget and product call. It should be made knowing
+that the pipeline is now ready to receive art from any of those sources
+without a game-logic change.
+
+### What this does not license
+
+- **No gameplay-bearing asset is imported.** The 44 stay generated. A door
+  with no handle, a shelf slot empty until `FIRST_STORY_TOLD`, three rods
+  whose lengths are the graded answer, and nine stars in rows of five and
+  four are not purchasable, because the geometry is the puzzle. This half
+  of the 2026-08-28 decision is restated, not dropped.
+- **No state-variant pair is split across sources.** Both halves of a pair
+  come from the same producer, or the construction-time swap visibly pops.
+- **No CC-BY asset without an attribution surface a parent can reach**, and
+  no marketplace asset whose terms exclude redistribution inside an app
+  bundle. Prefer CC0.
+- **No change to collision, interaction, or binding authoring.** If an
+  import appears to need one, that is the signal to stop and write a
+  separate ADR, not to relax the boundary.
+- **No AI-generated imagery or textures.** Out of scope in both castle
+  roadmaps and unchanged here.
+
+### Consequences
+
+- `docs/THREE_WORLD_ASSET_CONVENTIONS.md`'s "Texture-free, by design"
+  section is superseded on acceptance and needs rewriting, along with a new
+  section on whichever material path is chosen.
+- An asset licence ledger becomes owed the moment any third-party file
+  lands, and needs a parent-reachable attribution surface, which is a UI
+  change and not only a docs one.
+- `assetLoader.test.ts` and `src/test/setup.ts` are the blast radius for the
+  texture variant. Under the vertex-colour variant they are untouched,
+  which is most of that variant's argument.
+- SC-11's profiling pass becomes more urgent, not less: richer materials on
+  the Great Library, already the densest room on the island, is exactly the
+  change that wants a measurement on real hardware first. It has still never
+  run outside SwiftShader in a container.
+- Nothing about age bands, safety, authorization, or the adventure and
+  story engines is affected. This ADR is confined to asset production.
+
+### To price before accepting
+
+None of these numbers exist yet, and the decision is better made with them:
+
+1. Generator work for vertex colours across 108 assets, versus the same for
+   textures plus a jsdom texture-loading test path.
+2. Per-asset import cost for the 16 - normalisation, re-pivoting, and
+   visual check against the room they sit in.
+3. Whether a CC0 kit exists whose style matches 44 generated assets it will
+   stand beside. **Partly answered:** see `docs/ASSET_SOURCING.md`, which
+   names The Complete KayKit (CC0, glTF native, $150) as the candidate and
+   prices the audio and Polly work alongside it. A mixed-fidelity room may read worse than a consistent
+   grey-box one, and the upgrade roadmap's section 4 warns about exactly
+   this ("avoid mixing highly realistic assets with cartoon assets").
+4. The sourcing question in the paragraph above, which is the one that
+   actually determines whether the castle becomes showable.
+
+
+## ADR-021: Phaser 2D views are phased out; new regions are authored in Three.js only
+
+Status: Accepted (direction set 2026-09-09); retirement of each existing
+Phaser view is sequenced, not immediate
+
+ADR-008 adopted Three.js as the next-generation renderer but deliberately
+left the two renderers coexisting: "Phaser is not retroactively erased...
+the already-shipped Phaser world is the current production state and stays
+live until a Three.js vertical slice reaches feature parity." That was the
+right call while the Three.js path was one unproven region. It is no longer
+the state of the build: Welcome Harbor, Pirate Builder Bay, Storykeeper
+Castle, Wonderwild Forest, the Wonderwild hive, and Clockwork Harbor all
+have first-person regions, and the shared kit under
+`src/features/island-map/three/` (`sceneKit.ts`, `firstPersonController.ts`,
+`pointerControls.ts`, `sandboxTriggers.ts`, `npcApproachBridge.ts`,
+`worldEngineEvents.ts`, `assets/`) is where region work actually happens.
+
+**The decision.** Three.js is the renderer. New regions are authored
+first-person and 3D only, with no 2D counterpart. The Dragon's Sanctuary is
+the first region built under this rule and authors no tilemap. The existing
+Phaser views are phased out rather than maintained in parallel.
+
+**What "phased out" means, precisely.** Not a mass deletion in one change.
+Per view: the 3D region reaches parity, the route is switched to it, that
+is verified, and only then are the view's `*Tilemap.ts`, `*Zones.ts`,
+`*Decor.ts`, and `*WorldView.tsx` removed. Until a view's turn comes it
+keeps working; what stops immediately is *authoring new content into it*.
+A region that exists in both today is not a region to improve in both.
+
+**What does not change.** Everything ADR-008 kept: the layering rule, the
+constraint that a Three.js scene never validates an answer or awards
+progress, durable state keyed by semantic ids rather than object UUIDs, and
+`ChattyAvatar.tsx`'s Canvas 2D portraits, which are not a world renderer
+and are unaffected.
+
+**The risk this accepts, stated plainly.** ADR-008's open risk was
+accessibility and comfort for Sprouts (ages 3-4) under a first-person
+camera, and its Phase 32 status update named "the card-based hub and the
+Phaser view" as Sprouts' primary route while the playtest remained unrun.
+That playtest still has not run. Removing the Phaser view removes one of
+those two fallbacks.
+
+The requirement it was protecting survives in the other: the non-graphical
+alternate navigator - the card-based location hub - is a hard requirement,
+not an optional nicety, and it stays. A child must always be able to reach
+any location and any adventure without walking there. This ADR does not
+license removing that, and a Three.js region that is the *only* way to reach
+its content would violate it regardless of renderer.
+
+Two consequences follow, and both are obligations rather than notes:
+
+1. The Sprouts playtest becomes more load-bearing, not less, because there
+   is now one fallback rather than two. `docs/PILOT_READINESS.md` section 5
+   still holds the runbook.
+2. Each Phaser retirement must confirm the card-based route to that
+   location's content still works before the view is deleted.
+
+**Consequences.**
+- `docs/regions/dragons-sanctuary-reconciliation.md` section 2's earlier
+  recommendation to follow Storykeeper Castle's dual-view pattern is
+  withdrawn by this ADR.
+- The Dragon's Sanctuary's existing 2D artefacts are superseded on the day
+  the 3D region takes its route.
+- `scripts/generate-world-assets.ts` and the GLB pipeline become the only
+  art pipeline that matters, which sharpens ADR-020 rather than resolving
+  it: every region is now downstream of the untextured-primitive problem.
+
+## ADR-022: Uploaded models live in S3 behind Admins-only Asset records; the bundled manifest stays the runtime fallback
+
+Status: Accepted (2026-09-27), covering Phases 1-2 of
+`docs/android/ASSET_MANAGEMENT.md`
+
+ADR-014 said the content manifest would be "designed, not built, until it
+has something to protect". The Model Asset Manager is that something:
+administrators now need to bring in GLB models from outside the
+generate/import scripts (commissioned characters, AI modeling tools,
+packs too large to commit), and those models need a home that is not the
+Git repository.
+
+**The decision.**
+
+- A generic `Asset` model plus an immutable `AssetVersion` per uploaded
+  file (`amplify/data/resource.ts`). Game content will refer to an asset by
+  id or slug, never by file name. `Asset.slug` shares a namespace with the
+  bundled `ASSET_MANIFEST` ids, as the `AssetCatalogEntry` design in
+  `docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md` already proposed.
+- Files go to the existing Amplify Storage bucket under a new
+  `assets/*` prefix, one object per version
+  (`assets/models/<folder>/<assetId>/v<n>/model.glb`), so a replacement
+  never overwrites bytes that may be cached.
+- Both models and the storage prefix are **Admins-group only** for every
+  operation. Parents, and so children, get nothing.
+- Uploads land as `DRAFT`. Nothing in Phases 1-2 can publish.
+- `src/features/assets/assetService.ts` is the only code that turns an
+  asset reference into a URL. `resolveModelUrl(id)` prefers a published
+  asset with a matching slug and otherwise returns the bundled
+  `public/models/` file.
+
+**Why the bundled manifest stays authoritative at runtime.** Today every
+region loads about 3 MB of committed models and works offline. Serving
+children's worlds from S3 would add a network dependency, a new failure
+mode mid-session, and a cost for Android's planned offline mode, in
+exchange for nothing children can see yet. So the bundled file is always
+the fallback, and `assetLoader.ts` is deliberately **not** wired to
+`resolveModelUrl` until Phase 5 gives parents a published-only read path.
+Wiring it earlier would add a guaranteed "Unauthorized" call to every
+scene load.
+
+**Why Admins-only reads, even for published assets.** A model-level rule
+cannot say "authenticated users may read rows whose status is
+`PUBLISHED`". Granting `allow.authenticated().to(['read'])` would expose
+drafts, source notes, and admin user ids to every parent. The published
+read path will be a narrow custom query or a generated manifest (Phase 5),
+not a wider model rule.
+
+**What this does not change.** The generated and imported assets in
+`public/models/` stay committed, stay under test, and stay the way scenes
+load today. "Do not place GLBs in Git" from ASSET_MANAGEMENT.md applies to
+admin-uploaded models, not to the existing pipeline; moving those is a
+separate migration decision.
+
+**Consequences.**
+
+- Upload limits (`MODEL_MAX_UPLOAD_MB`, `MODEL_WARN_UPLOAD_MB`) are
+  enforced in the browser only. Acceptable because only admins can write,
+  so the limit guards against mistakes rather than attacks.
+- Rules are verified structurally in `src/features/assets/authorization.test.ts`;
+  the live check is listed in `docs/AUTHORIZATION_REVIEW.md` section 5.

@@ -83,6 +83,52 @@ describe('THE_STORYKEEPERS_TALE', () => {
     }
   });
 
+  /**
+   * SC-5's "the hint ladder's rung sequence is unchanged" exit criterion.
+   *
+   * The first-person castle gives beat 5 a *physical* hint: from rung 3
+   * onward, Keeper Quill turns and points at the hearth mantel
+   * (`StorykeeperCastleWorldView.tsx`'s `QUILL_POINTS_AT_MANTEL_FROM_RUNG`).
+   * That gesture follows the ladder; it must never become a reason to edit
+   * one. So the five rungs are pinned verbatim here: changing, reordering,
+   * or inserting one is now a deliberate act with a failing test attached,
+   * rather than something the 3D room can quietly do to a step the card
+   * route also runs.
+   */
+  it('pins the comprehension check hint ladder the room gestures along', () => {
+    const step = THE_STORYKEEPERS_TALE.steps.find(
+      (candidate) => candidate.id === 'comprehension-check',
+    );
+    expect(step?.hintPolicy?.ladder).toEqual([
+      "You've got this! What did Keeper Quill say every good story needs?",
+      'Think back to what Keeper Quill just told you.',
+      'Keeper Quill named three things a story needs.',
+      'Keeper Quill said: a hero, a problem, and a happy ending.',
+      'The answer is "A hero, a problem, and a happy ending."',
+    ]);
+  });
+
+  /**
+   * The sequencing step the binding lectern answers. Its items are
+   * deliberately not in `correctOrder` - see
+   * `castleBindingLectern.test.ts`, which holds the other half of this:
+   * the plates on the table start in *this* order, so neither route hands
+   * the child the answer by arrangement.
+   */
+  it('shuffles the ordering step away from its own correct order', () => {
+    const step = THE_STORYKEEPERS_TALE.steps.find(
+      (candidate) => candidate.id === 'order-the-story',
+    );
+    expect(step?.presentation.kind).toBe('ordering');
+    if (step?.presentation.kind !== 'ordering') return;
+    expect(step.presentation.items.map((item) => item.id)).not.toEqual(
+      step.presentation.correctOrder,
+    );
+    expect([...step.presentation.items.map((item) => item.id)].sort()).toEqual(
+      [...step.presentation.correctOrder].sort(),
+    );
+  });
+
   it('is scoped to Pathfinders only', () => {
     expect(THE_STORYKEEPERS_TALE.ageBands).toEqual(['PATHFINDER']);
   });

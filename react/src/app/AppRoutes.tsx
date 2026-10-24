@@ -24,6 +24,9 @@ import { StoryPage } from '../routes/StoryPage';
 import { AdventureLibraryPage } from '../routes/AdventureLibraryPage';
 import { AdminDashboard } from '../routes/AdminDashboard';
 import { AdminChildProgress } from '../routes/AdminChildProgress';
+import { AdminAssets } from '../routes/AdminAssets';
+import { AdminModelAssets } from '../routes/AdminModelAssets';
+import { AdminNewModelAsset } from '../routes/AdminNewModelAsset';
 import { RequireParent } from '../features/auth/RequireParent';
 import { RequireGuest } from '../features/auth/RequireGuest';
 import { RequireAdmin } from '../features/auth/RequireAdmin';
@@ -101,6 +104,29 @@ const WelcomeHarborWorldPage = lazy(() =>
 const PirateBuilderBayWorldPage3D = lazy(() =>
   import('../routes/PirateBuilderBayWorldPage3D').then((module) => ({
     default: module.PirateBuilderBayWorldPage3D,
+  })),
+);
+
+const StorykeeperCastleWorldPage3D = lazy(() =>
+  import('../routes/StorykeeperCastleWorldPage3D').then((module) => ({
+    default: module.StorykeeperCastleWorldPage3D,
+  })),
+);
+
+const WonderwildForestWorldPage3D = lazy(() =>
+  import('../routes/WonderwildForestWorldPage3D').then((module) => ({
+    default: module.WonderwildForestWorldPage3D,
+  })),
+);
+
+/**
+ * Clockwork Harbor (`docs/regions/clockwork.md`). No `3D` suffix: unlike the
+ * bay and the castle, this region has no earlier Phaser route to disambiguate
+ * from - it is first-person from its first commit.
+ */
+const ClockworkHarborWorldPage = lazy(() =>
+  import('../routes/ClockworkHarborWorldPage').then((module) => ({
+    default: module.ClockworkHarborWorldPage,
   })),
 );
 
@@ -301,6 +327,36 @@ export function AppRoutes() {
         }
       />
       <Route
+        path="/island/:childId/world/wonderwild-forest-3d"
+        element={
+          <RequireParent>
+            <Suspense fallback={<p>Loading Wonderwild Forest...</p>}>
+              <WonderwildForestWorldPage3D />
+            </Suspense>
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/world/storykeeper-castle-3d"
+        element={
+          <RequireParent>
+            <Suspense fallback={<p>Loading Storykeeper Castle...</p>}>
+              <StorykeeperCastleWorldPage3D />
+            </Suspense>
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/world/clockwork-harbor"
+        element={
+          <RequireParent>
+            <Suspense fallback={<p>Loading Clockwork Harbor...</p>}>
+              <ClockworkHarborWorldPage />
+            </Suspense>
+          </RequireParent>
+        }
+      />
+      <Route
         path="/island/:childId/travel"
         element={
           <RequireParent>
@@ -382,6 +438,30 @@ export function AppRoutes() {
         element={
           <RequireAdmin>
             <AdminChildProgress />
+          </RequireAdmin>
+        }
+      />
+      <Route
+        path="/admin/assets"
+        element={
+          <RequireAdmin>
+            <AdminAssets />
+          </RequireAdmin>
+        }
+      />
+      <Route
+        path="/admin/assets/models"
+        element={
+          <RequireAdmin>
+            <AdminModelAssets />
+          </RequireAdmin>
+        }
+      />
+      <Route
+        path="/admin/assets/models/new"
+        element={
+          <RequireAdmin>
+            <AdminNewModelAsset />
           </RequireAdmin>
         }
       />

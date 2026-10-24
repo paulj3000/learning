@@ -21,7 +21,7 @@ type ParentProfile = Schema['ParentProfile']['type'];
 
 /**
  * Full, irreversible deletion of every stored record for one child - not
- * the deactivate toggle in ChildProfileList, which keeps the record and
+ * the deactivate toggle in ChildProfileSummary, which keeps the record and
  * lets a parent reactivate it. This is the "deletes" half of
  * docs/TESTING_STRATEGY.md's e2e path 9 ("Parent deletes or deactivates a
  * child profile") and docs/AI_AND_CHILD_SAFETY.md's "data controls and

@@ -26,7 +26,17 @@ export type WorldEngineEventMap = {
   ObjectInteracted: { entityId: EntityId; interactionId: InteractionId };
   NpcApproached: { entityId: EntityId };
   CollectiblePickedUp: { entityId: EntityId };
-  BuildActionRequested: { entityId: EntityId };
+  /**
+   * A build action on `entityId`. `order` carries the entity ids the child
+   * arranged, in the order they arranged them, for a build whose *answer is
+   * an arrangement* rather than a single placement - Storykeeper Castle's
+   * binding lectern (`castleBindingLectern.ts`) is the first, seating three
+   * story plates in three sockets. Optional, so the Phase 31 sandbox's
+   * single-spot build is unchanged. The ids are the scene's own semantic
+   * entity ids, never option ids: translating an arrangement into an answer
+   * is the bindings' job, not the renderer's.
+   */
+  BuildActionRequested: { entityId: EntityId; order?: readonly EntityId[] };
   /**
    * Phase 32: what the camera's crosshair is centered on right now, so a HUD
    * reticle can read (e.g. "Pip") without the React layer running its own

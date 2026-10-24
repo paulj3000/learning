@@ -1,0 +1,56 @@
+{
+  "asset": { "version": "2.0", "generator": "learning-adventure-island world-asset-pipeline" },
+  "scene": 0,
+  "scenes": [{ "nodes": [0] }],
+  "nodes": [
+    {
+      "name": "Fern",
+      "mesh": 0,
+      "translation": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1]
+    }
+  ],
+  "meshes": [
+    {
+      "name": "FernMesh",
+      "primitives": [
+        { "attributes": { "POSITION": 0, "NORMAL": 1 }, "indices": 2, "material": 0, "mode": 4 }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "FernMaterial",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.20784313725490197, 0.4, 0.1843137254901961, 1],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.85
+      },
+      "doubleSided": true
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 23,
+      "type": "VEC3",
+      "min": [-0.5230810839623345, 0, -0.44495934690622113],
+      "max": [0.5230810839623344, 0.4, 0.55]
+    },
+    { "bufferView": 1, "componentType": 5126, "count": 23, "type": "VEC3" },
+    { "bufferView": 2, "componentType": 5123, "count": 30, "type": "SCALAR" }
+  ],
+  "bufferViews": [
+    { "buffer": 0, "byteOffset": 0, "byteLength": 276, "target": 34962 },
+    { "buffer": 0, "byteOffset": 276, "byteLength": 276, "target": 34962 },
+    { "buffer": 0, "byteOffset": 552, "byteLength": 60, "target": 34963 }
+  ],
+  "buffers": [
+    {
+      "uri": "data:application/octet-stream;base64,AAAAAM3MzD4AAAAAAAAAAM3MzD4AAAAAAAAAAM3MzD4AAACAAAAAgM3MzD4AAACAAAAAgM3MzD4AAAAAAAAAgM3MzD4AAAAAAAAAAAAAAADNzAw/pOgFPwAAAADTCS4+NIWlPgAAAAC20eO+NIWlvgAAAAC20eO+pOgFvwAAAADTCS4+t08bpQAAAADNzAw/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADNzAw/pOgFPwAAAADTCS4+NIWlPgAAAAC20eO+NIWlvgAAAAC20eO+pOgFvwAAAADTCS4+t08bpQAAAADNzAw/AAAAAFQJTz9skhY/0zMPP1QJTz//HTo+CQKxPlQJTz9rofO+CQKxvlQJTz9rofO+0zMPv1QJTz//HTo+KRcmpVQJTz9skhY/AAAAAFQJTz9skhY/0zMPP1QJTz//HTo+CQKxPlQJTz9rofO+CQKxvlQJTz9rofO+0zMPv1QJTz//HTo+KRcmpVQJTz9skhY/AAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAABgAHAAEABwAIAAIACAAJAAMACQAKAAQACgALAAUAEgARAAwAEwASAA0AFAATAA4AFQAUAA8AFgAVABAA",
+      "byteLength": 612
+    }
+  ]
+}

@@ -170,21 +170,199 @@ future multi-part kit piece that needs many repeated placements would need
 either an instancing helper that batches per sub-mesh, or to stay on the
 individual-placement path.
 
-## Texture-free, by design
+Two updates to the paragraph above. `foliage-tree` is no longer
+multi-part: since the Kenney swap it resolves to `kenney-tree-large.glb`,
+a single mesh with a single primitive, which is why Pirate Builder Bay can
+put it through `placeKitCluster` (→ `createInstancedMeshFromAsset`)
+safely. And Pirate Builder Bay's dock kit was authored against this rule
+from the start - `crate`, `barrel` and `mooring-post` are deliberately
+single-mesh because every one of them is placed by instancing, while
+`shipwreck` is multi-part and placed as one clone.
+`assets/bayDockKit.test.ts` asserts exactly that split, so the rule fails
+a test rather than silently dropping geometry.
 
-No asset in this pack has a texture, a UV-mapped `TEXCOORD_0` accessor, or
+## Ground quads: winding, not just normals
+
+A flat ground quad has to be **wound** counter-clockwise seen from `+y`,
+not merely carry `+y` normals. Every material this pack emits is
+`doubleSided` (`gltfAssembler.ts`), and three.js flips the shading normal
+on back faces - so a quad whose winding disagrees with its declared normal
+is lit from underneath and renders dark, with no error and nothing missing
+from the scene graph. `buildGroundPlanePrimitive` shipped with the winding
+backwards, which is why `path.gltf` read as grey asphalt on Pirate Builder
+Bay's light sand, and it affected every flat piece built from it: paths,
+carpets, ground tiles, the castle ceiling. `primitives.test.ts` now checks
+the winding against the declared normal; the older test checked normals
+alone and could not catch it.
+
+## Texture-free, by design (generated assets)
+
+No **generated** asset has a texture, a UV-mapped `TEXCOORD_0` accessor, or
 an image reference - every material is a flat `baseColorFactor` (optionally
-with `emissiveFactor`). This is not a temporary shortcut: it sidesteps
-`Image`/canvas loading entirely, which is what keeps every asset in this
-pack loadable and testable in Vitest's jsdom environment (no
-`HTMLImageElement`, no `ImageBitmap`) as well as in a real browser. A future
-textured asset would need its own test strategy for the texture-loading
-path; nothing here provides one.
+with `emissiveFactor`). This is not a temporary shortcut: the generator has
+no material story, so a generated document referencing a texture means
+something went wrong rather than that someone got ambitious.
+`castleKit.test.ts` and `wonderwildKit.test.ts` enforce it per pack.
+
+It used to be load-bearing for a second reason - it sidestepped
+`Image`/canvas loading entirely, which is what kept every asset testable in
+Vitest's jsdom environment (no `HTMLImageElement`, no `ImageBitmap`) - and
+this document used to say a future textured asset "would need its own test
+strategy for the texture-loading path; nothing here provides one."
+
+**That path now exists.** See "Imported assets" below.
+
+## Imported assets
+
+Not every asset is generated any more. `docs/ASSET_LICENCES.md` is the
+ledger of every third-party file checked in, its source and its licence;
+ADR-020 is the decision that governs when one may be.
+
+An import follows the same conventions as a generated asset wherever they
+apply - 1 unit = 1 metre, +Y up, collision still authored as `RectZone` data
+rather than derived from the mesh - and differs in three ways that are
+recorded per asset rather than assumed:
+
+- **It may be binary `.glb`.** `assetLoader.ts` resolves by manifest id, so
+  the container is invisible to callers; the fetch polyfill in
+  `src/test/setup.ts` serves both, reading a `.glb` as bytes and never
+  decoding it as utf-8.
+- **It may carry a texture**, embedded as a `bufferView` image. Prefer a
+  self-contained file: an external texture URI needs a second file placed
+  beside it and 404s the moment one moves and the other does not.
+- **It may not be ground-pivoted.** Most kits centre-pivot. Rather than
+  re-authoring the file, the placing code carries a named offset - see
+  `FLOOR_SLAB_TOP_OFFSET` in `storykeeperCastleScene.ts` - and a test pins
+  the dimension that offset was derived from, so a re-import that changes
+  the mesh fails loudly instead of drifting.
+
+- **It may not be at metre scale.** Kenney's kits are authored on a 1-unit
+  module: a castle wall is 1.00 x 1.31 x 1.00, so dropped in unchanged it
+  stands below a child's 1.6m `EYE_HEIGHT`. `scripts/import-kenney-assets.ts`
+  normalises this at import rather than at placement, by the rule below.
+
+### Normalising an import's scale
+
+An import declares the **generated asset whose manifest id it takes over**,
+and is scaled by the largest uniform factor that still fits inside that
+asset's bounding box **on all three axes**.
+
+Fitting inside, rather than matching one axis, is the part that matters.
+Collision is authored as `RectZone` data around the generated original, so
+a mesh that fits inside it cannot poke through the collider - the one way
+a pure art swap can change where a child *appears* able to walk. Uniform,
+because non-uniform scaling visibly stretches a texture atlas.
+
+The scale is baked into the POSITION data, not onto the node, so the root
+transform stays identity. A node transform would survive
+`createInstancedMeshFromAsset` (it bakes `matrixWorld`) but only for
+single-node files, and identity roots are what the import contracts pin.
+Uniform scale leaves NORMAL and TANGENT valid, so only POSITION is rewritten.
+
+For an LOD pair, **both levels are fitted to the near level's box**, not to
+their own. The collider belongs to the object rather than to the detail
+level, and one shared box is what lands both levels on the same height so
+the swap at `distanceMeters` has no vertical pop.
+
+### Importing a rigged character
+
+A character import is a different job from a scenery import, and
+`scripts/import-character-assets.ts` is where it lives. Two rules govern it.
+
+**The vocabulary is closed, and imports are renamed to it.** An imported
+character declares clips from `animationVocabulary.ts` or it declares
+fewer - the vocabulary is never widened to accommodate a pack. In practice
+a general-purpose character pack maps onto very little of it: of the 24
+clips Quaternius's Ultimate Modular Men ship, three (`Idle`, `Walk`,
+`Wave`) map without inventing a meaning, and the rest are dropped. Where a
+source clip is plainly useful but ambiguous - `Interact` could be `Point`,
+`Talk` or `Activate` - it is dropped rather than guessed, because a wrong
+name inside a closed vocabulary is worse than a missing clip.
+
+**A clip that cannot be shown to a child is removed from the file, not left
+unreferenced.** Character packs are overwhelmingly built for combat, and
+this product is for ages 3 to 8. A `Gun_Shoot` or `Death` clip that nothing
+ever plays is still in the bundle and still discoverable. The content half
+of `characterImports.test.ts` is what keeps a re-import from restoring
+them.
+
+Dropping most of a character's clips leaves most of the document
+unreachable, so the importer also **prunes**: it walks reachability from
+meshes, skins and the surviving clips, rebuilds the binary buffer from only
+those bufferViews, and renumbers every accessor and bufferView index. It
+drops `TEXCOORD_*` too when no material samples a texture, since an
+untextured character cannot read its own uvs. On these files that is 2797
+accessors down to 402, and 2.9 MB down to 824 KB.
+
+Renumbering is the risky part: an off-by-one still parses as JSON and still
+looks plausible, and only fails visibly at render. That is why the contract
+ends with a real `GLTFLoader` round trip asserting the rig binds and every
+surviving clip has tracks, rather than reading the document as JSON alone.
+
+### The import contracts
+
+Three files, split by which kit they cover:
+
+- `describe('imported castle kit')` in `castleKit.test.ts` — the KayKit
+  floor and ceiling slabs.
+- `kenneyImports.test.ts` — the shared kit's nature props.
+- `characterImports.test.ts` — the rigged characters.
+
+Between them they pin grid fit, scale fit, pivot, identity roots,
+single-mesh where instanced, embedded texture, clip vocabulary, absence of
+combat clips, buffer packing, and no required glTF extension (`GLTFLoader`
+returns an incomplete scene for an unsupported required extension rather
+than throwing).
+
+### The texture test path
+
+A GLB's texture is a `bufferView` PNG. `GLTFLoader` turns it into a `Blob`,
+takes an object URL, and hands that to `ImageLoader`, which sets `img.src`
+and waits for a `load` event. jsdom has no image decoder, so that event
+never fires and `GLTFLoader.load()` **hangs rather than failing** - a
+20-second test timeout with no error, which is a genuinely confusing way to
+discover the problem.
+
+`stubImageDecoding()` in `src/test/setup.ts` resolves the image half so the
+rest of the round trip stays under test. What it proves: the file is
+fetched, its container parsed, its `bufferView` image found, and its
+material and texture wired onto the mesh. What it does not prove: that the
+PNG bytes decode to a valid image. jsdom cannot rasterise one at any level
+of effort, so that check belongs to a browser (Playwright) run.
+
+## Uploaded models (Model Asset Manager)
+
+Models that do not come from `scripts/generate-world-assets.ts` or the
+import scripts can be uploaded by an administrator at
+`/admin/assets/models/new` (ADR-022). They go to S3, not to
+`public/models/`, and land as drafts that children never see.
+
+Requirements checked before upload (`src/features/assets/modelFileChecks.ts`):
+
+- **Format:** `.glb` (glTF 2.0 binary) only. The file's 12-byte header must
+  say glTF version 2 and match the file's real length, which catches
+  renamed files and truncated exports.
+- **Size:** hard limit `MODEL_MAX_UPLOAD_MB`, default 50 MB; warning above
+  `MODEL_WARN_UPLOAD_MB`, default 10 MB. Override either with the Vite env
+  vars `VITE_MODEL_MAX_UPLOAD_MB` / `VITE_MODEL_WARN_UPLOAD_MB`. The whole
+  bundled world is about 3 MB, so a single model over 10 MB deserves a
+  second look before a child's tablet downloads it.
+- **Naming:** the display name becomes the asset's slug (`Pirate Captain`
+  -> `pirate-captain`), which must be unique. Use the same id a bundled
+  manifest entry uses only when the upload is meant to replace that model
+  once published.
+- **Duplicates:** re-uploading a file name already on record is a warning,
+  because a newer version belongs on the existing asset (Phase 6's
+  "Replace model"), not in a second one.
+
+The same scale, pivot, and animation-name rules above apply to uploaded
+models. Phase 3's GLTFLoader validation will check them automatically;
+until then they are the uploader's responsibility.
 
 ## File layout and format
 
-Every asset is a single, self-contained `.gltf` **JSON** file (not binary
-`.glb`) with its buffer embedded as a base64 data URI, under
+Every *generated* asset is a single, self-contained `.gltf` **JSON** file
+(not binary `.glb`) with its buffer embedded as a base64 data URI, under
 `public/models/*.gltf` - no separate `.bin`, no `assetsInclude` change
 needed in `vite.config.ts` (Vite serves `public/` as static files as-is).
 This trades a slightly larger JSON file (base64 is ~33% bigger than raw
@@ -199,9 +377,34 @@ this convention extends indefinitely.
 npm run assets:generate
 ```
 
-Runs `scripts/generate-world-assets.ts` (via `tsx`) and rewrites every file
-in `public/models/`. The output is checked in, not built at deploy time -
-regenerate and commit after changing any asset's authoring in that script.
+Runs `scripts/generate-world-assets.ts` (via `tsx`) and rewrites every
+*generated* `.gltf` in `public/models/`. The output is checked in, not built
+at deploy time - regenerate and commit after changing any asset's authoring
+in that script.
+
+It does not touch the imported `.glb` files, which have their own command:
+
+```
+npm run assets:import-kenney
+```
+
+Runs `scripts/import-kenney-assets.ts`, which reads the CC0 archives under
+`assets/*.zip` and writes the normalised `kenney-*.glb` files.
+
+```
+npm run assets:import-characters
+```
+
+Runs `scripts/import-character-assets.ts` for the rigged characters, per
+the rules above.
+
+Both read their zips in place through `scripts/assets/zipReader.ts`, a
+minimal `node:zlib` reader rather than a dependency. Those archives are
+**git-ignored** - 532 MB against about 2.1 MB of shipped models - so
+re-running either needs them downloaded again, from the urls in
+`docs/ASSET_SOURCING.md` and verifiable against the sha256s in
+`docs/ASSET_LICENCES.md`. Both importers' output is checked in, so a normal
+clone never needs to run them.
 
 ## Testing
 

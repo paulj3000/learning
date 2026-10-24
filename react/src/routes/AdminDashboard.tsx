@@ -53,7 +53,10 @@ export function AdminDashboard() {
     <div className={parentStyles.page}>
       <header className={parentStyles.header}>
         <h1 className={parentStyles.title}>Admin</h1>
-        <Link to="/home">Back to my dashboard</Link>
+        <nav aria-label="Admin sections" className={parentStyles.headerLeft}>
+          <Link to="/admin/assets">Game assets</Link>
+          <Link to="/home">Back to my dashboard</Link>
+        </nav>
       </header>
       <main className={parentStyles.main} id="main-content">
         {loadState === 'loading' ? <p>Loading families...</p> : null}

@@ -1,0 +1,56 @@
+{
+  "asset": { "version": "2.0", "generator": "learning-adventure-island world-asset-pipeline" },
+  "scene": 0,
+  "scenes": [{ "nodes": [0] }],
+  "nodes": [
+    {
+      "name": "Crate",
+      "mesh": 0,
+      "translation": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1]
+    }
+  ],
+  "meshes": [
+    {
+      "name": "CrateMesh",
+      "primitives": [
+        { "attributes": { "POSITION": 0, "NORMAL": 1 }, "indices": 2, "material": 0, "mode": 4 }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "CrateMaterial",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.611764705882353, 0.4666666666666667, 0.25882352941176473, 1],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.85
+      },
+      "doubleSided": true
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "min": [-0.4, 0, -0.4],
+      "max": [0.4, 0.8, 0.4]
+    },
+    { "bufferView": 1, "componentType": 5126, "count": 24, "type": "VEC3" },
+    { "bufferView": 2, "componentType": 5123, "count": 36, "type": "SCALAR" }
+  ],
+  "bufferViews": [
+    { "buffer": 0, "byteOffset": 0, "byteLength": 288, "target": 34962 },
+    { "buffer": 0, "byteOffset": 288, "byteLength": 288, "target": 34962 },
+    { "buffer": 0, "byteOffset": 576, "byteLength": 72, "target": 34963 }
+  ],
+  "buffers": [
+    {
+      "uri": "data:application/octet-stream;base64,zczMPs3MTD/NzMw+zczMPs3MTD/NzMy+zczMPgAAAADNzMy+zczMPgAAAADNzMw+zczMvs3MTD/NzMy+zczMvs3MTD/NzMw+zczMvgAAAADNzMw+zczMvgAAAADNzMy+zczMvs3MTD/NzMy+zczMPs3MTD/NzMy+zczMPs3MTD/NzMw+zczMvs3MTD/NzMw+zczMvgAAAADNzMw+zczMPgAAAADNzMw+zczMPgAAAADNzMy+zczMvgAAAADNzMy+zczMvs3MTD/NzMw+zczMPs3MTD/NzMw+zczMPgAAAADNzMw+zczMvgAAAADNzMw+zczMPs3MTD/NzMy+zczMvs3MTD/NzMy+zczMvgAAAADNzMy+zczMPgAAAADNzMy+AACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAABAAIAAAACAAMABAAFAAYABAAGAAcACAAJAAoACAAKAAsADAANAA4ADAAOAA8AEAARABIAEAASABMAFAAVABYAFAAWABcA",
+      "byteLength": 648
+    }
+  ]
+}

@@ -29,14 +29,42 @@ describe('runPlacements', () => {
     }
   });
 
-  it('orients each segment to face along the run direction', () => {
-    const placements = runPlacements({ x: 0, z: 0 }, { x: 0, z: 4 }, 2);
-    for (const placement of placements) {
-      expect(placement.rotationY).toBeCloseTo(0);
+  /**
+   * Every kit piece tiled this way is a panel authored width-first (`wall`,
+   * `wall-stone`, `fence` are all `buildPlanePrimitive`, wide in local X
+   * with their normal on +Z), so "oriented correctly" means the piece's
+   * local X ends up along the run and its face looks across it. Asserted as
+   * a transformed direction rather than as a raw angle, because the angle
+   * alone cannot show which way a panel actually ends up pointing - and it
+   * was the raw angle being asserted that let a 90-degree error stand.
+   */
+  function widthAxisAfter(placement: { rotationY?: number }): { x: number; z: number } {
+    const angle = placement.rotationY ?? 0;
+    return { x: Math.cos(angle), z: -Math.sin(angle) };
+  }
+
+  it('lays each segment width-wise along the run, facing across it', () => {
+    for (const placement of runPlacements({ x: 0, z: 0 }, { x: 0, z: 4 }, 2)) {
+      const width = widthAxisAfter(placement);
+      expect(width.x).toBeCloseTo(0);
+      expect(width.z).toBeCloseTo(1);
     }
-    const sideways = runPlacements({ x: 0, z: 0 }, { x: 4, z: 0 }, 2);
-    for (const placement of sideways) {
-      expect(placement.rotationY).toBeCloseTo(Math.PI / 2);
+    for (const placement of runPlacements({ x: 0, z: 0 }, { x: 4, z: 0 }, 2)) {
+      const width = widthAxisAfter(placement);
+      expect(width.x).toBeCloseTo(1);
+      expect(width.z).toBeCloseTo(0);
+    }
+  });
+
+  /**
+   * The concrete regression: a north building wall runs along +X, and its
+   * panels must be left unrotated so they line up with the door
+   * `welcomeHarborScene.ts` hand-places on that same side at `rotationY`
+   * 0. Before this fix they came back at 90 degrees.
+   */
+  it('leaves a run along +X unrotated, matching a hand-placed door on the same side', () => {
+    for (const placement of runPlacements({ x: -3, z: 4 }, { x: 3, z: 4 }, 2)) {
+      expect(placement.rotationY).toBeCloseTo(0);
     }
   });
 

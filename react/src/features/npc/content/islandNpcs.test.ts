@@ -5,7 +5,8 @@
  * and the child-facing copy rules in CLAUDE.md section 13.
  */
 import { describe, expect, it } from 'vitest';
-import { ISLAND_NPCS, findNpc } from './islandNpcs';
+import { ISLAND_NPCS } from './islandNpcs';
+import { findNpc } from './index';
 import { findDanglingChoices, selectDialogueNode } from '../dialogue';
 import { resolveNpcLocation } from '../schedule';
 import { RELATIONSHIP_LEVEL_ORDER, TIME_OF_DAY_ORDER, type NpcContext } from '../types';

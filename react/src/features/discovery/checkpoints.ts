@@ -142,10 +142,256 @@ export const STORYKEEPER_CASTLE_CHECKPOINTS: readonly RegionCheckpoint[] = [
 ];
 
 /** Every authored checkpoint, across every region (Phase 32's Welcome Harbor, Phase 33's Pirate Builder Bay, SC-0's Storykeeper Castle). */
+export const WONDERWILD_FOREST_REGION_ID = 'wonderwild-forest';
+
+/**
+ * Wonderwild Forest's checkpoints (`docs/WONDERWILD_FOREST_3D_ROADMAP.md`
+ * WF-0). One per glade a child has a reason to come back to, and
+ * `harbor-path` is deliberately first: `resolveSpawnCheckpoint` falls back to
+ * a region's first authored checkpoint, and arriving at the way in is the
+ * only spawn that makes sense for a child who has never been here.
+ *
+ * `pond` sits on the bank rather than out on the water, which is a collider
+ * (`wonderwildForestRegion.ts`'s `POND_WATER`). A checkpoint a child cannot
+ * stand on is a spawn point that strands them.
+ */
+export const WONDERWILD_FOREST_CHECKPOINTS: readonly RegionCheckpoint[] = [
+  {
+    id: 'wonderwild-forest:harbor-path',
+    regionId: WONDERWILD_FOREST_REGION_ID,
+    label: 'the path into the forest',
+    x: -16,
+    z: 0,
+    yaw: Math.PI / 2,
+  },
+  {
+    id: 'wonderwild-forest:wonder-wall',
+    regionId: WONDERWILD_FOREST_REGION_ID,
+    label: 'the Wonder Wall',
+    x: 0,
+    z: -2,
+    yaw: 0,
+  },
+  {
+    id: 'wonderwild-forest:hive-clearing',
+    regionId: WONDERWILD_FOREST_REGION_ID,
+    label: 'the hive clearing',
+    x: 12,
+    z: 0,
+    yaw: Math.PI / 2,
+  },
+  {
+    id: 'wonderwild-forest:pond',
+    regionId: WONDERWILD_FOREST_REGION_ID,
+    label: 'the pond',
+    x: 9,
+    z: 6.8,
+    yaw: 0,
+  },
+  {
+    id: 'wonderwild-forest:cave-mouth',
+    regionId: WONDERWILD_FOREST_REGION_ID,
+    label: 'the cave mouth',
+    x: 11,
+    z: -8,
+    yaw: Math.PI,
+  },
+];
+
+export const WONDERWILD_HIVE_REGION_ID = 'wonderwild-hive';
+
+/**
+ * Inside the beehive (`docs/WONDERWILD_FOREST_3D_ROADMAP.md` WF-0). Its own
+ * region, entered only by being shrunk mid-adventure and left only through
+ * the hive mouth - which is why it is a region here and not an
+ * `ISLAND_LOCATIONS` entry.
+ */
+export const WONDERWILD_HIVE_CHECKPOINTS: readonly RegionCheckpoint[] = [
+  {
+    id: 'wonderwild-hive:entrance',
+    regionId: WONDERWILD_HIVE_REGION_ID,
+    label: 'the hive mouth',
+    x: -5,
+    z: 0,
+    yaw: Math.PI / 2,
+  },
+  {
+    id: 'wonderwild-hive:dance-floor',
+    regionId: WONDERWILD_HIVE_REGION_ID,
+    label: 'the dance floor',
+    x: 0,
+    z: -2,
+    yaw: 0,
+  },
+];
+
+export const CLOCKWORK_HARBOR_REGION_ID = 'clockwork-harbor';
+
+/**
+ * Clockwork Harbor's checkpoints (`docs/regions/clockwork.md` section 5,
+ * "Region Layout", and section 9's Phase 3 build list). One per district a
+ * child has a reason to walk back to, and `harbor-entrance` is deliberately
+ * first: `resolveSpawnCheckpoint` falls back to a region's first authored
+ * checkpoint, and arriving at the harbor gate is the only spawn that makes
+ * sense for a child who has never been here.
+ *
+ * `lighthouse-lamp` sits inside the lighthouse rather than on its doorstep,
+ * so a child who left mid-repair comes back to the machine they were
+ * working on instead of to the bottom of the stairs.
+ *
+ * Yaw follows `firstPersonController.ts`'s convention (`forwardX =
+ * sin(yaw)`, `forwardZ = cos(yaw)`): 0 faces +Z, PI/2 faces +X.
+ */
+export const CLOCKWORK_HARBOR_CHECKPOINTS: readonly RegionCheckpoint[] = [
+  {
+    id: 'clockwork-harbor:harbor-entrance',
+    regionId: CLOCKWORK_HARBOR_REGION_ID,
+    label: 'the harbor gate',
+    x: 0,
+    z: 18,
+    yaw: Math.PI,
+  },
+  {
+    id: 'clockwork-harbor:docks',
+    regionId: CLOCKWORK_HARBOR_REGION_ID,
+    label: 'the docks',
+    x: 0,
+    z: 8,
+    yaw: Math.PI,
+  },
+  {
+    id: 'clockwork-harbor:lighthouse-door',
+    regionId: CLOCKWORK_HARBOR_REGION_ID,
+    label: 'the lighthouse door',
+    /*
+      Outside the tower, on its doorstep. The lighthouse's open side is its
+      east wall (`clockworkHarborRegion.ts`'s `LIGHTHOUSE.wallSides` omits
+      `east`, at x = -12), so this sits just clear of the interior and faces
+      back into the doorway - a child returning here arrives at the door
+      rather than already standing in the machine room, which is what
+      `lighthouse-lamp` is for.
+    */
+    x: -11,
+    z: 0,
+    yaw: -Math.PI / 2,
+  },
+  {
+    id: 'clockwork-harbor:lighthouse-lamp',
+    regionId: CLOCKWORK_HARBOR_REGION_ID,
+    label: 'the lighthouse machine room',
+    x: -16.5,
+    z: 0,
+    yaw: Math.PI / 2,
+  },
+  {
+    id: 'clockwork-harbor:marketplace',
+    regionId: CLOCKWORK_HARBOR_REGION_ID,
+    label: 'the marketplace',
+    x: 6,
+    z: -6,
+    yaw: 0,
+  },
+];
+
+export const DRAGONS_SANCTUARY_REGION_ID = 'dragons-sanctuary';
+
+/**
+ * The Dragon's Sanctuary's checkpoints (`docs/regions/dragons-sanctuary-
+ * roadmap.md` Phase 1, "Minimum Explorable Sanctuary").
+ *
+ * `gate` is first, and deliberately: `resolveSpawnCheckpoint` falls back to
+ * a region's first authored checkpoint, and a child who has never been here
+ * arrives through the gate. Walking in past the ruined arch and seeing the
+ * valley open up is the region's whole first impression; spawning anywhere
+ * else would spend it.
+ *
+ * `forge-hearth` sits inside the forge rather than on its doorstep, for the
+ * reason `clockwork-harbor:lighthouse-lamp` does: a child who left partway
+ * through Rekindle the Forge comes back to the hearth they were working on,
+ * not to the door.
+ *
+ * No checkpoint is authored at the crystal cavern or the hatchery. Both are
+ * sealed in this phase, and a checkpoint is a place a child has stood - one
+ * authored at a gate they cannot open would be a spawn point they can never
+ * legitimately save at.
+ *
+ * Yaw follows `firstPersonController.ts`'s convention (`forwardX =
+ * sin(yaw)`, `forwardZ = cos(yaw)`): 0 faces +Z, PI/2 faces +X. The valley
+ * runs south to north, so most of these face -Z (`Math.PI`), inward.
+ */
+export const DRAGONS_SANCTUARY_CHECKPOINTS: readonly RegionCheckpoint[] = [
+  {
+    id: 'dragons-sanctuary:gate',
+    regionId: DRAGONS_SANCTUARY_REGION_ID,
+    label: 'the sanctuary gate',
+    x: 0,
+    z: 21,
+    yaw: Math.PI,
+  },
+  {
+    id: 'dragons-sanctuary:valley',
+    regionId: DRAGONS_SANCTUARY_REGION_ID,
+    label: 'the central valley',
+    x: 0,
+    z: 6,
+    yaw: Math.PI,
+  },
+  {
+    id: 'dragons-sanctuary:roost',
+    regionId: DRAGONS_SANCTUARY_REGION_ID,
+    label: "Ember's roost",
+    x: 0,
+    z: -12,
+    yaw: Math.PI,
+  },
+  {
+    id: 'dragons-sanctuary:lodge-door',
+    regionId: DRAGONS_SANCTUARY_REGION_ID,
+    label: 'the Keeper Lodge door',
+    /*
+      On the doorstep, not inside. The lodge's open side is its east wall
+      (`dragonsSanctuaryRegion.ts`'s `KEEPER_LODGE.wallSides` omits `east`,
+      at x = -14), so this stands just clear of it facing back through the
+      doorway.
+    */
+    x: -13,
+    z: 3,
+    yaw: -Math.PI / 2,
+  },
+  {
+    id: 'dragons-sanctuary:forge-door',
+    regionId: DRAGONS_SANCTUARY_REGION_ID,
+    label: 'the forge door',
+    x: 13,
+    z: 3,
+    yaw: Math.PI / 2,
+  },
+  {
+    id: 'dragons-sanctuary:forge-hearth',
+    regionId: DRAGONS_SANCTUARY_REGION_ID,
+    label: 'the forge hearth',
+    x: 18,
+    z: 3,
+    yaw: Math.PI / 2,
+  },
+  {
+    id: 'dragons-sanctuary:sky-cliff-view',
+    regionId: DRAGONS_SANCTUARY_REGION_ID,
+    label: 'the sky cliff lookout',
+    x: 0,
+    z: -24,
+    yaw: Math.PI,
+  },
+];
+
 export const ALL_CHECKPOINTS: readonly RegionCheckpoint[] = [
   ...WELCOME_HARBOR_CHECKPOINTS,
   ...PIRATE_BUILDER_BAY_CHECKPOINTS,
   ...STORYKEEPER_CASTLE_CHECKPOINTS,
+  ...WONDERWILD_FOREST_CHECKPOINTS,
+  ...WONDERWILD_HIVE_CHECKPOINTS,
+  ...CLOCKWORK_HARBOR_CHECKPOINTS,
+  ...DRAGONS_SANCTUARY_CHECKPOINTS,
 ];
 
 export const KNOWN_CHECKPOINT_IDS: readonly string[] = ALL_CHECKPOINTS.map(

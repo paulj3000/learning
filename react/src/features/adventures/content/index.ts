@@ -4,6 +4,7 @@ import { REPAIR_THE_MOONLIGHT_BRIDGE } from './repairTheMoonlightBridge';
 import { THREE_PLANKS_FOR_THE_BRIDGE } from './threePlanksForTheBridge';
 import { THE_TIDE_GATE_CALCULATION } from './theTideGateCalculation';
 import { THE_STORYKEEPERS_TALE } from './theStorykeepersTale';
+import { QUILLS_PICTURE_STORY } from './quillsPictureStory';
 import { BUZZ_AND_THE_WAGGLE_DANCE } from './buzzAndTheWaggleDance';
 import { EMBER_MOUNTAIN_CHAPTER_ADVENTURES } from './emberMountainChapterAdventures';
 import { DINOSAUR_EXPEDITION_ADVENTURES } from './dinosaurExpeditionAdventures';
@@ -11,6 +12,7 @@ import { ROBOT_RESCUE_ADVENTURES } from './robotRescueAdventures';
 import { BUTTERFLY_GARDEN_ADVENTURES } from './butterflyGardenAdventures';
 import { CASTLES_SECRET_DOOR_ADVENTURES } from './castlesSecretDoorAdventures';
 import { CREATURE_CARE_COVE_ADVENTURES } from './creatureCareCoveAdventures';
+import { DARK_LIGHTHOUSE_ADVENTURES } from './darkLighthouseAdventures';
 
 /**
  * Every arc challenge below the first four entries carries a story-only
@@ -23,6 +25,7 @@ export const ADVENTURE_TEMPLATES: AdventureDefinition[] = [
   THREE_PLANKS_FOR_THE_BRIDGE,
   THE_TIDE_GATE_CALCULATION,
   THE_STORYKEEPERS_TALE,
+  QUILLS_PICTURE_STORY,
   BUZZ_AND_THE_WAGGLE_DANCE,
   ...EMBER_MOUNTAIN_CHAPTER_ADVENTURES,
   ...DINOSAUR_EXPEDITION_ADVENTURES,
@@ -32,6 +35,11 @@ export const ADVENTURE_TEMPLATES: AdventureDefinition[] = [
   // Phase 29: a second world's content, registered exactly like the first
   // world's. The engine has no notion of which island an adventure is on.
   ...CREATURE_CARE_COVE_ADVENTURES,
+  // Clockwork Harbor chapter one, as three level-indexed variants of one
+  // story beat (`docs/regions/clockwork.md` section 10). The engine has no
+  // notion of difficulty either: `resolveAdventureForSkillLevel` picks among
+  // these, and `resolveAdventureForAgeBand` still works on them unchanged.
+  ...DARK_LIGHTHOUSE_ADVENTURES,
 ];
 
 export function getAdventureTemplate(slug: string): AdventureDefinition | undefined {
@@ -82,9 +90,27 @@ export function resolveAdventureForAgeBand(
 ): AdventureDefinition | undefined {
   const preferred = getAdventureTemplate(preferredSlug);
   if (preferred && isAdventureForAgeBand(preferred, ageBand)) return preferred;
-  return getAdventureTemplatesForLocation(locationSlug).find((template) =>
-    isAdventureForAgeBand(template, ageBand),
-  );
+
+  /*
+    Where several templates match one band, take the gentlest.
+
+    Until Clockwork Harbor a location never had two for the same band, and
+    `adventureInvariants.test.ts` says why: this used to `.find()` the first
+    match, so a second one would make which adventure a child got an accident
+    of authoring order. Level-indexed variants (`skillLevel`) deliberately do
+    put several at one band, because the child's Learning Profile picks
+    between them - but that is `resolveAdventureForSkillLevel`'s job, and this
+    function has no profile to consult. Sorting by level keeps its answer
+    deterministic and makes it the easiest variant rather than an arbitrary
+    one, matching the same "prefer easier on a tie" rule the adaptive selector
+    uses: succeeding and carrying on beats stalling.
+
+    Unlevelled templates sort first, so every location authored before this
+    keeps exactly the behaviour it had.
+  */
+  return getAdventureTemplatesForLocation(locationSlug)
+    .filter((template) => isAdventureForAgeBand(template, ageBand))
+    .sort((a, b) => (a.skillLevel ?? 0) - (b.skillLevel ?? 0))[0];
 }
 
 export function getAdventureTemplatesForLocation(locationSlug: string): AdventureDefinition[] {
@@ -99,10 +125,12 @@ export * from './robotRescueAdventures';
 export * from './butterflyGardenAdventures';
 export * from './castlesSecretDoorAdventures';
 export * from './creatureCareCoveAdventures';
+export * from './darkLighthouseAdventures';
 export {
   REPAIR_THE_MOONLIGHT_BRIDGE,
   THREE_PLANKS_FOR_THE_BRIDGE,
   THE_TIDE_GATE_CALCULATION,
   THE_STORYKEEPERS_TALE,
+  QUILLS_PICTURE_STORY,
   BUZZ_AND_THE_WAGGLE_DANCE,
 };
