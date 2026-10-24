@@ -32,7 +32,10 @@ belongs to exactly one track. Phase numbers 14 to 19 are left unused.
    stops at a plan until a human approves.
 
 Every task also follows `CLAUDE.md` section 14: state acceptance criteria, smallest coherent
-change, add tests, run typecheck/lint/tests, update `docs/IMPLEMENTATION_STATUS.md`, report.
+change, add tests, run the development checks, update `docs/IMPLEMENTATION_STATUS.md`, report.
+A task's "Verification:" line is run at merge readiness and recorded as deferred until then,
+except for ADR gates and APPROVAL steps (`docs/TESTING_STRATEGY.md`, "When to run which
+checks").
 
 ## 2. Phase map (adjusted from the brief)
 

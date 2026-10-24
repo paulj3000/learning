@@ -276,7 +276,10 @@ For each implementation request:
 3. State the acceptance criteria being implemented.
 4. Make the smallest coherent change that completes the feature.
 5. Update or add tests.
-6. Run type checking, linting, unit tests, and relevant integration tests.
+6. Run the development checks in `docs/TESTING_STRATEGY.md` ("When to run which checks"):
+   relevant unit tests, typechecking when TypeScript changed, and focused regression tests.
+   Linting, formatting, full suites, builds, browser/WebGL and deployment checks run at merge
+   or release readiness, when explicitly requested.
 7. Report:
    - files created;
    - files changed;
@@ -284,7 +287,7 @@ For each implementation request:
    - remaining risks or TODOs.
 8. Update `docs/IMPLEMENTATION_STATUS.md`.
 
-Do not mark a task complete merely because files were generated. Completion requires passing acceptance criteria and tests, or a precise explanation of what remains blocked.
+Do not mark a task complete merely because files were generated. Completion requires passing acceptance criteria and the development checks, with anything deferred to merge verification listed, or a precise explanation of what remains blocked.
 
 ## 15. Definition of Done
 
@@ -295,7 +298,7 @@ A feature is done only when:
 - age bands are respected;
 - accessibility basics are satisfied;
 - analytics avoid sensitive content;
-- tests pass;
+- relevant tests pass (the full merge-readiness gates run before a merge; see `docs/TESTING_STRATEGY.md`);
 - documentation and implementation status are updated.
 
 ## 16. First Build Sequence
