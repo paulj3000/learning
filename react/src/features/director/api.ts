@@ -1,6 +1,6 @@
 /**
  * Persistence-facing half of the Director (docs/ROADMAP.md Phase 28,
- * Phase 41 / docs/DECISIONS.md ADR-16).
+ * Phase 41 / docs/DECISIONS.md ADR-016).
  *
  * As of Phase 41, this no longer assembles a `DirectorContext` or ranks
  * anything itself — that decision now runs once, server-side, in

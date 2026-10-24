@@ -26,6 +26,7 @@
     "assets:generate": "tsx scripts/generate-world-assets.ts",
     "content:export": "tsx scripts/export-content.ts",
     "content:check": "tsx scripts/export-content.ts --check",
+    "adr:check": "tsx scripts/check-adrs.ts",
     "assets:import-kenney": "tsx scripts/import-kenney-assets.ts",
     "assets:import-characters": "tsx scripts/import-character-assets.ts",
     "grant-admin": "tsx scripts/grant-admin.ts"

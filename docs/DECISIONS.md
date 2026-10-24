@@ -1,5 +1,60 @@
 # Architecture Decision Log
 
+## ADR registry and governance
+
+This file is the single authoritative ADR log. The registry below lists every identifier in use or reserved. `npm run adr:check` (also run by `make js-check` and CI) fails on a duplicate or malformed heading, a heading without a registry row, a registry row without a heading (unless `Reserved`), a registry title that differs from its heading, and any `ADR-nnn` reference that is malformed or names an unknown identifier.
+
+**Syntax.** A decision is a heading `## ADR-NNN: Title` with exactly three digits, followed by a `Status:` line. Reference it everywhere as `ADR-NNN` (three digits). `ADR-NNN` itself is a placeholder and is ignored by the check.
+
+**Rules.**
+
+1. Every ADR identifier is unique across the integrated repository. Two different decisions never share one.
+2. Before assigning a number, read this registry on the integration branch (and `git show origin/main:docs/DECISIONS.md` if main may have moved). Take the next free number after every row here, including `Reserved` rows.
+3. An identifier is stable once a decision is integrated. Renumber only to remove a real collision, and record the old and new number in the registry notes and in a renumbering map.
+4. A merge is not complete until `npm run adr:check` passes. Before merging a branch, compare its `## ADR-` headings against this registry.
+5. When two branches have independently used a number, determine from content which decision each reference means. Never search and replace across files.
+6. Superseding a decision leaves its section in place. Change its `Status:` line and add the superseding ADR; the registry row keeps the number.
+7. Do not delete a decision. Reserve a number for a decision known to exist elsewhere but not yet merged (`Reserved` status).
+
+**Format recommendation.** Keep this single file plus the registry table. Individually named ADR files would force moving about 4,500 lines and rewriting links for no collision benefit the check does not already give. Revisit only if the log passes roughly 50 decisions.
+
+**Next free identifier number: 033.**
+
+| ID | Title | Status | Origin | Notes |
+|---|---|---|---|---|
+| ADR-001 | Parent-owned accounts | Accepted | Base (shared by all branches) |  |
+| ADR-002 | Deterministic engine before AI | Accepted | Base (shared by all branches) |  |
+| ADR-003 | Structured AI output | Accepted | Base (shared by all branches) |  |
+| ADR-004 | No open-ended child chat in MVP | Accepted | Base (shared by all branches) |  |
+| ADR-005 | Persistent world consequences | Accepted | Base (shared by all branches) |  |
+| ADR-006 | Household co-presence adventures, no communication channel | Proposed | Base (shared by all branches) |  |
+| ADR-007 | Phaser as the world-engine rendering library | Accepted | Base (shared by all branches) | Retirement mandated by ADR-020 |
+| ADR-008 | Three.js first-person world supersedes Phaser as the next-generation renderer | Accepted | Base (shared by all branches) |  |
+| ADR-009 | A world is a content pack, not a code path or a second identity | Accepted | Base (shared by all branches) |  |
+| ADR-010 | Android is a second client of one Amplify Gen 2 platform, not a second backend | Accepted | Base (shared by all branches) |  |
+| ADR-011 | No XP/coins/level economy; canonical content model is designed, not migrated, in Phase 36 | Accepted | Base (shared by all branches) |  |
+| ADR-012 | `submitAdventureAnswer` is the first server-authoritative gameplay mutation; the pilot's scope is explicit, not exhaustive | Accepted | Base (shared by all branches) |  |
+| ADR-013 | Item/world/NPC/asset canonical models are designed, not migrated, in Phase 38; drop-rate and currency item fields are rejected | Accepted | Base (shared by all branches) |  |
+| ADR-014 | Authorization is classified now; content manifest and API versioning are designed, not built, until they have something to protect | Accepted | Base (shared by all branches) |  |
+| ADR-015 | Cross-device sync and write idempotency are audited as they exist today; device registration and a requestId model are designed, not built | Accepted | Base (shared by all branches) |  |
+| ADR-016 | Adaptive learning becomes a real shared query; events stay typed models, not a new generic log; parent APIs are audited, not yet promoted | Accepted | Base (shared by all branches) |  |
+| ADR-017 | Environment/config/contract-test infrastructure is documented, not created; provisioning a real environment is an explicit human decision | Accepted | Base (shared by all branches) |  |
+| ADR-018 | Structured request logging ships for real; performance and the remaining server-authoritative write paths are audited, not built | Accepted | Base (shared by all branches) |  |
+| ADR-019 | Migrate the backend from Amplify Gen 2 to Django + DRF incrementally | Accepted in part | Django migration line |  |
+| ADR-020 | Three.js is the exclusive gameplay renderer; Phaser is retired; `game/` is a first-class package | Accepted | Django migration line |  |
+| ADR-021 | Django 6.1, DRF 3.18, and psycopg 3 for the backend skeleton | Accepted | Django migration line |  |
+| ADR-022 | `ParentAccount` is the Django user model; `ChildProfile` is a managed profile, not a login | Accepted | Django migration line |  |
+| ADR-023 | The admin section is styled with Tailwind CSS and shadcn/ui; the rest of the app stays on CSS Modules | Reserved | `origin/main` (not yet integrated) | Keeps its number when `origin/main` is merged |
+| ADR-024 | Cognito remains the authentication authority; Django validates bearer access tokens | Accepted in part | Django migration line |  |
+| ADR-025 | Exceptions are logged as type and location, never as message | Accepted | Django migration line |  |
+| ADR-026 | Multiplayer runs on a separate authoritative room server over WebSocket | Reserved | `origin/main` (not yet integrated) | Keeps its number when `origin/main` is merged |
+| ADR-027 | A story chapter may be played inside a 3D region; the Story Engine keeps sole ownership of progress | Accepted | Storykeeper Castle line | Renumbered from ADR-019 |
+| ADR-028 | Where the castle's art comes from | Proposed | Storykeeper Castle line | Renumbered from ADR-020 |
+| ADR-029 | Phaser 2D views are phased out; new regions are authored in Three.js only | Accepted | Storykeeper Castle line | Renumbered from ADR-021. Related to ADR-020, not a duplicate |
+| ADR-030 | Uploaded models live in S3 behind Admins-only Asset records; the bundled manifest stays the runtime fallback | Accepted | Storykeeper Castle line | Renumbered from ADR-022 |
+| ADR-031 | Islands and Adventures are an admin catalog overlaid on source-controlled content | Reserved | `origin/main` (not yet integrated) | On `origin/main` as ADR-024; collides with Django ADR-024, so it becomes ADR-031 at merge |
+| ADR-032 | Three.js locations are described by a serializable manifest | Reserved | `origin/main` (not yet integrated) | On `origin/main` as ADR-025; collides with Django ADR-025, so it becomes ADR-032 at merge |
+
 ## ADR-001: Parent-owned accounts
 
 Status: Accepted
@@ -1383,7 +1438,22 @@ message is needed, reproduce locally with synthetic data and the raw opt-in.
 
 ## Renumbering map (post-merge reconciliation, 2026-10-24)
 
-Two lines of work both used ADR-019 to ADR-022. The Django migration decisions keep their numbers. The Storykeeper Castle, Wonderwild and Clockwork decisions were renumbered. They are different decisions, so none was consolidated. ADR-023 and ADR-026 are not used here but are taken on `origin/main` (Tailwind admin styling; multiplayer room server), as are different texts for 024 and 025, so new ADRs on this line should start at ADR-031 and a future merge of `origin/main` needs its own reconciliation.
+Two lines of work both used ADR-019 to ADR-022. The Django migration decisions keep their numbers. The Storykeeper Castle, Wonderwild and Clockwork decisions were renumbered. They are different decisions, so none was consolidated.
+
+**Cross-branch status (checked against `origin/main` at `eab0817`, no fetch).** `origin/main` already contains the Storykeeper Castle line (its merge base with this branch is `ced6239`) under its original numbers ADR-019 to ADR-022, with identical text, and adds four decisions of its own: ADR-023, ADR-024, ADR-025 and ADR-026. It has none of the Django ADRs. So the table below is also the alias table for merging `origin/main`:
+
+| `origin/main` id | Meaning | Id on this branch |
+|---|---|---|
+| ADR-019 | Story chapter in a 3D region | ADR-027 |
+| ADR-020 | Where the castle's art comes from | ADR-028 |
+| ADR-021 | Phaser 2D views phased out | ADR-029 |
+| ADR-022 | Uploaded models in S3 | ADR-030 |
+| ADR-023 | Admin section Tailwind and shadcn/ui | ADR-023 (unchanged) |
+| ADR-024 | Islands and Adventures admin catalog | ADR-031 (reserved) |
+| ADR-025 | Serializable location manifest | ADR-032 (reserved) |
+| ADR-026 | Multiplayer room server | ADR-026 (unchanged) |
+
+When `origin/main` is merged, every `ADR-019` to `ADR-022`, `ADR-024` and `ADR-025` that arrives from main's side means the main-side decision and must be remapped using this table, decided per line from `git blame` provenance as in the first reconciliation. `npm run adr:check` cannot detect that, because the numbers still resolve. Main's text of ADR-019 to ADR-022 is identical to the blocks already here as ADR-027 to ADR-030, so those blocks are dropped as duplicates, not added twice.
 
 | Old (incoming line) | New | Title |
 |---|---|---|

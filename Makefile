@@ -50,6 +50,7 @@ runserver:
 py-check: py-lint py-format-check django-check migrate-check py-test
 
 js-check:
+	npm run adr:check
 	npm run typecheck
 	npm run lint
 	npm run format:check

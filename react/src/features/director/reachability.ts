@@ -7,7 +7,7 @@
  * via `listAllWorldChanges`) and `get-next-learning-activity`'s Lambda
  * (via a raw DynamoDB `Scan`, `amplify/functions/get-next-learning-activity/handler.ts`)
  * — two very different fetch mechanisms — can share this one filtering
- * rule instead of each reimplementing it (docs/DECISIONS.md ADR-16).
+ * rule instead of each reimplementing it (docs/DECISIONS.md ADR-016).
  *
  * Filtering happens here, ahead of ranking, rather than inside
  * `select.ts`, which states plainly that it "ranks, it does not gate".

@@ -9560,3 +9560,13 @@ Not a migration roadmap task and not a completion of one. After merging `origin/
 - **Path fixes:** `amplify/` imports in `react/src/features/assets`, `react/public/models` output in the two import scripts, one stale `ChildProfileList` comment.
 - **Verification:** typecheck clean; lint warnings only; Prettier clean; Vitest 213 files / 2246 tests pass; build passes; `content:check` up to date and two exports are byte-identical; Ruff, format, `manage.py check`, `makemigrations --check` clean; pytest 211 pass against PostgreSQL 16 (run on port 5433 because 5432 was held by another project's database); Playwright 7 of 7 pass only when `amplify_outputs.json` is absent, because three smoke tests assert the unconfigured guard (this is the existing precondition, not a regression).
 - **Known open:** `origin/main` also uses ADR-019 to ADR-026 for its own decisions (including 023 to 026, Math Mayhem multiplayer). A future merge of `origin/main` will collide again and needs its own reconciliation. Nothing was pushed or deployed.
+
+## ADR governance and registry (2026-10-24)
+
+Documentation and tooling only. Not a migration roadmap task.
+
+- `docs/DECISIONS.md` now opens with an ADR registry (28 decisions plus four reserved numbers) and seven governance rules. The log stays a single file; individually named files were rejected as churn with no collision benefit.
+- **Finding:** `origin/main` (`eab0817`, local tracking ref, no fetch) already contains the Storykeeper Castle line under its original ADR-019 to ADR-022 with identical text, and adds ADR-023 to ADR-026. The earlier renumbering to ADR-027 to ADR-030 stays; it is now also the alias table for merging main. Main's ADR-024 and ADR-025 collide with the Django ADR-024 and ADR-025, so they are reserved as ADR-031 and ADR-032 (not yet applied, since main is not merged). ADR-023 and ADR-026 keep their numbers. Next free number: 033.
+- `scripts/check-adrs.ts` (`npm run adr:check`, run by `make js-check` and CI) fails on duplicate or malformed headings, registry/heading mismatches, and malformed or unknown `ADR-nnn` references. Tested by `react/src/test/adrCheck.test.ts`.
+- The check found and fixed two malformed references (a two-digit form of ADR-016) in comments in `react/src/features/director/`.
+- Open: a merge of `origin/main` still needs the per-line remap described in the renumbering map; the check cannot see that a number resolves to the wrong decision.
