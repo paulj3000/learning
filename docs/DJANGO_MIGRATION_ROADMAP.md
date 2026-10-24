@@ -123,7 +123,7 @@ target running Python and npm gates; CI Python job green on an empty test. No ne
 dependency without a recorded note in `docs/DECISIONS.md` (CLAUDE.md "do not silently
 introduce a new dependency").
 
-**LAI-0203 Engine import boundary guard.** Depends: 0201. Risk L. Acceptance: a Vitest test
+**LAI-0203 Engine import boundary guard. DONE (see IMPLEMENTATION_STATUS).** Depends: 0201. Risk L. Acceptance: a Vitest test
 (or oxlint rule) fails if any file in `island-map/three/**/*.ts`, `island-map/scenes/**`,
 or the geometry modules imports `*/api`, `lib/data-client`, or `aws-amplify`. Today it
 passes (assessment section 5.2). Protects the engine boundary during the migration. Interim

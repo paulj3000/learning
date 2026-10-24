@@ -25,7 +25,7 @@ before touching AWS.
 
 - [x] **LAI-0201** Move the frontend to `react/` (depends: 0101). DONE: merged locally as d27f554 (not pushed) and re-verified on the merged tree. The Amplify Hosting build with the new layout is still unverified until a real deploy
 - [x] **LAI-0202** Python tooling (depends: 0201). Done; its deferred CI criterion was delivered by LAI-0206
-- [ ] **LAI-0203** Engine import boundary guard (depends: 0201)
+- [x] **LAI-0203** Engine import boundary guard (depends: 0201). DONE locally: `react/src/test/engineBoundary.test.ts`; six React edges recorded for LAI-2102; lint and formatting deferred to merge verification
 - [x] **LAI-0204** Django project skeleton (depends: 0202). DONE locally: Django 6.1.2, DRF 3.18.3, psycopg 3.3.6 (ADR-021); health endpoint; verified against PostgreSQL 16
 - [x] **LAI-0205** DRF conventions (depends: 0204). DONE locally: error contract, exception handler, request IDs, access log, deny by default. Two roadmap criteria deliberately not done here: cursor pagination (moves to the first list endpoint, LAI-0502) and OpenAPI generation (LAI-0207)
 - [x] **LAI-0208** Privacy review of server-side logging (application layer) (depends: 0205). DONE locally (ADR-025). Deployed logging remains open as gate G10 (LAI-0210)

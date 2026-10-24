@@ -520,6 +520,21 @@ exist, so the "World engine layering" described above remains accurate for the c
 No new Phaser features. React keeps menus, HUD, dashboards, and admin. Detail:
 `docs/THREEJS_ENGINE_CONVERSION.md`; decision: ADR-020 in `docs/DECISIONS.md`.
 
+**Engine import boundary (LAI-0203, interim until `game/` exists).** The engine is the `.ts`
+modules of `features/island-map/three/` and `features/island-map/scenes/` plus the 2D
+geometry modules (`gridGeometry`, `tilemap`, `zones`, `decor`, `*Tilemap`, `*Zones`,
+`*Decor`); `.tsx` files there are its React hosts. `src/test/engineBoundary.test.ts`
+resolves every import form (static, type-only, re-export, side-effect, `require`, dynamic)
+and follows local modules transitively. Packages are deny by default: only `three` (and
+`phaser` in `scenes/`) is allowed, so an alias cannot bypass the rule. Forbidden: React,
+React DOM and React Router; Amplify and AWS SDKs; `lib/data-client`, `lib/amplify-config`,
+`lib/ai/`, `api/` and any feature `api` module; `app/`, `routes/`, `components/`,
+`features/auth/`, `features/session/`; any `.tsx` module; anything outside `react/src`. The
+host passes the engine plain data and interfaces instead. Six existing React edges (view
+extensions and React hooks filed in `three/`) are listed one by one in `KNOWN_VIOLATIONS`
+for LAI-2102 to remove; the list fails when an entry goes stale. LAI-2101 applies the same
+rule to `game/`.
+
 ## Proposed backend migration (not in effect)
 
 The architecture above is current and authoritative. A migration from Amplify Gen 2 to

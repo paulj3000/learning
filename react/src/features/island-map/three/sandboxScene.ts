@@ -21,7 +21,7 @@ import {
 } from 'three';
 import { loadAsset } from './assets/assetLoader';
 import { cloneAssetScene } from './assets/cloneAsset';
-import type { ThreeEngineHandle } from './ThreeGameContainer';
+import type { ThreeEngineHandle } from './engineHandle';
 import { FirstPersonController } from './firstPersonController';
 import { attachPointerControls } from './pointerControls';
 import { hasApproached, isInRange, isInsideZone } from './sandboxTriggers';
