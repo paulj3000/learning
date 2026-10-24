@@ -41,7 +41,7 @@ before touching AWS.
 - [ ] **LAI-0308** ParentConsent privacy design, then model (split from 0301; never implemented in Amplify). REQUIRED GATE G9 before the migrated platform handles live children's data (depends: 0301)
 - [x] **LAI-0302** Content export to versioned JSON (depends: 0201). DONE locally: 13 files under `content/`, schema v1, 38 tests. Spatial data and logic are not exported (see DATA_MODEL.md)
 - [ ] **LAI-0303** Golden vectors (depends: 0302)
-- [ ] **LAI-0304** Catalog models and loader (depends: 0302, 0301)
+- [x] **LAI-0304** Catalog models and loader (depends: 0302, 0301). DONE locally as TR-2, except the `assets` app, which is left to LAI-2106 (TR-D7)
 - [ ] **LAI-0305** Progress models (depends: 0301, 0304)
 - [ ] **LAI-0306** Audit models (depends: 0301)
 
@@ -161,8 +161,8 @@ with Treasure Rush as its first content; tick the LAI row, not a copy. Decisions
 are Proposed.
 
 - [x] **TR-0** Plan: gap analysis, dependency map, decisions, asset contract
-- [x] **TR-1** Server-side math challenges (`lai/apps/education/challenges.py`). DONE locally, not pushed
-- [ ] **TR-2** Catalog models, is LAI-0304 without `assets` (depends: TR-D3, TR-D7)
+- [x] **TR-1** Server-side math challenges (`lai/apps/education/challenges.py`). DONE locally, not pushed (carried onto `feature/treasure-rush-slice` from `treasure-rush`)
+- [x] **TR-2** Catalog models, is LAI-0304 without `assets` (depends: TR-D3, TR-D7). DONE locally on `feature/treasure-rush-slice`: catalog apps, `load_content`, Treasure Rush world models, `seed_treasure_rush`. TR-D3 and TR-D7 taken as authorised by the Treasure Rush brief
 - [ ] **TR-3** Django admin access and catalog admin, is LAI-0404 then LAI-0801 (APPROVAL: TR-D5) (depends: TR-2)
 - [ ] **TR-4** Progress models, is LAI-0305 (depends: TR-2)
 - [ ] **TR-5** Treasure Rush play API (depends: TR-4, LAI-0403)

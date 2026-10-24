@@ -2528,7 +2528,38 @@ has not been asked and which "Decisions pending" already lists as open; and
 whether SC-11's retirement gate still means anything against a castle whose
 content layer is being replaced.
 
-## Treasure Rush - TR-0 and TR-1 complete; nothing playable yet
+## Treasure Rush - TR-2 complete (catalog models and loader); nothing playable yet
+
+Branch `feature/treasure-rush-slice` (worktree `../learning-treasure-rush-slice`), cut from
+`main` at `350e11b` with the TR-0/TR-1 commit carried over. Not pushed.
+
+TR-2 (is LAI-0304 without `assets`) adds four Django apps and two new models in `education`:
+
+- `islands`: `Island`, `IslandLocation`, `NpcDefinition`, `NpcDialogueNode` (one row per line),
+  and the admin-authored world models `WorldRegion`, `SpawnPoint`, `WorldObjectPlacement`,
+  `TreasureChest` (one `ChallengeSpec` per age band, a reward rule, a world change key).
+- `inventory`: `ItemDefinition`, `CollectibleSet`, `RewardRule`. `adventures`:
+  `AdventureTemplate` (status plus availability window). `quests`: `QuestDefinition`.
+- `education`: `LearningObjective`, `ChallengeSpec` (TR-1 parameters; `save()` refuses any
+  parameters `validate_parameters` rejects).
+- `manage.py load_content`: schema-validated, all-or-nothing, idempotent; status is set only on
+  create, so an admin retirement survives a reload; admin-authored rows are never touched. The
+  schema check is a small subset validator (`apps/core/content_schema.py`), not a new
+  dependency; unsupported keywords fail loudly.
+- `manage.py seed_treasure_rush`: starter Treasure Cove content as DRAFT rows (region in Pirate
+  Builder Bay, spawn, chest, Pip, three challenge specs, Golden Doubloon keepsake, quest).
+- Asset references are id strings checked against `content/exported/assets.json` by kind
+  (`apps/core/catalog.py`); this is the one place that changes when LAI-2106 offers a check.
+
+Verification (2026-10-24, PostgreSQL 16 via docker compose): `pytest lai` 299 passed;
+`makemigrations --check` clean; `manage.py check` clean. Two mutations (loader overwriting
+status, chest accepting another band's challenge) were confirmed to fail the tests. Ruff and
+the npm gate were not run at the owner's request (rapid development; run before merge).
+
+Remaining: Django admin (TR-3, needs TR-D5), progress models (TR-4), play API (TR-5), and all
+frontend work. Decisions TR-D1, TR-D2, TR-D4, TR-D5, TR-D8 are still Proposed.
+
+### Earlier: TR-0 and TR-1
 
 Plan, gap analysis, proposed decisions (TR-D1 to TR-D8), and the LAI-2106 asset contract:
 `docs/TREASURE_RUSH_ROADMAP.md`. Branch `treasure-rush` (worktree), not pushed.

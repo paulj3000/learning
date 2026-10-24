@@ -7,6 +7,8 @@ from urllib.parse import unquote, urlsplit
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # lai/
+# Exported source content and its schema (LAI-0302), read by `load_content` (LAI-0304).
+CONTENT_DIR = BASE_DIR.parent / "content"
 
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
@@ -23,6 +25,10 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.users",
     "apps.education",
+    "apps.islands",
+    "apps.inventory",
+    "apps.adventures",
+    "apps.quests",
 ]
 
 # The parent account is the user model (LAI-0301, ADR-022). Set before any migration is applied.

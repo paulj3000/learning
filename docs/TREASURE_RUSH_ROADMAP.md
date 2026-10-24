@@ -1,8 +1,10 @@
 # Treasure Rush: Roadmap and Readiness
 
-**Status (2026-10-24):** TR-0 (this plan) and TR-1 (server-side math challenges) are done on
-branch `treasure-rush`. Nothing is playable yet. Every other task is TODO, and the decisions in
-section 6 are **Proposed**: they are not accepted until the product owner says so.
+**Status (2026-10-24):** TR-0 (this plan), TR-1 (server-side math challenges), and TR-2
+(catalog models and loader) are done on branch `feature/treasure-rush-slice`, cut from `main`
+at `350e11b`. Nothing is playable yet. TR-D3 and TR-D7 are taken as authorised by the Treasure
+Rush brief (admin-managed content; no second asset system); the other decisions in section 6
+are still **Proposed**.
 
 Treasure Rush is a short Three.js adventure. The child walks to a treasure chest, solves a math
 challenge suited to their age band and skill, and the chest opens. A keepsake goes into the
@@ -46,6 +48,13 @@ tracker entry for that id is what gets ticked.
   ADR-031 (admin catalog is an overlay on source content), ADR-032 (checkpoints and spawn stay
   in source), ADR-019 (Django direction accepted, gates open).
 
+**Update (TR-2 session).** LAI-2106 has since landed on `main` as `350e11b` ("Asset loader
+reliability": skeleton-safe cloning, failed-load eviction, load events). It changes
+`react/src/features/island-map/three/assets/assetLoader.ts`, `cloneAsset.ts`, and
+`runtime/createLocationEngine.ts`. Those are exactly the files TR-7a would touch, so TR-7a now
+waits until the LAI-2106 owner confirms the shared asset work is finished there, and TR-2 (no
+frontend files) was done first instead.
+
 ## 2. Gap analysis
 
 | # | MVP requirement | Exists today | Gap |
@@ -88,7 +97,7 @@ TR-7a placeholder-mesh asset adapter (can start now) -----------------^     |
 LAI-2106 shared asset management (other branch) ---> TR-10 swap the adapter for the real resolver
 ```
 
-**Can be done now, with no further approval:** TR-1 (done) and TR-7a. **Needs a decision
+**Can be done now, with no further approval:** TR-1 and TR-2 (done), TR-4. TR-7a once LAI-2106 settles. **Needs a decision
 first:** TR-2 (TR-D3, TR-D7), TR-3 (TR-D5), TR-6 (TR-D8), TR-7 (TR-D2, TR-D4). **Waits for
 LAI-2106:** TR-10 only. Nothing else depends on it, because every TR task refers to assets by
 id through the adapter.
@@ -101,7 +110,7 @@ Format: **Depends** | **Risk** | **Approval**. Every task follows `CLAUDE.md` se
 
 **TR-1 Server-side math challenges.** DONE (section 8). Depends: none. Risk L. Approval: none.
 
-**TR-2 Catalog models for adventure content (is LAI-0304, without `assets`).** Depends: TR-D3,
+**TR-2 Catalog models for adventure content (is LAI-0304, without `assets`).** DONE (section 9). Depends: TR-D3,
 TR-D7, LAI-0302, LAI-0301. Risk M. Acceptance: LAI-0304's acceptance (islands, adventures,
 quests, inventory `ItemDefinition` and reward rules, education `LearningObjective`, idempotent
 `load_content` that validates against the JSON Schema, row counts equal the export), plus three
@@ -134,7 +143,8 @@ envelope, the answer never appears in any response.
 Risk M. Acceptance: `react/src/api/` module behind `VITE_BACKEND`, typed DTOs, Cognito bearer
 token, fallback copy on network failure. No other feature moves.
 
-**TR-7a Placeholder-mesh asset adapter.** Depends: none. Risk L. Acceptance: when a prop or NPC
+**TR-7a Placeholder-mesh asset adapter.** Depends: LAI-2106 settling (it edits the same
+loader and engine files). Risk L. Acceptance: when a prop or NPC
 model is missing or fails to load, the runtime shows a primitive mesh of the declared size and
 the interaction still works; generic for every region; tests with a failing resolver. Must not
 edit LAI-2106 files (check the LAI-2106 branch's file list first).
@@ -248,3 +258,40 @@ adapter (TR-7a) provides them from the bundled manifest until LAI-2106 lands.
 
 **Tests:** `lai/apps/education/tests/test_challenges.py`, 35 tests. Two mutations (leak the
 answer, accept booleans) were confirmed to fail them.
+
+## 9. TR-2 as built
+
+Four new apps (`islands`, `inventory`, `adventures`, `quests`) and two models in `education`.
+Exported content keeps its ids as slug columns; nested structures the engines interpret (steps,
+stages, prerequisites, dialogue conditions and choices, a region's bounds and environment) stay
+JSON in the exported shape; what an administrator edits one at a time is a row (dialogue
+lines, spawn points, placements, chests, challenge specs).
+
+The TR-2 acceptance asked for a `LocationManifestSnapshot` holding a whole manifest as JSON.
+That was replaced by rows (`WorldRegion`, `SpawnPoint`, `WorldObjectPlacement`,
+`TreasureChest`), because the brief asks for chest locations, spawn points, and object placement
+to be edited in admin, which a JSON blob does badly. TR-7 assembles the manifest from the rows
+and validates it with `validateLocationManifest`; `WorldRegion.scene` holds the parts not yet
+modelled (bounds, environment, copy).
+
+**Acceptance criteria, all met:**
+
+1. Catalog models for islands, locations, adventures, quests, items, collectible sets, reward
+   rules, learning objectives, and NPCs with dialogue lines; no `assets` app (TR-D7).
+2. `manage.py load_content` validates every file against `content/schema/content.schema.json`
+   before writing; one invalid file loads nothing.
+3. Idempotent: a second run creates nothing, and row counts equal the export.
+4. Admin overlay (ADR-031): status is set only on create, so a retirement survives a reload;
+   rows not in the export are never touched.
+5. `ChallengeSpec` refuses every TR-1 error code, on `clean()` and on `save()`.
+6. Chests: one challenge per age band, each checked to be for that band; at least one; unique
+   world change key. Entity ids are unique per region across placements and chests. One
+   default spawn per region (database constraint).
+7. Asset references are ids checked by kind against the bundled manifest; URLs are rejected.
+8. `manage.py seed_treasure_rush` creates the Treasure Cove starter content as DRAFT, once.
+
+**Tests:** `core/tests/test_content_schema.py`, `core/tests/test_content_loader.py`,
+`education/tests/test_challenge_spec.py`, `islands/tests/test_world_models.py` (56 new; 299 in
+`pytest lai`).
+
+**Next:** TR-4 (progress models, LAI-0305 subset) needs no decision. TR-3 needs TR-D5.
