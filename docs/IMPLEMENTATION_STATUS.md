@@ -2528,6 +2528,25 @@ has not been asked and which "Decisions pending" already lists as open; and
 whether SC-11's retirement gate still means anything against a castle whose
 content layer is being replaced.
 
+## Treasure Rush - TR-0 and TR-1 complete; nothing playable yet
+
+Plan, gap analysis, proposed decisions (TR-D1 to TR-D8), and the LAI-2106 asset contract:
+`docs/TREASURE_RUSH_ROADMAP.md`. Branch `treasure-rush` (worktree), not pushed.
+
+TR-1 adds `lai/apps/education/challenges.py`, registered as the model-free `apps.education`
+app: math challenges generated from administrator parameters and a server-chosen seed, checked
+against age-band and skill limits taken from the curriculum export, and graded on the server.
+The client shape never contains the answer. No migration, no endpoint, no frontend change.
+
+Verification (2026-10-24, PostgreSQL 16 via `make up`): `make py-check` green; `make
+py-test-db` 246 passed (211 before, plus 35 new). Without PostgreSQL, the existing
+`test_database_statements_and_parameters_are_never_logged` errors instead of skipping, because
+it is not marked `postgres`; that predates this change. No JavaScript changed, so the npm gate
+was not run.
+
+Remaining: everything from TR-2 on, which waits for the proposed decisions; LAI-2106 is not
+visible in this clone, so the asset contract is stated as requirements only.
+
 ## Completed
 
 - Product concept documented.

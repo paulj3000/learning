@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "apps.core",
     "apps.users",
+    "apps.education",
 ]
 
 # The parent account is the user model (LAI-0301, ADR-022). Set before any migration is applied.

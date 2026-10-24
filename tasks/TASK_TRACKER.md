@@ -153,3 +153,23 @@ before touching AWS.
 - [ ] **LAI-2303** Sprouts playtest gate (APPROVAL, human) (depends: 2104, 2201, 2202)
 - [ ] **LAI-2304** Phaser dependency removal (APPROVAL) (depends: 2201 to 2208, 2301, 2302, 2303)
 - [ ] **LAI-2305** Final Three.js-only verification (depends: 2304)
+
+# Treasure Rush (`docs/TREASURE_RUSH_ROADMAP.md`)
+
+Feature roadmap with its own ids, like SC-n. Rows marked "is LAI-NNNN" are that tracker task,
+with Treasure Rush as its first content; tick the LAI row, not a copy. Decisions TR-D1 to TR-D8
+are Proposed.
+
+- [x] **TR-0** Plan: gap analysis, dependency map, decisions, asset contract
+- [x] **TR-1** Server-side math challenges (`lai/apps/education/challenges.py`). DONE locally, not pushed
+- [ ] **TR-2** Catalog models, is LAI-0304 without `assets` (depends: TR-D3, TR-D7)
+- [ ] **TR-3** Django admin access and catalog admin, is LAI-0404 then LAI-0801 (APPROVAL: TR-D5) (depends: TR-2)
+- [ ] **TR-4** Progress models, is LAI-0305 (depends: TR-2)
+- [ ] **TR-5** Treasure Rush play API (depends: TR-4, LAI-0403)
+- [ ] **TR-6** Frontend Django client slice (depends: TR-5, TR-D8)
+- [ ] **TR-7a** Placeholder-mesh asset adapter (depends: none)
+- [ ] **TR-7** Treasure Rush region (depends: TR-6, TR-7a, TR-D2, TR-D4)
+- [ ] **TR-8** Challenge and quest-complete UI (depends: TR-7)
+- [ ] **TR-9** End-to-end and playtest (depends: TR-8)
+- [ ] **TR-10** Integrate LAI-2106 shared asset management (depends: LAI-2106, TR-7a)
+- [ ] **TR-11** Second chest and quest chain (depends: TR-9)
