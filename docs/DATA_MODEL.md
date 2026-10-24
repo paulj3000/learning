@@ -706,6 +706,18 @@ rejects version 2 files, though every version 1 file is still valid content. It 
   checkpoints and no `IslandLocation` by design (declared ambiguity `adventure-passage-region`). Listing it
   does not assert that a playable scene exists; geometry is not exported.
 
+**Schema version 3 (LAI-0304).** Adds the `locationAssets` collection to `assets.json`: one
+`{ regionSlug, assetIds }` entry per shipped Three.js location, listing the shared asset ids its scene
+uses in first-use order, with no positions or any other spatial data (LAI-0805). `regionSlug` is a
+location slug, or `welcome-harbor` for the hub, which has no `IslandLocation`. The ids come from
+`content/derived/scene-asset-index.json`, which the engine side writes as a Vitest file snapshot
+(`island-map/three/runtime/sceneAssetIndex.test.ts`) because computing it needs the scene modules, which
+reach Three.js and React and so are outside the export's guarded boundary. Integrity: every asset id is
+in `assets`, every region is known, no duplicates. A version 2 reader rejects version 3 files; the
+Django importer accepts both (version 2 simply has no associations). After a manifest change, refresh in
+order: `npx vitest run src/features/island-map/three/runtime/sceneAssetIndex.test.ts -u`,
+`npm run content:export`, `npm run golden:generate`.
+
 **Not exportable as data, or not exported yet.**
 - *Logic needing a rule specification or a Python implementation (LAI-0303 golden vectors, Phase 6):* answer
   validation (`validateStepAnswer`), hint escalation, step transitions, reward resolution, quest and
@@ -720,7 +732,7 @@ rejects version 2 files, though every version 1 file is still valid content. It 
   the adventure library's themes and interests, and island events and seasons (not inspected in depth).
   They are not in the roadmap's export list; add them when a Django model needs them.
 
-**Later Django mapping (LAI-0304, not built).** Keep four things apart: *content definition* (a row per
+**Django mapping (LAI-0304 built the catalog part; see "Django content catalog" below).** Keep four things apart: *content definition* (a row per
 island, location, adventure, quest, item, ... from these files), *published content version* (the
 manifest's `contentDigest` plus per-record `version`, so a published set is immutable and importable),
 *session* (an `AdventureSession` that records the adventure version it started on; Amplify already stores
@@ -729,6 +741,43 @@ id). Completion is never stored inside a definition. Compatibility rule for prog
 disappears or changes meaning needs an explicit migration entry; an adventure's `version` only increases;
 a session keeps the version it began with. The importer must be idempotent, validate with a full JSON
 Schema validator, and fail on any unknown reference.
+
+## Django content catalog (LAI-0304)
+
+`lai/apps/catalog`. Hierarchy as the export shapes it (owner decision, 2026-10-24): **World** (the
+export's `islands`, a themed world) -> **Location** (a region; the Amplify `Island` record of ADR-031 is a
+Location) -> **Adventure** -> **AdventureStep**; **Quest** belongs to a World through its content pack
+and links many-to-many to the adventures its `SOLVE` objectives name (a quest can span two adventures or
+none). Stable ids are the export's: slugs, `asset_id`, and (adventure, `step_id`) for steps, whose ids
+repeat across adventures. An adventure at a story-only pseudo-location keeps `location_slug` with no
+`location`. `ContentAsset` is the catalog identity of a shared asset (bundled manifest id, which is also
+the Amplify `Asset.slug` namespace, ADR-030); bytes, versions, status and licence are not modelled here.
+`LocationAsset` links a location to the assets its scene uses, by id and order only.
+
+| Model | Content fields (from the export; read-only until the authoring cutover) | Catalog fields (editable now) |
+|---|---|---|
+| World | slug, title, tagline, description, is_home, supported_age_bands, pack_version, source | active, sort_order |
+| Location | slug, world, title, tagline, description, skills, source | active, sort_order |
+| Adventure | slug, title, version, world, location, location_slug, age_bands, entry_step_id, skill_domain, skill_level, source | active, sort_order |
+| Quest | slug, title, summary, world, giver_npc_id, age_bands, adventures, source | active, sort_order |
+| AdventureStep, ContentAsset, LocationAsset | everything | none |
+| ContentRelease | digest, schema version, export tool, file list, import report | none |
+
+`source` keeps each exported record verbatim, so fields without a column (pack lists, presentation,
+stages, conditions) are not lost. Every imported row has `last_seen_release`; nothing is deleted when a
+newer export drops a record. Catalog fields are set on creation (`active` true, `sort_order` from export
+order times 10) and never overwritten. After the cutover the content fields become editable here and the
+export reverses direction (ADR-019 sub-decision 8 amendment).
+
+**Importer** (`apps/catalog/importer.py`, `manage.py load_content [--path] [--dry-run] [--force]`): verifies
+each file's sha256 against the manifest and recomputes the content digest, so the files are exactly what
+the TypeScript exporter produced and validated against its JSON Schema; checks every imported record and
+relationship and reports all problems at once; then applies everything in one transaction under an
+advisory lock. An export whose digest is the latest release is skipped. The report counts created,
+updated, unchanged and missing (kept) per model, lists skipped items (the hub's assets), and lists
+invalid records when it rejects. Deliberate deviation: no Python JSON Schema validator runs, because the
+digest check proves the producer's validation applied and adding `jsonschema` would add four pinned
+dependencies; add it if exports ever come from another producer.
 
 ## Asset
 Admin-managed game asset (docs/android/ASSET_MANAGEMENT.md, ADR-030). Holds

@@ -342,8 +342,14 @@ ADR-019 in `docs/DECISIONS.md` moves the backend from Amplify Gen 2 to Django + 
 Cognito initially, S3, FinWin-style layout) is approved; section 8 above remains the
 **deployed and operating** baseline until cutover. Operational, data, and security items are
 open gates (G1 to G10 in the ADR; G4 is resolved: Python rules, Django content authority) and must not be assumed settled. Track A tasks (Phases 1 to
-13) may proceed in order, skipping nothing, and stop for approval at every task marked
-APPROVAL in `docs/DJANGO_MIGRATION_ROADMAP.md`. Never delete or change deployed Amplify or
+13) proceed when their explicit dependencies and the architecture gates that apply to them are
+satisfied (owner, 2026-10-24), and stop for approval at every task marked APPROVAL in
+`docs/DJANGO_MIGRATION_ROADMAP.md`:
+- An earlier, unfinished task does not block an independent, dependency-ready task; the old
+  "in order, skipping nothing" wording means no task skips its own dependencies, not that
+  numbering order gates unrelated work.
+- Open earlier tasks stay tracked as open and are never marked complete by implication.
+- No task bypasses an unresolved dependency, an open gate it touches, or a decision it needs. Never delete or change deployed Amplify or
 AWS resources, migrate production data, or deploy without explicit approval.
 
 ## 19. Accepted game engine decision (in effect)

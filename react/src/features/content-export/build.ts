@@ -21,8 +21,26 @@ import { ALL_COLLECTIBLE_SETS, ALL_ITEMS, ALL_REWARD_RULES } from '../rewards/co
 import { STORY_DEFINITIONS } from '../story/content/index';
 import { loadAllWorldContentPacks } from '../worlds/packs/index';
 import { WORLD_DEFINITIONS } from '../worlds/worlds';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { toJsonValue } from './canonical';
-import type { ContentPackage, IslandEntry, RegionInteractions } from './types';
+import type { ContentPackage, IslandEntry, RegionAssets, RegionInteractions } from './types';
+
+/**
+ * Which assets each location's scene uses, read from the committed index the engine side
+ * writes (`island-map/three/runtime/sceneAssetIndex.test.ts`). Read as data rather than
+ * computed here, because computing it needs the scene modules, which reach Three.js.
+ */
+const SCENE_ASSET_INDEX = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../../content/derived/scene-asset-index.json',
+);
+
+function readSceneAssetIndex(): RegionAssets[] {
+  const index = JSON.parse(readFileSync(SCENE_ASSET_INDEX, 'utf8')) as { regions: RegionAssets[] };
+  return index.regions.map(({ regionSlug, assetIds }) => ({ regionSlug, assetIds: [...assetIds] }));
+}
 
 /** Authoring key -> the exported interaction table. The hub has no IslandLocation record. */
 const INTERACTION_TABLES: ReadonlyArray<readonly [string, keyof typeof worldObjects]> = [
@@ -71,6 +89,7 @@ export async function buildContentPackage(): Promise<ContentPackage> {
     domains: [...DOMAINS],
     skills: [...SKILLS],
     assets: [...ASSET_MANIFEST],
+    locationAssets: readSceneAssetIndex(),
   };
   // Round-trip through the strict converter so unsupported content fails here, with a path.
   return toJsonValue(pkg) as unknown as ContentPackage;

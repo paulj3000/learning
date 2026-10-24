@@ -472,7 +472,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 2
+          "const": 3
         },
         "wonderWallQuestions": {
           "items": {
@@ -498,13 +498,20 @@
           },
           "type": "array"
         },
+        "locationAssets": {
+          "items": {
+            "$ref": "#/$defs/regionAssets"
+          },
+          "type": "array"
+        },
         "schemaVersion": {
-          "const": 2
+          "const": 3
         }
       },
       "required": [
         "schemaVersion",
-        "assets"
+        "assets",
+        "locationAssets"
       ],
       "type": "object"
     },
@@ -524,7 +531,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 2
+          "const": 3
         },
         "skills": {
           "items": {
@@ -564,7 +571,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 2
+          "const": 3
         }
       },
       "required": [
@@ -584,7 +591,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 2
+          "const": 3
         }
       },
       "required": [
@@ -603,7 +610,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 2
+          "const": 3
         }
       },
       "required": [
@@ -622,7 +629,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 2
+          "const": 3
         }
       },
       "required": [
@@ -641,7 +648,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 2
+          "const": 3
         }
       },
       "required": [
@@ -660,7 +667,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 2
+          "const": 3
         }
       },
       "required": [
@@ -691,7 +698,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 2
+          "const": 3
         }
       },
       "required": [
@@ -706,7 +713,7 @@
       "additionalProperties": false,
       "properties": {
         "schemaVersion": {
-          "const": 2
+          "const": 3
         },
         "stories": {
           "items": {
@@ -1399,7 +1406,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": 2
+          "const": 3
         }
       },
       "required": [
@@ -2620,6 +2627,27 @@
       ],
       "type": "object"
     },
+    "regionAssets": {
+      "additionalProperties": false,
+      "properties": {
+        "assetIds": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "regionSlug": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "regionSlug",
+        "assetIds"
+      ],
+      "type": "object"
+    },
     "regionInteractions": {
       "additionalProperties": false,
       "properties": {
@@ -3194,5 +3222,5 @@
     "rewards.json": "#/$defs/file:rewards.json",
     "stories.json": "#/$defs/file:stories.json"
   },
-  "x-schemaVersion": 2
+  "x-schemaVersion": 3
 }

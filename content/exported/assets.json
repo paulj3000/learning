@@ -720,5 +720,156 @@
       "url": "/models/npc-buzz.gltf"
     }
   ],
-  "schemaVersion": 2
+  "locationAssets": [
+    {
+      "assetIds": [
+        "wall-stone",
+        "roof",
+        "door",
+        "ground-tile",
+        "rock",
+        "npc-harbor-master",
+        "npc-professor-ticktock"
+      ],
+      "regionSlug": "clockwork-harbor"
+    },
+    {
+      "assetIds": [
+        "wall-stone",
+        "roof",
+        "ground-tile",
+        "rock",
+        "npc-pip"
+      ],
+      "regionSlug": "dragons-sanctuary"
+    },
+    {
+      "assetIds": [
+        "bridge-plank-repaired",
+        "bridge-plank",
+        "rock",
+        "foliage-tree",
+        "path",
+        "mooring-post",
+        "crate",
+        "barrel",
+        "shipwreck",
+        "signpost",
+        "npc-pip",
+        "rope-coil",
+        "toolbox",
+        "treasure-chest"
+      ],
+      "regionSlug": "pirate-builder-bay"
+    },
+    {
+      "assetIds": [
+        "ground-tile-stone",
+        "ceiling-tile",
+        "wall-stone",
+        "archway",
+        "carpet",
+        "door",
+        "lectern",
+        "binding-table",
+        "easel",
+        "bookshelf",
+        "reading-table",
+        "cushion",
+        "tapestry",
+        "portrait-frame",
+        "window-frame",
+        "star-carving",
+        "moon-carving",
+        "npc-quill",
+        "story-plate-choice",
+        "story-plate-ending",
+        "story-plate-problem",
+        "binding-lectern",
+        "clue-diary",
+        "clue-map",
+        "clue-note",
+        "rod-silver",
+        "rod-iron",
+        "rod-brass",
+        "rod-rack",
+        "hearth",
+        "hearth-lit",
+        "shelf-slot-empty",
+        "story-book-shelved",
+        "secret-door",
+        "secret-door-ajar",
+        "carving-worn",
+        "carving-worn-revealed",
+        "bookshelf-ajar",
+        "portrait-puppy",
+        "portrait-puppy-lit",
+        "portrait-dragon",
+        "portrait-dragon-lit",
+        "portrait-fox",
+        "portrait-fox-lit",
+        "window-view-island",
+        "window-view-island-lit",
+        "window-view-mountain",
+        "window-view-mountain-lit",
+        "window-view-cave",
+        "window-view-cave-lit",
+        "canvas-setting-island",
+        "canvas-hero-puppy",
+        "canvas-setting-mountain",
+        "canvas-setting-cave",
+        "canvas-hero-dragon",
+        "canvas-hero-fox"
+      ],
+      "regionSlug": "storykeeper-castle"
+    },
+    {
+      "assetIds": [
+        "wall",
+        "roof",
+        "door",
+        "ground-tile",
+        "rock",
+        "foliage-tree",
+        "foliage-tree-lod1",
+        "foliage-bush",
+        "fence",
+        "npc-pip",
+        "collectible-gem"
+      ],
+      "regionSlug": "welcome-harbor"
+    },
+    {
+      "assetIds": [
+        "ground-tile-moss",
+        "path-forest",
+        "foliage-tree",
+        "foliage-bush",
+        "fern",
+        "reed",
+        "lily-pad",
+        "mushroom-cluster",
+        "log-fallen",
+        "standing-stone",
+        "wonder-stone-bee",
+        "wonder-stone-bee-lit",
+        "wonder-stone-seed",
+        "wonder-stone-sun",
+        "wonder-stone-chrysalis",
+        "companion-chatty",
+        "flower-patch-bare",
+        "flower-patch-bloomed",
+        "signpost",
+        "beehive",
+        "frog",
+        "leaf-pile",
+        "cave-mouth",
+        "cave-mouth-lit",
+        "glow-moss",
+        "butterfly"
+      ],
+      "regionSlug": "wonderwild-forest"
+    }
+  ],
+  "schemaVersion": 3
 }

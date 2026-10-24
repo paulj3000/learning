@@ -12,3 +12,7 @@ START_HERE.md
 # generated, byte-exact exports (npm run content:export); formatting is canonical already
 content/exported
 content/schema
+# generated, byte-exact: golden vectors (npm run golden:generate) and the scene asset index
+# (refreshed by its Vitest file snapshot); reformatting would make them read as stale
+tests/golden/*.json
+content/derived

@@ -103,6 +103,7 @@ describe('preservation of the existing content', () => {
       domains: 6,
       skills: 10,
       assets: 114,
+      locationAssets: 6,
     });
   });
 
@@ -256,6 +257,21 @@ describe('integrity checks catch problems (mutated copies)', () => {
       /unknown interaction/,
     ],
     [
+      'a location asset that is not in the asset manifest',
+      (p) => void p.locationAssets[0]!.assetIds.push('ghost-asset'),
+      /location assets ".+": unknown asset "ghost-asset"/,
+    ],
+    [
+      'location assets for a region that does not exist',
+      (p) => void (p.locationAssets[0]!.regionSlug = 'ghost-region'),
+      /location assets "ghost-region": unknown region "ghost-region"/,
+    ],
+    [
+      'the same asset listed twice for one location',
+      (p) => void p.locationAssets[0]!.assetIds.push(p.locationAssets[0]!.assetIds[0]!),
+      /duplicate asset/,
+    ],
+    [
       'an unknown region id (only listed passage regions are accepted)',
       (p) => void (p.checkpoints[0]!.regionId = 'wonderwild-hives'),
       /unknown region "wonderwild-hives"/,
@@ -383,7 +399,7 @@ describe('schema validation', () => {
     file.adventures[0]!.steps[0]!.presentation = { kind: 'hologram' } as never;
     expect(validate(file, schema).join('\n')).toMatch(/matches 0 variants/);
     expect(validate({ ...(await adventuresFile()), schemaVersion: 1 }, schema).join('\n')).toMatch(
-      /expected 2/,
+      new RegExp(`expected ${SCHEMA_VERSION}`),
     );
   });
 

@@ -20,7 +20,7 @@ import type { WorldContentPack, WorldDefinition } from '../worlds/types';
  *    `START_STORY`. Every version 1 file is still valid content, but a version 1 validator rejects
  *    version 2 files, so the version moves. See docs/DATA_MODEL.md.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 export const EXPORT_TOOL = { name: 'lai-content-export', version: '1.0.0' } as const;
 
 export interface IslandEntry extends WorldDefinition {
@@ -35,6 +35,17 @@ export interface RegionInteractions {
 }
 
 /** Everything exported, before it is split into files. Authored order is preserved everywhere. */
+/**
+ * The shared assets one shipped location's scene uses, by asset id (LAI-0304, schema 3). Ids
+ * only: placements are spatial data and stay out of the export (LAI-0805). `regionSlug` is a
+ * location slug, or the authoring key of a region with no location record (the hub), as in
+ * `RegionInteractions`.
+ */
+export interface RegionAssets {
+  regionSlug: string;
+  assetIds: string[];
+}
+
 export interface ContentPackage {
   islands: IslandEntry[];
   locations: IslandLocation[];
@@ -55,6 +66,7 @@ export interface ContentPackage {
   domains: Domain[];
   skills: Skill[];
   assets: AssetManifestEntry[];
+  locationAssets: RegionAssets[];
 }
 
 /** Exported file name -> the collections it holds (key = property inside the file). */
@@ -69,7 +81,7 @@ export const FILE_LAYOUT = {
   'discoveries.json': ['discoveries', 'checkpoints'],
   'interactions.json': ['interactions'],
   'curriculum.json': ['subjects', 'grades', 'domains', 'skills'],
-  'assets.json': ['assets'],
+  'assets.json': ['assets', 'locationAssets'],
 } as const satisfies Record<string, readonly (keyof ContentPackage)[]>;
 
 export type ContentFileName = keyof typeof FILE_LAYOUT;

@@ -235,6 +235,10 @@ and `notes` listing behaviour no document specifies.
 - Regenerate after changing a rule (then update the Python port in the same change) and after
   any content change: the `director-content` suite runs on the shipped content and records the
   content export's `contentDigest`.
+- After a location manifest or other content change, refresh in this order: the scene asset index
+  (`npx vitest run src/features/island-map/three/runtime/sceneAssetIndex.test.ts -u`; the path must
+  come before `-u`, which otherwise takes it as its value and runs every test), then
+  `npm run content:export`, then `npm run golden:generate`.
 - `tests/golden/test_golden_vectors.py` checks the format from Python. A Phase 6 port adds its
   own pytest over `golden_vectors.cases(suite, function)`; inputs arrive as snake_case keyword
   arguments, and a `throws` case must raise.

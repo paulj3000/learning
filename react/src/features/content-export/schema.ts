@@ -330,6 +330,7 @@ const defs: Record<string, Schema> = {
     },
   ),
   regionInteractions: obj({ regionSlug: text, interactions: arr(ref('interaction')) }),
+  regionAssets: obj({ regionSlug: text, assetIds: texts }),
   subject: obj({ id: text, title: text }),
   grade: obj({ id: text, subjectId: text, title: text, ageBands }),
   domain: obj({ id: text, gradeId: text, title: text }),
@@ -414,6 +415,7 @@ const COLLECTION_DEFS: Record<string, string> = {
   domains: 'domain',
   skills: 'skill',
   assets: 'asset',
+  locationAssets: 'regionAssets',
 };
 
 const fileKey = (name: string) => `file:${name}`;

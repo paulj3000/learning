@@ -683,6 +683,19 @@ that no module it imports reaches React, Amplify, Three.js, Phaser, or an `api.t
 the future Three.js world loader are the intended consumers; neither exists yet. Details, the hierarchy
 mapping, and gaps: `docs/DATA_MODEL.md`.
 
+## Content catalog (LAI-0304)
+
+`lai/apps/catalog` holds World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset
+and ContentRelease, loaded from the export by `manage.py load_content` (idempotent, transactional,
+digest-verified, never deletes, never overwrites `active`/`sort_order`). Django becomes the content
+authority at the authoring cutover; until then the export is authoritative for content fields. The
+catalog admin (`apps/catalog/admin.py`) is written and unit-tested but **not mounted**: Django Admin is not
+installed, and LAI-0404 mounts `catalog_admin_site` behind the Cognito-group gate (ADR-024 A4).
+Permissions resolve through `apps/catalog/admin_access.py`, deny by default: Admins and Superusers view
+everything and edit only `active` and `sort_order`; nobody adds; deletion is Superusers only and closed
+until the cutover. Spatial layout is not in the catalog (LAI-0805). Model and field detail:
+`docs/DATA_MODEL.md`, "Django content catalog".
+
 ## Content export contract (post-merge note)
 
-The content export is at `schemaVersion: 2` (adventure skill metadata, `START_STORY`). It reads the `ALL_NPCS` registry, not a single region's cast. Details: `docs/DATA_MODEL.md`. ADR numbers 027 to 030 are the Storykeeper Castle / Wonderwild / Clockwork decisions (formerly 019 to 022 on that line).
+The content export is at `schemaVersion: 3` (version 2 added adventure skill metadata and `START_STORY`; version 3 adds `locationAssets`). It reads the `ALL_NPCS` registry, not a single region's cast. Details: `docs/DATA_MODEL.md`. ADR numbers 027 to 030 are the Storykeeper Castle / Wonderwild / Clockwork decisions (formerly 019 to 022 on that line).
