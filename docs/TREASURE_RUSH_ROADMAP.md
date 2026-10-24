@@ -1,8 +1,9 @@
 # Treasure Rush: Roadmap and Readiness
 
-**Status (2026-10-24):** TR-0 (this plan), TR-1 (server-side math challenges), and TR-2
-(catalog models and loader) are done on branch `feature/treasure-rush-slice`, cut from `main`
-at `350e11b`. Nothing is playable yet. TR-D3 and TR-D7 are taken as authorised by the Treasure
+**Status (2026-10-24):** TR-0 (this plan), TR-1 (server-side math challenges), TR-2 (catalog
+models and loader), and TR-4 (progress models and play services) are done on branch
+`feature/treasure-rush-slice`, cut from `main` at `350e11b`. Nothing is playable yet: there is
+no endpoint and no frontend. TR-D3 and TR-D7 are taken as authorised by the Treasure
 Rush brief (admin-managed content; no second asset system); the other decisions in section 6
 are still **Proposed**.
 
@@ -126,12 +127,15 @@ LAI-0801 as written; Treasure Rush content (adventure, quest, challenge specs, c
 placement, reward, NPC, spawn, manifest publish) editable; deny-by-default tests; no child data
 models registered.
 
-**TR-4 Progress models (is LAI-0305, the Treasure Rush subset first).** Depends: TR-2. Risk M.
+**TR-4 Progress models (is LAI-0305, the Treasure Rush subset first).** DONE (section 10). Depends: TR-2. Risk M.
 Acceptance: `AdventureSession`, a `ChallengeAttempt` (session, spec, seed, correctness, no
 child free text), `WorldChange` unique on `(child, location, change_key)`, `InventoryItem`, and
 `QuestProgress`, with migrations and tenant-scoped managers.
 
-**TR-5 Treasure Rush play API.** Depends: TR-4, LAI-0403. Risk H. Acceptance: child-scoped
+**TR-5 Treasure Rush play API.** Depends: TR-4 (done), LAI-0403 (done). Risk H. Since TR-4,
+the transactional work is in `apps/game_sessions/services.py`; TR-5 is the endpoints,
+serializers, error envelope, and endpoint-level isolation tests over it, plus deciding when the
+quest starts (on session start, or when Pip offers it). Acceptance: child-scoped
 endpoints (`ChildScopedMixin`): start or resume a session; issue a challenge (the server picks
 the seed and returns `public_challenge` only); submit an answer (`grade_answer`; on success, in
 one transaction, record the chest WorldChange, grant the reward by rule id, and complete the
@@ -295,3 +299,61 @@ modelled (bounds, environment, copy).
 `pytest lai`).
 
 **Next:** TR-4 (progress models, LAI-0305 subset) needs no decision. TR-3 needs TR-D5.
+
+## 10. TR-4 as built
+
+TR-4 is the Treasure Rush subset of LAI-0305. No Django progress models existed on any branch,
+so the generic models were ported from the Amplify data model (docs/DATA_MODEL.md, "Django
+mapping: progress subset") rather than written for Treasure Rush alone: Treasure Rush is their
+first user, not their owner.
+
+| Model or service | Purpose | Key constraints |
+|---|---|---|
+| `game_sessions.AdventureSession` | A play session: `ADVENTURE` (template) or `REGION` (Treasure Rush) | One open session per child and target (partial unique); kind matches target fields; `completed_at` iff COMPLETED |
+| `game_sessions.ChallengeAttempt` | One generated challenge and its outcome | Snapshot immutable; answered attempt immutable; one ISSUED attempt per session and target; outcome fields match status; numbering unique |
+| `progression.WorldChange` | The chest opened, and any quest world change | Unique (child, location, key); append-only |
+| `inventory.InventoryItem` | An item a child owns | Unique (child, item); no quantity; item PROTECT |
+| `inventory.GrantedRewardRule` | A reward rule that fired | Unique (child, rule); claimed before items are added |
+| `quests.QuestProgress` | A started or finished quest | Unique (child, quest); `completed_at` iff COMPLETED |
+| `education.SkillEvidence` | Practice evidence from each answered attempt | One per attempt (one-to-one) |
+| `core.child_owned.ChildOwnedModel` | Same-child check on linked rows | Refuses a link to another child's session or attempt |
+| `quests.engine` | Pure port of the client's `advanceQuest` | Credits only objectives the server can prove |
+| `game_sessions.services` | Start or resume, issue challenge, submit answer, end session | Row locks; all chest effects in one transaction |
+
+**The chest flow TR-5 calls:** `start_or_resume_region_session` -> `issue_chest_challenge`
+(server seed, snapshot, the same attempt on a repeated request) -> `submit_chest_answer`
+(locks the attempt, refuses replays, grades with TR-1 on the snapshot, records evidence, and if
+correct records the world change, fires the reward rule, and refreshes active quests, all in
+one transaction).
+
+**Decisions taken (conservative, reversible):**
+
+- **TR-D9 Sessions have a kind.** A `REGION` session carries a region id instead of a template
+  slug. Treasure Rush is not an `AdventureTemplate` (it has no steps), and a separate session
+  table would be the duplicate the brief warns against.
+- **TR-D10 Skill evidence is written in TR-4's service, for every answered attempt** (correct
+  and incorrect, as the client does for graded steps), with `support_level` = hint level. The
+  skill id is the learning objective code. `SkillProgress` (derived mastery counters) is not
+  ported: its counter semantics belong to the Mastery Engine port, and evidence is enough to
+  derive it later.
+- **TR-D11 Quests do not start themselves.** `submit_chest_answer` refreshes the child's active
+  quests; starting one (`start_quest`, which checks status, age band, and prerequisites) is the
+  play API's call, so an NPC offer stays meaningful.
+- **Ownership is a set.** One row per child and item, as docs/DATA_MODEL.md "ChildInventory"
+  requires. A stackable item would be a product change under ADR-011.
+- **Content references.** Progress points at catalog rows that are PROTECT (retire, do not
+  delete). Attempts also snapshot ids and parameters, and keep their chest and spec links as
+  SET_NULL, so deleting a chest leaves history readable; answering such an attempt opens
+  nothing and keeps nothing.
+- **No admin registration.** Django admin is not installed (LAI-0404); TR-3 decides what, if
+  anything, of child history is admin-readable, read-only.
+
+**Acceptance criteria, all met:** child ownership on every model, with same-child links checked;
+attempts snapshot what was shown and stay interpretable after the spec is edited or the chest
+deleted; correctness only from `grade_answer`; replayed, repeated, and concurrent requests open
+a chest, fire a rule, and start a session once; failure part way keeps nothing; two children
+never see each other's state; child deletion removes only that child's progress.
+
+**Tests:** 88 new; `pytest lai tests`: 390 passed. They include three real two-connection
+races. Four mutations (no replay check, no child scoping, no transaction, no reward claim) were
+each confirmed to fail a test. Unit tests only, per the development testing policy.

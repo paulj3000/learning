@@ -115,3 +115,38 @@ def families(db):
     parent_a, (a1, a2) = make("sub-family-a", ["Zinnia-A1", "Zephyr-A2"])
     parent_b, (b1, b2) = make("sub-family-b", ["Quince-B1", "Quill-B2"])
     return SimpleNamespace(a=parent_a, a1=a1, a2=a2, b=parent_b, b1=b1, b2=b2)
+
+
+# --- Treasure Rush content (TR-4) ------------------------------------------------------------
+
+
+@pytest.fixture
+def treasure(families):
+    """Exported content loaded, the Treasure Cove seed published, and the two families.
+
+    The `families` children are Pathfinders, so the chest's challenge is the Pathfinder spec
+    (addition, four choices).
+    """
+    from types import SimpleNamespace
+
+    from apps.core.catalog import ContentStatus
+    from apps.core.content_loader import load_content
+    from apps.education.models import ChallengeSpec
+    from apps.islands.models import WorldRegion
+    from apps.islands.treasure_rush_seed import QUEST_ID, REGION_ID, seed_treasure_rush
+    from apps.quests.models import QuestDefinition
+
+    load_content()
+    seed_treasure_rush()
+    WorldRegion.objects.filter(region_id=REGION_ID).update(status=ContentStatus.PUBLISHED)
+    ChallengeSpec.objects.filter(slug__startswith="treasure-cove-").update(
+        status=ContentStatus.PUBLISHED
+    )
+    QuestDefinition.objects.filter(quest_id=QUEST_ID).update(status=ContentStatus.PUBLISHED)
+    region = WorldRegion.objects.get(region_id=REGION_ID)
+    return SimpleNamespace(
+        families=families,
+        region=region,
+        chest=region.chests.get(),
+        quest=QuestDefinition.objects.get(quest_id=QUEST_ID),
+    )

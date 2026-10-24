@@ -1,9 +1,13 @@
-"""Learning objectives and administrator-configured math challenge slots (LAI-0304, TR-2)."""
+"""Learning objectives and math challenge slots (LAI-0304, TR-2); skill evidence (TR-4)."""
+
+import uuid
 
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.timezone import now
 
 from apps.core.catalog import ContentStatus
+from apps.core.child_owned import ChildOwnedModel
 from apps.users.models import AgeBand
 
 from .challenges import SKILL_RULES, ChallengeParameters, ResponseMode, validate_parameters
@@ -86,3 +90,71 @@ class ChallengeSpec(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+
+
+class EvidenceResult(models.TextChoices):
+    """The Amplify `Correctness` enum."""
+
+    CORRECT = "CORRECT"
+    INCORRECT = "INCORRECT"
+    PARTIAL = "PARTIAL"
+    NOT_APPLICABLE = "NOT_APPLICABLE"
+
+
+class SkillEvidence(ChildOwnedModel):
+    """One observation of a child practising a learning objective (the Amplify `SkillEvidence`).
+
+    Append-only raw evidence; `SkillProgress` (the Mastery Engine's derived counters) is computed
+    from it and is not ported yet. `attempt` is unique, so a challenge attempt yields at most one
+    piece of evidence however often the write is retried, which closes, for this path, the
+    "no natural collision key" gap ADR-015 recorded for evidence writes.
+    """
+
+    CHILD_LINKS = ("session", "attempt")
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    child = models.ForeignKey(
+        "users.ChildProfile", on_delete=models.CASCADE, related_name="skill_evidence"
+    )
+    session = models.ForeignKey(
+        "game_sessions.AdventureSession",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="skill_evidence",
+    )
+    attempt = models.OneToOneField(
+        "game_sessions.ChallengeAttempt",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="evidence",
+    )
+    learning_objective = models.ForeignKey(
+        LearningObjective, on_delete=models.PROTECT, related_name="evidence"
+    )
+    evidence_type = models.CharField(max_length=40)
+    result = models.CharField(max_length=16, choices=EvidenceResult.choices)
+    # As in Amplify: the hint level the child used; 0 means unsupported.
+    support_level = models.PositiveSmallIntegerField(default=0)
+    difficulty = models.PositiveSmallIntegerField(null=True, blank=True)
+    duration_ms = models.PositiveIntegerField(null=True, blank=True)
+    observed_at = models.DateTimeField(default=now)
+
+    class Meta:
+        ordering = ["observed_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(result__in=EvidenceResult.values),
+                name="education_evidence_result_valid",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["child", "learning_objective", "observed_at"],
+                name="education_evidence_child_lo",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return str(self.id)

@@ -2528,7 +2528,25 @@ has not been asked and which "Decisions pending" already lists as open; and
 whether SC-11's retirement gate still means anything against a castle whose
 content layer is being replaced.
 
-## Treasure Rush - TR-2 complete (catalog models and loader); nothing playable yet
+## Treasure Rush - TR-4 complete (progress models and play services); nothing playable yet
+
+TR-4 (the Treasure Rush subset of LAI-0305) adds `game_sessions` (`AdventureSession` with a
+`REGION` kind, `ChallengeAttempt`), `progression` (`WorldChange`), `InventoryItem` and
+`GrantedRewardRule` in `inventory`, `QuestProgress` in `quests`, and `SkillEvidence` in
+`education`, with database constraints for every one-time rule. `quests/engine.py` ports the
+client's `advanceQuest` for the objectives the server can prove. `game_sessions/services.py` is
+the transactional boundary the TR-5 API will call: start or resume a session, issue a chest
+challenge, submit an answer (grade, evidence, world change, reward, quests in one transaction).
+Details and decisions TR-D9 to TR-D11: `docs/TREASURE_RUSH_ROADMAP.md` section 10.
+
+Verification (2026-10-24, PostgreSQL 16): `pytest lai tests` 390 passed (88 new, including
+three concurrent-request races); `makemigrations --check` clean; `manage.py check` clean; four
+mutations each failed a test. Unit tests only: Ruff, Prettier, Playwright, and browser tests
+were not run (development testing policy; they run at merge).
+
+Not done: no endpoint (TR-5), no admin (TR-3), no frontend, no `SkillProgress`.
+
+### Earlier: TR-2 (catalog models and loader)
 
 Branch `feature/treasure-rush-slice` (worktree `../learning-treasure-rush-slice`), cut from
 `main` at `350e11b` with the TR-0/TR-1 commit carried over. Not pushed.
