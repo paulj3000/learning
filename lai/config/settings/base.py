@@ -23,6 +23,11 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.users",
     "apps.catalog",
+    "apps.game_sessions",
+    "apps.education",
+    "apps.progression",
+    "apps.inventory",
+    "apps.quests",
 ]
 
 # The parent account is the user model (LAI-0301, ADR-022). Set before any migration is applied.

@@ -115,3 +115,37 @@ def families(db):
     parent_a, (a1, a2) = make("sub-family-a", ["Zinnia-A1", "Zephyr-A2"])
     parent_b, (b1, b2) = make("sub-family-b", ["Quince-B1", "Quill-B2"])
     return SimpleNamespace(a=parent_a, a1=a1, a2=a2, b=parent_b, b1=b1, b2=b2)
+
+
+@pytest.fixture
+def content_catalog(db, tmp_path):
+    """A small imported catalog: one location, two adventures, one quest spanning both."""
+    from types import SimpleNamespace
+
+    from apps.catalog.importer import import_content
+    from apps.catalog.models import Adventure, Quest
+    from apps.catalog.tests.helpers import base_collections, write_export
+
+    collections = base_collections()
+    collections["adventures.json"]["adventures"].append({
+        "slug": "stack-planks", "title": "Stack the Planks", "version": 2, "locationSlug": "bay",
+        "ageBands": ["PATHFINDER"], "entryStepId": "stack",
+        "steps": [
+            {"id": "stack", "type": "ORDERING", "objectiveIds": ["order-3"],
+             "presentation": {"kind": "complete", "text": "Stack"},
+             "transitions": [{"when": "always", "nextStepId": "complete"}], "fallback": {"text": "Stack"}},
+        ],
+    })
+    collections["islands.json"]["islands"][0]["pack"]["adventureSlugs"].append("stack-planks")
+    collections["quests.json"]["quests"][0]["stages"].append({
+        "id": "s2", "title": "Stack", "objectives": [
+            {"id": "o2", "label": "Stack", "kind": "SOLVE", "adventureSlug": "stack-planks"}]})
+    collections["quests.json"]["quests"][0]["stages"][0]["nextStageId"] = "s2"
+    import_content(write_export(tmp_path / "catalog-v1", collections))
+    return SimpleNamespace(
+        collections=collections,
+        bridge=Adventure.objects.get(slug="fix-bridge"),
+        planks=Adventure.objects.get(slug="stack-planks"),
+        quest=Quest.objects.get(slug="repair"),
+        export_dir=tmp_path,
+    )

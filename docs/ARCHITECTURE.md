@@ -696,6 +696,15 @@ everything and edit only `active` and `sort_order`; nobody adds; deletion is Sup
 until the cutover. Spatial layout is not in the catalog (LAI-0805). Model and field detail:
 `docs/DATA_MODEL.md`, "Django content catalog".
 
+## Child progress (LAI-0305)
+
+`game_sessions`, `education`, `progression`, `inventory` and `quests` hold child progress, every
+record owned by one child through `core.ChildOwnedModel` and read only through `for_child` or the
+`ChildScopedMixin` helpers. Progress points at retained catalog rows (PROTECT) and records the
+adventure version and content release it started on, so imports never reset it. Python owns the
+transitions (ADR-019 sub-decision 8): the `services` modules accept rule results from server code
+only, and no endpoint exists yet. Detail: `docs/DATA_MODEL.md`, "Django child progress".
+
 ## Content export contract (post-merge note)
 
 The content export is at `schemaVersion: 3` (version 2 added adventure skill metadata and `START_STORY`; version 3 adds `locationAssets`). It reads the `ALL_NPCS` registry, not a single region's cast. Details: `docs/DATA_MODEL.md`. ADR numbers 027 to 030 are the Storykeeper Castle / Wonderwild / Clockwork decisions (formerly 019 to 022 on that line).

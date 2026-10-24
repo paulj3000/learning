@@ -196,11 +196,20 @@ overlay fields above. (6) Record the loaded `contentDigest` (a content release r
 are idempotent and the `director-content` golden vectors can be matched to the loaded data.
 Spatial layout is not in this task (LAI-0805).
 
-**LAI-0305 Progress models.** Depends: 0301, 0304. Risk M. Acceptance: `game_sessions`
+**LAI-0305 Progress models. DONE (see IMPLEMENTATION_STATUS).** Depends: 0301, 0304. Risk M. Acceptance: `game_sessions`
 (AdventureSession, AdventureAction, CoopSession), `education` (SkillEvidence, SkillProgress,
 StoryArtifact), `progression` (WorldChange with unique `(child, location, change_key)`,
 WorldState, StoryProgress, NpcRelationship), `inventory` (InventoryItem), `quests`
 (QuestProgress); array fields become rows or `ArrayField` by documented choice; migrations.
+
+**LAI-0309 Remaining catalog models: items, reward rules, learning objectives, stories, NPCs.**
+Depends: 0304. Risk L. Recorded 2026-10-24 (LAI-0304 deferred them; LAI-0305 references them by
+stable string id). Acceptance: catalog rows for `items`, `collectibleSets`, `rewardRules`,
+`learningObjectives`, `stories` and `npcs` from the export, with the same import rules as LAI-0304
+(digest-verified, never deletes, catalog fields import-once); optional foreign keys or validated
+references from `InventoryItem.item_id`, `GrantedRule.rule_id`, `SkillProgress` and `SkillEvidence`
+`learning_objective_code`, `StoryProgress.story_slug`, `NpcRelationship.npc_id` and `Quest.giver_npc_id`,
+added without rewriting existing progress rows. Needed before LAI-0603 and LAI-0604 validate ids.
 
 **LAI-0306 Audit models.** Depends: 0301. Risk L. Acceptance: `AIInteractionAudit`,
 `SafetyEvent` with the same fields; no free-text columns for child input.

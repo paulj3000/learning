@@ -779,6 +779,57 @@ invalid records when it rejects. Deliberate deviation: no Python JSON Schema val
 digest check proves the producer's validation applied and adding `jsonschema` would add four pinned
 dependencies; add it if exports ever come from another producer.
 
+## Django child progress (LAI-0305)
+
+Five apps, as the target architecture names them, mirroring the Amplify models so Phase 11 can
+migrate them: `game_sessions` (AdventureSession, AdventureAction, CoopSession, CoopParticipant),
+`education` (SkillEvidence, SkillProgress, StoryArtifact), `progression` (WorldChange, WorldState,
+StoryProgress, NpcRelationship), `inventory` (InventoryItem, GrantedRule), `quests` (QuestProgress).
+
+**Ownership and isolation.** Every child record extends `core.ChildOwnedModel`: UUID key, a `child`
+foreign key (CASCADE: a child's history goes with the child), and `objects.for_child(child)`, the
+same filter `ChildScopedMixin.scoped` applies. `AdventureAction` and `CoopParticipant` are reached only
+through their session. Service functions take the child resolved by `ChildScopedMixin` and answer a
+record of another child exactly as a missing one (`ProgressNotFound`). No endpoint and no admin
+registration exposes these models (cross-family admin reads stay with LAI-0404's audited path).
+
+**Content references.** Sessions, co-op sessions and quest progress point at catalog rows with
+PROTECT foreign keys (`catalog.Adventure`, `catalog.Quest`). Catalog rows are never deleted by an
+import, so progress survives a release that drops its content; the row's `last_seen_release` shows
+it is retained. A session also records `template_version` (the adventure version it started on, never
+changed afterwards) and `content_release` (the latest release at its start). No progress is migrated,
+reset or completed automatically when content changes. Location, story, NPC, item, rule, objective,
+checkpoint and stage ids are the export's stable strings: `WorldChange.location_slug` cannot be a
+foreign key because stories name story-only places, and the other catalogs do not exist yet (LAI-0309).
+
+**Arrays versus rows (the roadmap's documented choice).** Rows where uniqueness or idempotency is a
+rule: co-op participants, owned items, granted reward rules. `ArrayField` where ids are only read and
+written with their row: quest stage and objective lists, completed story chapters, discovered objects
+and characters, seen dialogue nodes.
+
+**Transitions enforced now** (the persistence half of rules the current code already has):
+- AdventureSession: starting reuses the ACTIVE session (one per child and adventure, a partial
+  unique constraint); starting requires the adventure and its location to be active
+  (`isAdventurePlayable`); an attempt is accepted only on an ACTIVE session and only for its current
+  step, and moves it to an authored step of the same adventure or to the reserved `complete`;
+  completion is ACTIVE to COMPLETED with `completed_at`, and is final. Attempts are numbered per
+  step under a row lock, so concurrent attempts cannot collide. Step completion is derived: a step is
+  completed once an attempt moved the session past it (`AdventureAction.next_step_id`, a field Amplify
+  lacks; migrated rows leave it blank).
+- QuestProgress: one per child and quest; stage and objective ids must be the quest's own; completed
+  lists only grow; a COMPLETED quest never changes.
+- WorldChange: unique per (child, location, change key); recording it again is a no-op.
+- Database checks: valid status values; `completed_at` set exactly when COMPLETED; activity not
+  before start; attempts from 1; hint level 0 to 5; evidence has exactly one source (an adventure
+  session or story progress); skill counters consistent (successes within exposures, streak within
+  independent successes).
+
+**Not defined, so not implemented:** transitions into PAUSED, ABANDONED and SAFETY_STOPPED (the enum
+has them; no code moves a session there); whether `World.active` gates play; the counter, reward,
+quest-advance and director rules themselves (ported against the golden vectors in LAI-0601, 0603 to
+0606). Phase 11 must report Amplify rows that violate the new constraints (inconsistent counters, two
+ACTIVE sessions for one adventure, slugs missing from the catalog) rather than load them silently.
+
 ## Asset
 Admin-managed game asset (docs/android/ASSET_MANAGEMENT.md, ADR-030). Holds
 no child data. Admins-group only for every operation.
