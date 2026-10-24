@@ -824,6 +824,12 @@ and characters, seen dialogue nodes.
   session or story progress); skill counters consistent (successes within exposures, streak within
   independent successes).
 
+**Added by LAI-0601:** `AdventureSession.hint_levels` (step id to the hint level the server has
+given; the answer endpoint escalates from it, never from a client value) and
+`AdventureAction.request_id` (the client's request UUID, unique per session, so a retried submission
+returns its stored outcome instead of recording a second attempt). Both are empty on migrated
+Amplify rows.
+
 **Not defined, so not implemented:** transitions into PAUSED, ABANDONED and SAFETY_STOPPED (the enum
 has them; no code moves a session there); whether `World.active` gates play; the counter, reward,
 quest-advance and director rules themselves (ported against the golden vectors in LAI-0601, 0603 to

@@ -64,7 +64,7 @@ before touching AWS.
 
 ## Phase 6 — Authoritative progression, inventory, mastery
 
-- [ ] **LAI-0601** Python adventure engine + answers endpoint (depends: 0303, 0305, 0403)
+- [x] **LAI-0601** Python adventure engine + answers endpoint (depends: 0303, 0305, 0403). DONE locally: `apps/adventures/engine.py` (golden parity), answers and hints endpoints, G6 verified for them; React still calls the Amplify Lambda until the frontend API layer (LAI-0501) switches it
 - [ ] **LAI-0602** Profile writes and deletion (depends: 0502)
 - [ ] **LAI-0603** Mastery writes (depends: 0601)
 - [ ] **LAI-0604** Rewards and inventory writes (depends: 0603)

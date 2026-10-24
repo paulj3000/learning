@@ -705,6 +705,47 @@ adventure version and content release it started on, so imports never reset it. 
 transitions (ADR-019 sub-decision 8): the `services` modules accept rule results from server code
 only, and no endpoint exists yet. Detail: `docs/DATA_MODEL.md`, "Django child progress".
 
+## Authoritative adventure answers (LAI-0601)
+
+The first child-data endpoints. `apps/adventures/engine.py` is the Python adventure engine
+(`validate_step_answer`, `next_step_id`, `next_hint_level`, `hint_text`, `decide_submission`,
+`is_step_answer`), a port of the TypeScript engine that passes every case in
+`tests/golden/adventure-engine.json`, including the JavaScript semantics a port must keep
+(`undefined === undefined`, no bool-number coercion, JS truthiness and array indexing).
+`apps/game_sessions/services.submit_answer` grades and applies an answer on one row-locked session
+in one transaction.
+
+- `POST /api/v1/children/{child_id}/sessions/{session_id}/answers/` with
+  `{stepId, answer, requestId}` returns `{correctness, supportLevel, action, nextStepId,
+  attemptNumber, replayed, session}`; the first four fields keep `submitAdventureAnswer`'s shape.
+- `POST /api/v1/children/{child_id}/sessions/{session_id}/hints/` with `{stepId, fromLevel}`
+  returns `{hintLevel, hintText, session}`.
+- The roadmap's `/sessions/{id}/answers` became child-scoped so LAI-0403's rule (the child comes
+  from the URL, resolved through the parent) holds. Bodies are camelCase, matching the Lambda.
+- The client sends what the child did. Correctness, hint level, next step and completion are the
+  server's: the hint level is the server's per-step record (`AdventureSession.hint_levels`), so the
+  Lambda's weakness, where a client-supplied `hintLevel` of 4 reached guided completion on any
+  wrong answer, does not exist here. Reaching a COMPLETE step or the reserved `complete` id
+  completes the session in the same transaction.
+- `requestId` (ADR-015's design, stored on `AdventureAction` with a per-session unique constraint)
+  makes retries safe: a repeat returns the stored outcome with `replayed: true`; a reused id with a
+  different answer is `409 request_conflict`; a fresh request after the step moved is
+  `409 step_not_current`. A hint request moves the level only from `fromLevel`, so it cannot
+  escalate twice.
+- No content snapshots exist: a session whose adventure version changed, or whose current step is
+  not in the adventure's latest import, is refused with `409 content_version_changed` and left
+  intact rather than graded against different content.
+
+**G6 verification (2026-10-24), from the code and its tests, for these endpoints:** authentication
+is required (401 with no or a bad token; `IsProvisionedParent` default); parents reach only their own
+children (`ChildScopedMixin` resolves the child through the parent); another family's child, a
+sibling's session and an unknown session all give the same 404 and write nothing; unauthenticated
+and unprovisioned requests cannot mutate; an `Admins` group token gets no cross-family access, and
+the scoping helpers never read group claims; `is_staff` is unused; LAI-0403's route checker
+(`test_every_real_route_is_public_parent_scoped_or_child_scoped`) covers the new routes. Outcome:
+**satisfied for these child-owned endpoints**. G6 stays a per-endpoint obligation: every future child
+endpoint must use the same helpers and pass the same checklist.
+
 ## Content export contract (post-merge note)
 
 The content export is at `schemaVersion: 3` (version 2 added adventure skill metadata and `START_STORY`; version 3 adds `locationAssets`). It reads the `ALL_NPCS` registry, not a single region's cast. Details: `docs/DATA_MODEL.md`. ADR numbers 027 to 030 are the Storykeeper Castle / Wonderwild / Clockwork decisions (formerly 019 to 022 on that line).

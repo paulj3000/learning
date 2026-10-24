@@ -36,6 +36,8 @@ describe('golden vectors', () => {
       'validateStepAnswer',
       'getNextStepId',
       'nextHintLevel',
+      'decideSubmission',
+      'isStepAnswer',
       'resolveRewards',
       'isObjectiveComplete',
       'evaluateQuestCondition',
@@ -75,7 +77,9 @@ describe('golden vectors', () => {
         fn.cases.filter((testCase) => testCase.throws).map(() => name),
       ),
     );
-    expect(new Set(throwing)).toEqual(new Set(['validateStepAnswer', 'getNextStepId']));
+    expect(new Set(throwing)).toEqual(
+      new Set(['validateStepAnswer', 'getNextStepId', 'decideSubmission']),
+    );
   });
 
   it('bind the content-dependent suite to the current content export', () => {

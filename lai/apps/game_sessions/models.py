@@ -60,6 +60,10 @@ class AdventureSession(ChildOwnedModel):
     )
     status = models.CharField(max_length=16, choices=SessionStatus.choices)
     current_step_id = models.CharField(max_length=100)
+    hint_levels = models.JSONField(
+        default=dict, blank=True,
+        help_text="Step id -> the hint level the server has given (LAI-0601); never a client value.",
+    )
     coop_session = models.ForeignKey(
         "game_sessions.CoopSession", on_delete=models.SET_NULL, null=True, blank=True,
         related_name="adventure_sessions",
@@ -111,11 +115,19 @@ class AdventureAction(models.Model):
         max_length=100, blank=True, help_text="Where this attempt moved the session; empty if it stayed."
     )
     duration_ms = models.PositiveIntegerField(null=True, blank=True)
+    request_id = models.UUIDField(
+        null=True, blank=True,
+        help_text="Client-generated id of the submission (ADR-015's requestId); replays return the stored outcome.",
+    )
     created_at = models.DateTimeField()
 
     class Meta:
         ordering = ["session", "created_at", "attempt_number"]
         constraints = [
+            models.UniqueConstraint(
+                fields=["session", "request_id"], condition=Q(request_id__isnull=False),
+                name="action_request_once",
+            ),
             models.UniqueConstraint(
                 fields=["session", "step_id", "attempt_number"], name="action_unique_attempt"
             ),

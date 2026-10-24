@@ -2,8 +2,9 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getNextStepId } from '../../features/adventures/engine/transitions';
-import { nextHintLevel } from '../../features/adventures/engine/hints';
+import { getHintText, nextHintLevel } from '../../features/adventures/engine/hints';
 import { validateStepAnswer, type StepAnswer } from '../../features/adventures/engine/validators';
+import { decideSubmission, isStepAnswer } from '../../features/adventures/engine/submission';
 import type {
   AdventureDefinition,
   AdventureStep,
@@ -207,6 +208,12 @@ const ANSWER_CASES: CaseInput<AnswerInput>[] = [
     name: 'matching: the same correct pair twice counts as correct',
     input: { step: MATCHING, answer: { kind: 'matching', pairs: [{ leftId: 'cat', rightId: 'meow' }, { leftId: 'cat', rightId: 'meow' }] } },
   },
+  {
+    name: 'matching: an unknown left id with no right id counts as a match (undefined === undefined)',
+    input: { step: { ...MATCHING, presentation: { kind: 'matching', prompt: 'Match', pairs: [{ leftId: 'cat', rightId: 'meow' }] } }, answer: { kind: 'matching', pairs: [{ leftId: 'ghost' } as never] } },
+  },
+  { name: 'invalid: a null matching pair', input: { step: MATCHING, answer: { kind: 'matching', pairs: [null as never] } } },
+  { name: 'number: true is not 1', input: { step: step('one', { kind: 'number-input', prompt: 'How many?', correctValue: 1 }), answer: { kind: 'number-input', value: true as never } } },
   { name: 'short response: first accepted option', input: { step: SHORT, answer: { kind: 'short-response', optionId: 'a' } } },
   { name: 'short response: second accepted option', input: { step: SHORT, answer: { kind: 'short-response', optionId: 'c' } } },
   { name: 'short response: not accepted', input: { step: SHORT, answer: { kind: 'short-response', optionId: 'b' } } },
@@ -255,12 +262,80 @@ const HINT_CASES: CaseInput<{ currentLevel: number }>[] = [0, 1, 2, 3, 4, 5, 6, 
   }),
 );
 
+const HINTED = step(
+  'hinted',
+  { kind: 'number-input', prompt: 'How many?', correctValue: 4 },
+  [
+    { when: 'correct', nextStepId: 'celebrate' },
+    { when: 'incorrect', nextStepId: 'explain' },
+    { when: 'partial', nextStepId: 'explain' },
+  ],
+);
+HINTED.hintPolicy = { ladder: ['One', 'Two', 'Three', 'Four', 'Five'] };
+const HINTED_MATCHING: AdventureStep = {
+  ...step('hinted-match', MATCHING.presentation, [{ when: 'always', nextStepId: 'next' }]),
+  hintPolicy: { ladder: ['One'] },
+};
+const UNHINTED = step('unhinted', NUMBER.presentation, [
+  { when: 'correct', nextStepId: 'celebrate' },
+  { when: 'incorrect', nextStepId: 'explain' },
+]);
+const STORY_STEP = step('story-step', NARRATIVE.presentation, [{ when: 'always', nextStepId: 'next' }]);
+
+const LADDER_STEP: AdventureStep = { ...HINTED, hintPolicy: { ladder: ['Look again', 'Count the planks'] } };
+const EMPTY_LADDER: AdventureStep = { ...HINTED, hintPolicy: { ladder: [] } };
+const HINT_TEXT_CASES: CaseInput<{ step: AdventureStep; level: number }>[] = [
+  { name: 'level 0 shows no hint', input: { step: LADDER_STEP, level: 0 } },
+  { name: 'level 1 is the first line', input: { step: LADDER_STEP, level: 1 } },
+  { name: 'a level above the ladder shows its last line', input: { step: LADDER_STEP, level: 5 } },
+  { name: 'a step without a hint policy shows none', input: { step: UNHINTED, level: 2 } },
+  { name: 'an empty ladder shows none', input: { step: EMPTY_LADDER, level: 1 } },
+  { name: 'a fractional level indexes nothing', input: { step: LADDER_STEP, level: 1.5 } },
+  { name: 'a negative level shows none', input: { step: LADDER_STEP, level: -1 } },
+];
+
+type SubmissionInput = { step: AdventureStep; answer: StepAnswer; hintLevel: number };
+const SUBMISSION_CASES: CaseInput<SubmissionInput>[] = [
+  { name: 'correct advances with the support level unchanged', input: { step: HINTED, answer: { kind: 'number-input', value: 4 }, hintLevel: 2 } },
+  { name: 'incorrect on a hinted step retries and escalates the hint', input: { step: HINTED, answer: { kind: 'number-input', value: 1 }, hintLevel: 0 } },
+  { name: 'partial on a hinted step retries too', input: { step: HINTED_MATCHING, answer: { kind: 'matching', pairs: [{ leftId: 'cat', rightId: 'meow' }, { leftId: 'dog', rightId: 'meow' }] }, hintLevel: 1 } },
+  { name: 'incorrect at level 4 reaches guided completion and advances as correct', input: { step: HINTED, answer: { kind: 'number-input', value: 1 }, hintLevel: 4 } },
+  { name: 'incorrect at level 5 stays at guided completion and advances as correct', input: { step: HINTED, answer: { kind: 'number-input', value: 1 }, hintLevel: 5 } },
+  { name: 'incorrect on a step without hints advances on the incorrect transition', input: { step: UNHINTED, answer: { kind: 'number-input', value: 1 }, hintLevel: 0 } },
+  { name: 'a narrative step advances as not_applicable', input: { step: STORY_STEP, answer: { kind: 'narrative' }, hintLevel: 0 } },
+  { name: 'an empty hint policy still counts as a hinted step', input: { step: { ...UNHINTED, hintPolicy: {} as never }, answer: { kind: 'number-input', value: 1 }, hintLevel: 0 } },
+  { name: 'a negative hint level escalates to 0 and retries', input: { step: HINTED, answer: { kind: 'number-input', value: 1 }, hintLevel: -1 } },
+  { name: 'invalid: an answer kind that does not match the step', input: { step: HINTED, answer: { kind: 'choice', optionId: 'a' }, hintLevel: 0 } },
+  { name: 'invalid: an incorrect answer with no transition for it and no always fallback', input: { step: NO_FALLBACK, answer: { kind: 'choice', optionId: 'zzz' }, hintLevel: 0 } },
+];
+
+const SHAPE_CASES: CaseInput<{ value: unknown }>[] = [
+  { name: 'number answer', input: { value: { kind: 'number-input', value: 3 } } },
+  { name: 'number answer with a string value', input: { value: { kind: 'number-input', value: '3' } } },
+  { name: 'number answer with a boolean value', input: { value: { kind: 'number-input', value: true } } },
+  { name: 'choice answer', input: { value: { kind: 'choice', optionId: 'a' } } },
+  { name: 'choice answer without an option id', input: { value: { kind: 'choice' } } },
+  { name: 'short response with a numeric option id', input: { value: { kind: 'short-response', optionId: 3 } } },
+  { name: 'creative choice answer', input: { value: { kind: 'creative-choice', optionId: 'a' } } },
+  { name: 'ordering answer', input: { value: { kind: 'ordering', order: ['a', 'b'] } } },
+  { name: 'ordering answer whose order is not a list', input: { value: { kind: 'ordering', order: 'ab' } } },
+  { name: 'ordering items are not checked here', input: { value: { kind: 'ordering', order: [1, null] } } },
+  { name: 'matching answer', input: { value: { kind: 'matching', pairs: [] } } },
+  { name: 'reflection, narrative and world change need nothing else', input: { value: { kind: 'world-change', extra: 1 } } },
+  { name: 'complete is not a submittable kind', input: { value: { kind: 'complete' } } },
+  { name: 'unknown kind', input: { value: { kind: 'hologram' } } },
+  { name: 'no kind', input: { value: { optionId: 'a' } } },
+  { name: 'not an object', input: { value: 'choice' } },
+  { name: 'null', input: { value: null } },
+];
+
 function adventureEngineSuite(): GoldenSuite {
   return {
     schemaVersion: GOLDEN_SCHEMA_VERSION,
     suite: 'adventure-engine',
     description: 'Answer evaluation, step transitions and the hint ladder.',
     sources: [
+      'react/src/features/adventures/engine/submission.ts',
       'react/src/features/adventures/engine/validators.ts',
       'react/src/features/adventures/engine/transitions.ts',
       'react/src/features/adventures/engine/hints.ts',
@@ -268,8 +343,12 @@ function adventureEngineSuite(): GoldenSuite {
     notes: [
       'validateStepAnswer: a matching answer that repeats one correct pair as many times as there are pairs counts as correct, because only the length and each pair are checked. No document says whether that is intended.',
       'validateStepAnswer: number answers compare with exact equality; no tolerance is specified.',
+      'validateStepAnswer: JavaScript semantics a port must keep: a missing map key and a missing property are both undefined and equal (a malformed matching pair can match), a null pair throws, and true is not 1.',
+      'decideSubmission: any hintPolicy object, even an empty one, makes a step hinted (JavaScript truthiness).',
       'validateStepAnswer: reflection, narrative, world-change and complete steps return not_applicable for any answer kind; only gradable steps reject a mismatched kind.',
       'nextHintLevel: inputs are not validated; a negative level returns level + 1, and fractional levels are not rejected.',
+      'decideSubmission: the client supplies hintLevel in the Amplify contract, so escalating from 4 reaches guided completion and advances an incorrect answer as correct. The Django endpoint keeps the server\'s own hint level instead (LAI-0601).',
+      'isStepAnswer: a shallow shape check; `complete` is not a submittable kind, list items are not checked, and a boolean is not a number.',
     ],
     functions: {
       validateStepAnswer: vectors('validate_step_answer', ['step', 'answer'], ANSWER_CASES, ({ step: s, answer }) =>
@@ -281,6 +360,11 @@ function adventureEngineSuite(): GoldenSuite {
       nextHintLevel: vectors('next_hint_level', ['currentLevel'], HINT_CASES, ({ currentLevel }) =>
         nextHintLevel(currentLevel),
       ),
+      decideSubmission: vectors('decide_submission', ['step', 'answer', 'hintLevel'], SUBMISSION_CASES, ({ step: s, answer, hintLevel }) =>
+        decideSubmission(s, answer, hintLevel),
+      ),
+      isStepAnswer: vectors('is_step_answer', ['value'], SHAPE_CASES, ({ value }) => isStepAnswer(value)),
+      getHintText: vectors('hint_text', ['step', 'level'], HINT_TEXT_CASES, ({ step: s, level }) => getHintText(s, level)),
     },
   };
 }

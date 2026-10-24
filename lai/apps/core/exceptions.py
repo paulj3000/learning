@@ -36,6 +36,13 @@ _CODED = {
     "account_not_provisioned": "Account setup is required.",
     "sensitive_action_unavailable": "This action is not available.",
     "authentication_unavailable": "Authentication is temporarily unavailable.",
+    # Adventure answers (LAI-0601)
+    "answer_invalid": "That answer could not be understood.",
+    "session_not_active": "This adventure is no longer active.",
+    "step_not_current": "That step is not the current one.",
+    "content_version_changed": "This adventure has changed since it was started.",
+    "request_conflict": "That request id was already used for a different answer.",
+    "invalid_transition": "That adventure cannot change that way.",
 }
 _PASSTHROUGH_HEADERS = {"Allow", "WWW-Authenticate", "Retry-After"}
 

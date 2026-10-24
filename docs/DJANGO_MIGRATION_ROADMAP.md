@@ -276,7 +276,7 @@ skill-level summaries (no raw transcripts); admin directory paginated (replaces 
 
 ### Phase 6 - Authoritative progression, inventory, mastery
 
-**LAI-0601 Python adventure engine + answers endpoint.** Depends: 0303, 0305, 0403. Risk H.
+**LAI-0601 Python adventure engine + answers endpoint. DONE (see IMPLEMENTATION_STATUS; route is child-scoped, `/children/{child_id}/sessions/{id}/answers/`, plus a `hints/` endpoint).** Depends: 0303, 0305, 0403. Risk H.
 Acceptance: pure-Python `validate_step_answer`, `next_step_id`, `next_hint_level` pass every
 golden vector; `POST /api/v1/sessions/{id}/answers` replaces `submitAdventureAnswer`
 semantics (ownership re-verified, `lastActivityAt` update, same response shape); Vitest and

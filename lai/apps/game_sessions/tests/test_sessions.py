@@ -64,7 +64,7 @@ class TestCreatingAndAdvancing:
     def test_a_retry_numbers_attempts_and_does_not_complete_the_step(self, families, content_catalog):
         session, _ = services.start_or_resume_session(families.a1, content_catalog.bridge)
 
-        attempt(families.a1, session, "count", "count", Correctness.INCORRECT)
+        attempt(families.a1, session, "count", None, Correctness.INCORRECT)
         second = attempt(families.a1, session, "count", "done")
 
         assert second.attempt_number == 2
@@ -153,7 +153,7 @@ class TestDuplicatesAndChildren:
 
     def test_the_same_attempt_cannot_be_recorded_twice(self, families, content_catalog):
         session, _ = services.start_or_resume_session(families.a1, content_catalog.bridge)
-        action = attempt(families.a1, session, "count", "count", Correctness.INCORRECT)
+        action = attempt(families.a1, session, "count", None, Correctness.INCORRECT)
         with pytest.raises(IntegrityError), transaction.atomic():
             AdventureAction.objects.create(
                 session=session, step_id="count", attempt_number=action.attempt_number,
@@ -290,7 +290,7 @@ def test_concurrent_attempts_and_starts_never_duplicate(families, content_catalo
     def retry():
         try:
             barrier.wait()
-            attempt(families.a1, session, "count", "count", Correctness.INCORRECT)
+            attempt(families.a1, session, "count", None, Correctness.INCORRECT)
         except Exception as error:  # surfaced through `errors`
             errors.append(error)
         finally:
