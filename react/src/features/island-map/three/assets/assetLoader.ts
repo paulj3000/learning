@@ -2,6 +2,7 @@ import { InstancedMesh, LOD, Mesh, Object3D, type Material } from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { getAssetManifestEntry } from './manifest';
 import { BUNDLED_ASSET_RESOLVER, type AssetResolver } from './assetResolver';
+import { cloneAssetScene } from './cloneAsset';
 
 /**
  * The runtime half of `docs/ROADMAP.md` Phase 34: loads assets through the
@@ -19,8 +20,49 @@ import { BUNDLED_ASSET_RESOLVER, type AssetResolver } from './assetResolver';
  * resolver without touching a single caller.
  */
 
-/** Fetches and parses one glTF document. Injected so a test can count fetches. */
-export type GltfFetcher = (url: string) => Promise<GLTF>;
+/**
+ * Download progress for one fetch. `totalBytes` is `null` when the server
+ * sent no usable length, which is common for compressed or chunked responses.
+ */
+export type ByteProgressCallback = (loadedBytes: number, totalBytes: number | null) => void;
+
+/**
+ * Fetches and parses one glTF document. Injected so a test can count fetches.
+ * `onBytes` is optional to call: a fetcher that never reports progress still
+ * works, and its loads simply emit no `progress` events.
+ */
+export type GltfFetcher = (url: string, onBytes?: ByteProgressCallback) => Promise<GLTF>;
+
+/**
+ * What one `loadAsset` request reports to its `onEvent` observer (LAI-2106).
+ * Engine-level and UI-free, so a future loading screen can aggregate them.
+ *
+ * - `progress`: bytes downloaded so far for the shared fetch. `fraction` is
+ *   in [0, 1] when the total is known, and `null` when it is not, never
+ *   `NaN` or `Infinity`. Requests that share one in-flight load all see the
+ *   progress events emitted after they joined.
+ * - `complete`: exactly once per request that succeeded. `fromCache` is true
+ *   when the asset had already finished loading before this request.
+ * - `error`: exactly once per request that failed, with the same error the
+ *   returned promise rejects with.
+ */
+export type AssetLoadEvent =
+  | {
+      type: 'progress';
+      assetId: string;
+      loadedBytes: number;
+      totalBytes: number | null;
+      fraction: number | null;
+    }
+  | { type: 'complete'; assetId: string; fromCache: boolean }
+  | { type: 'error'; assetId: string; error: Error };
+
+export type AssetLoadObserver = (event: AssetLoadEvent) => void;
+
+export interface LoadAssetOptions {
+  /** Observes this request's progress, completion and failure. Optional. */
+  onEvent?: AssetLoadObserver;
+}
 
 /** Resolves a url to an absolute URL when a `window.location` is available (browser and jsdom tests alike), so `GLTFLoader.load()` never depends on an implicit relative-URL base. */
 function resolveUrl(url: string): string {
@@ -30,14 +72,50 @@ function resolveUrl(url: string): string {
   return url;
 }
 
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
 function createGltfFetcher(): GltfFetcher {
   const loader = new GLTFLoader();
-  return (url) =>
+  return (url, onBytes) =>
     new Promise<GLTF>((resolve, reject) => {
-      loader.load(resolveUrl(url), resolve, undefined, (error: unknown) =>
-        reject(error instanceof Error ? error : new Error(String(error))),
+      loader.load(
+        resolveUrl(url),
+        resolve,
+        onBytes
+          ? (event: ProgressEvent) =>
+              onBytes(event.loaded, event.lengthComputable ? event.total : null)
+          : undefined,
+        (error: unknown) => reject(toError(error)),
       );
     });
+}
+
+/** Never lets a throwing observer break a load or the other observers. */
+function notify(observer: AssetLoadObserver, event: AssetLoadEvent): void {
+  try {
+    observer(event);
+  } catch (error) {
+    console.warn(`asset load observer failed for "${event.assetId}"`, error);
+  }
+}
+
+function progressEvent(
+  assetId: string,
+  loadedBytes: number,
+  totalBytes: number | null,
+): AssetLoadEvent {
+  const known = totalBytes !== null && Number.isFinite(totalBytes) && totalBytes > 0;
+  return {
+    type: 'progress',
+    assetId,
+    loadedBytes,
+    totalBytes: known ? totalBytes : null,
+    // Clamped: a compressed response's Content-Length counts compressed bytes
+    // while the stream counts decoded ones, so loaded can pass total.
+    fraction: known ? Math.min(1, Math.max(0, loadedBytes / totalBytes)) : null,
+  };
 }
 
 function findFirstMesh(root: Object3D): Mesh | undefined {
@@ -58,10 +136,14 @@ export interface InstancePlacement {
 }
 
 export interface AssetLoader {
-  /** Loads (and caches) the raw parsed `GLTF` result for an asset id. */
-  loadAsset(id: string): Promise<GLTF>;
-  /** A fresh, independently-placeable clone of an asset's scene graph. */
-  instantiateAsset(id: string): Promise<Object3D>;
+  /**
+   * Loads (and caches) the raw parsed `GLTF` result for an asset id.
+   * Concurrent requests share one load; a failed load is evicted so the next
+   * request retries it.
+   */
+  loadAsset(id: string, options?: LoadAssetOptions): Promise<GLTF>;
+  /** A fresh, independently placeable clone of an asset's scene graph, skeleton-safe for rigged models. */
+  instantiateAsset(id: string, options?: LoadAssetOptions): Promise<Object3D>;
   createInstancedMeshFromAsset(
     id: string,
     placements: readonly InstancePlacement[],
@@ -73,20 +155,73 @@ export function createAssetLoader(
   resolver: AssetResolver,
   fetchGltf: GltfFetcher = createGltfFetcher(),
 ): AssetLoader {
-  const pendingById = new Map<string, Promise<GLTF>>();
+  /**
+   * One load per id (LAI-2106). A successful load stays cached for the
+   * loader's lifetime. A failed one is removed before any caller sees the
+   * rejection, so a caller that retries from its `catch` starts a fresh load.
+   * Removal only happens while the map still holds *this* entry, so a stale
+   * failure can never evict a newer entry for the same id, and no failure
+   * touches another id's entry.
+   */
+  interface CacheEntry {
+    promise: Promise<GLTF>;
+    loaded: boolean;
+    /** Observers of requests still waiting on this load; cleared when it settles. */
+    observers: Set<AssetLoadObserver>;
+  }
+  const entriesById = new Map<string, CacheEntry>();
 
-  function loadAsset(id: string): Promise<GLTF> {
-    let pending = pendingById.get(id);
-    if (!pending) {
-      pending = resolver.resolve(id).then((resolved) => fetchGltf(resolved.url));
-      pendingById.set(id, pending);
-    }
-    return pending;
+  function startLoad(id: string): CacheEntry {
+    const observers = new Set<AssetLoadObserver>();
+    const onBytes: ByteProgressCallback = (loadedBytes, totalBytes) => {
+      const event = progressEvent(id, loadedBytes, totalBytes);
+      for (const observer of observers) notify(observer, event);
+    };
+    // The callbacks below run asynchronously, after `entry` exists.
+    const promise = Promise.resolve()
+      .then(() => resolver.resolve(id))
+      .then((resolved) => fetchGltf(resolved.url, onBytes))
+      .then(
+        (gltf) => {
+          entry.loaded = true;
+          observers.clear();
+          return gltf;
+        },
+        (error: unknown) => {
+          observers.clear();
+          if (entriesById.get(id) === entry) entriesById.delete(id);
+          throw toError(error);
+        },
+      );
+    const entry: CacheEntry = { promise, loaded: false, observers };
+    entriesById.set(id, entry);
+    return entry;
   }
 
-  async function instantiateAsset(id: string): Promise<Object3D> {
-    const gltf = await loadAsset(id);
-    return gltf.scene.clone(true);
+  function loadAsset(id: string, options?: LoadAssetOptions): Promise<GLTF> {
+    const cached = entriesById.get(id);
+    const entry = cached ?? startLoad(id);
+    const observer = options?.onEvent;
+    if (!observer) return entry.promise;
+
+    const fromCache = cached?.loaded === true;
+    if (!entry.loaded) entry.observers.add(observer);
+    return entry.promise.then(
+      (gltf) => {
+        notify(observer, { type: 'complete', assetId: id, fromCache });
+        return gltf;
+      },
+      (error: unknown) => {
+        const failure = toError(error);
+        notify(observer, { type: 'error', assetId: id, error: failure });
+        throw failure;
+      },
+    );
+  }
+
+  async function instantiateAsset(id: string, options?: LoadAssetOptions): Promise<Object3D> {
+    const gltf = await loadAsset(id, options);
+    return cloneAssetScene(gltf.scene);
   }
 
   /**

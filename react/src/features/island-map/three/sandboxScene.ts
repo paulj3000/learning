@@ -20,6 +20,7 @@ import {
   WebGLRenderer,
 } from 'three';
 import { loadAsset } from './assets/assetLoader';
+import { cloneAssetScene } from './assets/cloneAsset';
 import type { ThreeEngineHandle } from './ThreeGameContainer';
 import { FirstPersonController } from './firstPersonController';
 import { attachPointerControls } from './pointerControls';
@@ -110,7 +111,7 @@ export function createSandboxEngine(
 
   let npcMixer: AnimationMixer | null = null;
   void loadAsset('npc-pip').then((npc) => {
-    const npcScene = npc.scene.clone(true);
+    const npcScene = cloneAssetScene(npc.scene);
     npcScene.position.copy(NPC_POSITION);
     npcScene.name = 'Pip';
     scene.add(npcScene);

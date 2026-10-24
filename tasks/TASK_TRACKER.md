@@ -133,6 +133,7 @@ before touching AWS.
 - [ ] **LAI-2103** Shared scene lifecycle and world loading (depends: 2102)
 - [ ] **LAI-2104** Player controls and interaction standardisation (depends: 2103)
 - [ ] **LAI-2105** Performance harness and budgets (depends: 2103)
+- [x] **LAI-2106** Asset loader reliability: skeleton-safe cloning, failed-load eviction, load events (depends: none; in place, before 2102). DONE locally: jsdom-verified; no browser or WebGL run
 
 ## Phase 22 — World conversions (one task per Phaser world)
 

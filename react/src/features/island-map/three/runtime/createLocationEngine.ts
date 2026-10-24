@@ -34,6 +34,7 @@ import {
   loadAsset,
   type InstancePlacement,
 } from '../assets/assetLoader';
+import { cloneAssetScene } from '../assets/cloneAsset';
 import { ALL_CHECKPOINTS, resolveSpawnCheckpoint } from '../../../discovery/checkpoints';
 import { areRequirementsMet, type WorldInteractionContext } from '../../worldObjects';
 import { FirstPersonController } from '../firstPersonController';
@@ -364,7 +365,7 @@ export function createLocationEngine<R extends RendererLike>(
 
     track(
       deps.assets.loadModel(npc.assetId).then(({ scene: source, animations }) => {
-        const model = source.clone(true);
+        const model = cloneAssetScene(source);
         if (!addWhenLive(model, root)) return;
         // Removed, not hidden: a raycast does not skip invisible meshes.
         root.remove(placeholder);
@@ -429,7 +430,7 @@ export function createLocationEngine<R extends RendererLike>(
     const assetId = prop.assetId;
     track(
       deps.assets.loadModel(assetId).then(({ scene: source, animations }) => {
-        const model = source.clone(true);
+        const model = cloneAssetScene(source);
         // A wall-mounted prop's `elevation` is where its middle sits, so the
         // ground-pivoted model drops by half its own measured height.
         model.position.y -= centreDrop(model, prop.anchor);
@@ -473,7 +474,7 @@ export function createLocationEngine<R extends RendererLike>(
     const assetId = collectible.assetId;
     track(
       deps.assets.loadModel(assetId).then(({ scene: source, animations }) => {
-        const model = source.clone(true);
+        const model = cloneAssetScene(source);
         if (!addWhenLive(model, root)) return;
         loopIdle(model, animations, collectible.idleClip);
       }),
@@ -588,7 +589,7 @@ export function createLocationEngine<R extends RendererLike>(
       case 'MODEL':
         track(
           deps.assets.loadModel(item.assetId).then(({ scene: source, animations }) => {
-            const model = source.clone(true);
+            const model = cloneAssetScene(source);
             if (item.rotation)
               model.rotation.set(item.rotation.x, item.rotation.y, item.rotation.z);
             if (item.scale)
@@ -636,7 +637,7 @@ export function createLocationEngine<R extends RendererLike>(
     } else {
       track(
         deps.assets.loadModel(appearance.assetId).then(({ scene: source }) => {
-          addWhenLive(source.clone(true), mover);
+          addWhenLive(cloneAssetScene(source), mover);
         }),
         `ambient ${ambient.id}`,
       );

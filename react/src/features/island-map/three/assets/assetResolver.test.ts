@@ -44,7 +44,8 @@ describe('createAssetLoader', () => {
 
     await loader.loadAsset('rock');
 
-    expect(fetchGltf).toHaveBeenCalledWith('https://cdn.example/rock.glb');
+    // The second argument is the loader's byte-progress callback (LAI-2106).
+    expect(fetchGltf).toHaveBeenCalledWith('https://cdn.example/rock.glb', expect.any(Function));
   });
 
   it('resolves and fetches each id once, however many times it is placed', async () => {

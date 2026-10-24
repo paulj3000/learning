@@ -442,6 +442,18 @@ encoded as checks, with baseline numbers recorded. Honest limit: a CI browser is
 target device (see LAI-2302). Verification: harness run output pasted into
 `IMPLEMENTATION_STATUS.md`.
 
+**LAI-2106 Asset loader reliability.** Depends: none. Risk L. Added after the 2026-10-24
+asset management audit. It hardens the existing loader in place and moves nothing into
+`game/`, so it does not wait for LAI-2003 or LAI-2101; LAI-2102 later moves the result
+unchanged. Acceptance: skinned models are cloned with `SkeletonUtils.clone` so two instances
+of one rig animate independently; static clones are unchanged; a failed load is evicted and a
+retry refetches, without disturbing a newer or unrelated cache entry; concurrent requests
+still share one load; an optional per-request observer reports progress (asset id, bytes,
+`null` fraction for an unknown total), completion (with `fromCache`) and failure; callers
+without an observer are unaffected. No manifest, backend, S3 or loading-screen change.
+Verification: typecheck, lint, the asset, runtime and NPC test suites. Rollback: revert the
+commit.
+
 ### Phase 22 - World conversions (Track B)
 
 Common to every task in this phase. **Depends:** 2103 and 2104. **Risk:** M (L for the four

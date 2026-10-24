@@ -330,6 +330,39 @@ material and texture wired onto the mesh. What it does not prove: that the
 PNG bytes decode to a valid image. jsdom cannot rasterise one at any level
 of effort, so that check belongs to a browser (Playwright) run.
 
+## Runtime loading, cloning and the cache (LAI-2106)
+
+Every asset reaches a scene through `assets/assetLoader.ts`, and every
+placement is a copy of the one scene that loader cached. Three rules keep
+that safe.
+
+**Clone through `cloneAssetScene`, never `scene.clone(true)`.**
+`assets/cloneAsset.ts` uses `SkeletonUtils.clone` when the scene contains a
+`SkinnedMesh` and a plain `clone(true)` otherwise. A plain clone of a rigged
+character leaves each cloned skin bound to the cached original's bones, so a
+mixer on the copy animates bones nobody sees and every instance shares one
+pose. Today that applies to `npc-harbor-master` and `npc-professor-ticktock`.
+Node-animated characters (`npc-pip`, `npc-quill`, `npc-buzz`) and all props
+take the plain path, unchanged. Either way the copy shares geometry,
+materials and textures with the cache, so never dispose them from a scene;
+create one `AnimationMixer` per instance, rooted at that instance.
+
+**A failed load is not cached.** Concurrent requests for an id share one
+in-flight load, and a success stays cached for the loader's lifetime. A
+failure (unknown id, network error, bad file) is evicted before any caller
+sees the rejection, so a retry from a `catch` fetches again. Eviction only
+removes the entry that failed, so it never touches a newer load of the same
+id or any other id.
+
+**Progress is opt-in, per request.** `loadAsset(id, { onEvent })` and
+`instantiateAsset(id, { onEvent })` report `progress` (bytes, `totalBytes`
+and a `fraction` in [0, 1], both `null` when the server sent no length),
+then exactly one `complete` (`fromCache: true` for an already-loaded asset)
+or one `error`. A request that joins a load mid-flight sees the progress
+emitted after it joined. Callers that pass no observer behave exactly as
+before. The location engine does not pass an observer yet, so no scene shows
+per-asset progress today; a loading screen is a later task.
+
 ## Uploaded models (Model Asset Manager)
 
 Models that do not come from `scripts/generate-world-assets.ts` or the

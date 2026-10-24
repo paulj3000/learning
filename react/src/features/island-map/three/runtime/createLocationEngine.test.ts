@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Box3, Group, Mesh, Vector3, type Object3D } from 'three';
+import { Box3, Group, Mesh, Vector3, type Object3D, type SkinnedMesh } from 'three';
+import { loadAsset } from '../assets/assetLoader';
 import type { LoadedModel } from './createLocationEngine';
 import type { WorldExtension, WorldExtensionContext } from './extensionRegistry';
 import type { ThreeLocationManifest } from './locationManifest';
@@ -308,6 +309,55 @@ describe('createLocationEngine: assets', () => {
     await harness.engine.ready;
     harness.runFrames(1);
     expect(pipChildHeights(harness.scene())).toEqual([1.8]);
+  });
+
+  it('gives two placements of one rigged model their own skeletons (LAI-2106)', async () => {
+    const [pip] = WELCOME_HARBOR_MANIFEST.npcs;
+    const manifest: ThreeLocationManifest = {
+      ...WELCOME_HARBOR_MANIFEST,
+      npcs: [
+        { ...pip!, entityId: 'master-a', label: 'Master A', assetId: 'npc-harbor-master' },
+        {
+          ...pip!,
+          entityId: 'master-b',
+          label: 'Master B',
+          assetId: 'npc-harbor-master',
+          position: { x: pip!.position.x + 2, z: pip!.position.z },
+        },
+      ],
+    };
+    const harness = mount({
+      manifest,
+      // The real bundled rig through the real loader; everything else stays a box.
+      loadModel: (assetId) =>
+        assetId === 'npc-harbor-master' ? loadAsset(assetId) : Promise.resolve(standingBox()),
+    });
+    await harness.engine.ready;
+    harness.runFrames(3);
+
+    const skinsUnder = (label: string) => {
+      const root = harness.scene().getObjectByName(label)!;
+      const meshes: SkinnedMesh[] = [];
+      root.traverse((child) => {
+        if ((child as SkinnedMesh).isSkinnedMesh) meshes.push(child as SkinnedMesh);
+      });
+      return { root, meshes };
+    };
+    const a = skinsUnder('Master A');
+    const b = skinsUnder('Master B');
+    expect(a.meshes.length).toBeGreaterThan(0);
+    expect(a.meshes[0]!.skeleton).not.toBe(b.meshes[0]!.skeleton);
+    for (const { root, meshes } of [a, b]) {
+      for (const mesh of meshes) {
+        for (const bone of mesh.skeleton.bones) {
+          let inside = false;
+          for (let node: Object3D | null = bone; node; node = node.parent) {
+            if (node === root) inside = true;
+          }
+          expect(inside).toBe(true);
+        }
+      }
+    }
   });
 
   it('builds every scenery kind from the manifest', async () => {

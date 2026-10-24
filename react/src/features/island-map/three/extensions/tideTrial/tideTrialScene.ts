@@ -12,6 +12,7 @@ import {
 import { TIDE_BOARD, TIDE_DURATION_MS, tideLevelAt } from '../../../tideTrial';
 import type { WorldExtension, WorldExtensionMount } from '../../runtime/extensionRegistry';
 import { parseTideTrialConfig, tryParseTideTrialConfig } from './tideTrialConfig';
+import { cloneAssetScene } from '../../assets/cloneAsset';
 
 export const TIDE_TRIAL_EXTENSION_ID = 'tide-trial';
 
@@ -229,7 +230,7 @@ export const tideTrialSceneExtension: WorldExtension = {
       const plank = await context.loadModel(config.plankAssetId);
       if (disposed || deckPlanks.length > 0) return;
       deckPlanks = config.deckPlankXs.map((x) => {
-        const copy = plank.scene.clone(true);
+        const copy = cloneAssetScene(plank.scene);
         copy.position.set(x, 0, 0);
         group.add(copy);
         return copy;

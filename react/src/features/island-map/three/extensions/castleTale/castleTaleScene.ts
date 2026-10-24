@@ -5,6 +5,7 @@ import { BINDING_SOCKET_LOCAL_X } from '../../storykeeperCastleRegion';
 import type { WorldExtension, WorldExtensionContext } from '../../runtime/extensionRegistry';
 import { createSeatingPuzzle, type SeatingPuzzle } from './seatingPuzzle';
 import { tryParseCastleTaleConfig } from './castleTaleConfig';
+import { cloneAssetScene } from '../../assets/cloneAsset';
 
 /**
  * Storykeeper Castle's bespoke half, as a registered extension (engine
@@ -142,7 +143,7 @@ export const castleTaleExtension: WorldExtension = {
     ): Promise<Object3D | null> {
       try {
         const asset = await context.loadModel(assetId);
-        const object = asset.scene.clone(true);
+        const object = cloneAssetScene(asset.scene);
         // Named after the asset, so a test (and a debugger) can find the
         // state variant it is looking at.
         object.name = assetId;
