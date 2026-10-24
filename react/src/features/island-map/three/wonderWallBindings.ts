@@ -50,17 +50,22 @@
  */
 
 import { ALL_ENTITY_IDS } from './wonderwildForestRegion';
+import {
+  bindingsForStep,
+  boundSteps,
+  entityForOption,
+  resolveEntityBinding,
+  type AdventureStepBinding,
+} from './runtime/adventureStepBindings';
 
-export interface WonderWallBinding {
-  /** The world entity the child interacts with. Must be in `ALL_ENTITY_IDS`. */
-  entityId: string;
-  /** The adventure template that owns the step. */
-  templateSlug: string;
-  /** The step whose option this entity stands for. */
-  stepId: string;
-  /** The option id that step already declares. Never invented here. */
-  optionId: string;
-}
+/**
+ * Engine Phase 8: the shape and every lookup over it now live once, in
+ * `runtime/adventureStepBindings.ts`, shared with Storykeeper Castle's
+ * identical table. What stays here is the forest's authored content - which
+ * stone is which question. The table itself moves into this region's
+ * manifest when the forest migrates to the generic runtime (Phase 9).
+ */
+export type WonderWallBinding = AdventureStepBinding;
 
 export const BUZZ_AND_THE_WAGGLE_DANCE_SLUG = 'buzz-and-the-waggle-dance';
 export const WONDER_WALL_STEP_ID = 'wonder-wall';
@@ -101,14 +106,8 @@ export const WONDER_WALL_BINDINGS: readonly WonderWallBinding[] = [
 ];
 
 /** The distinct (template, step) pairs this region drives from world objects. */
-export const BOUND_STEPS: readonly { templateSlug: string; stepId: string }[] = [
-  ...new Map(
-    WONDER_WALL_BINDINGS.map((binding) => [
-      `${binding.templateSlug}:${binding.stepId}`,
-      { templateSlug: binding.templateSlug, stepId: binding.stepId },
-    ]),
-  ).values(),
-];
+export const BOUND_STEPS: readonly { templateSlug: string; stepId: string }[] =
+  boundSteps(WONDER_WALL_BINDINGS);
 
 /**
  * The option id this entity stands for, or `undefined` if it is not a choice
@@ -118,7 +117,7 @@ export const BOUND_STEPS: readonly { templateSlug: string; stepId: string }[] = 
  * test, not at runtime.
  */
 export function resolveWonderWallBinding(entityId: string): WonderWallBinding | undefined {
-  return WONDER_WALL_BINDINGS.find((binding) => binding.entityId === entityId);
+  return resolveEntityBinding(WONDER_WALL_BINDINGS, entityId);
 }
 
 /** Every entity bound to one step, in authored order. */
@@ -126,9 +125,7 @@ export function getWonderWallBindingsForStep(
   templateSlug: string,
   stepId: string,
 ): WonderWallBinding[] {
-  return WONDER_WALL_BINDINGS.filter(
-    (binding) => binding.templateSlug === templateSlug && binding.stepId === stepId,
-  );
+  return bindingsForStep(WONDER_WALL_BINDINGS, templateSlug, stepId);
 }
 
 /**
@@ -144,13 +141,7 @@ export function resolveWonderWallEntity(
   stepId: string,
   optionId: string | null | undefined,
 ): string | undefined {
-  if (!optionId) return undefined;
-  return WONDER_WALL_BINDINGS.find(
-    (binding) =>
-      binding.templateSlug === templateSlug &&
-      binding.stepId === stepId &&
-      binding.optionId === optionId,
-  )?.entityId;
+  return entityForOption(WONDER_WALL_BINDINGS, templateSlug, stepId, optionId);
 }
 
 /** Whether this entity is one of the region's bound learning choices at all. */

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PIRATE_BUILDER_BAY_CHECKPOINTS } from '../../discovery/checkpoints';
+import { peakWaterCm } from '../tideTrial';
 import {
   BARRELS,
   BOUNDARY_WALLS,
@@ -17,6 +18,9 @@ import {
   COVE_TREES,
   CRATES,
   DOCK_GROUND,
+  TIDE_BANK_TOP_CM,
+  TIDE_POST_SPOT,
+  tideCmToWorldY,
   FOLIAGE_TREES,
   GROUND_HALF_EXTENT_X,
   GROUND_HALF_EXTENT_Z,
@@ -243,5 +247,22 @@ describe('pirateBuilderBay solid prop footprints', () => {
         ).toBe(false);
       }
     }
+  });
+});
+
+describe('pirateBuilderBay tide heights (Beat the Tide)', () => {
+  it('puts 0 cm on the channel bed and the bank top at ground level', () => {
+    expect(tideCmToWorldY(0)).toBeCloseTo(CHANNEL_BED_Y);
+    expect(tideCmToWorldY(TIDE_BANK_TOP_CM)).toBeCloseTo(0);
+  });
+
+  it('keeps every water level the tide can reach below the banks, so the sand never floods', () => {
+    expect(tideCmToWorldY(peakWaterCm())).toBeLessThan(0);
+  });
+
+  it('stands the tide board inside the channel, clear of the bridge deck', () => {
+    expect(TIDE_POST_SPOT.x).toBeGreaterThan(CHANNEL_MIN_X);
+    expect(TIDE_POST_SPOT.x).toBeLessThan(CHANNEL_MAX_X);
+    expect(TIDE_POST_SPOT.z).toBeGreaterThan(BRIDGE_SPAN.maxZ);
   });
 });

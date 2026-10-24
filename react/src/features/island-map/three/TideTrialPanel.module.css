@@ -1,0 +1,155 @@
+/*
+  Sits over the left of the 3D stage, clear of the HUD's top row and the
+  full-screen button, so the deck and the tide board (which stands right of
+  centre from the bridge approach) stay in view while the child plans. Scrolls inside itself rather than growing past the stage.
+*/
+.panel {
+  position: absolute;
+  top: calc(var(--space-3) * 4);
+  left: var(--space-3);
+  width: min(22rem, 60%);
+  max-height: calc(100% - var(--space-3) * 8);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: rgba(254, 253, 251, 0.94);
+  color: var(--color-text);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  pointer-events: auto;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.speech {
+  margin: 0;
+}
+
+.board {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunk);
+  border-left: 6px solid #c8372d;
+}
+
+.boardHeading {
+  margin: 0;
+  font-weight: 700;
+}
+
+.boardList {
+  margin: var(--space-1, 4px) 0 0;
+  padding-left: 1.2em;
+}
+
+.readouts {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.readout {
+  display: flex;
+  flex-direction: column;
+}
+
+.readoutLabel {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.readoutValue {
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stepper {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.stepButton,
+.primaryButton,
+.secondaryButton {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stepButton {
+  flex: 1;
+  font-size: 1.1rem;
+  background: var(--color-surface);
+  color: var(--color-accent);
+  border: 2px solid var(--color-accent);
+}
+
+.primaryButton {
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  border: none;
+}
+
+.secondaryButton {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.stepButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.result,
+.resultWon {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunk);
+}
+
+.resultWon {
+  border-left: 6px solid var(--color-success);
+}
+
+.resultLine {
+  margin: 0 0 var(--space-2);
+}
+
+.resultLine:last-child {
+  margin-bottom: 0;
+}
+
+.saveNote {
+  margin: var(--space-2) 0 0;
+  color: var(--color-warning);
+}
+
+.hints {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.hint {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

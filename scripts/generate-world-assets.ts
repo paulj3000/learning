@@ -691,7 +691,7 @@ function lectern(): Record<string, unknown> {
  * is a different piece of furniture doing a different job.
  *
  * The sockets are cut at `BINDING_SOCKET_LOCAL_X`, the same authored offsets
- * `storykeeperCastleScene.ts` seats plates at, so the recess the child aims
+ * the `castle-tale` extension seats plates at, so the recess the child aims
  * at and the place the plate lands cannot drift apart.
  */
 function bindingLectern(): Record<string, unknown> {

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import parentStyles from './ParentDashboard.module.css';
-import styles from '../features/assets/AssetAdmin.module.css';
+import { AdminPageHeader } from '../features/admin/AdminPageHeader';
+import { Badge } from '../features/admin/ui/Badge';
+import { Card, CardDescription, CardHeader, CardTitle } from '../features/admin/ui/Card';
 
 interface AssetTypeEntry {
   title: string;
@@ -20,45 +21,46 @@ const ASSET_TYPES: AssetTypeEntry[] = [
     description: 'GLB models for characters, props, buildings, and environments.',
     to: '/admin/assets/models',
   },
-  { title: 'Textures', description: 'Shared PNG, JPG, WEBP, and KTX2 textures. Not built yet.' },
-  { title: 'Animations', description: 'Reusable animation clips. Not built yet.' },
-  { title: 'Audio', description: 'Voices, music, and sound effects. Not built yet.' },
-  { title: 'Images', description: 'Illustrations and interface art. Not built yet.' },
-  { title: 'Environments', description: 'Skyboxes and lighting setups. Not built yet.' },
+  { title: 'Textures', description: 'Shared PNG, JPG, WEBP, and KTX2 textures.' },
+  { title: 'Animations', description: 'Reusable animation clips.' },
+  { title: 'Audio', description: 'Voices, music, and sound effects.' },
+  { title: 'Images', description: 'Illustrations and interface art.' },
+  { title: 'Environments', description: 'Skyboxes and lighting setups.' },
 ];
 
 /** `/admin/assets`: the Model Asset Manager's entry point. Reachable only through `RequireAdmin`. */
 export function AdminAssets() {
   return (
-    <div className={parentStyles.page}>
-      <header className={parentStyles.header}>
-        <h1 className={parentStyles.title}>Game assets</h1>
-        <Link to="/admin">Back to admin</Link>
-      </header>
-      <main className={parentStyles.main} id="main-content">
-        <div className={styles.content}>
-          <p className={styles.hint}>
-            Assets are stored in S3 and referenced by id. Uploading an asset never makes it visible
-            to children; an administrator has to publish it first.
-          </p>
-          <ul className={styles.typeGrid}>
-            {ASSET_TYPES.map((type) => (
-              <li className={styles.typeCard} key={type.title}>
-                <h2 className={styles.typeTitle}>
-                  {type.to ? (
-                    <Link className={styles.link} to={type.to}>
-                      {type.title}
-                    </Link>
-                  ) : (
-                    type.title
-                  )}
-                </h2>
-                <p className={styles.hint}>{type.description}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </main>
-    </div>
+    <>
+      <AdminPageHeader
+        title="Game assets"
+        description="Assets are stored in S3 and referenced by id. Uploading an asset never makes it visible to children; an administrator has to publish it first."
+      />
+      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {ASSET_TYPES.map((type) => (
+          <li key={type.title}>
+            <Card className="h-full">
+              <CardHeader>
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle asChild>
+                    <h2 className="text-base">
+                      {type.to ? (
+                        <Link className="text-primary hover:underline" to={type.to}>
+                          {type.title}
+                        </Link>
+                      ) : (
+                        type.title
+                      )}
+                    </h2>
+                  </CardTitle>
+                  {type.to ? null : <Badge variant="outline">Planned</Badge>}
+                </div>
+                <CardDescription>{type.description}</CardDescription>
+              </CardHeader>
+            </Card>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

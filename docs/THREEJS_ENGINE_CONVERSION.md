@@ -9,6 +9,15 @@ Evidence labels: **[repo]** read from files in this repository during this revie
 **[not verified]** could not be established from code and is assigned to LAI-2001 or
 LAI-2002 to establish. Nothing here comes from running the app on a device.
 
+## 0. Reconciliation with the generic location engine (merge of `origin/main`, 2026-10-24)
+
+After this document was written, `origin/main` landed a manifest-driven generic 3D location engine (ADR-032; `docs/engine/`, code under `react/src/features/island-map/three/runtime/`). Welcome Harbor, Pirate Builder Bay, Storykeeper Castle, Wonderwild Forest, Clockwork Harbor and the Dragon's Sanctuary now run on it, and the bespoke 3D world views and scene files that preceded it were removed (engine Phases 16 and 17). Consequences for Track B:
+
+- The inventory in section 2 and the conversion matrix in section 5 describe the Phaser (2D) worlds, which still exist and are still retired only after verified 3D replacement (ADR-020, ADR-029). Rows that name a bespoke 3D view as the existing Three.js capability now point at the generic runtime.
+- New playable environments are authored as location manifests on the generic engine, which satisfies ADR-020's "Three.js only" rule. ADR-032 is a different decision from ADR-020 and does not supersede it.
+- The generic runtime still contains React views (`ThreeLocationWorldView.tsx`, extension views). ADR-020 requires code in `game/` to import no React, so LAI-2101 and LAI-2102 must split the pure runtime from its React hosts before extraction. This is recorded, not resolved here.
+- No Track B task is started or marked done by the merge.
+
 ## 1. What changed and why this document exists
 
 Phase 0 (`docs/DJANGO_MIGRATION_ASSESSMENT.md`) recommended keeping both rendering engines and

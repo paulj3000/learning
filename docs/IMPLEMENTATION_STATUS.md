@@ -417,6 +417,843 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
+## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 10, 16 (3D regions) and 17 complete; every 3D region runs on the generic route; NOT yet seen by a person or on a device
+
+Roadmap: `docs/engine/` (README, then `10_IMPLEMENTATION_PHASES.md`).
+Decision: ADR-032. Goal: a new ordinary 3D location needs a manifest, not a
+new route, view, scene and region module.
+
+**Phase 0 (baseline and audit), complete.**
+`docs/platform/THREE_LOCATION_DUPLICATION_AUDIT.md` covers the baseline
+results, every dedicated 3D route/view/scene/region, the shared utilities to
+build on, the duplicated skeleton, per-region classification, the bespoke
+mechanics that need extensions, and the migration order. The baseline was
+all green (222 test files, 2318 tests) after restoring missing packages in
+the parent npm workspace.
+
+**Phase 1 (serializable manifest contract), complete.** New files under
+`src/features/island-map/three/runtime/`:
+- `locationManifest.ts`: `ThreeLocationManifest` and its parts. Interactions
+  reuse `WorldInteraction` unchanged; checkpoints are referenced by id.
+- `validateLocationManifest.ts`: pure validator with injected registries.
+  It checks plain-JSON-ness, schema version, world/location ownership,
+  exact checkpoint list, unique scene ids, rect sanity, bounds, assets and
+  their clips, NPCs, interaction references, walk-in zones, every
+  `WorldAction` target (adventure in the right location, discovery, story,
+  NPC), extensions, and non-empty child-facing copy.
+- `sourceManifestRegistries.ts`: the source-controlled registries.
+- `manifests/welcomeHarbor.ts`: Welcome Harbor as a manifest (the reference
+  region), built from `welcomeHarborRegion.ts` constants. Zero extensions.
+- Tests: `validateLocationManifest.test.ts` (fixture covering every issue
+  kind, JSON round trip) and `manifests/welcomeHarbor.test.ts` (valid
+  against real registries, JSON round trip, preserved checkpoint and entity
+  ids, Pip routed through `TALK_TO`, building toasts unchanged). 26 tests.
+
+**Phase 2 (manifest repository), complete.** `locationManifestRepository.ts`
+defines the `LocationManifestRepository` interface the runtime reads through
+(acceptance A4) and a source-controlled implementation: lookup by
+`regionId`, validation on first request (cached), typed
+`LocationManifestNotFoundError`/`InvalidLocationManifestError`, and a
+duplicate-region guard. `manifests/index.ts` lists the shipped manifests and
+exports `sourceLocationManifestRepository`.
+
+**Phase 3 (generic scene builder), complete.**
+- `sceneLayout.ts`: pure layout math lifted from `welcomeHarborScene.ts`
+  (boundary walls, building colliders, wall/roof/door placements, ground
+  tiles, colliders, checkpoint/interior/zone triggers). Tests prove it
+  reproduces Welcome Harbor's hand-written boundary walls and ground grid.
+- `worldTriggerTracker.ts`: the edge-triggered zone/approach/focus logic
+  every `frame()` duplicated.
+- `extensionRegistry.ts`: `WorldExtension`, a registry by id, and the
+  shipped (empty) registry. The validator's extension ids now come from it.
+- `createLocationEngine.ts`: one runtime for any manifest. Renderer, assets,
+  input, resize and frame scheduling are injected (`LocationEngineDeps`),
+  with `DEFAULT_LOCATION_ENGINE_DEPS` wiring the real ones, so the whole
+  runtime runs in jsdom. It loads assets failure-tolerantly (a failed model
+  keeps its placeholder), never adds a model that resolves after dispose,
+  refreshes entity matrices before raycasting, and on dispose frees only
+  what it created (loaded glTF data is shared through `assetLoader.ts`'s
+  cache).
+- `noLocationBranching.test.ts` (acceptance A2) fails if any runtime file
+  outside `manifests/` names a location slug or region id.
+- `createLocationEngine.test.ts` covers acceptance W1 to W7, AS3 and B4
+  against the real Welcome Harbor manifest: spawn (first time, saved,
+  foreign checkpoint), checkpoint trigger, boundary collision, doorway,
+  interior zone and back wall, one NPC approach, NPC and collectible
+  interaction by entity id, empty-air interact, placeholder kept on a failed
+  load, scenery built, ambient gull moving, extension mount/config/frame/
+  collider/cleanup, unknown extension skipped, and disposal (loop, input,
+  resize, renderer, canvas, repeated mounts, late loads).
+
+**Phase 4 (generic world view), complete.**
+- `ThreeLocationWorldView.tsx`: one view for any manifest. It loads the
+  manifest, then world state, companion, inventory, quests and world
+  changes, then mounts the engine at the saved checkpoint. It saves only
+  this manifest's checkpoints, records NPCs met, shows NPC crosshair labels
+  and authored toasts, opens bound and walk-in interactions (respecting
+  requirements), refreshes availability after a discovery, offers every
+  interaction in "Things to do here", and has calm not-found and error
+  states. Listeners are unsubscribed one by one, never with
+  `removeAllListeners`.
+- `WorldActionPanel.tsx`: the shared `WorldAction` dialog. `START_STORY`
+  links to the Story Engine's own page (`/island/:childId/stories/:slug`)
+  instead of rendering nothing, as the per-region copies do.
+- `manifestBindings.ts`: pure event-to-meaning lookups.
+- Tests render Welcome Harbor and an unrelated fixture location through the
+  same view (acceptance A1), including a walk-in discovery that unlocks a
+  gated interaction.
+
+Totals after Phase 5: 95 runtime and page tests. The full suite is 233
+files and 2413 tests, all passing; typecheck and lint pass.
+
+**Phase 5 (reference region migration), complete.**
+`/island/:childId/world/welcome-harbor-3d` (`WelcomeHarborWorldPage.tsx`)
+now renders `ThreeLocationWorldView` with region `welcome-harbor`, reading
+`manifests/welcomeHarbor.ts`. Semantic ids are unchanged: checkpoints
+`welcome-harbor:{dock,lookout,shed}`, entities `pirate-pip` and
+`harbor-collectible-gem`, zones `lookout-tower:interior` and
+`dockside-shed:interior`. Saved `lastCheckpointId` values keep working.
+
+Parity evidence:
+- `manifests/welcomeHarborParity.test.tsx` reruns every assertion of
+  `WelcomeHarborWorldView.test.tsx` against the generic view with the real
+  manifest and repository: loading copy, instructions, empty backpack, Pip
+  from "Things to do here", companion name, the way-out link. It adds the
+  wiring the old view had but never tested: spawn at the saved checkpoint,
+  all three checkpoint saves, both building toasts, NPC met plus
+  `NpcStateChanged`, Pip's crosshair label, and interacting with Pip.
+- `src/routes/WelcomeHarborWorldPage.test.tsx` (new): the page hands the
+  child's age band and `welcome-harbor` to the generic view, and shows an
+  error rather than the world for a missing profile.
+- Browser check (headless Chromium, SwiftShader WebGL, a throwaway harness
+  outside `src/` rendering both engines from the same checkpoint;
+  screenshots and scripts in the untracked `.tmp-verify/phase5/`):
+  - Pixel difference between old and new: dock 0.012% (the gem and Pip,
+    mid idle animation), shed 0%, lookout 0.133% (the gull alone, see
+    below).
+  - Holding W from the dock with the real keyboard controls, both engines
+    emit the same events (`welcome-harbor:dock`, then `NpcApproached`
+    `pirate-pip`) and stop at the same boundary, with identical final
+    frames.
+  - No page errors. The only console warnings were `THREE.Clock`
+    deprecations, all from the old engine; the generic one does not use
+    `Clock`.
+
+Known, intended differences from the old view:
+- Interacting with Pip opens a dialog titled "Say hello to Pip" (with a "Not
+  now" button) around the same `NpcConversation`, not a bare conversation
+  dialog labelled "Pip".
+- The ambient gull's cone points along its flight path; the old scene's
+  `lookAt` discarded its intended tilt, so it flew upright. Confirmed in the
+  lookout screenshot.
+- Raycast focus picks the nearest hit, rather than always preferring Pip
+  when he and the gem overlap.
+
+`WelcomeHarborWorldView.tsx`, `welcomeHarborScene.ts` and their test stay in
+the tree, unrouted, as the parity reference. They are removed in Phase 16
+(or earlier once a person has played the new harbour), together with
+`welcomeHarborRegion.ts` once the manifest stops importing its constants.
+
+**Still not verified:** a person playing it in a real browser and on a
+tablet (touch controls, pointer lock, the conversation dialog end to end
+against a real backend). Headless SwiftShader proves rendering, collision
+and events, not feel.
+
+**Phase 6 (generic routing), complete.** ADR-032 part F.
+- `/island/:childId/explore/:regionId` (`LOCATION_WORLD_ROUTE`,
+  `runtime/locationWorldPath.ts`) renders `src/routes/LocationWorldPage.tsx`
+  for any region: profile check, age band, then `ThreeLocationWorldView`.
+  `explore/` avoids the 2D card's `locations/` and the Phaser `world/*`.
+- `/island/:childId/world/welcome-harbor-3d` is now a
+  `LegacyLocationWorldRedirect` to `explore/welcome-harbor` (history
+  replaced, query kept). `WelcomeHarborWorldPage.tsx` and its test are
+  removed; the hub's "Explore the harbor in 3D" link uses
+  `locationWorldPath()`.
+- Tests: `LocationWorldPage.test.tsx` (region and age band handed through,
+  two unrelated regions on one page for acceptance A1, missing or unreadable
+  profile), `LegacyLocationWorldRedirect.test.tsx`,
+  `locationWorldPath.test.ts` (round trip through the route pattern,
+  encoding, no overlap with `locations/` or `world/*`), and
+  `src/app/AppRoutes.locationWorld.test.tsx`, which drives the real route
+  table for both the new URL and the legacy one.
+- `docs/PILOT_READINESS.md`'s Sprout playtest now names the new URL.
+
+The other 3D regions keep their dedicated routes until each migrates
+(Phases 7 and 9). Each one's old URL then becomes a redirect the same way.
+
+**Phase 7 (second, structurally different region), complete.** ADR-032
+part G. Pirate Builder Bay's 3D page now runs on the generic engine and
+view: `/island/:childId/explore/pirate-builder-bay`, with
+`world/pirate-builder-bay-3d` redirecting there.
+`PirateBuilderBayWorldPage3D.tsx` is removed; the location page's 3D link
+uses `locationWorldPath()`.
+
+What Bay needed, all generic:
+- Manifest vocabulary: `BOX` and `MODEL` scenery, cluster `scale`, `props`
+  (label, interaction, optional one-shot `interactClip`), and
+  `requirements` on scenery and colliders. Validation covers all of it,
+  including `ITEM_OWNED`/`DISCOVERY_PRESENT` requirement targets (new
+  `itemIds` registry). `worldObjects.ts` exports `areRequirementsMet`, which
+  `isInteractionAvailable` now uses.
+- Engine: every scenery item gets a root group addressable by id, gated
+  scenery and colliders are built from the child's world state (the view
+  passes it as `worldState`), props are focusable and interactable, NPCs
+  return to idle after a gesture, a collider can be removed by id, a failing
+  extension mount is skipped with a warning, and `extensionApi(id)` hands an
+  extension's API to the view.
+- Extensions, as two halves under one id: `three/extensions/tideTrial/`
+  holds the scene half (`tideTrialScene.ts`, ported from the Bay scene's
+  tide code; geometry from config and the manifest's own channel and sea),
+  the config parser (`tideTrialConfig.ts`), and the React half
+  (`tideTrialViewExtension.ts`, `TideTrialOverlay.tsx`, wrapping the
+  unchanged `TideTrialPanel`). It claims `bay-broken-bridge` for Explorers on
+  every way in, and records `BRIDGE_REPAIRED` with source
+  `exploration:beat-the-tide` on a win. `three/extensions/index.ts` is the
+  shipped registry; the runtime imports no mechanic.
+- `runtime/manifests/pirateBuilderBay.ts`: Bay built from
+  `pirateBuilderBayRegion.ts`'s constants and the shared
+  `PIRATE_BUILDER_BAY_INTERACTIONS`. All semantic ids are unchanged. The
+  only renamed id is the bridge approach zone: it is now
+  `bay-broken-bridge`, the zone those interactions already name, instead of
+  `bay-bridge-approach` translated in the view. Zone ids are never
+  persisted.
+
+Parity evidence:
+- `manifests/pirateBuilderBayParity.test.tsx`: all 10 assertions of
+  `PirateBuilderBayWorldView.test.tsx` against the generic view, the real
+  manifest and the real tide-trial overlay (the Explorer detour, the full
+  win including `recordWorldChangeOnce` arguments, repaired-bridge
+  narration, Pip, dismiss, companion, way-out link), plus 7 for wiring the
+  old view never tested (world state handed to the scene, bridge zone for
+  Pathfinder and Explorer, entered twice opening one trial, mended-bridge
+  narration, prop label and interaction, bridge-approach checkpoint save,
+  harbor exit).
+- `manifests/pirateBuilderBay.engine.test.ts`: the real runtime and the real
+  tide-trial scene extension. The broken bridge stops a child at the gap;
+  the mended one lets them cross. Broken versus mended scenery is built from
+  world state; the channel box spans bed to surface; the fallen plank keeps
+  its full rotation. Props are focused and interacted with by id; the
+  chest's `Open` clip plays once. The extension's API hides and restores the
+  broken bridge, runs a tide that rises and moves the sea, opens the bridge
+  for walking on `complete`, and releases a waiting tide on dispose.
+- `extensions/tideTrial/tideTrialConfig.test.ts`: config parsing and bad
+  fields, and the claim rules (Explorers only, the bridge only, nothing on
+  broken config).
+- Browser check (headless SwiftShader WebGL, both engines from the same
+  checkpoint, harness and screenshots in `.tmp-verify/phase7/`): dock
+  0.005%, bridge 0%, cove 0.004%, mended bridge 0% pixel difference. Driving
+  Beat the Tide through each engine's scene API matched exactly at the start
+  and after a deck change (0%). After the tide, both show the same scene
+  with the planks floating away; the planks sit in slightly different places
+  because headless frame timing differed (1.2%). Both read the water from
+  40 to 145 cm. No page errors.
+
+Also: the shared engine test harness moved to `runtime/testing/engineHarness.ts`,
+and the view tests' event helpers now wait for the stub engine instead of
+silently doing nothing when it has not mounted yet (two flaked under full
+suite load).
+
+Known differences from the old Bay view:
+- Checkpoint triggers are the generic 3 m squares around each authored
+  checkpoint, where the old scene hand-wrote a 2 m by 3 m box for the dock and
+  cove and reused the approach zone for the bridge. The ids saved are
+  unchanged; a save may fire a step earlier or later.
+- Interacting with a prop emits `<id>:interact` (unchanged) and with Pip
+  `pirate-pip:talk` (was `:interact`). Nothing reads that suffix.
+
+`PirateBuilderBayWorldView.tsx`, `pirateBuilderBayScene.ts` and their test
+stay, unrouted, as the parity reference (the scene now re-exports
+`TideTrialScene` from the extension).
+
+Totals: the full suite is 239 files and 2458 tests, all passing;
+typecheck, lint and build pass.
+
+**Still not verified:** a person playing either region in a real browser or
+on a tablet, including an Explorer playing Beat the Tide end to end against
+a real backend.
+
+**Phase 8 (interaction binding layer), complete.** ADR-032 part H. The two
+kinds of direct binding the audit found in region code are now declarative
+vocabulary, and the engines they bind to are untouched.
+
+Adventure step bindings:
+- `runtime/adventureStepBindings.ts`: `AdventureStepBinding` (entity,
+  template, step, option) and every lookup over a table of them, which the
+  castle and the forest each had their own copy of: forward (qualified by
+  adventure), reverse (which thing to light for an option already recorded
+  on the session), per step, the distinct bound steps, and a seated row to
+  the `{ kind: 'ordering', order }` an ORDERING step grades.
+- `findAdventureBindingIssues` is the authoring check, as a list of issues
+  rather than a throw: the adventure, step and option must exist; every
+  option of a bound step must have exactly one entity (or a room offers
+  three of four questions and nothing complains); an entity may answer one
+  step per adventure and no more (two age bands out of one set of rooms is
+  fine, two steps of one adventure is not); every bound entity must be one
+  the region places.
+- `ThreeLocationManifest.adventureBindings` carries a region's table.
+  Validation runs the shared check with this manifest's own NPCs, props and
+  collectibles as the placement list, and additionally refuses a binding
+  into an adventure authored for another location.
+- `castleChoiceBindings.ts` and `wonderWallBindings.ts` keep their authored
+  tables and their region-specific slugs, and delegate every lookup. Their
+  own tests are unchanged and still pass, which is what makes this a
+  de-duplication rather than a rewrite; `adventureStepBindings.test.ts`
+  additionally runs the generic check over both real tables against the real
+  `ADVENTURE_TEMPLATES`, and both come back clean.
+- Both shipped manifests declare `adventureBindings: []`: neither Welcome
+  Harbor nor Pirate Builder Bay answers an adventure step from a thing in
+  the room. The two real tables move into their manifests in Phase 9, with
+  no change in meaning.
+
+Pickup world changes:
+- `CollectibleSpec` gains `requirements`, `pickUpMessage` and `worldChange`
+  (`{ changeType, changeKey, locationSlug? }`, defaulting to the manifest's
+  own location). The view records it through the existing idempotent
+  `recordWorldChangeOnce` with provenance `exploration:<entityId>` - the
+  convention `recordDiscovery` set, since nothing here came from an
+  adventure session - then refreshes, so a spot that needed this find opens
+  without leaving the region. The engine leaves out a collectible whose
+  requirements the world state does not meet.
+- Validation refuses a `worldChange` without the matching
+  `WORLD_CHANGE_ABSENT` requirement on the same key. That is the live
+  Clockwork Harbor bug in the audit (golden gears recorded as found and
+  built again every visit), now an authoring error a region cannot re-make.
+
+Tests: 20 in `adventureStepBindings.test.ts` (the lookups, every issue kind,
+and the two real shipped tables against the real `ADVENTURE_TEMPLATES`), 6
+more in `validateLocationManifest.test.ts` (ungated change, empty or unknown
+change location, empty pick-up message, the binding issue kinds, a binding
+into another location's adventure), 3 in `ThreeLocationWorldView.test.tsx`
+(the toast and one recorded fact with exact arguments, nothing recorded for
+an unbound collectible, and a failed write that still leaves the region
+playable) and 1 in `createLocationEngine.test.ts` (a gem already found is
+not in the scene to find again). Full suite: 240 files and 2488 tests, all
+passing (up from 239 and 2458); typecheck, lint and format pass. Run the
+suite with `npx vitest run --maxWorkers=2` on a modest machine: at default
+concurrency the heavier jsdom/Three files time their workers out, which
+looks like 10-plus failing files and is not.
+
+**Deliberately not in Phase 8**, each with the reason:
+- a generic in-world *host* for an adventure step. The castle's
+  `CastleTaleSession` is the only one that exists, and it migrates with the
+  castle in Phase 9; building a second one now would be a guess at what it
+  needs.
+- `worldChange` on props. Dragon's Sanctuary's runes are the candidate, and
+  they come with carrying and placing - a mechanic that wants an extension,
+  not a field.
+- requirement-gated lighting and background. Scenery already takes
+  `requirements`, which covers asset swaps by world state; no migrated
+  region changes its lighting, so the field would be untested vocabulary.
+
+**Phase 9 (remaining region migrations), three of four regions done.**
+ADR-032 part I. Wonderwild Forest, Clockwork Harbor and the Dragon's
+Sanctuary now run on the generic route; Storykeeper Castle does not, and
+that is explained at the end of this section rather than hidden.
+
+Each region's old URL is a `LegacyLocationWorldRedirect`, its dedicated page
+is gone, and its old view and scene stay in the tree unrouted as the parity
+reference (the Phase 5 and 7 pattern).
+
+**Wonderwild Forest** — `/island/:childId/explore/wonderwild-forest`.
+- `runtime/manifests/wonderwildForest.ts`, built from
+  `wonderwildForestRegion.ts`'s constants. The forest is the first migrated
+  region whose ground is *derived*: its tree line is the complement of the
+  walkable set, so its trees cannot be hand listed.
+- New generic vocabulary: `SCATTER` scenery (deterministic placements through
+  the part of a region the child cannot walk on, from `walkableProbe` over
+  the manifest's own colliders and bounds) and `TILED_GROUND`
+  `coverage: 'COVER'` (a centred grid that covers its area edge to edge; the
+  default would leave a bare strip at the north edge of the floor). Also
+  `MODEL` `idleClip`, for Chatty perched on the centre stone, and
+  `requirements` on a prop.
+- `wonderwildForest.test.ts` (13) proves the equivalences the `SCATTER`
+  vocabulary rests on: the generic walkability probe agrees with the region's
+  own `isWalkable` at every half-metre of the region, and all three scatters
+  land in exactly the places `wonderwildForestScene.ts` scattered them, with
+  the same seeds. The floor and every drawn trail tile to the same places too.
+- `wonderwildForestParity.test.tsx` (22) reruns every assertion of
+  `WonderwildForestWorldView.test.tsx`, plus the wiring the old view had and
+  never tested (the glow-moss walk-in, a gated prop's reticle, the zones
+  authored for a later phase doing nothing).
+- `wonderwildForest.engine.test.ts` (15): the real runtime stops a child at
+  the derived tree line, keeps them out of the pond, fires the hive clearing
+  under the id its interactions name, shows the dark cave to a child with no
+  jar and the lit one to a child carrying it, leaves the butterfly out until
+  the garden is saved, blooms the flower patch and lights the bee stone for a
+  child who told the tale, and perches Chatty with her idle clip.
+- Zone renames (ids are never persisted, ADR-032 part G): the hive clearing
+  becomes `wonderwild-beehive`, the id the authored interactions already
+  name, so the before/after hive pair resolves from requirements instead of
+  from a branch in the view. Three dead zones gain an `:approach` suffix
+  because entity and zone ids share one namespace in the generic runtime.
+- `adventureBindings` is empty on purpose: the forest's table
+  (`wonderWallBindings.ts`) is authored, but its four carved stones are still
+  scenery until WF-3 makes them answer the `wonder-wall` step, and binding an
+  entity nothing places is what `findAdventureBindingIssues` refuses.
+
+**Clockwork Harbor** — `/island/:childId/explore/clockwork-harbor`.
+- `runtime/manifests/clockworkHarbor.ts`. The first migrated region with no
+  authored `WorldInteraction`s at all: its view dispatched on entity-id sets
+  (`if (NPC_LABELS[entityId])`, `entityId.startsWith('golden-gear-')`). Those
+  are now four interactions in the existing vocabulary, with the ids the
+  scene already emitted.
+- New generic vocabulary: `environment.variants` (the sky lifts and the light
+  comes up once the lighthouse turns again), `copy.statusLines` (the one-line
+  status above the canvas), `copy.thingsToDoNotes`, `elevation` on a
+  collectible, and an interactive entity with **no `assetId`** - the runtime
+  creates its root and keeps focus, label, interaction and pickup, and an
+  extension fills the root in through `entityRoot`.
+- Two extensions: `clockwork-machinery` (the mechanism, the lamp, the clock
+  hand, the gears - code primitives standing in for section 21's unauthored
+  asset inventory) and `adaptive-adventure-entrance` (the machine opens
+  whichever Dark Lighthouse variant the child's demonstrated maths is ready
+  for, which a `START_ADVENTURE` interaction cannot express). The second is
+  reusable by any levelled entrance.
+- **One deliberate behaviour change:** picking up a Golden Gear records
+  `goldenGearChangeKey`, so it stays found. The per-region view only toasted
+  it - the live bug the audit recorded, since `deriveClockworkHarborState`
+  already read that key. Validation now refuses a collectible world change
+  without the matching `WORLD_CHANGE_ABSENT` gate, so no region can re-make
+  it.
+- Tests: `clockworkHarbor.test.ts` (9), `clockworkHarborParity.test.tsx` (10,
+  the first tests this region's view behaviour has ever had - it had no view
+  test and no UI entry point), `clockworkHarbor.engine.test.ts` (8: the
+  machine and the gears are focusable and interactable with no art of their
+  own, the gate shuts only while the harbour is dark, the mechanism gear
+  turns only once it runs).
+- Still no UI entry point of its own, as before: the region is reachable by
+  URL. Giving it a door is product work, not migration.
+
+**The Dragon's Sanctuary** — `/island/:childId/explore/dragons-sanctuary`.
+- `runtime/manifests/dragonsSanctuary.ts`. Same entity-id-map dispatch as
+  Clockwork, now six interactions - including each sealed gate's authored
+  `lockedMessage`, which a locked door owes a child (pillar 7: a promise,
+  never a refusal).
+- The two collectible families are where the migration pays for itself:
+  finding a fire rune and finding a dragon scale were two near-identical
+  blocks in the view, each calling `recordWorldChangeOnce` with
+  `exploration:<propId>` provenance. Both are now `worldChange` on a
+  collectible, gated on the key they record, so a rune a child has taken is
+  not in the valley next time. The runes carry a second gate on `FORGE_LIT`,
+  because a lit forge means all three are in their sockets.
+- `sanctuary-art` draws the hearth and its fire bowl, the firelight, the
+  sockets (each glowing once its own rune is found), the rune stones, the
+  gate slabs and seams, the scales, Ember's silhouette and the sky cliffs.
+  The two buildings' walls are *not* in the extension or the collider list:
+  the runtime derives them from the buildings, so the walls a child bumps
+  into and the walls they see are one declaration.
+- **One deliberate improvement:** the three rune hints are per rune, so a
+  hint for a rune the child already has stops being shown, where the old copy
+  counted down in one sentence.
+- Tests: `dragonsSanctuary.test.ts` (9), `dragonsSanctuaryParity.test.tsx`
+  (16, every assertion of `DragonsSanctuaryWorldView.test.tsx`),
+  `dragonsSanctuary.engine.test.ts` (8: a sealed gate stops a child rather
+  than letting them round it, a rune with no art of its own is focusable and
+  takeable once, the lodge doorway is a real gap, the hearth gains its
+  firelight only when the forge burns).
+
+**Storykeeper Castle, migrated last** —
+`/island/:childId/explore/storykeeper-castle`. It was the only region whose
+bespoke part was *behaviour* rather than art, and it came in three steps,
+each committed on its own.
+
+**Step 1 — the vocabulary an indoor region needs.** `lights` (placed,
+requirement-gated point lights: indoors a region needs more than a sun, and
+a scene that placed its own would be the renderer owning content again),
+`elevation` on a prop and `y` on `TILED_GROUND`, a `CENTRE` model anchor
+that measures a loaded model and drops it by half its height (what a
+*mounted* height means for a portrait), `copy.calmStop`,
+`copy.progressUnavailable`, `copy.checkpointToasts` with a `{checkpoint}`
+placeholder resolved from the label the World State layer owns,
+`noReticleBands` (SC-10's rule that a band which cannot aim is shown no
+crosshair), `hiddenInteractionIds` (a secret that announces itself in a list
+is signage), and `aiEnabled` reaching the view through `LocationWorldPage`,
+failing closed. The generic view now reads the island's own session clock
+and stages the calm stop where the child is standing, for any region that
+authors the copy.
+
+**Step 2 — the manifest and the scene half.** `runtime/manifests/storykeeperCastle.ts`
+carries one floor and one ceiling slab per room scaled to its footprint,
+every derived wall segment as a collider with its panels from the generic
+`wallPanelPlacements`, the seven archways, the carpet to Quill, eleven
+bookshelves, nine counting stars, five lock carvings, one lamp per room plus
+the doorway and the hearth, all twenty zones, and
+`STORYKEEPER_CASTLE_INTERACTIONS` unchanged. The castle's own binding table
+moved here from `castleChoiceBindings.ts`, which is what Phase 8 promised.
+`castle-tale`'s scene half owns the state variants that flip mid-visit (a
+portrait lit, a window brightened, the hearth burning, the book shelved, the
+carpet running on, the door ajar, the worn carving revealed), Keeper Quill's
+gestures, the three seating puzzles behind one implementation
+(`seatingPuzzle.ts`), and beat 7's easel composed from seven layers.
+
+**Step 3 — the React half.** A `Companion`, new to the extension API and the
+reason the castle needed one: an `Overlay` opens when a child opens an
+interaction, and three of the castle's behaviours cannot wait for that - a
+session left open yesterday resumes with the portrait already lit, Quill's
+gestures follow the rung of the hint ladder, and the reticle says the
+option's own words. `CastleTaleSession`, `CastleSecretDoorStory` and
+`CastleStoryAdventure` moved behind it unchanged.
+
+What the migration *removed* rather than moved: the view's
+`if (zoneId === ...)` chain. The authored interactions already carried the
+requirements it switched on, so the generic walk-in path resolves every one
+of them, and only the two that open learning in the room are claimed.
+
+Tests: 11 manifest, 11 engine (the rooms are walls with holes in them, three
+plates picked up and seated through the generic focus and interact path with
+the arrangement arriving as one `BuildActionRequested`, the castle built
+already changed for a child who told a story) and 44 parity cases covering
+every behaviour family of the old view's 69 - the shell, Quill, the bands,
+the tale, the lectern, a resumed session, the arc, the nook and the calm
+stop.
+
+Known differences, all cosmetic and all deliberate: Quill's stand-in box is
+the runtime's size rather than the castle's own; the region's costume racks
+are still unplaced (the per-region scene never placed them either); the three
+gallery zones and the swaying tapestry's scenery id gained suffixes because
+entity and zone ids share one namespace in the generic runtime, and
+`castle-tale` strips the suffix before resolving a binding.
+
+**What the castle cost, for the record.** It was deferred once, with an
+estimate: indoor walls as generic vocabulary, a shared seating puzzle, the
+easel, and an in-world adventure host - "the one genuinely new piece, since
+no existing extension renders a step of an open `AdventureSession` inside a
+region". That held. The host turned out to need one more thing than
+expected, which is what step 1's `Companion` is: a React half mounted for
+the whole visit rather than opened by an interaction. Its 1,388 view lines
+and 1,829 scene lines are now a 718-line manifest, a 488-line scene
+extension, a 159-line shared seating puzzle and three host components moved
+across unchanged.
+
+Totals after the castle: the full suite is 252 files and 2672 tests (up from
+239 and 2458 before this phase); typecheck, lint, format and build pass. Run
+it with `npx vitest run --maxWorkers=2` on a modest machine: at full
+concurrency the heavier jsdom files time their workers out, which looks like
+failures and is not (`ModelUploadWizard.test.tsx` flaked that way on the
+last full run and passes alone).
+
+**Phase 10 (asset integration cleanup), complete.** ADR-032 part K. Asset
+ids now go through one resolver, extensions declare what they load, and
+which location uses which asset comes from the manifests.
+
+- `three/assets/assetResolver.ts` (new): `AssetResolver` and
+  `BUNDLED_ASSET_RESOLVER`, the one step from an asset id to a url
+  (acceptance AS2). `assetLoader.ts` is now `createAssetLoader(resolver,
+  fetchGltf)`. Its module-level `loadAsset`/`instantiateAsset`/
+  `createInstancedMeshFromAsset`/`instantiateWithLod` are one loader bound
+  to the bundled resolver, so no caller changed.
+- `src/features/assets/assetService.ts`: the published-slug lookup is now
+  `PUBLISHED_ASSET_RESOLVER`, and `resolveModelUrl` is built on it.
+  **Deliberately not wired into the child's scene**: `Asset` is
+  Admins-only until the asset manager's Phase 5 adds a published-only read
+  path for parents (`docs/android/ASSET_MANAGEMENT.md`, open decision), so
+  wiring it now would add a lookup that always fails to every scene load.
+- `WorldExtension.assetIds(config)` (new). `castle-tale` declares its state
+  variants, portraits, windows and easel layers. `tide-trial` declares its
+  plank. The engine rejects `loadModel` for an id the binding did not
+  declare, and the validator checks declared ids against the catalogue
+  (`extensions[i].config`, `UNKNOWN_ASSET`), so a typo in extension config
+  fails validation rather than appearing as a missing model during a visit
+  (AS3). The castle's hard-coded variant ids now sit in one
+  `CASTLE_TALE_ASSETS` constant.
+- `runtime/locationAssetUsage.ts` (new) derives each location's asset ids
+  from its manifest, its extensions' declarations and LOD pairs.
+  `sourceLocationAssetUsage.ts` applies that to the shipped content. The
+  admin Island page's "Scene models" reads it, so it now covers all six 3D
+  locations instead of Pirate Builder Bay alone. The hand-kept
+  `assets/sceneAssets.ts` (and its grep-the-scene-file test) is deleted.
+- Hard-coded urls: an audit found none outside the bundled catalogue
+  (`assets/manifest.ts`). `noHardCodedAssetUrls.test.ts` now fails if a
+  `/models/`, `/textures/` or `/audio/` literal appears anywhere else in
+  `src/`, or if any file names an S3, CloudFront or Amplify host.
+- AS1: no new asset model. `Asset`/`AssetVersion` are unchanged.
+
+Tests: `assetResolver.test.ts` (bundled resolution for every catalogue id;
+the loader fetches whatever url the resolver returns, resolves each id
+once, never fetches an id the resolver refuses, and resolves both halves of
+an LOD pair through it), `PUBLISHED_ASSET_RESOLVER` reporting its source,
+an engine case for the declared-assets rule, a validator case for extension
+assets, `locationAssetUsage.test.ts` (every reference kind, de-duplication,
+regions per asset, shipped manifests reference only known assets, the
+castle's extension-only assets counted, the hub found by region id), the url
+guard, and two admin page cases (an extension-only model listed; an island
+with no 3D scene). Full suite: 254 files and 2687 tests, all passing (up
+from 252 and 2672); typecheck, lint, format and build pass. (Correction: that
+run also reported one unhandled rejection, which makes Vitest exit non-zero.
+The declared-assets engine test seeded its result with an eager
+`Promise.reject` that nothing ever awaited. Fixed; the engine suite now exits
+cleanly.) Not looked at in
+a browser, though no rendering path changed: every scene still loads the
+same bundled files.
+
+Not done, on purpose:
+- Environment GLBs (`AssetType.ENVIRONMENT`), character modularity and
+  semantic attachment points (`06_ASSET_SYSTEM.md`). No manifest needs them
+  yet, so there is nothing to integrate.
+- A delete guard on `Asset`. Admins cannot delete an asset yet (the only
+  `Asset.delete` is the upload wizard's rollback). When they can,
+  `getSourceAssetUsage()` is the dependency check to call.
+- The unrouted per-region scenes still call the bundled loader directly.
+  They go in Phase 16.
+
+**Phase 17 (extensibility proof), complete, done ahead of Phases 11 to 16.**
+It was moved forward because it tests the manifest abstraction the editor
+phases will be built on. A location nobody shipped, "Test Explorer Cove"
+(`runtime/testing/testExplorerCove.ts`), uses only existing mechanics and
+content: an environment with a state variant, a spawn, two checkpoints, a
+manifest collider, Pip (`TALK_TO`), the `harbor-tide-pool` discovery (the
+first objective of the existing "The Quiet Places" quest), an entrance to
+"Repair the Moonlight Bridge", a collectible bound to one durable world
+change, and a boat whose `NAVIGATE` goes to the travel deck. No extensions.
+
+- `testExplorerCove.engine.test.ts` (8 tests): the real runtime builds the
+  cove: spawn (first visit and saved), checkpoint reported, the sea wall
+  collides, the tide pool zone fires, Pip approached, Pip and the signpost
+  focused and interacted by entity id, the shell picked up once and absent
+  once found, and disposal.
+- `testExplorerCove.test.tsx` (13 tests): the manifest validates with zero
+  issues against the real registries, round-trips through JSON (A3) and
+  loads through the same `createSourceManifestRepository` construction the
+  app uses (A4). Played through `ThreeLocationWorldView`, it shows its copy
+  and status line, spawns at the saved checkpoint, saves its checkpoint with
+  its own toast, records meeting Pip and opens his conversation, offers the
+  discovery on walking into the pool, starts the adventure through the
+  existing `resumeOrStartSession`, records the shell as one world change,
+  and links the boat to `/island/:childId/travel`. A final check scans every
+  non-test file under `src/` and fails if any names the cove.
+
+**Result: PASS.** The cove needed no route, WorldView, scene, region
+module, extension or runtime conditional.
+
+**The one thing it needed outside its manifest, and why it matters for
+Phase 12.** Its checkpoints. Checkpoint ids, labels and positions belong
+to the World State catalogue (`discovery/checkpoints.ts`, ADR-008), and
+three things read that module directly rather than through the manifest
+repository:
+- the engine (`resolveSpawnCheckpoint` and `ALL_CHECKPOINTS` in
+  `createLocationEngine.ts`);
+- the view's checkpoint toast (`findCheckpoint` in `manifestBindings.ts`);
+- persistence. `discovery/api.ts` drops any checkpoint id outside
+  `KNOWN_CHECKPOINT_IDS`, both on save and on read.
+
+For a location authored in source, adding its checkpoints to that
+catalogue is ordinary content work, which is all the tests do (through a
+module mock, so no child can reach the cove). For a location published
+from the database (Phase 12), it is a blocker: such a location's
+checkpoints would never save. Phase 12 needs a published checkpoint
+catalogue that the engine, the view and `discovery/api.ts` all read. Not
+fixed here, because the right shape depends on Phase 12's storage.
+
+**Phase 16 (legacy cleanup), complete for the 3D regions.** The six
+per-region 3D views and scenes are gone: 19 files and 10,824 lines.
+Nothing routed to them since Phases 5 to 9; they had stayed as the parity
+reference. Removed:
+`{WelcomeHarbor,PirateBuilderBay,WonderwildForest,StorykeeperCastle,
+ClockworkHarbor,DragonsSanctuary}WorldView.tsx`, their five tests, the six
+`*Scene.ts` files, `wonderwildForestScene.test.ts` and
+`storykeeperCastleScene.test.ts`.
+
+- The `*Parity.test.tsx` files stay. They run the old views' assertions
+  against the generic view and never imported the old code, so they are now
+  the regression tests for each region.
+- `TideTrialPanel.test.tsx` takes `TideTrialScene` from the `tide-trial`
+  extension.
+- `manifests/wonderwildForest.test.ts` lost three cases that compared the
+  manifest's floor, trails and scatter with the deleted scene's output, so
+  the region's look is now pinned only by the manifest itself. Three
+  replacements check what those comparisons protected: the floor tiles
+  with `COVER`, the fern bank's non-path draws no tile, and no scattered
+  tree, bush or fern stands where a child can walk. The cell-by-cell
+  walkability agreement test is unchanged.
+- Comments that described the deleted files in the present tense were
+  updated. Comments recording where code was moved from were left alone.
+
+What stays, deliberately:
+- The `*Region.ts` modules. The manifests and several live modules
+  (`castleChoiceBindings.ts`, `wonderWallBindings.ts`, `castleTaleScene.ts`) are built from their constants.
+- The Phaser 2D views (`src/features/island-map/*WorldView.tsx` and their
+  `/world/*` routes). ADR-029 retires each one only after its 3D
+  replacement has been checked by a person, and that has not happened yet.
+- `ThreeSandboxWorldView.tsx` and the Phase 31 sandbox route, which are not
+  a migrated region.
+
+**Next:** Phase 11 (Admin location editor v1), with the checkpoint
+catalogue gap above as a known input to Phase 12. Still owed by a person:
+playing all six regions in a real browser and on a tablet.
+
+## First-person controls no longer scroll the page — unit-tested; NOT yet checked on a device
+
+Reported from a real play session: walking forward made "the screen pan up".
+The camera was fine; the page was scrolling under the game. Touch drags on
+the canvas were also handled by the browser as page scrolls (no
+`touch-action: none`), and the arrow keys and space scrolled the page as well
+as moving the player. `ThreeGameContainer.module.css` now sets
+`touch-action: none` on the canvas, and `pointerControls.ts` calls
+`preventDefault` on arrow and space key presses unless the focus is in a form
+field. This is shared code, so every first-person region gets the fix.
+
+### Full screen mode — unit-tested; NOT yet checked in a real browser
+
+Every first-person region now has a "Full screen" button on the canvas
+(`WorldStage.tsx`, which replaces each view's inline `position: relative`
+div). It puts the whole world view in full screen, not only the canvas, so
+interaction panels and story sessions stay reachable. In full screen the view
+is one viewport-high column: the 3D stage fills the space left over, panels
+scroll inside themselves, and the instructions and the "Prefer not to walk in
+3D?" link are hidden. The button is hidden when the browser has no element
+full screen (`document.fullscreenEnabled`, which rules out iPhone Safari).
+Leaving the region exits full screen.
+
+The renderer used to keep the pixel size it had on mount, so resizing (full
+screen, tablet rotation, window resize) stretched the picture.
+`sceneKit.fitRendererToParent` now uses a `ResizeObserver` to keep the
+renderer size and camera aspect matched to the container. Every scene calls
+it, including the sandbox.
+
+## Islands & Adventures admin catalog — built and unit-tested; NOT deployed or seen in a browser
+
+Spec: `docs/ISLAND_ADVENTURE_MANAGEMENT.md`. Decision: ADR-031 (catalog
+overlay on source-controlled content, `Superusers` group, delete guard,
+404 for non-admins).
+
+**Built**
+
+- Schema: `Island`, `Adventure`, `AdventureModel` models; `Superusers`
+  Cognito group (`amplify/auth/resource.ts`); `grant-admin --superuser`.
+- `AuthContext.isSuperuser`; `RequireAdmin` renders `NotFound` for
+  signed-in non-admins; the user menu reads Settings, Admin, Sign out.
+- Admin pages: `/admin/islands`, `/admin/islands/new`,
+  `/admin/islands/:islandId`, `/admin/islands/:islandId/edit`,
+  `/admin/islands/:islandId/adventures/new`, `/admin/adventures` (search,
+  island and status filters), `/admin/adventures/new`,
+  `/admin/adventures/:adventureId`, `/admin/adventures/:adventureId/edit`.
+  Islands and Adventures links in the admin nav.
+- "Import game content" creates catalog rows for every existing island and
+  adventure without overwriting existing rows.
+- Adventure detail: description, island link, playability, a Models
+  section (list, add an existing uploaded model with a role, remove), and
+  Superuser-only delete behind an inline confirmation that is refused when
+  the adventure has game content or has been played.
+- Child side: `resumeOrStartSession` refuses a deactivated adventure (or
+  one on a deactivated island) with a calm message; `WelcomeHarbor`,
+  `WorldHubPage`, and `IslandLocationPage` hide or rest deactivated islands.
+- Island detail: a read-only **Scene models** section listing the models
+  the island's 3D scene loads (id, kind, file under `public/models/`),
+  from `SCENE_ASSET_IDS` in
+  `src/features/island-map/three/assets/sceneAssets.ts`. Only Pirate
+  Builder Bay is catalogued; other islands say so. *(Superseded by engine
+  Phase 10: the list is now derived from every location manifest, and
+  `sceneAssets.ts` is gone.)* These are the static
+  manifest models, not S3 `Asset` records, so nothing here is editable.
+- Domain logic in `src/features/catalog/` (availability, validation,
+  import plan, delete guard, template-to-island mapping); data service in
+  `src/features/admin/catalogApi.ts`.
+
+**Tests**: `src/features/catalog/*.test.ts` (truth table, validation,
+import, delete guard, schema authorization rules),
+`src/routes/AdminIslandsAndAdventures.test.tsx` (list, create, detail,
+activate/deactivate, filters, models, admin vs superuser delete,
+confirmation, blocked delete, scene models), `sceneAssets.test.ts` (each
+catalogued list matches the manifest ids its scene file names),
+`RequireAdmin.test.tsx` (404 for non-admins
+at four admin URLs), `UserMenu.test.tsx`, `AdminLayout.test.tsx`,
+`adventures/api.test.ts` (gate and fail-open). Full suite: 219 files,
+2280 tests passing; `tsc -b` and Prettier clean.
+
+**Not done / risks**
+
+- Not deployed: the schema needs `npm run sandbox` (or the pipeline), and
+  the live authorization checks in `docs/AUTHORIZATION_REVIEW.md` section 5
+  are still to run. After deploying, run "Import game content" once per
+  environment; until then everything stays available.
+- Not looked at in a browser.
+- `STORY_ARC_ISLANDS` is an editorial mapping (for example `butterfly-garden`
+  under Wonderwild Forest); deactivating one of those islands also stops
+  that story's challenges.
+- The child-side gate fails open and is client-enforced (ADR-031
+  consequences). The Story Engine still lists a story whose challenges are
+  deactivated; the child sees the calm "resting" message at the challenge.
+- No thumbnails, no model detail links (no `/admin/assets/models/:id` yet),
+  no audit events.
+- Scene models are catalogued for Pirate Builder Bay only. The other
+  scenes (Welcome Harbor, Storykeeper Castle, Wonderwild Forest, Clockwork
+  Harbor, Dragon's Sanctuary) load some ids through variables, so the
+  source check in `sceneAssets.test.ts` cannot cover them as written.
+
+## Admin section restyled with Tailwind CSS and shadcn/ui — complete, checked in a browser against fixture data
+
+Decision: ADR-023.
+
+Every `/admin/*` page now renders inside one `AdminLayout`
+(`src/features/admin/AdminLayout.tsx`): a top bar with "Families" and "Game
+assets" section links (the current one marked `aria-current="page"`), a
+"Back to my dashboard" link, and the page's `<main id="main-content">`. The
+routes are nested under a single `RequireAdmin` in `src/app/AppRoutes.tsx`;
+the URLs are unchanged. The five pages (`AdminDashboard`,
+`AdminChildProgress`, `AdminAssets`, `AdminModelAssets`,
+`AdminNewModelAsset`) and `ModelUploadWizard` use vendored shadcn/ui
+components from `src/features/admin/ui/` instead of CSS modules. Page
+logic, loading/empty/error states, roles and labels are unchanged; only
+markup and classes moved. The directory's `<h1>` now reads "Families"
+instead of "Admin".
+
+**Built**
+
+- `src/features/admin/admin.css`: Tailwind theme and utilities with no
+  `:root` variables, shadcn/ui colour names mapped to island tokens, and
+  Preflight adapted inside `@scope (.admin-root)`.
+- `src/features/admin/ui/`: Button, Badge, Alert, Card, Table, Label,
+  Input, Textarea, NativeSelect, FieldHint, `cn`, and the variant recipes.
+- `src/features/admin/AdminPageHeader.tsx`: title, description, back link
+  and actions for each page.
+- `src/styles/global.css`: button rules exclude `.admin-root`.
+- `vite.config.ts`: `@tailwindcss/vite` plugin.
+- Removed `src/features/assets/AssetAdmin.module.css`.
+- New dependencies: `clsx`, `tailwind-merge`, `class-variance-authority`,
+  `@radix-ui/react-slot`; dev: `tailwindcss`, `@tailwindcss/vite`.
+
+**Tests:** 8 new. `adminCss.test.ts` compiles the real `admin.css` and
+fails if a custom property escapes onto `:root`, if an element selector
+sits outside the admin scope, or if a global.css button rule loses its
+admin exclusion (checked by temporarily removing `reference` from the
+theme: all three compile checks failed as intended).
+`AdminLayout.test.tsx` covers the main landmark, the scope class and the
+active nav link. The existing admin page and wizard tests pass unchanged.
+Full suite: 214 files, 2201 tests passing; typecheck clean; build clean,
+and the built CSS has no `:root` block besides tokens.css's own; no new
+lint findings.
+
+**Not verified**
+
+- Not seen against real data. The browser check below used fixture data,
+  because the pages need a signed-in `Admins`-group account against a
+  running backend, which it did not have.
+
+**Browser check (fixture data).** A throwaway Vite harness rendered the
+real `AdminLayout` and all five pages in headless Chromium, with the real
+`global.css` loaded and only the data modules (AppSync/Cognito calls)
+swapped for fixtures. Screenshots at 1280px and 390px, the upload wizard
+driven to step 2, and computed styles checked: `:root` still holds the
+island's `--color-primary` and `--radius-lg`, and a button outside the
+admin shell keeps its lip. It found two bugs the unit tests could not,
+both fixed:
+
+- The models table widened the page to 866px on a phone instead of
+  scrolling inside its card: a grid column without an explicit size grows
+  to fit its content. The admin grids now use `grid-cols-1`
+  (`minmax(0, 1fr)`).
+- `divide-y` dividers never drew. Tailwind v4 writes them as zero-specificity
+  `:where()` selectors, which tied with the scoped reset's `*` and lost on
+  scope proximity. The reset now sits in `@layer admin-reset`, below every
+  utility, as the real Preflight does; a test pins this (and fails when the
+  layer is removed).
+- `package-lock.json` in this repo was not regenerated: the repo is a
+  member of an npm workspace one level up, so `npm install` updated that
+  workspace's lockfile instead. CI and Amplify run `npm install`, which
+  resolves from `package.json`, so this does not block a build; running
+  `npm install --package-lock-only` in a standalone copy of the repo and
+  committing the result would bring the lockfile back in step.
+
 ## Model Asset Manager — Phases 1-2 complete (foundation and upload)
 
 Spec: `docs/android/ASSET_MANAGEMENT.md`. Decision: ADR-030.
@@ -8809,6 +9646,82 @@ ground pivots and the sizes each piece has to hit to read correctly.
   route (`-3d`) changed.
 
 
+## Math Mayhem multiplayer — Phase 0 (baseline verification)
+
+Phase 0 of `docs/MATH_MAYHEM_MULTIPLAYER_ROADMAP.md`, on branch
+`feature/math-mayhem-multiplayer-foundation`. No production code changed.
+
+**Acceptance criteria:** existing regions are not regressed; baseline
+findings and blockers are documented; no new island features.
+
+- **Automated baseline, all green:** typecheck, lint (no errors), 249 test
+  files / 2,567 tests, build. Matches `docs/engine/ENGINE_OVERVIEW.md`.
+- **Browser rendering check:** all six manifests mounted through the real
+  `createLocationEngine` in headless Chromium with no page errors or failed
+  asset requests; walking forward fired the expected zone and NPC events.
+  This is automated, not a playtest.
+- **Not done:** a human playtest on desktop or tablet (engine gap 1 stands),
+  and in-browser NPC panels, pickups, checkpoint persistence and navigation
+  (need a signed-in parent; no credentials in this session).
+- **Architecture decision:** ADR-026 (Proposed): Colyseus room server over
+  WSS, pure room-rule modules, Cognito ID token plus `ownerSub` check,
+  household-only parties, nothing persisted per frame, idempotent
+  conditional reward writes, feature-flagged and off by default.
+- **Conflicts found:** cross-family play (ADR-006, CLAUDE.md section 12),
+  continuous presence (ADR-006 v1), random rarity drops (ADR-013, pillar 7).
+- **Pre-existing gap noticed:** no keyboard turning in first-person
+  controls.
+
+Full record: `docs/multiplayer/PHASE_0_BASELINE.md`. Reviewed 2026-10-13:
+ADR-026 accepted, same-family rooms only, the human playtest carried as an
+open blocker.
+
+
+## Math Mayhem multiplayer — Phase 1 (room foundation)
+
+Phase 1 of `docs/MATH_MAYHEM_MULTIPLAYER_ROADMAP.md`: a reusable
+multiplayer client, an authoritative room server, and an "Explorers here"
+panel, all switched off by default. Full guide:
+`docs/multiplayer/MULTIPLAYER_SERVER.md`.
+
+**Acceptance criteria and status:**
+
+| Criterion | Status |
+|---|---|
+| Two sessions join one room | Passed in the integration test (real server, real SDK, real WebSockets) |
+| One leaving updates presence | Passed, for consented leave and for a dropped connection |
+| Unauthorized connections fail | Passed: missing or forged token, another family's child, another family's room, disallowed origin. The real process also refuses forged tokens against the live Cognito pool |
+| Reconnect does not duplicate the player | Passed: seat held and returned after a drop; a second screen takes over the seat |
+| Existing region tests still pass | Passed: 261 files, 2,649 tests; typecheck, lint and build clean |
+
+**Built:**
+- Shared pure modules in `src/features/multiplayer/`: protocol and
+  validators, room rules, household key, config, client service, presence
+  hook and copy, a dev-only repository wrapper.
+- `server/multiplayer/`: Colyseus room server, Cognito ID-token
+  verification, child ownership via AppSync with the parent's own token,
+  origin allowlist, CORS, heartbeat, message-rate and size limits, token
+  expiry sweep, id-free event log. `npm run mp:dev`.
+- `multiplayer-presence` view extension. Companions now receive `regionId`.
+  No shipped manifest binds it, so every region stays single-player.
+- Packages (ADR-026 amendments): `@colyseus/core`, `@colyseus/ws-transport`,
+  `@colyseus/sdk`, `aws-jwt-verify`, `express`, all pinned. The SDK is
+  code-split (163 KB) and only fetched when a room is joined.
+
+**Not done / open:**
+- The two-browser check with a real parent account (steps in the guide).
+  On 2026-10-13 the product owner reported the local setup working; which
+  individual steps were checked was not recorded, so they stay open here.
+- Hosting: nothing is deployed; no AWS resources or cost yet.
+- Production needs request rate limiting in front of matchmaking (Colyseus
+  creates a room before authenticating) and a load balancer that does not
+  log query strings (the SDK puts the token in the WebSocket URL).
+- This repo's `package-lock.json` has been stale since Phase 8 (local
+  installs resolve through a parent npm workspace). CI uses `npm install`,
+  so it is unaffected; the new packages are in `package.json` only.
+- The engine playtest blocker from Phase 0 still stands.
+
+
 ## Known risks / TODOs
 
 - **Phase 20: `SkillEvidence`'s write path (`recordSkillEvidence`) was not
@@ -9179,6 +10092,11 @@ ground pivots and the sizes each piece has to hit to read correctly.
   reuse an existing one.
 
 ## Decisions pending
+
+- Multiplayer hosting: approve the always-on room-server cost (ECS
+  Fargate behind an ALB) before anything is deployed (ADR-026).
+- Whether Math Mayhem Phase 6 spawns may use randomness or rarity tiers,
+  which ADR-013 and CLAUDE.md pillar 7 currently rule out.
 
 - Final visual design direction and art pipeline.
 - Bedrock model selection by region, capability, latency, and cost.
@@ -9570,3 +10488,15 @@ Documentation and tooling only. Not a migration roadmap task.
 - `scripts/check-adrs.ts` (`npm run adr:check`, run by `make js-check` and CI) fails on duplicate or malformed headings, registry/heading mismatches, and malformed or unknown `ADR-nnn` references. Tested by `react/src/test/adrCheck.test.ts`.
 - The check found and fixed two malformed references (a two-digit form of ADR-016) in comments in `react/src/features/director/`.
 - Open: a merge of `origin/main` still needs the per-line remap described in the renumbering map; the check cannot see that a number resolves to the wrong decision.
+
+## Integration of `origin/main` (2026-10-24)
+
+Local merge of `origin/main` (`eab0817`, existing tracking ref, no fetch) into the Django migration branch. Not a roadmap task, and nothing was pushed.
+
+- **Brought in from main (19 commits):** the admin section on Tailwind and shadcn/ui (ADR-023), the Islands and Adventures admin catalog with the `Superusers` group (ADR-031, formerly main's ADR-024), the manifest-driven generic 3D location engine with all six 3D regions migrated and the bespoke 3D views removed (ADR-032, formerly ADR-025; `docs/engine/`), and the Math Mayhem multiplayer room server, Phases 0 and 1 (ADR-026; top-level `server/`).
+- **ADR numbering:** main's ADR-019 to ADR-022 became ADR-027 to ADR-030 (already present from the earlier reconciliation), main's ADR-024 and ADR-025 became ADR-031 and ADR-032, ADR-023 and ADR-026 are unchanged. 70 reference lines from main's side were remapped by provenance (a line counted as main's only if absent from this branch and present on main). Django ADR-019 to ADR-022, ADR-024 and ADR-025 are untouched. Next free number: 033.
+- **Layout:** main still used the root layout. Its 185 added files were moved under `react/`, its `package.json` dependency changes were applied to the root and `react/package.json`, the Tailwind plugin and `server/**` tests were added to `react/vite.config.ts`, `server/` kept at the repository root with imports pointed at `react/src`, and `typecheck` now also checks `server/`. Amplify import depths were corrected in two files. The 26 files main deleted (bespoke 3D views, routes and scenes) were deleted here too; this branch's only edits to them were ADR renumbering comments.
+- **Lockfile:** main did not commit lockfile changes for its new dependencies. `package-lock.json` was regenerated with `npm install` here.
+- **Preserved:** Django models, Cognito JWT auth, tenant isolation, logging, content export schema v2 and its handling of `ALL_NPCS`, `wonderwild-hive`, skill metadata and `START_STORY`. Main's content did not change the export (record counts identical, output byte-identical across two runs).
+- **Verification:** typecheck, lint, Prettier and ADR check clean; Vitest 263 files / 2709 tests pass (was 214 / 2253); build passes; `content:check` up to date; Ruff, format, `manage.py check` and `makemigrations --check` clean; pytest 211 pass on PostgreSQL 16 (port 5433); Playwright 7 of 7 with `amplify_outputs.json` moved aside and restored.
+- **Open, unchanged:** Playwright still depends on the absence of `amplify_outputs.json`; Clockwork Harbor NPC interactions remain a declared ambiguity; gates A1, A6, G8 to G10, LAI-0209 and LAI-0405 stay open. The generic runtime still contains React and must be split before `game/` extraction (see `docs/THREEJS_ENGINE_CONVERSION.md` section 0).

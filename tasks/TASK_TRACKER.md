@@ -10,6 +10,7 @@ before touching AWS.
 
 - [x] **LAI-0001** Phase 0 migration assessment and documentation
 - [x] **POST-MERGE-01** Reconcile merged content export and duplicate ADR ids (not a roadmap task). DONE locally: export schema v2, ADR-027 to ADR-030 renumbered from the incoming line; see `docs/IMPLEMENTATION_STATUS.md`. Not pushed.
+- [x] **POST-MERGE-02** Integrate `origin/main` (eab0817) into the Django migration branch, locally. DONE: ADR-023 to ADR-032 reconciled, ported to the `react/` layout, all checks green; see `docs/IMPLEMENTATION_STATUS.md`. Not pushed. Starts no roadmap task.
 - [x] **LAI-0002** Record ADR-020 (Three.js exclusive) and plan Track B (docs only, this change set)
 
 ## Phase 1 — Governance and baseline

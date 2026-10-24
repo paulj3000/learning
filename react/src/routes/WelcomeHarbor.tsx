@@ -11,6 +11,10 @@ import { getOrCreateCompanionProfile, getCompanionProfile } from '../features/is
 import { ChildAvatar } from '../features/child-profile/ChildAvatar';
 import { getChildProfile } from '../features/child-profile/api';
 import { listAllWorldChanges } from '../features/adventures/api';
+import { isIslandAvailable } from '../features/catalog/availability';
+import { loadCatalogSnapshot } from '../features/catalog/availabilityApi';
+import { locationWorldPath } from '../features/island-map/three/runtime/locationWorldPath';
+import { WELCOME_HARBOR_REGION_ID } from '../features/discovery/checkpoints';
 import type { CompanionProfile } from '../features/island/api';
 import type { ChildProfile } from '../features/child-profile/api';
 
@@ -22,6 +26,8 @@ export function WelcomeHarbor() {
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
   const [companionProfile, setCompanionProfile] = useState<CompanionProfile | null>(null);
   const [worldChangeKeys, setWorldChangeKeys] = useState<string[]>([]);
+  /** Island slugs an admin has deactivated (ADR-031); never shown on the map. */
+  const [hiddenSlugs, setHiddenSlugs] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,10 +38,11 @@ export function WelcomeHarbor() {
         return;
       }
       try {
-        const [child, companion, changes] = await Promise.all([
+        const [child, companion, changes, catalog] = await Promise.all([
           getChildProfile(childId),
           getCompanionProfile(childId),
           listAllWorldChanges(childId),
+          loadCatalogSnapshot(),
         ]);
         if (cancelled) return;
         if (!child) {
@@ -45,6 +52,11 @@ export function WelcomeHarbor() {
         setChildProfile(child);
         setCompanionProfile(companion);
         setWorldChangeKeys(changes.map((change) => change.changeKey));
+        setHiddenSlugs(
+          catalog.islands
+            .filter((island) => !isIslandAvailable(catalog, island.slug))
+            .map((island) => island.slug),
+        );
         setLoadState('ready');
       } catch {
         if (cancelled) return;
@@ -109,6 +121,7 @@ export function WelcomeHarbor() {
         */}
         {listLocationsInWorld(getHomeWorld().slug)
           .filter((location) => isLocationUnlocked(location, worldChangeKeys))
+          .filter((location) => !hiddenSlugs.includes(location.slug))
           .map((location) => (
             <Link
               className={styles.card}
@@ -161,7 +174,7 @@ export function WelcomeHarbor() {
         limitations (Phase 32)"). Older bands can already use it as a real
         alternative way to explore.
       */}
-      <Link className={styles.logLink} to={`/island/${childId}/world/welcome-harbor-3d`}>
+      <Link className={styles.logLink} to={locationWorldPath(childId, WELCOME_HARBOR_REGION_ID)}>
         Explore the harbor in 3D (new!)
       </Link>
     </IslandLayout>

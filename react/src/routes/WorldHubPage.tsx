@@ -4,6 +4,8 @@ import styles from './WorldHubPage.module.css';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { getChildProfile } from '../features/child-profile/api';
 import { listAllWorldChanges } from '../features/adventures/api';
+import { isIslandAvailable } from '../features/catalog/availability';
+import { loadCatalogSnapshot } from '../features/catalog/availabilityApi';
 import { isLocationUnlocked, listLocationsInWorld } from '../features/island/locations';
 import { getWorld } from '../features/worlds/worlds';
 import { recordArrival } from '../features/worlds/api';
@@ -60,11 +62,17 @@ export function WorldHubPage() {
           return;
         }
 
-        const changes = await listAllWorldChanges(childId).catch(() => []);
+        const [changes, catalog] = await Promise.all([
+          listAllWorldChanges(childId).catch(() => []),
+          loadCatalogSnapshot(),
+        ]);
         if (cancelled) return;
         const keys = changes.map((change) => change.changeKey);
         setLocations(
-          listLocationsInWorld(world.slug).filter((location) => isLocationUnlocked(location, keys)),
+          listLocationsInWorld(world.slug).filter(
+            (location) =>
+              isLocationUnlocked(location, keys) && isIslandAvailable(catalog, location.slug),
+          ),
         );
         setArrivalText(arrival.arrivalText ?? '');
         setLoadState('ready');

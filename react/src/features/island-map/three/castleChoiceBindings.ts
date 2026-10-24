@@ -37,17 +37,24 @@
  */
 
 import { ALL_ENTITY_IDS } from './storykeeperCastleRegion';
+import {
+  bindingsForStep,
+  boundSteps,
+  entityForOption,
+  resolveEntityBinding,
+  seatedEntitiesToOrder as seatedOrderOf,
+  type AdventureStepBinding,
+} from './runtime/adventureStepBindings';
 
-export interface CastleChoiceBinding {
-  /** The world entity the child interacts with. Must be in `ALL_ENTITY_IDS`. */
-  entityId: string;
-  /** The adventure template that owns the step. */
-  templateSlug: string;
-  /** The step whose option this entity stands for. */
-  stepId: string;
-  /** The option id that step already declares. Never invented here. */
-  optionId: string;
-}
+/**
+ * Engine Phase 8: the shape and every lookup over it now live once, in
+ * `runtime/adventureStepBindings.ts`, shared with Wonderwild Forest's
+ * identical table. What stays here is the castle's authored content - which
+ * portrait is which hero - and the castle-specific slugs its scene code
+ * names. The table itself moves into this region's manifest when the castle
+ * migrates to the generic runtime (Phase 9).
+ */
+export type CastleChoiceBinding = AdventureStepBinding;
 
 export const THE_STORYKEEPERS_TALE_SLUG = 'the-storykeepers-tale';
 export const QUILLS_PICTURE_STORY_SLUG = 'quills-picture-story';
@@ -212,14 +219,8 @@ export const CASTLE_CHOICE_BINDINGS: readonly CastleChoiceBinding[] = [
 ];
 
 /** The distinct (template, step) pairs this region drives from world objects. */
-export const BOUND_STEPS: readonly { templateSlug: string; stepId: string }[] = [
-  ...new Map(
-    CASTLE_CHOICE_BINDINGS.map((binding) => [
-      `${binding.templateSlug}:${binding.stepId}`,
-      { templateSlug: binding.templateSlug, stepId: binding.stepId },
-    ]),
-  ).values(),
-];
+export const BOUND_STEPS: readonly { templateSlug: string; stepId: string }[] =
+  boundSteps(CASTLE_CHOICE_BINDINGS);
 
 /**
  * The option id this entity stands for, or `undefined` if it is not a
@@ -239,11 +240,7 @@ export function resolveCastleChoiceBinding(
   entityId: string,
   templateSlug?: string,
 ): CastleChoiceBinding | undefined {
-  return CASTLE_CHOICE_BINDINGS.find(
-    (binding) =>
-      binding.entityId === entityId &&
-      (templateSlug === undefined || binding.templateSlug === templateSlug),
-  );
+  return resolveEntityBinding(CASTLE_CHOICE_BINDINGS, entityId, templateSlug);
 }
 
 /** Every entity bound to one step, in authored order. */
@@ -251,9 +248,7 @@ export function getCastleChoiceBindingsForStep(
   templateSlug: string,
   stepId: string,
 ): CastleChoiceBinding[] {
-  return CASTLE_CHOICE_BINDINGS.filter(
-    (binding) => binding.templateSlug === templateSlug && binding.stepId === stepId,
-  );
+  return bindingsForStep(CASTLE_CHOICE_BINDINGS, templateSlug, stepId);
 }
 
 /**
@@ -269,13 +264,7 @@ export function resolveCastleChoiceEntity(
   stepId: string,
   optionId: string | null | undefined,
 ): string | undefined {
-  if (!optionId) return undefined;
-  return CASTLE_CHOICE_BINDINGS.find(
-    (binding) =>
-      binding.templateSlug === templateSlug &&
-      binding.stepId === stepId &&
-      binding.optionId === optionId,
-  )?.entityId;
+  return entityForOption(CASTLE_CHOICE_BINDINGS, templateSlug, stepId, optionId);
 }
 
 /**
@@ -304,17 +293,7 @@ export function seatedEntitiesToOrder(
   stepId: string,
   seated: readonly string[],
 ): string[] | null {
-  const bound = getCastleChoiceBindingsForStep(templateSlug, stepId);
-  if (seated.length !== bound.length) return null;
-  if (new Set(seated).size !== seated.length) return null;
-
-  const order: string[] = [];
-  for (const entityId of seated) {
-    const binding = bound.find((candidate) => candidate.entityId === entityId);
-    if (!binding) return null;
-    order.push(binding.optionId);
-  }
-  return order;
+  return seatedOrderOf(CASTLE_CHOICE_BINDINGS, templateSlug, stepId, seated);
 }
 
 /** Whether this entity is one the region places at all. Used by the test; exported so SC-2's scene can assert it too. */

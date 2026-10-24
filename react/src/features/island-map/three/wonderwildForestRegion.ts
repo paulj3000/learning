@@ -9,8 +9,8 @@ import {
  * `docs/WONDERWILD_FOREST_3D_STORYBOARD.md` section 3). Same split as
  * `welcomeHarborRegion.ts`/`pirateBuilderBayRegion.ts`/
  * `storykeeperCastleRegion.ts`: plain numbers, no `three` import, so this
- * stays unit-testable without a rendering context. `wonderwildForestScene.ts`
- * (WF-2) will be the only file that turns these numbers into `three` objects.
+ * stays unit-testable without a rendering context. The region's manifest
+ * (`runtime/manifests/wonderwildForest.ts`) is built from these numbers.
  *
  * **The castle's geometry model is inverted here, and that is the whole
  * design of this file.** A castle is rooms, so `storykeeperCastleRegion.ts`

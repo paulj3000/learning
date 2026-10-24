@@ -1,0 +1,22 @@
+.stage {
+  position: relative;
+}
+
+:fullscreen > .stage {
+  flex: 1 1 0;
+  min-height: 40vh;
+}
+
+.fullscreenButton {
+  position: absolute;
+  left: var(--space-3);
+  bottom: var(--space-3);
+  font-weight: 600;
+  padding: var(--space-2) var(--space-4);
+  min-height: 44px;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+}

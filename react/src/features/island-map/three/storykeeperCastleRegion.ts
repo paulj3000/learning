@@ -9,8 +9,8 @@ import {
  * `docs/STORYKEEPER_CASTLE_3D_STORYBOARD.md` section 3). Same split as
  * `welcomeHarborRegion.ts`/`pirateBuilderBayRegion.ts`: plain numbers, no
  * `three` import, so this stays unit-testable without a rendering context.
- * `storykeeperCastleScene.ts` (SC-2) will be the only file that turns these
- * numbers into `three` objects.
+ * The region's manifest (`runtime/manifests/storykeeperCastle.ts`) is built
+ * from these numbers.
  *
  * Two things make this region different from the two that came before it,
  * and both shaped how it is authored:
@@ -383,7 +383,7 @@ export const BINDING_TABLE_SPOT: EntitySpot = { entityId: 'binding-table', x: -1
  *
  * Local rather than world for the same reason nothing else in this file
  * carries a rotation: which way the lectern faces is presentation, and
- * `storykeeperCastleScene.ts` owns it (`facingIntoRoom`). Authored world
+ * the runtime owns it (`facingIntoRoom` in `runtime/sceneLayout.ts`). Authored world
  * x/z here would silently rot the first time the lectern is turned.
  *
  * The same three numbers are read by `scripts/generate-world-assets.ts` to

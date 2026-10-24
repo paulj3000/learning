@@ -270,7 +270,7 @@ Phase 8's other documents already established:
 **Why blocked here**: ADR-008 in `docs/DECISIONS.md` requires a real
 playtest with 3-4-year-old children before Three.js first-person
 navigation (`docs/ROADMAP.md` Phase 31/32,
-`/island/:childId/world/welcome-harbor-3d`) can become that band's
+`/island/:childId/explore/welcome-harbor`; the old `world/welcome-harbor-3d` URL redirects there) can become that band's
 *primary* route through the world. No environment can substitute code, a
 simulated user, or an adult's read of the controls for this - the concern
 is fine motor control for look-around, motion sensitivity, and
@@ -292,7 +292,7 @@ itself from any band that can already reach it.
 1. Recruit 4-6 children ages 3-4 across a range of prior screen/game
    experience, with a parent or guardian present throughout.
 2. Sit each child with a tablet running the deployed app, opened directly
-   to `/island/:childId/world/welcome-harbor-3d` on a profile set to the
+   to `/island/:childId/explore/welcome-harbor` on a profile set to the
    `SPROUT` age band.
 3. Observe, without prompting beyond the in-app instructions text
    (`WelcomeHarborWorldView.tsx`'s `instructions` paragraph): can the

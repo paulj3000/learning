@@ -15,6 +15,7 @@ import {
   type StoryScene,
 } from './api';
 import { upsertSkillProgress } from '../mastery/api';
+import { AdventureUnavailableError } from '../catalog/availabilityApi';
 import { syncQuestProgress } from '../quests/api';
 import { useCompanionTurn } from '../companion/useCompanionTurn';
 import type { CompanionTurnState } from '../companion/useCompanionTurn';
@@ -143,8 +144,10 @@ export function useAdventureSession(
         if (cancelled) return;
         setSession(active);
         setLoadState('ready');
-      } catch {
+      } catch (loadError) {
         if (cancelled) return;
+        // A deactivated adventure is not a failure; its own calm message says so.
+        if (loadError instanceof AdventureUnavailableError) setError(loadError.message);
         setLoadState('error');
       }
     }

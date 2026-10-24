@@ -44,16 +44,16 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-020 | Three.js is the exclusive gameplay renderer; Phaser is retired; `game/` is a first-class package | Accepted | Django migration line |  |
 | ADR-021 | Django 6.1, DRF 3.18, and psycopg 3 for the backend skeleton | Accepted | Django migration line |  |
 | ADR-022 | `ParentAccount` is the Django user model; `ChildProfile` is a managed profile, not a login | Accepted | Django migration line |  |
-| ADR-023 | The admin section is styled with Tailwind CSS and shadcn/ui; the rest of the app stays on CSS Modules | Reserved | `origin/main` (not yet integrated) | Keeps its number when `origin/main` is merged |
+| ADR-023 | The admin section is styled with Tailwind CSS and shadcn/ui; the rest of the app stays on CSS Modules | Accepted | Main line (Storykeeper Castle / engine) | Integrated from `origin/main`; number unchanged |
 | ADR-024 | Cognito remains the authentication authority; Django validates bearer access tokens | Accepted in part | Django migration line |  |
 | ADR-025 | Exceptions are logged as type and location, never as message | Accepted | Django migration line |  |
-| ADR-026 | Multiplayer runs on a separate authoritative room server over WebSocket | Reserved | `origin/main` (not yet integrated) | Keeps its number when `origin/main` is merged |
+| ADR-026 | Multiplayer runs on a separate authoritative room server over WebSocket; the engine only renders it | Accepted | Main line (Storykeeper Castle / engine) | Integrated from `origin/main`; number unchanged |
 | ADR-027 | A story chapter may be played inside a 3D region; the Story Engine keeps sole ownership of progress | Accepted | Storykeeper Castle line | Renumbered from ADR-019 |
 | ADR-028 | Where the castle's art comes from | Proposed | Storykeeper Castle line | Renumbered from ADR-020 |
 | ADR-029 | Phaser 2D views are phased out; new regions are authored in Three.js only | Accepted | Storykeeper Castle line | Renumbered from ADR-021. Related to ADR-020, not a duplicate |
 | ADR-030 | Uploaded models live in S3 behind Admins-only Asset records; the bundled manifest stays the runtime fallback | Accepted | Storykeeper Castle line | Renumbered from ADR-022 |
-| ADR-031 | Islands and Adventures are an admin catalog overlaid on source-controlled content | Reserved | `origin/main` (not yet integrated) | On `origin/main` as ADR-024; collides with Django ADR-024, so it becomes ADR-031 at merge |
-| ADR-032 | Three.js locations are described by a serializable manifest | Reserved | `origin/main` (not yet integrated) | On `origin/main` as ADR-025; collides with Django ADR-025, so it becomes ADR-032 at merge |
+| ADR-031 | Islands and Adventures are an admin catalog overlaid on source-controlled content; Superusers are Admins with one extra group | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-024 on `origin/main` |
+| ADR-032 | Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-025 on `origin/main` |
 
 ## ADR-001: Parent-owned accounts
 
@@ -1440,20 +1440,20 @@ message is needed, reproduce locally with synthetic data and the raw opt-in.
 
 Two lines of work both used ADR-019 to ADR-022. The Django migration decisions keep their numbers. The Storykeeper Castle, Wonderwild and Clockwork decisions were renumbered. They are different decisions, so none was consolidated.
 
-**Cross-branch status (checked against `origin/main` at `eab0817`, no fetch).** `origin/main` already contains the Storykeeper Castle line (its merge base with this branch is `ced6239`) under its original numbers ADR-019 to ADR-022, with identical text, and adds four decisions of its own: ADR-023, ADR-024, ADR-025 and ADR-026. It has none of the Django ADRs. So the table below is also the alias table for merging `origin/main`:
+**Integration of `origin/main` (done locally, merge of `eab0817`).** `origin/main` already contained the Storykeeper Castle line under its original ADR-019 to ADR-022 with identical text and added ADR-023 to ADR-026. It had none of the Django ADRs. The table below is the mapping applied when it was merged. References that arrived from main's side were remapped line by line (a line counted as main's only if it is absent from the Django branch and present on main), never by global replacement. Main's ADR-019 to ADR-022 blocks were already present here as ADR-027 to ADR-030, so they were not added twice.
 
-| `origin/main` id | Meaning | Id on this branch |
+| `origin/main` id | Meaning | Integrated id |
 |---|---|---|
 | ADR-019 | Story chapter in a 3D region | ADR-027 |
 | ADR-020 | Where the castle's art comes from | ADR-028 |
 | ADR-021 | Phaser 2D views phased out | ADR-029 |
 | ADR-022 | Uploaded models in S3 | ADR-030 |
 | ADR-023 | Admin section Tailwind and shadcn/ui | ADR-023 (unchanged) |
-| ADR-024 | Islands and Adventures admin catalog | ADR-031 (reserved) |
-| ADR-025 | Serializable location manifest | ADR-032 (reserved) |
+| ADR-024 | Islands and Adventures admin catalog | ADR-031 |
+| ADR-025 | Serializable location manifest | ADR-032 |
 | ADR-026 | Multiplayer room server | ADR-026 (unchanged) |
 
-When `origin/main` is merged, every `ADR-019` to `ADR-022`, `ADR-024` and `ADR-025` that arrives from main's side means the main-side decision and must be remapped using this table, decided per line from `git blame` provenance as in the first reconciliation. `npm run adr:check` cannot detect that, because the numbers still resolve. Main's text of ADR-019 to ADR-022 is identical to the blocks already here as ADR-027 to ADR-030, so those blocks are dropped as duplicates, not added twice.
+Any later merge from a branch that still uses the old main numbers needs the same remap. `npm run adr:check` cannot detect a number that resolves to the wrong decision.
 
 | Old (incoming line) | New | Title |
 |---|---|---|
@@ -1914,3 +1914,543 @@ separate migration decision.
   so the limit guards against mistakes rather than attacks.
 - Rules are verified structurally in `src/features/assets/authorization.test.ts`;
   the live check is listed in `docs/AUTHORIZATION_REVIEW.md` section 5.
+
+## ADR-023: The admin section is styled with Tailwind CSS and shadcn/ui; the rest of the app stays on CSS Modules
+
+Status: Accepted (2026-09-27)
+
+CLAUDE.md section 8 sets the styling baseline as "CSS Modules or a small
+token-based styling system", unless an ADR changes it. This ADR changes it
+for `/admin/*` only.
+
+**Context.** The admin section (families directory, child progress, game
+assets, model list, upload wizard) is internal tooling: tables, forms,
+status badges and alerts, used by adults on a desktop. It had been borrowing
+the parent dashboard's CSS modules plus its own `AssetAdmin.module.css`,
+and each new admin page meant restating the same table, form and button
+styles. The island's look (chunky buttons with a pressable lip, display
+headings) is designed for children and is the wrong register for dense
+admin screens.
+
+**The decision.**
+
+- Tailwind CSS v4 (`tailwindcss`, `@tailwindcss/vite`, dev dependencies)
+  compiles one stylesheet, `src/features/admin/admin.css`, imported only by
+  `src/features/admin/AdminLayout.tsx`.
+- shadcn/ui components are **vendored**, not installed: Button, Badge,
+  Alert, Card, Table, Label, Input, Textarea and Native Select live in
+  `src/features/admin/ui/` as our own source. Their runtime dependencies are
+  `clsx`, `tailwind-merge`, `class-variance-authority` and
+  `@radix-ui/react-slot` (for `asChild`, so a router `Link` can look like a
+  button and still be a link). No other Radix packages, no icon library, no
+  `@/` path alias; the shadcn CLI is not used, because it needs that alias.
+- Every `/admin/*` route renders inside `AdminLayout` (a nested route under
+  one `RequireAdmin` gate), which owns the top bar, the section nav and the
+  page's `<main id="main-content">`.
+- The admin palette is shadcn/ui's semantic names (`primary`, `muted`,
+  `border`, `destructive`...) mapped onto the existing tokens in
+  `src/styles/tokens.css`. No new colours, so every text/background pair is
+  one `tokens.test.ts` already checks.
+
+**How it is kept away from children's pages.** Three mechanisms, each
+covered by `src/features/admin/adminCss.test.ts`:
+
+1. *No theme variables on `:root`.* tokens.css already defines
+   `--color-*`, `--radius-*`, `--shadow-*` and `--font-*`, exactly the
+   namespaces Tailwind's theme uses. Both `@theme` sources are imported as
+   `reference inline`, so Tailwind writes resolved values into each utility
+   and emits no variables. The test compiles `admin.css` and fails on any
+   custom property other than Tailwind's private `--tw-*` ones.
+2. *Scoped reset.* Tailwind's global Preflight is not imported. An adapted
+   copy lives inside `@scope (.admin-root)`, the class only `AdminLayout`
+   sets, and inside `@layer admin-reset`: some utilities (`divide-y`,
+   `space-y-*`) have zero specificity, and an unlayered scoped reset would
+   beat them on scope proximity. The test fails if any element selector
+   appears outside that scope, or if the reset leaves its layer.
+3. *global.css steps aside for buttons.* The island's button rules (the lip,
+   the press, the hover brighten) have up to 0,2,1 specificity and would
+   beat any single utility class. They now carry
+   `:where(:not(.admin-root *))`, which adds no specificity, so the ~35 CSS
+   modules that override them are unaffected. The test fails if a `button`
+   rule in global.css lacks the exclusion.
+
+Utilities are unlayered on purpose: global.css is unlayered, and an
+unlayered rule beats any layered one, so layered utilities would lose to its
+bare `a` and heading rules. Utility generation is limited to admin files
+(`source(none)` plus explicit `@source` paths); a new admin file elsewhere
+must be added to that list.
+
+**Alternatives considered.**
+
+- *Bootstrap.* Faster to a finished-looking page, but it ships a large
+  stylesheet, its own palette (to be overridden to match the tokens), JS for
+  interactive parts, and a global reset (Reboot) that is much harder to
+  confine than a hand-scoped Preflight.
+- *daisyUI.* Fewest dependencies (a plugin, no JS), but less accessibility
+  behaviour built in and a more generic look.
+- *Tailwind Plus / Catalyst.* The most polished application screens, but
+  paid, and Catalyst adds Headless UI.
+- *Keep CSS Modules for admin.* Viable, and what the rest of the app does.
+  Rejected for admin because tables, forms and statuses were being
+  re-authored per page; a small component set is cheaper to extend.
+
+**Consequences.**
+
+- Two styling systems in one app. The boundary is the route: `/admin/*`
+  is Tailwind, everything else is CSS Modules. Child-facing and parent-facing
+  code must not import from `src/features/admin/ui/`.
+- `@scope` needs a 2024+ browser (Chrome 118, Safari 17.4, Firefox 146).
+  Acceptable for an internal tool; in an older browser the admin pages
+  render with browser-default margins and list bullets, not broken.
+- shadcn/ui upstream fixes are not pulled in automatically; vendored files
+  are updated by hand. The deliberate deviations (no `outline-none`, so the
+  island's tested focus ring stays; no dark-mode variants; Alert without a
+  hard-coded `role`) are listed in `src/features/admin/ui/variants.ts`.
+- `AssetAdmin.module.css` is deleted; the admin pages no longer import
+  `ParentDashboard.module.css` or `ChildDashboard.module.css`.
+
+## ADR-031: Islands and Adventures are an admin catalog overlaid on source-controlled content; Superusers are Admins with one extra group
+
+Status: Accepted (2026-09-27)
+
+`docs/ISLAND_ADVENTURE_MANAGEMENT.md` asks for admin pages that list,
+create, activate, and deactivate Islands and Adventures, with
+Superuser-only adventure deletion. It also says to prefer the established
+architecture over a parallel system, and the established architecture is
+that islands (`ISLAND_LOCATIONS`) and adventures (`ADVENTURE_TEMPLATES`)
+are TypeScript content packs, not database rows (ADR-009, ADR-011,
+ADR-013).
+
+**Decision, part A: a catalog overlay, not a content migration.** Three
+new models, `Island`, `Adventure`, and `AdventureModel`
+(amplify/data/resource.ts), hold what an administrator manages: name,
+descriptions, `active`, `sortOrder`, and which existing `Asset` records an
+adventure uses. `slug` is the join to the content: an `Island.slug` is an
+`ISLAND_LOCATIONS` slug, an `Adventure.slug` is an `ADVENTURE_TEMPLATES`
+slug. Steps, challenges, and grading stay in code. An admin-created record
+whose slug has no content is a catalog entry for content not yet authored
+and is never playable; the admin pages label it "No game content yet".
+"Import game content" on `/admin/islands` creates a row for every
+source-controlled island and adventure that has none, never overwriting an
+existing row. Story-arc adventures use pseudo-location slugs, so
+`STORY_ARC_ISLANDS` (`src/features/catalog/islandForTemplate.ts`) files
+each arc under the island its story leads to.
+
+**Decision, part B: absence means available.** A slug with no catalog row
+is playable, so a fresh environment and every test keep working before
+anyone imports. Only `active: false` takes content out of play:
+`isAdventureAvailable` (`src/features/catalog/availability.ts`) is
+`island.active && adventure.active`, and an adventure without its own row
+follows its code island's row. Deactivating an island never rewrites its
+adventures' flags. Enforcement is in `resumeOrStartSession`, the single
+path every route uses to start or resume play, plus the location lists
+(`WelcomeHarbor`, `WorldHubPage`) and `IslandLocationPage`. The child-side
+read fails open to "everything available": the catalog is a release
+control over curated content, not a safety boundary.
+
+**Decision, part C: Superusers are Admins plus one group.** A new
+`Superusers` Cognito group grants only `Adventure` delete. A Superuser is
+an `Admins` member who is also in `Superusers` (`adminAccessFromGroups` in
+`AuthContext.tsx`; `npm run grant-admin -- <email> --superuser` adds both).
+No second role system.
+
+**Decision, part D: deletion never touches child history, and is refused
+when it would mislead.** `AdventureSession` and everything under it are
+keyed by `templateSlug`, not by the catalog row's id, so deleting a row
+cannot cascade into progress. `deleteBlockReason` still refuses two cases:
+the slug has game content (without a row it would become available
+again), or any `AdventureSession` references it (deactivate instead). In
+practice only unplayed, admin-created entries can be deleted. Islands
+cannot be deleted by anyone (no delete rule).
+
+**Decision, part E: non-admins see the standard 404.** `RequireAdmin`
+renders `NotFound` for a signed-in non-admin instead of "Not authorized",
+so the admin section's routes are not disclosed. Signed-out visitors are
+still sent to sign-in, as for every protected route.
+
+**Consequences**
+
+- Signed-in parents can read `Island`/`Adventure` rows, including names of
+  inactive or unreleased entries; `createdBy`/`updatedBy` are Admins-only
+  at the field level and the child app reads through an explicit
+  selection set. Accepted: catalog names are not sensitive.
+- A parent who blocks the catalog request can still play an inactive
+  adventure (fail-open), and `AdventureSession.create` is owner-writable,
+  so the gate is not server-enforced. Same accepted limitation class as
+  `docs/AUTHORIZATION_REVIEW.md` section 5's progress-forgery row.
+- Slug uniqueness is checked by the client (`listIslandBySlug` /
+  `listAdventureBySlug`); DynamoDB cannot enforce it on a secondary index.
+- No thumbnails yet: the asset system has no image assets. No audit
+  events: there is no audit subsystem, and every write carries
+  `updatedBy` so one can be added cleanly.
+- The schema change needs a sandbox/pipeline deploy before any of this
+  works against a real backend.
+
+## ADR-032: Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies
+
+Status: Accepted (2026-10-04). Phases 1 to 9 of `docs/engine/10_IMPLEMENTATION_PHASES.md` are built: every active 3D region - Welcome Harbor, Pirate Builder Bay, Wonderwild Forest, Clockwork Harbor, the Dragon's Sanctuary and Storykeeper Castle - runs on the generic route.
+
+Adding a 3D region currently means a new route page, `*WorldView.tsx`,
+`*Scene.ts` and `*Region.ts`. The audit
+(`docs/platform/THREE_LOCATION_DUPLICATION_AUDIT.md`) found that most of
+that code is the same skeleton repeated six times, and that every
+`*Region.ts` is already plain numbers.
+
+**Decision, part A: one manifest type, plain JSON.**
+`ThreeLocationManifest`
+(`src/features/island-map/three/runtime/locationManifest.ts`) describes
+what a region contains and where: bounds, environment, checkpoints,
+colliders, open-sided buildings, decorative scenery (tiled ground, flat
+planes, instanced clusters, LOD placements, kit runs), NPC placements,
+collectibles, trigger zones, ambient movers, interactions, extensions and
+screen copy. It holds no functions, `three` objects or React components.
+`validateLocationManifest` rejects anything that is not plain JSON, so a
+manifest can later become an Admin draft and published snapshot without
+changing meaning.
+
+**Decision, part B: reuse, don't fork, the binding vocabulary.** A
+manifest's `interactions` are `WorldInteraction`s from
+`src/features/island-map/worldObjects.ts`, unchanged. An entity names an
+interaction id, and the existing `WorldAction` (TALK_TO, DISCOVER,
+START_ADVENTURE, START_STORY, NAVIGATE, SHOW_MESSAGE) hands off to the
+engine that owns the meaning. The manifest adds no adventure, quest,
+discovery or mastery semantics of its own.
+
+**Decision, part C: checkpoints stay in the World State layer.** The
+manifest lists checkpoint ids, not positions. `discovery/checkpoints.ts`
+keeps owning ids, labels and coordinates (ADR-008). Validation requires
+the list to equal the region's authored checkpoints in authored order,
+because `resolveSpawnCheckpoint` falls back to the first. Saved
+`ChildWorldState.lastCheckpointId` values stay valid.
+
+**Decision, part D: the key is the region id, not the location slug.**
+`regionId` is the same string `RegionCheckpoint.regionId` uses. Welcome
+Harbor is the hub, not an `IslandLocation`, so `locationSlug` is optional
+and validated against `ISLAND_LOCATIONS` (including world ownership) when
+present.
+
+**Decision, part E: validation takes registries as input.** The same
+pattern as `worlds/validate.ts`. `SOURCE_MANIFEST_REGISTRIES` builds them
+from source-controlled content today, and an Admin publish step can pass
+the published catalog later. The extension registry is empty until the
+first bespoke mechanic moves behind it, so a manifest declaring an
+extension fails validation until then.
+
+**Decision, part F: one route, `/island/:childId/explore/:regionId`.**
+`LocationWorldPage` serves every manifest-driven location, and the view
+reports a region with no manifest calmly. The roadmap suggested
+`location/:locationSlug`, but `locations/:locationSlug` already belongs to
+the 2D location card and `world/*` to the Phaser pages, so a distinct
+`explore/` segment keeps the three apart instead of one letter apart. The
+parameter is the region id (part D), not a location slug. A region's old
+per-region URL becomes a `LegacyLocationWorldRedirect` (history replaced,
+query string kept) when that region moves over; `world/welcome-harbor-3d`
+is the first. Links use `locationWorldPath()` rather than building the
+string.
+
+**Decision, part G: an extension has a scene half and a React half under
+one id.** The scene half (`WorldExtension`, `runtime/extensionRegistry.ts`)
+is mounted by the engine with a deliberately small context: add or remove
+a collider by id, find a scenery item's root by id, play an NPC gesture,
+load a model, per-frame callbacks, a clock. It may return an `api`. The
+React half (`LocationViewExtension`, `runtime/viewExtensionRegistry.ts`)
+may claim an interaction for some children, which the view checks on every
+way into an interaction, and renders an overlay on the stage, receiving
+the scene half's `api`. Config is plain JSON that the extension parses and
+validates itself at runtime. The shipped registries live in
+`three/extensions/index.ts`, outside `runtime/`, so the runtime imports no
+mechanic. The first extension is `tide-trial` (Pirate Builder Bay's "Beat
+the Tide"), moved out of `pirateBuilderBayScene.ts` and
+`PirateBuilderBayWorldView.tsx` with its behaviour unchanged.
+
+Migrating a second, structurally different region added generic vocabulary
+rather than special cases: `BOX` and `MODEL` scenery, per-instance cluster
+scale, interactive `props` with an optional one-shot clip, and
+`requirements` (the existing `WorldRequirement`) on scenery and colliders,
+evaluated once when the scene is built. A broken versus mended bridge is
+two scenery items and a collider with opposite requirements, not a branch.
+
+**Decision, part H: a binding is data, and the engine it binds to is
+unchanged.** Phase 8 moved the two kinds of direct binding the audit found
+in region code behind declarative vocabulary:
+
+- **Adventure step bindings.** A thing in a room standing for an option of
+  an adventure step is `AdventureStepBinding`
+  (`runtime/adventureStepBindings.ts`), and every lookup over a table of
+  them - forward, reverse, per step, and a seated row to an `ordering`
+  answer - lives there once. `castleChoiceBindings.ts` and
+  `wonderWallBindings.ts` keep their authored tables and delegate, and
+  `ThreeLocationManifest.adventureBindings` is where each table moves when
+  its region migrates. `findAdventureBindingIssues` is the authoring check,
+  run against the real adventure content: the adventure, step and option
+  must exist, every option of a bound step must have exactly one entity, an
+  entity may mean one thing per adventure (one set of rooms, two age bands)
+  and no more, and every bound entity must be placed. The Adventure Engine
+  still owns every transition, hint and judgement of correctness; a binding
+  resolves to an option id and stops.
+- **Pickup world changes.** A collectible may declare `worldChange`, which
+  the view hands to the existing idempotent `recordWorldChangeOnce` with
+  provenance `exploration:<entityId>`, plus an authored `pickUpMessage`.
+  Validation requires the matching `WORLD_CHANGE_ABSENT` requirement on the
+  same collectible, so a recorded pickup cannot reappear on the next visit -
+  the live Clockwork Harbor bug the audit recorded, refused by the
+  validator rather than re-made per region.
+
+What Phase 8 deliberately did not add: a generic in-world *host* for an
+adventure step (the castle's own session UI stays its own until Phase 9
+migrates it), prop world changes (Dragon's Sanctuary's runes, which carry
+a carry-and-place mechanic that wants an extension), and requirement-gated
+lighting, which no migrated region needs yet.
+
+**Decision, part I: a region's placeholder art is an extension, not
+manifest vocabulary.** Phase 9 migrated three more regions, and each needed
+something the manifest could not say. Two became generic vocabulary, because
+they are what *any* region wants:
+
+- `SCATTER` scenery and `TILED_GROUND` `coverage: 'COVER'` - deterministic
+  placements through the part of a region a child cannot walk on, and a tiled
+  grid that covers its area edge to edge. Wonderwild Forest's tree line is
+  derived as the complement of its walkable set, so its trees cannot be hand
+  listed; `walkableProbe` reads the same colliders the controller does, and
+  the manifest test proves the scatter lands exactly where the per-region
+  scene put it.
+- `environment.variants`, `copy.statusLines` and `copy.thingsToDoNotes` -
+  requirement-gated sky, lighting, and the one-line "the lighthouse is dark"
+  status each region's view used to compute with a ternary. Also
+  `ITEM_ABSENT`, the mirror of `ITEM_OWNED` (a dark cave mouth and a lit one
+  are two props with opposite requirements), `elevation` on a collectible
+  (a gear on a roof line) and `requirements` on a prop.
+
+The third thing stayed bespoke, and the shape it took is the decision worth
+recording. Clockwork Harbor's machinery and the Dragon's Sanctuary's hearth,
+sockets, gates and dragon are `three` primitives standing in for asset
+inventories neither roadmap has authored yet. Rather than grow the manifest a
+geometry language for a torus a GLB will replace, **an interactive entity may
+declare no `assetId` at all**: the runtime still creates its root, raycasts
+it, labels it and interacts with it, and an extension fills that root in
+through `WorldExtensionContext.entityRoot`. So `clockwork-machinery` and
+`sanctuary-art` own nothing but appearance - every focus, label, interaction
+and pickup stays generic, and when the real art lands the manifest gains
+`assetId`s and the extensions shrink to the parts that actually move.
+
+Two behaviour changes came with the migration, both deliberate:
+- Picking up a Golden Gear now records `goldenGearChangeKey`, so it stays
+  found. The per-region view only toasted, which is the bug the audit
+  recorded against Clockwork Harbor.
+- The sanctuary's three rune hints are now per rune, so a hint for a rune the
+  child already has stops being shown instead of a count quietly going down.
+
+**Decision, part J: a region whose learning runs in the room gets a
+companion, not an overlay.** Storykeeper Castle was the last region to
+migrate and the only one whose bespoke part was *behaviour* rather than art,
+and that difference is what the extension API had to grow for.
+
+An `Overlay` opens when a child opens an interaction and closes again. The
+castle needs three things that cannot wait for that: a session left open
+yesterday resumes with the child's portrait already lit, Keeper Quill's
+gestures follow the rung of the hint ladder they are on, and the reticle says
+the option's own words from whichever of two adventures their band plays. So
+a view extension may now declare a `Companion`, mounted for the whole visit,
+which receives the region's event bus, the child's world state, the AI
+setting, a toast, a focus-label override, the session clock's `limitReached`,
+and both the interaction it claimed and whatever panel is open. The scene
+half gained `interceptInteract` (a plate going into a socket is a move inside
+a puzzle, not a domain event), `npcAnimator` (a gesture that plays once and
+*holds*, because wayfinding must still be there when the child looks up from
+the HUD) and `setFocusable` (a thing in the child's hands leaves the
+reticle's reach).
+
+What that bought: the castle's view-level branching is gone rather than
+moved. Its authored interactions already carried the requirements the view
+used to switch on - the story hall before and after a story is told, the
+secret door before and after the arc - so the generic walk-in path resolves
+all of them, and the two that open *learning in the room* are the only ones
+the extension claims. The manifest carries the rooms, every derived wall,
+the light per room, the twenty zones and the castle's own binding table.
+
+One thing this part deliberately does not do: give the companion the
+construction-time options the per-region engine took. A manifest-built scene
+has no equivalent, so restored session state is applied by an effect as soon
+as the scene exists, which is idempotent and order-independent.
+
+**Decision, part K: an asset id reaches a loader only through a resolver,
+and an extension declares what it loads.** Engine Phase 10 (asset
+integration cleanup). Three rules:
+
+1. `AssetResolver` (`three/assets/assetResolver.ts`) is the one step between
+   an id and a url. `assetLoader.ts` is now `createAssetLoader(resolver)`,
+   and the module-level functions every scene calls are one loader bound to
+   `BUNDLED_ASSET_RESOLVER`. `assetService.ts`'s published-slug lookup is
+   the second resolver, `PUBLISHED_ASSET_RESOLVER`. It is **not** handed to
+   the child's scene. `Asset` is Admins-only until the asset manager's
+   publishing phase gives parents a published-only read path (ADR-030), and
+   before then it would add a lookup that always fails to every scene load.
+   When that path exists, switching is one line in `assetLoader.ts`.
+2. A world extension declares `assetIds(config)`. The validator checks those
+   ids against the catalogue like the manifest's own, and the runtime
+   rejects `loadModel` for any id the binding did not declare. Enforcing it
+   is what makes the declaration trustworthy enough to drive (3).
+3. Per-location asset usage is derived from manifests and declarations
+   (`runtime/locationAssetUsage.ts`), not kept by hand. The admin Island
+   page's "Scene models" now covers every 3D location rather than Pirate
+   Builder Bay alone, and the same index is what a future delete guard on
+   `Asset` will read (`docs/engine/06_ASSET_SYSTEM.md` "Admin Asset Usage").
+
+No new asset model (acceptance AS1): `Asset`/`AssetVersion` are unchanged,
+and a published `Asset.slug` still shares its namespace with the bundled
+catalogue's ids. Hard-coded asset paths are confined to the bundled
+catalogue, and `noHardCodedAssetUrls.test.ts` keeps them there.
+
+**Not checked for an adventure binding:** that the bound adventure is
+authored for the manifest's own location. A story arc's chapters belong to
+the arc rather than the room that hosts them (the castle's are authored for
+`castle-secret-passage`), so a region binding them is correct rather than
+suspect.
+
+**Consequences.**
+- `runtime/manifests/welcomeHarbor.ts` expresses Welcome Harbor with zero
+  extensions, built from `welcomeHarborRegion.ts`'s constants so the two
+  cannot drift. Nothing renders it yet, and the existing scene is
+  untouched.
+- Collectible `label` is authored but not yet shown: `WorldHud` renders
+  every crosshair label as "<label>: press E to talk", so only NPCs get one
+  (`manifestBindings.focusLabel`) until the HUD can take a verb.
+- The runtime (`createLocationEngine.ts`) takes its renderer, assets, input,
+  resize and frame scheduling as injected dependencies. That is what lets
+  the runtime acceptance tests (W1 to W7) run in jsdom. Disposal frees only
+  runtime-created geometry and materials, because loaded glTF data is shared
+  through the asset loader's cache.
+- Bespoke behaviour is mounted from `extensionRegistry.ts` by id. The
+  runtime directory may not name any location (`noLocationBranching.test.ts`).
+- Still open: world-change variants (Phase 8), and whether checkpoint
+  positions move into the manifest when Admin authoring arrives. That last
+  question changes ADR-008's layering and needs its own decision.
+
+## ADR-026: Multiplayer runs on a separate authoritative room server over WebSocket; the engine only renders it
+
+Status: Accepted (2026-10-13), with the amendments at the end of this
+entry. Written for Phase 0 of `docs/MATH_MAYHEM_MULTIPLAYER_ROADMAP.md`;
+findings behind it: `docs/multiplayer/PHASE_0_BASELINE.md`. Phase 1 is
+built on it: `docs/multiplayer/MULTIPLAYER_SERVER.md`.
+
+**Context.** The roadmap asks for real-time shared rooms: presence,
+synchronised movement, a cooperative objective, server-decided spawns and
+rewards. The only shared-session mechanism today is `CoopSession`
+(ADR-006), where every change is an AppSync mutation, so every update is a
+DynamoDB write. That suits discrete co-op actions. It does not suit
+movement at several updates a second, which the roadmap rules out writing
+to DynamoDB.
+
+**Decision, part A: transport and hosting.** Options considered:
+
+| Option | Authoritative in-memory state | Per-update DB write | New deps | Always-on cost |
+|---|---|---|---|---|
+| Extend `CoopSession` (AppSync mutations + subscriptions) | no | yes | none | none |
+| API Gateway WebSocket + Lambda | no (state must live in DynamoDB) | yes | none | none |
+| AppSync Events (managed pub/sub) | no (relay; logic per message in handlers) | no for relay, yes for any authoritative check | none | none |
+| Plain `ws` Node server on ECS Fargate | yes | no | `ws` | Fargate task + load balancer |
+| **Colyseus Node server on ECS Fargate** | yes | no | `colyseus`, `@colyseus/schema`, `colyseus.js` | Fargate task + load balancer |
+
+Proposed: **Colyseus** (Node.js, TypeScript) over WSS. It already provides
+rooms, seat reservation, capacity, heartbeats and reconnection tokens,
+which are most of Phase 1. The serverless options cannot hold authoritative
+room state without a database write per decision.
+
+Room logic (presence, movement validation, the vault state machine, spawn
+decisions) is written as **pure TypeScript modules with no Colyseus
+import**, tested in Vitest like the adventure engine. A thin Colyseus room
+wraps them. If Colyseus proves wrong, swapping to `ws` replaces the wrapper,
+not the rules. The client talks to a `MultiplayerTransport` interface, so
+tests use an in-memory transport and the engine never imports a network
+library.
+
+Hosting: local Node process for development (`ws://localhost`, dev origin
+only). Production, later and only once Phase 1 passes locally: one ECS
+Fargate task behind an Application Load Balancer with an ACM certificate
+(TLS terminates there), declared as custom CDK in `amplify/backend.ts`
+beside the existing custom resources, with a cost budget alarm like the
+Bedrock one. One task means no cross-node presence store is needed; scaling
+past one task is out of scope for the first playable milestone.
+
+**Decision, part B: world instance ownership.** A room is one instance of
+one region for one party: key `(regionId, partyId)`. The server owns its
+state in memory and drops it when the last player leaves or after a grace
+period. The Three.js runtime stays a renderer: a registered scene extension
+draws remote players and spawns, and the view half sends inputs. No region
+check enters `runtime/` (`noLocationBranching.test.ts` still applies).
+
+**Decision, part C: player identity.** The client sends its Cognito **ID
+token** and the chosen `childProfileId` when joining. The server:
+
+1. verifies the token's signature, issuer, audience and expiry against the
+   user pool's public keys (`aws-jwt-verify`, a fourth new dependency);
+2. reads that `ChildProfile` from DynamoDB (read-only IAM on that one
+   table) and requires `ownerSub === token.sub`, the same check
+   `claimCoopSlot` and `submitAdventureAnswer` make;
+3. assigns the player id itself. It never trusts a client-supplied child id,
+   display name or room membership.
+
+Other clients receive only a server-assigned player id, `avatarKey` and a
+slot colour. No nickname, photo, parent data or age band crosses the wire.
+Reconnects re-present a token; a seat whose token expired is released.
+
+**Decision, part D: who may share a room.** Unchanged from ADR-006 for the
+MVP: **children of the same parent account only**, possibly on two devices
+signed in to that account. Cross-family parties need their own decision
+(consent, a sharing model across owners, moderation and abuse response)
+and are not covered here. Public matchmaking stays off.
+
+**Decision, part E: what is persisted.** Nothing per frame. Positions,
+presence and spawn state live only in room memory. Durable outcomes go
+through the existing domain paths: answers through `submitAdventureAnswer`,
+world changes as `WorldChange`, items into `ChildInventory`. The server
+logs counts and timings (rooms, players, message rates, latency) keyed by a
+room id, never child ids, names or positions.
+
+**Decision, part F: rewards.** The room server decides that a child earned
+a cooperative reward. The grant is a conditional DynamoDB write to that
+child's `ChildInventory` keyed on a stable rule id (the idempotency key
+`grantRewards` already uses), so a replay or reconnect cannot grant twice.
+It reuses the pure `src/features/rewards/` modules, as the Lambdas reuse
+adventure code. Exact wiring is a Phase 4 decision.
+
+**Decision, part G: movement authority.** Client-predicted, server-checked.
+Each client moves locally as today and sends its pose at most 10 times a
+second; the server rejects poses outside the manifest bounds or faster than
+the walk speed plus a tolerance, and broadcasts snapshots that clients
+interpolate. Remote avatars are never colliders, trigger volumes or focus
+targets, so they cannot set off another child's NPC, checkpoint or pickup.
+
+**Decision, part H: feature flag.** Multiplayer is off unless all of these
+hold: a build flag (`VITE_MULTIPLAYER_ENABLED`) and a server URL
+(`VITE_MULTIPLAYER_URL`) are set, the region's manifest opts in through a
+registered extension, and (from Phase 3) the parent has turned it on. Every
+existing region stays single-player.
+
+**Consequences.**
+- Amends ADR-006's v1 deferral of "continuous cursor/telemetry-level
+  presence" for rooms on this server. ADR-006's rule that **no free-form
+  input crosses between children** is unchanged: Phase 3's signals are a
+  fixed, authored set.
+- Adds four runtime dependencies and one always-on service with a monthly
+  cost. Both need approval before Phase 1.
+- Roadmap Phase 6 (rarity tiers, rare random drops) conflicts with ADR-013
+  part A and CLAUDE.md pillar 7. This ADR does not resolve that. Phase 6
+  needs its own decision first.
+
+**Amendments on acceptance (2026-10-13).**
+- *Packages.* Colyseus is now 0.18 and its browser client was renamed, so
+  the installed set is `@colyseus/core` and `@colyseus/ws-transport` (in
+  place of the `colyseus` meta-package, which also pulls in a monitor,
+  playground, Redis drivers and an auth module), `@colyseus/sdk` (the
+  renamed `colyseus.js`), `aws-jwt-verify`, and `express`, a required peer
+  of the WebSocket transport. All are pinned to exact versions at least two
+  weeks old. `@colyseus/schema` is only a transitive dependency: rooms send
+  plain, runtime-validated messages rather than schema state.
+- *Part C, step 2.* The server reads the child profile from **AppSync with
+  the caller's own ID token** instead of DynamoDB through its own IAM role.
+  `ChildProfile`'s owner rule then does the ownership check, the `ownerSub`
+  comparison still runs on top, and the server needs no AWS credentials or
+  table names.
+- *Part D.* Confirmed by the product owner: same-family rooms only for the
+  MVP.

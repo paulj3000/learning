@@ -14,7 +14,7 @@
   },
   "overrides": [
     {
-      "files": ["scripts/**"],
+      "files": ["scripts/**", "server/**"],
       "rules": {
         "no-console": "off"
       }

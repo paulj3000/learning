@@ -6,9 +6,18 @@ import { getIslandLocation, isLocationUnlocked } from '../features/island/locati
 import { getHomeWorld } from '../features/worlds/worlds';
 import { getAdventureTemplatesForLocation } from '../features/adventures/content';
 import { listAllWorldChanges } from '../features/adventures/api';
+import { isIslandAvailable } from '../features/catalog/availability';
+import { loadCatalogSnapshot } from '../features/catalog/availabilityApi';
 import { getChildProfile } from '../features/child-profile/api';
 import type { WorldChange } from '../features/adventures/api';
 import type { ChildProfile } from '../features/child-profile/api';
+import { locationWorldPath } from '../features/island-map/three/runtime/locationWorldPath';
+import {
+  DRAGONS_SANCTUARY_REGION_ID,
+  PIRATE_BUILDER_BAY_REGION_ID,
+  STORYKEEPER_CASTLE_REGION_ID,
+  WONDERWILD_FOREST_REGION_ID,
+} from '../features/discovery/checkpoints';
 
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -27,6 +36,7 @@ export function IslandLocationPage() {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
   const [allWorldChanges, setAllWorldChanges] = useState<WorldChange[]>([]);
+  const [isAvailable, setIsAvailable] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,9 +47,10 @@ export function IslandLocationPage() {
         return;
       }
       try {
-        const [child, changes] = await Promise.all([
+        const [child, changes, catalog] = await Promise.all([
           getChildProfile(childId),
           listAllWorldChanges(childId),
+          loadCatalogSnapshot(),
         ]);
         if (cancelled) return;
         if (!child) {
@@ -48,6 +59,7 @@ export function IslandLocationPage() {
         }
         setChildProfile(child);
         setAllWorldChanges(changes);
+        setIsAvailable(isIslandAvailable(catalog, location.slug));
         setLoadState('ready');
       } catch {
         if (cancelled) return;
@@ -96,6 +108,22 @@ export function IslandLocationPage() {
   }
 
   const worldChangeKeys = allWorldChanges.map((change) => change.changeKey);
+  if (!isAvailable) {
+    // Deactivated by an admin (ADR-031): a bookmarked URL still lands somewhere calm.
+    return (
+      <IslandLayout childId={childId}>
+        <div className={styles.content}>
+          <p className={styles.decoration}>
+            This part of the island is resting right now. Let us explore somewhere else.
+          </p>
+          <Link className={styles.backLink} to={backTo}>
+            Back to the map
+          </Link>
+        </div>
+      </IslandLayout>
+    );
+  }
+
   if (!isLocationUnlocked(location, worldChangeKeys)) {
     return (
       <IslandLayout childId={childId}>
@@ -159,7 +187,10 @@ export function IslandLocationPage() {
           </Link>
         ) : null}
         {location.slug === 'pirate-builder-bay' ? (
-          <Link className={styles.walkLink} to={`/island/${childId}/world/pirate-builder-bay-3d`}>
+          <Link
+            className={styles.walkLink}
+            to={locationWorldPath(childId, PIRATE_BUILDER_BAY_REGION_ID)}
+          >
             Peek at an early 3D preview (new!)
           </Link>
         ) : null}
@@ -178,7 +209,10 @@ export function IslandLocationPage() {
           first, not which routes exist.
         */}
         {location.slug === 'wonderwild-forest' && childProfile.ageBand !== 'SPROUT' ? (
-          <Link className={styles.startLink} to={`/island/${childId}/world/wonderwild-forest-3d`}>
+          <Link
+            className={styles.startLink}
+            to={locationWorldPath(childId, WONDERWILD_FOREST_REGION_ID)}
+          >
             Walk into the forest
           </Link>
         ) : null}
@@ -195,12 +229,18 @@ export function IslandLocationPage() {
           </Link>
         ) : null}
         {location.slug === 'storykeeper-castle' ? (
-          <Link className={styles.walkLink} to={`/island/${childId}/world/storykeeper-castle-3d`}>
+          <Link
+            className={styles.walkLink}
+            to={locationWorldPath(childId, STORYKEEPER_CASTLE_REGION_ID)}
+          >
             Peek at an early 3D preview (new!)
           </Link>
         ) : null}
         {location.slug === 'dragons-sanctuary' ? (
-          <Link className={styles.walkLink} to={`/island/${childId}/world/dragons-sanctuary`}>
+          <Link
+            className={styles.walkLink}
+            to={locationWorldPath(childId, DRAGONS_SANCTUARY_REGION_ID)}
+          >
             Try exploring the sanctuary (new!)
           </Link>
         ) : null}

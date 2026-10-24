@@ -54,7 +54,8 @@ describe('Wonderwild Forest route, by age band', () => {
   it('offers the 3D forest first to a Pathfinder, unlabelled as a preview', async () => {
     renderLocation('wonderwild-forest', 'PATHFINDER');
     const walkIn = await screen.findByRole('link', { name: 'Walk into the forest' });
-    expect(walkIn).toHaveAttribute('href', '/island/child-1/world/wonderwild-forest-3d');
+    // Engine Phase 9: the forest runs on the generic route now.
+    expect(walkIn).toHaveAttribute('href', '/island/child-1/explore/wonderwild-forest');
     // The framing this replaces. A front door is not a "preview".
     expect(screen.queryByText(/preview/i)).not.toBeInTheDocument();
   });
@@ -90,6 +91,8 @@ describe('Wonderwild Forest route, by age band', () => {
     renderLocation('storykeeper-castle', 'PATHFINDER');
     expect(
       await screen.findByRole('link', { name: /Peek at an early 3D preview/ }),
-    ).toHaveAttribute('href', '/island/child-1/world/storykeeper-castle-3d');
+      // Engine Phase 9: the castle runs on the generic route now. What it is
+      // *called* is still a preview, which is SC-11's call to change.
+    ).toHaveAttribute('href', '/island/child-1/explore/storykeeper-castle');
   });
 });

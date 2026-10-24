@@ -11,6 +11,14 @@ export type WorldRequirement =
   | { type: 'WORLD_CHANGE_ABSENT'; changeKey: string }
   /** Phase 26: the spot only exists once the child is carrying something. */
   | { type: 'ITEM_OWNED'; itemId: string }
+  /**
+   * The mirror of `ITEM_OWNED`, as `WORLD_CHANGE_ABSENT` mirrors
+   * `WORLD_CHANGE_PRESENT` (engine Phase 9). It is what lets a thing have a
+   * before and an after without a branch in a renderer: a dark cave mouth
+   * requires the jar to be absent, the lit one requires it owned, and
+   * exactly one of them is ever built.
+   */
+  | { type: 'ITEM_ABSENT'; itemId: string }
   /** Phase 26: the spot only exists once another secret has been found. */
   | { type: 'DISCOVERY_PRESENT'; discoveryId: string };
 
@@ -108,9 +116,26 @@ function evaluateRequirement(
       return !context.worldChangeKeys.includes(requirement.changeKey);
     case 'ITEM_OWNED':
       return (context.ownedItemIds ?? []).includes(requirement.itemId);
+    case 'ITEM_ABSENT':
+      return !(context.ownedItemIds ?? []).includes(requirement.itemId);
     case 'DISCOVERY_PRESENT':
       return (context.discoveryIds ?? []).includes(requirement.discoveryId);
   }
+}
+
+/**
+ * Whether every requirement in `requirements` is currently satisfied. Absent
+ * or empty means always. Shared by interactions and by the generic 3D
+ * runtime's manifest scenery and colliders (ADR-032).
+ */
+export function areRequirementsMet(
+  requirements: readonly WorldRequirement[] | undefined,
+  context: WorldInteractionContext,
+): boolean {
+  if (!requirements || requirements.length === 0) {
+    return true;
+  }
+  return requirements.every((requirement) => evaluateRequirement(requirement, context));
 }
 
 /** Whether every requirement on this interaction is currently satisfied. */
@@ -118,10 +143,7 @@ export function isInteractionAvailable(
   interaction: WorldInteraction,
   context: WorldInteractionContext,
 ): boolean {
-  if (!interaction.requirements || interaction.requirements.length === 0) {
-    return true;
-  }
-  return interaction.requirements.every((requirement) => evaluateRequirement(requirement, context));
+  return areRequirementsMet(interaction.requirements, context);
 }
 
 export function findInteraction(

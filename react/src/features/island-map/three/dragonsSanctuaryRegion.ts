@@ -10,9 +10,8 @@ import {
  *
  * Plain numbers rather than `THREE.Vector3`/`THREE.Box3`, the same split
  * `clockworkHarborRegion.ts` and `welcomeHarborRegion.ts` use: this file
- * stays unit-testable with no rendering context, and
- * `dragonsSanctuaryScene.ts` is the only place these numbers become `three`
- * objects.
+ * stays unit-testable with no rendering context, and the region's manifest
+ * (`runtime/manifests/dragonsSanctuary.ts`) is built from these numbers.
  *
  * ## This region has no 2D counterpart
  *
@@ -458,8 +457,8 @@ function blockColliders(
  * Every solid the first-person controller collides with, as authored rects.
  *
  * Building walls are derived here rather than rebuilt in the scene, which is
- * the one place this region deliberately departs from `clockworkHarborScene.
- * ts`: that file computes its lighthouse wall boxes itself, so the walls a
+ * the one place this region deliberately departed from Clockwork Harbor's
+ * old per-region scene, which computed its lighthouse wall boxes itself, so the walls a
  * child bumps into are not covered by any unit test. Deriving them from
  * `wallSides` in the region module means the "no checkpoint is inside a
  * collider" and "the doorway is really open" invariants test the same

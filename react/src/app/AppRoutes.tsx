@@ -14,6 +14,16 @@ import { StoryKeepsakes } from '../routes/StoryKeepsakes';
 import { ChildDashboard } from '../routes/ChildDashboard';
 import { CoopSessionNew } from '../routes/CoopSessionNew';
 import { WelcomeHarbor } from '../routes/WelcomeHarbor';
+import { LegacyLocationWorldRedirect } from '../routes/LegacyLocationWorldRedirect';
+import { LOCATION_WORLD_ROUTE } from '../features/island-map/three/runtime/locationWorldPath';
+import {
+  CLOCKWORK_HARBOR_REGION_ID,
+  DRAGONS_SANCTUARY_REGION_ID,
+  PIRATE_BUILDER_BAY_REGION_ID,
+  STORYKEEPER_CASTLE_REGION_ID,
+  WELCOME_HARBOR_REGION_ID,
+  WONDERWILD_FOREST_REGION_ID,
+} from '../features/discovery/checkpoints';
 import { IslandLocationPage } from '../routes/IslandLocationPage';
 import { AdventurePage } from '../routes/AdventurePage';
 import { AdventureLog } from '../routes/AdventureLog';
@@ -27,9 +37,16 @@ import { AdminChildProgress } from '../routes/AdminChildProgress';
 import { AdminAssets } from '../routes/AdminAssets';
 import { AdminModelAssets } from '../routes/AdminModelAssets';
 import { AdminNewModelAsset } from '../routes/AdminNewModelAsset';
+import { AdminIslands } from '../routes/AdminIslands';
+import { AdminIslandForm } from '../routes/AdminIslandForm';
+import { AdminIslandDetail } from '../routes/AdminIslandDetail';
+import { AdminAdventures } from '../routes/AdminAdventures';
+import { AdminAdventureForm } from '../routes/AdminAdventureForm';
+import { AdminAdventureDetail } from '../routes/AdminAdventureDetail';
 import { RequireParent } from '../features/auth/RequireParent';
 import { RequireGuest } from '../features/auth/RequireGuest';
 import { RequireAdmin } from '../features/auth/RequireAdmin';
+import { AdminLayout } from '../features/admin/AdminLayout';
 
 /**
  * Lazy-loaded: this route (transitively) imports `phaser`, a large library
@@ -55,11 +72,6 @@ const WonderwildForestWorldPage = lazy(() =>
 const StorykeeperCastleWorldPage = lazy(() =>
   import('../routes/StorykeeperCastleWorldPage').then((module) => ({
     default: module.StorykeeperCastleWorldPage,
-  })),
-);
-const DragonsSanctuaryWorldPage = lazy(() =>
-  import('../routes/DragonsSanctuaryWorldPage').then((module) => ({
-    default: module.DragonsSanctuaryWorldPage,
   })),
 );
 const FossilRidgeCampWorldPage = lazy(() =>
@@ -89,44 +101,14 @@ const ThreeSandboxWorldPage = lazy(() =>
   })),
 );
 
-/** Same lazy-loading rationale as `ThreeSandboxWorldPage` above, for Phase 32's real Welcome Harbor region. */
-const WelcomeHarborWorldPage = lazy(() =>
-  import('../routes/WelcomeHarborWorldPage').then((module) => ({
-    default: module.WelcomeHarborWorldPage,
-  })),
-);
-
 /**
- * Phase 33's first-person Pirate Builder Bay region, named with a `3D`
- * suffix because `PirateBuilderBayWorldPage` above already owns the
- * un-suffixed name for the Phase 11 Phaser route.
+ * The one page for every manifest-driven 3D location (engine Phase 6,
+ * ADR-032), lazy for the same reason as `ThreeSandboxWorldPage` above: it
+ * pulls in `three`. Welcome Harbor was the first region on it.
  */
-const PirateBuilderBayWorldPage3D = lazy(() =>
-  import('../routes/PirateBuilderBayWorldPage3D').then((module) => ({
-    default: module.PirateBuilderBayWorldPage3D,
-  })),
-);
-
-const StorykeeperCastleWorldPage3D = lazy(() =>
-  import('../routes/StorykeeperCastleWorldPage3D').then((module) => ({
-    default: module.StorykeeperCastleWorldPage3D,
-  })),
-);
-
-const WonderwildForestWorldPage3D = lazy(() =>
-  import('../routes/WonderwildForestWorldPage3D').then((module) => ({
-    default: module.WonderwildForestWorldPage3D,
-  })),
-);
-
-/**
- * Clockwork Harbor (`docs/regions/clockwork.md`). No `3D` suffix: unlike the
- * bay and the castle, this region has no earlier Phaser route to disambiguate
- * from - it is first-person from its first commit.
- */
-const ClockworkHarborWorldPage = lazy(() =>
-  import('../routes/ClockworkHarborWorldPage').then((module) => ({
-    default: module.ClockworkHarborWorldPage,
+const LocationWorldPage = lazy(() =>
+  import('../routes/LocationWorldPage').then((module) => ({
+    default: module.LocationWorldPage,
   })),
 );
 
@@ -258,13 +240,7 @@ export function AppRoutes() {
       />
       <Route
         path="/island/:childId/world/dragons-sanctuary"
-        element={
-          <RequireParent>
-            <Suspense fallback={<p>Loading the Dragon's Sanctuary...</p>}>
-              <DragonsSanctuaryWorldPage />
-            </Suspense>
-          </RequireParent>
-        }
+        element={<LegacyLocationWorldRedirect regionId={DRAGONS_SANCTUARY_REGION_ID} />}
       />
       <Route
         path="/island/:childId/world/fossil-ridge-camp"
@@ -307,54 +283,40 @@ export function AppRoutes() {
         }
       />
       <Route
-        path="/island/:childId/world/welcome-harbor-3d"
+        path={LOCATION_WORLD_ROUTE}
         element={
           <RequireParent>
-            <Suspense fallback={<p>Loading Welcome Harbor...</p>}>
-              <WelcomeHarborWorldPage />
+            <Suspense fallback={<p>Loading...</p>}>
+              <LocationWorldPage />
             </Suspense>
           </RequireParent>
         }
+      />
+      {/* Pre-Phase-6 URL, kept working for bookmarks and old links. */}
+      <Route
+        path="/island/:childId/world/welcome-harbor-3d"
+        element={<LegacyLocationWorldRedirect regionId={WELCOME_HARBOR_REGION_ID} />}
       />
       <Route
         path="/island/:childId/world/pirate-builder-bay-3d"
-        element={
-          <RequireParent>
-            <Suspense fallback={<p>Loading Pirate Builder Bay...</p>}>
-              <PirateBuilderBayWorldPage3D />
-            </Suspense>
-          </RequireParent>
-        }
+        element={<LegacyLocationWorldRedirect regionId={PIRATE_BUILDER_BAY_REGION_ID} />}
       />
       <Route
         path="/island/:childId/world/wonderwild-forest-3d"
-        element={
-          <RequireParent>
-            <Suspense fallback={<p>Loading Wonderwild Forest...</p>}>
-              <WonderwildForestWorldPage3D />
-            </Suspense>
-          </RequireParent>
-        }
+        element={<LegacyLocationWorldRedirect regionId={WONDERWILD_FOREST_REGION_ID} />}
       />
       <Route
         path="/island/:childId/world/storykeeper-castle-3d"
-        element={
-          <RequireParent>
-            <Suspense fallback={<p>Loading Storykeeper Castle...</p>}>
-              <StorykeeperCastleWorldPage3D />
-            </Suspense>
-          </RequireParent>
-        }
+        element={<LegacyLocationWorldRedirect regionId={STORYKEEPER_CASTLE_REGION_ID} />}
       />
+      {/*
+        Clockwork Harbor (`docs/regions/clockwork.md`). No `3D` suffix: unlike
+        the bay and the castle, it never had a Phaser route to disambiguate
+        from. Engine Phase 9 moved it onto the generic one.
+      */}
       <Route
         path="/island/:childId/world/clockwork-harbor"
-        element={
-          <RequireParent>
-            <Suspense fallback={<p>Loading Clockwork Harbor...</p>}>
-              <ClockworkHarborWorldPage />
-            </Suspense>
-          </RequireParent>
-        }
+        element={<LegacyLocationWorldRedirect regionId={CLOCKWORK_HARBOR_REGION_ID} />}
       />
       <Route
         path="/island/:childId/travel"
@@ -425,46 +387,31 @@ export function AppRoutes() {
           </RequireParent>
         }
       />
+      {/* One RequireAdmin gate and one AdminLayout (Tailwind, ADR-023) for every admin page. */}
       <Route
         path="/admin"
         element={
           <RequireAdmin>
-            <AdminDashboard />
+            <AdminLayout />
           </RequireAdmin>
         }
-      />
-      <Route
-        path="/admin/children/:childId"
-        element={
-          <RequireAdmin>
-            <AdminChildProgress />
-          </RequireAdmin>
-        }
-      />
-      <Route
-        path="/admin/assets"
-        element={
-          <RequireAdmin>
-            <AdminAssets />
-          </RequireAdmin>
-        }
-      />
-      <Route
-        path="/admin/assets/models"
-        element={
-          <RequireAdmin>
-            <AdminModelAssets />
-          </RequireAdmin>
-        }
-      />
-      <Route
-        path="/admin/assets/models/new"
-        element={
-          <RequireAdmin>
-            <AdminNewModelAsset />
-          </RequireAdmin>
-        }
-      />
+      >
+        <Route index element={<AdminDashboard />} />
+        <Route path="children/:childId" element={<AdminChildProgress />} />
+        <Route path="assets" element={<AdminAssets />} />
+        <Route path="assets/models" element={<AdminModelAssets />} />
+        <Route path="assets/models/new" element={<AdminNewModelAsset />} />
+        {/* Islands & Adventures catalog (docs/ISLAND_ADVENTURE_MANAGEMENT.md, ADR-031). */}
+        <Route path="islands" element={<AdminIslands />} />
+        <Route path="islands/new" element={<AdminIslandForm />} />
+        <Route path="islands/:islandId" element={<AdminIslandDetail />} />
+        <Route path="islands/:islandId/edit" element={<AdminIslandForm />} />
+        <Route path="islands/:islandId/adventures/new" element={<AdminAdventureForm />} />
+        <Route path="adventures" element={<AdminAdventures />} />
+        <Route path="adventures/new" element={<AdminAdventureForm />} />
+        <Route path="adventures/:adventureId" element={<AdminAdventureDetail />} />
+        <Route path="adventures/:adventureId/edit" element={<AdminAdventureForm />} />
+      </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
