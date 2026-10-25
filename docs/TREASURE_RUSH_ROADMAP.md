@@ -2,9 +2,10 @@
 
 **Status (2026-10-24):** TR-0 (this plan), TR-1 (server-side math challenges), TR-2 (catalog
 models and loader), TR-4 (progress models and play services), TR-5 (the play API,
-`docs/PLAY_API.md`), and TR-6 (the typed React client and hooks) are done on branch
-`feature/treasure-rush-slice`, cut from `main` at `350e11b`. Nothing renders yet: the
-Three.js region is TR-7. TR-D3 and TR-D7 are taken as authorised by the Treasure
+`docs/PLAY_API.md`), TR-6 (the typed React client and hooks), and TR-7 (Treasure Cove on the
+existing Three.js engine) are done on branch `feature/treasure-rush-slice`, cut from `main` at
+`350e11b`. A child can walk the cove, meet Pip, and find the chest; answering is TR-8. Nobody
+has played it in a browser yet. TR-D3 and TR-D7 are taken as authorised by the Treasure
 Rush brief (admin-managed content; no second asset system); the other decisions in section 6
 are still **Proposed**.
 
@@ -154,7 +155,7 @@ model is missing or fails to load, the runtime shows a primitive mesh of the dec
 the interaction still works; generic for every region; tests with a failing resolver. Must not
 edit LAI-2106 files (check the LAI-2106 branch's file list first).
 
-**TR-7 Treasure Rush region.** Depends: TR-6, TR-7a, TR-D2, TR-D4. Risk M. Acceptance: a
+**TR-7 Treasure Rush region.** DONE (section 13). Depends: TR-6, TR-7a, TR-D2, TR-D4. Risk M. Acceptance: a
 manifest loaded from the published snapshot through a `LocationManifestRepository`
 implementation, validated by `validateLocationManifest`; chest prop with closed and open
 states driven by the WorldChange; spawn from admin data; no slug branching
@@ -437,10 +438,10 @@ chest state, and quest state only ever come from server responses; the answer bo
 
 **Decisions TR-7 needs (not taken here):**
 
-- **TR-D14 Dev routing to Django.** Django has no CORS by design, so `vite dev` needs a
+- **TR-D14 (Accepted 2026-10-24) Dev routing to Django.** Django has no CORS by design, so `vite dev` needs a
   `server.proxy` for `/api` to the local Django, or `VITE_DJANGO_API_BASE` with a dev-only
   CORS allowance. Recommendation: the proxy (no backend change). Touches `react/vite.config.ts`.
-- **TR-D15 How the region reaches the runtime.** Recommendation: a `LocationManifestRepository`
+- **TR-D15 (Accepted 2026-10-24) How the region reaches the runtime.** Recommendation: a `LocationManifestRepository`
   implementation that builds the manifest from `toRegionSceneModel` and validates it with
   `validateLocationManifest`, under the existing `/island/:childId/explore/:regionId` route, so
   `noLocationBranching.test.ts` stays green. Needs a check of which runtime files LAI-2106 owns.
@@ -448,3 +449,71 @@ chest state, and quest state only ever come from server responses; the answer bo
   parent to sign in as elsewhere.
 
 **Tests:** 65 Vitest unit tests in `react/src/api/` and `react/src/features/region-play/`.
+
+## 13. TR-7 as built
+
+Treasure Cove runs on the existing engine (`createLocationEngine`, `ThreeLocationWorldView`,
+the one `/island/:childId/explore/:regionId` route). No renderer, route, view, or runtime file
+was added or changed; the region arrives through the two seams the engine already has, a
+manifest repository and a registered extension.
+
+**How a visit works**
+
+```text
+/island/:childId/explore/treasure-rush-cove
+  -> LocationWorldPage: regionRepositoryForChild(childId)       (VITE_BACKEND=django only)
+  -> ThreeLocationWorldView -> repository.getPublished(regionId)
+       source region?  -> the source manifest, unchanged
+       otherwise       -> GET regions/{regionId}/ -> toRegionSceneModel -> buildRegionManifest
+                          -> publishRegionCheckpoints (Django spawn into the World State catalogue)
+                          -> validateLocationManifest (same registries as every source manifest)
+  -> createLocationEngine: spawns at the Django spawn point, places Pip, chest, scenery
+       region-play scene half: draws the chest open or closed from the child's server state
+  -> region-play Companion (useRegionPlay): starts or resumes the session, never accepts a quest,
+       keeps chests matching the server, turns Pip and chest interactions into events for TR-8
+```
+
+| File | Purpose |
+|---|---|
+| `features/region-play/regionManifest.ts` | Pure builder: scene model to `ThreeLocationManifest` plus the region's checkpoints |
+| `features/region-play/regionManifestRepository.ts` | `LocationManifestRepository` for one child: source regions unchanged, others from Django, validated |
+| `features/region-play/regionRepositoryForChild.ts` | The page's repository: the source one when Django is off |
+| `features/region-play/regionPlayConfig.ts` | Parser for the extension binding's config |
+| `features/region-play/regionPlayInteractions.ts` | Pure: interaction id to a TR-8 event (`npc` with quests, `chest` with state), chest diffs |
+| `island-map/three/extensions/regionPlay/regionPlayScene.ts` | Scene half: chests (catalogue model and `Open` clip, or a built chest), placeholder figures |
+| `island-map/three/extensions/regionPlay/RegionPlayCompanion.tsx` | View half: session start, chest sync, events, the TR-7 notice TR-8 replaces |
+| `discovery/checkpoints.ts` | `publishRegionCheckpoints` / `unpublishRegionCheckpoints` (engine gap 2, for published regions) |
+| `api/devProxy.ts`, `react/vite.config.ts` | TR-D14: `/api` to a loopback Django in `vite dev` only |
+| `routes/LocationWorldPage.tsx` | Uses `regionRepositoryForChild` |
+| `extensions/index.ts` | Registers `region-play` |
+
+**Asset handling (existing contract only).** NPC with a catalogue model: a real NPC placement.
+NPC without: a prop the extension fills with a placeholder figure. Chest: always extension-drawn;
+the catalogue model (`treasure-chest`) held on its `Open` clip when open, or a built chest
+(box, hinged lid, gold inside) when there is no model, it fails to load, or it has no open clip.
+Object: `MODEL` scenery with a model, `BOX` scenery of the admin's placeholder size without.
+Ground: the bundled `ground-tile` unless `scene.groundAssetId` names another. The seed now
+gives Pip's placement `npc-pip`.
+
+**Decisions taken (TR-D16 to TR-D18, conservative and reversible):**
+
+- **TR-D16 Published checkpoints join the World State catalogue at runtime.** The engine reads
+  spawn and checkpoint triggers from `discovery/checkpoints.ts` and `createLocationEngine`
+  is LAI-2106's, so the Django spawn is published into that catalogue (namespaced
+  `{regionId}:{checkpointId}`). It can never move a source region. Published checkpoints are not
+  saved to Amplify (`KNOWN_CHECKPOINT_IDS` stays source-only), so a child re-enters at the
+  spawn; saving a position server-side is later work.
+- **TR-D17 Published objects are scenery in TR-7.** Django has no interaction vocabulary for
+  them yet; only NPCs and chests are interactive.
+- **TR-D18 The region is read twice per visit** (once by the repository to build the scene,
+  once by the companion for live state). Simple and always fresh; a shared read is an
+  optimisation for later.
+
+**Not done here:** the conversation, quest acceptance UI, and challenge card (TR-8); a person
+playing it (TR-9); the shared asset manager (TR-10). The Amplify reads the generic view makes
+(world state, inventory, companion) still run and are harmless here; they show nothing for a
+Django region.
+
+**Tests:** 65 new Vitest unit tests (published checkpoints 7, builder 11, repository 10,
+interactions 5, engine 11, companion and registration 11, generic view 6, dev proxy 4),
+including Treasure Cove on the real runtime through `engineHarness.ts`.

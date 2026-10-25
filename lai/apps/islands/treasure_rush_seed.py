@@ -165,6 +165,7 @@ def seed_treasure_rush() -> list[str]:
             "kind": PlacementKind.NPC,
             "npc": pip,
             "label": "Pirate Pip",
+            "asset_id": "npc-pip",
             "x": 3.0,
             "z": 6.0,
             "interaction_id": pip.interaction_id,

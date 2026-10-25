@@ -160,6 +160,7 @@ two halves:
 | `clockwork-machinery` | scene | Clockwork Harbor | Moving machinery drawn into prop roots |
 | `adaptive-adventure-entrance` | view | Clockwork Harbor | Picks and opens the right adventure for the child |
 | `sanctuary-art` | scene | Dragon's Sanctuary | Art for runes and scales that have no model of their own |
+| `region-play` | scene + view | Treasure Cove (published from Django) | Draws chests from the child's server state and placeholder figures; hands NPC and chest interactions to the Django play API (TR-7) |
 
 Welcome Harbor, Wonderwild Forest and the test cove use no extensions.
 
@@ -232,9 +233,12 @@ saved collectible and a travel exit.
    - the view's checkpoint toast: `findCheckpoint`;
    - persistence: `discovery/api.ts` drops any id outside `KNOWN_CHECKPOINT_IDS`.
 
-   This is fine for locations authored in code. A location published from the
-   database (Phase 12) could not save checkpoints until there is a published
-   checkpoint catalogue that all three read.
+   This is fine for locations authored in code. For a location published from
+   Django (TR-7), `publishRegionCheckpoints` adds its checkpoints to the same
+   catalogue at runtime, so spawn, triggers, validation and toasts all read
+   them; it refuses to touch a source region. They are not saved to Amplify,
+   so a child re-enters such a region at its spawn
+   (`docs/TREASURE_RUSH_ROADMAP.md` section 13, TR-D16).
 3. **The Phaser 2D views are still live.** ADR-029 retires each one only after
    a person has checked its 3D replacement.
 4. **Sprouts (ages 3-4) first-person play is unproven.** The accessibility

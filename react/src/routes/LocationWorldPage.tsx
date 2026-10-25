@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { ThreeLocationWorldView } from '../features/island-map/three/runtime/ThreeLocationWorldView';
 import { locationRepositoryForThisBuild } from '../features/multiplayer/devMultiplayerRepository';
 import { getChildProfile } from '../features/child-profile/api';
 import type { AgeBandValue } from '../features/child-profile/constants';
+import { regionRepositoryForChild } from '../features/region-play/regionRepositoryForChild';
 
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -23,6 +24,9 @@ const DEFAULT_AGE_BAND: AgeBandValue = 'SPROUT';
  * region id to `ThreeLocationWorldView`, which loads the manifest and says
  * calmly when a region has none. Adding an ordinary location never touches
  * this file or `AppRoutes.tsx`.
+ *
+ * With the Django API enabled, a region that is not source-controlled is
+ * read from the play API for this child (TR-7, `regionRepositoryForChild`).
  */
 export function LocationWorldPage() {
   const { childId, regionId } = useParams<{ childId: string; regionId: string }>();
@@ -35,6 +39,10 @@ export function LocationWorldPage() {
    * route does).
    */
   const [aiEnabled, setAiEnabled] = useState(false);
+  const repository = useMemo(
+    () => regionRepositoryForChild(childId ?? '', locationRepositoryForThisBuild),
+    [childId],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -91,7 +99,7 @@ export function LocationWorldPage() {
         regionId={regionId}
         ageBand={ageBand}
         aiEnabled={aiEnabled}
-        repository={locationRepositoryForThisBuild}
+        repository={repository}
       />
     </IslandLayout>
   );

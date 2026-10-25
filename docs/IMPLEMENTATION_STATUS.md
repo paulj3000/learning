@@ -2528,7 +2528,24 @@ has not been asked and which "Decisions pending" already lists as open; and
 whether SC-11's retirement gate still means anything against a castle whose
 content layer is being replaced.
 
-## Treasure Rush - TR-6 complete (React client and hooks); nothing rendered yet
+## Treasure Rush - TR-7 complete (Treasure Cove on the Three.js engine); answering is TR-8
+
+TR-7 renders Treasure Cove on the existing engine and route. A per-child manifest repository
+builds the region from the Django bootstrap, publishes its spawn into the World State checkpoint
+catalogue, and validates it like any source manifest; the registered `region-play` extension
+draws the chest from the child's server state (catalogue model with its `Open` clip, or a built
+chest) and turns Pip and chest interactions into events for TR-8, after starting or resuming the
+session. No runtime, asset-loader, or LAI-2106 file changed. `vite dev` proxies `/api` to a
+loopback Django when `VITE_BACKEND=django` (TR-D14). Details, decisions TR-D16 to TR-D18:
+`docs/TREASURE_RUSH_ROADMAP.md` section 13.
+
+Verification (2026-10-24): 65 new Vitest unit tests; with the existing discovery, island-map
+(runtime, manifests, parity, extensions), routes, app, island, and multiplayer suites that is
+141 files and 1,439 tests, all passing; `tsc` clean for app and node configs. Unit tests only: no browser, Playwright, Ruff, or
+Prettier. Nobody has played it in a browser. Local setup note: this worktree resolves
+`@colyseus/sdk` through an untracked `react/node_modules` link to the main checkout's copy.
+
+### Earlier: TR-6 (React client and hooks)
 
 TR-6 adds the typed Django client (`react/src/api/`: config behind `VITE_BACKEND=django`,
 access-token auth per request, one refresh retry on 401, error envelope to `ApiError`, runtime

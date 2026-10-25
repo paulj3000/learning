@@ -168,7 +168,7 @@ TR-D4, TR-D8, and TR-D11 were accepted on 2026-10-24; TR-D5 is still Proposed.
 - [x] **TR-5** Treasure Rush play API (depends: TR-4, LAI-0403). DONE locally: 8 child-scoped routes over the TR-4 services; contract in `docs/PLAY_API.md`
 - [x] **TR-6** Frontend Django client slice (depends: TR-5, TR-D8). DONE locally: `react/src/api/` client and play DTOs, `features/region-play/` hooks and the TR-7 scene-model boundary; no UI
 - [ ] **TR-7a** Placeholder-mesh asset adapter (depends: none)
-- [ ] **TR-7** Treasure Rush region (depends: TR-6, TR-7a, TR-D2, TR-D4)
+- [x] **TR-7** Treasure Rush region (depends: TR-6, TR-D2, TR-D4, TR-D14, TR-D15). DONE locally: Treasure Cove on the existing engine via a Django manifest repository and the `region-play` extension; placeholder chest and figures drawn by the extension, so it did not wait for TR-7a
 - [ ] **TR-8** Challenge and quest-complete UI (depends: TR-7)
 - [ ] **TR-9** End-to-end and playtest (depends: TR-8)
 - [ ] **TR-10** Integrate LAI-2106 shared asset management (depends: LAI-2106, TR-7a)

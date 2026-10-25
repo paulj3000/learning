@@ -8,6 +8,8 @@ import { sanctuaryArtExtension } from './sanctuaryArt/sanctuaryArtScene';
 import { castleTaleExtension } from './castleTale/castleTaleScene';
 import { castleTaleViewExtension } from './castleTale/castleTaleViewExtension';
 import { multiplayerPresenceViewExtension } from './multiplayerPresence/multiplayerPresenceViewExtension';
+import { regionPlaySceneExtension } from './regionPlay/regionPlayScene';
+import { regionPlayViewExtension } from './regionPlay/regionPlayViewExtension';
 
 /**
  * Every bespoke world mechanic the app ships (ADR-032). A manifest names an
@@ -26,12 +28,16 @@ import { multiplayerPresenceViewExtension } from './multiplayerPresence/multipla
  * - `castle-tale`: Storykeeper Castle's learning, which runs in the room -
  *   the state variants, Quill's gestures, the three seating puzzles, the
  *   easel, and the in-world adventure and story hosts (engine Phase 9).
+ * - `region-play`: a region published from Django (TR-7): draws its chests
+ *   from the child's server state and hands its NPC and chest interactions
+ *   to the play API.
  */
 export const SOURCE_WORLD_EXTENSIONS = createWorldExtensionRegistry([
   tideTrialSceneExtension,
   clockworkMachineryExtension,
   sanctuaryArtExtension,
   castleTaleExtension,
+  regionPlaySceneExtension,
 ]);
 
 export const SOURCE_VIEW_EXTENSIONS = createViewExtensionRegistry([
@@ -39,6 +45,7 @@ export const SOURCE_VIEW_EXTENSIONS = createViewExtensionRegistry([
   adaptiveAdventureEntranceViewExtension,
   castleTaleViewExtension,
   multiplayerPresenceViewExtension,
+  regionPlayViewExtension,
 ]);
 
 /** Every extension id with a scene half, a React half, or both. */
