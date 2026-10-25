@@ -183,3 +183,73 @@ def test_an_admin_session_never_authenticates_the_api():
     response = client.get("/api/v1/me/")
     assert response.status_code == 401
     assert client.get("/api/v1/health/").status_code == 200
+
+
+# --- the whole journey (owner acceptance, 2026-10-25) --------------------------------------------
+
+
+@pytest.fixture
+def typed_password(monkeypatch):
+    from apps.users.management.commands import create_admin_account
+
+    password = secrets.token_urlsafe(18)
+    monkeypatch.setattr(create_admin_account.getpass, "getpass", lambda prompt: password)
+    return password
+
+
+def test_the_initial_superuser_on_an_empty_database(typed_password):
+    from django.core.management import call_command
+
+    assert not ParentAccount.objects.exists()
+    call_command("create_admin_account", "first-root", "--superuser")
+    client, response = sign_in("first-root", typed_password)
+    assert response.status_code == 302
+    assert client.get("/admin/users/adminaccount/").status_code == 200
+
+
+def test_a_signed_up_parent_is_created_upgraded_to_superuser_and_signs_in(api, typed_password):
+    """1. Signing in creates the Django user; 2. it is upgraded; 3. it reaches the admin."""
+    from django.core.management import call_command
+
+    sub = "4b5c6d7e-0000-4000-8000-00000000abcd"  # what Cognito puts in `sub`
+    # 1. React's POST /me/ after sign-in creates the account, with no admin rights.
+    created = api(sub).post("/api/v1/me/")
+    assert created.status_code == 201 and created.json()["django_admin"] is False
+    parent = ParentAccount.objects.get(cognito_sub=sub)
+    assert not parent.is_staff and not parent.is_superuser
+
+    # 2. An operator gives that parent an admin login, then makes it superuser.
+    call_command("create_admin_account", "parent-root", "--cognito-sub", sub)
+    call_command("set_admin_role", "parent-root", "superuser")
+    parent.refresh_from_db()
+    assert parent.is_staff and parent.is_superuser and parent.cognito_sub == sub
+    assert ParentAccount.objects.count() == 1  # the same row, not a second account
+
+    # The React menu now learns it is staff from the same call.
+    assert api(sub).post("/api/v1/me/").json() == {"id": str(parent.pk), "django_admin": True}
+
+    # 3. The admin site lets it in, with superuser pages.
+    client, response = sign_in("parent-root", typed_password)
+    assert response.status_code == 302 and response["Location"] == ADMIN
+    assert client.get("/admin/users/adminaccount/").status_code == 200
+    assert client.get("/admin/catalog/world/").status_code == 200
+
+
+def test_the_admin_accounts_page_will_not_demote_the_last_superuser():
+    account, password = make_admin("root", superuser=True)
+    client, _ = sign_in("root", password)
+    url = reverse("admin:users_adminaccount_change", args=[account.pk])
+    form = {
+        "is_active": "on",
+        "is_staff": "on",  # superuser unticked
+        "csrfmiddlewaretoken": client.cookies["lai_admin_csrftoken"].value,
+    }
+    response = client.post(url, form)
+    assert response.status_code == 200 and b"last active superuser" in response.content
+    account.refresh_from_db()
+    assert account.is_superuser
+    make_admin("second", superuser=True)
+    response = client.post(url, form)
+    assert response.status_code == 302
+    account.refresh_from_db()
+    assert account.is_staff and not account.is_superuser

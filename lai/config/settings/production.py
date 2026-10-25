@@ -10,7 +10,7 @@ import os
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F403
-from .base import MIDDLEWARE, database_from_url, env_bool, env_list
+from .base import MANIFEST_STATIC_STORAGES, MIDDLEWARE, database_from_url, env_bool, env_list
 
 
 def _required(name: str) -> str:
@@ -47,17 +47,23 @@ CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 if any(not origin.startswith("https://") or "*" in origin for origin in CSRF_TRUSTED_ORIGINS):
     raise ImproperlyConfigured("DJANGO_CSRF_TRUSTED_ORIGINS must list explicit https:// origins.")
 
-# Admin static files: collected into STATIC_ROOT at container start (`collectstatic`) and served
-# by WhiteNoise with hashed names, so no separate static host is needed.
+# Admin static files: collected with hashed names when the image is built, so the manifest in the
+# image matches the files uploaded to S3 (scripts/release-admin-static.sh). STATIC_URL stays
+# `/static/` when CloudFront routes that path to the bucket on the admin's own host; set
+# DJANGO_STATIC_URL only if the files live on another origin. WhiteNoise serves the same files
+# from the image when no CloudFront behaviour is in front (local container runs, fallback).
+STATIC_URL = os.environ.get("DJANGO_STATIC_URL", "").strip() or STATIC_URL  # noqa: F405
+_static_is_url = ":" in STATIC_URL or STATIC_URL.startswith("//")
+if _static_is_url and not STATIC_URL.startswith("https://"):
+    raise ImproperlyConfigured("DJANGO_STATIC_URL must be https:// or a path.")
+if not STATIC_URL.endswith("/"):
+    raise ImproperlyConfigured("DJANGO_STATIC_URL must end with '/'.")
 MIDDLEWARE = [*MIDDLEWARE]
 MIDDLEWARE.insert(
     MIDDLEWARE.index("django.middleware.security.SecurityMiddleware") + 1,
     "whitenoise.middleware.WhiteNoiseMiddleware",
 )
-STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
-}
+STORAGES = MANIFEST_STATIC_STORAGES
 
 # Cognito (ADR-024): all three are mandatory. Without them every request would be rejected, so
 # refuse to start rather than run an API nobody can use. Values come only from the environment.

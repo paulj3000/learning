@@ -2570,18 +2570,23 @@ role nothing set. Django has no deployment yet (no `infra/`; Phase 10 needs appr
 6. **Cookies.** Admin session and CSRF cookies are scoped to the admin path, HttpOnly,
    SameSite=Lax, and Secure in production. Sessions last at most 8 hours and end when the
    browser closes. `DJANGO_CSRF_TRUSTED_ORIGINS` must list `https://` origins.
-7. **React link.** `GET /api/v1/me/` returns `django_admin` (active staff). The account menu
+7. **React link and provisioning.** After every sign-in the React app sends `POST /api/v1/me/`,
+   which creates the Django account the first time (option a, owner 2026-10-25) and returns
+   `django_admin` (active staff). The account menu
    shows "Admin" to Django Admin only when that is true and the build sets
    `VITE_DJANGO_ADMIN_URL`; otherwise the existing `/admin` link for the Amplify `Admins`
    group is unchanged.
 8. **Serving.** New pinned dependencies: `gunicorn` 26.2.0 (WSGI server) and `whitenoise`
    6.12.0 (admin static files, hashed and compressed, from `STATIC_ROOT`). The image is
-   `lai/Dockerfile`. `collectstatic` runs at container start, and gunicorn writes no access
-   log (G10). The health route is exempt from the HTTPS redirect for load balancer checks.
+   `lai/Dockerfile`. `collectstatic` runs when the image is built (amended the same day, so the
+   S3 copy matches each image's manifest), and gunicorn writes no access log (G10). The admin
+   may ship as its own release on `admin.<domain>`: CloudFront with `/static/*` from a private
+   S3 bucket and everything else from Django. The health route is exempt from the HTTPS redirect for load balancer checks.
 
 **Consequences.** One person who is both a parent and an administrator has two credentials
 until a Cognito-based admin sign-in (TR-D5 option a) is built; that is the upgrade path, and
 `admin_username` can stay as the link. Local passwords need rotation by hand (`create_admin_account
---reset-password`); there is no MFA on the Django login yet. Hosting is still to be provisioned
+--reset-password`); roles change with `set_admin_role`, which, like the admin form, never removes the
+last active superuser; there is no MFA on the Django login yet. Hosting is still to be provisioned
 (Phase 10, APPROVAL), see `docs/DJANGO_TARGET_ARCHITECTURE.md`, "Django Admin hosting".
 

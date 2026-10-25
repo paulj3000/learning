@@ -119,6 +119,33 @@ def test_production_serves_the_admin_securely(monkeypatch):
 
 
 @pytest.mark.parametrize(
+    "value, expected",
+    [(None, "static/"), ("/static/", "/static/"), ("https://cdn.example.test/admin/", None)],
+)
+def test_production_static_url_defaults_to_the_admin_host_path(monkeypatch, value, expected):
+    _prod_env(monkeypatch, DJANGO_STATIC_URL=value)
+    prod = _load("config.settings.production")
+    assert prod.STATIC_URL == (expected or value)
+
+
+@pytest.mark.parametrize(
+    "value", ["http://cdn.example.test/", "//cdn.example.test/", "https://cdn.example.test/x"]
+)
+def test_production_rejects_unsafe_static_urls(monkeypatch, value):
+    _prod_env(monkeypatch, DJANGO_STATIC_URL=value)
+    with pytest.raises(ImproperlyConfigured, match="DJANGO_STATIC_URL"):
+        _load("config.settings.production")
+
+
+def test_static_build_settings_need_no_database_or_secrets(monkeypatch):
+    for name in PROD_ENV:
+        monkeypatch.delenv(name, raising=False)
+    build = _load("config.settings.static_build")
+    assert build.DATABASES == {} and build.DEBUG is False
+    assert build.STORAGES == _load("config.settings.base").MANIFEST_STATIC_STORAGES
+
+
+@pytest.mark.parametrize(
     "origins", ["http://admin.example.test", "https://*.example.test", "admin.example.test"]
 )
 def test_production_rejects_unsafe_csrf_trusted_origins(monkeypatch, origins):

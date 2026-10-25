@@ -157,3 +157,57 @@ def test_me_reports_django_admin_true_for_a_linked_staff_account(api, typed, pas
     assert api(parent).get(ME).json() == {"id": str(parent.pk), "django_admin": True}
     ParentAccount.objects.filter(pk=parent.pk).update(is_staff=False)
     assert api(parent).get(ME).json()["django_admin"] is False
+
+
+# --- set_admin_role ------------------------------------------------------------------------------
+
+
+def role(username, value):
+    out = StringIO()
+    call_command("set_admin_role", username, value, stdout=out)
+    return out.getvalue()
+
+
+def flags(username):
+    account = ParentAccount.objects.get(admin_username=username)
+    return account.is_staff, account.is_superuser
+
+
+def test_set_admin_role_promotes_and_demotes(typed, password):
+    typed(password)
+    run("root", "--superuser")
+    typed(password)
+    run("editor")
+    assert "superuser" in role("editor", "superuser")
+    assert flags("editor") == (True, True)
+    assert role("editor", "staff") and flags("editor") == (True, False)
+    assert role("editor", "none") and flags("editor") == (False, False)
+
+
+def test_set_admin_role_needs_an_admin_account():
+    ParentAccount.objects.get_or_create_for_cognito("sub-real-parent")
+    with pytest.raises(CommandError, match="--cognito-sub"):
+        role("sub-real-parent", "superuser")
+
+
+@pytest.mark.parametrize("new_role", ["staff", "none"])
+def test_the_last_superuser_cannot_be_demoted(typed, password, new_role):
+    typed(password)
+    run("root", "--superuser")
+    with pytest.raises(CommandError, match="last active superuser"):
+        role("root", new_role)
+    assert flags("root") == (True, True)
+    typed(password)
+    run("second", "--superuser")
+    role("root", new_role)  # fine once another superuser exists
+    assert flags("root")[1] is False
+
+
+def test_an_inactive_superuser_does_not_count_as_the_other_one(typed, password):
+    typed(password)
+    run("root", "--superuser")
+    typed(password)
+    run("dormant", "--superuser")
+    ParentAccount.objects.filter(admin_username="dormant").update(is_active=False)
+    with pytest.raises(CommandError, match="last active superuser"):
+        role("root", "staff")

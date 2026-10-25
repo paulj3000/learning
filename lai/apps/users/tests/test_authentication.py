@@ -64,7 +64,7 @@ def test_post_me_provisions_once_and_is_idempotent(key):
     assert first.status_code == 201
     second = call(token, method="post")
     assert second.status_code == 200
-    assert first.json() == second.json() and set(first.json()) == {"id"}
+    assert first.json() == second.json() and set(first.json()) == {"id", "django_admin"}
     account = ParentAccount.objects.get()
     assert account.cognito_sub == "sub-parent-a" and str(account.pk) == first.json()["id"]
     assert call(token).json() == {"id": str(account.pk), "django_admin": False}

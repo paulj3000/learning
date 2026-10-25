@@ -10861,3 +10861,30 @@ superuser sign-in. Details: `docs/ARCHITECTURE.md`, "Django Admin"; hosting:
 - **Not done (needs approval):** hosting is not provisioned. Recommendation: ECS Fargate behind
   an ALB with private RDS, about $50 to $75 per month (section 11a). Login rate limiting (WAF)
   before public exposure. The API `IsAdmin` from `cognito:groups` is still open under LAI-0404.
+
+## LAI-0404 follow-up: account provisioning, superuser upgrade, admin static files on S3 (2026-10-25)
+
+Owner decisions: Django accounts are created by the React app after sign-in (option a); the admin
+may ship as its own release with static files on S3 behind CloudFront.
+
+- **Done:**
+  - `DjangoAccountProvider` (React) sends `POST /api/v1/me/` once per sign-in in Django-enabled
+    builds, creating the `ParentAccount` the first time. `POST /me/` now also returns
+    `django_admin`, which drives the menu link (the separate GET is gone).
+  - `manage.py set_admin_role <username> superuser|staff|none`. It and the admin-accounts form
+    refuse to demote or deactivate the last active superuser.
+  - Static files are collected at image build (`config/settings/static_build.py`).
+    `scripts/release-admin-static.sh` syncs them from the image to S3. `DJANGO_STATIC_URL` is
+    optional (https or a path). Entrypoint no longer runs `collectstatic`.
+  - Docs: account lifecycle and upgrade steps (`docs/ARCHITECTURE.md`), independent admin topology
+    and cost (`docs/DJANGO_TARGET_ARCHITECTURE.md` 11a), ADR-034 amended.
+- **Acceptance tests:** initial superuser on an empty database signs in. A signed-up parent is
+  created by `POST /me/`, upgraded with `create_admin_account --cognito-sub` and
+  `set_admin_role superuser`, and opens superuser admin pages (`test_django_admin.py`).
+- **Tests (targeted):** pytest `apps/users apps/core apps/catalog` 342 passed (PostgreSQL
+  required); Vitest 12 files, 98 passed; `tsc -b` passes; `manage.py check` clean; no missing
+  migrations; build-time `collectstatic` ran locally (157 files).
+- **Not run:** Ruff, Prettier, browser tests, full suites, `docker build`, the release script
+  against AWS.
+- **Not done (needs approval):** the S3 bucket, CloudFront distribution, WAF rule, ALB and the
+  rest of the hosting in `docs/DJANGO_TARGET_ARCHITECTURE.md` 11a.

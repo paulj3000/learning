@@ -7,7 +7,7 @@ import type { ApiClient } from './client';
  *   `https://api.example.com/admin/`. Unset (the default) means no link, so
  *   every existing build is unchanged. A production build only accepts
  *   `https://`; `http://` is for `vite dev` only.
- * - Whether to show it comes from Django (`GET /api/v1/me/` returns
+ * - Whether to show it comes from Django (`POST /api/v1/me/` returns
  *   `django_admin`), never from token claims read in the browser. Django
  *   Admin checks its own staff sign-in on every page regardless.
  */
@@ -34,20 +34,29 @@ export function readDjangoAdminUrl(env: DjangoAdminEnv): string | null {
 
 export const DJANGO_ADMIN_URL: string | null = readDjangoAdminUrl(import.meta.env);
 
-/** True only when Django says this signed-in account is active Django Admin staff. */
-export async function fetchDjangoAdminAccess(
+export interface DjangoAccount {
+  id: string;
+  /** Active Django Admin staff, as Django reports it. */
+  djangoAdmin: boolean;
+}
+
+/**
+ * Creates the signed-in parent's Django account the first time, and returns
+ * it every time (`POST /api/v1/me/` is idempotent; ADR-024 A2). Null on any
+ * failure: the app keeps working, and the next sign-in tries again.
+ */
+export async function provisionDjangoAccount(
   client: ApiClient,
   signal?: AbortSignal,
-): Promise<boolean> {
+): Promise<DjangoAccount | null> {
   try {
-    const response = await client.request('GET', 'me/', { signal });
-    const data: unknown = response.data;
-    return (
-      typeof data === 'object' &&
-      data !== null &&
-      (data as Record<string, unknown>).django_admin === true
-    );
+    const response = await client.request('POST', 'me/', { signal });
+    const data = response.data;
+    if (typeof data !== 'object' || data === null) return null;
+    const body = data as Record<string, unknown>;
+    if (typeof body.id !== 'string' || body.id === '') return null;
+    return { id: body.id, djangoAdmin: body.django_admin === true };
   } catch {
-    return false; // signed out, not provisioned, offline, or aborted: no link
+    return null; // signed out, offline, unavailable, or aborted
   }
 }

@@ -108,9 +108,15 @@ CSRF_COOKIE_PATH = SESSION_COOKIE_PATH
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = "Lax"
 
-# Admin static files. Production serves them with WhiteNoise from STATIC_ROOT (production.py).
+# Admin static files, collected into STATIC_ROOT when the image is built (static_build.py) with
+# hashed names. A deployment serves them from S3 behind CloudFront, or with WhiteNoise from
+# STATIC_ROOT when nothing else does (production.py).
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+MANIFEST_STATIC_STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"

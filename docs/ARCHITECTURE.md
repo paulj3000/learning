@@ -740,6 +740,16 @@ cross-family read path exists (ADR-024 A4). Parent accounts are not listed. Regi
 React admin's uploaded `Asset` records, ADR-030; the island/adventure overlay, ADR-031; safety
 review) have no Django models yet and are not in Django Admin; LAI-0801/0802 own them.
 
+**How accounts come to exist.**
+1. *Cognito account:* the browser signs up and confirms directly with Cognito (`SignUpForm`,
+   `ConfirmSignUpForm`, Amplify Auth). Neither Django nor a Cognito trigger is involved.
+2. *Django account:* in a build with the Django API on, `DjangoAccountProvider`
+   (`react/src/features/auth/DjangoAccountContext.tsx`) sends `POST /api/v1/me/` once after every
+   sign-in. The first call creates the `ParentAccount` from the verified token's `sub`, with no
+   admin rights; later calls return it unchanged. The same response carries `django_admin`.
+3. *Admin rights:* an operator gives that account an admin login (`create_admin_account
+   --cognito-sub`), then sets its role (`set_admin_role`), below.
+
 **Creating the first superuser** (run where `manage.py` reaches the database: locally, or as a
 one-off task in the deployed container):
 
@@ -750,8 +760,13 @@ python manage.py create_admin_account <username> --superuser
 ```
 
 - More staff: the same command without `--superuser`.
-- Link to an existing parent so the React menu shows "Admin" for them:
-  `--cognito-sub <their Cognito sub>`. The parent must have signed in once, which provisions the account.
+- **Upgrade a parent who signed up:** they sign in to the app once (step 2), then
+  `create_admin_account <username> --cognito-sub <their Cognito sub>` gives that same row an admin
+  login (staff), and `set_admin_role <username> superuser` makes it a superuser. Find the sub in the
+  Cognito console (user pool, Users, the user's "sub" attribute) or with
+  `aws cognito-idp list-users --user-pool-id <pool> --filter 'email = "<email>"'`.
+- Change a role later: `set_admin_role <username> superuser|staff|none`, or a superuser edits the
+  account on the Admin accounts page. Neither will demote or deactivate the last active superuser.
 - Non-interactive, for a container task: `--no-input` with `DJANGO_ADMIN_PASSWORD` set from Secrets
   Manager for that one run only.
 - New password: `create_admin_account <username> --reset-password`. This signs out existing sessions.
@@ -762,9 +777,9 @@ python manage.py create_admin_account <username> --superuser
 last at most 8 hours and end when the browser closes. Cookies (`lai_admin_session`,
 `lai_admin_csrftoken`) are scoped to the admin path, HttpOnly, SameSite=Lax, and Secure in production.
 
-**React link.** `GET /api/v1/me/` returns `django_admin: true` for active staff. The account menu's
-"Admin" item goes to `VITE_DJANGO_ADMIN_URL` only when the build sets that variable and has the Django
-API on (`VITE_BACKEND=django`) and Django returns true. Otherwise the existing `/admin` link for the
+**React link.** `POST /api/v1/me/` (the sign-in call above) returns `django_admin: true` for active
+staff. The account menu's "Admin" item goes to `VITE_DJANGO_ADMIN_URL` only when the build sets that
+variable and has the Django API on (`VITE_BACKEND=django`) and Django returns true. Otherwise the existing `/admin` link for the
 Amplify `Admins` group is unchanged. Django Admin checks its own sign-in either way.
 
 **Known limitations.** Separate credentials from Cognito, with no MFA on the Django login yet (a

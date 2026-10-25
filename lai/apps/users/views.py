@@ -14,9 +14,11 @@ class MeView(APIView):
     identity only from the verified token, takes no request body, creates no children, and
     grants no privileges.
 
-    GET also returns `django_admin`: whether this account is active Django Admin staff (LAI-0404,
-    ADR-034). It only lets the React menu show an "Admin" link; Django Admin checks its own
-    session sign-in on every request and never trusts this value. A Cognito group never sets it.
+    Both return `{"id", "django_admin"}`. `django_admin` says whether this account is active Django
+    Admin staff (LAI-0404, ADR-034). The React app POSTs once after every sign-in, which creates the
+    account the first time and reads the flag in the same call. The flag only decides whether the
+    React menu shows an "Admin" link: Django Admin checks its own session sign-in on every request
+    and never trusts it, and a Cognito group never sets it.
     """
 
     def get_permissions(self):
@@ -24,8 +26,7 @@ class MeView(APIView):
         return [permission()]
 
     def get(self, request):
-        user = request.user
-        return Response({"id": str(user.pk), "django_admin": bool(user.is_active and user.is_staff)})
+        return Response(_account_body(request.user))
 
     def post(self, request):
         user = request.user
@@ -33,4 +34,8 @@ class MeView(APIView):
             account, created = services.provision_parent_account(user.cognito_sub)
         else:
             account, created = user, False
-        return Response({"id": str(account.pk)}, status=201 if created else 200)
+        return Response(_account_body(account), status=201 if created else 200)
+
+
+def _account_body(account):
+    return {"id": str(account.pk), "django_admin": bool(account.is_active and account.is_staff)}

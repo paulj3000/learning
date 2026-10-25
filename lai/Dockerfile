@@ -19,11 +19,13 @@ RUN pip install -r requirements.txt
 COPY lai/ ./lai/
 COPY content/ ./content/
 
-RUN useradd --system --uid 10001 --home-dir /app lai \
-    && mkdir -p /app/lai/staticfiles \
-    && chown -R lai /app/lai/staticfiles
-USER lai
 WORKDIR /app/lai
+# Admin static files with hashed names, collected once per image (no database, no secrets). The
+# same directory is uploaded to the admin's S3 bucket by scripts/release-admin-static.sh.
+RUN DJANGO_SETTINGS_MODULE=config.settings.static_build python manage.py collectstatic --noinput
+
+RUN useradd --system --uid 10001 --home-dir /app lai
+USER lai
 
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

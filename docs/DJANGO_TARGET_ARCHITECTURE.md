@@ -204,7 +204,7 @@ except Cognito, which stays as it is. The React app stays on Amplify Hosting
 (`docs/platform/AMPLIFY_HOSTING.md`).
 
 **Ready in the repository.** `lai/Dockerfile` (Python 3.12, non-root, health check) and
-`lai/docker-entrypoint.sh` (`collectstatic`, then gunicorn with no access log). Production settings
+`lai/docker-entrypoint.sh` (gunicorn with no access log; static files are collected at image build). Production settings
 (`config/settings/production.py`) refuse to start without their required variables, force
 `DEBUG=False`, set Secure cookies and HSTS, serve admin static files with WhiteNoise, and exempt
 `/api/v1/health/` from the HTTPS redirect.
@@ -218,7 +218,39 @@ plan, rather than App Runner:
 - Fargate behind an ALB matches the roadmap, the FinWin pattern, and the ALB alarms LAI-1006 expects.
 - Dev can use one EC2 instance with Docker (LAI-1004) and the same image.
 
-Topology: ALB (HTTPS, ACM certificate) on a dedicated host such as `api.<domain>`, with `/admin/*`,
+**Independent admin release (owner, 2026-10-25).** The admin can ship on its own host, with its
+static files on S3 behind CloudFront. Django Admin pages are server-rendered (sessions, CSRF,
+database queries), so they still come from the Django service; only `/static/*` is S3:
+
+```text
+admin.<domain> -> CloudFront (ACM certificate, WAF rate rule on POST /admin/login/)
+                   |- /static/*  -> S3 bucket `lai-admin-static-<env>` (private; Origin Access
+                   |                Control; block public access; SSE-S3; no website hosting)
+                   '- default    -> Django origin (ALB, HTTPS) -> Fargate service -> private RDS
+```
+
+- **Static release:** `lai/Dockerfile` collects the files at build time
+  (`config/settings/static_build.py`, no database or secrets), so their hashed names match the
+  manifest each image serves. `scripts/release-admin-static.sh <image> <bucket>` copies them out
+  of the image and syncs them to `s3://<bucket>/static/`: immutable cache headers, no deletes
+  (old containers still reference old names during a rollout or rollback), no invalidation.
+  Order: build the image, release static files, roll the service to that image.
+- **Django settings for this host:** `STATIC_URL` stays `/static/` (same host, so no CORS and no
+  cross-origin CSP entries); set `DJANGO_STATIC_URL=https://<other origin>/static/` only if the
+  files are served from a different domain. `DJANGO_ALLOWED_HOSTS=admin.<domain>`,
+  `DJANGO_CSRF_TRUSTED_ORIGINS=https://admin.<domain>`, `DJANGO_TRUST_PROXY_SSL_HEADER=true`.
+- **CloudFront behaviours:** `/static/*` uses a caching-optimized policy and compression.
+  The default behaviour uses caching disabled and an origin request policy that forwards
+  all viewer headers, cookies and query strings (so `Host`, the session and the CSRF cookie
+  reach Django). It allows all HTTP methods.
+- **Lock the origin:** the ALB accepts only CloudFront (the CloudFront managed prefix list in its
+  security group, plus a secret custom header checked by a listener rule) so nobody bypasses the
+  WAF. The bucket policy allows only this distribution.
+- The React app stays on Amplify Hosting at its own domain; its menu links to
+  `VITE_DJANGO_ADMIN_URL=https://admin.<domain>/admin/`.
+
+Topology for the API (and the admin when it is not split out): ALB (HTTPS, ACM certificate) on a
+dedicated host such as `api.<domain>`, with `/admin/*`,
 `/static/*` and `/api/*` going to one Fargate service (0.25 vCPU, 0.5 GB). RDS PostgreSQL 16 sits in
 private subnets, encrypted, with deletion protection and backups on, and a security group that only
 admits the service. Secrets come from Secrets Manager. Running Django on its own host keeps `/admin/`
@@ -237,6 +269,7 @@ Django and set `DJANGO_ADMIN_URL_PATH` to a path React does not use.
 | `DJANGO_TRUST_PROXY_SSL_HEADER` | yes behind the ALB | `true` |
 | `FORWARDED_ALLOW_IPS` | behind the ALB | the VPC CIDR (gunicorn trusts `X-Forwarded-*` only from it) |
 | `DJANGO_ADMIN_URL_PATH` | no | default `admin/` |
+| `DJANGO_STATIC_URL` | no | default `/static/` (CloudFront routes it to S3 on the same host); an `https://` origin only if static files live elsewhere |
 | `WEB_CONCURRENCY`, `GUNICORN_TIMEOUT`, `PORT` | no | default 2, 30, 8000 |
 | `DJANGO_ADMIN_PASSWORD` | one-off task only | only for `create_admin_account --no-input` |
 
@@ -253,7 +286,9 @@ health checks arrive with the task IP as the Host header, so either add the task
 check the AWS pricing calculator before approval): Fargate 0.25 vCPU / 0.5 GB around $10; ALB
 around $20 to $25; RDS `db.t4g.micro` single-AZ with 20 GB gp3 around $15 to $20 (Multi-AZ about
 doubles it); public IPv4 addresses around $4 to $11; Secrets Manager around $1; CloudWatch Logs
-and ECR a few dollars. **Total: about $50 to $75 per month.** A NAT gateway, if private subnets are
+and ECR a few dollars. **Total: about $50 to $75 per month.** The separate admin distribution
+adds little at admin traffic: S3 storage for about 1 MB of files and CloudFront requests come to
+under $1 per month, plus the WAF rate rule (about $6 to $10). A NAT gateway, if private subnets are
 chosen for the tasks, adds about $35 plus data processing.
 
 Before the admin is reachable publicly, add a rate limit on `POST /admin/login/` (an AWS WAF rate rule

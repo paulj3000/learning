@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ApiClient } from './client';
 import { ApiError } from './errors';
-import { fetchDjangoAdminAccess, readDjangoAdminUrl } from './djangoAdmin';
+import { provisionDjangoAccount, readDjangoAdminUrl } from './djangoAdmin';
 
 describe('readDjangoAdminUrl', () => {
   it('is off unless configured', () => {
@@ -38,29 +38,36 @@ function clientReturning(result: () => Promise<{ status: number; data: unknown }
   return { request: vi.fn(result) };
 }
 
-describe('fetchDjangoAdminAccess', () => {
-  it('is true only when Django reports django_admin: true', async () => {
+describe('provisionDjangoAccount', () => {
+  it('POSTs me/ and returns the account with Django\'s staff flag', async () => {
     const client = clientReturning(async () => ({
-      status: 200,
-      data: { id: 'p', django_admin: true },
+      status: 201,
+      data: { id: 'account-1', django_admin: true },
     }));
-    await expect(fetchDjangoAdminAccess(client)).resolves.toBe(true);
-    expect(client.request).toHaveBeenCalledWith('GET', 'me/', { signal: undefined });
+    await expect(provisionDjangoAccount(client)).resolves.toEqual({
+      id: 'account-1',
+      djangoAdmin: true,
+    });
+    expect(client.request).toHaveBeenCalledWith('POST', 'me/', { signal: undefined });
   });
 
-  it.each([{ id: 'p', django_admin: false }, { id: 'p', django_admin: 'true' }, { id: 'p' }, null])(
-    'is false for %j',
-    async (data) => {
-      await expect(
-        fetchDjangoAdminAccess(clientReturning(async () => ({ status: 200, data }))),
-      ).resolves.toBe(false);
-    },
-  );
+  it.each([
+    [{ id: 'account-1', django_admin: false }, { id: 'account-1', djangoAdmin: false }],
+    [{ id: 'account-1', django_admin: 'true' }, { id: 'account-1', djangoAdmin: false }],
+    [{ id: 'account-1' }, { id: 'account-1', djangoAdmin: false }],
+    [{ django_admin: true }, null],
+    [{ id: '', django_admin: true }, null],
+    [null, null],
+  ])('reads %j as %j', async (data, expected) => {
+    await expect(
+      provisionDjangoAccount(clientReturning(async () => ({ status: 200, data }))),
+    ).resolves.toEqual(expected);
+  });
 
-  it('is false on any API error (signed out, not provisioned, offline)', async () => {
-    for (const kind of ['unauthenticated', 'forbidden', 'network'] as const) {
+  it('is null on any API error', async () => {
+    for (const kind of ['unauthenticated', 'forbidden', 'network', 'unavailable'] as const) {
       const client = clientReturning(() => Promise.reject(new ApiError(kind)));
-      await expect(fetchDjangoAdminAccess(client)).resolves.toBe(false);
+      await expect(provisionDjangoAccount(client)).resolves.toBeNull();
     }
   });
 });
