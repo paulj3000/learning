@@ -10801,3 +10801,29 @@ Prettier, three lint fixes with no behaviour change) and `b62a3df` (backbone reg
     `submitAdventureAnswer` Lambda, whose only change is the re-export of its decision logic.
   - The React build ships with the Django API off unless `VITE_BACKEND=django` is set.
   - No Django service, database or infrastructure is deployed, and no migration runs anywhere.
+
+## Amplify Hosting configuration for the React app (2026-10-25)
+
+Requested as "LAI-1001: Configure React + Three.js for AWS Amplify Hosting". The roadmap's
+LAI-1001 (CDK app, `infra/**`) is a different task and stays open. Details and the console
+steps: `docs/platform/AMPLIFY_HOSTING.md`.
+
+- **Done:**
+  - `amplify.yml`: `npm ci`, Node 22 through nvm, a required `amplify_outputs.json` before the
+    frontend build, a cache of the npm download cache only, and an opt-in read-only mode
+    (`LAI_SKIP_BACKEND_DEPLOY=true` runs `ampx generate outputs` instead of `pipeline-deploy`).
+    With the variable unset, builds deploy the backend as before.
+  - `customHttp.yml`: immutable caching for hashed Vite assets, hourly for `models/` and
+    `fonts/`, HSTS, `nosniff`, `X-Frame-Options`, and `Referrer-Policy`.
+  - `amplify-hosting/custom-rules.json`: the SPA rewrite to apply in the console. Paths under
+    `/api/` are excluded.
+  - `package-lock.json`: `npm ci` works again. A lock-only refresh added the entries npm expects
+    inside the bundles of `@aws-amplify/data-construct` and `graphql-api-construct`. No
+    dependency version changed.
+  - CI installs with `npm ci`.
+- **Tests:** `react/src/app/hostingRewrites.test.ts` (new) and `react/src/api` tests: 4 files,
+  55 tests passed. `npm ci` from the corrected lock passes (Node 22.21, npm 10.9).
+- **Not done (AWS, needs approval):** confirm the Hosting app and branches, turn off branch
+  auto-detection and PR previews, apply the rewrite rule, and verify headers after a deploy.
+  No AWS resource was read or changed; the AWS CLI was not available to this task.
+- **Not set:** a Content-Security-Policy, which needs a browser test against a deployed branch.

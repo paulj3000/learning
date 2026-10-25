@@ -1,17 +1,31 @@
 version: 1
+# Amplify Hosting build (docs/platform/AMPLIFY_HOSTING.md). The repository root is the app
+# root: it holds the npm workspace root, the only lockfile, and the Gen 2 backend (amplify/).
+# The React app builds from the `react` workspace into react/dist.
 backend:
   phases:
     build:
       commands:
+        # Vite 8 and jsdom need Node >= 22.12; do not rely on the build image default.
+        - nvm install 22
         - npm config set cache .npm-cache
-        - npm install --prefer-offline --no-audit --no-fund
-        - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
+        - npm ci --prefer-offline --no-audit --no-fund
+        # Default (unset): deploy this branch's own Gen 2 backend, as before.
+        # LAI_SKIP_BACKEND_DEPLOY=true: read-only. Fetch amplify_outputs.json from the backend
+        # this branch already has, without changing any AWS resource.
+        - |
+          if [ "$LAI_SKIP_BACKEND_DEPLOY" = "true" ]; then
+            npx ampx generate outputs --branch "$AWS_BRANCH" --app-id "$AWS_APP_ID"
+          else
+            npx ampx pipeline-deploy --branch "$AWS_BRANCH" --app-id "$AWS_APP_ID"
+          fi
 frontend:
   phases:
     preBuild:
       commands:
-        - npm config set cache .npm-cache
-        - npm install --prefer-offline --no-audit --no-fund
+        - nvm use 22
+        # The build must run against the generated config, never without it.
+        - test -f amplify_outputs.json
     build:
       commands:
         - npm run build
@@ -20,6 +34,6 @@ frontend:
     files:
       - '**/*'
   cache:
+    # Only the npm download cache: `npm ci` always replaces node_modules.
     paths:
-      - node_modules/**/*
       - .npm-cache/**/*
