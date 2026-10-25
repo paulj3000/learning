@@ -633,6 +633,28 @@ written only through `ChildScopedMixin.scoped` / `get_scoped_object`; never take
 from a request body or query string as authority; and cascade from the child when the child is deleted
 (ADR-022). A record id alone never identifies data.
 
+## Django mapping: progress subset (TR-4, part of LAI-0305)
+
+Implemented in `lai/apps/` for Treasure Rush; the rest of LAI-0305 (CoopSession,
+AdventureAction, SkillProgress, StoryArtifact, WorldState, StoryProgress, NpcRelationship) is
+not ported yet. This document remains authoritative for the Amplify schema until cutover.
+
+| Amplify | Django | Notes |
+|---|---|---|
+| `AdventureSession` | `game_sessions.AdventureSession` | Adds `kind` (`ADVENTURE` with template slug and version, or `REGION` with a region id). One open (ACTIVE or PAUSED) session per child and target, by partial unique constraint. `completed_at` set exactly when COMPLETED (check constraint) |
+| (none) | `game_sessions.ChallengeAttempt` | Typed event (ADR-016) for a server-generated challenge. Snapshots region, target entity, spec slug, age band, skill, parameters, seed, operation, operands, choices, and the server-only answer; immutable once answered. One outstanding attempt per session and target |
+| `SkillEvidence` | `education.SkillEvidence` | `attempt` one-to-one, so one piece of evidence per attempt. `result` uses the Amplify `Correctness` values |
+| `WorldChange` | `progression.WorldChange` | Unique `(child, location_slug, change_key)`; append-only |
+| `ChildInventory.ownedItemIds` | `inventory.InventoryItem` | Unique `(child, item)`: a set, no quantity |
+| `ChildInventory.grantedRuleIds` | `inventory.GrantedRewardRule` | Unique `(child, rule)`: the idempotency key |
+| `ChildQuestState` | `quests.QuestProgress` | Unique `(child, quest)`; ACTIVE or COMPLETED; AVAILABLE is not stored |
+
+Every model has a non-null `child` cascading from `ChildProfile`. Links to another child-owned
+row (`session`, `source_session`, `attempt`) are checked on save to belong to the same child
+(`apps/core/child_owned.py`), since PostgreSQL cannot check that across tables without composite
+foreign keys. Catalog rows a child's progress points at (`ItemDefinition`, `RewardRule`,
+`QuestDefinition`, `LearningObjective`) are PROTECT: they are retired, never deleted.
+
 ## Exported game content (LAI-0302)
 
 Authored game content stays in TypeScript and is exported, read-only, to versioned JSON under

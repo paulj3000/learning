@@ -602,6 +602,10 @@ cookie authentication and no CORS. Cognito bearer-token transport, browser token
 policy, and XSS considerations are decided in LAI-0402; see ADR-021 on W003. There is no
 `docs/SECURITY.md`; security decisions live in ADR-021 and this section.
 
+**Play API (TR-5).** Gameplay routes live under `/api/v1/children/<uuid:child_id>/`, are
+child-scoped views over `apps/game_sessions/services.py`, and take closed request bodies. The
+contract is `docs/PLAY_API.md`.
+
 ## Django identity model (LAI-0301)
 
 Cognito proves identity; `users.ParentAccount` (keyed by the immutable Cognito `sub`) is the

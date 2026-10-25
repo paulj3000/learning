@@ -2528,6 +2528,125 @@ has not been asked and which "Decisions pending" already lists as open; and
 whether SC-11's retirement gate still means anything against a castle whose
 content layer is being replaced.
 
+## Treasure Rush - TR-7 complete (Treasure Cove on the Three.js engine); answering is TR-8
+
+TR-7 renders Treasure Cove on the existing engine and route. A per-child manifest repository
+builds the region from the Django bootstrap, publishes its spawn into the World State checkpoint
+catalogue, and validates it like any source manifest; the registered `region-play` extension
+draws the chest from the child's server state (catalogue model with its `Open` clip, or a built
+chest) and turns Pip and chest interactions into events for TR-8, after starting or resuming the
+session. No runtime, asset-loader, or LAI-2106 file changed. `vite dev` proxies `/api` to a
+loopback Django when `VITE_BACKEND=django` (TR-D14). Details, decisions TR-D16 to TR-D18:
+`docs/TREASURE_RUSH_ROADMAP.md` section 13.
+
+Verification (2026-10-24): 65 new Vitest unit tests; with the existing discovery, island-map
+(runtime, manifests, parity, extensions), routes, app, island, and multiplayer suites that is
+141 files and 1,439 tests, all passing; `tsc` clean for app and node configs. Unit tests only: no browser, Playwright, Ruff, or
+Prettier. Nobody has played it in a browser. Local setup note: this worktree resolves
+`@colyseus/sdk` through an untracked `react/node_modules` link to the main checkout's copy.
+
+### Earlier: TR-6 (React client and hooks)
+
+TR-6 adds the typed Django client (`react/src/api/`: config behind `VITE_BACKEND=django`,
+access-token auth per request, one refresh retry on 401, error envelope to `ApiError`, runtime
+response checking, one function per play route) and the React layer
+(`react/src/features/region-play/`: a pure reducer, `useRegionPlay`, `usePlayerProgress`,
+and `toRegionSceneModel`, the plain-data boundary TR-7 builds the Three.js region from). The
+server stays the only source of truth; replies for a previous child are dropped. No existing
+frontend file changed and nothing renders yet. Details and the decisions TR-7 needs (TR-D14 dev
+proxy, TR-D15 manifest repository): `docs/TREASURE_RUSH_ROADMAP.md` section 12.
+
+Verification (2026-10-24): 65 new Vitest unit tests pass; `tsc` clean for the new code (the one
+error, `@colyseus/sdk` not resolvable from this worktree's shared `node_modules`, predates TR-6);
+four mutations each failed a test. Unit tests only: Ruff, Prettier, Playwright, and browser tests
+were not run; the full Vitest suite was not run either, since no existing file changed.
+
+### Earlier: TR-5 (play API)
+
+TR-5 adds the play API under `/api/v1/children/{childId}/`: region bootstrap, start or resume a
+session, session lifecycle (pause, resume, complete, abandon), quest acceptance, chest challenge,
+answer, and progress. Thin DRF views over the TR-4 services; every route is child-scoped and
+covered by the existing route checker. Contract with examples: `docs/PLAY_API.md`. Decisions
+TR-D1, TR-D2, TR-D4, TR-D8, TR-D11 accepted by the owner; TR-D12 and TR-D13 recorded in
+`docs/TREASURE_RUSH_ROADMAP.md` section 11. Additive changes: `WorldRegion.offered_quests`
+(migration `islands.0002`) and a session lifecycle service.
+
+Verification (2026-10-24, PostgreSQL 16): `pytest lai tests` all passed (36 new API tests);
+`makemigrations --check` and `manage.py check` clean; four mutations each failed a test. Unit
+tests only: Ruff, Prettier, Playwright, and browser tests were not run (development testing
+policy; they run at merge).
+
+Not done: no frontend (TR-6 on), no admin (TR-3, blocked on TR-D5). Seeded Treasure Rush
+content is DRAFT until an administrator publishes it.
+
+### Earlier: TR-4 (progress models and play services)
+
+TR-4 (the Treasure Rush subset of LAI-0305) adds `game_sessions` (`AdventureSession` with a
+`REGION` kind, `ChallengeAttempt`), `progression` (`WorldChange`), `InventoryItem` and
+`GrantedRewardRule` in `inventory`, `QuestProgress` in `quests`, and `SkillEvidence` in
+`education`, with database constraints for every one-time rule. `quests/engine.py` ports the
+client's `advanceQuest` for the objectives the server can prove. `game_sessions/services.py` is
+the transactional boundary the TR-5 API will call: start or resume a session, issue a chest
+challenge, submit an answer (grade, evidence, world change, reward, quests in one transaction).
+Details and decisions TR-D9 to TR-D11: `docs/TREASURE_RUSH_ROADMAP.md` section 10.
+
+Verification (2026-10-24, PostgreSQL 16): `pytest lai tests` 390 passed (88 new, including
+three concurrent-request races); `makemigrations --check` clean; `manage.py check` clean; four
+mutations each failed a test. Unit tests only: Ruff, Prettier, Playwright, and browser tests
+were not run (development testing policy; they run at merge).
+
+Not done: no endpoint (TR-5), no admin (TR-3), no frontend, no `SkillProgress`.
+
+### Earlier: TR-2 (catalog models and loader)
+
+Branch `feature/treasure-rush-slice` (worktree `../learning-treasure-rush-slice`), cut from
+`main` at `350e11b` with the TR-0/TR-1 commit carried over. Not pushed.
+
+TR-2 (is LAI-0304 without `assets`) adds four Django apps and two new models in `education`:
+
+- `islands`: `Island`, `IslandLocation`, `NpcDefinition`, `NpcDialogueNode` (one row per line),
+  and the admin-authored world models `WorldRegion`, `SpawnPoint`, `WorldObjectPlacement`,
+  `TreasureChest` (one `ChallengeSpec` per age band, a reward rule, a world change key).
+- `inventory`: `ItemDefinition`, `CollectibleSet`, `RewardRule`. `adventures`:
+  `AdventureTemplate` (status plus availability window). `quests`: `QuestDefinition`.
+- `education`: `LearningObjective`, `ChallengeSpec` (TR-1 parameters; `save()` refuses any
+  parameters `validate_parameters` rejects).
+- `manage.py load_content`: schema-validated, all-or-nothing, idempotent; status is set only on
+  create, so an admin retirement survives a reload; admin-authored rows are never touched. The
+  schema check is a small subset validator (`apps/core/content_schema.py`), not a new
+  dependency; unsupported keywords fail loudly.
+- `manage.py seed_treasure_rush`: starter Treasure Cove content as DRAFT rows (region in Pirate
+  Builder Bay, spawn, chest, Pip, three challenge specs, Golden Doubloon keepsake, quest).
+- Asset references are id strings checked against `content/exported/assets.json` by kind
+  (`apps/core/catalog.py`); this is the one place that changes when LAI-2106 offers a check.
+
+Verification (2026-10-24, PostgreSQL 16 via docker compose): `pytest lai` 299 passed;
+`makemigrations --check` clean; `manage.py check` clean. Two mutations (loader overwriting
+status, chest accepting another band's challenge) were confirmed to fail the tests. Ruff and
+the npm gate were not run at the owner's request (rapid development; run before merge).
+
+Remaining: Django admin (TR-3, needs TR-D5), progress models (TR-4), play API (TR-5), and all
+frontend work. Decisions TR-D1, TR-D2, TR-D4, TR-D5, TR-D8 are still Proposed.
+
+### Earlier: TR-0 and TR-1
+
+Plan, gap analysis, proposed decisions (TR-D1 to TR-D8), and the LAI-2106 asset contract:
+`docs/TREASURE_RUSH_ROADMAP.md`. Branch `treasure-rush` (worktree), not pushed.
+
+TR-1 adds `lai/apps/education/challenges.py`, registered as the model-free `apps.education`
+app: math challenges generated from administrator parameters and a server-chosen seed, checked
+against age-band and skill limits taken from the curriculum export, and graded on the server.
+The client shape never contains the answer. No migration, no endpoint, no frontend change.
+
+Verification (2026-10-24, PostgreSQL 16 via `make up`): `make py-check` green; `make
+py-test-db` 246 passed (211 before, plus 35 new). Without PostgreSQL, the existing
+`test_database_statements_and_parameters_are_never_logged` errors instead of skipping, because
+it is not marked `postgres`; that predates this change. No JavaScript changed, so the npm gate
+was not run.
+
+Remaining: everything from TR-2 on, which waits for the proposed decisions; LAI-2106 is not
+visible in this clone, so the asset contract is stated as requirements only.
+
 ## Completed
 
 - Product concept documented.

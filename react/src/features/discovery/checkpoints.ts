@@ -384,7 +384,7 @@ export const DRAGONS_SANCTUARY_CHECKPOINTS: readonly RegionCheckpoint[] = [
   },
 ];
 
-export const ALL_CHECKPOINTS: readonly RegionCheckpoint[] = [
+const SOURCE_CHECKPOINTS: readonly RegionCheckpoint[] = [
   ...WELCOME_HARBOR_CHECKPOINTS,
   ...PIRATE_BUILDER_BAY_CHECKPOINTS,
   ...STORYKEEPER_CASTLE_CHECKPOINTS,
@@ -394,9 +394,77 @@ export const ALL_CHECKPOINTS: readonly RegionCheckpoint[] = [
   ...DRAGONS_SANCTUARY_CHECKPOINTS,
 ];
 
-export const KNOWN_CHECKPOINT_IDS: readonly string[] = ALL_CHECKPOINTS.map(
+/**
+ * Every checkpoint the engine may use: the source-authored ones above, then
+ * any a server-published region added with `publishRegionCheckpoints`. One
+ * array for the whole app run, so every reader (spawn, trigger volumes,
+ * manifest validation, toasts) sees a published region's checkpoints
+ * without changing (`docs/engine/ENGINE_OVERVIEW.md` gap 2).
+ */
+const CATALOGUE: RegionCheckpoint[] = [...SOURCE_CHECKPOINTS];
+export const ALL_CHECKPOINTS: readonly RegionCheckpoint[] = CATALOGUE;
+
+/**
+ * Source checkpoint ids only. These are the ids `discovery/api.ts` will save
+ * to the Amplify world state; a published region's checkpoints are server
+ * data and are not saved there (the child re-enters at its spawn).
+ */
+export const KNOWN_CHECKPOINT_IDS: readonly string[] = SOURCE_CHECKPOINTS.map(
   (checkpoint) => checkpoint.id,
 );
+
+export class CheckpointPublishError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CheckpointPublishError';
+  }
+}
+
+/**
+ * Sets the checkpoints of a region whose layout is server data (TR-7,
+ * decision TR-D4: spawn points live in Django). Replaces whatever was
+ * published for that region before. Refuses a region that has source
+ * checkpoints, a checkpoint for another region, an empty list, and an id
+ * any other region already uses, so published data can never move a child
+ * in a source-authored region.
+ */
+export function publishRegionCheckpoints(
+  regionId: string,
+  checkpoints: readonly RegionCheckpoint[],
+): void {
+  if (SOURCE_CHECKPOINTS.some((checkpoint) => checkpoint.regionId === regionId)) {
+    throw new CheckpointPublishError(`Region "${regionId}" has source-authored checkpoints`);
+  }
+  if (checkpoints.length === 0) {
+    throw new CheckpointPublishError(`Region "${regionId}" needs at least one checkpoint`);
+  }
+  const ids = new Set<string>();
+  for (const checkpoint of checkpoints) {
+    if (checkpoint.regionId !== regionId) {
+      throw new CheckpointPublishError(`Checkpoint "${checkpoint.id}" is not in "${regionId}"`);
+    }
+    const taken = CATALOGUE.find(
+      (existing) => existing.id === checkpoint.id && existing.regionId !== regionId,
+    );
+    if (taken || ids.has(checkpoint.id)) {
+      throw new CheckpointPublishError(`Checkpoint id "${checkpoint.id}" is already used`);
+    }
+    ids.add(checkpoint.id);
+  }
+  removePublished(regionId);
+  CATALOGUE.push(...checkpoints.map((checkpoint) => ({ ...checkpoint })));
+}
+
+/** Removes a published region's checkpoints. Source checkpoints are never removed. */
+export function unpublishRegionCheckpoints(regionId: string): void {
+  removePublished(regionId);
+}
+
+function removePublished(regionId: string): void {
+  for (let index = CATALOGUE.length - 1; index >= SOURCE_CHECKPOINTS.length; index -= 1) {
+    if (CATALOGUE[index].regionId === regionId) CATALOGUE.splice(index, 1);
+  }
+}
 
 export function findCheckpoint(id: string | undefined): RegionCheckpoint | undefined {
   return id ? ALL_CHECKPOINTS.find((checkpoint) => checkpoint.id === id) : undefined;
