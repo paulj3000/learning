@@ -42,7 +42,13 @@ _CODED = {
     "step_not_current": "That step is not the current one.",
     "content_version_changed": "This adventure has changed since it was started.",
     "request_conflict": "That request id was already used for a different answer.",
-    "invalid_transition": "That adventure cannot change that way.",
+    "invalid_transition": "That change is not allowed right now.",
+    # Region play (Treasure Rush TR-5)
+    "content_unavailable": "This is not available right now.",
+    "session_not_open": "This play session has ended.",
+    "chest_already_open": "This chest is already open.",
+    "attempt_already_answered": "This challenge was already answered.",
+    "quest_unavailable": "This quest is not available.",
 }
 _PASSTHROUGH_HEADERS = {"Allow", "WWW-Authenticate", "Retry-After"}
 

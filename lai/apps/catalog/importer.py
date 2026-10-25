@@ -28,17 +28,23 @@ from django.db import connection, transaction
 from apps.catalog.models import (
     Adventure,
     AdventureStep,
+    CollectibleSet,
     ContentAsset,
     ContentRelease,
+    ItemDefinition,
+    LearningObjective,
     Location,
     LocationAsset,
+    NpcDefinition,
     Quest,
+    RewardRule,
     World,
 )
+from apps.core import content_schema
 
 # Schema 3 adds `locationAssets`; a schema 2 export imports with no asset associations.
 SUPPORTED_SCHEMA_VERSIONS = (2, 3)
-DEFAULT_EXPORT_DIR = Path(settings.BASE_DIR).parent / "content" / "exported"
+DEFAULT_EXPORT_DIR = Path(settings.CONTENT_DIR) / "exported"
 SORT_ORDER_STEP = 10
 # Arbitrary constant key for pg_advisory_xact_lock: one content import at a time.
 IMPORT_LOCK_KEY = 304_0304
@@ -59,6 +65,7 @@ class ExportBundle:
     export_tool: str
     files: list[dict[str, Any]]
     collections: dict[str, list[dict[str, Any]]]
+    schema_validated: bool = False
 
 
 @dataclass
@@ -131,12 +138,32 @@ def read_export(directory: Path = DEFAULT_EXPORT_DIR) -> ExportBundle:
     if problems:
         raise ContentImportError(problems)
 
+    # The schema the exporter wrote beside the export, when present (always, for content/):
+    # the same JSON Schema the TypeScript exporter validated against, checked again here with
+    # the dependency-free validator in apps/core/content_schema.py.
+    schema_file = directory.parent / "schema" / "content.schema.json"
+    schema_validated = schema_file.is_file()
+    if schema_validated:
+        schema = json.loads(schema_file.read_text(encoding="utf-8"))
+        for entry in files:
+            try:
+                content_schema.validate_file(
+                    entry["path"], json.loads((directory / entry["path"]).read_bytes()), schema
+                )
+            except content_schema.ContentSchemaError as error:
+                problems.extend(f"{entry['path']}: {message}" for message in error.errors[:20])
+            except content_schema.UnsupportedKeyword as error:
+                problems.append(f"schema: unsupported keyword ({error})")
+        if problems:
+            raise ContentImportError(problems)
+
     return ExportBundle(
         content_digest=manifest["contentDigest"],
         schema_version=version,
         export_tool=f"{manifest['exportTool']['name']}@{manifest['exportTool']['version']}",
         files=files,
         collections=collections,
+        schema_validated=schema_validated,
     )
 
 
@@ -152,6 +179,11 @@ class Plan:
     quests: list[dict[str, Any]] = field(default_factory=list)
     assets: list[dict[str, Any]] = field(default_factory=list)
     location_assets: list[dict[str, Any]] = field(default_factory=list)
+    learning_objectives: list[dict[str, Any]] = field(default_factory=list)
+    npcs: list[dict[str, Any]] = field(default_factory=list)
+    collectible_sets: list[dict[str, Any]] = field(default_factory=list)
+    items: list[dict[str, Any]] = field(default_factory=list)
+    reward_rules: list[dict[str, Any]] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
 
 
@@ -304,6 +336,9 @@ def build_plan(bundle: ExportBundle) -> Plan:
         for slug in solved:
             if slug not in adventure_slugs:
                 problems.append(f"{where}: SOLVE names unknown adventure {slug!r}")
+        stage_ids = {stage.get("id") for stage in quest.get("stages", [])}
+        if quest.get("entryStageId") not in stage_ids:
+            problems.append(f"{where}: entry stage {quest.get('entryStageId')!r} is not one of its stages")
         plan.quests.append({
             "key": _text(quest, "id", where, problems),
             "order": index,
@@ -351,9 +386,101 @@ def build_plan(bundle: ExportBundle) -> Plan:
         for position, asset_id in enumerate(dict.fromkeys(ids)):
             plan.location_assets.append({"location": slug, "asset": asset_id, "position": position})
 
+    _plan_supporting_catalogs(c, plan, location_slugs, problems)
+
     if problems:
         raise ContentImportError(problems)
     return plan
+
+
+def _plan_supporting_catalogs(c, plan: Plan, location_slugs: set[str], problems: list[str]) -> None:
+    """Learning objectives, NPCs, collectible sets, items and reward rules (all optional)."""
+    objectives = c.get("learningObjectives", [])
+    _unique(objectives, "code", "learning objective", problems)
+    for objective in objectives:
+        where = f"learning objective {objective.get('code')!r}"
+        plan.learning_objectives.append({
+            "key": _text(objective, "code", where, problems),
+            "fields": {
+                "domain": _text(objective, "domain", where, problems),
+                "title": _text(objective, "title", where, problems),
+                "source": objective,
+            },
+        })
+
+    npcs = c.get("npcs", [])
+    _unique(npcs, "id", "npc", problems)
+    for index, npc in enumerate(npcs):
+        where = f"npc {npc.get('id')!r}"
+        home = _text(npc, "homeLocationSlug", where, problems)
+        plan.npcs.append({
+            "key": _text(npc, "id", where, problems),
+            "order": index,
+            "home": home if home in location_slugs else None,
+            "fields": {
+                "display_name": _text(npc, "displayName", where, problems),
+                "role": _text(npc, "role", where, problems, optional=True),
+                "home_location_slug": home,
+                "interaction_id": _text(npc, "interactionId", where, problems, optional=True),
+                "source": npc,
+            },
+        })
+
+    sets, items, rules = c.get("collectibleSets", []), c.get("items", []), c.get("rewardRules", [])
+    set_ids = _unique(sets, "id", "collectible set", problems)
+    item_ids = _unique(items, "id", "item", problems)
+    _unique(rules, "id", "reward rule", problems)
+    for collectible_set in sets:
+        where = f"collectible set {collectible_set.get('id')!r}"
+        completion = collectible_set.get("completionItemId")
+        if completion is not None and completion not in item_ids:
+            problems.append(f"{where}: unknown completion item {completion!r}")
+        plan.collectible_sets.append({
+            "key": _text(collectible_set, "id", where, problems),
+            "completion_item": completion,
+            "fields": {
+                "display_name": _text(collectible_set, "displayName", where, problems),
+                "completion_message": _text(
+                    collectible_set, "completionMessage", where, problems, optional=True
+                ),
+                "source": collectible_set,
+            },
+        })
+    for item in items:
+        where = f"item {item.get('id')!r}"
+        set_id = item.get("setId")
+        if set_id is not None and set_id not in set_ids:
+            problems.append(f"{where}: unknown collectible set {set_id!r}")
+        plan.items.append({
+            "key": _text(item, "id", where, problems),
+            "set": set_id,
+            "fields": {
+                "display_name": _text(item, "displayName", where, problems),
+                "description": _text(item, "description", where, problems, optional=True),
+                "category": _text(item, "category", where, problems),
+                "rarity": _text(item, "rarity", where, problems),
+                "cosmetic_slot": item.get("cosmeticSlot") or "",
+                "hidden": bool(item.get("hidden", False)),
+                "source": item,
+            },
+        })
+    for rule in rules:
+        where = f"reward rule {rule.get('id')!r}"
+        granted = _texts(rule, "itemIds", where, problems)
+        for item_id in granted:
+            if item_id not in item_ids:
+                problems.append(f"{where}: unknown item {item_id!r}")
+        if not isinstance(rule.get("trigger"), dict):
+            problems.append(f"{where}: `trigger` must be an object")
+        plan.reward_rules.append({
+            "key": _text(rule, "id", where, problems),
+            "items": granted,
+            "fields": {
+                "trigger": rule.get("trigger"),
+                "message": _text(rule, "message", where, problems, optional=True),
+                "source": rule,
+            },
+        })
 
 
 # --- Applying ---------------------------------------------------------------------------------
@@ -385,7 +512,8 @@ def _catalog(order: int) -> dict[str, Any]:
 
 def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
     counts = {name: _counter() for name in
-              ("assets", "worlds", "locations", "adventures", "steps", "quests", "location_assets")}
+              ("assets", "worlds", "locations", "adventures", "steps", "quests", "location_assets",
+               "learning_objectives", "npcs", "collectible_sets", "items", "reward_rules")}
 
     assets: dict[str, ContentAsset] = {}
     for record in plan.assets:
@@ -425,9 +553,34 @@ def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
         _upsert(LocationAsset, {"location": locations[r["location"]], "asset": assets[r["asset"]]},
                 {"position": r["position"]}, release, counts["location_assets"])
 
+    for r in plan.learning_objectives:
+        _upsert(LearningObjective, {"code": r["key"]}, r["fields"], release,
+                counts["learning_objectives"])
+    for r in plan.npcs:
+        _upsert(NpcDefinition, {"npc_id": r["key"]},
+                {**r["fields"], "home_location": locations.get(r["home"])}, release,
+                counts["npcs"], catalog=_catalog(r["order"]))
+    sets = {r["key"]: _upsert(CollectibleSet, {"set_id": r["key"]}, r["fields"], release,
+                              counts["collectible_sets"]) for r in plan.collectible_sets}
+    items = {r["key"]: _upsert(ItemDefinition, {"item_id": r["key"]},
+                               {**r["fields"], "collectible_set": sets.get(r["set"])}, release,
+                               counts["items"]) for r in plan.items}
+    for r in plan.collectible_sets:  # second pass: the completion item needs the item rows
+        collectible_set = sets[r["key"]]
+        completion = items.get(r["completion_item"]) if r["completion_item"] else None
+        if collectible_set.completion_item_id != (completion.pk if completion else None):
+            collectible_set.completion_item = completion
+            collectible_set.save(update_fields=["completion_item"])
+    for r in plan.reward_rules:
+        rule = _upsert(RewardRule, {"rule_id": r["key"]}, r["fields"], release, counts["reward_rules"])
+        rule.items.set([items[item_id] for item_id in r["items"]])
+
     for name, model in (("assets", ContentAsset), ("worlds", World), ("locations", Location),
                         ("adventures", Adventure), ("steps", AdventureStep), ("quests", Quest),
-                        ("location_assets", LocationAsset)):
+                        ("location_assets", LocationAsset),
+                        ("learning_objectives", LearningObjective), ("npcs", NpcDefinition),
+                        ("collectible_sets", CollectibleSet), ("items", ItemDefinition),
+                        ("reward_rules", RewardRule)):
         counts[name]["missing"] = model.objects.exclude(last_seen_release=release).count()
     return counts
 
@@ -460,7 +613,7 @@ def import_content(
             report={},
         )
         report.counts = _apply(plan, release)
-        release.report = report.as_dict()
+        release.report = {**report.as_dict(), "schema_validated": bundle.schema_validated}
         release.save(update_fields=["report"])
         report.release_id = release.pk
         if dry_run:

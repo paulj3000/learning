@@ -1,26 +1,26 @@
-"""Admin-authored Treasure Rush world content (TR-2): seed, placement, and chest rules."""
+"""Seed-authored Treasure Rush world content (TR-2, POST-MERGE-03): seed, placement, chest rules."""
 
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
-from apps.adventures.models import AdventureTemplate
-from apps.core.content_loader import load_content
+from apps.catalog.importer import ContentImportError, import_content
+from apps.catalog.tests.helpers import base_collections, write_export
 from apps.education.models import ChallengeSpec
-from apps.islands.models import (
+from apps.regions.models import (
     PlacementKind,
     SpawnPoint,
     TreasureChest,
     WorldObjectPlacement,
     WorldRegion,
 )
-from apps.islands.treasure_rush_seed import (
+from apps.regions.treasure_rush_seed import (
     CHEST_ID,
     REGION_ID,
     SeedPrerequisiteMissing,
     seed_treasure_rush,
 )
-from apps.quests.models import QuestDefinition
+from apps.catalog.models import Quest as QuestDefinition
 from apps.users.models import AgeBand
 
 pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
@@ -28,7 +28,7 @@ pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
 
 @pytest.fixture
 def seeded():
-    load_content()
+    import_content()
     seed_treasure_rush()
     return WorldRegion.objects.get(region_id=REGION_ID)
 
@@ -45,18 +45,15 @@ def test_the_seed_is_idempotent_and_keeps_admin_edits(seeded):
     assert WorldRegion.objects.get(region_id=REGION_ID).title == "Pirate Cove"
 
 
-def test_every_seeded_row_is_valid_and_draft(seeded):
-    rows = [
-        seeded,
-        *seeded.spawn_points.all(),
-        *seeded.placements.all(),
-        *seeded.chests.all(),
-        QuestDefinition.objects.get(quest_id="treasure-rush-cove"),
-    ]
+def test_every_seeded_row_is_valid_and_draft_and_the_quest_is_catalog_content(seeded):
+    rows = [seeded, *seeded.spawn_points.all(), *seeded.placements.all(), *seeded.chests.all()]
     for row in rows:
         row.full_clean()
     assert seeded.status == "DRAFT"
-    assert QuestDefinition.objects.get(quest_id="treasure-rush-cove").status == "DRAFT"
+    quest = QuestDefinition.objects.get(slug="treasure-rush-cove")
+    assert quest.last_seen_release is not None  # imported from the export, not seeded
+    assert list(seeded.offered_quests.all()) == [quest]
+    assert seeded.chests.get().reward_rule.rule_id == "reward-treasure-rush-cove-chest"
 
 
 def test_the_chest_has_a_challenge_for_every_band(seeded):
@@ -126,12 +123,13 @@ def test_a_region_has_one_default_spawn(seeded):
         )
 
 
-def test_entry_ids_must_name_a_real_step_or_stage(seeded):
-    quest = QuestDefinition.objects.get(quest_id="treasure-rush-cove")
-    quest.entry_stage_id = "nowhere"
-    with pytest.raises(ValidationError):
-        quest.clean()
-    adventure = AdventureTemplate.objects.first()
-    adventure.entry_step_id = "nowhere"
-    with pytest.raises(ValidationError):
-        adventure.clean()
+def test_entry_ids_must_name_a_real_step_or_stage(tmp_path):
+    """Catalog rows are written only by the importer, so it refuses unknown entry ids."""
+    bad_quest = base_collections()
+    bad_quest["quests.json"]["quests"][0]["entryStageId"] = "nowhere"
+    with pytest.raises(ContentImportError, match="1 problem"):
+        import_content(write_export(tmp_path / "quest", bad_quest))
+    bad_adventure = base_collections()
+    bad_adventure["adventures.json"]["adventures"][0]["entryStepId"] = "nowhere"
+    with pytest.raises(ContentImportError, match="1 problem"):
+        import_content(write_export(tmp_path / "adventure", bad_adventure))

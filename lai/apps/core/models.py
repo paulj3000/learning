@@ -5,6 +5,10 @@ import uuid
 from django.db import models
 
 
+class CrossChildReference(ValueError):
+    """A child-owned row tried to link to a record that belongs to a different child."""
+
+
 class ChildOwnedQuerySet(models.QuerySet):
     def for_child(self, child) -> "ChildOwnedQuerySet":
         """The only way service code reads a child's records (LAI-0403 rule 3)."""
@@ -26,8 +30,23 @@ class ChildOwnedModel(models.Model):
 
     objects = ChildOwnedQuerySet.as_manager()
 
+    #: Foreign keys to other child-owned rows; each must belong to the same child. PostgreSQL
+    #: cannot check that across tables without composite keys, so `save()` does (from Treasure
+    #: Rush, TR-4). Services create rows through `save()`, never `bulk_create`.
+    CHILD_LINKS: tuple[str, ...] = ()
+
     class Meta:
         abstract = True
+
+    def check_child_links(self) -> None:
+        for name in self.CHILD_LINKS:
+            linked = getattr(self, name)
+            if linked is not None and linked.child_id != self.child_id:
+                raise CrossChildReference(f"{type(self).__name__}.{name} belongs to another child")
+
+    def save(self, *args, **kwargs):
+        self.check_child_links()
+        super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return f"{self._meta.model_name} {self.id}"

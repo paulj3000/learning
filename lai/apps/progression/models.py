@@ -20,8 +20,13 @@ class RelationshipLevel(models.TextChoices):
     TRUSTED_FRIEND = "TRUSTED_FRIEND"
 
 
+class AppendOnly(ValueError):
+    """A recorded world change was about to be edited (Treasure Rush TR-4)."""
+
+
 class WorldChange(ChildOwnedModel):
-    """A persistent consequence on the island (ADR-005). Recording the same change twice is a no-op."""
+    """A persistent consequence on the island (ADR-005). Recording the same change twice is a
+    no-op, and a recorded change is never edited (append-only)."""
 
     location_slug = models.CharField(max_length=100)
     change_type = models.CharField(max_length=64)
@@ -38,8 +43,14 @@ class WorldChange(ChildOwnedModel):
             models.UniqueConstraint(
                 fields=["child", "location_slug", "change_key"], name="world_change_once"
             ),
+            models.CheckConstraint(condition=~models.Q(change_key=""), name="world_change_key_set"),
         ]
         indexes = [models.Index(fields=["child", "location_slug"], name="world_change_child_location")]
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise AppendOnly("A world change is never edited.")
+        super().save(*args, **kwargs)
 
 
 class WorldState(ChildOwnedModel):

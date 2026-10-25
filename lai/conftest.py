@@ -149,3 +149,37 @@ def content_catalog(db, tmp_path):
         quest=Quest.objects.get(slug="repair"),
         export_dir=tmp_path,
     )
+
+
+# --- Treasure Rush content (TR-4, on the canonical catalog since POST-MERGE-03) --------------
+
+
+@pytest.fixture
+def treasure(families):
+    """The real content export imported, the Treasure Cove seed published, and the two families.
+
+    The `families` children are Pathfinders, so the chest's challenge is the Pathfinder spec
+    (addition, four choices). The quest is catalog content and active on import.
+    """
+    from types import SimpleNamespace
+
+    from apps.catalog.importer import import_content
+    from apps.catalog.models import Quest
+    from apps.core.content_status import ContentStatus
+    from apps.education.models import ChallengeSpec
+    from apps.regions.models import WorldRegion
+    from apps.regions.treasure_rush_seed import QUEST_ID, REGION_ID, seed_treasure_rush
+
+    import_content()
+    seed_treasure_rush()
+    WorldRegion.objects.filter(region_id=REGION_ID).update(status=ContentStatus.PUBLISHED)
+    ChallengeSpec.objects.filter(slug__startswith="treasure-cove-").update(
+        status=ContentStatus.PUBLISHED
+    )
+    region = WorldRegion.objects.get(region_id=REGION_ID)
+    return SimpleNamespace(
+        families=families,
+        region=region,
+        chest=region.chests.get(),
+        quest=Quest.objects.get(slug=QUEST_ID),
+    )

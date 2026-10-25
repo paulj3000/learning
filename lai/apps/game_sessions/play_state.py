@@ -8,16 +8,17 @@ from dataclasses import dataclass
 
 from django.db.models import Count, Q
 
-from apps.core.catalog import ContentStatus
-from apps.education.models import EvidenceResult, SkillEvidence
+from apps.catalog.models import Quest
+from apps.core.content_status import ContentStatus
+from apps.education.models import SkillEvidence
 from apps.inventory.models import InventoryItem
-from apps.islands.models import PlacementKind, TreasureChest, WorldRegion
 from apps.progression.models import WorldChange
 from apps.quests import engine
-from apps.quests.models import QuestDefinition, QuestProgress
+from apps.quests.models import QuestProgress
 from apps.quests.services import build_context
+from apps.regions.models import PlacementKind, TreasureChest, WorldRegion
 
-from .models import OPEN_STATUSES, AdventureSession, SessionKind
+from .models import OPEN_STATUSES, AdventureSession, Correctness, SessionKind
 
 RECENT_SESSIONS = 20
 
@@ -31,22 +32,23 @@ def published_region(region_id: str) -> WorldRegion:
         return WorldRegion.objects.select_related("location").get(
             region_id=region_id,
             status=ContentStatus.PUBLISHED,
-            location__status=ContentStatus.PUBLISHED,
+            location__active=True,
         )
     except WorldRegion.DoesNotExist:
         raise RegionNotFound from None
 
 
-def published_quest(quest_id: str) -> QuestDefinition:
+def published_quest(quest_id: str) -> Quest:
+    """An active catalog quest (the catalog's `active` is Treasure Rush's "published")."""
     try:
-        return QuestDefinition.objects.get(quest_id=quest_id, status=ContentStatus.PUBLISHED)
-    except QuestDefinition.DoesNotExist:
+        return Quest.objects.get(slug=quest_id, active=True)
+    except Quest.DoesNotExist:
         raise LookupError from None
 
 
 @dataclass(frozen=True)
 class QuestEntry:
-    quest: QuestDefinition
+    quest: Quest
     status: str  # AVAILABLE, ACTIVE, or COMPLETED
     progress: QuestProgress | None
 
@@ -54,16 +56,16 @@ class QuestEntry:
 def quest_entries(child, quests) -> list[QuestEntry]:
     """Quests the child has started, plus published ones they could accept now."""
     context = build_context(child)
-    progress = {row.quest_id: row for row in QuestProgress.objects.filter(child=child)}
+    progress = {row.quest_id: row for row in QuestProgress.objects.for_child(child)}
     entries = []
     for quest in quests:
         row = progress.get(quest.pk)
         if row is not None:
             entries.append(QuestEntry(quest, row.status, row))
         elif (
-            quest.status == ContentStatus.PUBLISHED
+            quest.active
             and child.age_band in quest.age_bands
-            and engine.conditions_hold(quest.prerequisites, context)
+            and engine.conditions_hold(quest.source.get("prerequisites", []), context)
         ):
             entries.append(QuestEntry(quest, "AVAILABLE", None))
     return entries
@@ -91,7 +93,7 @@ def region_bootstrap(child, region: WorldRegion) -> dict:
     npcs = [
         p
         for p in placements
-        if p.kind == PlacementKind.NPC and p.npc and p.npc.status == ContentStatus.PUBLISHED
+        if p.kind == PlacementKind.NPC and p.npc and p.npc.active
     ]
     objects = [p for p in placements if p.kind != PlacementKind.NPC]
     chests = []
@@ -107,7 +109,7 @@ def region_bootstrap(child, region: WorldRegion) -> dict:
                 and spec.status == ContentStatus.PUBLISHED,
             }
         )
-    offered = region.offered_quests.filter(status=ContentStatus.PUBLISHED).order_by("quest_id")
+    offered = region.offered_quests.filter(active=True).order_by("slug")
     return {
         "region": region,
         "spawn": region.spawn_points.filter(is_default=True).first(),
@@ -131,17 +133,17 @@ def opened_chests(child) -> list[TreasureChest]:
 def practice_summary(child) -> list[dict]:
     """How often each objective was practised and answered right. Counts, never a label."""
     rows = (
-        SkillEvidence.objects.filter(child=child)
-        .values("learning_objective__code")
+        SkillEvidence.objects.for_child(child)
+        .values("learning_objective_code")
         .annotate(
             attempts=Count("id"),
-            correct=Count("id", filter=Q(result=EvidenceResult.CORRECT)),
+            correct=Count("id", filter=Q(result=Correctness.CORRECT)),
         )
-        .order_by("learning_objective__code")
+        .order_by("learning_objective_code")
     )
     return [
         {
-            "objective_code": row["learning_objective__code"],
+            "objective_code": row["learning_objective_code"],
             "attempts": row["attempts"],
             "correct": row["correct"],
         }
@@ -150,7 +152,7 @@ def practice_summary(child) -> list[dict]:
 
 
 def child_progress(child) -> dict:
-    started = QuestDefinition.objects.filter(progress__child=child).order_by("quest_id")
+    started = Quest.objects.filter(progress__child=child).order_by("slug")
     return {
         "sessions": AdventureSession.objects.filter(child=child).order_by("-started_at")[
             :RECENT_SESSIONS

@@ -84,7 +84,7 @@ class NpcPlacementSerializer(PlacedSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         # The placement's own model wins; otherwise the NPC's default character model.
-        data["assetId"] = instance.asset_id or instance.npc.asset_id
+        data["assetId"] = instance.asset_id  # catalog NPCs carry no model of their own
         return data
 
 
@@ -122,20 +122,26 @@ class SessionSerializer(serializers.Serializer):
     sessionId = serializers.UUIDField(source="id")
     kind = serializers.CharField()
     regionId = serializers.CharField(source="region_id")
-    templateSlug = serializers.CharField(source="template_slug")
+    templateSlug = serializers.SerializerMethodField()
     locationSlug = serializers.CharField(source="location_slug")
     status = serializers.CharField()
     startedAt = serializers.DateTimeField(source="started_at")
     lastActivityAt = serializers.DateTimeField(source="last_activity_at")
     completedAt = serializers.DateTimeField(source="completed_at")
 
+    def get_templateSlug(self, session) -> str:
+        return session.adventure.slug if session.adventure_id else ""
+
 
 class WorldChangeSerializer(serializers.Serializer):
     locationSlug = serializers.CharField(source="location_slug")
     changeType = serializers.CharField(source="change_type")
     changeKey = serializers.CharField(source="change_key")
-    payload = serializers.JSONField()
+    payload = serializers.SerializerMethodField()
     createdAt = serializers.DateTimeField(source="created_at")
+
+    def get_payload(self, change) -> dict:
+        return change.payload or {}
 
 
 class ItemSerializer(serializers.Serializer):
@@ -143,12 +149,15 @@ class ItemSerializer(serializers.Serializer):
     displayName = serializers.CharField(source="display_name")
     description = serializers.CharField()
     category = serializers.CharField()
-    assetId = serializers.CharField(source="asset_id")
+    assetId = serializers.SerializerMethodField()
+
+    def get_assetId(self, item) -> str:
+        return ""  # catalog items have no model id yet; the client draws a placeholder
 
 
 class InventoryEntrySerializer(serializers.Serializer):
     item = ItemSerializer()
-    grantedAt = serializers.DateTimeField(source="granted_at")
+    grantedAt = serializers.DateTimeField(source="acquired_at")
 
 
 class QuestEntrySerializer(serializers.Serializer):
@@ -156,10 +165,10 @@ class QuestEntrySerializer(serializers.Serializer):
         quest, progress = entry.quest, entry.progress
         done = set(progress.completed_objective_ids) if progress else set()
         return {
-            "questId": quest.quest_id,
+            "questId": quest.slug,
             "title": quest.title,
             "summary": quest.summary,
-            "giverNpcId": quest.giver_npc.npc_id if quest.giver_npc_id else None,
+            "giverNpcId": quest.source.get("giverNpcId"),
             "status": entry.status,
             "currentStageId": progress.current_stage_id if progress else None,
             "completedAt": (
@@ -183,7 +192,7 @@ class QuestEntrySerializer(serializers.Serializer):
                         for objective in stage.get("objectives", [])
                     ],
                 }
-                for stage in quest.stages
+                for stage in quest.source.get("stages", [])
             ],
         }
 
@@ -254,7 +263,7 @@ class OutcomeSerializer(serializers.Serializer):
             "rewardMessage": self.context.get("reward_message") if new_items else None,
             "questUpdates": [
                 {
-                    "questId": update.progress.quest.quest_id,
+                    "questId": update.progress.quest.slug,
                     "status": update.progress.status,
                     "currentStageId": update.progress.current_stage_id,
                     "justCompleted": update.result.just_completed,

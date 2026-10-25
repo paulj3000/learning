@@ -1,137 +1,39 @@
-"""Islands, locations, NPCs, and admin-authored world placement (LAI-0304, Treasure Rush TR-2).
+"""Play regions authored as rows by the Treasure Rush seed (POST-MERGE-03; TR-2, TR-7).
 
-The first three groups mirror the exported content (`load_content` fills them). The world
-placement models are new: they let an administrator place a region's spawn points, objects,
-and treasure chests as rows instead of in a source manifest (proposed decisions TR-D3, TR-D4).
-TR-7 assembles a `ThreeLocationManifest` from them; field names follow
-`react/src/features/island-map/three/runtime/locationManifest.ts`.
-
-Nested authored structures that only the game engine interprets (quest offers, dialogue
-conditions and choices, a region's bounds and environment) stay JSON, as in the export; the
-things an administrator edits one at a time (dialogue lines, placements) are rows.
+Spatial data: a region's bounds, spawn points, object placements and treasure chests. This is
+**not** authoritative Django layout administration, which needs LAI-0805's ADR. The temporary
+source of truth is `treasure_rush_seed.py`, a source-controlled file; these rows are its
+applied copy, served to the play API so the Three.js client can build a location manifest
+(TR-D15). No admin site registers them. Locations, NPCs, quests and reward rules are the
+canonical catalog's rows (`apps.catalog`); nothing here duplicates them.
 """
 
-from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from apps.core.catalog import AssetKind, AssetRefValidator, ContentStatus, validate_asset_ref
+from apps.catalog.asset_refs import AssetKind, AssetRefValidator, validate_asset_ref
+from apps.core.content_status import ContentStatus
 from apps.users.models import AgeBand
 
 
-def _age_bands_field(**kwargs) -> ArrayField:
-    return ArrayField(models.CharField(max_length=16, choices=AgeBand.choices), **kwargs)
-
-
-class Island(models.Model):
-    slug = models.SlugField(max_length=80, unique=True)
-    title = models.CharField(max_length=120)
-    tagline = models.CharField(max_length=200)
-    description = models.TextField()
-    is_home = models.BooleanField(default=False)
-    supported_age_bands = _age_bands_field()
-    pack = models.JSONField(help_text="Content pack: the ids this island includes.")
-    arrival = models.JSONField(null=True, blank=True)
-    travel_requirement = models.JSONField(null=True, blank=True)
-    status = models.CharField(
-        max_length=16, choices=ContentStatus.choices, default=ContentStatus.PUBLISHED
-    )
-
-    class Meta:
-        ordering = ["slug"]
-
-    def __str__(self) -> str:
-        return self.slug
-
-
-class IslandLocation(models.Model):
-    slug = models.SlugField(max_length=80, unique=True)
-    island = models.ForeignKey(Island, on_delete=models.PROTECT, related_name="locations")
-    title = models.CharField(max_length=120)
-    tagline = models.CharField(max_length=200)
-    description = models.TextField()
-    decoration = models.CharField(max_length=300)
-    skills = ArrayField(models.CharField(max_length=80), default=list, blank=True)
-    unlock_requirement = models.JSONField(null=True, blank=True)
-    status = models.CharField(
-        max_length=16, choices=ContentStatus.choices, default=ContentStatus.PUBLISHED
-    )
-
-    class Meta:
-        ordering = ["slug"]
-
-    def __str__(self) -> str:
-        return self.slug
-
-
-class NpcDefinition(models.Model):
-    npc_id = models.SlugField(max_length=80, unique=True)
-    display_name = models.CharField(max_length=80)
-    role = models.CharField(max_length=200)
-    home_location = models.ForeignKey(IslandLocation, on_delete=models.PROTECT, related_name="npcs")
-    interaction_id = models.CharField(max_length=80)
-    schedule = models.JSONField(default=list)
-    quest_offers = models.JSONField(default=list, blank=True)
-    asset_id = models.CharField(
-        max_length=80,
-        blank=True,
-        validators=[AssetRefValidator(AssetKind.CHARACTER)],
-        help_text="Character model id. Empty uses the placement's own model or a placeholder.",
-    )
-    status = models.CharField(
-        max_length=16, choices=ContentStatus.choices, default=ContentStatus.PUBLISHED
-    )
-
-    class Meta:
-        ordering = ["npc_id"]
-
-    def __str__(self) -> str:
-        return self.npc_id
-
-
-class NpcDialogueNode(models.Model):
-    """One line of an NPC's dialogue. Child-facing: readable aloud, no em dashes."""
-
-    npc = models.ForeignKey(NpcDefinition, on_delete=models.CASCADE, related_name="dialogue")
-    node_id = models.SlugField(max_length=80)
-    sort_order = models.PositiveSmallIntegerField(default=0)
-    text = models.CharField(max_length=500)
-    conditions = models.JSONField(default=list, blank=True)
-    choices = models.JSONField(default=list, blank=True)
-    sets_memory_flags = ArrayField(models.CharField(max_length=80), default=list, blank=True)
-    awards_relationship_points = models.PositiveSmallIntegerField(default=0)
-    follow_up_only = models.BooleanField(default=False)
-    narration = models.JSONField(null=True, blank=True)
-
-    class Meta:
-        ordering = ["npc", "sort_order"]
-        constraints = [
-            models.UniqueConstraint(fields=["npc", "node_id"], name="islands_dialogue_node_unique")
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.npc}:{self.node_id}"
-
-
-# --- Admin-authored world placement (Treasure Rush) ------------------------------------------
-
-
 class WorldRegion(models.Model):
-    """An explorable region whose layout is authored in admin rather than in source.
+    """An explorable region inside a catalog Location, laid out by the seed.
 
     `scene` holds what is not yet modelled as rows (bounds, environment, copy), in the
     manifest's own field names; TR-7 validates the assembled manifest on the client too.
     """
 
     region_id = models.SlugField(max_length=80, unique=True)
-    location = models.ForeignKey(IslandLocation, on_delete=models.PROTECT, related_name="regions")
+    location = models.ForeignKey(
+        "catalog.Location", on_delete=models.PROTECT, related_name="regions"
+    )
     title = models.CharField(max_length=120, help_text="Child-facing name.")
     version = models.PositiveIntegerField(default=1)
     scene = models.JSONField(default=dict, blank=True)
     # The quests an NPC here offers the child (TR-5). Accepting one is the child's choice; a
     # session never starts a quest by itself.
     offered_quests = models.ManyToManyField(
-        "quests.QuestDefinition", blank=True, related_name="offered_in_regions"
+        "catalog.Quest", blank=True, related_name="offered_in_regions"
     )
     status = models.CharField(
         max_length=16, choices=ContentStatus.choices, default=ContentStatus.DRAFT
@@ -174,12 +76,12 @@ class SpawnPoint(models.Model):
         ordering = ["region", "checkpoint_id"]
         constraints = [
             models.UniqueConstraint(
-                fields=["region", "checkpoint_id"], name="islands_spawn_checkpoint_unique"
+                fields=["region", "checkpoint_id"], name="regions_spawn_checkpoint_unique"
             ),
             models.UniqueConstraint(
                 fields=["region"],
                 condition=models.Q(is_default=True),
-                name="islands_spawn_one_default",
+                name="regions_spawn_one_default",
             ),
         ]
 
@@ -233,7 +135,8 @@ class WorldObjectPlacement(Placed):
     kind = models.CharField(max_length=16, choices=PlacementKind.choices)
     asset_id = models.CharField(max_length=80, blank=True, validators=[AssetRefValidator()])
     npc = models.ForeignKey(
-        NpcDefinition, null=True, blank=True, on_delete=models.PROTECT, related_name="placements"
+        "catalog.NpcDefinition", null=True, blank=True, on_delete=models.PROTECT,
+        related_name="placements",
     )
     interaction_id = models.CharField(max_length=80, blank=True)
 
@@ -241,7 +144,7 @@ class WorldObjectPlacement(Placed):
         ordering = ["region", "entity_id"]
         constraints = [
             models.UniqueConstraint(
-                fields=["region", "entity_id"], name="islands_placement_entity_unique"
+                fields=["region", "entity_id"], name="regions_placement_entity_unique"
             )
         ]
 
@@ -298,7 +201,7 @@ class TreasureChest(Placed):
         related_name="+",
     )
     reward_rule = models.ForeignKey(
-        "inventory.RewardRule", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+        "catalog.RewardRule", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
     world_change_key = models.CharField(
         max_length=80,
@@ -309,7 +212,7 @@ class TreasureChest(Placed):
     class Meta:
         ordering = ["region", "entity_id"]
         constraints = [
-            models.UniqueConstraint(fields=["region", "entity_id"], name="islands_chest_entity_unique")
+            models.UniqueConstraint(fields=["region", "entity_id"], name="regions_chest_entity_unique")
         ]
 
     def __str__(self) -> str:

@@ -1,31 +1,21 @@
-"""Starter Treasure Rush content, as ordinary admin-editable rows (TR-2).
+"""The Treasure Rush region, applied as rows (TR-2, adapted in POST-MERGE-03).
 
-This is not source content and it is not exported: it only saves an administrator from
-building the first region by hand. Everything is created as DRAFT and nothing is overwritten
-once it exists, so admin edits survive a re-run. Needs `load_content` first (it uses Pirate
-Builder Bay and Pirate Pip).
+Temporary source of truth for the cove's **spatial** layout and its chest challenges: the
+region, spawn point, treasure chest and Pip's placement (LAI-0805 decides how layouts are
+authored later). Everything non-spatial (the location, Pip, the Golden Doubloon, its reward rule
+and the quest) is catalog content from the export
+(`react/src/features/content-export/treasureRushContent.ts`), so run `load_content` first.
 
-Placement follows proposed decisions TR-D1 (keepsake, not coins) and TR-D2 (a region inside
-Pirate Builder Bay); if either is decided differently, change these rows in admin.
+Region and challenge specs are created as DRAFT and nothing is overwritten once it exists.
 """
 
 from django.db import transaction
 
-from apps.core.catalog import ContentStatus
+from apps.catalog.models import Location, NpcDefinition, Quest, RewardRule
 from apps.education.models import ChallengeSpec
-from apps.inventory.models import ItemCategory, ItemDefinition, ItemRarity, RewardRule
-from apps.quests.models import QuestDefinition
 from apps.users.models import AgeBand
 
-from .models import (
-    IslandLocation,
-    NpcDefinition,
-    PlacementKind,
-    SpawnPoint,
-    TreasureChest,
-    WorldObjectPlacement,
-    WorldRegion,
-)
+from .models import PlacementKind, SpawnPoint, TreasureChest, WorldObjectPlacement, WorldRegion
 
 REGION_ID = "treasure-rush-cove"
 CHEST_ID = "cove-chest"
@@ -51,31 +41,14 @@ def seed_treasure_rush() -> list[str]:
         return row
 
     try:
-        bay = IslandLocation.objects.get(slug="pirate-builder-bay")
+        bay = Location.objects.get(slug="pirate-builder-bay")
         pip = NpcDefinition.objects.get(npc_id="pirate-pip")
-    except (IslandLocation.DoesNotExist, NpcDefinition.DoesNotExist) as error:
+        rule = RewardRule.objects.get(rule_id=REWARD_RULE_ID)
+        quest = Quest.objects.get(slug=QUEST_ID)
+    except (
+        Location.DoesNotExist, NpcDefinition.DoesNotExist, RewardRule.DoesNotExist, Quest.DoesNotExist
+    ) as error:
         raise SeedPrerequisiteMissing("Run load_content first.") from error
-
-    doubloon = get_or_create(
-        ItemDefinition,
-        {"item_id": REWARD_ITEM_ID},
-        {
-            "display_name": "Golden Doubloon",
-            "description": "A shiny gold coin from the treasure chest in the cove.",
-            "category": ItemCategory.KEEPSAKE,
-            "rarity": ItemRarity.UNCOMMON,
-        },
-    )
-    rule = get_or_create(
-        RewardRule,
-        {"rule_id": REWARD_RULE_ID},
-        {
-            "trigger": {"type": "CHEST_OPENED", "chestId": CHEST_ID},
-            "message": "You opened the chest and found a Golden Doubloon!",
-        },
-    )
-    if not rule.items.exists():
-        rule.items.add(doubloon)
 
     specs = {
         AgeBand.SPROUT: get_or_create(
@@ -170,34 +143,6 @@ def seed_treasure_rush() -> list[str]:
             "z": 6.0,
             "interaction_id": pip.interaction_id,
             "placeholder_height": 1.6,
-        },
-    )
-    quest = get_or_create(
-        QuestDefinition,
-        {"quest_id": QUEST_ID},
-        {
-            "title": "Treasure Rush",
-            "summary": "Find the treasure chest in the cove and open it with a number puzzle.",
-            "age_bands": [AgeBand.SPROUT, AgeBand.PATHFINDER, AgeBand.EXPLORER],
-            "giver_npc": pip,
-            "prerequisites": [{"type": "ALWAYS"}],
-            "entry_stage_id": "open-the-chest",
-            "stages": [
-                {
-                    "id": "open-the-chest",
-                    "title": "Open the treasure chest",
-                    "objectives": [
-                        {
-                            "id": "treasure-cove-open-chest",
-                            "kind": "BUILD",
-                            "changeKey": CHEST_CHANGE_KEY,
-                            "label": "Open the treasure chest in the cove",
-                        }
-                    ],
-                }
-            ],
-            "completion": {"journalNote": "You opened the treasure chest in Treasure Cove."},
-            "status": ContentStatus.DRAFT,
         },
     )
     if not region.offered_quests.exists():

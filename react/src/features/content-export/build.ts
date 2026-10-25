@@ -25,6 +25,11 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { toJsonValue } from './canonical';
+import {
+  TREASURE_RUSH_ITEMS,
+  TREASURE_RUSH_QUESTS,
+  TREASURE_RUSH_REWARD_RULES,
+} from './treasureRushContent';
 import type { ContentPackage, IslandEntry, RegionAssets, RegionInteractions } from './types';
 
 /**
@@ -76,10 +81,10 @@ export async function buildContentPackage(): Promise<ContentPackage> {
     learningObjectives: [...LEARNING_OBJECTIVES],
     wonderWallQuestions: [...WONDER_WALL_QUESTIONS],
     stories: [...STORY_DEFINITIONS],
-    quests: [...QUEST_DEFINITIONS],
-    items: [...ALL_ITEMS],
+    quests: [...QUEST_DEFINITIONS, ...TREASURE_RUSH_QUESTS],
+    items: [...ALL_ITEMS, ...TREASURE_RUSH_ITEMS],
     collectibleSets: [...ALL_COLLECTIBLE_SETS],
-    rewardRules: [...ALL_REWARD_RULES],
+    rewardRules: [...ALL_REWARD_RULES, ...TREASURE_RUSH_REWARD_RULES],
     npcs: [...ALL_NPCS],
     discoveries: [...DISCOVERY_DEFINITIONS],
     checkpoints: [...ALL_CHECKPOINTS],

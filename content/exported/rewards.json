@@ -156,6 +156,13 @@
       "displayName": "Cove Keeper's Apron",
       "id": "cove-keepers-apron",
       "rarity": "RARE"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "A shiny gold coin from the treasure chest in the cove.",
+      "displayName": "Golden Doubloon",
+      "id": "golden-doubloon",
+      "rarity": "UNCOMMON"
     }
   ],
   "rewardRules": [
@@ -316,6 +323,17 @@
       "trigger": {
         "questId": "helping-at-the-cove",
         "type": "QUEST_COMPLETED"
+      }
+    },
+    {
+      "id": "reward-treasure-rush-cove-chest",
+      "itemIds": [
+        "golden-doubloon"
+      ],
+      "message": "You opened the chest and found a Golden Doubloon!",
+      "trigger": {
+        "changeKey": "TREASURE_RUSH_COVE_CHEST_OPENED",
+        "type": "WORLD_CHANGE"
       }
     }
   ],

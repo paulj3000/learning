@@ -5,18 +5,19 @@ import uuid
 import pytest
 from django.db import IntegrityError, transaction
 
-from apps.core.catalog import ContentStatus
-from apps.core.child_owned import CrossChildReference
+from apps.core.content_status import ContentStatus
+from apps.core.models import CrossChildReference
 from apps.education.challenges import InvalidAnswer, generate_challenge, public_challenge
-from apps.education.models import ChallengeSpec, EvidenceResult, SkillEvidence
-from apps.game_sessions import services
+from apps.education.models import ChallengeSpec, SkillEvidence
+from apps.game_sessions.models import Correctness as EvidenceResult
+from apps.game_sessions import play as services
 from apps.game_sessions.models import (
     AttemptStatus,
     ChallengeAttempt,
     ImmutableRecord,
     SessionStatus,
 )
-from apps.game_sessions.services import (
+from apps.game_sessions.play import (
     AttemptAlreadyAnswered,
     AttemptNotFound,
     ChestAlreadyOpen,
@@ -28,7 +29,7 @@ from apps.game_sessions.services import (
     start_or_resume_region_session,
     submit_chest_answer,
 )
-from apps.inventory.models import GrantedRewardRule, InventoryItem
+from apps.inventory.models import GrantedRule, InventoryItem
 from apps.progression.models import WorldChange
 from apps.quests.models import QuestStatus
 from apps.quests.services import start_quest
@@ -52,7 +53,7 @@ def progress_counts(child_or_id) -> dict:
     return {
         "world_changes": WorldChange.objects.filter(child_id=child_id).count(),
         "items": InventoryItem.objects.filter(child_id=child_id).count(),
-        "grants": GrantedRewardRule.objects.filter(child_id=child_id).count(),
+        "grants": GrantedRule.objects.filter(child_id=child_id).count(),
         "evidence": SkillEvidence.objects.filter(child_id=child_id).count(),
     }
 
@@ -202,7 +203,7 @@ def test_a_wrong_answer_is_recorded_and_opens_nothing(treasure):
     assert attempt.status == AttemptStatus.ANSWERED and attempt.correctness == "incorrect"
     assert attempt.submitted_answer == wrong(attempt) and attempt.answered_at is not None
     assert (attempt.hint_level, attempt.duration_ms) == (1, 900)
-    evidence = SkillEvidence.objects.get(attempt=attempt)
+    evidence = SkillEvidence.objects.get(challenge_attempt=attempt)
     assert evidence.result == EvidenceResult.INCORRECT and evidence.support_level == 1
     assert not chest_is_open(child, treasure.chest)
     assert progress_counts(child) == {"world_changes": 0, "items": 0, "grants": 0, "evidence": 1}
@@ -222,12 +223,12 @@ def test_the_right_answer_opens_the_chest_grants_the_keepsake_and_completes_the_
         "TREASURE_RUSH_COVE_CHEST_OPENED",
         "UNLOCK",
     )
-    assert change.source_session_id == session.pk
+    assert change.source_session_id == str(session.pk)
     assert change.payload == {"regionId": "treasure-rush-cove", "entityId": "cove-chest"}
     [update] = outcome.quest_updates
     assert update.result.just_completed
     assert update.progress.status == QuestStatus.COMPLETED
-    assert SkillEvidence.objects.get(attempt=attempt).result == EvidenceResult.CORRECT
+    assert SkillEvidence.objects.get(challenge_attempt=attempt).result == EvidenceResult.CORRECT
     assert chest_is_open(child, treasure.chest)
 
 

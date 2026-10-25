@@ -223,3 +223,90 @@ class LocationAsset(models.Model):
 
     def __str__(self) -> str:
         return f"{self.location_id}:{self.asset_id}"
+
+
+# --- Catalog rows that Treasure Rush needed first (POST-MERGE-03; was proposed as LAI-0309) ---
+
+
+class LearningObjective(ImportedContent):
+    """A learning objective (`adventures.json` `learningObjectives`). Referenced by code."""
+
+    code = models.SlugField(max_length=SLUG_LENGTH, unique=True)
+    domain = models.CharField(max_length=40)
+    title = models.CharField(max_length=200)
+
+    class Meta:
+        ordering = ["code"]
+
+    def __str__(self) -> str:
+        return self.code
+
+
+class NpcDefinition(ImportedContent, CatalogFields):
+    """A character (`npcs.json`). Dialogue, schedule and quest offers stay in `source`."""
+
+    npc_id = models.SlugField(max_length=SLUG_LENGTH, unique=True)
+    display_name = models.CharField(max_length=80)
+    role = models.CharField(max_length=200, blank=True)
+    home_location = models.ForeignKey(
+        Location, on_delete=models.PROTECT, related_name="npcs", null=True, blank=True
+    )
+    home_location_slug = models.SlugField(max_length=SLUG_LENGTH)
+    interaction_id = models.CharField(max_length=SLUG_LENGTH, blank=True)
+
+    class Meta:
+        ordering = ["sort_order", "npc_id"]
+
+    def __str__(self) -> str:
+        return self.npc_id
+
+
+class CollectibleSet(ImportedContent):
+    set_id = models.SlugField(max_length=SLUG_LENGTH, unique=True)
+    display_name = models.CharField(max_length=120)
+    completion_item = models.ForeignKey(
+        "catalog.ItemDefinition", on_delete=models.PROTECT, related_name="+", null=True, blank=True
+    )
+    completion_message = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        ordering = ["set_id"]
+
+    def __str__(self) -> str:
+        return self.set_id
+
+
+class ItemDefinition(ImportedContent):
+    """An earnable item (`rewards.json` `items`). No currency or drop-rate fields (ADR-011)."""
+
+    item_id = models.SlugField(max_length=SLUG_LENGTH, unique=True)
+    display_name = models.CharField(max_length=120)
+    description = models.CharField(max_length=300, blank=True)
+    category = models.CharField(max_length=16)
+    rarity = models.CharField(max_length=16)
+    cosmetic_slot = models.CharField(max_length=16, blank=True)
+    hidden = models.BooleanField(default=False)
+    collectible_set = models.ForeignKey(
+        CollectibleSet, on_delete=models.PROTECT, related_name="items", null=True, blank=True
+    )
+
+    class Meta:
+        ordering = ["item_id"]
+
+    def __str__(self) -> str:
+        return self.item_id
+
+
+class RewardRule(ImportedContent):
+    """What a trigger grants (`rewards.json` `rewardRules`); resolved without randomness."""
+
+    rule_id = models.SlugField(max_length=SLUG_LENGTH, unique=True)
+    trigger = models.JSONField()
+    items = models.ManyToManyField(ItemDefinition, related_name="reward_rules", blank=True)
+    message = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        ordering = ["rule_id"]
+
+    def __str__(self) -> str:
+        return self.rule_id

@@ -227,3 +227,24 @@ def test_the_command_reports_counts_and_fails_cleanly_on_an_invalid_export(tmp_p
     with pytest.raises(CommandError, match="nothing was written"):
         call_command("load_content", path=write_export(tmp_path / "bad", broken), stderr=err)
     assert "invalid: location 'bay': unknown world 'nowhere'" in err.getvalue()
+
+
+def test_the_shipped_export_is_validated_against_its_json_schema():
+    """content/schema sits beside content/exported, so the real import always checks it."""
+    import_content()
+    assert ContentRelease.objects.get().report["schema_validated"] is True
+
+
+def test_a_file_that_breaks_the_json_schema_is_rejected(tmp_path):
+    """With the real schema beside an export, a structurally wrong record fails the import."""
+    import shutil
+
+    from django.conf import settings
+
+    schema_dir = tmp_path / "schema"
+    schema_dir.mkdir()
+    shutil.copy(settings.CONTENT_DIR / "schema" / "content.schema.json", schema_dir)
+    with pytest.raises(ContentImportError) as error:
+        import_content(write_export(tmp_path / "exported"))  # the small fixture lacks fields
+    assert any("required" in problem or "missing" in problem for problem in error.value.problems)
+    assert ContentRelease.objects.count() == 0

@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.islands.treasure_rush_seed import SeedPrerequisiteMissing, seed_treasure_rush
+from apps.regions.treasure_rush_seed import SeedPrerequisiteMissing, seed_treasure_rush
 
 
 class Command(BaseCommand):

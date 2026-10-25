@@ -5,13 +5,14 @@ import uuid
 
 import pytest
 
-from apps.core.catalog import ContentStatus
+from apps.core.content_status import ContentStatus
 from apps.education.models import ChallengeSpec, SkillEvidence
 from apps.game_sessions.models import AdventureSession, ChallengeAttempt, SessionStatus
-from apps.inventory.models import GrantedRewardRule, InventoryItem
-from apps.islands.models import WorldRegion
+from apps.inventory.models import GrantedRule, InventoryItem
+from apps.regions.models import WorldRegion
 from apps.progression.models import WorldChange
-from apps.quests.models import QuestDefinition, QuestProgress
+from apps.catalog.models import Quest as QuestDefinition
+from apps.quests.models import QuestProgress
 
 pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
 
@@ -70,7 +71,7 @@ def counts(child) -> dict:
     return {
         "world_changes": WorldChange.objects.filter(child=child).count(),
         "items": InventoryItem.objects.filter(child=child).count(),
-        "grants": GrantedRewardRule.objects.filter(child=child).count(),
+        "grants": GrantedRule.objects.filter(child=child).count(),
         "evidence": SkillEvidence.objects.filter(child=child).count(),
     }
 
@@ -167,7 +168,7 @@ def test_an_unpublished_region_is_not_found(a, status):
 def test_draft_challenges_and_quests_are_not_offered(a):
     client, child = a
     ChallengeSpec.objects.filter(slug="treasure-cove-pathfinder").update(status=ContentStatus.DRAFT)
-    QuestDefinition.objects.filter(quest_id=QUEST).update(status=ContentStatus.DRAFT)
+    QuestDefinition.objects.filter(slug=QUEST).update(active=False)
     body = client.get(f"{base(child)}regions/{REGION}/").json()
     assert body["chests"][0]["challengeAvailable"] is False
     assert body["quests"] == []
@@ -239,14 +240,14 @@ def test_accepting_pips_quest(a):
 
 def test_a_draft_quest_cannot_be_accepted_and_looks_unknown(a):
     client, child = a
-    QuestDefinition.objects.filter(quest_id=QUEST).update(status=ContentStatus.DRAFT)
+    QuestDefinition.objects.filter(slug=QUEST).update(active=False)
     assert post(client, f"{base(child)}quests/{QUEST}/accept/").status_code == 404
     assert post(client, f"{base(child)}quests/no-such-quest/accept/").status_code == 404
 
 
 def test_an_ineligible_quest_is_refused(a):
     client, child = a
-    QuestDefinition.objects.filter(quest_id=QUEST).update(age_bands=["SPROUT"])
+    QuestDefinition.objects.filter(slug=QUEST).update(age_bands=["SPROUT"])
     response = post(client, f"{base(child)}quests/{QUEST}/accept/")
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "quest_unavailable"

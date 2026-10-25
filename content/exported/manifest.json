@@ -1,5 +1,5 @@
 {
-  "contentDigest": "892fa241673987ed2d2550a3215a71952a345259e29a00a439fd8c722d3970de",
+  "contentDigest": "99641a559c565a3b50ebbc500c6755c7905974cb4c33e28f7ad403459f19ed37",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -37,19 +37,19 @@
     },
     {
       "counts": {
-        "quests": 6
+        "quests": 7
       },
       "path": "quests.json",
-      "sha256": "24a4cabac3629daa067364fbaa6070ed1d8dbedb07533c81f09dd12fa08acce8"
+      "sha256": "87748e1d4e1719e7ff24c5d12a43773b83cd0760ba7e13367f01d814b21c0929"
     },
     {
       "counts": {
         "collectibleSets": 1,
-        "items": 19,
-        "rewardRules": 14
+        "items": 20,
+        "rewardRules": 15
       },
       "path": "rewards.json",
-      "sha256": "35836ed4a771d97e5829298a9273e3a98335b4f8b930665135484bb0336a8955"
+      "sha256": "14d1a4add9fa619aaeff043db6236d81d2143cfc1dc8361d25e2ea73e7d5c7a3"
     },
     {
       "counts": {

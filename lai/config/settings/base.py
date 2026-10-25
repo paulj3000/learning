@@ -7,6 +7,8 @@ from urllib.parse import unquote, urlsplit
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # lai/
+# The versioned content export and its schema (LAI-0302); the catalog imports from here.
+CONTENT_DIR = BASE_DIR.parent / "content"
 
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
@@ -23,6 +25,7 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.users",
     "apps.catalog",
+    "apps.regions",
     "apps.game_sessions",
     "apps.education",
     "apps.progression",
