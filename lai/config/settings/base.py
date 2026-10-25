@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.users",
     "apps.catalog",
+    "apps.assets",
     "apps.regions",
     "apps.game_sessions",
     "apps.education",

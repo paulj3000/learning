@@ -164,7 +164,7 @@ Platform workstream on `feature/django-asset-manager`. Subtasks use their own id
 LAI-2201 to LAI-2208 are the Phase 22 world conversions.
 
 - [x] **AM-1** Architecture and contract (depends: none)
-- [ ] **AM-2** Models and migrations (depends: AM-1)
+- [x] **AM-2** Models and migrations (depends: AM-1)
 - [ ] **AM-3** Model validation service (depends: AM-1)
 - [ ] **AM-4** Storage abstraction and upload lifecycle (depends: AM-2, AM-3)
 - [ ] **AM-5** Django Admin management, permissions and groups (depends: AM-4, LAI-0404)
