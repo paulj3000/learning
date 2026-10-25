@@ -206,7 +206,7 @@ call is made by the tests.
 | AM-2 | Models and migrations | Done |
 | AM-3 | Model validation service | Done |
 | AM-4 | Storage abstraction and upload lifecycle | Done |
-| AM-5 | Django Admin management, permissions and groups | Planned |
+| AM-5 | Django Admin management, permissions and groups | Done |
 | AM-6 | Published-asset resolver API and delivery | Planned |
 | AM-7 | Frontend Django resolver adapter | Planned |
 | AM-8 | Existing asset import tooling | Planned |

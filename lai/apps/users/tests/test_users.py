@@ -87,7 +87,18 @@ def test_parents_have_no_local_login_email_or_admin_rights(parent_a):
     assert not parent_a.has_perm("catalog.view_world") and not parent_a.has_module_perms("catalog")
     field_names = {f.name for f in ParentAccount._meta.get_fields()}
     assert "email" not in field_names
-    assert not {"groups", "user_permissions"} & field_names  # no PermissionsMixin
+    # PermissionsMixin exists for Django Admin (ADR-035), but a parent row holds nothing even when
+    # a permission or a group is granted to it by mistake: only active staff hold permissions.
+    from django.contrib.auth.models import Group, Permission
+
+    publish = Permission.objects.get(codename="publish_assetversion")
+    parent_a.user_permissions.add(publish)
+    group = Group.objects.create(name="Mistaken grant")
+    group.permissions.add(publish)
+    parent_a.groups.add(group)
+    parent_a = ParentAccount.objects.get(pk=parent_a.pk)  # drop the permission cache
+    assert not parent_a.has_perm("assets.publish_assetversion")
+    assert not parent_a.has_module_perms("assets")
     with pytest.raises(NotImplementedError):
         ParentAccount.objects.create_user()
     with pytest.raises(NotImplementedError, match="create_admin_account"):

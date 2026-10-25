@@ -7,7 +7,6 @@ account or a superuser may do.
 
 from django.contrib import admin
 from django.contrib.admin.forms import AdminAuthenticationForm
-from django.contrib.auth.models import Group
 
 
 class AdminLoginForm(AdminAuthenticationForm):
@@ -25,7 +24,5 @@ admin.site.login_form = AdminLoginForm
 # No "View site" link: the admin does not know which React origin a staff member uses.
 admin.site.site_url = None
 
-# Admin rights come from `is_staff` / `is_superuser`; `ParentAccount` has no group relations,
-# so the Group admin auth registers would manage nothing.
-if admin.site.is_registered(Group):
-    admin.site.unregister(Group)
+# Groups carry the asset manager's roles (ADR-035, `manage.py ensure_asset_roles`). auth's own
+# Group admin is kept; it is permission-gated, so in practice only superusers manage groups.

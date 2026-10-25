@@ -10,13 +10,15 @@ Assets, steps, releases, objectives, items, sets and reward rules are read-only 
 can add a record here (the importer creates them), and nobody can delete one before the cutover.
 """
 
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.db.models import BooleanField, Count, ExpressionWrapper, Q, Subquery
 
+from apps.assets.models import AssetVersion
 from apps.catalog import admin_access
 from apps.catalog.models import (
     Adventure,
     AdventureStep,
+    AssetOrigin,
     CollectibleSet,
     ContentAsset,
     ContentRelease,
@@ -262,12 +264,107 @@ class QuestAdmin(CatalogModelAdmin):
     readonly_display = ("in_latest_release",)
 
 
+def _has_perm(request, name: str) -> bool:
+    has_perm = getattr(getattr(request, "user", None), "has_perm", None)
+    return bool(has_perm and has_perm(name))
+
+
+class AssetVersionInline(ReadOnlyInline):
+    """A definition's versions, newest first; each links to its own page (LAI-2200)."""
+
+    model = AssetVersion
+    fields = ("number", "status", "format", "size_bytes", "published_at")
+    readonly_fields = fields
+    ordering = ("-number",)
+    verbose_name_plural = "versions (upload, publish and retire on the Asset versions page)"
+
+    def has_view_permission(self, request, obj=None):
+        return admin_access.can_view(request) and _has_perm(request, "assets.view_assetversion")
+
+
+# Django-owned display fields, editable on every definition by `catalog.change_contentasset`.
+DEFINITION_FIELDS = ("display_name", "description", "category", "tags")
+# Content fields an administrator owns only on definitions made in Django.
+DJANGO_CONTENT_FIELDS = ("kind", "clips")
+ADD_FIELDS = ("asset_id", "kind", "category", "display_name", "description", "tags", "clips")
+
+
 @admin.register(ContentAsset)
 class ContentAssetAdmin(CatalogModelAdmin):
-    list_display = ("asset_id", "kind", "bundled_path", "used_by", "in_latest_release")
-    list_filter = ("kind", InLatestReleaseFilter)
-    search_fields = ("asset_id", "bundled_path")
-    readonly_display = ("used_by",)
+    """Asset definitions (LAI-2200, ADR-035): viewable by every staff role, created and edited with
+    the `catalog` asset permissions, retired with `assets.retire_assetversion`, never deleted."""
+
+    list_display = (
+        "asset_id",
+        "display_name",
+        "kind",
+        "category",
+        "status",
+        "origin",
+        "default_version_number",
+        "used_by",
+        "in_latest_release",
+    )
+    list_filter = ("status", "origin", "category", "kind", InLatestReleaseFilter)
+    search_fields = ("asset_id", "display_name", "description", "tags", "bundled_path")
+    list_select_related = ("default_version",)
+    readonly_display = ("used_by", "default_version_number")
+    inlines = [AssetVersionInline]
+    actions = ["retire_assets"]
+
+    def has_add_permission(self, request, obj=None):
+        return admin_access.can_view(request) and _has_perm(request, "catalog.add_contentasset")
+
+    def has_change_permission(self, request, obj=None):
+        return admin_access.can_view(request) and _has_perm(request, "catalog.change_contentasset")
+
+    def has_delete_permission(self, request, obj=None):
+        return False  # a definition is retired, never deleted (versions PROTECT it anyway)
+
+    def has_retire_permission(self, request):
+        return admin_access.can_view(request) and _has_perm(request, "assets.retire_assetversion")
+
+    def get_inlines(self, request, obj):
+        return self.inlines if obj is not None else []  # a new definition has no versions
+
+    def get_fields(self, request, obj=None):
+        if obj is None:
+            return ADD_FIELDS
+        return super().get_fields(request, obj)
+
+    def get_readonly_fields(self, request, obj=None):
+        everything = super().get_readonly_fields(request, obj)
+        if obj is None:  # the add form, for those who may add; otherwise nothing is editable
+            return () if self.has_add_permission(request) else everything
+        if not self.has_change_permission(request, obj):
+            return everything
+        editable = set(DEFINITION_FIELDS)
+        if obj.origin == AssetOrigin.DJANGO:
+            editable |= set(DJANGO_CONTENT_FIELDS)
+        return [name for name in everything if name not in editable]
+
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        form = super().get_form(request, obj, change=change, **kwargs)
+        if obj is None:
+
+            class DjangoDefinitionForm(form):
+                def __init__(self, *args, **form_kwargs):
+                    super().__init__(*args, **form_kwargs)
+                    # Set before validation so `ContentAsset.clean` checks a Django definition.
+                    self.instance.origin = AssetOrigin.DJANGO
+
+            return DjangoDefinitionForm
+        return form
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.origin = AssetOrigin.DJANGO
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+    @admin.display(description="Default version", ordering="default_version__number")
+    def default_version_number(self, obj) -> str:
+        return f"v{obj.default_version.number}" if obj.default_version_id else "None"
 
     @admin.display(description="Used by locations")
     def used_by(self, obj) -> str:
@@ -275,6 +372,14 @@ class ContentAssetAdmin(CatalogModelAdmin):
             "location__slug", flat=True
         )
         return ", ".join(slugs) or "No shipped scene"
+
+    @admin.action(description="Retire selected assets", permissions=["retire"])
+    def retire_assets(self, request, queryset):
+        from apps.assets.services import retire_asset
+
+        for asset in queryset:
+            retire_asset(asset)
+        self.message_user(request, f"Retired {queryset.count()} asset(s).", messages.SUCCESS)
 
 
 @admin.register(ContentRelease)

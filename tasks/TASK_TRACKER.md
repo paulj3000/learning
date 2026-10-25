@@ -167,7 +167,7 @@ LAI-2201 to LAI-2208 are the Phase 22 world conversions.
 - [x] **AM-2** Models and migrations (depends: AM-1)
 - [x] **AM-3** Model validation service (depends: AM-1)
 - [x] **AM-4** Storage abstraction and upload lifecycle (depends: AM-2, AM-3)
-- [ ] **AM-5** Django Admin management, permissions and groups (depends: AM-4, LAI-0404)
+- [x] **AM-5** Django Admin management, permissions and groups (depends: AM-4, LAI-0404)
 - [ ] **AM-6** Published-asset resolver API and delivery (depends: AM-4, LAI-0403)
 - [ ] **AM-7** Frontend Django resolver adapter (depends: AM-6, LAI-2106)
 - [ ] **AM-8** Existing asset import tooling (depends: AM-4)

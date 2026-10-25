@@ -245,7 +245,8 @@ class TestChildIsolation:
 
     def test_no_progress_model_is_exposed_on_the_admin(self):
         exposed = {model._meta.app_label for model in admin.site._registry}
-        assert exposed == {"catalog", "users"}  # users: the admin-accounts proxy only
+        # users: the admin-accounts proxy; assets: versions (binaries, no child data); auth: groups
+        assert exposed == {"assets", "auth", "catalog", "users"}
 
 
 @pytest.mark.django_db

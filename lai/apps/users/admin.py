@@ -4,7 +4,8 @@ Lists staff rows only (`AdminAccount`, rows with an `admin_username`), never par
 child profiles: child data stays off Django Admin until an audited cross-family read path exists
 (ADR-024 A4). Accounts are created by `manage.py create_admin_account`, not here, and are never
 deleted here (a linked row is a parent's account). A superuser may switch `is_active`,
-`is_staff` and `is_superuser`, which takes effect on the account's next request. The last active
+`is_staff`, `is_superuser` and group membership (the asset roles, ADR-035), which takes effect on
+the account's next request. The last active
 superuser cannot be demoted or deactivated here (or with `set_admin_role`).
 """
 
@@ -22,7 +23,7 @@ def _is_superuser(request) -> bool:
 class AdminAccountForm(forms.ModelForm):
     class Meta:
         model = AdminAccount
-        fields = ("is_active", "is_staff", "is_superuser")
+        fields = ("is_active", "is_staff", "is_superuser", "groups")
 
     def clean(self):
         cleaned = super().clean()
@@ -48,7 +49,16 @@ class AdminAccountAdmin(admin.ModelAdmin):
     list_filter = ("is_active", "is_staff", "is_superuser")
     search_fields = ("admin_username",)
     ordering = ("admin_username",)
-    fields = ("admin_username", "is_active", "is_staff", "is_superuser", "last_login", "created_at")
+    fields = (
+        "admin_username",
+        "is_active",
+        "is_staff",
+        "is_superuser",
+        "groups",
+        "last_login",
+        "created_at",
+    )
+    filter_horizontal = ("groups",)
     readonly_fields = ("admin_username", "last_login", "created_at")
 
     def get_queryset(self, request):

@@ -172,7 +172,7 @@ def test_no_child_data_model_is_registered():
     assert child_models, "the check must find the child-owned models"
     assert not registered & child_models
     # Only these apps have anything in the admin.
-    assert {model._meta.app_label for model in registered} == {"catalog", "users"}
+    assert {model._meta.app_label for model in registered} == {"assets", "auth", "catalog", "users"}
 
 
 def test_an_admin_session_never_authenticates_the_api():
