@@ -11,6 +11,14 @@ import { ApiError, kindForStatus, type ValidationDetail } from './errors';
  *   token that expired a moment ago does not look like a signed-out parent.
  *   A second 401 is `unauthenticated`: the parent must sign in again.
  * - A 503 is `unavailable` and never treated as signed out (ADR-024).
+ * - With `provisionAccount`, a `403 account_not_provisioned` (a valid
+ *   Cognito sign-in whose parent account Django has not set up yet) is
+ *   answered by the explicit onboarding call, `POST me/` (ADR-024: the
+ *   account is created only by that endpoint, never by authentication), and
+ *   the request is retried once. Concurrent requests share one setup call.
+ *   If setup fails the error is `forbidden` / `account_setup_failed`, never
+ *   `unauthenticated`: the parent is signed in, so "sign in again" would be
+ *   wrong.
  * - Every failure is an `ApiError`; nothing else is thrown.
  */
 
@@ -20,6 +28,8 @@ export interface ApiClientOptions {
   baseUrl: string;
   getAccessToken: (options?: { forceRefresh?: boolean }) => Promise<string | null>;
   fetch?: typeof fetch;
+  /** Set up the Django parent account on first use (`POST me/`); see above. */
+  provisionAccount?: boolean;
 }
 
 export interface RequestOptions {
@@ -37,6 +47,9 @@ export interface ApiResponse {
 }
 
 export const API_PREFIX = '/api/v1/';
+export const ACCOUNT_PATH = 'me/';
+export const ACCOUNT_NOT_PROVISIONED = 'account_not_provisioned';
+export const ACCOUNT_SETUP_FAILED = 'account_setup_failed';
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
@@ -74,13 +87,39 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     }
   }
 
+  async function attempt(method: HttpMethod, path: string, request: RequestOptions): Promise<ApiResponse> {
+    let response = await send(method, path, request, false);
+    if (response.status === 401) response = await send(method, path, request, true);
+    const data = await readJson(response, request.signal);
+    if (response.ok) return { status: response.status, data };
+    throw errorFromEnvelope(response.status, data);
+  }
+
+  let provisioning: Promise<void> | null = null;
+  function provision(): Promise<void> {
+    provisioning ??= attempt('POST', ACCOUNT_PATH, {})
+      .then(() => undefined)
+      .catch((error: unknown) => {
+        if (error instanceof ApiError && (error.kind === 'unauthenticated' || error.kind === 'network')) throw error;
+        throw new ApiError('forbidden', { status: 403, code: ACCOUNT_SETUP_FAILED });
+      })
+      .finally(() => {
+        provisioning = null;
+      });
+    return provisioning;
+  }
+
   return {
     async request(method, path, request = {}) {
-      let response = await send(method, path, request, false);
-      if (response.status === 401) response = await send(method, path, request, true);
-      const data = await readJson(response, request.signal);
-      if (response.ok) return { status: response.status, data };
-      throw errorFromEnvelope(response.status, data);
+      try {
+        return await attempt(method, path, request);
+      } catch (error) {
+        const notProvisioned =
+          error instanceof ApiError && error.status === 403 && error.code === ACCOUNT_NOT_PROVISIONED;
+        if (!notProvisioned || !options.provisionAccount || path === ACCOUNT_PATH) throw error;
+      }
+      await provision();
+      return attempt(method, path, request);
     },
   };
 }

@@ -2528,7 +2528,17 @@ has not been asked and which "Decisions pending" already lists as open; and
 whether SC-11's retirement gate still means anything against a castle whose
 content layer is being replaced.
 
-## Treasure Rush - TR-8 complete (quest, challenge, and reward UI); a person has not played it yet
+## Treasure Rush - TR-8a: runnable locally; real children need the child-profile migration
+
+After TR-8, a real playthrough was found to fail: children exist only in Amplify, the parent is
+never set up in Django, and the content is DRAFT. TR-8a adds automatic Django account setup via
+`POST /api/v1/me/` (with correct, non-"sign in again" 403 messages), a dev-only
+`publish_treasure_rush` command (DEBUG and loopback only, fully validated, all or nothing), and
+`docs/TREASURE_RUSH_LOCAL_DEV.md`. Locally, one test child is mirrored into Django by hand; for
+real families TR-9 waits on LAI-0502 and LAI-0602 (separate migration branch), gate G9, and
+ADR-024 A6. Details: `docs/TREASURE_RUSH_ROADMAP.md` section 15.
+
+### Earlier: TR-8 (quest, challenge, and reward UI)
 
 TR-8 replaces TR-7's notice with the game UI, all inside the `region-play` extension: Pip's
 dialogue with explicit quest acceptance, the chest's challenge (a coin picture and question from

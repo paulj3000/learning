@@ -118,5 +118,5 @@ export function playApiFor(childId: string, config: DjangoApiConfig = DJANGO_API
       getProgress: disabled,
     };
   }
-  return createPlayApi(createApiClient({ baseUrl: config.baseUrl, getAccessToken }), childId);
+  return createPlayApi(createApiClient({ baseUrl: config.baseUrl, getAccessToken, provisionAccount: true }), childId);
 }

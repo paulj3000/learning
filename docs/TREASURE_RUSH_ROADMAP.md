@@ -565,3 +565,25 @@ completion is the server's `questUpdates` and quest status; switching child remo
   panel is open; a panel covers the lower part of the stage only.
 
 **Tests:** 40 new Vitest unit tests (UI rules 21, companion flow 17 more, chest animation 2); 68 across the four TR-8 test files; 1,503 passing across every affected area. Unit tests only.
+
+## 15. TR-8a: making it runnable (after "TR-9 is not ready")
+
+TR-6 to TR-8 were tested against a faked API, which hid that a real playthrough fails: the
+child in `/island/:childId` is an Amplify id with no Django `ChildProfile`, the parent is never
+set up in Django, the content is DRAFT, and there was no run recipe. The owner chose the real
+child-profile migration (LAI-0501, LAI-0502, LAI-0602, on a separate branch) for the first gap
+and these fixes for the rest:
+
+- **Automatic account setup.** The API client (`provisionAccount`, on for the play API) answers a
+  `403 account_not_provisioned` with the explicit onboarding call, `POST /api/v1/me/`, then retries
+  once; concurrent requests share one call. A failed setup is `forbidden` / `account_setup_failed`.
+- **Correct 403 messages.** A signed-in parent is never told to sign in again: account setup gets
+  "We are still getting your island ready", any other 403 "not open for you right now".
+- **`publish_treasure_rush`** (dev only): refused unless `DEBUG` and a loopback database; checks
+  every row with `full_clean()` and that the region is playable; all or nothing; never touches
+  exported content.
+- **`docs/TREASURE_RUSH_LOCAL_DEV.md`**: the startup procedure, including an interim, local-only
+  step that mirrors one test child into Django with the same id until LAI-0602.
+
+**Tests:** 6 client provisioning tests, 1 message test, 8 publish tests; two mutations on the
+publish safety rules (no DEBUG gate, no validation) each failed a test.

@@ -115,6 +115,12 @@ describe('playErrorMessage', () => {
     expect(playErrorMessage(new ApiError(kind, { code }))).toBe(message);
   });
 
+  it('never tells a signed-in parent to sign in again for a 403', () => {
+    expect(playErrorMessage(new ApiError('forbidden', { code: 'account_setup_failed' }))).toBe(PLAY_COPY.errorAccountSetup);
+    expect(playErrorMessage(new ApiError('forbidden', { code: 'account_not_provisioned' }))).toBe(PLAY_COPY.errorAccountSetup);
+    expect(playErrorMessage(new ApiError('forbidden', { code: 'permission_denied' }))).toBe(PLAY_COPY.errorNotAllowed);
+  });
+
   it('says nothing for an aborted request or a replay the view re-reads', () => {
     expect(playErrorMessage(new ApiError('aborted'))).toBeNull();
     expect(playErrorMessage(new ApiError('conflict', { code: 'attempt_already_answered' }))).toBeNull();

@@ -47,6 +47,8 @@ export const PLAY_COPY = {
   questDone: 'Done',
   // Errors
   errorSignIn: 'Please ask a grown-up to sign in again.',
+  errorAccountSetup: 'We are still getting your island ready. Please try again in a moment.',
+  errorNotAllowed: 'This is not open for you right now. Please ask a grown-up.',
   errorNotHere: 'This is not here right now.',
   errorTryAgain: 'Something went wrong. Let us try that again.',
   errorSessionEnded: 'This visit has ended. Come back to play again!',
@@ -179,8 +181,12 @@ export function playErrorMessage(error: ApiError | null): string | null {
     case 'aborted':
       return null;
     case 'unauthenticated':
-    case 'forbidden':
       return PLAY_COPY.errorSignIn;
+    case 'forbidden':
+      // Signed in, so never "sign in again": either the account is not set up yet, or not allowed.
+      return error.code === 'account_setup_failed' || error.code === 'account_not_provisioned'
+        ? PLAY_COPY.errorAccountSetup
+        : PLAY_COPY.errorNotAllowed;
     case 'not_found':
     case 'disabled':
       return PLAY_COPY.errorNotHere;
