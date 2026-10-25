@@ -1,46 +1,36 @@
-"""Catalog administration (LAI-0304). Built here, mounted by LAI-0404.
+"""Catalog administration (LAI-0304), on the project's one Django Admin site (LAI-0404).
 
-`catalog_admin_site` is a standalone `AdminSite`. Django Admin is not installed in the
-project settings and no URL serves this site: LAI-0404 installs the admin stack and mounts it
-behind the Cognito-group gate (ADR-024 A4). Until then these classes are exercised by unit
-tests only.
+Registered on Django's default `admin.site`, mounted at `settings.ADMIN_URL_PATH`. Access is
+decided per request by `admin_access` from the signed-in staff account (ADR-034).
 
 Editable now (catalog fields, Django-owned): `active` and `sort_order` on worlds, locations,
-adventures and quests. Everything else is imported content and read-only until the content
+adventures, quests and NPCs. Everything else is imported content and read-only until the content
 authoring cutover, when content fields become editable and the export reverses direction.
-Assets, steps and releases are read-only entirely. Nobody can add a record here (the importer
-creates them), and nobody can delete one before the cutover.
+Assets, steps, releases, objectives, items, sets and reward rules are read-only entirely. Nobody
+can add a record here (the importer creates them), and nobody can delete one before the cutover.
 """
 
 from django.contrib import admin
 from django.db.models import BooleanField, Count, ExpressionWrapper, Q, Subquery
-from django.http import HttpRequest
 
 from apps.catalog import admin_access
 from apps.catalog.models import (
     Adventure,
     AdventureStep,
+    CollectibleSet,
     ContentAsset,
     ContentRelease,
+    ItemDefinition,
+    LearningObjective,
     Location,
     LocationAsset,
+    NpcDefinition,
     Quest,
+    RewardRule,
     World,
 )
 
 CATALOG_FIELDS = ("active", "sort_order")
-
-
-class CatalogAdminSite(admin.AdminSite):
-    site_header = "Learning Adventure Island content catalog"
-    site_title = "Content catalog"
-    index_title = "Worlds, locations, adventures, quests and assets"
-
-    def has_permission(self, request: HttpRequest) -> bool:
-        return admin_access.can_view(request)
-
-
-catalog_admin_site = CatalogAdminSite(name="catalog_admin")
 
 
 def _latest_release():
@@ -151,7 +141,7 @@ class LocationAssetInline(ReadOnlyInline):
     verbose_name_plural = "scene assets (ids only; placement is LAI-0805)"
 
 
-@admin.register(World, site=catalog_admin_site)
+@admin.register(World)
 class WorldAdmin(CatalogModelAdmin):
     has_catalog_fields = True
     list_display = (
@@ -178,7 +168,7 @@ class WorldAdmin(CatalogModelAdmin):
         return obj.location_total
 
 
-@admin.register(Location, site=catalog_admin_site)
+@admin.register(Location)
 class LocationAdmin(CatalogModelAdmin):
     has_catalog_fields = True
     list_display = (
@@ -216,7 +206,7 @@ class LocationAdmin(CatalogModelAdmin):
         return obj.asset_total
 
 
-@admin.register(Adventure, site=catalog_admin_site)
+@admin.register(Adventure)
 class AdventureAdmin(CatalogModelAdmin):
     has_catalog_fields = True
     list_display = (
@@ -246,7 +236,7 @@ class AdventureAdmin(CatalogModelAdmin):
         return ", ".join(ids) or "None"
 
 
-@admin.register(AdventureStep, site=catalog_admin_site)
+@admin.register(AdventureStep)
 class AdventureStepAdmin(CatalogModelAdmin):
     list_display = ("adventure", "position", "step_id", "step_type", "in_latest_release")
     list_filter = ("step_type", "adventure__world", InLatestReleaseFilter)
@@ -254,7 +244,7 @@ class AdventureStepAdmin(CatalogModelAdmin):
     list_select_related = ("adventure",)
 
 
-@admin.register(Quest, site=catalog_admin_site)
+@admin.register(Quest)
 class QuestAdmin(CatalogModelAdmin):
     has_catalog_fields = True
     list_display = (
@@ -272,7 +262,7 @@ class QuestAdmin(CatalogModelAdmin):
     readonly_display = ("in_latest_release",)
 
 
-@admin.register(ContentAsset, site=catalog_admin_site)
+@admin.register(ContentAsset)
 class ContentAssetAdmin(CatalogModelAdmin):
     list_display = ("asset_id", "kind", "bundled_path", "used_by", "in_latest_release")
     list_filter = ("kind", InLatestReleaseFilter)
@@ -287,7 +277,62 @@ class ContentAssetAdmin(CatalogModelAdmin):
         return ", ".join(slugs) or "No shipped scene"
 
 
-@admin.register(ContentRelease, site=catalog_admin_site)
+@admin.register(ContentRelease)
 class ContentReleaseAdmin(CatalogModelAdmin):
     list_display = ("content_digest", "schema_version", "export_tool", "imported_at")
     search_fields = ("content_digest",)
+
+
+@admin.register(LearningObjective)
+class LearningObjectiveAdmin(CatalogModelAdmin):
+    list_display = ("code", "domain", "title", "in_latest_release")
+    list_filter = ("domain", InLatestReleaseFilter)
+    search_fields = ("code", "title")
+
+
+@admin.register(NpcDefinition)
+class NpcDefinitionAdmin(CatalogModelAdmin):
+    has_catalog_fields = True
+    list_display = (
+        "npc_id",
+        "display_name",
+        "home_location_slug",
+        "active",
+        "sort_order",
+        "in_latest_release",
+    )
+    list_filter = ("active", "home_location", InLatestReleaseFilter)
+    search_fields = ("npc_id", "display_name", "home_location_slug")
+    list_select_related = ("home_location",)
+    readonly_display = ("in_latest_release",)
+
+
+@admin.register(CollectibleSet)
+class CollectibleSetAdmin(CatalogModelAdmin):
+    list_display = ("set_id", "display_name", "completion_item", "in_latest_release")
+    list_filter = (InLatestReleaseFilter,)
+    search_fields = ("set_id", "display_name")
+    list_select_related = ("completion_item",)
+
+
+@admin.register(ItemDefinition)
+class ItemDefinitionAdmin(CatalogModelAdmin):
+    list_display = (
+        "item_id",
+        "display_name",
+        "category",
+        "rarity",
+        "collectible_set",
+        "hidden",
+        "in_latest_release",
+    )
+    list_filter = ("category", "rarity", "hidden", InLatestReleaseFilter)
+    search_fields = ("item_id", "display_name")
+    list_select_related = ("collectible_set",)
+
+
+@admin.register(RewardRule)
+class RewardRuleAdmin(CatalogModelAdmin):
+    list_display = ("rule_id", "message", "in_latest_release")
+    list_filter = (InLatestReleaseFilter,)
+    search_fields = ("rule_id",)

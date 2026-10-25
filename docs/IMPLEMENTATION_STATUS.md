@@ -10827,3 +10827,37 @@ steps: `docs/platform/AMPLIFY_HOSTING.md`.
   auto-detection and PR previews, apply the rewrite rule, and verify headers after a deploy.
   No AWS resource was read or changed; the AWS CLI was not available to this task.
 - **Not set:** a Content-Security-Policy, which needs a browser test against a deployed branch.
+
+## LAI-0404 (Django Admin part): Django Admin enabled on main (2026-10-25, ADR-034)
+
+Owner brief: make the existing Django Admin operational, with Django's built-in staff and
+superuser sign-in. Details: `docs/ARCHITECTURE.md`, "Django Admin"; hosting:
+`docs/DJANGO_TARGET_ARCHITECTURE.md`, section 11a.
+
+- **Done:**
+  - Admin stack installed. One site at `/admin/` (`DJANGO_ADMIN_URL_PATH`). Session, CSRF, auth
+    and message middleware are for the admin only, with cookies scoped to the admin path. Templates
+    and static files configured. The API stays bearer-only.
+  - `ParentAccount` gains `is_superuser` (requires `is_staff`) and `admin_username` (migration
+    `users.0002_admin_accounts`). `AdminPasswordBackend` is the only Django authentication backend,
+    and `manage.py create_admin_account` is the only way to create an admin account (no default
+    account, validated passwords, never a command-line argument).
+  - Catalog admin moved to the default site (`catalog_admin_site` removed). Role comes from the
+    session's staff account. Added NpcDefinition (`active`/`sort_order` editable), LearningObjective,
+    ItemDefinition, CollectibleSet and RewardRule (read-only). Superuser-only admin-accounts page
+    (staff rows only). Child data, parents, region layouts and `ChallengeSpec` are not registered.
+  - `GET /api/v1/me/` returns `django_admin`. The React account menu's "Admin" goes to
+    `VITE_DJANGO_ADMIN_URL` when Django confirms staff; otherwise the existing `/admin` behaviour.
+  - Production: `DJANGO_CSRF_TRUSTED_ORIGINS` (https only), WhiteNoise manifest static files,
+    health route exempt from the HTTPS redirect. `lai/Dockerfile` and `lai/docker-entrypoint.sh`
+    (gunicorn, no access log). New pinned dependencies: gunicorn 26.2.0, whitenoise 6.12.0.
+- **Tests (targeted, development checks):** pytest `apps/users apps/core apps/catalog` 327 passed
+  (PostgreSQL required), `apps/game_sessions` 128 passed. Vitest: 5 files, 55 passed. `tsc -b`
+  passes, `manage.py check` clean, `makemigrations --check` no changes, `check --deploy` only flags
+  HSTS preload (deliberately off) and the dummy key used for the check. `collectstatic` with the
+  production storage ran locally. ADR check passed.
+- **Not run (merge-readiness or out of scope):** Ruff, Prettier, Playwright/browser, the full
+  Python and JS suites, `docker build`. The admin in a browser is not verified.
+- **Not done (needs approval):** hosting is not provisioned. Recommendation: ECS Fargate behind
+  an ALB with private RDS, about $50 to $75 per month (section 11a). Login rate limiting (WAF)
+  before public exposure. The API `IsAdmin` from `cognito:groups` is still open under LAI-0404.

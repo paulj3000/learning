@@ -55,6 +55,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-031 | Islands and Adventures are an admin catalog overlaid on source-controlled content; Superusers are Admins with one extra group | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-024 on `origin/main`. To be superseded when LAI-0801/0802 move catalog editing to Django (ADR-019 sub-decision 8). Treasure Rush's TR-D3 (admin-authored content as authoritative, which would have changed it) was not adopted (ADR-033) |
 | ADR-032 | Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-025 on `origin/main` |
 | ADR-033 | One Django backbone: Treasure Rush runs on the canonical catalog and progress models; play-region layouts are seed-authored until LAI-0805 | Accepted | Integration (POST-MERGE-03) |  |
+| ADR-034 | Django Admin is enabled with local staff sign-in, separate from Cognito; it ships as a gunicorn and WhiteNoise container | Accepted | Main line (LAI-0404) | Amends ADR-024 A4 for Django Admin only; resolves TR-D5 |
 
 ## ADR-001: Parent-owned accounts
 
@@ -1261,6 +1262,8 @@ password (the inherited column holds an unusable value; `create_user` and `creat
 `Admins` group in LAI-0404, which will install what it needs.
 
 **Django admin: not enabled.** Enabling it now would give staff an unscoped view of child records.
+*Amended 2026-10-25 (ADR-034):* Django Admin is enabled for staff with local passwords;
+`ParentAccount` gains `is_superuser` and `admin_username`, and child records stay unregistered.
 The React admin remains the customer-facing admin surface.
 
 **Households: not introduced.** One parent account owns its children. A multi-adult household
@@ -1418,6 +1421,8 @@ denies every request; any such endpoint must declare it until LAI-0209 replaces 
 from the `cognito:groups` claim of a cryptographically verified access token. No Django superuser
 or unrestricted permission is granted. Implementation is LAI-0404; LAI-0402 only carries the
 verified groups on the request.
+*Amended 2026-10-25 (ADR-034), for Django Admin only:* Django Admin uses local staff and superuser
+accounts signed in with a Django password, not the `Admins` claim. API authorization is unchanged.
 
 **A5, JWT verification: approved.** PyJWT 2.15.1 with the `crypto` extra; RS256 only; 30 s leeway;
 JWKS cached for 3,600 s; at most one refresh attempt per 60 s **including after failures**; 5 s
@@ -2523,4 +2528,60 @@ two could not both merge.
 database exists outside local development, and Treasure Rush's migrations were replaced). The
 inventory app's initial migration was regenerated because its item and rule references became
 foreign keys. Region sessions record a content release like every session.
+
+
+## ADR-034: Django Admin is enabled with local staff sign-in, separate from Cognito; it ships as a gunicorn and WhiteNoise container
+
+Status: Accepted (project owner, 2026-10-25, LAI-0404: the owner's brief asked for Django's
+built-in staff and superuser authentication for the first implementation)
+
+**Context.** ADR-024 A4 said Django Admin stays off until LAI-0404 and that admin authority
+comes from the Cognito `Admins` group, with no Django superuser. TR-D5 (Proposed) left the
+admin sign-in open: (a) staff flags on `ParentAccount` with a Cognito sign-in that creates a
+Django session, or (b) a separate local staff login. No Cognito-to-Django-session integration
+exists or is tested. The catalog admin (LAI-0304) was built on a separate `AdminSite` with a
+role nothing set. Django has no deployment yet (no `infra/`; Phase 10 needs approval).
+
+**Decision.**
+1. **One admin site.** Django's default `admin.site`, at `settings.ADMIN_URL_PATH` (default
+   `admin/`, env `DJANGO_ADMIN_URL_PATH`). The catalog `ModelAdmin`s move onto it;
+   `catalog_admin_site` is removed. No second admin interface.
+2. **Sign-in: TR-D5 option (b), local staff passwords.** `ParentAccount` gains `is_superuser`
+   and a nullable unique `admin_username`. `apps.users.backends.AdminPasswordBackend` is the
+   only Django authentication backend: it matches `admin_username` plus a Django password, and
+   only for active staff. `ModelBackend` is not installed. Cognito parents have no admin
+   username and a password hash that never matches, so they cannot sign in. Accounts are made
+   only by `manage.py create_admin_account` (password prompted or from `DJANGO_ADMIN_PASSWORD`,
+   validated, never an argument). There is no default account. A staff row may be linked to a
+   real parent's Cognito sub (one person, two credentials) or standalone, with a placeholder
+   sub no Cognito token can carry.
+3. **Roles.** Active staff are the catalog `ADMIN` role (view everything registered, edit
+   `active` and `sort_order`). Active staff superusers are `SUPERUSER`, and they also manage
+   admin accounts. Delete stays closed until the content authoring cutover (ADR-031). There is
+   no `PermissionsMixin`: auth's Group and Permission tables exist but are unused, and the Group
+   admin is unregistered.
+4. **A4 is amended for Django Admin only.** API authorization is unchanged: DRF authenticates
+   with Cognito bearer tokens alone, a session never authenticates the API, and no API
+   permission reads `is_staff`. A Cognito group never grants Django Admin access.
+5. **No child data in Django Admin.** `ChildProfile` and every `ChildOwnedModel` stay
+   unregistered until an audited cross-family read path exists (A4's audit requirement). Parent
+   rows are not listed: the admin-accounts page shows staff rows only. Region and
+   `ChallengeSpec` rows stay unregistered (ADR-033 item 4, LAI-0805).
+6. **Cookies.** Admin session and CSRF cookies are scoped to the admin path, HttpOnly,
+   SameSite=Lax, and Secure in production. Sessions last at most 8 hours and end when the
+   browser closes. `DJANGO_CSRF_TRUSTED_ORIGINS` must list `https://` origins.
+7. **React link.** `GET /api/v1/me/` returns `django_admin` (active staff). The account menu
+   shows "Admin" to Django Admin only when that is true and the build sets
+   `VITE_DJANGO_ADMIN_URL`; otherwise the existing `/admin` link for the Amplify `Admins`
+   group is unchanged.
+8. **Serving.** New pinned dependencies: `gunicorn` 26.2.0 (WSGI server) and `whitenoise`
+   6.12.0 (admin static files, hashed and compressed, from `STATIC_ROOT`). The image is
+   `lai/Dockerfile`. `collectstatic` runs at container start, and gunicorn writes no access
+   log (G10). The health route is exempt from the HTTPS redirect for load balancer checks.
+
+**Consequences.** One person who is both a parent and an administrator has two credentials
+until a Cognito-based admin sign-in (TR-D5 option a) is built; that is the upgrade path, and
+`admin_username` can stay as the link. Local passwords need rotation by hand (`create_admin_account
+--reset-password`); there is no MFA on the Django login yet. Hosting is still to be provisioned
+(Phase 10, APPROVAL), see `docs/DJANGO_TARGET_ARCHITECTURE.md`, "Django Admin hosting".
 

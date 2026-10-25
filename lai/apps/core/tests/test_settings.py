@@ -105,6 +105,43 @@ def test_production_is_secure_when_configured(monkeypatch):
     assert not hasattr(prod, "CORS_ALLOW_ALL_ORIGINS")
 
 
+def test_production_serves_the_admin_securely(monkeypatch):
+    _prod_env(monkeypatch, DJANGO_CSRF_TRUSTED_ORIGINS="https://admin.example.test")
+    prod = _load("config.settings.production")
+    assert prod.CSRF_TRUSTED_ORIGINS == ["https://admin.example.test"]
+    security = prod.MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")
+    assert prod.MIDDLEWARE[security + 1] == "whitenoise.middleware.WhiteNoiseMiddleware"
+    assert "whitenoise" in prod.STORAGES["staticfiles"]["BACKEND"]
+    assert prod.SECURE_REDIRECT_EXEMPT == [r"^api/v1/health/$"]
+    assert prod.SESSION_COOKIE_PATH == prod.CSRF_COOKIE_PATH == "/admin/"
+    # The shared base list is not mutated for other settings modules.
+    assert "whitenoise.middleware.WhiteNoiseMiddleware" not in settings.MIDDLEWARE
+
+
+@pytest.mark.parametrize(
+    "origins", ["http://admin.example.test", "https://*.example.test", "admin.example.test"]
+)
+def test_production_rejects_unsafe_csrf_trusted_origins(monkeypatch, origins):
+    _prod_env(monkeypatch, DJANGO_CSRF_TRUSTED_ORIGINS=origins)
+    with pytest.raises(ImproperlyConfigured, match="DJANGO_CSRF_TRUSTED_ORIGINS"):
+        _load("config.settings.production")
+
+
+@pytest.mark.parametrize("path", ["/admin/", "admin", "api/admin/", "Admin/", "../x/"])
+def test_the_admin_path_must_be_a_plain_relative_prefix(monkeypatch, path):
+    monkeypatch.setenv("DJANGO_ADMIN_URL_PATH", path)
+    with pytest.raises(ImproperlyConfigured, match="DJANGO_ADMIN_URL_PATH"):
+        _load("config.settings.base")
+
+
+def test_the_admin_path_can_move_and_the_cookies_follow(monkeypatch):
+    monkeypatch.setenv("DJANGO_ADMIN_URL_PATH", "staff/django-admin/")
+    base = _load("config.settings.base")
+    assert base.SESSION_COOKIE_PATH == base.CSRF_COOKIE_PATH == "/staff/django-admin/"
+    monkeypatch.delenv("DJANGO_ADMIN_URL_PATH")
+    assert _load("config.settings.base").ADMIN_URL_PATH == "admin/"  # leave the default loaded
+
+
 def test_production_does_not_hardcode_infrastructure():
     from pathlib import Path
 

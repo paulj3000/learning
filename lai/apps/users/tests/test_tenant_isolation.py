@@ -12,6 +12,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from django.conf import settings
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import URLPattern, URLResolver
@@ -282,7 +283,11 @@ def test_the_mixin_scopes_by_the_authorized_child_object():
 
 
 def walk(patterns, prefix=""):
+    """Every API route. Django Admin is skipped: it is session-gated to staff and registers no
+    child data, both proven in apps/core/tests/test_django_admin.py."""
     for entry in patterns:
+        if not prefix and str(entry.pattern) == settings.ADMIN_URL_PATH:
+            continue
         if isinstance(entry, URLResolver):
             yield from walk(entry.url_patterns, prefix + str(entry.pattern))
         elif isinstance(entry, URLPattern):

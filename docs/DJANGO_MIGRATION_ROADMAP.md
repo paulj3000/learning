@@ -237,7 +237,7 @@ base class; a test enumerates every registered route and asserts it is either pu
 family's child for every endpoint. This is the replacement for AppSync owner rules and must
 land before any data endpoint.
 
-**LAI-0404 Admin group and Django admin gating.** Depends: 0402. Risk M. Acceptance:
+**LAI-0404 Admin group and Django admin gating. Django Admin part DONE locally (2026-10-25, ADR-034): staff sign in with local passwords (TR-D5 option b), the catalog admin is on the default site at `/admin/`, and nothing sets `request.catalog_admin_role` any more. Open: the API `IsAdmin` permission from `cognito:groups` (no API endpoint needs it yet), and deployment (Phase 10).** Depends: 0402. Risk M. Acceptance:
 `IsAdmin` from `cognito:groups`; Django admin accessible only to staff users created
 out of band; deny-by-default tests (CLAUDE.md section 10). Also mounts LAI-0304's `catalog_admin_site`
 (`lai/apps/catalog/admin.py`) by setting `request.catalog_admin_role` from the verified token

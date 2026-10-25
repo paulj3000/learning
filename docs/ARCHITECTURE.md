@@ -616,7 +616,8 @@ first so the play API's `sessions/<id>/<action>/` route does not shadow them.
 Cognito proves identity; `users.ParentAccount` (keyed by the immutable Cognito `sub`) is the
 application account and Django's user model; `users.ChildProfile` is a profile a parent manages and
 never a login. Child data is reached only through its parent (`apps/users/services.py`). See ADR-022
-in `docs/DECISIONS.md` and the mapping in `docs/DATA_MODEL.md`. No API exposes these models yet.
+in `docs/DECISIONS.md` and the mapping in `docs/DATA_MODEL.md`. Django Admin staff are also
+`ParentAccount` rows, with an `admin_username` and a local password (ADR-034, "Django Admin" below).
 
 ## Authentication architecture (LAI-0401, ADR-024)
 
@@ -646,7 +647,7 @@ path and give the same `not_found` response (same status, body, and headers; the
 queries). Child-owned records are fetched only with `self.scoped(queryset)` or
 `self.get_scoped_object(queryset, pk)`, which add `child=self.child`; a nested id from the URL is never
 looked up alone. An `Admins` claim changes nothing here: cross-family administration is a separate,
-audited path (LAI-0404). The helpers do not secure an endpoint that does not use them; see the
+audited path that does not exist yet (Django Admin registers no child data, ADR-034). The helpers do not secure an endpoint that does not use them; see the
 checklist in `docs/TESTING_STRATEGY.md`.
 
 ## Logging and privacy (LAI-0208, ADR-025)
@@ -698,12 +699,78 @@ mapping, and gaps: `docs/DATA_MODEL.md`.
 and ContentRelease, loaded from the export by `manage.py load_content` (idempotent, transactional,
 digest-verified, never deletes, never overwrites `active`/`sort_order`). Django becomes the content
 authority at the authoring cutover; until then the export is authoritative for content fields. The
-catalog admin (`apps/catalog/admin.py`) is written and unit-tested but **not mounted**: Django Admin is not
-installed, and LAI-0404 mounts `catalog_admin_site` behind the Cognito-group gate (ADR-024 A4).
-Permissions resolve through `apps/catalog/admin_access.py`, deny by default: Admins and Superusers view
-everything and edit only `active` and `sort_order`; nobody adds; deletion is Superusers only and closed
-until the cutover. Spatial layout is not in the catalog (LAI-0805). Model and field detail:
+catalog admin (`apps/catalog/admin.py`) is registered on the one Django Admin site (LAI-0404, below).
+Permissions resolve through `apps/catalog/admin_access.py`, deny by default: active staff and superusers
+view everything and edit only `active` and `sort_order`; nobody adds; deletion is superusers only and
+closed until the cutover. Spatial layout is not in the catalog (LAI-0805). Model and field detail:
 `docs/DATA_MODEL.md`, "Django content catalog".
+
+## Django Admin (LAI-0404, ADR-034)
+
+**Shape.** Django's default `admin.site`, the only admin site, at `/admin/` (`settings.ADMIN_URL_PATH`,
+env `DJANGO_ADMIN_URL_PATH`). It is an internal tool for staff. Product admin views (progress
+summaries, safety review) stay in the React admin. The admin stack (`admin`, `auth`,
+`contenttypes`, `sessions`, `messages`, `staticfiles`) and the session, CSRF, authentication and
+message middleware exist for the admin only. The API is unchanged: DRF authenticates with Cognito
+bearer tokens alone and never reads a session.
+
+**Who gets in.** Staff sign in with an admin username and a Django password
+(`apps/users/backends.py`, the only authentication backend). `AdminSite.has_permission` admits
+active staff only; anonymous visitors are sent to the login page and non-staff are refused.
+Cognito parents cannot sign in: they have no admin username and a password hash that never
+matches. A Cognito group, including `Admins`, never grants access.
+
+| Role | Flags | Can |
+|---|---|---|
+| Staff | `is_staff` | View every registered catalog page; edit `active` and `sort_order` on worlds, locations, adventures, quests and NPCs |
+| Superuser | `is_staff` and `is_superuser` | All of the above, plus the admin-accounts page (activate, deactivate, grant or remove staff and superuser) |
+
+Nobody adds catalog rows (the importer does) or deletes them (closed until the authoring
+cutover). Changes are recorded in Django's admin log (`django_admin_log`), which stores object
+ids, not names.
+
+**Registered models.** Catalog: World, Location (with scene-asset and adventure inlines),
+Adventure (with step inline), AdventureStep, Quest, NpcDefinition, ContentAsset (3D models and
+shared assets, with "used by" locations), LearningObjective, ItemDefinition, CollectibleSet,
+RewardRule, ContentRelease. Users: Admin accounts (staff rows only, superusers only).
+**Not registered, on purpose:** ChildProfile and every child-owned progress model (sessions,
+answers, skills, stories, world changes, inventory, quest progress), until an audited
+cross-family read path exists (ADR-024 A4). Parent accounts are not listed. Region layouts and
+`ChallengeSpec` are seed-authored until LAI-0805 (ADR-033). Things still only in Amplify (the
+React admin's uploaded `Asset` records, ADR-030; the island/adventure overlay, ADR-031; safety
+review) have no Django models yet and are not in Django Admin; LAI-0801/0802 own them.
+
+**Creating the first superuser** (run where `manage.py` reaches the database: locally, or as a
+one-off task in the deployed container):
+
+```sh
+cd lai && python manage.py migrate
+python manage.py create_admin_account <username> --superuser
+# prompts twice for the password; it must pass AUTH_PASSWORD_VALIDATORS (12+ characters, not common)
+```
+
+- More staff: the same command without `--superuser`.
+- Link to an existing parent so the React menu shows "Admin" for them:
+  `--cognito-sub <their Cognito sub>`. The parent must have signed in once, which provisions the account.
+- Non-interactive, for a container task: `--no-input` with `DJANGO_ADMIN_PASSWORD` set from Secrets
+  Manager for that one run only.
+- New password: `create_admin_account <username> --reset-password`. This signs out existing sessions.
+- Remove access: a superuser clears `is_staff` (or `is_active`) on the admin-accounts page. The change
+  applies on the account's next request. `manage.py createsuperuser` deliberately fails and points here.
+
+**Signing in.** Open `https://<django host>/admin/`, enter the admin username and password. Sessions
+last at most 8 hours and end when the browser closes. Cookies (`lai_admin_session`,
+`lai_admin_csrftoken`) are scoped to the admin path, HttpOnly, SameSite=Lax, and Secure in production.
+
+**React link.** `GET /api/v1/me/` returns `django_admin: true` for active staff. The account menu's
+"Admin" item goes to `VITE_DJANGO_ADMIN_URL` only when the build sets that variable and has the Django
+API on (`VITE_BACKEND=django`) and Django returns true. Otherwise the existing `/admin` link for the
+Amplify `Admins` group is unchanged. Django Admin checks its own sign-in either way.
+
+**Known limitations.** Separate credentials from Cognito, with no MFA on the Django login yet (a
+Cognito-backed admin sign-in is the upgrade path, TR-D5 option a). No throttling of failed admin
+logins in the application (add WAF rate limiting at the load balancer, or a lockout, before exposure). There is no Django deployment yet;
+hosting and approvals are in `docs/DJANGO_TARGET_ARCHITECTURE.md`, "Django Admin hosting".
 
 ## Child progress (LAI-0305)
 

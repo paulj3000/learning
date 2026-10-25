@@ -223,7 +223,7 @@ Proposed** and blocks TR-3 only.
 - **TR-D4 (Accepted) Spawn and checkpoints as data.** ADR-032 part C keeps checkpoints in
   `discovery/checkpoints.ts`. Proposal: a published manifest snapshot may carry its own
   checkpoints, including spawn; source regions keep the current rule.
-- **TR-D5 (Proposed) How administrators sign in to Django admin.** `ParentAccount` has no password and no
+- **TR-D5 (Accepted 2026-10-25, option b; ADR-034) How administrators sign in to Django admin.** `ParentAccount` has no password and no
   staff flags by design. Options: (a) staff flags on `ParentAccount`, granted out of band,
   with a Cognito sign-in that creates a Django session; (b) a separate local staff login. (a)
   keeps one identity; (b) is faster but adds passwords. Owner decides (LAI-0404).

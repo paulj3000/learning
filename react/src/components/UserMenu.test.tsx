@@ -4,12 +4,15 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { UserMenu } from './UserMenu';
 import { useAuth } from '../features/auth/AuthContext';
+import { useDjangoAdminLink } from './useDjangoAdminLink';
 
 vi.mock('../features/auth/AuthContext', () => ({
   useAuth: vi.fn(),
 }));
+vi.mock('./useDjangoAdminLink', () => ({ useDjangoAdminLink: vi.fn(() => null) }));
 
 const useAuthMock = vi.mocked(useAuth);
+const useDjangoAdminLinkMock = vi.mocked(useDjangoAdminLink);
 
 describe('UserMenu', () => {
   it('opens the menu on click and shows Settings and Sign out, with Sign out last', async () => {
@@ -155,5 +158,53 @@ describe('UserMenu', () => {
 
     await user.click(screen.getByText('Outside'));
     await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+  });
+
+  it('points Admin at Django Admin when Django confirms staff', async () => {
+    useDjangoAdminLinkMock.mockReturnValue('https://api.example.test/admin/');
+    useAuthMock.mockReturnValue({
+      status: 'authenticated',
+      userId: 'parent-1',
+      isAdmin: false,
+      isSuperuser: false,
+      refresh: vi.fn(),
+      signOut: vi.fn(),
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <UserMenu />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /account menu/i }));
+    const items = screen.getAllByRole('menuitem');
+    expect(items.map((item) => item.textContent)).toEqual(['Settings', 'Admin', 'Sign out']);
+    expect(items[1]).toHaveAttribute('href', 'https://api.example.test/admin/');
+    useDjangoAdminLinkMock.mockReturnValue(null);
+  });
+
+  it('keeps one Admin item, to Django, for an Amplify admin who is also Django staff', async () => {
+    useDjangoAdminLinkMock.mockReturnValue('https://api.example.test/admin/');
+    useAuthMock.mockReturnValue({
+      status: 'authenticated',
+      userId: 'admin-1',
+      isAdmin: true,
+      isSuperuser: false,
+      refresh: vi.fn(),
+      signOut: vi.fn(),
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <UserMenu />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /account menu/i }));
+    const admins = screen.getAllByRole('menuitem', { name: 'Admin' });
+    expect(admins).toHaveLength(1);
+    expect(admins[0]).toHaveAttribute('href', 'https://api.example.test/admin/');
+    useDjangoAdminLinkMock.mockReturnValue(null);
   });
 });

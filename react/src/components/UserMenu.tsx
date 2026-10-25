@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './UserMenu.module.css';
 import { useAuth } from '../features/auth/AuthContext';
+import { useDjangoAdminLink } from './useDjangoAdminLink';
 
 /**
  * Account menu for the parent dashboard header: a user icon that opens a
@@ -13,9 +14,15 @@ import { useAuth } from '../features/auth/AuthContext';
  * rendered at all, so no gap or separator is left behind —
  * the actual gate is `RequireAdmin` on the `/admin` route, this is only
  * discoverability for the account that already has access.
+ *
+ * In a build configured for Django Admin (LAI-0404, ADR-034), "Admin" goes
+ * to Django Admin instead, and only when Django itself reports the account
+ * as staff (`useDjangoAdminLink`). Django Admin then asks for its own staff
+ * sign-in. Builds without that configuration keep the behaviour above.
  */
 export function UserMenu() {
   const { signOut, isAdmin } = useAuth();
+  const djangoAdminUrl = useDjangoAdminLink();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -66,7 +73,16 @@ export function UserMenu() {
           >
             Settings
           </Link>
-          {isAdmin ? (
+          {djangoAdminUrl ? (
+            <a
+              className={styles.menuItem}
+              role="menuitem"
+              href={djangoAdminUrl}
+              onClick={() => setOpen(false)}
+            >
+              Admin
+            </a>
+          ) : isAdmin ? (
             <Link
               className={styles.menuItem}
               role="menuitem"

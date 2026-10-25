@@ -1,9 +1,9 @@
-"""Who may use the catalog admin (LAI-0304; wired to real identities by LAI-0404).
+"""Who may use the catalog admin (LAI-0304; wired to Django Admin staff by LAI-0404).
 
-Deny by default. ADR-024 gate A4 decides admin rights from the verified access token's
-`cognito:groups` claim, never from a stored flag (`ParentAccount.is_staff` stays unused), and
-Django Admin stays unmounted until LAI-0404 builds that gate. Until then nothing sets
-`request.catalog_admin_role`, so every request resolves to `NONE` and is refused.
+Deny by default. The role comes from the Django Admin session's account (ADR-034, which amends
+ADR-024 A4 for Django Admin only): an active staff account is `ADMIN`, an active staff superuser
+is `SUPERUSER`, and anyone else, including every Cognito-authenticated parent, is `NONE`. API
+authorization is unchanged and never reads these flags.
 
 Roles mirror the Amplify groups (ADR-031): `Admins` view the catalog and edit catalog fields;
 `Superusers` are Admins who may also delete, which stays closed until the content authoring
@@ -25,9 +25,15 @@ class AdminRole(StrEnum):
 
 
 def resolve_admin_role(request: HttpRequest) -> AdminRole:
-    """The caller's catalog role. LAI-0404 sets the attribute from the verified token."""
-    role = getattr(request, "catalog_admin_role", AdminRole.NONE)
-    return role if isinstance(role, AdminRole) else AdminRole.NONE
+    """The caller's catalog role, from the Django Admin session's account."""
+    user = getattr(request, "user", None)
+    if not (
+        getattr(user, "is_authenticated", False)
+        and getattr(user, "is_active", False)
+        and getattr(user, "is_staff", False)
+    ):
+        return AdminRole.NONE
+    return AdminRole.SUPERUSER if getattr(user, "is_superuser", False) else AdminRole.ADMIN
 
 
 def can_view(request: HttpRequest) -> bool:

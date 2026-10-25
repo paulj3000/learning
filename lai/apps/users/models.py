@@ -22,6 +22,8 @@ from django.utils.timezone import now
 MAX_CHILD_PROFILES = 3  # react/src/features/child-profile/constants.ts: MAX_CHILD_PROFILES
 MAX_INTERESTS = 5
 NICKNAME_MAX_LENGTH = 30
+# Cognito subs are UUIDs, so a sub with this prefix can never arrive in a verified token.
+ADMIN_ONLY_SUB_PREFIX = "django-admin-only:"
 
 
 class AgeBand(models.TextChoices):
@@ -60,19 +62,24 @@ class ParentAccountManager(BaseUserManager):
         return account
 
     def create_user(self, *args, **kwargs):
-        raise NotImplementedError("Use get_or_create_for_cognito; accounts have no local login.")
+        raise NotImplementedError("Use get_or_create_for_cognito; parents have no local login.")
 
-    create_superuser = create_user
+    def create_superuser(self, *args, **kwargs):
+        raise NotImplementedError("Use `manage.py create_admin_account` (docs/ARCHITECTURE.md).")
 
 
 class ParentAccount(AbstractBaseUser):
     """The authenticated adult. This is Django's user model (`AUTH_USER_MODEL`).
 
-    Credentials live in Cognito; the password column inherited from `AbstractBaseUser` is always
-    an unusable password. Deliberately absent: email (mutable, personal, and never an identity
-    key), Django superuser flags and permission tables (administrative access will be mapped
-    from the Cognito `Admins` group in LAI-0404, not granted here). One account may also be an
-    administrator; the name reflects the primary role. Replaces Amplify `ParentProfile`.
+    A parent's credentials live in Cognito; their password column is always an unusable password.
+    Deliberately absent: email (mutable, personal, and never an identity key) and Django's
+    permission tables (`PermissionsMixin`).
+
+    Django Admin staff (LAI-0404, ADR-034) are rows with `admin_username`, `is_staff` and a usable
+    password, created only by `manage.py create_admin_account`. A staff row is either linked to
+    a real parent's Cognito sub (one person, two credentials) or standalone, with a placeholder
+    sub (`ADMIN_ONLY_SUB_PREFIX`) that no Cognito token can carry. Nothing in the API sets these
+    fields, so signing in with Cognito never grants admin access. Replaces Amplify `ParentProfile`.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -81,6 +88,8 @@ class ParentAccount(AbstractBaseUser):
     timezone = models.CharField(max_length=64, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    is_superuser = models.BooleanField(default=False)
+    admin_username = models.CharField(max_length=150, unique=True, null=True, blank=True)
     created_at = models.DateTimeField(default=now, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -93,7 +102,11 @@ class ParentAccount(AbstractBaseUser):
             models.CheckConstraint(
                 condition=models.Q(cognito_sub__regex=r"\S"),
                 name="users_parentaccount_cognito_sub_not_blank",
-            )
+            ),
+            models.CheckConstraint(
+                condition=models.Q(is_superuser=False) | models.Q(is_staff=True),
+                name="users_parentaccount_superuser_is_staff",
+            ),
         ]
 
     @classmethod
@@ -109,11 +122,34 @@ class ParentAccount(AbstractBaseUser):
         super().save(*args, **kwargs)
         self._loaded_cognito_sub = self.cognito_sub
 
+    # Django Admin permission hooks. Superusers may do everything a ModelAdmin allows; other staff
+    # get only what each ModelAdmin grants by role (apps/catalog/admin_access.py).
+    def has_perm(self, perm, obj=None) -> bool:
+        return self.is_active and self.is_staff and self.is_superuser
+
+    def has_perms(self, perm_list, obj=None) -> bool:
+        return all(self.has_perm(perm, obj) for perm in perm_list)
+
+    def has_module_perms(self, app_label) -> bool:
+        return self.is_active and self.is_staff and self.is_superuser
+
+    def get_short_name(self) -> str:
+        """What the admin header greets: the admin username, never the Cognito sub."""
+        return self.admin_username or ""
+
     def __str__(self) -> str:
         return str(self.id)
 
     def __repr__(self) -> str:
         return f"<ParentAccount {self.id}>"
+
+
+class AdminAccount(ParentAccount):
+    """The Django Admin's view of staff rows (rows with an `admin_username`). Not a table."""
+
+    class Meta:
+        proxy = True
+        verbose_name = "admin account"
 
 
 class ChildProfileQuerySet(models.QuerySet):

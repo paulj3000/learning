@@ -264,30 +264,35 @@ def _views(patterns, prefix=""):
             yield prefix + str(entry.pattern), entry.callback
 
 
-def test_only_the_health_route_is_public():
+def test_only_the_health_route_is_public(settings):
     from config import urls
 
     public = []
     for route, callback in _views(urls.urlpatterns):
+        if route.startswith(settings.ADMIN_URL_PATH):
+            continue  # Django Admin: staff sign-in on every page (test_django_admin.py)
         permissions = [p.__name__ for p in callback.cls.permission_classes]
         if "AllowAny" in permissions:
             public.append(route)
     assert public == ["api/v1/health/"]
 
 
-def test_every_route_lives_under_api_v1():
+def test_every_route_lives_under_api_v1_except_django_admin(settings):
     from config import urls
 
-    assert all(route.startswith("api/v1/") for route, _ in _views(urls.urlpatterns))
+    routes = [route for route, _ in _views(urls.urlpatterns)]
+    outside = {route for route in routes if not route.startswith("api/v1/")}
+    assert all(route.startswith(settings.ADMIN_URL_PATH) for route in outside)
 
 
 def test_project_never_enables_cookie_based_api_authentication(settings):
-    # Bearer-header authentication only: no session or cookie authentication class.
+    # Bearer-header authentication only: no session or cookie authentication class. Sessions and
+    # CSRF exist for Django Admin (LAI-0404), with cookies scoped to the admin path.
     assert settings.REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] == [
         "apps.users.authentication.CognitoJWTAuthentication"
     ]
-    assert "django.contrib.sessions" not in settings.INSTALLED_APPS
-    assert not any("csrf" in name.lower() for name in settings.MIDDLEWARE)
+    assert settings.SESSION_COOKIE_PATH == settings.CSRF_COOKIE_PATH == "/admin/"
+    assert settings.SESSION_COOKIE_HTTPONLY and settings.CSRF_COOKIE_HTTPONLY
 
 
 def test_runserver_access_lines_with_query_strings_are_discarded(settings):

@@ -611,7 +611,7 @@ authoritative for the Amplify schema until cutover.
 
 | Amplify | Django | Notes |
 |---|---|---|
-| `ParentProfile` (owner = Cognito) | `users.ParentAccount` (the user model) | Adds `cognito_sub` (unique, immutable). `displayName`, `timezone` kept; no email, no permission flags, no password |
+| `ParentProfile` (owner = Cognito) | `users.ParentAccount` (the user model) | Adds `cognito_sub` (unique, immutable). `displayName`, `timezone` kept; no email. Parents have no password or admin flags; Django Admin staff rows add `admin_username` (unique, nullable), `is_staff`, `is_superuser` (requires `is_staff`) and a local password (ADR-034). `AdminAccount` is a proxy for the admin-accounts page |
 | `ChildProfile.parentProfileId` | `ChildProfile.parent` (FK, `PROTECT`) | Not editable after creation |
 | `ChildProfile.ownerSub` | dropped | Ownership is the foreign key |
 | `nickname` | `nickname` (1 to 30, not blank) | |
@@ -622,8 +622,9 @@ authoritative for the Amplify schema until cutover.
 | `active`, `aiEnabled` | `active`, `ai_enabled` | |
 | `CompanionProfile`, `ParentConsent` | not yet | LAI-0307, LAI-0308 |
 
-Admin read access (`allow.group('Admins').to(['read'])`) has no Django equivalent yet; it arrives
-with LAI-0404. Deletion and ownership rules are in ADR-022.
+Admin read access (`allow.group('Admins').to(['read'])`) has no Django equivalent yet: Django Admin
+(LAI-0404, ADR-034) deliberately registers no child profile until an audited cross-family read path
+exists. Deletion and ownership rules are in ADR-022.
 
 ### Ownership invariants for every child-scoped model (LAI-0403)
 
@@ -820,7 +821,8 @@ foreign key (CASCADE: a child's history goes with the child), and `objects.for_c
 same filter `ChildScopedMixin.scoped` applies. `AdventureAction` and `CoopParticipant` are reached only
 through their session. Service functions take the child resolved by `ChildScopedMixin` and answer a
 record of another child exactly as a missing one (`ProgressNotFound`). No endpoint and no admin
-registration exposes these models (cross-family admin reads stay with LAI-0404's audited path).
+registration exposes these models (Django Admin registers none of them; cross-family admin reads wait for
+an audited path, ADR-034).
 
 **Content references.** Sessions, co-op sessions and quest progress point at catalog rows with
 PROTECT foreign keys (`catalog.Adventure`, `catalog.Quest`). Catalog rows are never deleted by an

@@ -67,7 +67,7 @@ def test_post_me_provisions_once_and_is_idempotent(key):
     assert first.json() == second.json() and set(first.json()) == {"id"}
     account = ParentAccount.objects.get()
     assert account.cognito_sub == "sub-parent-a" and str(account.pk) == first.json()["id"]
-    assert call(token).json() == {"id": str(account.pk)}
+    assert call(token).json() == {"id": str(account.pk), "django_admin": False}
 
 
 def test_provisioning_creates_no_children_and_no_privileges(key):

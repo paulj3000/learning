@@ -2,11 +2,11 @@ import threading
 from datetime import timedelta
 
 import pytest
+from django.contrib import admin
 from django.db import IntegrityError, connection, transaction
 from django.db.models import ProtectedError
 from django.utils import timezone
 
-from apps.catalog.admin import catalog_admin_site
 from apps.catalog.importer import import_content
 from apps.catalog.models import Adventure, ContentRelease, Location
 from apps.catalog.tests.helpers import write_export
@@ -243,9 +243,9 @@ class TestChildIsolation:
         assert AdventureAction.objects.count() == 0
         assert list(AdventureSession.objects.values_list("child", flat=True)) == [families.b1.pk]
 
-    def test_no_progress_model_is_exposed_on_the_catalog_admin(self):
-        exposed = {model._meta.app_label for model in catalog_admin_site._registry}
-        assert exposed == {"catalog"}
+    def test_no_progress_model_is_exposed_on_the_admin(self):
+        exposed = {model._meta.app_label for model in admin.site._registry}
+        assert exposed == {"catalog", "users"}  # users: the admin-accounts proxy only
 
 
 @pytest.mark.django_db

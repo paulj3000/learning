@@ -4,6 +4,9 @@ Django==6.1.2
 djangorestframework==3.18.3
 psycopg[binary]==3.3.6
 PyJWT[crypto]==2.15.1
+# Production serving (LAI-0404, ADR-034): the WSGI server and the admin's static files.
+gunicorn==26.2.0
+whitenoise==6.12.0
 # transitive dependencies, pinned for reproducible installs
 asgiref==3.12.1
 psycopg-binary==3.3.6

@@ -33,3 +33,6 @@ __pycache__/
 # in docs/ASSET_LICENCES.md. What ships is the handful of normalised files
 # the importer writes into react/public/models/, which are checked in.
 assets/*.zip
+
+# Django collectstatic output (LAI-0404); built in the container, never committed
+lai/staticfiles/

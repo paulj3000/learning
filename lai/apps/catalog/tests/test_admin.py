@@ -1,58 +1,99 @@
+from types import SimpleNamespace
+
 import pytest
+from django.contrib import admin
+from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory
 
 from apps.catalog import admin_access
-from apps.catalog.admin import catalog_admin_site
 from apps.catalog.admin_access import AdminRole
 from apps.catalog.importer import import_content
 from apps.catalog.models import (
     Adventure,
     AdventureStep,
+    CollectibleSet,
     ContentAsset,
     ContentRelease,
+    ItemDefinition,
+    LearningObjective,
     Location,
     LocationAsset,
+    NpcDefinition,
     Quest,
+    RewardRule,
     World,
 )
 from apps.catalog.tests.helpers import base_collections, write_export
 
-CATALOG_MODELS = (World, Location, Adventure, Quest)
-READ_ONLY_MODELS = (AdventureStep, ContentAsset, ContentRelease)
+CATALOG_MODELS = (World, Location, Adventure, Quest, NpcDefinition)
+READ_ONLY_MODELS = (
+    AdventureStep,
+    ContentAsset,
+    ContentRelease,
+    LearningObjective,
+    CollectibleSet,
+    ItemDefinition,
+    RewardRule,
+)
 
 
-def request_as(role=None):
-    request = RequestFactory().get("/catalog-admin/")
-    if role is not None:
-        request.catalog_admin_role = role
+def account(*, staff=True, superuser=False, active=True):
+    """A stand-in for a signed-in `ParentAccount` (only the flags the admin reads)."""
+    return SimpleNamespace(
+        is_authenticated=True, is_active=active, is_staff=staff, is_superuser=superuser
+    )
+
+
+ROLE_USERS = {
+    AdminRole.ADMIN: lambda: account(),
+    AdminRole.SUPERUSER: lambda: account(superuser=True),
+}
+
+
+def request_as(role=None, user=None):
+    request = RequestFactory().get("/admin/")
+    request.user = user if user is not None else ROLE_USERS[role]() if role else AnonymousUser()
     return request
 
 
 def model_admin(model):
-    return catalog_admin_site._registry[model]
+    return admin.site._registry[model]
 
 
-def test_every_catalog_model_is_registered_on_the_catalog_site():
-    assert set(catalog_admin_site._registry) == {*CATALOG_MODELS, *READ_ONLY_MODELS}
+def test_every_catalog_model_is_registered_on_the_one_admin_site():
+    catalog = {m for m in admin.site._registry if m._meta.app_label == "catalog"}
+    assert catalog == {*CATALOG_MODELS, *READ_ONLY_MODELS}
+    assert LocationAsset not in admin.site._registry  # shown inline on its location
 
 
-@pytest.mark.parametrize("role", [None, AdminRole.NONE, "admin", "superuser"])
-def test_deny_by_default_without_a_resolved_role(role):
-    request = request_as(role)
-    assert catalog_admin_site.has_permission(request) is False
+@pytest.mark.parametrize(
+    "user",
+    [
+        None,  # anonymous
+        account(staff=False),  # a signed-in parent
+        account(staff=False, superuser=True),  # inconsistent flags still deny
+        account(active=False),
+        account(superuser=True, active=False),
+    ],
+)
+def test_deny_by_default_without_an_active_staff_account(user):
+    request = request_as(user=user)
+    assert admin_access.resolve_admin_role(request) is AdminRole.NONE
+    assert admin.site.has_permission(request) is False
     for model in (*CATALOG_MODELS, *READ_ONLY_MODELS):
-        admin = model_admin(model)
-        assert not admin.has_module_permission(request)
-        assert not admin.has_view_permission(request)
-        assert not admin.has_change_permission(request)
-        assert not admin.has_add_permission(request)
-        assert not admin.has_delete_permission(request)
+        registered = model_admin(model)
+        assert not registered.has_module_permission(request)
+        assert not registered.has_view_permission(request)
+        assert not registered.has_change_permission(request)
+        assert not registered.has_add_permission(request)
+        assert not registered.has_delete_permission(request)
 
 
 @pytest.mark.parametrize("role", [AdminRole.ADMIN, AdminRole.SUPERUSER])
 def test_admins_view_everything_and_edit_only_catalog_models(role):
     request = request_as(role)
-    assert catalog_admin_site.has_permission(request)
+    assert admin_access.resolve_admin_role(request) is role
+    assert admin.site.has_permission(request)
     for model in CATALOG_MODELS:
         assert model_admin(model).has_view_permission(request)
         assert model_admin(model).has_change_permission(request)
@@ -80,11 +121,12 @@ def test_only_active_and_sort_order_are_editable_on_catalog_models(model):
     readonly = set(model_admin(model).get_readonly_fields(request_as(AdminRole.ADMIN)))
     names = {f.name for f in model._meta.fields} | {f.name for f in model._meta.many_to_many}
     assert names - readonly == {"active", "sort_order"}
-    assert {"slug", "title", "source", "last_seen_release"} <= readonly
+    assert {"source", "last_seen_release"} <= readonly
+    assert {"slug", "title", "npc_id", "display_name"} & names <= readonly
 
 
 @pytest.mark.parametrize("model", READ_ONLY_MODELS)
-def test_assets_steps_and_releases_are_read_only(model):
+def test_imported_only_models_are_read_only(model):
     readonly = set(model_admin(model).get_readonly_fields(request_as(AdminRole.ADMIN)))
     assert {f.name for f in model._meta.fields} <= readonly
 

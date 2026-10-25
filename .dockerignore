@@ -1,0 +1,12 @@
+# Django image build context (lai/Dockerfile). Only requirements.txt, lai/ and content/ are copied.
+**/__pycache__
+**/*.pyc
+.venv
+node_modules
+react
+amplify
+dist
+.git
+lai/staticfiles
+*.env
+.env*
