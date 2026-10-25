@@ -1,7 +1,8 @@
 # Shared Django Asset Manager (LAI-2200)
 
-Status: in progress on `feature/django-asset-manager`. Not deployed:
-S3, the bucket policy and CloudFront are not provisioned (see "Deployment dependencies").
+Status: foundation implemented on `feature/django-asset-manager` (AM-1 to AM-9), unit-tested,
+not merged and not deployed. S3, the bucket policy and CloudFront are not provisioned (section
+12), and nothing has been checked in a browser.
 Decision record: ADR-035 in `docs/DECISIONS.md`.
 
 An administrator uploads a 3D model once, validates it, publishes an immutable version, and any
@@ -49,7 +50,8 @@ AssetReference = "npc-pip" (follows the default) or "npc-pip@1" (pinned)
 upload (checksum + validate) -> VALIDATED -> publish (re-verify) -> PUBLISHED -> retire -> RETIRED
                                                    \-> REJECTED (stored bytes or definition changed)
 A file that fails validation at upload is never stored and makes no row: the admin sees the
-findings on the form. DRAFT is reserved for versions created by import before validation.
+findings on the form. DRAFT exists in the schema for a future asynchronous validation step; no
+code path creates it today (upload and import both validate synchronously).
 ```
 
 | Action | Who (permission) | Effect |
@@ -108,15 +110,20 @@ the child's parent; up to 100 ids; `ChildScopedAPIView`, so another family's chi
 
 ```json
 {"assets": [
-  {"id": "npc-pip", "status": "resolved", "kind": "character", "version": 2,
-   "versionId": "7c0e...", "sha256": "ab12...", "format": "glb",
-   "url": "https://.../model.glb?...", "urlExpiresAt": "2026-10-25T18:00:00Z",
+  {"ref": "npc-pip", "id": "npc-pip", "status": "resolved", "kind": "character",
+   "category": "npc", "version": 2, "versionId": "7c0e...", "sha256": "ab12...",
+   "format": "glb", "contentType": "model/gltf-binary", "sizeBytes": 48211,
+   "url": "/api/v1/asset-files/<signed token>/model.glb", "urlExpiresAt": "2026-10-25T18:00:00Z",
    "clips": ["Idle", "Talk"], "dimensions": {"x": 0.6, "y": 1.4, "z": 0.5},
-   "cache": {"key": "npc-pip@7c0e...", "immutable": true}},
-  {"id": "treasure-chest", "status": "unavailable"},
-  {"id": "old-boat", "status": "retired"}
+   "cache": {"key": "npc-pip@7c0e...", "immutable": true, "ttl": 3600}},
+  {"ref": "treasure-chest@2", "id": "treasure-chest", "status": "unavailable"},
+  {"ref": "old-boat", "id": "old-boat", "status": "retired"}
 ]}
 ```
+
+`ref` echoes the requested reference (with its pin), so one request can ask for `npc-pip` and
+`npc-pip@1` side by side. Duplicate references are answered once. In `s3` mode `url` is an
+absolute `https://` presigned URL. Methods other than GET are 405.
 
 - `resolved`: a published version (the default, or the pin). Only published data is returned,
   never drafts, uploader names, storage keys or validation reports.
@@ -210,6 +217,32 @@ call is made by the tests.
 | AM-6 | Published-asset resolver API and delivery | Done |
 | AM-7 | Frontend Django resolver adapter | Done |
 | AM-8 | Existing asset import tooling | Done |
-| AM-9 | Security and integration tests, documentation | Planned |
+| AM-9 | Security and integration tests, documentation | Done |
 | AM-10 | Admin model preview (isolated, later) | Not started |
 | AM-11 | Signed CloudFront delivery | Not started; needs the distribution |
+
+## 15. Treasure Rush TR-10: what it needs from here
+
+TR-10 is not done here (owner rule: no Treasure Rush gameplay change in this workstream). It needs:
+
+1. This branch merged (the resolver route, `djangoAssetResolverFor`, the `assets` migrations).
+2. TR-7a's placeholder adapter, so a rejected resolve draws the placeholder instead of nothing.
+3. In the Treasure Cove scene, build the loader with
+   `createAssetLoader(djangoAssetResolverFor(childId))` instead of the bundled default. The
+   region's ids (`npc-pip` today) stay as they are.
+4. A published version for each id the cove uses, or nothing at all: unpublished ids fall back
+   to the bundled files, which is the current behaviour.
+5. Browser verification in a Django-enabled build (`VITE_BACKEND=django`), which has not been done.
+
+## 16. Open decisions
+
+- **ADR-035 is Proposed.** Accept or amend at merge review: definitions extend `ContentAsset`,
+  `PermissionsMixin` is added for Django Admin, `boto3` is a new dependency.
+- **Delivery mode in production:** `django` (immediate revocation, Django bandwidth) or `s3`
+  (cheaper, revocation only at expiry). Signed CloudFront URLs (AM-11) need the distribution.
+- **Licence and source fields** (the Amplify `AssetSource` and notes) are not modelled; the import
+  keeps only tags. Decide whether licence tracking belongs on the definition or the version.
+- **Thumbnails and previews** (AM-10) are not built.
+- **The Amplify `AdventureAsset` join** (which adventure uses which asset) has no Django model.
+  Catalog `LocationAsset` and region placements already reference assets by id.
+

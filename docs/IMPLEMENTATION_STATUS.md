@@ -10888,3 +10888,32 @@ may ship as its own release with static files on S3 behind CloudFront.
   against AWS.
 - **Not done (needs approval):** the S3 bucket, CloudFront distribution, WAF rule, ALB and the
   rest of the hosting in `docs/DJANGO_TARGET_ARCHITECTURE.md` 11a.
+
+## LAI-2200: shared Django asset manager, foundation (2026-10-25, ADR-035 Proposed)
+
+Branch `feature/django-asset-manager` (worktree `../learning-django-asset-manager`), from
+`origin/main` `f279299`. Not merged, not pushed, not deployed. Detail: `docs/ASSET_MANAGER.md`.
+Subtasks AM-1 to AM-9 (ids of their own: LAI-2201 to 2208 are the Phase 22 world conversions).
+
+- **Done:**
+  - AM-1: architecture and contract, ADR-035.
+  - AM-2: `ContentAsset` becomes the asset definition (Django-owned fields, Django-created rows).
+    New `apps.assets` with immutable `AssetVersion` and database checks for the invariants.
+  - AM-3: validation service for GLB and self-contained glTF.
+  - AM-4: S3, local and memory storage. Upload, publish (checksum re-check), default, retire,
+    delete and audit services. Production requires private S3 storage.
+  - AM-5: `PermissionsMixin` on `ParentAccount` (staff only), `ensure_asset_roles` groups, and
+    definition and version admin with upload, findings, publish, default and retire.
+  - AM-6: child-scoped resolver `GET /api/v1/children/<child_id>/assets/?ids=`, plus signed
+    delivery (Django re-check, or S3 presign).
+  - AM-7: `djangoAssetResolver.ts` for the LAI-2106 loader, with bundled fallback.
+  - AM-8: `import_assets` (bundled and Amplify sources, dry run, idempotent).
+  - AM-9: acceptance and security tests, docs.
+- **Tests (targeted unit tests only):** pytest `apps/assets apps/catalog apps/users apps/core
+  apps/regions apps/game_sessions/tests/test_sessions.py` 523 passed (PostgreSQL required).
+  Vitest `src/api/assets`, engine boundary, no-hard-coded-URL, loader and resolver tests: 5 files,
+  79 passed. `tsc -b` passes. `manage.py check` clean, no missing migrations, ADR check passed. All
+  114 shipped bundled models pass validation (dry-run import of the real export).
+- **Not run (merge verification):** Ruff, Prettier, Playwright or browsers, full suites, `docker build`.
+- **Not done:** S3 bucket, IAM, CORS and CloudFront (LAI-1002, AM-11, approval needed); admin
+  preview (AM-10); TR-10 wiring (section 15 of the doc); acceptance of ADR-035.
