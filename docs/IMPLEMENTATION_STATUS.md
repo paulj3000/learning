@@ -2528,7 +2528,25 @@ has not been asked and which "Decisions pending" already lists as open; and
 whether SC-11's retirement gate still means anything against a castle whose
 content layer is being replaced.
 
-## Treasure Rush - TR-7 complete (Treasure Cove on the Three.js engine); answering is TR-8
+## Treasure Rush - TR-8 complete (quest, challenge, and reward UI); a person has not played it yet
+
+TR-8 replaces TR-7's notice with the game UI, all inside the `region-play` extension: Pip's
+dialogue with explicit quest acceptance, the chest's challenge (a coin picture and question from
+the server's operation and operands, big choice buttons or a number field, number-free "Help me"
+hints, "Checking..." with inputs disabled, encouraging feedback and a server-issued retry), a
+reward reveal shown once per server-confirmed attempt, the chest's lid swinging open with gold
+sparkles in the 3D cove when the server reports it open, and a backpack read from
+`GET progress/`. Panels take focus, close on Escape, trap nothing, and keep the first-person
+keys from walking the child away. No audio: the app has no Polly or speech system yet (TR-D19).
+Details and decisions TR-D19 to TR-D21: `docs/TREASURE_RUSH_ROADMAP.md` section 14.
+
+Verification (2026-10-24): 40 new Vitest unit tests; 143 files and 1,503 tests passing across
+discovery, island-map, routes, app, island, multiplayer, region-play, api, and styles; `tsc`
+clean; five mutations (celebrating any attempt, keys leaking from panels, choices enabled while
+checking, chest not synced from the server, celebrating a wrong answer) each failed a test. Unit
+tests only: no Ruff, Prettier, Playwright, or browser run.
+
+### Earlier: TR-7 (Treasure Cove on the Three.js engine)
 
 TR-7 renders Treasure Cove on the existing engine and route. A per-child manifest repository
 builds the region from the Django bootstrap, publishes its spawn into the World State checkpoint

@@ -4,7 +4,7 @@ import { ApiError } from '../../api/errors';
 import { read } from '../../api/parse';
 import * as parse from '../../api/play/parse';
 import type { PlayApi } from '../../api/play/playApi';
-import { CHILD_A, CHILD_B, bootstrapJson, questJson, sessionJson } from '../../test/playFixtures';
+import { CHILD_A, CHILD_B, bootstrapJson, challengeJson, questJson, sessionJson } from '../../test/playFixtures';
 import { unpublishRegionCheckpoints } from '../discovery/checkpoints';
 import type { WorldEngineEventBus } from '../island-map/three/worldEngineEvents';
 import type { ThreeLocationManifest } from '../island-map/three/runtime/locationManifest';
@@ -73,7 +73,7 @@ function fakeApi(getRegion?: PlayApi['getRegion']): PlayApi {
     getSession: vi.fn(),
     changeSession: vi.fn(),
     acceptQuest: vi.fn(),
-    requestChestChallenge: vi.fn(),
+    requestChestChallenge: vi.fn(async () => ({ value: read(challengeJson(), parse.issuedChallenge), created: true })),
     submitAnswer: vi.fn(),
     getProgress: vi.fn(),
   };
@@ -126,14 +126,19 @@ describe('Treasure Cove in the generic view', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("couldn't be loaded");
   });
 
-  it('routes the chest to the play extension, not a generic panel', async () => {
+  it('routes the chest to the play extension, which asks the server for its challenge', async () => {
     apis.set(CHILD_A, fakeApi());
     render(view(CHILD_A));
     await waitFor(() => expect(engine.bus).not.toBeNull());
     await waitFor(() => expect(apis.get(CHILD_A)?.startSession).toHaveBeenCalled());
     act(() => engine.bus?.emit('ObjectInteracted', { entityId: 'cove-chest', interactionId: 'treasure-rush-cove:chest:cove-chest' }));
-    expect(await screen.findByText('This chest is locked with a number puzzle.')).toBeInTheDocument();
-    expect(apis.get(CHILD_A)?.requestChestChallenge).not.toHaveBeenCalled();
+    expect(await screen.findByRole('dialog', { name: 'Treasure chest' })).toBeInTheDocument();
+    expect(await screen.findByText('How many coins are there altogether?')).toBeInTheDocument();
+    expect(apis.get(CHILD_A)?.requestChestChallenge).toHaveBeenCalledWith(
+      '6f1c2a3b-0000-4000-8000-000000000001',
+      'cove-chest',
+      expect.any(AbortSignal),
+    );
     expect(engine.sceneApi.setChestOpen).not.toHaveBeenCalled();
   });
 
@@ -143,7 +148,9 @@ describe('Treasure Cove in the generic view', () => {
     await waitFor(() => expect(engine.bus).not.toBeNull());
     await waitFor(() => expect(apis.get(CHILD_A)?.startSession).toHaveBeenCalled());
     act(() => engine.bus?.emit('ObjectInteracted', { entityId: 'cove-pip', interactionId: 'treasure-rush-cove:talk:cove-pip' }));
-    expect(await screen.findByText('Pirate Pip has a quest for you.')).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Pirate Pip' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Yes, I will help!' })).toBeInTheDocument();
+    expect(apis.get(CHILD_A)?.acceptQuest).not.toHaveBeenCalled();
     expect(screen.queryByTestId('amplify-npc-panel')).not.toBeInTheDocument();
   });
 

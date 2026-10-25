@@ -47,10 +47,18 @@ const GOLD = 0xf2c94c;
 const FIGURE = 0x2f8f4e;
 /** How far a built lid swings back when open, in radians. */
 export const OPEN_LID_ANGLE = -1.9;
+/** How long a built lid takes to swing open when the server opens it mid-visit (TR-8). */
+export const OPEN_SECONDS = 0.7;
+/** How long the gold sparkles rise after opening. */
+export const SPARKLE_SECONDS = 1.4;
+const SPARKLE_COUNT = 10;
 
 interface DrawnChest {
   open: boolean;
+  /** `instant`: drawn in its state with no animation (entering, or a state read from the server). */
   show(open: boolean, instant: boolean): void;
+  /** Advances any opening animation. */
+  tick(deltaSeconds: number): void;
   dispose(): void;
 }
 
@@ -121,6 +129,7 @@ export const regionPlaySceneExtension: WorldExtension = {
 
     const stopFrames = context.onFrame((delta) => {
       for (const mixer of mixers) mixer.update(delta);
+      for (const chest of chests.values()) chest.tick(delta);
     });
 
     const api: RegionPlaySceneApi = {
@@ -172,15 +181,63 @@ function builtChest(
   const lid = own(new BoxGeometry(width, lidHeight, depth), WOOD);
   lid.position.set(0, lidHeight / 2, depth / 2);
   hinge.add(lid);
-  group.add(base, trim, gold, hinge);
+  // Gold sparkles that rise out of the chest as it opens: the moment of reward in the world.
+  const sparkles = new Group();
+  sparkles.name = 'region-play:sparkles';
+  sparkles.visible = false;
+  for (let index = 0; index < SPARKLE_COUNT; index += 1) {
+    const sparkle = own(new SphereGeometry(0.06, 6, 4), GOLD);
+    const angle = (index / SPARKLE_COUNT) * Math.PI * 2;
+    sparkle.userData.drift = { x: Math.cos(angle) * width * 0.35, z: Math.sin(angle) * depth * 0.35 };
+    sparkles.add(sparkle);
+  }
+  group.add(base, trim, gold, hinge, sparkles);
   root.add(group);
+
+  let opening = 0; // seconds into the lid swing; 0 when not animating
+  let sparkling = 0; // seconds into the sparkle rise; 0 when not animating
+  const place = (lidProgress: number) => {
+    hinge.rotation.x = OPEN_LID_ANGLE * lidProgress;
+    gold.position.y = baseHeight + baseHeight * 0.15 * lidProgress;
+  };
 
   const drawn: DrawnChest = {
     open: false,
-    show(open) {
+    show(open, instant) {
       drawn.open = open;
-      hinge.rotation.x = open ? OPEN_LID_ANGLE : 0;
       gold.visible = open;
+      if (!open || instant) {
+        opening = 0;
+        sparkling = 0;
+        sparkles.visible = false;
+        place(open ? 1 : 0);
+        return;
+      }
+      opening = Number.EPSILON;
+      sparkling = Number.EPSILON;
+      sparkles.visible = true;
+      place(0);
+    },
+    tick(delta) {
+      if (opening > 0) {
+        opening = Math.min(opening + delta, OPEN_SECONDS);
+        const t = opening / OPEN_SECONDS;
+        place(1 - (1 - t) ** 3); // ease out: a quick pop, then settling back
+        if (opening >= OPEN_SECONDS) opening = 0;
+      }
+      if (sparkling > 0) {
+        sparkling = Math.min(sparkling + delta, SPARKLE_SECONDS);
+        const t = sparkling / SPARKLE_SECONDS;
+        for (const sparkle of sparkles.children) {
+          const drift = sparkle.userData.drift as { x: number; z: number };
+          sparkle.position.set(drift.x * t, baseHeight + t * height * 1.6, drift.z * t);
+          sparkle.scale.setScalar(Math.max(0.01, 1 - t));
+        }
+        if (sparkling >= SPARKLE_SECONDS) {
+          sparkling = 0;
+          sparkles.visible = false;
+        }
+      }
     },
     dispose() {
       root.remove(group);
@@ -214,6 +271,9 @@ function modelChest(
         action.time = duration;
         mixer.update(0);
       }
+    },
+    tick() {
+      // The mixer is advanced with every other mixer in the frame loop.
     },
     dispose() {
       mixer.stopAllAction();
