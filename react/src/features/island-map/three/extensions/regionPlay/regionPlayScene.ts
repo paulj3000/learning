@@ -14,8 +14,11 @@ import {
 } from 'three';
 import { cloneAssetScene } from '../../assets/cloneAsset';
 import type { WorldExtension, WorldExtensionContext } from '../../runtime/extensionRegistry';
-import { REGION_PLAY_EXTENSION_ID, type RegionPlayChestConfig } from '../../../../region-play/regionManifest';
-import { tryParseRegionPlayConfig } from '../../../../region-play/regionPlayConfig';
+import {
+  REGION_PLAY_EXTENSION_ID,
+  tryParseRegionPlayConfig,
+  type RegionPlayChestConfig,
+} from '../../../../region-play/regionPlayConfig';
 
 /**
  * The scene half of `region-play` (TR-7): draws what a server-published

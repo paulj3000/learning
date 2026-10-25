@@ -280,12 +280,8 @@ describe('engine boundary: known violations', () => {
     expect(report.staleKnownViolations).toEqual([entry]);
   });
 
-  it('records every existing violation as one file and one specifier, with a removing task', () => {
-    for (const known of KNOWN_VIOLATIONS) {
-      expect(isEngineFile(known.file), known.file).toBe(true);
-      expect(known.specifier).not.toBe('');
-      expect(known.removedBy).toMatch(/^LAI-\d{4}$/);
-    }
+  it('has no known violations left: React host code is .tsx, outside the engine', () => {
+    expect(KNOWN_VIOLATIONS).toEqual([]);
   });
 });
 

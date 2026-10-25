@@ -15,7 +15,8 @@ import {
 import type { WorldInteraction } from '../../../worldObjects';
 import { WorldEngineEventBus } from '../../worldEngineEvents';
 import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry';
-import { SOURCE_VIEW_EXTENSIONS, SOURCE_WORLD_EXTENSIONS } from '..';
+import { SOURCE_WORLD_EXTENSIONS } from '..';
+import { SOURCE_VIEW_EXTENSIONS } from '../viewExtensions';
 import { RegionPlayCompanion } from './RegionPlayCompanion';
 import { regionPlayViewExtension } from './regionPlayViewExtension';
 import type { RegionPlaySceneApi } from './regionPlayScene';

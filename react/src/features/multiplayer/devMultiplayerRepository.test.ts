@@ -1,5 +1,5 @@
 import { sourceLocationManifestRepository } from '../island-map/three/runtime/manifests';
-import { SOURCE_VIEW_EXTENSIONS } from '../island-map/three/extensions';
+import { SOURCE_VIEW_EXTENSIONS } from '../island-map/three/extensions/viewExtensions';
 import { MULTIPLAYER_PRESENCE_EXTENSION_ID } from '../island-map/three/extensions/multiplayerPresence/multiplayerPresenceViewExtension';
 import {
   locationRepositoryForThisBuild,

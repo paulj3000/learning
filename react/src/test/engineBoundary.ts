@@ -41,10 +41,11 @@ export interface KnownViolation {
 }
 
 /**
- * Existing violations, each one file and one specifier, never a directory. All are React
- * host code that predates the boundary and is filed among engine modules; LAI-2102 moves
- * them out when it splits the pure runtime from its React hosts. The guard fails if an
- * entry stops being needed, so this list can only shrink.
+ * Existing violations, each one file and one specifier, never a directory. Empty since
+ * POST-MERGE-03, which made every React host module a `.tsx` file (view extensions, the view
+ * registry, the two bridge hooks), split the React view registry out of `extensions/index.ts`,
+ * and moved the region-play extension id and config types into a module the engine may import.
+ * Add an entry only with a removing task; the guard fails if an entry stops being needed.
  *
  * An entry tolerates exactly that one import edge wherever the graph reaches it, and the
  * edge is not followed. Everything else reachable from the same files is still checked, so
@@ -54,44 +55,7 @@ export interface KnownViolation {
  * The view-extension entries matter most. `extensions/index.ts` builds both registries, so
  * `createLocationEngine.ts` reaches the extensions' React overlays through it today.
  */
-export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
-  {
-    file: 'features/island-map/three/extensions/index.ts',
-    specifier: './multiplayerPresence/multiplayerPresenceViewExtension',
-    reason: 'The extensions index also builds the React view registry (`SOURCE_VIEW_EXTENSIONS`).',
-    removedBy: 'LAI-2102',
-  },
-  {
-    file: 'features/island-map/three/extensions/tideTrial/tideTrialViewExtension.ts',
-    specifier: './TideTrialOverlay',
-    reason: "A view extension: registers the tide trial's React overlay.",
-    removedBy: 'LAI-2102',
-  },
-  {
-    file: 'features/island-map/three/extensions/castleTale/castleTaleViewExtension.ts',
-    specifier: './CastleTaleCompanion',
-    reason: "A view extension: registers the castle tale's React companion.",
-    removedBy: 'LAI-2102',
-  },
-  {
-    file: 'features/island-map/three/extensions/adaptiveAdventureEntrance/adaptiveAdventureEntranceViewExtension.ts',
-    specifier: './AdaptiveAdventureEntranceOverlay',
-    reason: "A view extension: registers the adaptive entrance's React overlay.",
-    removedBy: 'LAI-2102',
-  },
-  {
-    file: 'features/island-map/three/npcApproachBridge.ts',
-    specifier: 'react',
-    reason: 'A React hook (`useEffect`) bridging engine events into a view.',
-    removedBy: 'LAI-2102',
-  },
-  {
-    file: 'features/island-map/three/runtime/viewExtensionRegistry.ts',
-    specifier: 'react',
-    reason: "The registry of extensions' React views (`ComponentType`), used by the React host.",
-    removedBy: 'LAI-2102',
-  },
-];
+export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [];
 
 const ISLAND_MAP = 'features/island-map';
 const GEOMETRY_MODULE =

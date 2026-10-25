@@ -1,5 +1,34 @@
 import type { JsonValue } from '../island-map/three/runtime/locationManifest';
-import type { RegionPlayChestConfig, RegionPlayConfig, RegionPlayInteractionConfig } from './regionManifest';
+
+/** The region-play extension's id (TR-7). Here, not in `regionManifest.ts`, so the engine-side
+ * scene can import it without reaching the API types that module parses (LAI-0203). */
+export const REGION_PLAY_EXTENSION_ID = 'region-play';
+
+export interface RegionPlayChestConfig {
+  entityId: string;
+  assetId: string | null;
+  openClip: string | null;
+  isOpen: boolean;
+  scale: number;
+  placeholder: { width: number; height: number; depth: number };
+}
+
+export interface RegionPlayInteractionConfig {
+  interactionId: string;
+  kind: 'npc' | 'chest';
+  entityId: string;
+  npcId: string | null;
+}
+
+/** The `region-play` binding's `config`: plain JSON, read back by both extension halves. */
+export interface RegionPlayConfig {
+  chests: RegionPlayChestConfig[];
+  /** NPCs without a model, drawn as placeholder figures. */
+  figures: { entityId: string; height: number }[];
+  interactions: RegionPlayInteractionConfig[];
+}
+
+
 
 /**
  * The `region-play` binding's config, parsed rather than trusted, as every
