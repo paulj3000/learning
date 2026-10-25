@@ -11,6 +11,7 @@ before touching AWS.
 - [x] **LAI-0001** Phase 0 migration assessment and documentation
 - [x] **POST-MERGE-01** Reconcile merged content export and duplicate ADR ids (not a roadmap task). DONE locally: export schema v2, ADR-027 to ADR-030 renumbered from the incoming line; see `docs/IMPLEMENTATION_STATUS.md`. Not pushed.
 - [x] **POST-MERGE-02** Integrate `origin/main` (eab0817) into the Django migration branch, locally. DONE: ADR-023 to ADR-032 reconciled, ported to the `react/` layout, all checks green; see `docs/IMPLEMENTATION_STATUS.md`. Not pushed. Starts no roadmap task.
+- [x] **POST-MERGE-03** Reconcile the Storykeeper Castle and Treasure Rush Django backbones on `integration/post-merge-03` (not a roadmap task). DONE locally: one app set on the canonical LAI-0304/0305/0601 models, Treasure Rush adapted onto it, region layouts seed-authored until LAI-0805 (ADR-033); see `docs/IMPLEMENTATION_STATUS.md`. Not pushed or merged
 - [x] **LAI-0002** Record ADR-020 (Three.js exclusive) and plan Track B (docs only, this change set)
 
 ## Phase 1 — Governance and baseline
@@ -44,7 +45,7 @@ before touching AWS.
 - [x] **LAI-0304** Catalog models and loader (depends: 0302, 0301). DONE locally: `lai/apps/catalog` (World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset, ContentRelease), `manage.py load_content`, export schema 3 `locationAssets`; catalog admin built but not mounted (LAI-0404). Item and learning-objective models not built
 - [x] **LAI-0305** Progress models (depends: 0301, 0304). DONE locally: apps `game_sessions`, `education`, `progression`, `inventory`, `quests` (14 models, 5 migrations), persistence services for sessions, quests and world changes; no endpoints
 - [ ] **LAI-0306** Audit models (depends: 0301)
-- [ ] **LAI-0309** Remaining catalog models: items, reward rules, learning objectives, stories, NPCs (depends: 0304)
+- [ ] **LAI-0309** Remaining catalog models: items, reward rules, learning objectives, stories, NPCs (depends: 0304). PARTIAL via POST-MERGE-03: items, collectible sets, reward rules, learning objectives and NPCs are catalog rows (inventory now references items and rules by foreign key). Remaining: stories, and validated references from `SkillEvidence`/`SkillProgress` objective codes, `StoryProgress.story_slug` and `NpcRelationship.npc_id`
 
 ## Phase 4 — Cognito integration and authorization
 
@@ -155,3 +156,26 @@ before touching AWS.
 - [ ] **LAI-2303** Sprouts playtest gate (APPROVAL, human) (depends: 2104, 2201, 2202)
 - [ ] **LAI-2304** Phaser dependency removal (APPROVAL) (depends: 2201 to 2208, 2301, 2302, 2303)
 - [ ] **LAI-2305** Final Three.js-only verification (depends: 2304)
+
+
+# Treasure Rush (`docs/TREASURE_RUSH_ROADMAP.md`)
+
+Feature roadmap with its own ids, like SC-n. Since POST-MERGE-03 (ADR-033) Treasure Rush runs on
+the canonical Django backbone; rows that were built as copies of LAI tasks are recorded as
+absorbed, so no LAI task is counted twice. Decisions TR-D1, TR-D2, TR-D4, TR-D8 and TR-D11 are
+accepted; TR-D3 (admin-authored layout as authoritative) is **not** adopted and waits for
+LAI-0805's ADR; TR-D5 is still Proposed.
+
+- [x] **TR-0** Plan: gap analysis, dependency map, decisions, asset contract
+- [x] **TR-1** Server-side math challenges (`lai/apps/education/challenges.py`)
+- [x] **TR-2** Catalog models. Built on `feature/treasure-rush-slice` as a parallel LAI-0304; **superseded in POST-MERGE-03** by the canonical catalog (`apps/catalog`). Kept from it: item, collectible-set, reward-rule, learning-objective and NPC catalog models (moved into `apps/catalog`), the JSON-schema validator (now part of the canonical import), and the region models (now `apps/regions`, seed-authored)
+- [ ] **TR-3** Django admin access and catalog admin, is LAI-0404 then LAI-0801 (APPROVAL: TR-D5) (depends: TR-2)
+- [x] **TR-4** Progress models and play services. **Absorbed into the canonical LAI-0305 models in POST-MERGE-03**: session kinds, `ChallengeAttempt`, attempt evidence, foreign-key inventory, append-only world changes, the quest refresh; play services in `apps/game_sessions/play.py`
+- [x] **TR-5** Treasure Rush play API (depends: TR-4, LAI-0403). 8 child-scoped routes, contract unchanged by POST-MERGE-03 (`docs/PLAY_API.md`)
+- [x] **TR-6** Frontend Django client slice (depends: TR-5, TR-D8). `react/src/api/` client and play DTOs, `features/region-play/` hooks
+- [ ] **TR-7a** Placeholder-mesh asset adapter (depends: none)
+- [x] **TR-7** Treasure Rush region (depends: TR-6, TR-D2, TR-D4, TR-D14, TR-D15). Treasure Cove on the existing Three.js engine via the `region-play` extension. Not verified in a browser
+- [ ] **TR-8** Challenge and quest-complete UI (depends: TR-7)
+- [ ] **TR-9** End-to-end and playtest (depends: TR-8)
+- [ ] **TR-10** Integrate LAI-2106 shared asset management (depends: LAI-2106, TR-7a)
+- [ ] **TR-11** Second chest and quest chain (depends: TR-9)

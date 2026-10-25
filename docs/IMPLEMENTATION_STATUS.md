@@ -10698,3 +10698,61 @@ Authorized by the owner on its completed dependencies (LAI-0301, LAI-0302); `CLA
 - **Gameplay behaviour still awaiting a decision (kept as TypeScript does it):** exact number matching; a repeated or malformed matching pair can count as correct; unvalidated hint input; transitions into PAUSED, ABANDONED and SAFETY_STOPPED.
 - **Verified (run):** pytest `lai` and `tests` 426 passed on PostgreSQL 16 (port 5433), including the new API tests (grading, hints, completion, rejected submissions, replays, authorization, content versions, rollback, three-thread concurrency) and the route checker; Vitest (Lambda handler, golden, adventure engine) 36 passed; `npm run typecheck` clean; `golden:check` up to date.
 - **Deferred to merge verification:** Ruff, Prettier, oxlint, full Vitest suite, build, browser tests.
+
+## POST-MERGE-03: one Django backbone for Storykeeper Castle and Treasure Rush (2026-10-24)
+
+Not a roadmap task. Branch `integration/post-merge-03`, from `origin/main` (`350e11b`), with
+`storykeeper-castle-3d-storyboard-and-roadmap` (`c9fa6ba`, fast-forward) and
+`feature/treasure-rush-slice` (`14cb9c9`, merged) reconciled. Decision: ADR-033. Both original
+branches are untouched.
+
+- **Canonical (kept as is):** LAI-0304 catalog and importer, LAI-0305 progress models, LAI-0601
+  Python engine with golden parity, answers and hints, child ownership and isolation.
+- **Integrated from Treasure Rush:**
+  - Catalog: LearningObjective, NpcDefinition, CollectibleSet, ItemDefinition and RewardRule
+    became imported catalog rows (most of LAI-0309).
+  - Validation: its JSON-schema validator now runs inside the canonical import.
+  - Region play: session kinds, ChallengeAttempt, ChallengeSpec, attempt evidence, reward
+    grants, append-only world changes, and the server-side quest engine and refresh, plus the
+    whole play API and React client unchanged in contract.
+  - Safety: the cross-child link check (now in `core.ChildOwnedModel`).
+- **Adapted:**
+  - **Catalog replacements.** `islands.Island`, `IslandLocation`, `adventures.AdventureTemplate`
+    and `quests.QuestDefinition` are replaced by `catalog.World`, `Location`, `Adventure` and
+    `Quest`. A quest is "published" when it is `active`.
+  - **Content now exported.** Treasure Rush's quest, keepsake and reward rule are in the export
+    (export-only module, so the Amplify app is unchanged). The reward trigger is `WORLD_CHANGE`
+    on the chest's key, in the existing vocabulary.
+  - **Inventory.** Rows reference catalog items and rules by foreign key.
+  - **Region sessions.** They record a content release.
+  - **Lifecycle actions.** Pause, resume, complete and abandon apply to REGION sessions only.
+  - **World-change sessions.** The source session is a string id, checked to be the same child's
+    in the service.
+  - **NPC dialogue.** It stays in `source` instead of rows. The dialogue rows had no consumer;
+    re-import keeps rather than deletes.
+  - **Asset ids.** They are checked against `catalog.ContentAsset`.
+- **Deferred:**
+  - **Spatial layout.** Django spatial administration is LAI-0805. The cove's layout stays
+    seed-authored in `apps/regions` (temporary source of truth: `treasure_rush_seed.py`), and
+    TR-D3 is not adopted.
+  - **Admin.** TR-3 (admin, TR-D5) is unchanged.
+- **Migrations:**
+  - Treasure Rush's migrations were dropped.
+  - New incremental migrations: `catalog/0002`, `education/0004` and `0005`, `game_sessions/0003`,
+    `progression/0002`, and a new `regions/0001`.
+  - `inventory/0001` was regenerated, because its references became required foreign keys and no
+    Django database exists outside local development.
+  - Local development databases from either branch must be recreated.
+  - `makemigrations --check` is clean.
+- **Engine boundary (LAI-0203):**
+  - View extensions, the view registry and the bridge hooks are now `.tsx` React host modules.
+  - The React view registry moved to `extensions/viewExtensions.tsx`, with its ids in
+    `viewExtensionIds.ts`.
+  - The region-play id and config types moved to `regionPlayConfig.ts`, away from API types.
+  - `KNOWN_VIOLATIONS` is empty (it listed 6 edges). 96 engine files, no violations.
+- **Content:**
+  - The export changed by Treasure Rush's quest, item and rule.
+  - In the golden vectors only `director-content.json`'s `contentDigest` changed. Its outputs
+    are identical, because no adventure was added.
+- **Verified (run):** see the POST-MERGE-03 completion report; full deferred checks wait for merge
+  verification. Treasure Cove has not been played in a browser.

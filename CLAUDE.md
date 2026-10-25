@@ -365,3 +365,13 @@ after every Phaser world is converted and verified. Rules for Claude:
 - Track B tasks (LAI-2001 to 2305) follow `docs/DJANGO_MIGRATION_ROADMAP.md` Phases 20 to 23.
   Docs-only LAI-2001 to 2003 do not wait for ADR-019; code tasks wait for LAI-0201. Never
   combine a backend domain change with a world conversion in one task.
+
+## 20. One Django backbone (in effect)
+
+ADR-033 (POST-MERGE-03): every feature, Treasure Rush included, uses the canonical Django apps
+(`docs/ARCHITECTURE.md`, "Consolidated Django backbone"). Do not add a second catalog, content
+loader, child-owned base, or progress model for one feature; extend the canonical one. Content
+reaches Django only through the export and `manage.py load_content`. Spatial layouts are not
+Django-administered until LAI-0805's ADR: shipped regions keep their TypeScript manifests and
+Treasure Cove's layout stays in `lai/apps/regions/treasure_rush_seed.py`.
+

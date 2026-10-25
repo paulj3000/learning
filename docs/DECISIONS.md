@@ -18,7 +18,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 
 **Format recommendation.** Keep this single file plus the registry table. Individually named ADR files would force moving about 4,500 lines and rewriting links for no collision benefit the check does not already give. Revisit only if the log passes roughly 50 decisions.
 
-**Next free identifier number: 033.**
+**Next free identifier number: 034.**
 
 | ID | Title | Status | Origin | Notes |
 |---|---|---|---|---|
@@ -52,8 +52,9 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-028 | Where the castle's art comes from | Proposed | Storykeeper Castle line | Renumbered from ADR-020 |
 | ADR-029 | Phaser 2D views are phased out; new regions are authored in Three.js only | Accepted | Storykeeper Castle line | Renumbered from ADR-021. Related to ADR-020, not a duplicate |
 | ADR-030 | Uploaded models live in S3 behind Admins-only Asset records; the bundled manifest stays the runtime fallback | Accepted | Storykeeper Castle line | Renumbered from ADR-022 |
-| ADR-031 | Islands and Adventures are an admin catalog overlaid on source-controlled content; Superusers are Admins with one extra group | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-024 on `origin/main`. To be superseded when LAI-0801/0802 move catalog editing to Django (ADR-019 sub-decision 8) |
+| ADR-031 | Islands and Adventures are an admin catalog overlaid on source-controlled content; Superusers are Admins with one extra group | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-024 on `origin/main`. To be superseded when LAI-0801/0802 move catalog editing to Django (ADR-019 sub-decision 8). Treasure Rush's TR-D3 (admin-authored content as authoritative, which would have changed it) was not adopted (ADR-033) |
 | ADR-032 | Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-025 on `origin/main` |
+| ADR-033 | One Django backbone: Treasure Rush runs on the canonical catalog and progress models; play-region layouts are seed-authored until LAI-0805 | Accepted | Integration (POST-MERGE-03) |  |
 
 ## ADR-001: Parent-owned accounts
 
@@ -2484,3 +2485,42 @@ existing region stays single-player.
   table names.
 - *Part D.* Confirmed by the product owner: same-family rooms only for the
   MVP.
+
+
+## ADR-033: One Django backbone: Treasure Rush runs on the canonical catalog and progress models; play-region layouts are seed-authored until LAI-0805
+
+Status: Accepted (project owner, 2026-10-24, POST-MERGE-03)
+
+**Context.** Two branches built Django independently from the same `main`.
+`storykeeper-castle-3d-storyboard-and-roadmap` built LAI-0304 (catalog), LAI-0305 (child
+progress) and LAI-0601 (Python engine, answers and hints). `feature/treasure-rush-slice` built a
+parallel catalog (`islands`, `adventures`), a progress subset with the same app labels and
+different models, its own content loader, and Django rows for a region's spatial layout. The
+two could not both merge.
+
+**Decision.**
+1. The Storykeeper Castle branch's Django implementation is canonical: the `catalog` app
+   (World, Location, Adventure, Step, Quest, assets, and now the item, collectible-set,
+   reward-rule, learning-objective and NPC rows Treasure Rush needed), the progress apps, the
+   Python engine and its golden parity, and the one content import (`manage.py load_content`).
+2. Treasure Rush is adapted onto it rather than kept as a second backend. Its play API keeps its
+   contract (`docs/PLAY_API.md`); its services run on the canonical models
+   (`apps/game_sessions/play.py`); sessions gain a `kind` (ADVENTURE or REGION) and
+   `ChallengeAttempt` joins `game_sessions`.
+3. Treasure Rush's non-spatial content (its quest, keepsake item and reward rule) is exported
+   like all content (`react/src/features/content-export/treasureRushContent.ts`, export-only,
+   so the Amplify app is unchanged) and imported into the catalog.
+4. Spatial layout is **not** authoritative Django administration. The Treasure Cove region,
+   spawn point, chest placement and challenge slots are rows in `apps/regions` and
+   `education.ChallengeSpec`, applied by `manage.py seed_treasure_rush` from the source file
+   `lai/apps/regions/treasure_rush_seed.py`, which is the temporary source of truth. No admin
+   site registers them. LAI-0805's ADR decides how layouts are authored. Treasure Rush's TR-D3
+   (admin-authored content is authoritative) is therefore not adopted.
+5. Asset references from those rows are validated against the canonical asset catalog
+   (`catalog.ContentAsset`), not against a bundled file.
+
+**Consequences.** Development databases built from either branch must be recreated (no Django
+database exists outside local development, and Treasure Rush's migrations were replaced). The
+inventory app's initial migration was regenerated because its item and rule references became
+foreign keys. Region sessions record a content release like every session.
+

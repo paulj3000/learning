@@ -633,27 +633,25 @@ written only through `ChildScopedMixin.scoped` / `get_scoped_object`; never take
 from a request body or query string as authority; and cascade from the child when the child is deleted
 (ADR-022). A record id alone never identifies data.
 
-## Django mapping: progress subset (TR-4, part of LAI-0305)
+## Django mapping: Treasure Rush on the canonical models (POST-MERGE-03, ADR-033)
 
-Implemented in `lai/apps/` for Treasure Rush; the rest of LAI-0305 (CoopSession,
-AdventureAction, SkillProgress, StoryArtifact, WorldState, StoryProgress, NpcRelationship) is
-not ported yet. This document remains authoritative for the Amplify schema until cutover.
+Treasure Rush's parallel Django models were consolidated into the canonical ones below
+("Django content catalog", "Django child progress"). What it added, and where it lives now:
 
-| Amplify | Django | Notes |
+| Treasure Rush concept | Canonical home | Notes |
 |---|---|---|
-| `AdventureSession` | `game_sessions.AdventureSession` | Adds `kind` (`ADVENTURE` with template slug and version, or `REGION` with a region id). One open (ACTIVE or PAUSED) session per child and target, by partial unique constraint. `completed_at` set exactly when COMPLETED (check constraint) |
-| (none) | `game_sessions.ChallengeAttempt` | Typed event (ADR-016) for a server-generated challenge. Snapshots region, target entity, spec slug, age band, skill, parameters, seed, operation, operands, choices, and the server-only answer; immutable once answered. One outstanding attempt per session and target |
-| `SkillEvidence` | `education.SkillEvidence` | `attempt` one-to-one, so one piece of evidence per attempt. `result` uses the Amplify `Correctness` values |
-| `WorldChange` | `progression.WorldChange` | Unique `(child, location_slug, change_key)`; append-only |
-| `ChildInventory.ownedItemIds` | `inventory.InventoryItem` | Unique `(child, item)`: a set, no quantity |
-| `ChildInventory.grantedRuleIds` | `inventory.GrantedRewardRule` | Unique `(child, rule)`: the idempotency key |
-| `ChildQuestState` | `quests.QuestProgress` | Unique `(child, quest)`; ACTIVE or COMPLETED; AVAILABLE is not stored |
+| Session kind `REGION` | `game_sessions.AdventureSession.kind` | ADVENTURE needs an adventure and version; REGION a region slug and none of those (check constraint). One open (ACTIVE or PAUSED) REGION session per child and region |
+| `ChallengeAttempt` | `game_sessions.ChallengeAttempt` | Typed event (ADR-016) snapshotting the challenge; immutable once answered; one outstanding attempt per session and target |
+| Attempt evidence | `education.SkillEvidence.challenge_attempt` | A third evidence source; exactly one of adventure session, story progress, challenge attempt |
+| `ChallengeSpec` | `education.ChallengeSpec` | Seed-authored challenge slot per age band (DRAFT, PUBLISHED, RETIRED) |
+| Inventory and grants | `inventory.InventoryItem`, `inventory.GrantedRule` | Foreign keys to `catalog.ItemDefinition` and `catalog.RewardRule`, plus source rule and session |
+| World changes | `progression.WorldChange` | Append-only (`save()` refuses an edit), non-empty key; the source session is a string id, checked to be the same child's by the service |
+| Items, sets, reward rules, learning objectives, NPCs | `catalog.*` | Imported from the export; NPC dialogue, schedule and quest offers stay in `source` |
+| Island, IslandLocation, AdventureTemplate, QuestDefinition | `catalog.World`, `Location`, `Adventure`, `Quest` | Replaced; quest "published" is the catalog's `active` |
+| Region, spawn point, placements, chests | `regions.*` | Spatial; seed-authored (`treasure_rush_seed.py`) until LAI-0805 |
 
-Every model has a non-null `child` cascading from `ChildProfile`. Links to another child-owned
-row (`session`, `source_session`, `attempt`) are checked on save to belong to the same child
-(`apps/core/child_owned.py`), since PostgreSQL cannot check that across tables without composite
-foreign keys. Catalog rows a child's progress points at (`ItemDefinition`, `RewardRule`,
-`QuestDefinition`, `LearningObjective`) are PROTECT: they are retired, never deleted.
+Child-owned rows that link to other child-owned rows declare `CHILD_LINKS`, and
+`core.ChildOwnedModel.save()` refuses a link to another child's record (from Treasure Rush).
 
 ## Exported game content (LAI-0302)
 
@@ -782,7 +780,8 @@ the Amplify `Asset.slug` namespace, ADR-030); bytes, versions, status and licenc
 | Location | slug, world, title, tagline, description, skills, source | active, sort_order |
 | Adventure | slug, title, version, world, location, location_slug, age_bands, entry_step_id, skill_domain, skill_level, source | active, sort_order |
 | Quest | slug, title, summary, world, giver_npc_id, age_bands, adventures, source | active, sort_order |
-| AdventureStep, ContentAsset, LocationAsset | everything | none |
+| NpcDefinition | npc_id, display_name, role, home_location, home_location_slug, interaction_id, source | active, sort_order |
+| AdventureStep, ContentAsset, LocationAsset, LearningObjective, CollectibleSet, ItemDefinition, RewardRule | everything | none |
 | ContentRelease | digest, schema version, export tool, file list, import report | none |
 
 `source` keeps each exported record verbatim, so fields without a column (pack lists, presentation,
@@ -791,15 +790,23 @@ newer export drops a record. Catalog fields are set on creation (`active` true, 
 order times 10) and never overwritten. After the cutover the content fields become editable here and the
 export reverses direction (ADR-019 sub-decision 8 amendment).
 
+**Regions (seed-authored, not imported).** `apps/regions` holds `WorldRegion` (in a catalog
+Location, with `scene` bounds and copy and the quests it offers), `SpawnPoint`,
+`WorldObjectPlacement` and `TreasureChest` (positions, rotation, scale, placeholder size, one
+challenge slot per age band, the reward rule and the world change key). They are applied by
+`manage.py seed_treasure_rush` from `lai/apps/regions/treasure_rush_seed.py`, which is the
+temporary source of truth for that spatial data (ADR-033); LAI-0805 decides how layouts are
+authored. Asset ids on them are checked against `ContentAsset` (`apps/catalog/asset_refs.py`).
+
 **Importer** (`apps/catalog/importer.py`, `manage.py load_content [--path] [--dry-run] [--force]`): verifies
 each file's sha256 against the manifest and recomputes the content digest, so the files are exactly what
 the TypeScript exporter produced and validated against its JSON Schema; checks every imported record and
 relationship and reports all problems at once; then applies everything in one transaction under an
 advisory lock. An export whose digest is the latest release is skipped. The report counts created,
 updated, unchanged and missing (kept) per model, lists skipped items (the hub's assets), and lists
-invalid records when it rejects. Deliberate deviation: no Python JSON Schema validator runs, because the
-digest check proves the producer's validation applied and adding `jsonschema` would add four pinned
-dependencies; add it if exports ever come from another producer.
+invalid records when it rejects. When the schema sits beside the export (always for `content/`), every
+file is also validated against it with the dependency-free validator in `apps/core/content_schema.py`
+(from Treasure Rush), and the release records `schema_validated`.
 
 ## Django child progress (LAI-0305)
 

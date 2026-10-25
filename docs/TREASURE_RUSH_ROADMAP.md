@@ -1,5 +1,18 @@
 # Treasure Rush: Roadmap and Readiness
 
+> **Integrated, 2026-10-24 (POST-MERGE-03, ADR-033).** Treasure Rush now runs on the canonical
+> Django backbone, not its own. TR-2's catalog apps (`islands`, `adventures`, the loader) were
+> replaced by `apps/catalog`, which absorbed its item, collectible-set, reward-rule,
+> learning-objective and NPC models and its JSON-schema validator; TR-4's models were folded
+> into the canonical progress apps; the play API (TR-5) and the React client (TR-6, TR-7) are
+> unchanged in contract. Treasure Rush's quest, Golden Doubloon and reward rule are exported
+> (`react/src/features/content-export/treasureRushContent.ts`) and imported like all content;
+> the reward rule's trigger is `WORLD_CHANGE` on `TREASURE_RUSH_COVE_CHEST_OPENED`. The cove's
+> spatial layout lives in `lai/apps/regions/treasure_rush_seed.py` (app `regions`) as the
+> temporary source of truth: **TR-D3 is not adopted** and waits for LAI-0805. Sections below
+> describe the branch as built; where they name `islands`, `QuestDefinition`, `load_content`
+> from `core`, or `GrantedRewardRule`, read the canonical names in `docs/DATA_MODEL.md`.
+
 **Status (2026-10-24):** TR-0 (this plan), TR-1 (server-side math challenges), TR-2 (catalog
 models and loader), TR-4 (progress models and play services), TR-5 (the play API,
 `docs/PLAY_API.md`), TR-6 (the typed React client and hooks), and TR-7 (Treasure Cove on the

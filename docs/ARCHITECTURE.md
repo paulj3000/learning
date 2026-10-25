@@ -530,10 +530,13 @@ and follows local modules transitively. Packages are deny by default: only `thre
 React DOM and React Router; Amplify and AWS SDKs; `lib/data-client`, `lib/amplify-config`,
 `lib/ai/`, `api/` and any feature `api` module; `app/`, `routes/`, `components/`,
 `features/auth/`, `features/session/`; any `.tsx` module; anything outside `react/src`. The
-host passes the engine plain data and interfaces instead. Six existing React edges (view
-extensions and React hooks filed in `three/`) are listed one by one in `KNOWN_VIOLATIONS`
-for LAI-2102 to remove; the list fails when an entry goes stale. LAI-2101 applies the same
-rule to `game/`.
+host passes the engine plain data and interfaces instead. `KNOWN_VIOLATIONS` is empty since
+POST-MERGE-03: every React module in the engine folders is a `.tsx` host file (view extensions,
+the view registry, the bridge hooks), the React view registry lives in
+`extensions/viewExtensions.tsx` apart from the engine's `extensions/index.ts` (which keeps
+only world extensions and the plain id list `viewExtensionIds.ts`), and the region-play
+extension's id and config types live in `region-play/regionPlayConfig.ts`, away from the API
+types. LAI-2101 applies the same rule to `game/`.
 
 ## Proposed backend migration (not in effect)
 
@@ -602,9 +605,11 @@ cookie authentication and no CORS. Cognito bearer-token transport, browser token
 policy, and XSS considerations are decided in LAI-0402; see ADR-021 on W003. There is no
 `docs/SECURITY.md`; security decisions live in ADR-021 and this section.
 
-**Play API (TR-5).** Gameplay routes live under `/api/v1/children/<uuid:child_id>/`, are
-child-scoped views over `apps/game_sessions/services.py`, and take closed request bodies. The
-contract is `docs/PLAY_API.md`.
+**Play API (TR-5).** Region-play routes live under `/api/v1/children/<uuid:child_id>/`, are
+child-scoped views (`apps/game_sessions/play_views.py`) over `apps/game_sessions/play.py` and
+`play_state.py`, and take closed request bodies. The contract is `docs/PLAY_API.md`. Step-based
+adventure answers and hints are LAI-0601's (`views.py`, `services.py`); the URL conf lists them
+first so the play API's `sessions/<id>/<action>/` route does not shadow them.
 
 ## Django identity model (LAI-0301)
 
@@ -749,6 +754,29 @@ the scoping helpers never read group claims; `is_staff` is unused; LAI-0403's ro
 (`test_every_real_route_is_public_parent_scoped_or_child_scoped`) covers the new routes. Outcome:
 **satisfied for these child-owned endpoints**. G6 stays a per-endpoint obligation: every future child
 endpoint must use the same helpers and pass the same checklist.
+
+## Consolidated Django backbone (POST-MERGE-03, ADR-033)
+
+One implementation per responsibility, from the Storykeeper Castle line, with Treasure Rush
+adapted onto it:
+
+| App | Owns |
+|---|---|
+| `core` | API conventions, privacy logging, `ChildOwnedModel` (with the cross-child link check), `content_schema` validator, `ContentStatus` |
+| `users` | `ParentAccount`, `ChildProfile`, Cognito authentication, child scoping |
+| `catalog` | Imported content: World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset, LearningObjective, NpcDefinition, CollectibleSet, ItemDefinition, RewardRule, ContentRelease; the one importer (`load_content`); asset references (`asset_refs.py`); the catalog admin (mounted by LAI-0404) |
+| `regions` | Seed-authored play regions: WorldRegion, SpawnPoint, WorldObjectPlacement, TreasureChest; `seed_treasure_rush` |
+| `adventures` | The Python adventure engine (pure module, LAI-0601) |
+| `game_sessions` | AdventureSession (ADVENTURE or REGION), AdventureAction, ChallengeAttempt, CoopSession; answers and hints (LAI-0601); region play (TR-5) |
+| `education` | SkillEvidence, SkillProgress, StoryArtifact, ChallengeSpec; Treasure Rush challenge generation and grading (`challenges.py`) |
+| `progression`, `inventory`, `quests` | World changes and state, story and NPC progress; items owned and rules granted; quest progress, with the server-side quest engine (`quests/engine.py`) |
+
+**Temporary source-of-truth boundary for spatial data.** Location manifests for the shipped 3D
+regions stay in TypeScript (`runtime/manifests/*.ts`, ADR-032). The Treasure Cove layout is
+authored in `lai/apps/regions/treasure_rush_seed.py` and applied as `regions` rows that the play
+API serves; the client builds a manifest from them (TR-D15). Neither is Django layout
+administration: LAI-0805's ADR decides that. Everything non-spatial, including Treasure Rush's
+quest, item and reward rule, is exported and imported like all content.
 
 ## Content export contract (post-merge note)
 
