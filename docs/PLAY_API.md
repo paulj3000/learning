@@ -196,3 +196,42 @@ Nothing here branches on Treasure Rush: a later region needs a `WorldRegion` wit
 placements, spawn points, offered quests, and (if it has puzzles) chests with challenge specs.
 A new kind of interactive challenge object would add one issue route beside `chests/` and reuse
 `attempts/{id}/answer/` and the lifecycle routes unchanged.
+
+## Frontend client (TR-6)
+
+`react/src/api/play/playApi.ts` has one typed function per route above;
+`react/src/api/play/types.ts` mirrors the responses field for field. Change them together with
+`lai/apps/game_sessions/serializers.py`; the parsers reject a response that drifts
+(`ApiError` kind `invalid_response`, with the path).
+
+```ts
+const api = playApiFor(childId);             // childId from /island/:childId
+const region = await api.getRegion('treasure-rush-cove');
+const { value: session } = await api.startSession('treasure-rush-cove');
+const { value: issued } = await api.requestChestChallenge(session.sessionId, 'cove-chest');
+const outcome = await api.submitAnswer(issued.attemptId, { answer: 5, hintLevel: 1 });
+```
+
+In React, use `useRegionPlay(childId, regionId, { onUnauthenticated })` rather than the API
+directly: it owns loading, the in-flight action, stale-reply protection, and re-reading after an
+answer or conflict. `toRegionSceneModel(state.bootstrap)` gives the scene plain entities by id.
+
+**Configuration.** `VITE_BACKEND=django` enables the client; without it every call fails with
+kind `disabled`. `VITE_DJANGO_API_BASE` is empty for same-origin (deployed) or an `http://`
+origin in `vite dev`.
+
+**Error handling.** Every failure is an `ApiError`:
+
+| kind | Status | Client behaviour |
+|---|---|---|
+| `invalid_request` | 400 | A client bug or an impossible answer; `details` has per-field codes |
+| `unauthenticated` | 401 twice | Retried once with a refreshed token first; then `onUnauthenticated` (wire to `AuthContext.refresh()`) |
+| `forbidden` | 403 | Shown as an error; no sign-out |
+| `not_found` | 404 | Unknown, retired, or another family's content; show "not here right now" |
+| `conflict` | 409 | `code` is a `PlayConflictCode`; stale-view codes trigger a re-read |
+| `unavailable` | 503 | Retryable; never a sign-out (ADR-024) |
+| `server` | other 5xx | Retryable |
+| `network` | none | Retryable |
+| `invalid_response` | any | The response broke this contract |
+| `aborted` | none | A newer request replaced it; never shown |
+| `disabled` | none | This build has no Django API |

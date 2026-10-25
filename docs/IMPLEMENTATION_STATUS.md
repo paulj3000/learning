@@ -2528,7 +2528,23 @@ has not been asked and which "Decisions pending" already lists as open; and
 whether SC-11's retirement gate still means anything against a castle whose
 content layer is being replaced.
 
-## Treasure Rush - TR-5 complete (play API); playable through HTTP, no frontend yet
+## Treasure Rush - TR-6 complete (React client and hooks); nothing rendered yet
+
+TR-6 adds the typed Django client (`react/src/api/`: config behind `VITE_BACKEND=django`,
+access-token auth per request, one refresh retry on 401, error envelope to `ApiError`, runtime
+response checking, one function per play route) and the React layer
+(`react/src/features/region-play/`: a pure reducer, `useRegionPlay`, `usePlayerProgress`,
+and `toRegionSceneModel`, the plain-data boundary TR-7 builds the Three.js region from). The
+server stays the only source of truth; replies for a previous child are dropped. No existing
+frontend file changed and nothing renders yet. Details and the decisions TR-7 needs (TR-D14 dev
+proxy, TR-D15 manifest repository): `docs/TREASURE_RUSH_ROADMAP.md` section 12.
+
+Verification (2026-10-24): 65 new Vitest unit tests pass; `tsc` clean for the new code (the one
+error, `@colyseus/sdk` not resolvable from this worktree's shared `node_modules`, predates TR-6);
+four mutations each failed a test. Unit tests only: Ruff, Prettier, Playwright, and browser tests
+were not run; the full Vitest suite was not run either, since no existing file changed.
+
+### Earlier: TR-5 (play API)
 
 TR-5 adds the play API under `/api/v1/children/{childId}/`: region bootstrap, start or resume a
 session, session lifecycle (pause, resume, complete, abandon), quest acceptance, chest challenge,

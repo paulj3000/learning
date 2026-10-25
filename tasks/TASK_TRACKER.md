@@ -166,7 +166,7 @@ TR-D4, TR-D8, and TR-D11 were accepted on 2026-10-24; TR-D5 is still Proposed.
 - [ ] **TR-3** Django admin access and catalog admin, is LAI-0404 then LAI-0801 (APPROVAL: TR-D5) (depends: TR-2)
 - [x] **TR-4** Progress models, is LAI-0305 (depends: TR-2). DONE locally: sessions, challenge attempts, world changes, inventory ownership, quest progress, skill evidence, plus the play services TR-5 calls. LAI-0305 itself stays open for the non-Treasure-Rush models
 - [x] **TR-5** Treasure Rush play API (depends: TR-4, LAI-0403). DONE locally: 8 child-scoped routes over the TR-4 services; contract in `docs/PLAY_API.md`
-- [ ] **TR-6** Frontend Django client slice (depends: TR-5 done, TR-D8 accepted)
+- [x] **TR-6** Frontend Django client slice (depends: TR-5, TR-D8). DONE locally: `react/src/api/` client and play DTOs, `features/region-play/` hooks and the TR-7 scene-model boundary; no UI
 - [ ] **TR-7a** Placeholder-mesh asset adapter (depends: none)
 - [ ] **TR-7** Treasure Rush region (depends: TR-6, TR-7a, TR-D2, TR-D4)
 - [ ] **TR-8** Challenge and quest-complete UI (depends: TR-7)

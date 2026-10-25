@@ -1,9 +1,10 @@
 # Treasure Rush: Roadmap and Readiness
 
 **Status (2026-10-24):** TR-0 (this plan), TR-1 (server-side math challenges), TR-2 (catalog
-models and loader), TR-4 (progress models and play services), and TR-5 (the play API,
-`docs/PLAY_API.md`) are done on branch `feature/treasure-rush-slice`, cut from `main` at
-`350e11b`. The backend is playable through HTTP; there is no frontend yet (TR-6 on). TR-D3 and TR-D7 are taken as authorised by the Treasure
+models and loader), TR-4 (progress models and play services), TR-5 (the play API,
+`docs/PLAY_API.md`), and TR-6 (the typed React client and hooks) are done on branch
+`feature/treasure-rush-slice`, cut from `main` at `350e11b`. Nothing renders yet: the
+Three.js region is TR-7. TR-D3 and TR-D7 are taken as authorised by the Treasure
 Rush brief (admin-managed content; no second asset system); the other decisions in section 6
 are still **Proposed**.
 
@@ -143,7 +144,7 @@ quest, all idempotent). The response is the completion summary. Tests: two-famil
 every endpoint, replayed success grants nothing twice, malformed answers return the safe error
 envelope, the answer never appears in any response.
 
-**TR-6 Frontend Django client for Treasure Rush (LAI-0501 slice).** Depends: TR-5 (done), TR-D8 (accepted). Contract: `docs/PLAY_API.md`.
+**TR-6 Frontend Django client for Treasure Rush (LAI-0501 slice).** DONE (section 12). Depends: TR-5 (done), TR-D8 (accepted). Contract: `docs/PLAY_API.md`.
 Risk M. Acceptance: `react/src/api/` module behind `VITE_BACKEND`, typed DTOs, Cognito bearer
 token, fallback copy on network failure. No other feature moves.
 
@@ -408,3 +409,42 @@ automatic), progress, and every lifecycle transition are covered.
 tokens. Four mutations (closed bodies off, answer added to the challenge, session lookup not
 scoped, lenient integer answer) each failed a test; the last one first survived and led to a
 stronger test. Unit tests only, per the development testing policy.
+
+## 12. TR-6 as built
+
+The React side of the play API, with no UI and no Three.js. Contract and usage: the "Frontend
+client" section of `docs/PLAY_API.md`.
+
+| Module | Purpose |
+|---|---|
+| `react/src/api/config.ts` | `VITE_BACKEND=django` turns the Django API on; `VITE_DJANGO_API_BASE` (empty = same-origin; https only outside `vite dev`) |
+| `react/src/api/auth.ts` | The Cognito **access** token from Amplify, asked for per request, never stored (ADR-024 A1) |
+| `react/src/api/client.ts` | JSON transport: bearer header, one forced-refresh retry on 401, error envelope to `ApiError` |
+| `react/src/api/errors.ts` | `ApiError` with `kind` (invalid_request, unauthenticated, forbidden, not_found, conflict, unavailable, server, network, invalid_response, aborted, disabled) and the server `code` |
+| `react/src/api/parse.ts` | Runtime response checking (CLAUDE.md section 13), no dependency |
+| `react/src/api/play/{types,parse,playApi}.ts` | DTOs field for field from the TR-5 serializers, their readers, and one function per route, scoped to a child |
+| `react/src/features/region-play/regionPlayState.ts` | Pure reducer: server-only truth, stale-reply rejection by scope, rewards shown once |
+| `react/src/features/region-play/useRegionPlay.ts` | Load, start or resume, lifecycle, accept quest, request challenge, submit answer, refresh |
+| `react/src/features/region-play/usePlayerProgress.ts` | `GET progress/` for the selected child |
+| `react/src/features/region-play/sceneModel.ts` | The TR-7 boundary: bootstrap to plain entities by id, no Three.js |
+
+**Rules the code enforces (each with a test, four confirmed by mutation):** a reply for a child or
+region the screen has moved away from is dropped, and the request is aborted; a double-tapped
+answer is sent once; a replayed answer (409) adds no reward and triggers a re-read; rewards,
+chest state, and quest state only ever come from server responses; the answer body carries only
+`answer`, `hintLevel`, `durationMs`; a 401 is retried once with a refreshed token, a second
+401 calls `onUnauthenticated`, and a 503 never does.
+
+**Decisions TR-7 needs (not taken here):**
+
+- **TR-D14 Dev routing to Django.** Django has no CORS by design, so `vite dev` needs a
+  `server.proxy` for `/api` to the local Django, or `VITE_DJANGO_API_BASE` with a dev-only
+  CORS allowance. Recommendation: the proxy (no backend change). Touches `react/vite.config.ts`.
+- **TR-D15 How the region reaches the runtime.** Recommendation: a `LocationManifestRepository`
+  implementation that builds the manifest from `toRegionSceneModel` and validates it with
+  `validateLocationManifest`, under the existing `/island/:childId/explore/:regionId` route, so
+  `noLocationBranching.test.ts` stays green. Needs a check of which runtime files LAI-2106 owns.
+- **Wiring:** `onUnauthenticated` to `AuthContext.refresh()`, so `RequireParent` sends the
+  parent to sign in as elsewhere.
+
+**Tests:** 65 Vitest unit tests in `react/src/api/` and `react/src/features/region-play/`.
