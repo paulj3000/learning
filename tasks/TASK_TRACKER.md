@@ -158,6 +158,23 @@ before touching AWS.
 - [ ] **LAI-2304** Phaser dependency removal (APPROVAL) (depends: 2201 to 2208, 2301, 2302, 2303)
 - [ ] **LAI-2305** Final Three.js-only verification (depends: 2304)
 
+# LAI-2200 Shared Django Asset Manager (`docs/ASSET_MANAGER.md`, ADR-035)
+
+Platform workstream on `feature/django-asset-manager`. Subtasks use their own ids (AM-n) because
+LAI-2201 to LAI-2208 are the Phase 22 world conversions.
+
+- [x] **AM-1** Architecture and contract (depends: none)
+- [ ] **AM-2** Models and migrations (depends: AM-1)
+- [ ] **AM-3** Model validation service (depends: AM-1)
+- [ ] **AM-4** Storage abstraction and upload lifecycle (depends: AM-2, AM-3)
+- [ ] **AM-5** Django Admin management, permissions and groups (depends: AM-4, LAI-0404)
+- [ ] **AM-6** Published-asset resolver API and delivery (depends: AM-4, LAI-0403)
+- [ ] **AM-7** Frontend Django resolver adapter (depends: AM-6, LAI-2106)
+- [ ] **AM-8** Existing asset import tooling (depends: AM-4)
+- [ ] **AM-9** Security and integration tests, documentation (depends: AM-5 to AM-8)
+- [ ] **AM-10** Admin model preview (depends: AM-5)
+- [ ] **AM-11** Signed CloudFront delivery (APPROVAL: AWS) (depends: AM-6, LAI-1002, LAI-1005)
+
 # Treasure Rush (`docs/TREASURE_RUSH_ROADMAP.md`)
 
 Feature roadmap with its own ids, like SC-n. Since POST-MERGE-03 (ADR-033) Treasure Rush runs on
