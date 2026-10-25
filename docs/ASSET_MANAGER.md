@@ -208,7 +208,7 @@ call is made by the tests.
 | AM-4 | Storage abstraction and upload lifecycle | Done |
 | AM-5 | Django Admin management, permissions and groups | Done |
 | AM-6 | Published-asset resolver API and delivery | Done |
-| AM-7 | Frontend Django resolver adapter | Planned |
+| AM-7 | Frontend Django resolver adapter | Done |
 | AM-8 | Existing asset import tooling | Planned |
 | AM-9 | Security and integration tests, documentation | Planned |
 | AM-10 | Admin model preview (isolated, later) | Not started |
