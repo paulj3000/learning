@@ -5,14 +5,14 @@ import uuid
 
 import pytest
 
+from apps.catalog.models import Quest as QuestDefinition
 from apps.core.content_status import ContentStatus
 from apps.education.models import ChallengeSpec, SkillEvidence
 from apps.game_sessions.models import AdventureSession, ChallengeAttempt, SessionStatus
 from apps.inventory.models import GrantedRule, InventoryItem
-from apps.regions.models import WorldRegion
 from apps.progression.models import WorldChange
-from apps.catalog.models import Quest as QuestDefinition
 from apps.quests.models import QuestProgress
+from apps.regions.models import WorldRegion
 
 pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
 
@@ -260,7 +260,13 @@ def test_a_challenge_never_includes_its_answer(a):
     client, child = a
     issued = challenge(client, child)
     assert "answer" not in keys_in(issued)
-    assert set(issued["challenge"]) == {"skillId", "operation", "operands", "responseMode", "choices"}
+    assert set(issued["challenge"]) == {
+        "skillId",
+        "operation",
+        "operands",
+        "responseMode",
+        "choices",
+    }
     assert issued["challenge"]["operation"] == "ADD" and len(issued["challenge"]["choices"]) == 4
     assert issued["attemptNumber"] == 1 and issued["targetEntityId"] == CHEST
 

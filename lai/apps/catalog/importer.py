@@ -187,7 +187,9 @@ class Plan:
     skipped: list[str] = field(default_factory=list)
 
 
-def _text(record: dict[str, Any], key: str, where: str, problems: list[str], *, optional=False) -> str:
+def _text(
+    record: dict[str, Any], key: str, where: str, problems: list[str], *, optional=False
+) -> str:
     value = record.get(key)
     if value is None and optional:
         return ""
@@ -221,7 +223,9 @@ def _pack_owner(worlds: list[dict[str, Any]], list_key: str, kind: str, problems
     for world in worlds:
         for slug in world.get("pack", {}).get(list_key, []):
             if slug in owner:
-                problems.append(f"{kind} {slug!r}: listed in the packs of {owner[slug]!r} and {world['slug']!r}")
+                problems.append(
+                    f"{kind} {slug!r}: listed in the packs of {owner[slug]!r} and {world['slug']!r}"
+                )
             owner[slug] = world["slug"]
     return owner
 
@@ -238,7 +242,11 @@ def build_plan(bundle: ExportBundle) -> Plan:
         raise ContentImportError(problems)
 
     worlds, locations, adventures, quests, assets = (
-        c["islands"], c["locations"], c["adventures"], c["quests"], c["assets"]
+        c["islands"],
+        c["locations"],
+        c["adventures"],
+        c["quests"],
+        c["assets"],
     )
     world_slugs = _unique(worlds, "slug", "world", problems)
     location_slugs = _unique(locations, "slug", "location", problems)
@@ -250,37 +258,41 @@ def build_plan(bundle: ExportBundle) -> Plan:
 
     for index, world in enumerate(worlds):
         where = f"world {world.get('slug')!r}"
-        plan.worlds.append({
-            "key": _text(world, "slug", where, problems),
-            "order": index,
-            "fields": {
-                "title": _text(world, "title", where, problems),
-                "tagline": _text(world, "tagline", where, problems, optional=True),
-                "description": _text(world, "description", where, problems, optional=True),
-                "is_home": bool(world.get("isHome", False)),
-                "supported_age_bands": _texts(world, "supportedAgeBands", where, problems),
-                "pack_version": int(world.get("pack", {}).get("version", 0)),
-                "source": world,
-            },
-        })
+        plan.worlds.append(
+            {
+                "key": _text(world, "slug", where, problems),
+                "order": index,
+                "fields": {
+                    "title": _text(world, "title", where, problems),
+                    "tagline": _text(world, "tagline", where, problems, optional=True),
+                    "description": _text(world, "description", where, problems, optional=True),
+                    "is_home": bool(world.get("isHome", False)),
+                    "supported_age_bands": _texts(world, "supportedAgeBands", where, problems),
+                    "pack_version": int(world.get("pack", {}).get("version", 0)),
+                    "source": world,
+                },
+            }
+        )
 
     for index, location in enumerate(locations):
         where = f"location {location.get('slug')!r}"
         world_slug = _text(location, "worldSlug", where, problems)
         if world_slug and world_slug not in world_slugs:
             problems.append(f"{where}: unknown world {world_slug!r}")
-        plan.locations.append({
-            "key": _text(location, "slug", where, problems),
-            "order": index,
-            "world": world_slug,
-            "fields": {
-                "title": _text(location, "title", where, problems),
-                "tagline": _text(location, "tagline", where, problems, optional=True),
-                "description": _text(location, "description", where, problems, optional=True),
-                "skills": _texts(location, "skills", where, problems),
-                "source": location,
-            },
-        })
+        plan.locations.append(
+            {
+                "key": _text(location, "slug", where, problems),
+                "order": index,
+                "world": world_slug,
+                "fields": {
+                    "title": _text(location, "title", where, problems),
+                    "tagline": _text(location, "tagline", where, problems, optional=True),
+                    "description": _text(location, "description", where, problems, optional=True),
+                    "skills": _texts(location, "skills", where, problems),
+                    "source": location,
+                },
+            }
+        )
 
     for index, adventure in enumerate(adventures):
         slug = adventure.get("slug")
@@ -295,35 +307,39 @@ def build_plan(bundle: ExportBundle) -> Plan:
             problems.append(f"{where}: entry step {entry!r} is not one of its steps")
         location_slug = _text(adventure, "locationSlug", where, problems)
         level = adventure.get("skillLevel")
-        plan.adventures.append({
-            "key": _text(adventure, "slug", where, problems),
-            "order": index,
-            "world": adventure_world.get(slug),
-            # A story-only pseudo-location has no Location record; the slug is kept as text.
-            "location": location_slug if location_slug in location_slugs else None,
-            "fields": {
-                "title": _text(adventure, "title", where, problems),
-                "version": int(adventure.get("version", 0)),
-                "location_slug": location_slug,
-                "age_bands": _texts(adventure, "ageBands", where, problems),
-                "entry_step_id": entry,
-                "skill_domain": adventure.get("skillDomain") or "",
-                "skill_level": level if isinstance(level, int) else None,
-                "source": {key: value for key, value in adventure.items() if key != "steps"},
-            },
-        })
+        plan.adventures.append(
+            {
+                "key": _text(adventure, "slug", where, problems),
+                "order": index,
+                "world": adventure_world.get(slug),
+                # A story-only pseudo-location has no Location record; the slug is kept as text.
+                "location": location_slug if location_slug in location_slugs else None,
+                "fields": {
+                    "title": _text(adventure, "title", where, problems),
+                    "version": int(adventure.get("version", 0)),
+                    "location_slug": location_slug,
+                    "age_bands": _texts(adventure, "ageBands", where, problems),
+                    "entry_step_id": entry,
+                    "skill_domain": adventure.get("skillDomain") or "",
+                    "skill_level": level if isinstance(level, int) else None,
+                    "source": {key: value for key, value in adventure.items() if key != "steps"},
+                },
+            }
+        )
         for position, step in enumerate(steps):
             step_where = f"{where} step {step.get('id')!r}"
-            plan.steps.append({
-                "adventure": slug,
-                "key": _text(step, "id", step_where, problems),
-                "fields": {
-                    "position": position,
-                    "step_type": _text(step, "type", step_where, problems),
-                    "objective_ids": _texts(step, "objectiveIds", step_where, problems),
-                    "source": step,
-                },
-            })
+            plan.steps.append(
+                {
+                    "adventure": slug,
+                    "key": _text(step, "id", step_where, problems),
+                    "fields": {
+                        "position": position,
+                        "step_type": _text(step, "type", step_where, problems),
+                        "objective_ids": _texts(step, "objectiveIds", step_where, problems),
+                        "source": step,
+                    },
+                }
+            )
 
     for index, quest in enumerate(quests):
         where = f"quest {quest.get('id')!r}"
@@ -338,20 +354,26 @@ def build_plan(bundle: ExportBundle) -> Plan:
                 problems.append(f"{where}: SOLVE names unknown adventure {slug!r}")
         stage_ids = {stage.get("id") for stage in quest.get("stages", [])}
         if quest.get("entryStageId") not in stage_ids:
-            problems.append(f"{where}: entry stage {quest.get('entryStageId')!r} is not one of its stages")
-        plan.quests.append({
-            "key": _text(quest, "id", where, problems),
-            "order": index,
-            "world": quest_world.get(quest.get("id")),
-            "adventures": list(dict.fromkeys(slug for slug in solved if slug in adventure_slugs)),
-            "fields": {
-                "title": _text(quest, "title", where, problems),
-                "summary": _text(quest, "summary", where, problems, optional=True),
-                "giver_npc_id": quest.get("giverNpcId") or "",
-                "age_bands": _texts(quest, "ageBands", where, problems),
-                "source": quest,
-            },
-        })
+            problems.append(
+                f"{where}: entry stage {quest.get('entryStageId')!r} is not one of its stages"
+            )
+        plan.quests.append(
+            {
+                "key": _text(quest, "id", where, problems),
+                "order": index,
+                "world": quest_world.get(quest.get("id")),
+                "adventures": list(
+                    dict.fromkeys(slug for slug in solved if slug in adventure_slugs)
+                ),
+                "fields": {
+                    "title": _text(quest, "title", where, problems),
+                    "summary": _text(quest, "summary", where, problems, optional=True),
+                    "giver_npc_id": quest.get("giverNpcId") or "",
+                    "age_bands": _texts(quest, "ageBands", where, problems),
+                    "source": quest,
+                },
+            }
+        )
 
     for asset in assets:
         where = f"asset {asset.get('id')!r}"
@@ -359,17 +381,19 @@ def build_plan(bundle: ExportBundle) -> Plan:
         low = lod.get("lowDetailId")
         if low is not None and low not in asset_ids:
             problems.append(f"{where}: unknown low-detail asset {low!r}")
-        plan.assets.append({
-            "key": _text(asset, "id", where, problems),
-            "low_detail": low,
-            "fields": {
-                "kind": _text(asset, "kind", where, problems),
-                "bundled_path": _text(asset, "url", where, problems),
-                "clips": _texts(asset, "clips", where, problems),
-                "lod_distance_meters": lod.get("distanceMeters"),
-                "source": asset,
-            },
-        })
+        plan.assets.append(
+            {
+                "key": _text(asset, "id", where, problems),
+                "low_detail": low,
+                "fields": {
+                    "kind": _text(asset, "kind", where, problems),
+                    "bundled_path": _text(asset, "url", where, problems),
+                    "clips": _texts(asset, "clips", where, problems),
+                    "lod_distance_meters": lod.get("distanceMeters"),
+                    "source": asset,
+                },
+            }
+        )
 
     for region in c.get("locationAssets", []):
         slug = region.get("regionSlug")
@@ -399,32 +423,36 @@ def _plan_supporting_catalogs(c, plan: Plan, location_slugs: set[str], problems:
     _unique(objectives, "code", "learning objective", problems)
     for objective in objectives:
         where = f"learning objective {objective.get('code')!r}"
-        plan.learning_objectives.append({
-            "key": _text(objective, "code", where, problems),
-            "fields": {
-                "domain": _text(objective, "domain", where, problems),
-                "title": _text(objective, "title", where, problems),
-                "source": objective,
-            },
-        })
+        plan.learning_objectives.append(
+            {
+                "key": _text(objective, "code", where, problems),
+                "fields": {
+                    "domain": _text(objective, "domain", where, problems),
+                    "title": _text(objective, "title", where, problems),
+                    "source": objective,
+                },
+            }
+        )
 
     npcs = c.get("npcs", [])
     _unique(npcs, "id", "npc", problems)
     for index, npc in enumerate(npcs):
         where = f"npc {npc.get('id')!r}"
         home = _text(npc, "homeLocationSlug", where, problems)
-        plan.npcs.append({
-            "key": _text(npc, "id", where, problems),
-            "order": index,
-            "home": home if home in location_slugs else None,
-            "fields": {
-                "display_name": _text(npc, "displayName", where, problems),
-                "role": _text(npc, "role", where, problems, optional=True),
-                "home_location_slug": home,
-                "interaction_id": _text(npc, "interactionId", where, problems, optional=True),
-                "source": npc,
-            },
-        })
+        plan.npcs.append(
+            {
+                "key": _text(npc, "id", where, problems),
+                "order": index,
+                "home": home if home in location_slugs else None,
+                "fields": {
+                    "display_name": _text(npc, "displayName", where, problems),
+                    "role": _text(npc, "role", where, problems, optional=True),
+                    "home_location_slug": home,
+                    "interaction_id": _text(npc, "interactionId", where, problems, optional=True),
+                    "source": npc,
+                },
+            }
+        )
 
     sets, items, rules = c.get("collectibleSets", []), c.get("items", []), c.get("rewardRules", [])
     set_ids = _unique(sets, "id", "collectible set", problems)
@@ -435,35 +463,39 @@ def _plan_supporting_catalogs(c, plan: Plan, location_slugs: set[str], problems:
         completion = collectible_set.get("completionItemId")
         if completion is not None and completion not in item_ids:
             problems.append(f"{where}: unknown completion item {completion!r}")
-        plan.collectible_sets.append({
-            "key": _text(collectible_set, "id", where, problems),
-            "completion_item": completion,
-            "fields": {
-                "display_name": _text(collectible_set, "displayName", where, problems),
-                "completion_message": _text(
-                    collectible_set, "completionMessage", where, problems, optional=True
-                ),
-                "source": collectible_set,
-            },
-        })
+        plan.collectible_sets.append(
+            {
+                "key": _text(collectible_set, "id", where, problems),
+                "completion_item": completion,
+                "fields": {
+                    "display_name": _text(collectible_set, "displayName", where, problems),
+                    "completion_message": _text(
+                        collectible_set, "completionMessage", where, problems, optional=True
+                    ),
+                    "source": collectible_set,
+                },
+            }
+        )
     for item in items:
         where = f"item {item.get('id')!r}"
         set_id = item.get("setId")
         if set_id is not None and set_id not in set_ids:
             problems.append(f"{where}: unknown collectible set {set_id!r}")
-        plan.items.append({
-            "key": _text(item, "id", where, problems),
-            "set": set_id,
-            "fields": {
-                "display_name": _text(item, "displayName", where, problems),
-                "description": _text(item, "description", where, problems, optional=True),
-                "category": _text(item, "category", where, problems),
-                "rarity": _text(item, "rarity", where, problems),
-                "cosmetic_slot": item.get("cosmeticSlot") or "",
-                "hidden": bool(item.get("hidden", False)),
-                "source": item,
-            },
-        })
+        plan.items.append(
+            {
+                "key": _text(item, "id", where, problems),
+                "set": set_id,
+                "fields": {
+                    "display_name": _text(item, "displayName", where, problems),
+                    "description": _text(item, "description", where, problems, optional=True),
+                    "category": _text(item, "category", where, problems),
+                    "rarity": _text(item, "rarity", where, problems),
+                    "cosmetic_slot": item.get("cosmeticSlot") or "",
+                    "hidden": bool(item.get("hidden", False)),
+                    "source": item,
+                },
+            }
+        )
     for rule in rules:
         where = f"reward rule {rule.get('id')!r}"
         granted = _texts(rule, "itemIds", where, problems)
@@ -472,15 +504,17 @@ def _plan_supporting_catalogs(c, plan: Plan, location_slugs: set[str], problems:
                 problems.append(f"{where}: unknown item {item_id!r}")
         if not isinstance(rule.get("trigger"), dict):
             problems.append(f"{where}: `trigger` must be an object")
-        plan.reward_rules.append({
-            "key": _text(rule, "id", where, problems),
-            "items": granted,
-            "fields": {
-                "trigger": rule.get("trigger"),
-                "message": _text(rule, "message", where, problems, optional=True),
-                "source": rule,
-            },
-        })
+        plan.reward_rules.append(
+            {
+                "key": _text(rule, "id", where, problems),
+                "items": granted,
+                "fields": {
+                    "trigger": rule.get("trigger"),
+                    "message": _text(rule, "message", where, problems, optional=True),
+                    "source": rule,
+                },
+            }
+        )
 
 
 # --- Applying ---------------------------------------------------------------------------------
@@ -490,7 +524,9 @@ def _counter() -> dict[str, int]:
     return {"created": 0, "updated": 0, "unchanged": 0, "missing": 0}
 
 
-def _upsert(model, lookup: dict[str, Any], fields: dict[str, Any], release, counts, *, catalog=None):
+def _upsert(
+    model, lookup: dict[str, Any], fields: dict[str, Any], release, counts, *, catalog=None
+):
     """Creates or updates one imported row; catalog fields apply only on creation."""
     existing = model.objects.filter(**lookup).first()
     if existing is None:
@@ -511,9 +547,23 @@ def _catalog(order: int) -> dict[str, Any]:
 
 
 def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
-    counts = {name: _counter() for name in
-              ("assets", "worlds", "locations", "adventures", "steps", "quests", "location_assets",
-               "learning_objectives", "npcs", "collectible_sets", "items", "reward_rules")}
+    counts = {
+        name: _counter()
+        for name in (
+            "assets",
+            "worlds",
+            "locations",
+            "adventures",
+            "steps",
+            "quests",
+            "location_assets",
+            "learning_objectives",
+            "npcs",
+            "collectible_sets",
+            "items",
+            "reward_rules",
+        )
+    }
 
     assets: dict[str, ContentAsset] = {}
     for record in plan.assets:
@@ -528,43 +578,102 @@ def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
             asset.save(update_fields=["low_detail"])
 
     worlds = {
-        r["key"]: _upsert(World, {"slug": r["key"]}, r["fields"], release, counts["worlds"],
-                          catalog=_catalog(r["order"]))
+        r["key"]: _upsert(
+            World,
+            {"slug": r["key"]},
+            r["fields"],
+            release,
+            counts["worlds"],
+            catalog=_catalog(r["order"]),
+        )
         for r in plan.worlds
     }
     locations = {
-        r["key"]: _upsert(Location, {"slug": r["key"]}, {**r["fields"], "world": worlds[r["world"]]},
-                          release, counts["locations"], catalog=_catalog(r["order"]))
+        r["key"]: _upsert(
+            Location,
+            {"slug": r["key"]},
+            {**r["fields"], "world": worlds[r["world"]]},
+            release,
+            counts["locations"],
+            catalog=_catalog(r["order"]),
+        )
         for r in plan.locations
     }
     adventures = {}
     for r in plan.adventures:
-        fields = {**r["fields"], "world": worlds.get(r["world"]), "location": locations.get(r["location"])}
-        adventures[r["key"]] = _upsert(Adventure, {"slug": r["key"]}, fields, release,
-                                       counts["adventures"], catalog=_catalog(r["order"]))
+        fields = {
+            **r["fields"],
+            "world": worlds.get(r["world"]),
+            "location": locations.get(r["location"]),
+        }
+        adventures[r["key"]] = _upsert(
+            Adventure,
+            {"slug": r["key"]},
+            fields,
+            release,
+            counts["adventures"],
+            catalog=_catalog(r["order"]),
+        )
     for r in plan.steps:
-        _upsert(AdventureStep, {"adventure": adventures[r["adventure"]], "step_id": r["key"]},
-                r["fields"], release, counts["steps"])
+        _upsert(
+            AdventureStep,
+            {"adventure": adventures[r["adventure"]], "step_id": r["key"]},
+            r["fields"],
+            release,
+            counts["steps"],
+        )
     for r in plan.quests:
-        quest = _upsert(Quest, {"slug": r["key"]}, {**r["fields"], "world": worlds.get(r["world"])},
-                        release, counts["quests"], catalog=_catalog(r["order"]))
+        quest = _upsert(
+            Quest,
+            {"slug": r["key"]},
+            {**r["fields"], "world": worlds.get(r["world"])},
+            release,
+            counts["quests"],
+            catalog=_catalog(r["order"]),
+        )
         quest.adventures.set([adventures[slug] for slug in r["adventures"]])
     for r in plan.location_assets:
-        _upsert(LocationAsset, {"location": locations[r["location"]], "asset": assets[r["asset"]]},
-                {"position": r["position"]}, release, counts["location_assets"])
+        _upsert(
+            LocationAsset,
+            {"location": locations[r["location"]], "asset": assets[r["asset"]]},
+            {"position": r["position"]},
+            release,
+            counts["location_assets"],
+        )
 
     for r in plan.learning_objectives:
-        _upsert(LearningObjective, {"code": r["key"]}, r["fields"], release,
-                counts["learning_objectives"])
+        _upsert(
+            LearningObjective,
+            {"code": r["key"]},
+            r["fields"],
+            release,
+            counts["learning_objectives"],
+        )
     for r in plan.npcs:
-        _upsert(NpcDefinition, {"npc_id": r["key"]},
-                {**r["fields"], "home_location": locations.get(r["home"])}, release,
-                counts["npcs"], catalog=_catalog(r["order"]))
-    sets = {r["key"]: _upsert(CollectibleSet, {"set_id": r["key"]}, r["fields"], release,
-                              counts["collectible_sets"]) for r in plan.collectible_sets}
-    items = {r["key"]: _upsert(ItemDefinition, {"item_id": r["key"]},
-                               {**r["fields"], "collectible_set": sets.get(r["set"])}, release,
-                               counts["items"]) for r in plan.items}
+        _upsert(
+            NpcDefinition,
+            {"npc_id": r["key"]},
+            {**r["fields"], "home_location": locations.get(r["home"])},
+            release,
+            counts["npcs"],
+            catalog=_catalog(r["order"]),
+        )
+    sets = {
+        r["key"]: _upsert(
+            CollectibleSet, {"set_id": r["key"]}, r["fields"], release, counts["collectible_sets"]
+        )
+        for r in plan.collectible_sets
+    }
+    items = {
+        r["key"]: _upsert(
+            ItemDefinition,
+            {"item_id": r["key"]},
+            {**r["fields"], "collectible_set": sets.get(r["set"])},
+            release,
+            counts["items"],
+        )
+        for r in plan.items
+    }
     for r in plan.collectible_sets:  # second pass: the completion item needs the item rows
         collectible_set = sets[r["key"]]
         completion = items.get(r["completion_item"]) if r["completion_item"] else None
@@ -572,15 +681,25 @@ def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
             collectible_set.completion_item = completion
             collectible_set.save(update_fields=["completion_item"])
     for r in plan.reward_rules:
-        rule = _upsert(RewardRule, {"rule_id": r["key"]}, r["fields"], release, counts["reward_rules"])
+        rule = _upsert(
+            RewardRule, {"rule_id": r["key"]}, r["fields"], release, counts["reward_rules"]
+        )
         rule.items.set([items[item_id] for item_id in r["items"]])
 
-    for name, model in (("assets", ContentAsset), ("worlds", World), ("locations", Location),
-                        ("adventures", Adventure), ("steps", AdventureStep), ("quests", Quest),
-                        ("location_assets", LocationAsset),
-                        ("learning_objectives", LearningObjective), ("npcs", NpcDefinition),
-                        ("collectible_sets", CollectibleSet), ("items", ItemDefinition),
-                        ("reward_rules", RewardRule)):
+    for name, model in (
+        ("assets", ContentAsset),
+        ("worlds", World),
+        ("locations", Location),
+        ("adventures", Adventure),
+        ("steps", AdventureStep),
+        ("quests", Quest),
+        ("location_assets", LocationAsset),
+        ("learning_objectives", LearningObjective),
+        ("npcs", NpcDefinition),
+        ("collectible_sets", CollectibleSet),
+        ("items", ItemDefinition),
+        ("reward_rules", RewardRule),
+    ):
         counts[name]["missing"] = model.objects.exclude(last_seen_release=release).count()
     return counts
 

@@ -53,7 +53,8 @@ def case_id(case: dict[str, Any]) -> str:
 def assert_case(case: dict[str, Any], call: Callable[[dict[str, Any]], Any]) -> None:
     """Runs one case: the result must equal `expected`, or the call must raise."""
     if case.get("throws"):
-        with pytest.raises(Exception):
+        # Any error counts: messages and error classes are not part of the vector contract.
+        with pytest.raises(Exception):  # noqa: B017
             call(case["input"])
     else:
         assert call(case["input"]) == case["expected"]

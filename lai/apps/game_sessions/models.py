@@ -72,27 +72,39 @@ class AdventureSession(ChildOwnedModel):
         max_length=16, choices=SessionKind.choices, default=SessionKind.ADVENTURE
     )
     adventure = models.ForeignKey(
-        "catalog.Adventure", on_delete=models.PROTECT, related_name="sessions",
-        null=True, blank=True,
+        "catalog.Adventure",
+        on_delete=models.PROTECT,
+        related_name="sessions",
+        null=True,
+        blank=True,
     )
     template_version = models.PositiveIntegerField(
-        null=True, blank=True,
+        null=True,
+        blank=True,
         help_text="The adventure's version when the session started; it never changes after.",
     )
     region_id = models.SlugField(max_length=80, blank=True)
     location_slug = models.SlugField(max_length=100, blank=True)
     content_release = models.ForeignKey(
-        "catalog.ContentRelease", on_delete=models.PROTECT, related_name="+",
+        "catalog.ContentRelease",
+        on_delete=models.PROTECT,
+        related_name="+",
         help_text="The latest content release when the session started.",
     )
     status = models.CharField(max_length=16, choices=SessionStatus.choices)
     current_step_id = models.CharField(max_length=100, blank=True)
     hint_levels = models.JSONField(
-        default=dict, blank=True,
-        help_text="Step id -> the hint level the server has given (LAI-0601); never a client value.",
+        default=dict,
+        blank=True,
+        help_text=(
+            "Step id -> the hint level the server has given (LAI-0601); never a client value."
+        ),
     )
     coop_session = models.ForeignKey(
-        "game_sessions.CoopSession", on_delete=models.SET_NULL, null=True, blank=True,
+        "game_sessions.CoopSession",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="adventure_sessions",
     )
     started_at = models.DateTimeField()
@@ -106,10 +118,20 @@ class AdventureSession(ChildOwnedModel):
             ),
             models.CheckConstraint(
                 condition=(
-                    Q(kind=SessionKind.ADVENTURE, adventure__isnull=False,
-                      template_version__isnull=False, region_id="")
-                    | (Q(kind=SessionKind.REGION, adventure__isnull=True,
-                         template_version__isnull=True) & ~Q(region_id=""))
+                    Q(
+                        kind=SessionKind.ADVENTURE,
+                        adventure__isnull=False,
+                        template_version__isnull=False,
+                        region_id="",
+                    )
+                    | (
+                        Q(
+                            kind=SessionKind.REGION,
+                            adventure__isnull=True,
+                            template_version__isnull=True,
+                        )
+                        & ~Q(region_id="")
+                    )
                 ),
                 name="session_target_matches_kind",
             ),
@@ -119,11 +141,13 @@ class AdventureSession(ChildOwnedModel):
                 name="session_completed_at_iff_completed",
             ),
             models.CheckConstraint(
-                condition=Q(last_activity_at__gte=F("started_at")), name="session_activity_after_start"
+                condition=Q(last_activity_at__gte=F("started_at")),
+                name="session_activity_after_start",
             ),
             # resumeOrStartSession reuses the active session; the database now guarantees one.
             models.UniqueConstraint(
-                fields=["child", "adventure"], condition=Q(status=SessionStatus.ACTIVE),
+                fields=["child", "adventure"],
+                condition=Q(status=SessionStatus.ACTIVE),
                 name="session_one_active_per_child_adventure",
             ),
             models.UniqueConstraint(
@@ -150,19 +174,26 @@ class AdventureAction(models.Model):
     step_id = models.CharField(max_length=100)
     action_type = models.CharField(max_length=32)
     normalized_answer = models.CharField(
-        max_length=200, blank=True,
+        max_length=200,
+        blank=True,
         help_text="The structured answer (an option id, a number, an order), never free text.",
     )
     correctness = models.CharField(max_length=16, choices=Correctness.choices)
     hint_level = models.PositiveSmallIntegerField(default=0)
     attempt_number = models.PositiveIntegerField()
     next_step_id = models.CharField(
-        max_length=100, blank=True, help_text="Where this attempt moved the session; empty if it stayed."
+        max_length=100,
+        blank=True,
+        help_text="Where this attempt moved the session; empty if it stayed.",
     )
     duration_ms = models.PositiveIntegerField(null=True, blank=True)
     request_id = models.UUIDField(
-        null=True, blank=True,
-        help_text="Client-generated id of the submission (ADR-015's requestId); replays return the stored outcome.",
+        null=True,
+        blank=True,
+        help_text=(
+            "Client-generated id of the submission (ADR-015's requestId); "
+            "replays return the stored outcome."
+        ),
     )
     created_at = models.DateTimeField()
 
@@ -170,13 +201,16 @@ class AdventureAction(models.Model):
         ordering = ["session", "created_at", "attempt_number"]
         constraints = [
             models.UniqueConstraint(
-                fields=["session", "request_id"], condition=Q(request_id__isnull=False),
+                fields=["session", "request_id"],
+                condition=Q(request_id__isnull=False),
                 name="action_request_once",
             ),
             models.UniqueConstraint(
                 fields=["session", "step_id", "attempt_number"], name="action_unique_attempt"
             ),
-            models.CheckConstraint(condition=Q(attempt_number__gte=1), name="action_attempt_from_one"),
+            models.CheckConstraint(
+                condition=Q(attempt_number__gte=1), name="action_attempt_from_one"
+            ),
             models.CheckConstraint(
                 condition=Q(hint_level__lte=MAX_HINT_LEVEL), name="action_hint_level_on_ladder"
             ),
@@ -220,7 +254,9 @@ class CoopSession(models.Model):
 class CoopParticipant(models.Model):
     """One child in a co-op session (Amplify's `participantChildProfileIds`, as rows)."""
 
-    coop_session = models.ForeignKey(CoopSession, on_delete=models.CASCADE, related_name="participants")
+    coop_session = models.ForeignKey(
+        CoopSession, on_delete=models.CASCADE, related_name="participants"
+    )
     child = models.ForeignKey("users.ChildProfile", on_delete=models.CASCADE, related_name="+")
 
     class Meta:
@@ -350,7 +386,9 @@ class ChallengeAttempt(ChildOwnedModel):
             ),
         ]
         indexes = [
-            models.Index(fields=["child", "skill_id", "issued_at"], name="game_sessions_attempt_skill")
+            models.Index(
+                fields=["child", "skill_id", "issued_at"], name="game_sessions_attempt_skill"
+            )
         ]
 
     def __str__(self) -> str:

@@ -77,7 +77,11 @@ function base(entity: PlacedEntity, role: SceneEntityRole): Omit<SceneEntity, 'i
 }
 
 function npc(entity: NpcPlacement): SceneEntity {
-  return { ...base(entity, 'npc'), interactionId: entity.interactionId || null, npcId: entity.npcId };
+  return {
+    ...base(entity, 'npc'),
+    interactionId: entity.interactionId || null,
+    npcId: entity.npcId,
+  };
 }
 
 function object(entity: ObjectPlacement): SceneEntity {

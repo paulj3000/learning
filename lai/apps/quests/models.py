@@ -30,8 +30,12 @@ class QuestProgress(ChildOwnedModel):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["child", "quest"], name="quest_progress_once_per_child"),
-            models.CheckConstraint(condition=Q(status__in=QuestStatus.values), name="quest_status_valid"),
+            models.UniqueConstraint(
+                fields=["child", "quest"], name="quest_progress_once_per_child"
+            ),
+            models.CheckConstraint(
+                condition=Q(status__in=QuestStatus.values), name="quest_status_valid"
+            ),
             models.CheckConstraint(
                 condition=(Q(status=QuestStatus.COMPLETED) & Q(completed_at__isnull=False))
                 | (Q(status=QuestStatus.ACTIVE) & Q(completed_at__isnull=True)),

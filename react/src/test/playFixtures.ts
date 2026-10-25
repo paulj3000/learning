@@ -53,7 +53,10 @@ export function questJson(overrides: Record<string, unknown> = {}) {
   };
 }
 
-export function bootstrapJson(overrides: Record<string, unknown> = {}, chest: Record<string, unknown> = {}) {
+export function bootstrapJson(
+  overrides: Record<string, unknown> = {},
+  chest: Record<string, unknown> = {},
+) {
   return {
     region: {
       regionId: 'treasure-rush-cove',

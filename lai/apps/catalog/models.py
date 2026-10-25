@@ -120,11 +120,19 @@ class Adventure(ImportedContent, CatalogFields):
     title = models.CharField(max_length=200)
     version = models.PositiveIntegerField()
     world = models.ForeignKey(
-        World, on_delete=models.PROTECT, related_name="adventures", null=True, blank=True,
+        World,
+        on_delete=models.PROTECT,
+        related_name="adventures",
+        null=True,
+        blank=True,
         help_text="The world whose content pack lists this adventure.",
     )
     location = models.ForeignKey(
-        Location, on_delete=models.PROTECT, related_name="adventures", null=True, blank=True,
+        Location,
+        on_delete=models.PROTECT,
+        related_name="adventures",
+        null=True,
+        blank=True,
         help_text="Empty for a story-only pseudo-location, which has no Location record.",
     )
     location_slug = models.SlugField(
@@ -166,13 +174,19 @@ class Quest(ImportedContent, CatalogFields):
     title = models.CharField(max_length=200)
     summary = models.TextField(blank=True)
     world = models.ForeignKey(
-        World, on_delete=models.PROTECT, related_name="quests", null=True, blank=True,
+        World,
+        on_delete=models.PROTECT,
+        related_name="quests",
+        null=True,
+        blank=True,
         help_text="The world whose content pack lists this quest.",
     )
     giver_npc_id = models.CharField(max_length=SLUG_LENGTH, blank=True)
     age_bands = ArrayField(models.CharField(max_length=16, choices=AgeBand.choices))
     adventures = models.ManyToManyField(
-        Adventure, related_name="quests", blank=True,
+        Adventure,
+        related_name="quests",
+        blank=True,
         help_text="The adventures this quest's SOLVE objectives name, derived on import.",
     )
 
@@ -187,7 +201,8 @@ class ContentAsset(ImportedContent):
     """The catalog identity of one shared asset (see the module docstring for its boundary)."""
 
     asset_id = models.SlugField(
-        max_length=SLUG_LENGTH, unique=True,
+        max_length=SLUG_LENGTH,
+        unique=True,
         help_text="The bundled manifest id; also the Amplify Asset.slug namespace (ADR-030).",
     )
     kind = models.CharField(max_length=32)
@@ -218,7 +233,9 @@ class LocationAsset(models.Model):
     class Meta:
         ordering = ["location", "position"]
         constraints = [
-            models.UniqueConstraint(fields=["location", "asset"], name="catalog_location_asset_unique"),
+            models.UniqueConstraint(
+                fields=["location", "asset"], name="catalog_location_asset_unique"
+            ),
         ]
 
     def __str__(self) -> str:

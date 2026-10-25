@@ -31,7 +31,8 @@ vi.mock('../../../../../api/play/playApi', async (importOriginal) => ({
 }));
 
 const REGION = 'treasure-rush-cove';
-const bootstrap = (overrides = {}, chest = {}) => read(bootstrapJson(overrides, chest), parse.regionBootstrap);
+const bootstrap = (overrides = {}, chest = {}) =>
+  read(bootstrapJson(overrides, chest), parse.regionBootstrap);
 
 function fakeApi(overrides: Partial<PlayApi> = {}): PlayApi {
   return {
@@ -39,7 +40,10 @@ function fakeApi(overrides: Partial<PlayApi> = {}): PlayApi {
     startSession: vi.fn(async () => ({ value: read(sessionJson(), parse.session), created: true })),
     getSession: vi.fn(),
     changeSession: vi.fn(async (_id, action) =>
-      read(sessionJson(action === 'complete' ? { status: 'COMPLETED', completedAt: 'x' } : {}), parse.session),
+      read(
+        sessionJson(action === 'complete' ? { status: 'COMPLETED', completedAt: 'x' } : {}),
+        parse.session,
+      ),
     ),
     acceptQuest: vi.fn(),
     requestChestChallenge: vi.fn(),
@@ -57,11 +61,19 @@ function fakeScene(open = false): RegionPlaySceneApi & { setChestOpen: ReturnTyp
   };
 }
 
-const config = buildRegionManifest(toRegionSceneModel(bootstrap()), { worldSlug: 'learning-adventure-island' }).manifest
-  .extensions[0].config;
+const config = buildRegionManifest(toRegionSceneModel(bootstrap()), {
+  worldSlug: 'learning-adventure-island',
+}).manifest.extensions[0].config;
 
 function interaction(id: string): WorldInteraction {
-  return { id, type: 'OBJECT', trigger: 'TAP', title: 't', targetId: 'x', action: { kind: 'SHOW_MESSAGE', message: 'm' } };
+  return {
+    id,
+    type: 'OBJECT',
+    trigger: 'TAP',
+    title: 't',
+    targetId: 'x',
+    action: { kind: 'SHOW_MESSAGE', message: 'm' },
+  };
 }
 
 function props(overrides: Partial<LocationCompanionProps> = {}): LocationCompanionProps {
@@ -133,10 +145,16 @@ describe('RegionPlayCompanion', () => {
     const onCloseInteraction = vi.fn();
     render(
       <RegionPlayCompanion
-        {...props({ sceneApi: scene, onCloseInteraction, claimedInteraction: interaction(`${REGION}:chest:cove-chest`) })}
+        {...props({
+          sceneApi: scene,
+          onCloseInteraction,
+          claimedInteraction: interaction(`${REGION}:chest:cove-chest`),
+        })}
       />,
     );
-    expect(await screen.findByText('This chest is locked with a number puzzle.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('This chest is locked with a number puzzle.'),
+    ).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveAttribute('data-region-play-event', 'chest');
     expect(api.requestChestChallenge).not.toHaveBeenCalled();
     expect(scene.setChestOpen).not.toHaveBeenCalled();
@@ -145,14 +163,25 @@ describe('RegionPlayCompanion', () => {
   });
 
   it('turns Pip into a quest offer event', async () => {
-    apis.set(CHILD_A, fakeApi({ getRegion: vi.fn(async () => bootstrap({ quests: [questJson()] })) }));
-    render(<RegionPlayCompanion {...props({ claimedInteraction: interaction(`${REGION}:talk:cove-pip`) })} />);
+    apis.set(
+      CHILD_A,
+      fakeApi({ getRegion: vi.fn(async () => bootstrap({ quests: [questJson()] })) }),
+    );
+    render(
+      <RegionPlayCompanion
+        {...props({ claimedInteraction: interaction(`${REGION}:talk:cove-pip`) })}
+      />,
+    );
     expect(await screen.findByText('Pirate Pip has a quest for you.')).toBeInTheDocument();
   });
 
   it('says an open chest is open', async () => {
     apis.set(CHILD_A, fakeApi({ getRegion: vi.fn(async () => bootstrap({}, { isOpen: true })) }));
-    render(<RegionPlayCompanion {...props({ claimedInteraction: interaction(`${REGION}:chest:cove-chest`) })} />);
+    render(
+      <RegionPlayCompanion
+        {...props({ claimedInteraction: interaction(`${REGION}:chest:cove-chest`) })}
+      />,
+    );
     expect(await screen.findByText('This chest is already open.')).toBeInTheDocument();
   });
 
@@ -162,7 +191,13 @@ describe('RegionPlayCompanion', () => {
     const view = render(<RegionPlayCompanion {...props()} />);
     await waitFor(() => expect(api.startSession).toHaveBeenCalled());
     view.rerender(<RegionPlayCompanion {...props({ limitReached: true })} />);
-    await waitFor(() => expect(api.changeSession).toHaveBeenCalledWith(expect.any(String), 'complete', expect.any(AbortSignal)));
+    await waitFor(() =>
+      expect(api.changeSession).toHaveBeenCalledWith(
+        expect.any(String),
+        'complete',
+        expect.any(AbortSignal),
+      ),
+    );
   });
 
   it('reads the new child’s region and session when the child changes', async () => {
@@ -199,8 +234,17 @@ describe('region-play registration', () => {
 
   it('claims only the interactions its binding names', () => {
     const context = { ageBand: 'SPROUT' as const, config };
-    expect(regionPlayViewExtension.claimsInteraction(interaction(`${REGION}:chest:cove-chest`), context)).toBe(true);
-    expect(regionPlayViewExtension.claimsInteraction(interaction('pirate-builder-bay:toolbox'), context)).toBe(false);
-    expect(regionPlayViewExtension.claimsInteraction(interaction(`${REGION}:chest:cove-chest`), { ...context, config: {} })).toBe(false);
+    expect(
+      regionPlayViewExtension.claimsInteraction(interaction(`${REGION}:chest:cove-chest`), context),
+    ).toBe(true);
+    expect(
+      regionPlayViewExtension.claimsInteraction(interaction('pirate-builder-bay:toolbox'), context),
+    ).toBe(false);
+    expect(
+      regionPlayViewExtension.claimsInteraction(interaction(`${REGION}:chest:cove-chest`), {
+        ...context,
+        config: {},
+      }),
+    ).toBe(false);
   });
 });

@@ -73,7 +73,6 @@ export interface ChildProfileItem {
   ownerSub: string | null;
 }
 
-
 function getCallerSub(identity: AppSyncResolverEvent<unknown>['identity']): string {
   const cognitoIdentity = identity as AppSyncIdentityCognito | null | undefined;
   if (!cognitoIdentity?.sub) {

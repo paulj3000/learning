@@ -115,7 +115,9 @@ export const regionPlaySceneExtension: WorldExtension = {
           current.dispose();
           root.add(model);
           mixers.add(mixer);
-          current = modelChest(root, model, mixer, action, clip.duration, () => mixers.delete(mixer));
+          current = modelChest(root, model, mixer, action, clip.duration, () =>
+            mixers.delete(mixer),
+          );
           current.show(open, true);
           chests.set(chest.entityId, current);
         })

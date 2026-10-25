@@ -127,19 +127,36 @@ def content_catalog(db, tmp_path):
     from apps.catalog.tests.helpers import base_collections, write_export
 
     collections = base_collections()
-    collections["adventures.json"]["adventures"].append({
-        "slug": "stack-planks", "title": "Stack the Planks", "version": 2, "locationSlug": "bay",
-        "ageBands": ["PATHFINDER"], "entryStepId": "stack",
-        "steps": [
-            {"id": "stack", "type": "ORDERING", "objectiveIds": ["order-3"],
-             "presentation": {"kind": "complete", "text": "Stack"},
-             "transitions": [{"when": "always", "nextStepId": "complete"}], "fallback": {"text": "Stack"}},
-        ],
-    })
+    collections["adventures.json"]["adventures"].append(
+        {
+            "slug": "stack-planks",
+            "title": "Stack the Planks",
+            "version": 2,
+            "locationSlug": "bay",
+            "ageBands": ["PATHFINDER"],
+            "entryStepId": "stack",
+            "steps": [
+                {
+                    "id": "stack",
+                    "type": "ORDERING",
+                    "objectiveIds": ["order-3"],
+                    "presentation": {"kind": "complete", "text": "Stack"},
+                    "transitions": [{"when": "always", "nextStepId": "complete"}],
+                    "fallback": {"text": "Stack"},
+                },
+            ],
+        }
+    )
     collections["islands.json"]["islands"][0]["pack"]["adventureSlugs"].append("stack-planks")
-    collections["quests.json"]["quests"][0]["stages"].append({
-        "id": "s2", "title": "Stack", "objectives": [
-            {"id": "o2", "label": "Stack", "kind": "SOLVE", "adventureSlug": "stack-planks"}]})
+    collections["quests.json"]["quests"][0]["stages"].append(
+        {
+            "id": "s2",
+            "title": "Stack",
+            "objectives": [
+                {"id": "o2", "label": "Stack", "kind": "SOLVE", "adventureSlug": "stack-planks"}
+            ],
+        }
+    )
     collections["quests.json"]["quests"][0]["stages"][0]["nextStageId"] = "s2"
     import_content(write_export(tmp_path / "catalog-v1", collections))
     return SimpleNamespace(

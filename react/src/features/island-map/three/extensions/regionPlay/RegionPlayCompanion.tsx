@@ -69,10 +69,20 @@ export function RegionPlayInteractionView({ event, onClose }: RegionPlayInteract
 }
 
 export function RegionPlayCompanion(props: LocationCompanionProps) {
-  const { childId, regionId, config, sceneApi, claimedInteraction, limitReached, onCloseInteraction } = props;
+  const {
+    childId,
+    regionId,
+    config,
+    sceneApi,
+    claimedInteraction,
+    limitReached,
+    onCloseInteraction,
+  } = props;
   const auth = useAuth();
   const parsed = useMemo(() => tryParseRegionPlayConfig(config), [config]);
-  const controls = useRegionPlay(childId, regionId, { onUnauthenticated: () => void auth.refresh() });
+  const controls = useRegionPlay(childId, regionId, {
+    onUnauthenticated: () => void auth.refresh(),
+  });
   const { state, startSession, changeSession } = controls;
 
   // Enter: start or resume once per child and region, after the region loads.
@@ -100,14 +110,22 @@ export function RegionPlayCompanion(props: LocationCompanionProps) {
       const open = api.isChestOpen(chest.entityId);
       if (open !== undefined) drawn.set(chest.entityId, open);
     }
-    for (const change of chestStateChanges(drawn, chests.filter((c) => drawn.has(c.entityId)))) {
+    for (const change of chestStateChanges(
+      drawn,
+      chests.filter((c) => drawn.has(c.entityId)),
+    )) {
       api.setChestOpen(change.entityId, change.isOpen);
     }
   }, [chests, sceneApi]);
 
   const event =
     parsed && claimedInteraction && state.bootstrap
-      ? resolveRegionPlayInteraction(parsed, state.bootstrap, claimedInteraction.id, state.session !== null)
+      ? resolveRegionPlayInteraction(
+          parsed,
+          state.bootstrap,
+          claimedInteraction.id,
+          state.session !== null,
+        )
       : null;
 
   return event ? (

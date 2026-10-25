@@ -15,7 +15,13 @@ describe('toRegionSceneModel', () => {
       ['cove-chest', 'chest'],
     ]);
     expect(findEntity(scene, 'cove-chest')?.position).toEqual({ x: 0, z: -6, elevation: 0 });
-    expect(scene.spawn).toEqual({ checkpointId: 'cove-landing', label: 'the landing', x: 0, z: 10, yaw: 0 });
+    expect(scene.spawn).toEqual({
+      checkpointId: 'cove-landing',
+      label: 'the landing',
+      x: 0,
+      z: 10,
+      yaw: 0,
+    });
     expect(scene.regionId).toBe('treasure-rush-cove');
   });
 
@@ -27,24 +33,49 @@ describe('toRegionSceneModel', () => {
   });
 
   it('carries the chest state the server reported', () => {
-    expect(findEntity(model(), 'cove-chest')).toMatchObject({ isOpen: false, interactive: true, openClip: 'Open' });
-    expect(findEntity(model({}, { isOpen: true }), 'cove-chest')).toMatchObject({ isOpen: true, interactive: false });
-    expect(findEntity(model({}, { challengeAvailable: false }), 'cove-chest')?.interactive).toBe(false);
+    expect(findEntity(model(), 'cove-chest')).toMatchObject({
+      isOpen: false,
+      interactive: true,
+      openClip: 'Open',
+    });
+    expect(findEntity(model({}, { isOpen: true }), 'cove-chest')).toMatchObject({
+      isOpen: true,
+      interactive: false,
+    });
+    expect(findEntity(model({}, { challengeAvailable: false }), 'cove-chest')?.interactive).toBe(
+      false,
+    );
   });
 
   it('collects this location’s world change keys only', () => {
     const scene = model({
       worldChanges: [
-        { locationSlug: 'pirate-builder-bay', changeType: 'UNLOCK', changeKey: 'OPENED', payload: {}, createdAt: 't' },
-        { locationSlug: 'elsewhere', changeType: 'UNLOCK', changeKey: 'OTHER', payload: {}, createdAt: 't' },
+        {
+          locationSlug: 'pirate-builder-bay',
+          changeType: 'UNLOCK',
+          changeKey: 'OPENED',
+          payload: {},
+          createdAt: 't',
+        },
+        {
+          locationSlug: 'elsewhere',
+          changeType: 'UNLOCK',
+          changeKey: 'OTHER',
+          payload: {},
+          createdAt: 't',
+        },
       ],
     });
     expect([...scene.worldChangeKeys]).toEqual(['OPENED']);
   });
 
   it('groups quests by the NPC who gives them', () => {
-    const scene = model({ quests: [questJson(), questJson({ questId: 'no-giver', giverNpcId: null })] });
-    expect(scene.questsByGiver.get('pirate-pip')?.map((q) => q.questId)).toEqual(['treasure-rush-cove']);
+    const scene = model({
+      quests: [questJson(), questJson({ questId: 'no-giver', giverNpcId: null })],
+    });
+    expect(scene.questsByGiver.get('pirate-pip')?.map((q) => q.questId)).toEqual([
+      'treasure-rush-cove',
+    ]);
     expect(scene.questsByGiver.size).toBe(1);
   });
 

@@ -99,14 +99,24 @@ class SkillEvidence(ChildOwnedModel):
     CHILD_LINKS = ("adventure_session", "story_progress", "challenge_attempt")
 
     adventure_session = models.ForeignKey(
-        "game_sessions.AdventureSession", on_delete=models.CASCADE, null=True, blank=True,
+        "game_sessions.AdventureSession",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name="+",
     )
     story_progress = models.ForeignKey(
-        "progression.StoryProgress", on_delete=models.CASCADE, null=True, blank=True, related_name="+"
+        "progression.StoryProgress",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="+",
     )
     challenge_attempt = models.OneToOneField(
-        "game_sessions.ChallengeAttempt", on_delete=models.CASCADE, null=True, blank=True,
+        "game_sessions.ChallengeAttempt",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name="evidence",
     )
     learning_objective_code = models.CharField(max_length=100)
@@ -120,18 +130,28 @@ class SkillEvidence(ChildOwnedModel):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                condition=Q(adventure_session__isnull=False, story_progress__isnull=True,
-                            challenge_attempt__isnull=True)
-                | Q(adventure_session__isnull=True, story_progress__isnull=False,
-                    challenge_attempt__isnull=True)
-                | Q(adventure_session__isnull=True, story_progress__isnull=True,
-                    challenge_attempt__isnull=False),
+                condition=Q(
+                    adventure_session__isnull=False,
+                    story_progress__isnull=True,
+                    challenge_attempt__isnull=True,
+                )
+                | Q(
+                    adventure_session__isnull=True,
+                    story_progress__isnull=False,
+                    challenge_attempt__isnull=True,
+                )
+                | Q(
+                    adventure_session__isnull=True,
+                    story_progress__isnull=True,
+                    challenge_attempt__isnull=False,
+                ),
                 name="evidence_exactly_one_source",
             ),
         ]
         indexes = [
             models.Index(
-                fields=["child", "learning_objective_code", "observed_at"], name="evidence_child_skill"
+                fields=["child", "learning_objective_code", "observed_at"],
+                name="evidence_child_skill",
             ),
         ]
 
@@ -153,7 +173,10 @@ class SkillProgress(ChildOwnedModel):
             ),
             # Every success is an exposure, and a streak is made of independent successes.
             models.CheckConstraint(
-                condition=Q(exposure_count__gte=F("independent_success_count") + F("supported_success_count")),
+                condition=Q(
+                    exposure_count__gte=F("independent_success_count")
+                    + F("supported_success_count")
+                ),
                 name="skill_progress_successes_within_exposures",
             ),
             models.CheckConstraint(
@@ -167,7 +190,9 @@ class StoryArtifact(ChildOwnedModel):
     """A story the child made. Parent-viewable and parent-deletable (LAI-0607)."""
 
     adventure_session = models.ForeignKey(
-        "game_sessions.AdventureSession", on_delete=models.CASCADE, related_name="+",
+        "game_sessions.AdventureSession",
+        on_delete=models.CASCADE,
+        related_name="+",
         help_text="The session it was made in; the adventure is the session's.",
     )
     title = models.CharField(max_length=200)

@@ -38,14 +38,33 @@ def test_one_world_state_per_child(families):
 
 def test_story_and_npc_progress_are_unique_per_child(families):
     now = timezone.now()
-    StoryProgress.objects.create(child=families.a1, story_slug="ember", current_chapter_id="c1",
-                                 started_at=now, last_played_at=now)
-    NpcRelationship.objects.create(child=families.a1, npc_id="pirate-pip", relationship_level="FRIEND",
-                                   first_met_at=now, last_interacted_at=now)
+    StoryProgress.objects.create(
+        child=families.a1,
+        story_slug="ember",
+        current_chapter_id="c1",
+        started_at=now,
+        last_played_at=now,
+    )
+    NpcRelationship.objects.create(
+        child=families.a1,
+        npc_id="pirate-pip",
+        relationship_level="FRIEND",
+        first_met_at=now,
+        last_interacted_at=now,
+    )
     with pytest.raises(IntegrityError), transaction.atomic():
-        StoryProgress.objects.create(child=families.a1, story_slug="ember", current_chapter_id="c2",
-                                     started_at=now, last_played_at=now)
+        StoryProgress.objects.create(
+            child=families.a1,
+            story_slug="ember",
+            current_chapter_id="c2",
+            started_at=now,
+            last_played_at=now,
+        )
     with pytest.raises(IntegrityError), transaction.atomic():
-        NpcRelationship.objects.create(child=families.a1, npc_id="pirate-pip",
-                                       relationship_level="BEST_FRIEND", first_met_at=now,
-                                       last_interacted_at=now)
+        NpcRelationship.objects.create(
+            child=families.a1,
+            npc_id="pirate-pip",
+            relationship_level="BEST_FRIEND",
+            first_met_at=now,
+            last_interacted_at=now,
+        )

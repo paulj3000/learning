@@ -28,8 +28,6 @@ export interface RegionPlayConfig {
   interactions: RegionPlayInteractionConfig[];
 }
 
-
-
 /**
  * The `region-play` binding's config, parsed rather than trusted, as every
  * extension reads its own (`sanctuaryArtConfig.ts`). `buildRegionManifest`
@@ -53,7 +51,10 @@ function num(value: JsonValue | undefined): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
-function list<T>(value: JsonValue | undefined, read: (item: JsonRecord) => T | undefined): T[] | undefined {
+function list<T>(
+  value: JsonValue | undefined,
+  read: (item: JsonRecord) => T | undefined,
+): T[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const out: T[] = [];
   for (const item of value) {
@@ -72,7 +73,13 @@ function chest(item: JsonRecord): RegionPlayChestConfig | undefined {
   const height = num(placeholder?.height);
   const depth = num(placeholder?.depth);
   const scale = num(item.scale);
-  if (!entityId || width === undefined || height === undefined || depth === undefined || scale === undefined) {
+  if (
+    !entityId ||
+    width === undefined ||
+    height === undefined ||
+    depth === undefined ||
+    scale === undefined
+  ) {
     return undefined;
   }
   if (typeof item.isOpen !== 'boolean') return undefined;

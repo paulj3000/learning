@@ -3,9 +3,9 @@
 import pytest
 from django.db import IntegrityError, transaction
 
+from apps.catalog.models import Quest as QuestDefinition
 from apps.progression.models import WorldChange
 from apps.progression.services import record_world_change
-from apps.catalog.models import Quest as QuestDefinition
 from apps.quests.models import QuestProgress, QuestStatus
 from apps.quests.services import QuestUnavailable, refresh_quest, start_quest
 
@@ -46,7 +46,8 @@ def test_a_quest_for_other_age_bands_cannot_start(treasure):
 
 def test_prerequisites_are_checked_on_the_server(treasure):
     treasure.quest.source = {
-        **treasure.quest.source, "prerequisites": [{"type": "ITEM_OWNED", "itemId": "spiral-shell"}]
+        **treasure.quest.source,
+        "prerequisites": [{"type": "ITEM_OWNED", "itemId": "spiral-shell"}],
     }
     treasure.quest.save()
     with pytest.raises(QuestUnavailable):

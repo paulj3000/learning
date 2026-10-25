@@ -81,20 +81,14 @@ def open_session(child, region: WorldRegion) -> AdventureSession | None:
 
 
 def world_change_keys_by_location(child) -> set[tuple[str, str]]:
-    return set(
-        WorldChange.objects.filter(child=child).values_list("location_slug", "change_key")
-    )
+    return set(WorldChange.objects.filter(child=child).values_list("location_slug", "change_key"))
 
 
 def region_bootstrap(child, region: WorldRegion) -> dict:
     changes = world_change_keys_by_location(child)
     location = region.location.slug
     placements = region.placements.select_related("npc").order_by("entity_id")
-    npcs = [
-        p
-        for p in placements
-        if p.kind == PlacementKind.NPC and p.npc and p.npc.active
-    ]
+    npcs = [p for p in placements if p.kind == PlacementKind.NPC and p.npc and p.npc.active]
     objects = [p for p in placements if p.kind != PlacementKind.NPC]
     chests = []
     for chest in region.chests.select_related(
@@ -105,8 +99,7 @@ def region_bootstrap(child, region: WorldRegion) -> dict:
             {
                 "chest": chest,
                 "is_open": (location, chest.world_change_key) in changes,
-                "challenge_available": spec is not None
-                and spec.status == ContentStatus.PUBLISHED,
+                "challenge_available": spec is not None and spec.status == ContentStatus.PUBLISHED,
             }
         )
     offered = region.offered_quests.filter(active=True).order_by("slug")

@@ -13,9 +13,10 @@ from .views import AnswersView, HintsView
 CHILD = "children/<uuid:child_id>/"
 
 urlpatterns = [
-    path(f"{CHILD}sessions/<uuid:session_id>/answers/", AnswersView.as_view(), name="session-answers"),
+    path(
+        f"{CHILD}sessions/<uuid:session_id>/answers/", AnswersView.as_view(), name="session-answers"
+    ),
     path(f"{CHILD}sessions/<uuid:session_id>/hints/", HintsView.as_view(), name="session-hints"),
-
     path(f"{CHILD}regions/<slug:region_id>/", play_views.RegionView.as_view(), name="play-region"),
     path(
         f"{CHILD}regions/<slug:region_id>/session/",

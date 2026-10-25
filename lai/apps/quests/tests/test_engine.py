@@ -8,8 +8,12 @@ SHELL = {"id": "shell", "kind": "FIND", "itemId": "spiral-shell", "optional": Tr
 TALK = {"id": "talk", "kind": "TALK_TO", "npcId": "pirate-pip", "memoryFlag": "met"}
 
 STAGES = [
-    {"id": "one", "objectives": [CHEST, SHELL], "nextStageId": "two",
-     "worldChanges": [{"locationSlug": "bay", "changeType": "CREATE", "changeKey": "FLAG_UP"}]},
+    {
+        "id": "one",
+        "objectives": [CHEST, SHELL],
+        "nextStageId": "two",
+        "worldChanges": [{"locationSlug": "bay", "changeType": "CREATE", "changeKey": "FLAG_UP"}],
+    },
     {"id": "two", "objectives": [COIN]},
 ]
 COMPLETION = {
@@ -19,7 +23,9 @@ COMPLETION = {
 
 
 def ctx(changes=(), items=(), adventures=(), quests=()):
-    return QuestContext(frozenset(changes), frozenset(items), frozenset(adventures), frozenset(quests))
+    return QuestContext(
+        frozenset(changes), frozenset(items), frozenset(adventures), frozenset(quests)
+    )
 
 
 def test_nothing_done_changes_nothing():
@@ -38,7 +44,12 @@ def test_one_stage_completes_and_owes_its_world_changes():
 
 def test_optional_objectives_are_credited_but_never_gate():
     with_shell = ctx(changes={"CHEST_OPENED"}, items={"spiral-shell"})
-    assert "shell" in advance_quest(STAGES, COMPLETION, start_state("one"), with_shell).state.completed_objective_ids
+    assert (
+        "shell"
+        in advance_quest(
+            STAGES, COMPLETION, start_state("one"), with_shell
+        ).state.completed_objective_ids
+    )
     without = advance_quest(STAGES, COMPLETION, start_state("one"), ctx(changes={"CHEST_OPENED"}))
     assert without.state.current_stage_id == "two"
 
@@ -60,9 +71,17 @@ def test_a_completed_quest_never_moves():
 
 def test_the_first_matching_branch_wins():
     stages = [
-        {"id": "a", "objectives": [CHEST], "nextStageId": "plain",
-         "branches": [{"conditions": [{"type": "ITEM_OWNED", "itemId": "spiral-shell"}],
-                       "nextStageId": "special"}]},
+        {
+            "id": "a",
+            "objectives": [CHEST],
+            "nextStageId": "plain",
+            "branches": [
+                {
+                    "conditions": [{"type": "ITEM_OWNED", "itemId": "spiral-shell"}],
+                    "nextStageId": "special",
+                }
+            ],
+        },
         {"id": "plain", "objectives": [TALK]},
         {"id": "special", "objectives": [TALK]},
     ]
@@ -93,4 +112,7 @@ def test_collect_counts_distinct_owned_items():
     collect = {"id": "c", "kind": "COLLECT", "itemIds": ["x", "y", "z"], "requiredCount": 2}
     stages = [{"id": "a", "objectives": [collect]}]
     assert advance_quest(stages, {}, start_state("a"), ctx(items={"x"})).state.status == "ACTIVE"
-    assert advance_quest(stages, {}, start_state("a"), ctx(items={"x", "z"})).state.status == "COMPLETED"
+    assert (
+        advance_quest(stages, {}, start_state("a"), ctx(items={"x", "z"})).state.status
+        == "COMPLETED"
+    )

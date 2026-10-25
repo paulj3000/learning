@@ -42,7 +42,11 @@ export function usePlayerProgress(childId: string, options: UsePlayerProgressOpt
     const controller = new AbortController();
     controllerRef.current = controller;
     const forChild = childRef.current;
-    setState((current) => ({ ...current, status: current.progress ? current.status : 'loading', error: null }));
+    setState((current) => ({
+      ...current,
+      status: current.progress ? current.status : 'loading',
+      error: null,
+    }));
     try {
       const progress = await api.getProgress(controller.signal);
       if (forChild !== childRef.current) return;

@@ -9,7 +9,9 @@ import { fetchAuthSession } from 'aws-amplify/auth';
  * any storage of our own. `forceRefresh` is used once after a 401.
  * Returns null when nobody is signed in.
  */
-export async function getAccessToken(options: { forceRefresh?: boolean } = {}): Promise<string | null> {
+export async function getAccessToken(
+  options: { forceRefresh?: boolean } = {},
+): Promise<string | null> {
   const session = await fetchAuthSession({ forceRefresh: options.forceRefresh ?? false });
   return session.tokens?.accessToken?.toString() ?? null;
 }

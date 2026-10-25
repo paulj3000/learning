@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
 from apps.catalog.importer import ContentImportError, import_content
+from apps.catalog.models import Quest as QuestDefinition
 from apps.catalog.tests.helpers import base_collections, write_export
 from apps.education.models import ChallengeSpec
 from apps.regions.models import (
@@ -20,7 +21,6 @@ from apps.regions.treasure_rush_seed import (
     SeedPrerequisiteMissing,
     seed_treasure_rush,
 )
-from apps.catalog.models import Quest as QuestDefinition
 from apps.users.models import AgeBand
 
 pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
@@ -92,7 +92,9 @@ def test_entity_ids_are_unique_across_placements_and_chests(seeded):
 
 def test_an_npc_placement_needs_an_npc_and_props_must_not_have_one(seeded):
     with pytest.raises(ValidationError) as raised:
-        WorldObjectPlacement(region=seeded, entity_id="x", kind=PlacementKind.NPC, x=0, z=0).full_clean()
+        WorldObjectPlacement(
+            region=seeded, entity_id="x", kind=PlacementKind.NPC, x=0, z=0
+        ).full_clean()
     assert "npc" in raised.value.message_dict
 
 

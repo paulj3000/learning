@@ -67,7 +67,10 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     try {
       return await doFetch(`${options.baseUrl}${API_PREFIX}${path}`, init);
     } catch (error) {
-      if (request.signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+      if (
+        request.signal?.aborted ||
+        (error instanceof DOMException && error.name === 'AbortError')
+      ) {
         throw new ApiError('aborted');
       }
       throw new ApiError('network');
@@ -115,12 +118,10 @@ function readDetails(value: unknown): Record<string, readonly ValidationDetail[]
   const details: Record<string, ValidationDetail[]> = {};
   for (const [field, entries] of Object.entries(value)) {
     if (!Array.isArray(entries)) continue;
-    details[field] = entries
-      .filter(isRecord)
-      .map((entry) => ({
-        message: typeof entry.message === 'string' ? entry.message : '',
-        code: typeof entry.code === 'string' ? entry.code : 'invalid',
-      }));
+    details[field] = entries.filter(isRecord).map((entry) => ({
+      message: typeof entry.message === 'string' ? entry.message : '',
+      code: typeof entry.code === 'string' ? entry.code : 'invalid',
+    }));
   }
   return details;
 }

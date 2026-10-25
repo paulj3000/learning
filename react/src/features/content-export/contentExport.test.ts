@@ -87,7 +87,9 @@ describe('preservation of the existing content', () => {
   it('adds Treasure Rush content to the export only, never to the app registries', () => {
     expect(QUEST_DEFINITIONS.some((quest) => quest.id === 'treasure-rush-cove')).toBe(false);
     expect(ALL_ITEMS.some((item) => item.id === 'golden-doubloon')).toBe(false);
-    expect(ALL_REWARD_RULES.some((rule) => rule.id === 'reward-treasure-rush-cove-chest')).toBe(false);
+    expect(ALL_REWARD_RULES.some((rule) => rule.id === 'reward-treasure-rush-cove-chest')).toBe(
+      false,
+    );
   });
 
   it('exports the expected number of records', async () => {

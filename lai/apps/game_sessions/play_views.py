@@ -11,8 +11,8 @@ from rest_framework import exceptions
 from rest_framework.response import Response
 
 from apps.education.challenges import InvalidAnswer
-from apps.regions.models import TreasureChest
 from apps.quests.services import QuestUnavailable, start_quest
+from apps.regions.models import TreasureChest
 from apps.users.scoping import ChildScopedAPIView
 
 from . import play as services
@@ -169,13 +169,13 @@ class QuestAcceptView(ChildScopedAPIView):
         except (LookupError, QuestUnavailable) as error:
             raise api_error(error) from None
         [entry] = play_state.quest_entries(self.child, [quest])
-        return Response(
-            QuestEntrySerializer().to_representation(entry), status=_status(created)
-        )
+        return Response(QuestEntrySerializer().to_representation(entry), status=_status(created))
 
 
 class ProgressView(ChildScopedAPIView):
     """GET: the child's sessions, world changes, chests, inventory, quests, and practice."""
 
     def get(self, request, child_id):
-        return Response(ProgressSerializer().to_representation(play_state.child_progress(self.child)))
+        return Response(
+            ProgressSerializer().to_representation(play_state.child_progress(self.child))
+        )

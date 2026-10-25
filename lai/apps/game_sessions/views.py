@@ -105,20 +105,25 @@ class AnswersView(ChildScopedAPIView):
         data = body.validated_data
         try:
             outcome = services.submit_answer(
-                self.child, session_id, step_id=data["stepId"], answer=data["answer"],
+                self.child,
+                session_id,
+                step_id=data["stepId"],
+                answer=data["answer"],
                 request_id=data["requestId"],
             )
         except services.ProgressError as error:
             raise _api_error(error) from None
-        return Response({
-            "correctness": outcome.correctness,
-            "supportLevel": outcome.support_level,
-            "action": outcome.action,
-            "nextStepId": outcome.next_step_id,
-            "attemptNumber": outcome.attempt_number,
-            "replayed": outcome.replayed,
-            "session": session_state(outcome.session),
-        })
+        return Response(
+            {
+                "correctness": outcome.correctness,
+                "supportLevel": outcome.support_level,
+                "action": outcome.action,
+                "nextStepId": outcome.next_step_id,
+                "attemptNumber": outcome.attempt_number,
+                "replayed": outcome.replayed,
+                "session": session_state(outcome.session),
+            }
+        )
 
 
 class HintsView(ChildScopedAPIView):

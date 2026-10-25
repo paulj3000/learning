@@ -83,8 +83,10 @@ def _locked_session(child, session_id) -> AdventureSession:
     """The child's session, row-locked for this transaction; anyone else's is not found."""
     try:
         return (
-            AdventureSession.objects.for_child(child).select_for_update(of=("self",))
-            .select_related("adventure").get(pk=session_id)
+            AdventureSession.objects.for_child(child)
+            .select_for_update(of=("self",))
+            .select_related("adventure")
+            .get(pk=session_id)
         )
     except AdventureSession.DoesNotExist:
         raise ProgressNotFound from None
@@ -100,7 +102,9 @@ def _current_step_record(session: AdventureSession) -> AdventureStep:
     adventure = session.adventure
     if adventure.version != session.template_version:
         raise ContentVersionChanged
-    step = AdventureStep.objects.filter(adventure=adventure, step_id=session.current_step_id).first()
+    step = AdventureStep.objects.filter(
+        adventure=adventure, step_id=session.current_step_id
+    ).first()
     if step is None or step.last_seen_release_id != adventure.last_seen_release_id:
         raise ContentVersionChanged
     return step
@@ -114,8 +118,19 @@ def _ends_adventure(session: AdventureSession, next_step_id: str) -> bool:
     ).exists()
 
 
-def _record_attempt(session, *, step_id, correctness, next_step_id, action_type,
-                    normalized_answer="", hint_level=0, duration_ms=None, request_id=None, at):
+def _record_attempt(
+    session,
+    *,
+    step_id,
+    correctness,
+    next_step_id,
+    action_type,
+    normalized_answer="",
+    hint_level=0,
+    duration_ms=None,
+    request_id=None,
+    at,
+):
     """Records one attempt on a locked ACTIVE session. `next_step_id=None` stays on the step."""
     if session.status != SessionStatus.ACTIVE:
         raise SessionNotActive
@@ -126,10 +141,16 @@ def _record_attempt(session, *, step_id, correctness, next_step_id, action_type,
             raise InvalidTransition
     previous = session.actions.filter(step_id=step_id).order_by("-attempt_number").first()
     action = AdventureAction.objects.create(
-        session=session, step_id=step_id, action_type=action_type,
-        normalized_answer=normalized_answer, correctness=correctness, hint_level=hint_level,
+        session=session,
+        step_id=step_id,
+        action_type=action_type,
+        normalized_answer=normalized_answer,
+        correctness=correctness,
+        hint_level=hint_level,
         attempt_number=(previous.attempt_number + 1) if previous else 1,
-        next_step_id=next_step_id or "", duration_ms=duration_ms, request_id=request_id,
+        next_step_id=next_step_id or "",
+        duration_ms=duration_ms,
+        request_id=request_id,
         created_at=at,
     )
     if next_step_id is not None:
@@ -153,13 +174,17 @@ def _complete(session, at) -> None:
 
 
 @transaction.atomic
-def start_or_resume_session(child, adventure: Adventure, *, now=None) -> tuple[AdventureSession, bool]:
+def start_or_resume_session(
+    child, adventure: Adventure, *, now=None
+) -> tuple[AdventureSession, bool]:
     """The child's ACTIVE session for this adventure, or a new one at its entry step."""
     if not is_playable(adventure):
         raise InvalidTransition
-    existing = AdventureSession.objects.for_child(child).filter(
-        adventure=adventure, status=SessionStatus.ACTIVE
-    ).first()
+    existing = (
+        AdventureSession.objects.for_child(child)
+        .filter(adventure=adventure, status=SessionStatus.ACTIVE)
+        .first()
+    )
     if existing:
         return existing, False
     release = ContentRelease.objects.order_by("-imported_at", "-id").first()
@@ -169,9 +194,14 @@ def start_or_resume_session(child, adventure: Adventure, *, now=None) -> tuple[A
     try:
         with transaction.atomic():
             session = AdventureSession.objects.create(
-                child=child, adventure=adventure, template_version=adventure.version,
-                content_release=release, status=SessionStatus.ACTIVE,
-                current_step_id=adventure.entry_step_id, started_at=at, last_activity_at=at,
+                child=child,
+                adventure=adventure,
+                template_version=adventure.version,
+                content_release=release,
+                status=SessionStatus.ACTIVE,
+                current_step_id=adventure.entry_step_id,
+                started_at=at,
+                last_activity_at=at,
             )
     except IntegrityError:
         # A concurrent start won the one-active-session constraint: resume that one.
@@ -182,14 +212,31 @@ def start_or_resume_session(child, adventure: Adventure, *, now=None) -> tuple[A
 
 
 @transaction.atomic
-def record_step_attempt(child, session_id, *, step_id, correctness, next_step_id, action_type,
-                        normalized_answer="", hint_level=0, duration_ms=None, now=None):
+def record_step_attempt(
+    child,
+    session_id,
+    *,
+    step_id,
+    correctness,
+    next_step_id,
+    action_type,
+    normalized_answer="",
+    hint_level=0,
+    duration_ms=None,
+    now=None,
+):
     """Records an attempt whose outcome server code already decided (`next_step_id=None` stays)."""
     session = _locked_session(child, session_id)
     return _record_attempt(
-        session, step_id=step_id, correctness=correctness, next_step_id=next_step_id,
-        action_type=action_type, normalized_answer=normalized_answer, hint_level=hint_level,
-        duration_ms=duration_ms, at=_now(now),
+        session,
+        step_id=step_id,
+        correctness=correctness,
+        next_step_id=next_step_id,
+        action_type=action_type,
+        normalized_answer=normalized_answer,
+        hint_level=hint_level,
+        duration_ms=duration_ms,
+        at=_now(now),
     )
 
 
@@ -237,15 +284,20 @@ class AnswerOutcome:
 
 def _outcome(action: AdventureAction, session: AdventureSession, replayed: bool) -> AnswerOutcome:
     return AnswerOutcome(
-        correctness=action.correctness, support_level=action.hint_level,
+        correctness=action.correctness,
+        support_level=action.hint_level,
         action="ADVANCE" if action.next_step_id else "RETRY",
-        next_step_id=action.next_step_id or None, attempt_number=action.attempt_number,
-        replayed=replayed, session=session,
+        next_step_id=action.next_step_id or None,
+        attempt_number=action.attempt_number,
+        replayed=replayed,
+        session=session,
     )
 
 
 @transaction.atomic
-def submit_answer(child, session_id, *, step_id: str, answer: Any, request_id, now=None) -> AnswerOutcome:
+def submit_answer(
+    child, session_id, *, step_id: str, answer: Any, request_id, now=None
+) -> AnswerOutcome:
     """Grades one answer and applies the outcome. Safe to retry with the same `request_id`."""
     if request_id is None:
         raise InvalidAnswer  # without it a retry could not be told from a new attempt
@@ -277,9 +329,15 @@ def submit_answer(child, session_id, *, step_id: str, answer: Any, request_id, n
     next_step = decision.get("nextStepId") if decision["action"] == "ADVANCE" else None
     session.hint_levels = {**session.hint_levels, step_id: decision["supportLevel"]}
     action = _record_attempt(
-        session, step_id=step_id, correctness=_CORRECTNESS[decision["correctness"]],
-        next_step_id=next_step, action_type="ANSWER", normalized_answer=answer_text,
-        hint_level=decision["supportLevel"], request_id=request_id, at=at,
+        session,
+        step_id=step_id,
+        correctness=_CORRECTNESS[decision["correctness"]],
+        next_step_id=next_step,
+        action_type="ANSWER",
+        normalized_answer=answer_text,
+        hint_level=decision["supportLevel"],
+        request_id=request_id,
+        at=at,
     )
     if next_step is not None and _ends_adventure(session, next_step):
         _complete(session, at)

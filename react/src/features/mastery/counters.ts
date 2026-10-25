@@ -26,7 +26,9 @@ export function nextSkillProgressCounts(
     exposureCount: base.exposureCount + 1,
     independentSuccessCount: base.independentSuccessCount + (isIndependentSuccess ? 1 : 0),
     supportedSuccessCount: base.supportedSuccessCount + (isSupportedSuccess ? 1 : 0),
-    consecutiveIndependentCorrect: isIndependentSuccess ? base.consecutiveIndependentCorrect + 1 : 0,
+    consecutiveIndependentCorrect: isIndependentSuccess
+      ? base.consecutiveIndependentCorrect + 1
+      : 0,
     lastPracticedAt: now,
   };
 }

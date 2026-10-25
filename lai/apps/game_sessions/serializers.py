@@ -259,7 +259,9 @@ class OutcomeSerializer(serializers.Serializer):
             "feedback": "CORRECT" if outcome.correct else "TRY_AGAIN",
             "canRetry": not outcome.correct,
             "chestOpened": outcome.chest_opened,
-            "newItems": [item for item in self.context.get("items", []) if item["itemId"] in new_items],
+            "newItems": [
+                item for item in self.context.get("items", []) if item["itemId"] in new_items
+            ],
             "rewardMessage": self.context.get("reward_message") if new_items else None,
             "questUpdates": [
                 {

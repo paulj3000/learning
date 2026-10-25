@@ -9,7 +9,14 @@ import json
 import pytest
 from golden_vectors import ROOT, SCHEMA_VERSION, cases, load_suite, snake_case, suite_names
 
-EXPECTED_SUITES = ["adventure-engine", "director", "director-content", "mastery", "quests", "rewards"]
+EXPECTED_SUITES = [
+    "adventure-engine",
+    "director",
+    "director-content",
+    "mastery",
+    "quests",
+    "rewards",
+]
 
 
 def test_every_suite_is_present():

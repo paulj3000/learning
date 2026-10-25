@@ -33,7 +33,8 @@ class WorldChange(ChildOwnedModel):
     change_key = models.CharField(max_length=100)
     payload = models.JSONField(null=True, blank=True)
     source_session_id = models.CharField(
-        max_length=64, blank=True,
+        max_length=64,
+        blank=True,
         help_text="The adventure, story or co-op session that caused it, as Amplify records it.",
     )
     created_at = models.DateTimeField()
@@ -45,7 +46,9 @@ class WorldChange(ChildOwnedModel):
             ),
             models.CheckConstraint(condition=~models.Q(change_key=""), name="world_change_key_set"),
         ]
-        indexes = [models.Index(fields=["child", "location_slug"], name="world_change_child_location")]
+        indexes = [
+            models.Index(fields=["child", "location_slug"], name="world_change_child_location")
+        ]
 
     def save(self, *args, **kwargs):
         if not self._state.adding:

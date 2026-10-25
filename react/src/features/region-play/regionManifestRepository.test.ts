@@ -43,7 +43,11 @@ describe('createRegionManifestRepository', () => {
     expect(getRegion).toHaveBeenCalledWith(REGION);
     expect(manifest.regionId).toBe(REGION);
     expect(manifest.locationSlug).toBe('pirate-builder-bay');
-    expect(resolveSpawnCheckpoint(REGION, undefined)).toMatchObject({ x: 0, z: 10, label: 'the landing' });
+    expect(resolveSpawnCheckpoint(REGION, undefined)).toMatchObject({
+      x: 0,
+      z: 10,
+      label: 'the landing',
+    });
   });
 
   it('reads the server on every visit, so a chest opened elsewhere is drawn open', async () => {
@@ -53,17 +57,24 @@ describe('createRegionManifestRepository', () => {
       .mockResolvedValueOnce(read(bootstrapJson({}, { isOpen: true }), parse.regionBootstrap));
     const repository = repositoryWith(getRegion);
     const chestOpen = async () =>
-      (await repository.getPublished(REGION)).extensions[0].config.chests as unknown as { isOpen: boolean }[];
+      (await repository.getPublished(REGION)).extensions[0].config.chests as unknown as {
+        isOpen: boolean;
+      }[];
     expect((await chestOpen())[0].isOpen).toBe(false);
     expect((await chestOpen())[0].isOpen).toBe(true);
   });
 
-  it.each(['not_found', 'disabled'] as const)('treats %s as a region that is not open', async (kind) => {
-    const repository = repositoryWith(async () => {
-      throw new ApiError(kind);
-    });
-    await expect(repository.getPublished(REGION)).rejects.toBeInstanceOf(LocationManifestNotFoundError);
-  });
+  it.each(['not_found', 'disabled'] as const)(
+    'treats %s as a region that is not open',
+    async (kind) => {
+      const repository = repositoryWith(async () => {
+        throw new ApiError(kind);
+      });
+      await expect(repository.getPublished(REGION)).rejects.toBeInstanceOf(
+        LocationManifestNotFoundError,
+      );
+    },
+  );
 
   it('passes a network failure through for the view’s calm error', async () => {
     const repository = repositoryWith(async () => {
@@ -73,30 +84,46 @@ describe('createRegionManifestRepository', () => {
   });
 
   it('refuses a region that fails validation, and one without a spawn point', async () => {
-    const badAsset = repositoryWith(async () => read(bootstrapJson({}, { assetId: 'no-such-chest' }), parse.regionBootstrap));
-    await expect(badAsset.getPublished(REGION)).rejects.toBeInstanceOf(InvalidLocationManifestError);
-    const noSpawn = repositoryWith(async () => read(bootstrapJson({ spawn: null }), parse.regionBootstrap));
+    const badAsset = repositoryWith(async () =>
+      read(bootstrapJson({}, { assetId: 'no-such-chest' }), parse.regionBootstrap),
+    );
+    await expect(badAsset.getPublished(REGION)).rejects.toBeInstanceOf(
+      InvalidLocationManifestError,
+    );
+    const noSpawn = repositoryWith(async () =>
+      read(bootstrapJson({ spawn: null }), parse.regionBootstrap),
+    );
     await expect(noSpawn.getPublished(REGION)).rejects.toBeInstanceOf(InvalidLocationManifestError);
   });
 
   it('refuses a published region that claims a source region’s id', async () => {
     const sourceId = 'welcome-harbor-impostor';
     const repository = repositoryWith(async () =>
-      read(bootstrapJson({ region: { ...bootstrapJson().region, regionId: sourceId, locationSlug: 'nowhere' } }), parse.regionBootstrap),
+      read(
+        bootstrapJson({
+          region: { ...bootstrapJson().region, regionId: sourceId, locationSlug: 'nowhere' },
+        }),
+        parse.regionBootstrap,
+      ),
     );
-    await expect(repository.getPublished(sourceId)).rejects.toBeInstanceOf(InvalidLocationManifestError);
+    await expect(repository.getPublished(sourceId)).rejects.toBeInstanceOf(
+      InvalidLocationManifestError,
+    );
   });
 });
 
 describe('regionRepositoryForChild', () => {
   it('is the source repository itself when the build has no Django API', () => {
-    expect(regionRepositoryForChild('child', sourceLocationManifestRepository, { enabled: false })).toBe(
-      sourceLocationManifestRepository,
-    );
+    expect(
+      regionRepositoryForChild('child', sourceLocationManifestRepository, { enabled: false }),
+    ).toBe(sourceLocationManifestRepository);
   });
 
   it('wraps the source repository when the Django API is on', () => {
-    const repository = regionRepositoryForChild('child', sourceLocationManifestRepository, { enabled: true, baseUrl: '' });
+    const repository = regionRepositoryForChild('child', sourceLocationManifestRepository, {
+      enabled: true,
+      baseUrl: '',
+    });
     expect(repository).not.toBe(sourceLocationManifestRepository);
     expect(repository.listRegionIds()).toEqual(sourceLocationManifestRepository.listRegionIds());
   });

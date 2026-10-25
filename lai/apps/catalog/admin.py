@@ -154,15 +154,24 @@ class LocationAssetInline(ReadOnlyInline):
 @admin.register(World, site=catalog_admin_site)
 class WorldAdmin(CatalogModelAdmin):
     has_catalog_fields = True
-    list_display = ("slug", "title", "is_home", "active", "sort_order", "location_count",
-                    "in_latest_release")
+    list_display = (
+        "slug",
+        "title",
+        "is_home",
+        "active",
+        "sort_order",
+        "location_count",
+        "in_latest_release",
+    )
     list_filter = ("active", "is_home", InLatestReleaseFilter)
     search_fields = ("slug", "title", "description")
     inlines = [LocationInline]
     readonly_display = ("in_latest_release",)
 
     def get_queryset(self, request):
-        return super().get_queryset(request).annotate(location_total=Count("locations", distinct=True))
+        return (
+            super().get_queryset(request).annotate(location_total=Count("locations", distinct=True))
+        )
 
     @admin.display(description="Locations", ordering="location_total")
     def location_count(self, obj) -> int:
@@ -172,8 +181,16 @@ class WorldAdmin(CatalogModelAdmin):
 @admin.register(Location, site=catalog_admin_site)
 class LocationAdmin(CatalogModelAdmin):
     has_catalog_fields = True
-    list_display = ("slug", "title", "world", "active", "sort_order", "adventure_count",
-                    "asset_count", "in_latest_release")
+    list_display = (
+        "slug",
+        "title",
+        "world",
+        "active",
+        "sort_order",
+        "adventure_count",
+        "asset_count",
+        "in_latest_release",
+    )
     list_filter = ("world", "active", InLatestReleaseFilter)
     search_fields = ("slug", "title", "description", "skills")
     list_select_related = ("world",)
@@ -181,9 +198,13 @@ class LocationAdmin(CatalogModelAdmin):
     readonly_display = ("in_latest_release",)
 
     def get_queryset(self, request):
-        return super().get_queryset(request).annotate(
-            adventure_total=Count("adventures", distinct=True),
-            asset_total=Count("asset_links", distinct=True),
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(
+                adventure_total=Count("adventures", distinct=True),
+                asset_total=Count("asset_links", distinct=True),
+            )
         )
 
     @admin.display(description="Adventures", ordering="adventure_total")
@@ -198,8 +219,17 @@ class LocationAdmin(CatalogModelAdmin):
 @admin.register(Adventure, site=catalog_admin_site)
 class AdventureAdmin(CatalogModelAdmin):
     has_catalog_fields = True
-    list_display = ("slug", "title", "location_slug", "world", "age_bands", "version", "active",
-                    "sort_order", "in_latest_release")
+    list_display = (
+        "slug",
+        "title",
+        "location_slug",
+        "world",
+        "age_bands",
+        "version",
+        "active",
+        "sort_order",
+        "in_latest_release",
+    )
     list_filter = ("world", "location", "active", "skill_domain", InLatestReleaseFilter)
     search_fields = ("slug", "title", "location_slug")
     list_select_related = ("world", "location")
@@ -210,7 +240,9 @@ class AdventureAdmin(CatalogModelAdmin):
     def scene_assets(self, obj) -> str:
         if obj.location_id is None:
             return "No location record (story-only place)"
-        ids = obj.location.asset_links.order_by("position").values_list("asset__asset_id", flat=True)
+        ids = obj.location.asset_links.order_by("position").values_list(
+            "asset__asset_id", flat=True
+        )
         return ", ".join(ids) or "None"
 
 
@@ -225,8 +257,15 @@ class AdventureStepAdmin(CatalogModelAdmin):
 @admin.register(Quest, site=catalog_admin_site)
 class QuestAdmin(CatalogModelAdmin):
     has_catalog_fields = True
-    list_display = ("slug", "title", "world", "giver_npc_id", "active", "sort_order",
-                    "in_latest_release")
+    list_display = (
+        "slug",
+        "title",
+        "world",
+        "giver_npc_id",
+        "active",
+        "sort_order",
+        "in_latest_release",
+    )
     list_filter = ("world", "active", InLatestReleaseFilter)
     search_fields = ("slug", "title", "giver_npc_id")
     list_select_related = ("world",)
@@ -242,7 +281,9 @@ class ContentAssetAdmin(CatalogModelAdmin):
 
     @admin.display(description="Used by locations")
     def used_by(self, obj) -> str:
-        slugs = obj.location_links.order_by("location__slug").values_list("location__slug", flat=True)
+        slugs = obj.location_links.order_by("location__slug").values_list(
+            "location__slug", flat=True
+        )
         return ", ".join(slugs) or "No shipped scene"
 
 

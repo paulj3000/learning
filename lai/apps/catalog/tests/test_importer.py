@@ -53,13 +53,17 @@ def test_step_ids_repeat_across_adventures_but_not_within_one(tmp_path):
     assert AdventureStep.objects.filter(step_id="done").count() == 2
 
 
-def test_location_asset_associations_keep_export_order_and_skip_regions_without_a_location(tmp_path):
+def test_location_asset_associations_keep_export_order_and_skip_regions_without_a_location(
+    tmp_path,
+):
     report = import_content(write_export(tmp_path / "v1"))
 
     links = LocationAsset.objects.filter(location__slug="bay").order_by("position")
     assert [link.asset.asset_id for link in links] == ["tree", "rock"]
     assert ContentAsset.objects.get(asset_id="tree").low_detail.asset_id == "tree-lod1"
-    assert report.skipped == ["location assets 'welcome-harbor': region has no Location record (1 assets)"]
+    assert report.skipped == [
+        "location assets 'welcome-harbor': region has no Location record (1 assets)"
+    ]
 
 
 def test_the_same_export_twice_is_skipped_as_unchanged(tmp_path):
@@ -81,7 +85,9 @@ def test_force_reapplies_and_reports_everything_unchanged(tmp_path):
     report = import_content(export, force=True)
 
     assert report.status == "imported"
-    assert all(counts["created"] == 0 and counts["updated"] == 0 for counts in report.counts.values())
+    assert all(
+        counts["created"] == 0 and counts["updated"] == 0 for counts in report.counts.values()
+    )
     assert ContentRelease.objects.count() == 2
 
 
@@ -212,7 +218,9 @@ def test_the_shipped_export_imports_cleanly():
     assert report.skipped == [
         "location assets 'welcome-harbor': region has no Location record (11 assets)"
     ]
-    assert LocationAsset.objects.values("location").distinct().count() == counts["locationAssets"] - 1
+    assert (
+        LocationAsset.objects.values("location").distinct().count() == counts["locationAssets"] - 1
+    )
 
 
 def test_the_command_reports_counts_and_fails_cleanly_on_an_invalid_export(tmp_path):

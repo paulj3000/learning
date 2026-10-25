@@ -4,20 +4,36 @@ import { publishRegionCheckpoints, unpublishRegionCheckpoints } from '../discove
 import { SOURCE_MANIFEST_REGISTRIES } from '../island-map/three/runtime/sourceManifestRegistries';
 import { validateLocationManifest } from '../island-map/three/runtime/validateLocationManifest';
 import { bootstrapJson } from '../../test/playFixtures';
-import { buildRegionManifest, checkpointId, DEFAULT_REGION_COPY, RegionBuildError, REGION_PLAY_EXTENSION_ID } from './regionManifest';
+import {
+  buildRegionManifest,
+  checkpointId,
+  DEFAULT_REGION_COPY,
+  RegionBuildError,
+  REGION_PLAY_EXTENSION_ID,
+} from './regionManifest';
 import { tryParseRegionPlayConfig } from './regionPlayConfig';
 import { toRegionSceneModel } from './sceneModel';
 
 const REGION = 'treasure-rush-cove';
 const PIP_WITH_MODEL = {
-  entityId: 'cove-pip', label: 'Pirate Pip', x: 3, z: 6, elevation: 0, rotationY: 0.4, scale: 1,
-  assetId: 'npc-pip', placeholder: { width: 1, height: 1.6, depth: 1 },
-  npcId: 'pirate-pip', displayName: 'Pirate Pip', interactionId: 'meet-pirate-pip',
+  entityId: 'cove-pip',
+  label: 'Pirate Pip',
+  x: 3,
+  z: 6,
+  elevation: 0,
+  rotationY: 0.4,
+  scale: 1,
+  assetId: 'npc-pip',
+  placeholder: { width: 1, height: 1.6, depth: 1 },
+  npcId: 'pirate-pip',
+  displayName: 'Pirate Pip',
+  interactionId: 'meet-pirate-pip',
 };
 
 function build(overrides: Record<string, unknown> = {}, chest: Record<string, unknown> = {}) {
   const model = toRegionSceneModel(read(bootstrapJson(overrides, chest), parse.regionBootstrap));
-  const clips = (id: string) => SOURCE_MANIFEST_REGISTRIES.assets.find((a) => a.id === id)?.clips ?? [];
+  const clips = (id: string) =>
+    SOURCE_MANIFEST_REGISTRIES.assets.find((a) => a.id === id)?.clips ?? [];
   return buildRegionManifest(model, { worldSlug: 'learning-adventure-island', assetClips: clips });
 }
 
@@ -42,7 +58,14 @@ describe('buildRegionManifest', () => {
   it('spawns at the server’s spawn point, namespaced into the checkpoint catalogue', () => {
     const { manifest, checkpoints } = build();
     expect(checkpoints).toEqual([
-      { id: checkpointId(REGION, 'cove-landing'), regionId: REGION, label: 'the landing', x: 0, z: 10, yaw: 0 },
+      {
+        id: checkpointId(REGION, 'cove-landing'),
+        regionId: REGION,
+        label: 'the landing',
+        x: 0,
+        z: 10,
+        yaw: 0,
+      },
     ]);
     expect(manifest.checkpoints.ids).toEqual(['treasure-rush-cove:cove-landing']);
   });
@@ -55,8 +78,14 @@ describe('buildRegionManifest', () => {
     const { manifest } = build({ npcs: [PIP_WITH_MODEL] });
     expect(manifest.npcs).toEqual([
       {
-        entityId: 'cove-pip', npcId: 'pirate-pip', assetId: 'npc-pip', position: { x: 3, z: 6 }, yaw: 0.4,
-        label: 'Pirate Pip', idleClip: 'Idle', placeholderColor: expect.any(Number),
+        entityId: 'cove-pip',
+        npcId: 'pirate-pip',
+        assetId: 'npc-pip',
+        position: { x: 3, z: 6 },
+        yaw: 0.4,
+        label: 'Pirate Pip',
+        idleClip: 'Idle',
+        placeholderColor: expect.any(Number),
         interactionId: 'treasure-rush-cove:talk:cove-pip',
       },
     ]);
@@ -82,10 +111,18 @@ describe('buildRegionManifest', () => {
     expect(chest?.interactClip).toBeUndefined(); // interacting never opens it
     const config = tryParseRegionPlayConfig(closed.manifest.extensions[0].config);
     expect(config?.chests).toEqual([
-      { entityId: 'cove-chest', assetId: 'treasure-chest', openClip: 'Open', isOpen: false, scale: 1,
-        placeholder: { width: 1.2, height: 0.9, depth: 0.8 } },
+      {
+        entityId: 'cove-chest',
+        assetId: 'treasure-chest',
+        openClip: 'Open',
+        isOpen: false,
+        scale: 1,
+        placeholder: { width: 1.2, height: 0.9, depth: 0.8 },
+      },
     ]);
-    const open = tryParseRegionPlayConfig(build({}, { isOpen: true }).manifest.extensions[0].config);
+    const open = tryParseRegionPlayConfig(
+      build({}, { isOpen: true }).manifest.extensions[0].config,
+    );
     expect(open?.chests[0].isOpen).toBe(true);
   });
 
@@ -104,10 +141,25 @@ describe('buildRegionManifest', () => {
 
   it('places objects as scenery: a model when there is one, a box of the admin’s size when not', () => {
     const withModel = build().manifest.scenery.find((s) => s.id === 'cove-rock');
-    expect(withModel).toMatchObject({ kind: 'MODEL', assetId: 'rock', position: { x: -4, y: 0, z: 2 }, scale: { x: 2, y: 2, z: 2 } });
-    const noModel = { ...bootstrapJson().objects[0], assetId: '', placeholder: { width: 2, height: 1, depth: 4 }, scale: 1 };
+    expect(withModel).toMatchObject({
+      kind: 'MODEL',
+      assetId: 'rock',
+      position: { x: -4, y: 0, z: 2 },
+      scale: { x: 2, y: 2, z: 2 },
+    });
+    const noModel = {
+      ...bootstrapJson().objects[0],
+      assetId: '',
+      placeholder: { width: 2, height: 1, depth: 4 },
+      scale: 1,
+    };
     const box = build({ objects: [noModel] }).manifest.scenery.find((s) => s.id === 'cove-rock');
-    expect(box).toMatchObject({ kind: 'BOX', area: { minX: -5, maxX: -3, minZ: 0, maxZ: 4 }, minY: 0, maxY: 1 });
+    expect(box).toMatchObject({
+      kind: 'BOX',
+      area: { minX: -5, maxX: -3, minZ: 0, maxZ: 4 },
+      minY: 0,
+      maxY: 1,
+    });
     expect(issues(build({ objects: [noModel] }))).toEqual([]);
   });
 
@@ -116,15 +168,25 @@ describe('buildRegionManifest', () => {
     expect(manifest.bounds).toEqual({ halfExtentX: 18, halfExtentZ: 18, wallThickness: 1 });
     expect(manifest.copy.loading).toBe(DEFAULT_REGION_COPY.loading);
     const authored = build({
-      region: { ...bootstrapJson().region, scene: {
-        bounds: { halfExtentX: 10, halfExtentZ: 12, wallThickness: 1 },
-        environment: { backgroundColor: 0x123456 },
-        copy: { loading: 'Sailing to Treasure Cove.', instructions: 'Find the chest.', calmStop: 'Time to rest.' },
-      } },
+      region: {
+        ...bootstrapJson().region,
+        scene: {
+          bounds: { halfExtentX: 10, halfExtentZ: 12, wallThickness: 1 },
+          environment: { backgroundColor: 0x123456 },
+          copy: {
+            loading: 'Sailing to Treasure Cove.',
+            instructions: 'Find the chest.',
+            calmStop: 'Time to rest.',
+          },
+        },
+      },
     }).manifest;
     expect(authored.bounds.halfExtentX).toBe(10);
     expect(authored.environment.backgroundColor).toBe(0x123456);
-    expect(authored.copy).toMatchObject({ loading: 'Sailing to Treasure Cove.', calmStop: 'Time to rest.' });
+    expect(authored.copy).toMatchObject({
+      loading: 'Sailing to Treasure Cove.',
+      calmStop: 'Time to rest.',
+    });
   });
 
   it('is reported by the validator when the server names an asset the catalogue lacks', () => {

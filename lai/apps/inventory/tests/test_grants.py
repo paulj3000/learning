@@ -4,9 +4,9 @@ import pytest
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
 
+from apps.catalog.models import ItemDefinition, RewardRule
 from apps.core.models import CrossChildReference
 from apps.game_sessions.play import start_or_resume_region_session
-from apps.catalog.models import ItemDefinition, RewardRule
 from apps.inventory.models import GrantedRule, InventoryItem
 from apps.inventory.services import grant_reward_rule, owned_item_ids
 
@@ -31,8 +31,11 @@ def test_a_rule_grants_its_items_once(treasure, chest_rule):
 def test_an_item_already_owned_is_not_new_and_not_duplicated(treasure, chest_rule):
     child = treasure.families.a1
     second_rule = RewardRule.objects.create(
-        rule_id="also-a-doubloon", trigger={"type": "WORLD_CHANGE", "changeKey": "x"}, message="m",
-        source={}, last_seen_release=chest_rule.last_seen_release,
+        rule_id="also-a-doubloon",
+        trigger={"type": "WORLD_CHANGE", "changeKey": "x"},
+        message="m",
+        source={},
+        last_seen_release=chest_rule.last_seen_release,
     )
     second_rule.items.add(ItemDefinition.objects.get(item_id="golden-doubloon"))
     grant_reward_rule(child, chest_rule)

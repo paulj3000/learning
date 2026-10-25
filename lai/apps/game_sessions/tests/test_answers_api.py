@@ -22,36 +22,75 @@ def answer_catalog():
     collections = base_collections()
     collections["adventures.json"]["adventures"] = [
         {
-            "slug": "bridge", "title": "Bridge", "version": 1, "locationSlug": "bay",
-            "ageBands": ["PATHFINDER"], "entryStepId": "count",
+            "slug": "bridge",
+            "title": "Bridge",
+            "version": 1,
+            "locationSlug": "bay",
+            "ageBands": ["PATHFINDER"],
+            "entryStepId": "count",
             "steps": [
-                {"id": "count", "type": "NUMBER_INPUT", "objectiveIds": ["count-10"],
-                 "presentation": {"kind": "number-input", "prompt": "How many?", "correctValue": 3},
-                 "transitions": [{"when": "correct", "nextStepId": "tell"},
-                                 {"when": "incorrect", "nextStepId": "tell"}],
-                 "hintPolicy": {"ladder": LADDER}, "fallback": {"text": "Count"}},
-                {"id": "tell", "type": "NARRATIVE", "objectiveIds": [],
-                 "presentation": {"kind": "narrative", "speaker": "Pip", "text": "Well done"},
-                 "transitions": [{"when": "always", "nextStepId": "done"}], "fallback": {"text": "Hi"}},
-                {"id": "done", "type": "COMPLETE", "objectiveIds": [],
-                 "presentation": {"kind": "complete", "text": "Done"}, "transitions": [],
-                 "fallback": {"text": "Done"}},
+                {
+                    "id": "count",
+                    "type": "NUMBER_INPUT",
+                    "objectiveIds": ["count-10"],
+                    "presentation": {
+                        "kind": "number-input",
+                        "prompt": "How many?",
+                        "correctValue": 3,
+                    },
+                    "transitions": [
+                        {"when": "correct", "nextStepId": "tell"},
+                        {"when": "incorrect", "nextStepId": "tell"},
+                    ],
+                    "hintPolicy": {"ladder": LADDER},
+                    "fallback": {"text": "Count"},
+                },
+                {
+                    "id": "tell",
+                    "type": "NARRATIVE",
+                    "objectiveIds": [],
+                    "presentation": {"kind": "narrative", "speaker": "Pip", "text": "Well done"},
+                    "transitions": [{"when": "always", "nextStepId": "done"}],
+                    "fallback": {"text": "Hi"},
+                },
+                {
+                    "id": "done",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {"kind": "complete", "text": "Done"},
+                    "transitions": [],
+                    "fallback": {"text": "Done"},
+                },
             ],
         },
         {
-            "slug": "planks", "title": "Planks", "version": 1, "locationSlug": "bay",
-            "ageBands": ["PATHFINDER"], "entryStepId": "pick",
+            "slug": "planks",
+            "title": "Planks",
+            "version": 1,
+            "locationSlug": "bay",
+            "ageBands": ["PATHFINDER"],
+            "entryStepId": "pick",
             "steps": [
-                {"id": "pick", "type": "CHOICE", "objectiveIds": [],
-                 "presentation": {"kind": "choice", "prompt": "Pick", "correctOptionId": "b",
-                                  "options": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}]},
-                 "transitions": [{"when": "always", "nextStepId": "complete"}],
-                 "fallback": {"text": "Pick"}},
+                {
+                    "id": "pick",
+                    "type": "CHOICE",
+                    "objectiveIds": [],
+                    "presentation": {
+                        "kind": "choice",
+                        "prompt": "Pick",
+                        "correctOptionId": "b",
+                        "options": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}],
+                    },
+                    "transitions": [{"when": "always", "nextStepId": "complete"}],
+                    "fallback": {"text": "Pick"},
+                },
             ],
         },
     ]
     collections["islands.json"]["islands"][0]["pack"]["adventureSlugs"] = ["bridge", "planks"]
-    collections["quests.json"]["quests"][0]["stages"][0]["objectives"][0]["adventureSlug"] = "bridge"
+    collections["quests.json"]["quests"][0]["stages"][0]["objectives"][0]["adventureSlug"] = (
+        "bridge"
+    )
     return collections
 
 
@@ -91,7 +130,10 @@ class TestGrading:
         assert response.status_code == 200
         body = response.json()
         assert {k: body[k] for k in ("correctness", "supportLevel", "action", "nextStepId")} == {
-            "correctness": "CORRECT", "supportLevel": 0, "action": "ADVANCE", "nextStepId": "tell"
+            "correctness": "CORRECT",
+            "supportLevel": 0,
+            "action": "ADVANCE",
+            "nextStepId": "tell",
         }
         assert (body["attemptNumber"], body["replayed"]) == (1, False)
         assert body["session"]["currentStepId"] == "tell" and body["session"]["status"] == "ACTIVE"
@@ -102,7 +144,11 @@ class TestGrading:
         session = start(families.a1)
         body = post(api(families.a), families.a1, session, answer("count", count(9))).json()
 
-        assert (body["correctness"], body["action"], body["supportLevel"]) == ("INCORRECT", "RETRY", 1)
+        assert (body["correctness"], body["action"], body["supportLevel"]) == (
+            "INCORRECT",
+            "RETRY",
+            1,
+        )
         assert body["nextStepId"] is None
         assert body["session"]["currentStepId"] == "count" and body["session"]["hintLevel"] == 1
 
@@ -110,12 +156,21 @@ class TestGrading:
         self, families, api, catalog
     ):
         session = start(families.a1)
-        forged = {**answer("count", count(9)), "hintLevel": 4, "correctness": "CORRECT",
-                  "nextStepId": "done", "completed": True}
+        forged = {
+            **answer("count", count(9)),
+            "hintLevel": 4,
+            "correctness": "CORRECT",
+            "nextStepId": "done",
+            "completed": True,
+        }
 
         body = post(api(families.a), families.a1, session, forged).json()
 
-        assert (body["correctness"], body["action"], body["supportLevel"]) == ("INCORRECT", "RETRY", 1)
+        assert (body["correctness"], body["action"], body["supportLevel"]) == (
+            "INCORRECT",
+            "RETRY",
+            1,
+        )
         session.refresh_from_db()
         assert session.status == SessionStatus.ACTIVE and session.current_step_id == "count"
 
@@ -125,13 +180,19 @@ class TestGrading:
         session = start(families.a1)
         client = api(families.a)
         for level in range(4):
-            hint = post(client, families.a1, session, {"stepId": "count", "fromLevel": level}, "hints")
+            hint = post(
+                client, families.a1, session, {"stepId": "count", "fromLevel": level}, "hints"
+            )
             assert hint.json()["hintLevel"] == level + 1
         assert hint.json()["hintText"] == LADDER[-1]
 
         body = post(client, families.a1, session, answer("count", count(9))).json()
 
-        assert (body["correctness"], body["supportLevel"], body["action"]) == ("CORRECT", 5, "ADVANCE")
+        assert (body["correctness"], body["supportLevel"], body["action"]) == (
+            "CORRECT",
+            5,
+            "ADVANCE",
+        )
         assert body["nextStepId"] == "tell"
 
     def test_a_retried_hint_request_does_not_escalate_twice(self, families, api, catalog):
@@ -156,8 +217,12 @@ class TestGrading:
 
     def test_the_reserved_complete_id_completes_the_session(self, families, api, catalog):
         session = start(families.a1, "planks")
-        body = post(api(families.a), families.a1, session,
-                    answer("pick", {"kind": "choice", "optionId": "a"})).json()
+        body = post(
+            api(families.a),
+            families.a1,
+            session,
+            answer("pick", {"kind": "choice", "optionId": "a"}),
+        ).json()
         assert body["nextStepId"] == "complete" and body["session"]["status"] == "COMPLETED"
 
 
@@ -167,7 +232,9 @@ class TestRejectedSubmissions:
         self, families, api, catalog
     ):
         session = start(families.a1)
-        response = post(api(families.a), families.a1, session, answer("tell", {"kind": "narrative"}))
+        response = post(
+            api(families.a), families.a1, session, answer("tell", {"kind": "narrative"})
+        )
         assert response.status_code == 409
         assert response.json()["error"]["code"] == "step_not_current"
         assert AdventureAction.objects.count() == 0
@@ -176,18 +243,23 @@ class TestRejectedSubmissions:
         session = start(families.a1, "planks")
         client = api(families.a)
         post(client, families.a1, session, answer("pick", {"kind": "choice", "optionId": "b"}))
-        response = post(client, families.a1, session, answer("pick", {"kind": "choice", "optionId": "b"}))
+        response = post(
+            client, families.a1, session, answer("pick", {"kind": "choice", "optionId": "b"})
+        )
         assert response.status_code == 409
         assert response.json()["error"]["code"] == "session_not_active"
 
-    @pytest.mark.parametrize("bad", [
-        {"kind": "number-input", "value": "3"},
-        {"kind": "number-input", "value": True},
-        {"kind": "choice", "optionId": "a"},  # the wrong kind for a number step
-        {"kind": "complete"},
-        "3",
-        {"kind": "ordering", "order": ["a" * 300]},  # longer than any stored answer
-    ])
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            {"kind": "number-input", "value": "3"},
+            {"kind": "number-input", "value": True},
+            {"kind": "choice", "optionId": "a"},  # the wrong kind for a number step
+            {"kind": "complete"},
+            "3",
+            {"kind": "ordering", "order": ["a" * 300]},  # longer than any stored answer
+        ],
+    )
     def test_an_answer_that_cannot_be_graded_is_a_400(self, families, api, catalog, bad):
         session = start(families.a1)
         response = post(api(families.a), families.a1, session, answer("count", bad))
@@ -217,9 +289,9 @@ class TestRetriesAndReplays:
         again = post(client, families.a1, session, answer("count", count(9), request_id)).json()
 
         assert again["replayed"] is True
-        assert {k: again[k] for k in ("correctness", "supportLevel", "action", "attemptNumber")} == {
-            k: first[k] for k in ("correctness", "supportLevel", "action", "attemptNumber")
-        }
+        assert {
+            k: again[k] for k in ("correctness", "supportLevel", "action", "attemptNumber")
+        } == {k: first[k] for k in ("correctness", "supportLevel", "action", "attemptNumber")}
         assert AdventureAction.objects.count() == 1
         assert again["session"]["hintLevel"] == 1
 
@@ -234,7 +306,9 @@ class TestRetriesAndReplays:
         assert (again["replayed"], again["nextStepId"]) == (True, "tell")
         assert again["session"]["currentStepId"] == "tell"
 
-    def test_a_new_request_after_success_is_refused_because_the_step_moved(self, families, api, catalog):
+    def test_a_new_request_after_success_is_refused_because_the_step_moved(
+        self, families, api, catalog
+    ):
         session = start(families.a1)
         client = api(families.a)
         post(client, families.a1, session, answer("count", count(3)))
@@ -270,19 +344,29 @@ class TestAuthorization:
         self, families, api, catalog, kind
     ):
         session = start(families.a1)
-        body = answer("count", count(3)) if kind == "answers" else {"stepId": "count", "fromLevel": 0}
+        body = (
+            answer("count", count(3)) if kind == "answers" else {"stepId": "count", "fromLevel": 0}
+        )
         other_family = post(api(families.b), families.a1, session, body, kind)
         siblings_session = post(api(families.a), families.a2, session, body, kind)
-        unknown = post(api(families.a), families.a1, type("S", (), {"pk": uuid.uuid4()}), body, kind)
+        unknown = post(
+            api(families.a), families.a1, type("S", (), {"pk": uuid.uuid4()}), body, kind
+        )
 
-        assert other_family.status_code == siblings_session.status_code == unknown.status_code == 404
+        assert (
+            other_family.status_code == siblings_session.status_code == unknown.status_code == 404
+        )
         assert other_family.json()["error"] == unknown.json()["error"]
         session.refresh_from_db()
         assert session.current_step_id == "count" and session.hint_levels == {}
 
-    def test_an_admin_group_token_gets_no_access_to_another_family(self, families, api, cognito, catalog):
+    def test_an_admin_group_token_gets_no_access_to_another_family(
+        self, families, api, cognito, catalog
+    ):
         session = start(families.b1)
-        token = cognito.sign(access_claims(families.a.cognito_sub, **{"cognito:groups": ["Admins"]}))
+        token = cognito.sign(
+            access_claims(families.a.cognito_sub, **{"cognito:groups": ["Admins"]})
+        )
         response = post(api(token=token), families.b1, session, answer("count", count(3)))
         assert response.status_code == 404
         assert AdventureAction.objects.count() == 0
@@ -305,7 +389,9 @@ class TestContentVersions:
         session.refresh_from_db()
         assert session.current_step_id == "count" and session.status == SessionStatus.ACTIVE
 
-    def test_a_step_dropped_without_a_version_bump_is_not_graded(self, families, api, catalog, tmp_path):
+    def test_a_step_dropped_without_a_version_bump_is_not_graded(
+        self, families, api, catalog, tmp_path
+    ):
         session = start(families.a1)
         changed = answer_catalog()
         steps = changed["adventures.json"]["adventures"][0]["steps"]
@@ -337,8 +423,13 @@ def test_a_failure_while_completing_rolls_back_the_attempt_too(families, api, ca
 
     monkeypatch.setattr(services, "_complete", broken_complete)
     with pytest.raises(RuntimeError):
-        services.submit_answer(families.a1, session.pk, step_id="pick",
-                               answer={"kind": "choice", "optionId": "b"}, request_id=uuid.uuid4())
+        services.submit_answer(
+            families.a1,
+            session.pk,
+            step_id="pick",
+            answer={"kind": "choice", "optionId": "b"},
+            request_id=uuid.uuid4(),
+        )
 
     session.refresh_from_db()
     assert session.current_step_id == "pick" and session.status == SessionStatus.ACTIVE
@@ -346,7 +437,9 @@ def test_a_failure_while_completing_rolls_back_the_attempt_too(families, api, ca
 
 
 @pytest.mark.django_db(transaction=True)
-def test_concurrent_submissions_are_serialised_and_a_duplicate_request_applies_once(families, catalog):
+def test_concurrent_submissions_are_serialised_and_a_duplicate_request_applies_once(
+    families, catalog
+):
     session = start(families.a1)
     outcomes, errors = [], []
     barrier = threading.Barrier(3)
@@ -355,15 +448,19 @@ def test_concurrent_submissions_are_serialised_and_a_duplicate_request_applies_o
     def submit(request_id):
         try:
             barrier.wait()
-            outcomes.append(services.submit_answer(
-                families.a1, session.pk, step_id="count", answer=count(9), request_id=request_id
-            ))
+            outcomes.append(
+                services.submit_answer(
+                    families.a1, session.pk, step_id="count", answer=count(9), request_id=request_id
+                )
+            )
         except Exception as error:  # surfaced through `errors`
             errors.append(error)
         finally:
             connection.close()
 
-    threads = [threading.Thread(target=submit, args=(rid,)) for rid in (uuid.uuid4(), shared_id, shared_id)]
+    threads = [
+        threading.Thread(target=submit, args=(rid,)) for rid in (uuid.uuid4(), shared_id, shared_id)
+    ]
     for thread in threads:
         thread.start()
     for thread in threads:

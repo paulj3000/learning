@@ -33,7 +33,11 @@ afterEach(() => {
 });
 
 /** The violations for an engine file with this source, as readable lines. */
-function violationsFor(engineSource: string, extra: Record<string, string> = {}, known: KnownViolation[] = []) {
+function violationsFor(
+  engineSource: string,
+  extra: Record<string, string> = {},
+  known: KnownViolation[] = [],
+) {
   const report = checkEngineBoundary(tree({ [ENGINE]: engineSource, ...extra }), known);
   return report.violations.map(formatViolation);
 }
@@ -49,7 +53,9 @@ describe('engine boundary: what is an engine file', () => {
   });
 
   it('leaves React hosts, tests and the rest of the app alone', () => {
-    expect(isEngineFile('features/island-map/three/runtime/ThreeLocationWorldView.tsx')).toBe(false);
+    expect(isEngineFile('features/island-map/three/runtime/ThreeLocationWorldView.tsx')).toBe(
+      false,
+    );
     expect(isEngineFile('features/island-map/three/sceneKit.test.ts')).toBe(false);
     expect(isEngineFile('features/island-map/IslandWorldView.tsx')).toBe(false);
     expect(isEngineFile('features/island-map/useExplorableWorld.ts')).toBe(false);
@@ -60,7 +66,8 @@ describe('engine boundary: what is an engine file', () => {
     const root = tree({
       [ENGINE]: "import { Group } from 'three';",
       'features/island-map/three/HostView.tsx': "import { useState } from 'react';",
-      'features/island-map/useExplorableWorld.ts': "import { client } from '../../lib/data-client';",
+      'features/island-map/useExplorableWorld.ts':
+        "import { client } from '../../lib/data-client';",
       'lib/data-client.ts': 'export const client = {};',
     });
     expect(checkEngineBoundary(root, []).violations).toEqual([]);
@@ -229,8 +236,7 @@ describe('engine boundary: no bypasses', () => {
   it('follows non-engine modules transitively, so a re-exporting module cannot launder a client', () => {
     const lines = violationsFor("import { WORLDS } from '../../worlds/worlds';", {
       'features/worlds/worlds.ts': "export { WORLDS } from './registry';",
-      'features/worlds/registry.ts':
-        "export { client as WORLDS } from '../../lib/data-client';",
+      'features/worlds/registry.ts': "export { client as WORLDS } from '../../lib/data-client';",
       ...dataClient,
     });
     expect(lines).toEqual([
@@ -275,7 +281,9 @@ describe('engine boundary: known violations', () => {
   });
 
   it('reports an entry that is no longer needed, so the list can only shrink', () => {
-    const report = checkEngineBoundary(tree({ [ENGINE]: "import { Group } from 'three';" }), [entry]);
+    const report = checkEngineBoundary(tree({ [ENGINE]: "import { Group } from 'three';" }), [
+      entry,
+    ]);
     expect(report.violations).toEqual([]);
     expect(report.staleKnownViolations).toEqual([entry]);
   });
@@ -290,7 +298,9 @@ describe('engine boundary: the real tree', () => {
 
   it('finds the engine files it is meant to guard', () => {
     expect(report.engineFiles).toContain('features/island-map/three/assets/assetLoader.ts');
-    expect(report.engineFiles).toContain('features/island-map/three/runtime/createLocationEngine.ts');
+    expect(report.engineFiles).toContain(
+      'features/island-map/three/runtime/createLocationEngine.ts',
+    );
     expect(report.engineFiles).toContain('features/island-map/scenes/LocationScene.ts');
     expect(report.engineFiles).toContain('features/island-map/gridGeometry.ts');
     expect(report.engineFiles.length).toBeGreaterThan(50);

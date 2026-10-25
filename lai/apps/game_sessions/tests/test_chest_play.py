@@ -9,7 +9,6 @@ from apps.core.content_status import ContentStatus
 from apps.core.models import CrossChildReference
 from apps.education.challenges import InvalidAnswer, generate_challenge, public_challenge
 from apps.education.models import ChallengeSpec, SkillEvidence
-from apps.game_sessions.models import Correctness as EvidenceResult
 from apps.game_sessions import play as services
 from apps.game_sessions.models import (
     AttemptStatus,
@@ -17,6 +16,7 @@ from apps.game_sessions.models import (
     ImmutableRecord,
     SessionStatus,
 )
+from apps.game_sessions.models import Correctness as EvidenceResult
 from apps.game_sessions.play import (
     AttemptAlreadyAnswered,
     AttemptNotFound,

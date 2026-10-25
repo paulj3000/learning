@@ -102,8 +102,11 @@ def start_or_resume_region_session(child, region: WorldRegion) -> tuple[Adventur
             try:
                 with transaction.atomic():
                     session = AdventureSession.objects.create(
-                        location_slug=region.location.slug, content_release=release,
-                        status=SessionStatus.ACTIVE, started_at=at, last_activity_at=at,
+                        location_slug=region.location.slug,
+                        content_release=release,
+                        status=SessionStatus.ACTIVE,
+                        started_at=at,
+                        last_activity_at=at,
                         **lookup,
                     )
                     created = True
@@ -127,15 +130,21 @@ def end_session(session: AdventureSession, status: str = SessionStatus.COMPLETED
             return
         session.status = status
         session.last_activity_at = now()
-        session.completed_at = session.last_activity_at if status == SessionStatus.COMPLETED else None
+        session.completed_at = (
+            session.last_activity_at if status == SessionStatus.COMPLETED else None
+        )
         session.save(update_fields=["status", "last_activity_at", "completed_at"])
 
 
 def chest_is_open(child, chest: TreasureChest) -> bool:
-    return WorldChange.objects.for_child(child).filter(
-        location_slug=chest.region.location.slug,
-        change_key=chest.world_change_key,
-    ).exists()
+    return (
+        WorldChange.objects.for_child(child)
+        .filter(
+            location_slug=chest.region.location.slug,
+            change_key=chest.world_change_key,
+        )
+        .exists()
+    )
 
 
 def issue_chest_challenge(
@@ -217,7 +226,9 @@ def submit_chest_answer(
     """
     with transaction.atomic():
         try:
-            attempt = ChallengeAttempt.objects.for_child(child).select_for_update().get(pk=attempt_id)
+            attempt = (
+                ChallengeAttempt.objects.for_child(child).select_for_update().get(pk=attempt_id)
+            )
         except (ChallengeAttempt.DoesNotExist, ValueError, ValidationError):
             raise AttemptNotFound from None
         if attempt.status == AttemptStatus.ANSWERED:
@@ -316,6 +327,8 @@ def change_session_status(child, session_id, action: str) -> AdventureSession:
             _require_published_region(region)
         session.status = target
         session.last_activity_at = now()
-        session.completed_at = session.last_activity_at if target == SessionStatus.COMPLETED else None
+        session.completed_at = (
+            session.last_activity_at if target == SessionStatus.COMPLETED else None
+        )
         session.save(update_fields=["status", "last_activity_at", "completed_at"])
         return session

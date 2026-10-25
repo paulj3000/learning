@@ -8,8 +8,15 @@ from apps.progression.models import WorldChange
 
 
 def record_world_change(
-    child, *, location_slug: str, change_type: str, change_key: str, payload=None,
-    source_session=None, source_session_id: str = "", now=None,
+    child,
+    *,
+    location_slug: str,
+    change_type: str,
+    change_key: str,
+    payload=None,
+    source_session=None,
+    source_session_id: str = "",
+    now=None,
 ) -> tuple[WorldChange, bool]:
     """Idempotent: the same (location, change key) for a child is recorded once.
 
@@ -25,10 +32,14 @@ def record_world_change(
         source_session_id = str(source_session.pk)
     with transaction.atomic():
         return WorldChange.objects.get_or_create(
-            child=child, location_slug=location_slug, change_key=change_key,
+            child=child,
+            location_slug=location_slug,
+            change_key=change_key,
             defaults={
-                "change_type": change_type, "payload": payload,
-                "source_session_id": source_session_id, "created_at": now or timezone.now(),
+                "change_type": change_type,
+                "payload": payload,
+                "source_session_id": source_session_id,
+                "created_at": now or timezone.now(),
             },
         )
 

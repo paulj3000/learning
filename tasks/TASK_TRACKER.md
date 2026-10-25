@@ -157,7 +157,6 @@ before touching AWS.
 - [ ] **LAI-2304** Phaser dependency removal (APPROVAL) (depends: 2201 to 2208, 2301, 2302, 2303)
 - [ ] **LAI-2305** Final Three.js-only verification (depends: 2304)
 
-
 # Treasure Rush (`docs/TREASURE_RUSH_ROADMAP.md`)
 
 Feature roadmap with its own ids, like SC-n. Since POST-MERGE-03 (ADR-033) Treasure Rush runs on

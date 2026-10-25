@@ -162,7 +162,12 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
         scale: entity.scale,
         placeholder: { ...entity.placeholder },
       });
-      config.interactions.push({ interactionId, kind: 'chest', entityId: entity.entityId, npcId: null });
+      config.interactions.push({
+        interactionId,
+        kind: 'chest',
+        entityId: entity.entityId,
+        npcId: null,
+      });
     } else {
       scenery.push(objectScenery(entity));
     }
@@ -188,7 +193,9 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     ambient: [],
     interactions,
     adventureBindings: [],
-    extensions: [{ extensionId: REGION_PLAY_EXTENSION_ID, config: config as unknown as JsonObject }],
+    extensions: [
+      { extensionId: REGION_PLAY_EXTENSION_ID, config: config as unknown as JsonObject },
+    ],
     copy: readCopy(model.scene.copy),
   };
   return { manifest, checkpoints: [spawn] };
@@ -235,11 +242,16 @@ function objectScenery(entity: SceneEntity): ScenerySpec {
   };
 }
 
-function ground(regionId: string, bounds: BoundsSpec, groundAssetId: JsonValue | undefined): ScenerySpec {
+function ground(
+  regionId: string,
+  bounds: BoundsSpec,
+  groundAssetId: JsonValue | undefined,
+): ScenerySpec {
   return {
     kind: 'TILED_GROUND',
     id: `${regionId}:ground`,
-    assetId: typeof groundAssetId === 'string' && groundAssetId ? groundAssetId : DEFAULT_GROUND_ASSET_ID,
+    assetId:
+      typeof groundAssetId === 'string' && groundAssetId ? groundAssetId : DEFAULT_GROUND_ASSET_ID,
     area: {
       id: `${regionId}:ground:area`,
       minX: -bounds.halfExtentX,
@@ -271,7 +283,9 @@ function readBounds(value: JsonValue | undefined): BoundsSpec {
 
 function readEnvironment(value: JsonValue | undefined): EnvironmentSpec {
   const background =
-    isObject(value) && typeof value.backgroundColor === 'number' && Number.isInteger(value.backgroundColor)
+    isObject(value) &&
+    typeof value.backgroundColor === 'number' &&
+    Number.isInteger(value.backgroundColor)
       ? value.backgroundColor
       : DEFAULT_BACKGROUND;
   return { backgroundColor: background };
@@ -283,7 +297,8 @@ function text(value: JsonValue | undefined, fallback: string): string {
 
 function readCopy(value: JsonValue | undefined): LocationCopy {
   const copy = isObject(value) ? value : {};
-  const calmStop = typeof copy.calmStop === 'string' && copy.calmStop.trim() ? copy.calmStop : undefined;
+  const calmStop =
+    typeof copy.calmStop === 'string' && copy.calmStop.trim() ? copy.calmStop : undefined;
   return {
     loading: text(copy.loading, DEFAULT_REGION_COPY.loading),
     instructions: text(copy.instructions, DEFAULT_REGION_COPY.instructions),

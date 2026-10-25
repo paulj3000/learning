@@ -67,8 +67,12 @@ def start_quest(child, quest: Quest, *, now=None) -> tuple[QuestProgress, bool]:
     try:
         with transaction.atomic():
             progress = QuestProgress.objects.create(
-                child=child, quest=quest, status=QuestStatus.ACTIVE,
-                current_stage_id=quest.source["entryStageId"], started_at=at, last_updated_at=at,
+                child=child,
+                quest=quest,
+                status=QuestStatus.ACTIVE,
+                current_stage_id=quest.source["entryStageId"],
+                started_at=at,
+                last_updated_at=at,
             )
     except IntegrityError:
         return QuestProgress.objects.for_child(child).get(quest=quest), False
@@ -88,7 +92,9 @@ def save_quest_state(
 ) -> QuestProgress:
     try:
         progress = (
-            QuestProgress.objects.for_child(child).select_for_update().select_related("quest")
+            QuestProgress.objects.for_child(child)
+            .select_for_update()
+            .select_related("quest")
             .get(pk=progress_id)
         )
     except QuestProgress.DoesNotExist:
@@ -130,7 +136,8 @@ def refresh_quest(progress: QuestProgress, *, source_session=None) -> QuestUpdat
     """
     with transaction.atomic():
         progress = (
-            QuestProgress.objects.select_for_update(of=("self",)).select_related("quest")
+            QuestProgress.objects.select_for_update(of=("self",))
+            .select_related("quest")
             .get(pk=progress.pk)
         )
         state = engine.QuestState(
@@ -141,7 +148,9 @@ def refresh_quest(progress: QuestProgress, *, source_session=None) -> QuestUpdat
         )
         source = progress.quest.source
         result = engine.advance_quest(
-            source.get("stages", []), source.get("completion", {}), state,
+            source.get("stages", []),
+            source.get("completion", {}),
+            state,
             build_context(progress.child),
         )
         if result.changed:
@@ -168,4 +177,3 @@ def refresh_quest(progress: QuestProgress, *, source_session=None) -> QuestUpdat
 def refresh_active_quests(child, *, source_session=None) -> list[QuestUpdate]:
     active = QuestProgress.objects.for_child(child).filter(status=QuestStatus.ACTIVE).order_by("pk")
     return [refresh_quest(progress, source_session=source_session) for progress in active]
-

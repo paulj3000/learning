@@ -15,12 +15,20 @@ class Command(BaseCommand):
     )
 
     def add_arguments(self, parser):
-        parser.add_argument("--path", type=Path, default=DEFAULT_EXPORT_DIR,
-                            help="Export directory (default: content/exported).")
-        parser.add_argument("--dry-run", action="store_true",
-                            help="Validate and report, then roll back.")
-        parser.add_argument("--force", action="store_true",
-                            help="Re-apply even if this export is already the latest release.")
+        parser.add_argument(
+            "--path",
+            type=Path,
+            default=DEFAULT_EXPORT_DIR,
+            help="Export directory (default: content/exported).",
+        )
+        parser.add_argument(
+            "--dry-run", action="store_true", help="Validate and report, then roll back."
+        )
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            help="Re-apply even if this export is already the latest release.",
+        )
 
     def handle(self, *args, path: Path, dry_run: bool, force: bool, **options):
         try:
@@ -28,10 +36,13 @@ class Command(BaseCommand):
         except ContentImportError as error:
             for problem in error.problems:
                 self.stderr.write(f"invalid: {problem}")
-            raise CommandError(f"{len(error.problems)} invalid record(s); nothing was written.") from None
+            raise CommandError(
+                f"{len(error.problems)} invalid record(s); nothing was written."
+            ) from None
 
         self.stdout.write(
-            f"{report.status}: release {report.content_digest[:12]} (schema {report.schema_version})"
+            f"{report.status}: release {report.content_digest[:12]} "
+            f"(schema {report.schema_version})"
         )
         for name, counts in report.counts.items():
             summary = ", ".join(f"{key} {value}" for key, value in counts.items())

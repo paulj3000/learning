@@ -3,8 +3,8 @@
 import pytest
 
 from apps.education.models import SkillEvidence
-from apps.game_sessions.models import Correctness as EvidenceResult
 from apps.education.services import NotGradedYet, record_attempt_evidence
+from apps.game_sessions.models import Correctness as EvidenceResult
 from apps.game_sessions.play import (
     issue_chest_challenge,
     start_or_resume_region_session,
@@ -40,7 +40,10 @@ def test_evidence_is_written_once_per_attempt(treasure):
         2,
         1500,
     )
-    assert again.challenge_attempt.session_id == attempt.session_id and again.observed_at == attempt.answered_at
+    assert (
+        again.challenge_attempt.session_id == attempt.session_id
+        and again.observed_at == attempt.answered_at
+    )
 
 
 def test_evidence_carries_no_answer_or_free_text():

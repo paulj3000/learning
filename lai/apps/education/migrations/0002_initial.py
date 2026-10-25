@@ -5,24 +5,34 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('education', '0001_initial'),
-        ('game_sessions', '0001_initial'),
-        ('users', '0001_initial'),
+        ("education", "0001_initial"),
+        ("game_sessions", "0001_initial"),
+        ("users", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='skillevidence',
-            name='adventure_session',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='+', to='game_sessions.adventuresession'),
+            model_name="skillevidence",
+            name="adventure_session",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="+",
+                to="game_sessions.adventuresession",
+            ),
         ),
         migrations.AddField(
-            model_name='skillevidence',
-            name='child',
-            field=models.ForeignKey(editable=False, on_delete=django.db.models.deletion.CASCADE, related_name='+', to='users.childprofile'),
+            model_name="skillevidence",
+            name="child",
+            field=models.ForeignKey(
+                editable=False,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="+",
+                to="users.childprofile",
+            ),
         ),
     ]

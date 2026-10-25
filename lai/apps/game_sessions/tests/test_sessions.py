@@ -27,8 +27,13 @@ pytestmark = [pytest.mark.postgres]
 
 def attempt(child, session, step, next_step, correctness=Correctness.CORRECT, **extra):
     return services.record_step_attempt(
-        child, session.pk, step_id=step, correctness=correctness, next_step_id=next_step,
-        action_type="ANSWER", **extra,
+        child,
+        session.pk,
+        step_id=step,
+        correctness=correctness,
+        next_step_id=next_step,
+        action_type="ANSWER",
+        **extra,
     )
 
 
@@ -61,7 +66,9 @@ class TestCreatingAndAdvancing:
         assert (action.attempt_number, action.next_step_id, action.hint_level) == (1, "done", 2)
         assert services.completed_step_ids(families.a1, session.pk) == ["count"]
 
-    def test_a_retry_numbers_attempts_and_does_not_complete_the_step(self, families, content_catalog):
+    def test_a_retry_numbers_attempts_and_does_not_complete_the_step(
+        self, families, content_catalog
+    ):
         session, _ = services.start_or_resume_session(families.a1, content_catalog.bridge)
 
         attempt(families.a1, session, "count", None, Correctness.INCORRECT)
@@ -77,7 +84,9 @@ class TestCreatingAndAdvancing:
         session.refresh_from_db()
         assert session.current_step_id == "complete"
 
-    def test_completing_a_session_is_final_and_a_later_start_begins_a_new_one(self, families, content_catalog):
+    def test_completing_a_session_is_final_and_a_later_start_begins_a_new_one(
+        self, families, content_catalog
+    ):
         session, _ = services.start_or_resume_session(families.a1, content_catalog.bridge)
         attempt(families.a1, session, "count", "done")
 
@@ -94,20 +103,26 @@ class TestCreatingAndAdvancing:
 
 @pytest.mark.django_db
 class TestInvalidTransitions:
-    def test_an_attempt_at_a_step_other_than_the_current_one_is_refused(self, families, content_catalog):
+    def test_an_attempt_at_a_step_other_than_the_current_one_is_refused(
+        self, families, content_catalog
+    ):
         session, _ = services.start_or_resume_session(families.a1, content_catalog.bridge)
         with pytest.raises(InvalidTransition):
             attempt(families.a1, session, "done", "done")
         assert AdventureAction.objects.count() == 0
 
-    def test_moving_to_a_step_the_adventure_does_not_have_is_refused(self, families, content_catalog):
+    def test_moving_to_a_step_the_adventure_does_not_have_is_refused(
+        self, families, content_catalog
+    ):
         session, _ = services.start_or_resume_session(families.a1, content_catalog.bridge)
         with pytest.raises(InvalidTransition):
             attempt(families.a1, session, "count", "stack")  # another adventure's step
         session.refresh_from_db()
         assert session.current_step_id == "count"
 
-    def test_an_inactive_adventure_or_location_cannot_be_started_or_resumed(self, families, content_catalog):
+    def test_an_inactive_adventure_or_location_cannot_be_started_or_resumed(
+        self, families, content_catalog
+    ):
         session, _ = services.start_or_resume_session(families.a1, content_catalog.bridge)
         Location.objects.filter(slug="bay").update(active=False)
         with pytest.raises(InvalidTransition):
@@ -131,23 +146,37 @@ class TestInvalidTransitions:
 
     def test_the_database_rejects_impossible_attempts(self, families, content_catalog):
         session, _ = services.start_or_resume_session(families.a1, content_catalog.bridge)
-        base = dict(session=session, step_id="count", action_type="ANSWER",
-                    correctness=Correctness.CORRECT, created_at=timezone.now())
-        for bad in ({"attempt_number": 0}, {"attempt_number": 1, "hint_level": 6},
-                    {"attempt_number": 1, "correctness": "MAYBE"}):
+        base = dict(
+            session=session,
+            step_id="count",
+            action_type="ANSWER",
+            correctness=Correctness.CORRECT,
+            created_at=timezone.now(),
+        )
+        for bad in (
+            {"attempt_number": 0},
+            {"attempt_number": 1, "hint_level": 6},
+            {"attempt_number": 1, "correctness": "MAYBE"},
+        ):
             with pytest.raises(IntegrityError), transaction.atomic():
                 AdventureAction.objects.create(**{**base, **bad})
 
 
 @pytest.mark.django_db
 class TestDuplicatesAndChildren:
-    def test_the_database_allows_one_active_session_per_child_and_adventure(self, families, content_catalog):
+    def test_the_database_allows_one_active_session_per_child_and_adventure(
+        self, families, content_catalog
+    ):
         session, _ = services.start_or_resume_session(families.a1, content_catalog.bridge)
         with pytest.raises(IntegrityError), transaction.atomic():
             AdventureSession.objects.create(
-                child=families.a1, adventure=session.adventure, template_version=1,
-                content_release=session.content_release, status=SessionStatus.ACTIVE,
-                current_step_id="count", started_at=session.started_at,
+                child=families.a1,
+                adventure=session.adventure,
+                template_version=1,
+                content_release=session.content_release,
+                status=SessionStatus.ACTIVE,
+                current_step_id="count",
+                started_at=session.started_at,
                 last_activity_at=session.started_at,
             )
 
@@ -156,11 +185,17 @@ class TestDuplicatesAndChildren:
         action = attempt(families.a1, session, "count", None, Correctness.INCORRECT)
         with pytest.raises(IntegrityError), transaction.atomic():
             AdventureAction.objects.create(
-                session=session, step_id="count", attempt_number=action.attempt_number,
-                action_type="ANSWER", correctness=Correctness.CORRECT, created_at=timezone.now(),
+                session=session,
+                step_id="count",
+                attempt_number=action.attempt_number,
+                action_type="ANSWER",
+                correctness=Correctness.CORRECT,
+                created_at=timezone.now(),
             )
 
-    def test_several_children_play_the_same_adventure_independently(self, families, content_catalog):
+    def test_several_children_play_the_same_adventure_independently(
+        self, families, content_catalog
+    ):
         mine, _ = services.start_or_resume_session(families.a1, content_catalog.bridge)
         sibling, _ = services.start_or_resume_session(families.a2, content_catalog.bridge)
         other_family, _ = services.start_or_resume_session(families.b1, content_catalog.bridge)
@@ -174,7 +209,9 @@ class TestDuplicatesAndChildren:
 
 @pytest.mark.django_db
 class TestChildIsolation:
-    def test_another_childs_session_is_not_found_for_every_operation(self, families, content_catalog):
+    def test_another_childs_session_is_not_found_for_every_operation(
+        self, families, content_catalog
+    ):
         session, _ = services.start_or_resume_session(families.a1, content_catalog.bridge)
         for intruder in (families.a2, families.b1):
             with pytest.raises(ProgressNotFound):
@@ -194,7 +231,9 @@ class TestChildIsolation:
         assert {s.child_id for s in view.scoped(AdventureSession.objects.all())} == {families.b1.pk}
         assert AdventureSession.objects.for_child(families.a2).count() == 0
 
-    def test_deleting_a_child_deletes_its_sessions_and_attempts_only(self, families, content_catalog):
+    def test_deleting_a_child_deletes_its_sessions_and_attempts_only(
+        self, families, content_catalog
+    ):
         mine, _ = services.start_or_resume_session(families.a1, content_catalog.bridge)
         attempt(families.a1, mine, "count", "done")
         services.start_or_resume_session(families.b1, content_catalog.bridge)
@@ -270,8 +309,12 @@ def test_a_failed_write_rolls_back_the_attempt_and_the_move(families, content_ca
 def test_coop_participants_are_rows_and_a_child_joins_once(families, content_catalog):
     now = timezone.now()
     coop = CoopSession.objects.create(
-        host_parent=families.a, adventure=content_catalog.bridge, template_version=1,
-        status="ACTIVE", started_at=now, last_activity_at=now,
+        host_parent=families.a,
+        adventure=content_catalog.bridge,
+        template_version=1,
+        status="ACTIVE",
+        started_at=now,
+        last_activity_at=now,
     )
     CoopParticipant.objects.create(coop_session=coop, child=families.a1)
     CoopParticipant.objects.create(coop_session=coop, child=families.a2)
@@ -299,7 +342,9 @@ def test_concurrent_attempts_and_starts_never_duplicate(families, content_catalo
     def start():
         try:
             barrier.wait()
-            starts.append(services.start_or_resume_session(families.a2, content_catalog.bridge)[0].pk)
+            starts.append(
+                services.start_or_resume_session(families.a2, content_catalog.bridge)[0].pk
+            )
         except Exception as error:
             errors.append(error)
         finally:

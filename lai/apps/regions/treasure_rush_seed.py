@@ -46,7 +46,10 @@ def seed_treasure_rush() -> list[str]:
         rule = RewardRule.objects.get(rule_id=REWARD_RULE_ID)
         quest = Quest.objects.get(slug=QUEST_ID)
     except (
-        Location.DoesNotExist, NpcDefinition.DoesNotExist, RewardRule.DoesNotExist, Quest.DoesNotExist
+        Location.DoesNotExist,
+        NpcDefinition.DoesNotExist,
+        RewardRule.DoesNotExist,
+        Quest.DoesNotExist,
     ) as error:
         raise SeedPrerequisiteMissing("Run load_content first.") from error
 

@@ -4,15 +4,16 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('progression', '0001_initial'),
-        ('users', '0001_initial'),
+        ("progression", "0001_initial"),
+        ("users", "0001_initial"),
     ]
 
     operations = [
         migrations.AddConstraint(
-            model_name='worldchange',
-            constraint=models.CheckConstraint(condition=models.Q(('change_key', ''), _negated=True), name='world_change_key_set'),
+            model_name="worldchange",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("change_key", ""), _negated=True), name="world_change_key_set"
+            ),
         ),
     ]

@@ -1,13 +1,35 @@
-import { AnimationClip, BoxGeometry, Group, Mesh, MeshBasicMaterial, NumberKeyframeTrack, type Object3D } from 'three';
+import {
+  AnimationClip,
+  BoxGeometry,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  NumberKeyframeTrack,
+  type Object3D,
+} from 'three';
 import { read } from '../../../../../api/parse';
 import * as parse from '../../../../../api/play/parse';
-import { publishRegionCheckpoints, unpublishRegionCheckpoints } from '../../../../discovery/checkpoints';
+import {
+  publishRegionCheckpoints,
+  unpublishRegionCheckpoints,
+} from '../../../../discovery/checkpoints';
 import { buildRegionManifest } from '../../../../region-play/regionManifest';
 import { toRegionSceneModel } from '../../../../region-play/sceneModel';
 import { bootstrapJson } from '../../../../../test/playFixtures';
 import type { LoadedModel } from '../../runtime/extensionRegistry';
-import { FACE_SOUTH, mount, named, standingBox, walk, type Drive } from '../../runtime/testing/engineHarness';
-import { OPEN_LID_ANGLE, regionPlaySceneExtension, type RegionPlaySceneApi } from './regionPlayScene';
+import {
+  FACE_SOUTH,
+  mount,
+  named,
+  standingBox,
+  walk,
+  type Drive,
+} from '../../runtime/testing/engineHarness';
+import {
+  OPEN_LID_ANGLE,
+  regionPlaySceneExtension,
+  type RegionPlaySceneApi,
+} from './regionPlayScene';
 
 /**
  * Treasure Cove on the real runtime (TR-7): a manifest built from a Django
@@ -25,7 +47,9 @@ function cove(
     loadModel?: (assetId: string) => Promise<LoadedModel>;
   } = {},
 ) {
-  const model = toRegionSceneModel(read(bootstrapJson(options.overrides ?? {}, options.chest ?? {}), parse.regionBootstrap));
+  const model = toRegionSceneModel(
+    read(bootstrapJson(options.overrides ?? {}, options.chest ?? {}), parse.regionBootstrap),
+  );
   const built = buildRegionManifest(model, { worldSlug: 'learning-adventure-island' });
   publishRegionCheckpoints(REGION, built.checkpoints);
   const harness = mount({
@@ -46,17 +70,20 @@ function chestModel(clips = ['Open']): LoadedModel {
   const body = new Mesh(new BoxGeometry(1, 0.6, 1), new MeshBasicMaterial());
   scene.add(body, lid);
   const animations = clips.map(
-    (name) => new AnimationClip(name, 1, [new NumberKeyframeTrack('lid.rotation[x]', [0, 1], [0, -1.5])]),
+    (name) =>
+      new AnimationClip(name, 1, [new NumberKeyframeTrack('lid.rotation[x]', [0, 1], [0, -1.5])]),
   );
   return { scene, animations };
 }
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
-const lookAt = (x: number, z: number, yaw: number, pitch: number): Drive => (controller) => {
-  controller.position.set(x, 0, z);
-  controller.yaw = yaw;
-  controller.pitch = pitch;
-};
+const lookAt =
+  (x: number, z: number, yaw: number, pitch: number): Drive =>
+  (controller) => {
+    controller.position.set(x, 0, z);
+    controller.yaw = yaw;
+    controller.pitch = pitch;
+  };
 const builtChest = (root: Object3D) => root.getObjectByName('region-play:built-chest');
 const hinge = (root: Object3D) => root.getObjectByName('region-play:lid-hinge') as Object3D;
 
@@ -67,7 +94,9 @@ describe('Treasure Cove on the engine', () => {
     const { harness } = cove();
     harness.runFrames(2);
     expect(harness.camera().position.toArray()).toEqual([0, 1.6, 10]);
-    expect(named(harness.events, 'PlayerEnteredZone')).toContainEqual({ zoneId: 'treasure-rush-cove:cove-landing' });
+    expect(named(harness.events, 'PlayerEnteredZone')).toContainEqual({
+      zoneId: 'treasure-rush-cove:cove-landing',
+    });
   });
 
   it('lets the child walk the cove', () => {
@@ -108,7 +137,9 @@ describe('Treasure Cove on the engine', () => {
   });
 
   it('uses the catalogue chest model and its Open clip when it loads', async () => {
-    const { harness, api, chestRoot } = cove({ loadModel: async (id) => (id === 'treasure-chest' ? chestModel() : standingBox()) });
+    const { harness, api, chestRoot } = cove({
+      loadModel: async (id) => (id === 'treasure-chest' ? chestModel() : standingBox()),
+    });
     await flush();
     harness.runFrames(1);
     expect(builtChest(chestRoot())).toBeUndefined();
@@ -130,12 +161,17 @@ describe('Treasure Cove on the engine', () => {
   });
 
   it('keeps the built chest when the model fails to load or has no open clip', async () => {
-    const failing = cove({ loadModel: async (id) => (id === 'treasure-chest' ? Promise.reject(new Error('404')) : standingBox()) });
+    const failing = cove({
+      loadModel: async (id) =>
+        id === 'treasure-chest' ? Promise.reject(new Error('404')) : standingBox(),
+    });
     await flush();
     failing.harness.runFrames(1);
     expect(builtChest(failing.chestRoot())).toBeDefined();
     failing.harness.engine.dispose();
-    const noClip = cove({ loadModel: async (id) => (id === 'treasure-chest' ? chestModel(['Wobble']) : standingBox()) });
+    const noClip = cove({
+      loadModel: async (id) => (id === 'treasure-chest' ? chestModel(['Wobble']) : standingBox()),
+    });
     await flush();
     noClip.harness.runFrames(1);
     expect(builtChest(noClip.chestRoot())).toBeDefined();
@@ -152,9 +188,13 @@ describe('Treasure Cove on the engine', () => {
     const { harness, api } = cove({ chest: { assetId: '' } });
     harness.setDrive(lookAt(0, -4.3, FACE_SOUTH, -0.6));
     harness.runFrames(2);
-    expect(named(harness.events, 'InteractableFocused')).toContainEqual(expect.objectContaining({ entityId: 'cove-chest' }));
+    expect(named(harness.events, 'InteractableFocused')).toContainEqual(
+      expect.objectContaining({ entityId: 'cove-chest' }),
+    );
     harness.pressInteractKey();
-    expect(named(harness.events, 'ObjectInteracted')).toContainEqual(expect.objectContaining({ entityId: 'cove-chest' }));
+    expect(named(harness.events, 'ObjectInteracted')).toContainEqual(
+      expect.objectContaining({ entityId: 'cove-chest' }),
+    );
     expect(api().isChestOpen('cove-chest')).toBe(false);
   });
 

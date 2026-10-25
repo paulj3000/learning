@@ -119,7 +119,9 @@ def test_list_columns_show_counts_assets_and_whether_a_row_is_in_the_latest_expo
     assert adventure_admin.in_latest_release(adventures["fix-bridge"]) is True
     assert adventure_admin.in_latest_release(adventures["tale"]) is False
     assert adventure_admin.scene_assets(adventures["fix-bridge"]) == "tree, rock"
-    assert adventure_admin.scene_assets(adventures["tale"]) == "No location record (story-only place)"
+    assert (
+        adventure_admin.scene_assets(adventures["tale"]) == "No location record (story-only place)"
+    )
 
     asset_admin = model_admin(ContentAsset)
     assert asset_admin.used_by(ContentAsset.objects.get(asset_id="rock")) == "bay"

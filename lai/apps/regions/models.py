@@ -135,7 +135,10 @@ class WorldObjectPlacement(Placed):
     kind = models.CharField(max_length=16, choices=PlacementKind.choices)
     asset_id = models.CharField(max_length=80, blank=True, validators=[AssetRefValidator()])
     npc = models.ForeignKey(
-        "catalog.NpcDefinition", null=True, blank=True, on_delete=models.PROTECT,
+        "catalog.NpcDefinition",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
         related_name="placements",
     )
     interaction_id = models.CharField(max_length=80, blank=True)
@@ -212,7 +215,9 @@ class TreasureChest(Placed):
     class Meta:
         ordering = ["region", "entity_id"]
         constraints = [
-            models.UniqueConstraint(fields=["region", "entity_id"], name="regions_chest_entity_unique")
+            models.UniqueConstraint(
+                fields=["region", "entity_id"], name="regions_chest_entity_unique"
+            )
         ]
 
     def __str__(self) -> str:

@@ -8,7 +8,8 @@ import { ApiError } from './errors';
  * contract is small and flat enough for these.
  */
 
-export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue =
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 export type JsonObject = { [key: string]: JsonValue };
 
 export class Reader {

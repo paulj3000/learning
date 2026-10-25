@@ -3,7 +3,14 @@ from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
 
 from apps.catalog.importer import import_content
-from apps.catalog.models import Adventure, AdventureStep, ContentAsset, Location, LocationAsset, World
+from apps.catalog.models import (
+    Adventure,
+    AdventureStep,
+    ContentAsset,
+    Location,
+    LocationAsset,
+    World,
+)
 from apps.catalog.tests.helpers import write_export
 
 pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
@@ -18,8 +25,12 @@ def test_a_step_id_is_unique_within_its_adventure(imported):
     step = AdventureStep.objects.get(adventure__slug="fix-bridge", step_id="count")
     with pytest.raises(IntegrityError), transaction.atomic():
         AdventureStep.objects.create(
-            adventure=step.adventure, step_id="count", position=9, step_type="NARRATIVE",
-            source={}, last_seen_release=step.last_seen_release,
+            adventure=step.adventure,
+            step_id="count",
+            position=9,
+            step_type="NARRATIVE",
+            source={},
+            last_seen_release=step.last_seen_release,
         )
 
 
@@ -27,7 +38,9 @@ def test_an_asset_is_linked_to_a_location_at_most_once(imported):
     link = LocationAsset.objects.first()
     with pytest.raises(IntegrityError), transaction.atomic():
         LocationAsset.objects.create(
-            location=link.location, asset=link.asset, position=9,
+            location=link.location,
+            asset=link.asset,
+            position=9,
             last_seen_release=link.last_seen_release,
         )
 
@@ -45,7 +58,11 @@ def test_slugs_are_unique(imported):
     world = World.objects.get()
     with pytest.raises(IntegrityError), transaction.atomic():
         World.objects.create(
-            slug=world.slug, title="Copy", supported_age_bands=[], pack_version=1, source={},
+            slug=world.slug,
+            title="Copy",
+            supported_age_bands=[],
+            pack_version=1,
+            source={},
             last_seen_release=world.last_seen_release,
         )
 

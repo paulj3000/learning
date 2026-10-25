@@ -31,7 +31,8 @@ def grant_reward_rule(child, rule, *, source_session=None) -> RewardGrant:
         new_items = []
         for item in rule.items.order_by("item_id"):
             _, created = InventoryItem.objects.get_or_create(
-                child=child, item=item,
+                child=child,
+                item=item,
                 defaults={"source_rule": rule, "source_session": source_session},
             )
             if created:

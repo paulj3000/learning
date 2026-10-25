@@ -86,11 +86,17 @@ def validate_step_answer(step: Step, answer: Answer) -> str:
         return CORRECT if _same(_prop(answer, "value"), presentation["correctValue"]) else INCORRECT
 
     if kind == "choice" and answer_kind == "choice":
-        return CORRECT if _same(_prop(answer, "optionId"), presentation["correctOptionId"]) else INCORRECT
+        return (
+            CORRECT
+            if _same(_prop(answer, "optionId"), presentation["correctOptionId"])
+            else INCORRECT
+        )
 
     if kind == "ordering" and answer_kind == "ordering":
         order, correct = answer["order"], presentation["correctOrder"]
-        exact = len(order) == len(correct) and all(_same(x, y) for x, y in zip(order, correct))
+        exact = len(order) == len(correct) and all(
+            _same(x, y) for x, y in zip(order, correct, strict=True)
+        )
         return CORRECT if exact else INCORRECT
 
     if kind == "matching" and answer_kind == "matching":
@@ -166,11 +172,19 @@ def decide_submission(step: Step, answer: Answer, hint_level: int | float) -> di
     if needs_retry:
         escalated = next_hint_level(hint_level)
         if is_guided_completion(escalated):
-            return {"correctness": CORRECT, "supportLevel": escalated, "action": "ADVANCE",
-                    "nextStepId": next_step_id(step, CORRECT)}
+            return {
+                "correctness": CORRECT,
+                "supportLevel": escalated,
+                "action": "ADVANCE",
+                "nextStepId": next_step_id(step, CORRECT),
+            }
         return {"correctness": correctness, "supportLevel": escalated, "action": "RETRY"}
-    return {"correctness": correctness, "supportLevel": hint_level, "action": "ADVANCE",
-            "nextStepId": next_step_id(step, correctness)}
+    return {
+        "correctness": correctness,
+        "supportLevel": hint_level,
+        "action": "ADVANCE",
+        "nextStepId": next_step_id(step, correctness),
+    }
 
 
 def is_step_answer(value: Any) -> bool:

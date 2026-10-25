@@ -1,7 +1,12 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { GOLDEN_DIR, GOLDEN_SCHEMA_VERSION, renderGoldenFiles, type GoldenSuite } from './buildGoldenVectors';
+import {
+  GOLDEN_DIR,
+  GOLDEN_SCHEMA_VERSION,
+  renderGoldenFiles,
+  type GoldenSuite,
+} from './buildGoldenVectors';
 
 /**
  * LAI-0303: the committed golden vectors are exactly what the TypeScript rules produce today,
@@ -65,7 +70,7 @@ describe('golden vectors', () => {
           for (const key of Object.keys(testCase.input as object)) {
             expect(fn.args, label).toContain(key);
           }
-          expect('expected' in testCase !== ('throws' in testCase), label).toBe(true);
+          expect('expected' in testCase !== 'throws' in testCase, label).toBe(true);
         }
       }
     }

@@ -133,9 +133,7 @@ function toKey(root: string, absolute: string): string {
 
 function importsOf(absolute: string): string[] {
   const source = readFileSync(absolute, 'utf8');
-  return ts
-    .preProcessFile(source, true, true)
-    .importedFiles.map((imported) => imported.fileName);
+  return ts.preProcessFile(source, true, true).importedFiles.map((imported) => imported.fileName);
 }
 
 function listFiles(directory: string): string[] {
@@ -207,6 +205,8 @@ export function checkEngineBoundary(
 
 /** One line per violation, for a readable test failure. */
 export function formatViolation(violation: BoundaryViolation): string {
-  const path = violation.chain.map(({ file, specifier }) => `${file} -> '${specifier}'`).join(' => ');
+  const path = violation.chain
+    .map(({ file, specifier }) => `${file} -> '${specifier}'`)
+    .join(' => ');
   return `${path}: ${violation.reason}`;
 }

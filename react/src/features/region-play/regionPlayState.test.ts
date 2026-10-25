@@ -10,7 +10,12 @@ import {
   questJson,
   sessionJson,
 } from '../../test/playFixtures';
-import { initialRegionPlayState, regionPlayReducer, scopeKey, type RegionPlayState } from './regionPlayState';
+import {
+  initialRegionPlayState,
+  regionPlayReducer,
+  scopeKey,
+  type RegionPlayState,
+} from './regionPlayState';
 
 const A = scopeKey(CHILD_A, 'treasure-rush-cove');
 const B = scopeKey(CHILD_B, 'treasure-rush-cove');
@@ -20,7 +25,11 @@ const challenge = () => read(challengeJson(), parse.issuedChallenge);
 const outcome = (correct: boolean) => read(outcomeJson(correct), parse.answerOutcome);
 
 function ready(): RegionPlayState {
-  return regionPlayReducer(initialRegionPlayState(A), { scope: A, type: 'loaded', bootstrap: bootstrap() });
+  return regionPlayReducer(initialRegionPlayState(A), {
+    scope: A,
+    type: 'loaded',
+    bootstrap: bootstrap(),
+  });
 }
 
 describe('regionPlayReducer', () => {
@@ -39,14 +48,29 @@ describe('regionPlayReducer', () => {
   });
 
   it('resets completely for a new scope', () => {
-    const state = regionPlayReducer(ready(), { scope: A, type: 'answerAccepted', outcome: outcome(true) });
-    expect(regionPlayReducer(state, { scope: B, type: 'reset' })).toEqual(initialRegionPlayState(B));
+    const state = regionPlayReducer(ready(), {
+      scope: A,
+      type: 'answerAccepted',
+      outcome: outcome(true),
+    });
+    expect(regionPlayReducer(state, { scope: B, type: 'reset' })).toEqual(
+      initialRegionPlayState(B),
+    );
   });
 
   it('records loading, failure, and readiness', () => {
-    let state = regionPlayReducer(initialRegionPlayState(A), { scope: A, type: 'started', action: 'load' });
+    let state = regionPlayReducer(initialRegionPlayState(A), {
+      scope: A,
+      type: 'started',
+      action: 'load',
+    });
     expect([state.status, state.busy]).toEqual(['loading', 'load']);
-    state = regionPlayReducer(state, { scope: A, type: 'failed', action: 'load', error: new ApiError('not_found') });
+    state = regionPlayReducer(state, {
+      scope: A,
+      type: 'failed',
+      action: 'load',
+      error: new ApiError('not_found'),
+    });
     expect([state.status, state.error?.kind, state.busy]).toEqual(['error', 'not_found', null]);
     state = regionPlayReducer(state, { scope: A, type: 'loaded', bootstrap: bootstrap() });
     expect(state.status).toBe('ready');
@@ -60,11 +84,18 @@ describe('regionPlayReducer', () => {
       error: new ApiError('conflict', { code: 'attempt_already_answered' }),
     });
     expect(state.status).toBe('ready');
-    expect([state.errorAction, state.error?.code]).toEqual(['submitAnswer', 'attempt_already_answered']);
+    expect([state.errorAction, state.error?.code]).toEqual([
+      'submitAnswer',
+      'attempt_already_answered',
+    ]);
   });
 
   it('shows rewards only from the server outcome, once each', () => {
-    let state = regionPlayReducer(ready(), { scope: A, type: 'challengeIssued', challenge: challenge() });
+    let state = regionPlayReducer(ready(), {
+      scope: A,
+      type: 'challengeIssued',
+      challenge: challenge(),
+    });
     state = regionPlayReducer(state, { scope: A, type: 'answerAccepted', outcome: outcome(true) });
     state = regionPlayReducer(state, { scope: A, type: 'answerAccepted', outcome: outcome(true) });
     expect(state.rewards.map((item) => item.itemId)).toEqual(['golden-doubloon']);
@@ -73,13 +104,21 @@ describe('regionPlayReducer', () => {
   });
 
   it('never marks a chest open or grants anything on a wrong answer', () => {
-    const state = regionPlayReducer(ready(), { scope: A, type: 'answerAccepted', outcome: outcome(false) });
+    const state = regionPlayReducer(ready(), {
+      scope: A,
+      type: 'answerAccepted',
+      outcome: outcome(false),
+    });
     expect(state.rewards).toEqual([]);
     expect(state.bootstrap?.chests[0].isOpen).toBe(false);
   });
 
   it('drops the session and the challenge when the session closes', () => {
-    let state = regionPlayReducer(ready(), { scope: A, type: 'sessionChanged', session: session() });
+    let state = regionPlayReducer(ready(), {
+      scope: A,
+      type: 'sessionChanged',
+      session: session(),
+    });
     state = regionPlayReducer(state, { scope: A, type: 'challengeIssued', challenge: challenge() });
     state = regionPlayReducer(state, {
       scope: A,
@@ -90,20 +129,39 @@ describe('regionPlayReducer', () => {
   });
 
   it('keeps a paused session', () => {
-    const state = regionPlayReducer(ready(), { scope: A, type: 'sessionChanged', session: session({ status: 'PAUSED' }) });
+    const state = regionPlayReducer(ready(), {
+      scope: A,
+      type: 'sessionChanged',
+      session: session({ status: 'PAUSED' }),
+    });
     expect(state.session?.status).toBe('PAUSED');
   });
 
   it('keeps an outstanding challenge across a refresh of the same session only', () => {
-    let state = regionPlayReducer(ready(), { scope: A, type: 'challengeIssued', challenge: challenge() });
-    state = regionPlayReducer(state, { scope: A, type: 'loaded', bootstrap: bootstrap({ session: sessionJson() }) });
+    let state = regionPlayReducer(ready(), {
+      scope: A,
+      type: 'challengeIssued',
+      challenge: challenge(),
+    });
+    state = regionPlayReducer(state, {
+      scope: A,
+      type: 'loaded',
+      bootstrap: bootstrap({ session: sessionJson() }),
+    });
     expect(state.challenge).not.toBeNull();
-    state = regionPlayReducer(state, { scope: A, type: 'loaded', bootstrap: bootstrap({ session: null }) });
+    state = regionPlayReducer(state, {
+      scope: A,
+      type: 'loaded',
+      bootstrap: bootstrap({ session: null }),
+    });
     expect(state.challenge).toBeNull();
   });
 
   it('replaces an accepted quest in place', () => {
-    const accepted = read(questJson({ status: 'ACTIVE', currentStageId: 'open-the-chest' }), parse.quest);
+    const accepted = read(
+      questJson({ status: 'ACTIVE', currentStageId: 'open-the-chest' }),
+      parse.quest,
+    );
     const state = regionPlayReducer(ready(), { scope: A, type: 'questAccepted', quest: accepted });
     expect(state.bootstrap?.quests).toHaveLength(1);
     expect(state.bootstrap?.quests[0].status).toBe('ACTIVE');
