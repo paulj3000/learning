@@ -36,3 +36,6 @@ assets/*.zip
 
 # Django collectstatic output (LAI-0404); built in the container, never committed
 lai/staticfiles/
+
+# Local asset-manager storage (LAI-2200)
+lai/.asset-storage/

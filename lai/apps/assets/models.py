@@ -5,7 +5,8 @@ file plus what validation found in it. Once published its bytes and metadata nev
 replacement model is a new version with a new object key, so every URL and cache entry for a
 version stays valid for as long as the version is served.
 
-Lifecycle: DRAFT -> VALIDATED | REJECTED, VALIDATED -> PUBLISHED, PUBLISHED -> RETIRED.
+Lifecycle: DRAFT -> VALIDATED | REJECTED, VALIDATED -> PUBLISHED | REJECTED,
+PUBLISHED -> RETIRED.
 Only `apps.assets.services` moves a version between states.
 """
 
@@ -56,7 +57,8 @@ IMMUTABLE_FIELDS = (
 
 ALLOWED_TRANSITIONS = {
     VersionStatus.DRAFT: {VersionStatus.VALIDATED, VersionStatus.REJECTED},
-    VersionStatus.VALIDATED: {VersionStatus.PUBLISHED},
+    # REJECTED: re-validation at publish time failed (checksum or definition changed).
+    VersionStatus.VALIDATED: {VersionStatus.PUBLISHED, VersionStatus.REJECTED},
     VersionStatus.REJECTED: set(),
     VersionStatus.PUBLISHED: {VersionStatus.RETIRED},
     VersionStatus.RETIRED: set(),

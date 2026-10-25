@@ -65,6 +65,13 @@ MIDDLEWARE.insert(
 )
 STORAGES = MANIFEST_STATIC_STORAGES
 
+# Asset manager (LAI-2200): storage must be chosen explicitly; never local disk in production.
+LAI_ASSET_STORAGE = _required("LAI_ASSET_STORAGE")
+if LAI_ASSET_STORAGE != "s3":
+    raise ImproperlyConfigured("LAI_ASSET_STORAGE must be s3 in production.")
+LAI_ASSET_BUCKET = _required("LAI_ASSET_BUCKET")
+LAI_ASSET_REGION = _required("LAI_ASSET_REGION")
+
 # Cognito (ADR-024): all three are mandatory. Without them every request would be rejected, so
 # refuse to start rather than run an API nobody can use. Values come only from the environment.
 COGNITO_REGION = _required("COGNITO_REGION")

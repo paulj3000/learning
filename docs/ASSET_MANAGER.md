@@ -46,8 +46,10 @@ AssetReference = "npc-pip" (follows the default) or "npc-pip@1" (pinned)
 ## 3. Lifecycle
 
 ```text
-upload -> DRAFT -> validate -> VALIDATED -> publish -> PUBLISHED -> retire -> RETIRED
-                           \-> REJECTED (failed validation; deletable with its file)
+upload (checksum + validate) -> VALIDATED -> publish (re-verify) -> PUBLISHED -> retire -> RETIRED
+                                                   \-> REJECTED (stored bytes or definition changed)
+A file that fails validation at upload is never stored and makes no row: the admin sees the
+findings on the form. DRAFT is reserved for versions created by import before validation.
 ```
 
 | Action | Who (permission) | Effect |
@@ -58,7 +60,7 @@ upload -> DRAFT -> validate -> VALIDATED -> publish -> PUBLISHED -> retire -> RE
 | Make default | `assets.publish_assetversion` | Points `default_version` at another **published** version of the same asset |
 | Retire a version | `assets.retire_assetversion` | `PUBLISHED` to `RETIRED`. Refused while it is the default unless another published version takes over |
 | Retire a definition | `assets.retire_assetversion` | `status=RETIRED`; nothing of it resolves |
-| Delete | `assets.delete_assetversion` | Only `DRAFT` and `REJECTED`; deletes the stored file. Published and retired versions are never deleted |
+| Delete | `assets.delete_assetversion` | Only never-published versions (`DRAFT`, `VALIDATED`, `REJECTED`); the stored file is deleted after the row commits. Published and retired versions are never deleted |
 
 Immutability: once a version has been published its binary fields (number, key, checksum, size,
 type, format, metadata) cannot change (model guard plus admin read-only fields). A new model
@@ -201,9 +203,9 @@ call is made by the tests.
 | Id | Task | Status |
 |---|---|---|
 | AM-1 | Architecture and contract (this document, ADR-035) | Done |
-| AM-2 | Models and migrations | Planned |
-| AM-3 | Model validation service | Planned |
-| AM-4 | Storage abstraction and upload lifecycle | Planned |
+| AM-2 | Models and migrations | Done |
+| AM-3 | Model validation service | Done |
+| AM-4 | Storage abstraction and upload lifecycle | Done |
 | AM-5 | Django Admin management, permissions and groups | Planned |
 | AM-6 | Published-asset resolver API and delivery | Planned |
 | AM-7 | Frontend Django resolver adapter | Planned |
