@@ -128,6 +128,11 @@ class WorldRegion(models.Model):
     title = models.CharField(max_length=120, help_text="Child-facing name.")
     version = models.PositiveIntegerField(default=1)
     scene = models.JSONField(default=dict, blank=True)
+    # The quests an NPC here offers the child (TR-5). Accepting one is the child's choice; a
+    # session never starts a quest by itself.
+    offered_quests = models.ManyToManyField(
+        "quests.QuestDefinition", blank=True, related_name="offered_in_regions"
+    )
     status = models.CharField(
         max_length=16, choices=ContentStatus.choices, default=ContentStatus.DRAFT
     )

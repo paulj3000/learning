@@ -255,3 +255,57 @@ def submit_chest_answer(
             reward=reward,
             quest_updates=quest_updates,
         )
+
+
+# --- Session lifecycle by id (TR-5) --------------------------------------------------------------
+
+
+class SessionNotFound(PlayError):
+    code = "not_found"
+
+
+class InvalidTransition(PlayError):
+    code = "invalid_transition"
+
+
+# action -> (statuses it may start from, status it ends in). Asking for the status a session
+# already has is a no-op, so a retried request succeeds; anything else is refused.
+SESSION_ACTIONS = {
+    "pause": ((SessionStatus.ACTIVE,), SessionStatus.PAUSED),
+    "resume": ((SessionStatus.PAUSED,), SessionStatus.ACTIVE),
+    "complete": (OPEN_STATUSES, SessionStatus.COMPLETED),
+    "abandon": (OPEN_STATUSES, SessionStatus.ABANDONED),
+}
+
+
+def get_child_session(child, session_id, *, lock: bool = False) -> AdventureSession:
+    """One of this child's sessions, or `SessionNotFound` (also for another child's)."""
+    queryset = AdventureSession.objects.filter(child=child)
+    if lock:
+        queryset = queryset.select_for_update()
+    try:
+        return queryset.get(pk=session_id)
+    except (AdventureSession.DoesNotExist, ValueError, ValidationError):
+        raise SessionNotFound from None
+
+
+def change_session_status(child, session_id, action: str) -> AdventureSession:
+    if action not in SESSION_ACTIONS:
+        raise InvalidTransition
+    allowed_from, target = SESSION_ACTIONS[action]
+    with transaction.atomic():
+        session = get_child_session(child, session_id, lock=True)
+        if session.status == target:
+            return session
+        if session.status not in allowed_from:
+            raise InvalidTransition
+        if action == "resume" and session.kind == SessionKind.REGION:
+            region = WorldRegion.objects.filter(region_id=session.region_id).first()
+            if region is None:
+                raise ContentUnavailable
+            _require_published_region(region)
+        session.status = target
+        session.last_activity_at = now()
+        session.completed_at = session.last_activity_at if target == SessionStatus.COMPLETED else None
+        session.save(update_fields=["status", "last_activity_at", "completed_at"])
+        return session

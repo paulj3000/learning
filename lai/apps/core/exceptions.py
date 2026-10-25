@@ -36,6 +36,13 @@ _CODED = {
     "account_not_provisioned": "Account setup is required.",
     "sensitive_action_unavailable": "This action is not available.",
     "authentication_unavailable": "Authentication is temporarily unavailable.",
+    # Play API (TR-5), all 409.
+    "content_unavailable": "This is not available right now.",
+    "session_not_open": "This play session has ended.",
+    "chest_already_open": "This chest is already open.",
+    "attempt_already_answered": "This challenge was already answered.",
+    "quest_unavailable": "This quest is not available.",
+    "invalid_transition": "That change is not allowed right now.",
 }
 _PASSTHROUGH_HEADERS = {"Allow", "WWW-Authenticate", "Retry-After"}
 

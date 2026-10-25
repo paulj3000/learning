@@ -2528,7 +2528,25 @@ has not been asked and which "Decisions pending" already lists as open; and
 whether SC-11's retirement gate still means anything against a castle whose
 content layer is being replaced.
 
-## Treasure Rush - TR-4 complete (progress models and play services); nothing playable yet
+## Treasure Rush - TR-5 complete (play API); playable through HTTP, no frontend yet
+
+TR-5 adds the play API under `/api/v1/children/{childId}/`: region bootstrap, start or resume a
+session, session lifecycle (pause, resume, complete, abandon), quest acceptance, chest challenge,
+answer, and progress. Thin DRF views over the TR-4 services; every route is child-scoped and
+covered by the existing route checker. Contract with examples: `docs/PLAY_API.md`. Decisions
+TR-D1, TR-D2, TR-D4, TR-D8, TR-D11 accepted by the owner; TR-D12 and TR-D13 recorded in
+`docs/TREASURE_RUSH_ROADMAP.md` section 11. Additive changes: `WorldRegion.offered_quests`
+(migration `islands.0002`) and a session lifecycle service.
+
+Verification (2026-10-24, PostgreSQL 16): `pytest lai tests` all passed (36 new API tests);
+`makemigrations --check` and `manage.py check` clean; four mutations each failed a test. Unit
+tests only: Ruff, Prettier, Playwright, and browser tests were not run (development testing
+policy; they run at merge).
+
+Not done: no frontend (TR-6 on), no admin (TR-3, blocked on TR-D5). Seeded Treasure Rush
+content is DRAFT until an administrator publishes it.
+
+### Earlier: TR-4 (progress models and play services)
 
 TR-4 (the Treasure Rush subset of LAI-0305) adds `game_sessions` (`AdventureSession` with a
 `REGION` kind, `ChallengeAttempt`), `progression` (`WorldChange`), `InventoryItem` and

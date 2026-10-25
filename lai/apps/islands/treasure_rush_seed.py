@@ -171,7 +171,7 @@ def seed_treasure_rush() -> list[str]:
             "placeholder_height": 1.6,
         },
     )
-    get_or_create(
+    quest = get_or_create(
         QuestDefinition,
         {"quest_id": QUEST_ID},
         {
@@ -199,4 +199,6 @@ def seed_treasure_rush() -> list[str]:
             "status": ContentStatus.DRAFT,
         },
     )
+    if not region.offered_quests.exists():
+        region.offered_quests.add(quest)
     return created

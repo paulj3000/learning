@@ -1,9 +1,9 @@
 # Treasure Rush: Roadmap and Readiness
 
 **Status (2026-10-24):** TR-0 (this plan), TR-1 (server-side math challenges), TR-2 (catalog
-models and loader), and TR-4 (progress models and play services) are done on branch
-`feature/treasure-rush-slice`, cut from `main` at `350e11b`. Nothing is playable yet: there is
-no endpoint and no frontend. TR-D3 and TR-D7 are taken as authorised by the Treasure
+models and loader), TR-4 (progress models and play services), and TR-5 (the play API,
+`docs/PLAY_API.md`) are done on branch `feature/treasure-rush-slice`, cut from `main` at
+`350e11b`. The backend is playable through HTTP; there is no frontend yet (TR-6 on). TR-D3 and TR-D7 are taken as authorised by the Treasure
 Rush brief (admin-managed content; no second asset system); the other decisions in section 6
 are still **Proposed**.
 
@@ -132,7 +132,7 @@ Acceptance: `AdventureSession`, a `ChallengeAttempt` (session, spec, seed, corre
 child free text), `WorldChange` unique on `(child, location, change_key)`, `InventoryItem`, and
 `QuestProgress`, with migrations and tenant-scoped managers.
 
-**TR-5 Treasure Rush play API.** Depends: TR-4 (done), LAI-0403 (done). Risk H. Since TR-4,
+**TR-5 Treasure Rush play API.** DONE (section 11). Depends: TR-4 (done), LAI-0403 (done). Risk H. Since TR-4,
 the transactional work is in `apps/game_sessions/services.py`; TR-5 is the endpoints,
 serializers, error envelope, and endpoint-level isolation tests over it, plus deciding when the
 quest starts (on session start, or when Pip offers it). Acceptance: child-scoped
@@ -143,7 +143,7 @@ quest, all idempotent). The response is the completion summary. Tests: two-famil
 every endpoint, replayed success grants nothing twice, malformed answers return the safe error
 envelope, the answer never appears in any response.
 
-**TR-6 Frontend Django client for Treasure Rush (LAI-0501 slice).** Depends: TR-5, TR-D8.
+**TR-6 Frontend Django client for Treasure Rush (LAI-0501 slice).** Depends: TR-5 (done), TR-D8 (accepted). Contract: `docs/PLAY_API.md`.
 Risk M. Acceptance: `react/src/api/` module behind `VITE_BACKEND`, typed DTOs, Cognito bearer
 token, fallback copy on network failure. No other feature moves.
 
@@ -181,27 +181,34 @@ TR-1 was chosen because it needs no decision, no model, and nothing from LAI-210
 later backend task builds on it. It is the rule the user asked for in requirement 6
 ("correct answer validation on the backend") and the parameter set behind admin requirement C.
 
-## 6. Decisions that need approval (Proposed)
+## 6. Decisions
 
 These are recorded here rather than as numbered ADRs because LAI-2106 is being written on
-another branch and may take the next ADR number (ADR registry rule 2). Each becomes an ADR,
-numbered on the integration branch, once accepted.
+another branch and may take the next ADR number (ADR registry rule 2). Each accepted one becomes
+an ADR, numbered on the integration branch at merge.
 
-- **TR-D1 The reward is a keepsake, not coins.** ADR-011 rules out a coin economy. Proposal: a
+**Owner approval, 2026-10-24 (TR-5 brief):** TR-D1, TR-D2, TR-D4, TR-D8, and TR-D11 are
+**Accepted**. The same approval restates that the Django backend is authoritative for persistent
+gameplay state; that is already ADR-019 and ADR-012's direction and is not a new decision.
+TR-D3 and TR-D7 were taken as authorised by the original brief, and TR-D6, TR-D9, and TR-D10
+were built as recorded; they stay as written until reviewed at merge. **TR-D5 is still
+Proposed** and blocks TR-3 only.
+
+- **TR-D1 (Accepted) The reward is a keepsake, not coins.** ADR-011 rules out a coin economy. Proposal: a
   "Golden Doubloon" `ItemDefinition` (category KEEPSAKE) granted once per chest by reward rule
   id, with no count, no spending, and no shop. A real coin balance would supersede ADR-011 and
   is a product decision.
-- **TR-D2 Where Treasure Rush lives.** A new island location is a scope change (CLAUDE.md
+- **TR-D2 (Accepted) Where Treasure Rush lives.** A new island location is a scope change (CLAUDE.md
   section 5). Proposal: a new region inside Pirate Builder Bay (`locationSlug:
   pirate-builder-bay`), which ADR-032 part D allows, so no new `IslandLocation` is needed.
 - **TR-D3 Admin-authored content is authoritative for Treasure Rush.** ADR-031 makes the admin
   catalog an overlay on source content. Treasure Rush would be the first content whose steps,
   placement, and rules live only in PostgreSQL. This is the ADR-019 direction, but it is a
   change to ADR-031 and needs saying out loud.
-- **TR-D4 Spawn and checkpoints as data.** ADR-032 part C keeps checkpoints in
+- **TR-D4 (Accepted) Spawn and checkpoints as data.** ADR-032 part C keeps checkpoints in
   `discovery/checkpoints.ts`. Proposal: a published manifest snapshot may carry its own
   checkpoints, including spawn; source regions keep the current rule.
-- **TR-D5 How administrators sign in to Django admin.** `ParentAccount` has no password and no
+- **TR-D5 (Proposed) How administrators sign in to Django admin.** `ParentAccount` has no password and no
   staff flags by design. Options: (a) staff flags on `ParentAccount`, granted out of band,
   with a Cognito sign-in that creates a Django session; (b) a separate local staff login. (a)
   keeps one identity; (b) is faster but adds passwords. Owner decides (LAI-0404).
@@ -211,7 +218,7 @@ numbered on the integration branch, once accepted.
   for it explicitly; recorded for acceptance.
 - **TR-D7 LAI-0304 without the `assets` app.** The catalog task is split so its asset models
   are left to LAI-2106. Catalog rows store asset ids only.
-- **TR-D8 One feature on Django before cutover.** Treasure Rush would be the first frontend
+- **TR-D8 (Accepted) One feature on Django before cutover.** Treasure Rush would be the first frontend
   feature to read from Django behind `VITE_BACKEND`, local only until a dev environment exists
   (LAI-1004).
 
@@ -336,7 +343,7 @@ one transaction).
   skill id is the learning objective code. `SkillProgress` (derived mastery counters) is not
   ported: its counter semantics belong to the Mastery Engine port, and evidence is enough to
   derive it later.
-- **TR-D11 Quests do not start themselves.** `submit_chest_answer` refreshes the child's active
+- **TR-D11 (Accepted) Quests do not start themselves.** `submit_chest_answer` refreshes the child's active
   quests; starting one (`start_quest`, which checks status, age band, and prerequisites) is the
   play API's call, so an NPC offer stays meaningful.
 - **Ownership is a set.** One row per child and item, as docs/DATA_MODEL.md "ChildInventory"
@@ -357,3 +364,47 @@ never see each other's state; child deletion removes only that child's progress.
 **Tests:** 88 new; `pytest lai tests`: 390 passed. They include three real two-connection
 races. Four mutations (no replay check, no child scoping, no transaction, no reward claim) were
 each confirmed to fail a test. Unit tests only, per the development testing policy.
+
+## 11. TR-5 as built
+
+The play API: thin DRF views in `lai/apps/game_sessions/views.py` over the TR-4 services, with
+read models in `play_state.py` and closed request bodies and camelCase responses in
+`serializers.py`. The contract, with request and response examples, is `docs/PLAY_API.md`.
+
+| Route (under `/api/v1/children/{childId}/`) | Service |
+|---|---|
+| `GET regions/{regionId}/` | `play_state.region_bootstrap` |
+| `POST regions/{regionId}/session/` | `start_or_resume_region_session` |
+| `GET sessions/{id}/`, `POST sessions/{id}/{pause,resume,complete,abandon}/` | `get_child_session`, `change_session_status` |
+| `POST sessions/{id}/chests/{entityId}/challenge/` | `issue_chest_challenge` |
+| `POST attempts/{id}/answer/` | `submit_chest_answer` |
+| `POST quests/{questId}/accept/` | `quests.services.start_quest` |
+| `GET progress/` | `play_state.child_progress` |
+
+**Additions to earlier tasks, both additive:**
+
+- TR-2: `WorldRegion.offered_quests` (migration `islands.0002`), the quests an NPC in the region
+  offers. Pip's exported `quest_offers` could not carry it: `load_content` overwrites exported
+  rows, so an admin edit there would be lost on reload. The seed links the Treasure Rush quest.
+- TR-4: `change_session_status` and `get_child_session`, the lifecycle the API exposes, with
+  the transition table in `SESSION_ACTIONS`. `end_session` is unchanged.
+
+**Decisions (TR-D12, TR-D13; conservative, reversible):**
+
+- **TR-D12 A replayed answer is `409 attempt_already_answered`**, not a repeat of the first
+  response. Nothing is re-granted either way; the client re-reads state. Returning the stored
+  outcome would need a stored response, which no other endpoint keeps.
+- **TR-D13 Retired content mid-play.** A challenge issued before retirement can still be answered
+  while its session is open (the child is not punished for an admin edit); nothing new starts
+  in retired content. A deleted chest opens nothing.
+
+**Acceptance criteria, all met:** every route authenticated and child-scoped (the existing route
+checker enforces it); another family's or a sibling's records are `404`; no response contains an
+answer, seed, URL, or admin field; client-supplied outcomes are refused; string, float, and
+boolean answers are refused; correct and incorrect answers, replay, quest acceptance (never
+automatic), progress, and every lifecycle transition are covered.
+
+**Tests:** `game_sessions/tests/test_play_api.py`, 36 tests through HTTP with locally signed
+tokens. Four mutations (closed bodies off, answer added to the challenge, session lookup not
+scoped, lenient integer answer) each failed a test; the last one first survived and led to a
+stronger test. Unit tests only, per the development testing policy.

@@ -157,16 +157,16 @@ before touching AWS.
 # Treasure Rush (`docs/TREASURE_RUSH_ROADMAP.md`)
 
 Feature roadmap with its own ids, like SC-n. Rows marked "is LAI-NNNN" are that tracker task,
-with Treasure Rush as its first content; tick the LAI row, not a copy. Decisions TR-D1 to TR-D8
-are Proposed.
+with Treasure Rush as its first content; tick the LAI row, not a copy. Decisions TR-D1, TR-D2,
+TR-D4, TR-D8, and TR-D11 were accepted on 2026-10-24; TR-D5 is still Proposed.
 
 - [x] **TR-0** Plan: gap analysis, dependency map, decisions, asset contract
 - [x] **TR-1** Server-side math challenges (`lai/apps/education/challenges.py`). DONE locally, not pushed (carried onto `feature/treasure-rush-slice` from `treasure-rush`)
 - [x] **TR-2** Catalog models, is LAI-0304 without `assets` (depends: TR-D3, TR-D7). DONE locally on `feature/treasure-rush-slice`: catalog apps, `load_content`, Treasure Rush world models, `seed_treasure_rush`. TR-D3 and TR-D7 taken as authorised by the Treasure Rush brief
 - [ ] **TR-3** Django admin access and catalog admin, is LAI-0404 then LAI-0801 (APPROVAL: TR-D5) (depends: TR-2)
 - [x] **TR-4** Progress models, is LAI-0305 (depends: TR-2). DONE locally: sessions, challenge attempts, world changes, inventory ownership, quest progress, skill evidence, plus the play services TR-5 calls. LAI-0305 itself stays open for the non-Treasure-Rush models
-- [ ] **TR-5** Treasure Rush play API: endpoints over `game_sessions/services.py` (depends: TR-4 done, LAI-0403 done)
-- [ ] **TR-6** Frontend Django client slice (depends: TR-5, TR-D8)
+- [x] **TR-5** Treasure Rush play API (depends: TR-4, LAI-0403). DONE locally: 8 child-scoped routes over the TR-4 services; contract in `docs/PLAY_API.md`
+- [ ] **TR-6** Frontend Django client slice (depends: TR-5 done, TR-D8 accepted)
 - [ ] **TR-7a** Placeholder-mesh asset adapter (depends: none)
 - [ ] **TR-7** Treasure Rush region (depends: TR-6, TR-7a, TR-D2, TR-D4)
 - [ ] **TR-8** Challenge and quest-complete UI (depends: TR-7)
