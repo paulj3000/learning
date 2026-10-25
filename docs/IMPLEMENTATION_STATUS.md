@@ -10756,3 +10756,48 @@ branches are untouched.
     are identical, because no adventure was added.
 - **Verified (run):** see the POST-MERGE-03 completion report; full deferred checks wait for merge
   verification. Treasure Cove has not been played in a browser.
+
+## POST-MERGE-04: merge verification of `integration/post-merge-03` (2026-10-25)
+
+Not a roadmap task. The verification ran on `882ac8c`; its fixes are `0134342` (Ruff and
+Prettier, three lint fixes with no behaviour change) and `b62a3df` (backbone regression test).
+
+- **Git:**
+  - `origin/main` is unchanged at `350e11b` and is an ancestor, so the merge would be a
+    fast-forward.
+  - `origin/feature/treasure-rush-slice` has moved to `35596ba` (TR-8, React UI only). By owner
+    decision it is not included, so that branch is ahead again after this merge.
+- **Python:**
+  - Ruff check and format: clean, after formatting 56 files and fixing 5 findings.
+  - `manage.py check` and `makemigrations --check`: clean.
+  - pytest: 621 passed against PostgreSQL 16, with the database required. The 3 new backbone
+    tests also pass.
+- **Fresh disposable database:**
+  - Every migration applied in dependency order, with no duplicate initial migrations.
+  - `load_content` imported release `99641a559c56`; `seed_treasure_rush` created 7 rows; a
+    second import was skipped as unchanged.
+  - The inventory foreign keys reference `catalog_itemdefinition` and `catalog_rewardrule`.
+- **TypeScript:**
+  - Prettier: clean, after formatting 37 files.
+  - oxlint: 0 errors and 31 warnings (accessibility and fast-refresh hints).
+  - Typecheck: clean.
+  - Vitest: 282 files and 2920 tests passed.
+  - `npm run build`: passes.
+  - Engine boundary guard: no violations.
+  - `content:check`, `golden:check` and the ADR check: all pass. The golden data is unchanged
+    since POST-MERGE-03.
+- **Browser (real Chromium):** the 7 Playwright smoke tests pass.
+  - Storykeeper Castle and Treasure Cove gameplay were **not** run in a browser. Every 3D world
+    is behind a Cognito sign-in and Amplify Data, and the Treasure Cove answer UI is TR-8.
+  - Gameplay rules are covered by integration tests against a real database: the play API, chest
+    play and answers API.
+- **Dependencies:** `npm ci` fails on `main` as well. `package-lock.json` is out of sync
+  (`zod@3.24.2`, `@opentelemetry/core@2.0.0`). CI and Amplify use `npm install`, which tolerates
+  this. The check reused the main checkout's installed modules; Python came from the pinned
+  requirements.
+- **Deployment on a push to `main`:**
+  - CI only verifies.
+  - Amplify Hosting (if it tracks `main`) would run `ampx pipeline-deploy` and redeploy the
+    `submitAdventureAnswer` Lambda, whose only change is the re-export of its decision logic.
+  - The React build ships with the Django API off unless `VITE_BACKEND=django` is set.
+  - No Django service, database or infrastructure is deployed, and no migration runs anywhere.
