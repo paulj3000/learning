@@ -294,7 +294,9 @@ def walk(patterns, prefix=""):
             yield prefix + str(entry.pattern), entry.callback
 
 
-PUBLIC = {"api/v1/health/"}
+# The asset-file route is a capability URL: a signed, expiring token for one published version,
+# re-checked on every fetch (LAI-2200, ADR-035; apps/assets/tests/test_resolver_api.py).
+PUBLIC = {"api/v1/health/", "api/v1/asset-files/<str:token>/<str:filename>"}
 PARENT_SCOPED = {"api/v1/me/"}
 
 
