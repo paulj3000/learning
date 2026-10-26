@@ -1,0 +1,42 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; {{ title }}
+</div>
+{% endblock %}
+{% block content %}
+<div id="content-main">
+  <p>The file is checked when you upload it: format, size (at most {{ max_upload_bytes|filesizeformat }}),
+    structure, embedded resources, animation clips and bounds. A file that passes becomes a
+    <strong>validated</strong> version. Nobody sees it in a game until it is published.</p>
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="errornote">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+    {% if findings %}
+    <div class="module">
+      <h2>Validation findings</h2>
+      <ul>
+        {% for finding in findings %}
+        <li><strong>{{ finding.severity }}</strong> {{ finding.code }}: {{ finding.message }}
+          {% if finding.path %}<code>{{ finding.path }}</code>{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    <fieldset class="module aligned">
+      {% for field in form %}
+      <div class="form-row{% if field.errors %} errors{% endif %}">
+        {{ field.errors }}
+        {{ field.label_tag }} {{ field }}
+        {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </fieldset>
+    <div class="submit-row"><input type="submit" value="Upload and validate" class="default"></div>
+  </form>
+</div>
+{% endblock %}

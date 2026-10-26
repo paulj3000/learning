@@ -787,6 +787,33 @@ Cognito-backed admin sign-in is the upgrade path, TR-D5 option a). No throttling
 logins in the application (add WAF rate limiting at the load balancer, or a lockout, before exposure). There is no Django deployment yet;
 hosting and approvals are in `docs/DJANGO_TARGET_ARCHITECTURE.md`, "Django Admin hosting".
 
+## Shared asset manager (LAI-2200, ADR-035)
+
+Upload a 3D model once, publish an immutable version, and every island, region, adventure or quest
+uses it by its stable asset id. Detail and the full contract: `docs/ASSET_MANAGER.md`.
+
+- **Definition** is `catalog.ContentAsset` (one identity; CLAUDE.md section 20), now creatable in
+  Django. **Versions** are `assets.AssetVersion`: immutable once published, unique per asset,
+  stored under server-made keys (`assets/models/<id>/<version uuid>/model.<glb|gltf>`).
+- **Validation** (`apps/assets/validation.py`) checks GLB or self-contained glTF from the bytes,
+  with bounded reads, no external URIs, no decoder-only compression, structural bounds, clips and
+  dimensions. It runs on upload and again on publish (with a checksum re-check).
+- **Storage** (`apps/assets/storage.py`) is S3 in production (private, checksummed, never
+  overwritten), local disk in development, memory in tests.
+- **Admin**: definitions and versions in Django Admin, gated by Django permissions through the
+  "Asset editors" and "Asset publishers" groups (`manage.py ensure_asset_roles`).
+- **Resolution**: `GET /api/v1/children/<child_id>/assets/?ids=` (child-scoped; published only;
+  `resolved`, `unavailable` or `retired`). **Delivery** is a self-authorizing URL: a signed Django
+  route that re-checks publication on every fetch, or an S3 presigned URL. It is the second route
+  without a bearer token, and it carries a signed capability for one published version.
+- **Frontend**: `react/src/api/assets/djangoAssetResolver.ts`, an `AssetResolver` for the LAI-2106
+  loader that falls back to the bundled manifest. It is not wired into a scene yet (TR-10).
+- **Admin 3D preview** (AM-10): a read-only Three.js viewer on each version's admin preview page,
+  for validated, published and retired versions. The file comes from a separate admin route that
+  needs a staff session and a short-lived token sent in a header, so the gameplay route stays
+  published-only. The viewer source is `react/src/features/assets/preview/`, bundled into the
+  `assets` app's static files (`docs/ASSET_MANAGER.md` section 17).
+
 ## Child progress (LAI-0305)
 
 `game_sessions`, `education`, `progression`, `inventory` and `quests` hold child progress, every
@@ -846,7 +873,8 @@ adapted onto it:
 |---|---|
 | `core` | API conventions, privacy logging, `ChildOwnedModel` (with the cross-child link check), `content_schema` validator, `ContentStatus` |
 | `users` | `ParentAccount`, `ChildProfile`, Cognito authentication, child scoping |
-| `catalog` | Imported content: World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset, LearningObjective, NpcDefinition, CollectibleSet, ItemDefinition, RewardRule, ContentRelease; the one importer (`load_content`); asset references (`asset_refs.py`); the catalog admin (mounted by LAI-0404) |
+| `catalog` | Imported content: World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset, LearningObjective, NpcDefinition, CollectibleSet, ItemDefinition, RewardRule, ContentRelease; the one importer (`load_content`); asset references (`asset_refs.py`); the catalog admin (mounted by LAI-0404); ContentAsset is also the asset definition (LAI-2200) |
+| `assets` | Asset manager (LAI-2200, ADR-035): AssetVersion, validation, storage, publication services, the published-asset resolver and delivery routes, the import and audit commands. No identity of its own: versions attach to `catalog.ContentAsset` |
 | `regions` | Seed-authored play regions: WorldRegion, SpawnPoint, WorldObjectPlacement, TreasureChest; `seed_treasure_rush` |
 | `adventures` | The Python adventure engine (pure module, LAI-0601) |
 | `game_sessions` | AdventureSession (ADVENTURE or REGION), AdventureAction, ChallengeAttempt, CoopSession; answers and hints (LAI-0601); region play (TR-5) |

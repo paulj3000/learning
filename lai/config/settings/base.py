@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.users",
     "apps.catalog",
+    "apps.assets",
     "apps.regions",
     "apps.game_sessions",
     "apps.education",
@@ -193,6 +194,26 @@ LOGGING = {
         "level": _requested_level if _requested_level in _LEVELS else "INFO",
     },
 }
+
+# --- Asset manager (LAI-2200, ADR-035; docs/ASSET_MANAGER.md section 13) --------------------
+# Development defaults; production.py requires explicit values and test.py uses memory.
+LAI_ASSET_STORAGE = os.environ.get("LAI_ASSET_STORAGE", "local").strip()
+LAI_ASSET_BUCKET = os.environ.get("LAI_ASSET_BUCKET", "").strip()
+LAI_ASSET_REGION = os.environ.get("LAI_ASSET_REGION", "").strip()
+LAI_ASSET_LOCAL_ROOT = BASE_DIR / ".asset-storage"
+LAI_ASSET_DELIVERY = os.environ.get("LAI_ASSET_DELIVERY", "django").strip()
+LAI_ASSET_URL_TTL_SECONDS = int(os.environ.get("LAI_ASSET_URL_TTL_SECONDS", "3600"))
+LAI_ASSET_MAX_UPLOAD_BYTES = int(os.environ.get("LAI_ASSET_MAX_UPLOAD_BYTES", "52428800"))  # 50 MB
+if LAI_ASSET_STORAGE not in {"s3", "local", "memory"}:
+    raise ImproperlyConfigured("LAI_ASSET_STORAGE must be s3, local or memory.")
+if LAI_ASSET_DELIVERY not in {"django", "s3"}:
+    raise ImproperlyConfigured("LAI_ASSET_DELIVERY must be django or s3.")
+if not 60 <= LAI_ASSET_URL_TTL_SECONDS <= 43200:
+    raise ImproperlyConfigured("LAI_ASSET_URL_TTL_SECONDS must be between 60 and 43200.")
+if LAI_ASSET_DELIVERY == "s3" and LAI_ASSET_STORAGE != "s3":
+    raise ImproperlyConfigured("LAI_ASSET_DELIVERY=s3 needs LAI_ASSET_STORAGE=s3.")
+# Uploads above this stay on disk while they are checked, never in memory.
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 
 LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
 

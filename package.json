@@ -30,6 +30,7 @@
     "golden:generate": "tsx scripts/generate-golden-vectors.ts",
     "golden:check": "tsx scripts/generate-golden-vectors.ts --check",
     "adr:check": "tsx scripts/check-adrs.ts",
+    "admin-preview:check": "tsx scripts/check-admin-preview-bundle.ts",
     "assets:import-kenney": "tsx scripts/import-kenney-assets.ts",
     "assets:import-characters": "tsx scripts/import-character-assets.ts",
     "grant-admin": "tsx scripts/grant-admin.ts"

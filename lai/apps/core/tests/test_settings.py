@@ -52,6 +52,9 @@ PROD_ENV = {
     "COGNITO_REGION": "us-test-1",
     "COGNITO_USER_POOL_ID": "us-test-1_TESTPOOL1",
     "COGNITO_ALLOWED_CLIENT_IDS": "client-one,client-two",
+    "LAI_ASSET_STORAGE": "s3",
+    "LAI_ASSET_BUCKET": "lai-assets-test",
+    "LAI_ASSET_REGION": "us-test-1",
 }
 
 
@@ -167,6 +170,38 @@ def test_the_admin_path_can_move_and_the_cookies_follow(monkeypatch):
     assert base.SESSION_COOKIE_PATH == base.CSRF_COOKIE_PATH == "/staff/django-admin/"
     monkeypatch.delenv("DJANGO_ADMIN_URL_PATH")
     assert _load("config.settings.base").ADMIN_URL_PATH == "admin/"  # leave the default loaded
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"LAI_ASSET_STORAGE": None},
+        {"LAI_ASSET_STORAGE": "local"},
+        {"LAI_ASSET_BUCKET": None},
+        {"LAI_ASSET_REGION": None},
+    ],
+)
+def test_production_requires_private_s3_asset_storage(monkeypatch, overrides):
+    _prod_env(monkeypatch, **overrides)
+    with pytest.raises(ImproperlyConfigured, match="LAI_ASSET_"):
+        _load("config.settings.production")
+
+
+@pytest.mark.parametrize(
+    "name, value",
+    [
+        ("LAI_ASSET_STORAGE", "ftp"),
+        ("LAI_ASSET_DELIVERY", "public"),
+        ("LAI_ASSET_URL_TTL_SECONDS", "5"),
+        ("LAI_ASSET_URL_TTL_SECONDS", "999999"),
+    ],
+)
+def test_asset_settings_reject_unsafe_values(monkeypatch, name, value):
+    monkeypatch.setenv(name, value)
+    with pytest.raises(ImproperlyConfigured, match=name.replace("_SECONDS", "")):
+        _load("config.settings.base")
+    monkeypatch.delenv(name)
+    _load("config.settings.base")  # leave the default loaded
 
 
 def test_production_does_not_hardcode_infrastructure():

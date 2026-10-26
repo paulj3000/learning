@@ -5,7 +5,14 @@
     "browser": true,
     "node": true
   },
-  "ignorePatterns": ["dist", "coverage", "playwright-report", "test-results", "amplify/.config"],
+  "ignorePatterns": [
+    "dist",
+    "coverage",
+    "playwright-report",
+    "test-results",
+    "amplify/.config",
+    "lai/apps/assets/static/assets/admin/asset-preview.js"
+  ],
   "rules": {
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }],

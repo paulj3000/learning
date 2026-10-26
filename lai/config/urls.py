@@ -15,6 +15,7 @@ urlpatterns = [
     path("api/v1/", include("apps.core.urls")),
     path("api/v1/", include("apps.users.urls")),
     path("api/v1/", include("apps.game_sessions.urls")),
+    path("api/v1/", include("apps.assets.urls")),
     path(settings.ADMIN_URL_PATH, admin.site.urls),
 ]
 

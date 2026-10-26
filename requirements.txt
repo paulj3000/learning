@@ -7,6 +7,8 @@ PyJWT[crypto]==2.15.1
 # Production serving (LAI-0404, ADR-034): the WSGI server and the admin's static files.
 gunicorn==26.2.0
 whitenoise==6.12.0
+# Asset manager S3 storage (LAI-2200, ADR-035).
+boto3==1.43.118
 # transitive dependencies, pinned for reproducible installs
 asgiref==3.12.1
 psycopg-binary==3.3.6
@@ -15,3 +17,9 @@ cffi==2.1.1
 pycparser==3.11
 sqlparse==0.6.0
 typing_extensions==4.16.0
+botocore==1.43.118
+s3transfer==0.19.3
+jmespath==1.1.0
+python-dateutil==2.9.0.post0
+six==1.17.0
+urllib3==2.8.0

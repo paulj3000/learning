@@ -56,6 +56,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-032 | Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-025 on `origin/main` |
 | ADR-033 | One Django backbone: Treasure Rush runs on the canonical catalog and progress models; play-region layouts are seed-authored until LAI-0805 | Accepted | Integration (POST-MERGE-03) |  |
 | ADR-034 | Django Admin is enabled with local staff sign-in, separate from Cognito; it ships as a gunicorn and WhiteNoise container | Accepted | Main line (LAI-0404) | Amends ADR-024 A4 for Django Admin only; resolves TR-D5 |
+| ADR-035 | The shared asset manager versions binaries on the canonical ContentAsset identity, with private storage and signed delivery | Accepted | Feature branch (LAI-2200) | Accepted 2026-10-25. Amends ADR-034 item 3 (Django permissions and groups); builds on ADR-030 and ADR-033. Amended by AM-10 (staff-only admin preview route) |
 
 ## ADR-001: Parent-owned accounts
 
@@ -2589,4 +2590,75 @@ until a Cognito-based admin sign-in (TR-D5 option a) is built; that is the upgra
 --reset-password`); roles change with `set_admin_role`, which, like the admin form, never removes the
 last active superuser; there is no MFA on the Django login yet. Hosting is still to be provisioned
 (Phase 10, APPROVAL), see `docs/DJANGO_TARGET_ARCHITECTURE.md`, "Django Admin hosting".
+
+
+## ADR-035: The shared asset manager versions binaries on the canonical ContentAsset identity, with private storage and signed delivery
+
+Status: Accepted 2026-10-25 (proposed and implemented on `feature/django-asset-manager` for
+LAI-2200 the same day; accepted after the implementation was reviewed against it, before merge).
+Detail: `docs/ASSET_MANAGER.md`.
+
+**Context.** LAI-2200 asks for a reusable asset manager: definitions, immutable versions,
+publication, S3 storage, Django Admin upload, a child-facing resolver and an import path.
+`catalog.ContentAsset` already is the platform's asset identity, keyed by the bundled manifest id
+and the Amplify `Asset.slug` (ADR-030), and CLAUDE.md section 20 (ADR-033) forbids a second
+catalog. ADR-034 left `PermissionsMixin` out, but publishing needs a permission beyond read
+access. S3 is not provisioned (LAI-1002 is open). `GLTFLoader` fetches URLs without an
+`Authorization` header.
+
+**Decision.**
+1. **The definition is `catalog.ContentAsset`**, extended with Django-owned fields (`display_name`,
+   `description`, `category`, `tags`, `status`, `origin`, `default_version`, timestamps). It may be
+   created in Django (`origin=DJANGO`, no release) as well as by the export. The importer still
+   owns the content fields it imports and never touches the Django-owned ones.
+2. **A new `apps/assets` app owns binaries**: `AssetVersion` (immutable once published, unique
+   `(asset, number)`, unique `version_id` and storage key, database checks for the publication
+   invariants), the validation service, the storage abstraction, the resolver and delivery. It
+   is not a catalog: it has no identity of its own.
+3. **Formats:** GLB, and self-contained glTF (embedded `data:` URIs only). No external URIs, no
+   Draco or meshopt, no FBX, Blender, ZIP or RAR (no conversion pipeline exists).
+4. **Storage:** an `AssetStorage` interface with S3 (new pinned dependency `boto3`), local and
+   in-memory backends, chosen by `LAI_ASSET_STORAGE`. Keys are server-made and never reused;
+   S3 writes use `IfNoneMatch` and a SHA-256 checksum.
+5. **Permissions (amends ADR-034 item 3):** `ParentAccount` gains `PermissionsMixin` (groups and
+   per-user permissions). The catalog admin keeps its role rules. Asset actions are Django
+   permissions (`publish_assetversion`, `retire_assetversion` beyond add, change and view).
+   `manage.py ensure_asset_roles` creates the "Asset editors" and "Asset publishers" groups.
+   Superusers keep every permission. Parents still cannot sign in to Django Admin.
+6. **Resolution:** `GET /api/v1/children/<child_id>/assets/?ids=` (child-scoped, parent token).
+   It returns published versions only, with statuses `resolved`, `unavailable` (unknown, draft
+   or unpublished, indistinguishable) and `retired`.
+7. **Delivery:** self-authorizing URLs. `django` mode serves through a signed token and re-checks
+   publication on every fetch (immediate revocation for new fetches). `s3` mode presigns the
+   private object (valid until expiry; no revocation of issued URLs). Both reuse one URL per
+   half-TTL window so browser caches hit. Signed CloudFront URLs are the planned next step.
+8. **Frontend:** a Django-backed `AssetResolver` outside the engine folder, falling back to the
+   bundled resolver; not wired into any scene (TR-10 does that).
+
+**Consequences.** Adds `django.contrib.auth` group tables to real use and a `users` migration for
+the permission relations. Adds `boto3` and its pinned transitive packages. The `asset-files`
+route is the second route reachable without a bearer token (capability URLs for published
+versions only). A model can be published without any source change, and the same version
+serves every region that names its id.
+
+**Acceptance (2026-10-25).** The implementation (AM-1 to AM-10) was checked against items 1 to 8
+and matches them. Items 1 and 2: `ContentAsset` carries the Django-owned fields and
+`apps.assets.AssetVersion` has the database checks. Item 3: validation refuses external URIs and
+Draco or meshopt. Item 4: S3 writes send `IfNoneMatch` and `ChecksumSHA256`, and `boto3` is
+pinned. Item 5: `PermissionsMixin`, the two permissions and `ensure_asset_roles` are in place.
+Items 6 to 8: the resolver statuses, the two delivery modes and the bundled fallback exist. None
+of this decision is still open. The following stay as separate follow-up work and do not reopen
+it: the production delivery mode (`django` or `s3`, chosen when LAI-1002 provisions the bucket),
+signed CloudFront URLs (AM-11), licence and source fields, and an `AdventureAsset` join model
+(`docs/ASSET_MANAGER.md` section 16).
+
+**Amendment: admin preview (AM-10, 2026-10-25).** Item 7 (delivery) stays as it is, for gameplay
+and published versions only. Staff inspect any validated, published or retired version through a
+separate Django Admin route (`/admin/assets/assetversion/<pk>/preview/model/`). It needs a staff
+session with `assets.view_assetversion` and a 10-minute signed token bound to the version and the
+account. The token is sent in a request header, never in a URL. The route serves bytes only after
+re-checking their SHA-256, and always streams them through Django, so no presigned URL is issued
+for a preview. Draft and rejected versions are never served. The viewer is a Three.js bundle
+(ADR-020: Three.js is the only renderer) committed as an admin static file, because the Django
+image has no Node build step. No dependency was added. Detail: `docs/ASSET_MANAGER.md` section 17.
 

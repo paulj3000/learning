@@ -23,13 +23,16 @@ Nothing is deleted by an import. A record the latest export no longer contains k
 and `last_seen_release` shows it was not in the latest release.
 
 Spatial data (positions, spawn points, trigger zones) is not modelled here (LAI-0805). Asset
-bytes, versions, upload status and licences are not modelled here either: `ContentAsset` is the
-catalog identity of a shared asset, keyed by the same id as the bundled manifest and the
-Amplify `Asset.slug` (ADR-030), so the asset registry can attach to it later.
+bytes and versions are not modelled here either: `ContentAsset` is the asset definition, keyed by
+the same id as the bundled manifest and the Amplify `Asset.slug` (ADR-030), and the asset manager
+(`apps.assets`, LAI-2200, ADR-035) attaches immutable versions to it.
 """
 
+from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.timezone import now
 
 from apps.users.models import AgeBand
 
@@ -197,8 +200,52 @@ class Quest(ImportedContent, CatalogFields):
         return self.slug
 
 
+class AssetOrigin(models.TextChoices):
+    EXPORT = "EXPORT", "Content export"
+    DJANGO = "DJANGO", "Created in Django"
+
+
+class AssetStatus(models.TextChoices):
+    ACTIVE = "ACTIVE", "Active"
+    RETIRED = "RETIRED", "Retired"
+
+
+class AssetCategory(models.TextChoices):
+    """How administrators browse assets. Deliberately broad; `tags` carry anything finer."""
+
+    CHARACTER = "character", "Character"
+    NPC = "npc", "NPC"
+    CREATURE = "creature", "Creature"
+    PROP = "prop", "Prop"
+    COLLECTIBLE = "collectible", "Collectible"
+    BUILDING = "building", "Building"
+    SCENERY = "scenery", "Scenery and environment"
+    VEHICLE = "vehicle", "Vehicle"
+    EQUIPMENT = "equipment", "Equipment and wearable"
+    OTHER = "other", "Other"
+
+
+# The engine's runtime kinds (`manifest.ts` `AssetKind`, `asset_refs.AssetKind`).
+ASSET_KINDS = ("character", "prop", "collectible", "kit-piece")
+
+# Which browsing categories make sense for each runtime kind (validation, ADR-035).
+KIND_CATEGORIES = {
+    "character": {"character", "npc", "creature"},
+    "prop": {"prop", "building", "scenery", "vehicle", "equipment", "other"},
+    "collectible": {"collectible", "equipment", "prop", "other"},
+    "kit-piece": {"building", "scenery", "prop", "other"},
+}
+
+
 class ContentAsset(ImportedContent):
-    """The catalog identity of one shared asset (see the module docstring for its boundary)."""
+    """The asset definition: one stable identity per shared asset (ADR-030, ADR-035).
+
+    Content fields (`kind`, `bundled_path`, `clips`, `low_detail`, `lod_distance_meters`,
+    `source`) come from the export for `EXPORT` rows and are set once by an administrator for
+    `DJANGO` rows. The remaining fields are Django-owned and never touched by an import. Binary
+    versions live in `apps.assets.AssetVersion`; `default_version` is the published version an
+    unpinned reference resolves to.
+    """
 
     asset_id = models.SlugField(
         max_length=SLUG_LENGTH,
@@ -206,15 +253,102 @@ class ContentAsset(ImportedContent):
         help_text="The bundled manifest id; also the Amplify Asset.slug namespace (ADR-030).",
     )
     kind = models.CharField(max_length=32)
-    bundled_path = models.CharField(max_length=300, help_text="Served from react/public today.")
+    bundled_path = models.CharField(
+        max_length=300, blank=True, help_text="Served from react/public today (export rows)."
+    )
     clips = ArrayField(models.CharField(max_length=64), default=list, blank=True)
     low_detail = models.ForeignKey(
         "self", on_delete=models.PROTECT, related_name="+", null=True, blank=True
     )
     lod_distance_meters = models.FloatField(null=True, blank=True)
+    # Overrides of `ImportedContent`: a definition made in Django has no export record.
+    source = models.JSONField(
+        default=dict, blank=True, help_text="The record exactly as the export carried it."
+    )
+    last_seen_release = models.ForeignKey(
+        ContentRelease,
+        on_delete=models.PROTECT,
+        related_name="+",
+        editable=False,
+        null=True,
+        blank=True,
+    )
+
+    # --- Django-owned (LAI-2200) ---
+    origin = models.CharField(
+        max_length=8, choices=AssetOrigin.choices, default=AssetOrigin.EXPORT, editable=False
+    )
+    display_name = models.CharField(max_length=120, blank=True)
+    description = models.CharField(max_length=1000, blank=True)
+    category = models.CharField(
+        max_length=16, choices=AssetCategory.choices, default=AssetCategory.OTHER
+    )
+    tags = ArrayField(models.SlugField(max_length=32), size=20, default=list, blank=True)
+    status = models.CharField(
+        max_length=8, choices=AssetStatus.choices, default=AssetStatus.ACTIVE, editable=False
+    )
+    default_version = models.ForeignKey(
+        "assets.AssetVersion",
+        on_delete=models.PROTECT,
+        related_name="+",
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    created_at = models.DateTimeField(default=now, editable=False)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["asset_id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(origin=AssetOrigin.EXPORT)
+                | models.Q(last_seen_release__isnull=False),
+                name="catalog_contentasset_export_rows_have_a_release",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(origin__in=AssetOrigin.values),
+                name="catalog_contentasset_origin_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status__in=AssetStatus.values),
+                name="catalog_contentasset_status_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(category__in=AssetCategory.values),
+                name="catalog_contentasset_category_valid",
+            ),
+        ]
+
+    def clean(self):
+        errors = {}
+        if self.origin == AssetOrigin.DJANGO and self.kind not in ASSET_KINDS:
+            errors["kind"] = ValidationError(
+                "Choose one of: %(kinds)s.",
+                code="asset_kind",
+                params={"kinds": ", ".join(ASSET_KINDS)},
+            )
+        allowed = KIND_CATEGORIES.get(self.kind)
+        if allowed is not None and self.category not in allowed:
+            errors["category"] = ValidationError(
+                "A %(kind)s asset cannot be in the %(category)s category.",
+                code="asset_category_mismatch",
+                params={"kind": self.kind, "category": self.get_category_display()},
+            )
+        if errors:
+            raise ValidationError(errors)
+
+    @property
+    def name(self) -> str:
+        return self.display_name or self.asset_id
 
     def __str__(self) -> str:
         return self.asset_id

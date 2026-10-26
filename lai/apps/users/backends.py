@@ -5,13 +5,15 @@ signs in with Cognito has no admin username and an unusable password, so this ba
 authenticate one. It is not used by the API: DRF authenticates with Cognito bearer tokens only.
 """
 
-from django.contrib.auth.backends import BaseBackend
+from django.contrib.auth.backends import ModelBackend
 from django.views.decorators.debug import sensitive_variables
 
 from .models import ParentAccount
 
 
-class AdminPasswordBackend(BaseBackend):
+class AdminPasswordBackend(ModelBackend):
+    """Admin-username sign-in; ModelBackend supplies the group and permission lookups."""
+
     @sensitive_variables("password")
     def authenticate(self, request, username=None, password=None, **kwargs):
         if not username or not password:

@@ -14,6 +14,7 @@ or exception message built from a model cannot carry a child's nickname.
 import uuid
 
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
+from django.contrib.auth.models import PermissionsMixin
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -68,12 +69,12 @@ class ParentAccountManager(BaseUserManager):
         raise NotImplementedError("Use `manage.py create_admin_account` (docs/ARCHITECTURE.md).")
 
 
-class ParentAccount(AbstractBaseUser):
+class ParentAccount(AbstractBaseUser, PermissionsMixin):
     """The authenticated adult. This is Django's user model (`AUTH_USER_MODEL`).
 
     A parent's credentials live in Cognito; their password column is always an unusable password.
-    Deliberately absent: email (mutable, personal, and never an identity key) and Django's
-    permission tables (`PermissionsMixin`).
+    Deliberately absent: email (mutable, personal, and never an identity key). `PermissionsMixin`
+    (groups and permissions, ADR-035) serves Django Admin only: no API permission reads it.
 
     Django Admin staff (LAI-0404, ADR-034) are rows with `admin_username`, `is_staff` and a usable
     password, created only by `manage.py create_admin_account`. A staff row is either linked to
@@ -122,16 +123,15 @@ class ParentAccount(AbstractBaseUser):
         super().save(*args, **kwargs)
         self._loaded_cognito_sub = self.cognito_sub
 
-    # Django Admin permission hooks. Superusers may do everything a ModelAdmin allows; other staff
-    # get only what each ModelAdmin grants by role (apps/catalog/admin_access.py).
+    # Django Admin permission hooks (ADR-035). Only active staff hold any permission, so a
+    # parent row can never gain admin rights from a stray grant. Superusers hold every
+    # permission; other staff get what their groups grant (`ensure_asset_roles`), and the
+    # catalog admin still decides by role (apps/catalog/admin_access.py).
     def has_perm(self, perm, obj=None) -> bool:
-        return self.is_active and self.is_staff and self.is_superuser
-
-    def has_perms(self, perm_list, obj=None) -> bool:
-        return all(self.has_perm(perm, obj) for perm in perm_list)
+        return self.is_active and self.is_staff and super().has_perm(perm, obj)
 
     def has_module_perms(self, app_label) -> bool:
-        return self.is_active and self.is_staff and self.is_superuser
+        return self.is_active and self.is_staff and super().has_module_perms(app_label)
 
     def get_short_name(self) -> str:
         """What the admin header greets: the admin username, never the Cognito sub."""

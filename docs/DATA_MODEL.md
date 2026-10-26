@@ -771,8 +771,11 @@ Location) -> **Adventure** -> **AdventureStep**; **Quest** belongs to a World th
 and links many-to-many to the adventures its `SOLVE` objectives name (a quest can span two adventures or
 none). Stable ids are the export's: slugs, `asset_id`, and (adventure, `step_id`) for steps, whose ids
 repeat across adventures. An adventure at a story-only pseudo-location keeps `location_slug` with no
-`location`. `ContentAsset` is the catalog identity of a shared asset (bundled manifest id, which is also
-the Amplify `Asset.slug` namespace, ADR-030); bytes, versions, status and licence are not modelled here.
+`location`. `ContentAsset` is the asset definition: the identity of a shared asset (bundled manifest id,
+which is also the Amplify `Asset.slug` namespace, ADR-030). Since LAI-2200 (ADR-035) it also has
+Django-owned fields (`display_name`, `description`, `category`, `tags`, `status` ACTIVE or RETIRED,
+`origin` EXPORT or DJANGO, `default_version`, `created_by`, timestamps), and a `DJANGO` row needs no
+export release. Bytes and versions are `assets.AssetVersion` (below); licences are not modelled.
 `LocationAsset` links a location to the assets its scene uses, by id and order only.
 
 | Model | Content fields (from the export; read-only until the authoring cutover) | Catalog fields (editable now) |
@@ -783,7 +786,19 @@ the Amplify `Asset.slug` namespace, ADR-030); bytes, versions, status and licenc
 | Quest | slug, title, summary, world, giver_npc_id, age_bands, adventures, source | active, sort_order |
 | NpcDefinition | npc_id, display_name, role, home_location, home_location_slug, interaction_id, source | active, sort_order |
 | AdventureStep, ContentAsset, LocationAsset, LearningObjective, CollectibleSet, ItemDefinition, RewardRule | everything | none |
+| ContentAsset (asset definition, LAI-2200) | kind, bundled_path, clips, low_detail, lod_distance_meters, source (export rows; Django rows set kind and clips themselves) | display_name, description, category, tags (with `catalog.change_contentasset`); status and default_version only through the asset services |
 | ContentRelease | digest, schema version, export tool, file list, import report | none |
+
+**Asset versions (LAI-2200, ADR-035).** `assets.AssetVersion`: `version_id` (UUID), `asset`
+(PROTECT), `number` (unique per asset, from 1), `status` (DRAFT, VALIDATED, REJECTED, PUBLISHED,
+RETIRED), `storage_key` (unique, server-made), `original_filename`, `content_type`, `size_bytes`,
+`sha256`, `format` (glb or gltf), `clips`, `dimensions`, `metadata`, `validation_report`, `notes`,
+uploader and publisher, and the validated, published and retired times. Database checks: positive
+number and size, a hex checksum, valid status and format, and timestamps consistent with the status
+(published or retired implies validated and published times; unpublished has no publication time).
+A published or retired version's binary fields never change and it is never deleted (model guard
+plus a pre-delete signal that also covers queryset deletes). Permissions `publish_assetversion` and
+`retire_assetversion` sit beside the standard ones. No child data is stored with assets.
 
 `source` keeps each exported record verbatim, so fields without a column (pack lists, presentation,
 stages, conditions) are not lost. Every imported row has `last_seen_release`; nothing is deleted when a
