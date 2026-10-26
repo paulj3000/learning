@@ -7,7 +7,13 @@
  */
 import { rewardsApi } from '../../api/rewards';
 
-export type { ChildInventoryRow } from '../../api/rewards';
+export {
+  NO_REWARDS,
+  type ChildInventoryRow,
+  type RewardGrantView,
+  type RewardItem,
+  type RewardOutcome,
+} from '../../api/rewards';
 export {
   EMPTY_INVENTORY_STATE,
   NO_GRANT,
@@ -15,4 +21,5 @@ export {
   type GrantResult,
 } from './inventoryState';
 
-export const { getInventory, grantRewards, clearInventory } = rewardsApi;
+export const { getInventory, listRewardGrants, getRewardGrant, grantRewards, clearInventory } =
+  rewardsApi;

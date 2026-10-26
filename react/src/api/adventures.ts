@@ -3,6 +3,7 @@ import type { ApiClient } from './client';
 import { ApiError } from './errors';
 import { read, type Reader } from './parse';
 import { createPlayApi } from './play/playApi';
+import { parseRewardOutcome, type RewardOutcome } from './rewards';
 import { selectApi } from './select';
 import {
   AdventureUnavailableError,
@@ -74,7 +75,15 @@ export interface AdventureAnswerResult {
   action: 'RETRY' | 'ADVANCE';
   /** Set only when `action` is `'ADVANCE'`. */
   nextStepId: string | null;
+  /**
+   * What this answer earned, decided by the server (Django, LAI-0604). Undefined on Amplify,
+   * where rewards are granted by the client's own engines, not by the answer.
+   */
+  rewards?: RewardOutcome;
 }
+
+/** A completed session, with the rewards completing it earned (Django, LAI-0604). */
+export type CompletedSession = AdventureSession & { rewards?: RewardOutcome };
 
 /** What Django needs besides the answer. Amplify's Lambda reads these from the session. */
 export interface AnswerContext {
@@ -114,7 +123,7 @@ export interface AdventuresApi {
   startSession: typeof amplify.startSession;
   advanceSession: typeof amplify.advanceSession;
   /** Django needs `context`; Amplify ignores it. Django refuses it before the engine's end. */
-  completeSession(sessionId: string, context?: SessionContext): Promise<AdventureSession>;
+  completeSession(sessionId: string, context?: SessionContext): Promise<CompletedSession>;
   recordAction: typeof amplify.recordAction;
   recordSkillEvidence: typeof amplify.recordSkillEvidence;
   listWorldChanges(childProfileId: string, locationSlug: string): Promise<WorldChange[]>;
@@ -177,14 +186,22 @@ const amplifyAdventures: AdventuresApi = {
 
 const CORRECTNESS: readonly Correctness[] = ['correct', 'incorrect', 'partial', 'not_applicable'];
 
+/** An optional additive `rewards` field: parsed when the server sends it. */
+function optionalRewards(r: Reader): RewardOutcome | undefined {
+  const field = r.field('rewards');
+  return field.value === undefined ? undefined : parseRewardOutcome(field);
+}
+
 /** The LAI-0601 answer response; `session` is read by nothing here yet. */
 export function parseAnswerResult(r: Reader): AdventureAnswerResult {
   const action = r.field('action').oneOf(['RETRY', 'ADVANCE'] as const);
+  const rewards = optionalRewards(r);
   return {
     correctness: r.field('correctness').oneOf(CORRECTNESS),
     supportLevel: r.field('supportLevel').integer(),
     action,
     nextStepId: action === 'ADVANCE' ? r.field('nextStepId').nullable((x) => x.string()) : null,
+    ...(rewards ? { rewards } : {}),
   };
 }
 
@@ -304,7 +321,10 @@ export function createDjangoAdventures(
         'POST',
         `${adventurePath(context.childProfileId, context.adventureSlug)}sessions/${segment(sessionId)}/complete/`,
       );
-      return read(response.data, parseSessionView);
+      return read(response.data, (r) => {
+        const rewards = optionalRewards(r);
+        return { ...parseSessionView(r), ...(rewards ? { rewards } : {}) };
+      });
     },
 
     async submitAdventureAnswer(sessionId, answer, _hintLevel, context) {

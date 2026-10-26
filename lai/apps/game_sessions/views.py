@@ -34,6 +34,8 @@ from apps.catalog.models import Adventure
 from apps.game_sessions import adventure_state, services
 from apps.game_sessions.adventure_state import session_state
 from apps.game_sessions.models import AdventureSession, SessionKind
+from apps.inventory import services as inventory
+from apps.inventory.serializers import rewards_body
 from apps.users.scoping import ChildScopedAPIView
 
 
@@ -133,6 +135,8 @@ class AnswersView(ChildScopedAPIView):
                 "attemptNumber": outcome.attempt_number,
                 "replayed": outcome.replayed,
                 "session": session_state(outcome.session),
+                # LAI-0604, additive: what this answer earned (empty for most answers).
+                "rewards": rewards_body(outcome.rewards),
             }
         )
 
@@ -238,7 +242,13 @@ class AdventureSessionCompleteView(ChildScopedAPIView):
         _empty_body(request)
         adventure = _known(adventure_id)
         try:
-            services.finalize_session(self.child, session_id, adventure)
+            session, completed_now = services.finalize_session(self.child, session_id, adventure)
         except services.ProgressError as error:
             raise _api_error(error) from None
-        return Response(adventure_state.session_view(_session_of(self.child, adventure, session_id)))
+        grants = (
+            session.completion_rewards
+            if completed_now
+            else inventory.grants_recorded_for_completion(session)
+        )
+        body = adventure_state.session_view(_session_of(self.child, adventure, session_id))
+        return Response({**body, "rewards": rewards_body(grants)})

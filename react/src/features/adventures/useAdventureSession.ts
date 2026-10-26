@@ -16,6 +16,7 @@ import {
 } from './api';
 import { upsertSkillProgress } from '../mastery/api';
 import { supports } from '../../api/select';
+import type { RewardOutcome } from '../rewards/api';
 import { AdventureUnavailableError } from '../catalog/availabilityApi';
 import { syncQuestProgress } from '../quests/api';
 import { useCompanionTurn } from '../companion/useCompanionTurn';
@@ -90,6 +91,8 @@ export interface AdventureSessionState {
   storyScenes: StoryScene[];
   /** Live shared state for a Phase 17 coop session, or empty when not playing one. */
   coopSharedState: CoopSharedState;
+  /** What the latest answer or completion earned (Django, LAI-0604); null otherwise. */
+  lastRewards: RewardOutcome | null;
 }
 
 /**
@@ -112,6 +115,12 @@ export function useAdventureSession(
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [session, setSession] = useState<AdventureSession | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * What the latest answer or completion earned, as the server decided it (Django, LAI-0604):
+   * the presentation contract for a reward celebration. Null until something is earned, and
+   * always null on Amplify, whose rewards come from the quest and discovery engines.
+   */
+  const [lastRewards, setLastRewards] = useState<RewardOutcome | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [progressByStep, setProgressByStep] = useState<Record<string, StepProgress>>({});
   const [storyScenes, setStoryScenes] = useState<StoryScene[]>([]);
@@ -208,7 +217,7 @@ export function useAdventureSession(
         // `currentStepId` itself (docs/DECISIONS.md ADR-012) — this replaces
         // both the local `validateStepAnswer`/`getNextStepId` calls and the
         // `advanceSession()` write that used to follow them.
-        const { correctness, supportLevel, action, nextStepId } = await submitAdventureAnswer(
+        const { correctness, supportLevel, action, nextStepId, rewards } = await submitAdventureAnswer(
           session.id,
           answer,
           priorHintLevel,
@@ -219,6 +228,7 @@ export function useAdventureSession(
           ...prev,
           [currentStep.id]: { hintLevel: supportLevel, attemptNumber },
         }));
+        if (rewards && rewards.newItems.length > 0) setLastRewards(rewards);
 
         // Amplify records the attempt from the client. A backend that records
         // it itself inside the answer (Django, LAI-0601) has no route for it.
@@ -416,12 +426,13 @@ export function useAdventureSession(
         // LAI-0607), never written from here.
         void (async () => {
           try {
-            const { nextStepId } = await submitAdventureAnswer(
+            const { nextStepId, rewards } = await submitAdventureAnswer(
               session.id,
               { kind: 'world-change' },
               0,
               { childProfileId, stepId: currentStep.id },
             );
+            if (rewards && rewards.newItems.length > 0) setLastRewards(rewards);
             if (nextStepId) {
               setSession((prev) =>
                 prev
@@ -487,11 +498,12 @@ export function useAdventureSession(
       autoAdvancedStepRef.current = currentStep.id;
       void (async () => {
         try {
-          const updated = await completeSession(session.id, {
+          const { rewards, ...updated } = await completeSession(session.id, {
             childProfileId,
             adventureSlug: definition.slug,
           });
           setSession(updated);
+          if (rewards && rewards.newItems.length > 0) setLastRewards(rewards);
         } catch {
           setError('Something went wrong finishing the adventure.');
           return;
@@ -544,5 +556,6 @@ export function useAdventureSession(
     representationAid,
     storyScenes,
     coopSharedState,
+    lastRewards,
   };
 }

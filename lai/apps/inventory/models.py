@@ -41,6 +41,17 @@ class GrantedRule(ChildOwnedModel):
     CHILD_LINKS = ("source_session",)
 
     rule = models.ForeignKey("catalog.RewardRule", on_delete=models.PROTECT, related_name="grants")
+    source_action = models.ForeignKey(
+        "game_sessions.AdventureAction",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text=(
+            "The step answer that earned this grant (LAI-0604), so a replayed answer can report "
+            "what it granted without granting it again."
+        ),
+    )
     source_session = models.ForeignKey(
         "game_sessions.AdventureSession",
         on_delete=models.SET_NULL,

@@ -15,6 +15,7 @@ export type {
   AdventureAnswerResult,
   AdventureSession,
   AnswerContext,
+  CompletedSession,
   SessionContext,
   SessionStatus,
   RecordActionInput,

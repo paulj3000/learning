@@ -23,7 +23,7 @@ Every function takes the child resolved by `ChildScopedMixin`; another child's s
 """
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from django.db import IntegrityError, transaction
@@ -31,6 +31,7 @@ from django.utils import timezone
 
 from apps.adventures import engine
 from apps.education import services as education
+from apps.inventory import services as inventory
 from apps.catalog.models import Adventure, AdventureStep, ContentRelease
 from apps.game_sessions.models import (
     COMPLETE_STEP_ID,
@@ -255,9 +256,34 @@ def complete_session(child, session_id, *, now=None) -> AdventureSession:
     return session
 
 
+def _kind(step: AdventureStep) -> str:
+    presentation = step.source.get("presentation") if isinstance(step.source, dict) else None
+    return presentation.get("kind", "") if isinstance(presentation, dict) else ""
+
+
+def _world_change_key(step: AdventureStep) -> str:
+    payload = step.source["presentation"].get("payload")
+    key = payload.get("changeKey") if isinstance(payload, dict) else None
+    return key if isinstance(key, str) else ""
+
+
+def _completion_rewards(session: AdventureSession, *, action=None) -> list:
+    """The authored ADVENTURE_COMPLETED rewards, once per child (LAI-0604), in the completing
+    transaction. A rule that already fired (an earlier play-through) grants nothing again."""
+    return inventory.grant_for_trigger(
+        session.child,
+        {"type": "ADVENTURE_COMPLETED", "templateSlug": session.adventure.slug},
+        source_session=session,
+        source_action=action,
+    )
+
+
 @transaction.atomic
 def finalize_session(child, session_id, adventure: Adventure, *, now=None):
     """Completes the session only if the engine has already reached the end (LAI-0608).
+
+    Completing it here fires the adventure's ADVENTURE_COMPLETED rewards (LAI-0604), attached
+    as `session.completion_rewards`; an already-completed session fires nothing again.
 
     Returns `(session, completed_now)`. A session the answer route already completed is returned
     unchanged (`completed_now` False), so a repeated or late request has no second effect. A
@@ -275,6 +301,7 @@ def finalize_session(child, session_id, adventure: Adventure, *, now=None):
     if not ends_adventure(session, session.current_step_id):
         raise SessionNotComplete
     _complete(session, _now(now))
+    session.completion_rewards = _completion_rewards(session)
     return session, True
 
 
@@ -311,9 +338,14 @@ class AnswerOutcome:
     attempt_number: int
     replayed: bool
     session: AdventureSession
+    rewards: list = field(default_factory=list)
+    """`inventory.services.RewardGrant`s this answer earned (LAI-0604). On a replay, the grants
+    the first processing made, none of them new."""
 
 
-def _outcome(action: AdventureAction, session: AdventureSession, replayed: bool) -> AnswerOutcome:
+def _outcome(
+    action: AdventureAction, session: AdventureSession, replayed: bool, rewards=None
+) -> AnswerOutcome:
     return AnswerOutcome(
         correctness=action.correctness,
         support_level=action.hint_level,
@@ -322,6 +354,7 @@ def _outcome(action: AdventureAction, session: AdventureSession, replayed: bool)
         attempt_number=action.attempt_number,
         replayed=replayed,
         session=session,
+        rewards=list(rewards or []),
     )
 
 
@@ -339,7 +372,9 @@ def submit_answer(
     if replay is not None:
         if replay.step_id != step_id or replay.normalized_answer != answer_text:
             raise RequestConflict
-        return _outcome(replay, session, replayed=True)
+        return _outcome(
+            replay, session, replayed=True, rewards=inventory.grants_recorded_for_action(replay)
+        )
 
     if session.status != SessionStatus.ACTIVE:
         raise SessionNotActive
@@ -382,9 +417,22 @@ def submit_answer(
             support_level=decision["supportLevel"],
             at=at,
         )
+    granted = []
+    if next_step is not None and _kind(step) == "world-change":
+        change_key = _world_change_key(step)
+        if change_key:
+            # The authored WORLD_CHANGE reward for this step (LAI-0604). The island change
+            # record itself is LAI-0605's.
+            granted += inventory.grant_for_trigger(
+                session.child,
+                {"type": "WORLD_CHANGE", "changeKey": change_key},
+                source_session=session,
+                source_action=action,
+            )
     if next_step is not None and ends_adventure(session, next_step):
         _complete(session, at)
-    return _outcome(action, session, replayed=False)
+        granted += _completion_rewards(session, action=action)
+    return _outcome(action, session, replayed=False, rewards=granted)
 
 
 @transaction.atomic

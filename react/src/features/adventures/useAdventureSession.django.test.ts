@@ -34,6 +34,14 @@ vi.mock('../coop/useCoopPresence', () => ({ useCoopPresence: () => ({ sharedStat
 import type { AdventureDefinition } from './engine/types';
 import { useAdventureSession } from './useAdventureSession';
 
+const SHELL = {
+  itemId: 'spiral-shell',
+  displayName: 'Spiral Shell',
+  description: 'A shell',
+  category: 'COLLECTIBLE',
+  assetId: '',
+};
+
 const DEFINITION = {
   slug: 'bridge',
   version: 1,
@@ -107,6 +115,7 @@ describe('useAdventureSession on a backend that owns the session (LAI-0608)', ()
         supportLevel: 0,
         action: 'ADVANCE',
         nextStepId: 'done',
+        rewards: { grants: [], newItems: [SHELL] },
       });
     api.completeSession.mockResolvedValue(session({ status: 'COMPLETED', currentStepId: 'done' }));
 
@@ -140,6 +149,8 @@ describe('useAdventureSession on a backend that owns the session (LAI-0608)', ()
       adventureSlug: 'bridge',
     });
     expect(result.current.error).toBeNull();
+    // The server's reward for the world-change step, ready for a celebration.
+    expect(result.current.lastRewards?.newItems).toEqual([SHELL]);
 
     // None of the Amplify client-side ledger writes happened.
     expect(api.recordAction).not.toHaveBeenCalled();

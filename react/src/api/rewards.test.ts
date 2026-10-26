@@ -51,10 +51,13 @@ describe('Django inventory read', () => {
 });
 
 describe('reward authorization boundary', () => {
+  // The Amplify adapter module plus the read operations LAI-0604 added to the interface.
+  const amplifyApi: RewardsApi = { ...amplify, listRewardGrants: vi.fn(), getRewardGrant: vi.fn() };
+
   it('never lets a Django build grant or clear rewards from the client', async () => {
     const api = selectApi<RewardsApi>(
       'rewards',
-      { amplify, django: (client) => createDjangoRewards(client) },
+      { amplify: amplifyApi, django: (client) => createDjangoRewards(client) },
       { backend: 'django', baseUrl: 'https://lai.example' },
     );
     await expect(
@@ -66,7 +69,7 @@ describe('reward authorization boundary', () => {
   });
 
   it('keeps the Amplify reward engine on an Amplify build', () => {
-    const api = selectApi<RewardsApi>('rewards', { amplify }, { backend: 'amplify' });
-    expect(api).toBe(amplify);
+    const api = selectApi<RewardsApi>('rewards', { amplify: amplifyApi }, { backend: 'amplify' });
+    expect(api).toBe(amplifyApi);
   });
 });
