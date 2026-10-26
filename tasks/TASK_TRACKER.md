@@ -75,7 +75,8 @@ before touching AWS.
 - [ ] **LAI-0605** Quests, NPC, discovery, world state writes (depends: 0604)
 - [ ] **LAI-0606** Next-learning-activity (depends: 0603)
 - [ ] **LAI-0607** Story artifacts and progress writes (depends: 0305)
-- [ ] **LAI-0608** Step-adventure session lifecycle routes: start or resume, read, complete (proposed by LAI-0501B; depends: 0601). Without it LAI-0601's answer route is unreachable from React or Android
+- [x] **LAI-0608** Step-adventure session lifecycle routes: start or resume, read, complete, availability (proposed by LAI-0501B; depends: 0601). DONE locally on `feature/lai-0608-adventure-session-api`: focused pytest and Vitest pass; React adapter wired; not merged or pushed; no browser verification
+- [ ] **LAI-0609** Step-session restart or abandon policy for a session whose content changed (found by LAI-0608; needs a product decision first). Today such a session is readable but cannot continue
 
 ## Phase 7 — AI service
 

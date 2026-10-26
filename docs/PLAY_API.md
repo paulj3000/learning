@@ -195,6 +195,149 @@ nothing is recorded.
 `sessions` is the 20 most recent. `practice` is counts per learning objective, for gameplay
 pacing; it is not a mastery level or a label (docs/DATA_MODEL.md, "SkillProgress").
 
+## Step adventures (LAI-0601, LAI-0608)
+
+Ordinary step-based adventures (`repair-the-moonlight-bridge` and the rest of the catalog's
+`Adventure` rows) have their own lifecycle routes, separate from region sessions above. They sit
+under the adventure because `sessions/{id}/` and `sessions/{id}/{action}/` are the region
+contract. Bearer token only: the game runtime's cookie is not accepted. `adventureId` is the
+adventure's slug.
+
+| Method | Route (under `/api/v1/children/{childId}/`) | Purpose |
+|---|---|---|
+| `GET` | `adventures/{adventureId}/availability/` | Can this child start it now, and is there a session to resume |
+| `POST` | `adventures/{adventureId}/sessions/` | Start, or resume the ACTIVE session (201 new, 200 resumed) |
+| `GET` | `adventures/{adventureId}/sessions/{sessionId}/` | The session and the step to render |
+| `POST` | `sessions/{sessionId}/answers/` | Answer the current step (LAI-0601, unchanged) |
+| `POST` | `sessions/{sessionId}/hints/` | Ask for the next hint (LAI-0601, unchanged) |
+| `POST` | `adventures/{adventureId}/sessions/{sessionId}/complete/` | Finalise a session the engine has brought to its end |
+
+`POST` lifecycle routes take **no body**: anything sent is `400 validation_error`.
+
+### Visibility and availability
+
+An adventure that is unknown, inactive, under an inactive location or world, missing from the
+latest content release, or not for the child's age band is `404 not_found` on every route,
+exactly like a region or another family's child. A visible adventure is described by
+availability:
+
+```json
+{"adventureId": "repair-the-moonlight-bridge", "available": true, "reasons": [],
+ "status": "IN_PROGRESS", "resumeSessionId": "6f1c..."}
+```
+
+- `status` is `AVAILABLE`, `IN_PROGRESS` (an ACTIVE session, `resumeSessionId`) or `COMPLETED`.
+- `reasons`, when `available` is `false`:
+  - `CHILD_INACTIVE`: the parent turned the profile off.
+  - `CONTENT_INCOMPLETE`: the entry step is not in the adventure's latest import.
+  - `UNSUPPORTED_STEP_KIND`: a step uses a kind with no reviewed public field list. Today that
+    is `matching` and `short-response`, which no exported adventure uses.
+  - `PREREQUISITES_NOT_SUPPORTED`: the record names prerequisites. None does today. If one ever
+    does, it is refused rather than treated as met.
+  - `ACTIVE_SESSION_CONTENT_CHANGED`: the child's ACTIVE session started on content that has
+    since changed (see "Content versions").
+- Availability is information only. The start route checks the same rules again on its own.
+- Rules not applied, because no accepted decision defines them: no extra age gates, no
+  learning-path locks, no daily limits.
+
+### Session body
+
+`POST .../sessions/`, `GET .../sessions/{id}/` and `POST .../complete/` all return:
+
+```json
+{
+  "session": {"id": "6f1c...", "childId": "8d1f...", "adventureSlug": "repair-the-moonlight-bridge",
+              "templateVersion": 1, "status": "ACTIVE", "currentStepId": "count-planks",
+              "hintLevel": 0, "startedAt": "...", "lastActivityAt": "...", "completedAt": null},
+  "step": {"stepId": "count-planks", "type": "NUMBER_INPUT", "objectiveIds": ["count-to-ten"],
+           "presentation": {"kind": "number-input", "prompt": "How many planks are missing?"},
+           "hintText": null},
+  "progress": {"completedStepIds": ["inspect-bridge"]},
+  "contentCurrent": true,
+  "allowedActions": ["ANSWER", "HINT"],
+  "canComplete": false
+}
+```
+
+- `session` has the same shape the answer and hint routes return (`childId` was added, which
+  is an additive change).
+- `step` is the current step, or `null` once the session is not ACTIVE or its content changed.
+  Its `presentation` is an allow-list per kind:
+
+  | Kind | Fields |
+  |---|---|
+  | `narrative` | `speaker`, `text`, `aiNarrated` |
+  | `choice`, `creative-choice` | `prompt`, `options` (`id`, `label`, `groups`) |
+  | `number-input`, `reflection` | `prompt` |
+  | `ordering` | `prompt`, `items` (`id`, `label`) |
+  | `world-change`, `complete` | `text` |
+
+  The correct value, option, order and accepted options are never sent. Neither are the hint
+  ladder, the authored fallback (which can state the answer) or the transitions (which reveal
+  the path). `hintText` is only the rung the child has already reached.
+- `allowedActions` is one of:
+  - `["ANSWER", "HINT"]` on a playable step;
+  - `["COMPLETE"]` when the session sits on a COMPLETE step;
+  - `[]` otherwise.
+- `canComplete` is true only in the `["COMPLETE"]` case.
+
+### Lifecycle
+
+1. **Start or resume.** One ACTIVE session per child and adventure, guaranteed by a database
+   constraint. Repeated starts return the same session with 200. Simultaneous starts race on
+   that constraint: the loser resumes the winner's session, so exactly one is created. A
+   session starts at the adventure's entry step, on its current version and the latest content
+   release.
+2. **Answer** through `sessions/{id}/answers/`. The Python engine grades the answer, escalates
+   hints and picks the next step. The client sends only `{stepId, answer, requestId}`.
+   Narrative, reflection and world-change steps take `{"kind": "narrative"}` and the like.
+3. **Finish.** An answer that reaches a COMPLETE step, or the reserved `complete` id, completes
+   the session in the same transaction. `POST .../complete/` is the explicit finalise:
+   - **200**, unchanged, for a session that is already COMPLETED (idempotent: no second
+     effect);
+   - **200**, completing it, for an ACTIVE session sitting on a COMPLETE step;
+   - **409 `session_not_complete`** before the engine's end;
+   - **409 `session_not_active`** for any other state.
+
+   The client cannot finish an adventure by asking.
+4. **Afterwards**, a completed session stays readable and takes no more answers
+   (`409 session_not_active`). Starting the adventure again creates a new session and leaves
+   the old one as history. This is the replay rule `resumeOrStartSession` always had.
+
+No route pauses, abandons or restarts a step session: no accepted policy defines those
+transitions.
+
+### Content versions
+
+The catalog keeps one version of each adventure, with no snapshots. A session records the
+`templateVersion` and content release it started on and never switches. If the adventure's
+version changes, or its current step was not in the latest import:
+- reads return `contentCurrent: false`, `step: null` and `allowedActions: []`;
+- answers are `409 content_version_changed`;
+- a new start is `409 content_version_changed` rather than a silent restart.
+
+Such a session cannot continue until a restart or abandon policy is decided (open).
+
+### Error codes
+
+| Status | `code` | Where |
+|---|---|---|
+| 404 | `not_found` | Unknown, invisible or retired adventure; another child's or family's session; a region session; a session of another adventure |
+| 409 | `adventure_unavailable` | Start refused; `GET availability/` says why |
+| 409 | `child_inactive` | Start refused for a profile that is turned off |
+| 409 | `content_version_changed` | Start, or an answer, on a session whose content changed |
+| 409 | `session_not_complete` | Finalise before the engine's end |
+| 409 | `session_not_active` | Answer or finalise on an ended session |
+| 400 | `validation_error` | A body sent to a no-body route |
+
+### Not part of completion yet
+
+Completing records only the session's status and time. Mastery (LAI-0603), rewards (LAI-0604),
+quest, NPC and world-change records (LAI-0605) and story artifacts (LAI-0607) are not written by
+step sessions. World-change steps advance the session, but the island change itself is
+LAI-0605. The hook for all of them is `services.finalize_session` and the completing branch of
+`services.submit_answer`, both in one transaction.
+
 ## Reuse by later regions
 
 Nothing here branches on Treasure Rush: a later region needs a `WorldRegion` with its

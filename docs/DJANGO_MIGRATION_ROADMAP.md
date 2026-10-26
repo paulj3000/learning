@@ -274,7 +274,12 @@ Every other operation is a typed `unsupported`. Inventory and gaps: `docs/ARCHIT
 is complete as an abstraction.** A Django build is still not playable end to end: no route
 starts a step-adventure session (proposed LAI-0608 below).
 
-**LAI-0608 Step-adventure session lifecycle (proposed, 2026-10-26).** Depends: 0601. Risk M.
+**LAI-0608 Step-adventure session lifecycle. DONE locally (2026-10-26)** on
+`feature/lai-0608-adventure-session-api`, not merged. Routes, availability rules, idempotency,
+concurrency and content-version behaviour are in `docs/PLAY_API.md`, "Step adventures". As built,
+completion records only the session, with no Phase 6 effects. A session whose content changed is
+readable but cannot continue, and no restart or abandon policy exists yet (open). Original
+proposal: Depends: 0601. Risk M.
 Found by LAI-0501B: LAI-0601's answer and hint routes need an existing session, and no Django
 route starts, resumes or completes one. Acceptance: child-scoped start-or-resume (one active
 session per child and adventure, availability checked server-side, which replaces the

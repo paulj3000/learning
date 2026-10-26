@@ -11129,3 +11129,76 @@ progress and assets (LAI-0501B)". With LAI-0501A, this completes LAI-0501 as an 
     `features/assets/{assetService,modelUpload}.ts`, until LAI-0802.
 - **Not satisfied by this task:** ParentConsent (LAI-0308, gate G9) and every other ADR-019
   gate. Nothing here makes the Django path ready for live children's data.
+
+## LAI-0608: step-adventure session lifecycle API (2026-10-26)
+
+Branch `feature/lai-0608-adventure-session-api`, from the LAI-0501B commit `f39e7aa`. Code
+commit `b0d1ea6`, then docs. Not merged, pushed or deployed. Contract: `docs/PLAY_API.md`,
+"Step adventures"; design: `docs/ARCHITECTURE.md`, "Step-adventure session lifecycle
+(LAI-0608)".
+
+- **Routes (child-scoped, bearer only), under `/api/v1/children/{childId}/`:**
+  - `GET adventures/{adventureId}/availability/`
+  - `POST adventures/{adventureId}/sessions/`
+  - `GET adventures/{adventureId}/sessions/{sessionId}/`
+  - `POST adventures/{adventureId}/sessions/{sessionId}/complete/`
+
+  LAI-0601's `sessions/{id}/answers/` and `hints/` are unchanged. The new routes are nested
+  under the adventure because `sessions/{id}/` and `sessions/{id}/{action}/` are Treasure
+  Rush's region contract, which is unchanged.
+- **Acceptance criteria met:**
+  - A published step adventure starts, and repeated or simultaneous starts resume the one
+    ACTIVE session.
+  - A session can be read and plays through the real engine via LAI-0601.
+  - State persists across requests.
+  - `complete/` finalises only at the engine's end, and is idempotent.
+  - Family and sibling isolation hold.
+  - The React adapter uses the new routes.
+  - Android uses the same contract.
+- **No new model or migration.** This reuses `AdventureSession` and its one-ACTIVE constraint,
+  `start_or_resume_session`, `submit_answer` and the engine (unchanged). New code:
+  `adventure_state.py` (read model and step allow-list) and `finalize_session`.
+- **React changes:**
+  - `api/adventures.ts`: the Django `resumeOrStartSession`, `getActiveSession`, `getSession`
+    and `completeSession`, and a neutral `AdventureSession` type. The Amplify start path moved
+    here unchanged.
+  - `features/adventures/api.ts`: facade exports.
+  - `useAdventureSession.ts`: three `supports()` gates (`recordAction`, evidence, and a
+    world-change step advanced through the answer route), plus the context passed to
+    `completeSession`. Amplify behaviour is unchanged, because `supports()` is always true
+    there.
+- **Tests (focused):**
+
+  | Command | Result |
+  |---|---|
+  | `LAI_REQUIRE_POSTGRES=1 .venv/bin/python -m pytest -q lai/apps/game_sessions/tests/test_adventure_sessions_api.py` | 32 passed |
+  | `LAI_REQUIRE_POSTGRES=1 .venv/bin/python -m pytest -q lai/apps/game_sessions lai/apps/users lai/apps/core` | 552 passed |
+  | The new file, `test_answers_api.py`, `test_tenant_isolation.py` and `tests/golden` | 192 passed |
+  | `manage.py makemigrations --check` | No changes |
+  | `npx tsc -b`; the `amplify/` typecheck | Pass |
+  | `npx vitest run src/api/adventureSessions.test.ts` | 12 passed |
+  | `npx vitest run src/features/adventures/useAdventureSession.django.test.ts` | 1 passed |
+  | React regression: every test file that references the changed modules, plus `src/api`, `src/test`, `src/features/adventures` | 77 files, 842 tests passed |
+
+  A hand mutation check (dropping the completion guard, and leaking `correctValue`) failed the
+  matching tests.
+- **Environment:** `make py-install` created `.venv` from the pinned `requirements-dev.txt`, and
+  `make up` started the local compose PostgreSQL. No dependency was added, and no AWS was
+  contacted.
+- **Not run:** Playwright and any browser, Ruff, Prettier, oxlint, full suites, production
+  build.
+- **Known limitations:**
+  - **No content snapshots.** A session whose adventure changed is readable but cannot
+    continue, and a new start is refused. Restart and abandon need a policy: LAI-0609, open.
+  - **Completion has no Phase 6 effects yet:** mastery (LAI-0603), rewards (LAI-0604), quests,
+    NPC and world changes (LAI-0605) and story artifacts (LAI-0607) are not written.
+  - **World-change steps** advance the session but write no island change.
+  - **AI** narration and hints still fall back to authored copy on Django (`ai_unavailable`).
+  - **Content issue (not changed):** one exported ordering step, `the-morning-care-round` /
+    `order-the-round`, lists its items in solution order, and so shows the answer as authored.
+    This is a content issue on every backend.
+  - **ParentConsent** (LAI-0308, gate G9) and the other ADR-019 gates are still open. This is
+    not authorisation to process live children's data.
+- **No ADR.** The decisions taken here sit inside ADR-019 sub-decision 8 and LAI-0601's
+  patterns: route placement, availability as the existing 404 rule, finalise-only completion,
+  and keeping the existing replay rule.

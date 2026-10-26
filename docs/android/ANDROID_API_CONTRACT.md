@@ -15,6 +15,7 @@ WebView).
 | Child home summary | **Added** |
 | Region list, region adventures | **Added** |
 | Region bootstrap, region session, sessions, chests, attempts, quests | **Existed** (TR-5, `docs/PLAY_API.md`); now also reachable by the game runtime cookie, only for its own child and region |
+| Step-adventure sessions: availability, start or resume, read, answer, hint, complete | **Added** (LAI-0608; answers and hints existed, LAI-0601). Same routes as React; contract in `docs/PLAY_API.md`, "Step adventures" |
 | Progress | **Existed**; unchanged |
 | Inventory | **Added** (the same rows as `progress.inventory`) |
 | Game launch, ticket redemption, revoke, runtime context, runtime end | **Added** |
@@ -74,7 +75,9 @@ name:
 | 404 | `not_found` | Unknown, not yours, unpublished, or not for this child's age band |
 | 405 | `method_not_allowed` | |
 | 409 | `child_profile_limit_reached` | The parent already has three profiles, active or not |
-| 409 | `child_inactive` | The child profile is turned off, so it cannot be launched |
+| 409 | `child_inactive` | The child profile is turned off, so it cannot be launched or start an adventure |
+| 409 | `adventure_unavailable` | A step adventure cannot be started; `GET .../availability/` gives the reasons |
+| 409 | `session_not_complete`, `session_not_active`, `content_version_changed`, `step_not_current` | Step-session conflicts (`docs/PLAY_API.md`, "Step adventures") |
 | 409 | `launch_ticket_invalid` | The ticket is expired, already used, revoked, unknown, or another parent's. Start a new launch |
 | 409 | `content_unavailable`, `session_not_open`, `chest_already_open`, `attempt_already_answered`, `quest_unavailable`, `invalid_transition` | Play API state conflicts (`docs/PLAY_API.md`) |
 | 429 | `throttled` | Too many launches. Wait for the `Retry-After` header |
@@ -262,9 +265,12 @@ other age bands are never returned.
 - Adventures are the region's location's active adventures for the child's age band. `status`
   is `AVAILABLE`, `IN_PROGRESS` or `COMPLETED`. Step adventures have no prerequisites in the
   content export.
-- **Step adventures cannot be started by the Android app yet.** No Django route starts an
-  `ADVENTURE` session, and the game runtime launches regions only. Kotlin should show them for
-  information, or hide them.
+- **Step adventures are played natively** through the step-session routes (LAI-0608): `GET
+  /children/{id}/adventures/{adventureId}/availability/`, then `POST .../sessions/` (201 new, 200
+  resumed), `GET .../sessions/{sessionId}/` for the step to render, `POST
+  /children/{id}/sessions/{sessionId}/answers/` for each answer, and `POST
+  .../sessions/{sessionId}/complete/` at a COMPLETE step. The game runtime (WebView) still
+  launches regions only. The step body never carries answers, so the app renders it as given.
 - Quests are the region's offered quests for the child's age band. `status` is `LOCKED` (its
   `prerequisites` do not hold yet, with `lockedReason: "PREREQUISITES_NOT_MET"`), `AVAILABLE`,
   `ACTIVE` or `COMPLETED`. A quest is accepted inside the game
@@ -310,6 +316,12 @@ answered correctly (Treasure Rush's reward rule fires once per child).
 7. **Launch:** `POST /children/{id}/game-launches/`, then `POST /game-launches/redeem/`, copy the
    `Set-Cookie` into the WebView `CookieManager`, and load `gameUrl` (`ANDROID_GAME_LAUNCH.md`).
 8. On return from the game: `GET /children/{id}/home/` or `/progress/` to refresh.
+   **Step adventure (native):** `GET .../adventures/{adventureId}/availability/`, `POST
+   .../adventures/{adventureId}/sessions/`, then answer through `POST
+   /children/{id}/sessions/{sessionId}/answers/` with a new `requestId` per attempt (reuse it on
+   a retry of the same attempt), re-reading `GET .../sessions/{sessionId}/` for the next step.
+   Finish with `POST .../sessions/{sessionId}/complete/` when `allowedActions` is
+   `["COMPLETE"]`, or simply read the session once an answer has completed it.
 9. **Sign out:** `POST /api/v1/game-launches/revoke/`, clear the WebView cookies, then sign out
    of Cognito.
 

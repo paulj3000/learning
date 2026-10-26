@@ -967,7 +967,7 @@ failing open on transient errors for the catalog.
 
 | Area (`react/src/api/`) | Amplify operations (adapter) | Django today |
 |---|---|---|
-| `adventures` | `AdventureSession`, `AdventureAction`, `SkillEvidence`, `WorldChange`, `StoryArtifact` models; `submitAdventureAnswer` mutation | **Answers:** `POST children/{id}/sessions/{id}/answers/` (LAI-0601). **World-change reads:** `GET children/{id}/progress/`. Session start, resume, advance and complete, evidence, world-change writes and story artifacts are unsupported |
+| `adventures` | `AdventureSession`, `AdventureAction`, `SkillEvidence`, `WorldChange`, `StoryArtifact` models; `submitAdventureAnswer` mutation | **Sessions (LAI-0608):** start or resume, read, complete and the active-session lookup, under `children/{id}/adventures/{adventureId}/`. **Answers:** `POST children/{id}/sessions/{id}/answers/` (LAI-0601). **World-change reads:** `GET children/{id}/progress/`. Client-side writes (`startSession` alone, `advanceSession`, `recordAction`, evidence, world-change writes, story artifacts) are unsupported, and `useAdventureSession` skips them where `supports()` is false |
 | `mastery` | `SkillProgress` list, create, update | Unsupported. `progress.practice` is pacing data, not mastery |
 | `quests` | `ChildQuestState` | Unsupported. Treasure Rush quests use the play API, a different contract |
 | `story` | `ChildStoryProgress` | Unsupported (LAI-0607) |
@@ -1000,6 +1000,35 @@ side does not change with the backend. The token read moved into `api/auth.ts`
 (`getIdTokenIdentity`). The server's seat check still reads the child through AppSync
 (`server/multiplayer/auth.ts`). A Django build's child ids would therefore be refused a seat
 until the room server looks children up in Django. That needs its own follow-up task.
+
+## Step-adventure session lifecycle (LAI-0608)
+
+Step adventures are played through child-scoped Django routes under
+`/api/v1/children/{id}/adventures/{adventureId}/`: `availability/`, `sessions/` (start or resume),
+`sessions/{sessionId}/` (read) and `sessions/{sessionId}/complete/`. LAI-0601's
+`sessions/{id}/answers/` and `hints/` are unchanged. The full contract is in
+`docs/PLAY_API.md`, "Step adventures". The routes are nested under the adventure because
+`sessions/{id}/` and `sessions/{id}/{action}/` already belong to Treasure Rush's region sessions.
+
+- `apps/game_sessions/adventure_state.py` is the read model:
+  - visibility (the same 404 rule as the region and adventure listings);
+  - availability reasons;
+  - the public step, an allow-list of presentation fields per kind;
+  - the session body.
+- `apps/game_sessions/services.py` owns every transition:
+  - `start_or_resume_session` (existing), where the one-ACTIVE-session constraint makes
+    concurrent starts safe;
+  - `submit_answer` (LAI-0601), which completes the session when it reaches the end;
+  - `finalize_session` (new), which completes only a session that is already at the end, and
+    is idempotent.
+- The engine is unchanged.
+- Completion records only the session's status and time. Mastery, rewards, quests, world
+  changes and story artifacts (LAI-0603 to LAI-0607) hook into the same two completing
+  transactions.
+
+React and Kotlin use the same routes. The React adapter maps the session body onto the
+backend-neutral `AdventureSession` and keeps rendering steps from its bundled content. The `step`
+view is for clients without content, such as the Android app.
 
 ## Native Android clients and the game-only WebView (LAI-ANDROID-API-001, ADR-036)
 
