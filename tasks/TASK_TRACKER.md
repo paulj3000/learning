@@ -160,8 +160,10 @@ before touching AWS.
 
 # LAI-2200 Shared Django Asset Manager (`docs/ASSET_MANAGER.md`, ADR-035)
 
-Platform workstream on `feature/django-asset-manager`. Subtasks use their own ids (AM-n) because
-LAI-2201 to LAI-2208 are the Phase 22 world conversions.
+Platform workstream. AM-1 to AM-10 (the foundation and admin preview) were merged into `main` on
+2026-10-25 after merge verification (`docs/ASSET_MANAGER.md` section 18). It is not deployed as an
+asset service until AM-11 and LAI-1002 provide the infrastructure. Subtasks use their own ids
+(AM-n) because LAI-2201 to LAI-2208 are the Phase 22 world conversions.
 
 - [x] **AM-1** Architecture and contract (depends: none)
 - [x] **AM-2** Models and migrations (depends: AM-1)
@@ -172,7 +174,7 @@ LAI-2201 to LAI-2208 are the Phase 22 world conversions.
 - [x] **AM-7** Frontend Django resolver adapter (depends: AM-6, LAI-2106)
 - [x] **AM-8** Existing asset import tooling (depends: AM-4)
 - [x] **AM-9** Security and integration tests, documentation (depends: AM-5 to AM-8)
-- [x] **AM-10** Admin 3D model preview (depends: AM-5). Unit-tested; browser check at merge verification
+- [x] **AM-10** Admin 3D model preview (depends: AM-5). Unit-tested and browser-checked (headless Chromium, software WebGL)
 - [ ] **AM-11** Signed CloudFront delivery (APPROVAL: AWS) (depends: AM-6, LAI-1002, LAI-1005)
 
 # Treasure Rush (`docs/TREASURE_RUSH_ROADMAP.md`)

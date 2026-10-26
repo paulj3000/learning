@@ -81,8 +81,14 @@ def gltf_document(*, clips=("Idle",), extra=None, half_size=(0.5, 1.0, 0.25), bu
                 "min": [-hx, -hy, -hz],
                 "max": [hx, hy, hz],
             },
-            {"bufferView": 1, "componentType": 5126, "count": 2, "type": "SCALAR",
-             "min": [0.0], "max": [1.0]},
+            {
+                "bufferView": 1,
+                "componentType": 5126,
+                "count": 2,
+                "type": "SCALAR",
+                "min": [0.0],
+                "max": [1.0],
+            },
             {"bufferView": 2, "componentType": 5126, "count": 2, "type": "VEC3"},
         ],
         "animations": [

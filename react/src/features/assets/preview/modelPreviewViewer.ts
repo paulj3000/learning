@@ -119,7 +119,8 @@ export function frameSphere(
 export function gridSizeFor(extent: number): { size: number; divisions: number } {
   const span = extent > 0 && Number.isFinite(extent) ? extent * 4 : 4;
   const magnitude = 10 ** Math.floor(Math.log10(span / 10));
-  const step = [1, 2, 5, 10].map((m) => m * magnitude).find((s) => span / s <= 20) ?? magnitude * 10;
+  const step =
+    [1, 2, 5, 10].map((m) => m * magnitude).find((s) => span / s <= 20) ?? magnitude * 10;
   const divisions = Math.max(Math.ceil(span / step), 2);
   return { size: divisions * step, divisions };
 }

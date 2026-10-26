@@ -14,14 +14,13 @@ The binary fields are read-only for everyone, always; a published version is nev
 All state changes go through `apps.assets.services`.
 """
 
-import hashlib
 import json
 import logging
 
 from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponse, JsonResponse
+from django.http import FileResponse, JsonResponse
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
@@ -33,7 +32,7 @@ from apps.core.exceptions import error_body
 
 from . import preview, services
 from .models import AssetVersion
-from .storage import StorageError, get_storage
+from .storage import StorageError, get_storage, sha256_of
 from .validation import max_upload_bytes
 
 logger = logging.getLogger("lai.assets")
@@ -249,17 +248,20 @@ class AssetVersionAdmin(admin.ModelAdmin):
                 raise refusal
         except preview.PreviewRefused as refused:
             return _preview_error(refused.code, refused.message, refused.status)
+        # Checksum the stream in chunks, then rewind and stream the same handle: memory stays at
+        # one chunk whatever the file size, and the bytes sent are the bytes that were verified
+        # (every backend's `open` is seekable; S3 spools the object to a local temporary file).
         try:
-            with get_storage().open(version.storage_key) as stream:
-                data = stream.read(version.size_bytes + 1)
+            stream = get_storage().open(version.storage_key)
         except StorageError:
-            logger.warning(
-                "asset preview unavailable: %s v%s", version.asset.asset_id, version.number
-            )
-            return _preview_error(
-                "content_unavailable", "The stored file could not be read. Try again later.", 503
-            )
-        if len(data) != version.size_bytes or hashlib.sha256(data).hexdigest() != version.sha256:
+            return _preview_unavailable(version)
+        try:
+            sha256, size = sha256_of(stream)
+        except OSError:
+            stream.close()
+            return _preview_unavailable(version)
+        if size != version.size_bytes or sha256 != version.sha256:
+            stream.close()
             logger.warning(
                 "asset preview checksum mismatch: %s v%s", version.asset.asset_id, version.number
             )
@@ -268,7 +270,7 @@ class AssetVersionAdmin(admin.ModelAdmin):
                 "The stored file does not match its recorded checksum, so it is not shown.",
                 409,
             )
-        response = HttpResponse(data, content_type=version.content_type)
+        response = FileResponse(stream, content_type=version.content_type)
         response["Content-Length"] = str(version.size_bytes)
         return response
 
@@ -358,3 +360,9 @@ class AssetVersionAdmin(admin.ModelAdmin):
 def _preview_error(code: str, message: str, status: int) -> JsonResponse:
     return JsonResponse(error_body(code, message), status=status)
 
+
+def _preview_unavailable(version) -> JsonResponse:
+    logger.warning("asset preview unavailable: %s v%s", version.asset.asset_id, version.number)
+    return _preview_error(
+        "content_unavailable", "The stored file could not be read. Try again later.", 503
+    )

@@ -16,3 +16,8 @@ content/schema
 # (refreshed by its Vitest file snapshot); reformatting would make them read as stale
 tests/golden/*.json
 content/derived
+# generated: the Django Admin 3D preview bundle (npm run build:admin-preview), checked byte-exact
+# against its source by npm run admin-preview:check
+lai/apps/assets/static/assets/admin/asset-preview.js
+# Django templates: Prettier's HTML parser does not understand the template language
+lai/**/templates/**/*.html

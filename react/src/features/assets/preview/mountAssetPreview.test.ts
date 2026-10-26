@@ -69,7 +69,10 @@ describe('mountAssetPreview', () => {
     expect(buttons(root).every((b) => b.disabled)).toBe(true);
     release();
     expect(await mounted.loaded).toBe('ready');
-    expect(createViewer).toHaveBeenCalledWith(root.querySelector('[data-preview-stage]'), undefined);
+    expect(createViewer).toHaveBeenCalledWith(
+      root.querySelector('[data-preview-stage]'),
+      undefined,
+    );
     expect(viewer.showModel).toHaveBeenCalledTimes(1);
     expect(status(root).getAttribute('role')).toBe('status');
     expect(status(root).textContent).toBe('Model loaded.');

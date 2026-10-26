@@ -32,8 +32,7 @@ const MESSAGES: Record<PreviewErrorCode, string> = {
   expired: 'This preview has expired. Reload the page to view the model.',
   not_previewable: 'This version cannot be previewed in its current state.',
   too_large: 'This model is larger than the upload limit, so it is not previewed.',
-  checksum_mismatch:
-    'The stored file does not match its recorded checksum, so it is not shown.',
+  checksum_mismatch: 'The stored file does not match its recorded checksum, so it is not shown.',
   storage: 'The stored file could not be read. Try again later.',
   network: 'The model could not be downloaded. Check your connection and reload the page.',
   unsupported_format: 'Only .glb and self-contained .gltf models can be previewed.',

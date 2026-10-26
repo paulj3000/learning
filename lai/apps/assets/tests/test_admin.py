@@ -5,7 +5,6 @@ from django.contrib.auth.models import Group, Permission
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import Client
-from django.urls import reverse
 
 from apps.assets import services
 from apps.assets.management.commands.ensure_asset_roles import EDITORS, PUBLISHERS, ROLES
@@ -94,16 +93,29 @@ def test_an_editor_creates_a_definition_and_kind_category_must_match():
     client = staff("editor", EDITORS)
     response = client.post(
         f"{DEFINITIONS}add/",
-        {"asset_id": "pirate-captain", "kind": "character", "category": "building",
-         "display_name": "Pirate Captain", "description": "", "tags": "", "clips": ""},
+        {
+            "asset_id": "pirate-captain",
+            "kind": "character",
+            "category": "building",
+            "display_name": "Pirate Captain",
+            "description": "",
+            "tags": "",
+            "clips": "",
+        },
     )
     assert response.status_code == 200 and b"cannot be in the" in response.content
     assert not ContentAsset.objects.filter(asset_id="pirate-captain").exists()
     response = client.post(
         f"{DEFINITIONS}add/",
-        {"asset_id": "pirate-captain", "kind": "character", "category": "npc",
-         "display_name": "Pirate Captain", "description": "Leads the bay crew.",
-         "tags": "pirates,bay", "clips": "Idle"},
+        {
+            "asset_id": "pirate-captain",
+            "kind": "character",
+            "category": "npc",
+            "display_name": "Pirate Captain",
+            "description": "Leads the bay crew.",
+            "tags": "pirates,bay",
+            "clips": "Idle",
+        },
     )
     assert response.status_code == 302, response.context["adminform"].form.errors
     asset = ContentAsset.objects.get(asset_id="pirate-captain")
@@ -164,9 +176,7 @@ def test_a_publisher_publishes_changes_the_default_and_retires():
     first.refresh_from_db()
     assert pip.default_version == second and first.status == VersionStatus.RETIRED
 
-    client.post(
-        DEFINITIONS, {"action": "retire_assets", "_selected_action": [pip.pk], "index": 0}
-    )
+    client.post(DEFINITIONS, {"action": "retire_assets", "_selected_action": [pip.pk], "index": 0})
     pip.refresh_from_db()
     assert pip.status == AssetStatus.RETIRED
 
@@ -197,22 +207,32 @@ def test_superusers_can_open_every_asset_page():
     client = staff("root", superuser=True)
     pip = make_definition("npc-pip")
     version = services.upload_version(pip, _file(), original_filename="p.glb")
-    for url in (UPLOAD, VERSIONS, f"{VERSIONS}{version.pk}/change/", DEFINITIONS,
-                f"{DEFINITIONS}{pip.pk}/change/", f"{DEFINITIONS}add/", "/admin/auth/group/"):
+    for url in (
+        UPLOAD,
+        VERSIONS,
+        f"{VERSIONS}{version.pk}/change/",
+        DEFINITIONS,
+        f"{DEFINITIONS}{pip.pk}/change/",
+        f"{DEFINITIONS}add/",
+        "/admin/auth/group/",
+    ):
         assert client.get(url).status_code == 200, url
     assert client.get(f"{VERSIONS}add/")["Location"].startswith(UPLOAD)
 
 
 def test_export_definitions_keep_their_content_fields_read_only():
-    from apps.catalog.admin import ContentAssetAdmin
     from django.contrib import admin
     from django.test import RequestFactory
+
+    from apps.catalog.admin import ContentAssetAdmin
 
     exported = ContentAsset(asset_id="rock", kind="prop", origin=AssetOrigin.EXPORT)
     made_here = ContentAsset(asset_id="new-rock", kind="prop", origin=AssetOrigin.DJANGO)
     request = RequestFactory().get("/admin/")
     request.user = ParentAccount.objects.create(
-        cognito_sub=f"{ADMIN_ONLY_SUB_PREFIX}root", admin_username="root", is_staff=True,
+        cognito_sub=f"{ADMIN_ONLY_SUB_PREFIX}root",
+        admin_username="root",
+        is_staff=True,
         is_superuser=True,
     )
     model_admin = admin.site._registry[ContentAsset]

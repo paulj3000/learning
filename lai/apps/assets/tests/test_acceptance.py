@@ -63,7 +63,9 @@ def test_upload_once_publish_and_reuse_everywhere(api, families, cognito, storag
 
     # 8 (before publishing). Nothing resolves for children yet.
     assert resolve(api, families.a, families.a1, "golden-doubloon")["golden-doubloon"] == {
-        "ref": "golden-doubloon", "id": "golden-doubloon", "status": "unavailable"
+        "ref": "golden-doubloon",
+        "id": "golden-doubloon",
+        "status": "unavailable",
     }
 
     # 2-3. The binary is uploaded to controlled storage and validated on the way in.
@@ -77,9 +79,10 @@ def test_upload_once_publish_and_reuse_everywhere(api, families, cognito, storag
     assert version.status == VersionStatus.VALIDATED and storage.exists(version.storage_key)
 
     # 8. A validated but unpublished version is still invisible.
-    assert resolve(api, families.a, families.a1, "golden-doubloon@1")["golden-doubloon@1"][
-        "status"
-    ] == "unavailable"
+    assert (
+        resolve(api, families.a, families.a1, "golden-doubloon@1")["golden-doubloon@1"]["status"]
+        == "unavailable"
+    )
 
     # 4. The publisher publishes the immutable version.
     publisher.post(

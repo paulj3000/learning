@@ -139,8 +139,11 @@ def test_amplify_records_import_idempotently_and_record_what_is_unresolved(ampli
 def test_an_existing_definition_keeps_its_fields(amplify):
     export, files = amplify
     ContentAsset.objects.create(
-        asset_id="pirate-captain", kind="character", category="character",
-        origin=AssetOrigin.DJANGO, display_name="Captain Kept",
+        asset_id="pirate-captain",
+        kind="character",
+        category="character",
+        origin=AssetOrigin.DJANGO,
+        display_name="Captain Kept",
     )
     import_amplify(export, files)
     captain = ContentAsset.objects.get(asset_id="pirate-captain")

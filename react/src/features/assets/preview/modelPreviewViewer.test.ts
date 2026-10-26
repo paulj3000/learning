@@ -206,7 +206,9 @@ describe('createModelPreviewViewer', () => {
     camera().position.set(0, 0, 100);
     viewer.fitModel();
     expect(camera().position.x).toBeCloseTo(0);
-    expect(camera().position.distanceTo(controls.target)).toBeCloseTo(home.distanceTo(controls.target));
+    expect(camera().position.distanceTo(controls.target)).toBeCloseTo(
+      home.distanceTo(controls.target),
+    );
   });
 
   it('zooms in and out within the limits', () => {

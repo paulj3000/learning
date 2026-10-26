@@ -34,8 +34,15 @@ def world(families, cognito):
     services.set_default_version(v2)
     chest = make_definition("treasure-chest", kind="prop", category="prop")
     services.upload_version(chest, io.BytesIO(glb_bytes()), original_filename="c.glb")  # draft
-    return {"pip": pip, "v1": v1, "v2": v2, "v1_bytes": v1_bytes, "v2_bytes": v2_bytes,
-            "chest": chest, "families": families}
+    return {
+        "pip": pip,
+        "v1": v1,
+        "v2": v2,
+        "v1_bytes": v1_bytes,
+        "v2_bytes": v2_bytes,
+        "chest": chest,
+        "families": families,
+    }
 
 
 def resolve(api, parent, child, ids):

@@ -126,8 +126,11 @@ def test_s3_reads_lists_and_deletes(s3):
     when = datetime.datetime(2026, 10, 1, tzinfo=datetime.UTC)
     stubber.add_response(
         "list_objects_v2",
-        {"Contents": [{"Key": KEY, "Size": 16, "LastModified": when}], "IsTruncated": True,
-         "NextContinuationToken": "t1"},
+        {
+            "Contents": [{"Key": KEY, "Size": 16, "LastModified": when}],
+            "IsTruncated": True,
+            "NextContinuationToken": "t1",
+        },
         {"Bucket": "lai-assets-test", "Prefix": "assets/models/"},
     )
     stubber.add_response(

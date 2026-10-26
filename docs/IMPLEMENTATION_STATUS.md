@@ -10891,8 +10891,10 @@ may ship as its own release with static files on S3 behind CloudFront.
 
 ## LAI-2200: shared Django asset manager, foundation and admin preview (2026-10-25, ADR-035 Accepted)
 
-Branch `feature/django-asset-manager` (worktree `../learning-django-asset-manager`), from
-`origin/main` `f279299`. Not merged, not pushed, not deployed. Detail: `docs/ASSET_MANAGER.md`.
+Branch `feature/django-asset-manager`, from `origin/main` `f279299`. **Merged into `main` on
+2026-10-25** after merge verification (results: `docs/ASSET_MANAGER.md` section 18). It is not
+deployed as an asset service: there is no S3 bucket, IAM policy or CloudFront yet, and no scene uses
+the resolver. Detail: `docs/ASSET_MANAGER.md`.
 Subtasks AM-1 to AM-10 (ids of their own: LAI-2201 to 2208 are the Phase 22 world conversions).
 
 - **Done:**
@@ -10932,7 +10934,15 @@ Subtasks AM-1 to AM-10 (ids of their own: LAI-2201 to 2208 are the Phase 22 worl
   79 passed. `tsc -b` passes. `manage.py check` clean, no missing migrations, ADR check passed. All
   114 shipped bundled models pass validation (dry-run import of the real export).
 - **Not run (merge verification):** Ruff, Prettier, Playwright or browsers, full suites, `docker build`.
-- **Not run (merge verification), AM-10 too:** the preview in a real browser with WebGL, and a
-  freshness check of the committed bundle against its source.
+- **Merge verification (2026-10-25):** full pytest 873 passed; full Vitest 289 files, 3030
+  passed; typecheck, production build, `docker build`, Django checks, migrations and ADR check
+  all pass; Playwright e2e 7 passed. A browser check of the admin preview passed 24 of 24 in
+  headless Chromium with software WebGL. The new `npm run admin-preview:check` passes and is in
+  CI. Ruff and Prettier are clean for this work; three failures that `main` already had remain
+  (`docs/ASSET_MANAGER.md` section 18).
+  Fixes made during verification: the preview checksum is now a 1 MB-chunk streaming check with
+  a streamed response (bounded memory); the branch's Ruff and Prettier issues are fixed; and the
+  generated bundle and Django templates are excluded from Prettier, the bundle also from oxlint.
 - **Not done:** S3 bucket, IAM, CORS and CloudFront (LAI-1002, AM-11, approval needed); TR-10
-  wiring (section 15 of the doc).
+  wiring (section 15 of the doc); browser checks of the preview on a hardware GPU and in Firefox
+  and Safari.

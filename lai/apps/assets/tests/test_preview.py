@@ -1,5 +1,6 @@
 """AM-10: the staff-only 3D model preview in Django Admin (LAI-2200, ADR-035)."""
 
+import hashlib
 import io
 import logging
 import time
@@ -49,6 +50,10 @@ def fetch(client, version, token=None):
     if token is None:
         token = preview.issue_token(version, account(client)).value
     return client.get(file_url(version), headers={preview.TOKEN_HEADER: token})
+
+
+def body_of(response) -> bytes:
+    return b"".join(response.streaming_content)
 
 
 def snapshot(version) -> dict:
@@ -207,7 +212,7 @@ def test_the_file_is_the_stored_bytes_and_is_never_cached():
     data = glb_bytes()
     version = uploaded(data=data)
     response = fetch(client, version)
-    assert response.status_code == 200 and response.content == data
+    assert response.status_code == 200 and body_of(response) == data
     assert response["Content-Type"] == "model/gltf-binary"
     assert response["Content-Length"] == str(len(data))
     assert "no-store" in response["Cache-Control"] and "private" in response["Cache-Control"]
@@ -219,7 +224,7 @@ def test_a_self_contained_gltf_is_served_as_gltf_json():
     version = uploaded(data=data, name="pip.gltf")
     assert version.format == ModelFormat.GLTF
     response = fetch(client, version)
-    assert response.status_code == 200 and response.content == data
+    assert response.status_code == 200 and body_of(response) == data
     assert response["Content-Type"] == "model/gltf+json"
     page = client.get(page_url(version)).content.decode()
     assert 'data-format="gltf"' in page
@@ -342,6 +347,52 @@ def test_bytes_that_no_longer_match_the_checksum_are_not_served(storage):
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "checksum_mismatch"
     assert tampered not in response.content
+
+
+class RecordingStream(io.BytesIO):
+    """A stored file that remembers the largest single read made from it."""
+
+    largest_read = 0
+
+    def read(self, size=-1):
+        data = super().read(size)
+        RecordingStream.largest_read = max(RecordingStream.largest_read, len(data))
+        return data
+
+
+def test_the_checksum_and_the_response_read_in_bounded_chunks(storage, monkeypatch):
+    from apps.assets.storage import CHUNK
+
+    client = staff("editor", EDITORS)
+    big = glb_bytes()
+    big += b"\x00" * (3 * CHUNK)  # a file several chunks long (validation is bypassed below)
+    version = uploaded()
+    _, content_type, stamp = storage.objects[version.storage_key]
+    storage.objects[version.storage_key] = (big, content_type, stamp)
+    AssetVersion.objects.filter(pk=version.pk).update(
+        size_bytes=len(big), sha256=hashlib.sha256(big).hexdigest()
+    )
+    version.refresh_from_db()
+    RecordingStream.largest_read = 0
+    monkeypatch.setattr(storage, "open", lambda key: RecordingStream(storage.objects[key][0]))
+    response = fetch(client, version)
+    assert response.status_code == 200 and response.streaming
+    assert body_of(response) == big
+    assert 0 < RecordingStream.largest_read <= CHUNK
+
+
+def test_a_read_error_while_checksumming_is_a_safe_503(storage, monkeypatch):
+    class Failing(io.BytesIO):
+        def read(self, size=-1):
+            raise OSError("disk gone")
+
+    client = staff("editor", EDITORS)
+    version = uploaded()
+    monkeypatch.setattr(storage, "open", lambda key: Failing(b""))
+    response = fetch(client, version)
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "content_unavailable"
+    assert "disk gone" not in response.content.decode()
 
 
 def test_only_get_is_allowed():

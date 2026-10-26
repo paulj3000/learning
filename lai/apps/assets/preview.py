@@ -26,7 +26,7 @@ from .validation import max_upload_bytes
 
 SALT = "lai.assets.preview.v1"
 PREVIEW_TTL_SECONDS = 600
-TOKEN_HEADER = "X-Asset-Preview-Token"
+TOKEN_HEADER = "X-Asset-Preview-Token"  # noqa: S105 - a header name, not a secret
 
 # Validated versions (before publishing) and anything that was published. A DRAFT has not been
 # validated and a REJECTED version failed a check, so their bytes are never handed to a browser.

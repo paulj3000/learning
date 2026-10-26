@@ -183,12 +183,11 @@ class AssetVersion(models.Model):
     def save(self, *args, **kwargs):
         loaded = getattr(self, "_loaded", None)
         if loaded is not None:
-            if self.status != loaded["status"] and self.status not in ALLOWED_TRANSITIONS[
-                loaded["status"]
-            ]:
-                raise ImmutableVersion(
-                    f"A {loaded['status']} version cannot become {self.status}."
-                )
+            if (
+                self.status != loaded["status"]
+                and self.status not in ALLOWED_TRANSITIONS[loaded["status"]]
+            ):
+                raise ImmutableVersion(f"A {loaded['status']} version cannot become {self.status}.")
             if loaded["status"] in (VersionStatus.PUBLISHED, VersionStatus.RETIRED):
                 changed = [n for n in IMMUTABLE_FIELDS if getattr(self, n) != loaded[n]]
                 if changed:

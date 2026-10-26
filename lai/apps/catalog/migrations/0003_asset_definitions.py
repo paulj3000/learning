@@ -8,93 +8,178 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('assets', '0001_initial'),
-        ('catalog', '0002_collectibleset_itemdefinition_and_more'),
+        ("assets", "0001_initial"),
+        ("catalog", "0002_collectibleset_itemdefinition_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='contentasset',
-            name='category',
-            field=models.CharField(choices=[('character', 'Character'), ('npc', 'NPC'), ('creature', 'Creature'), ('prop', 'Prop'), ('collectible', 'Collectible'), ('building', 'Building'), ('scenery', 'Scenery and environment'), ('vehicle', 'Vehicle'), ('equipment', 'Equipment and wearable'), ('other', 'Other')], default='other', max_length=16),
+            model_name="contentasset",
+            name="category",
+            field=models.CharField(
+                choices=[
+                    ("character", "Character"),
+                    ("npc", "NPC"),
+                    ("creature", "Creature"),
+                    ("prop", "Prop"),
+                    ("collectible", "Collectible"),
+                    ("building", "Building"),
+                    ("scenery", "Scenery and environment"),
+                    ("vehicle", "Vehicle"),
+                    ("equipment", "Equipment and wearable"),
+                    ("other", "Other"),
+                ],
+                default="other",
+                max_length=16,
+            ),
         ),
         migrations.AddField(
-            model_name='contentasset',
-            name='created_at',
+            model_name="contentasset",
+            name="created_at",
             field=models.DateTimeField(default=django.utils.timezone.now, editable=False),
         ),
         migrations.AddField(
-            model_name='contentasset',
-            name='created_by',
-            field=models.ForeignKey(blank=True, editable=False, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL),
+            model_name="contentasset",
+            name="created_by",
+            field=models.ForeignKey(
+                blank=True,
+                editable=False,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="+",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='contentasset',
-            name='default_version',
-            field=models.ForeignKey(blank=True, editable=False, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='+', to='assets.assetversion'),
+            model_name="contentasset",
+            name="default_version",
+            field=models.ForeignKey(
+                blank=True,
+                editable=False,
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="+",
+                to="assets.assetversion",
+            ),
         ),
         migrations.AddField(
-            model_name='contentasset',
-            name='description',
+            model_name="contentasset",
+            name="description",
             field=models.CharField(blank=True, max_length=1000),
         ),
         migrations.AddField(
-            model_name='contentasset',
-            name='display_name',
+            model_name="contentasset",
+            name="display_name",
             field=models.CharField(blank=True, max_length=120),
         ),
         migrations.AddField(
-            model_name='contentasset',
-            name='origin',
-            field=models.CharField(choices=[('EXPORT', 'Content export'), ('DJANGO', 'Created in Django')], default='EXPORT', editable=False, max_length=8),
+            model_name="contentasset",
+            name="origin",
+            field=models.CharField(
+                choices=[("EXPORT", "Content export"), ("DJANGO", "Created in Django")],
+                default="EXPORT",
+                editable=False,
+                max_length=8,
+            ),
         ),
         migrations.AddField(
-            model_name='contentasset',
-            name='status',
-            field=models.CharField(choices=[('ACTIVE', 'Active'), ('RETIRED', 'Retired')], default='ACTIVE', editable=False, max_length=8),
+            model_name="contentasset",
+            name="status",
+            field=models.CharField(
+                choices=[("ACTIVE", "Active"), ("RETIRED", "Retired")],
+                default="ACTIVE",
+                editable=False,
+                max_length=8,
+            ),
         ),
         migrations.AddField(
-            model_name='contentasset',
-            name='tags',
-            field=django.contrib.postgres.fields.ArrayField(base_field=models.SlugField(max_length=32), blank=True, default=list, size=20),
+            model_name="contentasset",
+            name="tags",
+            field=django.contrib.postgres.fields.ArrayField(
+                base_field=models.SlugField(max_length=32), blank=True, default=list, size=20
+            ),
         ),
         migrations.AddField(
-            model_name='contentasset',
-            name='updated_at',
+            model_name="contentasset",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.AlterField(
-            model_name='contentasset',
-            name='bundled_path',
-            field=models.CharField(blank=True, help_text='Served from react/public today (export rows).', max_length=300),
+            model_name="contentasset",
+            name="bundled_path",
+            field=models.CharField(
+                blank=True,
+                help_text="Served from react/public today (export rows).",
+                max_length=300,
+            ),
         ),
         migrations.AlterField(
-            model_name='contentasset',
-            name='last_seen_release',
-            field=models.ForeignKey(blank=True, editable=False, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='+', to='catalog.contentrelease'),
+            model_name="contentasset",
+            name="last_seen_release",
+            field=models.ForeignKey(
+                blank=True,
+                editable=False,
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="+",
+                to="catalog.contentrelease",
+            ),
         ),
         migrations.AlterField(
-            model_name='contentasset',
-            name='source',
-            field=models.JSONField(blank=True, default=dict, help_text='The record exactly as the export carried it.'),
+            model_name="contentasset",
+            name="source",
+            field=models.JSONField(
+                blank=True, default=dict, help_text="The record exactly as the export carried it."
+            ),
         ),
         migrations.AddConstraint(
-            model_name='contentasset',
-            constraint=models.CheckConstraint(condition=models.Q(models.Q(('origin', 'EXPORT'), _negated=True), ('last_seen_release__isnull', False), _connector='OR'), name='catalog_contentasset_export_rows_have_a_release'),
+            model_name="contentasset",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    models.Q(("origin", "EXPORT"), _negated=True),
+                    ("last_seen_release__isnull", False),
+                    _connector="OR",
+                ),
+                name="catalog_contentasset_export_rows_have_a_release",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='contentasset',
-            constraint=models.CheckConstraint(condition=models.Q(('origin__in', ['EXPORT', 'DJANGO'])), name='catalog_contentasset_origin_valid'),
+            model_name="contentasset",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("origin__in", ["EXPORT", "DJANGO"])),
+                name="catalog_contentasset_origin_valid",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='contentasset',
-            constraint=models.CheckConstraint(condition=models.Q(('status__in', ['ACTIVE', 'RETIRED'])), name='catalog_contentasset_status_valid'),
+            model_name="contentasset",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("status__in", ["ACTIVE", "RETIRED"])),
+                name="catalog_contentasset_status_valid",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='contentasset',
-            constraint=models.CheckConstraint(condition=models.Q(('category__in', ['character', 'npc', 'creature', 'prop', 'collectible', 'building', 'scenery', 'vehicle', 'equipment', 'other'])), name='catalog_contentasset_category_valid'),
+            model_name="contentasset",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    (
+                        "category__in",
+                        [
+                            "character",
+                            "npc",
+                            "creature",
+                            "prop",
+                            "collectible",
+                            "building",
+                            "scenery",
+                            "vehicle",
+                            "equipment",
+                            "other",
+                        ],
+                    )
+                ),
+                name="catalog_contentasset_category_valid",
+            ),
         ),
     ]

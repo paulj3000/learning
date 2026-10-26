@@ -1,8 +1,10 @@
 # Shared Django Asset Manager (LAI-2200)
 
-Status: implemented on `feature/django-asset-manager` (AM-1 to AM-10), unit-tested, not merged
-and not deployed. S3, the bucket policy and CloudFront are not provisioned (section 12), and
-nothing, including the admin 3D preview (section 17), has been checked in a browser.
+Status: AM-1 to AM-10 merged into `main` on 2026-10-25 after merge verification (section 18).
+**Not deployed as an asset service:** the S3 bucket, its IAM policy and CloudFront are not
+provisioned (section 12, AM-11 and LAI-1002), and TR-10 has not wired any scene to it. The admin
+preview was checked in headless Chromium with software WebGL. The child app's Django resolver
+has not been checked in a browser.
 Decision record: ADR-035 in `docs/DECISIONS.md` (Accepted 2026-10-25).
 
 An administrator uploads a 3D model once, validates it, publishes an immutable version, and any
@@ -288,7 +290,10 @@ which needs **all** of the following:
    410, and the viewer says to reload the page.
 3. A previewable status and a size within the limit (409 and 413 otherwise).
 4. Stored bytes whose SHA-256 and length still match the version record. Anything else is a 409
-   and the bytes are not sent.
+   and the bytes are not sent. The checksum is computed in 1 MB chunks. The same handle is then
+   rewound and streamed, so memory stays at one chunk whatever the file size, and the bytes sent
+   are the bytes that were verified. Every backend's `open` is seekable: memory, a local file, or
+   for S3 a local temporary file the object is spooled to.
 
 The id in the URL is an integer primary key. The storage key comes from the database row, never
 from the request, so there is no path to traverse. The bytes always pass through Django, in every
@@ -327,20 +332,26 @@ Three.js), and the built file is committed. `collectstatic` ships it, with
 `asset-preview.css`, under hashed names like every other admin static file. Rebuild it with
 `npm run build:admin-preview` (in `react/`; config `react/vite.admin-preview.config.ts`)
 whenever `react/src/features/assets/preview/` changes. The bundle has no source map, because the
-manifest storage would chase a `sourceMappingURL`.
+manifest storage would chase a `sourceMappingURL`. Prettier and oxlint skip the generated file.
+
+**Freshness check.** `npm run admin-preview:check` (`scripts/check-admin-preview-bundle.ts`)
+rebuilds the bundle with the same config into a temporary directory and fails unless it is
+byte-for-byte the committed file. The build is deterministic for a given lockfile. The check
+uses no network and no new dependency. It runs in CI (the `checks` job) and in `make js-check`.
 
 **Errors shown.** Each of these has its own message: no access or a lapsed session, missing
 version, not previewable, too large, checksum mismatch, storage unavailable, network failure,
 expired preview, unsupported format, a file that does not parse as glTF 2.0, a model with no
 visible geometry, and WebGL unavailable.
 
-**Tests (unit only).** pytest `apps/assets/tests/test_preview.py` (38): editor, publisher and
+**Tests (unit).** pytest `apps/assets/tests/test_preview.py` (40): editor, publisher and
 superuser access; staff without a role, parents and anonymous visitors refused on the page and
 the file; unpublished (validated), published and retired previews; draft and rejected refused; the
 metadata shown; no lifecycle change; token in a header only; wrong-version, wrong-account, forged,
 gameplay and expired tokens; missing versions; oversized files; storage failures; checksum
 mismatch; GET only; logs free of tokens and keys; links on the version and definition pages; the
-static files present. Vitest `react/src/features/assets/preview/` (3 files, 53): fetch refusal
+static files present; reads in bounded chunks with a streamed response; a read error during the
+checksum. Vitest `react/src/features/assets/preview/` (3 files, 53): fetch refusal
 mapping, header-only token, size limits, abort; format sniffing; GLB and glTF parsing, external
 references refused; framing for tiny and huge models; grid sizing; viewer set-up, resize,
 on-demand rendering, reset, fit, zoom limits, disposal and WebGL unavailable; page states, toolbar,
@@ -348,12 +359,44 @@ and clean-up while loading. Three.js rendering itself is mocked (jsdom has no We
 
 **Known limitations.**
 
-- Not checked in a real browser or on a GPU. Browser verification belongs to merge verification.
+- Checked in headless Chromium with software WebGL (SwiftShader) only, not on a hardware GPU or
+  in Firefox or Safari.
 - No animation playback, no thumbnails, no wireframe or material inspection.
-- The committed bundle can go stale if the source changes without a rebuild. No check enforces
-  freshness yet. A merge-verification step (or a Node stage in the Docker build) would.
-- A file is read into memory once per preview (up to the 50 MB limit) to verify its checksum.
-  That is fine for staff traffic, but it would not suit gameplay delivery.
+- In `s3` storage mode `open` first copies the object to a local temporary file (memory up to
+  8 MB, then disk). A preview therefore costs one S3 download and up to 50 MB of temporary disk
+  per concurrent request. That is acceptable for staff traffic.
 - A Content-Security-Policy, when one is added to the admin, must allow `blob:` and `data:`
   images for embedded textures, and `script-src 'self'` covers the bundle.
+
+## 18. Merge verification (2026-10-25)
+
+Run on `feature/django-asset-manager` before merging into `main`. `origin/main` had not moved
+since the branch was cut (`f279299`), so the merge had no conflicts.
+
+| Check | Result |
+|---|---|
+| pytest, full suite, PostgreSQL required (`make py-test-db`) | 873 passed, 0 skipped |
+| Vitest, full suite (`npm test`) | 289 files, 3030 tests passed |
+| TypeScript (`npm run typecheck`) | Pass |
+| Ruff lint and format | Branch issues fixed. Two failures remain and are already on `main`, unrelated: `S105` in `users/management/commands/create_admin_account.py` and the format of `users/migrations/0002_admin_accounts.py` |
+| oxlint | Exit 0 (warnings only, all already on `main`) |
+| Prettier | Branch issues fixed. One pre-existing `main` file remains: `react/src/api/djangoAdmin.test.ts` |
+| `manage.py check`, `makemigrations --check` | Clean, no changes |
+| ADR check | Pass (35 decisions) |
+| Production React build (`npm run build`) | Pass. The child app's bundle contains no admin preview code |
+| `docker build -f lai/Dockerfile .` | Pass. Build-time `collectstatic` hashes `asset-preview.js` and `.css` |
+| Admin preview bundle freshness | Pass. It also fails, as it should, after a one-character source change |
+| Playwright e2e (`npm run test:e2e`) | 7 passed |
+| Browser check of the admin preview (headless Chromium, WebGL2 through SwiftShader, local Django on a throwaway PostgreSQL) | 24 of 24 checks |
+
+The browser check is a script outside the repository. It needs a running Django, which CI's e2e
+job does not start. It covered: admin login; the preview link on the version list; the preview
+page with its metadata; a real validated, unpublished GLB (`kenney-tree-large.glb`) rendering
+with model pixels; orbit (left-drag), pan (right-drag), wheel zoom and the zoom buttons; reset
+returning to an identical frame; fit bringing a model panned out of view back to the initial
+framing; resizing with the window; the version still `VALIDATED` afterwards; a version with
+corrupted stored bytes showing the checksum error as an alert with the controls disabled; staff
+without an asset role getting 403 on the page and the file; anonymous visitors sent to login, and
+a 403 JSON response with no bytes for the file; a missing token header giving 404; and no page
+errors.
 

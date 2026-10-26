@@ -293,10 +293,7 @@ def _check_document(result, document, bin_info, stream, definition):
     result.dimensions = dimensions
     result.metadata = {
         "generator": str(asset.get("generator", ""))[:100],
-        "counts": {
-            name: len(_list(document, name))
-            for name in COUNTED
-        },
+        "counts": {name: len(_list(document, name)) for name in COUNTED},
         "extensionsUsed": sorted(str(e) for e in _list(document, "extensionsUsed"))[:50],
         "skinned": bool(_list(document, "skins")),
     }
@@ -326,7 +323,7 @@ def _data_uri_payload_length(uri: str) -> int | None:
     match = DATA_URI.match(uri)
     if not match:
         return None
-    encoded = uri[match.end():]
+    encoded = uri[match.end() :]
     if len(encoded) % 4 or not BASE64.fullmatch(encoded):
         return None
     padding = len(encoded) - len(encoded.rstrip("="))

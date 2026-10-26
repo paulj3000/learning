@@ -44,11 +44,11 @@
   font-weight: 600;
 }
 
-.lai-asset-preview-status[data-state="error"] {
+.lai-asset-preview-status[data-state='error'] {
   color: var(--error-fg, #ba2121);
 }
 
-.lai-asset-preview-status[data-state="ready"] {
+.lai-asset-preview-status[data-state='ready'] {
   font-weight: normal;
 }
 

@@ -28,6 +28,9 @@ jobs:
       - name: ADR registry
         run: npm run adr:check
 
+      - name: Admin preview bundle is built from its source
+        run: npm run admin-preview:check
+
       - name: Typecheck
         run: npm run typecheck
 
