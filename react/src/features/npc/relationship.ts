@@ -12,7 +12,13 @@
  * lost. A child who stops visiting an NPC for a month finds it exactly as
  * pleased to see them as before.
  */
-import { RELATIONSHIP_LEVEL_ORDER, type RelationshipLevel } from './types';
+import { EMPTY_MEMORY_FLAGS } from './memory';
+import {
+  RELATIONSHIP_LEVEL_ORDER,
+  type NpcId,
+  type NpcRelationshipState,
+  type RelationshipLevel,
+} from './types';
 
 /** Minimum points for each level, ascending. */
 export const RELATIONSHIP_THRESHOLDS: Readonly<Record<RelationshipLevel, number>> = {
@@ -45,4 +51,14 @@ export function pointsToNextLevel(points: number): number | null {
   const nextIndex = RELATIONSHIP_LEVEL_ORDER.indexOf(current) + 1;
   if (nextIndex >= RELATIONSHIP_LEVEL_ORDER.length) return null;
   return RELATIONSHIP_THRESHOLDS[RELATIONSHIP_LEVEL_ORDER[nextIndex]] - points;
+}
+
+/** The default state for an NPC this child has never met. */
+export function initialRelationshipState(npcId: NpcId): NpcRelationshipState {
+  return {
+    npcId,
+    relationshipPoints: 0,
+    memoryFlags: EMPTY_MEMORY_FLAGS,
+    seenNodeIds: [],
+  };
 }

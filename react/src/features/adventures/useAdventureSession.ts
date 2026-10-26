@@ -211,6 +211,7 @@ export function useAdventureSession(
           session.id,
           answer,
           priorHintLevel,
+          { childProfileId, stepId: currentStep.id },
         );
 
         setProgressByStep((prev) => ({

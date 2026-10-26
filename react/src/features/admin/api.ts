@@ -2,6 +2,19 @@ import { client } from '../../lib/data-client';
 import type { Schema } from '../../../../amplify/data/resource';
 
 /**
+ * Child progress for an admin, any family (the `Admins` read rules). The
+ * admin section stays on Amplify until LAI-0802, so these are the Amplify
+ * adapters themselves, never the build's selected backend.
+ */
+export {
+  listAllWorldChanges,
+  listSessions,
+  type AdventureSession,
+  type WorldChange,
+} from '../../api/amplify/adventures';
+export { listSkillProgress, type SkillProgress } from '../../api/amplify/mastery';
+
+/**
  * The admin section stays on Amplify until LAI-0802, whatever `VITE_BACKEND`
  * says, so it uses Amplify's own record types (with `parentProfileId`)
  * rather than the backend-neutral ones in `react/src/api/types.ts`.
