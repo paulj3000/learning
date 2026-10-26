@@ -1,5 +1,5 @@
-import { getAccessToken } from '../auth';
-import { createApiClient, type ApiClient } from '../client';
+import { djangoClient } from '../backend';
+import type { ApiClient } from '../client';
 import { DJANGO_API_CONFIG, type DjangoApiConfig } from '../config';
 import { ApiError } from '../errors';
 import { read, type Reader } from '../parse';
@@ -123,7 +123,12 @@ function segment(id: string): string {
   return encodeURIComponent(id);
 }
 
-/** The app's play API for a child, or a `disabled` error when this build has no Django API. */
+/**
+ * The app's play API for a child, or a `disabled` error when this build has
+ * no Django API. Uses the shared Django client (LAI-0501B), so play requests
+ * get the same token handling and account-provisioning retry as every other
+ * Django call.
+ */
 export function playApiFor(childId: string, config: DjangoApiConfig = DJANGO_API_CONFIG): PlayApi {
   if (!config.enabled) {
     const disabled = () => Promise.reject(new ApiError('disabled'));
@@ -138,5 +143,5 @@ export function playApiFor(childId: string, config: DjangoApiConfig = DJANGO_API
       getProgress: disabled,
     };
   }
-  return createPlayApi(createApiClient({ baseUrl: config.baseUrl, getAccessToken }), childId);
+  return createPlayApi(djangoClient({ backend: 'django', baseUrl: config.baseUrl }), childId);
 }

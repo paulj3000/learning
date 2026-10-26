@@ -1,11 +1,13 @@
-import { getUrl, remove, uploadData } from 'aws-amplify/storage';
+import { childPhotosApi } from '../../api/childPhotos';
+import { isBackendGap } from '../../api/select';
 
 /**
  * The optional photo a parent may upload as a child's profile icon.
  *
  * Everything here is parent-initiated and parent-only: the field lives on
  * the parent-managed profile form, the bytes land in an identity-scoped
- * prefix of the Storage bucket (amplify/storage/resource.ts), and the key
+ * prefix of the Storage bucket (amplify/storage/resource.ts, through
+ * `react/src/api/childPhotos.ts`), and the key
  * is never part of any AI prompt context (CLAUDE.md section 7).
  *
  * The browser re-encodes the picture before upload rather than sending the
@@ -28,7 +30,6 @@ const ICON_MIME_TYPE = 'image/jpeg';
 const ICON_QUALITY = 0.85;
 
 /** Objects live under `child-photos/<identity id>/`, matching the access rule in amplify/storage/resource.ts. */
-const CHILD_PHOTO_PREFIX = 'child-photos';
 
 export const PHOTO_TYPE_MESSAGE = 'Choose a JPEG, PNG, or WebP image.';
 export const PHOTO_SIZE_MESSAGE = 'Choose an image smaller than 8 MB.';
@@ -123,20 +124,12 @@ export async function prepareIconBlob(file: Blob): Promise<Blob> {
 export async function uploadChildPhoto(icon: Blob): Promise<string> {
   const fileName = `${crypto.randomUUID()}.jpg`;
   try {
-    const { path } = await uploadData({
-      path: ({ identityId }) => {
-        if (!identityId) {
-          throw new Error(PHOTO_UPLOAD_MESSAGE);
-        }
-        return `${CHILD_PHOTO_PREFIX}/${identityId}/${fileName}`;
-      },
-      data: icon,
-      options: { contentType: ICON_MIME_TYPE },
-    }).result;
-    return path;
-  } catch {
-    // Deliberately not re-thrown or logged as-is: the underlying error can
+    return await childPhotosApi.uploadPhotoObject(fileName, icon, ICON_MIME_TYPE);
+  } catch (error) {
+    // A backend with no photo storage says so (LAI-0501B). Anything else is
+    // deliberately not re-thrown or logged as-is: the underlying error can
     // carry the bucket path, which contains the parent's identity id.
+    if (isBackendGap(error)) throw error;
     throw new Error(PHOTO_UPLOAD_MESSAGE);
   }
 }
@@ -144,8 +137,9 @@ export async function uploadChildPhoto(icon: Blob): Promise<string> {
 /** Deletes one stored photo. S3 deletes are idempotent, so a missing object is not an error. */
 export async function removeChildPhoto(path: string): Promise<void> {
   try {
-    await remove({ path });
-  } catch {
+    await childPhotosApi.removePhotoObject(path);
+  } catch (error) {
+    if (isBackendGap(error)) throw error;
     throw new Error(PHOTO_REMOVE_MESSAGE);
   }
 }
@@ -158,8 +152,7 @@ export async function removeChildPhoto(path: string): Promise<void> {
  */
 export async function getChildPhotoUrl(path: string): Promise<string | null> {
   try {
-    const { url } = await getUrl({ path });
-    return url.toString();
+    return await childPhotosApi.getPhotoObjectUrl(path);
   } catch {
     return null;
   }

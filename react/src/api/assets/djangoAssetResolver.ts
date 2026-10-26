@@ -3,8 +3,8 @@ import {
   type AssetResolver,
   type ResolvedAsset,
 } from '../../features/island-map/three/assets/assetResolver';
-import { getAccessToken } from '../auth';
-import { createApiClient, type ApiClient } from '../client';
+import { djangoClient } from '../backend';
+import type { ApiClient } from '../client';
 import { DJANGO_API_CONFIG, type DjangoApiConfig } from '../config';
 
 /**
@@ -147,14 +147,21 @@ function safeUrl(url: string, baseUrl: string): string | null {
   }
 }
 
-/** The resolver a child's scene would use; the bundled one when this build has no Django API. */
+/**
+ * The gameplay asset resolver for a child's scene: Django's child-scoped
+ * resolver (`GET /children/{id}/assets/?ids=`, signed delivery) on a Django
+ * build, over the shared client (LAI-0501B); the bundled manifest otherwise
+ * (ADR-030), which is what every scene uses today. It never reaches Amplify
+ * Storage: the Amplify `Asset` records are admin-only
+ * (`features/assets/assetService.ts`).
+ */
 export function djangoAssetResolverFor(
   childId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): AssetResolver {
   if (!config.enabled) return BUNDLED_ASSET_RESOLVER;
   return createDjangoAssetResolver({
-    client: createApiClient({ baseUrl: config.baseUrl, getAccessToken }),
+    client: djangoClient({ backend: 'django', baseUrl: config.baseUrl }),
     childId,
     baseUrl: config.baseUrl,
   });
