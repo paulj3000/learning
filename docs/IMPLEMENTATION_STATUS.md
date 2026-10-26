@@ -10889,11 +10889,11 @@ may ship as its own release with static files on S3 behind CloudFront.
 - **Not done (needs approval):** the S3 bucket, CloudFront distribution, WAF rule, ALB and the
   rest of the hosting in `docs/DJANGO_TARGET_ARCHITECTURE.md` 11a.
 
-## LAI-2200: shared Django asset manager, foundation (2026-10-25, ADR-035 Proposed)
+## LAI-2200: shared Django asset manager, foundation and admin preview (2026-10-25, ADR-035 Accepted)
 
 Branch `feature/django-asset-manager` (worktree `../learning-django-asset-manager`), from
 `origin/main` `f279299`. Not merged, not pushed, not deployed. Detail: `docs/ASSET_MANAGER.md`.
-Subtasks AM-1 to AM-9 (ids of their own: LAI-2201 to 2208 are the Phase 22 world conversions).
+Subtasks AM-1 to AM-10 (ids of their own: LAI-2201 to 2208 are the Phase 22 world conversions).
 
 - **Done:**
   - AM-1: architecture and contract, ADR-035.
@@ -10909,11 +10909,30 @@ Subtasks AM-1 to AM-9 (ids of their own: LAI-2201 to 2208 are the Phase 22 world
   - AM-7: `djangoAssetResolver.ts` for the LAI-2106 loader, with bundled fallback.
   - AM-8: `import_assets` (bundled and Amplify sources, dry run, idempotent).
   - AM-9: acceptance and security tests, docs.
-- **Tests (targeted unit tests only):** pytest `apps/assets apps/catalog apps/users apps/core
+  - AM-10: Django Admin 3D preview (`docs/ASSET_MANAGER.md` section 17). It has a preview page per
+    version, linked from the version list, the version page and the definition page (default and
+    inline). The plain-TypeScript Three.js viewer (`react/src/features/assets/preview/`) supports
+    GLB and self-contained glTF, orbit, pan, zoom, reset, fit, automatic framing, responsive
+    sizing, loading and error states, and disposal. It is bundled to
+    `lai/apps/assets/static/assets/admin/asset-preview.js` (`npm run build:admin-preview`, built
+    file committed). The file route is staff-only and separate from gameplay delivery: session plus
+    view permission, a 10-minute signed token in a header, previewable status, size limit and a
+    SHA-256 re-check. Always served through Django, with no presigned URL. Read-only.
+  - ADR-035 accepted after reviewing the implementation against it, with an AM-10 amendment.
+- **Tests, AM-10 (targeted unit tests only):** pytest `apps/assets apps/catalog apps/users
+  apps/core apps/regions apps/game_sessions/tests/test_sessions.py` 561 passed (523 before, plus
+  38 in `test_preview.py`; PostgreSQL required). Vitest `src/features/assets`, `src/api/assets`,
+  engine boundary, no-hard-coded-URL, loader and resolver tests: 14 files, 211 passed (53 of them
+  new in `src/features/assets/preview/`). `tsc -b` passes. `manage.py check` clean, no missing
+  migrations, ADR check passed. Build-time `collectstatic` with the manifest storage ran into a
+  scratch directory and hashed the new bundle and stylesheet.
+- **Tests, AM-1 to AM-9 (targeted unit tests only):** pytest `apps/assets apps/catalog apps/users apps/core
   apps/regions apps/game_sessions/tests/test_sessions.py` 523 passed (PostgreSQL required).
   Vitest `src/api/assets`, engine boundary, no-hard-coded-URL, loader and resolver tests: 5 files,
   79 passed. `tsc -b` passes. `manage.py check` clean, no missing migrations, ADR check passed. All
   114 shipped bundled models pass validation (dry-run import of the real export).
 - **Not run (merge verification):** Ruff, Prettier, Playwright or browsers, full suites, `docker build`.
-- **Not done:** S3 bucket, IAM, CORS and CloudFront (LAI-1002, AM-11, approval needed); admin
-  preview (AM-10); TR-10 wiring (section 15 of the doc); acceptance of ADR-035.
+- **Not run (merge verification), AM-10 too:** the preview in a real browser with WebGL, and a
+  freshness check of the committed bundle against its source.
+- **Not done:** S3 bucket, IAM, CORS and CloudFront (LAI-1002, AM-11, approval needed); TR-10
+  wiring (section 15 of the doc).

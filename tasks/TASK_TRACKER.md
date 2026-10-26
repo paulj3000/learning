@@ -172,7 +172,7 @@ LAI-2201 to LAI-2208 are the Phase 22 world conversions.
 - [x] **AM-7** Frontend Django resolver adapter (depends: AM-6, LAI-2106)
 - [x] **AM-8** Existing asset import tooling (depends: AM-4)
 - [x] **AM-9** Security and integration tests, documentation (depends: AM-5 to AM-8)
-- [ ] **AM-10** Admin model preview (depends: AM-5)
+- [x] **AM-10** Admin 3D model preview (depends: AM-5). Unit-tested; browser check at merge verification
 - [ ] **AM-11** Signed CloudFront delivery (APPROVAL: AWS) (depends: AM-6, LAI-1002, LAI-1005)
 
 # Treasure Rush (`docs/TREASURE_RUSH_ROADMAP.md`)

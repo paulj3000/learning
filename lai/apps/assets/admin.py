@@ -8,26 +8,35 @@ Every action is a Django permission (grant them with the groups from `ensure_ass
 - publish and make default: `assets.publish_assetversion`
 - retire: `assets.retire_assetversion`
 - delete a never-published version and its file: `assets.delete_assetversion`
+- preview a model in 3D (AM-10, read-only): staff with view access (`apps.assets.preview`)
 
 The binary fields are read-only for everyone, always; a published version is never deletable.
 All state changes go through `apps.assets.services`.
 """
 
+import hashlib
 import json
+import logging
 
 from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils.html import format_html, format_html_join
+from django.views.decorators.cache import never_cache
 
 from apps.catalog.models import AssetStatus, ContentAsset
+from apps.core.exceptions import error_body
 
-from . import services
+from . import preview, services
 from .models import AssetVersion
+from .storage import StorageError, get_storage
 from .validation import max_upload_bytes
+
+logger = logging.getLogger("lai.assets")
 
 
 class UploadForm(forms.Form):
@@ -62,6 +71,7 @@ class AssetVersionAdmin(admin.ModelAdmin):
         "size_bytes",
         "published_at",
         "created_at",
+        "preview_link",
     )
     list_filter = ("status", "format", "asset__category", "asset__kind")
     search_fields = ("asset__asset_id", "asset__display_name", "sha256", "original_filename")
@@ -70,6 +80,7 @@ class AssetVersionAdmin(admin.ModelAdmin):
     actions = ["publish_versions", "make_default", "retire_versions"]
     fields = (
         "asset",
+        "preview_link",
         "number",
         "version_id",
         "status",
@@ -125,7 +136,19 @@ class AssetVersionAdmin(admin.ModelAdmin):
 
     def get_urls(self):
         upload = self.admin_site.admin_view(self.upload_view)
-        return [path("upload/", upload, name="assets_assetversion_upload"), *super().get_urls()]
+        preview_page = self.admin_site.admin_view(self.preview_view)
+        # Not `admin_view`: the viewer fetches this, so a refusal is JSON, never a login redirect.
+        preview_file = never_cache(self.preview_file_view)
+        return [
+            path("upload/", upload, name="assets_assetversion_upload"),
+            path("<int:object_id>/preview/", preview_page, name="assets_assetversion_preview"),
+            path(
+                "<int:object_id>/preview/model/",
+                preview_file,
+                name="assets_assetversion_preview_file",
+            ),
+            *super().get_urls(),
+        ]
 
     def add_view(self, request, form_url="", extra_context=None):
         query = request.META.get("QUERY_STRING")
@@ -173,6 +196,81 @@ class AssetVersionAdmin(admin.ModelAdmin):
             "max_upload_bytes": max_upload_bytes(),
         }
         return TemplateResponse(request, "admin/assets/assetversion/upload.html", context)
+
+    # --- preview (AM-10): read-only, staff only, never changes a version ---
+
+    def preview_view(self, request, object_id):
+        if not preview.can_preview(request.user):
+            raise PermissionDenied
+        version = (
+            AssetVersion.objects.select_related("asset", "asset__default_version")
+            .filter(pk=object_id)
+            .first()
+        )
+        if version is None:
+            return self._get_obj_does_not_exist_redirect(request, self.model._meta, str(object_id))
+        refusal = preview.refusal_for(version)
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "title": f"Preview {version.label}",
+            "version": version,
+            "summary": preview.summary(version),
+            "refusal": refusal,
+            "change_url": reverse("admin:assets_assetversion_change", args=[version.pk]),
+            "asset_url": reverse("admin:catalog_contentasset_change", args=[version.asset_id]),
+        }
+        if refusal is None:
+            token = preview.issue_token(version, request.user)
+            context.update(
+                preview_token=token.value,
+                preview_file_url=reverse(
+                    "admin:assets_assetversion_preview_file", args=[version.pk]
+                ),
+                preview_token_header=preview.TOKEN_HEADER,
+                max_bytes=max_upload_bytes(),
+            )
+        logger.info("asset version previewed: %s v%s", version.asset.asset_id, version.number)
+        return TemplateResponse(request, "admin/assets/assetversion/preview.html", context)
+
+    def preview_file_view(self, request, object_id):
+        if request.method != "GET":
+            return _preview_error("method_not_allowed", "Use GET.", 405)
+        if not preview.can_preview(request.user):
+            return _preview_error("forbidden", "You do not have access to model previews.", 403)
+        version = AssetVersion.objects.select_related("asset").filter(pk=object_id).first()
+        if version is None:
+            return _preview_error("not_found", "Not found.", 404)
+        try:
+            token = request.headers.get(preview.TOKEN_HEADER, "")
+            preview.check_token(token, version, request.user)
+            refusal = preview.refusal_for(version)
+            if refusal is not None:
+                raise refusal
+        except preview.PreviewRefused as refused:
+            return _preview_error(refused.code, refused.message, refused.status)
+        try:
+            with get_storage().open(version.storage_key) as stream:
+                data = stream.read(version.size_bytes + 1)
+        except StorageError:
+            logger.warning(
+                "asset preview unavailable: %s v%s", version.asset.asset_id, version.number
+            )
+            return _preview_error(
+                "content_unavailable", "The stored file could not be read. Try again later.", 503
+            )
+        if len(data) != version.size_bytes or hashlib.sha256(data).hexdigest() != version.sha256:
+            logger.warning(
+                "asset preview checksum mismatch: %s v%s", version.asset.asset_id, version.number
+            )
+            return _preview_error(
+                "checksum_mismatch",
+                "The stored file does not match its recorded checksum, so it is not shown.",
+                409,
+            )
+        response = HttpResponse(data, content_type=version.content_type)
+        response["Content-Length"] = str(version.size_bytes)
+        return response
 
     # --- deletion goes through the service, so the stored file is removed too ---
 
@@ -232,6 +330,10 @@ class AssetVersionAdmin(admin.ModelAdmin):
     def is_default(self, obj) -> bool:
         return obj.asset.default_version_id == obj.pk
 
+    @admin.display(description="Preview")
+    def preview_link(self, obj):
+        return preview.link_for(obj)
+
     @admin.display(description="Validation findings")
     def findings(self, obj):
         if not obj.validation_report:
@@ -251,3 +353,8 @@ class AssetVersionAdmin(admin.ModelAdmin):
     @admin.display(description="Detected metadata")
     def metadata_summary(self, obj):
         return format_html("<pre>{}</pre>", json.dumps(obj.metadata, indent=2, sort_keys=True))
+
+
+def _preview_error(code: str, message: str, status: int) -> JsonResponse:
+    return JsonResponse(error_body(code, message), status=status)
+

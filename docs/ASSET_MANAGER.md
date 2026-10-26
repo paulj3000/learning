@@ -1,9 +1,9 @@
 # Shared Django Asset Manager (LAI-2200)
 
-Status: foundation implemented on `feature/django-asset-manager` (AM-1 to AM-9), unit-tested,
-not merged and not deployed. S3, the bucket policy and CloudFront are not provisioned (section
-12), and nothing has been checked in a browser.
-Decision record: ADR-035 in `docs/DECISIONS.md`.
+Status: implemented on `feature/django-asset-manager` (AM-1 to AM-10), unit-tested, not merged
+and not deployed. S3, the bucket policy and CloudFront are not provisioned (section 12), and
+nothing, including the admin 3D preview (section 17), has been checked in a browser.
+Decision record: ADR-035 in `docs/DECISIONS.md` (Accepted 2026-10-25).
 
 An administrator uploads a 3D model once, validates it, publishes an immutable version, and any
 island, region, adventure or quest refers to it by its stable asset id. No source change, no
@@ -203,7 +203,10 @@ call is made by the tests.
 | `LAI_ASSET_BUCKET`, `LAI_ASSET_REGION` | none | Required for `s3`; never hard-coded |
 | `LAI_ASSET_DELIVERY` | `django` | `django` or `s3` |
 | `LAI_ASSET_URL_TTL_SECONDS` | 3600 | Delivery URL lifetime (60 to 43200) |
-| `LAI_ASSET_MAX_UPLOAD_BYTES` | 52428800 | Upload limit |
+| `LAI_ASSET_MAX_UPLOAD_BYTES` | 52428800 | Upload limit (also the largest file the admin preview shows) |
+
+The admin preview (section 17) adds no variable. Its token lifetime is the constant
+`apps.assets.preview.PREVIEW_TTL_SECONDS` (600 seconds).
 
 ## 14. Work breakdown (LAI-2200)
 
@@ -218,7 +221,7 @@ call is made by the tests.
 | AM-7 | Frontend Django resolver adapter | Done |
 | AM-8 | Existing asset import tooling | Done |
 | AM-9 | Security and integration tests, documentation | Done |
-| AM-10 | Admin model preview (isolated, later) | Not started |
+| AM-10 | Admin 3D model preview (section 17) | Done (unit-tested; not checked in a browser) |
 | AM-11 | Signed CloudFront delivery | Not started; needs the distribution |
 
 ## 15. Treasure Rush TR-10: what it needs from here
@@ -236,13 +239,121 @@ TR-10 is not done here (owner rule: no Treasure Rush gameplay change in this wor
 
 ## 16. Open decisions
 
-- **ADR-035 is Proposed.** Accept or amend at merge review: definitions extend `ContentAsset`,
-  `PermissionsMixin` is added for Django Admin, `boto3` is a new dependency.
+- **ADR-035 was accepted on 2026-10-25** after the implementation was checked against it. What
+  follows is deferred work, not open parts of that decision.
 - **Delivery mode in production:** `django` (immediate revocation, Django bandwidth) or `s3`
   (cheaper, revocation only at expiry). Signed CloudFront URLs (AM-11) need the distribution.
 - **Licence and source fields** (the Amplify `AssetSource` and notes) are not modelled; the import
   keeps only tags. Decide whether licence tracking belongs on the definition or the version.
-- **Thumbnails and previews** (AM-10) are not built.
+- **Thumbnails** are not built. The interactive admin preview is (AM-10, section 17).
 - **The Amplify `AdventureAsset` join** (which adventure uses which asset) has no Django model.
   Catalog `LocationAsset` and region placements already reference assets by id.
+
+## 17. Admin 3D preview (AM-10)
+
+An administrator can inspect the actual stored model in 3D before publishing it, or at any time
+after. Viewing it is read-only: it never publishes, retires, or changes a version, its default
+designation, or its definition (a test checks every lifecycle field before and after).
+
+**Where.** Each row on the Asset versions list has a "Preview vN in 3D" link, and so does each
+version's change page. On an asset definition's page there is one link for the definition (its
+default version, or else its newest previewable version) and one per row in the versions inline.
+The preview page is `/admin/assets/assetversion/<pk>/preview/`. It shows the asset name and id,
+the version number and `version_id`, the format, file size, validation result, lifecycle status,
+asset status, whether it is the default, its animation clips and its bounding box, next to the
+viewer.
+
+**What can be previewed.** `VALIDATED` (the point of the feature: check before publishing),
+`PUBLISHED` and `RETIRED` versions, in both supported formats (`glb` and self-contained `gltf`).
+`DRAFT` (never validated) and `REJECTED` (failed a check) versions are not, and neither is a file
+larger than `LAI_ASSET_MAX_UPLOAD_BYTES`. Those pages say why and load no viewer.
+
+**Who.** Active staff with `assets.view_assetversion` or `assets.change_assetversion`, so both
+"Asset editors" and "Asset publishers" and every superuser. That is the same rule as the version
+admin's view page, and no permission or group was added or changed. Staff without an asset role
+get a 403 and see no preview links. Parents and anonymous visitors are sent to the admin login.
+
+**How the file is delivered.** The gameplay route (section 8) serves published versions only and
+is left as it is. The preview has its own route, `/admin/assets/assetversion/<pk>/preview/model/`,
+which needs **all** of the following:
+
+1. An active staff session with the view permission above. A refusal is JSON (403) and never a
+   login redirect, so the viewer can say what happened.
+2. A preview token in the `X-Asset-Preview-Token` request header. The page embeds a token signed
+   with the Django secret (its own salt, so a gameplay delivery token is never accepted). The token
+   names the version, the staff account and an expiry 10 minutes away. It is never put in a URL,
+   so it stays out of access logs, referrers and browser history. A cross-site page cannot send
+   the header without a CORS preflight, which Django does not answer. A token for another version
+   or another account, a forged token, or no token reads as 404. A genuine but expired token is a
+   410, and the viewer says to reload the page.
+3. A previewable status and a size within the limit (409 and 413 otherwise).
+4. Stored bytes whose SHA-256 and length still match the version record. Anything else is a 409
+   and the bytes are not sent.
+
+The id in the URL is an integer primary key. The storage key comes from the database row, never
+from the request, so there is no path to traverse. The bytes always pass through Django, in every
+storage mode: no presigned or permanent S3 URL is issued for a preview, objects stay private, and
+the bucket needs no CORS rule for the admin. Responses are `Cache-Control: no-store, private`.
+A storage failure is a 503 with a generic message. Logs record `asset version previewed: <id>
+v<n>` (staff action, no child data) and never contain the token, a URL or a storage key.
+
+**The viewer.** It is plain TypeScript on the project's existing Three.js and its `GLTFLoader` and
+`OrbitControls`, with no React and no new dependency. It lives in
+`react/src/features/assets/preview/` (outside the engine folder, since it is admin tooling, not
+gameplay):
+
+- `previewModelSource.ts`: fetches the bytes (same-origin credentials, `no-store`, redirects
+  treated as refusals), maps each refusal to a fixed message (no stack traces or server detail),
+  checks the size, checks that the bytes are the recorded format, and parses them. A
+  `LoadingManager` URL modifier refuses any reference that is not embedded in the file (`data:`
+  or `blob:`), so the browser never follows an external URI even if one got past validation.
+- `modelPreviewViewer.ts`: neutral hemisphere and directional light, a ground grid and axes scaled
+  to the model, the model centred horizontally and standing on the grid (it is moved through a
+  wrapper group, so the model's own transforms are not touched). Automatic framing from the
+  bounding box, with near and far planes and zoom limits scaled to the model, so a 1 mm prop and a
+  1 km island both fit. Orbit, pan (right-drag or Shift-drag) and zoom (wheel or pinch). The
+  toolbar has Reset camera (back to the first framing), Fit model (frames again from the current
+  direction), Zoom in and Zoom out. Sizing follows the container with a `ResizeObserver`. It
+  renders only when something changes, with no idle loop. On leaving the page (`pagehide`) it
+  disposes geometries, materials, textures, helpers, controls and the renderer and removes the
+  canvas. Animation clips are listed but not played; the model shows in its rest pose.
+- `mountAssetPreview.ts`: reads the page's `data-` attributes and drives the status line (loading,
+  ready, or an `alert` with the error) and the toolbar, whose buttons stay disabled until the
+  model is shown.
+
+**Build.** Django's image has no Node step, so the viewer is bundled into one ES module,
+`lai/apps/assets/static/assets/admin/asset-preview.js` (about 630 kB, 160 kB gzipped, mostly
+Three.js), and the built file is committed. `collectstatic` ships it, with
+`asset-preview.css`, under hashed names like every other admin static file. Rebuild it with
+`npm run build:admin-preview` (in `react/`; config `react/vite.admin-preview.config.ts`)
+whenever `react/src/features/assets/preview/` changes. The bundle has no source map, because the
+manifest storage would chase a `sourceMappingURL`.
+
+**Errors shown.** Each of these has its own message: no access or a lapsed session, missing
+version, not previewable, too large, checksum mismatch, storage unavailable, network failure,
+expired preview, unsupported format, a file that does not parse as glTF 2.0, a model with no
+visible geometry, and WebGL unavailable.
+
+**Tests (unit only).** pytest `apps/assets/tests/test_preview.py` (38): editor, publisher and
+superuser access; staff without a role, parents and anonymous visitors refused on the page and
+the file; unpublished (validated), published and retired previews; draft and rejected refused; the
+metadata shown; no lifecycle change; token in a header only; wrong-version, wrong-account, forged,
+gameplay and expired tokens; missing versions; oversized files; storage failures; checksum
+mismatch; GET only; logs free of tokens and keys; links on the version and definition pages; the
+static files present. Vitest `react/src/features/assets/preview/` (3 files, 53): fetch refusal
+mapping, header-only token, size limits, abort; format sniffing; GLB and glTF parsing, external
+references refused; framing for tiny and huge models; grid sizing; viewer set-up, resize,
+on-demand rendering, reset, fit, zoom limits, disposal and WebGL unavailable; page states, toolbar,
+and clean-up while loading. Three.js rendering itself is mocked (jsdom has no WebGL).
+
+**Known limitations.**
+
+- Not checked in a real browser or on a GPU. Browser verification belongs to merge verification.
+- No animation playback, no thumbnails, no wireframe or material inspection.
+- The committed bundle can go stale if the source changes without a rebuild. No check enforces
+  freshness yet. A merge-verification step (or a Node stage in the Docker build) would.
+- A file is read into memory once per preview (up to the 50 MB limit) to verify its checksum.
+  That is fine for staff traffic, but it would not suit gameplay delivery.
+- A Content-Security-Policy, when one is added to the admin, must allow `blob:` and `data:`
+  images for embedded textures, and `script-src 'self'` covers the bundle.
 

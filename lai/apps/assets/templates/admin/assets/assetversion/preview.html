@@ -1,0 +1,55 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'assets/admin/asset-preview.css' %}">{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; <a href="{{ change_url }}">{{ version.label }}</a>
+  &rsaquo; {% translate 'Preview' %}
+</div>
+{% endblock %}
+{% block content %}
+<div id="content-main" class="lai-asset-preview-page">
+  <p>A read-only view of the stored model file. Looking at it does not publish, retire or change
+    anything. <a href="{{ change_url }}">Back to the version</a> &middot;
+    <a href="{{ asset_url }}">Asset definition</a></p>
+  <div class="lai-asset-preview-layout">
+    <section class="lai-asset-preview-viewer" aria-label="{% translate '3D model preview' %}">
+      {% if refusal %}
+      <div class="errornote" role="alert">{{ refusal.message }}</div>
+      {% else %}
+      <div class="lai-asset-preview"
+           data-asset-preview
+           data-model-url="{{ preview_file_url }}"
+           data-format="{{ version.format }}"
+           data-size-bytes="{{ version.size_bytes }}"
+           data-max-bytes="{{ max_bytes }}"
+           data-token-header="{{ preview_token_header }}"
+           data-token="{{ preview_token }}">
+        <div class="lai-asset-preview-toolbar" role="toolbar" aria-label="{% translate 'Camera' %}">
+          <button type="button" class="button" data-preview-action="reset" disabled>{% translate 'Reset camera' %}</button>
+          <button type="button" class="button" data-preview-action="fit" disabled>{% translate 'Fit model' %}</button>
+          <button type="button" class="button" data-preview-action="zoom-in" disabled aria-label="{% translate 'Zoom in' %}">+</button>
+          <button type="button" class="button" data-preview-action="zoom-out" disabled aria-label="{% translate 'Zoom out' %}">&minus;</button>
+        </div>
+        <div class="lai-asset-preview-stage" data-preview-stage></div>
+        <p class="lai-asset-preview-status" data-preview-status role="status" aria-live="polite">{% translate 'Loading the model...' %}</p>
+        <p class="help">{% translate 'Drag to rotate. Right-drag or Shift-drag to pan. Scroll or pinch to zoom.' %}</p>
+      </div>
+      <noscript><div class="errornote">{% translate 'The preview needs JavaScript.' %}</div></noscript>
+      {% endif %}
+    </section>
+    <section class="module lai-asset-preview-facts" aria-labelledby="lai-asset-preview-facts">
+      <h2 id="lai-asset-preview-facts">{% translate 'Version details' %}</h2>
+      <dl>
+        {% for label, value in summary %}
+        <dt>{{ label }}</dt><dd>{{ value }}</dd>
+        {% endfor %}
+      </dl>
+    </section>
+  </div>
+</div>
+{% if not refusal %}<script type="module" src="{% static 'assets/admin/asset-preview.js' %}"></script>{% endif %}
+{% endblock %}

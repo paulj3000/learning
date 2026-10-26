@@ -13,6 +13,7 @@ can add a record here (the importer creates them), and nobody can delete one bef
 from django.contrib import admin, messages
 from django.db.models import BooleanField, Count, ExpressionWrapper, Q, Subquery
 
+from apps.assets import preview as asset_preview
 from apps.assets.models import AssetVersion
 from apps.catalog import admin_access
 from apps.catalog.models import (
@@ -273,13 +274,17 @@ class AssetVersionInline(ReadOnlyInline):
     """A definition's versions, newest first; each links to its own page (LAI-2200)."""
 
     model = AssetVersion
-    fields = ("number", "status", "format", "size_bytes", "published_at")
+    fields = ("number", "status", "format", "size_bytes", "published_at", "preview")
     readonly_fields = fields
     ordering = ("-number",)
     verbose_name_plural = "versions (upload, publish and retire on the Asset versions page)"
 
     def has_view_permission(self, request, obj=None):
         return admin_access.can_view(request) and _has_perm(request, "assets.view_assetversion")
+
+    @admin.display(description="3D preview")
+    def preview(self, obj):
+        return asset_preview.link_for(obj)
 
 
 # Django-owned display fields, editable on every definition by `catalog.change_contentasset`.
@@ -308,7 +313,7 @@ class ContentAssetAdmin(CatalogModelAdmin):
     list_filter = ("status", "origin", "category", "kind", InLatestReleaseFilter)
     search_fields = ("asset_id", "display_name", "description", "tags", "bundled_path")
     list_select_related = ("default_version",)
-    readonly_display = ("used_by", "default_version_number")
+    readonly_display = ("used_by", "default_version_number", "preview_link")
     inlines = [AssetVersionInline]
     actions = ["retire_assets"]
 
@@ -334,6 +339,8 @@ class ContentAssetAdmin(CatalogModelAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         everything = super().get_readonly_fields(request, obj)
+        if not asset_preview.can_preview(request.user):
+            everything = [name for name in everything if name != "preview_link"]
         if obj is None:  # the add form, for those who may add; otherwise nothing is editable
             return () if self.has_add_permission(request) else everything
         if not self.has_change_permission(request, obj):
@@ -365,6 +372,15 @@ class ContentAssetAdmin(CatalogModelAdmin):
     @admin.display(description="Default version", ordering="default_version__number")
     def default_version_number(self, obj) -> str:
         return f"v{obj.default_version.number}" if obj.default_version_id else "None"
+
+    @admin.display(description="3D preview")
+    def preview_link(self, obj):
+        """The default version, else the newest version that can be previewed (AM-10)."""
+        version = obj.default_version or (
+            obj.versions.filter(status__in=asset_preview.PREVIEWABLE).order_by("-number").first()
+            or obj.versions.order_by("-number").first()
+        )
+        return asset_preview.link_for(version)
 
     @admin.display(description="Used by locations")
     def used_by(self, obj) -> str:

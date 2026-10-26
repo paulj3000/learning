@@ -808,6 +808,11 @@ uses it by its stable asset id. Detail and the full contract: `docs/ASSET_MANAGE
   without a bearer token, and it carries a signed capability for one published version.
 - **Frontend**: `react/src/api/assets/djangoAssetResolver.ts`, an `AssetResolver` for the LAI-2106
   loader that falls back to the bundled manifest. It is not wired into a scene yet (TR-10).
+- **Admin 3D preview** (AM-10): a read-only Three.js viewer on each version's admin preview page,
+  for validated, published and retired versions. The file comes from a separate admin route that
+  needs a staff session and a short-lived token sent in a header, so the gameplay route stays
+  published-only. The viewer source is `react/src/features/assets/preview/`, bundled into the
+  `assets` app's static files (`docs/ASSET_MANAGER.md` section 17).
 
 ## Child progress (LAI-0305)
 

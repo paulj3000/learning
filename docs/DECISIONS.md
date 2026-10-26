@@ -56,7 +56,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-032 | Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-025 on `origin/main` |
 | ADR-033 | One Django backbone: Treasure Rush runs on the canonical catalog and progress models; play-region layouts are seed-authored until LAI-0805 | Accepted | Integration (POST-MERGE-03) |  |
 | ADR-034 | Django Admin is enabled with local staff sign-in, separate from Cognito; it ships as a gunicorn and WhiteNoise container | Accepted | Main line (LAI-0404) | Amends ADR-024 A4 for Django Admin only; resolves TR-D5 |
-| ADR-035 | The shared asset manager versions binaries on the canonical ContentAsset identity, with private storage and signed delivery | Proposed | Feature branch (LAI-2200) | Amends ADR-034 item 3 (Django permissions and groups); builds on ADR-030 and ADR-033 |
+| ADR-035 | The shared asset manager versions binaries on the canonical ContentAsset identity, with private storage and signed delivery | Accepted | Feature branch (LAI-2200) | Accepted 2026-10-25. Amends ADR-034 item 3 (Django permissions and groups); builds on ADR-030 and ADR-033. Amended by AM-10 (staff-only admin preview route) |
 
 ## ADR-001: Parent-owned accounts
 
@@ -2594,8 +2594,9 @@ last active superuser; there is no MFA on the Django login yet. Hosting is still
 
 ## ADR-035: The shared asset manager versions binaries on the canonical ContentAsset identity, with private storage and signed delivery
 
-Status: Proposed (implemented on `feature/django-asset-manager` for LAI-2200, 2026-10-25; to be
-accepted at merge review). Detail: `docs/ASSET_MANAGER.md`.
+Status: Accepted 2026-10-25 (proposed and implemented on `feature/django-asset-manager` for
+LAI-2200 the same day; accepted after the implementation was reviewed against it, before merge).
+Detail: `docs/ASSET_MANAGER.md`.
 
 **Context.** LAI-2200 asks for a reusable asset manager: definitions, immutable versions,
 publication, S3 storage, Django Admin upload, a child-facing resolver and an import path.
@@ -2639,4 +2640,25 @@ the permission relations. Adds `boto3` and its pinned transitive packages. The `
 route is the second route reachable without a bearer token (capability URLs for published
 versions only). A model can be published without any source change, and the same version
 serves every region that names its id.
+
+**Acceptance (2026-10-25).** The implementation (AM-1 to AM-10) was checked against items 1 to 8
+and matches them. Items 1 and 2: `ContentAsset` carries the Django-owned fields and
+`apps.assets.AssetVersion` has the database checks. Item 3: validation refuses external URIs and
+Draco or meshopt. Item 4: S3 writes send `IfNoneMatch` and `ChecksumSHA256`, and `boto3` is
+pinned. Item 5: `PermissionsMixin`, the two permissions and `ensure_asset_roles` are in place.
+Items 6 to 8: the resolver statuses, the two delivery modes and the bundled fallback exist. None
+of this decision is still open. The following stay as separate follow-up work and do not reopen
+it: the production delivery mode (`django` or `s3`, chosen when LAI-1002 provisions the bucket),
+signed CloudFront URLs (AM-11), licence and source fields, and an `AdventureAsset` join model
+(`docs/ASSET_MANAGER.md` section 16).
+
+**Amendment: admin preview (AM-10, 2026-10-25).** Item 7 (delivery) stays as it is, for gameplay
+and published versions only. Staff inspect any validated, published or retired version through a
+separate Django Admin route (`/admin/assets/assetversion/<pk>/preview/model/`). It needs a staff
+session with `assets.view_assetversion` and a 10-minute signed token bound to the version and the
+account. The token is sent in a request header, never in a URL. The route serves bytes only after
+re-checking their SHA-256, and always streams them through Django, so no presigned URL is issued
+for a preview. Draft and rejected versions are never served. The viewer is a Three.js bundle
+(ADR-020: Three.js is the only renderer) committed as an admin static file, because the Django
+image has no Node build step. No dependency was added. Detail: `docs/ASSET_MANAGER.md` section 17.
 
