@@ -49,6 +49,11 @@ _CODED = {
     "chest_already_open": "This chest is already open.",
     "attempt_already_answered": "This challenge was already answered.",
     "quest_unavailable": "This quest is not available.",
+    # Native Android API (LAI-ANDROID-API-001)
+    "child_profile_limit_reached": "No more child profiles can be added.",
+    "child_inactive": "This child profile is turned off.",
+    "launch_ticket_invalid": "This game link has expired. Please start again.",
+    "game_csrf_failed": "This request could not be verified.",
 }
 _PASSTHROUGH_HEADERS = {"Allow", "WWW-Authenticate", "Retry-After"}
 

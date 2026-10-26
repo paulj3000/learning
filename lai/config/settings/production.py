@@ -40,6 +40,7 @@ SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+LAI_GAME_COOKIE_SECURE = True  # the game session cookie (ADR-036) is never sent over plain HTTP
 
 # Django Admin (LAI-0404, ADR-034). Every origin that serves the admin login form must be listed,
 # as https:// origins, so CSRF accepts its POSTs.

@@ -135,6 +135,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
     "UNAUTHENTICATED_USER": None,
     "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
+    # Only the game launch routes declare a throttle (LAI-ANDROID-API-001); 429 `throttled`.
+    "DEFAULT_THROTTLE_RATES": {"game_launch": os.environ.get("LAI_GAME_LAUNCH_RATE", "30/min")},
 }
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -261,3 +263,25 @@ def compose_database() -> dict:
 COGNITO_REGION = os.environ.get("COGNITO_REGION", "").strip()
 COGNITO_USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID", "").strip()
 COGNITO_ALLOWED_CLIENT_IDS = env_list("COGNITO_ALLOWED_CLIENT_IDS")
+
+
+# --- Game-only WebView launches (LAI-ANDROID-API-001, ADR-036) ----------------------------------
+# docs/android/ANDROID_GAME_LAUNCH.md. The game runtime is served from the same origin as the API
+# (CloudFront path routing), so the cookie is host-only, scoped to `/api/v1/`, HttpOnly and
+# SameSite=Strict. It authenticates only the game runtime routes
+# (apps/game_sessions/runtime_auth.py).
+LAI_GAME_ENTRY_URL = os.environ.get("LAI_GAME_ENTRY_URL", "/game/").strip()
+LAI_GAME_ALLOWED_ORIGINS = env_list("LAI_GAME_ALLOWED_ORIGINS")
+LAI_GAME_TICKET_TTL_SECONDS = int(os.environ.get("LAI_GAME_TICKET_TTL_SECONDS", "60"))
+LAI_GAME_SESSION_TTL_SECONDS = int(os.environ.get("LAI_GAME_SESSION_TTL_SECONDS", "3600"))
+LAI_GAME_COOKIE_NAME = "lai_game_session"
+LAI_GAME_COOKIE_PATH = "/api/v1/"
+LAI_GAME_COOKIE_SECURE = env_bool("LAI_GAME_COOKIE_SECURE", True)
+if not 10 <= LAI_GAME_TICKET_TTL_SECONDS <= 300:
+    raise ImproperlyConfigured("LAI_GAME_TICKET_TTL_SECONDS must be between 10 and 300.")
+if not 300 <= LAI_GAME_SESSION_TTL_SECONDS <= 4 * 3600:
+    raise ImproperlyConfigured("LAI_GAME_SESSION_TTL_SECONDS must be between 300 and 14400.")
+if not (LAI_GAME_ENTRY_URL.startswith("/") or LAI_GAME_ENTRY_URL.startswith("https://")):
+    raise ImproperlyConfigured("LAI_GAME_ENTRY_URL must be a path or an https URL.")
+if any(not origin.startswith("https://") for origin in LAI_GAME_ALLOWED_ORIGINS):
+    raise ImproperlyConfigured("LAI_GAME_ALLOWED_ORIGINS must list https origins only.")

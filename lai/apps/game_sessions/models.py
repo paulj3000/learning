@@ -431,3 +431,66 @@ class ChallengeAttempt(ChildOwnedModel):
             response_mode=ResponseMode(self.response_mode),
             choices=tuple(self.choices),
         )
+
+
+# --- Game-only WebView launches (LAI-ANDROID-API-001, ADR-036) -------------------------------
+
+
+class GameLaunchTicket(ChildOwnedModel):
+    """A short-lived, single-use grant to open one region's game for one child.
+
+    Created by the native app's bearer-authenticated launch request and redeemed once, by the
+    same parent, for a `GameBrowserSession`. Only the SHA-256 of the opaque ticket is stored;
+    the ticket itself exists only in the launch response. Consumption is one conditional UPDATE
+    (`consumed_at IS NULL AND expires_at > now`), so two concurrent redemptions cannot both win.
+    """
+
+    parent = models.ForeignKey(
+        "users.ParentAccount", on_delete=models.CASCADE, related_name="+", editable=False
+    )
+    region_id = models.SlugField(max_length=80)
+    ticket_hash = models.CharField(max_length=64, unique=True, editable=False)
+    created_at = models.DateTimeField(default=now, editable=False)
+    expires_at = models.DateTimeField()
+    consumed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(expires_at__gt=F("created_at")), name="launch_ticket_expires_later"
+            ),
+        ]
+        indexes = [models.Index(fields=["parent", "expires_at"], name="launch_ticket_parent")]
+
+
+class GameBrowserSession(ChildOwnedModel):
+    """The game runtime's credential inside the WebView: one parent, one child, one region.
+
+    Carried by an HttpOnly, Secure, SameSite=Strict cookie scoped to `/api/v1/`; only the
+    SHA-256 of the cookie value is stored. It authenticates nothing but the game runtime routes
+    that opt in (`apps.game_sessions.runtime_auth`), and only for its own child and region. It
+    can never reach account, child-management or launch routes. Ends at `expires_at`, on
+    `revoked_at`, or when the parent or child is deactivated.
+    """
+
+    CHILD_LINKS = ("ticket",)
+
+    parent = models.ForeignKey(
+        "users.ParentAccount", on_delete=models.CASCADE, related_name="+", editable=False
+    )
+    region_id = models.SlugField(max_length=80)
+    token_hash = models.CharField(max_length=64, unique=True, editable=False)
+    ticket = models.OneToOneField(
+        GameLaunchTicket, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    created_at = models.DateTimeField(default=now, editable=False)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(expires_at__gt=F("created_at")), name="game_session_expires_later"
+            ),
+        ]
+        indexes = [models.Index(fields=["parent", "revoked_at"], name="game_session_parent")]
