@@ -266,18 +266,23 @@ class OutcomeSerializer(serializers.Serializer):
                 item for item in self.context.get("items", []) if item["itemId"] in new_items
             ],
             "rewardMessage": self.context.get("reward_message") if new_items else None,
-            "questUpdates": [
-                {
-                    "questId": update.progress.quest.slug,
-                    "status": update.progress.status,
-                    "currentStageId": update.progress.current_stage_id,
-                    "justCompleted": update.result.just_completed,
-                    "newlyCompletedObjectiveIds": list(update.result.newly_completed_objective_ids),
-                }
-                for update in outcome.quest_updates
-                if update.result.changed
-            ],
+            "questUpdates": quest_updates_body(outcome.quest_updates),
         }
+
+
+def quest_updates_body(updates) -> list[dict]:
+    """The quests an event moved (TR-5's shape; also on step answers since LAI-0605)."""
+    return [
+        {
+            "questId": update.progress.quest.slug,
+            "status": update.progress.status,
+            "currentStageId": update.progress.current_stage_id,
+            "justCompleted": update.result.just_completed,
+            "newlyCompletedObjectiveIds": list(update.result.newly_completed_objective_ids),
+        }
+        for update in updates
+        if update.result.changed
+    ]
 
 
 # --- Native discovery, home and inventory (LAI-ANDROID-API-001) -----------------------------

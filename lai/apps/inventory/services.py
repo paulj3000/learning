@@ -131,8 +131,8 @@ def grant_for_trigger(
 
 
 # The order one answer fires its triggers in (`submit_answer`): a step's own reward, then the
-# adventure's. Within a trigger, rules fire in `rule_id` order (`current_rules`).
-_EVENT_ORDER = {"WORLD_CHANGE": 0, "ADVENTURE_COMPLETED": 1}
+# adventure's, then any quest it finished (LAI-0605). Within a trigger, rules fire in `rule_id` order (`current_rules`).
+_EVENT_ORDER = {"WORLD_CHANGE": 0, "ADVENTURE_COMPLETED": 1, "QUEST_COMPLETED": 2}
 
 
 def grants_recorded_for_action(action) -> list[RewardGrant]:

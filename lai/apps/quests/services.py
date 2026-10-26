@@ -18,8 +18,16 @@ from django.utils import timezone
 from apps.catalog.models import Quest
 from apps.game_sessions.models import AdventureSession, SessionKind, SessionStatus
 from apps.game_sessions.services import InvalidTransition, ProgressNotFound
+from apps.education.models import SkillProgress
+from apps.inventory import services as inventory
 from apps.inventory.services import owned_item_ids
-from apps.progression.services import record_world_change, world_change_keys
+from apps.progression import npc
+from apps.progression.models import NpcRelationship, WorldChange, WorldState
+from apps.progression.services import (
+    record_world_change,
+    set_npc_memory_flags_for_quest,
+    world_change_keys,
+)
 from apps.quests import engine
 from apps.quests.models import QuestProgress, QuestStatus
 
@@ -31,17 +39,36 @@ class QuestUnavailable(Exception):
 
 
 def build_context(child) -> engine.QuestContext:
+    """The Quest Engine's view of the child, from server records only (`buildQuestContext`).
+
+    Same derivations as the client: a location counts as visited when the island recorded a
+    change there (no footsteps are stored); relationship levels come from points, not the stored
+    level column; skill statuses are the stored mastery level (LAI-0603), without review decay;
+    discoveries are the child's found discovery ids.
+    """
     completed_quests = QuestProgress.objects.for_child(child).filter(status=QuestStatus.COMPLETED)
     completed_adventures = AdventureSession.objects.for_child(child).filter(
         kind=SessionKind.ADVENTURE, status=SessionStatus.COMPLETED
     )
+    changes = WorldChange.objects.for_child(child).values_list("change_key", "location_slug")
+    relationships = list(NpcRelationship.objects.for_child(child))
+    statuses = SkillProgress.objects.for_child(child).exclude(recent_level="")
+    world_state = WorldState.objects.for_child(child).first()
     return engine.QuestContext(
-        world_change_keys=frozenset(world_change_keys(child)),
+        world_change_keys=frozenset(key for key, _ in changes),
         owned_item_ids=frozenset(owned_item_ids(child)),
         completed_adventure_slugs=frozenset(
             completed_adventures.values_list("adventure__slug", flat=True)
         ),
         completed_quest_ids=frozenset(completed_quests.values_list("quest__slug", flat=True)),
+        visited_location_slugs=frozenset(location for _, location in changes),
+        npc_memory_flags={r.npc_id: npc.parse_memory_flags(r.memory_flags) for r in relationships},
+        relationship_levels={
+            r.npc_id: npc.relationship_level_for_points(r.relationship_points)
+            for r in relationships
+        },
+        skill_statuses=dict(statuses.values_list("learning_objective_code", "recent_level")),
+        discovery_keys=frozenset(world_state.discovered_objects if world_state else ()),
     )
 
 
@@ -125,9 +152,11 @@ def save_quest_state(
 class QuestUpdate:
     progress: QuestProgress
     result: engine.AdvanceResult
+    rewards: tuple = ()
+    """`inventory.services.RewardGrant`s its completion fired (QUEST_COMPLETED, LAI-0605)."""
 
 
-def refresh_quest(progress: QuestProgress, *, source_session=None) -> QuestUpdate:
+def refresh_quest(progress: QuestProgress, *, source_session=None, source_action=None) -> QuestUpdate:
     """Walk a started quest forward against the child's real state and save it (TR-4).
 
     Locks the progress row, so two concurrent refreshes serialise; the world changes a stage or
@@ -163,6 +192,9 @@ def refresh_quest(progress: QuestProgress, *, source_session=None) -> QuestUpdat
             if result.just_completed:
                 progress.completed_at = at
             progress.save()
+        # A finished quest's effects, in the client's order (`syncQuestProgress`): world changes,
+        # then NPC memory flags, then QUEST_COMPLETED rewards. Unlike the client, they share this
+        # transaction, so a failure leaves the quest unfinished rather than half-applied.
         for change in result.world_changes:
             record_world_change(
                 progress.child,
@@ -170,10 +202,26 @@ def refresh_quest(progress: QuestProgress, *, source_session=None) -> QuestUpdat
                 change_type=change["changeType"],
                 change_key=change["changeKey"],
                 source_session=source_session,
+                source_session_id="" if source_session else f"quest:{progress.quest.slug}",
             )
-        return QuestUpdate(progress=progress, result=result)
+        rewards = ()
+        if result.just_completed:
+            for entry in source.get("completion", {}).get("setsNpcMemoryFlags") or []:
+                set_npc_memory_flags_for_quest(progress.child, entry.get("npcId"), entry.get("flags"))
+            rewards = tuple(
+                inventory.grant_for_trigger(
+                    progress.child,
+                    {"type": "QUEST_COMPLETED", "questId": progress.quest.slug},
+                    source_session=source_session,
+                    source_action=source_action,
+                )
+            )
+        return QuestUpdate(progress=progress, result=result, rewards=rewards)
 
 
-def refresh_active_quests(child, *, source_session=None) -> list[QuestUpdate]:
+def refresh_active_quests(child, *, source_session=None, source_action=None) -> list[QuestUpdate]:
     active = QuestProgress.objects.for_child(child).filter(status=QuestStatus.ACTIVE).order_by("pk")
-    return [refresh_quest(progress, source_session=source_session) for progress in active]
+    return [
+        refresh_quest(progress, source_session=source_session, source_action=source_action)
+        for progress in active
+    ]

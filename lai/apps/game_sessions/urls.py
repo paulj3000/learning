@@ -93,4 +93,9 @@ urlpatterns = [
         name="play-quest-accept",
     ),
     path(f"{CHILD}progress/", play_views.ProgressView.as_view(), name="play-progress"),
+    # Quest reads (LAI-0605). Acceptance stays `quests/<id>/accept/` above (TR-5).
+    path(f"{CHILD}quests/", native_views.QuestListView.as_view(), name="child-quests"),
+    path(
+        f"{CHILD}quests/<slug:quest_id>/", native_views.QuestDetailView.as_view(), name="child-quest"
+    ),
 ]

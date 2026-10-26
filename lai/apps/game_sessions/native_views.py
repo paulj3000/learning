@@ -9,6 +9,7 @@ docs/android/ANDROID_API_CONTRACT.md. Region progress and the play routes stay i
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 
+from apps.catalog.models import ContentRelease, Quest
 from apps.inventory.models import InventoryItem
 from apps.users.scoping import ChildScopedAPIView
 
@@ -69,3 +70,34 @@ class InventoryView(ChildScopedAPIView):
                 "truncated": len(rows) > MAX_INVENTORY,
             }
         )
+
+
+# --- Quests (LAI-0605) ------------------------------------------------------------------------
+
+
+def _visible_quests(child):
+    """Active quests in the latest content release for this child's age band."""
+    release = ContentRelease.objects.order_by("-imported_at", "-id").first()
+    quests = Quest.objects.filter(active=True, last_seen_release=release).order_by(
+        "sort_order", "slug"
+    )
+    return [quest for quest in quests if child.age_band in quest.age_bands]
+
+
+class QuestListView(ChildScopedAPIView):
+    """GET: every quest this child can see, with status (LOCKED, AVAILABLE, ACTIVE, COMPLETED)."""
+
+    def get(self, request, child_id):
+        entries = discovery.quest_status_entries(self.child, _visible_quests(self.child))
+        return Response({"quests": [quest_status_entry(e) for e in entries]})
+
+
+class QuestDetailView(ChildScopedAPIView):
+    """GET: one quest with its stages and objective progress. 404 when not visible."""
+
+    def get(self, request, child_id, quest_id):
+        quest = next((q for q in _visible_quests(self.child) if q.slug == quest_id), None)
+        if quest is None:
+            raise NotFound
+        [entry] = discovery.quest_status_entries(self.child, [quest])
+        return Response(quest_status_entry(entry))

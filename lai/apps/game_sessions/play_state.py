@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from django.db.models import Count, Q
 
-from apps.catalog.models import Quest
+from apps.catalog.models import ContentRelease, Quest
 from apps.core.content_status import ContentStatus
 from apps.education.models import SkillEvidence
 from apps.education.reads import mastery_summaries
@@ -40,9 +40,11 @@ def published_region(region_id: str) -> WorldRegion:
 
 
 def published_quest(quest_id: str) -> Quest:
-    """An active catalog quest (the catalog's `active` is Treasure Rush's "published")."""
+    """An active catalog quest in the latest content release (LAI-0605 added the release check,
+    matching adventures and reward rules: a quest the export no longer carries is retired)."""
+    release = ContentRelease.objects.order_by("-imported_at", "-id").first()
     try:
-        return Quest.objects.get(slug=quest_id, active=True)
+        return Quest.objects.get(slug=quest_id, active=True, last_seen_release=release)
     except Quest.DoesNotExist:
         raise LookupError from None
 

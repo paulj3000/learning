@@ -32,6 +32,7 @@ from django.utils import timezone
 from apps.adventures import engine
 from apps.education import services as education
 from apps.inventory import services as inventory
+from apps.progression.services import record_world_change
 from apps.catalog.models import Adventure, AdventureStep, ContentRelease
 from apps.game_sessions.models import (
     COMPLETE_STEP_ID,
@@ -261,10 +262,27 @@ def _kind(step: AdventureStep) -> str:
     return presentation.get("kind", "") if isinstance(presentation, dict) else ""
 
 
-def _world_change_key(step: AdventureStep) -> str:
+def _world_change(step: AdventureStep) -> dict | None:
+    """The world-change step's authored change, or None when its payload is incomplete."""
     payload = step.source["presentation"].get("payload")
-    key = payload.get("changeKey") if isinstance(payload, dict) else None
-    return key if isinstance(key, str) else ""
+    if not isinstance(payload, dict):
+        return None
+    fields = {
+        "location_slug": payload.get("locationSlug"),
+        "change_type": payload.get("changeType"),
+        "change_key": payload.get("changeKey"),
+    }
+    if not all(isinstance(value, str) and value for value in fields.values()):
+        return None
+    return fields
+
+
+def _refresh_quests(session: AdventureSession, *, action=None) -> list:
+    """Walk the child's active quests forward after a resolved step (LAI-0605): a SOLVE,
+    BUILD, LEARN or other objective may now hold. Quest progress is derived, never reported."""
+    from apps.quests.services import refresh_active_quests  # quests imports this module
+
+    return refresh_active_quests(session.child, source_session=session, source_action=action)
 
 
 def _completion_rewards(session: AdventureSession, *, action=None) -> list:
@@ -301,7 +319,11 @@ def finalize_session(child, session_id, adventure: Adventure, *, now=None):
     if not ends_adventure(session, session.current_step_id):
         raise SessionNotComplete
     _complete(session, _now(now))
-    session.completion_rewards = _completion_rewards(session)
+    updates = _refresh_quests(session)
+    session.completion_rewards = _completion_rewards(session) + [
+        grant for update in updates for grant in update.rewards
+    ]
+    session.quest_updates = updates
     return session, True
 
 
@@ -338,6 +360,8 @@ class AnswerOutcome:
     attempt_number: int
     replayed: bool
     session: AdventureSession
+    quest_updates: list = field(default_factory=list)
+    """`quests.services.QuestUpdate`s this answer caused (LAI-0605). Empty on a replay."""
     rewards: list = field(default_factory=list)
     """`inventory.services.RewardGrant`s this answer earned (LAI-0604). On a replay, the grants
     the first processing made, none of them new."""
@@ -417,22 +441,28 @@ def submit_answer(
             support_level=decision["supportLevel"],
             at=at,
         )
-    granted = []
+    granted, quest_updates = [], []
     if next_step is not None and _kind(step) == "world-change":
-        change_key = _world_change_key(step)
-        if change_key:
-            # The authored WORLD_CHANGE reward for this step (LAI-0604). The island change
-            # record itself is LAI-0605's.
+        change = _world_change(step)
+        if change is not None:
+            # The step's island change (LAI-0605), recorded once per child, then its authored
+            # WORLD_CHANGE reward (LAI-0604).
+            record_world_change(session.child, source_session=session, now=at, **change)
             granted += inventory.grant_for_trigger(
                 session.child,
-                {"type": "WORLD_CHANGE", "changeKey": change_key},
+                {"type": "WORLD_CHANGE", "changeKey": change["change_key"]},
                 source_session=session,
                 source_action=action,
             )
     if next_step is not None and ends_adventure(session, next_step):
         _complete(session, at)
         granted += _completion_rewards(session, action=action)
-    return _outcome(action, session, replayed=False, rewards=granted)
+    if next_step is not None:
+        quest_updates = _refresh_quests(session, action=action)
+        granted += [grant for update in quest_updates for grant in update.rewards]
+    outcome = _outcome(action, session, replayed=False, rewards=granted)
+    outcome.quest_updates = quest_updates
+    return outcome
 
 
 @transaction.atomic

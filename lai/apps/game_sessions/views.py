@@ -36,6 +36,7 @@ from apps.game_sessions.adventure_state import session_state
 from apps.game_sessions.models import AdventureSession, SessionKind
 from apps.inventory import services as inventory
 from apps.inventory.serializers import rewards_body
+from apps.game_sessions.serializers import quest_updates_body
 from apps.users.scoping import ChildScopedAPIView
 
 
@@ -137,6 +138,8 @@ class AnswersView(ChildScopedAPIView):
                 "session": session_state(outcome.session),
                 # LAI-0604, additive: what this answer earned (empty for most answers).
                 "rewards": rewards_body(outcome.rewards),
+                # LAI-0605, additive: the quests this answer moved (empty on a replay).
+                "questUpdates": quest_updates_body(outcome.quest_updates),
             }
         )
 
@@ -251,4 +254,7 @@ class AdventureSessionCompleteView(ChildScopedAPIView):
             else inventory.grants_recorded_for_completion(session)
         )
         body = adventure_state.session_view(_session_of(self.child, adventure, session_id))
-        return Response({**body, "rewards": rewards_body(grants)})
+        updates = session.quest_updates if completed_now else []
+        return Response(
+            {**body, "rewards": rewards_body(grants), "questUpdates": quest_updates_body(updates)}
+        )
