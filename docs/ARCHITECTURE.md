@@ -973,7 +973,7 @@ failing open on transient errors for the catalog.
 | `story` | `ChildStoryProgress` | Unsupported (LAI-0607) |
 | `npc` | `ChildNpcState` | Unsupported (LAI-0605) |
 | `discovery` | `ChildWorldState` (+ reward grants) | Unsupported (LAI-0605) |
-| `rewards` | `ChildInventory` (client grant ledger) | **Backpack read:** `GET children/{id}/inventory/` (a truncated list is refused). `grantRewards` and `clearInventory` are unsupported, so the client never grants a reward |
+| `rewards` | `ChildInventory` (client grant ledger) | **Backpack read:** `GET children/{id}/inventory/` (a truncated list is refused). **History (LAI-0604):** `GET children/{id}/rewards/` and `rewards/{grantId}/`. Earned rewards arrive on answer and completion responses. `grantRewards` and `clearInventory` are unsupported, so the client never grants a reward |
 | `companionProfile` | `CompanionProfile` | Unsupported (LAI-0307) |
 | `safety` | `SafetyEvent` reads, `AIInteractionAudit` and `SafetyEvent` deletes | Unsupported (LAI-0306) |
 | `ai` | `generateCompanionTurn`, `generateTutorTurn`, audit and safety writes | Unsupported (LAI-0701 to LAI-0703). The child gets the authored line |
@@ -1054,6 +1054,35 @@ The React `mastery` adapter reads these routes and never writes; `upsertSkillPro
 
 Treasure Rush keeps writing per-attempt evidence without counters (LAI-0610). The parent
 dashboard (LAI-0505) will consume `listMastery` / `GET mastery/`.
+
+## Authoritative rewards (LAI-0604)
+
+Rewards are granted by `apps/inventory/services.py` and nothing else:
+- `grant_for_trigger(child, trigger, ...)` resolves the published reward table
+  (`rewards.resolve_rewards`, the golden-vector port of `rewardTable.ts`).
+- Each matching rule goes through `grant_reward_rule`, which claims the `GrantedRule` row first
+  (`granted_rule_once`), adds `InventoryItem` rows (`inventory_item_once`), and gives any
+  collectible-set cosmetic the grant completes.
+
+Step adventures fire two triggers from `game_sessions.services`, inside the answer's
+transaction:
+- `WORLD_CHANGE`, when a world-change step resolves;
+- `ADVENTURE_COMPLETED`, when the session completes, either in `submit_answer` or in
+  `finalize_session`.
+
+`GrantedRule.source_action` lets a replayed answer report its original grants without granting
+again. Answer and completion responses carry an additive `rewards` object
+(`inventory/serializers.py`). `GET rewards/` and `GET rewards/{grantId}/` are the history.
+
+There is no randomness (ADR-011), so nothing can be rerolled. There are no quantities, and no
+client write path.
+
+Treasure Rush's chest uses the same `grant_reward_rule`. Quests, NPCs, discoveries and stories
+will call `grant_for_trigger` when LAI-0605 and LAI-0607 make those outcomes server-side.
+
+The React rewards adapter adds `listRewardGrants` and `getRewardGrant`, and
+`useAdventureSession` exposes `lastRewards` as the contract for presenting a reward. No UI was
+built.
 
 ## Native Android clients and the game-only WebView (LAI-ANDROID-API-001, ADR-036)
 

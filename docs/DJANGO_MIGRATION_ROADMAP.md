@@ -326,9 +326,13 @@ answer is the event); read routes `mastery/` and `mastery/{objectiveId}/`. Contr
 documentation (a product decision), and Treasure Rush evidence does not move counters
 (LAI-0610). Depends: 0601. Risk M.
 
-**LAI-0604 Rewards and inventory writes.** Depends: 0603. Risk M. Acceptance: server
-resolves rewards from the rule table (no randomness, ADR-011), idempotent by rule id;
-client cannot grant arbitrary items.
+**LAI-0604 Rewards and inventory writes. DONE locally (2026-10-26)** on
+`feature/lai-0604-rewards-inventory`, not merged. The server resolves the reward table, with all
+25 reward golden vectors passing, and grants each rule once per child. Set-completion
+cosmetics come in the same write. Rewards fire from step answers (`WORLD_CHANGE`) and
+completion (`ADVENTURE_COMPLETED`) in the answer's transaction. There is no client grant path.
+History lives at `rewards/`. Contract: `docs/PLAY_API.md`, "Rewards". Quest, discovery, NPC and
+story triggers wait for LAI-0605 and LAI-0607. Depends: 0603. Risk M.
 
 **LAI-0605 Quests, NPC, discovery, world state writes.** Depends: 0604. Risk M. Acceptance:
 split into three sub-PRs if needed; each cascades into world-change/reward as today;

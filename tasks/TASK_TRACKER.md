@@ -72,7 +72,7 @@ before touching AWS.
 - [ ] **LAI-0602** Profile writes and deletion (depends: 0502)
 - [x] **LAI-0603** Mastery writes (depends: 0601). DONE locally on `feature/lai-0603-mastery-progression`: server-side evidence and counters from graded step answers, golden-vector port, read routes, React adapter; focused pytest and Vitest pass; not merged or pushed; no browser verification
 - [ ] **LAI-0610** Treasure Rush challenge evidence and mastery counters (found by LAI-0603; needs a decision: per-attempt evidence vs the step rule of one piece of evidence per resolved step)
-- [ ] **LAI-0604** Rewards and inventory writes (depends: 0603)
+- [x] **LAI-0604** Rewards and inventory writes (depends: 0603). DONE locally on `feature/lai-0604-rewards-inventory`: server-side reward resolution (golden-vector port), grants from step answers and completion, reward history routes, React adapter; focused pytest and Vitest pass; not merged or pushed; no browser verification
 - [ ] **LAI-0605** Quests, NPC, discovery, world state writes (depends: 0604)
 - [ ] **LAI-0606** Next-learning-activity (depends: 0603)
 - [ ] **LAI-0607** Story artifacts and progress writes (depends: 0305)

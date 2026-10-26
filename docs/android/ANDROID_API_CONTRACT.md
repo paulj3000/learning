@@ -16,6 +16,7 @@ WebView).
 | Region list, region adventures | **Added** |
 | Region bootstrap, region session, sessions, chests, attempts, quests | **Existed** (TR-5, `docs/PLAY_API.md`); now also reachable by the game runtime cookie, only for its own child and region |
 | Step-adventure sessions: availability, start or resume, read, answer, hint, complete | **Added** (LAI-0608; answers and hints existed, LAI-0601). Same routes as React; contract in `docs/PLAY_API.md`, "Step adventures" |
+| Rewards: earned on answers and completion (`rewards`), history list and one grant | **Added** (LAI-0604). Server-granted only; `docs/PLAY_API.md`, "Rewards" |
 | Mastery: list, one objective | **Added** (LAI-0603). Read-only, server-computed from graded answers; `docs/PLAY_API.md`, "Mastery" |
 | Progress | **Existed**; gains an additive `mastery` status summary (LAI-0603) |
 | Inventory | **Added** (the same rows as `progress.inventory`) |
@@ -290,6 +291,15 @@ The same routes and values the React app reads. Objective ids are the catalog's 
 objective codes, which are also the step's `objectiveIds`. `hasEvidence: false` with `status:
 null` means not practised yet, not a low score. Mastery cannot be written from the app: it moves
 only when an answer resolves a step. The shape and rules are in `docs/PLAY_API.md`, "Mastery".
+
+### Rewards (added, LAI-0604)
+
+The app never grants anything. What a step answer or a completion earned arrives on that same
+response as `rewards: {grants, newItems}`. Show `newItems` as just found. A replayed request
+returns `newlyGranted: false` and empty `newItems`, so do not celebrate twice. The history is
+`GET /children/{id}/rewards/` and `GET /children/{id}/rewards/{grantId}/`. Item ids are the
+catalog's, the same ones `inventory/` returns. Items are owned or not, with no quantities. The
+rules are in `docs/PLAY_API.md`, "Rewards".
 
 ### `GET /api/v1/children/{childId}/inventory/` (added)
 

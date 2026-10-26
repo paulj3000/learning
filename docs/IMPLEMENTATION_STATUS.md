@@ -11266,3 +11266,78 @@ Branch `feature/lai-0603-mastery-progression`, from the LAI-0608 commit `7df2a9a
     cannot see. Both are the same `404`, by design.
   - **The parent dashboard** (LAI-0505) is not built.
   - **ParentConsent** (LAI-0308, gate G9) and the other gates are still open.
+
+## LAI-0604: server-authoritative rewards and inventory (2026-10-26)
+
+Branch `feature/lai-0604-rewards-inventory`, from the LAI-0603 commit `a982315`. Code commit
+`1315c26`, then docs. Not merged, pushed or deployed. Contract: `docs/PLAY_API.md`, "Rewards".
+Design: `docs/ARCHITECTURE.md`, "Authoritative rewards (LAI-0604)".
+
+- **Rules, reconciled before coding.** The accepted rules are the Reward Engine's
+  (`react/src/features/rewards`, ADR-011, golden vectors in `tests/golden/rewards.json`):
+  - deterministic, with no randomness, no weighting, and rarity never consulted;
+  - every matching rule grants, each once per child;
+  - items are owned or not, with no quantities;
+  - finishing a collectible set grants its completion cosmetic.
+
+  The port keeps all four unchanged. There are no random rewards, so a retry has nothing to
+  reroll. No probability, rarity or repeatable rule was added.
+- **Behaviour difference, documented.** The Amplify client never fired `ADVENTURE_COMPLETED`,
+  or `WORLD_CHANGE` for an adventure step, although rules for both are authored and
+  integrity-checked. Django honours those authored rules. Before this task, Django's
+  `grant_reward_rule` (Treasure Rush) did not give set cosmetics. It now does, as the TypeScript
+  engine always did. No shipped chest item is in a set, so Treasure Rush's results are
+  unchanged.
+- **Models:** reuses `RewardRule`, `ItemDefinition`, `CollectibleSet`, `GrantedRule` and
+  `InventoryItem`. One additive change: `GrantedRule.source_action` (migration
+  `inventory.0002`). One-time grants are enforced by `granted_rule_once`, and single ownership
+  by `inventory_item_once`.
+- **Write path:** `inventory.services.grant_for_trigger` uses rules in the latest content
+  release only. `game_sessions.services.submit_answer` fires `WORLD_CHANGE` for a resolved
+  world-change step and `ADVENTURE_COMPLETED` when the answer completes the session.
+  `finalize_session` fires `ADVENTURE_COMPLETED` only when it completes the session itself. All
+  of this runs in the answer's transaction, after mastery.
+  - **Failure:** a failed grant rolls back the answer, the step move and the completion.
+  - **Replays:** a replay reports `GrantedRule.source_action` grants as `newlyGranted: false`.
+  - **Concurrency:** concurrent completions are put in order by the session lock, and the
+    unique constraints are the backstop.
+- **Reads:** additive `rewards: {grants, newItems}` on answer and completion responses, plus
+  `GET children/{id}/rewards/` and `GET children/{id}/rewards/{grantId}/`. There are no write
+  routes (405).
+- **React:**
+  - `api/rewards.ts` gains `RewardOutcome`, `parseRewardOutcome`, and `listRewardGrants` /
+    `getRewardGrant`. On Django these read the new routes. On Amplify they derive from
+    `grantedRuleIds` and the bundled rules, with `grantedAt: null`.
+  - `api/adventures.ts` answer and completion results carry `rewards`.
+  - `useAdventureSession` exposes `lastRewards` when a server response holds new items. This is
+    the presentation contract; no UI or Three.js change was made.
+  - `grantRewards` is still `rewards_unavailable` on Django.
+- **Tests (focused):**
+
+  | Command | Result |
+  |---|---|
+  | `.venv/bin/python -m pytest -q tests/golden/test_rewards_python.py` | 25 passed |
+  | `LAI_REQUIRE_POSTGRES=1 .venv/bin/python -m pytest -q lai/apps/inventory/tests/test_reward_grants.py` | 19 passed |
+  | `... -m pytest -q lai/apps/inventory tests/golden/test_rewards_python.py`, rerun after a session restart | 53 passed |
+  | `... -m pytest -q lai/apps/game_sessions lai/apps/users lai/apps/core lai/apps/education lai/apps/inventory lai/apps/quests tests/golden` | 848 passed |
+  | `manage.py makemigrations --check` | No changes |
+  | `npx tsc -b` | Pass |
+  | `npx vitest run src/api/rewardGrants.test.ts src/api/rewards.test.ts src/features/adventures/useAdventureSession.django.test.ts` | 15 passed |
+  | React regression: every test file that references the rewards, adventures or hook modules, plus `src/api`, `src/test`, `src/features/rewards`, `src/features/adventures` | 67 files, 836 tests passed |
+
+  - The reward concurrency test passed three runs in a row.
+  - A hand mutation (dropping the once-per-rule check) failed the second-play-through test.
+  - Treasure Rush's existing reward tests pass unchanged.
+- **Not run:** Playwright and any browser, Ruff, Prettier, oxlint, full suites, production
+  build. No AWS was contacted.
+- **Known limitations:**
+  - **Triggers not yet server-side:** `QUEST_COMPLETED`, `DISCOVERY` and `NPC_RELATIONSHIP`
+    wait for LAI-0605; `STORY_COMPLETED` waits for LAI-0607. Each will call
+    `grant_for_trigger`.
+  - **World changes:** a world-change step's island record is still LAI-0605; only its reward
+    fires.
+  - **No reward UI:** no celebration UI consumes `lastRewards` yet.
+  - **Item assets:** `assetId` is empty until catalog items carry models (TR-10, LAI-2200).
+  - **Rule order:** rules within one trigger fire in `rule_id` order rather than export order.
+    Only the order of messages is affected.
+  - **ParentConsent** (LAI-0308, gate G9) and the other gates are still open.

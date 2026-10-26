@@ -333,9 +333,10 @@ Such a session cannot continue until a restart or abandon policy is decided (ope
 ### Not part of completion yet
 
 Completing records only the session's status and time. Mastery is recorded per resolved step by
-the answers themselves (LAI-0603, see "Mastery"), never by completion. Rewards (LAI-0604),
-quest, NPC and world-change records (LAI-0605) and story artifacts (LAI-0607) are not written by
-step sessions. World-change steps advance the session, but the island change itself is
+the answers themselves (LAI-0603, see "Mastery"), never by completion. Completion fires the
+adventure's `ADVENTURE_COMPLETED` rewards (LAI-0604, see "Rewards"). Quest, NPC and
+world-change records, with the rewards they trigger (LAI-0605), and story artifacts (LAI-0607)
+are not written by step sessions. World-change steps advance the session, but the island change itself is
 LAI-0605. The hook for all of them is `services.finalize_session` and the completing branch of
 `services.submit_answer`, both in one transaction.
 
@@ -429,6 +430,92 @@ Treasure Rush challenge answers already write a `SkillEvidence` row per attempt
 evidence is not the step rule (one piece of evidence per resolved step). Feeding it into the
 same counters would count differently, so that waits for a decision (LAI-0610). The reward
 behaviour is unchanged.
+
+## Rewards (LAI-0604)
+
+Rewards are granted only by the server, as part of the gameplay event that earns them. There is
+no route that grants anything: `POST`, `PUT`, `PATCH` and `DELETE` on `inventory/` and
+`rewards/` are `405`. A client-sent `itemId`, `ruleId` or quantity on an answer carries no
+meaning.
+
+### Rules
+
+These are the Reward Engine's rules (`react/src/features/rewards`, ADR-011), ported and pinned
+by `tests/golden/rewards.json`:
+
+- **Deterministic.** A trigger grants every published rule that matches it. There is no
+  randomness, no weighting, no "one of the following", and rarity is never consulted. The same
+  event gives every child the same items, so a retry cannot reroll anything: there is nothing
+  to roll.
+- **Once per child per rule** (`granted_rule_once`). A second play-through of an adventure, a
+  retried request and a concurrent duplicate all grant nothing again. No authored rule is
+  repeatable.
+- **Owned or not** (`inventory_item_once`). There are no quantities: an item granted by two
+  rules is owned once.
+- **Collectible sets.** The grant that completes a set also gives the set's completion
+  cosmetic, in the same write.
+- **Published rules only.** A rule missing from the latest content release grants nothing.
+
+### Triggers fired by step adventures
+
+| When | Trigger | Where |
+|---|---|---|
+| An answer resolves a world-change step | `WORLD_CHANGE` with the step's `payload.changeKey` | `submit_answer` |
+| An answer reaches the end of the adventure | `ADVENTURE_COMPLETED` with the adventure's slug | `submit_answer` |
+| `complete/` completes the session | `ADVENTURE_COMPLETED` | `finalize_session` (only when this call completes it) |
+
+These grants share one transaction with the answer, the session move and mastery. If a grant
+fails, the answer is not applied either.
+
+- **Not fired here:** `QUEST_COMPLETED`, `DISCOVERY`, `NPC_RELATIONSHIP` and `STORY_COMPLETED`
+  belong to LAI-0605 and LAI-0607. They call `inventory.services.grant_for_trigger` when those
+  outcomes become server-side.
+- **Amplify difference:** the Amplify client never fired `ADVENTURE_COMPLETED`, or
+  `WORLD_CHANGE` for an adventure step, although rules for both are authored (for example
+  `reward-bridge-repaired` and `reward-bridge-world-change`). Django honours the authored rules;
+  no rule was added.
+- **World changes:** the island change record for a world-change step is still LAI-0605. Only
+  its reward fires here.
+
+### `rewards` on answer and completion responses
+
+Additive, so a client that ignores it is unaffected:
+
+```json
+"rewards": {
+  "grants": [{"grantId": "7b1c...", "ruleId": "reward-bridge-repaired",
+              "source": "ADVENTURE_COMPLETED", "message": "You repaired the Moonlight Bridge!",
+              "newlyGranted": true, "grantedAt": "2026-10-26T10:00:00+00:00",
+              "items": [{"itemId": "bridge-builders-hammer", "displayName": "...",
+                         "description": "...", "category": "KEEPSAKE", "assetId": ""}]}],
+  "newItems": [{"itemId": "bridge-builders-hammer", "...": "..."}]
+}
+```
+
+- `grants` lists the rules this event fired. A rule that already fired in an earlier event is
+  not this event's reward and is not listed.
+- `newItems` is what to show as just found. It includes set-completion cosmetics, and leaves
+  out items the child already owned.
+- **On a replayed request** (the same `requestId`, `replayed: true`) or a repeated
+  `complete/`, `grants` repeats what the first processing granted, with
+  `newlyGranted: false`, and `newItems` is empty. A celebration is never shown twice and
+  nothing is granted again.
+- `items` use the same shape as `inventory/`. `assetId` is empty until catalog items carry
+  models; draw a placeholder.
+- Rarity is not returned: it describes how hidden an item is, not its value.
+
+### `GET rewards/` and `GET rewards/{grantId}/`
+
+These list every rule that has fired for this child, newest first. Each entry is a grant as
+above, plus `sourceSessionId`, without `newlyGranted`. An unknown grant id, or another child's,
+is `404`. The backpack itself stays `GET inventory/` (the newest item first, `truncated` past
+500).
+
+### Treasure Rush
+
+The chest reward is unchanged: same rule, same response fields (`newItems`, `rewardMessage`).
+It now goes through the same `grant_reward_rule`, so a chest that ever completes a set would
+also give the set's cosmetic. No shipped chest item belongs to a set, so nothing changes today.
 
 ## Reuse by later regions
 
