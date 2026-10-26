@@ -1,52 +1,26 @@
-import { client } from '../../lib/data-client';
+import { catalogApi } from '../../api/catalog';
+import { isBackendGap } from '../../api/select';
 import type { AdventureDefinition } from '../adventures/engine/types';
-import {
-  EMPTY_CATALOG,
-  isAdventureAvailable,
-  type CatalogAdventureFlags,
-  type CatalogIslandFlags,
-  type CatalogSnapshot,
-} from './availability';
+import { EMPTY_CATALOG, isAdventureAvailable, type CatalogSnapshot } from './availability';
 import { islandSlugForTemplate } from './islandForTemplate';
 
 /**
- * The child app's read of the admin catalog (ADR-031): only the fields the
- * availability rule needs, through an explicit selection set, so a parent's
- * session never asks for the Admins-only `createdBy`/`updatedBy` fields.
+ * The child app's read of the admin catalog (ADR-031), through
+ * `react/src/api/catalog.ts`.
  *
  * Fails open to `EMPTY_CATALOG` (everything available). The catalog is a
  * release control over curated, already-safe content, not a safety
  * boundary, and a network blip or a backend deployed before these models
- * existed must not lock a child out of the whole island.
+ * existed must not lock a child out of the whole island. A backend with no
+ * catalog contract at all (Django, LAI-0501B), or a misconfigured build, is
+ * not a blip: that error propagates rather than reading as "everything is
+ * available".
  */
 export async function loadCatalogSnapshot(): Promise<CatalogSnapshot> {
   try {
-    const islands: CatalogIslandFlags[] = [];
-    let islandToken: string | null | undefined;
-    do {
-      const { data, errors, nextToken } = await client.models.Island.list({
-        selectionSet: ['id', 'slug', 'active'],
-        nextToken: islandToken,
-      });
-      if (errors?.length) return EMPTY_CATALOG;
-      islands.push(...data);
-      islandToken = nextToken;
-    } while (islandToken);
-
-    const adventures: CatalogAdventureFlags[] = [];
-    let adventureToken: string | null | undefined;
-    do {
-      const { data, errors, nextToken } = await client.models.Adventure.list({
-        selectionSet: ['slug', 'islandId', 'active'],
-        nextToken: adventureToken,
-      });
-      if (errors?.length) return EMPTY_CATALOG;
-      adventures.push(...data);
-      adventureToken = nextToken;
-    } while (adventureToken);
-
-    return { islands, adventures };
-  } catch {
+    return await catalogApi.loadCatalogSnapshot();
+  } catch (error) {
+    if (isBackendGap(error)) throw error;
     return EMPTY_CATALOG;
   }
 }

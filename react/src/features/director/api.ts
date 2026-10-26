@@ -6,19 +6,15 @@
  * anything itself — that decision now runs once, server-side, in
  * `amplify/functions/get-next-learning-activity/handler.ts`, shared by
  * every client rather than reimplemented per client. This module's only
- * job is calling that query and reconstructing its flattened wire shape
+ * job is calling that query (through `react/src/api/director.ts`) and reconstructing its flattened wire shape
  * back into the `SelectionRecord[]` this app's UI and `explain.ts` already
  * know how to render — the same "client renders, backend decides"
  * boundary `submitAdventureAnswer` already established for the Adventure
  * Engine.
  */
-import { client } from '../../lib/data-client';
-import type { Schema } from '../../../../amplify/data/resource';
+import { directorApi, type WireReason, type WireSuggestion } from '../../api/director';
 import type { SelectionReason, SelectionRecord } from './types';
 import type { SkillStatus } from '../mastery/types';
-
-type WireSuggestion = Schema['NextAdventureSuggestion']['type'];
-type WireReason = Schema['SelectionReasonType']['type'];
 
 const SELECTION_REASON_KINDS: readonly SelectionReason['kind'][] = [
   'PRACTISES_SKILL',
@@ -86,23 +82,17 @@ export const NO_SUGGESTION: NextLearningActivity = { ranking: [], hasPersonalize
  * What this child could do next, ranked. Never throws: a Director failure
  * must degrade to "no suggestion" rather than break a child's screen, since
  * every surface it feeds already works without it — same contract this
- * function had before Phase 41 moved the ranking itself server-side.
+ * function had before Phase 41 moved the ranking itself server-side. That
+ * includes a backend with no Director route (Django, LAI-0606): the child
+ * sees no suggestion, never an invented one.
  */
 export async function getNextLearningActivity(
   childProfileId: string,
 ): Promise<NextLearningActivity> {
   try {
-    const { data, errors } = await client.queries.getNextLearningActivity({ childProfileId });
-    if (!data) {
-      throw new Error(errors?.[0]?.message ?? 'Could not load a suggestion.');
-    }
+    const data = await directorApi.fetchNextLearningActivity(childProfileId);
     return {
-      ranking: (data.suggestions ?? [])
-        .filter(
-          (suggestion): suggestion is WireSuggestion =>
-            suggestion !== null && suggestion !== undefined,
-        )
-        .map(toSelectionRecord),
+      ranking: data.suggestions.map(toSelectionRecord),
       hasPersonalizedSignal: data.hasPersonalizedSignal,
     };
   } catch {
