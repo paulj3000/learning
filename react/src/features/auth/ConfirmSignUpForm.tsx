@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { autoSignIn, confirmSignUp, resendSignUpCode } from 'aws-amplify/auth';
+import { confirmSignUp, resendSignUpCode } from '../../api/auth';
 import styles from './AuthForm.module.css';
 import { describeAuthError } from './errors';
 import { validateConfirmationCode, validateEmail } from './validators';
@@ -36,13 +36,7 @@ export function ConfirmSignUpForm() {
 
     setIsSubmitting(true);
     try {
-      const { nextStep } = await confirmSignUp({
-        username: email.trim(),
-        confirmationCode: code.trim(),
-      });
-      if (nextStep.signUpStep === 'COMPLETE_AUTO_SIGN_IN') {
-        await autoSignIn();
-      }
+      await confirmSignUp(email.trim(), code.trim());
       navigate('/home', { replace: true });
     } catch (error) {
       setFormError(describeAuthError(error));
@@ -61,7 +55,7 @@ export function ConfirmSignUpForm() {
     }
     setIsResending(true);
     try {
-      await resendSignUpCode({ username: email.trim() });
+      await resendSignUpCode(email.trim());
       setNotice('A new confirmation code is on its way to your inbox.');
     } catch (error) {
       setFormError(describeAuthError(error));

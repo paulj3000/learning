@@ -1,4 +1,7 @@
-import { deleteUser } from 'aws-amplify/auth';
+import { deleteCurrentUser } from '../../api/auth';
+import { deleteDjangoChild } from '../../api/children';
+import { BACKEND_SELECTION, type BackendSelection } from '../../api/config';
+import { ApiError, toParentFacingError } from '../../api/errors';
 import { client } from '../../lib/data-client';
 import { removeChildPhoto } from './avatarPhoto';
 import type { Schema } from '../../../../amplify/data/resource';
@@ -46,8 +49,20 @@ type ParentProfile = Schema['ParentProfile']['type'];
  * child's data" has to mean the photograph too, and a parent needs to see
  * an error if it could not be removed, not a success message over a
  * picture of their child still sitting in S3.
+ *
+ * On a Django build (LAI-0501A) this is Django's `DELETE /children/{id}/`,
+ * which is refused (`sensitive_action_unavailable`) until LAI-0602 and
+ * LAI-0209 build server-side cascade deletion. Nothing is deleted
+ * client-side there: the server owns the cascade.
  */
-export async function deleteChildProfileData(childProfileId: string): Promise<void> {
+export async function deleteChildProfileData(
+  childProfileId: string,
+  selection: BackendSelection = BACKEND_SELECTION,
+): Promise<void> {
+  if (selection.backend !== 'amplify') {
+    await deleteDjangoChild(selection, childProfileId);
+    return;
+  }
   const [
     { data: sessions },
     { data: actions },
@@ -147,11 +162,24 @@ export async function deleteChildProfileData(childProfileId: string): Promise<vo
  * user itself via `deleteUser()` (which also signs the caller out). Order
  * matters: everything that needs an authenticated session must happen
  * before `deleteUser()` runs.
+ *
+ * Unavailable on a Django build (LAI-0501A): Django has no account deletion
+ * yet (LAI-0602, LAI-0209), and deleting the Cognito user first would leave
+ * the family's Django records with no one able to reach or delete them. So
+ * it refuses before touching anything, Cognito included.
  */
-export async function deleteAccountAndAllData(): Promise<void> {
+export async function deleteAccountAndAllData(
+  selection: BackendSelection = BACKEND_SELECTION,
+): Promise<void> {
+  if (selection.backend !== 'amplify') {
+    throw toParentFacingError(
+      new ApiError('unsupported', { code: 'account_deletion_unavailable' }),
+      'Could not delete your account.',
+    );
+  }
   const { data: children } = await client.models.ChildProfile.list();
   for (const child of children) {
-    await deleteChildProfileData(child.id);
+    await deleteChildProfileData(child.id, selection);
   }
 
   const { data: parentProfiles } = await client.models.ParentProfile.list();
@@ -161,5 +189,5 @@ export async function deleteAccountAndAllData(): Promise<void> {
     ),
   );
 
-  await deleteUser();
+  await deleteCurrentUser();
 }

@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { confirmResetPassword, resetPassword } from 'aws-amplify/auth';
+import { confirmPasswordReset, requestPasswordReset } from '../../api/auth';
 import styles from './AuthForm.module.css';
 import { describeAuthError } from './errors';
 import { validateConfirmationCode, validateEmail, validatePassword } from './validators';
@@ -31,7 +31,7 @@ export function ForgotPasswordForm() {
 
     setIsSubmitting(true);
     try {
-      await resetPassword({ username: email.trim() });
+      await requestPasswordReset(email.trim());
       setStep('confirm');
     } catch (error) {
       setFormError(describeAuthError(error));
@@ -53,11 +53,7 @@ export function ForgotPasswordForm() {
 
     setIsSubmitting(true);
     try {
-      await confirmResetPassword({
-        username: email.trim(),
-        confirmationCode: code.trim(),
-        newPassword,
-      });
+      await confirmPasswordReset(email.trim(), code.trim(), newPassword);
       navigate('/sign-in', { replace: true });
     } catch (error) {
       setFormError(describeAuthError(error));

@@ -1,10 +1,10 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { fetchUserAttributes } from 'aws-amplify/auth';
+import { getAccountAttributes } from '../api/auth';
 import parentStyles from './ParentDashboard.module.css';
 import formStyles from '../features/auth/AuthForm.module.css';
 import styles from './AccountSettings.module.css';
-import { describeAuthError } from '../features/auth/errors';
+import { describeAuthError, isIncorrectPassword } from '../features/auth/errors';
 import {
   validateConfirmationCode,
   validateDisplayName,
@@ -68,7 +68,7 @@ export function AccountSettings() {
       try {
         const [profile, attributes] = await Promise.all([
           getOrCreateParentProfile(),
-          fetchUserAttributes(),
+          getAccountAttributes(),
         ]);
         if (cancelled) return;
         setParentProfile(profile);
@@ -181,7 +181,7 @@ export function AccountSettings() {
       setConfirmPassword('');
       setPasswordNotice('Your password has been updated.');
     } catch (error) {
-      if (error instanceof Error && error.name === 'NotAuthorizedException') {
+      if (isIncorrectPassword(error)) {
         setPasswordFormError('Your current password is incorrect.');
       } else {
         setPasswordFormError(describeAuthError(error));

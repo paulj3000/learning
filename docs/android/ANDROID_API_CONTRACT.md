@@ -19,7 +19,7 @@ WebView).
 | Inventory | **Added** (the same rows as `progress.inventory`) |
 | Game launch, ticket redemption, revoke, runtime context, runtime end | **Added** |
 | Standalone `/game/` runtime bundle | **Not built.** Frontend dependency, see `ANDROID_GAME_LAUNCH.md` |
-| Shared children with the deployed website | **Not yet.** The deployed React app still stores children in Amplify; Django children are separate until the Phase 11 data migration (ADR-019 gates) |
+| Shared children with the deployed website | **Not yet.** The deployed React app still stores children in Amplify; Django children are separate until the Phase 11 data migration (ADR-019 gates). A React build with `VITE_BACKEND=django` uses these same child routes and ids (LAI-0501A), with no React-only endpoint |
 
 ## Conventions
 

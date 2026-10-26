@@ -256,6 +256,16 @@ with hand-owned DTO types; the 16 existing files' call sites go through them; Am
 implementation behind the interface; all existing tests pass; no behaviour change. This task
 needs no Django and can start right after LAI-0201.
 
+*LAI-0501 is split in two (owner, 2026-10-26), because the call sites now number 33 files.*
+**LAI-0501A (auth, parent account, child profiles): DONE locally** on
+`feature/lai-0501a-react-api-auth-profiles`, not merged. As built, it goes further than the
+Amplify-only wording above, by the owner's brief: `children.ts` and `parents.ts` also have the
+Django implementation on the Android contract (`docs/android/ANDROID_API_CONTRACT.md`), so most
+of LAI-0502's client half exists. LAI-0502 stays open for the companion profile and the OpenAPI
+contract test (needs LAI-0207). Design and gaps: `docs/ARCHITECTURE.md`, "React API layer:
+authentication and child profiles (LAI-0501A)". **LAI-0501B (adventures, progress, inventory,
+assets, and the remaining `lib/data-client` modules): TODO.** LAI-0501 closes when 0501B does.
+
 **LAI-0502 Profiles read endpoints + client.** Depends: 0403, 0501. Risk M. Acceptance:
 `GET /api/v1/children`, `GET /api/v1/children/{id}`, companion profile; client module with
 `VITE_BACKEND=django` implementation; contract test compares DTOs against OpenAPI.

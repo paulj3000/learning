@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { signUp } from 'aws-amplify/auth';
+import { signUp } from '../../api/auth';
 import styles from './AuthForm.module.css';
 import { describeAuthError } from './errors';
 import { validateDisplayName, validateEmail, validatePassword } from './validators';
@@ -34,14 +34,7 @@ export function SignUpForm() {
 
     setIsSubmitting(true);
     try {
-      await signUp({
-        username: email.trim(),
-        password,
-        options: {
-          userAttributes: { name: displayName.trim(), email: email.trim() },
-          autoSignIn: true,
-        },
-      });
+      await signUp({ email: email.trim(), password, displayName: displayName.trim() });
       navigate('/confirm', { state: { email: email.trim() } });
     } catch (error) {
       setFormError(describeAuthError(error));

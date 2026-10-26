@@ -51,6 +51,19 @@ describe('createApiClient', () => {
     expect(fetch.mock.calls[1][1]?.body).toBe('{}');
   });
 
+  it('sends a PATCH as JSON and a DELETE with no body', async () => {
+    const { client, fetch } = setup([jsonResponse(200, {}), new Response(null, { status: 204 })]);
+    await client.request('PATCH', 'children/c/', { body: { active: false } });
+    await expect(client.request('DELETE', 'children/c/')).resolves.toEqual({
+      status: 204,
+      data: null,
+    });
+    expect(fetch.mock.calls[0][1]?.method).toBe('PATCH');
+    expect(fetch.mock.calls[0][1]?.body).toBe('{"active":false}');
+    expect(fetch.mock.calls[1][1]?.method).toBe('DELETE');
+    expect(fetch.mock.calls[1][1]?.body).toBeUndefined();
+  });
+
   it('retries a 401 once with a refreshed token', async () => {
     const { client, fetch, getAccessToken } = setup([
       jsonResponse(401, errorJson('not_authenticated')),

@@ -58,7 +58,9 @@ before touching AWS.
 
 ## Phase 5 — Read-only frontend API migration
 
-- [ ] **LAI-0501** Frontend API layer, Amplify-backed (depends: 0201)
+- [ ] **LAI-0501** Frontend API layer, Amplify-backed (depends: 0201). Split into 0501A and 0501B (owner, 2026-10-26); closes when both are done
+- [x] **LAI-0501A** Auth, parent account and child profiles behind `react/src/api/` (Amplify and Django implementations). DONE locally on `feature/lai-0501a-react-api-auth-profiles`: focused unit tests pass; not merged or pushed; no browser verification
+- [ ] **LAI-0501B** Adventures, progress, inventory, assets and the remaining direct Amplify data modules behind `react/src/api/` (depends: 0501A)
 - [ ] **LAI-0502** Profiles read endpoints + client (depends: 0403, 0501)
 - [ ] **LAI-0503** Catalog read endpoints + client (depends: 0304, 0501)
 - [ ] **LAI-0504** Progress read endpoints + client (depends: 0305, 0403)

@@ -889,6 +889,53 @@ API serves; the client builds a manifest from them (TR-D15). Neither is Django l
 administration: LAI-0805's ADR decides that. Everything non-spatial, including Treasure Rush's
 quest, item and reward rule, is exported and imported like all content.
 
+## React API layer: authentication and child profiles (LAI-0501A)
+
+`react/src/api/` is the one place the React app reaches a backend for parent authentication, the
+parent account and child profiles. Screens keep importing `features/child-profile/api.ts`,
+`features/child-profile/deletion.ts` and `features/auth/*`. Those keep their names and
+signatures, so their importers did not change. The two exceptions are the admin child-progress
+page, which now reads through the admin's own Amplify module, and the child form's photo
+field.
+
+| Module | Role |
+|---|---|
+| `config.ts` | `readBackendSelection`: `amplify` (unset, empty or `amplify`), `django` (with a valid `VITE_DJANGO_API_BASE`), or `misconfigured` (any other value, or `django` with an unusable base). Misconfigured calls fail with `ApiError('disabled')`; they never fall back to Amplify |
+| `client.ts` | The existing Django JSON client (TR-6), now with `PATCH` and `DELETE`. Bearer token per request, one forced refresh on 401, typed `ApiError` |
+| `backend.ts` | `djangoClient()`: one shared client per base URL, wrapped in `withProvisioning`, which answers `403 account_not_provisioned` with one `POST me/` and one retry |
+| `auth.ts` | The only module that calls Amplify Auth: session, access token, sign-in and sign-up, confirmation, password reset, email and password change, sign-out, user deletion, auth events. Failures are `AuthError` with a typed `code` |
+| `parents.ts`, `children.ts` | One interface each (`ParentsApi`, `ChildrenApi`) with an Amplify and a Django implementation, chosen once per build |
+| `types.ts` | Backend-neutral `ChildProfile`, `ChildProfileInput`, `ParentProfile`. Amplify records fit them as they are; Django responses are validated and mapped onto them |
+| `errors.ts` | `ApiError` plus `ParentFacingError`, which carries copy safe to show a parent (the account screens render `error.message`) and keeps the typed `ApiError` |
+
+**Authentication is the same on both backends.** Cognito is the identity provider (ADR-024,
+ADR-036) and Django has no sign-in of its own, so `VITE_BACKEND` changes nothing in `auth.ts`. A
+Django build also provisions the Django account once per sign-in (`DjangoAccountProvider`).
+Tokens stay inside Amplify: they are never copied into app state, browser storage, query
+strings or logs.
+
+**Django mode** uses the Android contract unchanged (`docs/android/ANDROID_API_CONTRACT.md`):
+`POST /api/v1/me/`, `GET/POST /children/`, `GET/PATCH /children/{id}/`, `DELETE
+/children/{id}/`. Request bodies are built from an allow-list, so no id, parent or owner is ever
+sent. Ownership is enforced by Django alone: another family's child is a 404, and React shows it
+as not found. Known gaps, refused before any request is sent:
+
+- No display-name or timezone contract. The parent's name shown is the Cognito `name` (then
+  email, then "Parent"), and changing it is `unsupported` (`display_name_unavailable`).
+- No photo route. The child form hides the photo field (`childPhotoUploadsSupported`), and a
+  photo path is refused (`child_photo_unavailable`).
+- No deletion. A child delete asks Django and shows its `sensitive_action_unavailable`. Account
+  deletion is refused before Cognito is touched (`account_deletion_unavailable`), so a family's
+  Django records are never left without an owner who can reach them.
+
+**One authoritative backend per build.** A Django build reads and writes children only in
+Django, and an Amplify build only in Amplify. There is no dual write and no fallback. Modules
+that have not moved yet (adventures, progress, inventory, stories, co-op, admin, and the rest,
+LAI-0501B) still call Amplify. In a Django build they receive Django child ids that Amplify does
+not know, so they show empty or failing states. A Django build is therefore a development and
+integration build until LAI-0501B and Phase 6 move those modules. The admin section stays on
+Amplify whatever the flag says (`features/admin/api.ts` uses Amplify's own types) until LAI-0802.
+
 ## Native Android clients and the game-only WebView (LAI-ANDROID-API-001, ADR-036)
 
 The Kotlin app is a client of the same Django API as the React app. There is no Android backend

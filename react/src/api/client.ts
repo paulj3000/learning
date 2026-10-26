@@ -14,7 +14,7 @@ import { ApiError, kindForStatus, type ValidationDetail } from './errors';
  * - Every failure is an `ApiError`; nothing else is thrown.
  */
 
-export type HttpMethod = 'GET' | 'POST';
+export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
 export interface ApiClientOptions {
   baseUrl: string;
@@ -60,7 +60,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       Authorization: `Bearer ${token}`,
     };
     const init: RequestInit = { method, headers, signal: request.signal };
-    if (method === 'POST') {
+    if (method === 'POST' || method === 'PATCH') {
       headers['Content-Type'] = 'application/json';
       init.body = JSON.stringify(request.body ?? {});
     }

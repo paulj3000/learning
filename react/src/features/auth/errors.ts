@@ -1,3 +1,5 @@
+import { AuthError } from '../../api/auth';
+
 const FRIENDLY_MESSAGES: Record<string, string> = {
   UsernameExistsException: 'An account with that email already exists. Try signing in instead.',
   NotAuthorizedException: 'That email and password do not match. Please try again.',
@@ -12,7 +14,15 @@ const FRIENDLY_MESSAGES: Record<string, string> = {
   AliasExistsException: 'That email address is already in use by another account.',
 };
 
+function authErrorCode(error: unknown): string {
+  return error instanceof AuthError ? error.code : error instanceof Error ? error.name : '';
+}
+
+/** Cognito's answer to a password change whose current password is wrong. */
+export function isIncorrectPassword(error: unknown): boolean {
+  return authErrorCode(error) === 'NotAuthorizedException';
+}
+
 export function describeAuthError(error: unknown): string {
-  const name = error instanceof Error ? error.name : '';
-  return FRIENDLY_MESSAGES[name] ?? 'Something went wrong. Please try again.';
+  return FRIENDLY_MESSAGES[authErrorCode(error)] ?? 'Something went wrong. Please try again.';
 }

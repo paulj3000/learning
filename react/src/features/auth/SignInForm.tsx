@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { signIn } from 'aws-amplify/auth';
+import { signIn } from '../../api/auth';
 import styles from './AuthForm.module.css';
 import { describeAuthError } from './errors';
 import { validateEmail, validatePassword } from './validators';
@@ -33,8 +33,8 @@ export function SignInForm() {
 
     setIsSubmitting(true);
     try {
-      const { nextStep } = await signIn({ username: email.trim(), password });
-      if (nextStep.signInStep === 'CONFIRM_SIGN_UP') {
+      const { needsConfirmation } = await signIn(email.trim(), password);
+      if (needsConfirmation) {
         navigate('/confirm', { state: { email: email.trim() } });
         return;
       }

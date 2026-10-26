@@ -1,7 +1,13 @@
 import { client } from '../../lib/data-client';
-import type { ChildProfile, ParentProfile } from '../child-profile/api';
+import type { Schema } from '../../../../amplify/data/resource';
 
-export type { ChildProfile, ParentProfile };
+/**
+ * The admin section stays on Amplify until LAI-0802, whatever `VITE_BACKEND`
+ * says, so it uses Amplify's own record types (with `parentProfileId`)
+ * rather than the backend-neutral ones in `react/src/api/types.ts`.
+ */
+export type ChildProfile = Schema['ChildProfile']['type'];
+export type ParentProfile = Schema['ParentProfile']['type'];
 
 /**
  * The `Admins` Cognito-group read rule on `ParentProfile`/`ChildProfile`
@@ -13,6 +19,12 @@ export type { ChildProfile, ParentProfile };
  */
 export async function listAllParentProfiles(): Promise<ParentProfile[]> {
   const { data } = await client.models.ParentProfile.list();
+  return data;
+}
+
+/** Any family's child, for an admin (the `Admins` read rule above). Null when it does not exist. */
+export async function getAnyChildProfile(id: string): Promise<ChildProfile | null> {
+  const { data } = await client.models.ChildProfile.get({ id });
   return data;
 }
 

@@ -37,3 +37,31 @@ export function readDjangoApiConfig(env: DjangoApiEnv): DjangoApiConfig {
 }
 
 export const DJANGO_API_CONFIG: DjangoApiConfig = readDjangoApiConfig(import.meta.env);
+
+/**
+ * Which backend owns the modules that have moved behind `react/src/api/`
+ * (LAI-0501): parent accounts and child profiles so far.
+ *
+ * - `VITE_BACKEND` unset, empty or `amplify`: Amplify, as every build before.
+ * - `VITE_BACKEND=django` with a valid API base: Django.
+ * - Anything else (`django` with an unusable `VITE_DJANGO_API_BASE`, or a
+ *   misspelt value): `misconfigured`. Calls then fail with
+ *   `ApiError('disabled')`. A build that asked for Django must never quietly
+ *   read and write Amplify's children instead.
+ */
+export type BackendSelection =
+  | { backend: 'amplify' }
+  | { backend: 'django'; baseUrl: string }
+  | { backend: 'misconfigured'; reason: 'invalid_api_base' | 'unknown_backend' };
+
+export function readBackendSelection(env: DjangoApiEnv): BackendSelection {
+  const requested = (env.VITE_BACKEND ?? '').trim();
+  if (requested === '' || requested === 'amplify') return { backend: 'amplify' };
+  if (requested !== 'django') return { backend: 'misconfigured', reason: 'unknown_backend' };
+  const config = readDjangoApiConfig(env);
+  return config.enabled
+    ? { backend: 'django', baseUrl: config.baseUrl }
+    : { backend: 'misconfigured', reason: 'invalid_api_base' };
+}
+
+export const BACKEND_SELECTION: BackendSelection = readBackendSelection(import.meta.env);

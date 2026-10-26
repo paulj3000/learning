@@ -1,7 +1,10 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { fetchAuthSession, getCurrentUser, signOut as amplifySignOut } from 'aws-amplify/auth';
-import { Hub } from 'aws-amplify/utils';
-import { isAmplifyConfigured } from '../../lib/amplify-config';
+import {
+  getCurrentAuthSession,
+  isAuthConfigured,
+  onAuthChange,
+  signOut as authSignOut,
+} from '../../api/auth';
 
 export type AuthStatus = 'unconfigured' | 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -43,28 +46,26 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>(
-    isAmplifyConfigured ? 'loading' : 'unconfigured',
+    isAuthConfigured ? 'loading' : 'unconfigured',
   );
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperuser, setIsSuperuser] = useState(false);
 
   async function refresh(): Promise<void> {
-    if (!isAmplifyConfigured) {
+    if (!isAuthConfigured) {
       setStatus('unconfigured');
       return;
     }
     setStatus('loading');
-    try {
-      const user = await getCurrentUser();
-      setUserId(user.userId);
-      const session = await fetchAuthSession();
-      const groups = session.tokens?.idToken?.payload['cognito:groups'];
-      const access = adminAccessFromGroups(groups);
+    const session = await getCurrentAuthSession();
+    if (session) {
+      setUserId(session.userId);
+      const access = adminAccessFromGroups(session.groups);
       setIsAdmin(access.isAdmin);
       setIsSuperuser(access.isSuperuser);
       setStatus('authenticated');
-    } catch {
+    } else {
       setUserId(null);
       setIsAdmin(false);
       setIsSuperuser(false);
@@ -74,17 +75,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refresh();
-    if (!isAmplifyConfigured) return;
-    const stopListening = Hub.listen('auth', ({ payload }) => {
-      if (payload.event === 'signedIn' || payload.event === 'signedOut') {
-        void refresh();
-      }
-    });
-    return stopListening;
+    return onAuthChange(() => void refresh());
   }, []);
 
   async function signOut(): Promise<void> {
-    await amplifySignOut();
+    await authSignOut();
     await refresh();
   }
 

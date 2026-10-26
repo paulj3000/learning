@@ -30,7 +30,13 @@ export type ApiErrorKind =
   /** The caller cancelled it (a newer request replaced it). Not shown to anyone. */
   | 'aborted'
   /** The Django API is not configured for this build (`VITE_BACKEND`). */
-  | 'disabled';
+  | 'disabled'
+  /**
+   * The selected backend has no contract for this operation yet (LAI-0501A),
+   * for example a parent display name or a child photo on Django. Raised
+   * before any request, so nothing is half-done.
+   */
+  | 'unsupported';
 
 /** The 409 codes the play API documents (docs/PLAY_API.md, "Error codes specific to play"). */
 export type PlayConflictCode =
@@ -95,4 +101,55 @@ export function kindForStatus(status: number): ApiErrorKind {
   if (status === 503) return 'unavailable';
   if (status >= 500) return 'server';
   return 'invalid_request';
+}
+
+/**
+ * An `ApiError` carrying copy that is safe to show a parent.
+ *
+ * The account and child-profile screens render `error.message` as written,
+ * so the profile API (`parents.ts`, `children.ts`) throws this instead of a
+ * bare `ApiError`, whose message is developer text. `apiError` keeps the
+ * typed kind and server code for anything that branches on them.
+ */
+export class ParentFacingError extends Error {
+  readonly apiError: ApiError;
+
+  constructor(apiError: ApiError, message: string) {
+    super(message);
+    this.name = 'ParentFacingError';
+    this.apiError = apiError;
+  }
+
+  get kind(): ApiErrorKind {
+    return this.apiError.kind;
+  }
+
+  get code(): string {
+    return this.apiError.code;
+  }
+}
+
+const PARENT_MESSAGES: Partial<Record<string, string>> = {
+  child_profile_limit_reached: 'You already have the most child profiles allowed.',
+  sensitive_action_unavailable: 'Deleting profiles is not available yet.',
+  account_deletion_unavailable: 'Deleting your account is not available yet.',
+  display_name_unavailable: 'Changing your name is not available yet.',
+  child_photo_unavailable: 'Profile photos are not available yet.',
+};
+
+const PARENT_MESSAGES_BY_KIND: Partial<Record<ApiErrorKind, string>> = {
+  invalid_request: 'Please check the information you entered and try again.',
+  unauthenticated: 'Please sign in again.',
+  not_found: 'We could not find that profile.',
+  network: 'We could not reach the island. Check your connection and try again.',
+  unavailable: 'The island is busy right now. Please try again in a moment.',
+  disabled: 'This part of the app is not set up yet.',
+};
+
+/** Wraps any failure from the Django API in a `ParentFacingError`; other errors pass through. */
+export function toParentFacingError(error: unknown, fallback: string): unknown {
+  if (!isApiError(error)) return error;
+  const message =
+    PARENT_MESSAGES[error.code] ?? PARENT_MESSAGES_BY_KIND[error.kind] ?? fallback;
+  return new ParentFacingError(error, message);
 }

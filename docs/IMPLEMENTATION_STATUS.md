@@ -10990,3 +10990,72 @@ runtime do not exist.
   still cannot sign in to Django Admin, because the backend requires staff and an admin username.
   This is worth a follow-up to set `set_unusable_password()` on provisioning.
 
+
+## LAI-0501A: React API layer for authentication and child profiles (2026-10-26)
+
+Branch `feature/lai-0501a-react-api-auth-profiles`, from `main` `6295227`. Not merged, pushed
+or deployed. Design: `docs/ARCHITECTURE.md`, "React API layer: authentication and child profiles
+(LAI-0501A)". LAI-0501 stays open until LAI-0501B.
+
+- **Acceptance criteria implemented:**
+  - Auth, parent-account and child-profile calls go through `react/src/api/`. Screens build no
+    backend URLs, and authentication headers are set in one place (`client.ts`).
+  - Amplify behaviour is unchanged. The same Amplify operations run in the same order, with the
+    same error messages. Every existing test passes, and none was changed: two files only
+    gained new cases. One branch that read a Cognito error by `name` (the account screen's
+    "current password is incorrect") now goes through `isIncorrectPassword`, which reads the
+    typed `AuthError` code, so it keeps working behind the wrapper.
+  - A Django build uses the existing `me/` and `children/` routes, which are also the Android
+    routes. No Django endpoint was added or changed.
+  - No silent fallback: an unusable `VITE_BACKEND`/`VITE_DJANGO_API_BASE` is `misconfigured`
+    and fails.
+  - Typed errors: `ApiError`, `ParentFacingError`, `AuthError`.
+- **Call sites moved off direct Amplify:** `features/auth/AuthContext.tsx`, `SignInForm.tsx`,
+  `SignUpForm.tsx`, `ConfirmSignUpForm.tsx`, `ForgotPasswordForm.tsx`, `accountSettings.ts`
+  (now a re-export), `errors.ts`; `routes/AccountSettings.tsx`; `features/child-profile/api.ts`
+  (now a facade); `features/child-profile/deletion.ts` (Cognito user deletion via `api/auth.ts`;
+  Django branches). `routes/AdminChildProgress.tsx` and `features/admin/api.ts` now read the
+  child through the admin's own Amplify module, so the admin section stays on Amplify in every
+  build.
+- **New files:** `react/src/api/{types,backend,parents,children}.ts`. Tests:
+  `react/src/api/{auth,backend,parents,children}.test.ts`, `features/auth/AuthContext.test.tsx`,
+  `features/auth/errors.test.ts`, `features/child-profile/deletion.django.test.ts`.
+- **Changed:** `api/{auth,client,config,errors}.ts`, `api/client.test.ts`,
+  `features/child-profile/ChildProfileForm.tsx` (hides the photo field when the backend cannot
+  store photos) and its test.
+- **Tests (focused unit tests only):**
+  - `tsc -b` passes, and the `amplify/` typecheck passes.
+  - New and changed tests pass.
+  - Final regression run: 60 files, 576 tests passed. It covered every test file that imports
+    or mocks a changed module (46 files), plus `src/api`, `src/test` (engine boundary, ADR
+    check), `features/region-play`, `app` and `components`. `src/features/auth`: 9 files, all
+    passed.
+  - `npm ci` was run first because the checkout had no `node_modules`. The lockfile was
+    unchanged and no dependency was added.
+- **Not run (merge verification):** Playwright and any browser, Ruff, Prettier, oxlint, full
+  suites, production build. Nothing was checked against a real Cognito pool or a running Django.
+- **Django gaps found (documented, not invented):**
+  - No parent display-name or timezone field in `me/`, so the name shown is from Cognito and
+    editing it is unavailable.
+  - No child photo route.
+  - Child deletion is blocked (LAI-0602, LAI-0209), and there is no account deletion. On
+    Django, account deletion refuses before deleting the Cognito user.
+- **Android compatibility:** React's Django mode uses the same routes, UUID child ids, closed
+  bodies and token-derived ownership as `docs/android/ANDROID_API_CONTRACT.md`. It has no
+  React-only endpoint. No contract defect was found and no Kotlin was touched. A Django-mode
+  React build and the Android app would share the same Django child records. The deployed site
+  still does not share children with Android: it is an Amplify build, and Phase 11 has not
+  migrated the data.
+- **Known limitations:**
+  - In a Django build, modules not yet moved (adventures, mastery, quests, rewards, stories,
+    co-op, NPC, discovery, director, tutor, companion, island, catalog availability, parent
+    dashboard summaries) still call Amplify with Django child ids. They show empty or failing
+    states until LAI-0501B and Phase 6.
+  - ParentConsent (LAI-0308, gate G9) does not exist, so nothing here makes the Django path
+    ready for live children's data.
+- **Remaining direct Amplify use:**
+  - `lib/data-client` in 18 feature modules (LAI-0501B).
+  - `aws-amplify/storage` in `assets/assetService.ts`, `assets/modelUpload.ts` and
+    `child-profile/avatarPhoto.ts` (the photo flow is LAI-0904).
+  - `fetchAuthSession` for the room server's ID token in `multiplayer/amplifyIdentity.ts`.
+  - `lib/amplify-config.ts` itself.
