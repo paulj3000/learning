@@ -367,21 +367,25 @@ class TestOnce:
 
 @pytest.mark.django_db(transaction=True)
 def test_concurrent_answers_count_once(families, api, catalog, token_for):
-    """Same request id twice, plus a different one, at once: one answer counts."""
+    """Same request id twice, plus a different one, at once: exactly one answer counts.
+
+    Which one wins is timing. If a shared-id copy wins, the other copy replays it (200,
+    `replayed`) and the different id is stale (409). If the different id wins, both shared copies
+    are stale. Either way one answer is processed and it is evidence once.
+    """
     session_id = start(api(families.a), families.a1)
     token = token_for(families.a.cognito_sub)
     shared = uuid.uuid4()
     barrier = threading.Barrier(3)
-    statuses = []
+    outcomes = []
 
     def run(request_id):
         client = Client()
         client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {token}"
         try:
             barrier.wait()
-            statuses.append(
-                answer(client, families.a1, session_id, "add", number(4), request_id).status_code
-            )
+            response = answer(client, families.a1, session_id, "add", number(4), request_id)
+            outcomes.append((response.status_code, response.json()))
         finally:
             connection.close()
 
@@ -391,7 +395,12 @@ def test_concurrent_answers_count_once(families, api, catalog, token_for):
     for thread in threads:
         thread.join(timeout=30)
 
-    assert sorted(statuses) == [200, 200, 409]  # two of one request (one replayed), one stale
+    processed = [body for status, body in outcomes if status == 200 and not body["replayed"]]
+    replayed = [body for status, body in outcomes if status == 200 and body["replayed"]]
+    stale = [body for status, body in outcomes if status == 409]
+    assert len(outcomes) == 3 and len(processed) == 1
+    assert len(replayed) + len(stale) == 2
+    assert all(body["error"]["code"] == "step_not_current" for body in stale)
     assert SkillEvidence.objects.count() == 1
     assert SkillProgress.objects.get(learning_objective_code="add-10").exposure_count == 1
 

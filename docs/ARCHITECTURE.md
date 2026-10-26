@@ -968,7 +968,7 @@ failing open on transient errors for the catalog.
 | Area (`react/src/api/`) | Amplify operations (adapter) | Django today |
 |---|---|---|
 | `adventures` | `AdventureSession`, `AdventureAction`, `SkillEvidence`, `WorldChange`, `StoryArtifact` models; `submitAdventureAnswer` mutation | **Sessions (LAI-0608):** start or resume, read, complete and the active-session lookup, under `children/{id}/adventures/{adventureId}/`. **Answers:** `POST children/{id}/sessions/{id}/answers/` (LAI-0601). **World-change reads:** `GET children/{id}/progress/`. Client-side writes (`startSession` alone, `advanceSession`, `recordAction`, evidence, world-change writes, story artifacts) are unsupported, and `useAdventureSession` skips them where `supports()` is false |
-| `mastery` | `SkillProgress` list, create, update | Unsupported. `progress.practice` is pacing data, not mastery |
+| `mastery` | `SkillProgress` list, create, update | **Reads (LAI-0603):** `GET children/{id}/mastery/` and `mastery/{objectiveId}/`, server-computed. Writes are unsupported, because the server records mastery while grading |
 | `quests` | `ChildQuestState` | Unsupported. Treasure Rush quests use the play API, a different contract |
 | `story` | `ChildStoryProgress` | Unsupported (LAI-0607) |
 | `npc` | `ChildNpcState` | Unsupported (LAI-0605) |
@@ -1029,6 +1029,31 @@ Step adventures are played through child-scoped Django routes under
 React and Kotlin use the same routes. The React adapter maps the session body onto the
 backend-neutral `AdventureSession` and keeps rendering steps from its bundled content. The `step`
 view is for clients without content, such as the Android app.
+
+## Authoritative mastery (LAI-0603)
+
+On Django, mastery is a by-product of grading. The flow:
+
+1. `game_sessions.services.submit_answer` grades the answer with the engine and records the
+   `AdventureAction`.
+2. When the step resolves, it calls `education.services.record_step_evidence` inside the same
+   transaction and under the same session row lock.
+3. That writes one `SkillEvidence` per catalog-known objective, keyed by the action
+   (`evidence_once_per_action_objective`).
+4. It then moves the child's `SkillProgress` counters with `education/mastery.py`, the
+   golden-vector port of the TypeScript Mastery Engine, locking the row and resolving a
+   creation race on `skill_progress_once`.
+
+A failure anywhere rolls back the whole answer. A replayed request returns before any write, so
+it adds nothing. Completion adds no mastery.
+
+Reads go through `education/reads.py`, which is shared by `GET mastery/`, `GET
+mastery/{objectiveId}/` and the `progress/` summary. Review decay is applied there at read time.
+The React `mastery` adapter reads these routes and never writes; `upsertSkillProgress` is
+`mastery_unavailable` on Django. The Android app uses the same routes.
+
+Treasure Rush keeps writing per-attempt evidence without counters (LAI-0610). The parent
+dashboard (LAI-0505) will consume `listMastery` / `GET mastery/`.
 
 ## Native Android clients and the game-only WebView (LAI-ANDROID-API-001, ADR-036)
 

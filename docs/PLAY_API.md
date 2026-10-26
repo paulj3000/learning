@@ -332,11 +332,103 @@ Such a session cannot continue until a restart or abandon policy is decided (ope
 
 ### Not part of completion yet
 
-Completing records only the session's status and time. Mastery (LAI-0603), rewards (LAI-0604),
+Completing records only the session's status and time. Mastery is recorded per resolved step by
+the answers themselves (LAI-0603, see "Mastery"), never by completion. Rewards (LAI-0604),
 quest, NPC and world-change records (LAI-0605) and story artifacts (LAI-0607) are not written by
 step sessions. World-change steps advance the session, but the island change itself is
 LAI-0605. The hook for all of them is `services.finalize_session` and the completing branch of
 `services.submit_answer`, both in one transaction.
+
+## Mastery (LAI-0603)
+
+Mastery is computed only on the server, from answers the engine has graded. There is no write
+route: `POST`, `PUT`, `PATCH` and `DELETE` on the mastery routes are `405`.
+
+### When evidence is recorded
+
+An answer to `sessions/{sessionId}/answers/` that **resolves** its step (`action: "ADVANCE"`)
+records one `SkillEvidence` row for each of the step's objectives, then moves the child's
+`SkillProgress` row for each. This happens in the answer's own transaction, under the session's
+row lock. The rule is the one the Amplify client applied (`recordEvidenceForStep` and
+`upsertSkillProgress`):
+
+- `result` is the engine's correctness and `supportLevel` the server's hint level.
+- A `RETRY` is not evidence. Only the step's final outcome counts, so a step solved after two
+  hints is one supported success, not three exposures.
+- Guided completion, where the ladder tops out at 5, is a `correct` result with support 5: a
+  supported success, never an independent one.
+- Ungraded steps record nothing: narrative, reflection, world-change, complete, and
+  creative-choice (all `not_applicable`).
+- An objective code the catalog does not hold is skipped, and a code listed twice on one step
+  counts once. A step with no objectives records nothing.
+- Completing a session (`complete/`, or an answer that reaches the end) records no mastery of
+  its own. Finishing is not evidence.
+
+### Counters and status
+
+The Mastery Engine rules are ported from TypeScript and pinned by the golden vectors in
+`tests/golden/mastery.json`. Their thresholds are the TypeScript ones, documented there as
+"initial deterministic thresholds, not a pedagogically validated model". The counters move as
+follows:
+
+- every piece of evidence is one more exposure;
+- `correct` with support 0 is an independent success and extends the streak;
+- `correct` with support above 0 is a supported success;
+- anything else only breaks the streak.
+
+`status`, in order of precedence:
+
+| `status` | When |
+|---|---|
+| `INTRODUCED` | No independent success yet |
+| `MASTERED` | Streak of at least 3 and at least 5 independent successes |
+| `PROFICIENT` | At least 3 independent successes, and at least 60% of exposures independent |
+| `DEVELOPING` | Otherwise |
+
+`errorPattern`, in order of precedence:
+
+| `errorPattern` | When |
+|---|---|
+| `STALLED` | At least 3 exposures and no independent success |
+| `NEEDS_SUPPORT` | At least 2 exposures and supported successes at least half of them |
+| `INCONSISTENT` | Both kinds of success |
+| `NONE` | Otherwise |
+
+Review decay applies at read time only: `PROFICIENT` and `MASTERED` show one level lower after
+21 days without practice. The stored row is never rewritten by time.
+
+### `GET mastery/` and `GET mastery/{objectiveId}/`
+
+```json
+{"objectives": [{
+  "objectiveId": "addition-within-ten", "title": "Addition within ten", "domain": "numeracy",
+  "hasEvidence": true, "status": "PROFICIENT", "rawStatus": "MASTERED", "errorPattern": "NONE",
+  "exposureCount": 6, "independentSuccessCount": 5, "supportedSuccessCount": 1,
+  "consecutiveIndependentCorrect": 3, "lastPracticedAt": "2026-09-20T10:00:00+00:00"}]}
+```
+
+- **The list** holds every objective the child has evidence for, most recently practised
+  first.
+- **One objective** returns the same entry. For a catalog objective with no evidence yet it
+  returns `hasEvidence: false` with a `status`, `rawStatus` and `errorPattern` of `null`, and
+  zero counts. That is "no evidence", not a low score. The server cannot say `LOCKED` or
+  `INTRODUCED` without the curriculum's prerequisite rule, which it does not evaluate yet.
+- **An unknown objective** is `404`.
+- **Status fields:** `status` is after review decay; `rawStatus` is as stored.
+- **Failed attempts:** there is no separate incorrect count. It is `exposureCount` minus both
+  success counts, and that difference includes partial answers.
+- **What is never returned:** answer content and individual evidence rows.
+
+`GET progress/` gains `"mastery": [{"objectiveId", "status"}]`. This is the status-only summary
+(the Mastery Engine's `MasterySummary`), and it is an additive field.
+
+### Treasure Rush
+
+Treasure Rush challenge answers already write a `SkillEvidence` row per attempt
+(`challenge_attempt`), retries included, but they do not move `SkillProgress`. Per-attempt
+evidence is not the step rule (one piece of evidence per resolved step). Feeding it into the
+same counters would count differently, so that waits for a decision (LAI-0610). The reward
+behaviour is unchanged.
 
 ## Reuse by later regions
 

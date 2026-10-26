@@ -8,8 +8,9 @@ calls its function with each case's `input` as keyword arguments, mapped to snak
     def test_validate_step_answer(case):
         assert_case(case, lambda inputs: validate_step_answer(**inputs))
 
-Nothing here implements a rule. Python has no rule implementations yet, so today only the
-format is checked (`test_golden_vectors.py`).
+Nothing here implements a rule. The Python ports so far are the adventure engine (LAI-0601,
+`test_adventure_engine_python.py`) and the Mastery Engine (LAI-0603, `test_mastery_python.py`);
+`test_golden_vectors.py` checks the format of every suite.
 """
 
 import json

@@ -11202,3 +11202,67 @@ commit `b0d1ea6`, then docs. Not merged, pushed or deployed. Contract: `docs/PLA
 - **No ADR.** The decisions taken here sit inside ADR-019 sub-decision 8 and LAI-0601's
   patterns: route placement, availability as the existing 404 rule, finalise-only completion,
   and keeping the existing replay rule.
+
+## LAI-0603: server-authoritative mastery (2026-10-26)
+
+Branch `feature/lai-0603-mastery-progression`, from the LAI-0608 commit `7df2a9a`. Code commit
+`62464ea`, then tests and docs. Not merged, pushed or deployed. Contract: `docs/PLAY_API.md`,
+"Mastery". Design: `docs/ARCHITECTURE.md`, "Authoritative mastery (LAI-0603)".
+
+- **Rules, reconciled before coding.** The accepted rules are the TypeScript Mastery Engine
+  (`react/src/features/mastery/{counters,status,errorPattern}.ts`), pinned by
+  `tests/golden/mastery.json` and ported under ADR-019 sub-decision 8. The Amplify write rule
+  was in `useAdventureSession`: evidence only when a step resolves, never on a RETRY, once per
+  objective, with `prerequisitesSatisfied=true` at write time. The Python port keeps both
+  unchanged.
+  - **One difference, documented:** an objective code missing from the catalog is skipped on
+    Django. The Amplify client wrote it anyway.
+  - **No new policy.** The thresholds are still "initial deterministic thresholds, not a
+    pedagogically validated model" by their own documentation. Changing them is an open product
+    decision, and both ports would change together.
+- **Models:** reuses `SkillEvidence`, `SkillProgress` and `LearningObjective`. One additive
+  change: `SkillEvidence.adventure_action`, with the `evidence_once_per_action_objective`
+  unique constraint and the `evidence_action_within_session` check (migration
+  `education.0006`). Existing rows are untouched.
+- **Write path:** `submit_answer` calls `education.services.record_step_evidence` for a
+  resolved step, inside the answer's transaction and under the session row lock.
+  - The `SkillProgress` row is locked, and a creation race is resolved on `skill_progress_once`.
+  - Any failure rolls back the answer, the action and the evidence together. This is tested by
+    making the mastery write fail.
+  - A replay returns before any write.
+  - `finalize_session` writes no mastery.
+- **Reads:** `GET children/{id}/mastery/` and `GET children/{id}/mastery/{objectiveId}/`, with
+  writes refused (405). `progress/` gains an additive `mastery` summary, so the exact-body
+  assertion in `test_play_api.py` was updated.
+- **React:** `api/mastery.ts`.
+  - On Django: `listSkillProgress` maps the server's rows, `listMastery` / `getMastery` return
+    the server's status, and `upsertSkillProgress` is `mastery_unavailable`.
+  - On Amplify, behaviour is unchanged, and the new reads evaluate the same rows with the same
+    rules.
+  - The facade also exports `listMastery` and `getMastery`.
+- **Tests (focused):**
+
+  | Command | Result |
+  |---|---|
+  | `.venv/bin/python -m pytest -q tests/golden/test_mastery_python.py` | 35 passed |
+  | `LAI_REQUIRE_POSTGRES=1 .venv/bin/python -m pytest -q lai/apps/education/tests/test_mastery_progression.py` | 24 passed |
+  | `... -m pytest -q lai/apps/game_sessions lai/apps/users lai/apps/core lai/apps/education tests/golden` | 767 passed |
+  | `manage.py makemigrations --check` | No changes |
+  | `npx tsc -b` | Pass |
+  | `npx vitest run src/api/mastery.test.ts` | 6 passed |
+  | React regression: every test file that references the mastery modules, plus `src/api`, `src/test`, `src/features/mastery`, `src/features/adventures` | 46 files, 567 tests passed |
+
+  - A hand mutation (recording evidence on RETRY) failed two tests.
+  - The concurrency test first asserted one fixed ordering of outcomes. It now asserts the
+    invariant (exactly one processed answer, evidence once) and passed six runs in a row.
+- **Not run:** Playwright and any browser, Ruff, Prettier, oxlint, full suites, production
+  build. No AWS was contacted.
+- **Known limitations:**
+  - **Treasure Rush** writes per-attempt evidence without counters (LAI-0610; needs a decision).
+  - **Story reflection evidence** (LAI-0607) is not written yet.
+  - **`LOCKED`** cannot be reported for an objective without evidence (`status: null`), because
+    the server does not evaluate curriculum prerequisites.
+  - **`getMastery`** returns null both for an unknown objective and for a child the parent
+    cannot see. Both are the same `404`, by design.
+  - **The parent dashboard** (LAI-0505) is not built.
+  - **ParentConsent** (LAI-0308, gate G9) and the other gates are still open.

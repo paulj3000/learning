@@ -318,9 +318,13 @@ pytest both green on the same vectors.
 deactivate child, three-profile cap, parent-triggered deletion cascades every child-scoped
 table and the photo object; tests for orphan-free deletion (mirrors `deletion.ts`).
 
-**LAI-0603 Mastery writes.** Depends: 0601. Risk M. Acceptance: skill evidence and
-`SkillProgress` counters computed server-side with golden vectors; client no longer sends
-counters, only events.
+**LAI-0603 Mastery writes. DONE locally (2026-10-26)** on `feature/lai-0603-mastery-progression`,
+not merged. Evidence and counters are computed server-side while an answer is graded, with all
+35 mastery golden vectors passing; the client sends no counters and no mastery events (the
+answer is the event); read routes `mastery/` and `mastery/{objectiveId}/`. Contract:
+`docs/PLAY_API.md`, "Mastery". Open: the thresholds are still provisional by their own
+documentation (a product decision), and Treasure Rush evidence does not move counters
+(LAI-0610). Depends: 0601. Risk M.
 
 **LAI-0604 Rewards and inventory writes.** Depends: 0603. Risk M. Acceptance: server
 resolves rewards from the rule table (no randomness, ADR-011), idempotent by rule id;

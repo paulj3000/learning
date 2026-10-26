@@ -70,7 +70,8 @@ before touching AWS.
 
 - [x] **LAI-0601** Python adventure engine + answers endpoint (depends: 0303, 0305, 0403). DONE locally: `apps/adventures/engine.py` (golden parity), answers and hints endpoints, G6 verified for them; React still calls the Amplify Lambda until the frontend API layer (LAI-0501) switches it
 - [ ] **LAI-0602** Profile writes and deletion (depends: 0502)
-- [ ] **LAI-0603** Mastery writes (depends: 0601)
+- [x] **LAI-0603** Mastery writes (depends: 0601). DONE locally on `feature/lai-0603-mastery-progression`: server-side evidence and counters from graded step answers, golden-vector port, read routes, React adapter; focused pytest and Vitest pass; not merged or pushed; no browser verification
+- [ ] **LAI-0610** Treasure Rush challenge evidence and mastery counters (found by LAI-0603; needs a decision: per-attempt evidence vs the step rule of one piece of evidence per resolved step)
 - [ ] **LAI-0604** Rewards and inventory writes (depends: 0603)
 - [ ] **LAI-0605** Quests, NPC, discovery, world state writes (depends: 0604)
 - [ ] **LAI-0606** Next-learning-activity (depends: 0603)
