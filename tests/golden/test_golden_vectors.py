@@ -13,6 +13,7 @@ EXPECTED_SUITES = [
     "adventure-engine",
     "director",
     "director-content",
+    "discovery",
     "mastery",
     "npc",
     "quests",

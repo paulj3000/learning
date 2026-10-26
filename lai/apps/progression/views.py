@@ -18,7 +18,7 @@ from apps.game_sessions.serializers import quest_updates_body
 from apps.inventory.serializers import rewards_body
 from apps.users.scoping import ChildScopedAPIView
 
-from . import dialogue, npc
+from . import dialogue, discoveries, npc
 from .models import NpcRelationship
 
 
@@ -140,3 +140,54 @@ class NpcChoiceView(ChildScopedAPIView):
         except dialogue.ChoiceNotAvailable:
             raise DialogueChoiceUnavailable from None
         return _talk_response(result)
+
+
+# --- Discoveries (LAI-0605) -------------------------------------------------------------------
+
+
+class DiscoveryListView(ChildScopedAPIView):
+    """GET: the secrets this child has found. Unfound ones are not listed."""
+
+    def get(self, request, child_id):
+        found = discoveries.discovered_ids(self.child)
+        definitions = {
+            d.discovery_id: d
+            for d in discoveries.DiscoveryDefinition.objects.filter(discovery_id__in=found)
+        }
+        return Response(
+            {
+                "discoveries": [
+                    {
+                        "discoveryId": d.discovery_id,
+                        "title": d.title,
+                        "kind": d.kind,
+                        "locationSlug": d.location_slug,
+                    }
+                    for d in (definitions.get(i) for i in found)
+                    if d is not None
+                ]
+            }
+        )
+
+
+class DiscoveryView(ChildScopedAPIView):
+    """POST (no body): the child reached this secret. FOUND_NOW, ALREADY_FOUND or LOCKED."""
+
+    def post(self, request, child_id, discovery_id):
+        if request.data:
+            raise serializers.ValidationError(
+                {"non_field_errors": ["This request takes no body."]}, code="unexpected_body"
+            )
+        try:
+            result = discoveries.discover(self.child, discovery_id)
+        except discoveries.DiscoveryNotVisible:
+            raise NotFound from None
+        return Response(
+            {
+                **result.outcome,
+                "worldChangeKey": result.world_change_key,
+                "startedQuestId": result.started_quest_id,
+                "questUpdates": quest_updates_body(result.quest_updates),
+                "rewards": rewards_body(result.rewards),
+            }
+        )

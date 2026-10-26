@@ -18,6 +18,8 @@ import { nextSkillProgressCounts } from '../../features/mastery/counters';
 import { computeErrorPattern } from '../../features/mastery/errorPattern';
 import { applyReviewDecay, computeSkillStatus } from '../../features/mastery/status';
 import type { SkillProgressCounts, SkillStatus } from '../../features/mastery/types';
+import { isDiscoveryOpen, resolveDiscovery } from '../../features/discovery/discovery';
+import type { DiscoveryContext, DiscoveryDefinition } from '../../features/discovery/types';
 import { evaluateCondition } from '../../features/npc/conditions';
 import {
   advanceDialogue,
@@ -1947,6 +1949,80 @@ function npcSuite(): GoldenSuite {
   };
 }
 
+// ---------------------------------------------------------------------------------------------
+// Discoveries: requirements and the outcome of reaching a secret (LAI-0605)
+
+const POOL: DiscoveryDefinition = {
+  id: 'tide-pool',
+  locationSlug: 'harbor',
+  kind: 'HIDDEN_OBJECT',
+  title: 'A tide pool',
+  revealMessage: 'A shell rests in the pool.',
+  lockedMessage: 'Water glints between the rocks.',
+  requirements: [{ type: 'ALWAYS' }],
+};
+const CAVE: DiscoveryDefinition = {
+  ...POOL,
+  id: 'cave',
+  title: 'A cave',
+  revealMessage: 'The cave glows.',
+  lockedMessage: 'It is too dark to go in.',
+  requirements: [
+    { type: 'ITEM_OWNED', itemId: 'lantern' },
+    { type: 'WORLD_CHANGE_PRESENT', changeKey: 'tide-out' },
+    { type: 'DISCOVERY_PRESENT', discoveryId: 'tide-pool' },
+  ],
+};
+const DISCOVERY_EMPTY: DiscoveryContext = { worldChangeKeys: [], ownedItemIds: [], discoveredIds: [] };
+const DISCOVERY_READY: DiscoveryContext = {
+  worldChangeKeys: ['tide-out'],
+  ownedItemIds: ['lantern'],
+  discoveredIds: ['tide-pool'],
+};
+
+const DISCOVERY_CASES: CaseInput<{ definition: DiscoveryDefinition; context: DiscoveryContext }>[] = [
+  { name: 'always open, not found yet', input: { definition: POOL, context: DISCOVERY_EMPTY } },
+  { name: 'already found', input: { definition: POOL, context: DISCOVERY_READY } },
+  { name: 'every requirement met', input: { definition: CAVE, context: DISCOVERY_READY } },
+  { name: 'nothing met', input: { definition: CAVE, context: DISCOVERY_EMPTY } },
+  {
+    name: 'one requirement missing',
+    input: { definition: CAVE, context: { ...DISCOVERY_READY, ownedItemIds: [] } },
+  },
+  {
+    name: 'no requirements means open',
+    input: { definition: { ...CAVE, requirements: [] }, context: DISCOVERY_EMPTY },
+  },
+  {
+    name: 'found wins over locked',
+    input: {
+      definition: CAVE,
+      context: { ...DISCOVERY_EMPTY, discoveredIds: ['cave'] },
+    },
+  },
+];
+
+function discoverySuite(): GoldenSuite {
+  return {
+    schemaVersion: GOLDEN_SCHEMA_VERSION,
+    suite: 'discovery',
+    description: 'Discovery requirements and the outcome of reaching a secret.',
+    sources: ['react/src/features/discovery/discovery.ts'],
+    notes: [
+      'resolveDiscovery: ALREADY_FOUND is checked before LOCKED and shows the reveal message again.',
+      'isDiscoveryOpen: an empty requirement list is open.',
+    ],
+    functions: {
+      isDiscoveryOpen: vectors('is_discovery_open', ['definition', 'context'], DISCOVERY_CASES, ({ definition, context }) =>
+        isDiscoveryOpen(definition, context),
+      ),
+      resolveDiscovery: vectors('resolve_discovery', ['definition', 'context'], DISCOVERY_CASES, ({ definition, context }) =>
+        resolveDiscovery(definition, context),
+      ),
+    },
+  };
+}
+
 export function buildGoldenSuites(): GoldenSuite[] {
   return [
     adventureEngineSuite(),
@@ -1956,6 +2032,7 @@ export function buildGoldenSuites(): GoldenSuite[] {
     directorSuite(),
     directorContentSuite(),
     npcSuite(),
+    discoverySuite(),
   ];
 }
 

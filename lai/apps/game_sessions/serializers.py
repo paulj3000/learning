@@ -248,6 +248,8 @@ class ProgressSerializer(serializers.Serializer):
             ],
             # LAI-0603, additive: the Mastery Engine's status per objective with evidence.
             "mastery": state["mastery"],
+            # LAI-0605, additive: the secrets this child has found.
+            "discoveredIds": state["discovered_ids"],
         }
 
 

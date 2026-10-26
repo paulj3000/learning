@@ -33,6 +33,7 @@ from apps.catalog.models import (
     ContentRelease,
     ItemDefinition,
     LearningObjective,
+    DiscoveryDefinition,
     Location,
     LocationAsset,
     NpcDefinition,
@@ -184,6 +185,7 @@ class Plan:
     collectible_sets: list[dict[str, Any]] = field(default_factory=list)
     items: list[dict[str, Any]] = field(default_factory=list)
     reward_rules: list[dict[str, Any]] = field(default_factory=list)
+    discoveries: list[dict[str, Any]] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
 
 
@@ -417,6 +419,10 @@ def build_plan(bundle: ExportBundle) -> Plan:
     return plan
 
 
+# The closed `DiscoveryRequirement` union (react/src/features/discovery/types.ts).
+DISCOVERY_REQUIREMENT_TYPES = ("ALWAYS", "WORLD_CHANGE_PRESENT", "ITEM_OWNED", "DISCOVERY_PRESENT")
+
+
 def _plan_supporting_catalogs(c, plan: Plan, location_slugs: set[str], problems: list[str]) -> None:
     """Learning objectives, NPCs, collectible sets, items and reward rules (all optional)."""
     objectives = c.get("learningObjectives", [])
@@ -430,6 +436,32 @@ def _plan_supporting_catalogs(c, plan: Plan, location_slugs: set[str], problems:
                     "domain": _text(objective, "domain", where, problems),
                     "title": _text(objective, "title", where, problems),
                     "source": objective,
+                },
+            }
+        )
+
+    discoveries = c.get("discoveries", [])
+    _unique(discoveries, "id", "discovery", problems)
+    for index, discovery in enumerate(discoveries):
+        where = f"discovery {discovery.get('id')!r}"
+        location = _text(discovery, "locationSlug", where, problems)
+        requirements = discovery.get("requirements")
+        if not isinstance(requirements, list) or not all(
+            isinstance(r, dict) and r.get("type") in DISCOVERY_REQUIREMENT_TYPES
+            for r in requirements
+        ):
+            problems.append(f"{where}: `requirements` must be a list of known requirement objects")
+        plan.discoveries.append(
+            {
+                "key": _text(discovery, "id", where, problems),
+                "order": index,
+                "location": location if location in location_slugs else None,
+                "fields": {
+                    "kind": _text(discovery, "kind", where, problems),
+                    "title": _text(discovery, "title", where, problems),
+                    "location_slug": location,
+                    "starts_quest_slug": discovery.get("startsQuestId") or "",
+                    "source": discovery,
                 },
             }
         )
@@ -562,6 +594,7 @@ def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
             "collectible_sets",
             "items",
             "reward_rules",
+            "discoveries",
         )
     }
 
@@ -685,6 +718,15 @@ def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
             RewardRule, {"rule_id": r["key"]}, r["fields"], release, counts["reward_rules"]
         )
         rule.items.set([items[item_id] for item_id in r["items"]])
+    for r in plan.discoveries:
+        _upsert(
+            DiscoveryDefinition,
+            {"discovery_id": r["key"]},
+            {**r["fields"], "location": locations.get(r["location"])},
+            release,
+            counts["discoveries"],
+            catalog=_catalog(r["order"]),
+        )
 
     for name, model in (
         ("assets", ContentAsset),
@@ -699,6 +741,7 @@ def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
         ("collectible_sets", CollectibleSet),
         ("items", ItemDefinition),
         ("reward_rules", RewardRule),
+        ("discoveries", DiscoveryDefinition),
     ):
         counts[name]["missing"] = model.objects.exclude(last_seen_release=release).count()
     return counts

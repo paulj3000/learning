@@ -159,4 +159,12 @@ def child_progress(child) -> dict:
         "quests": quest_entries(child, started),
         "practice": practice_summary(child),
         "mastery": mastery_summaries(child),
+        "discovered_ids": _discovered_ids(child),
     }
+
+
+def _discovered_ids(child) -> list[str]:
+    from apps.progression.models import WorldState
+
+    state = WorldState.objects.for_child(child).first()
+    return list(state.discovered_objects) if state else []

@@ -1,0 +1,503 @@
+{
+  "schemaVersion": 1,
+  "suite": "discovery",
+  "description": "Discovery requirements and the outcome of reaching a secret.",
+  "sources": [
+    "react/src/features/discovery/discovery.ts"
+  ],
+  "notes": [
+    "resolveDiscovery: ALREADY_FOUND is checked before LOCKED and shows the reveal message again.",
+    "isDiscoveryOpen: an empty requirement list is open."
+  ],
+  "functions": {
+    "isDiscoveryOpen": {
+      "python": "is_discovery_open",
+      "args": [
+        "definition",
+        "context"
+      ],
+      "cases": [
+        {
+          "name": "always open, not found yet",
+          "input": {
+            "definition": {
+              "id": "tide-pool",
+              "locationSlug": "harbor",
+              "kind": "HIDDEN_OBJECT",
+              "title": "A tide pool",
+              "revealMessage": "A shell rests in the pool.",
+              "lockedMessage": "Water glints between the rocks.",
+              "requirements": [
+                {
+                  "type": "ALWAYS"
+                }
+              ]
+            },
+            "context": {
+              "worldChangeKeys": [],
+              "ownedItemIds": [],
+              "discoveredIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "already found",
+          "input": {
+            "definition": {
+              "id": "tide-pool",
+              "locationSlug": "harbor",
+              "kind": "HIDDEN_OBJECT",
+              "title": "A tide pool",
+              "revealMessage": "A shell rests in the pool.",
+              "lockedMessage": "Water glints between the rocks.",
+              "requirements": [
+                {
+                  "type": "ALWAYS"
+                }
+              ]
+            },
+            "context": {
+              "worldChangeKeys": [
+                "tide-out"
+              ],
+              "ownedItemIds": [
+                "lantern"
+              ],
+              "discoveredIds": [
+                "tide-pool"
+              ]
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "every requirement met",
+          "input": {
+            "definition": {
+              "id": "cave",
+              "locationSlug": "harbor",
+              "kind": "HIDDEN_OBJECT",
+              "title": "A cave",
+              "revealMessage": "The cave glows.",
+              "lockedMessage": "It is too dark to go in.",
+              "requirements": [
+                {
+                  "type": "ITEM_OWNED",
+                  "itemId": "lantern"
+                },
+                {
+                  "type": "WORLD_CHANGE_PRESENT",
+                  "changeKey": "tide-out"
+                },
+                {
+                  "type": "DISCOVERY_PRESENT",
+                  "discoveryId": "tide-pool"
+                }
+              ]
+            },
+            "context": {
+              "worldChangeKeys": [
+                "tide-out"
+              ],
+              "ownedItemIds": [
+                "lantern"
+              ],
+              "discoveredIds": [
+                "tide-pool"
+              ]
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "nothing met",
+          "input": {
+            "definition": {
+              "id": "cave",
+              "locationSlug": "harbor",
+              "kind": "HIDDEN_OBJECT",
+              "title": "A cave",
+              "revealMessage": "The cave glows.",
+              "lockedMessage": "It is too dark to go in.",
+              "requirements": [
+                {
+                  "type": "ITEM_OWNED",
+                  "itemId": "lantern"
+                },
+                {
+                  "type": "WORLD_CHANGE_PRESENT",
+                  "changeKey": "tide-out"
+                },
+                {
+                  "type": "DISCOVERY_PRESENT",
+                  "discoveryId": "tide-pool"
+                }
+              ]
+            },
+            "context": {
+              "worldChangeKeys": [],
+              "ownedItemIds": [],
+              "discoveredIds": []
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "one requirement missing",
+          "input": {
+            "definition": {
+              "id": "cave",
+              "locationSlug": "harbor",
+              "kind": "HIDDEN_OBJECT",
+              "title": "A cave",
+              "revealMessage": "The cave glows.",
+              "lockedMessage": "It is too dark to go in.",
+              "requirements": [
+                {
+                  "type": "ITEM_OWNED",
+                  "itemId": "lantern"
+                },
+                {
+                  "type": "WORLD_CHANGE_PRESENT",
+                  "changeKey": "tide-out"
+                },
+                {
+                  "type": "DISCOVERY_PRESENT",
+                  "discoveryId": "tide-pool"
+                }
+              ]
+            },
+            "context": {
+              "worldChangeKeys": [
+                "tide-out"
+              ],
+              "ownedItemIds": [],
+              "discoveredIds": [
+                "tide-pool"
+              ]
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "no requirements means open",
+          "input": {
+            "definition": {
+              "id": "cave",
+              "locationSlug": "harbor",
+              "kind": "HIDDEN_OBJECT",
+              "title": "A cave",
+              "revealMessage": "The cave glows.",
+              "lockedMessage": "It is too dark to go in.",
+              "requirements": []
+            },
+            "context": {
+              "worldChangeKeys": [],
+              "ownedItemIds": [],
+              "discoveredIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "found wins over locked",
+          "input": {
+            "definition": {
+              "id": "cave",
+              "locationSlug": "harbor",
+              "kind": "HIDDEN_OBJECT",
+              "title": "A cave",
+              "revealMessage": "The cave glows.",
+              "lockedMessage": "It is too dark to go in.",
+              "requirements": [
+                {
+                  "type": "ITEM_OWNED",
+                  "itemId": "lantern"
+                },
+                {
+                  "type": "WORLD_CHANGE_PRESENT",
+                  "changeKey": "tide-out"
+                },
+                {
+                  "type": "DISCOVERY_PRESENT",
+                  "discoveryId": "tide-pool"
+                }
+              ]
+            },
+            "context": {
+              "worldChangeKeys": [],
+              "ownedItemIds": [],
+              "discoveredIds": [
+                "cave"
+              ]
+            }
+          },
+          "expected": false
+        }
+      ]
+    },
+    "resolveDiscovery": {
+      "python": "resolve_discovery",
+      "args": [
+        "definition",
+        "context"
+      ],
+      "cases": [
+        {
+          "name": "always open, not found yet",
+          "input": {
+            "definition": {
+              "id": "tide-pool",
+              "locationSlug": "harbor",
+              "kind": "HIDDEN_OBJECT",
+              "title": "A tide pool",
+              "revealMessage": "A shell rests in the pool.",
+              "lockedMessage": "Water glints between the rocks.",
+              "requirements": [
+                {
+                  "type": "ALWAYS"
+                }
+              ]
+            },
+            "context": {
+              "worldChangeKeys": [],
+              "ownedItemIds": [],
+              "discoveredIds": []
+            }
+          },
+          "expected": {
+            "discoveryId": "tide-pool",
+            "title": "A tide pool",
+            "status": "FOUND_NOW",
+            "message": "A shell rests in the pool."
+          }
+        },
+        {
+          "name": "already found",
+          "input": {
+            "definition": {
+              "id": "tide-pool",
+              "locationSlug": "harbor",
+              "kind": "HIDDEN_OBJECT",
+              "title": "A tide pool",
+              "revealMessage": "A shell rests in the pool.",
+              "lockedMessage": "Water glints between the rocks.",
+              "requirements": [
+                {
+                  "type": "ALWAYS"
+                }
+              ]
+            },
+            "context": {
+              "worldChangeKeys": [
+                "tide-out"
+              ],
+              "ownedItemIds": [
+                "lantern"
+              ],
+              "discoveredIds": [
+                "tide-pool"
+              ]
+            }
+          },
+          "expected": {
+            "discoveryId": "tide-pool",
+            "title": "A tide pool",
+            "status": "ALREADY_FOUND",
+            "message": "A shell rests in the pool."
+          }
+        },
+        {
+          "name": "every requirement met",
+          "input": {
+            "definition": {
+              "id": "cave",
+              "locationSlug": "harbor",
+              "kind": "HIDDEN_OBJECT",
+              "title": "A cave",
+              "revealMessage": "The cave glows.",
+              "lockedMessage": "It is too dark to go in.",
+              "requirements": [
+                {
+                  "type": "ITEM_OWNED",
+                  "itemId": "lantern"
+                },
+                {
+                  "type": "WORLD_CHANGE_PRESENT",
+                  "changeKey": "tide-out"
+                },
+                {
+                  "type": "DISCOVERY_PRESENT",
+                  "discoveryId": "tide-pool"
+                }
+              ]
+            },
+            "context": {
+              "worldChangeKeys": [
+                "tide-out"
+              ],
+              "ownedItemIds": [
+                "lantern"
+              ],
+              "discoveredIds": [
+                "tide-pool"
+              ]
+            }
+          },
+          "expected": {
+            "discoveryId": "cave",
+            "title": "A cave",
+            "status": "FOUND_NOW",
+            "message": "The cave glows."
+          }
+        },
+        {
+          "name": "nothing met",
+          "input": {
+            "definition": {
+              "id": "cave",
+              "locationSlug": "harbor",
+              "kind": "HIDDEN_OBJECT",
+              "title": "A cave",
+              "revealMessage": "The cave glows.",
+              "lockedMessage": "It is too dark to go in.",
+              "requirements": [
+                {
+                  "type": "ITEM_OWNED",
+                  "itemId": "lantern"
+                },
+                {
+                  "type": "WORLD_CHANGE_PRESENT",
+                  "changeKey": "tide-out"
+                },
+                {
+                  "type": "DISCOVERY_PRESENT",
+                  "discoveryId": "tide-pool"
+                }
+              ]
+            },
+            "context": {
+              "worldChangeKeys": [],
+              "ownedItemIds": [],
+              "discoveredIds": []
+            }
+          },
+          "expected": {
+            "discoveryId": "cave",
+            "title": "A cave",
+            "status": "LOCKED",
+            "message": "It is too dark to go in."
+          }
+        },
+        {
+          "name": "one requirement missing",
+          "input": {
+            "definition": {
+              "id": "cave",
+              "locationSlug": "harbor",
+              "kind": "HIDDEN_OBJECT",
+              "title": "A cave",
+              "revealMessage": "The cave glows.",
+              "lockedMessage": "It is too dark to go in.",
+              "requirements": [
+                {
+                  "type": "ITEM_OWNED",
+                  "itemId": "lantern"
+                },
+                {
+                  "type": "WORLD_CHANGE_PRESENT",
+                  "changeKey": "tide-out"
+                },
+                {
+                  "type": "DISCOVERY_PRESENT",
+                  "discoveryId": "tide-pool"
+                }
+              ]
+            },
+            "context": {
+              "worldChangeKeys": [
+                "tide-out"
+              ],
+              "ownedItemIds": [],
+              "discoveredIds": [
+                "tide-pool"
+              ]
+            }
+          },
+          "expected": {
+            "discoveryId": "cave",
+            "title": "A cave",
+            "status": "LOCKED",
+            "message": "It is too dark to go in."
+          }
+        },
+        {
+          "name": "no requirements means open",
+          "input": {
+            "definition": {
+              "id": "cave",
+              "locationSlug": "harbor",
+              "kind": "HIDDEN_OBJECT",
+              "title": "A cave",
+              "revealMessage": "The cave glows.",
+              "lockedMessage": "It is too dark to go in.",
+              "requirements": []
+            },
+            "context": {
+              "worldChangeKeys": [],
+              "ownedItemIds": [],
+              "discoveredIds": []
+            }
+          },
+          "expected": {
+            "discoveryId": "cave",
+            "title": "A cave",
+            "status": "FOUND_NOW",
+            "message": "The cave glows."
+          }
+        },
+        {
+          "name": "found wins over locked",
+          "input": {
+            "definition": {
+              "id": "cave",
+              "locationSlug": "harbor",
+              "kind": "HIDDEN_OBJECT",
+              "title": "A cave",
+              "revealMessage": "The cave glows.",
+              "lockedMessage": "It is too dark to go in.",
+              "requirements": [
+                {
+                  "type": "ITEM_OWNED",
+                  "itemId": "lantern"
+                },
+                {
+                  "type": "WORLD_CHANGE_PRESENT",
+                  "changeKey": "tide-out"
+                },
+                {
+                  "type": "DISCOVERY_PRESENT",
+                  "discoveryId": "tide-pool"
+                }
+              ]
+            },
+            "context": {
+              "worldChangeKeys": [],
+              "ownedItemIds": [],
+              "discoveredIds": [
+                "cave"
+              ]
+            }
+          },
+          "expected": {
+            "discoveryId": "cave",
+            "title": "A cave",
+            "status": "ALREADY_FOUND",
+            "message": "The cave glows."
+          }
+        }
+      ]
+    }
+  }
+}

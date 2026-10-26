@@ -438,6 +438,7 @@ def test_progress_reports_this_childs_state_only(a, treasure):
         "quests": [],
         "practice": [],
         "mastery": [],  # LAI-0603, additive
+        "discoveredIds": [],  # LAI-0605, additive
     }
 
 

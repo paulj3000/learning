@@ -412,6 +412,29 @@ class NpcDefinition(ImportedContent, CatalogFields):
         return self.npc_id
 
 
+class DiscoveryDefinition(ImportedContent, CatalogFields):
+    """An authored secret to find (`discoveries.json` `discoveries`, LAI-0605).
+
+    Requirements, messages and the optional world change stay in `source`, exactly as exported;
+    the columns are what the server queries by.
+    """
+
+    discovery_id = models.SlugField(max_length=SLUG_LENGTH, unique=True)
+    kind = models.CharField(max_length=32)
+    title = models.CharField(max_length=200)
+    location = models.ForeignKey(
+        Location, on_delete=models.PROTECT, related_name="discoveries", null=True, blank=True
+    )
+    location_slug = models.SlugField(max_length=SLUG_LENGTH)
+    starts_quest_slug = models.SlugField(max_length=SLUG_LENGTH, blank=True)
+
+    class Meta:
+        ordering = ["sort_order", "discovery_id"]
+
+    def __str__(self) -> str:
+        return self.discovery_id
+
+
 class CollectibleSet(ImportedContent):
     set_id = models.SlugField(max_length=SLUG_LENGTH, unique=True)
     display_name = models.CharField(max_length=120)
