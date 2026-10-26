@@ -334,7 +334,19 @@ completion (`ADVENTURE_COMPLETED`) in the answer's transaction. There is no clie
 History lives at `rewards/`. Contract: `docs/PLAY_API.md`, "Rewards". Quest, discovery, NPC and
 story triggers wait for LAI-0605 and LAI-0607. Depends: 0603. Risk M.
 
-**LAI-0605 Quests, NPC, discovery, world state writes.** Depends: 0604. Risk M. Acceptance:
+**LAI-0605 Quests, NPC, discovery, world state writes. DONE locally (2026-10-26)** on
+`feature/lai-0605-world-quests-discovery` (stages 1 to 4), not merged.
+- **Rules:** the quest engine is now a full port (all 40 vectors pass). Two new golden suites,
+  `npc.json` and `discovery.json`, pin the NPC and discovery ports.
+- **Writes:** world changes from step adventures; quest refresh after every server event, with
+  the completion effects; server-picked NPC dialogue; discoveries as catalog rows (imported)
+  with server-checked requirements. Rewards for quests, discoveries and relationship levels.
+- **Routes:** quest, NPC and discovery routes, and `discoveredIds` in `progress/`.
+- **Contract:** `docs/PLAY_API.md`.
+- **Open:** characters met and checkpoints have no route (checkpoints are not imported), and
+  being at a spot is client-reported.
+
+Original task text: Depends: 0604. Risk M. Acceptance:
 split into three sub-PRs if needed; each cascades into world-change/reward as today;
 checkpoint and discovery ids validated against the catalog (closed vocabulary).
 

@@ -330,15 +330,20 @@ Such a session cannot continue until a restart or abandon policy is decided (ope
 | 409 | `session_not_active` | Answer or finalise on an ended session |
 | 400 | `validation_error` | A body sent to a no-body route |
 
-### Not part of completion yet
+### What a resolved step and a completion write
 
-Completing records only the session's status and time. Mastery is recorded per resolved step by
-the answers themselves (LAI-0603, see "Mastery"), never by completion. Completion fires the
-adventure's `ADVENTURE_COMPLETED` rewards (LAI-0604, see "Rewards"). Quest, NPC and
-world-change records, with the rewards they trigger (LAI-0605), and story artifacts (LAI-0607)
-are not written by step sessions. World-change steps advance the session, but the island change itself is
-LAI-0605. The hook for all of them is `services.finalize_session` and the completing branch of
-`services.submit_answer`, both in one transaction.
+All of this happens in the answer's (or the finalise's) one transaction:
+
+- **Mastery:** per resolved step, by the answers themselves (LAI-0603, see "Mastery").
+- **World changes:** a resolved world-change step records its island change, from its
+  `payload` (LAI-0605, see "World state").
+- **Rewards:** the world-change step's `WORLD_CHANGE` reward and the completion's
+  `ADVENTURE_COMPLETED` reward (LAI-0604, see "Rewards").
+- **Quests:** every resolved step and every completion refreshes the child's active quests
+  (LAI-0605, see "Quests"), which can finish a quest and fire its effects.
+
+The response carries the additive `rewards` and `questUpdates`. Story artifacts (LAI-0607) are
+still not written by step sessions.
 
 ## Mastery (LAI-0603)
 
@@ -467,15 +472,16 @@ by `tests/golden/rewards.json`:
 These grants share one transaction with the answer, the session move and mastery. If a grant
 fails, the answer is not applied either.
 
-- **Not fired here:** `QUEST_COMPLETED`, `DISCOVERY`, `NPC_RELATIONSHIP` and `STORY_COMPLETED`
-  belong to LAI-0605 and LAI-0607. They call `inventory.services.grant_for_trigger` when those
-  outcomes become server-side.
-- **Amplify difference:** the Amplify client never fired `ADVENTURE_COMPLETED`, or
-  `WORLD_CHANGE` for an adventure step, although rules for both are authored (for example
-  `reward-bridge-repaired` and `reward-bridge-world-change`). Django honours the authored rules;
-  no rule was added.
-- **World changes:** the island change record for a world-change step is still LAI-0605. Only
-  its reward fires here.
+- **Fired by other server events (LAI-0605):**
+  - `QUEST_COMPLETED`, when a refresh completes a quest;
+  - `DISCOVERY`, when a secret is found;
+  - `NPC_RELATIONSHIP`, for each level a conversation newly reaches.
+
+  `STORY_COMPLETED` waits for LAI-0607.
+- **Amplify difference:** the Amplify client never fired `ADVENTURE_COMPLETED`, `WORLD_CHANGE`
+  for an adventure step, or `NPC_RELATIONSHIP`, although rules for all three are authored (for
+  example `reward-bridge-repaired`, `reward-bridge-world-change` and `reward-pip-friendship`).
+  Django honours the authored rules; no rule was added.
 
 ### `rewards` on answer and completion responses
 
@@ -516,6 +522,139 @@ is `404`. The backpack itself stays `GET inventory/` (the newest item first, `tr
 The chest reward is unchanged: same rule, same response fields (`newItems`, `rewardMessage`).
 It now goes through the same `grant_reward_rule`, so a chest that ever completes a set would
 also give the set's cosmetic. No shipped chest item belongs to a set, so nothing changes today.
+
+## Quests (LAI-0605)
+
+Quests advance only on the server. The rules are the Quest Engine's, ported and pinned by
+`tests/golden/quests.json`:
+- a stage completes when its non-optional objectives hold;
+- the first matching branch wins, then `nextStageId`;
+- no next stage completes the quest;
+- a completed quest never changes.
+
+A quest is **published** when it is active and in the latest content release, and **visible**
+to a child when it is published and for their age band. Acceptance is always explicit: quests
+never start themselves, except that a discovery can start its authored quest (see
+"Discoveries").
+
+| Method | Route (under `/api/v1/children/{childId}/`) | Purpose |
+|---|---|---|
+| `GET` | `quests/` | Every visible quest, `status` `LOCKED`, `AVAILABLE`, `ACTIVE` or `COMPLETED` |
+| `GET` | `quests/{questId}/` | One quest, with stages and objective progress; `404` when not visible |
+| `POST` | `quests/{questId}/accept/` | Accept (TR-5, unchanged): `201`, or `200` if already accepted. `409 quest_unavailable` for unmet prerequisites or another age band |
+
+- **The quest entry** is the shape `regions/{id}/adventures/` already returned, with three
+  additive fields: `startedAt`, `completedStageIds` and `completedObjectiveIds`. There is no
+  separate `progress/` route; the detail is the progress.
+- **What can complete an objective.** A server record only, read by
+  `quests.services.build_context` with the client's derivations:
+
+  | Objective | Completes when |
+  |---|---|
+  | `BUILD` | The world change exists |
+  | `SOLVE` | The child has a completed session of the adventure |
+  | `FIND`, `CRAFT`, `COLLECT` | The items are owned |
+  | `TALK_TO`, `HELP_NPC` | The NPC memory flag is set |
+  | `DELIVER` | The item is owned and the NPC memory flag is set |
+  | `LEARN` | The stored mastery level is at least the target (no review decay) |
+  | `DISCOVER` | The discovery is found |
+  | `EXPLORE` | A world change exists at the location (no footsteps are stored) |
+
+  `RELATIONSHIP_AT_LEAST` reads the level derived from points.
+- **When quests move.** Quests are refreshed after every resolved step answer, completion,
+  conversation turn that shows a node, and discovery found. Accepting a quest does not refresh
+  it: its first progress comes from the next such event.
+- **Finishing a quest** applies its effects in the client's order, all in that event's
+  transaction:
+  1. `completion.worldChanges` (provenance `quest:<id>` when no session caused it);
+  2. `completion.setsNpcMemoryFlags`, which set flags only and award no points;
+  3. its `QUEST_COMPLETED` rewards.
+
+  A failure rolls everything back, where the Amplify client would have left a half-applied
+  quest.
+- **`questUpdates`** (on answers, completion, conversations and discoveries; additive) lists
+  `{questId, status, currentStageId, justCompleted, newlyCompletedObjectiveIds}` for every
+  quest the event moved. It is empty on a replayed answer: nothing moves the second time.
+
+## NPCs (LAI-0605)
+
+The server, not the client, decides which dialogue node a child sees. The rules are the NPC
+Engine's, ported and pinned by `tests/golden/npc.json`.
+
+| Method | Route | Purpose |
+|---|---|---|
+| `GET` | `npcs/` | Every published NPC with this child's `relationship: {level, met, lastInteractedAt}` |
+| `GET` | `npcs/{npcId}/` | One NPC; `404` when not published |
+| `POST` | `npcs/{npcId}/talk/` | No body. The entry node the rules select for this child now |
+| `POST` | `npcs/{npcId}/choices/` | `{"fromNodeId", "choiceId"}` (closed body). The node the choice leads to |
+
+```json
+{"npcId": "pirate-pip",
+ "node": {"id": "pip-bridge-offer", "text": "Good to see you again. ...",
+          "choices": [{"id": "pip-accept-bridge", "label": "Yes, let us fix it!"}]},
+ "relationship": {"level": "ACQUAINTANCE", "met": true, "lastInteractedAt": "...",
+                  "levelIncreased": false},
+ "questUpdates": [], "rewards": {"grants": [], "newItems": []}}
+```
+
+- **Talk** selects the first non-follow-up node whose conditions hold. `node: null` means the
+  NPC has nothing to say.
+- **A choice** is accepted only from a node this child has been shown, and only if that choice
+  is available to them now; otherwise it is `409 dialogue_choice_unavailable`. A choice with no
+  next node, an unknown next node, or one whose conditions fail ends the conversation
+  (`node: null`, nothing recorded).
+- **Showing a node** sets its memory flags every time, awards its relationship points the first
+  time only, and marks it seen. It then refreshes active quests and grants `NPC_RELATIONSHIP`
+  rewards for each level newly reached, all in one transaction.
+- **Never sent:** conditions, flags, point awards, and choices the child cannot take.
+- **Trust boundary:** standing next to the NPC is not verifiable, so talking is accepted from
+  anywhere. Everything the conversation's effects depend on is verified. `TIME_OF_DAY`
+  conditions never hold on the server, because it does not know the child's clock. No exported
+  dialogue uses them.
+
+## Discoveries (LAI-0605)
+
+Discoveries are catalog rows (`catalog.DiscoveryDefinition`), imported from the export's
+`discoveries.json`. The rules are pinned by `tests/golden/discovery.json`.
+
+| Method | Route | Purpose |
+|---|---|---|
+| `GET` | `discoveries/` | The secrets this child has found (`discoveryId`, `title`, `kind`, `locationSlug`). Unfound ones are not listed |
+| `POST` | `discoveries/{discoveryId}/` | No body. The child reached this secret |
+
+The response is `{discoveryId, title, status, message, worldChangeKey, startedQuestId,
+questUpdates, rewards}`, where `status` is `FOUND_NOW`, `ALREADY_FOUND` or `LOCKED`:
+
+- **`LOCKED`:** a requirement does not hold in the server's records (an item owned, a world
+  change, an earlier discovery). Nothing is written, and the authored locked message is
+  returned.
+- **`ALREADY_FOUND`:** returns the same reveal message, and writes and grants nothing.
+- **`FOUND_NOW`:** applies the effects in the client's order, in one transaction:
+  1. records the discovery;
+  2. its authored world change (provenance `discovery:<id>`);
+  3. its `DISCOVERY` rewards;
+  4. its authored quest, accepted if available to this child (otherwise the secret is still
+     found);
+  5. a quest refresh.
+
+**Trust boundary:** being at the spot is reported by the client and cannot be verified, so a
+modified client can find an unlocked secret from anywhere. It cannot find a locked one, find one
+twice, or choose its effects.
+
+## World state (LAI-0605)
+
+`GET progress/` is the authoritative snapshot a client renders the island from:
+- `worldChanges`: every change, from steps, quests, discoveries and chests;
+- `discoveredIds` (additive);
+- `quests`, `inventory` and `mastery`.
+
+Per-NPC relationships come from `GET npcs/`, and a region's own state from its bootstrap.
+Everything is per child and survives sessions, sign-outs and switching between web and Android.
+
+- **Recording:** world changes are recorded once per child, location and key
+  (`world_change_once`), only by the server events above.
+- **Not stored on Django yet:** characters met and the last checkpoint (`WorldState` columns).
+  They have no route, and checkpoints are not imported.
 
 ## Reuse by later regions
 

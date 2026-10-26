@@ -880,7 +880,7 @@ adapted onto it:
 | `adventures` | The Python adventure engine (pure module, LAI-0601) |
 | `game_sessions` | AdventureSession (ADVENTURE or REGION), AdventureAction, ChallengeAttempt, CoopSession; answers and hints (LAI-0601); region play (TR-5); native home, discovery and inventory reads, game launch tickets and the game session cookie (LAI-ANDROID-API-001, ADR-036) |
 | `education` | SkillEvidence, SkillProgress, StoryArtifact, ChallengeSpec; Treasure Rush challenge generation and grading (`challenges.py`) |
-| `progression`, `inventory`, `quests` | World changes and state, story and NPC progress; items owned and rules granted; quest progress, with the server-side quest engine (`quests/engine.py`) |
+| `progression`, `inventory`, `quests` | World changes and state, story and NPC progress, NPC conversations (`dialogue.py`) and discoveries (`discoveries.py`), with their golden-vector rule ports (`npc.py`, `discovery_rules.py`); items owned and rules granted; quest progress, with the server-side quest engine (`quests/engine.py`) |
 
 **Temporary source-of-truth boundary for spatial data.** Location manifests for the shipped 3D
 regions stay in TypeScript (`runtime/manifests/*.ts`, ADR-032). The Treasure Cove layout is
@@ -969,10 +969,10 @@ failing open on transient errors for the catalog.
 |---|---|---|
 | `adventures` | `AdventureSession`, `AdventureAction`, `SkillEvidence`, `WorldChange`, `StoryArtifact` models; `submitAdventureAnswer` mutation | **Sessions (LAI-0608):** start or resume, read, complete and the active-session lookup, under `children/{id}/adventures/{adventureId}/`. **Answers:** `POST children/{id}/sessions/{id}/answers/` (LAI-0601). **World-change reads:** `GET children/{id}/progress/`. Client-side writes (`startSession` alone, `advanceSession`, `recordAction`, evidence, world-change writes, story artifacts) are unsupported, and `useAdventureSession` skips them where `supports()` is false |
 | `mastery` | `SkillProgress` list, create, update | **Reads (LAI-0603):** `GET children/{id}/mastery/` and `mastery/{objectiveId}/`, server-computed. Writes are unsupported, because the server records mastery while grading |
-| `quests` | `ChildQuestState` | Unsupported. Treasure Rush quests use the play API, a different contract |
+| `quests` | `ChildQuestState` | **LAI-0605:** `listQuestStates` (`GET children/{id}/quests/`) and `startQuest` (`POST quests/{id}/accept/`). The server advances quests inside events, which return `questUpdates`. `buildQuestContext`, `syncQuestProgress` and `clearQuestStates` are unsupported |
 | `story` | `ChildStoryProgress` | Unsupported (LAI-0607) |
-| `npc` | `ChildNpcState` | Unsupported (LAI-0605) |
-| `discovery` | `ChildWorldState` (+ reward grants) | Unsupported (LAI-0605) |
+| `npc` | `ChildNpcState` | **LAI-0605:** `listNpcs`, `talkToNpc` and `chooseNpcDialogue` (`children/{id}/npcs/...`); the server picks the node. `recordDialogueNode` and the raw-state reads are unsupported. The new operations are Django contracts (unsupported on Amplify) |
+| `discovery` | `ChildWorldState` (+ reward grants) | **LAI-0605:** `recordDiscovery` (`POST children/{id}/discoveries/{id}/`) and `listDiscoveries`. Characters met, checkpoints, the client-side context and clearing are unsupported (no route) |
 | `rewards` | `ChildInventory` (client grant ledger) | **Backpack read:** `GET children/{id}/inventory/` (a truncated list is refused). **History (LAI-0604):** `GET children/{id}/rewards/` and `rewards/{grantId}/`. Earned rewards arrive on answer and completion responses. `grantRewards` and `clearInventory` are unsupported, so the client never grants a reward |
 | `companionProfile` | `CompanionProfile` | Unsupported (LAI-0307) |
 | `safety` | `SafetyEvent` reads, `AIInteractionAudit` and `SafetyEvent` deletes | Unsupported (LAI-0306) |
@@ -1083,6 +1083,40 @@ will call `grant_for_trigger` when LAI-0605 and LAI-0607 make those outcomes ser
 The React rewards adapter adds `listRewardGrants` and `getRewardGrant`, and
 `useAdventureSession` exposes `lastRewards` as the contract for presenting a reward. No UI was
 built.
+
+## Authoritative quests, NPCs, discoveries and world state (LAI-0605)
+
+Every outcome that changes the island is a server event:
+- a step answer or completion (`game_sessions.services`);
+- a conversation turn (`progression.dialogue.converse`);
+- a discovery (`progression.discoveries.discover`).
+
+Each event, inside one transaction:
+1. records what it caused: world changes (`record_world_change`, once per key), NPC flags and
+   points, found discoveries;
+2. fires the authored rewards (LAI-0604);
+3. calls `quests.services.refresh_active_quests`.
+
+The refresh re-evaluates each active quest with `quests/engine.py`, the full golden-vector port,
+against `build_context` (server records only). A quest that finishes applies, in the client's
+order, its world changes, its NPC memory flags and its `QUEST_COMPLETED` rewards.
+
+The rules are TypeScript ports pinned by golden vectors: `quests.json`, plus two new suites,
+`npc.json` and `discovery.json`, generated by `react/src/test/golden/buildGoldenVectors.ts`.
+
+The client never names an outcome:
+- talking asks the server to pick the node, and a choice is followed only from a node already
+  shown;
+- a discovery's requirements are checked against server records.
+
+What the server cannot verify is position: standing next to an NPC, or at a secret. It is
+trusted and documented in `docs/PLAY_API.md`.
+
+`GET progress/` is the world snapshot (`worldChanges`, `discoveredIds`, `quests`,
+`inventory`, `mastery`), and `GET npcs/` is per-NPC relationships.
+
+Treasure Rush shares the quest refresh, the world-change writer and the reward service. Its
+routes and results are unchanged.
 
 ## Native Android clients and the game-only WebView (LAI-ANDROID-API-001, ADR-036)
 

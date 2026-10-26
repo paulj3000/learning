@@ -11341,3 +11341,91 @@ Design: `docs/ARCHITECTURE.md`, "Authoritative rewards (LAI-0604)".
   - **Rule order:** rules within one trigger fire in `rule_id` order rather than export order.
     Only the order of messages is affected.
   - **ParentConsent** (LAI-0308, gate G9) and the other gates are still open.
+
+## LAI-0605: server-authoritative quests, NPCs, discoveries and world state (2026-10-26)
+
+Branch `feature/lai-0605-world-quests-discovery`, from the LAI-0604 commit `24eece1`. Stage
+commits:
+
+| Commit | Stage |
+|---|---|
+| `9c05e70` | Quest-engine parity, world changes from steps, quest reads |
+| `2152e2e` | NPC conversations |
+| `32ab45a` | Discoveries |
+| `7a1ab90` | React adapters |
+
+Then this docs commit. Contract: `docs/PLAY_API.md`, "Quests", "NPCs", "Discoveries" and "World
+state". Design: `docs/ARCHITECTURE.md`, "Authoritative quests, NPCs, discoveries and world state
+(LAI-0605)".
+
+- **Inventory of existing behaviour, reconciled before coding:**
+
+  | Operation | Amplify owner | Django model (existing) | Django route before | Now |
+  |---|---|---|---|---|
+  | Quest accept | client `startQuest` | `QuestProgress` | `quests/{id}/accept/` (TR-5) | Same route; published now also means in the latest release |
+  | Quest progress and completion | client `syncQuestProgress` | `QuestProgress` | none (TR refresh only) | Server refresh after every event, completion effects in one transaction |
+  | Quest objectives | client `objectives.ts` | `quests/engine.py` (partial) | none | Full port, 40 vectors |
+  | NPC dialogue | client `recordDialogueNode` (client-chosen node) | `NpcRelationship` | none | `npcs/{id}/talk/` and `choices/`, server-picked node, new `npc` vectors |
+  | Discoveries | client `recordDiscovery` | `WorldState` | none | `DiscoveryDefinition` catalog plus `discoveries/{id}/`, new `discovery` vectors |
+  | Step world changes | client `recordWorldChangeOnce` | `WorldChange` | none | Recorded by `submit_answer` |
+  | Characters met, checkpoints | client | `WorldState` | none | Not migrated (LAI-0611) |
+
+- **Accepted rules kept unchanged.** Every rule is a TypeScript port pinned by golden vectors.
+  The Amplify orders of effects are kept (discovery: record, world change, rewards, quest;
+  quest completion: world changes, NPC flags, rewards).
+- **Differences, documented:**
+  - The effects are transactional instead of individually failure-tolerant.
+  - Authored `NPC_RELATIONSHIP` rewards fire; the client never fired them.
+  - `TIME_OF_DAY` conditions never hold on the server; no content uses them.
+  - Quests refresh after every resolved step, not only on completion. Quest progress is
+    derived, so this is earlier, not different.
+- **Trust boundary:** being at an NPC or a secret is client-reported. Everything else is checked
+  against server records.
+- **Models:** reuses `QuestProgress`, `WorldChange`, `WorldState`, `NpcRelationship` and
+  `NpcDefinition`. Adds `catalog.DiscoveryDefinition` (migration `catalog.0004`) and its
+  importer support; the real export imports all six authored discoveries.
+- **Additive response fields:**
+  - `questUpdates` on answers and completion;
+  - `startedAt`, `completedStageIds` and `completedObjectiveIds` on quest entries;
+  - `discoveredIds` on `progress/`, which changed the exact-body assertion in
+    `test_play_api.py`.
+- **React:**
+  - **Quests:** list and accept read Django, and the client-side sync is unsupported there.
+  - **NPCs:** new Django-only talk, choose and list operations; `recordDialogueNode` is
+    unsupported on Django.
+  - **Discoveries:** `recordDiscovery` maps Django onto the existing result; `listDiscoveries`
+    is new.
+  - Step answers carry `questUpdates`.
+  - `api/questUpdates.ts` breaks an import cycle through the Amplify quest code.
+  - No UI or Three.js change; the conversation and celebration UI on Django is LAI-0612.
+- **Tests (focused):**
+
+  | Command | Result |
+  |---|---|
+  | `.venv/bin/python -m pytest -q tests/golden` (quests, npc and discovery ports plus format, with `npc` and `discovery` added to the expected suites) | 265 passed |
+  | `npm run golden:generate`; `npx vitest run src/test/golden` (staleness) | 6 passed |
+  | `LAI_REQUIRE_POSTGRES=1 .venv/bin/python -m pytest -q lai/apps/quests/tests/test_quest_progression.py` | 15 passed |
+  | `... lai/apps/progression/tests/test_npc_dialogue.py` | 17 passed |
+  | `... lai/apps/progression/tests/test_discoveries.py` | 10 passed |
+  | `... -m pytest -q lai/apps/progression lai/apps/quests lai/apps/users lai/apps/game_sessions lai/apps/catalog lai/apps/inventory lai/apps/education lai/apps/core tests/golden` | 1,058 passed |
+  | `manage.py makemigrations --check` | No changes |
+  | `npx tsc -b` and the `amplify/` typecheck | Pass |
+  | `npx vitest run src/api/worldAdapters.test.ts` | 12 passed |
+  | React regression: every test file that references the quest, NPC, discovery, adventure or data-client modules, plus `src/api`, `src/test`, `src/features/{quests,npc,discovery}` | 76 files, 846 tests passed |
+  | Earlier wider run: `src/features/{quests,npc,discovery,island-map,adventures}`, `src/api`, `src/test` | 163 files, 1,840 tests passed |
+
+- **Not run:** Playwright and any browser, Ruff, Prettier, oxlint, full suites, production
+  build. No AWS was contacted.
+- **Known limitations:**
+  - **Characters met and checkpoints:** no Django route, and checkpoints are not imported
+    (LAI-0611).
+  - **Position is client-reported:** talking and finding are accepted from anywhere, and the
+    effects are checked.
+  - **Quest refresh timing:** accepting a quest does not refresh it.
+  - **Replays:** a replayed answer reports `questUpdates: []`.
+  - **Talk is not idempotent by request id:** a repeated talk shows the node again (flags are
+    unchanged and points come once, so nothing is counted twice).
+  - **`EXPLORE` objectives** are satisfied only by world changes at the location, as on the
+    client.
+  - **UI:** no React UI uses the Django NPC or discovery contracts yet (LAI-0612).
+  - **ParentConsent** (LAI-0308, gate G9) and the other gates are still open.

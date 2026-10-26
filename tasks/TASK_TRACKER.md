@@ -73,7 +73,9 @@ before touching AWS.
 - [x] **LAI-0603** Mastery writes (depends: 0601). DONE locally on `feature/lai-0603-mastery-progression`: server-side evidence and counters from graded step answers, golden-vector port, read routes, React adapter; focused pytest and Vitest pass; not merged or pushed; no browser verification
 - [ ] **LAI-0610** Treasure Rush challenge evidence and mastery counters (found by LAI-0603; needs a decision: per-attempt evidence vs the step rule of one piece of evidence per resolved step)
 - [x] **LAI-0604** Rewards and inventory writes (depends: 0603). DONE locally on `feature/lai-0604-rewards-inventory`: server-side reward resolution (golden-vector port), grants from step answers and completion, reward history routes, React adapter; focused pytest and Vitest pass; not merged or pushed; no browser verification
-- [ ] **LAI-0605** Quests, NPC, discovery, world state writes (depends: 0604)
+- [x] **LAI-0605** Quests, NPC, discovery, world state writes (depends: 0604). DONE locally on `feature/lai-0605-world-quests-discovery`: full quest-engine port, npc and discovery golden suites, server-side world changes, quests, conversations and discoveries with rewards, routes, React adapters; focused pytest and Vitest pass; not merged or pushed; no browser verification
+- [ ] **LAI-0611** Characters met and checkpoints on Django: import checkpoints, routes for `WorldState.discovered_characters` and `last_checkpoint_id` (found by LAI-0605)
+- [ ] **LAI-0612** React NPC conversation and discovery UI on the Django contracts (`talkToNpc`/`chooseNpcDialogue`; `questUpdates` and rewards presentation), found by LAI-0605. UI work, no backend change
 - [ ] **LAI-0606** Next-learning-activity (depends: 0603)
 - [ ] **LAI-0607** Story artifacts and progress writes (depends: 0305)
 - [x] **LAI-0608** Step-adventure session lifecycle routes: start or resume, read, complete, availability (proposed by LAI-0501B; depends: 0601). DONE locally on `feature/lai-0608-adventure-session-api`: focused pytest and Vitest pass; React adapter wired; not merged or pushed; no browser verification

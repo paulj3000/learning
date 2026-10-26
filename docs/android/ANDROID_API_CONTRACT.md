@@ -16,6 +16,7 @@ WebView).
 | Region list, region adventures | **Added** |
 | Region bootstrap, region session, sessions, chests, attempts, quests | **Existed** (TR-5, `docs/PLAY_API.md`); now also reachable by the game runtime cookie, only for its own child and region |
 | Step-adventure sessions: availability, start or resume, read, answer, hint, complete | **Added** (LAI-0608; answers and hints existed, LAI-0601). Same routes as React; contract in `docs/PLAY_API.md`, "Step adventures" |
+| Quests (list, one, accept), NPCs (list, one, talk, choose), discoveries (list, find), world snapshot | **Added** (LAI-0605). Server-authoritative; `docs/PLAY_API.md`, "Quests", "NPCs", "Discoveries", "World state" |
 | Rewards: earned on answers and completion (`rewards`), history list and one grant | **Added** (LAI-0604). Server-granted only; `docs/PLAY_API.md`, "Rewards" |
 | Mastery: list, one objective | **Added** (LAI-0603). Read-only, server-computed from graded answers; `docs/PLAY_API.md`, "Mastery" |
 | Progress | **Existed**; gains an additive `mastery` status summary (LAI-0603) |
@@ -291,6 +292,23 @@ The same routes and values the React app reads. Objective ids are the catalog's 
 objective codes, which are also the step's `objectiveIds`. `hasEvidence: false` with `status:
 null` means not practised yet, not a low score. Mastery cannot be written from the app: it moves
 only when an answer resolves a step. The shape and rules are in `docs/PLAY_API.md`, "Mastery".
+
+### Quests, NPCs, discoveries and world state (added, LAI-0605)
+
+The app renders what the server decides; it never sets progress.
+- **Quests:** `GET /children/{id}/quests/` and `GET .../quests/{questId}/`, with acceptance at
+  `POST .../quests/{questId}/accept/`.
+- **NPCs:** `POST .../npcs/{npcId}/talk/` returns the node to show, with the choices available
+  to the child. Send a choice back as `POST .../npcs/{npcId}/choices/ {fromNodeId, choiceId}`.
+  `node: null` ends the conversation.
+- **Discoveries:** `POST .../discoveries/{discoveryId}/` when the child reaches a secret. Show
+  `message` (found, already found or locked).
+- **Updates:** answers, completions, conversations and discoveries return `questUpdates` and
+  `rewards`.
+- **Snapshot:** rebuild the island from `GET .../progress/` (`worldChanges`, `discoveredIds`)
+  and `GET .../npcs/`.
+
+These are the same routes and records as the web app.
 
 ### Rewards (added, LAI-0604)
 
