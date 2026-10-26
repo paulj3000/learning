@@ -4,7 +4,11 @@
  */
 import { questsApi } from '../../api/quests';
 
-export type { ChildQuestStateRow, QuestProgressResult } from '../../api/quests';
+export type {
+  ChildQuestStateRow,
+  QuestProgressResult,
+  QuestUpdateView,
+} from '../../api/quests';
 
 export const {
   listQuestStates,

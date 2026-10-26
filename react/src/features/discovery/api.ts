@@ -8,7 +8,10 @@ import type { DiscoveryDefinition, DiscoveryId } from './types';
 
 export type { ChildWorldStateRow, DiscoveryResult } from '../../api/discovery';
 
+export type { FoundDiscovery } from '../../api/discovery';
+
 export const {
+  listDiscoveries,
   getWorldState,
   buildDiscoveryContext,
   recordDiscovery,

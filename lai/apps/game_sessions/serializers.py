@@ -172,6 +172,14 @@ class QuestEntrySerializer(serializers.Serializer):
             "giverNpcId": quest.source.get("giverNpcId"),
             "status": entry.status,
             "currentStageId": progress.current_stage_id if progress else None,
+            # LAI-0605, additive: the progress record itself, for clients that keep quest state.
+            "startedAt": (
+                serializers.DateTimeField().to_representation(progress.started_at)
+                if progress
+                else None
+            ),
+            "completedStageIds": list(progress.completed_stage_ids) if progress else [],
+            "completedObjectiveIds": list(progress.completed_objective_ids) if progress else [],
             "completedAt": (
                 serializers.DateTimeField().to_representation(progress.completed_at)
                 if progress and progress.completed_at

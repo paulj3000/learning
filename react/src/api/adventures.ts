@@ -3,6 +3,7 @@ import type { ApiClient } from './client';
 import { ApiError } from './errors';
 import { read, type Reader } from './parse';
 import { createPlayApi } from './play/playApi';
+import { optionalQuestUpdates, type QuestUpdateView } from './questUpdates';
 import { parseRewardOutcome, type RewardOutcome } from './rewards';
 import { selectApi } from './select';
 import {
@@ -80,6 +81,8 @@ export interface AdventureAnswerResult {
    * where rewards are granted by the client's own engines, not by the answer.
    */
   rewards?: RewardOutcome;
+  /** The quests this answer moved, decided by the server (Django, LAI-0605). */
+  questUpdates?: QuestUpdateView[];
 }
 
 /** A completed session, with the rewards completing it earned (Django, LAI-0604). */
@@ -196,12 +199,14 @@ function optionalRewards(r: Reader): RewardOutcome | undefined {
 export function parseAnswerResult(r: Reader): AdventureAnswerResult {
   const action = r.field('action').oneOf(['RETRY', 'ADVANCE'] as const);
   const rewards = optionalRewards(r);
+  const questUpdates = optionalQuestUpdates(r);
   return {
     correctness: r.field('correctness').oneOf(CORRECTNESS),
     supportLevel: r.field('supportLevel').integer(),
     action,
     nextStepId: action === 'ADVANCE' ? r.field('nextStepId').nullable((x) => x.string()) : null,
     ...(rewards ? { rewards } : {}),
+    ...(questUpdates ? { questUpdates } : {}),
   };
 }
 

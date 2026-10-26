@@ -6,7 +6,12 @@ import { npcApi } from '../../api/npc';
 
 export type { ChildNpcState, RecordDialogueResult } from '../../api/npc';
 
+export type { DialogueNodeView, DialogueTurn, NpcView } from '../../api/npc';
+
 export const {
+  listNpcs,
+  talkToNpc,
+  chooseNpcDialogue,
   getNpcState,
   listNpcStates,
   recordDialogueNode,
