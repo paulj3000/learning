@@ -11,6 +11,7 @@ from django.db.models import Count, Q
 from apps.catalog.models import Quest
 from apps.core.content_status import ContentStatus
 from apps.education.models import SkillEvidence
+from apps.education.reads import mastery_summaries
 from apps.inventory.models import InventoryItem
 from apps.progression.models import WorldChange
 from apps.quests import engine
@@ -155,4 +156,5 @@ def child_progress(child) -> dict:
         "inventory": InventoryItem.objects.filter(child=child).select_related("item"),
         "quests": quest_entries(child, started),
         "practice": practice_summary(child),
+        "mastery": mastery_summaries(child),
     }

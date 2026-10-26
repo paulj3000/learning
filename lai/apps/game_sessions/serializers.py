@@ -246,6 +246,8 @@ class ProgressSerializer(serializers.Serializer):
                 }
                 for row in state["practice"]
             ],
+            # LAI-0603, additive: the Mastery Engine's status per objective with evidence.
+            "mastery": state["mastery"],
         }
 
 

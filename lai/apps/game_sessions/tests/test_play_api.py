@@ -437,6 +437,7 @@ def test_progress_reports_this_childs_state_only(a, treasure):
         "inventory": [],
         "quests": [],
         "practice": [],
+        "mastery": [],  # LAI-0603, additive
     }
 
 

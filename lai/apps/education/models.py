@@ -119,6 +119,17 @@ class SkillEvidence(ChildOwnedModel):
         blank=True,
         related_name="evidence",
     )
+    adventure_action = models.ForeignKey(
+        "game_sessions.AdventureAction",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="evidence",
+        help_text=(
+            "The answer that resolved the step (LAI-0603). One row per objective per answer, "
+            "so a replayed or concurrent request cannot add evidence twice."
+        ),
+    )
     learning_objective_code = models.CharField(max_length=100)
     evidence_type = models.CharField(max_length=32)
     difficulty = models.PositiveSmallIntegerField(null=True, blank=True)
@@ -146,6 +157,15 @@ class SkillEvidence(ChildOwnedModel):
                     challenge_attempt__isnull=False,
                 ),
                 name="evidence_exactly_one_source",
+            ),
+            models.UniqueConstraint(
+                fields=["adventure_action", "learning_objective_code"],
+                condition=Q(adventure_action__isnull=False),
+                name="evidence_once_per_action_objective",
+            ),
+            models.CheckConstraint(
+                condition=Q(adventure_action__isnull=True) | Q(adventure_session__isnull=False),
+                name="evidence_action_within_session",
             ),
         ]
         indexes = [

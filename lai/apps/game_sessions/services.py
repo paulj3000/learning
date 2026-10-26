@@ -13,7 +13,9 @@ Rules, each from the existing code rather than new:
 - the decision tree is `decideSubmission`; the hint level it escalates is the server's own record
   for the step (`AdventureSession.hint_levels`), never a client value;
 - reaching a `COMPLETE` step, or the reserved `complete` id, completes the session in the same
-  transaction (the client did this with a separate `completeSession` call); completion is final.
+  transaction (the client did this with a separate `completeSession` call); completion is final;
+- a resolved step (ADVANCE) records its learning evidence and mastery in the same transaction
+  (`apps.education.services.record_step_evidence`, LAI-0603); completion itself adds none.
 
 Not offered: transitions into PAUSED, ABANDONED and SAFETY_STOPPED, which no code defines.
 Every function takes the child resolved by `ChildScopedMixin`; another child's session is
@@ -28,6 +30,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.adventures import engine
+from apps.education import services as education
 from apps.catalog.models import Adventure, AdventureStep, ContentRelease
 from apps.game_sessions.models import (
     COMPLETE_STEP_ID,
@@ -367,6 +370,18 @@ def submit_answer(
         request_id=request_id,
         at=at,
     )
+    if next_step is not None:
+        # The step resolved: its learning evidence and mastery, in this same transaction
+        # (LAI-0603). A RETRY is not evidence yet; the step's final outcome is.
+        education.record_step_evidence(
+            session,
+            action,
+            step_type=step.step_type,
+            objective_ids=step.objective_ids,
+            correctness=decision["correctness"],
+            support_level=decision["supportLevel"],
+            at=at,
+        )
     if next_step is not None and ends_adventure(session, next_step):
         _complete(session, at)
     return _outcome(action, session, replayed=False)
