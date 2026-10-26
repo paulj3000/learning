@@ -11059,3 +11059,73 @@ or deployed. Design: `docs/ARCHITECTURE.md`, "React API layer: authentication an
     `child-profile/avatarPhoto.ts` (the photo flow is LAI-0904).
   - `fetchAuthSession` for the room server's ID token in `multiplayer/amplifyIdentity.ts`.
   - `lib/amplify-config.ts` itself.
+
+## LAI-0501B: React API layer for gameplay, progress, inventory and assets (2026-10-26)
+
+Branch `feature/lai-0501b-react-api-gameplay`, from the LAI-0501A commit `415f463`. Stage
+commits: B1 `45a4130` (selection rule, catalog, Director, companion profile), B2 `626b629`
+(sessions, answers, progress, mastery, quests, story, NPC, discovery, safety), B3 `1510e9c`
+(rewards, inventory, child photos, gameplay assets, Treasure Rush transport), B4 (AI transport,
+co-op, multiplayer identity, the deletion cascade, the boundary guard, docs). Not merged,
+pushed or deployed. Design and inventory: `docs/ARCHITECTURE.md`, "React API layer: gameplay,
+progress and assets (LAI-0501B)". With LAI-0501A, this completes LAI-0501 as an abstraction.
+
+| Milestone | State |
+|---|---|
+| API abstraction complete | **Yes.** Every React data operation goes through `react/src/api/` (`selectApi`), apart from the named admin exceptions. Guarded by `src/test/amplifyBoundary.test.ts` |
+| Django endpoint available | **Partly.** Step answers, world-change reads, backpack reads, the Treasure Rush play routes and the asset resolver. Everything else is a typed `unsupported` |
+| Django implementation verified by unit tests | **Yes, for those adapters**, against mocked `fetch` through the real client |
+| Integrated browser gameplay verified | **No.** Not run, by instruction. A Django build also cannot start a step adventure yet (LAI-0608) |
+| Production deployment verified | **No.** No Django infrastructure exists (Phase 10) |
+
+- **Behaviour on Amplify is unchanged.**
+  - The Amplify code moved from `features/<area>/api.ts` to `react/src/api/amplify/<area>.ts`
+    as it was. The feature modules are facades with the same names.
+  - One existing test changed, and only a path: `deletion.test.ts` now reads the moved
+    cascade's source for its schema-coverage check.
+  - `submitAdventureAnswer` gained an optional fourth argument, `{ childProfileId, stepId }`.
+    Django needs it; Amplify ignores it.
+- **Safety contracts kept:**
+  - AI turns still validate, and fall back to authored copy on any failure, including
+    `ai_unavailable`.
+  - The Director still never throws, and shows no suggestion on Django.
+  - The catalog still fails open on transient errors, but not on a backend gap.
+  - A missing photo still degrades to the avatar character.
+- **Reward and progress boundary:** on Django, `grantRewards`, `clearInventory`, mastery writes,
+  quest, NPC and discovery writes and world-change writes are all `unsupported`. The client
+  cannot grant a reward or update mastery there, and keeps no ledger.
+- **Tests (focused unit tests only):**
+  - `tsc -b` passes, and the `amplify/`, `server/` and `scripts/` typechecks pass.
+  - New tests:
+    - `api/{select,adventures,rewards}.test.ts`, `api/play/playApiShared.test.ts`;
+    - `features/catalog/availabilityApi.test.ts`, `features/director/api.test.ts`;
+    - `features/companion/api.backend.test.ts`, `features/child-profile/avatarPhoto.backend.test.ts`;
+    - `test/amplifyBoundary.test.ts`.
+  - Final regression: every test file that imports or mocks a changed module (86 files) plus
+    `src/api` and `src/test`. 90 files, 929 tests passed.
+  - Stage runs: B1 132 files and 1,379 tests; B2 51 files and 604 tests; B3 62 files and 711
+    tests. All passed.
+- **Not run:** Playwright and any browser, Ruff, Prettier, oxlint, full suites, production
+  build. No AWS service or running Django was contacted.
+- **Django gaps (recommended task):**
+  - Step-adventure session start, resume and complete: **LAI-0608 (proposed)**.
+  - Mastery writes and reads: LAI-0603.
+  - Server-side rewards beyond Treasure Rush: LAI-0604.
+  - Quests, NPC, discovery and world-state routes: LAI-0605.
+  - Next-learning-activity: LAI-0606.
+  - Story progress and artifacts: LAI-0607.
+  - AI audit and safety models: LAI-0306. The AI service: LAI-0701 to LAI-0703.
+  - Companion profile: LAI-0307.
+  - Catalog availability read: LAI-0503.
+  - Co-op: LAI-0901 to LAI-0903. Child photos: LAI-0904.
+  - Parent dashboard summaries: LAI-0505. `ChildDashboard` loads every section together, so on
+    Django it shows its error state rather than zeros.
+  - Multiplayer room-server child lookup via Django: new follow-up task, not yet numbered.
+- **Remaining direct Amplify use (intentional):**
+  - `api/amplify/*`.
+  - `api/auth.ts` (Cognito), `api/children.ts` and `api/parents.ts` (LAI-0501A).
+  - `lib/amplify-config.ts` and `lib/data-client.ts`.
+  - The admin modules `features/admin/{api,catalogApi}.ts` and
+    `features/assets/{assetService,modelUpload}.ts`, until LAI-0802.
+- **Not satisfied by this task:** ParentConsent (LAI-0308, gate G9) and every other ADR-019
+  gate. Nothing here makes the Django path ready for live children's data.

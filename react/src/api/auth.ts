@@ -137,6 +137,19 @@ export async function getAccessToken(
   return session.tokens?.accessToken?.toString() ?? null;
 }
 
+/**
+ * The signed-in parent's Cognito **ID** token and its `sub`, for the
+ * multiplayer room server (ADR-026), which verifies the ID token itself.
+ * The same on both data backends. Null when there is no usable session.
+ */
+export async function getIdTokenIdentity(): Promise<{ idToken: string; sub: string } | null> {
+  const session = await fetchAuthSession();
+  const idToken = session.tokens?.idToken;
+  const sub = idToken?.payload.sub;
+  if (!idToken || typeof sub !== 'string') return null;
+  return { idToken: idToken.toString(), sub };
+}
+
 export type AuthChange = 'signedIn' | 'signedOut';
 
 /** Calls `listener` when a parent signs in or out. Returns the unsubscribe function. */

@@ -264,7 +264,24 @@ Django implementation on the Android contract (`docs/android/ANDROID_API_CONTRAC
 of LAI-0502's client half exists. LAI-0502 stays open for the companion profile and the OpenAPI
 contract test (needs LAI-0207). Design and gaps: `docs/ARCHITECTURE.md`, "React API layer:
 authentication and child profiles (LAI-0501A)". **LAI-0501B (adventures, progress, inventory,
-assets, and the remaining `lib/data-client` modules): TODO.** LAI-0501 closes when 0501B does.
+assets, and the remaining `lib/data-client` modules): DONE locally** on
+`feature/lai-0501b-react-api-gameplay` (stages B1 to B4), not merged. Every React data operation
+now goes through `react/src/api/` (`selectApi`), apart from the admin modules (Amplify until
+LAI-0802). Django adapters exist where a route does: step answers (LAI-0601), world-change reads
+(`progress/`), backpack reads (`inventory/`), the Treasure Rush play API and the asset resolver.
+Every other operation is a typed `unsupported`. Inventory and gaps: `docs/ARCHITECTURE.md`,
+"React API layer: gameplay, progress and assets (LAI-0501B)". With both halves done, **LAI-0501
+is complete as an abstraction.** A Django build is still not playable end to end: no route
+starts a step-adventure session (proposed LAI-0608 below).
+
+**LAI-0608 Step-adventure session lifecycle (proposed, 2026-10-26).** Depends: 0601. Risk M.
+Found by LAI-0501B: LAI-0601's answer and hint routes need an existing session, and no Django
+route starts, resumes or completes one. Acceptance: child-scoped start-or-resume (one active
+session per child and adventure, availability checked server-side, which replaces the
+client-side catalog gate), read, and complete routes on the canonical `AdventureSession`; the
+React `adventures` adapter's `getActiveSession`, `startSession` and `completeSession` move to
+them.
+
 
 **LAI-0502 Profiles read endpoints + client.** Depends: 0403, 0501. Risk M. Acceptance:
 `GET /api/v1/children`, `GET /api/v1/children/{id}`, companion profile; client module with

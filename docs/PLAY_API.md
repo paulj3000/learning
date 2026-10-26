@@ -221,6 +221,10 @@ In React, use `useRegionPlay(childId, regionId, { onUnauthenticated })` rather t
 directly: it owns loading, the in-flight action, stale-reply protection, and re-reading after an
 answer or conflict. `toRegionSceneModel(state.bootstrap)` gives the scene plain entities by id.
 
+**Transport.** Since LAI-0501B, `playApiFor` uses the shared Django client
+(`react/src/api/backend.ts`): the same bearer-token handling, one refresh on 401, and a
+single `POST me/` retry on `403 account_not_provisioned`. Routes and parsers are unchanged.
+
 **Configuration.** `VITE_BACKEND=django` enables the client; without it every call fails with
 kind `disabled`. `VITE_DJANGO_API_BASE` is empty for same-origin (deployed) or an `http://`
 origin in `vite dev`.

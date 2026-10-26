@@ -936,6 +936,71 @@ not know, so they show empty or failing states. A Django build is therefore a de
 integration build until LAI-0501B and Phase 6 move those modules. The admin section stays on
 Amplify whatever the flag says (`features/admin/api.ts` uses Amplify's own types) until LAI-0802.
 
+## React API layer: gameplay, progress and assets (LAI-0501B)
+
+LAI-0501B puts every remaining React data operation behind `react/src/api/`, using the pattern
+LAI-0501A set for profiles. Each area has one module, `react/src/api/<area>.ts`. That module
+defines the area's interface and picks one implementation per build through `selectApi`
+(`react/src/api/select.ts`):
+
+- An **Amplify build** gets the Amplify adapter, `react/src/api/amplify/<area>.ts`. That is
+  the code that used to sit in `features/<area>/api.ts`, moved with its behaviour unchanged.
+- A **Django build** gets the operations Django has a real route for. Every other operation
+  rejects with `ApiError('unsupported')`, code `<area>_unavailable`. There is no fallback to
+  Amplify and no simulated success.
+- A **misconfigured build** gets `ApiError('disabled')` for everything.
+
+`supports(area, operation)` reports Django support per operation. `isUnsupported` and
+`isBackendGap` let code tell "this backend cannot do that yet" apart from a transient failure or
+a real empty result. The feature modules (`features/<area>/api.ts`) are now facades with the
+names and signatures the app already used. Pure helpers stay in `features/`, never in an
+adapter. `react/src/test/amplifyBoundary.test.ts` fails if any file outside `react/src/api/`
+imports Amplify, except the exceptions listed below.
+
+**Where the seam is.** On Amplify the client computes many writes itself: quest progress,
+reward grants, mastery counters, NPC and discovery state. On Django the server owns those
+(ADR-019 sub-decision 8). So the seam is the whole feature operation, not a row store. A Django
+build never runs the client-side ledger. For the AI routes, the Director and the catalog, the
+seam is the transport only. Their safety behaviour stays in `features/` and does not depend on
+the backend: validation and authored fallbacks for AI, "never throws" for the Director, and
+failing open on transient errors for the catalog.
+
+| Area (`react/src/api/`) | Amplify operations (adapter) | Django today |
+|---|---|---|
+| `adventures` | `AdventureSession`, `AdventureAction`, `SkillEvidence`, `WorldChange`, `StoryArtifact` models; `submitAdventureAnswer` mutation | **Answers:** `POST children/{id}/sessions/{id}/answers/` (LAI-0601). **World-change reads:** `GET children/{id}/progress/`. Session start, resume, advance and complete, evidence, world-change writes and story artifacts are unsupported |
+| `mastery` | `SkillProgress` list, create, update | Unsupported. `progress.practice` is pacing data, not mastery |
+| `quests` | `ChildQuestState` | Unsupported. Treasure Rush quests use the play API, a different contract |
+| `story` | `ChildStoryProgress` | Unsupported (LAI-0607) |
+| `npc` | `ChildNpcState` | Unsupported (LAI-0605) |
+| `discovery` | `ChildWorldState` (+ reward grants) | Unsupported (LAI-0605) |
+| `rewards` | `ChildInventory` (client grant ledger) | **Backpack read:** `GET children/{id}/inventory/` (a truncated list is refused). `grantRewards` and `clearInventory` are unsupported, so the client never grants a reward |
+| `companionProfile` | `CompanionProfile` | Unsupported (LAI-0307) |
+| `safety` | `SafetyEvent` reads, `AIInteractionAudit` and `SafetyEvent` deletes | Unsupported (LAI-0306) |
+| `ai` | `generateCompanionTurn`, `generateTutorTurn`, audit and safety writes | Unsupported (LAI-0701 to LAI-0703). The child gets the authored line |
+| `director` | `getNextLearningActivity` query | Unsupported (LAI-0606). The child sees no suggestion, as for any Director failure |
+| `catalog` | `Island`, `Adventure` availability flags | Unsupported (LAI-0503). It does not fail open on this |
+| `coop` | `CoopSession`, `claimCoopSlot`, `onUpdate` | Unsupported (LAI-0901 to LAI-0903). The subscription subscribes to nothing |
+| `childPhotos` | Amplify Storage `child-photos/` | Unsupported (LAI-0904) |
+| `play/playApi.ts` (Treasure Rush) | none | Every play route, unchanged; now on the shared client |
+| `assets/djangoAssetResolver.ts` | none | `GET children/{id}/assets/?ids=` and signed delivery; on the shared client. Scenes still use the bundled resolver (TR-10) |
+
+**Intentional direct Amplify imports outside the adapters:**
+- `lib/amplify-config.ts` and `lib/data-client.ts`: platform setup.
+- `api/auth.ts`: Cognito, on both backends.
+- `api/children.ts` and `api/parents.ts`: LAI-0501A, Amplify and Django implementations side
+  by side.
+- The admin modules, which stay on Amplify until LAI-0802 and are superseded by Django Admin
+  (ADR-034, ADR-035): `features/admin/api.ts`, `features/admin/catalogApi.ts`,
+  `features/assets/assetService.ts` and `features/assets/modelUpload.ts`. The admin
+  child-progress page reads the Amplify adapters directly through `features/admin/api.ts`, so
+  it never follows `VITE_BACKEND`.
+
+**Multiplayer.** The room server (ADR-026) verifies the Cognito ID token itself, so the client
+side does not change with the backend. The token read moved into `api/auth.ts`
+(`getIdTokenIdentity`). The server's seat check still reads the child through AppSync
+(`server/multiplayer/auth.ts`). A Django build's child ids would therefore be refused a seat
+until the room server looks children up in Django. That needs its own follow-up task.
+
 ## Native Android clients and the game-only WebView (LAI-ANDROID-API-001, ADR-036)
 
 The Kotlin app is a client of the same Django API as the React app. There is no Android backend

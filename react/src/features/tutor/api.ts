@@ -1,4 +1,4 @@
-import { client } from '../../lib/data-client';
+import { aiApi } from '../../api/ai';
 import { TUTOR_PERSONA_VERSION } from '../../../../amplify/data/tutorPersona';
 import type { AgeBandValue } from '../child-profile/constants';
 import { listPrerequisites } from '../curriculum/queries';
@@ -95,7 +95,7 @@ async function recordAudit(params: {
   latencyMs: number;
 }): Promise<void> {
   try {
-    await client.models.AIInteractionAudit.create({
+    await aiApi.recordInteractionAudit({
       childProfileId: params.childProfileId,
       sessionId: params.sessionId,
       stepId: params.stepId,
@@ -124,7 +124,7 @@ async function recordSafetyEvent(params: {
   actionTaken: string;
 }): Promise<void> {
   try {
-    await client.models.SafetyEvent.create({
+    await aiApi.recordSafetyEvent({
       childProfileId: params.childProfileId,
       sessionId: params.sessionId,
       category: params.category,
@@ -191,7 +191,7 @@ export async function requestTutorTurn(input: RequestTutorTurnInput): Promise<Tu
       throw new Error('No safe tutor context could be built for this skill.');
     }
 
-    const { data, errors } = await client.generations.generateTutorTurn({
+    const data = await aiApi.generateTutorTurn({
       ageBand: context.ageBand,
       strategy: context.strategy,
       maxLength: context.maxLength,
@@ -205,10 +205,6 @@ export async function requestTutorTurn(input: RequestTutorTurnInput): Promise<Tu
       hintLevel: context.hintLevel,
       authoredBaseText: context.authoredBaseText,
     });
-
-    if (errors?.length || !data) {
-      throw new Error(errors?.[0]?.message ?? 'The tutor route returned no data.');
-    }
 
     const result = validateTutorTurn(data, context);
     if (!result.valid) {

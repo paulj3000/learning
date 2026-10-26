@@ -1,4 +1,4 @@
-import { client } from '../../lib/data-client';
+import { aiApi } from '../../api/ai';
 import { CHATTY_PERSONA_VERSION } from '../../../../amplify/data/chattyPersona';
 import type { AgeBandValue } from '../child-profile/constants';
 import { FALLBACK_TURNS } from './fallback';
@@ -60,7 +60,7 @@ async function recordAudit(params: {
   latencyMs: number;
 }): Promise<void> {
   try {
-    await client.models.AIInteractionAudit.create({
+    await aiApi.recordInteractionAudit({
       childProfileId: params.childProfileId,
       sessionId: params.sessionId,
       stepId: params.stepId,
@@ -90,7 +90,7 @@ async function recordSafetyEvent(params: {
   actionTaken: string;
 }): Promise<void> {
   try {
-    await client.models.SafetyEvent.create({
+    await aiApi.recordSafetyEvent({
       childProfileId: params.childProfileId,
       sessionId: params.sessionId,
       category: params.category,
@@ -128,7 +128,7 @@ export async function requestCompanionTurn(
   let turn: CompanionTurn;
 
   try {
-    const { data, errors } = await client.generations.generateCompanionTurn({
+    const data = await aiApi.generateCompanionTurn({
       ageBand: input.ageBand,
       intent: input.intent,
       stepSummary: input.stepSummary,
@@ -138,10 +138,6 @@ export async function requestCompanionTurn(
       authoredBaseText: input.authoredBaseText,
       allowedChoiceIds: input.allowedChoiceIds,
     });
-
-    if (errors?.length || !data) {
-      throw new Error(errors?.[0]?.message ?? 'The companion route returned no data.');
-    }
 
     const result = validateCompanionTurn(data, {
       expectedIntent: input.intent,

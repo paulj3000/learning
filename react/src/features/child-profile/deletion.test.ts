@@ -110,7 +110,7 @@ import { deleteAccountAndAllData, deleteChildProfileData } from './deletion';
 // declares against what the deletion function actually calls, which is a
 // property of the source rather than of any runtime value.
 import schemaSource from '../../../../amplify/data/resource.ts?raw';
-import deletionSource from './deletion.ts?raw';
+import deletionSource from '../../api/amplify/childDeletion.ts?raw';
 
 describe('deleteChildProfileData', () => {
   beforeEach(() => {
