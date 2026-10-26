@@ -46,6 +46,8 @@ _CODED = {
     # Step-adventure sessions (LAI-0608)
     "adventure_unavailable": "This adventure cannot be started right now.",
     "session_not_complete": "This adventure is not finished yet.",
+    # NPC conversations (LAI-0605)
+    "dialogue_choice_unavailable": "That choice is not available right now.",
     # Region play (Treasure Rush TR-5)
     "content_unavailable": "This is not available right now.",
     "session_not_open": "This play session has ended.",

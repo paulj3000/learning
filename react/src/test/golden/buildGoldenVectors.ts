@@ -18,6 +18,25 @@ import { nextSkillProgressCounts } from '../../features/mastery/counters';
 import { computeErrorPattern } from '../../features/mastery/errorPattern';
 import { applyReviewDecay, computeSkillStatus } from '../../features/mastery/status';
 import type { SkillProgressCounts, SkillStatus } from '../../features/mastery/types';
+import { evaluateCondition } from '../../features/npc/conditions';
+import {
+  advanceDialogue,
+  availableChoices,
+  dialogueOutcome,
+  selectDialogueNode,
+} from '../../features/npc/dialogue';
+import { parseMemoryFlags, setMemoryFlags } from '../../features/npc/memory';
+import {
+  awardRelationshipPoints,
+  relationshipLevelForPoints,
+} from '../../features/npc/relationship';
+import type {
+  DialogueChoice,
+  DialogueNode,
+  NpcCondition,
+  NpcContext,
+  NpcDefinition,
+} from '../../features/npc/types';
 import { advanceQuest, startQuest } from '../../features/quests/quest';
 import { evaluateQuestCondition, isObjectiveComplete } from '../../features/quests/objectives';
 import type {
@@ -1699,6 +1718,235 @@ function directorContentSuite(): GoldenSuite {
   };
 }
 
+// ---------------------------------------------------------------------------------------------
+// NPCs: dialogue conditions, node selection, choices, outcomes, relationship (LAI-0605)
+
+const NPC_CONTEXT: NpcContext = {
+  npcId: 'pip',
+  timeOfDay: 'MORNING',
+  relationshipLevel: 'ACQUAINTANCE',
+  memoryFlags: { heardAboutBridge: true, gaveShell: false },
+  worldChangeKeys: ['bridge-fixed'],
+  completedQuestIds: ['repair'],
+};
+const STRANGER_CONTEXT: NpcContext = {
+  ...NPC_CONTEXT,
+  relationshipLevel: 'STRANGER',
+  memoryFlags: {},
+  worldChangeKeys: [],
+  completedQuestIds: [],
+};
+
+const NPC_CONDITION_CASES: CaseInput<{ condition: NpcCondition; context: NpcContext }>[] = [
+  { name: 'always', input: { condition: { type: 'ALWAYS' }, context: STRANGER_CONTEXT } },
+  {
+    name: 'memory flag set and expected',
+    input: {
+      condition: { type: 'MEMORY_FLAG', flag: 'heardAboutBridge', equals: true },
+      context: NPC_CONTEXT,
+    },
+  },
+  {
+    name: 'memory flag stored false and expected false',
+    input: { condition: { type: 'MEMORY_FLAG', flag: 'gaveShell', equals: false }, context: NPC_CONTEXT },
+  },
+  {
+    name: 'unset memory flag reads as false',
+    input: { condition: { type: 'MEMORY_FLAG', flag: 'never', equals: false }, context: NPC_CONTEXT },
+  },
+  {
+    name: 'unset memory flag is not true',
+    input: { condition: { type: 'MEMORY_FLAG', flag: 'never', equals: true }, context: NPC_CONTEXT },
+  },
+  {
+    name: 'relationship at the level',
+    input: {
+      condition: { type: 'RELATIONSHIP_AT_LEAST', level: 'ACQUAINTANCE' },
+      context: NPC_CONTEXT,
+    },
+  },
+  {
+    name: 'relationship below the level',
+    input: { condition: { type: 'RELATIONSHIP_AT_LEAST', level: 'FRIEND' }, context: NPC_CONTEXT },
+  },
+  {
+    name: 'world change present',
+    input: { condition: { type: 'WORLD_CHANGE', changeKey: 'bridge-fixed' }, context: NPC_CONTEXT },
+  },
+  {
+    name: 'world change absent',
+    input: { condition: { type: 'WORLD_CHANGE', changeKey: 'bridge-fixed' }, context: STRANGER_CONTEXT },
+  },
+  {
+    name: 'quest completed',
+    input: { condition: { type: 'QUEST_COMPLETED', questId: 'repair' }, context: NPC_CONTEXT },
+  },
+  {
+    name: 'time of day matches',
+    input: { condition: { type: 'TIME_OF_DAY', timeOfDay: 'MORNING' }, context: NPC_CONTEXT },
+  },
+  {
+    name: 'time of day differs',
+    input: { condition: { type: 'TIME_OF_DAY', timeOfDay: 'EVENING' }, context: NPC_CONTEXT },
+  },
+];
+
+function node(id: string, conditions: NpcCondition[], choices: DialogueChoice[], extra = {}): DialogueNode {
+  return { id, conditions, text: `Line ${id}`, choices, ...extra };
+}
+
+const PIP: NpcDefinition = {
+  id: 'pip',
+  displayName: 'Pip',
+  role: 'Pirate',
+  homeLocationSlug: 'bay',
+  interactionId: 'talk-pip',
+  schedule: [],
+  questOffers: [],
+  dialogue: [
+    node('thanks', [{ type: 'QUEST_COMPLETED', questId: 'repair' }], [{ id: 'bye', label: 'Bye' }], {
+      awardsRelationshipPoints: 3,
+    }),
+    node(
+      'offer',
+      [{ type: 'RELATIONSHIP_AT_LEAST', level: 'ACQUAINTANCE' }],
+      [
+        { id: 'accept', label: 'Yes', nextNodeId: 'accepted' },
+        { id: 'later', label: 'Later' },
+        {
+          id: 'secret',
+          label: 'Tell me a secret',
+          nextNodeId: 'secret',
+          conditions: [{ type: 'MEMORY_FLAG', flag: 'heardAboutBridge', equals: true }],
+        },
+        { id: 'friend-only', label: 'Friend', nextNodeId: 'accepted', conditions: [{ type: 'RELATIONSHIP_AT_LEAST', level: 'FRIEND' }] },
+        { id: 'dangling', label: 'Oops', nextNodeId: 'missing' },
+      ],
+      { setsMemoryFlags: ['heardAboutBridge'], awardsRelationshipPoints: 2 },
+    ),
+    node('accepted', [{ type: 'ALWAYS' }], [], { followUpOnly: true, setsMemoryFlags: ['acceptedBridge'] }),
+    node('secret', [{ type: 'WORLD_CHANGE', changeKey: 'bridge-fixed' }], [], { followUpOnly: true }),
+    node('hello', [{ type: 'ALWAYS' }], [{ id: 'hi', label: 'Hi' }], { awardsRelationshipPoints: 1 }),
+  ],
+};
+
+const NPC_SELECT_CASES: CaseInput<{ npc: NpcDefinition; context: NpcContext }>[] = [
+  { name: 'first eligible node in authored order', input: { npc: PIP, context: NPC_CONTEXT } },
+  {
+    name: 'follow-up-only nodes are never an entry',
+    input: { npc: PIP, context: { ...STRANGER_CONTEXT, relationshipLevel: 'STRANGER' } },
+  },
+  {
+    name: 'acquaintance without the quest gets the offer',
+    input: { npc: PIP, context: { ...NPC_CONTEXT, completedQuestIds: [] } },
+  },
+  {
+    name: 'no eligible node',
+    input: { npc: { ...PIP, dialogue: [PIP.dialogue[2] as DialogueNode] }, context: STRANGER_CONTEXT },
+  },
+];
+
+const OFFER = PIP.dialogue[1] as DialogueNode;
+const NPC_CHOICE_CASES: CaseInput<{ node: DialogueNode; context: NpcContext }>[] = [
+  { name: 'choices filtered by their conditions', input: { node: OFFER, context: NPC_CONTEXT } },
+  { name: 'a stranger sees fewer choices', input: { node: OFFER, context: STRANGER_CONTEXT } },
+  {
+    name: 'a friend sees the friend choice',
+    input: { node: OFFER, context: { ...NPC_CONTEXT, relationshipLevel: 'FRIEND' } },
+  },
+];
+
+const NPC_ADVANCE_CASES: CaseInput<{ npc: NpcDefinition; choice: DialogueChoice; context: NpcContext }>[] = [
+  { name: 'a choice leads to its node', input: { npc: PIP, choice: OFFER.choices[0] as DialogueChoice, context: NPC_CONTEXT } },
+  { name: 'a choice with no next node ends the talk', input: { npc: PIP, choice: OFFER.choices[1] as DialogueChoice, context: NPC_CONTEXT } },
+  { name: 'a next node whose conditions fail ends the talk', input: { npc: PIP, choice: OFFER.choices[2] as DialogueChoice, context: STRANGER_CONTEXT } },
+  { name: 'a next node whose conditions hold', input: { npc: PIP, choice: OFFER.choices[2] as DialogueChoice, context: NPC_CONTEXT } },
+  { name: 'a dangling next node ends the talk', input: { npc: PIP, choice: OFFER.choices[4] as DialogueChoice, context: NPC_CONTEXT } },
+];
+
+const NPC_OUTCOME_CASES: CaseInput<{ node: DialogueNode; seenNodeIds: string[] }>[] = [
+  { name: 'first time: flags and points', input: { node: OFFER, seenNodeIds: [] } },
+  { name: 'seen before: flags again, no points', input: { node: OFFER, seenNodeIds: ['offer'] } },
+  { name: 'a node with no effects', input: { node: PIP.dialogue[3] as DialogueNode, seenNodeIds: [] } },
+];
+
+const NPC_LEVEL_CASES: CaseInput<{ points: number }>[] = [0, 1, 2, 5, 6, 11, 12, 99, -3].map(
+  (points) => ({ name: `${points} points`, input: { points } }),
+);
+
+const NPC_AWARD_CASES: CaseInput<{ currentPoints: number; award: number }>[] = [
+  { name: 'adds the award', input: { currentPoints: 4, award: 2 } },
+  { name: 'never subtracts', input: { currentPoints: 4, award: -3 } },
+  { name: 'truncates a fraction', input: { currentPoints: 4, award: 2.9 } },
+  { name: 'zero', input: { currentPoints: 0, award: 0 } },
+];
+
+const NPC_SET_FLAG_CASES: CaseInput<{ flags: Record<string, boolean>; flagsToSet: string[] }>[] = [
+  { name: 'sets new flags to true', input: { flags: { a: true }, flagsToSet: ['b', 'c'] } },
+  { name: 'turns a false flag true', input: { flags: { a: false }, flagsToSet: ['a'] } },
+  { name: 'nothing to set', input: { flags: { a: false }, flagsToSet: [] } },
+];
+
+const NPC_PARSE_FLAG_CASES: CaseInput<{ raw: unknown }>[] = [
+  { name: 'an object keeps its boolean entries', input: { raw: { a: true, b: 'yes', c: false, d: 1 } } },
+  { name: 'a JSON string is decoded', input: { raw: '{"a":true,"b":false}' } },
+  { name: 'null', input: { raw: null } },
+  { name: 'an array', input: { raw: [true] } },
+  { name: 'a number', input: { raw: 3 } },
+];
+
+function npcSuite(): GoldenSuite {
+  return {
+    schemaVersion: GOLDEN_SCHEMA_VERSION,
+    suite: 'npc',
+    description:
+      'NPC dialogue conditions, entry-node selection, choices, outcomes, relationship points and memory flags.',
+    sources: [
+      'react/src/features/npc/conditions.ts',
+      'react/src/features/npc/dialogue.ts',
+      'react/src/features/npc/relationship.ts',
+      'react/src/features/npc/memory.ts',
+    ],
+    notes: [
+      'evaluateCondition: an unset memory flag reads as false, so `equals: false` matches it.',
+      'selectDialogueNode: the first non-follow-up node whose conditions hold, in authored order; null when none.',
+      'advanceDialogue: no nextNodeId, an unknown nextNodeId, or a next node whose conditions fail all end the conversation (null).',
+      'dialogueOutcome: memory flags are set every time a node is shown; points only the first time.',
+      'awardRelationshipPoints: Math.max(0, Math.trunc(award)), so points never go down.',
+      'Relationship thresholds: STRANGER 0, ACQUAINTANCE 2, FRIEND 6, TRUSTED_FRIEND 12; negative points are STRANGER.',
+    ],
+    functions: {
+      evaluateCondition: vectors('evaluate_condition', ['condition', 'context'], NPC_CONDITION_CASES, ({ condition, context }) =>
+        evaluateCondition(condition, context),
+      ),
+      selectDialogueNode: vectors('select_dialogue_node', ['npc', 'context'], NPC_SELECT_CASES, ({ npc, context }) =>
+        selectDialogueNode(npc, context),
+      ),
+      availableChoices: vectors('available_choices', ['node', 'context'], NPC_CHOICE_CASES, ({ node, context }) =>
+        availableChoices(node, context),
+      ),
+      advanceDialogue: vectors('advance_dialogue', ['npc', 'choice', 'context'], NPC_ADVANCE_CASES, ({ npc, choice, context }) =>
+        advanceDialogue(npc, choice, context),
+      ),
+      dialogueOutcome: vectors('dialogue_outcome', ['node', 'seenNodeIds'], NPC_OUTCOME_CASES, ({ node, seenNodeIds }) =>
+        dialogueOutcome(node, seenNodeIds),
+      ),
+      relationshipLevelForPoints: vectors('relationship_level_for_points', ['points'], NPC_LEVEL_CASES, ({ points }) =>
+        relationshipLevelForPoints(points),
+      ),
+      awardRelationshipPoints: vectors('award_relationship_points', ['currentPoints', 'award'], NPC_AWARD_CASES, ({ currentPoints, award }) =>
+        awardRelationshipPoints(currentPoints, award),
+      ),
+      setMemoryFlags: vectors('set_memory_flags', ['flags', 'flagsToSet'], NPC_SET_FLAG_CASES, ({ flags, flagsToSet }) =>
+        setMemoryFlags(flags, flagsToSet),
+      ),
+      parseMemoryFlags: vectors('parse_memory_flags', ['raw'], NPC_PARSE_FLAG_CASES, ({ raw }) =>
+        parseMemoryFlags(raw),
+      ),
+    },
+  };
+}
+
 export function buildGoldenSuites(): GoldenSuite[] {
   return [
     adventureEngineSuite(),
@@ -1707,6 +1955,7 @@ export function buildGoldenSuites(): GoldenSuite[] {
     masterySuite(),
     directorSuite(),
     directorContentSuite(),
+    npcSuite(),
   ];
 }
 

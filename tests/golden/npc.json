@@ -1,0 +1,2345 @@
+{
+  "schemaVersion": 1,
+  "suite": "npc",
+  "description": "NPC dialogue conditions, entry-node selection, choices, outcomes, relationship points and memory flags.",
+  "sources": [
+    "react/src/features/npc/conditions.ts",
+    "react/src/features/npc/dialogue.ts",
+    "react/src/features/npc/relationship.ts",
+    "react/src/features/npc/memory.ts"
+  ],
+  "notes": [
+    "evaluateCondition: an unset memory flag reads as false, so `equals: false` matches it.",
+    "selectDialogueNode: the first non-follow-up node whose conditions hold, in authored order; null when none.",
+    "advanceDialogue: no nextNodeId, an unknown nextNodeId, or a next node whose conditions fail all end the conversation (null).",
+    "dialogueOutcome: memory flags are set every time a node is shown; points only the first time.",
+    "awardRelationshipPoints: Math.max(0, Math.trunc(award)), so points never go down.",
+    "Relationship thresholds: STRANGER 0, ACQUAINTANCE 2, FRIEND 6, TRUSTED_FRIEND 12; negative points are STRANGER."
+  ],
+  "functions": {
+    "evaluateCondition": {
+      "python": "evaluate_condition",
+      "args": [
+        "condition",
+        "context"
+      ],
+      "cases": [
+        {
+          "name": "always",
+          "input": {
+            "condition": {
+              "type": "ALWAYS"
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "STRANGER",
+              "memoryFlags": {},
+              "worldChangeKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "memory flag set and expected",
+          "input": {
+            "condition": {
+              "type": "MEMORY_FLAG",
+              "flag": "heardAboutBridge",
+              "equals": true
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "ACQUAINTANCE",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "memory flag stored false and expected false",
+          "input": {
+            "condition": {
+              "type": "MEMORY_FLAG",
+              "flag": "gaveShell",
+              "equals": false
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "ACQUAINTANCE",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "unset memory flag reads as false",
+          "input": {
+            "condition": {
+              "type": "MEMORY_FLAG",
+              "flag": "never",
+              "equals": false
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "ACQUAINTANCE",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "unset memory flag is not true",
+          "input": {
+            "condition": {
+              "type": "MEMORY_FLAG",
+              "flag": "never",
+              "equals": true
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "ACQUAINTANCE",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "relationship at the level",
+          "input": {
+            "condition": {
+              "type": "RELATIONSHIP_AT_LEAST",
+              "level": "ACQUAINTANCE"
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "ACQUAINTANCE",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "relationship below the level",
+          "input": {
+            "condition": {
+              "type": "RELATIONSHIP_AT_LEAST",
+              "level": "FRIEND"
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "ACQUAINTANCE",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "world change present",
+          "input": {
+            "condition": {
+              "type": "WORLD_CHANGE",
+              "changeKey": "bridge-fixed"
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "ACQUAINTANCE",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "world change absent",
+          "input": {
+            "condition": {
+              "type": "WORLD_CHANGE",
+              "changeKey": "bridge-fixed"
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "STRANGER",
+              "memoryFlags": {},
+              "worldChangeKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "quest completed",
+          "input": {
+            "condition": {
+              "type": "QUEST_COMPLETED",
+              "questId": "repair"
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "ACQUAINTANCE",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "time of day matches",
+          "input": {
+            "condition": {
+              "type": "TIME_OF_DAY",
+              "timeOfDay": "MORNING"
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "ACQUAINTANCE",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "time of day differs",
+          "input": {
+            "condition": {
+              "type": "TIME_OF_DAY",
+              "timeOfDay": "EVENING"
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "ACQUAINTANCE",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": false
+        }
+      ]
+    },
+    "selectDialogueNode": {
+      "python": "select_dialogue_node",
+      "args": [
+        "npc",
+        "context"
+      ],
+      "cases": [
+        {
+          "name": "first eligible node in authored order",
+          "input": {
+            "npc": {
+              "id": "pip",
+              "displayName": "Pip",
+              "role": "Pirate",
+              "homeLocationSlug": "bay",
+              "interactionId": "talk-pip",
+              "schedule": [],
+              "questOffers": [],
+              "dialogue": [
+                {
+                  "id": "thanks",
+                  "conditions": [
+                    {
+                      "type": "QUEST_COMPLETED",
+                      "questId": "repair"
+                    }
+                  ],
+                  "text": "Line thanks",
+                  "choices": [
+                    {
+                      "id": "bye",
+                      "label": "Bye"
+                    }
+                  ],
+                  "awardsRelationshipPoints": 3
+                },
+                {
+                  "id": "offer",
+                  "conditions": [
+                    {
+                      "type": "RELATIONSHIP_AT_LEAST",
+                      "level": "ACQUAINTANCE"
+                    }
+                  ],
+                  "text": "Line offer",
+                  "choices": [
+                    {
+                      "id": "accept",
+                      "label": "Yes",
+                      "nextNodeId": "accepted"
+                    },
+                    {
+                      "id": "later",
+                      "label": "Later"
+                    },
+                    {
+                      "id": "secret",
+                      "label": "Tell me a secret",
+                      "nextNodeId": "secret",
+                      "conditions": [
+                        {
+                          "type": "MEMORY_FLAG",
+                          "flag": "heardAboutBridge",
+                          "equals": true
+                        }
+                      ]
+                    },
+                    {
+                      "id": "friend-only",
+                      "label": "Friend",
+                      "nextNodeId": "accepted",
+                      "conditions": [
+                        {
+                          "type": "RELATIONSHIP_AT_LEAST",
+                          "level": "FRIEND"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "dangling",
+                      "label": "Oops",
+                      "nextNodeId": "missing"
+                    }
+                  ],
+                  "setsMemoryFlags": [
+                    "heardAboutBridge"
+                  ],
+                  "awardsRelationshipPoints": 2
+                },
+                {
+                  "id": "accepted",
+                  "conditions": [
+                    {
+                      "type": "ALWAYS"
+                    }
+                  ],
+                  "text": "Line accepted",
+                  "choices": [],
+                  "followUpOnly": true,
+                  "setsMemoryFlags": [
+                    "acceptedBridge"
+                  ]
+                },
+                {
+                  "id": "secret",
+                  "conditions": [
+                    {
+                      "type": "WORLD_CHANGE",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ],
+                  "text": "Line secret",
+                  "choices": [],
+                  "followUpOnly": true
+                },
+                {
+                  "id": "hello",
+                  "conditions": [
+                    {
+                      "type": "ALWAYS"
+                    }
+                  ],
+                  "text": "Line hello",
+                  "choices": [
+                    {
+                      "id": "hi",
+                      "label": "Hi"
+                    }
+                  ],
+                  "awardsRelationshipPoints": 1
+                }
+              ]
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "ACQUAINTANCE",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": {
+            "id": "thanks",
+            "conditions": [
+              {
+                "type": "QUEST_COMPLETED",
+                "questId": "repair"
+              }
+            ],
+            "text": "Line thanks",
+            "choices": [
+              {
+                "id": "bye",
+                "label": "Bye"
+              }
+            ],
+            "awardsRelationshipPoints": 3
+          }
+        },
+        {
+          "name": "follow-up-only nodes are never an entry",
+          "input": {
+            "npc": {
+              "id": "pip",
+              "displayName": "Pip",
+              "role": "Pirate",
+              "homeLocationSlug": "bay",
+              "interactionId": "talk-pip",
+              "schedule": [],
+              "questOffers": [],
+              "dialogue": [
+                {
+                  "id": "thanks",
+                  "conditions": [
+                    {
+                      "type": "QUEST_COMPLETED",
+                      "questId": "repair"
+                    }
+                  ],
+                  "text": "Line thanks",
+                  "choices": [
+                    {
+                      "id": "bye",
+                      "label": "Bye"
+                    }
+                  ],
+                  "awardsRelationshipPoints": 3
+                },
+                {
+                  "id": "offer",
+                  "conditions": [
+                    {
+                      "type": "RELATIONSHIP_AT_LEAST",
+                      "level": "ACQUAINTANCE"
+                    }
+                  ],
+                  "text": "Line offer",
+                  "choices": [
+                    {
+                      "id": "accept",
+                      "label": "Yes",
+                      "nextNodeId": "accepted"
+                    },
+                    {
+                      "id": "later",
+                      "label": "Later"
+                    },
+                    {
+                      "id": "secret",
+                      "label": "Tell me a secret",
+                      "nextNodeId": "secret",
+                      "conditions": [
+                        {
+                          "type": "MEMORY_FLAG",
+                          "flag": "heardAboutBridge",
+                          "equals": true
+                        }
+                      ]
+                    },
+                    {
+                      "id": "friend-only",
+                      "label": "Friend",
+                      "nextNodeId": "accepted",
+                      "conditions": [
+                        {
+                          "type": "RELATIONSHIP_AT_LEAST",
+                          "level": "FRIEND"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "dangling",
+                      "label": "Oops",
+                      "nextNodeId": "missing"
+                    }
+                  ],
+                  "setsMemoryFlags": [
+                    "heardAboutBridge"
+                  ],
+                  "awardsRelationshipPoints": 2
+                },
+                {
+                  "id": "accepted",
+                  "conditions": [
+                    {
+                      "type": "ALWAYS"
+                    }
+                  ],
+                  "text": "Line accepted",
+                  "choices": [],
+                  "followUpOnly": true,
+                  "setsMemoryFlags": [
+                    "acceptedBridge"
+                  ]
+                },
+                {
+                  "id": "secret",
+                  "conditions": [
+                    {
+                      "type": "WORLD_CHANGE",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ],
+                  "text": "Line secret",
+                  "choices": [],
+                  "followUpOnly": true
+                },
+                {
+                  "id": "hello",
+                  "conditions": [
+                    {
+                      "type": "ALWAYS"
+                    }
+                  ],
+                  "text": "Line hello",
+                  "choices": [
+                    {
+                      "id": "hi",
+                      "label": "Hi"
+                    }
+                  ],
+                  "awardsRelationshipPoints": 1
+                }
+              ]
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "STRANGER",
+              "memoryFlags": {},
+              "worldChangeKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": {
+            "id": "hello",
+            "conditions": [
+              {
+                "type": "ALWAYS"
+              }
+            ],
+            "text": "Line hello",
+            "choices": [
+              {
+                "id": "hi",
+                "label": "Hi"
+              }
+            ],
+            "awardsRelationshipPoints": 1
+          }
+        },
+        {
+          "name": "acquaintance without the quest gets the offer",
+          "input": {
+            "npc": {
+              "id": "pip",
+              "displayName": "Pip",
+              "role": "Pirate",
+              "homeLocationSlug": "bay",
+              "interactionId": "talk-pip",
+              "schedule": [],
+              "questOffers": [],
+              "dialogue": [
+                {
+                  "id": "thanks",
+                  "conditions": [
+                    {
+                      "type": "QUEST_COMPLETED",
+                      "questId": "repair"
+                    }
+                  ],
+                  "text": "Line thanks",
+                  "choices": [
+                    {
+                      "id": "bye",
+                      "label": "Bye"
+                    }
+                  ],
+                  "awardsRelationshipPoints": 3
+                },
+                {
+                  "id": "offer",
+                  "conditions": [
+                    {
+                      "type": "RELATIONSHIP_AT_LEAST",
+                      "level": "ACQUAINTANCE"
+                    }
+                  ],
+                  "text": "Line offer",
+                  "choices": [
+                    {
+                      "id": "accept",
+                      "label": "Yes",
+                      "nextNodeId": "accepted"
+                    },
+                    {
+                      "id": "later",
+                      "label": "Later"
+                    },
+                    {
+                      "id": "secret",
+                      "label": "Tell me a secret",
+                      "nextNodeId": "secret",
+                      "conditions": [
+                        {
+                          "type": "MEMORY_FLAG",
+                          "flag": "heardAboutBridge",
+                          "equals": true
+                        }
+                      ]
+                    },
+                    {
+                      "id": "friend-only",
+                      "label": "Friend",
+                      "nextNodeId": "accepted",
+                      "conditions": [
+                        {
+                          "type": "RELATIONSHIP_AT_LEAST",
+                          "level": "FRIEND"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "dangling",
+                      "label": "Oops",
+                      "nextNodeId": "missing"
+                    }
+                  ],
+                  "setsMemoryFlags": [
+                    "heardAboutBridge"
+                  ],
+                  "awardsRelationshipPoints": 2
+                },
+                {
+                  "id": "accepted",
+                  "conditions": [
+                    {
+                      "type": "ALWAYS"
+                    }
+                  ],
+                  "text": "Line accepted",
+                  "choices": [],
+                  "followUpOnly": true,
+                  "setsMemoryFlags": [
+                    "acceptedBridge"
+                  ]
+                },
+                {
+                  "id": "secret",
+                  "conditions": [
+                    {
+                      "type": "WORLD_CHANGE",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ],
+                  "text": "Line secret",
+                  "choices": [],
+                  "followUpOnly": true
+                },
+                {
+                  "id": "hello",
+                  "conditions": [
+                    {
+                      "type": "ALWAYS"
+                    }
+                  ],
+                  "text": "Line hello",
+                  "choices": [
+                    {
+                      "id": "hi",
+                      "label": "Hi"
+                    }
+                  ],
+                  "awardsRelationshipPoints": 1
+                }
+              ]
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "ACQUAINTANCE",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": []
+            }
+          },
+          "expected": {
+            "id": "offer",
+            "conditions": [
+              {
+                "type": "RELATIONSHIP_AT_LEAST",
+                "level": "ACQUAINTANCE"
+              }
+            ],
+            "text": "Line offer",
+            "choices": [
+              {
+                "id": "accept",
+                "label": "Yes",
+                "nextNodeId": "accepted"
+              },
+              {
+                "id": "later",
+                "label": "Later"
+              },
+              {
+                "id": "secret",
+                "label": "Tell me a secret",
+                "nextNodeId": "secret",
+                "conditions": [
+                  {
+                    "type": "MEMORY_FLAG",
+                    "flag": "heardAboutBridge",
+                    "equals": true
+                  }
+                ]
+              },
+              {
+                "id": "friend-only",
+                "label": "Friend",
+                "nextNodeId": "accepted",
+                "conditions": [
+                  {
+                    "type": "RELATIONSHIP_AT_LEAST",
+                    "level": "FRIEND"
+                  }
+                ]
+              },
+              {
+                "id": "dangling",
+                "label": "Oops",
+                "nextNodeId": "missing"
+              }
+            ],
+            "setsMemoryFlags": [
+              "heardAboutBridge"
+            ],
+            "awardsRelationshipPoints": 2
+          }
+        },
+        {
+          "name": "no eligible node",
+          "input": {
+            "npc": {
+              "id": "pip",
+              "displayName": "Pip",
+              "role": "Pirate",
+              "homeLocationSlug": "bay",
+              "interactionId": "talk-pip",
+              "schedule": [],
+              "questOffers": [],
+              "dialogue": [
+                {
+                  "id": "accepted",
+                  "conditions": [
+                    {
+                      "type": "ALWAYS"
+                    }
+                  ],
+                  "text": "Line accepted",
+                  "choices": [],
+                  "followUpOnly": true,
+                  "setsMemoryFlags": [
+                    "acceptedBridge"
+                  ]
+                }
+              ]
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "STRANGER",
+              "memoryFlags": {},
+              "worldChangeKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": null
+        }
+      ]
+    },
+    "availableChoices": {
+      "python": "available_choices",
+      "args": [
+        "node",
+        "context"
+      ],
+      "cases": [
+        {
+          "name": "choices filtered by their conditions",
+          "input": {
+            "node": {
+              "id": "offer",
+              "conditions": [
+                {
+                  "type": "RELATIONSHIP_AT_LEAST",
+                  "level": "ACQUAINTANCE"
+                }
+              ],
+              "text": "Line offer",
+              "choices": [
+                {
+                  "id": "accept",
+                  "label": "Yes",
+                  "nextNodeId": "accepted"
+                },
+                {
+                  "id": "later",
+                  "label": "Later"
+                },
+                {
+                  "id": "secret",
+                  "label": "Tell me a secret",
+                  "nextNodeId": "secret",
+                  "conditions": [
+                    {
+                      "type": "MEMORY_FLAG",
+                      "flag": "heardAboutBridge",
+                      "equals": true
+                    }
+                  ]
+                },
+                {
+                  "id": "friend-only",
+                  "label": "Friend",
+                  "nextNodeId": "accepted",
+                  "conditions": [
+                    {
+                      "type": "RELATIONSHIP_AT_LEAST",
+                      "level": "FRIEND"
+                    }
+                  ]
+                },
+                {
+                  "id": "dangling",
+                  "label": "Oops",
+                  "nextNodeId": "missing"
+                }
+              ],
+              "setsMemoryFlags": [
+                "heardAboutBridge"
+              ],
+              "awardsRelationshipPoints": 2
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "ACQUAINTANCE",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": [
+            {
+              "id": "accept",
+              "label": "Yes",
+              "nextNodeId": "accepted"
+            },
+            {
+              "id": "later",
+              "label": "Later"
+            },
+            {
+              "id": "secret",
+              "label": "Tell me a secret",
+              "nextNodeId": "secret",
+              "conditions": [
+                {
+                  "type": "MEMORY_FLAG",
+                  "flag": "heardAboutBridge",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "id": "dangling",
+              "label": "Oops",
+              "nextNodeId": "missing"
+            }
+          ]
+        },
+        {
+          "name": "a stranger sees fewer choices",
+          "input": {
+            "node": {
+              "id": "offer",
+              "conditions": [
+                {
+                  "type": "RELATIONSHIP_AT_LEAST",
+                  "level": "ACQUAINTANCE"
+                }
+              ],
+              "text": "Line offer",
+              "choices": [
+                {
+                  "id": "accept",
+                  "label": "Yes",
+                  "nextNodeId": "accepted"
+                },
+                {
+                  "id": "later",
+                  "label": "Later"
+                },
+                {
+                  "id": "secret",
+                  "label": "Tell me a secret",
+                  "nextNodeId": "secret",
+                  "conditions": [
+                    {
+                      "type": "MEMORY_FLAG",
+                      "flag": "heardAboutBridge",
+                      "equals": true
+                    }
+                  ]
+                },
+                {
+                  "id": "friend-only",
+                  "label": "Friend",
+                  "nextNodeId": "accepted",
+                  "conditions": [
+                    {
+                      "type": "RELATIONSHIP_AT_LEAST",
+                      "level": "FRIEND"
+                    }
+                  ]
+                },
+                {
+                  "id": "dangling",
+                  "label": "Oops",
+                  "nextNodeId": "missing"
+                }
+              ],
+              "setsMemoryFlags": [
+                "heardAboutBridge"
+              ],
+              "awardsRelationshipPoints": 2
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "STRANGER",
+              "memoryFlags": {},
+              "worldChangeKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": [
+            {
+              "id": "accept",
+              "label": "Yes",
+              "nextNodeId": "accepted"
+            },
+            {
+              "id": "later",
+              "label": "Later"
+            },
+            {
+              "id": "dangling",
+              "label": "Oops",
+              "nextNodeId": "missing"
+            }
+          ]
+        },
+        {
+          "name": "a friend sees the friend choice",
+          "input": {
+            "node": {
+              "id": "offer",
+              "conditions": [
+                {
+                  "type": "RELATIONSHIP_AT_LEAST",
+                  "level": "ACQUAINTANCE"
+                }
+              ],
+              "text": "Line offer",
+              "choices": [
+                {
+                  "id": "accept",
+                  "label": "Yes",
+                  "nextNodeId": "accepted"
+                },
+                {
+                  "id": "later",
+                  "label": "Later"
+                },
+                {
+                  "id": "secret",
+                  "label": "Tell me a secret",
+                  "nextNodeId": "secret",
+                  "conditions": [
+                    {
+                      "type": "MEMORY_FLAG",
+                      "flag": "heardAboutBridge",
+                      "equals": true
+                    }
+                  ]
+                },
+                {
+                  "id": "friend-only",
+                  "label": "Friend",
+                  "nextNodeId": "accepted",
+                  "conditions": [
+                    {
+                      "type": "RELATIONSHIP_AT_LEAST",
+                      "level": "FRIEND"
+                    }
+                  ]
+                },
+                {
+                  "id": "dangling",
+                  "label": "Oops",
+                  "nextNodeId": "missing"
+                }
+              ],
+              "setsMemoryFlags": [
+                "heardAboutBridge"
+              ],
+              "awardsRelationshipPoints": 2
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "FRIEND",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": [
+            {
+              "id": "accept",
+              "label": "Yes",
+              "nextNodeId": "accepted"
+            },
+            {
+              "id": "later",
+              "label": "Later"
+            },
+            {
+              "id": "secret",
+              "label": "Tell me a secret",
+              "nextNodeId": "secret",
+              "conditions": [
+                {
+                  "type": "MEMORY_FLAG",
+                  "flag": "heardAboutBridge",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "id": "friend-only",
+              "label": "Friend",
+              "nextNodeId": "accepted",
+              "conditions": [
+                {
+                  "type": "RELATIONSHIP_AT_LEAST",
+                  "level": "FRIEND"
+                }
+              ]
+            },
+            {
+              "id": "dangling",
+              "label": "Oops",
+              "nextNodeId": "missing"
+            }
+          ]
+        }
+      ]
+    },
+    "advanceDialogue": {
+      "python": "advance_dialogue",
+      "args": [
+        "npc",
+        "choice",
+        "context"
+      ],
+      "cases": [
+        {
+          "name": "a choice leads to its node",
+          "input": {
+            "npc": {
+              "id": "pip",
+              "displayName": "Pip",
+              "role": "Pirate",
+              "homeLocationSlug": "bay",
+              "interactionId": "talk-pip",
+              "schedule": [],
+              "questOffers": [],
+              "dialogue": [
+                {
+                  "id": "thanks",
+                  "conditions": [
+                    {
+                      "type": "QUEST_COMPLETED",
+                      "questId": "repair"
+                    }
+                  ],
+                  "text": "Line thanks",
+                  "choices": [
+                    {
+                      "id": "bye",
+                      "label": "Bye"
+                    }
+                  ],
+                  "awardsRelationshipPoints": 3
+                },
+                {
+                  "id": "offer",
+                  "conditions": [
+                    {
+                      "type": "RELATIONSHIP_AT_LEAST",
+                      "level": "ACQUAINTANCE"
+                    }
+                  ],
+                  "text": "Line offer",
+                  "choices": [
+                    {
+                      "id": "accept",
+                      "label": "Yes",
+                      "nextNodeId": "accepted"
+                    },
+                    {
+                      "id": "later",
+                      "label": "Later"
+                    },
+                    {
+                      "id": "secret",
+                      "label": "Tell me a secret",
+                      "nextNodeId": "secret",
+                      "conditions": [
+                        {
+                          "type": "MEMORY_FLAG",
+                          "flag": "heardAboutBridge",
+                          "equals": true
+                        }
+                      ]
+                    },
+                    {
+                      "id": "friend-only",
+                      "label": "Friend",
+                      "nextNodeId": "accepted",
+                      "conditions": [
+                        {
+                          "type": "RELATIONSHIP_AT_LEAST",
+                          "level": "FRIEND"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "dangling",
+                      "label": "Oops",
+                      "nextNodeId": "missing"
+                    }
+                  ],
+                  "setsMemoryFlags": [
+                    "heardAboutBridge"
+                  ],
+                  "awardsRelationshipPoints": 2
+                },
+                {
+                  "id": "accepted",
+                  "conditions": [
+                    {
+                      "type": "ALWAYS"
+                    }
+                  ],
+                  "text": "Line accepted",
+                  "choices": [],
+                  "followUpOnly": true,
+                  "setsMemoryFlags": [
+                    "acceptedBridge"
+                  ]
+                },
+                {
+                  "id": "secret",
+                  "conditions": [
+                    {
+                      "type": "WORLD_CHANGE",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ],
+                  "text": "Line secret",
+                  "choices": [],
+                  "followUpOnly": true
+                },
+                {
+                  "id": "hello",
+                  "conditions": [
+                    {
+                      "type": "ALWAYS"
+                    }
+                  ],
+                  "text": "Line hello",
+                  "choices": [
+                    {
+                      "id": "hi",
+                      "label": "Hi"
+                    }
+                  ],
+                  "awardsRelationshipPoints": 1
+                }
+              ]
+            },
+            "choice": {
+              "id": "accept",
+              "label": "Yes",
+              "nextNodeId": "accepted"
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "ACQUAINTANCE",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": {
+            "id": "accepted",
+            "conditions": [
+              {
+                "type": "ALWAYS"
+              }
+            ],
+            "text": "Line accepted",
+            "choices": [],
+            "followUpOnly": true,
+            "setsMemoryFlags": [
+              "acceptedBridge"
+            ]
+          }
+        },
+        {
+          "name": "a choice with no next node ends the talk",
+          "input": {
+            "npc": {
+              "id": "pip",
+              "displayName": "Pip",
+              "role": "Pirate",
+              "homeLocationSlug": "bay",
+              "interactionId": "talk-pip",
+              "schedule": [],
+              "questOffers": [],
+              "dialogue": [
+                {
+                  "id": "thanks",
+                  "conditions": [
+                    {
+                      "type": "QUEST_COMPLETED",
+                      "questId": "repair"
+                    }
+                  ],
+                  "text": "Line thanks",
+                  "choices": [
+                    {
+                      "id": "bye",
+                      "label": "Bye"
+                    }
+                  ],
+                  "awardsRelationshipPoints": 3
+                },
+                {
+                  "id": "offer",
+                  "conditions": [
+                    {
+                      "type": "RELATIONSHIP_AT_LEAST",
+                      "level": "ACQUAINTANCE"
+                    }
+                  ],
+                  "text": "Line offer",
+                  "choices": [
+                    {
+                      "id": "accept",
+                      "label": "Yes",
+                      "nextNodeId": "accepted"
+                    },
+                    {
+                      "id": "later",
+                      "label": "Later"
+                    },
+                    {
+                      "id": "secret",
+                      "label": "Tell me a secret",
+                      "nextNodeId": "secret",
+                      "conditions": [
+                        {
+                          "type": "MEMORY_FLAG",
+                          "flag": "heardAboutBridge",
+                          "equals": true
+                        }
+                      ]
+                    },
+                    {
+                      "id": "friend-only",
+                      "label": "Friend",
+                      "nextNodeId": "accepted",
+                      "conditions": [
+                        {
+                          "type": "RELATIONSHIP_AT_LEAST",
+                          "level": "FRIEND"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "dangling",
+                      "label": "Oops",
+                      "nextNodeId": "missing"
+                    }
+                  ],
+                  "setsMemoryFlags": [
+                    "heardAboutBridge"
+                  ],
+                  "awardsRelationshipPoints": 2
+                },
+                {
+                  "id": "accepted",
+                  "conditions": [
+                    {
+                      "type": "ALWAYS"
+                    }
+                  ],
+                  "text": "Line accepted",
+                  "choices": [],
+                  "followUpOnly": true,
+                  "setsMemoryFlags": [
+                    "acceptedBridge"
+                  ]
+                },
+                {
+                  "id": "secret",
+                  "conditions": [
+                    {
+                      "type": "WORLD_CHANGE",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ],
+                  "text": "Line secret",
+                  "choices": [],
+                  "followUpOnly": true
+                },
+                {
+                  "id": "hello",
+                  "conditions": [
+                    {
+                      "type": "ALWAYS"
+                    }
+                  ],
+                  "text": "Line hello",
+                  "choices": [
+                    {
+                      "id": "hi",
+                      "label": "Hi"
+                    }
+                  ],
+                  "awardsRelationshipPoints": 1
+                }
+              ]
+            },
+            "choice": {
+              "id": "later",
+              "label": "Later"
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "ACQUAINTANCE",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": null
+        },
+        {
+          "name": "a next node whose conditions fail ends the talk",
+          "input": {
+            "npc": {
+              "id": "pip",
+              "displayName": "Pip",
+              "role": "Pirate",
+              "homeLocationSlug": "bay",
+              "interactionId": "talk-pip",
+              "schedule": [],
+              "questOffers": [],
+              "dialogue": [
+                {
+                  "id": "thanks",
+                  "conditions": [
+                    {
+                      "type": "QUEST_COMPLETED",
+                      "questId": "repair"
+                    }
+                  ],
+                  "text": "Line thanks",
+                  "choices": [
+                    {
+                      "id": "bye",
+                      "label": "Bye"
+                    }
+                  ],
+                  "awardsRelationshipPoints": 3
+                },
+                {
+                  "id": "offer",
+                  "conditions": [
+                    {
+                      "type": "RELATIONSHIP_AT_LEAST",
+                      "level": "ACQUAINTANCE"
+                    }
+                  ],
+                  "text": "Line offer",
+                  "choices": [
+                    {
+                      "id": "accept",
+                      "label": "Yes",
+                      "nextNodeId": "accepted"
+                    },
+                    {
+                      "id": "later",
+                      "label": "Later"
+                    },
+                    {
+                      "id": "secret",
+                      "label": "Tell me a secret",
+                      "nextNodeId": "secret",
+                      "conditions": [
+                        {
+                          "type": "MEMORY_FLAG",
+                          "flag": "heardAboutBridge",
+                          "equals": true
+                        }
+                      ]
+                    },
+                    {
+                      "id": "friend-only",
+                      "label": "Friend",
+                      "nextNodeId": "accepted",
+                      "conditions": [
+                        {
+                          "type": "RELATIONSHIP_AT_LEAST",
+                          "level": "FRIEND"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "dangling",
+                      "label": "Oops",
+                      "nextNodeId": "missing"
+                    }
+                  ],
+                  "setsMemoryFlags": [
+                    "heardAboutBridge"
+                  ],
+                  "awardsRelationshipPoints": 2
+                },
+                {
+                  "id": "accepted",
+                  "conditions": [
+                    {
+                      "type": "ALWAYS"
+                    }
+                  ],
+                  "text": "Line accepted",
+                  "choices": [],
+                  "followUpOnly": true,
+                  "setsMemoryFlags": [
+                    "acceptedBridge"
+                  ]
+                },
+                {
+                  "id": "secret",
+                  "conditions": [
+                    {
+                      "type": "WORLD_CHANGE",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ],
+                  "text": "Line secret",
+                  "choices": [],
+                  "followUpOnly": true
+                },
+                {
+                  "id": "hello",
+                  "conditions": [
+                    {
+                      "type": "ALWAYS"
+                    }
+                  ],
+                  "text": "Line hello",
+                  "choices": [
+                    {
+                      "id": "hi",
+                      "label": "Hi"
+                    }
+                  ],
+                  "awardsRelationshipPoints": 1
+                }
+              ]
+            },
+            "choice": {
+              "id": "secret",
+              "label": "Tell me a secret",
+              "nextNodeId": "secret",
+              "conditions": [
+                {
+                  "type": "MEMORY_FLAG",
+                  "flag": "heardAboutBridge",
+                  "equals": true
+                }
+              ]
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "STRANGER",
+              "memoryFlags": {},
+              "worldChangeKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": null
+        },
+        {
+          "name": "a next node whose conditions hold",
+          "input": {
+            "npc": {
+              "id": "pip",
+              "displayName": "Pip",
+              "role": "Pirate",
+              "homeLocationSlug": "bay",
+              "interactionId": "talk-pip",
+              "schedule": [],
+              "questOffers": [],
+              "dialogue": [
+                {
+                  "id": "thanks",
+                  "conditions": [
+                    {
+                      "type": "QUEST_COMPLETED",
+                      "questId": "repair"
+                    }
+                  ],
+                  "text": "Line thanks",
+                  "choices": [
+                    {
+                      "id": "bye",
+                      "label": "Bye"
+                    }
+                  ],
+                  "awardsRelationshipPoints": 3
+                },
+                {
+                  "id": "offer",
+                  "conditions": [
+                    {
+                      "type": "RELATIONSHIP_AT_LEAST",
+                      "level": "ACQUAINTANCE"
+                    }
+                  ],
+                  "text": "Line offer",
+                  "choices": [
+                    {
+                      "id": "accept",
+                      "label": "Yes",
+                      "nextNodeId": "accepted"
+                    },
+                    {
+                      "id": "later",
+                      "label": "Later"
+                    },
+                    {
+                      "id": "secret",
+                      "label": "Tell me a secret",
+                      "nextNodeId": "secret",
+                      "conditions": [
+                        {
+                          "type": "MEMORY_FLAG",
+                          "flag": "heardAboutBridge",
+                          "equals": true
+                        }
+                      ]
+                    },
+                    {
+                      "id": "friend-only",
+                      "label": "Friend",
+                      "nextNodeId": "accepted",
+                      "conditions": [
+                        {
+                          "type": "RELATIONSHIP_AT_LEAST",
+                          "level": "FRIEND"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "dangling",
+                      "label": "Oops",
+                      "nextNodeId": "missing"
+                    }
+                  ],
+                  "setsMemoryFlags": [
+                    "heardAboutBridge"
+                  ],
+                  "awardsRelationshipPoints": 2
+                },
+                {
+                  "id": "accepted",
+                  "conditions": [
+                    {
+                      "type": "ALWAYS"
+                    }
+                  ],
+                  "text": "Line accepted",
+                  "choices": [],
+                  "followUpOnly": true,
+                  "setsMemoryFlags": [
+                    "acceptedBridge"
+                  ]
+                },
+                {
+                  "id": "secret",
+                  "conditions": [
+                    {
+                      "type": "WORLD_CHANGE",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ],
+                  "text": "Line secret",
+                  "choices": [],
+                  "followUpOnly": true
+                },
+                {
+                  "id": "hello",
+                  "conditions": [
+                    {
+                      "type": "ALWAYS"
+                    }
+                  ],
+                  "text": "Line hello",
+                  "choices": [
+                    {
+                      "id": "hi",
+                      "label": "Hi"
+                    }
+                  ],
+                  "awardsRelationshipPoints": 1
+                }
+              ]
+            },
+            "choice": {
+              "id": "secret",
+              "label": "Tell me a secret",
+              "nextNodeId": "secret",
+              "conditions": [
+                {
+                  "type": "MEMORY_FLAG",
+                  "flag": "heardAboutBridge",
+                  "equals": true
+                }
+              ]
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "ACQUAINTANCE",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": {
+            "id": "secret",
+            "conditions": [
+              {
+                "type": "WORLD_CHANGE",
+                "changeKey": "bridge-fixed"
+              }
+            ],
+            "text": "Line secret",
+            "choices": [],
+            "followUpOnly": true
+          }
+        },
+        {
+          "name": "a dangling next node ends the talk",
+          "input": {
+            "npc": {
+              "id": "pip",
+              "displayName": "Pip",
+              "role": "Pirate",
+              "homeLocationSlug": "bay",
+              "interactionId": "talk-pip",
+              "schedule": [],
+              "questOffers": [],
+              "dialogue": [
+                {
+                  "id": "thanks",
+                  "conditions": [
+                    {
+                      "type": "QUEST_COMPLETED",
+                      "questId": "repair"
+                    }
+                  ],
+                  "text": "Line thanks",
+                  "choices": [
+                    {
+                      "id": "bye",
+                      "label": "Bye"
+                    }
+                  ],
+                  "awardsRelationshipPoints": 3
+                },
+                {
+                  "id": "offer",
+                  "conditions": [
+                    {
+                      "type": "RELATIONSHIP_AT_LEAST",
+                      "level": "ACQUAINTANCE"
+                    }
+                  ],
+                  "text": "Line offer",
+                  "choices": [
+                    {
+                      "id": "accept",
+                      "label": "Yes",
+                      "nextNodeId": "accepted"
+                    },
+                    {
+                      "id": "later",
+                      "label": "Later"
+                    },
+                    {
+                      "id": "secret",
+                      "label": "Tell me a secret",
+                      "nextNodeId": "secret",
+                      "conditions": [
+                        {
+                          "type": "MEMORY_FLAG",
+                          "flag": "heardAboutBridge",
+                          "equals": true
+                        }
+                      ]
+                    },
+                    {
+                      "id": "friend-only",
+                      "label": "Friend",
+                      "nextNodeId": "accepted",
+                      "conditions": [
+                        {
+                          "type": "RELATIONSHIP_AT_LEAST",
+                          "level": "FRIEND"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "dangling",
+                      "label": "Oops",
+                      "nextNodeId": "missing"
+                    }
+                  ],
+                  "setsMemoryFlags": [
+                    "heardAboutBridge"
+                  ],
+                  "awardsRelationshipPoints": 2
+                },
+                {
+                  "id": "accepted",
+                  "conditions": [
+                    {
+                      "type": "ALWAYS"
+                    }
+                  ],
+                  "text": "Line accepted",
+                  "choices": [],
+                  "followUpOnly": true,
+                  "setsMemoryFlags": [
+                    "acceptedBridge"
+                  ]
+                },
+                {
+                  "id": "secret",
+                  "conditions": [
+                    {
+                      "type": "WORLD_CHANGE",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ],
+                  "text": "Line secret",
+                  "choices": [],
+                  "followUpOnly": true
+                },
+                {
+                  "id": "hello",
+                  "conditions": [
+                    {
+                      "type": "ALWAYS"
+                    }
+                  ],
+                  "text": "Line hello",
+                  "choices": [
+                    {
+                      "id": "hi",
+                      "label": "Hi"
+                    }
+                  ],
+                  "awardsRelationshipPoints": 1
+                }
+              ]
+            },
+            "choice": {
+              "id": "dangling",
+              "label": "Oops",
+              "nextNodeId": "missing"
+            },
+            "context": {
+              "npcId": "pip",
+              "timeOfDay": "MORNING",
+              "relationshipLevel": "ACQUAINTANCE",
+              "memoryFlags": {
+                "heardAboutBridge": true,
+                "gaveShell": false
+              },
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": null
+        }
+      ]
+    },
+    "dialogueOutcome": {
+      "python": "dialogue_outcome",
+      "args": [
+        "node",
+        "seenNodeIds"
+      ],
+      "cases": [
+        {
+          "name": "first time: flags and points",
+          "input": {
+            "node": {
+              "id": "offer",
+              "conditions": [
+                {
+                  "type": "RELATIONSHIP_AT_LEAST",
+                  "level": "ACQUAINTANCE"
+                }
+              ],
+              "text": "Line offer",
+              "choices": [
+                {
+                  "id": "accept",
+                  "label": "Yes",
+                  "nextNodeId": "accepted"
+                },
+                {
+                  "id": "later",
+                  "label": "Later"
+                },
+                {
+                  "id": "secret",
+                  "label": "Tell me a secret",
+                  "nextNodeId": "secret",
+                  "conditions": [
+                    {
+                      "type": "MEMORY_FLAG",
+                      "flag": "heardAboutBridge",
+                      "equals": true
+                    }
+                  ]
+                },
+                {
+                  "id": "friend-only",
+                  "label": "Friend",
+                  "nextNodeId": "accepted",
+                  "conditions": [
+                    {
+                      "type": "RELATIONSHIP_AT_LEAST",
+                      "level": "FRIEND"
+                    }
+                  ]
+                },
+                {
+                  "id": "dangling",
+                  "label": "Oops",
+                  "nextNodeId": "missing"
+                }
+              ],
+              "setsMemoryFlags": [
+                "heardAboutBridge"
+              ],
+              "awardsRelationshipPoints": 2
+            },
+            "seenNodeIds": []
+          },
+          "expected": {
+            "memoryFlagsToSet": [
+              "heardAboutBridge"
+            ],
+            "relationshipPointsAwarded": 2
+          }
+        },
+        {
+          "name": "seen before: flags again, no points",
+          "input": {
+            "node": {
+              "id": "offer",
+              "conditions": [
+                {
+                  "type": "RELATIONSHIP_AT_LEAST",
+                  "level": "ACQUAINTANCE"
+                }
+              ],
+              "text": "Line offer",
+              "choices": [
+                {
+                  "id": "accept",
+                  "label": "Yes",
+                  "nextNodeId": "accepted"
+                },
+                {
+                  "id": "later",
+                  "label": "Later"
+                },
+                {
+                  "id": "secret",
+                  "label": "Tell me a secret",
+                  "nextNodeId": "secret",
+                  "conditions": [
+                    {
+                      "type": "MEMORY_FLAG",
+                      "flag": "heardAboutBridge",
+                      "equals": true
+                    }
+                  ]
+                },
+                {
+                  "id": "friend-only",
+                  "label": "Friend",
+                  "nextNodeId": "accepted",
+                  "conditions": [
+                    {
+                      "type": "RELATIONSHIP_AT_LEAST",
+                      "level": "FRIEND"
+                    }
+                  ]
+                },
+                {
+                  "id": "dangling",
+                  "label": "Oops",
+                  "nextNodeId": "missing"
+                }
+              ],
+              "setsMemoryFlags": [
+                "heardAboutBridge"
+              ],
+              "awardsRelationshipPoints": 2
+            },
+            "seenNodeIds": [
+              "offer"
+            ]
+          },
+          "expected": {
+            "memoryFlagsToSet": [
+              "heardAboutBridge"
+            ],
+            "relationshipPointsAwarded": 0
+          }
+        },
+        {
+          "name": "a node with no effects",
+          "input": {
+            "node": {
+              "id": "secret",
+              "conditions": [
+                {
+                  "type": "WORLD_CHANGE",
+                  "changeKey": "bridge-fixed"
+                }
+              ],
+              "text": "Line secret",
+              "choices": [],
+              "followUpOnly": true
+            },
+            "seenNodeIds": []
+          },
+          "expected": {
+            "memoryFlagsToSet": [],
+            "relationshipPointsAwarded": 0
+          }
+        }
+      ]
+    },
+    "relationshipLevelForPoints": {
+      "python": "relationship_level_for_points",
+      "args": [
+        "points"
+      ],
+      "cases": [
+        {
+          "name": "0 points",
+          "input": {
+            "points": 0
+          },
+          "expected": "STRANGER"
+        },
+        {
+          "name": "1 points",
+          "input": {
+            "points": 1
+          },
+          "expected": "STRANGER"
+        },
+        {
+          "name": "2 points",
+          "input": {
+            "points": 2
+          },
+          "expected": "ACQUAINTANCE"
+        },
+        {
+          "name": "5 points",
+          "input": {
+            "points": 5
+          },
+          "expected": "ACQUAINTANCE"
+        },
+        {
+          "name": "6 points",
+          "input": {
+            "points": 6
+          },
+          "expected": "FRIEND"
+        },
+        {
+          "name": "11 points",
+          "input": {
+            "points": 11
+          },
+          "expected": "FRIEND"
+        },
+        {
+          "name": "12 points",
+          "input": {
+            "points": 12
+          },
+          "expected": "TRUSTED_FRIEND"
+        },
+        {
+          "name": "99 points",
+          "input": {
+            "points": 99
+          },
+          "expected": "TRUSTED_FRIEND"
+        },
+        {
+          "name": "-3 points",
+          "input": {
+            "points": -3
+          },
+          "expected": "STRANGER"
+        }
+      ]
+    },
+    "awardRelationshipPoints": {
+      "python": "award_relationship_points",
+      "args": [
+        "currentPoints",
+        "award"
+      ],
+      "cases": [
+        {
+          "name": "adds the award",
+          "input": {
+            "currentPoints": 4,
+            "award": 2
+          },
+          "expected": 6
+        },
+        {
+          "name": "never subtracts",
+          "input": {
+            "currentPoints": 4,
+            "award": -3
+          },
+          "expected": 4
+        },
+        {
+          "name": "truncates a fraction",
+          "input": {
+            "currentPoints": 4,
+            "award": 2.9
+          },
+          "expected": 6
+        },
+        {
+          "name": "zero",
+          "input": {
+            "currentPoints": 0,
+            "award": 0
+          },
+          "expected": 0
+        }
+      ]
+    },
+    "setMemoryFlags": {
+      "python": "set_memory_flags",
+      "args": [
+        "flags",
+        "flagsToSet"
+      ],
+      "cases": [
+        {
+          "name": "sets new flags to true",
+          "input": {
+            "flags": {
+              "a": true
+            },
+            "flagsToSet": [
+              "b",
+              "c"
+            ]
+          },
+          "expected": {
+            "a": true,
+            "b": true,
+            "c": true
+          }
+        },
+        {
+          "name": "turns a false flag true",
+          "input": {
+            "flags": {
+              "a": false
+            },
+            "flagsToSet": [
+              "a"
+            ]
+          },
+          "expected": {
+            "a": true
+          }
+        },
+        {
+          "name": "nothing to set",
+          "input": {
+            "flags": {
+              "a": false
+            },
+            "flagsToSet": []
+          },
+          "expected": {
+            "a": false
+          }
+        }
+      ]
+    },
+    "parseMemoryFlags": {
+      "python": "parse_memory_flags",
+      "args": [
+        "raw"
+      ],
+      "cases": [
+        {
+          "name": "an object keeps its boolean entries",
+          "input": {
+            "raw": {
+              "a": true,
+              "b": "yes",
+              "c": false,
+              "d": 1
+            }
+          },
+          "expected": {
+            "a": true,
+            "c": false
+          }
+        },
+        {
+          "name": "a JSON string is decoded",
+          "input": {
+            "raw": "{\"a\":true,\"b\":false}"
+          },
+          "expected": {
+            "a": true,
+            "b": false
+          }
+        },
+        {
+          "name": "null",
+          "input": {
+            "raw": null
+          },
+          "expected": {}
+        },
+        {
+          "name": "an array",
+          "input": {
+            "raw": [
+              true
+            ]
+          },
+          "expected": {}
+        },
+        {
+          "name": "a number",
+          "input": {
+            "raw": 3
+          },
+          "expected": {}
+        }
+      ]
+    }
+  }
+}

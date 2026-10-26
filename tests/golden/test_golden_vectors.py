@@ -14,6 +14,7 @@ EXPECTED_SUITES = [
     "director",
     "director-content",
     "mastery",
+    "npc",
     "quests",
     "rewards",
 ]
