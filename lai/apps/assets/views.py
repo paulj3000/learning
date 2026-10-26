@@ -20,6 +20,7 @@ from rest_framework.views import APIView
 
 from apps.catalog.models import AssetStatus
 from apps.core.exceptions import error_body
+from apps.game_sessions.runtime_auth import GameRuntimeAccessMixin
 from apps.users.scoping import ChildScopedAPIView
 
 from . import resolver
@@ -30,7 +31,9 @@ from .storage import StorageError, get_storage
 logger = logging.getLogger("lai.assets")
 
 
-class AssetResolveView(ChildScopedAPIView):
+class AssetResolveView(GameRuntimeAccessMixin, ChildScopedAPIView):
+    """Also reachable by the game runtime's cookie, for its own child (LAI-ANDROID-API-001)."""
+
     def get(self, request, child_id):
         try:
             references = resolver.parse_references(request.query_params.get("ids", ""))

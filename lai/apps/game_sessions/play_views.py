@@ -5,6 +5,9 @@ Every route is child-scoped (`ChildScopedAPIView`, LAI-0403): the child comes fr
 resolved through the authenticated parent, and every nested record is looked up *with* that
 child, so another child's session or attempt is the same 404 as one that does not exist.
 No view grades, grants, or records anything itself.
+
+The routes the game runtime needs also accept its game session cookie (`GameRuntimeAccessMixin`,
+LAI-ANDROID-API-001), only for that session's child and region. `ProgressView` does not.
 """
 
 from rest_framework import exceptions
@@ -17,6 +20,7 @@ from apps.users.scoping import ChildScopedAPIView
 
 from . import play as services
 from . import play_state
+from .runtime_auth import GameRuntimeAccessMixin
 from .serializers import (
     AnswerRequest,
     BootstrapSerializer,
@@ -58,7 +62,7 @@ def _status(created: bool) -> int:
     return 201 if created else 200
 
 
-class RegionView(ChildScopedAPIView):
+class RegionView(GameRuntimeAccessMixin, ChildScopedAPIView):
     """GET: everything the client needs to build the region for this child."""
 
     def get(self, request, child_id, region_id):
@@ -70,7 +74,7 @@ class RegionView(ChildScopedAPIView):
         return Response(BootstrapSerializer().to_representation(state))
 
 
-class RegionSessionView(ChildScopedAPIView):
+class RegionSessionView(GameRuntimeAccessMixin, ChildScopedAPIView):
     """POST: start or resume this child's session in the region (201 new, 200 resumed)."""
 
     def post(self, request, child_id, region_id):
@@ -83,7 +87,7 @@ class RegionSessionView(ChildScopedAPIView):
         return Response(SessionSerializer(session).data, status=_status(created))
 
 
-class SessionView(ChildScopedAPIView):
+class SessionView(GameRuntimeAccessMixin, ChildScopedAPIView):
     def get(self, request, child_id, session_id):
         try:
             session = services.get_child_session(self.child, session_id)
@@ -92,7 +96,7 @@ class SessionView(ChildScopedAPIView):
         return Response(SessionSerializer(session).data)
 
 
-class SessionActionView(ChildScopedAPIView):
+class SessionActionView(GameRuntimeAccessMixin, ChildScopedAPIView):
     """POST pause | resume | complete | abandon. Repeating the current state is a no-op."""
 
     def post(self, request, child_id, session_id, action):
@@ -104,7 +108,7 @@ class SessionActionView(ChildScopedAPIView):
         return Response(SessionSerializer(session).data)
 
 
-class ChestChallengeView(ChildScopedAPIView):
+class ChestChallengeView(GameRuntimeAccessMixin, ChildScopedAPIView):
     """POST: the challenge for a chest (201 new, 200 the one already outstanding)."""
 
     def post(self, request, child_id, session_id, entity_id):
@@ -126,7 +130,7 @@ class ChestChallengeView(ChildScopedAPIView):
         )
 
 
-class AttemptAnswerView(ChildScopedAPIView):
+class AttemptAnswerView(GameRuntimeAccessMixin, ChildScopedAPIView):
     """POST {answer, hintLevel?, durationMs?}: graded on the server, never by the client."""
 
     def post(self, request, child_id, attempt_id):
@@ -158,7 +162,7 @@ class AttemptAnswerView(ChildScopedAPIView):
         return Response(OutcomeSerializer(context=context).to_representation(outcome))
 
 
-class QuestAcceptView(ChildScopedAPIView):
+class QuestAcceptView(GameRuntimeAccessMixin, ChildScopedAPIView):
     """POST: the child accepts a quest (201 accepted, 200 already accepted or finished)."""
 
     def post(self, request, child_id, quest_id):

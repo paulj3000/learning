@@ -854,6 +854,27 @@ a child-facing Android application would need the separate approval
 CLAUDE.md section 12 requires for native mobile applications — this phase
 does not grant that approval on its own.
 
+### LAI-ANDROID-API-001 — Django APIs for the native Kotlin app (ADR-036)
+
+**Backend done to its tested API boundary (2026-10-25).** The owner asked for this directly. It
+is backend work only and is not the CLAUDE.md section 12 approval for a child-facing Android app.
+Unlike the Amplify-era plan above, the native app talks to the Django API (ADR-019, ADR-033):
+child profile CRUD (deletion blocked), child home, region and adventure discovery, inventory, and
+the game-only WebView launch (ticket, then a scoped game session cookie). Contract:
+`docs/android/ANDROID_API_CONTRACT.md`. Next, in this order:
+
+1. **Standalone game runtime** (`/game/`): a Vite entry that boots the Three.js region runtime
+   with no React shell and uses the game session cookie and CSRF header
+   (`docs/android/ANDROID_GAME_LAUNCH.md`, "Frontend dependencies").
+2. **Hosting** of `/game/` on the API origin. This is an AWS change and needs approval.
+3. **A Cognito app client for Android**, added to `COGNITO_ALLOWED_CLIENT_IDS`. This is an AWS
+   change and needs approval.
+4. **Shared children:** the React app's move from Amplify `ChildProfile` to the Django children
+   API, and the Phase 11 data migration (ADR-019 gates). Until both happen, web and Android
+   children are separate records.
+5. **Child deletion** (LAI-0602, LAI-0209) and a starting route for step adventures, if Android
+   should play them.
+
 ## Model Asset Manager (docs/android/ASSET_MANAGEMENT.md)
 
 An admin-only system for uploading, validating, previewing, publishing,

@@ -57,6 +57,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-033 | One Django backbone: Treasure Rush runs on the canonical catalog and progress models; play-region layouts are seed-authored until LAI-0805 | Accepted | Integration (POST-MERGE-03) |  |
 | ADR-034 | Django Admin is enabled with local staff sign-in, separate from Cognito; it ships as a gunicorn and WhiteNoise container | Accepted | Main line (LAI-0404) | Amends ADR-024 A4 for Django Admin only; resolves TR-D5 |
 | ADR-035 | The shared asset manager versions binaries on the canonical ContentAsset identity, with private storage and signed delivery | Accepted | Feature branch (LAI-2200) | Accepted 2026-10-25. Amends ADR-034 item 3 (Django permissions and groups); builds on ADR-030 and ADR-033. Amended by AM-10 (staff-only admin preview route) |
+| ADR-036 | Native Android uses the Django API with Cognito bearer tokens; the game-only WebView uses a ticket-redeemed, child- and region-scoped game session cookie | Proposed | Feature branch (LAI-ANDROID-API-001) | Implemented 2026-10-25 at the Django API boundary; owner acceptance pending. Builds on ADR-024 and ADR-033; does not change ADR-034 |
 
 ## ADR-001: Parent-owned accounts
 
@@ -2661,4 +2662,66 @@ re-checking their SHA-256, and always streams them through Django, so no presign
 for a preview. Draft and rejected versions are never served. The viewer is a Three.js bundle
 (ADR-020: Three.js is the only renderer) committed as an admin static file, because the Django
 image has no Node build step. No dependency was added. Detail: `docs/ASSET_MANAGER.md` section 17.
+
+
+## ADR-036: Native Android uses the Django API with Cognito bearer tokens; the game-only WebView uses a ticket-redeemed, child- and region-scoped game session cookie
+
+Status: Proposed 2026-10-25. Implemented on `feature/android-api-foundation` for
+LAI-ANDROID-API-001, at the Django API boundary only. Owner acceptance is pending. Detail:
+`docs/android/ANDROID_API_CONTRACT.md`, `docs/android/ANDROID_AUTH_FLOW.md`,
+`docs/android/ANDROID_GAME_LAUNCH.md`.
+
+**Context.** The owner asked for the Django APIs a native Kotlin Android app needs. The native
+app owns sign-in, the parent screens, child profiles, island and adventure selection, settings
+and navigation. A WebView is used only for the standalone Three.js game. Cognito stays the
+identity provider (ADR-024) and Django is the one backend (ADR-033). The API was bearer-only and
+had no session or cookie authentication. A WebView page cannot hold a Cognito token safely: page
+script can read it, and URLs and JavaScript bridges leak it.
+
+**Decision.**
+1. **Native screens use the existing bearer contract.** The Kotlin app sends
+   `Authorization: Bearer <Cognito access token>` and provisions with `POST /api/v1/me/`, the same
+   call the React app makes. There is no Android registration endpoint and no Android client in
+   the code: a new Cognito app client is allowed only by adding it to
+   `COGNITO_ALLOWED_CLIENT_IDS`.
+2. **New client-neutral, read-mostly routes** on the canonical models: child profile list,
+   create, read and update; child home; region and adventure discovery; inventory. Deleting a
+   child stays blocked (`SensitiveActionBlocked`) until LAI-0602 and LAI-0209.
+3. **Game launch is two steps, both bearer-authenticated.** `POST
+   /api/v1/children/<id>/game-launches/` checks ownership, that the child is active, and that the
+   region is visible to the child, then returns an opaque ticket. The ticket is 256-bit random,
+   stored only as a SHA-256 hash, and expires after 60 seconds by default. The native app then
+   redeems it with `POST /api/v1/game-launches/redeem/`. Redemption is one conditional UPDATE, so
+   the ticket is single-use even under concurrent requests. It is bound to the same parent and
+   re-checks the child and region. It returns the game session cookie and revokes the parent's
+   earlier game sessions.
+4. **The game session cookie** (`lai_game_session`) is HttpOnly, Secure, SameSite=Strict,
+   host-only and `Path=/api/v1/`, with a 60-minute default lifetime. Only its SHA-256 hash is
+   stored. It is checked again on every request: not revoked, not expired, parent and child both
+   active.
+5. **The cookie is accepted narrowly.** It is never a default authenticator. It authenticates
+   only `GET /api/v1/game-session/`, `POST /api/v1/game-session/end/`, and the region play and
+   asset routes that opt in through `GameRuntimeAccessMixin`. Even on those routes it reaches only
+   its own child and region, including their sessions, attempts and offered quests. Everything
+   else is the same 404 as a missing record. Account, child management, launch, progress,
+   inventory, home and discovery routes answer it with 401. A structural test pins the list of
+   routes that accept it.
+6. **CSRF for cookie writes.** Every unsafe request needs the `X-LAI-Game-CSRF` header, an HMAC
+   of the session derived with `SECRET_KEY`. Same-origin script reads it from
+   `GET /api/v1/game-session/`, and there is no CORS. When the browser sends an `Origin`, it must
+   be the API's own origin or one listed in `LAI_GAME_ALLOWED_ORIGINS`.
+7. **Logout.** The game runtime calls `POST /api/v1/game-session/end/`. Native sign-out calls
+   `POST /api/v1/game-launches/revoke/`, which ends every game session and voids unused tickets.
+   Both responses clear the cookie, and the native app also clears the WebView cookie store.
+8. **Server authority is unchanged.** The game runtime calls the existing play API. Answers are
+   graded on the server, request bodies are closed, and nothing from the WebView can grant
+   rewards, pick another child, or change privileges.
+
+**Consequences.** This adds the first cookie credential the API accepts, limited by the rules
+above. Django serves no game bundle. The standalone `/game/` entry point is a frontend
+deliverable that does not exist yet, so `LAI_GAME_ENTRY_URL` names where it will be. Children
+created through these routes live in Django's PostgreSQL. The deployed React app still keeps
+children in Amplify until the Phase 11 data migration, so the web and Android apps do not share
+child records yet (ADR-019 gates). Launch routes are throttled (`LAI_GAME_LAUNCH_RATE`, default
+30 a minute per account).
 

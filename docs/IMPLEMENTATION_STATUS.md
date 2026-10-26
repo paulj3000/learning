@@ -10946,3 +10946,47 @@ Subtasks AM-1 to AM-10 (ids of their own: LAI-2201 to 2208 are the Phase 22 worl
 - **Not done:** S3 bucket, IAM, CORS and CloudFront (LAI-1002, AM-11, approval needed); TR-10
   wiring (section 15 of the doc); browser checks of the preview on a hardware GPU and in Firefox
   and Safari.
+
+## LAI-ANDROID-API-001: Django APIs for the native Kotlin Android app (2026-10-25, ADR-036 Proposed)
+
+Branch `feature/android-api-foundation`. Backend only. The Kotlin app and the standalone `/game/`
+runtime do not exist.
+
+- **Already existed, reused unchanged:** Cognito bearer authentication and `POST/GET /api/v1/me/`
+  (LAI-0402), the region play API (TR-5: bootstrap, session start and resume, session actions,
+  chest challenge, attempt answer, quest accept), `progress/`, and the asset resolver.
+- **Added:**
+  - `GET/POST /api/v1/children/` and `GET/PATCH /api/v1/children/{id}/`. They use closed
+    bodies, enforce the three-profile cap, check the age band and session length together, and
+    never expose the photo path. `DELETE` is 403 `sensitive_action_unavailable`.
+  - `GET children/{id}/home/`, `regions/`, `regions/{region}/adventures/` and `inventory/`.
+  - `POST children/{id}/game-launches/`, `POST game-launches/redeem/`,
+    `POST game-launches/revoke/`, `GET game-session/` and `POST game-session/end/`.
+  - Models `GameLaunchTicket` and `GameBrowserSession` (migration `game_sessions.0004`).
+- **Extended:** the play routes and the asset resolver also accept the game session cookie, only
+  for its own child and region, with the CSRF header on writes (`GameRuntimeAccessMixin`).
+  Bearer behaviour is unchanged. New error codes: `child_profile_limit_reached`,
+  `child_inactive`, `launch_ticket_invalid`, `game_csrf_failed`. A `game_launch` throttle gives
+  429. New settings: `LAI_GAME_*`.
+- **Structural guards updated deliberately:** new parent-scoped and game-runtime route sets in
+  `test_tenant_isolation.py`, plus a new guard that pins the exact routes that accept the cookie.
+  `test_no_sensitive_endpoints_exist_yet` now lists the children routes.
+- **Tests (targeted unit tests only):** 92 new tests, all passing: `test_children_api.py` 27,
+  `test_android_auth_flow.py` 8, `test_native_api.py` 20, `test_game_launch.py` 37. Focused
+  regression run over `apps/users`, `apps/game_sessions`, `apps/quests`, `apps/inventory`,
+  `apps/progression`, the asset resolver and acceptance tests, and the core API, settings,
+  privacy and admin tests: 558 tests passed (PostgreSQL required). A hand mutation check (child
+  binding, region binding and CSRF disabled) failed the matching tests. `manage.py check` is
+  clean, there are no missing migrations, and the ADR check passes.
+- **Not run (merge verification):** Ruff, Prettier, Playwright or browsers, full suites,
+  `docker build`.
+- **Not done or blocked:** the standalone `/game/` runtime and its hosting, the Android Cognito
+  app client (an AWS change), the React app's move to the Django children API, and the Phase 11
+  child data migration. Until those happen, web and Android do **not** share children. Also not
+  done: child deletion (LAI-0602 and LAI-0209), starting step adventures from Django, and
+  thumbnails (no catalog illustration field).
+- **Observation (existing, unchanged):** provisioned parents have an empty password string,
+  which Django calls "usable", although the `ParentAccount` docstring says it is unusable. They
+  still cannot sign in to Django Admin, because the backend requires staff and an admin username.
+  This is worth a follow-up to set `set_unusable_password()` on provisioning.
+

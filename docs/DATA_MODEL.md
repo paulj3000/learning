@@ -953,3 +953,16 @@ shared without copying its GLB. Admins only.
 - `role`: an `AssetCategory`, or null for "same as the asset's category"
 - `sortOrder`
 - timestamps
+
+## GameLaunchTicket and GameBrowserSession (Django, LAI-ANDROID-API-001, ADR-036)
+
+Both live in `game_sessions` and are child-owned (`ChildOwnedModel`), so deleting a child deletes
+them. They are credentials, not progress, and record no gameplay.
+
+| Model | Fields | Rules |
+|---|---|---|
+| `GameLaunchTicket` | `child`, `parent`, `region_id` (slug), `ticket_hash` (SHA-256, unique), `created_at`, `expires_at`, `consumed_at` | Single use: one conditional UPDATE sets `consumed_at`. Expires 60 seconds after creation by default. The raw ticket is never stored |
+| `GameBrowserSession` | `child`, `parent`, `region_id`, `token_hash` (SHA-256 of the cookie value, unique), `ticket` (one-to-one, nullable), `created_at`, `expires_at`, `revoked_at` | Valid while not revoked and not expired, and while parent and child are both active. Redeeming a new ticket revokes the parent's earlier sessions |
+
+Neither model is registered in Django Admin, and neither stores anything a child typed.
+

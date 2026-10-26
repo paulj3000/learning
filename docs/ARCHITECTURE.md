@@ -600,8 +600,9 @@ cookies, tokens, bodies, or user data. `django.request` is limited to ERROR and 
 is discarded so there are no duplicate or query-string-bearing lines. Console only.
 
 **Security defaults.** Deny by default: `IsAuthenticated` is the default permission; only the
-health view opts into `AllowAny` (a test fails if any other route becomes public). No session or
-cookie authentication and no CORS. Cognito bearer-token transport, browser token storage, the CSRF
+health view opts into `AllowAny` (a test fails if any other route becomes public). No session
+authentication and no CORS. The one cookie credential is the game session cookie of ADR-036,
+accepted only by the game runtime routes ("Native Android clients" below). Cognito bearer-token transport, browser token storage, the CSRF
 policy, and XSS considerations are decided in LAI-0402; see ADR-021 on W003. There is no
 `docs/SECURITY.md`; security decisions live in ADR-021 and this section.
 
@@ -877,7 +878,7 @@ adapted onto it:
 | `assets` | Asset manager (LAI-2200, ADR-035): AssetVersion, validation, storage, publication services, the published-asset resolver and delivery routes, the import and audit commands. No identity of its own: versions attach to `catalog.ContentAsset` |
 | `regions` | Seed-authored play regions: WorldRegion, SpawnPoint, WorldObjectPlacement, TreasureChest; `seed_treasure_rush` |
 | `adventures` | The Python adventure engine (pure module, LAI-0601) |
-| `game_sessions` | AdventureSession (ADVENTURE or REGION), AdventureAction, ChallengeAttempt, CoopSession; answers and hints (LAI-0601); region play (TR-5) |
+| `game_sessions` | AdventureSession (ADVENTURE or REGION), AdventureAction, ChallengeAttempt, CoopSession; answers and hints (LAI-0601); region play (TR-5); native home, discovery and inventory reads, game launch tickets and the game session cookie (LAI-ANDROID-API-001, ADR-036) |
 | `education` | SkillEvidence, SkillProgress, StoryArtifact, ChallengeSpec; Treasure Rush challenge generation and grading (`challenges.py`) |
 | `progression`, `inventory`, `quests` | World changes and state, story and NPC progress; items owned and rules granted; quest progress, with the server-side quest engine (`quests/engine.py`) |
 
@@ -887,6 +888,27 @@ authored in `lai/apps/regions/treasure_rush_seed.py` and applied as `regions` ro
 API serves; the client builds a manifest from them (TR-D15). Neither is Django layout
 administration: LAI-0805's ADR decides that. Everything non-spatial, including Treasure Rush's
 quest, item and reward rule, is exported and imported like all content.
+
+## Native Android clients and the game-only WebView (LAI-ANDROID-API-001, ADR-036)
+
+The Kotlin app is a client of the same Django API as the React app. There is no Android backend
+and no Android data model. Its native screens use the Cognito bearer contract (LAI-0402) and
+these client-neutral routes: `POST /me/` provisioning; child profile list, create, read and
+update (`apps/users/views.py`; deletion stays blocked); child `home/`, `regions/`,
+`regions/<id>/adventures/` and `inventory/` (`apps/game_sessions/native_views.py` over
+`discovery.py`). All of them read the canonical catalog, region and progress rows.
+
+The standalone Three.js game runs in a WebView with **no Cognito token**. The native app gets a
+single-use, 60-second ticket (`children/<id>/game-launches/`), then redeems it with its bearer
+token (`game-launches/redeem/`) for an HttpOnly, Secure, SameSite=Strict cookie scoped to
+`/api/v1/`, which it copies into the WebView. That cookie (`apps/game_sessions/runtime_auth.py`)
+authenticates only the runtime's own routes (`game-session/`, `game-session/end/`) and the play
+and asset routes that mix in `GameRuntimeAccessMixin`, and only for one child and one region.
+Writes need the `X-LAI-Game-CSRF` header. It never reaches account, child, launch, progress or
+discovery routes. A structural test in `apps/users/tests/test_tenant_isolation.py` pins the route
+list. Contract: `docs/android/ANDROID_API_CONTRACT.md`, `ANDROID_AUTH_FLOW.md`,
+`ANDROID_GAME_LAUNCH.md`. The `/game/` bundle itself is a frontend deliverable that does not exist
+yet.
 
 ## Content export contract (post-merge note)
 
