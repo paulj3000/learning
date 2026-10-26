@@ -4,7 +4,11 @@ import { ApiError } from './errors';
 import { read, type Reader } from './parse';
 import { createPlayApi } from './play/playApi';
 import { selectApi } from './select';
-import type { Correctness } from '../features/adventures/engine/types';
+import {
+  AdventureUnavailableError,
+  assertAdventureAvailable,
+} from '../features/catalog/availabilityApi';
+import type { AdventureDefinition, Correctness } from '../features/adventures/engine/types';
 import type { StepAnswer } from '../features/adventures/engine/validators';
 
 /**
@@ -12,20 +16,49 @@ import type { StepAnswer } from '../features/adventures/engine/validators';
  * saved stories (LAI-0501B).
  *
  * On Django:
+ * - **Sessions** use the LAI-0608 lifecycle routes under
+ *   `/children/{id}/adventures/{adventureId}/`: `POST sessions/` starts or
+ *   resumes (the server checks availability), `GET sessions/{sessionId}/`
+ *   reads, `POST sessions/{sessionId}/complete/` finalises, and
+ *   `GET availability/` finds the session to resume. A refusal (not visible,
+ *   unavailable, child turned off, content changed) is the same calm
+ *   `AdventureUnavailableError` the Amplify catalog gate throws.
  * - **Answers** go to `POST /children/{id}/sessions/{sessionId}/answers/`
  *   (LAI-0601). The Python engine decides correctness, support level and the
  *   next step; the client sends only what the child did, plus a fresh
  *   `requestId` so a resent request replays instead of counting twice.
  * - **World-change reads** come from `GET /children/{id}/progress/`, which
  *   returns every world change the child has (not a page).
- * - Everything else is `adventures_unavailable`. In particular no Django
- *   route starts or resumes a step-adventure session yet (LAI-0605,
- *   docs/android/ANDROID_API_CONTRACT.md), so the answer route cannot be
- *   reached from a fresh session. Evidence, mastery and world changes are
- *   written by the server as part of an answer, never by the client.
+ * - Everything else is `adventures_unavailable`: the client-side writes
+ *   Amplify needs (`startSession` alone, `advanceSession`, `recordAction`,
+ *   evidence, world changes, saved stories) have no Django route, because
+ *   the server records the attempt itself inside the answer and owns the
+ *   rest (LAI-0603, LAI-0605, LAI-0607). `useAdventureSession` asks
+ *   `supports(...)` before making them.
  */
 
-export type { AdventureAction, AdventureSession, StoryArtifact } from './amplify/adventures';
+export type { AdventureAction, StoryArtifact } from './amplify/adventures';
+
+export type SessionStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ABANDONED' | 'SAFETY_STOPPED';
+
+/** A step-adventure session as every backend reports it. Amplify's records already fit. */
+export interface AdventureSession {
+  id: string;
+  childProfileId: string;
+  templateSlug: string;
+  templateVersion: number;
+  status: SessionStatus;
+  currentStepId: string;
+  startedAt: string;
+  lastActivityAt: string;
+  completedAt?: string | null;
+}
+
+/** Which adventure a session belongs to. Django's session routes are nested under it. */
+export interface SessionContext {
+  childProfileId: string;
+  adventureSlug: string;
+}
 export type { RecordActionInput, RecordSkillEvidenceInput } from './amplify/adventures';
 
 /** One AI-narrated (or authored-fallback) beat of a Storykeeper Castle story. */
@@ -71,10 +104,17 @@ export interface AdventuresApi {
     hintLevel: number,
     context?: AnswerContext,
   ): Promise<AdventureAnswerResult>;
-  getActiveSession: typeof amplify.getActiveSession;
+  getActiveSession(childProfileId: string, templateSlug: string): Promise<AdventureSession | null>;
+  /** The single start path: availability, then the active session or a new one. */
+  resumeOrStartSession(
+    childProfileId: string,
+    definition: AdventureDefinition,
+  ): Promise<AdventureSession>;
+  getSession(sessionId: string, context: SessionContext): Promise<AdventureSession | null>;
   startSession: typeof amplify.startSession;
   advanceSession: typeof amplify.advanceSession;
-  completeSession: typeof amplify.completeSession;
+  /** Django needs `context`; Amplify ignores it. Django refuses it before the engine's end. */
+  completeSession(sessionId: string, context?: SessionContext): Promise<AdventureSession>;
   recordAction: typeof amplify.recordAction;
   recordSkillEvidence: typeof amplify.recordSkillEvidence;
   listWorldChanges(childProfileId: string, locationSlug: string): Promise<WorldChange[]>;
@@ -88,9 +128,35 @@ export interface AdventuresApi {
   deleteStoryArtifact: typeof amplify.deleteStoryArtifact;
 }
 
+/**
+ * Resumes this child's active session for `definition`, or starts a new
+ * one, on Amplify. Also where the admin catalog's active flags are enforced
+ * for children (docs/ISLAND_ADVENTURE_MANAGEMENT.md section 17): a
+ * deactivated adventure throws `AdventureUnavailableError` instead of
+ * starting or resuming, and an existing session is left untouched.
+ */
+async function amplifyResumeOrStartSession(
+  childProfileId: string,
+  definition: AdventureDefinition,
+): Promise<AdventureSession> {
+  await assertAdventureAvailable(definition);
+  const existing = await amplify.getActiveSession(childProfileId, definition.slug);
+  return (
+    existing ??
+    (await amplify.startSession(
+      childProfileId,
+      definition.slug,
+      definition.version,
+      definition.entryStepId,
+    ))
+  );
+}
+
 const amplifyAdventures: AdventuresApi = {
   submitAdventureAnswer: amplify.submitAdventureAnswer,
   getActiveSession: amplify.getActiveSession,
+  resumeOrStartSession: amplifyResumeOrStartSession,
+  getSession: amplify.getSession,
   startSession: amplify.startSession,
   advanceSession: amplify.advanceSession,
   completeSession: amplify.completeSession,
@@ -122,6 +188,42 @@ export function parseAnswerResult(r: Reader): AdventureAnswerResult {
   };
 }
 
+const SESSION_STATUSES: readonly SessionStatus[] = [
+  'ACTIVE',
+  'PAUSED',
+  'COMPLETED',
+  'ABANDONED',
+  'SAFETY_STOPPED',
+];
+
+/** The `session` object every LAI-0601/LAI-0608 route returns. */
+export function parseSessionState(r: Reader): AdventureSession {
+  return {
+    id: r.field('id').string(),
+    childProfileId: r.field('childId').string(),
+    templateSlug: r.field('adventureSlug').string(),
+    templateVersion: r.field('templateVersion').integer(),
+    status: r.field('status').oneOf(SESSION_STATUSES),
+    currentStepId: r.field('currentStepId').string(),
+    startedAt: r.field('startedAt').string(),
+    lastActivityAt: r.field('lastActivityAt').string(),
+    completedAt: r.field('completedAt').nullable((x) => x.string()),
+  };
+}
+
+/** The LAI-0608 lifecycle body: its `session`. The step view is for clients without content. */
+function parseSessionView(r: Reader): AdventureSession {
+  return parseSessionState(r.field('session'));
+}
+
+/** Codes that mean "this adventure cannot be played now", shown with the calm catalog message. */
+const UNAVAILABLE_CODES = new Set([
+  'adventure_unavailable',
+  'child_inactive',
+  'content_version_changed',
+  'not_found',
+]);
+
 function segment(id: string): string {
   if (!id) throw new ApiError('invalid_request', { code: 'empty_id' });
   return encodeURIComponent(id);
@@ -143,7 +245,68 @@ export function createDjangoAdventures(
     }));
   }
 
+  const adventurePath = (childProfileId: string, slug: string) =>
+    `children/${segment(childProfileId)}/adventures/${segment(slug)}/`;
+
+  async function readSession(sessionId: string, context: SessionContext) {
+    try {
+      const response = await client.request(
+        'GET',
+        `${adventurePath(context.childProfileId, context.adventureSlug)}sessions/${segment(sessionId)}/`,
+      );
+      return read(response.data, parseSessionView);
+    } catch (error) {
+      if (error instanceof ApiError && error.kind === 'not_found') return null;
+      throw error;
+    }
+  }
+
   return {
+    async resumeOrStartSession(childProfileId, definition) {
+      try {
+        const response = await client.request(
+          'POST',
+          `${adventurePath(childProfileId, definition.slug)}sessions/`,
+        );
+        return read(response.data, parseSessionView);
+      } catch (error) {
+        if (error instanceof ApiError && UNAVAILABLE_CODES.has(error.code)) {
+          throw new AdventureUnavailableError();
+        }
+        throw error;
+      }
+    },
+
+    async getActiveSession(childProfileId, templateSlug) {
+      let resumeSessionId: string | null;
+      try {
+        const response = await client.request(
+          'GET',
+          `${adventurePath(childProfileId, templateSlug)}availability/`,
+        );
+        resumeSessionId = read(response.data, (r) =>
+          r.field('resumeSessionId').nullable((x) => x.string()),
+        );
+      } catch (error) {
+        // Not visible to this child: they have no session they could resume.
+        if (error instanceof ApiError && error.kind === 'not_found') return null;
+        throw error;
+      }
+      if (!resumeSessionId) return null;
+      return readSession(resumeSessionId, { childProfileId, adventureSlug: templateSlug });
+    },
+
+    getSession: (sessionId, context) => readSession(sessionId, context),
+
+    async completeSession(sessionId, context) {
+      if (!context) throw new ApiError('invalid_request', { code: 'session_context_missing' });
+      const response = await client.request(
+        'POST',
+        `${adventurePath(context.childProfileId, context.adventureSlug)}sessions/${segment(sessionId)}/complete/`,
+      );
+      return read(response.data, parseSessionView);
+    },
+
     async submitAdventureAnswer(sessionId, answer, _hintLevel, context) {
       // The hint level is the server's (session state), so it is not sent.
       if (!context) throw new ApiError('invalid_request', { code: 'answer_context_missing' });

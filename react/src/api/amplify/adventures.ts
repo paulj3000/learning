@@ -87,6 +87,12 @@ export async function getActiveSession(
   );
 }
 
+/** One of the caller's own sessions by id (owner-scoped `.get()`), or null. */
+export async function getSession(sessionId: string): Promise<AdventureSession | null> {
+  const { data } = await client.models.AdventureSession.get({ id: sessionId });
+  return data ?? null;
+}
+
 export async function startSession(
   childProfileId: string,
   templateSlug: string,

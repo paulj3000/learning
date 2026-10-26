@@ -43,6 +43,9 @@ _CODED = {
     "content_version_changed": "This adventure has changed since it was started.",
     "request_conflict": "That request id was already used for a different answer.",
     "invalid_transition": "That change is not allowed right now.",
+    # Step-adventure sessions (LAI-0608)
+    "adventure_unavailable": "This adventure cannot be started right now.",
+    "session_not_complete": "This adventure is not finished yet.",
     # Region play (Treasure Rush TR-5)
     "content_unavailable": "This is not available right now.",
     "session_not_open": "This play session has ended.",

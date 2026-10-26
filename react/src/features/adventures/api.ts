@@ -1,8 +1,6 @@
 import { adventuresApi } from '../../api/adventures';
 import { decodeAwsJson } from '../../lib/awsJson';
-import type { AdventureDefinition } from './engine/types';
-import type { AdventureSession, StoryScene } from '../../api/adventures';
-import { assertAdventureAvailable } from '../catalog/availabilityApi';
+import type { StoryScene } from '../../api/adventures';
 
 /**
  * Step-adventure sessions, answers, evidence, world changes and saved
@@ -17,6 +15,8 @@ export type {
   AdventureAnswerResult,
   AdventureSession,
   AnswerContext,
+  SessionContext,
+  SessionStatus,
   RecordActionInput,
   RecordSkillEvidenceInput,
   StoryArtifact,
@@ -41,9 +41,18 @@ export function parseStoryScenes(scenes: unknown): StoryScene[] {
   return Array.isArray(decoded) ? decoded.filter(isStoryScene) : [];
 }
 
+/**
+ * `resumeOrStartSession` is the one place every route goes through to play
+ * an adventure (on Amplify it also enforces the admin catalog's active
+ * flags; on Django the server checks availability), so approaching an
+ * adventure in the world and opening its route both create at most one
+ * active session.
+ */
 export const {
   submitAdventureAnswer,
   getActiveSession,
+  resumeOrStartSession,
+  getSession,
   startSession,
   advanceSession,
   completeSession,
@@ -67,36 +76,3 @@ export async function hasWorldChange(
   const changes = await listWorldChanges(childProfileId, locationSlug);
   return changes.some((change) => change.changeKey === changeKey);
 }
-
-/**
- * Resumes this child's active session for `definition`, or starts a new
- * one. Shared by `useAdventureSession` (on mounting an adventure route) and
- * the world engine's `START_ADVENTURE` interactions (docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md
- * section 8's "World checks requirements -> Adventure Engine starts"), so
- * approaching an adventure object in the world and opening the adventure
- * route directly both create at most one active session.
- *
- * Also the one place every route goes through to play an adventure, so it
- * is where the admin catalog's active flags are enforced for children
- * (docs/ISLAND_ADVENTURE_MANAGEMENT.md section 17): an adventure, or one on
- * an island, that an admin deactivated throws `AdventureUnavailableError`
- * instead of starting or resuming. An existing session is left untouched,
- * so the child's progress is still there if the adventure is reactivated.
- */
-export async function resumeOrStartSession(
-  childProfileId: string,
-  definition: AdventureDefinition,
-): Promise<AdventureSession> {
-  await assertAdventureAvailable(definition);
-  const existing = await getActiveSession(childProfileId, definition.slug);
-  return (
-    existing ??
-    (await startSession(
-      childProfileId,
-      definition.slug,
-      definition.version,
-      definition.entryStepId,
-    ))
-  );
-}
-

@@ -34,6 +34,7 @@ from apps.game_sessions.models import (
     AdventureAction,
     AdventureSession,
     Correctness,
+    SessionKind,
     SessionStatus,
 )
 
@@ -68,6 +69,10 @@ class InvalidAnswer(ProgressError):
 
 class RequestConflict(ProgressError):
     """A request id reused for a different submission."""
+
+
+class SessionNotComplete(InvalidTransition):
+    """Completion asked for before the engine reached the end of the adventure (LAI-0608)."""
 
 
 def _now(now):
@@ -110,7 +115,7 @@ def _current_step_record(session: AdventureSession) -> AdventureStep:
     return step
 
 
-def _ends_adventure(session: AdventureSession, next_step_id: str) -> bool:
+def ends_adventure(session: AdventureSession, next_step_id: str) -> bool:
     if next_step_id == COMPLETE_STEP_ID:
         return True
     return AdventureStep.objects.filter(
@@ -247,6 +252,29 @@ def complete_session(child, session_id, *, now=None) -> AdventureSession:
     return session
 
 
+@transaction.atomic
+def finalize_session(child, session_id, adventure: Adventure, *, now=None):
+    """Completes the session only if the engine has already reached the end (LAI-0608).
+
+    Returns `(session, completed_now)`. A session the answer route already completed is returned
+    unchanged (`completed_now` False), so a repeated or late request has no second effect. A
+    session that has not reached a COMPLETE step, or the reserved `complete` id, is
+    `SessionNotComplete`: the client cannot finish an adventure by asking. A session of another
+    adventure or kind is not found.
+    """
+    session = _locked_session(child, session_id)
+    if session.kind != SessionKind.ADVENTURE or session.adventure_id != adventure.pk:
+        raise ProgressNotFound
+    if session.status == SessionStatus.COMPLETED:
+        return session, False
+    if session.status != SessionStatus.ACTIVE:
+        raise SessionNotActive
+    if not ends_adventure(session, session.current_step_id):
+        raise SessionNotComplete
+    _complete(session, _now(now))
+    return session, True
+
+
 def completed_step_ids(child, session_id) -> list[str]:
     """Steps the child has moved past in this session, in the order they left them."""
     try:
@@ -339,7 +367,7 @@ def submit_answer(
         request_id=request_id,
         at=at,
     )
-    if next_step is not None and _ends_adventure(session, next_step):
+    if next_step is not None and ends_adventure(session, next_step):
         _complete(session, at)
     return _outcome(action, session, replayed=False)
 

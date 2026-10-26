@@ -10,7 +10,14 @@ LAI-0601's answers and hints come first: Treasure Rush's lifecycle route
 from django.urls import path
 
 from . import launch_views, native_views, play_views
-from .views import AnswersView, HintsView
+from .views import (
+    AdventureAvailabilityView,
+    AdventureSessionCompleteView,
+    AdventureSessionsView,
+    AdventureSessionView,
+    AnswersView,
+    HintsView,
+)
 
 CHILD = "children/<uuid:child_id>/"
 
@@ -19,6 +26,28 @@ urlpatterns = [
         f"{CHILD}sessions/<uuid:session_id>/answers/", AnswersView.as_view(), name="session-answers"
     ),
     path(f"{CHILD}sessions/<uuid:session_id>/hints/", HintsView.as_view(), name="session-hints"),
+    # Step-adventure session lifecycle (LAI-0608). Under `adventures/` because `sessions/<id>/`
+    # and `sessions/<id>/<action>/` are Treasure Rush's region-session contract (TR-5).
+    path(
+        f"{CHILD}adventures/<slug:adventure_id>/availability/",
+        AdventureAvailabilityView.as_view(),
+        name="adventure-availability",
+    ),
+    path(
+        f"{CHILD}adventures/<slug:adventure_id>/sessions/",
+        AdventureSessionsView.as_view(),
+        name="adventure-sessions",
+    ),
+    path(
+        f"{CHILD}adventures/<slug:adventure_id>/sessions/<uuid:session_id>/",
+        AdventureSessionView.as_view(),
+        name="adventure-session",
+    ),
+    path(
+        f"{CHILD}adventures/<slug:adventure_id>/sessions/<uuid:session_id>/complete/",
+        AdventureSessionCompleteView.as_view(),
+        name="adventure-session-complete",
+    ),
     path(f"{CHILD}home/", native_views.ChildHomeView.as_view(), name="child-home"),
     path(f"{CHILD}regions/", native_views.RegionListView.as_view(), name="child-regions"),
     path(f"{CHILD}inventory/", native_views.InventoryView.as_view(), name="child-inventory"),

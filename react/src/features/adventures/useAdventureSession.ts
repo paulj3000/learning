@@ -15,6 +15,7 @@ import {
   type StoryScene,
 } from './api';
 import { upsertSkillProgress } from '../mastery/api';
+import { supports } from '../../api/select';
 import { AdventureUnavailableError } from '../catalog/availabilityApi';
 import { syncQuestProgress } from '../quests/api';
 import { useCompanionTurn } from '../companion/useCompanionTurn';
@@ -219,21 +220,27 @@ export function useAdventureSession(
           [currentStep.id]: { hintLevel: supportLevel, attemptNumber },
         }));
 
-        await recordAction({
-          sessionId: session.id,
-          stepId: currentStep.id,
-          actionType: currentStep.type,
-          normalizedAnswer: normalizeAnswer(answer),
-          correctness,
-          hintLevel: supportLevel,
-          attemptNumber,
-        });
+        // Amplify records the attempt from the client. A backend that records
+        // it itself inside the answer (Django, LAI-0601) has no route for it.
+        if (supports('adventures', 'recordAction')) {
+          await recordAction({
+            sessionId: session.id,
+            stepId: currentStep.id,
+            actionType: currentStep.type,
+            normalizedAnswer: normalizeAnswer(answer),
+            correctness,
+            hintLevel: supportLevel,
+            attemptNumber,
+          });
+        }
 
         if (action === 'RETRY') {
           return correctness;
         }
 
-        if (correctness !== 'not_applicable') {
+        // Evidence and mastery are client writes on Amplify; on Django they are
+        // the server's (LAI-0603) and are not sent from here.
+        if (correctness !== 'not_applicable' && supports('adventures', 'recordSkillEvidence')) {
           await recordEvidenceForStep(currentStep, session.id, correctness, supportLevel);
         }
         if (correctness === 'correct') {
@@ -402,6 +409,32 @@ export function useAdventureSession(
     if (currentStep.type === 'WORLD_CHANGE' && currentStep.presentation.kind === 'world-change') {
       autoAdvancedStepRef.current = currentStep.id;
       const { payload } = currentStep.presentation;
+      if (!supports('adventures', 'advanceSession')) {
+        // A backend that owns the session (Django, LAI-0608) moves past a
+        // world-change step through the answer route, like any other step; the
+        // change itself and saved stories are server records (LAI-0605,
+        // LAI-0607), never written from here.
+        void (async () => {
+          try {
+            const { nextStepId } = await submitAdventureAnswer(
+              session.id,
+              { kind: 'world-change' },
+              0,
+              { childProfileId, stepId: currentStep.id },
+            );
+            if (nextStepId) {
+              setSession((prev) =>
+                prev
+                  ? { ...prev, currentStepId: nextStepId, lastActivityAt: new Date().toISOString() }
+                  : prev,
+              );
+            }
+          } catch {
+            setError('Something went wrong saving your progress on the island.');
+          }
+        })();
+        return;
+      }
       void (async () => {
         try {
           if (coopSessionId) {
@@ -454,7 +487,10 @@ export function useAdventureSession(
       autoAdvancedStepRef.current = currentStep.id;
       void (async () => {
         try {
-          const updated = await completeSession(session.id);
+          const updated = await completeSession(session.id, {
+            childProfileId,
+            adventureSlug: definition.slug,
+          });
           setSession(updated);
         } catch {
           setError('Something went wrong finishing the adventure.');
