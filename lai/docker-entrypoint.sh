@@ -5,6 +5,13 @@
 # the application writes its own privacy-filtered request line, ADR-025, gate G10).
 set -eu
 
+# A one-off task (`docker compose run django python manage.py migrate`, an ECS command override)
+# runs its own command; only a container started without one serves the application. Without this,
+# every one-off task would start gunicorn instead and never finish (ADR-037).
+if [ "$#" -gt 0 ]; then
+    exec "$@"
+fi
+
 exec gunicorn config.wsgi:application \
     --bind "0.0.0.0:${PORT:-8000}" \
     --workers "${WEB_CONCURRENCY:-2}" \

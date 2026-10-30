@@ -48,6 +48,7 @@ LABEL org.opencontainers.image.revision=$LAI_GIT_SHA \
       org.learning-adventure-island.release-channel=$LAI_RELEASE_CHANNEL
 
 EXPOSE 8000
+# Sends a host name ALLOWED_HOSTS accepts: production settings answer a bare 127.0.0.1 with 400.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/', timeout=4)"
+    CMD python -c "import os, urllib.request as u; h = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost').split(',')[0].strip(); u.urlopen(u.Request('http://127.0.0.1:8000/api/v1/health/', headers={'Host': h}), timeout=4)"
 ENTRYPOINT ["./docker-entrypoint.sh"]
