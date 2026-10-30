@@ -309,6 +309,19 @@ def test_destructive_migrations_need_an_explicit_flag(box):
     assert allowed.returncode == 0, box.output(allowed)
 
 
+def test_a_new_database_takes_the_full_history_including_djangos_own_removals(box):
+    # Django's contenttypes.0002 removes a field; that must not block the first release.
+    box.write(
+        "plan",
+        "contenttypes.0001_initial\n    Create model ContentType\n"
+        "contenttypes.0002_remove_content_type_name\n    Remove field name from contenttype",
+    )
+    result = box.deploy(1)
+    assert result.returncode == 0, box.output(result)
+    assert "migrate --noinput" in box.calls()
+    assert "new database" in box.output(result)
+
+
 def test_prod_snapshots_rds_before_migrating(tmp_path):
     box = Box(tmp_path, env_name="prod", snapshot=True)
     box.write("plan", "users.0012_x\n    Add field a to b")

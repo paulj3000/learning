@@ -131,6 +131,12 @@ mapfile -t pending < <(grep -E '^[[:space:]]*[a-z_]+\.[0-9]{4}_' <<<"$plan" | aw
 log "pending migrations: ${#pending[@]}${pending:+ (${pending[*]})}"
 # Operations that break the release still running beside the database, or a rollback to it.
 destructive=$(grep -E '^[[:space:]]+(Remove field|Delete model|Rename field|Rename model|Raw SQL operation)' <<<"$plan" || true)
+# An empty database (its first migration is still pending) has no release that could depend on it,
+# and Django's own history contains such operations (contenttypes.0002 removes a field).
+if printf '%s\n' "${pending[@]}" | grep -qx 'contenttypes.0001_initial'; then
+    [ -z "$destructive" ] || log "new database: applying the full migration history"
+    destructive=""
+fi
 if [ -n "$destructive" ] && [ "$allow_destructive" != true ]; then
     log "the plan contains operations the previous release cannot run against:"
     printf '%s\n' "$destructive" | sed 's/^[[:space:]]*/    /'
