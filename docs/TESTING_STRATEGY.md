@@ -85,6 +85,67 @@ and `none`, unknown or missing `kid`, query-string tokens, outage behaviour, onb
 and a concurrent-creation race, log contents, blocked sensitive actions). They need PostgreSQL
 (`make py-test-db`). Not covered: a token from a real Cognito pool.
 
+## When to run which checks
+
+Adopted 2026-10-24. This section decides *when* each command above runs. Development runs
+the cheapest checks that establish correctness; the expensive gates run once, when a merge
+or release readiness review is explicitly requested. The development machine is shared with
+other projects, so CPU cost counts.
+
+### During development (every task)
+
+Required:
+- Vitest for the modified TypeScript/React code and its direct dependents, by path
+  (`npx vitest run --maxWorkers=2 <paths>`), not the whole suite.
+- pytest for modified Django/Python code, by path (`.venv/bin/python -m pytest -q <paths>`).
+- `npm run typecheck` when TypeScript changed.
+- Focused regression tests for functionality the change can affect.
+- New or updated unit tests for new behaviour.
+
+Always run when the change touches them, because they protect security and privacy, not
+style: authorization and tenant isolation (the LAI-0403 checklist below), authentication,
+privacy-safe logging, AI output validation and safety, and the content export check
+(`npm run content:check`) when exported content sources change. Never weaken or skip these
+to save time.
+
+Not run routinely: Playwright and other browser automation, WebGL rendering checks, Ruff,
+Prettier, oxlint, `npm run build`, full test suites, and deployment verification.
+
+Resource rules: cap workers (`--maxWorkers=2`, or `1` when the machine is busy). Do not rerun
+tests whose code has not changed. Report an infrastructure failure (a worker that never
+starts, such as Vitest's "Timeout waiting for worker to respond", out-of-memory, a missing
+database service) as infrastructure, separately from test failures, and rerun only the
+affected files.
+
+### Task completion
+
+A task may be marked COMPLETE when the implementation is finished, the development checks
+above pass, TypeScript typechecking passes (if applicable), the acceptance criteria are met
+at the unit/integration level, and the documentation and tracker are updated. The status
+entry lists everything **deferred to merge verification**.
+
+Two exceptions keep their stronger checks, because they guard irreversible or external
+actions rather than routine code:
+- A check an accepted ADR makes a gate stays a gate: deleting a Phaser world still requires
+  its Three.js replacement to pass parity tests and visual validation, and the Sprouts gate
+  (ADR-020, LAI-2303).
+- APPROVAL tasks and anything touching AWS stop for approval as before (roadmap section 1).
+
+A roadmap task's "Verification:" line lists its merge-readiness checks unless one of these
+exceptions applies.
+
+### Merge or release readiness (only when explicitly requested)
+
+Run the comprehensive gates for the changed code: `make check` (Ruff, Ruff format, Django
+check, migration check, pytest against PostgreSQL, ADR check, typecheck, oxlint, Prettier,
+the full Vitest suite, production build), `npm run test:e2e` and any browser or WebGL checks
+relevant to the change, `npm run content:check`, architecture and ADR validation (governance
+rule 4 in `docs/DECISIONS.md`), the deferred checks recorded by each task being merged, and
+regression testing. Report failures and fix the relevant ones before recommending the merge.
+
+CI repeats the full gates on pushes to `main` and on pull requests only. A push to any other
+branch runs no CI, so the merge readiness review is the gate for branch work.
+
 ## Continuous integration (`.github/workflows/ci.yml`)
 
 Three jobs, all with read-only repository permissions, no secrets, and no AWS access:
@@ -157,3 +218,27 @@ timestamps; and the export runs in a child Node process with a scrubbed environm
 Hand-mutation check: editing an item without re-exporting, and making a content module import the Amplify
 data client, each turned the suite red. The built-in validator only supports the schema keywords the
 schema uses; the Python side must use a full JSON Schema validator.
+
+## Golden vectors (LAI-0303)
+
+`tests/golden/*.json` pin the deterministic rules Python takes over in Phase 6 (ADR-019
+sub-decision 8): answer validation, step transitions and the hint ladder, reward resolution,
+quest objectives, conditions and progress, mastery counters, status, error pattern and review
+decay, and the director's ranking and reachability. Inputs are authored in
+`react/src/test/golden/buildGoldenVectors.ts`; every expected value is produced by running the
+TypeScript function, so a vector cannot assert a rule the code does not have. Each file
+carries `schemaVersion`, its source files, per function the Python name and argument order,
+and `notes` listing behaviour no document specifies.
+
+- `npm run golden:generate` rewrites the files; `npm run golden:check` and
+  `react/src/test/golden/goldenVectors.test.ts` fail when they are stale.
+- Regenerate after changing a rule (then update the Python port in the same change) and after
+  any content change: the `director-content` suite runs on the shipped content and records the
+  content export's `contentDigest`.
+- After a location manifest or other content change, refresh in this order: the scene asset index
+  (`npx vitest run src/features/island-map/three/runtime/sceneAssetIndex.test.ts -u`; the path must
+  come before `-u`, which otherwise takes it as its value and runs every test), then
+  `npm run content:export`, then `npm run golden:generate`.
+- `tests/golden/test_golden_vectors.py` checks the format from Python. A Phase 6 port adds its
+  own pytest over `golden_vectors.cases(suite, function)`; inputs arrive as snake_case keyword
+  arguments, and a `throws` case must raise.

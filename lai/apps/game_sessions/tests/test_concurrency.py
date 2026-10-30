@@ -10,13 +10,13 @@ import pytest
 from django.db import connection
 
 from apps.game_sessions.models import AdventureSession
-from apps.game_sessions.services import (
+from apps.game_sessions.play import (
     AttemptAlreadyAnswered,
     issue_chest_challenge,
     start_or_resume_region_session,
     submit_chest_answer,
 )
-from apps.inventory.models import GrantedRewardRule, InventoryItem
+from apps.inventory.models import GrantedRule, InventoryItem
 from apps.inventory.services import grant_reward_rule
 from apps.progression.models import WorldChange
 
@@ -66,7 +66,7 @@ def test_two_grants_of_one_rule_grant_once(treasure):
     results = race(lambda: grant_reward_rule(child, rule))
 
     assert sorted(r.granted for r in results) == [False, True], results
-    assert GrantedRewardRule.objects.filter(child=child).count() == 1
+    assert GrantedRule.objects.filter(child=child).count() == 1
     assert InventoryItem.objects.filter(child=child).count() == 1
 
 

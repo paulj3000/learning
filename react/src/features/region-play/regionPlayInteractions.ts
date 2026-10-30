@@ -39,11 +39,15 @@ export function resolveRegionPlayInteraction(
   interactionId: string,
   sessionOpen: boolean,
 ): RegionPlayInteractionEvent | null {
-  const binding = config.interactions.find((candidate) => candidate.interactionId === interactionId);
+  const binding = config.interactions.find(
+    (candidate) => candidate.interactionId === interactionId,
+  );
   if (!binding) return null;
 
   if (binding.kind === 'chest') {
-    const chest: ChestState | undefined = bootstrap.chests.find((c) => c.entityId === binding.entityId);
+    const chest: ChestState | undefined = bootstrap.chests.find(
+      (c) => c.entityId === binding.entityId,
+    );
     if (!chest) return null;
     return {
       kind: 'chest',
@@ -67,7 +71,10 @@ export function resolveRegionPlayInteraction(
 }
 
 /** Whether an interaction is one this region's extension owns. */
-export function claimsRegionPlayInteraction(config: RegionPlayConfig | null, interactionId: string): boolean {
+export function claimsRegionPlayInteraction(
+  config: RegionPlayConfig | null,
+  interactionId: string,
+): boolean {
   return config?.interactions.some((binding) => binding.interactionId === interactionId) ?? false;
 }
 

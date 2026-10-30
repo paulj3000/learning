@@ -8,6 +8,7 @@ not something silently ignored.
 from rest_framework import serializers
 
 from apps.education.challenges import public_challenge
+from apps.users.serializers import ChildProfileSerializer
 
 
 class ClosedSerializer(serializers.Serializer):
@@ -84,7 +85,7 @@ class NpcPlacementSerializer(PlacedSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         # The placement's own model wins; otherwise the NPC's default character model.
-        data["assetId"] = instance.asset_id or instance.npc.asset_id
+        data["assetId"] = instance.asset_id  # catalog NPCs carry no model of their own
         return data
 
 
@@ -122,20 +123,26 @@ class SessionSerializer(serializers.Serializer):
     sessionId = serializers.UUIDField(source="id")
     kind = serializers.CharField()
     regionId = serializers.CharField(source="region_id")
-    templateSlug = serializers.CharField(source="template_slug")
+    templateSlug = serializers.SerializerMethodField()
     locationSlug = serializers.CharField(source="location_slug")
     status = serializers.CharField()
     startedAt = serializers.DateTimeField(source="started_at")
     lastActivityAt = serializers.DateTimeField(source="last_activity_at")
     completedAt = serializers.DateTimeField(source="completed_at")
 
+    def get_templateSlug(self, session) -> str:
+        return session.adventure.slug if session.adventure_id else ""
+
 
 class WorldChangeSerializer(serializers.Serializer):
     locationSlug = serializers.CharField(source="location_slug")
     changeType = serializers.CharField(source="change_type")
     changeKey = serializers.CharField(source="change_key")
-    payload = serializers.JSONField()
+    payload = serializers.SerializerMethodField()
     createdAt = serializers.DateTimeField(source="created_at")
+
+    def get_payload(self, change) -> dict:
+        return change.payload or {}
 
 
 class ItemSerializer(serializers.Serializer):
@@ -143,12 +150,15 @@ class ItemSerializer(serializers.Serializer):
     displayName = serializers.CharField(source="display_name")
     description = serializers.CharField()
     category = serializers.CharField()
-    assetId = serializers.CharField(source="asset_id")
+    assetId = serializers.SerializerMethodField()
+
+    def get_assetId(self, item) -> str:
+        return ""  # catalog items have no model id yet; the client draws a placeholder
 
 
 class InventoryEntrySerializer(serializers.Serializer):
     item = ItemSerializer()
-    grantedAt = serializers.DateTimeField(source="granted_at")
+    grantedAt = serializers.DateTimeField(source="acquired_at")
 
 
 class QuestEntrySerializer(serializers.Serializer):
@@ -156,10 +166,10 @@ class QuestEntrySerializer(serializers.Serializer):
         quest, progress = entry.quest, entry.progress
         done = set(progress.completed_objective_ids) if progress else set()
         return {
-            "questId": quest.quest_id,
+            "questId": quest.slug,
             "title": quest.title,
             "summary": quest.summary,
-            "giverNpcId": quest.giver_npc.npc_id if quest.giver_npc_id else None,
+            "giverNpcId": quest.source.get("giverNpcId"),
             "status": entry.status,
             "currentStageId": progress.current_stage_id if progress else None,
             "completedAt": (
@@ -183,7 +193,7 @@ class QuestEntrySerializer(serializers.Serializer):
                         for objective in stage.get("objectives", [])
                     ],
                 }
-                for stage in quest.stages
+                for stage in quest.source.get("stages", [])
             ],
         }
 
@@ -250,11 +260,13 @@ class OutcomeSerializer(serializers.Serializer):
             "feedback": "CORRECT" if outcome.correct else "TRY_AGAIN",
             "canRetry": not outcome.correct,
             "chestOpened": outcome.chest_opened,
-            "newItems": [item for item in self.context.get("items", []) if item["itemId"] in new_items],
+            "newItems": [
+                item for item in self.context.get("items", []) if item["itemId"] in new_items
+            ],
             "rewardMessage": self.context.get("reward_message") if new_items else None,
             "questUpdates": [
                 {
-                    "questId": update.progress.quest.quest_id,
+                    "questId": update.progress.quest.slug,
                     "status": update.progress.status,
                     "currentStageId": update.progress.current_stage_id,
                     "justCompleted": update.result.just_completed,
@@ -264,3 +276,120 @@ class OutcomeSerializer(serializers.Serializer):
                 if update.result.changed
             ],
         }
+
+
+# --- Native discovery, home and inventory (LAI-ANDROID-API-001) -----------------------------
+# Contract: docs/android/ANDROID_API_CONTRACT.md. Thumbnails are asset ids or null (ADR-030):
+# no catalog row carries an illustration yet, so every `thumbnailAssetId` is null today.
+
+
+def _iso(value):
+    return serializers.DateTimeField().to_representation(value) if value else None
+
+
+def resume_info(session) -> dict | None:
+    if session is None:
+        return None
+    return {
+        "sessionId": str(session.pk),
+        "status": session.status,
+        "lastActivityAt": _iso(session.last_activity_at),
+    }
+
+
+def region_entry(entry) -> dict:
+    region = entry.region
+    location, world = region.location, region.location.world
+    return {
+        "regionId": region.region_id,
+        "title": region.title,
+        "description": location.tagline,
+        "world": {"slug": world.slug, "title": world.title},
+        "location": {"slug": location.slug, "title": location.title},
+        "ageBands": list(world.supported_age_bands),
+        "available": entry.playable,
+        "lockedReason": None if entry.playable else "NO_CHALLENGE_FOR_AGE_BAND",
+        "status": entry.status,
+        "chestsTotal": entry.chests_total,
+        "chestsOpened": entry.chests_opened,
+        "thumbnailAssetId": None,
+        "prerequisites": [],
+        "resume": resume_info(entry.open_session),
+        "lastPlayedAt": _iso(entry.last_session.last_activity_at) if entry.last_session else None,
+    }
+
+
+def adventure_entry(entry) -> dict:
+    adventure = entry.adventure
+    return {
+        "adventureId": adventure.slug,
+        "kind": "STEP_ADVENTURE",
+        "title": adventure.title,
+        "description": "",
+        "ageBands": list(adventure.age_bands),
+        "skillDomain": adventure.skill_domain,
+        "available": True,
+        "lockedReason": None,
+        "status": entry.status,
+        "thumbnailAssetId": None,
+        "prerequisites": [],
+        "resume": resume_info(entry.active_session),
+    }
+
+
+def quest_status_entry(entry) -> dict:
+    data = QuestEntrySerializer().to_representation(entry)
+    data["available"] = entry.status != "LOCKED"
+    data["lockedReason"] = "PREREQUISITES_NOT_MET" if entry.status == "LOCKED" else None
+    data["prerequisites"] = [
+        condition
+        for condition in entry.quest.source.get("prerequisites", [])
+        if isinstance(condition, dict) and condition.get("type") != "ALWAYS"
+    ]
+    return data
+
+
+class HomeSerializer(serializers.Serializer):
+    def to_representation(self, state):
+        child = state["child"]
+        return {
+            "child": ChildProfileSerializer(child).data,
+            "lastRegion": region_entry(state["last_region"]) if state["last_region"] else None,
+            "resume": [region_entry(e) for e in state["resume"]],
+            "nextRegions": [region_entry(e) for e in state["next_regions"]],
+            "progress": {
+                "completedSessions": state["summary"]["completed_sessions"],
+                "worldChanges": state["summary"]["world_changes"],
+                "items": state["summary"]["items"],
+                "questsCompleted": state["summary"]["quests_completed"],
+                "questsActive": state["summary"]["quests_active"],
+            },
+            "recentItems": InventoryEntrySerializer(state["recent_items"], many=True).data,
+            "recentActivities": [
+                {
+                    "type": "SESSION_COMPLETED",
+                    "kind": session.kind,
+                    "regionId": session.region_id,
+                    "adventureId": session.adventure.slug if session.adventure_id else "",
+                    "at": _iso(session.completed_at),
+                }
+                for session in state["recent_completed"]
+            ],
+            "recentWorldChanges": WorldChangeSerializer(
+                state["recent_world_changes"], many=True
+            ).data,
+            "restrictions": {
+                "active": child.active,
+                "sessionMinutes": child.session_minutes,
+                "aiEnabled": child.ai_enabled,
+                "readingMode": child.reading_mode,
+            },
+        }
+
+
+class LaunchRequest(ClosedSerializer):
+    regionId = serializers.SlugField(max_length=80)
+
+
+class RedeemRequest(ClosedSerializer):
+    ticket = serializers.CharField(min_length=20, max_length=128, trim_whitespace=False)

@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AnswerOutcome } from '../../../../../api/play/types';
 import { useAuth } from '../../../../auth/AuthContext';
 import { tryParseRegionPlayConfig } from '../../../../region-play/regionPlayConfig';
-import { chestStateChanges, resolveRegionPlayInteraction } from '../../../../region-play/regionPlayInteractions';
+import {
+  chestStateChanges,
+  resolveRegionPlayInteraction,
+} from '../../../../region-play/regionPlayInteractions';
 import {
   PLAY_COPY,
   completedQuests,
@@ -41,13 +44,22 @@ export function RegionPlayCompanion(props: LocationCompanionProps) {
 }
 
 function RegionPlayGame(props: LocationCompanionProps) {
-  const { childId, regionId, config, sceneApi, claimedInteraction, limitReached, onCloseInteraction } = props;
+  const {
+    childId,
+    regionId,
+    config,
+    sceneApi,
+    claimedInteraction,
+    limitReached,
+    onCloseInteraction,
+  } = props;
   const auth = useAuth();
   const onUnauthenticated = () => void auth.refresh();
   const parsed = useMemo(() => tryParseRegionPlayConfig(config), [config]);
   const controls = useRegionPlay(childId, regionId, { onUnauthenticated });
   const progress = usePlayerProgress(childId, { onUnauthenticated });
-  const { state, startSession, changeSession, acceptQuest, requestChallenge, submitAnswer } = controls;
+  const { state, startSession, changeSession, acceptQuest, requestChallenge, submitAnswer } =
+    controls;
   const refreshProgress = progress.refresh;
 
   const [backpackOpen, setBackpackOpen] = useState(false);
@@ -81,7 +93,10 @@ function RegionPlayGame(props: LocationCompanionProps) {
       const open = api.isChestOpen(chest.entityId);
       if (open !== undefined) drawn.set(chest.entityId, open);
     }
-    for (const change of chestStateChanges(drawn, chests.filter((c) => drawn.has(c.entityId)))) {
+    for (const change of chestStateChanges(
+      drawn,
+      chests.filter((c) => drawn.has(c.entityId)),
+    )) {
       api.setChestOpen(change.entityId, change.isOpen);
     }
   }, [chests, sceneApi]);
@@ -97,7 +112,12 @@ function RegionPlayGame(props: LocationCompanionProps) {
 
   const event =
     parsed && claimedInteraction && state.bootstrap
-      ? resolveRegionPlayInteraction(parsed, state.bootstrap, claimedInteraction.id, state.session !== null)
+      ? resolveRegionPlayInteraction(
+          parsed,
+          state.bootstrap,
+          claimedInteraction.id,
+          state.session !== null,
+        )
       : null;
 
   const chestEntity = event?.kind === 'chest' ? event.entityId : null;
@@ -165,12 +185,15 @@ function RegionPlayGame(props: LocationCompanionProps) {
     let phase: ChestPanelPhase;
     if (event.isOpen) phase = { kind: 'open' };
     else if (!event.challengeAvailable) phase = { kind: 'not-ready' };
-    else if (challenge) phase = { kind: 'answering', challenge, submitting: state.busy === 'submitAnswer' };
+    else if (challenge)
+      phase = { kind: 'answering', challenge, submitting: state.busy === 'submitAnswer' };
     else if (wrong) phase = { kind: 'wrong' };
     else if (state.busy === 'requestChallenge') phase = { kind: 'requesting' };
     else phase = { kind: 'waiting' };
     const chestError =
-      state.errorAction === 'requestChallenge' || state.errorAction === 'submitAnswer' ? errorMessage : null;
+      state.errorAction === 'requestChallenge' || state.errorAction === 'submitAnswer'
+        ? errorMessage
+        : null;
     panel = (
       <ChestChallengePanel
         label={event.label}

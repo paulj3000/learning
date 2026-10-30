@@ -1,10 +1,10 @@
-"""Reward grants. The Django form of the client's `grantRewards`."""
+"""Reward grants (Treasure Rush TR-4/TR-5). The Django form of the client's `grantRewards`."""
 
 from dataclasses import dataclass
 
 from django.db import transaction
 
-from .models import GrantedRewardRule, InventoryItem, RewardRule
+from .models import GrantedRule, InventoryItem
 
 
 @dataclass(frozen=True)
@@ -15,15 +15,15 @@ class RewardGrant:
     """Items the child did not own before this grant (an item from another rule is not new)."""
 
 
-def grant_reward_rule(child, rule: RewardRule, *, source_session=None) -> RewardGrant:
-    """Fire `rule` for `child` once. Replays and concurrent duplicates grant nothing.
+def grant_reward_rule(child, rule, *, source_session=None) -> RewardGrant:
+    """Fire `rule` (a `catalog.RewardRule`) for `child` once. Replays grant nothing.
 
-    The `GrantedRewardRule` row is claimed first, under its unique constraint, so of two
-    concurrent grants exactly one proceeds to add items; the other sees the claim and returns
-    `granted=False`. Must run inside the caller's transaction when combined with other writes.
+    The `GrantedRule` row is claimed first, under its unique constraint, so of two concurrent
+    grants exactly one proceeds to add items. Must run inside the caller's transaction when
+    combined with other writes.
     """
     with transaction.atomic():
-        _, claimed = GrantedRewardRule.objects.get_or_create(
+        _, claimed = GrantedRule.objects.get_or_create(
             child=child, rule=rule, defaults={"source_session": source_session}
         )
         if not claimed:
@@ -41,4 +41,4 @@ def grant_reward_rule(child, rule: RewardRule, *, source_session=None) -> Reward
 
 
 def owned_item_ids(child) -> set[str]:
-    return set(InventoryItem.objects.filter(child=child).values_list("item__item_id", flat=True))
+    return set(InventoryItem.objects.for_child(child).values_list("item__item_id", flat=True))

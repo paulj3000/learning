@@ -24,8 +24,19 @@ export interface PipDialogProps {
  * one. Accepting is always the child's choice; nothing here starts a quest
  * on its own.
  */
-export function PipDialog({ name, quests, accepting, justAccepted = false, error, onAccept, onClose }: PipDialogProps) {
-  const quest = quests.find((q) => q.status === 'AVAILABLE') ?? quests.find((q) => q.status === 'ACTIVE') ?? quests[0];
+export function PipDialog({
+  name,
+  quests,
+  accepting,
+  justAccepted = false,
+  error,
+  onAccept,
+  onClose,
+}: PipDialogProps) {
+  const quest =
+    quests.find((q) => q.status === 'AVAILABLE') ??
+    quests.find((q) => q.status === 'ACTIVE') ??
+    quests[0];
 
   return (
     <GameDialog titleId="region-play-npc-title" title={name} onClose={onClose}>
@@ -104,11 +115,16 @@ export function QuestSteps({ quest }: { quest: QuestEntry }) {
     <ul className={styles.list} aria-label={quest.title}>
       {objectives.map((objective) => (
         <li key={objective.id} className={styles.listItem}>
-          <span className={[styles.mark, objective.complete ? styles.markDone : ''].join(' ')} aria-hidden="true">
+          <span
+            className={[styles.mark, objective.complete ? styles.markDone : ''].join(' ')}
+            aria-hidden="true"
+          >
             {objective.complete ? '✓' : ''}
           </span>
           <span>{objective.label}</span>
-          <span className={styles.visuallyHidden}>{objective.complete ? PLAY_COPY.questDone : PLAY_COPY.questDoing}</span>
+          <span className={styles.visuallyHidden}>
+            {objective.complete ? PLAY_COPY.questDone : PLAY_COPY.questDoing}
+          </span>
         </li>
       ))}
     </ul>

@@ -35,7 +35,14 @@ export interface ChestChallengePanelProps {
  * It only collects an answer. It never knows the right one, so it cannot
  * grade, hint at, or reveal it; the server's outcome decides what happens.
  */
-export function ChestChallengePanel({ label, phase, error, onSubmit, onTryAgain, onClose }: ChestChallengePanelProps) {
+export function ChestChallengePanel({
+  label,
+  phase,
+  error,
+  onSubmit,
+  onTryAgain,
+  onClose,
+}: ChestChallengePanelProps) {
   return (
     <GameDialog titleId="region-play-chest-title" title={label} onClose={onClose}>
       {phase.kind === 'waiting' ? <p className={styles.speech}>{PLAY_COPY.chestWaiting}</p> : null}
@@ -45,7 +52,9 @@ export function ChestChallengePanel({ label, phase, error, onSubmit, onTryAgain,
         </p>
       ) : null}
       {phase.kind === 'open' ? <p className={styles.speech}>{PLAY_COPY.chestOpen}</p> : null}
-      {phase.kind === 'not-ready' ? <p className={styles.speech}>{PLAY_COPY.chestNotReady}</p> : null}
+      {phase.kind === 'not-ready' ? (
+        <p className={styles.speech}>{PLAY_COPY.chestNotReady}</p>
+      ) : null}
       {phase.kind === 'answering' ? (
         <ChallengeForm
           key={phase.challenge.attemptId}
@@ -122,7 +131,10 @@ function ChallengeForm({
             ) : null}
             <span className={styles.group} aria-hidden="true">
               {Array.from({ length: group.count }, (_, coin) => (
-                <span key={coin} className={[styles.coin, group.takenAway ? styles.coinTaken : ''].join(' ')} />
+                <span
+                  key={coin}
+                  className={[styles.coin, group.takenAway ? styles.coinTaken : ''].join(' ')}
+                />
               ))}
             </span>
           </span>
@@ -161,7 +173,11 @@ function ChallengeForm({
             onChange={(event) => setTyped(event.target.value)}
             disabled={submitting}
           />
-          <button type="submit" className={styles.primary} disabled={submitting || typedAnswer === null}>
+          <button
+            type="submit"
+            className={styles.primary}
+            disabled={submitting || typedAnswer === null}
+          >
             {PLAY_COPY.openIt}
           </button>
         </form>
@@ -182,7 +198,12 @@ function ChallengeForm({
       ) : null}
       {hintLevel < MAX_HINT_LEVEL ? (
         <div className={styles.actions}>
-          <button type="button" className={styles.button} disabled={submitting} onClick={() => setHintLevel((level) => level + 1)}>
+          <button
+            type="button"
+            className={styles.button}
+            disabled={submitting}
+            onClick={() => setHintLevel((level) => level + 1)}
+          >
             {PLAY_COPY.helpMe}
           </button>
         </div>

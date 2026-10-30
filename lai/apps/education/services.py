@@ -1,9 +1,16 @@
-"""Skill evidence writes (TR-4)."""
+"""Skill evidence writes for Treasure Rush challenge attempts (TR-4, adapted in POST-MERGE-03).
+
+Mastery counters (`SkillProgress`) are LAI-0603's, ported against the golden vectors; this
+module only records the evidence row.
+"""
 
 from django.db import transaction
 
+from apps.catalog.models import LearningObjective
+from apps.game_sessions.models import Correctness as EvidenceResult
+
 from .challenges import Correctness
-from .models import EvidenceResult, LearningObjective, SkillEvidence
+from .models import SkillEvidence
 
 # The evidence type a server-generated challenge records; step-based adventures use the step
 # type (`NUMBER_INPUT`, `CHOICE`, ...) as on the client.
@@ -23,19 +30,18 @@ def record_attempt_evidence(attempt) -> tuple[SkillEvidence, bool]:
     """Evidence for one answered challenge attempt. Idempotent per attempt.
 
     The objective is the attempt's curriculum skill: TR-1 skill ids are learning objective
-    codes (`counting-sets`, `addition-within-ten`, `subtraction-within-ten`). A missing
-    objective raises `LearningObjective.DoesNotExist`: that is a content bug, not a child's.
+    codes (`counting-sets`, `addition-within-ten`, `subtraction-within-ten`). An objective the
+    catalog does not hold raises `LearningObjective.DoesNotExist`: a content bug, not a child's.
     """
     if not attempt.correctness:
         raise NotGradedYet("Only an answered attempt is evidence.")
-    objective = LearningObjective.objects.get(code=attempt.skill_id)
+    LearningObjective.objects.get(code=attempt.skill_id)
     with transaction.atomic():
         return SkillEvidence.objects.get_or_create(
-            attempt=attempt,
+            challenge_attempt=attempt,
             defaults={
                 "child": attempt.child,
-                "session": attempt.session,
-                "learning_objective": objective,
+                "learning_objective_code": attempt.skill_id,
                 "evidence_type": CHALLENGE_EVIDENCE_TYPE,
                 "result": _RESULTS[Correctness(attempt.correctness)],
                 "support_level": attempt.hint_level,

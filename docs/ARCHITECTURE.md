@@ -520,6 +520,24 @@ exist, so the "World engine layering" described above remains accurate for the c
 No new Phaser features. React keeps menus, HUD, dashboards, and admin. Detail:
 `docs/THREEJS_ENGINE_CONVERSION.md`; decision: ADR-020 in `docs/DECISIONS.md`.
 
+**Engine import boundary (LAI-0203, interim until `game/` exists).** The engine is the `.ts`
+modules of `features/island-map/three/` and `features/island-map/scenes/` plus the 2D
+geometry modules (`gridGeometry`, `tilemap`, `zones`, `decor`, `*Tilemap`, `*Zones`,
+`*Decor`); `.tsx` files there are its React hosts. `src/test/engineBoundary.test.ts`
+resolves every import form (static, type-only, re-export, side-effect, `require`, dynamic)
+and follows local modules transitively. Packages are deny by default: only `three` (and
+`phaser` in `scenes/`) is allowed, so an alias cannot bypass the rule. Forbidden: React,
+React DOM and React Router; Amplify and AWS SDKs; `lib/data-client`, `lib/amplify-config`,
+`lib/ai/`, `api/` and any feature `api` module; `app/`, `routes/`, `components/`,
+`features/auth/`, `features/session/`; any `.tsx` module; anything outside `react/src`. The
+host passes the engine plain data and interfaces instead. `KNOWN_VIOLATIONS` is empty since
+POST-MERGE-03: every React module in the engine folders is a `.tsx` host file (view extensions,
+the view registry, the bridge hooks), the React view registry lives in
+`extensions/viewExtensions.tsx` apart from the engine's `extensions/index.ts` (which keeps
+only world extensions and the plain id list `viewExtensionIds.ts`), and the region-play
+extension's id and config types live in `region-play/regionPlayConfig.ts`, away from the API
+types. LAI-2101 applies the same rule to `game/`.
+
 ## Proposed backend migration (not in effect)
 
 The architecture above is current and authoritative. A migration from Amplify Gen 2 to
@@ -582,21 +600,25 @@ cookies, tokens, bodies, or user data. `django.request` is limited to ERROR and 
 is discarded so there are no duplicate or query-string-bearing lines. Console only.
 
 **Security defaults.** Deny by default: `IsAuthenticated` is the default permission; only the
-health view opts into `AllowAny` (a test fails if any other route becomes public). No session or
-cookie authentication and no CORS. Cognito bearer-token transport, browser token storage, the CSRF
+health view opts into `AllowAny` (a test fails if any other route becomes public). No session
+authentication and no CORS. The one cookie credential is the game session cookie of ADR-036,
+accepted only by the game runtime routes ("Native Android clients" below). Cognito bearer-token transport, browser token storage, the CSRF
 policy, and XSS considerations are decided in LAI-0402; see ADR-021 on W003. There is no
 `docs/SECURITY.md`; security decisions live in ADR-021 and this section.
 
-**Play API (TR-5).** Gameplay routes live under `/api/v1/children/<uuid:child_id>/`, are
-child-scoped views over `apps/game_sessions/services.py`, and take closed request bodies. The
-contract is `docs/PLAY_API.md`.
+**Play API (TR-5).** Region-play routes live under `/api/v1/children/<uuid:child_id>/`, are
+child-scoped views (`apps/game_sessions/play_views.py`) over `apps/game_sessions/play.py` and
+`play_state.py`, and take closed request bodies. The contract is `docs/PLAY_API.md`. Step-based
+adventure answers and hints are LAI-0601's (`views.py`, `services.py`); the URL conf lists them
+first so the play API's `sessions/<id>/<action>/` route does not shadow them.
 
 ## Django identity model (LAI-0301)
 
 Cognito proves identity; `users.ParentAccount` (keyed by the immutable Cognito `sub`) is the
 application account and Django's user model; `users.ChildProfile` is a profile a parent manages and
 never a login. Child data is reached only through its parent (`apps/users/services.py`). See ADR-022
-in `docs/DECISIONS.md` and the mapping in `docs/DATA_MODEL.md`. No API exposes these models yet.
+in `docs/DECISIONS.md` and the mapping in `docs/DATA_MODEL.md`. Django Admin staff are also
+`ParentAccount` rows, with an `admin_username` and a local password (ADR-034, "Django Admin" below).
 
 ## Authentication architecture (LAI-0401, ADR-024)
 
@@ -626,7 +648,7 @@ path and give the same `not_found` response (same status, body, and headers; the
 queries). Child-owned records are fetched only with `self.scoped(queryset)` or
 `self.get_scoped_object(queryset, pk)`, which add `child=self.child`; a nested id from the URL is never
 looked up alone. An `Admins` claim changes nothing here: cross-family administration is a separate,
-audited path (LAI-0404). The helpers do not secure an endpoint that does not use them; see the
+audited path that does not exist yet (Django Admin registers no child data, ADR-034). The helpers do not secure an endpoint that does not use them; see the
 checklist in `docs/TESTING_STRATEGY.md`.
 
 ## Logging and privacy (LAI-0208, ADR-025)
@@ -672,6 +694,222 @@ that no module it imports reaches React, Amplify, Three.js, Phaser, or an `api.t
 the future Three.js world loader are the intended consumers; neither exists yet. Details, the hierarchy
 mapping, and gaps: `docs/DATA_MODEL.md`.
 
+## Content catalog (LAI-0304)
+
+`lai/apps/catalog` holds World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset
+and ContentRelease, loaded from the export by `manage.py load_content` (idempotent, transactional,
+digest-verified, never deletes, never overwrites `active`/`sort_order`). Django becomes the content
+authority at the authoring cutover; until then the export is authoritative for content fields. The
+catalog admin (`apps/catalog/admin.py`) is registered on the one Django Admin site (LAI-0404, below).
+Permissions resolve through `apps/catalog/admin_access.py`, deny by default: active staff and superusers
+view everything and edit only `active` and `sort_order`; nobody adds; deletion is superusers only and
+closed until the cutover. Spatial layout is not in the catalog (LAI-0805). Model and field detail:
+`docs/DATA_MODEL.md`, "Django content catalog".
+
+## Django Admin (LAI-0404, ADR-034)
+
+**Shape.** Django's default `admin.site`, the only admin site, at `/admin/` (`settings.ADMIN_URL_PATH`,
+env `DJANGO_ADMIN_URL_PATH`). It is an internal tool for staff. Product admin views (progress
+summaries, safety review) stay in the React admin. The admin stack (`admin`, `auth`,
+`contenttypes`, `sessions`, `messages`, `staticfiles`) and the session, CSRF, authentication and
+message middleware exist for the admin only. The API is unchanged: DRF authenticates with Cognito
+bearer tokens alone and never reads a session.
+
+**Who gets in.** Staff sign in with an admin username and a Django password
+(`apps/users/backends.py`, the only authentication backend). `AdminSite.has_permission` admits
+active staff only; anonymous visitors are sent to the login page and non-staff are refused.
+Cognito parents cannot sign in: they have no admin username and a password hash that never
+matches. A Cognito group, including `Admins`, never grants access.
+
+| Role | Flags | Can |
+|---|---|---|
+| Staff | `is_staff` | View every registered catalog page; edit `active` and `sort_order` on worlds, locations, adventures, quests and NPCs |
+| Superuser | `is_staff` and `is_superuser` | All of the above, plus the admin-accounts page (activate, deactivate, grant or remove staff and superuser) |
+
+Nobody adds catalog rows (the importer does) or deletes them (closed until the authoring
+cutover). Changes are recorded in Django's admin log (`django_admin_log`), which stores object
+ids, not names.
+
+**Registered models.** Catalog: World, Location (with scene-asset and adventure inlines),
+Adventure (with step inline), AdventureStep, Quest, NpcDefinition, ContentAsset (3D models and
+shared assets, with "used by" locations), LearningObjective, ItemDefinition, CollectibleSet,
+RewardRule, ContentRelease. Users: Admin accounts (staff rows only, superusers only).
+**Not registered, on purpose:** ChildProfile and every child-owned progress model (sessions,
+answers, skills, stories, world changes, inventory, quest progress), until an audited
+cross-family read path exists (ADR-024 A4). Parent accounts are not listed. Region layouts and
+`ChallengeSpec` are seed-authored until LAI-0805 (ADR-033). Things still only in Amplify (the
+React admin's uploaded `Asset` records, ADR-030; the island/adventure overlay, ADR-031; safety
+review) have no Django models yet and are not in Django Admin; LAI-0801/0802 own them.
+
+**How accounts come to exist.**
+1. *Cognito account:* the browser signs up and confirms directly with Cognito (`SignUpForm`,
+   `ConfirmSignUpForm`, Amplify Auth). Neither Django nor a Cognito trigger is involved.
+2. *Django account:* in a build with the Django API on, `DjangoAccountProvider`
+   (`react/src/features/auth/DjangoAccountContext.tsx`) sends `POST /api/v1/me/` once after every
+   sign-in. The first call creates the `ParentAccount` from the verified token's `sub`, with no
+   admin rights; later calls return it unchanged. The same response carries `django_admin`.
+3. *Admin rights:* an operator gives that account an admin login (`create_admin_account
+   --cognito-sub`), then sets its role (`set_admin_role`), below.
+
+**Creating the first superuser** (run where `manage.py` reaches the database: locally, or as a
+one-off task in the deployed container):
+
+```sh
+cd lai && python manage.py migrate
+python manage.py create_admin_account <username> --superuser
+# prompts twice for the password; it must pass AUTH_PASSWORD_VALIDATORS (12+ characters, not common)
+```
+
+- More staff: the same command without `--superuser`.
+- **Upgrade a parent who signed up:** they sign in to the app once (step 2), then
+  `create_admin_account <username> --cognito-sub <their Cognito sub>` gives that same row an admin
+  login (staff), and `set_admin_role <username> superuser` makes it a superuser. Find the sub in the
+  Cognito console (user pool, Users, the user's "sub" attribute) or with
+  `aws cognito-idp list-users --user-pool-id <pool> --filter 'email = "<email>"'`.
+- Change a role later: `set_admin_role <username> superuser|staff|none`, or a superuser edits the
+  account on the Admin accounts page. Neither will demote or deactivate the last active superuser.
+- Non-interactive, for a container task: `--no-input` with `DJANGO_ADMIN_PASSWORD` set from Secrets
+  Manager for that one run only.
+- New password: `create_admin_account <username> --reset-password`. This signs out existing sessions.
+- Remove access: a superuser clears `is_staff` (or `is_active`) on the admin-accounts page. The change
+  applies on the account's next request. `manage.py createsuperuser` deliberately fails and points here.
+
+**Signing in.** Open `https://<django host>/admin/`, enter the admin username and password. Sessions
+last at most 8 hours and end when the browser closes. Cookies (`lai_admin_session`,
+`lai_admin_csrftoken`) are scoped to the admin path, HttpOnly, SameSite=Lax, and Secure in production.
+
+**React link.** `POST /api/v1/me/` (the sign-in call above) returns `django_admin: true` for active
+staff. The account menu's "Admin" item goes to `VITE_DJANGO_ADMIN_URL` only when the build sets that
+variable and has the Django API on (`VITE_BACKEND=django`) and Django returns true. Otherwise the existing `/admin` link for the
+Amplify `Admins` group is unchanged. Django Admin checks its own sign-in either way.
+
+**Known limitations.** Separate credentials from Cognito, with no MFA on the Django login yet (a
+Cognito-backed admin sign-in is the upgrade path, TR-D5 option a). No throttling of failed admin
+logins in the application (add WAF rate limiting at the load balancer, or a lockout, before exposure). There is no Django deployment yet;
+hosting and approvals are in `docs/DJANGO_TARGET_ARCHITECTURE.md`, "Django Admin hosting".
+
+## Shared asset manager (LAI-2200, ADR-035)
+
+Upload a 3D model once, publish an immutable version, and every island, region, adventure or quest
+uses it by its stable asset id. Detail and the full contract: `docs/ASSET_MANAGER.md`.
+
+- **Definition** is `catalog.ContentAsset` (one identity; CLAUDE.md section 20), now creatable in
+  Django. **Versions** are `assets.AssetVersion`: immutable once published, unique per asset,
+  stored under server-made keys (`assets/models/<id>/<version uuid>/model.<glb|gltf>`).
+- **Validation** (`apps/assets/validation.py`) checks GLB or self-contained glTF from the bytes,
+  with bounded reads, no external URIs, no decoder-only compression, structural bounds, clips and
+  dimensions. It runs on upload and again on publish (with a checksum re-check).
+- **Storage** (`apps/assets/storage.py`) is S3 in production (private, checksummed, never
+  overwritten), local disk in development, memory in tests.
+- **Admin**: definitions and versions in Django Admin, gated by Django permissions through the
+  "Asset editors" and "Asset publishers" groups (`manage.py ensure_asset_roles`).
+- **Resolution**: `GET /api/v1/children/<child_id>/assets/?ids=` (child-scoped; published only;
+  `resolved`, `unavailable` or `retired`). **Delivery** is a self-authorizing URL: a signed Django
+  route that re-checks publication on every fetch, or an S3 presigned URL. It is the second route
+  without a bearer token, and it carries a signed capability for one published version.
+- **Frontend**: `react/src/api/assets/djangoAssetResolver.ts`, an `AssetResolver` for the LAI-2106
+  loader that falls back to the bundled manifest. It is not wired into a scene yet (TR-10).
+- **Admin 3D preview** (AM-10): a read-only Three.js viewer on each version's admin preview page,
+  for validated, published and retired versions. The file comes from a separate admin route that
+  needs a staff session and a short-lived token sent in a header, so the gameplay route stays
+  published-only. The viewer source is `react/src/features/assets/preview/`, bundled into the
+  `assets` app's static files (`docs/ASSET_MANAGER.md` section 17).
+
+## Child progress (LAI-0305)
+
+`game_sessions`, `education`, `progression`, `inventory` and `quests` hold child progress, every
+record owned by one child through `core.ChildOwnedModel` and read only through `for_child` or the
+`ChildScopedMixin` helpers. Progress points at retained catalog rows (PROTECT) and records the
+adventure version and content release it started on, so imports never reset it. Python owns the
+transitions (ADR-019 sub-decision 8): the `services` modules accept rule results from server code
+only, and no endpoint exists yet. Detail: `docs/DATA_MODEL.md`, "Django child progress".
+
+## Authoritative adventure answers (LAI-0601)
+
+The first child-data endpoints. `apps/adventures/engine.py` is the Python adventure engine
+(`validate_step_answer`, `next_step_id`, `next_hint_level`, `hint_text`, `decide_submission`,
+`is_step_answer`), a port of the TypeScript engine that passes every case in
+`tests/golden/adventure-engine.json`, including the JavaScript semantics a port must keep
+(`undefined === undefined`, no bool-number coercion, JS truthiness and array indexing).
+`apps/game_sessions/services.submit_answer` grades and applies an answer on one row-locked session
+in one transaction.
+
+- `POST /api/v1/children/{child_id}/sessions/{session_id}/answers/` with
+  `{stepId, answer, requestId}` returns `{correctness, supportLevel, action, nextStepId,
+  attemptNumber, replayed, session}`; the first four fields keep `submitAdventureAnswer`'s shape.
+- `POST /api/v1/children/{child_id}/sessions/{session_id}/hints/` with `{stepId, fromLevel}`
+  returns `{hintLevel, hintText, session}`.
+- The roadmap's `/sessions/{id}/answers` became child-scoped so LAI-0403's rule (the child comes
+  from the URL, resolved through the parent) holds. Bodies are camelCase, matching the Lambda.
+- The client sends what the child did. Correctness, hint level, next step and completion are the
+  server's: the hint level is the server's per-step record (`AdventureSession.hint_levels`), so the
+  Lambda's weakness, where a client-supplied `hintLevel` of 4 reached guided completion on any
+  wrong answer, does not exist here. Reaching a COMPLETE step or the reserved `complete` id
+  completes the session in the same transaction.
+- `requestId` (ADR-015's design, stored on `AdventureAction` with a per-session unique constraint)
+  makes retries safe: a repeat returns the stored outcome with `replayed: true`; a reused id with a
+  different answer is `409 request_conflict`; a fresh request after the step moved is
+  `409 step_not_current`. A hint request moves the level only from `fromLevel`, so it cannot
+  escalate twice.
+- No content snapshots exist: a session whose adventure version changed, or whose current step is
+  not in the adventure's latest import, is refused with `409 content_version_changed` and left
+  intact rather than graded against different content.
+
+**G6 verification (2026-10-24), from the code and its tests, for these endpoints:** authentication
+is required (401 with no or a bad token; `IsProvisionedParent` default); parents reach only their own
+children (`ChildScopedMixin` resolves the child through the parent); another family's child, a
+sibling's session and an unknown session all give the same 404 and write nothing; unauthenticated
+and unprovisioned requests cannot mutate; an `Admins` group token gets no cross-family access, and
+the scoping helpers never read group claims; `is_staff` is unused; LAI-0403's route checker
+(`test_every_real_route_is_public_parent_scoped_or_child_scoped`) covers the new routes. Outcome:
+**satisfied for these child-owned endpoints**. G6 stays a per-endpoint obligation: every future child
+endpoint must use the same helpers and pass the same checklist.
+
+## Consolidated Django backbone (POST-MERGE-03, ADR-033)
+
+One implementation per responsibility, from the Storykeeper Castle line, with Treasure Rush
+adapted onto it:
+
+| App | Owns |
+|---|---|
+| `core` | API conventions, privacy logging, `ChildOwnedModel` (with the cross-child link check), `content_schema` validator, `ContentStatus` |
+| `users` | `ParentAccount`, `ChildProfile`, Cognito authentication, child scoping |
+| `catalog` | Imported content: World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset, LearningObjective, NpcDefinition, CollectibleSet, ItemDefinition, RewardRule, ContentRelease; the one importer (`load_content`); asset references (`asset_refs.py`); the catalog admin (mounted by LAI-0404); ContentAsset is also the asset definition (LAI-2200) |
+| `assets` | Asset manager (LAI-2200, ADR-035): AssetVersion, validation, storage, publication services, the published-asset resolver and delivery routes, the import and audit commands. No identity of its own: versions attach to `catalog.ContentAsset` |
+| `regions` | Seed-authored play regions: WorldRegion, SpawnPoint, WorldObjectPlacement, TreasureChest; `seed_treasure_rush` |
+| `adventures` | The Python adventure engine (pure module, LAI-0601) |
+| `game_sessions` | AdventureSession (ADVENTURE or REGION), AdventureAction, ChallengeAttempt, CoopSession; answers and hints (LAI-0601); region play (TR-5); native home, discovery and inventory reads, game launch tickets and the game session cookie (LAI-ANDROID-API-001, ADR-036) |
+| `education` | SkillEvidence, SkillProgress, StoryArtifact, ChallengeSpec; Treasure Rush challenge generation and grading (`challenges.py`) |
+| `progression`, `inventory`, `quests` | World changes and state, story and NPC progress; items owned and rules granted; quest progress, with the server-side quest engine (`quests/engine.py`) |
+
+**Temporary source-of-truth boundary for spatial data.** Location manifests for the shipped 3D
+regions stay in TypeScript (`runtime/manifests/*.ts`, ADR-032). The Treasure Cove layout is
+authored in `lai/apps/regions/treasure_rush_seed.py` and applied as `regions` rows that the play
+API serves; the client builds a manifest from them (TR-D15). Neither is Django layout
+administration: LAI-0805's ADR decides that. Everything non-spatial, including Treasure Rush's
+quest, item and reward rule, is exported and imported like all content.
+
+## Native Android clients and the game-only WebView (LAI-ANDROID-API-001, ADR-036)
+
+The Kotlin app is a client of the same Django API as the React app. There is no Android backend
+and no Android data model. Its native screens use the Cognito bearer contract (LAI-0402) and
+these client-neutral routes: `POST /me/` provisioning; child profile list, create, read and
+update (`apps/users/views.py`; deletion stays blocked); child `home/`, `regions/`,
+`regions/<id>/adventures/` and `inventory/` (`apps/game_sessions/native_views.py` over
+`discovery.py`). All of them read the canonical catalog, region and progress rows.
+
+The standalone Three.js game runs in a WebView with **no Cognito token**. The native app gets a
+single-use, 60-second ticket (`children/<id>/game-launches/`), then redeems it with its bearer
+token (`game-launches/redeem/`) for an HttpOnly, Secure, SameSite=Strict cookie scoped to
+`/api/v1/`, which it copies into the WebView. That cookie (`apps/game_sessions/runtime_auth.py`)
+authenticates only the runtime's own routes (`game-session/`, `game-session/end/`) and the play
+and asset routes that mix in `GameRuntimeAccessMixin`, and only for one child and one region.
+Writes need the `X-LAI-Game-CSRF` header. It never reaches account, child, launch, progress or
+discovery routes. A structural test in `apps/users/tests/test_tenant_isolation.py` pins the route
+list. Contract: `docs/android/ANDROID_API_CONTRACT.md`, `ANDROID_AUTH_FLOW.md`,
+`ANDROID_GAME_LAUNCH.md`. The `/game/` bundle itself is a frontend deliverable that does not exist
+yet.
+
 ## Content export contract (post-merge note)
 
-The content export is at `schemaVersion: 2` (adventure skill metadata, `START_STORY`). It reads the `ALL_NPCS` registry, not a single region's cast. Details: `docs/DATA_MODEL.md`. ADR numbers 027 to 030 are the Storykeeper Castle / Wonderwild / Clockwork decisions (formerly 019 to 022 on that line).
+The content export is at `schemaVersion: 3` (version 2 added adventure skill metadata and `START_STORY`; version 3 adds `locationAssets`). It reads the `ALL_NPCS` registry, not a single region's cast. Details: `docs/DATA_MODEL.md`. ADR numbers 027 to 030 are the Storykeeper Castle / Wonderwild / Clockwork decisions (formerly 019 to 022 on that line).

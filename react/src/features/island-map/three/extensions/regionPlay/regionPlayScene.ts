@@ -14,8 +14,11 @@ import {
 } from 'three';
 import { cloneAssetScene } from '../../assets/cloneAsset';
 import type { WorldExtension, WorldExtensionContext } from '../../runtime/extensionRegistry';
-import { REGION_PLAY_EXTENSION_ID, type RegionPlayChestConfig } from '../../../../region-play/regionManifest';
-import { tryParseRegionPlayConfig } from '../../../../region-play/regionPlayConfig';
+import {
+  REGION_PLAY_EXTENSION_ID,
+  tryParseRegionPlayConfig,
+  type RegionPlayChestConfig,
+} from '../../../../region-play/regionPlayConfig';
 
 /**
  * The scene half of `region-play` (TR-7): draws what a server-published
@@ -120,7 +123,9 @@ export const regionPlaySceneExtension: WorldExtension = {
           current.dispose();
           root.add(model);
           mixers.add(mixer);
-          current = modelChest(root, model, mixer, action, clip.duration, () => mixers.delete(mixer));
+          current = modelChest(root, model, mixer, action, clip.duration, () =>
+            mixers.delete(mixer),
+          );
           current.show(open, true);
           chests.set(chest.entityId, current);
         })
@@ -188,7 +193,10 @@ function builtChest(
   for (let index = 0; index < SPARKLE_COUNT; index += 1) {
     const sparkle = own(new SphereGeometry(0.06, 6, 4), GOLD);
     const angle = (index / SPARKLE_COUNT) * Math.PI * 2;
-    sparkle.userData.drift = { x: Math.cos(angle) * width * 0.35, z: Math.sin(angle) * depth * 0.35 };
+    sparkle.userData.drift = {
+      x: Math.cos(angle) * width * 0.35,
+      z: Math.sin(angle) * depth * 0.35,
+    };
     sparkles.add(sparkle);
   }
   group.add(base, trim, gold, hinge, sparkles);

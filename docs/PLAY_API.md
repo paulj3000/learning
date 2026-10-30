@@ -1,5 +1,10 @@
 # Play API (TR-5)
 
+> Since POST-MERGE-03 (ADR-033) these routes are served by `apps/game_sessions/play_views.py`
+> over `play.py` on the canonical models; the contract below is unchanged. Quests are catalog
+> rows (a quest is offered when `active`), and catalog NPCs carry no model id of their own, so an
+> NPC's `assetId` is its placement's.
+
 The Django API a Three.js region uses to load, play, and save. Treasure Rush is its first user;
 nothing in it is specific to Treasure Rush except that `chests` is the only interactive
 challenge object so far. Implemented in `lai/apps/game_sessions/` (`urls.py`, `views.py`,
@@ -60,7 +65,7 @@ Everything needed to build the region for this child, and the child's state in i
   "spawn": {"checkpointId": "cove-landing", "label": "the landing", "x": 0.0, "z": 10.0, "yaw": 0.0},
   "npcs": [{"entityId": "cove-pip", "npcId": "pirate-pip", "displayName": "Pirate Pip",
             "label": "Pirate Pip", "x": 3.0, "z": 6.0, "elevation": 0.0, "rotationY": 0.0,
-            "scale": 1.0, "assetId": "", "interactionId": "meet-pirate-pip",
+            "scale": 1.0, "assetId": "npc-pip", "interactionId": "meet-pirate-pip",
             "placeholder": {"width": 1.0, "height": 1.6, "depth": 1.0}}],
   "objects": [],
   "chests": [{"entityId": "cove-chest", "label": "Treasure chest", "x": 0.0, "z": -6.0,

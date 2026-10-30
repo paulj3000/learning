@@ -71,7 +71,11 @@ export function createRegionManifestRepository(
     } catch (error) {
       if (error instanceof RegionBuildError || error instanceof CheckpointPublishError) {
         throw new InvalidLocationManifestError(regionId, [
-          { kind: 'INVALID_VALUE', path: error instanceof RegionBuildError ? error.path : 'checkpoints', detail: error.message },
+          {
+            kind: 'INVALID_VALUE',
+            path: error instanceof RegionBuildError ? error.path : 'checkpoints',
+            detail: error.message,
+          },
         ]);
       }
       throw error;

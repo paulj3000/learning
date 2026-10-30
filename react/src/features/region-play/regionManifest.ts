@@ -11,7 +11,22 @@ import {
   type ThreeLocationManifest,
 } from '../island-map/three/runtime/locationManifest';
 import type { WorldInteraction } from '../island-map/worldObjects';
+import {
+  REGION_PLAY_EXTENSION_ID,
+  type RegionPlayChestConfig,
+  type RegionPlayConfig,
+  type RegionPlayInteractionConfig,
+} from './regionPlayConfig';
 import type { RegionSceneModel, SceneEntity } from './sceneModel';
+
+// The extension id and config types live in `regionPlayConfig.ts`, which the Three.js scene
+// imports; this module reads API types, which the engine must not reach (LAI-0203).
+export {
+  REGION_PLAY_EXTENSION_ID,
+  type RegionPlayChestConfig,
+  type RegionPlayConfig,
+  type RegionPlayInteractionConfig,
+};
 
 /**
  * Turns a server-published region (`RegionSceneModel`, TR-6) into the
@@ -40,7 +55,6 @@ import type { RegionSceneModel, SceneEntity } from './sceneModel';
  * generic Amplify panels.
  */
 
-export const REGION_PLAY_EXTENSION_ID = 'region-play';
 export const DEFAULT_GROUND_ASSET_ID = 'ground-tile';
 const DEFAULT_BOUNDS: BoundsSpec = { halfExtentX: 18, halfExtentZ: 18, wallThickness: 1 };
 const DEFAULT_BACKGROUND = 0x9fd8f0;
@@ -53,30 +67,6 @@ export const DEFAULT_REGION_COPY = {
   instructions: 'Look around and walk up to things to see what you can do.',
   altNavLabel: 'Go back to the harbor',
 } as const;
-
-export interface RegionPlayChestConfig {
-  entityId: string;
-  assetId: string | null;
-  openClip: string | null;
-  isOpen: boolean;
-  scale: number;
-  placeholder: { width: number; height: number; depth: number };
-}
-
-export interface RegionPlayInteractionConfig {
-  interactionId: string;
-  kind: 'npc' | 'chest';
-  entityId: string;
-  npcId: string | null;
-}
-
-/** The `region-play` binding's `config`: plain JSON, read back by both extension halves. */
-export interface RegionPlayConfig {
-  chests: RegionPlayChestConfig[];
-  /** NPCs without a model, drawn as placeholder figures. */
-  figures: { entityId: string; height: number }[];
-  interactions: RegionPlayInteractionConfig[];
-}
 
 export interface BuiltRegion {
   manifest: ThreeLocationManifest;
@@ -172,7 +162,12 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
         scale: entity.scale,
         placeholder: { ...entity.placeholder },
       });
-      config.interactions.push({ interactionId, kind: 'chest', entityId: entity.entityId, npcId: null });
+      config.interactions.push({
+        interactionId,
+        kind: 'chest',
+        entityId: entity.entityId,
+        npcId: null,
+      });
     } else {
       scenery.push(objectScenery(entity));
     }
@@ -198,7 +193,9 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     ambient: [],
     interactions,
     adventureBindings: [],
-    extensions: [{ extensionId: REGION_PLAY_EXTENSION_ID, config: config as unknown as JsonObject }],
+    extensions: [
+      { extensionId: REGION_PLAY_EXTENSION_ID, config: config as unknown as JsonObject },
+    ],
     copy: readCopy(model.scene.copy),
   };
   return { manifest, checkpoints: [spawn] };
@@ -245,11 +242,16 @@ function objectScenery(entity: SceneEntity): ScenerySpec {
   };
 }
 
-function ground(regionId: string, bounds: BoundsSpec, groundAssetId: JsonValue | undefined): ScenerySpec {
+function ground(
+  regionId: string,
+  bounds: BoundsSpec,
+  groundAssetId: JsonValue | undefined,
+): ScenerySpec {
   return {
     kind: 'TILED_GROUND',
     id: `${regionId}:ground`,
-    assetId: typeof groundAssetId === 'string' && groundAssetId ? groundAssetId : DEFAULT_GROUND_ASSET_ID,
+    assetId:
+      typeof groundAssetId === 'string' && groundAssetId ? groundAssetId : DEFAULT_GROUND_ASSET_ID,
     area: {
       id: `${regionId}:ground:area`,
       minX: -bounds.halfExtentX,
@@ -281,7 +283,9 @@ function readBounds(value: JsonValue | undefined): BoundsSpec {
 
 function readEnvironment(value: JsonValue | undefined): EnvironmentSpec {
   const background =
-    isObject(value) && typeof value.backgroundColor === 'number' && Number.isInteger(value.backgroundColor)
+    isObject(value) &&
+    typeof value.backgroundColor === 'number' &&
+    Number.isInteger(value.backgroundColor)
       ? value.backgroundColor
       : DEFAULT_BACKGROUND;
   return { backgroundColor: background };
@@ -293,7 +297,8 @@ function text(value: JsonValue | undefined, fallback: string): string {
 
 function readCopy(value: JsonValue | undefined): LocationCopy {
   const copy = isObject(value) ? value : {};
-  const calmStop = typeof copy.calmStop === 'string' && copy.calmStop.trim() ? copy.calmStop : undefined;
+  const calmStop =
+    typeof copy.calmStop === 'string' && copy.calmStop.trim() ? copy.calmStop : undefined;
   return {
     loading: text(copy.loading, DEFAULT_REGION_COPY.loading),
     instructions: text(copy.instructions, DEFAULT_REGION_COPY.instructions),

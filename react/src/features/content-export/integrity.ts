@@ -389,6 +389,17 @@ export function checkIntegrity(pkg: ContentPackage): IntegrityReport {
   }
   for (const asset of pkg.assets)
     known(`asset "${asset.id}"`, 'low-detail asset', asset.lod?.lowDetailId, assetIds);
+  unique('locationAssets', pkg.locationAssets, (x) => x.regionSlug);
+  for (const region of pkg.locationAssets) {
+    const from = `location assets "${region.regionSlug}"`;
+    known(from, 'region', region.regionSlug, regionSlugs);
+    const seen = new Set<string>();
+    for (const assetId of region.assetIds) {
+      known(from, 'asset', assetId, assetIds);
+      if (seen.has(assetId)) errors.push(`${from}: duplicate asset "${assetId}"`);
+      seen.add(assetId);
+    }
+  }
 
   ambiguities.sort((a, b) => a.kind.localeCompare(b.kind));
   return { errors, ambiguities };

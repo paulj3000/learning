@@ -1,0 +1,1588 @@
+{
+  "schemaVersion": 1,
+  "suite": "director",
+  "description": "Adventure ranking and the world travel rule, over self-contained inputs.",
+  "sources": [
+    "react/src/features/director/select.ts",
+    "react/src/features/director/needs.ts",
+    "react/src/features/worlds/travel.ts"
+  ],
+  "notes": [
+    "rankAdventures: storyIdForAdventure is a function in TypeScript; here it is the map storyIdBySlug.",
+    "rankAdventures: ties break on title with String.prototype.localeCompare, which is locale- and ICU-dependent. The vectors use plain ASCII titles; a port must not rely on locale collation for anything else until a collation is specified.",
+    "rankAdventures: an objective appearing in several steps counts once; only the first three recentAdventureSlugs are penalised."
+  ],
+  "functions": {
+    "rankAdventures": {
+      "python": "rank_adventures",
+      "args": [
+        "definitions",
+        "ageBand",
+        "context",
+        "storyIdBySlug"
+      ],
+      "cases": [
+        {
+          "name": "no signal: alphabetical within the age band",
+          "input": {
+            "definitions": [
+              {
+                "slug": "counting",
+                "version": 1,
+                "title": "Counting Crabs",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "count-10"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  },
+                  {
+                    "id": "s1",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "count-10",
+                      "add-5"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "adding",
+                "version": 1,
+                "title": "Adding Shells",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER",
+                  "EXPLORER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "add-5"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "story",
+                "version": 1,
+                "title": "A Story",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "sprouts-only",
+                "version": 1,
+                "title": "Sprout Colours",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "SPROUT"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "colours"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "tie-b",
+                "version": 1,
+                "title": "Bravo",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "tie-a",
+                "version": 1,
+                "title": "Alpha",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              }
+            ],
+            "ageBand": "PATHFINDER",
+            "context": {
+              "masterySummaries": [],
+              "completedAdventureSlugs": [],
+              "recentAdventureSlugs": [],
+              "storiesInProgress": []
+            },
+            "storyIdBySlug": {}
+          },
+          "expected": [
+            {
+              "adventureSlug": "story",
+              "title": "A Story",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            },
+            {
+              "adventureSlug": "adding",
+              "title": "Adding Shells",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            },
+            {
+              "adventureSlug": "tie-a",
+              "title": "Alpha",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            },
+            {
+              "adventureSlug": "tie-b",
+              "title": "Bravo",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            },
+            {
+              "adventureSlug": "counting",
+              "title": "Counting Crabs",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "skill needs add weight per objective",
+          "input": {
+            "definitions": [
+              {
+                "slug": "counting",
+                "version": 1,
+                "title": "Counting Crabs",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "count-10"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  },
+                  {
+                    "id": "s1",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "count-10",
+                      "add-5"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "adding",
+                "version": 1,
+                "title": "Adding Shells",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER",
+                  "EXPLORER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "add-5"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "story",
+                "version": 1,
+                "title": "A Story",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "sprouts-only",
+                "version": 1,
+                "title": "Sprout Colours",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "SPROUT"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "colours"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "tie-b",
+                "version": 1,
+                "title": "Bravo",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "tie-a",
+                "version": 1,
+                "title": "Alpha",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              }
+            ],
+            "ageBand": "PATHFINDER",
+            "context": {
+              "masterySummaries": [
+                {
+                  "skillId": "count-10",
+                  "status": "INTRODUCED"
+                },
+                {
+                  "skillId": "add-5",
+                  "status": "DEVELOPING"
+                }
+              ],
+              "completedAdventureSlugs": [],
+              "recentAdventureSlugs": [],
+              "storiesInProgress": []
+            },
+            "storyIdBySlug": {}
+          },
+          "expected": [
+            {
+              "adventureSlug": "counting",
+              "title": "Counting Crabs",
+              "score": 5,
+              "reasons": [
+                {
+                  "kind": "PRACTISES_SKILL",
+                  "skillId": "count-10",
+                  "status": "INTRODUCED",
+                  "weight": 3
+                },
+                {
+                  "kind": "PRACTISES_SKILL",
+                  "skillId": "add-5",
+                  "status": "DEVELOPING",
+                  "weight": 2
+                }
+              ]
+            },
+            {
+              "adventureSlug": "adding",
+              "title": "Adding Shells",
+              "score": 2,
+              "reasons": [
+                {
+                  "kind": "PRACTISES_SKILL",
+                  "skillId": "add-5",
+                  "status": "DEVELOPING",
+                  "weight": 2
+                }
+              ]
+            },
+            {
+              "adventureSlug": "story",
+              "title": "A Story",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            },
+            {
+              "adventureSlug": "tie-a",
+              "title": "Alpha",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            },
+            {
+              "adventureSlug": "tie-b",
+              "title": "Bravo",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "mastered and locked skills carry no weight",
+          "input": {
+            "definitions": [
+              {
+                "slug": "counting",
+                "version": 1,
+                "title": "Counting Crabs",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "count-10"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  },
+                  {
+                    "id": "s1",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "count-10",
+                      "add-5"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "adding",
+                "version": 1,
+                "title": "Adding Shells",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER",
+                  "EXPLORER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "add-5"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "story",
+                "version": 1,
+                "title": "A Story",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "sprouts-only",
+                "version": 1,
+                "title": "Sprout Colours",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "SPROUT"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "colours"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "tie-b",
+                "version": 1,
+                "title": "Bravo",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "tie-a",
+                "version": 1,
+                "title": "Alpha",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              }
+            ],
+            "ageBand": "PATHFINDER",
+            "context": {
+              "masterySummaries": [
+                {
+                  "skillId": "count-10",
+                  "status": "MASTERED"
+                },
+                {
+                  "skillId": "add-5",
+                  "status": "LOCKED"
+                }
+              ],
+              "completedAdventureSlugs": [],
+              "recentAdventureSlugs": [],
+              "storiesInProgress": []
+            },
+            "storyIdBySlug": {}
+          },
+          "expected": [
+            {
+              "adventureSlug": "story",
+              "title": "A Story",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            },
+            {
+              "adventureSlug": "adding",
+              "title": "Adding Shells",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            },
+            {
+              "adventureSlug": "tie-a",
+              "title": "Alpha",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            },
+            {
+              "adventureSlug": "tie-b",
+              "title": "Bravo",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            },
+            {
+              "adventureSlug": "counting",
+              "title": "Counting Crabs",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "completed and recent penalties, story continuity bonus",
+          "input": {
+            "definitions": [
+              {
+                "slug": "counting",
+                "version": 1,
+                "title": "Counting Crabs",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "count-10"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  },
+                  {
+                    "id": "s1",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "count-10",
+                      "add-5"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "adding",
+                "version": 1,
+                "title": "Adding Shells",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER",
+                  "EXPLORER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "add-5"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "story",
+                "version": 1,
+                "title": "A Story",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "sprouts-only",
+                "version": 1,
+                "title": "Sprout Colours",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "SPROUT"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "colours"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "tie-b",
+                "version": 1,
+                "title": "Bravo",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "tie-a",
+                "version": 1,
+                "title": "Alpha",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              }
+            ],
+            "ageBand": "PATHFINDER",
+            "context": {
+              "masterySummaries": [
+                {
+                  "skillId": "add-5",
+                  "status": "PROFICIENT"
+                }
+              ],
+              "completedAdventureSlugs": [
+                "counting"
+              ],
+              "recentAdventureSlugs": [
+                "adding"
+              ],
+              "storiesInProgress": [
+                "ember"
+              ]
+            },
+            "storyIdBySlug": {
+              "story": "ember"
+            }
+          },
+          "expected": [
+            {
+              "adventureSlug": "story",
+              "title": "A Story",
+              "score": 2,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                },
+                {
+                  "kind": "CONTINUES_STORY",
+                  "storyId": "ember"
+                }
+              ]
+            },
+            {
+              "adventureSlug": "tie-a",
+              "title": "Alpha",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            },
+            {
+              "adventureSlug": "tie-b",
+              "title": "Bravo",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            },
+            {
+              "adventureSlug": "adding",
+              "title": "Adding Shells",
+              "score": -2,
+              "reasons": [
+                {
+                  "kind": "PRACTISES_SKILL",
+                  "skillId": "add-5",
+                  "status": "PROFICIENT",
+                  "weight": 1
+                },
+                {
+                  "kind": "PLAYED_RECENTLY",
+                  "penalty": 3
+                }
+              ]
+            },
+            {
+              "adventureSlug": "counting",
+              "title": "Counting Crabs",
+              "score": -3,
+              "reasons": [
+                {
+                  "kind": "PRACTISES_SKILL",
+                  "skillId": "add-5",
+                  "status": "PROFICIENT",
+                  "weight": 1
+                },
+                {
+                  "kind": "ALREADY_COMPLETED",
+                  "penalty": 4
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "only the first three recent adventures are penalised",
+          "input": {
+            "definitions": [
+              {
+                "slug": "counting",
+                "version": 1,
+                "title": "Counting Crabs",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "count-10"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  },
+                  {
+                    "id": "s1",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "count-10",
+                      "add-5"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "adding",
+                "version": 1,
+                "title": "Adding Shells",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER",
+                  "EXPLORER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "add-5"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "story",
+                "version": 1,
+                "title": "A Story",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "sprouts-only",
+                "version": 1,
+                "title": "Sprout Colours",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "SPROUT"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "colours"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "tie-b",
+                "version": 1,
+                "title": "Bravo",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "tie-a",
+                "version": 1,
+                "title": "Alpha",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              }
+            ],
+            "ageBand": "PATHFINDER",
+            "context": {
+              "masterySummaries": [],
+              "completedAdventureSlugs": [],
+              "recentAdventureSlugs": [
+                "tie-a",
+                "tie-b",
+                "story",
+                "counting"
+              ],
+              "storiesInProgress": []
+            },
+            "storyIdBySlug": {}
+          },
+          "expected": [
+            {
+              "adventureSlug": "adding",
+              "title": "Adding Shells",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            },
+            {
+              "adventureSlug": "counting",
+              "title": "Counting Crabs",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            },
+            {
+              "adventureSlug": "story",
+              "title": "A Story",
+              "score": -3,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                },
+                {
+                  "kind": "PLAYED_RECENTLY",
+                  "penalty": 3
+                }
+              ]
+            },
+            {
+              "adventureSlug": "tie-a",
+              "title": "Alpha",
+              "score": -3,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                },
+                {
+                  "kind": "PLAYED_RECENTLY",
+                  "penalty": 3
+                }
+              ]
+            },
+            {
+              "adventureSlug": "tie-b",
+              "title": "Bravo",
+              "score": -3,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                },
+                {
+                  "kind": "PLAYED_RECENTLY",
+                  "penalty": 3
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "explorer sees only explorer adventures",
+          "input": {
+            "definitions": [
+              {
+                "slug": "counting",
+                "version": 1,
+                "title": "Counting Crabs",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "count-10"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  },
+                  {
+                    "id": "s1",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "count-10",
+                      "add-5"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "adding",
+                "version": 1,
+                "title": "Adding Shells",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER",
+                  "EXPLORER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "add-5"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "story",
+                "version": 1,
+                "title": "A Story",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "sprouts-only",
+                "version": 1,
+                "title": "Sprout Colours",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "SPROUT"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [
+                      "colours"
+                    ],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "tie-b",
+                "version": 1,
+                "title": "Bravo",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              },
+              {
+                "slug": "tie-a",
+                "version": 1,
+                "title": "Alpha",
+                "locationSlug": "bay",
+                "ageBands": [
+                  "PATHFINDER"
+                ],
+                "entryStepId": "s0",
+                "steps": [
+                  {
+                    "id": "s0",
+                    "type": "COMPLETE",
+                    "objectiveIds": [],
+                    "presentation": {
+                      "kind": "complete",
+                      "text": ""
+                    },
+                    "transitions": [],
+                    "fallback": {
+                      "text": "fallback"
+                    }
+                  }
+                ]
+              }
+            ],
+            "ageBand": "EXPLORER",
+            "context": {
+              "masterySummaries": [],
+              "completedAdventureSlugs": [],
+              "recentAdventureSlugs": [],
+              "storiesInProgress": []
+            },
+            "storyIdBySlug": {}
+          },
+          "expected": [
+            {
+              "adventureSlug": "adding",
+              "title": "Adding Shells",
+              "score": 0,
+              "reasons": [
+                {
+                  "kind": "NO_SKILLS_NEEDED"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "no definitions",
+          "input": {
+            "definitions": [],
+            "ageBand": "SPROUT",
+            "context": {
+              "masterySummaries": [],
+              "completedAdventureSlugs": [],
+              "recentAdventureSlugs": [],
+              "storiesInProgress": []
+            },
+            "storyIdBySlug": {}
+          },
+          "expected": []
+        }
+      ]
+    },
+    "isWorldUnlocked": {
+      "python": "is_world_unlocked",
+      "args": [
+        "world",
+        "worldChangeKeys"
+      ],
+      "cases": [
+        {
+          "name": "no requirement: unlocked",
+          "input": {
+            "world": {},
+            "worldChangeKeys": []
+          },
+          "expected": true
+        },
+        {
+          "name": "any one listed change unlocks",
+          "input": {
+            "world": {
+              "travelRequirement": {
+                "anyOfChangeKeys": [
+                  "a",
+                  "b"
+                ],
+                "lockedHint": "Fix it"
+              }
+            },
+            "worldChangeKeys": [
+              "b"
+            ]
+          },
+          "expected": true
+        },
+        {
+          "name": "no listed change: locked",
+          "input": {
+            "world": {
+              "travelRequirement": {
+                "anyOfChangeKeys": [
+                  "a"
+                ],
+                "lockedHint": "Fix it"
+              }
+            },
+            "worldChangeKeys": [
+              "c"
+            ]
+          },
+          "expected": false
+        },
+        {
+          "name": "an empty requirement list never unlocks",
+          "input": {
+            "world": {
+              "travelRequirement": {
+                "anyOfChangeKeys": [],
+                "lockedHint": "Fix it"
+              }
+            },
+            "worldChangeKeys": [
+              "a"
+            ]
+          },
+          "expected": false
+        }
+      ]
+    }
+  }
+}

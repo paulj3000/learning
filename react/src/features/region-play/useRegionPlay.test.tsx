@@ -18,7 +18,8 @@ import { usePlayerProgress } from './usePlayerProgress';
 import { useRegionPlay } from './useRegionPlay';
 
 const REGION = 'treasure-rush-cove';
-const bootstrap = (overrides = {}, chest = {}) => read(bootstrapJson(overrides, chest), parse.regionBootstrap);
+const bootstrap = (overrides = {}, chest = {}) =>
+  read(bootstrapJson(overrides, chest), parse.regionBootstrap);
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -43,7 +44,10 @@ function fakeApi(overrides: Partial<PlayApi> = {}): PlayApi {
       value: read(questJson({ status: 'ACTIVE', currentStageId: 'open-the-chest' }), parse.quest),
       created: true,
     })),
-    requestChestChallenge: vi.fn(async () => ({ value: read(challengeJson(), parse.issuedChallenge), created: true })),
+    requestChestChallenge: vi.fn(async () => ({
+      value: read(challengeJson(), parse.issuedChallenge),
+      created: true,
+    })),
     submitAnswer: vi.fn(async () => read(outcomeJson(true), parse.answerOutcome)),
     getProgress: vi.fn(async () => read(progressJson(), parse.playerProgress)),
     ...overrides,
@@ -118,7 +122,10 @@ describe('useRegionPlay', () => {
     expect(result.current.state.session?.status).toBe('PAUSED');
     await act(() => result.current.changeSession('resume'));
     expect(result.current.state.session?.status).toBe('ACTIVE');
-    expect(vi.mocked(api.changeSession).mock.calls.map((call) => call[1])).toEqual(['pause', 'resume']);
+    expect(vi.mocked(api.changeSession).mock.calls.map((call) => call[1])).toEqual([
+      'pause',
+      'resume',
+    ]);
   });
 
   it('asks for a challenge only inside a session', async () => {
@@ -134,7 +141,9 @@ describe('useRegionPlay', () => {
   it('shows the server’s reward and then re-reads the region', async () => {
     const api = fakeApi();
     const { result } = await inSession(api);
-    vi.mocked(api.getRegion).mockResolvedValueOnce(bootstrap({ session: sessionJson() }, { isOpen: true }));
+    vi.mocked(api.getRegion).mockResolvedValueOnce(
+      bootstrap({ session: sessionJson() }, { isOpen: true }),
+    );
     await act(() => result.current.submitAnswer({ answer: 5, hintLevel: 1 }));
     expect(api.submitAnswer).toHaveBeenCalledWith(
       'b0e9aa11-0000-4000-8000-000000000002',
@@ -148,7 +157,9 @@ describe('useRegionPlay', () => {
   });
 
   it('shows no reward for a wrong answer', async () => {
-    const api = fakeApi({ submitAnswer: vi.fn(async () => read(outcomeJson(false), parse.answerOutcome)) });
+    const api = fakeApi({
+      submitAnswer: vi.fn(async () => read(outcomeJson(false), parse.answerOutcome)),
+    });
     const { result } = await inSession(api);
     await act(() => result.current.submitAnswer({ answer: 4 }));
     expect(result.current.state.lastOutcome?.feedback).toBe('TRY_AGAIN');
@@ -224,7 +235,8 @@ describe('useRegionPlay', () => {
 
 describe('usePlayerProgress', () => {
   it('reads progress for the selected child and drops a late reply for the previous one', async () => {
-    const slowA = deferred<ReturnType<PlayApi['getProgress']> extends Promise<infer T> ? T : never>();
+    const slowA =
+      deferred<ReturnType<PlayApi['getProgress']> extends Promise<infer T> ? T : never>();
     const apiA = fakeApi({ getProgress: vi.fn(() => slowA.promise) });
     const apiB = fakeApi();
     const createApi = (child: string) => (child === CHILD_A ? apiA : apiB);

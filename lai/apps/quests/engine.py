@@ -100,7 +100,10 @@ def advance_quest(stages: list[dict], completion: dict, state: QuestState, conte
             break  # an unresolved authored id: stuck but intact, as on the client
         objectives = stage.get("objectives", [])
         for objective in objectives:
-            if objective_complete(objective, context) and objective["id"] not in completed_objectives:
+            if (
+                objective_complete(objective, context)
+                and objective["id"] not in completed_objectives
+            ):
                 completed_objectives.append(objective["id"])
         required = [o for o in objectives if not o.get("optional")]
         if not all(objective_complete(o, context) for o in required):
@@ -134,7 +137,9 @@ def advance_quest(stages: list[dict], completion: dict, state: QuestState, conte
         completed_stage_ids=tuple(completed_stages),
         completed_objective_ids=tuple(completed_objectives),
     )
-    new_objectives = tuple(o for o in completed_objectives if o not in state.completed_objective_ids)
+    new_objectives = tuple(
+        o for o in completed_objectives if o not in state.completed_objective_ids
+    )
     return AdvanceResult(
         state=new_state,
         changed=new_state != state,

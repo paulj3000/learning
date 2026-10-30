@@ -4,7 +4,14 @@ import { ApiError } from '../../api/errors';
 import { read } from '../../api/parse';
 import * as parse from '../../api/play/parse';
 import type { PlayApi } from '../../api/play/playApi';
-import { CHILD_A, CHILD_B, bootstrapJson, challengeJson, questJson, sessionJson } from '../../test/playFixtures';
+import {
+  CHILD_A,
+  CHILD_B,
+  bootstrapJson,
+  challengeJson,
+  questJson,
+  sessionJson,
+} from '../../test/playFixtures';
 import { unpublishRegionCheckpoints } from '../discovery/checkpoints';
 import type { WorldEngineEventBus } from '../island-map/three/worldEngineEvents';
 import type { ThreeLocationManifest } from '../island-map/three/runtime/locationManifest';
@@ -32,30 +39,37 @@ const engine = vi.hoisted(() => ({
 
 vi.mock('../island-map/three/runtime/createLocationEngine', () => ({
   DEFAULT_LOCATION_ENGINE_DEPS: {},
-  createLocationEngine: vi.fn((_parent: HTMLElement, bus: WorldEngineEventBus, manifest: ThreeLocationManifest) => {
-    engine.bus = bus;
-    engine.manifest = manifest;
-    return {
-      dispose: vi.fn(),
-      interact: vi.fn(),
-      ready: Promise.resolve(),
-      extensionApi: (id: string) => (id === 'region-play' ? engine.sceneApi : null),
-    };
-  }),
+  createLocationEngine: vi.fn(
+    (_parent: HTMLElement, bus: WorldEngineEventBus, manifest: ThreeLocationManifest) => {
+      engine.bus = bus;
+      engine.manifest = manifest;
+      return {
+        dispose: vi.fn(),
+        interact: vi.fn(),
+        ready: Promise.resolve(),
+        extensionApi: (id: string) => (id === 'region-play' ? engine.sceneApi : null),
+      };
+    },
+  ),
 }));
 vi.mock('../discovery/api', () => ({
   getWorldState: vi.fn(async () => ({ discoveredIds: [], lastCheckpointId: undefined })),
   recordCharacterMet: vi.fn(async () => undefined),
   saveCheckpoint: vi.fn(async () => undefined),
 }));
-vi.mock('../adventures/api', () => ({ listAllWorldChanges: vi.fn(async () => []), recordWorldChangeOnce: vi.fn() }));
+vi.mock('../adventures/api', () => ({
+  listAllWorldChanges: vi.fn(async () => []),
+  recordWorldChangeOnce: vi.fn(),
+}));
 vi.mock('../rewards/api', () => ({ getInventory: vi.fn(async () => ({ ownedItemIds: [] })) }));
 vi.mock('../quests/api', () => ({ listQuestStates: vi.fn(async () => []) }));
 vi.mock('../island/api', () => ({ getCompanionProfile: vi.fn(async () => null) }));
 vi.mock('../session/useSessionClock', () => ({ useSessionClock: () => ({ limitReached: false }) }));
 vi.mock('../auth/AuthContext', () => ({ useAuth: () => ({ refresh: vi.fn() }) }));
 vi.mock('../island-map/NpcConversation', () => ({
-  NpcConversation: ({ npcId }: { npcId: string }) => <div data-testid="amplify-npc-panel">{npcId}</div>,
+  NpcConversation: ({ npcId }: { npcId: string }) => (
+    <div data-testid="amplify-npc-panel">{npcId}</div>
+  ),
 }));
 
 const apis = new Map<string, PlayApi>();
@@ -68,12 +82,17 @@ const REGION = 'treasure-rush-cove';
 
 function fakeApi(getRegion?: PlayApi['getRegion']): PlayApi {
   return {
-    getRegion: getRegion ?? vi.fn(async () => read(bootstrapJson({ quests: [questJson()] }), parse.regionBootstrap)),
+    getRegion:
+      getRegion ??
+      vi.fn(async () => read(bootstrapJson({ quests: [questJson()] }), parse.regionBootstrap)),
     startSession: vi.fn(async () => ({ value: read(sessionJson(), parse.session), created: true })),
     getSession: vi.fn(),
     changeSession: vi.fn(),
     acceptQuest: vi.fn(),
-    requestChestChallenge: vi.fn(async () => ({ value: read(challengeJson(), parse.issuedChallenge), created: true })),
+    requestChestChallenge: vi.fn(async () => ({
+      value: read(challengeJson(), parse.issuedChallenge),
+      created: true,
+    })),
     submitAnswer: vi.fn(),
     getProgress: vi.fn(),
   };
@@ -90,7 +109,12 @@ function view(childId: string) {
   });
   return (
     <MemoryRouter>
-      <ThreeLocationWorldView childId={childId} regionId={REGION} ageBand="PATHFINDER" repository={repository} />
+      <ThreeLocationWorldView
+        childId={childId}
+        regionId={REGION}
+        ageBand="PATHFINDER"
+        repository={repository}
+      />
     </MemoryRouter>
   );
 }
@@ -110,14 +134,21 @@ describe('Treasure Cove in the generic view', () => {
     expect(screen.getByText('Loading...')).toBeInTheDocument();
     await waitFor(() => expect(engine.manifest?.regionId).toBe(REGION));
     expect(engine.manifest?.props.map((p) => p.entityId)).toContain('cove-chest');
-    await waitFor(() => expect(apis.get(CHILD_A)?.startSession).toHaveBeenCalledWith(REGION, expect.any(AbortSignal)));
+    await waitFor(() =>
+      expect(apis.get(CHILD_A)?.startSession).toHaveBeenCalledWith(REGION, expect.any(AbortSignal)),
+    );
     expect(apis.get(CHILD_A)?.acceptQuest).not.toHaveBeenCalled();
   });
 
   it('says calmly when the region is not open (unpublished, retired, or not this family’s)', async () => {
-    apis.set(CHILD_A, fakeApi(vi.fn(async () => Promise.reject(new ApiError('not_found', { status: 404 })))));
+    apis.set(
+      CHILD_A,
+      fakeApi(vi.fn(async () => Promise.reject(new ApiError('not_found', { status: 404 })))),
+    );
     render(view(CHILD_A));
-    expect(await screen.findByRole('alert')).toHaveTextContent("This part of the island isn't open yet.");
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "This part of the island isn't open yet.",
+    );
   });
 
   it('says calmly when the region could not be loaded', async () => {
@@ -131,7 +162,12 @@ describe('Treasure Cove in the generic view', () => {
     render(view(CHILD_A));
     await waitFor(() => expect(engine.bus).not.toBeNull());
     await waitFor(() => expect(apis.get(CHILD_A)?.startSession).toHaveBeenCalled());
-    act(() => engine.bus?.emit('ObjectInteracted', { entityId: 'cove-chest', interactionId: 'treasure-rush-cove:chest:cove-chest' }));
+    act(() =>
+      engine.bus?.emit('ObjectInteracted', {
+        entityId: 'cove-chest',
+        interactionId: 'treasure-rush-cove:chest:cove-chest',
+      }),
+    );
     expect(await screen.findByRole('dialog', { name: 'Treasure chest' })).toBeInTheDocument();
     expect(await screen.findByText('How many coins are there altogether?')).toBeInTheDocument();
     expect(apis.get(CHILD_A)?.requestChestChallenge).toHaveBeenCalledWith(
@@ -147,7 +183,12 @@ describe('Treasure Cove in the generic view', () => {
     render(view(CHILD_A));
     await waitFor(() => expect(engine.bus).not.toBeNull());
     await waitFor(() => expect(apis.get(CHILD_A)?.startSession).toHaveBeenCalled());
-    act(() => engine.bus?.emit('ObjectInteracted', { entityId: 'cove-pip', interactionId: 'treasure-rush-cove:talk:cove-pip' }));
+    act(() =>
+      engine.bus?.emit('ObjectInteracted', {
+        entityId: 'cove-pip',
+        interactionId: 'treasure-rush-cove:talk:cove-pip',
+      }),
+    );
     expect(await screen.findByRole('dialog', { name: 'Pirate Pip' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Yes, I will help!' })).toBeInTheDocument();
     expect(apis.get(CHILD_A)?.acceptQuest).not.toHaveBeenCalled();
@@ -156,12 +197,16 @@ describe('Treasure Cove in the generic view', () => {
 
   it('draws the cove for the child now selected after a switch', async () => {
     apis.set(CHILD_A, fakeApi());
-    apis.set(CHILD_B, fakeApi(vi.fn(async () => read(bootstrapJson({}, { isOpen: true }), parse.regionBootstrap))));
+    apis.set(
+      CHILD_B,
+      fakeApi(vi.fn(async () => read(bootstrapJson({}, { isOpen: true }), parse.regionBootstrap))),
+    );
     const rendered = render(view(CHILD_A));
     await waitFor(() => expect(engine.manifest).not.toBeNull());
     rendered.rerender(view(CHILD_B));
     await waitFor(() => {
-      const chests = engine.manifest?.extensions[0].config.chests as unknown as { isOpen: boolean }[] | undefined;
+      const chests = engine.manifest?.extensions[0].config.chests as unknown as
+        { isOpen: boolean }[] | undefined;
       expect(chests?.[0].isOpen).toBe(true);
     });
     await waitFor(() => expect(apis.get(CHILD_B)?.startSession).toHaveBeenCalled());

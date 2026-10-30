@@ -52,6 +52,9 @@ PROD_ENV = {
     "COGNITO_REGION": "us-test-1",
     "COGNITO_USER_POOL_ID": "us-test-1_TESTPOOL1",
     "COGNITO_ALLOWED_CLIENT_IDS": "client-one,client-two",
+    "LAI_ASSET_STORAGE": "s3",
+    "LAI_ASSET_BUCKET": "lai-assets-test",
+    "LAI_ASSET_REGION": "us-test-1",
 }
 
 
@@ -103,6 +106,102 @@ def test_production_is_secure_when_configured(monkeypatch):
     assert prod.SECURE_HSTS_SECONDS > 0
     assert not hasattr(prod, "SECURE_PROXY_SSL_HEADER")
     assert not hasattr(prod, "CORS_ALLOW_ALL_ORIGINS")
+
+
+def test_production_serves_the_admin_securely(monkeypatch):
+    _prod_env(monkeypatch, DJANGO_CSRF_TRUSTED_ORIGINS="https://admin.example.test")
+    prod = _load("config.settings.production")
+    assert prod.CSRF_TRUSTED_ORIGINS == ["https://admin.example.test"]
+    security = prod.MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")
+    assert prod.MIDDLEWARE[security + 1] == "whitenoise.middleware.WhiteNoiseMiddleware"
+    assert "whitenoise" in prod.STORAGES["staticfiles"]["BACKEND"]
+    assert prod.SECURE_REDIRECT_EXEMPT == [r"^api/v1/health/$"]
+    assert prod.SESSION_COOKIE_PATH == prod.CSRF_COOKIE_PATH == "/admin/"
+    # The shared base list is not mutated for other settings modules.
+    assert "whitenoise.middleware.WhiteNoiseMiddleware" not in settings.MIDDLEWARE
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [(None, "static/"), ("/static/", "/static/"), ("https://cdn.example.test/admin/", None)],
+)
+def test_production_static_url_defaults_to_the_admin_host_path(monkeypatch, value, expected):
+    _prod_env(monkeypatch, DJANGO_STATIC_URL=value)
+    prod = _load("config.settings.production")
+    assert prod.STATIC_URL == (expected or value)
+
+
+@pytest.mark.parametrize(
+    "value", ["http://cdn.example.test/", "//cdn.example.test/", "https://cdn.example.test/x"]
+)
+def test_production_rejects_unsafe_static_urls(monkeypatch, value):
+    _prod_env(monkeypatch, DJANGO_STATIC_URL=value)
+    with pytest.raises(ImproperlyConfigured, match="DJANGO_STATIC_URL"):
+        _load("config.settings.production")
+
+
+def test_static_build_settings_need_no_database_or_secrets(monkeypatch):
+    for name in PROD_ENV:
+        monkeypatch.delenv(name, raising=False)
+    build = _load("config.settings.static_build")
+    assert build.DATABASES == {} and build.DEBUG is False
+    assert build.STORAGES == _load("config.settings.base").MANIFEST_STATIC_STORAGES
+
+
+@pytest.mark.parametrize(
+    "origins", ["http://admin.example.test", "https://*.example.test", "admin.example.test"]
+)
+def test_production_rejects_unsafe_csrf_trusted_origins(monkeypatch, origins):
+    _prod_env(monkeypatch, DJANGO_CSRF_TRUSTED_ORIGINS=origins)
+    with pytest.raises(ImproperlyConfigured, match="DJANGO_CSRF_TRUSTED_ORIGINS"):
+        _load("config.settings.production")
+
+
+@pytest.mark.parametrize("path", ["/admin/", "admin", "api/admin/", "Admin/", "../x/"])
+def test_the_admin_path_must_be_a_plain_relative_prefix(monkeypatch, path):
+    monkeypatch.setenv("DJANGO_ADMIN_URL_PATH", path)
+    with pytest.raises(ImproperlyConfigured, match="DJANGO_ADMIN_URL_PATH"):
+        _load("config.settings.base")
+
+
+def test_the_admin_path_can_move_and_the_cookies_follow(monkeypatch):
+    monkeypatch.setenv("DJANGO_ADMIN_URL_PATH", "staff/django-admin/")
+    base = _load("config.settings.base")
+    assert base.SESSION_COOKIE_PATH == base.CSRF_COOKIE_PATH == "/staff/django-admin/"
+    monkeypatch.delenv("DJANGO_ADMIN_URL_PATH")
+    assert _load("config.settings.base").ADMIN_URL_PATH == "admin/"  # leave the default loaded
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"LAI_ASSET_STORAGE": None},
+        {"LAI_ASSET_STORAGE": "local"},
+        {"LAI_ASSET_BUCKET": None},
+        {"LAI_ASSET_REGION": None},
+    ],
+)
+def test_production_requires_private_s3_asset_storage(monkeypatch, overrides):
+    _prod_env(monkeypatch, **overrides)
+    with pytest.raises(ImproperlyConfigured, match="LAI_ASSET_"):
+        _load("config.settings.production")
+
+
+@pytest.mark.parametrize(
+    "name, value",
+    [
+        ("LAI_ASSET_STORAGE", "ftp"),
+        ("LAI_ASSET_DELIVERY", "public"),
+        ("LAI_ASSET_URL_TTL_SECONDS", "5"),
+        ("LAI_ASSET_URL_TTL_SECONDS", "999999"),
+    ],
+)
+def test_asset_settings_reject_unsafe_values(monkeypatch, name, value):
+    monkeypatch.setenv(name, value)
+    with pytest.raises(ImproperlyConfigured, match=name.replace("_SECONDS", "")):
+        _load("config.settings.base")
+    monkeypatch.delenv(name)
+    _load("config.settings.base")  # leave the default loaded
 
 
 def test_production_does_not_hardcode_infrastructure():

@@ -158,6 +158,11 @@ Candidate `game/src` areas, each earning its directory from existing code:
 - Durable state uses semantic IDs, never Three.js UUIDs or raw camera transforms.
 - The engine imports nothing from `features/*/api`, `lib/data-client`, `aws-amplify`, or a
   Django client. A boundary test (LAI-0203 now, LAI-2101 after extraction) enforces this.
+  LAI-0203's test (`react/src/test/engineBoundary.test.ts`, rules in `docs/ARCHITECTURE.md`)
+  also forbids React, routing, auth, session and UI modules. Since POST-MERGE-03 it has no
+  known violations: the React view registry is `extensions/viewExtensions.tsx`, separate from
+  the world registry in `extensions/index.ts`, and every React host module in the engine
+  folders is a `.tsx` file. LAI-2102 can move the `.ts` engine modules into `game/` as they are.
 - Feature data the engine needs (for example checkpoints) is **passed in** through the
   `WorldDefinition`, not imported.
 

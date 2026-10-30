@@ -25,7 +25,11 @@ function setup(...responses: Response[]) {
 
 function sent(fetch: ReturnType<typeof setup>['fetch'], index = 0) {
   const [url, init] = fetch.mock.calls[index];
-  return { url, method: init?.method, body: init?.body ? JSON.parse(init.body as string) : undefined };
+  return {
+    url,
+    method: init?.method,
+    body: init?.body ? JSON.parse(init.body as string) : undefined,
+  };
 }
 
 const child = `/api/v1/children/${CHILD_A}/`;
@@ -34,8 +38,16 @@ describe('play API requests', () => {
   it('reads the region bootstrap', async () => {
     const { api, fetch } = setup(jsonResponse(200, bootstrapJson()));
     const region = await api.getRegion('treasure-rush-cove');
-    expect(sent(fetch)).toEqual({ url: `${child}regions/treasure-rush-cove/`, method: 'GET', body: undefined });
-    expect(region.chests[0]).toMatchObject({ entityId: 'cove-chest', isOpen: false, challengeAvailable: true });
+    expect(sent(fetch)).toEqual({
+      url: `${child}regions/treasure-rush-cove/`,
+      method: 'GET',
+      body: undefined,
+    });
+    expect(region.chests[0]).toMatchObject({
+      entityId: 'cove-chest',
+      isOpen: false,
+      challengeAvailable: true,
+    });
     expect(region.npcs[0].npcId).toBe('pirate-pip');
     expect(region.objects[0].kind).toBe('SCENERY');
     expect(region.spawn?.checkpointId).toBe('cove-landing');
@@ -43,10 +55,17 @@ describe('play API requests', () => {
   });
 
   it('starts a session and tells created from resumed', async () => {
-    const { api, fetch } = setup(jsonResponse(201, sessionJson()), jsonResponse(200, sessionJson()));
+    const { api, fetch } = setup(
+      jsonResponse(201, sessionJson()),
+      jsonResponse(200, sessionJson()),
+    );
     expect((await api.startSession('treasure-rush-cove')).created).toBe(true);
     expect((await api.startSession('treasure-rush-cove')).created).toBe(false);
-    expect(sent(fetch)).toEqual({ url: `${child}regions/treasure-rush-cove/session/`, method: 'POST', body: {} });
+    expect(sent(fetch)).toEqual({
+      url: `${child}regions/treasure-rush-cove/session/`,
+      method: 'POST',
+      body: {},
+    });
   });
 
   it('reads a session and changes its status', async () => {
@@ -58,7 +77,11 @@ describe('play API requests', () => {
     const paused = await api.changeSession(SESSION_ID, 'pause');
     expect(paused.status).toBe('PAUSED');
     expect(sent(fetch, 0).url).toBe(`${child}sessions/${SESSION_ID}/`);
-    expect(sent(fetch, 1)).toEqual({ url: `${child}sessions/${SESSION_ID}/pause/`, method: 'POST', body: {} });
+    expect(sent(fetch, 1)).toEqual({
+      url: `${child}sessions/${SESSION_ID}/pause/`,
+      method: 'POST',
+      body: {},
+    });
   });
 
   it('refuses an action the API does not have, without calling it', async () => {
@@ -70,7 +93,9 @@ describe('play API requests', () => {
   });
 
   it('accepts a quest', async () => {
-    const { api, fetch } = setup(jsonResponse(201, questJson({ status: 'ACTIVE', currentStageId: 'open-the-chest' })));
+    const { api, fetch } = setup(
+      jsonResponse(201, questJson({ status: 'ACTIVE', currentStageId: 'open-the-chest' })),
+    );
     const accepted = await api.acceptQuest('treasure-rush-cove');
     expect(accepted).toMatchObject({ created: true, value: { status: 'ACTIVE' } });
     expect(sent(fetch).url).toBe(`${child}quests/treasure-rush-cove/accept/`);
@@ -92,7 +117,12 @@ describe('play API requests', () => {
 
   it('submits only the accepted answer fields', async () => {
     const { api, fetch } = setup(jsonResponse(200, outcomeJson(true)));
-    const submission = { answer: 5, hintLevel: 1, durationMs: 8400, correct: true } as AnswerSubmission;
+    const submission = {
+      answer: 5,
+      hintLevel: 1,
+      durationMs: 8400,
+      correct: true,
+    } as AnswerSubmission;
     const outcome = await api.submitAnswer(ATTEMPT_ID, submission);
     expect(sent(fetch)).toEqual({
       url: `${child}attempts/${ATTEMPT_ID}/answer/`,
@@ -106,7 +136,9 @@ describe('play API requests', () => {
 
   it('never sends a non-integer answer', async () => {
     const { api, fetch } = setup();
-    await expect(api.submitAnswer(ATTEMPT_ID, { answer: 4.5 })).rejects.toMatchObject({ kind: 'invalid_request' });
+    await expect(api.submitAnswer(ATTEMPT_ID, { answer: 4.5 })).rejects.toMatchObject({
+      kind: 'invalid_request',
+    });
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -114,9 +146,13 @@ describe('play API requests', () => {
     const { api, fetch } = setup(jsonResponse(200, progressJson()));
     const progress = await api.getProgress();
     expect(sent(fetch).url).toBe(`${child}progress/`);
-    expect(progress.openedChests).toEqual([{ regionId: 'treasure-rush-cove', entityId: 'cove-chest' }]);
+    expect(progress.openedChests).toEqual([
+      { regionId: 'treasure-rush-cove', entityId: 'cove-chest' },
+    ]);
     expect(progress.inventory[0].item.category).toBe('KEEPSAKE');
-    expect(progress.practice).toEqual([{ objectiveCode: 'addition-within-ten', attempts: 2, correct: 1 }]);
+    expect(progress.practice).toEqual([
+      { objectiveCode: 'addition-within-ten', attempts: 2, correct: 1 },
+    ]);
   });
 
   it('encodes ids so one cannot change the route', async () => {
@@ -161,6 +197,8 @@ describe('playApiFor', () => {
   it('fails every call as disabled when the build has no Django API', async () => {
     const api = playApiFor(CHILD_A, { enabled: false });
     await expect(api.getRegion('treasure-rush-cove')).rejects.toMatchObject({ kind: 'disabled' });
-    await expect(api.submitAnswer(ATTEMPT_ID, { answer: 1 })).rejects.toMatchObject({ kind: 'disabled' });
+    await expect(api.submitAnswer(ATTEMPT_ID, { answer: 1 })).rejects.toMatchObject({
+      kind: 'disabled',
+    });
   });
 });

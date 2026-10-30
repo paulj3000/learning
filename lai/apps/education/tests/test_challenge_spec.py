@@ -36,8 +36,15 @@ TYPED = {"response_mode": "NUMBER_INPUT", "choice_count": 0}
         (TYPED, "response_mode_not_for_age_band"),
         ({"choice_count": 4}, "choice_count_out_of_range"),
         ({"choice_count": 1}, "choice_count_out_of_range"),
-        ({**ADD, "age_band": AgeBand.EXPLORER, "choice_count": 2, "response_mode": "NUMBER_INPUT"},
-         "choice_count_without_choices"),
+        (
+            {
+                **ADD,
+                "age_band": AgeBand.EXPLORER,
+                "choice_count": 2,
+                "response_mode": "NUMBER_INPUT",
+            },
+            "choice_count_without_choices",
+        ),
         ({**ADD, **TYPED, "age_band": AgeBand.EXPLORER, "min_value": -1}, "min_value_negative"),
         ({**ADD, **TYPED, "age_band": AgeBand.EXPLORER, "min_value": 6}, "range_too_small"),
         ({"min_value": 4, "max_value": 3}, "range_too_small"),

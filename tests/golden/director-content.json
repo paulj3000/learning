@@ -1,0 +1,223 @@
+{
+  "schemaVersion": 1,
+  "suite": "director-content",
+  "description": "reachableAdventures over the shipped content. Regenerate after any content change.",
+  "sources": [
+    "react/src/features/director/reachability.ts",
+    "react/src/features/worlds/travel.ts"
+  ],
+  "contentDigest": "99641a559c565a3b50ebbc500c6755c7905974cb4c33e28f7ad403459f19ed37",
+  "notes": [
+    "Bound to the content export identified by contentDigest; a port loads the same export (LAI-0304) and compares only when the digests match.",
+    "Expected values are adventure slugs, in content order."
+  ],
+  "functions": {
+    "reachableAdventures": {
+      "python": "reachable_adventures",
+      "args": [
+        "worldChangeKeys",
+        "ageBand"
+      ],
+      "cases": [
+        {
+          "name": "sprout with no world changes",
+          "input": {
+            "worldChangeKeys": [],
+            "ageBand": "SPROUT"
+          },
+          "expected": [
+            "repair-the-moonlight-bridge",
+            "three-planks-for-the-bridge",
+            "the-tide-gate-calculation",
+            "the-storykeepers-tale",
+            "quills-picture-story",
+            "buzz-and-the-waggle-dance",
+            "dragon-chapter-1-broken-path",
+            "dragon-chapter-2-whispering-forest",
+            "dragon-chapter-3-dragon-tracks",
+            "dragon-chapter-5-save-the-dragon",
+            "dino-chapter-1-fossil-dig",
+            "dino-chapter-2-footprint-trail",
+            "robot-chapter-1-gather-parts",
+            "robot-chapter-2-build-it-back",
+            "butterfly-chapter-1-quiet-garden",
+            "butterfly-chapter-2-plant-the-flowers",
+            "secret-door-chapter-1-three-clues",
+            "secret-door-chapter-2-pattern-lock",
+            "the-dark-lighthouse-counting",
+            "the-dark-lighthouse-groups",
+            "the-dark-lighthouse-two-step"
+          ]
+        },
+        {
+          "name": "sprout with every travel change",
+          "input": {
+            "worldChangeKeys": [
+              "BRIDGE_REPAIRED",
+              "TIDE_GATE_SET"
+            ],
+            "ageBand": "SPROUT"
+          },
+          "expected": [
+            "repair-the-moonlight-bridge",
+            "three-planks-for-the-bridge",
+            "the-tide-gate-calculation",
+            "the-storykeepers-tale",
+            "quills-picture-story",
+            "buzz-and-the-waggle-dance",
+            "dragon-chapter-1-broken-path",
+            "dragon-chapter-2-whispering-forest",
+            "dragon-chapter-3-dragon-tracks",
+            "dragon-chapter-5-save-the-dragon",
+            "dino-chapter-1-fossil-dig",
+            "dino-chapter-2-footprint-trail",
+            "robot-chapter-1-gather-parts",
+            "robot-chapter-2-build-it-back",
+            "butterfly-chapter-1-quiet-garden",
+            "butterfly-chapter-2-plant-the-flowers",
+            "secret-door-chapter-1-three-clues",
+            "secret-door-chapter-2-pattern-lock",
+            "breakfast-at-the-cove",
+            "the-morning-care-round",
+            "the-cove-care-plan",
+            "the-dark-lighthouse-counting",
+            "the-dark-lighthouse-groups",
+            "the-dark-lighthouse-two-step"
+          ]
+        },
+        {
+          "name": "pathfinder with no world changes",
+          "input": {
+            "worldChangeKeys": [],
+            "ageBand": "PATHFINDER"
+          },
+          "expected": [
+            "repair-the-moonlight-bridge",
+            "three-planks-for-the-bridge",
+            "the-tide-gate-calculation",
+            "the-storykeepers-tale",
+            "quills-picture-story",
+            "buzz-and-the-waggle-dance",
+            "dragon-chapter-1-broken-path",
+            "dragon-chapter-2-whispering-forest",
+            "dragon-chapter-3-dragon-tracks",
+            "dragon-chapter-5-save-the-dragon",
+            "dino-chapter-1-fossil-dig",
+            "dino-chapter-2-footprint-trail",
+            "robot-chapter-1-gather-parts",
+            "robot-chapter-2-build-it-back",
+            "butterfly-chapter-1-quiet-garden",
+            "butterfly-chapter-2-plant-the-flowers",
+            "secret-door-chapter-1-three-clues",
+            "secret-door-chapter-2-pattern-lock",
+            "the-dark-lighthouse-counting",
+            "the-dark-lighthouse-groups",
+            "the-dark-lighthouse-two-step"
+          ]
+        },
+        {
+          "name": "pathfinder with every travel change",
+          "input": {
+            "worldChangeKeys": [
+              "BRIDGE_REPAIRED",
+              "TIDE_GATE_SET"
+            ],
+            "ageBand": "PATHFINDER"
+          },
+          "expected": [
+            "repair-the-moonlight-bridge",
+            "three-planks-for-the-bridge",
+            "the-tide-gate-calculation",
+            "the-storykeepers-tale",
+            "quills-picture-story",
+            "buzz-and-the-waggle-dance",
+            "dragon-chapter-1-broken-path",
+            "dragon-chapter-2-whispering-forest",
+            "dragon-chapter-3-dragon-tracks",
+            "dragon-chapter-5-save-the-dragon",
+            "dino-chapter-1-fossil-dig",
+            "dino-chapter-2-footprint-trail",
+            "robot-chapter-1-gather-parts",
+            "robot-chapter-2-build-it-back",
+            "butterfly-chapter-1-quiet-garden",
+            "butterfly-chapter-2-plant-the-flowers",
+            "secret-door-chapter-1-three-clues",
+            "secret-door-chapter-2-pattern-lock",
+            "breakfast-at-the-cove",
+            "the-morning-care-round",
+            "the-cove-care-plan",
+            "the-dark-lighthouse-counting",
+            "the-dark-lighthouse-groups",
+            "the-dark-lighthouse-two-step"
+          ]
+        },
+        {
+          "name": "explorer with no world changes",
+          "input": {
+            "worldChangeKeys": [],
+            "ageBand": "EXPLORER"
+          },
+          "expected": [
+            "repair-the-moonlight-bridge",
+            "three-planks-for-the-bridge",
+            "the-tide-gate-calculation",
+            "the-storykeepers-tale",
+            "quills-picture-story",
+            "buzz-and-the-waggle-dance",
+            "dragon-chapter-1-broken-path",
+            "dragon-chapter-2-whispering-forest",
+            "dragon-chapter-3-dragon-tracks",
+            "dragon-chapter-5-save-the-dragon",
+            "dino-chapter-1-fossil-dig",
+            "dino-chapter-2-footprint-trail",
+            "robot-chapter-1-gather-parts",
+            "robot-chapter-2-build-it-back",
+            "butterfly-chapter-1-quiet-garden",
+            "butterfly-chapter-2-plant-the-flowers",
+            "secret-door-chapter-1-three-clues",
+            "secret-door-chapter-2-pattern-lock",
+            "the-dark-lighthouse-counting",
+            "the-dark-lighthouse-groups",
+            "the-dark-lighthouse-two-step"
+          ]
+        },
+        {
+          "name": "explorer with every travel change",
+          "input": {
+            "worldChangeKeys": [
+              "BRIDGE_REPAIRED",
+              "TIDE_GATE_SET"
+            ],
+            "ageBand": "EXPLORER"
+          },
+          "expected": [
+            "repair-the-moonlight-bridge",
+            "three-planks-for-the-bridge",
+            "the-tide-gate-calculation",
+            "the-storykeepers-tale",
+            "quills-picture-story",
+            "buzz-and-the-waggle-dance",
+            "dragon-chapter-1-broken-path",
+            "dragon-chapter-2-whispering-forest",
+            "dragon-chapter-3-dragon-tracks",
+            "dragon-chapter-5-save-the-dragon",
+            "dino-chapter-1-fossil-dig",
+            "dino-chapter-2-footprint-trail",
+            "robot-chapter-1-gather-parts",
+            "robot-chapter-2-build-it-back",
+            "butterfly-chapter-1-quiet-garden",
+            "butterfly-chapter-2-plant-the-flowers",
+            "secret-door-chapter-1-three-clues",
+            "secret-door-chapter-2-pattern-lock",
+            "breakfast-at-the-cove",
+            "the-morning-care-round",
+            "the-cove-care-plan",
+            "the-dark-lighthouse-counting",
+            "the-dark-lighthouse-groups",
+            "the-dark-lighthouse-two-step"
+          ]
+        }
+      ]
+    }
+  }
+}

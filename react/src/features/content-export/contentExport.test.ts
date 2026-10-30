@@ -17,6 +17,11 @@ import { ALL_ITEMS, ALL_REWARD_RULES } from '../rewards/content/index';
 import { STORY_DEFINITIONS } from '../story/content/index';
 import { WORLD_DEFINITIONS } from '../worlds/worlds';
 import { buildContentPackage } from './build';
+import {
+  TREASURE_RUSH_ITEMS,
+  TREASURE_RUSH_QUESTS,
+  TREASURE_RUSH_REWARD_RULES,
+} from './treasureRushContent';
 import { canonicalJson, toJsonValue, UnsupportedContentError } from './canonical';
 import { ContentExportError, renderExport } from './files';
 import { checkIntegrity } from './integrity';
@@ -66,9 +71,9 @@ describe('preservation of the existing content', () => {
   it('every exported collection equals its TypeScript source, in authored order', async () => {
     const pkg = await buildContentPackage();
     expect(pkg.adventures).toEqual(clone(ADVENTURE_TEMPLATES));
-    expect(pkg.quests).toEqual(clone(QUEST_DEFINITIONS));
-    expect(pkg.items).toEqual(clone(ALL_ITEMS));
-    expect(pkg.rewardRules).toEqual(clone(ALL_REWARD_RULES));
+    expect(pkg.quests).toEqual(clone([...QUEST_DEFINITIONS, ...TREASURE_RUSH_QUESTS]));
+    expect(pkg.items).toEqual(clone([...ALL_ITEMS, ...TREASURE_RUSH_ITEMS]));
+    expect(pkg.rewardRules).toEqual(clone([...ALL_REWARD_RULES, ...TREASURE_RUSH_REWARD_RULES]));
     expect(pkg.npcs).toEqual(clone(ALL_NPCS));
     expect(pkg.discoveries).toEqual(clone(DISCOVERY_DEFINITIONS));
     expect(pkg.checkpoints).toEqual(clone(ALL_CHECKPOINTS));
@@ -77,6 +82,14 @@ describe('preservation of the existing content', () => {
     expect(pkg.skills).toEqual(clone(SKILLS));
     expect(pkg.assets).toEqual(clone(ASSET_MANIFEST));
     expect(pkg.learningObjectives).toEqual(clone(LEARNING_OBJECTIVES));
+  });
+
+  it('adds Treasure Rush content to the export only, never to the app registries', () => {
+    expect(QUEST_DEFINITIONS.some((quest) => quest.id === 'treasure-rush-cove')).toBe(false);
+    expect(ALL_ITEMS.some((item) => item.id === 'golden-doubloon')).toBe(false);
+    expect(ALL_REWARD_RULES.some((rule) => rule.id === 'reward-treasure-rush-cove-chest')).toBe(
+      false,
+    );
   });
 
   it('exports the expected number of records', async () => {
@@ -90,10 +103,10 @@ describe('preservation of the existing content', () => {
       learningObjectives: 18,
       wonderWallQuestions: 4,
       stories: 5,
-      quests: 6,
-      items: 19,
+      quests: 7,
+      items: 20,
       collectibleSets: 1,
-      rewardRules: 14,
+      rewardRules: 15,
       npcs: 6,
       discoveries: 6,
       checkpoints: 30,
@@ -103,6 +116,7 @@ describe('preservation of the existing content', () => {
       domains: 6,
       skills: 10,
       assets: 114,
+      locationAssets: 6,
     });
   });
 
@@ -256,6 +270,21 @@ describe('integrity checks catch problems (mutated copies)', () => {
       /unknown interaction/,
     ],
     [
+      'a location asset that is not in the asset manifest',
+      (p) => void p.locationAssets[0]!.assetIds.push('ghost-asset'),
+      /location assets ".+": unknown asset "ghost-asset"/,
+    ],
+    [
+      'location assets for a region that does not exist',
+      (p) => void (p.locationAssets[0]!.regionSlug = 'ghost-region'),
+      /location assets "ghost-region": unknown region "ghost-region"/,
+    ],
+    [
+      'the same asset listed twice for one location',
+      (p) => void p.locationAssets[0]!.assetIds.push(p.locationAssets[0]!.assetIds[0]!),
+      /duplicate asset/,
+    ],
+    [
       'an unknown region id (only listed passage regions are accepted)',
       (p) => void (p.checkpoints[0]!.regionId = 'wonderwild-hives'),
       /unknown region "wonderwild-hives"/,
@@ -383,7 +412,7 @@ describe('schema validation', () => {
     file.adventures[0]!.steps[0]!.presentation = { kind: 'hologram' } as never;
     expect(validate(file, schema).join('\n')).toMatch(/matches 0 variants/);
     expect(validate({ ...(await adventuresFile()), schemaVersion: 1 }, schema).join('\n')).toMatch(
-      /expected 2/,
+      new RegExp(`expected ${SCHEMA_VERSION}`),
     );
   });
 

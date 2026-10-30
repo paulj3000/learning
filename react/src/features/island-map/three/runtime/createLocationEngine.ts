@@ -46,7 +46,7 @@ import {
   RAYCAST_RANGE_METERS,
   runPlacements,
 } from '../sceneKit';
-import type { ThreeEngineHandle } from '../ThreeGameContainer';
+import type { ThreeEngineHandle } from '../engineHandle';
 import type { WorldEngineEventBus } from '../worldEngineEvents';
 import { SOURCE_WORLD_EXTENSIONS } from '../extensions';
 import type { LoadedModel, WorldExtensionMount, WorldExtensionRegistry } from './extensionRegistry';

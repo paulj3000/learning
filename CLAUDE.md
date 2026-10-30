@@ -276,7 +276,10 @@ For each implementation request:
 3. State the acceptance criteria being implemented.
 4. Make the smallest coherent change that completes the feature.
 5. Update or add tests.
-6. Run type checking, linting, unit tests, and relevant integration tests.
+6. Run the development checks in `docs/TESTING_STRATEGY.md` ("When to run which checks"):
+   relevant unit tests, typechecking when TypeScript changed, and focused regression tests.
+   Linting, formatting, full suites, builds, browser/WebGL and deployment checks run at merge
+   or release readiness, when explicitly requested.
 7. Report:
    - files created;
    - files changed;
@@ -284,7 +287,7 @@ For each implementation request:
    - remaining risks or TODOs.
 8. Update `docs/IMPLEMENTATION_STATUS.md`.
 
-Do not mark a task complete merely because files were generated. Completion requires passing acceptance criteria and tests, or a precise explanation of what remains blocked.
+Do not mark a task complete merely because files were generated. Completion requires passing acceptance criteria and the development checks, with anything deferred to merge verification listed, or a precise explanation of what remains blocked.
 
 ## 15. Definition of Done
 
@@ -295,7 +298,7 @@ A feature is done only when:
 - age bands are respected;
 - accessibility basics are satisfied;
 - analytics avoid sensitive content;
-- tests pass;
+- relevant tests pass (the full merge-readiness gates run before a merge; see `docs/TESTING_STRATEGY.md`);
 - documentation and implementation status are updated.
 
 ## 16. First Build Sequence
@@ -338,9 +341,15 @@ ADR-019 in `docs/DECISIONS.md` moves the backend from Amplify Gen 2 to Django + 
 **Accepted in part**: the architectural direction (Django + DRF, PostgreSQL, React 19,
 Cognito initially, S3, FinWin-style layout) is approved; section 8 above remains the
 **deployed and operating** baseline until cutover. Operational, data, and security items are
-open gates (G1 to G7 in the ADR) and must not be assumed settled. Track A tasks (Phases 1 to
-13) may proceed in order, skipping nothing, and stop for approval at every task marked
-APPROVAL in `docs/DJANGO_MIGRATION_ROADMAP.md`. Never delete or change deployed Amplify or
+open gates (G1 to G10 in the ADR; G4 is resolved: Python rules, Django content authority) and must not be assumed settled. Track A tasks (Phases 1 to
+13) proceed when their explicit dependencies and the architecture gates that apply to them are
+satisfied (owner, 2026-10-24), and stop for approval at every task marked APPROVAL in
+`docs/DJANGO_MIGRATION_ROADMAP.md`:
+- An earlier, unfinished task does not block an independent, dependency-ready task; the old
+  "in order, skipping nothing" wording means no task skips its own dependencies, not that
+  numbering order gates unrelated work.
+- Open earlier tasks stay tracked as open and are never marked complete by implication.
+- No task bypasses an unresolved dependency, an open gate it touches, or a decision it needs. Never delete or change deployed Amplify or
 AWS resources, migrate production data, or deploy without explicit approval.
 
 ## 19. Accepted game engine decision (in effect)
@@ -356,3 +365,13 @@ after every Phaser world is converted and verified. Rules for Claude:
 - Track B tasks (LAI-2001 to 2305) follow `docs/DJANGO_MIGRATION_ROADMAP.md` Phases 20 to 23.
   Docs-only LAI-2001 to 2003 do not wait for ADR-019; code tasks wait for LAI-0201. Never
   combine a backend domain change with a world conversion in one task.
+
+## 20. One Django backbone (in effect)
+
+ADR-033 (POST-MERGE-03): every feature, Treasure Rush included, uses the canonical Django apps
+(`docs/ARCHITECTURE.md`, "Consolidated Django backbone"). Do not add a second catalog, content
+loader, child-owned base, or progress model for one feature; extend the canonical one. Content
+reaches Django only through the export and `manage.py load_content`. Spatial layouts are not
+Django-administered until LAI-0805's ADR: shipped regions keep their TypeScript manifests and
+Treasure Cove's layout stays in `lai/apps/regions/treasure_rush_seed.py`.
+

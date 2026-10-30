@@ -2538,6 +2538,14 @@ never set up in Django, and the content is DRAFT. TR-8a adds automatic Django ac
 real families TR-9 waits on LAI-0502 and LAI-0602 (separate migration branch), gate G9, and
 ADR-024 A6. Details: `docs/TREASURE_RUSH_ROADMAP.md` section 15.
 
+**Merged into main (2026-10-29), after POST-MERGE-03.** The branch's publish command moved from
+`islands` to `regions` and now publishes only the region and its challenge specs; the catalog
+location, world, and offered quests must already be `active` (export-owned, ADR-033). TR-8's UI
+replaces TR-7's placeholder notices, so the TR-7 placeholder tests from main were dropped in
+favour of TR-8's. Checked: typecheck (React, Amplify, scripts), the region-play and API Vitest
+suites, and the regions and game_sessions Django tests. Not checked: any browser or WebGL run,
+and the TR-9 playtest.
+
 ### Earlier: TR-8 (quest, challenge, and reward UI)
 
 TR-8 replaces TR-7's notice with the game UI, all inside the `region-play` extension: Pip's
@@ -10658,3 +10666,363 @@ Track B task added after the asset management audit. It hardens the existing loa
 - **Tests:** `cloneAsset.test.ts` (8, real bundled rig through the real `GLTFLoader.load()` path: independent skeletons, one instance walking while the other stays at rest, shared geometry and materials, static and node-animated models unchanged, and a test documenting the old `clone(true)` binding bug), `assetLoaderCache.test.ts` (18, cache, eviction, retry, concurrency and events), and one engine test mounting two placements of `npc-harbor-master`. One assertion in `assetResolver.test.ts` was widened for the fetcher's new progress argument.
 - **Verified (run):** typecheck clean; oxlint 0 errors (4 existing warnings in untouched files); Prettier and ADR check clean; Vitest 265 files / 2736 tests pass (was 263 / 2709); `npm run build` passes. jsdom only: no WebGL rendering or browser run was done, so the visible skinning on a device is not verified.
 - **Open:** cloned skeletons are not explicitly disposed (their bone texture goes with the renderer); the cache never evicts successful loads (unchanged); no LoadingManager-style aggregate across assets; equipment attachment and shared animation clips remain separate future tasks.
+
+## Development testing policy (2026-10-24)
+
+Process change, not a roadmap task. Documentation only.
+
+- `docs/TESTING_STRATEGY.md` gains "When to run which checks", the single source for the policy: development runs targeted Vitest/pytest, typecheck when TypeScript changed, focused regression tests and new tests; Playwright, WebGL, Ruff, Prettier, oxlint, builds, full suites and deployment checks move to merge or release readiness, run only on explicit request. Resource rules: capped workers, no reruns of unchanged code, infrastructure failures reported separately.
+- **Preserved:** authorization, tenant isolation, authentication, privacy logging, AI validation and content export tests still run whenever a change touches them. ADR gates stay gates (Phaser world deletion needs parity and visual validation; the Sprouts gate, ADR-020). APPROVAL and AWS steps are unchanged.
+- **Conflicts amended, smallest change:** `CLAUDE.md` section 14 step 6 required linting and integration tests on every task, and section 15 required "tests pass"; both now point at the policy. `docs/DJANGO_MIGRATION_ROADMAP.md` section 1 now says a task's "Verification:" line runs at merge readiness and is recorded as deferred, except for ADR gates and APPROVAL steps.
+- **Unchanged:** CI still runs every gate, but only on pushes to `main` and pull requests, so branch work relies on the merge readiness review. No tests were run (no code changed).
+
+## LAI-0203: engine import boundary guard (2026-10-24)
+
+Interim guard until the engine moves to `game/` (LAI-2101 replaces it with the same rule). Rules: `docs/ARCHITECTURE.md`, "Engine import boundary".
+
+- **Check:** `react/src/test/engineBoundary.ts` (pure checker) and `engineBoundary.test.ts`. It uses the TypeScript compiler's `preProcessFile`, which is already installed, so it catches static, type-only, re-export, side-effect, `require`, dynamic and `import()`-type imports with no new dependency. Relative specifiers are resolved to files (redundant segments, `.js`/`.ts` extensions, directory index), and non-engine local modules are followed transitively, so a re-exporting content module cannot launder a client. Packages are deny by default (`three` everywhere, `phaser` in `scenes/` only, `vitest` in two named test-support files), so an alias such as `@/lib/data-client` fails closed. The repository has no path aliases today.
+- **Scope:** 100 engine files, the `.ts` modules of `features/island-map/three/` and `scenes/` plus the 2D geometry modules. `.tsx` hosts and the rest of the app are not restricted.
+- **Fixed, not exempted:** `createLocationEngine.ts` and `sandboxScene.ts` imported the `ThreeEngineHandle` type from the React host `ThreeGameContainer.tsx`. It now lives in `three/engineHandle.ts`, re-exported from the old location, so no other importer changed.
+- **Existing violations, recorded one edge each (`KNOWN_VIOLATIONS`, removed by LAI-2102):** `npcApproachBridge.ts` and `viewExtensionRegistry.ts` import `react`; three `*ViewExtension.ts` files import their React overlays; `extensions/index.ts` imports the multiplayer presence view extension. Because that index builds the view registry beside the world registry, `createLocationEngine.ts` reaches React overlays through it today. Not refactored here: that split is LAI-2102's job, and the parallel Treasure Rush track is likely to register an extension in the same file. Each entry tolerates only its own edge; anything else reachable behind it is still checked, and the test fails when an entry goes stale. None reaches the backend.
+- **Verified (run):** `engineBoundary.test.ts` (40 tests, including fixture trees for every rule and the real tree), plus `ThreeGameContainer`, `ThreeSandboxWorldView` and `createLocationEngine` tests: 4 files, 77 tests pass. `npm run typecheck` clean.
+- **Deferred to merge verification:** oxlint, Prettier, the full Vitest suite, build. CI runs the test as part of `npm test`.
+
+## LAI-0303: golden vectors, and ADR-019 sub-decision 8 / gate G4 (2026-10-24)
+
+- **Decision recorded (owner).** ADR-019 sub-decision 8 is Accepted and gate G4 resolved: Python is the authoritative rules implementation with no Node service; the client may run the same logic for presentation and previews only; Django becomes the content authority with versioned JSON as the interchange. A dated amendment in `docs/DECISIONS.md` records the transition so it does not contradict decisions still in force: TypeScript content stays the authoring input (exported, then loaded by LAI-0304) until a cutover task makes Django Admin the editing surface; ADR-009/013 still define a content pack; ADR-031's Amplify overlay gains nothing new and is to be superseded by LAI-0801/0802; ADR-032 spatial manifests stay in source pending LAI-0805's ADR. Registry notes and `CLAUDE.md` section 18 updated.
+- **Vectors:** six suites in `tests/golden/` (adventure-engine, rewards, quests, mastery, director, director-content), 15 functions, 165 cases including boundaries (ratio 0.6, 21-day decay to the second, hint clamp, collect counts) and rejected inputs (mismatched answer kinds, missing transitions). `director-content` runs over the shipped content and records its digest.
+- **Refactor, no behaviour change:** the `SkillProgress` counter arithmetic moved out of `upsertSkillProgress` into pure `mastery/counters.ts` (`nextSkillProgressCounts`) so it can be vectored; the API calls it with the same arguments.
+- **Specification gaps surfaced (recorded in each file's `notes`, not changed):** a matching answer repeating one correct pair passes; number answers have no tolerance; `nextHintLevel` accepts negative and fractional levels; skill status does not validate inconsistent counts; reward relationship triggers match one exact level; the director's tie-break uses locale collation (`localeCompare`), which a Python port cannot reproduce in general.
+- **Python side:** `tests/golden/golden_vectors.py` (loader, snake_case kwargs, `assert_case`) and `test_golden_vectors.py` (format and digest). There are no Python rule implementations yet; each Phase 6 port adds its rule tests.
+- **LAI-0304 prepared:** six decisions it must make first are written into its roadmap entry (Island means world in the export and region in the Amplify catalog; activation and order are overlay data; assets are thin in the export; adventure-asset links are not exported; reload policy; recording the loaded digest). **LAI-0805** records future spatial layout administration, gated on its own ADR.
+- **Verified (run):** pytest `tests/golden` 9 passed; Vitest 18 files / 177 tests (golden test plus mastery, adventure engine, quests, reward table and director suites); `npm run typecheck` clean; `npm run golden:check` up to date.
+- **Deferred to merge verification:** Ruff, Prettier, oxlint, full suites, build. **Workflow note:** any content change (including a new Treasure Rush adventure) changes `director-content.json`; run `npm run golden:generate` with `content:export`.
+
+## LAI-0304: content catalog models, loader and admin foundation (2026-10-24)
+
+Authorized by the owner on its completed dependencies (LAI-0301, LAI-0302); `CLAUDE.md` section 18 now says dependency-ready tasks proceed while earlier open tasks stay tracked. Owner decisions taken during the task: Quest is modelled as exported (under World, linked to the adventures its SOLVE objectives name), not as a parent of steps; the catalog admin is built and unit-tested here but mounted by LAI-0404 (ADR-024 A4 keeps Django Admin off until then).
+
+- **Models** (`lai/apps/catalog`, migration `0001_initial`): World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset, ContentRelease. Stable ids from the export; `source` keeps each record verbatim; `last_seen_release` on every imported row; `active` and `sort_order` are the only Django-owned fields. PROTECT on parents and used assets. Field-by-field editability: `docs/DATA_MODEL.md` "Django content catalog".
+- **Loader:** `manage.py load_content [--path] [--dry-run] [--force]`. Verifies file hashes and the content digest, validates every record and relationship before writing, one transaction under an advisory lock, skips an export that is already the latest release, never deletes, never overwrites catalog fields, reports created / updated / unchanged / missing per model plus skipped and invalid records. No live Amplify data is read (G1, G5).
+- **Admin:** `catalog_admin_site` with list columns, search, filters (including "in the latest export"), parent-to-child inlines, location scene assets, asset "used by", and releases with digest and schema version. Worlds and locations are labelled apart. Deny by default through `admin_access.resolve_admin_role`; nothing sets the role until LAI-0404.
+- **Export schema 3:** `assets.json` gains `locationAssets` (asset ids per location, no spatial data) from `content/derived/scene-asset-index.json`, which the engine side writes with a Vitest file snapshot because the scene modules reach Three.js. Every export file changed only by its `schemaVersion` line apart from `assets.json`. The hub's 11 assets are exported and skipped by the importer (no Location record).
+- **Golden vectors:** regenerated from the TypeScript; only `director-content.json` changed, and only its `contentDigest` (`b00a1e9c...` to `892fa241...`). `reachableAdventures` outputs are identical because no adventure changed.
+- **Asset boundary:** `ContentAsset` is identity and references only, keyed by the bundled manifest id that the Amplify `Asset.slug` shares (ADR-030). Upload, versions, status and licences stay with the asset registry work; LAI-2106's loader is untouched.
+- **Also fixed:** `tests/golden/*.json` and `content/derived` added to `.prettierignore`; without it a merge-time Prettier pass would reformat generated files and make their staleness checks fail.
+- **Verified (run):** pytest `lai/apps/catalog` 43 passed (PostgreSQL 16 on port 5433); regression pytest `lai/apps/core`, `lai/apps/users`, `tests` 220 passed after regenerating the golden digest; Vitest `content-export` 56, golden and scene index tests pass; `npm run typecheck` clean; `makemigrations --check` clean; `content:check` and `golden:check` up to date. One full Vitest run happened by mistake (268 files / 2784 tests, all passing): Vitest's `-u` consumed the test path.
+- **Deferred to merge verification:** Ruff, Prettier, oxlint, build, browser tests. **Workflow for the parallel Treasure Rush track:** a new or changed location manifest requires the index, export and golden refresh in the order in `docs/TESTING_STRATEGY.md`.
+- **Not built:** the roadmap's ItemDefinition and LearningObjective catalog models (no consumer yet), NPC models (quests keep `giver_npc_id` as text), and anything spatial (LAI-0805).
+
+## LAI-0305: child progress models (2026-10-24)
+
+- **Models (14, five apps, one migration each):** `game_sessions` (AdventureSession, AdventureAction, CoopSession, CoopParticipant), `education` (SkillEvidence, SkillProgress, StoryArtifact), `progression` (WorldChange, WorldState, StoryProgress, NpcRelationship), `inventory` (InventoryItem, GrantedRule), `quests` (QuestProgress). The roadmap's twelve plus two documented array-to-row splits (co-op participants, granted rules). Abstract `core.ChildOwnedModel` gives UUID keys, the `child` foreign key and `for_child`. Rules and transitions: `docs/DATA_MODEL.md` "Django child progress".
+- **Content handling:** progress references retained catalog rows (PROTECT) and records `template_version` and `content_release`; a new release never resets or rebinds it, and an adventure dropped from the export stays playable for sessions already on it. No automatic migration or completion when ids change.
+- **Services (server-side only, no endpoints):** start or resume a session, record a step attempt (row-locked, attempts numbered per step), complete a session, list completed steps; start and save quest state; record a world change idempotently. Each takes the child resolved by `ChildScopedMixin` and treats another child's record as not found.
+- **Additions over Amplify, for the migration to note:** `AdventureAction.next_step_id` (blank on migrated rows), the one-ACTIVE-session-per-adventure constraint, consistent-counter checks, and exactly-one-source evidence. Phase 11 must report rows that violate them.
+- **Open:** transitions into PAUSED, ABANDONED and SAFETY_STOPPED are not defined anywhere; whether `World.active` gates play; catalog models for items, reward rules, learning objectives, stories and NPCs (proposed **LAI-0309**, referenced by string id until then).
+- **Verified (run):** pytest `game_sessions`, `quests`, `progression`, `education`, `inventory`: 42 passed (PostgreSQL 16, port 5433), including a two-thread concurrency test; regression pytest `catalog`, `users`, `core`: 251 passed; `makemigrations --check` clean; Prettier on the changed files (owner request).
+- **Deferred to merge verification:** Ruff, oxlint, full suites, build, browser tests.
+
+## LAI-0601: Python adventure engine and answers endpoint (2026-10-24)
+
+- **Engine:** `lai/apps/adventures/engine.py`, pure Python, a port of `validateStepAnswer`, `getNextStepId`, `nextHintLevel`, `getHintText`, `decideSubmission` and `isStepAnswer`. `decideSubmission` and `isStepAnswer` moved unchanged from the Lambda into `react/src/features/adventures/engine/submission.ts` (the Lambda re-exports them; its tests pass) so the golden vectors could pin them. The adventure-engine suite grew to six functions, including JavaScript semantics a port must keep (`undefined === undefined` in matching, no bool-number coercion, JS truthiness of `hintPolicy`, JS array indexing in hint text). `tests/golden/test_adventure_engine_python.py`: every case passes in Python.
+- **Endpoints:** `POST /api/v1/children/{child_id}/sessions/{session_id}/answers/` and `.../hints/` (contracts in `docs/ARCHITECTURE.md`, "Authoritative adventure answers"). Server-owned correctness, hint level, next step and completion; `requestId` replay (ADR-015, stored on `AdventureAction`); hint compare-and-set; completion in the same transaction. Migration `game_sessions/0002_answers_and_hints` adds `AdventureSession.hint_levels` and `AdventureAction.request_id`.
+- **G6:** verified for these endpoints from the code and tests; evidence recorded in `docs/ARCHITECTURE.md`.
+- **Content versions:** no snapshots, so a session whose adventure version changed, or whose step left the latest import, is refused with `409 content_version_changed` and kept intact. Decision needed: keep per-version step snapshots, or let a parent restart such a session.
+- **Deliberate deviations from the Amplify contract:** the route is child-scoped; `stepId` and `requestId` are required; there is no `hintLevel` input (the server's level is used), which closes the Lambda's guided-completion bypass. The deployed Lambda still has that weakness until the client moves to Django.
+- **Not in scope, explicit boundaries:** no session-start endpoint (sessions start through `start_or_resume_session` only, so the endpoint is not yet reachable from a client); skill evidence and mastery (LAI-0603), rewards (LAI-0604), world changes from world-change steps and quest advance (LAI-0605), story artifacts (LAI-0607); the React client still calls the Lambda (LAI-0501).
+- **Gameplay behaviour still awaiting a decision (kept as TypeScript does it):** exact number matching; a repeated or malformed matching pair can count as correct; unvalidated hint input; transitions into PAUSED, ABANDONED and SAFETY_STOPPED.
+- **Verified (run):** pytest `lai` and `tests` 426 passed on PostgreSQL 16 (port 5433), including the new API tests (grading, hints, completion, rejected submissions, replays, authorization, content versions, rollback, three-thread concurrency) and the route checker; Vitest (Lambda handler, golden, adventure engine) 36 passed; `npm run typecheck` clean; `golden:check` up to date.
+- **Deferred to merge verification:** Ruff, Prettier, oxlint, full Vitest suite, build, browser tests.
+
+## POST-MERGE-03: one Django backbone for Storykeeper Castle and Treasure Rush (2026-10-24)
+
+Not a roadmap task. Branch `integration/post-merge-03`, from `origin/main` (`350e11b`), with
+`storykeeper-castle-3d-storyboard-and-roadmap` (`c9fa6ba`, fast-forward) and
+`feature/treasure-rush-slice` (`14cb9c9`, merged) reconciled. Decision: ADR-033. Both original
+branches are untouched.
+
+- **Canonical (kept as is):** LAI-0304 catalog and importer, LAI-0305 progress models, LAI-0601
+  Python engine with golden parity, answers and hints, child ownership and isolation.
+- **Integrated from Treasure Rush:**
+  - Catalog: LearningObjective, NpcDefinition, CollectibleSet, ItemDefinition and RewardRule
+    became imported catalog rows (most of LAI-0309).
+  - Validation: its JSON-schema validator now runs inside the canonical import.
+  - Region play: session kinds, ChallengeAttempt, ChallengeSpec, attempt evidence, reward
+    grants, append-only world changes, and the server-side quest engine and refresh, plus the
+    whole play API and React client unchanged in contract.
+  - Safety: the cross-child link check (now in `core.ChildOwnedModel`).
+- **Adapted:**
+  - **Catalog replacements.** `islands.Island`, `IslandLocation`, `adventures.AdventureTemplate`
+    and `quests.QuestDefinition` are replaced by `catalog.World`, `Location`, `Adventure` and
+    `Quest`. A quest is "published" when it is `active`.
+  - **Content now exported.** Treasure Rush's quest, keepsake and reward rule are in the export
+    (export-only module, so the Amplify app is unchanged). The reward trigger is `WORLD_CHANGE`
+    on the chest's key, in the existing vocabulary.
+  - **Inventory.** Rows reference catalog items and rules by foreign key.
+  - **Region sessions.** They record a content release.
+  - **Lifecycle actions.** Pause, resume, complete and abandon apply to REGION sessions only.
+  - **World-change sessions.** The source session is a string id, checked to be the same child's
+    in the service.
+  - **NPC dialogue.** It stays in `source` instead of rows. The dialogue rows had no consumer;
+    re-import keeps rather than deletes.
+  - **Asset ids.** They are checked against `catalog.ContentAsset`.
+- **Deferred:**
+  - **Spatial layout.** Django spatial administration is LAI-0805. The cove's layout stays
+    seed-authored in `apps/regions` (temporary source of truth: `treasure_rush_seed.py`), and
+    TR-D3 is not adopted.
+  - **Admin.** TR-3 (admin, TR-D5) is unchanged.
+- **Migrations:**
+  - Treasure Rush's migrations were dropped.
+  - New incremental migrations: `catalog/0002`, `education/0004` and `0005`, `game_sessions/0003`,
+    `progression/0002`, and a new `regions/0001`.
+  - `inventory/0001` was regenerated, because its references became required foreign keys and no
+    Django database exists outside local development.
+  - Local development databases from either branch must be recreated.
+  - `makemigrations --check` is clean.
+- **Engine boundary (LAI-0203):**
+  - View extensions, the view registry and the bridge hooks are now `.tsx` React host modules.
+  - The React view registry moved to `extensions/viewExtensions.tsx`, with its ids in
+    `viewExtensionIds.ts`.
+  - The region-play id and config types moved to `regionPlayConfig.ts`, away from API types.
+  - `KNOWN_VIOLATIONS` is empty (it listed 6 edges). 96 engine files, no violations.
+- **Content:**
+  - The export changed by Treasure Rush's quest, item and rule.
+  - In the golden vectors only `director-content.json`'s `contentDigest` changed. Its outputs
+    are identical, because no adventure was added.
+- **Verified (run):** see the POST-MERGE-03 completion report; full deferred checks wait for merge
+  verification. Treasure Cove has not been played in a browser.
+
+## POST-MERGE-04: merge verification of `integration/post-merge-03` (2026-10-25)
+
+Not a roadmap task. The verification ran on `882ac8c`; its fixes are `0134342` (Ruff and
+Prettier, three lint fixes with no behaviour change) and `b62a3df` (backbone regression test).
+
+- **Git:**
+  - `origin/main` is unchanged at `350e11b` and is an ancestor, so the merge would be a
+    fast-forward.
+  - `origin/feature/treasure-rush-slice` has moved to `35596ba` (TR-8, React UI only). By owner
+    decision it is not included, so that branch is ahead again after this merge.
+- **Python:**
+  - Ruff check and format: clean, after formatting 56 files and fixing 5 findings.
+  - `manage.py check` and `makemigrations --check`: clean.
+  - pytest: 621 passed against PostgreSQL 16, with the database required. The 3 new backbone
+    tests also pass.
+- **Fresh disposable database:**
+  - Every migration applied in dependency order, with no duplicate initial migrations.
+  - `load_content` imported release `99641a559c56`; `seed_treasure_rush` created 7 rows; a
+    second import was skipped as unchanged.
+  - The inventory foreign keys reference `catalog_itemdefinition` and `catalog_rewardrule`.
+- **TypeScript:**
+  - Prettier: clean, after formatting 37 files.
+  - oxlint: 0 errors and 31 warnings (accessibility and fast-refresh hints).
+  - Typecheck: clean.
+  - Vitest: 282 files and 2920 tests passed.
+  - `npm run build`: passes.
+  - Engine boundary guard: no violations.
+  - `content:check`, `golden:check` and the ADR check: all pass. The golden data is unchanged
+    since POST-MERGE-03.
+- **Browser (real Chromium):** the 7 Playwright smoke tests pass.
+  - Storykeeper Castle and Treasure Cove gameplay were **not** run in a browser. Every 3D world
+    is behind a Cognito sign-in and Amplify Data, and the Treasure Cove answer UI is TR-8.
+  - Gameplay rules are covered by integration tests against a real database: the play API, chest
+    play and answers API.
+- **Dependencies:** `npm ci` fails on `main` as well. `package-lock.json` is out of sync
+  (`zod@3.24.2`, `@opentelemetry/core@2.0.0`). CI and Amplify use `npm install`, which tolerates
+  this. The check reused the main checkout's installed modules; Python came from the pinned
+  requirements.
+- **Deployment on a push to `main`:**
+  - CI only verifies.
+  - Amplify Hosting (if it tracks `main`) would run `ampx pipeline-deploy` and redeploy the
+    `submitAdventureAnswer` Lambda, whose only change is the re-export of its decision logic.
+  - The React build ships with the Django API off unless `VITE_BACKEND=django` is set.
+  - No Django service, database or infrastructure is deployed, and no migration runs anywhere.
+
+## Amplify Hosting configuration for the React app (2026-10-25)
+
+Requested as "LAI-1001: Configure React + Three.js for AWS Amplify Hosting". The roadmap's
+LAI-1001 (CDK app, `infra/**`) is a different task and stays open. Details and the console
+steps: `docs/platform/AMPLIFY_HOSTING.md`.
+
+- **Done:**
+  - `amplify.yml`: `npm ci`, Node 22 through nvm, a required `amplify_outputs.json` before the
+    frontend build, a cache of the npm download cache only, and an opt-in read-only mode
+    (`LAI_SKIP_BACKEND_DEPLOY=true` runs `ampx generate outputs` instead of `pipeline-deploy`).
+    With the variable unset, builds deploy the backend as before.
+  - `customHttp.yml`: immutable caching for hashed Vite assets, hourly for `models/` and
+    `fonts/`, HSTS, `nosniff`, `X-Frame-Options`, and `Referrer-Policy`.
+  - `amplify-hosting/custom-rules.json`: the SPA rewrite to apply in the console. Paths under
+    `/api/` are excluded.
+  - `package-lock.json`: `npm ci` works again. A lock-only refresh added the entries npm expects
+    inside the bundles of `@aws-amplify/data-construct` and `graphql-api-construct`. No
+    dependency version changed.
+  - CI installs with `npm ci`.
+- **Tests:** `react/src/app/hostingRewrites.test.ts` (new) and `react/src/api` tests: 4 files,
+  55 tests passed. `npm ci` from the corrected lock passes (Node 22.21, npm 10.9).
+- **Not done (AWS, needs approval):** confirm the Hosting app and branches, turn off branch
+  auto-detection and PR previews, apply the rewrite rule, and verify headers after a deploy.
+  No AWS resource was read or changed; the AWS CLI was not available to this task.
+- **Not set:** a Content-Security-Policy, which needs a browser test against a deployed branch.
+
+## LAI-0404 (Django Admin part): Django Admin enabled on main (2026-10-25, ADR-034)
+
+Owner brief: make the existing Django Admin operational, with Django's built-in staff and
+superuser sign-in. Details: `docs/ARCHITECTURE.md`, "Django Admin"; hosting:
+`docs/DJANGO_TARGET_ARCHITECTURE.md`, section 11a.
+
+- **Done:**
+  - Admin stack installed. One site at `/admin/` (`DJANGO_ADMIN_URL_PATH`). Session, CSRF, auth
+    and message middleware are for the admin only, with cookies scoped to the admin path. Templates
+    and static files configured. The API stays bearer-only.
+  - `ParentAccount` gains `is_superuser` (requires `is_staff`) and `admin_username` (migration
+    `users.0002_admin_accounts`). `AdminPasswordBackend` is the only Django authentication backend,
+    and `manage.py create_admin_account` is the only way to create an admin account (no default
+    account, validated passwords, never a command-line argument).
+  - Catalog admin moved to the default site (`catalog_admin_site` removed). Role comes from the
+    session's staff account. Added NpcDefinition (`active`/`sort_order` editable), LearningObjective,
+    ItemDefinition, CollectibleSet and RewardRule (read-only). Superuser-only admin-accounts page
+    (staff rows only). Child data, parents, region layouts and `ChallengeSpec` are not registered.
+  - `GET /api/v1/me/` returns `django_admin`. The React account menu's "Admin" goes to
+    `VITE_DJANGO_ADMIN_URL` when Django confirms staff; otherwise the existing `/admin` behaviour.
+  - Production: `DJANGO_CSRF_TRUSTED_ORIGINS` (https only), WhiteNoise manifest static files,
+    health route exempt from the HTTPS redirect. `lai/Dockerfile` and `lai/docker-entrypoint.sh`
+    (gunicorn, no access log). New pinned dependencies: gunicorn 26.2.0, whitenoise 6.12.0.
+- **Tests (targeted, development checks):** pytest `apps/users apps/core apps/catalog` 327 passed
+  (PostgreSQL required), `apps/game_sessions` 128 passed. Vitest: 5 files, 55 passed. `tsc -b`
+  passes, `manage.py check` clean, `makemigrations --check` no changes, `check --deploy` only flags
+  HSTS preload (deliberately off) and the dummy key used for the check. `collectstatic` with the
+  production storage ran locally. ADR check passed.
+- **Not run (merge-readiness or out of scope):** Ruff, Prettier, Playwright/browser, the full
+  Python and JS suites, `docker build`. The admin in a browser is not verified.
+- **Not done (needs approval):** hosting is not provisioned. Recommendation: ECS Fargate behind
+  an ALB with private RDS, about $50 to $75 per month (section 11a). Login rate limiting (WAF)
+  before public exposure. The API `IsAdmin` from `cognito:groups` is still open under LAI-0404.
+
+## LAI-0404 follow-up: account provisioning, superuser upgrade, admin static files on S3 (2026-10-25)
+
+Owner decisions: Django accounts are created by the React app after sign-in (option a); the admin
+may ship as its own release with static files on S3 behind CloudFront.
+
+- **Done:**
+  - `DjangoAccountProvider` (React) sends `POST /api/v1/me/` once per sign-in in Django-enabled
+    builds, creating the `ParentAccount` the first time. `POST /me/` now also returns
+    `django_admin`, which drives the menu link (the separate GET is gone).
+  - `manage.py set_admin_role <username> superuser|staff|none`. It and the admin-accounts form
+    refuse to demote or deactivate the last active superuser.
+  - Static files are collected at image build (`config/settings/static_build.py`).
+    `scripts/release-admin-static.sh` syncs them from the image to S3. `DJANGO_STATIC_URL` is
+    optional (https or a path). Entrypoint no longer runs `collectstatic`.
+  - Docs: account lifecycle and upgrade steps (`docs/ARCHITECTURE.md`), independent admin topology
+    and cost (`docs/DJANGO_TARGET_ARCHITECTURE.md` 11a), ADR-034 amended.
+- **Acceptance tests:** initial superuser on an empty database signs in. A signed-up parent is
+  created by `POST /me/`, upgraded with `create_admin_account --cognito-sub` and
+  `set_admin_role superuser`, and opens superuser admin pages (`test_django_admin.py`).
+- **Tests (targeted):** pytest `apps/users apps/core apps/catalog` 342 passed (PostgreSQL
+  required); Vitest 12 files, 98 passed; `tsc -b` passes; `manage.py check` clean; no missing
+  migrations; build-time `collectstatic` ran locally (157 files).
+- **Not run:** Ruff, Prettier, browser tests, full suites, `docker build`, the release script
+  against AWS.
+- **Not done (needs approval):** the S3 bucket, CloudFront distribution, WAF rule, ALB and the
+  rest of the hosting in `docs/DJANGO_TARGET_ARCHITECTURE.md` 11a.
+
+## LAI-2200: shared Django asset manager, foundation and admin preview (2026-10-25, ADR-035 Accepted)
+
+Branch `feature/django-asset-manager`, from `origin/main` `f279299`. **Merged into `main` on
+2026-10-25** after merge verification (results: `docs/ASSET_MANAGER.md` section 18). It is not
+deployed as an asset service: there is no S3 bucket, IAM policy or CloudFront yet, and no scene uses
+the resolver. Detail: `docs/ASSET_MANAGER.md`.
+Subtasks AM-1 to AM-10 (ids of their own: LAI-2201 to 2208 are the Phase 22 world conversions).
+
+- **Done:**
+  - AM-1: architecture and contract, ADR-035.
+  - AM-2: `ContentAsset` becomes the asset definition (Django-owned fields, Django-created rows).
+    New `apps.assets` with immutable `AssetVersion` and database checks for the invariants.
+  - AM-3: validation service for GLB and self-contained glTF.
+  - AM-4: S3, local and memory storage. Upload, publish (checksum re-check), default, retire,
+    delete and audit services. Production requires private S3 storage.
+  - AM-5: `PermissionsMixin` on `ParentAccount` (staff only), `ensure_asset_roles` groups, and
+    definition and version admin with upload, findings, publish, default and retire.
+  - AM-6: child-scoped resolver `GET /api/v1/children/<child_id>/assets/?ids=`, plus signed
+    delivery (Django re-check, or S3 presign).
+  - AM-7: `djangoAssetResolver.ts` for the LAI-2106 loader, with bundled fallback.
+  - AM-8: `import_assets` (bundled and Amplify sources, dry run, idempotent).
+  - AM-9: acceptance and security tests, docs.
+  - AM-10: Django Admin 3D preview (`docs/ASSET_MANAGER.md` section 17). It has a preview page per
+    version, linked from the version list, the version page and the definition page (default and
+    inline). The plain-TypeScript Three.js viewer (`react/src/features/assets/preview/`) supports
+    GLB and self-contained glTF, orbit, pan, zoom, reset, fit, automatic framing, responsive
+    sizing, loading and error states, and disposal. It is bundled to
+    `lai/apps/assets/static/assets/admin/asset-preview.js` (`npm run build:admin-preview`, built
+    file committed). The file route is staff-only and separate from gameplay delivery: session plus
+    view permission, a 10-minute signed token in a header, previewable status, size limit and a
+    SHA-256 re-check. Always served through Django, with no presigned URL. Read-only.
+  - ADR-035 accepted after reviewing the implementation against it, with an AM-10 amendment.
+- **Tests, AM-10 (targeted unit tests only):** pytest `apps/assets apps/catalog apps/users
+  apps/core apps/regions apps/game_sessions/tests/test_sessions.py` 561 passed (523 before, plus
+  38 in `test_preview.py`; PostgreSQL required). Vitest `src/features/assets`, `src/api/assets`,
+  engine boundary, no-hard-coded-URL, loader and resolver tests: 14 files, 211 passed (53 of them
+  new in `src/features/assets/preview/`). `tsc -b` passes. `manage.py check` clean, no missing
+  migrations, ADR check passed. Build-time `collectstatic` with the manifest storage ran into a
+  scratch directory and hashed the new bundle and stylesheet.
+- **Tests, AM-1 to AM-9 (targeted unit tests only):** pytest `apps/assets apps/catalog apps/users apps/core
+  apps/regions apps/game_sessions/tests/test_sessions.py` 523 passed (PostgreSQL required).
+  Vitest `src/api/assets`, engine boundary, no-hard-coded-URL, loader and resolver tests: 5 files,
+  79 passed. `tsc -b` passes. `manage.py check` clean, no missing migrations, ADR check passed. All
+  114 shipped bundled models pass validation (dry-run import of the real export).
+- **Not run (merge verification):** Ruff, Prettier, Playwright or browsers, full suites, `docker build`.
+- **Merge verification (2026-10-25):** full pytest 873 passed; full Vitest 289 files, 3030
+  passed; typecheck, production build, `docker build`, Django checks, migrations and ADR check
+  all pass; Playwright e2e 7 passed. A browser check of the admin preview passed 24 of 24 in
+  headless Chromium with software WebGL. The new `npm run admin-preview:check` passes and is in
+  CI. Ruff and Prettier are clean for this work; three failures that `main` already had remain
+  (`docs/ASSET_MANAGER.md` section 18).
+  Fixes made during verification: the preview checksum is now a 1 MB-chunk streaming check with
+  a streamed response (bounded memory); the branch's Ruff and Prettier issues are fixed; and the
+  generated bundle and Django templates are excluded from Prettier, the bundle also from oxlint.
+- **Not done:** S3 bucket, IAM, CORS and CloudFront (LAI-1002, AM-11, approval needed); TR-10
+  wiring (section 15 of the doc); browser checks of the preview on a hardware GPU and in Firefox
+  and Safari.
+
+## LAI-ANDROID-API-001: Django APIs for the native Kotlin Android app (2026-10-25, ADR-036 Proposed)
+
+Branch `feature/android-api-foundation`. Backend only. The Kotlin app and the standalone `/game/`
+runtime do not exist.
+
+- **Already existed, reused unchanged:** Cognito bearer authentication and `POST/GET /api/v1/me/`
+  (LAI-0402), the region play API (TR-5: bootstrap, session start and resume, session actions,
+  chest challenge, attempt answer, quest accept), `progress/`, and the asset resolver.
+- **Added:**
+  - `GET/POST /api/v1/children/` and `GET/PATCH /api/v1/children/{id}/`. They use closed
+    bodies, enforce the three-profile cap, check the age band and session length together, and
+    never expose the photo path. `DELETE` is 403 `sensitive_action_unavailable`.
+  - `GET children/{id}/home/`, `regions/`, `regions/{region}/adventures/` and `inventory/`.
+  - `POST children/{id}/game-launches/`, `POST game-launches/redeem/`,
+    `POST game-launches/revoke/`, `GET game-session/` and `POST game-session/end/`.
+  - Models `GameLaunchTicket` and `GameBrowserSession` (migration `game_sessions.0004`).
+- **Extended:** the play routes and the asset resolver also accept the game session cookie, only
+  for its own child and region, with the CSRF header on writes (`GameRuntimeAccessMixin`).
+  Bearer behaviour is unchanged. New error codes: `child_profile_limit_reached`,
+  `child_inactive`, `launch_ticket_invalid`, `game_csrf_failed`. A `game_launch` throttle gives
+  429. New settings: `LAI_GAME_*`.
+- **Structural guards updated deliberately:** new parent-scoped and game-runtime route sets in
+  `test_tenant_isolation.py`, plus a new guard that pins the exact routes that accept the cookie.
+  `test_no_sensitive_endpoints_exist_yet` now lists the children routes.
+- **Tests (targeted unit tests only):** 92 new tests, all passing: `test_children_api.py` 27,
+  `test_android_auth_flow.py` 8, `test_native_api.py` 20, `test_game_launch.py` 37. Focused
+  regression run over `apps/users`, `apps/game_sessions`, `apps/quests`, `apps/inventory`,
+  `apps/progression`, the asset resolver and acceptance tests, and the core API, settings,
+  privacy and admin tests: 558 tests passed (PostgreSQL required). A hand mutation check (child
+  binding, region binding and CSRF disabled) failed the matching tests. `manage.py check` is
+  clean, there are no missing migrations, and the ADR check passes.
+- **Not run (merge verification):** Ruff, Prettier, Playwright or browsers, full suites,
+  `docker build`.
+- **Not done or blocked:** the standalone `/game/` runtime and its hosting, the Android Cognito
+  app client (an AWS change), the React app's move to the Django children API, and the Phase 11
+  child data migration. Until those happen, web and Android do **not** share children. Also not
+  done: child deletion (LAI-0602 and LAI-0209), starting step adventures from Django, and
+  thumbnails (no catalog illustration field).
+- **Observation (existing, unchanged):** provisioned parents have an empty password string,
+  which Django calls "usable", although the `ParentAccount` docstring says it is unusable. They
+  still cannot sign in to Django Admin, because the backend requires staff and an admin username.
+  This is worth a follow-up to set `set_unusable_password()` on provisioning.
+

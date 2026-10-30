@@ -20,7 +20,8 @@ import {
 import type { WorldInteraction } from '../../../worldObjects';
 import { WorldEngineEventBus } from '../../worldEngineEvents';
 import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry';
-import { SOURCE_VIEW_EXTENSIONS, SOURCE_WORLD_EXTENSIONS } from '..';
+import { SOURCE_WORLD_EXTENSIONS } from '..';
+import { SOURCE_VIEW_EXTENSIONS } from '../viewExtensions';
 import { RegionPlayCompanion } from './RegionPlayCompanion';
 import { regionPlayViewExtension } from './regionPlayViewExtension';
 import type { RegionPlaySceneApi } from './regionPlayScene';
@@ -37,9 +38,14 @@ vi.mock('../../../../../api/play/playApi', async (importOriginal) => ({
 const REGION = 'treasure-rush-cove';
 const CHEST = `${REGION}:chest:cove-chest`;
 const PIP = `${REGION}:talk:cove-pip`;
-const bootstrap = (overrides = {}, chest = {}) => read(bootstrapJson(overrides, chest), parse.regionBootstrap);
-const outcome = (correct: boolean, overrides = {}) => read(outcomeJson(correct, overrides), parse.answerOutcome);
-const challenge = (overrides = {}) => ({ value: read(challengeJson(overrides), parse.issuedChallenge), created: true });
+const bootstrap = (overrides = {}, chest = {}) =>
+  read(bootstrapJson(overrides, chest), parse.regionBootstrap);
+const outcome = (correct: boolean, overrides = {}) =>
+  read(outcomeJson(correct, overrides), parse.answerOutcome);
+const challenge = (overrides = {}) => ({
+  value: read(challengeJson(overrides), parse.issuedChallenge),
+  created: true,
+});
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -53,14 +59,19 @@ function deferred<T>() {
 function fakeApi(overrides: Partial<PlayApi> = {}): PlayApi {
   let started = false;
   return {
-    getRegion: vi.fn(async () => bootstrap({ quests: [questJson()], session: started ? sessionJson() : null })),
+    getRegion: vi.fn(async () =>
+      bootstrap({ quests: [questJson()], session: started ? sessionJson() : null }),
+    ),
     startSession: vi.fn(async () => {
       started = true;
       return { value: read(sessionJson(), parse.session), created: true };
     }),
     getSession: vi.fn(),
     changeSession: vi.fn(async (_id, action) =>
-      read(sessionJson(action === 'complete' ? { status: 'COMPLETED', completedAt: 'x' } : {}), parse.session),
+      read(
+        sessionJson(action === 'complete' ? { status: 'COMPLETED', completedAt: 'x' } : {}),
+        parse.session,
+      ),
     ),
     acceptQuest: vi.fn(async () => ({
       value: read(questJson({ status: 'ACTIVE', currentStageId: 'open-the-chest' }), parse.quest),
@@ -68,7 +79,9 @@ function fakeApi(overrides: Partial<PlayApi> = {}): PlayApi {
     })),
     requestChestChallenge: vi.fn(async () => challenge()),
     submitAnswer: vi.fn(async () => outcome(true)),
-    getProgress: vi.fn(async () => read({ ...progressJson(), inventory: [] }, parse.playerProgress)),
+    getProgress: vi.fn(async () =>
+      read({ ...progressJson(), inventory: [] }, parse.playerProgress),
+    ),
     ...overrides,
   };
 }
@@ -82,11 +95,19 @@ function fakeScene(open = false) {
   return scene;
 }
 
-const config = buildRegionManifest(toRegionSceneModel(bootstrap()), { worldSlug: 'learning-adventure-island' }).manifest
-  .extensions[0].config;
+const config = buildRegionManifest(toRegionSceneModel(bootstrap()), {
+  worldSlug: 'learning-adventure-island',
+}).manifest.extensions[0].config;
 
 function interaction(id: string): WorldInteraction {
-  return { id, type: 'OBJECT', trigger: 'TAP', title: 't', targetId: 'x', action: { kind: 'SHOW_MESSAGE', message: 'm' } };
+  return {
+    id,
+    type: 'OBJECT',
+    trigger: 'TAP',
+    title: 't',
+    targetId: 'x',
+    action: { kind: 'SHOW_MESSAGE', message: 'm' },
+  };
 }
 
 function props(overrides: Partial<LocationCompanionProps> = {}): LocationCompanionProps {
@@ -113,7 +134,9 @@ function props(overrides: Partial<LocationCompanionProps> = {}): LocationCompani
 /** Renders with the chest claimed and waits for the server's challenge to show. */
 async function atTheChest(api: PlayApi, extra: Partial<LocationCompanionProps> = {}) {
   apis.set(CHILD_A, api);
-  const view = render(<RegionPlayCompanion {...props({ claimedInteraction: interaction(CHEST), ...extra })} />);
+  const view = render(
+    <RegionPlayCompanion {...props({ claimedInteraction: interaction(CHEST), ...extra })} />,
+  );
   await screen.findByRole('button', { name: '5' });
   return view;
 }
@@ -165,7 +188,11 @@ describe('entering the cove', () => {
     await waitFor(() => expect(api.startSession).toHaveBeenCalled());
     view.rerender(<RegionPlayCompanion {...props({ limitReached: true })} />);
     await waitFor(() =>
-      expect(api.changeSession).toHaveBeenCalledWith(expect.any(String), 'complete', expect.any(AbortSignal)),
+      expect(api.changeSession).toHaveBeenCalledWith(
+        expect.any(String),
+        'complete',
+        expect.any(AbortSignal),
+      ),
     );
   });
 });
@@ -176,12 +203,18 @@ describe('talking to Pip', () => {
     apis.set(CHILD_A, api);
     render(<RegionPlayCompanion {...props({ claimedInteraction: interaction(PIP) })} />);
     const dialog = await screen.findByRole('dialog', { name: 'Pirate Pip' });
-    expect(dialog).toHaveTextContent('Find the treasure chest in the cove and open it with a number puzzle.');
+    expect(dialog).toHaveTextContent(
+      'Find the treasure chest in the cove and open it with a number puzzle.',
+    );
     expect(api.acceptQuest).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'Yes, I will help!' }));
-    await waitFor(() => expect(api.acceptQuest).toHaveBeenCalledWith('treasure-rush-cove', expect.any(AbortSignal)));
+    await waitFor(() =>
+      expect(api.acceptQuest).toHaveBeenCalledWith('treasure-rush-cove', expect.any(AbortSignal)),
+    );
     expect(await screen.findByText(/Quest accepted!/)).toBeInTheDocument();
-    expect(screen.getByRole('list', { name: 'Treasure Rush' })).toHaveTextContent('Open the treasure chest in the cove');
+    expect(screen.getByRole('list', { name: 'Treasure Rush' })).toHaveTextContent(
+      'Open the treasure chest in the cove',
+    );
   });
 
   it('sends one request for a double-tapped accept', async () => {
@@ -197,15 +230,22 @@ describe('talking to Pip', () => {
     });
     expect(api.acceptQuest).toHaveBeenCalledTimes(1);
     await act(async () =>
-      pending.resolve({ value: read(questJson({ status: 'ACTIVE', currentStageId: 'open-the-chest' }), parse.quest), created: true }),
+      pending.resolve({
+        value: read(questJson({ status: 'ACTIVE', currentStageId: 'open-the-chest' }), parse.quest),
+        created: true,
+      }),
     );
   });
 
   it('shows an accepted quest as in progress and a finished one as done on a later visit', async () => {
     const active = questJson({ status: 'ACTIVE', currentStageId: 'open-the-chest' });
     apis.set(CHILD_A, fakeApi({ getRegion: vi.fn(async () => bootstrap({ quests: [active] })) }));
-    const view = render(<RegionPlayCompanion {...props({ claimedInteraction: interaction(PIP) })} />);
-    expect(await screen.findByText('The treasure is waiting for you. Here is what to do.')).toBeInTheDocument();
+    const view = render(
+      <RegionPlayCompanion {...props({ claimedInteraction: interaction(PIP) })} />,
+    );
+    expect(
+      await screen.findByText('The treasure is waiting for you. Here is what to do.'),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Quest accepted!/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Yes, I will help!' })).not.toBeInTheDocument();
     view.unmount();
@@ -214,11 +254,23 @@ describe('talking to Pip', () => {
       status: 'COMPLETED',
       currentStageId: 'open-the-chest',
       completedAt: '2026-10-24T18:02:41Z',
-      stages: [{ ...questJson().stages[0], complete: true, objectives: [{ ...questJson().stages[0].objectives[0], complete: true }] }],
+      stages: [
+        {
+          ...questJson().stages[0],
+          complete: true,
+          objectives: [{ ...questJson().stages[0].objectives[0], complete: true }],
+        },
+      ],
     });
     apis.set(CHILD_B, fakeApi({ getRegion: vi.fn(async () => bootstrap({ quests: [done] })) }));
-    render(<RegionPlayCompanion {...props({ childId: CHILD_B, claimedInteraction: interaction(PIP) })} />);
-    expect(await screen.findByText('You found the treasure! Thank you, friend.')).toBeInTheDocument();
+    render(
+      <RegionPlayCompanion
+        {...props({ childId: CHILD_B, claimedInteraction: interaction(PIP) })}
+      />,
+    );
+    expect(
+      await screen.findByText('You found the treasure! Thank you, friend.'),
+    ).toBeInTheDocument();
     expect(screen.getByRole('list', { name: 'Treasure Rush' })).toHaveTextContent('Done');
   });
 
@@ -243,9 +295,18 @@ describe('the chest', () => {
 
   it('takes a typed answer for a number-input challenge', async () => {
     const typed = challenge({
-      challenge: { skillId: 'subtraction-within-ten', operation: 'SUBTRACT', operands: [7, 3], responseMode: 'NUMBER_INPUT', choices: [] },
+      challenge: {
+        skillId: 'subtraction-within-ten',
+        operation: 'SUBTRACT',
+        operands: [7, 3],
+        responseMode: 'NUMBER_INPUT',
+        choices: [],
+      },
     });
-    const api = fakeApi({ requestChestChallenge: vi.fn(async () => typed), submitAnswer: vi.fn(async () => outcome(false)) });
+    const api = fakeApi({
+      requestChestChallenge: vi.fn(async () => typed),
+      submitAnswer: vi.fn(async () => outcome(false)),
+    });
     apis.set(CHILD_A, api);
     render(<RegionPlayCompanion {...props({ claimedInteraction: interaction(CHEST) })} />);
     const input = await screen.findByLabelText('Your answer');
@@ -255,7 +316,11 @@ describe('the chest', () => {
     await userEvent.type(input, '4');
     await userEvent.click(open);
     await waitFor(() =>
-      expect(api.submitAnswer).toHaveBeenCalledWith(typed.value.attemptId, { answer: 4, hintLevel: 0 }, expect.any(AbortSignal)),
+      expect(api.submitAnswer).toHaveBeenCalledWith(
+        typed.value.attemptId,
+        { answer: 4, hintLevel: 0 },
+        expect.any(AbortSignal),
+      ),
     );
   });
 
@@ -266,7 +331,11 @@ describe('the chest', () => {
     expect(screen.getByText('Count the first pile of coins.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: '5' }));
     await waitFor(() =>
-      expect(api.submitAnswer).toHaveBeenCalledWith(expect.any(String), { answer: 5, hintLevel: 1 }, expect.any(AbortSignal)),
+      expect(api.submitAnswer).toHaveBeenCalledWith(
+        expect.any(String),
+        { answer: 5, hintLevel: 1 },
+        expect.any(AbortSignal),
+      ),
     );
   });
 
@@ -274,9 +343,13 @@ describe('the chest', () => {
     const api = fakeApi({ submitAnswer: vi.fn(async () => outcome(false)) });
     await atTheChest(api);
     await userEvent.click(screen.getByRole('button', { name: '4' }));
-    expect(await screen.findByText('Not quite. The lock is still shut. Let us try another one!')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Not quite. The lock is still shut. Let us try another one!'),
+    ).toBeInTheDocument();
     expect(screen.queryByText('Golden Doubloon')).not.toBeInTheDocument();
-    vi.mocked(api.requestChestChallenge).mockResolvedValueOnce(challenge({ attemptId: 'attempt-2', attemptNumber: 2 }));
+    vi.mocked(api.requestChestChallenge).mockResolvedValueOnce(
+      challenge({ attemptId: 'attempt-2', attemptNumber: 2 }),
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByRole('button', { name: '5' })).toBeInTheDocument();
     expect(api.requestChestChallenge).toHaveBeenCalledTimes(2);
@@ -315,7 +388,13 @@ describe('the chest', () => {
     const api = fakeApi();
     await atTheChest(api, { sceneApi: scene });
     vi.mocked(api.getRegion).mockResolvedValue(
-      bootstrap({ session: sessionJson(), quests: [questJson({ status: 'COMPLETED', currentStageId: 'open-the-chest' })] }, { isOpen: true }),
+      bootstrap(
+        {
+          session: sessionJson(),
+          quests: [questJson({ status: 'COMPLETED', currentStageId: 'open-the-chest' })],
+        },
+        { isOpen: true },
+      ),
     );
     await userEvent.click(screen.getByRole('button', { name: '5' }));
     const reveal = await screen.findByRole('dialog', { name: 'Click! The chest is open!' });
@@ -334,9 +413,13 @@ describe('the chest', () => {
     await screen.findByRole('dialog', { name: 'Click! The chest is open!' });
     await userEvent.click(screen.getByRole('button', { name: 'Keep exploring' }));
     expect(onCloseInteraction).toHaveBeenCalled();
-    view.rerender(<RegionPlayCompanion {...props({ claimedInteraction: null, onCloseInteraction })} />);
+    view.rerender(
+      <RegionPlayCompanion {...props({ claimedInteraction: null, onCloseInteraction })} />,
+    );
     await act(async () => undefined);
-    expect(screen.queryByRole('dialog', { name: 'Click! The chest is open!' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('dialog', { name: 'Click! The chest is open!' }),
+    ).not.toBeInTheDocument();
   });
 
   it('shows nothing celebratory when the server refuses a replay', async () => {
@@ -349,7 +432,9 @@ describe('the chest', () => {
     await userEvent.click(screen.getByRole('button', { name: '5' }));
     await waitFor(() => expect(api.getRegion).toHaveBeenCalledTimes(2)); // re-reads the truth
     expect(screen.queryByText('Golden Doubloon')).not.toBeInTheDocument();
-    expect(screen.queryByRole('dialog', { name: 'Click! The chest is open!' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('dialog', { name: 'Click! The chest is open!' }),
+    ).not.toBeInTheDocument();
   });
 
   it('says an open chest is open, and asks for nothing', async () => {
@@ -362,10 +447,14 @@ describe('the chest', () => {
   });
 
   it('says a chest with no challenge for this child is not ready', async () => {
-    const api = fakeApi({ getRegion: vi.fn(async () => bootstrap({}, { challengeAvailable: false })) });
+    const api = fakeApi({
+      getRegion: vi.fn(async () => bootstrap({}, { challengeAvailable: false })),
+    });
     apis.set(CHILD_A, api);
     render(<RegionPlayCompanion {...props({ claimedInteraction: interaction(CHEST) })} />);
-    expect(await screen.findByText('This chest is not ready yet. Come back soon!')).toBeInTheDocument();
+    expect(
+      await screen.findByText('This chest is not ready yet. Come back soon!'),
+    ).toBeInTheDocument();
     expect(api.requestChestChallenge).not.toHaveBeenCalled();
   });
 
@@ -378,7 +467,9 @@ describe('the chest', () => {
     });
     apis.set(CHILD_A, api);
     render(<RegionPlayCompanion {...props({ claimedInteraction: interaction(CHEST) })} />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Something went wrong. Let us try that again.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Something went wrong. Let us try that again.',
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Try that again' }));
     expect(await screen.findByRole('button', { name: '5' })).toBeInTheDocument();
   });
@@ -391,7 +482,9 @@ describe('the chest', () => {
     });
     apis.set(CHILD_A, api);
     render(<RegionPlayCompanion {...props({ claimedInteraction: interaction(CHEST) })} />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Please ask a grown-up to sign in again.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Please ask a grown-up to sign in again.',
+    );
     expect(refresh).toHaveBeenCalled();
   });
 });
@@ -423,7 +516,9 @@ describe('panels and the keyboard', () => {
 
 describe('the backpack', () => {
   it('shows the server’s inventory and quests, read through the progress API', async () => {
-    const api = fakeApi({ getProgress: vi.fn(async () => read(progressJson(), parse.playerProgress)) });
+    const api = fakeApi({
+      getProgress: vi.fn(async () => read(progressJson(), parse.playerProgress)),
+    });
     apis.set(CHILD_A, api);
     render(<RegionPlayCompanion {...props()} />);
     const button = await screen.findByRole('button', { name: /Backpack/ });
@@ -439,7 +534,9 @@ describe('the backpack', () => {
     apis.set(CHILD_A, fakeApi());
     render(<RegionPlayCompanion {...props()} />);
     await userEvent.click(await screen.findByRole('button', { name: /Backpack/ }));
-    expect(await screen.findByText('Nothing here yet. Open a chest to find treasure!')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Nothing here yet. Open a chest to find treasure!'),
+    ).toBeInTheDocument();
   });
 });
 
@@ -450,7 +547,11 @@ describe('switching children', () => {
     apis.set(CHILD_A, apiA);
     apis.set(CHILD_B, apiB);
     const view = await atTheChest(apiA);
-    view.rerender(<RegionPlayCompanion {...props({ childId: CHILD_B, claimedInteraction: interaction(CHEST) })} />);
+    view.rerender(
+      <RegionPlayCompanion
+        {...props({ childId: CHILD_B, claimedInteraction: interaction(CHEST) })}
+      />,
+    );
     expect(await screen.findByText('This chest is already open.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '5' })).not.toBeInTheDocument();
     await waitFor(() => expect(apiB.startSession).toHaveBeenCalled());
@@ -466,7 +567,11 @@ describe('region-play registration', () => {
   it('claims only the interactions its binding names', () => {
     const context = { ageBand: 'SPROUT' as const, config };
     expect(regionPlayViewExtension.claimsInteraction(interaction(CHEST), context)).toBe(true);
-    expect(regionPlayViewExtension.claimsInteraction(interaction('pirate-builder-bay:toolbox'), context)).toBe(false);
-    expect(regionPlayViewExtension.claimsInteraction(interaction(CHEST), { ...context, config: {} })).toBe(false);
+    expect(
+      regionPlayViewExtension.claimsInteraction(interaction('pirate-builder-bay:toolbox'), context),
+    ).toBe(false);
+    expect(
+      regionPlayViewExtension.claimsInteraction(interaction(CHEST), { ...context, config: {} }),
+    ).toBe(false);
   });
 });

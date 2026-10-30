@@ -193,6 +193,7 @@ until the asset manager adds a published read path for parents.
 | The runtime never names a location slug or region id (A2) | `runtime/noLocationBranching.test.ts` |
 | Every shipped manifest validates and survives a JSON round trip (A3) | `runtime/manifests/*.test.ts` |
 | No asset url outside the catalogue, no S3/CloudFront/Amplify host in `src/` | `assets/noHardCodedAssetUrls.test.ts` |
+| Engine `.ts` modules reach no React, Amplify, AWS SDK, API/Django client, AI, routing, auth, session or UI module, directly or transitively (LAI-0203) | `src/test/engineBoundary.test.ts` |
 | An extension cannot load an asset it did not declare | `runtime/createLocationEngine.test.ts` |
 | Each migrated region behaves as its old view did | `runtime/manifests/*Parity.test.tsx` |
 | Each region runs on the real runtime | `runtime/manifests/*.engine.test.ts` |

@@ -1,0 +1,27 @@
+# Amplify Hosting response headers (docs/platform/AMPLIFY_HOSTING.md section 4).
+# Cache-Control patterns do not overlap, so no response gets two values.
+customHeaders:
+  - pattern: '**'
+    headers:
+      - key: Strict-Transport-Security
+        value: max-age=31536000; includeSubDomains
+      - key: X-Content-Type-Options
+        value: nosniff
+      - key: X-Frame-Options
+        value: DENY
+      - key: Referrer-Policy
+        value: strict-origin-when-cross-origin
+  # Vite output: every file name carries a content hash.
+  - pattern: 'assets/**'
+    headers:
+      - key: Cache-Control
+        value: public, max-age=31536000, immutable
+  # react/public files keep their names across releases, so they revalidate hourly.
+  - pattern: 'models/**'
+    headers:
+      - key: Cache-Control
+        value: public, max-age=3600
+  - pattern: 'fonts/**'
+    headers:
+      - key: Cache-Control
+        value: public, max-age=3600

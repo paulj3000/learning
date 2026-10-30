@@ -41,7 +41,7 @@ import { WorldActionPanel } from './WorldActionPanel';
 import { CalmStop } from '../../../session/CalmStop';
 import { useSessionClock } from '../../../session/useSessionClock';
 import type { LocationViewExtensionRegistry } from './viewExtensionRegistry';
-import { SOURCE_VIEW_EXTENSIONS } from '../extensions';
+import { SOURCE_VIEW_EXTENSIONS } from '../extensions/viewExtensions';
 
 /**
  * The one React view for any manifest-driven 3D location

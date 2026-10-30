@@ -3,10 +3,10 @@
 import pytest
 from django.db import IntegrityError, transaction
 
-from apps.core.catalog import ContentStatus
+from apps.catalog.models import Quest as QuestDefinition
 from apps.progression.models import WorldChange
-from apps.progression.services import record_world_change_once
-from apps.quests.models import QuestDefinition, QuestProgress, QuestStatus
+from apps.progression.services import record_world_change
+from apps.quests.models import QuestProgress, QuestStatus
 from apps.quests.services import QuestUnavailable, refresh_quest, start_quest
 
 pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
@@ -15,7 +15,7 @@ CHEST_KEY = "TREASURE_RUSH_COVE_CHEST_OPENED"
 
 
 def open_chest(child):
-    record_world_change_once(
+    record_world_change(
         child, location_slug="pirate-builder-bay", change_type="UNLOCK", change_key=CHEST_KEY
     )
 
@@ -29,9 +29,9 @@ def test_starting_is_idempotent(treasure):
     assert first.completed_at is None
 
 
-@pytest.mark.parametrize("status", [ContentStatus.DRAFT, ContentStatus.RETIRED])
-def test_an_unpublished_quest_cannot_start(treasure, status):
-    QuestDefinition.objects.filter(pk=treasure.quest.pk).update(status=status)
+def test_an_inactive_quest_cannot_start(treasure):
+    """The catalog's `active` flag is Treasure Rush's "published" (POST-MERGE-03)."""
+    QuestDefinition.objects.filter(pk=treasure.quest.pk).update(active=False)
     treasure.quest.refresh_from_db()
     with pytest.raises(QuestUnavailable):
         start_quest(treasure.families.a1, treasure.quest)
@@ -45,7 +45,10 @@ def test_a_quest_for_other_age_bands_cannot_start(treasure):
 
 
 def test_prerequisites_are_checked_on_the_server(treasure):
-    treasure.quest.prerequisites = [{"type": "ITEM_OWNED", "itemId": "spiral-shell"}]
+    treasure.quest.source = {
+        **treasure.quest.source,
+        "prerequisites": [{"type": "ITEM_OWNED", "itemId": "spiral-shell"}],
+    }
     treasure.quest.save()
     with pytest.raises(QuestUnavailable):
         start_quest(treasure.families.a1, treasure.quest)
@@ -80,10 +83,10 @@ def test_a_siblings_open_chest_does_not_complete_my_quest(treasure):
 def test_stage_and_completion_world_changes_are_recorded_once(treasure):
     child = treasure.families.a1
     quest = treasure.quest
-    quest.stages[0]["worldChanges"] = [
+    quest.source["stages"][0]["worldChanges"] = [
         {"locationSlug": "pirate-builder-bay", "changeType": "CREATE", "changeKey": "COVE_FLAG"}
     ]
-    quest.completion["worldChanges"] = [
+    quest.source["completion"]["worldChanges"] = [
         {"locationSlug": "pirate-builder-bay", "changeType": "CREATE", "changeKey": "COVE_PARTY"}
     ]
     quest.save()

@@ -52,6 +52,38 @@ def create_child_profile(parent: ParentAccount, **fields) -> ChildProfile:
         return child
 
 
+def update_child_profile(parent: ParentAccount, child_id, **fields) -> ChildProfile:
+    """Validate and apply a parent's edit to their own child, under a row lock.
+
+    The child is resolved through `parent` again (a foreign or unknown id is
+    `ChildProfileNotFound`). `fields` are model field names from the closed request serializer;
+    ownership, ids, the photo path and timestamps can never be among them.
+    """
+    allowed = {
+        "nickname",
+        "age_band",
+        "avatar_key",
+        "interests",
+        "reading_mode",
+        "session_minutes",
+        "active",
+        "ai_enabled",
+    }
+    if set(fields) - allowed:
+        raise ValueError("Only profile settings can be changed.")
+    with transaction.atomic():
+        try:
+            child_uuid = child_id if isinstance(child_id, UUID) else UUID(str(child_id))
+            child = ChildProfile.objects.owned_by(parent).select_for_update().get(pk=child_uuid)
+        except (ValueError, ChildProfile.DoesNotExist):
+            raise ChildProfileNotFound from None
+        for name, value in fields.items():
+            setattr(child, name, value)
+        child.full_clean()
+        child.save()
+        return child
+
+
 def provision_parent_account(cognito_sub: str) -> tuple[ParentAccount, bool]:
     """Create the account for a verified Cognito `sub` if absent. Returns (account, created).
 

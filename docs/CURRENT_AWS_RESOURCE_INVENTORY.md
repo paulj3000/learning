@@ -19,7 +19,7 @@ Disposition legend: **KEEP**, **MIGRATE**, **REPLACE**, **RETIRE LATER**, **UNKN
 | Backend entry | `amplify/backend.ts` (594 lines) with `defineBackend({ auth, data, storage, operationalMetrics, claimCoopSlot, submitAdventureAnswer, getNextLearningActivity })` | [repo] |
 | Environments | One personal **sandbox** (`pdimitriu`) is evidenced. A hosting **branch** deployment is referenced in `backend.ts` comments ("Amplify Hosting branch deployment already owns `learning-adventure-island-operations`") and `amplify.yml` uses `$AWS_BRANCH`/`$AWS_APP_ID`. Number of branches and app ids: **UNKNOWN** | [repo], [synth] |
 | Region | Sandbox outputs: `us-west-1`. Production region **UNKNOWN** | [repo] local `amplify_outputs.json` (gitignored) |
-| Hosting | Amplify Hosting; `amplify.yml` runs `npx ampx pipeline-deploy` (backend) then `npm run build`, serves `dist/` | [repo] |
+| Hosting | Amplify Hosting; `amplify.yml` runs `npm ci`, then `npx ampx pipeline-deploy` (backend; `ampx generate outputs` instead when `LAI_SKIP_BACKEND_DEPLOY=true`), then `npm run build`, serves `react/dist`. Rewrites, headers and branch policy: `docs/platform/AMPLIFY_HOSTING.md` | [repo] |
 | Generated config | `amplify_outputs.json` (92 KB, gitignored, loaded by `src/lib/amplify-config.ts` via `import.meta.glob`) | [repo] |
 | Other generated | `.amplify/` (tsbuildinfo, `artifacts/cdk.out`, `generated/env`), gitignored | [repo] |
 

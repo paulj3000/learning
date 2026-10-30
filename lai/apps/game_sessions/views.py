@@ -1,179 +1,141 @@
-"""The play API (TR-5): thin views over `services.py` (writes) and `play_state.py` (reads).
+"""Adventure answers and hints (LAI-0601). Child-scoped, deny by default (LAI-0403).
 
-Every route is child-scoped (`ChildScopedAPIView`, LAI-0403): the child comes from the URL and is
-resolved through the authenticated parent, and every nested record is looked up *with* that
-child, so another child's session or attempt is the same 404 as one that does not exist.
-No view grades, grants, or records anything itself.
+POST /api/v1/children/{child_id}/sessions/{session_id}/answers/
+    body: {"stepId": str, "answer": {...a StepAnswer...}, "requestId": uuid}
+    200:  {"correctness", "supportLevel", "action", "nextStepId", "attemptNumber", "replayed",
+           "session": {...}}
+POST /api/v1/children/{child_id}/sessions/{session_id}/hints/
+    body: {"stepId": str, "fromLevel": int}
+    200:  {"hintLevel", "hintText", "session": {...}}
+
+The first four response fields keep `submitAdventureAnswer`'s shape. The client sends what the
+child did, never correctness, hint level, the next step or completion. A repeated `requestId`
+returns the stored outcome with `replayed: true` and changes nothing. Errors use the API error
+contract: 404 `not_found` for a session that is not this child's, 400 `validation_error` or
+`answer_invalid`, 409 `session_not_active`, `step_not_current`, `content_version_changed`,
+`request_conflict`.
 """
 
-from rest_framework import exceptions
+from rest_framework import serializers, status
+from rest_framework.exceptions import APIException, NotFound
 from rest_framework.response import Response
 
-from apps.education.challenges import InvalidAnswer
-from apps.islands.models import TreasureChest
-from apps.quests.services import QuestUnavailable, start_quest
+from apps.game_sessions import services
+from apps.game_sessions.models import AdventureSession
 from apps.users.scoping import ChildScopedAPIView
 
-from . import play_state, services
-from .serializers import (
-    AnswerRequest,
-    BootstrapSerializer,
-    ChallengeResponseSerializer,
-    EmptyRequest,
-    ItemSerializer,
-    OutcomeSerializer,
-    ProgressSerializer,
-    QuestEntrySerializer,
-    SessionSerializer,
-)
+
+class _Coded(APIException):
+    status_code = status.HTTP_409_CONFLICT
 
 
-class PlayConflict(exceptions.APIException):
-    status_code = 409
-    default_detail = "Conflict."
+class AnswerInvalid(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_code = "answer_invalid"
 
 
-def _conflict(code: str) -> exceptions.APIException:
-    # The error handler takes the code from the class, so each code gets its own class.
-    return type(f"PlayConflict_{code}", (PlayConflict,), {"default_code": code})()
+class SessionNotActive(_Coded):
+    default_code = "session_not_active"
 
 
-def api_error(error: Exception) -> exceptions.APIException:
-    if isinstance(error, services.AttemptNotFound | services.SessionNotFound | LookupError):
-        return exceptions.NotFound()
-    if isinstance(error, QuestUnavailable):
-        return _conflict("quest_unavailable")
-    if isinstance(error, services.PlayError):
-        return _conflict(error.code)
-    raise error
+class StepNotCurrent(_Coded):
+    default_code = "step_not_current"
 
 
-def _empty_body(request) -> None:
-    EmptyRequest(data=request.data or {}).is_valid(raise_exception=True)
+class ContentVersionChanged(_Coded):
+    default_code = "content_version_changed"
 
 
-def _status(created: bool) -> int:
-    return 201 if created else 200
+class RequestConflict(_Coded):
+    default_code = "request_conflict"
 
 
-class RegionView(ChildScopedAPIView):
-    """GET: everything the client needs to build the region for this child."""
-
-    def get(self, request, child_id, region_id):
-        try:
-            region = play_state.published_region(region_id)
-        except play_state.RegionNotFound as error:
-            raise api_error(error) from None
-        state = play_state.region_bootstrap(self.child, region)
-        return Response(BootstrapSerializer().to_representation(state))
+class InvalidTransition(_Coded):
+    default_code = "invalid_transition"
 
 
-class RegionSessionView(ChildScopedAPIView):
-    """POST: start or resume this child's session in the region (201 new, 200 resumed)."""
-
-    def post(self, request, child_id, region_id):
-        _empty_body(request)
-        try:
-            region = play_state.published_region(region_id)
-            session, created = services.start_or_resume_region_session(self.child, region)
-        except (play_state.RegionNotFound, services.PlayError) as error:
-            raise api_error(error) from None
-        return Response(SessionSerializer(session).data, status=_status(created))
-
-
-class SessionView(ChildScopedAPIView):
-    def get(self, request, child_id, session_id):
-        try:
-            session = services.get_child_session(self.child, session_id)
-        except services.PlayError as error:
-            raise api_error(error) from None
-        return Response(SessionSerializer(session).data)
+# Most specific first: the service exceptions form a small hierarchy.
+_ERRORS = [
+    (services.ProgressNotFound, NotFound),
+    (services.SessionNotActive, SessionNotActive),
+    (services.StepNotCurrent, StepNotCurrent),
+    (services.ContentVersionChanged, ContentVersionChanged),
+    (services.RequestConflict, RequestConflict),
+    (services.InvalidAnswer, AnswerInvalid),
+    (services.InvalidTransition, InvalidTransition),
+]
 
 
-class SessionActionView(ChildScopedAPIView):
-    """POST pause | resume | complete | abandon. Repeating the current state is a no-op."""
-
-    def post(self, request, child_id, session_id, action):
-        _empty_body(request)
-        try:
-            session = services.change_session_status(self.child, session_id, action)
-        except services.PlayError as error:
-            raise api_error(error) from None
-        return Response(SessionSerializer(session).data)
+def _api_error(error: services.ProgressError) -> APIException:
+    for service_error, api_error in _ERRORS:
+        if isinstance(error, service_error):
+            return api_error()
+    return InvalidTransition()
 
 
-class ChestChallengeView(ChildScopedAPIView):
-    """POST: the challenge for a chest (201 new, 200 the one already outstanding)."""
-
-    def post(self, request, child_id, session_id, entity_id):
-        _empty_body(request)
-        try:
-            session = services.get_child_session(self.child, session_id)
-            chest = (
-                TreasureChest.objects.select_related("region__location")
-                .filter(region__region_id=session.region_id, entity_id=entity_id)
-                .first()
-            )
-            if chest is None:
-                raise exceptions.NotFound
-            attempt, created = services.issue_chest_challenge(session, chest)
-        except services.PlayError as error:
-            raise api_error(error) from None
-        return Response(
-            ChallengeResponseSerializer().to_representation(attempt), status=_status(created)
-        )
+def session_state(session: AdventureSession) -> dict:
+    return {
+        "id": str(session.pk),
+        "adventureSlug": session.adventure.slug,
+        "templateVersion": session.template_version,
+        "status": session.status,
+        "currentStepId": session.current_step_id,
+        "hintLevel": int(session.hint_levels.get(session.current_step_id, 0)),
+        "startedAt": session.started_at.isoformat(),
+        "lastActivityAt": session.last_activity_at.isoformat(),
+        "completedAt": session.completed_at.isoformat() if session.completed_at else None,
+    }
 
 
-class AttemptAnswerView(ChildScopedAPIView):
-    """POST {answer, hintLevel?, durationMs?}: graded on the server, never by the client."""
+class AnswerRequest(serializers.Serializer):
+    stepId = serializers.CharField(max_length=100)
+    answer = serializers.JSONField()
+    requestId = serializers.UUIDField()
 
-    def post(self, request, child_id, attempt_id):
+
+class HintRequest(serializers.Serializer):
+    stepId = serializers.CharField(max_length=100)
+    fromLevel = serializers.IntegerField(min_value=0, max_value=5)
+
+
+class AnswersView(ChildScopedAPIView):
+    def post(self, request, child_id, session_id):
         body = AnswerRequest(data=request.data)
         body.is_valid(raise_exception=True)
+        data = body.validated_data
         try:
-            outcome = services.submit_chest_answer(
+            outcome = services.submit_answer(
                 self.child,
-                attempt_id,
-                body.validated_data["answer"],
-                hint_level=body.validated_data["hint_level"],
-                duration_ms=body.validated_data.get("duration_ms"),
+                session_id,
+                step_id=data["stepId"],
+                answer=data["answer"],
+                request_id=data["requestId"],
             )
-        except InvalidAnswer:
-            raise exceptions.ValidationError(
-                {"answer": [exceptions.ErrorDetail("Not a possible answer.", "invalid_answer")]}
-            ) from None
-        except services.PlayError as error:
-            raise api_error(error) from None
-        context = {}
-        if outcome.reward and outcome.reward.granted:
-            chest = outcome.attempt.chest
-            rule = chest.reward_rule if chest else None
-            if rule is not None:
-                context = {
-                    "items": ItemSerializer(rule.items.order_by("item_id"), many=True).data,
-                    "reward_message": rule.message,
-                }
-        return Response(OutcomeSerializer(context=context).to_representation(outcome))
-
-
-class QuestAcceptView(ChildScopedAPIView):
-    """POST: the child accepts a quest (201 accepted, 200 already accepted or finished)."""
-
-    def post(self, request, child_id, quest_id):
-        _empty_body(request)
-        try:
-            quest = play_state.published_quest(quest_id)
-            progress, created = start_quest(self.child, quest)
-        except (LookupError, QuestUnavailable) as error:
-            raise api_error(error) from None
-        [entry] = play_state.quest_entries(self.child, [quest])
+        except services.ProgressError as error:
+            raise _api_error(error) from None
         return Response(
-            QuestEntrySerializer().to_representation(entry), status=_status(created)
+            {
+                "correctness": outcome.correctness,
+                "supportLevel": outcome.support_level,
+                "action": outcome.action,
+                "nextStepId": outcome.next_step_id,
+                "attemptNumber": outcome.attempt_number,
+                "replayed": outcome.replayed,
+                "session": session_state(outcome.session),
+            }
         )
 
 
-class ProgressView(ChildScopedAPIView):
-    """GET: the child's sessions, world changes, chests, inventory, quests, and practice."""
-
-    def get(self, request, child_id):
-        return Response(ProgressSerializer().to_representation(play_state.child_progress(self.child)))
+class HintsView(ChildScopedAPIView):
+    def post(self, request, child_id, session_id):
+        body = HintRequest(data=request.data)
+        body.is_valid(raise_exception=True)
+        data = body.validated_data
+        try:
+            level, text = services.request_hint(
+                self.child, session_id, step_id=data["stepId"], from_level=data["fromLevel"]
+            )
+            session = AdventureSession.objects.for_child(self.child).get(pk=session_id)
+        except services.ProgressError as error:
+            raise _api_error(error) from None
+        return Response({"hintLevel": level, "hintText": text, "session": session_state(session)})

@@ -365,6 +365,14 @@ per-asset progress today; a loading screen is a later task.
 
 ## Uploaded models (Model Asset Manager)
 
+> **Django asset manager (LAI-2200).** The server-side successor is described in
+> `docs/ASSET_MANAGER.md`: Django Admin upload, server-side validation (the same GLB rules below,
+> plus self-contained `.gltf`, embedded-only resources, no Draco or meshopt, bounds and clip
+> checks), immutable published versions, and a resolver the loader can use
+> (`react/src/api/assets/djangoAssetResolver.ts`). Clip names must still come from the vocabulary
+> above, and a new version must keep every clip its asset already declares. Until a scene is wired
+> to it (TR-10), the Amplify flow below is what the admin app uses.
+
 Models that do not come from `scripts/generate-world-assets.ts` or the
 import scripts can be uploaded by an administrator at
 `/admin/assets/models/new` (ADR-030). They go to S3, not to

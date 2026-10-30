@@ -174,6 +174,8 @@ validators / reward resolution / quest sync / mastery counters
 - Django admin: internal engineering tool, catalog tables first. Child free text and raw AI
   audit rows are not exposed. Superuser required for delete. Admin actions write
   `audit` log entries.
+- Built in LAI-0404 (ADR-034): local staff sign-in, catalog models, no child data. Details in
+  `docs/ARCHITECTURE.md`, "Django Admin".
 
 ## 11. Infrastructure
 
@@ -192,6 +194,110 @@ IaC: CDK in TypeScript (`infra/`), consistent with FinWin and with this team's e
 familiarity (current `amplify/backend.ts` is already CDK). One stack per concern
 (network, data, app, edge); resource count and IAM role count are tracked in
 `docs/IAM_ROLE_AUDIT.md`.
+
+## 11a. Django Admin hosting (LAI-0404; not provisioned)
+
+**State (2026-10-25).** Nothing hosts Django yet. The repository has no `infra/`, the AWS inventory
+(`docs/CURRENT_AWS_RESOURCE_INVENTORY.md`) has only Amplify-managed resources, and the production
+region is unknown (sandbox: `us-west-1`). There is no existing backend infrastructure to reuse
+except Cognito, which stays as it is. The React app stays on Amplify Hosting
+(`docs/platform/AMPLIFY_HOSTING.md`).
+
+**Ready in the repository.** `lai/Dockerfile` (Python 3.12, non-root, health check) and
+`lai/docker-entrypoint.sh` (gunicorn with no access log; static files are collected at image build). Production settings
+(`config/settings/production.py`) refuse to start without their required variables, force
+`DEBUG=False`, set Secure cookies and HSTS, serve admin static files with WhiteNoise, and exempt
+`/api/v1/health/` from the HTTPS redirect.
+
+**Recommendation: ECS Fargate behind an Application Load Balancer**, as LAI-1004 to LAI-1007 already
+plan, rather than App Runner:
+- RDS must stay private, and the API must reach Cognito's JWKS endpoint. App Runner reaches a
+  private RDS only through a VPC connector, which then sends all egress through the VPC, so it would
+  need a NAT gateway as well. App Runner is also not offered in every region; confirm the target
+  region before choosing it.
+- Fargate behind an ALB matches the roadmap, the FinWin pattern, and the ALB alarms LAI-1006 expects.
+- Dev can use one EC2 instance with Docker (LAI-1004) and the same image.
+
+**Independent admin release (owner, 2026-10-25).** The admin can ship on its own host, with its
+static files on S3 behind CloudFront. Django Admin pages are server-rendered (sessions, CSRF,
+database queries), so they still come from the Django service; only `/static/*` is S3:
+
+```text
+admin.<domain> -> CloudFront (ACM certificate, WAF rate rule on POST /admin/login/)
+                   |- /static/*  -> S3 bucket `lai-admin-static-<env>` (private; Origin Access
+                   |                Control; block public access; SSE-S3; no website hosting)
+                   '- default    -> Django origin (ALB, HTTPS) -> Fargate service -> private RDS
+```
+
+- **Static release:** `lai/Dockerfile` collects the files at build time
+  (`config/settings/static_build.py`, no database or secrets), so their hashed names match the
+  manifest each image serves. `scripts/release-admin-static.sh <image> <bucket>` copies them out
+  of the image and syncs them to `s3://<bucket>/static/`: immutable cache headers, no deletes
+  (old containers still reference old names during a rollout or rollback), no invalidation.
+  Order: build the image, release static files, roll the service to that image.
+- **Django settings for this host:** `STATIC_URL` stays `/static/` (same host, so no CORS and no
+  cross-origin CSP entries); set `DJANGO_STATIC_URL=https://<other origin>/static/` only if the
+  files are served from a different domain. `DJANGO_ALLOWED_HOSTS=admin.<domain>`,
+  `DJANGO_CSRF_TRUSTED_ORIGINS=https://admin.<domain>`, `DJANGO_TRUST_PROXY_SSL_HEADER=true`.
+- **CloudFront behaviours:** `/static/*` uses a caching-optimized policy and compression.
+  The default behaviour uses caching disabled and an origin request policy that forwards
+  all viewer headers, cookies and query strings (so `Host`, the session and the CSRF cookie
+  reach Django). It allows all HTTP methods.
+- **Lock the origin:** the ALB accepts only CloudFront (the CloudFront managed prefix list in its
+  security group, plus a secret custom header checked by a listener rule) so nobody bypasses the
+  WAF. The bucket policy allows only this distribution.
+- The React app stays on Amplify Hosting at its own domain; its menu links to
+  `VITE_DJANGO_ADMIN_URL=https://admin.<domain>/admin/`.
+
+Topology for the API (and the admin when it is not split out): ALB (HTTPS, ACM certificate) on a
+dedicated host such as `api.<domain>`, with `/admin/*`,
+`/static/*` and `/api/*` going to one Fargate service (0.25 vCPU, 0.5 GB). RDS PostgreSQL 16 sits in
+private subnets, encrypted, with deletion protection and backups on, and a security group that only
+admits the service. Secrets come from Secrets Manager. Running Django on its own host keeps `/admin/`
+clear of the React `/admin` route. A same-origin CloudFront setup must route the admin path to
+Django and set `DJANGO_ADMIN_URL_PATH` to a path React does not use.
+
+**Environment variables** (secrets from Secrets Manager, the rest plain task configuration):
+
+| Variable | Required | Value |
+|---|---|---|
+| `DJANGO_SECRET_KEY` | yes (secret) | 50+ random characters |
+| `DATABASE_URL` | yes (secret) | `postgresql://user:password@<rds endpoint>:5432/lai` |
+| `DJANGO_ALLOWED_HOSTS` | yes | the Django host name(s), no `*` |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | yes for admin login | `https://api.<domain>` |
+| `COGNITO_REGION`, `COGNITO_USER_POOL_ID`, `COGNITO_ALLOWED_CLIENT_IDS` | yes | the existing pool and web client |
+| `DJANGO_TRUST_PROXY_SSL_HEADER` | yes behind the ALB | `true` |
+| `FORWARDED_ALLOW_IPS` | behind the ALB | the VPC CIDR (gunicorn trusts `X-Forwarded-*` only from it) |
+| `DJANGO_ADMIN_URL_PATH` | no | default `admin/` |
+| `DJANGO_STATIC_URL` | no | default `/static/` (CloudFront routes it to S3 on the same host); an `https://` origin only if static files live elsewhere |
+| `WEB_CONCURRENCY`, `GUNICORN_TIMEOUT`, `PORT` | no | default 2, 30, 8000 |
+| `DJANGO_ADMIN_PASSWORD` | one-off task only | only for `create_admin_account --no-input` |
+
+React build (Amplify Hosting environment): `VITE_DJANGO_ADMIN_URL=https://api.<domain>/admin/`, and
+`VITE_BACKEND=django` with `VITE_DJANGO_API_BASE`, to show the menu link.
+
+**Deploy steps once approved:** build and push the image (LAI-1003), then run
+`python manage.py migrate` as a one-off task, then `python manage.py create_admin_account <name>
+--superuser` as a one-off task (see `docs/ARCHITECTURE.md`), then start the service. Behind an ALB,
+health checks arrive with the task IP as the Host header, so either add the task's private IP to
+`DJANGO_ALLOWED_HOSTS` at start-up or check health with the real host name (decide in LAI-1004).
+
+**Estimated recurring cost** (us-west-1 on-demand, one environment, before tax and data transfer;
+check the AWS pricing calculator before approval): Fargate 0.25 vCPU / 0.5 GB around $10; ALB
+around $20 to $25; RDS `db.t4g.micro` single-AZ with 20 GB gp3 around $15 to $20 (Multi-AZ about
+doubles it); public IPv4 addresses around $4 to $11; Secrets Manager around $1; CloudWatch Logs
+and ECR a few dollars. **Total: about $50 to $75 per month.** The separate admin distribution
+adds little at admin traffic: S3 storage for about 1 MB of files and CloudFront requests come to
+under $1 per month, plus the WAF rate rule (about $6 to $10). A NAT gateway, if private subnets are
+chosen for the tasks, adds about $35 plus data processing.
+
+Before the admin is reachable publicly, add a rate limit on `POST /admin/login/` (an AWS WAF rate rule
+on the ALB, about $6 to $10 per month more, or an application lockout): Django does not throttle
+failed logins.
+
+**Pending approvals (Phase 10, gate G7):** the account and region (G1), the CDK stacks (LAI-1001 to
+LAI-1003, LAI-1007), the recurring cost above, and production deploys, which also wait for G8/G10
+(deployed logging review) and G9 (consent) before real family data.
 
 ## 12. Observability and cost
 

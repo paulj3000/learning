@@ -117,36 +117,86 @@ def families(db):
     return SimpleNamespace(a=parent_a, a1=a1, a2=a2, b=parent_b, b1=b1, b2=b2)
 
 
-# --- Treasure Rush content (TR-4) ------------------------------------------------------------
+@pytest.fixture
+def content_catalog(db, tmp_path):
+    """A small imported catalog: one location, two adventures, one quest spanning both."""
+    from types import SimpleNamespace
+
+    from apps.catalog.importer import import_content
+    from apps.catalog.models import Adventure, Quest
+    from apps.catalog.tests.helpers import base_collections, write_export
+
+    collections = base_collections()
+    collections["adventures.json"]["adventures"].append(
+        {
+            "slug": "stack-planks",
+            "title": "Stack the Planks",
+            "version": 2,
+            "locationSlug": "bay",
+            "ageBands": ["PATHFINDER"],
+            "entryStepId": "stack",
+            "steps": [
+                {
+                    "id": "stack",
+                    "type": "ORDERING",
+                    "objectiveIds": ["order-3"],
+                    "presentation": {"kind": "complete", "text": "Stack"},
+                    "transitions": [{"when": "always", "nextStepId": "complete"}],
+                    "fallback": {"text": "Stack"},
+                },
+            ],
+        }
+    )
+    collections["islands.json"]["islands"][0]["pack"]["adventureSlugs"].append("stack-planks")
+    collections["quests.json"]["quests"][0]["stages"].append(
+        {
+            "id": "s2",
+            "title": "Stack",
+            "objectives": [
+                {"id": "o2", "label": "Stack", "kind": "SOLVE", "adventureSlug": "stack-planks"}
+            ],
+        }
+    )
+    collections["quests.json"]["quests"][0]["stages"][0]["nextStageId"] = "s2"
+    import_content(write_export(tmp_path / "catalog-v1", collections))
+    return SimpleNamespace(
+        collections=collections,
+        bridge=Adventure.objects.get(slug="fix-bridge"),
+        planks=Adventure.objects.get(slug="stack-planks"),
+        quest=Quest.objects.get(slug="repair"),
+        export_dir=tmp_path,
+    )
+
+
+# --- Treasure Rush content (TR-4, on the canonical catalog since POST-MERGE-03) --------------
 
 
 @pytest.fixture
 def treasure(families):
-    """Exported content loaded, the Treasure Cove seed published, and the two families.
+    """The real content export imported, the Treasure Cove seed published, and the two families.
 
     The `families` children are Pathfinders, so the chest's challenge is the Pathfinder spec
-    (addition, four choices).
+    (addition, four choices). The quest is catalog content and active on import.
     """
     from types import SimpleNamespace
 
-    from apps.core.catalog import ContentStatus
-    from apps.core.content_loader import load_content
+    from apps.catalog.importer import import_content
+    from apps.catalog.models import Quest
+    from apps.core.content_status import ContentStatus
     from apps.education.models import ChallengeSpec
-    from apps.islands.models import WorldRegion
-    from apps.islands.treasure_rush_seed import QUEST_ID, REGION_ID, seed_treasure_rush
-    from apps.quests.models import QuestDefinition
+    from apps.regions.models import WorldRegion
+    from apps.regions.treasure_rush_seed import QUEST_ID, REGION_ID, seed_treasure_rush
 
-    load_content()
+    import_content()
     seed_treasure_rush()
     WorldRegion.objects.filter(region_id=REGION_ID).update(status=ContentStatus.PUBLISHED)
     ChallengeSpec.objects.filter(slug__startswith="treasure-cove-").update(
         status=ContentStatus.PUBLISHED
     )
-    QuestDefinition.objects.filter(quest_id=QUEST_ID).update(status=ContentStatus.PUBLISHED)
     region = WorldRegion.objects.get(region_id=REGION_ID)
     return SimpleNamespace(
         families=families,
         region=region,
         chest=region.chests.get(),
-        quest=QuestDefinition.objects.get(quest_id=QUEST_ID),
+        quest=Quest.objects.get(slug=QUEST_ID),
     )

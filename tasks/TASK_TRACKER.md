@@ -11,6 +11,8 @@ before touching AWS.
 - [x] **LAI-0001** Phase 0 migration assessment and documentation
 - [x] **POST-MERGE-01** Reconcile merged content export and duplicate ADR ids (not a roadmap task). DONE locally: export schema v2, ADR-027 to ADR-030 renumbered from the incoming line; see `docs/IMPLEMENTATION_STATUS.md`. Not pushed.
 - [x] **POST-MERGE-02** Integrate `origin/main` (eab0817) into the Django migration branch, locally. DONE: ADR-023 to ADR-032 reconciled, ported to the `react/` layout, all checks green; see `docs/IMPLEMENTATION_STATUS.md`. Not pushed. Starts no roadmap task.
+- [x] **POST-MERGE-03** Reconcile the Storykeeper Castle and Treasure Rush Django backbones on `integration/post-merge-03` (not a roadmap task). DONE locally: one app set on the canonical LAI-0304/0305/0601 models, Treasure Rush adapted onto it, region layouts seed-authored until LAI-0805 (ADR-033); see `docs/IMPLEMENTATION_STATUS.md`. Not pushed or merged
+- [x] **POST-MERGE-04** Merge verification of `integration/post-merge-03` (not a roadmap task). DONE locally: all merge-time gates pass; browser gameplay not verifiable here (needs a real Cognito sign-in); see `docs/IMPLEMENTATION_STATUS.md`. Not merged or pushed
 - [x] **LAI-0002** Record ADR-020 (Three.js exclusive) and plan Track B (docs only, this change set)
 
 ## Phase 1 — Governance and baseline
@@ -25,7 +27,7 @@ before touching AWS.
 
 - [x] **LAI-0201** Move the frontend to `react/` (depends: 0101). DONE: merged locally as d27f554 (not pushed) and re-verified on the merged tree. The Amplify Hosting build with the new layout is still unverified until a real deploy
 - [x] **LAI-0202** Python tooling (depends: 0201). Done; its deferred CI criterion was delivered by LAI-0206
-- [ ] **LAI-0203** Engine import boundary guard (depends: 0201)
+- [x] **LAI-0203** Engine import boundary guard (depends: 0201). DONE locally: `react/src/test/engineBoundary.test.ts`; six React edges recorded for LAI-2102; lint and formatting deferred to merge verification
 - [x] **LAI-0204** Django project skeleton (depends: 0202). DONE locally: Django 6.1.2, DRF 3.18.3, psycopg 3.3.6 (ADR-021); health endpoint; verified against PostgreSQL 16
 - [x] **LAI-0205** DRF conventions (depends: 0204). DONE locally: error contract, exception handler, request IDs, access log, deny by default. Two roadmap criteria deliberately not done here: cursor pagination (moves to the first list endpoint, LAI-0502) and OpenAPI generation (LAI-0207)
 - [x] **LAI-0208** Privacy review of server-side logging (application layer) (depends: 0205). DONE locally (ADR-025). Deployed logging remains open as gate G10 (LAI-0210)
@@ -40,10 +42,11 @@ before touching AWS.
 - [ ] **LAI-0307** CompanionProfile model (split from 0301) (depends: 0301)
 - [ ] **LAI-0308** ParentConsent privacy design, then model (split from 0301; never implemented in Amplify). REQUIRED GATE G9 before the migrated platform handles live children's data (depends: 0301)
 - [x] **LAI-0302** Content export to versioned JSON (depends: 0201). DONE locally: 13 files under `content/`, schema v1, 38 tests. Spatial data and logic are not exported (see DATA_MODEL.md)
-- [ ] **LAI-0303** Golden vectors (depends: 0302)
-- [x] **LAI-0304** Catalog models and loader (depends: 0302, 0301). DONE locally as TR-2, except the `assets` app, which is left to LAI-2106 (TR-D7)
-- [ ] **LAI-0305** Progress models (depends: 0301, 0304). PARTIAL as TR-4: AdventureSession, SkillEvidence, WorldChange, InventoryItem, GrantedRewardRule, QuestProgress. Remaining: CoopSession, AdventureAction, SkillProgress, StoryArtifact, WorldState, StoryProgress, NpcRelationship
+- [x] **LAI-0303** Golden vectors (depends: 0302). DONE locally: `tests/golden/*.json` (6 suites), Vitest stale check, pytest format check; no Python rules yet (Phase 6)
+- [x] **LAI-0304** Catalog models and loader (depends: 0302, 0301). DONE locally: `lai/apps/catalog` (World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset, ContentRelease), `manage.py load_content`, export schema 3 `locationAssets`; catalog admin built but not mounted (LAI-0404). Item and learning-objective models not built
+- [x] **LAI-0305** Progress models (depends: 0301, 0304). DONE locally: apps `game_sessions`, `education`, `progression`, `inventory`, `quests` (14 models, 5 migrations), persistence services for sessions, quests and world changes; no endpoints
 - [ ] **LAI-0306** Audit models (depends: 0301)
+- [ ] **LAI-0309** Remaining catalog models: items, reward rules, learning objectives, stories, NPCs (depends: 0304). PARTIAL via POST-MERGE-03: items, collectible sets, reward rules, learning objectives and NPCs are catalog rows (inventory now references items and rules by foreign key). Remaining: stories, and validated references from `SkillEvidence`/`SkillProgress` objective codes, `StoryProgress.story_slug` and `NpcRelationship.npc_id`
 
 ## Phase 4 — Cognito integration and authorization
 
@@ -63,7 +66,7 @@ before touching AWS.
 
 ## Phase 6 — Authoritative progression, inventory, mastery
 
-- [ ] **LAI-0601** Python adventure engine + answers endpoint (depends: 0303, 0305, 0403)
+- [x] **LAI-0601** Python adventure engine + answers endpoint (depends: 0303, 0305, 0403). DONE locally: `apps/adventures/engine.py` (golden parity), answers and hints endpoints, G6 verified for them; React still calls the Amplify Lambda until the frontend API layer (LAI-0501) switches it
 - [ ] **LAI-0602** Profile writes and deletion (depends: 0502)
 - [ ] **LAI-0603** Mastery writes (depends: 0601)
 - [ ] **LAI-0604** Rewards and inventory writes (depends: 0603)
@@ -81,6 +84,7 @@ before touching AWS.
 
 - [ ] **LAI-0801** Django admin for catalogs (depends: 0304, 0404)
 - [ ] **LAI-0802** React admin views on Django (depends: 0505, 0404)
+- [ ] **LAI-0805** Spatial layout administration in Django Admin (depends: 0801, 0304, 2103, and a spatial-content ADR first)
 
 ## Phase 9 — Realtime (co-op) and storage
 
@@ -154,21 +158,42 @@ before touching AWS.
 - [ ] **LAI-2304** Phaser dependency removal (APPROVAL) (depends: 2201 to 2208, 2301, 2302, 2303)
 - [ ] **LAI-2305** Final Three.js-only verification (depends: 2304)
 
+# LAI-2200 Shared Django Asset Manager (`docs/ASSET_MANAGER.md`, ADR-035)
+
+Platform workstream. AM-1 to AM-10 (the foundation and admin preview) were merged into `main` on
+2026-10-25 after merge verification (`docs/ASSET_MANAGER.md` section 18). It is not deployed as an
+asset service until AM-11 and LAI-1002 provide the infrastructure. Subtasks use their own ids
+(AM-n) because LAI-2201 to LAI-2208 are the Phase 22 world conversions.
+
+- [x] **AM-1** Architecture and contract (depends: none)
+- [x] **AM-2** Models and migrations (depends: AM-1)
+- [x] **AM-3** Model validation service (depends: AM-1)
+- [x] **AM-4** Storage abstraction and upload lifecycle (depends: AM-2, AM-3)
+- [x] **AM-5** Django Admin management, permissions and groups (depends: AM-4, LAI-0404)
+- [x] **AM-6** Published-asset resolver API and delivery (depends: AM-4, LAI-0403)
+- [x] **AM-7** Frontend Django resolver adapter (depends: AM-6, LAI-2106)
+- [x] **AM-8** Existing asset import tooling (depends: AM-4)
+- [x] **AM-9** Security and integration tests, documentation (depends: AM-5 to AM-8)
+- [x] **AM-10** Admin 3D model preview (depends: AM-5). Unit-tested and browser-checked (headless Chromium, software WebGL)
+- [ ] **AM-11** Signed CloudFront delivery (APPROVAL: AWS) (depends: AM-6, LAI-1002, LAI-1005)
+
 # Treasure Rush (`docs/TREASURE_RUSH_ROADMAP.md`)
 
-Feature roadmap with its own ids, like SC-n. Rows marked "is LAI-NNNN" are that tracker task,
-with Treasure Rush as its first content; tick the LAI row, not a copy. Decisions TR-D1, TR-D2,
-TR-D4, TR-D8, and TR-D11 were accepted on 2026-10-24; TR-D5 is still Proposed.
+Feature roadmap with its own ids, like SC-n. Since POST-MERGE-03 (ADR-033) Treasure Rush runs on
+the canonical Django backbone; rows that were built as copies of LAI tasks are recorded as
+absorbed, so no LAI task is counted twice. Decisions TR-D1, TR-D2, TR-D4, TR-D8 and TR-D11 are
+accepted; TR-D3 (admin-authored layout as authoritative) is **not** adopted and waits for
+LAI-0805's ADR; TR-D5 is still Proposed.
 
 - [x] **TR-0** Plan: gap analysis, dependency map, decisions, asset contract
-- [x] **TR-1** Server-side math challenges (`lai/apps/education/challenges.py`). DONE locally, not pushed (carried onto `feature/treasure-rush-slice` from `treasure-rush`)
-- [x] **TR-2** Catalog models, is LAI-0304 without `assets` (depends: TR-D3, TR-D7). DONE locally on `feature/treasure-rush-slice`: catalog apps, `load_content`, Treasure Rush world models, `seed_treasure_rush`. TR-D3 and TR-D7 taken as authorised by the Treasure Rush brief
+- [x] **TR-1** Server-side math challenges (`lai/apps/education/challenges.py`)
+- [x] **TR-2** Catalog models. Built on `feature/treasure-rush-slice` as a parallel LAI-0304; **superseded in POST-MERGE-03** by the canonical catalog (`apps/catalog`). Kept from it: item, collectible-set, reward-rule, learning-objective and NPC catalog models (moved into `apps/catalog`), the JSON-schema validator (now part of the canonical import), and the region models (now `apps/regions`, seed-authored)
 - [ ] **TR-3** Django admin access and catalog admin, is LAI-0404 then LAI-0801 (APPROVAL: TR-D5) (depends: TR-2)
-- [x] **TR-4** Progress models, is LAI-0305 (depends: TR-2). DONE locally: sessions, challenge attempts, world changes, inventory ownership, quest progress, skill evidence, plus the play services TR-5 calls. LAI-0305 itself stays open for the non-Treasure-Rush models
-- [x] **TR-5** Treasure Rush play API (depends: TR-4, LAI-0403). DONE locally: 8 child-scoped routes over the TR-4 services; contract in `docs/PLAY_API.md`
-- [x] **TR-6** Frontend Django client slice (depends: TR-5, TR-D8). DONE locally: `react/src/api/` client and play DTOs, `features/region-play/` hooks and the TR-7 scene-model boundary; no UI
+- [x] **TR-4** Progress models and play services. **Absorbed into the canonical LAI-0305 models in POST-MERGE-03**: session kinds, `ChallengeAttempt`, attempt evidence, foreign-key inventory, append-only world changes, the quest refresh; play services in `apps/game_sessions/play.py`
+- [x] **TR-5** Treasure Rush play API (depends: TR-4, LAI-0403). 8 child-scoped routes, contract unchanged by POST-MERGE-03 (`docs/PLAY_API.md`)
+- [x] **TR-6** Frontend Django client slice (depends: TR-5, TR-D8). `react/src/api/` client and play DTOs, `features/region-play/` hooks
 - [ ] **TR-7a** Placeholder-mesh asset adapter (depends: none)
-- [x] **TR-7** Treasure Rush region (depends: TR-6, TR-D2, TR-D4, TR-D14, TR-D15). DONE locally: Treasure Cove on the existing engine via a Django manifest repository and the `region-play` extension; placeholder chest and figures drawn by the extension, so it did not wait for TR-7a
+- [x] **TR-7** Treasure Rush region (depends: TR-6, TR-D2, TR-D4, TR-D14, TR-D15). Treasure Cove on the existing Three.js engine via the `region-play` extension. Not verified in a browser
 - [x] **TR-8** Challenge and quest-complete UI (depends: TR-7). DONE locally: Pip dialogue and quest acceptance, chest challenge with hints and retry, reward reveal and chest-opening animation, backpack from progress; no audio (no Polly system exists, TR-D19)
 - [x] **TR-8a** Make it runnable locally (depends: TR-8). DONE locally: automatic Django account setup via `POST /me`, correct 403 messages, dev-only `publish_treasure_rush`, `docs/TREASURE_RUSH_LOCAL_DEV.md`
 - [ ] **TR-9** End-to-end and playtest (depends: TR-8a; real families also need LAI-0502, LAI-0602, gate G9, ADR-024 A6. Locally, the child mirror step in `docs/TREASURE_RUSH_LOCAL_DEV.md` stands in for LAI-0602)

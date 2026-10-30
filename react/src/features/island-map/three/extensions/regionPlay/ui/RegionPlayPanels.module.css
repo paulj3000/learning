@@ -224,7 +224,9 @@
   height: 4rem;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #fff3b0, var(--color-sun) 55%, #b88a00);
-  box-shadow: inset 0 -5px 0 #8f6b00, 0 0 0 4px #fff3b0;
+  box-shadow:
+    inset 0 -5px 0 #8f6b00,
+    0 0 0 4px #fff3b0;
   animation: spin 1.4s ease-in-out 300ms both;
 }
 

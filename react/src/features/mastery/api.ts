@@ -1,6 +1,7 @@
 import { client } from '../../lib/data-client';
 import type { Schema } from '../../../../amplify/data/resource';
 import type { Correctness } from '../adventures/engine/types';
+import { nextSkillProgressCounts } from './counters';
 import { computeErrorPattern } from './errorPattern';
 import { computeSkillStatus } from './status';
 import type { SkillProgressCounts } from './types';
@@ -39,9 +40,6 @@ export async function upsertSkillProgress(
   correctness: Correctness,
   supportLevel: number,
 ): Promise<void> {
-  const isIndependentSuccess = correctness === 'correct' && supportLevel === 0;
-  const isSupportedSuccess = correctness === 'correct' && supportLevel > 0;
-
   const { data: existingRows } = await client.models.SkillProgress.list();
   const existing = existingRows.find(
     (row: SkillProgress) =>
@@ -49,23 +47,12 @@ export async function upsertSkillProgress(
   );
   const now = new Date().toISOString();
 
-  const counts: SkillProgressCounts = existing
-    ? {
-        exposureCount: existing.exposureCount + 1,
-        independentSuccessCount: existing.independentSuccessCount + (isIndependentSuccess ? 1 : 0),
-        supportedSuccessCount: existing.supportedSuccessCount + (isSupportedSuccess ? 1 : 0),
-        consecutiveIndependentCorrect: isIndependentSuccess
-          ? existing.consecutiveIndependentCorrect + 1
-          : 0,
-        lastPracticedAt: now,
-      }
-    : {
-        exposureCount: 1,
-        independentSuccessCount: isIndependentSuccess ? 1 : 0,
-        supportedSuccessCount: isSupportedSuccess ? 1 : 0,
-        consecutiveIndependentCorrect: isIndependentSuccess ? 1 : 0,
-        lastPracticedAt: now,
-      };
+  const counts: SkillProgressCounts = nextSkillProgressCounts(
+    existing,
+    correctness,
+    supportLevel,
+    now,
+  );
 
   const recentLevel = computeSkillStatus(counts, true);
   const errorPattern = computeErrorPattern(counts);

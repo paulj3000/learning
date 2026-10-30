@@ -64,10 +64,10 @@ def test_post_me_provisions_once_and_is_idempotent(key):
     assert first.status_code == 201
     second = call(token, method="post")
     assert second.status_code == 200
-    assert first.json() == second.json() and set(first.json()) == {"id"}
+    assert first.json() == second.json() and set(first.json()) == {"id", "django_admin"}
     account = ParentAccount.objects.get()
     assert account.cognito_sub == "sub-parent-a" and str(account.pk) == first.json()["id"]
-    assert call(token).json() == {"id": str(account.pk)}
+    assert call(token).json() == {"id": str(account.pk), "django_admin": False}
 
 
 def test_provisioning_creates_no_children_and_no_privileges(key):
@@ -280,10 +280,16 @@ def test_default_permission_denies_unauthenticated_and_names_the_scheme(settings
 
 
 def test_no_sensitive_endpoints_exist_yet():
+    """The users routes are onboarding and child profile settings. Child deletion is blocked
+    (`SensitiveActionBlocked`, apps/users/tests/test_children_api.py) until LAI-0602/LAI-0209."""
     from config import urls
 
     assert sorted(str(p.pattern) for p in urls.urlpatterns[0].url_patterns) == ["health/"]
-    assert sorted(str(p.pattern) for p in urls.urlpatterns[1].url_patterns) == ["me/"]
+    assert sorted(str(p.pattern) for p in urls.urlpatterns[1].url_patterns) == [
+        "children/",
+        "children/<uuid:child_id>/",
+        "me/",
+    ]
 
 
 def test_sensitive_actions_stay_blocked_even_for_a_valid_provisioned_parent(key, settings):

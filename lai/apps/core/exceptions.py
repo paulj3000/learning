@@ -36,13 +36,24 @@ _CODED = {
     "account_not_provisioned": "Account setup is required.",
     "sensitive_action_unavailable": "This action is not available.",
     "authentication_unavailable": "Authentication is temporarily unavailable.",
-    # Play API (TR-5), all 409.
+    # Adventure answers (LAI-0601)
+    "answer_invalid": "That answer could not be understood.",
+    "session_not_active": "This adventure is no longer active.",
+    "step_not_current": "That step is not the current one.",
+    "content_version_changed": "This adventure has changed since it was started.",
+    "request_conflict": "That request id was already used for a different answer.",
+    "invalid_transition": "That change is not allowed right now.",
+    # Region play (Treasure Rush TR-5)
     "content_unavailable": "This is not available right now.",
     "session_not_open": "This play session has ended.",
     "chest_already_open": "This chest is already open.",
     "attempt_already_answered": "This challenge was already answered.",
     "quest_unavailable": "This quest is not available.",
-    "invalid_transition": "That change is not allowed right now.",
+    # Native Android API (LAI-ANDROID-API-001)
+    "child_profile_limit_reached": "No more child profiles can be added.",
+    "child_inactive": "This child profile is turned off.",
+    "launch_ticket_invalid": "This game link has expired. Please start again.",
+    "game_csrf_failed": "This request could not be verified.",
 }
 _PASSTHROUGH_HEADERS = {"Allow", "WWW-Authenticate", "Retry-After"}
 

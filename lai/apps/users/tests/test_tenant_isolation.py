@@ -12,6 +12,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from django.conf import settings
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import URLPattern, URLResolver
@@ -282,22 +283,36 @@ def test_the_mixin_scopes_by_the_authorized_child_object():
 
 
 def walk(patterns, prefix=""):
+    """Every API route. Django Admin is skipped: it is session-gated to staff and registers no
+    child data, both proven in apps/core/tests/test_django_admin.py."""
     for entry in patterns:
+        if not prefix and str(entry.pattern) == settings.ADMIN_URL_PATH:
+            continue
         if isinstance(entry, URLResolver):
             yield from walk(entry.url_patterns, prefix + str(entry.pattern))
         elif isinstance(entry, URLPattern):
             yield prefix + str(entry.pattern), entry.callback
 
 
-PUBLIC = {"api/v1/health/"}
-PARENT_SCOPED = {"api/v1/me/"}
+# The asset-file route is a capability URL: a signed, expiring token for one published version,
+# re-checked on every fetch (LAI-2200, ADR-035; apps/assets/tests/test_resolver_api.py).
+PUBLIC = {"api/v1/health/", "api/v1/asset-files/<str:token>/<str:filename>"}
+# Parent-scoped: the owner is `request.user`, the route names no child (LAI-ANDROID-API-001).
+PARENT_SCOPED = {
+    "api/v1/me/",
+    "api/v1/children/",
+    "api/v1/game-launches/redeem/",
+    "api/v1/game-launches/revoke/",
+}
+# The game runtime's own routes: the game session cookie only, never a bearer token (ADR-036).
+GAME_RUNTIME = {"api/v1/game-session/", "api/v1/game-session/end/"}
 
 
 def unscoped_routes(urlpatterns):
     """Routes that are neither explicitly public, parent-scoped, nor correctly child-scoped."""
     bad = []
     for route, callback in walk(urlpatterns):
-        if route in PUBLIC | PARENT_SCOPED:
+        if route in PUBLIC | PARENT_SCOPED | GAME_RUNTIME:
             continue
         cls = getattr(callback, "cls", None)
         if "<uuid:child_id>" in route and cls and issubclass(cls, ChildScopedMixin):
@@ -324,11 +339,46 @@ def test_the_route_checker_accepts_compliant_and_flags_non_compliant_routes():
 def test_only_the_public_routes_allow_any_and_child_routes_keep_default_permissions():
     from apps.users.tests import probe_urls
 
+    from apps.game_sessions.runtime_auth import GameRuntimeAccessMixin
+
     for route, callback in walk(probe_urls.urlpatterns):
         names = [p.__name__ for p in callback.cls.permission_classes]
         assert ("AllowAny" in names) == (route in PUBLIC), route
         if "<uuid:child_id>" in route:
-            assert names == ["IsProvisionedParent"], route
+            expected = (
+                "IsProvisionedParentOrGameRuntime"
+                if issubclass(callback.cls, GameRuntimeAccessMixin)
+                else "IsProvisionedParent"
+            )
+            assert names == [expected], route
+
+
+def test_the_game_cookie_is_accepted_only_by_the_game_runtime_routes():
+    """ADR-036: the cookie never authenticates account, child, launch or progress routes."""
+    from apps.game_sessions.runtime_auth import (
+        GameRuntimeAccessMixin,
+        GameSessionCookieAuthentication,
+    )
+    from config import urls
+
+    cookie_routes = set()
+    for route, callback in walk(urls.urlpatterns):
+        cls = getattr(callback, "cls", None)
+        if cls and GameSessionCookieAuthentication in cls.authentication_classes:
+            cookie_routes.add(route)
+            if route not in GAME_RUNTIME:
+                assert issubclass(cls, GameRuntimeAccessMixin), route
+    child = "api/v1/children/<uuid:child_id>/"
+    assert cookie_routes == GAME_RUNTIME | {
+        f"{child}regions/<slug:region_id>/",
+        f"{child}regions/<slug:region_id>/session/",
+        f"{child}sessions/<uuid:session_id>/",
+        f"{child}sessions/<uuid:session_id>/<slug:action>/",
+        f"{child}sessions/<uuid:session_id>/chests/<slug:entity_id>/challenge/",
+        f"{child}attempts/<uuid:attempt_id>/answer/",
+        f"{child}quests/<slug:quest_id>/accept/",
+        f"{child}assets/",
+    }
 
 
 def test_child_profiles_are_only_queried_through_the_services_module():

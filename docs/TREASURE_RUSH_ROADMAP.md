@@ -1,5 +1,18 @@
 # Treasure Rush: Roadmap and Readiness
 
+> **Integrated, 2026-10-24 (POST-MERGE-03, ADR-033).** Treasure Rush now runs on the canonical
+> Django backbone, not its own. TR-2's catalog apps (`islands`, `adventures`, the loader) were
+> replaced by `apps/catalog`, which absorbed its item, collectible-set, reward-rule,
+> learning-objective and NPC models and its JSON-schema validator; TR-4's models were folded
+> into the canonical progress apps; the play API (TR-5) and the React client (TR-6, TR-7) are
+> unchanged in contract. Treasure Rush's quest, Golden Doubloon and reward rule are exported
+> (`react/src/features/content-export/treasureRushContent.ts`) and imported like all content;
+> the reward rule's trigger is `WORLD_CHANGE` on `TREASURE_RUSH_COVE_CHEST_OPENED`. The cove's
+> spatial layout lives in `lai/apps/regions/treasure_rush_seed.py` (app `regions`) as the
+> temporary source of truth: **TR-D3 is not adopted** and waits for LAI-0805. Sections below
+> describe the branch as built; where they name `islands`, `QuestDefinition`, `load_content`
+> from `core`, or `GrantedRewardRule`, read the canonical names in `docs/DATA_MODEL.md`.
+
 **Status (2026-10-24):** TR-0 (this plan), TR-1 (server-side math challenges), TR-2 (catalog
 models and loader), TR-4 (progress models and play services), TR-5 (the play API,
 `docs/PLAY_API.md`), TR-6 (the typed React client and hooks), and TR-7 (Treasure Cove on the
@@ -211,7 +224,7 @@ Proposed** and blocks TR-3 only.
 - **TR-D4 (Accepted) Spawn and checkpoints as data.** ADR-032 part C keeps checkpoints in
   `discovery/checkpoints.ts`. Proposal: a published manifest snapshot may carry its own
   checkpoints, including spawn; source regions keep the current rule.
-- **TR-D5 (Proposed) How administrators sign in to Django admin.** `ParentAccount` has no password and no
+- **TR-D5 (Accepted 2026-10-25, option b; ADR-034) How administrators sign in to Django admin.** `ParentAccount` has no password and no
   staff flags by design. Options: (a) staff flags on `ParentAccount`, granted out of band,
   with a Cognito sign-in that creates a Django session; (b) a separate local staff login. (a)
   keeps one identity; (b) is faster but adds passwords. Owner decides (LAI-0404).
@@ -581,7 +594,9 @@ and these fixes for the rest:
   "We are still getting your island ready", any other 403 "not open for you right now".
 - **`publish_treasure_rush`** (dev only): refused unless `DEBUG` and a loopback database; checks
   every row with `full_clean()` and that the region is playable; all or nothing; never touches
-  exported content.
+  exported content. After POST-MERGE-03 it publishes the region and its challenge specs only
+  (the rows with a `ContentStatus`) and requires the catalog location, world, and offered quests
+  to be `active` already (`lai/apps/regions/treasure_rush_publish.py`).
 - **`docs/TREASURE_RUSH_LOCAL_DEV.md`**: the startup procedure, including an interim, local-only
   step that mirrors one test child into Django with the same id until LAI-0602.
 

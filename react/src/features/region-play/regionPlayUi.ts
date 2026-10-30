@@ -159,8 +159,13 @@ export function shouldCelebrate(
 }
 
 /** Quests the server says this answer finished, with their titles from the server's quest list. */
-export function completedQuests(outcome: AnswerOutcome, quests: readonly QuestEntry[]): QuestEntry[] {
-  const finished = new Set(outcome.questUpdates.filter((u) => u.justCompleted).map((u) => u.questId));
+export function completedQuests(
+  outcome: AnswerOutcome,
+  quests: readonly QuestEntry[],
+): QuestEntry[] {
+  const finished = new Set(
+    outcome.questUpdates.filter((u) => u.justCompleted).map((u) => u.questId),
+  );
   return quests.filter((quest) => finished.has(quest.questId));
 }
 
@@ -193,7 +198,8 @@ export function playErrorMessage(error: ApiError | null): string | null {
     case 'conflict':
       if (error.code === 'chest_already_open') return PLAY_COPY.chestOpen;
       if (error.code === 'session_not_open') return PLAY_COPY.errorSessionEnded;
-      if (error.code === 'content_unavailable' || error.code === 'quest_unavailable') return PLAY_COPY.chestNotReady;
+      if (error.code === 'content_unavailable' || error.code === 'quest_unavailable')
+        return PLAY_COPY.chestNotReady;
       // attempt_already_answered: the view re-reads the truth; nothing new to say.
       return null;
     default:
@@ -209,6 +215,15 @@ export function playErrorMessage(error: ApiError | null): string | null {
  * still clicks it: stopping propagation does not cancel that default.
  */
 export const CONTROL_KEYS = new Set([
-  'w', 'a', 's', 'd', 'e',
-  'arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'enter',
+  'w',
+  'a',
+  's',
+  'd',
+  'e',
+  'arrowup',
+  'arrowdown',
+  'arrowleft',
+  'arrowright',
+  ' ',
+  'enter',
 ]);

@@ -197,6 +197,9 @@ PROD = {
     "COGNITO_REGION": "us-test-1",
     "COGNITO_USER_POOL_ID": "us-test-1_TESTPOOL1",
     "COGNITO_ALLOWED_CLIENT_IDS": "c1",
+    "LAI_ASSET_STORAGE": "s3",
+    "LAI_ASSET_BUCKET": "lai-assets-test",
+    "LAI_ASSET_REGION": "us-test-1",
 }
 
 

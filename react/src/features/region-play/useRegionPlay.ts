@@ -214,5 +214,13 @@ export function useRegionPlay(
     );
   }, [api, regionId, run]);
 
-  return { state, startSession, changeSession, acceptQuest, requestChallenge, submitAnswer, refresh };
+  return {
+    state,
+    startSession,
+    changeSession,
+    acceptQuest,
+    requestChallenge,
+    submitAnswer,
+    refresh,
+  };
 }

@@ -10,8 +10,22 @@ import {
 } from './checkpoints';
 
 const REGION = 'published-test-region';
-const landing: RegionCheckpoint = { id: `${REGION}:landing`, regionId: REGION, label: 'the landing', x: 1, z: 9, yaw: 0.5 };
-const rocks: RegionCheckpoint = { id: `${REGION}:rocks`, regionId: REGION, label: 'the rocks', x: -3, z: 2, yaw: 0 };
+const landing: RegionCheckpoint = {
+  id: `${REGION}:landing`,
+  regionId: REGION,
+  label: 'the landing',
+  x: 1,
+  z: 9,
+  yaw: 0.5,
+};
+const rocks: RegionCheckpoint = {
+  id: `${REGION}:rocks`,
+  regionId: REGION,
+  label: 'the rocks',
+  x: -3,
+  z: 2,
+  yaw: 0,
+};
 
 afterEach(() => unpublishRegionCheckpoints(REGION));
 
@@ -43,14 +57,18 @@ describe('published region checkpoints (TR-7)', () => {
 
   it('refuses to move a source-authored region', () => {
     const source = ALL_CHECKPOINTS[0];
-    expect(() => publishRegionCheckpoints(source.regionId, [{ ...source, x: 99 }])).toThrow(CheckpointPublishError);
+    expect(() => publishRegionCheckpoints(source.regionId, [{ ...source, x: 99 }])).toThrow(
+      CheckpointPublishError,
+    );
     expect(ALL_CHECKPOINTS[0]).toEqual(source);
   });
 
   it('refuses a source checkpoint id, a duplicate, another region’s checkpoint, or nothing', () => {
     const taken = { ...landing, id: ALL_CHECKPOINTS[0].id };
     expect(() => publishRegionCheckpoints(REGION, [taken])).toThrow(CheckpointPublishError);
-    expect(() => publishRegionCheckpoints(REGION, [landing, landing])).toThrow(CheckpointPublishError);
+    expect(() => publishRegionCheckpoints(REGION, [landing, landing])).toThrow(
+      CheckpointPublishError,
+    );
     expect(() => publishRegionCheckpoints(REGION, [{ ...landing, regionId: 'elsewhere' }])).toThrow(
       CheckpointPublishError,
     );

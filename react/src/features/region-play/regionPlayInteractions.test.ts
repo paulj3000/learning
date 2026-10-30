@@ -12,7 +12,9 @@ import { toRegionSceneModel } from './sceneModel';
 
 function setup(overrides: Record<string, unknown> = {}, chest: Record<string, unknown> = {}) {
   const bootstrap = read(bootstrapJson(overrides, chest), parse.regionBootstrap);
-  const { manifest } = buildRegionManifest(toRegionSceneModel(bootstrap), { worldSlug: 'learning-adventure-island' });
+  const { manifest } = buildRegionManifest(toRegionSceneModel(bootstrap), {
+    worldSlug: 'learning-adventure-island',
+  });
   const config = tryParseRegionPlayConfig(manifest.extensions[0].config);
   if (!config) throw new Error('config did not parse');
   return { bootstrap, config };
@@ -27,8 +29,15 @@ describe('resolveRegionPlayInteraction', () => {
       quests: [questJson(), questJson({ questId: 'someone-elses', giverNpcId: 'keeper-quill' })],
     });
     const event = resolveRegionPlayInteraction(config, bootstrap, PIP, false);
-    expect(event).toMatchObject({ kind: 'npc', entityId: 'cove-pip', npcId: 'pirate-pip', label: 'Pirate Pip' });
-    expect(event?.kind === 'npc' && event.quests.map((q) => q.questId)).toEqual(['treasure-rush-cove']);
+    expect(event).toMatchObject({
+      kind: 'npc',
+      entityId: 'cove-pip',
+      npcId: 'pirate-pip',
+      label: 'Pirate Pip',
+    });
+    expect(event?.kind === 'npc' && event.quests.map((q) => q.questId)).toEqual([
+      'treasure-rush-cove',
+    ]);
   });
 
   it('lets the child ask for a challenge only in a session, for a closed chest with one available', () => {
@@ -39,14 +48,18 @@ describe('resolveRegionPlayInteraction', () => {
       challengeAvailable: true,
       canRequestChallenge: true,
     });
-    expect(resolveRegionPlayInteraction(config, bootstrap, CHEST, false)).toMatchObject({ canRequestChallenge: false });
+    expect(resolveRegionPlayInteraction(config, bootstrap, CHEST, false)).toMatchObject({
+      canRequestChallenge: false,
+    });
     const open = setup({}, { isOpen: true });
     expect(resolveRegionPlayInteraction(open.config, open.bootstrap, CHEST, true)).toMatchObject({
       isOpen: true,
       canRequestChallenge: false,
     });
     const notForBand = setup({}, { challengeAvailable: false });
-    expect(resolveRegionPlayInteraction(notForBand.config, notForBand.bootstrap, CHEST, true)).toMatchObject({
+    expect(
+      resolveRegionPlayInteraction(notForBand.config, notForBand.bootstrap, CHEST, true),
+    ).toMatchObject({
       canRequestChallenge: false,
     });
   });
@@ -62,14 +75,18 @@ describe('resolveRegionPlayInteraction', () => {
   it('resolves against the server’s current state, so a chest opened since the build reads open', () => {
     const { config } = setup();
     const later = read(bootstrapJson({}, { isOpen: true }), parse.regionBootstrap);
-    expect(resolveRegionPlayInteraction(config, later, CHEST, true)).toMatchObject({ isOpen: true });
+    expect(resolveRegionPlayInteraction(config, later, CHEST, true)).toMatchObject({
+      isOpen: true,
+    });
   });
 });
 
 describe('chestStateChanges', () => {
   it('lists only the chests drawn differently from the server', () => {
     const chests = read(bootstrapJson({}, { isOpen: true }), parse.regionBootstrap).chests;
-    expect(chestStateChanges(new Map([['cove-chest', false]]), chests)).toEqual([{ entityId: 'cove-chest', isOpen: true }]);
+    expect(chestStateChanges(new Map([['cove-chest', false]]), chests)).toEqual([
+      { entityId: 'cove-chest', isOpen: true },
+    ]);
     expect(chestStateChanges(new Map([['cove-chest', true]]), chests)).toEqual([]);
   });
 });

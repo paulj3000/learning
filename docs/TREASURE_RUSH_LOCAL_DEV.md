@@ -38,7 +38,10 @@ cd lai
 `publish_treasure_rush` refuses unless `DEBUG` is on and the database is on loopback (both true
 with `config.settings.local`, the `manage.py` default). It checks every row with the same
 validation an admin save runs and publishes nothing if any check fails; the messages say what to
-fix. Run it again any time; it only reports what changed.
+fix. It publishes only the seed-owned rows (the region and its challenge specs). The location,
+its world, and Pip's quest are catalog content from the export: they must already be `active`,
+and the command refuses rather than switching them on. Run it again any time; it only reports
+what changed.
 
 ## 3. Cognito settings for Django
 

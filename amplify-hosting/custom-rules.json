@@ -1,0 +1,7 @@
+[
+  {
+    "source": "</^(?!\\/api\\/)([^.]+$|.*\\.(?!(css|js|map|json|txt|html|ico|png|jpg|jpeg|gif|webp|avif|svg|woff|woff2|ttf|otf|glb|gltf|bin|ktx2|hdr|mp3|ogg|wav|m4a|mp4|webm|webmanifest)$)[^.]+$)/>",
+    "target": "/index.html",
+    "status": "200"
+  }
+]

@@ -1,0 +1,537 @@
+{
+  "schemaVersion": 1,
+  "suite": "mastery",
+  "description": "SkillProgress counters, skill status, error pattern and review decay.",
+  "sources": [
+    "react/src/features/mastery/counters.ts",
+    "react/src/features/mastery/status.ts",
+    "react/src/features/mastery/errorPattern.ts"
+  ],
+  "notes": [
+    "nextSkillProgressCounts: a negative supportLevel with a correct answer counts as neither independent nor supported, but still as exposure.",
+    "computeSkillStatus: counts are not validated; more successes than exposures still produce a status.",
+    "computeSkillStatus: the proficient ratio compares with >= 0.6 in IEEE double arithmetic (3/5 is exactly 0.6).",
+    "applyReviewDecay: decays at 21 days or more, measured in milliseconds from ISO-8601 timestamps; a future practice date never decays. Timestamps are UTC with a Z suffix."
+  ],
+  "functions": {
+    "nextSkillProgressCounts": {
+      "python": "next_skill_progress_counts",
+      "args": [
+        "existing",
+        "correctness",
+        "supportLevel",
+        "now"
+      ],
+      "cases": [
+        {
+          "name": "first evidence: independent success",
+          "input": {
+            "existing": null,
+            "correctness": "correct",
+            "supportLevel": 0,
+            "now": "2026-03-01T12:00:00.000Z"
+          },
+          "expected": {
+            "exposureCount": 1,
+            "independentSuccessCount": 1,
+            "supportedSuccessCount": 0,
+            "consecutiveIndependentCorrect": 1,
+            "lastPracticedAt": "2026-03-01T12:00:00.000Z"
+          }
+        },
+        {
+          "name": "first evidence: supported success",
+          "input": {
+            "existing": null,
+            "correctness": "correct",
+            "supportLevel": 2,
+            "now": "2026-03-01T12:00:00.000Z"
+          },
+          "expected": {
+            "exposureCount": 1,
+            "independentSuccessCount": 0,
+            "supportedSuccessCount": 1,
+            "consecutiveIndependentCorrect": 0,
+            "lastPracticedAt": "2026-03-01T12:00:00.000Z"
+          }
+        },
+        {
+          "name": "first evidence: incorrect",
+          "input": {
+            "existing": null,
+            "correctness": "incorrect",
+            "supportLevel": 0,
+            "now": "2026-03-01T12:00:00.000Z"
+          },
+          "expected": {
+            "exposureCount": 1,
+            "independentSuccessCount": 0,
+            "supportedSuccessCount": 0,
+            "consecutiveIndependentCorrect": 0,
+            "lastPracticedAt": "2026-03-01T12:00:00.000Z"
+          }
+        },
+        {
+          "name": "streak grows on independent success",
+          "input": {
+            "existing": {
+              "exposureCount": 4,
+              "independentSuccessCount": 3,
+              "supportedSuccessCount": 0,
+              "consecutiveIndependentCorrect": 2,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            },
+            "correctness": "correct",
+            "supportLevel": 0,
+            "now": "2026-03-01T12:00:00.000Z"
+          },
+          "expected": {
+            "exposureCount": 5,
+            "independentSuccessCount": 4,
+            "supportedSuccessCount": 0,
+            "consecutiveIndependentCorrect": 3,
+            "lastPracticedAt": "2026-03-01T12:00:00.000Z"
+          }
+        },
+        {
+          "name": "a hint breaks the streak but counts as supported",
+          "input": {
+            "existing": {
+              "exposureCount": 4,
+              "independentSuccessCount": 3,
+              "supportedSuccessCount": 0,
+              "consecutiveIndependentCorrect": 2,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            },
+            "correctness": "correct",
+            "supportLevel": 1,
+            "now": "2026-03-01T12:00:00.000Z"
+          },
+          "expected": {
+            "exposureCount": 5,
+            "independentSuccessCount": 3,
+            "supportedSuccessCount": 1,
+            "consecutiveIndependentCorrect": 0,
+            "lastPracticedAt": "2026-03-01T12:00:00.000Z"
+          }
+        },
+        {
+          "name": "incorrect breaks the streak",
+          "input": {
+            "existing": {
+              "exposureCount": 4,
+              "independentSuccessCount": 3,
+              "supportedSuccessCount": 0,
+              "consecutiveIndependentCorrect": 2,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            },
+            "correctness": "incorrect",
+            "supportLevel": 0,
+            "now": "2026-03-01T12:00:00.000Z"
+          },
+          "expected": {
+            "exposureCount": 5,
+            "independentSuccessCount": 3,
+            "supportedSuccessCount": 0,
+            "consecutiveIndependentCorrect": 0,
+            "lastPracticedAt": "2026-03-01T12:00:00.000Z"
+          }
+        },
+        {
+          "name": "partial counts only as exposure",
+          "input": {
+            "existing": {
+              "exposureCount": 4,
+              "independentSuccessCount": 3,
+              "supportedSuccessCount": 0,
+              "consecutiveIndependentCorrect": 2,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            },
+            "correctness": "partial",
+            "supportLevel": 0,
+            "now": "2026-03-01T12:00:00.000Z"
+          },
+          "expected": {
+            "exposureCount": 5,
+            "independentSuccessCount": 3,
+            "supportedSuccessCount": 0,
+            "consecutiveIndependentCorrect": 0,
+            "lastPracticedAt": "2026-03-01T12:00:00.000Z"
+          }
+        },
+        {
+          "name": "not_applicable counts only as exposure",
+          "input": {
+            "existing": {
+              "exposureCount": 4,
+              "independentSuccessCount": 3,
+              "supportedSuccessCount": 1,
+              "consecutiveIndependentCorrect": 2,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            },
+            "correctness": "not_applicable",
+            "supportLevel": 0,
+            "now": "2026-03-01T12:00:00.000Z"
+          },
+          "expected": {
+            "exposureCount": 5,
+            "independentSuccessCount": 3,
+            "supportedSuccessCount": 1,
+            "consecutiveIndependentCorrect": 0,
+            "lastPracticedAt": "2026-03-01T12:00:00.000Z"
+          }
+        },
+        {
+          "name": "a negative support level is not a supported success",
+          "input": {
+            "existing": null,
+            "correctness": "correct",
+            "supportLevel": -1,
+            "now": "2026-03-01T12:00:00.000Z"
+          },
+          "expected": {
+            "exposureCount": 1,
+            "independentSuccessCount": 0,
+            "supportedSuccessCount": 0,
+            "consecutiveIndependentCorrect": 0,
+            "lastPracticedAt": "2026-03-01T12:00:00.000Z"
+          }
+        }
+      ]
+    },
+    "computeSkillStatus": {
+      "python": "compute_skill_status",
+      "args": [
+        "counts",
+        "prerequisitesSatisfied"
+      ],
+      "cases": [
+        {
+          "name": "no evidence, prerequisites missing: locked",
+          "input": {
+            "counts": {
+              "exposureCount": 0,
+              "independentSuccessCount": 0,
+              "supportedSuccessCount": 0,
+              "consecutiveIndependentCorrect": 0,
+              "lastPracticedAt": null
+            },
+            "prerequisitesSatisfied": false
+          },
+          "expected": "LOCKED"
+        },
+        {
+          "name": "no evidence, prerequisites met: introduced",
+          "input": {
+            "counts": {
+              "exposureCount": 0,
+              "independentSuccessCount": 0,
+              "supportedSuccessCount": 0,
+              "consecutiveIndependentCorrect": 0,
+              "lastPracticedAt": null
+            },
+            "prerequisitesSatisfied": true
+          },
+          "expected": "INTRODUCED"
+        },
+        {
+          "name": "exposure without independent success: introduced",
+          "input": {
+            "counts": {
+              "exposureCount": 4,
+              "independentSuccessCount": 0,
+              "supportedSuccessCount": 3,
+              "consecutiveIndependentCorrect": 0,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            },
+            "prerequisitesSatisfied": false
+          },
+          "expected": "INTRODUCED"
+        },
+        {
+          "name": "one independent success: developing",
+          "input": {
+            "counts": {
+              "exposureCount": 2,
+              "independentSuccessCount": 1,
+              "supportedSuccessCount": 0,
+              "consecutiveIndependentCorrect": 1,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            },
+            "prerequisitesSatisfied": true
+          },
+          "expected": "DEVELOPING"
+        },
+        {
+          "name": "proficient at exactly 3 of 5 (ratio 0.6)",
+          "input": {
+            "counts": {
+              "exposureCount": 5,
+              "independentSuccessCount": 3,
+              "supportedSuccessCount": 0,
+              "consecutiveIndependentCorrect": 1,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            },
+            "prerequisitesSatisfied": true
+          },
+          "expected": "PROFICIENT"
+        },
+        {
+          "name": "just under the proficient ratio: developing",
+          "input": {
+            "counts": {
+              "exposureCount": 6,
+              "independentSuccessCount": 3,
+              "supportedSuccessCount": 0,
+              "consecutiveIndependentCorrect": 1,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            },
+            "prerequisitesSatisfied": true
+          },
+          "expected": "DEVELOPING"
+        },
+        {
+          "name": "mastered at exactly 5 independent with a streak of 3",
+          "input": {
+            "counts": {
+              "exposureCount": 7,
+              "independentSuccessCount": 5,
+              "supportedSuccessCount": 0,
+              "consecutiveIndependentCorrect": 3,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            },
+            "prerequisitesSatisfied": true
+          },
+          "expected": "MASTERED"
+        },
+        {
+          "name": "streak of 3 without 5 independent: proficient",
+          "input": {
+            "counts": {
+              "exposureCount": 4,
+              "independentSuccessCount": 4,
+              "supportedSuccessCount": 0,
+              "consecutiveIndependentCorrect": 3,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            },
+            "prerequisitesSatisfied": true
+          },
+          "expected": "PROFICIENT"
+        },
+        {
+          "name": "5 independent with a broken streak: proficient",
+          "input": {
+            "counts": {
+              "exposureCount": 8,
+              "independentSuccessCount": 5,
+              "supportedSuccessCount": 0,
+              "consecutiveIndependentCorrect": 2,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            },
+            "prerequisitesSatisfied": true
+          },
+          "expected": "PROFICIENT"
+        },
+        {
+          "name": "inconsistent counts (more successes than exposures)",
+          "input": {
+            "counts": {
+              "exposureCount": 2,
+              "independentSuccessCount": 5,
+              "supportedSuccessCount": 0,
+              "consecutiveIndependentCorrect": 5,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            },
+            "prerequisitesSatisfied": true
+          },
+          "expected": "MASTERED"
+        }
+      ]
+    },
+    "computeErrorPattern": {
+      "python": "compute_error_pattern",
+      "args": [
+        "counts"
+      ],
+      "cases": [
+        {
+          "name": "no exposure: none",
+          "input": {
+            "counts": {
+              "exposureCount": 0,
+              "independentSuccessCount": 0,
+              "supportedSuccessCount": 0,
+              "consecutiveIndependentCorrect": 0,
+              "lastPracticedAt": null
+            }
+          },
+          "expected": "NONE"
+        },
+        {
+          "name": "stalled at 3 exposures and no independent success",
+          "input": {
+            "counts": {
+              "exposureCount": 3,
+              "independentSuccessCount": 0,
+              "supportedSuccessCount": 1,
+              "consecutiveIndependentCorrect": 0,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            }
+          },
+          "expected": "STALLED"
+        },
+        {
+          "name": "2 exposures without success is not yet stalled",
+          "input": {
+            "counts": {
+              "exposureCount": 2,
+              "independentSuccessCount": 0,
+              "supportedSuccessCount": 0,
+              "consecutiveIndependentCorrect": 0,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            }
+          },
+          "expected": "NONE"
+        },
+        {
+          "name": "needs support at exactly half supported",
+          "input": {
+            "counts": {
+              "exposureCount": 4,
+              "independentSuccessCount": 1,
+              "supportedSuccessCount": 2,
+              "consecutiveIndependentCorrect": 0,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            }
+          },
+          "expected": "NEEDS_SUPPORT"
+        },
+        {
+          "name": "under half supported, mixed: inconsistent",
+          "input": {
+            "counts": {
+              "exposureCount": 5,
+              "independentSuccessCount": 2,
+              "supportedSuccessCount": 2,
+              "consecutiveIndependentCorrect": 1,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            }
+          },
+          "expected": "INCONSISTENT"
+        },
+        {
+          "name": "only independent successes: none",
+          "input": {
+            "counts": {
+              "exposureCount": 4,
+              "independentSuccessCount": 4,
+              "supportedSuccessCount": 0,
+              "consecutiveIndependentCorrect": 4,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            }
+          },
+          "expected": "NONE"
+        },
+        {
+          "name": "a single supported exposure is under every minimum: none",
+          "input": {
+            "counts": {
+              "exposureCount": 1,
+              "independentSuccessCount": 0,
+              "supportedSuccessCount": 1,
+              "consecutiveIndependentCorrect": 0,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            }
+          },
+          "expected": "NONE"
+        },
+        {
+          "name": "stalled takes priority over needs support",
+          "input": {
+            "counts": {
+              "exposureCount": 4,
+              "independentSuccessCount": 0,
+              "supportedSuccessCount": 4,
+              "consecutiveIndependentCorrect": 0,
+              "lastPracticedAt": "2026-02-28T12:00:00.000Z"
+            }
+          },
+          "expected": "STALLED"
+        }
+      ]
+    },
+    "applyReviewDecay": {
+      "python": "apply_review_decay",
+      "args": [
+        "status",
+        "lastPracticedAt",
+        "now"
+      ],
+      "cases": [
+        {
+          "name": "mastered, practiced yesterday",
+          "input": {
+            "status": "MASTERED",
+            "lastPracticedAt": "2026-02-28T12:00:00.000Z",
+            "now": "2026-03-01T12:00:00.000Z"
+          },
+          "expected": "MASTERED"
+        },
+        {
+          "name": "mastered, exactly 21 days ago decays",
+          "input": {
+            "status": "MASTERED",
+            "lastPracticedAt": "2026-02-08T12:00:00.000Z",
+            "now": "2026-03-01T12:00:00.000Z"
+          },
+          "expected": "PROFICIENT"
+        },
+        {
+          "name": "mastered, one second under 21 days",
+          "input": {
+            "status": "MASTERED",
+            "lastPracticedAt": "2026-02-08T12:00:01.000Z",
+            "now": "2026-03-01T12:00:00.000Z"
+          },
+          "expected": "MASTERED"
+        },
+        {
+          "name": "proficient decays to developing",
+          "input": {
+            "status": "PROFICIENT",
+            "lastPracticedAt": "2026-01-01T00:00:00.000Z",
+            "now": "2026-03-01T12:00:00.000Z"
+          },
+          "expected": "DEVELOPING"
+        },
+        {
+          "name": "developing never decays",
+          "input": {
+            "status": "DEVELOPING",
+            "lastPracticedAt": "2025-01-01T00:00:00.000Z",
+            "now": "2026-03-01T12:00:00.000Z"
+          },
+          "expected": "DEVELOPING"
+        },
+        {
+          "name": "no practice date: unchanged",
+          "input": {
+            "status": "MASTERED",
+            "lastPracticedAt": null,
+            "now": "2026-03-01T12:00:00.000Z"
+          },
+          "expected": "MASTERED"
+        },
+        {
+          "name": "a practice date in the future: unchanged",
+          "input": {
+            "status": "MASTERED",
+            "lastPracticedAt": "2026-04-01T00:00:00.000Z",
+            "now": "2026-03-01T12:00:00.000Z"
+          },
+          "expected": "MASTERED"
+        }
+      ]
+    }
+  }
+}

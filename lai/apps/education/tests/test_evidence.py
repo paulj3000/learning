@@ -2,9 +2,10 @@
 
 import pytest
 
-from apps.education.models import EvidenceResult, SkillEvidence
+from apps.education.models import SkillEvidence
 from apps.education.services import NotGradedYet, record_attempt_evidence
-from apps.game_sessions.services import (
+from apps.game_sessions.models import Correctness as EvidenceResult
+from apps.game_sessions.play import (
     issue_chest_challenge,
     start_or_resume_region_session,
     submit_chest_answer,
@@ -31,15 +32,18 @@ def test_evidence_is_written_once_per_attempt(treasure):
     attempt.refresh_from_db()
     again, created = record_attempt_evidence(attempt)
     assert not created
-    assert SkillEvidence.objects.filter(attempt=attempt).count() == 1
-    assert again.learning_objective.code == "addition-within-ten"
+    assert SkillEvidence.objects.filter(challenge_attempt=attempt).count() == 1
+    assert again.learning_objective_code == "addition-within-ten"
     assert (again.evidence_type, again.result, again.support_level, again.duration_ms) == (
         "CHALLENGE",
         EvidenceResult.CORRECT,
         2,
         1500,
     )
-    assert again.session_id == attempt.session_id and again.observed_at == attempt.answered_at
+    assert (
+        again.challenge_attempt.session_id == attempt.session_id
+        and again.observed_at == attempt.answered_at
+    )
 
 
 def test_evidence_carries_no_answer_or_free_text():

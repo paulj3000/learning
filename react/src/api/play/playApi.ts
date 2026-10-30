@@ -31,14 +31,22 @@ export interface PlayApi {
   getRegion(regionId: string, signal?: AbortSignal): Promise<RegionBootstrap>;
   startSession(regionId: string, signal?: AbortSignal): Promise<Upserted<PlaySession>>;
   getSession(sessionId: string, signal?: AbortSignal): Promise<PlaySession>;
-  changeSession(sessionId: string, action: SessionAction, signal?: AbortSignal): Promise<PlaySession>;
+  changeSession(
+    sessionId: string,
+    action: SessionAction,
+    signal?: AbortSignal,
+  ): Promise<PlaySession>;
   acceptQuest(questId: string, signal?: AbortSignal): Promise<Upserted<QuestEntry>>;
   requestChestChallenge(
     sessionId: string,
     chestEntityId: string,
     signal?: AbortSignal,
   ): Promise<Upserted<IssuedChallenge>>;
-  submitAnswer(attemptId: string, submission: AnswerSubmission, signal?: AbortSignal): Promise<AnswerOutcome>;
+  submitAnswer(
+    attemptId: string,
+    submission: AnswerSubmission,
+    signal?: AbortSignal,
+  ): Promise<AnswerOutcome>;
   getProgress(signal?: AbortSignal): Promise<PlayerProgress>;
 }
 
@@ -67,10 +75,17 @@ export function createPlayApi(client: ApiClient, childId: string): PlayApi {
       get(`regions/${segment(regionId)}/`, parse.regionBootstrap, signal),
     startSession: async (regionId, signal) =>
       post(`regions/${segment(regionId)}/session/`, parse.session, {}, signal),
-    getSession: async (sessionId, signal) => get(`sessions/${segment(sessionId)}/`, parse.session, signal),
+    getSession: async (sessionId, signal) =>
+      get(`sessions/${segment(sessionId)}/`, parse.session, signal),
     async changeSession(sessionId, action, signal) {
-      if (!SESSION_ACTIONS.includes(action)) throw new ApiError('invalid_request', { code: 'unknown_action' });
-      const result = await post(`sessions/${segment(sessionId)}/${action}/`, parse.session, {}, signal);
+      if (!SESSION_ACTIONS.includes(action))
+        throw new ApiError('invalid_request', { code: 'unknown_action' });
+      const result = await post(
+        `sessions/${segment(sessionId)}/${action}/`,
+        parse.session,
+        {},
+        signal,
+      );
       return result.value;
     },
     acceptQuest: async (questId, signal) =>
@@ -90,7 +105,12 @@ export function createPlayApi(client: ApiClient, childId: string): PlayApi {
       const body: Record<string, unknown> = { answer: submission.answer };
       if (submission.hintLevel !== undefined) body.hintLevel = submission.hintLevel;
       if (submission.durationMs !== undefined) body.durationMs = submission.durationMs;
-      const result = await post(`attempts/${segment(attemptId)}/answer/`, parse.answerOutcome, body, signal);
+      const result = await post(
+        `attempts/${segment(attemptId)}/answer/`,
+        parse.answerOutcome,
+        body,
+        signal,
+      );
       return result.value;
     },
     getProgress: async (signal) => get('progress/', parse.playerProgress, signal),
@@ -118,5 +138,8 @@ export function playApiFor(childId: string, config: DjangoApiConfig = DJANGO_API
       getProgress: disabled,
     };
   }
-  return createPlayApi(createApiClient({ baseUrl: config.baseUrl, getAccessToken, provisionAccount: true }), childId);
+  return createPlayApi(
+    createApiClient({ baseUrl: config.baseUrl, getAccessToken, provisionAccount: true }),
+    childId,
+  );
 }

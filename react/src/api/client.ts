@@ -80,14 +80,21 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     try {
       return await doFetch(`${options.baseUrl}${API_PREFIX}${path}`, init);
     } catch (error) {
-      if (request.signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+      if (
+        request.signal?.aborted ||
+        (error instanceof DOMException && error.name === 'AbortError')
+      ) {
         throw new ApiError('aborted');
       }
       throw new ApiError('network');
     }
   }
 
-  async function attempt(method: HttpMethod, path: string, request: RequestOptions): Promise<ApiResponse> {
+  async function attempt(
+    method: HttpMethod,
+    path: string,
+    request: RequestOptions,
+  ): Promise<ApiResponse> {
     let response = await send(method, path, request, false);
     if (response.status === 401) response = await send(method, path, request, true);
     const data = await readJson(response, request.signal);
@@ -100,7 +107,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     provisioning ??= attempt('POST', ACCOUNT_PATH, {})
       .then(() => undefined)
       .catch((error: unknown) => {
-        if (error instanceof ApiError && (error.kind === 'unauthenticated' || error.kind === 'network')) throw error;
+        if (
+          error instanceof ApiError &&
+          (error.kind === 'unauthenticated' || error.kind === 'network')
+        )
+          throw error;
         throw new ApiError('forbidden', { status: 403, code: ACCOUNT_SETUP_FAILED });
       })
       .finally(() => {
@@ -115,7 +126,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         return await attempt(method, path, request);
       } catch (error) {
         const notProvisioned =
-          error instanceof ApiError && error.status === 403 && error.code === ACCOUNT_NOT_PROVISIONED;
+          error instanceof ApiError &&
+          error.status === 403 &&
+          error.code === ACCOUNT_NOT_PROVISIONED;
         if (!notProvisioned || !options.provisionAccount || path === ACCOUNT_PATH) throw error;
       }
       await provision();
@@ -154,12 +167,10 @@ function readDetails(value: unknown): Record<string, readonly ValidationDetail[]
   const details: Record<string, ValidationDetail[]> = {};
   for (const [field, entries] of Object.entries(value)) {
     if (!Array.isArray(entries)) continue;
-    details[field] = entries
-      .filter(isRecord)
-      .map((entry) => ({
-        message: typeof entry.message === 'string' ? entry.message : '',
-        code: typeof entry.code === 'string' ? entry.code : 'invalid',
-      }));
+    details[field] = entries.filter(isRecord).map((entry) => ({
+      message: typeof entry.message === 'string' ? entry.message : '',
+      code: typeof entry.code === 'string' ? entry.code : 'invalid',
+    }));
   }
   return details;
 }

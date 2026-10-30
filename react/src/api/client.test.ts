@@ -3,7 +3,10 @@ import { readDjangoApiConfig } from './config';
 import { ApiError } from './errors';
 import { errorJson, jsonResponse } from '../test/playFixtures';
 
-function setup(responses: Array<Response | Error | DOMException>, token: string | null = 'token-1') {
+function setup(
+  responses: Array<Response | Error | DOMException>,
+  token: string | null = 'token-1',
+) {
   const fetch = vi.fn<typeof globalThis.fetch>();
   for (const response of responses) {
     if (response instanceof Response) fetch.mockResolvedValueOnce(response);
@@ -86,7 +89,12 @@ describe('createApiClient', () => {
   ])('maps %i %s to %s', async (status, code, kind) => {
     const { client } = setup([jsonResponse(status, errorJson(code))]);
     const error = await failure(client.request('POST', 'p/'));
-    expect([error.kind, error.code, error.status, error.requestId]).toEqual([kind, code, status, 'req-12345678']);
+    expect([error.kind, error.code, error.status, error.requestId]).toEqual([
+      kind,
+      code,
+      status,
+      'req-12345678',
+    ]);
   });
 
   it('keeps validation details', async () => {
@@ -135,17 +143,30 @@ describe('readDjangoApiConfig', () => {
 
   it('accepts https anywhere and http only in dev', () => {
     const https = { VITE_BACKEND: 'django', VITE_DJANGO_API_BASE: 'https://api.lai.example/' };
-    expect(readDjangoApiConfig(https)).toEqual({ enabled: true, baseUrl: 'https://api.lai.example' });
+    expect(readDjangoApiConfig(https)).toEqual({
+      enabled: true,
+      baseUrl: 'https://api.lai.example',
+    });
     const http = { VITE_BACKEND: 'django', VITE_DJANGO_API_BASE: 'http://localhost:8000' };
     expect(readDjangoApiConfig(http)).toEqual({ enabled: false });
-    expect(readDjangoApiConfig({ ...http, DEV: true })).toEqual({ enabled: true, baseUrl: 'http://localhost:8000' });
+    expect(readDjangoApiConfig({ ...http, DEV: true })).toEqual({
+      enabled: true,
+      baseUrl: 'http://localhost:8000',
+    });
   });
 
   it('refuses a base with a path or that is not a URL', () => {
-    expect(readDjangoApiConfig({ VITE_BACKEND: 'django', VITE_DJANGO_API_BASE: 'https://x.example/api' })).toEqual({
+    expect(
+      readDjangoApiConfig({
+        VITE_BACKEND: 'django',
+        VITE_DJANGO_API_BASE: 'https://x.example/api',
+      }),
+    ).toEqual({
       enabled: false,
     });
-    expect(readDjangoApiConfig({ VITE_BACKEND: 'django', VITE_DJANGO_API_BASE: 'not a url' })).toEqual({
+    expect(
+      readDjangoApiConfig({ VITE_BACKEND: 'django', VITE_DJANGO_API_BASE: 'not a url' }),
+    ).toEqual({
       enabled: false,
     });
   });
@@ -171,7 +192,10 @@ describe('account provisioning (POST me/)', () => {
       jsonResponse(201, { id: 'parent' }),
       jsonResponse(200, { ok: true }),
     ]);
-    await expect(client.request('GET', 'children/c/progress/')).resolves.toEqual({ status: 200, data: { ok: true } });
+    await expect(client.request('GET', 'children/c/progress/')).resolves.toEqual({
+      status: 200,
+      data: { ok: true },
+    });
     expect(calls()).toEqual([
       'GET /api/v1/children/c/progress/',
       'POST /api/v1/me/',
@@ -180,13 +204,21 @@ describe('account provisioning (POST me/)', () => {
   });
 
   it('shares one setup call between requests that both found the account missing', async () => {
-    const fetch = vi.fn<typeof globalThis.fetch>(async (url, init) => {
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    fetch.mockImplementation(async (url, init) => {
       const path = String(url);
       if (path.endsWith('/me/')) return jsonResponse(201, { id: 'parent' });
       const provisioned = fetch.mock.calls.some(([u]) => String(u).endsWith('/me/'));
-      return provisioned ? jsonResponse(200, { path, method: init?.method }) : jsonResponse(403, errorJson('account_not_provisioned'));
+      return provisioned
+        ? jsonResponse(200, { path, method: init?.method })
+        : jsonResponse(403, errorJson('account_not_provisioned'));
     });
-    const client = createApiClient({ baseUrl: '', getAccessToken: async () => 'tok', fetch, provisionAccount: true });
+    const client = createApiClient({
+      baseUrl: '',
+      getAccessToken: async () => 'tok',
+      fetch,
+      provisionAccount: true,
+    });
     await Promise.all([client.request('GET', 'a/'), client.request('GET', 'b/')]);
     expect(fetch.mock.calls.filter(([u]) => String(u).endsWith('/me/'))).toHaveLength(1);
   });
@@ -219,7 +251,9 @@ describe('account provisioning (POST me/)', () => {
   });
 
   it('is off unless asked for', async () => {
-    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValueOnce(jsonResponse(403, errorJson('account_not_provisioned')));
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(jsonResponse(403, errorJson('account_not_provisioned')));
     const client = createApiClient({ baseUrl: '', getAccessToken: async () => 'tok', fetch });
     expect((await failure(client.request('GET', 'p/'))).code).toBe('account_not_provisioned');
     expect(fetch).toHaveBeenCalledTimes(1);

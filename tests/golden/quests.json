@@ -1,0 +1,1938 @@
+{
+  "schemaVersion": 1,
+  "suite": "quests",
+  "description": "Objective evaluation, quest conditions, and quest progress sync (advanceQuest).",
+  "sources": [
+    "react/src/features/quests/objectives.ts",
+    "react/src/features/quests/quest.ts"
+  ],
+  "notes": [
+    "isObjectiveComplete: DISCOVER reads discoveryKeys, which nothing fills yet (documented as dormant in quests/types.ts).",
+    "isObjectiveComplete: a COLLECT requiredCount of 0 is always met; requiredCount is not validated against the list length.",
+    "advanceQuest: newlyCompletedObjectiveIds is in first-seen order; a cycle stops at the first revisited stage without completing the quest.",
+    "Relationship levels order STRANGER < ACQUAINTANCE < FRIEND < TRUSTED_FRIEND; skill statuses order LOCKED < INTRODUCED < DEVELOPING < PROFICIENT < MASTERED."
+  ],
+  "functions": {
+    "isObjectiveComplete": {
+      "python": "is_objective_complete",
+      "args": [
+        "objective",
+        "context"
+      ],
+      "cases": [
+        {
+          "name": "talk to: remembered",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Talk",
+              "kind": "TALK_TO",
+              "npcId": "pip",
+              "memoryFlag": "met"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {
+                "pip": {
+                  "met": true
+                }
+              },
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "talk to: flag false",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Talk",
+              "kind": "TALK_TO",
+              "npcId": "pip",
+              "memoryFlag": "met"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {
+                "pip": {
+                  "met": false
+                }
+              },
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "talk to: another npc remembers",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Talk",
+              "kind": "TALK_TO",
+              "npcId": "pip",
+              "memoryFlag": "met"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {
+                "quill": {
+                  "met": true
+                }
+              },
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "help npc: remembered",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Help",
+              "kind": "HELP_NPC",
+              "npcId": "pip",
+              "memoryFlag": "helped"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {
+                "pip": {
+                  "helped": true
+                }
+              },
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "deliver: item and memory",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Deliver",
+              "kind": "DELIVER",
+              "itemId": "rope",
+              "npcId": "pip",
+              "memoryFlag": "got-rope"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [
+                "rope"
+              ],
+              "npcMemoryFlags": {
+                "pip": {
+                  "got-rope": true
+                }
+              },
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "deliver: item only",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Deliver",
+              "kind": "DELIVER",
+              "itemId": "rope",
+              "npcId": "pip",
+              "memoryFlag": "got-rope"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [
+                "rope"
+              ],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "deliver: memory only",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Deliver",
+              "kind": "DELIVER",
+              "itemId": "rope",
+              "npcId": "pip",
+              "memoryFlag": "got-rope"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {
+                "pip": {
+                  "got-rope": true
+                }
+              },
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "find: owned",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Find",
+              "kind": "FIND",
+              "itemId": "shell"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [
+                "shell"
+              ],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "craft: not owned",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Craft",
+              "kind": "CRAFT",
+              "itemId": "kite"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [
+                "shell"
+              ],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "collect: all of them by default",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Collect",
+              "kind": "COLLECT",
+              "itemIds": [
+                "a",
+                "b",
+                "c"
+              ]
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [
+                "a",
+                "b"
+              ],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "collect: required count reached",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Collect",
+              "kind": "COLLECT",
+              "itemIds": [
+                "a",
+                "b",
+                "c"
+              ],
+              "requiredCount": 2
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [
+                "c",
+                "a"
+              ],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "collect: required count zero is always met",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Collect",
+              "kind": "COLLECT",
+              "itemIds": [
+                "a"
+              ],
+              "requiredCount": 0
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "collect: owned items outside the list do not count",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Collect",
+              "kind": "COLLECT",
+              "itemIds": [
+                "a",
+                "b"
+              ],
+              "requiredCount": 2
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [
+                "a",
+                "x",
+                "y"
+              ],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "solve: adventure completed",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Solve",
+              "kind": "SOLVE",
+              "adventureSlug": "bridge"
+            },
+            "context": {
+              "completedAdventureSlugs": [
+                "bridge"
+              ],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "build: world change present",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Build",
+              "kind": "BUILD",
+              "changeKey": "bridge-fixed"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "explore: location visited",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Explore",
+              "kind": "EXPLORE",
+              "locationSlug": "forest"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [
+                "forest"
+              ],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "learn: exactly the required status",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Learn",
+              "kind": "LEARN",
+              "learningObjectiveCode": "count-10",
+              "atLeast": "DEVELOPING"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {
+                "count-10": "DEVELOPING"
+              },
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "learn: a higher status",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Learn",
+              "kind": "LEARN",
+              "learningObjectiveCode": "count-10",
+              "atLeast": "DEVELOPING"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {
+                "count-10": "MASTERED"
+              },
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "learn: a lower status",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Learn",
+              "kind": "LEARN",
+              "learningObjectiveCode": "count-10",
+              "atLeast": "PROFICIENT"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {
+                "count-10": "DEVELOPING"
+              },
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "learn: no status recorded",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Learn",
+              "kind": "LEARN",
+              "learningObjectiveCode": "count-10",
+              "atLeast": "INTRODUCED"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "discover: key present",
+          "input": {
+            "objective": {
+              "id": "o",
+              "label": "Discover",
+              "kind": "DISCOVER",
+              "discoveryKey": "fossil"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [
+                "fossil"
+              ],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        }
+      ]
+    },
+    "evaluateQuestCondition": {
+      "python": "evaluate_quest_condition",
+      "args": [
+        "condition",
+        "context",
+        "state"
+      ],
+      "cases": [
+        {
+          "name": "always",
+          "input": {
+            "condition": {
+              "type": "ALWAYS"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "quest completed: yes",
+          "input": {
+            "condition": {
+              "type": "QUEST_COMPLETED",
+              "questId": "repair"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": [
+                "repair"
+              ]
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "quest completed: no",
+          "input": {
+            "condition": {
+              "type": "QUEST_COMPLETED",
+              "questId": "repair"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "world change: present",
+          "input": {
+            "condition": {
+              "type": "WORLD_CHANGE",
+              "changeKey": "bridge-fixed"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "item owned: no",
+          "input": {
+            "condition": {
+              "type": "ITEM_OWNED",
+              "itemId": "rope"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "relationship: exactly the level",
+          "input": {
+            "condition": {
+              "type": "RELATIONSHIP_AT_LEAST",
+              "npcId": "pip",
+              "level": "FRIEND"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {
+                "pip": "FRIEND"
+              },
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "relationship: above the level",
+          "input": {
+            "condition": {
+              "type": "RELATIONSHIP_AT_LEAST",
+              "npcId": "pip",
+              "level": "ACQUAINTANCE"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {
+                "pip": "TRUSTED_FRIEND"
+              },
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "relationship: below the level",
+          "input": {
+            "condition": {
+              "type": "RELATIONSHIP_AT_LEAST",
+              "npcId": "pip",
+              "level": "FRIEND"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {
+                "pip": "ACQUAINTANCE"
+              },
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "relationship: an unknown npc is a stranger",
+          "input": {
+            "condition": {
+              "type": "RELATIONSHIP_AT_LEAST",
+              "npcId": "pip",
+              "level": "STRANGER"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "objective completed: no state yet",
+          "input": {
+            "condition": {
+              "type": "OBJECTIVE_COMPLETED",
+              "objectiveId": "o1"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "objective completed: in state",
+          "input": {
+            "condition": {
+              "type": "OBJECTIVE_COMPLETED",
+              "objectiveId": "o1"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            },
+            "state": {
+              "questId": "q",
+              "status": "ACTIVE",
+              "currentStageId": "s1",
+              "completedStageIds": [],
+              "completedObjectiveIds": [
+                "o1"
+              ],
+              "startedAt": "2026-01-01T00:00:00.000Z"
+            }
+          },
+          "expected": true
+        }
+      ]
+    },
+    "advanceQuest": {
+      "python": "advance_quest",
+      "args": [
+        "definition",
+        "state",
+        "context"
+      ],
+      "cases": [
+        {
+          "name": "nothing done yet",
+          "input": {
+            "definition": {
+              "id": "repair",
+              "title": "Repair the bridge",
+              "summary": "Fix it",
+              "ageBands": [
+                "PATHFINDER"
+              ],
+              "prerequisites": [
+                {
+                  "type": "ALWAYS"
+                }
+              ],
+              "entryStageId": "talk",
+              "stages": [
+                {
+                  "id": "talk",
+                  "title": "Talk to Pip",
+                  "objectives": [
+                    {
+                      "id": "met-pip",
+                      "label": "Meet Pip",
+                      "kind": "TALK_TO",
+                      "npcId": "pip",
+                      "memoryFlag": "met"
+                    },
+                    {
+                      "id": "see-shell",
+                      "label": "Find a shell",
+                      "kind": "FIND",
+                      "itemId": "shell",
+                      "optional": true
+                    }
+                  ],
+                  "branches": [
+                    {
+                      "conditions": [
+                        {
+                          "type": "ITEM_OWNED",
+                          "itemId": "map"
+                        }
+                      ],
+                      "nextStageId": "finish"
+                    }
+                  ],
+                  "nextStageId": "build"
+                },
+                {
+                  "id": "build",
+                  "title": "Build",
+                  "objectives": [
+                    {
+                      "id": "fixed",
+                      "label": "Fix it",
+                      "kind": "BUILD",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ],
+                  "nextStageId": "finish",
+                  "worldChanges": [
+                    {
+                      "locationSlug": "bay",
+                      "changeType": "REPAIR",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ]
+                },
+                {
+                  "id": "finish",
+                  "title": "Finish",
+                  "objectives": [
+                    {
+                      "id": "solved",
+                      "label": "Solve",
+                      "kind": "SOLVE",
+                      "adventureSlug": "bridge"
+                    }
+                  ]
+                }
+              ],
+              "completion": {
+                "journalNote": "Done",
+                "worldChanges": [
+                  {
+                    "locationSlug": "bay",
+                    "changeType": "CELEBRATE",
+                    "changeKey": "flags-up"
+                  }
+                ]
+              }
+            },
+            "state": {
+              "questId": "repair",
+              "status": "ACTIVE",
+              "currentStageId": "talk",
+              "completedStageIds": [],
+              "completedObjectiveIds": [],
+              "startedAt": "2026-01-01T00:00:00.000Z"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": {
+            "state": {
+              "questId": "repair",
+              "status": "ACTIVE",
+              "currentStageId": "talk",
+              "completedStageIds": [],
+              "completedObjectiveIds": [],
+              "startedAt": "2026-01-01T00:00:00.000Z"
+            },
+            "changed": false,
+            "newlyCompletedStageIds": [],
+            "newlyCompletedObjectiveIds": [],
+            "worldChanges": [],
+            "justCompleted": false
+          }
+        },
+        {
+          "name": "only the optional objective done",
+          "input": {
+            "definition": {
+              "id": "repair",
+              "title": "Repair the bridge",
+              "summary": "Fix it",
+              "ageBands": [
+                "PATHFINDER"
+              ],
+              "prerequisites": [
+                {
+                  "type": "ALWAYS"
+                }
+              ],
+              "entryStageId": "talk",
+              "stages": [
+                {
+                  "id": "talk",
+                  "title": "Talk to Pip",
+                  "objectives": [
+                    {
+                      "id": "met-pip",
+                      "label": "Meet Pip",
+                      "kind": "TALK_TO",
+                      "npcId": "pip",
+                      "memoryFlag": "met"
+                    },
+                    {
+                      "id": "see-shell",
+                      "label": "Find a shell",
+                      "kind": "FIND",
+                      "itemId": "shell",
+                      "optional": true
+                    }
+                  ],
+                  "branches": [
+                    {
+                      "conditions": [
+                        {
+                          "type": "ITEM_OWNED",
+                          "itemId": "map"
+                        }
+                      ],
+                      "nextStageId": "finish"
+                    }
+                  ],
+                  "nextStageId": "build"
+                },
+                {
+                  "id": "build",
+                  "title": "Build",
+                  "objectives": [
+                    {
+                      "id": "fixed",
+                      "label": "Fix it",
+                      "kind": "BUILD",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ],
+                  "nextStageId": "finish",
+                  "worldChanges": [
+                    {
+                      "locationSlug": "bay",
+                      "changeType": "REPAIR",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ]
+                },
+                {
+                  "id": "finish",
+                  "title": "Finish",
+                  "objectives": [
+                    {
+                      "id": "solved",
+                      "label": "Solve",
+                      "kind": "SOLVE",
+                      "adventureSlug": "bridge"
+                    }
+                  ]
+                }
+              ],
+              "completion": {
+                "journalNote": "Done",
+                "worldChanges": [
+                  {
+                    "locationSlug": "bay",
+                    "changeType": "CELEBRATE",
+                    "changeKey": "flags-up"
+                  }
+                ]
+              }
+            },
+            "state": {
+              "questId": "repair",
+              "status": "ACTIVE",
+              "currentStageId": "talk",
+              "completedStageIds": [],
+              "completedObjectiveIds": [],
+              "startedAt": "2026-01-01T00:00:00.000Z"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [
+                "shell"
+              ],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": {
+            "state": {
+              "questId": "repair",
+              "status": "ACTIVE",
+              "currentStageId": "talk",
+              "completedStageIds": [],
+              "completedObjectiveIds": [
+                "see-shell"
+              ],
+              "startedAt": "2026-01-01T00:00:00.000Z"
+            },
+            "changed": true,
+            "newlyCompletedStageIds": [],
+            "newlyCompletedObjectiveIds": [
+              "see-shell"
+            ],
+            "worldChanges": [],
+            "justCompleted": false
+          }
+        },
+        {
+          "name": "first stage done, waits on the second",
+          "input": {
+            "definition": {
+              "id": "repair",
+              "title": "Repair the bridge",
+              "summary": "Fix it",
+              "ageBands": [
+                "PATHFINDER"
+              ],
+              "prerequisites": [
+                {
+                  "type": "ALWAYS"
+                }
+              ],
+              "entryStageId": "talk",
+              "stages": [
+                {
+                  "id": "talk",
+                  "title": "Talk to Pip",
+                  "objectives": [
+                    {
+                      "id": "met-pip",
+                      "label": "Meet Pip",
+                      "kind": "TALK_TO",
+                      "npcId": "pip",
+                      "memoryFlag": "met"
+                    },
+                    {
+                      "id": "see-shell",
+                      "label": "Find a shell",
+                      "kind": "FIND",
+                      "itemId": "shell",
+                      "optional": true
+                    }
+                  ],
+                  "branches": [
+                    {
+                      "conditions": [
+                        {
+                          "type": "ITEM_OWNED",
+                          "itemId": "map"
+                        }
+                      ],
+                      "nextStageId": "finish"
+                    }
+                  ],
+                  "nextStageId": "build"
+                },
+                {
+                  "id": "build",
+                  "title": "Build",
+                  "objectives": [
+                    {
+                      "id": "fixed",
+                      "label": "Fix it",
+                      "kind": "BUILD",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ],
+                  "nextStageId": "finish",
+                  "worldChanges": [
+                    {
+                      "locationSlug": "bay",
+                      "changeType": "REPAIR",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ]
+                },
+                {
+                  "id": "finish",
+                  "title": "Finish",
+                  "objectives": [
+                    {
+                      "id": "solved",
+                      "label": "Solve",
+                      "kind": "SOLVE",
+                      "adventureSlug": "bridge"
+                    }
+                  ]
+                }
+              ],
+              "completion": {
+                "journalNote": "Done",
+                "worldChanges": [
+                  {
+                    "locationSlug": "bay",
+                    "changeType": "CELEBRATE",
+                    "changeKey": "flags-up"
+                  }
+                ]
+              }
+            },
+            "state": {
+              "questId": "repair",
+              "status": "ACTIVE",
+              "currentStageId": "talk",
+              "completedStageIds": [],
+              "completedObjectiveIds": [],
+              "startedAt": "2026-01-01T00:00:00.000Z"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {
+                "pip": {
+                  "met": true
+                }
+              },
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": {
+            "state": {
+              "questId": "repair",
+              "status": "ACTIVE",
+              "currentStageId": "build",
+              "completedStageIds": [
+                "talk"
+              ],
+              "completedObjectiveIds": [
+                "met-pip"
+              ],
+              "startedAt": "2026-01-01T00:00:00.000Z"
+            },
+            "changed": true,
+            "newlyCompletedStageIds": [
+              "talk"
+            ],
+            "newlyCompletedObjectiveIds": [
+              "met-pip"
+            ],
+            "worldChanges": [],
+            "justCompleted": false
+          }
+        },
+        {
+          "name": "walks every stage in one call and completes",
+          "input": {
+            "definition": {
+              "id": "repair",
+              "title": "Repair the bridge",
+              "summary": "Fix it",
+              "ageBands": [
+                "PATHFINDER"
+              ],
+              "prerequisites": [
+                {
+                  "type": "ALWAYS"
+                }
+              ],
+              "entryStageId": "talk",
+              "stages": [
+                {
+                  "id": "talk",
+                  "title": "Talk to Pip",
+                  "objectives": [
+                    {
+                      "id": "met-pip",
+                      "label": "Meet Pip",
+                      "kind": "TALK_TO",
+                      "npcId": "pip",
+                      "memoryFlag": "met"
+                    },
+                    {
+                      "id": "see-shell",
+                      "label": "Find a shell",
+                      "kind": "FIND",
+                      "itemId": "shell",
+                      "optional": true
+                    }
+                  ],
+                  "branches": [
+                    {
+                      "conditions": [
+                        {
+                          "type": "ITEM_OWNED",
+                          "itemId": "map"
+                        }
+                      ],
+                      "nextStageId": "finish"
+                    }
+                  ],
+                  "nextStageId": "build"
+                },
+                {
+                  "id": "build",
+                  "title": "Build",
+                  "objectives": [
+                    {
+                      "id": "fixed",
+                      "label": "Fix it",
+                      "kind": "BUILD",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ],
+                  "nextStageId": "finish",
+                  "worldChanges": [
+                    {
+                      "locationSlug": "bay",
+                      "changeType": "REPAIR",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ]
+                },
+                {
+                  "id": "finish",
+                  "title": "Finish",
+                  "objectives": [
+                    {
+                      "id": "solved",
+                      "label": "Solve",
+                      "kind": "SOLVE",
+                      "adventureSlug": "bridge"
+                    }
+                  ]
+                }
+              ],
+              "completion": {
+                "journalNote": "Done",
+                "worldChanges": [
+                  {
+                    "locationSlug": "bay",
+                    "changeType": "CELEBRATE",
+                    "changeKey": "flags-up"
+                  }
+                ]
+              }
+            },
+            "state": {
+              "questId": "repair",
+              "status": "ACTIVE",
+              "currentStageId": "talk",
+              "completedStageIds": [],
+              "completedObjectiveIds": [],
+              "startedAt": "2026-01-01T00:00:00.000Z"
+            },
+            "context": {
+              "completedAdventureSlugs": [
+                "bridge"
+              ],
+              "worldChangeKeys": [
+                "bridge-fixed"
+              ],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {
+                "pip": {
+                  "met": true
+                }
+              },
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": {
+            "state": {
+              "questId": "repair",
+              "status": "COMPLETED",
+              "currentStageId": "finish",
+              "completedStageIds": [
+                "talk",
+                "build",
+                "finish"
+              ],
+              "completedObjectiveIds": [
+                "met-pip",
+                "fixed",
+                "solved"
+              ],
+              "startedAt": "2026-01-01T00:00:00.000Z"
+            },
+            "changed": true,
+            "newlyCompletedStageIds": [
+              "talk",
+              "build",
+              "finish"
+            ],
+            "newlyCompletedObjectiveIds": [
+              "met-pip",
+              "fixed",
+              "solved"
+            ],
+            "worldChanges": [
+              {
+                "locationSlug": "bay",
+                "changeType": "REPAIR",
+                "changeKey": "bridge-fixed"
+              },
+              {
+                "locationSlug": "bay",
+                "changeType": "CELEBRATE",
+                "changeKey": "flags-up"
+              }
+            ],
+            "justCompleted": true
+          }
+        },
+        {
+          "name": "a branch skips the build stage",
+          "input": {
+            "definition": {
+              "id": "repair",
+              "title": "Repair the bridge",
+              "summary": "Fix it",
+              "ageBands": [
+                "PATHFINDER"
+              ],
+              "prerequisites": [
+                {
+                  "type": "ALWAYS"
+                }
+              ],
+              "entryStageId": "talk",
+              "stages": [
+                {
+                  "id": "talk",
+                  "title": "Talk to Pip",
+                  "objectives": [
+                    {
+                      "id": "met-pip",
+                      "label": "Meet Pip",
+                      "kind": "TALK_TO",
+                      "npcId": "pip",
+                      "memoryFlag": "met"
+                    },
+                    {
+                      "id": "see-shell",
+                      "label": "Find a shell",
+                      "kind": "FIND",
+                      "itemId": "shell",
+                      "optional": true
+                    }
+                  ],
+                  "branches": [
+                    {
+                      "conditions": [
+                        {
+                          "type": "ITEM_OWNED",
+                          "itemId": "map"
+                        }
+                      ],
+                      "nextStageId": "finish"
+                    }
+                  ],
+                  "nextStageId": "build"
+                },
+                {
+                  "id": "build",
+                  "title": "Build",
+                  "objectives": [
+                    {
+                      "id": "fixed",
+                      "label": "Fix it",
+                      "kind": "BUILD",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ],
+                  "nextStageId": "finish",
+                  "worldChanges": [
+                    {
+                      "locationSlug": "bay",
+                      "changeType": "REPAIR",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ]
+                },
+                {
+                  "id": "finish",
+                  "title": "Finish",
+                  "objectives": [
+                    {
+                      "id": "solved",
+                      "label": "Solve",
+                      "kind": "SOLVE",
+                      "adventureSlug": "bridge"
+                    }
+                  ]
+                }
+              ],
+              "completion": {
+                "journalNote": "Done",
+                "worldChanges": [
+                  {
+                    "locationSlug": "bay",
+                    "changeType": "CELEBRATE",
+                    "changeKey": "flags-up"
+                  }
+                ]
+              }
+            },
+            "state": {
+              "questId": "repair",
+              "status": "ACTIVE",
+              "currentStageId": "talk",
+              "completedStageIds": [],
+              "completedObjectiveIds": [],
+              "startedAt": "2026-01-01T00:00:00.000Z"
+            },
+            "context": {
+              "completedAdventureSlugs": [
+                "bridge"
+              ],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [
+                "map"
+              ],
+              "npcMemoryFlags": {
+                "pip": {
+                  "met": true
+                }
+              },
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": {
+            "state": {
+              "questId": "repair",
+              "status": "COMPLETED",
+              "currentStageId": "finish",
+              "completedStageIds": [
+                "talk",
+                "finish"
+              ],
+              "completedObjectiveIds": [
+                "met-pip",
+                "solved"
+              ],
+              "startedAt": "2026-01-01T00:00:00.000Z"
+            },
+            "changed": true,
+            "newlyCompletedStageIds": [
+              "talk",
+              "finish"
+            ],
+            "newlyCompletedObjectiveIds": [
+              "met-pip",
+              "solved"
+            ],
+            "worldChanges": [
+              {
+                "locationSlug": "bay",
+                "changeType": "CELEBRATE",
+                "changeKey": "flags-up"
+              }
+            ],
+            "justCompleted": true
+          }
+        },
+        {
+          "name": "a completed quest never changes",
+          "input": {
+            "definition": {
+              "id": "repair",
+              "title": "Repair the bridge",
+              "summary": "Fix it",
+              "ageBands": [
+                "PATHFINDER"
+              ],
+              "prerequisites": [
+                {
+                  "type": "ALWAYS"
+                }
+              ],
+              "entryStageId": "talk",
+              "stages": [
+                {
+                  "id": "talk",
+                  "title": "Talk to Pip",
+                  "objectives": [
+                    {
+                      "id": "met-pip",
+                      "label": "Meet Pip",
+                      "kind": "TALK_TO",
+                      "npcId": "pip",
+                      "memoryFlag": "met"
+                    },
+                    {
+                      "id": "see-shell",
+                      "label": "Find a shell",
+                      "kind": "FIND",
+                      "itemId": "shell",
+                      "optional": true
+                    }
+                  ],
+                  "branches": [
+                    {
+                      "conditions": [
+                        {
+                          "type": "ITEM_OWNED",
+                          "itemId": "map"
+                        }
+                      ],
+                      "nextStageId": "finish"
+                    }
+                  ],
+                  "nextStageId": "build"
+                },
+                {
+                  "id": "build",
+                  "title": "Build",
+                  "objectives": [
+                    {
+                      "id": "fixed",
+                      "label": "Fix it",
+                      "kind": "BUILD",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ],
+                  "nextStageId": "finish",
+                  "worldChanges": [
+                    {
+                      "locationSlug": "bay",
+                      "changeType": "REPAIR",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ]
+                },
+                {
+                  "id": "finish",
+                  "title": "Finish",
+                  "objectives": [
+                    {
+                      "id": "solved",
+                      "label": "Solve",
+                      "kind": "SOLVE",
+                      "adventureSlug": "bridge"
+                    }
+                  ]
+                }
+              ],
+              "completion": {
+                "journalNote": "Done",
+                "worldChanges": [
+                  {
+                    "locationSlug": "bay",
+                    "changeType": "CELEBRATE",
+                    "changeKey": "flags-up"
+                  }
+                ]
+              }
+            },
+            "state": {
+              "questId": "repair",
+              "status": "COMPLETED",
+              "currentStageId": "finish",
+              "completedStageIds": [],
+              "completedObjectiveIds": [],
+              "startedAt": "2026-01-01T00:00:00.000Z"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {
+                "pip": {
+                  "met": true
+                }
+              },
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": {
+            "state": {
+              "questId": "repair",
+              "status": "COMPLETED",
+              "currentStageId": "finish",
+              "completedStageIds": [],
+              "completedObjectiveIds": [],
+              "startedAt": "2026-01-01T00:00:00.000Z"
+            },
+            "changed": false,
+            "newlyCompletedStageIds": [],
+            "newlyCompletedObjectiveIds": [],
+            "worldChanges": [],
+            "justCompleted": false
+          }
+        },
+        {
+          "name": "an unknown current stage leaves the quest intact",
+          "input": {
+            "definition": {
+              "id": "repair",
+              "title": "Repair the bridge",
+              "summary": "Fix it",
+              "ageBands": [
+                "PATHFINDER"
+              ],
+              "prerequisites": [
+                {
+                  "type": "ALWAYS"
+                }
+              ],
+              "entryStageId": "talk",
+              "stages": [
+                {
+                  "id": "talk",
+                  "title": "Talk to Pip",
+                  "objectives": [
+                    {
+                      "id": "met-pip",
+                      "label": "Meet Pip",
+                      "kind": "TALK_TO",
+                      "npcId": "pip",
+                      "memoryFlag": "met"
+                    },
+                    {
+                      "id": "see-shell",
+                      "label": "Find a shell",
+                      "kind": "FIND",
+                      "itemId": "shell",
+                      "optional": true
+                    }
+                  ],
+                  "branches": [
+                    {
+                      "conditions": [
+                        {
+                          "type": "ITEM_OWNED",
+                          "itemId": "map"
+                        }
+                      ],
+                      "nextStageId": "finish"
+                    }
+                  ],
+                  "nextStageId": "build"
+                },
+                {
+                  "id": "build",
+                  "title": "Build",
+                  "objectives": [
+                    {
+                      "id": "fixed",
+                      "label": "Fix it",
+                      "kind": "BUILD",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ],
+                  "nextStageId": "finish",
+                  "worldChanges": [
+                    {
+                      "locationSlug": "bay",
+                      "changeType": "REPAIR",
+                      "changeKey": "bridge-fixed"
+                    }
+                  ]
+                },
+                {
+                  "id": "finish",
+                  "title": "Finish",
+                  "objectives": [
+                    {
+                      "id": "solved",
+                      "label": "Solve",
+                      "kind": "SOLVE",
+                      "adventureSlug": "bridge"
+                    }
+                  ]
+                }
+              ],
+              "completion": {
+                "journalNote": "Done",
+                "worldChanges": [
+                  {
+                    "locationSlug": "bay",
+                    "changeType": "CELEBRATE",
+                    "changeKey": "flags-up"
+                  }
+                ]
+              }
+            },
+            "state": {
+              "questId": "repair",
+              "status": "ACTIVE",
+              "currentStageId": "missing",
+              "completedStageIds": [],
+              "completedObjectiveIds": [],
+              "startedAt": "2026-01-01T00:00:00.000Z"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": {
+            "state": {
+              "questId": "repair",
+              "status": "ACTIVE",
+              "currentStageId": "missing",
+              "completedStageIds": [],
+              "completedObjectiveIds": [],
+              "startedAt": "2026-01-01T00:00:00.000Z"
+            },
+            "changed": false,
+            "newlyCompletedStageIds": [],
+            "newlyCompletedObjectiveIds": [],
+            "worldChanges": [],
+            "justCompleted": false
+          }
+        },
+        {
+          "name": "an authored cycle stops instead of spinning",
+          "input": {
+            "definition": {
+              "id": "cycle",
+              "title": "Repair the bridge",
+              "summary": "Fix it",
+              "ageBands": [
+                "PATHFINDER"
+              ],
+              "prerequisites": [
+                {
+                  "type": "ALWAYS"
+                }
+              ],
+              "entryStageId": "a",
+              "stages": [
+                {
+                  "id": "a",
+                  "title": "A",
+                  "objectives": [],
+                  "nextStageId": "b"
+                },
+                {
+                  "id": "b",
+                  "title": "B",
+                  "objectives": [],
+                  "nextStageId": "a"
+                }
+              ],
+              "completion": {
+                "journalNote": "Done",
+                "worldChanges": [
+                  {
+                    "locationSlug": "bay",
+                    "changeType": "CELEBRATE",
+                    "changeKey": "flags-up"
+                  }
+                ]
+              }
+            },
+            "state": {
+              "questId": "cycle",
+              "status": "ACTIVE",
+              "currentStageId": "a",
+              "completedStageIds": [],
+              "completedObjectiveIds": [],
+              "startedAt": "2026-01-01T00:00:00.000Z"
+            },
+            "context": {
+              "completedAdventureSlugs": [],
+              "worldChangeKeys": [],
+              "visitedLocationSlugs": [],
+              "ownedItemIds": [],
+              "npcMemoryFlags": {},
+              "relationshipLevels": {},
+              "skillStatuses": {},
+              "discoveryKeys": [],
+              "completedQuestIds": []
+            }
+          },
+          "expected": {
+            "state": {
+              "questId": "cycle",
+              "status": "ACTIVE",
+              "currentStageId": "a",
+              "completedStageIds": [
+                "a",
+                "b"
+              ],
+              "completedObjectiveIds": [],
+              "startedAt": "2026-01-01T00:00:00.000Z"
+            },
+            "changed": true,
+            "newlyCompletedStageIds": [
+              "a",
+              "b"
+            ],
+            "newlyCompletedObjectiveIds": [],
+            "worldChanges": [],
+            "justCompleted": false
+          }
+        }
+      ]
+    }
+  }
+}

@@ -11,6 +11,8 @@ DEBUG = env_bool("DJANGO_DEBUG", True)
 LOG_RAW_EXCEPTIONS = env_bool("LAI_LOG_RAW_EXCEPTIONS", False)
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "local-development-only-not-a-secret")  # noqa: S105
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,[::1]")
+# runserver is plain HTTP; an emulator WebView would never send a Secure cookie back (ADR-036).
+LAI_GAME_COOKIE_SECURE = env_bool("LAI_GAME_COOKIE_SECURE", False)
 
 # DATABASE_URL wins; otherwise the docker-compose PostgreSQL on loopback (`make up`).
 DATABASES = {

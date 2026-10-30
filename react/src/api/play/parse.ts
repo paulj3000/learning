@@ -191,7 +191,9 @@ export function answerOutcome(r: Reader): AnswerOutcome {
       status: update.field('status').oneOf(QUEST_STATUSES),
       currentStageId: update.field('currentStageId').string(),
       justCompleted: update.field('justCompleted').boolean(),
-      newlyCompletedObjectiveIds: update.field('newlyCompletedObjectiveIds').array((v) => v.string()),
+      newlyCompletedObjectiveIds: update
+        .field('newlyCompletedObjectiveIds')
+        .array((v) => v.string()),
     })),
   };
 }

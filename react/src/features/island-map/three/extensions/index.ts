@@ -1,15 +1,10 @@
 import { createWorldExtensionRegistry } from '../runtime/extensionRegistry';
-import { createViewExtensionRegistry } from '../runtime/viewExtensionRegistry';
 import { tideTrialSceneExtension } from './tideTrial/tideTrialScene';
-import { tideTrialViewExtension } from './tideTrial/tideTrialViewExtension';
 import { clockworkMachineryExtension } from './clockworkMachinery/clockworkMachineryScene';
-import { adaptiveAdventureEntranceViewExtension } from './adaptiveAdventureEntrance/adaptiveAdventureEntranceViewExtension';
 import { sanctuaryArtExtension } from './sanctuaryArt/sanctuaryArtScene';
 import { castleTaleExtension } from './castleTale/castleTaleScene';
-import { castleTaleViewExtension } from './castleTale/castleTaleViewExtension';
-import { multiplayerPresenceViewExtension } from './multiplayerPresence/multiplayerPresenceViewExtension';
 import { regionPlaySceneExtension } from './regionPlay/regionPlayScene';
-import { regionPlayViewExtension } from './regionPlay/regionPlayViewExtension';
+import { VIEW_EXTENSION_IDS } from './viewExtensionIds';
 
 /**
  * Every bespoke world mechanic the app ships (ADR-032). A manifest names an
@@ -40,15 +35,7 @@ export const SOURCE_WORLD_EXTENSIONS = createWorldExtensionRegistry([
   regionPlaySceneExtension,
 ]);
 
-export const SOURCE_VIEW_EXTENSIONS = createViewExtensionRegistry([
-  tideTrialViewExtension,
-  adaptiveAdventureEntranceViewExtension,
-  castleTaleViewExtension,
-  multiplayerPresenceViewExtension,
-  regionPlayViewExtension,
-]);
-
 /** Every extension id with a scene half, a React half, or both. */
 export const SOURCE_EXTENSION_IDS: readonly string[] = [
-  ...new Set([...SOURCE_WORLD_EXTENSIONS.ids(), ...SOURCE_VIEW_EXTENSIONS.ids()]),
+  ...new Set([...SOURCE_WORLD_EXTENSIONS.ids(), ...VIEW_EXTENSION_IDS]),
 ];

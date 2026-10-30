@@ -7,7 +7,7 @@ import pytest
 from django.conf import settings
 from django.core.exceptions import ValidationError
 
-from apps.core.catalog import AssetKind, AssetRefValidator, validate_asset_ref
+from apps.catalog.asset_refs import AssetKind, AssetRefValidator, validate_asset_ref
 from apps.core.content_schema import (
     ContentSchemaError,
     UnsupportedKeyword,
@@ -78,12 +78,22 @@ def test_an_unsupported_keyword_fails_loudly():
         validate_file("islands.json", exported("islands.json"), schema)
 
 
-def test_known_asset_ids_of_the_right_kind_pass():
+@pytest.fixture
+def asset_catalog(db):
+    """Asset references are checked against the canonical asset catalog (`ContentAsset`)."""
+    from apps.catalog.importer import import_content
+
+    import_content()
+
+
+@pytest.mark.postgres
+def test_known_asset_ids_of_the_right_kind_pass(asset_catalog):
     validate_asset_ref("treasure-chest", AssetKind.PROP)
     validate_asset_ref("")  # empty means placeholder
 
 
-def test_unknown_or_wrong_kind_asset_ids_are_rejected():
+@pytest.mark.postgres
+def test_unknown_or_wrong_kind_asset_ids_are_rejected(asset_catalog):
     with pytest.raises(ValidationError) as unknown:
         validate_asset_ref("https://bucket.s3.amazonaws.com/chest.glb", AssetKind.PROP)
     assert unknown.value.code == "asset_unknown"

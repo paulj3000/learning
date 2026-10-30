@@ -1,43 +1,46 @@
-"""Learning objectives and math challenge slots (LAI-0304, TR-2); skill evidence (TR-4)."""
+"""Skill evidence, skill progress and story artifacts (LAI-0305).
 
-import uuid
+Mirrors Amplify `SkillEvidence`, `SkillProgress` and `StoryArtifact`. Learning objectives are
+referenced by their stable `code` until a `LearningObjective` catalog model exists (proposed
+LAI-0309). The counter arithmetic is not ported here: LAI-0603 ports `nextSkillProgressCounts`
+against the golden vectors. The constraints below only reject impossible counters.
+
+Evidence comes from an adventure session, from story play (Amplify writes the latter as
+`story:<storyProgressId>`), or from a Treasure Rush challenge attempt, so it has one foreign key
+for each and exactly one must be set. `ChallengeSpec` (a seed-authored challenge slot) also
+lives here, from Treasure Rush.
+"""
 
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.utils.timezone import now
+from django.db.models import F, Q
 
-from apps.core.catalog import ContentStatus
-from apps.core.child_owned import ChildOwnedModel
+from apps.core.content_status import ContentStatus
+from apps.core.models import ChildOwnedModel
+from apps.game_sessions.models import Correctness
 from apps.users.models import AgeBand
 
 from .challenges import SKILL_RULES, ChallengeParameters, ResponseMode, validate_parameters
 
 
-class LearningDomain(models.TextChoices):
-    LITERACY = "literacy"
-    NUMERACY = "numeracy"
-    SCIENCE = "science"
-    CREATIVITY = "creativity"
-    SOCIAL_EMOTIONAL = "social-emotional"
-    EXECUTIVE_FUNCTION = "executive-function"
+class SkillStatus(models.TextChoices):
+    LOCKED = "LOCKED"
+    INTRODUCED = "INTRODUCED"
+    DEVELOPING = "DEVELOPING"
+    PROFICIENT = "PROFICIENT"
+    MASTERED = "MASTERED"
 
 
-class LearningObjective(models.Model):
-    """A learning objective adventure steps cite by `code` (`objectiveIds`)."""
-
-    code = models.SlugField(max_length=80, unique=True)
-    domain = models.CharField(max_length=40, choices=LearningDomain.choices)
-    title = models.CharField(max_length=200)
-
-    class Meta:
-        ordering = ["code"]
-
-    def __str__(self) -> str:
-        return self.code
+class ErrorPattern(models.TextChoices):
+    NONE = "NONE"
+    NEEDS_SUPPORT = "NEEDS_SUPPORT"
+    INCONSISTENT = "INCONSISTENT"
+    STALLED = "STALLED"
 
 
 class ChallengeSpec(models.Model):
-    """One challenge slot: TR-1 `ChallengeParameters` for one age band.
+    """One challenge slot: TR-1 `ChallengeParameters` for one age band (seed-authored, like
+    the region rows that use it; LAI-0805 decides how such config is authored later).
 
     Every save is checked with `validate_parameters`, so a row can never hold parameters the
     generator would refuse. The seed is not stored here: the server picks one per attempt.
@@ -92,69 +95,106 @@ class ChallengeSpec(models.Model):
         super().save(*args, **kwargs)
 
 
-class EvidenceResult(models.TextChoices):
-    """The Amplify `Correctness` enum."""
-
-    CORRECT = "CORRECT"
-    INCORRECT = "INCORRECT"
-    PARTIAL = "PARTIAL"
-    NOT_APPLICABLE = "NOT_APPLICABLE"
-
-
 class SkillEvidence(ChildOwnedModel):
-    """One observation of a child practising a learning objective (the Amplify `SkillEvidence`).
+    CHILD_LINKS = ("adventure_session", "story_progress", "challenge_attempt")
 
-    Append-only raw evidence; `SkillProgress` (the Mastery Engine's derived counters) is computed
-    from it and is not ported yet. `attempt` is unique, so a challenge attempt yields at most one
-    piece of evidence however often the write is retried, which closes, for this path, the
-    "no natural collision key" gap ADR-015 recorded for evidence writes.
-    """
-
-    CHILD_LINKS = ("session", "attempt")
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    child = models.ForeignKey(
-        "users.ChildProfile", on_delete=models.CASCADE, related_name="skill_evidence"
-    )
-    session = models.ForeignKey(
+    adventure_session = models.ForeignKey(
         "game_sessions.AdventureSession",
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
-        on_delete=models.SET_NULL,
-        related_name="skill_evidence",
+        related_name="+",
     )
-    attempt = models.OneToOneField(
-        "game_sessions.ChallengeAttempt",
+    story_progress = models.ForeignKey(
+        "progression.StoryProgress",
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
-        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    challenge_attempt = models.OneToOneField(
+        "game_sessions.ChallengeAttempt",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name="evidence",
     )
-    learning_objective = models.ForeignKey(
-        LearningObjective, on_delete=models.PROTECT, related_name="evidence"
-    )
-    evidence_type = models.CharField(max_length=40)
-    result = models.CharField(max_length=16, choices=EvidenceResult.choices)
-    # As in Amplify: the hint level the child used; 0 means unsupported.
-    support_level = models.PositiveSmallIntegerField(default=0)
+    learning_objective_code = models.CharField(max_length=100)
+    evidence_type = models.CharField(max_length=32)
     difficulty = models.PositiveSmallIntegerField(null=True, blank=True)
+    result = models.CharField(max_length=16, choices=Correctness.choices)
+    support_level = models.PositiveSmallIntegerField()
     duration_ms = models.PositiveIntegerField(null=True, blank=True)
-    observed_at = models.DateTimeField(default=now)
+    observed_at = models.DateTimeField()
 
     class Meta:
-        ordering = ["observed_at"]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(result__in=EvidenceResult.values),
-                name="education_evidence_result_valid",
-            )
+                condition=Q(
+                    adventure_session__isnull=False,
+                    story_progress__isnull=True,
+                    challenge_attempt__isnull=True,
+                )
+                | Q(
+                    adventure_session__isnull=True,
+                    story_progress__isnull=False,
+                    challenge_attempt__isnull=True,
+                )
+                | Q(
+                    adventure_session__isnull=True,
+                    story_progress__isnull=True,
+                    challenge_attempt__isnull=False,
+                ),
+                name="evidence_exactly_one_source",
+            ),
         ]
         indexes = [
             models.Index(
-                fields=["child", "learning_objective", "observed_at"],
-                name="education_evidence_child_lo",
-            )
+                fields=["child", "learning_objective_code", "observed_at"],
+                name="evidence_child_skill",
+            ),
         ]
 
-    def __str__(self) -> str:
-        return str(self.id)
+
+class SkillProgress(ChildOwnedModel):
+    learning_objective_code = models.CharField(max_length=100)
+    exposure_count = models.PositiveIntegerField(default=0)
+    independent_success_count = models.PositiveIntegerField(default=0)
+    supported_success_count = models.PositiveIntegerField(default=0)
+    consecutive_independent_correct = models.PositiveIntegerField(default=0)
+    recent_level = models.CharField(max_length=16, choices=SkillStatus.choices, blank=True)
+    error_pattern = models.CharField(max_length=16, choices=ErrorPattern.choices, blank=True)
+    last_practiced_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["child", "learning_objective_code"], name="skill_progress_once"
+            ),
+            # Every success is an exposure, and a streak is made of independent successes.
+            models.CheckConstraint(
+                condition=Q(
+                    exposure_count__gte=F("independent_success_count")
+                    + F("supported_success_count")
+                ),
+                name="skill_progress_successes_within_exposures",
+            ),
+            models.CheckConstraint(
+                condition=Q(independent_success_count__gte=F("consecutive_independent_correct")),
+                name="skill_progress_streak_within_successes",
+            ),
+        ]
+
+
+class StoryArtifact(ChildOwnedModel):
+    """A story the child made. Parent-viewable and parent-deletable (LAI-0607)."""
+
+    adventure_session = models.ForeignKey(
+        "game_sessions.AdventureSession",
+        on_delete=models.CASCADE,
+        related_name="+",
+        help_text="The session it was made in; the adventure is the session's.",
+    )
+    title = models.CharField(max_length=200)
+    scenes = models.JSONField()
+    created_at = models.DateTimeField()

@@ -81,21 +81,37 @@ def test_cognito_sub_is_immutable(parent_a):
     assert ParentAccount.objects.get(pk=parent_a.pk).cognito_sub == SUB_A
 
 
-def test_there_is_no_local_login_or_email(parent_a):
+def test_parents_have_no_local_login_email_or_admin_rights(parent_a):
     assert not parent_a.has_usable_password() or parent_a.password == ""
+    assert not parent_a.is_staff and not parent_a.is_superuser and parent_a.admin_username is None
+    assert not parent_a.has_perm("catalog.view_world") and not parent_a.has_module_perms("catalog")
     field_names = {f.name for f in ParentAccount._meta.get_fields()}
-    assert "email" not in field_names and "is_superuser" not in field_names
+    assert "email" not in field_names
+    # PermissionsMixin exists for Django Admin (ADR-035), but a parent row holds nothing even when
+    # a permission or a group is granted to it by mistake: only active staff hold permissions.
+    from django.contrib.auth.models import Group, Permission
+
+    publish = Permission.objects.get(codename="publish_assetversion")
+    parent_a.user_permissions.add(publish)
+    group = Group.objects.create(name="Mistaken grant")
+    group.permissions.add(publish)
+    parent_a.groups.add(group)
+    parent_a = ParentAccount.objects.get(pk=parent_a.pk)  # drop the permission cache
+    assert not parent_a.has_perm("assets.publish_assetversion")
+    assert not parent_a.has_module_perms("assets")
     with pytest.raises(NotImplementedError):
         ParentAccount.objects.create_user()
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(NotImplementedError, match="create_admin_account"):
         ParentAccount.objects.create_superuser()
 
 
-def test_parent_account_is_the_user_model_and_auth_apps_are_not_installed():
+def test_parent_account_is_the_user_model_and_only_the_admin_backend_signs_in():
     assert settings.AUTH_USER_MODEL == "users.ParentAccount"
     assert apps.get_model(settings.AUTH_USER_MODEL) is ParentAccount
+    # The admin stack is installed (LAI-0404); Django password sign-in is the admin backend only.
     for name in ("django.contrib.auth", "django.contrib.admin", "django.contrib.sessions"):
-        assert name not in settings.INSTALLED_APPS
+        assert name in settings.INSTALLED_APPS
+    assert settings.AUTHENTICATION_BACKENDS == ["apps.users.backends.AdminPasswordBackend"]
 
 
 def test_string_forms_never_contain_names(parent_a):

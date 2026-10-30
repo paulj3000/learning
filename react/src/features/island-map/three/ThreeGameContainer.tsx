@@ -1,10 +1,8 @@
 import { useEffect, useRef } from 'react';
+import type { ThreeEngineHandle } from './engineHandle';
 import styles from './ThreeGameContainer.module.css';
 
-/** Anything a Three.js engine handle needs to expose for cleanup. */
-export interface ThreeEngineHandle {
-  dispose(): void;
-}
+export type { ThreeEngineHandle };
 
 export interface ThreeGameContainerProps<TEngine extends ThreeEngineHandle> {
   /**

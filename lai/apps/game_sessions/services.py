@@ -1,311 +1,366 @@
-"""Treasure Rush play services (TR-4): the transactional boundary the TR-5 play API calls.
+"""Authoritative transitions for adventure sessions (LAI-0305, LAI-0601).
 
-No HTTP here. Every function takes a `ChildProfile` already resolved through the parent
-(`ChildScopedMixin`) and looks child-owned records up *with* that child, so another child's
-session or attempt is indistinguishable from one that does not exist.
+Python owns the outcome (ADR-019 sub-decision 8). `submit_answer` evaluates an answer with
+`apps.adventures.engine` against the catalog's step records, then records it, all on one
+row-locked session in one transaction. The client supplies only what the child did (the step it
+believes is current, the answer, and a request id); correctness, hint level, the next step and
+completion are decided here.
 
-`submit_chest_answer` is the one place a chest opens. Grading, the attempt's outcome, skill
-evidence, the chest's world change, the reward, and quest progress are written in one
-transaction: if any part fails, none of it is kept and the attempt can be answered again.
+Rules, each from the existing code rather than new:
+- start or resume: one ACTIVE session per child and adventure (`resumeOrStartSession`), only for
+  a playable adventure (`isAdventurePlayable`);
+- answers only on an ACTIVE session and only for its current step (`submitAdventureAnswer`);
+- the decision tree is `decideSubmission`; the hint level it escalates is the server's own record
+  for the step (`AdventureSession.hint_levels`), never a client value;
+- reaching a `COMPLETE` step, or the reserved `complete` id, completes the session in the same
+  transaction (the client did this with a separate `completeSession` call); completion is final.
+
+Not offered: transitions into PAUSED, ABANDONED and SAFETY_STOPPED, which no code defines.
+Every function takes the child resolved by `ChildScopedMixin`; another child's session is
+`ProgressNotFound`, exactly like a missing one.
 """
 
-import secrets
+import json
 from dataclasses import dataclass
+from typing import Any
 
-from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.utils.timezone import now
+from django.utils import timezone
 
-from apps.core.catalog import ContentStatus
-from apps.education.challenges import Correctness, generate_challenge, grade_answer
-from apps.education.services import record_attempt_evidence
-from apps.inventory.services import RewardGrant, grant_reward_rule
-from apps.islands.models import TreasureChest, WorldRegion
-from apps.progression.models import WorldChange
-from apps.progression.services import record_world_change_once
-from apps.quests.services import QuestUpdate, refresh_active_quests
-
-from .models import (
-    OPEN_STATUSES,
+from apps.adventures import engine
+from apps.catalog.models import Adventure, AdventureStep, ContentRelease
+from apps.game_sessions.models import (
+    COMPLETE_STEP_ID,
+    AdventureAction,
     AdventureSession,
-    AttemptStatus,
-    ChallengeAttempt,
-    SessionKind,
+    Correctness,
     SessionStatus,
 )
 
-CHEST_CHANGE_TYPE = "UNLOCK"
-SEED_LIMIT = 2**31
+
+class ProgressError(Exception):
+    """A rejected progress write. Views map each subclass to a fixed code and message."""
 
 
-class PlayError(Exception):
-    """A request the play API refuses. `code` is stable and safe to show as an error code."""
-
-    code = "play_error"
+class ProgressNotFound(ProgressError):
+    pass
 
 
-class ContentUnavailable(PlayError):
-    code = "content_unavailable"
+class InvalidTransition(ProgressError):
+    pass
 
 
-class SessionNotOpen(PlayError):
-    code = "session_not_open"
+class SessionNotActive(InvalidTransition):
+    pass
 
 
-class ChestAlreadyOpen(PlayError):
-    code = "chest_already_open"
+class StepNotCurrent(InvalidTransition):
+    pass
 
 
-class AttemptNotFound(PlayError):
-    code = "not_found"
+class ContentVersionChanged(InvalidTransition):
+    """The catalog no longer holds the content this session started on (no snapshots yet)."""
 
 
-class AttemptAlreadyAnswered(PlayError):
-    code = "attempt_already_answered"
+class InvalidAnswer(ProgressError):
+    pass
 
 
-def _require_published_region(region: WorldRegion) -> None:
-    if (
-        region.status != ContentStatus.PUBLISHED
-        or region.location.status != ContentStatus.PUBLISHED
-    ):
-        raise ContentUnavailable
+class RequestConflict(ProgressError):
+    """A request id reused for a different submission."""
 
 
-def start_or_resume_region_session(child, region: WorldRegion) -> tuple[AdventureSession, bool]:
-    """The child's open session in `region`, or a new one. Returns (session, created).
+def _now(now):
+    return now or timezone.now()
 
-    At most one open session per child and region (a partial unique constraint), so two
-    concurrent starts end with one session. A paused session is resumed.
-    """
-    if not child.active:
-        raise ContentUnavailable
-    _require_published_region(region)
-    lookup = {"child": child, "kind": SessionKind.REGION, "region_id": region.region_id}
-    with transaction.atomic():
-        session = (
-            AdventureSession.objects.select_for_update()
-            .filter(status__in=OPEN_STATUSES, **lookup)
-            .first()
+
+def is_playable(adventure: Adventure) -> bool:
+    location = adventure.location
+    return adventure.active and (location is None or location.active)
+
+
+def _locked_session(child, session_id) -> AdventureSession:
+    """The child's session, row-locked for this transaction; anyone else's is not found."""
+    try:
+        return (
+            AdventureSession.objects.for_child(child)
+            .select_for_update(of=("self",))
+            .select_related("adventure")
+            .get(pk=session_id)
         )
-        created = False
-        if session is None:
-            try:
-                with transaction.atomic():
-                    session = AdventureSession.objects.create(
-                        location_slug=region.location.slug, **lookup
-                    )
-                    created = True
-            except IntegrityError:
-                session = AdventureSession.objects.select_for_update().get(
-                    status__in=OPEN_STATUSES, **lookup
-                )
-        session.status = SessionStatus.ACTIVE
-        session.last_activity_at = now()
-        session.save(update_fields=["status", "last_activity_at"])
-        return session, created
+    except AdventureSession.DoesNotExist:
+        raise ProgressNotFound from None
 
 
-def end_session(session: AdventureSession, status: str = SessionStatus.COMPLETED) -> None:
-    """Close an open session (the calm stop, a finished visit, or a safety stop)."""
-    if status in OPEN_STATUSES:
-        raise ValueError("Use start_or_resume_region_session to open a session.")
-    with transaction.atomic():
-        session = AdventureSession.objects.select_for_update().get(pk=session.pk)
-        if not session.is_open:
-            return
-        session.status = status
-        session.last_activity_at = now()
-        session.completed_at = session.last_activity_at if status == SessionStatus.COMPLETED else None
-        session.save(update_fields=["status", "last_activity_at", "completed_at"])
+def _current_step_record(session: AdventureSession) -> AdventureStep:
+    """The catalog step the session is on, only if it is the content the session started with.
+
+    The catalog keeps one version of each adventure. A session whose adventure version has
+    changed, or whose step was not part of the adventure's latest import, cannot be evaluated
+    safely, so it is refused rather than graded against different content.
+    """
+    adventure = session.adventure
+    if adventure.version != session.template_version:
+        raise ContentVersionChanged
+    step = AdventureStep.objects.filter(
+        adventure=adventure, step_id=session.current_step_id
+    ).first()
+    if step is None or step.last_seen_release_id != adventure.last_seen_release_id:
+        raise ContentVersionChanged
+    return step
 
 
-def chest_is_open(child, chest: TreasureChest) -> bool:
-    return WorldChange.objects.filter(
-        child=child,
-        location_slug=chest.region.location.slug,
-        change_key=chest.world_change_key,
+def _ends_adventure(session: AdventureSession, next_step_id: str) -> bool:
+    if next_step_id == COMPLETE_STEP_ID:
+        return True
+    return AdventureStep.objects.filter(
+        adventure=session.adventure, step_id=next_step_id, step_type="COMPLETE"
     ).exists()
 
 
-def issue_chest_challenge(
-    session: AdventureSession, chest: TreasureChest, *, seed: int | None = None
-) -> tuple[ChallengeAttempt, bool]:
-    """The challenge to show for `chest`. Returns (attempt, created).
-
-    Asking again while a challenge is outstanding returns the same attempt, so a retried
-    request never reshuffles the numbers. The seed is chosen here, never by the client.
-    """
-    child = session.child
-    with transaction.atomic():
-        # Serialises attempt numbering within the session.
-        session = AdventureSession.objects.select_for_update().get(pk=session.pk)
-        if not session.is_open or session.kind != SessionKind.REGION:
-            raise SessionNotOpen
-        if chest.region.region_id != session.region_id:
-            raise ContentUnavailable
-        _require_published_region(chest.region)
-        if chest_is_open(child, chest):
-            raise ChestAlreadyOpen
-        outstanding = ChallengeAttempt.objects.filter(
-            session=session, target_entity_id=chest.entity_id, status=AttemptStatus.ISSUED
-        ).first()
-        if outstanding is not None:
-            return outstanding, False
-        spec = chest.challenge_for(child.age_band)
-        if spec is None or spec.status != ContentStatus.PUBLISHED:
-            raise ContentUnavailable
-        seed = secrets.randbelow(SEED_LIMIT) if seed is None else seed
-        challenge = generate_challenge(spec.parameters(), child.age_band, seed)
-        previous = ChallengeAttempt.objects.filter(
-            session=session, target_entity_id=chest.entity_id
-        ).count()
-        attempt = ChallengeAttempt.objects.create(
-            child=child,
-            session=session,
-            region_id=session.region_id,
-            target_entity_id=chest.entity_id,
-            chest=chest,
-            challenge_spec=spec,
-            challenge_spec_slug=spec.slug,
-            age_band=child.age_band,
-            skill_id=spec.skill_id,
-            min_value=spec.min_value,
-            max_value=spec.max_value,
-            response_mode=spec.response_mode,
-            choice_count=spec.choice_count,
-            seed=seed,
-            operation=challenge.operation,
-            operands=list(challenge.operands),
-            choices=list(challenge.choices),
-            answer=challenge.answer,
-            attempt_number=previous + 1,
-        )
-        session.last_activity_at = now()
-        session.save(update_fields=["last_activity_at"])
-        return attempt, True
-
-
-@dataclass(frozen=True)
-class ChestOutcome:
-    attempt: ChallengeAttempt
-    correct: bool
-    chest_opened: bool = False
-    """True only on the answer that opened the chest; a replay of that state is impossible."""
-    reward: RewardGrant | None = None
-    quest_updates: tuple[QuestUpdate, ...] = ()
-
-
-def submit_chest_answer(
-    child, attempt_id, raw_answer: object, *, hint_level: int = 0, duration_ms: int | None = None
-) -> ChestOutcome:
-    """Grade an outstanding attempt and apply everything a correct answer earns, atomically.
-
-    Raises `AttemptNotFound` for an unknown attempt or another child's, `AttemptAlreadyAnswered`
-    for a replay, and TR-1 `InvalidAnswer` for malformed input (nothing is written, the
-    attempt stays open). Correctness comes only from `grade_answer` on the stored snapshot.
-    """
-    with transaction.atomic():
-        try:
-            attempt = ChallengeAttempt.objects.select_for_update().get(pk=attempt_id, child=child)
-        except (ChallengeAttempt.DoesNotExist, ValueError, ValidationError):
-            raise AttemptNotFound from None
-        if attempt.status == AttemptStatus.ANSWERED:
-            raise AttemptAlreadyAnswered
-        session = AdventureSession.objects.select_for_update().get(pk=attempt.session_id)
-        if not session.is_open:
-            raise SessionNotOpen
-
-        correctness = grade_answer(attempt.challenge(), raw_answer)
-        attempt.status = AttemptStatus.ANSWERED
-        attempt.submitted_answer = raw_answer
-        attempt.correctness = correctness
-        attempt.hint_level = hint_level
-        attempt.duration_ms = duration_ms
-        attempt.answered_at = now()
-        attempt.save()
-        record_attempt_evidence(attempt)
-        session.last_activity_at = attempt.answered_at
-        session.save(update_fields=["last_activity_at"])
-
-        if correctness != Correctness.CORRECT:
-            return ChestOutcome(attempt=attempt, correct=False)
-
-        chest = attempt.chest
-        if chest is None:  # deleted by an administrator after the challenge was shown
-            raise ContentUnavailable
-        _, opened = record_world_change_once(
-            child,
-            location_slug=chest.region.location.slug,
-            change_type=CHEST_CHANGE_TYPE,
-            change_key=chest.world_change_key,
-            payload={"regionId": chest.region.region_id, "entityId": chest.entity_id},
-            source_session=session,
-        )
-        reward = (
-            grant_reward_rule(child, chest.reward_rule, source_session=session)
-            if chest.reward_rule is not None
-            else None
-        )
-        quest_updates = tuple(refresh_active_quests(child, source_session=session))
-        return ChestOutcome(
-            attempt=attempt,
-            correct=True,
-            chest_opened=opened,
-            reward=reward,
-            quest_updates=quest_updates,
-        )
-
-
-# --- Session lifecycle by id (TR-5) --------------------------------------------------------------
-
-
-class SessionNotFound(PlayError):
-    code = "not_found"
-
-
-class InvalidTransition(PlayError):
-    code = "invalid_transition"
-
-
-# action -> (statuses it may start from, status it ends in). Asking for the status a session
-# already has is a no-op, so a retried request succeeds; anything else is refused.
-SESSION_ACTIONS = {
-    "pause": ((SessionStatus.ACTIVE,), SessionStatus.PAUSED),
-    "resume": ((SessionStatus.PAUSED,), SessionStatus.ACTIVE),
-    "complete": (OPEN_STATUSES, SessionStatus.COMPLETED),
-    "abandon": (OPEN_STATUSES, SessionStatus.ABANDONED),
-}
-
-
-def get_child_session(child, session_id, *, lock: bool = False) -> AdventureSession:
-    """One of this child's sessions, or `SessionNotFound` (also for another child's)."""
-    queryset = AdventureSession.objects.filter(child=child)
-    if lock:
-        queryset = queryset.select_for_update()
-    try:
-        return queryset.get(pk=session_id)
-    except (AdventureSession.DoesNotExist, ValueError, ValidationError):
-        raise SessionNotFound from None
-
-
-def change_session_status(child, session_id, action: str) -> AdventureSession:
-    if action not in SESSION_ACTIONS:
-        raise InvalidTransition
-    allowed_from, target = SESSION_ACTIONS[action]
-    with transaction.atomic():
-        session = get_child_session(child, session_id, lock=True)
-        if session.status == target:
-            return session
-        if session.status not in allowed_from:
+def _record_attempt(
+    session,
+    *,
+    step_id,
+    correctness,
+    next_step_id,
+    action_type,
+    normalized_answer="",
+    hint_level=0,
+    duration_ms=None,
+    request_id=None,
+    at,
+):
+    """Records one attempt on a locked ACTIVE session. `next_step_id=None` stays on the step."""
+    if session.status != SessionStatus.ACTIVE:
+        raise SessionNotActive
+    if step_id != session.current_step_id:
+        raise StepNotCurrent
+    if next_step_id is not None and next_step_id != COMPLETE_STEP_ID:
+        if not session.adventure.steps.filter(step_id=next_step_id).exists():
             raise InvalidTransition
-        if action == "resume" and session.kind == SessionKind.REGION:
-            region = WorldRegion.objects.filter(region_id=session.region_id).first()
-            if region is None:
-                raise ContentUnavailable
-            _require_published_region(region)
-        session.status = target
-        session.last_activity_at = now()
-        session.completed_at = session.last_activity_at if target == SessionStatus.COMPLETED else None
-        session.save(update_fields=["status", "last_activity_at", "completed_at"])
-        return session
+    previous = session.actions.filter(step_id=step_id).order_by("-attempt_number").first()
+    action = AdventureAction.objects.create(
+        session=session,
+        step_id=step_id,
+        action_type=action_type,
+        normalized_answer=normalized_answer,
+        correctness=correctness,
+        hint_level=hint_level,
+        attempt_number=(previous.attempt_number + 1) if previous else 1,
+        next_step_id=next_step_id or "",
+        duration_ms=duration_ms,
+        request_id=request_id,
+        created_at=at,
+    )
+    if next_step_id is not None:
+        session.current_step_id = next_step_id
+    session.last_activity_at = max(at, session.last_activity_at)
+    session.save(update_fields=["current_step_id", "last_activity_at", "hint_levels"])
+    return action
+
+
+def _complete(session, at) -> None:
+    if session.status != SessionStatus.ACTIVE:
+        raise SessionNotActive
+    at = max(at, session.last_activity_at)
+    session.status = SessionStatus.COMPLETED
+    session.completed_at = at
+    session.last_activity_at = at
+    session.save(update_fields=["status", "completed_at", "last_activity_at"])
+
+
+# --- Public operations ----------------------------------------------------------------------
+
+
+@transaction.atomic
+def start_or_resume_session(
+    child, adventure: Adventure, *, now=None
+) -> tuple[AdventureSession, bool]:
+    """The child's ACTIVE session for this adventure, or a new one at its entry step."""
+    if not is_playable(adventure):
+        raise InvalidTransition
+    existing = (
+        AdventureSession.objects.for_child(child)
+        .filter(adventure=adventure, status=SessionStatus.ACTIVE)
+        .first()
+    )
+    if existing:
+        return existing, False
+    release = ContentRelease.objects.order_by("-imported_at", "-id").first()
+    if release is None:
+        raise ProgressNotFound
+    at = _now(now)
+    try:
+        with transaction.atomic():
+            session = AdventureSession.objects.create(
+                child=child,
+                adventure=adventure,
+                template_version=adventure.version,
+                content_release=release,
+                status=SessionStatus.ACTIVE,
+                current_step_id=adventure.entry_step_id,
+                started_at=at,
+                last_activity_at=at,
+            )
+    except IntegrityError:
+        # A concurrent start won the one-active-session constraint: resume that one.
+        return AdventureSession.objects.for_child(child).get(
+            adventure=adventure, status=SessionStatus.ACTIVE
+        ), False
+    return session, True
+
+
+@transaction.atomic
+def record_step_attempt(
+    child,
+    session_id,
+    *,
+    step_id,
+    correctness,
+    next_step_id,
+    action_type,
+    normalized_answer="",
+    hint_level=0,
+    duration_ms=None,
+    now=None,
+):
+    """Records an attempt whose outcome server code already decided (`next_step_id=None` stays)."""
+    session = _locked_session(child, session_id)
+    return _record_attempt(
+        session,
+        step_id=step_id,
+        correctness=correctness,
+        next_step_id=next_step_id,
+        action_type=action_type,
+        normalized_answer=normalized_answer,
+        hint_level=hint_level,
+        duration_ms=duration_ms,
+        at=_now(now),
+    )
+
+
+@transaction.atomic
+def complete_session(child, session_id, *, now=None) -> AdventureSession:
+    session = _locked_session(child, session_id)
+    _complete(session, _now(now))
+    return session
+
+
+def completed_step_ids(child, session_id) -> list[str]:
+    """Steps the child has moved past in this session, in the order they left them."""
+    try:
+        session = AdventureSession.objects.for_child(child).get(pk=session_id)
+    except AdventureSession.DoesNotExist:
+        raise ProgressNotFound from None
+    moved = session.actions.exclude(next_step_id="").order_by("created_at", "attempt_number")
+    return list(dict.fromkeys(moved.values_list("step_id", flat=True)))
+
+
+_CORRECTNESS = {
+    engine.CORRECT: Correctness.CORRECT,
+    engine.INCORRECT: Correctness.INCORRECT,
+    engine.PARTIAL: Correctness.PARTIAL,
+    engine.NOT_APPLICABLE: Correctness.NOT_APPLICABLE,
+}
+_ANSWER_LIMIT = 200  # AdventureAction.normalized_answer
+
+
+def canonical_answer(answer: dict[str, Any]) -> str:
+    """The structured answer as stable JSON: what is stored and what a replay is compared to."""
+    return json.dumps(answer, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+@dataclass
+class AnswerOutcome:
+    correctness: str
+    support_level: int
+    action: str  # "RETRY" or "ADVANCE"
+    next_step_id: str | None
+    attempt_number: int
+    replayed: bool
+    session: AdventureSession
+
+
+def _outcome(action: AdventureAction, session: AdventureSession, replayed: bool) -> AnswerOutcome:
+    return AnswerOutcome(
+        correctness=action.correctness,
+        support_level=action.hint_level,
+        action="ADVANCE" if action.next_step_id else "RETRY",
+        next_step_id=action.next_step_id or None,
+        attempt_number=action.attempt_number,
+        replayed=replayed,
+        session=session,
+    )
+
+
+@transaction.atomic
+def submit_answer(
+    child, session_id, *, step_id: str, answer: Any, request_id, now=None
+) -> AnswerOutcome:
+    """Grades one answer and applies the outcome. Safe to retry with the same `request_id`."""
+    if request_id is None:
+        raise InvalidAnswer  # without it a retry could not be told from a new attempt
+    session = _locked_session(child, session_id)
+    answer_text = canonical_answer(answer) if isinstance(answer, dict) else ""
+
+    replay = session.actions.filter(request_id=request_id).first()
+    if replay is not None:
+        if replay.step_id != step_id or replay.normalized_answer != answer_text:
+            raise RequestConflict
+        return _outcome(replay, session, replayed=True)
+
+    if session.status != SessionStatus.ACTIVE:
+        raise SessionNotActive
+    if step_id != session.current_step_id:
+        raise StepNotCurrent
+    step = _current_step_record(session)
+    if not engine.is_step_answer(answer) or len(answer_text) > _ANSWER_LIMIT:
+        raise InvalidAnswer
+    hint_level = int(session.hint_levels.get(step_id, 0))
+    try:
+        decision = engine.decide_submission(step.source, answer, hint_level)
+    except engine.AnswerKindMismatch:
+        raise InvalidAnswer from None
+    except engine.EngineError:
+        raise ContentVersionChanged from None  # authored content the engine cannot follow
+
+    at = _now(now)
+    next_step = decision.get("nextStepId") if decision["action"] == "ADVANCE" else None
+    session.hint_levels = {**session.hint_levels, step_id: decision["supportLevel"]}
+    action = _record_attempt(
+        session,
+        step_id=step_id,
+        correctness=_CORRECTNESS[decision["correctness"]],
+        next_step_id=next_step,
+        action_type="ANSWER",
+        normalized_answer=answer_text,
+        hint_level=decision["supportLevel"],
+        request_id=request_id,
+        at=at,
+    )
+    if next_step is not None and _ends_adventure(session, next_step):
+        _complete(session, at)
+    return _outcome(action, session, replayed=False)
+
+
+@transaction.atomic
+def request_hint(child, session_id, *, step_id: str, from_level: int, now=None):
+    """Escalates the current step's hint once (`nextHintLevel`); returns (level, hint text).
+
+    Compare-and-set: the level moves only if it is still `from_level`, the level the child saw,
+    so a retried request cannot escalate twice.
+    """
+    session = _locked_session(child, session_id)
+    if session.status != SessionStatus.ACTIVE:
+        raise SessionNotActive
+    if step_id != session.current_step_id:
+        raise StepNotCurrent
+    step = _current_step_record(session)
+    level = int(session.hint_levels.get(step_id, 0))
+    if level == from_level:
+        level = engine.next_hint_level(level)
+        session.hint_levels = {**session.hint_levels, step_id: level}
+        session.last_activity_at = max(_now(now), session.last_activity_at)
+        session.save(update_fields=["hint_levels", "last_activity_at"])
+    return level, engine.hint_text(step.source, level)

@@ -16,7 +16,10 @@ import {
   shouldCelebrate,
 } from './regionPlayUi';
 
-const challenge = (operation: PublicChallenge['operation'], operands: number[]): PublicChallenge => ({
+const challenge = (
+  operation: PublicChallenge['operation'],
+  operands: number[],
+): PublicChallenge => ({
   skillId: 's',
   operation,
   operands,
@@ -76,7 +79,8 @@ describe('parseTypedAnswer', () => {
   it('accepts whole numbers the API accepts and nothing else', () => {
     expect(parseTypedAnswer(' 7 ')).toBe(7);
     expect(parseTypedAnswer('100')).toBe(100);
-    for (const raw of ['', '101', '-1', '3.5', 'seven', '1e2']) expect(parseTypedAnswer(raw)).toBeNull();
+    for (const raw of ['', '101', '-1', '3.5', 'seven', '1e2'])
+      expect(parseTypedAnswer(raw)).toBeNull();
   });
 });
 
@@ -96,7 +100,10 @@ describe('shouldCelebrate', () => {
 
 describe('completedQuests', () => {
   it('takes completion from the server’s update and titles from the server’s quests', () => {
-    const quests = [read(questJson(), parse.quest), read(questJson({ questId: 'other', title: 'Other' }), parse.quest)];
+    const quests = [
+      read(questJson(), parse.quest),
+      read(questJson({ questId: 'other', title: 'Other' }), parse.quest),
+    ];
     expect(completedQuests(outcome(true), quests).map((q) => q.title)).toEqual(['Treasure Rush']);
     expect(completedQuests(outcome(false), quests)).toEqual([]);
   });
@@ -116,32 +123,42 @@ describe('playErrorMessage', () => {
   });
 
   it('never tells a signed-in parent to sign in again for a 403', () => {
-    expect(playErrorMessage(new ApiError('forbidden', { code: 'account_setup_failed' }))).toBe(PLAY_COPY.errorAccountSetup);
-    expect(playErrorMessage(new ApiError('forbidden', { code: 'account_not_provisioned' }))).toBe(PLAY_COPY.errorAccountSetup);
-    expect(playErrorMessage(new ApiError('forbidden', { code: 'permission_denied' }))).toBe(PLAY_COPY.errorNotAllowed);
+    expect(playErrorMessage(new ApiError('forbidden', { code: 'account_setup_failed' }))).toBe(
+      PLAY_COPY.errorAccountSetup,
+    );
+    expect(playErrorMessage(new ApiError('forbidden', { code: 'account_not_provisioned' }))).toBe(
+      PLAY_COPY.errorAccountSetup,
+    );
+    expect(playErrorMessage(new ApiError('forbidden', { code: 'permission_denied' }))).toBe(
+      PLAY_COPY.errorNotAllowed,
+    );
   });
 
   it('says nothing for an aborted request or a replay the view re-reads', () => {
     expect(playErrorMessage(new ApiError('aborted'))).toBeNull();
-    expect(playErrorMessage(new ApiError('conflict', { code: 'attempt_already_answered' }))).toBeNull();
+    expect(
+      playErrorMessage(new ApiError('conflict', { code: 'attempt_already_answered' })),
+    ).toBeNull();
     expect(playErrorMessage(null)).toBeNull();
   });
 });
 
 describe('copy and keys', () => {
   it('labels quest states in words', () => {
-    expect([questStatusLabel('AVAILABLE'), questStatusLabel('ACTIVE'), questStatusLabel('COMPLETED')]).toEqual([
-      'New',
-      'Doing now',
-      'Done',
-    ]);
+    expect([
+      questStatusLabel('AVAILABLE'),
+      questStatusLabel('ACTIVE'),
+      questStatusLabel('COMPLETED'),
+    ]).toEqual(['New', 'Doing now', 'Done']);
   });
 
   it('uses no em dashes in child-facing copy (CLAUDE.md section 13)', () => {
-    for (const text of [...Object.values(PLAY_COPY), ...Object.values(HINTS).flat()]) expect(text).not.toContain('—');
+    for (const text of [...Object.values(PLAY_COPY), ...Object.values(HINTS).flat()])
+      expect(text).not.toContain('—');
   });
 
   it('covers every key the first-person controls act on', () => {
-    for (const key of ['w', 'a', 's', 'd', 'e', 'enter', ' ', 'arrowup']) expect(CONTROL_KEYS.has(key)).toBe(true);
+    for (const key of ['w', 'a', 's', 'd', 'e', 'enter', ' ', 'arrowup'])
+      expect(CONTROL_KEYS.has(key)).toBe(true);
   });
 });

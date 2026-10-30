@@ -81,7 +81,10 @@ export function initialRegionPlayState(scope: string): RegionPlayState {
   };
 }
 
-export function regionPlayReducer(state: RegionPlayState, action: RegionPlayAction): RegionPlayState {
+export function regionPlayReducer(
+  state: RegionPlayState,
+  action: RegionPlayAction,
+): RegionPlayState {
   if (action.type === 'reset') return initialRegionPlayState(action.scope);
   if (action.scope !== state.scope) return state; // a reply for another child or region
 

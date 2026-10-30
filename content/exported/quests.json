@@ -487,7 +487,41 @@
       ],
       "summary": "Help the Harbor Master get the lighthouse turning again.",
       "title": "The Dark Lighthouse"
+    },
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You opened the treasure chest in Treasure Cove."
+      },
+      "entryStageId": "open-the-chest",
+      "giverNpcId": "pirate-pip",
+      "id": "treasure-rush-cove",
+      "prerequisites": [
+        {
+          "type": "ALWAYS"
+        }
+      ],
+      "stages": [
+        {
+          "id": "open-the-chest",
+          "objectives": [
+            {
+              "changeKey": "TREASURE_RUSH_COVE_CHEST_OPENED",
+              "id": "treasure-cove-open-chest",
+              "kind": "BUILD",
+              "label": "Open the treasure chest in the cove"
+            }
+          ],
+          "title": "Open the treasure chest"
+        }
+      ],
+      "summary": "Find the treasure chest in the cove and open it with a number puzzle.",
+      "title": "Treasure Rush"
     }
   ],
-  "schemaVersion": 2
+  "schemaVersion": 3
 }

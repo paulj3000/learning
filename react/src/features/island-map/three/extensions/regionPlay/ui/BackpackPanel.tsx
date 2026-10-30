@@ -1,5 +1,9 @@
 import type { PlayerProgressState } from '../../../../../region-play/usePlayerProgress';
-import { PLAY_COPY, playErrorMessage, questStatusLabel } from '../../../../../region-play/regionPlayUi';
+import {
+  PLAY_COPY,
+  playErrorMessage,
+  questStatusLabel,
+} from '../../../../../region-play/regionPlayUi';
 import { GameDialog } from './GameDialog';
 import styles from './RegionPlayPanels.module.css';
 
@@ -18,8 +22,14 @@ export function BackpackPanel({ progress, onClose }: BackpackPanelProps) {
   const data = progress.progress;
   const error = playErrorMessage(progress.error);
   return (
-    <GameDialog titleId="region-play-backpack-title" title={PLAY_COPY.backpackTitle} onClose={onClose}>
-      {progress.status === 'loading' && !data ? <p className={styles.speech}>{PLAY_COPY.chestWaiting}</p> : null}
+    <GameDialog
+      titleId="region-play-backpack-title"
+      title={PLAY_COPY.backpackTitle}
+      onClose={onClose}
+    >
+      {progress.status === 'loading' && !data ? (
+        <p className={styles.speech}>{PLAY_COPY.chestWaiting}</p>
+      ) : null}
       {error ? (
         <p className={styles.error} role="alert">
           {error}
@@ -46,7 +56,10 @@ export function BackpackPanel({ progress, onClose }: BackpackPanelProps) {
                 {data.quests.map((quest) => (
                   <li key={quest.questId} className={styles.listItem}>
                     <span
-                      className={[styles.mark, quest.status === 'COMPLETED' ? styles.markDone : ''].join(' ')}
+                      className={[
+                        styles.mark,
+                        quest.status === 'COMPLETED' ? styles.markDone : '',
+                      ].join(' ')}
                       aria-hidden="true"
                     >
                       {quest.status === 'COMPLETED' ? '✓' : ''}

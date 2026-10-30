@@ -1,0 +1,33 @@
+# Django API and Django Admin container (LAI-0404, ADR-034). Build from the repository root:
+#   docker build -f lai/Dockerfile -t lai-django .
+# Hosting, environment variables and the one-off tasks (migrate, create_admin_account) are in
+# docs/DJANGO_TARGET_ARCHITECTURE.md, "Django Admin hosting". No secret is baked into the image:
+# every sensitive value arrives as an environment variable at run time (Secrets Manager).
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    DJANGO_SETTINGS_MODULE=config.settings.production
+
+WORKDIR /app
+COPY requirements.txt ./
+RUN pip install -r requirements.txt
+
+# The app and the content export `manage.py load_content` reads (settings.CONTENT_DIR).
+COPY lai/ ./lai/
+COPY content/ ./content/
+
+WORKDIR /app/lai
+# Admin static files with hashed names, collected once per image (no database, no secrets). The
+# same directory is uploaded to the admin's S3 bucket by scripts/release-admin-static.sh.
+RUN DJANGO_SETTINGS_MODULE=config.settings.static_build python manage.py collectstatic --noinput
+
+RUN useradd --system --uid 10001 --home-dir /app lai
+USER lai
+
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/', timeout=4)"
+ENTRYPOINT ["./docker-entrypoint.sh"]
