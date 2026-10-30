@@ -1,8 +1,9 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorldEngineEventBus } from '../worldEngineEvents';
+import type { LocationEngineAssets } from './createLocationEngine';
 import type { ThreeLocationManifest } from './locationManifest';
 import {
   InvalidLocationManifestError,
@@ -20,21 +21,24 @@ import { ThreeLocationWorldView } from './ThreeLocationWorldView';
 const engine = vi.hoisted(() => ({
   bus: null as WorldEngineEventBus | null,
   options: null as { startCheckpointId?: string } | null,
+  deps: null as { assets?: unknown } | null,
   dispose: vi.fn(),
   interact: vi.fn(),
 }));
 
 vi.mock('./createLocationEngine', () => ({
-  DEFAULT_LOCATION_ENGINE_DEPS: {},
+  DEFAULT_LOCATION_ENGINE_DEPS: { assets: 'bundled-assets' },
   createLocationEngine: vi.fn(
     (
       _parent: HTMLElement,
       bus: WorldEngineEventBus,
       _manifest: ThreeLocationManifest,
       options: { startCheckpointId?: string },
+      deps: { assets?: unknown },
     ) => {
       engine.bus = bus;
       engine.options = options;
+      engine.deps = deps;
       return { dispose: engine.dispose, interact: engine.interact, ready: Promise.resolve() };
     },
   ),
@@ -169,6 +173,7 @@ const WITH_CASTLE_COPY: ThreeLocationManifest = {
 function renderView(
   regionId = 'welcome-harbor',
   repository = repositoryOf(WELCOME_HARBOR_MANIFEST, TEST_COVE),
+  assets?: LocationEngineAssets,
 ) {
   return render(
     <MemoryRouter>
@@ -177,6 +182,7 @@ function renderView(
         regionId={regionId}
         ageBand="PATHFINDER"
         repository={repository}
+        assets={assets}
       />
     </MemoryRouter>,
   );
@@ -198,6 +204,7 @@ describe('ThreeLocationWorldView', () => {
     vi.clearAllMocks();
     engine.bus = null;
     engine.options = null;
+    engine.deps = null;
     getWorldStateMock.mockResolvedValue({
       discoveredIds: [],
       metCharacterIds: [],
@@ -219,6 +226,18 @@ describe('ThreeLocationWorldView', () => {
     expect(
       screen.getByRole('link', { name: 'Prefer not to walk in 3D? Go back to the harbor' }),
     ).toHaveAttribute('href', '/island/child-1');
+  });
+
+  it('builds the scene with the bundled models unless it is given other assets (TR-10)', async () => {
+    renderView();
+    await waitFor(() => expect(engine.deps).not.toBeNull());
+    expect(engine.deps?.assets).toBe('bundled-assets');
+    cleanup();
+    const django = { loadModel: vi.fn(), instanced: vi.fn(), withLod: vi.fn() };
+    engine.deps = null;
+    renderView('welcome-harbor', undefined, django);
+    await waitFor(() => expect(engine.deps).not.toBeNull());
+    expect(engine.deps?.assets).toBe(django);
   });
 
   it('still opens the region when the world reads fail, spawning at the default checkpoint', async () => {

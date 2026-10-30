@@ -12,13 +12,14 @@ import { getAssetManifestEntry } from './manifest';
  * id. Only a resolver knows where an id's file lives, so no caller ever
  * holds a storage key, a bucket name or a `public/models/` path.
  *
- * Two resolvers exist. `BUNDLED_ASSET_RESOLVER` (here) reads the shipped
- * `ASSET_MANIFEST` and is what every child's scene uses. The published one
- * (`src/features/assets/assetService.ts`) lets a published `Asset` whose
- * `slug` equals the id stand in for the bundled file. It is not wired into
- * the child runtime yet: `Asset` is Admins-only until the asset manager's
- * publishing phase gives parents a published-only read path, and before
- * then it would add a guaranteed-to-fail lookup to every scene load.
+ * `BUNDLED_ASSET_RESOLVER` (here) reads the shipped `ASSET_MANIFEST` and is
+ * what source-controlled regions use. The Django asset manager's resolver
+ * (`src/api/assets/djangoAssetResolver.ts`, LAI-2200) answers with the
+ * published version of an id and falls back to this one; regions served by
+ * the play API (Treasure Cove) load through it (TR-10,
+ * `features/region-play/regionAssets.ts`). The Amplify one
+ * (`src/features/assets/assetService.ts`) is admin tooling only and is not
+ * wired into the child runtime.
  */
 
 export type ResolvedAssetSource = 'BUNDLED' | 'PUBLISHED';
