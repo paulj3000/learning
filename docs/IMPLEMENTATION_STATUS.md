@@ -2528,6 +2528,51 @@ has not been asked and which "Decisions pending" already lists as open; and
 whether SC-11's retirement gate still means anything against a castle whose
 content layer is being replaced.
 
+## Treasure Rush - TR-7a and TR-10: Treasure Cove's models come from the Django asset manager; AWS storage defined, not deployed
+
+**Done (2026-10-30), merged into main.** With `VITE_BACKEND=django`, Treasure Cove resolves its
+models (`npc-pip`, `treasure-chest`, `ground-tile`) through the asset manager: a version an
+administrator publishes and makes the default in Django Admin is what the child sees on the next
+visit, with no React rebuild. Details: `docs/ASSET_MANAGER.md` sections 12, 15 and 19;
+`docs/TREASURE_RUSH_ROADMAP.md` section 16.
+
+- **TR-7a (generic engine).** A model that cannot be resolved or loaded leaves a sized primitive
+  stand-in (NPCs, props, collectibles, `MODEL` scenery) or a plain floor (tiled ground), and the
+  entity stays focusable and interactive. Failures are logged; the chest no longer swallows its
+  error. Manifests gained an optional `placeholderSize`, validated when present.
+- **TR-10.** `regionAssetsFor` gives play-API regions `createAssetLoader(djangoAssetResolverFor
+  (childId))`, once per visit; source regions and builds without the Django API are unchanged.
+  Fallback order: published version, bundled file, TR-7a placeholder. The resolver reports
+  "not published" separately from a failed request (auth, scope, network). Animation clips are
+  preserved and tested through the real engine and region-play extension.
+- **Import.** `import_assets --from-bundled --ids npc-pip,treasure-chest,ground-tile`: explicit,
+  idempotent, publishes nothing, reports unknown ids. The Django image now carries
+  `react/public/models` so it can run as a one-off task.
+- **AWS (AM-12).** `infra/` (new, CDK, bootstrapless): `LaiAssetStorage-<env>` with a private,
+  SSE-S3, TLS-only, versioned, retained bucket and a least-privilege managed policy for the Django
+  workload role (Get/Put/DeleteObject on `assets/models/*`, ListBucket on the bucket; 0 IAM
+  roles). Optional GET/HEAD CORS for `s3` delivery only. Production delivery decided: `django`
+  from S3 (same-origin, immediate revocation); CloudFront not added (AM-11 deferred). Synthesized
+  only: deploying is a Phase 10 approval step. No new package (aws-cdk-lib was already a
+  devDependency).
+
+Checks run (no browser, by owner instruction): full pytest with PostgreSQL, 882 passed; full
+Vitest, 3,112 passed (8 in `adrCheck.test.ts` and `contentExport.test.ts` first failed only
+because this machine's hoisted `node_modules` has no `.bin/tsx` in the checkout; they pass with
+it); typecheck (React, Amplify, scripts, server, infra); `vite build`; Django `check` and
+`makemigrations --check`; production settings import with S3; `adr:check`;
+`admin-preview:check`; `content:check`; oxlint (warnings only, none new); Ruff and Prettier clean
+on every changed file. Pre-existing on main and untouched: Ruff `S105` in
+`create_admin_account.py` and 2 import-order findings, 6 files Ruff would reformat, Prettier on
+`react/src/api/djangoAdmin.test.ts`. The image's `pip install` could not reach PyPI from Docker
+on this machine, so the full image build was not completed; the build context was checked to
+contain only `react/public/models` from `react/`.
+
+**Not done or blocked:** any browser or WebGL run of TR-7a or TR-10 (owner, after deployment);
+deploying the storage stack, Django hosting (LAI-1004) and `/api/*` same-origin routing; a
+deployed environment cannot publish the cove itself until TR-3's region admin exists
+(`publish_treasure_rush` is local-only), and real children need LAI-0502/0602 (TR-9).
+
 ## Treasure Rush - TR-8a: runnable locally; real children need the child-profile migration
 
 After TR-8, a real playthrough was found to fail: children exist only in Amplify, the parent is

@@ -115,6 +115,28 @@ accept the quest, find the chest, answer, and open the backpack (bottom right).
 To start over, remove that child's progress (sessions, attempts, world changes, items, quests)
 in the shell, or `make down && docker volume rm <project>_lai_pgdata` and repeat from step 1.
 
+## 9. Models from the asset manager (TR-10)
+
+With `VITE_BACKEND=django` the cove already asks Django for its three models (`npc-pip`,
+`treasure-chest`, `ground-tile`); with nothing published it uses the bundled files, and the
+browser console says so once per model. To manage them in Django instead:
+
+```bash
+cd lai
+../.venv/bin/python manage.py ensure_asset_roles
+../.venv/bin/python manage.py create_admin_account <you> --superuser   # once; asks for a password
+../.venv/bin/python manage.py import_assets --from-bundled --ids npc-pip,treasure-chest,ground-tile
+```
+
+The import stores the files under `lai/.asset-storage/` as validated, unpublished versions. Then
+open `http://127.0.0.1:8000/admin/`, go to **Asset manager, Asset versions**, select the three
+versions and run **Publish selected versions**. Leave the cove and enter it again: the models
+now come from `/api/v1/asset-files/...` (the browser's network panel shows it).
+
+To see a replacement, upload a new version of `treasure-chest` (**Add asset version**; it must
+keep an `Open` clip), publish it, then **Make the selected version the default**, and re-enter
+the cove. Full workflow and troubleshooting: `docs/ASSET_MANAGER.md` section 19.
+
 ## What can go wrong
 
 | You see | Likely cause |
@@ -123,3 +145,6 @@ in the shell, or `make down && docker volume rm <project>_lai_pgdata` and repeat
 | "Please ask a grown-up to sign in again." | Django rejected the token: step 3's values |
 | "We are still getting your island ready." | `POST /api/v1/me/` failed: check the Django console |
 | Requests to `/api` return Vite's 404 | `react/.env.local` missing `VITE_BACKEND=django`; restart `npm run dev` |
+| A pink box where Pip or a model should be | That model failed from both Django and the bundle; the console warning says why (TR-7a) |
+| `[assets] the asset manager request failed (...)` | Not a publishing problem: the kind and status say which (401 sign-in, 404 child not in Django) |
+| A newly published model does not show | It is not the default version yet, or you have not left and re-entered the cove |

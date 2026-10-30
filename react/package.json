@@ -13,7 +13,7 @@
     "build": "tsc -b && vite build",
     "build:admin-preview": "vite build --config vite.admin-preview.config.ts",
     "preview": "vite preview",
-    "typecheck": "tsc -b && tsc --noEmit -p ../amplify/tsconfig.json && tsc --noEmit -p ../scripts/tsconfig.json && tsc --noEmit -p ../server/tsconfig.json",
+    "typecheck": "tsc -b && tsc --noEmit -p ../amplify/tsconfig.json && tsc --noEmit -p ../scripts/tsconfig.json && tsc --noEmit -p ../server/tsconfig.json && tsc --noEmit -p ../infra/tsconfig.json",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },

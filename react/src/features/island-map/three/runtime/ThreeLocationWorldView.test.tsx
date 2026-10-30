@@ -229,15 +229,17 @@ describe('ThreeLocationWorldView', () => {
   });
 
   it('builds the scene with the bundled models unless it is given other assets (TR-10)', async () => {
+    const assetsGiven = async () => {
+      await waitFor(() => expect(engine.deps).not.toBeNull());
+      return engine.deps?.assets;
+    };
     renderView();
-    await waitFor(() => expect(engine.deps).not.toBeNull());
-    expect(engine.deps?.assets).toBe('bundled-assets');
+    expect(await assetsGiven()).toBe('bundled-assets');
     cleanup();
     const django = { loadModel: vi.fn(), instanced: vi.fn(), withLod: vi.fn() };
     engine.deps = null;
     renderView('welcome-harbor', undefined, django);
-    await waitFor(() => expect(engine.deps).not.toBeNull());
-    expect(engine.deps?.assets).toBe(django);
+    expect(await assetsGiven()).toBe(django);
   });
 
   it('still opens the region when the world reads fail, spawning at the default checkpoint', async () => {
