@@ -107,10 +107,24 @@ def _import_file(report, asset, path: Path, source: dict, *, dry_run: bool) -> N
     report.imported.append({**source, "asset": asset.asset_id, "version": version.number})
 
 
-def import_bundled(*, root: Path | None = None, dry_run: bool = False) -> ImportReport:
+def import_bundled(
+    *, root: Path | None = None, dry_run: bool = False, ids: list[str] | None = None
+) -> ImportReport:
+    """Every export-origin definition with a bundled file, or only `ids` when given.
+
+    An id in `ids` that is not such a definition is listed as unresolved (`unknown_asset`), so a
+    typo in a deployment command is reported instead of silently importing nothing.
+    """
     root = root or default_public_root()
     report = ImportReport(dry_run=dry_run)
     assets = ContentAsset.objects.filter(origin=AssetOrigin.EXPORT).exclude(bundled_path="")
+    if ids is not None:
+        assets = assets.filter(asset_id__in=ids)
+        known = set(assets.values_list("asset_id", flat=True))
+        for asset_id in sorted(set(ids) - known):
+            report.unresolved.append(
+                {"source": "bundled", "asset": asset_id, "reason": "unknown_asset"}
+            )
     for asset in assets.order_by("asset_id"):
         source = {"source": "bundled", "path": asset.bundled_path}
         if asset.status != AssetStatus.ACTIVE:

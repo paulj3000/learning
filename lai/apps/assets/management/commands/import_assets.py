@@ -1,10 +1,12 @@
 """Import existing models as validated (unpublished) asset versions (LAI-2200 AM-8).
 
-    python manage.py import_assets --from-bundled [--root react/public] [--dry-run]
+    python manage.py import_assets --from-bundled [--ids a,b] [--root react/public] [--dry-run]
     python manage.py import_assets --from-amplify export.json --files ./downloads [--dry-run]
 
 Idempotent: files already imported (same SHA-256) are skipped. Nothing is published, deleted or
-re-pointed. `--json` prints the full report. See apps/assets/importer.py.
+re-pointed. `--ids` limits a bundled import to those asset ids (for example the Treasure Cove
+models: `--ids npc-pip,treasure-chest,ground-tile`). `--json` prints the full report. See
+apps/assets/importer.py and docs/ASSET_MANAGER.md section 11.
 """
 
 import json
@@ -23,15 +25,29 @@ class Command(BaseCommand):
         source.add_argument("--from-bundled", action="store_true")
         source.add_argument("--from-amplify", metavar="EXPORT_JSON")
         parser.add_argument("--root", help="Bundled files root (default: react/public).")
+        parser.add_argument(
+            "--ids", help="Comma-separated asset ids: import only these (with --from-bundled)."
+        )
         parser.add_argument("--files", help="Directory with the downloaded Amplify files.")
         parser.add_argument("--dry-run", action="store_true", help="Report only; write nothing.")
         parser.add_argument(
             "--json", action="store_true", dest="as_json", help="Print the full JSON report."
         )
 
-    def handle(self, *args, from_bundled, from_amplify, root, files, dry_run, as_json, **options):
+    def handle(
+        self, *args, from_bundled, from_amplify, root, files, ids, dry_run, as_json, **options
+    ):
+        selected = None
+        if ids is not None:
+            if not from_bundled:
+                raise CommandError("--ids works with --from-bundled only.")
+            selected = list(dict.fromkeys(part.strip() for part in ids.split(",") if part.strip()))
+            if not selected:
+                raise CommandError("--ids needs at least one asset id.")
         if from_bundled:
-            report = import_bundled(root=Path(root) if root else None, dry_run=dry_run)
+            report = import_bundled(
+                root=Path(root) if root else None, dry_run=dry_run, ids=selected
+            )
         else:
             if not files:
                 raise CommandError("--from-amplify needs --files <directory>.")
