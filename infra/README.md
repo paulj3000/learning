@@ -4,11 +4,15 @@ The CDK app for the Django platform's AWS resources (`docs/DJANGO_MIGRATION_ROAD
 LAI-1001 layout). It is separate from `amplify/`, which keeps deploying the Amplify Gen 2 backend
 on its own pipeline; nothing here is deployed by a push.
 
-Today it holds one stack:
+| Stack                   | Scope       | What                                                                                   | Doc                                        |
+| ----------------------- | ----------- | -------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `LaiAssetStorage-<env>` | environment | The asset manager's private S3 bucket and the Django role policy                       | `docs/ASSET_MANAGER.md` sections 12 and 19 |
+| `LaiDjangoRelease`      | account     | ECR `lai/django`, the GitHub OIDC provider, the image publisher role                   | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`   |
+| `LaiDjangoEc2-<env>`    | environment | VPC, ALB (ACM, WAF), EC2, RDS, SSM settings and release documents, deploy role, alarms | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`   |
 
-| Stack                   | What                                                             | Doc                                        |
-| ----------------------- | ---------------------------------------------------------------- | ------------------------------------------ |
-| `LaiAssetStorage-<env>` | The asset manager's private S3 bucket and the Django role policy | `docs/ASSET_MANAGER.md` sections 12 and 19 |
+The EC2 release pipeline (ADR-037) is provisioned with `scripts/aws/provision.sh <env>`, which
+creates change sets and applies them only with `--execute`; its settings and parameters are in
+the runbook's section 4.
 
 ## Synthesize (no AWS access needed)
 
@@ -17,16 +21,17 @@ npm run infra:synth                       # dev, account and region left as Clou
 LAI_ENV=prod npm run infra:synth          # prod
 ```
 
-The template lands in `infra/cdk.out/LaiAssetStorage-<env>.template.json` (gitignored). The
-stacks use the bootstrapless synthesizer: they have no file assets, so no `cdk bootstrap` stack
-(and its IAM roles) is needed.
+The templates land in `infra/cdk.out/<stack>.template.json` (gitignored). The stacks use the
+bootstrapless synthesizer: they have no file assets, Lambdas or custom resources, so no
+`cdk bootstrap` stack (and its IAM roles) is needed. The EC2 stack embeds
+`scripts/aws/setup-ec2.sh` and `scripts/aws/ssm-release-entry.sh` at synth time.
 
-| Setting                                | CDK context      | Environment variable                        | Default                                             |
-| -------------------------------------- | ---------------- | ------------------------------------------- | --------------------------------------------------- |
-| Environment                            | `env`            | `LAI_ENV`                                   | `dev`                                               |
-| Django workload role to grant          | `djangoRoleArn`  | `LAI_DJANGO_ROLE_ARN`                       | none (attach `DjangoAssetStoragePolicyArn` by hand) |
-| Browser origins for presigned GETs     | `allowedOrigins` | `LAI_ASSET_ALLOWED_ORIGINS`                 | none (right for `django` delivery)                  |
-| Account and region baked into the name |                  | `CDK_DEFAULT_ACCOUNT`, `CDK_DEFAULT_REGION` | pseudo-parameters                                   |
+| Setting                                | CDK context      | Environment variable                        | Default                                         |
+| -------------------------------------- | ---------------- | ------------------------------------------- | ----------------------------------------------- |
+| Environment                            | `env`            | `LAI_ENV`                                   | `dev`                                           |
+| Another Django role to grant           | `djangoRoleArn`  | `LAI_DJANGO_ROLE_ARN`                       | none (the EC2 instance role attaches it itself) |
+| Browser origins for presigned GETs     | `allowedOrigins` | `LAI_ASSET_ALLOWED_ORIGINS`                 | none (right for `django` delivery)              |
+| Account and region baked into the name |                  | `CDK_DEFAULT_ACCOUNT`, `CDK_DEFAULT_REGION` | pseudo-parameters                               |
 
 ## Deploy (approval required)
 

@@ -378,11 +378,18 @@ encrypted RDS, deletion protection on, backups on; no public DB. *The asset mana
 and its Django policy are defined and synthesized (`infra/lib/assetStorageStack.ts`,
 `docs/ASSET_MANAGER.md` section 12), not deployed. Network and RDS are not started, so LAI-1002
 stays open.*
-**LAI-1003 ECR and image build.** Depends: 1001. Risk L.
+**LAI-1003 ECR and image build.** Depends: 1001. Risk L. *Repository side done 2026-10-30
+(ADR-037): `LaiDjangoRelease` (ECR, OIDC, publisher role) and the build job in
+`.github/workflows/deploy-django-ec2.yml`; not deployed, so it stays open until the first push.*
 **LAI-1004 Dev EC2 + Docker deploy.** Depends: 1002, 1003. Risk M. Acceptance: health check
-via ALB; migrate step in deploy; rollback script tested.
+via ALB; migrate step in deploy; rollback script tested. *Repository side done 2026-10-30
+(ADR-037, `docs/platform/DJANGO_EC2_DEPLOYMENT.md`): `LaiDjangoEc2-<env>` (also the RDS and
+network part of LAI-1002), SSM-driven release with migrate, readiness check through the ALB, and
+rollback tested against fakes. Open until a release passes on a provisioned dev environment.*
 **LAI-1005 Edge: CloudFront for React + `/api/*`.** Depends: 1004. Risk M.
-**LAI-1006 Monitoring parity.** Depends: 1004. Risk M. Acceptance: ALB 4xx/5xx alarms,
+**LAI-1006 Monitoring parity.** Depends: 1004. Risk M. *Started 2026-10-30: the EC2 stack has
+readiness, target 5xx, memory, disk, status-check and database-storage alarms; the AI/Safety
+metrics, dashboard and Bedrock budget are not moved yet.* Acceptance: ALB 4xx/5xx alarms,
 `LearningAdventureIsland/AI` and `/Safety` metrics, dashboard, Bedrock budget retained.
 **LAI-1007 Production ECS Fargate definitions.** Depends: 1005. Risk M. Acceptance: defined
 and synthesized, **not deployed**.

@@ -197,6 +197,13 @@ familiarity (current `amplify/backend.ts` is already CDK). One stack per concern
 
 ## 11a. Django Admin hosting (LAI-0404; not provisioned)
 
+**Update (2026-10-30, ADR-037).** The owner chose an EC2 release pipeline for dev and, initially,
+prod: one instance per environment behind an ALB, released from GitHub Actions through ECR and
+SSM. It is built in the repository and not provisioned; the runbook is
+`docs/platform/DJANGO_EC2_DEPLOYMENT.md`. The Fargate recommendation below remains the
+production candidate (LAI-1007). The ALB health-check question at the end of this section is
+settled there: nginx presents the API host name for the two probe paths only.
+
 **State (2026-10-25).** Nothing hosts Django yet. The repository has no `infra/`, the AWS inventory
 (`docs/CURRENT_AWS_RESOURCE_INVENTORY.md`) has only Amplify-managed resources, and the production
 region is unknown (sandbox: `us-west-1`). There is no existing backend infrastructure to reuse
