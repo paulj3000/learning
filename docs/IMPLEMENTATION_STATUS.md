@@ -2528,6 +2528,54 @@ has not been asked and which "Decisions pending" already lists as open; and
 whether SC-11's retirement gate still means anything against a castle whose
 content layer is being replaced.
 
+## Django EC2 release pipeline (ADR-037): built and tested in the repository; NOT provisioned
+
+**Done in the repository (2026-10-30), owner-directed.** A merge to `main` that touches the
+backend runs `.github/workflows/deploy-django-ec2.yml`: Django checks, migration check,
+production `check --deploy`, pytest with PostgreSQL; then (once `LAI_DEPLOY_ENABLED` is set)
+builds the image once, pushes `lai/django:<full sha>` to ECR, deploys the **digest** to dev through
+an allowlisted SSM document and verifies readiness through the ALB. Prod needs the `django-prod`
+GitHub Environment approval and a manual dispatch (or `LAI_PROD_AUTO_DEPLOY=true`). Dispatch also
+rolls back. Runbook: `docs/platform/DJANGO_EC2_DEPLOYMENT.md`.
+
+Acceptance criteria implemented: OIDC-only AWS access restricted to this repository, `main` and
+the GitHub Environment; least-privilege instance and deploy roles (no keys, no admin); ECR with
+immutable tags, scan on push, lifecycle and release manifest; SSM-only delivery with no SSH and
+pattern-checked parameters; deploy lock, ordering check, release labels, configuration and secret
+validation, preflight, destructive-migration guard, pre-migration RDS snapshot (prod), migrate,
+start, health check, automatic rollback, durable release history; manual rollback that never
+reverses migrations and flags them; `/api/v1/health/ready/` (new) for the ALB and the release;
+RDS PostgreSQL with TLS verify-full, deletion protection and backups (or a retained dev volume);
+ALB with ACM, HTTP redirect and a WAF rate rule on the admin login; CloudWatch logs, memory and disk
+metrics and six alarms; status, logs and bootstrap tools (admin account, asset roles, content,
+Treasure Rush seed and model import).
+
+Found and fixed by running the production compose stack locally: the image entry point ignored
+one-off commands (every `manage.py` task would have started gunicorn), and the container health
+checks were rejected by production `ALLOWED_HOSTS`. Also fixed before any deploy: the IMDSv2 hop
+limit (the container could not have reached the role credentials) and the first release to an
+empty database (Django's own `contenttypes.0002` would have tripped the destructive guard).
+
+Checks run (no browser, by owner instruction): full pytest with PostgreSQL, 1,056 passed and 5
+failed: the five route-allowlist authorization tests correctly flagged the new public readiness
+probe; it was registered in them explicitly and those files then passed (234 passed, rerun by
+path). Full Vitest, 294 files and 3,135 tests passed (includes 32 new CDK tests). `npm run
+typecheck`; CDK synth of all stacks for dev and prod; 63 release script tests and 2 entry point
+tests (fakes, no AWS); ShellCheck 0.11 and actionlint 1.7.12 (from a scratch venv, not added to
+the repository); `docker compose config` for both profiles; `nginx -t`; a real image build; a local
+end-to-end compose run; production `check --deploy`; `adr:check`; Ruff, Prettier and oxlint
+clean on every changed file. Pre-existing on main and untouched: 3 Ruff findings (`S105` in
+`create_admin_account.py`, 2 import-order). On this machine Docker containers cannot resolve DNS
+(VPN resolvers), so the image build pinned PyPI's addresses with `--add-host`; the Dockerfile is
+unchanged by that. Not run: `npm run build` (no front-end change) and anything against AWS.
+
+**Not done or blocked (owner):** provisioning (`scripts/aws/provision.sh`, change sets first),
+ACM DNS validation and the API DNS record, the secret key, GitHub variables and environments,
+the first release and bootstrap tasks, publishing the three models in Django Admin, and React's
+`/api/*` routing (`docs/platform/AMPLIFY_HOSTING.md` section 7). LAI-1003, LAI-1004 and LAI-1006
+stay open until they pass on AWS. Nothing on AWS, the GitHub-hosted workflow run, OIDC, SSM,
+awslogs or RDS TLS has been exercised.
+
 ## Treasure Rush - TR-7a and TR-10: Treasure Cove's models come from the Django asset manager; AWS storage defined, not deployed
 
 **Done (2026-10-30), merged into main.** With `VITE_BACKEND=django`, Treasure Cove resolves its

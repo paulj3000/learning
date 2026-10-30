@@ -453,10 +453,11 @@ and ALB) about $11; CloudWatch, Secrets Manager, ECR a few dollars. **About $90 
 
 ## 15. Verification on 2026-10-30 (repository only)
 
-Done locally: Django tests for the readiness probe and database TLS options; 66 release script
+Done locally: 9 readiness probe tests and the database TLS option tests; 63 release script
 tests against fake docker, aws and curl (deploy, ordering, labels, configuration, migrations,
-snapshot, rollback, pruning, lock, bootstrap, ssm-run classification); entry point tests;
-32 CDK template tests and synthesis of all three stacks for dev and prod; ShellCheck; actionlint;
+snapshot, rollback, pruning, lock, bootstrap, ssm-run classification); 2 entry point tests;
+32 CDK template tests and synthesis of all three stacks for dev and prod; the full pytest suite
+with PostgreSQL; ShellCheck; actionlint;
 `docker compose config` for both profiles; `nginx -t`; a real image build; and an end-to-end
 run of the production compose stack (nginx, gunicorn, PostgreSQL) with the log driver swapped
 for the local one, which found and fixed two bugs (the entry point ignored one-off commands; the
