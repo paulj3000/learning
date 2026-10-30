@@ -104,6 +104,10 @@ date, account alias (not account id), and region.
 This is an estimate for the target and must be re-measured after LAI-0900 series. Raising
 the quota remains the lower-effort fix if IAM pressure alone were the issue.
 
+Measured so far in `infra/` (synthesized, not deployed): `LaiAssetStorage-<env>` creates **0
+roles** and 1 customer-managed policy, attached to the Django task role; it is bootstrapless,
+so no `cdk bootstrap` roles either (`docs/ASSET_MANAGER.md` section 12).
+
 ## 7. Recommendation
 
 - Request the quota increase now, independent of this migration. It is cheap and removes the

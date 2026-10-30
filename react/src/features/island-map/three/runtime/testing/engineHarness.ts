@@ -67,6 +67,8 @@ export function mount(
     manifest?: ThreeLocationManifest;
     startCheckpointId?: string;
     loadModel?: (assetId: string) => Promise<LoadedModel>;
+    /** Overrides the instanced-mesh loader (tiled ground, clusters, building pieces). */
+    instanced?: LocationEngineDeps<FakeRenderer>['assets']['instanced'];
     extensions?: readonly WorldExtension[];
     parent?: HTMLDivElement;
     worldState?: WorldInteractionContext;
@@ -97,7 +99,9 @@ export function mount(
     createRenderer: () => renderer,
     assets: {
       loadModel: options.loadModel ?? (async () => standingBox()),
-      instanced: vi.fn(async () => new Mesh(new BoxGeometry(), new MeshBasicMaterial())),
+      instanced:
+        options.instanced ??
+        vi.fn(async () => new Mesh(new BoxGeometry(), new MeshBasicMaterial())),
       withLod: vi.fn(async () => new Group()),
     },
     attachControls: (_renderer, attached, attachOptions) => {

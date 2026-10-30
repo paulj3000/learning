@@ -163,7 +163,7 @@ envelope, the answer never appears in any response.
 Risk M. Acceptance: `react/src/api/` module behind `VITE_BACKEND`, typed DTOs, Cognito bearer
 token, fallback copy on network failure. No other feature moves.
 
-**TR-7a Placeholder-mesh asset adapter.** Depends: LAI-2106 settling (it edits the same
+**TR-7a Placeholder-mesh asset adapter.** DONE (section 16). Depends: LAI-2106 settling (it edits the same
 loader and engine files). Risk L. Acceptance: when a prop or NPC
 model is missing or fails to load, the runtime shows a primitive mesh of the declared size and
 the interaction still works; generic for every region; tests with a failing resolver. Must not
@@ -184,7 +184,7 @@ fallback states.
 **TR-9 End-to-end and playtest.** Depends: TR-8. Risk M. Acceptance: Playwright journey
 (walk, open, answer, reward, revisit shows open chest); a human playtest note per age band.
 
-**TR-10 Integrate LAI-2106.** Depends: LAI-2106 merged, TR-7a. Risk M. Acceptance: the adapter
+**TR-10 Integrate LAI-2106.** DONE (section 16). Depends: LAI-2106 merged, TR-7a. Risk M. Acceptance: the adapter
 resolves through the shared asset manager; content keeps its ids; placeholders remain the
 failure path.
 
@@ -602,3 +602,31 @@ and these fixes for the rest:
 
 **Tests:** 6 client provisioning tests, 1 message test, 8 publish tests; two mutations on the
 publish safety rules (no DEBUG gate, no validation) each failed a test.
+
+## 16. TR-7a and TR-10 as built (2026-10-30)
+
+**TR-7a.** Generic, in `createLocationEngine.ts`: a model that cannot be resolved or loaded leaves
+a primitive box instead of nothing. NPCs keep their stand-in, now sized by `placeholderSize`;
+props, collectibles and `MODEL` scenery get a `missing-model:<asset id>` box (loud pink,
+`placeholderSize` or 0.6 m); a failed `TILED_GROUND` becomes one plain plane. Focus, labels and
+interaction belong to the entity root, so a stand-in can still be found and used. Every failure
+is logged by the runtime's existing `track` warning; the region-play chest keeps its built chest
+and now logs why instead of swallowing the error. `buildRegionManifest` passes the admin's
+placeholder size (`placeholder_width/height/depth` times scale); a non-positive size uses the
+default instead of failing validation. Tests: `missingModelPlaceholders.engine.test.ts`.
+
+**TR-10.** `features/region-play/regionAssets.ts` (`regionAssetsFor`) gives a region served by
+the play API `createAssetLoader(djangoAssetResolverFor(childId))`, built once per visit by
+`LocationWorldPage` and passed to `ThreeLocationWorldView` as `assets`. Source regions and builds
+without `VITE_BACKEND=django` keep the bundled loader. Content keeps its ids (`npc-pip`,
+`treasure-chest`, `ground-tile`); unpublished ids use the bundled files; ids neither knows draw
+the TR-7a placeholder. The resolver now reports why an id fell back, so an auth or scope
+failure is never mistaken for "not published". Tests: `regionAssets.test.ts` (the real cove
+manifest on the engine with the Django resolver and shared loader; only HTTP and the GLTF fetch
+are fakes) and `lai/apps/assets/tests/test_treasure_rush_assets.py` (import, publish, replace,
+make default, cache headers, scoping). Operations, deployment and rollback:
+`docs/ASSET_MANAGER.md` sections 15 and 19.
+
+Not done: any browser or WebGL run (owner, after deployment), and TR-9. A deployed environment
+still needs TR-3's region admin to publish the cove and LAI-0502/0602 for real children
+(`docs/ASSET_MANAGER.md` 19.3, steps 5 and 9).

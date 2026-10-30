@@ -1,10 +1,13 @@
 # Shared Django Asset Manager (LAI-2200)
 
 Status: AM-1 to AM-10 merged into `main` on 2026-10-25 after merge verification (section 18).
-**Not deployed as an asset service:** the S3 bucket, its IAM policy and CloudFront are not
-provisioned (section 12, AM-11 and LAI-1002), and TR-10 has not wired any scene to it. The admin
-preview was checked in headless Chromium with software WebGL. The child app's Django resolver
-has not been checked in a browser.
+**Treasure Cove uses it (TR-10, 2026-10-30):** with `VITE_BACKEND=django`, the cove's models
+resolve through the asset manager, so a version published in Django Admin reaches the game with
+no React rebuild (section 15). **AWS storage is defined but not deployed:** `infra/` synthesizes
+the private bucket and the Django role policy (section 12); deploying it, and hosting Django at
+all (LAI-1004), are approval steps nobody has taken. Signed CloudFront delivery (AM-11) is not
+needed for launch (section 8). The admin preview was checked in headless Chromium with software
+WebGL. The child app's Django path, TR-10 included, has not been checked in a browser.
 Decision record: ADR-035 in `docs/DECISIONS.md` (Accepted 2026-10-25).
 
 An administrator uploads a 3D model once, validates it, publishes an immutable version, and any
@@ -151,10 +154,27 @@ Two modes (`LAI_ASSET_DELIVERY`):
 Both modes reuse one URL per version per half-TTL window, so a browser's HTTP cache hits
 across scenes. The bytes of a version never change, so responses are cacheable for the URL's
 remaining life and the loader's in-memory cache (keyed by asset id) needs no invalidation.
-Cross-origin: the API is same-origin by design (no CORS). In `s3` mode the bucket needs a CORS
-rule allowing `GET` from the app origin. A Content-Security-Policy, when one is added, needs
-`connect-src` for the bucket host in `s3` mode. Signed CloudFront URLs (cheaper delivery, the same
-revocation limits) are the next step once the distribution exists.
+Cross-origin: the API is same-origin by design (no CORS on Django, TR-D14; the React host must
+route `/api/*` to Django, `docs/platform/AMPLIFY_HOSTING.md` section 7). In `s3` mode the bucket
+needs a CORS rule allowing `GET` from the app origin (`allowedOrigins` in `infra/`, section 12).
+A Content-Security-Policy, when one is added, needs `connect-src` for the bucket host in `s3`
+mode.
+
+**Production choice (2026-10-30): `django` delivery from the private S3 bucket.** Storage is S3
+(`LAI_ASSET_STORAGE=s3`), delivery stays `django`:
+
+- The browser only ever talks to the app's own origin. The bucket needs no CORS rule and is never
+  reachable from a browser; the CSP needs no bucket entry.
+- Retiring a version stops it at once, which matters for child-facing content.
+- The cost is Django bandwidth: the cove's three bundled models are about 17 KB together, cached by the
+  browser for the URL's life (`private, max-age=<remaining>, immutable`) and by the loader for
+  the visit.
+
+Switch to `LAI_ASSET_DELIVERY=s3` (presigned URLs straight from the bucket) only if model
+traffic becomes material; deploy the stack with `allowedOrigins` first. **CloudFront is not
+added:** nothing in the repository serves assets through a distribution yet, and presigned S3
+URLs already give private, short-lived, cacheable delivery. Signed CloudFront URLs (AM-11) stay a
+later optimisation for when LAI-1005's distribution exists.
 
 ## 9. Consistency rules
 
@@ -171,17 +191,27 @@ revocation limits) are the next step once the distribution exists.
 ## 10. Frontend adapter
 
 `react/src/api/assets/djangoAssetResolver.ts` implements `AssetResolver`. It batches the ids a
-scene asks for in one tick into one request, caches answers per sign-in, and falls back to the
-bundled resolver for `unavailable` and `retired`. When the fallback also does not know the
-id, it rejects, which is the loader's existing failure path (and TR-7a's placeholder once it
-lands). It lives outside the engine folder, so the engine still imports no backend client.
-It is not wired into any scene here; TR-10 does that for Treasure Cove.
+scene asks for in one tick into one request, caches answers until their URL is near expiry, and
+falls back to the bundled resolver for `unavailable` and `retired`. When the fallback also does
+not know the id, it rejects, which is the loader's existing failure path: the runtime draws the
+TR-7a placeholder. It lives outside the engine folder, so the engine still imports no backend
+client.
+
+Why an id fell back is reported (`onIssue`, default `reportAssetResolutionIssue`, a console
+warning): `not-published` for an `unavailable`, `retired` or unusable answer (expected while
+assets migrate), and `request-failed` with the `ApiError` kind and status when the request
+itself failed (signed out, another family's child, Django down). A failed request still plays
+on bundled files, but it is never reported as "not published", and it is not cached, so the
+next load asks again. Treasure Cove uses it (TR-10, section 15).
 
 ## 11. Import (`manage.py import_assets`)
 
 - `--from-bundled`: every export-origin `ContentAsset` whose `bundled_path` exists under
   `react/public` becomes a validated version (not published), matched by SHA-256, so a re-run
-  creates nothing new.
+  creates nothing new. `--ids a,b,c` limits it to those ids (Treasure Cove:
+  `--ids npc-pip,treasure-chest,ground-tile`); an id that is not an exported bundled asset is
+  listed as `unknown_asset`. The Django image carries `react/public/models`, so this runs as a
+  one-off container task against production storage (section 19).
 - `--from-amplify FILE --files DIR`: Amplify `Asset` / `AssetVersion` records (from the
   read-only export of LAI-1101) plus their downloaded files. The slug is the asset id; known
   clip names are kept; records without a file, or whose file fails validation, are listed as
@@ -189,13 +219,23 @@ It is not wired into any scene here; TR-10 does that for Treasure Cove.
 - `--dry-run` reports without writing. Nothing is deleted, in S3 or in Amplify, and no gameplay
   reference changes.
 
-## 12. Deployment dependencies (not done)
+## 12. AWS storage (`infra/`, synthesized, not deployed)
 
-S3 bucket per environment (private, Block Public Access, SSE, versioning off since keys are
-immutable, CORS for `s3` delivery), an IAM task-role policy limited to `assets/models/*`
-(`s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`, `s3:ListBucket` on the prefix), the
-environment variables in section 13, and production approval (Phase 10, LAI-1002). No live AWS
-call is made by the tests.
+`infra/lib/assetStorageStack.ts` (CDK, the first stack of LAI-1001's `infra/` app) defines
+`LaiAssetStorage-<env>` for `dev` and `prod`. How to synthesize and deploy it: `infra/README.md`.
+
+| Piece | Definition |
+|---|---|
+| Bucket | `lai-assets-<env>-<account>-<region>`. Block Public Access (all four), bucket-owner-enforced (no ACLs), SSE-S3, a bucket policy denying non-TLS requests, retained when the stack is deleted, termination protection on `prod` |
+| Versioning | On. Keys are immutable, so no live object ever has two versions; a deleted object (a never-published version, or `asset_storage_audit --delete`) stays recoverable for 30 days, then expires. Incomplete multipart uploads are aborted after a day |
+| IAM | Managed policy `lai-django-asset-storage-<env>`: `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` on `arn:aws:s3:::<bucket>/assets/models/*`; `s3:ListBucket` on the bucket. Attached to the Django workload role (`djangoRoleArn`) or attached by hand. No IAM user, no access key, no `s3:*`, no version deletes |
+| Why ListBucket has no prefix condition | `list_objects_v2` sends a prefix, but `head_object` on a missing key does not, and without ListBucket S3 answers it 403 instead of 404, which `asset_storage_audit` would report as a failure. The bucket holds nothing else |
+| CORS | None by default (`django` delivery). With `allowedOrigins`, one rule: `GET` and `HEAD`, those explicit `https://` origins only, `Range` request header, `Content-Length`, `Content-Type`, `ETag` exposed, one hour preflight cache. Wildcards and plain `http://` (other than localhost) are refused at synth |
+| Credentials | From the workload role through the default AWS SDK chain (`boto3.client("s3")`). Nothing in settings, `.env` files or the React build. Local development keeps `local` storage and needs no AWS credentials |
+
+Deploying it is a Phase 10 approval step (`docs/DJANGO_MIGRATION_ROADMAP.md`). No test makes a
+live AWS call: `infra/lib/assetStorageStack.test.ts` asserts on the synthesized template, and
+`apps/assets/tests/test_storage.py` stubs boto3.
 
 ## 13. Configuration
 
@@ -206,6 +246,13 @@ call is made by the tests.
 | `LAI_ASSET_DELIVERY` | `django` | `django` or `s3` |
 | `LAI_ASSET_URL_TTL_SECONDS` | 3600 | Delivery URL lifetime (60 to 43200) |
 | `LAI_ASSET_MAX_UPLOAD_BYTES` | 52428800 | Upload limit (also the largest file the admin preview shows) |
+
+Production (`config.settings.production`) refuses to start unless `LAI_ASSET_STORAGE=s3` and both
+`LAI_ASSET_BUCKET` and `LAI_ASSET_REGION` are set, so a container can never fall back to its own
+disk. The key prefix (`assets/models/`) is fixed in code and in the IAM policy, not a setting. The
+React build needs nothing new: `VITE_BACKEND=django` (and `VITE_DJANGO_API_BASE` only for a
+non-same-origin API) are the whole client configuration; no bucket name, key or credential ever
+reaches Vite.
 
 The admin preview (section 17) adds no variable. Its token lifetime is the constant
 `apps.assets.preview.PREVIEW_TTL_SECONDS` (600 seconds).
@@ -224,27 +271,55 @@ The admin preview (section 17) adds no variable. Its token lifetime is the const
 | AM-8 | Existing asset import tooling | Done |
 | AM-9 | Security and integration tests, documentation | Done |
 | AM-10 | Admin 3D model preview (section 17) | Done (unit-tested; not checked in a browser) |
-| AM-11 | Signed CloudFront delivery | Not started; needs the distribution |
+| AM-11 | Signed CloudFront delivery | Not needed for launch (section 8); later optimisation once LAI-1005's distribution exists |
+| AM-12 | Production S3 storage: bucket, IAM, CORS, image, runbook (sections 12 and 19) | Done as code and documentation; deploying it is an approval step |
 
-## 15. Treasure Rush TR-10: what it needs from here
+## 15. Treasure Rush TR-10 (done 2026-10-30)
 
-TR-10 is not done here (owner rule: no Treasure Rush gameplay change in this workstream). It needs:
+```text
+Treasure Cove entity (asset id "npc-pip")
+  -> regionAssetsFor(child, region)             react/src/features/region-play/regionAssets.ts
+  -> createAssetLoader(djangoAssetResolverFor(child))
+  -> GET /api/v1/children/<child>/assets/?ids=npc-pip,treasure-chest,ground-tile
+  -> published default version -> signed URL     (bundled file if nothing is published)
+  -> GLTFLoader -> clone (SkeletonUtils for rigged models) -> scene
+```
 
-1. This branch merged (the resolver route, `djangoAssetResolverFor`, the `assets` migrations).
-2. TR-7a's placeholder adapter, so a rejected resolve draws the placeholder instead of nothing.
-3. In the Treasure Cove scene, build the loader with
-   `createAssetLoader(djangoAssetResolverFor(childId))` instead of the bundled default. The
-   region's ids (`npc-pip` today) stay as they are.
-4. A published version for each id the cove uses, or nothing at all: unpublished ids fall back
-   to the bundled files, which is the current behaviour.
-5. Browser verification in a Django-enabled build (`VITE_BACKEND=django`), which has not been done.
+- **Which regions.** Regions served by the play API (today only Treasure Cove) in a build with
+  `VITE_BACKEND=django`. Source-controlled regions, and every build without it, keep the bundled
+  loader, so nothing changes for them.
+- **When a new version shows.** Each visit builds its own resolver and loader, so a version made
+  the default is what the child gets the next time they enter the cove. A visit in progress
+  keeps what it loaded (section 9). No React rebuild is involved.
+- **Fallbacks.** Published version, else the bundled file for that id, else the TR-7a
+  placeholder. A failed request (auth, scope, network) also plays on bundled files but is
+  reported as a failure, not as "not published" (section 10). Amplify Storage is never used.
+- **Animations.** The loader hands the scene the parsed glTF unchanged: clips keep their names,
+  and the clone is skeleton-safe. The chest finds `Open` by name, Pip loops `Idle` and plays
+  `Talk`/`Wave`. Upload validation refuses a new version that drops a clip the definition
+  declares (section 5), so a replacement cannot silently break them.
+- **Placeholders (TR-7a).** A model that fails draws a primitive box of the admin's placeholder
+  size (`placeholder_width/height/depth`), named `missing-model:<asset id>`; the chest keeps its
+  built chest; a ground tile that fails becomes a plain floor. Each failure is a console warning
+  naming the entity and the error.
+
+Inventory of the cove's runtime models (all three are export-origin `ContentAsset` rows after
+`load_content`; none is published until an administrator does it):
+
+| Asset id | Used for | Bundled fallback | Kind | Clips the game uses | Cove placement |
+|---|---|---|---|---|---|
+| `npc-pip` | Pirate Pip (NPC, `cove-pip`) | `/models/npc-pip.gltf` | `character` | `Idle` (loops), `Talk`, `Wave` | `WorldObjectPlacement.asset_id` |
+| `treasure-chest` | The chest (`cove-chest`), drawn open from server state | `/models/treasure-chest.gltf` | `prop` | `Open` (held on its last frame) | `TreasureChest.asset_id` (default), `open_clip` |
+| `ground-tile` | The cove floor (tiled, instanced) | `/models/ground-tile.gltf` | `kit-piece` | none | Region default ground (`scene.groundAssetId` overrides) |
+
+Browser verification in a Django-enabled build has not been done (owner: after deployment).
 
 ## 16. Open decisions
 
 - **ADR-035 was accepted on 2026-10-25** after the implementation was checked against it. What
   follows is deferred work, not open parts of that decision.
-- **Delivery mode in production:** `django` (immediate revocation, Django bandwidth) or `s3`
-  (cheaper, revocation only at expiry). Signed CloudFront URLs (AM-11) need the distribution.
+- **Delivery mode in production:** decided 2026-10-30, `django` from the S3 bucket (section 8).
+  Revisit with `s3` delivery or signed CloudFront URLs (AM-11) if model traffic grows.
 - **Licence and source fields** (the Amplify `AssetSource` and notes) are not modelled; the import
   keeps only tags. Decide whether licence tracking belongs on the definition or the version.
 - **Thumbnails** are not built. The interactive admin preview is (AM-10, section 17).
@@ -367,6 +442,106 @@ and clean-up while loading. Three.js rendering itself is mocked (jsdom has no We
   per concurrent request. That is acceptable for staff traffic.
 - A Content-Security-Policy, when one is added to the admin, must allow `blob:` and `data:`
   images for embedded textures, and `script-src 'self'` covers the bundle.
+
+## 19. Operations: publishing Treasure Rush models, deploying, rolling back
+
+### 19.1 Locally
+
+`docs/TREASURE_RUSH_LOCAL_DEV.md` step 9: import the cove's three models, publish them in the
+admin, and play. Local storage is `lai/.asset-storage/` and delivery is `django`; no AWS
+account is involved.
+
+### 19.2 Replacing a Treasure Rush model in Django Admin
+
+Roles: an **Asset editor** uploads, an **Asset publisher** publishes and makes a version the
+default (`manage.py ensure_asset_roles` creates both groups; a superuser assigns people to them
+under Users). The admin path is `DJANGO_ADMIN_URL_PATH` (default `/admin/`).
+
+1. **Asset manager, Asset versions, Add** (the upload form). Pick the asset (`npc-pip`,
+   `treasure-chest` or `ground-tile`; a new asset is created first under **Catalog, Content
+   assets** with a stable id), choose a `.glb` or self-contained `.gltf`, upload. Validation
+   runs at once: a failing file is refused with its findings and nothing is stored; a passing
+   one becomes the next version, `VALIDATED`.
+2. Optional: the version's **Preview** link shows the stored model in 3D (AM-10).
+3. Select the version, action **Publish selected versions**. The first published version of an
+   asset becomes its default; a later one is published but not yet used.
+4. To switch the game to it: select it alone, action **Make the selected version the default**.
+5. The next time a child enters Treasure Cove, the resolver returns the new version's URL and
+   the scene loads it. No React build, no deploy.
+
+Animated models must keep the clip names the definition declares (`npc-pip`: `Idle`, `Talk`,
+`Wave`; `treasure-chest`: `Open`); validation refuses a version that drops one.
+
+### 19.3 A new AWS environment, in order
+
+Prerequisites outside this document: Django hosting with a workload role, RDS and secrets
+(LAI-1002 to LAI-1004, `docs/DJANGO_TARGET_ARCHITECTURE.md` section 11a), and `/api/*` routed to
+Django on the app's own origin (`docs/platform/AMPLIFY_HOSTING.md` section 7). Every AWS step is
+an approval step.
+
+1. **Storage.** Synthesize and deploy `LaiAssetStorage-<env>` with the Django role
+   (`infra/README.md`):
+   ```bash
+   LAI_ENV=prod LAI_DJANGO_ROLE_ARN=arn:aws:iam::<account>:role/<django-role> \
+     CDK_DEFAULT_ACCOUNT=<account> CDK_DEFAULT_REGION=<region> npm run infra:synth
+   aws cloudformation deploy --stack-name LaiAssetStorage-prod \
+     --template-file infra/cdk.out/LaiAssetStorage-prod.template.json \
+     --capabilities CAPABILITY_NAMED_IAM --region <region>
+   ```
+2. **Django environment.** Besides the variables `config.settings.production` already requires
+   (`DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, `DATABASE_URL`, `DJANGO_CSRF_TRUSTED_ORIGINS`,
+   `COGNITO_*`): `LAI_ASSET_STORAGE=s3`, `LAI_ASSET_BUCKET=<AssetBucketName output>`,
+   `LAI_ASSET_REGION=<region>`. Leave `LAI_ASSET_DELIVERY` unset (`django`). No AWS key: the
+   role supplies credentials.
+3. **Image.** `docker build -f lai/Dockerfile -t lai-django .` (it now carries
+   `react/public/models` for step 6), push it, release admin static files
+   (`scripts/release-admin-static.sh`), roll the service.
+4. **One-off tasks** in that image, with the same environment:
+   ```bash
+   python manage.py migrate
+   python manage.py create_admin_account <username> --superuser --no-input   # DJANGO_ADMIN_PASSWORD
+   python manage.py ensure_asset_roles
+   python manage.py load_content
+   ```
+5. **Region content.** `python manage.py seed_treasure_rush` creates the cove as `DRAFT`.
+   Publishing it in a deployed environment needs TR-3's region admin, which does not exist yet:
+   `publish_treasure_rush` is local-only by design (DEBUG and loopback). **Open blocker.**
+6. **Models.** `python manage.py import_assets --from-bundled --ids npc-pip,treasure-chest,ground-tile`
+   (add `--dry-run` first to see what it would do). Idempotent; publishes nothing.
+7. **Publish** the three versions in Django Admin (19.2, step 3). Until then the game uses its
+   bundled copies, so this step can come later.
+8. **React.** Build with `VITE_BACKEND=django` (and `VITE_DJANGO_API_BASE` unset for a
+   same-origin API). Today every hosted Amplify branch keeps `VITE_BACKEND` unset
+   (`docs/platform/AMPLIFY_HOSTING.md` section 5); changing that is an owner decision.
+9. **Children.** A child must exist in Django to play: real families need the child-profile
+   migration (LAI-0502/0602, TR-9). **Open blocker.**
+
+Never run the import, or any publish, from the container entry point: both are explicit
+administrative actions.
+
+### 19.4 Rolling back
+
+| What | How |
+|---|---|
+| A bad model version | Make the previous published version the default (19.2, step 4). Versions are immutable, so the old bytes are untouched. Retiring the bad one stops it at once with `django` delivery |
+| An asset that should not be in the game at all | Retire the definition (admin action): every reference becomes `retired` and the game uses the bundled file |
+| TR-10 itself | Build React without `VITE_BACKEND=django`: every region uses the bundled loader again. Nothing else changes |
+| The storage stack | It retains the bucket on delete, so tearing the stack down never deletes content. A deleted object can be restored from its noncurrent version for 30 days (`aws s3api list-object-versions`, then copy it back) |
+| A whole Django release | Roll the service back to the previous image; asset rows and objects are unaffected (the asset migrations are additive) |
+
+### 19.5 Troubleshooting
+
+| You see | Likely cause |
+|---|---|
+| A loud pink box where a model should be, and `[location ...] could not place ...` in the console | The model failed to load from both Django and the bundle: a typo in the asset id, or a file the loader cannot parse. The warning carries the error |
+| `[assets] "<id>" is unavailable in the asset manager (expected until it is published)` | Nothing published for that id, or only drafts. The bundled file is used. Publish a version (19.2) |
+| `[assets] ... is retired ...` | The definition or the default version was retired. Make another version the default, or leave the bundled file in use |
+| `[assets] the asset manager request failed (unauthenticated 401)` or `(not_found 404)` | Not a publishing problem. 401: Cognito settings or an expired sign-in. 404: the child does not exist in Django or belongs to another family (TREASURE_RUSH_LOCAL_DEV step 7) |
+| `(network)` or `(unavailable 503)` | Django is down or `/api/*` does not reach it. Models fall back to the bundle; check the routing |
+| A published version does not appear | It is published but not the default (19.2, step 4), or the child is still in the same visit: leave the cove and come back |
+| The upload form refuses the file | The findings say why: external `uri`s, Draco/meshopt, an unknown clip name, a dropped clip, or over the size limit (sections 4 and 5) |
+| `asset file unavailable` in the Django log, 503 to the browser | The object is missing or unreadable in the bucket: check the role policy is attached, and run `manage.py asset_storage_audit` |
+| Django refuses to start: `LAI_ASSET_STORAGE must be s3 in production` or `LAI_ASSET_BUCKET must be set` | Step 2's variables are missing |
 
 ## 18. Merge verification (2026-10-25)
 

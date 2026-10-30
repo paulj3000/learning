@@ -4,6 +4,7 @@ import {
   type ResolvedAsset,
 } from '../../features/island-map/three/assets/assetResolver';
 import { getAccessToken } from '../auth';
+import { ApiError } from '../errors';
 import { createApiClient, type ApiClient } from '../client';
 import { DJANGO_API_CONFIG, type DjangoApiConfig } from '../config';
 
@@ -21,13 +22,29 @@ import { DJANGO_API_CONFIG, type DjangoApiConfig } from '../config';
  *   back to the bundled resolver, so content keeps its ids and offline or
  *   unpublished assets still load from `public/models/`. When the bundled
  *   resolver does not know the id either it rejects, which is the loader's
- *   existing failure path (and TR-7a's placeholder once it lands).
+ *   existing failure path and draws TR-7a's placeholder.
+ * - The two are reported differently (`onIssue`, TR-10): "not published" is
+ *   an expected migration state, while a failed request (signed out, wrong
+ *   family, Django down) is a fault that must not pass for "not published".
  * - Only `https:` URLs, or same-origin paths, are ever handed to the loader.
  *
  * Lives outside the engine folder: the engine still imports no backend client.
  */
 
 export const MAX_IDS_PER_REQUEST = 100;
+
+/**
+ * Why an id was answered by the fallback instead of Django.
+ *
+ * - `not-published`: Django answered, but has no usable published version
+ *   (`unavailable`, `retired`, or an answer this client refuses to load).
+ * - `request-failed`: the request itself failed. `error` says how; an
+ *   `ApiError` carries the kind (`unauthenticated`, `forbidden`, `not_found`,
+ *   `network`, ...) and status. Never cached, so the next load asks again.
+ */
+export type AssetResolutionIssue =
+  | { kind: 'not-published'; id: string; status: string }
+  | { kind: 'request-failed'; ids: readonly string[]; error: unknown };
 export const REFRESH_BEFORE_EXPIRY_MS = 60_000;
 
 interface PublishedAsset {
@@ -42,11 +59,43 @@ export interface DjangoAssetResolverOptions {
   baseUrl?: string;
   fallback?: AssetResolver;
   now?: () => number;
+  /** Told whenever an id falls back. Defaults to `reportAssetResolutionIssue` (the console). */
+  onIssue?: (issue: AssetResolutionIssue) => void;
+}
+
+/**
+ * The default `onIssue`. Both are console warnings (the app's only log
+ * channel in the browser), worded apart: a failed request names the error's
+ * kind and status only (never a token or URL), while a missing publication
+ * says it is expected, since unpublished ids are normal while assets migrate.
+ */
+export function reportAssetResolutionIssue(issue: AssetResolutionIssue): void {
+  if (issue.kind === 'request-failed') {
+    const detail =
+      issue.error instanceof ApiError
+        ? `${issue.error.kind}${issue.error.status ? ` ${issue.error.status}` : ''}`
+        : 'unexpected error';
+    console.warn(
+      `[assets] the asset manager request failed (${detail}); using bundled models for: ${issue.ids.join(', ')}`,
+    );
+    return;
+  }
+  console.warn(
+    `[assets] "${issue.id}" is ${issue.status} in the asset manager (expected until it is published); using the bundled model`,
+  );
 }
 
 export function createDjangoAssetResolver(options: DjangoAssetResolverOptions): AssetResolver {
   const fallback = options.fallback ?? BUNDLED_ASSET_RESOLVER;
   const now = options.now ?? Date.now;
+  const onIssue = options.onIssue ?? reportAssetResolutionIssue;
+  const report = (issue: AssetResolutionIssue) => {
+    try {
+      onIssue(issue);
+    } catch {
+      // Reporting never breaks a scene.
+    }
+  };
   const baseUrl = options.baseUrl ?? '';
   const childPath = `children/${encodeURIComponent(options.childId)}/assets/`;
   const cache = new Map<string, PublishedAsset | null>();
@@ -65,10 +114,16 @@ export function createDjangoAssetResolver(options: DjangoAssetResolverOptions): 
       );
       for (const entry of readEntries(response.data)) {
         if (!ids.includes(entry.ref)) continue;
-        found.set(entry.ref, toPublished(entry, baseUrl));
+        const published = toPublished(entry, baseUrl);
+        found.set(entry.ref, published);
+        if (!published) {
+          const status = entry.status === 'resolved' ? 'unusable' : entry.status;
+          report({ kind: 'not-published', id: entry.ref, status });
+        }
       }
-    } catch {
-      // Any failure: every id in the chunk uses the bundled fallback this time.
+    } catch (error) {
+      // Any failure: every id in the chunk uses the bundled fallback this time, and says why.
+      report({ kind: 'request-failed', ids, error });
     }
     return found;
   }

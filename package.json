@@ -33,7 +33,8 @@
     "admin-preview:check": "tsx scripts/check-admin-preview-bundle.ts",
     "assets:import-kenney": "tsx scripts/import-kenney-assets.ts",
     "assets:import-characters": "tsx scripts/import-character-assets.ts",
-    "grant-admin": "tsx scripts/grant-admin.ts"
+    "grant-admin": "tsx scripts/grant-admin.ts",
+    "infra:synth": "tsx infra/bin/app.ts"
   },
   "keywords": [
     "education",

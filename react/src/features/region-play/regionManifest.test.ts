@@ -86,11 +86,30 @@ describe('buildRegionManifest', () => {
         label: 'Pirate Pip',
         idleClip: 'Idle',
         placeholderColor: expect.any(Number),
+        placeholderSize: { width: 1, height: 1.6, depth: 1 },
         interactionId: 'treasure-rush-cove:talk:cove-pip',
       },
     ]);
     const talk = manifest.interactions.find((i) => i.targetId === 'cove-pip');
     expect(talk?.action).toEqual({ kind: 'TALK_TO', npcId: 'pirate-pip' });
+  });
+
+  it('sizes the stand-in for a model that fails to load from the admin’s placeholder (TR-7a)', () => {
+    const bigPip = { ...PIP_WITH_MODEL, scale: 2 };
+    expect(build({ npcs: [bigPip] }).manifest.npcs[0]?.placeholderSize).toEqual({
+      width: 2,
+      height: 3.2,
+      depth: 2,
+    });
+    // Scenery applies its own scale to the stand-in, so the size stays unscaled.
+    const rock = build().manifest.scenery.find((s) => s.id === 'cove-rock');
+    expect(rock).toMatchObject({
+      kind: 'MODEL',
+      placeholderSize: { width: 1, height: 1, depth: 1 },
+    });
+    // A size an admin left at zero falls back to the runtime default instead of failing validation.
+    const flatPip = { ...PIP_WITH_MODEL, placeholder: { width: 1, height: 0, depth: 1 } };
+    expect(build({ npcs: [flatPip] }).manifest.npcs[0]).not.toHaveProperty('placeholderSize');
   });
 
   it('draws an NPC without a model as a placeholder figure that still talks', () => {

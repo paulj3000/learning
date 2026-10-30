@@ -6,6 +6,7 @@ import { locationRepositoryForThisBuild } from '../features/multiplayer/devMulti
 import { getChildProfile } from '../features/child-profile/api';
 import type { AgeBandValue } from '../features/child-profile/constants';
 import { regionRepositoryForChild } from '../features/region-play/regionRepositoryForChild';
+import { regionAssetsFor } from '../features/region-play/regionAssets';
 
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -26,7 +27,8 @@ const DEFAULT_AGE_BAND: AgeBandValue = 'SPROUT';
  * this file or `AppRoutes.tsx`.
  *
  * With the Django API enabled, a region that is not source-controlled is
- * read from the play API for this child (TR-7, `regionRepositoryForChild`).
+ * read from the play API for this child (TR-7, `regionRepositoryForChild`),
+ * and its models come from the Django asset manager (TR-10, `regionAssetsFor`).
  */
 export function LocationWorldPage() {
   const { childId, regionId } = useParams<{ childId: string; regionId: string }>();
@@ -42,6 +44,11 @@ export function LocationWorldPage() {
   const repository = useMemo(
     () => regionRepositoryForChild(childId ?? '', locationRepositoryForThisBuild),
     [childId],
+  );
+  // One resolver and loader per visit, so re-entering picks up a newly published default.
+  const assets = useMemo(
+    () => regionAssetsFor(childId ?? '', regionId ?? '', locationRepositoryForThisBuild),
+    [childId, regionId],
   );
 
   useEffect(() => {
@@ -100,6 +107,7 @@ export function LocationWorldPage() {
         ageBand={ageBand}
         aiEnabled={aiEnabled}
         repository={repository}
+        assets={assets}
       />
     </IslandLayout>
   );

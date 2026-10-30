@@ -52,6 +52,7 @@ import { SOURCE_WORLD_EXTENSIONS } from '../extensions';
 import type { LoadedModel, WorldExtensionMount, WorldExtensionRegistry } from './extensionRegistry';
 import type {
   ModelAnchor,
+  PlaceholderSize,
   ScaleSpec,
   ScenerySpec,
   ThreeLocationManifest,
@@ -175,7 +176,17 @@ const DEFAULT_LIGHTING = {
 };
 
 /** Placeholder stand-in size for an NPC whose model has not loaded (as every region used). */
-const NPC_PLACEHOLDER_SIZE = { width: 0.4, height: 0.6, depth: 0.2 };
+const NPC_PLACEHOLDER_SIZE: PlaceholderSize = { width: 0.4, height: 0.6, depth: 0.2 };
+/** Stand-in size for a prop, collectible or scenery model that fails to load and names none (TR-7a). */
+export const MISSING_MODEL_SIZE: PlaceholderSize = { width: 0.6, height: 0.6, depth: 0.6 };
+/**
+ * Colour of the stand-in for a model that failed to load (TR-7a): loud on
+ * purpose, so a missing or unpublished asset is noticed and fixed rather
+ * than mistaken for content. The failure itself is logged by `track`.
+ */
+export const MISSING_MODEL_COLOR = 0xff2bd6;
+/** A floor whose tiles failed to load becomes one plain plane, so the child never walks on sky. */
+export const MISSING_GROUND_COLOR = 0x8fbf6a;
 /** Frames longer than this (a background tab) are clamped so the player cannot tunnel through walls. */
 const MAX_FRAME_SECONDS = 0.1;
 
@@ -328,6 +339,38 @@ export function createLocationEngine<R extends RendererLike>(
     );
   }
 
+  /**
+   * TR-7a: a primitive box standing in for a model that could not be
+   * resolved or loaded. Standing on `into`'s origin, or centred on it for a
+   * `CENTRE`-anchored model, and named after the asset so it is easy to find
+   * when debugging. Focus, label and interaction are unaffected because they
+   * belong to the entity's root, which a raycast reaches through this box.
+   */
+  function addMissingModel(
+    into: Object3D,
+    assetId: string,
+    size: PlaceholderSize,
+    anchor: ModelAnchor | undefined,
+    color: number = MISSING_MODEL_COLOR,
+  ): void {
+    if (disposed) return;
+    const box = ownMesh(
+      new BoxGeometry(size.width, size.height, size.depth),
+      new MeshStandardMaterial({ color }),
+    );
+    box.name = `missing-model:${assetId}`;
+    box.position.y = anchor === 'CENTRE' ? 0 : size.height / 2;
+    into.add(box);
+  }
+
+  /** Runs `onFailure` when `work` fails, then fails anyway, so `track` still logs the cause. */
+  function orPlaceholder(work: Promise<void>, onFailure: () => void): Promise<void> {
+    return work.catch((error: unknown) => {
+      onFailure();
+      throw error;
+    });
+  }
+
   function addWhenLive(object: Object3D, into: Object3D = scene): boolean {
     if (disposed) return false;
     into.add(object);
@@ -349,15 +392,14 @@ export function createLocationEngine<R extends RendererLike>(
     root.name = npc.label;
     root.position.set(npc.position.x, 0, npc.position.z);
     root.rotation.y = npc.yaw ?? 0;
+    // Kept if the model never arrives (TR-7a): the NPC can still be found and talked to.
+    const placeholderSize = npc.placeholderSize ?? NPC_PLACEHOLDER_SIZE;
     const placeholder = ownMesh(
-      new BoxGeometry(
-        NPC_PLACEHOLDER_SIZE.width,
-        NPC_PLACEHOLDER_SIZE.height,
-        NPC_PLACEHOLDER_SIZE.depth,
-      ),
+      new BoxGeometry(placeholderSize.width, placeholderSize.height, placeholderSize.depth),
       new MeshStandardMaterial({ color: npc.placeholderColor }),
     );
-    placeholder.position.y = NPC_PLACEHOLDER_SIZE.height / 2;
+    placeholder.name = `placeholder:${npc.assetId}`;
+    placeholder.position.y = placeholderSize.height / 2;
     root.add(placeholder);
     scene.add(root);
     entityRoots.set(npc.entityId, root);
@@ -429,21 +471,25 @@ export function createLocationEngine<R extends RendererLike>(
     if (prop.assetId === undefined) continue;
     const assetId = prop.assetId;
     track(
-      deps.assets.loadModel(assetId).then(({ scene: source, animations }) => {
-        const model = cloneAssetScene(source);
-        // A wall-mounted prop's `elevation` is where its middle sits, so the
-        // ground-pivoted model drops by half its own measured height.
-        model.position.y -= centreDrop(model, prop.anchor);
-        if (!addWhenLive(model, root)) return;
-        const clip = prop.interactClip
-          ? animations.find((candidate) => candidate.name === prop.interactClip)
-          : undefined;
-        if (clip) {
-          const mixer = new AnimationMixer(model);
-          mixers.push(mixer);
-          interactAction = mixer.clipAction(clip);
-        }
-      }),
+      orPlaceholder(
+        deps.assets.loadModel(assetId).then(({ scene: source, animations }) => {
+          const model = cloneAssetScene(source);
+          // A wall-mounted prop's `elevation` is where its middle sits, so the
+          // ground-pivoted model drops by half its own measured height.
+          model.position.y -= centreDrop(model, prop.anchor);
+          if (!addWhenLive(model, root)) return;
+          const clip = prop.interactClip
+            ? animations.find((candidate) => candidate.name === prop.interactClip)
+            : undefined;
+          if (clip) {
+            const mixer = new AnimationMixer(model);
+            mixers.push(mixer);
+            interactAction = mixer.clipAction(clip);
+          }
+        }),
+        () =>
+          addMissingModel(root, assetId, prop.placeholderSize ?? MISSING_MODEL_SIZE, prop.anchor),
+      ),
       `prop ${prop.entityId}`,
     );
   }
@@ -473,11 +519,20 @@ export function createLocationEngine<R extends RendererLike>(
     if (collectible.assetId === undefined) continue;
     const assetId = collectible.assetId;
     track(
-      deps.assets.loadModel(assetId).then(({ scene: source, animations }) => {
-        const model = cloneAssetScene(source);
-        if (!addWhenLive(model, root)) return;
-        loopIdle(model, animations, collectible.idleClip);
-      }),
+      orPlaceholder(
+        deps.assets.loadModel(assetId).then(({ scene: source, animations }) => {
+          const model = cloneAssetScene(source);
+          if (!addWhenLive(model, root)) return;
+          loopIdle(model, animations, collectible.idleClip);
+        }),
+        () =>
+          addMissingModel(
+            root,
+            assetId,
+            collectible.placeholderSize ?? MISSING_MODEL_SIZE,
+            undefined,
+          ),
+      ),
       `collectible ${collectible.entityId}`,
     );
   }
@@ -526,7 +581,22 @@ export function createLocationEngine<R extends RendererLike>(
         const tiles = tiledGroundPlacements(item.area, item.tileSize, item.coverage).map(
           (tile) => ({ position: { x: tile.x, y: item.y ?? 0, z: tile.z } }),
         );
-        track(placeInstanced(root, item.assetId, tiles), `scenery ${item.id}`);
+        track(
+          orPlaceholder(placeInstanced(root, item.assetId, tiles), () => {
+            if (disposed) return;
+            const width = item.area.maxX - item.area.minX;
+            const depth = item.area.maxZ - item.area.minZ;
+            const floor = ownMesh(
+              new PlaneGeometry(width, depth),
+              new MeshStandardMaterial({ color: MISSING_GROUND_COLOR, side: DoubleSide }),
+            );
+            floor.name = `missing-model:${item.assetId}`;
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.set(item.area.minX + width / 2, item.y ?? 0, item.area.minZ + depth / 2);
+            root.add(floor);
+          }),
+          `scenery ${item.id}`,
+        );
         return;
       }
       case 'SCATTER': {
@@ -588,20 +658,37 @@ export function createLocationEngine<R extends RendererLike>(
         return;
       case 'MODEL':
         track(
-          deps.assets.loadModel(item.assetId).then(({ scene: source, animations }) => {
-            const model = cloneAssetScene(source);
-            if (item.rotation)
-              model.rotation.set(item.rotation.x, item.rotation.y, item.rotation.z);
-            if (item.scale)
-              model.scale.set(item.scale.x ?? 1, item.scale.y ?? 1, item.scale.z ?? 1);
-            model.position.set(
-              item.position.x,
-              item.position.y - centreDrop(model, item.anchor),
-              item.position.z,
-            );
-            if (!addWhenLive(model, root)) return;
-            if (item.idleClip) loopIdle(model, animations, item.idleClip);
-          }),
+          orPlaceholder(
+            deps.assets.loadModel(item.assetId).then(({ scene: source, animations }) => {
+              const model = cloneAssetScene(source);
+              if (item.rotation)
+                model.rotation.set(item.rotation.x, item.rotation.y, item.rotation.z);
+              if (item.scale)
+                model.scale.set(item.scale.x ?? 1, item.scale.y ?? 1, item.scale.z ?? 1);
+              model.position.set(
+                item.position.x,
+                item.position.y - centreDrop(model, item.anchor),
+                item.position.z,
+              );
+              if (!addWhenLive(model, root)) return;
+              if (item.idleClip) loopIdle(model, animations, item.idleClip);
+            }),
+            () => {
+              if (disposed) return;
+              const spot = new Group();
+              spot.position.set(item.position.x, item.position.y, item.position.z);
+              spot.rotation.y = item.rotation?.y ?? 0;
+              if (item.scale)
+                spot.scale.set(item.scale.x ?? 1, item.scale.y ?? 1, item.scale.z ?? 1);
+              addMissingModel(
+                spot,
+                item.assetId,
+                item.placeholderSize ?? MISSING_MODEL_SIZE,
+                item.anchor,
+              );
+              root.add(spot);
+            },
+          ),
           `scenery ${item.id}`,
         );
         return;

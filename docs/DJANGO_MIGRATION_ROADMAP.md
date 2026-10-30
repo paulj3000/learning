@@ -369,9 +369,15 @@ unless a human approves deployment.
 
 **LAI-1001 CDK app and environment config.** Risk L. Files: `infra/**`. Acceptance: synth
 works for `dev` and `prod`; IAM role count of each stack listed in the PR (target tracked in
-`IAM_ROLE_AUDIT.md`).
+`IAM_ROLE_AUDIT.md`). *Started 2026-10-30 (TR-10 / LAI-2200 AM-12): `infra/` exists with one
+stack, `LaiAssetStorage-<env>`, which synthesizes for `dev` and `prod` with zero IAM roles (one
+managed policy, bootstrapless). The shared environment config for later stacks is not built, so
+LAI-1001 stays open.*
 **LAI-1002 Network, RDS PostgreSQL, S3.** Depends: 1001. Risk M. Acceptance: private subnets,
-encrypted RDS, deletion protection on, backups on; no public DB.
+encrypted RDS, deletion protection on, backups on; no public DB. *The asset manager's S3 bucket
+and its Django policy are defined and synthesized (`infra/lib/assetStorageStack.ts`,
+`docs/ASSET_MANAGER.md` section 12), not deployed. Network and RDS are not started, so LAI-1002
+stays open.*
 **LAI-1003 ECR and image build.** Depends: 1001. Risk L.
 **LAI-1004 Dev EC2 + Docker deploy.** Depends: 1002, 1003. Risk M. Acceptance: health check
 via ALB; migrate step in deploy; rollback script tested.

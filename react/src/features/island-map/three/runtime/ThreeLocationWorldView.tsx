@@ -18,6 +18,7 @@ import {
   createLocationEngine,
   DEFAULT_LOCATION_ENGINE_DEPS,
   type LocationEngine,
+  type LocationEngineAssets,
 } from './createLocationEngine';
 import type { ThreeLocationManifest } from './locationManifest';
 import { resolveStatusLine, resolveThingsToDoNotes } from './sceneLayout';
@@ -72,6 +73,11 @@ export interface ThreeLocationWorldViewProps {
   repository?: LocationManifestRepository;
   /** The React halves of world extensions. Defaults to the shipped ones (`../extensions`). */
   viewExtensions?: LocationViewExtensionRegistry;
+  /**
+   * Where the scene's models come from. Defaults to the bundled loader; a
+   * region served by Django gets the asset manager's (TR-10, `regionAssetsFor`).
+   */
+  assets?: LocationEngineAssets;
 }
 
 const TOAST_DURATION_MS = 4000;
@@ -148,6 +154,7 @@ export function ThreeLocationWorldView({
   aiEnabled = false,
   repository = sourceLocationManifestRepository,
   viewExtensions = SOURCE_VIEW_EXTENSIONS,
+  assets = DEFAULT_LOCATION_ENGINE_DEPS.assets,
 }: ThreeLocationWorldViewProps) {
   const [manifestState, setManifestState] = useState<ManifestState>({ status: 'loading' });
   const [snapshot, setSnapshot] = useState<WorldSnapshot | null>(null);
@@ -394,7 +401,7 @@ export function ThreeLocationWorldView({
               bus,
               manifest,
               { startCheckpointId, worldState: snapshot.context },
-              DEFAULT_LOCATION_ENGINE_DEPS,
+              { ...DEFAULT_LOCATION_ENGINE_DEPS, assets },
             )
           }
           onEngineReady={(ready) => {

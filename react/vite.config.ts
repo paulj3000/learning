@@ -15,7 +15,12 @@ export default defineConfig(({ mode }) => ({
     setupFiles: ['./src/test/setup.ts'],
     css: true,
     // amplify/ stays at the repository root, so its Lambda tests are collected from here.
-    include: ['src/**/*.{test,spec}.{ts,tsx}', '../amplify/**/*.test.ts', '../server/**/*.test.ts'],
+    include: [
+      'src/**/*.{test,spec}.{ts,tsx}',
+      '../amplify/**/*.test.ts',
+      '../server/**/*.test.ts',
+      '../infra/**/*.test.ts',
+    ],
     exclude: ['node_modules', 'dist', 'e2e'],
   },
 }));

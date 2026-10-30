@@ -1,11 +1,16 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { Group } from 'three';
 import type { ApiClient } from '../client';
 import { ApiError } from '../errors';
 import { createAssetLoader } from '../../features/island-map/three/assets/assetLoader';
 import { BUNDLED_ASSET_RESOLVER } from '../../features/island-map/three/assets/assetResolver';
-import { createDjangoAssetResolver, djangoAssetResolverFor } from './djangoAssetResolver';
+import {
+  createDjangoAssetResolver,
+  djangoAssetResolverFor,
+  reportAssetResolutionIssue,
+  type AssetResolutionIssue,
+} from './djangoAssetResolver';
 
 const NOW = Date.parse('2026-10-25T12:00:00Z');
 const LATER = '2026-10-25T13:00:00Z';
@@ -153,5 +158,96 @@ describe('createDjangoAssetResolver', () => {
 describe('djangoAssetResolverFor', () => {
   it('is the bundled resolver in builds without the Django API', () => {
     expect(djangoAssetResolverFor('c', { enabled: false })).toBe(BUNDLED_ASSET_RESOLVER);
+  });
+});
+
+describe('createDjangoAssetResolver: why an id fell back (TR-10)', () => {
+  function collecting() {
+    const issues: AssetResolutionIssue[] = [];
+    return { issues, onIssue: (issue: AssetResolutionIssue) => issues.push(issue) };
+  }
+
+  it('reports a missing publication as not-published, never as a failure', async () => {
+    const { client } = fakeClient(() => ({
+      assets: [
+        { ref: 'npc-pip', id: 'npc-pip', status: 'unavailable' },
+        { ref: 'old-boat', id: 'old-boat', status: 'retired' },
+        resolved('rock', 'http://insecure.example/rock.glb'),
+        resolved('treasure-chest'),
+      ],
+    }));
+    const { issues, onIssue } = collecting();
+    const resolver = createDjangoAssetResolver({ client, childId: 'c', now: () => NOW, onIssue });
+    await Promise.allSettled(
+      ['npc-pip', 'old-boat', 'rock', 'treasure-chest'].map((id) => resolver.resolve(id)),
+    );
+    expect(issues).toEqual([
+      { kind: 'not-published', id: 'npc-pip', status: 'unavailable' },
+      { kind: 'not-published', id: 'old-boat', status: 'retired' },
+      { kind: 'not-published', id: 'rock', status: 'unusable' },
+    ]);
+  });
+
+  it.each([
+    new ApiError('unauthenticated', { status: 401 }),
+    new ApiError('not_found', { status: 404 }),
+    new ApiError('network'),
+  ])(
+    'reports a failed request with its error, then still plays on bundled files',
+    async (error) => {
+      const request = vi.fn().mockRejectedValue(error);
+      const { issues, onIssue } = collecting();
+      const resolver = createDjangoAssetResolver({
+        client: { request } as unknown as ApiClient,
+        childId: 'c',
+        now: () => NOW,
+        onIssue,
+      });
+      const [pip, chest] = await Promise.all([
+        resolver.resolve('npc-pip'),
+        resolver.resolve('treasure-chest'),
+      ]);
+      expect([pip.source, chest.source]).toEqual(['BUNDLED', 'BUNDLED']);
+      expect(issues).toEqual([
+        { kind: 'request-failed', ids: ['npc-pip', 'treasure-chest'], error },
+      ]);
+    },
+  );
+
+  it('never lets a throwing reporter break resolution', async () => {
+    const request = vi.fn().mockRejectedValue(new ApiError('network'));
+    const resolver = createDjangoAssetResolver({
+      client: { request } as unknown as ApiClient,
+      childId: 'c',
+      now: () => NOW,
+      onIssue: () => {
+        throw new Error('reporter bug');
+      },
+    });
+    expect((await resolver.resolve('npc-pip')).source).toBe('BUNDLED');
+  });
+});
+
+describe('reportAssetResolutionIssue', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('warns about a failed request with the kind and status only', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    reportAssetResolutionIssue({
+      kind: 'request-failed',
+      ids: ['npc-pip', 'treasure-chest'],
+      error: new ApiError('forbidden', { status: 403, code: 'secret-detail' }),
+    });
+    expect(warn).toHaveBeenCalledWith(
+      '[assets] the asset manager request failed (forbidden 403); using bundled models for: npc-pip, treasure-chest',
+    );
+  });
+
+  it('words an unpublished id as expected, not as a failure', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    reportAssetResolutionIssue({ kind: 'not-published', id: 'npc-pip', status: 'unavailable' });
+    expect(warn).toHaveBeenCalledWith(
+      '[assets] "npc-pip" is unavailable in the asset manager (expected until it is published); using the bundled model',
+    );
   });
 });
