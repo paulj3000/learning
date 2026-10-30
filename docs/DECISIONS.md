@@ -58,6 +58,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-034 | Django Admin is enabled with local staff sign-in, separate from Cognito; it ships as a gunicorn and WhiteNoise container | Accepted | Main line (LAI-0404) | Amends ADR-024 A4 for Django Admin only; resolves TR-D5 |
 | ADR-035 | The shared asset manager versions binaries on the canonical ContentAsset identity, with private storage and signed delivery | Accepted | Feature branch (LAI-2200) | Accepted 2026-10-25. Amends ADR-034 item 3 (Django permissions and groups); builds on ADR-030 and ADR-033. Amended by AM-10 (staff-only admin preview route) |
 | ADR-036 | Native Android uses the Django API with Cognito bearer tokens; the game-only WebView uses a ticket-redeemed, child- and region-scoped game session cookie | Proposed | Feature branch (LAI-ANDROID-API-001) | Implemented 2026-10-25 at the Django API boundary; owner acceptance pending. Builds on ADR-024 and ADR-033; does not change ADR-034 |
+| ADR-037 | The Django backend is released to one EC2 instance per environment from GitHub Actions through ECR and SSM, with GitHub OIDC and no stored AWS keys | Accepted | Feature branch (feature/aws-ec2-auto-deployment) | Owner-directed 2026-10-30 (LAI-1003, LAI-1004, LAI-1006). Repository side only: provisioning and every deploy stay owner-approved (ADR-019 G1, G7). Prod on EC2 is the initial step; ECS Fargate (LAI-1007) stays the production candidate |
 
 ## ADR-001: Parent-owned accounts
 
@@ -2725,3 +2726,69 @@ children in Amplify until the Phase 11 data migration, so the web and Android ap
 child records yet (ADR-019 gates). Launch routes are throttled (`LAI_GAME_LAUNCH_RATE`, default
 30 a minute per account).
 
+## ADR-037: The Django backend is released to one EC2 instance per environment from GitHub Actions through ECR and SSM, with GitHub OIDC and no stored AWS keys
+
+Status: Accepted 2026-10-30, directed by the owner ("Automated GitHub to AWS EC2 Deployment").
+Implemented in the repository on `feature/aws-ec2-auto-deployment`; **nothing is provisioned**.
+Creating the stacks, the first release and every production release are owner-approved steps
+(ADR-019 gates G1 account and region, G7 cost; production data still waits for G8 to G10).
+Runbook: `docs/platform/DJANGO_EC2_DEPLOYMENT.md`.
+
+**Context.** Django had a production image (ADR-034) and production settings but no host and no
+release path. LAI-1003 (ECR and image build), LAI-1004 (dev EC2 and Docker deploy, with a migrate
+step and a tested rollback) and LAI-1006 (monitoring) were open. The owner asked for a merge to
+`main` to release Django automatically: test, build, push to ECR, deploy to EC2 through SSM,
+migrate safely, verify health, and fail with logs and a reliable rollback. The React app stays on
+Amplify Hosting; the asset manager keeps its S3 storage (ADR-035).
+
+**Decision.**
+1. **One image, promoted by digest.** GitHub Actions builds `lai/Dockerfile` once per commit of
+   `main`, tags it with the full SHA in one account-wide ECR repository (`lai/django`, immutable
+   tags, scan on push, lifecycle rules) and deploys the **digest**, never a tag. Dev and prod run
+   the same digest. The image carries `org.opencontainers.image.revision` and a
+   `release-channel=release` label; the instance refuses an image whose labels do not match the
+   requested commit (a local build cannot be released).
+2. **The release logic travels with the image.** `scripts/aws/` and `deploy/ec2/` (compose file,
+   nginx template) are copied into the image at `/app/deploy`. The SSM deploy document pulls the
+   image, copies that bundle out and runs its `deploy-django.sh`, so the instance needs no source
+   checkout and every release runs the scripts it was tested with.
+3. **SSM Run Command, allowlisted.** Five SSM documents per environment (deploy, rollback,
+   status, bootstrap, setup) are the only way in; no inbound SSH. Every parameter has a pattern or
+   an allowed-values list, and the GitHub deploy role may send only deploy, rollback and status to
+   its own instance. Exit codes separate application failures from SSM transport failures.
+4. **GitHub OIDC, two trust subjects.** The image publisher role trusts
+   `repo:<owner>/<repo>:ref:refs/heads/main` and can only push to the repository. Each
+   environment's deploy role trusts `repo:<owner>/<repo>:environment:django-<env>`. Prod releases
+   need the `django-prod` GitHub Environment's reviewers and run on manual dispatch until the
+   repository variable `LAI_PROD_AUTO_DEPLOY` is `true`.
+5. **Single instance, short interruption.** `t3.medium` (a parameter), Amazon Linux 2023,
+   Docker Compose: gunicorn on a private network, nginx on port 8080 for the ALB only, ALB with
+   ACM TLS and an HTTP redirect, a WAF rate rule on the admin login. A release replaces the
+   containers in place: there is a brief interruption, and no zero-downtime claim is made.
+6. **Database.** RDS PostgreSQL 16 in isolated subnets, encrypted, TLS required
+   (`rds.force_ssl`, `sslmode=verify-full`), deletion protection, 7 (dev) or 14 (prod) days of
+   backups, snapshot on stack deletion. Dev may instead run PostgreSQL in Docker on a retained EBS
+   volume. Migrations run once per release with the new image before it starts; prod takes an RDS
+   snapshot first when migrations are pending. Destructive operations (remove or rename a field or
+   model, raw SQL) are refused unless a person dispatches with `allow_destructive_migrations`.
+   Migrations are never reversed automatically: a rollback past applied migrations says so and
+   marks the release record `manual_db_review_required`.
+7. **Runtime configuration from AWS at release time.** Plain settings are SSM String parameters
+   the stack writes; `DJANGO_SECRET_KEY` is a SecureString an operator writes; the database URL is
+   built from the RDS-managed Secrets Manager secret. Values reach the container through a 0600
+   env file, are never printed, and the settings module cannot be overridden from the store.
+8. **Health and records.** `/api/v1/health/` stays the liveness probe; `/api/v1/health/ready/`
+   (new) checks the database and pending migrations and is the ALB target check. A release is
+   successful only when both pass through nginx with the expected image running; otherwise the
+   instance rolls back to the previous healthy release. Every attempt is appended to a release
+   history on the instance and mirrored to a versioned SSM parameter.
+9. **No CORS.** Django keeps its same-origin design: until LAI-1005 the browser reaches it through
+   the Amplify Hosting proxy rewrite of `docs/platform/AMPLIFY_HOSTING.md` section 7; the admin is
+   used directly on `api.<domain>`.
+
+**Consequences.** LAI-1003 and the repository side of LAI-1004 and LAI-1006 are done; their
+acceptance on AWS is not, because nothing is deployed. The account gains three stacks and three
+IAM roles (`docs/IAM_ROLE_AUDIT.md`). Recurring cost for one environment is roughly $90 to $110 a
+month before tax and data transfer (runbook, "Cost"), above section 11a's Fargate estimate because
+`t3.medium` is larger than a 0.25 vCPU task. Moving production to ECS Fargate (LAI-1007) later reuses the image, ECR,
+OIDC, readiness probe and settings; only the release mechanism changes.

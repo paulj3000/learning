@@ -106,7 +106,11 @@ the quota remains the lower-effort fix if IAM pressure alone were the issue.
 
 Measured so far in `infra/` (synthesized, not deployed): `LaiAssetStorage-<env>` creates **0
 roles** and 1 customer-managed policy, attached to the Django task role; it is bootstrapless,
-so no `cdk bootstrap` roles either (`docs/ASSET_MANAGER.md` section 12).
+so no `cdk bootstrap` roles either (`docs/ASSET_MANAGER.md` section 12). The EC2 release
+pipeline (ADR-037) adds **3 roles**: `lai-github-image-publisher` (account-wide, in
+`LaiDjangoRelease`), and per environment `lai-django-ec2-<env>` (instance role) and
+`lai-github-deploy-<env>` (GitHub OIDC), in `LaiDjangoEc2-<env>`. So 5 for dev and prod together,
+with no Lambda or custom-resource roles.
 
 ## 7. Recommendation
 

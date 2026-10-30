@@ -296,7 +296,12 @@ def walk(patterns, prefix=""):
 
 # The asset-file route is a capability URL: a signed, expiring token for one published version,
 # re-checked on every fetch (LAI-2200, ADR-035; apps/assets/tests/test_resolver_api.py).
-PUBLIC = {"api/v1/health/", "api/v1/asset-files/<str:token>/<str:filename>"}
+# The readiness probe returns fixed words only (ADR-037; apps/core/tests/test_readiness.py).
+PUBLIC = {
+    "api/v1/health/",
+    "api/v1/health/ready/",
+    "api/v1/asset-files/<str:token>/<str:filename>",
+}
 # Parent-scoped: the owner is `request.user`, the route names no child (LAI-ANDROID-API-001).
 PARENT_SCOPED = {
     "api/v1/me/",

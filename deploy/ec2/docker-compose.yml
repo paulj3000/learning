@@ -1,0 +1,115 @@
+# Production Docker Compose for one Django release on EC2 (ADR-037,
+# docs/platform/DJANGO_EC2_DEPLOYMENT.md). Not for local development (that is the root
+# docker-compose.yml). It travels inside the Django image (/app/deploy/deploy/ec2/) and is used from
+# /opt/lai/releases/<digest>/ by scripts/aws/deploy-django.sh, so each release brings its own.
+#
+# Interpolated from the release's release.env (written by the deploy script, no secrets):
+# LAI_IMAGE (ECR, pinned by digest), LAI_GIT_SHA, LAI_ENV, AWS_REGION, LAI_API_HOST,
+# LAI_APP_LOG_GROUP, LAI_RUNTIME_DIR, LAI_DATA_DIR, LAI_CERTS_DIR.
+# Secrets reach Django only through ${LAI_RUNTIME_DIR}/django.env (mode 0600, render-env.sh).
+#
+# Traffic: ALB (HTTPS, ACM) -> instance :8080 (security group: the ALB only) -> nginx -> gunicorn
+# on the private `app` network. Gunicorn publishes no port.
+name: lai
+
+services:
+  django:
+    image: ${LAI_IMAGE:?set by the deploy script}
+    restart: unless-stopped
+    env_file:
+      - path: ${LAI_RUNTIME_DIR:?}/django.env
+        format: raw # values are taken literally: no quotes, no interpolation
+    environment:
+      # Fixed here so the parameter store can never select another settings module.
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_TRUST_PROXY_SSL_HEADER: 'true'
+      # Only nginx on the private network may set X-Forwarded-*.
+      FORWARDED_ALLOW_IPS: 172.30.10.0/24
+      LAI_RELEASE_SHA: ${LAI_GIT_SHA:?}
+    volumes:
+      - ${LAI_CERTS_DIR:?}:/etc/lai/certs:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m # gunicorn heartbeats and uploads above FILE_UPLOAD_MAX_MEMORY_SIZE
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        # Liveness with a host name ALLOWED_HOSTS accepts (a bare 127.0.0.1 gets 400).
+        - "import os, urllib.request as u; h = os.environ['DJANGO_ALLOWED_HOSTS'].split(',')[0].strip(); u.urlopen(u.Request('http://127.0.0.1:8000/api/v1/health/', headers={'Host': h}), timeout=4)"
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      db:
+        condition: service_healthy
+        required: false # the db service exists only with the container-db profile (dev)
+    networks: [app]
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION:?}
+        awslogs-group: ${LAI_APP_LOG_GROUP:?}
+        awslogs-create-group: 'false'
+        awslogs-stream: django-${LAI_GIT_SHA:?}
+        mode: non-blocking
+        max-buffer-size: 4m
+
+  proxy:
+    image: public.ecr.aws/nginx/nginx:1.28-alpine
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+    environment:
+      LAI_API_HOST: ${LAI_API_HOST:?}
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    depends_on:
+      django:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8080/nginx-health']
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks: [app]
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION:?}
+        awslogs-group: /lai/${LAI_ENV:?}/proxy
+        awslogs-create-group: 'false'
+        awslogs-stream: proxy-${LAI_GIT_SHA:?}
+        mode: non-blocking
+        max-buffer-size: 4m
+
+  # Development only (LAI_DB_MODE=container): PostgreSQL on the retained EBS data volume. A bind
+  # mount, never a named volume, so no compose command can delete the data with the containers.
+  db:
+    profiles: [container-db]
+    image: public.ecr.aws/docker/library/postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - path: ${LAI_RUNTIME_DIR:?}/postgres.env
+        format: raw
+    volumes:
+      - ${LAI_DATA_DIR:?}/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U lai -d lai']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [app]
+    logging:
+      driver: local
+
+networks:
+  app:
+    ipam:
+      config:
+        - subnet: 172.30.10.0/24

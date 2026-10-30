@@ -1,0 +1,66 @@
+# Instance-local reverse proxy in front of gunicorn (ADR-037). The ALB terminates TLS (ACM) and is
+# the only client the instance's security group admits on 8080. nginx buffers slow clients so the
+# synchronous gunicorn workers never wait on the network, caps request bodies at the asset upload
+# limit, and keeps gunicorn off every public interface.
+#
+# The nginx image renders this template with envsubst; only ${LAI_API_HOST} is substituted
+# (nginx's own $variables are left alone because they are not in the environment).
+#
+# Privacy (ADR-025, gate G10): no access log, because request paths carry child ids. Django writes
+# its own privacy-filtered request line. The error log is limited to `crit` for the same reason
+# (nginx puts the request line in error entries).
+
+server_tokens off;
+access_log off;
+error_log /dev/stderr crit;
+
+# The ALB sets X-Forwarded-Proto; the deploy script's local check over plain HTTP does not.
+map $http_x_forwarded_proto $lai_forwarded_proto {
+    default $http_x_forwarded_proto;
+    ''      http;
+}
+
+upstream lai_django {
+    server django:8000;
+    keepalive 16;
+}
+
+server {
+    listen 8080 default_server;
+
+    # Asset uploads are capped at 50 MB by Django (LAI_ASSET_MAX_UPLOAD_BYTES); allow the form
+    # overhead, refuse anything larger before it reaches gunicorn.
+    client_max_body_size 55m;
+    client_body_timeout 60s;
+    proxy_read_timeout 35s; # gunicorn's own timeout is 30 s
+
+    proxy_http_version 1.1;
+
+    location = /nginx-health {
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # Health probes arrive with the instance IP as Host (ALB target checks, the deploy script).
+    # Present the API host name so Django's ALLOWED_HOSTS stays strict for everything else.
+    location ~ ^/api/v1/health/(ready/)?$ {
+        # Every location sets all its headers: nginx does not inherit proxy_set_header into a
+        # block that sets any of its own.
+        proxy_set_header Host ${LAI_API_HOST};
+        proxy_set_header Connection '';
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $lai_forwarded_proto;
+        proxy_pass http://lai_django;
+    }
+
+    # /api/*, the Django Admin (DJANGO_ADMIN_URL_PATH, default /admin/), its static files
+    # (WhiteNoise, from the image) and asset file delivery (/api/v1/...): all go to Django, which
+    # keeps its own host, CSRF and authentication checks.
+    location / {
+        proxy_set_header Host $host;
+        proxy_set_header Connection '';
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $lai_forwarded_proto;
+        proxy_pass http://lai_django;
+    }
+}

@@ -274,8 +274,13 @@ def test_only_the_health_route_is_public(settings):
         permissions = [p.__name__ for p in callback.cls.permission_classes]
         if "AllowAny" in permissions:
             public.append(route)
-    # Plus the signed asset-file route (LAI-2200, ADR-035): no bearer token, a signed capability.
-    assert public == ["api/v1/health/", "api/v1/asset-files/<str:token>/<str:filename>"]
+    # Plus the readiness probe (ADR-037: fixed words only, apps/core/tests/test_readiness.py) and
+    # the signed asset-file route (LAI-2200, ADR-035): no bearer token, a signed capability.
+    assert public == [
+        "api/v1/health/",
+        "api/v1/health/ready/",
+        "api/v1/asset-files/<str:token>/<str:filename>",
+    ]
 
 
 def test_every_route_lives_under_api_v1_except_django_admin(settings):

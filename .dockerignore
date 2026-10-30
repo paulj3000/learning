@@ -1,5 +1,6 @@
-# Django image build context (lai/Dockerfile). Only requirements.txt, lai/, content/ and the bundled
-# models (react/public/models, for `manage.py import_assets --from-bundled`) are copied.
+# Django image build context (lai/Dockerfile). Only requirements.txt, lai/, content/, the bundled
+# models (react/public/models, for `manage.py import_assets --from-bundled`) and the EC2 deploy
+# bundle (scripts/aws, deploy/ec2) are copied.
 **/__pycache__
 **/*.pyc
 .venv
@@ -14,3 +15,4 @@ dist
 lai/staticfiles
 *.env
 .env*
+scripts/aws/tests
