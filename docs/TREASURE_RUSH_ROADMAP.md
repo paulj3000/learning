@@ -16,9 +16,10 @@
 **Status (2026-10-24):** TR-0 (this plan), TR-1 (server-side math challenges), TR-2 (catalog
 models and loader), TR-4 (progress models and play services), TR-5 (the play API,
 `docs/PLAY_API.md`), TR-6 (the typed React client and hooks), and TR-7 (Treasure Cove on the
-existing Three.js engine) are done on branch `feature/treasure-rush-slice`, cut from `main` at
-`350e11b`. A child can walk the cove, meet Pip, and find the chest; answering is TR-8. Nobody
-has played it in a browser yet. TR-D3 and TR-D7 are taken as authorised by the Treasure
+existing Three.js engine), and TR-8 (the quest, challenge, and reward UI) are done on branch
+`feature/treasure-rush-slice`, cut from `main` at `350e11b`. The whole slice is playable end
+to end in unit tests: walk the cove, accept Pip's quest, open the chest with a number puzzle,
+get the Golden Doubloon, finish the quest. Nobody has played it in a browser yet (TR-9). TR-D3 and TR-D7 are taken as authorised by the Treasure
 Rush brief (admin-managed content; no second asset system); the other decisions in section 6
 are still **Proposed**.
 
@@ -174,7 +175,7 @@ implementation, validated by `validateLocationManifest`; chest prop with closed 
 states driven by the WorldChange; spawn from admin data; no slug branching
 (`noLocationBranching.test.ts` stays green).
 
-**TR-8 Challenge and quest-complete UI.** Depends: TR-7. Risk M. Acceptance: React challenge
+**TR-8 Challenge and quest-complete UI.** DONE (section 14). Depends: TR-7. Risk M. Acceptance: React challenge
 card rendering `operation` and `operands` from localizable strings, choices as large buttons
 for Sprouts, number entry for older bands, hint path, keyboard and HUD equivalents, a
 quest-complete screen with the keepsake and a calm stopping point; loading, empty, error, and
@@ -530,3 +531,74 @@ Django region.
 **Tests:** 65 new Vitest unit tests (published checkpoints 7, builder 11, repository 10,
 interactions 5, engine 11, companion and registration 11, generic view 6, dev proxy 4),
 including Treasure Cove on the real runtime through `engineHarness.ts`.
+
+## 14. TR-8 as built
+
+The game UI, replacing TR-7's notice inside the `region-play` companion. No engine, runtime,
+asset-loader, or LAI-2106 file changed; everything is in the extension and `features/region-play/`.
+
+| Piece | File | What it does |
+|---|---|---|
+| Rules | `features/region-play/regionPlayUi.ts` | Copy, coin pictures from `operation`/`operands`, number-free strategy hints, typed-answer parsing, "celebrate once" rule, error to child-facing message, control keys |
+| Dialog shell | `extensions/regionPlay/ui/GameDialog.tsx` | Focus to heading on open and back on close, Escape closes, no focus trap, movement and interact keys kept from the controls |
+| Pip | `ui/PipDialog.tsx` | Name, the server's quest summary as Pip's offer, "Yes, I will help!" (disabled while sending), the quest's steps ticked from server state, thanks when complete |
+| Chest | `ui/ChestChallengePanel.tsx` | The server's challenge as coins and a question; big choice buttons or a number field; "Help me" hints; "Checking..." with inputs disabled; encouraging wrong-answer feedback and "Try again" (a new attempt from the server) |
+| Reward | `ui/RewardReveal.tsx` | "Click! The chest is open!", a popping, spinning doubloon (no animation when the device asks for reduced motion), the item and reward message, "Quest complete!" from the server's update |
+| Backpack | `ui/BackpackPanel.tsx` | Items and quests from `GET progress/` (TR-6), coin and tick icons with words; a corner button with an item count |
+| Styles | `ui/RegionPlayPanels.module.css` | Island tokens: paper panel, lip buttons, sun and lime for celebration only |
+| World | `extensions/regionPlay/regionPlayScene.ts` | A chest opened mid-visit now swings its lid open over 0.7 s with gold sparkles rising (the model chest plays its `Open` clip); a chest already open on entry is drawn open without animating |
+
+**Flow.** Interacting with Pip opens the dialogue; the child accepts or not. Interacting with a
+closed chest (in a session, with a challenge for the child's band) asks the server for the
+challenge once per opening; an outstanding one comes back the same. The answer goes to
+`submitAnswer`; the panel never knows the right answer. Wrong: encouragement and "Try again".
+Right: the hook re-reads the region, the companion sees the chest open on the server and tells the
+scene (the lid swings, sparkles rise), the reward reveal opens, and progress is re-read so the
+backpack count updates. Closing returns to exploring.
+
+**Server-authoritative rules, each tested and five confirmed by mutation:** no reward, open chest,
+or quest change before the server confirms; the reveal shows once per attempt, only for an attempt
+submitted in this visit, so a replay (409) or a later visit never celebrates again; a double tap
+sends one accept or one answer; the chest in the world changes only from server state; quest
+completion is the server's `questUpdates` and quest status; switching child remounts the game
+(`key`), dropping everything.
+
+**Decisions (TR-D19 to TR-D21):**
+
+- **TR-D19 No audio in TR-8.** There is no Polly or speech system in the app to reuse (Polly is a
+  pending provider decision, `npc/content/islandNpcs.ts`), and no mute or volume setting. All
+  copy is plain text written to be read aloud, the coin picture has a spoken text alternative, and
+  nothing plays sound. Voice is a later task once the provider is chosen.
+- **TR-D20 Pip's lines come from the quest.** The play API does not serve NPC dialogue nodes, so
+  Pip's offer is the server's quest summary plus fixed, localizable lines per quest state. Serving
+  the Django dialogue nodes is a later API addition.
+- **TR-D21 Movement is held, not paused.** The engine has no pause hook for extensions; the view
+  already releases pointer lock on a claimed interaction, and the panels stop the controls' keys
+  (WASD, arrows, space, E, Enter) from reaching the window. Touch movement is unaffected while a
+  panel is open; a panel covers the lower part of the stage only.
+
+**Tests:** 40 new Vitest unit tests (UI rules 21, companion flow 17 more, chest animation 2); 68 across the four TR-8 test files; 1,503 passing across every affected area. Unit tests only.
+
+## 15. TR-8a: making it runnable (after "TR-9 is not ready")
+
+TR-6 to TR-8 were tested against a faked API, which hid that a real playthrough fails: the
+child in `/island/:childId` is an Amplify id with no Django `ChildProfile`, the parent is never
+set up in Django, the content is DRAFT, and there was no run recipe. The owner chose the real
+child-profile migration (LAI-0501, LAI-0502, LAI-0602, on a separate branch) for the first gap
+and these fixes for the rest:
+
+- **Automatic account setup.** The API client (`provisionAccount`, on for the play API) answers a
+  `403 account_not_provisioned` with the explicit onboarding call, `POST /api/v1/me/`, then retries
+  once; concurrent requests share one call. A failed setup is `forbidden` / `account_setup_failed`.
+- **Correct 403 messages.** A signed-in parent is never told to sign in again: account setup gets
+  "We are still getting your island ready", any other 403 "not open for you right now".
+- **`publish_treasure_rush`** (dev only): refused unless `DEBUG` and a loopback database; checks
+  every row with `full_clean()` and that the region is playable; all or nothing; never touches
+  exported content. After POST-MERGE-03 it publishes the region and its challenge specs only
+  (the rows with a `ContentStatus`) and requires the catalog location, world, and offered quests
+  to be `active` already (`lai/apps/regions/treasure_rush_publish.py`).
+- **`docs/TREASURE_RUSH_LOCAL_DEV.md`**: the startup procedure, including an interim, local-only
+  step that mirrors one test child into Django with the same id until LAI-0602.
+
+**Tests:** 6 client provisioning tests, 1 message test, 8 publish tests; two mutations on the
+publish safety rules (no DEBUG gate, no validation) each failed a test.

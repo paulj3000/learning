@@ -171,3 +171,91 @@ describe('readDjangoApiConfig', () => {
     });
   });
 });
+
+describe('account provisioning (POST me/)', () => {
+  function provisioning(responses: Response[]) {
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    for (const response of responses) fetch.mockResolvedValueOnce(response);
+    const client = createApiClient({
+      baseUrl: '',
+      getAccessToken: async () => 'tok',
+      fetch,
+      provisionAccount: true,
+    });
+    const calls = () => fetch.mock.calls.map(([url, init]) => `${init?.method} ${String(url)}`);
+    return { client, fetch, calls };
+  }
+
+  it('sets up the parent account once and retries the request', async () => {
+    const { client, calls } = provisioning([
+      jsonResponse(403, errorJson('account_not_provisioned')),
+      jsonResponse(201, { id: 'parent' }),
+      jsonResponse(200, { ok: true }),
+    ]);
+    await expect(client.request('GET', 'children/c/progress/')).resolves.toEqual({
+      status: 200,
+      data: { ok: true },
+    });
+    expect(calls()).toEqual([
+      'GET /api/v1/children/c/progress/',
+      'POST /api/v1/me/',
+      'GET /api/v1/children/c/progress/',
+    ]);
+  });
+
+  it('shares one setup call between requests that both found the account missing', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    fetch.mockImplementation(async (url, init) => {
+      const path = String(url);
+      if (path.endsWith('/me/')) return jsonResponse(201, { id: 'parent' });
+      const provisioned = fetch.mock.calls.some(([u]) => String(u).endsWith('/me/'));
+      return provisioned
+        ? jsonResponse(200, { path, method: init?.method })
+        : jsonResponse(403, errorJson('account_not_provisioned'));
+    });
+    const client = createApiClient({
+      baseUrl: '',
+      getAccessToken: async () => 'tok',
+      fetch,
+      provisionAccount: true,
+    });
+    await Promise.all([client.request('GET', 'a/'), client.request('GET', 'b/')]);
+    expect(fetch.mock.calls.filter(([u]) => String(u).endsWith('/me/'))).toHaveLength(1);
+  });
+
+  it('reports a failed setup as an account problem, never as signed out', async () => {
+    const { client } = provisioning([
+      jsonResponse(403, errorJson('account_not_provisioned')),
+      jsonResponse(500, errorJson('server_error')),
+    ]);
+    const error = await failure(client.request('GET', 'p/'));
+    expect([error.kind, error.code]).toEqual(['forbidden', 'account_setup_failed']);
+  });
+
+  it('does not set up an account for any other 403', async () => {
+    const { client, calls } = provisioning([jsonResponse(403, errorJson('permission_denied'))]);
+    const error = await failure(client.request('GET', 'p/'));
+    expect(error.code).toBe('permission_denied');
+    expect(calls()).toEqual(['GET /api/v1/p/']);
+  });
+
+  it('retries only once, and never provisions while provisioning', async () => {
+    const { client, calls } = provisioning([
+      jsonResponse(403, errorJson('account_not_provisioned')),
+      jsonResponse(200, { id: 'parent' }),
+      jsonResponse(403, errorJson('account_not_provisioned')),
+    ]);
+    const error = await failure(client.request('GET', 'p/'));
+    expect(error.code).toBe('account_not_provisioned');
+    expect(calls()).toHaveLength(3);
+  });
+
+  it('is off unless asked for', async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(jsonResponse(403, errorJson('account_not_provisioned')));
+    const client = createApiClient({ baseUrl: '', getAccessToken: async () => 'tok', fetch });
+    expect((await failure(client.request('GET', 'p/'))).code).toBe('account_not_provisioned');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+});

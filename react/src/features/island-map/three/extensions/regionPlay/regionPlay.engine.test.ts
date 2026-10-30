@@ -116,7 +116,7 @@ describe('Treasure Cove on the engine', () => {
   it('draws a closed chest when the server says closed, and an open one when it says open', () => {
     const closed = cove({ chest: { assetId: '' } });
     closed.harness.runFrames(1);
-    expect(hinge(closed.chestRoot()).rotation.x).toBe(0);
+    expect(hinge(closed.chestRoot()).rotation.x).toBeCloseTo(0);
     expect(closed.chestRoot().getObjectByName('region-play:gold')?.visible).toBe(false);
     closed.harness.engine.dispose();
 
@@ -127,13 +127,36 @@ describe('Treasure Cove on the engine', () => {
   });
 
   it('changes a chest only when told to by the companion, from server state', () => {
-    const { harness, api, chestRoot } = cove({ chest: { assetId: '' } });
+    const { harness, api } = cove({ chest: { assetId: '' } });
     harness.runFrames(1);
     expect(api().isChestOpen('cove-chest')).toBe(false);
     api().setChestOpen('cove-chest', true);
     expect(api().isChestOpen('cove-chest')).toBe(true);
-    expect(hinge(chestRoot()).rotation.x).toBe(OPEN_LID_ANGLE);
     expect(api().isChestOpen('no-such-chest')).toBeUndefined();
+  });
+
+  it('swings the lid open and sends up gold sparkles when the server opens it mid-visit (TR-8)', () => {
+    const { harness, api, chestRoot } = cove({ chest: { assetId: '' } });
+    harness.runFrames(1);
+    api().setChestOpen('cove-chest', true);
+    const sparkles = chestRoot().getObjectByName('region-play:sparkles') as Object3D;
+    expect(hinge(chestRoot()).rotation.x).toBeCloseTo(0); // starts shut: the opening is seen
+    expect(sparkles.visible).toBe(true);
+    harness.runFrames(10, 16); // 0.16 s
+    const midway = hinge(chestRoot()).rotation.x;
+    expect(midway).toBeLessThan(0);
+    expect(midway).toBeGreaterThan(OPEN_LID_ANGLE);
+    harness.runFrames(60, 16); // past 0.7 s
+    expect(hinge(chestRoot()).rotation.x).toBeCloseTo(OPEN_LID_ANGLE);
+    harness.runFrames(60, 16); // past 1.4 s
+    expect(sparkles.visible).toBe(false);
+  });
+
+  it('does not animate a chest that was already open on entry', () => {
+    const { harness, chestRoot } = cove({ chest: { assetId: '', isOpen: true } });
+    harness.runFrames(1);
+    expect(hinge(chestRoot()).rotation.x).toBeCloseTo(OPEN_LID_ANGLE);
+    expect((chestRoot().getObjectByName('region-play:sparkles') as Object3D).visible).toBe(false);
   });
 
   it('uses the catalogue chest model and its Open clip when it loads', async () => {
