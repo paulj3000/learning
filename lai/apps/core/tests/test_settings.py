@@ -115,7 +115,7 @@ def test_production_serves_the_admin_securely(monkeypatch):
     security = prod.MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")
     assert prod.MIDDLEWARE[security + 1] == "whitenoise.middleware.WhiteNoiseMiddleware"
     assert "whitenoise" in prod.STORAGES["staticfiles"]["BACKEND"]
-    assert prod.SECURE_REDIRECT_EXEMPT == [r"^api/v1/health/$"]
+    assert prod.SECURE_REDIRECT_EXEMPT == [r"^api/v1/health/$", r"^api/v1/health/ready/$"]
     assert prod.SESSION_COOKIE_PATH == prod.CSRF_COOKIE_PATH == "/admin/"
     # The shared base list is not mutated for other settings modules.
     assert "whitenoise.middleware.WhiteNoiseMiddleware" not in settings.MIDDLEWARE
@@ -219,6 +219,29 @@ def test_database_url_must_be_postgres():
 
     with pytest.raises(ImproperlyConfigured):
         database_from_url("mysql://u:p@h/db")
+
+
+def test_database_url_passes_tls_options_to_libpq():
+    from config.settings.base import database_from_url
+
+    db = database_from_url(
+        "postgresql://u:p%40ss@db.rds.test:5432/lai"
+        "?sslmode=verify-full&sslrootcert=/etc/lai/certs/rds-global-bundle.pem"
+    )
+    assert db["PASSWORD"] == "p@ss"
+    assert db["OPTIONS"] == {
+        "sslmode": "verify-full",
+        "sslrootcert": "/etc/lai/certs/rds-global-bundle.pem",
+    }
+    assert "OPTIONS" not in database_from_url("postgresql://u:p@h:5432/lai")
+
+
+@pytest.mark.parametrize("query", ["sslmode=sometimes", "options=-c%20search_path=x", "host=evil"])
+def test_database_url_refuses_unknown_or_invalid_options(query):
+    from config.settings.base import database_from_url
+
+    with pytest.raises(ImproperlyConfigured):
+        database_from_url(f"postgresql://u:p@h:5432/lai?{query}")
 
 
 def test_django_system_check_is_clean():

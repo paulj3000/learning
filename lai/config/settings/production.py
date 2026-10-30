@@ -1,8 +1,8 @@
 """Production settings. Everything sensitive comes from the environment; nothing is in source.
 
 Importing this module fails with a clear error when a required value is missing, so a
-misconfigured deployment cannot start. No deployment environment exists yet; the container
-and hosting plan are in docs/DJANGO_TARGET_ARCHITECTURE.md ("Django Admin hosting").
+misconfigured deployment cannot start. The EC2 release pipeline that supplies these values is in
+docs/platform/DJANGO_EC2_DEPLOYMENT.md (ADR-037); nothing is provisioned until the owner approves.
 """
 
 import os
@@ -35,7 +35,7 @@ if env_bool("DJANGO_TRUST_PROXY_SSL_HEADER", False):
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", True)
 # Load balancer and container health checks call over plain HTTP inside the network.
-SECURE_REDIRECT_EXEMPT = [r"^api/v1/health/$"]
+SECURE_REDIRECT_EXEMPT = [r"^api/v1/health/$", r"^api/v1/health/ready/$"]
 SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "31536000"))
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SESSION_COOKIE_SECURE = True

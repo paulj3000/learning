@@ -3,7 +3,7 @@
 import os
 import re
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -231,12 +231,24 @@ def env_list(name: str, default: str = "") -> list[str]:
     return [item.strip() for item in os.environ.get(name, default).split(",") if item.strip()]
 
 
+# DATABASE_URL query options passed to libpq: TLS to RDS (`?sslmode=verify-full&sslrootcert=...`,
+# docs/platform/DJANGO_EC2_DEPLOYMENT.md). Anything else in the query string is refused.
+DATABASE_URL_OPTIONS = {"sslmode", "sslrootcert", "connect_timeout"}
+DATABASE_SSL_MODES = {"disable", "allow", "prefer", "require", "verify-ca", "verify-full"}
+
+
 def database_from_url(url: str) -> dict:
     """Build a Django PostgreSQL config from a DATABASE_URL (stdlib only, no extra dependency)."""
     parts = urlsplit(url)
     if parts.scheme not in {"postgres", "postgresql"} or not parts.path.strip("/"):
         raise ImproperlyConfigured("DATABASE_URL must be postgresql://user:password@host:port/name")
-    return {
+    options = dict(parse_qsl(parts.query, keep_blank_values=True))
+    unknown = set(options) - DATABASE_URL_OPTIONS
+    if unknown:
+        raise ImproperlyConfigured(f"DATABASE_URL has unsupported options: {sorted(unknown)}")
+    if "sslmode" in options and options["sslmode"] not in DATABASE_SSL_MODES:
+        raise ImproperlyConfigured("DATABASE_URL sslmode is not a libpq sslmode.")
+    config = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": unquote(parts.path.lstrip("/")),
         "USER": unquote(parts.username or ""),
@@ -246,6 +258,9 @@ def database_from_url(url: str) -> dict:
         "CONN_MAX_AGE": 60,
         "CONN_HEALTH_CHECKS": True,
     }
+    if options:
+        config["OPTIONS"] = options
+    return config
 
 
 def compose_database() -> dict:
