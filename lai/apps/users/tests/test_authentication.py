@@ -284,7 +284,10 @@ def test_no_sensitive_endpoints_exist_yet():
     (`SensitiveActionBlocked`, apps/users/tests/test_children_api.py) until LAI-0602/LAI-0209."""
     from config import urls
 
-    assert sorted(str(p.pattern) for p in urls.urlpatterns[0].url_patterns) == ["health/"]
+    assert sorted(str(p.pattern) for p in urls.urlpatterns[0].url_patterns) == [
+        "health/",
+        "health/ready/",  # readiness probe (ADR-037): fixed words only, no data
+    ]
     assert sorted(str(p.pattern) for p in urls.urlpatterns[1].url_patterns) == [
         "children/",
         "children/<uuid:child_id>/",
