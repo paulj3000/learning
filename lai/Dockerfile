@@ -1,6 +1,7 @@
 # Django API and Django Admin container (LAI-0404, ADR-034). Build from the repository root:
 #   docker build -f lai/Dockerfile -t lai-django .
 # Hosting, environment variables and the one-off tasks (migrate, create_admin_account) are in
+# docs/platform/DJANGO_EC2_DEPLOYMENT.md (EC2 releases, ADR-037) and
 # docs/DJANGO_TARGET_ARCHITECTURE.md, "Django Admin hosting". No secret is baked into the image:
 # every sensitive value arrives as an environment variable at run time (Secrets Manager).
 FROM python:3.12-slim
@@ -28,8 +29,23 @@ WORKDIR /app/lai
 # same directory is uploaded to the admin's S3 bucket by scripts/release-admin-static.sh.
 RUN DJANGO_SETTINGS_MODULE=config.settings.static_build python manage.py collectstatic --noinput
 
+# The EC2 deploy bundle (ADR-037): the release scripts and the production compose file travel with
+# the image, so the instance runs the release logic that matches the image it deploys and needs no
+# source checkout. Read only by the SSM deploy document on the host; never run inside a container.
+COPY scripts/aws/ /app/deploy/scripts/aws/
+COPY deploy/ec2/ /app/deploy/deploy/ec2/
+
 RUN useradd --system --uid 10001 --home-dir /app lai
 USER lai
+
+# Release identity, last so a new commit reuses every cached layer above. The release pipeline
+# (.github/workflows/deploy-django-ec2.yml) sets both; deploy-django.sh refuses an image whose
+# revision is not the requested commit or whose channel is not `release` (a local build).
+ARG LAI_GIT_SHA=unknown
+ARG LAI_RELEASE_CHANNEL=local
+LABEL org.opencontainers.image.revision=$LAI_GIT_SHA \
+      org.opencontainers.image.title="learning-adventure-island-django" \
+      org.learning-adventure-island.release-channel=$LAI_RELEASE_CHANNEL
 
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
