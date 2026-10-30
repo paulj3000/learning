@@ -167,9 +167,10 @@ describe('DjangoEc2Stack', { timeout: 60_000 }, () => {
         Match.objectLike({ Ebs: Match.objectLike({ Encrypted: true, VolumeType: 'gp3' }) }),
       ],
     });
-    template.hasResourceProperties('AWS::EC2::LaunchTemplate', {
-      LaunchTemplateData: { MetadataOptions: { HttpTokens: 'required' } },
-    });
+    // IMDSv2 only, and hop limit 2 so the Django container can get the role's credentials.
+    const metadata = JSON.stringify(template.toJSON());
+    expect(metadata).toContain('"HttpTokens":"required"');
+    expect(metadata).toContain('"HttpPutResponseHopLimit":2');
     expect(template.toJSON().Parameters.InstanceType.Default).toBe('t3.medium');
     const json = JSON.stringify(template.toJSON());
     expect(json).not.toMatch(/"FromPort":22\b/);

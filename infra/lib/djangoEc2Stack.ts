@@ -405,7 +405,10 @@ export class DjangoEc2Stack extends Stack {
       userData,
       role: this.instanceRole,
       securityGroup: instanceSg,
-      requireImdsv2: true,
+      // IMDSv2 only. Hop limit 2 so the Django container (boto3, S3 assets) can reach the
+      // instance role's credentials from its bridge network; with 1 only host processes can.
+      httpTokens: ec2.HttpTokens.REQUIRED,
+      httpPutResponseHopLimit: 2,
       blockDevices: [
         {
           deviceName: '/dev/xvda',
