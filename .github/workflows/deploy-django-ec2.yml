@@ -1,0 +1,345 @@
+# Django backend release to EC2 (ADR-037, docs/platform/DJANGO_EC2_DEPLOYMENT.md).
+#
+#   push to main (backend paths) -> test -> build and push to ECR (tag = full SHA, deploy = digest)
+#     -> dev via SSM (automatic) -> prod via SSM (GitHub Environment approval; push only when
+#        LAI_PROD_AUTO_DEPLOY is 'true', otherwise a manual dispatch)
+#   workflow_dispatch: deploy a commit of main to dev or prod, or roll an environment back.
+#
+# AWS access is GitHub OIDC only (no stored keys): the image publisher role trusts main, each deploy
+# role trusts its own GitHub Environment (django-dev, django-prod). The workflow sends only the
+# allowlisted SSM documents with pattern-checked parameters; it never runs a shell command on the
+# instance. Until the repository variable LAI_DEPLOY_ENABLED is 'true' only the test job runs, so
+# pushes before AWS is provisioned stay green. No browser tests run here.
+name: Deploy Django (EC2)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lai/**'
+      - 'content/**'
+      - 'react/public/models/**'
+      - 'requirements.txt'
+      - 'requirements-dev.txt'
+      - 'pyproject.toml'
+      - 'scripts/aws/**'
+      - 'deploy/ec2/**'
+      - 'tests/deploy/**'
+      - '.dockerignore'
+      - '.github/workflows/deploy-django-ec2.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [dev, prod]
+        default: dev
+      action:
+        description: deploy this commit of main, or roll back to an earlier healthy release
+        type: choice
+        options: [deploy, rollback]
+        default: deploy
+      rollback_to:
+        description: 'rollback only: full commit SHA of an earlier healthy release (empty: the previous one)'
+        type: string
+        default: ''
+      allow_older:
+        description: 'deploy only: allow a commit older than the running release'
+        type: boolean
+        default: false
+      allow_destructive_migrations:
+        description: 'deploy only: allow migrations that remove or rename columns/tables (read the runbook first)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.LAI_AWS_REGION || 'us-west-1' }}
+
+jobs:
+  test:
+    name: Django tests and checks
+    if: github.event_name == 'push' || inputs.action == 'deploy'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: lai
+          POSTGRES_USER: lai
+          POSTGRES_PASSWORD: local-dev-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lai -d lai"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      # Throwaway service container on the runner (same values as ci.yml); not secrets.
+      POSTGRES_USER: lai
+      POSTGRES_PASSWORD: local-dev-only-password
+      POSTGRES_DB: lai
+      POSTGRES_PORT: '5432'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install pinned dependencies
+        run: make py-install
+
+      - name: Django system checks
+        run: make django-check
+
+      - name: Migration consistency (no model change without a migration)
+        run: make migrate-check
+
+      - name: Production settings pass check --deploy
+        working-directory: lai
+        env:
+          # Placeholder values so the settings import; no database or AWS is contacted.
+          DJANGO_SETTINGS_MODULE: config.settings.production
+          DJANGO_SECRET_KEY: ci-only-not-a-secret-ci-only-not-a-secret-ci-only-not-a-secret
+          DJANGO_ALLOWED_HOSTS: api.example.invalid
+          DJANGO_CSRF_TRUSTED_ORIGINS: https://api.example.invalid
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/lai?sslmode=disable
+          DJANGO_TRUST_PROXY_SSL_HEADER: 'true'
+          COGNITO_REGION: us-west-1
+          COGNITO_USER_POOL_ID: us-west-1_CIPLACEHOLDER
+          COGNITO_ALLOWED_CLIENT_IDS: ciplaceholder
+          LAI_ASSET_STORAGE: s3
+          LAI_ASSET_BUCKET: lai-assets-ci-placeholder
+          LAI_ASSET_REGION: us-west-1
+        run: ../.venv/bin/python manage.py check --deploy --fail-level ERROR
+
+      - name: Pytest, including the release script tests (PostgreSQL tests must run)
+        run: make py-test-db
+
+  build:
+    name: Build and push the image
+    needs: test
+    if: vars.LAI_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: build-django-${{ github.sha }}
+      cancel-in-progress: false
+    outputs:
+      image: ${{ steps.release.outputs.image }}
+      git_sha: ${{ github.sha }}
+      commit_epoch: ${{ steps.commit.outputs.epoch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Commit time (the release ordering key)
+        id: commit
+        run: echo "epoch=$(git log -1 --format=%ct HEAD)" >>"$GITHUB_OUTPUT"
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.LAI_IMAGE_PUBLISHER_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: lai-build-${{ github.run_id }}
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: 'true'
+
+      - name: Is this commit already built? (tags are immutable)
+        id: existing
+        env:
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          if aws ecr describe-images --repository-name lai/django --image-ids "imageTag=$GIT_SHA" >/dev/null 2>&1; then
+            echo "found=true" >>"$GITHUB_OUTPUT"
+            echo "::notice::$GIT_SHA is already in ECR; reusing that image"
+          else
+            echo "found=false" >>"$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.existing.outputs.found != 'true'
+
+      - name: Build and push
+        if: steps.existing.outputs.found != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: lai/Dockerfile
+          platforms: linux/amd64
+          push: true
+          # One plain image manifest, so the digest names exactly the image that runs.
+          provenance: false
+          sbom: false
+          build-args: |
+            LAI_GIT_SHA=${{ github.sha }}
+            LAI_RELEASE_CHANNEL=release
+          tags: ${{ steps.ecr.outputs.registry }}/lai/django:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Release manifest (immutable digest)
+        id: release
+        env:
+          GIT_SHA: ${{ github.sha }}
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          EPOCH: ${{ steps.commit.outputs.epoch }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          digest=$(aws ecr describe-images --repository-name lai/django --image-ids "imageTag=$GIT_SHA" \
+            --query 'imageDetails[0].imageDigest' --output text)
+          [[ $digest =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "::error::no digest for $GIT_SHA"; exit 1; }
+          image="$REGISTRY/lai/django@$digest"
+          echo "image=$image" >>"$GITHUB_OUTPUT"
+          jq -n --arg sha "$GIT_SHA" --arg image "$image" --arg digest "$digest" \
+            --arg repo "$REGISTRY/lai/django" --argjson epoch "$EPOCH" --arg run "$RUN_URL" \
+            --arg built "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{schema: 1, git_sha: $sha, image: $image, image_digest: $digest, repository: $repo,
+              tag: $sha, commit_epoch: $epoch, built_at: $built, run_url: $run}' >release-manifest.json
+          cat release-manifest.json
+          {
+            echo "### Release image"
+            echo "- commit \`$GIT_SHA\`"
+            echo "- image \`$image\`"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Image scan summary (reported, not blocking)
+        env:
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          if timeout 300 aws ecr wait image-scan-complete --repository-name lai/django \
+              --image-id "imageTag=$GIT_SHA" 2>/dev/null; then
+            counts=$(aws ecr describe-image-scan-findings --repository-name lai/django \
+              --image-id "imageTag=$GIT_SHA" --query 'imageScanFindings.findingSeverityCounts' --output json)
+            echo "ECR scan findings: $counts"
+            echo "- ECR scan findings: \`$counts\`" >>"$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::the ECR scan did not finish in time; check it in the ECR console"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest-${{ github.sha }}
+          path: release-manifest.json
+          retention-days: 90
+
+  deploy-dev:
+    name: Deploy to dev
+    needs: build
+    if: github.event_name == 'push' || (inputs.environment == 'dev' && inputs.action == 'deploy')
+    runs-on: ubuntu-latest
+    environment:
+      name: django-dev
+      url: ${{ vars.LAI_API_BASE_URL }}
+    concurrency:
+      group: deploy-django-dev
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: ./.github/actions/django-release
+        with:
+          target: dev
+          image: ${{ needs.build.outputs.image }}
+          git-sha: ${{ needs.build.outputs.git_sha }}
+          commit-epoch: ${{ needs.build.outputs.commit_epoch }}
+          role-arn: ${{ vars.LAI_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          base-url: ${{ vars.LAI_API_BASE_URL }}
+          allow-older: ${{ inputs.allow_older && 'true' || 'false' }}
+          allow-destructive-migrations: ${{ inputs.allow_destructive_migrations && 'true' || 'false' }}
+          check-superseded: ${{ github.event_name == 'push' }}
+
+  deploy-prod:
+    name: Deploy to prod
+    needs: [build, deploy-dev]
+    # Manual dispatch from main, or a push when automatic prod releases are switched on and dev
+    # succeeded. Either way the django-prod GitHub Environment's required reviewers must approve.
+    if: >-
+      always() && needs.build.result == 'success' && (
+        (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod' && inputs.action == 'deploy') ||
+        (github.event_name == 'push' && vars.LAI_PROD_AUTO_DEPLOY == 'true' && needs.deploy-dev.result == 'success')
+      )
+    runs-on: ubuntu-latest
+    environment:
+      name: django-prod
+      url: ${{ vars.LAI_API_BASE_URL }}
+    concurrency:
+      group: deploy-django-prod
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: ./.github/actions/django-release
+        with:
+          target: prod
+          image: ${{ needs.build.outputs.image }}
+          git-sha: ${{ needs.build.outputs.git_sha }}
+          commit-epoch: ${{ needs.build.outputs.commit_epoch }}
+          role-arn: ${{ vars.LAI_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          base-url: ${{ vars.LAI_API_BASE_URL }}
+          allow-older: ${{ inputs.allow_older && 'true' || 'false' }}
+          allow-destructive-migrations: ${{ inputs.allow_destructive_migrations && 'true' || 'false' }}
+          check-superseded: ${{ github.event_name == 'push' }}
+
+  rollback:
+    name: Roll back ${{ inputs.environment }}
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'rollback'
+    runs-on: ubuntu-latest
+    environment:
+      name: django-${{ inputs.environment }}
+      url: ${{ vars.LAI_API_BASE_URL }}
+    concurrency:
+      group: deploy-django-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.LAI_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: lai-rollback-${{ github.run_id }}
+
+      - name: Roll back through SSM
+        env:
+          TARGET: ${{ inputs.environment }}
+          TO: ${{ inputs.rollback_to }}
+        run: |
+          if [ -n "$TO" ]; then
+            [[ $TO =~ ^[a-f0-9]{40}$ ]] || { echo "::error::rollback_to must be a full commit SHA"; exit 2; }
+            scripts/aws/ssm-run.sh "$TARGET" rollback --to "$TO"
+          else
+            scripts/aws/ssm-run.sh "$TARGET" rollback
+          fi
