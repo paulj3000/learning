@@ -6,6 +6,7 @@ import {
   type EnvironmentSpec,
   type LocationCopy,
   type NpcPlacementSpec,
+  type PlaceholderSize,
   type PropSpec,
   type ScenerySpec,
   type ThreeLocationManifest,
@@ -128,6 +129,7 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
           label: entity.label,
           ...(clips.includes('Idle') ? { idleClip: 'Idle' } : {}),
           placeholderColor: NPC_PLACEHOLDER_COLOR,
+          ...placeholderSize(entity, entity.scale),
           interactionId,
         });
       } else {
@@ -212,6 +214,22 @@ function drawnProp(entity: SceneEntity, interactionId: string): PropSpec {
   };
 }
 
+/**
+ * The admin's placeholder size times `scale`, as the stand-in drawn if the
+ * model fails to load (TR-7a). Left out when a side is not positive, so the
+ * runtime's default size is used rather than the region failing validation.
+ */
+function placeholderSize(
+  entity: SceneEntity,
+  scale: number,
+): { placeholderSize: PlaceholderSize } | Record<string, never> {
+  const { width, height, depth } = entity.placeholder;
+  if (![width, height, depth].every((side) => Number.isFinite(side) && side > 0)) return {};
+  return {
+    placeholderSize: { width: width * scale, height: height * scale, depth: depth * scale },
+  };
+}
+
 function objectScenery(entity: SceneEntity): ScenerySpec {
   const { x, z, elevation } = entity.position;
   if (entity.assetId) {
@@ -222,6 +240,8 @@ function objectScenery(entity: SceneEntity): ScenerySpec {
       position: { x, y: elevation, z },
       rotation: { x: 0, y: entity.rotationY, z: 0 },
       scale: { x: entity.scale, y: entity.scale, z: entity.scale },
+      // The model's own `scale` is applied to its stand-in too, so the size stays unscaled here.
+      ...placeholderSize(entity, 1),
     };
   }
   const halfWidth = (entity.placeholder.width * entity.scale) / 2;

@@ -4,6 +4,7 @@ import {
   type CollectibleSpec,
   type ExtensionBinding,
   type GroundPoint,
+  type PlaceholderSize,
   type RectZone,
   type ThreeLocationManifest,
 } from './locationManifest';
@@ -340,6 +341,7 @@ export function validateLocationManifest(
         break;
       case 'MODEL':
         checkAsset(item.assetId, `${path}.assetId`, item.idleClip);
+        checkPlaceholderSize(item.placeholderSize, `${path}.placeholderSize`, report);
         break;
       case 'CLUSTER':
       case 'LOD_PLACEMENTS':
@@ -362,6 +364,7 @@ export function validateLocationManifest(
       report('UNKNOWN_NPC', `${path}.npcId`, `no NPC "${npc.npcId}"`);
     }
     checkAsset(npc.assetId, `${path}.assetId`, npc.idleClip);
+    checkPlaceholderSize(npc.placeholderSize, `${path}.placeholderSize`, report);
     checkInBounds(npc.position, `${path}.position`);
     checkInteractionRef(npc.interactionId, `${path}.interactionId`);
     requireText(npc.label, `${path}.label`, report);
@@ -371,6 +374,7 @@ export function validateLocationManifest(
     const path = `props[${index}]`;
     claimSceneId(prop.entityId, `${path}.entityId`);
     checkEntityAsset(prop.assetId, `${path}.assetId`, prop.interactClip);
+    checkPlaceholderSize(prop.placeholderSize, `${path}.placeholderSize`, report);
     checkInBounds(prop.position, `${path}.position`);
     checkPropInteraction(prop.interactionId, `${path}.interactionId`);
     requireText(prop.label, `${path}.label`, report);
@@ -382,6 +386,7 @@ export function validateLocationManifest(
     const path = `collectibles[${index}]`;
     claimSceneId(collectible.entityId, `${path}.entityId`);
     checkEntityAsset(collectible.assetId, `${path}.assetId`, collectible.idleClip);
+    checkPlaceholderSize(collectible.placeholderSize, `${path}.placeholderSize`, report);
     checkInBounds(collectible.position, `${path}.position`);
     checkElevation(collectible.elevation, `${path}.elevation`);
     requireText(collectible.label, `${path}.label`, report);
@@ -654,6 +659,17 @@ function requirePositive(value: number, path: string, report: Report): void {
   if (!(Number.isFinite(value) && value > 0)) {
     report('INVALID_VALUE', path, `must be a positive number, got ${String(value)}`);
   }
+}
+
+function checkPlaceholderSize(
+  size: PlaceholderSize | undefined,
+  path: string,
+  report: Report,
+): void {
+  if (size === undefined) return;
+  requirePositive(size.width, `${path}.width`, report);
+  requirePositive(size.height, `${path}.height`, report);
+  requirePositive(size.depth, `${path}.depth`, report);
 }
 
 function requireText(value: string, path: string, report: Report): void {

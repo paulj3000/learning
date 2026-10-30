@@ -152,6 +152,17 @@ export interface BuildingSpec {
 /** What a model's `y` means: where it stands, or where its middle sits. */
 export type ModelAnchor = 'BOTTOM' | 'CENTRE';
 
+/**
+ * The box the runtime draws, standing on the entity's spot, when its model
+ * cannot be resolved or fails to load (TR-7a). Metres, before any scale.
+ * Absent means the runtime's default size for that kind of entity.
+ */
+export interface PlaceholderSize {
+  width: number;
+  height: number;
+  depth: number;
+}
+
 /** How a tiled grid meets the edges of its area; see `TILED_GROUND`. */
 export type TileCoverage = 'INSIDE' | 'COVER';
 
@@ -248,6 +259,8 @@ export type ScenerySpec = SceneryBase &
          * rots the first time an asset is regenerated at a new size.
          */
         anchor?: ModelAnchor;
+        /** Drawn in the model's place if it fails to load (TR-7a). */
+        placeholderSize?: PlaceholderSize;
       } /**
      * Many copies of one kit piece scattered deterministically through the
      * part of the region the child *cannot* walk on: a tree line, a scree
@@ -292,8 +305,10 @@ export interface NpcPlacementSpec {
   label: string;
   /** Clip to loop once the model loads. Must be one the asset authors. */
   idleClip?: string;
-  /** Colour of the stand-in box shown until the model resolves. */
+  /** Colour of the stand-in box shown until the model resolves, and kept if it never does. */
   placeholderColor: number;
+  /** Size of that stand-in box. Defaults to a small 0.4 x 0.6 x 0.2 m block. */
+  placeholderSize?: PlaceholderSize;
   /** The `WorldInteraction` a tap/interact on this NPC triggers. */
   interactionId?: string;
 }
@@ -333,6 +348,8 @@ export interface PropSpec {
   anchor?: ModelAnchor;
   /** A clip played once, held on its last frame, the first time the child interacts (a chest lid opening). */
   interactClip?: string;
+  /** Drawn in the model's place if `assetId` fails to load, so it can still be found and used (TR-7a). */
+  placeholderSize?: PlaceholderSize;
   /**
    * Present only while these hold, evaluated when the scene is built. Absent
    * means always. Two props sharing one `interactionId` with opposite
@@ -369,6 +386,8 @@ export interface CollectibleSpec {
   elevation?: number;
   label: string;
   idleClip?: string;
+  /** As on `PropSpec`: drawn if `assetId` fails to load (TR-7a). */
+  placeholderSize?: PlaceholderSize;
   /**
    * Present only while these hold, evaluated when the scene is built.
    * Absent means always - which, for a collectible that records a world

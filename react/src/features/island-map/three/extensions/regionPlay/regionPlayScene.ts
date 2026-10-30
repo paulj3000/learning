@@ -114,7 +114,13 @@ export const regionPlaySceneExtension: WorldExtension = {
         .then((asset) => {
           if (disposed) return;
           const clip = asset.animations.find((candidate) => candidate.name === openClip);
-          if (!clip) return; // no way to show it open: keep the built chest
+          if (!clip) {
+            // No way to show it open: keep the built chest, and say why.
+            console.warn(
+              `[region-play] chest ${chest.entityId}: "${chest.assetId}" has no "${openClip}" clip; drawing the built chest`,
+            );
+            return;
+          }
           const model = cloneAssetScene(asset.scene);
           model.scale.setScalar(chest.scale);
           const mixer = new AnimationMixer(model);
@@ -129,7 +135,13 @@ export const regionPlaySceneExtension: WorldExtension = {
           current.show(open, true);
           chests.set(chest.entityId, current);
         })
-        .catch(() => undefined); // a model that fails to load leaves the built chest
+        .catch((error: unknown) => {
+          // A model that fails to load leaves the built chest (TR-7a); the cause is still reported.
+          console.warn(
+            `[region-play] chest ${chest.entityId}: could not load "${chest.assetId}"; drawing the built chest`,
+            error,
+          );
+        });
     }
 
     const stopFrames = context.onFrame((delta) => {
