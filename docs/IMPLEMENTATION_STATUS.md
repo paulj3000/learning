@@ -11177,8 +11177,28 @@ application user and authorization system; Django Admin keeps its own session.
 
 ## LAI-CHILD-001: parent and child profile management on Django (2026-10-31, ADR-039 Accepted)
 
-Owner-directed. On `feature/lai-child-django` (from `main` after LAI-AUTH-DUAL), not merged, not
-pushed, nothing deployed, no production data read or moved.
+Owner-directed. **Merged to `main` and pushed 2026-10-31 (merge `2228add`)** after the full merge
+gate below. No production data read or moved.
+
+**Merge verification (2026-10-31).** Ruff and Ruff format clean; Django check and migration check
+clean; pytest against PostgreSQL 1154 passed; ADR check, admin preview check, content check,
+typecheck passed; oxlint 0 errors (39 warnings, the `main` baseline); Prettier clean; Vitest 301
+files, 3182 tests passed (plus the greeting test added after the acceptance run, run on its own:
+`ParentDashboard.test.tsx` 8 passed); production build passed. Playwright smoke: 7 passed in a clean checkout
+(as CI runs it; on the development machine 3 fail only because its git-ignored
+`amplify_outputs.json` makes the app "configured", which those tests assume it is not). Browser
+acceptance in Django sign-in mode (Playwright, real Chromium, `vite dev` plus `runserver` on a
+throwaway database, dropped afterwards), 2 tests passed twice: protected page redirects when
+signed out, wrong password refused, sign-in, child created in the React form and present in
+Django, edited, parent name saved through `PATCH me/` with no Cognito sections, another family's
+child 404 on the profile and play routes, Treasure Rush scene loads, a Treasure Rush chest
+completed through the play API with the browser's session and CSRF token, progress persisted
+against the child, deactivation through the parent gate, sign-out ends the session and `/home`
+redirects again, no page errors; a Django Admin session gets 401 from the gameplay API and sees
+child profiles without nicknames. It found one bug, fixed before the merge: a parent with no
+display name was greeted "Welcome, ". Not verified in a browser: Cognito sign-in (no test pool or
+credentials here; covered by unit tests only) and walking the Treasure Rush scene with the
+keyboard (WebGL movement was not driven; the chest was opened through the same API calls).
 
 **Principle:** authentication identifies the parent; Django authorizes access to parent and child
 resources and owns the associated application data.
@@ -11222,9 +11242,6 @@ resources and owns the associated application data.
   credentials, facade selection, play settings, photo field hidden, Amplify mapping).
 - **Process slip.** Prettier was run once on `react/src/routes/AccountSettings.tsx`, which this
   task's rules excluded. It changed only that file, which the task had just edited.
-- **Deferred to merge verification.** Ruff, Prettier check, oxlint, full suites, build, Playwright,
-  and a manual browser run (create, edit, select, play Treasure Rush, deactivate, sign out) in
-  both sign-in modes.
 - **Open.** Hard deletion (LAI-0209 / LAI-0602); profile photos in Django (LAI-1103); companion
   profile (LAI-0307); Amplify-backed features that read a child from DynamoDB or Amplify Data
   (the `submit-adventure-answer`, `get-next-learning-activity` and `claim-coop-slot` Lambdas, the

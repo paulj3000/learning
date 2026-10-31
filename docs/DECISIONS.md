@@ -60,7 +60,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-036 | Native Android uses the Django API with Cognito bearer tokens; the game-only WebView uses a ticket-redeemed, child- and region-scoped game session cookie | Proposed | Feature branch (LAI-ANDROID-API-001) | Implemented 2026-10-25 at the Django API boundary; owner acceptance pending. Builds on ADR-024 and ADR-033; does not change ADR-034 |
 | ADR-037 | The Django backend is released to one EC2 instance per environment from GitHub Actions through ECR and SSM, with GitHub OIDC and no stored AWS keys | Accepted | Feature branch (feature/aws-ec2-auto-deployment) | Owner-directed 2026-10-30 (LAI-1003, LAI-1004, LAI-1006). Repository side only: provisioning and every deploy stay owner-approved (ADR-019 G1, G7). Prod on EC2 is the initial step; ECS Fargate (LAI-1007) stays the production candidate |
 | ADR-038 | Environment-selectable API authentication: Cognito in AWS, local Django sign-in for development, one Django user and authorization model | Accepted | Main line (merged 2026-10-31, `beebb6a`) | Owner-directed 2026-10-30 (LAI-AUTH-DUAL). Amends ADR-024 Accepted items 1 and 2 for `AUTH_PROVIDER=django` only; builds on ADR-034 (the admin session stays separate). AWS environments are unchanged |
-| ADR-039 | Django is the authority for parent and child profiles in every build with the Django API; Amplify profiles only until the controlled import and cutover; read-only audited Django Admin inspection | Accepted | Feature branch (feature/lai-child-django) | Owner-directed 2026-10-31 (LAI-CHILD-001). Amends ADR-034 and ADR-024 A4 for read-only, permission-gated, audited profile inspection in Django Admin only. Hard deletion stays blocked by LAI-0209. No production data is moved |
+| ADR-039 | Django is the authority for parent and child profiles in every build with the Django API; Amplify profiles only until the controlled import and cutover; read-only audited Django Admin inspection | Accepted | Main line (merged 2026-10-31) | Owner-directed 2026-10-31 (LAI-CHILD-001). Amends ADR-034 and ADR-024 A4 for read-only, permission-gated, audited profile inspection in Django Admin only. Hard deletion stays blocked by LAI-0209. No production data is moved |
 
 ## ADR-001: Parent-owned accounts
 
@@ -2866,8 +2866,8 @@ file, parameter store). Tests: `apps/users/tests/test_local_auth.py`,
 
 ## ADR-039: Django is the authority for parent and child profiles in every build with the Django API; Amplify profiles only until the controlled import and cutover; read-only audited Django Admin inspection
 
-Status: Accepted 2026-10-31, directed by the owner (LAI-CHILD-001). Implemented on
-`feature/lai-child-django`; not merged, nothing deployed, no production data moved. Amends ADR-034
+Status: Accepted 2026-10-31, directed by the owner (LAI-CHILD-001). Merged to `main`
+on 2026-10-31; no production data moved. Amends ADR-034
 and ADR-024 A4 for one thing only: read-only, permission-gated, audited inspection of parent and
 child profiles in Django Admin.
 
