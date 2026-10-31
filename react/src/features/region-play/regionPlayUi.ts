@@ -11,6 +11,10 @@ import type { AnswerOutcome, PublicChallenge, QuestEntry } from '../../api/play/
 export const PLAY_COPY = {
   close: 'Close',
   keepExploring: 'Keep exploring',
+  // Adventure launch objects (ADR-041)
+  launchStarting: 'Getting the adventure ready.',
+  launchNotNow: 'Not now',
+  launchUnavailable: 'This adventure is not ready right now. Keep exploring!',
   // Pip
   pipNoQuest: 'Ahoy! Enjoy the cove.',
   pipAsk: 'Will you help me?',
@@ -227,3 +231,12 @@ export const CONTROL_KEYS = new Set([
   ' ',
   'enter',
 ]);
+
+/** What to tell the child when an Adventure could not begin (ADR-041). */
+export function launchErrorMessage(error: ApiError | null): string | null {
+  if (!error) return null;
+  if (error.kind === 'conflict' || error.kind === 'not_found' || error.kind === 'disabled') {
+    return PLAY_COPY.launchUnavailable;
+  }
+  return playErrorMessage(error);
+}

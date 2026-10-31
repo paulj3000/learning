@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import styles from './TravelDeck.module.css';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { getChildProfile } from '../features/child-profile/api';
@@ -85,6 +85,16 @@ export function TravelDeck() {
   }
 
   const homeSlug = getHomeWorld().slug;
+
+  // ADR-041: with exactly one Island to sail to (and none waiting), there is nothing to choose.
+  const [only] = destinations;
+  if (destinations.length === 1 && only.isUnlocked) {
+    const target =
+      only.world.slug === homeSlug
+        ? `/island/${childId}`
+        : `/island/${childId}/worlds/${only.world.slug}`;
+    return <Navigate to={target} replace />;
+  }
 
   return (
     <IslandLayout childId={childId}>

@@ -10,6 +10,8 @@ interface AdventureRunnerProps {
   ageBand: AgeBandValue;
   aiEnabled: boolean;
   backToMapHref: string;
+  /** The finish link's words (`AdventureStepCard`). */
+  backToMapLabel?: string;
   /** Set only when this child is playing a Phase 17 household coop session alongside a sibling. */
   coopSessionId?: string;
   /**
@@ -42,6 +44,7 @@ export function AdventureRunner({
   ageBand,
   aiEnabled,
   backToMapHref,
+  backToMapLabel,
   coopSessionId,
   onComplete,
 }: AdventureRunnerProps) {
@@ -90,6 +93,7 @@ export function AdventureRunner({
       representationAid={representationAid}
       storyScenes={storyScenes}
       backToMapHref={backToMapHref}
+      backToMapLabel={backToMapLabel}
       coopPresenceLine={
         coopSessionId
           ? isSharingWithSibling

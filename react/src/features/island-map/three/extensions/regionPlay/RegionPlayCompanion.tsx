@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { AnswerOutcome } from '../../../../../api/play/types';
 import { useAuth } from '../../../../auth/AuthContext';
 import { tryParseRegionPlayConfig } from '../../../../region-play/regionPlayConfig';
@@ -9,15 +10,18 @@ import {
 import {
   PLAY_COPY,
   completedQuests,
+  launchErrorMessage,
   playErrorMessage,
   shouldCelebrate,
 } from '../../../../region-play/regionPlayUi';
+import { adventurePath, useAdventureLaunch } from '../../../../region-play/useAdventureLaunch';
 import { usePlayerProgress } from '../../../../region-play/usePlayerProgress';
 import { useRegionPlay } from '../../../../region-play/useRegionPlay';
 import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry';
 import type { RegionPlaySceneApi } from './regionPlayScene';
 import { BackpackPanel } from './ui/BackpackPanel';
 import { ChestChallengePanel, type ChestPanelPhase } from './ui/ChestChallengePanel';
+import { LaunchDialog } from './ui/LaunchDialog';
 import { PipDialog } from './ui/PipDialog';
 import { RewardReveal } from './ui/RewardReveal';
 import styles from './ui/RegionPlayPanels.module.css';
@@ -36,6 +40,9 @@ import styles from './ui/RegionPlayPanels.module.css';
  *   and shows the reward reveal once, for a correct answer the server
  *   confirmed for an attempt submitted in this visit.
  * - Offers the backpack: the child's items and quests from `GET progress/`.
+ * - Begins an Adventure from an object that offers one (ADR-041): the server
+ *   checks and starts it, then the child goes to the Adventure with a way
+ *   back to this 3D Area.
  *
  * Remounted per child and region (`key`), so a switch starts from nothing.
  */
@@ -61,6 +68,8 @@ function RegionPlayGame(props: LocationCompanionProps) {
   const { state, startSession, changeSession, acceptQuest, requestChallenge, submitAnswer } =
     controls;
   const refreshProgress = progress.refresh;
+  const navigate = useNavigate();
+  const launcher = useAdventureLaunch(childId, regionId);
 
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [celebration, setCelebration] = useState<AnswerOutcome | null>(null);
@@ -149,6 +158,13 @@ function RegionPlayGame(props: LocationCompanionProps) {
     void submitAnswer({ answer, hintLevel });
   }
 
+  async function launch(launchId: string) {
+    const started = await launcher.start(launchId);
+    if (started) navigate(adventurePath(childId, started));
+  }
+
+  const launchError = launchErrorMessage(launcher.error);
+
   function accept(questId: string) {
     if (state.busy) return;
     setAcceptedHere(questId);
@@ -178,6 +194,21 @@ function RegionPlayGame(props: LocationCompanionProps) {
         justAccepted={event.quests.some((q) => q.questId === acceptedHere && q.status === 'ACTIVE')}
         error={state.errorAction === 'acceptQuest' ? errorMessage : null}
         onAccept={accept}
+        onClose={closeInteraction}
+        launches={event.launches}
+        launchStarting={launcher.starting}
+        launchError={launchError}
+        onLaunch={(launchId) => void launch(launchId)}
+      />
+    );
+  } else if (event?.kind === 'launch') {
+    panel = (
+      <LaunchDialog
+        label={event.label}
+        launches={event.launches}
+        starting={launcher.starting}
+        error={launchError}
+        onStart={(launchId) => void launch(launchId)}
         onClose={closeInteraction}
       />
     );

@@ -204,3 +204,49 @@ export function jsonResponse(status: number, body: unknown): Response {
     headers: { 'Content-Type': 'application/json' },
   });
 }
+
+/** The Treasure Cove bridge signpost (ADR-041), an object placement with a launch point. */
+export function signpostJson(overrides: Record<string, unknown> = {}) {
+  return {
+    entityId: 'cove-bridge-signpost',
+    label: 'Bridge signpost',
+    x: -3,
+    z: 6,
+    elevation: 0,
+    rotationY: 0,
+    scale: 1,
+    assetId: 'signpost',
+    placeholder: { width: 0.6, height: 1.6, depth: 0.2 },
+    kind: 'PROP',
+    interactionId: '',
+    ...overrides,
+  };
+}
+
+export function launchPointJson(overrides: Record<string, unknown> = {}) {
+  return {
+    launchId: 'signpost-repair-the-moonlight-bridge',
+    entityId: 'cove-bridge-signpost',
+    objectKind: 'SIGN',
+    label: 'Help Pip repair the Moonlight Bridge',
+    prompt: 'The sign points to the broken bridge.',
+    adventure: {
+      adventureId: 'repair-the-moonlight-bridge',
+      title: 'Repair the Moonlight Bridge',
+      placeSlug: 'pirate-builder-bay',
+    },
+    ...overrides,
+  };
+}
+
+export function launchStartJson(overrides: Record<string, unknown> = {}) {
+  return {
+    launchId: 'signpost-repair-the-moonlight-bridge',
+    regionId: 'treasure-rush-cove',
+    adventureId: 'repair-the-moonlight-bridge',
+    placeSlug: 'pirate-builder-bay',
+    session: { id: '6b1d2c84-1b7e-4a52-9b0e-2f5d9c3e7a10', currentStepId: 'count' },
+    returnTo: { regionId: 'treasure-rush-cove' },
+    ...overrides,
+  };
+}

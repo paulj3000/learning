@@ -46,6 +46,8 @@ export interface SceneEntity {
   npcId?: string;
   /** Objects only: PROP, COLLECTIBLE, or SCENERY. */
   objectKind?: ObjectPlacement['kind'];
+  /** Whether this NPC or object starts an Adventure for this child (ADR-041). */
+  launchesAdventure?: boolean;
 }
 
 export interface RegionSceneModel {
@@ -104,6 +106,7 @@ function chest(entity: ChestState): SceneEntity {
 
 export function toRegionSceneModel(bootstrap: RegionBootstrap): RegionSceneModel {
   const location = bootstrap.region.locationSlug;
+  const launching = new Set(bootstrap.launchPoints.map((point) => point.entityId));
   const questsByGiver = new Map<string, QuestEntry[]>();
   for (const quest of bootstrap.quests) {
     if (!quest.giverNpcId) continue;
@@ -120,7 +123,11 @@ export function toRegionSceneModel(bootstrap: RegionBootstrap): RegionSceneModel
       ...bootstrap.npcs.map(npc),
       ...bootstrap.objects.map(object),
       ...bootstrap.chests.map(chest),
-    ],
+    ].map((entity) =>
+      launching.has(entity.entityId) && entity.role !== 'chest'
+        ? { ...entity, launchesAdventure: true }
+        : entity,
+    ),
     worldChangeKeys: new Set(
       bootstrap.worldChanges.filter((c) => c.locationSlug === location).map((c) => c.changeKey),
     ),

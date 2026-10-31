@@ -51,9 +51,13 @@ export {
  *   scenery in TR-7. With a model, a `MODEL`; without, a `BOX` of the
  *   admin's placeholder size.
  *
- * Every NPC and chest gets one interaction the extension claims, so
- * interacting reaches the play API through the extension and never the
- * generic Amplify panels.
+ * - **Adventure launch object** (ADR-041: a sign, door or other placement with
+ *   launch points): an interactive prop with its model, or a placeholder box
+ *   reached from the "Things to do here" list when it has none.
+ *
+ * Every NPC, chest and launch object gets one interaction the extension
+ * claims, so interacting reaches the play API through the extension and
+ * never the generic Amplify panels.
  */
 
 export const DEFAULT_GROUND_ASSET_ID = 'ground-tile';
@@ -167,6 +171,34 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
       config.interactions.push({
         interactionId,
         kind: 'chest',
+        entityId: entity.entityId,
+        npcId: null,
+      });
+    } else if (entity.launchesAdventure) {
+      // ADR-041: an object that starts one of this Place's Adventures. With a model it is an
+      // interactive prop; without one it stays a placeholder box and is reached from the
+      // "Things to do here" list, so it never needs a model that is not available.
+      const interactionId = `${regionId}:launch:${entity.entityId}`;
+      if (entity.assetId) {
+        props.push({
+          ...drawnProp(entity, interactionId),
+          assetId: entity.assetId,
+          ...placeholderSize(entity, entity.scale),
+        });
+      } else {
+        scenery.push(objectScenery(entity));
+      }
+      interactions.push({
+        id: interactionId,
+        type: 'OBJECT',
+        trigger: 'TAP',
+        title: entity.label,
+        targetId: entity.entityId,
+        action: { kind: 'SHOW_MESSAGE', message: entity.label },
+      });
+      config.interactions.push({
+        interactionId,
+        kind: 'launch',
         entityId: entity.entityId,
         npcId: null,
       });

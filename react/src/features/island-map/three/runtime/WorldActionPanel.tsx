@@ -5,6 +5,7 @@ import { DiscoveryAction } from '../../DiscoveryAction';
 import { NpcConversation } from '../../NpcConversation';
 import type { WorldAction, WorldInteraction } from '../../worldObjects';
 import { resumeOrStartSession } from '../../../adventures/api';
+import { locationWorldPath } from './locationWorldPath';
 import { resolveAdventureForAgeBand } from '../../../adventures/content';
 import { adventureStartErrorMessage } from '../../../catalog/availabilityApi';
 import type { AgeBandValue } from '../../../child-profile/constants';
@@ -30,6 +31,8 @@ export interface WorldActionPanelProps {
   onDismiss: () => void;
   /** Called after a discovery is recorded, so the view can refresh what is available. */
   onDiscovered: () => void;
+  /** The 3D Area this panel is in; an Adventure begun here returns to it (ADR-041). */
+  regionId?: string;
 }
 
 export function WorldActionPanel({
@@ -38,6 +41,7 @@ export function WorldActionPanel({
   interaction,
   onDismiss,
   onDiscovered,
+  regionId,
 }: WorldActionPanelProps) {
   return (
     <div className={styles.panel} role="dialog" aria-label={interaction.title}>
@@ -49,6 +53,7 @@ export function WorldActionPanel({
           action={interaction.action}
           onDiscovered={onDiscovered}
           onDismiss={onDismiss}
+          regionId={regionId}
         />
         <button type="button" className={styles.dismissButton} onClick={onDismiss}>
           Not now
@@ -64,6 +69,7 @@ interface WorldActionBodyProps {
   action: WorldAction;
   onDiscovered: () => void;
   onDismiss: () => void;
+  regionId?: string;
 }
 
 function WorldActionBody({
@@ -72,6 +78,7 @@ function WorldActionBody({
   action,
   onDiscovered,
   onDismiss,
+  regionId,
 }: WorldActionBodyProps) {
   switch (action.kind) {
     case 'NAVIGATE':
@@ -115,6 +122,7 @@ function WorldActionBody({
           ageBand={ageBand}
           locationSlug={action.locationSlug}
           templateSlug={action.templateSlug}
+          regionId={regionId}
         />
       );
   }
@@ -125,6 +133,7 @@ interface StartAdventureButtonProps {
   ageBand: AgeBandValue;
   locationSlug: string;
   templateSlug: string;
+  regionId?: string;
 }
 
 function StartAdventureButton({
@@ -132,6 +141,7 @@ function StartAdventureButton({
   ageBand,
   locationSlug,
   templateSlug,
+  regionId,
 }: StartAdventureButtonProps) {
   const navigate = useNavigate();
   const [starting, setStarting] = useState(false);
@@ -149,7 +159,13 @@ function StartAdventureButton({
     setError(null);
     try {
       await resumeOrStartSession(childId, resolved);
-      navigate(`/island/${childId}/locations/${locationSlug}/adventures/${resolved.slug}`);
+      const path = `/island/${childId}/locations/${locationSlug}/adventures/${resolved.slug}`;
+      // Back to this 3D Area when the Adventure ends (ADR-041 return flow).
+      navigate(
+        regionId
+          ? `${path}?returnTo=${encodeURIComponent(locationWorldPath(childId, regionId))}`
+          : path,
+      );
     } catch (startError) {
       setError(adventureStartErrorMessage(startError));
       setStarting(false);

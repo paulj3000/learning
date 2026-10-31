@@ -459,6 +459,7 @@ export function ThreeLocationWorldView({
           interaction={openInteraction}
           onDismiss={() => setOpenInteraction(null)}
           onDiscovered={() => void refreshWorld()}
+          regionId={manifest.regionId}
         />
       ) : null}
       <details className={styles.thingsToDo}>

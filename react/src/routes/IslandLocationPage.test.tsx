@@ -2,9 +2,10 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { listAllWorldChanges, getChildProfile } = vi.hoisted(() => ({
+const { listAllWorldChanges, getChildProfile, placeArea } = vi.hoisted(() => ({
   listAllWorldChanges: vi.fn(),
   getChildProfile: vi.fn(),
+  placeArea: vi.fn(() => null as null | { regionId: string; title: string; available: boolean }),
 }));
 
 vi.mock('../features/adventures/api', async () => {
@@ -12,6 +13,7 @@ vi.mock('../features/adventures/api', async () => {
   return { ...actual, listAllWorldChanges };
 });
 vi.mock('../features/child-profile/api', () => ({ getChildProfile }));
+vi.mock('../features/region-play/usePlaceArea', () => ({ usePlaceArea: placeArea }));
 
 import { IslandLocationPage } from './IslandLocationPage';
 import type { AgeBandValue } from '../features/child-profile/constants';
@@ -94,5 +96,27 @@ describe('Wonderwild Forest route, by age band', () => {
       // Engine Phase 9: the castle runs on the generic route now. What it is
       // *called* is still a preview, which is SC-11's call to change.
     ).toHaveAttribute('href', '/island/child-1/explore/storykeeper-castle');
+  });
+});
+
+describe('a Place with a published 3D Area (ADR-041)', () => {
+  it('offers exploring its 3D Area first, and keeps its adventures', async () => {
+    placeArea.mockReturnValue({
+      regionId: 'treasure-rush-cove',
+      title: 'Treasure Cove',
+      available: true,
+    });
+    renderLocation('pirate-builder-bay', 'PATHFINDER');
+    const explore = await screen.findByRole('link', { name: 'Explore Treasure Cove' });
+    expect(explore).toHaveAttribute('href', '/island/child-1/explore/treasure-rush-cove');
+    expect(screen.getByRole('link', { name: /^Start: / })).toBeInTheDocument();
+    expect(placeArea).toHaveBeenCalledWith('child-1', 'pirate-builder-bay');
+  });
+
+  it('has no Explore link for a Place without one, which still works', async () => {
+    placeArea.mockReturnValue(null);
+    renderLocation('pirate-builder-bay', 'PATHFINDER');
+    expect(await screen.findByRole('link', { name: /^Start: / })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Explore / })).not.toBeInTheDocument();
   });
 });
