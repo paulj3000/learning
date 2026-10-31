@@ -11254,9 +11254,11 @@ resources and owns the associated application data.
 
 ## LAI-AUTH-ROLLBACK: dual authentication removed; Cognito is the sole application sign-in (2026-10-31, ADR-040 Accepted)
 
-Owner-directed. Branch `feature/lai-auth-rollback` from `main` (`ca9915f`). **Status: BLOCKED, not
-merged, pushed or deployed.** Every local merge gate passes; the real-Cognito browser acceptance
-cannot run yet (see "Merge verification" below), and the owner chose to stop before the merge. No AWS resource, deployed configuration or production data touched; no migration.
+Owner-directed. Branch `feature/lai-auth-rollback` from `main` (`ca9915f`). **Merged to `main` and
+pushed 2026-10-31 on the owner's explicit direction**, with every local merge gate passing and the
+real-Cognito browser acceptance still open (see "Merge verification" below). The push triggers
+the dev EC2 Django release and the Amplify Hosting `main` build, which the owner authorized; no
+manual AWS deployment was made. No AWS resource, deployed configuration or production data touched; no migration.
 
 - **Git history.** LAI-AUTH-DUAL (`e80eff0`) was merged to `main` (`beebb6a`) and LAI-CHILD-001
   (`f2244e9`, merge `2228add`) was built on it, so abandoning the branch was not possible and a
@@ -11358,3 +11360,7 @@ in `test_cognito_only.py`, Prettier in `AccountSettings.tsx`; no behaviour chang
   (`deploy-django-ec2.yml`, backend paths) and the Amplify Hosting `main` build (which runs
   `ampx pipeline-deploy`). The owner authorized that push for when the merge proceeds, and chose
   to stop before the merge while the Cognito gate is blocked. No AWS deployment occurred.
+- **Merge (2026-10-31).** After the verification above the owner directed the merge and push.
+  `origin/main` was still `ca9915f`; merged `--no-ff`. The real-Cognito browser acceptance was
+  not run and is recorded as open, not passed: the first sign-in against a real pool (a dev
+  deployment or a sandbox with a test parent) is the remaining acceptance step.
