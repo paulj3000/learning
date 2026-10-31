@@ -12,7 +12,8 @@ session cookie made by `launch.redeem_ticket`, and this module is the only thing
   cookie itself is SameSite=Strict and HttpOnly.
 - A grant reaches only its own child and region. Any other child, region, session, attempt or
   quest is the same 404 as a record that does not exist.
-- A bearer token wins when both are present (it is authenticated first).
+- The parent's own credential (`ApiAuthentication`: a bearer token, or a local session when
+  AUTH_PROVIDER=django) wins when both are present (it is authenticated first).
 """
 
 import logging
@@ -25,7 +26,7 @@ from rest_framework.exceptions import AuthenticationFailed, NotFound, Permission
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
 from apps.regions.models import WorldRegion
-from apps.users.authentication import CognitoJWTAuthentication
+from apps.users.authentication import ApiAuthentication
 from apps.users.models import ParentAccount
 from apps.users.permissions import IsProvisionedParent
 
@@ -96,7 +97,7 @@ class IsGameRuntime(BasePermission):
 
 
 class IsProvisionedParentOrGameRuntime(BasePermission):
-    """A bearer-authenticated parent (the default rule), or the game runtime's grant."""
+    """An API-authenticated parent (the default rule), or the game runtime's grant."""
 
     def has_permission(self, request, view):
         if isinstance(request.auth, GameRuntimeGrant):
@@ -110,7 +111,7 @@ class GameRuntimeAccessMixin:
     Put it before `ChildScopedAPIView` in the bases. The bearer path is unchanged.
     """
 
-    authentication_classes = [CognitoJWTAuthentication, GameSessionCookieAuthentication]
+    authentication_classes = [ApiAuthentication, GameSessionCookieAuthentication]
     permission_classes = [IsProvisionedParentOrGameRuntime]
 
     def initial(self, request, *args, **kwargs):

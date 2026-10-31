@@ -18,7 +18,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 
 **Format recommendation.** Keep this single file plus the registry table. Individually named ADR files would force moving about 4,500 lines and rewriting links for no collision benefit the check does not already give. Revisit only if the log passes roughly 50 decisions.
 
-**Next free identifier number: 034.**
+**Next free identifier number: 039.**
 
 | ID | Title | Status | Origin | Notes |
 |---|---|---|---|---|
@@ -45,7 +45,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-021 | Django 6.1, DRF 3.18, and psycopg 3 for the backend skeleton | Accepted | Django migration line |  |
 | ADR-022 | `ParentAccount` is the Django user model; `ChildProfile` is a managed profile, not a login | Accepted | Django migration line |  |
 | ADR-023 | The admin section is styled with Tailwind CSS and shadcn/ui; the rest of the app stays on CSS Modules | Accepted | Main line (Storykeeper Castle / engine) | Integrated from `origin/main`; number unchanged |
-| ADR-024 | Cognito remains the authentication authority; Django validates bearer access tokens | Accepted in part | Django migration line |  |
+| ADR-024 | Cognito remains the authentication authority; Django validates bearer access tokens | Accepted in part | Django migration line | Items 1 and 2 amended by ADR-038 for local development only (`AUTH_PROVIDER=django`) |
 | ADR-025 | Exceptions are logged as type and location, never as message | Accepted | Django migration line |  |
 | ADR-026 | Multiplayer runs on a separate authoritative room server over WebSocket; the engine only renders it | Accepted | Main line (Storykeeper Castle / engine) | Integrated from `origin/main`; number unchanged |
 | ADR-027 | A story chapter may be played inside a 3D region; the Story Engine keeps sole ownership of progress | Accepted | Storykeeper Castle line | Renumbered from ADR-019 |
@@ -59,6 +59,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-035 | The shared asset manager versions binaries on the canonical ContentAsset identity, with private storage and signed delivery | Accepted | Feature branch (LAI-2200) | Accepted 2026-10-25. Amends ADR-034 item 3 (Django permissions and groups); builds on ADR-030 and ADR-033. Amended by AM-10 (staff-only admin preview route) |
 | ADR-036 | Native Android uses the Django API with Cognito bearer tokens; the game-only WebView uses a ticket-redeemed, child- and region-scoped game session cookie | Proposed | Feature branch (LAI-ANDROID-API-001) | Implemented 2026-10-25 at the Django API boundary; owner acceptance pending. Builds on ADR-024 and ADR-033; does not change ADR-034 |
 | ADR-037 | The Django backend is released to one EC2 instance per environment from GitHub Actions through ECR and SSM, with GitHub OIDC and no stored AWS keys | Accepted | Feature branch (feature/aws-ec2-auto-deployment) | Owner-directed 2026-10-30 (LAI-1003, LAI-1004, LAI-1006). Repository side only: provisioning and every deploy stay owner-approved (ADR-019 G1, G7). Prod on EC2 is the initial step; ECS Fargate (LAI-1007) stays the production candidate |
+| ADR-038 | Environment-selectable API authentication: Cognito in AWS, local Django sign-in for development, one Django user and authorization model | Accepted | Feature branch (feature/lai-auth-dual) | Owner-directed 2026-10-30 (LAI-AUTH-DUAL). Amends ADR-024 Accepted items 1 and 2 for `AUTH_PROVIDER=django` only; builds on ADR-034 (the admin session stays separate). AWS environments are unchanged |
 
 ## ADR-001: Parent-owned accounts
 
@@ -1305,7 +1306,9 @@ is unverified until LAI-1101.
 ## ADR-024: Cognito remains the authentication authority; Django validates bearer access tokens
 
 Status: **Accepted in part** (project owner, 2026-10-17; gates A2 to A5 decided 2026-10-18).
-Gates A1 and A6 remain open and must not be treated as approved. Section "Owner decisions of
+Gates A1 and A6 remain open and must not be treated as approved. Accepted items 1 and 2 are amended
+by ADR-038 for local development only: with `AUTH_PROVIDER=django` the API accepts a Django session.
+Every AWS environment still runs exactly this decision. Section "Owner decisions of
 2026-10-18" below supersedes the matching *Recommended* text and the A2 to A5 rows.
 
 ### Evidence: how authentication works today
@@ -2792,3 +2795,70 @@ IAM roles (`docs/IAM_ROLE_AUDIT.md`). Recurring cost for one environment is roug
 month before tax and data transfer (runbook, "Cost"), above section 11a's Fargate estimate because
 `t3.medium` is larger than a 0.25 vCPU task. Moving production to ECS Fargate (LAI-1007) later reuses the image, ECR,
 OIDC, readiness probe and settings; only the release mechanism changes.
+
+## ADR-038: Environment-selectable API authentication: Cognito in AWS, local Django sign-in for development, one Django user and authorization model
+
+Status: Accepted 2026-10-30, directed by the owner (LAI-AUTH-DUAL). Implemented on
+`feature/lai-auth-dual`; nothing is deployed. Amends ADR-024 Accepted items 1 and 2 for
+`AUTH_PROVIDER=django` only, and builds on ADR-034 (Django Admin's own session) without changing
+it. Every AWS environment keeps ADR-024 unchanged.
+
+**Context.** Running the React app or Treasure Rush against a local Django needed a Cognito user
+pool, AWS credentials and an Amplify sandbox (docs/TREASURE_RUSH_LOCAL_DEV.md), only to obtain a
+bearer token Django then verified. ADR-024 item 1 ruled out Django sessions and passwords, and
+item 2 required a new security decision for any cookie API credential covering CSRF, cookie scope,
+SameSite, HttpOnly, Secure, session lifecycle and deployment topology. This is that decision, for
+local development.
+
+**Decision.** Cognito and Django are interchangeable authentication providers for gameplay APIs,
+but Django remains the authoritative application user and authorization system. Django Admin
+retains Django session authentication independently.
+
+1. **One setting.** `AUTH_PROVIDER` is `cognito` or `django`. Any other value fails at start-up.
+   Local settings default to `django` only while `DEBUG` is on; without `DEBUG` it must be named.
+   Production settings require `AUTH_PROVIDER=cognito` explicitly and refuse anything else
+   whatever `DEBUG` says. The EC2 release fixes it in the compose file and the image (ADR-037), and
+   `render-env.sh` refuses it from the parameter store. Test settings run `cognito`.
+2. **One provider per process, no fallback.** The default DRF authenticator,
+   `ApiAuthentication`, reads `AUTH_PROVIDER` per request and runs exactly one provider:
+   `CognitoJWTAuthentication` (unchanged, ADR-024) or `LocalSessionAuthentication`. A credential
+   for the other provider is ignored, so a Django session never authenticates the API under
+   `cognito`, and a bearer token is not consulted under `django`. The game runtime cookie
+   (ADR-036) is unchanged and still listed only by the runtime's own views.
+3. **Same user, same rules.** Both providers set `request.user` to a `ParentAccount` (the existing
+   `AUTH_USER_MODEL`). No second user model and no identity table: a local parent is a
+   `ParentAccount` whose `cognito_sub` is `django-local:<username>` (no Cognito sub can have that
+   form, as with the admin-only placeholder of ADR-034). Cognito parents keep their `sub` mapping
+   and are never matched by email. No migration. Permissions, child scoping, play, progress,
+   inventory and staff rules are the same code in both modes.
+4. **Local sign-in.** `GET /api/v1/auth/csrf/`, `POST /api/v1/auth/login/` and
+   `POST /api/v1/auth/logout/` exist only under `django` (a 404 otherwise). `GET /api/v1/me/` is
+   "who am I" in both modes. Login checks only local parent rows with a usable Django password
+   (`LocalParentPasswordBackend`, which also refuses everything unless `AUTH_PROVIDER=django`);
+   admin usernames and Cognito parents cannot start a gameplay session, and an admin session does
+   not authenticate the API even locally. Local parents are created only by
+   `manage.py create_local_parent`, which refuses under `cognito`.
+5. **Cookie and CSRF rules (ADR-024 item 2).** Django's own session and CSRF machinery, standard
+   password hashing and validators. Cookies stay HttpOnly and SameSite=Lax; under `django` their
+   path widens from the admin path to `/` so they reach `/api/`. Login, logout and every unsafe
+   API request with a session pass Django's CSRF check (the `X-CSRFToken` header plus the Origin
+   check); the token is read from `GET auth/csrf/`, never from a cookie. Login rotates the session
+   key and the CSRF token; logout flushes the session. Cookies are not Secure because `runserver`
+   is plain HTTP on loopback. Topology: the browser talks to the Vite dev server, which proxies
+   `/api` to a loopback Django (TR-D14), so it is same-origin and needs no CORS.
+6. **React.** `VITE_AUTH_PROVIDER` (default `cognito`) selects an auth adapter behind the existing
+   `AuthProvider`: the Amplify adapter (unchanged behaviour) or the Django adapter (local username
+   form, `credentials: 'same-origin'`, CSRF header). `django` needs `VITE_BACKEND=django` and
+   `vite dev`; a build with it fails in `vite.config.ts`, so a deployed bundle cannot select it.
+   Route guards and permission checks are not duplicated: Django decides every request.
+7. **Out of scope.** Child-profile management in React stays on Amplify (LAI-0502 / LAI-0602); in
+   Django sign-in mode a developer creates the child with `create_local_parent --child` and opens
+   the island route by id. The Android app keeps Cognito (ADR-036); a local-backend variant is
+   documented, not built.
+
+**Consequences.** Local development needs no AWS account, Cognito pool or Amplify sandbox.
+Production is unchanged: a session cannot authenticate the API there, the local routes do not
+exist, and a missing or wrong provider stops the process. The risk is a misconfigured deployment
+selecting `django`; it is refused at four points (production settings, image default, compose
+file, parameter store). Tests: `apps/users/tests/test_local_auth.py`,
+`apps/core/tests/test_settings.py`, `tests/deploy/`, and the React adapter and form tests.

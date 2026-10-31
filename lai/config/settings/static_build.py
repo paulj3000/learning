@@ -8,6 +8,7 @@ from .base import *  # noqa: F403
 from .base import MANIFEST_STATIC_STORAGES
 
 DEBUG = False
+AUTH_PROVIDER = "cognito"  # collectstatic serves nothing; the fail-closed default
 SECRET_KEY = "static-build-only-not-a-secret"  # noqa: S105
 ALLOWED_HOSTS: list[str] = []
 DATABASES: dict = {}

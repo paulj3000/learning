@@ -23,8 +23,13 @@ from django.utils.timezone import now
 MAX_CHILD_PROFILES = 3  # react/src/features/child-profile/constants.ts: MAX_CHILD_PROFILES
 MAX_INTERESTS = 5
 NICKNAME_MAX_LENGTH = 30
-# Cognito subs are UUIDs, so a sub with this prefix can never arrive in a verified token.
+# Cognito subs are UUIDs, so a sub with either prefix can never arrive in a verified token.
 ADMIN_ONLY_SUB_PREFIX = "django-admin-only:"
+# Local development parents (AUTH_PROVIDER=django, ADR-038): `cognito_sub` is this prefix plus the
+# local username. The column stays the one stable identity key; no second identity table.
+LOCAL_PARENT_SUB_PREFIX = "django-local:"
+LOCAL_USERNAME_MAX_LENGTH = 100
+LOCAL_USERNAME_PATTERN = r"[A-Za-z0-9][A-Za-z0-9._@+-]*"
 
 
 class AgeBand(models.TextChoices):
@@ -62,8 +67,21 @@ class ParentAccountManager(BaseUserManager):
         )
         return account
 
+    def create_local_parent(self, username: str, password: str):
+        """A local-development parent who signs in with a Django password (ADR-038).
+
+        Only `manage.py create_local_parent` calls this, and only with AUTH_PROVIDER=django. The
+        account is an ordinary `ParentAccount`: same children, progress and authorization.
+        """
+        account = self.model(cognito_sub=LOCAL_PARENT_SUB_PREFIX + username, display_name="")
+        account.set_password(password)
+        account.save()
+        return account
+
     def create_user(self, *args, **kwargs):
-        raise NotImplementedError("Use get_or_create_for_cognito; parents have no local login.")
+        raise NotImplementedError(
+            "Use get_or_create_for_cognito, or create_local_parent for local development."
+        )
 
     def create_superuser(self, *args, **kwargs):
         raise NotImplementedError("Use `manage.py create_admin_account` (docs/ARCHITECTURE.md).")
@@ -72,7 +90,9 @@ class ParentAccountManager(BaseUserManager):
 class ParentAccount(AbstractBaseUser, PermissionsMixin):
     """The authenticated adult. This is Django's user model (`AUTH_USER_MODEL`).
 
-    A parent's credentials live in Cognito; their password column is always an unusable password.
+    A parent's credentials live in Cognito; their password column is an unusable password. The one
+    exception is a local-development parent (`LOCAL_PARENT_SUB_PREFIX`, ADR-038), whose Django
+    password works only while AUTH_PROVIDER=django (apps/users/backends.py).
     Deliberately absent: email (mutable, personal, and never an identity key). `PermissionsMixin`
     (groups and permissions, ADR-035) serves Django Admin only: no API permission reads it.
 

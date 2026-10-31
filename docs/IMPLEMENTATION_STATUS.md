@@ -11119,3 +11119,55 @@ runtime do not exist.
   still cannot sign in to Django Admin, because the backend requires staff and an admin username.
   This is worth a follow-up to set `set_unusable_password()` on provisioning.
 
+
+## LAI-AUTH-DUAL: environment-selectable API authentication (2026-10-30, ADR-038 Accepted)
+
+Owner-directed. On `feature/lai-auth-dual`, not merged, not pushed, nothing deployed. Cognito and
+Django are interchangeable authentication providers for gameplay APIs; Django stays the only
+application user and authorization system; Django Admin keeps its own session.
+
+- **Backend.** `AUTH_PROVIDER` (`cognito` or `django`, anything else fails at start-up). Local
+  settings default to `django` only while `DEBUG` is on; production requires `cognito`
+  explicitly. The default DRF authenticator is now `ApiAuthentication`, which runs exactly one
+  provider per request: the unchanged `CognitoJWTAuthentication`, or `LocalSessionAuthentication`
+  (sessions made by the local sign-in only, Django CSRF check on unsafe methods, 403
+  `csrf_failed`). `GameRuntimeAccessMixin` uses it too, so Treasure Rush play works in both
+  modes. New routes `GET auth/csrf/`, `POST auth/login/` (400 `invalid_credentials`),
+  `POST auth/logout/`, all 404 unless `AUTH_PROVIDER=django`. New backend
+  `LocalParentPasswordBackend` (refuses everything unless `django`; never admin usernames or
+  Cognito parents). New command `manage.py create_local_parent <username> [--child NICK]
+  [--age-band BAND] [--reset-password] [--no-input]`.
+- **Database.** No new model, no migration. A local parent is a `ParentAccount` with
+  `cognito_sub = "django-local:<username>"` and a Django password; existing Cognito mappings are
+  untouched and never matched by email.
+- **Deployment configuration (files only).** `AUTH_PROVIDER=cognito` fixed in `lai/Dockerfile`
+  and `deploy/ec2/docker-compose.yml`; `scripts/aws/render-env.sh` refuses it from SSM; the CI
+  `check --deploy` step sets it. No AWS resource changed.
+- **React.** `VITE_AUTH_PROVIDER` (`api/authMode.ts`; default `cognito`; `django` needs
+  `VITE_BACKEND=django` and `vite dev`, and `vite build` refuses it). `features/auth/authAdapters.ts`
+  puts the Amplify code and a Django adapter behind the existing `AuthProvider`;
+  `LocalSignInForm` is the sign-in page in Django mode; `api/client.ts` takes a bearer or a session
+  credential (CSRF header on POST, one retry on `csrf_failed`, no 401 retry);
+  `features/child-profile/playSettings.ts` reads the child from Django in Django mode for the
+  location page and the session clock. Cognito mode behaviour is unchanged.
+- **Docs.** ADR-038 (amends ADR-024 items 1 and 2 for local development), ARCHITECTURE
+  "Environment-selectable provider", TREASURE_RUSH_LOCAL_DEV (Django sign-in by default, Cognito
+  as an option), DJANGO_EC2_DEPLOYMENT 4.3, ANDROID_AUTH_FLOW (local backend options), README,
+  `react/.env.example`, `lai/.env.example`, task tracker, migration roadmap.
+- **Tests (unit tests only, per the development testing policy).** Django: 36 in
+  `apps/users/tests/test_local_auth.py` and 13 new settings cases in `test_settings.py`; focused
+  regression over `apps/users`, `apps/core`, `apps/game_sessions`, `apps/assets` and `tests/deploy`
+  all pass. Existing structural guards were updated on purpose (public route allow-lists, the
+  default authenticator, the backend list, production env fixtures). React: new tests for auth
+  mode, session CSRF, the session client, the Django adapter, the local sign-in form and play
+  settings; `tsc -b` clean; focused vitest runs pass. A manual `runserver` plus curl check against
+  a throwaway database confirmed CSRF refusal, invalid credentials, login, cookie scope, `me/`,
+  bearer ignored in Django mode, and logout.
+- **Not run (merge verification):** Ruff, Playwright or any browser test, the full suites,
+  `npm run build`, `docker build`. Prettier was run once by mistake on the touched React files
+  during development (formatting only).
+- **Open.** React child management still uses Amplify (LAI-0502 / LAI-0602), so in Django mode
+  the child comes from `create_local_parent --child` and the island route is opened by id;
+  Amplify-only island extras are empty in that mode. The Android local-sign-in flavor is
+  documented, not built (no Kotlin code in the repository). No login throttle on the local route
+  (loopback development only). ADR-024 gates A1 and A6 are unchanged.

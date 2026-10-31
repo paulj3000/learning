@@ -259,3 +259,63 @@ describe('account provisioning (POST me/)', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('createApiClient with a local Django session (ADR-038)', () => {
+  function sessionSetup(responses: Response[]) {
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    for (const response of responses) fetch.mockResolvedValueOnce(response);
+    let issued = 0;
+    const session = {
+      csrfToken: vi.fn(async (options?: { forceRefresh?: boolean }) => {
+        issued += 1;
+        return options?.forceRefresh ? `csrf-fresh-${issued}` : 'csrf-1';
+      }),
+      reset: vi.fn(),
+    };
+    const client = createApiClient({ baseUrl: '', session, fetch });
+    return { client, fetch, session };
+  }
+
+  it('sends the session cookie and no bearer token; a GET needs no CSRF token', async () => {
+    const { client, fetch, session } = sessionSetup([jsonResponse(200, { ok: true })]);
+    await client.request('GET', 'me/');
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe('/api/v1/me/');
+    expect(init?.credentials).toBe('same-origin');
+    const headers = init?.headers as Record<string, string>;
+    expect(headers.Authorization).toBeUndefined();
+    expect(headers['X-CSRFToken']).toBeUndefined();
+    expect(session.csrfToken).not.toHaveBeenCalled();
+  });
+
+  it('sends the CSRF token on every POST', async () => {
+    const { client, fetch } = sessionSetup([jsonResponse(201, {})]);
+    await client.request('POST', 'children/c/regions/r/session/');
+    const headers = fetch.mock.calls[0][1]?.headers as Record<string, string>;
+    expect(headers['X-CSRFToken']).toBe('csrf-1');
+  });
+
+  it('treats a 401 as signed out at once: there is no token to refresh', async () => {
+    const { client, fetch } = sessionSetup([jsonResponse(401, errorJson('not_authenticated'))]);
+    const error = await failure(client.request('GET', 'me/'));
+    expect(error.kind).toBe('unauthenticated');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries a 403 csrf_failed once with a fresh token', async () => {
+    const { client, fetch } = sessionSetup([
+      jsonResponse(403, errorJson('csrf_failed')),
+      jsonResponse(200, { ok: true }),
+    ]);
+    await expect(client.request('POST', 'x/')).resolves.toEqual({ status: 200, data: { ok: true } });
+    const retried = fetch.mock.calls[1][1]?.headers as Record<string, string>;
+    expect(retried['X-CSRFToken']).toBe('csrf-fresh-2');
+  });
+
+  it('does not retry any other 403', async () => {
+    const { client, fetch } = sessionSetup([jsonResponse(403, errorJson('permission_denied'))]);
+    const error = await failure(client.request('POST', 'x/'));
+    expect(error.code).toBe('permission_denied');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+});

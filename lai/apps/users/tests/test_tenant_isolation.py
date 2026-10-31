@@ -300,6 +300,10 @@ def walk(patterns, prefix=""):
 PUBLIC = {
     "api/v1/health/",
     "api/v1/health/ready/",
+    # Local sign-in (ADR-038): 404 unless AUTH_PROVIDER=django; signs in no one by itself.
+    "api/v1/auth/csrf/",
+    "api/v1/auth/login/",
+    "api/v1/auth/logout/",
     "api/v1/asset-files/<str:token>/<str:filename>",
 }
 # Parent-scoped: the owner is `request.user`, the route names no child (LAI-ANDROID-API-001).

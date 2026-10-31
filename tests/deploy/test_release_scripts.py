@@ -407,6 +407,7 @@ def test_a_failed_pull_fails_the_release(box):
         ({"LAI_ASSET_BUCKET": None}, "LAI_ASSET_BUCKET"),
         ({"LAI_ASSET_STORAGE": "local"}, "LAI_ASSET_STORAGE must be s3"),
         ({"DJANGO_SETTINGS_MODULE": "config.settings.local"}, "never takes from SSM"),
+        ({"AUTH_PROVIDER": "django"}, "never takes from SSM"),
         ({"AWS_SECRET_ACCESS_KEY": "x"}, "never takes from SSM"),
         ({"DATABASE_URL": "postgresql://x"}, "built by the release"),
         ({"SOMETHING_ELSE": "x"}, "not a recognised setting"),

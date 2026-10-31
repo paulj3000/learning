@@ -1,4 +1,13 @@
-"""Cognito access-token authentication for DRF (LAI-0402, ADR-024).
+"""API authentication for DRF: one provider per environment (LAI-AUTH-DUAL, ADR-038).
+
+`ApiAuthentication` is the default authenticator. It reads `settings.AUTH_PROVIDER` on every
+request and runs exactly one provider: `CognitoJWTAuthentication` (AWS) or
+`LocalSessionAuthentication` (local development). A credential for the other provider is ignored,
+never tried as a fallback, so a Django session cannot authenticate the API in a Cognito
+environment and a bearer token is not consulted locally. Both providers resolve `request.user` to
+a `ParentAccount`, and every authorization rule after that is the same.
+
+Cognito access-token authentication (LAI-0402, ADR-024):
 
 Accepts only `Authorization: Bearer <access token>`. Every failure to verify a presented token
 raises the same fixed `AuthenticationFailed` (401, `WWW-Authenticate: Bearer`); the cause goes to
@@ -13,9 +22,10 @@ from functools import lru_cache
 
 import jwt
 from django.conf import settings
+from django.contrib.auth import BACKEND_SESSION_KEY
 from django.views.decorators.debug import sensitive_variables
-from rest_framework.authentication import BaseAuthentication, get_authorization_header
-from rest_framework.exceptions import APIException, AuthenticationFailed
+from rest_framework.authentication import BaseAuthentication, CSRFCheck, get_authorization_header
+from rest_framework.exceptions import APIException, AuthenticationFailed, PermissionDenied
 
 from .jwks import JwksCache, JwksUnavailable, UnknownSigningKey
 from .models import ParentAccount
@@ -169,3 +179,77 @@ class CognitoJWTAuthentication(BaseAuthentication):
         verified = verify_access_token(token)
         account = ParentAccount.objects.filter(cognito_sub=verified.sub).first()
         return (account or UnprovisionedParent(cognito_sub=verified.sub)), verified
+
+
+# --- Local development sign-in (AUTH_PROVIDER=django, ADR-038) --------------------------------
+
+
+class CsrfFailed(PermissionDenied):
+    default_code = "csrf_failed"
+    default_detail = "This request could not be verified."
+
+
+@dataclass(frozen=True)
+class LocalSession:
+    """`request.auth` for a local Django session sign-in. Never carries the session key."""
+
+    account_id: str
+
+
+def enforce_csrf(request) -> None:
+    """Django's CSRF check (token and Origin) on a DRF request; raises `CsrfFailed` (403).
+
+    DRF views are CSRF-exempt, so anything that trusts a session cookie must call this for unsafe
+    methods. Same mechanism as DRF's SessionAuthentication.
+    """
+    check = CSRFCheck(lambda _request: None)
+    check.process_request(request._request)
+    if check.process_view(request._request, None, (), {}) is not None:
+        logger.info("authentication rejected: csrf_failed")  # reason code only
+        raise CsrfFailed
+
+
+class LocalSessionAuthentication(BaseAuthentication):
+    """A session made by the local sign-in (`POST auth/login/`), and nothing else.
+
+    Only sessions created through `LocalParentPasswordBackend` count: a Django Admin staff session
+    authenticates no API request here either. Unsafe methods need the CSRF token.
+    """
+
+    def authenticate(self, request):
+        if settings.AUTH_PROVIDER != "django":
+            return None
+        django_request = request._request
+        session = getattr(django_request, "session", None)
+        user = getattr(django_request, "user", None)
+        if session is None or user is None or not user.is_authenticated:
+            return None
+        if session.get(BACKEND_SESSION_KEY) != settings.LOCAL_PARENT_BACKEND:
+            return None
+        if not isinstance(user, ParentAccount) or not user.is_active:
+            return None
+        enforce_csrf(request)
+        return user, LocalSession(account_id=str(user.pk))
+
+    def authenticate_header(self, request):
+        return 'Session realm="api"'  # 401, not 403, for a missing sign-in
+
+
+class ApiAuthentication(BaseAuthentication):
+    """The default authenticator: the provider AUTH_PROVIDER names, with no fallback."""
+
+    @staticmethod
+    def _provider() -> BaseAuthentication:
+        if settings.AUTH_PROVIDER == "cognito":
+            return CognitoJWTAuthentication()
+        if settings.AUTH_PROVIDER == "django":
+            return LocalSessionAuthentication()
+        raise _reject("not_configured")
+
+    def authenticate(self, request):
+        return self._provider().authenticate(request)
+
+    def authenticate_header(self, request):
+        if settings.AUTH_PROVIDER == "django":
+            return LocalSessionAuthentication().authenticate_header(request)
+        return CognitoJWTAuthentication().authenticate_header(request)  # also when misconfigured

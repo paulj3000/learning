@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { fetchAuthSession, getCurrentUser, signOut as amplifySignOut } from 'aws-amplify/auth';
-import { Hub } from 'aws-amplify/utils';
-import { isAmplifyConfigured } from '../../lib/amplify-config';
+import type { AuthMode } from '../../api/authMode';
+import { authAdapterFor, type AuthAdapter } from './authAdapters';
+
+export { adminAccessFromGroups } from './authAdapters';
 
 export type AuthStatus = 'unconfigured' | 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -13,8 +14,9 @@ interface AuthContextValue {
    * (amplify/auth/resource.ts). Read from the ID token's `cognito:groups`
    * claim rather than a separate call, since `fetchAuthSession` already
    * has to run once per sign-in to get a fresh token. Always `false` while
-   * unauthenticated/unconfigured — `RequireAdmin` (src/features/auth/RequireAdmin.tsx)
-   * is what actually gates the admin section, this is just the signal it reads.
+   * unauthenticated/unconfigured, and in Django sign-in mode — `RequireAdmin`
+   * (src/features/auth/RequireAdmin.tsx) is what actually gates the admin
+   * section, this is just the signal it reads.
    */
   isAdmin: boolean;
   /**
@@ -24,72 +26,84 @@ interface AuthContextValue {
    * on its own (`allow.group('Superusers')` in amplify/data/resource.ts).
    */
   isSuperuser: boolean;
+  /** Which sign-in this build uses (ADR-038). Absent means `cognito`. */
+  mode?: AuthMode;
+  /**
+   * Django sign-in mode only: signs in with a local username and password.
+   * Throws `LocalSignInError` when refused. Absent in Cognito mode, where the
+   * Amplify forms sign in.
+   */
+  signInLocally?: (username: string, password: string) => Promise<void>;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
-/**
- * Admin flags from an ID token's `cognito:groups` claim. A `Superusers`
- * member who is not also in `Admins` gets neither flag: every admin page and
- * read is `Admins`-gated, so that account could not use the admin section.
- */
-export function adminAccessFromGroups(groups: unknown): { isAdmin: boolean; isSuperuser: boolean } {
-  const list = Array.isArray(groups) ? groups : [];
-  const isAdmin = list.includes('Admins');
-  return { isAdmin, isSuperuser: isAdmin && list.includes('Superusers') };
-}
-
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [status, setStatus] = useState<AuthStatus>(
-    isAmplifyConfigured ? 'loading' : 'unconfigured',
-  );
+const DEFAULT_ADAPTER = authAdapterFor();
+
+/**
+ * The signed-in parent, from whichever adapter this build uses (Cognito or,
+ * for local development, Django; see authAdapters.ts). Route guards read
+ * `status`; nothing here grants a permission.
+ */
+export function AuthProvider({
+  children,
+  adapter = DEFAULT_ADAPTER,
+}: {
+  children: ReactNode;
+  adapter?: AuthAdapter;
+}) {
+  const [status, setStatus] = useState<AuthStatus>(adapter.configured ? 'loading' : 'unconfigured');
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperuser, setIsSuperuser] = useState(false);
 
   async function refresh(): Promise<void> {
-    if (!isAmplifyConfigured) {
+    if (!adapter.configured) {
       setStatus('unconfigured');
       return;
     }
     setStatus('loading');
-    try {
-      const user = await getCurrentUser();
-      setUserId(user.userId);
-      const session = await fetchAuthSession();
-      const groups = session.tokens?.idToken?.payload['cognito:groups'];
-      const access = adminAccessFromGroups(groups);
-      setIsAdmin(access.isAdmin);
-      setIsSuperuser(access.isSuperuser);
-      setStatus('authenticated');
-    } catch {
-      setUserId(null);
-      setIsAdmin(false);
-      setIsSuperuser(false);
-      setStatus('unauthenticated');
-    }
+    const user = await adapter.getCurrentUser();
+    setUserId(user?.userId ?? null);
+    setIsAdmin(user?.isAdmin ?? false);
+    setIsSuperuser(user?.isSuperuser ?? false);
+    setStatus(user ? 'authenticated' : 'unauthenticated');
   }
 
   useEffect(() => {
     void refresh();
-    if (!isAmplifyConfigured) return;
-    const stopListening = Hub.listen('auth', ({ payload }) => {
-      if (payload.event === 'signedIn' || payload.event === 'signedOut') {
-        void refresh();
-      }
-    });
-    return stopListening;
-  }, []);
+    return adapter.listen(() => void refresh());
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one subscription per adapter
+  }, [adapter]);
 
   async function signOut(): Promise<void> {
-    await amplifySignOut();
+    await adapter.logout();
     await refresh();
   }
 
+  const login = adapter.login;
+  const signInLocally = login
+    ? async (username: string, password: string) => {
+        await login(username, password);
+        await refresh();
+      }
+    : undefined;
+
   return (
-    <AuthContext.Provider value={{ status, userId, isAdmin, isSuperuser, refresh, signOut }}>
+    <AuthContext.Provider
+      value={{
+        status,
+        userId,
+        isAdmin,
+        isSuperuser,
+        mode: adapter.mode,
+        signInLocally,
+        refresh,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

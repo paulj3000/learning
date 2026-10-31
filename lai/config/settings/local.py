@@ -3,7 +3,15 @@
 import os
 
 from .base import *  # noqa: F403
-from .base import compose_database, database_from_url, env_bool, env_list
+from .base import (
+    AUTHENTICATION_BACKENDS,
+    LOCAL_PARENT_BACKEND,
+    compose_database,
+    database_from_url,
+    env_bool,
+    env_list,
+    resolve_auth_provider,
+)
 
 DEBUG = env_bool("DJANGO_DEBUG", True)
 # Raw tracebacks show exception messages, which can quote private data. Opt in only with synthetic
@@ -22,3 +30,15 @@ DATABASES = {
         else compose_database()
     )
 }
+
+# API authentication (ADR-038): Django sign-in by default while DEBUG is on, so local development
+# needs no AWS. Set AUTH_PROVIDER=cognito (and the COGNITO_* values) to test against a real pool.
+AUTH_PROVIDER = resolve_auth_provider(debug=DEBUG)
+if AUTH_PROVIDER == "django":
+    AUTHENTICATION_BACKENDS = [*AUTHENTICATION_BACKENDS, LOCAL_PARENT_BACKEND]
+    # The session and CSRF cookies must reach `/api/` as well as the admin. Vite proxies `/api` to
+    # runserver (react/src/api/devProxy.ts), so the browser sees one origin and no CORS is needed.
+    SESSION_COOKIE_PATH = "/"
+    CSRF_COOKIE_PATH = "/"
+    # Only for a setup that calls Django from another origin; the Vite proxy needs none.
+    CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")

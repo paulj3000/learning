@@ -274,8 +274,9 @@ def test_default_permission_denies_unauthenticated_and_names_the_scheme(settings
     assert settings.REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [
         "apps.users.permissions.IsProvisionedParent"
     ]
+    # The provider dispatcher (ADR-038); under AUTH_PROVIDER=cognito it runs Cognito only.
     assert settings.REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] == [
-        "apps.users.authentication.CognitoJWTAuthentication"
+        "apps.users.authentication.ApiAuthentication"
     ]
 
 
@@ -289,6 +290,9 @@ def test_no_sensitive_endpoints_exist_yet():
         "health/ready/",  # readiness probe (ADR-037): fixed words only, no data
     ]
     assert sorted(str(p.pattern) for p in urls.urlpatterns[1].url_patterns) == [
+        "auth/csrf/",  # local sign-in (ADR-038): 404 unless AUTH_PROVIDER=django
+        "auth/login/",
+        "auth/logout/",
         "children/",
         "children/<uuid:child_id>/",
         "me/",
