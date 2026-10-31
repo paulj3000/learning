@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { getChildProfile } from '../features/child-profile/api';
-import type { ChildProfile } from '../features/child-profile/api';
-import { listAllParentProfiles } from '../features/admin/api';
-import type { ParentProfile } from '../features/admin/api';
+import { getAnyChildProfile, listAllParentProfiles } from '../features/admin/api';
+import type { ChildProfile, ParentProfile } from '../features/admin/api';
 import { listAllWorldChanges, listSessions } from '../features/adventures/api';
 import type { AdventureSession, SkillProgress, WorldChange } from '../features/adventures/api';
 import { listSkillProgress } from '../features/mastery/api';
@@ -132,7 +130,7 @@ export function AdminChildProgress() {
       }
       try {
         const [profile, parents, sessionRows, skillRows, worldChangeRows] = await Promise.all([
-          getChildProfile(childId),
+          getAnyChildProfile(childId),
           listAllParentProfiles(),
           listSessions(childId),
           listSkillProgress(childId),

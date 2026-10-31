@@ -91,7 +91,12 @@ def test_local_login_with_valid_credentials_starts_a_session(local_mode):
     browser = Browser()
     response = browser.login("local-a", password)
     assert response.status_code == 200
-    assert response.json() == {"id": str(account.pk), "django_admin": False}
+    assert response.json() == {
+        "id": str(account.pk),
+        "displayName": "",
+        "timezone": "",
+        "django_admin": False,
+    }
     assert browser.get(ME).json()["id"] == str(account.pk)
 
 

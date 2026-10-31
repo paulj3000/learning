@@ -6,10 +6,19 @@ camelCase keys, as the play API uses. Request bodies are closed: an unknown fiel
 allowed avatar and interest values mirror react/src/features/child-profile/constants.ts.
 """
 
+from zoneinfo import available_timezones
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from .models import MAX_INTERESTS, NICKNAME_MAX_LENGTH, AgeBand, ReadingMode
+from .models import (
+    DISPLAY_NAME_MAX_LENGTH,
+    MAX_INTERESTS,
+    NICKNAME_MAX_LENGTH,
+    TIMEZONE_MAX_LENGTH,
+    AgeBand,
+    ReadingMode,
+)
 
 AVATAR_KEYS = ("FOX", "OWL", "OTTER", "DRAGON", "ROBOT", "MERMAID")
 INTEREST_OPTIONS = (
@@ -76,9 +85,11 @@ class ChildProfileWrite(serializers.Serializer):
         return {WRITABLE_FIELDS[key]: value for key, value in self.validated_data.items()}
 
 
-def model_errors(error: DjangoValidationError) -> serializers.ValidationError:
+def model_errors(
+    error: DjangoValidationError, fields: dict[str, str] = WRITABLE_FIELDS
+) -> serializers.ValidationError:
     """A model `full_clean` failure, keyed by the request's field names."""
-    by_model = {model: key for key, model in WRITABLE_FIELDS.items()}
+    by_model = {model: key for key, model in fields.items()}
     details = {}
     errors = getattr(error, "error_dict", None) or {"__all__": error.error_list}
     for field, messages in errors.items():
@@ -108,3 +119,38 @@ class ChildProfileSerializer(serializers.Serializer):
 
     def get_hasPhoto(self, child) -> bool:
         return bool(child.avatar_photo_key)
+
+
+class ParentProfileWrite(serializers.Serializer):
+    """`PATCH /api/v1/me/` (LAI-CHILD-001): the parent's own name and time zone, nothing else.
+
+    Closed like `ChildProfileWrite`: `id`, `cognito_sub`, `is_staff`, `django_admin` or any other
+    key is a validation error. The name mirrors Amplify `ParentProfile.displayName` (required
+    there, so never blank here); the time zone is an IANA name, or "" to clear it.
+    """
+
+    FIELDS = {"displayName": "display_name", "timezone": "timezone"}
+
+    displayName = serializers.CharField(max_length=DISPLAY_NAME_MAX_LENGTH, trim_whitespace=True)
+    timezone = serializers.CharField(
+        max_length=TIMEZONE_MAX_LENGTH, allow_blank=True, trim_whitespace=True
+    )
+
+    def validate_timezone(self, value):
+        if value and value not in available_timezones():
+            raise serializers.ValidationError("Choose a valid time zone.", code="invalid_timezone")
+        return value
+
+    def validate(self, attrs):
+        unknown = set(self.initial_data) - set(self.fields)
+        if unknown:
+            raise serializers.ValidationError(
+                {name: ["This field is not accepted."] for name in sorted(unknown)},
+                code="unknown_field",
+            )
+        if not attrs:
+            raise serializers.ValidationError("Change at least one field.", code="empty")
+        return attrs
+
+    def model_fields(self) -> dict:
+        return {self.FIELDS[key]: value for key, value in self.validated_data.items()}

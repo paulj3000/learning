@@ -94,3 +94,52 @@ def provision_parent_account(cognito_sub: str) -> tuple[ParentAccount, bool]:
     if not cognito_sub or not cognito_sub.strip():
         raise ValueError("cognito_sub is required")
     return ParentAccount.objects.get_or_create(cognito_sub=cognito_sub)
+
+
+def update_parent_profile(parent: ParentAccount, **fields) -> ParentAccount:
+    """Apply a parent's edit to their own profile (`display_name`, `timezone` only).
+
+    `parent` is always the authenticated account; there is no id to choose another one. The
+    identity mapping (`cognito_sub`), activation and admin flags are never among `fields`.
+    """
+    if set(fields) - {"display_name", "timezone"}:
+        raise ValueError("Only the display name and time zone can be changed.")
+    with transaction.atomic():
+        account = ParentAccount.objects.select_for_update().get(pk=parent.pk)
+        for name, value in fields.items():
+            setattr(account, name, value)
+        account.full_clean(exclude=["password"])
+        account.save(update_fields=[*fields, "updated_at"])
+        return account
+
+
+# --- Amplify profile import (LAI-CHILD-001; amplify_import.py,
+# docs/platform/AMPLIFY_PROFILE_IMPORT.md)
+# The only cross-family lookup in this module: the import must see whether an Amplify id is
+# already taken by *any* parent, so that it reports a conflict instead of creating a duplicate.
+# Never call these from a view.
+
+
+def child_profile_for_import(child_id) -> ChildProfile | None:
+    """The Django row with this id, whoever owns it, or None. Import planning only."""
+    return ChildProfile.objects.filter(pk=child_id).first()
+
+
+def child_profiles_for_import(parent: ParentAccount) -> list[ChildProfile]:
+    return list(ChildProfile.objects.owned_by(parent))
+
+
+def import_child_profile(parent: ParentAccount, child_id, created_at, **fields) -> ChildProfile:
+    """Create one imported child with its Amplify id and creation time, under the parent lock.
+
+    The same validation and three-profile cap as `create_child_profile`. Raises
+    `ChildProfileLimitReached` or Django `ValidationError`; never updates an existing row.
+    """
+    with transaction.atomic():
+        locked = ParentAccount.objects.select_for_update().get(pk=parent.pk)
+        if ChildProfile.objects.owned_by(locked).count() >= MAX_CHILD_PROFILES:
+            raise ChildProfileLimitReached
+        child = ChildProfile(id=child_id, parent=locked, created_at=created_at, **fields)
+        child.full_clean(validate_unique=False)
+        child.save(force_insert=True)
+        return child

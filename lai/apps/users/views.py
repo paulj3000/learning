@@ -7,7 +7,12 @@ from . import services
 from .authentication import UnprovisionedParent
 from .permissions import IsProvisionedParent, IsVerifiedPrincipal, SensitiveActionBlocked
 from .scoping import ChildScopedAPIView
-from .serializers import ChildProfileSerializer, ChildProfileWrite, model_errors
+from .serializers import (
+    ChildProfileSerializer,
+    ChildProfileWrite,
+    ParentProfileWrite,
+    model_errors,
+)
 
 
 class MeView(APIView):
@@ -18,12 +23,15 @@ class MeView(APIView):
     identity only from the verified token, takes no request body, creates no children, and
     grants no privileges.
 
-    Both return `{"id", "django_admin"}`. `django_admin` says whether this account is active Django
-    Admin staff (LAI-0404, ADR-034). The React app POSTs once after every sign-in, which creates the
-    account the first time and reads the flag in the same call. The flag only decides whether the
-    React menu shows an "Admin" link: Django Admin checks its own session sign-in on every request
-    and never trusts it, and a Cognito group never sets it. The Android app makes the same call
-    (docs/android/ANDROID_AUTH_FLOW.md).
+    PATCH (LAI-CHILD-001) changes the parent's own `displayName` and `timezone`, nothing else:
+    the body is closed, so ownership, the identity mapping and admin flags can never be written.
+
+    All three return `{"id", "displayName", "timezone", "django_admin"}`. `django_admin` says
+    whether this account is active Django Admin staff (LAI-0404, ADR-034). The React app POSTs
+    once after every sign-in, which creates the account the first time and reads the flag in the
+    same call. The flag only decides whether the React menu shows an "Admin" link: Django Admin
+    checks its own session sign-in on every request and never trusts it, and a Cognito group
+    never sets it. The Android app makes the same call (docs/android/ANDROID_AUTH_FLOW.md).
     """
 
     def get_permissions(self):
@@ -32,6 +40,15 @@ class MeView(APIView):
 
     def get(self, request):
         return Response(_account_body(request.user))
+
+    def patch(self, request):
+        body = ParentProfileWrite(data=request.data, partial=True)
+        body.is_valid(raise_exception=True)
+        try:
+            account = services.update_parent_profile(request.user, **body.model_fields())
+        except DjangoValidationError as error:
+            raise model_errors(error, ParentProfileWrite.FIELDS) from None
+        return Response(_account_body(account))
 
     def post(self, request):
         user = request.user
@@ -43,7 +60,12 @@ class MeView(APIView):
 
 
 def _account_body(account):
-    return {"id": str(account.pk), "django_admin": bool(account.is_active and account.is_staff)}
+    return {
+        "id": str(account.pk),
+        "displayName": account.display_name,
+        "timezone": account.timezone,
+        "django_admin": bool(account.is_active and account.is_staff),
+    }
 
 
 class ChildProfileLimitReached(exceptions.APIException):

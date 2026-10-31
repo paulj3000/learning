@@ -85,6 +85,21 @@ describe('ChildProfileForm photo icon', () => {
     expect(uploadData).not.toHaveBeenCalled();
   });
 
+  it('offers no photo upload where the profile store keeps no photos (Django)', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(
+      <ChildProfileForm submitLabel="Create profile" onSubmit={onSubmit} photosEnabled={false} />,
+    );
+
+    expect(screen.queryByLabelText(/choose a photo/i)).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText(/nickname/i), 'Robin');
+    await user.click(screen.getByRole('button', { name: /create profile/i }));
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ avatarPhotoKey: null }));
+    expect(uploadData).not.toHaveBeenCalled();
+  });
+
   it('uploads a chosen photo and saves the profile with its stored path', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();

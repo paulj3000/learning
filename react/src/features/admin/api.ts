@@ -1,7 +1,14 @@
 import { client } from '../../lib/data-client';
-import type { ChildProfile, ParentProfile } from '../child-profile/api';
+import type { Schema } from '../../../../amplify/data/resource';
 
-export type { ChildProfile, ParentProfile };
+/**
+ * Amplify records as the `Admins` group reads them. This admin section is the Amplify-era
+ * cross-family read (ADR-024 A4) and keeps its own record types: parent-facing screens use the
+ * hand-owned shapes in `child-profile/profileTypes.ts` and Django's parent-scoped API
+ * (LAI-CHILD-001), which never returns another family's child.
+ */
+export type ChildProfile = Schema['ChildProfile']['type'];
+export type ParentProfile = Schema['ParentProfile']['type'];
 
 /**
  * The `Admins` Cognito-group read rule on `ParentProfile`/`ChildProfile`
@@ -18,6 +25,12 @@ export async function listAllParentProfiles(): Promise<ParentProfile[]> {
 
 export async function listAllChildProfiles(): Promise<ChildProfile[]> {
   const { data } = await client.models.ChildProfile.list();
+  return data;
+}
+
+/** Any family's child, for the admin progress page. */
+export async function getAnyChildProfile(id: string): Promise<ChildProfile | null> {
+  const { data } = await client.models.ChildProfile.get({ id });
   return data;
 }
 

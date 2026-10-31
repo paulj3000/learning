@@ -125,7 +125,7 @@ export function ParentDashboard() {
             <h1 className={styles.pageTitle}>
               {selectedChild
                 ? `${selectedChild.nickname}'s dashboard`
-                : `Welcome, ${parentProfile?.displayName ?? 'parent'}`}
+                : `Welcome, ${parentProfile?.displayName || 'parent'}`}
             </h1>
 
             {selectedChild ? (

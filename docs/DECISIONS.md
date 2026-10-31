@@ -18,7 +18,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 
 **Format recommendation.** Keep this single file plus the registry table. Individually named ADR files would force moving about 4,500 lines and rewriting links for no collision benefit the check does not already give. Revisit only if the log passes roughly 50 decisions.
 
-**Next free identifier number: 039.**
+**Next free identifier number: 040.**
 
 | ID | Title | Status | Origin | Notes |
 |---|---|---|---|---|
@@ -59,7 +59,8 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-035 | The shared asset manager versions binaries on the canonical ContentAsset identity, with private storage and signed delivery | Accepted | Feature branch (LAI-2200) | Accepted 2026-10-25. Amends ADR-034 item 3 (Django permissions and groups); builds on ADR-030 and ADR-033. Amended by AM-10 (staff-only admin preview route) |
 | ADR-036 | Native Android uses the Django API with Cognito bearer tokens; the game-only WebView uses a ticket-redeemed, child- and region-scoped game session cookie | Proposed | Feature branch (LAI-ANDROID-API-001) | Implemented 2026-10-25 at the Django API boundary; owner acceptance pending. Builds on ADR-024 and ADR-033; does not change ADR-034 |
 | ADR-037 | The Django backend is released to one EC2 instance per environment from GitHub Actions through ECR and SSM, with GitHub OIDC and no stored AWS keys | Accepted | Feature branch (feature/aws-ec2-auto-deployment) | Owner-directed 2026-10-30 (LAI-1003, LAI-1004, LAI-1006). Repository side only: provisioning and every deploy stay owner-approved (ADR-019 G1, G7). Prod on EC2 is the initial step; ECS Fargate (LAI-1007) stays the production candidate |
-| ADR-038 | Environment-selectable API authentication: Cognito in AWS, local Django sign-in for development, one Django user and authorization model | Accepted | Feature branch (feature/lai-auth-dual) | Owner-directed 2026-10-30 (LAI-AUTH-DUAL). Amends ADR-024 Accepted items 1 and 2 for `AUTH_PROVIDER=django` only; builds on ADR-034 (the admin session stays separate). AWS environments are unchanged |
+| ADR-038 | Environment-selectable API authentication: Cognito in AWS, local Django sign-in for development, one Django user and authorization model | Accepted | Main line (merged 2026-10-31, `beebb6a`) | Owner-directed 2026-10-30 (LAI-AUTH-DUAL). Amends ADR-024 Accepted items 1 and 2 for `AUTH_PROVIDER=django` only; builds on ADR-034 (the admin session stays separate). AWS environments are unchanged |
+| ADR-039 | Django is the authority for parent and child profiles in every build with the Django API; Amplify profiles only until the controlled import and cutover; read-only audited Django Admin inspection | Accepted | Feature branch (feature/lai-child-django) | Owner-directed 2026-10-31 (LAI-CHILD-001). Amends ADR-034 and ADR-024 A4 for read-only, permission-gated, audited profile inspection in Django Admin only. Hard deletion stays blocked by LAI-0209. No production data is moved |
 
 ## ADR-001: Parent-owned accounts
 
@@ -2798,8 +2799,8 @@ OIDC, readiness probe and settings; only the release mechanism changes.
 
 ## ADR-038: Environment-selectable API authentication: Cognito in AWS, local Django sign-in for development, one Django user and authorization model
 
-Status: Accepted 2026-10-30, directed by the owner (LAI-AUTH-DUAL). Implemented on
-`feature/lai-auth-dual`; nothing is deployed. Amends ADR-024 Accepted items 1 and 2 for
+Status: Accepted 2026-10-30, directed by the owner (LAI-AUTH-DUAL). Merged to `main` on
+2026-10-31 (`beebb6a`) after the full merge gate; Playwright acceptance was not run. Amends ADR-024 Accepted items 1 and 2 for
 `AUTH_PROVIDER=django` only, and builds on ADR-034 (Django Admin's own session) without changing
 it. Every AWS environment keeps ADR-024 unchanged.
 
@@ -2862,3 +2863,54 @@ exist, and a missing or wrong provider stops the process. The risk is a misconfi
 selecting `django`; it is refused at four points (production settings, image default, compose
 file, parameter store). Tests: `apps/users/tests/test_local_auth.py`,
 `apps/core/tests/test_settings.py`, `tests/deploy/`, and the React adapter and form tests.
+
+## ADR-039: Django is the authority for parent and child profiles in every build with the Django API; Amplify profiles only until the controlled import and cutover; read-only audited Django Admin inspection
+
+Status: Accepted 2026-10-31, directed by the owner (LAI-CHILD-001). Implemented on
+`feature/lai-child-django`; not merged, nothing deployed, no production data moved. Amends ADR-034
+and ADR-024 A4 for one thing only: read-only, permission-gated, audited inspection of parent and
+child profiles in Django Admin.
+
+**Principle.** Authentication identifies the parent; Django authorizes access to parent and child
+resources and owns the associated application data. Which sign-in a build uses (Cognito or a
+local Django session, ADR-038) never decides where profiles are stored.
+
+**Context.** Django already held `ParentAccount` and `ChildProfile` with ownership enforced by the
+foreign key and the LAI-0403 harness, and served list, create, read and update (LAI-ANDROID-API-001).
+The React app still read and wrote profiles through Amplify Data, so a Django build had two
+sources for the same child, and local sign-in could not manage children at all.
+
+**Decision.**
+1. In every React build with the Django API (`VITE_BACKEND=django`) all parent and child profile
+   reads and writes go to Django: `GET/PATCH /api/v1/me/` and `/api/v1/children/`. Screens use
+   hand-owned shapes (`react/src/features/child-profile/profileTypes.ts`), never a backend record
+   type.
+2. A build without the Django API (the deployed build today) keeps using Amplify Data for
+   profiles, because that is where its families' records are. Removing that branch now would
+   leave production parents with no children. The branch is selected by backend, never by
+   sign-in, and is removed by LAI-1301 after the import and cutover (Phase 11/12, approval tasks).
+3. Existing Amplify profiles move only through `manage.py import_amplify_profiles`: dry run by
+   default, owner resolved from the Cognito `sub` Amplify recorded (never an email), Amplify ids
+   preserved, nothing overwritten, conflicts reported, idempotent, ids-only report
+   (docs/platform/AMPLIFY_PROFILE_IMPORT.md).
+4. Archival, not deletion: a parent deactivates a child (`active: false`), which keeps the
+   profile, progress and rewards. Hard deletion of a child or account stays
+   `403 sensitive_action_unavailable` until LAI-0209 (ADR-024 A3) and LAI-0602.
+5. Django Admin may show parent accounts and child profiles read-only to active staff holding
+   `users.view_childprofile` (superusers hold it). Nothing can be added, changed or deleted there.
+   Shown: ids, the parent-child link, age band, reading mode, session length, the active and AI
+   switches, whether a photo exists, timestamps. Never shown: nicknames, interests, the photo
+   path, the Cognito sub or local username, password hashes. Every list and detail view logs one
+   `lai.admin_audit` line with the staff and record ids. Child-owned gameplay records stay off the
+   admin.
+6. Profile photos stay in Amplify Storage. A Django build neither uploads nor shows them until
+   LAI-1103 moves the objects.
+
+**Consequences.** One source of truth per build. Treasure Rush and the other Django routes see the
+same child ids the parent dashboard shows. Amplify-backed features that still read a child from
+DynamoDB (the `submit-adventure-answer`, `get-next-learning-activity` and `claim-coop-slot`
+Lambdas, and Amplify Data reads keyed by `childProfileId`) do not know a child created in Django;
+those features are Phase 6 work and are not usable for such a child in a Django build. The admin
+change widens who can see child metadata, so the permission is granted to named staff only and
+every read is logged.
+

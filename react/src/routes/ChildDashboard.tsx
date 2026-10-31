@@ -8,7 +8,7 @@ import { explainSelection } from '../features/director/explain';
 import { rankSkillNeeds } from '../features/director/needs';
 import type { SelectionRecord } from '../features/director/types';
 import type { ChildProfile } from '../features/child-profile/api';
-import { deleteChildProfileData } from '../features/child-profile/deletion';
+import { deleteChildProfileData } from '../features/child-profile/api';
 import {
   listActionsForSessions,
   listAllWorldChanges,

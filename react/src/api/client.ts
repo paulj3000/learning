@@ -25,11 +25,14 @@ import type { SessionAuth } from './session';
  * The credential is one of two (ADR-038), never both: `getAccessToken`
  * (Cognito bearer token, the production mode) or `session` (a local Django
  * session cookie, `VITE_AUTH_PROVIDER=django`). In session mode there is no
- * token to refresh, so a 401 is final at once; every POST carries
- * `X-CSRFToken`, and a `403 csrf_failed` is retried once with a new token.
+ * token to refresh, so a 401 is final at once; every unsafe request (POST,
+ * PATCH, DELETE) carries `X-CSRFToken`, and a `403 csrf_failed` is retried once with a new token.
  */
 
-export type HttpMethod = 'GET' | 'POST';
+export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+
+const SAFE_METHODS: ReadonlySet<HttpMethod> = new Set(['GET']);
+const BODY_METHODS: ReadonlySet<HttpMethod> = new Set(['POST', 'PATCH']);
 
 export type ApiCredentials =
   | {
@@ -78,7 +81,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     const init: RequestInit = { method, headers, signal: request.signal };
     if (options.session) {
       init.credentials = 'same-origin';
-      if (method === 'POST') {
+      if (!SAFE_METHODS.has(method)) {
         try {
           headers['X-CSRFToken'] = await options.session.csrfToken({ forceRefresh });
         } catch {
@@ -95,7 +98,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       if (!token) throw new ApiError('unauthenticated', { code: 'not_signed_in' });
       headers.Authorization = `Bearer ${token}`;
     }
-    if (method === 'POST') {
+    if (BODY_METHODS.has(method)) {
       headers['Content-Type'] = 'application/json';
       init.body = JSON.stringify(request.body ?? {});
     }

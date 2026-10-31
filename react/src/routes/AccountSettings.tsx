@@ -12,17 +12,20 @@ import {
   validatePassword,
 } from '../features/auth/validators';
 import { changeEmail, changePassword, confirmEmailChange } from '../features/auth/accountSettings';
+import { useAuth } from '../features/auth/AuthContext';
 import {
   getOrCreateParentProfile,
   updateParentProfileDisplayName,
 } from '../features/child-profile/api';
-import { deleteAccountAndAllData } from '../features/child-profile/deletion';
+import { deleteAccountAndAllData } from '../features/child-profile/api';
 import type { ParentProfile } from '../features/child-profile/api';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
 export function AccountSettings() {
   const navigate = useNavigate();
+  // Email and password belong to Cognito. A local Django sign-in (ADR-038) has neither here.
+  const cognitoAccount = (useAuth().mode ?? 'cognito') === 'cognito';
 
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -68,12 +71,12 @@ export function AccountSettings() {
       try {
         const [profile, attributes] = await Promise.all([
           getOrCreateParentProfile(),
-          fetchUserAttributes(),
+          cognitoAccount ? fetchUserAttributes() : Promise.resolve(null),
         ]);
         if (cancelled) return;
         setParentProfile(profile);
         setDisplayName(profile.displayName);
-        setCurrentEmail(attributes.email ?? '');
+        setCurrentEmail(attributes?.email ?? '');
         setLoadState('ready');
       } catch (error) {
         if (cancelled) return;
@@ -86,7 +89,7 @@ export function AccountSettings() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [cognitoAccount]);
 
   async function handleNameSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -253,155 +256,171 @@ export function AccountSettings() {
               </form>
             </section>
 
-            <section className={styles.section}>
-              <h2 className={styles.sectionHeading}>Email address</h2>
-              <p className={styles.currentValue}>Current email: {currentEmail}</p>
-              {!awaitingEmailCode ? (
-                <form className={styles.form} onSubmit={(event) => void handleEmailSubmit(event)}>
-                  {emailFormError ? (
-                    <p className={formStyles.error} role="alert">
-                      {emailFormError}
-                    </p>
-                  ) : null}
-                  {emailNotice ? <p className={formStyles.notice}>{emailNotice}</p> : null}
-                  <div className={formStyles.field}>
-                    <label className={formStyles.label} htmlFor="new-email">
-                      New email address
-                    </label>
-                    <input
-                      id="new-email"
-                      className={formStyles.input}
-                      type="email"
-                      autoComplete="email"
-                      value={newEmail}
-                      onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                        setNewEmail(event.target.value)
-                      }
-                    />
-                    {emailFieldError ? (
-                      <p className={formStyles.fieldError}>{emailFieldError}</p>
-                    ) : null}
-                  </div>
-                  <button className={formStyles.button} type="submit" disabled={savingEmail}>
-                    {savingEmail ? 'Saving...' : 'Update email'}
-                  </button>
-                </form>
-              ) : (
-                <form
-                  className={styles.form}
-                  onSubmit={(event) => void handleConfirmEmailCode(event)}
-                >
-                  {emailFormError ? (
-                    <p className={formStyles.error} role="alert">
-                      {emailFormError}
-                    </p>
-                  ) : null}
-                  {emailNotice ? <p className={formStyles.notice}>{emailNotice}</p> : null}
-                  <div className={formStyles.field}>
-                    <label className={formStyles.label} htmlFor="email-code">
-                      Confirmation code
-                    </label>
-                    <input
-                      id="email-code"
-                      className={formStyles.input}
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      value={confirmationCode}
-                      onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                        setConfirmationCode(event.target.value)
-                      }
-                    />
-                    {codeFieldError ? (
-                      <p className={formStyles.fieldError}>{codeFieldError}</p>
-                    ) : null}
-                  </div>
-                  <button className={formStyles.button} type="submit" disabled={confirmingEmail}>
-                    {confirmingEmail ? 'Confirming...' : 'Confirm new email'}
-                  </button>
-                  <button
-                    className={formStyles.buttonSecondary}
-                    type="button"
-                    onClick={() => {
-                      setAwaitingEmailCode(false);
-                      setEmailNotice(null);
-                      setConfirmationCode('');
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </form>
-              )}
-            </section>
+            {cognitoAccount ? (
+              <>
+                <section className={styles.section}>
+                  <h2 className={styles.sectionHeading}>Email address</h2>
+                  <p className={styles.currentValue}>Current email: {currentEmail}</p>
+                  {!awaitingEmailCode ? (
+                    <form
+                      className={styles.form}
+                      onSubmit={(event) => void handleEmailSubmit(event)}
+                    >
+                      {emailFormError ? (
+                        <p className={formStyles.error} role="alert">
+                          {emailFormError}
+                        </p>
+                      ) : null}
+                      {emailNotice ? <p className={formStyles.notice}>{emailNotice}</p> : null}
+                      <div className={formStyles.field}>
+                        <label className={formStyles.label} htmlFor="new-email">
+                          New email address
+                        </label>
+                        <input
+                          id="new-email"
+                          className={formStyles.input}
+                          type="email"
+                          autoComplete="email"
+                          value={newEmail}
+                          onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                            setNewEmail(event.target.value)
+                          }
+                        />
+                        {emailFieldError ? (
+                          <p className={formStyles.fieldError}>{emailFieldError}</p>
+                        ) : null}
+                      </div>
+                      <button className={formStyles.button} type="submit" disabled={savingEmail}>
+                        {savingEmail ? 'Saving...' : 'Update email'}
+                      </button>
+                    </form>
+                  ) : (
+                    <form
+                      className={styles.form}
+                      onSubmit={(event) => void handleConfirmEmailCode(event)}
+                    >
+                      {emailFormError ? (
+                        <p className={formStyles.error} role="alert">
+                          {emailFormError}
+                        </p>
+                      ) : null}
+                      {emailNotice ? <p className={formStyles.notice}>{emailNotice}</p> : null}
+                      <div className={formStyles.field}>
+                        <label className={formStyles.label} htmlFor="email-code">
+                          Confirmation code
+                        </label>
+                        <input
+                          id="email-code"
+                          className={formStyles.input}
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          value={confirmationCode}
+                          onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                            setConfirmationCode(event.target.value)
+                          }
+                        />
+                        {codeFieldError ? (
+                          <p className={formStyles.fieldError}>{codeFieldError}</p>
+                        ) : null}
+                      </div>
+                      <button
+                        className={formStyles.button}
+                        type="submit"
+                        disabled={confirmingEmail}
+                      >
+                        {confirmingEmail ? 'Confirming...' : 'Confirm new email'}
+                      </button>
+                      <button
+                        className={formStyles.buttonSecondary}
+                        type="button"
+                        onClick={() => {
+                          setAwaitingEmailCode(false);
+                          setEmailNotice(null);
+                          setConfirmationCode('');
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </form>
+                  )}
+                </section>
 
-            <section className={styles.section}>
-              <h2 className={styles.sectionHeading}>Password</h2>
-              <form className={styles.form} onSubmit={(event) => void handlePasswordSubmit(event)}>
-                {passwordFormError ? (
-                  <p className={formStyles.error} role="alert">
-                    {passwordFormError}
-                  </p>
-                ) : null}
-                {passwordNotice ? <p className={formStyles.notice}>{passwordNotice}</p> : null}
-                <div className={formStyles.field}>
-                  <label className={formStyles.label} htmlFor="old-password">
-                    Current password
-                  </label>
-                  <input
-                    id="old-password"
-                    className={formStyles.input}
-                    type="password"
-                    autoComplete="current-password"
-                    value={oldPassword}
-                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                      setOldPassword(event.target.value)
-                    }
-                  />
-                  {passwordFieldErrors.oldPassword ? (
-                    <p className={formStyles.fieldError}>{passwordFieldErrors.oldPassword}</p>
-                  ) : null}
-                </div>
-                <div className={formStyles.field}>
-                  <label className={formStyles.label} htmlFor="new-password">
-                    New password
-                  </label>
-                  <input
-                    id="new-password"
-                    className={formStyles.input}
-                    type="password"
-                    autoComplete="new-password"
-                    value={newPassword}
-                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                      setNewPassword(event.target.value)
-                    }
-                  />
-                  {passwordFieldErrors.newPassword ? (
-                    <p className={formStyles.fieldError}>{passwordFieldErrors.newPassword}</p>
-                  ) : null}
-                </div>
-                <div className={formStyles.field}>
-                  <label className={formStyles.label} htmlFor="confirm-password">
-                    Confirm new password
-                  </label>
-                  <input
-                    id="confirm-password"
-                    className={formStyles.input}
-                    type="password"
-                    autoComplete="new-password"
-                    value={confirmPassword}
-                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                      setConfirmPassword(event.target.value)
-                    }
-                  />
-                  {passwordFieldErrors.confirmPassword ? (
-                    <p className={formStyles.fieldError}>{passwordFieldErrors.confirmPassword}</p>
-                  ) : null}
-                </div>
-                <button className={formStyles.button} type="submit" disabled={savingPassword}>
-                  {savingPassword ? 'Saving...' : 'Update password'}
-                </button>
-              </form>
-            </section>
+                <section className={styles.section}>
+                  <h2 className={styles.sectionHeading}>Password</h2>
+                  <form
+                    className={styles.form}
+                    onSubmit={(event) => void handlePasswordSubmit(event)}
+                  >
+                    {passwordFormError ? (
+                      <p className={formStyles.error} role="alert">
+                        {passwordFormError}
+                      </p>
+                    ) : null}
+                    {passwordNotice ? <p className={formStyles.notice}>{passwordNotice}</p> : null}
+                    <div className={formStyles.field}>
+                      <label className={formStyles.label} htmlFor="old-password">
+                        Current password
+                      </label>
+                      <input
+                        id="old-password"
+                        className={formStyles.input}
+                        type="password"
+                        autoComplete="current-password"
+                        value={oldPassword}
+                        onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                          setOldPassword(event.target.value)
+                        }
+                      />
+                      {passwordFieldErrors.oldPassword ? (
+                        <p className={formStyles.fieldError}>{passwordFieldErrors.oldPassword}</p>
+                      ) : null}
+                    </div>
+                    <div className={formStyles.field}>
+                      <label className={formStyles.label} htmlFor="new-password">
+                        New password
+                      </label>
+                      <input
+                        id="new-password"
+                        className={formStyles.input}
+                        type="password"
+                        autoComplete="new-password"
+                        value={newPassword}
+                        onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                          setNewPassword(event.target.value)
+                        }
+                      />
+                      {passwordFieldErrors.newPassword ? (
+                        <p className={formStyles.fieldError}>{passwordFieldErrors.newPassword}</p>
+                      ) : null}
+                    </div>
+                    <div className={formStyles.field}>
+                      <label className={formStyles.label} htmlFor="confirm-password">
+                        Confirm new password
+                      </label>
+                      <input
+                        id="confirm-password"
+                        className={formStyles.input}
+                        type="password"
+                        autoComplete="new-password"
+                        value={confirmPassword}
+                        onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                          setConfirmPassword(event.target.value)
+                        }
+                      />
+                      {passwordFieldErrors.confirmPassword ? (
+                        <p className={formStyles.fieldError}>
+                          {passwordFieldErrors.confirmPassword}
+                        </p>
+                      ) : null}
+                    </div>
+                    <button className={formStyles.button} type="submit" disabled={savingPassword}>
+                      {savingPassword ? 'Saving...' : 'Update password'}
+                    </button>
+                  </form>
+                </section>
+              </>
+            ) : null}
 
             <section className={parentStyles.dangerZone}>
               <h2 className={parentStyles.dangerHeading}>Delete account</h2>
