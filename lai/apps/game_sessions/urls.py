@@ -21,6 +21,7 @@ urlpatterns = [
     path(f"{CHILD}sessions/<uuid:session_id>/hints/", HintsView.as_view(), name="session-hints"),
     path(f"{CHILD}home/", native_views.ChildHomeView.as_view(), name="child-home"),
     path(f"{CHILD}regions/", native_views.RegionListView.as_view(), name="child-regions"),
+    path(f"{CHILD}islands/", native_views.IslandListView.as_view(), name="child-islands"),
     path(f"{CHILD}inventory/", native_views.InventoryView.as_view(), name="child-inventory"),
     path(f"{CHILD}game-launches/", launch_views.GameLaunchView.as_view(), name="game-launches"),
     path("game-launches/redeem/", launch_views.GameLaunchRedeemView.as_view(), name="game-redeem"),
@@ -28,6 +29,11 @@ urlpatterns = [
     path("game-session/", launch_views.GameRuntimeSessionView.as_view(), name="game-session"),
     path("game-session/end/", launch_views.GameRuntimeEndView.as_view(), name="game-session-end"),
     path(f"{CHILD}regions/<slug:region_id>/", play_views.RegionView.as_view(), name="play-region"),
+    path(
+        f"{CHILD}regions/<slug:region_id>/launch-points/<slug:launch_id>/start/",
+        native_views.LaunchPointStartView.as_view(),
+        name="launch-point-start",
+    ),
     path(
         f"{CHILD}regions/<slug:region_id>/adventures/",
         native_views.RegionAdventuresView.as_view(),

@@ -17,15 +17,25 @@ from apps.users.models import AgeBand
 
 
 class WorldRegion(models.Model):
-    """An explorable region inside a catalog Location, laid out by the seed.
+    """A Place's 3D Area: the explorable Three.js environment of one catalog Location (ADR-041).
+
+    Shown as "3D Area" (and its Location as "Place") everywhere people read it; the class, table
+    and `region_id` keep their names. A Place has at most one 3D Area (database constraint
+    `regions_one_area_per_place`) and is valid with none.
 
     `scene` holds what is not yet modelled as rows (bounds, environment, copy), in the
     manifest's own field names; TR-7 validates the assembled manifest on the client too.
     """
 
-    region_id = models.SlugField(max_length=80, unique=True)
+    region_id = models.SlugField(
+        "3D Area id", max_length=80, unique=True, help_text="Stable id used by the API and URLs."
+    )
     location = models.ForeignKey(
-        "catalog.Location", on_delete=models.PROTECT, related_name="regions"
+        "catalog.Location",
+        on_delete=models.PROTECT,
+        related_name="regions",
+        verbose_name="place",
+        help_text="The Place this 3D Area belongs to. A Place has at most one 3D Area.",
     )
     title = models.CharField(max_length=120, help_text="Child-facing name.")
     version = models.PositiveIntegerField(default=1)
@@ -42,6 +52,11 @@ class WorldRegion(models.Model):
 
     class Meta:
         ordering = ["region_id"]
+        verbose_name = "3D Area"
+        verbose_name_plural = "3D Areas"
+        constraints = [
+            models.UniqueConstraint(fields=["location"], name="regions_one_area_per_place"),
+        ]
 
     def __str__(self) -> str:
         return self.region_id
@@ -50,6 +65,13 @@ class WorldRegion(models.Model):
         super().clean()
         if not isinstance(self.scene, dict):
             raise ValidationError({"scene": "Must be a JSON object."})
+        if self.location_id is not None:
+            other = WorldRegion.objects.filter(location_id=self.location_id).exclude(pk=self.pk)
+            if other.exists():
+                raise ValidationError(
+                    {"location": "This Place already has a 3D Area. A Place can have only one."},
+                    code="place_has_area",
+                )
 
     def entity_ids(self, exclude: models.Model | None = None) -> set[str]:
         """Every entity id used by this region's placements and chests."""
@@ -242,5 +264,115 @@ class TreasureChest(Placed):
                 errors[field] = f"This challenge is for {spec.age_band}, not {band}."
         if not any(getattr(self, f"{field}_id") for field in self.BAND_FIELDS.values()):
             errors["__all__"] = "A chest needs a challenge for at least one age band."
+        if errors:
+            raise ValidationError(errors)
+
+
+class LaunchObjectKind(models.TextChoices):
+    """How an Adventure launch point looks to the child. Presentation only; no behaviour."""
+
+    NPC = "NPC", "Character (NPC)"
+    CHEST = "CHEST", "Treasure chest"
+    DOOR = "DOOR", "Door or portal"
+    SIGN = "SIGN", "Sign or marker"
+    OTHER = "OTHER", "Other object"
+
+
+class AdventureLaunchPoint(models.Model):
+    """An object in a 3D Area that starts one of its Place's Adventures (ADR-041 decision C).
+
+    Points at an existing placement in the same 3D Area by `entity_id`. Where the object stands
+    stays in the code-authored layout (LAI-0805); only which Adventure it starts, its wording and
+    its publication are configuration. One object may offer several Adventures (one per age band,
+    for example) and one Adventure may have several launch points. The Adventure must belong to
+    this 3D Area's Place: `clean()` refuses any other, and the start endpoint checks it again
+    before a session starts. A Treasure Rush chest (`TreasureChest`) cannot be a launch point; its
+    interaction is the chest challenge. A decorative chest is a PROP placement of kind CHEST.
+    Nothing here is executable: the client only shows the label and calls the start endpoint.
+    """
+
+    region = models.ForeignKey(
+        WorldRegion,
+        on_delete=models.CASCADE,
+        related_name="launch_points",
+        verbose_name="3D Area",
+    )
+    launch_id = models.SlugField(max_length=80, help_text="Stable id within the 3D Area.")
+    entity_id = models.SlugField(
+        "object",
+        max_length=80,
+        help_text="The entity id of a placement in this 3D Area (an NPC, prop or scenery item).",
+    )
+    object_kind = models.CharField(
+        max_length=8, choices=LaunchObjectKind.choices, default=LaunchObjectKind.OTHER
+    )
+    adventure = models.ForeignKey(
+        "catalog.Adventure",
+        on_delete=models.PROTECT,
+        related_name="launch_points",
+        help_text="Must be an Adventure of this 3D Area's Place.",
+    )
+    label = models.CharField(
+        max_length=120, help_text="Child-facing button text, e.g. 'Help fix the bridge'."
+    )
+    prompt = models.CharField(
+        max_length=300, blank=True, help_text="Optional child-facing line shown with the button."
+    )
+    sort_order = models.PositiveIntegerField(default=0)
+    status = models.CharField(
+        max_length=16, choices=ContentStatus.choices, default=ContentStatus.DRAFT
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["region", "sort_order", "launch_id"]
+        verbose_name = "Adventure launch point"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["region", "launch_id"], name="regions_launch_point_id_unique"
+            ),
+            models.UniqueConstraint(
+                fields=["region", "entity_id", "adventure"],
+                name="regions_launch_point_once_per_object",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(object_kind__in=LaunchObjectKind.values),
+                name="regions_launch_point_kind_valid",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.region}:{self.launch_id}"
+
+    def placement(self) -> "WorldObjectPlacement | None":
+        if not self.region_id:
+            return None
+        return self.region.placements.filter(entity_id=self.entity_id).first()
+
+    def clean(self):
+        super().clean()
+        errors: dict[str, str] = {}
+        if self.region_id and self.adventure_id:
+            if self.adventure.location_id != self.region.location_id:
+                errors["adventure"] = (
+                    "This Adventure belongs to another Place. A launch point can only start an "
+                    "Adventure of its own 3D Area's Place."
+                )
+        if self.region_id and self.entity_id:
+            placement = self.placement()
+            if placement is None:
+                if self.region.chests.filter(entity_id=self.entity_id).exists():
+                    errors["entity_id"] = (
+                        "That is a Treasure Rush chest; its interaction is the chest challenge. "
+                        "Use a prop placement for a chest that starts an Adventure."
+                    )
+                else:
+                    errors["entity_id"] = "No placement in this 3D Area has that entity id."
+            else:
+                is_npc = placement.kind == PlacementKind.NPC
+                if (self.object_kind == LaunchObjectKind.NPC) != is_npc:
+                    errors["object_kind"] = (
+                        "Choose 'Character (NPC)' for an NPC placement, and only for one."
+                    )
         if errors:
             raise ValidationError(errors)

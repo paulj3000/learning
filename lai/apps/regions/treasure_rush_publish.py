@@ -9,10 +9,10 @@ other way to publish it. This does that, for a developer's own machine only:
   same validation an admin save runs: TR-1 parameters, chest age bands, asset ids, quest stages),
   and the region must be playable (a default spawn, at least one chest, a published location).
   Any problem refuses the whole publish; nothing is half-published.
-- **Only the seed's rows.** The seeded region and its chests' challenge specs, the only
-  Treasure Rush rows with a publication status (POST-MERGE-03). The location, its world, and the
-  offered quests are catalog content owned by the export: they must already be `active`, and an
-  inactive one blocks this instead of being switched on.
+- **Only the seed's rows.** The seeded region, its chests' challenge specs and its Adventure
+  launch points (ADR-041), the Treasure Rush rows with a publication status. The location, its
+  world, and the offered quests are catalog content owned by the export: they must already be
+  `active`, and an inactive one blocks this instead of being switched on.
 """
 
 from django.conf import settings
@@ -22,6 +22,7 @@ from django.db import transaction
 from apps.core.content_status import ContentStatus
 
 from .models import WorldRegion
+from .publishing import area_problems, launch_point_problems
 from .treasure_rush_seed import REGION_ID
 
 
@@ -65,35 +66,22 @@ def publish_treasure_rush() -> list[str]:
             ["no Treasure Rush region: run load_content and seed_treasure_rush first"]
         ) from None
 
-    problems: list[str] = []
-    if not region.location.active:
-        problems.append(f"location {region.location.slug} is inactive")
-    if not region.location.world.active:
-        problems.append(f"world {region.location.world.slug} is inactive")
-    if not region.spawn_points.filter(is_default=True).exists():
-        problems.append("the region has no default spawn point")
+    # The checks any 3D Area must pass (shared with Django Admin, ADR-041), then Treasure Rush's.
+    problems: list[str] = area_problems(region)
     chests = list(region.chests.all())
     if not chests:
         problems.append("the region has no treasure chest")
-
-    _check(region, f"region {region.region_id}", problems)
-    for spawn in region.spawn_points.all():
-        _check(spawn, f"spawn {spawn.checkpoint_id}", problems)
-    for placement in region.placements.all():
-        _check(placement, f"placement {placement.entity_id}", problems)
     specs = {}
     for chest in chests:
-        _check(chest, f"chest {chest.entity_id}", problems)
         for field in chest.BAND_FIELDS.values():
             spec = getattr(chest, field)
             if spec is not None:
                 specs[spec.pk] = spec
     for spec in specs.values():
         _check(spec, f"challenge {spec.slug}", problems)
-    quests = list(region.offered_quests.all())
-    for quest in quests:
-        if not quest.active:
-            problems.append(f"quest {quest.slug} is inactive")
+    points = list(region.launch_points.select_related("adventure__location"))
+    for point in points:
+        problems.extend(launch_point_problems(point))
 
     if problems:
         raise PublishRefused(problems)
@@ -102,6 +90,7 @@ def publish_treasure_rush() -> list[str]:
     for row, label in [
         (region, f"region {region.region_id}"),
         *[(spec, f"challenge {spec.slug}") for spec in specs.values()],
+        *[(point, f"launch point {point.launch_id}") for point in points],
     ]:
         if row.status != ContentStatus.PUBLISHED:
             row.status = ContentStatus.PUBLISHED

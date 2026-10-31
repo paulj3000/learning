@@ -15,6 +15,7 @@ from django.db import connection
 from django.test import Client
 from django.utils import timezone
 
+from apps.catalog.models import Location
 from apps.core.content_status import ContentStatus
 from apps.game_sessions.launch_views import GameLaunchThrottle
 from apps.game_sessions.models import (
@@ -350,9 +351,10 @@ def test_the_runtime_cannot_reach_another_child(treasure, parent_a):
 
 def test_the_runtime_cannot_reach_another_region(treasure, parent_a, api):
     child = treasure.families.a1
+    # Another Place's 3D Area: a Place has at most one (ADR-041).
     WorldRegion.objects.create(
         region_id="second-cove",
-        location=treasure.region.location,
+        location=Location.objects.get(slug="wonderwild-forest"),
         title="Second Cove",
         status=ContentStatus.PUBLISHED,
     )

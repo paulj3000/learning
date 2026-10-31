@@ -3,7 +3,10 @@
 Registered on Django's default `admin.site`, mounted at `settings.ADMIN_URL_PATH`. Access is
 decided per request by `admin_access` from the signed-in staff account (ADR-034).
 
-Editable now (catalog fields, Django-owned): `active` and `sort_order` on worlds, locations,
+Terminology (ADR-041): staff read World as **Island**, Location as **Place** and
+`regions.WorldRegion` as **3D Area**. Only labels changed; model, table and field names did not.
+
+Editable now (catalog fields, Django-owned): `active` and `sort_order` on islands, places,
 adventures, quests and NPCs. Everything else is imported content and read-only until the content
 authoring cutover, when content fields become editable and the export reverses direction.
 Assets, steps, releases, objectives, items, sets and reward rules are read-only entirely. Nobody
@@ -32,6 +35,7 @@ from apps.catalog.models import (
     RewardRule,
     World,
 )
+from apps.regions.models import WorldRegion
 
 CATALOG_FIELDS = ("active", "sort_order")
 
@@ -128,6 +132,16 @@ class AdventureInline(ReadOnlyInline):
     model = Adventure
     fk_name = "location"
     fields = ("slug", "title", "age_bands", "active", "sort_order")
+    verbose_name_plural = "adventures owned by this Place"
+
+
+class AreaInline(ReadOnlyInline):
+    """A Place's 3D Area, if it has one (at most one, ADR-041). Edited on the 3D Area page."""
+
+    model = WorldRegion
+    fields = ("region_id", "title", "status")
+    verbose_name = "3D Area"
+    verbose_name_plural = "3D Area (at most one; a Place is valid without one)"
 
 
 class StepInline(ReadOnlyInline):
@@ -156,6 +170,7 @@ class WorldAdmin(CatalogModelAdmin):
         "location_count",
         "in_latest_release",
     )
+    list_display_links = ("slug", "title")
     list_filter = ("active", "is_home", InLatestReleaseFilter)
     search_fields = ("slug", "title", "description")
     inlines = [LocationInline]
@@ -166,7 +181,7 @@ class WorldAdmin(CatalogModelAdmin):
             super().get_queryset(request).annotate(location_total=Count("locations", distinct=True))
         )
 
-    @admin.display(description="Locations", ordering="location_total")
+    @admin.display(description="Places", ordering="location_total")
     def location_count(self, obj) -> int:
         return obj.location_total
 
@@ -180,6 +195,7 @@ class LocationAdmin(CatalogModelAdmin):
         "world",
         "active",
         "sort_order",
+        "area",
         "adventure_count",
         "asset_count",
         "in_latest_release",
@@ -187,7 +203,7 @@ class LocationAdmin(CatalogModelAdmin):
     list_filter = ("world", "active", InLatestReleaseFilter)
     search_fields = ("slug", "title", "description", "skills")
     list_select_related = ("world",)
-    inlines = [AdventureInline, LocationAssetInline]
+    inlines = [AreaInline, AdventureInline, LocationAssetInline]
     readonly_display = ("in_latest_release",)
 
     def get_queryset(self, request):
@@ -203,6 +219,11 @@ class LocationAdmin(CatalogModelAdmin):
     @admin.display(description="Adventures", ordering="adventure_total")
     def adventure_count(self, obj) -> int:
         return obj.adventure_total
+
+    @admin.display(description="3D Area")
+    def area(self, obj) -> str:
+        region = obj.regions.first()
+        return f"{region.region_id} ({region.get_status_display()})" if region else "None yet"
 
     @admin.display(description="Scene assets", ordering="asset_total")
     def asset_count(self, obj) -> int:
@@ -227,12 +248,23 @@ class AdventureAdmin(CatalogModelAdmin):
     search_fields = ("slug", "title", "location_slug")
     list_select_related = ("world", "location")
     inlines = [StepInline]
-    readonly_display = ("scene_assets", "in_latest_release")
+    readonly_display = ("launch_points", "scene_assets", "in_latest_release")
 
-    @admin.display(description="Scene assets of its location")
+    @admin.display(description="Launch points in its Place's 3D Area")
+    def launch_points(self, obj) -> str:
+        points = obj.launch_points.select_related("region").order_by("region", "sort_order")
+        return (
+            ", ".join(
+                f"{p.region.region_id}/{p.launch_id} on {p.entity_id} ({p.get_status_display()})"
+                for p in points
+            )
+            or "None (started from the Place page only)"
+        )
+
+    @admin.display(description="Scene assets of its Place")
     def scene_assets(self, obj) -> str:
         if obj.location_id is None:
-            return "No location record (story-only place)"
+            return "No Place record (story-only place)"
         ids = obj.location.asset_links.order_by("position").values_list(
             "asset__asset_id", flat=True
         )
