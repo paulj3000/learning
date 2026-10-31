@@ -79,6 +79,24 @@ make py-test-db        # like py-test, but PostgreSQL tests fail instead of skip
 Secrets and per-developer settings go in `.env` files, which are gitignored. Committed examples:
 `react/.env.example` and `lai/.env.example`.
 
+Django's local settings go in the untracked **`.env` at the repository root**, the same layout
+FinTwin uses. Start from the committed template: `cp .env.sample .env`, then fill in the
+`COGNITO_*` values. Docker Compose reads that file itself. Django does not (there is no dotenv package),
+so the `Makefile` reads it and passes the values on:
+
+- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT` reach every target,
+  tests included.
+- `DATABASE_URL`, `DJANGO_*`, `COGNITO_*`, `LAI_ASSET_*` and `LAI_GAME_*` reach only
+  `django-check`, `migrate-check`, `migrate` and `runserver`. The tests set their own values.
+- A variable already exported in the shell wins over `.env`. Write `NAME=value` without quotes;
+  if a name appears twice, the last line wins.
+- The list of forwarded names is `DJANGO_ENV_VARS` in the `Makefile`. Add a name there when a
+  setting starts reading a new variable.
+- Running `manage.py` directly, without `make`, does not read `.env`: export the variables in
+  your shell first.
+- Deployed environments never read `.env`. They take settings from SSM Parameter Store
+  (`docs/platform/DJANGO_EC2_DEPLOYMENT.md`, section 4.3).
+
 Sign-in is Amazon Cognito in every environment, local development included (ADR-040): the React
 app signs in with Amplify Auth, and a local Django needs the `COGNITO_*` values of a test pool
 (an Amplify sandbox). Django Admin keeps its own staff sign-in. Step by step, including Treasure

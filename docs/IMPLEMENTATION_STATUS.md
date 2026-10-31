@@ -11364,3 +11364,25 @@ in `test_cognito_only.py`, Prettier in `AccountSettings.tsx`; no behaviour chang
   `origin/main` was still `ca9915f`; merged `--no-ff`. The real-Cognito browser acceptance was
   not run and is recorded as open, not passed: the first sign-in against a real pool (a dev
   deployment or a sandbox with a test parent) is the remaining acceptance step.
+
+## Local environment variables through the Makefile, FinTwin style (2026-10-31)
+
+Branch `feature/env-config`. The untracked root `.env` is now the one file for local settings.
+Compose already read it. The `Makefile` now reads it too (`ENV_FILE`, default `.env`) and passes
+the values on, with no new dependency:
+
+- `POSTGRES_*` reach every target.
+- `DATABASE_URL`, `DJANGO_*`, `COGNITO_*`, `LAI_ASSET_*` and `LAI_GAME_*` reach only
+  `django-check`, `migrate-check`, `migrate` and `runserver`. Tests never get them.
+- A value already in the shell wins.
+- `$` and `#` in values are escaped, Windows line endings are stripped, and the last line for a
+  name wins.
+
+Settings code is unchanged: it still reads only `os.environ`, and production still takes
+everything from SSM. Checked by hand with a scratch env file: forwarding, shell precedence, the
+tests getting only `POSTGRES_*`, and a missing file. `manage.py check` still passes through
+`make`. README updated.
+
+Not done: `lai/.env.example` was not checked against the new variable list. The assistant's
+permissions block reading `.env*` files, so the owner needs to confirm the template lists
+`COGNITO_*` and `LAI_GAME_*`.
