@@ -55,6 +55,7 @@ before touching AWS.
 - [x] **LAI-0403** Tenant isolation harness (depends: 0402). DONE locally: `ChildScopedMixin`/`ChildScopedAPIView`, shared fixtures, route checker, authorization matrix. Nested-record behaviour is proven against a stand-in queryset only; real nested-model tests are required in each model's own task
 - [ ] **LAI-0404** Admin group and Django admin gating (depends: 0402)
 - [ ] **LAI-0405** Cognito ownership runbook (depends: 0103)
+- [x] **LAI-AUTH-DUAL** Environment-selectable API authentication (depends: 0402, 0403, 0404 Django Admin part; ADR-038). DONE on `feature/lai-auth-dual` 2026-10-30, not merged: `AUTH_PROVIDER` (`cognito` in AWS, `django` for local development), local Django sign-in, one `ParentAccount` model, React auth adapters. Unit-tested only; merge verification (Ruff, Prettier, Playwright, full suites, `docker build`) and a manual browser run are still due. Follow-ups: React child management on Django (LAI-0502 / LAI-0602), Android local-sign-in flavor (not built, no Kotlin code in the repository)
 
 ## Phase 5 — Read-only frontend API migration
 

@@ -33,6 +33,7 @@ def test_test_settings_refuse_a_remote_postgres_host(monkeypatch):
 
 def test_base_and_local_settings_import(monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("AUTH_PROVIDER", raising=False)
     assert "apps.core" in _load("config.settings.base").INSTALLED_APPS
     local = _load("config.settings.local")
     assert local.DEBUG is True
@@ -45,6 +46,69 @@ def test_local_settings_use_database_url_when_given(monkeypatch):
     assert (db["USER"], db["HOST"], db["PORT"], db["NAME"]) == ("a", "localhost", "5544", "thing")
 
 
+# --- API authentication provider (ADR-038) ------------------------------------------------------
+
+
+def _local_env(monkeypatch, **values):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    for name in ("AUTH_PROVIDER", "DJANGO_DEBUG"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in values.items():
+        monkeypatch.setenv(name, value)
+
+
+def test_local_development_defaults_to_django_sign_in_when_debug_is_on(monkeypatch):
+    _local_env(monkeypatch)
+    local = _load("config.settings.local")
+    assert local.DEBUG is True and local.AUTH_PROVIDER == "django"
+    assert local.AUTHENTICATION_BACKENDS == [
+        "apps.users.backends.AdminPasswordBackend",
+        "apps.users.backends.LocalParentPasswordBackend",
+    ]
+    # The session must reach /api/ through the Vite proxy; still HttpOnly and SameSite.
+    assert local.SESSION_COOKIE_PATH == local.CSRF_COOKIE_PATH == "/"
+    assert local.SESSION_COOKIE_HTTPONLY and local.SESSION_COOKIE_SAMESITE == "Lax"
+
+
+def test_local_development_can_select_cognito(monkeypatch):
+    _local_env(monkeypatch, AUTH_PROVIDER="Cognito")
+    local = _load("config.settings.local")
+    assert local.AUTH_PROVIDER == "cognito"
+    assert local.AUTHENTICATION_BACKENDS == ["apps.users.backends.AdminPasswordBackend"]
+    assert local.SESSION_COOKIE_PATH == "/admin/"
+
+
+def test_without_debug_the_provider_must_be_named(monkeypatch):
+    _local_env(monkeypatch, DJANGO_DEBUG="false")
+    with pytest.raises(ImproperlyConfigured, match="AUTH_PROVIDER"):
+        _load("config.settings.local")
+
+
+@pytest.mark.parametrize("value", ["amplify", "session", "django,cognito", "none"])
+def test_an_unknown_provider_fails_at_startup(monkeypatch, value):
+    _local_env(monkeypatch, AUTH_PROVIDER=value)
+    with pytest.raises(ImproperlyConfigured, match="AUTH_PROVIDER"):
+        _load("config.settings.local")
+
+
+@pytest.mark.parametrize("value", [None, "", "django", "DJANGO", "amplify"])
+def test_production_requires_the_cognito_provider_explicitly(monkeypatch, value):
+    _prod_env(monkeypatch, AUTH_PROVIDER=value)
+    with pytest.raises(ImproperlyConfigured, match="AUTH_PROVIDER"):
+        _load("config.settings.production")
+
+
+def test_production_ignores_debug_flags_when_choosing_the_provider(monkeypatch):
+    _prod_env(monkeypatch, AUTH_PROVIDER="django", DJANGO_DEBUG="true", DEBUG="true")
+    with pytest.raises(ImproperlyConfigured):
+        _load("config.settings.production")
+    _prod_env(monkeypatch, AUTH_PROVIDER="cognito", DJANGO_DEBUG="true")
+    production = _load("config.settings.production")
+    assert production.DEBUG is False and production.AUTH_PROVIDER == "cognito"
+    assert production.AUTHENTICATION_BACKENDS == ["apps.users.backends.AdminPasswordBackend"]
+    assert production.SESSION_COOKIE_PATH == production.CSRF_COOKIE_PATH == "/admin/"
+
+
 PROD_ENV = {
     "DJANGO_SECRET_KEY": "x" * 50,
     "DJANGO_ALLOWED_HOSTS": "api.example.test",
@@ -52,6 +116,7 @@ PROD_ENV = {
     "COGNITO_REGION": "us-test-1",
     "COGNITO_USER_POOL_ID": "us-test-1_TESTPOOL1",
     "COGNITO_ALLOWED_CLIENT_IDS": "client-one,client-two",
+    "AUTH_PROVIDER": "cognito",
     "LAI_ASSET_STORAGE": "s3",
     "LAI_ASSET_BUCKET": "lai-assets-test",
     "LAI_ASSET_REGION": "us-test-1",

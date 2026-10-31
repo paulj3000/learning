@@ -89,3 +89,23 @@ checks its own session every time and never trusts the flag. Tests:
 | `COGNITO_ALLOWED_CLIENT_IDS` | Comma-separated allow-list. Add the Android client id here |
 
 If any of these is empty, every token is rejected.
+
+## Testing against a local backend (ADR-038)
+
+Every AWS environment authenticates the API with Cognito only (`AUTH_PROVIDER=cognito`); nothing
+in this flow changes. A local Django defaults to `AUTH_PROVIDER=django`, where bearer tokens are
+**not** read. Two ways to point a debug build at a local backend:
+
+1. **Keep Cognito (no app change).** Start the local Django with `AUTH_PROVIDER=cognito` and the
+   test pool's `COGNITO_*` values, with the Android client id in `COGNITO_ALLOWED_CLIENT_IDS`. The
+   app signs in as usual and sends its access token. This is the recommended path today.
+2. **Local Django sign-in (needs app work, not built).** The repository has no Kotlin code yet, so
+   nothing was changed. A debug-only build flavor would need: a cookie jar scoped to the local
+   host (OkHttp `CookieJar`), `GET /api/v1/auth/csrf/` then `POST /api/v1/auth/login/` with
+   `{"username", "password"}` and `X-CSRFToken` plus an `Origin` header matching the host,
+   `X-CSRFToken` on every later POST (fetched again after login, which rotates it), and
+   `POST /api/v1/auth/logout/` to sign out. No `Authorization` header in that mode. It must never
+   be compiled into a release build; the production API answers 404 to those routes anyway.
+
+The game launch (`docs/android/ANDROID_GAME_LAUNCH.md`) works in both modes: the launch call is
+authenticated by whichever provider the backend runs, and the WebView's game cookie is unchanged.

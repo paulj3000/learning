@@ -39,7 +39,7 @@ function clientReturning(result: () => Promise<{ status: number; data: unknown }
 }
 
 describe('provisionDjangoAccount', () => {
-  it('POSTs me/ and returns the account with Django\'s staff flag', async () => {
+  it("POSTs me/ and returns the account with Django's staff flag", async () => {
     const client = clientReturning(async () => ({
       status: 201,
       data: { id: 'account-1', django_admin: true },
@@ -52,8 +52,14 @@ describe('provisionDjangoAccount', () => {
   });
 
   it.each([
-    [{ id: 'account-1', django_admin: false }, { id: 'account-1', djangoAdmin: false }],
-    [{ id: 'account-1', django_admin: 'true' }, { id: 'account-1', djangoAdmin: false }],
+    [
+      { id: 'account-1', django_admin: false },
+      { id: 'account-1', djangoAdmin: false },
+    ],
+    [
+      { id: 'account-1', django_admin: 'true' },
+      { id: 'account-1', djangoAdmin: false },
+    ],
     [{ id: 'account-1' }, { id: 'account-1', djangoAdmin: false }],
     [{ django_admin: true }, null],
     [{ id: '', django_admin: true }, null],

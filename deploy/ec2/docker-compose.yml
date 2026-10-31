@@ -22,6 +22,9 @@ services:
     environment:
       # Fixed here so the parameter store can never select another settings module.
       DJANGO_SETTINGS_MODULE: config.settings.production
+      # API authentication is Cognito in every AWS environment (ADR-038); production settings
+      # refuse anything else, and render-env.sh refuses an AUTH_PROVIDER parameter.
+      AUTH_PROVIDER: cognito
       DJANGO_TRUST_PROXY_SSL_HEADER: 'true'
       # Only nginx on the private network may set X-Forwarded-*.
       FORWARDED_ALLOW_IPS: 172.30.10.0/24

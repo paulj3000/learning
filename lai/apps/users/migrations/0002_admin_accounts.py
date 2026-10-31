@@ -4,36 +4,37 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('users', '0001_initial'),
+        ("users", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='AdminAccount',
-            fields=[
-            ],
+            name="AdminAccount",
+            fields=[],
             options={
-                'verbose_name': 'admin account',
-                'proxy': True,
-                'indexes': [],
-                'constraints': [],
+                "verbose_name": "admin account",
+                "proxy": True,
+                "indexes": [],
+                "constraints": [],
             },
-            bases=('users.parentaccount',),
+            bases=("users.parentaccount",),
         ),
         migrations.AddField(
-            model_name='parentaccount',
-            name='admin_username',
+            model_name="parentaccount",
+            name="admin_username",
             field=models.CharField(blank=True, max_length=150, null=True, unique=True),
         ),
         migrations.AddField(
-            model_name='parentaccount',
-            name='is_superuser',
+            model_name="parentaccount",
+            name="is_superuser",
             field=models.BooleanField(default=False),
         ),
         migrations.AddConstraint(
-            model_name='parentaccount',
-            constraint=models.CheckConstraint(condition=models.Q(('is_superuser', False), ('is_staff', True), _connector='OR'), name='users_parentaccount_superuser_is_staff'),
+            model_name="parentaccount",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("is_superuser", False), ("is_staff", True), _connector="OR"),
+                name="users_parentaccount_superuser_is_staff",
+            ),
         ),
     ]

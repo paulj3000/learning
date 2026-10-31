@@ -1,4 +1,4 @@
-import { getAccessToken } from '../auth';
+import { apiCredentials } from '../apiAuth';
 import { createApiClient, type ApiClient } from '../client';
 import { DJANGO_API_CONFIG, type DjangoApiConfig } from '../config';
 import { ApiError } from '../errors';
@@ -139,7 +139,7 @@ export function playApiFor(childId: string, config: DjangoApiConfig = DJANGO_API
     };
   }
   return createPlayApi(
-    createApiClient({ baseUrl: config.baseUrl, getAccessToken, provisionAccount: true }),
+    createApiClient({ baseUrl: config.baseUrl, ...apiCredentials(), provisionAccount: true }),
     childId,
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getChildProfile } from '../child-profile/api';
+import { getChildPlaySettings } from '../child-profile/playSettings';
 import { readSessionClock, resolveSessionStart, type SessionClockState } from './sessionClock';
 
 /** How often the clock re-reads the time. A minute's resolution needs no more. */
@@ -41,7 +41,7 @@ export function useSessionClock(childProfileId: string): SessionClockState {
       interrupt a child who is playing - and it is not worth an error state
       on screen either.
     */
-    void getChildProfile(childProfileId)
+    void getChildPlaySettings(childProfileId)
       .then((profile) => {
         if (!cancelled) setLimitMinutes(profile?.sessionMinutes ?? null);
       })

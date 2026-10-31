@@ -243,6 +243,8 @@ out of band; deny-by-default tests (CLAUDE.md section 10). Also mounts LAI-0304'
 (`lai/apps/catalog/admin.py`) by setting `request.catalog_admin_role` from the verified token
 (`apps/catalog/admin_access.py`), and adds the view-rendering tests that need the admin stack.
 
+**LAI-AUTH-DUAL Environment-selectable API authentication. DONE on `feature/lai-auth-dual` (2026-10-30, ADR-038), not merged.** Depends: 0402, 0403, 0404 (Django Admin part). Risk H. Acceptance: `AUTH_PROVIDER` selects Cognito (every AWS environment, required explicitly in production) or a local Django sign-in (development only, default while `DEBUG` is on); both resolve to `ParentAccount` with unchanged authorization; a Django session never authenticates the API under Cognito; Django Admin keeps its own session; local development needs no AWS. Does not touch AWS resources.
+
 **LAI-0405 Cognito ownership runbook.** Depends: 0103. Risk H. **APPROVAL: human reviews
 before any rehearsal.** Acceptance: a written procedure for moving the user pool out of the
 Amplify stack's lifecycle (stack retention policy / import into a standalone stack),

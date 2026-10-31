@@ -3,7 +3,7 @@
 from rest_framework.exceptions import NotAuthenticated, PermissionDenied
 from rest_framework.permissions import BasePermission
 
-from .authentication import UnprovisionedParent, VerifiedToken
+from .authentication import LocalSession, UnprovisionedParent, VerifiedToken
 from .models import ParentAccount
 
 
@@ -18,16 +18,19 @@ class SensitiveActionUnavailable(PermissionDenied):
 
 
 class IsVerifiedPrincipal(BasePermission):
-    """A verified Cognito token, provisioned or not. Used only by onboarding."""
+    """A verified Cognito token (provisioned or not), or a local Django sign-in (ADR-038).
+
+    Used only by onboarding. A local session is always a provisioned `ParentAccount`.
+    """
 
     def has_permission(self, request, view):
-        if not isinstance(request.auth, VerifiedToken):
+        if not isinstance(request.auth, VerifiedToken | LocalSession):
             raise NotAuthenticated
         return True
 
 
 class IsProvisionedParent(IsVerifiedPrincipal):
-    """Default for every view: a verified token that maps to an active `ParentAccount`."""
+    """Default for every view: a verified principal that maps to an active `ParentAccount`."""
 
     def has_permission(self, request, view):
         super().has_permission(request, view)

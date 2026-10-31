@@ -73,6 +73,12 @@ if LAI_ASSET_STORAGE != "s3":
 LAI_ASSET_BUCKET = _required("LAI_ASSET_BUCKET")
 LAI_ASSET_REGION = _required("LAI_ASSET_REGION")
 
+# API authentication (ADR-038): production names its provider explicitly and it must be Cognito.
+# Neither DEBUG nor a missing variable can select the local Django sign-in here.
+AUTH_PROVIDER = _required("AUTH_PROVIDER").lower()
+if AUTH_PROVIDER != "cognito":
+    raise ImproperlyConfigured("AUTH_PROVIDER must be cognito in production.")
+
 # Cognito (ADR-024): all three are mandatory. Without them every request would be rejected, so
 # refuse to start rather than run an API nobody can use. Values come only from the environment.
 COGNITO_REGION = _required("COGNITO_REGION")

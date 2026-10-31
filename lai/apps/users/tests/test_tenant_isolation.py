@@ -300,6 +300,10 @@ def walk(patterns, prefix=""):
 PUBLIC = {
     "api/v1/health/",
     "api/v1/health/ready/",
+    # Local sign-in (ADR-038): 404 unless AUTH_PROVIDER=django; signs in no one by itself.
+    "api/v1/auth/csrf/",
+    "api/v1/auth/login/",
+    "api/v1/auth/logout/",
     "api/v1/asset-files/<str:token>/<str:filename>",
 }
 # Parent-scoped: the owner is `request.user`, the route names no child (LAI-ANDROID-API-001).
@@ -342,9 +346,8 @@ def test_the_route_checker_accepts_compliant_and_flags_non_compliant_routes():
 
 
 def test_only_the_public_routes_allow_any_and_child_routes_keep_default_permissions():
-    from apps.users.tests import probe_urls
-
     from apps.game_sessions.runtime_auth import GameRuntimeAccessMixin
+    from apps.users.tests import probe_urls
 
     for route, callback in walk(probe_urls.urlpatterns):
         names = [p.__name__ for p in callback.cls.permission_classes]

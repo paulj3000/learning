@@ -16,8 +16,9 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 # The Django Admin stack (LAI-0404, ADR-034): admin, auth, contenttypes, sessions, messages and
-# staticfiles. Sessions and CSRF exist for the admin only. The API stays bearer-only: DRF never
-# uses session authentication, and the admin cookies are scoped to the admin path. Auth's Group
+# staticfiles. Sessions and CSRF exist for the admin, and for the local-only Django sign-in when
+# AUTH_PROVIDER=django (ADR-038). With AUTH_PROVIDER=cognito the API is bearer-only: DRF never
+# reads a session, and the admin cookies are scoped to the admin path. Auth's Group
 # and Permission tables are created but unused: `ParentAccount` has no permission relations, and
 # admin rights come from `is_staff` / `is_superuser` (see apps/users/backends.py).
 INSTALLED_APPS = [
@@ -44,9 +45,11 @@ INSTALLED_APPS = [
 # The parent account is the user model (LAI-0301, ADR-022). Set before any migration is applied.
 AUTH_USER_MODEL = "users.ParentAccount"
 
-# Session, CSRF, authentication and message middleware serve the Django Admin only. DRF views
-# are CSRF-exempt and authenticate with Cognito bearer tokens alone, so a session cookie never
-# authenticates an API request (tested in apps/core/tests/test_django_admin.py).
+# Session, CSRF, authentication and message middleware serve the Django Admin (and, when
+# AUTH_PROVIDER=django, the local sign-in). DRF views are CSRF-exempt; with AUTH_PROVIDER=cognito
+# they authenticate with Cognito bearer tokens alone, so a session cookie never authenticates an
+# API request (tested in apps/core/tests/test_django_admin.py). The local session provider runs
+# its own CSRF check (apps/users/authentication.py).
 MIDDLEWARE = [
     "apps.core.middleware.RequestContextMiddleware",
     "django.middleware.security.SecurityMiddleware",
@@ -85,6 +88,7 @@ if not re.fullmatch(r"(?:[a-z0-9][a-z0-9_-]*/)+", ADMIN_URL_PATH) or ADMIN_URL_P
 
 # Staff sign in with a Django password, never a Cognito token; parents have unusable passwords
 # and cannot sign in here. ModelBackend is deliberately absent (it would match by Cognito sub).
+# Local settings add LOCAL_PARENT_BACKEND when AUTH_PROVIDER=django (local parents, ADR-038).
 AUTHENTICATION_BACKENDS = ["apps.users.backends.AdminPasswordBackend"]
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -125,11 +129,13 @@ USE_I18N = False
 USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Deny by default (CLAUDE.md section 10): every view needs a verified Cognito access token that
-# maps to an active ParentAccount unless it opts out explicitly (the health view uses AllowAny;
-# onboarding uses IsVerifiedPrincipal). JSON in, JSON out.
+# Deny by default (CLAUDE.md section 10): every view needs a verified principal (a Cognito access
+# token, or a local Django session when AUTH_PROVIDER=django) that maps to an active ParentAccount
+# unless it opts out explicitly (the health view uses AllowAny; onboarding uses
+# IsVerifiedPrincipal). `ApiAuthentication` reads AUTH_PROVIDER per request and runs exactly one
+# provider, never a fallback (ADR-038). JSON in, JSON out.
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": ["apps.users.authentication.CognitoJWTAuthentication"],
+    "DEFAULT_AUTHENTICATION_CLASSES": ["apps.users.authentication.ApiAuthentication"],
     "DEFAULT_PERMISSION_CLASSES": ["apps.users.permissions.IsProvisionedParent"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
@@ -270,6 +276,29 @@ def compose_database() -> dict:
     name = os.environ.get("POSTGRES_DB", "lai")
     port = os.environ.get("POSTGRES_PORT", "5432")
     return database_from_url(f"postgresql://{user}:{password}@127.0.0.1:{port}/{name}")
+
+
+# --- API authentication provider (LAI-AUTH-DUAL, ADR-038) -------------------------------------
+# `cognito`: Cognito bearer access tokens (every AWS environment). `django`: Django username and
+# password sign-in with a session cookie, for local development only. Each settings module sets
+# AUTH_PROVIDER with `resolve_auth_provider`; this default is the fail-closed one (without Cognito
+# settings every bearer token is rejected). Django Admin always signs in with its own Django
+# session, whatever the provider.
+AUTH_PROVIDERS = ("django", "cognito")
+AUTH_PROVIDER = "cognito"
+LOCAL_PARENT_BACKEND = "apps.users.backends.LocalParentPasswordBackend"
+
+
+def resolve_auth_provider(*, debug: bool) -> str:
+    """AUTH_PROVIDER from the environment; `django` is the default only when DEBUG is on."""
+    raw = os.environ.get("AUTH_PROVIDER", "").strip().lower()
+    if not raw:
+        if debug:
+            return "django"
+        raise ImproperlyConfigured("AUTH_PROVIDER must be set to django or cognito.")
+    if raw not in AUTH_PROVIDERS:
+        raise ImproperlyConfigured("AUTH_PROVIDER must be django or cognito.")
+    return raw
 
 
 # Cognito (ADR-024). No defaults: if any is empty, every bearer token is rejected (fail closed).

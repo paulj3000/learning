@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { ThreeLocationWorldView } from '../features/island-map/three/runtime/ThreeLocationWorldView';
 import { locationRepositoryForThisBuild } from '../features/multiplayer/devMultiplayerRepository';
-import { getChildProfile } from '../features/child-profile/api';
+import { getChildPlaySettings } from '../features/child-profile/playSettings';
 import type { AgeBandValue } from '../features/child-profile/constants';
 import { regionRepositoryForChild } from '../features/region-play/regionRepositoryForChild';
 import { regionAssetsFor } from '../features/region-play/regionAssets';
@@ -60,11 +60,11 @@ export function LocationWorldPage() {
         return;
       }
       try {
-        const child = await getChildProfile(childId);
+        const child = await getChildPlaySettings(childId);
         if (cancelled) return;
         if (child) {
           setAgeBand(child.ageBand);
-          setAiEnabled(child.aiEnabled ?? true);
+          setAiEnabled(child.aiEnabled);
         }
         setLoadState(child ? 'ready' : 'not-found');
       } catch {

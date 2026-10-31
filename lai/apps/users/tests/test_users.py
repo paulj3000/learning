@@ -105,13 +105,18 @@ def test_parents_have_no_local_login_email_or_admin_rights(parent_a):
         ParentAccount.objects.create_superuser()
 
 
-def test_parent_account_is_the_user_model_and_only_the_admin_backend_signs_in():
+def test_parent_account_is_the_user_model_and_only_password_backends_sign_in():
     assert settings.AUTH_USER_MODEL == "users.ParentAccount"
     assert apps.get_model(settings.AUTH_USER_MODEL) is ParentAccount
-    # The admin stack is installed (LAI-0404); Django password sign-in is the admin backend only.
+    # The admin stack is installed (LAI-0404). Django password sign-in is the admin backend, plus
+    # the local parent backend, which refuses everything unless AUTH_PROVIDER=django (ADR-038;
+    # listed in test settings so tests can switch providers, never in production settings).
     for name in ("django.contrib.auth", "django.contrib.admin", "django.contrib.sessions"):
         assert name in settings.INSTALLED_APPS
-    assert settings.AUTHENTICATION_BACKENDS == ["apps.users.backends.AdminPasswordBackend"]
+    assert settings.AUTHENTICATION_BACKENDS == [
+        "apps.users.backends.AdminPasswordBackend",
+        "apps.users.backends.LocalParentPasswordBackend",
+    ]
 
 
 def test_string_forms_never_contain_names(parent_a):

@@ -625,7 +625,8 @@ in `docs/DECISIONS.md` and the mapping in `docs/DATA_MODEL.md`. Django Admin sta
 Cognito issues tokens; React sends the Cognito **access token** as `Authorization: Bearer`;
 Django verifies it against the pool JWKS and resolves `ParentAccount` by the immutable `sub`;
 child data is reached only through that parent. No Django sessions, passwords, or cookie
-credentials. Today the Amplify SDK keeps tokens in `localStorage` (readable by page JavaScript);
+credentials in any AWS environment (local development may use a Django session instead; see
+"Environment-selectable provider" below, ADR-038). Today the Amplify SDK keeps tokens in `localStorage` (readable by page JavaScript);
 that, onboarding, revocation latency, and the admin design are open gates in ADR-024. Owner decisions of 2026-10-18 approved
 explicit `POST /api/v1/me/` onboarding, PyJWT/RS256 verification with a bounded JWKS cache, and
 claim-derived administration; sensitive actions stay blocked until LAI-0209.
@@ -637,6 +638,43 @@ identical body for every cause, `WWW-Authenticate: Bearer`), 503 `authentication
 (signing keys unobtainable, fails closed), 403 `account_not_provisioned`, 403
 `sensitive_action_unavailable`. Configuration: `COGNITO_REGION`, `COGNITO_USER_POOL_ID`,
 `COGNITO_ALLOWED_CLIENT_IDS` (all required in production; empty means every token is rejected).
+
+### Environment-selectable provider (LAI-AUTH-DUAL, ADR-038)
+
+Cognito and Django are interchangeable authentication providers for gameplay APIs, but Django
+remains the authoritative application user and authorization system. Django Admin retains Django
+session authentication independently.
+
+```text
+AWS (AUTH_PROVIDER=cognito)               Local development (AUTH_PROVIDER=django)
+React / Android                           React (vite dev, VITE_AUTH_PROVIDER=django)
+  -> Amazon Cognito -> access token          -> POST /api/v1/auth/login/ (username, password, CSRF)
+  -> Authorization: Bearer                   -> Django session cookie + X-CSRFToken
+          \                                       /
+           ApiAuthentication (one provider, never a fallback)
+                  -> request.user = ParentAccount
+                  -> the same permissions, child scoping, play, progress, inventory rules
+```
+
+- `AUTH_PROVIDER` (`cognito` or `django`; anything else fails at start-up). Local settings default
+  to `django` while `DEBUG` is on. Production requires `cognito` explicitly, and the EC2 release
+  fixes it (compose file and image; never from the parameter store).
+- `apps/users/authentication.py`: `ApiAuthentication` dispatches to `CognitoJWTAuthentication`
+  (unchanged) or `LocalSessionAuthentication`. The local provider accepts only sessions made by the
+  local sign-in (`LocalParentPasswordBackend`), never an admin session, and runs Django's CSRF check
+  on unsafe methods (403 `csrf_failed`). `request.auth` is a `VerifiedToken` or a `LocalSession`;
+  `IsVerifiedPrincipal` accepts either.
+- `apps/users/local_auth_views.py`: `GET auth/csrf/`, `POST auth/login/` (400
+  `invalid_credentials`), `POST auth/logout/` (204). All three are 404 unless
+  `AUTH_PROVIDER=django`. `GET me/` answers "who am I" in both modes.
+- Local parents are ordinary `ParentAccount` rows with `cognito_sub = "django-local:<username>"`
+  and a Django password, created only by `manage.py create_local_parent` (refused under
+  `cognito`). No new model, no migration; Cognito parents keep their `sub` mapping.
+- React: `react/src/api/authMode.ts` (`VITE_AUTH_PROVIDER`, default `cognito`; `django` needs
+  `VITE_BACKEND=django` and `vite dev`, and a build with it fails), `features/auth/authAdapters.ts`
+  (Cognito and Django adapters behind the one `AuthProvider`), `api/session.ts` (CSRF token in
+  memory), `api/client.ts` (bearer or session credential, never both).
+- Local setup: `docs/TREASURE_RUSH_LOCAL_DEV.md`.
 
 ## Tenant isolation (LAI-0403)
 

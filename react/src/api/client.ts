@@ -1,4 +1,5 @@
 import { ApiError, kindForStatus, type ValidationDetail } from './errors';
+import type { SessionAuth } from './session';
 
 /**
  * A minimal JSON client for the Django API (TR-6). It knows the transport
@@ -20,17 +21,29 @@ import { ApiError, kindForStatus, type ValidationDetail } from './errors';
  *   `unauthenticated`: the parent is signed in, so "sign in again" would be
  *   wrong.
  * - Every failure is an `ApiError`; nothing else is thrown.
+ *
+ * The credential is one of two (ADR-038), never both: `getAccessToken`
+ * (Cognito bearer token, the production mode) or `session` (a local Django
+ * session cookie, `VITE_AUTH_PROVIDER=django`). In session mode there is no
+ * token to refresh, so a 401 is final at once; every POST carries
+ * `X-CSRFToken`, and a `403 csrf_failed` is retried once with a new token.
  */
 
 export type HttpMethod = 'GET' | 'POST';
 
-export interface ApiClientOptions {
+export type ApiCredentials =
+  | {
+      getAccessToken: (options?: { forceRefresh?: boolean }) => Promise<string | null>;
+      session?: undefined;
+    }
+  | { session: SessionAuth; getAccessToken?: undefined };
+
+export type ApiClientOptions = ApiCredentials & {
   baseUrl: string;
-  getAccessToken: (options?: { forceRefresh?: boolean }) => Promise<string | null>;
   fetch?: typeof fetch;
   /** Set up the Django parent account on first use (`POST me/`); see above. */
   provisionAccount?: boolean;
-}
+};
 
 export interface RequestOptions {
   body?: Record<string, unknown>;
@@ -50,6 +63,7 @@ export const API_PREFIX = '/api/v1/';
 export const ACCOUNT_PATH = 'me/';
 export const ACCOUNT_NOT_PROVISIONED = 'account_not_provisioned';
 export const ACCOUNT_SETUP_FAILED = 'account_setup_failed';
+export const CSRF_FAILED = 'csrf_failed';
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
@@ -60,19 +74,27 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     request: RequestOptions,
     forceRefresh: boolean,
   ): Promise<Response> {
-    let token: string | null;
-    try {
-      token = await options.getAccessToken({ forceRefresh });
-    } catch {
-      throw new ApiError('unauthenticated', { code: 'token_unavailable' });
-    }
-    if (!token) throw new ApiError('unauthenticated', { code: 'not_signed_in' });
-
-    const headers: Record<string, string> = {
-      Accept: 'application/json',
-      Authorization: `Bearer ${token}`,
-    };
+    const headers: Record<string, string> = { Accept: 'application/json' };
     const init: RequestInit = { method, headers, signal: request.signal };
+    if (options.session) {
+      init.credentials = 'same-origin';
+      if (method === 'POST') {
+        try {
+          headers['X-CSRFToken'] = await options.session.csrfToken({ forceRefresh });
+        } catch {
+          throw new ApiError('network', { code: 'csrf_unavailable' });
+        }
+      }
+    } else {
+      let token: string | null;
+      try {
+        token = await options.getAccessToken({ forceRefresh });
+      } catch {
+        throw new ApiError('unauthenticated', { code: 'token_unavailable' });
+      }
+      if (!token) throw new ApiError('unauthenticated', { code: 'not_signed_in' });
+      headers.Authorization = `Bearer ${token}`;
+    }
     if (method === 'POST') {
       headers['Content-Type'] = 'application/json';
       init.body = JSON.stringify(request.body ?? {});
@@ -96,7 +118,13 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     request: RequestOptions,
   ): Promise<ApiResponse> {
     let response = await send(method, path, request, false);
-    if (response.status === 401) response = await send(method, path, request, true);
+    if (options.session) {
+      if (response.status === 403 && (await errorCode(response)) === CSRF_FAILED) {
+        response = await send(method, path, request, true);
+      }
+    } else if (response.status === 401) {
+      response = await send(method, path, request, true);
+    }
     const data = await readJson(response, request.signal);
     if (response.ok) return { status: response.status, data };
     throw errorFromEnvelope(response.status, data);
@@ -135,6 +163,15 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       return attempt(method, path, request);
     },
   };
+}
+
+async function errorCode(response: Response): Promise<string | undefined> {
+  try {
+    const body: unknown = await response.clone().json();
+    return errorFromEnvelope(response.status, body).code;
+  } catch {
+    return undefined;
+  }
 }
 
 async function readJson(response: Response, signal?: AbortSignal): Promise<unknown> {

@@ -108,6 +108,7 @@ jobs:
         env:
           # Placeholder values so the settings import; no database or AWS is contacted.
           DJANGO_SETTINGS_MODULE: config.settings.production
+          AUTH_PROVIDER: cognito
           DJANGO_SECRET_KEY: ci-only-not-a-secret-ci-only-not-a-secret-ci-only-not-a-secret
           DJANGO_ALLOWED_HOSTS: api.example.invalid
           DJANGO_CSRF_TRUSTED_ORIGINS: https://api.example.invalid
