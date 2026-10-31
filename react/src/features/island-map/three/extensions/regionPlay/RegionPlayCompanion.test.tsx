@@ -4,7 +4,7 @@ import { ApiError } from '../../../../../api/errors';
 import { read } from '../../../../../api/parse';
 import * as parse from '../../../../../api/play/parse';
 import type { PlayApi } from '../../../../../api/play/playApi';
-import type { AnswerOutcome } from '../../../../../api/play/types';
+import type { AnswerOutcome, LaunchStart, Upserted } from '../../../../../api/play/types';
 import { buildRegionManifest } from '../../../../region-play/regionManifest';
 import { toRegionSceneModel } from '../../../../region-play/sceneModel';
 import {
@@ -636,7 +636,7 @@ describe('beginning an adventure from the cove (ADR-041)', () => {
     const api = launchApi({
       startLaunchPoint: vi.fn(
         () =>
-          new Promise((resolve) => {
+          new Promise<Upserted<LaunchStart>>((resolve) => {
             finish = () =>
               resolve({ value: read(launchStartJson(), parse.launchStart), created: true });
           }),
