@@ -3,22 +3,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import styles from './AuthForm.module.css';
 import { useAuth } from './AuthContext';
 import { LocalSignInError } from './authAdapters';
+import { LOCAL_SIGN_IN_COPY } from './localSignInCopy';
 
 interface LocationState {
   from?: { pathname?: string };
 }
-
-export const LOCAL_SIGN_IN_COPY = {
-  heading: 'Sign in (local development)',
-  lead: 'Use a local parent account made with manage.py create_local_parent.',
-  username: 'Username',
-  password: 'Password',
-  submit: 'Sign in',
-  submitting: 'Signing in...',
-  missing: 'Enter your username and password.',
-  refused: 'That username and password did not match.',
-  unavailable: 'The local server could not be reached. Check that Django is running.',
-} as const;
 
 /**
  * Sign-in for `VITE_AUTH_PROVIDER=django` builds (ADR-038, local development

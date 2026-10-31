@@ -29,7 +29,9 @@ describe('getChildPlaySettings', () => {
     const api = client(async () => {
       throw new ApiError('not_found', { status: 404 });
     });
-    await expect(getChildPlaySettings('other', { mode: 'django', client: api })).resolves.toBeNull();
+    await expect(
+      getChildPlaySettings('other', { mode: 'django', client: api }),
+    ).resolves.toBeNull();
   });
 
   it('passes other failures on, so the page can show its error state', async () => {

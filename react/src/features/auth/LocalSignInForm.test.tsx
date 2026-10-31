@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { AuthProvider, useAuth } from './AuthContext';
 import { LocalSignInError, type AuthAdapter, type AuthUser } from './authAdapters';
-import { LOCAL_SIGN_IN_COPY } from './LocalSignInForm';
+import { LOCAL_SIGN_IN_COPY } from './localSignInCopy';
 import { SignIn } from '../../routes/SignIn';
 
 vi.mock('aws-amplify/auth', () => ({

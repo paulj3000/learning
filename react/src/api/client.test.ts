@@ -307,7 +307,10 @@ describe('createApiClient with a local Django session (ADR-038)', () => {
       jsonResponse(403, errorJson('csrf_failed')),
       jsonResponse(200, { ok: true }),
     ]);
-    await expect(client.request('POST', 'x/')).resolves.toEqual({ status: 200, data: { ok: true } });
+    await expect(client.request('POST', 'x/')).resolves.toEqual({
+      status: 200,
+      data: { ok: true },
+    });
     const retried = fetch.mock.calls[1][1]?.headers as Record<string, string>;
     expect(retried['X-CSRFToken']).toBe('csrf-fresh-2');
   });
