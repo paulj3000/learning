@@ -12,7 +12,7 @@ import pytest
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
-from apps.users.models import ChildProfile, ParentAccount
+from apps.users.models import ChildPhoto, ChildProfile, ParentAccount
 
 from .helpers import access_claims
 
@@ -77,10 +77,13 @@ def test_a_new_parent_has_an_empty_list(families, api):
 
 
 def test_reading_own_child_returns_the_profile_without_the_photo_path(families, api):
-    ChildProfile.objects.filter(pk=families.a1.pk).update(avatar_photo_key="private/photo.jpg")
+    key = f"children/{families.a1.pk}/{uuid.uuid4()}"
+    ChildPhoto.objects.create(
+        child=families.a1, storage_key=key, byte_size=1, sha256="0" * 64, width=1, height=1
+    )
     body = api(families.a).get(detail(families.a1)).json()
     assert body["id"] == str(families.a1.pk) and body["nickname"] == "Zinnia-A1"
-    assert body["hasPhoto"] is True and "private/photo.jpg" not in json.dumps(body)
+    assert body["hasPhoto"] is True and key not in json.dumps(body)
     assert body["ageBand"] == "PATHFINDER" and body["sessionMinutes"] == 10
 
 

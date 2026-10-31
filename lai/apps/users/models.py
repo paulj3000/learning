@@ -20,6 +20,8 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.timezone import now
 
+from apps.core.models import ChildOwnedModel
+
 MAX_CHILD_PROFILES = 3  # react/src/features/child-profile/constants.ts: MAX_CHILD_PROFILES
 MAX_INTERESTS = 5
 NICKNAME_MAX_LENGTH = 30
@@ -191,8 +193,9 @@ class ChildProfile(models.Model):
     nickname = models.CharField(max_length=NICKNAME_MAX_LENGTH)
     age_band = models.CharField(max_length=16, choices=AgeBand.choices)
     avatar_key = models.CharField(max_length=32)
-    # Storage path of an optional parent-uploaded photo ("" when none). Resolved only for the
-    # owning parent; the bytes are not in this database.
+    # Deprecated by `ChildPhoto` (LAI-0904, ADR-042): never written by the API or the Amplify
+    # import and never read. Kept only because dropping a column is a destructive migration;
+    # removal is tracked with LAI-1103.
     avatar_photo_key = models.CharField(max_length=255, blank=True)
     interests = ArrayField(
         models.CharField(max_length=32), size=MAX_INTERESTS, blank=True, default=list
@@ -252,3 +255,57 @@ class ChildProfile(models.Model):
 
     def __repr__(self) -> str:
         return f"<ChildProfile {self.id}>"
+
+
+class ChildPhotoStatus(models.TextChoices):
+    CURRENT = "CURRENT", "Current"
+    # Replaced or removed: no longer served; its object is being (or failed to be) deleted.
+    DELETING = "DELETING", "Deleting"
+
+
+class ChildPhoto(ChildOwnedModel):
+    """A parent-uploaded profile photo for one child (LAI-0904, ADR-042).
+
+    Django is the authority for photo metadata; the bytes live in the private child photo bucket
+    (`photo_storage.py`) under `storage_key`, `children/<child uuid>/<photo uuid>`. The key is
+    never sent to a client. At most one `CURRENT` photo per child. A replaced or removed photo is
+    `DELETING` until its object is gone, so a failed S3 delete is retried by
+    `manage.py child_photo_storage_audit` instead of being forgotten.
+
+    Child deletion (LAI-0602) must call `photos.delete_all_child_photos` before deleting the child:
+    the cascade from `ChildOwnedModel` removes these rows, not the objects. The id is the photo
+    UUID in the key.
+    """
+
+    storage_key = models.CharField(max_length=128, unique=True, editable=False)
+    status = models.CharField(
+        max_length=16, choices=ChildPhotoStatus.choices, default=ChildPhotoStatus.CURRENT
+    )
+    content_type = models.CharField(max_length=32, default="image/jpeg")
+    byte_size = models.PositiveIntegerField()
+    sha256 = models.CharField(max_length=64)
+    width = models.PositiveSmallIntegerField()
+    height = models.PositiveSmallIntegerField()
+    created_at = models.DateTimeField(default=now, editable=False)
+    status_changed_at = models.DateTimeField(default=now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["child"],
+                condition=models.Q(status="CURRENT"),
+                name="users_childphoto_one_current_per_child",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status__in=ChildPhotoStatus.values),
+                name="users_childphoto_status_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(storage_key__startswith="children/"),
+                name="users_childphoto_key_prefix",
+            ),
+        ]
+        indexes = [models.Index(fields=["status", "status_changed_at"], name="users_photo_status")]
+
+    def __repr__(self) -> str:
+        return f"<ChildPhoto {self.id}>"

@@ -214,6 +214,26 @@ if not 60 <= LAI_ASSET_URL_TTL_SECONDS <= 43200:
     raise ImproperlyConfigured("LAI_ASSET_URL_TTL_SECONDS must be between 60 and 43200.")
 if LAI_ASSET_DELIVERY == "s3" and LAI_ASSET_STORAGE != "s3":
     raise ImproperlyConfigured("LAI_ASSET_DELIVERY=s3 needs LAI_ASSET_STORAGE=s3.")
+
+# --- Child profile photos (LAI-0904, ADR-042; docs/platform/CHILD_PHOTO_STORAGE.md) ---------
+# A separate store from the asset manager: never the asset bucket, never published, never a CDN.
+# `disabled` answers every photo request with 503 `photo_storage_unavailable`.
+LAI_CHILD_PHOTO_STORAGE = os.environ.get("LAI_CHILD_PHOTO_STORAGE", "local").strip()
+LAI_CHILD_PHOTOS_BUCKET = os.environ.get("LAI_CHILD_PHOTOS_BUCKET", "").strip()
+LAI_CHILD_PHOTOS_REGION = os.environ.get("LAI_CHILD_PHOTOS_REGION", "").strip()
+LAI_CHILD_PHOTO_LOCAL_ROOT = BASE_DIR / ".child-photo-storage"
+LAI_CHILD_PHOTO_MAX_BYTES = int(os.environ.get("LAI_CHILD_PHOTO_MAX_BYTES", "1048576"))  # 1 MB
+LAI_CHILD_PHOTO_MAX_DIMENSION = int(os.environ.get("LAI_CHILD_PHOTO_MAX_DIMENSION", "1024"))
+LAI_CHILD_PHOTO_URL_TTL_SECONDS = int(os.environ.get("LAI_CHILD_PHOTO_URL_TTL_SECONDS", "300"))
+if LAI_CHILD_PHOTO_STORAGE not in {"s3", "local", "memory", "disabled"}:
+    raise ImproperlyConfigured("LAI_CHILD_PHOTO_STORAGE must be s3, local, memory or disabled.")
+if not 1024 <= LAI_CHILD_PHOTO_MAX_BYTES <= 5 * 1024 * 1024:
+    raise ImproperlyConfigured("LAI_CHILD_PHOTO_MAX_BYTES must be between 1 KB and 5 MB.")
+if not 64 <= LAI_CHILD_PHOTO_MAX_DIMENSION <= 4096:
+    raise ImproperlyConfigured("LAI_CHILD_PHOTO_MAX_DIMENSION must be between 64 and 4096.")
+if not 30 <= LAI_CHILD_PHOTO_URL_TTL_SECONDS <= 900:
+    raise ImproperlyConfigured("LAI_CHILD_PHOTO_URL_TTL_SECONDS must be between 30 and 900.")
+
 # Uploads above this stay on disk while they are checked, never in memory.
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 

@@ -73,6 +73,18 @@ if LAI_ASSET_STORAGE != "s3":
 LAI_ASSET_BUCKET = _required("LAI_ASSET_BUCKET")
 LAI_ASSET_REGION = _required("LAI_ASSET_REGION")
 
+# Child photos (LAI-0904, ADR-042): S3 or explicitly off, never local disk. Unset means off, so
+# a release that reaches an environment before the LaiChildPhotos stack still starts; the photo
+# endpoints then answer 503. The photo bucket is never the asset bucket.
+LAI_CHILD_PHOTO_STORAGE = os.environ.get("LAI_CHILD_PHOTO_STORAGE", "disabled").strip()
+if LAI_CHILD_PHOTO_STORAGE not in {"s3", "disabled"}:
+    raise ImproperlyConfigured("LAI_CHILD_PHOTO_STORAGE must be s3 or disabled in production.")
+if LAI_CHILD_PHOTO_STORAGE == "s3":
+    LAI_CHILD_PHOTOS_BUCKET = _required("LAI_CHILD_PHOTOS_BUCKET")
+    LAI_CHILD_PHOTOS_REGION = _required("LAI_CHILD_PHOTOS_REGION")
+    if LAI_CHILD_PHOTOS_BUCKET == LAI_ASSET_BUCKET:
+        raise ImproperlyConfigured("LAI_CHILD_PHOTOS_BUCKET must not be the asset bucket.")
+
 # Cognito (ADR-024): all three are mandatory. Without them every request would be rejected, so
 # refuse to start rather than run an API nobody can use. Values come only from the environment.
 COGNITO_REGION = _required("COGNITO_REGION")
