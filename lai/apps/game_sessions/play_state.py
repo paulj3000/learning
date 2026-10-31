@@ -18,6 +18,7 @@ from apps.quests.models import QuestProgress
 from apps.quests.services import build_context
 from apps.regions.models import PlacementKind, TreasureChest, WorldRegion
 
+from .adventure_launch import launch_points_for
 from .models import OPEN_STATUSES, AdventureSession, Correctness, SessionKind
 
 RECENT_SESSIONS = 20
@@ -112,6 +113,8 @@ def region_bootstrap(child, region: WorldRegion) -> dict:
         "quests": quest_entries(child, offered),
         "session": open_session(child, region),
         "world_changes": WorldChange.objects.filter(child=child, location_slug=location),
+        # ADR-041: the objects here that start one of this Place's Adventures, for this child.
+        "launch_points": launch_points_for(child, region),
     }
 
 

@@ -194,6 +194,7 @@ def treasure(families):
         status=ContentStatus.PUBLISHED
     )
     region = WorldRegion.objects.get(region_id=REGION_ID)
+    region.launch_points.update(status=ContentStatus.PUBLISHED)  # the signpost (ADR-041)
     return SimpleNamespace(
         families=families,
         region=region,

@@ -6,16 +6,29 @@ authored later). Everything non-spatial (the location, Pip, the Golden Doubloon,
 and the quest) is catalog content from the export
 (`react/src/features/content-export/treasureRushContent.ts`), so run `load_content` first.
 
-Region and challenge specs are created as DRAFT and nothing is overwritten once it exists.
+Region, challenge specs and Adventure launch points are created as DRAFT and nothing is
+overwritten once it exists.
+
+The bridge signpost (ADR-041 decision C) is the cove's Adventure launch object: it offers Pirate
+Builder Bay's bridge adventure for the child's age band (one launch point per band, all on the
+same signpost). It uses the bundled `signpost` prop; no new or unpublished asset is needed.
 """
 
 from django.db import transaction
 
-from apps.catalog.models import Location, NpcDefinition, Quest, RewardRule
+from apps.catalog.models import Adventure, Location, NpcDefinition, Quest, RewardRule
 from apps.education.models import ChallengeSpec
 from apps.users.models import AgeBand
 
-from .models import PlacementKind, SpawnPoint, TreasureChest, WorldObjectPlacement, WorldRegion
+from .models import (
+    AdventureLaunchPoint,
+    LaunchObjectKind,
+    PlacementKind,
+    SpawnPoint,
+    TreasureChest,
+    WorldObjectPlacement,
+    WorldRegion,
+)
 
 REGION_ID = "treasure-rush-cove"
 CHEST_ID = "cove-chest"
@@ -23,6 +36,13 @@ CHEST_CHANGE_KEY = "TREASURE_RUSH_COVE_CHEST_OPENED"
 REWARD_ITEM_ID = "golden-doubloon"
 REWARD_RULE_ID = "reward-treasure-rush-cove-chest"
 QUEST_ID = "treasure-rush-cove"
+SIGNPOST_ID = "cove-bridge-signpost"
+# Pirate Builder Bay's bridge adventure, one per age band (content export, adventures.json).
+BRIDGE_ADVENTURES = {
+    "three-planks-for-the-bridge": "Help Pip carry planks to the bridge",
+    "repair-the-moonlight-bridge": "Help Pip repair the Moonlight Bridge",
+    "the-tide-gate-calculation": "Help Pip work out the tide gate",
+}
 
 
 class SeedPrerequisiteMissing(LookupError):
@@ -148,6 +168,34 @@ def seed_treasure_rush() -> list[str]:
             "placeholder_height": 1.6,
         },
     )
+    signpost = get_or_create(
+        WorldObjectPlacement,
+        {"region": region, "entity_id": SIGNPOST_ID},
+        {
+            "kind": PlacementKind.PROP,
+            "label": "Bridge signpost",
+            "asset_id": "signpost",
+            "x": -3.0,
+            "z": 6.0,
+            "placeholder_width": 0.6,
+            "placeholder_height": 1.6,
+            "placeholder_depth": 0.2,
+        },
+    )
+    adventures = Adventure.objects.filter(slug__in=BRIDGE_ADVENTURES, location=bay)
+    for order, adventure in enumerate(sorted(adventures, key=lambda a: a.slug)):
+        get_or_create(
+            AdventureLaunchPoint,
+            {"region": region, "launch_id": f"signpost-{adventure.slug}"},
+            {
+                "entity_id": signpost.entity_id,
+                "object_kind": LaunchObjectKind.SIGN,
+                "adventure": adventure,
+                "label": BRIDGE_ADVENTURES[adventure.slug],
+                "prompt": "The sign points to the broken bridge.",
+                "sort_order": order,
+            },
+        )
     if not region.offered_quests.exists():
         region.offered_quests.add(quest)
     return created

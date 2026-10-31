@@ -144,6 +144,34 @@ export interface RegionBootstrap {
   quests: QuestEntry[];
   session: PlaySession | null;
   worldChanges: WorldChange[];
+  /** Objects here that start one of this Place's Adventures, for this child (ADR-041). */
+  launchPoints: LaunchPoint[];
+}
+
+export type LaunchObjectKind = 'NPC' | 'CHEST' | 'DOOR' | 'SIGN' | 'OTHER';
+
+/**
+ * An object in a 3D Area that starts an Adventure (ADR-041). It names an entity already in
+ * `npcs` or `objects`; where it stands is that placement's. The server has already filtered
+ * these for the child, and checks again when one is started.
+ */
+export interface LaunchPoint {
+  launchId: string;
+  entityId: string;
+  objectKind: LaunchObjectKind;
+  label: string;
+  prompt: string;
+  adventure: { adventureId: string; title: string; placeSlug: string };
+}
+
+/** `POST .../launch-points/<id>/start/`: the Adventure session the server started or resumed. */
+export interface LaunchStart {
+  launchId: string;
+  regionId: string;
+  adventureId: string;
+  placeSlug: string;
+  sessionId: string;
+  returnTo: { regionId: string };
 }
 
 /** What the child is shown. There is no answer field, by contract. */

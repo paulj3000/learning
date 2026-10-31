@@ -351,6 +351,21 @@ a path); which edits need a preview before publish; and how a published layout i
 against child progress keyed by semantic ids. LAI-0304 must not grow spatial fields before
 that decision.
 
+**LAI-0806 Island / Place / 3D Area hierarchy and Adventure launch points (ADR-041).** Depends:
+0304, 0601, POST-MERGE-03. Done 2026-10-31.
+- **Labels.** Island, Place and 3D Area replace World, Location and WorldRegion in labels only;
+  ids and routes are unchanged.
+- **One 3D Area per Place.** A constraint, with a migration that refuses to run while duplicates
+  exist.
+- **Launch points.** `regions.AdventureLaunchPoint`, managed in Django Admin, plus a
+  server-checked start route on the LAI-0601 session service and
+  `GET /children/<id>/islands/`.
+- **React.** Launch objects in Django-served 3D Areas, NPC launch options, and a validated
+  return path to the 3D Area.
+- **Not in scope.** Spatial editing stays LAI-0805.
+- **Follow-up.** A Django-backed step-adventure client: the LAI-0601 answer engine does not yet
+  record world changes, evidence or quest progress, and React runs step adventures on Amplify.
+
 ### Phase 9 - Realtime (co-op) and storage
 
 **LAI-0901 Atomic co-op slot claim.** Depends: 0305, 0403. Risk M. Acceptance: transactional

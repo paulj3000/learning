@@ -5,6 +5,10 @@ Hierarchy, as the content export actually shapes it (owner decision, 2026-10-24)
     World -> Location -> Adventure -> AdventureStep
     World -> Quest -> (adventures named by its SOLVE objectives)
 
+People read these as Island (World), Place (Location) and 3D Area (`regions.WorldRegion`), the
+approved terms of ADR-041. Class, table, field and API names are unchanged on purpose: only
+verbose names and help text say Island and Place.
+
 - A World is a themed world (the export's `islands.json`; ADR-019's "Island").
 - A Location is an explorable region in a world (`locations.json`). The Amplify catalog's
   `Island` record (ADR-031) is a Location, not a World.
@@ -92,8 +96,8 @@ class World(ImportedContent, CatalogFields):
 
     class Meta:
         ordering = ["sort_order", "slug"]
-        verbose_name = "world"
-        verbose_name_plural = "worlds (themed islands)"
+        verbose_name = "island"
+        verbose_name_plural = "islands"
 
     def __str__(self) -> str:
         return self.slug
@@ -103,7 +107,9 @@ class Location(ImportedContent, CatalogFields):
     """An explorable region inside a world: the export's `locations.json`."""
 
     slug = models.SlugField(max_length=SLUG_LENGTH, unique=True)
-    world = models.ForeignKey(World, on_delete=models.PROTECT, related_name="locations")
+    world = models.ForeignKey(
+        World, on_delete=models.PROTECT, related_name="locations", verbose_name="island"
+    )
     title = models.CharField(max_length=200)
     tagline = models.TextField(blank=True)
     description = models.TextField(blank=True)
@@ -111,8 +117,8 @@ class Location(ImportedContent, CatalogFields):
 
     class Meta:
         ordering = ["sort_order", "slug"]
-        verbose_name = "location"
-        verbose_name_plural = "locations (regions inside a world)"
+        verbose_name = "place"
+        verbose_name_plural = "places"
 
     def __str__(self) -> str:
         return self.slug
@@ -128,7 +134,8 @@ class Adventure(ImportedContent, CatalogFields):
         related_name="adventures",
         null=True,
         blank=True,
-        help_text="The world whose content pack lists this adventure.",
+        verbose_name="island",
+        help_text="The Island whose content pack lists this adventure.",
     )
     location = models.ForeignKey(
         Location,
@@ -136,10 +143,14 @@ class Adventure(ImportedContent, CatalogFields):
         related_name="adventures",
         null=True,
         blank=True,
-        help_text="Empty for a story-only pseudo-location, which has no Location record.",
+        verbose_name="place",
+        help_text="The Place that owns this adventure. Empty for a story-only place, which has "
+        "no Place record.",
     )
     location_slug = models.SlugField(
-        max_length=SLUG_LENGTH, help_text="As exported, including story-only pseudo-locations."
+        "place slug",
+        max_length=SLUG_LENGTH,
+        help_text="As exported, including story-only places.",
     )
     age_bands = ArrayField(models.CharField(max_length=16, choices=AgeBand.choices))
     entry_step_id = models.CharField(max_length=SLUG_LENGTH)
@@ -182,7 +193,8 @@ class Quest(ImportedContent, CatalogFields):
         related_name="quests",
         null=True,
         blank=True,
-        help_text="The world whose content pack lists this quest.",
+        verbose_name="island",
+        help_text="The Island that owns this quest. A quest may span several of its Places.",
     )
     giver_npc_id = models.CharField(max_length=SLUG_LENGTH, blank=True)
     age_bands = ArrayField(models.CharField(max_length=16, choices=AgeBand.choices))
@@ -357,7 +369,9 @@ class ContentAsset(ImportedContent):
 class LocationAsset(models.Model):
     """A shared asset a location's scene uses, by id only: placement is LAI-0805."""
 
-    location = models.ForeignKey(Location, on_delete=models.CASCADE, related_name="asset_links")
+    location = models.ForeignKey(
+        Location, on_delete=models.CASCADE, related_name="asset_links", verbose_name="place"
+    )
     asset = models.ForeignKey(ContentAsset, on_delete=models.PROTECT, related_name="location_links")
     position = models.PositiveIntegerField(help_text="First-use order in the scene, as exported.")
     last_seen_release = models.ForeignKey(
@@ -400,9 +414,14 @@ class NpcDefinition(ImportedContent, CatalogFields):
     display_name = models.CharField(max_length=80)
     role = models.CharField(max_length=200, blank=True)
     home_location = models.ForeignKey(
-        Location, on_delete=models.PROTECT, related_name="npcs", null=True, blank=True
+        Location,
+        on_delete=models.PROTECT,
+        related_name="npcs",
+        null=True,
+        blank=True,
+        verbose_name="home place",
     )
-    home_location_slug = models.SlugField(max_length=SLUG_LENGTH)
+    home_location_slug = models.SlugField("home place slug", max_length=SLUG_LENGTH)
     interaction_id = models.CharField(max_length=SLUG_LENGTH, blank=True)
 
     class Meta:

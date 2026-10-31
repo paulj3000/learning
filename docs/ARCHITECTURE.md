@@ -940,6 +940,44 @@ API serves; the client builds a manifest from them (TR-D15). Neither is Django l
 administration: LAI-0805's ADR decides that. Everything non-spatial, including Treasure Rush's
 quest, item and reward rule, is exported and imported like all content.
 
+## Island, Place and 3D Area (LAI-0806, ADR-041)
+
+```text
+Island (catalog.World)
+  +-- Place (catalog.Location)                 Adventures are owned here
+        +-- 3D Area (regions.WorldRegion)      zero or one per Place
+        |     +-- NPCs, props, scenery         placement rows; positions authored in code (LAI-0805)
+        |     +-- Treasure chests              chest challenge (TR-5)
+        |     +-- Adventure launch points      regions.AdventureLaunchPoint: object -> Adventure
+        +-- Adventures (catalog.Adventure)
+Quests (catalog.Quest) are owned by the Island and may span its Places.
+```
+
+- **Names.** People read Island, Place and 3D Area. Code, tables, routes and API fields keep
+  World, Location and WorldRegion (`region_id`, `locationSlug`, `/regions/`).
+- **One 3D Area per Place.** Enforced by the unique constraint `regions_one_area_per_place`,
+  `WorldRegion.clean()` and the admin. A Place without one is valid: the Place page offers its
+  Adventures as cards.
+- **Launching.** `AdventureLaunchPoint` binds an existing placement to an Adventure of the same
+  Place, with a label, a presentation kind and a publication status.
+  - The region bootstrap's `launchPoints` lists those this child may use.
+  - `POST /children/<id>/regions/<region>/launch-points/<launch>/start/` re-checks everything
+    (published, same Place, active, age band, visible 3D Area). It then calls
+    `game_sessions.services.start_or_resume_session` (`apps/game_sessions/adventure_launch.py`).
+  - The React `region-play` extension draws launch objects as interactive props, and NPCs show
+    their Adventures beside their quests. It then opens the Adventure page with a validated
+    `returnTo`, so the child comes back to the 3D Area.
+  - Source-authored `START_ADVENTURE` interactions get the same return path.
+- **Discovery.** `GET /children/<id>/islands/` returns Island > Place > 3D Area for the child.
+  The travel deck skips the Island choice when only one Island is open, and a Place page shows
+  "Explore <3D Area>" when Django has a published one for it.
+- **Admin.** 3D Areas and launch points are managed on the Django Admin "3D Areas" pages
+  (`apps/regions/admin.py`). Spatial layout is read-only there until LAI-0805.
+- **Gap.** With `VITE_BACKEND=django` the step-adventure runner is still Amplify-backed, and
+  Django's answer engine records no world changes, evidence or quest progress yet. A launch
+  starts the Django session, but steps are not recorded in Django until a Django step client
+  exists (ADR-041 consequences).
+
 ## Native Android clients and the game-only WebView (LAI-ANDROID-API-001, ADR-036)
 
 The Kotlin app is a client of the same Django API as the React app. There is no Android backend

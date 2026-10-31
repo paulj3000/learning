@@ -8,6 +8,7 @@ import type {
   AnswerOutcome,
   AnswerSubmission,
   IssuedChallenge,
+  LaunchStart,
   PlayerProgress,
   PlaySession,
   QuestEntry,
@@ -48,6 +49,12 @@ export interface PlayApi {
     signal?: AbortSignal,
   ): Promise<AnswerOutcome>;
   getProgress(signal?: AbortSignal): Promise<PlayerProgress>;
+  /** Start or resume the Adventure an object in the 3D Area offers (ADR-041). */
+  startLaunchPoint(
+    regionId: string,
+    launchId: string,
+    signal?: AbortSignal,
+  ): Promise<Upserted<LaunchStart>>;
 }
 
 const SESSION_ACTIONS: readonly SessionAction[] = ['pause', 'resume', 'complete', 'abandon'];
@@ -114,6 +121,13 @@ export function createPlayApi(client: ApiClient, childId: string): PlayApi {
       return result.value;
     },
     getProgress: async (signal) => get('progress/', parse.playerProgress, signal),
+    startLaunchPoint: async (regionId, launchId, signal) =>
+      post(
+        `regions/${segment(regionId)}/launch-points/${segment(launchId)}/start/`,
+        parse.launchStart,
+        {},
+        signal,
+      ),
   };
 }
 
@@ -136,6 +150,7 @@ export function playApiFor(childId: string, config: DjangoApiConfig = DJANGO_API
       requestChestChallenge: disabled,
       submitAnswer: disabled,
       getProgress: disabled,
+      startLaunchPoint: disabled,
     };
   }
   return createPlayApi(

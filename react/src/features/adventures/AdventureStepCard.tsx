@@ -33,6 +33,8 @@ export interface AdventureStepCardProps {
   representationAid: RepresentationAidDefinition | undefined;
   storyScenes: readonly StoryScene[];
   backToMapHref: string;
+  /** The finish link's words; "Back to the map" unless the child came from a 3D Area. */
+  backToMapLabel?: string;
   /** Rendered only for a Phase 17 coop session; `null` outside one. */
   coopPresenceLine?: string | null;
 }
@@ -66,6 +68,7 @@ export function AdventureStepCard({
   representationAid,
   storyScenes,
   backToMapHref,
+  backToMapLabel = 'Back to the map',
   coopPresenceLine = null,
 }: AdventureStepCardProps) {
   const { presentation } = currentStep;
@@ -161,7 +164,7 @@ export function AdventureStepCard({
               ))}
             </div>
           ) : null}
-          <Link to={backToMapHref}>Back to the map</Link>
+          <Link to={backToMapHref}>{backToMapLabel}</Link>
         </div>
       ) : null}
 

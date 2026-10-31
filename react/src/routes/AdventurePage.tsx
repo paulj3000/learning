@@ -5,6 +5,10 @@ import { AdventureRunner } from '../features/adventures/AdventureRunner';
 import { getAdventureTemplate } from '../features/adventures/content';
 import { getChildProfile } from '../features/child-profile/api';
 import type { ChildProfile } from '../features/child-profile/api';
+import { safeReturnPath } from '../features/region-play/useAdventureLaunch';
+
+/** The finish link when the child began this Adventure from an object in a 3D Area (ADR-041). */
+export const BACK_TO_AREA_LABEL = 'Back to exploring';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
@@ -19,6 +23,8 @@ export function AdventurePage() {
   const [searchParams] = useSearchParams();
   /** Set only when this adventure was opened from a Phase 17 coop-session launch link (src/routes/CoopSessionNew.tsx). */
   const coopSessionId = searchParams.get('coop') ?? undefined;
+  /** Set when an object in a 3D Area began this Adventure; only that child's own 3D Area path. */
+  const returnTo = childId ? safeReturnPath(childId, searchParams.get('returnTo')) : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -52,7 +58,7 @@ export function AdventurePage() {
     return (
       <IslandLayout childId={childId}>
         <p role="alert">We could not find that adventure.</p>
-        <Link to={`/island/${childId}/locations/${locationSlug}`}>Back to the location</Link>
+        <Link to={`/island/${childId}/locations/${locationSlug}`}>Back to this place</Link>
       </IslandLayout>
     );
   }
@@ -69,7 +75,7 @@ export function AdventurePage() {
     return (
       <IslandLayout childId={childId}>
         <p role="alert">Something went wrong loading this adventure.</p>
-        <Link to={`/island/${childId}/locations/${locationSlug}`}>Back to the location</Link>
+        <Link to={`/island/${childId}/locations/${locationSlug}`}>Back to this place</Link>
       </IslandLayout>
     );
   }
@@ -81,7 +87,8 @@ export function AdventurePage() {
         definition={definition}
         ageBand={childProfile.ageBand}
         aiEnabled={childProfile.aiEnabled ?? true}
-        backToMapHref={`/island/${childId}/locations/${locationSlug}`}
+        backToMapHref={returnTo ?? `/island/${childId}/locations/${locationSlug}`}
+        backToMapLabel={returnTo ? BACK_TO_AREA_LABEL : undefined}
         coopSessionId={coopSessionId}
       />
     </IslandLayout>

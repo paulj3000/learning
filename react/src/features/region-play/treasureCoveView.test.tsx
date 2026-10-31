@@ -95,6 +95,7 @@ function fakeApi(getRegion?: PlayApi['getRegion']): PlayApi {
     })),
     submitAnswer: vi.fn(),
     getProgress: vi.fn(),
+    startLaunchPoint: vi.fn(),
   };
 }
 

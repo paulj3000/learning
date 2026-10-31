@@ -15,7 +15,8 @@ export interface RegionPlayChestConfig {
 
 export interface RegionPlayInteractionConfig {
   interactionId: string;
-  kind: 'npc' | 'chest';
+  /** `launch`: an object that starts one of the Place's Adventures (ADR-041). */
+  kind: 'npc' | 'chest' | 'launch';
   entityId: string;
   npcId: string | null;
 }
@@ -97,7 +98,9 @@ function interaction(item: JsonRecord): RegionPlayInteractionConfig | undefined 
   const interactionId = text(item.interactionId);
   const entityId = text(item.entityId);
   const kind = item.kind;
-  if (!interactionId || !entityId || (kind !== 'npc' && kind !== 'chest')) return undefined;
+  if (!interactionId || !entityId || (kind !== 'npc' && kind !== 'chest' && kind !== 'launch')) {
+    return undefined;
+  }
   return { interactionId, kind, entityId, npcId: text(item.npcId) ?? null };
 }
 

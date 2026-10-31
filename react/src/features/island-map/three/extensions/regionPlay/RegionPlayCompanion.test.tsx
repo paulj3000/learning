@@ -4,7 +4,7 @@ import { ApiError } from '../../../../../api/errors';
 import { read } from '../../../../../api/parse';
 import * as parse from '../../../../../api/play/parse';
 import type { PlayApi } from '../../../../../api/play/playApi';
-import type { AnswerOutcome } from '../../../../../api/play/types';
+import type { AnswerOutcome, LaunchStart, Upserted } from '../../../../../api/play/types';
 import { buildRegionManifest } from '../../../../region-play/regionManifest';
 import { toRegionSceneModel } from '../../../../region-play/sceneModel';
 import {
@@ -12,6 +12,9 @@ import {
   CHILD_B,
   bootstrapJson,
   challengeJson,
+  launchPointJson,
+  launchStartJson,
+  signpostJson,
   outcomeJson,
   progressJson,
   questJson,
@@ -27,6 +30,11 @@ import { regionPlayViewExtension } from './regionPlayViewExtension';
 import type { RegionPlaySceneApi } from './regionPlayScene';
 
 const refresh = vi.fn(async () => undefined);
+const navigate = vi.fn();
+vi.mock('react-router-dom', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react-router-dom')>()),
+  useNavigate: () => navigate,
+}));
 vi.mock('../../../../auth/AuthContext', () => ({ useAuth: () => ({ refresh }) }));
 
 const apis = new Map<string, PlayApi>();
@@ -82,6 +90,7 @@ function fakeApi(overrides: Partial<PlayApi> = {}): PlayApi {
     getProgress: vi.fn(async () =>
       read({ ...progressJson(), inventory: [] }, parse.playerProgress),
     ),
+    startLaunchPoint: vi.fn(),
     ...overrides,
   };
 }
@@ -144,6 +153,7 @@ async function atTheChest(api: PlayApi, extra: Partial<LocationCompanionProps> =
 beforeEach(() => {
   apis.clear();
   refresh.mockClear();
+  navigate.mockClear();
 });
 
 describe('entering the cove', () => {
@@ -573,5 +583,113 @@ describe('region-play registration', () => {
     expect(
       regionPlayViewExtension.claimsInteraction(interaction(CHEST), { ...context, config: {} }),
     ).toBe(false);
+  });
+});
+
+describe('beginning an adventure from the cove (ADR-041)', () => {
+  const SIGNPOST = `${REGION}:launch:cove-bridge-signpost`;
+  const withSignpost = (overrides: Record<string, unknown> = {}) =>
+    bootstrap({
+      objects: [signpostJson()],
+      launchPoints: [launchPointJson()],
+      ...overrides,
+    });
+  const launchConfig = buildRegionManifest(toRegionSceneModel(withSignpost()), {
+    worldSlug: 'learning-adventure-island',
+  }).manifest.extensions[0].config;
+
+  function launchApi(overrides: Partial<PlayApi> = {}) {
+    return fakeApi({
+      getRegion: vi.fn(async () => withSignpost()),
+      startLaunchPoint: vi.fn(async () => ({
+        value: read(launchStartJson(), parse.launchStart),
+        created: true,
+      })),
+      ...overrides,
+    });
+  }
+
+  it('asks the server to start it, then goes to the adventure with a way back here', async () => {
+    const api = launchApi();
+    apis.set(CHILD_A, api);
+    render(
+      <RegionPlayCompanion
+        {...props({ config: launchConfig, claimedInteraction: interaction(SIGNPOST) })}
+      />,
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Help Pip repair the Moonlight Bridge' }),
+    );
+    expect(api.startLaunchPoint).toHaveBeenCalledWith(
+      REGION,
+      'signpost-repair-the-moonlight-bridge',
+    );
+    expect(navigate).toHaveBeenCalledWith(
+      `/island/${CHILD_A}/locations/pirate-builder-bay/adventures/repair-the-moonlight-bridge` +
+        `?returnTo=${encodeURIComponent(`/island/${CHILD_A}/explore/${REGION}`)}`,
+    );
+    expect(screen.getByText('The sign points to the broken bridge.')).toBeInTheDocument();
+  });
+
+  it('sends one request for a double tap', async () => {
+    let finish: () => void = () => undefined;
+    const api = launchApi({
+      startLaunchPoint: vi.fn(
+        () =>
+          new Promise<Upserted<LaunchStart>>((resolve) => {
+            finish = () =>
+              resolve({ value: read(launchStartJson(), parse.launchStart), created: true });
+          }),
+      ),
+    });
+    apis.set(CHILD_A, api);
+    render(
+      <RegionPlayCompanion
+        {...props({ config: launchConfig, claimedInteraction: interaction(SIGNPOST) })}
+      />,
+    );
+    const button = await screen.findByRole('button', {
+      name: 'Help Pip repair the Moonlight Bridge',
+    });
+    await userEvent.click(button);
+    await userEvent.click(button);
+    expect(api.startLaunchPoint).toHaveBeenCalledTimes(1);
+    await act(async () => finish());
+  });
+
+  it('stays in the cove and says so calmly when the server refuses', async () => {
+    const api = launchApi({
+      startLaunchPoint: vi.fn(async () => {
+        throw new ApiError('conflict', { code: 'content_unavailable' });
+      }),
+    });
+    apis.set(CHILD_A, api);
+    render(
+      <RegionPlayCompanion
+        {...props({ config: launchConfig, claimedInteraction: interaction(SIGNPOST) })}
+      />,
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Help Pip repair the Moonlight Bridge' }),
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This adventure is not ready right now. Keep exploring!',
+    );
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('lets an NPC offer an adventure next to its quest', async () => {
+    const api = launchApi({
+      getRegion: vi.fn(async () =>
+        bootstrap({ launchPoints: [launchPointJson({ entityId: 'cove-pip', objectKind: 'NPC' })] }),
+      ),
+    });
+    apis.set(CHILD_A, api);
+    render(<RegionPlayCompanion {...props({ claimedInteraction: interaction(PIP) })} />);
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Help Pip repair the Moonlight Bridge' }),
+    );
+    expect(api.startLaunchPoint).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalled();
   });
 });

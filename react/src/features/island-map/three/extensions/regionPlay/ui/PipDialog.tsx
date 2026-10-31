@@ -1,5 +1,6 @@
-import type { QuestEntry } from '../../../../../../api/play/types';
+import type { LaunchPoint, QuestEntry } from '../../../../../../api/play/types';
 import { PLAY_COPY } from '../../../../../region-play/regionPlayUi';
+import { AdventureLaunchChoices } from './AdventureLaunchChoices';
 import { GameDialog } from './GameDialog';
 import styles from './RegionPlayPanels.module.css';
 
@@ -15,6 +16,11 @@ export interface PipDialogProps {
   error: string | null;
   onAccept(questId: string): void;
   onClose(): void;
+  /** Adventures this NPC can begin (ADR-041); absent or empty shows nothing extra. */
+  launches?: readonly LaunchPoint[];
+  launchStarting?: string | null;
+  launchError?: string | null;
+  onLaunch?(launchId: string): void;
 }
 
 /**
@@ -32,6 +38,10 @@ export function PipDialog({
   error,
   onAccept,
   onClose,
+  launches = [],
+  launchStarting = null,
+  launchError = null,
+  onLaunch,
 }: PipDialogProps) {
   const quest =
     quests.find((q) => q.status === 'AVAILABLE') ??
@@ -103,6 +113,15 @@ export function PipDialog({
         <p className={styles.error} role="alert">
           {error}
         </p>
+      ) : null}
+
+      {onLaunch ? (
+        <AdventureLaunchChoices
+          launches={launches}
+          starting={launchStarting}
+          error={launchError}
+          onStart={onLaunch}
+        />
       ) : null}
     </GameDialog>
   );

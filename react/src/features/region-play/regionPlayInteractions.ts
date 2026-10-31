@@ -1,4 +1,10 @@
-import type { ChestState, NpcPlacement, QuestEntry, RegionBootstrap } from '../../api/play/types';
+import type {
+  ChestState,
+  LaunchPoint,
+  NpcPlacement,
+  QuestEntry,
+  RegionBootstrap,
+} from '../../api/play/types';
 import type { RegionPlayConfig } from './regionManifest';
 
 /**
@@ -21,6 +27,15 @@ export type RegionPlayInteractionEvent =
       label: string;
       /** This NPC's quests as the server reports them: offers (`AVAILABLE`) and progress. */
       quests: readonly QuestEntry[];
+      /** Adventures this NPC can start for the child (ADR-041), already filtered by the server. */
+      launches: readonly LaunchPoint[];
+    }
+  | {
+      /** An object that starts one of this Place's Adventures (a sign, a door, ADR-041). */
+      kind: 'launch';
+      entityId: string;
+      label: string;
+      launches: readonly LaunchPoint[];
     }
   | {
       kind: 'chest';
@@ -59,6 +74,13 @@ export function resolveRegionPlayInteraction(
     };
   }
 
+  const launches = launchesFor(bootstrap, binding.entityId);
+  if (binding.kind === 'launch') {
+    const placed = bootstrap.objects.find((o) => o.entityId === binding.entityId);
+    if (!placed || launches.length === 0) return null;
+    return { kind: 'launch', entityId: placed.entityId, label: placed.label, launches };
+  }
+
   const npc: NpcPlacement | undefined = bootstrap.npcs.find((n) => n.entityId === binding.entityId);
   if (!npc) return null;
   return {
@@ -67,7 +89,13 @@ export function resolveRegionPlayInteraction(
     npcId: npc.npcId,
     label: npc.displayName || npc.label,
     quests: bootstrap.quests.filter((quest) => quest.giverNpcId === npc.npcId),
+    launches,
   };
+}
+
+/** The launch points on one entity, in the server's order. */
+export function launchesFor(bootstrap: RegionBootstrap, entityId: string): LaunchPoint[] {
+  return bootstrap.launchPoints.filter((point) => point.entityId === entityId);
 }
 
 /** Whether an interaction is one this region's extension owns. */

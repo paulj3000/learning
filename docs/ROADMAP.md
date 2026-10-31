@@ -875,6 +875,23 @@ the game-only WebView launch (ticket, then a scoped game session cookie). Contra
 5. **Child deletion** (LAI-0602, LAI-0209) and a starting route for step adventures, if Android
    should play them.
 
+## Island, Place and 3D Area (LAI-0806, ADR-041)
+
+**Done 2026-10-31.** The content hierarchy is Island > Place > 3D Area.
+- Each Place has at most one 3D Area and works without one.
+- Adventures belong to Places and are begun mainly from objects in the Place's 3D Area: NPCs,
+  signs, doors, chests that are props.
+- Quests stay Island-wide.
+- Staff manage 3D Areas and launch points in Django Admin; layouts stay code-authored
+  (LAI-0805).
+- Treasure Cove's bridge signpost begins Pirate Builder Bay's bridge adventure for each age band.
+
+Next, in order:
+1. A Django-backed step-adventure client, so an Adventure begun in a Django-served 3D Area records
+   its steps, world changes and quest progress in Django.
+2. Launch points for the other Places once they have 3D Areas.
+3. LAI-0805's layout ADR.
+
 ## Model Asset Manager (docs/android/ASSET_MANAGEMENT.md)
 
 An admin-only system for uploading, validating, previewing, publishing,

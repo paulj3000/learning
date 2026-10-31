@@ -38,7 +38,9 @@ def statuses():
 def test_publishes_the_seeded_region_and_challenges(local):
     assert statuses() == (ContentStatus.DRAFT, [ContentStatus.DRAFT])
     changed = publish_treasure_rush()
-    assert len(changed) == 4  # region, three challenge specs; the quest is catalog content
+    # Region, three challenge specs and the signpost's three launch points (ADR-041); the quest
+    # is catalog content.
+    assert len(changed) == 7
     assert statuses() == (ContentStatus.PUBLISHED, [ContentStatus.PUBLISHED])
     assert publish_treasure_rush() == []  # idempotent
 

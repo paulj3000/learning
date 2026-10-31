@@ -11386,3 +11386,56 @@ tests getting only `POSTGRES_*`, and a missing file. `manage.py check` still pas
 Not done: `lai/.env.example` was not checked against the new variable list. The assistant's
 permissions block reading `.env*` files, so the owner needs to confirm the template lists
 `COGNITO_*` and `LAI_GAME_*`.
+
+## LAI-0806: Island / Place / 3D Area hierarchy and Adventure launch points (2026-10-31, ADR-041 Accepted)
+
+Branch `feature/lai-island-place-3d-hierarchy`, merged locally into `main` on the owner's
+instruction. Not pushed.
+
+- **Terminology (decision A).** Django Admin, child copy and docs say Island, Place and 3D Area.
+  Classes, tables, ids, routes and API fields are unchanged. `catalog.0004` is label metadata
+  only (`sqlmigrate` emits no SQL).
+- **One 3D Area per Place (decision B).** Constraint `regions_one_area_per_place`, plus
+  `WorldRegion.clean()` and the admin. `regions.0002` refuses to add the constraint while any
+  Place has two 3D Areas, and `manage.py report_place_areas` reports them; nothing is changed
+  automatically. Local data had none (one 3D Area: Treasure Cove for Pirate Builder Bay).
+  Deployed databases were not inspected.
+- **Launch points (decision C).**
+  - `regions.AdventureLaunchPoint` with its Django Admin (3D Area page inline, own page,
+    validating publish and retire, read-only layout).
+  - Region bootstrap `launchPoints`.
+  - `POST children/<id>/regions/<region>/launch-points/<launch>/start/`, server-checked, on the
+    LAI-0601 `start_or_resume_session`.
+  - `GET children/<id>/islands/`.
+  - Treasure Cove's bridge signpost (bundled `signpost` prop), with one launch point per age
+    band for Pirate Builder Bay's bridge adventure.
+  - React: launch objects in Django-served 3D Areas, NPC adventure options, and a validated
+    `returnTo` back to the 3D Area (source `START_ADVENTURE` objects too). The Place page has an
+    "Explore <3D Area>" link, and the travel deck skips the Island choice when only one is open.
+- **Quests (decision D)** unchanged, Island-owned. **Editing scope (decision E):** no layout
+  editor (LAI-0805).
+- **Tests (merge gates, all run 2026-10-31):**
+  - pytest, full suite with PostgreSQL required: 1139 passed, 0 skipped. 42 of these are new, in
+    `regions/tests/test_hierarchy.py` and `game_sessions/tests/test_adventure_launch.py`.
+  - Vitest, full: 301 files, 3192 tests passed. New: `adventureLaunch.test.ts`,
+    `AdventurePage.test.tsx`, `TravelDeck.test.tsx`, `WorldActionPanel.test.tsx`, plus launch
+    cases in `RegionPlayCompanion.test.tsx` and `IslandLocationPage.test.tsx`.
+  - Static checks: typecheck, oxlint (warnings only, none new), Prettier, Ruff check and format,
+    ADR check, content check, admin-preview bundle check, `manage.py check` and
+    `makemigrations --check` all pass. The production build passes.
+  - Playwright: 7 passed in a clean worktree of the branch.
+- **Two test-environment findings (not code defects).**
+  - A developer's `react/.env.local` with `VITE_BACKEND=django` makes 5 `ChildProfileForm` photo
+    tests fail, because Vitest reads it. CI has no such file; with the variable blank, all pass.
+  - A local `amplify_outputs.json` makes 3 Playwright "unconfigured" smoke tests fail. They pass
+    in a clean worktree.
+  - Both suites read the developer's environment and are worth isolating later.
+- **Not run:** `docker build`, and a real-browser run of the signpost launch (it needs a real
+  Cognito sign-in and WebGL).
+- **Open.**
+  - Playing a launched Adventure in a Django build. The step runner is still Amplify-backed, and
+    the LAI-0601 answer engine records no world changes, evidence or quest progress. A Django
+    step-adventure client is the next task.
+  - The Treasure Rush quest has no Island (`Quest.world` is empty), because no Island's content
+    pack lists it. This is a content-export fix.
+  - Deployed data must pass `report_place_areas` before `regions.0002` runs there.

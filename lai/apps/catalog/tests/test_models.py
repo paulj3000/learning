@@ -73,5 +73,6 @@ def test_records_print_their_stable_identifier(imported):
 
 
 def test_worlds_and_locations_are_labelled_apart():
-    assert World._meta.verbose_name_plural == "worlds (themed islands)"
-    assert Location._meta.verbose_name_plural == "locations (regions inside a world)"
+    # ADR-041: people read World as Island and Location as Place; the classes keep their names.
+    assert World._meta.verbose_name_plural == "islands"
+    assert Location._meta.verbose_name_plural == "places"

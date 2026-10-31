@@ -12,6 +12,7 @@ import { getChildProfile } from '../features/child-profile/api';
 import type { WorldChange } from '../features/adventures/api';
 import type { ChildProfile } from '../features/child-profile/api';
 import { locationWorldPath } from '../features/island-map/three/runtime/locationWorldPath';
+import { usePlaceArea } from '../features/region-play/usePlaceArea';
 import {
   DRAGONS_SANCTUARY_REGION_ID,
   PIRATE_BUILDER_BAY_REGION_ID,
@@ -24,6 +25,8 @@ type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 export function IslandLocationPage() {
   const { childId, locationSlug } = useParams<{ childId: string; locationSlug: string }>();
   const location = locationSlug ? getIslandLocation(locationSlug) : undefined;
+  /** This Place's published 3D Area from Django, if any (ADR-041); exploring comes first. */
+  const area = usePlaceArea(childId, locationSlug);
   /**
    * Phase 29: "back to the map" has to mean the map this place is actually
    * on. Sending a child standing at the cove back to the home harbor would
@@ -92,7 +95,7 @@ export function IslandLocationPage() {
   if (loadState === 'loading') {
     return (
       <IslandLayout childId={childId}>
-        <p>Loading the location...</p>
+        <p>Loading this place...</p>
       </IslandLayout>
     );
   }
@@ -170,6 +173,11 @@ export function IslandLocationPage() {
             ? worldChangePresentation.text
             : location.decoration}
         </p>
+        {area?.available ? (
+          <Link className={styles.startLink} to={locationWorldPath(childId, area.regionId)}>
+            Explore {area.title}
+          </Link>
+        ) : null}
         {template && isAgeSupported ? (
           <Link
             className={styles.startLink}

@@ -5,9 +5,9 @@ No writes and no rules of their own. Everything is derived from the canonical ro
 and `Quest`, and the requesting child's own sessions, world changes, inventory and quest
 progress (ADR-033: no second catalog, progress or achievement model).
 
-Hierarchy kept as it is: World -> Location -> WorldRegion (an explorable 3D region; the only
-thing the game runtime can launch) and Location -> Adventure (step-based). A region's
-adventures are its location's adventures.
+Hierarchy kept as it is (ADR-041 names: Island > Place > 3D Area): World -> Location ->
+WorldRegion (at most one 3D Area per Place; the only thing the game runtime can launch) and
+Location -> Adventure (step-based, owned by the Place). A region's adventures are its Place's.
 
 Visibility: a region is visible to a child only when it is PUBLISHED, its location and world
 are active, and the world supports the child's age band. Adventures and quests are shown only
@@ -17,7 +17,7 @@ because it exists). Draft and retired content is indistinguishable from absent c
 
 from dataclasses import dataclass
 
-from apps.catalog.models import Adventure, Quest
+from apps.catalog.models import Adventure, Quest, World
 from apps.core.content_status import ContentStatus
 from apps.inventory.models import InventoryItem
 from apps.progression.models import WorldChange
@@ -203,3 +203,44 @@ def child_home(child) -> dict:
             WorldChange.objects.for_child(child).order_by("-created_at")[:HOME_RECENT]
         ),
     }
+
+
+MAX_ISLANDS = 20
+MAX_PLACES = 50
+
+
+@dataclass(frozen=True)
+class PlaceEntry:
+    place: object  # catalog.Location
+    area: RegionEntry | None  # its published 3D Area for this child, if any (at most one)
+    adventure_count: int
+
+
+@dataclass(frozen=True)
+class IslandEntry:
+    island: object  # catalog.World
+    places: list[PlaceEntry]
+
+
+def child_islands(child) -> list[IslandEntry]:
+    """Island > Place > 3D Area for this child (ADR-041). Inactive Islands and Places, other age
+    bands and unpublished 3D Areas are left out; a Place without a 3D Area is still listed."""
+    islands = [
+        world
+        for world in World.objects.filter(active=True).order_by("sort_order", "slug")[:MAX_ISLANDS]
+        if child.age_band in world.supported_age_bands
+    ]
+    regions = {r.location_id: r for r in visible_regions(child)}
+    areas = {e.region.location_id: e for e in region_entries(child, list(regions.values()))}
+    result = []
+    for island in islands:
+        places = []
+        for place in island.locations.filter(active=True).order_by("sort_order", "slug")[
+            :MAX_PLACES
+        ]:
+            count = Adventure.objects.filter(
+                location=place, active=True, age_bands__contains=[child.age_band]
+            ).count()
+            places.append(PlaceEntry(place, areas.get(place.pk), count))
+        result.append(IslandEntry(island, places))
+    return result

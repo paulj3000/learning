@@ -5,6 +5,8 @@ import type {
   InventoryEntry,
   IssuedChallenge,
   ItemView,
+  LaunchPoint,
+  LaunchStart,
   NpcPlacement,
   ObjectPlacement,
   PlacedEntity,
@@ -155,6 +157,38 @@ export function regionBootstrap(r: Reader): RegionBootstrap {
     quests: r.field('quests').array(quest),
     session: r.field('session').nullable(session),
     worldChanges: r.field('worldChanges').array(worldChange),
+    // Added by ADR-041; a server from before it sends none.
+    launchPoints:
+      r.field('launchPoints').value === undefined ? [] : r.field('launchPoints').array(launchPoint),
+  };
+}
+
+const LAUNCH_OBJECT_KINDS = ['NPC', 'CHEST', 'DOOR', 'SIGN', 'OTHER'] as const;
+
+export function launchPoint(r: Reader): LaunchPoint {
+  const adventure = r.field('adventure');
+  return {
+    launchId: r.field('launchId').string(),
+    entityId: r.field('entityId').string(),
+    objectKind: r.field('objectKind').oneOf(LAUNCH_OBJECT_KINDS),
+    label: r.field('label').string(),
+    prompt: r.field('prompt').string(),
+    adventure: {
+      adventureId: adventure.field('adventureId').string(),
+      title: adventure.field('title').string(),
+      placeSlug: adventure.field('placeSlug').string(),
+    },
+  };
+}
+
+export function launchStart(r: Reader): LaunchStart {
+  return {
+    launchId: r.field('launchId').string(),
+    regionId: r.field('regionId').string(),
+    adventureId: r.field('adventureId').string(),
+    placeSlug: r.field('placeSlug').string(),
+    sessionId: r.field('session').field('id').string(),
+    returnTo: { regionId: r.field('returnTo').field('regionId').string() },
   };
 }
 

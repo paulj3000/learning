@@ -224,7 +224,25 @@ class BootstrapSerializer(serializers.Serializer):
             "quests": [QuestEntrySerializer().to_representation(q) for q in state["quests"]],
             "session": SessionSerializer(state["session"]).data if state["session"] else None,
             "worldChanges": WorldChangeSerializer(state["world_changes"], many=True).data,
+            "launchPoints": [launch_point(p) for p in state.get("launch_points", [])],
         }
+
+
+def launch_point(point) -> dict:
+    """An object that starts an Adventure (ADR-041). Its position is the placement's own."""
+    adventure = point.adventure
+    return {
+        "launchId": point.launch_id,
+        "entityId": point.entity_id,
+        "objectKind": point.object_kind,
+        "label": point.label,
+        "prompt": point.prompt,
+        "adventure": {
+            "adventureId": adventure.slug,
+            "title": adventure.title,
+            "placeSlug": adventure.location.slug if adventure.location_id else "",
+        },
+    }
 
 
 class ProgressSerializer(serializers.Serializer):
@@ -393,3 +411,24 @@ class LaunchRequest(ClosedSerializer):
 
 class RedeemRequest(ClosedSerializer):
     ticket = serializers.CharField(min_length=20, max_length=128, trim_whitespace=False)
+
+
+def island_entry(entry) -> dict:
+    island = entry.island
+    return {
+        "islandId": island.slug,
+        "title": island.title,
+        "tagline": island.tagline,
+        "isHome": island.is_home,
+        "places": [
+            {
+                "placeId": place.place.slug,
+                "title": place.place.title,
+                "tagline": place.place.tagline,
+                "adventureCount": place.adventure_count,
+                # null: no published 3D Area yet; the Place's adventures are still available.
+                "area": region_entry(place.area) if place.area else None,
+            }
+            for place in entry.places
+        ],
+    }
