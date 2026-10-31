@@ -80,7 +80,8 @@ Secrets and per-developer settings go in `.env` files, which are gitignored. Com
 `react/.env.example` and `lai/.env.example`.
 
 Django's local settings go in the untracked **`.env` at the repository root**, the same layout
-FinTwin uses. Docker Compose reads that file itself. Django does not (there is no dotenv package),
+FinTwin uses. Start from the committed template: `cp .env.sample .env`, then fill in the
+`COGNITO_*` values. Docker Compose reads that file itself. Django does not (there is no dotenv package),
 so the `Makefile` reads it and passes the values on:
 
 - `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT` reach every target,

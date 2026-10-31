@@ -9,6 +9,7 @@ test-results/
 .env
 .env.*
 !.env.example
+!.env.sample
 amplify_outputs.json
 amplify/.config/
 .amplify/

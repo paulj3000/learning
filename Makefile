@@ -2,7 +2,7 @@
 # (so CI needs no developer-specific paths). Node commands delegate to the root npm scripts.
 PY ?= $(shell test -x $(CURDIR)/.venv/bin/python && echo $(CURDIR)/.venv/bin/python || echo python3)
 
-# Local settings come from the untracked .env at the repository root (template: lai/.env.example),
+# Local settings come from the untracked .env at the repository root (template: .env.sample),
 # as in FinTwin. Compose reads .env itself but Django does not (no dotenv package), so the values
 # are passed from here. A value already in the shell wins. Write `NAME=value`, unquoted; the last
 # line for a name wins. Deployed environments never read .env (SSM, docs/platform).
