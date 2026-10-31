@@ -274,15 +274,11 @@ def test_only_the_health_route_is_public(settings):
         permissions = [p.__name__ for p in callback.cls.permission_classes]
         if "AllowAny" in permissions:
             public.append(route)
-    # Plus the readiness probe (ADR-037: fixed words only, apps/core/tests/test_readiness.py), the
-    # local sign-in (ADR-038: 404 unless AUTH_PROVIDER=django, apps/users/tests/test_local_auth.py)
-    # and the signed asset-file route (LAI-2200, ADR-035): no bearer token, a signed capability.
+    # Plus the readiness probe (ADR-037: fixed words only, apps/core/tests/test_readiness.py) and
+    # the signed asset-file route (LAI-2200, ADR-035): no bearer token, a signed capability.
     assert public == [
         "api/v1/health/",
         "api/v1/health/ready/",
-        "api/v1/auth/csrf/",
-        "api/v1/auth/login/",
-        "api/v1/auth/logout/",
         "api/v1/asset-files/<str:token>/<str:filename>",
     ]
 
@@ -295,13 +291,11 @@ def test_every_route_lives_under_api_v1_except_django_admin(settings):
     assert all(route.startswith(settings.ADMIN_URL_PATH) for route in outside)
 
 
-def test_the_api_authenticates_through_the_one_provider_dispatcher(settings):
-    # One default authenticator, which runs only the AUTH_PROVIDER provider (ADR-038). Under the
-    # production provider (cognito, as in test settings) that is bearer-only: sessions and CSRF
-    # exist for Django Admin (LAI-0404), with cookies scoped to the admin path.
-    assert settings.AUTH_PROVIDER == "cognito"
+def test_project_never_enables_cookie_based_api_authentication(settings):
+    # Bearer-header authentication only: no session or cookie authentication class. Sessions and
+    # CSRF exist for Django Admin (LAI-0404), with cookies scoped to the admin path.
     assert settings.REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] == [
-        "apps.users.authentication.ApiAuthentication"
+        "apps.users.authentication.CognitoJWTAuthentication"
     ]
     assert settings.SESSION_COOKIE_PATH == settings.CSRF_COOKIE_PATH == "/admin/"
     assert settings.SESSION_COOKIE_HTTPONLY and settings.CSRF_COOKIE_HTTPONLY

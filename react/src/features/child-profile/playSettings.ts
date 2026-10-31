@@ -7,8 +7,7 @@ import type { ChildProfile } from './profileTypes';
  * session limit. Null when the child does not exist or is not this parent's.
  *
  * Read through the profile store (api.ts), so it comes from Django in every build with the
- * Django API, under either sign-in (LAI-CHILD-001; it followed the sign-in mode under
- * LAI-AUTH-DUAL).
+ * Django API (LAI-CHILD-001).
  */
 export interface ChildPlaySettings {
   ageBand: AgeBandValue;

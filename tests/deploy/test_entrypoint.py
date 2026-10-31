@@ -37,12 +37,3 @@ def test_without_arguments_it_serves_with_gunicorn(tmp_path):
 def test_with_arguments_it_runs_that_command_instead(tmp_path):
     out = run(tmp_path, "echo", "manage.py", "migrate").stdout
     assert out == "manage.py migrate\n"
-
-
-def test_the_release_fixes_the_cognito_provider():
-    """ADR-038: every AWS release authenticates the API with Cognito, fixed outside SSM."""
-    root = Path(__file__).resolve().parents[2]
-    compose = (root / "deploy/ec2/docker-compose.yml").read_text()
-    dockerfile = (root / "lai/Dockerfile").read_text()
-    assert "      AUTH_PROVIDER: cognito\n" in compose
-    assert "AUTH_PROVIDER=cognito" in dockerfile

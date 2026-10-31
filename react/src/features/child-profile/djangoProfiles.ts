@@ -10,8 +10,8 @@ import type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore } fro
 
 /**
  * The Django profile store (LAI-CHILD-001, ADR-039): `/api/v1/me/` and `/api/v1/children/`.
- * Django is the authority; every route is scoped to the signed-in parent on the server, whichever
- * sign-in the build uses (a Cognito token or a local session, ADR-038). Nothing here decides
+ * Django is the authority; every route is scoped on the server to the parent the Cognito access
+ * token identifies (ADR-040). Nothing here decides
  * ownership: another family's child is a 404, which reads as "no such child" (null).
  *
  * Not available from Django yet, so this store says so instead of pretending:

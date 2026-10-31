@@ -10,8 +10,6 @@
  *   accepts an `https://` origin; `http://` is for `vite dev` only.
  */
 
-import { readAuthMode, type AuthMode } from './authMode';
-
 export type DjangoApiConfig = { enabled: false } | { enabled: true; baseUrl: string };
 
 export interface DjangoApiEnv {
@@ -39,6 +37,3 @@ export function readDjangoApiConfig(env: DjangoApiEnv): DjangoApiConfig {
 }
 
 export const DJANGO_API_CONFIG: DjangoApiConfig = readDjangoApiConfig(import.meta.env);
-
-/** This build's sign-in (ADR-038, authMode.ts). Throws at start-up when misconfigured. */
-export const AUTH_MODE: AuthMode = readAuthMode(import.meta.env);

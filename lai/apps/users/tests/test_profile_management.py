@@ -1,6 +1,6 @@
 """Parent and child profile management in Django (LAI-CHILD-001).
 
-`PATCH /api/v1/me/`, the child CRUD routes under both authentication providers (ADR-038), the
+`PATCH /api/v1/me/`, the child CRUD routes with a Cognito access token (ADR-040), the
 archival policy (deactivate; hard deletion stays blocked by LAI-0209), the read-only audited
 Django Admin view (ADR-039), and the Amplify profile import. The LAI-0403 checklist for the
 child routes themselves is in test_children_api.py and test_tenant_isolation.py.
@@ -23,8 +23,6 @@ pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
 
 ME = "/api/v1/me/"
 CHILDREN = "/api/v1/children/"
-CSRF = "/api/v1/auth/csrf/"
-LOGIN = "/api/v1/auth/login/"
 NEW_CHILD = {
     "nickname": "Marigold",
     "ageBand": "SPROUT",
@@ -47,54 +45,9 @@ def code_of(response):
     return response.json()["error"]["code"]
 
 
-class LocalBrowser:
-    """A local Django sign-in, the way the React app holds it: session cookie plus CSRF header."""
-
-    def __init__(self, username):
-        self.password = secrets.token_urlsafe(18)
-        self.account = ParentAccount.objects.create_local_parent(username, self.password)
-        self.client = Client(enforce_csrf_checks=True, raise_request_exception=False)
-        self._csrf()
-        response = self.client.post(
-            LOGIN,
-            json.dumps({"username": username, "password": self.password}),
-            content_type="application/json",
-            HTTP_X_CSRFTOKEN=self.token,
-        )
-        assert response.status_code == 200
-        self._csrf()
-
-    def _csrf(self):
-        self.token = self.client.get(CSRF).json()["csrfToken"]
-
-    def get(self, url):
-        return self.client.get(url)
-
-    def post(self, url, body):
-        return self.client.post(
-            url, json.dumps(body), content_type="application/json", HTTP_X_CSRFTOKEN=self.token
-        )
-
-    def patch(self, url, body):
-        return patch(self.client, url, body, HTTP_X_CSRFTOKEN=self.token)
-
-    def delete(self, url):
-        return self.client.delete(url, HTTP_X_CSRFTOKEN=self.token)
-
-
 @pytest.fixture
-def local_mode(settings):
-    settings.AUTH_PROVIDER = "django"
-    return settings
-
-
-@pytest.fixture(params=["cognito", "django"])
-def signed_in(request, settings, api):
-    """The same parent workflow under each provider: (client, account)."""
-    if request.param == "django":
-        settings.AUTH_PROVIDER = "django"
-        browser = LocalBrowser(f"parent-{uuid.uuid4().hex[:8]}")
-        return browser, browser.account
+def signed_in(api):
+    """A Cognito-authenticated parent (the only API sign-in, ADR-040): (client, account)."""
     account = ParentAccount.objects.get_or_create_for_cognito(f"sub-{uuid.uuid4()}")
     client = api(account)
 
@@ -170,10 +123,10 @@ def test_an_unprovisioned_cognito_identity_cannot_write_a_profile(api):
     assert not ParentAccount.objects.filter(cognito_sub="sub-never-provisioned").exists()
 
 
-# --- child profiles under both providers -------------------------------------------------------
+# --- child profiles -----------------------------------------------------------------------
 
 
-def test_the_full_child_lifecycle_works_under_either_provider(signed_in):
+def test_the_full_child_lifecycle_works(signed_in):
     client, account = signed_in
     assert client.get(CHILDREN).json() == {"children": []}
 
@@ -193,7 +146,7 @@ def test_the_full_child_lifecycle_works_under_either_provider(signed_in):
     assert client.get(CHILDREN).json()["children"][0]["active"] is False  # kept, not removed
 
 
-def test_hard_deletion_stays_blocked_until_lai_0209_under_either_provider(signed_in):
+def test_hard_deletion_stays_blocked_until_lai_0209(signed_in):
     client, account = signed_in
     child_id = client.post(CHILDREN, NEW_CHILD).json()["id"]
     response = client.delete(detail(child_id))
@@ -209,7 +162,7 @@ def test_child_settings_are_validated_against_the_age_band(signed_in):
     assert ChildProfile.objects.get(pk=child_id).session_minutes == 6
 
 
-def test_another_familys_child_is_hidden_under_either_provider(signed_in, families):
+def test_another_familys_child_is_hidden(signed_in, families):
     client, _ = signed_in
     for method, body in (("get", None), ("patch", {"nickname": "Taken"}), ("delete", None)):
         call = getattr(client, method)
@@ -222,16 +175,6 @@ def test_another_familys_child_is_hidden_under_either_provider(signed_in, famili
     assert families.b1.pk not in [item["id"] for item in client.get(CHILDREN).json()["children"]]
     families.b1.refresh_from_db()
     assert families.b1.nickname == "Quince-B1"
-
-
-def test_a_local_parent_and_a_cognito_parent_never_see_each_others_children(
-    local_mode, api, families
-):
-    browser = LocalBrowser("local-isolated")
-    mine = browser.post(CHILDREN, NEW_CHILD).json()["id"]
-    assert browser.get(detail(families.a1.pk)).status_code == 404
-    local_mode.AUTH_PROVIDER = "cognito"
-    assert api(families.a).get(detail(mine)).status_code == 404
 
 
 # --- Django Admin: read-only, permission-gated, audited ----------------------------------------
