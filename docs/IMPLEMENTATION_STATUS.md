@@ -11464,3 +11464,60 @@ instruction. Not pushed.
   `tsc -p tsconfig.app.json --noEmit` clean.
 - **Deferred to merge.** Full Vitest and pytest, oxlint, Prettier, Ruff, build, Playwright and a
   real-browser look at the header on a tablet.
+
+## LAI-0904: Separate private child photo bucket and Django photo API (2026-10-31, branch only, not merged)
+
+- **Decision.** ADR-042, accepted by the owner for code and infrastructure definitions only:
+  game assets and child photos use separate S3 buckets. No deployment, migration, deletion, merge
+  or push was approved, and none was done.
+- **Reviewed and kept.**
+  - `LaiAssetStorage-<env>` and the asset manager (storage adapter, publication, resolver,
+    Treasure Rush loading) are unchanged. The `LaiAssetStorage-prod` template is identical to
+    `main`.
+  - The Amplify bucket and everything under `amplify/` are unchanged.
+- **Stage A, infrastructure (synthesized, not deployed).**
+  - New stack `LaiChildPhotos-<env>` (`infra/lib/childPhotoStorageStack.ts`):
+    - all Block Public Access settings, ACLs disabled, TLS 1.2 or newer only, SSE-S3, versioning;
+    - lifecycle: 7-day noncurrent expiry, delete-marker cleanup, 1-day multipart abort;
+    - no CORS by default, no CDN, retained on stack deletion;
+    - managed policy `lai-django-child-photos-<env>` on `children/*` (ListBucket
+      prefix-conditioned). It creates no role.
+  - `LaiDjangoEc2-<env>`: the instance role attaches the photo policy, and three SSM settings are
+    added. The template diff against `main` is additive only.
+  - `provision.sh` creates the photo stack before the EC2 stack.
+- **Stage B, Django.**
+  - Routes `GET/PUT/DELETE /api/v1/children/<id>/photo/` and `GET .../photo/content/`,
+    child-scoped.
+  - New code: `users.ChildPhoto` (a `ChildOwnedModel`, migration `0005`, one `CURRENT` per
+    child); `photo_storage.py` (s3, local, memory, disabled); `photo_validation.py` (structural
+    JPEG check and metadata stripping in pure Python, no new dependency); `photos.py`; the
+    `child_photo_storage_audit` command.
+  - Settings `LAI_CHILD_PHOTO_*`. Production allows only `s3` or `disabled` and refuses the asset
+    bucket.
+  - `hasPhoto` now reads `ChildPhoto`; `avatar_photo_key` is deprecated and not dropped.
+- **Stage C, migration preparation.** LAI-1103 specified, with subtasks 1103a to 1103d
+  (`docs/platform/CHILD_PHOTO_STORAGE.md` section 10). No utility was built: the LAI-1101 export
+  and bucket read access do not exist. Every legacy bucket reference is inventoried (section 9).
+- **Stage D, documentation.**
+  - ADR-042 and `docs/platform/CHILD_PHOTO_STORAGE.md`.
+  - Roadmap: LAI-0904 revised, LAI-0905 added, LAI-1002 and LAI-1103 updated, LAI-1204 added.
+    LAI-1302 now depends on LAI-1204, because Amplify storage auto-deletes objects with its stack.
+  - AM-13 added. The tracker, IAM audit, EC2 runbook, `infra/README.md`, `ASSET_MANAGER.md`,
+    `ARCHITECTURE.md` and `DATA_MODEL.md` are updated.
+- **Tests (development checks, 2026-10-31).**
+  - Vitest `infra/lib/`: 43 passed (11 new). `tsc -p infra/tsconfig.json` is clean, and
+    `infra:synth` passes for dev and prod.
+  - pytest `test_child_photos.py`: 48 passed. These cover authorization, cross-family 404,
+    validation, size and dimension limits, replacement, deletion, S3 failure, database failure,
+    deferred delete, presigned URLs, disabled storage, the audit, and the child-deletion hook.
+  - pytest `lai/apps/users`, `lai/apps/core`, `lai/apps/assets` with PostgreSQL required: 625
+    passed. Repository `tests/`: 166 passed.
+  - Ruff check and format, `manage.py check`, `makemigrations --check`, ADR check and Prettier
+    (changed files) all pass.
+  - The cleaned fixture JPEGs were also checked against a reference decoder: pixels identical,
+    no metadata left.
+- **Not run (merge or release gates).** Full pytest and Vitest, the full typecheck, oxlint,
+  build, Docker image, Playwright, and any AWS call.
+- **Open.** Deployment and dev verification (LAI-0904, approval); the React and Android clients
+  (LAI-0905); LAI-0602 must call `delete_all_child_photos`; a schedule for the audit command;
+  SSE-KMS and version-delete rights for erasure (G9); LAI-1103a to 1103d; LAI-1204; AM-13.

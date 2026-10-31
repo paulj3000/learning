@@ -14,7 +14,7 @@ import { isAllowedOrigin, type AssetEnvironment } from './assetStorageStack';
  * - Every S3 Block Public Access setting, no ACLs (bucket owner enforced),
  *   TLS 1.2 or newer only, SSE-S3 encryption, versioning.
  * - No CloudFront and no public URL. Django authorizes every operation and
- *   hands the owning parent a short-lived presigned GET (`apps/photos`).
+ *   hands the owning parent a short-lived presigned GET (`lai/apps/users/photos.py`).
  * - Uploads go through Django, which validates and strips the image before
  *   it is stored, so the browser never writes to this bucket and no CORS rule
  *   exists unless `allowedOrigins` names an app origin that must `fetch()` a
@@ -104,7 +104,7 @@ export class ChildPhotoStorageStack extends Stack {
     });
 
     /*
-      Exactly what apps/photos/storage.py calls, on the `children/` prefix only:
+      Exactly what lai/apps/users/photo_storage.py calls, on the `children/` prefix only:
       put_object (PutObject), get_object (GetObject; presigned GETs are signed with it),
       delete_object (DeleteObject, which leaves a noncurrent version for the lifecycle rule),
       list_objects_v2 under `children/` (ListBucket, prefix-conditioned) for the orphan audit.

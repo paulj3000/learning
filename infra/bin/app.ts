@@ -23,7 +23,7 @@ import { DjangoReleaseStack } from '../lib/djangoReleaseStack';
  * | -------------------- | --------------------------- | --------------------------------------------- |
  * | `env`                | `LAI_ENV`                   | `dev` (default) or `prod`                     |
  * | `allowedOrigins`     | `LAI_ASSET_ALLOWED_ORIGINS` | comma-separated app origins (s3 delivery)     |
- * | `photoAllowedOrigins`| `LAI_PHOTO_ALLOWED_ORIGINS` | app origins that fetch() photo URLs (rare)    |
+ * | `photoAllowedOrigins` | `LAI_PHOTO_ALLOWED_ORIGINS` | app origins that fetch() photo URLs (rare)   |
  * | `djangoRoleArn`      | `LAI_DJANGO_ROLE_ARN`       | another Django role to grant both policies    |
  * | `githubRepository`   | `LAI_GITHUB_REPOSITORY`     | `owner/repo` (default `paulj3000/learning`)   |
  * | `databaseMode`       | `LAI_DATABASE_MODE`         | `rds` (default) or `container` (dev only)     |

@@ -45,6 +45,7 @@ roughly 5 to 20 seconds during a release. This is not zero-downtime.
 | `infra/lib/djangoReleaseStack.ts` | `LaiDjangoRelease` (account-wide): ECR `lai/django`, GitHub OIDC provider, image publisher role |
 | `infra/lib/djangoEc2Stack.ts` | `LaiDjangoEc2-<env>`: VPC, ALB + ACM + WAF, EC2, RDS (or dev data volume), SSM settings and documents, deploy role, log groups, alarms |
 | `infra/lib/assetStorageStack.ts` | `LaiAssetStorage-<env>` (existing): the asset bucket and `lai-django-asset-storage-<env>` policy, which the instance role attaches |
+| `infra/lib/childPhotoStorageStack.ts` | `LaiChildPhotos-<env>` (ADR-042): the private child photo bucket and `lai-django-child-photos-<env>` policy, which the instance role attaches (`docs/platform/CHILD_PHOTO_STORAGE.md`) |
 | `lai/Dockerfile`, `lai/docker-entrypoint.sh` | The image: Django, gunicorn, static files, release labels, and the deploy bundle at `/app/deploy` |
 | `deploy/ec2/docker-compose.yml`, `deploy/ec2/nginx/default.conf.template` | Production compose (django, proxy, dev-only db) and the nginx proxy |
 | `scripts/aws/setup-ec2.sh` | Idempotent instance setup (user data, and the setup document) |
@@ -89,7 +90,8 @@ forwarded headers only from the compose network `172.30.10.0/24`).
 
 **Static files vs models.** Admin static files are baked into the image (collected at build time).
 Uploaded 3D models never live in a container: they are in the asset bucket (`LAI_ASSET_STORAGE=s3`)
-and survive every release and rollback.
+and survive every release and rollback. Child profile photos are in a separate private bucket
+(`LAI_CHILD_PHOTO_STORAGE=s3`, ADR-042), never in the asset bucket or a container.
 
 **Browser access.** Django has no CORS on purpose. The React app reaches it same-origin through
 the Amplify Hosting 200 proxy rewrite (`docs/platform/AMPLIFY_HOSTING.md` section 7) until
@@ -132,6 +134,7 @@ CloudFormation parameters of `LaiDjangoEc2-<env>` (set by `provision.sh`): `ApiD
 | `django/DJANGO_ALLOWED_HOSTS`, `django/DJANGO_CSRF_TRUSTED_ORIGINS` | String | stack (from `ApiDomainName`) |
 | `django/COGNITO_REGION`, `django/COGNITO_USER_POOL_ID`, `django/COGNITO_ALLOWED_CLIENT_IDS` | String | stack |
 | `django/LAI_ASSET_STORAGE` (`s3`), `django/LAI_ASSET_BUCKET`, `django/LAI_ASSET_REGION` | String | stack (the `LaiAssetStorage-<env>` bucket name) |
+| `django/LAI_CHILD_PHOTO_STORAGE` (`s3`), `django/LAI_CHILD_PHOTOS_BUCKET`, `django/LAI_CHILD_PHOTOS_REGION` | String | stack (the `LaiChildPhotos-<env>` bucket name). Without them production runs with photos `disabled` |
 | `django/DJANGO_SECRET_KEY` | **SecureString** | operator (step 5.5) |
 | `django/<other>` | String | optional: any `DJANGO_*`, `COGNITO_*`, `LAI_*`, `WEB_CONCURRENCY`, `GUNICORN_TIMEOUT` (for example `DJANGO_ADMIN_URL_PATH`, `DJANGO_LOG_LEVEL`) |
 | `db/POSTGRES_PASSWORD` | SecureString | operator, dev container mode only |
@@ -180,7 +183,11 @@ scripts/aws/provision.sh dev                      # change sets only; review the
 scripts/aws/provision.sh dev --execute            # apply
 ```
 
-It deploys, in order, `LaiAssetStorage-dev`, `LaiDjangoRelease` and `LaiDjangoEc2-dev`.
+It deploys, in order, `LaiAssetStorage-dev`, `LaiChildPhotos-dev`, `LaiDjangoRelease` and
+`LaiDjangoEc2-dev`. Both storage stacks come before the EC2 stack, whose instance role attaches
+their policies by name. On an environment provisioned before 2026-10-31, the `LaiDjangoEc2` change
+set must show only an in-place `Modify` of the instance role and three added SSM parameters
+(`docs/platform/CHILD_PHOTO_STORAGE.md` section 8).
 `--only <stack>` limits it to one. For prod, the same with `prod` (and the prod domain).
 
 ### 5.3 Certificate validation (console, while 5.2 waits)

@@ -63,6 +63,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-039 | Django is the authority for parent and child profiles in every build with the Django API; Amplify profiles only until the controlled import and cutover; read-only audited Django Admin inspection | Accepted | Main line (merged 2026-10-31) | Owner-directed 2026-10-31 (LAI-CHILD-001). Amends ADR-034 and ADR-024 A4 for read-only, permission-gated, audited profile inspection in Django Admin only. Hard deletion stays blocked by LAI-0209. No production data is moved |
 | ADR-040 | Cognito is the sole authentication provider for application users in every environment; Django authorizes, and native Django authentication serves Django Admin staff only | Accepted | Main line (LAI-AUTH-ROLLBACK) | Owner-directed 2026-10-31. Supersedes ADR-038; restores ADR-024 items 1 and 2 everywhere; keeps ADR-034 (Django Admin) and ADR-039 (Django profile authority) |
 | ADR-041 | Islands, Places and 3D Areas: one optional 3D Area per Place, and Adventures launched from objects in it | Accepted | Feature branch (LAI-0806) | Owner-approved decisions A to E, 2026-10-31. Builds on ADR-032 and ADR-033; leaves LAI-0805 (spatial layout administration) open |
+| ADR-042 | Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset manager owns the asset bucket, and the Amplify bucket stays untouched until retirement | Accepted | Feature branch (LAI-0904) | Owner-accepted 2026-10-31 for code and infrastructure definitions only; no deployment, migration or deletion approved. Builds on ADR-035 (asset storage) and ADR-039 (Django profile authority) |
 
 ## ADR-001: Parent-owned accounts
 
@@ -3039,3 +3040,53 @@ region could not start one.
   session and opens the Adventure page, but steps played there are not recorded in Django. A
   Django step-adventure client is follow-up work (LAI-0806 notes).
 
+## ADR-042: Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset manager owns the asset bucket, and the Amplify bucket stays untouched until retirement
+
+Status: Accepted 2026-10-31 by the owner for implementation in code and infrastructure
+definitions (LAI-0904, `feature/lai-0904-child-photo-storage`). Deployment, data migration,
+bucket deletion, merging and pushing were not approved.
+
+**Context.** Amplify keeps child profile photos and admin-uploaded models in one bucket
+(`amplify/storage/resource.ts`), separated only by path rules. The Django asset manager already
+has its own private bucket, `LaiAssetStorage-<env>` (ADR-035). LAI-0904 needed a home for photos
+on Django. A child's photograph is personal data with different access, caching and retention
+needs from published game content.
+
+**Decisions.**
+
+- **Two buckets.** `LaiChildPhotos-<env>` (`lai-child-photos-<env>-<account>-<region>`) is a new
+  CDK stack beside `LaiAssetStorage-<env>`. Neither Django policy reaches the other bucket's
+  prefix, and production settings refuse a photo bucket equal to the asset bucket.
+- **Ownership.** The child profile subsystem (`lai/apps/users`: `ChildPhoto`, `photos.py`,
+  `photo_storage.py`, `photo_validation.py`) owns photos. The asset manager's publication,
+  versioning and delivery workflow is never used for them.
+- **Photo bucket controls.** All Block Public Access settings, ACLs disabled, TLS 1.2 or newer
+  only, SSE-S3, versioning, no CDN, no CORS by default, retained on stack deletion. Lifecycle:
+  noncurrent versions expire after 7 days, orphaned delete markers are removed, incomplete
+  multipart uploads are aborted after 1 day.
+- **Access.** Django authorizes every photo operation through the owning parent. Clients get a
+  presigned GET (300 s by default) or an authenticated API route, never a key or credentials.
+  Uploads go through Django, which validates the JPEG structure and strips all metadata before
+  storing. Keys are `children/<child uuid>/<photo uuid>`: opaque, with no personal data.
+- **Retention.** Replaced and removed photos are deleted at once; versioning keeps them at most 7
+  days (plus S3 lifecycle lag). No backup, replication or Object Lock. Django has no version
+  rights; faster erasure is an operator action.
+- **Legacy bucket.** The Amplify bucket stays operational and unchanged until LAI-1204 retires it
+  with explicit approval. LAI-1103 copies photos from it without modifying it. Because Amplify
+  storage auto-deletes objects with its stack, LAI-1302 depends on LAI-1204.
+
+**Consequences.**
+
+- `LaiDjangoEc2-<env>` attaches `lai-django-child-photos-<env>` to the instance role and writes
+  `LAI_CHILD_PHOTO_STORAGE`, `LAI_CHILD_PHOTOS_BUCKET` and `LAI_CHILD_PHOTOS_REGION` to SSM. This
+  is additive: no resource is replaced. `scripts/aws/provision.sh` creates the photo stack before
+  the EC2 stack.
+- Production Django runs with photos `disabled` until those parameters exist.
+- React and Android still need a client for the Django photo API (LAI-0905).
+  `ChildProfile.avatar_photo_key` is deprecated, and its removal is tracked with LAI-1103.
+- The asset bucket is unchanged. Non-model asset kinds (textures, images, audio, animations) are
+  tracked as AM-13 and will widen the asset policy's prefixes with the code.
+- Open for the privacy review (G9): SSE-KMS with a customer-managed key, and whether hard
+  deletion (LAI-0602) gets prefix-scoped version deletes.
+
+Details: `docs/platform/CHILD_PHOTO_STORAGE.md`.
