@@ -110,5 +110,7 @@ def test_a_django_session_never_authenticates_gameplay_even_for_the_owner(cognit
         assert response["WWW-Authenticate"] == "Bearer"
     assert not AdventureSession.objects.filter(child=child).exists()
     # The same session still opens the admin.
-    client.cookies[django_settings.SESSION_COOKIE_NAME]["path"] = django_settings.SESSION_COOKIE_PATH
+    client.cookies[django_settings.SESSION_COOKIE_NAME]["path"] = (
+        django_settings.SESSION_COOKIE_PATH
+    )
     assert client.get("/admin/").status_code == 200

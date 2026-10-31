@@ -11254,8 +11254,9 @@ resources and owns the associated application data.
 
 ## LAI-AUTH-ROLLBACK: dual authentication removed; Cognito is the sole application sign-in (2026-10-31, ADR-040 Accepted)
 
-Owner-directed. Branch `feature/lai-auth-rollback` from `main` (`ca9915f`). **Not merged, pushed or
-deployed.** No AWS resource, deployed configuration or production data touched; no migration.
+Owner-directed. Branch `feature/lai-auth-rollback` from `main` (`ca9915f`). **Status: BLOCKED, not
+merged, pushed or deployed.** Every local merge gate passes; the real-Cognito browser acceptance
+cannot run yet (see "Merge verification" below), and the owner chose to stop before the merge. No AWS resource, deployed configuration or production data touched; no migration.
 
 - **Git history.** LAI-AUTH-DUAL (`e80eff0`) was merged to `main` (`beebb6a`) and LAI-CHILD-001
   (`f2244e9`, merge `2228add`) was built on it, so abandoning the branch was not possible and a
@@ -11316,3 +11317,44 @@ deployed.** No AWS resource, deployed configuration or production data touched; 
   pool (ADR-024 gate A6 still open).
 - **Note.** Local databases may hold `django-local:` parents from `create_local_parent`. They can
   no longer sign in (no backend matches them); delete them or leave them inert.
+
+**Merge verification (2026-10-31, LAI-AUTH-ROLLBACK-MERGE).** `origin/main` was still `ca9915f`
+(fetched), so the branch needed no integration. Fixes made: Ruff (one long line) and Ruff format
+in `test_cognito_only.py`, Prettier in `AccountSettings.tsx`; no behaviour change.
+
+- **Backend.** `ruff check .` clean; `ruff format --check .` 310 files clean; `manage.py check`
+  no issues; `makemigrations --check --dry-run` no changes; `check --deploy --fail-level ERROR`
+  with production settings and CI placeholders passes (one existing warning, W021 HSTS preload);
+  `LAI_REQUIRE_POSTGRES=1 pytest -q`: 1097 passed, 0 failed, 0 skipped (deploy and API contract
+  tests included). `main` collected 1154; the difference is exactly the removed dual-auth tests
+  (36 `test_local_auth.py`, 14 local-provider cases in `test_profile_management.py`, 13
+  `AUTH_PROVIDER` settings tests, 2 deploy tests) less the 8 new `test_cognito_only.py` tests.
+- **Frontend.** `npm run adr:check` (40 decisions), `admin-preview:check`, `typecheck`, `lint`
+  (oxlint 0 errors, 39 warnings, the `main` baseline), `format:check` (Prettier clean), `test`
+  (Vitest 297 files, 3158 passed), `build` (passes; existing chunk-size warning).
+- **Docker and deployment.** `docker build -f lai/Dockerfile .` (linux/amd64, not pushed) passes;
+  the image sets no `AUTH_PROVIDER`. In the image with production settings: the full required set
+  passes `check --deploy`; removing any one `COGNITO_*` value stops start-up with
+  `ImproperlyConfigured`; injecting `AUTH_PROVIDER=django` and `DJANGO_DEBUG=true` changes
+  nothing (DEBUG off, authenticator `CognitoJWTAuthentication` only, backend
+  `AdminPasswordBackend` only, session cookie path `/admin/`, the three `auth/` routes 404, no
+  `local_auth_views` module). `docker compose -f deploy/ec2/docker-compose.yml config --quiet`
+  passes for the default and `container-db` profiles with placeholder values; the rendered config
+  has no `AUTH_PROVIDER`.
+- **Browser.** Playwright smoke in a clean worktree, as CI runs it: 7 passed (the sign-in page
+  renders the Amplify Cognito form). No committed Playwright spec used the removed local login, so
+  none needed replacing.
+- **Real Cognito (read-only).** The verifier pointed at pool `us-west-1_3LU3RSjuH` (from the
+  git-ignored `amplify_outputs.json`) fetched its public JWKS (2 keys) and rejected a forged
+  token that named a real key id with 401 `bad_signature`. Nothing in AWS was created or changed.
+- **BLOCKED: real-Cognito browser acceptance.** Not run: Cognito sign-in in the browser, a real
+  access token reaching Django, `GET me/` for that parent, child create, edit, select and settings
+  in the browser, the Treasure Rush walk-through (answers, completion, rewards, inventory, reload),
+  and sign-out. Needs owner confirmation that a pool is nonproduction and a test parent's
+  credentials; no test user was created. ADR-024 gate A6 stays open. The same behaviours are
+  covered at the API level by pytest with signed test tokens (`test_cognito_only.py`,
+  `test_authentication.py`, `test_profile_management.py`, the `game_sessions` play tests).
+- **Not merged, not pushed.** Pushing `main` triggers the dev EC2 Django release
+  (`deploy-django-ec2.yml`, backend paths) and the Amplify Hosting `main` build (which runs
+  `ampx pipeline-deploy`). The owner authorized that push for when the merge proceeds, and chose
+  to stop before the merge while the Cognito gate is blocked. No AWS deployment occurred.

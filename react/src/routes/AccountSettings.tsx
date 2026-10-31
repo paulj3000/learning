@@ -257,10 +257,7 @@ export function AccountSettings() {
               <h2 className={styles.sectionHeading}>Email address</h2>
               <p className={styles.currentValue}>Current email: {currentEmail}</p>
               {!awaitingEmailCode ? (
-                <form
-                  className={styles.form}
-                  onSubmit={(event) => void handleEmailSubmit(event)}
-                >
+                <form className={styles.form} onSubmit={(event) => void handleEmailSubmit(event)}>
                   {emailFormError ? (
                     <p className={formStyles.error} role="alert">
                       {emailFormError}
@@ -319,11 +316,7 @@ export function AccountSettings() {
                       <p className={formStyles.fieldError}>{codeFieldError}</p>
                     ) : null}
                   </div>
-                  <button
-                    className={formStyles.button}
-                    type="submit"
-                    disabled={confirmingEmail}
-                  >
+                  <button className={formStyles.button} type="submit" disabled={confirmingEmail}>
                     {confirmingEmail ? 'Confirming...' : 'Confirm new email'}
                   </button>
                   <button
@@ -343,10 +336,7 @@ export function AccountSettings() {
 
             <section className={styles.section}>
               <h2 className={styles.sectionHeading}>Password</h2>
-              <form
-                className={styles.form}
-                onSubmit={(event) => void handlePasswordSubmit(event)}
-              >
+              <form className={styles.form} onSubmit={(event) => void handlePasswordSubmit(event)}>
                 {passwordFormError ? (
                   <p className={formStyles.error} role="alert">
                     {passwordFormError}
@@ -404,9 +394,7 @@ export function AccountSettings() {
                     }
                   />
                   {passwordFieldErrors.confirmPassword ? (
-                    <p className={formStyles.fieldError}>
-                      {passwordFieldErrors.confirmPassword}
-                    </p>
+                    <p className={formStyles.fieldError}>{passwordFieldErrors.confirmPassword}</p>
                   ) : null}
                 </div>
                 <button className={formStyles.button} type="submit" disabled={savingPassword}>
