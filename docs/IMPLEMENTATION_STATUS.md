@@ -11439,3 +11439,28 @@ instruction. Not pushed.
   - The Treasure Rush quest has no Island (`Quest.world` is empty), because no Island's content
     pack lists it. This is a content-export fix.
   - Deployed data must pass `report_place_areas` before `regions.0002` runs there.
+
+## LAI-0807: Ungated child exit from an Island (2026-10-31, branch only, not merged)
+
+- **Request.** Leaving an Island must be immediate, with no arithmetic question.
+- **What was found.** The only arithmetic check on any exit is `ParentGate` on the header button
+  "Adults: exit to parent space" in `IslandLayout.tsx`. That header wraps every child-mode screen:
+  Island hub, Place, 3D Area, Adventure, log and travel deck. The child-facing "Back to the map",
+  "Back to the sailing dock" and "Back to this place" links were already ungated. In 3D Areas the
+  header was the only exit, so the gated adult button was the obvious "exit" for a child.
+- **Owner decision.** Keep the gate on the adult exit. It leads to `/home`, where Edit, Settings
+  (AI, session limit), the child switcher and Add child have no gate of their own, and
+  `docs/THREAT_MODEL.md` (Spoofing) relies on it. Add an ungated child exit beside it.
+- **Change.** `IslandLayout` now shows a prominent "Leave island" link (`LEAVE_ISLAND_LABEL`) to
+  `/island/:childId/travel`, the sailing dock where the child picks an Island. It never opens a
+  dialog or question, and it is hidden on the sailing dock itself. Progress, rewards and
+  inventory are saved as each step happens, so leaving loses nothing; route unmount tears down
+  any Three.js scene as before. Adventure challenges, Treasure Rush and `ParentGate` are
+  unchanged.
+- **Tests (development checks).** New `react/src/features/island/IslandLayout.test.tsx`: leaving
+  from an Island, Place, 3D Area and Adventure path reaches the sailing dock with no dialog or
+  number input; no link on the dock itself; the adult exit still opens the gate. Vitest
+  `src/features/island*`, `ParentGate.test.tsx`, `src/routes`, `src/app`: all passed.
+  `tsc -p tsconfig.app.json --noEmit` clean.
+- **Deferred to merge.** Full Vitest and pytest, oxlint, Prettier, Ruff, build, Playwright and a
+  real-browser look at the header on a tablet.
