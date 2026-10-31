@@ -4,22 +4,20 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('users', '0003_admin_permissions'),
+        ("users", "0003_admin_permissions"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ParentRecord',
-            fields=[
-            ],
+            name="ParentRecord",
+            fields=[],
             options={
-                'verbose_name': 'parent account',
-                'proxy': True,
-                'indexes': [],
-                'constraints': [],
+                "verbose_name": "parent account",
+                "proxy": True,
+                "indexes": [],
+                "constraints": [],
             },
-            bases=('users.parentaccount',),
+            bases=("users.parentaccount",),
         ),
     ]

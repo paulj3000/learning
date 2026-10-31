@@ -113,7 +113,8 @@ def update_parent_profile(parent: ParentAccount, **fields) -> ParentAccount:
         return account
 
 
-# --- Amplify profile import (LAI-CHILD-001; amplify_import.py, docs/platform/AMPLIFY_PROFILE_IMPORT.md)
+# --- Amplify profile import (LAI-CHILD-001; amplify_import.py,
+# docs/platform/AMPLIFY_PROFILE_IMPORT.md)
 # The only cross-family lookup in this module: the import must see whether an Amplify id is
 # already taken by *any* parent, so that it reports a conflict instead of creating a duplicate.
 # Never call these from a view.

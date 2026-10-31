@@ -3,11 +3,11 @@
 `AdminAccount` lists staff rows only (rows with an `admin_username`). Parents and their child
 profiles are a separate, read-only and audited inspection view (`ParentRecord`, `ChildProfile`;
 LAI-CHILD-001, ADR-039), described at `ParentRecordAdmin` below. No gameplay or other
-child-owned record is registered. Accounts are created by `manage.py create_admin_account`, not here, and are never
-deleted here (a linked row is a parent's account). A superuser may switch `is_active`,
-`is_staff`, `is_superuser` and group membership (the asset roles, ADR-035), which takes effect on
-the account's next request. The last active
-superuser cannot be demoted or deactivated here (or with `set_admin_role`).
+child-owned record is registered. Accounts are created by `manage.py create_admin_account`, not
+here, and are never deleted here (a linked row is a parent's account). A superuser may switch
+`is_active`, `is_staff`, `is_superuser` and group membership (the asset roles, ADR-035), which
+takes effect on the account's next request. The last active superuser cannot be demoted or
+deactivated here (or with `set_admin_role`).
 """
 
 import logging

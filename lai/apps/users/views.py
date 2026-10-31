@@ -26,12 +26,12 @@ class MeView(APIView):
     PATCH (LAI-CHILD-001) changes the parent's own `displayName` and `timezone`, nothing else:
     the body is closed, so ownership, the identity mapping and admin flags can never be written.
 
-    All three return `{"id", "displayName", "timezone", "django_admin"}`. `django_admin` says whether this account is active Django
-    Admin staff (LAI-0404, ADR-034). The React app POSTs once after every sign-in, which creates the
-    account the first time and reads the flag in the same call. The flag only decides whether the
-    React menu shows an "Admin" link: Django Admin checks its own session sign-in on every request
-    and never trusts it, and a Cognito group never sets it. The Android app makes the same call
-    (docs/android/ANDROID_AUTH_FLOW.md).
+    All three return `{"id", "displayName", "timezone", "django_admin"}`. `django_admin` says
+    whether this account is active Django Admin staff (LAI-0404, ADR-034). The React app POSTs
+    once after every sign-in, which creates the account the first time and reads the flag in the
+    same call. The flag only decides whether the React menu shows an "Admin" link: Django Admin
+    checks its own session sign-in on every request and never trusts it, and a Cognito group
+    never sets it. The Android app makes the same call (docs/android/ANDROID_AUTH_FLOW.md).
     """
 
     def get_permissions(self):

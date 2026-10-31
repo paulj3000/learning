@@ -146,7 +146,12 @@ def test_a_cognito_parent_can_never_be_signed_in_by_the_backend():
 def test_me_reports_django_admin_false_for_a_parent_even_in_the_admins_group(api, token_for):
     parent = ParentAccount.objects.get_or_create_for_cognito("sub-real-parent")
     response = api(token=token_for("sub-real-parent", **{"cognito:groups": ["Admins"]})).get(ME)
-    assert response.json() == {"id": str(parent.pk), "displayName": "", "timezone": "", "django_admin": False}
+    assert response.json() == {
+        "id": str(parent.pk),
+        "displayName": "",
+        "timezone": "",
+        "django_admin": False,
+    }
     assert not ParentAccount.objects.get(pk=parent.pk).is_staff
 
 
@@ -154,7 +159,12 @@ def test_me_reports_django_admin_true_for_a_linked_staff_account(api, typed, pas
     parent = ParentAccount.objects.get_or_create_for_cognito("sub-real-parent")
     typed(password)
     run("parent-admin", "--cognito-sub", "sub-real-parent")
-    assert api(parent).get(ME).json() == {"id": str(parent.pk), "displayName": "", "timezone": "", "django_admin": True}
+    assert api(parent).get(ME).json() == {
+        "id": str(parent.pk),
+        "displayName": "",
+        "timezone": "",
+        "django_admin": True,
+    }
     ParentAccount.objects.filter(pk=parent.pk).update(is_staff=False)
     assert api(parent).get(ME).json()["django_admin"] is False
 

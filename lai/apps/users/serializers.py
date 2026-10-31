@@ -6,10 +6,10 @@ camelCase keys, as the play API uses. Request bodies are closed: an unknown fiel
 allowed avatar and interest values mirror react/src/features/child-profile/constants.ts.
 """
 
+from zoneinfo import available_timezones
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
-
-from zoneinfo import available_timezones
 
 from .models import (
     DISPLAY_NAME_MAX_LENGTH,

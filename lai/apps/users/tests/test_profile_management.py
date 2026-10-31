@@ -213,7 +213,9 @@ def test_another_familys_child_is_hidden_under_either_provider(signed_in, famili
     client, _ = signed_in
     for method, body in (("get", None), ("patch", {"nickname": "Taken"}), ("delete", None)):
         call = getattr(client, method)
-        response = call(detail(families.b1.pk)) if body is None else call(detail(families.b1.pk), body)
+        response = (
+            call(detail(families.b1.pk)) if body is None else call(detail(families.b1.pk), body)
+        )
         assert response.status_code in (403, 404)
         if method != "delete":  # DELETE is denied for everyone before the lookup
             assert response.status_code == 404 and code_of(response) == "not_found"
@@ -248,9 +250,12 @@ def _staff(username, *, superuser=False, permission=None):
     if permission:
         account.user_permissions.add(Permission.objects.get(codename=permission))
     client = Client()
-    assert client.post(
-        "/admin/login/", {"username": username, "password": password, "next": "/admin/"}
-    ).status_code == 302
+    assert (
+        client.post(
+            "/admin/login/", {"username": username, "password": password, "next": "/admin/"}
+        ).status_code
+        == 302
+    )
     return account, client
 
 
@@ -267,7 +272,10 @@ def test_a_superuser_inspects_parents_and_children_read_only(families, caplog):
         assert secret not in body
     assert str(families.b.pk) not in parent_page.content.decode()
     lines = [record.getMessage() for record in caplog.records]
-    assert f"admin_profile_read model=parentrecord action=view staff={staff.pk} record={families.a.pk}" in lines
+    assert (
+        f"admin_profile_read model=parentrecord action=view staff={staff.pk} record={families.a.pk}"
+        in lines
+    )
     assert all("Zinnia" not in line and "sub-family" not in line for line in lines)
 
 
@@ -452,6 +460,9 @@ def test_import_lookups_are_not_exposed_by_any_view():
         for path in apps_root.rglob("*.py")
         if "tests" not in path.parts
         and path.name not in {"services.py", "amplify_import.py"}
-        and ("child_profile_for_import" in path.read_text() or "import_child_profile" in path.read_text())
+        and (
+            "child_profile_for_import" in path.read_text()
+            or "import_child_profile" in path.read_text()
+        )
     ]
     assert offenders == []

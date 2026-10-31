@@ -126,9 +126,7 @@ describe('Django profile store', () => {
     const invalid = createDjangoProfileStore(
       failing(new ApiError('invalid_request', { status: 400, code: 'validation_error' })),
     );
-    await expect(invalid.updateChildProfile('c1', INPUT)).rejects.toThrow(
-      PROFILE_MESSAGES.invalid,
-    );
+    await expect(invalid.updateChildProfile('c1', INPUT)).rejects.toThrow(PROFILE_MESSAGES.invalid);
     const blocked = createDjangoProfileStore(
       failing(new ApiError('forbidden', { status: 403, code: 'sensitive_action_unavailable' })),
     );
@@ -171,7 +169,7 @@ describe('the same store under either sign-in', () => {
     await store.listChildProfiles();
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('/api/v1/children/');
-    expect((init?.headers as Record<string, string>).Authorization).toBe('Bearer jwt');
+    expect((init!.headers as Record<string, string>).Authorization).toBe('Bearer jwt');
   });
 
   it('sends the session cookie and CSRF token, and no bearer token, in a local build', async () => {
@@ -200,7 +198,7 @@ describe('the same store under either sign-in', () => {
       createApiClient({ baseUrl: '', fetch: fetchMock, session }),
     ).deleteChildProfileData('c1');
     const init = fetchMock.mock.calls[0]![1];
-    expect((init?.headers as Record<string, string>)['X-CSRFToken']).toBe('csrf-2');
+    expect((init!.headers as Record<string, string>)['X-CSRFToken']).toBe('csrf-2');
     expect(init?.body).toBeUndefined();
   });
 });

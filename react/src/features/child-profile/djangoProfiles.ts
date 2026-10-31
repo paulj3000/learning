@@ -1,6 +1,11 @@
 import type { ApiClient } from '../../api/client';
 import { isApiError } from '../../api/errors';
-import { AGE_BAND_LABELS, READING_MODE_OPTIONS, type AgeBandValue, type ReadingModeValue } from './constants';
+import {
+  AGE_BAND_LABELS,
+  READING_MODE_OPTIONS,
+  type AgeBandValue,
+  type ReadingModeValue,
+} from './constants';
 import type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore } from './profileTypes';
 
 /**

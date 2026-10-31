@@ -110,10 +110,7 @@ async function ensureChildProfileOwnerSub(childProfileId: string): Promise<void>
   await client.models.ChildProfile.update({ id: childProfileId, ownerSub });
 }
 
-async function updateChildProfile(
-  id: string,
-  input: ChildProfileInput,
-): Promise<ChildProfile> {
+async function updateChildProfile(id: string, input: ChildProfileInput): Promise<ChildProfile> {
   const { data, errors } = await client.models.ChildProfile.update({ id, ...input });
   if (!data) {
     throw new Error(errors?.[0]?.message ?? 'Could not update the child profile.');
@@ -130,10 +127,7 @@ async function setChildProfileActive(id: string, active: boolean): Promise<Child
 }
 
 /** Parent-facing AI on/off control (docs/ROADMAP.md Phase 7). */
-async function setChildProfileAIEnabled(
-  id: string,
-  aiEnabled: boolean,
-): Promise<ChildProfile> {
+async function setChildProfileAIEnabled(id: string, aiEnabled: boolean): Promise<ChildProfile> {
   const { data, errors } = await client.models.ChildProfile.update({ id, aiEnabled });
   if (!data) {
     throw new Error(errors?.[0]?.message ?? 'Could not update the child profile.');
