@@ -142,4 +142,14 @@ describe('ParentDashboard', () => {
     // Nothing is child-scoped yet, so the sections list has nothing to point at.
     expect(screen.queryByRole('region', { name: /dashboard sections/i })).not.toBeInTheDocument();
   });
+
+  it('greets a parent with no display name yet (a new Django account) without a blank', async () => {
+    listChildProfiles.mockResolvedValue([]);
+    getOrCreateParentProfile.mockResolvedValue({ id: 'parent-1', displayName: '', timezone: null });
+    renderDashboard();
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Welcome, parent' }),
+    ).toBeInTheDocument();
+  });
 });
