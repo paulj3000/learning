@@ -11122,7 +11122,10 @@ runtime do not exist.
 
 ## LAI-AUTH-DUAL: environment-selectable API authentication (2026-10-30, ADR-038 Accepted)
 
-Owner-directed. On `feature/lai-auth-dual`, not merged, not pushed, nothing deployed. Cognito and
+Owner-directed. **Merged to `main` and pushed 2026-10-31 (`beebb6a`)** after the full merge gate
+(Ruff, Ruff format, Django check, migration check, pytest 1112 passed, ADR check, typecheck,
+oxlint, Prettier, Vitest 3166 passed, production build, Docker image, compose config, deploy
+tests 67 passed). Playwright browser acceptance was not run. Cognito and
 Django are interchangeable authentication providers for gameplay APIs; Django stays the only
 application user and authorization system; Django Admin keeps its own session.
 
@@ -11171,3 +11174,61 @@ application user and authorization system; Django Admin keeps its own session.
   Amplify-only island extras are empty in that mode. The Android local-sign-in flavor is
   documented, not built (no Kotlin code in the repository). No login throttle on the local route
   (loopback development only). ADR-024 gates A1 and A6 are unchanged.
+
+## LAI-CHILD-001: parent and child profile management on Django (2026-10-31, ADR-039 Accepted)
+
+Owner-directed. On `feature/lai-child-django` (from `main` after LAI-AUTH-DUAL), not merged, not
+pushed, nothing deployed, no production data read or moved.
+
+**Principle:** authentication identifies the parent; Django authorizes access to parent and child
+resources and owns the associated application data.
+
+- **Inventory before the change.** Django already had `ParentAccount` (with `display_name`,
+  `timezone`), `ChildProfile` (foreign-key ownership, three-profile cap, age-band session limits,
+  database constraints) and `GET/POST children/`, `GET/PATCH children/<id>/`, with `DELETE`
+  blocked by LAI-0209. Missing: parent profile reads and edits beyond the id, and every React
+  caller (28 files) still used Amplify Data through `features/child-profile/api.ts`.
+- **Django.** `GET/POST/PATCH /api/v1/me/` now return `displayName` and `timezone`; `PATCH`
+  changes only those two (closed body, IANA time zone check) under either sign-in. Migration
+  `users/0004_parent_records` adds a proxy model only (no table change). Django Admin:
+  `ParentRecord` and `ChildProfile` are read-only for active staff with `users.view_childprofile`,
+  never show nicknames, interests, photo paths or identity mappings, and log every list or detail
+  view to `lai.admin_audit` (ids only). `manage.py import_amplify_profiles` with
+  `apps/users/amplify_import.py`: dry run by default, owner from the recorded Cognito sub only,
+  Amplify ids preserved, nothing overwritten, conflict outcomes, one transaction, idempotent,
+  ids-only report (`docs/platform/AMPLIFY_PROFILE_IMPORT.md`). Cross-family lookups for the
+  import live in `services.py` and no view uses them (tested).
+- **Deletion policy.** Archival: `PATCH {"active": false}` keeps the profile, progress and rewards.
+  Hard deletion stays `403 sensitive_action_unavailable` under both providers (ADR-024 A3,
+  LAI-0209 / LAI-0602); the React Django store shows a safe "turn the profile off instead" message.
+- **React.** `features/child-profile/api.ts` is now a facade over a `ProfileStore` chosen by
+  backend: `djangoProfiles.ts` (every build with `VITE_BACKEND=django`, Cognito or local sign-in)
+  or `amplifyProfiles.ts` (builds without the Django API, i.e. the deployed build, until the
+  import and cutover; removal is LAI-1301). Screens use the hand-owned `profileTypes.ts` shapes.
+  `api/client.ts` gained `PATCH` and `DELETE` (CSRF header on every unsafe method in session
+  mode). `playSettings.ts` now reads through the store, so the data source no longer follows the
+  sign-in mode. The form hides the photo upload where the store keeps no photos. Account
+  settings hide the Cognito-only email and password sections under local sign-in. The Amplify
+  `Admins` pages keep their own Amplify types and reads (`features/admin/api.ts`).
+- **Tests run (unit only).** Django: `apps/users`, `apps/core`, `apps/game_sessions`: 624 passed,
+  including 42 new in `test_profile_management.py` (me read/update and validation under both
+  providers, child lifecycle and archival under both providers, deletion blocked, cross-family
+  404, local versus Cognito isolation, admin read-only, permission and audit, import dry run,
+  apply, idempotency, conflicts, cap, provisioning, report privacy, command). Pinned `/me/` body
+  assertions were updated on purpose; the admin registration guard now allows `ChildProfile`
+  read-only and still forbids every child-owned record. React: `tsc -b` clean; Vitest on
+  `features/child-profile`, `api`, `routes`, `features/admin`, `features/session`,
+  `features/adventures`, `NpcConversation`: 41 files, 427 passed (Django store, both
+  credentials, facade selection, play settings, photo field hidden, Amplify mapping).
+- **Process slip.** Prettier was run once on `react/src/routes/AccountSettings.tsx`, which this
+  task's rules excluded. It changed only that file, which the task had just edited.
+- **Deferred to merge verification.** Ruff, Prettier check, oxlint, full suites, build, Playwright,
+  and a manual browser run (create, edit, select, play Treasure Rush, deactivate, sign out) in
+  both sign-in modes.
+- **Open.** Hard deletion (LAI-0209 / LAI-0602); profile photos in Django (LAI-1103); companion
+  profile (LAI-0307); Amplify-backed features that read a child from DynamoDB or Amplify Data
+  (the `submit-adventure-answer`, `get-next-learning-activity` and `claim-coop-slot` Lambdas, the
+  older Amplify adventures, companion and backpack) do not know a Django-created child (Phase 6);
+  the production import (LAI-1101/1102/1202/1203, approval); removing the Amplify store
+  (LAI-1301).
+

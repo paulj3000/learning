@@ -8,11 +8,12 @@ accounts only. Nothing here touches a deployed environment.
 no AWS account, Cognito pool, Amplify sandbox or AWS credentials are needed. To test against a
 real Cognito pool instead, see "Using Cognito locally" at the end.
 
-**Known gap, until the child-profile migration lands (LAI-0502 / LAI-0602).** The React parent
-dashboard still creates and lists children in Amplify, so in Django sign-in mode you create the
-child with `create_local_parent --child` and open the island route by the child's id. Amplify-only
-extras on the island (companion name, Amplify backpack items) are empty in this mode; Treasure
-Rush itself runs entirely on the Django play API.
+**Profiles live in Django (LAI-CHILD-001, ADR-039).** With `VITE_BACKEND=django` the parent
+dashboard lists, creates, edits and deactivates children through Django, under either sign-in, so
+you can add a child in the app and pick it from the dashboard. Not available yet in this mode:
+profile photos (LAI-1103), deleting a child or the account (LAI-0209; turn the profile off
+instead), and the Amplify-backed extras (companion name, Amplify backpack items, the older
+Amplify adventures), which do not know a Django child. Treasure Rush runs entirely on Django.
 
 ## Prerequisites
 
@@ -49,16 +50,17 @@ what changed.
 
 ```bash
 cd lai
-../.venv/bin/python manage.py create_local_parent dev-parent --child Tester --age-band PATHFINDER
+../.venv/bin/python manage.py create_local_parent dev-parent      # add children in the app
+# or, to skip the form: create_local_parent dev-parent --child Tester --age-band PATHFINDER
 ../.venv/bin/python manage.py create_admin_account dev-admin --superuser   # optional, Django Admin
 ```
 
 Each command asks for a password twice (12+ characters, not common; nothing is stored in the
-repository). `create_local_parent` prints the new account id and **the child's id**; note it for
-step 6. It works only with `AUTH_PROVIDER=django` (the local default). The parent is an ordinary
+repository). `create_local_parent` prints the new account id (and, with `--child`, the child's
+id). It works only with `AUTH_PROVIDER=django` (the local default). The parent is an ordinary
 `ParentAccount` with no admin rights; the admin account signs in to Django Admin only and cannot
-sign in to the app. More children: `create_local_parent` creates one; add others through
-`POST /api/v1/children/` or the Django shell. Forgot the password:
+sign in to the app. Staff can inspect parents and children read-only in Django Admin
+(**Users > Parent accounts / Child profiles**; ADR-039). Forgot the password:
 `create_local_parent dev-parent --reset-password`.
 
 ## 4. Start Django
@@ -95,8 +97,9 @@ npm install         # repository root, once
 npm run dev
 ```
 
-Open the app, choose **Sign in**, and use the `dev-parent` username and password from step 3. Then
-go to `/island/<childId>/explore/treasure-rush-cove` with the child id from step 3. Walk to Pirate
+Open the app, choose **Sign in**, and use the `dev-parent` username and password from step 3. On
+the dashboard choose **Add a child profile**, save it, edit it if you like, then play as that
+child and open `/island/<childId>/explore/treasure-rush-cove` (the id is in the address bar). Walk to Pirate
 Pip (E or Enter to talk), accept the quest, find the chest, answer, and open the backpack (bottom
 right).
 
@@ -162,19 +165,10 @@ To exercise the production authentication path against a real (test) Cognito poo
 3. In `react/.env.local`, set `VITE_AUTH_PROVIDER=cognito` (or remove the line) and restart
    `npm run dev`. Sign in as the test parent; the first Django request sets up the parent's
    Django account through `POST /api/v1/me/`.
-4. Children are created in Amplify in this mode, so mirror the test child into Django with the
-   **same id** (local only, synthetic data):
-
-   ```bash
-   cd lai
-   ../.venv/bin/python manage.py shell -c "
-   from apps.users.models import ChildProfile, ParentAccount
-   parent = ParentAccount.objects.get(cognito_sub='<the test parent sub>')
-   child = ChildProfile(id='<childId>', parent=parent, nickname='Test', age_band='PATHFINDER',
-                        avatar_key='FOX', reading_mode='READ_ALONG', session_minutes=10)
-   child.full_clean(); child.save(); print('ok', child.id)
-   "
-   ```
+4. Children are Django profiles in this mode too: add them from the dashboard. To bring over
+   test children that already exist in that Amplify sandbox, export them and use
+   `manage.py import_amplify_profiles` (docs/platform/AMPLIFY_PROFILE_IMPORT.md), which keeps
+   their ids.
 
 ADR-024 gate A6 (verification against a real Cognito token) is still open: if every request is a
 401, check the three Cognito values first. In this mode the local sign-in routes answer 404 and a

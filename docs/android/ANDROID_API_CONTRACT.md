@@ -19,7 +19,7 @@ WebView).
 | Inventory | **Added** (the same rows as `progress.inventory`) |
 | Game launch, ticket redemption, revoke, runtime context, runtime end | **Added** |
 | Standalone `/game/` runtime bundle | **Not built.** Frontend dependency, see `ANDROID_GAME_LAUNCH.md` |
-| Shared children with the deployed website | **Not yet.** The deployed React app still stores children in Amplify; Django children are separate until the Phase 11 data migration (ADR-019 gates) |
+| Shared children with the deployed website | **Not yet in production.** A React build with the Django API keeps every profile in Django (LAI-CHILD-001, ADR-039); the deployed build (no Django API) still uses Amplify until the controlled import and cutover (docs/platform/AMPLIFY_PROFILE_IMPORT.md, Phase 11/12) |
 
 ## Conventions
 
@@ -89,12 +89,22 @@ Provisions the account on first sign-in (201) and returns the same account after
 request body is read.
 
 ```json
-201 {"id": "3f3e9508-3f06-4ee3-bd95-52a2e7bb463a", "django_admin": false}
+201 {"id": "3f3e9508-3f06-4ee3-bd95-52a2e7bb463a", "displayName": "", "timezone": "", "django_admin": false}
 ```
+
+`displayName` and `timezone` were added by LAI-CHILD-001 (additive; `""` when unset).
 
 ### `GET /api/v1/me/` (existed)
 
 `200` with the same body, or `403 account_not_provisioned`. It never creates an account.
+
+### `PATCH /api/v1/me/` (LAI-CHILD-001)
+
+The parent's own profile: `displayName` (1 to 80 characters, trimmed) and `timezone` (an IANA
+name such as `Europe/Bucharest`, or `""` to clear it), either or both. The body is closed: any
+other key (`id`, `cognito_sub`, `is_staff`, `django_admin`, ...) is `400 validation_error`, and so
+is an empty body. `200` with the account body. An unprovisioned identity gets
+`403 account_not_provisioned`; nothing is created.
 
 ## Child profiles (added)
 
@@ -166,9 +176,10 @@ PATCH {"ageBand": "SPROUT", "sessionMinutes": 7}
 
 ### `DELETE /api/v1/children/{childId}/`
 
-Always `403 sensitive_action_unavailable`. Deletion must also remove the S3 photo and cascade
-records under the retention rules, and needs recent authentication. That is LAI-0602 and
-LAI-0209.
+Always `403 sensitive_action_unavailable`, under either sign-in. Deletion must also remove the S3
+photo and cascade records under the retention rules, and needs recent authentication. That is
+LAI-0602 and LAI-0209. Until then the archival policy is `PATCH {"active": false}`: the profile,
+its progress and its rewards are kept, and the child cannot play.
 
 ## Child home (added)
 

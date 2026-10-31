@@ -162,15 +162,15 @@ def test_a_superuser_flag_without_staff_is_rejected_by_the_database():
         parent.save()
 
 
-def test_no_child_data_model_is_registered():
+def test_no_child_owned_record_is_registered_and_child_profiles_are_read_only():
+    """Gameplay and other child-owned rows stay off the admin; `ChildProfile` is registered only
+    as the read-only, audited inspection view (LAI-CHILD-001, ADR-039)."""
     registered = set(admin.site._registry)
-    child_models = {
-        model
-        for model in apps.get_models()
-        if issubclass(model, ChildOwnedModel) or model is ChildProfile
-    }
+    child_models = {model for model in apps.get_models() if issubclass(model, ChildOwnedModel)}
     assert child_models, "the check must find the child-owned models"
     assert not registered & child_models
+    model_admin = admin.site._registry[ChildProfile]
+    assert "nickname" not in model_admin.fields and "interests" not in model_admin.fields
     # Only these apps have anything in the admin.
     assert {model._meta.app_label for model in registered} == {"assets", "auth", "catalog", "users"}
 
@@ -226,7 +226,12 @@ def test_a_signed_up_parent_is_created_upgraded_to_superuser_and_signs_in(api, t
     assert ParentAccount.objects.count() == 1  # the same row, not a second account
 
     # The React menu now learns it is staff from the same call.
-    assert api(sub).post("/api/v1/me/").json() == {"id": str(parent.pk), "django_admin": True}
+    assert api(sub).post("/api/v1/me/").json() == {
+        "id": str(parent.pk),
+        "displayName": "",
+        "timezone": "",
+        "django_admin": True,
+    }
 
     # 3. The admin site lets it in, with superuser pages.
     client, response = sign_in("parent-root", typed_password)

@@ -1,130 +1,59 @@
-import { fetchUserAttributes, getCurrentUser } from 'aws-amplify/auth';
-import { client } from '../../lib/data-client';
-import type { Schema } from '../../../../amplify/data/resource';
+import { apiCredentials } from '../../api/apiAuth';
+import { createApiClient } from '../../api/client';
+import { DJANGO_API_CONFIG, type DjangoApiConfig } from '../../api/config';
+import { amplifyProfileStore } from './amplifyProfiles';
+import { createDjangoProfileStore } from './djangoProfiles';
+import type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore } from './profileTypes';
 
-export type ChildProfile = Schema['ChildProfile']['type'];
-export type ParentProfile = Schema['ParentProfile']['type'];
-
-export interface ChildProfileInput {
-  nickname: string;
-  ageBand: ChildProfile['ageBand'];
-  avatarKey: string;
-  /**
-   * Path of the parent-uploaded profile photo in Amplify Storage, or null
-   * when this child uses their authored `avatarKey` character as the icon.
-   * Written by `persistPhotoSelection` (avatarPhoto.ts), which uploads the
-   * image before this input reaches the API and cleans up any replaced
-   * object after it succeeds.
-   */
-  avatarPhotoKey: string | null;
-  interests: string[];
-  readingMode: ChildProfile['readingMode'];
-  sessionMinutes: number;
-}
+export type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore };
 
 /**
- * Owner authorization scopes `.list()` to the caller's own records, so the
- * first (and only) match here belongs to the signed-in parent.
+ * Parent and child profiles (LAI-CHILD-001, ADR-039). Every screen calls these functions.
+ *
+ * The store follows the build's *backend*, never its sign-in: a build with the Django API
+ * (`VITE_BACKEND=django`) keeps every profile in Django, whether the parent signed in with
+ * Cognito or with a local Django session (ADR-038). Authentication identifies the parent;
+ * Django authorizes access and owns the data.
+ *
+ * A build without the Django API (today's production build) still uses Amplify Data, because
+ * that is where its families' profiles are until the controlled import and cutover (Phase 11/12;
+ * docs/platform/AMPLIFY_PROFILE_IMPORT.md). That branch goes with LAI-1301.
  */
-export async function getOrCreateParentProfile(): Promise<ParentProfile> {
-  const { data: existing } = await client.models.ParentProfile.list();
-  const [current] = existing;
-  if (current) return current;
-
-  const attributes = await fetchUserAttributes();
-  const displayName = attributes.name ?? attributes.email ?? 'Parent';
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-  const { data: created, errors } = await client.models.ParentProfile.create({
-    displayName,
-    timezone,
-  });
-  if (!created) {
-    throw new Error(errors?.[0]?.message ?? 'Could not create a parent profile.');
-  }
-  return created;
+export function profileStoreFor(config: DjangoApiConfig = DJANGO_API_CONFIG): ProfileStore {
+  if (!config.enabled) return amplifyProfileStore;
+  return createDjangoProfileStore(
+    createApiClient({ baseUrl: config.baseUrl, ...apiCredentials(), provisionAccount: true }),
+  );
 }
 
-export async function updateParentProfileDisplayName(
-  id: string,
-  displayName: string,
-): Promise<ParentProfile> {
-  const { data, errors } = await client.models.ParentProfile.update({ id, displayName });
-  if (!data) {
-    throw new Error(errors?.[0]?.message ?? 'Could not update your name.');
-  }
-  return data;
+let store: ProfileStore | null = null;
+function current(): ProfileStore {
+  store ??= profileStoreFor();
+  return store;
 }
 
-export async function listChildProfiles(): Promise<ChildProfile[]> {
-  const { data } = await client.models.ChildProfile.list();
-  return data;
+/** Whether the parent can upload a profile photo with this build's store. */
+export function profilePhotosSupported(): boolean {
+  return current().supportsPhotos;
 }
 
-export async function getChildProfile(id: string): Promise<ChildProfile | null> {
-  const { data } = await client.models.ChildProfile.get({ id });
-  return data;
-}
-
-export async function createChildProfile(
-  parentProfileId: string,
-  input: ChildProfileInput,
-): Promise<ChildProfile> {
-  const { userId: ownerSub } = await getCurrentUser();
-  const { data, errors } = await client.models.ChildProfile.create({
-    parentProfileId,
-    active: true,
-    ownerSub,
-    ...input,
-  });
-  if (!data) {
-    throw new Error(errors?.[0]?.message ?? 'Could not create the child profile.');
-  }
-  return data;
-}
-
-/**
- * Backfills `ownerSub` for a `ChildProfile` row created before that field
- * existed (docs/DECISIONS.md ADR-012): a self-healing, idempotent no-op once
- * the row already has it, so a fresh profile pays this once and every later
- * call is a single cheap read. Called from `useAdventureSession`'s load
- * effect, since `submitAdventureAnswer` is the first caller that needs
- * `ownerSub` to be present.
- */
-export async function ensureChildProfileOwnerSub(childProfileId: string): Promise<void> {
-  const { data: profile } = await client.models.ChildProfile.get({ id: childProfileId });
-  if (!profile || profile.ownerSub) return;
-  const { userId: ownerSub } = await getCurrentUser();
-  await client.models.ChildProfile.update({ id: childProfileId, ownerSub });
-}
-
-export async function updateChildProfile(
-  id: string,
-  input: ChildProfileInput,
-): Promise<ChildProfile> {
-  const { data, errors } = await client.models.ChildProfile.update({ id, ...input });
-  if (!data) {
-    throw new Error(errors?.[0]?.message ?? 'Could not update the child profile.');
-  }
-  return data;
-}
-
-export async function setChildProfileActive(id: string, active: boolean): Promise<ChildProfile> {
-  const { data, errors } = await client.models.ChildProfile.update({ id, active });
-  if (!data) {
-    throw new Error(errors?.[0]?.message ?? 'Could not update the child profile.');
-  }
-  return data;
-}
-
-/** Parent-facing AI on/off control (docs/ROADMAP.md Phase 7). */
-export async function setChildProfileAIEnabled(
-  id: string,
-  aiEnabled: boolean,
-): Promise<ChildProfile> {
-  const { data, errors } = await client.models.ChildProfile.update({ id, aiEnabled });
-  if (!data) {
-    throw new Error(errors?.[0]?.message ?? 'Could not update the child profile.');
-  }
-  return data;
-}
+export const getOrCreateParentProfile = () => current().getOrCreateParentProfile();
+export const updateParentProfileDisplayName = (id: string, displayName: string) =>
+  current().updateParentProfileDisplayName(id, displayName);
+export const listChildProfiles = () => current().listChildProfiles();
+export const getChildProfile = (id: string) => current().getChildProfile(id);
+export const createChildProfile = (parentProfileId: string, input: ChildProfileInput) =>
+  current().createChildProfile(parentProfileId, input);
+export const updateChildProfile = (id: string, input: ChildProfileInput) =>
+  current().updateChildProfile(id, input);
+export const setChildProfileActive = (id: string, active: boolean) =>
+  current().setChildProfileActive(id, active);
+export const setChildProfileAIEnabled = (id: string, aiEnabled: boolean) =>
+  current().setChildProfileAIEnabled(id, aiEnabled);
+export const ensureChildProfileOwnerSub = (childProfileId: string) =>
+  current().ensureChildProfileOwnerSub(childProfileId);
+/** Every stored record for one child. Unavailable from Django until LAI-0209. */
+export const deleteChildProfileData = (childProfileId: string) =>
+  current().deleteChildProfileData(childProfileId);
+/** The account and every child's data. Unavailable from Django until LAI-0209. */
+export const deleteAccountAndAllData = () => current().deleteAccountAndAllData();

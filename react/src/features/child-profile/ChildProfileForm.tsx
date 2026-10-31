@@ -14,12 +14,14 @@ import {
 import { validateInterests, validateNickname, validateSessionMinutes } from './validators';
 import { ChildPhotoField } from './ChildPhotoField';
 import { persistPhotoSelection, type PhotoSelection } from './avatarPhoto';
-import type { ChildProfileInput } from './api';
+import { profilePhotosSupported, type ChildProfileInput } from './api';
 
 interface ChildProfileFormProps {
   initialValue?: Partial<ChildProfileInput>;
   submitLabel: string;
   onSubmit: (input: ChildProfileInput) => Promise<void>;
+  /** Offer the photo upload. Defaults to whether this build's profile store keeps photos. */
+  photosEnabled?: boolean;
 }
 
 interface FieldErrors {
@@ -28,7 +30,12 @@ interface FieldErrors {
   sessionMinutes?: string;
 }
 
-export function ChildProfileForm({ initialValue, submitLabel, onSubmit }: ChildProfileFormProps) {
+export function ChildProfileForm({
+  initialValue,
+  submitLabel,
+  onSubmit,
+  photosEnabled = profilePhotosSupported(),
+}: ChildProfileFormProps) {
   const [nickname, setNickname] = useState(initialValue?.nickname ?? '');
   const [ageBand, setAgeBand] = useState<AgeBandValue>(initialValue?.ageBand ?? 'SPROUT');
   const [avatarKey, setAvatarKey] = useState<AvatarValue>(
@@ -156,13 +163,15 @@ export function ChildProfileForm({ initialValue, submitLabel, onSubmit }: ChildP
         </div>
       </fieldset>
 
-      <ChildPhotoField
-        avatarKey={avatarKey}
-        existingPhotoKey={existingPhotoKey}
-        selection={photoSelection}
-        onSelectionChange={setPhotoSelection}
-        disabled={isSubmitting}
-      />
+      {photosEnabled ? (
+        <ChildPhotoField
+          avatarKey={avatarKey}
+          existingPhotoKey={existingPhotoKey}
+          selection={photoSelection}
+          onSelectionChange={setPhotoSelection}
+          disabled={isSubmitting}
+        />
+      ) : null}
 
       <fieldset className={styles.field}>
         <legend className={styles.label}>Interests</legend>

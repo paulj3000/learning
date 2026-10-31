@@ -23,6 +23,8 @@ from django.utils.timezone import now
 MAX_CHILD_PROFILES = 3  # react/src/features/child-profile/constants.ts: MAX_CHILD_PROFILES
 MAX_INTERESTS = 5
 NICKNAME_MAX_LENGTH = 30
+DISPLAY_NAME_MAX_LENGTH = 80
+TIMEZONE_MAX_LENGTH = 64
 # Cognito subs are UUIDs, so a sub with either prefix can never arrive in a verified token.
 ADMIN_ONLY_SUB_PREFIX = "django-admin-only:"
 # Local development parents (AUTH_PROVIDER=django, ADR-038): `cognito_sub` is this prefix plus the
@@ -105,8 +107,8 @@ class ParentAccount(AbstractBaseUser, PermissionsMixin):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     cognito_sub = models.CharField(max_length=128, unique=True, editable=False)
-    display_name = models.CharField(max_length=80, blank=True)
-    timezone = models.CharField(max_length=64, blank=True)
+    display_name = models.CharField(max_length=DISPLAY_NAME_MAX_LENGTH, blank=True)
+    timezone = models.CharField(max_length=TIMEZONE_MAX_LENGTH, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
@@ -170,6 +172,17 @@ class AdminAccount(ParentAccount):
     class Meta:
         proxy = True
         verbose_name = "admin account"
+
+
+class ParentRecord(ParentAccount):
+    """The Django Admin's read-only view of parent rows (no `admin_username`). Not a table.
+
+    LAI-CHILD-001, ADR-039: staff inspect which children an account owns; they never edit it.
+    """
+
+    class Meta:
+        proxy = True
+        verbose_name = "parent account"
 
 
 class ChildProfileQuerySet(models.QuerySet):

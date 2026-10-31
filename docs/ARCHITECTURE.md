@@ -676,6 +676,32 @@ React / Android                           React (vite dev, VITE_AUTH_PROVIDER=dj
   memory), `api/client.ts` (bearer or session credential, never both).
 - Local setup: `docs/TREASURE_RUSH_LOCAL_DEV.md`.
 
+### Profile authority (LAI-CHILD-001, ADR-039)
+
+**Authentication identifies the parent; Django authorizes access to parent and child resources and
+owns the associated application data.** The sign-in (Cognito token or local session) never decides
+where profiles live; the backend does.
+
+```text
+React --(Cognito JWT | local Django session)--> Django REST API
+         me/            GET, POST (onboarding), PATCH (displayName, timezone)
+         children/      GET list, POST create (cap 3)
+         children/<id>/ GET, PATCH (settings, active, aiEnabled); DELETE 403 until LAI-0209
+         children/<id>/... play, progress, rewards (Treasure Rush)
+```
+
+- React: `react/src/features/child-profile/api.ts` picks the store by backend. Every build with
+  the Django API uses `djangoProfiles.ts`; a build without it (the deployed build until the
+  cutover) uses `amplifyProfiles.ts`, removed by LAI-1301. Screens use the hand-owned shapes in
+  `profileTypes.ts`. The Amplify `Admins` pages keep their own Amplify reads (`features/admin`).
+- Archival policy: `PATCH {"active": false}` keeps the profile, progress and rewards. Hard
+  deletion waits for LAI-0209 / LAI-0602.
+- Existing Amplify profiles: `manage.py import_amplify_profiles`, dry run first, ids preserved,
+  owner from the recorded Cognito sub only (`docs/platform/AMPLIFY_PROFILE_IMPORT.md`).
+- Django Admin: `ParentRecord` and `ChildProfile` are read-only for staff with
+  `users.view_childprofile`, without nicknames, interests or identity mappings, and each view is
+  logged to `lai.admin_audit`.
+
 ## Tenant isolation (LAI-0403)
 
 One parent is the ownership boundary (no households, no sharing). `apps/users/scoping.py`:
@@ -686,7 +712,7 @@ path and give the same `not_found` response (same status, body, and headers; the
 queries). Child-owned records are fetched only with `self.scoped(queryset)` or
 `self.get_scoped_object(queryset, pk)`, which add `child=self.child`; a nested id from the URL is never
 looked up alone. An `Admins` claim changes nothing here: cross-family administration is a separate,
-audited path that does not exist yet (Django Admin registers no child data, ADR-034). The helpers do not secure an endpoint that does not use them; see the
+audited path that does not exist yet (Django Admin shows profile metadata read-only and audited, ADR-039, and registers no child-owned records). The helpers do not secure an endpoint that does not use them; see the
 checklist in `docs/TESTING_STRATEGY.md`.
 
 ## Logging and privacy (LAI-0208, ADR-025)
