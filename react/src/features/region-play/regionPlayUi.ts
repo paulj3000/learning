@@ -1,5 +1,5 @@
 import type { ApiError } from '../../api/errors';
-import type { AnswerOutcome, PublicChallenge, QuestEntry } from '../../api/play/types';
+import type { AnswerOutcome, ChestState, PublicChallenge, QuestEntry } from '../../api/play/types';
 
 /**
  * The rules behind the Treasure Rush play UI (TR-8), apart from React so
@@ -45,6 +45,10 @@ export const PLAY_COPY = {
   backpack: 'Backpack',
   backpackTitle: 'My backpack',
   backpackEmpty: 'Nothing here yet. Open a chest to find treasure!',
+  // Objective and hints (TR-12)
+  hint: 'Hint',
+  hintClose: 'Got it',
+  defaultGiver: 'your friend',
   myQuests: 'My quests',
   questNew: 'New',
   questDoing: 'Doing now',
@@ -179,6 +183,78 @@ export function questStatusLabel(status: QuestEntry['status']): string {
   if (status === 'COMPLETED') return PLAY_COPY.questDone;
   if (status === 'ACTIVE') return PLAY_COPY.questDoing;
   return PLAY_COPY.questNew;
+}
+
+// --- Objective and hints (TR-12) ------------------------------------------------------------
+
+/**
+ * What the child is working on, from the server's quest state only:
+ * - `start`: a quest is on offer and none is active, so the giver is the goal;
+ * - `progress`: the active quest's required objectives, done of total;
+ * - `done`: every quest here is complete.
+ */
+export type QuestObjective =
+  | { kind: 'start'; giver: string }
+  | { kind: 'progress'; title: string; giver: string; done: number; total: number }
+  | { kind: 'done'; title: string };
+
+export function questObjective(
+  quests: readonly QuestEntry[],
+  giverName: (npcId: string | null) => string,
+): QuestObjective | null {
+  const active = quests.find((quest) => quest.status === 'ACTIVE');
+  if (active) {
+    const required = active.stages.flatMap((stage) =>
+      stage.objectives.filter((objective) => !objective.optional),
+    );
+    return {
+      kind: 'progress',
+      title: active.title,
+      giver: giverName(active.giverNpcId),
+      done: required.filter((objective) => objective.complete).length,
+      total: required.length,
+    };
+  }
+  const offered = quests.find((quest) => quest.status === 'AVAILABLE');
+  if (offered) return { kind: 'start', giver: giverName(offered.giverNpcId) };
+  const finished = quests.find((quest) => quest.status === 'COMPLETED');
+  return finished ? { kind: 'done', title: finished.title } : null;
+}
+
+/** The HUD cue for an objective: one short line, readable aloud, no em dashes. */
+export function objectiveCue(objective: QuestObjective): string {
+  switch (objective.kind) {
+    case 'start':
+      return `Talk to ${objective.giver} to start an adventure`;
+    case 'progress':
+      return `${objective.title}: ${objective.done} of ${objective.total}`;
+    case 'done':
+      return `${objective.title}: all done!`;
+  }
+}
+
+/**
+ * The next thing to try, only when the child asks (the Hint button), so free
+ * exploring is never interrupted. Points at what the world already shows: a
+ * closed chest has a gold star over it.
+ */
+export function nextStepHint(
+  objective: QuestObjective | null,
+  chests: readonly ChestState[],
+): string {
+  if (objective === null)
+    return 'Look around and walk up to things. A button shows what you can do.';
+  switch (objective.kind) {
+    case 'start':
+      return `Walk up to ${objective.giver}. When the Talk button shows, use it.`;
+    case 'progress':
+      if (chests.some((chest) => !chest.isOpen && chest.challengeAvailable)) {
+        return 'Look for a treasure chest with a gold star over it. Walk close and use Open.';
+      }
+      return `Walk back to ${objective.giver} and talk. There may be news!`;
+    case 'done':
+      return 'You did it! Explore the cove as long as you like.';
+  }
 }
 
 // --- Errors ---------------------------------------------------------------------------------

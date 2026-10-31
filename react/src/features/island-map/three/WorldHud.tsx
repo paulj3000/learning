@@ -17,6 +17,20 @@ export interface WorldHudProps {
   /** A short-lived message (e.g. "You're inside the lookout tower."), or `null`. */
   toastMessage: string | null;
   backpackItems: readonly WorldHudBackpackItem[];
+  /**
+   * Action prompt mode (`interactionAssist`): the verb for what has focus
+   * ("Open"). With `onInteract`, the label becomes one large button that
+   * names the action, works by tap, click or E, and shows the E key only on
+   * a device with a fine pointer (no keyboard is assumed on a tablet).
+   */
+  focusAction?: string | null;
+  onInteract?: () => void;
+}
+
+/** True where a keyboard hint makes sense: a fine pointer (mouse, trackpad). Unknown means yes. */
+function hasFinePointer(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true;
+  return window.matchMedia('(pointer: fine)').matches;
 }
 
 /**
@@ -37,8 +51,11 @@ export function WorldHud({
   focusedLabel,
   toastMessage,
   backpackItems,
+  focusAction = null,
+  onInteract,
 }: WorldHudProps) {
   const [backpackOpen, setBackpackOpen] = useState(false);
+  const actionPrompt = onInteract && focusedLabel && focusAction;
 
   return (
     <div className={styles.overlay}>
@@ -57,7 +74,22 @@ export function WorldHud({
           className={`${styles.reticle} ${focusedLabel ? styles.reticleFocused : ''}`.trim()}
           aria-hidden="true"
         />
-        {focusedLabel ? (
+        {actionPrompt ? (
+          <button
+            type="button"
+            className={styles.actionPrompt}
+            onClick={onInteract}
+            aria-label={`${focusAction}: ${focusedLabel}`}
+          >
+            {hasFinePointer() ? (
+              <kbd className={styles.actionKey} aria-hidden="true">
+                E
+              </kbd>
+            ) : null}
+            <span className={styles.actionVerb}>{focusAction}</span>
+            <span className={styles.actionTarget}>{focusedLabel}</span>
+          </button>
+        ) : focusedLabel ? (
           <span className={styles.focusLabel}>{focusedLabel}: press E to talk</span>
         ) : null}
       </div>

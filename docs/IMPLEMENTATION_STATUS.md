@@ -11464,3 +11464,34 @@ instruction. Not pushed.
   `tsc -p tsconfig.app.json --noEmit` clean.
 - **Deferred to merge.** Full Vitest and pytest, oxlint, Prettier, Ruff, build, Playwright and a
   real-browser look at the header on a tablet.
+
+## TR-12 Treasure Rush reboot, Stage A: child-friendly interaction and guidance (2026-10-31)
+
+First task of the owner's Treasure Rush gameplay reboot ("Pip's Missing Treasure"). Plan for the
+rest (TR-13 to TR-20, decisions TR-D22 and TR-D23): `docs/TREASURE_RUSH_ROADMAP.md` section 17.
+The brief as received stops partway through its section 7; later sections are not planned.
+
+- **Acceptance (brief, Stage A).** Interaction without precise aim; a context-sensitive prompt
+  that disappears out of range; keyboard, mouse and touch; highlighted and recognisable
+  interactables; a visible objective; a hint that does not interrupt; exit without arithmetic
+  that keeps progress (already done by LAI-0807).
+- **Built.** Behind a new manifest flag, `interactionAssist`, on for server-published regions
+  only: forgiving aim (nearest interactable within 3 m and 40 degrees when the centre ray misses),
+  a bobbing focus marker, and a tappable action prompt ("Open: Treasure chest") with the E key
+  cap shown only on a fine pointer. In the cove: a gold beacon over every closed chest, the HUD
+  objective from server quest state, and a Hint button.
+- **Files changed.** `runtime/locationManifest.ts`, `runtime/createLocationEngine.ts`,
+  `runtime/manifestBindings.ts`, `runtime/ThreeLocationWorldView.tsx`,
+  `runtime/viewExtensionRegistry.tsx`, `WorldHud.tsx` and `.module.css` (all under
+  `react/src/features/island-map/three/`); `extensions/regionPlay/regionPlayScene.ts`,
+  `RegionPlayCompanion.tsx`, `ui/RegionPlayPanels.module.css`;
+  `react/src/features/region-play/regionManifest.ts`, `regionPlayUi.ts`. No backend change.
+- **Tests (development checks).** New: 8 cove engine tests (aim with and without the flag,
+  behind, beside, out of reach, ray wins, marker, beacons), 2 prompt lookup, 4 HUD, 1 builder,
+  7 objective and hint rules, 4 companion. Vitest over `region-play`, `island-map/three/extensions`,
+  `island-map/three/runtime` (including every region parity suite) and the HUD: 590 passed.
+  `tsc -b` clean; Prettier clean on the touched files.
+- **Not done.** No browser or tablet run (TR-9); the 3 m and 40 degree values need a playtest.
+  Full suites, lint, Playwright and build are deferred to merge readiness. The backpack and
+  Hint buttons are `position: fixed` outside `WorldStage`, so in full-screen mode they are not
+  visible (true of the backpack before this change too).

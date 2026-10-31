@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WorldHud } from './WorldHud';
 
 const baseProps = {
@@ -64,5 +64,54 @@ describe('WorldHud', () => {
     await user.click(screen.getByRole('button', { name: /backpack \(0\)/i }));
 
     expect(screen.getByText(/nothing here yet/i)).toBeInTheDocument();
+  });
+});
+
+describe('WorldHud action prompt (TR-12)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const pointer = (fine: boolean) =>
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({ matches: query === '(pointer: fine)' && fine })),
+    );
+
+  it('turns the focus label into one button that names the action and interacts', async () => {
+    const onInteract = vi.fn();
+    render(
+      <WorldHud
+        {...baseProps}
+        focusedLabel="Treasure chest"
+        focusAction="Open"
+        onInteract={onInteract}
+      />,
+    );
+    const button = screen.getByRole('button', { name: 'Open: Treasure chest' });
+    expect(screen.queryByText(/press E to talk/)).not.toBeInTheDocument();
+    await userEvent.click(button);
+    expect(onInteract).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the E key with a mouse, and no key on a touch screen', () => {
+    pointer(true);
+    const { unmount } = render(
+      <WorldHud {...baseProps} focusedLabel="Pip" focusAction="Talk" onInteract={vi.fn()} />,
+    );
+    expect(screen.getByText('E')).toBeInTheDocument();
+    unmount();
+    pointer(false);
+    render(<WorldHud {...baseProps} focusedLabel="Pip" focusAction="Talk" onInteract={vi.fn()} />);
+    expect(screen.queryByText('E')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Talk: Pip' })).toBeInTheDocument();
+  });
+
+  it('shows no prompt when nothing has focus', () => {
+    render(<WorldHud {...baseProps} focusAction={null} onInteract={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: /:/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps the old label without onInteract', () => {
+    render(<WorldHud {...baseProps} focusedLabel="Pip" focusAction="Talk" />);
+    expect(screen.getByText('Pip: press E to talk')).toBeInTheDocument();
   });
 });

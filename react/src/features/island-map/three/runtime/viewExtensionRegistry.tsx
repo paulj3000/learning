@@ -71,6 +71,12 @@ export interface LocationCompanionProps {
    * than "a portrait".
    */
   setFocusLabel(label: string | null): void;
+  /**
+   * Replaces the HUD's quest cue, for a companion whose quests the view
+   * cannot read itself (a Django region's quests come from the play API).
+   * `null` gives the view's own cue back.
+   */
+  setQuestCue?(cue: string | null): void;
   /** Whether the session's time is up, for a region that stages a calm stop in the room. */
   limitReached: boolean;
   /** Re-reads world changes, inventory and discoveries. */

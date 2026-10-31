@@ -6,6 +6,7 @@ import {
   LoopOnce,
   Mesh,
   MeshStandardMaterial,
+  OctahedronGeometry,
   SphereGeometry,
   type AnimationAction,
   type BufferGeometry,
@@ -31,6 +32,10 @@ import {
  *   which one shows comes only from the child's server state: the config at
  *   build time, then `setChestOpen` from the companion after the play API
  *   says so. Interacting never opens a chest.
+ * - **Beacons (TR-12).** A small gold star turns and bobs over every chest
+ *   drawn closed, so a child can see from across the cove where treasure
+ *   waits; it goes when the chest is drawn open. Placed in the scene, not
+ *   under the chest, so the chest's own size (the focus marker) is unchanged.
  * - **Figures.** A placeholder character for an NPC published without a
  *   model, so the region still renders and the NPC still talks.
  *
@@ -55,6 +60,10 @@ export const OPEN_SECONDS = 0.7;
 /** How long the gold sparkles rise after opening. */
 export const SPARKLE_SECONDS = 1.4;
 const SPARKLE_COUNT = 10;
+/** The beacon's name, so tests and debugging can find it. */
+export const BEACON_NAME = 'region-play:beacon';
+/** How high over the top of a closed chest the beacon floats, in metres. */
+const BEACON_LIFT = 0.9;
 
 interface DrawnChest {
   open: boolean;
@@ -144,9 +153,36 @@ export const regionPlaySceneExtension: WorldExtension = {
         });
     }
 
+    // One shared shape and material for every beacon; one mesh per chest.
+    const beaconGeometry = new OctahedronGeometry(0.18);
+    const beaconMaterial = new MeshStandardMaterial({ color: GOLD, emissive: GOLD });
+    geometries.push(beaconGeometry);
+    materials.push(beaconMaterial);
+    const beacons = new Map<string, { mesh: Mesh; baseY: number }>();
+    for (const chest of config.chests) {
+      const root = context.entityRoot(chest.entityId);
+      if (!root) continue;
+      const mesh = new Mesh(beaconGeometry, beaconMaterial);
+      mesh.name = `${BEACON_NAME}:${chest.entityId}`;
+      root.updateMatrixWorld(true);
+      mesh.position.setFromMatrixPosition(root.matrixWorld);
+      const baseY = mesh.position.y + chest.placeholder.height * chest.scale + BEACON_LIFT;
+      mesh.position.y = baseY;
+      mesh.visible = !chest.isOpen;
+      context.scene.add(mesh);
+      beacons.set(chest.entityId, { mesh, baseY });
+    }
+    let beaconClock = 0;
+
     const stopFrames = context.onFrame((delta) => {
       for (const mixer of mixers) mixer.update(delta);
       for (const chest of chests.values()) chest.tick(delta);
+      beaconClock += delta;
+      for (const [entityId, beacon] of beacons) {
+        beacon.mesh.visible = chests.get(entityId)?.open === false;
+        beacon.mesh.position.y = beacon.baseY + Math.sin(beaconClock * 2) * 0.1;
+        beacon.mesh.rotation.y += delta * 1.2;
+      }
     });
 
     const api: RegionPlaySceneApi = {
@@ -164,6 +200,7 @@ export const regionPlaySceneExtension: WorldExtension = {
       dispose() {
         disposed = true;
         stopFrames();
+        for (const beacon of beacons.values()) context.scene.remove(beacon.mesh);
         for (const chest of chests.values()) chest.dispose();
         for (const mixer of mixers) mixer.stopAllAction();
         for (const geometry of geometries) geometry.dispose();

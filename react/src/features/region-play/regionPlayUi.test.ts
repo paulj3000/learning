@@ -10,8 +10,11 @@ import {
   completedQuests,
   describeChallenge,
   hintsFor,
+  nextStepHint,
+  objectiveCue,
   parseTypedAnswer,
   playErrorMessage,
+  questObjective,
   questStatusLabel,
   shouldCelebrate,
 } from './regionPlayUi';
@@ -160,5 +163,86 @@ describe('copy and keys', () => {
   it('covers every key the first-person controls act on', () => {
     for (const key of ['w', 'a', 's', 'd', 'e', 'enter', ' ', 'arrowup'])
       expect(CONTROL_KEYS.has(key)).toBe(true);
+  });
+});
+
+describe('objective and hints (TR-12)', () => {
+  const quest = (overrides: Record<string, unknown> = {}) =>
+    read(questJson(overrides), parse.quest);
+  const giver = (npcId: string | null) => (npcId === 'pirate-pip' ? 'Pirate Pip' : 'your friend');
+  const twoObjectives = (firstDone: boolean) => [
+    {
+      id: 'find',
+      title: 'Find the treasure',
+      complete: false,
+      objectives: [
+        { id: 'a', label: 'Open the first chest', optional: false, complete: firstDone },
+        { id: 'b', label: 'Open the second chest', optional: false, complete: false },
+        { id: 'c', label: 'Wave at a crab', optional: true, complete: true },
+      ],
+    },
+  ];
+  const chest = (isOpen: boolean, challengeAvailable = true) =>
+    ({ isOpen, challengeAvailable }) as Parameters<typeof nextStepHint>[1][number];
+
+  it('points at the quest giver while a quest is only on offer', () => {
+    const objective = questObjective([quest()], giver);
+    expect(objective).toEqual({ kind: 'start', giver: 'Pirate Pip' });
+    expect(objectiveCue(objective!)).toBe('Talk to Pirate Pip to start an adventure');
+    expect(nextStepHint(objective, [chest(false)])).toMatch(/Walk up to Pirate Pip/);
+  });
+
+  it('counts required objectives only, done of total, for the active quest', () => {
+    const objective = questObjective(
+      [quest({ status: 'ACTIVE', stages: twoObjectives(true) })],
+      giver,
+    );
+    expect(objective).toEqual({
+      kind: 'progress',
+      title: 'Treasure Rush',
+      giver: 'Pirate Pip',
+      done: 1,
+      total: 2,
+    });
+    expect(objectiveCue(objective!)).toBe('Treasure Rush: 1 of 2');
+  });
+
+  it('prefers an active quest over one on offer', () => {
+    const objective = questObjective(
+      [quest({ questId: 'other' }), quest({ status: 'ACTIVE' })],
+      giver,
+    );
+    expect(objective?.kind).toBe('progress');
+  });
+
+  it('sends the child to a closed chest, or back to the giver when none is left', () => {
+    const objective = questObjective([quest({ status: 'ACTIVE' })], giver);
+    expect(nextStepHint(objective, [chest(false)])).toMatch(/gold star/);
+    expect(nextStepHint(objective, [chest(true)])).toMatch(/Walk back to Pirate Pip/);
+    // A closed chest with no challenge for this child is not somewhere to send them.
+    expect(nextStepHint(objective, [chest(false, false)])).toMatch(/Walk back to Pirate Pip/);
+  });
+
+  it('celebrates a finished quest and leaves the child free to explore', () => {
+    const objective = questObjective([quest({ status: 'COMPLETED' })], giver);
+    expect(objectiveCue(objective!)).toBe('Treasure Rush: all done!');
+    expect(nextStepHint(objective, [])).toMatch(/Explore the cove/);
+  });
+
+  it('has no objective in a region with no quests, and a general hint', () => {
+    expect(questObjective([], giver)).toBeNull();
+    expect(nextStepHint(null, [])).toMatch(/A button shows what you can do/);
+  });
+
+  it('uses no em dashes in any cue or hint', () => {
+    const objectives = [
+      questObjective([quest()], giver),
+      questObjective([quest({ status: 'ACTIVE' })], giver),
+      questObjective([quest({ status: 'COMPLETED' })], giver),
+    ];
+    for (const objective of objectives) {
+      expect(objectiveCue(objective!)).not.toContain('\u2014');
+      expect(nextStepHint(objective, [chest(false)])).not.toContain('\u2014');
+    }
   });
 });

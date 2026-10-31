@@ -550,6 +550,52 @@ describe('the backpack', () => {
   });
 });
 
+describe('objective and hint (TR-12)', () => {
+  it('puts the objective in the HUD from the server quest state, and gives the cue back on leaving', async () => {
+    const setQuestCue = vi.fn();
+    apis.set(CHILD_A, fakeApi());
+    const view = render(<RegionPlayCompanion {...props({ setQuestCue })} />);
+    await waitFor(() =>
+      expect(setQuestCue).toHaveBeenLastCalledWith('Talk to Pirate Pip to start an adventure'),
+    );
+    view.unmount();
+    expect(setQuestCue).toHaveBeenLastCalledWith(null);
+  });
+
+  it('counts the active quest as done of total', async () => {
+    const setQuestCue = vi.fn();
+    apis.set(
+      CHILD_A,
+      fakeApi({
+        getRegion: vi.fn(async () =>
+          bootstrap({
+            quests: [questJson({ status: 'ACTIVE', currentStageId: 'open-the-chest' })],
+          }),
+        ),
+      }),
+    );
+    render(<RegionPlayCompanion {...props({ setQuestCue })} />);
+    await waitFor(() => expect(setQuestCue).toHaveBeenLastCalledWith('Treasure Rush: 0 of 1'));
+  });
+
+  it('shows a hint only when asked, and puts it away', async () => {
+    apis.set(CHILD_A, fakeApi());
+    render(<RegionPlayCompanion {...props()} />);
+    const hint = await screen.findByRole('button', { name: 'Hint' });
+    await waitFor(() => expect(hint).toHaveAttribute('aria-expanded', 'false'));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    await userEvent.click(hint);
+    expect(await screen.findByRole('status')).toHaveTextContent(/Walk up to Pirate Pip/);
+    await userEvent.click(screen.getByRole('button', { name: 'Got it' }));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('hides the hint button while a panel is open', async () => {
+    await atTheChest(fakeApi());
+    expect(screen.queryByRole('button', { name: 'Hint' })).not.toBeInTheDocument();
+  });
+});
+
 describe('switching children', () => {
   it('starts fresh for the new child, with nothing carried over', async () => {
     const apiA = fakeApi();

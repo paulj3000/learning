@@ -630,3 +630,86 @@ make default, cache headers, scoping). Operations, deployment and rollback:
 Not done: any browser or WebGL run (owner, after deployment), and TR-9. A deployed environment
 still needs TR-3's region admin to publish the cove and LAI-0502/0602 for real children
 (`docs/ASSET_MANAGER.md` 19.3, steps 5 and 9).
+
+## 17. Gameplay reboot: Pip's Missing Treasure (2026-10-31)
+
+The owner's reboot brief ("Treasure Rush Gameplay Reboot") turns the one-chest slice into a
+10 to 15 minute adventure for ages 6 to 10: four different treasure encounters across four zones,
+Pip as a real quest giver, and a bridge that opens for good at the end. It is a gameplay reboot,
+not a rewrite: Django stays authoritative for quests, challenges, rewards, inventory, world
+changes and unlocks (ADR-019, ADR-033); Three.js presents (ADR-020); no Phaser, no new engine.
+The brief as received stops partway through section 7 ("Replayability"); anything after that
+is not yet known and is not planned here.
+
+The brief makes **Stage A (controls and interaction)** the first priority. It is TR-12, below.
+
+### TR-12 as built: child-friendly interaction and guidance
+
+| Brief item | What was built | Where |
+|---|---|---|
+| Forgiving targeting, no precise crosshair | When the centre ray misses, the nearest interactable within 3 m and 40 degrees of straight ahead (measured on the ground, so looking up or down does not matter) takes focus. Aiming at something still wins | `createLocationEngine.ts` (`nearestAhead`, `ASSIST_*`) |
+| Context-sensitive prompt; disappears out of range | The focus label becomes one large button naming the action and the thing ("Open: Treasure chest", "Talk: Pirate Pip"). It shows only while something has focus | `WorldHud.tsx`, `manifestBindings.ts` (`focusPrompt`) |
+| Keyboard, mouse, touch | The button works by tap or click; E and Enter still work. The E key cap shows only with a fine pointer, so a tablet or the Android WebView never shows a key it does not have | `WorldHud.tsx` (`hasFinePointer`) |
+| Object highlighting | A gold marker bobs over whatever has focus (one mesh, one draw call) | `createLocationEngine.ts` (`FOCUS_MARKER_NAME`) |
+| Recognisable interactables | A gold star turns and bobs over every closed chest and goes when the server opens it | `regionPlayScene.ts` (`BEACON_NAME`) |
+| Objective display | The HUD cue shows the server's quest state: "Talk to Pirate Pip to start an adventure", then "Treasure Rush: 0 of 1", then "all done!" | `regionPlayUi.ts` (`questObjective`, `objectiveCue`), `RegionPlayCompanion.tsx` |
+| Hint system that does not interrupt | A Hint button; the hint names the next step from server state (find the giver, find a star, go back to the giver) and only appears when asked | `regionPlayUi.ts` (`nextStepHint`) |
+| Exit without arithmetic, progress kept | Already true: LAI-0807 added the ungated "Leave island" link, and the region's own exit is a plain link. Progress is server-side, so leaving loses nothing | `IslandLayout.tsx` (LAI-0807) |
+
+All of it is behind one manifest flag, `interactionAssist`, which `buildRegionManifest` turns on
+for every server-published region. Source regions keep their exact behaviour, so their parity
+tests ("Pip: press E to talk") are untouched. Turning it on for other regions is a one-line
+change each, worth doing once a person has played it in the cove.
+
+**Contract changes.** `ThreeLocationManifest.interactionAssist`; optional `action` (the prompt
+verb) on NPC, prop and collectible specs; optional `setQuestCue` on companion props. All
+optional, all additive.
+
+**Not verified in a browser.** No person has played this yet (TR-9). The forgiving-aim numbers
+(3 m, 40 degrees) are a first guess to tune in that playtest.
+
+### Remaining reboot tasks
+
+The order follows the brief's stages. Each task is separate so no backend domain change is
+combined with a world change (CLAUDE.md section 19).
+
+- **TR-13 Treasure Cove layout: four zones.** Pirate Landing, Palm Tree Grove, Shipwreck Beach
+  and Ancient Treasure Ruins as one walkable area, with landmarks and paths. Larger bounds and
+  scenery placements in `treasure_rush_seed.py` (the layout's source of truth until LAI-0805),
+  using bundled kit assets and TR-7a placeholders. Depends: none. Risk M.
+- **TR-14 Four chests and the quest "Pip's Missing Treasure".** Four `TreasureChest` rows, each
+  with its own challenge specs per band, keepsake, reward rule and world change; the quest with
+  four chest objectives and a final "return to Pip" stage, in the content export. Supersedes
+  TR-11. Depends: TR-13. Open question: TR-11 waited for TR-9's playtest; the reboot brief puts
+  content first. **Decision needed (owner).**
+- **TR-15 The locked chest and its key.** A backend domain change: a chest may require an item;
+  a child-scoped pickup route grants the key through the canonical inventory, idempotently; the
+  challenge is refused until the key is owned. **Decision TR-D22 needed:** pickup as a new play
+  route versus a world change the reward rules turn into the item. Depends: TR-14. Risk H.
+- **TR-16 The ruins puzzle.** A short environmental puzzle before the final chest. The engine
+  never validates answers (ADR-020), so either the puzzle is presentation only and the server
+  challenge stays the learning check, or the puzzle's result is graded by Django. **Decision
+  TR-D23 needed.** Depends: TR-14.
+- **TR-17 Completion and the bridge.** Quest completion records a world change; the bridge and
+  the area beyond it appear from that change on every later visit. Needs a check that the
+  region's scenery requirements read Django world changes (today the engine's world state comes
+  from the view's snapshot), and an achievement ("Treasure Cove Explorer") through an existing
+  reward trigger. Depends: TR-14. Risk M.
+- **TR-18 A living cove.** Swaying palms, moving water, floating particles, torches; Pip's idle,
+  talk, reaction and celebration. Lightweight, instanced where possible. Needs an animated Pip
+  model (asset list below). Depends: TR-13.
+- **TR-19 Sound.** TR-D19 left sound out. Short effects (chest open, key pickup, celebration)
+  with a mute control would need a decision on where the volume setting lives. **Decision
+  needed.**
+- **TR-20 Replay.** After completion: one small repeatable activity with no duplicate permanent
+  rewards. Depends: TR-17.
+- **TR-9 (unchanged) End-to-end and playtest** remains the gate for calling any of this a success.
+
+### Assets to replace with finished artwork
+
+| Placeholder | Used for | Wanted |
+|---|---|---|
+| Gold cone (`interaction-assist:focus-marker`) | Focus marker | A small animated arrow or sparkle sprite |
+| Gold octahedron (`region-play:beacon:*`) | Closed-chest beacon | A glowing star or shimmer effect |
+| Built box chest (TR-8) | Any chest without a model | `treasure-chest` with an `Open` clip (exists; variants for hidden, locked and final chests) |
+| Green cylinder figure | An NPC without a model | An animated Pip with Idle, Talk, Cheer clips |

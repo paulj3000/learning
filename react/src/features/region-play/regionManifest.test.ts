@@ -8,6 +8,7 @@ import {
   buildRegionManifest,
   checkpointId,
   DEFAULT_REGION_COPY,
+  REGION_ACTIONS,
   RegionBuildError,
   REGION_PLAY_EXTENSION_ID,
 } from './regionManifest';
@@ -70,6 +71,18 @@ describe('buildRegionManifest', () => {
     expect(manifest.checkpoints.ids).toEqual(['treasure-rush-cove:cove-landing']);
   });
 
+  it('turns on child-friendly interaction, with a verb for each role (TR-12)', () => {
+    const { manifest } = build({ npcs: [PIP_WITH_MODEL] });
+    expect(manifest.interactionAssist).toBe(true);
+    expect(manifest.npcs[0]?.action).toBe(REGION_ACTIONS.talk);
+    expect(manifest.props.find((prop) => prop.entityId === 'cove-chest')?.action).toBe(
+      REGION_ACTIONS.open,
+    );
+    // An NPC without a model is drawn as a prop, and still says Talk.
+    const figure = build().manifest.props.find((prop) => prop.entityId === 'cove-pip');
+    expect(figure?.action).toBe(REGION_ACTIONS.talk);
+  });
+
   it('refuses a region without a spawn point', () => {
     expect(() => build({ spawn: null })).toThrow(RegionBuildError);
   });
@@ -84,6 +97,7 @@ describe('buildRegionManifest', () => {
         position: { x: 3, z: 6 },
         yaw: 0.4,
         label: 'Pirate Pip',
+        action: 'Talk',
         idleClip: 'Idle',
         placeholderColor: expect.any(Number),
         placeholderSize: { width: 1, height: 1.6, depth: 1 },

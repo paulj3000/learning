@@ -73,6 +73,17 @@ export const DEFAULT_REGION_COPY = {
   altNavLabel: 'Go back to the harbor',
 } as const;
 
+/**
+ * Action prompt verbs (TR-12). Every server-published region runs with
+ * `interactionAssist`, so a chest says "Open" and Pip says "Talk" whether or
+ * not the child is aiming exactly at them. Child-facing and localizable.
+ */
+export const REGION_ACTIONS = {
+  talk: 'Talk',
+  open: 'Open',
+  look: 'Look',
+} as const;
+
 export interface BuiltRegion {
   manifest: ThreeLocationManifest;
   /** The region's checkpoints for the World State catalogue (`publishRegionCheckpoints`). */
@@ -131,13 +142,14 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
           position: { x: entity.position.x, z: entity.position.z },
           yaw: entity.rotationY,
           label: entity.label,
+          action: REGION_ACTIONS.talk,
           ...(clips.includes('Idle') ? { idleClip: 'Idle' } : {}),
           placeholderColor: NPC_PLACEHOLDER_COLOR,
           ...placeholderSize(entity, entity.scale),
           interactionId,
         });
       } else {
-        props.push(drawnProp(entity, interactionId));
+        props.push(drawnProp(entity, interactionId, REGION_ACTIONS.talk));
         config.figures.push({ entityId: entity.entityId, height: entity.placeholder.height });
       }
       interactions.push({
@@ -151,7 +163,7 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
       config.interactions.push({ interactionId, kind: 'npc', entityId: entity.entityId, npcId });
     } else if (entity.role === 'chest') {
       const interactionId = `${regionId}:chest:${entity.entityId}`;
-      props.push(drawnProp(entity, interactionId));
+      props.push(drawnProp(entity, interactionId, REGION_ACTIONS.open));
       interactions.push({
         id: interactionId,
         type: 'OBJECT',
@@ -181,7 +193,7 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
       const interactionId = `${regionId}:launch:${entity.entityId}`;
       if (entity.assetId) {
         props.push({
-          ...drawnProp(entity, interactionId),
+          ...drawnProp(entity, interactionId, REGION_ACTIONS.look),
           assetId: entity.assetId,
           ...placeholderSize(entity, entity.scale),
         });
@@ -227,6 +239,7 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     ambient: [],
     interactions,
     adventureBindings: [],
+    interactionAssist: true,
     extensions: [
       { extensionId: REGION_PLAY_EXTENSION_ID, config: config as unknown as JsonObject },
     ],
@@ -235,13 +248,14 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
   return { manifest, checkpoints: [spawn] };
 }
 
-function drawnProp(entity: SceneEntity, interactionId: string): PropSpec {
+function drawnProp(entity: SceneEntity, interactionId: string, action: string): PropSpec {
   return {
     entityId: entity.entityId,
     position: { x: entity.position.x, z: entity.position.z },
     ...(entity.position.elevation ? { elevation: entity.position.elevation } : {}),
     rotationY: entity.rotationY,
     label: entity.label,
+    action,
     interactionId,
   };
 }

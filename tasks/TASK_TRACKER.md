@@ -203,4 +203,13 @@ LAI-0805's ADR; TR-D5 is still Proposed.
 - [x] **TR-8a** Make it runnable locally (depends: TR-8). DONE locally: automatic Django account setup via `POST /me`, correct 403 messages, dev-only `publish_treasure_rush`, `docs/TREASURE_RUSH_LOCAL_DEV.md`
 - [ ] **TR-9** End-to-end and playtest (depends: TR-8a; real families also need LAI-0502, LAI-0602, gate G9, ADR-024 A6. Locally, the child mirror step in `docs/TREASURE_RUSH_LOCAL_DEV.md` stands in for LAI-0602)
 - [ ] **TR-10** Integrate LAI-2106 shared asset management (depends: LAI-2106, TR-7a)
-- [ ] **TR-11** Second chest and quest chain (depends: TR-9)
+- [ ] **TR-11** Second chest and quest chain (depends: TR-9) (to be superseded by TR-14 if the owner approves the reboot order)
+- [ ] **TR-12** Reboot Stage A: child-friendly interaction and guidance (`docs/TREASURE_RUSH_ROADMAP.md` section 17). Implemented: forgiving aim, focus marker, tappable action prompt with the E key only on fine pointers, closed-chest beacons, HUD objective and on-request hint, all behind `interactionAssist` (on for Django regions only). Targeted tests and typecheck pass; not played in a browser (TR-9); merge gates not run
+- [ ] **TR-13** Treasure Cove four-zone layout (depends: none)
+- [ ] **TR-14** Four chests and "Pip's Missing Treasure" quest (depends: TR-13; decision on order versus TR-9)
+- [ ] **TR-15** Locked chest and key pickup, backend domain change (depends: TR-14; decision TR-D22)
+- [ ] **TR-16** Ruins environmental puzzle (depends: TR-14; decision TR-D23)
+- [ ] **TR-17** Completion, persistent bridge unlock, achievement (depends: TR-14)
+- [ ] **TR-18** Living cove: ambient animation and Pip animation (depends: TR-13; animated Pip asset)
+- [ ] **TR-19** Sound effects with mute (decision needed; TR-D19)
+- [ ] **TR-20** Replayable activity after completion (depends: TR-17)

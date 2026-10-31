@@ -11,7 +11,10 @@ import {
   PLAY_COPY,
   completedQuests,
   launchErrorMessage,
+  nextStepHint,
+  objectiveCue,
   playErrorMessage,
+  questObjective,
   shouldCelebrate,
 } from '../../../../region-play/regionPlayUi';
 import { adventurePath, useAdventureLaunch } from '../../../../region-play/useAdventureLaunch';
@@ -40,6 +43,8 @@ import styles from './ui/RegionPlayPanels.module.css';
  *   and shows the reward reveal once, for a correct answer the server
  *   confirmed for an attempt submitted in this visit.
  * - Offers the backpack: the child's items and quests from `GET progress/`.
+ * - Shows the objective in the HUD ("Treasure Rush: 1 of 4") and a hint on
+ *   request (TR-12), both from the server's quest and chest state.
  * - Begins an Adventure from an object that offers one (ADR-041): the server
  *   checks and starts it, then the child goes to the Adventure with a way
  *   back to this 3D Area.
@@ -59,6 +64,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
     claimedInteraction,
     limitReached,
     onCloseInteraction,
+    setQuestCue,
   } = props;
   const auth = useAuth();
   const onUnauthenticated = () => void auth.refresh();
@@ -72,6 +78,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
   const launcher = useAdventureLaunch(childId, regionId);
 
   const [backpackOpen, setBackpackOpen] = useState(false);
+  const [hintOpen, setHintOpen] = useState(false);
   const [celebration, setCelebration] = useState<AnswerOutcome | null>(null);
   const [acceptedHere, setAcceptedHere] = useState<string | null>(null);
   const submittedAttempt = useRef<string | null>(null);
@@ -91,6 +98,20 @@ function RegionPlayGame(props: LocationCompanionProps) {
   useEffect(() => {
     if (limitReached && sessionStatus) void changeSession('complete');
   }, [changeSession, limitReached, sessionStatus]);
+
+  // The objective, from the server's quests: the HUD cue now, the hint when asked.
+  const bootstrap = state.bootstrap;
+  const objective = useMemo(() => {
+    if (!bootstrap) return null;
+    const giverName = (npcId: string | null) =>
+      bootstrap.npcs.find((npc) => npc.npcId === npcId)?.label ?? PLAY_COPY.defaultGiver;
+    return questObjective(bootstrap.quests, giverName);
+  }, [bootstrap]);
+  const cue = objective ? objectiveCue(objective) : null;
+  useEffect(() => {
+    setQuestCue?.(cue);
+  }, [cue, setQuestCue]);
+  useEffect(() => () => setQuestCue?.(null), [setQuestCue]);
 
   // Chest appearance follows the server, never the interaction or the answer.
   const chests = state.bootstrap?.chests;
@@ -243,6 +264,24 @@ function RegionPlayGame(props: LocationCompanionProps) {
   return (
     <>
       {panel}
+      {!panel && hintOpen ? (
+        <div className={styles.hintBubble} role="status">
+          <p>{nextStepHint(objective, bootstrap?.chests ?? [])}</p>
+          <button type="button" className={styles.hintClose} onClick={() => setHintOpen(false)}>
+            {PLAY_COPY.hintClose}
+          </button>
+        </div>
+      ) : null}
+      {!panel ? (
+        <button
+          type="button"
+          className={styles.hintButton}
+          aria-expanded={hintOpen}
+          onClick={() => setHintOpen((open) => !open)}
+        >
+          {PLAY_COPY.hint}
+        </button>
+      ) : null}
       {!panel ? (
         <button
           type="button"
