@@ -26,7 +26,7 @@ from django.views.decorators.debug import sensitive_variables
 
 from apps.users.models import ADMIN_ONLY_SUB_PREFIX, ParentAccount
 
-PASSWORD_ENV = "DJANGO_ADMIN_PASSWORD"
+PASSWORD_ENV = "DJANGO_ADMIN_PASSWORD"  # noqa: S105 - the variable name, not a password
 
 
 class Command(BaseCommand):

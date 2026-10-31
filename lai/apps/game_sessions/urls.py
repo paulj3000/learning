@@ -22,9 +22,7 @@ urlpatterns = [
     path(f"{CHILD}home/", native_views.ChildHomeView.as_view(), name="child-home"),
     path(f"{CHILD}regions/", native_views.RegionListView.as_view(), name="child-regions"),
     path(f"{CHILD}inventory/", native_views.InventoryView.as_view(), name="child-inventory"),
-    path(
-        f"{CHILD}game-launches/", launch_views.GameLaunchView.as_view(), name="game-launches"
-    ),
+    path(f"{CHILD}game-launches/", launch_views.GameLaunchView.as_view(), name="game-launches"),
     path("game-launches/redeem/", launch_views.GameLaunchRedeemView.as_view(), name="game-redeem"),
     path("game-launches/revoke/", launch_views.GameLaunchRevokeView.as_view(), name="game-revoke"),
     path("game-session/", launch_views.GameRuntimeSessionView.as_view(), name="game-session"),

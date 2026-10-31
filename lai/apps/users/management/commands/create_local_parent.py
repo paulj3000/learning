@@ -35,7 +35,7 @@ from apps.users.models import (
     ReadingMode,
 )
 
-PASSWORD_ENV = "LAI_LOCAL_PARENT_PASSWORD"
+PASSWORD_ENV = "LAI_LOCAL_PARENT_PASSWORD"  # noqa: S105 - the variable name, not a password
 READING_MODE_FOR_BAND = {
     AgeBand.SPROUT: ReadingMode.VOICE_FIRST,
     AgeBand.PATHFINDER: ReadingMode.READ_ALONG,

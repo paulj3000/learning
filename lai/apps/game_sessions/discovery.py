@@ -82,9 +82,7 @@ def region_entries(child, regions) -> list[RegionEntry]:
         latest.setdefault(session.region_id, session)
         if session.status in OPEN_STATUSES:
             open_by_region.setdefault(session.region_id, session)
-    changes = set(
-        WorldChange.objects.for_child(child).values_list("location_slug", "change_key")
-    )
+    changes = set(WorldChange.objects.for_child(child).values_list("location_slug", "change_key"))
     entries = []
     for region in regions:
         chests = list(
@@ -97,9 +95,7 @@ def region_entries(child, regions) -> list[RegionEntry]:
             and spec.status == ContentStatus.PUBLISHED
             for chest in chests
         )
-        opened = sum(
-            (region.location.slug, chest.world_change_key) in changes for chest in chests
-        )
+        opened = sum((region.location.slug, chest.world_change_key) in changes for chest in chests)
         open_session = open_by_region.get(region.region_id)
         last = latest.get(region.region_id)
         status = "IN_PROGRESS" if open_session else ("VISITED" if last else "NOT_STARTED")

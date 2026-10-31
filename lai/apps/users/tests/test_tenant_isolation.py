@@ -346,9 +346,8 @@ def test_the_route_checker_accepts_compliant_and_flags_non_compliant_routes():
 
 
 def test_only_the_public_routes_allow_any_and_child_routes_keep_default_permissions():
-    from apps.users.tests import probe_urls
-
     from apps.game_sessions.runtime_auth import GameRuntimeAccessMixin
+    from apps.users.tests import probe_urls
 
     for route, callback in walk(probe_urls.urlpatterns):
         names = [p.__name__ for p in callback.cls.permission_classes]

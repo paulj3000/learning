@@ -58,10 +58,9 @@ class RegionAdventuresView(ChildScopedAPIView):
 
 class InventoryView(ChildScopedAPIView):
     def get(self, request, child_id):
-        items = (
-            self.scoped(InventoryItem.objects.select_related("item"))
-            .order_by("-acquired_at", "item__item_id")[: MAX_INVENTORY + 1]
-        )
+        items = self.scoped(InventoryItem.objects.select_related("item")).order_by(
+            "-acquired_at", "item__item_id"
+        )[: MAX_INVENTORY + 1]
         rows = list(items)
         return Response(
             {

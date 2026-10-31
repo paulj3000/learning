@@ -97,9 +97,11 @@ def test_a_foreign_child_and_an_unknown_id_are_the_same_404(families, api, metho
     unknown = call(f"{CHILDREN}{uuid.uuid4()}/")
     assert foreign.status_code == unknown.status_code == 404
     strip = lambda r: {k: v for k, v in r.json().items() if k != "request_id"}  # noqa: E731
-    assert strip(foreign) == strip(unknown) == {
-        "error": {"code": "not_found", "message": "Not found."}
-    }
+    assert (
+        strip(foreign)
+        == strip(unknown)
+        == {"error": {"code": "not_found", "message": "Not found."}}
+    )
     assert "Quince" not in foreign.content.decode()
 
 
@@ -255,4 +257,3 @@ def test_logs_carry_no_nickname_interest_or_identity(families, api, caplog):
     for secret in ("Sentinel-Nick", "Sentinel-Other", "Zinnia", "Secret-Interest", "Space"):
         assert secret not in text
     assert families.a.cognito_sub not in text and str(families.b1.pk) not in text
-
