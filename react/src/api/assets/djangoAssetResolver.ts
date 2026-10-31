@@ -3,7 +3,7 @@ import {
   type AssetResolver,
   type ResolvedAsset,
 } from '../../features/island-map/three/assets/assetResolver';
-import { apiCredentials } from '../apiAuth';
+import { getAccessToken } from '../auth';
 import { ApiError } from '../errors';
 import { createApiClient, type ApiClient } from '../client';
 import { DJANGO_API_CONFIG, type DjangoApiConfig } from '../config';
@@ -209,7 +209,7 @@ export function djangoAssetResolverFor(
 ): AssetResolver {
   if (!config.enabled) return BUNDLED_ASSET_RESOLVER;
   return createDjangoAssetResolver({
-    client: createApiClient({ baseUrl: config.baseUrl, ...apiCredentials() }),
+    client: createApiClient({ baseUrl: config.baseUrl, getAccessToken }),
     childId,
     baseUrl: config.baseUrl,
   });

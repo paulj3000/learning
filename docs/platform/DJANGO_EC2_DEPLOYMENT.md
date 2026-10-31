@@ -140,15 +140,14 @@ CloudFormation parameters of `LaiDjangoEc2-<env>` (set by `provision.sh`): `ApiD
 
 `DATABASE_URL` is never a parameter: the release builds it from the RDS secret
 `lai/<env>/django/database` as `postgresql://...@<endpoint>:5432/lai?sslmode=verify-full&sslrootcert=/etc/lai/certs/rds-global-bundle.pem`.
-The release refuses `DJANGO_SETTINGS_MODULE`, `AUTH_PROVIDER`, `DEBUG`, `LOG_RAW_EXCEPTIONS`, any
-`AWS_*` and any unknown name, and fails before touching the running release if a required setting
-is missing.
+The release refuses `DJANGO_SETTINGS_MODULE`, `DEBUG`, `LOG_RAW_EXCEPTIONS`, any `AWS_*` and any
+unknown name (an `AUTH_PROVIDER` parameter included), and fails before touching the running
+release if a required setting is missing.
 
-`AUTH_PROVIDER=cognito` (ADR-038) is not a parameter: the image (`lai/Dockerfile`) and the compose
-file (`deploy/ec2/docker-compose.yml`) fix it, and production settings refuse to start with any
-other value or none. The local Django sign-in (`/api/v1/auth/login/`) therefore does not exist in
-any AWS environment, and a Django session never authenticates the API there. Django Admin keeps
-its own staff sign-in (ADR-034). Nothing to configure for an existing stack.
+API authentication is Cognito only, in every environment (ADR-040): there is no provider setting
+and no local sign-in route, and a Django session never authenticates the API. Django Admin keeps
+its own staff sign-in (ADR-034). Nothing to configure for an existing stack; the three `COGNITO_*`
+parameters above stay required.
 
 ## 5. One-time setup (owner, in order)
 

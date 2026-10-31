@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { apiCredentials } from '../../api/apiAuth';
+import { getAccessToken } from '../../api/auth';
 import { createApiClient } from '../../api/client';
 import { DJANGO_API_CONFIG, type DjangoApiConfig } from '../../api/config';
 import { provisionDjangoAccount } from '../../api/djangoAdmin';
@@ -38,7 +38,7 @@ export function DjangoAccountProvider({
   useEffect(() => {
     if (!ready || !userId) return;
     const controller = new AbortController();
-    const client = createApiClient({ baseUrl, ...apiCredentials() });
+    const client = createApiClient({ baseUrl, getAccessToken });
     void provisionDjangoAccount(client, controller.signal).then((account) => {
       if (controller.signal.aborted) return;
       setResult(

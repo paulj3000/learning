@@ -1,4 +1,4 @@
-import { apiCredentials } from '../../api/apiAuth';
+import { getAccessToken } from '../../api/auth';
 import { createApiClient } from '../../api/client';
 import { DJANGO_API_CONFIG, type DjangoApiConfig } from '../../api/config';
 import { amplifyProfileStore } from './amplifyProfiles';
@@ -10,10 +10,9 @@ export type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore };
 /**
  * Parent and child profiles (LAI-CHILD-001, ADR-039). Every screen calls these functions.
  *
- * The store follows the build's *backend*, never its sign-in: a build with the Django API
- * (`VITE_BACKEND=django`) keeps every profile in Django, whether the parent signed in with
- * Cognito or with a local Django session (ADR-038). Authentication identifies the parent;
- * Django authorizes access and owns the data.
+ * The store follows the build's *backend*: a build with the Django API (`VITE_BACKEND=django`)
+ * keeps every profile in Django. The parent always signs in with Cognito (ADR-040); the Cognito
+ * access token identifies the parent, and Django authorizes access and owns the data.
  *
  * A build without the Django API (today's production build) still uses Amplify Data, because
  * that is where its families' profiles are until the controlled import and cutover (Phase 11/12;
@@ -22,7 +21,7 @@ export type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore };
 export function profileStoreFor(config: DjangoApiConfig = DJANGO_API_CONFIG): ProfileStore {
   if (!config.enabled) return amplifyProfileStore;
   return createDjangoProfileStore(
-    createApiClient({ baseUrl: config.baseUrl, ...apiCredentials(), provisionAccount: true }),
+    createApiClient({ baseUrl: config.baseUrl, getAccessToken, provisionAccount: true }),
   );
 }
 

@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createApiClient, type ApiClient } from '../../api/client';
 import { ApiError } from '../../api/errors';
-import type { SessionAuth } from '../../api/session';
 import { createDjangoProfileStore, parseChild, PROFILE_MESSAGES } from './djangoProfiles';
 import type { ChildProfileInput } from './profileTypes';
 
@@ -154,14 +153,14 @@ describe('Django profile store', () => {
   });
 });
 
-describe('the same store under either sign-in', () => {
+describe('the store over the Cognito-authenticated client (ADR-040)', () => {
   function respondingFetch() {
     return vi.fn<typeof fetch>(async () =>
       Response.json({ children: [WIRE_CHILD] }, { status: 200 }),
     );
   }
 
-  it('sends the Cognito token, and no cookie credentials, in a Cognito build', async () => {
+  it('sends the Cognito token, and no cookie credentials', async () => {
     const fetchMock = respondingFetch();
     const store = createDjangoProfileStore(
       createApiClient({ baseUrl: '', fetch: fetchMock, getAccessToken: async () => 'jwt' }),
@@ -170,35 +169,30 @@ describe('the same store under either sign-in', () => {
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('/api/v1/children/');
     expect((init!.headers as Record<string, string>).Authorization).toBe('Bearer jwt');
+    expect(init?.credentials).toBeUndefined();
   });
 
-  it('sends the session cookie and CSRF token, and no bearer token, in a local build', async () => {
+  it('sends PATCH with the bearer token and a JSON body, and no CSRF token', async () => {
     const fetchMock = vi.fn<typeof fetch>(async () => Response.json(WIRE_CHILD, { status: 200 }));
-    const session: SessionAuth = { csrfToken: async () => 'csrf-1', reset: () => undefined };
     const store = createDjangoProfileStore(
-      createApiClient({ baseUrl: '', fetch: fetchMock, session }),
+      createApiClient({ baseUrl: '', fetch: fetchMock, getAccessToken: async () => 'jwt' }),
     );
     await store.setChildProfileActive('c1', false);
     const [url, init] = fetchMock.mock.calls[0]!;
     const headers = init?.headers as Record<string, string>;
-    expect([url, init?.method, init?.credentials]).toEqual([
-      '/api/v1/children/c1/',
-      'PATCH',
-      'same-origin',
-    ]);
-    expect(headers['X-CSRFToken']).toBe('csrf-1');
-    expect(headers.Authorization).toBeUndefined();
+    expect([url, init?.method]).toEqual(['/api/v1/children/c1/', 'PATCH']);
+    expect(headers.Authorization).toBe('Bearer jwt');
+    expect(headers['X-CSRFToken']).toBeUndefined();
     expect(init?.body).toBe(JSON.stringify({ active: false }));
   });
 
-  it('sends the CSRF token on DELETE too, with no body', async () => {
+  it('sends DELETE with the bearer token and no body', async () => {
     const fetchMock = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }));
-    const session: SessionAuth = { csrfToken: async () => 'csrf-2', reset: () => undefined };
     await createDjangoProfileStore(
-      createApiClient({ baseUrl: '', fetch: fetchMock, session }),
+      createApiClient({ baseUrl: '', fetch: fetchMock, getAccessToken: async () => 'jwt' }),
     ).deleteChildProfileData('c1');
     const init = fetchMock.mock.calls[0]![1];
-    expect((init!.headers as Record<string, string>)['X-CSRFToken']).toBe('csrf-2');
+    expect((init!.headers as Record<string, string>).Authorization).toBe('Bearer jwt');
     expect(init?.body).toBeUndefined();
   });
 });

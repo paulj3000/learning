@@ -176,7 +176,7 @@ PATCH {"ageBand": "SPROUT", "sessionMinutes": 7}
 
 ### `DELETE /api/v1/children/{childId}/`
 
-Always `403 sensitive_action_unavailable`, under either sign-in. Deletion must also remove the S3
+Always `403 sensitive_action_unavailable`. Deletion must also remove the S3
 photo and cascade records under the retention rules, and needs recent authentication. That is
 LAI-0602 and LAI-0209. Until then the archival policy is `PATCH {"active": false}`: the profile,
 its progress and its rewards are kept, and the child cannot play.

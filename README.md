@@ -79,11 +79,10 @@ make py-test-db        # like py-test, but PostgreSQL tests fail instead of skip
 Secrets and per-developer settings go in `.env` files, which are gitignored. Committed examples:
 `react/.env.example` and `lai/.env.example`.
 
-Local sign-in needs no AWS (ADR-038): `config.settings.local` defaults to `AUTH_PROVIDER=django`,
-`manage.py create_local_parent <username> --child <nickname>` makes a test parent and child, and
-the React app signs in with it when `react/.env.local` sets `VITE_BACKEND=django` and
-`VITE_AUTH_PROVIDER=django`. Step by step, including Treasure Rush:
-`docs/TREASURE_RUSH_LOCAL_DEV.md`. Every AWS environment uses Cognito only.
+Sign-in is Amazon Cognito in every environment, local development included (ADR-040): the React
+app signs in with Amplify Auth, and a local Django needs the `COGNITO_*` values of a test pool
+(an Amplify sandbox). Django Admin keeps its own staff sign-in. Step by step, including Treasure
+Rush: `docs/TREASURE_RUSH_LOCAL_DEV.md`.
 
 ### Available scripts
 

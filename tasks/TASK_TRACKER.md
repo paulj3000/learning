@@ -3,7 +3,7 @@
 Two tracks. **Track A** (Phases 1 to 13): Django backend migration, ADR-019, **Proposed**.
 **Track B** (Phases 20 to 23): Phaser to unified Three.js engine, ADR-020, **Accepted**. Source
 of detail: `docs/DJANGO_MIGRATION_ROADMAP.md`; Track B inventory and matrix:
-`docs/THREEJS_ENGINE_CONVERSION.md`. Statuses: TODO / IN_PROGRESS / BLOCKED / DONE. All Track A tasks
+`docs/THREEJS_ENGINE_CONVERSION.md`. Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / CANCELED (kept as history, struck through). All Track A tasks
 are TODO until ADR-019 is accepted. Track B docs-only tasks (LAI-2001 to 2003) do not wait for
 it; Track B code tasks wait for LAI-0201. A task marked in the roadmap as APPROVAL must stop and ask
 before touching AWS.
@@ -55,8 +55,9 @@ before touching AWS.
 - [x] **LAI-0403** Tenant isolation harness (depends: 0402). DONE locally: `ChildScopedMixin`/`ChildScopedAPIView`, shared fixtures, route checker, authorization matrix. Nested-record behaviour is proven against a stand-in queryset only; real nested-model tests are required in each model's own task
 - [ ] **LAI-0404** Admin group and Django admin gating (depends: 0402)
 - [ ] **LAI-0405** Cognito ownership runbook (depends: 0103)
-- [x] **LAI-AUTH-DUAL** Environment-selectable API authentication (depends: 0402, 0403, 0404 Django Admin part; ADR-038). DONE 2026-10-30; merged to `main` 2026-10-31 (`beebb6a`) after the full merge gate (Playwright acceptance not run): `AUTH_PROVIDER` (`cognito` in AWS, `django` for local development), local Django sign-in, one `ParentAccount` model, React auth adapters. Follow-ups: React child management on Django (LAI-CHILD-001), Android local-sign-in flavor (not built, no Kotlin code in the repository)
+- [x] ~~**LAI-AUTH-DUAL**~~ **CANCELED / REVERTED 2026-10-31 by LAI-AUTH-ROLLBACK (ADR-040 supersedes ADR-038); the record below is history.** Environment-selectable API authentication (depends: 0402, 0403, 0404 Django Admin part; ADR-038). DONE 2026-10-30; merged to `main` 2026-10-31 (`beebb6a`) after the full merge gate (Playwright acceptance not run): `AUTH_PROVIDER` (`cognito` in AWS, `django` for local development), local Django sign-in, one `ParentAccount` model, React auth adapters. Follow-ups: React child management on Django (LAI-CHILD-001), Android local-sign-in flavor (not built, no Kotlin code in the repository)
 - [x] **LAI-CHILD-001** Parent and child profile management on Django (depends: LAI-AUTH-DUAL, 0403; ADR-039). DONE 2026-10-31; merged to `main` 2026-10-31 after the full merge gate and a Django-mode browser acceptance (Cognito browser sign-in not verified): `PATCH /api/v1/me/`; every React build with the Django API reads and writes profiles through Django under either sign-in; archival via `active`; read-only audited Django Admin view; `import_amplify_profiles` (dry run, idempotent). Unit-tested only. Open: hard deletion (LAI-0209 / LAI-0602), photos (LAI-1103), the Amplify branch for builds without Django until cutover (LAI-1301), Amplify-backed adventures and Lambdas that read DynamoDB children (Phase 6), production import (Phase 11/12, approval)
+- [x] **LAI-AUTH-ROLLBACK** Remove dual authentication; Cognito is the sole application sign-in (ADR-040, supersedes ADR-038). DONE 2026-10-31 on `feature/lai-auth-rollback` (unit tests and typecheck green; merge verification pending, not merged): no `AUTH_PROVIDER` / `VITE_AUTH_PROVIDER`, no `/api/v1/auth/{csrf,login,logout}/`, no `create_local_parent`, no local sign-in form or session credential; Django Admin staff sign-in unchanged; LAI-CHILD-001's Django profile authority, `PATCH`/`DELETE` client support and Django-backed play settings kept. LAI-CHILD-001 no longer depends on LAI-AUTH-DUAL.
 
 ## Phase 5 — Read-only frontend API migration
 

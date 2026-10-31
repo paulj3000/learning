@@ -36,9 +36,6 @@ _CODED = {
     "account_not_provisioned": "Account setup is required.",
     "sensitive_action_unavailable": "This action is not available.",
     "authentication_unavailable": "Authentication is temporarily unavailable.",
-    # Local Django sign-in (ADR-038)
-    "csrf_failed": "This request could not be verified.",
-    "invalid_credentials": "That username and password did not match.",
     # Adventure answers (LAI-0601)
     "answer_invalid": "That answer could not be understood.",
     "session_not_active": "This adventure is no longer active.",

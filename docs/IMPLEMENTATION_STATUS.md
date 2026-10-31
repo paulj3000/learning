@@ -11120,7 +11120,10 @@ runtime do not exist.
   This is worth a follow-up to set `set_unusable_password()` on provisioning.
 
 
-## LAI-AUTH-DUAL: environment-selectable API authentication (2026-10-30, ADR-038 Accepted)
+## LAI-AUTH-DUAL: environment-selectable API authentication (2026-10-30, ADR-038; CANCELED / REVERTED 2026-10-31)
+
+> **Canceled and reverted on 2026-10-31 by LAI-AUTH-ROLLBACK (ADR-040 supersedes ADR-038).** The
+> entry below is kept as history. None of the local sign-in it describes exists any more.
 
 Owner-directed. **Merged to `main` and pushed 2026-10-31 (`beebb6a`)** after the full merge gate
 (Ruff, Ruff format, Django check, migration check, pytest 1112 passed, ADR check, typecheck,
@@ -11249,3 +11252,67 @@ resources and owns the associated application data.
   the production import (LAI-1101/1102/1202/1203, approval); removing the Amplify store
   (LAI-1301).
 
+## LAI-AUTH-ROLLBACK: dual authentication removed; Cognito is the sole application sign-in (2026-10-31, ADR-040 Accepted)
+
+Owner-directed. Branch `feature/lai-auth-rollback` from `main` (`ca9915f`). **Not merged, pushed or
+deployed.** No AWS resource, deployed configuration or production data touched; no migration.
+
+- **Git history.** LAI-AUTH-DUAL (`e80eff0`) was merged to `main` (`beebb6a`) and LAI-CHILD-001
+  (`f2244e9`, merge `2228add`) was built on it, so abandoning the branch was not possible and a
+  plain `git revert` would have conflicted with LAI-CHILD-001 in 17 files. The removal is a forward
+  commit: files only LAI-AUTH-DUAL touched were restored to `5c30f96` (or deleted when it added
+  them); files LAI-CHILD-001 changed afterwards were edited by hand. No history rewritten.
+- **Django removed.** `ApiAuthentication`, `LocalSessionAuthentication`, `LocalSession`,
+  `enforce_csrf` / `CsrfFailed`, `LocalParentPasswordBackend`, `apps/users/local_auth_views.py`
+  (`/api/v1/auth/csrf/`, `login/`, `logout/`), `manage.py create_local_parent`,
+  `ParentAccountManager.create_local_parent`, the `django-local:` sub prefix and username
+  constants, the `csrf_failed` / `invalid_credentials` error codes, `AUTH_PROVIDER`,
+  `resolve_auth_provider`, `LOCAL_PARENT_BACKEND`, and the local settings that widened the session
+  and CSRF cookie paths to `/`. `DEFAULT_AUTHENTICATION_CLASSES` is `CognitoJWTAuthentication`
+  again and `GameRuntimeAccessMixin` lists it first; `AUTHENTICATION_BACKENDS` is
+  `AdminPasswordBackend` alone. `IsVerifiedPrincipal` accepts only a `VerifiedToken`.
+- **Django kept.** Cognito JWT verification (signature, issuer, expiry, `token_use`, client id),
+  `sub` to `ParentAccount` mapping and `POST me/` onboarding, child scoping, Django Admin staff
+  sign-in and its admin-scoped cookies, the asset manager, Treasure Rush, rewards, inventory and
+  progress, and everything from LAI-CHILD-001 (`PATCH me/`, `ParentRecord`, read-only audited
+  admin, `import_amplify_profiles`).
+- **React removed.** `VITE_AUTH_PROVIDER` and `api/authMode.ts`, `api/session.ts`,
+  `api/apiAuth.ts`, `features/auth/authAdapters.ts`, `LocalSignInForm` and its copy, the session
+  credential in `api/client.ts`, the `mode` / `signInLocally` fields of `AuthProvider`, the build
+  guard in `vite.config.ts`, and the local-account branch in Account settings (email and password
+  sections always shown again). `AuthContext`, `SignIn`, `DjangoAccountContext`, `config.ts`,
+  `playApi.ts` and `djangoAssetResolver.ts` are back to their pre-LAI-AUTH-DUAL code.
+- **React kept.** Amplify (Cognito) sign-in and sign-out, the bearer token with one forced-refresh
+  retry, account provisioning, `PATCH` and `DELETE` in the client (LAI-CHILD-001), the Django
+  profile store and Django-backed play settings, Amplify Hosting.
+- **Configuration.** `AUTH_PROVIDER` removed from `lai/Dockerfile`, `deploy/ec2/docker-compose.yml`,
+  `.github/workflows/deploy-django-ec2.yml`, `scripts/aws/render-env.sh` (an `AUTH_PROVIDER`
+  parameter is still refused, now as an unknown name) and the deploy tests. `lai/.env.example`
+  lists the `COGNITO_*` values; `react/.env.example` has no `VITE_AUTH_PROVIDER`. Production
+  settings still require all three `COGNITO_*` values.
+- **Docs.** ADR-040 added; ADR-038 status Superseded by ADR-040 (section kept); ADR-024 and
+  ADR-039 notes updated; ARCHITECTURE ("Cognito-only API authentication"), README,
+  TREASURE_RUSH_LOCAL_DEV (Cognito test pool; children created in the app), DJANGO_EC2_DEPLOYMENT,
+  Android auth flow and contract, roadmap and tracker (LAI-AUTH-DUAL CANCELED / REVERTED,
+  LAI-AUTH-ROLLBACK added).
+- **Tests (unit only, per docs/TESTING_STRATEGY.md).** New `apps/users/tests/test_cognito_only.py`
+  (no provider switch or local backend; local tooling gone; the three removed routes 404 signed
+  out and with a token; Cognito tokens play Treasure Rush; another family's child 404; the
+  family's own parent signed in to Django Admin gets 401 on `me/`, `children/` and the Treasure
+  Rush routes and no session is created, while the admin still opens). Removed with the feature:
+  `test_local_auth.py`, the React `authMode`, `session`, `authAdapters` and `LocalSignInForm`
+  tests, and the session cases in `client.test.ts` and `djangoProfiles.test.ts` (replaced by
+  bearer-token `PATCH` / `DELETE` cases). `test_profile_management.py` now runs every case with
+  a Cognito token (the local-versus-Cognito isolation case is gone). pytest against PostgreSQL:
+  `apps/users`, the core settings / conventions / admin / privacy tests, `game_sessions` launch
+  and play, `tests/deploy`: 477 passed; all of `apps/game_sessions` plus the asset resolver and
+  Treasure Rush asset tests: 213 passed. `config.settings.local` loads with no `AUTH_PROVIDER`.
+  React: typecheck clean; Vitest on `api`, `features/auth`, `features/child-profile`, `routes`,
+  `features/session`: 33 files, 285 passed. ADR check passed (40 decisions).
+- **Deferred to merge verification.** Ruff, Ruff format, Prettier (`AccountSettings.tsx` keeps
+  the line wrapping it had inside the removed conditional), oxlint, the full pytest and Vitest
+  suites, the production build, Docker image and Playwright. The Playwright Django sign-in
+  acceptance used for LAI-CHILD-001 cannot run any more; a browser check now needs a test Cognito
+  pool (ADR-024 gate A6 still open).
+- **Note.** Local databases may hold `django-local:` parents from `create_local_parent`. They can
+  no longer sign in (no backend matches them); delete them or leave them inert.

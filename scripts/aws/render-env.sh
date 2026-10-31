@@ -22,10 +22,9 @@ LAI_SCRIPTS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REQUIRED=(DJANGO_SECRET_KEY DATABASE_URL DJANGO_ALLOWED_HOSTS DJANGO_CSRF_TRUSTED_ORIGINS
     COGNITO_REGION COGNITO_USER_POOL_ID COGNITO_ALLOWED_CLIENT_IDS
     LAI_ASSET_STORAGE LAI_ASSET_BUCKET LAI_ASSET_REGION)
-# Never from the parameter store: the settings module and the API authentication provider
-# (cognito, ADR-038) are fixed by the compose file, DEBUG and raw tracebacks have no production
-# switch, and static AWS keys would bypass the instance role.
-FORBIDDEN='^(DJANGO_SETTINGS_MODULE|AUTH_PROVIDER|DEBUG|DJANGO_DEBUG|LOG_RAW_EXCEPTIONS|AWS_.*|PYTHON.*|PATH|HOME)$'
+# Never from the parameter store: the settings module is fixed by the compose file, DEBUG and raw
+# tracebacks have no production switch, and static AWS keys would bypass the instance role.
+FORBIDDEN='^(DJANGO_SETTINGS_MODULE|DEBUG|DJANGO_DEBUG|LOG_RAW_EXCEPTIONS|AWS_.*|PYTHON.*|PATH|HOME)$'
 ALLOWED='^(DJANGO_[A-Z0-9_]+|COGNITO_[A-Z0-9_]+|LAI_[A-Z0-9_]+|WEB_CONCURRENCY|GUNICORN_TIMEOUT|FORWARDED_ALLOW_IPS)$'
 
 main() {

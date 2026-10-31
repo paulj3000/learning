@@ -625,8 +625,8 @@ in `docs/DECISIONS.md` and the mapping in `docs/DATA_MODEL.md`. Django Admin sta
 Cognito issues tokens; React sends the Cognito **access token** as `Authorization: Bearer`;
 Django verifies it against the pool JWKS and resolves `ParentAccount` by the immutable `sub`;
 child data is reached only through that parent. No Django sessions, passwords, or cookie
-credentials in any AWS environment (local development may use a Django session instead; see
-"Environment-selectable provider" below, ADR-038). Today the Amplify SDK keeps tokens in `localStorage` (readable by page JavaScript);
+credentials authenticate the API in any environment, local development included (ADR-040; see
+"Cognito-only API authentication" below). Today the Amplify SDK keeps tokens in `localStorage` (readable by page JavaScript);
 that, onboarding, revocation latency, and the admin design are open gates in ADR-024. Owner decisions of 2026-10-18 approved
 explicit `POST /api/v1/me/` onboarding, PyJWT/RS256 verification with a bounded JWKS cache, and
 claim-derived administration; sensitive actions stay blocked until LAI-0209.
@@ -639,51 +639,38 @@ identical body for every cause, `WWW-Authenticate: Bearer`), 503 `authentication
 `sensitive_action_unavailable`. Configuration: `COGNITO_REGION`, `COGNITO_USER_POOL_ID`,
 `COGNITO_ALLOWED_CLIENT_IDS` (all required in production; empty means every token is rejected).
 
-### Environment-selectable provider (LAI-AUTH-DUAL, ADR-038)
+### Cognito-only API authentication (LAI-AUTH-ROLLBACK, ADR-040)
 
-Cognito and Django are interchangeable authentication providers for gameplay APIs, but Django
-remains the authoritative application user and authorization system. Django Admin retains Django
-session authentication independently.
+Cognito is the sole authentication provider for application users in every environment. Django
+remains responsible for application authorization and uses native authentication only for Django
+Admin staff access. ADR-040 supersedes ADR-038 (LAI-AUTH-DUAL, the environment-selectable
+provider), whose implementation was removed on 2026-10-31.
 
 ```text
-AWS (AUTH_PROVIDER=cognito)               Local development (AUTH_PROVIDER=django)
-React / Android                           React (vite dev, VITE_AUTH_PROVIDER=django)
-  -> Amazon Cognito -> access token          -> POST /api/v1/auth/login/ (username, password, CSRF)
-  -> Authorization: Bearer                   -> Django session cookie + X-CSRFToken
-          \                                       /
-           ApiAuthentication (one provider, never a fallback)
-                  -> request.user = ParentAccount
-                  -> the same permissions, child scoping, play, progress, inventory rules
+React / Android (every environment)                Django Admin (staff only)
+  -> Amazon Cognito -> access token                   -> /admin/login/ (admin username, password)
+  -> Authorization: Bearer                            -> admin session, cookie scoped to /admin/
+          |                                                  |
+   CognitoJWTAuthentication (the only API authenticator)     AdminPasswordBackend
+          -> request.user = ParentAccount (by Cognito sub)   (never authenticates the API)
+          -> Django permissions, child scoping, play, progress, inventory
 ```
 
-- `AUTH_PROVIDER` (`cognito` or `django`; anything else fails at start-up). Local settings default
-  to `django` while `DEBUG` is on. Production requires `cognito` explicitly, and the EC2 release
-  fixes it (compose file and image; never from the parameter store).
-- `apps/users/authentication.py`: `ApiAuthentication` dispatches to `CognitoJWTAuthentication`
-  (unchanged) or `LocalSessionAuthentication`. The local provider accepts only sessions made by the
-  local sign-in (`LocalParentPasswordBackend`), never an admin session, and runs Django's CSRF check
-  on unsafe methods (403 `csrf_failed`). `request.auth` is a `VerifiedToken` or a `LocalSession`;
-  `IsVerifiedPrincipal` accepts either.
-- `apps/users/local_auth_views.py`: `GET auth/csrf/`, `POST auth/login/` (400
-  `invalid_credentials`), `POST auth/logout/` (204). All three are 404 unless
-  `AUTH_PROVIDER=django`. `GET me/` answers "who am I" in both modes.
-- Local parents are ordinary `ParentAccount` rows with `cognito_sub = "django-local:<username>"`
-  and a Django password, created only by `manage.py create_local_parent` (refused under
-  `cognito`). No new model, no migration; Cognito parents keep their `sub` mapping.
-- React: `react/src/api/authMode.ts` (`VITE_AUTH_PROVIDER`, default `cognito`; `django` needs
-  `VITE_BACKEND=django` and `vite dev`, and a build with it fails), `features/auth/authAdapters.ts`
-  (Cognito and Django adapters behind the one `AuthProvider`), `api/session.ts` (CSRF token in
-  memory), `api/client.ts` (bearer or session credential, never both).
-- Local setup: `docs/TREASURE_RUSH_LOCAL_DEV.md`.
+- `REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"]` is `CognitoJWTAuthentication` alone. The game
+  runtime's views add only their ticket-redeemed cookie (ADR-036) after it.
+- `AUTHENTICATION_BACKENDS` is `AdminPasswordBackend` alone (Django Admin, ADR-034).
+- There is no provider setting (`AUTH_PROVIDER`, `VITE_AUTH_PROVIDER`), no `/api/v1/auth/*` route,
+  and no local parent account command. Tests: `apps/users/tests/test_cognito_only.py`.
+- Local setup with a test Cognito pool: `docs/TREASURE_RUSH_LOCAL_DEV.md`.
 
 ### Profile authority (LAI-CHILD-001, ADR-039)
 
 **Authentication identifies the parent; Django authorizes access to parent and child resources and
-owns the associated application data.** The sign-in (Cognito token or local session) never decides
+owns the associated application data.** The sign-in (a Cognito token, ADR-040) never decides
 where profiles live; the backend does.
 
 ```text
-React --(Cognito JWT | local Django session)--> Django REST API
+React --(Cognito JWT)--> Django REST API
          me/            GET, POST (onboarding), PATCH (displayName, timezone)
          children/      GET list, POST create (cap 3)
          children/<id>/ GET, PATCH (settings, active, aiEnabled); DELETE 403 until LAI-0209
