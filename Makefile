@@ -2,6 +2,30 @@
 # (so CI needs no developer-specific paths). Node commands delegate to the root npm scripts.
 PY ?= $(shell test -x $(CURDIR)/.venv/bin/python && echo $(CURDIR)/.venv/bin/python || echo python3)
 
+# Local settings come from the untracked .env at the repository root (template: lai/.env.example),
+# as in FinTwin. Compose reads .env itself but Django does not (no dotenv package), so the values
+# are passed from here. A value already in the shell wins. Write `NAME=value`, unquoted; the last
+# line for a name wins. Deployed environments never read .env (SSM, docs/platform).
+ENV_FILE ?= .env
+dotenv = $(subst #,\#,$(subst $$,$$$$,$(shell sed -n 's/^$(1)=//p' $(ENV_FILE) 2>/dev/null | tail -n 1 | tr -d '\r')))
+
+# The compose database settings reach every target (e.g. POSTGRES_PORT when 5432 is taken).
+$(foreach v,POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD POSTGRES_PORT,\
+  $(if $(call dotenv,$(v)),$(eval export $(v) ?= $(call dotenv,$(v)))))
+
+# Application settings reach only the targets that run Django with local settings, never the
+# tests (test settings and fixtures set their own Cognito, storage and admin values).
+DJANGO_ENV_TARGETS := django-check migrate-check migrate runserver
+DJANGO_ENV_VARS := DATABASE_URL DJANGO_SECRET_KEY DJANGO_DEBUG DJANGO_ALLOWED_HOSTS \
+  DJANGO_LOG_LEVEL DJANGO_ADMIN_URL_PATH DJANGO_STATIC_URL LAI_LOG_RAW_EXCEPTIONS \
+  COGNITO_REGION COGNITO_USER_POOL_ID COGNITO_ALLOWED_CLIENT_IDS \
+  LAI_ASSET_STORAGE LAI_ASSET_BUCKET LAI_ASSET_REGION LAI_ASSET_DELIVERY \
+  LAI_ASSET_URL_TTL_SECONDS LAI_ASSET_MAX_UPLOAD_BYTES \
+  LAI_GAME_ENTRY_URL LAI_GAME_ALLOWED_ORIGINS LAI_GAME_TICKET_TTL_SECONDS \
+  LAI_GAME_SESSION_TTL_SECONDS LAI_GAME_COOKIE_SECURE LAI_GAME_LAUNCH_RATE
+$(foreach v,$(DJANGO_ENV_VARS),\
+  $(if $(call dotenv,$(v)),$(eval $(DJANGO_ENV_TARGETS): export $(v) ?= $(call dotenv,$(v)))))
+
 .PHONY: help py-install py-lint py-format py-format-check py-test py-test-db py-check js-check check up down
 .PHONY: django-check migrate-check migrate runserver
 
