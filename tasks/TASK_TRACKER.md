@@ -88,6 +88,7 @@ before touching AWS.
 - [ ] **LAI-0801** Django admin for catalogs (depends: 0304, 0404)
 - [ ] **LAI-0802** React admin views on Django (depends: 0505, 0404)
 - [ ] **LAI-0805** Spatial layout administration in Django Admin (depends: 0801, 0304, 2103, and a spatial-content ADR first)
+- [x] **LAI-0806** Island / Place / 3D Area hierarchy and Adventure launch points (ADR-041; depends: 0304, 0601, POST-MERGE-03). DONE: labels, one 3D Area per Place, `AdventureLaunchPoint` with Django Admin, launch API, islands API, React launch and return flow; all suites green at merge (`docs/IMPLEMENTATION_STATUS.md`). Open follow-up: a Django-backed step-adventure client (the runner is still Amplify-backed in Django builds)
 
 ## Phase 9 — Realtime (co-op) and storage
 

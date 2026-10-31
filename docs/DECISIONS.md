@@ -62,6 +62,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-038 | Environment-selectable API authentication: Cognito in AWS, local Django sign-in for development, one Django user and authorization model | Superseded by ADR-040 | Main line (merged 2026-10-31, `beebb6a`) | Superseded 2026-10-31 by ADR-040 (LAI-AUTH-ROLLBACK, owner-directed). Owner-directed 2026-10-30 (LAI-AUTH-DUAL). Amends ADR-024 Accepted items 1 and 2 for `AUTH_PROVIDER=django` only; builds on ADR-034 (the admin session stays separate). AWS environments are unchanged |
 | ADR-039 | Django is the authority for parent and child profiles in every build with the Django API; Amplify profiles only until the controlled import and cutover; read-only audited Django Admin inspection | Accepted | Main line (merged 2026-10-31) | Owner-directed 2026-10-31 (LAI-CHILD-001). Amends ADR-034 and ADR-024 A4 for read-only, permission-gated, audited profile inspection in Django Admin only. Hard deletion stays blocked by LAI-0209. No production data is moved |
 | ADR-040 | Cognito is the sole authentication provider for application users in every environment; Django authorizes, and native Django authentication serves Django Admin staff only | Accepted | Main line (LAI-AUTH-ROLLBACK) | Owner-directed 2026-10-31. Supersedes ADR-038; restores ADR-024 items 1 and 2 everywhere; keeps ADR-034 (Django Admin) and ADR-039 (Django profile authority) |
+| ADR-041 | Islands, Places and 3D Areas: one optional 3D Area per Place, and Adventures launched from objects in it | Accepted | Feature branch (LAI-0806) | Owner-approved decisions A to E, 2026-10-31. Builds on ADR-032 and ADR-033; leaves LAI-0805 (spatial layout administration) open |
 
 ## ADR-001: Parent-owned accounts
 
@@ -2961,3 +2962,80 @@ Cognito pool. Any local database rows created by `create_local_parent` (`cognito
 changed. A deployment that still passes `AUTH_PROVIDER` sets a variable nothing reads. Tests:
 `apps/users/tests/test_cognito_only.py`, `apps/users/tests/test_authentication.py`,
 `apps/core/tests/test_django_admin.py`.
+
+
+## ADR-041: Islands, Places and 3D Areas: one optional 3D Area per Place, and Adventures launched from objects in it
+
+Status: Accepted 2026-10-31. The owner approved decisions A to E and asked for them to be
+implemented (LAI-0806, `feature/lai-island-place-3d-hierarchy`).
+
+**Context.** The catalog already had the shape World > Location > Adventure, and the regions app
+had `WorldRegion`, a seed-authored Three.js region inside a Location (ADR-033). People read these
+inconsistently: the Amplify admin called Locations "islands" (ADR-031), and nothing stopped a
+Location having several WorldRegions. Adventures could be started only from a Place page, or from
+source-authored `START_ADVENTURE` objects in TypeScript manifests (ADR-032). A Django-served 3D
+region could not start one.
+
+**Decisions.**
+
+- **A. Terminology.** People read World as **Island**, Location as **Place** and WorldRegion as
+  **3D Area**: in Django Admin (verbose names, inline titles, column headers, help text), in
+  child-facing copy, and in documentation. Model classes, table names, primary keys, content ids,
+  API routes and API field names are unchanged (`region_id`, `locationSlug`, `/regions/`). The
+  catalog migration `0004_island_place_labels` changes only label metadata and runs no SQL.
+  Django records verbose names in migration state, so without it `makemigrations --check` fails.
+- **B. 3D Area cardinality.** A Place has zero or one 3D Area. The database constraint
+  `regions_one_area_per_place` (unique `WorldRegion.location`), `WorldRegion.clean()` and the
+  admin all enforce it. A Place stays valid and usable without a 3D Area. The migration that adds
+  the constraint first checks for duplicates. If it finds any, it stops, names the Places and
+  changes nothing; `manage.py report_place_areas` gives the same report on its own. No 3D Area is
+  ever deleted or reassigned automatically.
+- **C. Adventure launching.** Adventures stay owned by their Place (`Adventure.location`). In a
+  Place's 3D Area they are begun mainly from objects, through one shared abstraction:
+  `regions.AdventureLaunchPoint`.
+  - **What it is.** A row that binds an existing placement in the 3D Area (`entity_id`) to an
+    Adventure of the **same Place**, with a presentation kind (NPC, chest, door or portal, sign
+    or marker, other), a child-facing label and prompt, an order, and its own DRAFT, PUBLISHED or
+    RETIRED status. It holds no position: where the object stands stays in the code-authored
+    layout. It holds no executable or client-authored code.
+  - **Cardinality.** One object may offer several Adventures (one per age band, for example), and
+    one Adventure may have several launch points.
+  - **Treasure Rush chests are excluded.** A `TreasureChest` cannot be a launch point, because
+    its interaction is the chest challenge. A decorative chest that starts an Adventure is a
+    prop placement of kind CHEST.
+  - **Server checks, every time.** The region bootstrap lists only the published launch points
+    whose Adventure is active, in the same Place, and for the child's age band.
+    `POST /children/<id>/regions/<region>/launch-points/<launch>/start/` checks all of that
+    again, then starts or resumes the session through the existing LAI-0601 service
+    (`start_or_resume_session`). The game runtime cookie (ADR-036) cannot call it.
+  - **Client.** The Django-served manifest turns each launch object into an interactive prop
+    claimed by the existing `region-play` extension. NPCs show their Adventures next to their
+    quests. The Adventure page takes a validated `returnTo` (only this child's own 3D Area path),
+    so finishing returns to the 3D Area. The source-authored `START_ADVENTURE` interaction gets
+    the same return path. It stays the TypeScript-manifest form of a launch point, not a second
+    system.
+- **D. Quest ownership.** Quests stay Island-owned (`Quest.world`) and may span Places. NPCs and
+  objects in a 3D Area offer them as before (`WorldRegion.offered_quests`). No quest model or
+  engine changed.
+- **E. Editing scope.** There is no visual layout editor before LAI-0805 is resolved.
+  - **Configurable in Django Admin:** a 3D Area's publication, through validating actions; its
+    launch points (object, Adventure, wording, order, publication); and a read-only view of the
+    code-authored layout.
+  - **Not configurable:** placements, spawn points and positions, which stay in
+    `treasure_rush_seed.py`. No spatial fields were added to the catalog (LAI-0304).
+
+**Consequences.**
+- The `regions` app is now registered in Django Admin. It holds content only, never child data,
+  and the admin-registration guards were updated to allow it.
+- New endpoint `GET /children/<id>/islands/` returns Island > Place > 3D Area for the child.
+  `autoSelectIslandId` is set when exactly one Island is available, and the React travel deck
+  then skips the Island choice.
+- The region bootstrap gains `launchPoints`, an additive change. `/regions/` is unchanged.
+- Treasure Cove gains one placement, the bridge signpost (bundled `signpost` prop), with one
+  launch point per age band for Pirate Builder Bay's bridge adventure.
+- **Known gap.** In a build with `VITE_BACKEND=django`, the step-adventure runner is still the
+  Amplify one. The Django answer engine (LAI-0601) records no world changes, skill evidence or
+  quest progress yet, and React has no Django-backed runner. So a launch creates the Django
+  session and opens the Adventure page, but steps played there are not recorded in Django. A
+  Django step-adventure client is follow-up work (LAI-0806 notes).
+

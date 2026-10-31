@@ -1060,3 +1060,47 @@ Before implementing this roadmap:
 12. Add tests for every permission boundary introduced by this feature.
 
 When an existing implementation conflicts with an assumption in this roadmap, prefer the established project architecture and document the adjustment rather than creating a parallel system.
+
+---
+
+# Django Admin: Islands, Places, 3D Areas and Adventure launch points (LAI-0806, ADR-041)
+
+This section is the current guide for Django Admin. The sections above describe the earlier
+Amplify admin.
+
+| Admin page | What it is | What staff can do |
+|---|---|---|
+| **Catalog > Islands** | `catalog.World` | View; edit Active and Sort order. The inline lists its Places |
+| **Catalog > Places** | `catalog.Location` | View; edit Active and Sort order. Inlines show its 3D Area (at most one) and the Adventures it owns. The "3D Area" column shows "None yet" when it has none |
+| **Catalog > Adventures** | `catalog.Adventure` | View; edit Active and Sort order. The page lists its launch points |
+| **Regions > 3D Areas** | `regions.WorldRegion` | View the code-authored layout read-only (spawn, NPCs, props, chests); manage launch points inline; run **Validate and publish** or **Retire** |
+| **Regions > Adventure launch points** | `regions.AdventureLaunchPoint` | Add or edit (object, kind, Adventure, label, prompt, order); run **Validate and publish** or **Retire**; delete drafts only |
+
+**Rules the admin enforces**
+- A Place can have only one 3D Area. A second is refused on save, and by the database.
+- A launch point can start only an Adventure of its own 3D Area's Place. The Adventure list on
+  the 3D Area page offers only those, and saving re-checks.
+- A launch point must name an existing NPC, prop or scenery placement of its 3D Area. A
+  Treasure Rush chest is refused, because its interaction is the chest challenge. The kind is
+  "Character (NPC)" exactly when the placement is an NPC.
+- Publishing a 3D Area checks that its Place and Island are active, it has a default spawn
+  point, every placement and chest validates, and its offered quests are active. Publishing a
+  launch point checks itself, its Adventure and Place are active, and its 3D Area is published.
+  Nothing is published while a problem remains; the message says what to fix.
+
+**What cannot be edited here yet.** Where things stand (positions, spawn points, placements) is
+authored in code (`lai/apps/regions/treasure_rush_seed.py`) until LAI-0805 decides how layouts
+are edited. There is no visual level editor.
+
+**Resolving a Place with two 3D Areas.** The `regions.0002` migration refuses to add the
+one-per-Place constraint while any Place has two 3D Areas, and `manage.py report_place_areas`
+lists them. Nothing is changed automatically. For each listed Place:
+1. Decide which 3D Area is the Place's.
+2. Retire the other one in Django Admin, so children stop seeing it.
+3. Either move it to the Place it belongs to (a code change to its seed) or delete it in a
+   reviewed data change, once no child session needs it. Sessions keep their `region_id` string.
+4. Run the migration again.
+
+**Islands and Places.** Adding Islands or Places beyond the approved MVP needs the owner's
+approval (CLAUDE.md section 5).
+

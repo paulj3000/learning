@@ -966,3 +966,32 @@ them. They are credentials, not progress, and record no gameplay.
 
 Neither model is registered in Django Admin, and neither stores anything a child typed.
 
+## Island, Place, 3D Area and AdventureLaunchPoint (Django, LAI-0806, ADR-041)
+
+Display names only changed for the existing models: `catalog.World` is shown as **Island**,
+`catalog.Location` as **Place**, and `regions.WorldRegion` as **3D Area**. Tables, ids and API
+field names are unchanged.
+
+| Rule | Where |
+|---|---|
+| A Place has zero or one 3D Area | Unique constraint `regions_one_area_per_place` on `WorldRegion.location`; `WorldRegion.clean()` |
+| Adventures belong to a Place | `Adventure.location` (unchanged) |
+| Quests belong to an Island and may span Places | `Quest.world` (unchanged) |
+
+`regions.AdventureLaunchPoint` is new. It is content, not child data.
+
+| Field | Meaning |
+|---|---|
+| `region` | The 3D Area (cascade) |
+| `launch_id` | Slug, unique per 3D Area (`regions_launch_point_id_unique`) |
+| `entity_id` | A placement of that 3D Area (NPC, prop, scenery or collectible); never a `TreasureChest` |
+| `object_kind` | `NPC`, `CHEST`, `DOOR`, `SIGN` or `OTHER`; presentation only, and `NPC` exactly for NPC placements |
+| `adventure` | `catalog.Adventure` (PROTECT); must belong to the 3D Area's Place |
+| `label`, `prompt` | Child-facing text |
+| `sort_order` | Display order |
+| `status` | `ContentStatus`: DRAFT, PUBLISHED or RETIRED; only PUBLISHED is served |
+
+There is one row per object and Adventure (`regions_launch_point_once_per_object`), so an
+object can offer several Adventures and an Adventure can have several objects. The row holds no
+position: the placement's layout stays in code (LAI-0805).
+

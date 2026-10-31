@@ -195,6 +195,55 @@ nothing is recorded.
 `sessions` is the 20 most recent. `practice` is counts per learning objective, for gameplay
 pacing; it is not a mastery level or a label (docs/DATA_MODEL.md, "SkillProgress").
 
+## Islands, Places and Adventure launch points (LAI-0806, ADR-041)
+
+**Region bootstrap: `launchPoints` (additive).** The objects in this 3D Area that start one of its
+Place's Adventures, already filtered for the child: the launch point is published, its Adventure
+is active, belongs to this Place, and is for the child's age band. An older client ignores the
+key; a newer client reads a missing key as `[]`.
+
+```json
+"launchPoints": [{
+  "launchId": "signpost-repair-the-moonlight-bridge",
+  "entityId": "cove-bridge-signpost",
+  "objectKind": "SIGN",
+  "label": "Help Pip repair the Moonlight Bridge",
+  "prompt": "The sign points to the broken bridge.",
+  "adventure": {"adventureId": "repair-the-moonlight-bridge",
+                "title": "Repair the Moonlight Bridge", "placeSlug": "pirate-builder-bay"}
+}]
+```
+
+`objectKind` is one of `NPC`, `CHEST`, `DOOR`, `SIGN` or `OTHER`. It is presentation only. The
+object's position is that of the placement named by `entityId` (in `npcs` or `objects`).
+
+**`POST /children/{id}/regions/{regionId}/launch-points/{launchId}/start/`**, body `{}` (closed).
+It requires a bearer token; the game runtime cookie gets 401. The server checks every condition
+above again, then starts or resumes the child's one ACTIVE session for that Adventure.
+
+```json
+201 (started) or 200 (resumed)
+{"launchId": "...", "regionId": "treasure-rush-cove", "adventureId": "repair-the-moonlight-bridge",
+ "placeSlug": "pirate-builder-bay",
+ "session": {"id": "...", "adventureSlug": "...", "templateVersion": 1, "status": "ACTIVE",
+             "currentStepId": "...", "hintLevel": 0, "startedAt": "...",
+             "lastActivityAt": "...", "completedAt": null},
+ "returnTo": {"regionId": "treasure-rush-cove"}}
+```
+
+| Status | Meaning |
+|---|---|
+| 404 `not_found` | The 3D Area is not visible to the child, or the launch point is unknown, unpublished or in another 3D Area |
+| 409 `content_unavailable` | The Adventure is inactive, in another Place, or not for this child's age band |
+
+`session` uses the LAI-0601 shape (`views.session_state`).
+
+**`GET /children/{id}/islands/`.** Island > Place > 3D Area for this child.
+- Islands appear when active and for the child's age band; their Places appear when active.
+- `area` is the Place's published 3D Area (a region entry, as in `GET regions/`), or `null`.
+  With `null` the Place is still usable through its Adventures.
+- `autoSelectIslandId` is set when exactly one Island is available.
+
 ## Reuse by later regions
 
 Nothing here branches on Treasure Rush: a later region needs a `WorldRegion` with its
