@@ -307,6 +307,8 @@ describe('DjangoEc2Stack', { timeout: 60_000 }, () => {
     const managed = JSON.stringify(role.Properties.ManagedPolicyArns);
     expect(managed).toContain('AmazonSSMManagedInstanceCore');
     expect(managed).toContain('lai-django-asset-storage-prod');
+    expect(managed).toContain('lai-django-child-photos-prod');
+    expect(managed).not.toContain('-dev');
     const all = statements(template, 'InstanceRole');
     const wildcard = all.filter((statement) => statement.Resource === '*');
     expect(wildcard.flatMap(actions).sort()).toEqual(
@@ -343,6 +345,18 @@ describe('DjangoEc2Stack', { timeout: 60_000 }, () => {
     );
     expect(names).toContain('/lai/prod/django/LAI_ASSET_STORAGE');
     expect(names).toContain('/lai/prod/django/DJANGO_ALLOWED_HOSTS');
+    expect(names).toContain('/lai/prod/django/LAI_CHILD_PHOTO_STORAGE');
+    expect(names).toContain('/lai/prod/django/LAI_CHILD_PHOTOS_BUCKET');
+    expect(names).toContain('/lai/prod/django/LAI_CHILD_PHOTOS_REGION');
+    const value = (name: string) =>
+      JSON.stringify(
+        resources(template, 'AWS::SSM::Parameter').find(
+          (resource) => resource.Properties.Name === `/lai/prod/django/${name}`,
+        )!.Properties.Value,
+      );
+    // Two buckets, never the same one: assets are published content, photos are personal data.
+    expect(value('LAI_ASSET_BUCKET')).toContain('lai-assets-prod-');
+    expect(value('LAI_CHILD_PHOTOS_BUCKET')).toContain('lai-child-photos-prod-');
     expect(names.some((name) => /SECRET|PASSWORD|DATABASE_URL/.test(name))).toBe(false);
     for (const parameter of resources(template, 'AWS::SSM::Parameter')) {
       expect(parameter.Properties.Type).toBe('String');

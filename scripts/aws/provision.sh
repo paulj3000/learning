@@ -16,8 +16,10 @@
 #   LAI_GITHUB_REPOSITORY, LAI_DATABASE_MODE, LAI_CREATE_OIDC_PROVIDER, LAI_HOSTED_ZONE_ID,
 #   LAI_HOSTED_ZONE_NAME, LAI_DB_MULTI_AZ   passed to the CDK app (infra/bin/app.ts)
 #
-# Order: LaiAssetStorage-<env> (the asset policy the instance role attaches), LaiDjangoRelease
-# (account-wide, ECR and GitHub OIDC), LaiDjangoEc2-<env>. Without a Route 53 zone the EC2 stack
+# Order: LaiAssetStorage-<env> (the asset policy the instance role attaches), LaiChildPhotos-<env>
+# (the private child photo bucket and the photo policy the instance role attaches, ADR-042),
+# LaiDjangoRelease (account-wide, ECR and GitHub OIDC), LaiDjangoEc2-<env>. Both storage stacks
+# must exist before the EC2 stack, which attaches their policies by name. Without a Route 53 zone the EC2 stack
 # waits while ACM validates the certificate: add the CNAME ACM shows (console, Certificate Manager).
 set -Eeuo pipefail
 
@@ -63,6 +65,7 @@ deploy_stack() { # deploy_stack <stack> [Key=Value ...]
 }
 
 deploy_stack "LaiAssetStorage-$env_name"
+deploy_stack "LaiChildPhotos-$env_name"
 deploy_stack LaiDjangoRelease
 
 ec2_stack="LaiDjangoEc2-$env_name"

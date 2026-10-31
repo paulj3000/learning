@@ -226,7 +226,7 @@ export class DjangoEc2Stack extends Stack {
     );
     this.instanceRole = new iam.Role(this, 'InstanceRole', {
       roleName: `lai-django-ec2-${env}`,
-      description: `Django EC2 (${env}): SSM, ECR pull, runtime settings, assets, logs`,
+      description: `Django EC2 (${env}): SSM, ECR pull, runtime settings, assets, child photos, logs`,
       assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'),
@@ -235,6 +235,12 @@ export class DjangoEc2Stack extends Stack {
           this,
           'AssetStoragePolicy',
           `lai-django-asset-storage-${env}`,
+        ),
+        // LaiChildPhotos-<env> (infra/lib/childPhotoStorageStack.ts): child photo objects only.
+        iam.ManagedPolicy.fromManagedPolicyName(
+          this,
+          'ChildPhotoStoragePolicy',
+          `lai-django-child-photos-${env}`,
         ),
       ],
     });
@@ -367,6 +373,11 @@ export class DjangoEc2Stack extends Stack {
       // The deterministic name LaiAssetStorage-<env> gives its bucket.
       LAI_ASSET_BUCKET: `lai-assets-${env}-${Aws.ACCOUNT_ID}-${Aws.REGION}`,
       LAI_ASSET_REGION: Aws.REGION,
+      // The deterministic name LaiChildPhotos-<env> gives its bucket (ADR-042). A separate
+      // bucket from the assets: child photos are never published or served through a CDN.
+      LAI_CHILD_PHOTO_STORAGE: 's3',
+      LAI_CHILD_PHOTOS_BUCKET: `lai-child-photos-${env}-${Aws.ACCOUNT_ID}-${Aws.REGION}`,
+      LAI_CHILD_PHOTOS_REGION: Aws.REGION,
     };
     for (const [name, value] of Object.entries(settings)) {
       new ssm.StringParameter(this, `Setting${name}`, {

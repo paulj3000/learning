@@ -1,6 +1,7 @@
 import { App, BootstraplessSynthesizer } from 'aws-cdk-lib';
 import { fileURLToPath } from 'node:url';
 import { AssetStorageStack, type AssetEnvironment } from '../lib/assetStorageStack';
+import { ChildPhotoStorageStack } from '../lib/childPhotoStorageStack';
 import { DjangoEc2Stack, type DatabaseMode } from '../lib/djangoEc2Stack';
 import { DjangoReleaseStack } from '../lib/djangoReleaseStack';
 
@@ -11,6 +12,7 @@ import { DjangoReleaseStack } from '../lib/djangoReleaseStack';
  * | Stack                   | Scope       | What                                              |
  * | ----------------------- | ----------- | ------------------------------------------------- |
  * | `LaiAssetStorage-<env>` | environment | asset manager bucket and Django policy (ADR-035)  |
+ * | `LaiChildPhotos-<env>`  | environment | private child photo bucket and policy (ADR-042)   |
  * | `LaiDjangoRelease`      | account     | ECR repository, GitHub OIDC, image publisher role |
  * | `LaiDjangoEc2-<env>`    | environment | VPC, ALB, EC2, RDS, SSM documents, deploy role    |
  *
@@ -21,7 +23,8 @@ import { DjangoReleaseStack } from '../lib/djangoReleaseStack';
  * | -------------------- | --------------------------- | --------------------------------------------- |
  * | `env`                | `LAI_ENV`                   | `dev` (default) or `prod`                     |
  * | `allowedOrigins`     | `LAI_ASSET_ALLOWED_ORIGINS` | comma-separated app origins (s3 delivery)     |
- * | `djangoRoleArn`      | `LAI_DJANGO_ROLE_ARN`       | another Django role to grant the asset policy |
+ * | `photoAllowedOrigins`| `LAI_PHOTO_ALLOWED_ORIGINS` | app origins that fetch() photo URLs (rare)    |
+ * | `djangoRoleArn`      | `LAI_DJANGO_ROLE_ARN`       | another Django role to grant both policies    |
  * | `githubRepository`   | `LAI_GITHUB_REPOSITORY`     | `owner/repo` (default `paulj3000/learning`)   |
  * | `databaseMode`       | `LAI_DATABASE_MODE`         | `rds` (default) or `container` (dev only)     |
  * | `multiAz`            | `LAI_DB_MULTI_AZ`           | `true` for a Multi-AZ RDS instance            |
@@ -75,6 +78,18 @@ new AssetStorageStack(app, `LaiAssetStorage-${envName}`, {
   env,
   synthesizer: synthesizer(),
   description: `Learning Adventure Island asset manager storage (${envName})`,
+});
+
+new ChildPhotoStorageStack(app, `LaiChildPhotos-${envName}`, {
+  envName: envName as AssetEnvironment,
+  allowedOrigins: setting('photoAllowedOrigins', 'LAI_PHOTO_ALLOWED_ORIGINS')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+  djangoRoleArn: setting('djangoRoleArn', 'LAI_DJANGO_ROLE_ARN') || undefined,
+  env,
+  synthesizer: synthesizer(),
+  description: `Learning Adventure Island private child photo storage (${envName})`,
 });
 
 new DjangoReleaseStack(app, 'LaiDjangoRelease', {
