@@ -2,11 +2,22 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const { uploadData, remove, getUrl, prepareIconBlob } = vi.hoisted(() => ({
+const {
+  uploadData,
+  remove,
+  getUrl,
+  prepareIconBlob,
+  applyChildPhotoSelection,
+  updateChildProfile,
+  getChildPhotoUrl,
+} = vi.hoisted(() => ({
   uploadData: vi.fn(),
   remove: vi.fn(),
   getUrl: vi.fn(),
   prepareIconBlob: vi.fn(),
+  applyChildPhotoSelection: vi.fn(),
+  updateChildProfile: vi.fn(),
+  getChildPhotoUrl: vi.fn(),
 }));
 
 vi.mock('aws-amplify/storage', () => ({ uploadData, remove, getUrl }));
@@ -18,7 +29,31 @@ vi.mock('./avatarPhoto', async (importOriginal) => ({
   prepareIconBlob,
 }));
 
+// The Django photo calls (LAI-0905) are spied on; the build's default store stays Amplify.
+vi.mock('./api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./api')>()),
+  applyChildPhotoSelection,
+  updateChildProfile,
+  getChildPhotoUrl,
+}));
+
 import { ChildProfileForm } from './ChildProfileForm';
+import type { ChildProfile } from './profileTypes';
+
+const SAVED_CHILD: ChildProfile = {
+  id: 'c1',
+  nickname: 'Robin',
+  ageBand: 'SPROUT',
+  avatarKey: 'OWL',
+  avatarPhotoKey: null,
+  interests: [],
+  readingMode: 'VOICE_FIRST',
+  sessionMinutes: 5,
+  active: true,
+  aiEnabled: true,
+  createdAt: null,
+  updatedAt: null,
+};
 
 const IMAGE_FILE = new File(['fake-image-bytes'], 'child.jpg', { type: 'image/jpeg' });
 
@@ -30,6 +65,9 @@ beforeEach(() => {
   }));
   remove.mockResolvedValue(undefined);
   getUrl.mockResolvedValue({ url: new URL('https://example.invalid/stored.jpg') });
+  getChildPhotoUrl.mockResolvedValue('https://example.invalid/stored.jpg');
+  applyChildPhotoSelection.mockResolvedValue(undefined);
+  updateChildProfile.mockResolvedValue(SAVED_CHILD);
   // jsdom implements neither, and the photo preview needs both.
   URL.createObjectURL = vi.fn(() => 'blob:preview');
   URL.revokeObjectURL = vi.fn();
@@ -85,7 +123,7 @@ describe('ChildProfileForm photo icon', () => {
     expect(uploadData).not.toHaveBeenCalled();
   });
 
-  it('offers no photo upload where the profile store keeps no photos (Django)', async () => {
+  it('offers no photo upload where photos are turned off', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
     render(
@@ -185,5 +223,135 @@ describe('ChildProfileForm photo icon', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/could not save that photo/i);
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+});
+
+describe('ChildProfileForm photo icon with the Django photo API (after-save, LAI-0905)', () => {
+  async function fillAndPickPhoto(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByLabelText(/nickname/i), 'Robin');
+    await user.upload(screen.getByLabelText(/choose a photo/i), IMAGE_FILE);
+    await waitFor(() => expect(prepareIconBlob).toHaveBeenCalled());
+  }
+
+  it('saves the profile first, then uploads the prepared icon for the saved child', async () => {
+    const order: string[] = [];
+    const onSubmit = vi.fn(async () => {
+      order.push('save');
+      return SAVED_CHILD;
+    });
+    applyChildPhotoSelection.mockImplementation(async () => {
+      order.push('photo');
+    });
+    const onSaved = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <ChildProfileForm
+        submitLabel="Create profile"
+        onSubmit={onSubmit}
+        onSaved={onSaved}
+        photoWrite="after-save"
+      />,
+    );
+
+    await fillAndPickPhoto(user);
+    await user.click(screen.getByRole('button', { name: /create profile/i }));
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(order).toEqual(['save', 'photo']);
+    expect(applyChildPhotoSelection).toHaveBeenCalledWith('c1', {
+      kind: 'replace',
+      icon: expect.any(Blob),
+    });
+    expect(uploadData).not.toHaveBeenCalled();
+  });
+
+  it('removes the photo of the saved child', async () => {
+    const onSubmit = vi.fn().mockResolvedValue({ ...SAVED_CHILD, avatarPhotoKey: 'c1' });
+    const user = userEvent.setup();
+    render(
+      <ChildProfileForm
+        submitLabel="Save changes"
+        initialValue={{ nickname: 'Robin', avatarPhotoKey: 'c1' }}
+        onSubmit={onSubmit}
+        photoWrite="after-save"
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /remove photo/i }));
+    await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+    await waitFor(() =>
+      expect(applyChildPhotoSelection).toHaveBeenCalledWith('c1', { kind: 'remove' }),
+    );
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('makes no photo call when the photo is unchanged', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(SAVED_CHILD);
+    const onSaved = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <ChildProfileForm
+        submitLabel="Create profile"
+        onSubmit={onSubmit}
+        onSaved={onSaved}
+        photoWrite="after-save"
+      />,
+    );
+
+    await user.type(screen.getByLabelText(/nickname/i), 'Robin');
+    await user.click(screen.getByRole('button', { name: /create profile/i }));
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(applyChildPhotoSelection).not.toHaveBeenCalled();
+  });
+
+  it('says the profile was saved when only the photo failed, and retries without a duplicate', async () => {
+    applyChildPhotoSelection.mockRejectedValueOnce(
+      new Error('We could not save that photo. Please try again.'),
+    );
+    const onSubmit = vi.fn().mockResolvedValue(SAVED_CHILD);
+    const onSaved = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <ChildProfileForm
+        submitLabel="Create profile"
+        onSubmit={onSubmit}
+        onSaved={onSaved}
+        photoWrite="after-save"
+      />,
+    );
+
+    await fillAndPickPhoto(user);
+    await user.click(screen.getByRole('button', { name: /create profile/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The profile was saved, but the photo was not. We could not save that photo. Please try again.',
+    );
+    expect(onSaved).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /create profile/i }));
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(updateChildProfile).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({ nickname: 'Robin' }),
+    );
+    expect(applyChildPhotoSelection).toHaveBeenCalledTimes(2);
+  });
+
+  it('uploads nothing when the profile save fails', async () => {
+    const onSubmit = vi.fn().mockRejectedValue(new Error('Could not create the child profile.'));
+    const user = userEvent.setup();
+    render(
+      <ChildProfileForm submitLabel="Create profile" onSubmit={onSubmit} photoWrite="after-save" />,
+    );
+
+    await fillAndPickPhoto(user);
+    await user.click(screen.getByRole('button', { name: /create profile/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not create/i);
+    expect(applyChildPhotoSelection).not.toHaveBeenCalled();
   });
 });

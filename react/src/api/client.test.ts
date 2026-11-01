@@ -30,6 +30,46 @@ async function failure(promise: Promise<unknown>): Promise<ApiError> {
 }
 
 describe('createApiClient', () => {
+  it('sends a raw binary PUT body with its own content type (LAI-0905)', async () => {
+    const { client, fetch } = setup([jsonResponse(200, { photo: null })]);
+    const data = new Blob(['jpeg'], { type: 'image/jpeg' });
+    await client.request('PUT', 'children/c/photo/', {
+      rawBody: { data, contentType: 'image/jpeg' },
+      body: { ignored: true },
+    });
+    const init = fetch.mock.calls[0][1];
+    expect(init?.method).toBe('PUT');
+    expect(init?.body).toBe(data);
+    const headers = init?.headers as Record<string, string> | undefined;
+    expect(headers?.['Content-Type']).toBe('image/jpeg');
+  });
+
+  it('resends the same binary body after a 401 refresh', async () => {
+    const { client, fetch } = setup([
+      jsonResponse(401, errorJson('not_authenticated')),
+      jsonResponse(200, {}),
+    ]);
+    const data = new Blob(['jpeg']);
+    await client.request('PUT', 'p/', { rawBody: { data, contentType: 'image/jpeg' } });
+    expect(fetch.mock.calls[1][1]?.body).toBe(data);
+  });
+
+  it('reads a successful blob response as bytes and an error as the JSON envelope', async () => {
+    const { client } = setup([
+      new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: { 'Content-Type': 'image/jpeg' },
+      }),
+      jsonResponse(404, errorJson('not_found')),
+    ]);
+    const { data } = await client.request('GET', 'c/', { responseType: 'blob' });
+    expect(data).toBeInstanceOf(Blob);
+    expect((data as Blob).size).toBe(3);
+    const error = await failure(client.request('GET', 'c/', { responseType: 'blob' }));
+    expect(error.kind).toBe('not_found');
+    expect(error.code).toBe('not_found');
+  });
+
   it('sends a GET to the versioned path with the bearer token and no body', async () => {
     const { client, fetch } = setup([jsonResponse(200, { ok: true })]);
     const response = await client.request('GET', 'children/c/progress/');

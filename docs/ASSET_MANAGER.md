@@ -233,6 +233,11 @@ next load asks again. Treasure Cove uses it (TR-10, section 15).
 | CORS | None by default (`django` delivery). With `allowedOrigins`, one rule: `GET` and `HEAD`, those explicit `https://` origins only, `Range` request header, `Content-Length`, `Content-Type`, `ETag` exposed, one hour preflight cache. Wildcards and plain `http://` (other than localhost) are refused at synth |
 | Credentials | From the workload role through the default AWS SDK chain (`boto3.client("s3")`). Nothing in settings, `.env` files or the React build. Local development keeps `local` storage and needs no AWS credentials |
 
+**Child photos are not here (ADR-042).** Parent-uploaded child photos live in the separate
+private bucket `LaiChildPhotos-<env>`, owned by the child profile subsystem, never published and
+never served through a CDN (`docs/platform/CHILD_PHOTO_STORAGE.md`). The asset bucket and its
+policy were reviewed for that decision and left unchanged.
+
 Deploying it is a Phase 10 approval step (`docs/DJANGO_MIGRATION_ROADMAP.md`). No test makes a
 live AWS call: `infra/lib/assetStorageStack.test.ts` asserts on the synthesized template, and
 `apps/assets/tests/test_storage.py` stubs boto3.
@@ -273,6 +278,7 @@ The admin preview (section 17) adds no variable. Its token lifetime is the const
 | AM-10 | Admin 3D model preview (section 17) | Done (unit-tested; not checked in a browser) |
 | AM-11 | Signed CloudFront delivery | Not needed for launch (section 8); later optimisation once LAI-1005's distribution exists |
 | AM-12 | Production S3 storage: bucket, IAM, CORS, image, runbook (sections 12 and 19) | Done as code and documentation; deploying it is an approval step |
+| AM-13 | Non-model asset kinds: textures, images and sprites, audio, animation clips. Each kind gets validation, a key family under `assets/` and a matching IAM prefix; the bucket needs no change | Not started (added 2026-10-31, ADR-042) |
 
 ## 15. Treasure Rush TR-10 (done 2026-10-30)
 

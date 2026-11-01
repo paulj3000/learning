@@ -54,6 +54,12 @@ _CODED = {
     "child_inactive": "This child profile is turned off.",
     "launch_ticket_invalid": "This game link has expired. Please start again.",
     "game_csrf_failed": "This request could not be verified.",
+    # Child profile photos (LAI-0904)
+    "photo_invalid": "That photo could not be read. Please choose a different one.",
+    "photo_dimensions": "That photo is too big. Please choose a smaller one.",
+    "photo_too_large": "That photo file is too large.",
+    "photo_type_unsupported": "Only JPEG photos are accepted.",
+    "photo_storage_unavailable": "Photos are not available right now. Please try again later.",
 }
 _PASSTHROUGH_HEADERS = {"Allow", "WWW-Authenticate", "Retry-After"}
 

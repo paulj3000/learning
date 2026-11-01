@@ -40,6 +40,7 @@ lai/staticfiles/
 
 # Local asset-manager storage (LAI-2200)
 lai/.asset-storage/
+lai/.child-photo-storage/
 
 # CDK synth output (infra/)
 infra/cdk.out/

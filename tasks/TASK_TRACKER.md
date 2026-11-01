@@ -70,7 +70,7 @@ before touching AWS.
 ## Phase 6 — Authoritative progression, inventory, mastery
 
 - [x] **LAI-0601** Python adventure engine + answers endpoint (depends: 0303, 0305, 0403). DONE locally: `apps/adventures/engine.py` (golden parity), answers and hints endpoints, G6 verified for them; React still calls the Amplify Lambda until the frontend API layer (LAI-0501) switches it
-- [ ] **LAI-0602** Profile writes and deletion (depends: 0502)
+- [ ] **LAI-0602** Profile writes and deletion (depends: 0502). 2026-10-31 on `feature/lai-0905-photo-clients`: child deletion service `lai/apps/users/deletion.py` (photo objects first via `delete_all_child_photos`, child kept on storage failure, idempotent retry), pytest only. 2026-11-01 safety review: partial storage failure, storage-ok-then-database-failure and concurrent-purge cases tested; a spurious refusal when a concurrent purge removed a row first was fixed. Route still blocked until LAI-0209
 - [ ] **LAI-0603** Mastery writes (depends: 0601)
 - [ ] **LAI-0604** Rewards and inventory writes (depends: 0603)
 - [ ] **LAI-0605** Quests, NPC, discovery, world state writes (depends: 0604)
@@ -96,12 +96,13 @@ before touching AWS.
 - [ ] **LAI-0901** Atomic co-op slot claim (depends: 0305, 0403)
 - [ ] **LAI-0902** Co-op update stream (depends: 0901)
 - [ ] **LAI-0903** Realtime go/no-go record (depends: 0902)
-- [ ] **LAI-0904** Child photo presigned flow (depends: 0602)
+- [ ] **LAI-0904** Child photo storage and API in a separate private bucket (ADR-042) (depends: 0602; APPROVAL: deploying the bucket). Repository side done 2026-10-31 on `feature/lai-0904-child-photo-storage`: `LaiChildPhotos-<env>` CDK stack and EC2/SSM wiring (synthesized, not deployed); `GET/PUT/DELETE /children/<id>/photo/` and `photo/content/`; `ChildPhoto` model; JPEG validation and metadata stripping; `child_photo_storage_audit`. Unit-tested only; synth re-verified 2026-10-31. Not deployed: on 2026-11-01 the owner's `list-stacks` in account 008331939914 / us-west-1 showed no `Lai*` stack at all, so neither this stack nor the Django EC2 platform it plugs into exists yet; no change set prepared. Open until deployed and verified on dev (`docs/platform/CHILD_PHOTO_STORAGE.md`)
+- [ ] **LAI-0905** React and Android clients on the Django photo API (depends: 0904). Started 2026-10-31 on `feature/lai-0905-photo-clients`: React Django builds upload, show and remove photos through `children/<id>/photo/` (`djangoPhotos.ts`, `photoWrite: 'after-save'`); Android contract in `docs/android/ANDROID_API_CONTRACT.md`. Implementation done and committed; Vitest only. Not deployed or accepted: needs the dev bucket (LAI-0904 approval) and a Cognito test sign-in (gate A6)
 
 ## Phase 10 — AWS infrastructure (may start after Phase 4)
 
 - [ ] **LAI-1001** CDK app and environment config (depends: see roadmap)
-- [ ] **LAI-1002** Network, RDS PostgreSQL, S3 (depends: 1001)
+- [ ] **LAI-1002** Network, RDS PostgreSQL, S3 (depends: 1001). Asset bucket and, since 2026-10-31, the separate child photo bucket (ADR-042) are defined and synthesized, not deployed
 - [ ] **LAI-1003** ECR and image build (depends: 1001)
 - [ ] **LAI-1004** Dev EC2 + Docker deploy (depends: 1002, 1003)
 - [ ] **LAI-1005** Edge: CloudFront for React and `/api/*` (depends: 1004)
@@ -112,7 +113,11 @@ before touching AWS.
 
 - [ ] **LAI-1101** DynamoDB export tool (read-only) (depends: 0103, 0305)
 - [ ] **LAI-1102** Transform and import dry-run (depends: 1101)
-- [ ] **LAI-1103** Photo object migration plan and dry-run (depends: 0904, 1101)
+- [ ] **LAI-1103** Photo object migration plan and dry-run into the private child photo bucket (depends: 0904, 1101; APPROVAL: bucket read, copy). Specified 2026-10-31 (`docs/platform/CHILD_PHOTO_STORAGE.md` section 10); utility not built because its inputs do not exist yet. Not started (2026-10-31)
+  - [ ] **LAI-1103a** Legacy photo inventory, read-only (depends: 1101, G1)
+  - [ ] **LAI-1103b** Photo migration planner and dry run (depends: 1103a, profile import applied)
+  - [ ] **LAI-1103c** Photo copy (APPROVAL) (depends: 1103b, 0904 deployed, G9)
+  - [ ] **LAI-1103d** Photo migration verification (depends: 1103c)
 - [ ] **LAI-1104** Shadow comparison (depends: 1102, Phase 6)
 
 ## Phase 12 — Cutover
@@ -120,11 +125,12 @@ before touching AWS.
 - [ ] **LAI-1201** Cutover and rollback runbook (depends: 1104, 1007)
 - [ ] **LAI-1202** Rehearsal on dev (depends: 1201)
 - [ ] **LAI-1203** Production cutover (depends: 1202, 0405)
+- [ ] **LAI-1204** Retire legacy Amplify S3 storage (APPROVAL: explicit, final) (depends: asset import verified, 1103d, 1203, clients on Django storage (0905, 1301), no runtime references to the bucket). Plan only; never deletes implicitly
 
 ## Phase 13 — Retire Amplify
 
 - [ ] **LAI-1301** Remove Amplify from the frontend (depends: 1203 + stability window)
-- [ ] **LAI-1302** Detach Cognito, then delete Amplify stacks (depends: 1301, 0405)
+- [ ] **LAI-1302** Detach Cognito, then delete Amplify stacks (depends: 1301, 0405, 1204: Amplify storage auto-deletes its objects with the stack)
 - [ ] **LAI-1303** Remove `amplify/`, `amplify.yml`, dev dependencies; supersede ADR-010 (depends: see roadmap)
 
 # Track B: unified Three.js engine (ADR-020, Accepted)
@@ -181,6 +187,7 @@ asset service until AM-11 and LAI-1002 provide the infrastructure. Subtasks use 
 - [x] **AM-9** Security and integration tests, documentation (depends: AM-5 to AM-8)
 - [x] **AM-10** Admin 3D model preview (depends: AM-5). Unit-tested and browser-checked (headless Chromium, software WebGL)
 - [ ] **AM-11** Signed CloudFront delivery (APPROVAL: AWS) (depends: AM-6, LAI-1002, LAI-1005)
+- [ ] **AM-13** Non-model asset kinds (textures, images and sprites, audio, animation clips): validation, key families and matching IAM prefixes in `LaiAssetStorage-<env>` (depends: AM-4; ADR-042 keeps them in the asset bucket, never the photo bucket)
 
 # Treasure Rush (`docs/TREASURE_RUSH_ROADMAP.md`)
 

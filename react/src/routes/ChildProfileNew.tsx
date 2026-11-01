@@ -9,8 +9,7 @@ export function ChildProfileNew() {
 
   async function handleSubmit(input: ChildProfileInput) {
     const parentProfile = await getOrCreateParentProfile();
-    await createChildProfile(parentProfile.id, input);
-    navigate('/home');
+    return createChildProfile(parentProfile.id, input);
   }
 
   return (
@@ -20,7 +19,11 @@ export function ChildProfileNew() {
         <Link to="/home">Back to dashboard</Link>
       </header>
       <main className={styles.main} id="main-content">
-        <ChildProfileForm submitLabel="Create profile" onSubmit={handleSubmit} />
+        <ChildProfileForm
+          submitLabel="Create profile"
+          onSubmit={handleSubmit}
+          onSaved={() => navigate('/home')}
+        />
       </main>
     </div>
   );

@@ -9,7 +9,12 @@ export interface ChildProfile {
   nickname: string;
   ageBand: AgeBandValue;
   avatarKey: string;
-  /** Amplify Storage path of an uploaded photo; always null from Django (photos are LAI-1103). */
+  /**
+   * An opaque reference to the parent-uploaded photo, or null when there is none. Only the store
+   * that produced it can resolve it (`ProfileStore.getChildPhotoUrl`): the Amplify Storage path
+   * in Amplify builds, the child id in Django builds (`hasPhoto`, LAI-0905). Never a Django
+   * storage key: those stay on the server.
+   */
   avatarPhotoKey: string | null;
   interests: string[];
   readingMode: ReadingModeValue;
@@ -35,7 +40,8 @@ export interface ChildProfileInput {
    * when this child uses their authored `avatarKey` character as the icon.
    * Written by `persistPhotoSelection` (avatarPhoto.ts), which uploads the
    * image before this input reaches the API and cleans up any replaced
-   * object after it succeeds. Ignored where `supportsPhotos` is false.
+   * object after it succeeds. Only `photoWrite: 'before-save'` stores read it;
+   * the Django store never sends it (its photo is a child sub-resource).
    */
   avatarPhotoKey: string | null;
   interests: string[];
@@ -43,11 +49,30 @@ export interface ChildProfileInput {
   sessionMinutes: number;
 }
 
+/** What the parent did to the photo field before submitting the form. */
+export type PhotoSelection =
+  { kind: 'unchanged' } | { kind: 'replace'; icon: Blob } | { kind: 'remove' };
+
 /** Where this build keeps parent and child profiles. See api.ts for which one is used. */
 export interface ProfileStore {
   readonly source: 'django' | 'amplify';
-  /** Whether a parent can upload a profile photo here (Amplify Storage only, for now). */
+  /** Whether a parent can upload a profile photo here. */
   readonly supportsPhotos: boolean;
+  /**
+   * How a photo is written around a profile save:
+   * - `before-save` (Amplify): upload first, then the profile stores the returned path
+   *   (`persistPhotoSelection`, avatarPhoto.ts);
+   * - `after-save` (Django, LAI-0905): the photo belongs to a saved child, so the profile is saved
+   *   first and then `applyChildPhotoSelection` uploads or removes it.
+   */
+  readonly photoWrite: 'before-save' | 'after-save';
+  /**
+   * A URL an `<img>` can show for `ChildProfile.avatarPhotoKey`, or null. Never throws: a missing
+   * photo degrades to the authored avatar character. Each call may mint a fresh short-lived URL.
+   */
+  getChildPhotoUrl(photoKey: string): Promise<string | null>;
+  /** `after-save` stores: upload (`replace`) or delete (`remove`) a saved child's photo. */
+  applyChildPhotoSelection(childId: string, selection: PhotoSelection): Promise<void>;
   getOrCreateParentProfile(): Promise<ParentProfile>;
   updateParentProfileDisplayName(id: string, displayName: string): Promise<ParentProfile>;
   listChildProfiles(): Promise<ChildProfile[]>;

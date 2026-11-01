@@ -292,7 +292,8 @@ def test_default_permission_denies_unauthenticated_and_names_the_scheme(settings
 
 def test_no_sensitive_endpoints_exist_yet():
     """The users routes are onboarding and child profile settings. Child deletion is blocked
-    (`SensitiveActionBlocked`, apps/users/tests/test_children_api.py) until LAI-0602/LAI-0209."""
+    (`SensitiveActionBlocked`, apps/users/tests/test_children_api.py) until LAI-0602/LAI-0209.
+    The profile photo (LAI-0904) is a profile setting: removing it reduces the data held."""
     from config import urls
 
     assert sorted(str(p.pattern) for p in urls.urlpatterns[0].url_patterns) == [
@@ -302,6 +303,8 @@ def test_no_sensitive_endpoints_exist_yet():
     assert sorted(str(p.pattern) for p in urls.urlpatterns[1].url_patterns) == [
         "children/",
         "children/<uuid:child_id>/",
+        "children/<uuid:child_id>/photo/",
+        "children/<uuid:child_id>/photo/content/",
         "me/",
     ]
 

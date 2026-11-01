@@ -7,6 +7,7 @@ on its own pipeline; nothing here is deployed by a push.
 | Stack                   | Scope       | What                                                                                   | Doc                                        |
 | ----------------------- | ----------- | -------------------------------------------------------------------------------------- | ------------------------------------------ |
 | `LaiAssetStorage-<env>` | environment | The asset manager's private S3 bucket and the Django role policy                       | `docs/ASSET_MANAGER.md` sections 12 and 19 |
+| `LaiChildPhotos-<env>`  | environment | The private child photo bucket (separate from assets, ADR-042) and its Django policy   | `docs/platform/CHILD_PHOTO_STORAGE.md`     |
 | `LaiDjangoRelease`      | account     | ECR `lai/django`, the GitHub OIDC provider, the image publisher role                   | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`   |
 | `LaiDjangoEc2-<env>`    | environment | VPC, ALB (ACM, WAF), EC2, RDS, SSM settings and release documents, deploy role, alarms | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`   |
 
@@ -26,12 +27,13 @@ bootstrapless synthesizer: they have no file assets, Lambdas or custom resources
 `cdk bootstrap` stack (and its IAM roles) is needed. The EC2 stack embeds
 `scripts/aws/setup-ec2.sh` and `scripts/aws/ssm-release-entry.sh` at synth time.
 
-| Setting                                | CDK context      | Environment variable                        | Default                                         |
-| -------------------------------------- | ---------------- | ------------------------------------------- | ----------------------------------------------- |
-| Environment                            | `env`            | `LAI_ENV`                                   | `dev`                                           |
-| Another Django role to grant           | `djangoRoleArn`  | `LAI_DJANGO_ROLE_ARN`                       | none (the EC2 instance role attaches it itself) |
-| Browser origins for presigned GETs     | `allowedOrigins` | `LAI_ASSET_ALLOWED_ORIGINS`                 | none (right for `django` delivery)              |
-| Account and region baked into the name |                  | `CDK_DEFAULT_ACCOUNT`, `CDK_DEFAULT_REGION` | pseudo-parameters                               |
+| Setting                                | CDK context           | Environment variable                        | Default                                         |
+| -------------------------------------- | --------------------- | ------------------------------------------- | ----------------------------------------------- |
+| Environment                            | `env`                 | `LAI_ENV`                                   | `dev`                                           |
+| Another Django role to grant           | `djangoRoleArn`       | `LAI_DJANGO_ROLE_ARN`                       | none (the EC2 instance role attaches it itself) |
+| Browser origins for presigned GETs     | `allowedOrigins`      | `LAI_ASSET_ALLOWED_ORIGINS`                 | none (right for `django` delivery)              |
+| Origins that `fetch()` photo URLs      | `photoAllowedOrigins` | `LAI_PHOTO_ALLOWED_ORIGINS`                 | none (`<img>` and native clients need no CORS)  |
+| Account and region baked into the name |                       | `CDK_DEFAULT_ACCOUNT`, `CDK_DEFAULT_REGION` | pseudo-parameters                               |
 
 ## Deploy (approval required)
 
@@ -48,7 +50,9 @@ aws cloudformation describe-stacks --stack-name LaiAssetStorage-prod --region <r
 ```
 
 `cdk deploy` from `infra/` (with `cdk.json`) works as well if you use the CDK CLI. The bucket is
-retained if the stack is deleted, and `prod` has termination protection.
+retained if the stack is deleted, and `prod` has termination protection. The child
+photo stack (`LaiChildPhotos-<env>`) deploys the same way, after `LaiAssetStorage-<env>` and
+before `LaiDjangoEc2-<env>`; `scripts/aws/provision.sh` creates them in that order.
 
 ## Tests
 

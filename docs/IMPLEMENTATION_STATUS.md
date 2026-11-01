@@ -11464,3 +11464,242 @@ instruction. Not pushed.
   `tsc -p tsconfig.app.json --noEmit` clean.
 - **Deferred to merge.** Full Vitest and pytest, oxlint, Prettier, Ruff, build, Playwright and a
   real-browser look at the header on a tablet.
+
+## LAI-0904: Separate private child photo bucket and Django photo API (2026-10-31, branch only, not merged)
+
+- **Decision.** ADR-042, accepted by the owner for code and infrastructure definitions only:
+  game assets and child photos use separate S3 buckets. No deployment, migration, deletion, merge
+  or push was approved, and none was done.
+- **Reviewed and kept.**
+  - `LaiAssetStorage-<env>` and the asset manager (storage adapter, publication, resolver,
+    Treasure Rush loading) are unchanged. The `LaiAssetStorage-prod` template is identical to
+    `main`.
+  - The Amplify bucket and everything under `amplify/` are unchanged.
+- **Stage A, infrastructure (synthesized, not deployed).**
+  - New stack `LaiChildPhotos-<env>` (`infra/lib/childPhotoStorageStack.ts`):
+    - all Block Public Access settings, ACLs disabled, TLS 1.2 or newer only, SSE-S3, versioning;
+    - lifecycle: 7-day noncurrent expiry, delete-marker cleanup, 1-day multipart abort;
+    - no CORS by default, no CDN, retained on stack deletion;
+    - managed policy `lai-django-child-photos-<env>` on `children/*` (ListBucket
+      prefix-conditioned). It creates no role.
+  - `LaiDjangoEc2-<env>`: the instance role attaches the photo policy, and three SSM settings are
+    added. The template diff against `main` is additive only.
+  - `provision.sh` creates the photo stack before the EC2 stack.
+- **Stage B, Django.**
+  - Routes `GET/PUT/DELETE /api/v1/children/<id>/photo/` and `GET .../photo/content/`,
+    child-scoped.
+  - New code: `users.ChildPhoto` (a `ChildOwnedModel`, migration `0005`, one `CURRENT` per
+    child); `photo_storage.py` (s3, local, memory, disabled); `photo_validation.py` (structural
+    JPEG check and metadata stripping in pure Python, no new dependency); `photos.py`; the
+    `child_photo_storage_audit` command.
+  - Settings `LAI_CHILD_PHOTO_*`. Production allows only `s3` or `disabled` and refuses the asset
+    bucket.
+  - `hasPhoto` now reads `ChildPhoto`; `avatar_photo_key` is deprecated and not dropped.
+- **Stage C, migration preparation.** LAI-1103 specified, with subtasks 1103a to 1103d
+  (`docs/platform/CHILD_PHOTO_STORAGE.md` section 10). No utility was built: the LAI-1101 export
+  and bucket read access do not exist. Every legacy bucket reference is inventoried (section 9).
+- **Stage D, documentation.**
+  - ADR-042 and `docs/platform/CHILD_PHOTO_STORAGE.md`.
+  - Roadmap: LAI-0904 revised, LAI-0905 added, LAI-1002 and LAI-1103 updated, LAI-1204 added.
+    LAI-1302 now depends on LAI-1204, because Amplify storage auto-deletes objects with its stack.
+  - AM-13 added. The tracker, IAM audit, EC2 runbook, `infra/README.md`, `ASSET_MANAGER.md`,
+    `ARCHITECTURE.md` and `DATA_MODEL.md` are updated.
+- **Tests (development checks, 2026-10-31).**
+  - Vitest `infra/lib/`: 43 passed (11 new). `tsc -p infra/tsconfig.json` is clean, and
+    `infra:synth` passes for dev and prod.
+  - pytest `test_child_photos.py`: 48 passed. These cover authorization, cross-family 404,
+    validation, size and dimension limits, replacement, deletion, S3 failure, database failure,
+    deferred delete, presigned URLs, disabled storage, the audit, and the child-deletion hook.
+  - pytest `lai/apps/users`, `lai/apps/core`, `lai/apps/assets` with PostgreSQL required: 625
+    passed. Repository `tests/`: 166 passed.
+  - Ruff check and format, `manage.py check`, `makemigrations --check`, ADR check and Prettier
+    (changed files) all pass.
+  - The cleaned fixture JPEGs were also checked against a reference decoder: pixels identical,
+    no metadata left.
+- **Not run (merge or release gates).** Full pytest and Vitest, the full typecheck, oxlint,
+  build, Docker image, Playwright, and any AWS call.
+- **Open.** Deployment and dev verification (LAI-0904, approval); the React and Android clients
+  (LAI-0905); LAI-0602 must call `delete_all_child_photos`; a schedule for the audit command;
+  SSE-KMS and version-delete rights for erasure (G9); LAI-1103a to 1103d; LAI-1204; AM-13.
+
+## LAI-0905: React client on the Django child photo API, Android contract (2026-10-31, branch only, not merged)
+
+- **Acceptance.**
+  - Django builds report `supportsPhotos: true`. The form uploads the prepared 256 px JPEG with
+    `PUT /children/<id>/photo/`, shows it from the returned `url`, and removes it with `DELETE`.
+    A `presigned` URL goes into the `<img>`; an `api` URL is fetched with the token. Done.
+  - Errors map to the existing parent-facing messages. Done.
+  - The Android contract is documented in `docs/android/ANDROID_API_CONTRACT.md`, "Child profile
+    photo". Done.
+  - Amplify builds unchanged: same upload-first order, same calls, same messages. Their photo
+    path now goes through `ProfileStore` (`photoWrite: 'before-save'`, `getChildPhotoUrl`).
+- **What changed (React).**
+  - `api/client.ts`: `PUT`, a raw binary body (`rawBody`), and blob responses
+    (`responseType: 'blob'`). Errors are still read as the JSON envelope.
+  - New `djangoPhotos.ts`: upload, remove, display URL.
+    - A `presigned` URL must be `https:`.
+    - An `api` URL must be the child's own content route. It is then requested through the API
+      client, so the bearer token only goes to the configured API origin.
+    - One object URL per child, reused for the same photo id and revoked on replace or remove.
+  - `ProfileStore` gains `photoWrite`, `getChildPhotoUrl` and `applyChildPhotoSelection`.
+    - Django: `avatarPhotoKey` is the child id when `hasPhoto` is true.
+    - `ChildAvatar` resolves photos through the store.
+  - `ChildProfileForm`, `after-save` order:
+    - The profile is saved first, then the photo.
+    - If only the photo fails, the message says the profile was saved. The next submit updates
+      that child instead of creating a duplicate.
+    - The routes return the saved profile and navigate in `onSaved`.
+  - `photoMessages.ts` and `profileErrors.ts` were split out, so the Django modules import no
+    Amplify Storage code.
+- **Backend.** Unchanged.
+- **Tests (development checks).**
+  - Vitest `src/features/child-profile`, `src/api`, `src/routes`: 259 passed. New tests:
+    `djangoPhotos.test.ts`, the client's binary and blob cases, the Django store's photo cases,
+    and the form's after-save cases.
+  - `tsc -p tsconfig.app.json`: clean for these files. Its one error is in
+    `src/features/multiplayer/colyseusTransport.ts` (`@colyseus/sdk` is not installed in the
+    shared `node_modules`), which this task does not touch.
+- **Not run (merge or release gates).** Full Vitest, the full typecheck, oxlint, build,
+  Playwright, and any check against a deployed bucket or a real Django server.
+- **Open.**
+  - Verify against `LaiChildPhotos-dev` once LAI-0904 is deployed (approval).
+  - No native Android client exists in this repository to follow the contract.
+  - LAI-0602 child deletion must still call `delete_all_child_photos`.
+
+## Child photo integration: LAI-0905 committed, LAI-0602 photo cleanup, LAI-0904 re-verified (2026-10-31, branch only, not merged, not pushed)
+
+Branch `feature/lai-0905-photo-clients` (it also carries the three LAI-0904 commits).
+
+| Task | Implementation | Tests | Deployment | Acceptance |
+|---|---|---|---|---|
+| LAI-0904 bucket and EC2 wiring | Done | 43 infra tests; synth dev and prod pass | **Not deployed**; live state **not checked** (AWS CLI calls were not permitted in this session) | Open |
+| LAI-0904 Django photo API | Done | Full pytest 1207 passed | Not released with S3 anywhere | Open: no real bucket yet |
+| LAI-0905 React client, Android contract | Done, committed | Vitest | n/a | Open: dev bucket and a Cognito test sign-in (gate A6) needed |
+| LAI-0602 photo cleanup on child deletion | Service done (`lai/apps/users/deletion.py`) | 13 new pytest cases | n/a | Open: route blocked until LAI-0209 |
+| LAI-1103 Amplify photo migration | Designed only | none | none | Not started (inputs missing) |
+
+- **LAI-0602.** `delete_child_profile(parent, child_id)`:
+  - The child is resolved through the parent: another family's child or an unknown id is
+    `ChildProfileNotFound`, and nothing changes.
+  - `delete_all_child_photos` runs first, covering current and superseded `DELETING` rows.
+  - The child is deleted (cascading every `ChildOwnedModel` row) only when every object is gone.
+    Otherwise `ChildDeletionIncomplete` is raised, the child is kept, and its photos stay
+    `DELETING` and are never served. A retry is idempotent, and the audit command also repairs.
+  - A photo committed between the purge and the child lock also stops the cascade. An upload
+    still waiting for the lock finds the child gone and deletes its own object.
+  - Noncurrent S3 versions expire by lifecycle after 7 days. Django has no version-delete right
+    (gate G9 question unchanged).
+  - `DELETE /api/v1/children/<id>/` still answers `403 sensitive_action_unavailable`, because
+    LAI-0209 (recent authentication) is an open dependency. When it lands, the view calls the
+    service and maps `ChildDeletionIncomplete` to `503`.
+- **LAI-0904 infrastructure review (synthesized templates).**
+  - `LaiChildPhotos-dev` defines `lai-child-photos-dev-<account>-<region>`: all four Block Public
+    Access settings, `BucketOwnerEnforced`, deny without TLS and below TLS 1.2, SSE-S3,
+    versioning, and lifecycle rules (7-day noncurrent expiry, expired delete markers, 1-day
+    multipart abort).
+  - No CORS rule, `Retain` on delete.
+  - Policy `lai-django-child-photos-dev`: Get, Put and Delete on `children/*`, plus ListBucket
+    limited to the `children/*` prefix.
+  - `LaiDjangoEc2-dev` attaches it to `lai-django-ec2-dev` and writes
+    `/lai/dev/django/LAI_CHILD_PHOTO_STORAGE=s3`, `LAI_CHILD_PHOTOS_BUCKET` and
+    `LAI_CHILD_PHOTOS_REGION`. The asset bucket and its policy stay separate.
+  - Nothing under `amplify/` changed.
+- **API and React verification.**
+  - Every photo endpoint behaviour is covered through the full Django stack with signed test
+    tokens and the in-memory store: upload, metadata, content route, replace, delete,
+    cross-family `404`, unauthenticated, unsupported type, oversized, bad dimensions, S3 write,
+    delete and database failures, disabled storage, presigned URLs.
+  - Keys are `children/<uuid>/<uuid>`, with no names. The `api` URL path the React client
+    accepts is pinned by a server test.
+  - The React flows (new child, replace, remove, failure then retry without a duplicate, `onSaved`
+    navigation) are covered by component tests only.
+- **Merge-gate results (local).**
+  - Backend: Ruff clean, Ruff format clean (327 files), `manage.py check` clean,
+    `makemigrations --check` no changes, `LAI_REQUIRE_POSTGRES=1 pytest -q` 1207 passed.
+  - Frontend: `adr:check` and `admin-preview:check` pass. oxlint has 0 errors and 39 warnings,
+    the baseline (two warnings this work added were fixed). Prettier clean.
+  - Vitest: 3021 passed, 8 failed, 15 files failed. Every failure is this checkout's environment,
+    none in changed code. The tests spawn `node_modules/.bin/tsx`, which is absent because the
+    checkout has no local `node_modules`, and `@colyseus/sdk` / `@colyseus/core` (declared in
+    `package.json`) are not installed in the shared `node_modules`.
+  - `typecheck`, `build` and Playwright stop on the same missing `@colyseus` packages. Node,
+    amplify, scripts and infra typecheck clean; `server` fails only on `@colyseus`.
+- **Blocked.**
+  - The deployed integration test: no approved dev bucket, no live Django with S3, and no
+    Cognito test parent.
+  - The build, typecheck and Playwright gates until `npm ci` is run in a complete checkout.
+
+## Child photo dev deployment and acceptance attempt (2026-11-01, branch only, not merged, not pushed, nothing deployed)
+
+Branch `feature/lai-0905-photo-clients`.
+
+| Task | Code | Tests | Infrastructure deployed | Live integration | Browser acceptance | Final acceptance |
+|---|---|---|---|---|---|---|
+| LAI-0904 bucket, policy, EC2/SSM wiring | Done | 43 infra tests, synth passes | **No** (change set not prepared: AWS calls refused) | Not run | n/a | Open |
+| LAI-0904 Django photo API | Done | Full pytest | **No** release with S3 | Not run | n/a | Open |
+| LAI-0905 React client, Android contract | Done | Full Vitest, typecheck, build | n/a | Not run | **Blocked** (no dev bucket, no Cognito test parent, gate A6) | Open |
+| LAI-0602 photo cleanup on deletion | Service done | 15 deletion cases | n/a | Not run | n/a | Open (route blocked until LAI-0209) |
+
+- **AWS inspection.** Every AWS CLI call (`aws sts get-caller-identity` and the rest) was
+  refused by this session's tool permissions before reaching AWS. Account, region and the
+  existence of `LaiChildPhotos-dev`, `LaiAssetStorage-dev`, `LaiDjangoEc2-dev`, the IAM role,
+  policies and SSM parameters are **unknown**, not missing. `scripts/aws/provision.sh dev`
+  needs AWS for its first line, so no change set exists to review.
+  - Note for the reviewer: `aws cloudformation deploy --no-execute-changeset` on a stack that
+    does not exist yet leaves it in `REVIEW_IN_PROGRESS`. The script also covers
+    `LaiAssetStorage-dev` and `LaiDjangoRelease`, so use `--only <stack>` to limit what is
+    prepared.
+- **Frontend dependencies.** `npm ci` at the repository root (the workspace that owns
+  `package-lock.json`, with `react` as its workspace) installed 1174 packages, including
+  `@colyseus/sdk` 0.18.4, `@colyseus/core` 0.18.16 and `tsx`. The lockfile is unchanged. Warnings
+  only: peer-dependency overrides inside Amplify packages, and `jsdom@30.0.1` asking for Node
+  `^24.15.0` while this machine has 24.14.0 (no test failed because of it).
+- **Frontend results.** Vitest 304 files and 3236 tests, all passed, so the 8 earlier failures were
+  the missing `tsx` and `@colyseus` packages. Typecheck clean (react, amplify, scripts, server,
+  infra). Production build passes (existing large-chunk warning). oxlint 0 errors and 39
+  warnings (baseline). Prettier clean. `adr:check`, `admin-preview:check`, `content:check` and
+  `golden:check` pass.
+- **Backend results.** Full pytest 1211 passed (1207 before plus 4 new deletion cases; run as
+  `lai/` 1045 and `tests/` 166 with `LAI_REQUIRE_POSTGRES=1`). Ruff and Ruff format clean,
+  `manage.py check` clean, `makemigrations --check` no changes.
+- **Playwright.** 7 of 7 smoke tests passed. The first `npm run test:e2e` timed out: the
+  `webServer` command (`tsc -b && vite build`, then preview) has a 60 s budget, and the build
+  alone took 58 s while the full pytest suite ran beside it. The killed build left `react/dist`
+  without `index.html`, so a preview served 404 and Playwright kept waiting. Rebuilt, served
+  `dist` on port 4173, and ran Playwright with its local `reuseExistingServer`. Running the e2e
+  suite alone, or raising `webServer.timeout`, avoids this; the config was not changed.
+- **LAI-0602 safety review** (`lai/apps/users/deletion.py`, `photos.delete_all_child_photos`):
+  - Fixed: success was `purged == len(ids)`, so a row a concurrent purge (a replacement's
+    after-commit delete or the audit) removed first counted as a failure and refused the
+    deletion for no reason. It now checks that none of the rows remain. A test fails without
+    the fix.
+  - Partial storage success: purged objects lose their rows, the rest stay `DELETING` (never
+    served), the child is kept, and a retry finishes. Tested.
+  - Storage succeeded, then the child delete failed: the child stays with no photo, a consistent
+    state (`hasPhoto` false), and a retry deletes it. Tested.
+  - Object deleted, then its row delete failed: the row stays `DELETING`; deleting a missing key
+    succeeds (as S3 `DeleteObject` does), so a retry finishes. Tested.
+  - Parent authorization: resolved through the parent before anything changes; another family's,
+    unknown or malformed ids are not found and change nothing. Existing tests.
+  - Versioned objects: `DeleteObject` leaves a delete marker and a noncurrent version that the
+    lifecycle expires after 7 days (about 8 with S3's asynchronous lifecycle). The storage guide
+    said "after 7 days it cannot be recovered" and still called the version-delete question one
+    for LAI-0602; both now match the lifecycle and record that the question stays with G9.
+  - The `SensitiveActionBlocked` route guard (LAI-0209) is unchanged.
+- **AWS state, verified 2026-11-01 by the owner's own CLI calls** (Claude Code's
+  `Bash(aws:*)` deny rule in `.claude/settings.json` still blocks the agent). Account
+  `008331939914`, SSO role `amplify-policy`, region `us-west-1`. `list-stacks` (which also lists
+  stacks deleted in the last 90 days and stacks in review) shows **no `Lai*` stack at all**, only
+  `CDKToolkit`. So `LaiChildPhotos-dev`, `LaiAssetStorage-dev`, `LaiDjangoRelease` and
+  `LaiDjangoEc2-dev` have never been created: the Django EC2 platform (ADR-037) has never been
+  provisioned, and there is no Django dev server to release to. The account is shared with
+  other Amplify projects and holds the deployed LAI Amplify backend; there is no separate dev
+  account.
+  - Consequence: the earlier description of the EC2 change as "modify the instance role and
+    add three SSM parameters" was wrong. A first `LaiDjangoEc2-dev` change set **adds** the whole
+    platform (VPC, subnets, security groups, RDS PostgreSQL with a Secrets Manager secret, EC2
+    instance and role, ALB with ACM certificate and WAF, 11 SSM parameters, SSM documents, log
+    groups, SNS and 6 alarms), and it needs `LaiAssetStorage-dev` (its policy is attached by
+    name) and `LaiDjangoRelease` (ECR, GitHub OIDC) first.
+- **Not done (approval or access needed):** change-set review, dev deployment, Django dev
+  release and `users.0005` migration, live S3 integration, Cognito browser acceptance.

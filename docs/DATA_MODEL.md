@@ -67,6 +67,12 @@ Authorization: owning parent. Child-facing client access occurs within the authe
 
 ### Child profile photos
 
+**Django (LAI-0904, ADR-042).** On the Django platform the pointer is a `users.ChildPhoto` row
+(id, opaque storage key, status, size, SHA-256, dimensions). The bytes live in the separate private
+bucket `LaiChildPhotos-<env>` under `children/<child uuid>/<photo uuid>`, and the deprecated
+`ChildProfile.avatar_photo_key` column is unused. See `docs/platform/CHILD_PHOTO_STORAGE.md`. The
+rest of this section describes the Amplify implementation, which stays in use until cutover.
+
 `avatarPhotoKey` is only a pointer. The image itself lives in the Storage
 bucket defined in `amplify/storage/resource.ts` under
 `child-photos/{entity_id}/<uuid>.jpg`, where `{entity_id}` is the Cognito
