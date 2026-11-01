@@ -11628,3 +11628,63 @@ Branch `feature/lai-0905-photo-clients` (it also carries the three LAI-0904 comm
   - The deployed integration test: no approved dev bucket, no live Django with S3, and no
     Cognito test parent.
   - The build, typecheck and Playwright gates until `npm ci` is run in a complete checkout.
+
+## Child photo dev deployment and acceptance attempt (2026-11-01, branch only, not merged, not pushed, nothing deployed)
+
+Branch `feature/lai-0905-photo-clients`.
+
+| Task | Code | Tests | Infrastructure deployed | Live integration | Browser acceptance | Final acceptance |
+|---|---|---|---|---|---|---|
+| LAI-0904 bucket, policy, EC2/SSM wiring | Done | 43 infra tests, synth passes | **No** (change set not prepared: AWS calls refused) | Not run | n/a | Open |
+| LAI-0904 Django photo API | Done | Full pytest | **No** release with S3 | Not run | n/a | Open |
+| LAI-0905 React client, Android contract | Done | Full Vitest, typecheck, build | n/a | Not run | **Blocked** (no dev bucket, no Cognito test parent, gate A6) | Open |
+| LAI-0602 photo cleanup on deletion | Service done | 15 deletion cases | n/a | Not run | n/a | Open (route blocked until LAI-0209) |
+
+- **AWS inspection.** Every AWS CLI call (`aws sts get-caller-identity` and the rest) was
+  refused by this session's tool permissions before reaching AWS. Account, region and the
+  existence of `LaiChildPhotos-dev`, `LaiAssetStorage-dev`, `LaiDjangoEc2-dev`, the IAM role,
+  policies and SSM parameters are **unknown**, not missing. `scripts/aws/provision.sh dev`
+  needs AWS for its first line, so no change set exists to review.
+  - Note for the reviewer: `aws cloudformation deploy --no-execute-changeset` on a stack that
+    does not exist yet leaves it in `REVIEW_IN_PROGRESS`. The script also covers
+    `LaiAssetStorage-dev` and `LaiDjangoRelease`, so use `--only <stack>` to limit what is
+    prepared.
+- **Frontend dependencies.** `npm ci` at the repository root (the workspace that owns
+  `package-lock.json`, with `react` as its workspace) installed 1174 packages, including
+  `@colyseus/sdk` 0.18.4, `@colyseus/core` 0.18.16 and `tsx`. The lockfile is unchanged. Warnings
+  only: peer-dependency overrides inside Amplify packages, and `jsdom@30.0.1` asking for Node
+  `^24.15.0` while this machine has 24.14.0 (no test failed because of it).
+- **Frontend results.** Vitest 304 files and 3236 tests, all passed, so the 8 earlier failures were
+  the missing `tsx` and `@colyseus` packages. Typecheck clean (react, amplify, scripts, server,
+  infra). Production build passes (existing large-chunk warning). oxlint 0 errors and 39
+  warnings (baseline). Prettier clean. `adr:check`, `admin-preview:check`, `content:check` and
+  `golden:check` pass.
+- **Backend results.** Full pytest 1211 passed (1207 before plus 4 new deletion cases; run as
+  `lai/` 1045 and `tests/` 166 with `LAI_REQUIRE_POSTGRES=1`). Ruff and Ruff format clean,
+  `manage.py check` clean, `makemigrations --check` no changes.
+- **Playwright.** 7 of 7 smoke tests passed. The first `npm run test:e2e` timed out: the
+  `webServer` command (`tsc -b && vite build`, then preview) has a 60 s budget, and the build
+  alone took 58 s while the full pytest suite ran beside it. The killed build left `react/dist`
+  without `index.html`, so a preview served 404 and Playwright kept waiting. Rebuilt, served
+  `dist` on port 4173, and ran Playwright with its local `reuseExistingServer`. Running the e2e
+  suite alone, or raising `webServer.timeout`, avoids this; the config was not changed.
+- **LAI-0602 safety review** (`lai/apps/users/deletion.py`, `photos.delete_all_child_photos`):
+  - Fixed: success was `purged == len(ids)`, so a row a concurrent purge (a replacement's
+    after-commit delete or the audit) removed first counted as a failure and refused the
+    deletion for no reason. It now checks that none of the rows remain. A test fails without
+    the fix.
+  - Partial storage success: purged objects lose their rows, the rest stay `DELETING` (never
+    served), the child is kept, and a retry finishes. Tested.
+  - Storage succeeded, then the child delete failed: the child stays with no photo, a consistent
+    state (`hasPhoto` false), and a retry deletes it. Tested.
+  - Object deleted, then its row delete failed: the row stays `DELETING`; deleting a missing key
+    succeeds (as S3 `DeleteObject` does), so a retry finishes. Tested.
+  - Parent authorization: resolved through the parent before anything changes; another family's,
+    unknown or malformed ids are not found and change nothing. Existing tests.
+  - Versioned objects: `DeleteObject` leaves a delete marker and a noncurrent version that the
+    lifecycle expires after 7 days (about 8 with S3's asynchronous lifecycle). The storage guide
+    said "after 7 days it cannot be recovered" and still called the version-delete question one
+    for LAI-0602; both now match the lifecycle and record that the question stays with G9.
+  - The `SensitiveActionBlocked` route guard (LAI-0209) is unchanged.
+- **Not done (approval or access needed):** change-set review, dev deployment, Django dev
+  release and `users.0005` migration, live S3 integration, Cognito browser acceptance.

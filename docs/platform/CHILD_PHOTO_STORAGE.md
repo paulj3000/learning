@@ -181,21 +181,26 @@ every child route (gate G10).
 | Parent removes a photo | Same | Same |
 | Object delete fails | The `DELETING` row is kept and the photo is never served; `child_photo_storage_audit --delete` retries | After the retry, plus the 7-day window |
 | Upload whose database write failed and whose rollback delete failed | An orphan object with no row | `child_photo_storage_audit --delete` removes orphans older than 60 minutes (younger ones may be uploads still committing), plus the 7-day window |
-| Child deleted (LAI-0602) | `deletion.delete_child_profile` calls `photos.delete_all_child_photos(child)` (current and superseded `DELETING` rows) and deletes the child, cascading every child-owned row, only if every object is gone. Otherwise it raises `ChildDeletionIncomplete`, keeps the child, and leaves the rows `DELETING` (never served); a retry or the audit finishes. A photo committed during the deletion also stops the cascade. Not reachable from the API until LAI-0209 | As above |
+| Child deleted (LAI-0602) | `deletion.delete_child_profile` calls `photos.delete_all_child_photos(child)` (current and superseded `DELETING` rows) and deletes the child, cascading every child-owned row, only if every object is gone. Otherwise it raises `ChildDeletionIncomplete`, keeps the child, and leaves the rows `DELETING` (never served); a retry or the audit finishes. A photo committed during the deletion also stops the cascade. If the objects are gone but the database delete then fails, the child stays with no photo (a consistent state) and a retry finishes. Not reachable from the API until LAI-0209 | As above |
 | Abandoned multipart upload | Aborted after 1 day (Django uses single-part `PutObject`; this is a guard) | 1 day |
 | Delete markers | Removed by the lifecycle once no version remains behind them | n/a |
 | Database rows | `DELETING` rows are deleted once their object is gone | Metadata only, no image bytes; RDS automated backups keep earlier rows for their retention period |
 
 **Recovery trade-off.** For 7 days a replaced or removed photo can be recovered by an operator
 with version-read rights. The Django role has none (`s3:GetObjectVersion` is not granted), so this
-is a deliberate, audited AWS console or CLI action. After 7 days it cannot be recovered. There is
+is a deliberate, audited AWS console or CLI action. Once S3 runs the expiry (7 days, plus the
+asynchronous lifecycle lag, so about 8 days at most in normal operation) it cannot be recovered.
+A version an operator restores for a deleted child has no row, so the audit treats it as an
+orphan and removes it. There is
 no backup, replication or Object Lock for this bucket. Each would extend retention of a child's
 photograph, and a profile photo is not worth restoring from backup.
 
 **Faster erasure.** If an erasure request must take effect sooner than 7 days, an operator deletes
-the object versions by hand (`s3:DeleteObjectVersion`). Django is not granted that right. Whether
-the LAI-0602 hard-deletion service should get a prefix-scoped version delete is an open question
-for that task and the privacy review (G9).
+the object versions by hand (`s3:DeleteObjectVersion`). Django is not granted that right. The
+LAI-0602 deletion service (`apps/users/deletion.py`) deliberately uses plain `DeleteObject` and
+relies on the lifecycle, so a deleted child's photo bytes also persist as noncurrent versions for
+up to about 8 days. Whether that service should get a prefix-scoped version delete stays open for
+the privacy review (G9); it is not decided by LAI-0602.
 
 **Scheduling.** Nothing runs the audit on a schedule yet, because the EC2 platform has no
 scheduler. Until LAI-1006 or LAI-1007 adds one, run it after any storage incident and before

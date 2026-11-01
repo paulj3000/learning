@@ -124,13 +124,17 @@ def delete_all_child_photos(child: ChildProfile) -> bool:
 
     Returns True when every object is gone. The caller must not delete the child (which
     cascades the rows away) unless this returned True, or the objects lose their only record.
+    Success is judged by which rows remain, not by how many this call purged: a row that a
+    concurrent purge (a replacement's after-commit delete, or the audit) removed first is gone
+    too, and counting it as a failure would refuse the deletion for no reason.
     """
     with transaction.atomic():
         ChildPhoto.objects.for_child(child).filter(status=ChildPhotoStatus.CURRENT).update(
             status=ChildPhotoStatus.DELETING, status_changed_at=now()
         )
         ids = list(ChildPhoto.objects.for_child(child).values_list("id", flat=True))
-    return purge_photos(ids) == len(ids)
+    purge_photos(ids)
+    return not ChildPhoto.objects.filter(pk__in=ids).exists()
 
 
 def _retire(child: ChildProfile) -> list[uuid.UUID]:

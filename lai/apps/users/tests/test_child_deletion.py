@@ -9,6 +9,7 @@ import uuid
 
 import pytest
 from django.apps import apps as django_apps
+from django.db import DatabaseError
 
 from apps.core.models import ChildOwnedModel
 from apps.users import deletion, photos
@@ -176,3 +177,88 @@ def test_deletion_logs_carry_no_child_data(families, committed, caplog):
     text = " ".join(record.getMessage() for record in caplog.records)
     assert "Zinnia" not in text and str(families.a1.pk) not in text
     assert families.a.cognito_sub not in text and "children/" not in text
+
+
+def test_a_partial_storage_failure_purges_what_it_can_and_a_retry_finishes(families, committed):
+    give_photo(families.a, families.a1, committed)
+    store().fail_next.add("delete")  # leaves a superseded DELETING row and its object
+    give_photo(families.a, families.a1, committed)
+    assert len(store().objects) == 2
+    store().fail_next.add("delete")  # the first of the two deletes fails, the second succeeds
+
+    with pytest.raises(ChildDeletionIncomplete):
+        delete_child_profile(families.a, families.a1.pk)
+
+    assert ChildProfile.objects.filter(pk=families.a1.pk).exists()
+    remaining = ChildPhoto.objects.for_child(families.a1)
+    assert remaining.count() == 1 and remaining.get().status == ChildPhotoStatus.DELETING
+    assert len(store().objects) == 1
+    assert photos.current_photo(families.a1) is None
+
+    delete_child_profile(families.a, families.a1.pk)
+    assert not ChildProfile.objects.filter(pk=families.a1.pk).exists()
+    assert store().objects == {}
+
+
+def test_storage_deleted_but_the_child_delete_fails_leaves_a_photoless_child(
+    families, committed, monkeypatch
+):
+    give_photo(families.a, families.a1, committed)
+
+    def broken_delete(self, *args, **kwargs):
+        raise DatabaseError("simulated")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(ChildProfile, "delete", broken_delete)
+        with pytest.raises(DatabaseError):
+            delete_child_profile(families.a, families.a1.pk)
+
+    # The objects and rows are gone, the child and its other records are intact and consistent.
+    assert ChildProfile.objects.filter(pk=families.a1.pk).exists()
+    assert store().objects == {}
+    assert not ChildPhoto.objects.filter(child_id=families.a1.pk).exists()
+    assert not photos.has_current_photo(families.a1)
+
+    delete_child_profile(families.a, families.a1.pk)
+    assert not ChildProfile.objects.filter(pk=families.a1.pk).exists()
+
+
+def test_object_deleted_but_its_row_delete_fails_is_finished_by_a_retry(
+    families, committed, monkeypatch
+):
+    give_photo(families.a, families.a1, committed)
+
+    def broken_delete(self, *args, **kwargs):
+        raise DatabaseError("simulated")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(ChildPhoto, "delete", broken_delete)
+        with pytest.raises(DatabaseError):
+            delete_child_profile(families.a, families.a1.pk)
+
+    assert store().objects == {}
+    assert ChildPhoto.objects.for_child(families.a1).get().status == ChildPhotoStatus.DELETING
+    assert photos.current_photo(families.a1) is None
+
+    # Deleting an already deleted key succeeds (as S3 DeleteObject does), so the retry finishes.
+    delete_child_profile(families.a, families.a1.pk)
+    assert not ChildProfile.objects.filter(pk=families.a1.pk).exists()
+
+
+def test_a_row_purged_concurrently_is_not_counted_as_a_failure(families, committed, monkeypatch):
+    give_photo(families.a, families.a1, committed)
+    store().fail_next.add("delete")
+    give_photo(families.a, families.a1, committed)
+    real_purge = photos.purge_photos
+
+    def concurrent_audit_first(ids):
+        ids = list(ids)
+        real_purge(ids[:1])  # another process purges one row before this call reaches it
+        return real_purge(ids)
+
+    monkeypatch.setattr(photos, "purge_photos", concurrent_audit_first)
+
+    delete_child_profile(families.a, families.a1.pk)
+
+    assert not ChildProfile.objects.filter(pk=families.a1.pk).exists()
+    assert store().objects == {}
