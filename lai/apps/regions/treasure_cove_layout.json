@@ -1,0 +1,2930 @@
+{
+ "ambient": [
+  {
+   "appearance": {
+    "color": 16053488,
+    "primitive": "CONE"
+   },
+   "id": "cove-gull-wreck",
+   "kind": "SPLINE_LOOP",
+   "loopsPerSecond": 0.04,
+   "path": [
+    {
+     "x": 34.0,
+     "y": 9,
+     "z": 16.0
+    },
+    {
+     "x": 30.5,
+     "y": 9,
+     "z": 22.06
+    },
+    {
+     "x": 23.5,
+     "y": 9,
+     "z": 22.06
+    },
+    {
+     "x": 20.0,
+     "y": 9,
+     "z": 16.0
+    },
+    {
+     "x": 23.5,
+     "y": 9,
+     "z": 9.94
+    },
+    {
+     "x": 30.5,
+     "y": 9,
+     "z": 9.94
+    }
+   ]
+  },
+  {
+   "appearance": {
+    "color": 16053488,
+    "primitive": "CONE"
+   },
+   "id": "cove-gull-dock",
+   "kind": "SPLINE_LOOP",
+   "loopsPerSecond": 0.05,
+   "path": [
+    {
+     "x": 2.0,
+     "y": 7.5,
+     "z": 36.0
+    },
+    {
+     "x": -1.0,
+     "y": 7.5,
+     "z": 41.2
+    },
+    {
+     "x": -7.0,
+     "y": 7.5,
+     "z": 41.2
+    },
+    {
+     "x": -10.0,
+     "y": 7.5,
+     "z": 36.0
+    },
+    {
+     "x": -7.0,
+     "y": 7.5,
+     "z": 30.8
+    },
+    {
+     "x": -1.0,
+     "y": 7.5,
+     "z": 30.8
+    }
+   ]
+  },
+  {
+   "appearance": {
+    "assetId": "butterfly"
+   },
+   "id": "cove-butterfly-hiding",
+   "kind": "SPLINE_LOOP",
+   "loopsPerSecond": 0.12,
+   "path": [
+    {
+     "x": -27.7,
+     "y": 0.7,
+     "z": 19.5
+    },
+    {
+     "x": -28.6,
+     "y": 0.7,
+     "z": 21.06
+    },
+    {
+     "x": -30.4,
+     "y": 0.7,
+     "z": 21.06
+    },
+    {
+     "x": -31.3,
+     "y": 0.7,
+     "z": 19.5
+    },
+    {
+     "x": -30.4,
+     "y": 0.7,
+     "z": 17.94
+    },
+    {
+     "x": -28.6,
+     "y": 0.7,
+     "z": 17.94
+    }
+   ]
+  },
+  {
+   "appearance": {
+    "assetId": "butterfly"
+   },
+   "id": "cove-butterfly-flowers",
+   "kind": "SPLINE_LOOP",
+   "loopsPerSecond": 0.1,
+   "path": [
+    {
+     "x": -14.8,
+     "y": 0.8,
+     "z": 9.0
+    },
+    {
+     "x": -15.9,
+     "y": 0.8,
+     "z": 10.91
+    },
+    {
+     "x": -18.1,
+     "y": 0.8,
+     "z": 10.91
+    },
+    {
+     "x": -19.2,
+     "y": 0.8,
+     "z": 9.0
+    },
+    {
+     "x": -18.1,
+     "y": 0.8,
+     "z": 7.09
+    },
+    {
+     "x": -15.9,
+     "y": 0.8,
+     "z": 7.09
+    }
+   ]
+  }
+ ],
+ "colliders": [
+  {
+   "rect": {
+    "id": "cove-landing-crates:collider",
+    "maxX": 7.8,
+    "maxZ": 16.3,
+    "minX": 6,
+    "minZ": 14.5
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-tent:collider",
+    "maxX": -4.4,
+    "maxZ": 16.6,
+    "minX": -7.6,
+    "minZ": 13.4
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-campfire:collider",
+    "maxX": -4.2,
+    "maxZ": 10.3,
+    "minX": -5.8,
+    "minZ": 8.7
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-grove-boulder-0:collider",
+    "maxX": -28.0,
+    "maxZ": 17.2,
+    "minX": -29.2,
+    "minZ": 16.0
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-grove-boulder-1:collider",
+    "maxX": -26.8,
+    "maxZ": 18.0,
+    "minX": -28.0,
+    "minZ": 16.8
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-grove-boulder-2:collider",
+    "maxX": -31.8,
+    "maxZ": 19.4,
+    "minX": -33.0,
+    "minZ": 18.2
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-shipwreck-0:collider",
+    "maxX": 31.71,
+    "maxZ": 16.85,
+    "minX": 26.51,
+    "minZ": 12.85
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-shipwreck-1:collider",
+    "maxX": 27.49,
+    "maxZ": 19.15,
+    "minX": 22.29,
+    "minZ": 15.15
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-cargo:collider",
+    "maxX": 23.2,
+    "maxZ": 24.4,
+    "minX": 19,
+    "minZ": 22.8
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-ruin-north-0:collider",
+    "maxX": -10,
+    "maxZ": -16,
+    "minX": -14,
+    "minZ": -16.6
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-ruin-north-1:collider",
+    "maxX": -7,
+    "maxZ": -16,
+    "minX": -10,
+    "minZ": -16.6
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-ruin-north-2:collider",
+    "maxX": -2,
+    "maxZ": -16,
+    "minX": -7,
+    "minZ": -16.6
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-ruin-north-3:collider",
+    "maxX": 6,
+    "maxZ": -16,
+    "minX": 2,
+    "minZ": -16.6
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-ruin-north-4:collider",
+    "maxX": 9,
+    "maxZ": -16,
+    "minX": 6,
+    "minZ": -16.6
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-ruin-north-5:collider",
+    "maxX": 14,
+    "maxZ": -16,
+    "minX": 9,
+    "minZ": -16.6
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-ruin-west-0:collider",
+    "maxX": -13.4,
+    "maxZ": -30,
+    "minX": -14,
+    "minZ": -36
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-ruin-west-1:collider",
+    "maxX": -13.4,
+    "maxZ": -26,
+    "minX": -14,
+    "minZ": -30
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-ruin-west-2:collider",
+    "maxX": -13.4,
+    "maxZ": -20,
+    "minX": -14,
+    "minZ": -26
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-ruin-west-3:collider",
+    "maxX": -13.4,
+    "maxZ": -16.6,
+    "minX": -14,
+    "minZ": -20
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-ruin-east-0:collider",
+    "maxX": 14,
+    "maxZ": -30,
+    "minX": 13.4,
+    "minZ": -36
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-ruin-east-1:collider",
+    "maxX": 14,
+    "maxZ": -24,
+    "minX": 13.4,
+    "minZ": -30
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-ruin-east-2:collider",
+    "maxX": 14,
+    "maxZ": -16.6,
+    "minX": 13.4,
+    "minZ": -24
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-ruin-south-0:collider",
+    "maxX": -2,
+    "maxZ": -35.4,
+    "minX": -14,
+    "minZ": -36
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-ruin-south-1:collider",
+    "maxX": 14,
+    "maxZ": -35.4,
+    "minX": 2,
+    "minZ": -36
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-pillar-0:collider",
+    "maxX": 6.92,
+    "maxZ": -22.87,
+    "minX": 6.02,
+    "minZ": -23.77
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-pillar-1:collider",
+    "maxX": 3.13,
+    "maxZ": -19.08,
+    "minX": 2.23,
+    "minZ": -19.98
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-pillar-2:collider",
+    "maxX": -2.23,
+    "maxZ": -19.08,
+    "minX": -3.13,
+    "minZ": -19.98
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-pillar-3:collider",
+    "maxX": -6.02,
+    "maxZ": -22.87,
+    "minX": -6.92,
+    "minZ": -23.77
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-pillar-4:collider",
+    "maxX": -6.02,
+    "maxZ": -28.23,
+    "minX": -6.92,
+    "minZ": -29.13
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-pillar-5:collider",
+    "maxX": -2.23,
+    "maxZ": -32.02,
+    "minX": -3.13,
+    "minZ": -32.92
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-pillar-6:collider",
+    "maxX": 3.13,
+    "maxZ": -32.02,
+    "minX": 2.23,
+    "minZ": -32.92
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-pillar-7:collider",
+    "maxX": 6.92,
+    "maxZ": -28.23,
+    "minX": 6.02,
+    "minZ": -29.13
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-pedestal:collider",
+    "maxX": 0.8,
+    "maxZ": -25.2,
+    "minX": -0.8,
+    "minZ": -26.8
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-ruins-gate:collider",
+    "maxX": 2,
+    "maxZ": -35.4,
+    "minX": -2,
+    "minZ": -36
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-channel:collider",
+    "maxX": 37,
+    "maxZ": -36.4,
+    "minX": -37,
+    "minZ": -40.4
+   }
+  }
+ ],
+ "lights": [
+  {
+   "color": 16752704,
+   "distance": 8,
+   "id": "cove-campfire-light",
+   "intensity": 1.2,
+   "kind": "POINT",
+   "position": {
+    "x": -5,
+    "y": 0.9,
+    "z": 9.5
+   }
+  },
+  {
+   "color": 8381439,
+   "distance": 7,
+   "id": "cove-pedestal-light",
+   "intensity": 1.5,
+   "kind": "POINT",
+   "position": {
+    "x": 0.0,
+    "y": 1.8,
+    "z": -26.0
+   }
+  }
+ ],
+ "procedural": [
+  {
+   "id": "cove-tent",
+   "rotationY": 0.4,
+   "shape": "TENT",
+   "x": -6,
+   "z": 15
+  },
+  {
+   "id": "cove-campfire",
+   "shape": "CAMPFIRE",
+   "x": -5,
+   "z": 9.5
+  },
+  {
+   "height": 5,
+   "id": "cove-landing-flag",
+   "shape": "FLAG",
+   "x": 8,
+   "z": 3
+  },
+  {
+   "id": "cove-rowboat",
+   "rotationY": 0.2,
+   "shape": "ROWBOAT",
+   "x": 2.6,
+   "z": 41
+  },
+  {
+   "id": "cove-landing-torch-0",
+   "shape": "TORCH",
+   "x": -8.5,
+   "z": 6.5
+  },
+  {
+   "id": "cove-landing-torch-1",
+   "shape": "TORCH",
+   "x": -8.5,
+   "z": 9.5
+  },
+  {
+   "id": "cove-landing-torch-2",
+   "shape": "TORCH",
+   "x": 8.5,
+   "z": 6.5
+  },
+  {
+   "id": "cove-landing-torch-3",
+   "shape": "TORCH",
+   "x": 8.5,
+   "z": 9.5
+  },
+  {
+   "id": "cove-landing-torch-4",
+   "shape": "TORCH",
+   "x": -1.4,
+   "z": -1
+  },
+  {
+   "id": "cove-landing-torch-5",
+   "shape": "TORCH",
+   "x": 1.4,
+   "z": -1
+  },
+  {
+   "height": 4.6,
+   "id": "cove-grove-palm-0",
+   "rotationY": 0.0,
+   "shape": "PALM",
+   "x": -15,
+   "z": 14
+  },
+  {
+   "height": 5.1,
+   "id": "cove-grove-palm-1",
+   "rotationY": 0.9,
+   "shape": "PALM",
+   "x": -18,
+   "z": 21
+  },
+  {
+   "height": 5.6,
+   "id": "cove-grove-palm-2",
+   "rotationY": 1.8,
+   "shape": "PALM",
+   "x": -16,
+   "z": 25
+  },
+  {
+   "height": 6.1,
+   "id": "cove-grove-palm-3",
+   "rotationY": 2.7,
+   "shape": "PALM",
+   "x": -21,
+   "z": 27
+  },
+  {
+   "height": 4.6,
+   "id": "cove-grove-palm-4",
+   "rotationY": 3.6,
+   "shape": "PALM",
+   "x": -25,
+   "z": 23
+  },
+  {
+   "height": 5.1,
+   "id": "cove-grove-palm-5",
+   "rotationY": 4.5,
+   "shape": "PALM",
+   "x": -14,
+   "z": -3
+  },
+  {
+   "height": 5.6,
+   "id": "cove-grove-palm-6",
+   "rotationY": 5.4,
+   "shape": "PALM",
+   "x": -21,
+   "z": -7
+  },
+  {
+   "height": 6.1,
+   "id": "cove-grove-palm-7",
+   "rotationY": 6.3,
+   "shape": "PALM",
+   "x": -24,
+   "z": -12
+  },
+  {
+   "height": 4.6,
+   "id": "cove-grove-palm-8",
+   "rotationY": 7.2,
+   "shape": "PALM",
+   "x": -28,
+   "z": -4
+  },
+  {
+   "height": 5.1,
+   "id": "cove-grove-palm-9",
+   "rotationY": 8.1,
+   "shape": "PALM",
+   "x": -32,
+   "z": 2
+  },
+  {
+   "height": 5.6,
+   "id": "cove-grove-palm-10",
+   "rotationY": 9.0,
+   "shape": "PALM",
+   "x": -31,
+   "z": 8
+  },
+  {
+   "height": 6.1,
+   "id": "cove-grove-palm-11",
+   "rotationY": 9.9,
+   "shape": "PALM",
+   "x": -26,
+   "z": 5
+  },
+  {
+   "height": 4.6,
+   "id": "cove-grove-palm-12",
+   "rotationY": 10.8,
+   "shape": "PALM",
+   "x": -34,
+   "z": 15
+  },
+  {
+   "height": 5.1,
+   "id": "cove-grove-palm-13",
+   "rotationY": 11.7,
+   "shape": "PALM",
+   "x": -29,
+   "z": 27
+  },
+  {
+   "height": 5.6,
+   "id": "cove-grove-palm-14",
+   "rotationY": 12.6,
+   "shape": "PALM",
+   "x": -34,
+   "z": 24
+  },
+  {
+   "height": 6.1,
+   "id": "cove-grove-palm-15",
+   "rotationY": 13.5,
+   "shape": "PALM",
+   "x": -22,
+   "z": 17
+  },
+  {
+   "height": 4.6,
+   "id": "cove-grove-palm-16",
+   "rotationY": 14.4,
+   "shape": "PALM",
+   "x": -13,
+   "z": 2
+  },
+  {
+   "height": 5.1,
+   "id": "cove-grove-palm-17",
+   "rotationY": 15.3,
+   "shape": "PALM",
+   "x": -33,
+   "z": -9
+  },
+  {
+   "height": 5.6,
+   "id": "cove-grove-palm-18",
+   "rotationY": 16.2,
+   "shape": "PALM",
+   "x": -17,
+   "z": -13
+  },
+  {
+   "height": 5.0,
+   "id": "cove-beach-palm-0",
+   "rotationY": 0.0,
+   "shape": "PALM",
+   "x": 15,
+   "z": -4
+  },
+  {
+   "height": 5.6,
+   "id": "cove-beach-palm-1",
+   "rotationY": 1.7,
+   "shape": "PALM",
+   "x": 18,
+   "z": -10
+  },
+  {
+   "height": 6.2,
+   "id": "cove-beach-palm-2",
+   "rotationY": 3.4,
+   "shape": "PALM",
+   "x": 32,
+   "z": 1.6
+  },
+  {
+   "height": 5.0,
+   "id": "cove-beach-palm-3",
+   "rotationY": 5.1,
+   "shape": "PALM",
+   "x": 14,
+   "z": 24
+  },
+  {
+   "height": 5.6,
+   "id": "cove-beach-palm-4",
+   "rotationY": 6.8,
+   "shape": "PALM",
+   "x": 30,
+   "z": -12
+  },
+  {
+   "height": 6.2,
+   "id": "cove-beach-palm-5",
+   "rotationY": 8.5,
+   "shape": "PALM",
+   "x": 22,
+   "z": -14
+  },
+  {
+   "height": 5.0,
+   "id": "cove-beach-palm-6",
+   "rotationY": 10.2,
+   "shape": "PALM",
+   "x": 34,
+   "z": -4
+  },
+  {
+   "height": 3.2,
+   "id": "cove-ruin-pillar-0",
+   "shape": "PILLAR",
+   "x": 6.47,
+   "z": -23.32
+  },
+  {
+   "height": 1.4,
+   "id": "cove-ruin-pillar-1",
+   "shape": "PILLAR",
+   "x": 2.68,
+   "z": -19.53
+  },
+  {
+   "height": 3.2,
+   "id": "cove-ruin-pillar-2",
+   "shape": "PILLAR",
+   "x": -2.68,
+   "z": -19.53
+  },
+  {
+   "height": 1.4,
+   "id": "cove-ruin-pillar-3",
+   "shape": "PILLAR",
+   "x": -6.47,
+   "z": -23.32
+  },
+  {
+   "height": 3.2,
+   "id": "cove-ruin-pillar-4",
+   "shape": "PILLAR",
+   "x": -6.47,
+   "z": -28.68
+  },
+  {
+   "height": 1.4,
+   "id": "cove-ruin-pillar-5",
+   "shape": "PILLAR",
+   "x": -2.68,
+   "z": -32.47
+  },
+  {
+   "height": 3.2,
+   "id": "cove-ruin-pillar-6",
+   "shape": "PILLAR",
+   "x": 2.68,
+   "z": -32.47
+  },
+  {
+   "height": 1.4,
+   "id": "cove-ruin-pillar-7",
+   "shape": "PILLAR",
+   "x": 6.47,
+   "z": -28.68
+  },
+  {
+   "id": "cove-pedestal",
+   "shape": "PEDESTAL",
+   "x": 0.0,
+   "z": -26.0
+  },
+  {
+   "id": "cove-ruins-gate",
+   "shape": "GATE",
+   "x": 0.0,
+   "z": -35.7
+  },
+  {
+   "id": "cove-final-torch-0",
+   "shape": "TORCH",
+   "x": -2.6,
+   "z": -32.6
+  },
+  {
+   "id": "cove-final-torch-1",
+   "shape": "TORCH",
+   "x": 2.6,
+   "z": -32.6
+  },
+  {
+   "id": "cove-arch-torch-0",
+   "shape": "TORCH",
+   "x": -2.4,
+   "z": -15.4
+  },
+  {
+   "id": "cove-arch-torch-1",
+   "shape": "TORCH",
+   "x": 2.4,
+   "z": -15.4
+  },
+  {
+   "color": 15911244,
+   "height": 7,
+   "id": "cove-lookout-flag",
+   "shape": "FLAG",
+   "x": 0.0,
+   "z": -42.5
+  },
+  {
+   "height": 5.4,
+   "id": "cove-lookout-palm-0",
+   "rotationY": 0.3,
+   "shape": "PALM",
+   "x": -4,
+   "z": -42.6
+  },
+  {
+   "height": 4.8,
+   "id": "cove-lookout-palm-1",
+   "rotationY": 2.1,
+   "shape": "PALM",
+   "x": 4.5,
+   "z": -42.2
+  }
+ ],
+ "scenery": [
+  {
+   "area": {
+    "id": "cove-sea:area",
+    "maxX": 160,
+    "maxZ": 160,
+    "minX": -160,
+    "minZ": -160
+   },
+   "color": 3114680,
+   "id": "cove-sea",
+   "kind": "FLAT_PLANE",
+   "y": -0.06
+  },
+  {
+   "area": {
+    "id": "cove-jungle-floor:area",
+    "maxX": -36,
+    "maxZ": 90,
+    "minX": -90,
+    "minZ": -90
+   },
+   "color": 5212732,
+   "id": "cove-jungle-floor",
+   "kind": "FLAT_PLANE",
+   "y": -0.02
+  },
+  {
+   "area": {
+    "id": "cove-grove-floor:area",
+    "maxX": -12,
+    "maxZ": 30,
+    "minX": -36,
+    "minZ": -16
+   },
+   "color": 6266696,
+   "id": "cove-grove-floor",
+   "kind": "FLAT_PLANE",
+   "y": 0.008
+  },
+  {
+   "area": {
+    "id": "cove-north-sand:area",
+    "maxX": 36,
+    "maxZ": 44,
+    "minX": -36,
+    "minZ": 30
+   },
+   "color": 15325350,
+   "id": "cove-north-sand",
+   "kind": "FLAT_PLANE",
+   "y": 0.01
+  },
+  {
+   "area": {
+    "id": "cove-east-sand:area",
+    "maxX": 36,
+    "maxZ": 30,
+    "minX": 14,
+    "minZ": -30
+   },
+   "color": 15325350,
+   "id": "cove-east-sand",
+   "kind": "FLAT_PLANE",
+   "y": 0.01
+  },
+  {
+   "area": {
+    "id": "cove-landing-yard:area",
+    "maxX": 9,
+    "maxZ": 21,
+    "minX": -9,
+    "minZ": -1
+   },
+   "color": 13149290,
+   "id": "cove-landing-yard",
+   "kind": "FLAT_PLANE",
+   "y": 0.012
+  },
+  {
+   "area": {
+    "id": "cove-north-shallows:area",
+    "maxX": 36,
+    "maxZ": 44,
+    "minX": -36,
+    "minZ": 40.5
+   },
+   "color": 8177366,
+   "id": "cove-north-shallows",
+   "kind": "FLAT_PLANE",
+   "y": 0.02
+  },
+  {
+   "area": {
+    "id": "cove-east-shallows:area",
+    "maxX": 36,
+    "maxZ": 44,
+    "minX": 32.5,
+    "minZ": -30
+   },
+   "color": 8177366,
+   "id": "cove-east-shallows",
+   "kind": "FLAT_PLANE",
+   "y": 0.02
+  },
+  {
+   "area": {
+    "id": "cove-channel:area",
+    "maxX": 36,
+    "maxZ": -36.4,
+    "minX": -36,
+    "minZ": -40.4
+   },
+   "color": 3114680,
+   "id": "cove-channel",
+   "kind": "FLAT_PLANE",
+   "y": 0.02
+  },
+  {
+   "area": {
+    "id": "cove-dais:area",
+    "maxX": 3,
+    "maxZ": -30.5,
+    "minX": -3,
+    "minZ": -34.5
+   },
+   "color": 13220239,
+   "id": "cove-dais",
+   "kind": "FLAT_PLANE",
+   "y": 0.02
+  },
+  {
+   "area": {
+    "id": "cove-ruins-floor:area",
+    "maxX": 14,
+    "maxZ": -16,
+    "minX": -14,
+    "minZ": -36
+   },
+   "assetId": "ground-tile-stone",
+   "id": "cove-ruins-floor",
+   "kind": "TILED_GROUND",
+   "tileSize": 4,
+   "y": 0.015
+  },
+  {
+   "assetId": "path",
+   "id": "cove-paths",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "x": 0,
+     "y": 0.03,
+     "z": -1
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": -2.5
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": -4.0
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": -5.5
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": -7.0
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": -8.5
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": -10.0
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": -11.5
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": -13.0
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": -14.5
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": -16.0
+    },
+    {
+     "x": 0,
+     "y": 0.03,
+     "z": 21
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": 22.5
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": 24.0
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": 25.5
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": 27.0
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": 28.5
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": 30.0
+    },
+    {
+     "x": 9,
+     "y": 0.03,
+     "z": 8
+    },
+    {
+     "x": 10.67,
+     "y": 0.03,
+     "z": 7.67
+    },
+    {
+     "x": 12.33,
+     "y": 0.03,
+     "z": 7.33
+    },
+    {
+     "x": 14.0,
+     "y": 0.03,
+     "z": 7.0
+    },
+    {
+     "x": 15.25,
+     "y": 0.03,
+     "z": 6.5
+    },
+    {
+     "x": 16.5,
+     "y": 0.03,
+     "z": 6.0
+    },
+    {
+     "x": 17.75,
+     "y": 0.03,
+     "z": 5.5
+    },
+    {
+     "x": 19.0,
+     "y": 0.03,
+     "z": 5.0
+    },
+    {
+     "x": 20.33,
+     "y": 0.03,
+     "z": 4.67
+    },
+    {
+     "x": 21.67,
+     "y": 0.03,
+     "z": 4.33
+    },
+    {
+     "x": 23.0,
+     "y": 0.03,
+     "z": 4.0
+    },
+    {
+     "x": 19,
+     "y": 0.03,
+     "z": 5
+    },
+    {
+     "x": 18.29,
+     "y": 0.03,
+     "z": 3.71
+    },
+    {
+     "x": 17.57,
+     "y": 0.03,
+     "z": 2.43
+    },
+    {
+     "x": 16.86,
+     "y": 0.03,
+     "z": 1.14
+    },
+    {
+     "x": 16.14,
+     "y": 0.03,
+     "z": -0.14
+    },
+    {
+     "x": 15.43,
+     "y": 0.03,
+     "z": -1.43
+    },
+    {
+     "x": 14.71,
+     "y": 0.03,
+     "z": -2.71
+    },
+    {
+     "x": 14.0,
+     "y": 0.03,
+     "z": -4.0
+    },
+    {
+     "x": 13.0,
+     "y": 0.03,
+     "z": -5.0
+    },
+    {
+     "x": 12.0,
+     "y": 0.03,
+     "z": -6.0
+    },
+    {
+     "x": 11.0,
+     "y": 0.03,
+     "z": -7.0
+    },
+    {
+     "x": 10.0,
+     "y": 0.03,
+     "z": -8.0
+    },
+    {
+     "x": 9.0,
+     "y": 0.03,
+     "z": -9.0
+    },
+    {
+     "x": 8.0,
+     "y": 0.03,
+     "z": -10.0
+    },
+    {
+     "x": 7.0,
+     "y": 0.03,
+     "z": -11.0
+    },
+    {
+     "x": 5.76,
+     "y": 0.03,
+     "z": -11.7
+    },
+    {
+     "x": 4.52,
+     "y": 0.03,
+     "z": -12.4
+    },
+    {
+     "x": 3.28,
+     "y": 0.03,
+     "z": -13.1
+    },
+    {
+     "x": 2.04,
+     "y": 0.03,
+     "z": -13.8
+    },
+    {
+     "x": 0.8,
+     "y": 0.03,
+     "z": -14.5
+    },
+    {
+     "x": 0,
+     "y": 0.03,
+     "z": -17
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": -18.5
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": -20.0
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": -21.5
+    },
+    {
+     "x": 0.0,
+     "y": 0.03,
+     "z": -23.0
+    }
+   ]
+  },
+  {
+   "assetId": "path-forest",
+   "id": "cove-grove-paths",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "x": -9,
+     "y": 0.03,
+     "z": 8
+    },
+    {
+     "x": -10.67,
+     "y": 0.03,
+     "z": 7.67
+    },
+    {
+     "x": -12.33,
+     "y": 0.03,
+     "z": 7.33
+    },
+    {
+     "x": -14.0,
+     "y": 0.03,
+     "z": 7.0
+    },
+    {
+     "x": -15.25,
+     "y": 0.03,
+     "z": 7.5
+    },
+    {
+     "x": -16.5,
+     "y": 0.03,
+     "z": 8.0
+    },
+    {
+     "x": -17.75,
+     "y": 0.03,
+     "z": 8.5
+    },
+    {
+     "x": -19.0,
+     "y": 0.03,
+     "z": 9.0
+    },
+    {
+     "x": -20.33,
+     "y": 0.03,
+     "z": 10.0
+    },
+    {
+     "x": -21.67,
+     "y": 0.03,
+     "z": 11.0
+    },
+    {
+     "x": -23.0,
+     "y": 0.03,
+     "z": 12.0
+    },
+    {
+     "x": -19,
+     "y": 0.03,
+     "z": 9
+    },
+    {
+     "x": -18.86,
+     "y": 0.03,
+     "z": 7.43
+    },
+    {
+     "x": -18.71,
+     "y": 0.03,
+     "z": 5.86
+    },
+    {
+     "x": -18.57,
+     "y": 0.03,
+     "z": 4.29
+    },
+    {
+     "x": -18.43,
+     "y": 0.03,
+     "z": 2.71
+    },
+    {
+     "x": -18.29,
+     "y": 0.03,
+     "z": 1.14
+    },
+    {
+     "x": -18.14,
+     "y": 0.03,
+     "z": -0.43
+    },
+    {
+     "x": -18.0,
+     "y": 0.03,
+     "z": -2.0
+    },
+    {
+     "x": -16.88,
+     "y": 0.03,
+     "z": -3.0
+    },
+    {
+     "x": -15.75,
+     "y": 0.03,
+     "z": -4.0
+    },
+    {
+     "x": -14.62,
+     "y": 0.03,
+     "z": -5.0
+    },
+    {
+     "x": -13.5,
+     "y": 0.03,
+     "z": -6.0
+    },
+    {
+     "x": -12.38,
+     "y": 0.03,
+     "z": -7.0
+    },
+    {
+     "x": -11.25,
+     "y": 0.03,
+     "z": -8.0
+    },
+    {
+     "x": -10.12,
+     "y": 0.03,
+     "z": -9.0
+    },
+    {
+     "x": -9.0,
+     "y": 0.03,
+     "z": -10.0
+    },
+    {
+     "x": -7.63,
+     "y": 0.03,
+     "z": -10.75
+    },
+    {
+     "x": -6.27,
+     "y": 0.03,
+     "z": -11.5
+    },
+    {
+     "x": -4.9,
+     "y": 0.03,
+     "z": -12.25
+    },
+    {
+     "x": -3.53,
+     "y": 0.03,
+     "z": -13.0
+    },
+    {
+     "x": -2.17,
+     "y": 0.03,
+     "z": -13.75
+    },
+    {
+     "x": -0.8,
+     "y": 0.03,
+     "z": -14.5
+    }
+   ]
+  },
+  {
+   "assetId": "bridge-plank",
+   "id": "cove-dock",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "x": -0.45,
+     "y": 0.12,
+     "z": 31.5
+    },
+    {
+     "x": 0.45,
+     "y": 0.12,
+     "z": 31.5
+    },
+    {
+     "x": -0.45,
+     "y": 0.12,
+     "z": 34.5
+    },
+    {
+     "x": 0.45,
+     "y": 0.12,
+     "z": 34.5
+    },
+    {
+     "x": -0.45,
+     "y": 0.12,
+     "z": 37.5
+    },
+    {
+     "x": 0.45,
+     "y": 0.12,
+     "z": 37.5
+    },
+    {
+     "x": -0.45,
+     "y": 0.12,
+     "z": 40.5
+    },
+    {
+     "x": 0.45,
+     "y": 0.12,
+     "z": 40.5
+    }
+   ]
+  },
+  {
+   "assetId": "mooring-post",
+   "id": "cove-dock-posts",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "x": -1.3,
+     "z": 33
+    },
+    {
+     "x": 1.3,
+     "z": 33
+    },
+    {
+     "x": -1.3,
+     "z": 39
+    },
+    {
+     "x": 1.3,
+     "z": 39
+    }
+   ]
+  },
+  {
+   "assetId": "crate",
+   "id": "cove-landing-crates",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "x": 6.5,
+     "z": 15
+    },
+    {
+     "x": 7.3,
+     "z": 15
+    },
+    {
+     "x": 6.9,
+     "z": 15.8
+    },
+    {
+     "x": 6.9,
+     "y": 0.8,
+     "z": 15.3
+    }
+   ]
+  },
+  {
+   "assetId": "barrel",
+   "id": "cove-landing-barrels",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "x": -7.5,
+     "z": 18
+    },
+    {
+     "x": -8.2,
+     "z": 17.4
+    },
+    {
+     "x": 5,
+     "z": 18.5
+    },
+    {
+     "x": 5.7,
+     "z": 19
+    }
+   ]
+  },
+  {
+   "assetId": "rope-coil",
+   "id": "cove-landing-ropes",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "x": 1.6,
+     "z": 19
+    },
+    {
+     "x": -1.8,
+     "z": 22
+    }
+   ]
+  },
+  {
+   "assetId": "log-fallen",
+   "id": "cove-campfire-logs",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "rotationY": 0.2,
+     "x": -6.9,
+     "z": 8.4
+    },
+    {
+     "rotationY": 3.34,
+     "x": -3.1,
+     "z": 10.6
+    }
+   ]
+  },
+  {
+   "assetId": "signpost",
+   "id": "cove-waymarkers",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "rotationY": 1.57,
+     "x": -10.5,
+     "z": 10
+    },
+    {
+     "rotationY": -1.57,
+     "x": 10.5,
+     "z": 10
+    },
+    {
+     "rotationY": 0,
+     "x": 1.8,
+     "z": -2.5
+    }
+   ]
+  },
+  {
+   "assetId": "foliage-tree",
+   "id": "cove-grove-trees",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -35,
+     "z": -12
+    },
+    {
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -33,
+     "z": -14
+    },
+    {
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -35,
+     "z": 10
+    },
+    {
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -26,
+     "z": -15
+    },
+    {
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -35,
+     "z": 28
+    },
+    {
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -26,
+     "z": 29
+    },
+    {
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -13,
+     "z": 28
+    }
+   ]
+  },
+  {
+   "assetId": "foliage-bush",
+   "id": "cove-hiding-bushes",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "rotationY": 0.0,
+     "scale": {
+      "x": 3,
+      "y": 3.2,
+      "z": 3
+     },
+     "x": -28.21,
+     "z": 19.35
+    },
+    {
+     "rotationY": 1.1,
+     "scale": {
+      "x": 3,
+      "y": 3.2,
+      "z": 3
+     },
+     "x": -28.38,
+     "z": 20.99
+    },
+    {
+     "rotationY": 2.2,
+     "scale": {
+      "x": 3,
+      "y": 3.2,
+      "z": 3
+     },
+     "x": -29.76,
+     "z": 21.89
+    },
+    {
+     "rotationY": 3.3,
+     "scale": {
+      "x": 3,
+      "y": 3.2,
+      "z": 3
+     },
+     "x": -31.33,
+     "z": 21.36
+    },
+    {
+     "rotationY": 4.4,
+     "scale": {
+      "x": 3,
+      "y": 3.2,
+      "z": 3
+     },
+     "x": -31.89,
+     "z": 19.81
+    },
+    {
+     "rotationY": 5.5,
+     "scale": {
+      "x": 3,
+      "y": 3.2,
+      "z": 3
+     },
+     "x": -31.03,
+     "z": 18.4
+    }
+   ]
+  },
+  {
+   "assetId": "foliage-bush",
+   "id": "cove-grove-bushes",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "rotationY": 0.0,
+     "scale": {
+      "x": 2.6,
+      "y": 2.6,
+      "z": 2.6
+     },
+     "x": -16,
+     "z": 18
+    },
+    {
+     "rotationY": 0.7,
+     "scale": {
+      "x": 2.6,
+      "y": 2.6,
+      "z": 2.6
+     },
+     "x": -20,
+     "z": 13
+    },
+    {
+     "rotationY": 1.4,
+     "scale": {
+      "x": 2.6,
+      "y": 2.6,
+      "z": 2.6
+     },
+     "x": -27,
+     "z": 1
+    },
+    {
+     "rotationY": 2.1,
+     "scale": {
+      "x": 2.6,
+      "y": 2.6,
+      "z": 2.6
+     },
+     "x": -31,
+     "z": -6
+    },
+    {
+     "rotationY": 2.8,
+     "scale": {
+      "x": 2.6,
+      "y": 2.6,
+      "z": 2.6
+     },
+     "x": -23,
+     "z": 25
+    },
+    {
+     "rotationY": 3.5,
+     "scale": {
+      "x": 2.6,
+      "y": 2.6,
+      "z": 2.6
+     },
+     "x": -15,
+     "z": -8
+    },
+    {
+     "rotationY": 4.2,
+     "scale": {
+      "x": 2.6,
+      "y": 2.6,
+      "z": 2.6
+     },
+     "x": -33,
+     "z": 6
+    }
+   ]
+  },
+  {
+   "assetId": "fern",
+   "id": "cove-grove-ferns",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "rotationY": 0.0,
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -17,
+     "z": 16
+    },
+    {
+     "rotationY": 0.9,
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -24,
+     "z": 20
+    },
+    {
+     "rotationY": 1.8,
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -22,
+     "z": 6
+    },
+    {
+     "rotationY": 2.7,
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -29,
+     "z": 12
+    },
+    {
+     "rotationY": 3.6,
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -33,
+     "z": 12
+    },
+    {
+     "rotationY": 4.5,
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -27,
+     "z": -8
+    },
+    {
+     "rotationY": 5.4,
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -19,
+     "z": -11
+    },
+    {
+     "rotationY": 6.3,
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -31,
+     "z": 24
+    },
+    {
+     "rotationY": 7.2,
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -14,
+     "z": 22
+    },
+    {
+     "rotationY": 8.1,
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -25,
+     "z": -2
+    }
+   ]
+  },
+  {
+   "assetId": "flower-cluster",
+   "id": "cove-flower-trail",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "rotationY": 0.0,
+     "scale": {
+      "x": 1.4,
+      "y": 1.4,
+      "z": 1.4
+     },
+     "x": -23.5,
+     "z": 12.8
+    },
+    {
+     "rotationY": 0.8,
+     "scale": {
+      "x": 1.4,
+      "y": 1.4,
+      "z": 1.4
+     },
+     "x": -24.17,
+     "z": 13.53
+    },
+    {
+     "rotationY": 1.6,
+     "scale": {
+      "x": 1.4,
+      "y": 1.4,
+      "z": 1.4
+     },
+     "x": -24.83,
+     "z": 14.27
+    },
+    {
+     "rotationY": 2.4,
+     "scale": {
+      "x": 1.4,
+      "y": 1.4,
+      "z": 1.4
+     },
+     "x": -25.5,
+     "z": 15.0
+    },
+    {
+     "rotationY": 3.2,
+     "scale": {
+      "x": 1.4,
+      "y": 1.4,
+      "z": 1.4
+     },
+     "x": -26.17,
+     "z": 15.73
+    },
+    {
+     "rotationY": 4.0,
+     "scale": {
+      "x": 1.4,
+      "y": 1.4,
+      "z": 1.4
+     },
+     "x": -26.83,
+     "z": 16.47
+    },
+    {
+     "rotationY": 4.8,
+     "scale": {
+      "x": 1.4,
+      "y": 1.4,
+      "z": 1.4
+     },
+     "x": -27.5,
+     "z": 17.2
+    },
+    {
+     "rotationY": 5.6,
+     "scale": {
+      "x": 1.4,
+      "y": 1.4,
+      "z": 1.4
+     },
+     "x": -28.05,
+     "z": 17.8
+    },
+    {
+     "rotationY": 6.4,
+     "scale": {
+      "x": 1.4,
+      "y": 1.4,
+      "z": 1.4
+     },
+     "x": -28.6,
+     "z": 18.4
+    }
+   ]
+  },
+  {
+   "assetId": "flower-cluster",
+   "id": "cove-grove-flowers",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "rotationY": 0,
+     "x": -16,
+     "z": 10
+    },
+    {
+     "rotationY": 1,
+     "x": -20,
+     "z": 24
+    },
+    {
+     "rotationY": 2,
+     "x": -30,
+     "z": -1
+    },
+    {
+     "rotationY": 3,
+     "x": -13,
+     "z": -6
+    },
+    {
+     "rotationY": 4,
+     "x": -26,
+     "z": 26
+    }
+   ]
+  },
+  {
+   "assetId": "rock",
+   "id": "cove-grove-boulders",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "rotationY": 0.0,
+     "scale": {
+      "x": 4.5,
+      "y": 4,
+      "z": 4
+     },
+     "x": -28.6,
+     "z": 16.6
+    },
+    {
+     "rotationY": 1.3,
+     "scale": {
+      "x": 4.5,
+      "y": 4,
+      "z": 4
+     },
+     "x": -27.4,
+     "z": 17.4
+    },
+    {
+     "rotationY": 2.6,
+     "scale": {
+      "x": 4.5,
+      "y": 4,
+      "z": 4
+     },
+     "x": -32.4,
+     "z": 18.8
+    }
+   ]
+  },
+  {
+   "assetId": "log-fallen",
+   "id": "cove-grove-logs",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "rotationY": 1.2,
+     "x": -20,
+     "z": -2
+    },
+    {
+     "rotationY": 0.3,
+     "x": -26,
+     "z": 13.6
+    }
+   ]
+  },
+  {
+   "area": {
+    "id": "cove-jungle:area",
+    "maxX": -37,
+    "maxZ": 60,
+    "minX": -60,
+    "minZ": -60
+   },
+   "assetId": "foliage-tree",
+   "clearance": 1,
+   "id": "cove-jungle",
+   "kind": "SCATTER",
+   "seed": 13,
+   "spacing": 3.5
+  },
+  {
+   "assetId": "shipwreck",
+   "id": "cove-shipwreck",
+   "kind": "MODEL",
+   "placeholderSize": {
+    "depth": 3.9,
+    "height": 9,
+    "width": 9.6
+   },
+   "position": {
+    "x": 27.0,
+    "y": 0,
+    "z": 16.0
+   },
+   "rotation": {
+    "x": 0,
+    "y": 0.5,
+    "z": 0.1
+   },
+   "scale": {
+    "x": 1.5,
+    "y": 1.5,
+    "z": 1.5
+   }
+  },
+  {
+   "assetId": "crate",
+   "id": "cove-beach-crates",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "rotationY": 0.0,
+     "x": 19.4,
+     "z": 23.2
+    },
+    {
+     "rotationY": 0.6,
+     "x": 20.2,
+     "z": 24.0
+    },
+    {
+     "rotationY": 1.2,
+     "x": 22.8,
+     "z": 23.4
+    },
+    {
+     "rotationY": 1.8,
+     "x": 16,
+     "z": 18
+    },
+    {
+     "rotationY": 2.4,
+     "x": 23,
+     "z": 9
+    },
+    {
+     "rotationY": 3.0,
+     "x": 30,
+     "z": 8
+    },
+    {
+     "rotationY": 3.6,
+     "x": 34,
+     "z": 20
+    }
+   ]
+  },
+  {
+   "assetId": "barrel",
+   "id": "cove-beach-barrels",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "rotationY": 0.0,
+     "x": 19.6,
+     "z": 21.0
+    },
+    {
+     "rotationY": 0.4,
+     "x": 20,
+     "z": 14
+    },
+    {
+     "rotationY": 0.8,
+     "x": 24,
+     "z": 6
+    },
+    {
+     "rotationY": 1.2,
+     "x": 33,
+     "z": 12
+    },
+    {
+     "rotationY": 1.6,
+     "x": 17,
+     "z": -2
+    }
+   ]
+  },
+  {
+   "assetId": "barrel",
+   "id": "cove-beach-lying-barrel-0",
+   "kind": "MODEL",
+   "position": {
+    "x": 25.4,
+    "y": 0.33,
+    "z": 10.2
+   },
+   "rotation": {
+    "x": 0,
+    "y": 0.3,
+    "z": 1.5708
+   }
+  },
+  {
+   "assetId": "barrel",
+   "id": "cove-beach-lying-barrel-1",
+   "kind": "MODEL",
+   "position": {
+    "x": 18.2,
+    "y": 0.33,
+    "z": 16.6
+   },
+   "rotation": {
+    "x": 0,
+    "y": 1.9,
+    "z": 1.5708
+   }
+  },
+  {
+   "assetId": "barrel",
+   "id": "cove-beach-lying-barrel-2",
+   "kind": "MODEL",
+   "position": {
+    "x": 31.6,
+    "y": 0.33,
+    "z": 18.6
+   },
+   "rotation": {
+    "x": 0,
+    "y": 2.6,
+    "z": 1.5708
+   }
+  },
+  {
+   "assetId": "bridge-plank",
+   "id": "cove-drift-planks",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "rotationY": 0.0,
+     "x": 17,
+     "y": 0.02,
+     "z": 18.8
+    },
+    {
+     "rotationY": 1.3,
+     "x": 25,
+     "y": 0.02,
+     "z": 25
+    },
+    {
+     "rotationY": 2.6,
+     "x": 28.8,
+     "y": 0.02,
+     "z": 4.4
+    },
+    {
+     "rotationY": 3.9,
+     "x": 22,
+     "y": 0.02,
+     "z": 0
+    },
+    {
+     "rotationY": 5.2,
+     "x": 33.4,
+     "y": 0.02,
+     "z": -8
+    }
+   ]
+  },
+  {
+   "assetId": "rope-coil",
+   "id": "cove-beach-ropes",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "x": 26,
+     "z": 22.5
+    },
+    {
+     "x": 29.6,
+     "z": -0.8
+    }
+   ]
+  },
+  {
+   "assetId": "mooring-post",
+   "id": "cove-pier-stubs",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "scale": {
+      "x": 1,
+      "y": 0.7,
+      "z": 1
+     },
+     "x": 33.6,
+     "z": 24
+    },
+    {
+     "scale": {
+      "x": 1,
+      "y": 0.7,
+      "z": 1
+     },
+     "x": 34.4,
+     "z": 26
+    },
+    {
+     "scale": {
+      "x": 1,
+      "y": 0.7,
+      "z": 1
+     },
+     "x": 33.6,
+     "z": 28
+    }
+   ]
+  },
+  {
+   "assetId": "rock",
+   "id": "cove-shore-rocks",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "rotationY": 0.0,
+     "scale": {
+      "x": 3.5,
+      "y": 3,
+      "z": 3.5
+     },
+     "x": 35,
+     "z": -14
+    },
+    {
+     "rotationY": 0.8,
+     "scale": {
+      "x": 3.5,
+      "y": 3,
+      "z": 3.5
+     },
+     "x": 34.6,
+     "z": -20
+    },
+    {
+     "rotationY": 1.6,
+     "scale": {
+      "x": 3.5,
+      "y": 3,
+      "z": 3.5
+     },
+     "x": 33.8,
+     "z": 6
+    },
+    {
+     "rotationY": 2.4,
+     "scale": {
+      "x": 3.5,
+      "y": 3,
+      "z": 3.5
+     },
+     "x": 35.2,
+     "z": 14
+    },
+    {
+     "rotationY": 3.2,
+     "scale": {
+      "x": 3.5,
+      "y": 3,
+      "z": 3.5
+     },
+     "x": 31,
+     "z": -24
+    },
+    {
+     "rotationY": 4.0,
+     "scale": {
+      "x": 3.5,
+      "y": 3,
+      "z": 3.5
+     },
+     "x": 25,
+     "z": -27
+    }
+   ]
+  },
+  {
+   "assetId": "bridge-plank",
+   "id": "cove-x-mark-0",
+   "kind": "MODEL",
+   "position": {
+    "x": 31.0,
+    "y": 0.02,
+    "z": 0.0
+   },
+   "rotation": {
+    "x": 0,
+    "y": 0.785,
+    "z": 0
+   },
+   "scale": {
+    "x": 0.35,
+    "y": 0.4,
+    "z": 0.6
+   }
+  },
+  {
+   "assetId": "bridge-plank",
+   "id": "cove-x-mark-1",
+   "kind": "MODEL",
+   "position": {
+    "x": 31.0,
+    "y": 0.02,
+    "z": 0.0
+   },
+   "rotation": {
+    "x": 0,
+    "y": -0.785,
+    "z": 0
+   },
+   "scale": {
+    "x": 0.35,
+    "y": 0.4,
+    "z": 0.6
+   }
+  },
+  {
+   "area": {
+    "id": "cove-ruin-north-0:area",
+    "maxX": -10,
+    "maxZ": -16,
+    "minX": -14,
+    "minZ": -16.6
+   },
+   "color": 10722187,
+   "id": "cove-ruin-north-0",
+   "kind": "BOX",
+   "maxY": 2.6,
+   "minY": 0
+  },
+  {
+   "area": {
+    "id": "cove-ruin-north-1:area",
+    "maxX": -7,
+    "maxZ": -16,
+    "minX": -10,
+    "minZ": -16.6
+   },
+   "color": 10722187,
+   "id": "cove-ruin-north-1",
+   "kind": "BOX",
+   "maxY": 1.2,
+   "minY": 0
+  },
+  {
+   "area": {
+    "id": "cove-ruin-north-2:area",
+    "maxX": -2,
+    "maxZ": -16,
+    "minX": -7,
+    "minZ": -16.6
+   },
+   "color": 10722187,
+   "id": "cove-ruin-north-2",
+   "kind": "BOX",
+   "maxY": 2.2,
+   "minY": 0
+  },
+  {
+   "area": {
+    "id": "cove-ruin-north-3:area",
+    "maxX": 6,
+    "maxZ": -16,
+    "minX": 2,
+    "minZ": -16.6
+   },
+   "color": 10722187,
+   "id": "cove-ruin-north-3",
+   "kind": "BOX",
+   "maxY": 2.4,
+   "minY": 0
+  },
+  {
+   "area": {
+    "id": "cove-ruin-north-4:area",
+    "maxX": 9,
+    "maxZ": -16,
+    "minX": 6,
+    "minZ": -16.6
+   },
+   "color": 10722187,
+   "id": "cove-ruin-north-4",
+   "kind": "BOX",
+   "maxY": 0.9,
+   "minY": 0
+  },
+  {
+   "area": {
+    "id": "cove-ruin-north-5:area",
+    "maxX": 14,
+    "maxZ": -16,
+    "minX": 9,
+    "minZ": -16.6
+   },
+   "color": 10722187,
+   "id": "cove-ruin-north-5",
+   "kind": "BOX",
+   "maxY": 2.6,
+   "minY": 0
+  },
+  {
+   "area": {
+    "id": "cove-ruin-west-0:area",
+    "maxX": -13.4,
+    "maxZ": -30,
+    "minX": -14,
+    "minZ": -36
+   },
+   "color": 10722187,
+   "id": "cove-ruin-west-0",
+   "kind": "BOX",
+   "maxY": 2.4,
+   "minY": 0
+  },
+  {
+   "area": {
+    "id": "cove-ruin-west-1:area",
+    "maxX": -13.4,
+    "maxZ": -26,
+    "minX": -14,
+    "minZ": -30
+   },
+   "color": 10722187,
+   "id": "cove-ruin-west-1",
+   "kind": "BOX",
+   "maxY": 1.0,
+   "minY": 0
+  },
+  {
+   "area": {
+    "id": "cove-ruin-west-2:area",
+    "maxX": -13.4,
+    "maxZ": -20,
+    "minX": -14,
+    "minZ": -26
+   },
+   "color": 10722187,
+   "id": "cove-ruin-west-2",
+   "kind": "BOX",
+   "maxY": 2.8,
+   "minY": 0
+  },
+  {
+   "area": {
+    "id": "cove-ruin-west-3:area",
+    "maxX": -13.4,
+    "maxZ": -16.6,
+    "minX": -14,
+    "minZ": -20
+   },
+   "color": 10722187,
+   "id": "cove-ruin-west-3",
+   "kind": "BOX",
+   "maxY": 1.6,
+   "minY": 0
+  },
+  {
+   "area": {
+    "id": "cove-ruin-east-0:area",
+    "maxX": 14,
+    "maxZ": -30,
+    "minX": 13.4,
+    "minZ": -36
+   },
+   "color": 10722187,
+   "id": "cove-ruin-east-0",
+   "kind": "BOX",
+   "maxY": 2.6,
+   "minY": 0
+  },
+  {
+   "area": {
+    "id": "cove-ruin-east-1:area",
+    "maxX": 14,
+    "maxZ": -24,
+    "minX": 13.4,
+    "minZ": -30
+   },
+   "color": 10722187,
+   "id": "cove-ruin-east-1",
+   "kind": "BOX",
+   "maxY": 1.1,
+   "minY": 0
+  },
+  {
+   "area": {
+    "id": "cove-ruin-east-2:area",
+    "maxX": 14,
+    "maxZ": -16.6,
+    "minX": 13.4,
+    "minZ": -24
+   },
+   "color": 10722187,
+   "id": "cove-ruin-east-2",
+   "kind": "BOX",
+   "maxY": 2.4,
+   "minY": 0
+  },
+  {
+   "area": {
+    "id": "cove-ruin-south-0:area",
+    "maxX": -2,
+    "maxZ": -35.4,
+    "minX": -14,
+    "minZ": -36
+   },
+   "color": 10722187,
+   "id": "cove-ruin-south-0",
+   "kind": "BOX",
+   "maxY": 3,
+   "minY": 0
+  },
+  {
+   "area": {
+    "id": "cove-ruin-south-1:area",
+    "maxX": 14,
+    "maxZ": -35.4,
+    "minX": 2,
+    "minZ": -36
+   },
+   "color": 10722187,
+   "id": "cove-ruin-south-1",
+   "kind": "BOX",
+   "maxY": 3,
+   "minY": 0
+  },
+  {
+   "assetId": "archway",
+   "id": "cove-ruins-archway",
+   "kind": "MODEL",
+   "position": {
+    "x": 0,
+    "y": 0,
+    "z": -16.3
+   },
+   "scale": {
+    "x": 1.55,
+    "y": 1.25,
+    "z": 1
+   }
+  },
+  {
+   "assetId": "standing-stone",
+   "id": "cove-rune-stones",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "rotationY": 0.4,
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": -3.0,
+     "z": -23.0
+    },
+    {
+     "rotationY": -0.4,
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": 3.0,
+     "z": -23.0
+    },
+    {
+     "rotationY": 0,
+     "scale": {
+      "x": 1.3,
+      "y": 1.3,
+      "z": 1.3
+     },
+     "x": 0.0,
+     "z": -29.4
+    }
+   ]
+  },
+  {
+   "assetId": "rock",
+   "id": "cove-ruins-rubble",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "rotationY": 0.0,
+     "scale": {
+      "x": 2.5,
+      "y": 2,
+      "z": 2.5
+     },
+     "x": -12,
+     "z": -19
+    },
+    {
+     "rotationY": 0.9,
+     "scale": {
+      "x": 2.5,
+      "y": 2,
+      "z": 2.5
+     },
+     "x": -11,
+     "z": -33
+    },
+    {
+     "rotationY": 1.8,
+     "scale": {
+      "x": 2.5,
+      "y": 2,
+      "z": 2.5
+     },
+     "x": 12,
+     "z": -21
+    },
+    {
+     "rotationY": 2.7,
+     "scale": {
+      "x": 2.5,
+      "y": 2,
+      "z": 2.5
+     },
+     "x": 11,
+     "z": -31
+    },
+    {
+     "rotationY": 3.6,
+     "scale": {
+      "x": 2.5,
+      "y": 2,
+      "z": 2.5
+     },
+     "x": -6,
+     "z": -34
+    },
+    {
+     "rotationY": 4.5,
+     "scale": {
+      "x": 2.5,
+      "y": 2,
+      "z": 2.5
+     },
+     "x": 7,
+     "z": -18
+    },
+    {
+     "rotationY": 5.4,
+     "scale": {
+      "x": 2.5,
+      "y": 2,
+      "z": 2.5
+     },
+     "x": -9,
+     "z": -27
+    },
+    {
+     "rotationY": 6.3,
+     "scale": {
+      "x": 2.5,
+      "y": 2,
+      "z": 2.5
+     },
+     "x": 10,
+     "z": -26
+    }
+   ]
+  },
+  {
+   "assetId": "bridge-plank",
+   "id": "cove-broken-bridge",
+   "kind": "CLUSTER",
+   "positions": [
+    {
+     "rotationY": 0.1,
+     "x": -0.45,
+     "y": -0.05,
+     "z": -37.9
+    },
+    {
+     "rotationY": -0.18,
+     "x": 0.5,
+     "y": -0.08,
+     "z": -38.6
+    }
+   ]
+  }
+ ],
+ "zones": [
+  {
+   "enterMessage": "Pirate Landing. This is Pip's camp.",
+   "rect": {
+    "id": "cove-zone-landing",
+    "maxX": 10,
+    "maxZ": 30,
+    "minX": -10,
+    "minZ": -2
+   }
+  },
+  {
+   "enterMessage": "Palm Tree Grove. Lots of places to hide things here!",
+   "rect": {
+    "id": "cove-zone-grove",
+    "maxX": -12,
+    "maxZ": 30,
+    "minX": -36,
+    "minZ": -16
+   }
+  },
+  {
+   "enterMessage": "Shipwreck Beach. What a big old ship!",
+   "rect": {
+    "id": "cove-zone-beach",
+    "maxX": 36,
+    "maxZ": 30,
+    "minX": 14,
+    "minZ": -30
+   }
+  },
+  {
+   "enterMessage": "The Ancient Treasure Ruins. Something is glowing.",
+   "rect": {
+    "id": "cove-zone-ruins",
+    "maxX": 14,
+    "maxZ": -16,
+    "minX": -14,
+    "minZ": -36
+   }
+  }
+ ]
+}

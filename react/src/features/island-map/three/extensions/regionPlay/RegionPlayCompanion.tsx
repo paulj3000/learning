@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import type { AnswerOutcome } from '../../../../../api/play/types';
 import { useAuth } from '../../../../auth/AuthContext';
@@ -65,6 +66,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
     limitReached,
     onCloseInteraction,
     setQuestCue,
+    hudSlot,
   } = props;
   const auth = useAuth();
   const onUnauthenticated = () => void auth.refresh();
@@ -261,40 +263,43 @@ function RegionPlayGame(props: LocationCompanionProps) {
   }
 
   const itemCount = progress.progress?.inventory.length ?? 0;
-  return (
+  // On the stage when the view offers a slot (so they stay in full screen), fixed to the page otherwise.
+  const onStage = Boolean(hudSlot);
+  const hudControls = panel ? null : (
     <>
-      {panel}
-      {!panel && hintOpen ? (
-        <div className={styles.hintBubble} role="status">
+      {hintOpen ? (
+        <div className={onStage ? styles.stageHintBubble : styles.hintBubble} role="status">
           <p>{nextStepHint(objective, bootstrap?.chests ?? [])}</p>
           <button type="button" className={styles.hintClose} onClick={() => setHintOpen(false)}>
             {PLAY_COPY.hintClose}
           </button>
         </div>
       ) : null}
-      {!panel ? (
-        <button
-          type="button"
-          className={styles.hintButton}
-          aria-expanded={hintOpen}
-          onClick={() => setHintOpen((open) => !open)}
-        >
-          {PLAY_COPY.hint}
-        </button>
-      ) : null}
-      {!panel ? (
-        <button
-          type="button"
-          className={styles.backpackButton}
-          onClick={() => {
-            setBackpackOpen(true);
-            void progress.refresh();
-          }}
-        >
-          {PLAY_COPY.backpack}
-          {itemCount > 0 ? <span className={styles.count}>{itemCount}</span> : null}
-        </button>
-      ) : null}
+      <button
+        type="button"
+        className={onStage ? styles.stageHintButton : styles.hintButton}
+        aria-expanded={hintOpen}
+        onClick={() => setHintOpen((open) => !open)}
+      >
+        {PLAY_COPY.hint}
+      </button>
+      <button
+        type="button"
+        className={onStage ? styles.stageBackpackButton : styles.backpackButton}
+        onClick={() => {
+          setBackpackOpen(true);
+          void progress.refresh();
+        }}
+      >
+        {PLAY_COPY.backpack}
+        {itemCount > 0 ? <span className={styles.count}>{itemCount}</span> : null}
+      </button>
+    </>
+  );
+  return (
+    <>
+      {panel}
+      {hudControls && hudSlot ? createPortal(hudControls, hudSlot) : hudControls}
     </>
   );
 }

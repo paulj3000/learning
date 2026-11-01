@@ -18,6 +18,7 @@ import {
   type RegionPlayConfig,
   type RegionPlayInteractionConfig,
 } from './regionPlayConfig';
+import { readRegionLayout, RegionLayoutError, type RegionLayout } from './regionLayout';
 import type { RegionSceneModel, SceneEntity } from './sceneModel';
 
 // The extension id and config types live in `regionPlayConfig.ts`, which the Three.js scene
@@ -123,11 +124,27 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
   };
 
   const bounds = readBounds(model.scene.bounds);
+  let layout: RegionLayout;
+  try {
+    layout = readRegionLayout(model.scene.layout);
+  } catch (error) {
+    if (error instanceof RegionLayoutError) throw new RegionBuildError(error.path, error.detail);
+    throw error;
+  }
   const npcs: NpcPlacementSpec[] = [];
   const props: PropSpec[] = [];
-  const scenery: ScenerySpec[] = [ground(regionId, bounds, model.scene.groundAssetId)];
+  // The admin's layout (TR-13) lies on the grass the region always gets.
+  const scenery: ScenerySpec[] = [
+    ground(regionId, bounds, model.scene.groundAssetId),
+    ...layout.scenery,
+  ];
   const interactions: WorldInteraction[] = [];
-  const config: RegionPlayConfig = { chests: [], figures: [], interactions: [] };
+  const config: RegionPlayConfig = {
+    chests: [],
+    figures: [],
+    interactions: [],
+    procedural: layout.procedural,
+  };
 
   for (const entity of model.entities) {
     if (entity.role === 'npc') {
@@ -229,14 +246,15 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     bounds,
     environment: readEnvironment(model.scene.environment),
     checkpoints: { ids: [spawn.id], triggerHalfSize: CHECKPOINT_TRIGGER_HALF_SIZE },
-    colliders: [],
+    colliders: layout.colliders,
     buildings: [],
     scenery,
     npcs,
     props,
     collectibles: [],
-    zones: [],
-    ambient: [],
+    zones: layout.zones,
+    ...(layout.lights.length > 0 ? { lights: layout.lights } : {}),
+    ambient: layout.ambient,
     interactions,
     adventureBindings: [],
     interactionAssist: true,

@@ -23,8 +23,9 @@ class WorldRegion(models.Model):
     and `region_id` keep their names. A Place has at most one 3D Area (database constraint
     `regions_one_area_per_place`) and is valid with none.
 
-    `scene` holds what is not yet modelled as rows (bounds, environment, copy), in the
-    manifest's own field names; TR-7 validates the assembled manifest on the client too.
+    `scene` holds what is not yet modelled as rows (bounds, environment, copy, and since TR-13
+    the spatial `layout`), in the manifest's own field names; TR-7 validates the assembled
+    manifest on the client too.
     """
 
     region_id = models.SlugField(

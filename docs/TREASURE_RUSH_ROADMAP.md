@@ -668,15 +668,67 @@ optional, all additive.
 **Not verified in a browser.** No person has played this yet (TR-9). The forgiving-aim numbers
 (3 m, 40 degrees) are a first guess to tune in that playtest.
 
+### TR-13 as built: the four-zone Treasure Cove (2026-11-01)
+
+The cove grows from an 18 m square with three objects to a 72 x 88 m island in four zones,
+joined by paths and a loop, with everything TR-14 to TR-17 need already framed.
+
+| Zone | What is there | Encounter spot it frames |
+|---|---|---|
+| **Pirate Landing** (centre) | The dock you arrive on and the rowboat at its end, Pip's camp (tent, campfire with seats and a warm light), crate and barrel stacks, a black pirate flag, six torches, waymarker signposts at each exit | The first chest (seeded, 0, -6), in sight of the spawn point |
+| **Palm Tree Grove** (west) | 19 palms, a tree line, a jungle scattered beyond the edge, bushes, ferns, boulders, fallen logs; a trail of flowers off the grove path, butterflies circling its end | Hidden chest (-30, 20): a ring of bushes open to the south-east, boulders screening it from the path |
+| **Shipwreck Beach** (east) | Sand and shallows, the wreck at 1.5 times its size and listing, washed-up crates, barrels on their side, drift planks, rope, a broken pier, rocks, seven palms, gulls circling | Locked chest (21, 22) among the cargo by the bow; key (31, 0) on an X of crossed planks in the sand |
+| **Ancient Treasure Ruins** (south) | Stone floor, broken walls of varied height, the archway in, a ring of eight pillars (some broken), three rune stones, the glowing pedestal with a light, torches, a dais; a locked gate in the south wall | Pedestal (0, -26) for TR-16's puzzle; final chest (0, -32) on the dais |
+| **Lookout Point** (beyond) | Across a channel, past the gate and a sunken bridge: a tall gold flag and two palms, visible from the ruins and unreachable | TR-17's unlock destination |
+
+**How it is carried.** The layout is `WorldRegion.scene["layout"]` in the manifest's own
+vocabulary (decision **TR-D24**, below), authored in `lai/apps/regions/treasure_cove_layout.py`
+and written by the seed. The builder (`regionLayout.ts`, `regionManifest.ts`) turns it into
+scenery, colliders, zones, ambient movers and lights, so the cove uses what the engine already
+draws and collides with. Models the catalogue lacks are `procedural` entries the region-play
+extension draws from primitives (`proceduralScenery.ts`): palms are instanced (three draw calls
+for 28), the rest share geometry and materials. The asset audit and replacement list is
+`docs/TREASURE_RUSH_ASSET_REQUIREMENTS.md`.
+
+**Upgrading an existing region.** The seed still never overwrites a row, with one exception it
+owns: when `scene.layoutVersion` is older than `LAYOUT_VERSION`, it replaces the layout and
+bounds, bumps the region's version, and turns the landing spawn to face inland if it still has
+the old default facing. Title, copy, placements, chests and status are untouched. Pip, the first
+chest and the signpost keep their seeded positions; the landing was laid out round them.
+
+**Environment animation.** Palms sway, flames flicker, flags wave, the rowboat bobs, the
+pedestal's gem pulses and turns, gulls and butterflies circle; all of it holds still when the
+device asks for reduced motion (TR-12's beacons now do too).
+
+**Full-screen controls.** TR-12's note that Backpack and Hint vanish in full screen was wrong on
+inspection: the element that goes full screen is the view's wrapper, and those fixed buttons
+were its children. The real gaps were that the region's exit link is hidden in full screen and
+the cove showed two backpacks (the HUD's Amplify one, always empty there, and region-play's).
+Fixed: companions get a control slot inside the stage (`hudSlot`), where region-play now puts
+Backpack, Hint and the hint bubble; the HUD draws the exit on the stage under
+`interactionAssist`; and the HUD leaves its backpack out when a companion owns one
+(`ownsBackpack`). Objective, prompt, Backpack, Hint and Exit are all on the stage now.
+
+**Decision taken (conservative, reversible):**
+
+- **TR-D24 The cove's layout travels as `scene.layout`, in manifest vocabulary.** The model
+  already documents `scene` as holding what is not yet modelled as rows, in the manifest's own
+  field names. No new model, no admin UI, nothing LAI-0805 has to undo: when it decides how
+  layouts are authored, this JSON is what it migrates. The client reader is strict and names
+  the path of anything malformed, and the assembled manifest still goes through
+  `validateLocationManifest`.
+
+**Not verified in a browser.** The engine tests walk the cove (zones announce themselves, the
+archway lets you in, the gate and channel hold) but nobody has looked at it. In particular the
+sizes, colours and the draw-call count on a tablet need a real look (TR-9). The bootstrap grows
+by about 40 KB of layout JSON.
+
 ### Remaining reboot tasks
 
 The order follows the brief's stages. Each task is separate so no backend domain change is
 combined with a world change (CLAUDE.md section 19).
 
-- **TR-13 Treasure Cove layout: four zones.** Pirate Landing, Palm Tree Grove, Shipwreck Beach
-  and Ancient Treasure Ruins as one walkable area, with landmarks and paths. Larger bounds and
-  scenery placements in `treasure_rush_seed.py` (the layout's source of truth until LAI-0805),
-  using bundled kit assets and TR-7a placeholders. Depends: none. Risk M.
+- **TR-13 Treasure Cove layout: four zones.** Done, above.
 - **TR-14 Four chests and the quest "Pip's Missing Treasure".** Four `TreasureChest` rows, each
   with its own challenge specs per band, keepsake, reward rule and world change; the quest with
   four chest objectives and a final "return to Pip" stage, in the content export. Supersedes

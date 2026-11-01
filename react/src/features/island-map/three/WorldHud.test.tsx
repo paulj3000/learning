@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WorldHud } from './WorldHud';
 
@@ -113,5 +114,29 @@ describe('WorldHud action prompt (TR-12)', () => {
   it('keeps the old label without onInteract', () => {
     render(<WorldHud {...baseProps} focusedLabel="Pip" focusAction="Talk" />);
     expect(screen.getByText('Pip: press E to talk')).toBeInTheDocument();
+  });
+});
+
+describe('WorldHud exit and backpack (TR-13)', () => {
+  it('draws the exit on the stage when given one, so it is there in full screen', () => {
+    render(
+      <MemoryRouter>
+        <WorldHud {...baseProps} exitLink={{ label: 'Go back to the harbor', to: '/island/c' }} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('link', { name: 'Go back to the harbor' })).toHaveAttribute(
+      'href',
+      '/island/c',
+    );
+  });
+
+  it('leaves the backpack out when a companion shows its own', () => {
+    render(<WorldHud {...baseProps} showBackpack={false} />);
+    expect(screen.queryByRole('button', { name: /Backpack/ })).not.toBeInTheDocument();
+  });
+
+  it('shows its backpack by default, as every other region expects', () => {
+    render(<WorldHud {...baseProps} />);
+    expect(screen.getByRole('button', { name: 'Backpack (0)' })).toBeInTheDocument();
   });
 });

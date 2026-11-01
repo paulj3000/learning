@@ -419,3 +419,47 @@
   font-weight: var(--font-weight-strong);
   cursor: pointer;
 }
+
+/* The same controls placed in the stage's control slot (TR-13): laid out by the slot, not fixed. */
+.stageHintButton,
+.stageBackpackButton {
+  min-height: 3.25rem;
+  padding: var(--space-2) var(--space-5, 1.25rem);
+  border: none;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--lip-accent);
+  font: inherit;
+  font-size: var(--font-size-large);
+  font-weight: var(--font-weight-strong);
+  cursor: pointer;
+}
+
+.stageHintButton {
+  background: var(--color-sun);
+  color: var(--color-text);
+}
+
+.stageBackpackButton {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.stageHintButton:focus-visible,
+.stageBackpackButton:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+.stageHintBubble {
+  max-width: min(22rem, 100%);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-raised);
+  font-size: var(--font-size-large);
+}
+
+.stageHintBubble p {
+  margin: 0 0 var(--space-2);
+}

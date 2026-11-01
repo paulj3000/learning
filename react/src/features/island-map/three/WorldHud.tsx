@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import styles from './WorldHud.module.css';
 import { ChattyAvatar } from '../../companion/ChattyAvatar';
 
@@ -25,6 +26,13 @@ export interface WorldHudProps {
    */
   focusAction?: string | null;
   onInteract?: () => void;
+  /** False when a companion shows its own backpack. Defaults to true. */
+  showBackpack?: boolean;
+  /**
+   * A way out drawn on the stage itself, so it is there in full screen too,
+   * where the page's own links are hidden. Never gated (LAI-0807).
+   */
+  exitLink?: { label: string; to: string };
 }
 
 /** True where a keyboard hint makes sense: a fine pointer (mouse, trackpad). Unknown means yes. */
@@ -53,6 +61,8 @@ export function WorldHud({
   backpackItems,
   focusAction = null,
   onInteract,
+  showBackpack = true,
+  exitLink,
 }: WorldHudProps) {
   const [backpackOpen, setBackpackOpen] = useState(false);
   const actionPrompt = onInteract && focusedLabel && focusAction;
@@ -61,12 +71,19 @@ export function WorldHud({
     <div className={styles.overlay}>
       <div className={styles.topRow}>
         {questCue ? <p className={styles.cue}>{questCue}</p> : <span />}
-        {companionName ? (
-          <div className={styles.companionCue}>
-            <ChattyAvatar size={28} />
-            <span className={styles.companionName}>{companionName}</span>
-          </div>
-        ) : null}
+        <div className={styles.topRight}>
+          {companionName ? (
+            <div className={styles.companionCue}>
+              <ChattyAvatar size={28} />
+              <span className={styles.companionName}>{companionName}</span>
+            </div>
+          ) : null}
+          {exitLink ? (
+            <Link className={styles.exitLink} to={exitLink.to}>
+              {exitLink.label}
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       <div className={styles.reticleWrap}>
@@ -96,30 +113,32 @@ export function WorldHud({
 
       <div className={styles.bottomRow}>
         {toastMessage ? <p className={styles.toast}>{toastMessage}</p> : <span />}
-        <div style={{ position: 'relative', pointerEvents: 'auto' }}>
-          <button
-            type="button"
-            className={styles.inventoryButton}
-            onClick={() => setBackpackOpen((open) => !open)}
-            aria-expanded={backpackOpen}
-          >
-            Backpack ({backpackItems.length})
-          </button>
-          {backpackOpen ? (
-            <div className={styles.inventoryPanel} role="dialog" aria-label="Backpack">
-              <p className={styles.inventoryPanelTitle}>Your backpack</p>
-              {backpackItems.length === 0 ? (
-                <p className={styles.inventoryEmpty}>Nothing here yet.</p>
-              ) : (
-                <ul className={styles.inventoryList}>
-                  {backpackItems.map((item) => (
-                    <li key={item.id}>{item.displayName}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ) : null}
-        </div>
+        {showBackpack ? (
+          <div style={{ position: 'relative', pointerEvents: 'auto' }}>
+            <button
+              type="button"
+              className={styles.inventoryButton}
+              onClick={() => setBackpackOpen((open) => !open)}
+              aria-expanded={backpackOpen}
+            >
+              Backpack ({backpackItems.length})
+            </button>
+            {backpackOpen ? (
+              <div className={styles.inventoryPanel} role="dialog" aria-label="Backpack">
+                <p className={styles.inventoryPanelTitle}>Your backpack</p>
+                {backpackItems.length === 0 ? (
+                  <p className={styles.inventoryEmpty}>Nothing here yet.</p>
+                ) : (
+                  <ul className={styles.inventoryList}>
+                    {backpackItems.map((item) => (
+                      <li key={item.id}>{item.displayName}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );

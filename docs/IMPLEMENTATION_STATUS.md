@@ -11788,3 +11788,48 @@ unpublished assets stay private; Amplify Storage stays unchanged until LAI-1301.
   typecheck clean, production build passes, oxlint 0 errors and 39 warnings (baseline), Prettier
   clean, `adr:check`, `admin-preview:check`, `content:check` and `golden:check` pass, Playwright 7
   of 7.
+
+## TR-13 Treasure Rush reboot: the four-zone Treasure Cove (2026-11-01)
+
+Second reboot task (`docs/TREASURE_RUSH_ROADMAP.md` section 17, "TR-13 as built"). Branch
+`quest/tr.reboot`, which now includes a merge of `main` (`7fe30eb`, made by the owner).
+
+- **Acceptance.** Four recognisable, navigable, populated zones (Pirate Landing, Palm Tree
+  Grove, Shipwreck Beach, Ancient Treasure Ruins) in one continuous area, ready for TR-14's four
+  encounters; placeholders for missing models; environment animation; existing movement,
+  collision, camera and interaction kept; Backpack, Hint, objective, prompt and Exit available
+  in full screen; the asset audit in `docs/TREASURE_RUSH_ASSET_REQUIREMENTS.md`.
+- **Built.** A 72 x 88 m cove: 60 scenery entries (planes, 15 ruin walls, clusters of 18 bundled
+  assets, the shipwreck, archway and rune stones, a jungle scatter), 35 colliders, 4 zones with
+  enter messages, 4 ambient movers (gulls, butterflies), 2 point lights, and 53 procedural
+  placeholders (28 palms instanced in three draw calls, 10 torches, 8 pillars, 2 flags, tent,
+  campfire, rowboat, pedestal, gate). Lookout Point beyond a channel and a locked gate is
+  visible and unreachable until TR-17. Encounter spots for TR-14 to TR-17 are named in
+  `SPOTS` and tested to be open ground in the right zone.
+- **Decision TR-D24.** The layout travels as `WorldRegion.scene["layout"]` in manifest
+  vocabulary, authored in `lai/apps/regions/treasure_cove_layout.py`; the seed refreshes it on an
+  existing region only when `layoutVersion` is older, never touching title, copy, placements,
+  chests or status. A JSON snapshot beside it feeds the frontend tests; a Python test fails if
+  they drift.
+- **Full-screen correction.** TR-12's note that Backpack and Hint disappear in full screen was
+  wrong (they were inside the full-screen element). The real gaps, now fixed: the exit link was
+  hidden in full screen (now drawn on the stage), and the cove showed two backpacks (the HUD's
+  is left out when a companion owns one). Companion controls now sit in a slot inside the stage.
+- **Files created.** `lai/apps/regions/treasure_cove_layout.py`, `treasure_cove_layout.json`,
+  `tests/test_treasure_cove_layout.py`; `react/src/features/region-play/regionLayout.ts` and
+  test; `extensions/regionPlay/proceduralScenery.ts` and test,
+  `treasureCoveLayout.engine.test.ts`; `docs/TREASURE_RUSH_ASSET_REQUIREMENTS.md`.
+- **Files changed.** `lai/apps/regions/treasure_rush_seed.py`, `models.py` (docstring);
+  `region-play/regionManifest.ts`, `regionPlayConfig.ts`; `extensions/regionPlay/regionPlayScene.ts`,
+  `RegionPlayCompanion.tsx`, `regionPlayViewExtension.tsx`, `ui/RegionPlayPanels.module.css`;
+  `runtime/ThreeLocationWorldView.tsx`, `runtime/viewExtensionRegistry.tsx`; `WorldHud.tsx` and
+  `.module.css`; `IslandWorldView.module.css`; `test/playFixtures.ts`; tests beside each.
+- **Tests (development checks).** Python: `lai/apps/regions` 56 passed against the compose
+  PostgreSQL (`POSTGRES_PORT=5442 LAI_REQUIRE_POSTGRES=1`), 13 of them new; ruff clean on the
+  touched files. Vitest: `island-map`, `region-play` and `api/play`, 122 files, 1,344 passed,
+  about 32 of them new (layout reader 10, builder 2, cove on the engine 7, placeholders and config
+  8, HUD 3, companion 1, view 1). `tsc -b` clean; Prettier clean on the touched files.
+- **Not done.** No browser, tablet or WebGL look (TR-9): sizes, colours, readability of the
+  zones and the draw-call cost on a tablet are unverified. A deployed database needs
+  `manage.py seed_treasure_rush` to pick up the layout. Full suites, lint, Playwright and build
+  are deferred to merge readiness.

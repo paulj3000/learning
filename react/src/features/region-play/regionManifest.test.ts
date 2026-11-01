@@ -3,7 +3,7 @@ import * as parse from '../../api/play/parse';
 import { publishRegionCheckpoints, unpublishRegionCheckpoints } from '../discovery/checkpoints';
 import { SOURCE_MANIFEST_REGISTRIES } from '../island-map/three/runtime/sourceManifestRegistries';
 import { validateLocationManifest } from '../island-map/three/runtime/validateLocationManifest';
-import { bootstrapJson } from '../../test/playFixtures';
+import { bootstrapJson, coveSceneJson } from '../../test/playFixtures';
 import {
   buildRegionManifest,
   checkpointId,
@@ -81,6 +81,33 @@ describe('buildRegionManifest', () => {
     // An NPC without a model is drawn as a prop, and still says Talk.
     const figure = build().manifest.props.find((prop) => prop.entityId === 'cove-pip');
     expect(figure?.action).toBe(REGION_ACTIONS.talk);
+  });
+
+  it('builds the four-zone cove from its layout, and the engine’s validator accepts it (TR-13)', async () => {
+    const region = { ...bootstrapJson().region, scene: await coveSceneJson() };
+    const built = build({ region });
+    expect(issues(built)).toEqual([]);
+    const { manifest } = built;
+    expect(manifest.bounds).toEqual({ halfExtentX: 36, halfExtentZ: 44, wallThickness: 1 });
+    expect(manifest.zones).toHaveLength(4);
+    expect(manifest.colliders.length).toBeGreaterThan(20);
+    expect(manifest.ambient).toHaveLength(4);
+    expect(manifest.lights).toHaveLength(2);
+    // The grass the region always gets comes first; the layout lies on it.
+    expect(manifest.scenery[0]?.kind).toBe('TILED_GROUND');
+    expect(manifest.scenery.map((item) => item.id)).toContain('cove-shipwreck');
+    const config = tryParseRegionPlayConfig(manifest.extensions[0]!.config);
+    expect(config?.procedural?.map((item) => item.id)).toContain('cove-ruins-gate');
+  });
+
+  it('fails a region whose layout is malformed, naming where', () => {
+    const region = {
+      ...bootstrapJson().region,
+      scene: { layout: { scenery: [{ kind: 'VOLCANO', id: 'v' }] } },
+    };
+    expect(() => build({ region })).toThrow(
+      new RegionBuildError('scene.layout.scenery[0].kind', 'unsupported scenery kind "VOLCANO"'),
+    );
   });
 
   it('refuses a region without a spawn point', () => {

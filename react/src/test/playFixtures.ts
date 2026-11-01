@@ -250,3 +250,22 @@ export function launchStartJson(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+/**
+ * Treasure Cove's real four-zone layout (TR-13), from the snapshot the Django
+ * tests keep equal to `lai/apps/regions/treasure_cove_layout.py`, as the
+ * region's `scene` serves it.
+ */
+export async function coveSceneJson() {
+  const { readFileSync } = await import('node:fs');
+  const { resolve } = await import('node:path');
+  // Vitest runs from `react/`; in jsdom `import.meta.url` is not a file URL.
+  const layout: unknown = JSON.parse(
+    readFileSync(resolve(process.cwd(), '../lai/apps/regions/treasure_cove_layout.json'), 'utf8'),
+  );
+  return {
+    bounds: { halfExtentX: 36, halfExtentZ: 44, wallThickness: 1 },
+    layoutVersion: 2,
+    layout,
+  };
+}

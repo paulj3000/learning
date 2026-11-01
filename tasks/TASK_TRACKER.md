@@ -219,7 +219,7 @@ LAI-0805's ADR; TR-D5 is still Proposed.
 - [ ] **TR-10** Integrate LAI-2106 shared asset management (depends: LAI-2106, TR-7a)
 - [ ] **TR-11** Second chest and quest chain (depends: TR-9) (to be superseded by TR-14 if the owner approves the reboot order)
 - [ ] **TR-12** Reboot Stage A: child-friendly interaction and guidance (`docs/TREASURE_RUSH_ROADMAP.md` section 17). Implemented: forgiving aim, focus marker, tappable action prompt with the E key only on fine pointers, closed-chest beacons, HUD objective and on-request hint, all behind `interactionAssist` (on for Django regions only). Targeted tests and typecheck pass; not played in a browser (TR-9); merge gates not run
-- [ ] **TR-13** Treasure Cove four-zone layout (depends: none)
+- [ ] **TR-13** Treasure Cove four-zone layout (depends: none). Implemented on `quest/tr.reboot`: Pirate Landing, Palm Tree Grove, Shipwreck Beach, Ancient Treasure Ruins and an unreachable Lookout Point, carried as `scene.layout` (TR-D24) from `treasure_cove_layout.py`; procedural placeholders and ambient animation; stage control slot and in-stage exit. Asset list: `docs/TREASURE_RUSH_ASSET_REQUIREMENTS.md`. Targeted vitest and the regions pytest suite (Postgres) pass; not looked at in a browser; merge gates not run
 - [ ] **TR-14** Four chests and "Pip's Missing Treasure" quest (depends: TR-13; decision on order versus TR-9)
 - [ ] **TR-15** Locked chest and key pickup, backend domain change (depends: TR-14; decision TR-D22)
 - [ ] **TR-16** Ruins environmental puzzle (depends: TR-14; decision TR-D23)

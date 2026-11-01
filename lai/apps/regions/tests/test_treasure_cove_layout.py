@@ -1,0 +1,158 @@
+"""Treasure Cove's four-zone layout (TR-13): its shape, its snapshot, how the seed applies it."""
+
+import json
+import math
+
+import pytest
+
+from apps.catalog.importer import import_content
+from apps.regions.models import WorldRegion
+from apps.regions.treasure_cove_layout import (
+    BOUNDS,
+    LAYOUT_VERSION,
+    SNAPSHOT_PATH,
+    SPOTS,
+    cove_layout,
+)
+from apps.regions.treasure_rush_seed import LANDING_YAW, REGION_ID, seed_treasure_rush
+
+PROCEDURAL_SHAPES = {
+    "PALM",
+    "TENT",
+    "CAMPFIRE",
+    "TORCH",
+    "FLAG",
+    "ROWBOAT",
+    "PILLAR",
+    "PEDESTAL",
+    "GATE",
+}
+ZONE_FOR_SPOT = {
+    "landing-chest": None,  # on the path just south of the yard, in sight of the spawn point
+    "grove-hidden-chest": "cove-zone-grove",
+    "beach-key": "cove-zone-beach",
+    "beach-locked-chest": "cove-zone-beach",
+    "ruins-final-chest": "cove-zone-ruins",
+}
+
+
+def inside(rect: dict, x: float, z: float) -> bool:
+    return rect["minX"] <= x <= rect["maxX"] and rect["minZ"] <= z <= rect["maxZ"]
+
+
+@pytest.fixture(scope="module")
+def layout():
+    return cove_layout()
+
+
+def test_the_snapshot_the_frontend_tests_load_is_current(layout):
+    stored = json.loads(SNAPSHOT_PATH.read_text())
+    assert stored == json.loads(json.dumps(layout)), (
+        "Run `python -m apps.regions.treasure_cove_layout` from lai/ to rewrite the snapshot."
+    )
+
+
+def test_every_id_is_unique(layout):
+    ids = [
+        item["id"] for key in ("scenery", "ambient", "lights", "procedural") for item in layout[key]
+    ]
+    ids += [item["rect"]["id"] for key in ("colliders", "zones") for item in layout[key]]
+    ids += [item["area"]["id"] for item in layout["scenery"] if "area" in item]
+    assert len(ids) == len(set(ids))
+
+
+def test_four_zones_inside_the_bounds_that_do_not_overlap(layout):
+    zones = [zone["rect"] for zone in layout["zones"]]
+    assert [zone["id"] for zone in zones] == [
+        "cove-zone-landing",
+        "cove-zone-grove",
+        "cove-zone-beach",
+        "cove-zone-ruins",
+    ]
+    for zone in zones:
+        assert -BOUNDS["halfExtentX"] <= zone["minX"] < zone["maxX"] <= BOUNDS["halfExtentX"]
+        assert -BOUNDS["halfExtentZ"] <= zone["minZ"] < zone["maxZ"] <= BOUNDS["halfExtentZ"]
+        assert zone_message(layout, zone["id"]) and "—" not in zone_message(layout, zone["id"])
+    for a in zones:
+        for b in zones:
+            if a is b:
+                continue
+            overlap_x = min(a["maxX"], b["maxX"]) - max(a["minX"], b["minX"])
+            overlap_z = min(a["maxZ"], b["maxZ"]) - max(a["minZ"], b["minZ"])
+            assert overlap_x <= 0 or overlap_z <= 0, (a["id"], b["id"])
+
+
+def zone_message(layout, zone_id):
+    return next(zone["enterMessage"] for zone in layout["zones"] if zone["rect"]["id"] == zone_id)
+
+
+@pytest.mark.parametrize("spot", sorted(ZONE_FOR_SPOT))
+def test_every_encounter_spot_is_reachable_ground_in_its_zone(layout, spot):
+    x, z = SPOTS[spot]
+    for collider in layout["colliders"]:
+        assert not inside(collider["rect"], x, z), (spot, collider["rect"]["id"])
+    zone = ZONE_FOR_SPOT[spot]
+    if zone:
+        rect = next(item["rect"] for item in layout["zones"] if item["rect"]["id"] == zone)
+        assert inside(rect, x, z)
+
+
+def test_lookout_point_is_shut_off_until_the_gate_opens(layout):
+    channel = next(
+        c["rect"] for c in layout["colliders"] if c["rect"]["id"] == "cove-channel:collider"
+    )
+    assert channel["minX"] <= -BOUNDS["halfExtentX"] and channel["maxX"] >= BOUNDS["halfExtentX"]
+    assert channel["minZ"] < SPOTS["ruins-gate"][1] - 1 < channel["maxZ"]  # just past the gate
+    assert SPOTS["lookout-point"][1] < channel["minZ"]
+
+
+def test_procedural_placeholders_use_known_shapes(layout):
+    assert {item["shape"] for item in layout["procedural"]} <= PROCEDURAL_SHAPES
+    shapes = {item["shape"] for item in layout["procedural"]}
+    assert shapes == PROCEDURAL_SHAPES  # every placeholder shape is used, so none is dead code
+
+
+@pytest.mark.postgres
+@pytest.mark.django_db
+class TestSeedAppliesTheLayout:
+    def test_a_new_region_gets_the_layout_and_faces_inland(self):
+        import_content()
+        seed_treasure_rush()
+        region = WorldRegion.objects.get(region_id=REGION_ID)
+        assert region.scene["layoutVersion"] == LAYOUT_VERSION
+        assert region.scene["bounds"] == BOUNDS
+        assert region.scene["layout"] == json.loads(json.dumps(cove_layout()))
+        assert region.spawn_points.get().yaw == pytest.approx(LANDING_YAW)
+        assert seed_treasure_rush() == []
+
+    def test_an_older_region_is_upgraded_once_and_keeps_admin_edits(self):
+        import_content()
+        seed_treasure_rush()
+        region = WorldRegion.objects.get(region_id=REGION_ID)
+        old_scene = {
+            "bounds": {"halfExtentX": 18, "halfExtentZ": 18, "wallThickness": 1},
+            "copy": {"instructions": "An admin's words."},
+        }
+        WorldRegion.objects.filter(pk=region.pk).update(
+            scene=old_scene, title="Pirate Cove", version=3
+        )
+        region.spawn_points.update(yaw=0.0)
+
+        assert seed_treasure_rush() == [f"WorldRegion {REGION_ID} layout v{LAYOUT_VERSION}"]
+        region.refresh_from_db()
+        assert region.title == "Pirate Cove"
+        assert region.version == 4
+        assert region.scene["copy"] == {"instructions": "An admin's words."}
+        assert region.scene["bounds"] == BOUNDS
+        assert region.scene["layoutVersion"] == LAYOUT_VERSION
+        assert region.spawn_points.get().yaw == pytest.approx(math.pi)
+        assert seed_treasure_rush() == []
+
+    def test_a_spawn_point_an_admin_turned_is_left_alone(self):
+        import_content()
+        seed_treasure_rush()
+        region = WorldRegion.objects.get(region_id=REGION_ID)
+        WorldRegion.objects.filter(pk=region.pk).update(scene={})
+        region.spawn_points.update(yaw=1.0)
+        seed_treasure_rush()
+        assert region.spawn_points.get().yaw == pytest.approx(1.0)

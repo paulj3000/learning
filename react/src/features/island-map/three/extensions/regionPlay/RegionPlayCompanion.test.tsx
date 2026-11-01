@@ -590,6 +590,19 @@ describe('objective and hint (TR-12)', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
+  it('puts its controls in the stage slot when the view offers one, so they stay in full screen (TR-13)', async () => {
+    const slot = document.createElement('div');
+    document.body.append(slot);
+    apis.set(CHILD_A, fakeApi());
+    render(<RegionPlayCompanion {...props({ hudSlot: slot })} />);
+    const hint = await screen.findByRole('button', { name: 'Hint' });
+    expect(slot).toContainElement(hint);
+    expect(slot).toContainElement(screen.getByRole('button', { name: /Backpack/ }));
+    await userEvent.click(hint);
+    expect(slot).toContainElement(await screen.findByRole('status'));
+    slot.remove();
+  });
+
   it('hides the hint button while a panel is open', async () => {
     await atTheChest(fakeApi());
     expect(screen.queryByRole('button', { name: 'Hint' })).not.toBeInTheDocument();

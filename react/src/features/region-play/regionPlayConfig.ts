@@ -22,11 +22,44 @@ export interface RegionPlayInteractionConfig {
 }
 
 /** The `region-play` binding's `config`: plain JSON, read back by both extension halves. */
+/**
+ * The procedural placeholders the scene extension draws from primitives
+ * (TR-13), for scenery the bundled catalogue has no model for yet. Each is
+ * listed with the asset that should replace it in
+ * `docs/TREASURE_RUSH_ASSET_REQUIREMENTS.md`.
+ */
+export const PROCEDURAL_SHAPES = [
+  'PALM',
+  'TENT',
+  'CAMPFIRE',
+  'TORCH',
+  'FLAG',
+  'ROWBOAT',
+  'PILLAR',
+  'PEDESTAL',
+  'GATE',
+] as const;
+export type ProceduralShape = (typeof PROCEDURAL_SHAPES)[number];
+
+export interface RegionPlayProceduralConfig {
+  id: string;
+  shape: ProceduralShape;
+  x: number;
+  z: number;
+  rotationY?: number;
+  /** Overall height in metres, for shapes that vary (palms, flags, pillars). */
+  height?: number;
+  /** 24-bit tint for the main surface (a flag's cloth, a tent's canvas), where it has one. */
+  color?: number;
+}
+
 export interface RegionPlayConfig {
   chests: RegionPlayChestConfig[];
   /** NPCs without a model, drawn as placeholder figures. */
   figures: { entityId: string; height: number }[];
   interactions: RegionPlayInteractionConfig[];
+  /** Scenery drawn from primitives (TR-13). Absent in configs built before it. */
+  procedural?: RegionPlayProceduralConfig[];
 }
 
 /**
@@ -104,6 +137,31 @@ function interaction(item: JsonRecord): RegionPlayInteractionConfig | undefined 
   return { interactionId, kind, entityId, npcId: text(item.npcId) ?? null };
 }
 
+function proceduralEntry(item: JsonRecord): RegionPlayProceduralConfig | undefined {
+  const id = text(item.id);
+  const shape = item.shape;
+  const x = num(item.x);
+  const z = num(item.z);
+  if (!id || x === undefined || z === undefined) return undefined;
+  if (typeof shape !== 'string' || !(PROCEDURAL_SHAPES as readonly string[]).includes(shape)) {
+    return undefined;
+  }
+  const rotationY = num(item.rotationY);
+  const height = num(item.height);
+  const color = num(item.color);
+  return {
+    id,
+    shape: shape as ProceduralShape,
+    x,
+    z,
+    ...(rotationY !== undefined ? { rotationY } : {}),
+    ...(height !== undefined && height > 0 ? { height } : {}),
+    ...(color !== undefined && Number.isInteger(color) && color >= 0 && color <= 0xffffff
+      ? { color }
+      : {}),
+  };
+}
+
 export function tryParseRegionPlayConfig(config: JsonRecord): RegionPlayConfig | null {
   const chests = list(config.chests, chest);
   const figures = list(config.figures, (item) => {
@@ -112,6 +170,8 @@ export function tryParseRegionPlayConfig(config: JsonRecord): RegionPlayConfig |
     return entityId && height !== undefined ? { entityId, height } : undefined;
   });
   const interactions = list(config.interactions, interaction);
-  if (!chests || !figures || !interactions) return null;
-  return { chests, figures, interactions };
+  const procedural =
+    config.procedural === undefined ? [] : list(config.procedural, proceduralEntry);
+  if (!chests || !figures || !interactions || !procedural) return null;
+  return { chests, figures, interactions, procedural };
 }
