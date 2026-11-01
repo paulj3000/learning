@@ -53,6 +53,14 @@ class WorldRegion(Authorable, models.Model):
     status = models.CharField(
         max_length=16, choices=ContentStatus.choices, default=ContentStatus.DRAFT
     )
+    # Firepeak FP-D2: which age bands may see and play this 3D Area. Empty means every band its
+    # Island supports (every existing 3D Area). Seed-authored with the layout.
+    age_bands = ArrayField(
+        models.CharField(max_length=16, choices=AgeBand.choices),
+        default=list,
+        blank=True,
+        help_text="Leave empty for every age band the Island supports.",
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -77,6 +85,9 @@ class WorldRegion(Authorable, models.Model):
                     {"location": "This Place already has a 3D Area. A Place can have only one."},
                     code="place_has_area",
                 )
+
+    def supports_band(self, age_band: str) -> bool:
+        return not self.age_bands or age_band in self.age_bands
 
     def entity_ids(self, exclude: models.Model | None = None) -> set[str]:
         """Every entity id used by this region's placements and chests."""

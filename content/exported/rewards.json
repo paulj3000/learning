@@ -11,6 +11,18 @@
         "rainbow-shell",
         "singing-shell"
       ]
+    },
+    {
+      "completionMessage": "Your Firepeak journal page is full of discoveries!",
+      "displayName": "Discovery Journal: Firepeak Volcano",
+      "id": "firepeak-discovery-journal",
+      "itemIds": [
+        "journal-volcano-crater",
+        "journal-lava",
+        "journal-steam-vents",
+        "journal-volcanic-minerals",
+        "journal-heart-crystal"
+      ]
     }
   ],
   "items": [
@@ -163,6 +175,80 @@
       "displayName": "Golden Doubloon",
       "id": "golden-doubloon",
       "rarity": "UNCOMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "A warm, glowing crystal piece that shines with island magic.",
+      "displayName": "First Heart Crystal Fragment",
+      "id": "heart-crystal-fragment-1",
+      "rarity": "UNCOMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For helping Professor Ember explore Firepeak Volcano.",
+      "displayName": "Volcano Explorer Badge",
+      "id": "volcano-explorer-badge",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "The bowl-shaped opening at the top of a volcano, where gas and lava come out.",
+      "displayName": "Volcano crater",
+      "id": "journal-volcano-crater",
+      "journal": {
+        "questId": "the-volcano-awakens",
+        "subject": "EARTH_SCIENCE"
+      },
+      "rarity": "COMMON",
+      "setId": "firepeak-discovery-journal"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "Melted rock that comes out of the ground. Under the ground it is called magma.",
+      "displayName": "Lava",
+      "id": "journal-lava",
+      "journal": {
+        "questId": "the-volcano-awakens",
+        "subject": "EARTH_SCIENCE"
+      },
+      "rarity": "COMMON",
+      "setId": "firepeak-discovery-journal"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "Cracks in the ground that let out steam, heated by magma deep below.",
+      "displayName": "Steam vents",
+      "id": "journal-steam-vents",
+      "journal": {
+        "questId": "the-volcano-awakens",
+        "subject": "EARTH_SCIENCE"
+      },
+      "rarity": "COMMON",
+      "setId": "firepeak-discovery-journal"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "When hot, mineral-rich rock cools slowly, tiny pieces line up and grow into crystals.",
+      "displayName": "Volcanic minerals",
+      "id": "journal-volcanic-minerals",
+      "journal": {
+        "questId": "the-volcano-awakens",
+        "subject": "EARTH_SCIENCE"
+      },
+      "rarity": "COMMON",
+      "setId": "firepeak-discovery-journal"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A piece of the legendary Heart Crystal. Real crystals form in rock; this one also glows with island magic.",
+      "displayName": "Heart Crystal fragment",
+      "id": "journal-heart-crystal",
+      "journal": {
+        "questId": "the-volcano-awakens",
+        "subject": "PROBLEM_SOLVING"
+      },
+      "rarity": "COMMON",
+      "setId": "firepeak-discovery-journal"
     }
   ],
   "rewardRules": [
@@ -333,6 +419,43 @@
       "message": "You opened the chest and found a Golden Doubloon!",
       "trigger": {
         "changeKey": "TREASURE_RUSH_COVE_CHEST_OPENED",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "reward-firepeak-telescope",
+      "itemIds": [
+        "journal-volcano-crater",
+        "journal-lava",
+        "journal-steam-vents"
+      ],
+      "message": "Three new pages for your Discovery Journal: the crater, lava, and steam vents!",
+      "trigger": {
+        "changeKey": "FIREPEAK_FEATURES_OBSERVED",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "reward-firepeak-crystal",
+      "itemIds": [
+        "heart-crystal-fragment-1",
+        "journal-volcanic-minerals",
+        "journal-heart-crystal"
+      ],
+      "message": "You found the first Heart Crystal fragment!",
+      "trigger": {
+        "changeKey": "FIREPEAK_HEART_CRYSTAL_FOUND",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "reward-firepeak-complete",
+      "itemIds": [
+        "volcano-explorer-badge"
+      ],
+      "message": "You earned the Volcano Explorer Badge!",
+      "trigger": {
+        "changeKey": "FIREPEAK_REPORTED_TO_EMBER",
         "type": "WORLD_CHANGE"
       }
     }

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from django.db.models import Count, Q
 
 from apps.catalog import authoring
-from apps.catalog.models import Quest
+from apps.catalog.models import ContentAsset, Quest
 from apps.core.content_status import ContentStatus
 from apps.education.models import SkillEvidence
 from apps.inventory.models import InventoryItem
@@ -109,6 +109,7 @@ def region_bootstrap(child, region: WorldRegion) -> dict:
     region_content = authoring.body_for(session, region)
     return {
         "region": region,
+        "catalog": region_catalog(region),
         "region_content": region_content,
         "puzzles": puzzle_states(child, region, session),
         "npc_dialogue": {
@@ -259,3 +260,32 @@ def puzzle_states(child, region: WorldRegion, session) -> list[dict]:
             }
         )
     return states
+
+
+def region_catalog(region: WorldRegion) -> dict:
+    """What the client validates a served 3D Area against (ADR-043 A: Django is authoritative).
+
+    The Island, and every asset the layout names, with its kind, clips, and whether a model can
+    be delivered now (a published version, or a bundled file). An asset that cannot be delivered
+    is drawn as a stand-in until an administrator publishes one (FP-3).
+    """
+    scene = region.scene if isinstance(region.scene, dict) else {}
+    effects = scene.get("effects", {}) if isinstance(scene.get("effects"), dict) else {}
+    ids = set(region.placements.exclude(asset_id="").values_list("asset_id", flat=True))
+    ids.update(region.chests.exclude(asset_id="").values_list("asset_id", flat=True))
+    for value in (scene.get("groundAssetId"), (effects.get("backdrop") or {}).get("assetId")):
+        if isinstance(value, str) and value:
+            ids.add(value)
+    assets = ContentAsset.objects.filter(asset_id__in=ids).order_by("asset_id")
+    return {
+        "worldSlug": region.location.world.slug,
+        "assets": [
+            {
+                "assetId": asset.asset_id,
+                "kind": asset.kind,
+                "clips": list(asset.clips),
+                "deliverable": bool(asset.default_version_id or asset.bundled_path),
+            }
+            for asset in assets
+        ],
+    }

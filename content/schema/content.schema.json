@@ -1210,6 +1210,33 @@
           "minLength": 1,
           "type": "string"
         },
+        "journal": {
+          "additionalProperties": false,
+          "properties": {
+            "illustrationAssetId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "questId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "subject": {
+              "enum": [
+                "EARTH_SCIENCE",
+                "MATHEMATICS",
+                "SPATIAL_REASONING",
+                "PROBLEM_SOLVING"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "subject",
+            "questId"
+          ],
+          "type": "object"
+        },
         "rarity": {
           "enum": [
             "COMMON",

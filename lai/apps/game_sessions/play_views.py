@@ -73,6 +73,8 @@ class RegionView(GameRuntimeAccessMixin, ChildScopedAPIView):
     def get(self, request, child_id, region_id):
         try:
             region = play_state.published_region(region_id)
+            if not region.supports_band(self.child.age_band):
+                raise play_state.RegionNotFound  # not for this age band (FP-D2)
         except play_state.RegionNotFound as error:
             raise api_error(error) from None
         state = play_state.region_bootstrap(self.child, region)

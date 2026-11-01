@@ -92,7 +92,7 @@ def start_or_resume_region_session(child, region: WorldRegion) -> tuple[Adventur
     At most one open session per child and region (a partial unique constraint), so two
     concurrent starts end with one session. A paused session is resumed.
     """
-    if not child.active:
+    if not child.active or not region.supports_band(child.age_band):
         raise ContentUnavailable
     _require_published_region(region)
     lookup = {"child": child, "kind": SessionKind.REGION, "region_id": region.region_id}

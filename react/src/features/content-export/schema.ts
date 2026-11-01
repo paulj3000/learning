@@ -217,7 +217,19 @@ const defs: Record<string, Schema> = {
       category: enumOf('COLLECTIBLE', 'COSMETIC', 'QUEST_ITEM', 'KEEPSAKE'),
       rarity: enumOf('COMMON', 'UNCOMMON', 'RARE'),
     },
-    { setId: text, hidden: bool, cosmeticSlot: enumOf('HAT', 'BACKPACK', 'ACCESSORY', 'OUTFIT') },
+    {
+      setId: text,
+      hidden: bool,
+      cosmeticSlot: enumOf('HAT', 'BACKPACK', 'ACCESSORY', 'OUTFIT'),
+      // ADR-043 / Firepeak FP-10: a Discovery Journal entry's metadata (additive, optional).
+      journal: obj(
+        {
+          subject: enumOf('EARTH_SCIENCE', 'MATHEMATICS', 'SPATIAL_REASONING', 'PROBLEM_SOLVING'),
+          questId: text,
+        },
+        { illustrationAssetId: text },
+      ),
+    },
   ),
   collectibleSet: obj(
     { id: text, displayName: text, completionMessage: text, itemIds: texts },

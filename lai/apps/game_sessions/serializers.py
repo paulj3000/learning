@@ -158,8 +158,25 @@ class ItemSerializer(serializers.Serializer):
     category = serializers.CharField()
     assetId = serializers.SerializerMethodField()
 
+    setId = serializers.SerializerMethodField()
+    journal = serializers.SerializerMethodField()
+
     def get_assetId(self, item) -> str:
         return ""  # catalog items have no model id yet; the client draws a placeholder
+
+    def get_setId(self, item) -> str | None:
+        return item.collectible_set.set_id if item.collectible_set_id else None
+
+    def get_journal(self, item) -> dict | None:
+        """A Discovery Journal entry's metadata (FP-10), from the item's published content."""
+        entry = (item.source or {}).get("journal")
+        if not isinstance(entry, dict):
+            return None
+        return {
+            "subject": entry.get("subject"),
+            "questId": entry.get("questId"),
+            "illustrationAssetId": entry.get("illustrationAssetId"),
+        }
 
 
 class InventoryEntrySerializer(serializers.Serializer):
@@ -258,6 +275,7 @@ class BootstrapSerializer(serializers.Serializer):
             "spawn": SpawnSerializer(state["spawn"]).data if state["spawn"] else None,
             "npcs": npcs,
             "puzzles": [puzzle_state(entry) for entry in state.get("puzzles", [])],
+            "catalog": state.get("catalog", {"worldSlug": "", "assets": []}),
             "objects": ObjectSerializer(state["objects"], many=True).data,
             "chests": [ChestStateSerializer().to_representation(c) for c in state["chests"]],
             "quests": [QuestEntrySerializer().to_representation(q) for q in state["quests"]],

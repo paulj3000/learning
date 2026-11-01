@@ -609,6 +609,95 @@
           "timeOfDay": "EVENING"
         }
       ]
+    },
+    {
+      "dialogue": [
+        {
+          "choices": [
+            {
+              "id": "ember-thanks-bye",
+              "label": "That was amazing!"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_VOLCANO_AWAKENED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "ember-thanks",
+          "text": "You did it, explorer! The volcano is calmer, and the first Heart Crystal fragment is safe with us."
+        },
+        {
+          "choices": [
+            {
+              "id": "ember-show-crystal",
+              "label": "Here it is!"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_CRYSTAL_FOUND",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "ember-crystal-found",
+          "text": "Is that glow what I think it is? Show me the crystal fragment!"
+        },
+        {
+          "choices": [
+            {
+              "id": "ember-greeting-ask",
+              "label": "Why is it rumbling?",
+              "nextNodeId": "ember-why-rumble"
+            },
+            {
+              "id": "ember-greeting-bye",
+              "label": "Let us find out!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "id": "ember-greeting",
+          "text": "Hello, explorer! I am Professor Ember. I study volcanoes, and this one has started to rumble."
+        },
+        {
+          "choices": [
+            {
+              "id": "ember-why-bye",
+              "label": "Let us take a look!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "ember-why-rumble",
+          "text": "Deep below us there is hot melted rock called magma. When it moves, the ground shakes and steam comes out."
+        }
+      ],
+      "displayName": "Professor Ember",
+      "homeLocationSlug": "firepeak-volcano",
+      "id": "professor-ember",
+      "interactionId": "meet-professor-ember",
+      "questOffers": [
+        {
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "questId": "the-volcano-awakens",
+          "summary": "Help Professor Ember find out why Firepeak is waking up."
+        }
+      ],
+      "role": "Volcano researcher at Firepeak base camp. Offers The Volcano Awakens.",
+      "schedule": []
     }
   ],
   "schemaVersion": 3

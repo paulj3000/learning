@@ -48,7 +48,11 @@ def _visible_regions():
 def visible_region(child, region_id: str) -> WorldRegion:
     """The region if this child may see and launch it; otherwise `RegionNotVisible`."""
     region = _visible_regions().filter(region_id=region_id).first()
-    if region is None or child.age_band not in region.location.world.supported_age_bands:
+    if (
+        region is None
+        or child.age_band not in region.location.world.supported_age_bands
+        or not region.supports_band(child.age_band)
+    ):
         raise RegionNotVisible
     return region
 
@@ -57,7 +61,12 @@ def visible_regions(child) -> list[WorldRegion]:
     regions = _visible_regions().order_by(
         "location__world__sort_order", "location__sort_order", "region_id"
     )[:MAX_REGIONS]
-    return [r for r in regions if child.age_band in r.location.world.supported_age_bands]
+    return [
+        r
+        for r in regions
+        if child.age_band in r.location.world.supported_age_bands
+        and r.supports_band(child.age_band)
+    ]
 
 
 @dataclass(frozen=True)

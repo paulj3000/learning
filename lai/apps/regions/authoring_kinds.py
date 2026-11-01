@@ -81,6 +81,15 @@ def _apply_puzzle(puzzle: AreaPuzzle, body: dict, problems: list[str]):
             or TreasureChest.objects.filter(world_change_key=key).exists()
         ):
             problems.append(f"$.worldChangeKey: {key} is already recorded by something else")
+        # Objects a child moves or turns are this puzzle's own placements (seed-authored).
+        for band, params in body["ageBands"].items():
+            for key in ("stones", "slots", "valves"):
+                for item in params.get(key, []):
+                    if item.get("id") not in puzzle.entity_ids:
+                        problems.append(
+                            f"$.ageBands.{band}.{key}: {item.get('id')!r} is not one of this "
+                            "puzzle's objects"
+                        )
         npc_entity = None
         for band, params in body["ageBands"].items():
             npc_entity = params.get("npcEntityId")

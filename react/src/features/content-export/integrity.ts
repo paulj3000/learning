@@ -39,7 +39,12 @@ export const HUB_REGION_SLUG = 'welcome-harbor';
  * Regions whose NPCs are placed by the 3D scene and have no `WorldInteraction` table. An NPC there may
  * carry an `interactionId` that resolves to nothing; the same id in any other region is an error.
  */
-export const regionsWithoutInteractionTable: readonly string[] = [CLOCKWORK_HARBOR_REGION_ID];
+export const regionsWithoutInteractionTable: readonly string[] = [
+  CLOCKWORK_HARBOR_REGION_ID,
+  // Firepeak Volcano's 3D Area is served by Django (ADR-043): its NPC interactions are built
+  // from the area's placements (`regionManifest.ts`), not from a source interaction table.
+  'firepeak-volcano',
+];
 
 export const ADVENTURE_PASSAGE_REGION_SLUGS: readonly string[] = [WONDERWILD_HIVE_REGION_ID];
 

@@ -78,12 +78,13 @@ def test_unpublished_launch_points_are_not_offered_or_startable(a, status):
 
 
 def test_the_existing_bootstrap_contract_is_unchanged_apart_from_the_new_key(a):
-    """Additive keys only: `launchPoints` (ADR-041), `puzzles` and each NPC's `dialogue`
-    (ADR-043, LAI-0812)."""
+    """Additive keys only: `launchPoints` (ADR-041), `puzzles`, `catalog` and each NPC's
+    `dialogue` (ADR-043, LAI-0812, FP-2)."""
     client, child = a
     body = client.get(f"{base(child)}regions/{REGION}/").json()
     assert set(body) == {
         "puzzles",
+        "catalog",
         "region",
         "spawn",
         "npcs",

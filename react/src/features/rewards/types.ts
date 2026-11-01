@@ -80,6 +80,26 @@ export interface ItemDefinition {
   hidden?: boolean;
   /** Required for, and only for, `COSMETIC` items. */
   cosmeticSlot?: CosmeticSlot;
+  /**
+   * Present when the item is a Discovery Journal entry (Firepeak FP-10): what it teaches and
+   * which quest it belongs to. The entry's discovery time is when the child received the item.
+   */
+  journal?: ItemJournalEntry;
+}
+
+/** What a Discovery Journal entry is about. A closed list, so it can be translated. */
+export type JournalSubject =
+  | 'EARTH_SCIENCE'
+  | 'MATHEMATICS'
+  | 'SPATIAL_REASONING'
+  | 'PROBLEM_SOLVING';
+
+export interface ItemJournalEntry {
+  subject: JournalSubject;
+  /** The quest (adventure) the discovery belongs to. */
+  questId: string;
+  /** An optional illustration, by asset id (ADR-030: ids, never URLs). */
+  illustrationAssetId?: string;
 }
 
 /**
