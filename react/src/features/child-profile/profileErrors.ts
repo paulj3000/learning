@@ -18,4 +18,9 @@ export const PROFILE_MESSAGES = {
     'Deleting is not available yet. You can turn the profile off instead, which hides it from play.',
   accountDeletionUnavailable: 'Deleting your account is not available here yet.',
   signedOut: 'Please sign in again.',
+  recentSignInRequired: 'Please confirm your sign-in to delete this profile.',
+  recentSignInUnavailable:
+    'We could not confirm your sign-in just now. Nothing was deleted. Please try again in a moment.',
+  deletionIncomplete:
+    'The profile could not be fully deleted yet. Nothing is lost. Please try again in a moment.',
 } as const;

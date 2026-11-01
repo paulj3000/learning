@@ -91,11 +91,17 @@ describe('Django asset admin API (AM-15)', () => {
     await expect(api.deleteVersion('harbor-crane', 1)).resolves.toBeUndefined();
   });
 
-  it('reports a blocked mutation in plain language', async () => {
-    const { api } = setup([jsonResponse(403, errorJson('sensitive_action_unavailable'))]);
+  it('reports a required recent sign-in in plain language (LAI-0209)', async () => {
+    const { api } = setup([
+      jsonResponse(403, errorJson('recent_auth_required')),
+      jsonResponse(503, errorJson('recent_auth_unavailable')),
+    ]);
     const error = await api.publish('harbor-crane', 1).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ApiError);
-    expect(assetAdminMessage(error)).toMatch(/turned off until administrator re-authentication/);
+    expect((error as ApiError).code).toBe('recent_auth_required');
+    expect(assetAdminMessage(error)).toBe('Please confirm your sign-in to make this change.');
+    const down = await api.publish('harbor-crane', 1).catch((e: unknown) => e);
+    expect(assetAdminMessage(down)).toMatch(/could not confirm your sign-in just now/);
   });
 
   it('rejects answers outside the contract', () => {

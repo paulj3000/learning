@@ -10,9 +10,10 @@ import { ApiError } from '../errors';
  * object key or an AWS credential, and nothing needs Amplify Storage.
  *
  * Django authorizes every call from the Cognito access token's `Admins`
- * group. Every change (create, upload, publish, default, retire, delete) is
- * refused with `sensitive_action_unavailable` until the recent sign-in check
- * (LAI-0209) exists; `assetAdminMessage` explains that to the administrator.
+ * group. Every change (create, upload, publish, default, retire, delete) also
+ * needs a recent sign-in (LAI-0209): Django answers `recent_auth_required`
+ * otherwise, and the pages run their changes through `useSensitiveAction`,
+ * which asks the administrator to sign in again and confirm.
  */
 
 export const ASSET_KINDS = ['character', 'prop', 'collectible', 'kit-piece'] as const;
@@ -387,8 +388,10 @@ export function assetAdminMessage(error: unknown): string {
   const failure = error instanceof AssetUploadFailure ? error.error : error;
   if (!(failure instanceof ApiError)) return 'Something went wrong. Please try again.';
   switch (failure.code) {
-    case 'sensitive_action_unavailable':
-      return 'Changing assets through this page is turned off until administrator re-authentication is available (LAI-0209). Use Django Admin for now.';
+    case 'recent_auth_required':
+      return 'Please confirm your sign-in to make this change.';
+    case 'recent_auth_unavailable':
+      return 'We could not confirm your sign-in just now. Nothing was changed. Please try again in a moment.';
     case 'permission_denied':
       return 'Your account is not an administrator.';
     case 'invalid_model':
