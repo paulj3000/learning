@@ -14,7 +14,7 @@ from rest_framework import exceptions
 from rest_framework.response import Response
 
 from apps.education.challenges import InvalidAnswer
-from apps.quests.services import QuestUnavailable, start_quest
+from apps.quests.services import QuestUnavailable, refresh_quest, start_quest
 from apps.regions.models import TreasureChest
 from apps.users.scoping import ChildScopedAPIView
 
@@ -179,6 +179,11 @@ class QuestAcceptView(GameRuntimeAccessMixin, ChildScopedAPIView):
             progress, created = start_quest(self.child, quest)
         except (LookupError, QuestUnavailable) as error:
             raise api_error(error) from None
+        if created:
+            # A child may have done some of the work before accepting (Firepeak: explored the
+            # telescope first). Walk the new quest forward against server state at once, so
+            # nothing they already did is lost and a finished quest completes now.
+            refresh_quest(progress)
         [entry] = play_state.quest_entries(self.child, [quest])
         return Response(QuestEntrySerializer().to_representation(entry), status=_status(created))
 

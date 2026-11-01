@@ -1,7 +1,9 @@
 # Django content authoring: ADR-043 impact assessment
 
-Status: **draft for owner review, 2026-11-01.** ADR-043 is Proposed and nothing here is
-implemented. Branch `feature/adr-043-django-content-authoring` (documentation only).
+Status: **ADR-043 accepted by the owner, 2026-11-01** (answers Q1 to Q4 and eight acceptance
+requirements, recorded in the ADR). Implementation in progress on
+`feature/adr-043-django-content-authoring`; see section 12 for what is built and how it is
+verified. Not merged, pushed or deployed.
 
 This assessment covers what ADR-043 would change in the codebase as it is today. Every claim was
 checked against the code on 2026-11-01. Task ids that already exist are reused. New ids are
@@ -204,7 +206,7 @@ the authorization matrix (LAI-0403).
 5. **Safety of authored copy.** Child-facing text is no longer reviewed in a pull request.
    Mitigation: publish-time validation (decision D), the publisher permission, and the admin log.
 
-## 10. Proposed tasks (added to the tracker only after acceptance)
+## 10. Tasks (in the tracker since acceptance)
 
 | Id | Task | Depends |
 |---|---|---|
@@ -241,3 +243,28 @@ Recorded here so nothing is lost before the Firepeak roadmap is written after ac
   controller, not third-person.
 - **FP-D4 (constraint from the asset id rules).** Asset ids are flat slugs, such as
   `firepeak-volcano-main` rather than `firepeak/volcano-main`.
+
+## 12. Build status (2026-11-01)
+
+Implementation and verification are separate columns. "pytest" or "Vitest" means unit and
+integration tests on this branch only. No merge-gate suite, browser or deployment run has
+happened unless it is listed.
+
+| Task | Implemented | Verified |
+|---|---|---|
+| LAI-0810 | `catalog.ContentRevision` and the `Authorable` fields on ten catalog models, `ChallengeSpec` and `WorldRegion`. The authoring service (`apps/catalog/authoring.py`) handles kinds, drafts, validation (schema, references, copy rules), publish, rollback and discard. Version 1 is migrated from `source`. | pytest (`catalog/tests/test_authoring.py`) |
+| LAI-0811 | Authority-aware `load_content`. Export-owned records get a new published `IMPORT` version on change. Django-owned records are never changed; a differing export is kept as a draft and reported under `conflicts`. Count keys gain `skipped` and `conflicts` (documented change to the command's output). | pytest |
+| LAI-0813 | `AdventureSession.pinned_revisions`. Pins are made at session start for step adventures (grading and hints from the pinned step), region copy, puzzles, NPC dialogue, offered quests and chest challenge specs; quest refresh uses the pinned quest. A session started before pinning keeps the old refusal. Reward rules resolve at grant time (a deliberate choice: a stale rule is never granted). | pytest, including rewritten `TestContentVersions` |
+| LAI-0812 | `regions.AreaPuzzle`, the puzzle-kind registry and Python graders (`apps/regions/puzzles.py`), `PuzzleAttempt`, the solve route, bootstrap `puzzles`, `catalog` and NPC `dialogue`. `area-puzzles` golden vectors keep the TypeScript and Python rules identical. | pytest, golden vectors (both sides), Vitest |
+| LAI-0801 stage 1 | Content versions in Django Admin: start, edit (JSON), discard, publish and restore. `ensure_content_roles` creates the Content editors and Content publishers groups. Challenge specs and puzzles are registered. | pytest (`test_authoring_admin.py`) |
+| LAI-0814 | Not started | none |
+| LAI-0815 | Deferred by the owner | none |
+| LAI-0503 | Not started; the region bootstrap carries what Firepeak needs | none |
+
+**Known limitations:**
+- Drafts are edited as JSON in this first stage; structured editors per kind are later
+  LAI-0801 stages.
+- Administrator edits do not move between environments yet (LAI-0814).
+- NPC dialogue has no age-band field in the export schema, so band-specific lines live in
+  puzzle parameters (FP-D9).
+- The Amplify build still reads TypeScript content.

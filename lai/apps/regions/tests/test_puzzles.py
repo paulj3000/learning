@@ -12,7 +12,7 @@ from apps.game_sessions.models import PuzzleAttempt
 from apps.inventory.models import GrantedRule
 from apps.progression.models import WorldChange
 from apps.regions import puzzles
-from apps.regions.models import AreaPuzzle, PuzzleKind
+from apps.regions.models import AreaPuzzle, PlacementKind, PuzzleKind, WorldObjectPlacement
 from apps.regions.seeding import SeedContentInvalid, seed_puzzle
 
 REGION = "treasure-rush-cove"
@@ -143,6 +143,10 @@ def puzzle_body(puzzle_id, kind, change_key, params, *, requires=(), reward=None
 def area(treasure):
     """Treasure Cove with two published puzzles: a telescope, then valves that need it first."""
     region = treasure.region
+    for index, valve in enumerate(("red", "blue", "green")):
+        WorldObjectPlacement.objects.create(
+            region=region, entity_id=valve, kind=PlacementKind.PROP, x=index, z=-2
+        )
     telescope, _ = seed_puzzle(
         region,
         puzzle_id="look",
@@ -154,7 +158,7 @@ def area(treasure):
         region,
         puzzle_id="valves",
         kind=PuzzleKind.VALVE_SEQUENCE,
-        entity_ids=[],
+        entity_ids=["red", "blue", "green"],
         body=puzzle_body(
             "valves",
             PuzzleKind.VALVE_SEQUENCE,
@@ -202,7 +206,7 @@ class TestSolveRoute:
         assert states["look"]["parameters"] == OBSERVE
         assert states["look"]["locked"] is False and states["look"]["solved"] is False
         assert states["valves"]["locked"] is True
-        assert states["valves"]["entityIds"] == []
+        assert states["valves"]["entityIds"] == ["red", "blue", "green"]
 
     def test_a_wrong_answer_is_recorded_and_changes_nothing(self, area, api):
         treasure, _, _ = area

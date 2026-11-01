@@ -13,6 +13,9 @@ import {
   type Object3D,
 } from 'three';
 import { cloneAssetScene } from '../../assets/cloneAsset';
+import { mountAreaEffects, type AreaEffectsApi } from './areaEffectsScene';
+import { mountAreaPuzzles, type AreaPuzzleApi } from './areaPuzzleScene';
+import { drawEntity, type Owned } from './areaStandIns';
 import type { WorldExtension, WorldExtensionContext } from '../../runtime/extensionRegistry';
 import {
   REGION_PLAY_EXTENSION_ID,
@@ -42,6 +45,10 @@ export interface RegionPlaySceneApi {
   setChestOpen(entityId: string, open: boolean): void;
   /** Whether a chest is drawn open, or undefined for an unknown chest. */
   isChestOpen(entityId: string): boolean | undefined;
+  /** Lava, steam, checkpoints, openings and the way back (ADR-043, Firepeak). */
+  effects: AreaEffectsApi;
+  /** How puzzle objects are shown (ADR-043 F). */
+  puzzles: AreaPuzzleApi;
 }
 
 const WOOD = 0x8a5a2b;
@@ -70,7 +77,14 @@ export const regionPlaySceneExtension: WorldExtension = {
   assetIds(config) {
     const parsed = tryParseRegionPlayConfig(config);
     if (!parsed) return [];
-    return [...new Set(parsed.chests.flatMap((chest) => (chest.assetId ? [chest.assetId] : [])))];
+    return [
+      ...new Set([
+        ...parsed.chests.flatMap((chest) => (chest.assetId ? [chest.assetId] : [])),
+        // Models for stand-ins, declared only when one can be delivered (FP-3).
+        ...parsed.drawn.flatMap((drawn) => (drawn.assetId ? [drawn.assetId] : [])),
+        ...(parsed.effects.backdrop?.assetId ? [parsed.effects.backdrop.assetId] : []),
+      ]),
+    ];
   },
   mount(context: WorldExtensionContext) {
     const config = tryParseRegionPlayConfig(context.config);
@@ -149,7 +163,24 @@ export const regionPlaySceneExtension: WorldExtension = {
       for (const chest of chests.values()) chest.tick(delta);
     });
 
+    // ADR-043 / Firepeak: stand-ins and puzzle objects, environment effects, puzzle visuals.
+    const owned: Owned = { geometries, materials };
+    for (const drawn of config.drawn) {
+      const root = context.entityRoot(drawn.entityId);
+      if (root) drawEntity(root, drawn, owned, context.loadModel, cloneAssetScene, () => disposed);
+    }
+    const effects = mountAreaEffects(
+      context,
+      config.effects,
+      config.changeKeys,
+      owned,
+      () => disposed,
+    );
+    const puzzles = mountAreaPuzzles(context, owned);
+
     const api: RegionPlaySceneApi = {
+      effects: effects.api,
+      puzzles: puzzles.api,
       setChestOpen(entityId, open) {
         const chest = chests.get(entityId);
         if (chest && chest.open !== open) chest.show(open, false);
@@ -164,6 +195,8 @@ export const regionPlaySceneExtension: WorldExtension = {
       dispose() {
         disposed = true;
         stopFrames();
+        effects.dispose();
+        puzzles.dispose();
         for (const chest of chests.values()) chest.dispose();
         for (const mixer of mixers) mixer.stopAllAction();
         for (const geometry of geometries) geometry.dispose();

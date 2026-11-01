@@ -9,6 +9,10 @@ export interface RewardRevealProps {
   /** Quests the server says this answer completed. */
   completed: readonly QuestEntry[];
   onClose(): void;
+  /** The heading; a chest by default. A puzzle names its own moment (ADR-043 F). */
+  title?: string;
+  /** Authored words for the moment (a puzzle's `completeMessage`), shown before the items. */
+  message?: string | null;
 }
 
 /**
@@ -16,14 +20,15 @@ export interface RewardRevealProps {
  * quest is done. Everything shown is the server's outcome; the companion
  * only opens this once per attempt, after the server confirmed it.
  */
-export function RewardReveal({ outcome, completed, onClose }: RewardRevealProps) {
+export function RewardReveal({ outcome, completed, onClose, title, message }: RewardRevealProps) {
   return (
     <GameDialog
       titleId="region-play-reward-title"
-      title={PLAY_COPY.chestOpened}
+      title={title ?? PLAY_COPY.chestOpened}
       onClose={onClose}
       className={styles.reward}
     >
+      {message ? <p className={styles.speech}>{message}</p> : null}
       {outcome.newItems.map((item) => (
         <div key={item.itemId}>
           <div className={styles.burst} aria-hidden="true">

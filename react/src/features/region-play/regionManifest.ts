@@ -3,7 +3,9 @@ import type { JsonObject, JsonValue } from '../../api/parse';
 import {
   LOCATION_MANIFEST_SCHEMA_VERSION,
   type BoundsSpec,
+  type ColliderSpec,
   type EnvironmentSpec,
+  type LightSpec,
   type LocationCopy,
   type NpcPlacementSpec,
   type PlaceholderSize,
@@ -13,10 +15,14 @@ import {
 } from '../island-map/three/runtime/locationManifest';
 import type { WorldInteraction } from '../island-map/worldObjects';
 import {
+  parseEffects,
   REGION_PLAY_EXTENSION_ID,
+  STAND_IN_SHAPES,
   type RegionPlayChestConfig,
   type RegionPlayConfig,
+  type RegionPlayDrawnConfig,
   type RegionPlayInteractionConfig,
+  type StandInShape,
 } from './regionPlayConfig';
 import type { RegionSceneModel, SceneEntity } from './sceneModel';
 
@@ -116,13 +122,53 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
   const props: PropSpec[] = [];
   const scenery: ScenerySpec[] = [ground(regionId, bounds, model.scene.groundAssetId)];
   const interactions: WorldInteraction[] = [];
-  const config: RegionPlayConfig = { chests: [], figures: [], interactions: [] };
+  const rawEffects = isObject(model.scene.effects) ? model.scene.effects : undefined;
+  const effects = parseEffects(rawEffects);
+  const deliverable = (assetId: string) =>
+    model.deliverableAssetIds === null || model.deliverableAssetIds.has(assetId);
+  const config: RegionPlayConfig = {
+    chests: [],
+    figures: [],
+    interactions: [],
+    drawn: [],
+    puzzles: model.puzzles.map((puzzle) => ({
+      puzzleId: puzzle.puzzleId,
+      kind: puzzle.kind,
+      entityIds: [...puzzle.entityIds],
+      solved: puzzle.solved,
+    })),
+    effects: {
+      ...effects,
+      backdrop:
+        effects.backdrop && effects.backdrop.assetId && !deliverable(effects.backdrop.assetId)
+          ? { ...effects.backdrop, assetId: null }
+          : effects.backdrop,
+    },
+    changeKeys: [...model.worldChangeKeys],
+  };
+  const standIns = readStandIns(rawEffects);
+  const puzzleEntities = new Set(model.puzzles.flatMap((puzzle) => puzzle.entityIds));
+  const returnEntities = new Set(effects.returns.map((entry) => entry.entityId));
+
+  /** An entity the extension draws: a stand-in now, the model once it can be delivered. */
+  const drawnEntity = (entity: SceneEntity, interactionId?: string): void => {
+    const standIn = standIns.get(entity.entityId);
+    props.push(drawnProp(entity, interactionId));
+    config.drawn.push({
+      entityId: entity.entityId,
+      shape: standIn?.shape ?? 'BOX',
+      color: standIn?.color ?? BOX_PLACEHOLDER_COLOR,
+      assetId: entity.assetId && deliverable(entity.assetId) ? entity.assetId : null,
+      scale: entity.scale,
+      size: { ...entity.placeholder },
+    });
+  };
 
   for (const entity of model.entities) {
     if (entity.role === 'npc') {
       const interactionId = `${regionId}:talk:${entity.entityId}`;
       const npcId = entity.npcId ?? entity.entityId;
-      if (entity.assetId) {
+      if (entity.assetId && deliverable(entity.assetId)) {
         const clips = options.assetClips?.(entity.assetId) ?? [];
         npcs.push({
           entityId: entity.entityId,
@@ -174,6 +220,21 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
         entityId: entity.entityId,
         npcId: null,
       });
+    } else if (puzzleEntities.has(entity.entityId) || returnEntities.has(entity.entityId)) {
+      // ADR-043 F: a puzzle object (or the safe way back). The extension draws it and the
+      // play API decides what using it means; nothing here grades or moves anything.
+      const kind = puzzleEntities.has(entity.entityId) ? 'puzzle' : 'return';
+      const interactionId = `${regionId}:${kind}:${entity.entityId}`;
+      drawnEntity(entity, interactionId);
+      interactions.push({
+        id: interactionId,
+        type: 'OBJECT',
+        trigger: 'TAP',
+        title: entity.label,
+        targetId: entity.entityId,
+        action: { kind: 'SHOW_MESSAGE', message: entity.label },
+      });
+      config.interactions.push({ interactionId, kind, entityId: entity.entityId, npcId: null });
     } else if (entity.launchesAdventure) {
       // ADR-041: an object that starts one of this Place's Adventures. With a model it is an
       // interactive prop; without one it stays a placeholder box and is reached from the
@@ -202,6 +263,12 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
         entityId: entity.entityId,
         npcId: null,
       });
+    } else if (
+      standIns.has(entity.entityId) ||
+      (entity.assetId !== null && !deliverable(entity.assetId))
+    ) {
+      // A model that is not published yet: a shaped stand-in, never the loud missing-model box.
+      drawnEntity(entity);
     } else {
       scenery.push(objectScenery(entity));
     }
@@ -217,7 +284,8 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     bounds,
     environment: readEnvironment(model.scene.environment),
     checkpoints: { ids: [spawn.id], triggerHalfSize: CHECKPOINT_TRIGGER_HALF_SIZE },
-    colliders: [],
+    colliders: readColliders(model.scene.colliders),
+    lights: readLights(rawEffects?.lights),
     buildings: [],
     scenery,
     npcs,
@@ -235,14 +303,14 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
   return { manifest, checkpoints: [spawn] };
 }
 
-function drawnProp(entity: SceneEntity, interactionId: string): PropSpec {
+function drawnProp(entity: SceneEntity, interactionId?: string): PropSpec {
   return {
     entityId: entity.entityId,
     position: { x: entity.position.x, z: entity.position.z },
     ...(entity.position.elevation ? { elevation: entity.position.elevation } : {}),
     rotationY: entity.rotationY,
     label: entity.label,
-    interactionId,
+    ...(interactionId ? { interactionId } : {}),
   };
 }
 
@@ -358,3 +426,64 @@ function readCopy(value: JsonValue | undefined): LocationCopy {
     altNav: { label: text(copy.altNavLabel, DEFAULT_REGION_COPY.altNavLabel), to: '' },
   };
 }
+
+/** Seed-authored colliders (`scene.colliders`); an extension may remove one by id. */
+function readColliders(value: JsonValue | undefined): ColliderSpec[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw) => {
+    if (!isObject(raw) || typeof raw.id !== 'string') return [];
+    const [minX, maxX, minZ, maxZ] = [raw.minX, raw.maxX, raw.minZ, raw.maxZ];
+    if (![minX, maxX, minZ, maxZ].every((n) => typeof n === 'number' && Number.isFinite(n))) {
+      return [];
+    }
+    return [
+      {
+        rect: {
+          id: raw.id,
+          minX: minX as number,
+          maxX: maxX as number,
+          minZ: minZ as number,
+          maxZ: maxZ as number,
+        },
+      },
+    ];
+  });
+}
+
+/** Seed-authored point lights (`scene.effects.lights`): lava glow, crystal glow. */
+function readLights(value: JsonValue | undefined): LightSpec[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw) => {
+    if (!isObject(raw) || typeof raw.id !== 'string') return [];
+    const { x, y, z, color, intensity, distance } = raw;
+    const numbers = [x, y, z, color, intensity];
+    if (!numbers.every((n) => typeof n === 'number' && Number.isFinite(n))) return [];
+    return [
+      {
+        id: raw.id,
+        kind: 'POINT' as const,
+        position: { x: x as number, y: y as number, z: z as number },
+        color: color as number,
+        intensity: intensity as number,
+        ...(typeof distance === 'number' && distance >= 0 ? { distance } : {}),
+      },
+    ];
+  });
+}
+
+function readStandIns(
+  effects: JsonObject | undefined,
+): Map<string, { shape: StandInShape; color: number }> {
+  const out = new Map<string, { shape: StandInShape; color: number }>();
+  const raw = effects?.standIns;
+  if (!Array.isArray(raw)) return out;
+  for (const entry of raw) {
+    if (!isObject(entry) || typeof entry.entityId !== 'string') continue;
+    const shape = STAND_IN_SHAPES.find((candidate) => candidate === entry.shape) ?? 'BOX';
+    const color = typeof entry.color === 'number' ? entry.color : BOX_PLACEHOLDER_COLOR;
+    out.set(entry.entityId, { shape, color });
+  }
+  return out;
+}
+
+export type { RegionPlayDrawnConfig };

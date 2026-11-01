@@ -11725,3 +11725,77 @@ Branch `feature/lai-0905-photo-clients`.
 - **Open.**
   - ADR-043 acceptance and its four open questions.
   - The Firepeak roadmap and tracker rows (FP-n, LAI-0810 to 0815) are added after acceptance.
+
+## ADR-043 foundation and Firepeak Volcano, The Volcano Awakens (2026-11-01, branch `feature/adr-043-django-content-authoring`, not merged or pushed)
+
+- **Request.** The owner accepted ADR-043 with answers Q1 to Q4 and eight requirements, and
+  asked for the following, in order:
+  1. The shared content-authoring foundation, with session version pinning.
+  2. Firepeak Volcano's first adventure, for Pathfinders and Explorers only.
+- **What was found.**
+  - The importer overwrote content on every import, and catalog admin was read-only.
+  - The engine had no third-person camera, shaders, particles, reduced-motion handling or
+    fall respawn.
+  - The client validated served regions only against bundled TypeScript registries.
+  - A Place known only to Django had no entry point in the app.
+- **Change, platform:**
+  - LAI-0810: `ContentRevision`.
+  - LAI-0811: authority-aware import with a conflict report.
+  - LAI-0812: `AreaPuzzle`, the graders, `PuzzleAttempt` and the solve route.
+  - LAI-0813: session pinning.
+  - LAI-0801 stage 1: Django Admin versions and the content roles.
+  - The client validates a served 3D Area against the server's declared `catalog`.
+  - The engine gains `playerPosition` and `teleportPlayer` for extensions.
+  - Shaped stand-ins replace missing models; a published GLB replaces them with no code change.
+  - Golden vectors `area-puzzles` keep the TypeScript and Python puzzle rules identical.
+- **Change, Firepeak:**
+  - Export-only content: the Place, Ember, the quest, items and journal entries.
+  - `firepeak_seed.py` layout and five puzzles, as Pathfinder and Explorer parameters.
+  - `WorldRegion.age_bands`.
+  - The `region-play` scene: lava shader with respawn, steam, backdrop, checkpoints, openings,
+    the rope lift, and puzzle visuals including the crystal discovery animation.
+  - The companion: telescope, crossing, valve and discovery panels, Ember's dialogue and
+    return action, and the Discovery Journal in the backpack.
+  - Harbor-map cards for Places that exist only in Django.
+  - `docs/FIREPEAK_VOLCANO_ROADMAP.md`, `docs/regions/firepeak_assets.md`, `docs/PLAY_API.md`,
+    `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 12.
+- **Documented behaviour changes:**
+  - The `load_content` counts gain `skipped` and `conflicts`.
+  - A pinned session is graded from its own content version rather than refused after a change
+    (`TestContentVersions` rewritten).
+  - The region bootstrap gains `puzzles`, `catalog` and NPC `dialogue` (additive).
+  - Items gain `setId` and `journal`.
+  - Pip in Treasure Cove now greets with his authored dialogue.
+  - The hook re-reads the region once after starting a session, so what the child sees matches
+    the pinned content.
+  - Admin registration guards now allow `education.ChallengeSpec`, `ContentRevision` and
+    `AreaPuzzle` (content only; no child-owned record).
+- **Tests (development checks):**
+  - **Python:** The full suite (`pytest -q lai tests`, PostgreSQL 16) gave 1291 passed and 10 errors; the errors were one fixture in `regions/tests/test_puzzles.py` that predated the puzzle-object check. After the fix, `regions/tests` and `test_play_api.py` pass (121), including the new test that accepting a quest late keeps earlier work. `makemigrations --check` reports no changes.
+  - **TypeScript:** `npx tsc -b` passes. The full Vitest suite (`npx vitest run --maxWorkers=2`)
+    passed 3283 tests in 308 files. Every later edit was re-run in its affected suite
+    (region-play, the regionPlay extension, the play API, golden vectors).
+  - **Flake:** one existing timing-sensitive test ("sends a double-tapped answer once")
+    failed once while the Python suite loaded the CPU, then passed three reruns.
+  - **Other checks:** `npm run content:check`, `npm run golden:check` and `npm run adr:check`
+    pass. Prettier passes on every changed file. oxlint on the changed directories exits 0
+    (warnings only, of the kinds already present in the region-play panels). Ruff check and
+    Ruff format pass.
+- **Deferred to merge verification:**
+  - `make check` in full: Django and migration checks on a clean database, the full oxlint and
+    Prettier runs, and `npm run build`.
+  - The Docker image.
+  - Playwright. `react/e2e/firepeak.spec.ts` holds the eleven scenarios as pending
+    (`test.fixme`) tests; none has run.
+  - Browser and WebGL checks, and performance on Android WebView.
+- **Not verified:** Firepeak has not been seen in a browser. The real-Cognito sign-in (ADR-024
+  A6) is still open.
+- **Open:**
+  - Eleven GLBs are missing.
+  - LAI-0814 (moving edits between environments).
+  - LAI-0815, deferred by the owner.
+  - LAI-0503 catalog reads.
+  - Structured admin editors (later LAI-0801 stages).
+  - Age-banded NPC dialogue (FP-D9).
+  - A third-person camera is out of scope (FP-D3).
+  - "Secrets of the Crystal Caverns" content (FP-D8).

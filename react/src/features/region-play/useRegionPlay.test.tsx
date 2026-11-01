@@ -31,15 +31,25 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-/** A fake API per child. Every method is a mock; defaults answer like the server would. */
+/**
+ * A fake API per child. Every method is a mock; defaults answer like the server would,
+ * including that the region bootstrap reports the open session once one is started (the hook
+ * re-reads the region after starting one, LAI-0813).
+ */
 function fakeApi(overrides: Partial<PlayApi> = {}): PlayApi {
+  let open: Record<string, unknown> | null = null;
   return {
-    getRegion: vi.fn(async () => bootstrap()),
-    startSession: vi.fn(async () => ({ value: read(sessionJson(), parse.session), created: true })),
+    getRegion: vi.fn(async () => bootstrap({ session: open })),
+    startSession: vi.fn(async () => {
+      open = sessionJson();
+      return { value: read(sessionJson(), parse.session), created: true };
+    }),
     getSession: vi.fn(async () => read(sessionJson(), parse.session)),
-    changeSession: vi.fn(async (_id, action) =>
-      read(sessionJson({ status: action === 'pause' ? 'PAUSED' : 'ACTIVE' }), parse.session),
-    ),
+    changeSession: vi.fn(async (_id, action) => {
+      const status = action === 'pause' ? 'PAUSED' : 'ACTIVE';
+      open = sessionJson({ status });
+      return read(sessionJson({ status }), parse.session);
+    }),
     acceptQuest: vi.fn(async () => ({
       value: read(questJson({ status: 'ACTIVE', currentStageId: 'open-the-chest' }), parse.quest),
       created: true,
@@ -50,6 +60,7 @@ function fakeApi(overrides: Partial<PlayApi> = {}): PlayApi {
     })),
     submitAnswer: vi.fn(async () => read(outcomeJson(true), parse.answerOutcome)),
     getProgress: vi.fn(async () => read(progressJson(), parse.playerProgress)),
+    solvePuzzle: vi.fn(),
     startLaunchPoint: vi.fn(),
     ...overrides,
   };
@@ -70,6 +81,52 @@ async function inSession(api: PlayApi) {
   await act(() => hook.result.current.requestChallenge('cove-chest'));
   return hook;
 }
+
+describe('useRegionPlay puzzles (LAI-0812)', () => {
+  it('sends a puzzle submission for the open session, then re-reads the region', async () => {
+    const outcome = {
+      attemptId: 'a1',
+      correct: true,
+      feedback: 'CORRECT' as const,
+      solvedNow: true,
+      alreadySolved: false,
+      failedAttempts: 0,
+      newItems: [],
+      rewardMessage: null,
+      questUpdates: [],
+    };
+    const api = fakeApi({ solvePuzzle: vi.fn(async () => outcome) });
+    const hook = await readyHook(api);
+    await act(() => hook.result.current.startSession());
+    const reads = vi.mocked(api.getRegion).mock.calls.length;
+
+    let result;
+    await act(async () => {
+      result = await hook.result.current.solvePuzzle('firepeak-telescope', {
+        observed: ['crater'],
+      });
+    });
+
+    expect(result).toEqual(outcome);
+    expect(api.solvePuzzle).toHaveBeenCalledWith(
+      expect.any(String),
+      'firepeak-telescope',
+      { observed: ['crater'] },
+      expect.any(AbortSignal),
+    );
+    expect(hook.result.current.state.lastPuzzleOutcome?.puzzleId).toBe('firepeak-telescope');
+    expect(vi.mocked(api.getRegion).mock.calls.length).toBe(reads + 1);
+  });
+
+  it('sends nothing without an open session', async () => {
+    const api = fakeApi({ solvePuzzle: vi.fn() });
+    const hook = await readyHook(api);
+    await act(async () => {
+      await hook.result.current.solvePuzzle('firepeak-telescope', {});
+    });
+    expect(api.solvePuzzle).not.toHaveBeenCalled();
+  });
+});
 
 describe('useRegionPlay', () => {
   it('loads the region for the selected child', async () => {

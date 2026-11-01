@@ -56,6 +56,16 @@ export class FirstPersonController {
     this.position = options.startPosition?.clone() ?? new Vector3();
   }
 
+  /**
+   * Puts the player somewhere at once and stops them (a safe-return respawn, Firepeak FP-D10).
+   * Not a movement: colliders are not consulted, so callers pass an authored, walkable point.
+   */
+  teleport(x: number, z: number, yaw: number): void {
+    this.position.set(x, 0, z);
+    this.yaw = yaw;
+    this.velocity.set(0, 0, 0);
+  }
+
   /** Applies a raw look delta (e.g. `movementX`/`movementY`), clamping pitch. */
   applyLookDelta(dx: number, dy: number, sensitivity = 0.0025): void {
     this.yaw -= dx * sensitivity;

@@ -90,6 +90,7 @@ function fakeApi(overrides: Partial<PlayApi> = {}): PlayApi {
     getProgress: vi.fn(async () =>
       read({ ...progressJson(), inventory: [] }, parse.playerProgress),
     ),
+    solvePuzzle: vi.fn(),
     startLaunchPoint: vi.fn(),
     ...overrides,
   };
@@ -100,6 +101,19 @@ function fakeScene(open = false) {
   const scene: RegionPlaySceneApi & { setChestOpen: ReturnType<typeof vi.fn> } = {
     setChestOpen: vi.fn((id: string, value: boolean) => void drawn.set(id, value)),
     isChestOpen: (id: string) => drawn.get(id),
+    effects: {
+      setChangeKeys: vi.fn(),
+      useReturn: vi.fn(() => false),
+      previewSteamCleared: vi.fn(),
+      safeCheckpoint: () => null,
+      subscribe: () => () => undefined,
+    },
+    puzzles: {
+      showArrangement: vi.fn(),
+      showValveTurns: vi.fn(),
+      discover: vi.fn(async () => undefined),
+      setVisible: vi.fn(),
+    },
   };
   return scene;
 }
@@ -440,7 +454,9 @@ describe('the chest', () => {
     });
     await atTheChest(api);
     await userEvent.click(screen.getByRole('button', { name: '5' }));
-    await waitFor(() => expect(api.getRegion).toHaveBeenCalledTimes(2)); // re-reads the truth
+    // Loads, re-reads once the session starts (its pinned content, LAI-0813), then re-reads the
+    // truth after the refused replay.
+    await waitFor(() => expect(api.getRegion).toHaveBeenCalledTimes(3));
     expect(screen.queryByText('Golden Doubloon')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('dialog', { name: 'Click! The chest is open!' }),

@@ -195,6 +195,48 @@ nothing is recorded.
 `sessions` is the 20 most recent. `practice` is counts per learning objective, for gameplay
 pacing; it is not a mastery level or a label (docs/DATA_MODEL.md, "SkillProgress").
 
+## 3D Area puzzles, authored content and the catalog (ADR-043, LAI-0812, Firepeak)
+
+Additive changes to the region bootstrap. A client written before them ignores the new keys,
+and a server from before them sends none (the client treats them as empty).
+
+| Key | Shape | Notes |
+|---|---|---|
+| `puzzles[]` | `{puzzleId, kind, title, entityIds[], solved, locked, failedAttempts, parameters}` | Published puzzles that have parameters for the child's age band. `parameters` is the kind's own shape, for this band only. `locked` means an earlier stage's change key is missing. |
+| `npcs[].dialogue[]` | `{nodeId, text, followUpOnly, choices[{choiceId, label, nextNodeId}]}` | Authored nodes whose conditions the server can prove now (`ALWAYS`, `WORLD_CHANGE`, `QUEST_COMPLETED`). Others are left out, never guessed. |
+| `catalog` | `{worldSlug, assets[{assetId, kind, clips[], deliverable}]}` | What the layout names, so the client validates a served 3D Area against Django. `deliverable` is false until a version is published or a bundled file exists. |
+| `region.title`, `region.scene.copy`, `region.scene.environment` | as before | Read from the version this visit pinned (LAI-0813). |
+
+Items (`progress.inventory[].item`, reward `newItems[]`) gain `setId` and `journal`:
+- `journal` is `{subject, questId, illustrationAssetId}`, or null.
+- These are the Discovery Journal entries (FP-10).
+
+### `POST sessions/{sessionId}/puzzles/{puzzleId}/solve/`: one attempt at a puzzle
+
+- **Body:** `{"submission": {...}}`, and nothing else.
+- **Submission shape by kind:**
+
+  | Kind | Submission |
+  |---|---|
+  | `OBSERVE_FEATURES` | `{"observed": [featureId...]}` |
+  | `PLACE_PLATFORMS` | `{"placements": {slotId: stoneId}}` |
+  | `VALVE_SEQUENCE` | `{"sequence": [valveId...]}` |
+  | `COLLECT_OBJECT`, `RETURN_TO_NPC` | `{}` |
+
+- **Response:** `200` with
+  `{attemptId, correct, feedback, solvedNow, alreadySolved, failedAttempts, newItems, rewardMessage, questUpdates}`.
+- **Grading:** the server grades against the puzzle version the session pinned. A correct
+  answer records the puzzle's world change (`PUZZLE_SOLVED`), grants its reward rule once, and
+  advances active quests, all in one transaction.
+- **Replays:** an already-solved puzzle answers `alreadySolved: true` and grants nothing.
+- **Errors:**
+  - `400 invalid_submission`: a malformed submission; nothing is recorded.
+  - `404`: an unknown or unpublished puzzle, or another child's session.
+  - `409 puzzle_locked`: an earlier stage is not done yet.
+  - `409 session_not_open`.
+  - `409 content_unavailable`: no parameters for this age band, or the 3D Area is not published.
+- **Game runtime cookie:** accepted for the cookie's own region only (ADR-036).
+
 ## Islands, Places and Adventure launch points (LAI-0806, ADR-041)
 
 **Region bootstrap: `launchPoints` (additive).** The objects in this 3D Area that start one of its

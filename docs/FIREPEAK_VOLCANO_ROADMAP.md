@@ -88,17 +88,17 @@ on that task rather than copying it.
 | Id | Task | Depends | Implementation | Verification |
 |---|---|---|---|---|
 | FP-1 | Architecture audit and specification (this document, ADR-043) | none | DONE | Owner accepted ADR-043, 2026-11-01 |
-| FP-2 | Place and 3D Area configuration: export content, seed, dev publish command | LAI-0810, LAI-0812 | See IMPLEMENTATION_STATUS | pytest |
-| FP-3 | Asset manifest and placeholder environment (`docs/regions/firepeak_assets.md`) | FP-2 | See IMPLEMENTATION_STATUS | Not browser-verified |
-| FP-4 | Base Camp and Professor Ember | FP-2 | See IMPLEMENTATION_STATUS | Not browser-verified |
-| FP-5 | Telescope activity (`OBSERVE_FEATURES`) | FP-4, LAI-0812 | See IMPLEMENTATION_STATUS | Not browser-verified |
-| FP-6 | Lava crossing puzzle (`PLACE_PLATFORMS`), lava hazard and respawn | FP-5 | See IMPLEMENTATION_STATUS | Not browser-verified |
-| FP-7 | Steam vent puzzle (`VALVE_SEQUENCE`) | FP-6 | See IMPLEMENTATION_STATUS | Not browser-verified |
-| FP-8 | Crystal chamber and collection (`COLLECT_OBJECT`) | FP-7 | See IMPLEMENTATION_STATUS | Not browser-verified |
-| FP-9 | Orchestration and persistence: quest stages, resume, pinning | LAI-0813 | See IMPLEMENTATION_STATUS | pytest |
-| FP-10 | Rewards and Discovery Journal | FP-9 | See IMPLEMENTATION_STATUS | pytest |
-| FP-11 | Django Admin authoring and publishing | LAI-0801 stage 1 | See IMPLEMENTATION_STATUS | pytest |
-| FP-12 | Unit and integration acceptance | FP-2 to FP-11 | See IMPLEMENTATION_STATUS | pytest and Vitest |
+| FP-2 | Place and 3D Area configuration: export content, seed, dev publish command | LAI-0810, LAI-0812 | IMPLEMENTED (`firepeakContent.ts`, `firepeak_seed.py`, `seed_firepeak`, `publish_firepeak`, `WorldRegion.age_bands`) | pytest (`regions/tests/test_firepeak.py`), Vitest (`contentExport.test.ts`) |
+| FP-3 | Asset manifest and placeholder environment (`docs/regions/firepeak_assets.md`) | FP-2 | IMPLEMENTED: eleven asset definitions without versions, shaped stand-ins, lava shader, steam, backdrop | Vitest and engine harness (`firepeakRegion.test.ts`, `firepeakEffects.engine.test.ts`). Not seen in a browser |
+| FP-4 | Base Camp and Professor Ember | FP-2 | IMPLEMENTED: layout, Ember's authored dialogue and stage lines | pytest, Vitest (`EmberDialog.test.tsx`). Not browser-verified |
+| FP-5 | Telescope activity (`OBSERVE_FEATURES`) | FP-4, LAI-0812 | IMPLEMENTED: telescope panel with three tappable features | pytest, Vitest (`AreaPuzzleLayer.test.tsx`). Not browser-verified |
+| FP-6 | Lava crossing puzzle (`PLACE_PLATFORMS`), lava hazard and respawn | FP-5 | IMPLEMENTED: carry and snap in the scene, full panel alternative, fit glow, safe corridor once repaired, respawn to the last safe checkpoint | pytest, Vitest, engine harness. Not browser-verified |
+| FP-7 | Steam vent puzzle (`VALVE_SEQUENCE`) | FP-6 | IMPLEMENTED: cause and effect valves, live steam preview, reset, hints, passage opens from server state | pytest, golden vectors, Vitest, engine harness. Not browser-verified |
+| FP-8 | Crystal chamber and collection (`COLLECT_OBJECT`) | FP-7 | IMPLEMENTED: six-step discovery animation after the server confirms, reduced-motion fade, rope lift back | pytest, Vitest. Animation not seen in a browser |
+| FP-9 | Orchestration and persistence: quest stages, resume, pinning | LAI-0813 | IMPLEMENTED: five-stage quest, server stage order, resume at the furthest checkpoint, pinned content per visit | pytest (end to end and resume), engine harness (resume position) |
+| FP-10 | Rewards and Discovery Journal | FP-9 | IMPLEMENTED: journal entries as items with `journal` metadata, the badge, the fragment, `FIREPEAK_VOLCANO_AWAKENED`; journal in the backpack | pytest (idempotent grants), Vitest |
+| FP-11 | Django Admin authoring and publishing | LAI-0801 stage 1 | IMPLEMENTED: puzzles, the 3D Area's copy and challenge specs as content versions; puzzle publish and retire actions | pytest |
+| FP-12 | Unit and integration acceptance | FP-2 to FP-11 | IMPLEMENTED for the development checks | See `docs/IMPLEMENTATION_STATUS.md` |
 | FP-13 | Browser playtesting and performance verification | FP-12, a real Cognito sign-in (ADR-024 A6) | NOT STARTED | Not run |
 
 ## 6. Browser acceptance scenarios (prepared, not executed)
@@ -119,3 +119,34 @@ manual or Playwright scenario; none has been executed.
     bridge is still built, and the steam puzzle is next.
 11. Touch: move with the left-half stick, look with the right half, and use the "Things to do
     here" list and the puzzle panels' buttons for every interaction.
+
+## 7. Running it locally
+
+Run from `lai/`, with the local PostgreSQL up. The steps are those of
+`docs/TREASURE_RUSH_LOCAL_DEV.md`, with Firepeak's seed:
+
+```bash
+../.venv/bin/python manage.py migrate
+../.venv/bin/python manage.py load_content          # includes Firepeak (export schema 3)
+../.venv/bin/python manage.py seed_firepeak         # the 3D Area and its puzzles, as DRAFT
+../.venv/bin/python manage.py publish_firepeak      # development only: validates, then publishes
+../.venv/bin/python manage.py ensure_content_roles  # Content editors and Content publishers
+```
+
+Then start Django and the app with `VITE_BACKEND=django` as in the Treasure Rush guide, sign in as
+a parent, choose a Pathfinder or Explorer child, open Firepeak Volcano from the travel deck (or
+`/island/<childId>/explore/firepeak-volcano`). To edit content, open Django Admin, find a puzzle
+under "3D Area puzzles" and use "Edit content (start a draft)", then publish it.
+
+## 8. Known limitations
+
+- Not run in a browser. Lava, steam, stand-ins and the discovery animation are verified with
+  the engine harness (no WebGL), not seen. Performance on Android WebView is unmeasured (FP-13).
+- Every Firepeak model is a stand-in until its GLB is published (`docs/regions/firepeak_assets.md`).
+- First-person only (FP-D3). There is no third-person camera.
+- Professor Ember's general dialogue is not age-banded (FP-D9).
+- "Secrets of the Crystal Caverns" does not exist. Completion records eligibility only (FP-D8).
+- A Sprouts child still sees the Firepeak Place card, with no 3D Area and no adventure (Places
+  carry no age bands).
+- The Amplify build does not include Firepeak; it is a Django-backed 3D Area.
+- Children with no voice support get subtitles only: no narration audio system exists (TR-D19).

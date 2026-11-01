@@ -62,6 +62,58 @@ export interface NpcPlacement extends PlacedEntity {
   npcId: string;
   displayName: string;
   interactionId: string;
+  /** Authored dialogue whose conditions hold for this child now, in authored order (ADR-043). */
+  dialogue: DialogueNodeView[];
+}
+
+export interface DialogueChoiceView {
+  choiceId: string;
+  label: string;
+  nextNodeId: string | null;
+}
+
+/** An NPC dialogue node as the server served it: authored text, never generated. */
+export interface DialogueNodeView {
+  nodeId: string;
+  text: string;
+  /** Reached only through a choice's `nextNodeId`, never shown first. */
+  followUpOnly: boolean;
+  choices: DialogueChoiceView[];
+}
+
+export type PuzzleKind =
+  'OBSERVE_FEATURES' | 'PLACE_PLATFORMS' | 'VALVE_SEQUENCE' | 'COLLECT_OBJECT' | 'RETURN_TO_NPC';
+
+/**
+ * A 3D Area puzzle for this child's age band (ADR-043 F, LAI-0812). `parameters` is the kind's
+ * own shape, read by `region-play/areaPuzzles.ts`; the server grades every solution.
+ */
+export interface PuzzleState {
+  puzzleId: string;
+  kind: PuzzleKind;
+  title: string;
+  /** The placements this puzzle uses (stones, gaps, valves, the telescope, the crystal). */
+  entityIds: string[];
+  solved: boolean;
+  /** An earlier stage is not done yet. */
+  locked: boolean;
+  /** Wrong tries in this visit, for offering a hint (never shown as a score). */
+  failedAttempts: number;
+  parameters: JsonObject;
+}
+
+/** What a served 3D Area names, so the client validates it against Django (ADR-043 A). */
+export interface RegionCatalog {
+  worldSlug: string;
+  assets: CatalogAsset[];
+}
+
+export interface CatalogAsset {
+  assetId: string;
+  kind: string;
+  clips: string[];
+  /** False until a model is published or bundled; the client draws a stand-in meanwhile. */
+  deliverable: boolean;
 }
 
 export interface ObjectPlacement extends PlacedEntity {
@@ -128,6 +180,19 @@ export interface ItemView {
   description: string;
   category: ItemCategory;
   assetId: string;
+  /** The collectible set it belongs to (a Discovery Journal page, Firepeak FP-10). */
+  setId: string | null;
+  /** Present when the item is a Discovery Journal entry. */
+  journal: ItemJournal | null;
+}
+
+export type JournalSubject =
+  'EARTH_SCIENCE' | 'MATHEMATICS' | 'SPATIAL_REASONING' | 'PROBLEM_SOLVING';
+
+export interface ItemJournal {
+  subject: JournalSubject;
+  questId: string;
+  illustrationAssetId: string | null;
 }
 
 export interface InventoryEntry {
@@ -146,6 +211,9 @@ export interface RegionBootstrap {
   worldChanges: WorldChange[];
   /** Objects here that start one of this Place's Adventures, for this child (ADR-041). */
   launchPoints: LaunchPoint[];
+  /** This 3D Area's puzzles for the child's age band (ADR-043, LAI-0812). */
+  puzzles: PuzzleState[];
+  catalog: RegionCatalog;
 }
 
 export type LaunchObjectKind = 'NPC' | 'CHEST' | 'DOOR' | 'SIGN' | 'OTHER';
@@ -217,6 +285,21 @@ export interface AnswerOutcome {
   canRetry: boolean;
   chestOpened: boolean;
   /** Only items the child did not own before this answer. */
+  newItems: ItemView[];
+  rewardMessage: string | null;
+  questUpdates: QuestUpdate[];
+}
+
+/** `POST .../puzzles/<id>/solve/`: graded on the server (LAI-0812). */
+export interface PuzzleOutcome {
+  attemptId: string | null;
+  correct: boolean;
+  feedback: AnswerFeedback;
+  /** True only on the submission that solved it. */
+  solvedNow: boolean;
+  /** It was already solved; nothing new was recorded or granted. */
+  alreadySolved: boolean;
+  failedAttempts: number;
   newItems: ItemView[];
   rewardMessage: string | null;
   questUpdates: QuestUpdate[];

@@ -931,11 +931,11 @@ adapted onto it:
 |---|---|
 | `core` | API conventions, privacy logging, `ChildOwnedModel` (with the cross-child link check), `content_schema` validator, `ContentStatus` |
 | `users` | `ParentAccount`, `ChildProfile`, Cognito authentication, child scoping |
-| `catalog` | Imported content: World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset, LearningObjective, NpcDefinition, CollectibleSet, ItemDefinition, RewardRule, ContentRelease; the one importer (`load_content`); asset references (`asset_refs.py`); the catalog admin (mounted by LAI-0404); ContentAsset is also the asset definition (LAI-2200) |
+| `catalog` | Imported, then Django-authored content (ADR-043): ContentRevision (versions, publish, rollback; `authoring.py`), World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset, LearningObjective, NpcDefinition, CollectibleSet, ItemDefinition, RewardRule, ContentRelease; the one importer (`load_content`); asset references (`asset_refs.py`); the catalog admin (mounted by LAI-0404); ContentAsset is also the asset definition (LAI-2200) |
 | `assets` | Asset manager (LAI-2200, ADR-035): AssetVersion, validation, storage, publication services, the published-asset resolver and delivery routes, the import and audit commands. No identity of its own: versions attach to `catalog.ContentAsset` |
-| `regions` | Seed-authored play regions: WorldRegion, SpawnPoint, WorldObjectPlacement, TreasureChest; `seed_treasure_rush` |
+| `regions` | Seed-authored play regions: WorldRegion (with optional age bands), SpawnPoint, WorldObjectPlacement, TreasureChest, AreaPuzzle (ADR-043 F: seed-owned mechanic and objects, admin-authored parameters) and the puzzle graders (`puzzles.py`); `seed_treasure_rush`, `seed_firepeak` |
 | `adventures` | The Python adventure engine (pure module, LAI-0601) |
-| `game_sessions` | AdventureSession (ADVENTURE or REGION), AdventureAction, ChallengeAttempt, CoopSession; answers and hints (LAI-0601); region play (TR-5); native home, discovery and inventory reads, game launch tickets and the game session cookie (LAI-ANDROID-API-001, ADR-036) |
+| `game_sessions` | AdventureSession (ADVENTURE or REGION, with pinned content versions, LAI-0813), AdventureAction, ChallengeAttempt, PuzzleAttempt, CoopSession; answers and hints (LAI-0601); region play (TR-5); native home, discovery and inventory reads, game launch tickets and the game session cookie (LAI-ANDROID-API-001, ADR-036) |
 | `education` | SkillEvidence, SkillProgress, StoryArtifact, ChallengeSpec; Treasure Rush challenge generation and grading (`challenges.py`) |
 | `progression`, `inventory`, `quests` | World changes and state, story and NPC progress; items owned and rules granted; quest progress, with the server-side quest engine (`quests/engine.py`) |
 

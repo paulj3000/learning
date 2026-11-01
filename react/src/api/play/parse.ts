@@ -2,6 +2,10 @@ import type { Reader } from '../parse';
 import type {
   AnswerOutcome,
   ChestState,
+  DialogueNodeView,
+  PuzzleOutcome,
+  PuzzleState,
+  RegionCatalog,
   InventoryEntry,
   IssuedChallenge,
   ItemView,
@@ -43,12 +47,65 @@ function placed(r: Reader): PlacedEntity {
   };
 }
 
+/** A field added after a contract was first published: absent means `fallback`. */
+function optional<T>(r: Reader, name: string, read: (reader: Reader) => T, fallback: T): T {
+  const field = r.field(name);
+  return field.value === undefined ? fallback : read(field);
+}
+
+function dialogueNode(r: Reader): DialogueNodeView {
+  return {
+    nodeId: r.field('nodeId').string(),
+    text: r.field('text').string(),
+    followUpOnly: r.field('followUpOnly').boolean(),
+    choices: r.field('choices').array((choice) => ({
+      choiceId: choice.field('choiceId').string(),
+      label: choice.field('label').string(),
+      nextNodeId: choice.field('nextNodeId').nullable((v) => v.string()),
+    })),
+  };
+}
+
 function npc(r: Reader): NpcPlacement {
   return {
     ...placed(r),
     npcId: r.field('npcId').string(),
     displayName: r.field('displayName').string(),
     interactionId: r.field('interactionId').string(),
+    dialogue: optional(r, 'dialogue', (v) => v.array(dialogueNode), []),
+  };
+}
+
+const PUZZLE_KINDS = [
+  'OBSERVE_FEATURES',
+  'PLACE_PLATFORMS',
+  'VALVE_SEQUENCE',
+  'COLLECT_OBJECT',
+  'RETURN_TO_NPC',
+] as const;
+
+export function puzzleState(r: Reader): PuzzleState {
+  return {
+    puzzleId: r.field('puzzleId').string(),
+    kind: r.field('kind').oneOf(PUZZLE_KINDS),
+    title: r.field('title').string(),
+    entityIds: r.field('entityIds').array((v) => v.string()),
+    solved: r.field('solved').boolean(),
+    locked: r.field('locked').boolean(),
+    failedAttempts: r.field('failedAttempts').integer(),
+    parameters: r.field('parameters').object(),
+  };
+}
+
+function regionCatalog(r: Reader): RegionCatalog {
+  return {
+    worldSlug: r.field('worldSlug').string(),
+    assets: r.field('assets').array((asset) => ({
+      assetId: asset.field('assetId').string(),
+      kind: asset.field('kind').string(),
+      clips: asset.field('clips').array((v) => v.string()),
+      deliverable: asset.field('deliverable').boolean(),
+    })),
   };
 }
 
@@ -103,6 +160,13 @@ function worldChange(r: Reader): WorldChange {
   };
 }
 
+const JOURNAL_SUBJECTS = [
+  'EARTH_SCIENCE',
+  'MATHEMATICS',
+  'SPATIAL_REASONING',
+  'PROBLEM_SOLVING',
+] as const;
+
 function item(r: Reader): ItemView {
   return {
     itemId: r.field('itemId').string(),
@@ -110,6 +174,18 @@ function item(r: Reader): ItemView {
     description: r.field('description').string(),
     category: r.field('category').oneOf(ITEM_CATEGORIES),
     assetId: r.field('assetId').string(),
+    setId: optional(r, 'setId', (v) => v.nullable((s) => s.string()), null),
+    journal: optional(
+      r,
+      'journal',
+      (v) =>
+        v.nullable((j) => ({
+          subject: j.field('subject').oneOf(JOURNAL_SUBJECTS),
+          questId: j.field('questId').string(),
+          illustrationAssetId: j.field('illustrationAssetId').nullable((a) => a.string()),
+        })),
+      null,
+    ),
   };
 }
 
@@ -160,6 +236,33 @@ export function regionBootstrap(r: Reader): RegionBootstrap {
     // Added by ADR-041; a server from before it sends none.
     launchPoints:
       r.field('launchPoints').value === undefined ? [] : r.field('launchPoints').array(launchPoint),
+    // Added by ADR-043 (LAI-0812, FP-2); a server from before it sends none.
+    puzzles: optional(r, 'puzzles', (v) => v.array(puzzleState), []),
+    catalog: optional(r, 'catalog', regionCatalog, { worldSlug: '', assets: [] }),
+  };
+}
+
+export function puzzleOutcome(r: Reader): PuzzleOutcome {
+  return {
+    attemptId: r.field('attemptId').nullable((v) => v.string()),
+    correct: r.field('correct').boolean(),
+    feedback: r.field('feedback').oneOf(['CORRECT', 'TRY_AGAIN'] as const),
+    solvedNow: r.field('solvedNow').boolean(),
+    alreadySolved: r.field('alreadySolved').boolean(),
+    failedAttempts: r.field('failedAttempts').integer(),
+    newItems: r.field('newItems').array(item),
+    rewardMessage: r.field('rewardMessage').nullable((v) => v.string()),
+    questUpdates: r.field('questUpdates').array(questUpdate),
+  };
+}
+
+function questUpdate(r: Reader) {
+  return {
+    questId: r.field('questId').string(),
+    status: r.field('status').oneOf(QUEST_STATUSES),
+    currentStageId: r.field('currentStageId').string(),
+    justCompleted: r.field('justCompleted').boolean(),
+    newlyCompletedObjectiveIds: r.field('newlyCompletedObjectiveIds').array((v) => v.string()),
   };
 }
 
@@ -220,15 +323,7 @@ export function answerOutcome(r: Reader): AnswerOutcome {
     chestOpened: r.field('chestOpened').boolean(),
     newItems: r.field('newItems').array(item),
     rewardMessage: r.field('rewardMessage').nullable((v) => v.string()),
-    questUpdates: r.field('questUpdates').array((update) => ({
-      questId: update.field('questId').string(),
-      status: update.field('status').oneOf(QUEST_STATUSES),
-      currentStageId: update.field('currentStageId').string(),
-      justCompleted: update.field('justCompleted').boolean(),
-      newlyCompletedObjectiveIds: update
-        .field('newlyCompletedObjectiveIds')
-        .array((v) => v.string()),
-    })),
+    questUpdates: r.field('questUpdates').array(questUpdate),
   };
 }
 

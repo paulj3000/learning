@@ -4,6 +4,7 @@ import type {
   IssuedChallenge,
   ItemView,
   PlaySession,
+  PuzzleOutcome,
   QuestEntry,
   RegionBootstrap,
 } from '../../api/play/types';
@@ -31,6 +32,7 @@ export type PlayActionName =
   | 'acceptQuest'
   | 'requestChallenge'
   | 'submitAnswer'
+  | 'solvePuzzle'
   | 'refresh';
 
 export interface RegionPlayState {
@@ -41,6 +43,8 @@ export interface RegionPlayState {
   /** The outstanding challenge, if the child asked for one and has not answered it. */
   challenge: IssuedChallenge | null;
   lastOutcome: AnswerOutcome | null;
+  /** The server's answer to the last puzzle submission in this visit (LAI-0812). */
+  lastPuzzleOutcome: { puzzleId: string; outcome: PuzzleOutcome } | null;
   /** Items newly granted during this visit, from server outcomes only. */
   rewards: ItemView[];
   /** The action in flight, so a UI can disable controls and a double tap sends nothing. */
@@ -59,6 +63,7 @@ export type RegionPlayAction = { scope: string } & (
   | { type: 'questAccepted'; quest: QuestEntry }
   | { type: 'challengeIssued'; challenge: IssuedChallenge }
   | { type: 'answerAccepted'; outcome: AnswerOutcome }
+  | { type: 'puzzleGraded'; puzzleId: string; outcome: PuzzleOutcome }
   | { type: 'challengeCleared' }
 );
 
@@ -74,6 +79,7 @@ export function initialRegionPlayState(scope: string): RegionPlayState {
     session: null,
     challenge: null,
     lastOutcome: null,
+    lastPuzzleOutcome: null,
     rewards: [],
     busy: null,
     error: null,
@@ -148,6 +154,16 @@ export function regionPlayReducer(
         // Answered either way: a retry asks the server for the next attempt.
         challenge: null,
         lastOutcome: action.outcome,
+        rewards: [...state.rewards, ...fresh],
+      };
+    }
+    case 'puzzleGraded': {
+      const known = new Set(state.rewards.map((item) => item.itemId));
+      const fresh = action.outcome.newItems.filter((item) => !known.has(item.itemId));
+      return {
+        ...state,
+        busy: null,
+        lastPuzzleOutcome: { puzzleId: action.puzzleId, outcome: action.outcome },
         rewards: [...state.rewards, ...fresh],
       };
     }

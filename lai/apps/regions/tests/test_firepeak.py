@@ -260,6 +260,21 @@ class TestPlaythrough:
         ]
 
 
+class TestAcceptingLate:
+    def test_work_done_before_accepting_counts_once_the_quest_is_accepted(self, firepeak, api):
+        client, child = api(firepeak.a), firepeak.a1
+        session = start(client, child)
+        solve(client, child, session, "firepeak-telescope", TELESCOPE)
+        solve(client, child, session, "firepeak-crossing", PATHFINDER_CROSSING)
+
+        accept(client, child)
+
+        progress = QuestProgress.objects.get(child=child, quest__slug="the-volcano-awakens")
+        assert progress.status == QuestStatus.ACTIVE
+        assert progress.current_stage_id == "redirect-the-steam"
+        assert progress.completed_stage_ids == ["meet-professor-ember", "repair-the-crossing"]
+
+
 class TestResume:
     def test_leaving_halfway_and_coming_back_keeps_everything(self, firepeak, api):
         client, child = api(firepeak.a), firepeak.a1

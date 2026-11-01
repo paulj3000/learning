@@ -14,6 +14,7 @@ import { listAllWorldChanges } from '../features/adventures/api';
 import { isIslandAvailable } from '../features/catalog/availability';
 import { loadCatalogSnapshot } from '../features/catalog/availabilityApi';
 import { locationWorldPath } from '../features/island-map/three/runtime/locationWorldPath';
+import { useServedPlaces } from '../features/region-play/useServedPlaces';
 import { WELCOME_HARBOR_REGION_ID } from '../features/discovery/checkpoints';
 import type { CompanionProfile } from '../features/island/api';
 import type { ChildProfile } from '../features/child-profile/api';
@@ -22,6 +23,7 @@ type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
 export function WelcomeHarbor() {
   const { childId } = useParams<{ childId: string }>();
+  const servedPlaces = useServedPlaces(childId);
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
   const [companionProfile, setCompanionProfile] = useState<CompanionProfile | null>(null);
@@ -132,6 +134,17 @@ export function WelcomeHarbor() {
               <p className={styles.cardTagline}>{location.tagline}</p>
             </Link>
           ))}
+        {/* Places authored in Django (ADR-043), such as Firepeak Volcano: straight to their 3D Area. */}
+        {servedPlaces.map((place) => (
+          <Link
+            className={styles.card}
+            key={place.placeId}
+            to={locationWorldPath(childId, place.regionId)}
+          >
+            <p className={styles.cardTitle}>{place.title}</p>
+            <p className={styles.cardTagline}>{place.tagline}</p>
+          </Link>
+        ))}
       </div>
 
       <Link className={styles.logLink} to={`/island/${childId}/log`}>

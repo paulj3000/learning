@@ -1,5 +1,6 @@
 import { isApiError } from '../../api/errors';
 import type { PlayApi } from '../../api/play/playApi';
+import type { RegionBootstrap } from '../../api/play/types';
 import { CheckpointPublishError, publishRegionCheckpoints } from '../discovery/checkpoints';
 import {
   InvalidLocationManifestError,
@@ -40,12 +41,48 @@ export interface RegionManifestRepositoryOptions {
   worldSlugFor: (locationSlug: string) => string | undefined;
 }
 
+/**
+ * The registries a served 3D Area is validated against: the bundled ones plus what the server
+ * says it names (ADR-043 A, Django is authoritative for published content). A Place, NPC or
+ * asset that exists only in Django (Firepeak) is therefore known, while every reference is still
+ * checked; nothing the server did not declare is accepted.
+ */
+export function withServerCatalog(
+  registries: LocationManifestRegistries,
+  bootstrap: RegionBootstrap,
+): LocationManifestRegistries {
+  const { catalog, region } = bootstrap;
+  if (!catalog.worldSlug && catalog.assets.length === 0) return registries;
+  const knownAssets = new Set(registries.assets.map((asset) => asset.id));
+  const assets = [
+    ...registries.assets,
+    ...catalog.assets
+      .filter((asset) => !knownAssets.has(asset.assetId))
+      .map((asset) => ({ id: asset.assetId, clips: asset.clips })),
+  ];
+  const npcIds = [...new Set([...registries.npcIds, ...bootstrap.npcs.map((npc) => npc.npcId)])];
+  const hasLocation = registries.locations.some(
+    (location) => location.slug === region.locationSlug,
+  );
+  return {
+    ...registries,
+    assets,
+    npcIds,
+    worldSlugs:
+      catalog.worldSlug && !registries.worldSlugs.includes(catalog.worldSlug)
+        ? [...registries.worldSlugs, catalog.worldSlug]
+        : registries.worldSlugs,
+    locations:
+      hasLocation || !catalog.worldSlug
+        ? registries.locations
+        : [...registries.locations, { slug: region.locationSlug, worldSlug: catalog.worldSlug }],
+  };
+}
+
 export function createRegionManifestRepository(
   options: RegionManifestRepositoryOptions,
 ): LocationManifestRepository {
-  const { source, api, registries, worldSlugFor } = options;
-  const clipsFor = (assetId: string) =>
-    registries.assets.find((asset) => asset.id === assetId)?.clips ?? [];
+  const { source, api, worldSlugFor } = options;
 
   async function fromServer(regionId: string): Promise<ThreeLocationManifest> {
     let bootstrap;
@@ -57,8 +94,12 @@ export function createRegionManifestRepository(
       }
       throw error;
     }
+    const registries = withServerCatalog(options.registries, bootstrap);
+    const clipsFor = (assetId: string) =>
+      registries.assets.find((asset) => asset.id === assetId)?.clips ?? [];
     const model = toRegionSceneModel(bootstrap);
-    const worldSlug = worldSlugFor(model.locationSlug);
+    const worldSlug =
+      worldSlugFor(model.locationSlug) ?? (bootstrap.catalog.worldSlug || undefined);
     if (!worldSlug) {
       throw new InvalidLocationManifestError(regionId, [
         { kind: 'UNKNOWN_LOCATION', path: 'locationSlug', detail: model.locationSlug },

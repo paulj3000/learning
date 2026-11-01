@@ -230,15 +230,15 @@ Pathfinders and Explorers (FP-D2). Built on ADR-043. Implementation and verifica
 are kept separately in the roadmap's section 5 and `docs/IMPLEMENTATION_STATUS.md`.
 
 - [x] **FP-1** Architecture audit and adventure specification (ADR-043 accepted by the owner)
-- [ ] **FP-2** Firepeak Place and 3D Area configuration (depends: LAI-0810, LAI-0812)
-- [ ] **FP-3** Asset manifest and placeholder environment (depends: FP-2)
-- [ ] **FP-4** Base Camp and Professor Ember (depends: FP-2)
-- [ ] **FP-5** Telescope exploration activity (depends: FP-4)
-- [ ] **FP-6** Lava crossing puzzle, hazard and respawn (depends: FP-5)
-- [ ] **FP-7** Steam vent puzzle (depends: FP-6)
-- [ ] **FP-8** Crystal chamber and collection (depends: FP-7)
-- [ ] **FP-9** Adventure orchestration and persistence (depends: LAI-0813)
-- [ ] **FP-10** Rewards and Discovery Journal (depends: FP-9)
-- [ ] **FP-11** Django Admin authoring and publishing (depends: LAI-0801 stage 1)
-- [ ] **FP-12** Unit and integration acceptance (depends: FP-2 to FP-11)
-- [ ] **FP-13** Browser playtesting and performance verification (depends: FP-12; needs a Cognito test sign-in, ADR-024 A6). NOT STARTED
+- [ ] **FP-2** Firepeak Place and 3D Area configuration (depends: LAI-0810, LAI-0812). IMPLEMENTED; pytest and Vitest only
+- [ ] **FP-3** Asset manifest and placeholder environment (depends: FP-2). IMPLEMENTED (`docs/regions/firepeak_assets.md`; 11 GLBs missing, stand-ins drawn); engine harness only, not seen in a browser
+- [ ] **FP-4** Base Camp and Professor Ember (depends: FP-2). IMPLEMENTED; not browser-verified
+- [ ] **FP-5** Telescope exploration activity (depends: FP-4). IMPLEMENTED; not browser-verified
+- [ ] **FP-6** Lava crossing puzzle, hazard and respawn (depends: FP-5). IMPLEMENTED; not browser-verified
+- [ ] **FP-7** Steam vent puzzle (depends: FP-6). IMPLEMENTED; not browser-verified
+- [ ] **FP-8** Crystal chamber and collection (depends: FP-7). IMPLEMENTED; not browser-verified
+- [ ] **FP-9** Adventure orchestration and persistence (depends: LAI-0813). IMPLEMENTED; pytest end to end, engine harness for resume
+- [ ] **FP-10** Rewards and Discovery Journal (depends: FP-9). IMPLEMENTED; pytest and Vitest
+- [ ] **FP-11** Django Admin authoring and publishing (depends: LAI-0801 stage 1). IMPLEMENTED; pytest
+- [ ] **FP-12** Unit and integration acceptance (depends: FP-2 to FP-11). Development checks pass (see IMPLEMENTATION_STATUS); merge-gate checks not run
+- [ ] **FP-13** Browser playtesting and performance verification (depends: FP-12; needs a Cognito test sign-in, ADR-024 A6). NOT STARTED; scenarios prepared as pending Playwright tests (`react/e2e/firepeak.spec.ts`)

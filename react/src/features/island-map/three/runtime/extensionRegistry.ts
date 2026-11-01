@@ -79,6 +79,13 @@ export interface WorldExtensionContext {
    * so a declaration can never quietly fall behind what is really loaded.
    */
   loadModel(assetId: string): Promise<LoadedModel>;
+  /** Where the player stands now (ground plane). Read-only; for hazards and checkpoints. */
+  playerPosition(): { x: number; z: number };
+  /**
+   * Returns the player to an authored safe point at once (Firepeak FP-D10: falling into lava
+   * returns the child to the last safe checkpoint). Changes no progress and emits nothing.
+   */
+  teleportPlayer(x: number, z: number, yaw: number): void;
   /** Runs `callback` once per frame with the frame's delta in seconds. Returns an unsubscribe. */
   onFrame(callback: (deltaSeconds: number) => void): () => void;
   /** The runtime's monotonic clock, in milliseconds. */
