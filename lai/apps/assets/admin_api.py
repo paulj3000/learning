@@ -10,10 +10,11 @@ Authorization (ADR-024):
   token, on every request. No API permission reads `is_staff` (ADR-034 item 4): Django Admin's
   staff sign-in and Django permissions apply to Django Admin only.
 - **A3.** Every mutation (create a definition, upload, publish, change the default, retire,
-  delete) is a privileged administrative mutation, so it also needs the recent-authentication
-  check of LAI-0209. Until that exists, `MUTATION_GATE` is `SensitiveActionBlocked` and every
-  mutation answers `403 sensitive_action_unavailable`. LAI-0209 replaces `MUTATION_GATE`; nothing
-  else changes. Reads (the list and the detail) are open to administrators now.
+  delete) is a privileged administrative mutation, so it also needs a recent sign-in
+  (`MUTATION_GATE`, `RequiresRecentAuthentication`, LAI-0209, ADR-043). It is checked after the
+  `Admins` check: a non-administrator gets `403 permission_denied` however recently they signed
+  in, and recent sign-in never grants administration. An administrator whose sign-in is too old
+  gets `403 recent_auth_required`. Reads (the list and the detail) need no recent sign-in.
 
 Responses never carry storage keys, bucket names, uploader identities or credentials. Asset
 definitions are never deleted here (retire one in Django Admin), and published or retired
@@ -42,7 +43,7 @@ from apps.catalog.models import (
 from apps.core.content_status import ContentStatus
 from apps.core.exceptions import error_body
 from apps.regions.models import TreasureChest, WorldObjectPlacement
-from apps.users.permissions import IsProvisionedParent, SensitiveActionBlocked
+from apps.users.permissions import IsProvisionedParent, RequiresRecentAuthentication
 
 from . import services
 from .models import AssetVersion
@@ -52,8 +53,8 @@ logger = logging.getLogger("lai.assets")
 
 ADMIN_GROUP = "Admins"
 
-# ADR-024 A3: replaced by the recent-authentication check when LAI-0209 lands.
-MUTATION_GATE = SensitiveActionBlocked
+# ADR-024 A3: every mutation also needs a recent sign-in (LAI-0209). Listed after the admin check.
+MUTATION_GATE = RequiresRecentAuthentication
 
 # How each refusal from `services` is answered.
 REFUSAL_STATUS = {

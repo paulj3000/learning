@@ -309,3 +309,34 @@ class ChildPhoto(ChildOwnedModel):
 
     def __repr__(self) -> str:
         return f"<ChildPhoto {self.id}>"
+
+
+class AuthSessionAnchor(models.Model):
+    """The `auth_time` Django first saw for one Cognito sign-in session (LAI-0209, ADR-043).
+
+    A Cognito sign-in session is identified by the access token's `origin_jti`, which Cognito
+    ties to the session's refresh token: every token refreshed from that refresh token carries
+    the same value. Recent authentication is judged by `auth_time`, so a refresh must never
+    move it. If a later token of the same session ever presents a different `auth_time`, the
+    recent-authentication guard refuses it, whatever the identity provider does on refresh.
+
+    Only a SHA-256 digest of `origin_jti` is stored (it is a revocation handle, not a credential,
+    but it is never needed in clear). No token, claim set, IP address or device data is kept.
+    """
+
+    account = models.ForeignKey(ParentAccount, on_delete=models.CASCADE, related_name="+")
+    session_digest = models.CharField(max_length=64)
+    auth_time = models.BigIntegerField()
+    first_seen_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["account", "session_digest"],
+                name="users_authsessionanchor_one_per_session",
+            ),
+        ]
+        indexes = [models.Index(fields=["first_seen_at"], name="users_anchor_seen_idx")]
+
+    def __str__(self) -> str:
+        return f"session anchor {self.pk}"

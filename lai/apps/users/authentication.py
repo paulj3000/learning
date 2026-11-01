@@ -45,6 +45,10 @@ class VerifiedToken:
     groups: tuple[str, ...]
     expires_at: int
     auth_time: int | None
+    # LAI-0209 recent-authentication evidence. All three come only from the verified token.
+    issued_at: int | None = None
+    origin_jti: str | None = None
+    scopes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -135,13 +139,24 @@ def verify_access_token(token: str) -> VerifiedToken:
         raise _reject("missing_claim")
     groups = claims.get("cognito:groups")
     auth_time = claims.get("auth_time")
+    issued_at = claims.get("iat")
+    origin_jti = claims.get("origin_jti")
+    scope = claims.get("scope")
     return VerifiedToken(
         sub=sub,
         client_id=client_id,
         groups=tuple(g for g in groups if isinstance(g, str)) if isinstance(groups, list) else (),
         expires_at=int(claims["exp"]),
-        auth_time=auth_time if isinstance(auth_time, int) else None,
+        auth_time=_whole_seconds(auth_time),
+        issued_at=_whole_seconds(issued_at),
+        origin_jti=origin_jti if isinstance(origin_jti, str) and origin_jti else None,
+        scopes=tuple(scope.split()) if isinstance(scope, str) else (),
     )
+
+
+def _whole_seconds(value) -> int | None:
+    """A Unix time claim as an int; anything else (absent, bool, float, text) is no evidence."""
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
 def _reject(reason: str) -> AuthenticationFailed:
