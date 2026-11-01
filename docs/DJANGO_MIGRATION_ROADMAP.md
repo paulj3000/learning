@@ -291,6 +291,9 @@ pytest both green on the same vectors.
 **LAI-0602 Profile writes and deletion.** Depends: 0502. Risk H. Acceptance: create/update/
 deactivate child, three-profile cap, parent-triggered deletion cascades every child-scoped
 table and the photo object; tests for orphan-free deletion (mirrors `deletion.ts`).
+*2026-10-31: the deletion service exists (`lai/apps/users/deletion.py`, photos first, then the
+cascade; refuses and keeps the child when storage cleanup fails; idempotent retry) and is
+pytest-covered. `DELETE /children/<id>/` stays blocked until LAI-0209, so LAI-0602 stays open.*
 
 **LAI-0603 Mastery writes.** Depends: 0601. Risk M. Acceptance: skill evidence and
 `SkillProgress` counters computed server-side with golden vectors; client no longer sends
@@ -378,10 +381,42 @@ claim with row lock; concurrency test shows exactly one winner; response matches
 **LAI-0903 Realtime go/no-go record.** Depends: 0902. Risk L. Acceptance: ADR states whether
 Channels + Redis is adopted, with measured load; default is "not adopted".
 
-**LAI-0904 Child photo presigned flow.** Depends: 0602. Risk M. **APPROVAL: bucket and CORS
-changes.** Acceptance: Django issues short-lived PUT/GET URLs only for the owner's child;
-the 256 px JPEG re-encode stays client-side; key-mapping table for existing identity-scoped
-objects.
+**LAI-0904 Child photo storage and API (separate private bucket, ADR-042).** Depends: 0602 for
+profile writes, which LAI-CHILD-001 delivered; 0602's child deletion calls the photo deletion hook
+built here. Risk M. **APPROVAL: deploying `LaiChildPhotos-<env>` and any CORS rule.**
+Acceptance, revised 2026-10-31 when the owner accepted separate buckets:
+- The private photo bucket is defined in CDK, separate from the asset bucket (all public access
+  blocked, no ACLs, TLS only, SSE, versioning, 7-day noncurrent expiry, no CDN, no CORS by
+  default).
+- The policy is least-privilege and prefix-scoped; the SSM settings are written by the EC2 stack.
+- Django authorizes upload, replace, read and delete for the owning parent only. Another family's
+  child and an unknown id give the same 404.
+- Uploads go through Django: size limit, declared type, structural JPEG check, metadata stripped.
+  The 256 px re-encode stays client-side.
+- Reads use a short-lived presigned GET or the authenticated content route. Storage keys are
+  opaque UUIDs and never leave the server.
+- Storage failures never corrupt the database, and an audit command repairs deferred deletes and
+  orphans.
+- The key mapping for existing identity-scoped objects moved to LAI-1103.
+
+*Repository side done 2026-10-31 on `feature/lai-0904-child-photo-storage`: unit-tested and
+synthesized, not deployed (`docs/platform/CHILD_PHOTO_STORAGE.md`). It stays open until the
+bucket is deployed and verified on dev; the clients are LAI-0905.*
+
+**LAI-0905 React and Android clients on the Django photo API.** Depends: 0904. Risk M.
+Acceptance:
+- In builds with the Django API, `supportsPhotos` is true. The profile form uploads the prepared
+  256 px JPEG with `PUT /children/<id>/photo/`, shows it from the returned `url`, and removes it
+  with `DELETE`. A `presigned` URL works in an `<img>`; an `api` URL is fetched with the token.
+- Errors map to the existing parent-facing messages.
+- The Android contract (prepare a JPEG within the limits, never send metadata) is documented in
+  `docs/android/`.
+- Amplify builds are unchanged until LAI-1301.
+
+*Started 2026-10-31 on `feature/lai-0905-photo-clients`: the React client and the Android
+contract are done and unit tested, committed, not merged. Not accepted: it needs the deployed dev
+bucket (LAI-0904, approval), a real Cognito sign-in for the browser check (gate A6), and a native
+client to follow the contract.*
 
 ### Phase 10 - AWS infrastructure (may start after Phase 4)
 
@@ -398,7 +433,10 @@ LAI-1001 stays open.*
 encrypted RDS, deletion protection on, backups on; no public DB. *The asset manager's S3 bucket
 and its Django policy are defined and synthesized (`infra/lib/assetStorageStack.ts`,
 `docs/ASSET_MANAGER.md` section 12), not deployed. Network and RDS are not started, so LAI-1002
-stays open.*
+stays open. 2026-10-31 (ADR-042): the private child photo bucket `LaiChildPhotos-<env>` and its
+Django policy are defined and synthesized as a separate stack
+(`infra/lib/childPhotoStorageStack.ts`, `docs/platform/CHILD_PHOTO_STORAGE.md`), not deployed.
+The asset bucket was reviewed and left unchanged.*
 **LAI-1003 ECR and image build.** Depends: 1001. Risk L. *Repository side done 2026-10-30
 (ADR-037): `LaiDjangoRelease` (ECR, OIDC, publisher role) and the build job in
 `.github/workflows/deploy-django-ec2.yml`; not deployed, so it stays open until the first push.*
@@ -424,6 +462,39 @@ files; no write to AWS; PII handling documented.
 scratch Postgres; per-table row counts and checksums reported; array and JSON fields mapped;
 unmappable rows listed, none dropped silently.
 **LAI-1103 Photo object migration plan and dry-run.** Depends: 0904, 1101. Risk M.
+**APPROVAL: read access to the Amplify bucket; any copy into `LaiChildPhotos-<env>`.** Target:
+the private child photo bucket and `users.ChildPhoto` (ADR-042), never the asset bucket.
+Never modifies or deletes an Amplify object. Design: `docs/platform/CHILD_PHOTO_STORAGE.md`
+section 10. Specified 2026-10-31; no utility was built, because LAI-1101's export and bucket read
+access do not exist yet. The identity contract does exist: Amplify child ids are kept and owners
+are resolved by Cognito `sub` (`import_amplify_profiles`). Also drops the deprecated
+`ChildProfile.avatar_photo_key` column once nothing needs it (a destructive migration, released
+with `--allow-destructive-migrations`). Subtasks:
+- **LAI-1103a Legacy photo inventory (read-only).** Depends: 1101, G1. Acceptance: key, size,
+  ETag and last-modified time for every object under `child-photos/`; stored like the LAI-1101
+  export (local, encrypted); no AWS write.
+- **LAI-1103b Photo migration planner and dry run.** Depends: 1103a, the profile import applied
+  to the target. Acceptance:
+  - Maps each exported child's `avatarPhotoKey` to the Django child with the same id.
+  - Validates the owner `sub` against the Django parent and checks that each parent has one
+    identity id.
+  - Reports `ok`, `child_not_imported`, `owner_mismatch`, `missing_object`, `invalid_key`,
+    `identity_conflict`, `unreferenced_object` and `django_photo_newer` as counts, with no keys,
+    names or subs.
+  - Writes nothing.
+- **LAI-1103c Photo copy.** Depends: 1103b, 0904 deployed, G9. **APPROVAL.** Acceptance:
+  - Checks integrity (SHA-256, and ETag MD5 for single-part objects) and runs the upload
+    validation and metadata stripping.
+  - Deterministic photo ids (`uuid5` of the legacy key), `If-None-Match` writes, and rows only
+    where no current photo exists.
+  - Bounded retries; resumable and idempotent; dry run by default.
+  - The report lists every non-`ok` outcome.
+  - Rollback removes exactly the rows and objects whose ids derive from legacy keys.
+- **LAI-1103d Photo migration verification.** Depends: 1103c. Acceptance:
+  - Migrated count equals the planned `ok` count, and every SHA-256 matches its row.
+  - Sampled owner access works and a cross-family read gives `404`.
+  - `child_photo_storage_audit` shows no orphans and no missing objects.
+  - Every exception is signed off by a person.
 **LAI-1104 Shadow comparison.** Depends: 1102, Phase 6. Risk M. Acceptance: for a sample of
 children, Amplify and Django return equal DTOs for reads and equal outcomes for replayed
 answers.
@@ -436,13 +507,42 @@ window, final export/import, flag flip order, verification checklist, rollback s
 **LAI-1203 Production cutover.** Depends: 1202, 0405. Risk H. **APPROVAL: product owner,
 in person.** Rollback: flip `VITE_BACKEND` back and keep Amplify stack and DynamoDB intact
 and read-write-frozen for a defined window (suggest 14 days).
+**LAI-1204 Retire legacy Amplify S3 storage (added 2026-10-31, ADR-042).** Risk H.
+**APPROVAL: explicit, final, before any deletion.**
+Depends:
+- the asset manager's Amplify import verified (`import_assets --from-amplify`, AM-8, run against
+  production);
+- LAI-1103d;
+- LAI-1203 accepted;
+- every affected client confirmed on Django-backed storage (LAI-0905, and LAI-1301 for removing
+  the Amplify code paths);
+- no remaining runtime reference to legacy bucket objects;
+- explicit approval to retire the bucket.
+
+Acceptance:
+- Every required object is confirmed migrated, with integrity checked.
+- Child photo authorization is confirmed on Django.
+- React works, and Android where it applies.
+- Backup and retention requirements are confirmed, including the `unreferenced_object` list from
+  LAI-1103b.
+- Every remaining bucket consumer is reviewed (`docs/platform/CHILD_PHOTO_STORAGE.md`
+  section 9).
+- A deletion plan with rollback considerations is written and approved.
+- This task never deletes the bucket implicitly. Amplify storage auto-deletes its objects when the
+  Amplify stack is deleted, so LAI-1302 waits for this task.
 
 ### Phase 13 - Retire Amplify
 
-**LAI-1301 Remove Amplify from the frontend.** Depends: 1203 + stability window. Risk M.
+**LAI-1301 Remove Amplify from the frontend.** Depends: 1203 + stability window; for storage,
+also 0904 deployed, 1103d (photos migrated), AM-15 and AM-16 (assets on Django), 1002. Risk M.
 Acceptance: `aws-amplify` data/storage code and `amplify_outputs.json` handling removed;
-Cognito configured by Vite env; tests green.
-**LAI-1302 Detach Cognito, then delete Amplify stacks.** Depends: 1301, 0405. Risk H.
+Cognito configured by Vite env; tests green. Storage specifically (ADR-042 amendment, 2026-11-01):
+no Amplify Storage upload, delete or download-link call and no `aws-amplify/storage` import left
+in `react/`; the Amplify photo and asset branches removed; the browser-side storage grants in
+`amplify/storage/resource.ts` (and the identity pool permissions they generate) removed; React
+and Android confirmed free of legacy-bucket references; assets and photos confirmed migrated.
+The legacy bucket itself is LAI-1204, never changed here.
+**LAI-1302 Detach Cognito, then delete Amplify stacks.** Depends: 1301, 0405, 1204. Risk H.
 **APPROVAL: explicit, per resource group.** Never delete the user pool with the stack.
 **LAI-1303 Remove `amplify/`, `amplify.yml`, dev dependencies; supersede ADR-010.** Depends:
 1302. Risk L. Update `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `README.md`, `CLAUDE.md`.
@@ -622,7 +722,7 @@ final. Verification: full gate plus e2e.
 ## 4. Manual approval points (summary)
 
 LAI-0101, 0103 (credentials), 0104, 0201 (before merge), 0401, 0405, 0702, 0802, 0904,
-every Phase 10 deploy, 1101, 1202, 1203, 1302, and for Track B: 2003, 2302, 2303, 2304.
+every Phase 10 deploy, 1101, 1103 (bucket read, copy), 1202, 1203, 1204, 1302, and for Track B: 2003, 2302, 2303, 2304.
 Claude must stop and ask at each.
 
 ## 5. Data migration implications
@@ -631,7 +731,8 @@ Claude must stop and ask at each.
 - Phase 11 is the only task group touching deployed data; it is read-only against AWS.
 - Hard problems: string-set fields to rows; JSON (`payload`, `sharedState`, `scenes`,
   `storyFlags`, `memoryFlags`) validated before import; DynamoDB `id` strings preserved as
-  Django UUID/char keys so URLs and audit references survive; S3 key rewrite for photos.
+  Django UUID/char keys so URLs and audit references survive; S3 key rewrite for photos into the
+  separate private photo bucket (LAI-1103, ADR-042).
 - Data-loss risk is highest for `ChildInventory`, `SkillProgress`, and `WorldChange`
   (idempotency semantics). Dry-run must reproduce each child's derived summaries exactly.
 

@@ -204,6 +204,59 @@ def test_asset_settings_reject_unsafe_values(monkeypatch, name, value):
     _load("config.settings.base")  # leave the default loaded
 
 
+def test_production_child_photos_default_to_off_never_local(monkeypatch):
+    """LAI-0904, ADR-042: S3 or disabled; unset is disabled so an early release still starts."""
+    _prod_env(monkeypatch, LAI_CHILD_PHOTO_STORAGE=None)
+    assert _load("config.settings.production").LAI_CHILD_PHOTO_STORAGE == "disabled"
+    for backend in ("local", "memory"):
+        _prod_env(monkeypatch, LAI_CHILD_PHOTO_STORAGE=backend)
+        with pytest.raises(ImproperlyConfigured, match="LAI_CHILD_PHOTO_STORAGE"):
+            _load("config.settings.production")
+
+
+@pytest.mark.parametrize("missing", ["LAI_CHILD_PHOTOS_BUCKET", "LAI_CHILD_PHOTOS_REGION"])
+def test_production_s3_child_photos_need_bucket_and_region(monkeypatch, missing):
+    photo_env = {
+        "LAI_CHILD_PHOTO_STORAGE": "s3",
+        "LAI_CHILD_PHOTOS_BUCKET": "lai-child-photos-test",
+        "LAI_CHILD_PHOTOS_REGION": "us-test-1",
+    }
+    _prod_env(monkeypatch, **photo_env)
+    assert _load("config.settings.production").LAI_CHILD_PHOTOS_BUCKET == "lai-child-photos-test"
+    _prod_env(monkeypatch, **{**photo_env, missing: None})
+    with pytest.raises(ImproperlyConfigured, match=missing):
+        _load("config.settings.production")
+
+
+def test_production_child_photos_never_share_the_asset_bucket(monkeypatch):
+    _prod_env(
+        monkeypatch,
+        LAI_CHILD_PHOTO_STORAGE="s3",
+        LAI_CHILD_PHOTOS_BUCKET=PROD_ENV["LAI_ASSET_BUCKET"],
+        LAI_CHILD_PHOTOS_REGION="us-test-1",
+    )
+    with pytest.raises(ImproperlyConfigured, match="must not be the asset bucket"):
+        _load("config.settings.production")
+
+
+@pytest.mark.parametrize(
+    "name, value",
+    [
+        ("LAI_CHILD_PHOTO_STORAGE", "public"),
+        ("LAI_CHILD_PHOTO_MAX_BYTES", "999999999"),
+        ("LAI_CHILD_PHOTO_MAX_DIMENSION", "10"),
+        ("LAI_CHILD_PHOTO_URL_TTL_SECONDS", "3600"),
+        ("LAI_CHILD_PHOTO_URL_TTL_SECONDS", "1"),
+    ],
+)
+def test_child_photo_settings_reject_unsafe_values(monkeypatch, name, value):
+    monkeypatch.setenv(name, value)
+    with pytest.raises(ImproperlyConfigured, match=name):
+        _load("config.settings.base")
+    monkeypatch.delenv(name)
+    _load("config.settings.base")  # leave the default loaded
+
+
 def test_production_does_not_hardcode_infrastructure():
     from pathlib import Path
 

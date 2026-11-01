@@ -44,8 +44,7 @@ export function ChildProfileEdit() {
 
   async function handleSubmit(input: ChildProfileInput) {
     if (!childId) return;
-    await updateChildProfile(childId, input);
-    navigate('/home');
+    return updateChildProfile(childId, input);
   }
 
   return (
@@ -79,6 +78,7 @@ export function ChildProfileEdit() {
               sessionMinutes: childProfile.sessionMinutes,
             }}
             onSubmit={handleSubmit}
+            onSaved={() => navigate('/home')}
           />
         ) : null}
       </main>

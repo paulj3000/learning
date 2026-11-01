@@ -11,6 +11,7 @@ from zoneinfo import available_timezones
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+from . import photos
 from .models import (
     DISPLAY_NAME_MAX_LENGTH,
     MAX_INTERESTS,
@@ -118,7 +119,10 @@ class ChildProfileSerializer(serializers.Serializer):
     updatedAt = serializers.DateTimeField(source="updated_at")
 
     def get_hasPhoto(self, child) -> bool:
-        return bool(child.avatar_photo_key)
+        annotated = getattr(child, "has_photo", None)  # set by services.list_child_profiles
+        if annotated is not None:
+            return bool(annotated)
+        return photos.has_current_photo(child)
 
 
 class ParentProfileWrite(serializers.Serializer):

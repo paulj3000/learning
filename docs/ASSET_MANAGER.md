@@ -233,6 +233,11 @@ next load asks again. Treasure Cove uses it (TR-10, section 15).
 | CORS | None by default (`django` delivery). With `allowedOrigins`, one rule: `GET` and `HEAD`, those explicit `https://` origins only, `Range` request header, `Content-Length`, `Content-Type`, `ETag` exposed, one hour preflight cache. Wildcards and plain `http://` (other than localhost) are refused at synth |
 | Credentials | From the workload role through the default AWS SDK chain (`boto3.client("s3")`). Nothing in settings, `.env` files or the React build. Local development keeps `local` storage and needs no AWS credentials |
 
+**Child photos are not here (ADR-042).** Parent-uploaded child photos live in the separate
+private bucket `LaiChildPhotos-<env>`, owned by the child profile subsystem, never published and
+never served through a CDN (`docs/platform/CHILD_PHOTO_STORAGE.md`). The asset bucket and its
+policy were reviewed for that decision and left unchanged.
+
 Deploying it is a Phase 10 approval step (`docs/DJANGO_MIGRATION_ROADMAP.md`). No test makes a
 live AWS call: `infra/lib/assetStorageStack.test.ts` asserts on the synthesized template, and
 `apps/assets/tests/test_storage.py` stubs boto3.
@@ -273,6 +278,10 @@ The admin preview (section 17) adds no variable. Its token lifetime is the const
 | AM-10 | Admin 3D model preview (section 17) | Done (unit-tested; not checked in a browser) |
 | AM-11 | Signed CloudFront delivery | Not needed for launch (section 8); later optimisation once LAI-1005's distribution exists |
 | AM-12 | Production S3 storage: bucket, IAM, CORS, image, runbook (sections 12 and 19) | Done as code and documentation; deploying it is an approval step |
+| AM-13 | Non-model asset kinds: textures, images and sprites, audio, animation clips. Each kind gets validation, a key family under `assets/` and a matching IAM prefix; the bucket needs no change | Not started (added 2026-10-31, ADR-042) |
+| AM-14 | Administrator API: definitions, uploads, publish, default, retire, delete unpublished (section 20) | Done 2026-11-01 (unit-tested). Mutations blocked until LAI-0209 |
+| AM-15 | React asset manager on the Django API, Amplify pages kept for builds without it (section 20) | Done 2026-11-01 (unit-tested). Not checked in a browser |
+| AM-16 | End-to-end publish and delivery verification on the deployed dev environment | Not started: needs LAI-1002/1004 (dev platform), the asset bucket deployed, and LAI-0209 |
 
 ## 15. Treasure Rush TR-10 (done 2026-10-30)
 
@@ -575,3 +584,50 @@ without an asset role getting 403 on the page and the file; anonymous visitors s
 a 403 JSON response with no bytes for the file; a missing token header giving 404; and no page
 errors.
 
+## 20. Administrator API and React pages (AM-14, AM-15; ADR-042 amendment)
+
+The React admin manages Django assets through Django, never through a bucket. Files go to
+Django; Django checks, stores and records them with the same services Django Admin uses
+(`apps/assets/services.py`), so there is one lifecycle and one set of rules.
+
+| Route (`/api/v1/`) | Method | Does |
+|---|---|---|
+| `admin/assets/` | GET | Every definition (`?kind=` filter): id, names, kind, category, status, default version, version count |
+| `admin/assets/` | POST | Create a `DJANGO` definition with no versions. `assetId` must match the storage key rule (lowercase words joined by hyphens). `409 asset_exists` if taken |
+| `admin/assets/<id>/` | GET | The definition, its versions (status, file name, size, format, clips, validation report) and `publishedReferences` (objects in published 3D Areas that use it) |
+| `admin/assets/<id>/versions/` | POST | Multipart `file`: checksum, validate, store under `assets/models/<id>/<uuid>/model.<format>`, record `VALIDATED`. `400 invalid_model` with `details.findings`, `409 duplicate_version` with `details.version`, `413 asset_too_large`, `503 storage_failed` |
+| `admin/assets/<id>/versions/<n>/publish/` | POST | Re-verify the stored bytes, then `PUBLISHED`; the first published version becomes the default |
+| `admin/assets/<id>/versions/<n>/default/` | POST | Make a published version the default |
+| `admin/assets/<id>/versions/<n>/retire/` | POST | Body `{"replacement": n}` when retiring the default |
+| `admin/assets/<id>/versions/<n>/` | DELETE | Only never-published versions; the file is deleted after the row commits |
+
+**Authorization.** Every route needs a verified Cognito access token in the `Admins` group, and a
+provisioned account (ADR-024 A4). Every mutation also passes `admin_api.MUTATION_GATE`, which is
+`SensitiveActionBlocked` until LAI-0209 adds the recent-authentication check (ADR-024 A3): until
+then the React pages can list and inspect, and every change answers `403
+sensitive_action_unavailable`, which the pages explain ("Use Django Admin for now"). Django
+Admin's own staff permissions (section 3) are unchanged and remain the way to change assets.
+
+**What never happens.** Definitions are never deleted through the API (retire in Django Admin).
+Published and retired versions are never deleted. Responses carry no storage key, bucket name,
+uploader identity or credential. The original file name is kept for the admin's reference only.
+
+**Retries.** Creating a definition that exists answers `409 asset_exists`; uploading a file the
+asset already holds answers `409 duplicate_version` with that version's number, which the React
+pages treat as uploaded; deleting a version that is already gone answers `404`, which the client
+treats as done. A failed upload leaves no row and no object.
+
+**React** (`react/src/routes/modelAssetPages.tsx`). A build with the Django API
+(`VITE_BACKEND=django`) uses `features/assets/django/`: the model list, "Add a model" (define,
+then upload; a retry only uploads) and a per-asset page with the version actions and new-version
+uploads. Uploads use `XMLHttpRequest` for progress (`api/assets/djangoAssetAdmin.ts`), with one
+forced token refresh after a 401, and send the token only to the configured API origin. A test
+walks those pages' runtime imports and fails on any Amplify or AWS SDK import. A build without the
+Django API keeps the Amplify pages (`AdminModelAssets`, `AdminNewModelAsset`) unchanged until
+LAI-1301.
+
+**Not done here.** Non-model kinds (textures, images, audio) remain AM-13: they need a key family
+and IAM prefix per kind, validation per format, and a runtime consumer in the engine, which is a
+decision of its own. The Amplify catalog admin's model picker (`features/admin/catalogApi.ts`) still
+reads Amplify `Asset` records; it goes with LAI-1301. AM-16 verifies publish and delivery on the
+deployed dev environment.

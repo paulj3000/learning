@@ -1,11 +1,16 @@
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.http import HttpResponse
+from django.urls import reverse
 from rest_framework import exceptions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from . import services
+from . import photos, services
 from .authentication import UnprovisionedParent
 from .permissions import IsProvisionedParent, IsVerifiedPrincipal, SensitiveActionBlocked
+from .photo_storage import PhotoObjectMissing, PhotoStorageError
+from .photo_validation import PhotoRejected
 from .scoping import ChildScopedAPIView
 from .serializers import (
     ChildProfileSerializer,
@@ -123,3 +128,146 @@ class ChildDetailView(ChildScopedAPIView):
 
     def delete(self, request, child_id):  # pragma: no cover - SensitiveActionBlocked denies first
         raise exceptions.PermissionDenied
+
+
+# --- Child profile photo (LAI-0904, ADR-042; docs/platform/CHILD_PHOTO_STORAGE.md) -------------
+
+
+class PhotoInvalid(exceptions.APIException):
+    status_code = 400
+    default_code = "photo_invalid"
+    default_detail = "That photo could not be read."
+
+
+class PhotoDimensionsUnsupported(exceptions.APIException):
+    status_code = 400
+    default_code = "photo_dimensions"
+    default_detail = "That photo's dimensions are not supported."
+
+
+class PhotoTooLarge(exceptions.APIException):
+    status_code = 413
+    default_code = "photo_too_large"
+    default_detail = "That photo file is too large."
+
+
+class PhotoTypeUnsupported(exceptions.APIException):
+    status_code = 415
+    default_code = "photo_type_unsupported"
+    default_detail = "Only JPEG photos are accepted."
+
+
+class PhotoStorageUnavailable(exceptions.APIException):
+    status_code = 503
+    default_code = "photo_storage_unavailable"
+    default_detail = "Photos are not available right now."
+
+
+_PHOTO_REJECTIONS = {
+    "photo_invalid": PhotoInvalid,
+    "photo_dimensions": PhotoDimensionsUnsupported,
+    "photo_too_large": PhotoTooLarge,
+    "photo_type_unsupported": PhotoTypeUnsupported,
+}
+
+
+def _photo_body(request, child, photo):
+    if photo is None:
+        return {"photo": None}
+    try:
+        access = photos.photo_access(photo)
+    except PhotoStorageError:
+        raise PhotoStorageUnavailable from None
+    url = access.url or request.build_absolute_uri(
+        reverse("child-photo-content", kwargs={"child_id": child.pk})
+    )
+    return {
+        "photo": {
+            "id": str(photo.pk),
+            "contentType": photo.content_type,
+            "byteSize": photo.byte_size,
+            "width": photo.width,
+            "height": photo.height,
+            "uploadedAt": photo.created_at.isoformat(),
+            # "presigned": a plain GET of `url` until `urlExpiresAt`, no credentials (an <img>).
+            # "api": `url` is this API and needs the same bearer token as every other call.
+            "delivery": "presigned" if access.url else "api",
+            "url": url,
+            "urlExpiresAt": access.expires_at.isoformat() if access.expires_at else None,
+        }
+    }
+
+
+def _uncached(response: Response) -> Response:
+    """The body carries a presigned URL that Django authorized for this request only."""
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+class ChildPhotoView(ChildScopedAPIView):
+    """GET, PUT (upload or replace) or DELETE the profile photo of one of the parent's children.
+
+    PUT takes the raw JPEG as the body (`Content-Type: image/jpeg`), never multipart and never a
+    file name. Removing a photo reduces the data held about a child, so unlike child deletion it
+    is not a blocked sensitive action (ADR-024 A3).
+    """
+
+    def get(self, request, child_id):
+        return _uncached(
+            Response(_photo_body(request, self.child, photos.current_photo(self.child)))
+        )
+
+    def put(self, request, child_id):
+        limit = settings.LAI_CHILD_PHOTO_MAX_BYTES
+        try:
+            declared = int(request.META.get("CONTENT_LENGTH") or 0)
+        except ValueError:
+            raise PhotoInvalid from None
+        if declared > limit:
+            raise PhotoTooLarge
+        data = request._request.read(limit + 1)
+        try:
+            photo = photos.replace_photo(
+                request.user, self.child.pk, data, request.content_type or ""
+            )
+        except PhotoRejected as rejected:
+            raise _PHOTO_REJECTIONS[rejected.code] from None
+        except services.ChildProfileNotFound:
+            raise exceptions.NotFound from None
+        except PhotoStorageError:
+            raise PhotoStorageUnavailable from None
+        return _uncached(Response(_photo_body(request, self.child, photo)))
+
+    def delete(self, request, child_id):
+        try:
+            photos.delete_photo(request.user, self.child.pk)
+        except services.ChildProfileNotFound:
+            raise exceptions.NotFound from None
+        return Response(status=204)
+
+
+class ChildPhotoContentView(ChildScopedAPIView):
+    """The photo bytes, for clients with a bearer token (local stores, native apps).
+
+    Never cached by a shared cache, never sniffed as anything but a JPEG.
+    """
+
+    def perform_content_negotiation(self, request, force=False):
+        # An image client sends `Accept: image/*`; errors still answer in JSON.
+        return super().perform_content_negotiation(request, force=True)
+
+    def get(self, request, child_id):
+        photo = photos.current_photo(self.child)
+        if photo is None:
+            raise exceptions.NotFound
+        try:
+            data = photos.read_photo(photo)
+        except PhotoObjectMissing:
+            raise exceptions.NotFound from None
+        except PhotoStorageError:
+            raise PhotoStorageUnavailable from None
+        response = HttpResponse(data, content_type=photo.content_type)
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Content-Disposition"] = 'inline; filename="photo.jpg"'
+        return response

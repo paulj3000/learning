@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const { getChildPhotoUrl } = vi.hoisted(() => ({ getChildPhotoUrl: vi.fn() }));
 
-vi.mock('./avatarPhoto', () => ({ getChildPhotoUrl }));
+vi.mock('./api', () => ({ getChildPhotoUrl }));
 
 import { ChildAvatar } from './ChildAvatar';
 

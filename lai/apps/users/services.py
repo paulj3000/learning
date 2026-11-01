@@ -7,8 +7,15 @@ exist and an id that belongs to someone else are indistinguishable to the caller
 from uuid import UUID
 
 from django.db import transaction
+from django.db.models import Exists, OuterRef
 
-from .models import MAX_CHILD_PROFILES, ChildProfile, ParentAccount
+from .models import (
+    MAX_CHILD_PROFILES,
+    ChildPhoto,
+    ChildPhotoStatus,
+    ChildProfile,
+    ParentAccount,
+)
 
 
 class ChildProfileNotFound(Exception):
@@ -20,7 +27,12 @@ class ChildProfileLimitReached(Exception):
 
 
 def list_child_profiles(parent: ParentAccount):
-    return ChildProfile.objects.owned_by(parent).order_by("created_at", "id")
+    current_photo = ChildPhoto.objects.filter(child=OuterRef("pk"), status=ChildPhotoStatus.CURRENT)
+    return (
+        ChildProfile.objects.owned_by(parent)
+        .annotate(has_photo=Exists(current_photo))
+        .order_by("created_at", "id")
+    )
 
 
 def get_owned_child_profile(parent: ParentAccount, child_id) -> ChildProfile:
@@ -31,6 +43,18 @@ def get_owned_child_profile(parent: ParentAccount, child_id) -> ChildProfile:
     try:
         return ChildProfile.objects.owned_by(parent).get(pk=child_uuid)
     except ChildProfile.DoesNotExist:
+        raise ChildProfileNotFound from None
+
+
+def lock_owned_child_profile(parent: ParentAccount, child_id) -> ChildProfile:
+    """The parent's child, row-locked until the caller's transaction ends (photo changes).
+
+    Must run inside `transaction.atomic()`. Raises `ChildProfileNotFound` like the reads above.
+    """
+    try:
+        child_uuid = child_id if isinstance(child_id, UUID) else UUID(str(child_id))
+        return ChildProfile.objects.owned_by(parent).select_for_update().get(pk=child_uuid)
+    except (ValueError, ChildProfile.DoesNotExist):
         raise ChildProfileNotFound from None
 
 

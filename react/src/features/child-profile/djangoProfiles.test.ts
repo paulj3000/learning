@@ -144,12 +144,42 @@ describe('Django profile store', () => {
     expect(client.request).not.toHaveBeenCalled();
   });
 
-  it('has nothing to backfill and keeps no photos', async () => {
+  it('has nothing to backfill', async () => {
     const client = fakeClient(() => null);
     const store = createDjangoProfileStore(client);
     await store.ensureChildProfileOwnerSub('c1');
     expect(client.request).not.toHaveBeenCalled();
-    expect(store.supportsPhotos).toBe(false);
+  });
+
+  it('keeps photos as a child sub-resource written after the profile save (LAI-0905)', () => {
+    const store = createDjangoProfileStore(fakeClient(() => null));
+    expect(store.supportsPhotos).toBe(true);
+    expect(store.photoWrite).toBe('after-save');
+  });
+
+  it('uses the child id as the photo reference only when Django reports a photo', () => {
+    expect(parseChild({ ...WIRE_CHILD, hasPhoto: true })?.avatarPhotoKey).toBe('c1');
+    expect(parseChild({ ...WIRE_CHILD, hasPhoto: false })?.avatarPhotoKey).toBeNull();
+    expect(parseChild({ ...WIRE_CHILD, hasPhoto: 'yes' })?.avatarPhotoKey).toBeNull();
+  });
+
+  it('routes a photo selection to the photo client', async () => {
+    const photos = {
+      upload: vi.fn().mockResolvedValue({ id: 'ph1', delivery: 'api', url: '/x' }),
+      remove: vi.fn().mockResolvedValue(undefined),
+      getDisplayUrl: vi.fn().mockResolvedValue('https://bucket.example/p?sig=1'),
+    };
+    const store = createDjangoProfileStore(
+      fakeClient(() => null),
+      photos,
+    );
+    const icon = new Blob(['jpeg'], { type: 'image/jpeg' });
+    await store.applyChildPhotoSelection('c1', { kind: 'replace', icon });
+    await store.applyChildPhotoSelection('c1', { kind: 'remove' });
+    await store.applyChildPhotoSelection('c1', { kind: 'unchanged' });
+    expect(photos.upload).toHaveBeenCalledExactlyOnceWith('c1', icon);
+    expect(photos.remove).toHaveBeenCalledExactlyOnceWith('c1');
+    await expect(store.getChildPhotoUrl('c1')).resolves.toBe('https://bucket.example/p?sig=1');
   });
 });
 

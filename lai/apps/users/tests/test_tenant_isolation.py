@@ -16,6 +16,7 @@ from django.conf import settings
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import URLPattern, URLResolver
+from rest_framework.views import APIView
 
 from apps.users import scoping, services
 from apps.users.models import ChildProfile
@@ -313,6 +314,20 @@ PARENT_SCOPED = {
 GAME_RUNTIME = {"api/v1/game-session/", "api/v1/game-session/end/"}
 
 
+def is_admin_route(route, cls) -> bool:
+    """Administrator routes (AM-14): under `api/v1/admin/`, naming no child, on the asset
+    administrator base view, which requires the Cognito `Admins` group on every request (ADR-024
+    A4) and reads no child-owned data (apps/assets/tests/test_admin_api.py)."""
+    from apps.assets.admin_api import AdminAssetView
+
+    return (
+        route.startswith("api/v1/admin/")
+        and "child" not in route
+        and cls is not None
+        and issubclass(cls, AdminAssetView)
+    )
+
+
 def unscoped_routes(urlpatterns):
     """Routes that are neither explicitly public, parent-scoped, nor correctly child-scoped."""
     bad = []
@@ -322,8 +337,28 @@ def unscoped_routes(urlpatterns):
         cls = getattr(callback, "cls", None)
         if "<uuid:child_id>" in route and cls and issubclass(cls, ChildScopedMixin):
             continue
+        if is_admin_route(route, cls):
+            continue
         bad.append(route)
     return bad
+
+
+def test_admin_routes_are_recognized_only_on_the_administrator_view():
+    from apps.assets.admin_api import AdminAssetListView
+
+    assert is_admin_route("api/v1/admin/assets/", AdminAssetListView)
+    assert not is_admin_route("api/v1/admin/assets/", APIView)
+    assert not is_admin_route("api/v1/admin/children/<uuid:child_id>/", AdminAssetListView)
+    assert not is_admin_route("api/v1/assets/", AdminAssetListView)
+
+
+def test_admin_routes_need_the_admins_group_and_refuse_a_parent_token(families, api):
+    from config import urls
+
+    admin_routes = [r for r, cb in walk(urls.urlpatterns) if r.startswith("api/v1/admin/")]
+    assert admin_routes, "the administrator API should be installed"
+    assert api(families.a).get("/api/v1/admin/assets/").status_code == 403
+    assert api().get("/api/v1/admin/assets/").status_code == 401
 
 
 def test_every_real_route_is_public_parent_scoped_or_child_scoped():

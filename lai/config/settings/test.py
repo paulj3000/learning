@@ -19,6 +19,8 @@ PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 # The asset manager never touches disk or AWS in tests (LAI-2200).
 LAI_ASSET_STORAGE = "memory"
 LAI_ASSET_DELIVERY = "django"
+# Child photos likewise (LAI-0904): an in-process store per configuration.
+LAI_CHILD_PHOTO_STORAGE = "memory"
 
 if os.environ.get("POSTGRES_HOST", "127.0.0.1") not in LOOPBACK_HOSTS:
     raise RuntimeError("Test settings only connect to a loopback PostgreSQL.")

@@ -112,6 +112,16 @@ pipeline (ADR-037) adds **3 roles**: `lai-github-image-publisher` (account-wide,
 `lai-github-deploy-<env>` (GitHub OIDC), in `LaiDjangoEc2-<env>`. So 5 for dev and prod together,
 with no Lambda or custom-resource roles.
 
+Added 2026-10-31 (ADR-042, synthesized, not deployed): `LaiChildPhotos-<env>` creates **0 roles**
+and 1 customer-managed policy, `lai-django-child-photos-<env>`. It allows `s3:GetObject`,
+`s3:PutObject` and `s3:DeleteObject` on `children/*`, and `s3:ListBucket` only with the
+`children/` prefix condition. It has no version, ACL or bucket-configuration rights, and the
+instance role `lai-django-ec2-<env>` attaches it. The two Django storage policies are disjoint: the
+asset policy reaches only `assets/models/*` in the asset bucket, the photo policy only
+`children/*` in the photo bucket. The role total is unchanged at 5 for dev and prod together.
+The legacy Amplify storage bucket and its roles are unchanged
+(`docs/platform/CHILD_PHOTO_STORAGE.md` section 9).
+
 ## 7. Recommendation
 
 - Request the quota increase now, independent of this migration. It is cheap and removes the

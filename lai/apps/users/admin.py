@@ -15,7 +15,14 @@ import logging
 from django import forms
 from django.contrib import admin
 
-from .models import AdminAccount, ChildProfile, ParentAccount, ParentRecord
+from .models import (
+    AdminAccount,
+    ChildPhoto,
+    ChildPhotoStatus,
+    ChildProfile,
+    ParentAccount,
+    ParentRecord,
+)
 
 audit_logger = logging.getLogger("lai.admin_audit")
 
@@ -206,4 +213,4 @@ class ChildProfileAdmin(_AuditedReadOnlyAdmin):
 
     @admin.display(boolean=True, description="photo")
     def has_photo(self, obj):
-        return bool(obj.avatar_photo_key)
+        return ChildPhoto.objects.for_child(obj).filter(status=ChildPhotoStatus.CURRENT).exists()

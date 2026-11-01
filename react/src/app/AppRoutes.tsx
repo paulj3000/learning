@@ -35,8 +35,7 @@ import { AdventureLibraryPage } from '../routes/AdventureLibraryPage';
 import { AdminDashboard } from '../routes/AdminDashboard';
 import { AdminChildProgress } from '../routes/AdminChildProgress';
 import { AdminAssets } from '../routes/AdminAssets';
-import { AdminModelAssets } from '../routes/AdminModelAssets';
-import { AdminNewModelAsset } from '../routes/AdminNewModelAsset';
+import { modelAssetPages } from '../routes/modelAssetPages';
 import { AdminIslands } from '../routes/AdminIslands';
 import { AdminIslandForm } from '../routes/AdminIslandForm';
 import { AdminIslandDetail } from '../routes/AdminIslandDetail';
@@ -111,6 +110,9 @@ const LocationWorldPage = lazy(() =>
     default: module.LocationWorldPage,
   })),
 );
+
+/** Chosen once per build: the Django asset manager, or the Amplify pages until cutover (AM-15). */
+const MODEL_ASSET_PAGES = modelAssetPages();
 
 export function AppRoutes() {
   return (
@@ -399,8 +401,11 @@ export function AppRoutes() {
         <Route index element={<AdminDashboard />} />
         <Route path="children/:childId" element={<AdminChildProgress />} />
         <Route path="assets" element={<AdminAssets />} />
-        <Route path="assets/models" element={<AdminModelAssets />} />
-        <Route path="assets/models/new" element={<AdminNewModelAsset />} />
+        <Route path="assets/models" element={MODEL_ASSET_PAGES.list} />
+        <Route path="assets/models/new" element={MODEL_ASSET_PAGES.create} />
+        {MODEL_ASSET_PAGES.detail ? (
+          <Route path="assets/models/:assetId" element={MODEL_ASSET_PAGES.detail} />
+        ) : null}
         {/* Islands & Adventures catalog (docs/ISLAND_ADVENTURE_MANAGEMENT.md, ADR-031). */}
         <Route path="islands" element={<AdminIslands />} />
         <Route path="islands/new" element={<AdminIslandForm />} />

@@ -58,6 +58,12 @@ through `src/features/assets/assetService.ts`, which falls back to the
 bundled `public/models/` file whenever no published S3 asset can be
 resolved, so children's regions keep working offline.
 
+**Django target (ADR-042).** The Django platform splits these two stores into separate private
+buckets: `LaiAssetStorage-<env>` for game assets (the Django asset manager, ADR-035) and
+`LaiChildPhotos-<env>` for child photos (the child profile subsystem; no publication, no CDN,
+7-day version retention). The Amplify bucket above stays unchanged until LAI-1204 retires it.
+See `docs/platform/CHILD_PHOTO_STORAGE.md`.
+
 ### Functions
 Potential functions:
 - `startAdventureSession`

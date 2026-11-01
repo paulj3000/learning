@@ -14,14 +14,30 @@ import {
 import { validateInterests, validateNickname, validateSessionMinutes } from './validators';
 import { ChildPhotoField } from './ChildPhotoField';
 import { persistPhotoSelection, type PhotoSelection } from './avatarPhoto';
-import { profilePhotosSupported, type ChildProfileInput } from './api';
+import {
+  applyChildPhotoSelection,
+  profilePhotosSupported,
+  profilePhotoWrite,
+  updateChildProfile,
+  type ChildProfile,
+  type ChildProfileInput,
+} from './api';
+import { PHOTO_AFTER_SAVE_PREFIX } from './photoMessages';
 
 interface ChildProfileFormProps {
   initialValue?: Partial<ChildProfileInput>;
   submitLabel: string;
-  onSubmit: (input: ChildProfileInput) => Promise<void>;
+  /**
+   * Saves the profile. Return the saved profile: `after-save` stores (Django) need its id to
+   * upload the photo afterwards.
+   */
+  onSubmit: (input: ChildProfileInput) => Promise<ChildProfile | void>;
+  /** Called once the profile and its photo are both saved (for example, to navigate away). */
+  onSaved?: () => void;
   /** Offer the photo upload. Defaults to whether this build's profile store keeps photos. */
   photosEnabled?: boolean;
+  /** How photos are written; defaults to this build's store (`ProfileStore.photoWrite`). */
+  photoWrite?: 'before-save' | 'after-save';
 }
 
 interface FieldErrors {
@@ -34,7 +50,9 @@ export function ChildProfileForm({
   initialValue,
   submitLabel,
   onSubmit,
+  onSaved,
   photosEnabled = profilePhotosSupported(),
+  photoWrite = profilePhotoWrite(),
 }: ChildProfileFormProps) {
   const [nickname, setNickname] = useState(initialValue?.nickname ?? '');
   const [ageBand, setAgeBand] = useState<AgeBandValue>(initialValue?.ageBand ?? 'SPROUT');
@@ -53,6 +71,12 @@ export function ChildProfileForm({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  /**
+   * Set when an `after-save` profile was saved but its photo step failed. A second submit then
+   * updates that profile instead of calling `onSubmit` again, which on the create screen would
+   * add a duplicate child.
+   */
+  const [savedChildId, setSavedChildId] = useState<string | null>(null);
 
   function toggleInterest(interest: string) {
     setInterests((current) =>
@@ -75,27 +99,53 @@ export function ChildProfileForm({
     if (errors.nickname || errors.interests || errors.sessionMinutes) return;
 
     setIsSubmitting(true);
+    const input: ChildProfileInput = {
+      nickname: nickname.trim(),
+      ageBand,
+      avatarKey,
+      avatarPhotoKey: existingPhotoKey,
+      interests,
+      readingMode,
+      sessionMinutes,
+    };
     try {
-      // Uploads the chosen photo (if any) first, saves the profile with the
-      // resulting path, then cleans up a replaced photo - see
-      // `persistPhotoSelection` for why that order matters.
-      await persistPhotoSelection(photoSelection, existingPhotoKey, (avatarPhotoKey) =>
-        onSubmit({
-          nickname: nickname.trim(),
-          ageBand,
-          avatarKey,
-          avatarPhotoKey,
-          interests,
-          readingMode,
-          sessionMinutes,
-        }),
-      );
+      if (photosEnabled && photoWrite === 'after-save') {
+        await saveThenApplyPhoto(input);
+      } else {
+        // Uploads the chosen photo (if any) first, saves the profile with the
+        // resulting path, then cleans up a replaced photo - see
+        // `persistPhotoSelection` for why that order matters.
+        await persistPhotoSelection(photoSelection, existingPhotoKey, async (avatarPhotoKey) => {
+          await onSubmit({ ...input, avatarPhotoKey });
+        });
+      }
+      onSaved?.();
     } catch (error) {
       setFormError(
         error instanceof Error ? error.message : 'Something went wrong. Please try again.',
       );
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  /**
+   * Django (LAI-0905): the photo is a sub-resource of a saved child, so the profile is saved
+   * first and the photo uploaded or removed after it. A photo failure leaves a saved profile, so
+   * the message says so and the next submit retries against that profile.
+   */
+  async function saveThenApplyPhoto(input: ChildProfileInput) {
+    const saved = savedChildId
+      ? await updateChildProfile(savedChildId, input)
+      : await onSubmit(input);
+    if (photoSelection.kind === 'unchanged') return;
+    if (!saved) throw new Error('Something went wrong. Please try again.');
+    try {
+      await applyChildPhotoSelection(saved.id, photoSelection);
+    } catch (error) {
+      setSavedChildId(saved.id);
+      const detail = error instanceof Error ? ` ${error.message}` : '';
+      throw new Error(`${PHOTO_AFTER_SAVE_PREFIX}${detail}`, { cause: error });
     }
   }
 

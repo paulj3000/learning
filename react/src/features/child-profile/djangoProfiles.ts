@@ -6,6 +6,8 @@ import {
   type AgeBandValue,
   type ReadingModeValue,
 } from './constants';
+import { createDjangoPhotoClient, type DjangoPhotoClient } from './djangoPhotos';
+import { PROFILE_MESSAGES, ProfileRequestError } from './profileErrors';
 import type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore } from './profileTypes';
 
 /**
@@ -14,35 +16,23 @@ import type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore } fro
  * token identifies (ADR-040). Nothing here decides
  * ownership: another family's child is a 404, which reads as "no such child" (null).
  *
+ * Profile photos are a child sub-resource (`children/<id>/photo/`, LAI-0905, djangoPhotos.ts):
+ * the profile is saved first, then the photo is uploaded or removed (`photoWrite: 'after-save'`).
+ * A child's `avatarPhotoKey` is its own id when Django reports `hasPhoto`, and null otherwise.
+ *
  * Not available from Django yet, so this store says so instead of pretending:
- * - profile photos (Amplify Storage until LAI-1103): never sent, never shown;
  * - hard deletion of a child or the account (blocked server-side until LAI-0209): a parent can
  *   deactivate a child instead, which keeps the record and its progress.
  */
 
-/** A safe, parent-facing message; the details stay in `cause`. */
-export class ProfileRequestError extends Error {
-  readonly code: string | undefined;
-
-  constructor(message: string, options: { code?: string; cause?: unknown } = {}) {
-    super(message, { cause: options.cause });
-    this.name = 'ProfileRequestError';
-    this.code = options.code;
-  }
-}
-
-export const PROFILE_MESSAGES = {
-  limit: 'You already have the most child profiles allowed.',
-  invalid: 'Some details were not accepted. Check them and try again.',
-  deletionUnavailable:
-    'Deleting is not available yet. You can turn the profile off instead, which hides it from play.',
-  accountDeletionUnavailable: 'Deleting your account is not available here yet.',
-  signedOut: 'Please sign in again.',
-} as const;
+export { PROFILE_MESSAGES, ProfileRequestError };
 
 const READING_MODES = new Set<string>(READING_MODE_OPTIONS.map((option) => option.value));
 
-export function createDjangoProfileStore(client: ApiClient): ProfileStore {
+export function createDjangoProfileStore(
+  client: ApiClient,
+  photos: DjangoPhotoClient = createDjangoPhotoClient(client),
+): ProfileStore {
   async function call(
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
     path: string,
@@ -63,7 +53,15 @@ export function createDjangoProfileStore(client: ApiClient): ProfileStore {
 
   return {
     source: 'django',
-    supportsPhotos: false,
+    supportsPhotos: true,
+    photoWrite: 'after-save',
+    getChildPhotoUrl(photoKey) {
+      return photos.getDisplayUrl(photoKey);
+    },
+    async applyChildPhotoSelection(childId, selection) {
+      if (selection.kind === 'replace') await photos.upload(childId, selection.icon);
+      else if (selection.kind === 'remove') await photos.remove(childId);
+    },
     async getOrCreateParentProfile() {
       // The client provisions a first-time Cognito parent (`POST me/`) on its own.
       return parentOrThrow(await call('GET', 'me/', 'Could not load your profile.'));
@@ -119,7 +117,7 @@ function childPath(id: string): string {
   return `children/${encodeURIComponent(id)}/`;
 }
 
-/** Only the fields Django accepts: the request bodies are closed, and photos are not sent. */
+/** Only the fields Django accepts: the request bodies are closed; the photo has its own route. */
 function toBody(input: ChildProfileInput): Record<string, unknown> {
   return {
     nickname: input.nickname,
@@ -177,7 +175,8 @@ export function parseChild(data: unknown): ChildProfile | null {
     nickname,
     ageBand: ageBand as AgeBandValue,
     avatarKey,
-    avatarPhotoKey: null,
+    // The child id is the photo's opaque reference: only this store resolves it (djangoPhotos.ts).
+    avatarPhotoKey: data.hasPhoto === true ? id : null,
     interests: Array.isArray(data.interests)
       ? data.interests.filter((value): value is string => typeof value === 'string')
       : [],
