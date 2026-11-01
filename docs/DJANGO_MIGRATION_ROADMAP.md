@@ -291,6 +291,9 @@ pytest both green on the same vectors.
 **LAI-0602 Profile writes and deletion.** Depends: 0502. Risk H. Acceptance: create/update/
 deactivate child, three-profile cap, parent-triggered deletion cascades every child-scoped
 table and the photo object; tests for orphan-free deletion (mirrors `deletion.ts`).
+*2026-10-31: the deletion service exists (`lai/apps/users/deletion.py`, photos first, then the
+cascade; refuses and keeps the child when storage cleanup fails; idempotent retry) and is
+pytest-covered. `DELETE /children/<id>/` stays blocked until LAI-0209, so LAI-0602 stays open.*
 
 **LAI-0603 Mastery writes.** Depends: 0601. Risk M. Acceptance: skill evidence and
 `SkillProgress` counters computed server-side with golden vectors; client no longer sends
@@ -411,8 +414,9 @@ Acceptance:
 - Amplify builds are unchanged until LAI-1301.
 
 *Started 2026-10-31 on `feature/lai-0905-photo-clients`: the React client and the Android
-contract are done and unit tested, not merged. It stays open until it is verified against the
-deployed dev bucket (LAI-0904's deployment) and a native client exists to follow the contract.*
+contract are done and unit tested, committed, not merged. Not accepted: it needs the deployed dev
+bucket (LAI-0904, approval), a real Cognito sign-in for the browser check (gate A6), and a native
+client to follow the contract.*
 
 ### Phase 10 - AWS infrastructure (may start after Phase 4)
 

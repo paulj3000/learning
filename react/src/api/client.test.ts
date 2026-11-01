@@ -40,7 +40,8 @@ describe('createApiClient', () => {
     const init = fetch.mock.calls[0][1];
     expect(init?.method).toBe('PUT');
     expect(init?.body).toBe(data);
-    expect((init?.headers as Record<string, string>)['Content-Type']).toBe('image/jpeg');
+    const headers = init?.headers as Record<string, string> | undefined;
+    expect(headers?.['Content-Type']).toBe('image/jpeg');
   });
 
   it('resends the same binary body after a 401 refresh', async () => {

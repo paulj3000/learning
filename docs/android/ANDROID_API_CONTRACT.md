@@ -236,6 +236,11 @@ must not rely on that: the contract is that metadata never leaves the device.
 
 These are the website's messages (`react/src/features/child-profile/photoMessages.ts`).
 
+Retries: `503`, `5xx` and network failures may be retried (the parent taps "try again"; no
+automatic loop). A `400`/`413`/`415` photo rejection will fail again with the same bytes: ask for a
+different picture. `PUT` is safe to repeat, since each upload replaces the current photo, and
+`DELETE` is idempotent.
+
 ### Showing the photo
 
 - `delivery: "presigned"`: `url` is a short-lived S3 URL (about 5 minutes) that works without

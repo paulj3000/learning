@@ -11565,3 +11565,66 @@ instruction. Not pushed.
   - Verify against `LaiChildPhotos-dev` once LAI-0904 is deployed (approval).
   - No native Android client exists in this repository to follow the contract.
   - LAI-0602 child deletion must still call `delete_all_child_photos`.
+
+## Child photo integration: LAI-0905 committed, LAI-0602 photo cleanup, LAI-0904 re-verified (2026-10-31, branch only, not merged, not pushed)
+
+Branch `feature/lai-0905-photo-clients` (it also carries the three LAI-0904 commits).
+
+| Task | Implementation | Tests | Deployment | Acceptance |
+|---|---|---|---|---|
+| LAI-0904 bucket and EC2 wiring | Done | 43 infra tests; synth dev and prod pass | **Not deployed**; live state **not checked** (AWS CLI calls were not permitted in this session) | Open |
+| LAI-0904 Django photo API | Done | Full pytest 1207 passed | Not released with S3 anywhere | Open: no real bucket yet |
+| LAI-0905 React client, Android contract | Done, committed | Vitest | n/a | Open: dev bucket and a Cognito test sign-in (gate A6) needed |
+| LAI-0602 photo cleanup on child deletion | Service done (`lai/apps/users/deletion.py`) | 13 new pytest cases | n/a | Open: route blocked until LAI-0209 |
+| LAI-1103 Amplify photo migration | Designed only | none | none | Not started (inputs missing) |
+
+- **LAI-0602.** `delete_child_profile(parent, child_id)`:
+  - The child is resolved through the parent: another family's child or an unknown id is
+    `ChildProfileNotFound`, and nothing changes.
+  - `delete_all_child_photos` runs first, covering current and superseded `DELETING` rows.
+  - The child is deleted (cascading every `ChildOwnedModel` row) only when every object is gone.
+    Otherwise `ChildDeletionIncomplete` is raised, the child is kept, and its photos stay
+    `DELETING` and are never served. A retry is idempotent, and the audit command also repairs.
+  - A photo committed between the purge and the child lock also stops the cascade. An upload
+    still waiting for the lock finds the child gone and deletes its own object.
+  - Noncurrent S3 versions expire by lifecycle after 7 days. Django has no version-delete right
+    (gate G9 question unchanged).
+  - `DELETE /api/v1/children/<id>/` still answers `403 sensitive_action_unavailable`, because
+    LAI-0209 (recent authentication) is an open dependency. When it lands, the view calls the
+    service and maps `ChildDeletionIncomplete` to `503`.
+- **LAI-0904 infrastructure review (synthesized templates).**
+  - `LaiChildPhotos-dev` defines `lai-child-photos-dev-<account>-<region>`: all four Block Public
+    Access settings, `BucketOwnerEnforced`, deny without TLS and below TLS 1.2, SSE-S3,
+    versioning, and lifecycle rules (7-day noncurrent expiry, expired delete markers, 1-day
+    multipart abort).
+  - No CORS rule, `Retain` on delete.
+  - Policy `lai-django-child-photos-dev`: Get, Put and Delete on `children/*`, plus ListBucket
+    limited to the `children/*` prefix.
+  - `LaiDjangoEc2-dev` attaches it to `lai-django-ec2-dev` and writes
+    `/lai/dev/django/LAI_CHILD_PHOTO_STORAGE=s3`, `LAI_CHILD_PHOTOS_BUCKET` and
+    `LAI_CHILD_PHOTOS_REGION`. The asset bucket and its policy stay separate.
+  - Nothing under `amplify/` changed.
+- **API and React verification.**
+  - Every photo endpoint behaviour is covered through the full Django stack with signed test
+    tokens and the in-memory store: upload, metadata, content route, replace, delete,
+    cross-family `404`, unauthenticated, unsupported type, oversized, bad dimensions, S3 write,
+    delete and database failures, disabled storage, presigned URLs.
+  - Keys are `children/<uuid>/<uuid>`, with no names. The `api` URL path the React client
+    accepts is pinned by a server test.
+  - The React flows (new child, replace, remove, failure then retry without a duplicate, `onSaved`
+    navigation) are covered by component tests only.
+- **Merge-gate results (local).**
+  - Backend: Ruff clean, Ruff format clean (327 files), `manage.py check` clean,
+    `makemigrations --check` no changes, `LAI_REQUIRE_POSTGRES=1 pytest -q` 1207 passed.
+  - Frontend: `adr:check` and `admin-preview:check` pass. oxlint has 0 errors and 39 warnings,
+    the baseline (two warnings this work added were fixed). Prettier clean.
+  - Vitest: 3021 passed, 8 failed, 15 files failed. Every failure is this checkout's environment,
+    none in changed code. The tests spawn `node_modules/.bin/tsx`, which is absent because the
+    checkout has no local `node_modules`, and `@colyseus/sdk` / `@colyseus/core` (declared in
+    `package.json`) are not installed in the shared `node_modules`.
+  - `typecheck`, `build` and Playwright stop on the same missing `@colyseus` packages. Node,
+    amplify, scripts and infra typecheck clean; `server` fails only on `@colyseus`.
+- **Blocked.**
+  - The deployed integration test: no approved dev bucket, no live Django with S3, and no
+    Cognito test parent.
+  - The build, typecheck and Playwright gates until `npm ci` is run in a complete checkout.

@@ -1,14 +1,17 @@
 # Child Photo Storage and the Two-Bucket Architecture
 
-Status (2026-10-31, branch `feature/lai-0904-child-photo-storage`, not merged):
+Status (2026-10-31, branch `feature/lai-0905-photo-clients`, which also carries the LAI-0904
+commits; not merged, not pushed):
 
-| Stage | State |
-|---|---|
-| CDK `LaiChildPhotos-<env>` and EC2 wiring | Implemented, unit tested, **synthesized for dev and prod. Not deployed** |
-| Django photo API (`lai/apps/users`) | Implemented, unit tested against the in-memory store. Not exercised against a real bucket |
-| React and Android clients on the Django photo API | React client implemented and unit tested (branch `feature/lai-0905-photo-clients`, not merged); Android contract documented in `docs/android/ANDROID_API_CONTRACT.md`. Not exercised against a deployed bucket (LAI-0905) |
-| Amplify photo migration (LAI-1103) | Designed (section 10). Utility not built: its inputs (LAI-1101 export, bucket read access) do not exist yet |
-| Legacy Amplify storage retirement (LAI-1204) | Planned (section 11). Nothing deleted, nothing changed |
+| Task | Implementation | Tests | Deployment | Acceptance |
+|---|---|---|---|---|
+| LAI-0904 CDK `LaiChildPhotos-<env>` and EC2 wiring | Done | 43 infra unit tests pass; `infra:synth` passes for dev and prod | **Not deployed.** Live AWS state not checked (AWS CLI not permitted in the session that verified it) | Open: needs the approved dev deployment and section 8 step 6 |
+| LAI-0904 Django photo API (`lai/apps/users`) | Done | pytest with the in-memory store, full Django stack | Not released to any environment with S3 | Open: never run against a real bucket |
+| LAI-0905 React client | Done | Vitest component and client tests | Ships with the next React build that uses the Django API | Open: browser check needs a test Cognito pool (gate A6) and the dev bucket |
+| LAI-0905 Android contract | Documented (`docs/android/ANDROID_API_CONTRACT.md`) | n/a | n/a | Open: no Android client exists in this repository |
+| LAI-0602 photo cleanup on child deletion (`lai/apps/users/deletion.py`) | Service done | pytest | n/a | Open: the API route stays blocked until LAI-0209 |
+| LAI-1103 Amplify photo migration | Designed (section 10) | none | none | Not started: its inputs (LAI-1101 export, bucket read access) do not exist |
+| LAI-1204 legacy Amplify storage retirement | Planned (section 11) | none | none | Nothing deleted, nothing changed |
 
 Decision: ADR-042 (`docs/DECISIONS.md`). Tasks: LAI-0904, LAI-0905, LAI-1002, LAI-1103,
 LAI-1204, AM-13 (`docs/DJANGO_MIGRATION_ROADMAP.md`, `tasks/TASK_TRACKER.md`).
@@ -178,7 +181,7 @@ every child route (gate G10).
 | Parent removes a photo | Same | Same |
 | Object delete fails | The `DELETING` row is kept and the photo is never served; `child_photo_storage_audit --delete` retries | After the retry, plus the 7-day window |
 | Upload whose database write failed and whose rollback delete failed | An orphan object with no row | `child_photo_storage_audit --delete` removes orphans older than 60 minutes (younger ones may be uploads still committing), plus the 7-day window |
-| Child deleted (LAI-0602) | The deletion service must call `photos.delete_all_child_photos(child)` and delete the child only if it returns `True`; the row cascade alone would orphan objects | As above |
+| Child deleted (LAI-0602) | `deletion.delete_child_profile` calls `photos.delete_all_child_photos(child)` (current and superseded `DELETING` rows) and deletes the child, cascading every child-owned row, only if every object is gone. Otherwise it raises `ChildDeletionIncomplete`, keeps the child, and leaves the rows `DELETING` (never served); a retry or the audit finishes. A photo committed during the deletion also stops the cascade. Not reachable from the API until LAI-0209 | As above |
 | Abandoned multipart upload | Aborted after 1 day (Django uses single-part `PutObject`; this is a guard) | 1 day |
 | Delete markers | Removed by the lifecycle once no version remains behind them | n/a |
 | Database rows | `DELETING` rows are deleted once their object is gone | Metadata only, no image bytes; RDS automated backups keep earlier rows for their retention period |
@@ -256,7 +259,8 @@ name, so both storage stacks must exist first.
 5. Release the Django image that contains migration `users.0005_child_photos` (the release runs
    `migrate`; the migration only adds a table).
 6. Verify on dev: upload, read (presigned URL), replace, delete as a test parent; the same calls
-   as a second parent get `404`; `child_photo_storage_audit` reports zero orphans and zero missing
+   as a second parent get `404`; in a React build with `VITE_BACKEND=django` pointed at dev, the
+   LAI-0905 flows (new child with photo, replace, remove, a photo failure after save then retry); `child_photo_storage_audit` reports zero orphans and zero missing
    objects; `aws s3api get-public-access-block` and `get-bucket-policy` show the settings above.
 7. Repeat for `prod` only after the dev verification and a separate approval.
 

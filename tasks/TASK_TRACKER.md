@@ -70,7 +70,7 @@ before touching AWS.
 ## Phase 6 — Authoritative progression, inventory, mastery
 
 - [x] **LAI-0601** Python adventure engine + answers endpoint (depends: 0303, 0305, 0403). DONE locally: `apps/adventures/engine.py` (golden parity), answers and hints endpoints, G6 verified for them; React still calls the Amplify Lambda until the frontend API layer (LAI-0501) switches it
-- [ ] **LAI-0602** Profile writes and deletion (depends: 0502)
+- [ ] **LAI-0602** Profile writes and deletion (depends: 0502). 2026-10-31 on `feature/lai-0905-photo-clients`: child deletion service `lai/apps/users/deletion.py` (photo objects first via `delete_all_child_photos`, child kept on storage failure, idempotent retry), pytest only. Route still blocked until LAI-0209
 - [ ] **LAI-0603** Mastery writes (depends: 0601)
 - [ ] **LAI-0604** Rewards and inventory writes (depends: 0603)
 - [ ] **LAI-0605** Quests, NPC, discovery, world state writes (depends: 0604)
@@ -96,8 +96,8 @@ before touching AWS.
 - [ ] **LAI-0901** Atomic co-op slot claim (depends: 0305, 0403)
 - [ ] **LAI-0902** Co-op update stream (depends: 0901)
 - [ ] **LAI-0903** Realtime go/no-go record (depends: 0902)
-- [ ] **LAI-0904** Child photo storage and API in a separate private bucket (ADR-042) (depends: 0602; APPROVAL: deploying the bucket). Repository side done 2026-10-31 on `feature/lai-0904-child-photo-storage`: `LaiChildPhotos-<env>` CDK stack and EC2/SSM wiring (synthesized, not deployed); `GET/PUT/DELETE /children/<id>/photo/` and `photo/content/`; `ChildPhoto` model; JPEG validation and metadata stripping; `child_photo_storage_audit`. Unit-tested only. Open until deployed and verified on dev (`docs/platform/CHILD_PHOTO_STORAGE.md`)
-- [ ] **LAI-0905** React and Android clients on the Django photo API (depends: 0904). Started 2026-10-31 on `feature/lai-0905-photo-clients`: React Django builds upload, show and remove photos through `children/<id>/photo/` (`djangoPhotos.ts`, `photoWrite: 'after-save'`); Android contract in `docs/android/ANDROID_API_CONTRACT.md`. Unit-tested only; open until verified against the deployed dev bucket
+- [ ] **LAI-0904** Child photo storage and API in a separate private bucket (ADR-042) (depends: 0602; APPROVAL: deploying the bucket). Repository side done 2026-10-31 on `feature/lai-0904-child-photo-storage`: `LaiChildPhotos-<env>` CDK stack and EC2/SSM wiring (synthesized, not deployed); `GET/PUT/DELETE /children/<id>/photo/` and `photo/content/`; `ChildPhoto` model; JPEG validation and metadata stripping; `child_photo_storage_audit`. Unit-tested only; synth re-verified 2026-10-31. Not deployed (live AWS state unchecked). Open until deployed and verified on dev (`docs/platform/CHILD_PHOTO_STORAGE.md`)
+- [ ] **LAI-0905** React and Android clients on the Django photo API (depends: 0904). Started 2026-10-31 on `feature/lai-0905-photo-clients`: React Django builds upload, show and remove photos through `children/<id>/photo/` (`djangoPhotos.ts`, `photoWrite: 'after-save'`); Android contract in `docs/android/ANDROID_API_CONTRACT.md`. Implementation done and committed; Vitest only. Not deployed or accepted: needs the dev bucket (LAI-0904 approval) and a Cognito test sign-in (gate A6)
 
 ## Phase 10 — AWS infrastructure (may start after Phase 4)
 
@@ -113,7 +113,7 @@ before touching AWS.
 
 - [ ] **LAI-1101** DynamoDB export tool (read-only) (depends: 0103, 0305)
 - [ ] **LAI-1102** Transform and import dry-run (depends: 1101)
-- [ ] **LAI-1103** Photo object migration plan and dry-run into the private child photo bucket (depends: 0904, 1101; APPROVAL: bucket read, copy). Specified 2026-10-31 (`docs/platform/CHILD_PHOTO_STORAGE.md` section 10); utility not built because its inputs do not exist yet
+- [ ] **LAI-1103** Photo object migration plan and dry-run into the private child photo bucket (depends: 0904, 1101; APPROVAL: bucket read, copy). Specified 2026-10-31 (`docs/platform/CHILD_PHOTO_STORAGE.md` section 10); utility not built because its inputs do not exist yet. Not started (2026-10-31)
   - [ ] **LAI-1103a** Legacy photo inventory, read-only (depends: 1101, G1)
   - [ ] **LAI-1103b** Photo migration planner and dry run (depends: 1103a, profile import applied)
   - [ ] **LAI-1103c** Photo copy (APPROVAL) (depends: 1103b, 0904 deployed, G9)

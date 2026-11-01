@@ -106,7 +106,8 @@ describe('Django photo client (LAI-0905)', () => {
     const [contentUrl, contentInit] = fetch.mock.calls[1];
     // The response named http://testserver; the token still only goes to the API origin.
     expect(contentUrl).toBe('https://lai.example/api/v1/children/c1/photo/content/');
-    expect((contentInit?.headers as Record<string, string>).Authorization).toBe('Bearer token-1');
+    const contentHeaders = contentInit?.headers as Record<string, string> | undefined;
+    expect(contentHeaders?.Authorization).toBe('Bearer token-1');
 
     await expect(photos.getDisplayUrl('c1')).resolves.toBe('blob:photo-1');
     expect(fetch).toHaveBeenCalledTimes(3);
