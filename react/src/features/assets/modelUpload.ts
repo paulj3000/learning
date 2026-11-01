@@ -4,6 +4,9 @@ import { MODEL_MIME_TYPE } from './config';
 import { slugify } from './modelFileChecks';
 import { MODEL_OBJECT_FILE_NAME, modelObjectKey } from './storageKeys';
 import type { Asset, ModelAssetDetails } from './types';
+import type { UploadProgress } from './uploadProgress';
+
+export { progressPercent, type UploadProgress } from './uploadProgress';
 
 /**
  * The upload step of the Model Asset Manager's wizard
@@ -42,11 +45,6 @@ export class AssetUploadError extends Error {
   }
 }
 
-export interface UploadProgress {
-  transferredBytes: number;
-  totalBytes: number;
-}
-
 export interface StartModelUploadInput {
   file: File;
   details: ModelAssetDetails;
@@ -58,12 +56,6 @@ export interface StartModelUploadInput {
 export interface ModelUploadHandle {
   result: Promise<Asset>;
   cancel: () => void;
-}
-
-/** Whole-number percentage for the progress display, clamped to 0-100. */
-export function progressPercent({ transferredBytes, totalBytes }: UploadProgress): number {
-  if (totalBytes <= 0) return 0;
-  return Math.min(100, Math.max(0, Math.floor((transferredBytes / totalBytes) * 100)));
 }
 
 function optional(value: string): string | undefined {

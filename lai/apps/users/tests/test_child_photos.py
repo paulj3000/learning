@@ -290,7 +290,10 @@ class TestPhotoApi:
         assert photo.sha256 == hashlib.sha256(stored).hexdigest()
         assert photo.byte_size == len(stored)
 
-        assert client.get(photo_url(families.a1)).json()["photo"]["id"] == body["id"]
+        assert response["Cache-Control"] == "private, no-store"  # it carries a fresh URL
+        fetched = client.get(photo_url(families.a1))
+        assert fetched.json()["photo"]["id"] == body["id"]
+        assert fetched["Cache-Control"] == "private, no-store"
         content = client.get(photo_url(families.a1, "content/"), HTTP_ACCEPT="image/*")
         assert content.status_code == 200 and content.content == stored
         assert content["Content-Type"] == "image/jpeg"
