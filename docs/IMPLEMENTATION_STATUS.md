@@ -11703,3 +11703,25 @@ Branch `feature/lai-0905-photo-clients`.
     name) and `LaiDjangoRelease` (ECR, GitHub OIDC) first.
 - **Not done (approval or access needed):** change-set review, dev deployment, Django dev
   release and `users.0005` migration, live S3 integration, Cognito browser acceptance.
+
+## ADR-043: Django content authoring, draft and impact assessment (2026-11-01, branch only, not merged)
+
+- **Request.** The owner asked for Firepeak Volcano, "The Volcano Awakens", with dialogue, stages,
+  hints, puzzle parameters and rewards editable in Django Admin. Asked how to reconcile that with
+  ADR-033, the owner directed a platform-wide ADR-043 that makes Django Admin the authoritative
+  content system, keeps the export and `load_content` for initial imports, and is not implemented
+  until accepted.
+- **What was found.** The architecture audit is recorded in
+  `docs/platform/DJANGO_CONTENT_AUTHORING.md` sections 2 and 11. The importer overwrites content
+  fields on every import, catalog admin is read-only apart from `active` and `sort_order`, and
+  no Firepeak, journal or badge content exists.
+- **Change.** Documentation only:
+  - ADR-043 added as Proposed, with its registry row; the registry's next-free number is
+    corrected from 041 to 044.
+  - New impact assessment `docs/platform/DJANGO_CONTENT_AUTHORING.md`.
+  - Owner decisions FP-D1 to FP-D4 for Firepeak recorded there.
+- **Checks.** `npm run adr:check` passed (43 decisions, 43 registry rows). No code changed, so no
+  unit tests or typecheck were run.
+- **Open.**
+  - ADR-043 acceptance and its four open questions.
+  - The Firepeak roadmap and tracker rows (FP-n, LAI-0810 to 0815) are added after acceptance.

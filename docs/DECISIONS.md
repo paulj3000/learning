@@ -18,7 +18,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 
 **Format recommendation.** Keep this single file plus the registry table. Individually named ADR files would force moving about 4,500 lines and rewriting links for no collision benefit the check does not already give. Revisit only if the log passes roughly 50 decisions.
 
-**Next free identifier number: 041.**
+**Next free identifier number: 044.**
 
 | ID | Title | Status | Origin | Notes |
 |---|---|---|---|---|
@@ -64,6 +64,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-040 | Cognito is the sole authentication provider for application users in every environment; Django authorizes, and native Django authentication serves Django Admin staff only | Accepted | Main line (LAI-AUTH-ROLLBACK) | Owner-directed 2026-10-31. Supersedes ADR-038; restores ADR-024 items 1 and 2 everywhere; keeps ADR-034 (Django Admin) and ADR-039 (Django profile authority) |
 | ADR-041 | Islands, Places and 3D Areas: one optional 3D Area per Place, and Adventures launched from objects in it | Accepted | Feature branch (LAI-0806) | Owner-approved decisions A to E, 2026-10-31. Builds on ADR-032 and ADR-033; leaves LAI-0805 (spatial layout administration) open |
 | ADR-042 | Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset manager owns the asset bucket, and the Amplify bucket stays untouched until retirement | Accepted | Feature branch (LAI-0904) | Owner-accepted 2026-10-31 for code and infrastructure definitions only; no deployment, migration or deletion approved. Builds on ADR-035 (asset storage) and ADR-039 (Django profile authority) |
+| ADR-043 | Django Admin is the authoritative content authoring system; the TypeScript export stays the initial import and migration path and never silently overwrites administrator edits | Proposed | Feature branch (feature/adr-043-django-content-authoring) | Owner-directed draft 2026-11-01; not accepted, not implemented. Would carry out ADR-019 sub-decision 8's cutover and amend ADR-033 items 3 and 4 and ADR-041 E. Impact: `docs/platform/DJANGO_CONTENT_AUTHORING.md` |
 
 ## ADR-001: Parent-owned accounts
 
@@ -3090,3 +3091,162 @@ needs from published game content.
   deletion (LAI-0602) gets prefix-scoped version deletes.
 
 Details: `docs/platform/CHILD_PHOTO_STORAGE.md`.
+
+## ADR-043: Django Admin is the authoritative content authoring system; the TypeScript export stays the initial import and migration path and never silently overwrites administrator edits
+
+Status: Proposed 2026-11-01 (owner-directed draft). Not accepted; nothing in it is implemented.
+Implementation waits for the owner's explicit acceptance. Impact assessment:
+`docs/platform/DJANGO_CONTENT_AUTHORING.md`.
+
+**Context.**
+- ADR-019 sub-decision 8 (amendment, 2026-10-24) already makes Django the content authority. It
+  left a transition in place: the TypeScript content modules stay the authoring input until a
+  cutover task makes Django Admin the editing surface. This ADR is that cutover decision.
+- Today an import overwrites every content field of an existing row (`catalog/importer.py`
+  `_upsert`). Django Admin can change only `active` and `sort_order` on catalog rows, and only
+  publication on 3D Areas and launch points (ADR-041 E). Dialogue, quest stages, hints, reward
+  rules and challenge settings can be changed only by editing TypeScript and re-importing.
+- ADR-033 items 3 and 4 route all non-spatial content through the export and keep region rows
+  and `ChallengeSpec` seed-authored. TR-D3 (admin-authored content as authoritative) was not
+  adopted.
+- The owner wants Django Admin to become the content management system for the whole platform:
+  Treasure Rush, Storykeeper Castle, Firepeak Volcano and later adventures. Firepeak Volcano
+  ("The Volcano Awakens") is the first consumer, and it needs editable dialogue, stages, hints,
+  educational copy, puzzle parameters, rewards and unlock conditions.
+
+**Decisions.**
+
+- **A. Authority.**
+  - After a record is imported, its published Django revision is the authoritative content. In
+    every build with the Django API, React and the engine read published content only through
+    Django APIs.
+  - The TypeScript modules become import input only. React gains no editable content source.
+  - Amplify builds are unchanged until LAI-1301. ADR-031's Amplify overlay keeps serving them
+    and gains nothing.
+- **B. What is authorable in Django Admin.** These record kinds become authorable:
+  - Islands, Places, Adventures and Adventure steps.
+  - Quests, including stages, objectives, branches, prerequisites and completion. The existing
+    quest engine evaluates them unchanged.
+  - NPC definitions, including dialogue.
+  - Items, collectible sets and reward rules.
+  - Learning objectives.
+  - Challenge specs (`education.ChallengeSpec`).
+  - A 3D Area's copy and environment settings (the non-spatial part of `WorldRegion.scene`).
+  - 3D Area puzzles (decision F) and Adventure launch points (already editable, ADR-041 C).
+
+  Out of scope:
+  - Spatial coordinates and placement stay seed-authored (decision H).
+  - Mechanics stay code (decision F).
+  - Model binaries stay with the Asset Manager (decision I).
+- **C. One revision model, on the existing rows.**
+  - Each authorable row keeps its identity: its existing table, id, foreign keys and `active` /
+    `sort_order`. Its content lives in immutable revisions in one shared `ContentRevision` table.
+    This mirrors the Asset Manager's `AssetVersion` (ADR-035) rather than adding a second
+    publishing system.
+  - A revision holds the record's JSON body in the export's own shape, so the existing JSON
+    Schema (`content/schema/content.schema.json`) and the importer's per-record checks validate it.
+  - A revision has a status (`DRAFT`, `PUBLISHED`, `SUPERSEDED`, `DISCARDED`), an origin
+    (`IMPORT`, `ADMIN`, `ROLLBACK`) and the content release it came from, if any.
+  - It records who created it and who published it, and when.
+  - At most one revision per record is the current published one (a partial unique constraint).
+  - Publishing writes the projected columns (`title`, `age_bands` and so on) and `source` from
+    the published body, in the same transaction. Every existing query, service and API keeps
+    working unchanged.
+  - `ContentStatus` (DRAFT, PUBLISHED, RETIRED) stays the publication vocabulary for
+    seed-authored rows. Catalog `active` stays the switch that shows or hides a record.
+- **D. Validation and publishing.**
+  - A draft is checked against the record kind's JSON Schema whenever it is saved.
+  - Publishing re-runs the full validation in one transaction and refuses with every problem
+    listed. Full validation covers the schema, every reference (quests to items, change keys
+    and adventures; reward rules to items; launch points to Adventures of the same Place; asset
+    ids to `ContentAsset` of the right kind) and the existing model `clean()` rules.
+  - It also enforces CLAUDE.md copy rules: maximum lengths per age band, no em dashes in
+    child-facing text, and plain text only (no markup or URLs).
+  - Publishing is atomic and permission-gated through Django groups (ADR-034, ADR-035), with
+    separate permissions to edit a draft and to publish.
+  - Every publish, rollback and retirement is recorded in the Django admin log and on the
+    revision itself.
+- **E. Versioning and rollback.**
+  - Published revisions are never edited or deleted.
+  - Rollback publishes an earlier revision's body as a new `ROLLBACK` revision, so history only
+    grows and every state can be explained.
+  - A session that has started keeps the rules it began with. Gradable content (puzzle
+    solutions, challenge parameters) is snapshotted on the attempt or session, as
+    `ChallengeAttempt` already does. A mid-adventure publish therefore cannot change what the
+    child's current attempt is graded against.
+  - A record referenced by an open session cannot be retired without an explicit confirmation
+    that names those sessions.
+- **F. Mechanics in code, parameters in Django.**
+  - Puzzle mechanics are a closed registry of kinds in code: for example `OBSERVE_FEATURES`,
+    `PLACE_PLATFORMS`, `VALVE_SEQUENCE` and `COLLECT_OBJECT`.
+  - Each kind has a Python parameter schema (types, ranges, per-age-band values) and a Python
+    grader. The Three.js side renders the same kind and reads only validated parameters.
+  - Django Admin edits parameters only within that schema.
+  - Puzzle objects refer to seed-authored placements by `entity_id`.
+  - The server grades every solution. The engine still never validates answers or awards
+    progress (ADR-020 item 6).
+  - A new puzzle kind is a code change, reviewed like any other.
+- **G. Age bands.**
+  - Copy, hints, explanations and parameters that vary by age band are keyed by band inside the
+    revision body, with an explicit list of supported bands. Adding a band later means adding
+    keys, not rewriting content or code.
+  - An adventure does not appear for a band it does not list.
+  - Supporting ages 9 to 12 is a separate, platform-wide age-band decision and is not made here.
+- **H. Spatial layout unchanged.**
+  - Positions, spawn points, colliders and placements stay seed-authored. LAI-0805 is not
+    widened into a visual world editor.
+  - Admin shows layout read-only, as now (ADR-041 E).
+- **I. Assets unchanged.**
+  - GLB and glTF binaries, versions and publication stay with the Asset Manager (ADR-035).
+  - Content references stable asset ids only, validated against `catalog.ContentAsset`.
+- **J. Import and administrator edits coexist.**
+  - Each authorable row gets an `authority` field.
+    - `EXPORT` while every published revision came from an import.
+    - `DJANGO` once an administrator publishes an edit.
+  - `load_content` keeps working for initial imports, new records and migrations, with these rules:
+    - A new record is created with an `IMPORT` revision, published, as today.
+    - An `EXPORT`-authority record whose exported body changed gets a new `IMPORT` revision,
+      published (history kept, rollback possible).
+    - A `DJANGO`-authority record is never changed by an import. The release report lists it as
+      "kept: administrator edits", flagged when the export differs.
+    - `--force` re-imports an unchanged digest as before. It never overrides `DJANGO` authority.
+  - An administrator can take an exported version deliberately. The audited admin action "Use
+    the exported version" creates a draft from the export record, which is then published
+    normally.
+  - Nothing is silently overwritten, and nothing is deleted, as today.
+- **K. Delivery.**
+  - Child-scoped read endpoints serve only published, active content for the child's age band:
+    the existing region bootstrap, extended, plus the catalog reads already planned as LAI-0503.
+  - Responses carry the published revision ids, so clients can cache and support can explain
+    exactly what a child saw.
+- **L. Moving content between environments.**
+  - `manage.py export_content` writes published revisions in the existing export format. A
+    later task promotes administrator edits from one environment to another through the same
+    import rules.
+  - Until that exists, administrator edits stay in the environment where they were made.
+
+**Supersedes and amends.**
+- Carries out ADR-019 sub-decision 8's authoring cutover, for builds with the Django API.
+- Amends ADR-033:
+  - Item 3: the export stays the initial and migration path, not the only one.
+  - Item 4: `ChallengeSpec` and region copy become admin-authorable; layout stays seed-authored.
+- Amends ADR-041 E: puzzle parameters and region copy join the configurable list; positions do not.
+- Adopts TR-D3 for content only, never for layout.
+- ADR-031 stays in force for Amplify builds until LAI-1301.
+
+**Alternatives considered.**
+- Editing `source` in place: an import would overwrite it, and it has no history or rollback.
+- Draft and published columns on every model: about a dozen models would each carry duplicated
+  schema and publishing code.
+- A third-party CMS (Wagtail or similar): a new dependency and a competing content system.
+- Keeping TypeScript as the only authoring surface (status quo): authors need a code release
+  for every wording change.
+
+**Open questions for the owner.**
+1. Should the permission to edit a draft and the permission to publish be held by different
+   people (two-person rule), or may one administrator do both?
+2. Should an export change to an `EXPORT`-authority record publish automatically (proposed,
+   which keeps today's behaviour) or land as a draft for review?
+3. Revision retention: keep every revision forever (proposed), or prune superseded drafts?
+4. Localization: child-facing fields stay single-language now, but the body shape allows locale
+   keys later. Is that enough?
