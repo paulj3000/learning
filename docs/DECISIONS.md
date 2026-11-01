@@ -54,7 +54,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-030 | Uploaded models live in S3 behind Admins-only Asset records; the bundled manifest stays the runtime fallback | Accepted | Storykeeper Castle line | Renumbered from ADR-022 |
 | ADR-031 | Islands and Adventures are an admin catalog overlaid on source-controlled content; Superusers are Admins with one extra group | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-024 on `origin/main`. To be superseded when LAI-0801/0802 move catalog editing to Django (ADR-019 sub-decision 8). Treasure Rush's TR-D3 (admin-authored content as authoritative, which would have changed it) was not adopted (ADR-033) |
 | ADR-032 | Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-025 on `origin/main` |
-| ADR-033 | One Django backbone: Treasure Rush runs on the canonical catalog and progress models; play-region layouts are seed-authored until LAI-0805 | Accepted | Integration (POST-MERGE-03) |  |
+| ADR-033 | One Django backbone: Treasure Rush runs on the canonical catalog and progress models; play-region layouts are seed-authored until LAI-0805 | Accepted | Integration (POST-MERGE-03) | Items 3 and 4 amended by ADR-043 (2026-11-01): the export is the initial and migration path, not the only one; challenge specs and region copy become admin-authorable; layout stays seed-authored |
 | ADR-034 | Django Admin is enabled with local staff sign-in, separate from Cognito; it ships as a gunicorn and WhiteNoise container | Accepted | Main line (LAI-0404) | Amends ADR-024 A4 for Django Admin only; resolves TR-D5 |
 | ADR-035 | The shared asset manager versions binaries on the canonical ContentAsset identity, with private storage and signed delivery | Accepted | Feature branch (LAI-2200) | Accepted 2026-10-25. Amends ADR-034 item 3 (Django permissions and groups); builds on ADR-030 and ADR-033. Amended by AM-10 (staff-only admin preview route) |
 | ADR-036 | Native Android uses the Django API with Cognito bearer tokens; the game-only WebView uses a ticket-redeemed, child- and region-scoped game session cookie | Proposed | Feature branch (LAI-ANDROID-API-001) | Implemented 2026-10-25 at the Django API boundary; owner acceptance pending. Builds on ADR-024 and ADR-033; does not change ADR-034 |
@@ -62,9 +62,9 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-038 | Environment-selectable API authentication: Cognito in AWS, local Django sign-in for development, one Django user and authorization model | Superseded by ADR-040 | Main line (merged 2026-10-31, `beebb6a`) | Superseded 2026-10-31 by ADR-040 (LAI-AUTH-ROLLBACK, owner-directed). Owner-directed 2026-10-30 (LAI-AUTH-DUAL). Amends ADR-024 Accepted items 1 and 2 for `AUTH_PROVIDER=django` only; builds on ADR-034 (the admin session stays separate). AWS environments are unchanged |
 | ADR-039 | Django is the authority for parent and child profiles in every build with the Django API; Amplify profiles only until the controlled import and cutover; read-only audited Django Admin inspection | Accepted | Main line (merged 2026-10-31) | Owner-directed 2026-10-31 (LAI-CHILD-001). Amends ADR-034 and ADR-024 A4 for read-only, permission-gated, audited profile inspection in Django Admin only. Hard deletion stays blocked by LAI-0209. No production data is moved |
 | ADR-040 | Cognito is the sole authentication provider for application users in every environment; Django authorizes, and native Django authentication serves Django Admin staff only | Accepted | Main line (LAI-AUTH-ROLLBACK) | Owner-directed 2026-10-31. Supersedes ADR-038; restores ADR-024 items 1 and 2 everywhere; keeps ADR-034 (Django Admin) and ADR-039 (Django profile authority) |
-| ADR-041 | Islands, Places and 3D Areas: one optional 3D Area per Place, and Adventures launched from objects in it | Accepted | Feature branch (LAI-0806) | Owner-approved decisions A to E, 2026-10-31. Builds on ADR-032 and ADR-033; leaves LAI-0805 (spatial layout administration) open |
+| ADR-041 | Islands, Places and 3D Areas: one optional 3D Area per Place, and Adventures launched from objects in it | Accepted | Feature branch (LAI-0806) | Owner-approved decisions A to E, 2026-10-31. Builds on ADR-032 and ADR-033; leaves LAI-0805 (spatial layout administration) open Decision E amended by ADR-043 (2026-11-01): puzzle parameters and 3D Area copy become admin-authorable; positions stay seed-authored |
 | ADR-042 | Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset manager owns the asset bucket, and the Amplify bucket stays untouched until retirement | Accepted | Feature branch (LAI-0904) | Owner-accepted 2026-10-31 for code and infrastructure definitions only; no deployment, migration or deletion approved. Builds on ADR-035 (asset storage) and ADR-039 (Django profile authority) |
-| ADR-043 | Django Admin is the authoritative content authoring system; the TypeScript export stays the initial import and migration path and never silently overwrites administrator edits | Proposed | Feature branch (feature/adr-043-django-content-authoring) | Owner-directed draft 2026-11-01; not accepted, not implemented. Would carry out ADR-019 sub-decision 8's cutover and amend ADR-033 items 3 and 4 and ADR-041 E. Impact: `docs/platform/DJANGO_CONTENT_AUTHORING.md` |
+| ADR-043 | Django Admin is the authoritative content authoring system; the TypeScript export stays the initial import and migration path and never silently overwrites administrator edits | Accepted | Feature branch (feature/adr-043-django-content-authoring) | Owner-accepted 2026-11-01 with answers Q1 to Q4 and eight acceptance requirements (session pinning mandatory; LAI-0815 deferred). Carries out ADR-019 sub-decision 8's cutover and amends ADR-033 items 3 and 4 and ADR-041 E. Impact: `docs/platform/DJANGO_CONTENT_AUTHORING.md` |
 
 ## ADR-001: Parent-owned accounts
 
@@ -2535,6 +2535,12 @@ two could not both merge.
 5. Asset references from those rows are validated against the canonical asset catalog
    (`catalog.ContentAsset`), not against a bundled file.
 
+**Amended by ADR-043 (Accepted 2026-11-01).** Item 3: the export and `load_content` remain the
+initial import and migration path, but after import Django is authoritative and administrators
+may edit published content; an import never silently overwrites a record an administrator has
+published. Item 4: `ChallengeSpec` parameters and a 3D Area's copy become admin-authorable
+through versioned revisions; positions, spawn points and placements stay seed-authored.
+
 **Consequences.** Development databases built from either branch must be recreated (no Django
 database exists outside local development, and Treasure Rush's migrations were replaced). The
 inventory app's initial migration was regenerated because its item and rule references became
@@ -3026,6 +3032,10 @@ region could not start one.
   - **Not configurable:** placements, spawn points and positions, which stay in
     `treasure_rush_seed.py`. No spatial fields were added to the catalog (LAI-0304).
 
+**Amended by ADR-043 (Accepted 2026-11-01).** Decision E's configurable list gains puzzle
+parameters (per age band, within each puzzle kind's schema) and a 3D Area's copy and environment
+settings, as versioned revisions. Positions, spawn points and placements stay seed-authored.
+
 **Consequences.**
 - The `regions` app is now registered in Django Admin. It holds content only, never child data,
   and the admin-registration guards were updated to allow it.
@@ -3094,9 +3104,10 @@ Details: `docs/platform/CHILD_PHOTO_STORAGE.md`.
 
 ## ADR-043: Django Admin is the authoritative content authoring system; the TypeScript export stays the initial import and migration path and never silently overwrites administrator edits
 
-Status: Proposed 2026-11-01 (owner-directed draft). Not accepted; nothing in it is implemented.
-Implementation waits for the owner's explicit acceptance. Impact assessment:
-`docs/platform/DJANGO_CONTENT_AUTHORING.md`.
+Status: Accepted 2026-11-01 by the owner, with the answers to the four open questions and the
+acceptance requirements recorded at the end of this section. Impact assessment and build
+status: `docs/platform/DJANGO_CONTENT_AUTHORING.md`. Merging, pushing and deploying were not
+approved.
 
 **Context.**
 - ADR-019 sub-decision 8 (amendment, 2026-10-24) already makes Django the content authority. It
@@ -3242,11 +3253,32 @@ Implementation waits for the owner's explicit acceptance. Impact assessment:
 - Keeping TypeScript as the only authoring surface (status quo): authors need a code release
   for every wording change.
 
-**Open questions for the owner.**
-1. Should the permission to edit a draft and the permission to publish be held by different
-   people (two-person rule), or may one administrator do both?
-2. Should an export change to an `EXPORT`-authority record publish automatically (proposed,
-   which keeps today's behaviour) or land as a draft for review?
-3. Revision retention: keep every revision forever (proposed), or prune superseded drafts?
-4. Localization: child-facing fields stay single-language now, but the body shape allows locale
-   keys later. Is that enough?
+**Owner answers (2026-11-01).**
+- **ADR-043-Q1, permissions.** One authorized administrator may both edit and publish. The edit
+  permission and the publish permission stay separate so an approval workflow can be added
+  later. Every publish records the publishing administrator and the time.
+- **ADR-043-Q2, imports.** An import publishes changes automatically only for records that are
+  still export-owned and have never been taken over in Django Admin. Once an administrator
+  publishes an edit, the record is Django-owned, and no import overwrites it silently. Every
+  import produces a report of created, updated, skipped and conflicting records. Existing command
+  behaviour is kept where compatible, and any change is documented.
+- **ADR-043-Q3, retention.** Every published version is kept permanently and is immutable.
+  Rollback creates a new version. Drafts are kept too. Any draft cleanup policy needs a separate
+  decision.
+- **ADR-043-Q4, localization.** Content is English-only for the first release. Schemas leave
+  room for locales later; no multilingual editing or translation workflow is built now.
+
+**Acceptance requirements (owner, 2026-11-01).**
+1. Session version pinning (LAI-0813) is mandatory. It must be implemented before Django Admin
+   can publish content that affects active child sessions. An active session keeps the
+   dialogue, puzzle configuration, grading rules and other content versions it started with.
+2. Child-owned progress records are not exposed in Django Admin. LAI-0815 stays separate and
+   deferred, pending its own authorization and privacy decision.
+3. The TypeScript export and `load_content` stay the path for initial imports and migrations.
+4. Django is authoritative for published content after import. Builds that use the Django API
+   read that content through Django APIs.
+5. 3D layouts stay seed-authored. No visual world editor is built under ADR-043.
+6. The Asset Manager keeps owning GLB models and their published versions.
+7. Puzzle mechanics stay in code. Their validated, age-specific parameters are editable in
+   Django Admin, and the server's grading is authoritative.
+8. Treasure Rush, the quest engine and the step-adventure workflows keep working.

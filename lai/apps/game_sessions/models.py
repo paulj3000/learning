@@ -110,6 +110,12 @@ class AdventureSession(ChildOwnedModel):
     started_at = models.DateTimeField()
     last_activity_at = models.DateTimeField()
     completed_at = models.DateTimeField(null=True, blank=True)
+    # LAI-0813 (ADR-043 acceptance requirement 1): the published content versions this session
+    # started with. Dialogue, puzzle settings and grading during the session read these, so a
+    # publish in Django Admin cannot change a visit already under way. Set once, never moved.
+    pinned_revisions = models.ManyToManyField(
+        "catalog.ContentRevision", blank=True, related_name="+"
+    )
 
     class Meta:
         constraints = [
@@ -494,3 +500,37 @@ class GameBrowserSession(ChildOwnedModel):
             ),
         ]
         indexes = [models.Index(fields=["parent", "revoked_at"], name="game_session_parent")]
+
+
+class PuzzleAttempt(ChildOwnedModel):
+    """One submitted solution to a 3D Area puzzle (ADR-043 F, LAI-0812): a typed event, like
+    `ChallengeAttempt`. It records the content version it was graded against (the session's
+    pinned revision), so history explains itself after any later publish. Correctness is only
+    ever computed by the server (`apps.regions.puzzles.grade`).
+
+    The submission is a closed, validated shape of authored ids (stone, slot, valve and feature
+    ids), never free text, so no child-typed content is stored (CLAUDE.md section 13).
+    """
+
+    CHILD_LINKS = ("session",)
+    session = models.ForeignKey(
+        AdventureSession, on_delete=models.CASCADE, related_name="puzzle_attempts"
+    )
+    region_id = models.SlugField(max_length=80)
+    puzzle_key = models.SlugField(max_length=80, help_text="The puzzle's stable id.")
+    area_puzzle = models.ForeignKey(
+        "regions.AreaPuzzle", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    revision = models.ForeignKey(
+        "catalog.ContentRevision", on_delete=models.PROTECT, related_name="+"
+    )
+    age_band = models.CharField(max_length=16, choices=AgeBand.choices)
+    submission = models.JSONField()
+    correct = models.BooleanField()
+    attempt_number = models.PositiveSmallIntegerField()
+    submitted_at = models.DateTimeField()
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["child", "region_id", "puzzle_key"], name="puzzle_attempt_lookup")
+        ]

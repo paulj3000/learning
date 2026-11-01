@@ -374,22 +374,25 @@ class TestAuthorization:
 
 @pytest.mark.django_db
 class TestContentVersions:
-    def test_a_session_started_on_an_older_adventure_version_is_not_graded(
+    """LAI-0813 (ADR-043 acceptance requirement 1): an active session keeps grading against the
+    content it started with. Only a session with no pinned versions (started before pinning)
+    keeps the earlier rule of refusing changed content."""
+
+    def test_a_session_started_on_an_older_adventure_version_keeps_its_own_version(
         self, families, api, catalog, tmp_path
     ):
         session = start(families.a1)
         newer = answer_catalog()
         newer["adventures.json"]["adventures"][0]["version"] = 2
+        newer["adventures.json"]["adventures"][0]["steps"][0]["presentation"]["correctValue"] = 4
         import_content(write_export(tmp_path / "v2", newer))
 
         response = post(api(families.a), families.a1, session, answer("count", count(3)))
 
-        assert response.status_code == 409
-        assert response.json()["error"]["code"] == "content_version_changed"
-        session.refresh_from_db()
-        assert session.current_step_id == "count" and session.status == SessionStatus.ACTIVE
+        assert response.status_code == 200
+        assert response.json()["correctness"] == "CORRECT"
 
-    def test_a_step_dropped_without_a_version_bump_is_not_graded(
+    def test_a_step_dropped_from_the_catalog_is_still_graded_from_the_pinned_version(
         self, families, api, catalog, tmp_path
     ):
         session = start(families.a1)
@@ -400,7 +403,23 @@ class TestContentVersions:
         import_content(write_export(tmp_path / "v2", changed))
 
         response = post(api(families.a), families.a1, session, answer("count", count(3)))
+        assert response.status_code == 200
+
+    def test_a_session_without_pinned_versions_is_not_graded_after_a_change(
+        self, families, api, catalog, tmp_path
+    ):
+        session = start(families.a1)
+        AdventureSession.objects.get(pk=session.pk).pinned_revisions.clear()
+        newer = answer_catalog()
+        newer["adventures.json"]["adventures"][0]["version"] = 2
+        import_content(write_export(tmp_path / "v2", newer))
+
+        response = post(api(families.a), families.a1, session, answer("count", count(3)))
+
+        assert response.status_code == 409
         assert response.json()["error"]["code"] == "content_version_changed"
+        session.refresh_from_db()
+        assert session.current_step_id == "count" and session.status == SessionStatus.ACTIVE
 
     def test_an_unchanged_adventure_keeps_grading_across_a_new_release(
         self, families, api, catalog, tmp_path

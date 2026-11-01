@@ -85,11 +85,22 @@ before touching AWS.
 
 ## Phase 8 — Admin
 
-- [ ] **LAI-0801** Django admin for catalogs (depends: 0304, 0404)
+- [ ] **LAI-0801** Django admin for catalogs (depends: 0304, 0404). Widened by ADR-043 into staged authoring editors. Stage 1 IMPLEMENTED (draft, publish, discard, restore as JSON drafts with validation; `ensure_content_roles`); structured editors per kind are later stages
 - [ ] **LAI-0802** React admin views on Django (depends: 0505, 0404)
 - [ ] **LAI-0805** Spatial layout administration in Django Admin (depends: 0801, 0304, 2103, and a spatial-content ADR first)
 - [x] **LAI-0806** Island / Place / 3D Area hierarchy and Adventure launch points (ADR-041; depends: 0304, 0601, POST-MERGE-03). DONE: labels, one 3D Area per Place, `AdventureLaunchPoint` with Django Admin, launch API, islands API, React launch and return flow; all suites green at merge (`docs/IMPLEMENTATION_STATUS.md`). Open follow-up: a Django-backed step-adventure client (the runner is still Amplify-backed in Django builds)
 - [ ] **LAI-0807** Ungated child exit from Islands, Places, 3D Areas and Adventures (owner request 2026-10-31). Implemented on `feature/lai-ungated-island-exit`: a "Leave island" link in `IslandLayout` goes straight to the sailing dock with no arithmetic question; the separate adult exit to the parent space keeps `ParentGate` (owner decision). Targeted unit tests and typecheck pass; merge gates (full suites, lint, Prettier, Playwright) not yet run
+
+### ADR-043 content authoring (Accepted 2026-11-01; `docs/platform/DJANGO_CONTENT_AUTHORING.md`)
+
+Implementation and verification are reported separately; "implemented" never means accepted.
+
+- [ ] **LAI-0810** ContentRevision model, migrations, revision service, kind registry (depends: ADR-043). IMPLEMENTED on `feature/adr-043-django-content-authoring`; pytest only
+- [ ] **LAI-0811** Authority-aware importer and conflict report (depends: 0810). IMPLEMENTED; pytest only. Report shape gains `skipped` and `conflicts` counts and a `conflicts` list (documented change)
+- [ ] **LAI-0812** `AreaPuzzle`, puzzle-kind registry with Python graders, solve route (depends: 0810). IMPLEMENTED; pytest only
+- [ ] **LAI-0813** Session version pinning (depends: 0810; required before Admin publication may affect active sessions, ADR-043 requirement 1). IMPLEMENTED for step adventures, region copy, puzzles, NPC dialogue, offered quests and chest challenge specs; pytest only. Reward rules resolve at grant time (documented)
+- [ ] **LAI-0814** `export_content` and environment promotion of administrator edits (ADR-043 L) (depends: 0811). NOT STARTED
+- [ ] **LAI-0815** Read-only audited child-progress inspection in Django Admin. **DEFERRED** by the owner (2026-11-01) pending its own authorization and privacy decision; child-owned records stay out of Django Admin
 
 ## Phase 9 — Realtime (co-op) and storage
 
@@ -211,3 +222,23 @@ LAI-0805's ADR; TR-D5 is still Proposed.
 - [ ] **TR-9** End-to-end and playtest (depends: TR-8a; real families also need LAI-0502, LAI-0602, gate G9, ADR-024 A6. Locally, the child mirror step in `docs/TREASURE_RUSH_LOCAL_DEV.md` stands in for LAI-0602)
 - [ ] **TR-10** Integrate LAI-2106 shared asset management (depends: LAI-2106, TR-7a)
 - [ ] **TR-11** Second chest and quest chain (depends: TR-9)
+
+# Firepeak Volcano (`docs/FIREPEAK_VOLCANO_ROADMAP.md`)
+
+Feature roadmap with its own ids, like TR-n and SC-n. Owner-directed 2026-11-01 (FP-D1); ages
+Pathfinders and Explorers (FP-D2). Built on ADR-043. Implementation and verification statuses
+are kept separately in the roadmap's section 5 and `docs/IMPLEMENTATION_STATUS.md`.
+
+- [x] **FP-1** Architecture audit and adventure specification (ADR-043 accepted by the owner)
+- [ ] **FP-2** Firepeak Place and 3D Area configuration (depends: LAI-0810, LAI-0812)
+- [ ] **FP-3** Asset manifest and placeholder environment (depends: FP-2)
+- [ ] **FP-4** Base Camp and Professor Ember (depends: FP-2)
+- [ ] **FP-5** Telescope exploration activity (depends: FP-4)
+- [ ] **FP-6** Lava crossing puzzle, hazard and respawn (depends: FP-5)
+- [ ] **FP-7** Steam vent puzzle (depends: FP-6)
+- [ ] **FP-8** Crystal chamber and collection (depends: FP-7)
+- [ ] **FP-9** Adventure orchestration and persistence (depends: LAI-0813)
+- [ ] **FP-10** Rewards and Discovery Journal (depends: FP-9)
+- [ ] **FP-11** Django Admin authoring and publishing (depends: LAI-0801 stage 1)
+- [ ] **FP-12** Unit and integration acceptance (depends: FP-2 to FP-11)
+- [ ] **FP-13** Browser playtesting and performance verification (depends: FP-12; needs a Cognito test sign-in, ADR-024 A6). NOT STARTED

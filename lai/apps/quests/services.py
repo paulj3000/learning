@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from apps.catalog import authoring
 from apps.catalog.models import Quest
 from apps.game_sessions.models import AdventureSession, SessionKind, SessionStatus
 from apps.game_sessions.services import InvalidTransition, ProgressNotFound
@@ -146,7 +147,8 @@ def refresh_quest(progress: QuestProgress, *, source_session=None) -> QuestUpdat
             completed_stage_ids=tuple(progress.completed_stage_ids),
             completed_objective_ids=tuple(progress.completed_objective_ids),
         )
-        source = progress.quest.source
+        # LAI-0813: the quest as the session that caused this refresh started with it.
+        source = authoring.body_for(source_session, progress.quest)
         result = engine.advance_quest(
             source.get("stages", []),
             source.get("completion", {}),

@@ -29,6 +29,7 @@ from .models import (
     WorldObjectPlacement,
     WorldRegion,
 )
+from .seeding import record_seed_revision
 
 REGION_ID = "treasure-rush-cove"
 CHEST_ID = "cove-chest"
@@ -198,4 +199,7 @@ def seed_treasure_rush() -> list[str]:
         )
     if not region.offered_quests.exists():
         region.offered_quests.add(quest)
+    # ADR-043: seed-authored content rows get their first published version.
+    for row in [region, *specs.values()]:
+        record_seed_revision(row)
     return created

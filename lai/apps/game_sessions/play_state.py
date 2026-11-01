@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 from django.db.models import Count, Q
 
+from apps.catalog import authoring
 from apps.catalog.models import Quest
 from apps.core.content_status import ContentStatus
 from apps.education.models import SkillEvidence
@@ -19,7 +20,7 @@ from apps.quests.services import build_context
 from apps.regions.models import PlacementKind, TreasureChest, WorldRegion
 
 from .adventure_launch import launch_points_for
-from .models import OPEN_STATUSES, AdventureSession, Correctness, SessionKind
+from .models import OPEN_STATUSES, AdventureSession, Correctness, PuzzleAttempt, SessionKind
 
 RECENT_SESSIONS = 20
 
@@ -104,14 +105,21 @@ def region_bootstrap(child, region: WorldRegion) -> dict:
             }
         )
     offered = region.offered_quests.filter(active=True).order_by("slug")
+    session = open_session(child, region)
+    region_content = authoring.body_for(session, region)
     return {
         "region": region,
+        "region_content": region_content,
+        "puzzles": puzzle_states(child, region, session),
+        "npc_dialogue": {
+            placement.entity_id: npc_dialogue(child, session, placement.npc) for placement in npcs
+        },
         "spawn": region.spawn_points.filter(is_default=True).first(),
         "npcs": npcs,
         "objects": objects,
         "chests": chests,
         "quests": quest_entries(child, offered),
-        "session": open_session(child, region),
+        "session": session,
         "world_changes": WorldChange.objects.filter(child=child, location_slug=location),
         # ADR-041: the objects here that start one of this Place's Adventures, for this child.
         "launch_points": launch_points_for(child, region),
@@ -159,3 +167,95 @@ def child_progress(child) -> dict:
         "quests": quest_entries(child, started),
         "practice": practice_summary(child),
     }
+
+
+# --- ADR-043 content in the bootstrap (LAI-0812, LAI-0813) ---------------------------------------
+
+# NPC dialogue conditions the server can prove today. Nodes needing anything else (memory flags,
+# relationships, time of day) are left out rather than guessed (as in `apps.quests.engine`).
+_SERVER_CONDITIONS = {"ALWAYS", "WORLD_CHANGE", "QUEST_COMPLETED"}
+
+
+def _condition_holds(condition: dict, change_keys: set[str], completed_quests: set[str]) -> bool:
+    kind = condition.get("type")
+    if kind == "ALWAYS":
+        return True
+    if kind == "WORLD_CHANGE":
+        return condition.get("changeKey") in change_keys
+    if kind == "QUEST_COMPLETED":
+        return condition.get("questId") in completed_quests
+    return False
+
+
+def npc_dialogue(child, session, npc) -> list[dict]:
+    """The NPC's dialogue nodes whose conditions hold for this child now, in authored order,
+    from the version this visit started with. Text is authored content, never generated."""
+    body = authoring.body_for(session, npc)
+    context = build_context(child)
+    change_keys = set(context.world_change_keys)
+    completed = set(context.completed_quest_ids)
+    nodes = []
+    for node in body.get("dialogue", []):
+        conditions = node.get("conditions", [])
+        if any(condition.get("type") not in _SERVER_CONDITIONS for condition in conditions):
+            continue
+        if not all(_condition_holds(c, change_keys, completed) for c in conditions):
+            continue
+        nodes.append(
+            {
+                "nodeId": node["id"],
+                "text": node["text"],
+                "followUpOnly": bool(node.get("followUpOnly", False)),
+                "choices": [
+                    {
+                        "choiceId": choice["id"],
+                        "label": choice["label"],
+                        "nextNodeId": choice.get("nextNodeId"),
+                    }
+                    for choice in node.get("choices", [])
+                    if all(
+                        _condition_holds(c, change_keys, completed)
+                        for c in choice.get("conditions", [])
+                    )
+                ],
+            }
+        )
+    return nodes
+
+
+def puzzle_states(child, region: WorldRegion, session) -> list[dict]:
+    """Published puzzles that have parameters for the child's age band, with this child's state.
+
+    Parameters come from the version the open visit pinned (or the published one before a visit
+    starts). Every kind is fully described by its parameters, so nothing secret is sent.
+    """
+    from .play import puzzle_is_locked, puzzle_is_solved
+
+    states = []
+    published = region.puzzles.filter(status=ContentStatus.PUBLISHED).order_by(
+        "sort_order", "puzzle_id"
+    )
+    for puzzle in published:
+        body = authoring.body_for(session, puzzle)
+        params = body.get("ageBands", {}).get(child.age_band)
+        if params is None:
+            continue
+        solved = puzzle_is_solved(child, puzzle, body)
+        failed = (
+            PuzzleAttempt.objects.filter(
+                session=session, puzzle_key=puzzle.puzzle_id, correct=False
+            ).count()
+            if session is not None
+            else 0
+        )
+        states.append(
+            {
+                "puzzle": puzzle,
+                "body": body,
+                "parameters": params,
+                "solved": solved,
+                "locked": not solved and puzzle_is_locked(child, puzzle, body),
+                "failed_attempts": failed,
+            }
+        )
+    return states

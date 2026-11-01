@@ -29,6 +29,8 @@ from .serializers import (
     ItemSerializer,
     OutcomeSerializer,
     ProgressSerializer,
+    PuzzleOutcomeSerializer,
+    PuzzleSubmissionRequest,
     QuestEntrySerializer,
     SessionSerializer,
 )
@@ -45,7 +47,10 @@ def _conflict(code: str) -> exceptions.APIException:
 
 
 def api_error(error: Exception) -> exceptions.APIException:
-    if isinstance(error, services.AttemptNotFound | services.SessionNotFound | LookupError):
+    if isinstance(
+        error,
+        services.AttemptNotFound | services.SessionNotFound | services.PuzzleNotFound | LookupError,
+    ):
         return exceptions.NotFound()
     if isinstance(error, QuestUnavailable):
         return _conflict("quest_unavailable")
@@ -183,3 +188,41 @@ class ProgressView(ChildScopedAPIView):
         return Response(
             ProgressSerializer().to_representation(play_state.child_progress(self.child))
         )
+
+
+class PuzzleSolveView(GameRuntimeAccessMixin, ChildScopedAPIView):
+    """POST {submission}: one attempt at a 3D Area puzzle, graded on the server (LAI-0812).
+
+    200 with `correct` either way; 400 `invalid_submission` for a malformed one (nothing is
+    recorded); 409 `puzzle_locked` before the earlier stage is done, `session_not_open`, or
+    `content_unavailable`; 404 for an unknown puzzle or another child's session.
+    """
+
+    def post(self, request, child_id, session_id, puzzle_id):
+        body = PuzzleSubmissionRequest(data=request.data)
+        body.is_valid(raise_exception=True)
+        try:
+            outcome = services.solve_puzzle(
+                self.child, session_id, puzzle_id, body.validated_data["submission"]
+            )
+        except services.InvalidSubmission:
+            raise exceptions.ValidationError(
+                {
+                    "submission": [
+                        exceptions.ErrorDetail("Not a possible answer.", "invalid_submission")
+                    ]
+                }
+            ) from None
+        except services.PlayError as error:
+            raise api_error(error) from None
+        context = {}
+        if outcome.reward and outcome.reward.granted:
+            rule = services.RewardRule.objects.filter(
+                rule_id=outcome.attempt.revision.body.get("rewardRuleId")
+            ).first()
+            if rule is not None:
+                context = {
+                    "items": ItemSerializer(rule.items.order_by("item_id"), many=True).data,
+                    "reward_message": rule.message,
+                }
+        return Response(PuzzleOutcomeSerializer(context=context).to_representation(outcome))

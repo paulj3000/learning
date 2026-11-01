@@ -8,15 +8,17 @@ applied copy, served to the play API so the Three.js client can build a location
 canonical catalog's rows (`apps.catalog`); nothing here duplicates them.
 """
 
+from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
 
 from apps.catalog.asset_refs import AssetKind, AssetRefValidator, validate_asset_ref
+from apps.catalog.models import Authorable
 from apps.core.content_status import ContentStatus
 from apps.users.models import AgeBand
 
 
-class WorldRegion(models.Model):
+class WorldRegion(Authorable, models.Model):
     """A Place's 3D Area: the explorable Three.js environment of one catalog Location (ADR-041).
 
     Shown as "3D Area" (and its Location as "Place") everywhere people read it; the class, table
@@ -25,6 +27,9 @@ class WorldRegion(models.Model):
 
     `scene` holds what is not yet modelled as rows (bounds, environment, copy), in the
     manifest's own field names; TR-7 validates the assembled manifest on the client too.
+
+    ADR-043: the title and the non-spatial part of `scene` (`copy`, `environment`) are authored
+    content ("area-copy" revisions); `bounds` and everything spatial stay seed-owned.
     """
 
     region_id = models.SlugField(
@@ -376,3 +381,83 @@ class AdventureLaunchPoint(models.Model):
                     )
         if errors:
             raise ValidationError(errors)
+
+
+class PuzzleKind(models.TextChoices):
+    """The closed registry of puzzle mechanics (ADR-043 F). A new kind is a code change: its
+    parameter schema and grader live in `apps.regions.puzzles`, its scene in the client."""
+
+    OBSERVE_FEATURES = "OBSERVE_FEATURES", "Observe features (look at each one)"
+    PLACE_PLATFORMS = "PLACE_PLATFORMS", "Place platforms (match each gap)"
+    VALVE_SEQUENCE = "VALVE_SEQUENCE", "Valve sequence (cause and effect)"
+    COLLECT_OBJECT = "COLLECT_OBJECT", "Collect an object"
+    RETURN_TO_NPC = "RETURN_TO_NPC", "Return to a character"
+
+
+class AreaPuzzle(Authorable, models.Model):
+    """A spatial puzzle in a 3D Area: the generalisation of `TreasureChest` (ADR-043, LAI-0812).
+
+    Two owners, kept apart:
+
+    - **Seed** (code, like all layout until LAI-0805): which 3D Area, the stable `puzzle_id`, the
+      mechanic (`kind`) and the placements it uses (`entity_ids`).
+    - **Authored content** (Django Admin, versioned revisions): title, per-age-band parameters,
+      the change keys that must exist first (stage order), the change key it records, and its
+      reward rule. The columns below the line are copied from the published revision; edit them
+      through a new version, never directly.
+
+    The server grades every solution against the revision the child's session pinned
+    (LAI-0813); the client only renders.
+    """
+
+    region = models.ForeignKey(
+        WorldRegion, on_delete=models.CASCADE, related_name="puzzles", verbose_name="3D Area"
+    )
+    puzzle_id = models.SlugField(max_length=80, help_text="Stable id within the 3D Area.")
+    kind = models.CharField(max_length=24, choices=PuzzleKind.choices)
+    entity_ids = ArrayField(
+        models.SlugField(max_length=80),
+        default=list,
+        blank=True,
+        help_text="Placements in this 3D Area the puzzle uses (seed-authored).",
+    )
+    sort_order = models.PositiveIntegerField(default=0)
+    status = models.CharField(
+        max_length=16, choices=ContentStatus.choices, default=ContentStatus.DRAFT
+    )
+    # --- Copied from the published revision (ADR-043) ---
+    title = models.CharField(max_length=120, blank=True)
+    parameters = models.JSONField(
+        default=dict, blank=True, help_text="Per age band, validated by the kind's schema."
+    )
+    requires_change_keys = ArrayField(models.CharField(max_length=80), default=list, blank=True)
+    world_change_key = models.CharField(max_length=80, unique=True)
+    reward_rule = models.ForeignKey(
+        "catalog.RewardRule", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["region", "sort_order", "puzzle_id"]
+        verbose_name = "3D Area puzzle"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["region", "puzzle_id"], name="regions_puzzle_id_unique"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(kind__in=PuzzleKind.values), name="regions_puzzle_kind_valid"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.region}:{self.puzzle_id}"
+
+    def clean(self):
+        super().clean()
+        if self.region_id:
+            placed = set(self.region.placements.values_list("entity_id", flat=True))
+            unknown = [entity for entity in self.entity_ids if entity not in placed]
+            if unknown:
+                raise ValidationError(
+                    {"entity_ids": f"No placement in this 3D Area has id {', '.join(unknown)}."}
+                )

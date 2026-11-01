@@ -946,6 +946,15 @@ API serves; the client builds a manifest from them (TR-D15). Neither is Django l
 administration: LAI-0805's ADR decides that. Everything non-spatial, including Treasure Rush's
 quest, item and reward rule, is exported and imported like all content.
 
+**Content authoring (ADR-043, Accepted 2026-11-01).** The export and `load_content` stay the
+initial import and migration path. After import, Django is authoritative for published content:
+each authorable record keeps its catalog row and gains immutable revisions
+(`catalog.ContentRevision`), and publishing rewrites the row's projected columns and `source`, so
+every existing reader is unchanged. A record an administrator has published is Django-owned
+(`authority`), and an import never overwrites it; the release report lists it as a conflict
+instead. A session keeps the content versions it started with (LAI-0813). Spatial layout stays
+seed-authored. Details: `docs/platform/DJANGO_CONTENT_AUTHORING.md`.
+
 ## Island, Place and 3D Area (LAI-0806, ADR-041)
 
 ```text

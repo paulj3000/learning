@@ -379,6 +379,7 @@ def test_the_game_cookie_is_accepted_only_by_the_game_runtime_routes():
         f"{child}sessions/<uuid:session_id>/",
         f"{child}sessions/<uuid:session_id>/<slug:action>/",
         f"{child}sessions/<uuid:session_id>/chests/<slug:entity_id>/challenge/",
+        f"{child}sessions/<uuid:session_id>/puzzles/<slug:puzzle_id>/solve/",
         f"{child}attempts/<uuid:attempt_id>/answer/",
         f"{child}quests/<slug:quest_id>/accept/",
         f"{child}assets/",

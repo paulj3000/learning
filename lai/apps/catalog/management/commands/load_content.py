@@ -11,7 +11,8 @@ class Command(BaseCommand):
     help = (
         "Import content/exported into the catalog. Idempotent: an export that is already the "
         "latest release is skipped. Validates everything before writing; any error leaves the "
-        "database unchanged. Never deletes; never touches active or sort_order on existing rows."
+        "database unchanged. Never deletes; never touches active or sort_order on existing "
+        "rows, and never changes a record an administrator has published (ADR-043)."
     )
 
     def add_arguments(self, parser):
@@ -49,3 +50,8 @@ class Command(BaseCommand):
             self.stdout.write(f"  {name}: {summary}")
         for line in report.skipped:
             self.stdout.write(f"  skipped: {line}")
+        for line in report.conflicts:
+            self.stdout.write(
+                f"  conflict: {line} is edited in Django Admin; the export differs and was kept "
+                "as a draft (not published)"
+            )

@@ -38,7 +38,14 @@ def test_imports_the_hierarchy_with_stable_identifiers(tmp_path):
     assert [s.step_id for s in bridge.steps.order_by("position")] == ["count", "done"]
     quest = Quest.objects.get(slug="repair")
     assert quest.world == world and list(quest.adventures.all()) == [bridge]
-    assert report.counts["worlds"] == {"created": 1, "updated": 0, "unchanged": 0, "missing": 0}
+    assert report.counts["worlds"] == {
+        "created": 1,
+        "updated": 0,
+        "unchanged": 0,
+        "skipped": 0,
+        "conflicts": 0,
+        "missing": 0,
+    }
     assert report.counts["steps"]["created"] == 3
 
 
@@ -102,7 +109,14 @@ def test_reimport_updates_content_but_preserves_catalog_fields(tmp_path):
     bay = Location.objects.get(slug="bay")
     assert bay.title == "The Busy Bay"
     assert (bay.active, bay.sort_order) == (False, 999)
-    assert report.counts["locations"] == {"created": 0, "updated": 1, "unchanged": 0, "missing": 0}
+    assert report.counts["locations"] == {
+        "created": 0,
+        "updated": 1,
+        "unchanged": 0,
+        "skipped": 0,
+        "conflicts": 0,
+        "missing": 0,
+    }
 
 
 def test_records_missing_from_a_newer_export_are_kept_and_reported(tmp_path):
@@ -227,7 +241,10 @@ def test_the_command_reports_counts_and_fails_cleanly_on_an_invalid_export(tmp_p
     out = StringIO()
     call_command("load_content", path=write_export(tmp_path / "v1"), stdout=out)
     assert "imported: release" in out.getvalue()
-    assert "worlds: created 1, updated 0, unchanged 0, missing 0" in out.getvalue()
+    assert (
+        "worlds: created 1, updated 0, unchanged 0, skipped 0, conflicts 0, missing 0"
+        in out.getvalue()
+    )
 
     broken = base_collections()
     broken["locations.json"]["locations"][0]["worldSlug"] = "nowhere"

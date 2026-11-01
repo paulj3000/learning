@@ -49,6 +49,8 @@ _CODED = {
     "chest_already_open": "This chest is already open.",
     "attempt_already_answered": "This challenge was already answered.",
     "quest_unavailable": "This quest is not available.",
+    # 3D Area puzzles (ADR-043, LAI-0812)
+    "puzzle_locked": "Finish the earlier part of the adventure first.",
     # Native Android API (LAI-ANDROID-API-001)
     "child_profile_limit_reached": "No more child profiles can be added.",
     "child_inactive": "This child profile is turned off.",

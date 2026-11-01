@@ -58,6 +58,11 @@ urlpatterns = [
         name="play-chest-challenge",
     ),
     path(
+        f"{CHILD}sessions/<uuid:session_id>/puzzles/<slug:puzzle_id>/solve/",
+        play_views.PuzzleSolveView.as_view(),
+        name="play-puzzle-solve",
+    ),
+    path(
         f"{CHILD}attempts/<uuid:attempt_id>/answer/",
         play_views.AttemptAnswerView.as_view(),
         name="play-attempt-answer",

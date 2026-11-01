@@ -28,6 +28,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.adventures import engine
+from apps.catalog import authoring
 from apps.catalog.models import Adventure, AdventureStep, ContentRelease
 from apps.game_sessions.models import (
     COMPLETE_STEP_ID,
@@ -90,6 +91,27 @@ def _locked_session(child, session_id) -> AdventureSession:
         )
     except AdventureSession.DoesNotExist:
         raise ProgressNotFound from None
+
+
+def _current_step_body(session: AdventureSession) -> dict:
+    """The authored step the session is on, as the session started with it (LAI-0813).
+
+    A session that pinned its content grades from the pinned step, whatever has been published
+    since. A session started before pinning existed (no pins) keeps the old rule: it is graded
+    only while the catalog still holds the content it started with.
+    """
+    if session.pinned_revisions.exists():
+        body = (
+            session.pinned_revisions.filter(
+                kind="adventure-step", record_key=session.current_step_id
+            )
+            .values_list("body", flat=True)
+            .first()
+        )
+        if body is None:
+            raise ContentVersionChanged
+        return body
+    return _current_step_record(session).source
 
 
 def _current_step_record(session: AdventureSession) -> AdventureStep:
@@ -208,6 +230,7 @@ def start_or_resume_session(
         return AdventureSession.objects.for_child(child).get(
             adventure=adventure, status=SessionStatus.ACTIVE
         ), False
+    authoring.pin(session, [adventure, *adventure.steps.all()])
     return session, True
 
 
@@ -314,12 +337,12 @@ def submit_answer(
         raise SessionNotActive
     if step_id != session.current_step_id:
         raise StepNotCurrent
-    step = _current_step_record(session)
+    step = _current_step_body(session)
     if not engine.is_step_answer(answer) or len(answer_text) > _ANSWER_LIMIT:
         raise InvalidAnswer
     hint_level = int(session.hint_levels.get(step_id, 0))
     try:
-        decision = engine.decide_submission(step.source, answer, hint_level)
+        decision = engine.decide_submission(step, answer, hint_level)
     except engine.AnswerKindMismatch:
         raise InvalidAnswer from None
     except engine.EngineError:
@@ -356,11 +379,11 @@ def request_hint(child, session_id, *, step_id: str, from_level: int, now=None):
         raise SessionNotActive
     if step_id != session.current_step_id:
         raise StepNotCurrent
-    step = _current_step_record(session)
+    step = _current_step_body(session)
     level = int(session.hint_levels.get(step_id, 0))
     if level == from_level:
         level = engine.next_hint_level(level)
         session.hint_levels = {**session.hint_levels, step_id: level}
         session.last_activity_at = max(_now(now), session.last_activity_at)
         session.save(update_fields=["hint_levels", "last_activity_at"])
-    return level, engine.hint_text(step.source, level)
+    return level, engine.hint_text(step, level)

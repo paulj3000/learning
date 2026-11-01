@@ -51,6 +51,12 @@ class EmptyRequest(ClosedSerializer):
     pass
 
 
+class PuzzleSubmissionRequest(ClosedSerializer):
+    """`{submission: {...}}`. The shape inside is checked by the puzzle kind's grader."""
+
+    submission = serializers.DictField()
+
+
 # --- Responses ------------------------------------------------------------------------------
 
 
@@ -213,12 +219,45 @@ class ChallengeResponseSerializer(serializers.Serializer):
         }
 
 
+def puzzle_state(entry) -> dict:
+    """A 3D Area puzzle for the child's age band (ADR-043 F, LAI-0812)."""
+    puzzle, body = entry["puzzle"], entry["body"]
+    return {
+        "puzzleId": puzzle.puzzle_id,
+        "kind": puzzle.kind,
+        "title": body["title"],
+        "entityIds": list(puzzle.entity_ids),
+        "solved": entry["solved"],
+        "locked": entry["locked"],
+        "failedAttempts": entry["failed_attempts"],
+        "parameters": entry["parameters"],
+    }
+
+
+def _region(state) -> dict:
+    data = RegionSerializer(state["region"]).data
+    content = state.get("region_content")
+    if content:  # ADR-043: the authored copy, as this visit started with it
+        data["title"] = content["title"]
+        data["scene"] = {
+            **data["scene"],
+            "copy": content.get("copy", {}),
+            "environment": content.get("environment", {}),
+        }
+    return data
+
+
 class BootstrapSerializer(serializers.Serializer):
     def to_representation(self, state):
+        dialogue = state.get("npc_dialogue", {})
+        npcs = NpcPlacementSerializer(state["npcs"], many=True).data
+        for npc in npcs:
+            npc["dialogue"] = dialogue.get(npc["entityId"], [])
         return {
-            "region": RegionSerializer(state["region"]).data,
+            "region": _region(state),
             "spawn": SpawnSerializer(state["spawn"]).data if state["spawn"] else None,
-            "npcs": NpcPlacementSerializer(state["npcs"], many=True).data,
+            "npcs": npcs,
+            "puzzles": [puzzle_state(entry) for entry in state.get("puzzles", [])],
             "objects": ObjectSerializer(state["objects"], many=True).data,
             "chests": [ChestStateSerializer().to_representation(c) for c in state["chests"]],
             "quests": [QuestEntrySerializer().to_representation(q) for q in state["quests"]],
@@ -432,3 +471,34 @@ def island_entry(entry) -> dict:
             for place in entry.places
         ],
     }
+
+
+class PuzzleOutcomeSerializer(serializers.Serializer):
+    """The answer to a puzzle submission (LAI-0812). A code for feedback, never copy."""
+
+    def to_representation(self, outcome):
+        reward = outcome.reward
+        new_items = reward.new_item_ids if reward else ()
+        return {
+            "attemptId": str(outcome.attempt.pk) if outcome.attempt else None,
+            "correct": outcome.correct,
+            "feedback": "CORRECT" if outcome.correct else "TRY_AGAIN",
+            "solvedNow": outcome.solved_now,
+            "alreadySolved": outcome.already_solved,
+            "failedAttempts": outcome.failed_attempts,
+            "newItems": [
+                item for item in self.context.get("items", []) if item["itemId"] in new_items
+            ],
+            "rewardMessage": self.context.get("reward_message") if new_items else None,
+            "questUpdates": [
+                {
+                    "questId": update.progress.quest.slug,
+                    "status": update.progress.status,
+                    "currentStageId": update.progress.current_stage_id,
+                    "justCompleted": update.result.just_completed,
+                    "newlyCompletedObjectiveIds": list(update.result.newly_completed_objective_ids),
+                }
+                for update in outcome.quest_updates
+                if update.result.changed
+            ],
+        }
