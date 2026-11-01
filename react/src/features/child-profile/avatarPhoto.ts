@@ -1,4 +1,14 @@
 import { getUrl, remove, uploadData } from 'aws-amplify/storage';
+import {
+  PHOTO_PREPARE_MESSAGE,
+  PHOTO_REMOVE_MESSAGE,
+  PHOTO_SIZE_MESSAGE,
+  PHOTO_TYPE_MESSAGE,
+  PHOTO_UPLOAD_MESSAGE,
+} from './photoMessages';
+import type { PhotoSelection } from './profileTypes';
+
+export type { PhotoSelection };
 
 /**
  * The optional photo a parent may upload as a child's profile icon.
@@ -30,11 +40,7 @@ const ICON_QUALITY = 0.85;
 /** Objects live under `child-photos/<identity id>/`, matching the access rule in amplify/storage/resource.ts. */
 const CHILD_PHOTO_PREFIX = 'child-photos';
 
-export const PHOTO_TYPE_MESSAGE = 'Choose a JPEG, PNG, or WebP image.';
-export const PHOTO_SIZE_MESSAGE = 'Choose an image smaller than 8 MB.';
-const PHOTO_PREPARE_MESSAGE = 'We could not read that image. Please try a different one.';
-const PHOTO_UPLOAD_MESSAGE = 'We could not save that photo. Please try again.';
-const PHOTO_REMOVE_MESSAGE = 'We could not delete that photo. Please try again.';
+export { PHOTO_SIZE_MESSAGE, PHOTO_TYPE_MESSAGE };
 
 /** Only the fields this check needs, so callers can validate without a real `File`. */
 export interface PhotoFileFacts {
@@ -164,10 +170,6 @@ export async function getChildPhotoUrl(path: string): Promise<string | null> {
     return null;
   }
 }
-
-/** What the parent did to the photo field before submitting the form. */
-export type PhotoSelection =
-  { kind: 'unchanged' } | { kind: 'replace'; icon: Blob } | { kind: 'remove' };
 
 /**
  * Applies a photo selection around saving the profile, in the one order

@@ -3,7 +3,13 @@ import { createApiClient } from '../../api/client';
 import { DJANGO_API_CONFIG, type DjangoApiConfig } from '../../api/config';
 import { amplifyProfileStore } from './amplifyProfiles';
 import { createDjangoProfileStore } from './djangoProfiles';
-import type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore } from './profileTypes';
+import type {
+  ChildProfile,
+  ChildProfileInput,
+  ParentProfile,
+  PhotoSelection,
+  ProfileStore,
+} from './profileTypes';
 
 export type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore };
 
@@ -35,6 +41,17 @@ function current(): ProfileStore {
 export function profilePhotosSupported(): boolean {
   return current().supportsPhotos;
 }
+
+/** How this build's store writes a photo around a profile save (see `ProfileStore.photoWrite`). */
+export function profilePhotoWrite(): ProfileStore['photoWrite'] {
+  return current().photoWrite;
+}
+
+/** A displayable URL for `ChildProfile.avatarPhotoKey`, or null. Never throws. */
+export const getChildPhotoUrl = (photoKey: string) => current().getChildPhotoUrl(photoKey);
+/** Upload or remove a saved child's photo (`after-save` stores only). */
+export const applyChildPhotoSelection = (childId: string, selection: PhotoSelection) =>
+  current().applyChildPhotoSelection(childId, selection);
 
 export const getOrCreateParentProfile = () => current().getOrCreateParentProfile();
 export const updateParentProfileDisplayName = (id: string, displayName: string) =>

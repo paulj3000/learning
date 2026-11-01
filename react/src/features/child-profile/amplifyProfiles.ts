@@ -3,6 +3,7 @@ import { client } from '../../lib/data-client';
 import type { Schema } from '../../../../amplify/data/resource';
 import type { AgeBandValue, ReadingModeValue } from './constants';
 import { deleteAccountAndAllData, deleteChildProfileData } from './deletion';
+import { getChildPhotoUrl } from './avatarPhoto';
 import type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore } from './profileTypes';
 
 type AmplifyChildProfile = Schema['ChildProfile']['type'];
@@ -138,6 +139,12 @@ async function setChildProfileAIEnabled(id: string, aiEnabled: boolean): Promise
 export const amplifyProfileStore: ProfileStore = {
   source: 'amplify',
   supportsPhotos: true,
+  photoWrite: 'before-save',
+  getChildPhotoUrl,
+  async applyChildPhotoSelection() {
+    // Amplify photos are written before the profile save (`persistPhotoSelection`).
+    throw new Error('Amplify profile photos are saved with the profile.');
+  },
   getOrCreateParentProfile,
   updateParentProfileDisplayName,
   listChildProfiles,

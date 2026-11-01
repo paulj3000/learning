@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import styles from './ChildAvatar.module.css';
 import { getAvatarEmoji } from './constants';
-import { getChildPhotoUrl } from './avatarPhoto';
+import { getChildPhotoUrl } from './api';
 
 interface ChildAvatarProps {
   /** `ChildProfile.avatarKey` - the authored character shown when there is no photo. */
@@ -23,8 +23,9 @@ interface ChildAvatarProps {
  * The child's profile icon: their uploaded photo if the parent chose one,
  * otherwise the authored avatar character from their profile.
  *
- * A photo needs a short-lived signed URL, so it is resolved on mount
- * (`getChildPhotoUrl` never throws). Until it resolves - and permanently,
+ * A photo needs a short-lived URL from this build's profile store (a signed
+ * Amplify URL, or the Django photo API's presigned URL or token-fetched
+ * bytes), so it is resolved on mount (`getChildPhotoUrl` never throws). Until it resolves - and permanently,
  * if it cannot resolve at all - the authored character is shown, so this
  * component always renders something recognizable.
  *

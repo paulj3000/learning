@@ -22,9 +22,9 @@ import { ApiError, kindForStatus, type ValidationDetail } from './errors';
  * - Every failure is an `ApiError`; nothing else is thrown.
  */
 
-export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
-const BODY_METHODS: ReadonlySet<HttpMethod> = new Set(['POST', 'PATCH']);
+const BODY_METHODS: ReadonlySet<HttpMethod> = new Set(['POST', 'PUT', 'PATCH']);
 
 export interface ApiClientOptions {
   baseUrl: string;
@@ -36,6 +36,13 @@ export interface ApiClientOptions {
 
 export interface RequestOptions {
   body?: Record<string, unknown>;
+  /**
+   * A binary body sent as-is with its own `Content-Type`, instead of JSON (the child photo
+   * upload, LAI-0905). Takes precedence over `body`.
+   */
+  rawBody?: { data: Blob; contentType: string };
+  /** `blob` reads a successful response as bytes (`data` is a `Blob`); errors are still JSON. */
+  responseType?: 'json' | 'blob';
   signal?: AbortSignal;
 }
 
@@ -74,8 +81,12 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       Accept: 'application/json',
       Authorization: `Bearer ${token}`,
     };
+    if (request.responseType === 'blob') headers.Accept = '*/*';
     const init: RequestInit = { method, headers, signal: request.signal };
-    if (BODY_METHODS.has(method)) {
+    if (request.rawBody && BODY_METHODS.has(method)) {
+      headers['Content-Type'] = request.rawBody.contentType;
+      init.body = request.rawBody.data;
+    } else if (BODY_METHODS.has(method)) {
       headers['Content-Type'] = 'application/json';
       init.body = JSON.stringify(request.body ?? {});
     }
@@ -99,6 +110,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   ): Promise<ApiResponse> {
     let response = await send(method, path, request, false);
     if (response.status === 401) response = await send(method, path, request, true);
+    if (response.ok && request.responseType === 'blob') {
+      return { status: response.status, data: await readBlob(response, request.signal) };
+    }
     const data = await readJson(response, request.signal);
     if (response.ok) return { status: response.status, data };
     throw errorFromEnvelope(response.status, data);
@@ -137,6 +151,15 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       return attempt(method, path, request);
     },
   };
+}
+
+async function readBlob(response: Response, signal?: AbortSignal): Promise<Blob> {
+  try {
+    return await response.blob();
+  } catch {
+    if (signal?.aborted) throw new ApiError('aborted');
+    throw new ApiError('network');
+  }
 }
 
 async function readJson(response: Response, signal?: AbortSignal): Promise<unknown> {
