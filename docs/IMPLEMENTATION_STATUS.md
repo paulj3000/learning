@@ -11686,5 +11686,20 @@ Branch `feature/lai-0905-photo-clients`.
     said "after 7 days it cannot be recovered" and still called the version-delete question one
     for LAI-0602; both now match the lifecycle and record that the question stays with G9.
   - The `SensitiveActionBlocked` route guard (LAI-0209) is unchanged.
+- **AWS state, verified 2026-11-01 by the owner's own CLI calls** (Claude Code's
+  `Bash(aws:*)` deny rule in `.claude/settings.json` still blocks the agent). Account
+  `008331939914`, SSO role `amplify-policy`, region `us-west-1`. `list-stacks` (which also lists
+  stacks deleted in the last 90 days and stacks in review) shows **no `Lai*` stack at all**, only
+  `CDKToolkit`. So `LaiChildPhotos-dev`, `LaiAssetStorage-dev`, `LaiDjangoRelease` and
+  `LaiDjangoEc2-dev` have never been created: the Django EC2 platform (ADR-037) has never been
+  provisioned, and there is no Django dev server to release to. The account is shared with
+  other Amplify projects and holds the deployed LAI Amplify backend; there is no separate dev
+  account.
+  - Consequence: the earlier description of the EC2 change as "modify the instance role and
+    add three SSM parameters" was wrong. A first `LaiDjangoEc2-dev` change set **adds** the whole
+    platform (VPC, subnets, security groups, RDS PostgreSQL with a Secrets Manager secret, EC2
+    instance and role, ALB with ACM certificate and WAF, 11 SSM parameters, SSM documents, log
+    groups, SNS and 6 alarms), and it needs `LaiAssetStorage-dev` (its policy is attached by
+    name) and `LaiDjangoRelease` (ECR, GitHub OIDC) first.
 - **Not done (approval or access needed):** change-set review, dev deployment, Django dev
   release and `users.0005` migration, live S3 integration, Cognito browser acceptance.
