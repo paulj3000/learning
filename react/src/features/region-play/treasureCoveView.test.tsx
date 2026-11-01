@@ -96,6 +96,8 @@ function fakeApi(getRegion?: PlayApi['getRegion']): PlayApi {
     submitAnswer: vi.fn(),
     getProgress: vi.fn(),
     startLaunchPoint: vi.fn(),
+    collectPickup: vi.fn(),
+    talkToNpc: vi.fn(async () => ({ flagsSet: [], questUpdates: [], completionRewards: [] })),
   };
 }
 

@@ -217,13 +217,13 @@ LAI-0805's ADR; TR-D5 is still Proposed.
 - [x] **TR-8a** Make it runnable locally (depends: TR-8). DONE locally: automatic Django account setup via `POST /me`, correct 403 messages, dev-only `publish_treasure_rush`, `docs/TREASURE_RUSH_LOCAL_DEV.md`
 - [ ] **TR-9** End-to-end and playtest (depends: TR-8a; real families also need LAI-0502, LAI-0602, gate G9, ADR-024 A6. Locally, the child mirror step in `docs/TREASURE_RUSH_LOCAL_DEV.md` stands in for LAI-0602)
 - [ ] **TR-10** Integrate LAI-2106 shared asset management (depends: LAI-2106, TR-7a)
-- [ ] **TR-11** Second chest and quest chain (depends: TR-9) (to be superseded by TR-14 if the owner approves the reboot order)
+- [ ] **TR-11** Second chest and quest chain (depends: TR-9). Superseded in practice by TR-14 (four chests and a quest), which the owner ordered before TR-9; left open for the owner to close
 - [ ] **TR-12** Reboot Stage A: child-friendly interaction and guidance (`docs/TREASURE_RUSH_ROADMAP.md` section 17). Implemented: forgiving aim, focus marker, tappable action prompt with the E key only on fine pointers, closed-chest beacons, HUD objective and on-request hint, all behind `interactionAssist` (on for Django regions only). Targeted tests and typecheck pass; not played in a browser (TR-9); merge gates not run
 - [ ] **TR-13** Treasure Cove four-zone layout (depends: none). Implemented on `quest/tr.reboot`: Pirate Landing, Palm Tree Grove, Shipwreck Beach, Ancient Treasure Ruins and an unreachable Lookout Point, carried as `scene.layout` (TR-D24) from `treasure_cove_layout.py`; procedural placeholders and ambient animation; stage control slot and in-stage exit. Asset list: `docs/TREASURE_RUSH_ASSET_REQUIREMENTS.md`. Targeted vitest and the regions pytest suite (Postgres) pass; not looked at in a browser; merge gates not run
-- [ ] **TR-14** Four chests and "Pip's Missing Treasure" quest (depends: TR-13; decision on order versus TR-9)
-- [ ] **TR-15** Locked chest and key pickup, backend domain change (depends: TR-14; decision TR-D22)
-- [ ] **TR-16** Ruins environmental puzzle (depends: TR-14; decision TR-D23)
-- [ ] **TR-17** Completion, persistent bridge unlock, achievement (depends: TR-14)
+- [ ] **TR-14** Four chests and "Pip's Missing Treasure" quest (depends: TR-13; owner ordered it before TR-9). Implemented on `quest/tr.reboot`: four encounters (open, hidden, key-locked, rune-stone puzzle then golden chest), key pickup, Pip finale with completion reward and `TREASURE_COVE_QUEST_COMPLETE`; migration `regions.0003`; two play routes. Django gameplay suites and targeted vitest pass; not played in a browser (TR-9); merge gates not run
+- [ ] **TR-15** Locked chest and key pickup (depends: TR-14). Shared contract shipped in TR-14 (TR-D22 taken); left: key model, pickup admin view, use beyond the cove
+- [ ] **TR-16** Ruins environmental puzzle (depends: TR-14). First puzzle shipped in TR-14 (TR-D23 taken); left: more puzzle kinds, stone feedback, pedestal model
+- [ ] **TR-17** Completion, persistent bridge unlock, achievement (depends: TR-14). Signal and achievement shipped in TR-14; left: gate, bridge, Lookout Point access
 - [ ] **TR-18** Living cove: ambient animation and Pip animation (depends: TR-13; animated Pip asset)
 - [ ] **TR-19** Sound effects with mute (decision needed; TR-D19)
 - [ ] **TR-20** Replayable activity after completion (depends: TR-17)

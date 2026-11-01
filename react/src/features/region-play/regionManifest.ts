@@ -83,6 +83,10 @@ export const REGION_ACTIONS = {
   talk: 'Talk',
   open: 'Open',
   look: 'Look',
+  // TR-14
+  read: 'Read',
+  pickUp: 'Pick up',
+  touch: 'Touch',
 } as const;
 
 export interface BuiltRegion {
@@ -144,6 +148,8 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     figures: [],
     interactions: [],
     procedural: layout.procedural,
+    pickups: [],
+    runes: [],
   };
 
   for (const entity of model.entities) {
@@ -180,7 +186,9 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
       config.interactions.push({ interactionId, kind: 'npc', entityId: entity.entityId, npcId });
     } else if (entity.role === 'chest') {
       const interactionId = `${regionId}:chest:${entity.entityId}`;
-      props.push(drawnProp(entity, interactionId, REGION_ACTIONS.open));
+      // A puzzle's pedestal is read, not opened (TR-14).
+      const action = entity.presentation === 'PUZZLE' ? REGION_ACTIONS.read : REGION_ACTIONS.open;
+      props.push(drawnProp(entity, interactionId, action));
       interactions.push({
         id: interactionId,
         type: 'OBJECT',
@@ -196,10 +204,54 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
         isOpen: entity.isOpen === true,
         scale: entity.scale,
         placeholder: { ...entity.placeholder },
+        ...(entity.presentation && entity.presentation !== 'CHEST'
+          ? { presentation: entity.presentation }
+          : {}),
+        ...(entity.lockReason ? { lockReason: entity.lockReason } : {}),
       });
       config.interactions.push({
         interactionId,
         kind: 'chest',
+        entityId: entity.entityId,
+        npcId: null,
+      });
+    } else if (entity.pickup) {
+      // TR-14: a collectible picked up through the play API. Once picked up it is not drawn
+      // again; until then the extension draws it (a key has no catalogue model yet).
+      if (entity.collected) continue;
+      const interactionId = `${regionId}:pickup:${entity.entityId}`;
+      props.push(drawnProp(entity, interactionId, REGION_ACTIONS.pickUp));
+      interactions.push({
+        id: interactionId,
+        type: 'OBJECT',
+        trigger: 'TAP',
+        title: entity.label,
+        targetId: entity.entityId,
+        action: { kind: 'SHOW_MESSAGE', message: entity.label },
+      });
+      config.pickups?.push({ entityId: entity.entityId });
+      config.interactions.push({
+        interactionId,
+        kind: 'pickup',
+        entityId: entity.entityId,
+        npcId: null,
+      });
+    } else if (entity.puzzleAnswer) {
+      // TR-14: a rune stone the child touches to answer a puzzle; the extension draws it.
+      const interactionId = `${regionId}:rune:${entity.entityId}`;
+      props.push(drawnProp(entity, interactionId, REGION_ACTIONS.touch));
+      interactions.push({
+        id: interactionId,
+        type: 'OBJECT',
+        trigger: 'TAP',
+        title: entity.label,
+        targetId: entity.entityId,
+        action: { kind: 'SHOW_MESSAGE', message: entity.label },
+      });
+      config.runes?.push({ entityId: entity.entityId, ...entity.puzzleAnswer });
+      config.interactions.push({
+        interactionId,
+        kind: 'rune',
         entityId: entity.entityId,
         npcId: null,
       });

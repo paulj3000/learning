@@ -13,6 +13,10 @@ The bridge signpost (ADR-041 decision C) is the cove's Adventure launch object: 
 Builder Bay's bridge adventure for the child's age band (one launch point per band, all on the
 same signpost). It uses the bundled `signpost` prop; no new or unpublished asset is needed.
 
+Pip's Missing Treasure (TR-14), the cove's four encounters, is `pips_treasure_seed.py`: its
+rows are created like the others, and an existing region switches from the one-chest quest to it
+once, by `scene["adventureVersion"]`.
+
 The cove's four-zone layout (TR-13) is `treasure_cove_layout.py`, written into
 `scene["layout"]`. It is the one thing the seed refreshes on an existing region: when the stored
 `layoutVersion` is older than `LAYOUT_VERSION`, the seed replaces the layout and bounds, bumps the
@@ -24,7 +28,14 @@ import math
 
 from django.db import transaction
 
-from apps.catalog.models import Adventure, Location, NpcDefinition, Quest, RewardRule
+from apps.catalog.models import (
+    Adventure,
+    ItemDefinition,
+    Location,
+    NpcDefinition,
+    Quest,
+    RewardRule,
+)
 from apps.education.models import ChallengeSpec
 from apps.users.models import AgeBand
 
@@ -36,6 +47,13 @@ from .models import (
     TreasureChest,
     WorldObjectPlacement,
     WorldRegion,
+)
+from .pips_treasure_seed import (
+    ADVENTURE_VERSION,
+    LANDING_CLUE,
+    PIPS_QUEST_ID,
+    seed_pips_treasure,
+    upgrade_pips_treasure,
 )
 from .treasure_cove_layout import BOUNDS, LAYOUT_VERSION, cove_layout
 
@@ -97,12 +115,14 @@ def seed_treasure_rush() -> list[str]:
         bay = Location.objects.get(slug="pirate-builder-bay")
         pip = NpcDefinition.objects.get(npc_id="pirate-pip")
         rule = RewardRule.objects.get(rule_id=REWARD_RULE_ID)
-        quest = Quest.objects.get(slug=QUEST_ID)
+        quest = Quest.objects.get(slug=PIPS_QUEST_ID)
+        ItemDefinition.objects.get(item_id="old-brass-key")
     except (
         Location.DoesNotExist,
         NpcDefinition.DoesNotExist,
         RewardRule.DoesNotExist,
         Quest.DoesNotExist,
+        ItemDefinition.DoesNotExist,
     ) as error:
         raise SeedPrerequisiteMissing("Run load_content first.") from error
 
@@ -158,6 +178,7 @@ def seed_treasure_rush() -> list[str]:
                 "bounds": dict(BOUNDS),
                 "layoutVersion": LAYOUT_VERSION,
                 "layout": cove_layout(),
+                "adventureVersion": ADVENTURE_VERSION,
                 "environment": {"backgroundColor": 0x9FD8F0},
                 "copy": {
                     "loading": "Sailing to Treasure Cove.",
@@ -189,6 +210,7 @@ def seed_treasure_rush() -> list[str]:
             "explorer_challenge": specs[AgeBand.EXPLORER],
             "reward_rule": rule,
             "world_change_key": CHEST_CHANGE_KEY,
+            "clue": LANDING_CLUE,
         },
     )
     get_or_create(
@@ -233,6 +255,9 @@ def seed_treasure_rush() -> list[str]:
                 "sort_order": order,
             },
         )
+    seed_pips_treasure(region, get_or_create)
+    if upgrade_pips_treasure(region):
+        created.append(f"WorldRegion {region} adventure v{ADVENTURE_VERSION}")
     if not region.offered_quests.exists():
         region.offered_quests.add(quest)
     return created

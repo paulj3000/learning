@@ -46,6 +46,17 @@ export const PLAY_COPY = {
   backpackTitle: 'My backpack',
   backpackEmpty: 'Nothing here yet. Open a chest to find treasure!',
   // Objective and hints (TR-12)
+  // Pip's Missing Treasure (TR-14)
+  chestNeedsKey: 'This chest is locked. You need a key to open it!',
+  chestNotYet: "Not yet! Follow Pip's clues to find the treasures in order.",
+  puzzleTouch: 'Touch the rune stone with the right number. You can also choose it here.',
+  puzzleSolved: 'The pedestal glows! The golden chest is unlocked.',
+  puzzleWrong: 'Not that stone. The numbers changed. Try again!',
+  puzzleFirst: 'Read the glowing pedestal first. Then touch a stone.',
+  pipClue: 'My clue:',
+  youPickedUp: 'You found something!',
+  finaleTitle: 'You found all my treasure!',
+  finaleThanks: 'Thank you, friend! You are a true treasure hunter.',
   hint: 'Hint',
   hintClose: 'Got it',
   defaultGiver: 'your friend',
@@ -204,12 +215,15 @@ export function questObjective(
 ): QuestObjective | null {
   const active = quests.find((quest) => quest.status === 'ACTIVE');
   if (active) {
-    const required = active.stages.flatMap((stage) =>
-      stage.objectives.filter((objective) => !objective.optional),
+    // The current stage when the server names one (TR-14: "Find Pip's treasures: 2 of 4", then
+    // "Bring the treasure back to Pip"); the whole quest otherwise.
+    const stage = active.stages.find((candidate) => candidate.id === active.currentStageId);
+    const required = (stage ? [stage] : active.stages).flatMap((each) =>
+      each.objectives.filter((objective) => !objective.optional),
     );
     return {
       kind: 'progress',
-      title: active.title,
+      title: stage?.title || active.title,
       giver: giverName(active.giverNpcId),
       done: required.filter((objective) => objective.complete).length,
       total: required.length,
@@ -227,7 +241,9 @@ export function objectiveCue(objective: QuestObjective): string {
     case 'start':
       return `Talk to ${objective.giver} to start an adventure`;
     case 'progress':
-      return `${objective.title}: ${objective.done} of ${objective.total}`;
+      return objective.total > 1
+        ? `${objective.title}: ${objective.done} of ${objective.total}`
+        : objective.title;
     case 'done':
       return `${objective.title}: all done!`;
   }
@@ -247,11 +263,15 @@ export function nextStepHint(
   switch (objective.kind) {
     case 'start':
       return `Walk up to ${objective.giver}. When the Talk button shows, use it.`;
-    case 'progress':
-      if (chests.some((chest) => !chest.isOpen && chest.challengeAvailable)) {
+    case 'progress': {
+      // The first encounter not done yet, in the server's order; its clue says where (TR-14).
+      const next = chests.find((chest) => !chest.isOpen && chest.lockReason !== 'PROGRESS');
+      if (next?.clue) return next.clue;
+      if (next && next.challengeAvailable) {
         return 'Look for a treasure chest with a gold star over it. Walk close and use Open.';
       }
       return `Walk back to ${objective.giver} and talk. There may be news!`;
+    }
     case 'done':
       return 'You did it! Explore the cove as long as you like.';
   }

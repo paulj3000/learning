@@ -185,7 +185,8 @@ def treasure(families):
     from apps.core.content_status import ContentStatus
     from apps.education.models import ChallengeSpec
     from apps.regions.models import WorldRegion
-    from apps.regions.treasure_rush_seed import QUEST_ID, REGION_ID, seed_treasure_rush
+    from apps.regions.pips_treasure_seed import PIPS_QUEST_ID
+    from apps.regions.treasure_rush_seed import CHEST_ID, REGION_ID, seed_treasure_rush
 
     import_content()
     seed_treasure_rush()
@@ -198,6 +199,7 @@ def treasure(families):
     return SimpleNamespace(
         families=families,
         region=region,
-        chest=region.chests.get(),
-        quest=Quest.objects.get(slug=QUEST_ID),
+        # The first of Pip's four chests (TR-14), and the quest the cove offers.
+        chest=region.chests.get(entity_id=CHEST_ID),
+        quest=Quest.objects.get(slug=PIPS_QUEST_ID),
     )

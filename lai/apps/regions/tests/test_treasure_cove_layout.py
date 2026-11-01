@@ -132,6 +132,7 @@ class TestSeedAppliesTheLayout:
         old_scene = {
             "bounds": {"halfExtentX": 18, "halfExtentZ": 18, "wallThickness": 1},
             "copy": {"instructions": "An admin's words."},
+            "adventureVersion": 1,  # only the layout is behind
         }
         WorldRegion.objects.filter(pk=region.pk).update(
             scene=old_scene, title="Pirate Cove", version=3
@@ -143,6 +144,7 @@ class TestSeedAppliesTheLayout:
         assert region.title == "Pirate Cove"
         assert region.version == 4
         assert region.scene["copy"] == {"instructions": "An admin's words."}
+        assert region.scene["adventureVersion"] == 1
         assert region.scene["bounds"] == BOUNDS
         assert region.scene["layoutVersion"] == LAYOUT_VERSION
         assert region.spawn_points.get().yaw == pytest.approx(math.pi)

@@ -11,12 +11,31 @@ export interface RegionPlayChestConfig {
   isOpen: boolean;
   scale: number;
   placeholder: { width: number; height: number; depth: number };
+  /** TR-14. A `PUZZLE` draws no chest; a `HIDDEN` chest is not drawn while locked by progress. */
+  presentation?: 'CHEST' | 'HIDDEN' | 'PUZZLE';
+  /** Why it is locked at build time; the companion updates it from server state after. */
+  lockReason?: 'PROGRESS' | 'ITEM' | null;
+}
+
+/** A collectible the child picks up through the play API (TR-14), drawn by the extension. */
+export interface RegionPlayPickupConfig {
+  entityId: string;
+}
+
+/** An object that answers a puzzle by being touched (TR-14): choice `index` of `puzzleEntityId`. */
+export interface RegionPlayRuneConfig {
+  entityId: string;
+  puzzleEntityId: string;
+  index: number;
 }
 
 export interface RegionPlayInteractionConfig {
   interactionId: string;
-  /** `launch`: an object that starts one of the Place's Adventures (ADR-041). */
-  kind: 'npc' | 'chest' | 'launch';
+  /**
+   * `launch`: an object that starts one of the Place's Adventures (ADR-041). `pickup` and
+   * `rune`: a collectible to pick up and a puzzle answer to touch (TR-14).
+   */
+  kind: 'npc' | 'chest' | 'launch' | 'pickup' | 'rune';
   entityId: string;
   npcId: string | null;
 }
@@ -60,6 +79,9 @@ export interface RegionPlayConfig {
   interactions: RegionPlayInteractionConfig[];
   /** Scenery drawn from primitives (TR-13). Absent in configs built before it. */
   procedural?: RegionPlayProceduralConfig[];
+  /** TR-14. Absent in configs built before it. */
+  pickups?: RegionPlayPickupConfig[];
+  runes?: RegionPlayRuneConfig[];
 }
 
 /**
@@ -124,6 +146,12 @@ function chest(item: JsonRecord): RegionPlayChestConfig | undefined {
     isOpen: item.isOpen,
     scale,
     placeholder: { width, height, depth },
+    ...(item.presentation === 'HIDDEN' || item.presentation === 'PUZZLE'
+      ? { presentation: item.presentation }
+      : {}),
+    ...(item.lockReason === 'PROGRESS' || item.lockReason === 'ITEM'
+      ? { lockReason: item.lockReason }
+      : {}),
   };
 }
 
@@ -131,7 +159,15 @@ function interaction(item: JsonRecord): RegionPlayInteractionConfig | undefined 
   const interactionId = text(item.interactionId);
   const entityId = text(item.entityId);
   const kind = item.kind;
-  if (!interactionId || !entityId || (kind !== 'npc' && kind !== 'chest' && kind !== 'launch')) {
+  if (
+    !interactionId ||
+    !entityId ||
+    (kind !== 'npc' &&
+      kind !== 'chest' &&
+      kind !== 'launch' &&
+      kind !== 'pickup' &&
+      kind !== 'rune')
+  ) {
     return undefined;
   }
   return { interactionId, kind, entityId, npcId: text(item.npcId) ?? null };
@@ -172,6 +208,24 @@ export function tryParseRegionPlayConfig(config: JsonRecord): RegionPlayConfig |
   const interactions = list(config.interactions, interaction);
   const procedural =
     config.procedural === undefined ? [] : list(config.procedural, proceduralEntry);
-  if (!chests || !figures || !interactions || !procedural) return null;
-  return { chests, figures, interactions, procedural };
+  const pickups =
+    config.pickups === undefined
+      ? []
+      : list(config.pickups, (item) => {
+          const entityId = text(item.entityId);
+          return entityId ? { entityId } : undefined;
+        });
+  const runes =
+    config.runes === undefined
+      ? []
+      : list(config.runes, (item) => {
+          const entityId = text(item.entityId);
+          const puzzleEntityId = text(item.puzzleEntityId);
+          const index = num(item.index);
+          return entityId && puzzleEntityId && index !== undefined && Number.isInteger(index)
+            ? { entityId, puzzleEntityId, index }
+            : undefined;
+        });
+  if (!chests || !figures || !interactions || !procedural || !pickups || !runes) return null;
+  return { chests, figures, interactions, procedural, pickups, runes };
 }

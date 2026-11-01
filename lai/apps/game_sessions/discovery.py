@@ -24,7 +24,7 @@ from apps.progression.models import WorldChange
 from apps.quests import engine
 from apps.quests.models import QuestProgress, QuestStatus
 from apps.quests.services import build_context
-from apps.regions.models import WorldRegion
+from apps.regions.models import ChestPresentation, WorldRegion
 
 from .models import OPEN_STATUSES, AdventureSession, SessionKind, SessionStatus
 
@@ -85,8 +85,9 @@ def region_entries(child, regions) -> list[RegionEntry]:
     changes = set(WorldChange.objects.for_child(child).values_list("location_slug", "change_key"))
     entries = []
     for region in regions:
+        # A puzzle (TR-14) is a challenge on a pedestal, not a chest the child counts.
         chests = list(
-            region.chests.select_related(
+            region.chests.exclude(presentation=ChestPresentation.PUZZLE).select_related(
                 "sprout_challenge", "pathfinder_challenge", "explorer_challenge"
             )
         )

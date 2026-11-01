@@ -11833,3 +11833,49 @@ Second reboot task (`docs/TREASURE_RUSH_ROADMAP.md` section 17, "TR-13 as built"
   zones and the draw-call cost on a tablet are unverified. A deployed database needs
   `manage.py seed_treasure_rush` to pick up the layout. Full suites, lint, Playwright and build
   are deferred to merge readiness.
+
+## TR-14 Treasure Rush reboot: Pip's Missing Treasure (2026-11-01)
+
+Third reboot task (`docs/TREASURE_RUSH_ROADMAP.md` section 17, "TR-14 as built"). Branch
+`quest/tr.reboot`, on top of TR-13 (`c7e6ff3`).
+
+- **Acceptance.** Pip introduces the quest; four encounters that play differently (an open
+  chest, a hidden chest that appears in order, a key-locked chest with a server-recorded key, a
+  rune-stone puzzle graded by Django unlocking the golden chest); four keepsakes; progress
+  1 of 4 to 4 of 4; return to Pip completes the quest in Django with a completion reward and the
+  `TREASURE_COVE_QUEST_COMPLETE` signal for TR-17; keyboard, mouse and touch (the TR-12 prompt,
+  plus panel buttons as an alternative to touching stones); objective and hints accurate
+  throughout; progress persists across sessions; key and rewards idempotent.
+- **APIs.** `POST .../sessions/{id}/pickups/{entityId}/`, `POST .../sessions/{id}/npcs/{entityId}/talk/`,
+  `409 chest_locked`, additive bootstrap and outcome fields (`docs/PLAY_API.md`). Accepting a
+  quest now walks it forward. The native region list no longer counts puzzles as chests.
+- **Quest data.** `pips-missing-treasure` (stages `find-the-treasure`: four BUILD objectives;
+  `return-to-pip`: TALK_TO Pip), five items (Palm Grove Pearl, Old Brass Key, Shipwreck Compass,
+  Sunstone, Treasure Cove Explorer Badge) and five reward rules, in the content export; 15
+  challenge specs, three chests, the pedestal puzzle, three rune stones and the key in the seed
+  (`pips_treasure_seed.py`). An existing region moves its offered quest once
+  (`adventureVersion`); the one-chest quest stays in the catalog with its children's progress.
+- **Decisions.** TR-D22 (key as a pickup), TR-D23 (puzzle graded by Django), TR-D25 (TALK_TO
+  proven from `NpcRelationship.memory_flags`), recorded in the roadmap.
+- **Two TR-13 regressions fixed here.** A play API leak test matched the layout's scatter
+  `seed` (now checks the authored scene separately, with the same guarantees), and the layout
+  module printed a line (application code must not print).
+- **Content export with an unrelated uncommitted change present.** The earlier, uncommitted
+  "Treasure Rush quest owned by the home Island" fix also edits the export. TR-14's committed
+  export was generated from the committed export code (`quests.json`, `rewards.json`,
+  `manifest.json`; `islands.json` unchanged); the working tree's export was regenerated with
+  that fix in place, so it carries both. Only the record counts in `contentExport.test.ts`
+  were changed for TR-14.
+- **Tests (development checks).** Django, against the compose PostgreSQL: `regions`,
+  `game_sessions`, `quests`, `inventory`, `progression`, `core`, `catalog`, `education`: 626
+  passed, with one test deselected (`test_adventure_launch.py::test_quests_stay_island_owned_and_are_still_offered_in_the_3d_area`)
+  that fails only because of the uncommitted export fix above, which closes the gap it pins.
+  New: `test_pips_treasure.py` (22) and the engine's TALK_TO test. Ruff clean on the touched
+  files. Vitest over `island-map`, `region-play`, `api/play` and `content-export`: 125 files,
+  1,433 passed, including the new `pipsTreasure.test.ts` (12), `pipsTreasure.engine.test.ts`
+  (6), 7 companion tests and 5 API tests. `tsc -b`
+  clean; Prettier clean on the touched files.
+- **Not done.** No browser or tablet play (TR-9): pacing toward 10 to 15 minutes, readability
+  of the stone numbers, and the hidden chest's discoverability need a person. A deployed
+  database needs `migrate`, `load_content`, `seed_treasure_rush` and the publish step.
+  Full suites, lint, Playwright and build are deferred to merge readiness.

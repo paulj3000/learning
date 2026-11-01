@@ -56,9 +56,8 @@ All bundled and resolvable today; measured bounds are width x height x depth in 
 | `fern` | `fern.gltf` | 1.05 x 0.4 x 0.99 | Grove | 10 |
 | `flower-cluster` | `flower-cluster.gltf` | 0.52 x 0.35 x 0.6 | The flower trail to the hidden chest, grove | 14 |
 | `archway` | `archway.gltf` | 2.6 x 3 x 0.6, placed at 1.55 x 1.25 | Ruins entrance | 1 |
-| `standing-stone` | `standing-stone.gltf` | 0.5 x 1.4 x 0.4 | Three rune stones round the pedestal (TR-16's puzzle) | 3 |
 | `butterfly` | `butterfly.gltf` | 0.47 x 0.24 x 0.29 | Ambient movers at the hiding place and the grove path | 2 |
-| `treasure-chest` | `treasure-chest.gltf` (clip `Open`) | 0.6 x 0.42 x 0.4 | The seeded chest (TR-14 adds three more) | 1 |
+| `treasure-chest` | `treasure-chest.gltf` (clip `Open`) | 0.6 x 0.42 x 0.4 | The landing, grove, beach and golden chests (TR-14; the golden one at 1.25x) | 4 |
 | `npc-pip` | `npc-pip.gltf` (clips `Idle`, `Talk`, `Wave`) | 0.61 x 1.24 x 0.56 | Pip at the landing | 1 |
 
 ## 3. Placeholders drawn from primitives, and what replaces them
@@ -78,6 +77,15 @@ All animate with the scene and hold still under reduced motion.
 | `PEDESTAL`: stepped stone, floating gem that pulses and turns | Ruins centre (1) | `treasure-pedestal` | `treasure-pedestal.glb` | prop | `Glow` (loop) | 2 x 2.1 x 2 | TR-16's puzzle focus. Keep the gem a separate node so the puzzle can light it |
 | `GATE`: two stone posts, lintel, iron bars | Ruins south wall (1) | `ruins-gate` | `ruins-gate.glb` | prop | `Open` (once, bars rise; TR-17) | 5.4 x 3.8 x 0.8 | Opening 4 m wide on the ruins' south wall. TR-17 opens it; until then the bars are a named node (`region-play:gate-bars`) |
 
+## 3a. Drawn by the region-play scene for TR-14
+
+| Placeholder | Where | Proposed asset id | Kind | Clips | Target size (m) | Notes |
+|---|---|---|---|---|---|---|
+| Gold key: torus bow, shaft, tooth; bobs and turns | The X in the sand (31, 0), at 0.5 m | `treasure-key` | collectible | `Idle` (optional spin) | 0.4 x 0.2 x 0.05 | A pickup (`cove-brass-key`); disappears once picked up |
+| Grey slab with a number on a floating label | Three rune stones round the pedestal | `rune-stone` | prop | `Glow` (optional) | 0.7 x 1.6 x 0.45 | The puzzle's answers. The number is drawn by the game on a label above the stone, so the model needs no digits; a glowing rune face is welcome. Replaces the `standing-stone` cluster TR-13 used there |
+
+The pedestal itself stays the TR-13 `PEDESTAL` placeholder; the puzzle draws no chest there.
+
 ## 4. Simpler stand-ins also in use
 
 | Stand-in | Where | Wanted |
@@ -93,8 +101,8 @@ All animate with the scene and hold still under reduced motion.
 
 | Task | Asset id | Kind | Clips | Size (m) | Note |
 |---|---|---|---|---|---|
-| TR-14 | `treasure-chest` variants (`-hidden`, `-locked`, `-golden`) | prop | `Open` | as `treasure-chest`, golden 1.2x | The four encounters should look different; the golden one is the finale |
-| TR-15 | `treasure-key` | collectible | `Idle` (spin, optional) | 0.3 x 0.15 x 0.05, floats at 0.6 | Found on the X in the sand at (31, 0) |
+| TR-14 (in use as `treasure-chest`) | `treasure-chest` variants (`-hidden`, `-locked`, `-golden`) | prop | `Open` | as `treasure-chest`, golden 1.25x | The four encounters should look different; the golden one is the finale |
+| TR-14/15 (placeholder in use) | `treasure-key` | collectible | `Idle` (spin, optional) | 0.4 x 0.2 x 0.05, floats at 0.5 | Found on the X in the sand at (31, 0); see 3a |
 | TR-17 | `bridge-plank-repaired` | kit-piece | none | exists | Lays the bridge over the channel |
 | TR-18 | `npc-pip` new clips | character | `Cheer`, `Point` (plus the existing `Idle`, `Talk`, `Wave`) | as now | Reaction on a found treasure; pointing for hints |
 

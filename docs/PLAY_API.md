@@ -195,6 +195,63 @@ nothing is recorded.
 `sessions` is the 20 most recent. `practice` is counts per learning objective, for gameplay
 pacing; it is not a mastery level or a label (docs/DATA_MODEL.md, "SkillProgress").
 
+## Pip's Missing Treasure (TR-14): locks, pickups, puzzles, talking
+
+All additive: a client from before TR-14 keeps working, and the TypeScript reader defaults
+every new field when an older server leaves it out.
+
+**Region bootstrap, chests.** Each chest also carries `presentation` (`CHEST`, `HIDDEN`: not
+drawn until it may be opened, or `PUZZLE`: answered by touching objects, no chest drawn),
+`sortOrder` (the encounter order; the list comes sorted by it), `locked` and `lockReason`
+(`null`, `PROGRESS`: an earlier encounter first, or `ITEM`: a key the child lacks),
+`requiredItemId`, `answerEntityIds` (a puzzle's answer objects, one per choice, in choice order)
+and `clue` (Pip's line that sends the child there; child-facing).
+
+**Region bootstrap, objects.** Each object also carries `pickup` (a collectible picked up
+through the API) and `collected` (this child has picked it up).
+
+**Challenges for a locked chest** are `409 chest_locked`: nothing is issued or recorded. A
+puzzle's challenge is an ordinary `CHOICE` challenge whose choices go on its answer objects,
+graded by `POST attempts/{attemptId}/answer/` like any other.
+
+**Answer outcome.** Adds `completionRewards`: `[{ruleId, items, message}]`, the rewards for a
+quest this answer completed (reward rules triggered by `QUEST_COMPLETED`), only those granted now.
+
+### `POST sessions/{sessionId}/pickups/{entityId}/`: pick something up
+
+Empty body. Records the placement's pickup world change and fires its reward rule (the item),
+once each, then walks the child's quests forward. `201` picked up now, `200` already picked up
+(nothing new: `pickedUp: false`, `newItems: []`). A placement that is not a pickup, or another
+child's session, is `404`; a closed session is `409 session_not_open`.
+
+```json
+{"entityId": "cove-brass-key", "pickedUp": true, "collected": true,
+ "newItems": [{"itemId": "old-brass-key", "category": "QUEST_ITEM", "...": "..."}],
+ "rewardMessage": "You found an Old Brass Key! It is in your backpack.",
+ "questUpdates": [], "completionRewards": []}
+```
+
+### `POST sessions/{sessionId}/npcs/{entityId}/talk/`: the child talked to an NPC
+
+Empty body; always `200`. For every active quest whose *current* stage has a `TALK_TO`
+objective naming this NPC, sets that memory flag on the child's `NpcRelationship`, walks the
+quests forward, and fires the rewards of any quest just completed. Talking too early changes
+nothing (`{"flagsSet": [], "questUpdates": [], "completionRewards": []}`), and so does talking
+again after the quest is done. Not an NPC here: `404`.
+
+```json
+{"flagsSet": ["cove-treasure-returned"],
+ "questUpdates": [{"questId": "pips-missing-treasure", "status": "COMPLETED",
+                   "currentStageId": "return-to-pip", "justCompleted": true,
+                   "newlyCompletedObjectiveIds": ["cove-return-to-pip"]}],
+ "completionRewards": [{"ruleId": "reward-pips-missing-treasure-complete",
+                        "items": [{"itemId": "treasure-cove-explorer", "...": "..."}],
+                        "message": "You are a Treasure Cove Explorer!"}]}
+```
+
+**Accepting a quest** now also walks it forward at once, so a chest opened before accepting
+counts immediately.
+
 ## Islands, Places and Adventure launch points (LAI-0806, ADR-041)
 
 **Region bootstrap: `launchPoints` (additive).** The objects in this 3D Area that start one of its

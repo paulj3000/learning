@@ -14,7 +14,8 @@ south. Four zones, joined by paths and a loop:
   a hiding place ringed by bushes.
 - **Shipwreck Beach** (east, x 14..36): the wreck, washed-up cargo, an X in the sand.
 - **Ancient Treasure Ruins** (south, x -14..14, z -36..-16): walls, an archway, a ring of
-  pillars round a glowing pedestal, and a locked gate over the channel to Lookout Point.
+  pillars round a glowing pedestal, and a locked gate over the channel to Lookout Point. The
+  three rune stones at `RUNE_STONES` are interactive placements (TR-14's puzzle), not layout.
 
 `SPOTS` names where TR-14's encounters go; nothing is placed there yet beyond the scenery that
 frames them. The models the cove lacks (palm, tent, campfire, torch, flag, rowboat, pillar,
@@ -30,7 +31,7 @@ import math
 from pathlib import Path
 
 # Bump whenever the layout changes, so the seed refreshes an existing region's layout.
-LAYOUT_VERSION = 2
+LAYOUT_VERSION = 3
 BOUNDS = {"halfExtentX": 36, "halfExtentZ": 44, "wallThickness": 1}
 SNAPSHOT_PATH = Path(__file__).with_name("treasure_cove_layout.json")
 
@@ -512,15 +513,6 @@ def cove_layout() -> dict:
             "scale": {"x": 1.55, "y": 1.25, "z": 1},
         },
         _cluster(
-            "cove-rune-stones",
-            "standing-stone",
-            _positions(
-                RUNE_STONES,
-                rotation_y=lambda i: (0.4, -0.4, 0)[i],
-                scale={"x": 1.3, "y": 1.3, "z": 1.3},
-            ),
-        ),
-        _cluster(
             "cove-ruins-rubble",
             "rock",
             _positions(RUBBLE, rotation_y=lambda i: i * 0.9, scale={"x": 2.5, "y": 2, "z": 2.5}),
@@ -537,6 +529,10 @@ def cove_layout() -> dict:
     ]
     colliders += [
         _solid(f"cove-pillar-{i}:collider", x, z, 0.45) for i, (x, z) in enumerate(RUIN_PILLARS)
+    ]
+    # The rune stones are TR-14's puzzle answers, placed by the seed; solid like the pillars.
+    colliders += [
+        _solid(f"cove-rune-stone-{i}:collider", x, z, 0.3) for i, (x, z) in enumerate(RUNE_STONES)
     ]
     colliders += [
         _solid("cove-pedestal:collider", PEDESTAL[0], PEDESTAL[1], 0.8),
@@ -652,5 +648,4 @@ def write_snapshot() -> None:
 
 
 if __name__ == "__main__":
-    write_snapshot()
-    print(f"wrote {SNAPSHOT_PATH}")
+    write_snapshot()  # silent: application code does not print (test_privacy_logging)

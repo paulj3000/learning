@@ -723,26 +723,101 @@ archway lets you in, the gate and channel hold) but nobody has looked at it. In 
 sizes, colours and the draw-call count on a tablet need a real look (TR-9). The bootstrap grows
 by about 40 KB of layout JSON.
 
+### TR-14 as built: Pip's Missing Treasure (2026-11-01)
+
+The cove becomes a complete adventure: Pip's quest, four encounters that each play differently,
+a key, a rune-stone puzzle and a finale, all decided by Django.
+
+**The sequence a child plays.**
+
+1. **Pirate Landing.** Pip offers "Pip's Missing Treasure" (accepting is the child's choice).
+   The landing chest (seeded since TR-7) opens with the existing challenge; Golden Doubloon.
+   HUD: "Find Pip's treasures: 1 of 4". Pip's clue now points at the grove.
+2. **Palm Tree Grove.** The hidden chest is not drawn until the landing chest is open, then
+   appears in the ring of bushes at the end of the flower trail, with a beacon. Its own
+   challenge (a different skill per band from the landing chest); Palm Grove Pearl. 2 of 4.
+3. **Shipwreck Beach.** The locked chest says it needs a key and gives Pip's clue (the X in the
+   sand). The Old Brass Key floats over the X at (31, 0); picking it up goes through the server
+   and lands in the backpack. With it, the chest's challenge; Shipwreck Compass. 3 of 4.
+4. **Ancient Treasure Ruins.** Reading the glowing pedestal issues a three-choice challenge;
+   its numbers appear on the three rune stones and the child walks to one and touches it (the
+   panel's buttons are an accessible alternative). Django grades the touched stone's number. A
+   wrong stone says so and brings new numbers; the right one unlocks the golden chest, whose
+   own challenge gives the Sunstone. 4 of 4; the HUD turns to "Bring the treasure back to Pip".
+5. **Finale.** Talking to Pip completes the quest on the server: it records
+   `TREASURE_COVE_QUEST_COMPLETE` (TR-17's signal), grants the Treasure Cove Explorer Badge,
+   and the finale shows Pip's thanks and the badge.
+
+Progress is server state throughout: leaving and coming back keeps every opened chest, the key
+and the quest stage; nothing is granted twice.
+
+**How it is built.**
+
+- **Content.** Items, reward rules and the quest are export content
+  (`treasureRushContent.ts`), loaded with `load_content`. Chests, challenge specs (15 new), the
+  key and rune stones are seed rows (`lai/apps/regions/pips_treasure_seed.py`), created only if
+  absent; an existing region switches its offered quest from the one-chest quest to Pip's once,
+  by `scene["adventureVersion"]`. The one-chest quest stays in the catalog, so a child's
+  progress on it is kept. Layout v3 turns the rune stones into placements.
+- **Model (migration `regions.0003`).** `TreasureChest`: `presentation`, `sort_order`,
+  `required_world_change_key`, `required_item`, `answer_entity_ids`, `clue`.
+  `WorldObjectPlacement`: `pickup_change_key`, `pickup_reward_rule`. Admin validation refuses a
+  puzzle whose challenges are not CHOICE with one choice per answer object, answer objects not
+  placed in the region, answer objects on a non-puzzle, a chest requiring itself, and a pickup
+  on anything but a collectible.
+- **Rules (`apps/game_sessions/play.py`).** `chest_lock` (progress first, then the item);
+  `issue_chest_challenge` refuses a locked chest (`409 chest_locked`); `collect_pickup`;
+  `talk_to_npc`; every path that can finish a quest fires its `QUEST_COMPLETED` reward rules.
+  The quest engine now proves `TALK_TO` from `NpcRelationship.memory_flags`. Accepting a quest
+  walks it forward at once.
+- **API.** Two routes and additive fields (`docs/PLAY_API.md`, "Pip's Missing Treasure").
+- **Client.** The builder draws the key and rune stones as claimed props and leaves a collected
+  key out; the scene hides a hidden chest until it may be found, beacons only what the child
+  may do next, draws the key, and puts the puzzle's numbers on the stones; the companion talks
+  to the server on every visit to Pip, picks up through the API, says why a chest is locked,
+  and answers the puzzle with the stone touched. The HUD cue follows the quest's current stage,
+  and the hint is the server's clue for the next encounter.
+
+**Decisions taken (TR-14 brief):**
+
+- **TR-D22 (taken) The key is a pickup.** A collectible placement with a pickup world change
+  and a reward rule; the route records the change and fires the rule, so the key is ordinary
+  inventory and the lock checks ownership. Reusable for any found object.
+- **TR-D23 (taken) Puzzles are graded by Django.** A puzzle is a chest row with `PUZZLE`
+  presentation whose CHOICE challenge is answered by touching objects; the engine shows numbers
+  and reports touches, never grades.
+- **TR-D25 TALK_TO is provable on the server** from `NpcRelationship.memory_flags`, set only
+  for an objective of an active quest's current stage. No schema change.
+
+**Native API.** The region list's chest counts leave puzzles out (the cove reports 4).
+
 ### Remaining reboot tasks
 
 The order follows the brief's stages. Each task is separate so no backend domain change is
 combined with a world change (CLAUDE.md section 19).
 
 - **TR-13 Treasure Cove layout: four zones.** Done, above.
-- **TR-14 Four chests and the quest "Pip's Missing Treasure".** Four `TreasureChest` rows, each
+- **TR-14 Four chests and the quest "Pip's Missing Treasure".** Done, above. Was: four `TreasureChest` rows, each
   with its own challenge specs per band, keepsake, reward rule and world change; the quest with
   four chest objectives and a final "return to Pip" stage, in the content export. Supersedes
   TR-11. Depends: TR-13. Open question: TR-11 waited for TR-9's playtest; the reboot brief puts
   content first. **Decision needed (owner).**
-- **TR-15 The locked chest and its key.** A backend domain change: a chest may require an item;
+- **TR-15 The locked chest and its key.** Its shared contract shipped in TR-14 (TR-D22: the
+  pickup route, `required_item`). Left: a finished `treasure-key` model, a pickup admin view
+  that lists which children have found it, and other regions using pickups. Was: a backend
+  domain change: a chest may require an item;
   a child-scoped pickup route grants the key through the canonical inventory, idempotently; the
   challenge is refused until the key is owned. **Decision TR-D22 needed:** pickup as a new play
   route versus a world change the reward rules turn into the item. Depends: TR-14. Risk H.
-- **TR-16 The ruins puzzle.** A short environmental puzzle before the final chest. The engine
+- **TR-16 The ruins puzzle.** The first puzzle shipped in TR-14 (TR-D23: a CHOICE challenge on
+  rune stones). Left: puzzle kinds beyond "touch the answer" (ordering stones, matching), a
+  stepping animation and sound for the stones, and a finished pedestal model. Was: the engine
   never validates answers (ADR-020), so either the puzzle is presentation only and the server
   challenge stays the learning check, or the puzzle's result is graded by Django. **Decision
   TR-D23 needed.** Depends: TR-14.
-- **TR-17 Completion and the bridge.** Quest completion records a world change; the bridge and
+- **TR-17 Completion and the bridge.** The signal and the achievement shipped in TR-14
+  (`TREASURE_COVE_QUEST_COMPLETE`, the explorer badge). Left: open the gate, lay the bridge and
+  let the child reach Lookout Point from that change. Was: quest completion records a world change; the bridge and
   the area beyond it appear from that change on every later visit. Needs a check that the
   region's scenery requirements read Django world changes (today the engine's world state comes
   from the view's snapshot), and an achievement ("Treasure Cove Explorer") through an existing

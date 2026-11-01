@@ -265,7 +265,125 @@ export async function coveSceneJson() {
   );
   return {
     bounds: { halfExtentX: 36, halfExtentZ: 44, wallThickness: 1 },
-    layoutVersion: 2,
+    layoutVersion: 3,
     layout,
+  };
+}
+
+/**
+ * Pip's Missing Treasure (TR-14) as the play API serves it: the landing chest open, the hidden
+ * grove chest now findable, the beach chest waiting for the key, the ruins puzzle on its
+ * pedestal with three rune stones, and the key not yet picked up. `chests` overrides by id.
+ */
+export function pipsBootstrapJson(
+  overrides: Record<string, unknown> = {},
+  chests: Record<string, Record<string, unknown>> = {},
+) {
+  const base = bootstrapJson();
+  const chest = (entityId: string, fields: Record<string, unknown>) => ({
+    ...base.chests[0],
+    entityId,
+    presentation: 'CHEST',
+    sortOrder: 0,
+    locked: false,
+    lockReason: null,
+    requiredItemId: null,
+    answerEntityIds: [],
+    clue: '',
+    ...fields,
+    ...chests[entityId],
+  });
+  const placed = (entityId: string, x: number, z: number, fields: Record<string, unknown>) => ({
+    entityId,
+    label: entityId,
+    x,
+    z,
+    elevation: 0,
+    rotationY: 0,
+    scale: 1,
+    assetId: '',
+    placeholder: { width: 0.6, height: 1.6, depth: 0.4 },
+    kind: 'PROP',
+    interactionId: '',
+    pickup: false,
+    collected: false,
+    ...fields,
+  });
+  return {
+    ...base,
+    objects: [
+      placed('cove-brass-key', 31, 0, {
+        label: 'Old brass key',
+        kind: 'COLLECTIBLE',
+        pickup: true,
+      }),
+      placed('cove-rune-stone-1', -3, -23, { label: 'Rune stone 1' }),
+      placed('cove-rune-stone-2', 3, -23, { label: 'Rune stone 2' }),
+      placed('cove-rune-stone-3', 0, -29.4, { label: 'Rune stone 3' }),
+    ],
+    chests: [
+      chest('cove-chest', { isOpen: true, clue: 'My first chest is at the landing.' }),
+      chest('cove-grove-chest', {
+        label: 'Hidden chest',
+        x: -30,
+        z: 20,
+        presentation: 'HIDDEN',
+        sortOrder: 1,
+        clue: 'Follow the flowers in the grove!',
+      }),
+      chest('cove-beach-chest', {
+        label: 'Locked chest',
+        x: 21,
+        z: 22,
+        sortOrder: 2,
+        locked: true,
+        lockReason: 'PROGRESS',
+        requiredItemId: 'old-brass-key',
+        clue: 'Look for an X in the sand to find the key!',
+      }),
+      chest('cove-ruins-pedestal', {
+        label: 'Glowing pedestal',
+        x: 0,
+        z: -26,
+        assetId: '',
+        openClip: '',
+        presentation: 'PUZZLE',
+        sortOrder: 3,
+        locked: true,
+        lockReason: 'PROGRESS',
+        answerEntityIds: ['cove-rune-stone-1', 'cove-rune-stone-2', 'cove-rune-stone-3'],
+        clue: 'Read the pedestal, then touch the right stone.',
+      }),
+    ],
+    quests: [
+      questJson({
+        questId: 'pips-missing-treasure',
+        title: "Pip's Missing Treasure",
+        status: 'ACTIVE',
+        currentStageId: 'find-the-treasure',
+        stages: [
+          {
+            id: 'find-the-treasure',
+            title: "Find Pip's treasures",
+            complete: false,
+            objectives: ['landing', 'grove', 'beach', 'final'].map((id, index) => ({
+              id: `cove-${id}-chest`,
+              label: `Treasure ${index + 1}`,
+              optional: false,
+              complete: index === 0,
+            })),
+          },
+          {
+            id: 'return-to-pip',
+            title: 'Bring the treasure back to Pip',
+            complete: false,
+            objectives: [
+              { id: 'cove-return-to-pip', label: 'Talk to Pip', optional: false, complete: false },
+            ],
+          },
+        ],
+      }),
+    ],
+    ...overrides,
   };
 }

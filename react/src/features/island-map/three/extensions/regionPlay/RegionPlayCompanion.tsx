@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import type { AnswerOutcome } from '../../../../../api/play/types';
+import type { AnswerOutcome, PickupOutcome, TalkOutcome } from '../../../../../api/play/types';
 import { useAuth } from '../../../../auth/AuthContext';
 import { tryParseRegionPlayConfig } from '../../../../region-play/regionPlayConfig';
 import {
@@ -46,6 +46,12 @@ import styles from './ui/RegionPlayPanels.module.css';
  * - Offers the backpack: the child's items and quests from `GET progress/`.
  * - Shows the objective in the HUD ("Treasure Rush: 1 of 4") and a hint on
  *   request (TR-12), both from the server's quest and chest state.
+ * - Pip's Missing Treasure (TR-14): keeps each chest's lock and the key in
+ *   the scene matching the server; picks the key up through the play API;
+ *   shows the server's numbers on the rune stones while the ruins puzzle is
+ *   out and answers it with the stone the child touches (the server grades
+ *   it); and tells the server each time the child talks to Pip, whose reply
+ *   may complete the quest and bring the finale.
  * - Begins an Adventure from an object that offers one (ADR-041): the server
  *   checks and starts it, then the child goes to the Adventure with a way
  *   back to this 3D Area.
@@ -67,14 +73,23 @@ function RegionPlayGame(props: LocationCompanionProps) {
     onCloseInteraction,
     setQuestCue,
     hudSlot,
+    showToast,
   } = props;
   const auth = useAuth();
   const onUnauthenticated = () => void auth.refresh();
   const parsed = useMemo(() => tryParseRegionPlayConfig(config), [config]);
   const controls = useRegionPlay(childId, regionId, { onUnauthenticated });
   const progress = usePlayerProgress(childId, { onUnauthenticated });
-  const { state, startSession, changeSession, acceptQuest, requestChallenge, submitAnswer } =
-    controls;
+  const {
+    state,
+    startSession,
+    changeSession,
+    acceptQuest,
+    requestChallenge,
+    submitAnswer,
+    collectPickup,
+    talkToNpc,
+  } = controls;
   const refreshProgress = progress.refresh;
   const navigate = useNavigate();
   const launcher = useAdventureLaunch(childId, regionId);
@@ -82,6 +97,11 @@ function RegionPlayGame(props: LocationCompanionProps) {
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [hintOpen, setHintOpen] = useState(false);
   const [celebration, setCelebration] = useState<AnswerOutcome | null>(null);
+  const [found, setFound] = useState<PickupOutcome | null>(null);
+  const [finale, setFinale] = useState<TalkOutcome | null>(null);
+  /** The chest each submitted attempt was for, so a puzzle's outcome is told apart (TR-14). */
+  const submittedTargets = useRef(new Map<string, string>());
+  const handledFor = useRef<unknown>(null);
   const [acceptedHere, setAcceptedHere] = useState<string | null>(null);
   const submittedAttempt = useRef<string | null>(null);
   const celebrated = useRef(new Set<string>());
@@ -133,14 +153,82 @@ function RegionPlayGame(props: LocationCompanionProps) {
     }
   }, [chests, sceneApi]);
 
+  // TR-14: locks and pickups in the scene follow the server, like chest lids.
+  const objects = state.bootstrap?.objects;
+  useEffect(() => {
+    const api = sceneApi as RegionPlaySceneApi | null;
+    if (!api) return;
+    for (const chest of chests ?? []) {
+      api.setChestLock?.(chest.entityId, chest.isOpen ? null : chest.lockReason);
+    }
+    for (const object of objects ?? []) {
+      if (object.pickup && object.collected) api.setPickupCollected?.(object.entityId);
+    }
+  }, [chests, objects, sceneApi]);
+
+  // TR-14: the rune stones show the outstanding puzzle's choices, one per stone, in order.
+  const puzzleIds = useMemo(
+    () => new Set((chests ?? []).filter((c) => c.presentation === 'PUZZLE').map((c) => c.entityId)),
+    [chests],
+  );
+  const outstanding = state.challenge;
+  useEffect(() => {
+    const api = sceneApi as RegionPlaySceneApi | null;
+    if (!api?.setRuneNumbers) return;
+    const puzzle =
+      outstanding && puzzleIds.has(outstanding.targetEntityId)
+        ? chests?.find((c) => c.entityId === outstanding.targetEntityId)
+        : undefined;
+    if (!puzzle || !outstanding) {
+      api.setRuneNumbers(null);
+      return;
+    }
+    const numbers = new Map<string, number>();
+    puzzle.answerEntityIds.forEach((entityId, index) => {
+      const choice = outstanding.challenge.choices[index];
+      if (choice !== undefined) numbers.set(entityId, choice);
+    });
+    api.setRuneNumbers(numbers);
+  }, [outstanding, puzzleIds, chests, sceneApi]);
+
   // The reward reveal: once per attempt, only for a server-confirmed correct answer sent here.
+  // A puzzle is not a chest: it says so in the HUD, and a wrong stone brings new numbers.
   useEffect(() => {
     const outcome = state.lastOutcome;
+    if (!outcome || outcome.attemptId !== submittedAttempt.current) return;
+    if (celebrated.current.has(outcome.attemptId)) return;
+    const target = submittedTargets.current.get(outcome.attemptId);
+    if (target && puzzleIds.has(target)) {
+      celebrated.current.add(outcome.attemptId);
+      if (outcome.correct) {
+        showToast(PLAY_COPY.puzzleSolved);
+      } else {
+        showToast(PLAY_COPY.puzzleWrong);
+        void requestChallenge(target);
+      }
+      return;
+    }
     if (!shouldCelebrate(outcome, submittedAttempt.current, celebrated.current)) return;
     celebrated.current.add(outcome.attemptId);
     setCelebration(outcome);
     void refreshProgress();
-  }, [state.lastOutcome, refreshProgress]);
+  }, [state.lastOutcome, refreshProgress, puzzleIds, showToast, requestChallenge]);
+
+  // TR-14: what the server said about a pickup and a talk made here.
+  const lastPickup = state.lastPickup;
+  useEffect(() => {
+    if (lastPickup?.pickedUp && lastPickup.newItems.length > 0) {
+      setFound(lastPickup);
+      void refreshProgress();
+    }
+  }, [lastPickup, refreshProgress]);
+  const lastTalk = state.lastTalk;
+  useEffect(() => {
+    if (lastTalk?.questUpdates.some((update) => update.justCompleted)) {
+      setFinale(lastTalk);
+      void refreshProgress();
+    }
+  }, [lastTalk, refreshProgress]);
 
   const event =
     parsed && claimedInteraction && state.bootstrap
@@ -162,6 +250,48 @@ function RegionPlayGame(props: LocationCompanionProps) {
     !lastOutcome.correct &&
     lastOutcome.attemptId === submittedAttempt.current;
 
+  // TR-14: talking to an NPC, picking something up, or touching a rune stone is sent once per
+  // time the child does it; the server decides what it means.
+  useEffect(() => {
+    if (!event || !claimedInteraction || handledFor.current === claimedInteraction) return;
+    if (event.kind === 'npc') {
+      handledFor.current = claimedInteraction;
+      void talkToNpc(event.entityId);
+    } else if (event.kind === 'pickup') {
+      handledFor.current = claimedInteraction;
+      void collectPickup(event.entityId).then(() => onCloseInteraction());
+    } else if (event.kind === 'rune') {
+      handledFor.current = claimedInteraction;
+      const puzzle = state.challenge;
+      if (puzzle && puzzle.targetEntityId === event.puzzleEntityId && !state.busy) {
+        const choice = puzzle.challenge.choices[event.index];
+        if (choice !== undefined) {
+          submittedAttempt.current = puzzle.attemptId;
+          submittedTargets.current.set(puzzle.attemptId, puzzle.targetEntityId);
+          void submitAnswer({ answer: choice, hintLevel: 0 });
+        }
+      } else {
+        showToast(PLAY_COPY.puzzleFirst);
+      }
+      onCloseInteraction();
+    }
+  }, [
+    event,
+    claimedInteraction,
+    talkToNpc,
+    collectPickup,
+    submitAnswer,
+    onCloseInteraction,
+    showToast,
+    state.challenge,
+    state.busy,
+  ]);
+
+  // The same interaction is claimed again on the next touch, so "once" lasts until it closes.
+  useEffect(() => {
+    if (!claimedInteraction) handledFor.current = null;
+  }, [claimedInteraction]);
+
   // Opening an unopened chest asks the server for its challenge, once per time it is opened.
   useEffect(() => {
     if (event?.kind !== 'chest' || !event.canRequestChallenge || challenge || wrong) return;
@@ -172,12 +302,14 @@ function RegionPlayGame(props: LocationCompanionProps) {
 
   function closeInteraction() {
     autoRequestedFor.current = null;
+    handledFor.current = null;
     onCloseInteraction();
   }
 
   function submit(answer: number, hintLevel: number) {
     if (!challenge || state.busy) return;
     submittedAttempt.current = challenge.attemptId;
+    submittedTargets.current.set(challenge.attemptId, challenge.targetEntityId);
     void submitAnswer({ answer, hintLevel });
   }
 
@@ -196,8 +328,35 @@ function RegionPlayGame(props: LocationCompanionProps) {
 
   const errorMessage = playErrorMessage(state.error);
 
+  const nextClue =
+    state.bootstrap?.chests.find((c) => !c.isOpen && c.lockReason !== 'PROGRESS')?.clue ?? null;
+
   let panel = null;
-  if (celebration) {
+  if (finale) {
+    panel = (
+      <RewardReveal
+        title={PLAY_COPY.finaleTitle}
+        lead={PLAY_COPY.finaleThanks}
+        outcome={{ newItems: [], rewardMessage: null, completionRewards: finale.completionRewards }}
+        completed={(state.bootstrap?.quests ?? []).filter((quest) =>
+          finale.questUpdates.some((u) => u.justCompleted && u.questId === quest.questId),
+        )}
+        onClose={() => {
+          setFinale(null);
+          closeInteraction();
+        }}
+      />
+    );
+  } else if (found) {
+    panel = (
+      <RewardReveal
+        title={PLAY_COPY.youPickedUp}
+        outcome={found}
+        completed={[]}
+        onClose={() => setFound(null)}
+      />
+    );
+  } else if (celebration) {
     panel = (
       <RewardReveal
         outcome={celebration}
@@ -218,6 +377,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
         error={state.errorAction === 'acceptQuest' ? errorMessage : null}
         onAccept={accept}
         onClose={closeInteraction}
+        clue={nextClue}
         launches={event.launches}
         launchStarting={launcher.starting}
         launchError={launchError}
@@ -239,7 +399,10 @@ function RegionPlayGame(props: LocationCompanionProps) {
     let phase: ChestPanelPhase;
     if (event.isOpen) phase = { kind: 'open' };
     else if (!event.challengeAvailable) phase = { kind: 'not-ready' };
-    else if (challenge)
+    else if (event.lockReason) {
+      const clue = state.bootstrap?.chests.find((c) => c.entityId === event.entityId)?.clue ?? '';
+      phase = { kind: 'locked', reason: event.lockReason, clue };
+    } else if (challenge)
       phase = { kind: 'answering', challenge, submitting: state.busy === 'submitAnswer' };
     else if (wrong) phase = { kind: 'wrong' };
     else if (state.busy === 'requestChallenge') phase = { kind: 'requesting' };
@@ -256,6 +419,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
         onSubmit={submit}
         onTryAgain={() => void requestChallenge(event.entityId)}
         onClose={closeInteraction}
+        puzzle={event.presentation === 'PUZZLE'}
       />
     );
   } else if (backpackOpen) {

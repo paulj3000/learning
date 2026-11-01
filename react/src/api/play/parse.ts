@@ -2,6 +2,10 @@ import type { Reader } from '../parse';
 import type {
   AnswerOutcome,
   ChestState,
+  CompletionReward,
+  PickupOutcome,
+  QuestUpdate,
+  TalkOutcome,
   InventoryEntry,
   IssuedChallenge,
   ItemView,
@@ -23,6 +27,12 @@ import type {
 const SESSION_STATUSES = ['ACTIVE', 'PAUSED', 'COMPLETED', 'ABANDONED', 'SAFETY_STOPPED'] as const;
 const QUEST_STATUSES = ['AVAILABLE', 'ACTIVE', 'COMPLETED'] as const;
 const ITEM_CATEGORIES = ['COLLECTIBLE', 'COSMETIC', 'QUEST_ITEM', 'KEEPSAKE'] as const;
+
+/** A field TR-14 added: `fallback` when an older server leaves it out. */
+function added<T>(r: Reader, name: string, read: (v: Reader) => T, fallback: T): T {
+  const field = r.field(name);
+  return field.value === undefined ? fallback : read(field);
+}
 
 function placed(r: Reader): PlacedEntity {
   const placeholder = r.field('placeholder');
@@ -57,6 +67,8 @@ function object(r: Reader): ObjectPlacement {
     ...placed(r),
     kind: r.field('kind').oneOf(['PROP', 'COLLECTIBLE', 'SCENERY'] as const),
     interactionId: r.field('interactionId').string(),
+    pickup: added(r, 'pickup', (v) => v.boolean(), false),
+    collected: added(r, 'collected', (v) => v.boolean(), false),
   };
 }
 
@@ -66,6 +78,23 @@ function chest(r: Reader): ChestState {
     openClip: r.field('openClip').string(),
     isOpen: r.field('isOpen').boolean(),
     challengeAvailable: r.field('challengeAvailable').boolean(),
+    presentation: added(
+      r,
+      'presentation',
+      (v) => v.oneOf(['CHEST', 'HIDDEN', 'PUZZLE'] as const),
+      'CHEST',
+    ),
+    sortOrder: added(r, 'sortOrder', (v) => v.integer(), 0),
+    locked: added(r, 'locked', (v) => v.boolean(), false),
+    lockReason: added(
+      r,
+      'lockReason',
+      (v) => v.nullable((reason) => reason.oneOf(['PROGRESS', 'ITEM'] as const)),
+      null,
+    ),
+    requiredItemId: added(r, 'requiredItemId', (v) => v.nullable((id) => id.string()), null),
+    answerEntityIds: added(r, 'answerEntityIds', (v) => v.array((id) => id.string()), []),
+    clue: added(r, 'clue', (v) => v.string(), ''),
   };
 }
 
@@ -220,15 +249,46 @@ export function answerOutcome(r: Reader): AnswerOutcome {
     chestOpened: r.field('chestOpened').boolean(),
     newItems: r.field('newItems').array(item),
     rewardMessage: r.field('rewardMessage').nullable((v) => v.string()),
-    questUpdates: r.field('questUpdates').array((update) => ({
-      questId: update.field('questId').string(),
-      status: update.field('status').oneOf(QUEST_STATUSES),
-      currentStageId: update.field('currentStageId').string(),
-      justCompleted: update.field('justCompleted').boolean(),
-      newlyCompletedObjectiveIds: update
-        .field('newlyCompletedObjectiveIds')
-        .array((v) => v.string()),
-    })),
+    questUpdates: r.field('questUpdates').array(questUpdate),
+    completionRewards: added(r, 'completionRewards', (v) => v.array(completionReward), []),
+  };
+}
+
+function questUpdate(update: Reader): QuestUpdate {
+  return {
+    questId: update.field('questId').string(),
+    status: update.field('status').oneOf(QUEST_STATUSES),
+    currentStageId: update.field('currentStageId').string(),
+    justCompleted: update.field('justCompleted').boolean(),
+    newlyCompletedObjectiveIds: update.field('newlyCompletedObjectiveIds').array((v) => v.string()),
+  };
+}
+
+function completionReward(r: Reader): CompletionReward {
+  return {
+    ruleId: r.field('ruleId').string(),
+    items: r.field('items').array(item),
+    message: r.field('message').string(),
+  };
+}
+
+export function pickupOutcome(r: Reader): PickupOutcome {
+  return {
+    entityId: r.field('entityId').string(),
+    pickedUp: r.field('pickedUp').boolean(),
+    collected: r.field('collected').boolean(),
+    newItems: r.field('newItems').array(item),
+    rewardMessage: r.field('rewardMessage').nullable((v) => v.string()),
+    questUpdates: r.field('questUpdates').array(questUpdate),
+    completionRewards: r.field('completionRewards').array(completionReward),
+  };
+}
+
+export function talkOutcome(r: Reader): TalkOutcome {
+  return {
+    flagsSet: r.field('flagsSet').array((v) => v.string()),
+    questUpdates: r.field('questUpdates').array(questUpdate),
+    completionRewards: r.field('completionRewards').array(completionReward),
   };
 }
 

@@ -8,6 +8,10 @@ import {
   MeshStandardMaterial,
   OctahedronGeometry,
   SphereGeometry,
+  Sprite,
+  SpriteMaterial,
+  TorusGeometry,
+  CanvasTexture,
   type AnimationAction,
   type BufferGeometry,
   type Material,
@@ -53,7 +57,23 @@ export interface RegionPlaySceneApi {
   setChestOpen(entityId: string, open: boolean): void;
   /** Whether a chest is drawn open, or undefined for an unknown chest. */
   isChestOpen(entityId: string): boolean | undefined;
+  /**
+   * TR-14: why a chest is locked now, from server state. A `HIDDEN` chest locked by progress is
+   * not drawn and cannot be focused; a chest locked by progress has no beacon.
+   */
+  setChestLock(entityId: string, lockReason: 'PROGRESS' | 'ITEM' | null): void;
+  /** TR-14: a pickup the server says is picked up; it disappears and cannot be focused. */
+  setPickupCollected(entityId: string): void;
+  /** TR-14: the numbers on a puzzle's answer stones while its challenge is out, or none. */
+  setRuneNumbers(numbers: ReadonlyMap<string, number> | null): void;
 }
+
+/** Names, so tests and debugging can find them (TR-14). */
+export const KEY_NAME = 'region-play:key';
+export const RUNE_STONE_NAME = 'region-play:rune-stone';
+export const RUNE_LABEL_NAME = 'region-play:rune-label';
+const STONE = 0x8f8a80;
+const RUNE_GLOW = 0x7fe3ff;
 
 const WOOD = 0x8a5a2b;
 const TRIM = 0xd4a937;
@@ -119,6 +139,11 @@ export const regionPlaySceneExtension: WorldExtension = {
     for (const chest of config.chests) {
       const root = context.entityRoot(chest.entityId);
       if (!root) continue;
+      if (chest.presentation === 'PUZZLE') {
+        // The pedestal is scenery (TR-13); the puzzle only remembers whether it is solved.
+        chests.set(chest.entityId, puzzleState(chest.isOpen));
+        continue;
+      }
       let current: DrawnChest = builtChest(root, chest, own);
       current.show(chest.isOpen, true);
       chests.set(chest.entityId, current);
@@ -164,19 +189,81 @@ export const regionPlaySceneExtension: WorldExtension = {
     const beaconMaterial = new MeshStandardMaterial({ color: GOLD, emissive: GOLD });
     geometries.push(beaconGeometry);
     materials.push(beaconMaterial);
-    const beacons = new Map<string, { mesh: Mesh; baseY: number }>();
-    for (const chest of config.chests) {
-      const root = context.entityRoot(chest.entityId);
-      if (!root) continue;
+    const beacons = new Map<string, { mesh: Mesh; baseY: number; shown: () => boolean }>();
+    const addBeacon = (entityId: string, height: number, shown: () => boolean) => {
+      const root = context.entityRoot(entityId);
+      if (!root) return;
       const mesh = new Mesh(beaconGeometry, beaconMaterial);
-      mesh.name = `${BEACON_NAME}:${chest.entityId}`;
+      mesh.name = `${BEACON_NAME}:${entityId}`;
       root.updateMatrixWorld(true);
       mesh.position.setFromMatrixPosition(root.matrixWorld);
-      const baseY = mesh.position.y + chest.placeholder.height * chest.scale + BEACON_LIFT;
+      const baseY = mesh.position.y + height + BEACON_LIFT;
       mesh.position.y = baseY;
-      mesh.visible = !chest.isOpen;
+      mesh.visible = shown();
       context.scene.add(mesh);
-      beacons.set(chest.entityId, { mesh, baseY });
+      beacons.set(entityId, { mesh, baseY, shown });
+    };
+
+    // TR-14: where the child may go next. A chest locked by progress shows no beacon, and a
+    // hidden one is not there at all until the server says it may be found.
+    const locks = new Map(config.chests.map((chest) => [chest.entityId, chest.lockReason ?? null]));
+    const presentation = new Map(
+      config.chests.map((chest) => [chest.entityId, chest.presentation ?? 'CHEST']),
+    );
+    const applyLock = (entityId: string) => {
+      if (presentation.get(entityId) !== 'HIDDEN') return;
+      const hidden = locks.get(entityId) === 'PROGRESS' && chests.get(entityId)?.open !== true;
+      const root = context.entityRoot(entityId);
+      if (root) root.visible = !hidden;
+      context.setFocusable(entityId, !hidden);
+    };
+    for (const chest of config.chests) {
+      applyLock(chest.entityId);
+      addBeacon(
+        chest.entityId,
+        chest.placeholder.height * chest.scale,
+        () =>
+          chests.get(chest.entityId)?.open === false && locks.get(chest.entityId) !== 'PROGRESS',
+      );
+    }
+
+    // TR-14: pickups (the key), drawn here until a catalogue model exists, and gone once taken.
+    const pickups = new Map<string, Object3D>();
+    const collected = new Set<string>();
+    for (const pickup of config.pickups ?? []) {
+      const root = context.entityRoot(pickup.entityId);
+      if (!root) continue;
+      const key = builtKey(own);
+      root.add(key);
+      pickups.set(pickup.entityId, key);
+      addBeacon(pickup.entityId, 0.3, () => !collected.has(pickup.entityId));
+    }
+
+    // TR-14: rune stones a puzzle is answered with, each with a number while its challenge is out.
+    const runes = new Map<string, { label: Sprite; glow: MeshStandardMaterial }>();
+    for (const rune of config.runes ?? []) {
+      const root = context.entityRoot(rune.entityId);
+      if (!root) continue;
+      const glow = new MeshStandardMaterial({
+        color: STONE,
+        emissive: RUNE_GLOW,
+        emissiveIntensity: 0,
+      });
+      const stoneGeometry = new BoxGeometry(0.7, 1.6, 0.45);
+      geometries.push(stoneGeometry);
+      materials.push(glow);
+      const stone = new Mesh(stoneGeometry, glow);
+      stone.name = RUNE_STONE_NAME;
+      stone.position.y = 0.8;
+      const labelMaterial = new SpriteMaterial({ transparent: true });
+      materials.push(labelMaterial);
+      const label = new Sprite(labelMaterial);
+      label.name = RUNE_LABEL_NAME;
+      label.position.y = 2.1;
+      label.scale.set(0.8, 0.8, 1);
+      label.visible = false;
+      root.add(stone, label);
+      runes.set(rune.entityId, { label, glow });
     }
     let beaconClock = 0;
 
@@ -189,8 +276,13 @@ export const regionPlaySceneExtension: WorldExtension = {
       for (const chest of chests.values()) chest.tick(delta);
       if (!still) procedural.tick(delta);
       beaconClock += delta;
-      for (const [entityId, beacon] of beacons) {
-        beacon.mesh.visible = chests.get(entityId)?.open === false;
+      for (const key of pickups.values()) {
+        if (still) break;
+        key.position.y = Math.sin(beaconClock * 2.4) * 0.08;
+        key.rotation.y += delta * 1.6;
+      }
+      for (const beacon of beacons.values()) {
+        beacon.mesh.visible = beacon.shown();
         if (still) continue;
         beacon.mesh.position.y = beacon.baseY + Math.sin(beaconClock * 2) * 0.1;
         beacon.mesh.rotation.y += delta * 1.2;
@@ -205,6 +297,30 @@ export const regionPlaySceneExtension: WorldExtension = {
       isChestOpen(entityId) {
         return chests.get(entityId)?.open;
       },
+      setChestLock(entityId, lockReason) {
+        if (!locks.has(entityId)) return;
+        locks.set(entityId, lockReason);
+        applyLock(entityId);
+      },
+      setPickupCollected(entityId) {
+        const key = pickups.get(entityId);
+        if (!key || collected.has(entityId)) return;
+        collected.add(entityId);
+        key.removeFromParent();
+        context.setFocusable(entityId, false);
+      },
+      setRuneNumbers(numbers) {
+        for (const [entityId, rune] of runes) {
+          const number = numbers?.get(entityId);
+          rune.glow.emissiveIntensity = number === undefined ? 0 : 0.45;
+          rune.label.visible = number !== undefined;
+          rune.label.userData.number = number;
+          const old = rune.label.material.map;
+          rune.label.material.map = number === undefined ? null : numberTexture(number);
+          rune.label.material.needsUpdate = true;
+          old?.dispose();
+        }
+      },
     };
 
     return {
@@ -213,6 +329,7 @@ export const regionPlaySceneExtension: WorldExtension = {
         disposed = true;
         stopFrames();
         for (const beacon of beacons.values()) context.scene.remove(beacon.mesh);
+        for (const rune of runes.values()) rune.label.material.map?.dispose();
         procedural.dispose();
         for (const chest of chests.values()) chest.dispose();
         for (const mixer of mixers) mixer.stopAllAction();
@@ -222,6 +339,61 @@ export const regionPlaySceneExtension: WorldExtension = {
     };
   },
 };
+
+/** A puzzle's state: no chest of its own, only whether it is solved (TR-14). */
+function puzzleState(solved: boolean): DrawnChest {
+  const drawn: DrawnChest = {
+    open: solved,
+    show(open) {
+      drawn.open = open;
+    },
+    tick() {},
+    dispose() {},
+  };
+  return drawn;
+}
+
+/** A gold key from primitives (TR-14), until `treasure-key` exists as a model. */
+function builtKey(own: (geometry: BufferGeometry, color: number) => Mesh): Group {
+  const key = new Group();
+  key.name = KEY_NAME;
+  const bow = own(new TorusGeometry(0.1, 0.03, 6, 12), GOLD);
+  bow.position.x = -0.2;
+  const shaft = own(new CylinderGeometry(0.025, 0.025, 0.36, 6).rotateZ(Math.PI / 2), GOLD);
+  shaft.position.x = 0.04;
+  const tooth = own(new BoxGeometry(0.05, 0.08, 0.03), GOLD);
+  tooth.position.set(0.18, -0.06, 0);
+  key.add(bow, shaft, tooth);
+  return key;
+}
+
+/**
+ * A number drawn on a canvas for a rune stone's label. Null where there is no 2D canvas (a
+ * test environment); the label still carries the number in `userData.number`.
+ */
+function numberTexture(value: number): CanvasTexture | null {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  let context: CanvasRenderingContext2D | null = null;
+  try {
+    context = canvas.getContext('2d');
+  } catch {
+    context = null;
+  }
+  if (!context) return null;
+  context.fillStyle = 'rgba(15, 30, 40, 0.75)';
+  context.beginPath();
+  context.arc(64, 64, 60, 0, Math.PI * 2);
+  context.fill();
+  context.fillStyle = '#ffffff';
+  context.font = 'bold 76px sans-serif';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(String(value), 64, 68);
+  return new CanvasTexture(canvas);
+}
 
 function builtChest(
   root: Object3D,

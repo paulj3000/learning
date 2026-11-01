@@ -9,8 +9,9 @@ from apps.catalog.models import Location, Quest
 from apps.core.content_status import ContentStatus
 from apps.education.models import ChallengeSpec
 from apps.regions.models import SpawnPoint, TreasureChest, WorldRegion
+from apps.regions.pips_treasure_seed import PIPS_QUEST_ID
 from apps.regions.treasure_rush_publish import PublishRefused, publish_treasure_rush
-from apps.regions.treasure_rush_seed import QUEST_ID, REGION_ID, seed_treasure_rush
+from apps.regions.treasure_rush_seed import REGION_ID, seed_treasure_rush
 
 pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
 
@@ -38,9 +39,10 @@ def statuses():
 def test_publishes_the_seeded_region_and_challenges(local):
     assert statuses() == (ContentStatus.DRAFT, [ContentStatus.DRAFT])
     changed = publish_treasure_rush()
-    # Region, three challenge specs and the signpost's three launch points (ADR-041); the quest
-    # is catalog content.
-    assert len(changed) == 7
+    # Region, fifteen challenge specs (three bands for each of the four chests and the ruins
+    # puzzle, TR-14) and the signpost's three launch points (ADR-041); the quest is catalog
+    # content.
+    assert len(changed) == 19
     assert statuses() == (ContentStatus.PUBLISHED, [ContentStatus.PUBLISHED])
     assert publish_treasure_rush() == []  # idempotent
 
@@ -92,10 +94,10 @@ def test_an_inactive_location_is_not_switched_on(local):
 
 
 def test_an_inactive_offered_quest_is_not_switched_on(local):
-    Quest.objects.filter(slug=QUEST_ID).update(active=False)
-    with pytest.raises(PublishRefused, match=f"quest {QUEST_ID} is inactive"):
+    Quest.objects.filter(slug=PIPS_QUEST_ID).update(active=False)
+    with pytest.raises(PublishRefused, match=f"quest {PIPS_QUEST_ID} is inactive"):
         publish_treasure_rush()
-    assert not Quest.objects.get(slug=QUEST_ID).active
+    assert not Quest.objects.get(slug=PIPS_QUEST_ID).active
 
 
 def test_the_command_reports_and_fails_cleanly(local, settings, capsys):
