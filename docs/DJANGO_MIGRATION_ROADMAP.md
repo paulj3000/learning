@@ -410,6 +410,10 @@ Acceptance:
   `docs/android/`.
 - Amplify builds are unchanged until LAI-1301.
 
+*Started 2026-10-31 on `feature/lai-0905-photo-clients`: the React client and the Android
+contract are done and unit tested, not merged. It stays open until it is verified against the
+deployed dev bucket (LAI-0904's deployment) and a native client exists to follow the contract.*
+
 ### Phase 10 - AWS infrastructure (may start after Phase 4)
 
 All tasks: **APPROVAL before any `cdk deploy`.** Each task ends at `cdk synth` + review

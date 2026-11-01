@@ -11,6 +11,7 @@ WebView).
 |---|---|
 | Cognito bearer authentication, `POST/GET /api/v1/me/` | **Existed** (LAI-0402); reused unchanged |
 | Child profiles: list, create, read, update | **Added** |
+| Child profile photo: read, upload or replace, remove, bytes | **Added** (LAI-0904, ADR-042); client contract below (LAI-0905) |
 | Child deletion | **Blocked** (403 `sensitive_action_unavailable`) until the deletion service (LAI-0602) and recent-auth checks (LAI-0209) exist |
 | Child home summary | **Added** |
 | Region list, region adventures | **Added** |
@@ -137,7 +138,8 @@ Allowed values come from `react/src/features/child-profile/constants.ts`:
 - `sessionMinutes` must fall in the age band's range: Sprouts 5 to 8, Pathfinders 8 to 12,
   Explorers 10 to 18.
 
-The photo's storage path is never returned (`hasPhoto` only). There is no photo upload route.
+The photo's storage path is never returned (`hasPhoto` only). The photo itself has its own
+routes, below.
 
 ### `GET /api/v1/children/`
 
@@ -180,6 +182,75 @@ Always `403 sensitive_action_unavailable`. Deletion must also remove the S3
 photo and cascade records under the retention rules, and needs recent authentication. That is
 LAI-0602 and LAI-0209. Until then the archival policy is `PATCH {"active": false}`: the profile,
 its progress and its rewards are kept, and the child cannot play.
+
+## Child profile photo (added, LAI-0904; client contract LAI-0905)
+
+Optional. A parent may set one photo per child as the child's profile icon. Full server design:
+`docs/platform/CHILD_PHOTO_STORAGE.md` section 4. Every route is scoped to the signed-in parent:
+another family's child and an unknown id are the same `404`.
+
+| Route | Result |
+|---|---|
+| `GET /api/v1/children/{childId}/photo/` | `200 {"photo": null}` or `200 {"photo": photo}` |
+| `PUT /api/v1/children/{childId}/photo/` | Upload or replace. `200 {"photo": photo}` |
+| `DELETE /api/v1/children/{childId}/photo/` | `204`, whether or not there was a photo |
+| `GET /api/v1/children/{childId}/photo/content/` | The JPEG bytes, with the bearer token |
+
+```json
+{"photo": {"id": "5b0c...", "contentType": "image/jpeg", "byteSize": 18234,
+           "width": 256, "height": 256, "uploadedAt": "2026-10-31T10:00:00Z",
+           "delivery": "presigned", "url": "https://...", "urlExpiresAt": "2026-10-31T10:05:00Z"}}
+```
+
+### What the app must send
+
+The app prepares the picture on the device. The server checks it again and rejects anything
+outside the limits; it never resizes.
+
+1. **Decode** the picked image with its EXIF orientation applied (for example
+   `ImageDecoder` with the default orientation handling, or `ExifInterface` rotation before
+   drawing), because the metadata that carries it is removed below.
+2. **Crop** the largest centered square and **scale** it to **256 x 256** pixels. That matches
+   the website (`react/src/features/child-profile/avatarPhoto.ts`, `ICON_PIXEL_SIZE`).
+3. **Encode** a fresh baseline JPEG (for example `Bitmap.compress(JPEG, 85, ...)`). Re-encoding a
+   bitmap writes no EXIF, so no GPS position, camera model or capture time leaves the device.
+   Never upload the camera file, a HEIC, a PNG or a WebP, even renamed.
+4. **Limits** (server defaults): at most **1 MB** (`LAI_CHILD_PHOTO_MAX_BYTES`) and at most
+   **1024 px** on each side (`LAI_CHILD_PHOTO_MAX_DIMENSION`); 8-bit, grayscale or color. A
+   256 px JPEG at quality 85 is typically 15 to 40 KB.
+5. **Send** the bytes as the whole request body: `PUT` with `Content-Type: image/jpeg` and the
+   bearer token. No multipart, no file name, no other field. Never put the child's name, the
+   file name or any device metadata in a header.
+
+The server still strips EXIF, XMP, ICC, IPTC, comments and thumbnails before storage, but the app
+must not rely on that: the contract is that metadata never leaves the device.
+
+### Errors
+
+| Status and code | Meaning | Show the parent |
+|---|---|---|
+| `400 photo_invalid`, `400 photo_dimensions`, `413 photo_too_large`, `415 photo_type_unsupported` | The bytes were not an acceptable JPEG | "We could not read that image. Please try a different one." |
+| `503 photo_storage_unavailable` | Photo storage is off or failing; nothing changed | "We could not save that photo. Please try again." (or "...delete..." for `DELETE`) |
+| `404 not_found` | Not this parent's child | The same save or delete message |
+| `401` after one token refresh | Signed out | "Please sign in again." |
+
+These are the website's messages (`react/src/features/child-profile/photoMessages.ts`).
+
+### Showing the photo
+
+- `delivery: "presigned"`: `url` is a short-lived S3 URL (about 5 minutes) that works without
+  credentials. Load it with the image loader and **no** `Authorization` header. Do not cache it
+  past `urlExpiresAt`, or on disk at all: ask `GET .../photo/` again for a new one.
+- `delivery: "api"`: `url` is the content route. Call `GET .../photo/content/` on the configured
+  API base with the bearer token, never by sending the token to whatever host `url` names. Keep
+  the bytes in memory only.
+- A failed load shows the authored avatar character (`avatarKey`), never an error.
+
+### Order on the profile form
+
+A photo belongs to a saved child, so for a new child: `POST /children/` first, then `PUT` the
+photo with the new id. If the photo fails after the profile saved, say so ("The profile was saved,
+but the photo was not.") and retry the photo against the saved child, never `POST` again.
 
 ## Child home (added)
 

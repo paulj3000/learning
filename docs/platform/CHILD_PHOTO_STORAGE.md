@@ -6,7 +6,7 @@ Status (2026-10-31, branch `feature/lai-0904-child-photo-storage`, not merged):
 |---|---|
 | CDK `LaiChildPhotos-<env>` and EC2 wiring | Implemented, unit tested, **synthesized for dev and prod. Not deployed** |
 | Django photo API (`lai/apps/users`) | Implemented, unit tested against the in-memory store. Not exercised against a real bucket |
-| React and Android clients on the Django photo API | Not started (LAI-0905) |
+| React and Android clients on the Django photo API | React client implemented and unit tested (branch `feature/lai-0905-photo-clients`, not merged); Android contract documented in `docs/android/ANDROID_API_CONTRACT.md`. Not exercised against a deployed bucket (LAI-0905) |
 | Amplify photo migration (LAI-1103) | Designed (section 10). Utility not built: its inputs (LAI-1101 export, bucket read access) do not exist yet |
 | Legacy Amplify storage retirement (LAI-1204) | Planned (section 11). Nothing deleted, nothing changed |
 
@@ -127,6 +127,24 @@ The check is structural, in pure Python, so no native image decoder runs on untr
 the API process and no dependency was added. If a pixel-level re-encode is wanted later (for
 example a server-side resize for clients that cannot do it), that is a separate decision: it
 would add an image library dependency.
+
+**Clients (LAI-0905).** The React Django build (`VITE_BACKEND=django`) sets `supportsPhotos: true`
+and `photoWrite: 'after-save'` (`react/src/features/child-profile/djangoProfiles.ts`,
+`djangoPhotos.ts`):
+
+- The form saves the profile first, then `PUT`s the prepared 256 px JPEG (or `DELETE`s) for the
+  saved child. If only the photo step fails, the message says the profile was saved, and the
+  next submit updates that child instead of creating a second one.
+- `ChildProfile.avatarPhotoKey` is the child id when the API reports `hasPhoto`, else null.
+  `ChildAvatar` resolves it through the store: a `presigned` URL (`https:` only) goes straight
+  into the `<img>`; an `api` URL must be this child's content route, which is then fetched
+  through the API client with the bearer token, so the token never goes to a host named in a
+  response. The bytes become one object URL per child, reused for the same photo id and revoked
+  on replace or remove.
+- Server errors map to the Amplify build's messages (`photoMessages.ts`).
+- Amplify builds keep `avatarPhoto.ts` and the `before-save` order unchanged until LAI-1301.
+
+Android's contract is in `docs/android/ANDROID_API_CONTRACT.md`, "Child profile photo".
 
 **Storage failures never corrupt the database** (`lai/apps/users/photos.py`):
 
@@ -254,9 +272,9 @@ under `amplify/`.
 |---|---|---|
 | `amplify/storage/resource.ts`, `amplify/backend.ts` (`storage`) | Defines the bucket and its access rules | LAI-1302 / LAI-1303, after LAI-1204 |
 | `amplify/data/resource.ts` (`ChildProfile.avatarPhotoKey`) | Path of the child's photo in the bucket | `users.ChildPhoto`; the value is input to LAI-1103 |
-| `react/src/features/child-profile/avatarPhoto.ts` (`uploadData`, `getUrl`, `remove`) | Upload, show and delete photos in Amplify builds | LAI-0905 (Django photo API client), then LAI-1301 |
+| `react/src/features/child-profile/avatarPhoto.ts` (`uploadData`, `getUrl`, `remove`) | Upload, show and delete photos in Amplify builds only. Django builds use `djangoPhotos.ts` (LAI-0905) | LAI-1301 |
 | `react/src/features/child-profile/deletion.ts` | Deletes the photo when a child is deleted (Amplify) | LAI-0602 calling `photos.delete_all_child_photos` |
-| `react/src/features/child-profile/ChildAvatar.tsx`, `ChildPhotoField.tsx`, `profileTypes.ts`, `djangoProfiles.ts` (`supportsPhotos: false`) | Show and edit the photo; Django builds have photos turned off | LAI-0905 |
+| `react/src/features/child-profile/amplifyProfiles.ts` (`photoWrite: 'before-save'`, `getChildPhotoUrl`) | The Amplify store's photo path; `ChildAvatar` and the form reach it through `ProfileStore` (LAI-0905) | LAI-1301 |
 | `react/src/features/assets/assetService.ts`, `modelUpload.ts`, `config.ts` | Amplify admin model upload and signed reads under `assets/*` (ADR-030) | Django asset manager (ADR-035); data via `import_assets --from-amplify` |
 | `lai/apps/users/amplify_import.py` | Counts profiles whose photo stays in Amplify | LAI-1103 |
 | Android | Uses the Django API only (ADR-036); no Amplify Storage reference was found in the repository | n/a |

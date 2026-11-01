@@ -11521,3 +11521,47 @@ instruction. Not pushed.
 - **Open.** Deployment and dev verification (LAI-0904, approval); the React and Android clients
   (LAI-0905); LAI-0602 must call `delete_all_child_photos`; a schedule for the audit command;
   SSE-KMS and version-delete rights for erasure (G9); LAI-1103a to 1103d; LAI-1204; AM-13.
+
+## LAI-0905: React client on the Django child photo API, Android contract (2026-10-31, branch only, not merged)
+
+- **Acceptance.**
+  - Django builds report `supportsPhotos: true`. The form uploads the prepared 256 px JPEG with
+    `PUT /children/<id>/photo/`, shows it from the returned `url`, and removes it with `DELETE`.
+    A `presigned` URL goes into the `<img>`; an `api` URL is fetched with the token. Done.
+  - Errors map to the existing parent-facing messages. Done.
+  - The Android contract is documented in `docs/android/ANDROID_API_CONTRACT.md`, "Child profile
+    photo". Done.
+  - Amplify builds unchanged: same upload-first order, same calls, same messages. Their photo
+    path now goes through `ProfileStore` (`photoWrite: 'before-save'`, `getChildPhotoUrl`).
+- **What changed (React).**
+  - `api/client.ts`: `PUT`, a raw binary body (`rawBody`), and blob responses
+    (`responseType: 'blob'`). Errors are still read as the JSON envelope.
+  - New `djangoPhotos.ts`: upload, remove, display URL.
+    - A `presigned` URL must be `https:`.
+    - An `api` URL must be the child's own content route. It is then requested through the API
+      client, so the bearer token only goes to the configured API origin.
+    - One object URL per child, reused for the same photo id and revoked on replace or remove.
+  - `ProfileStore` gains `photoWrite`, `getChildPhotoUrl` and `applyChildPhotoSelection`.
+    - Django: `avatarPhotoKey` is the child id when `hasPhoto` is true.
+    - `ChildAvatar` resolves photos through the store.
+  - `ChildProfileForm`, `after-save` order:
+    - The profile is saved first, then the photo.
+    - If only the photo fails, the message says the profile was saved. The next submit updates
+      that child instead of creating a duplicate.
+    - The routes return the saved profile and navigate in `onSaved`.
+  - `photoMessages.ts` and `profileErrors.ts` were split out, so the Django modules import no
+    Amplify Storage code.
+- **Backend.** Unchanged.
+- **Tests (development checks).**
+  - Vitest `src/features/child-profile`, `src/api`, `src/routes`: 259 passed. New tests:
+    `djangoPhotos.test.ts`, the client's binary and blob cases, the Django store's photo cases,
+    and the form's after-save cases.
+  - `tsc -p tsconfig.app.json`: clean for these files. Its one error is in
+    `src/features/multiplayer/colyseusTransport.ts` (`@colyseus/sdk` is not installed in the
+    shared `node_modules`), which this task does not touch.
+- **Not run (merge or release gates).** Full Vitest, the full typecheck, oxlint, build,
+  Playwright, and any check against a deployed bucket or a real Django server.
+- **Open.**
+  - Verify against `LaiChildPhotos-dev` once LAI-0904 is deployed (approval).
+  - No native Android client exists in this repository to follow the contract.
+  - LAI-0602 child deletion must still call `delete_all_child_photos`.
