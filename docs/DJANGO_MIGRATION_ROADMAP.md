@@ -533,9 +533,15 @@ Acceptance:
 
 ### Phase 13 - Retire Amplify
 
-**LAI-1301 Remove Amplify from the frontend.** Depends: 1203 + stability window. Risk M.
+**LAI-1301 Remove Amplify from the frontend.** Depends: 1203 + stability window; for storage,
+also 0904 deployed, 1103d (photos migrated), AM-15 and AM-16 (assets on Django), 1002. Risk M.
 Acceptance: `aws-amplify` data/storage code and `amplify_outputs.json` handling removed;
-Cognito configured by Vite env; tests green.
+Cognito configured by Vite env; tests green. Storage specifically (ADR-042 amendment, 2026-11-01):
+no Amplify Storage upload, delete or download-link call and no `aws-amplify/storage` import left
+in `react/`; the Amplify photo and asset branches removed; the browser-side storage grants in
+`amplify/storage/resource.ts` (and the identity pool permissions they generate) removed; React
+and Android confirmed free of legacy-bucket references; assets and photos confirmed migrated.
+The legacy bucket itself is LAI-1204, never changed here.
 **LAI-1302 Detach Cognito, then delete Amplify stacks.** Depends: 1301, 0405, 1204. Risk H.
 **APPROVAL: explicit, per resource group.** Never delete the user pool with the stack.
 **LAI-1303 Remove `amplify/`, `amplify.yml`, dev dependencies; supersede ADR-010.** Depends:

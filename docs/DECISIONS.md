@@ -63,7 +63,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-039 | Django is the authority for parent and child profiles in every build with the Django API; Amplify profiles only until the controlled import and cutover; read-only audited Django Admin inspection | Accepted | Main line (merged 2026-10-31) | Owner-directed 2026-10-31 (LAI-CHILD-001). Amends ADR-034 and ADR-024 A4 for read-only, permission-gated, audited profile inspection in Django Admin only. Hard deletion stays blocked by LAI-0209. No production data is moved |
 | ADR-040 | Cognito is the sole authentication provider for application users in every environment; Django authorizes, and native Django authentication serves Django Admin staff only | Accepted | Main line (LAI-AUTH-ROLLBACK) | Owner-directed 2026-10-31. Supersedes ADR-038; restores ADR-024 items 1 and 2 everywhere; keeps ADR-034 (Django Admin) and ADR-039 (Django profile authority) |
 | ADR-041 | Islands, Places and 3D Areas: one optional 3D Area per Place, and Adventures launched from objects in it | Accepted | Feature branch (LAI-0806) | Owner-approved decisions A to E, 2026-10-31. Builds on ADR-032 and ADR-033; leaves LAI-0805 (spatial layout administration) open |
-| ADR-042 | Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset manager owns the asset bucket, and the Amplify bucket stays untouched until retirement | Accepted | Feature branch (LAI-0904) | Owner-accepted 2026-10-31 for code and infrastructure definitions only; no deployment, migration or deletion approved. Builds on ADR-035 (asset storage) and ADR-039 (Django profile authority) |
+| ADR-042 | Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset manager owns the asset bucket, and the Amplify bucket stays untouched until retirement | Accepted | Feature branch (LAI-0904) | Owner-accepted 2026-10-31 for code and infrastructure definitions only; no deployment, migration or deletion approved. Amended 2026-11-01: Django is the control plane for both buckets; asset mutations through Django APIs, blocked until LAI-0209 (AM-14 to AM-16). Builds on ADR-035 (asset storage) and ADR-039 (Django profile authority) |
 
 ## ADR-001: Parent-owned accounts
 
@@ -3090,3 +3090,39 @@ needs from published game content.
   deletion (LAI-0602) gets prefix-scoped version deletes.
 
 Details: `docs/platform/CHILD_PHOTO_STORAGE.md`.
+
+*Amended 2026-11-01 (owner-directed, AM-14 to AM-16): Django is the control plane for both
+buckets.*
+
+1. **Django authorizes every asset and photo operation.** Photos through the owning parent
+   (unchanged). Assets through the Cognito `Admins` group of the verified access token, per
+   request (ADR-024 A4; no API permission reads `is_staff`, ADR-034 item 4).
+2. **Upload, deletion and publication are Django APIs.** Assets: `/api/v1/admin/assets/`
+   (`lai/apps/assets/admin_api.py`) over the existing lifecycle services, the same rules Django
+   Admin applies. Photos: `/api/v1/children/<id>/photo/`. Asset mutations are privileged
+   administrative mutations, so they stay blocked (`SensitiveActionBlocked`) until LAI-0209's
+   recent-authentication check exists (ADR-024 A3); reads work now.
+3. **No client holds bucket credentials** or performs authenticated bucket operations: React and
+   Android never upload to, list, delete from or sign for a bucket, after cutover. Until then
+   item 7 applies.
+4. **Private photo downloads may use short-lived presigned HTTPS URLs** (300 s by default),
+   minted by Django only after authorizing that request. The response carrying the URL is
+   `Cache-Control: private, no-store`; a client re-requests the URL when it fails or expires and
+   never sends its bearer token to S3. Django byte-serving stays the `api` delivery mode for
+   stores without presigning; switching photos to it needs a demonstrated security or operational
+   reason.
+5. **Published game assets may use CDN delivery** (AM-11, once LAI-1005's distribution exists).
+   Today they use `django` delivery (ADR-035, docs/ASSET_MANAGER.md section 8).
+6. **Unpublished assets stay private:** never resolved, never given a delivery URL, never on a
+   CDN. Photos are never published at all.
+7. **Amplify Storage stays as it is until cutover.** The production build without the Django API
+   keeps its Amplify photo and asset paths. LAI-1301 removes them after the migration (LAI-1103 for
+   photos) and production cutover, together with the browser-side storage IAM grants.
+
+**Django-controlled access and direct S3 downloads are different things.** Control is Django
+deciding, per request and with its own credentials, whether an operation may happen: every
+upload, delete, publish and every URL issued. A presigned download is the one place a client
+then talks to S3 directly, and only to read the single object Django named, until that URL
+expires. Revoking access stops new URLs at once but cannot recall one already issued, which is
+why photo URLs live 300 s and why retired assets keep `django` delivery (re-checked on every
+fetch).

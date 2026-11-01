@@ -32,7 +32,7 @@ before touching AWS.
 - [x] **LAI-0205** DRF conventions (depends: 0204). DONE locally: error contract, exception handler, request IDs, access log, deny by default. Two roadmap criteria deliberately not done here: cursor pagination (moves to the first list endpoint, LAI-0502) and OpenAPI generation (LAI-0207)
 - [x] **LAI-0208** Privacy review of server-side logging (application layer) (depends: 0205). DONE locally (ADR-025). Deployed logging remains open as gate G10 (LAI-0210)
 - [ ] **LAI-0210** Deployed logging verification: server and proxy access logs, load balancer, CDN, CloudWatch, PostgreSQL server logs, monitoring (gate G10). Required before production; needs the infrastructure to exist (depends: 1004)
-- [ ] **LAI-0209** Revocation-aware verification and recent-authentication check for sensitive actions (ADR-024 A3). Specify, implement, test. Blocks account/child deletion (0602), consent changes (0308), and privileged admin mutations (0404) (depends: 0402)
+- [ ] **LAI-0209** Revocation-aware verification and recent-authentication check for sensitive actions (ADR-024 A3). Specify, implement, test. Blocks account/child deletion (0602), consent changes (0308), and privileged admin mutations (0404; the asset administrator API, AM-14) (depends: 0402)
 - [ ] **LAI-0207** Committed OpenAPI schema generation (split from LAI-0205; needs a recorded dependency decision for PyYAML and uritemplate) (depends: 0205)
 - [x] **LAI-0206** Python CI job (carries LAI-0202's deferred CI criterion). DONE locally; REMOTE VERIFICATION PENDING until the first GitHub-hosted run succeeds (depends: 0204)
 
@@ -129,7 +129,11 @@ before touching AWS.
 
 ## Phase 13 — Retire Amplify
 
-- [ ] **LAI-1301** Remove Amplify from the frontend (depends: 1203 + stability window)
+- [ ] **LAI-1301** Remove Amplify from the frontend (depends: 1203 + stability window; storage parts also 0904 deployed, 1103d photos migrated, AM-15 and AM-16 assets on Django, 1002). Acceptance (ADR-042 amendment), after production cutover and verified migration:
+  - No Amplify Storage uploads, deletes or download-link generation remain (`features/child-profile/avatarPhoto.ts`, `features/child-profile/deletion.ts`, `features/assets/modelUpload.ts`, `features/assets/assetService.ts`), and no `aws-amplify/storage` import remains anywhere in `react/`.
+  - The Amplify branches of the profile store and asset pages (`amplifyProfiles.ts`, `routes/AdminModelAssets.tsx`, `routes/AdminNewModelAsset.tsx`, `features/admin/catalogApi.ts` model picker) are gone.
+  - The browser-side storage grants are removed: `amplify/storage/resource.ts` access rules for `child-photos/{entity_id}/*` and `assets/*`, and the Cognito identity pool role permissions they generate; obsolete storage configuration in `amplify_outputs.json` and Vite env is gone.
+  - React and Android are checked to hold no reference to the legacy bucket; assets and photos are confirmed migrated. The legacy bucket itself is LAI-1204 (approval) and is never changed here.
 - [ ] **LAI-1302** Detach Cognito, then delete Amplify stacks (depends: 1301, 0405, 1204: Amplify storage auto-deletes its objects with the stack)
 - [ ] **LAI-1303** Remove `amplify/`, `amplify.yml`, dev dependencies; supersede ADR-010 (depends: see roadmap)
 
@@ -188,6 +192,9 @@ asset service until AM-11 and LAI-1002 provide the infrastructure. Subtasks use 
 - [x] **AM-10** Admin 3D model preview (depends: AM-5). Unit-tested and browser-checked (headless Chromium, software WebGL)
 - [ ] **AM-11** Signed CloudFront delivery (APPROVAL: AWS) (depends: AM-6, LAI-1002, LAI-1005)
 - [ ] **AM-13** Non-model asset kinds (textures, images and sprites, audio, animation clips): validation, key families and matching IAM prefixes in `LaiAssetStorage-<env>` (depends: AM-4; ADR-042 keeps them in the asset bucket, never the photo bucket)
+- [ ] **AM-14** Django asset manager upload/delete API (`/api/v1/admin/assets/`, ADR-042 amendment) (depends: AM-4, AM-5; LAI-0209 for mutations). 2026-11-01 on `feature/lai-django-asset-storage`: list, detail, create definition, upload, publish, default, retire, delete unpublished; Cognito `Admins` per request (ADR-024 A4). Implemented and pytest-covered; every mutation answers `sensitive_action_unavailable` until LAI-0209. Open: LAI-0209, live S3 (AM-16)
+- [ ] **AM-15** React asset manager migration from Amplify Storage to the Django API (depends: AM-14). 2026-11-01 on the same branch: Django-mode list, add and per-asset pages with upload progress, retry-safe add, findings; Amplify pages unchanged for builds without the Django API. Vitest only; not checked in a browser. Open: usable for changes once LAI-0209 lands; browser acceptance
+- [ ] **AM-16** End-to-end asset publishing and delivery verification on the deployed dev environment: upload, validate, publish, resolve in a child scene (Treasure Cove), retire stops new fetches, nothing public (depends: AM-14, AM-15, LAI-0209, LAI-1002 asset bucket deployed, LAI-1004 Django on dev)
 
 # Treasure Rush (`docs/TREASURE_RUSH_ROADMAP.md`)
 

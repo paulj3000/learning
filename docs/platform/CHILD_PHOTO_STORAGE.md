@@ -110,6 +110,14 @@ the same `404 not_found`. A photo's storage key is never sent to a client.
 `api`: `url` is the content route, which needs the bearer token. Native clients can always use the
 content route.
 
+`GET` and `PUT` answer with `Cache-Control: private, no-store` (since 2026-11-01): the body carries
+a URL Django authorized for that request, so no browser or proxy keeps it. Each `GET` authorizes
+the parent again before minting a URL. A client never stores the URL: React asks again when the
+image fails to load (an expired signature) and never sends its bearer token to S3
+(`ChildAvatar.tsx`, `djangoPhotos.ts`). Byte-serving through Django instead of presigned URLs is
+kept for stores that cannot presign; switching S3 to it needs a demonstrated reason (ADR-042
+amendment, item 4).
+
 **What the server accepts.** One JPEG, as the clients already produce. React draws a 256 px
 square through a canvas (`react/src/features/child-profile/avatarPhoto.ts`); Android must do the
 same. The server re-checks everything (`lai/apps/users/photo_validation.py`):

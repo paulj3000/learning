@@ -11703,3 +11703,57 @@ Branch `feature/lai-0905-photo-clients`.
     name) and `LaiDjangoRelease` (ECR, GitHub OIDC) first.
 - **Not done (approval or access needed):** change-set review, dev deployment, Django dev
   release and `users.0005` migration, live S3 integration, Cognito browser acceptance.
+
+## Django-controlled S3: asset administrator API, React asset pages, photo URL caching (2026-11-01, branch `feature/lai-django-asset-storage`, not merged, not pushed, nothing deployed)
+
+ADR-042 amended (owner-directed): Django is the control plane for the asset and photo buckets;
+clients never hold bucket credentials or perform authenticated bucket operations after cutover;
+private photos may use short-lived presigned GETs; published assets may use a CDN later;
+unpublished assets stay private; Amplify Storage stays unchanged until LAI-1301.
+
+| Task | Code | Tests | Infrastructure | Live integration | Browser | Final |
+|---|---|---|---|---|---|---|
+| AM-14 Django asset admin API | Done | 27 pytest cases | Asset bucket not deployed | Not run | n/a | Open: mutations blocked until LAI-0209 |
+| AM-15 React asset pages on Django | Done | 21 Vitest cases | n/a | Not run | Not checked | Open |
+| AM-16 End-to-end publish and delivery | Not started | none | Needs LAI-1002, LAI-1004 | n/a | n/a | Open |
+| Photo URL caching (ADR-042 item 4) | Done | pytest | n/a | Not run | n/a | Part of LAI-0905 acceptance |
+| LAI-1301 storage acceptance | Criteria written | n/a | n/a | n/a | n/a | Not started (after cutover) |
+
+- **AM-14** (`lai/apps/assets/admin_api.py`, routes in `apps/assets/urls.py`): list, detail (with
+  `publishedReferences` from published 3D Areas), create definition, multipart upload, publish,
+  default, retire, delete unpublished, all over the existing `services.py` lifecycle. Cognito
+  `Admins` group per request (ADR-024 A4). Every mutation passes `MUTATION_GATE`, which is
+  `SensitiveActionBlocked` until LAI-0209 (A3). Asset ids must match the storage key rule;
+  `asset_too_large` (413) is checked from `Content-Length` before parsing; refusals carry
+  `details.findings` or `details.version` (a duplicate upload names the version that already holds
+  the file, so a retry can recover). Definitions and published versions are never deleted.
+  Responses carry no storage key or uploader identity. `services.AssetActionRefused` gained a
+  `details` field; Django Admin behaviour is unchanged.
+- **AM-15** (`react/src/api/assets/djangoAssetAdmin.ts`, `features/assets/assetBackend.ts`,
+  `features/assets/django/`, `routes/modelAssetPages.tsx`): a build with the Django API gets the
+  Django list, add and per-asset pages; others keep the Amplify pages. XHR upload with progress
+  and one token refresh; retry-safe add; plain-language errors, including the LAI-0209 block. A
+  test walks the Django pages' runtime imports and fails on any Amplify or AWS SDK import.
+  `progressPercent` moved to `features/assets/uploadProgress.ts` (re-exported; Amplify wizard
+  unchanged).
+- **Photos (Phase D).** Already in place and re-verified: Django authorizes each `GET` before
+  minting a 300 s presigned URL; React keeps no URL and re-requests once when an image fails; the
+  token never goes to S3; parent-child scoping is tested; photos are never published. Gap fixed:
+  `GET`/`PUT children/<id>/photo/` now send `Cache-Control: private, no-store`. Byte-serving was not
+  adopted (no demonstrated need).
+- **Not done.** Texture, image and audio upload is AM-13, unchanged: each kind needs its own key
+  family and IAM prefix, format validation, and a runtime consumer in the engine, which is a
+  separate decision; this task kept the API kind-agnostic so AM-13 adds routes, not a new
+  subsystem. The Amplify catalog admin's model picker still reads Amplify `Asset` records
+  (LAI-1301).
+- **Remaining Amplify Storage use (production build without the Django API):** child photos
+  (`avatarPhoto.ts`, `deletion.ts`) and the Amplify asset pages (`modelUpload.ts`,
+  `assetService.ts`), plus the `amplify/storage/resource.ts` grants. All listed in LAI-1301's
+  acceptance.
+- **Merge gate (2026-11-01, local).** Backend: full pytest 1240 passed (the first full run had 2
+  failures in the tenant-isolation route audit, which did not know administrator routes; fixed by
+  an explicit, tested `api/v1/admin/` category), Ruff and Ruff format clean, `manage.py check`
+  clean, `makemigrations --check` no changes. Frontend: Vitest 306 files and 3257 tests passed,
+  typecheck clean, production build passes, oxlint 0 errors and 39 warnings (baseline), Prettier
+  clean, `adr:check`, `admin-preview:check`, `content:check` and `golden:check` pass, Playwright 7
+  of 7.
