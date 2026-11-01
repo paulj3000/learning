@@ -225,7 +225,7 @@ authentication class validates signature (JWKS), `iss`, `token_use`, `client_id`
 upserts `ParentAccount`; rejects tokens signed by a different key, expired, wrong audience,
 and unsigned. Tests use locally generated RSA keys; no AWS calls in unit tests.
 
-**LAI-0209 Revocation-aware verification for sensitive actions (added 2026-10-18, ADR-024 A3).**
+**LAI-0209 Revocation-aware verification for sensitive actions (added 2026-10-18, ADR-024 A3). IMPLEMENTED and unit-tested 2026-11-01 on `feature/lai-0209-recent-auth` (ADR-043, proposed; `docs/platform/RECENT_SIGN_IN.md`). Open: owner acceptance, the live Cognito gate (L1 to L6), browser verification, merge.**
 Depends: 0402. Risk H. Acceptance: a written specification, then an implementation and tests, of recent
 authentication plus a revocation-aware check that fails closed; replaces `SensitiveActionBlocked`.
 Blocks account and child deletion (LAI-0602), consent changes (LAI-0308), and privileged admin
@@ -294,6 +294,10 @@ table and the photo object; tests for orphan-free deletion (mirrors `deletion.ts
 *2026-10-31: the deletion service exists (`lai/apps/users/deletion.py`, photos first, then the
 cascade; refuses and keeps the child when storage cleanup fails; idempotent retry) and is
 pytest-covered. `DELETE /children/<id>/` stays blocked until LAI-0209, so LAI-0602 stays open.*
+*2026-11-01 (LAI-0209 branch): `DELETE /api/v1/children/<id>/` is enabled behind the recent
+sign-in guard (204; 403 `recent_auth_required`; 404 for another family's or an unknown child;
+503 `child_deletion_incomplete`), with the React dashboard's re-authentication dialog. Unit
+tested; open until the live Cognito gate, browser verification and merge.*
 
 **LAI-0603 Mastery writes.** Depends: 0601. Risk M. Acceptance: skill evidence and
 `SkillProgress` counters computed server-side with golden vectors; client no longer sends
