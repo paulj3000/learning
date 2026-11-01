@@ -198,6 +198,12 @@ def _photo_body(request, child, photo):
     }
 
 
+def _uncached(response: Response) -> Response:
+    """The body carries a presigned URL that Django authorized for this request only."""
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
 class ChildPhotoView(ChildScopedAPIView):
     """GET, PUT (upload or replace) or DELETE the profile photo of one of the parent's children.
 
@@ -207,7 +213,9 @@ class ChildPhotoView(ChildScopedAPIView):
     """
 
     def get(self, request, child_id):
-        return Response(_photo_body(request, self.child, photos.current_photo(self.child)))
+        return _uncached(
+            Response(_photo_body(request, self.child, photos.current_photo(self.child)))
+        )
 
     def put(self, request, child_id):
         limit = settings.LAI_CHILD_PHOTO_MAX_BYTES
@@ -228,7 +236,7 @@ class ChildPhotoView(ChildScopedAPIView):
             raise exceptions.NotFound from None
         except PhotoStorageError:
             raise PhotoStorageUnavailable from None
-        return Response(_photo_body(request, self.child, photo))
+        return _uncached(Response(_photo_body(request, self.child, photo)))
 
     def delete(self, request, child_id):
         try:

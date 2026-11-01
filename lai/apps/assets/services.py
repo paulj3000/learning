@@ -28,11 +28,20 @@ logger = logging.getLogger("lai.assets")
 class AssetActionRefused(Exception):
     """The action is not allowed in the current state. `message` is safe to show an admin."""
 
-    def __init__(self, code: str, message: str, findings: list[Finding] | None = None):
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        findings: list[Finding] | None = None,
+        *,
+        details: dict | None = None,
+    ):
         super().__init__(message)
         self.code = code
         self.message = message
         self.findings = findings or []
+        # Structured facts a client can act on (the existing version of a duplicate upload).
+        self.details = details or {}
 
 
 def _locked(asset: ContentAsset) -> ContentAsset:
@@ -68,6 +77,7 @@ def upload_version(asset: ContentAsset, upload: IO[bytes], *, original_filename:
             raise AssetActionRefused(
                 "duplicate_version",
                 f"This exact file is already version {duplicate} of this asset.",
+                details={"version": duplicate},
             )
         number = (asset.versions.aggregate(top=Max("number"))["top"] or 0) + 1
         version_id = uuid.uuid4()
