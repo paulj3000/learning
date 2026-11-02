@@ -291,8 +291,8 @@ def test_default_permission_denies_unauthenticated_and_names_the_scheme(settings
 
 
 def test_no_sensitive_endpoints_exist_yet():
-    """The users routes are onboarding and child profile settings. Child deletion is blocked
-    (`SensitiveActionBlocked`, apps/users/tests/test_children_api.py) until LAI-0602/LAI-0209.
+    """The users routes are onboarding and child profile settings. Child deletion is the one
+    sensitive action and requires a recent sign-in (LAI-0209, apps/users/tests/test_recent_auth.py).
     The profile photo (LAI-0904) is a profile setting: removing it reduces the data held."""
     from config import urls
 

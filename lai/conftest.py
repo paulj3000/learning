@@ -50,8 +50,22 @@ def cognito_network(cognito_key):
 
 
 @pytest.fixture
-def cognito(settings, monkeypatch, cognito_key, cognito_network):
-    """Configures a fake pool and routes key fetches to a local fake. Returns the key pair."""
+def cognito_revocation(monkeypatch):
+    """The fake Cognito `GetUser` used by the recent sign-in guard (LAI-0209)."""
+    from apps.users import recent_auth
+    from apps.users.tests.helpers import FakeRevocationCheck
+
+    check = FakeRevocationCheck()
+    monkeypatch.setattr(recent_auth, "get_revocation_check", lambda: check)
+    return check
+
+
+@pytest.fixture
+def cognito(settings, monkeypatch, cognito_key, cognito_network, cognito_revocation):
+    """Configures a fake pool and routes key fetches to a local fake. Returns the key pair.
+
+    Also replaces Cognito `GetUser` with `cognito_revocation`, so nothing contacts AWS.
+    """
     from apps.users import authentication
     from apps.users.jwks import JwksCache
     from apps.users.tests.helpers import CLIENT_ID, ISSUER, POOL_ID, REGION

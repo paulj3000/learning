@@ -11,9 +11,9 @@ Noncurrent S3 versions of the deleted objects are not removed here: Django has n
 `s3:DeleteObjectVersion` right, and the bucket lifecycle expires them 7 days later
 (docs/platform/CHILD_PHOTO_STORAGE.md section 5).
 
-Not reachable from the API yet. `DELETE /api/v1/children/<id>/` stays behind
-`SensitiveActionBlocked` until the recent-authentication check (LAI-0209, ADR-024 A3) exists;
-that view will call `delete_child_profile` and map `ChildDeletionIncomplete` to `503`.
+Reached through `DELETE /api/v1/children/<id>/` (`ChildDetailView`), which requires a recent
+sign-in (`RequiresRecentAuthentication`, LAI-0209, ADR-043) and maps `ChildDeletionIncomplete`
+to `503 child_deletion_incomplete`.
 """
 
 import logging

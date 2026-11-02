@@ -1,7 +1,8 @@
 """Child deletion with photo storage cleanup (LAI-0602; docs/platform/CHILD_PHOTO_STORAGE.md §5).
 
-Uses the in-memory photo store and the two-family fixture. Nothing contacts AWS. The API route
-stays blocked until LAI-0209 (test_children_api.py); these tests call the service directly.
+Uses the in-memory photo store and the two-family fixture. Nothing contacts AWS. These tests call
+the service directly; the API route, behind the recent sign-in guard (LAI-0209), is tested in
+test_recent_auth.py.
 """
 
 import logging

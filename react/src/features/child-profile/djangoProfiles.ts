@@ -103,7 +103,15 @@ export function createDjangoProfileStore(
       // Amplify-only backfill (ADR-012): Django ownership is the parent foreign key.
     },
     async deleteChildProfileData(id) {
-      await call('DELETE', childPath(id), 'Could not delete this child profile.');
+      // Needs a recent sign-in (LAI-0209): `recent_auth_required` reaches the caller with its
+      // code, and the page asks the parent to sign in again. A profile that is already gone
+      // (a repeated or concurrent delete) counts as deleted.
+      try {
+        await client.request('DELETE', childPath(id));
+      } catch (error) {
+        if (isApiError(error) && error.kind === 'not_found') return;
+        throw toProfileError(error, 'Could not delete this child profile.');
+      }
     },
     async deleteAccountAndAllData() {
       throw new ProfileRequestError(PROFILE_MESSAGES.accountDeletionUnavailable, {
@@ -137,11 +145,17 @@ export function toProfileError(error: unknown, fallback: string): ProfileRequest
       ? PROFILE_MESSAGES.limit
       : code === 'sensitive_action_unavailable'
         ? PROFILE_MESSAGES.deletionUnavailable
-        : error.kind === 'invalid_request'
-          ? PROFILE_MESSAGES.invalid
-          : error.kind === 'unauthenticated'
-            ? PROFILE_MESSAGES.signedOut
-            : fallback;
+        : code === 'recent_auth_required'
+          ? PROFILE_MESSAGES.recentSignInRequired
+          : code === 'recent_auth_unavailable'
+            ? PROFILE_MESSAGES.recentSignInUnavailable
+            : code === 'child_deletion_incomplete'
+              ? PROFILE_MESSAGES.deletionIncomplete
+              : error.kind === 'invalid_request'
+                ? PROFILE_MESSAGES.invalid
+                : error.kind === 'unauthenticated'
+                  ? PROFILE_MESSAGES.signedOut
+                  : fallback;
   return new ProfileRequestError(message, { code, cause: error });
 }
 

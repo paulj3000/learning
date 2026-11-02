@@ -6,9 +6,9 @@ from rest_framework import exceptions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from . import photos, services
+from . import deletion, photos, recent_auth, services
 from .authentication import UnprovisionedParent
-from .permissions import IsProvisionedParent, IsVerifiedPrincipal, SensitiveActionBlocked
+from .permissions import IsProvisionedParent, IsVerifiedPrincipal, RequiresRecentAuthentication
 from .photo_storage import PhotoObjectMissing, PhotoStorageError
 from .photo_validation import PhotoRejected
 from .scoping import ChildScopedAPIView
@@ -61,6 +61,9 @@ class MeView(APIView):
             account, created = services.provision_parent_account(user.cognito_sub)
         else:
             account, created = user, False
+        # The app calls this right after every sign-in, so this sees each Cognito session's
+        # first token and remembers its `auth_time` (LAI-0209: a refresh cannot move it).
+        recent_auth.record_session_anchor(account, request.auth)
         return Response(_account_body(account), status=201 if created else 200)
 
 
@@ -102,12 +105,26 @@ class ChildListView(APIView):
         return Response(ChildProfileSerializer(child).data, status=201)
 
 
+class ChildDeletionIncomplete(exceptions.APIException):
+    status_code = 503
+    default_code = "child_deletion_incomplete"
+    default_detail = "The profile could not be fully deleted yet. Please try again."
+
+
 class ChildDetailView(ChildScopedAPIView):
-    """GET or PATCH one of the parent's children. DELETE is blocked until LAI-0602/LAI-0209."""
+    """GET, PATCH or DELETE one of the parent's children.
+
+    DELETE (LAI-0602) is a sensitive action: the parent must have signed in recently
+    (`RequiresRecentAuthentication`, LAI-0209), checked before the child is looked up, so the
+    answer for a stale sign-in is the same whichever id is asked for. The child is then resolved
+    through the parent (another family's child or an unknown id: 404). Deletion removes the
+    photo objects first and keeps the child if storage fails (503 `child_deletion_incomplete`,
+    safe to retry); a repeated DELETE of a deleted child is 404.
+    """
 
     def get_permissions(self):
         if self.request.method == "DELETE":
-            return [IsProvisionedParent(), SensitiveActionBlocked()]
+            return [IsProvisionedParent(), RequiresRecentAuthentication()]
         return super().get_permissions()
 
     def get(self, request, child_id):
@@ -126,8 +143,14 @@ class ChildDetailView(ChildScopedAPIView):
             raise model_errors(error) from None
         return Response(ChildProfileSerializer(child).data)
 
-    def delete(self, request, child_id):  # pragma: no cover - SensitiveActionBlocked denies first
-        raise exceptions.PermissionDenied
+    def delete(self, request, child_id):
+        try:
+            deletion.delete_child_profile(request.user, self.child.pk)
+        except services.ChildProfileNotFound:  # deleted by a concurrent request
+            raise exceptions.NotFound from None
+        except deletion.ChildDeletionIncomplete:
+            raise ChildDeletionIncomplete from None
+        return Response(status=204)
 
 
 # --- Child profile photo (LAI-0904, ADR-042; docs/platform/CHILD_PHOTO_STORAGE.md) -------------

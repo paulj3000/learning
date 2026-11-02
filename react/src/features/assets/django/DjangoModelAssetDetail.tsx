@@ -21,6 +21,9 @@ import {
   TableHeader,
   TableRow,
 } from '../../admin/ui/Table';
+import { isRecentAuthRequired } from '../../auth/recentSignIn/recentSignIn';
+import type { SensitivePrompt } from '../../auth/recentSignIn/RecentSignInDialog';
+import { useSensitiveAction } from '../../auth/recentSignIn/useSensitiveAction';
 import type { DjangoAssetManager } from '../assetBackend';
 import { formatFileSize } from '../config';
 import type { DjangoAssetsLocationState } from './DjangoModelAssets';
@@ -68,6 +71,7 @@ export function DjangoModelAssetDetail({ manager }: { manager: DjangoAssetManage
   const [pending, setPending] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const sensitive = useSensitiveAction();
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -90,12 +94,18 @@ export function DjangoModelAssetDetail({ manager }: { manager: DjangoAssetManage
     return () => controller.abort();
   }, [load]);
 
-  async function act(key: string, success: string, action: () => Promise<unknown>) {
+  async function act(
+    key: string,
+    success: string,
+    action: () => Promise<unknown>,
+    prompt: SensitivePrompt,
+  ) {
     setPending(key);
     setMessage(null);
     try {
-      await action();
-      setMessage({ variant: 'success', text: success });
+      // Every change needs a recent sign-in (LAI-0209); the dialog asks, then confirms.
+      const result = await sensitive.run(action, prompt);
+      if (result.status === 'done') setMessage({ variant: 'success', text: success });
     } catch (error) {
       setMessage({
         variant: 'destructive',
@@ -112,7 +122,25 @@ export function DjangoModelAssetDetail({ manager }: { manager: DjangoAssetManage
   async function uploadVersion() {
     if (!file) return;
     setMessage(null);
-    const outcome = await upload.start(assetId, file);
+    const chosen = file;
+    const attempt = async () => {
+      const result = await upload.start(assetId, chosen);
+      if (!result.ok && isRecentAuthRequired(result.error)) throw result.error;
+      return result;
+    };
+    let outcome: Awaited<ReturnType<typeof attempt>>;
+    try {
+      // The chosen file stays selected while the administrator signs in again (LAI-0209).
+      const result = await sensitive.run(attempt, {
+        title: `Upload ${chosen.name}`,
+        description: 'Upload this file as a new version of the model.',
+        confirmLabel: 'Upload',
+      });
+      if (result.status === 'cancelled') return;
+      outcome = result.value;
+    } catch (error) {
+      outcome = { ok: false, error };
+    }
     if (outcome.ok) {
       setFile(null);
       setMessage({
@@ -217,8 +245,15 @@ export function DjangoModelAssetDetail({ manager }: { manager: DjangoAssetManage
                                 disabled={busy}
                                 aria-label={`Publish ${label}`}
                                 onClick={() =>
-                                  void act(`publish-${version.number}`, `Published ${label}.`, () =>
-                                    manager.api.publish(assetId, version.number),
+                                  void act(
+                                    `publish-${version.number}`,
+                                    `Published ${label}.`,
+                                    () => manager.api.publish(assetId, version.number),
+                                    {
+                                      title: `Publish ${label}`,
+                                      description: 'Published versions can be used by scenes.',
+                                      confirmLabel: 'Publish',
+                                    },
                                   )
                                 }
                               >
@@ -237,6 +272,12 @@ export function DjangoModelAssetDetail({ manager }: { manager: DjangoAssetManage
                                     `default-${version.number}`,
                                     `Version ${version.number} is now the default.`,
                                     () => manager.api.makeDefault(assetId, version.number),
+                                    {
+                                      title: `Make ${label} the default`,
+                                      description:
+                                        'Scenes that use this model will load this version.',
+                                      confirmLabel: 'Make default',
+                                    },
                                   )
                                 }
                               >
@@ -251,8 +292,17 @@ export function DjangoModelAssetDetail({ manager }: { manager: DjangoAssetManage
                                 disabled={busy}
                                 aria-label={`Retire ${label}`}
                                 onClick={() =>
-                                  void act(`retire-${version.number}`, `Retired ${label}.`, () =>
-                                    manager.api.retire(assetId, version.number),
+                                  void act(
+                                    `retire-${version.number}`,
+                                    `Retired ${label}.`,
+                                    () => manager.api.retire(assetId, version.number),
+                                    {
+                                      title: `Retire ${label}`,
+                                      description:
+                                        'Retired versions are no longer offered to scenes.',
+                                      confirmLabel: 'Retire',
+                                      destructive: true,
+                                    },
                                   )
                                 }
                               >
@@ -279,8 +329,17 @@ export function DjangoModelAssetDetail({ manager }: { manager: DjangoAssetManage
                                   type="button"
                                   disabled={busy}
                                   onClick={() =>
-                                    void act(`delete-${version.number}`, `Deleted ${label}.`, () =>
-                                      manager.api.deleteVersion(assetId, version.number),
+                                    void act(
+                                      `delete-${version.number}`,
+                                      `Deleted ${label}.`,
+                                      () => manager.api.deleteVersion(assetId, version.number),
+                                      {
+                                        title: `Delete ${label}`,
+                                        description:
+                                          'This deletes the unpublished file. This cannot be undone.',
+                                        confirmLabel: 'Delete',
+                                        destructive: true,
+                                      },
                                     )
                                   }
                                 >
@@ -350,6 +409,7 @@ export function DjangoModelAssetDetail({ manager }: { manager: DjangoAssetManage
           </>
         ) : null}
       </div>
+      {sensitive.dialog}
     </>
   );
 }

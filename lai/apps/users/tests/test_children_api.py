@@ -1,4 +1,6 @@
-"""Child profile API (LAI-ANDROID-API-001): list, create, read, update; delete stays blocked.
+"""Child profile API (LAI-ANDROID-API-001): list, create, read, update.
+
+Deletion (LAI-0602) needs a recent sign-in and is tested in test_recent_auth.py.
 
 Follows the child-scoped endpoint checklist (docs/TESTING_STRATEGY.md) with the shared
 `families` and `api` fixtures.
@@ -236,16 +238,6 @@ def test_a_child_owned_by_the_same_parent_is_reachable_but_not_another_family(fa
     assert patch(client, detail(families.a2), {"active": False}).status_code == 404
     families.a2.refresh_from_db()
     assert families.a2.active is True
-
-
-# --- delete stays blocked -----------------------------------------------------------------------
-
-
-def test_deleting_a_child_is_blocked_until_the_deletion_service_exists(families, api):
-    for child in (families.a1, families.b1):
-        response = api(families.a).delete(detail(child))
-        assert response.status_code == 403 and code(response) == "sensitive_action_unavailable"
-    assert ChildProfile.objects.count() == 4
 
 
 # --- privacy ----------------------------------------------------------------------------------

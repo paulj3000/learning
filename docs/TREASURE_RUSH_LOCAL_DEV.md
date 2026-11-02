@@ -11,7 +11,7 @@ its own staff sign-in (step 3).
 **Profiles live in Django (LAI-CHILD-001, ADR-039).** With `VITE_BACKEND=django` the parent
 dashboard lists, creates, edits and deactivates children through Django, so you add a child in the
 app and pick it from the dashboard. Not available yet in this mode: profile photos (LAI-1103),
-deleting a child or the account (LAI-0209; turn the profile off instead), and the Amplify-backed
+deleting the account (turn the profile off instead; deleting a child needs a recent Cognito sign-in, LAI-0209), and the Amplify-backed
 extras (companion name, Amplify backpack items, the older Amplify adventures), which do not know a
 Django child. Treasure Rush runs entirely on Django.
 
