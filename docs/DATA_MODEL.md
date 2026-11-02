@@ -603,6 +603,14 @@ for, never any part of what was said.
 
 Sensitive content should be redacted or stored separately with strict retention only when genuinely necessary for review.
 
+### Django (LAI-0306, `lai/apps/ai/models.py`)
+
+Both models keep the Amplify fields and add server-known metadata: `provider`, `context_source`
+(`CLIENT_AUTHORED` or `DJANGO_SESSION`), Guardrail id, version and action, `failure_category`,
+token counts and `request_id`. `validation_status` adds `BLOCKED_INPUT`, `BLOCKED_GUARDRAIL` and
+`RATE_LIMITED`; `SafetyEvent.action_taken` is a fixed code instead of free text and links its
+audit row. No column holds prompt text, model text or child input. Retention: LAI-0707.
+
 
 ## Proposed relational mapping (not in effect)
 

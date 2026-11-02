@@ -45,7 +45,7 @@ before touching AWS.
 - [x] **LAI-0303** Golden vectors (depends: 0302). DONE locally: `tests/golden/*.json` (6 suites), Vitest stale check, pytest format check; no Python rules yet (Phase 6)
 - [x] **LAI-0304** Catalog models and loader (depends: 0302, 0301). DONE locally: `lai/apps/catalog` (World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset, ContentRelease), `manage.py load_content`, export schema 3 `locationAssets`; catalog admin built but not mounted (LAI-0404). Item and learning-objective models not built
 - [x] **LAI-0305** Progress models (depends: 0301, 0304). DONE locally: apps `game_sessions`, `education`, `progression`, `inventory`, `quests` (14 models, 5 migrations), persistence services for sessions, quests and world changes; no endpoints
-- [ ] **LAI-0306** Audit models (depends: 0301)
+- [x] **LAI-0306** Audit models (depends: 0301). DONE on `features/ai` 2026-11-01 (unmerged): `apps.ai` `AIInteractionAudit` and `SafetyEvent`, the Amplify fields plus provider, context source, Guardrail, failure category, tokens and request id; no free-text columns (docs/AI_SERVICE.md section 7)
 - [ ] **LAI-0309** Remaining catalog models: items, reward rules, learning objectives, stories, NPCs (depends: 0304). PARTIAL via POST-MERGE-03: items, collectible sets, reward rules, learning objectives and NPCs are catalog rows (inventory now references items and rules by foreign key). Remaining: stories, and validated references from `SkillEvidence`/`SkillProgress` objective codes, `StoryProgress.story_slug` and `NpcRelationship.npc_id`
 
 ## Phase 4 — Cognito integration and authorization
@@ -79,9 +79,20 @@ before touching AWS.
 
 ## Phase 7 — AI service
 
-- [ ] **LAI-0701** AI domain without Bedrock (depends: 0306)
-- [ ] **LAI-0702** Companion turn via Bedrock (depends: 0701, 0403)
-- [ ] **LAI-0703** Tutor turn and red-team re-point (depends: 0702)
+Status ladder (docs/AI_SERVICE.md section 10): 1 implemented, 2 verified with the fake provider,
+3 live Bedrock verified, 4 React cutover, 5 Amplify AI retired. On `features/ai` (2026-11-01,
+unmerged, not pushed): levels 1 and 2 reached; 3 to 5 not started.
+
+- [x] **LAI-0701** AI domain without Bedrock (depends: 0306). DONE (implemented, fake-verified): personas verbatim and versioned, contracts and validators with `ai-safety` golden-vector parity, authored fallbacks, `FakeModelClient`, settings. Merge verification deferred
+- [ ] **LAI-0702** Companion turn via Bedrock (depends: 0701, 0403). IMPLEMENTED and fake-verified: `POST .../ai/companion-turns/`, `BedrockModelClient` (Converse, structured text output, Guardrail), server audit. **Open: the APPROVAL live smoke** (LAI-0705); not accepted until a human runs it
+- [ ] **LAI-0703** Tutor turn and red-team re-point (depends: 0702). IMPLEMENTED and fake-verified: `POST .../ai/tutor-turns/`, server-built tutor context; `scripts/ai-red-team.ts --target django` (Amplify target unchanged). **Open: a live red-team run against Django** (LAI-0705)
+- [ ] **LAI-0704** Bedrock Guardrails and child AI safety policy (depends: 0702, 0703). IMPLEMENTED and fake-verified: `LaiAiGuardrail-<env>` CDK stack (synthesized, not deployed) and `lai-django-ai-<env>` policy, input screening, Django output policy, fail-closed settings, server safety events (ADR-044). **Open: Guardrail deployment and live block verification** (LAI-0705)
+- [ ] **LAI-0705** Live Bedrock and Guardrail verification in dev (depends: 0702, 0703, 0704). **APPROVAL: AWS credentials, Bedrock cost, IAM change, deploy** (docs/AI_SERVICE.md section 9). IMPLEMENTED (level 3): `manage.py ai_live_check` (audit-row scoring, bounded warm-up, Guardrail probe), IAM policy checked against the AWS documented pattern, Gate A plan and cost bound written. **BLOCKED for live acceptance:** AWS CLI access denied in this session, Gate A approval, model access, test identities
+- [ ] **LAI-0706** React cutover of companion and tutor turns to Django behind `VITE_BACKEND` (depends: 0705, 0501). IMPLEMENTED and Vitest-verified (level 4): `react/src/api/ai/djangoAi.ts`, Django paths in `companion/api.ts` and `tutor/api.ts` (no browser audit writes), `templateId` from every caller, parent dashboard safety events and history clearing on Django (`GET .../ai/safety-events/`, `DELETE .../ai/history/`). Amplify path unchanged for builds without the Django API. **Open:** Django-enabled dev deploy and browser acceptance (Gate B)
+- [ ] **LAI-0707** Safety review views, review workflow and retention for `SafetyEvent` / `AIInteractionAudit` (depends: 0306, 0404; retention with 0308). IMPLEMENTED and tested (level 4): permission-gated audited Django Admin (review status the only editable field), `manage.py ai_retention` (dry run default, refuses without a period, keeps open events), indexes. **Open:** an approved retention period (LAI-0308 / G9) before any `--apply` in a deployed environment
+- [ ] **LAI-0708** AI operations: shared rate-limit store, `ai.turn` metric filters and alarms, Bedrock budget kept (depends: 0705). IMPLEMENTED and tested (level 4): PostgreSQL counters (child minute/day, family day, session day, concurrency, global ceiling; 12-thread race test), runtime kill switch, bounded retries, request-size cap, configured-price cost estimate, 10 metric filters and 7 alarms in `LaiAiGuardrail-<env>` (synthesized). **Open:** deploy and live alarm check; the Amplify $50 budget may not see Marketplace-billed Claude spend (verify)
+- [ ] **LAI-0709** Server-built context for NPC and story turns and server mastery status; retire `CLIENT_AUTHORED` (depends: 0603, 0605, 0607). PARTIAL (level 3): NPC narration is server-owned (`DJANGO_CATALOG`); `LAI_AI_ALLOW_CLIENT_AUTHORED` switch added. **BLOCKED:** React adventures still run on Amplify sessions; no Django story catalog (LAI-0309); server mastery (LAI-0603). `CLIENT_AUTHORED` must stay on
+- [ ] **LAI-0710** Retire Amplify `generateCompanionTurn` / `generateTutorTurn` and their IAM grants (depends: 0706). **APPROVAL** (Phase 13). Dependency audit and rollback plan written (docs/AI_SERVICE.md section 11); **nothing removed**: needs 0705, 0706 and 0709 acceptance and explicit retirement approval
 
 ## Phase 8 — Admin
 

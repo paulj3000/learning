@@ -111,6 +111,8 @@ export function NpcConversation({ childId, npcId, ageBand, onEnd }: NpcConversat
         // calls: the conversation is already on screen in its authored form,
         // and re-voicing is presentation that arrives or does not.
         void requestCompanionTurn({
+          templateId: `npc:${npcId}`,
+          npcNode: { npcId, nodeId: next.id },
           childProfileId: childId,
           ageBand,
           intent: 'NARRATE',
