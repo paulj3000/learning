@@ -16,7 +16,6 @@ from django.conf import settings
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import URLPattern, URLResolver
-from rest_framework.views import APIView
 
 from apps.users import scoping, services
 from apps.users.models import ChildProfile

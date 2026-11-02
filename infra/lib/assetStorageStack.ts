@@ -107,7 +107,8 @@ export class AssetStorageStack extends Stack {
     */
     this.djangoPolicy = new iam.ManagedPolicy(this, 'DjangoAssetStoragePolicy', {
       managedPolicyName: `lai-django-asset-storage-${props.envName}`,
-      description: 'Django asset library: read, write and delete model, image and audio objects in its bucket.',
+      description:
+        'Django asset library: read, write and delete model, image and audio objects in its bucket.',
       statements: [
         new iam.PolicyStatement({
           sid: 'AssetObjects',

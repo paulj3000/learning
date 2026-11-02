@@ -34,7 +34,9 @@ export interface MediaAssetLoader {
 
 function defaultFetchTexture(url: string): Promise<Texture> {
   const absolute =
-    typeof window !== 'undefined' && window.location ? new URL(url, window.location.href).href : url;
+    typeof window !== 'undefined' && window.location
+      ? new URL(url, window.location.href).href
+      : url;
   return new Promise((resolve, reject) => {
     new TextureLoader().load(absolute, resolve, undefined, (error) =>
       reject(error instanceof Error ? error : new Error('texture failed to load')),

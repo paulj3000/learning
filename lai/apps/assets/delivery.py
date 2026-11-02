@@ -3,7 +3,8 @@
 `GLTFLoader` fetches a URL without an `Authorization` header, so every URL authorizes itself.
 URLs are issued only by the resolver, and only for published versions.
 
-- `django` (`LAI_ASSET_DELIVERY=django`): `/api/v1/asset-files/<token>/<model|image|audio>.<format>`. The token
+- `django` (`LAI_ASSET_DELIVERY=django`):
+  `/api/v1/asset-files/<token>/<model|image|audio>.<format>`. The token
   is a signed `{version id, expiry}`; `AssetFileView` re-checks on every fetch that the version is
   still published and its asset active, so retiring stops new fetches at once.
 - `s3`: a presigned GET for the private object. Valid until it expires; retiring stops new URLs

@@ -171,7 +171,7 @@ def file_preview_html(version) -> str:
         return format_html(
             '<img src="{}" alt="Preview of {}" width="{}" height="{}" '
             'style="max-width:320px;height:auto;background:#eee">'
-            "<br>{} x {} pixels, {}, {:,} bytes",
+            "<br>{} x {} pixels, {}, {} bytes",
             url,
             version.label,
             min(meta.get("width") or 320, 320),
@@ -179,17 +179,17 @@ def file_preview_html(version) -> str:
             meta.get("width", "?"),
             meta.get("height", "?"),
             version.get_format_display(),
-            version.size_bytes,
+            f"{version.size_bytes:,}",
         )
     return format_html(
         '<audio controls preload="metadata" src="{}">Your browser cannot play this audio.</audio>'
-        "<br>{} seconds, {} Hz, {} channel(s), {}, {:,} bytes",
+        "<br>{} seconds, {} Hz, {} channel(s), {}, {} bytes",
         url,
         meta.get("durationSeconds", "?"),
         meta.get("sampleRate", "?"),
         meta.get("channels", "?"),
         version.get_format_display(),
-        version.size_bytes,
+        f"{version.size_bytes:,}",
     )
 
 

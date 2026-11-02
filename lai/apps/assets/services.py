@@ -49,7 +49,9 @@ def _locked(asset: ContentAsset) -> ContentAsset:
 
 
 def upload_version(asset: ContentAsset, upload: IO[bytes], *, original_filename: str, user=None):
-    """Checksum, validate and store a new version of any supported family (AM-13). Returns it `VALIDATED`, or raises.
+    """Checksum, validate and store a new version of any supported family (AM-13).
+
+    Returns it `VALIDATED`, or raises.
 
     A file that fails validation is never stored and makes no row: the admin sees the findings
     and nothing needs cleaning up. A storage or database failure leaves no row and no object.
@@ -246,6 +248,7 @@ def rollback_to_version(version: AssetVersion, *, user=None) -> ContentAsset:
     validated-but-never-published and rejected versions are not rollback targets: publish them
     through the normal path.
     """
+    version = AssetVersion.objects.get(pk=version.pk)  # the caller's copy may be stale
     if version.status == VersionStatus.RETIRED:
         version = republish_version(version, user=user)
     elif version.status != VersionStatus.PUBLISHED:

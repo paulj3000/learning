@@ -244,7 +244,16 @@ class AssetCategory(models.TextChoices):
 # Runtime kinds. The first four are the engine's model kinds (`manifest.ts` `AssetKind`,
 # `asset_refs.AssetKind`); texture, image, sprite and audio are the non-model kinds (AM-13). The
 # kind decides which family of file a definition accepts (`apps.assets.formats.KIND_FAMILY`).
-ASSET_KINDS = ("character", "prop", "collectible", "kit-piece", "texture", "image", "sprite", "audio")
+ASSET_KINDS = (
+    "character",
+    "prop",
+    "collectible",
+    "kit-piece",
+    "texture",
+    "image",
+    "sprite",
+    "audio",
+)
 
 # Which browsing categories make sense for each runtime kind (validation, ADR-035).
 KIND_CATEGORIES = {

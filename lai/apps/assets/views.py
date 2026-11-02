@@ -2,7 +2,8 @@
 
 - `GET /api/v1/children/<child_id>/assets/?ids=a,b@2`: resolve published assets for a child's
   scene. Child-scoped like every play route, so the caller is the parent of that child.
-- `GET /api/v1/asset-files/<token>/<model|image|audio>.<format>`: the bytes of a published version, for
+- `GET /api/v1/asset-files/<token>/<model|image|audio>.<format>`: the bytes of a published
+  version, for
   `django` delivery. The signed token is the authorization (the loader sends no bearer token);
   publication is re-checked on every fetch.
 """

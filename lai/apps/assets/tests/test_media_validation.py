@@ -17,6 +17,8 @@ from apps.assets.tests.media_files import (
 )
 from apps.assets.validation import validate_upload
 
+pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
+
 
 def check(data, definition=None):
     return validate_upload(io.BytesIO(data), size=len(data), definition=definition)
@@ -60,9 +62,9 @@ def test_a_non_power_of_two_image_passes_with_a_warning():
 @pytest.mark.parametrize(
     ("data", "code"),
     [
-        (b"", "unreadable"),
-        (b"<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>", "unreadable"),
-        (b"GIF89a\x01\x00\x01\x00", "unreadable"),
+        (b"", "empty_file"),
+        (b"<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>", "not_a_model"),
+        (b"GIF89a\x01\x00\x01\x00", "not_a_model"),
         (png_bytes()[:-5], "png_truncated"),
         (png_bytes() + b"<script>", "trailing_data"),
         (jpeg_bytes() + b"PK\x03\x04", "jpeg_end"),
@@ -74,7 +76,7 @@ def test_a_non_power_of_two_image_passes_with_a_warning():
         (mp3_bytes() + b"<html>", "trailing_data"),
         (b"\xff\xfb\x00\x00garbage", "mp3_no_frames"),
         (ogg_bytes(end=False), "ogg_truncated"),
-        (ogg_bytes() + b"x", "ogg_page"),
+        (ogg_bytes() + b"x", "trailing_data"),
     ],
 )
 def test_malformed_or_unsupported_files_are_rejected(data, code):

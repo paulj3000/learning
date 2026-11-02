@@ -210,12 +210,15 @@ def test_verify_reports_missing_and_changed_files(texture, storage):
     assert "missing" in services.verify_version(version)
 
 
-def test_only_unpublished_versions_can_be_deleted(texture, storage):
+def test_only_unpublished_versions_can_be_deleted(
+    texture, storage, django_capture_on_commit_callbacks
+):
     published = services.publish_version(put(texture, png_bytes()))
     draft = put(texture, png_bytes(8, 8))
     with pytest.raises(AssetActionRefused):
         services.delete_unpublished_version(published)
-    services.delete_unpublished_version(draft)
+    with django_capture_on_commit_callbacks(execute=True):
+        services.delete_unpublished_version(draft)
     assert not storage.exists(draft.storage_key) and storage.exists(published.storage_key)
 
 
@@ -266,14 +269,14 @@ def test_media_route_needs_a_staff_session_and_refuses_models(texture):
     assert Client().get(f"{VERSIONS}{version.pk}/media/").status_code == 403
     nobody, _ = staff("nobody")
     assert nobody.get(f"{VERSIONS}{version.pk}/media/").status_code == 403
-    viewer, _ = staff("viewer", "Asset viewers")
+    viewer, _ = staff("viewer", "Asset editors")
     model = put(make_definition("npc-pip"), glb_bytes())
     assert viewer.get(f"{VERSIONS}{model.pk}/media/").status_code == 404
     assert viewer.get(f"{VERSIONS}{version.pk}/media/").status_code == 200
 
 
 def test_media_route_refuses_a_tampered_object_and_reports_unavailable(texture, storage):
-    viewer, _ = staff("viewer", "Asset viewers")
+    viewer, _ = staff("viewer", "Asset editors")
     version = put(texture, png_bytes())
     storage.objects[version.storage_key] = (png_bytes(9, 9), "image/png", None)
     assert viewer.get(f"{VERSIONS}{version.pk}/media/").status_code == 409
@@ -310,7 +313,7 @@ def test_editors_cannot_roll_back_or_publish(texture):
 
 
 def test_verify_action_flags_a_missing_file(texture, storage):
-    viewer, _ = staff("viewer", "Asset viewers")
+    viewer, _ = staff("viewer", "Asset editors")
     version = put(texture, png_bytes())
     storage.objects.pop(version.storage_key)
     page = viewer.post(
@@ -324,7 +327,9 @@ def test_verify_action_flags_a_missing_file(texture, storage):
 # --- delivery and the resolver ---------------------------------------------------------------
 
 
-def test_resolver_describes_images_and_audio_and_serves_hardened_files(api, families, texture, sound):
+def test_resolver_describes_images_and_audio_and_serves_hardened_files(
+    api, families, texture, sound
+):
     services.publish_version(put(texture, png_bytes(8, 8)))
     services.publish_version(put(sound, wav_bytes(seconds=2)))
     response = api(families.a).get(
@@ -354,9 +359,11 @@ def test_models_resolve_with_family_model_and_no_media(api, families):
 
 def test_unpublished_media_never_resolves_or_delivers(api, families, texture):
     draft = put(texture, png_bytes())
-    entry = api(families.a).get(
-        f"/api/v1/children/{families.a1.pk}/assets/", {"ids": "brick-wall"}
-    ).json()["assets"][0]
+    entry = (
+        api(families.a)
+        .get(f"/api/v1/children/{families.a1.pk}/assets/", {"ids": "brick-wall"})
+        .json()["assets"][0]
+    )
     assert entry["status"] == "unavailable" and "url" not in entry
     assert draft.status == VersionStatus.VALIDATED
 
@@ -365,9 +372,11 @@ def test_a_new_default_changes_the_cache_key_so_clients_refetch(api, families, t
     v1, v2 = publish_two(texture)
 
     def key():
-        data = api(families.a).get(
-            f"/api/v1/children/{families.a1.pk}/assets/", {"ids": "brick-wall"}
-        ).json()
+        data = (
+            api(families.a)
+            .get(f"/api/v1/children/{families.a1.pk}/assets/", {"ids": "brick-wall"})
+            .json()
+        )
         return data["assets"][0]["cache"]["key"]
 
     before = key()

@@ -6,8 +6,11 @@ import zlib
 
 def png_bytes(width=4, height=4) -> bytes:
     def chunk(kind: bytes, data: bytes) -> bytes:
-        return struct.pack(">I", len(data)) + kind + data + struct.pack(
-            ">I", zlib.crc32(kind + data) & 0xFFFFFFFF
+        return (
+            struct.pack(">I", len(data))
+            + kind
+            + data
+            + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
         )
 
     header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
@@ -25,8 +28,12 @@ def jpeg_bytes(width=8, height=8) -> bytes:
     scan = b"\x01\x01\x00\x00\x3f\x00"
     return (
         b"\xff\xd8"
-        + b"\xff\xc0" + struct.pack(">H", 2 + len(frame)) + frame
-        + b"\xff\xda" + struct.pack(">H", 2 + len(scan)) + scan
+        + b"\xff\xc0"
+        + struct.pack(">H", 2 + len(frame))
+        + frame
+        + b"\xff\xda"
+        + struct.pack(">H", 2 + len(scan))
+        + scan
         + b"\x12\x34\x56\x78"
         + b"\xff\xd9"
     )
@@ -56,8 +63,12 @@ def mp3_bytes(frames=10) -> bytes:
 def _ogg_page(flags, granule, sequence, body) -> bytes:
     table = bytes([len(body)])
     return (
-        b"OggS\x00" + bytes([flags]) + struct.pack("<qIII", granule, 1, sequence, 0)
-        + bytes([1]) + table + body
+        b"OggS\x00"
+        + bytes([flags])
+        + struct.pack("<qIII", granule, 1, sequence, 0)
+        + bytes([1])
+        + table
+        + body
     )
 
 

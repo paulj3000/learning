@@ -70,9 +70,7 @@ def _size_ok(result: ValidationResult, size: int, limit: int, noun: str) -> None
         result.error("empty_file", "The file is empty.")
         raise _Stop
     if size > limit:
-        result.error(
-            "too_large", f"The {noun} is {size:,} bytes; the limit is {limit:,} bytes."
-        )
+        result.error("too_large", f"The {noun} is {size:,} bytes; the limit is {limit:,} bytes.")
         raise _Stop
 
 
@@ -187,7 +185,9 @@ def _check_jpeg(result, stream, size):
                 raise _Stop
             height, width = struct.unpack(">HH", body[1:5])
         elif 0xC3 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
-            result.error("jpeg_unsupported", "Arithmetic-coded and lossless JPEGs are not supported.")
+            result.error(
+                "jpeg_unsupported", "Arithmetic-coded and lossless JPEGs are not supported."
+            )
             raise _Stop
         offset += 2 + length
         if marker == 0xDA:  # start of scan: entropy-coded data follows to the end marker
@@ -225,7 +225,9 @@ def _check_webp(result, stream, size):
         width = 1 + int.from_bytes(head[24:27], "little")
         height = 1 + int.from_bytes(head[27:30], "little")
         if head[20] & 0x02:
-            result.warn("webp_animated", "Animated WebP is shown as its first frame in some browsers.")
+            result.warn(
+                "webp_animated", "Animated WebP is shown as its first frame in some browsers."
+            )
     elif kind == b"VP8L" and len(head) >= 25 and head[20] == 0x2F:
         bits = int.from_bytes(head[21:25], "little")
         width, height = 1 + (bits & 0x3FFF), 1 + ((bits >> 14) & 0x3FFF)
@@ -317,7 +319,7 @@ def _check_mp3(result, stream, size):
     offset, frames, bitrate, rate, channels, samples = start, 0, 0, 0, 0, 0
     # Walk frame headers for a bounded stretch to prove the file really is a sequence of frames.
     # A trailing ID3v1 tag ("TAG", 128 bytes) is allowed.
-    end = size - 128 if _read(stream, size - 128, 3) == b"TAG" else size
+    end = size - 128 if size > 128 and _read(stream, size - 128, 3) == b"TAG" else size
     xing_frames = None
     while offset + 4 <= end and frames < 200_000:
         frame = _mp3_frame(_read(stream, offset, 4))
@@ -325,7 +327,12 @@ def _check_mp3(result, stream, size):
             break
         length, frame_bitrate, frame_rate, frame_channels, frame_samples = frame
         if frames == 0:
-            bitrate, rate, channels, samples = frame_bitrate, frame_rate, frame_channels, frame_samples
+            bitrate, rate, channels, samples = (
+                frame_bitrate,
+                frame_rate,
+                frame_channels,
+                frame_samples,
+            )
             body = _read(stream, offset, 4 + 36 + 8)
             for tag in (b"Xing", b"Info"):
                 at = body.find(tag, 4, 4 + 36)
@@ -406,9 +413,7 @@ def _check_ogg(result, stream, size):
         if len(header) < 27 or header[:4] != b"OggS" or header[4] != 0:
             result.error("ogg_page", "The Ogg file has a corrupted page.")
             raise _Stop
-        flags, granule, _serial, _seq, _crc, segment_count = struct.unpack(
-            "<BqIIIB", header[5:27]
-        )
+        flags, granule, _serial, _seq, _crc, segment_count = struct.unpack("<BqIIIB", header[5:27])
         table = _read(stream, offset + 27, segment_count)
         if len(table) < segment_count:
             result.error("ogg_truncated", "The Ogg file ends inside a page.")
@@ -432,9 +437,7 @@ def _check_ogg(result, stream, size):
                 pre_skip = struct.unpack("<H", first[10:12])[0]
                 rate = 48000
             else:
-                result.error(
-                    "ogg_codec", "Only Vorbis and Opus audio in Ogg is supported."
-                )
+                result.error("ogg_codec", "Only Vorbis and Opus audio in Ogg is supported.")
                 raise _Stop
         if granule >= 0:
             last_granule = granule
