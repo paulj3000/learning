@@ -66,7 +66,7 @@ export function createDjangoPhotoClient(
     const cached = objectUrls.get(childId);
     if (cached?.photoId === photo.id) return cached.url;
     const { data } = await client.request('GET', contentPath(childId), { responseType: 'blob' });
-    if (!(data instanceof Blob) || data.size === 0) return null;
+    if (!isBlob(data) || data.size === 0) return null;
     release(childId);
     const url = createObjectUrl(data);
     objectUrls.set(childId, { photoId: photo.id, url });
@@ -171,4 +171,13 @@ export function toPhotoError(error: unknown, fallback: string): ProfileRequestEr
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Whether `value` is a Blob from any realm. `instanceof Blob` is false for a Blob made by a
+ * different global (for example Node's `Response.blob()` under jsdom on Node 22), so the
+ * built-in type tag is checked instead.
+ */
+function isBlob(value: unknown): value is Blob {
+  return Object.prototype.toString.call(value) === '[object Blob]';
 }
