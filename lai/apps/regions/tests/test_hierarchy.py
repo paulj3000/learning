@@ -248,7 +248,15 @@ def test_publishing_validates_area_and_launch_points(treasure):
 def test_the_launch_point_form_offers_only_this_areas_objects_and_places_adventures(treasure):
     form = LaunchPointForm(region=treasure.region)
     objects = [value for value, _ in form.fields["entity_id"].choices if value]
-    assert set(objects) == {"cove-pip", SIGNPOST_ID}  # the chest is not offered
+    # Every placement here, including TR-14's rune stones and key; chests are not offered.
+    assert set(objects) == {
+        "cove-pip",
+        SIGNPOST_ID,
+        "cove-brass-key",
+        "cove-rune-stone-1",
+        "cove-rune-stone-2",
+        "cove-rune-stone-3",
+    }
     places = set(form.fields["adventure"].queryset.values_list("location__slug", flat=True))
     assert places == {"pirate-builder-bay"}
 

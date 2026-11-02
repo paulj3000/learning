@@ -9,6 +9,12 @@ session or attempt is indistinguishable from one that does not exist.
 evidence, the chest's world change, the reward, and quest progress are written in one
 transaction: if any part fails, none of it is kept and the attempt can be answered again.
 
+TR-14 adds the rest of a multi-encounter adventure, under the same rules: a chest may be locked
+(an earlier encounter, a key in the backpack) and then issues no challenge; `collect_pickup`
+picks up a collectible (the key) once; `talk_to_npc` lets talking to a quest's giver complete
+its `TALK_TO` objective; and every path that can finish a quest fires its `QUEST_COMPLETED`
+reward rules in the same transaction.
+
 Step-based adventures use `apps.game_sessions.services` (LAI-0601) instead; the lifecycle
 actions here (pause, resume, complete, abandon) apply to REGION sessions only, because no rule
 defines them for adventures yet.
@@ -25,11 +31,22 @@ from apps.catalog.models import ContentRelease
 from apps.core.content_status import ContentStatus
 from apps.education.challenges import Correctness, generate_challenge, grade_answer
 from apps.education.services import record_attempt_evidence
-from apps.inventory.services import RewardGrant, grant_reward_rule
-from apps.progression.models import WorldChange
+from apps.inventory.services import RewardGrant, grant_reward_rule, owned_item_ids
+from apps.progression.models import NpcRelationship, RelationshipLevel, WorldChange
 from apps.progression.services import record_world_change
-from apps.quests.services import QuestUpdate, refresh_active_quests
-from apps.regions.models import TreasureChest, WorldRegion
+from apps.quests.models import QuestProgress, QuestStatus
+from apps.quests.services import (
+    CompletionReward,
+    QuestUpdate,
+    grant_quest_completion_rewards,
+    refresh_active_quests,
+)
+from apps.regions.models import (
+    ChestPresentation,
+    TreasureChest,
+    WorldObjectPlacement,
+    WorldRegion,
+)
 
 from .models import (
     OPEN_STATUSES,
@@ -41,6 +58,7 @@ from .models import (
 )
 
 CHEST_CHANGE_TYPE = "UNLOCK"
+PICKUP_CHANGE_TYPE = "COLLECTIBLE_FOUND"
 SEED_LIMIT = 2**31
 
 
@@ -68,6 +86,21 @@ class AttemptNotFound(PlayError):
 
 class AttemptAlreadyAnswered(PlayError):
     code = "attempt_already_answered"
+
+
+class ChestLocked(PlayError):
+    """The chest's requirements do not hold yet. `reason` is `PROGRESS` or `ITEM`."""
+
+    code = "chest_locked"
+
+    def __init__(self, reason: str):
+        super().__init__(reason)
+        self.reason = reason
+
+
+class LockReason:
+    PROGRESS = "PROGRESS"
+    ITEM = "ITEM"
 
 
 def _require_published_region(region: WorldRegion) -> None:
@@ -137,6 +170,9 @@ def end_session(session: AdventureSession, status: str = SessionStatus.COMPLETED
 
 
 def chest_is_open(child, chest: TreasureChest) -> bool:
+    # A replay activity (TR-20) never opens: it can always be played again.
+    if chest.presentation == ChestPresentation.REPLAY:
+        return False
     return (
         WorldChange.objects.for_child(child)
         .filter(
@@ -145,6 +181,31 @@ def chest_is_open(child, chest: TreasureChest) -> bool:
         )
         .exists()
     )
+
+
+def chest_lock(child, chest: TreasureChest, *, keys=None, items=None) -> str | None:
+    """Why `chest` is locked for `child` now (a `LockReason`), or None when it may be opened.
+
+    An earlier encounter comes first: a child who has not got that far is told to follow Pip's
+    clues, not to look for a key. `keys` and `items` may be passed in to read state once for many
+    chests.
+    """
+    location = chest.region.location.slug
+    if chest.required_world_change_key:
+        if keys is None:
+            keys = set(
+                WorldChange.objects.for_child(child)
+                .filter(location_slug=location)
+                .values_list("location_slug", "change_key")
+            )
+        if (location, chest.required_world_change_key) not in keys:
+            return LockReason.PROGRESS
+    if chest.required_item_id:
+        if items is None:
+            items = owned_item_ids(child)
+        if chest.required_item.item_id not in items:
+            return LockReason.ITEM
+    return None
 
 
 def issue_chest_challenge(
@@ -166,6 +227,9 @@ def issue_chest_challenge(
         _require_published_region(chest.region)
         if chest_is_open(child, chest):
             raise ChestAlreadyOpen
+        reason = chest_lock(child, chest)
+        if reason is not None:
+            raise ChestLocked(reason)
         outstanding = ChallengeAttempt.objects.filter(
             session=session, target_entity_id=chest.entity_id, status=AttemptStatus.ISSUED
         ).first()
@@ -213,6 +277,14 @@ class ChestOutcome:
     """True only on the answer that opened the chest; a replay of that state is impossible."""
     reward: RewardGrant | None = None
     quest_updates: tuple[QuestUpdate, ...] = ()
+    completion_rewards: tuple[CompletionReward, ...] = ()
+
+
+def _refresh_and_reward(child, session) -> tuple[tuple, tuple]:
+    """Walk the child's quests forward and fire the rewards for any just completed."""
+    updates = tuple(refresh_active_quests(child, source_session=session))
+    rewards = tuple(grant_quest_completion_rewards(child, updates, source_session=session))
+    return updates, rewards
 
 
 def submit_chest_answer(
@@ -255,6 +327,10 @@ def submit_chest_answer(
         chest = attempt.chest
         if chest is None:  # deleted by an administrator after the challenge was shown
             raise ContentUnavailable
+        if chest.presentation == ChestPresentation.REPLAY:
+            # TR-20: practice only. The attempt and its skill evidence are recorded above; nothing
+            # permanent is written, so repeating the activity can never pay out twice.
+            return ChestOutcome(attempt=attempt, correct=True)
         _, opened = record_world_change(
             child,
             location_slug=chest.region.location.slug,
@@ -268,13 +344,153 @@ def submit_chest_answer(
             if chest.reward_rule is not None
             else None
         )
-        quest_updates = tuple(refresh_active_quests(child, source_session=session))
+        quest_updates, completion_rewards = _refresh_and_reward(child, session)
         return ChestOutcome(
             attempt=attempt,
             correct=True,
             chest_opened=opened,
             reward=reward,
             quest_updates=quest_updates,
+            completion_rewards=completion_rewards,
+        )
+
+
+# --- Pickups and talking (TR-14) -----------------------------------------------------------------
+
+
+class NotAPickup(PlayError):
+    code = "not_found"
+
+
+@dataclass(frozen=True)
+class PickupOutcome:
+    placement: WorldObjectPlacement
+    picked_up: bool
+    """True only on the request that picked it up; a repeat finds it already in the backpack."""
+    reward: RewardGrant | None = None
+    quest_updates: tuple[QuestUpdate, ...] = ()
+    completion_rewards: tuple[CompletionReward, ...] = ()
+
+
+def _open_region_session(session: AdventureSession) -> AdventureSession:
+    session = AdventureSession.objects.select_for_update().get(pk=session.pk)
+    if not session.is_open or session.kind != SessionKind.REGION:
+        raise SessionNotOpen
+    return session
+
+
+def collect_pickup(session: AdventureSession, placement: WorldObjectPlacement) -> PickupOutcome:
+    """Pick up a collectible: record its world change and fire its reward rule, once each.
+
+    Idempotent: a second pickup (a retry, another tab) records and grants nothing new and
+    returns `picked_up=False`. What the child carries comes from the inventory, never the client.
+    """
+    if not placement.is_pickup:
+        raise NotAPickup
+    with transaction.atomic():
+        session = _open_region_session(session)
+        region = placement.region
+        if region.region_id != session.region_id:
+            raise ContentUnavailable
+        _require_published_region(region)
+        child = session.child
+        _, picked_up = record_world_change(
+            child,
+            location_slug=region.location.slug,
+            change_type=PICKUP_CHANGE_TYPE,
+            change_key=placement.pickup_change_key,
+            payload={"regionId": region.region_id, "entityId": placement.entity_id},
+            source_session=session,
+        )
+        reward = (
+            grant_reward_rule(child, placement.pickup_reward_rule, source_session=session)
+            if placement.pickup_reward_rule is not None
+            else None
+        )
+        quest_updates, completion_rewards = _refresh_and_reward(child, session)
+        session.last_activity_at = now()
+        session.save(update_fields=["last_activity_at"])
+        return PickupOutcome(
+            placement=placement,
+            picked_up=picked_up,
+            reward=reward,
+            quest_updates=quest_updates,
+            completion_rewards=completion_rewards,
+        )
+
+
+class NotAnNpc(PlayError):
+    code = "not_found"
+
+
+@dataclass(frozen=True)
+class TalkOutcome:
+    flags_set: tuple[str, ...] = ()
+    quest_updates: tuple[QuestUpdate, ...] = ()
+    completion_rewards: tuple[CompletionReward, ...] = ()
+
+
+def talk_to_npc(session: AdventureSession, placement: WorldObjectPlacement) -> TalkOutcome:
+    """The child talked to an NPC in the region. Completes `TALK_TO` objectives it can.
+
+    Only an objective of an active quest's *current* stage counts, so returning to Pip before
+    the treasure is found changes nothing; the flag is set on the child's `NpcRelationship`
+    (the store the client's NPC engine uses) and the quests are walked forward. Idempotent.
+    """
+    if placement.npc is None:
+        raise NotAnNpc
+    npc_id = placement.npc.npc_id
+    with transaction.atomic():
+        session = _open_region_session(session)
+        if placement.region.region_id != session.region_id:
+            raise ContentUnavailable
+        _require_published_region(placement.region)
+        child = session.child
+        flags = []
+        active = (
+            QuestProgress.objects.for_child(child)
+            .filter(status=QuestStatus.ACTIVE)
+            .select_related("quest")
+            .order_by("pk")
+        )
+        for progress in active:
+            stage = next(
+                (
+                    s
+                    for s in progress.quest.source.get("stages", [])
+                    if s.get("id") == progress.current_stage_id
+                ),
+                None,
+            )
+            for objective in (stage or {}).get("objectives", []):
+                if objective.get("kind") == "TALK_TO" and objective.get("npcId") == npc_id:
+                    flags.append(objective.get("memoryFlag"))
+        flags = [flag for flag in dict.fromkeys(flags) if isinstance(flag, str) and flag]
+        if not flags:
+            return TalkOutcome()
+        at = now()
+        relationship, _ = NpcRelationship.objects.select_for_update().get_or_create(
+            child=child,
+            npc_id=npc_id,
+            defaults={
+                "relationship_level": RelationshipLevel.STRANGER,
+                "memory_flags": {},
+                "first_met_at": at,
+                "last_interacted_at": at,
+            },
+        )
+        memory = dict(relationship.memory_flags or {})
+        memory.update({flag: True for flag in flags})
+        relationship.memory_flags = memory
+        relationship.last_interacted_at = at
+        relationship.save(update_fields=["memory_flags", "last_interacted_at"])
+        quest_updates, completion_rewards = _refresh_and_reward(child, session)
+        session.last_activity_at = at
+        session.save(update_fields=["last_activity_at"])
+        return TalkOutcome(
+            flags_set=tuple(flags),
+            quest_updates=quest_updates,
+            completion_rewards=completion_rewards,
         )
 
 

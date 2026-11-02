@@ -11465,6 +11465,37 @@ instruction. Not pushed.
 - **Deferred to merge.** Full Vitest and pytest, oxlint, Prettier, Ruff, build, Playwright and a
   real-browser look at the header on a tablet.
 
+## TR-12 Treasure Rush reboot, Stage A: child-friendly interaction and guidance (2026-10-31)
+
+First task of the owner's Treasure Rush gameplay reboot ("Pip's Missing Treasure"). Plan for the
+rest (TR-13 to TR-20, decisions TR-D22 and TR-D23): `docs/TREASURE_RUSH_ROADMAP.md` section 17.
+The brief as received stops partway through its section 7; later sections are not planned.
+
+- **Acceptance (brief, Stage A).** Interaction without precise aim; a context-sensitive prompt
+  that disappears out of range; keyboard, mouse and touch; highlighted and recognisable
+  interactables; a visible objective; a hint that does not interrupt; exit without arithmetic
+  that keeps progress (already done by LAI-0807).
+- **Built.** Behind a new manifest flag, `interactionAssist`, on for server-published regions
+  only: forgiving aim (nearest interactable within 3 m and 40 degrees when the centre ray misses),
+  a bobbing focus marker, and a tappable action prompt ("Open: Treasure chest") with the E key
+  cap shown only on a fine pointer. In the cove: a gold beacon over every closed chest, the HUD
+  objective from server quest state, and a Hint button.
+- **Files changed.** `runtime/locationManifest.ts`, `runtime/createLocationEngine.ts`,
+  `runtime/manifestBindings.ts`, `runtime/ThreeLocationWorldView.tsx`,
+  `runtime/viewExtensionRegistry.tsx`, `WorldHud.tsx` and `.module.css` (all under
+  `react/src/features/island-map/three/`); `extensions/regionPlay/regionPlayScene.ts`,
+  `RegionPlayCompanion.tsx`, `ui/RegionPlayPanels.module.css`;
+  `react/src/features/region-play/regionManifest.ts`, `regionPlayUi.ts`. No backend change.
+- **Tests (development checks).** New: 8 cove engine tests (aim with and without the flag,
+  behind, beside, out of reach, ray wins, marker, beacons), 2 prompt lookup, 4 HUD, 1 builder,
+  7 objective and hint rules, 4 companion. Vitest over `region-play`, `island-map/three/extensions`,
+  `island-map/three/runtime` (including every region parity suite) and the HUD: 590 passed.
+  `tsc -b` clean; Prettier clean on the touched files.
+- **Not done.** No browser or tablet run (TR-9); the 3 m and 40 degree values need a playtest.
+  Full suites, lint, Playwright and build are deferred to merge readiness. The backpack and
+  Hint buttons are `position: fixed` outside `WorldStage`, so in full-screen mode they are not
+  visible (true of the backpack before this change too).
+
 ## LAI-0904: Separate private child photo bucket and Django photo API (2026-10-31, branch only, not merged)
 
 - **Decision.** ADR-042, accepted by the owner for code and infrastructure definitions only:
@@ -11758,6 +11789,97 @@ unpublished assets stay private; Amplify Storage stays unchanged until LAI-1301.
   clean, `adr:check`, `admin-preview:check`, `content:check` and `golden:check` pass, Playwright 7
   of 7.
 
+## TR-13 Treasure Rush reboot: the four-zone Treasure Cove (2026-11-01)
+
+Second reboot task (`docs/TREASURE_RUSH_ROADMAP.md` section 17, "TR-13 as built"). Branch
+`quest/tr.reboot`, which now includes a merge of `main` (`7fe30eb`, made by the owner).
+
+- **Acceptance.** Four recognisable, navigable, populated zones (Pirate Landing, Palm Tree
+  Grove, Shipwreck Beach, Ancient Treasure Ruins) in one continuous area, ready for TR-14's four
+  encounters; placeholders for missing models; environment animation; existing movement,
+  collision, camera and interaction kept; Backpack, Hint, objective, prompt and Exit available
+  in full screen; the asset audit in `docs/TREASURE_RUSH_ASSET_REQUIREMENTS.md`.
+- **Built.** A 72 x 88 m cove: 60 scenery entries (planes, 15 ruin walls, clusters of 18 bundled
+  assets, the shipwreck, archway and rune stones, a jungle scatter), 35 colliders, 4 zones with
+  enter messages, 4 ambient movers (gulls, butterflies), 2 point lights, and 53 procedural
+  placeholders (28 palms instanced in three draw calls, 10 torches, 8 pillars, 2 flags, tent,
+  campfire, rowboat, pedestal, gate). Lookout Point beyond a channel and a locked gate is
+  visible and unreachable until TR-17. Encounter spots for TR-14 to TR-17 are named in
+  `SPOTS` and tested to be open ground in the right zone.
+- **Decision TR-D24.** The layout travels as `WorldRegion.scene["layout"]` in manifest
+  vocabulary, authored in `lai/apps/regions/treasure_cove_layout.py`; the seed refreshes it on an
+  existing region only when `layoutVersion` is older, never touching title, copy, placements,
+  chests or status. A JSON snapshot beside it feeds the frontend tests; a Python test fails if
+  they drift.
+- **Full-screen correction.** TR-12's note that Backpack and Hint disappear in full screen was
+  wrong (they were inside the full-screen element). The real gaps, now fixed: the exit link was
+  hidden in full screen (now drawn on the stage), and the cove showed two backpacks (the HUD's
+  is left out when a companion owns one). Companion controls now sit in a slot inside the stage.
+- **Files created.** `lai/apps/regions/treasure_cove_layout.py`, `treasure_cove_layout.json`,
+  `tests/test_treasure_cove_layout.py`; `react/src/features/region-play/regionLayout.ts` and
+  test; `extensions/regionPlay/proceduralScenery.ts` and test,
+  `treasureCoveLayout.engine.test.ts`; `docs/TREASURE_RUSH_ASSET_REQUIREMENTS.md`.
+- **Files changed.** `lai/apps/regions/treasure_rush_seed.py`, `models.py` (docstring);
+  `region-play/regionManifest.ts`, `regionPlayConfig.ts`; `extensions/regionPlay/regionPlayScene.ts`,
+  `RegionPlayCompanion.tsx`, `regionPlayViewExtension.tsx`, `ui/RegionPlayPanels.module.css`;
+  `runtime/ThreeLocationWorldView.tsx`, `runtime/viewExtensionRegistry.tsx`; `WorldHud.tsx` and
+  `.module.css`; `IslandWorldView.module.css`; `test/playFixtures.ts`; tests beside each.
+- **Tests (development checks).** Python: `lai/apps/regions` 56 passed against the compose
+  PostgreSQL (`POSTGRES_PORT=5442 LAI_REQUIRE_POSTGRES=1`), 13 of them new; ruff clean on the
+  touched files. Vitest: `island-map`, `region-play` and `api/play`, 122 files, 1,344 passed,
+  about 32 of them new (layout reader 10, builder 2, cove on the engine 7, placeholders and config
+  8, HUD 3, companion 1, view 1). `tsc -b` clean; Prettier clean on the touched files.
+- **Not done.** No browser, tablet or WebGL look (TR-9): sizes, colours, readability of the
+  zones and the draw-call cost on a tablet are unverified. A deployed database needs
+  `manage.py seed_treasure_rush` to pick up the layout. Full suites, lint, Playwright and build
+  are deferred to merge readiness.
+
+## TR-14 Treasure Rush reboot: Pip's Missing Treasure (2026-11-01)
+
+Third reboot task (`docs/TREASURE_RUSH_ROADMAP.md` section 17, "TR-14 as built"). Branch
+`quest/tr.reboot`, on top of TR-13 (`c7e6ff3`).
+
+- **Acceptance.** Pip introduces the quest; four encounters that play differently (an open
+  chest, a hidden chest that appears in order, a key-locked chest with a server-recorded key, a
+  rune-stone puzzle graded by Django unlocking the golden chest); four keepsakes; progress
+  1 of 4 to 4 of 4; return to Pip completes the quest in Django with a completion reward and the
+  `TREASURE_COVE_QUEST_COMPLETE` signal for TR-17; keyboard, mouse and touch (the TR-12 prompt,
+  plus panel buttons as an alternative to touching stones); objective and hints accurate
+  throughout; progress persists across sessions; key and rewards idempotent.
+- **APIs.** `POST .../sessions/{id}/pickups/{entityId}/`, `POST .../sessions/{id}/npcs/{entityId}/talk/`,
+  `409 chest_locked`, additive bootstrap and outcome fields (`docs/PLAY_API.md`). Accepting a
+  quest now walks it forward. The native region list no longer counts puzzles as chests.
+- **Quest data.** `pips-missing-treasure` (stages `find-the-treasure`: four BUILD objectives;
+  `return-to-pip`: TALK_TO Pip), five items (Palm Grove Pearl, Old Brass Key, Shipwreck Compass,
+  Sunstone, Treasure Cove Explorer Badge) and five reward rules, in the content export; 15
+  challenge specs, three chests, the pedestal puzzle, three rune stones and the key in the seed
+  (`pips_treasure_seed.py`). An existing region moves its offered quest once
+  (`adventureVersion`); the one-chest quest stays in the catalog with its children's progress.
+- **Decisions.** TR-D22 (key as a pickup), TR-D23 (puzzle graded by Django), TR-D25 (TALK_TO
+  proven from `NpcRelationship.memory_flags`), recorded in the roadmap.
+- **Two TR-13 regressions fixed here.** A play API leak test matched the layout's scatter
+  `seed` (now checks the authored scene separately, with the same guarantees), and the layout
+  module printed a line (application code must not print).
+- **Content export with an unrelated uncommitted change present.** The earlier, uncommitted
+  "Treasure Rush quest owned by the home Island" fix also edits the export. TR-14's committed
+  export was generated from the committed export code (`quests.json`, `rewards.json`,
+  `manifest.json`; `islands.json` unchanged); the working tree's export was regenerated with
+  that fix in place, so it carries both. Only the record counts in `contentExport.test.ts`
+  were changed for TR-14.
+- **Tests (development checks).** Django, against the compose PostgreSQL: `regions`,
+  `game_sessions`, `quests`, `inventory`, `progression`, `core`, `catalog`, `education`: 626
+  passed, with one test deselected (`test_adventure_launch.py::test_quests_stay_island_owned_and_are_still_offered_in_the_3d_area`)
+  that fails only because of the uncommitted export fix above, which closes the gap it pins.
+  New: `test_pips_treasure.py` (22) and the engine's TALK_TO test. Ruff clean on the touched
+  files. Vitest over `island-map`, `region-play`, `api/play` and `content-export`: 125 files,
+  1,433 passed, including the new `pipsTreasure.test.ts` (12), `pipsTreasure.engine.test.ts`
+  (6), 7 companion tests and 5 API tests. `tsc -b`
+  clean; Prettier clean on the touched files.
+- **Not done.** No browser or tablet play (TR-9): pacing toward 10 to 15 minutes, readability
+  of the stone numbers, and the hidden chest's discoverability need a person. A deployed
+  database needs `migrate`, `load_content`, `seed_treasure_rush` and the publish step.
+  Full suites, lint, Playwright and build are deferred to merge readiness.
+
 ## LAI-0209 recent sign-in verification; child deletion and asset changes enabled (2026-11-01, branch `feature/lai-0209-recent-auth`, not merged, not pushed, nothing deployed)
 
 Specification `docs/platform/RECENT_SIGN_IN.md`; decision ADR-043 (Proposed, specifies ADR-024 A3).
@@ -11847,3 +11969,30 @@ loading, the Django Admin 3D preview bundle, the Amplify catalog model picker (u
 step; no browser, AWS or deployed checks were run (excluded by instruction); associations of
 specific adventure or quest fields to texture or sound ids are wired by the features that need
 them (docs section 21.9).
+
+## Treasure Rush reboot: TR-15 to TR-20, the bridge, Lookout Point and the replay (2026-11-02, branch `quest/tr.reboot`)
+
+**Status: development complete, unit and API verified, awaiting owner browser playtest. Browser
+tests were not run, per owner instruction. TR-9, browser acceptance and final approval are not
+done. Nothing is deployed and nothing was merged to main.**
+
+Details, decisions and the full verification table: `docs/TREASURE_RUSH_ROADMAP.md` sections 18
+to 20. Owner checklist: `docs/TREASURE_RUSH_PLAYTEST_CHECKLIST.md`.
+
+| Task | Development | Unit/API verified | Blocked or pending |
+|---|---|---|---|
+| TR-9 playtest | Not started (by instruction) | n/a | Browser journey, playtest per age band, owner |
+| TR-11 | Superseded by TR-14 (proposed) | n/a | Owner confirmation |
+| TR-15 key and pickups | Complete | Yes | `treasure-key` model (art), browser |
+| TR-16 ruins puzzle | Complete for touch-the-answer | Yes | Ordering and matching (TR-D27), pedestal art, sound |
+| TR-17 bridge and Lookout Point | Complete | Yes | Finished models (art), browser |
+| TR-18 living cove | Complete with `Talk` and `Wave` | Yes | `Cheer` and `Point` clips (art), browser |
+| TR-19 sound | Cue hook only | Yes | **Owner decision TR-D26** |
+| TR-20 replay | Complete | Yes | Browser |
+
+- **Files created:** `lai/apps/regions/activity.py`, `lai/apps/regions/migrations/0004_tr20_replay_presentation.py`, `lai/apps/game_sessions/tests/test_lookout_replay.py`, `react/.../regionPlay/{livingCove.ts, livingCove.test.ts, lookoutPoint.engine.test.ts, ui/ReplayDonePanel.tsx}`, `react/src/features/region-play/soundCues.ts` and test, `docs/TREASURE_RUSH_PLAYTEST_CHECKLIST.md`.
+- **Files changed:** the cove layout (v4) and its JSON snapshot, `regions` model, admin, seed and tests, `play.py`, `discovery.py`, the region-play config, layout reader, manifest builder, UI rules, scene extension, procedural shapes and companion, the API types and parser, and the docs and tracker.
+- **Verified (unit and API only):** Django 335 plus 575 passed with the stale expectations fixed and re-run; Vitest 1,532 of 1,534 (two baseline failures unrelated to this work); `tsc -b`, Prettier, Ruff, `manage.py check`, `makemigrations --check`, oxlint (0 errors) and `vite build` pass.
+- **Remaining risks:** nobody has seen the cove, so sizes, colours, frame rate on a tablet, the bridge's look and the pacing are unknown. A deployed environment needs `migrate`, `seed_treasure_rush` and `publish_treasure_rush`. Dependencies were installed without the lockfile because `npm ci` refused it, which is the likely cause of the two baseline Vitest failures.
+- **Environment note:** other Claude sessions shared this machine's PostgreSQL container; this work used its own test database name (`lai_trreboot`) to avoid collisions.
+

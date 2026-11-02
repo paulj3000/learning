@@ -58,6 +58,16 @@ urlpatterns = [
         name="play-chest-challenge",
     ),
     path(
+        f"{CHILD}sessions/<uuid:session_id>/pickups/<slug:entity_id>/",
+        play_views.PickupView.as_view(),
+        name="play-pickup",
+    ),
+    path(
+        f"{CHILD}sessions/<uuid:session_id>/npcs/<slug:entity_id>/talk/",
+        play_views.NpcTalkView.as_view(),
+        name="play-npc-talk",
+    ),
+    path(
         f"{CHILD}attempts/<uuid:attempt_id>/answer/",
         play_views.AttemptAnswerView.as_view(),
         name="play-attempt-answer",

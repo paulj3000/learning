@@ -16,4 +16,6 @@ export const regionPlayViewExtension: LocationViewExtension = {
     return claimsRegionPlayInteraction(tryParseRegionPlayConfig(config), interaction.id);
   },
   Companion: RegionPlayCompanion,
+  // The companion's backpack reads the Django inventory; the HUD's Amplify one would be empty.
+  ownsBackpack: true,
 };

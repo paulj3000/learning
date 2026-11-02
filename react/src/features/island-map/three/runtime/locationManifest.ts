@@ -311,6 +311,8 @@ export interface NpcPlacementSpec {
   placeholderSize?: PlaceholderSize;
   /** The `WorldInteraction` a tap/interact on this NPC triggers. */
   interactionId?: string;
+  /** Child-facing verb on the action prompt ("Talk"), with `interactionAssist`. */
+  action?: string;
 }
 
 /**
@@ -337,6 +339,8 @@ export interface PropSpec {
   rotationY?: number;
   /** Child-facing crosshair label. */
   label: string;
+  /** Child-facing verb on the action prompt ("Open", "Read"), with `interactionAssist`. */
+  action?: string;
   /**
    * What interacting with it means. Absent means an extension owns that
    * (`WorldExtensionContext.interceptInteract`): a plate the child picks up
@@ -385,6 +389,8 @@ export interface CollectibleSpec {
   /** Height above the ground, for something resting on a roof line or a railing. Defaults to 0. */
   elevation?: number;
   label: string;
+  /** Child-facing verb on the action prompt ("Pick up"), with `interactionAssist`. */
+  action?: string;
   idleClip?: string;
   /** As on `PropSpec`: drawn if `assetId` fails to load (TR-7a). */
   placeholderSize?: PlaceholderSize;
@@ -550,6 +556,15 @@ export interface ThreeLocationManifest {
    * have (`docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` SC-10).
    */
   noReticleBands?: readonly AgeBandValue[];
+  /**
+   * Child-friendly interaction (Treasure Rush reboot, TR-12). When the
+   * centre ray misses, the nearest interactable ahead and within reach takes
+   * focus, so a child need not aim precisely; a marker bobs above whatever
+   * has focus; and the view shows a tappable action prompt ("Open: Treasure
+   * chest") instead of "press E to talk". Off by default, so regions held to
+   * parity tests keep their exact behaviour.
+   */
+  interactionAssist?: boolean;
   /**
    * Which things in this region stand for which options of which adventure
    * steps (Phase 8, `adventureStepBindings.ts`). Empty for a region whose
