@@ -86,6 +86,17 @@ All animate with the scene and hold still under reduced motion.
 
 The pedestal itself stays the TR-13 `PEDESTAL` placeholder; the puzzle draws no chest there.
 
+## 3b. Drawn for TR-17, TR-18 and TR-20 (2026-11-02)
+
+| Placeholder | Where | Proposed asset id | Kind | Clips | Target size (m) | Notes |
+|---|---|---|---|---|---|---|
+| `BROKEN_PLANKS`: two tilted planks | In the channel beyond the gate, until the quest is complete | none (hidden once the bridge is laid) | prop | none | 1.1 x 0.1 x 0.35 each | Sinking planks; can stay procedural |
+| `BRIDGE`: plank deck, two beams, rails and posts | Over the channel, 5.6 m long, 3.2 m wide | `lookout-bridge` | kit-piece | none | 3.2 x 1.1 x 5.6 | **Exactly 3.2 m wide**: the channel's colliders leave that gap and no more. Ground pivot at the centre, long axis along z. The existing `bridge-plank-repaired` could tile it |
+| `LANTERNS`: two posts with glowing lamps | Lookout Point's entrance, x of plus and minus 2.1 | `lookout-lantern` | prop | `Glow` (optional) | 0.3 x 1.9 x 0.3 | Emissive lamp; no real light, to keep the draw budget |
+| `SPYGLASS`: tripod and brass tube | Lookout Point (2.6, -41.6) | `spyglass` | prop | `Glow` (optional) | 0.8 x 1.5 x 1.2 | The replay activity (TR-20). Tube points toward -z, out to sea |
+| Fireflies: one `Points` object, 68 lights | Grove, ruins, Lookout Point | none | effect | none | 0.16 m dots | Decoration; replace only with a better particle, never a model per light |
+| Gate bars lifted by the game | The ruins gate | `ruins-gate` `Open` clip | prop | `Open` | as the gate | When the finished gate lands, its `Open` clip replaces the game-driven lift |
+
 ## 4. Simpler stand-ins also in use
 
 | Stand-in | Where | Wanted |
@@ -103,8 +114,9 @@ The pedestal itself stays the TR-13 `PEDESTAL` placeholder; the puzzle draws no 
 |---|---|---|---|---|---|
 | TR-14 (in use as `treasure-chest`) | `treasure-chest` variants (`-hidden`, `-locked`, `-golden`) | prop | `Open` | as `treasure-chest`, golden 1.25x | The four encounters should look different; the golden one is the finale |
 | TR-14/15 (placeholder in use) | `treasure-key` | collectible | `Idle` (spin, optional) | 0.4 x 0.2 x 0.05, floats at 0.5 | Found on the X in the sand at (31, 0); see 3a |
-| TR-17 | `bridge-plank-repaired` | kit-piece | none | exists | Lays the bridge over the channel |
-| TR-18 | `npc-pip` new clips | character | `Cheer`, `Point` (plus the existing `Idle`, `Talk`, `Wave`) | as now | Reaction on a found treasure; pointing for hints |
+| TR-17 (built, procedural) | `lookout-bridge`, `lookout-lantern` | kit-piece, prop | none | see 3b | The bridge works and is walkable today; a finished model is polish |
+| TR-20 (built, procedural) | `spyglass` | prop | `Glow` (optional) | see 3b | The replay stands here |
+| TR-18 (uses `Talk` and `Wave` today) | `npc-pip` new clips | character | `Cheer`, `Point` (plus the existing `Idle`, `Talk`, `Wave`) | as now | Pip waves for every find; `Cheer` and `Point` would be better |
 
 ## 6. Publishing checklist (per delivered file)
 

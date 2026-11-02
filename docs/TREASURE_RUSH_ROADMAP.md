@@ -28,6 +28,10 @@ challenge suited to their age band and skill, and the chest opens. A keepsake go
 backpack, the open chest stays open on later visits, and a quest-complete screen ends the
 adventure. Administrators manage the content in Django admin.
 
+**Update (2026-11-02):** the reboot's development tasks TR-12 to TR-20 are built on
+`quest/tr.reboot` (sections 17 to 19); only art, two owner decisions and TR-9 remain. Nothing
+has been played in a browser.
+
 This roadmap has its own task ids, **TR-0** to **TR-11**, following the precedent of
 `docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` (SC-n). It does not add a second system beside the
 migration. Where a TR task needs a generic Track A or Track B task, **it is that task**, and
@@ -791,46 +795,26 @@ and the quest stage; nothing is granted twice.
 
 **Native API.** The region list's chest counts leave puzzles out (the cove reports 4).
 
-### Remaining reboot tasks
+### Reboot task status (updated 2026-11-02)
 
-The order follows the brief's stages. Each task is separate so no backend domain change is
-combined with a world change (CLAUDE.md section 19).
+Development completion is kept apart from acceptance. "Unit/API verified" means the Django,
+Vitest and typecheck results recorded in section 20; **no browser has been used**. Every task
+below that touches what a child sees is **pending browser acceptance and owner playtesting**
+(TR-9). Nothing here is accepted.
 
-- **TR-13 Treasure Cove layout: four zones.** Done, above.
-- **TR-14 Four chests and the quest "Pip's Missing Treasure".** Done, above. Was: four `TreasureChest` rows, each
-  with its own challenge specs per band, keepsake, reward rule and world change; the quest with
-  four chest objectives and a final "return to Pip" stage, in the content export. Supersedes
-  TR-11. Depends: TR-13. Open question: TR-11 waited for TR-9's playtest; the reboot brief puts
-  content first. **Decision needed (owner).**
-- **TR-15 The locked chest and its key.** Its shared contract shipped in TR-14 (TR-D22: the
-  pickup route, `required_item`). Left: a finished `treasure-key` model, a pickup admin view
-  that lists which children have found it, and other regions using pickups. Was: a backend
-  domain change: a chest may require an item;
-  a child-scoped pickup route grants the key through the canonical inventory, idempotently; the
-  challenge is refused until the key is owned. **Decision TR-D22 needed:** pickup as a new play
-  route versus a world change the reward rules turn into the item. Depends: TR-14. Risk H.
-- **TR-16 The ruins puzzle.** The first puzzle shipped in TR-14 (TR-D23: a CHOICE challenge on
-  rune stones). Left: puzzle kinds beyond "touch the answer" (ordering stones, matching), a
-  stepping animation and sound for the stones, and a finished pedestal model. Was: the engine
-  never validates answers (ADR-020), so either the puzzle is presentation only and the server
-  challenge stays the learning check, or the puzzle's result is graded by Django. **Decision
-  TR-D23 needed.** Depends: TR-14.
-- **TR-17 Completion and the bridge.** The signal and the achievement shipped in TR-14
-  (`TREASURE_COVE_QUEST_COMPLETE`, the explorer badge). Left: open the gate, lay the bridge and
-  let the child reach Lookout Point from that change. Was: quest completion records a world change; the bridge and
-  the area beyond it appear from that change on every later visit. Needs a check that the
-  region's scenery requirements read Django world changes (today the engine's world state comes
-  from the view's snapshot), and an achievement ("Treasure Cove Explorer") through an existing
-  reward trigger. Depends: TR-14. Risk M.
-- **TR-18 A living cove.** Swaying palms, moving water, floating particles, torches; Pip's idle,
-  talk, reaction and celebration. Lightweight, instanced where possible. Needs an animated Pip
-  model (asset list below). Depends: TR-13.
-- **TR-19 Sound.** TR-D19 left sound out. Short effects (chest open, key pickup, celebration)
-  with a mute control would need a decision on where the volume setting lives. **Decision
-  needed.**
-- **TR-20 Replay.** After completion: one small repeatable activity with no duplicate permanent
-  rewards. Depends: TR-17.
-- **TR-9 (unchanged) End-to-end and playtest** remains the gate for calling any of this a success.
+| Task | Development | Unit/API verified | Still pending |
+|---|---|---|---|
+| TR-12 Child-friendly interaction | Complete | Yes | Browser acceptance, owner playtest, tuning of the aim numbers |
+| TR-13 Four-zone cove | Complete | Yes | Browser acceptance (sizes, colours, tablet draw calls) |
+| TR-14 Four chests, "Pip's Missing Treasure" | Complete | Yes | Browser acceptance, owner playtest |
+| TR-15 Locked chest and key | Complete (section 19) | Yes | A finished `treasure-key` model (art); browser acceptance |
+| TR-16 Ruins puzzle | Complete for the "touch the answer" puzzle; stone animation done (section 19) | Yes | Ordering and matching puzzle kinds (decision TR-D27, proposed); a finished pedestal model (art); sound (TR-19) |
+| TR-17 Completion and the bridge | Complete (section 18) | Yes | Finished bridge and gate models (art); browser acceptance |
+| TR-18 A living cove | Complete with the existing Pip clips (section 19) | Yes | Pip `Cheer` and `Point` clips (art); browser acceptance of the look |
+| TR-19 Sound | Cue hook only (section 19) | Yes | **Blocked on owner decision TR-D26**: the player, the mute control and where the setting lives |
+| TR-20 Replay | Complete (section 18) | Yes | Browser acceptance |
+| TR-11 Second chest and quest chain | Superseded by TR-14 in substance (section 19, "TR-11 evidence") | n/a | **Owner confirmation** that it is closed |
+| TR-9 End-to-end and playtest | **Not started, by owner instruction** | n/a | Everything: a browser journey, a playtest note per age band |
 
 ### Assets to replace with finished artwork
 
@@ -840,3 +824,176 @@ combined with a world change (CLAUDE.md section 19).
 | Gold octahedron (`region-play:beacon:*`) | Closed-chest beacon | A glowing star or shimmer effect |
 | Built box chest (TR-8) | Any chest without a model | `treasure-chest` with an `Open` clip (exists; variants for hidden, locked and final chests) |
 | Green cylinder figure | An NPC without a model | An animated Pip with Idle, Talk, Cheer clips |
+
+## 18. TR-17 and TR-20 as built: the bridge, Lookout Point and the replay (2026-11-02)
+
+**What the child meets.** Talking to Pip after the fourth treasure completes the quest. Django
+records `TREASURE_COVE_QUEST_COMPLETE`; the cove answers on the same visit: the gate's bars rise,
+the sinking planks go, a lamplit bridge is laid across the channel, and a toast says so. A child
+who comes back later finds the bridge already there (the cove is built open from the world
+changes in the region read). Across it is **Lookout Point**: a sand and stone plaza under the gold
+flag, two palms, lanterns, and a spyglass. Looking through the spyglass asks a fresh counting
+question each time; a right answer gets a kind note and "Play again", never a chest or a
+reward.
+
+**Who decides what.**
+
+| Question | Decided by |
+|---|---|
+| Has the child earned the way across? | Django: `TREASURE_COVE_QUEST_COMPLETE` is a world change recorded by the quest's completion rewards |
+| May the child use the spyglass? | Django: `chest_lock` refuses (`409 chest_locked`) until that world change exists. Walking over the bridge is not checked; the lock is on the thing beyond it |
+| Is an answer right? | Django (`grade_answer`), as for every chest |
+| Did a replay pay out? | Django: `submit_chest_answer` returns before any world change, reward or quest step for a `REPLAY` chest |
+| What the cove looks like | The client, from the world changes in the region read (`unlock.unlocked`) or told live (`setUnlocked`) |
+
+**Movement and safety.** The channel's collider is three rectangles (`cove-channel-west`, `-gap`,
+`-east`). The gate and the gap are the only ones opened (`layout.unlock.openColliders`); the sides
+stay, so the bridge (3.2 m wide, exactly the gap) is the only way across and nobody can step off it
+into the water. The deck runs from the gate's threshold to the far bank, so the walkable gap is
+always bridged. Lookout Point lies inside the island bounds, clear of every collider, and the
+bridge can be crossed both ways. `lookoutPoint.engine.test.ts` walks all of this on the real
+collision code: gate and water hold when closed; open live; open on a later visit; back across;
+off the sides; into the sea beyond.
+
+**How it is built.**
+
+- **Layout v4** (`treasure_cove_layout.py`): `UNLOCK` (what opens), the new `BROKEN_PLANKS`,
+  `BRIDGE`, `LANTERNS` and `SPYGLASS` procedural shapes, Lookout sand and plaza, and `AMBIENCE`
+  (section 19). The seed upgrades an existing region's layout once (`layoutVersion`).
+- **Model (migration `regions.0004`).** `ChestPresentation.REPLAY`. `TreasureChest.clean()`
+  refuses a replay with a reward rule or without the encounter it follows
+  (`required_world_change_key`).
+- **Rules (`apps/game_sessions/play.py`).** A replay is never "open"; it issues a new attempt each
+  time, grades it, records skill evidence, and returns `chestOpened: false` with no items. Even a
+  reward rule added later by bypassing `clean()` grants nothing, tested.
+- **Seed (`pips_treasure_seed.py`).** `cove-lookout-spyglass` (sort order 5), locked behind the
+  quest, with a counting challenge for each age band. Created only if absent.
+- **Counts.** A replay is not a chest anyone counts: the region list, the native API and the
+  quest keep reporting four.
+- **Client.** `RegionPlaySceneApi.setUnlocked`; the companion calls it when the region read's
+  world changes include the key for this location, and shows `ReplayDonePanel` for a right
+  answer at a `REPLAY` chest. The hint after the quest points across the bridge.
+
+**Decisions taken (conservative, reversible):**
+
+- **TR-D26 and TR-D27 are in section 19.** Neither is needed for this work.
+- **TR-D28 (taken) The Lookout is gated by a lock, not by a wall of rules.** Whether the child
+  may walk to Lookout Point is the world's geometry (the bridge is laid or not); whether they may
+  do anything there is Django's lock. A client that lays the bridge early gets a nice view and
+  a `409`.
+- **TR-D29 (taken) A replay records skill evidence.** It is practice on skills the cove already
+  teaches. It writes no world change, item, achievement or quest progress.
+
+## 19. TR-15, TR-16, TR-18, TR-19 and TR-11 (2026-11-02)
+
+**TR-15, the locked chest and its key.** The contract shipped in TR-14 (TR-D22). Added here:
+
+- **Pickups are not the cove's alone.** `collect_pickup` and its route take any collectible
+  placement with a `pickup_change_key` in any region; a test proves it in a second region, that
+  its world change is recorded against that region's Place, and that another region's session
+  cannot reach it.
+- **The admin sees counts, not children.** The 3D Area page lists every pickup and chest with how
+  many children have reached it (`apps/regions/activity.py`). No child identifier, name or profile
+  appears (CLAUDE.md sections 2 and 13). A replay shows "repeatable, records nothing".
+- **Not done: a finished `treasure-key` model.** It is an art asset (see
+  `TREASURE_RUSH_ASSET_REQUIREMENTS.md`). The built key remains the fallback by design.
+
+**TR-16, the ruins puzzle.**
+
+- Rune stones sink under the child's touch (0.18 m, half a second) and every stone flashes green
+  for the server's "right" or orange for "try again". Presentation only: Django grades.
+  `prefers-reduced-motion` skips the dip; the toast still says what happened.
+- **Not done: ordering and matching puzzle kinds.** They are a new challenge kind (TR-1 knows
+  `CHOICE` and `NUMBER_INPUT`), a grading rule, and a design the owner has not given.
+  **TR-D27 (Proposed)**: do them only if playtest says "touch the answer" is too thin. Nothing
+  in the shipped cove needs them.
+- **Not done: the finished pedestal model** (art). Sound for the stones is TR-19.
+
+**TR-18, a living cove.**
+
+- **Water** (`cove-channel`, `cove-north-shallows`, `cove-east-shallows`) shimmers: each mesh gets
+  its own clone of the material and the colour drifts a few percent lighter and darker. Shared
+  materials are never touched.
+- **Fireflies**: three clouds (grove, ruins, Lookout Point), 68 lights in a single `Points` draw
+  call, each on its own path, capped at 200 per cloud so a typo cannot reach the GPU.
+- **Pip reacts** with the clips `npc-pip` has: `Talk` when the child talks to him and `Wave` to
+  cheer a find, a pickup, a replay win or the finale. A figure drawn without a model hops
+  instead. No `Cheer` or `Point` clips exist (art), so `Wave` stands in.
+- Palms, flames, flags, the boat, the gem and the new lanterns already moved (TR-13). **All of
+  it holds still under reduced motion.**
+
+**TR-19, sound. Blocked on an owner decision.** No audio exists in the app (TR-D19), and the
+repository has no volume or mute setting to reuse. Where that setting lives is a product
+decision with privacy and parent-control consequences, so it is **not made here**.
+
+- **TR-D26 (Proposed, not accepted) Where the sound setting lives.** Options:
+  (A) a device-local mute in the game HUD, in browser storage, no server state;
+  (B) a per-child setting a parent controls on the profile, enforced in the game;
+  (C) both: a parent-level switch that can force sound off, and a device-local mute under it.
+  **Recommended default: C, with the parent switch defaulting to on and effects synthesised in the
+  browser (no audio files, no voices, nothing recorded, no AI).** A is quick but ignores
+  CLAUDE.md section 2, which gives parents control of voice and microphone; B needs a profile
+  field and parent UI. Short effects only; every effect keeps a text equivalent already on
+  screen (`docs/UX_AND_ACCESSIBILITY.md`).
+- **Done, and independent of the decision:** `soundCues.ts` names the moments (chest opens, key
+  found, stone right or wrong, bridge opens, celebration, replay win), the companion raises them,
+  and nothing is audible until a player registers as the sink. Removing or changing it later
+  costs nothing.
+- **Pending the decision:** the player, the mute control, the setting and its parent UI.
+
+**TR-11, a second chest and quest chain.** Its words: "quest prerequisites exercised end to end
+with admin-authored content only, no code change", dependent on TR-9.
+
+- **Evidence it is superseded in substance.** TR-14 is a quest chain with prerequisites between
+  encounters (`required_world_change_key`, `required_item`), four chests, a key, a puzzle, and a
+  two-stage quest, played end to end through the API in `test_pips_treasure.py` (ordering,
+  locks, leaving and returning, no double rewards).
+- **Evidence it is not identical.** TR-11 asked for *no code change*; TR-14 needed code. The
+  part that stays open is "an administrator can build the next chain without a developer", which
+  is TR-3's region admin, and it waited on TR-9.
+- **Status: superseded by TR-14, proposed.** Owner confirmation is required to close it; it is
+  not recorded as closed here. No duplicate implementation was written.
+
+## 20. Verification and owner playtest (2026-11-02)
+
+**Browser tests were not run, per owner instruction.** No Playwright, Cypress, browser
+automation or visual check was used, and nothing here says the game works in a real browser.
+The engine tests drive the real collision and scene code with a fake renderer, in jsdom.
+
+| Check | Command (from the repo root) | Result |
+|---|---|---|
+| Django: regions, game sessions, quests, inventory | `cd lai && LAI_REQUIRE_POSTGRES=1 ../.venv/bin/python -m pytest -q apps/regions apps/game_sessions apps/quests apps/inventory` (PostgreSQL 16, database `lai_trreboot`) | 335 passed, 2 failed; both failures were stale expectations I then fixed (`test_publish.py` count 19 to 22, a response-key assertion in my own test), and the two files re-ran green (23 passed) |
+| Django: core, education, progression, users, treasure assets | same, `apps/core apps/education apps/progression apps/users apps/assets/tests/test_treasure_rush_assets.py` | 575 passed, 1 failed: `test_tenant_isolation.py::test_the_game_cookie...` was already stale from TR-14; allow-list updated, file re-ran green (32 passed) |
+| Django system checks | `manage.py check`; `manage.py makemigrations --check --dry-run` | No issues; no changes detected |
+| Ruff | `ruff check lai/apps`; `ruff format lai/apps` | Clean |
+| Vitest | `cd react && node ../node_modules/vitest/vitest.mjs run src/features/region-play src/features/island-map src/api/play src/features/content-export src/test` | 131 files, 1,534 tests: 1,532 passed, 2 failed. Both fail the same way on the untouched branch (`goldenVectors.test.ts`, `assetLoader.test.ts`), most likely because dependencies were installed without the lockfile (`npm ci` refused it) |
+| Typecheck | `cd react && tsc -b` | Clean |
+| Prettier | `prettier --check` on every changed `.ts`, `.tsx`, `.md`, `.json` | Clean |
+| oxlint | `oxlint react/src` | 0 errors; warnings only, including the existing baseline |
+| Production build | `cd react && vite build` | Passes |
+
+Not run, on purpose or for lack of means: Playwright and every browser test; the full Vitest and
+pytest suites (only the areas this work touches, plus their neighbours); `content:check` and
+`golden:check` (the golden failure above is baseline); deployment of any kind.
+
+**Commits on `quest/tr.reboot` for this work:** `8ec45cc` (backend), `076292c` (frontend), and the
+documentation commit that follows them.
+
+**Status words used above.** *Development complete* means built and unit-tested. *Unit/API
+verified* means the results in this table. Neither means accepted. **TR-9, browser acceptance and
+final owner approval are not done.** The owner playtest checklist is
+`docs/TREASURE_RUSH_PLAYTEST_CHECKLIST.md`.
+
+### Genuine blockers and open items
+
+- **TR-D26 (sound).** Owner decision: where the setting lives. Recommended default is in
+  section 19.
+- **TR-11.** Owner confirmation that TR-14 closes it.
+- **TR-D27 (ordering and matching puzzles).** Owner decision, only if playtest wants more than
+  "touch the answer".
+- **Art:** `treasure-key`, the pedestal, the bridge and lantern models, an animated Pip with
+  `Cheer` and `Point`. Everything has a working fallback.
+- **TR-9.** The browser journey and a playtest note per age band.
+- **Deployment:** the migration `regions.0004`, `seed_treasure_rush` (layout v4, the spyglass)
+  and `publish_treasure_rush` are needed wherever the cove already exists. Nothing was deployed.
+

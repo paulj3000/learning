@@ -252,6 +252,32 @@ again after the quest is done. Not an NPC here: `404`.
 **Accepting a quest** now also walks it forward at once, so a chest opened before accepting
 counts immediately.
 
+## Lookout Point and the replay activity (TR-17, TR-20)
+
+Additive again. A chest's `presentation` may now also be **`REPLAY`** (the Lookout spyglass). A
+replay is an ordinary entry in the bootstrap's `chests`, with these differences, all decided by
+the server:
+
+- It is **never open**: `isOpen` stays `false` and it is not counted in `chestsTotal` or
+  `chestsOpened` (the region list, the native API and the quest all keep reporting the real
+  chests).
+- It is **locked behind an earlier encounter** (`required_world_change_key`, here the quest's
+  completion, `TREASURE_COVE_QUEST_COMPLETE`): `lockReason: "PROGRESS"` and `409 chest_locked`
+  on `POST .../chests/{entityId}/challenge/` until the child has it. The unlock persists, like
+  any world change, and is the same one `worldChanges` already reports, which is how the client
+  knows to lay the bridge.
+- **`POST .../chests/{entityId}/challenge/` issues a new challenge every time** once an attempt has
+  been answered (there is no `chest_already_open`). Asking while one is outstanding returns that
+  one (`200`), as for any chest.
+- **`POST attempts/{attemptId}/answer/`** grades as usual and records the attempt and its skill
+  evidence, then stops: a right answer returns `chestOpened: false`, `newItems: []`,
+  `rewardMessage: null`, `questUpdates: []` and `completionRewards: []`. Nothing permanent is
+  written, so repeating the activity cannot award anything twice. A wrong answer is the usual
+  `correct: false, canRetry: true`; a replayed answer is `409 attempt_already_answered`.
+
+A client built before TR-20 sees an unknown `presentation`; the TypeScript reader of this
+repository accepts `REPLAY` and refuses nothing else.
+
 ## Islands, Places and Adventure launch points (LAI-0806, ADR-041)
 
 **Region bootstrap: `launchPoints` (additive).** The objects in this 3D Area that start one of its

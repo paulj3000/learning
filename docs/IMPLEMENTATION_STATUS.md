@@ -11933,3 +11933,30 @@ Specification `docs/platform/RECENT_SIGN_IN.md`; decision ADR-043 (Proposed, spe
   this session); the setting defaults safely.
 - **Still blocked:** account deletion and consent changes (`SensitiveActionBlocked`, no
   specification yet); Django Admin has no recent sign-in step for its own asset actions.
+
+## Treasure Rush reboot: TR-15 to TR-20, the bridge, Lookout Point and the replay (2026-11-02, branch `quest/tr.reboot`)
+
+**Status: development complete, unit and API verified, awaiting owner browser playtest. Browser
+tests were not run, per owner instruction. TR-9, browser acceptance and final approval are not
+done. Nothing is deployed and nothing was merged to main.**
+
+Details, decisions and the full verification table: `docs/TREASURE_RUSH_ROADMAP.md` sections 18
+to 20. Owner checklist: `docs/TREASURE_RUSH_PLAYTEST_CHECKLIST.md`.
+
+| Task | Development | Unit/API verified | Blocked or pending |
+|---|---|---|---|
+| TR-9 playtest | Not started (by instruction) | n/a | Browser journey, playtest per age band, owner |
+| TR-11 | Superseded by TR-14 (proposed) | n/a | Owner confirmation |
+| TR-15 key and pickups | Complete | Yes | `treasure-key` model (art), browser |
+| TR-16 ruins puzzle | Complete for touch-the-answer | Yes | Ordering and matching (TR-D27), pedestal art, sound |
+| TR-17 bridge and Lookout Point | Complete | Yes | Finished models (art), browser |
+| TR-18 living cove | Complete with `Talk` and `Wave` | Yes | `Cheer` and `Point` clips (art), browser |
+| TR-19 sound | Cue hook only | Yes | **Owner decision TR-D26** |
+| TR-20 replay | Complete | Yes | Browser |
+
+- **Files created:** `lai/apps/regions/activity.py`, `lai/apps/regions/migrations/0004_tr20_replay_presentation.py`, `lai/apps/game_sessions/tests/test_lookout_replay.py`, `react/.../regionPlay/{livingCove.ts, livingCove.test.ts, lookoutPoint.engine.test.ts, ui/ReplayDonePanel.tsx}`, `react/src/features/region-play/soundCues.ts` and test, `docs/TREASURE_RUSH_PLAYTEST_CHECKLIST.md`.
+- **Files changed:** the cove layout (v4) and its JSON snapshot, `regions` model, admin, seed and tests, `play.py`, `discovery.py`, the region-play config, layout reader, manifest builder, UI rules, scene extension, procedural shapes and companion, the API types and parser, and the docs and tracker.
+- **Verified (unit and API only):** Django 335 plus 575 passed with the stale expectations fixed and re-run; Vitest 1,532 of 1,534 (two baseline failures unrelated to this work); `tsc -b`, Prettier, Ruff, `manage.py check`, `makemigrations --check`, oxlint (0 errors) and `vite build` pass.
+- **Remaining risks:** nobody has seen the cove, so sizes, colours, frame rate on a tablet, the bridge's look and the pacing are unknown. A deployed environment needs `migrate`, `seed_treasure_rush` and `publish_treasure_rush`. Dependencies were installed without the lockfile because `npm ci` refused it, which is the likely cause of the two baseline Vitest failures.
+- **Environment note:** other Claude sessions shared this machine's PostgreSQL container; this work used its own test database name (`lai_trreboot`) to avoid collisions.
+
