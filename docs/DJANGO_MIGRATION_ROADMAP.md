@@ -434,9 +434,9 @@ stack, `LaiAssetStorage-<env>`, which synthesizes for `dev` and `prod` with zero
 managed policy, bootstrapless). The shared environment config for later stacks is not built, so
 LAI-1001 stays open.*
 **LAI-1002 Network, RDS PostgreSQL, S3.** Depends: 1001. Risk M. Acceptance: private subnets,
-encrypted RDS, deletion protection on, backups on; no public DB. *The asset manager's S3 bucket
+encrypted RDS, deletion protection on, backups on; no public DB. *The asset library's S3 bucket
 and its Django policy are defined and synthesized (`infra/lib/assetStorageStack.ts`,
-`docs/ASSET_MANAGER.md` section 12), not deployed. Network and RDS are not started, so LAI-1002
+`docs/ASSET_LIBRARY.md` section 12), not deployed. Network and RDS are not started, so LAI-1002
 stays open. 2026-10-31 (ADR-042): the private child photo bucket `LaiChildPhotos-<env>` and its
 Django policy are defined and synthesized as a separate stack
 (`infra/lib/childPhotoStorageStack.ts`, `docs/platform/CHILD_PHOTO_STORAGE.md`), not deployed.
@@ -514,7 +514,7 @@ and read-write-frozen for a defined window (suggest 14 days).
 **LAI-1204 Retire legacy Amplify S3 storage (added 2026-10-31, ADR-042).** Risk H.
 **APPROVAL: explicit, final, before any deletion.**
 Depends:
-- the asset manager's Amplify import verified (`import_assets --from-amplify`, AM-8, run against
+- the asset library's Amplify import verified (`import_assets --from-amplify`, AM-8, run against
   production);
 - LAI-1103d;
 - LAI-1203 accepted;
@@ -538,7 +538,7 @@ Acceptance:
 ### Phase 13 - Retire Amplify
 
 **LAI-1301 Remove Amplify from the frontend.** Depends: 1203 + stability window; for storage,
-also 0904 deployed, 1103d (photos migrated), AM-15 and AM-16 (assets on Django), 1002. Risk M.
+also 0904 deployed, 1103d (photos migrated), AM-16 (assets on Django; AM-15 superseded by ADR-044), 1002. Risk M.
 Acceptance: `aws-amplify` data/storage code and `amplify_outputs.json` handling removed;
 Cognito configured by Vite env; tests green. Storage specifically (ADR-042 amendment, 2026-11-01):
 no Amplify Storage upload, delete or download-link call and no `aws-amplify/storage` import left

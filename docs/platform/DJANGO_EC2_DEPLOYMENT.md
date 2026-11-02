@@ -3,8 +3,8 @@
 **State (2026-10-30): built and tested in the repository, not provisioned.** No AWS resource
 exists for it yet. Creating the stacks, the first release and every production release are
 owner-approved steps (ADR-019 G1, G7). The React app stays on Amplify Hosting
-(`docs/platform/AMPLIFY_HOSTING.md`); the asset manager keeps its S3 storage
-(`docs/ASSET_MANAGER.md` sections 12 and 19).
+(`docs/platform/AMPLIFY_HOSTING.md`); the asset library keeps its S3 storage
+(`docs/ASSET_LIBRARY.md` sections 12 and 19).
 
 ## 1. What happens on a merge to `main`
 
@@ -282,10 +282,10 @@ Bootstrap tasks are never run by a deploy. `migrate` is also available as a task
 ### 5.10 Publish the Treasure Rush models (Django Admin)
 
 Sign in at `https://api.<domain>/admin/` with the account from 5.9, then follow
-`docs/ASSET_MANAGER.md` section 19.2: **Asset manager, Asset versions**, select the imported
+`docs/ASSET_LIBRARY.md` section 19.2: **Asset library, Asset versions**, select the imported
 `npc-pip`, `treasure-chest` and `ground-tile` versions, action **Publish selected versions**. The
 first published version of each becomes its default. Publishing the region itself is still the
-open TR-3 blocker (`docs/ASSET_MANAGER.md` 19.3 step 5).
+open TR-3 blocker (`docs/ASSET_LIBRARY.md` 19.3 step 5).
 
 ### 5.11 React (separate owner decision)
 

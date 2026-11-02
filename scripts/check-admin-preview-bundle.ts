@@ -1,5 +1,5 @@
 /**
- * Admin preview bundle freshness check (LAI-2200 AM-10, `docs/ASSET_MANAGER.md` section 17).
+ * Admin preview bundle freshness check (LAI-2200 AM-10, `docs/ASSET_LIBRARY.md` section 17).
  *
  * The Django image has no Node step, so the Three.js preview viewer is committed as a built file,
  * `lai/apps/assets/static/assets/admin/asset-preview.js`. This rebuilds it from

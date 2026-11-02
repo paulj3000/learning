@@ -945,7 +945,7 @@ which location uses which asset comes from the manifests.
 - `src/features/assets/assetService.ts`: the published-slug lookup is now
   `PUBLISHED_ASSET_RESOLVER`, and `resolveModelUrl` is built on it.
   **Deliberately not wired into the child's scene**: `Asset` is
-  Admins-only until the asset manager's Phase 5 adds a published-only read
+  Admins-only until the asset library's Phase 5 adds a published-only read
   path for parents (`docs/android/ASSET_MANAGEMENT.md`, open decision), so
   wiring it now would add a lookup that always fails to every scene load.
 - `WorldExtension.assetIds(config)` (new). `castle-tale` declares its state
@@ -1254,7 +1254,7 @@ both fixed:
   `npm install --package-lock-only` in a standalone copy of the repo and
   committing the result would bring the lockfile back in step.
 
-## Model Asset Manager — Phases 1-2 complete (foundation and upload)
+## Model Asset Library — Phases 1-2 complete (foundation and upload)
 
 Spec: `docs/android/ASSET_MANAGEMENT.md`. Decision: ADR-030.
 
@@ -2576,12 +2576,12 @@ the first release and bootstrap tasks, publishing the three models in Django Adm
 stay open until they pass on AWS. Nothing on AWS, the GitHub-hosted workflow run, OIDC, SSM,
 awslogs or RDS TLS has been exercised.
 
-## Treasure Rush - TR-7a and TR-10: Treasure Cove's models come from the Django asset manager; AWS storage defined, not deployed
+## Treasure Rush - TR-7a and TR-10: Treasure Cove's models come from the Django asset library; AWS storage defined, not deployed
 
 **Done (2026-10-30), merged into main.** With `VITE_BACKEND=django`, Treasure Cove resolves its
-models (`npc-pip`, `treasure-chest`, `ground-tile`) through the asset manager: a version an
+models (`npc-pip`, `treasure-chest`, `ground-tile`) through the asset library: a version an
 administrator publishes and makes the default in Django Admin is what the child sees on the next
-visit, with no React rebuild. Details: `docs/ASSET_MANAGER.md` sections 12, 15 and 19;
+visit, with no React rebuild. Details: `docs/ASSET_LIBRARY.md` sections 12, 15 and 19;
 `docs/TREASURE_RUSH_ROADMAP.md` section 16.
 
 - **TR-7a (generic engine).** A model that cannot be resolved or loaded leaves a sized primitive
@@ -11018,12 +11018,12 @@ may ship as its own release with static files on S3 behind CloudFront.
 - **Not done (needs approval):** the S3 bucket, CloudFront distribution, WAF rule, ALB and the
   rest of the hosting in `docs/DJANGO_TARGET_ARCHITECTURE.md` 11a.
 
-## LAI-2200: shared Django asset manager, foundation and admin preview (2026-10-25, ADR-035 Accepted)
+## LAI-2200: shared Django asset library, foundation and admin preview (2026-10-25, ADR-035 Accepted)
 
 Branch `feature/django-asset-manager`, from `origin/main` `f279299`. **Merged into `main` on
-2026-10-25** after merge verification (results: `docs/ASSET_MANAGER.md` section 18). It is not
+2026-10-25** after merge verification (results: `docs/ASSET_LIBRARY.md` section 18). It is not
 deployed as an asset service: there is no S3 bucket, IAM policy or CloudFront yet, and no scene uses
-the resolver. Detail: `docs/ASSET_MANAGER.md`.
+the resolver. Detail: `docs/ASSET_LIBRARY.md`.
 Subtasks AM-1 to AM-10 (ids of their own: LAI-2201 to 2208 are the Phase 22 world conversions).
 
 - **Done:**
@@ -11040,7 +11040,7 @@ Subtasks AM-1 to AM-10 (ids of their own: LAI-2201 to 2208 are the Phase 22 worl
   - AM-7: `djangoAssetResolver.ts` for the LAI-2106 loader, with bundled fallback.
   - AM-8: `import_assets` (bundled and Amplify sources, dry run, idempotent).
   - AM-9: acceptance and security tests, docs.
-  - AM-10: Django Admin 3D preview (`docs/ASSET_MANAGER.md` section 17). It has a preview page per
+  - AM-10: Django Admin 3D preview (`docs/ASSET_LIBRARY.md` section 17). It has a preview page per
     version, linked from the version list, the version page and the definition page (default and
     inline). The plain-TypeScript Three.js viewer (`react/src/features/assets/preview/`) supports
     GLB and self-contained glTF, orbit, pan, zoom, reset, fit, automatic framing, responsive
@@ -11068,7 +11068,7 @@ Subtasks AM-1 to AM-10 (ids of their own: LAI-2201 to 2208 are the Phase 22 worl
   all pass; Playwright e2e 7 passed. A browser check of the admin preview passed 24 of 24 in
   headless Chromium with software WebGL. The new `npm run admin-preview:check` passes and is in
   CI. Ruff and Prettier are clean for this work; three failures that `main` already had remain
-  (`docs/ASSET_MANAGER.md` section 18).
+  (`docs/ASSET_LIBRARY.md` section 18).
   Fixes made during verification: the preview checksum is now a 1 MB-chunk streaming check with
   a streamed response (bounded memory); the branch's Ruff and Prettier issues are fixed; and the
   generated bundle and Django templates are excluded from Prettier, the bundle also from oxlint.
@@ -11276,7 +11276,7 @@ manual AWS deployment was made. No AWS resource, deployed configuration or produ
   `AdminPasswordBackend` alone. `IsVerifiedPrincipal` accepts only a `VerifiedToken`.
 - **Django kept.** Cognito JWT verification (signature, issuer, expiry, `token_use`, client id),
   `sub` to `ParentAccount` mapping and `POST me/` onboarding, child scoping, Django Admin staff
-  sign-in and its admin-scoped cookies, the asset manager, Treasure Rush, rewards, inventory and
+  sign-in and its admin-scoped cookies, the asset library, Treasure Rush, rewards, inventory and
   progress, and everything from LAI-CHILD-001 (`PATCH me/`, `ParentRecord`, read-only audited
   admin, `import_amplify_profiles`).
 - **React removed.** `VITE_AUTH_PROVIDER` and `api/authMode.ts`, `api/session.ts`,
@@ -11471,7 +11471,7 @@ instruction. Not pushed.
   game assets and child photos use separate S3 buckets. No deployment, migration, deletion, merge
   or push was approved, and none was done.
 - **Reviewed and kept.**
-  - `LaiAssetStorage-<env>` and the asset manager (storage adapter, publication, resolver,
+  - `LaiAssetStorage-<env>` and the asset library (storage adapter, publication, resolver,
     Treasure Rush loading) are unchanged. The `LaiAssetStorage-prod` template is identical to
     `main`.
   - The Amplify bucket and everything under `amplify/` are unchanged.
@@ -11502,7 +11502,7 @@ instruction. Not pushed.
   - ADR-042 and `docs/platform/CHILD_PHOTO_STORAGE.md`.
   - Roadmap: LAI-0904 revised, LAI-0905 added, LAI-1002 and LAI-1103 updated, LAI-1204 added.
     LAI-1302 now depends on LAI-1204, because Amplify storage auto-deletes objects with its stack.
-  - AM-13 added. The tracker, IAM audit, EC2 runbook, `infra/README.md`, `ASSET_MANAGER.md`,
+  - AM-13 added. The tracker, IAM audit, EC2 runbook, `infra/README.md`, `ASSET_LIBRARY.md`,
     `ARCHITECTURE.md` and `DATA_MODEL.md` are updated.
 - **Tests (development checks, 2026-10-31).**
   - Vitest `infra/lib/`: 43 passed (11 new). `tsc -p infra/tsconfig.json` is clean, and
@@ -11811,3 +11811,39 @@ Specification `docs/platform/RECENT_SIGN_IN.md`; decision ADR-043 (Proposed, spe
   this session); the setting defaults safely.
 - **Still blocked:** account deletion and consent changes (`SensitiveActionBlocked`, no
   specification yet); Django Admin has no recent sign-in step for its own asset actions.
+
+
+## Asset Library: Django Admin ownership, media families, lifecycle completion (2026-11-02, branch `feature/asset-manager`, not merged, not pushed, nothing deployed)
+
+Acceptance implemented: ADR-044 (Django Admin owns staff asset authoring; React consumes
+published assets only); AM-13 (images and audio); AM-17 (lifecycle completion); AM-14 and AM-15
+removed. The product feature formerly called the Asset Manager is now the Asset Library.
+
+| Task | Status | Evidence | Not done |
+|---|---|---|---|
+| ADR-044 | Accepted (owner-directed) | `docs/DECISIONS.md`, `docs/ARCHITECTURE.md` | n/a |
+| AM-13 non-model kinds | Development done | pytest `test_media_validation.py`, `test_media_library.py`; Vitest `mediaAssets.test.ts`, `djangoAssetResolver.test.ts`; infra Vitest policy test | Browser, live S3, deployed IAM |
+| AM-14 admin REST API | Superseded, removed | `test_no_administrator_api_routes_exist` | n/a |
+| AM-15 React staff pages | Superseded, removed | Vitest `assetLibraryRemoval.test.ts` | n/a |
+| AM-16 deployed verification | **Not started, pending** | n/a | Needs LAI-1002/1004, deployed bucket, browser and manual acceptance |
+| AM-17 lifecycle completion | Development done | pytest `test_media_library.py` | Browser pass of the admin screens |
+| LAI-0209 | Asset scope retired; child deletion guard unchanged | `docs/platform/RECENT_SIGN_IN.md` | Owner acceptance and live Cognito gate still open |
+
+**New:** `apps/assets/formats.py` (format and kind table), `validation_media.py` (PNG, JPEG, WebP,
+MP3, WAV, Ogg validators with no new dependency), migrations `assets/0002` and `catalog/0005`
+(formats, categories), `validate_upload`, per-family key directories and limits, rollback,
+republish, reactivate, verify, admin-history entries, image thumbnails and audio players in
+Django Admin through a hardened media route, resolver `family` and `media` fields, hardened
+file-route headers, infra IAM on the three key prefixes.
+
+**Removed:** `apps/assets/admin_api.py` and its routes; React staff asset pages, upload wizard,
+Amplify upload helpers, admin asset hub and nav entry, `djangoAssetAdmin` client.
+
+**Kept:** Three.js loaders, the Django resolver adapter, the bundled fallback, Treasure Rush
+loading, the Django Admin 3D preview bundle, the Amplify catalog model picker (until LAI-1301).
+
+**Risks and TODOs:** the Django Admin 3D preview bundle must still be rebuilt from
+`react/src/features/assets/preview/` if that source changes; Django Admin has no recent sign-in
+step; no browser, AWS or deployed checks were run (excluded by instruction); associations of
+specific adventure or quest fields to texture or sound ids are wired by the features that need
+them (docs section 21.9).

@@ -32,7 +32,7 @@ before touching AWS.
 - [x] **LAI-0205** DRF conventions (depends: 0204). DONE locally: error contract, exception handler, request IDs, access log, deny by default. Two roadmap criteria deliberately not done here: cursor pagination (moves to the first list endpoint, LAI-0502) and OpenAPI generation (LAI-0207)
 - [x] **LAI-0208** Privacy review of server-side logging (application layer) (depends: 0205). DONE locally (ADR-025). Deployed logging remains open as gate G10 (LAI-0210)
 - [ ] **LAI-0210** Deployed logging verification: server and proxy access logs, load balancer, CDN, CloudWatch, PostgreSQL server logs, monitoring (gate G10). Required before production; needs the infrastructure to exist (depends: 1004)
-- [ ] **LAI-0209** Revocation-aware verification and recent-authentication check for sensitive actions (ADR-024 A3). Specify, implement, test. Blocks account/child deletion (0602), consent changes (0308), and privileged admin mutations (0404; the asset administrator API, AM-14) (depends: 0402). 2026-11-01 on `feature/lai-0209-recent-auth`: specified (`docs/platform/RECENT_SIGN_IN.md`, ADR-043 proposed), implemented and unit-tested (pytest, Vitest): `RequiresRecentAuthentication` (Cognito `auth_time` within 300 s, `origin_jti` session anchor so refresh cannot reset it, Cognito `GetUser` revocation check failing closed; `403 recent_auth_required`), React re-authentication dialog. Open: owner acceptance of ADR-043, live Cognito gate L1 to L6, browser verification, merge. Account deletion and consent changes still use `SensitiveActionBlocked`
+- [ ] **LAI-0209** Revocation-aware verification and recent-authentication check for sensitive actions (ADR-024 A3). Specify, implement, test. Asset-mutation scope retired 2026-11-02 (ADR-044); still blocks account/child deletion (0602), consent changes (0308), and privileged admin mutations (0404; the asset administrator API, AM-14) (depends: 0402). 2026-11-01 on `feature/lai-0209-recent-auth`: specified (`docs/platform/RECENT_SIGN_IN.md`, ADR-043 proposed), implemented and unit-tested (pytest, Vitest): `RequiresRecentAuthentication` (Cognito `auth_time` within 300 s, `origin_jti` session anchor so refresh cannot reset it, Cognito `GetUser` revocation check failing closed; `403 recent_auth_required`), React re-authentication dialog. Open: owner acceptance of ADR-043, live Cognito gate L1 to L6, browser verification, merge. Account deletion and consent changes still use `SensitiveActionBlocked`
 - [ ] **LAI-0207** Committed OpenAPI schema generation (split from LAI-0205; needs a recorded dependency decision for PyYAML and uritemplate) (depends: 0205)
 - [x] **LAI-0206** Python CI job (carries LAI-0202's deferred CI criterion). DONE locally; REMOTE VERIFICATION PENDING until the first GitHub-hosted run succeeds (depends: 0204)
 
@@ -129,7 +129,7 @@ before touching AWS.
 
 ## Phase 13 — Retire Amplify
 
-- [ ] **LAI-1301** Remove Amplify from the frontend (depends: 1203 + stability window; storage parts also 0904 deployed, 1103d photos migrated, AM-15 and AM-16 assets on Django, 1002). Acceptance (ADR-042 amendment), after production cutover and verified migration:
+- [ ] **LAI-1301** Remove Amplify from the frontend (depends: 1203 + stability window; storage parts also 0904 deployed, 1103d photos migrated, AM-16 assets on Django (AM-15 superseded by ADR-044), 1002). Acceptance (ADR-042 amendment), after production cutover and verified migration:
   - No Amplify Storage uploads, deletes or download-link generation remain (`features/child-profile/avatarPhoto.ts`, `features/child-profile/deletion.ts`, `features/assets/modelUpload.ts`, `features/assets/assetService.ts`), and no `aws-amplify/storage` import remains anywhere in `react/`.
   - The Amplify branches of the profile store and asset pages (`amplifyProfiles.ts`, `routes/AdminModelAssets.tsx`, `routes/AdminNewModelAsset.tsx`, `features/admin/catalogApi.ts` model picker) are gone.
   - The browser-side storage grants are removed: `amplify/storage/resource.ts` access rules for `child-photos/{entity_id}/*` and `assets/*`, and the Cognito identity pool role permissions they generate; obsolete storage configuration in `amplify_outputs.json` and Vite env is gone.
@@ -173,10 +173,10 @@ before touching AWS.
 - [ ] **LAI-2304** Phaser dependency removal (APPROVAL) (depends: 2201 to 2208, 2301, 2302, 2303)
 - [ ] **LAI-2305** Final Three.js-only verification (depends: 2304)
 
-# LAI-2200 Shared Django Asset Manager (`docs/ASSET_MANAGER.md`, ADR-035)
+# LAI-2200 Shared Django Asset Library (`docs/ASSET_LIBRARY.md`, ADR-035)
 
 Platform workstream. AM-1 to AM-10 (the foundation and admin preview) were merged into `main` on
-2026-10-25 after merge verification (`docs/ASSET_MANAGER.md` section 18). It is not deployed as an
+2026-10-25 after merge verification (`docs/ASSET_LIBRARY.md` section 18). It is not deployed as an
 asset service until AM-11 and LAI-1002 provide the infrastructure. Subtasks use their own ids
 (AM-n) because LAI-2201 to LAI-2208 are the Phase 22 world conversions.
 
@@ -191,10 +191,11 @@ asset service until AM-11 and LAI-1002 provide the infrastructure. Subtasks use 
 - [x] **AM-9** Security and integration tests, documentation (depends: AM-5 to AM-8)
 - [x] **AM-10** Admin 3D model preview (depends: AM-5). Unit-tested and browser-checked (headless Chromium, software WebGL)
 - [ ] **AM-11** Signed CloudFront delivery (APPROVAL: AWS) (depends: AM-6, LAI-1002, LAI-1005)
-- [ ] **AM-13** Non-model asset kinds (textures, images and sprites, audio, animation clips): validation, key families and matching IAM prefixes in `LaiAssetStorage-<env>` (depends: AM-4; ADR-042 keeps them in the asset bucket, never the photo bucket)
-- [ ] **AM-14** Django asset manager upload/delete API (`/api/v1/admin/assets/`, ADR-042 amendment) (depends: AM-4, AM-5; LAI-0209 for mutations). 2026-11-01 on `feature/lai-django-asset-storage`: list, detail, create definition, upload, publish, default, retire, delete unpublished; Cognito `Admins` per request (ADR-024 A4). Implemented and pytest-covered; every mutation answers `sensitive_action_unavailable` until LAI-0209. 2026-11-01 on `feature/lai-0209-recent-auth`: mutations enabled for administrators with a recent sign-in (`403 permission_denied` for non-administrators, `403 recent_auth_required` for a stale administrator). Open: LAI-0209 live gate and merge, live S3 (AM-16)
-- [ ] **AM-15** React asset manager migration from Amplify Storage to the Django API (depends: AM-14). 2026-11-01 on the same branch: Django-mode list, add and per-asset pages with upload progress, retry-safe add, findings; Amplify pages unchanged for builds without the Django API. Vitest only; not checked in a browser. 2026-11-01 on `feature/lai-0209-recent-auth`: every change runs through the re-authentication dialog, keeping the form and chosen file. Open: browser acceptance, LAI-0209 live gate and merge
+- [x] **AM-13** Non-model asset kinds (textures, images and sprites, audio): validation by content, key families `assets/images/` and `assets/audio/` with matching IAM prefixes, Django Admin previews, resolver `family` and `media` fields, Three.js texture and sound helpers (depends: AM-4; ADR-042, ADR-044). DEVELOPMENT DONE 2026-11-02 on `feature/asset-manager`, unit-tested (pytest `test_media_validation.py`, `test_media_library.py`; Vitest `mediaAssets.test.ts`). Not checked in a browser; the asset bucket and IAM policy are synthesized, not deployed (AM-16).
+- [x] **AM-14** SUPERSEDED 2026-11-02 by ADR-044: the administrator asset REST API was removed. Staff use Django Admin. History: built 2026-11-01 on `feature/lai-django-asset-storage`.
+- [x] **AM-15** SUPERSEDED 2026-11-02 by ADR-044: the React staff asset pages, Amplify upload wizard and admin asset hub were removed. Reusable loaders and the Django resolver adapter stay.
 - [ ] **AM-16** End-to-end asset publishing and delivery verification on the deployed dev environment: upload, validate, publish, resolve in a child scene (Treasure Cove), retire stops new fetches, nothing public (depends: AM-14, AM-15, LAI-0209, LAI-1002 asset bucket deployed, LAI-1004 Django on dev). 2026-11-01: the LAI-0209 code dependency is implemented on its branch; still blocked by deployment (LAI-1002, LAI-1004) and LAI-0209's live acceptance
+- [x] **AM-17** Django Admin lifecycle completion (ADR-044): rollback (republishing a retired version after re-verification), asset reactivation, stored-file verification, admin-history audit entries, image thumbnails and audio players, hardened media route. DEVELOPMENT DONE 2026-11-02, unit-tested; not browser-verified.
 
 # Treasure Rush (`docs/TREASURE_RUSH_ROADMAP.md`)
 

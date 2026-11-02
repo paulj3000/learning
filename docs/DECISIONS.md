@@ -56,15 +56,16 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-032 | Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-025 on `origin/main` |
 | ADR-033 | One Django backbone: Treasure Rush runs on the canonical catalog and progress models; play-region layouts are seed-authored until LAI-0805 | Accepted | Integration (POST-MERGE-03) |  |
 | ADR-034 | Django Admin is enabled with local staff sign-in, separate from Cognito; it ships as a gunicorn and WhiteNoise container | Accepted | Main line (LAI-0404) | Amends ADR-024 A4 for Django Admin only; resolves TR-D5 |
-| ADR-035 | The shared asset manager versions binaries on the canonical ContentAsset identity, with private storage and signed delivery | Accepted | Feature branch (LAI-2200) | Accepted 2026-10-25. Amends ADR-034 item 3 (Django permissions and groups); builds on ADR-030 and ADR-033. Amended by AM-10 (staff-only admin preview route) |
+| ADR-035 | The shared asset library versions binaries on the canonical ContentAsset identity, with private storage and signed delivery | Accepted | Feature branch (LAI-2200) | Accepted 2026-10-25. Amends ADR-034 item 3 (Django permissions and groups); builds on ADR-030 and ADR-033. Amended by AM-10 (staff-only admin preview route) |
 | ADR-036 | Native Android uses the Django API with Cognito bearer tokens; the game-only WebView uses a ticket-redeemed, child- and region-scoped game session cookie | Proposed | Feature branch (LAI-ANDROID-API-001) | Implemented 2026-10-25 at the Django API boundary; owner acceptance pending. Builds on ADR-024 and ADR-033; does not change ADR-034 |
 | ADR-037 | The Django backend is released to one EC2 instance per environment from GitHub Actions through ECR and SSM, with GitHub OIDC and no stored AWS keys | Accepted | Feature branch (feature/aws-ec2-auto-deployment) | Owner-directed 2026-10-30 (LAI-1003, LAI-1004, LAI-1006). Repository side only: provisioning and every deploy stay owner-approved (ADR-019 G1, G7). Prod on EC2 is the initial step; ECS Fargate (LAI-1007) stays the production candidate |
 | ADR-038 | Environment-selectable API authentication: Cognito in AWS, local Django sign-in for development, one Django user and authorization model | Superseded by ADR-040 | Main line (merged 2026-10-31, `beebb6a`) | Superseded 2026-10-31 by ADR-040 (LAI-AUTH-ROLLBACK, owner-directed). Owner-directed 2026-10-30 (LAI-AUTH-DUAL). Amends ADR-024 Accepted items 1 and 2 for `AUTH_PROVIDER=django` only; builds on ADR-034 (the admin session stays separate). AWS environments are unchanged |
 | ADR-039 | Django is the authority for parent and child profiles in every build with the Django API; Amplify profiles only until the controlled import and cutover; read-only audited Django Admin inspection | Accepted | Main line (merged 2026-10-31) | Owner-directed 2026-10-31 (LAI-CHILD-001). Amends ADR-034 and ADR-024 A4 for read-only, permission-gated, audited profile inspection in Django Admin only. Hard deletion stays blocked by LAI-0209. No production data is moved |
 | ADR-040 | Cognito is the sole authentication provider for application users in every environment; Django authorizes, and native Django authentication serves Django Admin staff only | Accepted | Main line (LAI-AUTH-ROLLBACK) | Owner-directed 2026-10-31. Supersedes ADR-038; restores ADR-024 items 1 and 2 everywhere; keeps ADR-034 (Django Admin) and ADR-039 (Django profile authority) |
 | ADR-041 | Islands, Places and 3D Areas: one optional 3D Area per Place, and Adventures launched from objects in it | Accepted | Feature branch (LAI-0806) | Owner-approved decisions A to E, 2026-10-31. Builds on ADR-032 and ADR-033; leaves LAI-0805 (spatial layout administration) open |
-| ADR-042 | Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset manager owns the asset bucket, and the Amplify bucket stays untouched until retirement | Accepted | Feature branch (LAI-0904) | Owner-accepted 2026-10-31 for code and infrastructure definitions only; no deployment, migration or deletion approved. Amended 2026-11-01: Django is the control plane for both buckets; asset mutations through Django APIs, blocked until LAI-0209 (AM-14 to AM-16). Builds on ADR-035 (asset storage) and ADR-039 (Django profile authority) |
-| ADR-043 | Sensitive actions require a recent interactive Cognito sign-in, proven by the verified token's `auth_time`, a per-session anchor and a Cognito `GetUser` revocation check | Proposed | Feature branch (LAI-0209) | Implemented and unit-tested 2026-11-01 on `feature/lai-0209-recent-auth`; owner acceptance and the live Cognito gate pending. Specifies ADR-024 A3; lifts the `SensitiveActionBlocked` block on child deletion (LAI-0602) and asset mutations (ADR-042 item 2) |
+| ADR-042 | Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset library owns the asset bucket, and the Amplify bucket stays untouched until retirement | Accepted | Feature branch (LAI-0904) | Owner-accepted 2026-10-31 for code and infrastructure definitions only; no deployment, migration or deletion approved. Amended 2026-11-01: Django is the control plane for both buckets; asset mutations through Django APIs, blocked until LAI-0209 (AM-14 to AM-16). Builds on ADR-035 (asset storage) and ADR-039 (Django profile authority) |
+| ADR-043 | Sensitive actions require a recent interactive Cognito sign-in, proven by the verified token's `auth_time`, a per-session anchor and a Cognito `GetUser` revocation check | Proposed | Feature branch (LAI-0209) | Asset-mutation scope retired 2026-11-02 by ADR-044 (child deletion remains). Implemented and unit-tested 2026-11-01 on `feature/lai-0209-recent-auth`; owner acceptance and the live Cognito gate pending. Specifies ADR-024 A3; lifts the `SensitiveActionBlocked` block on child deletion (LAI-0602) and asset mutations (ADR-042 item 2) |
+| ADR-044 | Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets; no React staff asset manager or administrator asset API | Accepted | Feature branch `feature/asset-manager` (AM-13, AM-17) | Owner-directed 2026-11-02 (development only; no deployment, AWS or browser acceptance). Supersedes ADR-042 amendment items 2 and 3 for assets and AM-14, AM-15; narrows ADR-043 scope; builds on ADR-035 and ADR-040 |
 
 ## ADR-001: Parent-owned accounts
 
@@ -1909,7 +1910,7 @@ Status: Accepted (2026-09-27), covering Phases 1-2 of
 `docs/android/ASSET_MANAGEMENT.md`
 
 ADR-014 said the content manifest would be "designed, not built, until it
-has something to protect". The Model Asset Manager is that something:
+has something to protect". The Model Asset Library is that something:
 administrators now need to bring in GLB models from outside the
 generate/import scripts (commissioned characters, AI modeling tools,
 packs too large to commit), and those models need a home that is not the
@@ -2332,7 +2333,7 @@ integration cleanup). Three rules:
    and the module-level functions every scene calls are one loader bound to
    `BUNDLED_ASSET_RESOLVER`. `assetService.ts`'s published-slug lookup is
    the second resolver, `PUBLISHED_ASSET_RESOLVER`. It is **not** handed to
-   the child's scene. `Asset` is Admins-only until the asset manager's
+   the child's scene. `Asset` is Admins-only until the asset library's
    publishing phase gives parents a published-only read path (ADR-030), and
    before then it would add a lookup that always fails to every scene load.
    When that path exists, switching is one line in `assetLoader.ts`.
@@ -2605,13 +2606,13 @@ last active superuser; there is no MFA on the Django login yet. Hosting is still
 (Phase 10, APPROVAL), see `docs/DJANGO_TARGET_ARCHITECTURE.md`, "Django Admin hosting".
 
 
-## ADR-035: The shared asset manager versions binaries on the canonical ContentAsset identity, with private storage and signed delivery
+## ADR-035: The shared asset library versions binaries on the canonical ContentAsset identity, with private storage and signed delivery
 
 Status: Accepted 2026-10-25 (proposed and implemented on `feature/django-asset-manager` for
 LAI-2200 the same day; accepted after the implementation was reviewed against it, before merge).
-Detail: `docs/ASSET_MANAGER.md`.
+Detail: `docs/ASSET_LIBRARY.md`.
 
-**Context.** LAI-2200 asks for a reusable asset manager: definitions, immutable versions,
+**Context.** LAI-2200 asks for a reusable asset library: definitions, immutable versions,
 publication, S3 storage, Django Admin upload, a child-facing resolver and an import path.
 `catalog.ContentAsset` already is the platform's asset identity, keyed by the bundled manifest id
 and the Amplify `Asset.slug` (ADR-030), and CLAUDE.md section 20 (ADR-033) forbids a second
@@ -2663,7 +2664,7 @@ Items 6 to 8: the resolver statuses, the two delivery modes and the bundled fall
 of this decision is still open. The following stay as separate follow-up work and do not reopen
 it: the production delivery mode (`django` or `s3`, chosen when LAI-1002 provisions the bucket),
 signed CloudFront URLs (AM-11), licence and source fields, and an `AdventureAsset` join model
-(`docs/ASSET_MANAGER.md` section 16).
+(`docs/ASSET_LIBRARY.md` section 16).
 
 **Amendment: admin preview (AM-10, 2026-10-25).** Item 7 (delivery) stays as it is, for gameplay
 and published versions only. Staff inspect any validated, published or retired version through a
@@ -2673,7 +2674,7 @@ account. The token is sent in a request header, never in a URL. The route serves
 re-checking their SHA-256, and always streams them through Django, so no presigned URL is issued
 for a preview. Draft and rejected versions are never served. The viewer is a Three.js bundle
 (ADR-020: Three.js is the only renderer) committed as an admin static file, because the Django
-image has no Node build step. No dependency was added. Detail: `docs/ASSET_MANAGER.md` section 17.
+image has no Node build step. No dependency was added. Detail: `docs/ASSET_LIBRARY.md` section 17.
 
 
 ## ADR-036: Native Android uses the Django API with Cognito bearer tokens; the game-only WebView uses a ticket-redeemed, child- and region-scoped game session cookie
@@ -2750,7 +2751,7 @@ release path. LAI-1003 (ECR and image build), LAI-1004 (dev EC2 and Docker deplo
 step and a tested rollback) and LAI-1006 (monitoring) were open. The owner asked for a merge to
 `main` to release Django automatically: test, build, push to ECR, deploy to EC2 through SSM,
 migrate safely, verify health, and fail with logs and a reliable rollback. The React app stays on
-Amplify Hosting; the asset manager keeps its S3 storage (ADR-035).
+Amplify Hosting; the asset library keeps its S3 storage (ADR-035).
 
 **Decision.**
 1. **One image, promoted by digest.** GitHub Actions builds `lai/Dockerfile` once per commit of
@@ -3044,14 +3045,14 @@ region could not start one.
   session and opens the Adventure page, but steps played there are not recorded in Django. A
   Django step-adventure client is follow-up work (LAI-0806 notes).
 
-## ADR-042: Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset manager owns the asset bucket, and the Amplify bucket stays untouched until retirement
+## ADR-042: Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset library owns the asset bucket, and the Amplify bucket stays untouched until retirement
 
 Status: Accepted 2026-10-31 by the owner for implementation in code and infrastructure
 definitions (LAI-0904, `feature/lai-0904-child-photo-storage`). Deployment, data migration,
 bucket deletion, merging and pushing were not approved.
 
 **Context.** Amplify keeps child profile photos and admin-uploaded models in one bucket
-(`amplify/storage/resource.ts`), separated only by path rules. The Django asset manager already
+(`amplify/storage/resource.ts`), separated only by path rules. The Django asset library already
 has its own private bucket, `LaiAssetStorage-<env>` (ADR-035). LAI-0904 needed a home for photos
 on Django. A child's photograph is personal data with different access, caching and retention
 needs from published game content.
@@ -3062,7 +3063,7 @@ needs from published game content.
   CDK stack beside `LaiAssetStorage-<env>`. Neither Django policy reaches the other bucket's
   prefix, and production settings refuse a photo bucket equal to the asset bucket.
 - **Ownership.** The child profile subsystem (`lai/apps/users`: `ChildPhoto`, `photos.py`,
-  `photo_storage.py`, `photo_validation.py`) owns photos. The asset manager's publication,
+  `photo_storage.py`, `photo_validation.py`) owns photos. The asset library's publication,
   versioning and delivery workflow is never used for them.
 - **Photo bucket controls.** All Block Public Access settings, ACLs disabled, TLS 1.2 or newer
   only, SSE-S3, versioning, no CDN, no CORS by default, retained on stack deletion. Lifecycle:
@@ -3095,7 +3096,7 @@ needs from published game content.
 
 Details: `docs/platform/CHILD_PHOTO_STORAGE.md`.
 
-*Amended 2026-11-01 (owner-directed, AM-14 to AM-16): Django is the control plane for both
+*Amended 2026-11-01 (owner-directed, AM-14 to AM-16); items 2 and 3 are superseded for staff asset administration by ADR-044 (2026-11-02): Django is the control plane for both
 buckets.*
 
 1. **Django authorizes every asset and photo operation.** Photos through the owning parent
@@ -3116,7 +3117,7 @@ buckets.*
    stores without presigning; switching photos to it needs a demonstrated security or operational
    reason.
 5. **Published game assets may use CDN delivery** (AM-11, once LAI-1005's distribution exists).
-   Today they use `django` delivery (ADR-035, docs/ASSET_MANAGER.md section 8).
+   Today they use `django` delivery (ADR-035, docs/ASSET_LIBRARY.md section 8).
 6. **Unpublished assets stay private:** never resolved, never given a delivery URL, never on a
    CDN. Photos are never published at all.
 7. **Amplify Storage stays as it is until cutover.** The production build without the Django API
@@ -3186,3 +3187,56 @@ re-authenticate. Open: the live Cognito gate (L1 to L6 in the specification), ga
 revocation setting), browser verification of the dialog, and a recent-sign-in step for Django
 Admin's own asset actions.
 
+
+
+## ADR-044: Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets
+
+Status: Accepted 2026-11-02 (owner-directed; development only). Branch `feature/asset-manager`.
+Supersedes the ADR-042 amendment (2026-11-01) items 2 and 3 **for staff asset administration**, and
+tasks AM-14 and AM-15. Builds on ADR-035 (versioned assets, private storage, signed delivery) and
+ADR-040 (Django Admin staff authenticate with Django's own login; parents and children use
+Cognito). The "Asset Manager" is now called the **Asset Library** (docs/ASSET_LIBRARY.md).
+
+**Context.** The 2026-11-01 amendment made React the staff asset UI over a Cognito-`Admins`
+administrator REST API, with Django Admin as a second path to the same services. Two staff
+interfaces meant two permission models (Cognito group and Django permissions), two sets of
+validation messages, an upload path through the browser to a mutation API, and a recent sign-in
+guard only on one of them. Django Admin already had upload, validation, publish, retire, previews
+and group-based roles (AM-5, AM-10).
+
+**Decision.**
+
+| Component | Responsibility |
+|---|---|
+| Django Admin | Asset creation, upload, metadata, versioning, publish, rollback, retirement, deletion of unpublished versions, administrative assignments |
+| Django models and services (`apps/assets`) | Validation, lifecycle rules, storage integration, version authority |
+| Django REST API | Read-only delivery of published asset metadata and file URLs (`/children/<id>/assets/`, signed file route) |
+| S3 | Binary storage for models, images, textures and audio, private, keys made only by the server |
+| React and Three.js | Resolve ids through Django and render published assets |
+| React parent interface | Parent and child management, progress |
+
+1. There is **no React staff asset manager** and **no administrator asset REST API**. They were
+   removed (AM-14, AM-15): the routes, nav entries, Amplify upload wizard, "Game assets" hub, the
+   `djangoAssetAdmin` client and their tests. A test asserts no `api/v1/admin/` route exists and
+   that no source imports the removed modules.
+2. Staff authorization is Django's: `is_staff` plus model permissions via the groups from
+   `ensure_asset_roles`, checked server-side on every admin view and action. Unauthenticated users
+   and parents or children (Cognito principals) cannot reach it.
+3. Non-model assets (textures, images, sprites, audio) are first-class (AM-13): validated by
+   content, stored under `assets/<models|images|audio>/`, previewed in Django Admin and delivered
+   through the same resolver. The kind of a definition decides the accepted family.
+4. Publishing is authoritative in Django; React never picks a version because a file exists.
+5. LAI-0209 (recent sign-in) no longer applies to asset mutations because no Cognito-token asset
+   mutation exists. It still guards child deletion and future sensitive parent actions. A
+   recent-sign-in step for Django Admin is not implemented and not claimed.
+6. Reusable non-administrative code is kept: the Three.js loaders and cache, the Django resolver
+   adapter, texture and audio helpers, the bundled-manifest fallback, Treasure Rush loading, and the
+   Django Admin 3D preview bundle (built from `react/src/features/assets/preview/`).
+7. The Amplify `Asset`/`AssetVersion` records and the Amplify-backed catalog model picker are
+   untouched until LAI-1301.
+
+**Consequences.** One staff surface, one permission model, one audit trail (admin history).
+Administration needs Django hosted (LAI-1004); until then assets are managed by running Django
+Admin locally against the configured storage. Open: the asset bucket and policy deployment, a
+browser pass of the admin screens, live S3 verification (AM-16), and optional admin-side
+re-authentication.

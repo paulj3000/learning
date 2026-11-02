@@ -1,8 +1,8 @@
-# Shared Django Asset Manager (LAI-2200)
+# Shared Django Asset Library (LAI-2200)
 
 Status: AM-1 to AM-10 merged into `main` on 2026-10-25 after merge verification (section 18).
 **Treasure Cove uses it (TR-10, 2026-10-30):** with `VITE_BACKEND=django`, the cove's models
-resolve through the asset manager, so a version published in Django Admin reaches the game with
+resolve through the asset library, so a version published in Django Admin reaches the game with
 no React rebuild (section 15). **AWS storage is defined but not deployed:** `infra/` synthesizes
 the private bucket and the Django role policy (section 12); deploying it, and hosting Django at
 all (LAI-1004), are approval steps nobody has taken. Signed CloudFront delivery (AM-11) is not
@@ -278,10 +278,11 @@ The admin preview (section 17) adds no variable. Its token lifetime is the const
 | AM-10 | Admin 3D model preview (section 17) | Done (unit-tested; not checked in a browser) |
 | AM-11 | Signed CloudFront delivery | Not needed for launch (section 8); later optimisation once LAI-1005's distribution exists |
 | AM-12 | Production S3 storage: bucket, IAM, CORS, image, runbook (sections 12 and 19) | Done as code and documentation; deploying it is an approval step |
-| AM-13 | Non-model asset kinds: textures, images and sprites, audio, animation clips. Each kind gets validation, a key family under `assets/` and a matching IAM prefix; the bucket needs no change | Not started (added 2026-10-31, ADR-042) |
-| AM-14 | Administrator API: definitions, uploads, publish, default, retire, delete unpublished (section 20) | Done 2026-11-01 (unit-tested). Mutations need a recent sign-in (LAI-0209, implemented on its branch, live gate open) |
-| AM-15 | React asset manager on the Django API, Amplify pages kept for builds without it (section 20) | Done 2026-11-01 (unit-tested). Changes go through the LAI-0209 re-authentication dialog. Not checked in a browser |
-| AM-16 | End-to-end publish and delivery verification on the deployed dev environment | Not started: needs LAI-1002/1004 (dev platform), the asset bucket deployed, and LAI-0209's merge and live gate |
+| AM-13 | Non-model asset kinds: textures, images and sprites, audio. Each family gets validation, a key directory under `assets/`, a matching IAM prefix and previews (section 21) | **Development done 2026-11-02** (unit-tested). Animation clips remain a property of models. Not checked in a browser or against AWS |
+| AM-14 | Administrator REST API (section 20) | **Superseded by ADR-044 (2026-11-02): removed.** Staff administer assets in Django Admin only |
+| AM-15 | React staff pages on that API (section 20) | **Superseded by ADR-044 (2026-11-02): removed**, together with the Amplify upload wizard and the admin "Game assets" hub |
+| AM-16 | End-to-end publish and delivery verification on the deployed dev environment, now through Django Admin | **Not started, pending**: needs LAI-1002/1004 (dev platform), the asset bucket deployed, and a browser/manual pass. Nothing in this branch claims it |
+| AM-17 | Django Admin lifecycle completion under ADR-044: rollback, reactivation, stored-file verification, admin-history audit, image and audio previews (section 21) | **Development done 2026-11-02** (unit-tested) |
 
 ## 15. Treasure Rush TR-10 (done 2026-10-30)
 
@@ -466,7 +467,7 @@ Roles: an **Asset editor** uploads, an **Asset publisher** publishes and makes a
 default (`manage.py ensure_asset_roles` creates both groups; a superuser assigns people to them
 under Users). The admin path is `DJANGO_ADMIN_URL_PATH` (default `/admin/`).
 
-1. **Asset manager, Asset versions, Add** (the upload form). Pick the asset (`npc-pip`,
+1. **Asset library, Asset versions, Add** (the upload form). Pick the asset (`npc-pip`,
    `treasure-chest` or `ground-tile`; a new asset is created first under **Catalog, Content
    assets** with a stable id), choose a `.glb` or self-contained `.gltf`, upload. Validation
    runs at once: a failing file is refused with its findings and nothing is stored; a passing
@@ -543,9 +544,9 @@ administrative actions.
 | You see | Likely cause |
 |---|---|
 | A loud pink box where a model should be, and `[location ...] could not place ...` in the console | The model failed to load from both Django and the bundle: a typo in the asset id, or a file the loader cannot parse. The warning carries the error |
-| `[assets] "<id>" is unavailable in the asset manager (expected until it is published)` | Nothing published for that id, or only drafts. The bundled file is used. Publish a version (19.2) |
+| `[assets] "<id>" is unavailable in the asset library (expected until it is published)` | Nothing published for that id, or only drafts. The bundled file is used. Publish a version (19.2) |
 | `[assets] ... is retired ...` | The definition or the default version was retired. Make another version the default, or leave the bundled file in use |
-| `[assets] the asset manager request failed (unauthenticated 401)` or `(not_found 404)` | Not a publishing problem. 401: Cognito settings or an expired sign-in. 404: the child does not exist in Django or belongs to another family (TREASURE_RUSH_LOCAL_DEV step 7) |
+| `[assets] the asset library request failed (unauthenticated 401)` or `(not_found 404)` | Not a publishing problem. 401: Cognito settings or an expired sign-in. 404: the child does not exist in Django or belongs to another family (TREASURE_RUSH_LOCAL_DEV step 7) |
 | `(network)` or `(unavailable 503)` | Django is down or `/api/*` does not reach it. Models fall back to the bundle; check the routing |
 | A published version does not appear | It is published but not the default (19.2, step 4), or the child is still in the same visit: leave the cove and come back |
 | The upload form refuses the file | The findings say why: external `uri`s, Draco/meshopt, an unknown clip name, a dropped clip, or over the size limit (sections 4 and 5) |
@@ -584,7 +585,12 @@ without an asset role getting 403 on the page and the file; anonymous visitors s
 a 403 JSON response with no bytes for the file; a missing token header giving 404; and no page
 errors.
 
-## 20. Administrator API and React pages (AM-14, AM-15; ADR-042 amendment)
+## 20. Administrator API and React pages (AM-14, AM-15): SUPERSEDED, removed
+
+> **Superseded 2026-11-02 by ADR-044.** The administrator API (`/api/v1/admin/assets/`,
+> `lai/apps/assets/admin_api.py`) and the React staff pages described below no longer exist.
+> The section is kept as a record of what was built and why it was removed. Staff use Django
+> Admin (section 21). No route under `api/v1/admin/` is served, and a test fails if one appears.
 
 The React admin manages Django assets through Django, never through a bucket. Files go to
 Django; Django checks, stores and records them with the same services Django Admin uses
@@ -633,3 +639,170 @@ and IAM prefix per kind, validation per format, and a runtime consumer in the en
 decision of its own. The Amplify catalog admin's model picker (`features/admin/catalogApi.ts`) still
 reads Amplify `Asset` records; it goes with LAI-1301. AM-16 verifies publish and delivery on the
 deployed dev environment.
+
+## 21. Django Admin asset library (AM-13, AM-17; ADR-044)
+
+**Django Admin owns staff authoring.** React owns gameplay and parent screens, and consumes
+published assets through the read-only resolver (section 7). There is no React staff asset page.
+
+### 21.1 What staff do, and where
+
+| Task | Where in Django Admin | Permission |
+|---|---|---|
+| Create a definition: id, kind, category, name, description, tags | Catalog > Content assets > Add | `catalog.add_contentasset` |
+| Edit names, descriptions, categories, tags (kind and clips only on Django-made definitions) | Content assets > change | `catalog.change_contentasset` |
+| Find assets | Search (id, name, description, tags); filters: status, origin, category, kind | view |
+| Upload a file (a new version) | Asset versions > Add (upload form) | `assets.add_assetversion` |
+| See versions, storage metadata, validation findings, thumbnail or audio player | Content asset page (versions table) and each version page | view |
+| Publish; make default | Asset versions > actions | `assets.publish_assetversion` |
+| Roll back to an earlier version (republishes a retired one after re-verifying it) | Action "Roll back" (select one) | `assets.publish_assetversion` |
+| Retire a version or an asset | Actions "Retire" | `assets.retire_assetversion` |
+| Reactivate a retired asset | Content assets > action "Reactivate" | `assets.retire_assetversion` |
+| Verify stored files (present, checksum, still valid) | Action "Verify the stored files" | view |
+| Delete a never-published version and its file | Version page > Delete | `assets.delete_assetversion` |
+
+Groups come from `manage.py ensure_asset_roles` (viewers, editors, publishers). Every upload,
+publish, default change, rollback, retirement and deletion is written to Django Admin's history
+(`LogEntry`: who, when, what) and, without child data, to the `lai.assets` log.
+
+### 21.2 Kinds, families and formats
+
+A definition's `kind` decides the family of file it accepts. The family is read from the bytes.
+
+| Kind | Family | Accepted formats | Limit (setting) |
+|---|---|---|---|
+| `character`, `prop`, `collectible`, `kit-piece` | 3D model | `.glb`; `.gltf` only if self-contained (every buffer and texture embedded as a `data:` URI) | 50 MB (`LAI_ASSET_MAX_UPLOAD_BYTES`) |
+| `texture`, `image`, `sprite` | Image | PNG, JPEG, WebP | 10 MB (`LAI_ASSET_MAX_IMAGE_BYTES`), 4096 px a side, 16 M pixels |
+| `audio` | Audio | MP3 (Layer III), WAV (PCM or float, 8 to 32 bit), Ogg (Vorbis or Opus) | 20 MB (`LAI_ASSET_MAX_AUDIO_BYTES`), mono or stereo, 8 to 96 kHz, 15 minutes |
+
+External glTF dependencies are **not** supported: a `.gltf` with a relative or remote `uri` is
+rejected with a finding, never published half-working. Package it as `.glb` or embed it.
+
+### 21.3 Validation rules (all server-side, `validation.py`, `validation_media.py`)
+
+- The format comes from the leading bytes. File name and browser content type are ignored. SVG,
+  GIF, BMP, TIFF, AAC, FLAC, scripts and archives are refused as unknown.
+- The family must suit the definition's kind (`wrong_file_family`).
+- Structures are walked with bounds and must end where the file ends. Extra bytes after a PNG
+  `IEND`, a JPEG end marker, a WebP/WAV RIFF size, the last MP3 frame or the Ogg end page are
+  refused (`trailing_data`), so a polyglot file cannot be stored. PNG chunk CRCs are verified.
+- Dimensions, channels, sample rate and duration are limited; non-power-of-two textures get a
+  warning, not a refusal.
+- A file that fails is never stored and makes no row. SHA-256 is recorded, sent to S3 as the
+  object checksum, and re-checked on publish, rollback, preview and verify.
+- Object keys are made only by `object_key` from the asset id and a version UUID:
+  `assets/<models|images|audio>/<asset id>/<version uuid>/<model|image|audio>.<format>`. Names the
+  user supplied are kept only as display text. Every storage call refuses a key outside those
+  directories, with `..`, `//`, a backslash, a leading slash or a NUL.
+
+### 21.4 Versions, publishing and retirement
+
+- Uploading to an asset always makes a **new version** (1, 2, 3). Identical bytes already held by
+  the asset answer `duplicate_version`.
+- Published and retired versions are immutable (checksum, key, metadata); the model layer raises
+  `ImmutableVersion` on any change and on deletion.
+- A new version is `VALIDATED` and invisible to games. Only **Publish** makes it servable; the
+  definition's `default_version` decides what an unpinned reference gets. React never chooses a
+  version: it receives what Django resolved.
+- Transitions: `DRAFT > VALIDATED | REJECTED`, `VALIDATED > PUBLISHED | REJECTED`,
+  `PUBLISHED > RETIRED`, and `RETIRED > PUBLISHED` only through rollback, after the stored bytes
+  are re-verified. Everything else is refused.
+- **Rollback** makes an earlier published version the default; if that version was retired it is
+  republished first. A version whose bytes are missing or changed cannot be rolled back to.
+- Retiring the default version needs a replacement; retiring an asset stops all resolution
+  (versions and files are kept). Reactivating an asset republishes nothing.
+- A definition is never deleted (versions are `PROTECT`ed, and locations reference it by
+  `PROTECT`). A published version is never deleted. A never-published version can be deleted and
+  its file is removed after the row commits.
+- Each transition runs in a transaction with the asset row locked, so two staff cannot allocate
+  the same number or race a publish.
+
+### 21.5 Previews (Django Admin only, no third-party scripts)
+
+- **Images:** a thumbnail with dimensions, type and size on the version page, and a larger view
+  on the preview page.
+- **Audio:** native `<audio controls>` with duration, sample rate, channels and size.
+- **3D models:** the existing sandboxed viewer (section 17) and model metadata.
+- Image and audio bytes are served by `.../assetversion/<id>/media/` to staff sessions with view
+  permission only, after the checksum is verified. The response has the content type from our own
+  table, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox`
+  and `Content-Disposition: inline`. Bytes are never inserted into a page. The game file route
+  (`/api/v1/asset-files/<token>/<name>`) sends the same hardening headers.
+
+### 21.6 Storage and S3
+
+`get_storage()` returns `s3`, `local` or `memory` from `LAI_ASSET_STORAGE`. Unit tests use
+`memory` and botocore `Stubber`; nothing contacts AWS. Production settings: `LAI_ASSET_STORAGE=s3`,
+`LAI_ASSET_BUCKET`, `LAI_ASSET_REGION`; credentials come from the runtime role, never from code.
+
+Required IAM (policy `lai-django-asset-storage-<env>`, defined in `infra/lib/assetStorageStack.ts`,
+synthesized, **not deployed**):
+
+- `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` on exactly `arn:aws:s3:::<bucket>/assets/models/*`,
+  `/assets/images/*` and `/assets/audio/*` (no `assets/*`, no bucket root);
+- `s3:ListBucket` on the bucket (also needed so a missing key answers 404, not 403);
+- no `s3:*`, no version or ACL rights, no IAM user or access key.
+
+S3 and the database cannot commit together. The rules: write the object first (never overwriting,
+`IfNoneMatch: *`), then the row; a row failure deletes the object; a delete removes the row first
+and the object after commit; a publish re-reads the object before changing state. Leftovers are
+found by `manage.py asset_storage_audit` (orphans, and rows whose object is missing) and removed
+with `--delete` (objects older than a day only). Signed URLs (`s3` delivery) or signed tokens
+(`django` delivery) expire; a client that gets 403/404 on a file re-resolves the id for a fresh
+URL. Asset ids, not URLs, are the stable identifiers.
+
+### 21.7 Published-asset API contract (read-only, child-scoped)
+
+`GET /api/v1/children/<child_id>/assets/?ids=a,b@2` returns, per reference, `status`
+(`resolved`, `retired` or `unavailable`) and for `resolved`: `id`, `kind`, `category`, `version`,
+`versionId`, `sha256`, `family` (`model|image|audio`), `format`, `contentType`, `sizeBytes`,
+`url`, `urlExpiresAt`, `clips`, `dimensions` (models), `cache {key, immutable, ttl}` and, for
+images and audio only, `media`: `{width, height}` or `{durationSeconds, sampleRate, channels}`.
+Never returned: drafts, validation reports, storage keys, buckets, uploaders, notes. Unpublished,
+retired, unknown and draft-only assets are `unavailable` or `retired` with no URL.
+
+### 21.8 Three.js and Treasure Rush
+
+The Django adapter (`react/src/api/assets/djangoAssetResolver.ts`) parses the contract above;
+`three/assets/mediaAssets.ts` loads textures (cached by `cache.key`, disposed when a newer
+version replaces them) and resolves sound URLs. Treasure Rush refers to `treasure-chest`,
+`npc-pip` and the other cove models by logical id through this resolver (TR-10; tests in
+`regionAssets.test.ts` and the cove view tests); no S3 URL is in game code, and the bundled
+manifest remains the fallback when an id is not published.
+
+### 21.9 Associations
+
+Existing references already cover the hierarchy: `catalog.LocationAsset` links Places (and so
+their 3D Areas) to assets, rows in NPCs, items and regions store asset ids validated by
+`validate_asset_ref`, and an asset may be referenced by any number of them. Assets belong to
+no adventure. Texture, image and audio ids are referenced the same way (by id); wiring a
+specific adventure, quest or effect field to a texture or sound id is done by the feature that
+needs it, with the kind check in `validate_asset_ref`. No scene editor is part of this work.
+
+### 21.10 Troubleshooting
+
+| Symptom | Cause and fix |
+|---|---|
+| Upload says `wrong_file_family` | The asset's kind takes another family. Create a definition of the right kind |
+| Upload says `trailing_data` or `png_crc` | The file is damaged or has data appended. Re-export it |
+| `.gltf` rejected for an external `uri` | Pack it as `.glb` or embed buffers and textures |
+| Publish says verification failed or rejected | The stored object changed or is missing. Run "Verify the stored files", `asset_storage_audit`, re-upload |
+| Game shows the bundled fallback | The id is unpublished, retired or has no default. Check the version page |
+| Browser gets 404 on an asset URL | The token expired or the version was retired. The client re-resolves |
+| Preview shows 409 / 503 | Checksum mismatch / object unreadable. Verify, then check bucket permissions |
+| Admin cannot see an action | Missing group permission. Run `ensure_asset_roles` |
+
+### 21.11 LAI-0209 and administrator re-authentication
+
+LAI-0209 (recent sign-in) protected the **Cognito-token** asset mutations of the removed API. Those
+no longer exist, so that scope of LAI-0209 is retired. The guard is unchanged and still protects
+child deletion (`DELETE /api/v1/children/<id>/`) and any future sensitive parent action. Django
+Admin staff authenticate through Django's own session login with group-based permissions (ADR-040),
+and Django Admin has no recent sign-in step of its own yet. That remains a possible later
+hardening and is not claimed here.
+
+### 21.12 Remaining acceptance (not done in this branch)
+
+Deploying the asset bucket and policy; hosting Django (LAI-1004); live S3 upload, publish and
+delivery; a browser pass of the admin upload, preview and game load; manual acceptance. These are
+AM-16 and stay open.

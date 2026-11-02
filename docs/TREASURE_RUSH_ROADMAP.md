@@ -185,7 +185,7 @@ fallback states.
 (walk, open, answer, reward, revisit shows open chest); a human playtest note per age band.
 
 **TR-10 Integrate LAI-2106.** DONE (section 16). Depends: LAI-2106 merged, TR-7a. Risk M. Acceptance: the adapter
-resolves through the shared asset manager; content keeps its ids; placeholders remain the
+resolves through the shared asset library; content keeps its ids; placeholders remain the
 failure path.
 
 **TR-11 Second chest and quest chain.** Depends: TR-9. Risk L. Acceptance: quest prerequisites
@@ -524,7 +524,7 @@ gives Pip's placement `npc-pip`.
   optimisation for later.
 
 **Not done here:** the conversation, quest acceptance UI, and challenge card (TR-8); a person
-playing it (TR-9); the shared asset manager (TR-10). The Amplify reads the generic view makes
+playing it (TR-9); the shared asset library (TR-10). The Amplify reads the generic view makes
 (world state, inventory, companion) still run and are harmless here; they show nothing for a
 Django region.
 
@@ -625,8 +625,8 @@ failure is never mistaken for "not published". Tests: `regionAssets.test.ts` (th
 manifest on the engine with the Django resolver and shared loader; only HTTP and the GLTF fetch
 are fakes) and `lai/apps/assets/tests/test_treasure_rush_assets.py` (import, publish, replace,
 make default, cache headers, scoping). Operations, deployment and rollback:
-`docs/ASSET_MANAGER.md` sections 15 and 19.
+`docs/ASSET_LIBRARY.md` sections 15 and 19.
 
 Not done: any browser or WebGL run (owner, after deployment), and TR-9. A deployed environment
 still needs TR-3's region admin to publish the cove and LAI-0502/0602 for real children
-(`docs/ASSET_MANAGER.md` 19.3, steps 5 and 9).
+(`docs/ASSET_LIBRARY.md` 19.3, steps 5 and 9).

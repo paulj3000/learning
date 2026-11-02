@@ -1,8 +1,8 @@
-# Learning Adventure Island — Model Asset Manager
+# Learning Adventure Island — Model Asset Library
 
 ## Objective
 
-Implement a production-ready **Model Asset Manager** inside the Learning Adventure Island administration system.
+Implement a production-ready **Model Asset Library** inside the Learning Adventure Island administration system.
 
 The system will allow administrators to upload, validate, organize, preview, publish, replace, and manage 3D model assets used throughout Learning Adventure Island.
 
@@ -98,7 +98,7 @@ Implement the following pipeline:
 Artist / Blender / AI Model Generator
                 │
                 ▼
-       Admin Asset Manager
+       Admin Asset Library
                 │
         Upload + Validation
                 │
@@ -1039,7 +1039,7 @@ This will become especially important for Android/mobile support.
 
 The generic Asset architecture should eventually support Polly-generated MP3 files.
 
-Do NOT implement Polly as part of the initial Model Asset Manager unless existing project architecture makes it trivial.
+Do NOT implement Polly as part of the initial Model Asset Library unless existing project architecture makes it trivial.
 
 Prepare for:
 
@@ -1062,7 +1062,7 @@ Polly audio should also ultimately live in S3 and be referenced through the asse
 
 # 28. Future Texture Management
 
-Do not tightly couple the asset manager to GLBs.
+Do not tightly couple the asset library to GLBs.
 
 Future support should allow:
 
