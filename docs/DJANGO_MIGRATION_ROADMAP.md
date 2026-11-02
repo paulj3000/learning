@@ -782,6 +782,10 @@ Django Admin, adventure integration, testing). Scope, acceptance and dependencie
 approval and publishing are separate operations; no draft is ever child-visible. Live Bedrock
 verification reuses the LAI-0705 approval gate.
 
+Follow-ups `LAI-AQS-025` to `LAI-AQS-028` cover the open gates: live Bedrock verification
+(APPROVAL), a Django Admin browser pass, a task queue for long batches, and adoption by the
+Storykeeper Castle and other adventures. Not started.
+
 
 ## 4. Manual approval points (summary)
 
