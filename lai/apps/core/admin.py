@@ -24,5 +24,5 @@ admin.site.login_form = AdminLoginForm
 # No "View site" link: the admin does not know which React origin a staff member uses.
 admin.site.site_url = None
 
-# Groups carry the asset manager's roles (ADR-035, `manage.py ensure_asset_roles`). auth's own
+# Groups carry the asset library's roles (ADR-035, `manage.py ensure_asset_roles`). auth's own
 # Group admin is kept; it is permission-gated, so in practice only superusers manage groups.

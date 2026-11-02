@@ -11,7 +11,7 @@ import { DjangoReleaseStack } from '../lib/djangoReleaseStack';
  *
  * | Stack                   | Scope       | What                                              |
  * | ----------------------- | ----------- | ------------------------------------------------- |
- * | `LaiAssetStorage-<env>` | environment | asset manager bucket and Django policy (ADR-035)  |
+ * | `LaiAssetStorage-<env>` | environment | asset library bucket and Django policy (ADR-035)  |
  * | `LaiChildPhotos-<env>`  | environment | private child photo bucket and policy (ADR-042)   |
  * | `LaiDjangoRelease`      | account     | ECR repository, GitHub OIDC, image publisher role |
  * | `LaiDjangoEc2-<env>`    | environment | VPC, ALB, EC2, RDS, SSM documents, deploy role    |
@@ -77,7 +77,7 @@ new AssetStorageStack(app, `LaiAssetStorage-${envName}`, {
   djangoRoleArn: setting('djangoRoleArn', 'LAI_DJANGO_ROLE_ARN') || undefined,
   env,
   synthesizer: synthesizer(),
-  description: `Learning Adventure Island asset manager storage (${envName})`,
+  description: `Learning Adventure Island asset library storage (${envName})`,
 });
 
 new ChildPhotoStorageStack(app, `LaiChildPhotos-${envName}`, {

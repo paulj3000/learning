@@ -1,4 +1,4 @@
-"""AM-8/AM-9: every model the game ships today passes the asset manager's validation.
+"""AM-8/AM-9: every model the game ships today passes the asset library's validation.
 
 Imports the real content export, then dry-runs the bundled import against the real
 `react/public` files. Writes nothing to storage.

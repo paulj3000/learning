@@ -43,7 +43,7 @@ def upload_through_admin(client, asset, data=None, name="pip.glb"):
         UPLOAD,
         {
             "asset": asset.pk,
-            "model_file": SimpleUploadedFile(name, data or glb_bytes()),
+            "file": SimpleUploadedFile(name, data or glb_bytes()),
             "notes": "",
         },
     )

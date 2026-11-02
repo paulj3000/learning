@@ -9,6 +9,10 @@ Every action is a Django permission (grant them with the groups from `ensure_ass
 - retire: `assets.retire_assetversion`
 - delete a never-published version and its file: `assets.delete_assetversion`
 - preview a model in 3D (AM-10, read-only): staff with view access (`apps.assets.preview`)
+- preview an image or play a sound (AM-13, read-only): the same view access; served through
+  Django with `nosniff` and a locked-down Content-Security-Policy, never as a page
+- verify the stored file, roll back to an earlier version: publish permission
+Every lifecycle action is recorded in Django Admin's history (`LogEntry`) with who and what.
 
 The binary fields are read-only for everyone, always; a published version is never deletable.
 All state changes go through `apps.assets.services`.
@@ -33,7 +37,7 @@ from apps.core.exceptions import error_body
 from . import preview, services
 from .models import AssetVersion
 from .storage import StorageError, get_storage, sha256_of
-from .validation import max_upload_bytes
+from .validation import largest_upload_bytes, max_bytes_for
 
 logger = logging.getLogger("lai.assets")
 
@@ -43,19 +47,24 @@ class UploadForm(forms.Form):
         queryset=ContentAsset.objects.filter(status=AssetStatus.ACTIVE).order_by("asset_id"),
         help_text="The asset this file is a new version of. Create the asset first if needed.",
     )
-    model_file = forms.FileField(
-        label="Model file",
-        help_text="A glTF 2.0 model: .glb, or a .gltf with every buffer and texture embedded.",
+    file = forms.FileField(
+        label="File",
+        help_text=(
+            "3D model: .glb, or a .gltf with every buffer and texture embedded. "
+            "Image: PNG, JPEG or WebP. Audio: MP3, WAV (PCM) or Ogg (Vorbis or Opus). "
+            "The file type is read from the file itself and must suit the asset's kind."
+        ),
     )
     notes = forms.CharField(
         max_length=500, required=False, widget=forms.Textarea(attrs={"rows": 2})
     )
 
-    def clean_model_file(self):
-        upload = self.cleaned_data["model_file"]
-        if upload.size > max_upload_bytes():
+    def clean_file(self):
+        upload = self.cleaned_data["file"]
+        if upload.size > largest_upload_bytes():
             raise forms.ValidationError(
-                f"The file is {upload.size:,} bytes; the limit is {max_upload_bytes():,} bytes."
+                f"The file is {upload.size:,} bytes; the largest limit is "
+                f"{largest_upload_bytes():,} bytes."
             )
         return upload
 
@@ -66,6 +75,7 @@ class AssetVersionAdmin(admin.ModelAdmin):
         "version_label",
         "status",
         "is_default",
+        "family_label",
         "format",
         "size_bytes",
         "published_at",
@@ -76,10 +86,17 @@ class AssetVersionAdmin(admin.ModelAdmin):
     search_fields = ("asset__asset_id", "asset__display_name", "sha256", "original_filename")
     list_select_related = ("asset", "asset__default_version")
     ordering = ("asset__asset_id", "-number")
-    actions = ["publish_versions", "make_default", "retire_versions"]
+    actions = [
+        "publish_versions",
+        "make_default",
+        "rollback_to_versions",
+        "retire_versions",
+        "verify_versions",
+    ]
     fields = (
         "asset",
         "preview_link",
+        "file_preview",
         "number",
         "version_id",
         "status",
@@ -138,6 +155,7 @@ class AssetVersionAdmin(admin.ModelAdmin):
         preview_page = self.admin_site.admin_view(self.preview_view)
         # Not `admin_view`: the viewer fetches this, so a refusal is JSON, never a login redirect.
         preview_file = never_cache(self.preview_file_view)
+        media_file = never_cache(self.media_file_view)
         return [
             path("upload/", upload, name="assets_assetversion_upload"),
             path("<int:object_id>/preview/", preview_page, name="assets_assetversion_preview"),
@@ -146,6 +164,7 @@ class AssetVersionAdmin(admin.ModelAdmin):
                 preview_file,
                 name="assets_assetversion_preview_file",
             ),
+            path("<int:object_id>/media/", media_file, name="assets_assetversion_media"),
             *super().get_urls(),
         ]
 
@@ -161,7 +180,7 @@ class AssetVersionAdmin(admin.ModelAdmin):
         if request.method == "POST":
             form = UploadForm(request.POST, request.FILES)
             if form.is_valid():
-                upload = form.cleaned_data["model_file"]
+                upload = form.cleaned_data["file"]
                 try:
                     version = services.upload_version(
                         form.cleaned_data["asset"],
@@ -189,10 +208,14 @@ class AssetVersionAdmin(admin.ModelAdmin):
         context = {
             **self.admin_site.each_context(request),
             "opts": self.model._meta,
-            "title": "Upload a model version",
+            "title": "Upload a file version",
             "form": form,
             "findings": findings,
-            "max_upload_bytes": max_upload_bytes(),
+            "limits": [
+                ("3D models", max_bytes_for("model")),
+                ("Images", max_bytes_for("image")),
+                ("Audio", max_bytes_for("audio")),
+            ],
         }
         return TemplateResponse(request, "admin/assets/assetversion/upload.html", context)
 
@@ -219,7 +242,9 @@ class AssetVersionAdmin(admin.ModelAdmin):
             "change_url": reverse("admin:assets_assetversion_change", args=[version.pk]),
             "asset_url": reverse("admin:catalog_contentasset_change", args=[version.asset_id]),
         }
-        if refusal is None:
+        if refusal is None and version.family != "model":
+            context["media_url"] = reverse("admin:assets_assetversion_media", args=[version.pk])
+        elif refusal is None:
             token = preview.issue_token(version, request.user)
             context.update(
                 preview_token=token.value,
@@ -227,7 +252,7 @@ class AssetVersionAdmin(admin.ModelAdmin):
                     "admin:assets_assetversion_preview_file", args=[version.pk]
                 ),
                 preview_token_header=preview.TOKEN_HEADER,
-                max_bytes=max_upload_bytes(),
+                max_bytes=max_bytes_for(version.family),
             )
         logger.info("asset version previewed: %s v%s", version.asset.asset_id, version.number)
         return TemplateResponse(request, "admin/assets/assetversion/preview.html", context)
@@ -248,31 +273,27 @@ class AssetVersionAdmin(admin.ModelAdmin):
                 raise refusal
         except preview.PreviewRefused as refused:
             return _preview_error(refused.code, refused.message, refused.status)
-        # Checksum the stream in chunks, then rewind and stream the same handle: memory stays at
-        # one chunk whatever the file size, and the bytes sent are the bytes that were verified
-        # (every backend's `open` is seekable; S3 spools the object to a local temporary file).
-        try:
-            stream = get_storage().open(version.storage_key)
-        except StorageError:
-            return _preview_unavailable(version)
-        try:
-            sha256, size = sha256_of(stream)
-        except OSError:
-            stream.close()
-            return _preview_unavailable(version)
-        if size != version.size_bytes or sha256 != version.sha256:
-            stream.close()
-            logger.warning(
-                "asset preview checksum mismatch: %s v%s", version.asset.asset_id, version.number
-            )
-            return _preview_error(
-                "checksum_mismatch",
-                "The stored file does not match its recorded checksum, so it is not shown.",
-                409,
-            )
-        response = FileResponse(stream, content_type=version.content_type)
-        response["Content-Length"] = str(version.size_bytes)
-        return response
+        return _verified_response(version)
+
+    def media_file_view(self, request, object_id):
+        """Image and audio bytes for the admin's own <img> and <audio> tags (AM-13).
+
+        These tags cannot send a custom header, so access is the staff session plus the same
+        view permission as every other preview, on GET only. The response is data: `nosniff`,
+        a content type from our own table (never the client's), and a CSP that forbids scripts
+        and framing even if a browser were to open the URL directly.
+        """
+        if request.method != "GET":
+            return _preview_error("method_not_allowed", "Use GET.", 405)
+        if not request.user.is_authenticated or not preview.can_preview(request.user):
+            return _preview_error("forbidden", "You do not have access to previews.", 403)
+        version = AssetVersion.objects.select_related("asset").filter(pk=object_id).first()
+        if version is None or version.family == "model":
+            return _preview_error("not_found", "Not found.", 404)
+        refusal = preview.refusal_for(version)
+        if refusal is not None:
+            return _preview_error(refusal.code, refusal.message, refusal.status)
+        return _verified_response(version)
 
     # --- deletion goes through the service, so the stored file is removed too ---
 
@@ -289,7 +310,7 @@ class AssetVersionAdmin(admin.ModelAdmin):
             protected = [*protected, "Published versions are never deleted; retire them instead."]
         return deleted, model_count, perms_needed, protected
 
-    # --- lifecycle actions ---
+    # --- lifecycle actions (each success is written to the admin history) ---
 
     def _run(self, request, queryset, action, done: str):
         succeeded = 0
@@ -300,6 +321,7 @@ class AssetVersionAdmin(admin.ModelAdmin):
                 self.message_user(request, f"{version.label}: {refused.message}", messages.ERROR)
             else:
                 succeeded += 1
+                self.log_change(request, version, done_message(done, version))
         if succeeded:
             self.message_user(request, f"{done} {succeeded} version(s).", messages.SUCCESS)
 
@@ -318,15 +340,50 @@ class AssetVersionAdmin(admin.ModelAdmin):
             return
         self._run(request, queryset, services.set_default_version, "Made default:")
 
+    @admin.action(
+        description="Roll back: make the selected earlier version the live one",
+        permissions=["publish"],
+    )
+    def rollback_to_versions(self, request, queryset):
+        if queryset.count() != 1:
+            self.message_user(request, "Select exactly one version.", messages.ERROR)
+            return
+        self._run(
+            request,
+            queryset,
+            lambda v: services.rollback_to_version(v, user=request.user),
+            "Rolled back to",
+        )
+
     @admin.action(description="Retire selected versions", permissions=["retire"])
     def retire_versions(self, request, queryset):
         self._run(request, queryset, services.retire_version, "Retired")
+
+    @admin.action(description="Verify the stored files (checksum and format)", permissions=["view"])
+    def verify_versions(self, request, queryset):
+        problems = 0
+        for version in queryset.select_related("asset"):
+            problem = services.verify_version(version)
+            if problem:
+                problems += 1
+                self.message_user(request, f"{version.label}: {problem}", messages.ERROR)
+        if problems == 0:
+            self.message_user(request, "Every selected file is present and unchanged.")
 
     # --- display ---
 
     @admin.display(description="Version", ordering="asset__asset_id")
     def version_label(self, obj) -> str:
         return obj.label
+
+    @admin.display(description="Type", ordering="format")
+    def family_label(self, obj) -> str:
+        return {"model": "3D model", "image": "Image", "audio": "Audio"}[obj.family]
+
+    @admin.display(description="File preview")
+    def file_preview(self, obj):
+        """A thumbnail, an audio player, or the 3D preview link, from our own trusted route."""
+        return preview.file_preview_html(obj)  # the media route re-checks access on every fetch
 
     @admin.display(boolean=True, description="Default")
     def is_default(self, obj) -> bool:
@@ -357,6 +414,40 @@ class AssetVersionAdmin(admin.ModelAdmin):
         return format_html("<pre>{}</pre>", json.dumps(obj.metadata, indent=2, sort_keys=True))
 
 
+def _verified_response(version) -> FileResponse | JsonResponse:
+    """Stream a stored file after proving it still matches its recorded checksum.
+
+    Checksum the stream in chunks, then rewind and stream the same handle: memory stays at one
+    chunk whatever the file size, and the bytes sent are the bytes that were verified (every
+    backend's `open` is seekable; S3 spools the object to a local temporary file).
+    """
+    try:
+        stream = get_storage().open(version.storage_key)
+    except StorageError:
+        return _preview_unavailable(version)
+    try:
+        sha256, size = sha256_of(stream)
+    except OSError:
+        stream.close()
+        return _preview_unavailable(version)
+    if size != version.size_bytes or sha256 != version.sha256:
+        stream.close()
+        logger.warning(
+            "asset preview checksum mismatch: %s v%s", version.asset.asset_id, version.number
+        )
+        return _preview_error(
+            "checksum_mismatch",
+            "The stored file does not match its recorded checksum, so it is not shown.",
+            409,
+        )
+    response = FileResponse(stream, content_type=version.content_type)
+    response["Content-Length"] = str(version.size_bytes)
+    response["X-Content-Type-Options"] = "nosniff"
+    response["Content-Security-Policy"] = "default-src 'none'; sandbox"
+    response["Content-Disposition"] = f'inline; filename="{version.file_name}"'
+    return response
+
+
 def _preview_error(code: str, message: str, status: int) -> JsonResponse:
     return JsonResponse(error_body(code, message), status=status)
 
@@ -366,3 +457,8 @@ def _preview_unavailable(version) -> JsonResponse:
     return _preview_error(
         "content_unavailable", "The stored file could not be read. Try again later.", 503
     )
+
+
+def done_message(done: str, version) -> str:
+    """The text recorded in the admin history for a lifecycle action."""
+    return f"{done} {version.label} ({version.get_status_display()})."

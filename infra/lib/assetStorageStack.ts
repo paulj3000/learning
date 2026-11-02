@@ -4,21 +4,23 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import type { Construct } from 'constructs';
 
 /**
- * Production storage for the Django asset manager (LAI-2200, ADR-035;
- * docs/ASSET_MANAGER.md section 12). One private bucket per environment for
+ * Production storage for the Django asset library (LAI-2200, ADR-035;
+ * docs/ASSET_LIBRARY.md section 12). One private bucket per environment for
  * immutable model versions, and one least-privilege managed policy for the
  * Django workload role. Nothing else: no CloudFront (decision in the doc),
  * no public access, no long-lived keys.
  *
  * Object keys are made only by Django (`apps/assets/storage.py`):
- * `assets/models/<asset id>/<version uuid>/model.<glb|gltf>`, written once
+ * `assets/<models|images|audio>/<asset id>/<version uuid>/<model|image|audio>.<format>`, written once
  * with `IfNoneMatch: *`, so a published object is never overwritten.
  *
  * Deploying this stack is an approval step (docs/DJANGO_MIGRATION_ROADMAP.md
  * Phase 10); the repository only synthesizes it.
  */
 
-export const ASSET_KEY_PREFIX = 'assets/models/';
+/** One key directory per file family (lai/apps/assets/formats.py). Least privilege: the
+ * policy names these three prefixes, never `assets/*` or the bucket root. */
+export const ASSET_KEY_PREFIXES = ['assets/models/', 'assets/images/', 'assets/audio/'] as const;
 export type AssetEnvironment = 'dev' | 'prod';
 
 export interface AssetStorageStackProps extends StackProps {
@@ -59,7 +61,7 @@ export class AssetStorageStack extends Stack {
       );
     }
     Tags.of(this).add('Project', 'learning-adventure-island');
-    Tags.of(this).add('Component', 'asset-manager');
+    Tags.of(this).add('Component', 'asset-library');
     Tags.of(this).add('Environment', props.envName);
 
     this.bucket = new s3.Bucket(this, 'AssetBucket', {
@@ -105,12 +107,12 @@ export class AssetStorageStack extends Stack {
     */
     this.djangoPolicy = new iam.ManagedPolicy(this, 'DjangoAssetStoragePolicy', {
       managedPolicyName: `lai-django-asset-storage-${props.envName}`,
-      description: 'Django asset manager: read, write and delete model objects in its bucket.',
+      description: 'Django asset library: read, write and delete model, image and audio objects in its bucket.',
       statements: [
         new iam.PolicyStatement({
           sid: 'AssetObjects',
           actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
-          resources: [this.bucket.arnForObjects(`${ASSET_KEY_PREFIX}*`)],
+          resources: ASSET_KEY_PREFIXES.map((prefix) => this.bucket.arnForObjects(`${prefix}*`)),
         }),
         new iam.PolicyStatement({
           sid: 'ListAssetBucket',

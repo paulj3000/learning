@@ -1,9 +1,9 @@
-"""Delivery URLs for published versions (LAI-2200 AM-6; `docs/ASSET_MANAGER.md` section 8).
+"""Delivery URLs for published versions (LAI-2200 AM-6; `docs/ASSET_LIBRARY.md` section 8).
 
 `GLTFLoader` fetches a URL without an `Authorization` header, so every URL authorizes itself.
 URLs are issued only by the resolver, and only for published versions.
 
-- `django` (`LAI_ASSET_DELIVERY=django`): `/api/v1/asset-files/<token>/model.<format>`. The token
+- `django` (`LAI_ASSET_DELIVERY=django`): `/api/v1/asset-files/<token>/<model|image|audio>.<format>`. The token
   is a signed `{version id, expiry}`; `AssetFileView` re-checks on every fetch that the version is
   still published and its asset active, so retiring stops new fetches at once.
 - `s3`: a presigned GET for the private object. Valid until it expires; retiring stops new URLs
@@ -63,7 +63,7 @@ def deliver(version, *, now: float | None = None) -> Delivery:
             cache.set(cache_key, url, timeout=max(expires - start - ttl() // 2, 1))
         return Delivery(url, expires)
     token = signing.dumps({"v": str(version.version_id), "e": expires}, salt=SALT)
-    return Delivery(reverse("asset-file", args=[token, f"model.{version.format}"]), expires)
+    return Delivery(reverse("asset-file", args=[token, version.file_name]), expires)
 
 
 class InvalidToken(Exception):
