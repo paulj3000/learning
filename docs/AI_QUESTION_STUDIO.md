@@ -226,14 +226,15 @@ challenge at once. Already issued attempts keep their snapshot.
 See the status table and `docs/IMPLEMENTATION_STATUS.md` for the exact commands and results.
 Verified here: Python unit, API and Admin tests against PostgreSQL 16 with the fake model,
 including an end-to-end test (generate 25, approve, publish, play, grade, evidence) and a
-two-thread publish race. **Not verified:** live Bedrock (LAI-0705 approval gate), a browser
-session in Django Admin, the React multiplication picture (the JavaScript dependencies could not
-be installed because `package-lock.json` is out of sync with `package.json`), and any deployment.
+two-thread publish race, and the React multiplication picture (Vitest, typecheck, prettier).
+**Not verified:** live Bedrock (LAI-0705 approval gate), a browser session in Django Admin, and
+any deployment.
 
 ## 12. Known limitations
 
-- The catalog has no multiplication objective and no grade 3 curriculum, so real multiplication
-  questions need an exported objective before Treasure Rush will serve them.
+- The curriculum holds one Grade 3 skill, `multiplication-facts` (Explorers only), added so Studio
+  questions have an objective to record progress against. The rest of Grade 3 is not authored,
+  and other topics need their own exported objective before Treasure Rush will serve them.
 - Only Treasure Rush chests consume the bank. Storykeeper Castle and the Amplify-session
   adventures are unchanged; pools are keyed by region and chest, with the adventure link kept on
   each revision for later adoption.

@@ -1,5 +1,6 @@
 import type { Domain, Grade, Skill, Subject } from '../types';
 import { MATH_DOMAINS, MATH_GRADE_1_2, MATH_SKILLS, MATH_SUBJECT } from './mathGrade1To2';
+import { MATH_GRADE_3, MATH_GRADE_3_DOMAINS, MATH_GRADE_3_SKILLS } from './mathGrade3';
 import {
   EARLY_SCIENCE_DOMAINS,
   EARLY_SCIENCE_GRADE,
@@ -11,9 +12,25 @@ import {
 } from './earlyYears';
 
 export const SUBJECTS: Subject[] = [MATH_SUBJECT, SCIENCE_SUBJECT];
-export const GRADES: Grade[] = [MATH_EARLY_GRADE, MATH_GRADE_1_2, EARLY_SCIENCE_GRADE];
-export const DOMAINS: Domain[] = [...MATH_EARLY_DOMAINS, ...MATH_DOMAINS, ...EARLY_SCIENCE_DOMAINS];
-export const SKILLS: Skill[] = [...MATH_EARLY_SKILLS, ...MATH_SKILLS, ...EARLY_SCIENCE_SKILLS];
+export const GRADES: Grade[] = [
+  MATH_EARLY_GRADE,
+  MATH_GRADE_1_2,
+  MATH_GRADE_3,
+  EARLY_SCIENCE_GRADE,
+];
+export const DOMAINS: Domain[] = [
+  ...MATH_EARLY_DOMAINS,
+  ...MATH_DOMAINS,
+  ...MATH_GRADE_3_DOMAINS,
+  ...EARLY_SCIENCE_DOMAINS,
+];
+export const SKILLS: Skill[] = [
+  ...MATH_EARLY_SKILLS,
+  ...MATH_SKILLS,
+  ...MATH_GRADE_3_SKILLS,
+  ...EARLY_SCIENCE_SKILLS,
+];
 
 export * from './mathGrade1To2';
+export * from './mathGrade3';
 export * from './earlyYears';

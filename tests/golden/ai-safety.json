@@ -2997,6 +2997,13 @@
           ]
         },
         {
+          "name": "multiplication-facts",
+          "input": {
+            "skillId": "multiplication-facts"
+          },
+          "expected": null
+        },
+        {
           "name": "observation",
           "input": {
             "skillId": "observation"
@@ -3197,6 +3204,13 @@
             "skillId": "subtraction-within-ten"
           },
           "expected": true
+        },
+        {
+          "name": "multiplication-facts",
+          "input": {
+            "skillId": "multiplication-facts"
+          },
+          "expected": false
         },
         {
           "name": "observation",
@@ -3920,6 +3934,28 @@
             ],
             "hintLevel": 4
           }
+        },
+        {
+          "name": "multiplication-facts level 1",
+          "input": {
+            "input": {
+              "ageBand": "SPROUT",
+              "skillId": "multiplication-facts",
+              "hintLevel": 1
+            }
+          },
+          "expected": null
+        },
+        {
+          "name": "multiplication-facts level 4",
+          "input": {
+            "input": {
+              "ageBand": "PATHFINDER",
+              "skillId": "multiplication-facts",
+              "hintLevel": 4
+            }
+          },
+          "expected": null
         },
         {
           "name": "observation level 1",

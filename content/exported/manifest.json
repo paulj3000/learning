@@ -1,5 +1,5 @@
 {
-  "contentDigest": "99641a559c565a3b50ebbc500c6755c7905974cb4c33e28f7ad403459f19ed37",
+  "contentDigest": "e761ec33fdf4afcb1d67d900277cb20d5a925003dc5dffb3316f4bc2a6419eb5",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -22,11 +22,11 @@
     {
       "counts": {
         "adventures": 24,
-        "learningObjectives": 18,
+        "learningObjectives": 19,
         "wonderWallQuestions": 4
       },
       "path": "adventures.json",
-      "sha256": "9d7f66fdf4b15e605a2dd12c506cdb1d48a0878a325703ea0837e9aa2d23a38a"
+      "sha256": "3401d680016b41699f1d42e477496e40c74bcd242ef39f9c1d9befdcdf11aec1"
     },
     {
       "counts": {
@@ -75,13 +75,13 @@
     },
     {
       "counts": {
-        "domains": 6,
-        "grades": 3,
-        "skills": 10,
+        "domains": 7,
+        "grades": 4,
+        "skills": 11,
         "subjects": 2
       },
       "path": "curriculum.json",
-      "sha256": "691c5b2aedf71940cb2e66e5b027141e50f16c57103f968e92ea7b04fc3d66f5"
+      "sha256": "2be5fe01881d0bd5cfe9c0e61a1b51489174c132d2b73d48a7ffebd6fd076e93"
     },
     {
       "counts": {

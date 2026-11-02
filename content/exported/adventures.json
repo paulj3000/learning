@@ -5094,6 +5094,11 @@
       "code": "vocabulary",
       "domain": "literacy",
       "title": "Learning and using new words"
+    },
+    {
+      "code": "multiplication-facts",
+      "domain": "numeracy",
+      "title": "Multiplication facts"
     }
   ],
   "schemaVersion": 3,

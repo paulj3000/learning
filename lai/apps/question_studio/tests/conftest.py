@@ -165,10 +165,15 @@ def publish_questions(
 def objective(release):
     from apps.catalog.models import LearningObjective
 
-    return LearningObjective.objects.create(
+    # The exported curriculum now holds this objective (Phase 28), so the content-importing
+    # `treasure` fixture creates it; tests that do not import content still need it.
+    objective, _ = LearningObjective.objects.get_or_create(
         code="multiplication-facts",
-        domain="math",
-        title="Multiplication facts",
-        source={},
-        last_seen_release=release,
+        defaults={
+            "domain": "numeracy",
+            "title": "Multiplication facts",
+            "source": {},
+            "last_seen_release": release,
+        },
     )
+    return objective
