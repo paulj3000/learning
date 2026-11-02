@@ -371,6 +371,12 @@ COGNITO_REGION = os.environ.get("COGNITO_REGION", "").strip()
 COGNITO_USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID", "").strip()
 COGNITO_ALLOWED_CLIENT_IDS = env_list("COGNITO_ALLOWED_CLIENT_IDS")
 
+# Recent sign-in verification for sensitive actions (LAI-0209, ADR-043): how old the token's
+# Cognito `auth_time` may be. 60 to 900 seconds; the default is 5 minutes.
+LAI_RECENT_AUTH_MAX_AGE_SECONDS = int(os.environ.get("LAI_RECENT_AUTH_MAX_AGE_SECONDS", "300"))
+if not 60 <= LAI_RECENT_AUTH_MAX_AGE_SECONDS <= 900:
+    raise ImproperlyConfigured("LAI_RECENT_AUTH_MAX_AGE_SECONDS must be between 60 and 900.")
+
 
 # --- Game-only WebView launches (LAI-ANDROID-API-001, ADR-036) ----------------------------------
 # docs/android/ANDROID_GAME_LAUNCH.md. The game runtime is served from the same origin as the API

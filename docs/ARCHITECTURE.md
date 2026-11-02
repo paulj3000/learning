@@ -635,7 +635,8 @@ credentials authenticate the API in any environment, local development included 
 "Cognito-only API authentication" below). Today the Amplify SDK keeps tokens in `localStorage` (readable by page JavaScript);
 that, onboarding, revocation latency, and the admin design are open gates in ADR-024. Owner decisions of 2026-10-18 approved
 explicit `POST /api/v1/me/` onboarding, PyJWT/RS256 verification with a bounded JWKS cache, and
-claim-derived administration; sensitive actions stay blocked until LAI-0209.
+claim-derived administration. Sensitive actions (child deletion, asset administrator changes) require a recent
+interactive Cognito sign-in checked by Django (LAI-0209, ADR-043; see "Recent sign-in verification" below).
 **Implemented in LAI-0402:** `apps/users/authentication.py` (verifier and DRF authenticator),
 `jwks.py` (bounded key cache), `permissions.py` (`IsProvisionedParent` as the API-wide default,
 `IsVerifiedPrincipal` for onboarding, `SensitiveActionBlocked`), `views.py` (`/api/v1/me/`). Errors:
@@ -679,7 +680,7 @@ where profiles live; the backend does.
 React --(Cognito JWT)--> Django REST API
          me/            GET, POST (onboarding), PATCH (displayName, timezone)
          children/      GET list, POST create (cap 3)
-         children/<id>/ GET, PATCH (settings, active, aiEnabled); DELETE 403 until LAI-0209
+         children/<id>/ GET, PATCH (settings, active, aiEnabled); DELETE (recent sign-in, LAI-0209)
          children/<id>/... play, progress, rewards (Treasure Rush)
 ```
 
@@ -688,7 +689,8 @@ React --(Cognito JWT)--> Django REST API
   cutover) uses `amplifyProfiles.ts`, removed by LAI-1301. Screens use the hand-owned shapes in
   `profileTypes.ts`. The Amplify `Admins` pages keep their own Amplify reads (`features/admin`).
 - Archival policy: `PATCH {"active": false}` keeps the profile, progress and rewards. Hard
-  deletion waits for LAI-0209 / LAI-0602.
+  deletion is `DELETE /api/v1/children/<id>/` (LAI-0602), which needs a recent sign-in
+  (LAI-0209): 204, or `403 recent_auth_required`, `404`, `503 child_deletion_incomplete`.
 - Existing Amplify profiles: `manage.py import_amplify_profiles`, dry run first, ids preserved,
   owner from the recorded Cognito sub only (`docs/platform/AMPLIFY_PROFILE_IMPORT.md`).
 - Django Admin: `ParentRecord` and `ChildProfile` are read-only for staff with
@@ -1010,3 +1012,18 @@ yet.
 ## Content export contract (post-merge note)
 
 The content export is at `schemaVersion: 3` (version 2 added adventure skill metadata and `START_STORY`; version 3 adds `locationAssets`). It reads the `ALL_NPCS` registry, not a single region's cast. Details: `docs/DATA_MODEL.md`. ADR numbers 027 to 030 are the Storykeeper Castle / Wonderwild / Clockwork decisions (formerly 019 to 022 on that line).
+
+## Recent sign-in verification
+
+Specification: `docs/platform/RECENT_SIGN_IN.md` (LAI-0209, ADR-043). A sensitive API action
+needs, besides a valid Cognito access token and the endpoint's own authorization, proof that the
+parent completed an interactive Cognito sign-in in the last `LAI_RECENT_AUTH_MAX_AGE_SECONDS`
+(300 by default). Django checks it in `RequiresRecentAuthentication`
+(`lai/apps/users/recent_auth.py`): the verified token's `auth_time` (with conservative skew
+handling), a per-session anchor keyed by `origin_jti` so a refresh can never reset it, and a
+Cognito `GetUser` call with the presented token so a revoked session fails. Answers:
+`403 recent_auth_required` (not 401, so clients do not refresh-and-retry), `401` for a revoked
+token, `503 recent_auth_unavailable` when the check cannot run (fails closed). Guarded today:
+`DELETE /api/v1/children/<id>/` and every `/api/v1/admin/assets/` mutation. React's
+`useSensitiveAction` (`react/src/features/auth/recentSignIn/`) re-authenticates with an Amplify
+Cognito sign-in for the same account, asks for explicit confirmation, and retries once.

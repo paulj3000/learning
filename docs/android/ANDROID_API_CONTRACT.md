@@ -12,7 +12,7 @@ WebView).
 | Cognito bearer authentication, `POST/GET /api/v1/me/` | **Existed** (LAI-0402); reused unchanged |
 | Child profiles: list, create, read, update | **Added** |
 | Child profile photo: read, upload or replace, remove, bytes | **Added** (LAI-0904, ADR-042); client contract below (LAI-0905) |
-| Child deletion | **Blocked** (403 `sensitive_action_unavailable`) until the deletion service (LAI-0602) and recent-auth checks (LAI-0209) exist |
+| Child deletion | **Added** behind a recent sign-in (LAI-0602, LAI-0209; implemented on its feature branch, not yet merged or live-verified) |
 | Child home summary | **Added** |
 | Region list, region adventures | **Added** |
 | Region bootstrap, region session, sessions, chests, attempts, quests | **Existed** (TR-5, `docs/PLAY_API.md`); now also reachable by the game runtime cookie, only for its own child and region |
@@ -178,10 +178,25 @@ PATCH {"ageBand": "SPROUT", "sessionMinutes": 7}
 
 ### `DELETE /api/v1/children/{childId}/`
 
-Always `403 sensitive_action_unavailable`. Deletion must also remove the S3
-photo and cascade records under the retention rules, and needs recent authentication. That is
-LAI-0602 and LAI-0209. Until then the archival policy is `PATCH {"active": false}`: the profile,
-its progress and its rewards are kept, and the child cannot play.
+Deletes the child, its photo objects and every child-owned record (LAI-0602). A sensitive action:
+the access token must come from an interactive Cognito sign-in less than 300 seconds ago
+(LAI-0209, `docs/platform/RECENT_SIGN_IN.md`). Answers:
+
+| Status | `error.code` | Client action |
+|---|---|---|
+| 204 | | Deleted |
+| 403 | `recent_auth_required` | Re-authenticate (a real sign-in, never a token refresh), confirm with the parent, retry once |
+| 403 | `account_not_provisioned` | `POST /api/v1/me/` first |
+| 404 | `not_found` | Already deleted, another family's, or unknown |
+| 401 | `authentication_failed` | Token invalid or revoked: sign in again |
+| 503 | `recent_auth_unavailable` | Try again later; do not sign out |
+| 503 | `child_deletion_incomplete` | Nothing lost; retry later |
+
+Android requirements: call `POST /api/v1/me/` after every sign-in (it anchors the session's
+sign-in time); access tokens must carry `aws.cognito.signin.user.admin` (SRP sign-in always does;
+a hosted-UI PKCE client must request it); re-authenticate with SRP or the hosted UI with
+`prompt=login`, never with a refresh token. The archival alternative stays
+`PATCH {"active": false}`.
 
 ## Child profile photo (added, LAI-0904; client contract LAI-0905)
 

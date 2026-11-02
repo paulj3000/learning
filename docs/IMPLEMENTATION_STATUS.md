@@ -11758,6 +11758,60 @@ unpublished assets stay private; Amplify Storage stays unchanged until LAI-1301.
   clean, `adr:check`, `admin-preview:check`, `content:check` and `golden:check` pass, Playwright 7
   of 7.
 
+## LAI-0209 recent sign-in verification; child deletion and asset changes enabled (2026-11-01, branch `feature/lai-0209-recent-auth`, not merged, not pushed, nothing deployed)
+
+Specification `docs/platform/RECENT_SIGN_IN.md`; decision ADR-043 (Proposed, specifies ADR-024 A3).
+
+| Task | Implemented | Unit tested | Live Cognito verified | Browser verified | Deployed | Accepted |
+|---|---|---|---|---|---|---|
+| LAI-0209 Django guard | Yes | pytest (`test_recent_auth.py`, 43 cases) | No | n/a | No | No |
+| LAI-0209 React re-authentication dialog | Yes | Vitest (recentSignIn, useSensitiveAction, AuthContext) | No | No | No | No |
+| LAI-0602 `DELETE /api/v1/children/<id>/` | Yes | pytest + Vitest (`djangoProfiles`) | No | No | No | No |
+| AM-14 asset mutations | Yes (behind the guard) | pytest (`test_admin_api.py`) | No | n/a | No | No |
+| AM-15 asset pages | Yes (dialog on every change) | Vitest (`djangoAssetPages`) | No | No | No | No |
+| AM-16 | Not started | n/a | n/a | n/a | n/a | Blocked by LAI-1002, LAI-1004 and LAI-0209's live gate |
+
+- **Cognito evidence checked first.** AWS documents `auth_time` (time the user completed
+  authentication) and `origin_jti` (tied to the refresh token) but does not state that a refresh
+  keeps `auth_time`. So the guard adds a per-session anchor and treats the refresh behaviour as a
+  live gate (L2), instead of trusting `auth_time` alone. JWT `iat` is never used as sign-in time.
+- **Backend** (`lai/apps/users/recent_auth.py`, `permissions.RequiresRecentAuthentication`,
+  `models.AuthSessionAnchor` + migration `users.0006`, `LAI_RECENT_AUTH_MAX_AGE_SECONDS` = 300):
+  integer `auth_time`/`iat` and `origin_jti` required; skew handled conservatively; the
+  first `auth_time` per session is anchored (by `POST /api/v1/me/` and the first sensitive
+  request) and a different one later is refused; Cognito `GetUser` with the presented token
+  (unsigned, 3 s/5 s timeouts) catches revoked sessions and identity mismatch; fails closed with
+  `503 recent_auth_unavailable`. Stale or missing evidence is `403 recent_auth_required`, never
+  401. `VerifiedToken` gained `issued_at`, `origin_jti`, `scopes`. Logs carry reason codes only.
+- **Child deletion**: the existing `deletion.py` service, unchanged, behind
+  `IsProvisionedParent` then the guard; recency is checked before the child lookup, so a stale
+  sign-in gets the same answer for any id; 404 for another family's or an unknown child;
+  `503 child_deletion_incomplete` keeps the child; a repeated delete is 404.
+- **Asset mutations**: `MUTATION_GATE = RequiresRecentAuthentication`, after
+  `IsAssetAdministrator`. Non-administrators: `permission_denied` (never invited to sign in).
+  Stale administrators: `recent_auth_required`. Reads unchanged. Django Admin unchanged.
+- **React** (`react/src/features/auth/recentSignIn/`): `useSensitiveAction` + `RecentSignInDialog`.
+  Amplify `signOut` then `signIn` (SRP) as the same login id, explicit confirmation naming the
+  action, exactly one retry, a second `recent_auth_required` ends the attempt, a different
+  account is signed out again, an expired session is told to sign in. `AuthContext` ignores
+  Hub events during verification and re-reads the session quietly, so the page and its state
+  stay mounted. Wired into the child dashboard's delete, the new-model form (a definition
+  already created is not created again) and every per-version action and upload.
+- **Checks run (development, CLAUDE.md section 14):** pytest `lai/apps/users`, `lai/apps/assets`,
+  `lai/apps/core` 715 passed; full pytest 1286 passed (`lai` 1120, `tests` 166, compose PostgreSQL); Ruff and Ruff format clean;
+  `makemigrations --check` clean; `tsc -b` clean; Vitest for auth, assets, child-profile, api
+  420 passed; full Vitest 3278 passed, 8 failed for environmental reasons unrelated to this
+  change (`node_modules/.bin/tsx` is not installed, so `adrCheck` and `contentExport` spawn
+  tests fail; `server/multiplayer/regionBounds.test.ts` is an untracked local file);
+  `adr:check` run with `node --experimental-strip-types`: passed. oxlint: 0 errors; the new
+  dialog adds the same `role="dialog"` warnings as `ParentGate`.
+- **Not done (approval or access needed):** live Cognito gate L1 to L6 (refresh keeps
+  `auth_time`, `GetUser` refuses a revoked token, `EnableTokenRevocation`), browser verification
+  of the dialog, merge gates, deployment. `.env` example files were not updated (not readable in
+  this session); the setting defaults safely.
+- **Still blocked:** account deletion and consent changes (`SensitiveActionBlocked`, no
+  specification yet); Django Admin has no recent sign-in step for its own asset actions.
+
 ## Phase 7 Django AI service: LAI-0306, LAI-0701 to LAI-0704 (2026-11-01, branch `features/ai`, not merged, not pushed)
 
 Owner-directed (Phase 7 brief); decision ADR-044; reference `docs/AI_SERVICE.md`.

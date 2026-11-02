@@ -64,6 +64,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-040 | Cognito is the sole authentication provider for application users in every environment; Django authorizes, and native Django authentication serves Django Admin staff only | Accepted | Main line (LAI-AUTH-ROLLBACK) | Owner-directed 2026-10-31. Supersedes ADR-038; restores ADR-024 items 1 and 2 everywhere; keeps ADR-034 (Django Admin) and ADR-039 (Django profile authority) |
 | ADR-041 | Islands, Places and 3D Areas: one optional 3D Area per Place, and Adventures launched from objects in it | Accepted | Feature branch (LAI-0806) | Owner-approved decisions A to E, 2026-10-31. Builds on ADR-032 and ADR-033; leaves LAI-0805 (spatial layout administration) open |
 | ADR-042 | Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset manager owns the asset bucket, and the Amplify bucket stays untouched until retirement | Accepted | Feature branch (LAI-0904) | Owner-accepted 2026-10-31 for code and infrastructure definitions only; no deployment, migration or deletion approved. Amended 2026-11-01: Django is the control plane for both buckets; asset mutations through Django APIs, blocked until LAI-0209 (AM-14 to AM-16). Builds on ADR-035 (asset storage) and ADR-039 (Django profile authority) |
+| ADR-043 | Sensitive actions require a recent interactive Cognito sign-in, proven by the verified token's `auth_time`, a per-session anchor and a Cognito `GetUser` revocation check | Proposed | Feature branch (LAI-0209) | Implemented and unit-tested 2026-11-01 on `feature/lai-0209-recent-auth`; owner acceptance and the live Cognito gate pending. Specifies ADR-024 A3; lifts the `SensitiveActionBlocked` block on child deletion (LAI-0602) and asset mutations (ADR-042 item 2) |
 | ADR-044 | Django serves Chatty's companion and tutor turns through Bedrock Converse with a child-safety Guardrail; Amplify AI routes stay until client cutover | Accepted | Feature branch (features/ai) | Owner-directed 2026-11-01 (Phase 7 brief: LAI-0306, LAI-0701 to LAI-0704). Accepts ADR-019 sub-decision 9 for code and infrastructure definitions only; live Bedrock, Guardrail deployment and the React cutover stay gated (LAI-0705, LAI-0706, G7) |
 | ADR-045 | AI Question Studio is a staff-only Django app that drafts questions through the ADR-044 model client and serves published questions through the existing challenge and grading path | Accepted | Feature branch (features/studio) | Owner brief 2026-11-02 (Phase 28); accepted the same day ("proceed as proposed"). Builds on ADR-019, ADR-033, ADR-034, ADR-044. Not deployed |
 
@@ -1428,6 +1429,9 @@ recent authentication plus a revocation-aware check, must fail closed if that ch
 and **must not be exposed** until that mechanism is separately specified, implemented, and tested
 (tracked as LAI-0209). LAI-0402 therefore ships a permission class, `SensitiveActionBlocked`, that
 denies every request; any such endpoint must declare it until LAI-0209 replaces it.
+*Specified and implemented 2026-11-01 (LAI-0209, ADR-043, proposed):* child deletion and the
+asset administrator's mutations use `RequiresRecentAuthentication`; `SensitiveActionBlocked`
+remains for sensitive actions whose own specification is not done (account deletion, consent).
 
 **A4, administration: approved.** Administrative authority is derived on every relevant request
 from the `cognito:groups` claim of a cryptographically verified access token. No Django superuser
@@ -3128,6 +3132,61 @@ then talks to S3 directly, and only to read the single object Django named, unti
 expires. Revoking access stops new URLs at once but cannot recall one already issued, which is
 why photo URLs live 300 s and why retired assets keep `django` delivery (re-checked on every
 fetch).
+
+## ADR-043: Sensitive actions require a recent interactive Cognito sign-in, proven by the verified token's `auth_time`, a per-session anchor and a Cognito `GetUser` revocation check
+
+Status: **Proposed.** Implemented and unit-tested on `feature/lai-0209-recent-auth` (2026-11-01);
+owner acceptance, the live Cognito gate and browser verification are pending. Nothing deployed;
+no Cognito resource or setting changed. Specification: `docs/platform/RECENT_SIGN_IN.md`.
+
+**Context.** ADR-024 A3 required recent authentication plus a revocation-aware check, failing
+closed, before account or child deletion, consent changes and privileged administrative
+mutations, and blocked them (`SensitiveActionBlocked`) until LAI-0209 specified one. Child
+deletion (LAI-0602) and the asset administrator API (AM-14) were built and waiting.
+
+**Question checked first: does the Cognito flow give reliable evidence of recent interactive
+sign-in?** AWS documents the access token's `auth_time` as the time the user completed
+authentication, `iat` as the issue time, and `origin_jti` as the identifier tied to the refresh
+token (checked by revocation). It does not state outright that a refreshed token keeps the
+original `auth_time`. So `auth_time` is used, but not trusted alone, and the refresh case is a
+live acceptance gate.
+
+**Decisions.**
+
+1. **Django decides, from the verified access token only.** Evidence: integer `auth_time` and
+   `iat`, and `origin_jti`. `auth_time` must be at most `LAI_RECENT_AUTH_MAX_AGE_SECONDS` old
+   (default 300; 60 to 900). Skew: `auth_time` up to 30 s ahead counts as now, more is refused;
+   `iat` before `auth_time - 30 s` is refused; the window is never widened. Client-supplied
+   timestamps are never read.
+2. **A refresh never counts as a sign-in.** `AuthSessionAnchor` stores the first `auth_time` seen
+   per account and `origin_jti` digest (SHA-256; no token data), recorded by `POST /api/v1/me/`
+   after sign-in and by the first sensitive request. A later token from the same session with a
+   different `auth_time` is refused. Anchors are pruned after 35 days.
+3. **Revocation-aware, fail closed.** Cognito `GetUser` with the presented token (unsigned,
+   token-authorized; no IAM permission; 3 s / 5 s timeouts, no retry). Revoked: 401. Different
+   `sub`: 401. Unreachable, throttled, or the token lacks `aws.cognito.signin.user.admin`: 503
+   `recent_auth_unavailable`.
+4. **Status contract.** Stale or missing evidence is `403 recent_auth_required`, never 401, so
+   clients do not refresh-and-retry or sign out. Authorization runs before recency (a
+   non-administrator gets `permission_denied`), and recency runs before the child lookup (no
+   existence leak). Another family's child is 404.
+5. **One reusable permission, `RequiresRecentAuthentication`,** listed after the endpoint's own
+   permissions. It now guards `DELETE /api/v1/children/<id>/` and every asset administrator
+   mutation (create, upload, publish, default, retire, delete). `SensitiveActionBlocked` stays
+   for sensitive actions not yet specified (account deletion, consent changes).
+6. **Re-authentication is a real Cognito sign-in,** not a second authentication system and not
+   a Django-held password: React signs the current session out and signs in again with Amplify
+   (SRP) as the same account, asks for explicit confirmation, then retries the request once. No
+   step-up token is minted: the fresh access token is itself the evidence.
+7. **Django Admin is unchanged** (ADR-034, ADR-040): its staff session neither uses nor bypasses
+   the guard.
+
+**Consequences.** Child deletion and asset changes work through the API for a parent or
+administrator who signed in within five minutes. Every sensitive request costs one Cognito call.
+Android hosted-UI clients must request `aws.cognito.signin.user.admin` and use `prompt=login` to
+re-authenticate. Open: the live Cognito gate (L1 to L6 in the specification), gate A6 (token
+revocation setting), browser verification of the dialog, and a recent-sign-in step for Django
+Admin's own asset actions.
 
 ## ADR-044: Django serves Chatty's companion and tutor turns through Bedrock Converse with a child-safety Guardrail; Amplify AI routes stay until client cutover
 

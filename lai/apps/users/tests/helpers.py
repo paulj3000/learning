@@ -3,6 +3,7 @@
 import base64
 import json
 import time
+import uuid
 
 import jwt
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -56,6 +57,8 @@ def access_claims(sub="sub-parent-a", **overrides) -> dict:
         "iat": now - 60,
         "exp": now + 3600,
         "jti": "jti-1",
+        # A new sign-in session per token unless a test pins it (a refresh keeps it).
+        "origin_jti": str(uuid.uuid4()),
         "username": sub,
     }
     claims.update(overrides)
@@ -75,3 +78,28 @@ class Network:
         if self.error:
             raise self.error
         return self.body
+
+
+class FakeRevocationCheck:
+    """Stands in for Cognito `GetUser` (LAI-0209). Answers the token's own `sub` by default."""
+
+    def __init__(self):
+        self.calls = 0
+        self.revoked = False
+        self.unavailable = False
+        self.sub_override: str | None = None
+        self.tokens: list[str] = []
+
+    def __call__(self, access_token: str) -> str:
+        from apps.users.recent_auth import RevocationCheckUnavailable, TokenRevoked
+
+        self.calls += 1
+        self.tokens.append(access_token)
+        if self.unavailable:
+            raise RevocationCheckUnavailable("network")
+        if self.revoked:
+            raise TokenRevoked
+        return (
+            self.sub_override
+            or jwt.decode(access_token, options={"verify_signature": False})["sub"]
+        )

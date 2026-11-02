@@ -9,7 +9,7 @@ commits; not merged, not pushed):
 | LAI-0904 Django photo API (`lai/apps/users`) | Done | pytest with the in-memory store, full Django stack | Not released to any environment with S3 | Open: never run against a real bucket |
 | LAI-0905 React client | Done | Vitest component and client tests | Ships with the next React build that uses the Django API | Open: browser check needs a test Cognito pool (gate A6) and the dev bucket |
 | LAI-0905 Android contract | Documented (`docs/android/ANDROID_API_CONTRACT.md`) | n/a | n/a | Open: no Android client exists in this repository |
-| LAI-0602 photo cleanup on child deletion (`lai/apps/users/deletion.py`) | Service done | pytest | n/a | Open: the API route stays blocked until LAI-0209 |
+| LAI-0602 photo cleanup on child deletion (`lai/apps/users/deletion.py`) | Service done; API route enabled behind the recent sign-in guard (LAI-0209 branch) | pytest | n/a | Open: LAI-0209 live gate and merge |
 | LAI-1103 Amplify photo migration | Designed (section 10) | none | none | Not started: its inputs (LAI-1101 export, bucket read access) do not exist |
 | LAI-1204 legacy Amplify storage retirement | Planned (section 11) | none | none | Nothing deleted, nothing changed |
 

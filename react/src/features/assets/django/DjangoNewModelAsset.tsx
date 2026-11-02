@@ -16,6 +16,8 @@ import { AdminPageHeader } from '../../admin/AdminPageHeader';
 import { Alert } from '../../admin/ui/Alert';
 import { Button } from '../../admin/ui/Button';
 import { FieldHint, Input, Label, NativeSelect, Textarea } from '../../admin/ui/FormControls';
+import { isRecentAuthRequired } from '../../auth/recentSignIn/recentSignIn';
+import { useSensitiveAction } from '../../auth/recentSignIn/useSensitiveAction';
 import type { DjangoAssetManager } from '../assetBackend';
 import { formatFileSize } from '../config';
 import { slugify } from '../modelFileChecks';
@@ -64,6 +66,7 @@ export function DjangoNewModelAsset({ manager }: { manager: DjangoAssetManager }
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
+  const sensitive = useSensitiveAction();
 
   const effectiveId = createdId ?? (idEdited ? assetId : slugify(displayName));
   const idValid = ASSET_ID_PATTERN.test(effectiveId);
@@ -79,8 +82,14 @@ export function DjangoNewModelAsset({ manager }: { manager: DjangoAssetManager }
     if (!file || !idValid || !displayName.trim() || busy) return;
     setBusy(true);
     setFailure(null);
-    try {
-      if (createdId === null) {
+    const chosen = file;
+    let created = createdId !== null;
+    // Both steps need a recent sign-in (LAI-0209). If Django asks for one, the dialog keeps
+    // this form, its fields and the chosen file as they are, and after the administrator
+    // signs in and confirms, runs the remaining steps once more. A definition already
+    // created is not created again.
+    const attempt = async () => {
+      if (!created) {
         await manager.api.createDefinition({
           assetId: effectiveId,
           displayName: displayName.trim(),
@@ -88,9 +97,21 @@ export function DjangoNewModelAsset({ manager }: { manager: DjangoAssetManager }
           kind,
           category,
         });
+        created = true;
         setCreatedId(effectiveId);
       }
-      const outcome = await upload.start(effectiveId, file);
+      const result = await upload.start(effectiveId, chosen);
+      if (!result.ok && isRecentAuthRequired(result.error)) throw result.error;
+      return result;
+    };
+    try {
+      const run = await sensitive.run(attempt, {
+        title: `Add "${displayName.trim()}"`,
+        description: 'Create this model and upload the chosen file as its first version.',
+        confirmLabel: 'Add model',
+      });
+      if (run.status === 'cancelled') return;
+      const outcome = run.value;
       if (!outcome.ok) {
         setFailure(failureOf(outcome.error));
         return;
@@ -246,6 +267,7 @@ export function DjangoNewModelAsset({ manager }: { manager: DjangoAssetManager }
           </Button>
         </div>
       </form>
+      {sensitive.dialog}
     </>
   );
 }

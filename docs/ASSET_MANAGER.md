@@ -279,9 +279,9 @@ The admin preview (section 17) adds no variable. Its token lifetime is the const
 | AM-11 | Signed CloudFront delivery | Not needed for launch (section 8); later optimisation once LAI-1005's distribution exists |
 | AM-12 | Production S3 storage: bucket, IAM, CORS, image, runbook (sections 12 and 19) | Done as code and documentation; deploying it is an approval step |
 | AM-13 | Non-model asset kinds: textures, images and sprites, audio, animation clips. Each kind gets validation, a key family under `assets/` and a matching IAM prefix; the bucket needs no change | Not started (added 2026-10-31, ADR-042) |
-| AM-14 | Administrator API: definitions, uploads, publish, default, retire, delete unpublished (section 20) | Done 2026-11-01 (unit-tested). Mutations blocked until LAI-0209 |
-| AM-15 | React asset manager on the Django API, Amplify pages kept for builds without it (section 20) | Done 2026-11-01 (unit-tested). Not checked in a browser |
-| AM-16 | End-to-end publish and delivery verification on the deployed dev environment | Not started: needs LAI-1002/1004 (dev platform), the asset bucket deployed, and LAI-0209 |
+| AM-14 | Administrator API: definitions, uploads, publish, default, retire, delete unpublished (section 20) | Done 2026-11-01 (unit-tested). Mutations need a recent sign-in (LAI-0209, implemented on its branch, live gate open) |
+| AM-15 | React asset manager on the Django API, Amplify pages kept for builds without it (section 20) | Done 2026-11-01 (unit-tested). Changes go through the LAI-0209 re-authentication dialog. Not checked in a browser |
+| AM-16 | End-to-end publish and delivery verification on the deployed dev environment | Not started: needs LAI-1002/1004 (dev platform), the asset bucket deployed, and LAI-0209's merge and live gate |
 
 ## 15. Treasure Rush TR-10 (done 2026-10-30)
 
@@ -602,11 +602,13 @@ Django; Django checks, stores and records them with the same services Django Adm
 | `admin/assets/<id>/versions/<n>/` | DELETE | Only never-published versions; the file is deleted after the row commits |
 
 **Authorization.** Every route needs a verified Cognito access token in the `Admins` group, and a
-provisioned account (ADR-024 A4). Every mutation also passes `admin_api.MUTATION_GATE`, which is
-`SensitiveActionBlocked` until LAI-0209 adds the recent-authentication check (ADR-024 A3): until
-then the React pages can list and inspect, and every change answers `403
-sensitive_action_unavailable`, which the pages explain ("Use Django Admin for now"). Django
-Admin's own staff permissions (section 3) are unchanged and remain the way to change assets.
+provisioned account (ADR-024 A4). Every mutation also passes `admin_api.MUTATION_GATE`,
+`RequiresRecentAuthentication` (LAI-0209, ADR-043, `docs/platform/RECENT_SIGN_IN.md`), checked
+after the `Admins` check: a non-administrator gets `403 permission_denied` however recently they
+signed in; an administrator whose Cognito sign-in is older than 300 seconds gets `403
+recent_auth_required`, and the React pages ask them to sign in again and confirm, keeping the
+form and chosen file, then retry once. Reads need no recent sign-in. Django Admin's own staff
+permissions (section 3) are unchanged; Django Admin has no recent sign-in step of its own yet.
 
 **What never happens.** Definitions are never deleted through the API (retire in Django Admin).
 Published and retired versions are never deleted. Responses carry no storage key, bucket name,
