@@ -296,6 +296,8 @@ SNAPSHOT_FIELDS = (
     "choices",
     "answer",
     "attempt_number",
+    "source",
+    "bank_revision_id",
 )
 
 
@@ -339,6 +341,11 @@ class ChallengeAttempt(ChildOwnedModel):
     choices = ArrayField(models.SmallIntegerField(), default=list, blank=True)
     answer = models.SmallIntegerField()
     attempt_number = models.PositiveSmallIntegerField()
+    # Where the question came from. GENERATED: TR-1 parameters and a seed. BANK: a published AI
+    # Question Studio revision (ADR-045); `bank_revision_id` then names it. A plain UUID rather
+    # than a foreign key: the snapshot above is the record, and this only explains it.
+    source = models.CharField(max_length=12, default="GENERATED")
+    bank_revision_id = models.UUIDField(null=True, blank=True)
     # The outcome. Correctness is only ever computed by the server from the snapshot.
     status = models.CharField(
         max_length=16, choices=AttemptStatus.choices, default=AttemptStatus.ISSUED
@@ -388,7 +395,8 @@ class ChallengeAttempt(ChildOwnedModel):
         indexes = [
             models.Index(
                 fields=["child", "skill_id", "issued_at"], name="game_sessions_attempt_skill"
-            )
+            ),
+            models.Index(fields=["session", "bank_revision_id"], name="game_sessions_attempt_bank"),
         ]
 
     def __str__(self) -> str:

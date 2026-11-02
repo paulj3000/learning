@@ -57,6 +57,17 @@ describe('describeChallenge', () => {
     expect(picture.spoken).toBe('7 coins. Take away 3 coins.');
   });
 
+  it('draws a multiplication as equal piles', () => {
+    const picture = describeChallenge(challenge('MULTIPLY', [3, 4]));
+    expect(picture.groups).toEqual([
+      { count: 4, takenAway: false },
+      { count: 4, takenAway: false },
+      { count: 4, takenAway: false },
+    ]);
+    expect(picture.question).toBe(PLAY_COPY.askMultiply);
+    expect(picture.spoken).toBe('3 piles with 4 coins in each pile.');
+  });
+
   it('says one coin, not one coins', () => {
     expect(describeChallenge(challenge('ADD', [1, 1])).spoken).toBe('1 coin and 1 coin more.');
   });

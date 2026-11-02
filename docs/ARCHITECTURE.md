@@ -939,6 +939,7 @@ adapted onto it:
 | `education` | SkillEvidence, SkillProgress, StoryArtifact, ChallengeSpec; Treasure Rush challenge generation and grading (`challenges.py`) |
 | `progression`, `inventory`, `quests` | World changes and state, story and NPC progress; items owned and rules granted; quest progress, with the server-side quest engine (`quests/engine.py`) |
 | `ai` | Chatty's companion and tutor turns (Phase 7, ADR-044, `docs/AI_SERVICE.md`): personas, contracts, provider interface (fake, Bedrock Converse with the child-safety Guardrail), the shared turn pipeline, `AIInteractionAudit` and `SafetyEvent`. Reads catalog, session, skill and quest rows; writes only its own rows |
+| `question_studio` | AI Question Studio (Phase 28, ADR-045, `docs/AI_QUESTION_STUDIO.md`): staff-authored question bank (Question, immutable QuestionRevision, GenerationBatch, ValidationFinding, ReviewEvent, QuestionPool, StudioLimits), generation through the `ai` model client, deterministic validation, the approval and publishing workflow in Django Admin, and the selector that serves published integer-answer questions to Treasure Rush through `ChallengeAttempt`. Authored in Django, not exported: see the ADR-045 note on ADR-033. Holds no child data |
 
 **Temporary source-of-truth boundary for spatial data.** Location manifests for the shipped 3D
 regions stay in TypeScript (`runtime/manifests/*.ts`, ADR-032). The Treasure Cove layout is

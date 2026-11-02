@@ -114,3 +114,61 @@ def release(db):
     return ContentRelease.objects.create(
         content_digest="d" * 64, schema_version=1, export_tool="test", files=[], report={}
     )
+
+
+def publish_questions(
+    reviewer,
+    publisher,
+    count,
+    *,
+    grade="3",
+    topic="multiplication",
+    operation="MULTIPLY",
+    skill="multiplication-facts",
+    adventure=None,
+    start=2,
+    question_type="MULTIPLE_CHOICE",
+):
+    """`count` distinct, valid, approved and published questions. Returns their revisions."""
+    from apps.question_studio import validation, workflow
+
+    symbols = {"MULTIPLY": "x", "ADD": "+", "SUBTRACT": "-"}
+    revisions = []
+    for index in range(count):
+        a, b = start + index, 3 + index
+        answer = {"MULTIPLY": a * b, "ADD": a + b, "SUBTRACT": a + b - a}[operation]
+        if operation == "SUBTRACT":
+            a, b, answer = a + b, b, a
+        choices = [
+            {"id": letter, "text": str(answer + delta)}
+            for letter, delta in zip("ABC", (0, 1, -1), strict=True)
+        ]
+        q = make_question(
+            grade=grade,
+            topic=topic,
+            operation=operation,
+            operands=[a, b],
+            skill_code=skill,
+            stem=f"What is {a} {symbols[operation]} {b}?",
+            question_type=question_type,
+            choices=choices if question_type == "MULTIPLE_CHOICE" else [],
+            correct_answer="A" if question_type == "MULTIPLE_CHOICE" else str(answer),
+            adventure=adventure,
+        )
+        validation.run_validation(q)
+        workflow.approve(q, reviewer)
+        revisions.append(workflow.publish(q, publisher))
+    return revisions
+
+
+@pytest.fixture
+def objective(release):
+    from apps.catalog.models import LearningObjective
+
+    return LearningObjective.objects.create(
+        code="multiplication-facts",
+        domain="math",
+        title="Multiplication facts",
+        source={},
+        last_seen_release=release,
+    )

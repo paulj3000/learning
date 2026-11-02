@@ -17,7 +17,7 @@ export type SessionAction = 'pause' | 'resume' | 'complete' | 'abandon';
 export type QuestStatus = 'AVAILABLE' | 'ACTIVE' | 'COMPLETED';
 export type PlacementKind = 'PROP' | 'COLLECTIBLE' | 'SCENERY';
 export type ItemCategory = 'COLLECTIBLE' | 'COSMETIC' | 'QUEST_ITEM' | 'KEEPSAKE';
-export type ChallengeOperation = 'COUNT' | 'ADD' | 'SUBTRACT';
+export type ChallengeOperation = 'COUNT' | 'ADD' | 'SUBTRACT' | 'MULTIPLY';
 export type ResponseMode = 'CHOICE' | 'NUMBER_INPUT';
 export type AnswerFeedback = 'CORRECT' | 'TRY_AGAIN';
 

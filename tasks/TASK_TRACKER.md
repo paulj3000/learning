@@ -230,31 +230,31 @@ LAI-0805's ADR; TR-D5 is still Proposed.
 - [ ] **TR-10** Integrate LAI-2106 shared asset management (depends: LAI-2106, TR-7a)
 - [ ] **TR-11** Second chest and quest chain (depends: TR-9)
 
-## Phase 28 — AI Question Studio (branch `features/studio`, ADR-045 Proposed)
+## Phase 28 — AI Question Studio (branch `features/studio`, ADR-045 Accepted)
 
 Detail: `docs/AI_QUESTION_STUDIO.md`.
 
 - [x] **LAI-AQS-001** Existing architecture audit (depends: docs/AI_QUESTION_STUDIO.md sections 1 to 3). DONE locally: architecture assessment written; no code
-- [ ] **LAI-AQS-002** Question types and curriculum taxonomy (depends: 001)
-- [ ] **LAI-AQS-003** Database models (depends: 002, ADR-045 acceptance)
-- [ ] **LAI-AQS-004** Generation and publishing contracts (depends: 002, 003)
-- [ ] **LAI-AQS-005** Bedrock generation service (depends: 004, 0702)
-- [ ] **LAI-AQS-006** Versioned prompt templates (depends: 005)
-- [ ] **LAI-AQS-007** Batch question generation (depends: 005, 006)
-- [ ] **LAI-AQS-008** Reliability and cost controls (depends: 005)
-- [ ] **LAI-AQS-009** Draft storage and provenance (depends: 003, 007)
-- [ ] **LAI-AQS-010** Structural validation (depends: 004)
-- [ ] **LAI-AQS-011** Answer verification (depends: 010)
-- [ ] **LAI-AQS-012** Duplicate detection (depends: 010)
-- [ ] **LAI-AQS-013** Educational quality and safety (depends: 010)
-- [ ] **LAI-AQS-014** Validation reports (depends: 010 to 013)
-- [ ] **LAI-AQS-015** Generation interface (Django Admin) (depends: 007, 009)
-- [ ] **LAI-AQS-016** Question review and editing (depends: 009, 014)
-- [ ] **LAI-AQS-017** Approval workflow (depends: 014, 016)
-- [ ] **LAI-AQS-018** Bulk review operations (depends: 017)
-- [ ] **LAI-AQS-019** Publishing and version management (depends: 017)
-- [ ] **LAI-AQS-020** Question-to-adventure integration (depends: 019)
-- [ ] **LAI-AQS-021** Question selection (depends: 020)
-- [ ] **LAI-AQS-022** Grading and mastery integration (depends: 021)
-- [ ] **LAI-AQS-023** Automated testing (depends: each feature task)
-- [ ] **LAI-AQS-024** End-to-end acceptance (depends: 015 to 023; live Bedrock needs LAI-0705 approval)
+- [x] **LAI-AQS-002** Question types and curriculum taxonomy. DONE locally: `taxonomy.py` (subjects, grades to age bands, topics, difficulties, question type registry); tests in test_validation
+- [x] **LAI-AQS-003** Database models. DONE locally: `question_studio` models and migration 0001 (ADR-045 accepted); `ChallengeAttempt` gains `source` and `bank_revision_id` (game_sessions 0005, additive)
+- [x] **LAI-AQS-004** Generation and publishing contracts. DONE locally: `contracts.py` (request, output schema, untrusted item parsing); immutable `QuestionRevision` enforced in the model
+- [x] **LAI-AQS-005** Bedrock generation service. DONE locally, fake-verified: `generation.py` reuses the ADR-044 `ModelClient`; Bedrock studio client differs only by timeout. Live Bedrock not run (LAI-0705 gate)
+- [x] **LAI-AQS-006** Versioned prompt templates. DONE locally: `prompts.py` `studio-q-v1`; untrusted notes sent as a Guardrail-screened part; prompt, schema and model recorded per batch and question
+- [x] **LAI-AQS-007** Batch question generation. DONE locally: chunked batches (5 per call, 25 per batch by default), partial success, `thread`/`manual`/`inline` run modes, `manage.py studio_run_batch`
+- [x] **LAI-AQS-008** Reliability and cost controls. DONE locally: bounded retries by failure category, tokens and configured-price cost on the batch, `StudioLimits` quotas, ADR-044 kill switch, approved-model list
+- [x] **LAI-AQS-009** Draft storage and provenance. DONE locally: drafts only, provenance on every question, review events; nothing publishes automatically
+- [x] **LAI-AQS-010** Structural validation. DONE locally: `validation.check_structure`
+- [x] **LAI-AQS-011** Answer verification. DONE locally: `validation.check_answer` (arithmetic, contradictory keys, unverifiable flagged)
+- [x] **LAI-AQS-012** Duplicate detection. DONE locally: exact and normalised hashes, bounded word-trigram near-duplicate warning, no model calls
+- [x] **LAI-AQS-013** Educational quality and safety. DONE locally: grade, skill, reading length, answer range, hint leak, ADR-044 safety patterns; heuristics only
+- [x] **LAI-AQS-014** Validation reports. DONE locally: `ValidationFinding` runs, PASS/WARNING/FAIL, revalidation, publish blocked by blocking findings
+- [x] **LAI-AQS-015** Generation interface (Django Admin). DONE locally: Generate Questions form in Django Admin, batch status feedback. Verified with the Django test client, not a browser
+- [x] **LAI-AQS-016** Question review and editing. DONE locally: review page with choices, key, hint, explanation, report and history; edits revalidate
+- [x] **LAI-AQS-017** Approval workflow. DONE locally: Draft, Needs review, Approved, Rejected, Published; separate approve and publish permissions; reviewer, time and events recorded
+- [x] **LAI-AQS-018** Bulk review operations. DONE locally: bulk approve, reject, revalidate, submit, publish, regenerate with per-question refusal reporting
+- [x] **LAI-AQS-019** Publishing and version management. DONE locally: immutable revisions, partial unique active revision, supersede-on-correction, retire, row-lock plus constraint against concurrent publish (two-thread test)
+- [x] **LAI-AQS-020** Question-to-adventure integration. DONE locally for integer-answer questions: `QuestionPool` per region and chest; drafts, rejected and retired never served. Needs a catalog objective for real data
+- [x] **LAI-AQS-021** Question selection. DONE locally: subject, grade and band, topic, skill, difficulty and adventure filters; no repeat within a session; falls back to the authored challenge
+- [x] **LAI-AQS-022** Grading and mastery integration. DONE locally: `grade_answer` and `SkillEvidence` unchanged; attempt snapshots the revision; no model call at runtime. React multiplication picture added, not run (dependencies cannot be installed)
+- [x] **LAI-AQS-023** Automated testing. DONE locally: 125 Studio tests plus two updated guard tests; full Python suite 1389 + 354 passed (see IMPLEMENTATION_STATUS)
+- [ ] **LAI-AQS-024** End-to-end acceptance (depends: 015 to 023; live Bedrock needs LAI-0705 approval). IN PROGRESS: workflow verified end to end with the fake model; OPEN: live Bedrock (LAI-0705 approval), a Django Admin browser session, the React client tests, and a catalog multiplication objective

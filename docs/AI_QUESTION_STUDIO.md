@@ -1,8 +1,8 @@
 # AI Question Studio (Phase 28)
 
 Branch `features/studio`, based on the `features/ai` tip (`8764698`). Task IDs `LAI-AQS-001` to
-`LAI-AQS-024`. This document is the LAI-AQS-001 architecture assessment plus the design the later
-tasks build on. Nothing here is implemented beyond what the status table says.
+`LAI-AQS-024`. Sections 1 to 8 are the LAI-AQS-001 architecture assessment and design; sections 9
+to 13 record what was built, how to run it, and what is verified. Nothing is deployed.
 
 ## 1. Corrections to the brief's assumptions
 
@@ -132,8 +132,8 @@ Django catalog (LAI-0309, LAI-0603). The Studio does not integrate with them in 
 "AI Question Studio is a staff-only Django app that drafts questions through the ADR-044 model
 client, stores them in a Django question bank with immutable published revisions, and serves
 published integer-answer questions to Treasure Rush through the existing challenge and grading
-path." Status **Proposed**; owner acceptance is needed before AQS-003 migrations merge. It
-amends nothing; it builds on ADR-019, ADR-033, ADR-034 and ADR-044.
+path." Status **Accepted** (owner, 2026-11-02, "proceed as proposed", in answer to the design in
+this section). It amends nothing; it builds on ADR-019, ADR-033, ADR-034 and ADR-044.
 
 ## 8. Dependencies, blockers and risks
 
@@ -147,9 +147,101 @@ amends nothing; it builds on ADR-019, ADR-033, ADR-034 and ADR-044.
 | Treasure Rush client lacks `MULTIPLY` | Multiplication cannot render | Localized string and prompt renderer addition (React) |
 | Migration `ChallengeAttempt` | Snapshot-immutability guard | Additive nullable fields, tests prove old rows unchanged |
 
-## 9. Status
+## 9. As built
 
-| Task | Status |
-|---|---|
-| LAI-AQS-001 | DONE (this document) |
-| LAI-AQS-002 to 024 | TODO |
+```text
+Django Admin (staff, permission-gated)
+  Generate Questions form -> generation.create_batch (permission, input, quotas, kill switch,
+                                                      approved model)  -> GenerationBatch QUEUED
+  start_batch (thread | manual command | inline)
+  run_batch -> chunks of <= 5 -> ADR-044 ModelClient (Bedrock, Guardrail, structured output)
+            -> parse_item -> Question (draft) -> validation.run_validation -> ValidationFinding
+  Review page: edit -> workflow.edit (revalidate, history)  -> approve / reject
+  Publish (separate permission) -> immutable QuestionRevision (ACTIVE)
+  QuestionPool (region + chest) ----> selection.pick_bank_challenge
+Treasure Rush issue_chest_challenge -> pool? -> BANK attempt (snapshot) : ChallengeSpec (as before)
+submit_chest_answer -> grade_answer (integers, Django) -> SkillEvidence (existing mastery path)
+```
+
+Modules (`lai/apps/question_studio/`): `taxonomy` (types, grades, topics, grade to band),
+`models` (bank, batches, findings, events, revisions, pools, limits), `contracts` (request,
+schema, untrusted item parsing), `prompts` (versioned, `studio-q-v1`), `generation` (service),
+`validation` (deterministic checks and reports), `workflow` (state machine, publishing, bulk),
+`selection` (pool and conversion to `MathChallenge`), `regeneration`, `forms`, `admin`, and
+`manage.py studio_run_batch`. Outside the app: `Operation.MULTIPLY` in
+`education/challenges.py`; `source` and `bank_revision_id` on `ChallengeAttempt` (migration
+`game_sessions/0005`, additive, old rows read `GENERATED`); a studio reply in
+`ai/providers/fake.py`; the pick hook in `game_sessions/play.py`; and a multiplication picture,
+hints and parser entry in the React play client.
+
+### Decisions made while building
+
+- **Audit.** Batches carry model, prompt and schema version, attempts, tokens and estimated cost.
+  `AIInteractionAudit` is not written (it is child-keyed and parent-visible). Revisit if the owner
+  wants one audit table for all model calls.
+- **Superseded and retired questions become `REJECTED`** (with a `superseded` or `retired` event),
+  because the brief's five states have no "retired". The revision keeps the precise status.
+- **Duplicates.** The older question is the original, so two copies are never both blocked.
+  Rejected questions do not count. A correction does not collide with the question it replaces.
+  Near duplicates (word-trigram Jaccard 0.8 on up to 200 same-topic questions) only warn.
+- **Quality checks are heuristics.** There is no AI-based quality judgement; reading length, answer
+  range, hint leaks and the existing ADR-044 safety patterns are checked, and a human approves.
+- **Served questions are integer only.** Multiple choice and numeric questions with `ADD`,
+  `SUBTRACT` or `MULTIPLY` operands (division is stored but not served). The arithmetic is
+  re-verified at serve time, so a bad key cannot be graded. Text and short-answer questions are
+  stored and publishable but not served to children yet.
+- **Skill must be a catalog objective to be served.** Treasure Rush records evidence against
+  `LearningObjective`, which only the content export can create (ADR-033). The Studio warns when a
+  skill code is not in the catalog and the selector skips such revisions.
+
+## 10. Operating it
+
+Staff need Django permissions, not `is_staff` alone. Suggested groups: **Question authors**
+(`add_generationbatch`, `view_generationbatch`, `view_question`, `add_question`, `change_question`),
+**Question reviewers** (`view_question`, `change_question`, `approve_question`,
+`view_questionrevision`), **Question publishers** (reviewer rights plus `publish_question`,
+`retire_revision`), and **Pool managers** (`view/add/change_questionpool`). Studio limits are the
+`StudioLimits` row (batch size 25, 10 batches per user per day, 200 questions and 200,000 tokens
+per day by default); the ADR-044 `AIServiceControl` kill switch also stops generation.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `LAI_STUDIO_RUN_MODE` | `thread` | `thread`, `manual` (use `studio_run_batch`), `inline` (tests) |
+| `LAI_STUDIO_CHUNK_SIZE` | 5 | Questions per model call |
+| `LAI_STUDIO_MAX_ATTEMPTS` | 2 | Attempts per chunk (retry timeout, throttle, unavailable, bad shape) |
+| `LAI_STUDIO_MAX_OUTPUT_TOKENS` / `LAI_STUDIO_TEMPERATURE` | 2500 / 0.7 | Per call |
+| `LAI_STUDIO_TIMEOUT_SECONDS` | 60 | Bedrock read timeout for authoring calls |
+| `LAI_STUDIO_MODEL_ID`, `LAI_STUDIO_APPROVED_MODEL_IDS` | ADR-044 model | A model outside the list is refused |
+
+Bedrock region, Guardrail, credentials and prices are the ADR-044 settings. With
+`LAI_AI_PROVIDER=fake` the Studio produces valid sample questions locally.
+
+To put a question in front of children: publish questions whose skill is a catalog objective,
+then add an enabled **Question pool** naming the region (for example `treasure-rush-cove`) and
+chest entity (`cove-chest`), with a minimum pool size. Disabling the pool restores the authored
+challenge at once. Already issued attempts keep their snapshot.
+
+## 11. Verification
+
+See the status table and `docs/IMPLEMENTATION_STATUS.md` for the exact commands and results.
+Verified here: Python unit, API and Admin tests against PostgreSQL 16 with the fake model,
+including an end-to-end test (generate 25, approve, publish, play, grade, evidence) and a
+two-thread publish race. **Not verified:** live Bedrock (LAI-0705 approval gate), a browser
+session in Django Admin, the React multiplication picture (the JavaScript dependencies could not
+be installed because `package-lock.json` is out of sync with `package.json`), and any deployment.
+
+## 12. Known limitations
+
+- The catalog has no multiplication objective and no grade 3 curriculum, so real multiplication
+  questions need an exported objective before Treasure Rush will serve them.
+- Only Treasure Rush chests consume the bank. Storykeeper Castle and the Amplify-session
+  adventures are unchanged; pools are keyed by region and chest, with the adventure link kept on
+  each revision for later adoption.
+- Batches run on a background thread by default; there is no queue, so a worker restart can strand
+  a batch (reclaimed after 15 minutes when it is run again).
+- Near-duplicate detection is a bounded word-overlap check, not semantic.
+- `SHORT_ANSWER` is authorable but unverifiable by code and not served to children.
+
+## 13. Status
+
+See `tasks/TASK_TRACKER.md` (Phase 28) for per-task status.

@@ -28,6 +28,7 @@ from apps.education.services import record_attempt_evidence
 from apps.inventory.services import RewardGrant, grant_reward_rule
 from apps.progression.models import WorldChange
 from apps.progression.services import record_world_change
+from apps.question_studio.selection import pick_bank_challenge
 from apps.quests.services import QuestUpdate, refresh_active_quests
 from apps.regions.models import TreasureChest, WorldRegion
 
@@ -171,14 +172,22 @@ def issue_chest_challenge(
         ).first()
         if outstanding is not None:
             return outstanding, False
+        previous = ChallengeAttempt.objects.filter(
+            session=session, target_entity_id=chest.entity_id
+        ).count()
+        # A published Question Studio question wins when the chest has a usable pool (ADR-045);
+        # otherwise the chest keeps its authored generator, exactly as before.
+        bank = pick_bank_challenge(child.age_band, session, session.region_id, chest.entity_id)
+        if bank is not None:
+            attempt = _create_attempt_from_bank(session, chest, bank, previous + 1)
+            session.last_activity_at = now()
+            session.save(update_fields=["last_activity_at"])
+            return attempt, True
         spec = chest.challenge_for(child.age_band)
         if spec is None or spec.status != ContentStatus.PUBLISHED:
             raise ContentUnavailable
         seed = secrets.randbelow(SEED_LIMIT) if seed is None else seed
         challenge = generate_challenge(spec.parameters(), child.age_band, seed)
-        previous = ChallengeAttempt.objects.filter(
-            session=session, target_entity_id=chest.entity_id
-        ).count()
         attempt = ChallengeAttempt.objects.create(
             child=child,
             session=session,
@@ -203,6 +212,36 @@ def issue_chest_challenge(
         session.last_activity_at = now()
         session.save(update_fields=["last_activity_at"])
         return attempt, True
+
+
+def _create_attempt_from_bank(session, chest, bank, attempt_number: int) -> ChallengeAttempt:
+    """Snapshot a published bank question as an attempt. Nothing here depends on the question
+    row again: grading uses the snapshot, and later corrections never change it."""
+    challenge = bank.challenge
+    shown = (challenge.answer, *challenge.choices)
+    return ChallengeAttempt.objects.create(
+        child=session.child,
+        session=session,
+        region_id=session.region_id,
+        target_entity_id=chest.entity_id,
+        chest=chest,
+        challenge_spec=None,
+        challenge_spec_slug="",
+        age_band=session.child.age_band,
+        skill_id=challenge.skill_id,
+        min_value=0,
+        max_value=max(shown),
+        response_mode=challenge.response_mode,
+        choice_count=len(challenge.choices),
+        seed=0,
+        operation=challenge.operation,
+        operands=list(challenge.operands),
+        choices=list(challenge.choices),
+        answer=challenge.answer,
+        attempt_number=attempt_number,
+        source="BANK",
+        bank_revision_id=bank.revision.pk,
+    )
 
 
 @dataclass(frozen=True)

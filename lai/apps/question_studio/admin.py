@@ -128,7 +128,10 @@ class GenerationBatchAdmin(admin.ModelAdmin):
             elif batch.status == BatchStatus.PARTIAL:
                 messages.warning(
                     request,
-                    f"Partly completed ({batch.produced_count} of {batch.requested_count}); reason: {batch.failure_category or 'fewer questions returned'}.",
+                    (
+                        f"Partly completed ({batch.produced_count} of {batch.requested_count}); "
+                        f"reason: {batch.failure_category or 'fewer questions returned'}."
+                    ),
                 )
             elif batch.status == BatchStatus.FAILED:
                 messages.error(

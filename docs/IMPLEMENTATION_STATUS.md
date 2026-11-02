@@ -11829,9 +11829,35 @@ deployed, and no Amplify resource was changed.
   five stacks, Playwright smoke 7 passed. Not run: live Bedrock, live red team, authenticated
   browser acceptance, deployed monitoring.
 
-## Phase 28 - AI Question Studio (started 2026-11-02)
+## Phase 28 - AI Question Studio (2026-11-02)
 
-Branch `features/studio` from `features/ai` (`8764698`). LAI-AQS-001 done: `docs/AI_QUESTION_STUDIO.md`.
-Findings: the brief's authoring decision (numbered 43 there) is not content authoring; there is no question bank; Treasure Rush challenges are
-parameterised integer generators; the Django AI pipeline is child-bound. ADR-045 is Proposed.
-No Studio code exists yet; LAI-AQS-002 to 024 are TODO.
+Branch `features/studio` from `features/ai` (`8764698`); ADR-045 accepted by the owner ("proceed
+as proposed"). Design, operation and limitations: `docs/AI_QUESTION_STUDIO.md`. Nothing was pushed,
+merged or deployed, and no AWS call was made.
+
+- **Implemented (LAI-AQS-001 to 023).** New `apps/question_studio`: question bank with immutable
+  revisions, staff-only generation through the ADR-044 model client in bounded chunks (retries,
+  quotas, kill switch, approved-model list, token and cost record), deterministic validation
+  (structure, arithmetic, contradictory keys, duplicates, safety), a Django Admin workflow
+  (generate, review and edit, approve, publish, bulk, retire, correct), question pools, and a
+  selector that serves published integer-answer questions to Treasure Rush through the existing
+  `ChallengeAttempt`, `grade_answer` and `SkillEvidence` path. Additive migrations:
+  `question_studio/0001`, `game_sessions/0005`. `Operation.MULTIPLY` added; React play client
+  gains a multiplication picture, hints and parser entry.
+- **Checks run (PostgreSQL 16 in Docker, Python 3.13 venv).**
+  `LAI_REQUIRE_POSTGRES=1 pytest apps/question_studio` from `lai/`: 125 passed.
+  `LAI_REQUIRE_POSTGRES=1 pytest` from `lai/`: 1389 passed. `pytest tests` from the root: 354
+  passed. `ruff check .` and `ruff format --check .`: clean. `manage.py check` and
+  `makemigrations --check`: clean. `npm run adr:check`: one failure that predates this work
+  (a reference to ADR-043 at the Phase 7 entry, defined only on `main`).
+- **Existing tests changed.** Two admin guard tests now list `question_studio`
+  (`core/tests/test_django_admin.py`, `game_sessions/tests/test_sessions.py`).
+- **Not verified.** Live Bedrock (LAI-0705 approval gate); a browser session in Django Admin (the
+  admin was exercised with the Django test client); the React changes (`npm ci` fails here because
+  `package-lock.json` is out of sync with `package.json`, so no Vitest, typecheck or lint ran on
+  them); deployment.
+- **LAI-AQS-024 stays open.** The workflow runs end to end with the fake model, including play and
+  grading. Open: live generation, an admin browser pass, React tests, and a catalog multiplication
+  objective (the export has none, so real multiplication questions cannot be served yet).
+- **Owner attention.** ADR-045 records a bounded exception to "content reaches Django only through
+  the export" (ADR-033): the bank is authored in Django. Merge order is `features/ai` first.
