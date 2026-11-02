@@ -246,3 +246,5 @@ any deployment.
 ## 13. Status
 
 See `tasks/TASK_TRACKER.md` (Phase 28) for per-task status.
+Open gates are tracked as LAI-AQS-025 (live Bedrock, APPROVAL), 026 (Admin browser pass), 027
+(task queue) and 028 (other adventures adopt the bank). None is started.
