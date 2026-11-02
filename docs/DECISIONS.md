@@ -3219,6 +3219,7 @@ PostgreSQL, not imported from the content export. That is a deliberate, bounded 
 not catalog content, it adds no second catalog, loader or progress model, and it reuses
 `ChallengeAttempt`, `grade_answer` and `SkillEvidence`. `LearningObjective` rows still arrive only
 through the export, so a question can be served only for a skill the export already holds.
+The owner confirmed this exception on 2026-11-02.
 
 **Not decided here.** A task queue for long batches, a Django curriculum for grades above 2,
 text-stem question delivery to children, and live Bedrock acceptance (LAI-0705).

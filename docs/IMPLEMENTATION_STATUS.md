@@ -11859,5 +11859,5 @@ merged or deployed, and no AWS call was made.
 - **LAI-AQS-024 stays open.** The workflow runs end to end with the fake model, including play and
   grading. Open: live generation, an admin browser pass, React tests, and a catalog multiplication
   objective (the export has none, so real multiplication questions cannot be served yet).
-- **Owner attention.** ADR-045 records a bounded exception to "content reaches Django only through
+- **ADR-033 exception confirmed** by the owner (2026-11-02). ADR-045 records a bounded exception to "content reaches Django only through
   the export" (ADR-033): the bank is authored in Django. Merge order is `features/ai` first.
