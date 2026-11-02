@@ -25,6 +25,7 @@ import {
   tryParseRegionPlayConfig,
   type RegionPlayChestConfig,
 } from '../../../../region-play/regionPlayConfig';
+import { buildFireflies, shimmerWater } from './livingCove';
 import { buildProceduralScenery } from './proceduralScenery';
 
 /**
@@ -48,6 +49,15 @@ import { buildProceduralScenery } from './proceduralScenery';
  *   held still when the device asks for reduced motion.
  * - **Figures.** A placeholder character for an NPC published without a
  *   model, so the region still renders and the NPC still talks.
+ * - **The way to Lookout Point (TR-17).** When the quest's completion world change is
+ *   present, whether at build time or told live through `setUnlocked`, the gate's bars lift,
+ *   the colliders that shut the gate and the channel are removed, the bridge is laid and the
+ *   sinking planks go. The channel's side colliders stay, so the bridge is the only way across.
+ *   It only opens: a world change is never undone.
+ * - **A living cove (TR-18).** Shimmering water, fireflies, and Pip's reactions (his own
+ *   `Talk` and `Wave` clips, or a bounce for a placeholder figure).
+ * - **Rune stones (TR-16).** A stone sinks when touched and the stones flash green or orange
+ *   with the server's verdict. Presentation only.
  *
  * It decides nothing and records nothing. Focus, labels, and interaction
  * stay with the runtime, which owns these entities' roots.
@@ -66,6 +76,19 @@ export interface RegionPlaySceneApi {
   setPickupCollected(entityId: string): void;
   /** TR-14: the numbers on a puzzle's answer stones while its challenge is out, or none. */
   setRuneNumbers(numbers: ReadonlyMap<string, number> | null): void;
+  /**
+   * TR-17: the quest's completion world change is present, so open the gate and lay the bridge.
+   * Idempotent, and never closes again. Returns whether anything changed.
+   */
+  setUnlocked(unlocked: boolean): boolean;
+  /** Whether the way to Lookout Point is open in the scene. */
+  isUnlocked(): boolean;
+  /** TR-16: a rune stone sinks under the child's touch and comes back up. */
+  pressRune(entityId: string): void;
+  /** TR-16: every rune stone flashes green (the server said right) or orange (try again). */
+  flashRunes(correct: boolean): void;
+  /** TR-18: Pip reacts. `talk` while listening, `cheer` for a find. */
+  reactNpc(entityId: string, reaction: 'talk' | 'cheer'): void;
 }
 
 /** Names, so tests and debugging can find them (TR-14). */
@@ -74,6 +97,15 @@ export const RUNE_STONE_NAME = 'region-play:rune-stone';
 export const RUNE_LABEL_NAME = 'region-play:rune-label';
 const STONE = 0x8f8a80;
 const RUNE_GLOW = 0x7fe3ff;
+const RUNE_RIGHT = 0x5be37d;
+const RUNE_WRONG = 0xffa040;
+/** How far a touched rune stone sinks, and how long its dip and its flash last. */
+const RUNE_PRESS_DEPTH = 0.18;
+export const RUNE_PRESS_SECONDS = 0.5;
+export const RUNE_FLASH_SECONDS = 0.9;
+/** A placeholder figure's hop when it reacts, in metres and seconds. */
+const BOUNCE_HEIGHT = 0.25;
+export const BOUNCE_SECONDS = 0.8;
 
 const WOOD = 0x8a5a2b;
 const TRIM = 0xd4a937;
@@ -139,9 +171,10 @@ export const regionPlaySceneExtension: WorldExtension = {
     for (const chest of config.chests) {
       const root = context.entityRoot(chest.entityId);
       if (!root) continue;
-      if (chest.presentation === 'PUZZLE') {
-        // The pedestal is scenery (TR-13); the puzzle only remembers whether it is solved.
-        chests.set(chest.entityId, puzzleState(chest.isOpen));
+      if (chest.presentation === 'PUZZLE' || chest.presentation === 'REPLAY') {
+        // The pedestal and the spyglass are scenery (TR-13, TR-20); a puzzle only remembers
+        // whether it is solved, and a replay activity is never open.
+        chests.set(chest.entityId, puzzleState(chest.presentation === 'PUZZLE' && chest.isOpen));
         continue;
       }
       let current: DrawnChest = builtChest(root, chest, own);
@@ -240,7 +273,16 @@ export const regionPlaySceneExtension: WorldExtension = {
     }
 
     // TR-14: rune stones a puzzle is answered with, each with a number while its challenge is out.
-    const runes = new Map<string, { label: Sprite; glow: MeshStandardMaterial }>();
+    const runes = new Map<
+      string,
+      {
+        label: Sprite;
+        glow: MeshStandardMaterial;
+        stone: Mesh;
+        /** Seconds left in the dip (TR-16), or 0. */
+        press: number;
+      }
+    >();
     for (const rune of config.runes ?? []) {
       const root = context.entityRoot(rune.entityId);
       if (!root) continue;
@@ -263,19 +305,86 @@ export const regionPlaySceneExtension: WorldExtension = {
       label.scale.set(0.8, 0.8, 1);
       label.visible = false;
       root.add(stone, label);
-      runes.set(rune.entityId, { label, glow });
+      runes.set(rune.entityId, { label, glow, stone, press: 0 });
     }
     let beaconClock = 0;
+    /** A flash on every stone (TR-16): the colour and the seconds left. */
+    let flash: { color: number; left: number } | null = null;
+    /** Placeholder figures hopping (TR-18): entity id to seconds elapsed and resting height. */
+    const bounces = new Map<string, { t: number; base: number }>();
 
     const procedural = buildProceduralScenery(config.procedural ?? []);
     context.scene.add(procedural.root);
     const still = prefersReducedMotion();
 
+    // TR-18: the water and the fireflies. Held where they were first drawn when `still`.
+    const water = shimmerWater((config.ambience?.water ?? []).map((id) => context.sceneryRoot(id)));
+    const fireflies = buildFireflies(config.ambience?.fireflies ?? [], context.scene);
+
+    // TR-17: the way to Lookout Point. Closed until the quest's world change is present.
+    const unlock = config.unlock;
+    let unlocked = false;
+    const open = (instant: boolean): boolean => {
+      if (!unlock || unlocked) return false;
+      unlocked = true;
+      for (const id of unlock.openColliders) context.removeCollider(id);
+      for (const id of unlock.showWhenOpen) procedural.setVisible(id, true);
+      for (const id of unlock.hideWhenOpen) procedural.setVisible(id, false);
+      for (const id of unlock.liftGates) procedural.liftGate(id, instant);
+      return true;
+    };
+    if (unlock) {
+      for (const id of unlock.showWhenOpen) procedural.setVisible(id, false);
+      if (unlock.unlocked) open(true);
+    }
+
+    const tickRunes = (delta: number) => {
+      if (flash) {
+        flash.left = Math.max(0, flash.left - delta);
+        if (flash.left === 0) flash = null;
+      }
+      for (const rune of runes.values()) {
+        if (rune.press > 0) rune.press = Math.max(0, rune.press - delta);
+        // A dip that goes down and comes back: 0 at both ends, deepest in the middle.
+        const dip = Math.sin((rune.press / RUNE_PRESS_SECONDS) * Math.PI);
+        rune.stone.position.y = 0.8 - RUNE_PRESS_DEPTH * Math.max(0, dip);
+        if (flash) {
+          rune.glow.emissive.setHex(flash.color);
+          rune.glow.emissiveIntensity = 0.3 + 0.7 * (flash.left / RUNE_FLASH_SECONDS);
+        } else if (rune.label.visible) {
+          rune.glow.emissive.setHex(RUNE_GLOW);
+          rune.glow.emissiveIntensity = 0.45;
+        } else {
+          rune.glow.emissiveIntensity = 0;
+        }
+      }
+    };
+    const tickBounces = (delta: number) => {
+      for (const [entityId, bounce] of bounces) {
+        bounce.t += delta;
+        const root = context.entityRoot(entityId);
+        if (!root || bounce.t >= BOUNCE_SECONDS) {
+          if (root) root.position.y = bounce.base;
+          bounces.delete(entityId);
+          continue;
+        }
+        root.position.y =
+          bounce.base +
+          Math.abs(Math.sin((bounce.t / BOUNCE_SECONDS) * Math.PI * 2)) * BOUNCE_HEIGHT;
+      }
+    };
+
     const stopFrames = context.onFrame((delta) => {
       for (const mixer of mixers) mixer.update(delta);
       for (const chest of chests.values()) chest.tick(delta);
-      if (!still) procedural.tick(delta);
+      if (!still) {
+        procedural.tick(delta);
+        water.tick(delta);
+        fireflies.tick(delta);
+      }
       beaconClock += delta;
+      tickRunes(delta);
+      tickBounces(delta);
       for (const key of pickups.values()) {
         if (still) break;
         key.position.y = Math.sin(beaconClock * 2.4) * 0.08;
@@ -309,10 +418,33 @@ export const regionPlaySceneExtension: WorldExtension = {
         key.removeFromParent();
         context.setFocusable(entityId, false);
       },
+      setUnlocked(next) {
+        return next ? open(still) : false;
+      },
+      isUnlocked: () => unlocked,
+      pressRune(entityId) {
+        const rune = runes.get(entityId);
+        if (rune && !still) rune.press = RUNE_PRESS_SECONDS;
+      },
+      flashRunes(correct) {
+        if (runes.size === 0) return;
+        flash = { color: correct ? RUNE_RIGHT : RUNE_WRONG, left: RUNE_FLASH_SECONDS };
+      },
+      reactNpc(entityId, reaction) {
+        const clip = reaction === 'talk' ? 'Talk' : 'Wave';
+        const animator = context.npcAnimator(entityId);
+        if (animator?.clips.some((candidate) => candidate.name === clip)) {
+          context.playNpcGesture(entityId, clip, reaction === 'talk' ? 2 : 3);
+          return;
+        }
+        // A placeholder figure has no clips: it hops instead, unless the child wants stillness.
+        const root = context.entityRoot(entityId);
+        if (!root || still || bounces.has(entityId)) return;
+        bounces.set(entityId, { t: 0, base: root.position.y });
+      },
       setRuneNumbers(numbers) {
         for (const [entityId, rune] of runes) {
           const number = numbers?.get(entityId);
-          rune.glow.emissiveIntensity = number === undefined ? 0 : 0.45;
           rune.label.visible = number !== undefined;
           rune.label.userData.number = number;
           const old = rune.label.material.map;
@@ -331,6 +463,8 @@ export const regionPlaySceneExtension: WorldExtension = {
         for (const beacon of beacons.values()) context.scene.remove(beacon.mesh);
         for (const rune of runes.values()) rune.label.material.map?.dispose();
         procedural.dispose();
+        water.dispose();
+        fireflies.dispose();
         for (const chest of chests.values()) chest.dispose();
         for (const mixer of mixers) mixer.stopAllAction();
         for (const geometry of geometries) geometry.dispose();

@@ -57,6 +57,14 @@ export const PLAY_COPY = {
   youPickedUp: 'You found something!',
   finaleTitle: 'You found all my treasure!',
   finaleThanks: 'Thank you, friend! You are a true treasure hunter.',
+  // Lookout Point (TR-17) and the spyglass replay (TR-20)
+  bridgeOpened: 'The gate is open and the bridge is mended! Walk across to Lookout Point.',
+  replayGreat: 'Great counting!',
+  replayNote:
+    'That was a new puzzle and you got it right. There is no new treasure this time, but you are getting even better. Play again whenever you like!',
+  replayAgain: 'Play again',
+  lookoutHint:
+    'The bridge to Lookout Point is open. Cross it and look through the spyglass. You can play as often as you like!',
   hint: 'Hint',
   hintClose: 'Got it',
   defaultGiver: 'your friend',
@@ -272,8 +280,14 @@ export function nextStepHint(
       }
       return `Walk back to ${objective.giver} and talk. There may be news!`;
     }
-    case 'done':
+    case 'done': {
+      // TR-17, TR-20: once the quest is complete the spyglass at Lookout Point is the next thing.
+      const spyglass = chests.find((chest) => chest.presentation === 'REPLAY');
+      if (spyglass && spyglass.lockReason === null && spyglass.challengeAvailable) {
+        return PLAY_COPY.lookoutHint;
+      }
       return 'You did it! Explore the cove as long as you like.';
+    }
   }
 }
 

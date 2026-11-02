@@ -229,6 +229,32 @@ describe('objective and hints (TR-12)', () => {
     expect(nextStepHint(objective, [])).toMatch(/Explore the cove/);
   });
 
+  it('sends a child who finished the quest across the bridge to the spyglass (TR-17, TR-20)', () => {
+    const objective = questObjective([quest({ status: 'COMPLETED' })], giver);
+    const spyglass = (lockReason: 'PROGRESS' | null, challengeAvailable = true) =>
+      ({
+        isOpen: false,
+        presentation: 'REPLAY',
+        lockReason,
+        challengeAvailable,
+      }) as Parameters<typeof nextStepHint>[1][number];
+    expect(nextStepHint(objective, [spyglass(null)])).toBe(PLAY_COPY.lookoutHint);
+    // Still locked, or with nothing for this child's age: just explore.
+    expect(nextStepHint(objective, [spyglass('PROGRESS')])).toMatch(/Explore the cove/);
+    expect(nextStepHint(objective, [spyglass(null, false)])).toMatch(/Explore the cove/);
+  });
+
+  it('never sends a child with a quest still under way to the spyglass', () => {
+    const objective = questObjective([quest({ status: 'ACTIVE' })], giver);
+    const locked = {
+      isOpen: false,
+      presentation: 'REPLAY',
+      lockReason: 'PROGRESS',
+      challengeAvailable: true,
+    } as Parameters<typeof nextStepHint>[1][number];
+    expect(nextStepHint(objective, [locked])).toMatch(/Walk back to Pirate Pip/);
+  });
+
   it('has no objective in a region with no quests, and a general hint', () => {
     expect(questObjective([], giver)).toBeNull();
     expect(nextStepHint(null, [])).toMatch(/A button shows what you can do/);

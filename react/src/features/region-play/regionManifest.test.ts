@@ -100,6 +100,62 @@ describe('buildRegionManifest', () => {
     expect(config?.procedural?.map((item) => item.id)).toContain('cove-ruins-gate');
   });
 
+  it('carries what the quest opens (TR-17), unlocked only for a child who earned it', async () => {
+    const region = { ...bootstrapJson().region, scene: await coveSceneJson() };
+    const closed = tryParseRegionPlayConfig(build({ region }).manifest.extensions[0]!.config);
+    expect(closed?.unlock?.changeKey).toBe('TREASURE_COVE_QUEST_COMPLETE');
+    expect(closed?.unlock?.unlocked).toBe(false);
+    expect(closed?.unlock?.openColliders).toEqual([
+      'cove-ruins-gate:collider',
+      'cove-channel-gap:collider',
+    ]);
+
+    const earned = {
+      locationSlug: 'pirate-builder-bay',
+      changeType: 'UNLOCK',
+      changeKey: 'TREASURE_COVE_QUEST_COMPLETE',
+      payload: {},
+      createdAt: '2026-11-02T18:00:00.000000Z',
+    };
+    const open = tryParseRegionPlayConfig(
+      build({ region, worldChanges: [earned] }).manifest.extensions[0]!.config,
+    );
+    expect(open?.unlock?.unlocked).toBe(true);
+    // A different location's change of the same name does not open it.
+    const elsewhere = tryParseRegionPlayConfig(
+      build({ region, worldChanges: [{ ...earned, locationSlug: 'wonderwild-forest' }] }).manifest
+        .extensions[0]!.config,
+    );
+    expect(elsewhere?.unlock?.unlocked).toBe(false);
+  });
+
+  it('every collider the unlock opens is one the manifest really has (TR-17)', async () => {
+    const region = { ...bootstrapJson().region, scene: await coveSceneJson() };
+    const { manifest } = build({ region });
+    const config = tryParseRegionPlayConfig(manifest.extensions[0]!.config);
+    const ids = manifest.colliders.map((collider) => collider.rect.id);
+    for (const id of config?.unlock?.openColliders ?? []) expect(ids).toContain(id);
+  });
+
+  it('gives a region with no unlock or ambience none (a source or older region)', () => {
+    const config = tryParseRegionPlayConfig(build().manifest.extensions[0]!.config);
+    expect(config?.unlock).toBeUndefined();
+    expect(config?.ambience).toBeUndefined();
+  });
+
+  it('looks through a spyglass rather than opening it (TR-20)', () => {
+    const built = build(
+      {},
+      { entityId: 'cove-lookout-spyglass', presentation: 'REPLAY', label: 'Lookout spyglass' },
+    );
+    const spyglass = built.manifest.props.find((prop) => prop.label === 'Lookout spyglass');
+    expect(spyglass?.action).toBe(REGION_ACTIONS.look);
+    const config = tryParseRegionPlayConfig(built.manifest.extensions[0]!.config);
+    expect(config?.chests.find((c) => c.entityId === 'cove-lookout-spyglass')?.presentation).toBe(
+      'REPLAY',
+    );
+  });
+
   it('fails a region whose layout is malformed, naming where', () => {
     const region = {
       ...bootstrapJson().region,

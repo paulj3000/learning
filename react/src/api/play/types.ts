@@ -74,7 +74,7 @@ export interface ObjectPlacement extends PlacedEntity {
 }
 
 /** How a chest appears (TR-14). `HIDDEN` is not drawn until it may be opened. */
-export type ChestPresentation = 'CHEST' | 'HIDDEN' | 'PUZZLE';
+export type ChestPresentation = 'CHEST' | 'HIDDEN' | 'PUZZLE' | 'REPLAY';
 /** Why a chest is locked for this child: an earlier encounter, or an item they lack. */
 export type ChestLockReason = 'PROGRESS' | 'ITEM';
 

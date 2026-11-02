@@ -109,6 +109,11 @@ function fakeScene(open = false) {
     setChestLock: vi.fn(),
     setPickupCollected: vi.fn(),
     setRuneNumbers: vi.fn(),
+    setUnlocked: vi.fn((_unlocked: boolean) => true),
+    isUnlocked: () => false,
+    pressRune: vi.fn(),
+    flashRunes: vi.fn(),
+    reactNpc: vi.fn(),
   };
   return scene;
 }
@@ -960,5 +965,244 @@ describe("Pip's Missing Treasure (TR-14)", () => {
     );
     await waitFor(() => expect(showToast).toHaveBeenCalledWith(PLAY_COPY.puzzleWrong));
     await waitFor(() => expect(api.requestChestChallenge).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe('Lookout Point and the spyglass (TR-17, TR-20)', () => {
+  const SPYGLASS = `${REGION}:chest:cove-lookout-spyglass`;
+  const STONE = (n: number) => `${REGION}:rune:cove-rune-stone-${n}`;
+  const QUEST_COMPLETE = {
+    locationSlug: 'pirate-builder-bay',
+    changeType: 'UNLOCK',
+    changeKey: 'TREASURE_COVE_QUEST_COMPLETE',
+    payload: {},
+    createdAt: '2026-11-02T18:00:00.000000Z',
+  };
+  const unlockLayout = {
+    unlock: {
+      changeKey: 'TREASURE_COVE_QUEST_COMPLETE',
+      openColliders: ['cove-ruins-gate:collider'],
+      showWhenOpen: ['cove-bridge'],
+      hideWhenOpen: ['cove-broken-bridge'],
+      liftGates: ['cove-ruins-gate'],
+    },
+  };
+  const region = { ...bootstrapJson().region, scene: { layout: unlockLayout } };
+  const unlockedSpyglass = { 'cove-lookout-spyglass': { locked: false, lockReason: null } };
+
+  const lookout = (done: boolean, chests: Record<string, Record<string, unknown>> = {}) =>
+    read(
+      pipsBootstrapJson(
+        {
+          region,
+          session: sessionJson(),
+          worldChanges: done ? [QUEST_COMPLETE] : [],
+          ...(done
+            ? { quests: [questJson({ questId: 'pips-missing-treasure', status: 'COMPLETED' })] }
+            : {}),
+        },
+        done ? { ...unlockedSpyglass, ...chests } : chests,
+      ),
+      parse.regionBootstrap,
+    );
+  const lookoutConfig = buildRegionManifest(toRegionSceneModel(lookout(false)), {
+    worldSlug: 'learning-adventure-island',
+  }).manifest.extensions[0].config;
+
+  const spyglassChallenge = (overrides = {}) =>
+    challenge({
+      targetEntityId: 'cove-lookout-spyglass',
+      challenge: {
+        skillId: 'counting-sets',
+        operation: 'COUNT',
+        operands: [4],
+        responseMode: 'CHOICE',
+        choices: [3, 4, 5],
+      },
+      ...overrides,
+    });
+  const replayOutcome = (correct: boolean) =>
+    outcome(correct, {
+      chestOpened: false,
+      newItems: [],
+      rewardMessage: null,
+      questUpdates: [],
+    });
+
+  function visit(api: PlayApi, extra: Partial<LocationCompanionProps> = {}) {
+    apis.set(CHILD_A, api);
+    return props({ config: lookoutConfig, ...extra });
+  }
+
+  it('opens the gate and lays the bridge the moment the server reports the quest complete', async () => {
+    const scene = fakeScene();
+    const showToast = vi.fn();
+    let done = false;
+    const api = fakeApi({
+      getRegion: vi.fn(async () => lookout(done)),
+      talkToNpc: vi.fn(async () => {
+        done = true;
+        return {
+          flagsSet: ['cove-treasure-returned'],
+          questUpdates: [
+            {
+              questId: 'pips-missing-treasure',
+              status: 'COMPLETED' as const,
+              currentStageId: 'return-to-pip',
+              justCompleted: true,
+              newlyCompletedObjectiveIds: ['cove-return-to-pip'],
+            },
+          ],
+          completionRewards: [],
+        };
+      }),
+    });
+    render(
+      <RegionPlayCompanion
+        {...visit(api, { claimedInteraction: interaction(PIP), sceneApi: scene, showToast })}
+      />,
+    );
+    await waitFor(() => expect(scene.setUnlocked).toHaveBeenCalledWith(true));
+    expect(showToast).toHaveBeenCalledWith(PLAY_COPY.bridgeOpened);
+    expect(scene.reactNpc).toHaveBeenCalledWith('cove-pip', 'cheer');
+  });
+
+  it('leaves the way shut for a child who has not earned it', async () => {
+    const scene = fakeScene();
+    const api = fakeApi({ getRegion: vi.fn(async () => lookout(false)) });
+    render(<RegionPlayCompanion {...visit(api, { sceneApi: scene })} />);
+    await waitFor(() => expect(api.getRegion).toHaveBeenCalled());
+    await act(async () => undefined);
+    expect(scene.setUnlocked).not.toHaveBeenCalled();
+  });
+
+  it('says nothing on a later visit, when the cove was built open already', async () => {
+    const scene = fakeScene();
+    (scene.setUnlocked as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    const showToast = vi.fn();
+    const api = fakeApi({ getRegion: vi.fn(async () => lookout(true)) });
+    render(<RegionPlayCompanion {...visit(api, { sceneApi: scene, showToast })} />);
+    await waitFor(() => expect(scene.setUnlocked).toHaveBeenCalledWith(true));
+    expect(showToast).not.toHaveBeenCalledWith(PLAY_COPY.bridgeOpened);
+  });
+
+  it('ignores a same-named world change from another place', async () => {
+    const scene = fakeScene();
+    const api = fakeApi({
+      getRegion: vi.fn(async () =>
+        read(
+          pipsBootstrapJson({
+            region,
+            session: sessionJson(),
+            worldChanges: [{ ...QUEST_COMPLETE, locationSlug: 'wonderwild-forest' }],
+          }),
+          parse.regionBootstrap,
+        ),
+      ),
+    });
+    render(<RegionPlayCompanion {...visit(api, { sceneApi: scene })} />);
+    await waitFor(() => expect(api.getRegion).toHaveBeenCalled());
+    await act(async () => undefined);
+    expect(scene.setUnlocked).not.toHaveBeenCalled();
+  });
+
+  it('tells the child the spyglass is not ready yet, and asks the server for nothing', async () => {
+    const api = fakeApi({ getRegion: vi.fn(async () => lookout(false)) });
+    render(<RegionPlayCompanion {...visit(api, { claimedInteraction: interaction(SPYGLASS) })} />);
+    expect(await screen.findByText(PLAY_COPY.chestNotYet)).toBeInTheDocument();
+    expect(api.requestChestChallenge).not.toHaveBeenCalled();
+  });
+
+  it('asks a fresh question each time, thanks the child kindly, and never shows a chest or a reward', async () => {
+    const user = userEvent.setup();
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(spyglassChallenge())
+      .mockResolvedValueOnce(
+        spyglassChallenge({ attemptId: '22222222-2222-4222-8222-222222222222' }),
+      );
+    const api = fakeApi({
+      getRegion: vi.fn(async () => lookout(true)),
+      requestChestChallenge: request,
+      submitAnswer: vi.fn(async () => replayOutcome(true)),
+    });
+    render(<RegionPlayCompanion {...visit(api, { claimedInteraction: interaction(SPYGLASS) })} />);
+    await user.click(await screen.findByRole('button', { name: '4' }));
+    const done = await screen.findByRole('dialog', { name: PLAY_COPY.replayGreat });
+    expect(done).toHaveTextContent(PLAY_COPY.replayNote);
+    expect(screen.queryByText(PLAY_COPY.chestOpened)).not.toBeInTheDocument();
+    expect(screen.queryByText(PLAY_COPY.youFound)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: PLAY_COPY.replayAgain }));
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+    expect(request).toHaveBeenCalledWith(
+      SESSION_ID,
+      'cove-lookout-spyglass',
+      expect.any(AbortSignal),
+    );
+    expect(await screen.findByRole('button', { name: '4' })).toBeInTheDocument();
+  });
+
+  it('lets a wrong answer try again with a new question, and shows no thanks', async () => {
+    const user = userEvent.setup();
+    const request = vi.fn(async () => spyglassChallenge());
+    const api = fakeApi({
+      getRegion: vi.fn(async () => lookout(true)),
+      requestChestChallenge: request,
+      submitAnswer: vi.fn(async () => replayOutcome(false)),
+    });
+    render(<RegionPlayCompanion {...visit(api, { claimedInteraction: interaction(SPYGLASS) })} />);
+    await user.click(await screen.findByRole('button', { name: '3' }));
+    await user.click(await screen.findByRole('button', { name: PLAY_COPY.tryAgain }));
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole('dialog', { name: PLAY_COPY.replayGreat })).not.toBeInTheDocument();
+  });
+
+  it('makes Pip listen when talked to, and the stones show the verdict (TR-18, TR-16)', async () => {
+    const scene = fakeScene();
+    const api = fakeApi({
+      getRegion: vi.fn(async () =>
+        lookout(false, { 'cove-ruins-pedestal': { locked: false, lockReason: null } }),
+      ),
+      requestChestChallenge: vi.fn(async () =>
+        challenge({
+          targetEntityId: 'cove-ruins-pedestal',
+          challenge: {
+            skillId: 'addition-within-ten',
+            operation: 'ADD',
+            operands: [3, 4],
+            responseMode: 'CHOICE',
+            choices: [6, 7, 9],
+          },
+        }),
+      ),
+      submitAnswer: vi.fn(async () => outcome(true, { chestOpened: true, newItems: [] })),
+    });
+    const view = render(
+      <RegionPlayCompanion
+        {...visit(api, { claimedInteraction: interaction(PIP), sceneApi: scene })}
+      />,
+    );
+    await waitFor(() => expect(scene.reactNpc).toHaveBeenCalledWith('cove-pip', 'talk'));
+
+    view.rerender(
+      <RegionPlayCompanion
+        {...visit(api, {
+          claimedInteraction: interaction(`${REGION}:chest:cove-ruins-pedestal`),
+          sceneApi: scene,
+        })}
+      />,
+    );
+    await screen.findByText(PLAY_COPY.puzzleTouch);
+    view.rerender(
+      <RegionPlayCompanion {...visit(api, { claimedInteraction: null, sceneApi: scene })} />,
+    );
+    view.rerender(
+      <RegionPlayCompanion
+        {...visit(api, { claimedInteraction: interaction(STONE(2)), sceneApi: scene })}
+      />,
+    );
+    await waitFor(() => expect(scene.pressRune).toHaveBeenCalledWith('cove-rune-stone-2'));
+    await waitFor(() => expect(scene.flashRunes).toHaveBeenCalledWith(true));
   });
 });

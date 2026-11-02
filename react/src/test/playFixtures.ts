@@ -265,7 +265,7 @@ export async function coveSceneJson() {
   );
   return {
     bounds: { halfExtentX: 36, halfExtentZ: 44, wallThickness: 1 },
-    layoutVersion: 3,
+    layoutVersion: 4,
     layout,
   };
 }
@@ -353,6 +353,19 @@ export function pipsBootstrapJson(
         lockReason: 'PROGRESS',
         answerEntityIds: ['cove-rune-stone-1', 'cove-rune-stone-2', 'cove-rune-stone-3'],
         clue: 'Read the pedestal, then touch the right stone.',
+      }),
+      // TR-20: the Lookout spyglass, a replay activity, locked until the quest is complete.
+      chest('cove-lookout-spyglass', {
+        label: 'Lookout spyglass',
+        x: 2.6,
+        z: -41.6,
+        assetId: '',
+        openClip: '',
+        presentation: 'REPLAY',
+        sortOrder: 5,
+        locked: true,
+        lockReason: 'PROGRESS',
+        clue: 'The Lookout has a spyglass. Peek through it and count what you see!',
       }),
     ],
     quests: [

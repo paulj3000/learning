@@ -150,6 +150,16 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     procedural: layout.procedural,
     pickups: [],
     runes: [],
+    // TR-17: what the quest's completion opens, and whether this child has already earned it.
+    ...(layout.unlock
+      ? {
+          unlock: {
+            ...layout.unlock,
+            unlocked: model.worldChangeKeys.has(layout.unlock.changeKey),
+          },
+        }
+      : {}),
+    ...(layout.ambience ? { ambience: layout.ambience } : {}),
   };
 
   for (const entity of model.entities) {
@@ -186,8 +196,13 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
       config.interactions.push({ interactionId, kind: 'npc', entityId: entity.entityId, npcId });
     } else if (entity.role === 'chest') {
       const interactionId = `${regionId}:chest:${entity.entityId}`;
-      // A puzzle's pedestal is read, not opened (TR-14).
-      const action = entity.presentation === 'PUZZLE' ? REGION_ACTIONS.read : REGION_ACTIONS.open;
+      // A puzzle's pedestal is read, not opened (TR-14); a spyglass is looked through (TR-20).
+      const action =
+        entity.presentation === 'PUZZLE'
+          ? REGION_ACTIONS.read
+          : entity.presentation === 'REPLAY'
+            ? REGION_ACTIONS.look
+            : REGION_ACTIONS.open;
       props.push(drawnProp(entity, interactionId, action));
       interactions.push({
         id: interactionId,

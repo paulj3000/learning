@@ -81,7 +81,7 @@ function chest(r: Reader): ChestState {
     presentation: added(
       r,
       'presentation',
-      (v) => v.oneOf(['CHEST', 'HIDDEN', 'PUZZLE'] as const),
+      (v) => v.oneOf(['CHEST', 'HIDDEN', 'PUZZLE', 'REPLAY'] as const),
       'CHEST',
     ),
     sortOrder: added(r, 'sortOrder', (v) => v.integer(), 0),

@@ -25,7 +25,8 @@ import type { RegionPlayProceduralConfig } from '../../../../region-play/regionP
 /**
  * Scenery drawn from primitives (TR-13), for the parts of Treasure Cove the
  * bundled catalogue has no model for yet: palms, the tent, the campfire,
- * torches, flags, the rowboat, ruin pillars, the pedestal and the gate. Each
+ * torches, flags, the rowboat, ruin pillars, the pedestal and the gate, and (TR-17, TR-20) the
+ * sinking planks, the bridge, the lookout lanterns and the spyglass. Each
  * is meant to be replaced by a finished model
  * (`docs/TREASURE_RUSH_ASSET_REQUIREMENTS.md`).
  *
@@ -41,6 +42,14 @@ export const PROCEDURAL_NAME = 'region-play:procedural';
 export const PALM_TRUNKS_NAME = 'region-play:palm-trunks';
 /** The gate's bars, which TR-17 lifts when the gate opens. */
 export const GATE_BARS_NAME = 'region-play:gate-bars';
+/** How far the bars rise when the gate opens, and how fast, in metres and metres per second. */
+const GATE_LIFT = 3.1;
+const GATE_LIFT_SPEED = 2.2;
+/**
+ * The bridge's deck width in metres. The cove's channel collider leaves exactly this gap
+ * (`BRIDGE_HALF_WIDTH` in `treasure_cove_layout.py`), so the deck is the walkable way across.
+ */
+export const BRIDGE_WIDTH = 3.2;
 
 const COLORS = {
   trunk: 0x8b6a43,
@@ -68,6 +77,13 @@ export interface ProceduralScenery {
   root: Group;
   /** Advances decorative animation by `deltaSeconds`. */
   tick(deltaSeconds: number): void;
+  /** Shows or hides one placeholder by id (TR-17: the bridge appears, the sinking planks go). */
+  setVisible(id: string, visible: boolean): void;
+  /**
+   * Lifts a gate's bars (TR-17), over about a second, or at once when `instant`. Returns false
+   * for an id that is not a gate. `tick` must run for an animated lift.
+   */
+  liftGate(id: string, instant: boolean): boolean;
   dispose(): void;
 }
 
@@ -124,6 +140,9 @@ export function buildProceduralScenery(
 
   const palms = entries.filter((entry) => entry.shape === 'PALM');
   if (palms.length > 0) animations.push(addPalms(palms, kit, root));
+  const groups = new Map<string, Group>();
+  /** Gate bars still rising, with the height they stop at. */
+  const lifting = new Map<Object3D, number>();
 
   for (const entry of entries) {
     if (entry.shape === 'PALM') continue;
@@ -136,6 +155,7 @@ export function buildProceduralScenery(
     const animate = BUILDERS[entry.shape](group, { entry, height, phase, kit, shared: shared() });
     if (animate) animations.push(animate);
     root.add(group);
+    groups.set(entry.id, group);
   }
 
   let time = 0;
@@ -144,6 +164,29 @@ export function buildProceduralScenery(
     tick(deltaSeconds) {
       time += deltaSeconds;
       for (const animate of animations) animate(time);
+      for (const [bars, top] of lifting) {
+        bars.position.y = Math.min(top, bars.position.y + GATE_LIFT_SPEED * deltaSeconds);
+        if (bars.position.y >= top) {
+          bars.visible = false; // clear of the lintel: nothing left to see or to hit
+          lifting.delete(bars);
+        }
+      }
+    },
+    setVisible(id, visible) {
+      const group = groups.get(id);
+      if (group) group.visible = visible;
+    },
+    liftGate(id, instant) {
+      const bars = groups.get(id)?.getObjectByName(GATE_BARS_NAME);
+      if (!bars) return false;
+      if (instant) {
+        bars.position.y = GATE_LIFT;
+        bars.visible = false;
+        lifting.delete(bars);
+      } else if (bars.visible) {
+        lifting.set(bars, GATE_LIFT);
+      }
+      return true;
     },
     dispose() {
       root.removeFromParent();
@@ -324,6 +367,104 @@ const BUILDERS: Record<Exclude<RegionPlayProceduralConfig['shape'], 'PALM'>, Bui
     );
     bars.name = GATE_BARS_NAME;
     group.add(left, right, lintel, bars);
+    return undefined;
+  },
+
+  // TR-17: the way on, broken. Two planks sinking in the channel beyond the gate.
+  BROKEN_PLANKS(group, { kit }) {
+    const wood = kit.material(COLORS.darkWood);
+    const first = new Mesh(
+      kit.geometry(new BoxGeometry(1.1, 0.1, 0.35).rotateZ(0.25).rotateY(0.1)),
+      wood,
+    );
+    first.position.set(-0.45, 0, 0.3);
+    const second = new Mesh(
+      kit.geometry(new BoxGeometry(1, 0.1, 0.35).rotateZ(-0.3).rotateY(-0.18)),
+      wood,
+    );
+    second.position.set(0.5, -0.04, -0.4);
+    group.add(first, second);
+    return undefined;
+  },
+
+  // TR-17: the mended bridge. `height` is its length along z; it is `BRIDGE_WIDTH` wide, which
+  // is the gap the channel's colliders leave, so the deck is the only way across.
+  BRIDGE(group, { height, kit }) {
+    const length = height;
+    const half = length / 2;
+    const count = Math.max(2, Math.round(length / 0.5));
+    const depth = length / count;
+    const deck = new Mesh(
+      kit.geometry(
+        mergeGeometries(
+          Array.from({ length: count }, (_, index) =>
+            new BoxGeometry(BRIDGE_WIDTH, 0.14, depth * 0.9).translate(
+              0,
+              0.13,
+              -half + depth * (index + 0.5),
+            ),
+          ),
+        ),
+      ),
+      kit.material(COLORS.wood),
+    );
+    const edge = BRIDGE_WIDTH / 2 - 0.1;
+    const frame: BufferGeometry[] = [];
+    for (const side of [-1, 1]) {
+      frame.push(new BoxGeometry(0.2, 0.2, length).translate(side * (edge - 0.1), 0.02, 0));
+      frame.push(new BoxGeometry(0.1, 0.1, length).translate(side * edge, 1, 0));
+      const posts = Math.max(2, Math.round(length / 1.2) + 1);
+      for (let index = 0; index < posts; index += 1) {
+        const z = -half + (length * index) / (posts - 1);
+        frame.push(new CylinderGeometry(0.07, 0.07, 1.1, 6).translate(side * edge, 0.55, z));
+      }
+    }
+    group.add(deck, new Mesh(kit.geometry(mergeGeometries(frame)), kit.material(COLORS.darkWood)));
+    return undefined;
+  },
+
+  // TR-17: two glowing lanterns that welcome the child onto Lookout Point.
+  LANTERNS(group, { kit, phase }) {
+    const pole = kit.geometry(new CylinderGeometry(0.05, 0.06, 1.7, 6).translate(0, 0.85, 0));
+    const lamp = kit.geometry(new BoxGeometry(0.28, 0.34, 0.28).translate(0, 1.85, 0));
+    const lampMaterial = kit.material(COLORS.flameCore, true);
+    for (const side of [-1, 1]) {
+      const post = new Group();
+      post.position.x = side * 2.1;
+      post.add(new Mesh(pole, kit.material(COLORS.wood)), new Mesh(lamp, lampMaterial));
+      group.add(post);
+    }
+    return (time) => {
+      lampMaterial.emissiveIntensity = 0.75 + Math.sin(time * 3 + phase) * 0.12;
+    };
+  },
+
+  // TR-20: the spyglass on its tripod, pointing out over the sea (toward -z).
+  SPYGLASS(group, { kit }) {
+    const brass = kit.material(0xc9a227);
+    const wood = kit.material(COLORS.wood);
+    const legs = kit.geometry(
+      mergeGeometries(
+        [0, 2.1, 4.2].map((angle) =>
+          new CylinderGeometry(0.03, 0.04, 1.15, 5)
+            .translate(0, -0.575, 0)
+            .rotateX(0.3)
+            .rotateY(angle)
+            .translate(0, 1.15, 0),
+        ),
+      ),
+    );
+    const tube = new Mesh(
+      kit.geometry(new CylinderGeometry(0.1, 0.07, 1.1, 10).rotateX(Math.PI / 2 + 0.25)),
+      brass,
+    );
+    tube.position.set(0, 1.25, -0.25);
+    const lens = new Mesh(
+      kit.geometry(new CylinderGeometry(0.12, 0.12, 0.08, 10).rotateX(Math.PI / 2 + 0.25)),
+      kit.material(0x7fe3ff, true),
+    );
+    lens.position.set(0, 1.4, -0.82);
+    group.add(new Mesh(legs, wood), tube, lens);
     return undefined;
   },
 };

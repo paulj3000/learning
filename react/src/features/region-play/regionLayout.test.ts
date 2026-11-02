@@ -34,7 +34,13 @@ describe('readRegionLayout (TR-13)', () => {
     expect(new Set(layout.scenery.map((item) => item.kind))).toEqual(
       new Set(['FLAT_PLANE', 'BOX', 'TILED_GROUND', 'CLUSTER', 'MODEL', 'SCATTER']),
     );
-    expect(layout.colliders.map((c) => c.rect.id)).toContain('cove-channel:collider');
+    expect(layout.colliders.map((c) => c.rect.id)).toEqual(
+      expect.arrayContaining([
+        'cove-channel-west:collider',
+        'cove-channel-gap:collider',
+        'cove-channel-east:collider',
+      ]),
+    );
     expect(layout.ambient).toHaveLength(4);
     expect(layout.lights).toHaveLength(2);
     expect(layout.procedural.filter((item) => item.shape === 'PALM').length).toBeGreaterThan(20);
@@ -93,5 +99,76 @@ describe('readRegionLayout (TR-13)', () => {
     ['a list that is not a list', { zones: { rect: {} } }, 'scene.layout.zones'],
   ])('refuses %s, naming where', (_name, layout, path) => {
     expect(failure(layout as JsonValue).path).toBe(path);
+  });
+});
+
+describe('the unlock and ambience blocks (TR-17, TR-18)', () => {
+  const unlock = {
+    changeKey: 'TREASURE_COVE_QUEST_COMPLETE',
+    openColliders: ['gate:collider', 'gap:collider'],
+    showWhenOpen: ['bridge'],
+    hideWhenOpen: ['planks'],
+    liftGates: ['gate'],
+  };
+
+  it('reads Treasure Cove’s real unlock: the gate and the gap open, the bridge appears', async () => {
+    const layout = readRegionLayout((await coveSceneJson()).layout as JsonValue);
+    expect(layout.unlock).toEqual({
+      changeKey: 'TREASURE_COVE_QUEST_COMPLETE',
+      openColliders: ['cove-ruins-gate:collider', 'cove-channel-gap:collider'],
+      showWhenOpen: ['cove-bridge', 'cove-lookout-lanterns'],
+      hideWhenOpen: ['cove-broken-bridge'],
+      liftGates: ['cove-ruins-gate'],
+    });
+    // Every id it names exists in the layout, so nothing is opened that is not there.
+    const colliders = layout.colliders.map((c) => c.rect.id);
+    const procedural = layout.procedural.map((p) => p.id);
+    for (const id of layout.unlock?.openColliders ?? []) expect(colliders).toContain(id);
+    for (const id of [
+      ...(layout.unlock?.showWhenOpen ?? []),
+      ...(layout.unlock?.hideWhenOpen ?? []),
+      ...(layout.unlock?.liftGates ?? []),
+    ]) {
+      expect(procedural).toContain(id);
+    }
+  });
+
+  it('reads Treasure Cove’s real ambience: three bodies of water and three clouds of fireflies', async () => {
+    const layout = readRegionLayout((await coveSceneJson()).layout as JsonValue);
+    expect(layout.ambience?.water).toHaveLength(3);
+    expect(layout.ambience?.fireflies.map((cloud) => cloud.id)).toEqual([
+      'cove-fireflies-grove',
+      'cove-fireflies-ruins',
+      'cove-fireflies-lookout',
+    ]);
+  });
+
+  it('has neither block unless the layout says so', () => {
+    const layout = readRegionLayout({ scenery: [plane] });
+    expect(layout.unlock).toBeUndefined();
+    expect(layout.ambience).toBeUndefined();
+  });
+
+  it('names the path of a malformed unlock', () => {
+    expect(failure({ unlock: { ...unlock, changeKey: '' } }).path).toBe(
+      'scene.layout.unlock.changeKey',
+    );
+    expect(failure({ unlock: { ...unlock, openColliders: [3] } }).path).toBe(
+      'scene.layout.unlock.openColliders[0]',
+    );
+    expect(failure({ unlock: 'open' }).path).toBe('scene.layout.unlock');
+  });
+
+  it('names the path of malformed fireflies, and refuses a cloud that is too big', () => {
+    const cloud = { id: 'f', x: 0, z: 0, radius: 3, height: 2, count: 10 };
+    expect(failure({ ambience: { water: [], fireflies: [{ ...cloud, radius: 0 }] } }).path).toBe(
+      'scene.layout.ambience.fireflies[0].radius',
+    );
+    expect(failure({ ambience: { water: [], fireflies: [{ ...cloud, count: 2.5 }] } }).path).toBe(
+      'scene.layout.ambience.fireflies[0].count',
+    );
+    expect(failure({ ambience: { water: [], fireflies: [{ ...cloud, count: 5000 }] } }).path).toBe(
+      'scene.layout.ambience.fireflies[0].count',
+    );
   });
 });

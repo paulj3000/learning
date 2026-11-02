@@ -12,9 +12,12 @@ import type {
   ZoneSpec,
 } from '../island-map/three/runtime/locationManifest';
 import {
+  MAX_FIREFLIES,
   PROCEDURAL_SHAPES,
   type ProceduralShape,
+  type RegionPlayAmbienceConfig,
   type RegionPlayProceduralConfig,
+  type RegionPlayUnlockConfig,
 } from './regionPlayConfig';
 
 /**
@@ -32,7 +35,8 @@ import {
  * Supported: scenery `FLAT_PLANE`, `BOX`, `TILED_GROUND`, `CLUSTER`, `MODEL`
  * and `SCATTER`; colliders; zones; `SPLINE_LOOP` ambient movers; `POINT`
  * lights; and `procedural` placeholders, which go to the `region-play`
- * extension to draw.
+ * extension to draw. Two optional blocks go to the same extension: `unlock` (TR-17, what the
+ * quest's completion opens) and `ambience` (TR-18, shimmering water and fireflies).
  */
 
 export interface RegionLayout {
@@ -42,6 +46,9 @@ export interface RegionLayout {
   ambient: AmbientSpec[];
   lights: LightSpec[];
   procedural: RegionPlayProceduralConfig[];
+  /** What a world change opens, without whether the child has it yet (the builder adds that). */
+  unlock?: Omit<RegionPlayUnlockConfig, 'unlocked'>;
+  ambience?: RegionPlayAmbienceConfig;
 }
 
 export const EMPTY_LAYOUT: RegionLayout = {
@@ -330,6 +337,47 @@ function procedural(value: JsonValue, path: string): RegionPlayProceduralConfig 
   };
 }
 
+function strings(value: JsonValue | undefined, path: string): string[] {
+  return array(value, path).map((item, index) => str(item, `${path}[${index}]`));
+}
+
+function unlock(value: JsonValue, path: string): Omit<RegionPlayUnlockConfig, 'unlocked'> {
+  const fields = object(value, path);
+  return {
+    changeKey: str(fields.changeKey, `${path}.changeKey`),
+    openColliders: strings(fields.openColliders, `${path}.openColliders`),
+    showWhenOpen: strings(fields.showWhenOpen, `${path}.showWhenOpen`),
+    hideWhenOpen: strings(fields.hideWhenOpen, `${path}.hideWhenOpen`),
+    liftGates: strings(fields.liftGates, `${path}.liftGates`),
+  };
+}
+
+function ambience(value: JsonValue, path: string): RegionPlayAmbienceConfig {
+  const fields = object(value, path);
+  return {
+    water: strings(fields.water, `${path}.water`),
+    fireflies: array(fields.fireflies, `${path}.fireflies`).map((item, index) => {
+      const itemPath = `${path}.fireflies[${index}]`;
+      const each = object(item, itemPath);
+      const count = positive(each.count, `${itemPath}.count`);
+      if (!Number.isInteger(count) || count > MAX_FIREFLIES) {
+        throw new RegionLayoutError(
+          `${itemPath}.count`,
+          `expected a whole number up to ${MAX_FIREFLIES}`,
+        );
+      }
+      return {
+        id: str(each.id, `${itemPath}.id`),
+        x: num(each.x, `${itemPath}.x`),
+        z: num(each.z, `${itemPath}.z`),
+        radius: positive(each.radius, `${itemPath}.radius`),
+        height: num(each.height, `${itemPath}.height`),
+        count,
+      };
+    }),
+  };
+}
+
 export function readRegionLayout(value: JsonValue | undefined): RegionLayout {
   if (value === undefined) return EMPTY_LAYOUT;
   const path = 'scene.layout';
@@ -345,5 +393,9 @@ export function readRegionLayout(value: JsonValue | undefined): RegionLayout {
     ambient: each('ambient', ambient),
     lights: each('lights', light),
     procedural: each('procedural', procedural),
+    ...(fields.unlock !== undefined ? { unlock: unlock(fields.unlock, `${path}.unlock`) } : {}),
+    ...(fields.ambience !== undefined
+      ? { ambience: ambience(fields.ambience, `${path}.ambience`) }
+      : {}),
   };
 }
