@@ -65,6 +65,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-041 | Islands, Places and 3D Areas: one optional 3D Area per Place, and Adventures launched from objects in it | Accepted | Feature branch (LAI-0806) | Owner-approved decisions A to E, 2026-10-31. Builds on ADR-032 and ADR-033; leaves LAI-0805 (spatial layout administration) open |
 | ADR-042 | Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset manager owns the asset bucket, and the Amplify bucket stays untouched until retirement | Accepted | Feature branch (LAI-0904) | Owner-accepted 2026-10-31 for code and infrastructure definitions only; no deployment, migration or deletion approved. Amended 2026-11-01: Django is the control plane for both buckets; asset mutations through Django APIs, blocked until LAI-0209 (AM-14 to AM-16). Builds on ADR-035 (asset storage) and ADR-039 (Django profile authority) |
 | ADR-044 | Django serves Chatty's companion and tutor turns through Bedrock Converse with a child-safety Guardrail; Amplify AI routes stay until client cutover | Accepted | Feature branch (features/ai) | Owner-directed 2026-11-01 (Phase 7 brief: LAI-0306, LAI-0701 to LAI-0704). Accepts ADR-019 sub-decision 9 for code and infrastructure definitions only; live Bedrock, Guardrail deployment and the React cutover stay gated (LAI-0705, LAI-0706, G7) |
+| ADR-045 | AI Question Studio is a staff-only Django app that drafts questions through the ADR-044 model client and serves published questions through the existing challenge and grading path | Proposed | Feature branch (features/studio) | Owner brief 2026-11-02 (Phase 28). Builds on ADR-019, ADR-033, ADR-034, ADR-044. Not accepted: models and migrations wait for owner acceptance |
 
 ## ADR-001: Parent-owned accounts
 
@@ -3189,3 +3190,29 @@ prerequisites stay sparse until server mastery (LAI-0603).
 **Not decided here.** Live invocation and its cost, the Guardrail deployment, retention of audit
 and safety rows (with LAI-0308, gate G9), admin review UI, and the cutover date.
 
+
+## ADR-045: AI Question Studio is a staff-only Django app that drafts questions through the ADR-044 model client and serves published questions through the existing challenge and grading path
+
+Status: Proposed (owner brief 2026-11-02, Phase 28; not accepted). Builds on ADR-019 (Python owns
+learning rules), ADR-033 (one Django backbone), ADR-034 (Django Admin) and ADR-044 (Django AI
+service). Details: `docs/AI_QUESTION_STUDIO.md`.
+
+**Context.** Treasure Rush challenges are parameterised integer generators, not stored questions,
+and there is no question bank, no Django grade taxonomy, and no staff-scoped AI path. Staff need
+to author larger, varied question sets with AI help without any unapproved text reaching a child.
+
+**Decision (proposed).**
+
+1. A new Django app, `lai/apps/question_studio`, owns the question bank: questions, immutable
+   published revisions, generation batches, validation reports and review events.
+2. Generation reuses the ADR-044 `ModelClient` and settings. Studio batches record model, prompt
+   version, tokens and estimated cost on the batch; they do not write child-keyed
+   `AIInteractionAudit` rows.
+3. Generation, validation, approval and publishing are separate staff operations behind Django
+   permissions. Bedrock never grades a child's answer; Django does.
+4. Published integer-answer questions are served to Treasure Rush as `MathChallenge` snapshots
+   through the existing `ChallengeAttempt` path, with an additive `MULTIPLY` operation and a
+   nullable bank revision reference. An empty pool falls back to `ChallengeSpec` generation.
+
+**Not decided here.** A task queue for long batches, a Django curriculum for grades above 2,
+text-stem question delivery to children, and live Bedrock acceptance (LAI-0705).

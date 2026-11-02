@@ -229,3 +229,32 @@ LAI-0805's ADR; TR-D5 is still Proposed.
 - [ ] **TR-9** End-to-end and playtest (depends: TR-8a; real families also need LAI-0502, LAI-0602, gate G9, ADR-024 A6. Locally, the child mirror step in `docs/TREASURE_RUSH_LOCAL_DEV.md` stands in for LAI-0602)
 - [ ] **TR-10** Integrate LAI-2106 shared asset management (depends: LAI-2106, TR-7a)
 - [ ] **TR-11** Second chest and quest chain (depends: TR-9)
+
+## Phase 28 — AI Question Studio (branch `features/studio`, ADR-045 Proposed)
+
+Detail: `docs/AI_QUESTION_STUDIO.md`.
+
+- [x] **LAI-AQS-001** Existing architecture audit (depends: docs/AI_QUESTION_STUDIO.md sections 1 to 3). DONE locally: architecture assessment written; no code
+- [ ] **LAI-AQS-002** Question types and curriculum taxonomy (depends: 001)
+- [ ] **LAI-AQS-003** Database models (depends: 002, ADR-045 acceptance)
+- [ ] **LAI-AQS-004** Generation and publishing contracts (depends: 002, 003)
+- [ ] **LAI-AQS-005** Bedrock generation service (depends: 004, 0702)
+- [ ] **LAI-AQS-006** Versioned prompt templates (depends: 005)
+- [ ] **LAI-AQS-007** Batch question generation (depends: 005, 006)
+- [ ] **LAI-AQS-008** Reliability and cost controls (depends: 005)
+- [ ] **LAI-AQS-009** Draft storage and provenance (depends: 003, 007)
+- [ ] **LAI-AQS-010** Structural validation (depends: 004)
+- [ ] **LAI-AQS-011** Answer verification (depends: 010)
+- [ ] **LAI-AQS-012** Duplicate detection (depends: 010)
+- [ ] **LAI-AQS-013** Educational quality and safety (depends: 010)
+- [ ] **LAI-AQS-014** Validation reports (depends: 010 to 013)
+- [ ] **LAI-AQS-015** Generation interface (Django Admin) (depends: 007, 009)
+- [ ] **LAI-AQS-016** Question review and editing (depends: 009, 014)
+- [ ] **LAI-AQS-017** Approval workflow (depends: 014, 016)
+- [ ] **LAI-AQS-018** Bulk review operations (depends: 017)
+- [ ] **LAI-AQS-019** Publishing and version management (depends: 017)
+- [ ] **LAI-AQS-020** Question-to-adventure integration (depends: 019)
+- [ ] **LAI-AQS-021** Question selection (depends: 020)
+- [ ] **LAI-AQS-022** Grading and mastery integration (depends: 021)
+- [ ] **LAI-AQS-023** Automated testing (depends: each feature task)
+- [ ] **LAI-AQS-024** End-to-end acceptance (depends: 015 to 023; live Bedrock needs LAI-0705 approval)

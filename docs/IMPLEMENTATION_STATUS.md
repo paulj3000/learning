@@ -11828,3 +11828,10 @@ deployed, and no Amplify resource was changed.
   ruff check and format, prettier, oxlint, `npm run adr:check`, `npm run build`, CDK synth of all
   five stacks, Playwright smoke 7 passed. Not run: live Bedrock, live red team, authenticated
   browser acceptance, deployed monitoring.
+
+## Phase 28 - AI Question Studio (started 2026-11-02)
+
+Branch `features/studio` from `features/ai` (`8764698`). LAI-AQS-001 done: `docs/AI_QUESTION_STUDIO.md`.
+Findings: the brief's authoring decision (numbered 43 there) is not content authoring; there is no question bank; Treasure Rush challenges are
+parameterised integer generators; the Django AI pipeline is child-bound. ADR-045 is Proposed.
+No Studio code exists yet; LAI-AQS-002 to 024 are TODO.
