@@ -3171,6 +3171,21 @@ share field names and route names. The Django model id differs from Amplify's (`
 `global.`). The rate limit is per process until a shared cache exists (LAI-0708). Known
 prerequisites stay sparse until server mastery (LAI-0603).
 
+**Amendment (owner-directed Phase 7 completion brief, 2026-11-01; code only).**
+
+9. AI audit metadata is the second sanctioned exception to "no child-owned record in Django
+   Admin" (after ADR-039's profile view): `AIInteractionAudit` and `SafetyEvent`, gated by their
+   own view permissions, audited on every read, child UUID only, with a safety event's review
+   status the only editable field.
+10. Limits are enforced server-side in PostgreSQL counters shared by every process, with a
+    runtime kill switch (`AIServiceControl`) and a global daily ceiling as the application's
+    own cost cap. Redis is not introduced.
+11. A third context source, `DJANGO_CATALOG`, voices published NPC dialogue from Django rows
+    alone. `CLIENT_AUTHORED` stays available behind `LAI_AI_ALLOW_CLIENT_AUTHORED` until
+    adventures run on Django sessions and stories are in the Django catalog.
+12. The `ai.turn` log line is a positional, versioned schema (`v1`) read by CloudWatch metric
+    filters in `LaiAiGuardrail-<env>`.
+
 **Not decided here.** Live invocation and its cost, the Guardrail deployment, retention of audit
 and safety rows (with LAI-0308, gate G9), admin review UI, and the cutover date.
 

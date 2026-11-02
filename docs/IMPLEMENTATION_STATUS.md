@@ -11796,3 +11796,35 @@ and no AWS API was called; the Guardrail exists only as synthesized CDK.
   adr:check`, `makemigrations --check`: all clean. **Deferred to merge verification:** full Vitest,
   Playwright, `npm run build`, CDK synth to disk. **Not run (needs approval):** any AWS call, the
   live smoke, the live red team.
+
+## Phase 7 completion: LAI-0705 to LAI-0710 (2026-11-01, branch `features/ai`, not merged, not pushed, not deployed)
+
+Owner brief: complete the Django AI migration. Reference `docs/AI_SERVICE.md` (status matrix in
+section 10, context matrix, retirement plan and rollback in section 11). **Nothing is
+live-accepted.** No AWS call was made (AWS CLI access is denied in this session), nothing was
+deployed, and no Amplify resource was changed.
+
+- **LAI-0705 (tooling, BLOCKED for live acceptance).** `manage.py ai_live_check` scores real
+  invocations from audit rows; the IAM policy matches AWS's documented geographic-profile
+  pattern; Approval Gate A plan with a conservative $2 upper bound is in section 9.
+- **LAI-0706 (implemented, Vitest-verified).** React Django AI client; companion and tutor turns
+  and the parent dashboard's AI history use Django in `VITE_BACKEND=django` builds; Amplify path
+  unchanged otherwise. Browser acceptance of the authenticated AI flows was not possible (no
+  test identity or running backend in this session).
+- **LAI-0707 (implemented).** Audited, permission-gated admin views; `ai_retention` (no period
+  approved, LAI-0308 / G9); indexes.
+- **LAI-0708 (implemented, synthesized).** PostgreSQL shared limits with a 12-thread race test,
+  kill switch, bounded retries, request-size cap, configured-price cost estimate, 10 metric
+  filters and 7 alarms. Finding: the Amplify $50 budget filters `Amazon Bedrock`, but Claude on
+  Bedrock is billed through AWS Marketplace; verify in Cost Explorer.
+- **LAI-0709 (partial).** NPC narration server-owned (`DJANGO_CATALOG`). Blocked: React
+  adventures on Amplify sessions, no Django story catalog (LAI-0309), server mastery (LAI-0603).
+- **LAI-0710 (audit only).** Every Amplify AI reference classified; nothing removed.
+- **ADR.** `main` took ADR-043 (LAI-0209) while this branch was open; this branch's decision is
+  now ADR-044, with amendment items 9 to 12. `main` is 6 commits ahead and was not merged in.
+- **Checks.** Full pytest 1615 passed and 3 structural-guard failures, all three fixed and
+  re-run green (63 passed); full Vitest 3300 passed and 1 cold-synth timeout, fixed with the
+  infra suite's existing timeout convention and re-run green (9 passed); `npm run typecheck`,
+  ruff check and format, prettier, oxlint, `npm run adr:check`, `npm run build`, CDK synth of all
+  five stacks, Playwright smoke 7 passed. Not run: live Bedrock, live red team, authenticated
+  browser acceptance, deployed monitoring.

@@ -135,6 +135,7 @@ CloudFormation parameters of `LaiDjangoEc2-<env>` (set by `provision.sh`): `ApiD
 | `django/COGNITO_REGION`, `django/COGNITO_USER_POOL_ID`, `django/COGNITO_ALLOWED_CLIENT_IDS` | String | stack |
 | `django/LAI_ASSET_STORAGE` (`s3`), `django/LAI_ASSET_BUCKET`, `django/LAI_ASSET_REGION` | String | stack (the `LaiAssetStorage-<env>` bucket name) |
 | `django/LAI_CHILD_PHOTO_STORAGE` (`s3`), `django/LAI_CHILD_PHOTOS_BUCKET`, `django/LAI_CHILD_PHOTOS_REGION` | String | stack (the `LaiChildPhotos-<env>` bucket name). Without them production runs with photos `disabled` |
+| `django/LAI_AI_PROVIDER` (`bedrock` or `disabled`), `django/LAI_AI_BEDROCK_REGION`, `django/LAI_AI_MODEL_ID`, `django/LAI_AI_GUARDRAIL_ID`, `django/LAI_AI_GUARDRAIL_VERSION`; optional limits and `LAI_AI_PRICE_*` | String | operator, from the `LaiAiGuardrail-<env>` outputs (docs/AI_SERVICE.md sections 5 and 9). Unset means AI `disabled`: authored content only. `bedrock` without the Guardrail values refuses to start |
 | `django/DJANGO_SECRET_KEY` | **SecureString** | operator (step 5.5) |
 | `django/<other>` | String | optional: any `DJANGO_*`, `COGNITO_*`, `LAI_*`, `WEB_CONCURRENCY`, `GUNICORN_TIMEOUT` (for example `DJANGO_ADMIN_URL_PATH`, `DJANGO_LOG_LEVEL`) |
 | `db/POSTGRES_PASSWORD` | SecureString | operator, dev container mode only |

@@ -320,7 +320,8 @@ parent-viewable, parent-deletable artifacts; JSON scenes validated.
 (1) Django AI functionality implemented, (2) verified with the fake provider, (3) live Bedrock
 verified, (4) React cutover completed, (5) Amplify AI routes retired. 2026-11-01, `features/ai`
 (unmerged, not pushed): LAI-0701 to 0704 at levels 1 and 2; levels 3 to 5 not started. Decision:
-ADR-044.*
+ADR-044. 2026-11-01 (later): LAI-0705 to 0710 progressed locally, see each entry and
+docs/AI_SERVICE.md section 10; no AWS call, deploy or retirement happened.*
 
 **LAI-0701 AI domain without Bedrock. DONE (levels 1-2).** Depends: 0306. Risk M. Acceptance: persona registry
 (copied verbatim from `amplify/data/*Persona.ts`, versioned), request validation (adventure
@@ -355,28 +356,28 @@ closed; server-side safety events and audit metadata with no sensitive text. *Do
 `infra/lib/aiGuardrailStack.ts` (`LaiAiGuardrail-<env>`, synthesized only) and the
 `lai-django-ai-<env>` least-privilege policy; `services/safety.py`, `content_safety.boundary_violations`.*
 
-**LAI-0705 Live Bedrock and Guardrail verification (dev).** Depends: 0702, 0703, 0704. Risk H.
+**LAI-0705 Live Bedrock and Guardrail verification (dev). TOOLING DONE (level 3); BLOCKED for live acceptance (Gate A).** Depends: 0702, 0703, 0704. Risk H.
 **APPROVAL: AWS credentials, Bedrock cost, IAM change, deploy.** Acceptance: model access and the
 US profile confirmed from us-west-1; `LaiAiGuardrail-dev` deployed; SSM settings written; one
 companion and one tutor turn and the Django red-team run recorded (docs/AI_SERVICE.md section 9).
 
-**LAI-0706 React cutover of AI turns.** Depends: 0705, 0501. Risk M. Acceptance:
+**LAI-0706 React cutover of AI turns. IMPLEMENTED (level 4); browser acceptance and deploy open (Gate B).** Depends: 0705, 0501. Risk M. Acceptance:
 `react/src/api/ai.ts` behind `VITE_BACKEND`; requests send `templateId` and use `DJANGO_SESSION`
 where the session runs on Django; no browser audit writes on the Django path; same UI states.
 
-**LAI-0707 Safety review and retention.** Depends: 0306, 0404 (retention with 0308). Risk M.
+**LAI-0707 Safety review and retention. IMPLEMENTED (level 4); retention period not approved.** Depends: 0306, 0404 (retention with 0308). Risk M.
 Acceptance: read-only, audited admin views of safety events and audit rows; review-status
 changes; a documented retention schedule.
 
-**LAI-0708 AI operations.** Depends: 0705. Risk M. Acceptance: a shared rate-limit store, metric
+**LAI-0708 AI operations. IMPLEMENTED (level 4, synthesized); not deployed.** Depends: 0705. Risk M. Acceptance: a shared rate-limit store, metric
 filters and alarms on `ai.turn` (the Amplify validation-failure alarm ported), the Bedrock
 budget kept.
 
-**LAI-0709 Server-built context everywhere.** Depends: 0603, 0605, 0607. Risk M. Acceptance:
+**LAI-0709 Server-built context everywhere. PARTIAL: NPC narration server-owned; adventures and stories blocked.** Depends: 0603, 0605, 0607. Risk M. Acceptance:
 NPC and story turns built from Django catalog rows, server mastery status in the tutor context,
 `CLIENT_AUTHORED` removed.
 
-**LAI-0710 Retire Amplify AI routes.** Depends: 0706. Risk M. **APPROVAL.** Acceptance:
+**LAI-0710 Retire Amplify AI routes. AUDIT ONLY; nothing removed.** Depends: 0706. Risk M. **APPROVAL.** Acceptance:
 `generateCompanionTurn`, `generateTutorTurn`, their IAM grant patch and client code removed; the
 Amplify budget alarm replaced (part of Phase 13).
 
