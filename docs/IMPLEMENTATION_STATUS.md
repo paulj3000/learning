@@ -11853,11 +11853,15 @@ merged or deployed, and no AWS call was made.
 - **Existing tests changed.** Two admin guard tests now list `question_studio`
   (`core/tests/test_django_admin.py`, `game_sessions/tests/test_sessions.py`).
 - **Not verified.** Live Bedrock (LAI-0705 approval gate); a browser session in Django Admin (the
-  admin was exercised with the Django test client); the React changes (`npm ci` fails here because
-  `package-lock.json` is out of sync with `package.json`, so no Vitest, typecheck or lint ran on
-  them); deployment.
-- **LAI-AQS-024 stays open.** The workflow runs end to end with the fake model, including play and
-  grading. Open: live generation, an admin browser pass, React tests, and a catalog multiplication
-  objective (the export has none, so real multiplication questions cannot be served yet).
+  admin was exercised with the Django test client); deployment.
+- **Multiplication objective (follow-up, 2026-11-02).** Added `multiplication-facts` as a numeracy
+  learning objective and a one-skill Grade 3 slice (Explorers only) to the TypeScript curriculum;
+  regenerated `content/exported/*` and the golden vectors; mirrored the skill in
+  `ai/tutor_content.py`; updated the curriculum and export-count tests (a Pathfinder no longer sees
+  every skill). Checks: `pytest` from the root, 1747 passed; Vitest on curriculum, export, tutor,
+  director, learning profile, region play and the golden vectors, 274 passed; `content:check`,
+  `npm run typecheck` and prettier clean. A full Vitest run showed two slow parity and upload
+  tests timing out under load; both passed when run alone.
+- **LAI-AQS-024 stays open** for live generation and the Admin browser pass only.
 - **ADR-033 exception confirmed** by the owner (2026-11-02). ADR-045 records a bounded exception to "content reaches Django only through
   the export" (ADR-033): the bank is authored in Django. Merge order is `features/ai` first.
