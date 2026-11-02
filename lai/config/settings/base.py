@@ -198,7 +198,7 @@ LOGGING = {
     },
 }
 
-# --- Asset manager (LAI-2200, ADR-035; docs/ASSET_MANAGER.md section 13) --------------------
+# --- Asset library (LAI-2200, ADR-035; docs/ASSET_LIBRARY.md section 13) --------------------
 # Development defaults; production.py requires explicit values and test.py uses memory.
 LAI_ASSET_STORAGE = os.environ.get("LAI_ASSET_STORAGE", "local").strip()
 LAI_ASSET_BUCKET = os.environ.get("LAI_ASSET_BUCKET", "").strip()
@@ -217,7 +217,7 @@ if LAI_ASSET_DELIVERY == "s3" and LAI_ASSET_STORAGE != "s3":
     raise ImproperlyConfigured("LAI_ASSET_DELIVERY=s3 needs LAI_ASSET_STORAGE=s3.")
 
 # --- Child profile photos (LAI-0904, ADR-042; docs/platform/CHILD_PHOTO_STORAGE.md) ---------
-# A separate store from the asset manager: never the asset bucket, never published, never a CDN.
+# A separate store from the asset library: never the asset bucket, never published, never a CDN.
 # `disabled` answers every photo request with 503 `photo_storage_unavailable`.
 LAI_CHILD_PHOTO_STORAGE = os.environ.get("LAI_CHILD_PHOTO_STORAGE", "local").strip()
 LAI_CHILD_PHOTOS_BUCKET = os.environ.get("LAI_CHILD_PHOTOS_BUCKET", "").strip()

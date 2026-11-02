@@ -12,7 +12,7 @@
 #
 # Started by the SSM document `lai-django-bootstrap-<env>` (operators only; the GitHub deploy
 # role cannot run it) or on the instance. None of these runs on a normal deploy: importing and
-# publishing assets are explicit administrative actions (docs/ASSET_MANAGER.md section 19).
+# publishing assets are explicit administrative actions (docs/ASSET_LIBRARY.md section 19).
 # Publishing the imported versions is done in Django Admin (section 19.2).
 set -Eeuo pipefail
 LAI_SCRIPT=bootstrap

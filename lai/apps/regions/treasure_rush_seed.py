@@ -12,11 +12,30 @@ overwritten once it exists.
 The bridge signpost (ADR-041 decision C) is the cove's Adventure launch object: it offers Pirate
 Builder Bay's bridge adventure for the child's age band (one launch point per band, all on the
 same signpost). It uses the bundled `signpost` prop; no new or unpublished asset is needed.
+
+Pip's Missing Treasure (TR-14), the cove's four encounters, is `pips_treasure_seed.py`: its
+rows are created like the others, and an existing region switches from the one-chest quest to it
+once, by `scene["adventureVersion"]`.
+
+The cove's four-zone layout (TR-13) is `treasure_cove_layout.py`, written into
+`scene["layout"]`. It is the one thing the seed refreshes on an existing region: when the stored
+`layoutVersion` is older than `LAYOUT_VERSION`, the seed replaces the layout and bounds, bumps the
+region's version, and turns the landing spawn point to face inland if it still has the old
+default. Title, copy, placements and status are never touched.
 """
+
+import math
 
 from django.db import transaction
 
-from apps.catalog.models import Adventure, Location, NpcDefinition, Quest, RewardRule
+from apps.catalog.models import (
+    Adventure,
+    ItemDefinition,
+    Location,
+    NpcDefinition,
+    Quest,
+    RewardRule,
+)
 from apps.education.models import ChallengeSpec
 from apps.users.models import AgeBand
 
@@ -29,6 +48,14 @@ from .models import (
     WorldObjectPlacement,
     WorldRegion,
 )
+from .pips_treasure_seed import (
+    ADVENTURE_VERSION,
+    LANDING_CLUE,
+    PIPS_QUEST_ID,
+    seed_pips_treasure,
+    upgrade_pips_treasure,
+)
+from .treasure_cove_layout import BOUNDS, LAYOUT_VERSION, cove_layout
 
 REGION_ID = "treasure-rush-cove"
 CHEST_ID = "cove-chest"
@@ -45,8 +72,32 @@ BRIDGE_ADVENTURES = {
 }
 
 
+# Off the boat, facing inland (south) toward Pip, the first chest and the ruins.
+LANDING_YAW = math.pi
+
+
 class SeedPrerequisiteMissing(LookupError):
     pass
+
+
+def upgrade_cove_layout(region: WorldRegion) -> bool:
+    """Bring an existing region's seed-owned layout up to `LAYOUT_VERSION`. True if it changed."""
+    scene = region.scene if isinstance(region.scene, dict) else {}
+    if scene.get("layoutVersion", 1) >= LAYOUT_VERSION:
+        return False
+    region.scene = {
+        **scene,
+        "bounds": dict(BOUNDS),
+        "layoutVersion": LAYOUT_VERSION,
+        "layout": cove_layout(),
+    }
+    region.version += 1
+    region.save(update_fields=["scene", "version", "updated_at"])
+    # Only the old default facing is turned; a spawn point an admin moved or turned stays put.
+    region.spawn_points.filter(checkpoint_id="cove-landing", x=0.0, z=10.0, yaw=0.0).update(
+        yaw=LANDING_YAW
+    )
+    return True
 
 
 @transaction.atomic
@@ -64,12 +115,14 @@ def seed_treasure_rush() -> list[str]:
         bay = Location.objects.get(slug="pirate-builder-bay")
         pip = NpcDefinition.objects.get(npc_id="pirate-pip")
         rule = RewardRule.objects.get(rule_id=REWARD_RULE_ID)
-        quest = Quest.objects.get(slug=QUEST_ID)
+        quest = Quest.objects.get(slug=PIPS_QUEST_ID)
+        ItemDefinition.objects.get(item_id="old-brass-key")
     except (
         Location.DoesNotExist,
         NpcDefinition.DoesNotExist,
         RewardRule.DoesNotExist,
         Quest.DoesNotExist,
+        ItemDefinition.DoesNotExist,
     ) as error:
         raise SeedPrerequisiteMissing("Run load_content first.") from error
 
@@ -122,7 +175,10 @@ def seed_treasure_rush() -> list[str]:
             "location": bay,
             "title": "Treasure Cove",
             "scene": {
-                "bounds": {"halfExtentX": 18, "halfExtentZ": 18, "wallThickness": 1},
+                "bounds": dict(BOUNDS),
+                "layoutVersion": LAYOUT_VERSION,
+                "layout": cove_layout(),
+                "adventureVersion": ADVENTURE_VERSION,
                 "environment": {"backgroundColor": 0x9FD8F0},
                 "copy": {
                     "loading": "Sailing to Treasure Cove.",
@@ -135,8 +191,10 @@ def seed_treasure_rush() -> list[str]:
     get_or_create(
         SpawnPoint,
         {"region": region, "checkpoint_id": "cove-landing"},
-        {"label": "the landing", "x": 0.0, "z": 10.0, "yaw": 0.0, "is_default": True},
+        {"label": "the landing", "x": 0.0, "z": 10.0, "yaw": LANDING_YAW, "is_default": True},
     )
+    if upgrade_cove_layout(region):
+        created.append(f"WorldRegion {region} layout v{LAYOUT_VERSION}")
     get_or_create(
         TreasureChest,
         {"region": region, "entity_id": CHEST_ID},
@@ -152,6 +210,7 @@ def seed_treasure_rush() -> list[str]:
             "explorer_challenge": specs[AgeBand.EXPLORER],
             "reward_rule": rule,
             "world_change_key": CHEST_CHANGE_KEY,
+            "clue": LANDING_CLUE,
         },
     )
     get_or_create(
@@ -196,6 +255,9 @@ def seed_treasure_rush() -> list[str]:
                 "sort_order": order,
             },
         )
+    seed_pips_treasure(region, get_or_create)
+    if upgrade_pips_treasure(region):
+        created.append(f"WorldRegion {region} adventure v{ADVENTURE_VERSION}")
     if not region.offered_quests.exists():
         region.offered_quests.add(quest)
     return created

@@ -6,7 +6,7 @@
 Idempotent: files already imported (same SHA-256) are skipped. Nothing is published, deleted or
 re-pointed. `--ids` limits a bundled import to those asset ids (for example the Treasure Cove
 models: `--ids npc-pip,treasure-chest,ground-tile`). `--json` prints the full report. See
-apps/assets/importer.py and docs/ASSET_MANAGER.md section 11.
+apps/assets/importer.py and docs/ASSET_LIBRARY.md section 11.
 """
 
 import json
@@ -18,7 +18,7 @@ from apps.assets.importer import import_amplify, import_bundled
 
 
 class Command(BaseCommand):
-    help = "Import bundled or Amplify models into the asset manager as validated versions."
+    help = "Import bundled or Amplify models into the asset library as validated versions."
 
     def add_arguments(self, parser):
         source = parser.add_mutually_exclusive_group(required=True)

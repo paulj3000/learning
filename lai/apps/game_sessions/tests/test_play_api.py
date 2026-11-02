@@ -18,7 +18,7 @@ pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
 
 REGION = "treasure-rush-cove"
 CHEST = "cove-chest"
-QUEST = "treasure-rush-cove"
+QUEST = "pips-missing-treasure"  # the quest the cove offers since TR-14
 
 
 def base(child) -> str:
@@ -141,8 +141,19 @@ def test_the_bootstrap_describes_the_published_region_for_this_child(a):
     assert body["region"]["locationSlug"] == "pirate-builder-bay"
     assert body["spawn"]["checkpointId"] == "cove-landing"
     assert [n["npcId"] for n in body["npcs"]] == ["pirate-pip"]
-    [chest] = body["chests"]
+    # Pip's four chests, the ruins puzzle (TR-14) and the Lookout spyglass (TR-20), in encounter
+    # order; the first is open to all.
+    assert [c["entityId"] for c in body["chests"]] == [
+        CHEST,
+        "cove-grove-chest",
+        "cove-beach-chest",
+        "cove-ruins-pedestal",
+        "cove-final-chest",
+        "cove-lookout-spyglass",  # TR-20: the repeatable activity, locked until the quest is done
+    ]
+    chest = body["chests"][0]
     assert chest["entityId"] == CHEST and chest["assetId"] == "treasure-chest"
+    assert chest["locked"] is False and chest["presentation"] == "CHEST"
     assert chest["isOpen"] is False and chest["challengeAvailable"] is True
     assert chest["placeholder"] == {"width": 1.2, "height": 0.9, "depth": 0.8}
     [quest] = body["quests"]
@@ -152,7 +163,13 @@ def test_the_bootstrap_describes_the_published_region_for_this_child(a):
 
 def test_the_bootstrap_has_no_answers_urls_or_admin_fields(a):
     client, child = a
-    text = client.get(f"{base(child)}regions/{REGION}/").content.decode()
+    body = client.get(f"{base(child)}regions/{REGION}/").json()
+    # The scene is authored presentation (TR-13's layout); a scatter's `seed` there places trees
+    # and is not a challenge seed. It still carries no answers, URLs or model files.
+    scene = json.dumps(body["region"].pop("scene"))
+    for forbidden in ('"answer"', "http", ".glb", ".gltf", "world_change_key"):
+        assert forbidden not in scene
+    text = json.dumps(body)
     for forbidden in ('"answer"', "http", ".glb", ".gltf", "world_change_key", "seed"):
         assert forbidden not in text
 
@@ -233,7 +250,7 @@ def test_accepting_pips_quest(a):
     again = post(client, f"{base(child)}quests/{QUEST}/accept/")
     assert (first.status_code, again.status_code) == (201, 200)
     assert first.json()["status"] == "ACTIVE"
-    assert first.json()["currentStageId"] == "open-the-chest"
+    assert first.json()["currentStageId"] == "find-the-treasure"
     body = client.get(f"{base(child)}regions/{REGION}/").json()
     assert body["quests"][0]["status"] == "ACTIVE"
 
@@ -299,7 +316,7 @@ def test_a_wrong_answer(a):
     assert retry["attemptNumber"] == 2
 
 
-def test_the_right_answer_opens_the_chest_and_completes_the_accepted_quest(a):
+def test_the_right_answer_opens_the_chest_and_advances_the_accepted_quest(a):
     client, child = a
     post(client, f"{base(child)}quests/{QUEST}/accept/")
     issued = challenge(client, child)
@@ -312,10 +329,13 @@ def test_the_right_answer_opens_the_chest_and_completes_the_accepted_quest(a):
     assert body["newItems"][0]["category"] == "KEEPSAKE"
     assert body["rewardMessage"]
     [quest] = body["questUpdates"]
-    assert quest["questId"] == QUEST and quest["status"] == "COMPLETED" and quest["justCompleted"]
+    assert quest["questId"] == QUEST and quest["status"] == "ACTIVE" and not quest["justCompleted"]
+    assert quest["newlyCompletedObjectiveIds"] == ["cove-landing-chest"]
+    assert body["completionRewards"] == []
     region = client.get(f"{base(child)}regions/{REGION}/").json()
     assert region["chests"][0]["isOpen"] is True
-    assert region["quests"][0]["status"] == "COMPLETED"
+    assert region["chests"][1]["locked"] is False  # the hidden chest may now be found
+    assert region["quests"][0]["status"] == "ACTIVE"
     again = post(client, f"{base(child)}sessions/{issued['sessionId']}/chests/{CHEST}/challenge/")
     assert again.status_code == 409 and again.json()["error"]["code"] == "chest_already_open"
 
@@ -423,7 +443,8 @@ def test_progress_reports_this_childs_state_only(a, treasure):
     assert body["openedChests"] == [{"regionId": REGION, "entityId": CHEST}]
     assert [c["changeKey"] for c in body["worldChanges"]] == ["TREASURE_RUSH_COVE_CHEST_OPENED"]
     assert [entry["item"]["itemId"] for entry in body["inventory"]] == ["golden-doubloon"]
-    assert [(q["questId"], q["status"]) for q in body["quests"]] == [(QUEST, "COMPLETED")]
+    # One of Pip's four chests: the quest goes on (TR-14).
+    assert [(q["questId"], q["status"]) for q in body["quests"]] == [(QUEST, "ACTIVE")]
     assert body["practice"] == [
         {"objectiveCode": "addition-within-ten", "attempts": 2, "correct": 1}
     ]

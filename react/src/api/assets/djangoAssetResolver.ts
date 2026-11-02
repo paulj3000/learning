@@ -1,7 +1,11 @@
 import {
   BUNDLED_ASSET_RESOLVER,
+  FAMILY_FORMATS,
+  FAMILY_KINDS,
+  type AssetFamily,
   type AssetResolver,
   type ResolvedAsset,
+  type ResolvedMedia,
 } from '../../features/island-map/three/assets/assetResolver';
 import { getAccessToken } from '../auth';
 import { ApiError } from '../errors';
@@ -9,8 +13,8 @@ import { createApiClient, type ApiClient } from '../client';
 import { DJANGO_API_CONFIG, type DjangoApiConfig } from '../config';
 
 /**
- * An `AssetResolver` backed by the Django asset manager (LAI-2200 AM-7,
- * docs/ASSET_MANAGER.md section 10). It plugs into the existing LAI-2106
+ * An `AssetResolver` backed by the Django asset library (LAI-2200 AM-7,
+ * docs/ASSET_LIBRARY.md section 10). It plugs into the existing LAI-2106
  * loader unchanged: `createAssetLoader(djangoAssetResolverFor(childId))`.
  *
  * - Ids a scene asks for in the same tick go out as one request
@@ -50,6 +54,10 @@ export const REFRESH_BEFORE_EXPIRY_MS = 60_000;
 interface PublishedAsset {
   url: string;
   expiresAtMs: number;
+  family: AssetFamily;
+  format: string;
+  cacheKey?: string;
+  media?: ResolvedMedia;
 }
 
 export interface DjangoAssetResolverOptions {
@@ -76,12 +84,12 @@ export function reportAssetResolutionIssue(issue: AssetResolutionIssue): void {
         ? `${issue.error.kind}${issue.error.status ? ` ${issue.error.status}` : ''}`
         : 'unexpected error';
     console.warn(
-      `[assets] the asset manager request failed (${detail}); using bundled models for: ${issue.ids.join(', ')}`,
+      `[assets] the asset library request failed (${detail}); using bundled models for: ${issue.ids.join(', ')}`,
     );
     return;
   }
   console.warn(
-    `[assets] "${issue.id}" is ${issue.status} in the asset manager (expected until it is published); using the bundled model`,
+    `[assets] "${issue.id}" is ${issue.status} in the asset library (expected until it is published); using the bundled model`,
   );
 }
 
@@ -155,10 +163,24 @@ export function createDjangoAssetResolver(options: DjangoAssetResolverOptions): 
   }
 
   return {
-    async resolve(id: string): Promise<ResolvedAsset> {
+    async resolve(id: string, family: AssetFamily = 'model'): Promise<ResolvedAsset> {
       const published = await lookUp(id);
-      if (published) return { id, url: published.url, source: 'PUBLISHED' };
-      return fallback.resolve(id);
+      if (published && published.family === family) {
+        return {
+          id,
+          url: published.url,
+          source: 'PUBLISHED',
+          family: published.family,
+          format: published.format,
+          cacheKey: published.cacheKey,
+          media: published.media,
+        };
+      }
+      if (published) {
+        // A texture where a model is needed (or the reverse): not usable here, never mixed up.
+        report({ kind: 'not-published', id, status: `a ${published.family}, not a ${family}` });
+      }
+      return fallback.resolve(id, family);
     },
   };
 }
@@ -168,6 +190,11 @@ interface Entry {
   status: string;
   url?: unknown;
   urlExpiresAt?: unknown;
+  family?: unknown;
+  kind?: unknown;
+  format?: unknown;
+  cache?: unknown;
+  media?: unknown;
 }
 
 function readEntries(data: unknown): Entry[] {
@@ -189,7 +216,45 @@ function toPublished(entry: Entry, baseUrl: string): PublishedAsset | null {
   const expiresAtMs = Date.parse(entry.urlExpiresAt);
   if (!Number.isFinite(expiresAtMs)) return null;
   const url = safeUrl(entry.url, baseUrl);
-  return url ? { url, expiresAtMs } : null;
+  if (!url) return null;
+  // An answer without a family is a model (a Django that predates AM-13).
+  const family = entry.family === undefined ? 'model' : entry.family;
+  if (typeof family !== 'string' || !isFamily(family)) return null;
+  if (typeof entry.kind === 'string' && !FAMILY_KINDS[family].includes(entry.kind)) return null;
+  const format = typeof entry.format === 'string' ? entry.format : family === 'model' ? 'glb' : '';
+  if (!FAMILY_FORMATS[family].includes(format)) return null;
+  return {
+    url,
+    expiresAtMs,
+    family,
+    format,
+    cacheKey: readCacheKey(entry.cache),
+    media: readMedia(family, entry.media),
+  };
+}
+
+function isFamily(value: string): value is AssetFamily {
+  return Object.prototype.hasOwnProperty.call(FAMILY_FORMATS, value);
+}
+
+function readCacheKey(cache: unknown): string | undefined {
+  const key = (cache as { key?: unknown } | null)?.key;
+  return typeof key === 'string' && key.length > 0 && key.length <= 200 ? key : undefined;
+}
+
+const positive = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
+
+function readMedia(family: AssetFamily, media: unknown): ResolvedMedia | undefined {
+  if (family === 'model' || typeof media !== 'object' || media === null) return undefined;
+  const raw = media as Record<string, unknown>;
+  return family === 'image'
+    ? { width: positive(raw.width), height: positive(raw.height) }
+    : {
+        durationSeconds: positive(raw.durationSeconds),
+        sampleRate: positive(raw.sampleRate),
+        channels: positive(raw.channels),
+      };
 }
 
 /** Only an https URL or a same-origin absolute path (never `//host`, `javascript:` or `http:`). */

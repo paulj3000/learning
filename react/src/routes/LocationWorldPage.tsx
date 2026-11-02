@@ -28,7 +28,7 @@ const DEFAULT_AGE_BAND: AgeBandValue = 'SPROUT';
  *
  * With the Django API enabled, a region that is not source-controlled is
  * read from the play API for this child (TR-7, `regionRepositoryForChild`),
- * and its models come from the Django asset manager (TR-10, `regionAssetsFor`).
+ * and its models come from the Django asset library (TR-10, `regionAssetsFor`).
  */
 export function LocationWorldPage() {
   const { childId, regionId } = useParams<{ childId: string; regionId: string }>();

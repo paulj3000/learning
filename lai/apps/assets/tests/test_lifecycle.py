@@ -56,7 +56,7 @@ def test_version_numbers_increase_and_replacements_get_new_keys(pip):
 def test_an_invalid_model_is_not_stored_and_makes_no_row(pip, storage):
     with pytest.raises(AssetActionRefused) as refused:
         upload(pip, b"PK\x03\x04 not a model")
-    assert refused.value.code == "invalid_model"
+    assert refused.value.code == "invalid_file"
     assert {f.code for f in refused.value.findings} == {"not_a_model"}
     assert not AssetVersion.objects.exists() and not list(storage.list())
 

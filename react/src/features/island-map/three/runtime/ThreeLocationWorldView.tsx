@@ -31,6 +31,7 @@ import {
   availableInteractions,
   checkpointToast,
   focusLabel,
+  focusPrompt,
   findCollectibleByEntityId,
   findNpcByEntityId,
   interactionForEntity,
@@ -75,7 +76,7 @@ export interface ThreeLocationWorldViewProps {
   viewExtensions?: LocationViewExtensionRegistry;
   /**
    * Where the scene's models come from. Defaults to the bundled loader; a
-   * region served by Django gets the asset manager's (TR-10, `regionAssetsFor`).
+   * region served by Django gets the asset library's (TR-10, `regionAssetsFor`).
    */
   assets?: LocationEngineAssets;
 }
@@ -159,6 +160,12 @@ export function ThreeLocationWorldView({
   const [manifestState, setManifestState] = useState<ManifestState>({ status: 'loading' });
   const [snapshot, setSnapshot] = useState<WorldSnapshot | null>(null);
   const [focusedLabel, setFocusedLabel] = useState<string | null>(null);
+  /** A companion's quest cue, which wins over the snapshot's (`setQuestCue`). */
+  const [companionQuestCue, setCompanionQuestCue] = useState<string | null>(null);
+  /** Where companions put their own controls, inside the stage (TR-13). */
+  const [hudSlot, setHudSlot] = useState<HTMLDivElement | null>(null);
+  /** The action prompt's verb, under `interactionAssist` only. */
+  const [focusedAction, setFocusedAction] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [openInteraction, setOpenInteraction] = useState<WorldInteraction | null>(null);
   /** An interaction an extension claimed, and which extension claimed it. */
@@ -264,7 +271,13 @@ export function ThreeLocationWorldView({
         bus.emit('NpcStateChanged', { entityId, metByChild: true });
       }),
       bus.on('InteractableFocused', ({ entityId }) => {
-        setFocusedLabel(focusLabel(manifest, entityId));
+        if (manifest.interactionAssist) {
+          const prompt = focusPrompt(manifest, entityId);
+          setFocusedLabel(prompt?.label ?? null);
+          setFocusedAction(prompt?.action ?? null);
+        } else {
+          setFocusedLabel(focusLabel(manifest, entityId));
+        }
       }),
       bus.on('ObjectInteracted', ({ entityId }) => {
         const interaction = interactionForEntity(manifest, entityId, contextRef.current);
@@ -384,6 +397,9 @@ export function ThreeLocationWorldView({
   const statusLine = resolveStatusLine(manifest, snapshot.context);
   const thingsToDoNotes = resolveThingsToDoNotes(manifest, snapshot.context);
   const reticleSuppressed = (manifest.noReticleBands ?? []).includes(ageBand);
+  const companionOwnsBackpack = manifest.extensions.some(
+    (binding) => viewExtensions.get(binding.extensionId)?.ownsBackpack === true,
+  );
 
   return (
     <div className={styles.wrapper}>
@@ -410,12 +426,21 @@ export function ThreeLocationWorldView({
           }}
         />
         <WorldHud
-          questCue={snapshot.questCue}
+          questCue={companionQuestCue ?? snapshot.questCue}
           companionName={snapshot.companionName}
           focusedLabel={reticleSuppressed ? null : focusedLabel}
           toastMessage={toast}
           backpackItems={snapshot.backpackItems}
+          {...(manifest.interactionAssist
+            ? {
+                focusAction: focusedAction,
+                onInteract: () => engineRef.current?.interact(),
+                exitLink: { label: manifest.copy.altNav.label, to: altNavPath },
+              }
+            : {})}
+          showBackpack={!companionOwnsBackpack}
         />
+        <div ref={setHudSlot} className={styles.stageControls} />
         {openExtension ? (
           <openExtension.Overlay
             childId={childId}
@@ -443,6 +468,8 @@ export function ThreeLocationWorldView({
           onCloseInteraction={() => setClaimed(null)}
           showToast={setToast}
           setFocusLabel={setFocusedLabel}
+          setQuestCue={setCompanionQuestCue}
+          hudSlot={hudSlot}
           limitReached={limitReached}
           refreshWorld={refreshWorld}
         />

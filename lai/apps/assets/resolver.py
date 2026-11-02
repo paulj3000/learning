@@ -1,4 +1,4 @@
-"""Published-asset resolution (LAI-2200 AM-6; `docs/ASSET_MANAGER.md` sections 7 and 9).
+"""Published-asset resolution (LAI-2200 AM-6; `docs/ASSET_LIBRARY.md` sections 7 and 9).
 
 A reference is `asset-id` (the definition's default version) or `asset-id@n` (pinned). Only
 published data leaves this module: never drafts, validation reports, storage keys or who uploaded
@@ -74,7 +74,7 @@ def _entry(ref, asset_id, number, asset, pinned) -> dict:
     if version.status == VersionStatus.RETIRED:
         return {**base, "status": "retired"}
     delivery = deliver(version)
-    return {
+    entry = {
         **base,
         "status": "resolved",
         "kind": asset.kind,
@@ -82,6 +82,7 @@ def _entry(ref, asset_id, number, asset, pinned) -> dict:
         "version": version.number,
         "versionId": str(version.version_id),
         "sha256": version.sha256,
+        "family": version.family,
         "format": version.format,
         "contentType": version.content_type,
         "sizeBytes": version.size_bytes,
@@ -91,3 +92,17 @@ def _entry(ref, asset_id, number, asset, pinned) -> dict:
         "dimensions": version.dimensions,
         "cache": {"key": f"{asset_id}@{version.version_id}", "immutable": True, "ttl": ttl()},
     }
+    if version.family != "model":
+        entry["media"] = _media(version)
+    return entry
+
+
+# The public facts a client needs to use an image or a sound; nothing else from the metadata.
+_MEDIA_FIELDS = {
+    "image": ("width", "height"),
+    "audio": ("durationSeconds", "sampleRate", "channels"),
+}
+
+
+def _media(version) -> dict:
+    return {name: version.metadata.get(name) for name in _MEDIA_FIELDS[version.family]}

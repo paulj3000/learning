@@ -51,7 +51,7 @@ strips EXIF metadata and the deletion guarantees, is specified in
 `docs/DATA_MODEL.md` under "Child profile photos".
 
 The second prefix, `assets/*`, holds admin-uploaded game assets for the
-Model Asset Manager (ADR-030): Admins group only, one object per version
+Model Asset Library (ADR-030): Admins group only, one object per version
 (`assets/models/<folder>/<assetId>/v<n>/model.glb`), each referenced by an
 `Asset`/`AssetVersion` record rather than by path. Runtime resolution goes
 through `src/features/assets/assetService.ts`, which falls back to the
@@ -59,7 +59,7 @@ bundled `public/models/` file whenever no published S3 asset can be
 resolved, so children's regions keep working offline.
 
 **Django target (ADR-042).** The Django platform splits these two stores into separate private
-buckets: `LaiAssetStorage-<env>` for game assets (the Django asset manager, ADR-035) and
+buckets: `LaiAssetStorage-<env>` for game assets (the Django asset library, ADR-035) and
 `LaiChildPhotos-<env>` for child photos (the child profile subsystem; no publication, no CDN,
 7-day version retention). The Amplify bucket above stays unchanged until LAI-1204 retires it.
 See `docs/platform/CHILD_PHOTO_STORAGE.md`.
@@ -847,10 +847,10 @@ Cognito-backed admin sign-in is the upgrade path, TR-D5 option a). No throttling
 logins in the application (add WAF rate limiting at the load balancer, or a lockout, before exposure). There is no Django deployment yet;
 hosting and approvals are in `docs/DJANGO_TARGET_ARCHITECTURE.md`, "Django Admin hosting".
 
-## Shared asset manager (LAI-2200, ADR-035)
+## Shared asset library (LAI-2200, ADR-035)
 
 Upload a 3D model once, publish an immutable version, and every island, region, adventure or quest
-uses it by its stable asset id. Detail and the full contract: `docs/ASSET_MANAGER.md`.
+uses it by its stable asset id. Detail and the full contract: `docs/ASSET_LIBRARY.md`.
 
 - **Definition** is `catalog.ContentAsset` (one identity; CLAUDE.md section 20), now creatable in
   Django. **Versions** are `assets.AssetVersion`: immutable once published, unique per asset,
@@ -872,7 +872,7 @@ uses it by its stable asset id. Detail and the full contract: `docs/ASSET_MANAGE
   for validated, published and retired versions. The file comes from a separate admin route that
   needs a staff session and a short-lived token sent in a header, so the gameplay route stays
   published-only. The viewer source is `react/src/features/assets/preview/`, bundled into the
-  `assets` app's static files (`docs/ASSET_MANAGER.md` section 17).
+  `assets` app's static files (`docs/ASSET_LIBRARY.md` section 17).
 
 ## Child progress (LAI-0305)
 
@@ -934,7 +934,7 @@ adapted onto it:
 | `core` | API conventions, privacy logging, `ChildOwnedModel` (with the cross-child link check), `content_schema` validator, `ContentStatus` |
 | `users` | `ParentAccount`, `ChildProfile`, Cognito authentication, child scoping |
 | `catalog` | Imported content: World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset, LearningObjective, NpcDefinition, CollectibleSet, ItemDefinition, RewardRule, ContentRelease; the one importer (`load_content`); asset references (`asset_refs.py`); the catalog admin (mounted by LAI-0404); ContentAsset is also the asset definition (LAI-2200) |
-| `assets` | Asset manager (LAI-2200, ADR-035): AssetVersion, validation, storage, publication services, the published-asset resolver and delivery routes, the import and audit commands. No identity of its own: versions attach to `catalog.ContentAsset` |
+| `assets` | Asset library (LAI-2200, ADR-035): AssetVersion, validation, storage, publication services, the published-asset resolver and delivery routes, the import and audit commands. No identity of its own: versions attach to `catalog.ContentAsset` |
 | `regions` | Seed-authored play regions: WorldRegion, SpawnPoint, WorldObjectPlacement, TreasureChest; `seed_treasure_rush` |
 | `adventures` | The Python adventure engine (pure module, LAI-0601) |
 | `game_sessions` | AdventureSession (ADVENTURE or REGION), AdventureAction, ChallengeAttempt, CoopSession; answers and hints (LAI-0601); region play (TR-5); native home, discovery and inventory reads, game launch tickets and the game session cookie (LAI-ANDROID-API-001, ADR-036) |
@@ -1023,6 +1023,16 @@ handling), a per-session anchor keyed by `origin_jti` so a refresh can never res
 Cognito `GetUser` call with the presented token so a revoked session fails. Answers:
 `403 recent_auth_required` (not 401, so clients do not refresh-and-retry), `401` for a revoked
 token, `503 recent_auth_unavailable` when the check cannot run (fails closed). Guarded today:
-`DELETE /api/v1/children/<id>/` and every `/api/v1/admin/assets/` mutation. React's
+`DELETE /api/v1/children/<id>/`. Asset mutations no longer exist as an API (ADR-045). React's
 `useSensitiveAction` (`react/src/features/auth/recentSignIn/`) re-authenticates with an Amplify
 Cognito sign-in for the same account, asks for explicit confirmation, and retries once.
+
+
+## Asset administration boundary (ADR-045, 2026-11-02)
+
+Django Admin owns staff content authoring and asset management; React owns child-facing gameplay
+and the parent experience. Assets are created, uploaded, versioned, published, rolled back and
+retired in Django Admin; binaries live in private S3 under `assets/<models|images|audio>/`; the
+only asset API is the read-only, child-scoped resolver plus the signed file route; React and
+Three.js consume published assets by stable id. There is no React staff asset manager. Details:
+`docs/ASSET_LIBRARY.md` section 21.

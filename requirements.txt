@@ -7,7 +7,7 @@ PyJWT[crypto]==2.15.1
 # Production serving (LAI-0404, ADR-034): the WSGI server and the admin's static files.
 gunicorn==26.2.0
 whitenoise==6.12.0
-# Asset manager S3 storage (LAI-2200, ADR-035).
+# Asset library S3 storage (LAI-2200, ADR-035).
 boto3==1.43.118
 # transitive dependencies, pinned for reproducible installs
 asgiref==3.12.1

@@ -1,4 +1,4 @@
-"""Staff-only model preview for Django Admin (LAI-2200 AM-10; `docs/ASSET_MANAGER.md` section 17).
+"""Staff-only model preview for Django Admin (LAI-2200 AM-10; `docs/ASSET_LIBRARY.md` section 17).
 
 Separate from gameplay delivery (`delivery.py`) on purpose: the gameplay route serves published
 versions only, and an administrator needs to inspect a validated version before publishing it.
@@ -22,7 +22,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 
 from .models import VersionStatus
-from .validation import max_upload_bytes
+from .validation import max_bytes_for
 
 SALT = "lai.assets.preview.v1"
 PREVIEW_TTL_SECONDS = 600
@@ -59,7 +59,7 @@ def refusal_for(version) -> PreviewRefused | None:
             f"A {version.get_status_display().lower()} version cannot be previewed.",
             409,
         )
-    limit = max_upload_bytes()
+    limit = max_bytes_for(version.family)
     if version.size_bytes > limit:
         return PreviewRefused(
             "too_large",
@@ -131,6 +131,7 @@ def summary(version) -> list[tuple[str, str]]:
         ("Asset", f"{asset.display_name or asset.asset_id} ({asset.asset_id})"),
         ("Version", f"{version.number} ({version.version_id})"),
         ("Format", version.get_format_display()),
+        *_media_facts(version),
         ("File size", f"{version.size_bytes:,} bytes"),
         ("Validation", validation),
         ("Lifecycle", version.get_status_display()),
@@ -141,6 +142,57 @@ def summary(version) -> list[tuple[str, str]]:
     ]
 
 
+def _media_facts(version) -> list[tuple[str, str]]:
+    meta = version.metadata or {}
+    if version.family == "image":
+        return [("Image size", f"{meta.get('width', '?')} x {meta.get('height', '?')} pixels")]
+    if version.family == "audio":
+        return [
+            ("Duration", f"{meta.get('durationSeconds', '?')} seconds"),
+            ("Sample rate", f"{meta.get('sampleRate', '?')} Hz"),
+            ("Channels", str(meta.get("channels", "?"))),
+        ]
+    return []
+
+
+def file_preview_html(version) -> str:
+    """The inline preview on the version page: a thumbnail, a player, or the 3D link.
+
+    The `src` is always our own staff-only media route. Names and metadata are escaped by
+    `format_html`; the file's bytes are never inserted into the page.
+    """
+    if version.family == "model":
+        return link_for(version)
+    if refusal_for(version) is not None:
+        return link_for(version)
+    url = reverse("admin:assets_assetversion_media", args=[version.pk])
+    meta = version.metadata or {}
+    if version.family == "image":
+        return format_html(
+            '<img src="{}" alt="Preview of {}" width="{}" height="{}" '
+            'style="max-width:320px;height:auto;background:#eee">'
+            "<br>{} x {} pixels, {}, {} bytes",
+            url,
+            version.label,
+            min(meta.get("width") or 320, 320),
+            min(meta.get("height") or 320, 320),
+            meta.get("width", "?"),
+            meta.get("height", "?"),
+            version.get_format_display(),
+            f"{version.size_bytes:,}",
+        )
+    return format_html(
+        '<audio controls preload="metadata" src="{}">Your browser cannot play this audio.</audio>'
+        "<br>{} seconds, {} Hz, {} channel(s), {}, {} bytes",
+        url,
+        meta.get("durationSeconds", "?"),
+        meta.get("sampleRate", "?"),
+        meta.get("channels", "?"),
+        version.get_format_display(),
+        f"{version.size_bytes:,}",
+    )
+
+
 def link_for(version) -> str:
     """A link to the preview page, or why there is none (version and definition admins)."""
     if version is None:
@@ -148,4 +200,5 @@ def link_for(version) -> str:
     if refusal_for(version) is not None:
         return f"Not previewable ({version.get_status_display().lower()})"
     url = reverse("admin:assets_assetversion_preview", args=[version.pk])
-    return format_html('<a href="{}">Preview v{} in 3D</a>', url, version.number)
+    noun = {"model": "in 3D", "image": "image", "audio": "audio"}[version.family]
+    return format_html('<a href="{}">Preview v{} {}</a>', url, version.number, noun)

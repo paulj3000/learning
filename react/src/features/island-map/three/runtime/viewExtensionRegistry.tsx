@@ -71,6 +71,18 @@ export interface LocationCompanionProps {
    * than "a portrait".
    */
   setFocusLabel(label: string | null): void;
+  /**
+   * Replaces the HUD's quest cue, for a companion whose quests the view
+   * cannot read itself (a Django region's quests come from the play API).
+   * `null` gives the view's own cue back.
+   */
+  setQuestCue?(cue: string | null): void;
+  /**
+   * A place inside the 3D stage for the companion's own controls (TR-13),
+   * so they sit on the stage and stay with it in full screen. `null` until
+   * the stage has mounted; absent for a view that offers none.
+   */
+  hudSlot?: HTMLElement | null;
   /** Whether the session's time is up, for a region that stages a calm stop in the room. */
   limitReached: boolean;
   /** Re-reads world changes, inventory and discoveries. */
@@ -95,6 +107,8 @@ export interface LocationViewExtension {
   Overlay?: ComponentType<LocationViewExtensionOverlayProps>;
   /** Mounted for the whole visit, whenever the manifest declares this extension. */
   Companion?: ComponentType<LocationCompanionProps>;
+  /** True when its companion shows the backpack, so the HUD does not show a second one. */
+  ownsBackpack?: boolean;
 }
 
 export type LocationViewExtensionRegistry = Registry<LocationViewExtension>;

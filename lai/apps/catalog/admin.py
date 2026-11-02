@@ -347,7 +347,7 @@ class ContentAssetAdmin(CatalogModelAdmin):
     list_select_related = ("default_version",)
     readonly_display = ("used_by", "default_version_number", "preview_link")
     inlines = [AssetVersionInline]
-    actions = ["retire_assets"]
+    actions = ["retire_assets", "reactivate_assets"]
 
     def has_add_permission(self, request, obj=None):
         return admin_access.can_view(request) and _has_perm(request, "catalog.add_contentasset")
@@ -425,9 +425,36 @@ class ContentAssetAdmin(CatalogModelAdmin):
     def retire_assets(self, request, queryset):
         from apps.assets.services import retire_asset
 
+        count = 0
         for asset in queryset:
+            used = asset.location_links.count()
             retire_asset(asset)
-        self.message_user(request, f"Retired {queryset.count()} asset(s).", messages.SUCCESS)
+            self.log_change(request, asset, "Retired the asset.")
+            count += 1
+            if used:
+                self.message_user(
+                    request,
+                    f"{asset.asset_id} is still referenced by {used} place(s); games fall back "
+                    "to their bundled art until it is reactivated.",
+                    messages.WARNING,
+                )
+        self.message_user(request, f"Retired {count} asset(s).", messages.SUCCESS)
+
+    @admin.action(description="Reactivate selected retired assets", permissions=["retire"])
+    def reactivate_assets(self, request, queryset):
+        from apps.assets.services import AssetActionRefused, reactivate_asset
+
+        count = 0
+        for asset in queryset:
+            try:
+                reactivate_asset(asset)
+            except AssetActionRefused as refused:
+                self.message_user(request, f"{asset.asset_id}: {refused.message}", messages.ERROR)
+            else:
+                self.log_change(request, asset, "Reactivated the asset.")
+                count += 1
+        if count:
+            self.message_user(request, f"Reactivated {count} asset(s).", messages.SUCCESS)
 
 
 @admin.register(ContentRelease)

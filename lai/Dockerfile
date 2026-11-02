@@ -20,7 +20,7 @@ RUN pip install -r requirements.txt
 COPY lai/ ./lai/
 COPY content/ ./content/
 # The bundled models (about 3 MB), so `manage.py import_assets --from-bundled` can run as a one-off
-# task in this image (docs/ASSET_MANAGER.md section 19). Read only by that command; gameplay gets
+# task in this image (docs/ASSET_LIBRARY.md section 19). Read only by that command; gameplay gets
 # models from the asset store (S3 in production), never from the image.
 COPY react/public/models/ ./react/public/models/
 

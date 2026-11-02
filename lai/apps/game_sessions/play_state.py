@@ -12,6 +12,7 @@ from apps.catalog.models import Quest
 from apps.core.content_status import ContentStatus
 from apps.education.models import SkillEvidence
 from apps.inventory.models import InventoryItem
+from apps.inventory.services import owned_item_ids
 from apps.progression.models import WorldChange
 from apps.quests import engine
 from apps.quests.models import QuestProgress
@@ -86,21 +87,40 @@ def world_change_keys_by_location(child) -> set[tuple[str, str]]:
 
 
 def region_bootstrap(child, region: WorldRegion) -> dict:
+    # Imported here: `play` imports this module's neighbours, and the lock rule lives there.
+    from .play import chest_lock
+
     changes = world_change_keys_by_location(child)
+    items = owned_item_ids(child)
     location = region.location.slug
     placements = region.placements.select_related("npc").order_by("entity_id")
     npcs = [p for p in placements if p.kind == PlacementKind.NPC and p.npc and p.npc.active]
-    objects = [p for p in placements if p.kind != PlacementKind.NPC]
+    objects = [
+        {
+            "placement": p,
+            "collected": p.is_pickup and (location, p.pickup_change_key) in changes,
+        }
+        for p in placements
+        if p.kind != PlacementKind.NPC
+    ]
     chests = []
     for chest in region.chests.select_related(
-        "sprout_challenge", "pathfinder_challenge", "explorer_challenge"
-    ).order_by("entity_id"):
+        "region__location",
+        "required_item",
+        "sprout_challenge",
+        "pathfinder_challenge",
+        "explorer_challenge",
+    ).order_by("sort_order", "entity_id"):
         spec = chest.challenge_for(child.age_band)
+        is_open = (location, chest.world_change_key) in changes
         chests.append(
             {
                 "chest": chest,
-                "is_open": (location, chest.world_change_key) in changes,
+                "is_open": is_open,
                 "challenge_available": spec is not None and spec.status == ContentStatus.PUBLISHED,
+                "lock_reason": (
+                    None if is_open else chest_lock(child, chest, keys=changes, items=items)
+                ),
             }
         )
     offered = region.offered_quests.filter(active=True).order_by("slug")

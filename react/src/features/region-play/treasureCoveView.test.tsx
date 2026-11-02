@@ -96,6 +96,8 @@ function fakeApi(getRegion?: PlayApi['getRegion']): PlayApi {
     submitAnswer: vi.fn(),
     getProgress: vi.fn(),
     startLaunchPoint: vi.fn(),
+    collectPickup: vi.fn(),
+    talkToNpc: vi.fn(async () => ({ flagsSet: [], questUpdates: [], completionRewards: [] })),
   };
 }
 
@@ -139,6 +141,23 @@ describe('Treasure Cove in the generic view', () => {
       expect(apis.get(CHILD_A)?.startSession).toHaveBeenCalledWith(REGION, expect.any(AbortSignal)),
     );
     expect(apis.get(CHILD_A)?.acceptQuest).not.toHaveBeenCalled();
+  });
+
+  it('keeps exit, hint and one backpack on the stage, where full screen keeps them (TR-13)', async () => {
+    apis.set(CHILD_A, fakeApi());
+    const { container } = render(view(CHILD_A));
+    const stage = await waitFor(() => {
+      const found = container.querySelector('[data-world-stage]');
+      if (!found) throw new Error('no stage yet');
+      return found as HTMLElement;
+    });
+    const hint = await screen.findByRole('button', { name: 'Hint' });
+    expect(stage).toContainElement(hint);
+    const backpacks = screen.getAllByRole('button', { name: /Backpack/ });
+    expect(backpacks).toHaveLength(1);
+    expect(stage).toContainElement(backpacks[0]!);
+    const exits = screen.getAllByRole('link', { name: 'Go back to the harbor' });
+    expect(exits.some((link) => stage.contains(link))).toBe(true);
   });
 
   it('says calmly when the region is not open (unpublished, retired, or not this family’s)', async () => {

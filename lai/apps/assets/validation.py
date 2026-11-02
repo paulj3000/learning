@@ -1,4 +1,4 @@
-"""Model validation for the asset manager (LAI-2200 AM-3; `docs/ASSET_MANAGER.md` section 5).
+"""Model validation for the asset library (LAI-2200 AM-3; `docs/ASSET_LIBRARY.md` section 5).
 
 `validate_model(stream, size=..., definition=...)` reads an untrusted upload and returns a
 `ValidationResult`: the detected format, structured findings an administrator can act on, and
@@ -25,6 +25,7 @@ from typing import IO, Any
 
 from django.conf import settings
 
+from . import formats
 from .models import ModelFormat
 
 GLB_MAGIC = 0x46546C67  # "glTF"
@@ -128,6 +129,62 @@ class _Stop(Exception):
 
 def max_upload_bytes() -> int:
     return int(getattr(settings, "LAI_ASSET_MAX_UPLOAD_BYTES", 50 * 1024 * 1024))
+
+
+def max_bytes_for(family: str) -> int:
+    """The upload limit for a family of file (settings `LAI_ASSET_MAX_*_BYTES`)."""
+    from . import validation_media
+
+    if family == formats.IMAGE:
+        return validation_media.max_image_bytes()
+    if family == formats.AUDIO:
+        return validation_media.max_audio_bytes()
+    return max_upload_bytes()
+
+
+def largest_upload_bytes() -> int:
+    return max(max_bytes_for(family) for family in formats.FAMILIES)
+
+
+def validate_upload(stream: IO[bytes], *, size: int, definition=None) -> ValidationResult:
+    """Validate an untrusted file of any supported family (AM-13).
+
+    The family comes from the bytes. It must be the family the definition's kind accepts: a
+    `texture` takes images, a `character` takes models, an `audio` takes sound. Unknown bytes
+    are rejected, so nothing unsupported (SVG, GIF, AAC, scripts) is ever stored.
+    """
+    from . import validation_media
+
+    stream.seek(0)
+    head = stream.read(16)
+    stream.seek(0)
+    detected = validation_media.sniff_format(head)
+    if detected is None:
+        family = formats.MODEL  # a glb or gltf, or an unreadable file: the model checks decide
+    else:
+        family = formats.family_of(detected)
+    expected = formats.family_for_kind(getattr(definition, "kind", "")) if definition else None
+    if expected is not None and family != expected:
+        result = ValidationResult()
+        result.error(
+            "wrong_file_family",
+            f"This asset is a {definition.kind}, which takes {_FAMILY_NOUN[expected]}; the file "
+            f"is {_FAMILY_NOUN[family]}.",
+        )
+        return result
+    if family == formats.MODEL:
+        return validate_model(stream, size=size, definition=definition)
+    result = (
+        validation_media.validate_image
+        if family == formats.IMAGE
+        else validation_media.validate_audio
+    )(stream, size=size, file_format=detected)
+    if definition is not None:
+        _check_definition(result, definition)
+    return result
+
+
+_FAMILY_NOUN = {formats.MODEL: "a 3D model", formats.IMAGE: "an image", formats.AUDIO: "audio"}
 
 
 def validate_model(stream: IO[bytes], *, size: int, definition=None) -> ValidationResult:

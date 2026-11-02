@@ -18,6 +18,7 @@ import { toRegionSceneModel } from '../../../../region-play/sceneModel';
 import { bootstrapJson } from '../../../../../test/playFixtures';
 import type { LoadedModel } from '../../runtime/extensionRegistry';
 import {
+  FACE_NORTH,
   FACE_SOUTH,
   mount,
   named,
@@ -25,7 +26,9 @@ import {
   walk,
   type Drive,
 } from '../../runtime/testing/engineHarness';
+import { FOCUS_MARKER_NAME } from '../../runtime/createLocationEngine';
 import {
+  BEACON_NAME,
   OPEN_LID_ANGLE,
   regionPlaySceneExtension,
   type RegionPlaySceneApi,
@@ -45,6 +48,8 @@ function cove(
     chest?: Record<string, unknown>;
     overrides?: Record<string, unknown>;
     loadModel?: (assetId: string) => Promise<LoadedModel>;
+    /** Set false to run the cove without `interactionAssist`, as a source region runs. */
+    assist?: boolean;
   } = {},
 ) {
   const model = toRegionSceneModel(
@@ -53,7 +58,8 @@ function cove(
   const built = buildRegionManifest(model, { worldSlug: 'learning-adventure-island' });
   publishRegionCheckpoints(REGION, built.checkpoints);
   const harness = mount({
-    manifest: built.manifest,
+    manifest:
+      options.assist === false ? { ...built.manifest, interactionAssist: false } : built.manifest,
     extensions: [regionPlaySceneExtension],
     loadModel: options.loadModel ?? (async () => standingBox()),
   });
@@ -227,5 +233,97 @@ describe('Treasure Cove on the engine', () => {
     const root = chestRoot();
     harness.engine.dispose();
     expect(builtChest(root)).toBeUndefined();
+  });
+});
+
+/** Looking up at the sky, so the centre ray hits nothing in the cove. */
+const SKY = 1.2;
+const focusedIds = (events: Parameters<typeof named>[0]) =>
+  named(events, 'InteractableFocused').map(
+    (detail) => (detail as { entityId: string | null }).entityId,
+  );
+
+describe('child-friendly interaction in Treasure Cove (TR-12)', () => {
+  it('focuses the chest ahead and in reach without aiming at it, and interacting reaches it', () => {
+    const { harness } = cove({ chest: { assetId: '' } });
+    harness.setDrive(lookAt(0, -3.5, FACE_SOUTH, SKY));
+    harness.runFrames(2);
+    expect(focusedIds(harness.events)).toContain('cove-chest');
+    harness.pressInteractKey();
+    expect(named(harness.events, 'ObjectInteracted')).toContainEqual({
+      entityId: 'cove-chest',
+      interactionId: 'cove-chest:interact',
+    });
+  });
+
+  it('needs exact aim without interactionAssist, as source regions keep', () => {
+    const { harness } = cove({ chest: { assetId: '' }, assist: false });
+    harness.setDrive(lookAt(0, -3.5, FACE_SOUTH, SKY));
+    harness.runFrames(2);
+    expect(focusedIds(harness.events)).not.toContain('cove-chest');
+  });
+
+  it('does not focus a chest behind the child, off to the side, or out of reach', () => {
+    const poses = [
+      lookAt(0, -3.5, FACE_NORTH, SKY), // behind
+      lookAt(2.5, -6, FACE_SOUTH, SKY), // level with it, off to the side
+      lookAt(0, -1, FACE_SOUTH, SKY), // 5 m away
+    ];
+    for (const pose of poses) {
+      const { harness } = cove({ chest: { assetId: '' } });
+      harness.setDrive(pose);
+      harness.runFrames(2);
+      expect(focusedIds(harness.events)).not.toContain('cove-chest');
+      harness.engine.dispose();
+    }
+  });
+
+  it('prefers what the centre ray hits over something merely near', () => {
+    const { harness } = cove({ chest: { assetId: '' } });
+    // Aimed straight at the chest from close by: the ray's answer, as before.
+    harness.setDrive(lookAt(0, -4.3, FACE_SOUTH, -0.6));
+    harness.runFrames(2);
+    expect(focusedIds(harness.events).at(-1)).toBe('cove-chest');
+  });
+
+  it('bobs a marker over whatever has focus, and hides it when nothing does', () => {
+    const { harness } = cove({ chest: { assetId: '' } });
+    const marker = () => harness.scene().getObjectByName(FOCUS_MARKER_NAME) as Object3D;
+    harness.setDrive(lookAt(0, 8, FACE_NORTH, SKY));
+    harness.runFrames(2);
+    expect(marker().visible).toBe(false);
+    harness.setDrive(lookAt(0, -3.5, FACE_SOUTH, SKY));
+    harness.runFrames(2);
+    expect(marker().visible).toBe(true);
+    expect(marker().position.x).toBeCloseTo(0);
+    expect(marker().position.z).toBeCloseTo(-6);
+    expect(marker().position.y).toBeGreaterThan(0.9); // above the 0.9 m chest
+  });
+
+  it('has no focus marker without interactionAssist', () => {
+    const { harness } = cove({ assist: false });
+    harness.runFrames(1);
+    expect(harness.scene().getObjectByName(FOCUS_MARKER_NAME)).toBeUndefined();
+  });
+
+  it('floats a gold beacon over a closed chest and takes it away once the server opens it', () => {
+    const { harness, api } = cove({ chest: { assetId: '' } });
+    const beacon = () => harness.scene().getObjectByName(`${BEACON_NAME}:cove-chest`) as Object3D;
+    harness.runFrames(1);
+    expect(beacon().visible).toBe(true);
+    expect(beacon().position.y).toBeGreaterThan(0.9);
+    api().setChestOpen('cove-chest', true);
+    harness.runFrames(1);
+    expect(beacon().visible).toBe(false);
+    harness.engine.dispose();
+    expect(harness.scene().getObjectByName(`${BEACON_NAME}:cove-chest`)).toBeUndefined();
+  });
+
+  it('shows no beacon over a chest already open on entry', () => {
+    const { harness } = cove({ chest: { assetId: '', isOpen: true } });
+    harness.runFrames(1);
+    expect((harness.scene().getObjectByName(`${BEACON_NAME}:cove-chest`) as Object3D).visible).toBe(
+      false,
+    );
   });
 });

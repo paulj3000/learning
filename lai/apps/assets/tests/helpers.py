@@ -1,4 +1,4 @@
-"""Synthetic definitions, versions and model files for the asset manager tests. No AWS."""
+"""Synthetic definitions, versions and model files for the asset library tests. No AWS."""
 
 import base64
 import hashlib

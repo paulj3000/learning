@@ -1,5 +1,5 @@
 import type { ApiError } from '../../api/errors';
-import type { AnswerOutcome, PublicChallenge, QuestEntry } from '../../api/play/types';
+import type { AnswerOutcome, ChestState, PublicChallenge, QuestEntry } from '../../api/play/types';
 
 /**
  * The rules behind the Treasure Rush play UI (TR-8), apart from React so
@@ -45,6 +45,29 @@ export const PLAY_COPY = {
   backpack: 'Backpack',
   backpackTitle: 'My backpack',
   backpackEmpty: 'Nothing here yet. Open a chest to find treasure!',
+  // Objective and hints (TR-12)
+  // Pip's Missing Treasure (TR-14)
+  chestNeedsKey: 'This chest is locked. You need a key to open it!',
+  chestNotYet: "Not yet! Follow Pip's clues to find the treasures in order.",
+  puzzleTouch: 'Touch the rune stone with the right number. You can also choose it here.',
+  puzzleSolved: 'The pedestal glows! The golden chest is unlocked.',
+  puzzleWrong: 'Not that stone. The numbers changed. Try again!',
+  puzzleFirst: 'Read the glowing pedestal first. Then touch a stone.',
+  pipClue: 'My clue:',
+  youPickedUp: 'You found something!',
+  finaleTitle: 'You found all my treasure!',
+  finaleThanks: 'Thank you, friend! You are a true treasure hunter.',
+  // Lookout Point (TR-17) and the spyglass replay (TR-20)
+  bridgeOpened: 'The gate is open and the bridge is mended! Walk across to Lookout Point.',
+  replayGreat: 'Great counting!',
+  replayNote:
+    'That was a new puzzle and you got it right. There is no new treasure this time, but you are getting even better. Play again whenever you like!',
+  replayAgain: 'Play again',
+  lookoutHint:
+    'The bridge to Lookout Point is open. Cross it and look through the spyglass. You can play as often as you like!',
+  hint: 'Hint',
+  hintClose: 'Got it',
+  defaultGiver: 'your friend',
   myQuests: 'My quests',
   questNew: 'New',
   questDoing: 'Doing now',
@@ -179,6 +202,93 @@ export function questStatusLabel(status: QuestEntry['status']): string {
   if (status === 'COMPLETED') return PLAY_COPY.questDone;
   if (status === 'ACTIVE') return PLAY_COPY.questDoing;
   return PLAY_COPY.questNew;
+}
+
+// --- Objective and hints (TR-12) ------------------------------------------------------------
+
+/**
+ * What the child is working on, from the server's quest state only:
+ * - `start`: a quest is on offer and none is active, so the giver is the goal;
+ * - `progress`: the active quest's required objectives, done of total;
+ * - `done`: every quest here is complete.
+ */
+export type QuestObjective =
+  | { kind: 'start'; giver: string }
+  | { kind: 'progress'; title: string; giver: string; done: number; total: number }
+  | { kind: 'done'; title: string };
+
+export function questObjective(
+  quests: readonly QuestEntry[],
+  giverName: (npcId: string | null) => string,
+): QuestObjective | null {
+  const active = quests.find((quest) => quest.status === 'ACTIVE');
+  if (active) {
+    // The current stage when the server names one (TR-14: "Find Pip's treasures: 2 of 4", then
+    // "Bring the treasure back to Pip"); the whole quest otherwise.
+    const stage = active.stages.find((candidate) => candidate.id === active.currentStageId);
+    const required = (stage ? [stage] : active.stages).flatMap((each) =>
+      each.objectives.filter((objective) => !objective.optional),
+    );
+    return {
+      kind: 'progress',
+      title: stage?.title || active.title,
+      giver: giverName(active.giverNpcId),
+      done: required.filter((objective) => objective.complete).length,
+      total: required.length,
+    };
+  }
+  const offered = quests.find((quest) => quest.status === 'AVAILABLE');
+  if (offered) return { kind: 'start', giver: giverName(offered.giverNpcId) };
+  const finished = quests.find((quest) => quest.status === 'COMPLETED');
+  return finished ? { kind: 'done', title: finished.title } : null;
+}
+
+/** The HUD cue for an objective: one short line, readable aloud, no em dashes. */
+export function objectiveCue(objective: QuestObjective): string {
+  switch (objective.kind) {
+    case 'start':
+      return `Talk to ${objective.giver} to start an adventure`;
+    case 'progress':
+      return objective.total > 1
+        ? `${objective.title}: ${objective.done} of ${objective.total}`
+        : objective.title;
+    case 'done':
+      return `${objective.title}: all done!`;
+  }
+}
+
+/**
+ * The next thing to try, only when the child asks (the Hint button), so free
+ * exploring is never interrupted. Points at what the world already shows: a
+ * closed chest has a gold star over it.
+ */
+export function nextStepHint(
+  objective: QuestObjective | null,
+  chests: readonly ChestState[],
+): string {
+  if (objective === null)
+    return 'Look around and walk up to things. A button shows what you can do.';
+  switch (objective.kind) {
+    case 'start':
+      return `Walk up to ${objective.giver}. When the Talk button shows, use it.`;
+    case 'progress': {
+      // The first encounter not done yet, in the server's order; its clue says where (TR-14).
+      const next = chests.find((chest) => !chest.isOpen && chest.lockReason !== 'PROGRESS');
+      if (next?.clue) return next.clue;
+      if (next && next.challengeAvailable) {
+        return 'Look for a treasure chest with a gold star over it. Walk close and use Open.';
+      }
+      return `Walk back to ${objective.giver} and talk. There may be news!`;
+    }
+    case 'done': {
+      // TR-17, TR-20: once the quest is complete the spyglass at Lookout Point is the next thing.
+      const spyglass = chests.find((chest) => chest.presentation === 'REPLAY');
+      if (spyglass && spyglass.lockReason === null && spyglass.challengeAvailable) {
+        return PLAY_COPY.lookoutHint;
+      }
+      return 'You did it! Explore the cove as long as you like.';
+    }
+  }
 }
 
 // --- Errors ---------------------------------------------------------------------------------

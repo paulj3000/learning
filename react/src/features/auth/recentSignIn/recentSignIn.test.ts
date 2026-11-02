@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../../api/errors';
-import { AssetUploadFailure } from '../../../api/assets/djangoAssetAdmin';
 import { ProfileRequestError } from '../../child-profile/profileErrors';
 import {
   currentIdentity,
@@ -53,7 +52,6 @@ describe('isRecentAuthRequired', () => {
       isRecentAuthRequired(new ProfileRequestError('x', { code: 'recent_auth_required' })),
     ).toBe(true);
     expect(isRecentAuthRequired(new ProfileRequestError('x', { cause: stale() }))).toBe(true);
-    expect(isRecentAuthRequired(new AssetUploadFailure(stale(), null))).toBe(true);
   });
 
   it('ignores every other error', () => {

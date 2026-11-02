@@ -6,7 +6,7 @@ on its own pipeline; nothing here is deployed by a push.
 
 | Stack                   | Scope       | What                                                                                   | Doc                                        |
 | ----------------------- | ----------- | -------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `LaiAssetStorage-<env>` | environment | The asset manager's private S3 bucket and the Django role policy                       | `docs/ASSET_MANAGER.md` sections 12 and 19 |
+| `LaiAssetStorage-<env>` | environment | The asset library's private S3 bucket and the Django role policy                       | `docs/ASSET_LIBRARY.md` sections 12 and 19 |
 | `LaiChildPhotos-<env>`  | environment | The private child photo bucket (separate from assets, ADR-042) and its Django policy   | `docs/platform/CHILD_PHOTO_STORAGE.md`     |
 | `LaiDjangoRelease`      | account     | ECR `lai/django`, the GitHub OIDC provider, the image publisher role                   | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`   |
 | `LaiDjangoEc2-<env>`    | environment | VPC, ALB (ACM, WAF), EC2, RDS, SSM settings and release documents, deploy role, alarms | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`   |
