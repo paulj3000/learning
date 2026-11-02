@@ -229,3 +229,27 @@ LAI-0805's ADR; TR-D5 is still Proposed.
 - [ ] **TR-9** End-to-end and playtest (depends: TR-8a; real families also need LAI-0502, LAI-0602, gate G9, ADR-024 A6. Locally, the child mirror step in `docs/TREASURE_RUSH_LOCAL_DEV.md` stands in for LAI-0602)
 - [ ] **TR-10** Integrate LAI-2106 shared asset management (depends: LAI-2106, TR-7a)
 - [ ] **TR-11** Second chest and quest chain (depends: TR-9)
+
+# Sound Manager (`docs/audio/SOUND_MANAGER_ARCHITECTURE.md`)
+
+Feature roadmap with its own ids, like TR-n. Phase 1 (foundation) is SM-001 to SM-010 on
+`feature/sound-manager`. Nothing here changes Treasure Rush or Storykeeper Castle. Verified with
+Vitest and fakes only; no real-browser audio check has been run.
+
+- [x] **SM-001** Audit existing audio. DONE: there is none; `docs/audio/SOUND_MANAGER_AUDIT.md`
+- [x] **SM-002** Architecture and decisions SM-D1 to SM-D6 (no ADR number minted; assign at merge). DONE: `docs/audio/SOUND_MANAGER_ARCHITECTURE.md`
+- [x] **SM-003** Shared TypeScript contracts (`AudioTypes.ts`). DONE
+- [x] **SM-004** Central `SoundManager` over an `AudioEngine` abstraction with a Web Audio engine. DONE, unit-tested; audible output unverified
+- [x] **SM-005** Five channels, per-channel and master volume and mute (`AudioChannels.ts`). DONE; ducking not built by design
+- [x] **SM-006** Lifecycle: scopes, instance tracking, pending-load cancellation, bounded buffer cache. DONE
+- [x] **SM-007** Browser unlock: gesture listeners, suspended and interrupted contexts, no permission screen. DONE; real Safari and Chrome autoplay behavior unverified
+- [x] **SM-008** Error handling, silent fallback and diagnostics ring. DONE
+- [x] **SM-009** React integration (`SoundProvider`, `useSound`, `useSoundScope`, `useSoundSettings`, `useAudioStatus`), StrictMode-safe. DONE; no game wired in
+- [x] **SM-010** Tests and developer guide (`docs/audio/SOUND_MANAGER_USAGE.md`). DONE: 94 Vitest tests in `react/src/audio`
+- [ ] **SM-P2** Django audio asset kind, metadata and publishing; Django Admin only (depends: AM-13, LAI-0404; may need an ADR)
+- [ ] **SM-P3** Resolver for published audio, definition catalogue endpoint, tags and categories (depends: SM-P2)
+- [ ] **SM-P4** Treasure Rush integration behind a scope (depends: SM-P3, TR-9; supersedes TR-D19)
+- [ ] **SM-P5** Persisted sound preferences per child profile, parent controls (depends: LAI-0301)
+- [ ] **SM-P6** Playlists, music transitions and ducking
+- [ ] **SM-P7** Spatial audio for Three.js scenes on the shared `AudioContext` (depends: SM-P4)
+- [ ] **SM-P8** Narration and companion voice, captions (depends: provider decision, SM-P6)

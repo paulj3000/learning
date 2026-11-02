@@ -11882,3 +11882,30 @@ deployed, and no Amplify resource was changed.
   ruff check and format, prettier, oxlint, `npm run adr:check`, `npm run build`, CDK synth of all
   five stacks, Playwright smoke 7 passed. Not run: live Bedrock, live red team, authenticated
   browser acceptance, deployed monitoring.
+
+## Sound Manager Phase 1: foundation (SM-001 to SM-010) (2026-11-02, branch `feature/sound-manager`, not merged, not deployed)
+
+**Acceptance criteria.** A shared, tested audio foundation that any game can use, with no change to
+existing games.
+
+**Built.** `react/src/audio/`: typed contracts, a registry of stable sound ids, five channels with
+independent volume and mute plus master, an `AudioEngine` abstraction with a Web Audio
+implementation (buffered and streamed voices, shared fetches, byte-capped LRU cache, scheduled fades),
+a `SoundManager` with scopes, per-instance handles, pause and resume, voice limit with priority
+stealing, cancellable loads, gesture unlock, and a diagnostics ring; React bindings in
+`react/src/audio/react/` (`SoundProvider`, `useSound`, `useSoundScope`, `useSoundSettings`,
+`useAudioStatus`). No new dependency. Docs: `docs/audio/` (audit, architecture, usage guide).
+
+**Audit result.** The application had no audio at all, so nothing was migrated and no game code was
+touched.
+
+**Tests.** `react/src/audio`: 94 Vitest tests (manager, engine against fake Web Audio, React
+lifecycle including StrictMode). No browser tests were run, by instruction.
+
+**Not verified.** Audible output, real decoding, browser autoplay behavior and iOS Safari quirks need
+a real browser and device. Stream-voice fades use a timer rather than the audio clock.
+
+**Open.** The lifecycle of future phases (SM-P2 to SM-P8 in the tracker) is not started. A formal ADR
+number for decisions SM-D1 to SM-D6 is to be assigned at merge. `tsc -b` reports one error in
+`features/multiplayer/colyseusTransport.ts` (`@colyseus/sdk` not installed in this environment),
+unrelated to this change.
