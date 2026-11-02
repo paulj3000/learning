@@ -272,6 +272,10 @@ LAI_AI_TEMPERATURE = float(os.environ.get("LAI_AI_TEMPERATURE", "0.4"))
 LAI_AI_TIMEOUT_SECONDS = float(os.environ.get("LAI_AI_TIMEOUT_SECONDS", "10"))
 # Model calls per child per hour, per Django process (best effort until a shared cache exists).
 LAI_AI_TURNS_PER_CHILD_PER_HOUR = int(os.environ.get("LAI_AI_TURNS_PER_CHILD_PER_HOUR", "120"))
+# No approved retention period yet (LAI-0707, LAI-0308 gate G9): unset means `ai_retention`
+# refuses to delete unless an operator passes --older-than-days explicitly.
+_retention = os.environ.get("LAI_AI_AUDIT_RETENTION_DAYS", "").strip()
+LAI_AI_AUDIT_RETENTION_DAYS = int(_retention) if _retention else None
 if LAI_AI_PROVIDER not in {"fake", "bedrock", "disabled"}:
     raise ImproperlyConfigured("LAI_AI_PROVIDER must be fake, bedrock or disabled.")
 if not 50 <= LAI_AI_MAX_OUTPUT_TOKENS <= 1000:

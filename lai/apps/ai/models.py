@@ -122,6 +122,9 @@ class AIInteractionAudit(ChildOwnedModel):
         indexes = [
             models.Index(fields=["child", "created_at"], name="ai_audit_child_created"),
             models.Index(fields=["validation_status", "created_at"], name="ai_audit_status"),
+            # Retention scans by age alone; support looks a turn up by its request id (LAI-0707).
+            models.Index(fields=["created_at"], name="ai_audit_created"),
+            models.Index(fields=["request_id"], name="ai_audit_request"),
         ]
 
 
@@ -194,4 +197,5 @@ class SafetyEvent(ChildOwnedModel):
         indexes = [
             models.Index(fields=["review_status", "created_at"], name="safety_event_review"),
             models.Index(fields=["child", "created_at"], name="safety_event_child_created"),
+            models.Index(fields=["request_id"], name="safety_event_request"),
         ]
