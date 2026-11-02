@@ -1,6 +1,10 @@
-import { CfnOutput, Stack, Tags, type StackProps } from 'aws-cdk-lib';
+import { CfnOutput, Duration, Stack, Tags, type StackProps } from 'aws-cdk-lib';
 import * as bedrock from 'aws-cdk-lib/aws-bedrock';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as cwActions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as logs from 'aws-cdk-lib/aws-logs';
+import * as sns from 'aws-cdk-lib/aws-sns';
 import type { Construct } from 'constructs';
 import type { AssetEnvironment } from './assetStorageStack';
 
@@ -108,11 +112,77 @@ export const DENIED_TOPICS: { name: string; definition: string; examples: string
   },
 ];
 
+/** Metric namespace for the Django AI turn metrics (LAI-0708). */
+export const AI_METRICS_NAMESPACE = 'LearningAdventureIsland/DjangoAI';
+
+/**
+ * The `ai.turn v1` log line (lai/apps/ai/services/auditing.py `emit_metric`), after the
+ * privacy formatter's prefix `<date> <time> <level> <logger> [req=<id>]`. Space-delimited and
+ * positional: change it only together with `emit_metric`, and bump the version.
+ */
+export const AI_TURN_FIELDS = [
+  'date',
+  'time',
+  'level',
+  'logger',
+  'req',
+  'event',
+  'version',
+  'route',
+  'source',
+  'status',
+  'disposition',
+  'failure',
+  'guardrail',
+  'provider',
+  'context',
+  'latency',
+  'inputTokens',
+  'outputTokens',
+  'costMicroUsd',
+  'audit',
+] as const;
+type TurnField = (typeof AI_TURN_FIELDS)[number];
+
+/** A space-delimited pattern over the turn line; `where` adds conditions to named fields. */
+export function turnPattern(where: Partial<Record<TurnField, string>> = {}): string {
+  const fixed: Partial<Record<TurnField, string>> = {
+    logger: 'logger="lai.ai"',
+    event: 'event="ai.turn"',
+    version: 'version="v1"',
+    ...where,
+  };
+  return `[${AI_TURN_FIELDS.map((field) => fixed[field] ?? field).join(', ')}]`;
+}
+
 export interface AiGuardrailStackProps extends StackProps {
   envName: AssetEnvironment;
   /** The Django workload role, when it is not the EC2 instance role `lai-django-ec2-<env>`. */
   djangoRoleArn?: string;
+  /**
+   * Alarm thresholds (LAI-0708), sized for the pilot. Every alarm goes to the Django stack's
+   * `lai-django-alarms-<env>` topic; none pages on a single event.
+   */
+  alarms?: Partial<typeof DEFAULT_AI_ALARMS>;
 }
+
+export const DEFAULT_AI_ALARMS = {
+  /** Provider failures (timeouts, throttling, access denied) in 15 minutes. */
+  providerErrorsPer15Min: 10,
+  /** Share of turns that fell back, over 30 minutes, once at least `minTurnsForRate` ran. */
+  fallbackRate: 0.5,
+  minTurnsForRate: 20,
+  /** Guardrail interventions in an hour: a spike means probing or a mis-tuned policy. */
+  guardrailBlocksPerHour: 25,
+  /** Turns in an hour across every family: a request spike. */
+  turnsPerHour: 3000,
+  /** Average model latency over 15 minutes, in milliseconds. */
+  averageLatencyMs: 6000,
+  /** Output tokens in a day: unexpected token use. */
+  outputTokensPerDay: 2_000_000,
+  /** Rate-limited or kill-switched turns in 15 minutes. */
+  rateLimitedPer15Min: 100,
+};
 
 export class AiGuardrailStack extends Stack {
   readonly guardrail: bedrock.CfnGuardrail;
@@ -196,6 +266,8 @@ export class AiGuardrailStack extends Stack {
       roles: [role],
     });
 
+    this.addMonitoring(props.envName, { ...DEFAULT_AI_ALARMS, ...props.alarms });
+
     new CfnOutput(this, 'GuardrailId', {
       value: this.guardrail.attrGuardrailId,
       description: 'SSM /lai/<env>/django/LAI_AI_GUARDRAIL_ID',
@@ -208,5 +280,135 @@ export class AiGuardrailStack extends Stack {
       value: AI_INFERENCE_PROFILE_ID,
       description: 'SSM /lai/<env>/django/LAI_AI_MODEL_ID',
     });
+  }
+
+  /**
+   * Metric filters over the Django log group and a few alarms (LAI-0708). Missing data is not
+   * breaching: no AI traffic is not an incident.
+   */
+  private addMonitoring(env: string, thresholds: typeof DEFAULT_AI_ALARMS): void {
+    const logGroup = logs.LogGroup.fromLogGroupName(this, 'DjangoLogs', `/lai/${env}/django`);
+    const topic = sns.Topic.fromTopicArn(
+      this,
+      'AlarmTopic',
+      `arn:${Stack.of(this).partition}:sns:${Stack.of(this).region}:${Stack.of(this).account}:lai-django-alarms-${env}`,
+    );
+    const metric = (
+      name: string,
+      where: Partial<Record<TurnField, string>>,
+      value: string,
+      statistic: string,
+      period: Duration,
+    ) => {
+      new logs.MetricFilter(this, `${name}Filter`, {
+        logGroup,
+        filterPattern: logs.FilterPattern.literal(turnPattern(where)),
+        metricNamespace: AI_METRICS_NAMESPACE,
+        metricName: name,
+        metricValue: value,
+      });
+      return new cloudwatch.Metric({
+        namespace: AI_METRICS_NAMESPACE,
+        metricName: name,
+        statistic,
+        period,
+      });
+    };
+    const m15 = Duration.minutes(15);
+    const turns = metric('Turns', {}, '1', 'Sum', Duration.minutes(30));
+    const fallbacks = metric(
+      'Fallbacks',
+      { source: 'source="FALLBACK"' },
+      '1',
+      'Sum',
+      Duration.minutes(30),
+    );
+    metric('Generations', { source: 'source="AI"' }, '1', 'Sum', m15);
+    const providerErrors = metric('ProviderErrors', { status: 'status="ERROR"' }, '1', 'Sum', m15);
+    const guardrailBlocks = metric(
+      'GuardrailBlocks',
+      { status: 'status="BLOCKED_GUARDRAIL"' },
+      '1',
+      'Sum',
+      Duration.hours(1),
+    );
+    const rateLimited = metric('RateLimited', { status: 'status="RATE_LIMITED"' }, '1', 'Sum', m15);
+    const latency = metric(
+      'LatencyMs',
+      { provider: 'provider="bedrock"' },
+      '$latency',
+      'Average',
+      m15,
+    );
+    metric('InputTokens', {}, '$inputTokens', 'Sum', Duration.hours(1));
+    const outputTokens = metric('OutputTokens', {}, '$outputTokens', 'Sum', Duration.days(1));
+    metric('EstimatedCostMicroUsd', {}, '$costMicroUsd', 'Sum', Duration.days(1));
+
+    const notify = new cwActions.SnsAction(topic);
+    const gte = cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD;
+    const alarm = (id: string, description: string, m: cloudwatch.IMetric, threshold: number) => {
+      const created = new cloudwatch.Alarm(this, id, {
+        alarmName: `lai-django-ai-${env}-${id.replace(/[A-Z]/g, (c, i) => (i ? '-' : '') + c.toLowerCase())}`,
+        alarmDescription: description,
+        metric: m,
+        threshold,
+        comparisonOperator: gte,
+        evaluationPeriods: 1,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      });
+      created.addAlarmAction(notify);
+      created.addOkAction(notify);
+    };
+    alarm(
+      'ProviderErrors',
+      'Django AI: Bedrock calls are failing (timeouts, throttling, access)',
+      providerErrors,
+      thresholds.providerErrorsPer15Min,
+    );
+    alarm(
+      'FallbackRate',
+      'Django AI: most turns are falling back to authored content',
+      new cloudwatch.MathExpression({
+        expression: `IF(turns >= ${thresholds.minTurnsForRate}, fallbacks / turns, 0)`,
+        usingMetrics: { turns, fallbacks },
+        period: Duration.minutes(30),
+      }),
+      thresholds.fallbackRate,
+    );
+    alarm(
+      'GuardrailBlocks',
+      'Django AI: unusual number of Guardrail interventions',
+      guardrailBlocks,
+      thresholds.guardrailBlocksPerHour,
+    );
+    alarm(
+      'TurnSpike',
+      'Django AI: request spike across all families',
+      new cloudwatch.Metric({
+        namespace: AI_METRICS_NAMESPACE,
+        metricName: 'Turns',
+        statistic: 'Sum',
+        period: Duration.hours(1),
+      }),
+      thresholds.turnsPerHour,
+    );
+    alarm(
+      'Latency',
+      'Django AI: average Bedrock latency is high',
+      latency,
+      thresholds.averageLatencyMs,
+    );
+    alarm(
+      'OutputTokens',
+      'Django AI: unexpected output token use today',
+      outputTokens,
+      thresholds.outputTokensPerDay,
+    );
+    alarm(
+      'RateLimited',
+      'Django AI: many turns are being rate limited or kill-switched',
+      rateLimited,
+      thresholds.rateLimitedPer15Min,
+    );
   }
 }

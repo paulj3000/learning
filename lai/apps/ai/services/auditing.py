@@ -38,6 +38,7 @@ class AuditFields:
     latency_ms: int | None = None
     input_tokens: int | None = None
     output_tokens: int | None = None
+    estimated_cost_microusd: int | None = None
     session_id: str = ""
     step_id: str = ""
 
@@ -82,11 +83,20 @@ def severity_for(disposition: str) -> str:
 
 
 def emit_metric(audit: AuditFields, *, source: str, audited: bool) -> None:
-    """One line per turn, closed vocabulary only (no ids, no text). A CloudWatch metric filter
-    on `ai.turn` counts fallbacks, blocks and failures (docs/AI_SERVICE.md section 7)."""
+    """One line per turn, closed vocabulary and numbers only (no ids, no text).
+
+    Positional, so CloudWatch space-delimited metric filters can read the numbers
+    (`infra/lib/aiGuardrailStack.ts`). Schema v1, after the logger prefix:
+
+        ai.turn v1 <route> <AI|FALLBACK> <validation_status> <disposition> <failure|->
+                   <guardrail_action> <provider> <context_source> <latency_ms>
+                   <input_tokens> <output_tokens> <estimated_cost_microusd> <ok|failed>
+
+    Missing numbers are 0 (no usage reported or no price configured), so sums stay honest.
+    Change the schema only together with the metric filters, and bump the version.
+    """
     logger.info(
-        "ai.turn route=%s source=%s status=%s disposition=%s failure=%s guardrail=%s "
-        "provider=%s context=%s latency_ms=%s audit=%s",
+        "ai.turn v1 %s %s %s %s %s %s %s %s %d %d %d %d %s",
         audit.route_name,
         source,
         audit.validation_status,
@@ -95,6 +105,9 @@ def emit_metric(audit: AuditFields, *, source: str, audited: bool) -> None:
         audit.guardrail_action,
         audit.provider,
         audit.context_source,
-        audit.latency_ms if audit.latency_ms is not None else "-",
+        audit.latency_ms or 0,
+        audit.input_tokens or 0,
+        audit.output_tokens or 0,
+        audit.estimated_cost_microusd or 0,
         "ok" if audited else "failed",
     )

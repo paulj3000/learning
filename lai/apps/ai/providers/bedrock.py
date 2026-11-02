@@ -79,6 +79,7 @@ class BedrockModelClient:
         guardrail_version: str,
         timeout_seconds: float,
         structured_output: bool = True,
+        max_attempts: int = 2,
         client=None,
     ):
         missing = [
@@ -99,6 +100,7 @@ class BedrockModelClient:
         self.guardrail_version = guardrail_version
         self.timeout_seconds = timeout_seconds
         self.structured_output = structured_output
+        self.max_attempts = max_attempts
         self._client = client
 
     def _runtime(self):
@@ -112,8 +114,9 @@ class BedrockModelClient:
                 config=Config(
                     connect_timeout=min(self.timeout_seconds, 5),
                     read_timeout=self.timeout_seconds,
-                    # One retry for throttling or a dropped connection; a child is waiting.
-                    retries={"max_attempts": 2, "mode": "standard"},
+                    # Bounded retries (LAI_AI_MAX_ATTEMPTS, at most 3): a child is waiting, and
+                    # a retry storm against a throttled model would only cost more.
+                    retries={"max_attempts": self.max_attempts, "mode": "standard"},
                 ),
             )
         return self._client

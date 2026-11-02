@@ -4,6 +4,8 @@ import { Match, Template } from 'aws-cdk-lib/assertions';
 import { describe, expect, it } from 'vitest';
 import {
   AI_INFERENCE_PROFILE_ID,
+  AI_METRICS_NAMESPACE,
+  turnPattern,
   AiGuardrailStack,
   DENIED_TOPICS,
   US_PROFILE_DESTINATIONS,
@@ -108,5 +110,80 @@ describe('AiGuardrailStack', () => {
       'AWS::IAM::ManagedPolicy',
       { Roles: ['other-django'] },
     );
+  });
+
+  it('parses the ai.turn v1 line with metric filters on the Django log group', () => {
+    const template = synth();
+    const filters = Object.values(template.findResources('AWS::Logs::MetricFilter')) as {
+      Properties: {
+        LogGroupName: string;
+        FilterPattern: string;
+        MetricTransformations: {
+          MetricName: string;
+          MetricNamespace: string;
+          MetricValue: string;
+        }[];
+      };
+    }[];
+    const byName = Object.fromEntries(
+      filters.map((f) => [f.Properties.MetricTransformations[0].MetricName, f.Properties]),
+    );
+    expect(Object.keys(byName).sort()).toEqual(
+      [
+        'EstimatedCostMicroUsd',
+        'Fallbacks',
+        'Generations',
+        'GuardrailBlocks',
+        'InputTokens',
+        'LatencyMs',
+        'OutputTokens',
+        'ProviderErrors',
+        'RateLimited',
+        'Turns',
+      ].sort(),
+    );
+    for (const filter of Object.values(byName)) {
+      expect(filter.LogGroupName).toBe('/lai/dev/django');
+      expect(filter.MetricTransformations[0].MetricNamespace).toBe(AI_METRICS_NAMESPACE);
+      expect(filter.FilterPattern).toContain('event="ai.turn", version="v1"');
+    }
+    expect(byName.ProviderErrors.FilterPattern).toContain('status="ERROR"');
+    expect(byName.LatencyMs.MetricTransformations[0].MetricValue).toBe('$latency');
+  });
+
+  it('matches the field order emitted by Django (lai/apps/ai/services/auditing.py)', () => {
+    // date time level logger [req] then the 15 tokens of `ai.turn v1 ...`.
+    const fields = turnPattern().slice(1, -1).split(', ');
+    expect(fields).toHaveLength(5 + 15);
+    expect(fields.slice(5, 9)).toEqual(['event="ai.turn"', 'version="v1"', 'route', 'source']);
+    expect(fields.at(-1)).toBe('audit');
+  });
+
+  it('alarms on the Django alarm topic without paging on single events', () => {
+    const template = synth();
+    const alarms = Object.values(template.findResources('AWS::CloudWatch::Alarm')) as {
+      Properties: {
+        AlarmName: string;
+        Threshold: number;
+        TreatMissingData: string;
+        AlarmActions: unknown[];
+      };
+    }[];
+    expect(alarms.map((a) => a.Properties.AlarmName).sort()).toEqual(
+      [
+        'lai-django-ai-dev-fallback-rate',
+        'lai-django-ai-dev-guardrail-blocks',
+        'lai-django-ai-dev-latency',
+        'lai-django-ai-dev-output-tokens',
+        'lai-django-ai-dev-provider-errors',
+        'lai-django-ai-dev-rate-limited',
+        'lai-django-ai-dev-turn-spike',
+      ].sort(),
+    );
+    for (const alarm of alarms) {
+      expect(alarm.Properties.TreatMissingData).toBe('notBreaching');
+      expect(alarm.Properties.Threshold).toBeGreaterThan(0);
+      expect(JSON.stringify(alarm.Properties.AlarmActions)).toContain('lai-django-alarms-dev');
+    }
   });
 });

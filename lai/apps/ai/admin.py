@@ -17,7 +17,7 @@ import logging
 
 from django.contrib import admin
 
-from .models import AIInteractionAudit, SafetyEvent
+from .models import AIInteractionAudit, AIServiceControl, SafetyEvent
 
 audit_logger = logging.getLogger("lai.admin_audit")
 
@@ -160,3 +160,43 @@ class SafetyEventAdmin(_AuditedAIAdmin):
 
     def has_change_permission(self, request, obj=None):
         return _may(request, "change_safetyevent")
+
+
+@admin.register(AIServiceControl)
+class AIServiceControlAdmin(admin.ModelAdmin):
+    """The runtime kill switch (LAI-0708). Superusers only; every change is logged."""
+
+    fields = ("model_calls_enabled", "reason", "updated_at")
+    readonly_fields = ("updated_at",)
+    actions = None
+
+    def _superuser(self, request) -> bool:
+        user = request.user
+        return bool(user.is_active and user.is_staff and user.is_superuser)
+
+    def has_module_permission(self, request):
+        return self._superuser(request)
+
+    def has_view_permission(self, request, obj=None):
+        return self._superuser(request)
+
+    def has_change_permission(self, request, obj=None):
+        return self._superuser(request)
+
+    def has_add_permission(self, request):
+        return self._superuser(request) and not AIServiceControl.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def save_model(self, request, obj, form, change):
+        from .services.usage import clear_control_cache
+
+        obj.pk = 1
+        super().save_model(request, obj, form, change)
+        clear_control_cache()
+        audit_logger.info(
+            "admin_ai_control model_calls_enabled=%s staff=%s",
+            obj.model_calls_enabled,
+            request.user.pk,
+        )

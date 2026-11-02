@@ -38,6 +38,7 @@ def get_model_client() -> ModelClient | None:
             guardrail_version=settings.LAI_AI_GUARDRAIL_VERSION,
             timeout_seconds=settings.LAI_AI_TIMEOUT_SECONDS,
             structured_output=settings.LAI_AI_STRUCTURED_OUTPUT,
+            max_attempts=settings.LAI_AI_MAX_ATTEMPTS,
         )
     raise ProviderConfigurationError
 

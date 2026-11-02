@@ -65,6 +65,8 @@ class FailureCategory(models.TextChoices):
     REQUEST_REJECTED = "REQUEST_REJECTED"
     INVALID_RESPONSE = "INVALID_RESPONSE"
     TRUNCATED = "TRUNCATED"
+    RATE_LIMIT_UNAVAILABLE = "RATE_LIMIT_UNAVAILABLE"
+    KILL_SWITCH = "KILL_SWITCH"
     UNKNOWN = "UNKNOWN"
 
 
@@ -102,6 +104,9 @@ class AIInteractionAudit(ChildOwnedModel):
     failure_category = models.CharField(max_length=24, choices=FailureCategory.choices, blank=True)
     input_tokens = models.PositiveIntegerField(null=True, blank=True)
     output_tokens = models.PositiveIntegerField(null=True, blank=True)
+    # An estimate from the configured, versioned price table (`services/costs.py`); null when no
+    # price is configured or Bedrock reported no usage. Never a billed amount.
+    estimated_cost_microusd = models.PositiveIntegerField(null=True, blank=True)
     # The request correlation id (apps/core/request_context.py): correlation only, not proof.
     request_id = models.CharField(max_length=64, blank=True)
 
@@ -198,4 +203,65 @@ class SafetyEvent(ChildOwnedModel):
             models.Index(fields=["review_status", "created_at"], name="safety_event_review"),
             models.Index(fields=["child", "created_at"], name="safety_event_child_created"),
             models.Index(fields=["request_id"], name="safety_event_request"),
+        ]
+
+
+class UsageScope(models.TextChoices):
+    CHILD_MINUTE = "child-minute"
+    CHILD_DAY = "child-day"
+    FAMILY_DAY = "family-day"
+    SESSION_DAY = "session-day"
+    GLOBAL_DAY = "global-day"
+    CHILD_INFLIGHT = "child-inflight"
+
+
+class AIUsageCounter(models.Model):
+    """One fixed-window request counter, shared by every Django process (LAI-0708).
+
+    Incremented with one atomic `INSERT ... ON CONFLICT DO UPDATE ... RETURNING`
+    (`services/usage.py`), so concurrent workers and instances never lose a count. `subject` is
+    an opaque key (`child:<uuid>`, `family:<uuid>`, `session:<child>:<id>`, `global`); the
+    foreign keys exist only so deleting a child or parent deletes its counters. Rows older than
+    two days are pruned as new windows are written.
+    """
+
+    scope = models.CharField(max_length=16, choices=UsageScope.choices)
+    subject = models.CharField(max_length=160)
+    window_start = models.DateTimeField()
+    count = models.IntegerField(default=0)
+    child = models.ForeignKey(
+        "users.ChildProfile", on_delete=models.CASCADE, null=True, blank=True, related_name="+"
+    )
+    parent = models.ForeignKey(
+        "users.ParentAccount", on_delete=models.CASCADE, null=True, blank=True, related_name="+"
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["scope", "subject", "window_start"], name="ai_usage_counter_window"
+            ),
+        ]
+        indexes = [models.Index(fields=["window_start"], name="ai_usage_window")]
+
+
+class AIServiceControl(models.Model):
+    """The runtime AI kill switch (LAI-0708): one row, changed by a superuser in Django Admin.
+
+    When `model_calls_enabled` is false, no turn reaches a model; every child gets authored
+    content, gameplay continues. Takes effect within `CONTROL_CACHE_SECONDS` on every process,
+    without a deploy. `LAI_AI_PROVIDER=disabled` remains the deploy-time switch.
+    """
+
+    model_calls_enabled = models.BooleanField(default=True)
+    reason = models.CharField(
+        max_length=200, blank=True, help_text="Operational note, never child data."
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "AI service control"
+        verbose_name_plural = "AI service control"
+        constraints = [
+            models.CheckConstraint(condition=Q(pk=1), name="ai_service_control_singleton"),
         ]

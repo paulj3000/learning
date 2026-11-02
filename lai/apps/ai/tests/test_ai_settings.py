@@ -51,7 +51,9 @@ def test_production_accepts_a_fully_guarded_bedrock(monkeypatch):
         ("LAI_AI_TIMEOUT_SECONDS", "0"),
         ("LAI_AI_MAX_OUTPUT_TOKENS", "5000"),
         ("LAI_AI_TEMPERATURE", "1.5"),
-        ("LAI_AI_TURNS_PER_CHILD_PER_HOUR", "0"),
+        ("LAI_AI_CHILD_TURNS_PER_MINUTE", "0"),
+        ("LAI_AI_MAX_ATTEMPTS", "9"),
+        ("LAI_AI_PRICE_INPUT_PER_MTOK_USD", "-1"),
     ],
 )
 def test_base_settings_reject_unsafe_ai_values(monkeypatch, name, value):

@@ -1,6 +1,7 @@
 """POST /api/v1/children/{child_id}/ai/tutor-turns/ (LAI-0703, LAI-0704)."""
 
 import json
+import re
 import uuid
 from datetime import timedelta
 
@@ -261,4 +262,5 @@ def test_a_tutor_turn_writes_nothing_but_audit_rows(families, api, fake_model):
         for q in queries.captured_queries
         if q["sql"].lstrip().upper().startswith(("INSERT", "UPDATE", "DELETE"))
     ]
-    assert writes and all('"ai_' in sql for sql in writes), writes
+    # Only the AI app's own tables (audit rows and the shared usage counters) are written.
+    assert writes and all(re.search(r'(INTO|UPDATE|FROM)\s+"?ai_', sql) for sql in writes), writes

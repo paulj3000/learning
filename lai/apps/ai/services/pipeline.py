@@ -6,7 +6,8 @@ Order, enforced here and nowhere else (CLAUDE.md section 7, docs/AI_SERVICE.md s
    no model call, no audit row (the Amplify behaviour).
 2. Input screen on client-supplied text: a hit is BLOCKED_INPUT, a SafetyEvent (INPUT), and a
    generic authored line that does not echo the text.
-3. Per-child rate limit: RATE_LIMITED, authored content, no model call.
+3. Shared limits and the runtime kill switch (`services/usage.py`): RATE_LIMITED (or
+   KILL_SWITCH / RATE_LIMIT_UNAVAILABLE), authored content, no model call.
 4. Provider: built from settings; a misconfiguration fails closed (CONFIGURATION).
 5. Model call: a timeout, throttle or AWS error is ERROR with a closed failure category; an
    unparseable reply is INVALID_SCHEMA.
@@ -27,7 +28,6 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from django.conf import settings
-from django.core.cache import cache
 
 from ..content_safety import boundary_violations
 from ..contracts import Invalid, Valid
@@ -42,7 +42,8 @@ from ..providers.base import (
     ProviderConfigurationError,
     ProviderError,
 )
-from . import auditing
+from . import auditing, usage
+from .costs import estimate_microusd
 from .safety import screen_untrusted_text
 
 
@@ -99,18 +100,6 @@ def _content(spec: TurnSpec) -> tuple[ContentPart, ...]:
     return tuple(parts)
 
 
-def _within_rate_limit(child) -> bool:
-    limit = settings.LAI_AI_TURNS_PER_CHILD_PER_HOUR
-    key = f"lai-ai-turns:{child.pk}:{int(time.time() // 3600)}"
-    if cache.add(key, 1, timeout=3700):
-        return True
-    try:
-        return cache.incr(key) <= limit
-    except ValueError:  # expired between add and incr
-        cache.add(key, 1, timeout=3700)
-        return True
-
-
 def run_turn(child, spec: TurnSpec) -> TurnResult:
     started = time.monotonic()
     blocked = screen_untrusted_text(spec.untrusted_context)
@@ -161,10 +150,19 @@ def _decide(child, spec: TurnSpec, blocked: list[str], audit: auditing.AuditFiel
         )
         return (spec.fallback(False), event), "SAFETY"
 
-    if not _within_rate_limit(child):
+    admission = usage.admit(child, session_id=spec.session_id)
+    if not admission.allowed:
         audit.validation_status = Status.RATE_LIMITED
+        if admission.denial != "RATE_LIMITED":
+            audit.failure_category = admission.denial
         return spec.fallback(True), "FALLBACK"
+    try:
+        return _call_model(spec, audit)
+    finally:
+        usage.release(child, admission)
 
+
+def _call_model(spec: TurnSpec, audit: auditing.AuditFields):
     try:
         client = get_model_client()
         if client is None:
@@ -203,6 +201,7 @@ def _decide(child, spec: TurnSpec, blocked: list[str], audit: auditing.AuditFiel
 
     audit.input_tokens = response.input_tokens
     audit.output_tokens = response.output_tokens
+    audit.estimated_cost_microusd = estimate_microusd(response.input_tokens, response.output_tokens)
     if response.guardrail_applied:
         audit.guardrail_action = GuardrailAction.NONE
     if response.guardrail_intervened:

@@ -6,6 +6,7 @@ shared `families`/`api` fixtures, and covers every pipeline outcome with the fak
 
 import json
 import logging
+import re
 import uuid
 
 import pytest
@@ -376,7 +377,7 @@ def test_a_misconfigured_bedrock_provider_fails_closed(families, api, settings):
 
 
 def test_the_per_child_rate_limit_stops_model_calls(families, api, fake_model, settings):
-    settings.LAI_AI_TURNS_PER_CHILD_PER_HOUR = 2
+    settings.LAI_AI_CHILD_TURNS_PER_MINUTE = 2
     fake = fake_model()
     for _ in range(3):
         post(api(families.a), families.a1)
@@ -410,7 +411,8 @@ def test_a_model_reply_cannot_change_gameplay_state(families, api, fake_model):
         for q in queries.captured_queries
         if q["sql"].lstrip().upper().startswith(("INSERT", "UPDATE", "DELETE"))
     ]
-    assert writes and all('"ai_' in sql for sql in writes), writes
+    # Only the AI app's own tables (audit rows and the shared usage counters) are written.
+    assert writes and all(re.search(r'(INTO|UPDATE|FROM)\s+"?ai_', sql) for sql in writes), writes
 
 
 # --- DJANGO_SESSION context ---------------------------------------------------------------------

@@ -19,6 +19,7 @@ an error that names the cause. Errors are only for the request itself: 400 `vali
 or step that is not this child's.
 """
 
+from django.conf import settings
 from django.db import transaction
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ValidationError
@@ -34,12 +35,19 @@ from .services.context import ContextNotFound
 from .services.tutor import SkillNotInStep, request_tutor_turn
 
 
+def _check_size(request) -> None:
+    """Bounds the body before parsing anything (LAI-0708): authored context is small."""
+    if len(request.body) > settings.LAI_AI_MAX_REQUEST_BYTES:
+        raise ValidationError({"non_field_errors": "Request too large."})
+
+
 def _response(result) -> Response:
     return Response({"turn": result.turn, "source": result.source, "requestId": get_request_id()})
 
 
 class CompanionTurnView(ChildScopedAPIView):
     def post(self, request, child_id):
+        _check_size(request)
         body = CompanionTurnRequest(data=request.data)
         body.is_valid(raise_exception=True)
         try:
@@ -50,6 +58,7 @@ class CompanionTurnView(ChildScopedAPIView):
 
 class TutorTurnView(ChildScopedAPIView):
     def post(self, request, child_id):
+        _check_size(request)
         body = TutorTurnRequest(data=request.data)
         body.is_valid(raise_exception=True)
         try:
