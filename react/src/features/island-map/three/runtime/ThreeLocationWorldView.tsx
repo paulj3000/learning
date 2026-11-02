@@ -75,7 +75,7 @@ export interface ThreeLocationWorldViewProps {
   viewExtensions?: LocationViewExtensionRegistry;
   /**
    * Where the scene's models come from. Defaults to the bundled loader; a
-   * region served by Django gets the asset manager's (TR-10, `regionAssetsFor`).
+   * region served by Django gets the asset library's (TR-10, `regionAssetsFor`).
    */
   assets?: LocationEngineAssets;
 }

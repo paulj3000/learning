@@ -9,10 +9,10 @@ import {
 import type { LocationManifestRepository } from '../island-map/three/runtime/locationManifestRepository';
 
 /**
- * Where a region's 3D models come from (TR-10, docs/ASSET_MANAGER.md section 15).
+ * Where a region's 3D models come from (TR-10, docs/ASSET_LIBRARY.md section 15).
  *
  * A region the play API serves (Treasure Cove) loads every model through the
- * Django asset manager: the scene names a stable asset id, Django answers
+ * Django asset library: the scene names a stable asset id, Django answers
  * with the published version's URL, and the shared loader fetches it. What an
  * administrator publishes and makes the default is what the child sees on
  * the next visit, with no new React build. Ids with nothing published fall

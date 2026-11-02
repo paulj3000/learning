@@ -27,7 +27,7 @@ type LoadState = 'loading' | 'ready' | 'error';
  * (docs/ISLAND_ADVENTURE_MANAGEMENT.md section 16): which existing
  * S3-backed `Asset` records it uses. Assigning links to an asset by id and
  * never copies it. There is no model detail page yet
- * (`/admin/assets/models/:id` is Phase 3+ of the asset manager), so model
+ * (`/admin/assets/models/:id` is Phase 3+ of the asset library), so model
  * names are not links.
  */
 export function AdventureModelList({ adventureId }: { adventureId: string }) {
