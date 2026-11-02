@@ -31,6 +31,7 @@ export const PLAY_COPY = {
   askCount: 'How many coins?',
   askAdd: 'How many coins are there altogether?',
   askSubtract: 'How many coins are left?',
+  askMultiply: 'How many coins are there in all?',
   typeAnswer: 'Your answer',
   openIt: 'Open it!',
   helpMe: 'Help me',
@@ -130,6 +131,13 @@ export function describeChallenge(challenge: PublicChallenge): ChallengePicture 
         ],
         join: null,
       };
+    case 'MULTIPLY':
+      return {
+        question: PLAY_COPY.askMultiply,
+        spoken: `${first} piles with ${coins(second)} in each pile.`,
+        groups: Array.from({ length: first }, () => ({ count: second, takenAway: false })),
+        join: null,
+      };
   }
 }
 
@@ -146,6 +154,10 @@ export const HINTS: Record<PublicChallenge['operation'], readonly string[]> = {
   SUBTRACT: [
     'Count only the shiny coins. The faded ones were taken away.',
     'Start at the first coin and count each shiny one once.',
+  ],
+  MULTIPLY: [
+    'Every pile has the same number of coins. Count one pile.',
+    'Count by that number for each pile: skip count, one pile at a time.',
   ],
 };
 

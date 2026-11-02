@@ -67,6 +67,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-043 | Sensitive actions require a recent interactive Cognito sign-in, proven by the verified token's `auth_time`, a per-session anchor and a Cognito `GetUser` revocation check | Proposed | Feature branch (LAI-0209) | Asset-mutation scope retired 2026-11-02 by ADR-045 (child deletion remains). Implemented and unit-tested 2026-11-01 on `feature/lai-0209-recent-auth`; owner acceptance and the live Cognito gate pending. Specifies ADR-024 A3; lifts the `SensitiveActionBlocked` block on child deletion (LAI-0602) and asset mutations (ADR-042 item 2) |
 | ADR-044 | Django serves Chatty's companion and tutor turns through Bedrock Converse with a child-safety Guardrail; Amplify AI routes stay until client cutover | Accepted | Feature branch (features/ai) | Owner-directed 2026-11-01 (Phase 7 brief: LAI-0306, LAI-0701 to LAI-0704). Accepts ADR-019 sub-decision 9 for code and infrastructure definitions only; live Bedrock, Guardrail deployment and the React cutover stay gated (LAI-0705, LAI-0706, G7) |
 | ADR-045 | Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets; no React staff asset manager or administrator asset API | Accepted | Feature branch `feature/asset-manager` (AM-13, AM-17) | Owner-directed 2026-11-02 (development only; no deployment, AWS or browser acceptance). Supersedes ADR-042 amendment items 2 and 3 for assets and AM-14, AM-15; narrows ADR-043 scope; builds on ADR-035 and ADR-040 |
+| ADR-046 | AI Question Studio is a staff-only Django app that drafts questions through the ADR-044 model client and serves published questions through the existing challenge and grading path | Accepted | Feature branch (features/studio) | Owner brief 2026-11-02 (Phase 28); accepted the same day ("proceed as proposed"). Builds on ADR-019, ADR-033, ADR-034, ADR-044. Not deployed |
 
 ## ADR-001: Parent-owned accounts
 
@@ -3303,3 +3304,35 @@ Administration needs Django hosted (LAI-1004); until then assets are managed by 
 Admin locally against the configured storage. Open: the asset bucket and policy deployment, a
 browser pass of the admin screens, live S3 verification (AM-16), and optional admin-side
 re-authentication.
+## ADR-046: AI Question Studio is a staff-only Django app that drafts questions through the ADR-044 model client and serves published questions through the existing challenge and grading path
+
+Status: Accepted (owner brief 2026-11-02, Phase 28; accepted the same day with "proceed as proposed"). Builds on ADR-019 (Python owns
+learning rules), ADR-033 (one Django backbone), ADR-034 (Django Admin) and ADR-044 (Django AI
+service). Details: `docs/AI_QUESTION_STUDIO.md`.
+
+**Context.** Treasure Rush challenges are parameterised integer generators, not stored questions,
+and there is no question bank, no Django grade taxonomy, and no staff-scoped AI path. Staff need
+to author larger, varied question sets with AI help without any unapproved text reaching a child.
+
+**Decision.**
+
+1. A new Django app, `lai/apps/question_studio`, owns the question bank: questions, immutable
+   published revisions, generation batches, validation reports and review events.
+2. Generation reuses the ADR-044 `ModelClient` and settings. Studio batches record model, prompt
+   version, tokens and estimated cost on the batch; they do not write child-keyed
+   `AIInteractionAudit` rows.
+3. Generation, validation, approval and publishing are separate staff operations behind Django
+   permissions. Bedrock never grades a child's answer; Django does.
+4. Published integer-answer questions are served to Treasure Rush as `MathChallenge` snapshots
+   through the existing `ChallengeAttempt` path, with an additive `MULTIPLY` operation and a
+   nullable bank revision reference. An empty pool falls back to `ChallengeSpec` generation.
+
+**Relation to ADR-033.** The question bank is content authored in Django Admin and kept in
+PostgreSQL, not imported from the content export. That is a deliberate, bounded exception: it is
+not catalog content, it adds no second catalog, loader or progress model, and it reuses
+`ChallengeAttempt`, `grade_answer` and `SkillEvidence`. `LearningObjective` rows still arrive only
+through the export, so a question can be served only for a skill the export already holds.
+The owner confirmed this exception on 2026-11-02.
+
+**Not decided here.** A task queue for long batches, a Django curriculum for grades above 2,
+text-stem question delivery to children, and live Bedrock acceptance (LAI-0705).

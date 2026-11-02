@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "apps.inventory",
     "apps.quests",
     "apps.ai",
+    "apps.question_studio",
 ]
 
 # The parent account is the user model (LAI-0301, ADR-022). Set before any migration is applied.
@@ -397,3 +398,22 @@ if not (LAI_GAME_ENTRY_URL.startswith("/") or LAI_GAME_ENTRY_URL.startswith("htt
     raise ImproperlyConfigured("LAI_GAME_ENTRY_URL must be a path or an https URL.")
 if any(not origin.startswith("https://") for origin in LAI_GAME_ALLOWED_ORIGINS):
     raise ImproperlyConfigured("LAI_GAME_ALLOWED_ORIGINS must list https origins only.")
+
+
+# --- AI Question Studio (Phase 28, ADR-046, docs/AI_QUESTION_STUDIO.md) -----------------------
+# Staff authoring reuses the ADR-044 model client and Guardrail. `LAI_STUDIO_RUN_MODE`: `thread`
+# runs a queued batch on a background thread, `manual` leaves it for `manage.py studio_run_batch`,
+# `inline` runs it in the request (tests only).
+LAI_STUDIO_RUN_MODE = os.environ.get("LAI_STUDIO_RUN_MODE", "thread").strip()
+# Questions per model call. A batch is split into chunks so each call is bounded and a failed
+# chunk costs only itself (partial success).
+LAI_STUDIO_CHUNK_SIZE = int(os.environ.get("LAI_STUDIO_CHUNK_SIZE", "5"))
+LAI_STUDIO_MAX_ATTEMPTS = int(os.environ.get("LAI_STUDIO_MAX_ATTEMPTS", "2"))
+LAI_STUDIO_MAX_OUTPUT_TOKENS = int(os.environ.get("LAI_STUDIO_MAX_OUTPUT_TOKENS", "2500"))
+LAI_STUDIO_TEMPERATURE = float(os.environ.get("LAI_STUDIO_TEMPERATURE", "0.7"))
+# Authoring calls are longer than a companion turn, so they get their own timeout.
+LAI_STUDIO_TIMEOUT_SECONDS = float(os.environ.get("LAI_STUDIO_TIMEOUT_SECONDS", "60"))
+# Models staff may generate with. Empty approves only LAI_AI_MODEL_ID. A request for any other
+# model is refused, never silently substituted.
+LAI_STUDIO_APPROVED_MODEL_IDS = env_list("LAI_STUDIO_APPROVED_MODEL_IDS")
+LAI_STUDIO_MODEL_ID = os.environ.get("LAI_STUDIO_MODEL_ID", "").strip()

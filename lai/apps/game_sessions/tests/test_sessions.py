@@ -248,7 +248,9 @@ class TestChildIsolation:
         # users: the admin-accounts proxy; assets: versions (binaries, no child data); auth: groups;
         # regions: 3D Areas and their launch points (content, no child data; ADR-041);
         # ai: audit metadata only, permission-gated and audited (LAI-0707, ADR-044 item 9)
-        assert exposed == {"ai", "assets", "auth", "catalog", "regions", "users"}
+        # question_studio: staff-authored question content and its review history (ADR-046);
+        # it holds no child data, and published revisions are read-only
+        assert exposed == {"ai", "assets", "auth", "catalog", "question_studio", "regions", "users"}
 
 
 @pytest.mark.django_db

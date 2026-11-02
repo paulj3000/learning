@@ -21,8 +21,65 @@ GUARDRAIL_BLOCK = object()
 FAKE_MODEL_ID = "fake-model"
 
 
+_STUDIO_OPERATIONS = {
+    "addition": ("ADD", "+", lambda a, b: a + b),
+    "subtraction": ("SUBTRACT", "-", lambda a, b: a - b),
+    "multiplication": ("MULTIPLY", "x", lambda a, b: a * b),
+}
+_STUDIO_DIFFICULTY = ("EASY", "MEDIUM", "HARD")
+
+
+def studio_output(hints: dict) -> dict:
+    """Valid, checkable practice questions for AI Question Studio, distinct per position."""
+    params = hints["params"]
+    start = hints.get("offset", 0)
+    questions = []
+    for index in range(hints["count"]):
+        n = start + index
+        a, b = 2 + n % 9, 3 + n // 9
+        operation, symbol, fn = _STUDIO_OPERATIONS.get(params.topic, ("", "", None))
+        difficulty = _STUDIO_DIFFICULTY[n % 3]
+        if fn is None:
+            questions.append(
+                {
+                    "stem": f"Name something you can find in a garden, number {n + 1}.",
+                    "difficulty": difficulty,
+                    "choices": [],
+                    "correctAnswer": "flower",
+                    "acceptedAnswers": ["flowers"],
+                    "operation": "",
+                    "operands": [],
+                    "hint": "Think of something that grows.",
+                    "explanation": "A garden grows flowers.",
+                }
+            )
+            continue
+        answer = fn(a, b)
+        choices = [
+            {"id": letter, "text": str(answer + delta)}
+            for letter, delta in zip("ABCD", (0, 1, -1, 2), strict=True)
+        ]
+        multiple = params.question_type == "MULTIPLE_CHOICE"
+        questions.append(
+            {
+                "stem": f"What is {a} {symbol} {b}?",
+                "difficulty": difficulty,
+                "choices": choices if multiple else [],
+                "correctAnswer": "A" if multiple else str(answer),
+                "acceptedAnswers": [],
+                "operation": operation,
+                "operands": [a, b],
+                "hint": "Count it out in groups.",
+                "explanation": f"{a} {symbol} {b} makes {answer}.",
+            }
+        )
+    return {"questions": questions}
+
+
 def default_output(request: ModelRequest) -> dict:
     hints = request.fake_hints
+    if hints.get("studio"):
+        return studio_output(hints)
     if request.route == "tutor":
         return {
             "spokenText": "Let's try it together, one step at a time.",
