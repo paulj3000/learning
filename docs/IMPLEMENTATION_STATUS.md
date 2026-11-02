@@ -11849,7 +11849,7 @@ merged or deployed, and no AWS call was made.
   `LAI_REQUIRE_POSTGRES=1 pytest` from `lai/`: 1389 passed. `pytest tests` from the root: 354
   passed. `ruff check .` and `ruff format --check .`: clean. `manage.py check` and
   `makemigrations --check`: clean. `npm run adr:check`: one failure that predates this work
-  (a reference to ADR-043 at the Phase 7 entry, defined only on `main`).
+  (a reference to the LAI-0209 sign-in decision at the Phase 7 entry, defined only on `main`).
 - **Existing tests changed.** Two admin guard tests now list `question_studio`
   (`core/tests/test_django_admin.py`, `game_sessions/tests/test_sessions.py`).
 - **Not verified.** Live Bedrock (LAI-0705 approval gate); a browser session in Django Admin (the
