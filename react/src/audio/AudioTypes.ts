@@ -29,6 +29,14 @@ export interface SoundDefinition {
   priority?: number;
   /** Long-form audio (music, narration): played through an HTMLAudioElement instead of a decoded buffer. */
   stream?: boolean;
+  /** At most this many copies at once; a further play resolves `null`. Default: no limit. */
+  maxConcurrent?: number;
+  /** Ignore a play that starts less than this many ms after the previous start of this sound. */
+  cooldownMs?: number;
+  /** Used when `PlayOptions.fadeInMs` is absent. */
+  fadeInMs?: number;
+  /** Used when `stop` is called without `fadeOutMs`. */
+  fadeOutMs?: number;
 }
 
 export interface PlayOptions {
@@ -110,16 +118,25 @@ export type AudioErrorCode =
   | 'locked'
   | 'playback-failed'
   | 'voice-limit'
+  | 'invalid-manifest'
+  | 'manifest-failed'
   | 'aborted'
   | 'disposed';
 
 export class AudioError extends Error {
   readonly code: AudioErrorCode;
+  /** The HTTP status when a fetch was answered with an error. */
+  readonly status: number | undefined;
 
-  constructor(code: AudioErrorCode, message: string, options?: { cause?: unknown }) {
-    super(message, options);
+  constructor(
+    code: AudioErrorCode,
+    message: string,
+    options?: { cause?: unknown; status?: number },
+  ) {
+    super(message, { cause: options?.cause });
     this.name = 'AudioError';
     this.code = code;
+    this.status = options?.status;
   }
 }
 
@@ -141,6 +158,19 @@ export interface SoundManager extends SoundPlayer {
   registerAll(definitions: readonly SoundDefinition[]): void;
   unregister(soundId: string): void;
   has(soundId: string): boolean;
+  /**
+   * Replaces everything `owner` registered before with `definitions`, atomically. Definitions
+   * owned by others (including the app's own `register` calls) are never touched; an id owned
+   * by someone else is refused. Instances already playing keep the definition they started with.
+   * Returns the ids that were refused.
+   */
+  replaceDefinitions(owner: string, definitions: readonly SoundDefinition[]): string[];
+  /** Removes every definition `owner` registered. */
+  releaseDefinitions(owner: string): void;
+  /** Where `assetId`s are turned into urls. `undefined` leaves only literal urls playable. */
+  setAssetResolver(resolver: SoundAssetResolver | undefined): void;
+  /** Records a non-fatal problem in the same de-duplicated ring as the manager's own. */
+  reportIssue(code: AudioErrorCode, message: string, soundId?: string): void;
 
   createScope(name?: string): SoundScope;
 
@@ -165,6 +195,17 @@ export interface SoundManager extends SoundPlayer {
 
   dispose(): void;
   readonly disposed: boolean;
+}
+
+/**
+ * Turns an asset reference into a url. The same shape as the 3D `AssetResolver`, so the Django
+ * asset resolver plugs in unchanged.
+ */
+export interface SoundAssetResolver {
+  resolve(
+    assetId: string,
+    options?: { forceRefresh?: boolean },
+  ): Promise<{ id: string; url: string; cacheKey?: string }>;
 }
 
 export interface GestureTarget {

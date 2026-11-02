@@ -271,6 +271,24 @@ describe('loading', () => {
   });
 });
 
+describe('cache keys and http errors', () => {
+  it('caches one decoded buffer for a sound whose signed url changed', async () => {
+    const { engine, fetchImpl } = setup();
+    await engine.load('signed://one', { stream: false, signal: signal(), cacheKey: 'coin@v1' });
+    await engine.load('signed://two', { stream: false, signal: signal(), cacheKey: 'coin@v1' });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    await engine.load('signed://three', { stream: false, signal: signal(), cacheKey: 'coin@v2' });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports the http status so an expired url can be told from a broken file', async () => {
+    const { engine } = setup({ fetchImpl: async () => ({ ok: false, status: 404 }) as Response });
+    await expect(
+      engine.load('test://a', { stream: false, signal: signal() }),
+    ).rejects.toMatchObject({ code: 'load-failed', status: 404 });
+  });
+});
+
 describe('buffer voices', () => {
   it('plays one source per voice so the same sound can overlap', async () => {
     const { engine, contexts } = setup();

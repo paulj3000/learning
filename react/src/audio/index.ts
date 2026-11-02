@@ -16,7 +16,7 @@ export {
   type WebAudioEngineOptions,
 } from './AudioEngine';
 export { AudioRegistry, validateDefinition } from './AudioRegistry';
-export { resolveSoundUrl, type SoundAssetResolver } from './AudioAssetResolver';
+export { resolveSoundSource, resolveSoundUrl, type SoundSource } from './AudioAssetResolver';
 export {
   AUDIO_CHANNELS,
   CHANNEL_IDS,
@@ -40,6 +40,7 @@ export {
   type GestureTarget,
   type PlaybackState,
   type PlayOptions,
+  type SoundAssetResolver,
   type SoundDefinition,
   type SoundHandle,
   type SoundManager,

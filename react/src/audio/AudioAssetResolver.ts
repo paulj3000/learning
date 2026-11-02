@@ -1,31 +1,32 @@
-import { AudioError, type SoundDefinition } from './AudioTypes';
+import { AudioError, type SoundAssetResolver, type SoundDefinition } from './AudioTypes';
 
-/**
- * Turns an asset id into a url. This is deliberately the same shape as the
- * 3D `AssetResolver` (`features/island-map/three/assets/assetResolver.ts`), so
- * the Django asset resolver can be passed straight in once audio assets are
- * published there (a later phase). The Sound Manager never knows a bucket,
- * a storage key or a CDN host.
- */
-export interface SoundAssetResolver {
-  resolve(assetId: string): Promise<{ id: string; url: string }>;
+export type { SoundAssetResolver };
+
+/** Where to load a sound from, and the stable key its decoded audio is cached under. */
+export interface SoundSource {
+  url: string;
+  cacheKey?: string;
 }
 
 /**
- * The url a definition should load from.
+ * The source a definition should load from.
  *
  * - With an `assetId` and a resolver, the resolver wins (the published version).
  * - If that fails, or there is no resolver, a literal `url` is the fallback.
  * - With neither, the sound has no source: `missing-asset`.
+ *
+ * `forceRefresh` asks the resolver for a new answer instead of a remembered one (used when a
+ * signed url turned out to have expired).
  */
-export async function resolveSoundUrl(
+export async function resolveSoundSource(
   definition: SoundDefinition,
   resolver: SoundAssetResolver | undefined,
-): Promise<string> {
+  options: { forceRefresh?: boolean } = {},
+): Promise<SoundSource> {
   if (definition.assetId && resolver) {
     try {
-      const resolved = await resolver.resolve(definition.assetId);
-      if (resolved.url) return resolved.url;
+      const resolved = await resolver.resolve(definition.assetId, options);
+      if (resolved.url) return { url: resolved.url, cacheKey: resolved.cacheKey };
     } catch (cause) {
       if (!definition.url) {
         throw new AudioError('missing-asset', `asset "${definition.assetId}" did not resolve`, {
@@ -34,6 +35,14 @@ export async function resolveSoundUrl(
       }
     }
   }
-  if (definition.url) return definition.url;
+  if (definition.url) return { url: definition.url };
   throw new AudioError('missing-asset', `sound "${definition.id}" has no asset id or url`);
+}
+
+/** The url only; kept for callers that do not care about the cache key. */
+export async function resolveSoundUrl(
+  definition: SoundDefinition,
+  resolver: SoundAssetResolver | undefined,
+): Promise<string> {
+  return (await resolveSoundSource(definition, resolver)).url;
 }

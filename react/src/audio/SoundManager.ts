@@ -1,5 +1,5 @@
 import { createWebAudioEngine, type AudioEngine, type EngineVoice } from './AudioEngine';
-import { resolveSoundUrl, type SoundAssetResolver } from './AudioAssetResolver';
+import { resolveSoundSource } from './AudioAssetResolver';
 import {
   clampPlaybackRate,
   clampVolume,
@@ -20,6 +20,7 @@ import {
   type EndReason,
   type GestureTarget,
   type PlayOptions,
+  type SoundAssetResolver,
   type SoundDefinition,
   type SoundHandle,
   type SoundManager,
@@ -47,12 +48,18 @@ const APP_SCOPE = 'app';
 const DEFAULT_MAX_VOICES = 24;
 const STEAL_FADE_MS = 20;
 const MAX_DIAGNOSTICS = 50;
+const EXPIRED_STATUSES = [401, 403, 404, 410];
 const GESTURE_EVENTS = ['pointerdown', 'touchend', 'keydown', 'click'] as const;
 
 function cloneSettings(settings: SoundSettings): SoundSettings {
   const channels = {} as SoundSettings['channels'];
   for (const id of CHANNEL_IDS) channels[id] = { ...settings.channels[id] };
   return { ...settings, channels };
+}
+
+/** An explicit fade-out from the caller, or `undefined` to use the sound's own default. */
+function fadeOf(options: StopOptions | undefined): number | undefined {
+  return options?.fadeOutMs === undefined ? undefined : nonNegative(options.fadeOutMs);
 }
 
 function nonNegative(ms: number | undefined): number {
@@ -71,7 +78,7 @@ function nonNegative(ms: number | undefined): number {
  */
 export function createSoundManager(options: SoundManagerOptions = {}): SoundManager {
   const engine = options.engine ?? createWebAudioEngine();
-  const resolver = options.resolver;
+  let resolver = options.resolver;
   const registry = new AudioRegistry();
   const lifecycle = new LifecycleRegistry();
   const maxVoices = Math.max(1, options.maxVoices ?? DEFAULT_MAX_VOICES);
@@ -86,6 +93,7 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
 
   const listeners = new Set<() => void>();
   const gestureInstalls = new Map<GestureTarget, () => void>();
+  const lastStart = new Map<string, number>();
   const diagnostics: AudioDiagnostic[] = [];
   const diagnosticIndex = new Map<string, AudioDiagnostic>();
 
@@ -195,13 +203,17 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
       settle = resolve;
     });
 
-    const finish = (reason: EndReason, fadeOutMs: number): void => {
+    const finish = (reason: EndReason, fadeOutMs: number | undefined): void => {
       if (state === 'ended') return;
       state = 'ended';
       lifecycle.removeInstance(instanceId);
       try {
         // A natural end has already released its nodes; stop is then a harmless no-op.
-        voice?.stop(reason === 'finished' || reason === 'failed' ? 0 : fadeOutMs);
+        voice?.stop(
+          reason === 'finished' || reason === 'failed'
+            ? 0
+            : (fadeOutMs ?? nonNegative(definition.fadeOutMs)),
+        );
       } catch {
         // Releasing nodes must not throw into game code.
       }
@@ -237,7 +249,7 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
         return state;
       },
       stop(stopOptions) {
-        finish('stopped', nonNegative(stopOptions?.fadeOutMs));
+        finish('stopped', fadeOf(stopOptions));
       },
       pause() {
         if (state !== 'playing') return;
@@ -281,6 +293,21 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
       return null;
     }
 
+    if (definition.cooldownMs) {
+      const previous = lastStart.get(soundId);
+      if (previous !== undefined && now() - previous < definition.cooldownMs) return null;
+      lastStart.set(soundId, now());
+    }
+    if (definition.maxConcurrent !== undefined) {
+      const running =
+        lifecycle.instancesMatching({ soundId }).length +
+        lifecycle.loadsMatching({ soundId }).length;
+      if (running >= definition.maxConcurrent) {
+        report('voice-limit', 'too many copies of this sound are playing', soundId);
+        return null;
+      }
+    }
+
     const controller = new AbortController();
     const loadId = `load-${(nextLoad += 1)}`;
     lifecycle.addLoad({
@@ -291,12 +318,28 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
     });
 
     try {
-      const url = await resolveSoundUrl(definition, resolver);
-      if (controller.signal.aborted) return null;
-      const loaded = await engine.load(url, {
-        stream: definition.stream === true,
-        signal: controller.signal,
-      });
+      const load = async (refresh: boolean) => {
+        const source = await resolveSoundSource(definition, resolver, { forceRefresh: refresh });
+        if (controller.signal.aborted) throw new AudioError('aborted', 'load cancelled');
+        return engine.load(source.url, {
+          stream: definition.stream === true,
+          signal: controller.signal,
+          cacheKey: source.cacheKey,
+        });
+      };
+      let loaded;
+      try {
+        loaded = await load(false);
+      } catch (cause) {
+        // A signed url can expire between being issued and being fetched: ask for a new one once.
+        const expired =
+          cause instanceof AudioError &&
+          cause.code === 'load-failed' &&
+          cause.status !== undefined &&
+          EXPIRED_STATUSES.includes(cause.status);
+        if (!expired || !definition.assetId || !resolver) throw cause;
+        loaded = await load(true);
+      }
       if (controller.signal.aborted || disposed || !isScopeOpen()) return null;
 
       const loop = playOptions.loop ?? definition.loop ?? false;
@@ -338,7 +381,7 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
                 loop,
                 volume,
                 playbackRate,
-                fadeInMs: nonNegative(playOptions.fadeInMs),
+                fadeInMs: nonNegative(playOptions.fadeInMs ?? definition.fadeInMs),
               },
               (reason) => end(reason),
             ),
@@ -368,13 +411,13 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
         lifecycle.endMatching(
           { soundId, scopeId: scopeId === APP_SCOPE ? undefined : scopeId },
           'stopped',
-          nonNegative(stopOptions?.fadeOutMs),
+          fadeOf(stopOptions),
         ),
       stopAll: (stopOptions?: StopOptions) =>
         lifecycle.endMatching(
           { scopeId: scopeId === APP_SCOPE ? undefined : scopeId },
           'stopped',
-          nonNegative(stopOptions?.fadeOutMs),
+          fadeOf(stopOptions),
         ),
     };
   }
@@ -403,6 +446,17 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
       registry.unregister(soundId);
     },
     has: (soundId) => registry.has(soundId),
+    replaceDefinitions(owner, definitions) {
+      if (disposed) return definitions.map((definition) => definition.id);
+      return registry.replaceOwned(owner, definitions);
+    },
+    releaseDefinitions(owner) {
+      registry.releaseOwned(owner);
+    },
+    setAssetResolver(next: SoundAssetResolver | undefined) {
+      resolver = next;
+    },
+    reportIssue: report,
 
     createScope(name) {
       const id = `${name ?? 'scope'}#${(nextScope += 1)}`;
@@ -417,7 +471,7 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
         dispose(stopOptions) {
           if (scopeDisposed) return;
           scopeDisposed = true;
-          lifecycle.endMatching({ scopeId: id }, 'disposed', nonNegative(stopOptions?.fadeOutMs));
+          lifecycle.endMatching({ scopeId: id }, 'disposed', fadeOf(stopOptions));
         },
       };
       return scope;

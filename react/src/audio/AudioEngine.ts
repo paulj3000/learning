@@ -20,6 +20,11 @@ export interface LoadedSound {
 export interface LoadOptions {
   stream: boolean;
   signal: AbortSignal;
+  /**
+   * A stable key for this audio (a published asset version), so the same sound is cached once
+   * even though its signed url changes every half hour. Defaults to the url.
+   */
+  cacheKey?: string;
 }
 
 export interface VoiceOptions {
@@ -218,7 +223,11 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
       if (signal.aborted) throw abortError();
       throw new AudioError('load-failed', `could not fetch ${url}`, { cause });
     }
-    if (!response.ok) throw new AudioError('load-failed', `HTTP ${response.status} for ${url}`);
+    if (!response.ok) {
+      throw new AudioError('load-failed', `HTTP ${response.status} for ${url}`, {
+        status: response.status,
+      });
+    }
     let data: ArrayBuffer;
     try {
       data = await response.arrayBuffer();
@@ -235,15 +244,15 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
   }
 
   /** Shares one fetch between callers; the fetch is aborted only when every caller has given up. */
-  function loadBuffer(url: string, signal: AbortSignal): Promise<AudioBuffer> {
-    const cached = cache.get(url);
+  function loadBuffer(url: string, key: string, signal: AbortSignal): Promise<AudioBuffer> {
+    const cached = cache.get(key);
     if (cached) {
-      cache.delete(url); // re-insert so the map order is least-recently-used first
-      cache.set(url, cached);
+      cache.delete(key); // re-insert so the map order is least-recently-used first
+      cache.set(key, cached);
       return Promise.resolve(cached.buffer);
     }
 
-    let shared = inflight.get(url);
+    let shared = inflight.get(key);
     if (!shared) {
       const controller = new AbortController();
       const created: Inflight = {
@@ -251,24 +260,24 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
         waiters: 0,
         promise: fetchAndDecode(url, controller.signal).then(
           (buffer) => {
-            inflight.delete(url);
+            inflight.delete(key);
             const bytes = buffer.length * buffer.numberOfChannels * 4;
             if (!closed) {
-              cache.set(url, { buffer, bytes });
+              cache.set(key, { buffer, bytes });
               cacheBytes += bytes;
-              evictIfNeeded(url);
+              evictIfNeeded(key);
             }
             return buffer;
           },
           (error: unknown) => {
-            inflight.delete(url);
+            inflight.delete(key);
             throw error;
           },
         ),
       };
       // A fetch nobody is waiting for any more must not become an unhandled rejection.
       created.promise.catch(() => undefined);
-      inflight.set(url, created);
+      inflight.set(key, created);
       shared = created;
     }
 
@@ -280,8 +289,8 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
         if (done) return;
         done = true;
         entry.waiters -= 1;
-        if (entry.waiters === 0 && inflight.get(url) === entry) {
-          inflight.delete(url);
+        if (entry.waiters === 0 && inflight.get(key) === entry) {
+          inflight.delete(key);
           entry.controller.abort();
         }
         reject(abortError());
@@ -549,7 +558,7 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
         throw new AudioError('engine-unavailable', 'Web Audio is not available');
       }
       if (loadOptions.stream) return { kind: 'stream', url };
-      const buffer = await loadBuffer(url, loadOptions.signal);
+      const buffer = await loadBuffer(url, loadOptions.cacheKey ?? url, loadOptions.signal);
       const loaded: LoadedSound = { kind: 'buffer', url };
       loadedBuffers.set(loaded, buffer);
       return loaded;

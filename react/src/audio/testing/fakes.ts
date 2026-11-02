@@ -61,6 +61,9 @@ export class FakeEngine implements AudioEngine {
   }> = [];
   autoLoad = true;
   failLoad: AudioError | undefined;
+  /** Errors handed out one per load, oldest first, before loads start succeeding. */
+  failNext: AudioError[] = [];
+  loadLog: Array<{ url: string; options: LoadOptions }> = [];
   failPlay = false;
   unlockResult = true;
   unlockCalls = 0;
@@ -86,6 +89,9 @@ export class FakeEngine implements AudioEngine {
   }
 
   load(url: string, options: LoadOptions): Promise<LoadedSound> {
+    this.loadLog.push({ url, options });
+    const next = this.failNext.shift();
+    if (next) return Promise.reject(next);
     if (this.failLoad) return Promise.reject(this.failLoad);
     const loaded: LoadedSound = { kind: options.stream ? 'stream' : 'buffer', url };
     if (this.autoLoad) return Promise.resolve(loaded);

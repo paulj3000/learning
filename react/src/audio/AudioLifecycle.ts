@@ -17,7 +17,8 @@ export interface TrackedInstance {
   priority: number;
   /** Monotonic start order; the oldest instance is stolen first among equal priorities. */
   order: number;
-  end(reason: EndReason, fadeOutMs: number): void;
+  /** `undefined` fade means the sound's own default fade-out. */
+  end(reason: EndReason, fadeOutMs: number | undefined): void;
 }
 
 export interface TrackedLoad {
@@ -91,7 +92,7 @@ export class LifecycleRegistry {
   }
 
   /** Cancels loads, then ends instances. Loads go first so nothing starts while ending. */
-  endMatching(filter: OwnershipFilter, reason: EndReason, fadeOutMs: number): void {
+  endMatching(filter: OwnershipFilter, reason: EndReason, fadeOutMs: number | undefined): void {
     for (const load of this.loadsMatching(filter)) load.cancel();
     for (const instance of this.instancesMatching(filter)) instance.end(reason, fadeOutMs);
   }

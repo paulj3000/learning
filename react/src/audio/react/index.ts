@@ -8,3 +8,9 @@ export {
   useSoundSettings,
   type UseSound,
 } from './hooks';
+export {
+  useAudioManifest,
+  type AudioManifestSource,
+  type ManifestState,
+  type UseAudioManifest,
+} from './useAudioManifest';
