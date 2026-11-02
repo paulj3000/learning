@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.progression",
     "apps.inventory",
     "apps.quests",
+    "apps.ai",
 ]
 
 # The parent account is the user model (LAI-0301, ADR-022). Set before any migration is applied.
@@ -249,6 +250,38 @@ def env_bool(name: str, default: bool) -> bool:
 
 def env_list(name: str, default: str = "") -> list[str]:
     return [item.strip() for item in os.environ.get(name, default).split(",") if item.strip()]
+
+
+# --- AI companion and tutor (Phase 7, LAI-0701 to 0704; docs/AI_SERVICE.md) ------------------
+# `fake` answers locally with no network; `bedrock` calls Amazon Bedrock Converse with the
+# Guardrail; `disabled` serves authored fallback content only. Credentials are never settings:
+# boto3 uses its default chain (the EC2 instance role in AWS). production.py fails closed.
+LAI_AI_PROVIDER = os.environ.get("LAI_AI_PROVIDER", "fake").strip()
+LAI_AI_BEDROCK_REGION = os.environ.get("LAI_AI_BEDROCK_REGION", "").strip()
+# The US geographic cross-Region inference profile (source us-west-1 routes to us-east-1,
+# us-east-2, us-west-1 and us-west-2). Haiku 4.5 has no in-Region on-demand model id.
+LAI_AI_MODEL_ID = os.environ.get(
+    "LAI_AI_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+).strip()
+LAI_AI_GUARDRAIL_ID = os.environ.get("LAI_AI_GUARDRAIL_ID", "").strip()
+LAI_AI_GUARDRAIL_VERSION = os.environ.get("LAI_AI_GUARDRAIL_VERSION", "").strip()
+LAI_AI_STRUCTURED_OUTPUT = env_bool("LAI_AI_STRUCTURED_OUTPUT", True)
+# Same limits as the Amplify routes (temperature 0.4, 300 output tokens).
+LAI_AI_MAX_OUTPUT_TOKENS = int(os.environ.get("LAI_AI_MAX_OUTPUT_TOKENS", "300"))
+LAI_AI_TEMPERATURE = float(os.environ.get("LAI_AI_TEMPERATURE", "0.4"))
+LAI_AI_TIMEOUT_SECONDS = float(os.environ.get("LAI_AI_TIMEOUT_SECONDS", "10"))
+# Model calls per child per hour, per Django process (best effort until a shared cache exists).
+LAI_AI_TURNS_PER_CHILD_PER_HOUR = int(os.environ.get("LAI_AI_TURNS_PER_CHILD_PER_HOUR", "120"))
+if LAI_AI_PROVIDER not in {"fake", "bedrock", "disabled"}:
+    raise ImproperlyConfigured("LAI_AI_PROVIDER must be fake, bedrock or disabled.")
+if not 50 <= LAI_AI_MAX_OUTPUT_TOKENS <= 1000:
+    raise ImproperlyConfigured("LAI_AI_MAX_OUTPUT_TOKENS must be between 50 and 1000.")
+if not 0.0 <= LAI_AI_TEMPERATURE <= 1.0:
+    raise ImproperlyConfigured("LAI_AI_TEMPERATURE must be between 0 and 1.")
+if not 1 <= LAI_AI_TIMEOUT_SECONDS <= 60:
+    raise ImproperlyConfigured("LAI_AI_TIMEOUT_SECONDS must be between 1 and 60.")
+if not 1 <= LAI_AI_TURNS_PER_CHILD_PER_HOUR <= 2000:
+    raise ImproperlyConfigured("LAI_AI_TURNS_PER_CHILD_PER_HOUR must be between 1 and 2000.")
 
 
 # DATABASE_URL query options passed to libpq: TLS to RDS (`?sslmode=verify-full&sslrootcert=...`,

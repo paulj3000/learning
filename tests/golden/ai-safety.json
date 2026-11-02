@@ -1,0 +1,4615 @@
+{
+  "schemaVersion": 1,
+  "suite": "ai-safety",
+  "description": "Companion and tutor output validation, tutor context assembly, strategy selection, and authored fallbacks.",
+  "sources": [
+    "react/src/lib/ai/contentSafety.ts",
+    "react/src/features/companion/schema.ts",
+    "react/src/features/companion/fallback.ts",
+    "react/src/features/companion/limits.ts",
+    "react/src/features/tutor/schema.ts",
+    "react/src/features/tutor/context.ts",
+    "react/src/features/tutor/strategy.ts",
+    "react/src/features/tutor/fallback.ts",
+    "react/src/features/tutor/content/vocabulary.ts"
+  ],
+  "notes": [
+    "Lengths are UTF-16 code units (String.prototype.length): an emoji counts as 2.",
+    "trim() uses the ECMAScript whitespace set, which includes U+FEFF.",
+    "Regular expressions are non-unicode /i: ASCII case folding only, ASCII word boundaries.",
+    "An array passes isRecord, so [] is rejected for a missing spokenText, not as a non-object.",
+    "strategyForHintLevel rounds with Math.round (halves toward +infinity) before clamping to 1..5.",
+    "validateCompanionTurn returns choice objects as given; these vectors carry only {id, label} choices (the Django port returns exactly those two fields).",
+    "Unknown fields on a model response (rewards, mastery, next step) never appear in a validated turn."
+  ],
+  "functions": {
+    "containsUrl": {
+      "python": "contains_url",
+      "args": [
+        "text"
+      ],
+      "cases": [
+        {
+          "name": "plain island line",
+          "input": {
+            "text": "Let's count the planks together!"
+          },
+          "expected": false
+        },
+        {
+          "name": "https url",
+          "input": {
+            "text": "Visit https://example.test for more."
+          },
+          "expected": true
+        },
+        {
+          "name": "www prefix",
+          "input": {
+            "text": "Go to www.island for help."
+          },
+          "expected": true
+        },
+        {
+          "name": "bare domain",
+          "input": {
+            "text": "Look at parrots.com today."
+          },
+          "expected": true
+        },
+        {
+          "name": "domain-like word without tld",
+          "input": {
+            "text": "The ship.deck is wet."
+          },
+          "expected": false
+        },
+        {
+          "name": "asks for a name",
+          "input": {
+            "text": "What is your name, explorer?"
+          },
+          "expected": false
+        },
+        {
+          "name": "asks for real full name",
+          "input": {
+            "text": "Tell me your real full name."
+          },
+          "expected": false
+        },
+        {
+          "name": "home address",
+          "input": {
+            "text": "What is your home address?"
+          },
+          "expected": false
+        },
+        {
+          "name": "where do live",
+          "input": {
+            "text": "Where do you live, friend?"
+          },
+          "expected": false
+        },
+        {
+          "name": "send a photo",
+          "input": {
+            "text": "Can you send me a photo?"
+          },
+          "expected": false
+        },
+        {
+          "name": "school name",
+          "input": {
+            "text": "What's your school's name?"
+          },
+          "expected": false
+        },
+        {
+          "name": "password",
+          "input": {
+            "text": "Tell me the PASSWORD."
+          },
+          "expected": false
+        },
+        {
+          "name": "mastery claim",
+          "input": {
+            "text": "You have mastered counting!"
+          },
+          "expected": false
+        },
+        {
+          "name": "contracted mastery claim",
+          "input": {
+            "text": "You've now mastered it."
+          },
+          "expected": false
+        },
+        {
+          "name": "passed",
+          "input": {
+            "text": "You passed the test."
+          },
+          "expected": false
+        },
+        {
+          "name": "level number",
+          "input": {
+            "text": "This is level 2 work."
+          },
+          "expected": false
+        },
+        {
+          "name": "next lesson",
+          "input": {
+            "text": "Next lesson is multiplication."
+          },
+          "expected": false
+        },
+        {
+          "name": "homework",
+          "input": {
+            "text": "Here is some homework."
+          },
+          "expected": false
+        },
+        {
+          "name": "ready for",
+          "input": {
+            "text": "You're not ready for that."
+          },
+          "expected": false
+        },
+        {
+          "name": "unicode long s does not fold to s",
+          "input": {
+            "text": "paſsword"
+          },
+          "expected": false
+        },
+        {
+          "name": "kelvin sign does not fold to k",
+          "input": {
+            "text": "you have Known it"
+          },
+          "expected": false
+        }
+      ]
+    },
+    "requestsPersonalInformation": {
+      "python": "requests_personal_information",
+      "args": [
+        "text"
+      ],
+      "cases": [
+        {
+          "name": "plain island line",
+          "input": {
+            "text": "Let's count the planks together!"
+          },
+          "expected": false
+        },
+        {
+          "name": "https url",
+          "input": {
+            "text": "Visit https://example.test for more."
+          },
+          "expected": false
+        },
+        {
+          "name": "www prefix",
+          "input": {
+            "text": "Go to www.island for help."
+          },
+          "expected": false
+        },
+        {
+          "name": "bare domain",
+          "input": {
+            "text": "Look at parrots.com today."
+          },
+          "expected": false
+        },
+        {
+          "name": "domain-like word without tld",
+          "input": {
+            "text": "The ship.deck is wet."
+          },
+          "expected": false
+        },
+        {
+          "name": "asks for a name",
+          "input": {
+            "text": "What is your name, explorer?"
+          },
+          "expected": true
+        },
+        {
+          "name": "asks for real full name",
+          "input": {
+            "text": "Tell me your real full name."
+          },
+          "expected": true
+        },
+        {
+          "name": "home address",
+          "input": {
+            "text": "What is your home address?"
+          },
+          "expected": true
+        },
+        {
+          "name": "where do live",
+          "input": {
+            "text": "Where do you live, friend?"
+          },
+          "expected": false
+        },
+        {
+          "name": "send a photo",
+          "input": {
+            "text": "Can you send me a photo?"
+          },
+          "expected": true
+        },
+        {
+          "name": "school name",
+          "input": {
+            "text": "What's your school's name?"
+          },
+          "expected": true
+        },
+        {
+          "name": "password",
+          "input": {
+            "text": "Tell me the PASSWORD."
+          },
+          "expected": true
+        },
+        {
+          "name": "mastery claim",
+          "input": {
+            "text": "You have mastered counting!"
+          },
+          "expected": false
+        },
+        {
+          "name": "contracted mastery claim",
+          "input": {
+            "text": "You've now mastered it."
+          },
+          "expected": false
+        },
+        {
+          "name": "passed",
+          "input": {
+            "text": "You passed the test."
+          },
+          "expected": false
+        },
+        {
+          "name": "level number",
+          "input": {
+            "text": "This is level 2 work."
+          },
+          "expected": false
+        },
+        {
+          "name": "next lesson",
+          "input": {
+            "text": "Next lesson is multiplication."
+          },
+          "expected": false
+        },
+        {
+          "name": "homework",
+          "input": {
+            "text": "Here is some homework."
+          },
+          "expected": false
+        },
+        {
+          "name": "ready for",
+          "input": {
+            "text": "You're not ready for that."
+          },
+          "expected": false
+        },
+        {
+          "name": "unicode long s does not fold to s",
+          "input": {
+            "text": "paſsword"
+          },
+          "expected": false
+        },
+        {
+          "name": "kelvin sign does not fold to k",
+          "input": {
+            "text": "you have Known it"
+          },
+          "expected": false
+        }
+      ]
+    },
+    "claimsLearningJudgment": {
+      "python": "claims_learning_judgment",
+      "args": [
+        "text"
+      ],
+      "cases": [
+        {
+          "name": "plain island line",
+          "input": {
+            "text": "Let's count the planks together!"
+          },
+          "expected": false
+        },
+        {
+          "name": "https url",
+          "input": {
+            "text": "Visit https://example.test for more."
+          },
+          "expected": false
+        },
+        {
+          "name": "www prefix",
+          "input": {
+            "text": "Go to www.island for help."
+          },
+          "expected": false
+        },
+        {
+          "name": "bare domain",
+          "input": {
+            "text": "Look at parrots.com today."
+          },
+          "expected": false
+        },
+        {
+          "name": "domain-like word without tld",
+          "input": {
+            "text": "The ship.deck is wet."
+          },
+          "expected": false
+        },
+        {
+          "name": "asks for a name",
+          "input": {
+            "text": "What is your name, explorer?"
+          },
+          "expected": false
+        },
+        {
+          "name": "asks for real full name",
+          "input": {
+            "text": "Tell me your real full name."
+          },
+          "expected": false
+        },
+        {
+          "name": "home address",
+          "input": {
+            "text": "What is your home address?"
+          },
+          "expected": false
+        },
+        {
+          "name": "where do live",
+          "input": {
+            "text": "Where do you live, friend?"
+          },
+          "expected": false
+        },
+        {
+          "name": "send a photo",
+          "input": {
+            "text": "Can you send me a photo?"
+          },
+          "expected": false
+        },
+        {
+          "name": "school name",
+          "input": {
+            "text": "What's your school's name?"
+          },
+          "expected": false
+        },
+        {
+          "name": "password",
+          "input": {
+            "text": "Tell me the PASSWORD."
+          },
+          "expected": false
+        },
+        {
+          "name": "mastery claim",
+          "input": {
+            "text": "You have mastered counting!"
+          },
+          "expected": true
+        },
+        {
+          "name": "contracted mastery claim",
+          "input": {
+            "text": "You've now mastered it."
+          },
+          "expected": false
+        },
+        {
+          "name": "passed",
+          "input": {
+            "text": "You passed the test."
+          },
+          "expected": true
+        },
+        {
+          "name": "level number",
+          "input": {
+            "text": "This is level 2 work."
+          },
+          "expected": true
+        },
+        {
+          "name": "next lesson",
+          "input": {
+            "text": "Next lesson is multiplication."
+          },
+          "expected": true
+        },
+        {
+          "name": "homework",
+          "input": {
+            "text": "Here is some homework."
+          },
+          "expected": true
+        },
+        {
+          "name": "ready for",
+          "input": {
+            "text": "You're not ready for that."
+          },
+          "expected": true
+        },
+        {
+          "name": "unicode long s does not fold to s",
+          "input": {
+            "text": "paſsword"
+          },
+          "expected": false
+        },
+        {
+          "name": "kelvin sign does not fold to k",
+          "input": {
+            "text": "you have Known it"
+          },
+          "expected": false
+        }
+      ]
+    },
+    "normalizeEmotion": {
+      "python": "normalize_emotion",
+      "args": [
+        "value"
+      ],
+      "cases": [
+        {
+          "name": "exact uppercase",
+          "input": {
+            "value": "CURIOUS"
+          },
+          "expected": "CURIOUS"
+        },
+        {
+          "name": "lowercase",
+          "input": {
+            "value": "calm"
+          },
+          "expected": "CALM"
+        },
+        {
+          "name": "synonym playful",
+          "input": {
+            "value": "playful"
+          },
+          "expected": "CHEERFUL"
+        },
+        {
+          "name": "compound warm and curious resolves by category order",
+          "input": {
+            "value": "warm and curious"
+          },
+          "expected": "CURIOUS"
+        },
+        {
+          "name": "wondering",
+          "input": {
+            "value": "wondering"
+          },
+          "expected": "CURIOUS"
+        },
+        {
+          "name": "unknown word",
+          "input": {
+            "value": "grumpy"
+          },
+          "expected": null
+        },
+        {
+          "name": "not a string",
+          "input": {
+            "value": 3
+          },
+          "expected": null
+        },
+        {
+          "name": "null",
+          "input": {
+            "value": null
+          },
+          "expected": null
+        }
+      ]
+    },
+    "validateCompanionTurn": {
+      "python": "validate_companion_turn",
+      "args": [
+        "raw",
+        "context"
+      ],
+      "cases": [
+        {
+          "name": "valid hint",
+          "input": {
+            "raw": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            }
+          }
+        },
+        {
+          "name": "not an object",
+          "input": {
+            "raw": "hello",
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "Response was not an object."
+          }
+        },
+        {
+          "name": "null",
+          "input": {
+            "raw": null,
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "Response was not an object."
+          }
+        },
+        {
+          "name": "an array counts as an object",
+          "input": {
+            "raw": [],
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "spokenText was missing or empty."
+          }
+        },
+        {
+          "name": "blank spokenText",
+          "input": {
+            "raw": {
+              "spokenText": "  ",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "spokenText was missing or empty."
+          }
+        },
+        {
+          "name": "BOM-only spokenText is blank",
+          "input": {
+            "raw": {
+              "spokenText": "﻿",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "spokenText was missing or empty."
+          }
+        },
+        {
+          "name": "spokenText not a string",
+          "input": {
+            "raw": {
+              "spokenText": 7,
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "spokenText was missing or empty."
+          }
+        },
+        {
+          "name": "lowercase enums normalise",
+          "input": {
+            "raw": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "curious",
+              "intent": "hint",
+              "safetyDisposition": "allow"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "CURIOUS",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            }
+          }
+        },
+        {
+          "name": "emotion synonym",
+          "input": {
+            "raw": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "proud",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            }
+          }
+        },
+        {
+          "name": "unknown emotion",
+          "input": {
+            "raw": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "grumpy",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "emotion was missing or not a known value."
+          }
+        },
+        {
+          "name": "unknown intent",
+          "input": {
+            "raw": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "GRADE",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "intent was missing or not a known value."
+          }
+        },
+        {
+          "name": "unknown disposition",
+          "input": {
+            "raw": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "MAYBE"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "safetyDisposition was missing or not a known value."
+          }
+        },
+        {
+          "name": "wrong intent",
+          "input": {
+            "raw": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "CELEBRATE",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "intent \"CELEBRATE\" did not match the requested intent."
+          }
+        },
+        {
+          "name": "escalation to REDIRECT is always allowed",
+          "input": {
+            "raw": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "REDIRECT",
+              "safetyDisposition": "REDIRECT"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "REDIRECT",
+              "safetyDisposition": "REDIRECT"
+            }
+          }
+        },
+        {
+          "name": "STOP disposition is a valid turn",
+          "input": {
+            "raw": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "STOP"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "STOP"
+            }
+          }
+        },
+        {
+          "name": "exactly at max length",
+          "input": {
+            "raw": {
+              "spokenText": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            }
+          }
+        },
+        {
+          "name": "one over max length",
+          "input": {
+            "raw": {
+              "spokenText": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "spokenText exceeded the age band length limit."
+          }
+        },
+        {
+          "name": "emoji count as two UTF-16 units",
+          "input": {
+            "raw": {
+              "spokenText": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa🦜",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa🦜",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            }
+          }
+        },
+        {
+          "name": "emoji pushes past the limit",
+          "input": {
+            "raw": {
+              "spokenText": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa🦜",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "spokenText exceeded the age band length limit."
+          }
+        },
+        {
+          "name": "url",
+          "input": {
+            "raw": {
+              "spokenText": "See www.parrot.io now",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "spokenText contained a URL."
+          }
+        },
+        {
+          "name": "personal information",
+          "input": {
+            "raw": {
+              "spokenText": "What is your phone number?",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "spokenText requested personal information."
+          }
+        },
+        {
+          "name": "allowed choices",
+          "input": {
+            "raw": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "ASK",
+              "safetyDisposition": "ALLOW",
+              "choices": [
+                {
+                  "id": "knight",
+                  "label": "Knight"
+                }
+              ]
+            },
+            "context": {
+              "expectedIntent": "ASK",
+              "maxLength": 200,
+              "allowedChoiceIds": [
+                "knight",
+                "wizard"
+              ]
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "ASK",
+              "choices": [
+                {
+                  "id": "knight",
+                  "label": "Knight"
+                }
+              ],
+              "safetyDisposition": "ALLOW"
+            }
+          }
+        },
+        {
+          "name": "invented choice id",
+          "input": {
+            "raw": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "ASK",
+              "safetyDisposition": "ALLOW",
+              "choices": [
+                {
+                  "id": "dragon",
+                  "label": "Dragon"
+                }
+              ]
+            },
+            "context": {
+              "expectedIntent": "ASK",
+              "maxLength": 200,
+              "allowedChoiceIds": [
+                "knight"
+              ]
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "choices included an ID that was not allowed."
+          }
+        },
+        {
+          "name": "choices offered when none allowed",
+          "input": {
+            "raw": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW",
+              "choices": [
+                {
+                  "id": "a",
+                  "label": "A"
+                }
+              ]
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "choices were offered but none were allowed."
+          }
+        },
+        {
+          "name": "choices offered with an empty allow-list",
+          "input": {
+            "raw": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW",
+              "choices": []
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120,
+              "allowedChoiceIds": []
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "choices were offered but none were allowed."
+          }
+        },
+        {
+          "name": "malformed choices",
+          "input": {
+            "raw": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW",
+              "choices": [
+                {
+                  "id": 1
+                }
+              ]
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120,
+              "allowedChoiceIds": [
+                "a"
+              ]
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "choices was not a list of {id, label}."
+          }
+        },
+        {
+          "name": "null choices are absent",
+          "input": {
+            "raw": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW",
+              "choices": null
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            }
+          }
+        },
+        {
+          "name": "gameplay fields from the model are dropped",
+          "input": {
+            "raw": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW",
+              "reward": 100,
+              "masteryStatus": "MASTERED",
+              "nextStepId": "complete"
+            },
+            "context": {
+              "expectedIntent": "HINT",
+              "maxLength": 120
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "Count each plank, one at a time.",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            }
+          }
+        }
+      ]
+    },
+    "validateTutorTurn": {
+      "python": "validate_tutor_turn",
+      "args": [
+        "raw",
+        "context"
+      ],
+      "cases": [
+        {
+          "name": "valid hint",
+          "input": {
+            "raw": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            }
+          }
+        },
+        {
+          "name": "not an object",
+          "input": {
+            "raw": 42,
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "Response was not an object."
+          }
+        },
+        {
+          "name": "blank text",
+          "input": {
+            "raw": {
+              "spokenText": "",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "spokenText was missing or empty."
+          }
+        },
+        {
+          "name": "unknown strategy",
+          "input": {
+            "raw": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "ASSESS",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "strategy was missing or not an approved strategy."
+          }
+        },
+        {
+          "name": "different strategy",
+          "input": {
+            "raw": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "EXPLAIN",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "strategy \"EXPLAIN\" did not match the requested strategy."
+          }
+        },
+        {
+          "name": "lowercase strategy",
+          "input": {
+            "raw": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "give_hint",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            }
+          }
+        },
+        {
+          "name": "unknown emotion",
+          "input": {
+            "raw": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "GIVE_HINT",
+              "emotion": "sad",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "emotion was missing or not a known value."
+          }
+        },
+        {
+          "name": "unknown disposition",
+          "input": {
+            "raw": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "no"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "safetyDisposition was missing or not a known value."
+          }
+        },
+        {
+          "name": "too long",
+          "input": {
+            "raw": {
+              "spokenText": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "spokenText exceeded the age band length limit."
+          }
+        },
+        {
+          "name": "url",
+          "input": {
+            "raw": {
+              "spokenText": "Try https://x.test",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "spokenText contained a URL."
+          }
+        },
+        {
+          "name": "personal info",
+          "input": {
+            "raw": {
+              "spokenText": "Where do you live?",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "Where do you live?",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            }
+          }
+        },
+        {
+          "name": "mastery judgment",
+          "input": {
+            "raw": {
+              "spokenText": "You mastered this!",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "spokenText judged the child or claimed mastery."
+          }
+        },
+        {
+          "name": "curriculum term outside the skill",
+          "input": {
+            "raw": {
+              "spokenText": "Now multiply the planks.",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "spokenText used curriculum terms outside this skill: multiply."
+          }
+        },
+        {
+          "name": "several stray terms listed in term order",
+          "input": {
+            "raw": {
+              "spokenText": "Subtract, then add, then divide.",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "spokenText used curriculum terms outside this skill: add, divide, subtract."
+          }
+        },
+        {
+          "name": "allowed curriculum term",
+          "input": {
+            "raw": {
+              "spokenText": "Count them one at a time.",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "Count them one at a time.",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            }
+          }
+        },
+        {
+          "name": "country does not trip count",
+          "input": {
+            "raw": {
+              "spokenText": "A whole country of parrots!",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "A whole country of parrots!",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            }
+          }
+        },
+        {
+          "name": "representation on switch",
+          "input": {
+            "raw": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "SWITCH_REPRESENTATION",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW",
+              "representation": "VISUAL"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "SWITCH_REPRESENTATION",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "SWITCH_REPRESENTATION",
+              "representation": "visual",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            }
+          }
+        },
+        {
+          "name": "representation not authored for skill",
+          "input": {
+            "raw": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "SWITCH_REPRESENTATION",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW",
+              "representation": "numeric"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "SWITCH_REPRESENTATION",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "representation was not one the curriculum authored for this skill."
+          }
+        },
+        {
+          "name": "unknown representation",
+          "input": {
+            "raw": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "SWITCH_REPRESENTATION",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW",
+              "representation": "hologram"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "SWITCH_REPRESENTATION",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "representation was not a known representation."
+          }
+        },
+        {
+          "name": "representation on a non-switch turn",
+          "input": {
+            "raw": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW",
+              "representation": "visual"
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "representation was set on a turn that was not switching representation."
+          }
+        },
+        {
+          "name": "representation not a string",
+          "input": {
+            "raw": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW",
+              "representation": 5
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": false,
+            "reason": "representation was not a string."
+          }
+        },
+        {
+          "name": "empty representation is absent",
+          "input": {
+            "raw": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW",
+              "representation": ""
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            }
+          }
+        },
+        {
+          "name": "gameplay fields from the model are dropped",
+          "input": {
+            "raw": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW",
+              "coins": 50,
+              "correct": true
+            },
+            "context": {
+              "ageBand": "PATHFINDER",
+              "strategy": "GIVE_HINT",
+              "maxLength": 200,
+              "skillTitle": "Counting sets of objects",
+              "skillDescription": "Count a set of objects one at a time and give the total.",
+              "allowedVocabulary": [
+                "again",
+                "all together",
+                "answer",
+                "check",
+                "count",
+                "counted",
+                "counting",
+                "each",
+                "group",
+                "guess",
+                "how many",
+                "idea",
+                "last",
+                "look",
+                "many",
+                "notice",
+                "number",
+                "one at a time",
+                "part",
+                "picture",
+                "point",
+                "problem",
+                "puzzle",
+                "same",
+                "set",
+                "show",
+                "sort",
+                "step",
+                "think",
+                "total",
+                "try",
+                "way"
+              ],
+              "knownPrerequisiteTitles": [],
+              "allowedRepresentations": [
+                "visual",
+                "game-interaction"
+              ],
+              "hintLevel": 3
+            }
+          },
+          "expected": {
+            "valid": true,
+            "turn": {
+              "spokenText": "Point to each one as you count.",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            }
+          }
+        }
+      ]
+    },
+    "disallowedCurriculumTerms": {
+      "python": "disallowed_curriculum_terms",
+      "args": [
+        "text",
+        "allowedVocabulary"
+      ],
+      "cases": [
+        {
+          "name": "none allowed",
+          "input": {
+            "text": "Add and count",
+            "allowedVocabulary": []
+          },
+          "expected": [
+            "add",
+            "count"
+          ]
+        },
+        {
+          "name": "case-insensitive allow",
+          "input": {
+            "text": "ADD then Count",
+            "allowedVocabulary": [
+              "add",
+              "COUNT"
+            ]
+          },
+          "expected": []
+        },
+        {
+          "name": "address does not trip add",
+          "input": {
+            "text": "An address",
+            "allowedVocabulary": []
+          },
+          "expected": []
+        },
+        {
+          "name": "multi-word term",
+          "input": {
+            "text": "Learn your times table and place value",
+            "allowedVocabulary": []
+          },
+          "expected": [
+            "place value",
+            "times table"
+          ]
+        }
+      ]
+    },
+    "strategyForHintLevel": {
+      "python": "strategy_for_hint_level",
+      "args": [
+        "hintLevel"
+      ],
+      "cases": [
+        {
+          "name": "level -2",
+          "input": {
+            "hintLevel": -2
+          },
+          "expected": "ENCOURAGE"
+        },
+        {
+          "name": "level 0",
+          "input": {
+            "hintLevel": 0
+          },
+          "expected": "ENCOURAGE"
+        },
+        {
+          "name": "level 1",
+          "input": {
+            "hintLevel": 1
+          },
+          "expected": "ENCOURAGE"
+        },
+        {
+          "name": "level 1.5",
+          "input": {
+            "hintLevel": 1.5
+          },
+          "expected": "ASK_GUIDING_QUESTION"
+        },
+        {
+          "name": "level 2",
+          "input": {
+            "hintLevel": 2
+          },
+          "expected": "ASK_GUIDING_QUESTION"
+        },
+        {
+          "name": "level 2.49",
+          "input": {
+            "hintLevel": 2.49
+          },
+          "expected": "ASK_GUIDING_QUESTION"
+        },
+        {
+          "name": "level 3",
+          "input": {
+            "hintLevel": 3
+          },
+          "expected": "GIVE_HINT"
+        },
+        {
+          "name": "level 4",
+          "input": {
+            "hintLevel": 4
+          },
+          "expected": "SWITCH_REPRESENTATION"
+        },
+        {
+          "name": "level 5",
+          "input": {
+            "hintLevel": 5
+          },
+          "expected": "EXPLAIN"
+        },
+        {
+          "name": "level 6",
+          "input": {
+            "hintLevel": 6
+          },
+          "expected": "EXPLAIN"
+        },
+        {
+          "name": "level 99",
+          "input": {
+            "hintLevel": 99
+          },
+          "expected": "EXPLAIN"
+        }
+      ]
+    },
+    "allowedVocabularyForSkill": {
+      "python": "allowed_vocabulary_for_skill",
+      "args": [
+        "skillId"
+      ],
+      "cases": [
+        {
+          "name": "counting-sets",
+          "input": {
+            "skillId": "counting-sets"
+          },
+          "expected": [
+            "again",
+            "all together",
+            "answer",
+            "check",
+            "count",
+            "counted",
+            "counting",
+            "each",
+            "group",
+            "guess",
+            "how many",
+            "idea",
+            "last",
+            "look",
+            "many",
+            "notice",
+            "number",
+            "one at a time",
+            "part",
+            "picture",
+            "point",
+            "problem",
+            "puzzle",
+            "same",
+            "set",
+            "show",
+            "sort",
+            "step",
+            "think",
+            "total",
+            "try",
+            "way"
+          ]
+        },
+        {
+          "name": "comparing-lengths",
+          "input": {
+            "skillId": "comparing-lengths"
+          },
+          "expected": [
+            "again",
+            "answer",
+            "check",
+            "compare",
+            "end",
+            "guess",
+            "idea",
+            "line up",
+            "long",
+            "longer",
+            "longest",
+            "look",
+            "match",
+            "notice",
+            "part",
+            "picture",
+            "problem",
+            "puzzle",
+            "same",
+            "short",
+            "shorter",
+            "shortest",
+            "show",
+            "side by side",
+            "size",
+            "sort",
+            "step",
+            "taller",
+            "think",
+            "try",
+            "way"
+          ]
+        },
+        {
+          "name": "addition-within-ten",
+          "input": {
+            "skillId": "addition-within-ten"
+          },
+          "expected": [
+            "add",
+            "adding",
+            "addition",
+            "again",
+            "all together",
+            "answer",
+            "check",
+            "count",
+            "counting",
+            "group",
+            "guess",
+            "how many",
+            "idea",
+            "join",
+            "look",
+            "more",
+            "notice",
+            "number",
+            "part",
+            "picture",
+            "plus",
+            "problem",
+            "puzzle",
+            "same",
+            "show",
+            "sort",
+            "step",
+            "sum",
+            "think",
+            "total",
+            "try",
+            "way"
+          ]
+        },
+        {
+          "name": "patterns",
+          "input": {
+            "skillId": "patterns"
+          },
+          "expected": [
+            "again",
+            "answer",
+            "check",
+            "color",
+            "copy",
+            "guess",
+            "idea",
+            "look",
+            "next",
+            "notice",
+            "order",
+            "part",
+            "pattern",
+            "patterns",
+            "picture",
+            "problem",
+            "puzzle",
+            "repeat",
+            "repeating",
+            "rule",
+            "same",
+            "shape",
+            "show",
+            "sort",
+            "step",
+            "think",
+            "try",
+            "way"
+          ]
+        },
+        {
+          "name": "measurement",
+          "input": {
+            "skillId": "measurement"
+          },
+          "expected": [
+            "again",
+            "answer",
+            "check",
+            "compare",
+            "count",
+            "counting",
+            "end",
+            "guess",
+            "how many",
+            "idea",
+            "long",
+            "longer",
+            "look",
+            "measure",
+            "measurement",
+            "measuring",
+            "notice",
+            "part",
+            "picture",
+            "problem",
+            "puzzle",
+            "ruler",
+            "same",
+            "shorter",
+            "show",
+            "size",
+            "sort",
+            "start",
+            "step",
+            "think",
+            "try",
+            "unit",
+            "way"
+          ]
+        },
+        {
+          "name": "subtraction-within-ten",
+          "input": {
+            "skillId": "subtraction-within-ten"
+          },
+          "expected": [
+            "again",
+            "answer",
+            "away",
+            "check",
+            "count",
+            "counting",
+            "fewer",
+            "group",
+            "guess",
+            "how many",
+            "idea",
+            "left",
+            "less",
+            "look",
+            "minus",
+            "notice",
+            "number",
+            "part",
+            "picture",
+            "problem",
+            "puzzle",
+            "same",
+            "show",
+            "sort",
+            "step",
+            "subtract",
+            "subtracting",
+            "subtraction",
+            "take away",
+            "think",
+            "try",
+            "way"
+          ]
+        },
+        {
+          "name": "observation",
+          "input": {
+            "skillId": "observation"
+          },
+          "expected": [
+            "again",
+            "answer",
+            "check",
+            "closer",
+            "different",
+            "guess",
+            "idea",
+            "look",
+            "looking",
+            "notice",
+            "noticed",
+            "part",
+            "picture",
+            "problem",
+            "puzzle",
+            "same",
+            "see",
+            "shape",
+            "show",
+            "sort",
+            "step",
+            "think",
+            "try",
+            "watch",
+            "way"
+          ]
+        },
+        {
+          "name": "classification",
+          "input": {
+            "skillId": "classification"
+          },
+          "expected": [
+            "again",
+            "answer",
+            "belong",
+            "check",
+            "different",
+            "group",
+            "grouping",
+            "guess",
+            "idea",
+            "kind",
+            "look",
+            "match",
+            "notice",
+            "part",
+            "picture",
+            "problem",
+            "puzzle",
+            "same",
+            "set",
+            "show",
+            "sort",
+            "sorting",
+            "step",
+            "think",
+            "together",
+            "try",
+            "way"
+          ]
+        },
+        {
+          "name": "cause-and-effect",
+          "input": {
+            "skillId": "cause-and-effect"
+          },
+          "expected": [
+            "after",
+            "again",
+            "answer",
+            "because",
+            "before",
+            "check",
+            "guess",
+            "happen",
+            "happened",
+            "happens",
+            "idea",
+            "look",
+            "made",
+            "next",
+            "notice",
+            "part",
+            "picture",
+            "problem",
+            "puzzle",
+            "reason",
+            "same",
+            "show",
+            "so",
+            "sort",
+            "step",
+            "then",
+            "think",
+            "try",
+            "way",
+            "why"
+          ]
+        },
+        {
+          "name": "animal-science",
+          "input": {
+            "skillId": "animal-science"
+          },
+          "expected": [
+            "again",
+            "animal",
+            "animals",
+            "answer",
+            "check",
+            "eat",
+            "eats",
+            "food",
+            "guess",
+            "home",
+            "idea",
+            "live",
+            "lives",
+            "look",
+            "move",
+            "moves",
+            "nest",
+            "notice",
+            "part",
+            "picture",
+            "problem",
+            "puzzle",
+            "same",
+            "show",
+            "sort",
+            "step",
+            "think",
+            "try",
+            "way",
+            "wing",
+            "wings"
+          ]
+        },
+        {
+          "name": "not-a-skill",
+          "input": {
+            "skillId": "not-a-skill"
+          },
+          "expected": null
+        }
+      ]
+    },
+    "isTutorableSkill": {
+      "python": "is_tutorable_skill",
+      "args": [
+        "skillId"
+      ],
+      "cases": [
+        {
+          "name": "counting-sets",
+          "input": {
+            "skillId": "counting-sets"
+          },
+          "expected": true
+        },
+        {
+          "name": "comparing-lengths",
+          "input": {
+            "skillId": "comparing-lengths"
+          },
+          "expected": true
+        },
+        {
+          "name": "addition-within-ten",
+          "input": {
+            "skillId": "addition-within-ten"
+          },
+          "expected": true
+        },
+        {
+          "name": "patterns",
+          "input": {
+            "skillId": "patterns"
+          },
+          "expected": true
+        },
+        {
+          "name": "measurement",
+          "input": {
+            "skillId": "measurement"
+          },
+          "expected": true
+        },
+        {
+          "name": "subtraction-within-ten",
+          "input": {
+            "skillId": "subtraction-within-ten"
+          },
+          "expected": true
+        },
+        {
+          "name": "observation",
+          "input": {
+            "skillId": "observation"
+          },
+          "expected": true
+        },
+        {
+          "name": "classification",
+          "input": {
+            "skillId": "classification"
+          },
+          "expected": true
+        },
+        {
+          "name": "cause-and-effect",
+          "input": {
+            "skillId": "cause-and-effect"
+          },
+          "expected": true
+        },
+        {
+          "name": "animal-science",
+          "input": {
+            "skillId": "animal-science"
+          },
+          "expected": true
+        },
+        {
+          "name": "not-a-skill",
+          "input": {
+            "skillId": "not-a-skill"
+          },
+          "expected": false
+        }
+      ]
+    },
+    "buildTutorContext": {
+      "python": "build_tutor_context",
+      "args": [
+        "input"
+      ],
+      "cases": [
+        {
+          "name": "counting-sets level 1",
+          "input": {
+            "input": {
+              "ageBand": "SPROUT",
+              "skillId": "counting-sets",
+              "hintLevel": 1
+            }
+          },
+          "expected": {
+            "ageBand": "SPROUT",
+            "strategy": "ENCOURAGE",
+            "maxLength": 120,
+            "skillTitle": "Counting sets of objects",
+            "skillDescription": "Count a set of objects one at a time and give the total.",
+            "allowedVocabulary": [
+              "again",
+              "all together",
+              "answer",
+              "check",
+              "count",
+              "counted",
+              "counting",
+              "each",
+              "group",
+              "guess",
+              "how many",
+              "idea",
+              "last",
+              "look",
+              "many",
+              "notice",
+              "number",
+              "one at a time",
+              "part",
+              "picture",
+              "point",
+              "problem",
+              "puzzle",
+              "same",
+              "set",
+              "show",
+              "sort",
+              "step",
+              "think",
+              "total",
+              "try",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "visual",
+              "game-interaction"
+            ],
+            "hintLevel": 1
+          }
+        },
+        {
+          "name": "counting-sets level 4",
+          "input": {
+            "input": {
+              "ageBand": "PATHFINDER",
+              "skillId": "counting-sets",
+              "hintLevel": 4
+            }
+          },
+          "expected": {
+            "ageBand": "PATHFINDER",
+            "strategy": "SWITCH_REPRESENTATION",
+            "maxLength": 200,
+            "skillTitle": "Counting sets of objects",
+            "skillDescription": "Count a set of objects one at a time and give the total.",
+            "allowedVocabulary": [
+              "again",
+              "all together",
+              "answer",
+              "check",
+              "count",
+              "counted",
+              "counting",
+              "each",
+              "group",
+              "guess",
+              "how many",
+              "idea",
+              "last",
+              "look",
+              "many",
+              "notice",
+              "number",
+              "one at a time",
+              "part",
+              "picture",
+              "point",
+              "problem",
+              "puzzle",
+              "same",
+              "set",
+              "show",
+              "sort",
+              "step",
+              "think",
+              "total",
+              "try",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "visual",
+              "game-interaction"
+            ],
+            "hintLevel": 4
+          }
+        },
+        {
+          "name": "comparing-lengths level 1",
+          "input": {
+            "input": {
+              "ageBand": "SPROUT",
+              "skillId": "comparing-lengths",
+              "hintLevel": 1
+            }
+          },
+          "expected": {
+            "ageBand": "SPROUT",
+            "strategy": "ENCOURAGE",
+            "maxLength": 120,
+            "skillTitle": "Comparing and ordering lengths",
+            "skillDescription": "Compare two or more objects by length, directly or by sight.",
+            "allowedVocabulary": [
+              "again",
+              "answer",
+              "check",
+              "compare",
+              "end",
+              "guess",
+              "idea",
+              "line up",
+              "long",
+              "longer",
+              "longest",
+              "look",
+              "match",
+              "notice",
+              "part",
+              "picture",
+              "problem",
+              "puzzle",
+              "same",
+              "short",
+              "shorter",
+              "shortest",
+              "show",
+              "side by side",
+              "size",
+              "sort",
+              "step",
+              "taller",
+              "think",
+              "try",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "visual",
+              "game-interaction"
+            ],
+            "hintLevel": 1
+          }
+        },
+        {
+          "name": "comparing-lengths level 4",
+          "input": {
+            "input": {
+              "ageBand": "PATHFINDER",
+              "skillId": "comparing-lengths",
+              "hintLevel": 4
+            }
+          },
+          "expected": {
+            "ageBand": "PATHFINDER",
+            "strategy": "SWITCH_REPRESENTATION",
+            "maxLength": 200,
+            "skillTitle": "Comparing and ordering lengths",
+            "skillDescription": "Compare two or more objects by length, directly or by sight.",
+            "allowedVocabulary": [
+              "again",
+              "answer",
+              "check",
+              "compare",
+              "end",
+              "guess",
+              "idea",
+              "line up",
+              "long",
+              "longer",
+              "longest",
+              "look",
+              "match",
+              "notice",
+              "part",
+              "picture",
+              "problem",
+              "puzzle",
+              "same",
+              "short",
+              "shorter",
+              "shortest",
+              "show",
+              "side by side",
+              "size",
+              "sort",
+              "step",
+              "taller",
+              "think",
+              "try",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "visual",
+              "game-interaction"
+            ],
+            "hintLevel": 4
+          }
+        },
+        {
+          "name": "addition-within-ten level 1",
+          "input": {
+            "input": {
+              "ageBand": "SPROUT",
+              "skillId": "addition-within-ten",
+              "hintLevel": 1
+            }
+          },
+          "expected": {
+            "ageBand": "SPROUT",
+            "strategy": "ENCOURAGE",
+            "maxLength": 120,
+            "skillTitle": "Addition within ten",
+            "skillDescription": "Add two small groups to find a total of ten or fewer.",
+            "allowedVocabulary": [
+              "add",
+              "adding",
+              "addition",
+              "again",
+              "all together",
+              "answer",
+              "check",
+              "count",
+              "counting",
+              "group",
+              "guess",
+              "how many",
+              "idea",
+              "join",
+              "look",
+              "more",
+              "notice",
+              "number",
+              "part",
+              "picture",
+              "plus",
+              "problem",
+              "puzzle",
+              "same",
+              "show",
+              "sort",
+              "step",
+              "sum",
+              "think",
+              "total",
+              "try",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "numeric",
+              "visual",
+              "game-interaction"
+            ],
+            "hintLevel": 1
+          }
+        },
+        {
+          "name": "addition-within-ten level 4",
+          "input": {
+            "input": {
+              "ageBand": "PATHFINDER",
+              "skillId": "addition-within-ten",
+              "hintLevel": 4
+            }
+          },
+          "expected": {
+            "ageBand": "PATHFINDER",
+            "strategy": "SWITCH_REPRESENTATION",
+            "maxLength": 200,
+            "skillTitle": "Addition within ten",
+            "skillDescription": "Add two small groups to find a total of ten or fewer.",
+            "allowedVocabulary": [
+              "add",
+              "adding",
+              "addition",
+              "again",
+              "all together",
+              "answer",
+              "check",
+              "count",
+              "counting",
+              "group",
+              "guess",
+              "how many",
+              "idea",
+              "join",
+              "look",
+              "more",
+              "notice",
+              "number",
+              "part",
+              "picture",
+              "plus",
+              "problem",
+              "puzzle",
+              "same",
+              "show",
+              "sort",
+              "step",
+              "sum",
+              "think",
+              "total",
+              "try",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "numeric",
+              "visual",
+              "game-interaction"
+            ],
+            "hintLevel": 4
+          }
+        },
+        {
+          "name": "patterns level 1",
+          "input": {
+            "input": {
+              "ageBand": "SPROUT",
+              "skillId": "patterns",
+              "hintLevel": 1
+            }
+          },
+          "expected": {
+            "ageBand": "SPROUT",
+            "strategy": "ENCOURAGE",
+            "maxLength": 120,
+            "skillTitle": "Recognizing and continuing patterns",
+            "skillDescription": "Identify a repeating pattern and predict what comes next.",
+            "allowedVocabulary": [
+              "again",
+              "answer",
+              "check",
+              "color",
+              "copy",
+              "guess",
+              "idea",
+              "look",
+              "next",
+              "notice",
+              "order",
+              "part",
+              "pattern",
+              "patterns",
+              "picture",
+              "problem",
+              "puzzle",
+              "repeat",
+              "repeating",
+              "rule",
+              "same",
+              "shape",
+              "show",
+              "sort",
+              "step",
+              "think",
+              "try",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "visual",
+              "game-interaction"
+            ],
+            "hintLevel": 1
+          }
+        },
+        {
+          "name": "patterns level 4",
+          "input": {
+            "input": {
+              "ageBand": "PATHFINDER",
+              "skillId": "patterns",
+              "hintLevel": 4
+            }
+          },
+          "expected": {
+            "ageBand": "PATHFINDER",
+            "strategy": "SWITCH_REPRESENTATION",
+            "maxLength": 200,
+            "skillTitle": "Recognizing and continuing patterns",
+            "skillDescription": "Identify a repeating pattern and predict what comes next.",
+            "allowedVocabulary": [
+              "again",
+              "answer",
+              "check",
+              "color",
+              "copy",
+              "guess",
+              "idea",
+              "look",
+              "next",
+              "notice",
+              "order",
+              "part",
+              "pattern",
+              "patterns",
+              "picture",
+              "problem",
+              "puzzle",
+              "repeat",
+              "repeating",
+              "rule",
+              "same",
+              "shape",
+              "show",
+              "sort",
+              "step",
+              "think",
+              "try",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "visual",
+              "game-interaction"
+            ],
+            "hintLevel": 4
+          }
+        },
+        {
+          "name": "measurement level 1",
+          "input": {
+            "input": {
+              "ageBand": "SPROUT",
+              "skillId": "measurement",
+              "hintLevel": 1
+            }
+          },
+          "expected": {
+            "ageBand": "SPROUT",
+            "strategy": "ENCOURAGE",
+            "maxLength": 120,
+            "skillTitle": "Measuring and comparing size",
+            "skillDescription": "Measure an object using a non-standard or standard unit and compare results.",
+            "allowedVocabulary": [
+              "again",
+              "answer",
+              "check",
+              "compare",
+              "count",
+              "counting",
+              "end",
+              "guess",
+              "how many",
+              "idea",
+              "long",
+              "longer",
+              "look",
+              "measure",
+              "measurement",
+              "measuring",
+              "notice",
+              "part",
+              "picture",
+              "problem",
+              "puzzle",
+              "ruler",
+              "same",
+              "shorter",
+              "show",
+              "size",
+              "sort",
+              "start",
+              "step",
+              "think",
+              "try",
+              "unit",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "visual",
+              "numeric",
+              "game-interaction"
+            ],
+            "hintLevel": 1
+          }
+        },
+        {
+          "name": "measurement level 4",
+          "input": {
+            "input": {
+              "ageBand": "PATHFINDER",
+              "skillId": "measurement",
+              "hintLevel": 4
+            }
+          },
+          "expected": {
+            "ageBand": "PATHFINDER",
+            "strategy": "SWITCH_REPRESENTATION",
+            "maxLength": 200,
+            "skillTitle": "Measuring and comparing size",
+            "skillDescription": "Measure an object using a non-standard or standard unit and compare results.",
+            "allowedVocabulary": [
+              "again",
+              "answer",
+              "check",
+              "compare",
+              "count",
+              "counting",
+              "end",
+              "guess",
+              "how many",
+              "idea",
+              "long",
+              "longer",
+              "look",
+              "measure",
+              "measurement",
+              "measuring",
+              "notice",
+              "part",
+              "picture",
+              "problem",
+              "puzzle",
+              "ruler",
+              "same",
+              "shorter",
+              "show",
+              "size",
+              "sort",
+              "start",
+              "step",
+              "think",
+              "try",
+              "unit",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "visual",
+              "numeric",
+              "game-interaction"
+            ],
+            "hintLevel": 4
+          }
+        },
+        {
+          "name": "subtraction-within-ten level 1",
+          "input": {
+            "input": {
+              "ageBand": "SPROUT",
+              "skillId": "subtraction-within-ten",
+              "hintLevel": 1
+            }
+          },
+          "expected": {
+            "ageBand": "SPROUT",
+            "strategy": "ENCOURAGE",
+            "maxLength": 120,
+            "skillTitle": "Subtraction within ten",
+            "skillDescription": "Take away part of a group of ten or fewer and find how many remain.",
+            "allowedVocabulary": [
+              "again",
+              "answer",
+              "away",
+              "check",
+              "count",
+              "counting",
+              "fewer",
+              "group",
+              "guess",
+              "how many",
+              "idea",
+              "left",
+              "less",
+              "look",
+              "minus",
+              "notice",
+              "number",
+              "part",
+              "picture",
+              "problem",
+              "puzzle",
+              "same",
+              "show",
+              "sort",
+              "step",
+              "subtract",
+              "subtracting",
+              "subtraction",
+              "take away",
+              "think",
+              "try",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "numeric",
+              "word-problem"
+            ],
+            "hintLevel": 1
+          }
+        },
+        {
+          "name": "subtraction-within-ten level 4",
+          "input": {
+            "input": {
+              "ageBand": "PATHFINDER",
+              "skillId": "subtraction-within-ten",
+              "hintLevel": 4
+            }
+          },
+          "expected": {
+            "ageBand": "PATHFINDER",
+            "strategy": "SWITCH_REPRESENTATION",
+            "maxLength": 200,
+            "skillTitle": "Subtraction within ten",
+            "skillDescription": "Take away part of a group of ten or fewer and find how many remain.",
+            "allowedVocabulary": [
+              "again",
+              "answer",
+              "away",
+              "check",
+              "count",
+              "counting",
+              "fewer",
+              "group",
+              "guess",
+              "how many",
+              "idea",
+              "left",
+              "less",
+              "look",
+              "minus",
+              "notice",
+              "number",
+              "part",
+              "picture",
+              "problem",
+              "puzzle",
+              "same",
+              "show",
+              "sort",
+              "step",
+              "subtract",
+              "subtracting",
+              "subtraction",
+              "take away",
+              "think",
+              "try",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "numeric",
+              "word-problem"
+            ],
+            "hintLevel": 4
+          }
+        },
+        {
+          "name": "observation level 1",
+          "input": {
+            "input": {
+              "ageBand": "SPROUT",
+              "skillId": "observation",
+              "hintLevel": 1
+            }
+          },
+          "expected": {
+            "ageBand": "SPROUT",
+            "strategy": "ENCOURAGE",
+            "maxLength": 120,
+            "skillTitle": "Careful observation of the natural world",
+            "skillDescription": "Look closely at something and say what you notice about it.",
+            "allowedVocabulary": [
+              "again",
+              "answer",
+              "check",
+              "closer",
+              "different",
+              "guess",
+              "idea",
+              "look",
+              "looking",
+              "notice",
+              "noticed",
+              "part",
+              "picture",
+              "problem",
+              "puzzle",
+              "same",
+              "see",
+              "shape",
+              "show",
+              "sort",
+              "step",
+              "think",
+              "try",
+              "watch",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "visual",
+              "game-interaction"
+            ],
+            "hintLevel": 1
+          }
+        },
+        {
+          "name": "observation level 4",
+          "input": {
+            "input": {
+              "ageBand": "PATHFINDER",
+              "skillId": "observation",
+              "hintLevel": 4
+            }
+          },
+          "expected": {
+            "ageBand": "PATHFINDER",
+            "strategy": "SWITCH_REPRESENTATION",
+            "maxLength": 200,
+            "skillTitle": "Careful observation of the natural world",
+            "skillDescription": "Look closely at something and say what you notice about it.",
+            "allowedVocabulary": [
+              "again",
+              "answer",
+              "check",
+              "closer",
+              "different",
+              "guess",
+              "idea",
+              "look",
+              "looking",
+              "notice",
+              "noticed",
+              "part",
+              "picture",
+              "problem",
+              "puzzle",
+              "same",
+              "see",
+              "shape",
+              "show",
+              "sort",
+              "step",
+              "think",
+              "try",
+              "watch",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "visual",
+              "game-interaction"
+            ],
+            "hintLevel": 4
+          }
+        },
+        {
+          "name": "classification level 1",
+          "input": {
+            "input": {
+              "ageBand": "SPROUT",
+              "skillId": "classification",
+              "hintLevel": 1
+            }
+          },
+          "expected": {
+            "ageBand": "SPROUT",
+            "strategy": "ENCOURAGE",
+            "maxLength": 120,
+            "skillTitle": "Sorting things by what they are",
+            "skillDescription": "Put things into groups by shape, colour, or what they are used for.",
+            "allowedVocabulary": [
+              "again",
+              "answer",
+              "belong",
+              "check",
+              "different",
+              "group",
+              "grouping",
+              "guess",
+              "idea",
+              "kind",
+              "look",
+              "match",
+              "notice",
+              "part",
+              "picture",
+              "problem",
+              "puzzle",
+              "same",
+              "set",
+              "show",
+              "sort",
+              "sorting",
+              "step",
+              "think",
+              "together",
+              "try",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "visual",
+              "game-interaction"
+            ],
+            "hintLevel": 1
+          }
+        },
+        {
+          "name": "classification level 4",
+          "input": {
+            "input": {
+              "ageBand": "PATHFINDER",
+              "skillId": "classification",
+              "hintLevel": 4
+            }
+          },
+          "expected": {
+            "ageBand": "PATHFINDER",
+            "strategy": "SWITCH_REPRESENTATION",
+            "maxLength": 200,
+            "skillTitle": "Sorting things by what they are",
+            "skillDescription": "Put things into groups by shape, colour, or what they are used for.",
+            "allowedVocabulary": [
+              "again",
+              "answer",
+              "belong",
+              "check",
+              "different",
+              "group",
+              "grouping",
+              "guess",
+              "idea",
+              "kind",
+              "look",
+              "match",
+              "notice",
+              "part",
+              "picture",
+              "problem",
+              "puzzle",
+              "same",
+              "set",
+              "show",
+              "sort",
+              "sorting",
+              "step",
+              "think",
+              "together",
+              "try",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "visual",
+              "game-interaction"
+            ],
+            "hintLevel": 4
+          }
+        },
+        {
+          "name": "cause-and-effect level 1",
+          "input": {
+            "input": {
+              "ageBand": "SPROUT",
+              "skillId": "cause-and-effect",
+              "hintLevel": 1
+            }
+          },
+          "expected": {
+            "ageBand": "SPROUT",
+            "strategy": "ENCOURAGE",
+            "maxLength": 120,
+            "skillTitle": "Understanding cause and effect",
+            "skillDescription": "Say what happens next, and why one thing made another thing happen.",
+            "allowedVocabulary": [
+              "after",
+              "again",
+              "answer",
+              "because",
+              "before",
+              "check",
+              "guess",
+              "happen",
+              "happened",
+              "happens",
+              "idea",
+              "look",
+              "made",
+              "next",
+              "notice",
+              "part",
+              "picture",
+              "problem",
+              "puzzle",
+              "reason",
+              "same",
+              "show",
+              "so",
+              "sort",
+              "step",
+              "then",
+              "think",
+              "try",
+              "way",
+              "why"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "visual",
+              "word-problem",
+              "game-interaction"
+            ],
+            "hintLevel": 1
+          }
+        },
+        {
+          "name": "cause-and-effect level 4",
+          "input": {
+            "input": {
+              "ageBand": "PATHFINDER",
+              "skillId": "cause-and-effect",
+              "hintLevel": 4
+            }
+          },
+          "expected": {
+            "ageBand": "PATHFINDER",
+            "strategy": "SWITCH_REPRESENTATION",
+            "maxLength": 200,
+            "skillTitle": "Understanding cause and effect",
+            "skillDescription": "Say what happens next, and why one thing made another thing happen.",
+            "allowedVocabulary": [
+              "after",
+              "again",
+              "answer",
+              "because",
+              "before",
+              "check",
+              "guess",
+              "happen",
+              "happened",
+              "happens",
+              "idea",
+              "look",
+              "made",
+              "next",
+              "notice",
+              "part",
+              "picture",
+              "problem",
+              "puzzle",
+              "reason",
+              "same",
+              "show",
+              "so",
+              "sort",
+              "step",
+              "then",
+              "think",
+              "try",
+              "way",
+              "why"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "visual",
+              "word-problem",
+              "game-interaction"
+            ],
+            "hintLevel": 4
+          }
+        },
+        {
+          "name": "animal-science level 1",
+          "input": {
+            "input": {
+              "ageBand": "SPROUT",
+              "skillId": "animal-science",
+              "hintLevel": 1
+            }
+          },
+          "expected": {
+            "ageBand": "SPROUT",
+            "strategy": "ENCOURAGE",
+            "maxLength": 120,
+            "skillTitle": "Learning how animals live and behave",
+            "skillDescription": "Find out what an animal eats, where it lives, and how it moves.",
+            "allowedVocabulary": [
+              "again",
+              "animal",
+              "animals",
+              "answer",
+              "check",
+              "eat",
+              "eats",
+              "food",
+              "guess",
+              "home",
+              "idea",
+              "live",
+              "lives",
+              "look",
+              "move",
+              "moves",
+              "nest",
+              "notice",
+              "part",
+              "picture",
+              "problem",
+              "puzzle",
+              "same",
+              "show",
+              "sort",
+              "step",
+              "think",
+              "try",
+              "way",
+              "wing",
+              "wings"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "visual",
+              "word-problem"
+            ],
+            "hintLevel": 1
+          }
+        },
+        {
+          "name": "animal-science level 4",
+          "input": {
+            "input": {
+              "ageBand": "PATHFINDER",
+              "skillId": "animal-science",
+              "hintLevel": 4
+            }
+          },
+          "expected": {
+            "ageBand": "PATHFINDER",
+            "strategy": "SWITCH_REPRESENTATION",
+            "maxLength": 200,
+            "skillTitle": "Learning how animals live and behave",
+            "skillDescription": "Find out what an animal eats, where it lives, and how it moves.",
+            "allowedVocabulary": [
+              "again",
+              "animal",
+              "animals",
+              "answer",
+              "check",
+              "eat",
+              "eats",
+              "food",
+              "guess",
+              "home",
+              "idea",
+              "live",
+              "lives",
+              "look",
+              "move",
+              "moves",
+              "nest",
+              "notice",
+              "part",
+              "picture",
+              "problem",
+              "puzzle",
+              "same",
+              "show",
+              "sort",
+              "step",
+              "think",
+              "try",
+              "way",
+              "wing",
+              "wings"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "visual",
+              "word-problem"
+            ],
+            "hintLevel": 4
+          }
+        },
+        {
+          "name": "not-a-skill level 1",
+          "input": {
+            "input": {
+              "ageBand": "SPROUT",
+              "skillId": "not-a-skill",
+              "hintLevel": 1
+            }
+          },
+          "expected": null
+        },
+        {
+          "name": "not-a-skill level 4",
+          "input": {
+            "input": {
+              "ageBand": "PATHFINDER",
+              "skillId": "not-a-skill",
+              "hintLevel": 4
+            }
+          },
+          "expected": null
+        },
+        {
+          "name": "known and unknown prerequisites, quest copy, authored text",
+          "input": {
+            "input": {
+              "ageBand": "EXPLORER",
+              "skillId": "subtraction-within-ten",
+              "hintLevel": 5,
+              "masterySummaries": [
+                {
+                  "skillId": "addition-within-ten",
+                  "status": "MASTERED"
+                },
+                {
+                  "skillId": "counting-sets",
+                  "status": "PROFICIENT"
+                }
+              ],
+              "questTitle": "The Lighthouse Lamps",
+              "questStageTitle": "Light the first lamp",
+              "authoredBaseText": "Take away 3 of the 7 shells."
+            }
+          },
+          "expected": {
+            "ageBand": "EXPLORER",
+            "strategy": "EXPLAIN",
+            "maxLength": 320,
+            "skillTitle": "Subtraction within ten",
+            "skillDescription": "Take away part of a group of ten or fewer and find how many remain.",
+            "allowedVocabulary": [
+              "again",
+              "answer",
+              "away",
+              "check",
+              "count",
+              "counting",
+              "fewer",
+              "group",
+              "guess",
+              "how many",
+              "idea",
+              "left",
+              "less",
+              "look",
+              "minus",
+              "notice",
+              "number",
+              "part",
+              "picture",
+              "problem",
+              "puzzle",
+              "same",
+              "show",
+              "sort",
+              "step",
+              "subtract",
+              "subtracting",
+              "subtraction",
+              "take away",
+              "think",
+              "try",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [
+              "Addition within ten"
+            ],
+            "allowedRepresentations": [
+              "numeric",
+              "word-problem"
+            ],
+            "questTitle": "The Lighthouse Lamps",
+            "questStageTitle": "Light the first lamp",
+            "hintLevel": 5,
+            "authoredBaseText": "Take away 3 of the 7 shells."
+          }
+        },
+        {
+          "name": "a developing prerequisite is not known",
+          "input": {
+            "input": {
+              "ageBand": "SPROUT",
+              "skillId": "classification",
+              "hintLevel": 2,
+              "masterySummaries": [
+                {
+                  "skillId": "observation",
+                  "status": "DEVELOPING"
+                }
+              ]
+            }
+          },
+          "expected": {
+            "ageBand": "SPROUT",
+            "strategy": "ASK_GUIDING_QUESTION",
+            "maxLength": 120,
+            "skillTitle": "Sorting things by what they are",
+            "skillDescription": "Put things into groups by shape, colour, or what they are used for.",
+            "allowedVocabulary": [
+              "again",
+              "answer",
+              "belong",
+              "check",
+              "different",
+              "group",
+              "grouping",
+              "guess",
+              "idea",
+              "kind",
+              "look",
+              "match",
+              "notice",
+              "part",
+              "picture",
+              "problem",
+              "puzzle",
+              "same",
+              "set",
+              "show",
+              "sort",
+              "sorting",
+              "step",
+              "think",
+              "together",
+              "try",
+              "way"
+            ],
+            "knownPrerequisiteTitles": [],
+            "allowedRepresentations": [
+              "visual",
+              "game-interaction"
+            ],
+            "hintLevel": 2
+          }
+        }
+      ]
+    },
+    "maxSpokenLengthByAgeBand": {
+      "python": "max_spoken_length_by_age_band",
+      "args": [],
+      "cases": [
+        {
+          "name": "table",
+          "input": {},
+          "expected": {
+            "SPROUT": 120,
+            "PATHFINDER": 200,
+            "EXPLORER": 320
+          }
+        }
+      ]
+    },
+    "companionFallbackTurns": {
+      "python": "companion_fallback_turns",
+      "args": [],
+      "cases": [
+        {
+          "name": "table",
+          "input": {},
+          "expected": {
+            "NARRATE": {
+              "spokenText": "Let's see what's next on the island!",
+              "emotion": "CURIOUS",
+              "intent": "NARRATE",
+              "safetyDisposition": "ALLOW"
+            },
+            "ASK": {
+              "spokenText": "What do you think we should try?",
+              "emotion": "CURIOUS",
+              "intent": "ASK",
+              "safetyDisposition": "ALLOW"
+            },
+            "HINT": {
+              "spokenText": "Take a closer look. You can do this!",
+              "emotion": "ENCOURAGING",
+              "intent": "HINT",
+              "safetyDisposition": "ALLOW"
+            },
+            "CELEBRATE": {
+              "spokenText": "Great work! The island is glad you helped.",
+              "emotion": "CHEERFUL",
+              "intent": "CELEBRATE",
+              "safetyDisposition": "ALLOW"
+            },
+            "REDIRECT": {
+              "spokenText": "Let's save that for a grown-up to help with. Want to keep exploring the island?",
+              "emotion": "CALM",
+              "intent": "REDIRECT",
+              "safetyDisposition": "REDIRECT"
+            }
+          }
+        }
+      ]
+    },
+    "tutorFallbackTurns": {
+      "python": "tutor_fallback_turns",
+      "args": [],
+      "cases": [
+        {
+          "name": "table",
+          "input": {},
+          "expected": {
+            "EXPLAIN": {
+              "spokenText": "Let's walk through it together, one step at a time.",
+              "strategy": "EXPLAIN",
+              "emotion": "CALM",
+              "safetyDisposition": "ALLOW"
+            },
+            "ASK_GUIDING_QUESTION": {
+              "spokenText": "What do you notice first when you look at it?",
+              "strategy": "ASK_GUIDING_QUESTION",
+              "emotion": "CURIOUS",
+              "safetyDisposition": "ALLOW"
+            },
+            "GIVE_HINT": {
+              "spokenText": "Take a closer look. You can do this!",
+              "strategy": "GIVE_HINT",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            },
+            "ENCOURAGE": {
+              "spokenText": "You are working hard on this. Keep going!",
+              "strategy": "ENCOURAGE",
+              "emotion": "ENCOURAGING",
+              "safetyDisposition": "ALLOW"
+            },
+            "SWITCH_REPRESENTATION": {
+              "spokenText": "Let's try looking at it a different way.",
+              "strategy": "SWITCH_REPRESENTATION",
+              "emotion": "CHEERFUL",
+              "safetyDisposition": "ALLOW"
+            },
+            "REDIRECT": {
+              "spokenText": "Let's save that one for a grown-up. Want to keep going with our adventure?",
+              "strategy": "ENCOURAGE",
+              "emotion": "CALM",
+              "safetyDisposition": "REDIRECT"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
