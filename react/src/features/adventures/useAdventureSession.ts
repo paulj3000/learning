@@ -336,6 +336,7 @@ export function useAdventureSession(
       ageBand,
       aiEnabled,
       coopSessionId,
+      definition.slug,
     ],
   );
 
@@ -397,6 +398,7 @@ export function useAdventureSession(
     childProfileId,
     ageBand,
     aiEnabled,
+    definition.slug,
   ]);
 
   useEffect(() => {

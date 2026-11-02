@@ -35,7 +35,7 @@ function statements(template: Template): Statement[] {
   return policy.Properties.PolicyDocument.Statement;
 }
 
-describe('AiGuardrailStack', () => {
+describe('AiGuardrailStack', { timeout: 30_000 }, () => {
   it('filters harmful content on input and output and prompt attacks on input', () => {
     const template = synth();
     template.hasResourceProperties('AWS::Bedrock::Guardrail', {

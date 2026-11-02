@@ -16,13 +16,23 @@ def run(child, *args):
     from io import StringIO
 
     out = StringIO()
-    call_command("ai_live_check", "--child", str(child.pk), *args, stdout=out)
+    call_command(
+        "ai_live_check",
+        "--parent-sub",
+        child.parent.cognito_sub,
+        "--child",
+        str(child.pk),
+        *args,
+        stdout=out,
+    )
     return json.loads(out.getvalue())
 
 
 def test_refuses_to_prove_anything_without_bedrock(families):
     with pytest.raises(CommandError, match="not bedrock"):
-        call_command("ai_live_check", "--child", str(families.a1.pk))
+        call_command(
+            "ai_live_check", "--parent-sub", families.a.cognito_sub, "--child", str(families.a1.pk)
+        )
 
 
 def test_a_rehearsal_passes_and_prints_no_child_data(families, fake_model, capsys):
@@ -57,12 +67,21 @@ def test_a_fallback_fails_the_check(families, fake_model):
         run(families.a1, "--allow-fake")
 
 
-def test_an_unknown_child_or_ai_off_is_refused(families):
-    with pytest.raises(CommandError, match="No such child"):
-        call_command("ai_live_check", "--child", str(uuid.uuid4()), "--allow-fake")
-    with pytest.raises(CommandError, match="No such child"):
-        call_command("ai_live_check", "--child", "not-a-uuid", "--allow-fake")
+def check(parent_sub, child_id):
+    call_command("ai_live_check", "--parent-sub", parent_sub, "--child", child_id, "--allow-fake")
+
+
+def test_an_unknown_or_foreign_child_or_ai_off_is_refused(families):
+    sub = families.a.cognito_sub
+    for parent_sub, child_id in [
+        (sub, str(uuid.uuid4())),
+        (sub, "not-a-uuid"),
+        (sub, str(families.b1.pk)),  # another family's child
+        ("no-such-sub", str(families.a1.pk)),
+    ]:
+        with pytest.raises(CommandError, match="No such child"):
+            check(parent_sub, child_id)
     families.a1.ai_enabled = False
     families.a1.save()
     with pytest.raises(CommandError, match="switched off"):
-        call_command("ai_live_check", "--child", str(families.a1.pk), "--allow-fake")
+        check(sub, str(families.a1.pk))

@@ -1,6 +1,7 @@
 """Live acceptance check for the Django AI service (LAI-0705; docs/AI_SERVICE.md section 9).
 
-    python manage.py ai_live_check --child <uuid> [--warm-up] [--guardrail-probe]
+    python manage.py ai_live_check --parent-sub <cognito sub> --child <uuid> [--warm-up]
+        [--guardrail-probe]
 
 Run it **on the deployed Django host** (for example through the SSM release document), so the
 call uses the real EC2 instance role, the real settings and the deployed Guardrail. It costs
@@ -36,7 +37,8 @@ from apps.ai.models import AIInteractionAudit, SafetyEvent
 from apps.ai.providers import override_model_client
 from apps.ai.services.companion import request_companion_turn
 from apps.ai.services.tutor import request_tutor_turn
-from apps.users.models import ChildProfile
+from apps.users import services as user_services
+from apps.users.models import ParentAccount
 
 WARM_UP_TIMEOUT_SECONDS = 120
 
@@ -70,6 +72,9 @@ class Command(BaseCommand):
     help = "Paid, approval-gated live check of the Django AI routes against Bedrock."
 
     def add_arguments(self, parser):
+        parser.add_argument(
+            "--parent-sub", required=True, help="The test parent's Cognito sub (owns the child)."
+        )
         parser.add_argument("--child", required=True, help="A test child's id (UUID).")
         parser.add_argument("--warm-up", action="store_true")
         parser.add_argument("--guardrail-probe", action="store_true")
@@ -79,13 +84,18 @@ class Command(BaseCommand):
             help="Run against the fake model (tests and rehearsal only).",
         )
 
-    def handle(self, *args, child, warm_up, guardrail_probe, allow_fake, **options):
+    def handle(self, *args, parent_sub, child, warm_up, guardrail_probe, allow_fake, **options):
         provider = settings.LAI_AI_PROVIDER
         if provider != "bedrock" and not allow_fake:
             raise CommandError("LAI_AI_PROVIDER is not bedrock; this check proves nothing here.")
+        # Resolved through its parent, as every child lookup is (LAI-0403): a child id that is
+        # not that parent's is the same "no such child" as a missing one.
+        parent = ParentAccount.objects.filter(cognito_sub=parent_sub).first()
         try:
-            profile = ChildProfile.objects.get(pk=child)
-        except (ChildProfile.DoesNotExist, ValueError, ValidationError):
+            if parent is None:
+                raise user_services.ChildProfileNotFound
+            profile = user_services.get_owned_child_profile(parent, child)
+        except (user_services.ChildProfileNotFound, ValueError, ValidationError):
             raise CommandError("No such child.") from None
         if not profile.ai_enabled:
             raise CommandError("AI is switched off for that child.")
