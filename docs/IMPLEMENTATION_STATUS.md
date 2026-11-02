@@ -12094,3 +12094,63 @@ to 20. Owner checklist: `docs/TREASURE_RUSH_PLAYTEST_CHECKLIST.md`.
 - **Remaining risks:** nobody has seen the cove, so sizes, colours, frame rate on a tablet, the bridge's look and the pacing are unknown. A deployed environment needs `migrate`, `seed_treasure_rush` and `publish_treasure_rush`. Dependencies were installed without the lockfile because `npm ci` refused it, which is the likely cause of the two baseline Vitest failures.
 - **Environment note:** other Claude sessions shared this machine's PostgreSQL container; this work used its own test database name (`lai_trreboot`) to avoid collisions.
 
+
+## Sound Manager Phase 2: Django sound library and published manifests (SM-P2) (2026-11-02, branch `feature/sound-manager`, not merged, not pushed to main, not deployed)
+
+**Acceptance criteria.** Staff configure sounds in Django Admin over audio assets already managed by
+the Asset Library; publishing freezes the configuration; games read a published, read-only manifest
+and load it into the Phase 1 Sound Manager. No React staff screen, no second asset library.
+
+**Branch finding.** `main` has no audio support in its Asset Library; it lives on
+`origin/feature/asset-manager` (AM-13, AM-17, ADR-045). That branch was merged into
+`feature/sound-manager` (merge `ded1135`) so Phase 2 extends the real library. Landing order is in
+`docs/audio/PHASE_2_ASSET_INTEGRATION.md` section 14.
+
+**Built.**
+
+- Django `apps.audio` (migration `0001_initial`): `SoundCue`, `SoundAssignment`, `SoundRelease`; closed
+  event and target vocabulary validated against real Island, Place, 3D Area, Adventure, Quest, NPC,
+  object, chest and reward rows; per-channel deepest-scope-wins resolution; atomic validated publish
+  to immutable releases pinning exact asset versions; rollback as a new release; retirement handling.
+- Django Admin: cue, assignment and release screens, audio preview (Asset Library player), publish
+  page, rollback action, roles `Sound editors` and `Sound publishers` (`ensure_sound_roles`).
+- API: `GET /api/v1/children/<id>/audio/manifests/{islands,places,regions}/<id>/`, child-scoped,
+  published only, revision and ETag, no urls.
+- React: manifest parser, `createManifestSync`, `api/audio` Django source over the shared client and
+  asset resolver, `useAudioManifest`; additive Phase 1 changes (cue cooldown, concurrency and fades,
+  owned definitions, resolver swap, stable cache key, expired-url retry).
+- ADR-047 (Proposed). Registry rows for ADR-046 (Reserved, AI Question Studio on `dev20261102`) and
+  ADR-047. Docs: `docs/audio/PHASE_2_ASSET_INTEGRATION.md`, usage guide, `ASSET_LIBRARY.md` section 22,
+  `DATA_MODEL.md`.
+
+**Tests (all run 2026-11-02, fake browser audio, no Playwright, no browser).**
+
+- Django `apps/audio`: 101 tests. Targeted run of `audio`, `users`, `core`, `assets`, `regions` and
+  `game_sessions/test_sessions`: 931 passed.
+- Django full suite (`lai` and `tests`, 1850 tests, 6 workers): 1848 passed, 2 failed. One failure was mine
+  (the game-cookie route list did not yet include the manifest routes) and is fixed and re-run green;
+  the other is inherited (below).
+- React `src/audio`: 180 passed (the original 94 Phase 1 tests are unchanged and pass; 2 more engine
+  tests were added to that file); `src/api/audio`: 12 passed.
+- `tsc -b`, `oxlint` and Prettier on every touched path, Ruff check and format, `adr:check` and
+  `makemigrations --check`: clean.
+
+**Not run / not verified.** Playwright and any browser; audible output; AWS; a deployed Django; a real
+Cognito sign-in. Treasure Rush and Storykeeper's Castle are not wired to the manifest.
+
+**Existing failures, unrelated to audio.**
+
+- Full Vitest: 3352 passed, 9 failed tests in 16 files. 13 files fail to import `@colyseus/*`, and 3
+  fail because `tsx` is not linked in `node_modules`: both packages are declared and locked but not
+  installed here. `npm install --dry-run` shows it would add them; the real install hung on the
+  network and was stopped, so this was not confirmed fixed. No source file was changed to hide it.
+- `tests/golden/director-content.json` is stale against `content/exported/manifest.json`
+  (pytest `test_content_bound_suite_matches_the_content_export` and the Vitest golden check). Already
+  true on `origin/feature/asset-manager` itself; regenerating needs `npm run golden:generate`
+  (`tsx`).
+- ADR-045's registry title did not match its heading (arrived with the merge); aligned so `adr:check`
+  passes.
+
+**Open.** Owner acceptance of ADR-047; browser and audible verification; sound authoring and a first
+published release; Treasure Rush integration (SM-P4); whether to publish per Island rather than
+library-wide.

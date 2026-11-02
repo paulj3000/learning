@@ -1,7 +1,8 @@
 # Sound Manager architecture (SM-002)
 
-Status: Phase 1 foundation, implemented and unit-tested. Not verified in a real browser (see
-"Verification limits"). Code: `react/src/audio/`.
+Status: Phase 1 foundation, implemented and unit-tested. Phase 2 (Django sound library and
+manifests) is implemented and documented in `PHASE_2_ASSET_INTEGRATION.md`. Not verified in a real
+browser (see "Verification limits"). Code: `react/src/audio/`, `lai/apps/audio/`.
 
 ## Goals and non-goals
 
@@ -15,8 +16,7 @@ narration, text to speech, persisted preferences, ducking. Each is designed for 
 
 These are scoped to this feature, like TR-D*. They do not override any accepted ADR: ADR-020
 (Three.js only, engine emits typed events), ADR-033 (one Django backbone), ADR-035 and ADR-042
-(Django-controlled private asset storage). A formal ADR number is to be assigned when this branch
-merges, to avoid colliding with ADR ids allocated on other open branches.
+(Django-controlled private asset storage). These are recorded formally in ADR-047 (Proposed).
 
 | ID | Decision | Why |
 |---|---|---|
@@ -155,7 +155,12 @@ answers or awards progress. Audio fits that rule: a scene, or the React view tha
 adds a spatial voice type that reuses `engine.getContext()` as the `AudioListener`'s context, so there
 is still one `AudioContext`. Nothing in Phase 1 depends on Three.js.
 
-## Django Admin integration (future)
+## Django integration (built in Phase 2)
+
+Implemented; see `PHASE_2_ASSET_INTEGRATION.md` and ADR-047. The paragraph below is the original
+plan, kept for the record.
+
+## Django Admin integration (original plan)
 
 Per the project rules there is no React audio administration. Phases 2 and 3 add an audio asset kind
 to the Django asset catalogue (`docs/ASSET_MANAGER.md` AM-13), managed only in Django Admin: upload,

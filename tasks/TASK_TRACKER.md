@@ -256,9 +256,19 @@ Vitest and fakes only; no real-browser audio check has been run.
 - [x] **SM-008** Error handling, silent fallback and diagnostics ring. DONE
 - [x] **SM-009** React integration (`SoundProvider`, `useSound`, `useSoundScope`, `useSoundSettings`, `useAudioStatus`), StrictMode-safe. DONE; no game wired in
 - [x] **SM-010** Tests and developer guide (`docs/audio/SOUND_MANAGER_USAGE.md`). DONE: 94 Vitest tests in `react/src/audio`
-- [ ] **SM-P2** Django audio asset kind, metadata and publishing; Django Admin only (depends: AM-13, LAI-0404; may need an ADR)
-- [ ] **SM-P3** Resolver for published audio, definition catalogue endpoint, tags and categories (depends: SM-P2)
-- [ ] **SM-P4** Treasure Rush integration behind a scope (depends: SM-P3, TR-9; supersedes TR-D19)
+- [x] **SM-P2** Django sound library, cue definitions, publishing and manifest API; React manifest adapter (depends: AM-13, ADR-045). DONE 2026-11-02 on `feature/sound-manager` (unit-tested; ADR-047 Proposed, owner acceptance pending; not heard in a browser, nothing deployed). Needs `origin/feature/asset-manager`, merged into this branch because `main` has no audio support. Sub-tasks:
+  - [x] **SM-P2-01** Audit of the Asset Library's audio support and gap analysis (`docs/audio/PHASE_2_ASSET_INTEGRATION.md`). Finding: audio exists only on `feature/asset-manager`
+  - [x] **SM-P2-02** `SoundCue` (stable id, channel, asset reference, mix settings), `apps/audio`, migration `0001`
+  - [x] **SM-P2-03** Django Admin: cues (preview, filter, search, status, enable and disable), assignments, releases, publish page, rollback action
+  - [x] **SM-P2-04** `SoundAssignment` over Island, Place and 3D Area with a closed event and target vocabulary, validated against real rows; deepest scope wins per channel
+  - [x] **SM-P2-05** Immutable `SoundRelease` snapshots pinning exact asset versions; atomic publish; draft isolation; retirement handling; rollback
+  - [x] **SM-P2-06** Read-only child-scoped manifest API for Islands, Places and 3D Areas (revision, ETag, no urls)
+  - [x] **SM-P2-07** React: manifest parser and sync, Django audio source, `useAudioManifest`, expired-url recovery, owned definitions
+  - [x] **SM-P2-08** Permissions (`Sound editors`, `Sound publishers`), read-only API, no new auth, audit through admin history and release records
+  - [x] **SM-P2-09** Tests: Django `apps/audio` and React `src/audio`, `src/api/audio`
+  - [x] **SM-P2-10** Documentation, tracker, ADR-047 (Proposed)
+- [ ] **SM-P3** Sound library reporting (unassigned and orphaned cues), tags and search, per-Island releases if needed (depends: SM-P2). The published-audio resolver and the manifest endpoint were delivered by SM-P2
+- [ ] **SM-P4** Treasure Rush integration behind a scope (depends: SM-P2, TR-9; supersedes TR-D19). Ready to start once a sound library is authored and published
 - [ ] **SM-P5** Persisted sound preferences per child profile, parent controls (depends: LAI-0301)
 - [ ] **SM-P6** Playlists, music transitions and ducking
 - [ ] **SM-P7** Spatial audio for Three.js scenes on the shared `AudioContext` (depends: SM-P4)

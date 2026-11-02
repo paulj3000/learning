@@ -93,3 +93,35 @@ render(<SoundProvider manager={manager}>...</SoundProvider>);
 
 `manager.getDiagnostics()` returns recent `{ code, soundId, message, at, count }` entries. Pass
 `onDiagnostic` to `createSoundManager` to forward them (the future telemetry hook).
+
+## 9. Sounds configured in Django (Phase 2)
+
+Staff define sound cues, assign them to events and publish a release in Django Admin
+(`PHASE_2_ASSET_INTEGRATION.md`). A game does not register those sounds by hand.
+
+```tsx
+const source = useMemo(() => djangoAudioSourceFor(childId), [childId]);
+const scope = useMemo(() => ({ type: 'region', id: regionId }) as const, [regionId]);
+const audio = useAudioManifest(source, scope); // status: idle | loading | ready | failed
+
+void audio.trigger('on_open', 'chest', chestEntityId); // plays what staff assigned, if anything
+void manager.play('sfx.coin.collect'); // or play any manifest sound by its cue id
+```
+
+- The manifest sounds are registered while the component is mounted and removed on unmount.
+- `trigger` resolves `null` when nothing is assigned, the manifest failed, or the audio is gone.
+  Never branch the game on it.
+- `djangoAudioSourceFor` is `null` without the Django API; the hook then stays `idle`.
+- Cue ids that Django publishes are owned by the manifest. Do not `register` the same id yourself;
+  the manifest sound is refused and a diagnostic is recorded.
+- Cue settings that Django controls: volume, loop, stream, priority, concurrency limit, cooldown,
+  fade in and fade out.
+
+Outside React:
+
+```ts
+const sync = createManifestSync({ manager, fetchManifest, resolver });
+await sync.load({ type: 'region', id: 'treasure-cove' });
+sync.trigger('on_open', 'chest', 'chest-001');
+sync.dispose(); // stops its sounds, removes its definitions
+```
