@@ -241,4 +241,4 @@ are kept separately in the roadmap's section 5 and `docs/IMPLEMENTATION_STATUS.m
 - [ ] **FP-10** Rewards and Discovery Journal (depends: FP-9). IMPLEMENTED; pytest and Vitest
 - [ ] **FP-11** Django Admin authoring and publishing (depends: LAI-0801 stage 1). IMPLEMENTED; pytest
 - [ ] **FP-12** Unit and integration acceptance (depends: FP-2 to FP-11). Development checks pass (see IMPLEMENTATION_STATUS); merge-gate checks not run
-- [ ] **FP-13** Browser playtesting and performance verification (depends: FP-12; needs a Cognito test sign-in, ADR-024 A6). NOT STARTED; scenarios prepared as pending Playwright tests (`react/e2e/firepeak.spec.ts`)
+- [ ] **FP-13** Browser playtesting and performance verification (depends: FP-12; needs a Cognito test sign-in, ADR-024 A6). manual owner playtest PASSED 2026-11-01 (whole adventure, local browser, real Cognito sign-in, reported by the owner); automated Playwright scenarios and Android performance still open

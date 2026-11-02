@@ -11799,3 +11799,19 @@ Branch `feature/lai-0905-photo-clients`.
   - Age-banded NPC dialogue (FP-D9).
   - A third-person camera is out of scope (FP-D3).
   - "Secrets of the Crystal Caverns" content (FP-D8).
+
+## FP-13: owner playtest of The Volcano Awakens (2026-11-01, branch `feature/adr-043-django-content-authoring`)
+
+- **What was run:** the owner played Firepeak Volcano end to end in a local browser.
+  - Setup: Django on this branch with PostgreSQL 16 in docker on port 7432; the React app with
+    `VITE_BACKEND=django`; a real Cognito sign-in against pool `us-west-1_3LU3RSjuH` (us-west-1).
+  - Covered: Professor Ember, the telescope, the lava crossing (including the lava respawn), the
+    valves, the crystal, the rope lift, the return to Ember, and resume after leaving.
+- **Result:** reported by the owner as "it all worked". This is the first browser run of
+  Firepeak, and the first real-Cognito sign-in through this branch's Django API (relevant to
+  ADR-024 gate A6, which is recorded for the gate's owner to close).
+- **Still open:**
+  - The automated Playwright scenarios (`react/e2e/firepeak.spec.ts`, still pending).
+  - Android WebView performance (LAI-2302, approval).
+  - The merge-gate checks.
+  - The 11 GLB models.

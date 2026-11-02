@@ -99,7 +99,7 @@ on that task rather than copying it.
 | FP-10 | Rewards and Discovery Journal | FP-9 | IMPLEMENTED: journal entries as items with `journal` metadata, the badge, the fragment, `FIREPEAK_VOLCANO_AWAKENED`; journal in the backpack | pytest (idempotent grants), Vitest |
 | FP-11 | Django Admin authoring and publishing | LAI-0801 stage 1 | IMPLEMENTED: puzzles, the 3D Area's copy and challenge specs as content versions; puzzle publish and retire actions | pytest |
 | FP-12 | Unit and integration acceptance | FP-2 to FP-11 | IMPLEMENTED for the development checks | See `docs/IMPLEMENTATION_STATUS.md` |
-| FP-13 | Browser playtesting and performance verification | FP-12, a real Cognito sign-in (ADR-024 A6) | NOT STARTED | Not run |
+| FP-13 | Browser playtesting and performance verification | FP-12, a real Cognito sign-in (ADR-024 A6) | PARTLY DONE: manual owner playtest | 2026-11-01: the owner played the whole adventure locally in a browser (Django API on PostgreSQL 7432, Cognito pool `us-west-1_3LU3RSjuH`) and reported "it all worked". Automated Playwright scenarios (`react/e2e/firepeak.spec.ts`) not yet run; Android WebView performance not measured |
 
 ## 6. Browser acceptance scenarios (prepared, not executed)
 
