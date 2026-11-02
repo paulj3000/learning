@@ -153,7 +153,8 @@ export const FIREPEAK_ITEMS: readonly ItemDefinition[] = [
   {
     id: 'journal-volcanic-minerals',
     displayName: 'Volcanic minerals',
-    description: 'When hot, mineral-rich rock cools slowly, tiny pieces line up and grow into crystals.',
+    description:
+      'When hot, mineral-rich rock cools slowly, tiny pieces line up and grow into crystals.',
     category: 'COLLECTIBLE',
     rarity: 'COMMON',
     setId: FIREPEAK_DISCOVERY_JOURNAL_SET_ID,
@@ -267,7 +268,8 @@ export const FIREPEAK_QUESTS: readonly QuestDefinition[] = [
       ),
     ],
     completion: {
-      journalNote: 'You helped Professor Ember explore Firepeak and found a Heart Crystal fragment.',
+      journalNote:
+        'You helped Professor Ember explore Firepeak and found a Heart Crystal fragment.',
       worldChanges: [
         {
           locationSlug: FIREPEAK_PLACE_SLUG,

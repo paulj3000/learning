@@ -89,10 +89,7 @@ export interface ItemDefinition {
 
 /** What a Discovery Journal entry is about. A closed list, so it can be translated. */
 export type JournalSubject =
-  | 'EARTH_SCIENCE'
-  | 'MATHEMATICS'
-  | 'SPATIAL_REASONING'
-  | 'PROBLEM_SOLVING';
+  'EARTH_SCIENCE' | 'MATHEMATICS' | 'SPATIAL_REASONING' | 'PROBLEM_SOLVING';
 
 export interface ItemJournalEntry {
   subject: JournalSubject;

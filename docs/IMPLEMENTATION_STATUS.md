@@ -11815,3 +11815,25 @@ Branch `feature/lai-0905-photo-clients`.
   - Android WebView performance (LAI-2302, approval).
   - The merge-gate checks.
   - The 11 GLB models.
+
+## Merge verification of `feature/adr-043-django-content-authoring` (2026-11-01, not merged or pushed)
+
+- **`make check`, Python half:** passes. Ruff, Ruff format, `manage.py check`,
+  `makemigrations --check`, pytest on PostgreSQL 16 (1302 passed) and the ADR check.
+- **`make js-check`:** passes with `VITE_BACKEND` unset, as in CI. That covers typecheck, oxlint
+  (warnings only), Prettier, Vitest (3284 passed in 308 files) and the production build.
+  - Prettier first flagged two Firepeak files; they were formatted, and the content export check
+    still passes.
+  - With the developer's local `react/.env.local` (`VITE_BACKEND=django`), 4 tests in
+    `IslandLocationPage.test.tsx` and `ChildProfileForm.test.tsx` fail. They pass with the flag
+    unset (24/24), and CI has no such file.
+- **Playwright smoke** (`npx playwright test`): 7 passed, 11 skipped (the pending Firepeak
+  scenarios).
+  - This holds without the local `amplify_outputs.json`. With it, the three "no backend
+    configured" guard tests fail, as expected, because the app is configured. CI has no such file.
+- **Docker image** (`docker build -f lai/Dockerfile .`): **not verified.** `pip install` inside
+  the build cannot resolve PyPI on this machine, even with `--network=host`, while the host
+  resolves it. This is local Docker DNS, not a change on this branch; the Dockerfile and
+  `requirements.txt` are unchanged here.
+- **Open before merge:** the Docker image on a machine with working Docker DNS (or in CI), and
+  the owner's decision to merge.
