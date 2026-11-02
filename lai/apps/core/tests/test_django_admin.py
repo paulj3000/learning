@@ -178,6 +178,7 @@ def test_no_child_owned_record_is_registered_and_child_profiles_are_read_only():
     assert "nickname" not in model_admin.fields and "interests" not in model_admin.fields
     # Only these apps have anything in the admin (regions: 3D Areas and launch points, ADR-041;
     # audio: sound cues, assignments and releases, ADR-047, none of it child data).
+    # question_studio: staff-authored questions and their review history, no child data, ADR-046).
     assert {model._meta.app_label for model in registered} == {
         "ai",
         "assets",
@@ -185,6 +186,7 @@ def test_no_child_owned_record_is_registered_and_child_profiles_are_read_only():
         "auth",
         "catalog",
         "regions",
+        "question_studio",
         "users",
     }
 

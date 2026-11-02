@@ -232,7 +232,9 @@ export function issuedChallenge(r: Reader): IssuedChallenge {
     issuedAt: r.field('issuedAt').string(),
     challenge: {
       skillId: challenge.field('skillId').string(),
-      operation: challenge.field('operation').oneOf(['COUNT', 'ADD', 'SUBTRACT'] as const),
+      operation: challenge
+        .field('operation')
+        .oneOf(['COUNT', 'ADD', 'SUBTRACT', 'MULTIPLY'] as const),
       operands: challenge.field('operands').array((v) => v.integer()),
       responseMode: challenge.field('responseMode').oneOf(['CHOICE', 'NUMBER_INPUT'] as const),
       choices: challenge.field('choices').array((v) => v.integer()),

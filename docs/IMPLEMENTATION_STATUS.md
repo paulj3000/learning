@@ -12154,3 +12154,39 @@ Cognito sign-in. Treasure Rush and Storykeeper's Castle are not wired to the man
 **Open.** Owner acceptance of ADR-047; browser and audible verification; sound authoring and a first
 published release; Treasure Rush integration (SM-P4); whether to publish per Island rather than
 library-wide.
+## Phase 28 - AI Question Studio (2026-11-02)
+
+Branch `features/studio` from `features/ai` (`8764698`); ADR-046 accepted by the owner ("proceed
+as proposed"). Design, operation and limitations: `docs/AI_QUESTION_STUDIO.md`. Nothing was pushed,
+merged or deployed, and no AWS call was made.
+
+- **Implemented (LAI-AQS-001 to 023).** New `apps/question_studio`: question bank with immutable
+  revisions, staff-only generation through the ADR-044 model client in bounded chunks (retries,
+  quotas, kill switch, approved-model list, token and cost record), deterministic validation
+  (structure, arithmetic, contradictory keys, duplicates, safety), a Django Admin workflow
+  (generate, review and edit, approve, publish, bulk, retire, correct), question pools, and a
+  selector that serves published integer-answer questions to Treasure Rush through the existing
+  `ChallengeAttempt`, `grade_answer` and `SkillEvidence` path. Additive migrations:
+  `question_studio/0001`, `game_sessions/0005`. `Operation.MULTIPLY` added; React play client
+  gains a multiplication picture, hints and parser entry.
+- **Checks run (PostgreSQL 16 in Docker, Python 3.13 venv).**
+  `LAI_REQUIRE_POSTGRES=1 pytest apps/question_studio` from `lai/`: 125 passed.
+  `LAI_REQUIRE_POSTGRES=1 pytest` from `lai/`: 1389 passed. `pytest tests` from the root: 354
+  passed. `ruff check .` and `ruff format --check .`: clean. `manage.py check` and
+  `makemigrations --check`: clean. `npm run adr:check`: one failure that predates this work
+  (a reference to the LAI-0209 sign-in decision at the Phase 7 entry, defined only on `main`).
+- **Existing tests changed.** Two admin guard tests now list `question_studio`
+  (`core/tests/test_django_admin.py`, `game_sessions/tests/test_sessions.py`).
+- **Not verified.** Live Bedrock (LAI-0705 approval gate); a browser session in Django Admin (the
+  admin was exercised with the Django test client); deployment.
+- **Multiplication objective (follow-up, 2026-11-02).** Added `multiplication-facts` as a numeracy
+  learning objective and a one-skill Grade 3 slice (Explorers only) to the TypeScript curriculum;
+  regenerated `content/exported/*` and the golden vectors; mirrored the skill in
+  `ai/tutor_content.py`; updated the curriculum and export-count tests (a Pathfinder no longer sees
+  every skill). Checks: `pytest` from the root, 1747 passed; Vitest on curriculum, export, tutor,
+  director, learning profile, region play and the golden vectors, 274 passed; `content:check`,
+  `npm run typecheck` and prettier clean. A full Vitest run showed two slow parity and upload
+  tests timing out under load; both passed when run alone.
+- **LAI-AQS-024 stays open** for live generation and the Admin browser pass only.
+- **ADR-033 exception confirmed** by the owner (2026-11-02). ADR-046 records a bounded exception to "content reaches Django only through
+  the export" (ADR-033): the bank is authored in Django. Merge order is `features/ai` first.

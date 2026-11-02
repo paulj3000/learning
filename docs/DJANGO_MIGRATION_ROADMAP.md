@@ -59,6 +59,7 @@ checks").
 | 21 | Engine extraction into `game/` (Track B) | New. Needs LAI-0201; supersedes Phase 0's "defer `game/`" |
 | 22 | World conversions (Track B) | New. One task per Phaser world, eight in all |
 | 23 | Verification and Phaser retirement (Track B) | New. Parity, performance, Sprouts gate, removal, final check |
+| 28 | AI Question Studio | New, owner brief 2026-11-02. Staff-only Django Admin authoring of AI-drafted questions on the ADR-044 model client; see `docs/AI_QUESTION_STUDIO.md`. Phases 24 to 27 are unassigned |
 
 ## 3. Tasks
 
@@ -772,6 +773,19 @@ every route that renders a playable environment is served by the unified engine;
 island added as pure data (a `WorldDefinition` plus catalog rows, no new route or renderer)
 loads and plays; `ARCHITECTURE.md`, `ROADMAP.md`, `CLAUDE.md`, ADR-007 and ADR-008 notes
 final. Verification: full gate plus e2e.
+
+### Phase 28 - AI Question Studio
+
+Tasks `LAI-AQS-001` to `LAI-AQS-024`, grouped A to F (foundation, Bedrock generation, validation,
+Django Admin, adventure integration, testing). Scope, acceptance and dependencies are in
+`docs/AI_QUESTION_STUDIO.md`; statuses are in `tasks/TASK_TRACKER.md`. Generation, validation,
+approval and publishing are separate operations; no draft is ever child-visible. Live Bedrock
+verification reuses the LAI-0705 approval gate.
+
+Follow-ups `LAI-AQS-025` to `LAI-AQS-028` cover the open gates: live Bedrock verification
+(APPROVAL), a Django Admin browser pass, a task queue for long batches, and adoption by the
+Storykeeper Castle and other adventures. Not started.
+
 
 ## 4. Manual approval points (summary)
 
