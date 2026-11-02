@@ -8,6 +8,7 @@ age band and its AI switch come from Django; the prompt, limits and audit values
 
 import re
 
+from django.conf import settings
 from rest_framework import serializers
 
 from .contracts import INTENTS
@@ -57,13 +58,24 @@ class _TurnRequest(serializers.Serializer):
     hintLevel = serializers.IntegerField(min_value=0, max_value=MAX_HINT_LEVEL, required=False)
     authoredBaseText = _text(MAX_AUTHORED_BASE_TEXT, required=False, allow_blank=True)
 
+    catalog_required: tuple[str, ...] = ()
+
     def validate(self, attrs):
         errors = {}
-        if attrs["contextSource"] == ContextSource.DJANGO_SESSION:
+        source = attrs["contextSource"]
+        if source == ContextSource.DJANGO_CATALOG:
+            if not self.catalog_required:
+                errors["contextSource"] = "Not supported for this route."
+            for name in self.catalog_required:
+                if not attrs.get(name):
+                    errors[name] = "Required for DJANGO_CATALOG."
+        elif source == ContextSource.CLIENT_AUTHORED and not settings.LAI_AI_ALLOW_CLIENT_AUTHORED:
+            errors["contextSource"] = "CLIENT_AUTHORED is disabled here."
+        elif source == ContextSource.DJANGO_SESSION:
             for name in ("sessionId", "stepId"):
                 if not attrs.get(name):
                     errors[name] = "Required for DJANGO_SESSION."
-        else:
+        if source == ContextSource.CLIENT_AUTHORED:
             for name in self.client_required:
                 if attrs.get(name) in (None, ""):
                     errors[name] = "Required for CLIENT_AUTHORED."
@@ -76,6 +88,7 @@ class _TurnRequest(serializers.Serializer):
 
 class CompanionTurnRequest(_TurnRequest):
     client_required = ("templateId", "stepSummary")
+    catalog_required = ("npcId", "nodeId")
 
     intent = serializers.ChoiceField(choices=INTENTS)
     stepSummary = _text(MAX_STEP_SUMMARY, required=False)
@@ -83,6 +96,15 @@ class CompanionTurnRequest(_TurnRequest):
     allowedChoiceIds = serializers.ListField(
         child=_identifier(MAX_CHOICE_ID), max_length=MAX_CHOICE_IDS, required=False
     )
+    # DJANGO_CATALOG (NPC dialogue, LAI-0709): the node whose authored narration hint to voice.
+    npcId = _identifier(MAX_TEMPLATE_ID, required=False)
+    nodeId = _identifier(MAX_CORRELATION_ID, required=False)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if attrs["contextSource"] == ContextSource.DJANGO_CATALOG and attrs["intent"] != "NARRATE":
+            raise serializers.ValidationError({"intent": "NPC narration is NARRATE only."})
+        return attrs
 
 
 class TutorTurnRequest(_TurnRequest):

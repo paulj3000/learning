@@ -21,12 +21,16 @@ import { ApiError } from '../errors';
 export type AiTurnSource = 'AI' | 'FALLBACK';
 
 /** `CLIENT_AUTHORED` until the caller's session runs on Django (LAI-0709). */
-export type AiContextSource = 'CLIENT_AUTHORED' | 'DJANGO_SESSION';
+export type AiContextSource = 'CLIENT_AUTHORED' | 'DJANGO_SESSION' | 'DJANGO_CATALOG';
 
 export interface CompanionTurnBody {
   intent: string;
-  templateId: string;
-  stepSummary: string;
+  templateId?: string;
+  /** Required for CLIENT_AUTHORED; Django builds it itself for the server-owned sources. */
+  stepSummary?: string;
+  /** DJANGO_CATALOG (LAI-0709): the NPC dialogue node whose authored narration Django voices. */
+  npcId?: string;
+  nodeId?: string;
   authoredBaseText?: string;
   learningObjectiveCode?: string;
   hintLevel?: number;

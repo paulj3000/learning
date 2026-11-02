@@ -31,6 +31,12 @@ export interface RequestCompanionTurnInput {
    */
   templateId?: string;
   /**
+   * An NPC dialogue node with an authored narration hint (LAI-0709). With the
+   * Django API, Django reads the topic and fallback text from its own catalog
+   * (`contextSource: DJANGO_CATALOG`) and the browser sends only these ids.
+   */
+  npcNode?: { npcId: string; nodeId: string };
+  /**
    * Parent-facing AI control (docs/ROADMAP.md Phase 7,
    * `ChildProfile.aiEnabled`). Defaults to `true` so every existing caller
    * keeps working unchanged. When explicitly `false`, this call never
@@ -215,17 +221,28 @@ export async function requestDjangoCompanionTurn(
   input: RequestCompanionTurnInput,
 ): Promise<CompanionTurnResult> {
   try {
-    const response = await api.companionTurn(input.childProfileId, {
-      intent: input.intent,
-      templateId: templateIdFor(input.templateId),
-      stepSummary: input.stepSummary,
-      authoredBaseText: input.authoredBaseText,
-      learningObjectiveCode: input.learningObjectiveCode,
-      hintLevel: input.hintLevel,
-      allowedChoiceIds: input.allowedChoiceIds,
-      sessionId: input.sessionId,
-      stepId: input.stepId,
-    });
+    const body = input.npcNode
+      ? {
+          intent: input.intent,
+          contextSource: 'DJANGO_CATALOG' as const,
+          npcId: input.npcNode.npcId,
+          nodeId: input.npcNode.nodeId,
+        }
+      : undefined;
+    const response = await api.companionTurn(
+      input.childProfileId,
+      body ?? {
+        intent: input.intent,
+        templateId: templateIdFor(input.templateId),
+        stepSummary: input.stepSummary,
+        authoredBaseText: input.authoredBaseText,
+        learningObjectiveCode: input.learningObjectiveCode,
+        hintLevel: input.hintLevel,
+        allowedChoiceIds: input.allowedChoiceIds,
+        sessionId: input.sessionId,
+        stepId: input.stepId,
+      },
+    );
     const result = validateCompanionTurn(response.turn, {
       expectedIntent: input.intent,
       maxLength: MAX_SPOKEN_LENGTH_BY_AGE_BAND[input.ageBand],

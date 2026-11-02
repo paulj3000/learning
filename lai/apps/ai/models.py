@@ -75,6 +75,8 @@ class ContextSource(models.TextChoices):
     CLIENT_AUTHORED = "CLIENT_AUTHORED"
     # Django derived it from its own session and catalog rows.
     DJANGO_SESSION = "DJANGO_SESSION"
+    # Django derived it from published catalog content alone (NPC dialogue, LAI-0709).
+    DJANGO_CATALOG = "DJANGO_CATALOG"
 
 
 class AIInteractionAudit(ChildOwnedModel):

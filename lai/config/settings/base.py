@@ -289,6 +289,10 @@ _price_out = os.environ.get("LAI_AI_PRICE_OUTPUT_PER_MTOK_USD", "").strip()
 LAI_AI_PRICE_INPUT_PER_MTOK_USD = float(_price_in) if _price_in else None
 LAI_AI_PRICE_OUTPUT_PER_MTOK_USD = float(_price_out) if _price_out else None
 LAI_AI_PRICE_TABLE_VERSION = os.environ.get("LAI_AI_PRICE_TABLE_VERSION", "").strip()
+# CLIENT_AUTHORED context (the browser's authored copy) is a migration path (LAI-0709). It can
+# be switched off once every caller has a server-owned context; adventures (Amplify sessions)
+# and story scenes (no Django story catalog yet) still need it.
+LAI_AI_ALLOW_CLIENT_AUTHORED = env_bool("LAI_AI_ALLOW_CLIENT_AUTHORED", True)
 # No approved retention period yet (LAI-0707, LAI-0308 gate G9): unset means `ai_retention`
 # refuses to delete unless an operator passes --older-than-days explicitly.
 _retention = os.environ.get("LAI_AI_AUDIT_RETENTION_DAYS", "").strip()

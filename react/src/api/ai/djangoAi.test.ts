@@ -4,7 +4,10 @@ import { ApiError } from '../errors';
 import { createDjangoAiApi, djangoAiApiFor, templateIdFor } from './djangoAi';
 
 function fakeClient(data: unknown = { turn: { spokenText: 'Hi' }, source: 'AI', requestId: 'r1' }) {
-  const request = vi.fn(async () => ({ status: 200, data }));
+  const request = vi.fn(async (_method: string, _path: string, _options?: unknown) => ({
+    status: 200,
+    data,
+  }));
   return { client: { request } as unknown as ApiClient, request };
 }
 

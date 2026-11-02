@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DjangoAiApi } from '../../api/ai/djangoAi';
+import type { CompanionTurnBody, DjangoAiApi } from '../../api/ai/djangoAi';
 import { ApiError } from '../../api/errors';
 
 const { generateCompanionTurn, createAudit, createSafetyEvent, current } = vi.hoisted(() => ({
@@ -40,7 +40,7 @@ const INPUT: RequestCompanionTurnInput = {
 };
 
 function djangoApi(result: unknown) {
-  const companionTurn = vi.fn(async () => {
+  const companionTurn = vi.fn(async (_childId: string, _body: CompanionTurnBody) => {
     if (result instanceof Error) throw result;
     return result as Awaited<ReturnType<DjangoAiApi['companionTurn']>>;
   });
@@ -96,7 +96,7 @@ describe('requestCompanionTurn with the Django backend (LAI-0706)', () => {
   it('never sends the age band, a length limit, or a prompt', async () => {
     const call = djangoApi({ turn: {}, source: 'FALLBACK', requestId: null });
     await requestCompanionTurn(INPUT);
-    const body = call.mock.calls[0][1] as Record<string, unknown>;
+    const body = call.mock.calls[0][1] as unknown as Record<string, unknown>;
     expect(Object.keys(body)).not.toEqual(expect.arrayContaining(['ageBand']));
     expect(body).not.toHaveProperty('maxLength');
     expect(body).not.toHaveProperty('systemPrompt');
@@ -165,5 +165,34 @@ describe('requestCompanionTurn with the Django backend (LAI-0706)', () => {
     generateCompanionTurn.mockResolvedValueOnce({ data: null, errors: [{ message: 'x' }] });
     await requestCompanionTurn(INPUT);
     expect(generateCompanionTurn).toHaveBeenCalledOnce();
+  });
+
+  it('sends only the NPC and node ids for an NPC narration (DJANGO_CATALOG)', async () => {
+    const call = djangoApi({
+      turn: {
+        spokenText: 'Ahoy, friend!',
+        emotion: 'CHEERFUL',
+        intent: 'NARRATE',
+        safetyDisposition: 'ALLOW',
+      },
+      source: 'AI',
+      requestId: 'r',
+    });
+    const result = await requestCompanionTurn({
+      childProfileId: 'child-1',
+      ageBand: 'PATHFINDER',
+      intent: 'NARRATE',
+      stepSummary: 'thanking the child for repairing the harbor bridge',
+      authoredBaseText: 'You fixed my bridge!',
+      templateId: 'npc:pirate-pip',
+      npcNode: { npcId: 'pirate-pip', nodeId: 'pip-bridge-thanks' },
+    });
+    expect(call).toHaveBeenCalledWith('child-1', {
+      intent: 'NARRATE',
+      contextSource: 'DJANGO_CATALOG',
+      npcId: 'pirate-pip',
+      nodeId: 'pip-bridge-thanks',
+    });
+    expect(result.source).toBe('AI');
   });
 });

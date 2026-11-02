@@ -27,7 +27,18 @@ def request_companion_turn(child, data: dict) -> TurnResult:
     max_length = MAX_SPOKEN_LENGTH_BY_AGE_BAND[child.age_band]
     allowed_choice_ids = data.get("allowedChoiceIds") or None
 
-    if data["contextSource"] == ContextSource.DJANGO_SESSION:
+    if data["contextSource"] == ContextSource.DJANGO_CATALOG:
+        narration = ctx.load_npc_narration(data["npcId"], data["nodeId"])
+        authored_base_text = narration.fallback_text
+        allowed_choice_ids = None
+        trusted = {
+            "adventureTemplateId": narration.template_id,
+            "stepSummary": narration.allowed_topic,
+            "authoredBaseText": authored_base_text,
+        }
+        untrusted = {}
+        session_id, step_id = "", data["nodeId"]
+    elif data["contextSource"] == ContextSource.DJANGO_SESSION:
         step = ctx.load_session_step(child, data["sessionId"], data["stepId"])
         hint_level = step.hint_level
         authored_base_text = step.hint_text(hint_level) if intent == "HINT" else step.prompt

@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from apps.adventures import engine
-from apps.catalog.models import AdventureStep
+from apps.catalog.models import AdventureStep, NpcDefinition
 from apps.education.models import SkillProgress
 from apps.game_sessions.models import AdventureSession, SessionKind
 from apps.quests.models import QuestProgress, QuestStatus
@@ -127,3 +127,30 @@ def active_quest_copy(child) -> tuple[str | None, str | None]:
         None,
     )
     return progress.quest.title, stage_title if isinstance(stage_title, str) else None
+
+
+@dataclass(frozen=True)
+class NpcNarration:
+    template_id: str
+    allowed_topic: str
+    fallback_text: str
+
+
+def load_npc_narration(npc_id: str, node_id: str) -> NpcNarration:
+    """The authored narration hint of one dialogue node of an active NPC, or ContextNotFound.
+
+    Published catalog content only (`NpcDefinition.active`); a node without a `narration` hint
+    was never authored for AI re-voicing and is not found here (the opt-in default of
+    `DialogueNode.narration` in react/src/features/npc/types.ts).
+    """
+    npc = NpcDefinition.objects.filter(npc_id=npc_id, active=True).first()
+    dialogue = npc.source.get("dialogue") if npc and isinstance(npc.source, dict) else None
+    for node in dialogue or []:
+        if not isinstance(node, dict) or node.get("id") != node_id:
+            continue
+        narration = node.get("narration")
+        if isinstance(narration, dict):
+            topic, text = narration.get("allowedTopic"), narration.get("fallbackText")
+            if isinstance(topic, str) and topic.strip() and isinstance(text, str) and text.strip():
+                return NpcNarration(f"npc:{npc.npc_id}", topic, text)
+    raise ContextNotFound
