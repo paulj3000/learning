@@ -41,7 +41,12 @@ from apps.quests.services import (
     grant_quest_completion_rewards,
     refresh_active_quests,
 )
-from apps.regions.models import TreasureChest, WorldObjectPlacement, WorldRegion
+from apps.regions.models import (
+    ChestPresentation,
+    TreasureChest,
+    WorldObjectPlacement,
+    WorldRegion,
+)
 
 from .models import (
     OPEN_STATUSES,
@@ -165,6 +170,9 @@ def end_session(session: AdventureSession, status: str = SessionStatus.COMPLETED
 
 
 def chest_is_open(child, chest: TreasureChest) -> bool:
+    # A replay activity (TR-20) never opens: it can always be played again.
+    if chest.presentation == ChestPresentation.REPLAY:
+        return False
     return (
         WorldChange.objects.for_child(child)
         .filter(
@@ -319,6 +327,10 @@ def submit_chest_answer(
         chest = attempt.chest
         if chest is None:  # deleted by an administrator after the challenge was shown
             raise ContentUnavailable
+        if chest.presentation == ChestPresentation.REPLAY:
+            # TR-20: practice only. The attempt and its skill evidence are recorded above; nothing
+            # permanent is written, so repeating the activity can never pay out twice.
+            return ChestOutcome(attempt=attempt, correct=True)
         _, opened = record_world_change(
             child,
             location_slug=chest.region.location.slug,

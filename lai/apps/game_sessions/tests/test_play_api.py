@@ -141,13 +141,15 @@ def test_the_bootstrap_describes_the_published_region_for_this_child(a):
     assert body["region"]["locationSlug"] == "pirate-builder-bay"
     assert body["spawn"]["checkpointId"] == "cove-landing"
     assert [n["npcId"] for n in body["npcs"]] == ["pirate-pip"]
-    # Pip's four chests and the ruins puzzle, in encounter order (TR-14); the first is open to all.
+    # Pip's four chests, the ruins puzzle (TR-14) and the Lookout spyglass (TR-20), in encounter
+    # order; the first is open to all.
     assert [c["entityId"] for c in body["chests"]] == [
         CHEST,
         "cove-grove-chest",
         "cove-beach-chest",
         "cove-ruins-pedestal",
         "cove-final-chest",
+        "cove-lookout-spyglass",  # TR-20: the repeatable activity, locked until the quest is done
     ]
     chest = body["chests"][0]
     assert chest["entityId"] == CHEST and chest["assetId"] == "treasure-chest"

@@ -37,6 +37,7 @@ LANDING, GROVE, BEACH, PEDESTAL, FINAL = (
     "cove-ruins-pedestal",
     "cove-final-chest",
 )
+SPYGLASS = "cove-lookout-spyglass"
 PIP = "cove-pip"
 
 
@@ -164,8 +165,9 @@ def test_the_encounters_unlock_in_order(play):
         BEACH: "PROGRESS",
         PEDESTAL: "PROGRESS",
         FINAL: "PROGRESS",
+        SPYGLASS: "PROGRESS",
     }
-    for entity_id in (GROVE, BEACH, PEDESTAL, FINAL):
+    for entity_id in (GROVE, BEACH, PEDESTAL, FINAL, SPYGLASS):
         refused = play.challenge(entity_id)
         assert refused.status_code == 409 and refused.json()["error"]["code"] == "chest_locked"
     assert not ChallengeAttempt.objects.filter(child=play.child).exists()
@@ -371,7 +373,14 @@ def test_leaving_and_returning_keeps_every_step(play):
     play.come_back()
     region = play.region()
     opened = {c["entityId"]: c["isOpen"] for c in region["chests"]}
-    assert opened == {LANDING: True, GROVE: True, BEACH: False, PEDESTAL: False, FINAL: False}
+    assert opened == {
+        LANDING: True,
+        GROVE: True,
+        BEACH: False,
+        PEDESTAL: False,
+        FINAL: False,
+        SPYGLASS: False,
+    }
     assert play.chest(BEACH)["lockReason"] is None  # the key is still in the backpack
     [entry] = region["quests"]
     done = [o["id"] for o in entry["stages"][0]["objectives"] if o["complete"]]

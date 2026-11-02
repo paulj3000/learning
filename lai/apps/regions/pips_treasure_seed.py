@@ -16,7 +16,10 @@ always point somewhere the child can go):
    rune stones; solving it unlocks the golden chest behind it.
 
 Then the child returns to Pip, whose `TALK_TO` objective completes the quest, records
-`TREASURE_COVE_QUEST_COMPLETE` (TR-17's signal) and grants the explorer badge.
+`TREASURE_COVE_QUEST_COMPLETE` and grants the explorer badge. That world change opens the gate
+and lays the bridge to **Lookout Point** (TR-17), where a spyglass (TR-20) offers one small
+activity the child may repeat: a fresh counting challenge each time, skill evidence recorded, and
+nothing permanent granted.
 
 Items, reward rules and the quest are catalog content from the export
 (`react/src/features/content-export/treasureRushContent.ts`); positions match
@@ -41,6 +44,11 @@ PUZZLE_SOLVED_KEY = "TREASURE_COVE_RUINS_PUZZLE_SOLVED"
 FINAL_CHEST_KEY = "TREASURE_COVE_FINAL_CHEST_OPENED"
 KEY_FOUND_KEY = "TREASURE_COVE_KEY_FOUND"
 QUEST_COMPLETE_KEY = "TREASURE_COVE_QUEST_COMPLETE"
+
+REPLAY_ENTITY_ID = "cove-lookout-spyglass"
+REPLAY_CHANGE_KEY = (
+    "TREASURE_COVE_LOOKOUT_REPLAY"  # unique, and never recorded: a replay never opens
+)
 
 KEY_ITEM_ID = "old-brass-key"
 KEY_ENTITY_ID = "cove-brass-key"
@@ -73,6 +81,16 @@ _SPECS = {
             AgeBand.SPROUT: ("counting-sets", 1, 5, "CHOICE", 3),
             AgeBand.PATHFINDER: ("addition-within-ten", 1, 5, "CHOICE", 3),
             AgeBand.EXPLORER: ("subtraction-within-ten", 0, 10, "CHOICE", 3),
+        },
+    ),
+    # The Lookout spyglass (TR-20): practice that can be repeated, so it stays on skills the
+    # cove already teaches, with the same choice counts as the chests.
+    "replay": (
+        "Lookout spyglass",
+        {
+            AgeBand.SPROUT: ("counting-sets", 1, 5, "CHOICE", 3),
+            AgeBand.PATHFINDER: ("addition-within-ten", 1, 5, "CHOICE", 4),
+            AgeBand.EXPLORER: ("subtraction-within-ten", 0, 10, "NUMBER_INPUT", 0),
         },
     ),
     "final": (
@@ -237,6 +255,36 @@ def seed_pips_treasure(region, get_or_create) -> None:
             "world_change_key": FINAL_CHEST_KEY,
             "clue": "The golden chest is on the stone stage behind the pedestal. Open it!",
             **_bands(_specs("final", get_or_create)),
+        },
+    )
+    seed_lookout_replay(region, get_or_create)
+
+
+def seed_lookout_replay(region, get_or_create) -> None:
+    """The Lookout spyglass (TR-20), created if absent. Locked behind the quest's completion.
+
+    A `REPLAY` chest never opens, records no world change and has no reward rule
+    (`TreasureChest.clean`), so repeating it cannot pay out twice.
+    """
+    x, z = SPOTS["lookout-spyglass"]
+    get_or_create(
+        TreasureChest,
+        {"region": region, "entity_id": REPLAY_ENTITY_ID},
+        {
+            "label": "Lookout spyglass",
+            "asset_id": "",
+            "open_clip": "",
+            "x": x,
+            "z": z,
+            "placeholder_width": 0.8,
+            "placeholder_height": 1.5,
+            "placeholder_depth": 0.8,
+            "presentation": ChestPresentation.REPLAY,
+            "sort_order": 5,
+            "required_world_change_key": QUEST_COMPLETE_KEY,
+            "world_change_key": REPLAY_CHANGE_KEY,
+            "clue": "The Lookout has a spyglass. Peek through it and count what you see!",
+            **_bands(_specs("replay", get_or_create)),
         },
     )
 

@@ -55,7 +55,7 @@ def test_regions_lists_published_regions_with_their_hierarchy(a):
     assert region["location"]["slug"] == "pirate-builder-bay"
     assert region["world"]["slug"] == "learning-adventure-island"
     assert region["available"] is True and region["status"] == "NOT_STARTED"
-    # Pip's four chests (TR-14); the ruins puzzle is not counted as a chest.
+    # Pip's four chests (TR-14); the ruins puzzle and the Lookout replay (TR-20) are not chests.
     assert region["chestsTotal"] == 4 and region["chestsOpened"] == 0
     assert region["resume"] is None and region["thumbnailAssetId"] is None
 

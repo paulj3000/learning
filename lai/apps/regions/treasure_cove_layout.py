@@ -31,11 +31,11 @@ import math
 from pathlib import Path
 
 # Bump whenever the layout changes, so the seed refreshes an existing region's layout.
-LAYOUT_VERSION = 3
+LAYOUT_VERSION = 4
 BOUNDS = {"halfExtentX": 36, "halfExtentZ": 44, "wallThickness": 1}
 SNAPSHOT_PATH = Path(__file__).with_name("treasure_cove_layout.json")
 
-# Where TR-14 to TR-17 put things. The first chest (`cove-chest`, 0, -6) is already seeded.
+# Where TR-14 to TR-17 and TR-20 put things. The first chest (`cove-chest`, 0, -6) is seeded.
 SPOTS = {
     "landing-chest": (0.0, -6.0),
     "grove-hidden-chest": (-30.0, 20.0),
@@ -45,6 +45,38 @@ SPOTS = {
     "ruins-final-chest": (0.0, -32.0),
     "ruins-gate": (0.0, -35.7),
     "lookout-point": (0.0, -42.5),
+    "lookout-spyglass": (2.6, -41.6),
+}
+
+# TR-17: what the quest's completion (QUEST_COMPLETE_KEY, recorded by Django) opens. The client
+# lifts the gate, takes the closed-channel collider out, lays the bridge and hides the sinking
+# planks, on the visit it completes and on every later one. The side colliders of the channel
+# stay, so the bridge is the only way across and nobody can step off it into the water.
+UNLOCK = {
+    "changeKey": "TREASURE_COVE_QUEST_COMPLETE",
+    "openColliders": ["cove-ruins-gate:collider", "cove-channel-gap:collider"],
+    "showWhenOpen": ["cove-bridge", "cove-lookout-lanterns"],
+    "hideWhenOpen": ["cove-broken-bridge"],
+    "liftGates": ["cove-ruins-gate"],
+}
+BRIDGE_HALF_WIDTH = 1.6
+
+# TR-18: the water that shimmers and the fireflies that drift. Decoration only; the client holds
+# both still when the device asks for reduced motion.
+AMBIENCE = {
+    "water": ["cove-channel", "cove-north-shallows", "cove-east-shallows"],
+    "fireflies": [
+        {"id": "cove-fireflies-grove", "x": -24, "z": 8, "radius": 9, "height": 2.4, "count": 28},
+        {"id": "cove-fireflies-ruins", "x": 0, "z": -26, "radius": 10, "height": 3, "count": 24},
+        {
+            "id": "cove-fireflies-lookout",
+            "x": 0,
+            "z": -41.5,
+            "radius": 6,
+            "height": 2.6,
+            "count": 16,
+        },
+    ],
 }
 
 SEA = 0x2F86B8
@@ -248,6 +280,13 @@ def cove_layout() -> dict:
             0.02,
         ),
         _plane("cove-channel", SEA, _rect("cove-channel:area", -36, 36, -40.4, -36.4), 0.02),
+        # Lookout Point (TR-17): sand beyond the channel, and a stone plaza round the flag.
+        _plane(
+            "cove-lookout-sand", SAND, _rect("cove-lookout-sand:area", -36, 36, -44, -40.4), 0.01
+        ),
+        _plane(
+            "cove-lookout-plaza", DAIS, _rect("cove-lookout-plaza:area", -5, 5, -44, -40.4), 0.02
+        ),
         _plane("cove-dais", DAIS, _rect("cove-dais:area", -3, 3, -34.5, -30.5), 0.02),
         {
             "kind": "TILED_GROUND",
@@ -517,15 +556,6 @@ def cove_layout() -> dict:
             "rock",
             _positions(RUBBLE, rotation_y=lambda i: i * 0.9, scale={"x": 2.5, "y": 2, "z": 2.5}),
         ),
-        # The way on, broken: two planks sinking in the channel beyond the gate (TR-17 mends it).
-        _cluster(
-            "cove-broken-bridge",
-            "bridge-plank",
-            [
-                {"x": -0.45, "z": -37.9, "y": -0.05, "rotationY": 0.1},
-                {"x": 0.5, "z": -38.6, "y": -0.08, "rotationY": -0.18},
-            ],
-        ),
     ]
     colliders += [
         _solid(f"cove-pillar-{i}:collider", x, z, 0.45) for i, (x, z) in enumerate(RUIN_PILLARS)
@@ -536,9 +566,17 @@ def cove_layout() -> dict:
     ]
     colliders += [
         _solid("cove-pedestal:collider", PEDESTAL[0], PEDESTAL[1], 0.8),
+        # Closed until the quest is complete (UNLOCK.openColliders).
         {"rect": _rect("cove-ruins-gate:collider", -2, 2, -36, -35.4)},
-        # The channel: nobody crosses to Lookout Point until the gate and bridge open (TR-17).
-        {"rect": _rect("cove-channel:collider", -37, 37, -40.4, -36.4)},
+        # The channel (TR-17): the sides always hold; the gap under the bridge is closed until
+        # the quest is complete (UNLOCK.openColliders), then it is the only way across.
+        {"rect": _rect("cove-channel-west:collider", -37, -BRIDGE_HALF_WIDTH, -40.4, -36.4)},
+        {"rect": _rect("cove-channel-east:collider", BRIDGE_HALF_WIDTH, 37, -40.4, -36.4)},
+        {
+            "rect": _rect(
+                "cove-channel-gap:collider", -BRIDGE_HALF_WIDTH, BRIDGE_HALF_WIDTH, -40.4, -36.4
+            )
+        },
     ]
     procedural += [
         *[
@@ -549,6 +587,13 @@ def cove_layout() -> dict:
         ],
         _procedural("cove-pedestal", "PEDESTAL", *PEDESTAL),
         _procedural("cove-ruins-gate", "GATE", *SPOTS["ruins-gate"]),
+        # The way on, broken: two planks sinking in the channel beyond the gate. TR-17 hides
+        # them and lays the bridge once the quest is complete.
+        _procedural("cove-broken-bridge", "BROKEN_PLANKS", 0, -38.2),
+        _procedural("cove-bridge", "BRIDGE", 0, -37.9, height=5.6),
+        _procedural("cove-lookout-lanterns", "LANTERNS", 0, -41.2),
+        # The spyglass at Lookout Point (TR-20's replay activity stands here).
+        _procedural("cove-lookout-spyglass", "SPYGLASS", *SPOTS["lookout-spyglass"]),
         _procedural("cove-final-torch-0", "TORCH", -2.6, -32.6),
         _procedural("cove-final-torch-1", "TORCH", 2.6, -32.6),
         _procedural("cove-arch-torch-0", "TORCH", -2.4, -15.4),
@@ -640,6 +685,8 @@ def cove_layout() -> dict:
         "ambient": ambient,
         "lights": lights,
         "procedural": procedural,
+        "unlock": UNLOCK,
+        "ambience": AMBIENCE,
     }
 
 

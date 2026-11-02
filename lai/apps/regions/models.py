@@ -215,11 +215,12 @@ class WorldObjectPlacement(Placed):
 
 
 class ChestPresentation(models.TextChoices):
-    """How a chest appears (TR-14). Presentation only; the rules are the same for all three."""
+    """How a chest appears (TR-14). Presentation only, except REPLAY (TR-20): that is a rule."""
 
     CHEST = "CHEST", "Treasure chest"
     HIDDEN = "HIDDEN", "Hidden chest (appears once the child may open it)"
     PUZZLE = "PUZZLE", "Puzzle (answered by touching the answer objects)"
+    REPLAY = "REPLAY", "Replay activity (repeatable; never opens, grants nothing permanent)"
 
 
 class TreasureChest(Placed):
@@ -237,6 +238,11 @@ class TreasureChest(Placed):
       challenge answered by touching objects in the world (`answer_entity_ids`, one per choice,
       in choice order) rather than buttons, and draws no chest of its own.
     - **`clue`.** What Pip says to send the child here, and the hint when it is next.
+
+    TR-20 adds `REPLAY`: a small activity the child may repeat once the adventure is done. It
+    issues a fresh challenge every time and records skill evidence, but never opens, never
+    records `world_change_key`, and has no reward rule, so a replay can never award a second
+    permanent reward. It must be locked behind an earlier encounter (`clean()` enforces both).
     """
 
     region = models.ForeignKey(WorldRegion, on_delete=models.CASCADE, related_name="chests")
@@ -364,6 +370,13 @@ class TreasureChest(Placed):
                         )
         elif answers:
             errors["answer_entity_ids"] = "Only a puzzle has answer objects."
+        if self.presentation == ChestPresentation.REPLAY:
+            if self.reward_rule_id:
+                errors["reward_rule"] = "A replay activity grants nothing permanent."
+            if not self.required_world_change_key:
+                errors["required_world_change_key"] = (
+                    "A replay activity needs the encounter it repeats (the quest's completion)."
+                )
         if self.required_world_change_key and self.required_world_change_key == (
             self.world_change_key
         ):

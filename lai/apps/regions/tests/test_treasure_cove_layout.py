@@ -26,6 +26,10 @@ PROCEDURAL_SHAPES = {
     "PILLAR",
     "PEDESTAL",
     "GATE",
+    "BROKEN_PLANKS",
+    "BRIDGE",
+    "LANTERNS",
+    "SPYGLASS",
 }
 ZONE_FOR_SPOT = {
     "landing-chest": None,  # on the path just south of the yard, in sight of the spawn point
@@ -97,13 +101,62 @@ def test_every_encounter_spot_is_reachable_ground_in_its_zone(layout, spot):
         assert inside(rect, x, z)
 
 
+def colliders_by_id(layout):
+    return {c["rect"]["id"]: c["rect"] for c in layout["colliders"]}
+
+
 def test_lookout_point_is_shut_off_until_the_gate_opens(layout):
-    channel = next(
-        c["rect"] for c in layout["colliders"] if c["rect"]["id"] == "cove-channel:collider"
-    )
-    assert channel["minX"] <= -BOUNDS["halfExtentX"] and channel["maxX"] >= BOUNDS["halfExtentX"]
-    assert channel["minZ"] < SPOTS["ruins-gate"][1] - 1 < channel["maxZ"]  # just past the gate
-    assert SPOTS["lookout-point"][1] < channel["minZ"]
+    # Closed: the gate and the whole channel (west + gap + east) block every crossing.
+    colliders = colliders_by_id(layout)
+    west = colliders["cove-channel-west:collider"]
+    gap = colliders["cove-channel-gap:collider"]
+    east = colliders["cove-channel-east:collider"]
+    assert west["minX"] <= -BOUNDS["halfExtentX"] and east["maxX"] >= BOUNDS["halfExtentX"]
+    assert west["maxX"] == gap["minX"] and gap["maxX"] == east["minX"]  # no crack between them
+    assert west["minZ"] == gap["minZ"] == east["minZ"]
+    assert west["maxZ"] == gap["maxZ"] == east["maxZ"]
+    assert gap["minZ"] < SPOTS["ruins-gate"][1] - 1 < gap["maxZ"]  # just past the gate
+    assert SPOTS["lookout-point"][1] < gap["minZ"]
+
+
+def test_unlock_opens_exactly_the_gate_and_the_gap_so_the_bridge_is_the_only_way(layout):
+    unlock = layout["unlock"]
+    colliders = colliders_by_id(layout)
+    assert unlock["changeKey"] == "TREASURE_COVE_QUEST_COMPLETE"
+    assert sorted(unlock["openColliders"]) == [
+        "cove-channel-gap:collider",
+        "cove-ruins-gate:collider",
+    ]
+    for collider_id in unlock["openColliders"]:
+        assert collider_id in colliders
+    # Once open, the sides still hold: the walkable gap is the bridge's width and no wider.
+    gap = colliders["cove-channel-gap:collider"]
+    bridge = next(p for p in layout["procedural"] if p["id"] == "cove-bridge")
+    assert gap["minX"] < bridge["x"] < gap["maxX"]
+    # The deck spans the channel and the gate's threshold, so the walkable gap is always bridged.
+    half_length = bridge["height"] / 2
+    assert bridge["z"] + half_length >= colliders["cove-ruins-gate:collider"]["minZ"]
+    assert bridge["z"] - half_length <= gap["minZ"]
+    procedural = {p["id"] for p in layout["procedural"]}
+    for placeholder in unlock["showWhenOpen"] + unlock["hideWhenOpen"] + unlock["liftGates"]:
+        assert placeholder in procedural, placeholder
+
+
+def test_lookout_point_is_inside_the_bounds_and_reachable_from_the_bridge(layout):
+    colliders = colliders_by_id(layout)
+    gap = colliders["cove-channel-gap:collider"]
+    for spot in ("lookout-point", "lookout-spyglass"):
+        x, z = SPOTS[spot]
+        assert abs(x) < BOUNDS["halfExtentX"] and abs(z) < BOUNDS["halfExtentZ"]
+        assert z < gap["minZ"]  # beyond the channel
+        for collider in layout["colliders"]:
+            assert not inside(collider["rect"], x, z), (spot, collider["rect"]["id"])
+    # Walking straight from the bridge to the flag meets nothing (no pillar or palm collider).
+    for z in (gap["minZ"] - 0.5, SPOTS["lookout-spyglass"][1], SPOTS["lookout-point"][1]):
+        for collider in layout["colliders"]:
+            if collider["rect"]["id"].startswith("cove-channel"):
+                continue
+            assert not inside(collider["rect"], 0.0, z), (z, collider["rect"]["id"])
 
 
 def test_procedural_placeholders_use_known_shapes(layout):

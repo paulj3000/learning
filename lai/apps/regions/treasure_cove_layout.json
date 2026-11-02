@@ -1,4 +1,37 @@
 {
+ "ambience": {
+  "fireflies": [
+   {
+    "count": 28,
+    "height": 2.4,
+    "id": "cove-fireflies-grove",
+    "radius": 9,
+    "x": -24,
+    "z": 8
+   },
+   {
+    "count": 24,
+    "height": 3,
+    "id": "cove-fireflies-ruins",
+    "radius": 10,
+    "x": 0,
+    "z": -26
+   },
+   {
+    "count": 16,
+    "height": 2.6,
+    "id": "cove-fireflies-lookout",
+    "radius": 6,
+    "x": 0,
+    "z": -41.5
+   }
+  ],
+  "water": [
+   "cove-channel",
+   "cove-north-shallows",
+   "cove-east-shallows"
+  ]
+ },
  "ambient": [
   {
    "appearance": {
@@ -499,10 +532,28 @@
   },
   {
    "rect": {
-    "id": "cove-channel:collider",
-    "maxX": 37,
+    "id": "cove-channel-west:collider",
+    "maxX": -1.6,
     "maxZ": -36.4,
     "minX": -37,
+    "minZ": -40.4
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-channel-east:collider",
+    "maxX": 37,
+    "maxZ": -36.4,
+    "minX": 1.6,
+    "minZ": -40.4
+   }
+  },
+  {
+   "rect": {
+    "id": "cove-channel-gap:collider",
+    "maxX": 1.6,
+    "maxZ": -36.4,
+    "minX": -1.6,
     "minZ": -40.4
    }
   }
@@ -874,6 +925,31 @@
    "z": -35.7
   },
   {
+   "id": "cove-broken-bridge",
+   "shape": "BROKEN_PLANKS",
+   "x": 0,
+   "z": -38.2
+  },
+  {
+   "height": 5.6,
+   "id": "cove-bridge",
+   "shape": "BRIDGE",
+   "x": 0,
+   "z": -37.9
+  },
+  {
+   "id": "cove-lookout-lanterns",
+   "shape": "LANTERNS",
+   "x": 0,
+   "z": -41.2
+  },
+  {
+   "id": "cove-lookout-spyglass",
+   "shape": "SPYGLASS",
+   "x": 2.6,
+   "z": -41.6
+  },
+  {
    "id": "cove-final-torch-0",
    "shape": "TORCH",
    "x": -2.6,
@@ -1037,6 +1113,32 @@
    },
    "color": 3114680,
    "id": "cove-channel",
+   "kind": "FLAT_PLANE",
+   "y": 0.02
+  },
+  {
+   "area": {
+    "id": "cove-lookout-sand:area",
+    "maxX": 36,
+    "maxZ": -40.4,
+    "minX": -36,
+    "minZ": -44
+   },
+   "color": 15325350,
+   "id": "cove-lookout-sand",
+   "kind": "FLAT_PLANE",
+   "y": 0.01
+  },
+  {
+   "area": {
+    "id": "cove-lookout-plaza:area",
+    "maxX": 5,
+    "maxZ": -40.4,
+    "minX": -5,
+    "minZ": -44
+   },
+   "color": 13220239,
+   "id": "cove-lookout-plaza",
    "kind": "FLAT_PLANE",
    "y": 0.02
   },
@@ -2854,27 +2956,25 @@
      "z": -26
     }
    ]
-  },
-  {
-   "assetId": "bridge-plank",
-   "id": "cove-broken-bridge",
-   "kind": "CLUSTER",
-   "positions": [
-    {
-     "rotationY": 0.1,
-     "x": -0.45,
-     "y": -0.05,
-     "z": -37.9
-    },
-    {
-     "rotationY": -0.18,
-     "x": 0.5,
-     "y": -0.08,
-     "z": -38.6
-    }
-   ]
   }
  ],
+ "unlock": {
+  "changeKey": "TREASURE_COVE_QUEST_COMPLETE",
+  "hideWhenOpen": [
+   "cove-broken-bridge"
+  ],
+  "liftGates": [
+   "cove-ruins-gate"
+  ],
+  "openColliders": [
+   "cove-ruins-gate:collider",
+   "cove-channel-gap:collider"
+  ],
+  "showWhenOpen": [
+   "cove-bridge",
+   "cove-lookout-lanterns"
+  ]
+ },
  "zones": [
   {
    "enterMessage": "Pirate Landing. This is Pip's camp.",
