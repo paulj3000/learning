@@ -5,7 +5,7 @@ import type { Construct } from 'constructs';
 import type { AssetEnvironment } from './assetStorageStack';
 
 /**
- * The child-safety Guardrail and the Django AI policy (LAI-0704, ADR-043;
+ * The child-safety Guardrail and the Django AI policy (LAI-0704, ADR-044;
  * docs/AI_SERVICE.md). Synthesized only: deploying it is an approval step
  * (ADR-019 gate G7), and nothing in this repository calls Bedrock at deploy.
  *

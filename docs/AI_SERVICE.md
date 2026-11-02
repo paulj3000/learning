@@ -4,7 +4,7 @@ Status (2026-11-01, branch `features/ai`, unmerged): **implemented and verified 
 provider only.** Live Bedrock has not been called, the Guardrail is not deployed, and the React
 client still uses the Amplify routes. See section 10 for the status ladder.
 
-Decision: ADR-043 (builds on ADR-019 sub-decision 9). Safety principles:
+Decision: ADR-044 (builds on ADR-019 sub-decision 9). Safety principles:
 `docs/AI_AND_CHILD_SAFETY.md`. Code: `lai/apps/ai/`. Infrastructure:
 `infra/lib/aiGuardrailStack.ts`.
 

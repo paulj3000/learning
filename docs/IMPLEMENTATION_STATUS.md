@@ -11760,7 +11760,7 @@ unpublished assets stay private; Amplify Storage stays unchanged until LAI-1301.
 
 ## Phase 7 Django AI service: LAI-0306, LAI-0701 to LAI-0704 (2026-11-01, branch `features/ai`, not merged, not pushed)
 
-Owner-directed (Phase 7 brief); decision ADR-043; reference `docs/AI_SERVICE.md`.
+Owner-directed (Phase 7 brief); decision ADR-044; reference `docs/AI_SERVICE.md`.
 
 **Status, kept separately (docs/AI_SERVICE.md section 10):** (1) implemented: yes. (2) verified
 with the fake provider: yes. (3) live Bedrock verified: **no** (LAI-0705, needs approval). (4)
@@ -11779,7 +11779,7 @@ and no AWS API was called; the Guardrail exists only as synthesized CDK.
   `infra/lib/aiGuardrailStack.ts` and its test, `docs/AI_SERVICE.md`.
 - **Changed.** `lai/config/settings/{base,test,production}.py`, `lai/config/urls.py`, `Makefile`,
   `react/src/test/golden/buildGoldenVectors.ts`, `tests/golden/test_golden_vectors.py`,
-  `scripts/ai-red-team.ts`, `infra/bin/app.ts`, `docs/DECISIONS.md` (ADR-043, ADR-019 row 9),
+  `scripts/ai-red-team.ts`, `infra/bin/app.ts`, `docs/DECISIONS.md` (ADR-044, ADR-019 row 9),
   `docs/DJANGO_MIGRATION_ROADMAP.md`, `tasks/TASK_TRACKER.md`, `docs/ARCHITECTURE.md`,
   `docs/AI_AND_CHILD_SAFETY.md`, `docs/DATA_MODEL.md`. Nothing under `amplify/` or the React
   features changed.

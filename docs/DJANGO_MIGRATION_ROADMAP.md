@@ -320,7 +320,7 @@ parent-viewable, parent-deletable artifacts; JSON scenes validated.
 (1) Django AI functionality implemented, (2) verified with the fake provider, (3) live Bedrock
 verified, (4) React cutover completed, (5) Amplify AI routes retired. 2026-11-01, `features/ai`
 (unmerged, not pushed): LAI-0701 to 0704 at levels 1 and 2; levels 3 to 5 not started. Decision:
-ADR-043.*
+ADR-044.*
 
 **LAI-0701 AI domain without Bedrock. DONE (levels 1-2).** Depends: 0306. Risk M. Acceptance: persona registry
 (copied verbatim from `amplify/data/*Persona.ts`, versioned), request validation (adventure

@@ -938,7 +938,7 @@ adapted onto it:
 | `game_sessions` | AdventureSession (ADVENTURE or REGION), AdventureAction, ChallengeAttempt, CoopSession; answers and hints (LAI-0601); region play (TR-5); native home, discovery and inventory reads, game launch tickets and the game session cookie (LAI-ANDROID-API-001, ADR-036) |
 | `education` | SkillEvidence, SkillProgress, StoryArtifact, ChallengeSpec; Treasure Rush challenge generation and grading (`challenges.py`) |
 | `progression`, `inventory`, `quests` | World changes and state, story and NPC progress; items owned and rules granted; quest progress, with the server-side quest engine (`quests/engine.py`) |
-| `ai` | Chatty's companion and tutor turns (Phase 7, ADR-043, `docs/AI_SERVICE.md`): personas, contracts, provider interface (fake, Bedrock Converse with the child-safety Guardrail), the shared turn pipeline, `AIInteractionAudit` and `SafetyEvent`. Reads catalog, session, skill and quest rows; writes only its own rows |
+| `ai` | Chatty's companion and tutor turns (Phase 7, ADR-044, `docs/AI_SERVICE.md`): personas, contracts, provider interface (fake, Bedrock Converse with the child-safety Guardrail), the shared turn pipeline, `AIInteractionAudit` and `SafetyEvent`. Reads catalog, session, skill and quest rows; writes only its own rows |
 
 **Temporary source-of-truth boundary for spatial data.** Location manifests for the shipped 3D
 regions stay in TypeScript (`runtime/manifests/*.ts`, ADR-032). The Treasure Cove layout is
