@@ -238,6 +238,7 @@ export function useAdventureSession(
         if (correctness === 'correct') {
           setLastSpeaker('companion');
           void requestCompanion({
+            templateId: definition.slug,
             childProfileId,
             ageBand,
             intent: 'CELEBRATE',
@@ -269,6 +270,7 @@ export function useAdventureSession(
           const stepId = currentStep.id;
           setLastSpeaker('companion');
           void requestCompanion({
+            templateId: definition.slug,
             childProfileId,
             ageBand,
             intent: 'NARRATE',
@@ -293,6 +295,7 @@ export function useAdventureSession(
         ) {
           setLastSpeaker('companion');
           void requestCompanion({
+            templateId: definition.slug,
             childProfileId,
             ageBand,
             intent: 'NARRATE',
@@ -359,6 +362,7 @@ export function useAdventureSession(
       setLastSpeaker('tutor');
       setTutorStepId(currentStep.id);
       void requestTutor({
+        templateId: definition.slug,
         childProfileId,
         ageBand,
         skillId,
@@ -372,6 +376,7 @@ export function useAdventureSession(
     }
     setLastSpeaker('companion');
     void requestCompanion({
+      templateId: definition.slug,
       childProfileId,
       ageBand,
       intent: 'HINT',

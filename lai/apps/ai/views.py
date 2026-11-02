@@ -19,12 +19,15 @@ an error that names the cause. Errors are only for the request itself: 400 `vali
 or step that is not this child's.
 """
 
+from django.db import transaction
+from rest_framework import status
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 
 from apps.core.request_context import get_request_id
 from apps.users.scoping import ChildScopedAPIView
 
+from .models import AIInteractionAudit, SafetyAction, SafetyEvent
 from .serializers import CompanionTurnRequest, TutorTurnRequest
 from .services.companion import request_companion_turn
 from .services.context import ContextNotFound
@@ -55,3 +58,45 @@ class TutorTurnView(ChildScopedAPIView):
             raise NotFound from None
         except SkillNotInStep:
             raise ValidationError({"skillId": "Not an objective of this step."}) from None
+
+
+# --- Parent transparency and control (LAI-0706, LAI-0707) ---------------------------------------
+
+SAFETY_EVENT_PAGE = 100
+
+
+def _safety_event(event: SafetyEvent) -> dict:
+    """The fields the parent dashboard shows. `actionTaken` keeps Amplify's sentence."""
+    return {
+        "id": str(event.pk),
+        "category": event.category,
+        "severity": event.severity,
+        "source": event.source,
+        "actionTaken": SafetyAction(event.action_taken).label,
+        "reviewStatus": event.review_status,
+        "createdAt": event.created_at.isoformat(),
+    }
+
+
+class SafetyEventsView(ChildScopedAPIView):
+    """GET .../ai/safety-events/: this child's safety events, newest first, metadata only."""
+
+    def get(self, request, child_id):
+        events = self.scoped(SafetyEvent.objects.all()).order_by("-created_at")[:SAFETY_EVENT_PAGE]
+        return Response({"results": [_safety_event(e) for e in events]})
+
+
+class AIHistoryView(ChildScopedAPIView):
+    """DELETE .../ai/history/: the parent's retention control (Amplify `clearAIHistory`).
+
+    Deletes every audit row and safety event for this child and nothing else: no gameplay,
+    progress or story rows. Returns the counts, never the rows.
+    """
+
+    def delete(self, request, child_id):
+        with transaction.atomic():
+            events, _ = self.scoped(SafetyEvent.objects.all()).delete()
+            audits, _ = self.scoped(AIInteractionAudit.objects.all()).delete()
+        return Response(
+            {"deleted": {"safetyEvents": events, "audits": audits}}, status=status.HTTP_200_OK
+        )

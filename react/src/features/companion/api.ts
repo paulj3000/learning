@@ -1,4 +1,5 @@
 import { client } from '../../lib/data-client';
+import { currentDjangoAiApi, templateIdFor, type DjangoAiApi } from '../../api/ai/djangoAi';
 import { CHATTY_PERSONA_VERSION } from '../../../../amplify/data/chattyPersona';
 import type { AgeBandValue } from '../child-profile/constants';
 import { FALLBACK_TURNS } from './fallback';
@@ -24,6 +25,11 @@ export interface RequestCompanionTurnInput {
   /** Authored, already-correct content the model may rephrase but not contradict. */
   authoredBaseText?: string;
   allowedChoiceIds?: string[];
+  /**
+   * The adventure template (or `npc:<id>`, `story:<id>`) the turn belongs to
+   * (CLAUDE.md section 7). Required by the Django route; ignored by Amplify.
+   */
+  templateId?: string;
   /**
    * Parent-facing AI control (docs/ROADMAP.md Phase 7,
    * `ChildProfile.aiEnabled`). Defaults to `true` so every existing caller
@@ -118,6 +124,8 @@ export async function requestCompanionTurn(
   if (input.aiEnabled === false) {
     return { turn: authoredFallback(input), source: 'FALLBACK' };
   }
+  const django = currentDjangoAiApi();
+  if (django) return requestDjangoCompanionTurn(django, input);
 
   const maxLength = MAX_SPOKEN_LENGTH_BY_AGE_BAND[input.ageBand];
   const startedAt = Date.now();
@@ -193,4 +201,39 @@ export async function requestCompanionTurn(
   }
 
   return { turn, source: fallbackUsed ? 'FALLBACK' : 'AI' };
+}
+
+/**
+ * The Django path (LAI-0706): Django validates, falls back, audits and
+ * records safety events server-side, so the browser writes nothing. The
+ * returned turn is still checked here (defence in depth, CLAUDE.md section
+ * 13); anything unexpected, and any error at all, becomes the authored
+ * fallback. Exported for tests.
+ */
+export async function requestDjangoCompanionTurn(
+  api: DjangoAiApi,
+  input: RequestCompanionTurnInput,
+): Promise<CompanionTurnResult> {
+  try {
+    const response = await api.companionTurn(input.childProfileId, {
+      intent: input.intent,
+      templateId: templateIdFor(input.templateId),
+      stepSummary: input.stepSummary,
+      authoredBaseText: input.authoredBaseText,
+      learningObjectiveCode: input.learningObjectiveCode,
+      hintLevel: input.hintLevel,
+      allowedChoiceIds: input.allowedChoiceIds,
+      sessionId: input.sessionId,
+      stepId: input.stepId,
+    });
+    const result = validateCompanionTurn(response.turn, {
+      expectedIntent: input.intent,
+      maxLength: MAX_SPOKEN_LENGTH_BY_AGE_BAND[input.ageBand],
+      allowedChoiceIds: input.allowedChoiceIds,
+    });
+    if (!result.valid) return { turn: authoredFallback(input), source: 'FALLBACK' };
+    return { turn: result.turn, source: response.source };
+  } catch {
+    return { turn: authoredFallback(input), source: 'FALLBACK' };
+  }
 }
