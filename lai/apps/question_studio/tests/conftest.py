@@ -43,7 +43,9 @@ def author(db):
 
 @pytest.fixture
 def reviewer(db):
-    return make_staff("reviewer", "view_question", "change_question", "approve_question")
+    return make_staff(
+        "reviewer", "view_question", "change_question", "approve_question", "view_questionrevision"
+    )
 
 
 @pytest.fixture
@@ -55,6 +57,7 @@ def publisher(db):
         "retire_revision",
         "change_question",
         "approve_question",
+        "view_questionrevision",
     )
 
 
