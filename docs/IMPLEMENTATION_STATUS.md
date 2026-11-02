@@ -11757,3 +11757,42 @@ unpublished assets stay private; Amplify Storage stays unchanged until LAI-1301.
   typecheck clean, production build passes, oxlint 0 errors and 39 warnings (baseline), Prettier
   clean, `adr:check`, `admin-preview:check`, `content:check` and `golden:check` pass, Playwright 7
   of 7.
+
+## Phase 7 Django AI service: LAI-0306, LAI-0701 to LAI-0704 (2026-11-01, branch `features/ai`, not merged, not pushed)
+
+Owner-directed (Phase 7 brief); decision ADR-043; reference `docs/AI_SERVICE.md`.
+
+**Status, kept separately (docs/AI_SERVICE.md section 10):** (1) implemented: yes. (2) verified
+with the fake provider: yes. (3) live Bedrock verified: **no** (LAI-0705, needs approval). (4)
+React cutover: no (LAI-0706). (5) Amplify AI routes retired: no (LAI-0710). Nothing was deployed
+and no AWS API was called; the Guardrail exists only as synthesized CDK.
+
+- **Acceptance criteria implemented.** LAI-0306 audit models; LAI-0701 personas (verbatim,
+  versioned, drift-tested), contracts and validators (186 golden cases from the TypeScript),
+  fallbacks, fake provider, settings; LAI-0702 companion endpoint and Bedrock Converse client;
+  LAI-0703 tutor endpoint, server-built tutor context, red-team `--target django`; LAI-0704
+  Guardrail and IAM in CDK, input screening, Django output policy, fail-closed configuration,
+  server-written safety events.
+- **Created.** `lai/apps/ai/` (models and migration, contracts, content_safety, jscompat, limits,
+  fallbacks, tutor_content, prompts, providers, services, serializers, views, urls, tests),
+  `tests/golden/ai-safety.json`, `tests/golden/test_ai_safety_python.py`,
+  `infra/lib/aiGuardrailStack.ts` and its test, `docs/AI_SERVICE.md`.
+- **Changed.** `lai/config/settings/{base,test,production}.py`, `lai/config/urls.py`, `Makefile`,
+  `react/src/test/golden/buildGoldenVectors.ts`, `tests/golden/test_golden_vectors.py`,
+  `scripts/ai-red-team.ts`, `infra/bin/app.ts`, `docs/DECISIONS.md` (ADR-043, ADR-019 row 9),
+  `docs/DJANGO_MIGRATION_ROADMAP.md`, `tasks/TASK_TRACKER.md`, `docs/ARCHITECTURE.md`,
+  `docs/AI_AND_CHILD_SAFETY.md`, `docs/DATA_MODEL.md`. Nothing under `amplify/` or the React
+  features changed.
+- **Known gaps.** Known prerequisites in the tutor context are usually empty until LAI-0603
+  computes `SkillProgress.recent_level`. NPC and story turns use `CLIENT_AUTHORED` until
+  LAI-0709. The rate limit is per process (LAI-0708). The structured-output grammar's first
+  compile can exceed the 10 s timeout once per schema (falls back; warm after deploy). The
+  `bedrock:InferenceProfileArn` IAM condition and the Guardrail's false-positive rate on island
+  copy are unverified until LAI-0705.
+- **Checks run (2026-11-01).** Full pytest `LAI_REQUIRE_POSTGRES=1 .venv/bin/python -m pytest -q`:
+  1577 passed. AI and golden: `lai/apps/ai/tests` 149 passed, `tests/golden` 197 passed. Vitest
+  golden stale check 6 passed; `infra/lib` 49 passed (Guardrail stack 6). `npm run typecheck`,
+  `ruff check .`, `ruff format --check .`, prettier and oxlint on changed TypeScript, `npm run
+  adr:check`, `makemigrations --check`: all clean. **Deferred to merge verification:** full Vitest,
+  Playwright, `npm run build`, CDK synth to disk. **Not run (needs approval):** any AWS call, the
+  live smoke, the live red team.

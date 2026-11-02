@@ -64,6 +64,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-040 | Cognito is the sole authentication provider for application users in every environment; Django authorizes, and native Django authentication serves Django Admin staff only | Accepted | Main line (LAI-AUTH-ROLLBACK) | Owner-directed 2026-10-31. Supersedes ADR-038; restores ADR-024 items 1 and 2 everywhere; keeps ADR-034 (Django Admin) and ADR-039 (Django profile authority) |
 | ADR-041 | Islands, Places and 3D Areas: one optional 3D Area per Place, and Adventures launched from objects in it | Accepted | Feature branch (LAI-0806) | Owner-approved decisions A to E, 2026-10-31. Builds on ADR-032 and ADR-033; leaves LAI-0805 (spatial layout administration) open |
 | ADR-042 | Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset manager owns the asset bucket, and the Amplify bucket stays untouched until retirement | Accepted | Feature branch (LAI-0904) | Owner-accepted 2026-10-31 for code and infrastructure definitions only; no deployment, migration or deletion approved. Amended 2026-11-01: Django is the control plane for both buckets; asset mutations through Django APIs, blocked until LAI-0209 (AM-14 to AM-16). Builds on ADR-035 (asset storage) and ADR-039 (Django profile authority) |
+| ADR-043 | Django serves Chatty's companion and tutor turns through Bedrock Converse with a child-safety Guardrail; Amplify AI routes stay until client cutover | Accepted | Feature branch (features/ai) | Owner-directed 2026-11-01 (Phase 7 brief: LAI-0306, LAI-0701 to LAI-0704). Accepts ADR-019 sub-decision 9 for code and infrastructure definitions only; live Bedrock, Guardrail deployment and the React cutover stay gated (LAI-0705, LAI-0706, G7) |
 
 ## ADR-001: Parent-owned accounts
 
@@ -1056,7 +1057,7 @@ content should be data rows, not infrastructure.
 | 6 | ~~Retain Three.js and Phaser engines unchanged~~ | **Superseded by ADR-020** (Accepted) | Three.js is the only gameplay renderer; Phaser is retired after conversion |
 | 7 | ~~Separate engine from platform concerns; `game/` extraction deferred~~ | **Superseded by ADR-020** (Accepted) | `game/` is a first-class package; the engine boundary is a requirement, not a deferral |
 | 8 | Authoritative rules reimplemented in Python with shared golden vectors; content exported to versioned JSON | **Accepted** (owner, 2026-10-24) | Gate G4 resolved: Python is authoritative, no Node rules service; Django becomes the content authority with versioned JSON as the interchange. See "Amendment: sub-decision 8 and gate G4" below |
-| 9 | Bedrock called from Django (boto3), replacing Amplify AI Kit routes | Proposed | Personas, limits, validation, fallbacks, audit preserved |
+| 9 | Bedrock called from Django (boto3), replacing Amplify AI Kit routes | **Accepted** (owner, 2026-11-01; ADR-043) | Personas, limits, validation, fallbacks, audit preserved. Code only: live Bedrock (LAI-0705), cutover (LAI-0706) and Amplify retirement (LAI-0710) stay gated |
 | 10 | EC2 + Docker for development; ECS Fargate as production candidate | Proposed | No Kubernetes, microservices, queues |
 | 11 | Django Channels + Redis only if a measured need appears | Proposed | Co-op needs only slot claims and low-rate state |
 | 12 | Incremental Amplify retirement, with Cognito detached first | Proposed | Phases 12-13 in the roadmap |
@@ -3126,3 +3127,50 @@ then talks to S3 directly, and only to read the single object Django named, unti
 expires. Revoking access stops new URLs at once but cannot recall one already issued, which is
 why photo URLs live 300 s and why retired assets keep `django` delivery (re-checked on every
 fetch).
+
+## ADR-043: Django serves Chatty's companion and tutor turns through Bedrock Converse with a child-safety Guardrail; Amplify AI routes stay until client cutover
+
+Status: Accepted (owner-directed 2026-11-01, Phase 7 brief; code and infrastructure definitions
+only). Builds on ADR-019 sub-decision 9, ADR-024 (Cognito tokens), ADR-033 (one backbone) and
+ADR-025 (privacy-safe logging). Details: `docs/AI_SERVICE.md`.
+
+**Context.** Chatty's companion and tutor turns run as Amplify AI Kit generation routes, with
+validation, fallback and audit writes in the browser. Django is to become the authoritative AI
+backend for the web client and a future Android client, without breaking the working routes.
+
+**Decision.**
+
+1. A new canonical app, `lai/apps/ai`, owns the AI domain: versioned personas copied verbatim from
+   Amplify, the response contracts and validators (proved equal to the TypeScript by the
+   `ai-safety` golden vectors), authored fallbacks, a provider interface with a deterministic fake
+   and a Bedrock client, one shared pipeline, and the `AIInteractionAudit` / `SafetyEvent` models
+   (LAI-0306).
+2. Two child-scoped endpoints, `.../ai/companion-turns/` and `.../ai/tutor-turns/`, return the
+   React `{turn, source}` shapes. Every failure is a 200 with authored content.
+3. Bedrock is called through Converse with the US geographic inference profile for Claude Haiku
+   4.5 (`us.anthropic.claude-haiku-4-5-20251001-v1:0`; source us-west-1). Structured output uses
+   `outputConfig.textFormat`, never tool use, because Guardrails do not assess tool-call
+   arguments on Converse.
+4. A dedicated Guardrail (`LaiAiGuardrail-<env>`) is mandatory for Bedrock: missing configuration
+   fails closed (production refuses to start; elsewhere the turn falls back). PII is BLOCKED, the
+   trace is off, and every intervention is a block. Untrusted client text is wrapped in
+   `guardContent`.
+5. Defence in depth stays in application code: server-derived age band and limits, input
+   screening of client text, contract validation, a stricter Django output policy (boundary
+   language and learning judgments on both routes), per-child rate limiting, and server-written
+   audit rows and safety events with closed vocabularies only.
+6. The AI never writes gameplay state. The endpoints write only `ai_*` rows.
+7. Context comes from Django when the session runs on Django (`DJANGO_SESSION`); otherwise the
+   client's authored fields are accepted as bounded, screened, untrusted input
+   (`CLIENT_AUTHORED`), recorded on every audit row, until LAI-0709 removes that path.
+8. Amplify `generateCompanionTurn` and `generateTutorTurn`, their IAM grants and the React
+   integrations stay unchanged until LAI-0706 is accepted and LAI-0710 is approved.
+
+**Consequences.** Two backends can serve AI turns during the transition; audit rows from both
+share field names and route names. The Django model id differs from Amplify's (`us.` versus
+`global.`). The rate limit is per process until a shared cache exists (LAI-0708). Known
+prerequisites stay sparse until server mastery (LAI-0603).
+
+**Not decided here.** Live invocation and its cost, the Guardrail deployment, retention of audit
+and safety rows (with LAI-0308, gate G9), admin review UI, and the cutover date.
+

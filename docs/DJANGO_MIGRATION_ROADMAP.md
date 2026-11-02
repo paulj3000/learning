@@ -211,7 +211,7 @@ references from `InventoryItem.item_id`, `GrantedRule.rule_id`, `SkillProgress` 
 `learning_objective_code`, `StoryProgress.story_slug`, `NpcRelationship.npc_id` and `Quest.giver_npc_id`,
 added without rewriting existing progress rows. Needed before LAI-0603 and LAI-0604 validate ids.
 
-**LAI-0306 Audit models.** Depends: 0301. Risk L. Acceptance: `AIInteractionAudit`,
+**LAI-0306 Audit models. DONE on `features/ai` (2026-11-01, unmerged; `lai/apps/ai/models.py`).** Depends: 0301. Risk L. Acceptance: `AIInteractionAudit`,
 `SafetyEvent` with the same fields; no free-text columns for child input.
 
 ### Phase 4 - Cognito integration and authorization
@@ -316,20 +316,69 @@ parent-viewable, parent-deletable artifacts; JSON scenes validated.
 
 ### Phase 7 - AI service
 
-**LAI-0701 AI domain without Bedrock.** Depends: 0306. Risk M. Acceptance: persona registry
+*Status ladder (docs/AI_SERVICE.md section 10), kept separately for every Phase 7 task:
+(1) Django AI functionality implemented, (2) verified with the fake provider, (3) live Bedrock
+verified, (4) React cutover completed, (5) Amplify AI routes retired. 2026-11-01, `features/ai`
+(unmerged, not pushed): LAI-0701 to 0704 at levels 1 and 2; levels 3 to 5 not started. Decision:
+ADR-043.*
+
+**LAI-0701 AI domain without Bedrock. DONE (levels 1-2).** Depends: 0306. Risk M. Acceptance: persona registry
 (copied verbatim from `amplify/data/*Persona.ts`, versioned), request validation (adventure
 template id, age band, allowed topic, objective, max length per CLAUDE.md section 7), output
 schema validation, content/safety checks, authored fallbacks; a fake model client drives
-tests; fallback emits a metric.
+tests; fallback emits a metric. *Done: `lai/apps/ai`; golden suite `ai-safety` proves the
+validators, context builder and fallbacks equal the TypeScript; the `ai.turn` log line is the
+metric (filters in LAI-0708).*
 
-**LAI-0702 Companion turn via Bedrock.** Depends: 0701, 0403. Risk H. **APPROVAL: dev AWS
+**LAI-0702 Companion turn via Bedrock. IMPLEMENTED (levels 1-2); live smoke open.** Depends: 0701, 0403. Risk H. **APPROVAL: dev AWS
 credentials and Bedrock access.** Acceptance: `POST .../companion-turns` calls Bedrock via
 boto3 with the same model and limits; `AIInteractionAudit` written; invalid output falls
-back; live smoke executed once by a human and recorded.
+back; live smoke executed once by a human and recorded. *Done:
+`POST /api/v1/children/{id}/ai/companion-turns/`, Converse with structured text output and the
+Guardrail. Model: the US profile `us.anthropic.claude-haiku-4-5-20251001-v1:0` (Amplify uses
+`global.`), same temperature and token limit. Not accepted until the live smoke (LAI-0705).*
 
-**LAI-0703 Tutor turn and red-team re-point.** Depends: 0702. Risk M. Acceptance: tutor
+**LAI-0703 Tutor turn and red-team re-point. IMPLEMENTED (levels 1-2); live run open.** Depends: 0702. Risk M. Acceptance: tutor
 endpoint; `scripts/ai-red-team.ts` runs against the Django endpoint with the same pass
-criteria as the Amplify route.
+criteria as the Amplify route. *Done: `POST .../ai/tutor-turns/`; the script takes
+`--target amplify|django`, keeps every Amplify fixture, and adds Django fixtures for prompt
+injection, safety bypass, restricted information, unauthorized child, beyond-hint answers,
+score and mastery manipulation, and malformed requests (malformed model output is covered by
+unit tests, since a live model cannot be made to return it).*
+
+**LAI-0704 Bedrock Guardrails and child AI safety policy. IMPLEMENTED (levels 1-2); deploy open.** Added 2026-11-01. Depends: 0702, 0703.
+Risk H. Acceptance: a dedicated child-safety Guardrail in IaC (content, prompt attack, denied
+topics, PII, profanity), configured by environment; both endpoints apply one shared policy
+(server authorization, input bounds and screening, fixed prompts, output validation, fallbacks,
+Guardrail-block handling, no AI control of gameplay); missing Guardrail configuration fails
+closed; server-side safety events and audit metadata with no sensitive text. *Done:
+`infra/lib/aiGuardrailStack.ts` (`LaiAiGuardrail-<env>`, synthesized only) and the
+`lai-django-ai-<env>` least-privilege policy; `services/safety.py`, `content_safety.boundary_violations`.*
+
+**LAI-0705 Live Bedrock and Guardrail verification (dev).** Depends: 0702, 0703, 0704. Risk H.
+**APPROVAL: AWS credentials, Bedrock cost, IAM change, deploy.** Acceptance: model access and the
+US profile confirmed from us-west-1; `LaiAiGuardrail-dev` deployed; SSM settings written; one
+companion and one tutor turn and the Django red-team run recorded (docs/AI_SERVICE.md section 9).
+
+**LAI-0706 React cutover of AI turns.** Depends: 0705, 0501. Risk M. Acceptance:
+`react/src/api/ai.ts` behind `VITE_BACKEND`; requests send `templateId` and use `DJANGO_SESSION`
+where the session runs on Django; no browser audit writes on the Django path; same UI states.
+
+**LAI-0707 Safety review and retention.** Depends: 0306, 0404 (retention with 0308). Risk M.
+Acceptance: read-only, audited admin views of safety events and audit rows; review-status
+changes; a documented retention schedule.
+
+**LAI-0708 AI operations.** Depends: 0705. Risk M. Acceptance: a shared rate-limit store, metric
+filters and alarms on `ai.turn` (the Amplify validation-failure alarm ported), the Bedrock
+budget kept.
+
+**LAI-0709 Server-built context everywhere.** Depends: 0603, 0605, 0607. Risk M. Acceptance:
+NPC and story turns built from Django catalog rows, server mastery status in the tutor context,
+`CLIENT_AUTHORED` removed.
+
+**LAI-0710 Retire Amplify AI routes.** Depends: 0706. Risk M. **APPROVAL.** Acceptance:
+`generateCompanionTurn`, `generateTutorTurn`, their IAM grant patch and client code removed; the
+Amplify budget alarm replaced (part of Phase 13).
 
 ### Phase 8 - Admin
 
@@ -721,7 +770,7 @@ final. Verification: full gate plus e2e.
 
 ## 4. Manual approval points (summary)
 
-LAI-0101, 0103 (credentials), 0104, 0201 (before merge), 0401, 0405, 0702, 0802, 0904,
+LAI-0101, 0103 (credentials), 0104, 0201 (before merge), 0401, 0405, 0702, 0705, 0710, 0802, 0904,
 every Phase 10 deploy, 1101, 1103 (bucket read, copy), 1202, 1203, 1204, 1302, and for Track B: 2003, 2302, 2303, 2304.
 Claude must stop and ask at each.
 

@@ -19,6 +19,13 @@ Use multiple layers:
 
 No single model instruction is considered sufficient.
 
+On the Django backend (ADR-043, `docs/AI_SERVICE.md` section 3) the layers are enforced on the
+server in a fixed order for both the companion and the tutor route: layer 3 is input screening of
+any client-supplied text, layer 6 is a mandatory Bedrock Guardrail (no Guardrail, no model call),
+layer 7 adds a Django output policy for boundary language (secrecy, dependency, claims of being
+human, impersonation, diagnosis, contact details, learning judgments), and layer 10 is written by
+the server, never by the browser.
+
 ## Child input policy
 
 MVP preferred inputs:
