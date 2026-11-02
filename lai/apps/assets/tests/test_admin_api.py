@@ -1,18 +1,20 @@
 """The asset manager's administrator API (AM-14; `apps/assets/admin_api.py`).
 
-Signed test tokens and the in-memory asset store; nothing contacts AWS. Mutations stay behind
-`MUTATION_GATE` (ADR-024 A3, LAI-0209), so the `gate_lifted` fixture stands in for the future
-recent-authentication check wherever a test exercises what a mutation does.
+Signed test tokens, a fake Cognito `GetUser` and the in-memory asset store; nothing contacts
+AWS. Every mutation needs a recent sign-in (`MUTATION_GATE`, LAI-0209). The `admin` fixture's
+token is a recent sign-in (Cognito `auth_time` a minute ago); `recent_sign_in` names that
+precondition in the tests that exercise what a mutation does.
 """
 
 import json
+import time
 
 import pytest
-from rest_framework.permissions import AllowAny
 
 from apps.assets import admin_api
 from apps.assets.models import AssetVersion, VersionStatus
 from apps.catalog.models import AssetOrigin, ContentAsset
+from apps.users.permissions import RequiresRecentAuthentication
 
 from .helpers import glb_bytes, make_definition, make_version
 
@@ -47,8 +49,17 @@ def parent(families, api):
 
 
 @pytest.fixture
-def gate_lifted(monkeypatch):
-    monkeypatch.setattr(admin_api, "MUTATION_GATE", AllowAny)
+def recent_sign_in(cognito_revocation):
+    """The real guard runs: the admin token's sign-in is recent and Cognito accepts it."""
+    assert admin_api.MUTATION_GATE is RequiresRecentAuthentication
+    return cognito_revocation
+
+
+@pytest.fixture
+def stale_admin(families, api, token_for):
+    """Family A's administrator, whose Cognito sign-in was an hour ago (token still valid)."""
+    signed = int(time.time()) - 3600
+    return api(token=token_for(families.a.cognito_sub, auth_time=signed, iat=signed, **ADMINS))
 
 
 def post_json(client, url, body=None):
@@ -90,17 +101,51 @@ def test_reads_need_a_signed_in_administrator(admin, parent, api):
         ("post", version("npc-pip", 1, "retire")),
     ],
 )
-def test_every_mutation_is_blocked_until_recent_authentication_exists(admin, storage, method, url):
+def test_an_administrator_with_a_stale_sign_in_must_verify_again(
+    stale_admin, storage, cognito_revocation, method, url
+):
     asset = make_definition()
     make_version(asset, 1)
-    response = getattr(admin, method)(url)
+    response = getattr(stale_admin, method)(url)
     assert response.status_code == 403
-    assert error_code(response) == "sensitive_action_unavailable"
+    assert error_code(response) == "recent_auth_required"
     assert AssetVersion.objects.get().status == VersionStatus.VALIDATED
     assert ContentAsset.objects.count() == 1
+    assert cognito_revocation.calls == 0
+    assert stale_admin.get(LIST).status_code == 200  # reads need no recent sign-in
 
 
-def test_a_non_administrator_is_refused_even_with_the_gate_lifted(parent, gate_lifted, storage):
+def test_a_recent_sign_in_never_grants_administration(parent, storage, cognito_revocation):
+    make_definition()
+    response = upload(parent, "npc-pip", glb_bytes())
+    assert response.status_code == 403 and error_code(response) == "permission_denied"
+    assert post_json(parent, LIST, {"assetId": "x"}).status_code == 403
+    assert cognito_revocation.calls == 0  # refused as unauthorized before any recency check
+
+
+def test_a_stale_non_administrator_is_refused_as_unauthorized(api, families, token_for, storage):
+    signed = int(time.time()) - 3600
+    stale = api(token=token_for(families.b.cognito_sub, auth_time=signed, iat=signed))
+    response = post_json(stale, LIST, {"assetId": "x"})
+    assert response.status_code == 403 and error_code(response) == "permission_denied"
+
+
+def test_an_administrator_mutation_fails_closed_without_cognito(admin, storage, cognito_revocation):
+    cognito_revocation.unavailable = True
+    response = post_json(admin, LIST, {"assetId": "harbor-crane"})
+    assert response.status_code == 503 and error_code(response) == "recent_auth_unavailable"
+    assert not ContentAsset.objects.filter(asset_id="harbor-crane").exists()
+
+
+def test_a_revoked_administrator_token_cannot_mutate(admin, storage, cognito_revocation):
+    cognito_revocation.revoked = True
+    response = post_json(admin, LIST, {"assetId": "harbor-crane"})
+    assert response.status_code == 401
+
+
+def test_a_non_administrator_is_refused_even_with_the_recent_sign_in(
+    parent, recent_sign_in, storage
+):
     make_definition()
     response = upload(parent, "npc-pip", glb_bytes())
     assert response.status_code == 403 and error_code(response) == "permission_denied"
@@ -111,7 +156,7 @@ def test_a_non_administrator_is_refused_even_with_the_gate_lifted(parent, gate_l
 # --- definitions -------------------------------------------------------------------------------
 
 
-def test_an_administrator_creates_a_django_definition(admin, gate_lifted, families):
+def test_an_administrator_creates_a_django_definition(admin, recent_sign_in, families):
     body = {
         "assetId": "harbor-crane",
         "displayName": "Harbor crane",
@@ -139,7 +184,7 @@ def test_an_administrator_creates_a_django_definition(admin, gate_lifted, famili
         ({"displayName": ""}, "displayName"),
     ],
 )
-def test_an_invalid_definition_is_refused_with_field_errors(admin, gate_lifted, change, field):
+def test_an_invalid_definition_is_refused_with_field_errors(admin, recent_sign_in, change, field):
     body = {"assetId": "crane", "displayName": "Crane", "kind": "prop", "category": "prop"}
     response = post_json(admin, LIST, {**body, **change})
     assert response.status_code == 400 and error_code(response) == "validation_error"
@@ -147,7 +192,7 @@ def test_an_invalid_definition_is_refused_with_field_errors(admin, gate_lifted, 
     assert not ContentAsset.objects.exists()
 
 
-def test_definitions_are_never_deleted_through_the_api(admin, gate_lifted):
+def test_definitions_are_never_deleted_through_the_api(admin, recent_sign_in):
     make_definition()
     assert admin.delete(detail("npc-pip")).status_code == 405
     assert ContentAsset.objects.filter(asset_id="npc-pip").exists()
@@ -156,7 +201,7 @@ def test_definitions_are_never_deleted_through_the_api(admin, gate_lifted):
 # --- uploads -----------------------------------------------------------------------------------
 
 
-def test_an_upload_is_validated_and_stored_under_an_opaque_key(admin, gate_lifted, storage):
+def test_an_upload_is_validated_and_stored_under_an_opaque_key(admin, recent_sign_in, storage):
     make_definition()
     response = upload(admin, "npc-pip", glb_bytes(), name="../../etc/Pip Final.glb")
     assert response.status_code == 201
@@ -172,7 +217,7 @@ def test_an_upload_is_validated_and_stored_under_an_opaque_key(admin, gate_lifte
     assert "storage_key" not in text and "assets/models" not in text and "bucket" not in text
 
 
-def test_a_repeated_upload_reports_the_existing_version(admin, gate_lifted, storage):
+def test_a_repeated_upload_reports_the_existing_version(admin, recent_sign_in, storage):
     make_definition()
     assert upload(admin, "npc-pip", glb_bytes()).status_code == 201
     retry = upload(admin, "npc-pip", glb_bytes())
@@ -181,7 +226,9 @@ def test_a_repeated_upload_reports_the_existing_version(admin, gate_lifted, stor
     assert AssetVersion.objects.count() == 1 and len(list(storage.list("assets/"))) == 1
 
 
-def test_an_invalid_model_is_refused_with_findings_and_nothing_is_kept(admin, gate_lifted, storage):
+def test_an_invalid_model_is_refused_with_findings_and_nothing_is_kept(
+    admin, recent_sign_in, storage
+):
     make_definition()
     response = upload(admin, "npc-pip", b"not a model at all")
     assert response.status_code == 400 and error_code(response) == "invalid_model"
@@ -190,7 +237,7 @@ def test_an_invalid_model_is_refused_with_findings_and_nothing_is_kept(admin, ga
     assert not AssetVersion.objects.exists() and list(storage.list("assets/")) == []
 
 
-def test_an_oversized_upload_is_refused(admin, gate_lifted, storage, settings):
+def test_an_oversized_upload_is_refused(admin, recent_sign_in, storage, settings):
     make_definition()
     settings.LAI_ASSET_MAX_UPLOAD_BYTES = 1024
     response = upload(admin, "npc-pip", glb_bytes() + b"\0" * 2048)
@@ -198,14 +245,14 @@ def test_an_oversized_upload_is_refused(admin, gate_lifted, storage, settings):
     assert not AssetVersion.objects.exists()
 
 
-def test_a_missing_file_or_unknown_asset_is_refused(admin, gate_lifted):
+def test_a_missing_file_or_unknown_asset_is_refused(admin, recent_sign_in):
     make_definition()
     missing = admin.post(versions("npc-pip"), {})
     assert missing.status_code == 400 and "file" in missing.json()["error"]["details"]
     assert upload(admin, "no-such-asset", glb_bytes()).status_code == 404
 
 
-def test_a_storage_failure_keeps_nothing_and_can_be_retried(admin, gate_lifted, storage):
+def test_a_storage_failure_keeps_nothing_and_can_be_retried(admin, recent_sign_in, storage):
     make_definition()
     storage.fail_next.add("put")
     failed = upload(admin, "npc-pip", glb_bytes())
@@ -214,7 +261,7 @@ def test_a_storage_failure_keeps_nothing_and_can_be_retried(admin, gate_lifted, 
     assert upload(admin, "npc-pip", glb_bytes()).status_code == 201
 
 
-def test_a_retired_definition_takes_no_upload(admin, gate_lifted):
+def test_a_retired_definition_takes_no_upload(admin, recent_sign_in):
     from apps.assets import services
 
     services.retire_asset(make_definition())
@@ -229,7 +276,7 @@ def test_a_retired_definition_takes_no_upload(admin, gate_lifted):
 # --- publication and deletion ------------------------------------------------------------------
 
 
-def test_publish_makes_the_first_version_the_default(admin, gate_lifted, storage):
+def test_publish_makes_the_first_version_the_default(admin, recent_sign_in, storage):
     make_definition()
     assert upload(admin, "npc-pip", glb_bytes()).status_code == 201
     published = post_json(admin, version("npc-pip", 1, "publish"))
@@ -239,7 +286,7 @@ def test_publish_makes_the_first_version_the_default(admin, gate_lifted, storage
     assert again.status_code == 409 and error_code(again) == "not_validated"
 
 
-def test_published_versions_are_never_deleted(admin, gate_lifted, storage):
+def test_published_versions_are_never_deleted(admin, recent_sign_in, storage):
     make_definition()
     upload(admin, "npc-pip", glb_bytes())
     post_json(admin, version("npc-pip", 1, "publish"))
@@ -250,7 +297,7 @@ def test_published_versions_are_never_deleted(admin, gate_lifted, storage):
 
 
 def test_deleting_an_unpublished_version_removes_its_file_after_commit(
-    admin, gate_lifted, storage, django_capture_on_commit_callbacks
+    admin, recent_sign_in, storage, django_capture_on_commit_callbacks
 ):
     make_definition()
     upload(admin, "npc-pip", glb_bytes())
@@ -261,7 +308,7 @@ def test_deleting_an_unpublished_version_removes_its_file_after_commit(
     assert admin.delete(version("npc-pip", 1)).status_code == 404  # a retry: already gone
 
 
-def test_the_default_version_is_retired_only_with_a_replacement(admin, gate_lifted):
+def test_the_default_version_is_retired_only_with_a_replacement(admin, recent_sign_in):
     asset = make_definition()
     first = make_version(asset, 1, status=VersionStatus.PUBLISHED)
     make_version(asset, 2, status=VersionStatus.PUBLISHED)
@@ -277,7 +324,7 @@ def test_the_default_version_is_retired_only_with_a_replacement(admin, gate_lift
     assert bad.status_code == 400
 
 
-def test_make_default_needs_a_published_version(admin, gate_lifted):
+def test_make_default_needs_a_published_version(admin, recent_sign_in):
     asset = make_definition()
     make_version(asset, 1, status=VersionStatus.PUBLISHED)
     make_version(asset, 2)

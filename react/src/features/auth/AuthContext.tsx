@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { fetchAuthSession, getCurrentUser, signOut as amplifySignOut } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
 import { isAmplifyConfigured } from '../../lib/amplify-config';
+import { isReauthenticating, onReauthenticationEnd } from './recentSignIn/recentSignIn';
 
 export type AuthStatus = 'unconfigured' | 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -49,12 +50,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperuser, setIsSuperuser] = useState(false);
 
-  async function refresh(): Promise<void> {
+  async function refresh(options: { quiet?: boolean } = {}): Promise<void> {
     if (!isAmplifyConfigured) {
       setStatus('unconfigured');
       return;
     }
-    setStatus('loading');
+    // Quiet keeps the current screen mounted while the session is re-read.
+    if (!options.quiet) setStatus('loading');
     try {
       const user = await getCurrentUser();
       setUserId(user.userId);
@@ -76,11 +78,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refresh();
     if (!isAmplifyConfigured) return;
     const stopListening = Hub.listen('auth', ({ payload }) => {
+      // A recent sign-in verification (LAI-0209) signs out and in again on
+      // purpose; the page stays as it is and the session is read once it ends.
+      if (isReauthenticating()) return;
       if (payload.event === 'signedIn' || payload.event === 'signedOut') {
         void refresh();
       }
     });
-    return stopListening;
+    const stopReauth = onReauthenticationEnd(() => void refresh({ quiet: true }));
+    return () => {
+      stopListening();
+      stopReauth();
+    };
   }, []);
 
   async function signOut(): Promise<void> {
@@ -89,7 +98,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ status, userId, isAdmin, isSuperuser, refresh, signOut }}>
+    <AuthContext.Provider
+      value={{ status, userId, isAdmin, isSuperuser, refresh: () => refresh(), signOut }}
+    >
       {children}
     </AuthContext.Provider>
   );

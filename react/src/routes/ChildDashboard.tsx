@@ -9,6 +9,7 @@ import { rankSkillNeeds } from '../features/director/needs';
 import type { SelectionRecord } from '../features/director/types';
 import type { ChildProfile } from '../features/child-profile/api';
 import { deleteChildProfileData } from '../features/child-profile/api';
+import { useSensitiveAction } from '../features/auth/recentSignIn/useSensitiveAction';
 import {
   listActionsForSessions,
   listAllWorldChanges,
@@ -166,6 +167,7 @@ export function ChildDashboard() {
   const [confirmingDeleteChild, setConfirmingDeleteChild] = useState(false);
   const [deletingChild, setDeletingChild] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const sensitive = useSensitiveAction();
 
   /**
    * The parent dashboard links straight to a section of this page by anchor
@@ -294,8 +296,20 @@ export function ChildDashboard() {
     if (!childProfile) return;
     setDeletingChild(true);
     setDeleteError(null);
+    const childId = childProfile.id;
     try {
-      await deleteChildProfileData(childProfile.id);
+      // Django asks for a recent sign-in first (LAI-0209); the dialog then asks the parent to
+      // confirm again before the one retry.
+      const result = await sensitive.run(() => deleteChildProfileData(childId), {
+        title: `Delete ${childProfile.nickname}'s profile`,
+        description: `This permanently deletes ${childProfile.nickname}'s profile and all of its data. This cannot be undone.`,
+        confirmLabel: 'Yes, delete everything',
+        destructive: true,
+      });
+      if (result.status === 'cancelled') {
+        setDeletingChild(false);
+        return;
+      }
       navigate('/home');
     } catch (error) {
       setDeleteError(
@@ -778,6 +792,7 @@ export function ChildDashboard() {
           </div>
         ) : null}
       </main>
+      {sensitive.dialog}
     </div>
   );
 }

@@ -36,6 +36,10 @@ _CODED = {
     "account_not_provisioned": "Account setup is required.",
     "sensitive_action_unavailable": "This action is not available.",
     "authentication_unavailable": "Authentication is temporarily unavailable.",
+    # Recent sign-in verification (LAI-0209)
+    "recent_auth_required": "Please confirm your sign-in to continue.",
+    "recent_auth_unavailable": "Sign-in confirmation is temporarily unavailable.",
+    "child_deletion_incomplete": "The profile could not be fully deleted yet. Please try again.",
     # Adventure answers (LAI-0601)
     "answer_invalid": "That answer could not be understood.",
     "session_not_active": "This adventure is no longer active.",
