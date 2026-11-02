@@ -28,3 +28,4 @@ if os.environ.get("POSTGRES_HOST", "127.0.0.1") not in LOOPBACK_HOSTS:
     raise RuntimeError("Test settings only connect to a loopback PostgreSQL.")
 
 DATABASES = {"default": compose_database()}
+LAI_STUDIO_RUN_MODE = "manual"
