@@ -13,6 +13,9 @@ from apps.core.models import ChildOwnedModel
 NOT_CHILD_OWNED = {
     "users.ChildProfile",  # the child itself
     "game_sessions.CoopParticipant",  # membership of a household session, reached through it
+    # An operational rate-limit counter (LAI-0708); the child key exists only so deleting a
+    # child deletes its counters. Family and global counters have no child at all.
+    "ai.AIUsageCounter",
 }
 
 

@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.progression",
     "apps.inventory",
     "apps.quests",
+    "apps.ai",
 ]
 
 # The parent account is the user model (LAI-0301, ADR-022). Set before any migration is applied.
@@ -249,6 +250,76 @@ def env_bool(name: str, default: bool) -> bool:
 
 def env_list(name: str, default: str = "") -> list[str]:
     return [item.strip() for item in os.environ.get(name, default).split(",") if item.strip()]
+
+
+# --- AI companion and tutor (Phase 7, LAI-0701 to 0704; docs/AI_SERVICE.md) ------------------
+# `fake` answers locally with no network; `bedrock` calls Amazon Bedrock Converse with the
+# Guardrail; `disabled` serves authored fallback content only. Credentials are never settings:
+# boto3 uses its default chain (the EC2 instance role in AWS). production.py fails closed.
+LAI_AI_PROVIDER = os.environ.get("LAI_AI_PROVIDER", "fake").strip()
+LAI_AI_BEDROCK_REGION = os.environ.get("LAI_AI_BEDROCK_REGION", "").strip()
+# The US geographic cross-Region inference profile (source us-west-1 routes to us-east-1,
+# us-east-2, us-west-1 and us-west-2). Haiku 4.5 has no in-Region on-demand model id.
+LAI_AI_MODEL_ID = os.environ.get(
+    "LAI_AI_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+).strip()
+LAI_AI_GUARDRAIL_ID = os.environ.get("LAI_AI_GUARDRAIL_ID", "").strip()
+LAI_AI_GUARDRAIL_VERSION = os.environ.get("LAI_AI_GUARDRAIL_VERSION", "").strip()
+LAI_AI_STRUCTURED_OUTPUT = env_bool("LAI_AI_STRUCTURED_OUTPUT", True)
+# Same limits as the Amplify routes (temperature 0.4, 300 output tokens).
+LAI_AI_MAX_OUTPUT_TOKENS = int(os.environ.get("LAI_AI_MAX_OUTPUT_TOKENS", "300"))
+LAI_AI_TEMPERATURE = float(os.environ.get("LAI_AI_TEMPERATURE", "0.4"))
+LAI_AI_TIMEOUT_SECONDS = float(os.environ.get("LAI_AI_TIMEOUT_SECONDS", "10"))
+# Shared limits on model calls (LAI-0708, apps/ai/services/usage.py): PostgreSQL counters, so
+# they hold across workers and instances. A denied turn gets authored content, never a model call.
+LAI_AI_CHILD_TURNS_PER_MINUTE = int(os.environ.get("LAI_AI_CHILD_TURNS_PER_MINUTE", "12"))
+LAI_AI_CHILD_TURNS_PER_DAY = int(os.environ.get("LAI_AI_CHILD_TURNS_PER_DAY", "300"))
+LAI_AI_FAMILY_TURNS_PER_DAY = int(os.environ.get("LAI_AI_FAMILY_TURNS_PER_DAY", "750"))
+LAI_AI_SESSION_TURNS_PER_DAY = int(os.environ.get("LAI_AI_SESSION_TURNS_PER_DAY", "150"))
+LAI_AI_CHILD_CONCURRENT_TURNS = int(os.environ.get("LAI_AI_CHILD_CONCURRENT_TURNS", "2"))
+# The application's own daily cost ceiling across every family (pilot scale).
+LAI_AI_GLOBAL_TURNS_PER_DAY = int(os.environ.get("LAI_AI_GLOBAL_TURNS_PER_DAY", "20000"))
+# Attempts per model call (botocore standard retry mode); 1 means no retry.
+LAI_AI_MAX_ATTEMPTS = int(os.environ.get("LAI_AI_MAX_ATTEMPTS", "2"))
+# Largest accepted request body for an AI turn, in bytes.
+LAI_AI_MAX_REQUEST_BYTES = int(os.environ.get("LAI_AI_MAX_REQUEST_BYTES", "8192"))
+# Cost estimates (apps/ai/services/costs.py): unset means no estimate, never a guessed price.
+_price_in = os.environ.get("LAI_AI_PRICE_INPUT_PER_MTOK_USD", "").strip()
+_price_out = os.environ.get("LAI_AI_PRICE_OUTPUT_PER_MTOK_USD", "").strip()
+LAI_AI_PRICE_INPUT_PER_MTOK_USD = float(_price_in) if _price_in else None
+LAI_AI_PRICE_OUTPUT_PER_MTOK_USD = float(_price_out) if _price_out else None
+LAI_AI_PRICE_TABLE_VERSION = os.environ.get("LAI_AI_PRICE_TABLE_VERSION", "").strip()
+# CLIENT_AUTHORED context (the browser's authored copy) is a migration path (LAI-0709). It can
+# be switched off once every caller has a server-owned context; adventures (Amplify sessions)
+# and story scenes (no Django story catalog yet) still need it.
+LAI_AI_ALLOW_CLIENT_AUTHORED = env_bool("LAI_AI_ALLOW_CLIENT_AUTHORED", True)
+# No approved retention period yet (LAI-0707, LAI-0308 gate G9): unset means `ai_retention`
+# refuses to delete unless an operator passes --older-than-days explicitly.
+_retention = os.environ.get("LAI_AI_AUDIT_RETENTION_DAYS", "").strip()
+LAI_AI_AUDIT_RETENTION_DAYS = int(_retention) if _retention else None
+if LAI_AI_PROVIDER not in {"fake", "bedrock", "disabled"}:
+    raise ImproperlyConfigured("LAI_AI_PROVIDER must be fake, bedrock or disabled.")
+if not 50 <= LAI_AI_MAX_OUTPUT_TOKENS <= 1000:
+    raise ImproperlyConfigured("LAI_AI_MAX_OUTPUT_TOKENS must be between 50 and 1000.")
+if not 0.0 <= LAI_AI_TEMPERATURE <= 1.0:
+    raise ImproperlyConfigured("LAI_AI_TEMPERATURE must be between 0 and 1.")
+if not 1 <= LAI_AI_TIMEOUT_SECONDS <= 60:
+    raise ImproperlyConfigured("LAI_AI_TIMEOUT_SECONDS must be between 1 and 60.")
+for _name, _low, _high in (
+    ("LAI_AI_CHILD_TURNS_PER_MINUTE", 1, 120),
+    ("LAI_AI_CHILD_TURNS_PER_DAY", 1, 5000),
+    ("LAI_AI_FAMILY_TURNS_PER_DAY", 1, 20000),
+    ("LAI_AI_SESSION_TURNS_PER_DAY", 1, 5000),
+    ("LAI_AI_CHILD_CONCURRENT_TURNS", 1, 10),
+    ("LAI_AI_GLOBAL_TURNS_PER_DAY", 1, 1000000),
+    ("LAI_AI_MAX_ATTEMPTS", 1, 3),
+    ("LAI_AI_MAX_REQUEST_BYTES", 1024, 65536),
+):
+    if not _low <= globals()[_name] <= _high:
+        raise ImproperlyConfigured(f"{_name} must be between {_low} and {_high}.")
+for _price in (LAI_AI_PRICE_INPUT_PER_MTOK_USD, LAI_AI_PRICE_OUTPUT_PER_MTOK_USD):
+    if _price is not None and not 0 <= _price <= 1000:
+        raise ImproperlyConfigured("LAI_AI_PRICE_*_PER_MTOK_USD must be between 0 and 1000.")
 
 
 # DATABASE_URL query options passed to libpq: TLS to RDS (`?sslmode=verify-full&sslrootcert=...`,

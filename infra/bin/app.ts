@@ -1,5 +1,6 @@
 import { App, BootstraplessSynthesizer } from 'aws-cdk-lib';
 import { fileURLToPath } from 'node:url';
+import { AiGuardrailStack } from '../lib/aiGuardrailStack';
 import { AssetStorageStack, type AssetEnvironment } from '../lib/assetStorageStack';
 import { ChildPhotoStorageStack } from '../lib/childPhotoStorageStack';
 import { DjangoEc2Stack, type DatabaseMode } from '../lib/djangoEc2Stack';
@@ -15,6 +16,7 @@ import { DjangoReleaseStack } from '../lib/djangoReleaseStack';
  * | `LaiChildPhotos-<env>`  | environment | private child photo bucket and policy (ADR-042)   |
  * | `LaiDjangoRelease`      | account     | ECR repository, GitHub OIDC, image publisher role |
  * | `LaiDjangoEc2-<env>`    | environment | VPC, ALB, EC2, RDS, SSM documents, deploy role    |
+ * | `LaiAiGuardrail-<env>`  | environment | child-safety Guardrail, Django AI policy (LAI-0704) |
  *
  * Settings come from CDK context (`-c name=value`) or, for a plain
  * `npx tsx infra/bin/app.ts` synth without the CDK CLI, the environment:
@@ -109,6 +111,14 @@ new DjangoEc2Stack(app, `LaiDjangoEc2-${envName}`, {
   env,
   synthesizer: synthesizer(),
   description: `Learning Adventure Island Django on EC2 (${envName})`,
+});
+
+new AiGuardrailStack(app, `LaiAiGuardrail-${envName}`, {
+  envName: envName as AssetEnvironment,
+  djangoRoleArn: setting('djangoRoleArn', 'LAI_DJANGO_ROLE_ARN') || undefined,
+  env,
+  synthesizer: synthesizer(),
+  description: `Learning Adventure Island child-safety Guardrail and Django AI policy (${envName})`,
 });
 
 app.synth();

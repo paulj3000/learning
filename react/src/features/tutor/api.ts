@@ -1,4 +1,6 @@
 import { client } from '../../lib/data-client';
+import { currentDjangoAiApi, templateIdFor, type DjangoAiApi } from '../../api/ai/djangoAi';
+import { normalizeEmotion, normalizeEnumValue } from '../companion/schema';
 import { TUTOR_PERSONA_VERSION } from '../../../../amplify/data/tutorPersona';
 import type { AgeBandValue } from '../child-profile/constants';
 import { listPrerequisites } from '../curriculum/queries';
@@ -12,7 +14,8 @@ import { buildTutorContext, isTutorableSkill } from './context';
 import { FALLBACK_TUTOR_TURNS, TUTOR_REDIRECT_TURN } from './fallback';
 import { validateTutorTurn } from './schema';
 import { strategyForHintLevel } from './strategy';
-import type { TutorContext, TutorTurn } from './types';
+import { APPROVED_TUTOR_STRATEGIES } from './types';
+import type { TutorContext, TutorStrategy, TutorTurn } from './types';
 
 const ROUTE_NAME = 'generateTutorTurn';
 const OUTPUT_SCHEMA_VERSION = 1;
@@ -30,6 +33,8 @@ export interface RequestTutorTurnInput {
   authoredBaseText?: string;
   sessionId?: string;
   stepId?: string;
+  /** The adventure template the step belongs to; required by the Django route. */
+  templateId?: string;
   /** `ChildProfile.aiEnabled`; when false this never reaches Bedrock at all. */
   aiEnabled?: boolean;
 }
@@ -161,6 +166,8 @@ export async function requestTutorTurn(input: RequestTutorTurnInput): Promise<Tu
   if (input.aiEnabled === false || !isTutorableSkill(input.skillId)) {
     return { turn: authoredFallback(input), source: 'FALLBACK' };
   }
+  const django = currentDjangoAiApi();
+  if (django) return requestDjangoTutorTurn(django, input);
 
   const startedAt = Date.now();
   let validationStatus: 'VALID' | 'INVALID_SCHEMA' | 'INVALID_CONTENT' | 'ERROR' = 'ERROR';
@@ -258,4 +265,62 @@ export async function requestTutorTurn(input: RequestTutorTurnInput): Promise<Tu
   }
 
   return { turn, source: fallbackUsed ? 'FALLBACK' : 'AI' };
+}
+
+/**
+ * An authored line Django chose (`source: "FALLBACK"`): a redirect after a
+ * safety stop carries its own strategy (ENCOURAGE), so it is checked for
+ * shape and safety disposition only, not against the requested strategy.
+ */
+function readDjangoFallbackTurn(raw: Record<string, unknown>): TutorTurn | undefined {
+  const spokenText = raw.spokenText;
+  const strategy = normalizeEnumValue<TutorStrategy>(raw.strategy, APPROVED_TUTOR_STRATEGIES);
+  const emotion = normalizeEmotion(raw.emotion);
+  const safetyDisposition = normalizeEnumValue(raw.safetyDisposition, [
+    'ALLOW',
+    'REDIRECT',
+    'STOP',
+  ]);
+  if (typeof spokenText !== 'string' || !spokenText.trim() || !strategy || !emotion)
+    return undefined;
+  if (!safetyDisposition || typeof raw.representation === 'string') return undefined;
+  return { spokenText, strategy, emotion, safetyDisposition };
+}
+
+/**
+ * The Django path (LAI-0706). Django assembles the tutor context itself from
+ * the child's own records (mastery titles, active quest), so the browser
+ * makes no mastery or quest reads and writes no audit row. An `AI` turn is
+ * re-validated against the same context the Amplify path would build; any
+ * error or unexpected turn becomes the authored fallback. Exported for tests.
+ */
+export async function requestDjangoTutorTurn(
+  api: DjangoAiApi,
+  input: RequestTutorTurnInput,
+): Promise<TutorTurnResult> {
+  try {
+    const response = await api.tutorTurn(input.childProfileId, {
+      skillId: input.skillId,
+      templateId: templateIdFor(input.templateId),
+      hintLevel: Math.min(Math.max(Math.round(input.hintLevel), 0), 5),
+      authoredBaseText: input.authoredBaseText,
+      sessionId: input.sessionId,
+      stepId: input.stepId,
+    });
+    if (response.source === 'FALLBACK') {
+      const turn = readDjangoFallbackTurn(response.turn);
+      return { turn: turn ?? authoredFallback(input), source: 'FALLBACK' };
+    }
+    const context = buildTutorContext({
+      ageBand: input.ageBand,
+      skillId: input.skillId,
+      hintLevel: input.hintLevel,
+      authoredBaseText: input.authoredBaseText,
+    });
+    const result = context ? validateTutorTurn(response.turn, context) : undefined;
+    if (!result?.valid) return { turn: authoredFallback(input), source: 'FALLBACK' };
+    return { turn: result.turn, source: 'AI' };
+  } catch {
+    return { turn: authoredFallback(input), source: 'FALLBACK' };
+  }
 }
