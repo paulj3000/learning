@@ -51,6 +51,8 @@ function fakeApi(overrides: Partial<PlayApi> = {}): PlayApi {
     submitAnswer: vi.fn(async () => read(outcomeJson(true), parse.answerOutcome)),
     getProgress: vi.fn(async () => read(progressJson(), parse.playerProgress)),
     startLaunchPoint: vi.fn(),
+    collectPickup: vi.fn(),
+    talkToNpc: vi.fn(async () => ({ flagsSet: [], questUpdates: [], completionRewards: [] })),
     ...overrides,
   };
 }

@@ -189,6 +189,13 @@ export const MISSING_MODEL_COLOR = 0xff2bd6;
 export const MISSING_GROUND_COLOR = 0x8fbf6a;
 /** Frames longer than this (a background tab) are clamped so the player cannot tunnel through walls. */
 const MAX_FRAME_SECONDS = 0.1;
+/** With `interactionAssist`: how far ahead, on the ground, an interactable takes focus without aiming. */
+export const ASSIST_RANGE_METERS = 3;
+/** With `interactionAssist`: how far off straight ahead (radians, either side) it may be. About 40 degrees. */
+export const ASSIST_HALF_ANGLE = 0.7;
+/** The focus marker's name, so tests and debugging can find it. */
+export const FOCUS_MARKER_NAME = 'interaction-assist:focus-marker';
+const FOCUS_MARKER_COLOR = 0xf4d35e;
 
 type EntityKind = 'NPC' | 'PROP' | 'COLLECTIBLE';
 
@@ -761,7 +768,77 @@ export function createLocationEngine<R extends RendererLike>(
         node = node.parent;
       }
     }
-    return null;
+    return manifest.interactionAssist ? nearestAhead(aimable) : null;
+  }
+
+  /**
+   * Forgiving aim (`interactionAssist`): the interactable closest to straight
+   * ahead and near, measured on the ground so looking up or down does not
+   * matter. Only consulted when the centre ray hits nothing, so aiming at
+   * one thing still wins over standing near another.
+   */
+  const toTarget = new Vector3();
+  function nearestAhead(aimable: readonly FocusTarget[]): FocusTarget | null {
+    const forwardX = Math.sin(controller.yaw);
+    const forwardZ = Math.cos(controller.yaw);
+    let best: FocusTarget | null = null;
+    let bestScore = Infinity;
+    for (const target of aimable) {
+      target.root.getWorldPosition(toTarget);
+      const dx = toTarget.x - controller.position.x;
+      const dz = toTarget.z - controller.position.z;
+      const distance = Math.hypot(dx, dz);
+      if (distance > ASSIST_RANGE_METERS) continue;
+      const angle =
+        distance < 1e-3
+          ? 0
+          : Math.acos(Math.max(-1, Math.min(1, (dx * forwardX + dz * forwardZ) / distance)));
+      if (angle > ASSIST_HALF_ANGLE) continue;
+      // Nearer and straighter ahead both count; a thing right in front beats one off to the side.
+      const score = distance * (1 + angle);
+      if (score < bestScore) {
+        best = target;
+        bestScore = score;
+      }
+    }
+    return best;
+  }
+
+  /*
+    The focus marker (`interactionAssist`): one small gold cone, point down,
+    bobbing just above whatever has focus. One mesh for the whole region,
+    moved rather than rebuilt, so it costs a single draw call.
+  */
+  const focusMarker = manifest.interactionAssist
+    ? ownMesh(
+        new ConeGeometry(0.16, 0.32, 4),
+        new MeshStandardMaterial({ color: FOCUS_MARKER_COLOR, emissive: FOCUS_MARKER_COLOR }),
+      )
+    : null;
+  if (focusMarker) {
+    focusMarker.name = FOCUS_MARKER_NAME;
+    focusMarker.rotation.x = Math.PI;
+    focusMarker.visible = false;
+    scene.add(focusMarker);
+  }
+  const markerBounds = new Box3();
+  let markerTarget: FocusTarget | null = null;
+  let markerTop = 0;
+  let markerClock = 0;
+  function placeFocusMarker(target: FocusTarget | null, deltaSeconds: number): void {
+    if (!focusMarker) return;
+    if (target !== markerTarget) {
+      markerTarget = target;
+      // Measured on each focus change, so a model that loaded since is included.
+      markerTop = target ? markerBounds.setFromObject(target.root).max.y : 0;
+    }
+    focusMarker.visible = target !== null;
+    if (!target) return;
+    markerClock += deltaSeconds;
+    target.root.getWorldPosition(toTarget);
+    const top = Number.isFinite(markerTop) ? markerTop : toTarget.y + 1;
+    focusMarker.position.set(toTarget.x, top + 0.35 + Math.sin(markerClock * 3) * 0.08, toTarget.z);
+    focusMarker.rotation.y += deltaSeconds * 1.5;
   }
 
   function interact(): void {
@@ -888,7 +965,9 @@ export function createLocationEngine<R extends RendererLike>(
     for (const mixer of mixers) mixer.update(delta);
     for (const callback of frameCallbacks) callback(delta);
 
-    const step = tracker.step(controller.position, raycastFocus()?.entityId ?? null);
+    const focused = raycastFocus();
+    placeFocusMarker(focused, delta);
+    const step = tracker.step(controller.position, focused?.entityId ?? null);
     for (const entityId of step.approachedEntityIds) bus.emit('NpcApproached', { entityId });
     if (step.focusChanged) bus.emit('InteractableFocused', step.focusChanged);
     for (const zoneId of step.enteredZoneIds) bus.emit('PlayerEnteredZone', { zoneId });

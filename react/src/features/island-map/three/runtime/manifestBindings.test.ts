@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   availableInteractions,
+  DEFAULT_FOCUS_ACTIONS,
   focusLabel,
+  focusPrompt,
   interactionForEntity,
   walkInInteractionForZone,
   zoneEnterMessage,
@@ -36,6 +38,34 @@ describe('manifestBindings', () => {
     expect(focusLabel(WELCOME_HARBOR_MANIFEST, 'pirate-pip')).toBe('Pip');
     expect(focusLabel(WELCOME_HARBOR_MANIFEST, 'harbor-collectible-gem')).toBeNull();
     expect(focusLabel(WELCOME_HARBOR_MANIFEST, null)).toBeNull();
+  });
+
+  it('gives an action prompt for NPCs, props and collectibles, with a default verb by kind (TR-12)', () => {
+    expect(focusPrompt(WELCOME_HARBOR_MANIFEST, 'pirate-pip')).toEqual({
+      label: 'Pip',
+      action: DEFAULT_FOCUS_ACTIONS.NPC,
+    });
+    expect(focusPrompt(WELCOME_HARBOR_MANIFEST, 'harbor-collectible-gem')).toEqual({
+      label: expect.any(String),
+      action: DEFAULT_FOCUS_ACTIONS.COLLECTIBLE,
+    });
+    expect(focusPrompt(WELCOME_HARBOR_MANIFEST, null)).toBeNull();
+    expect(focusPrompt(WELCOME_HARBOR_MANIFEST, 'no-such-thing')).toBeNull();
+  });
+
+  it('uses the verb the manifest names over the default', () => {
+    const manifest: ThreeLocationManifest = {
+      ...WELCOME_HARBOR_MANIFEST,
+      props: [
+        {
+          entityId: 'chest',
+          position: { x: 0, z: 0 },
+          label: 'Treasure chest',
+          action: 'Open',
+        },
+      ],
+    };
+    expect(focusPrompt(manifest, 'chest')).toEqual({ label: 'Treasure chest', action: 'Open' });
   });
 
   it('resolves an interacted NPC to its bound interaction', () => {

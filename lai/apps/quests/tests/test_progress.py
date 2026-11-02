@@ -14,6 +14,13 @@ pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
 CHEST_KEY = "TREASURE_RUSH_COVE_CHEST_OPENED"
 
 
+@pytest.fixture(autouse=True)
+def one_chest_quest(treasure):
+    """These rules are the engine's, so they use the one-chest quest (still in the catalog since
+    TR-14 moved the cove to Pip's Missing Treasure, which has its own tests)."""
+    treasure.quest = QuestDefinition.objects.get(slug="treasure-rush-cove")
+
+
 def open_chest(child):
     record_world_change(
         child, location_slug="pirate-builder-bay", change_type="UNLOCK", change_key=CHEST_KEY

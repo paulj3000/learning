@@ -10,12 +10,19 @@ The routes the game runtime needs also accept its game session cookie (`GameRunt
 LAI-ANDROID-API-001), only for that session's child and region. `ProgressView` does not.
 """
 
+from django.db import transaction
 from rest_framework import exceptions
 from rest_framework.response import Response
 
 from apps.education.challenges import InvalidAnswer
-from apps.quests.services import QuestUnavailable, start_quest
-from apps.regions.models import TreasureChest
+from apps.quests.models import QuestStatus
+from apps.quests.services import (
+    QuestUnavailable,
+    grant_quest_completion_rewards,
+    refresh_quest,
+    start_quest,
+)
+from apps.regions.models import PlacementKind, TreasureChest, WorldObjectPlacement
 from apps.users.scoping import ChildScopedAPIView
 
 from . import play as services
@@ -28,9 +35,11 @@ from .serializers import (
     EmptyRequest,
     ItemSerializer,
     OutcomeSerializer,
+    PickupSerializer,
     ProgressSerializer,
     QuestEntrySerializer,
     SessionSerializer,
+    TalkSerializer,
 )
 
 
@@ -169,11 +178,60 @@ class QuestAcceptView(GameRuntimeAccessMixin, ChildScopedAPIView):
         _empty_body(request)
         try:
             quest = play_state.published_quest(quest_id)
-            progress, created = start_quest(self.child, quest)
+            with transaction.atomic():
+                progress, created = start_quest(self.child, quest)
+                # TR-14: credit what the child already did (a chest opened before accepting).
+                if progress.status == QuestStatus.ACTIVE:
+                    update = refresh_quest(progress)
+                    grant_quest_completion_rewards(self.child, [update])
         except (LookupError, QuestUnavailable) as error:
             raise api_error(error) from None
         [entry] = play_state.quest_entries(self.child, [quest])
         return Response(QuestEntrySerializer().to_representation(entry), status=_status(created))
+
+
+def _session_placement(child, session_id, entity_id, kind: str):
+    session = services.get_child_session(child, session_id)
+    placement = (
+        WorldObjectPlacement.objects.select_related("region__location", "npc", "pickup_reward_rule")
+        .filter(region__region_id=session.region_id, entity_id=entity_id, kind=kind)
+        .first()
+    )
+    if placement is None:
+        raise exceptions.NotFound
+    return session, placement
+
+
+class PickupView(GameRuntimeAccessMixin, ChildScopedAPIView):
+    """POST: pick up a collectible (TR-14). 201 picked up now, 200 already in the backpack."""
+
+    def post(self, request, child_id, session_id, entity_id):
+        _empty_body(request)
+        try:
+            session, placement = _session_placement(
+                self.child, session_id, entity_id, PlacementKind.COLLECTIBLE
+            )
+            outcome = services.collect_pickup(session, placement)
+        except services.PlayError as error:
+            raise api_error(error) from None
+        return Response(
+            PickupSerializer().to_representation(outcome), status=_status(outcome.picked_up)
+        )
+
+
+class NpcTalkView(GameRuntimeAccessMixin, ChildScopedAPIView):
+    """POST: the child talked to an NPC here (TR-14); may complete a TALK_TO objective."""
+
+    def post(self, request, child_id, session_id, entity_id):
+        _empty_body(request)
+        try:
+            session, placement = _session_placement(
+                self.child, session_id, entity_id, PlacementKind.NPC
+            )
+            outcome = services.talk_to_npc(session, placement)
+        except services.PlayError as error:
+            raise api_error(error) from None
+        return Response(TalkSerializer().to_representation(outcome))
 
 
 class ProgressView(ChildScopedAPIView):

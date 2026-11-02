@@ -50,10 +50,12 @@ def test_every_seeded_row_is_valid_and_draft_and_the_quest_is_catalog_content(se
     for row in rows:
         row.full_clean()
     assert seeded.status == "DRAFT"
-    quest = QuestDefinition.objects.get(slug="treasure-rush-cove")
+    # The cove offers Pip's Missing Treasure (TR-14); the one-chest quest stays in the catalog.
+    quest = QuestDefinition.objects.get(slug="pips-missing-treasure")
     assert quest.last_seen_release is not None  # imported from the export, not seeded
     assert list(seeded.offered_quests.all()) == [quest]
-    assert seeded.chests.get().reward_rule.rule_id == "reward-treasure-rush-cove-chest"
+    chest = seeded.chests.get(entity_id=CHEST_ID)
+    assert chest.reward_rule.rule_id == "reward-treasure-rush-cove-chest"
 
 
 def test_the_chest_has_a_challenge_for_every_band(seeded):

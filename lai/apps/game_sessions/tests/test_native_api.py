@@ -55,7 +55,8 @@ def test_regions_lists_published_regions_with_their_hierarchy(a):
     assert region["location"]["slug"] == "pirate-builder-bay"
     assert region["world"]["slug"] == "learning-adventure-island"
     assert region["available"] is True and region["status"] == "NOT_STARTED"
-    assert region["chestsTotal"] == 1 and region["chestsOpened"] == 0
+    # Pip's four chests (TR-14); the ruins puzzle and the Lookout replay (TR-20) are not chests.
+    assert region["chestsTotal"] == 4 and region["chestsOpened"] == 0
     assert region["resume"] is None and region["thumbnailAssetId"] is None
 
 
@@ -84,7 +85,9 @@ def test_a_world_that_does_not_support_the_age_band_hides_the_region(a):
 
 def test_a_region_with_no_challenge_for_the_band_is_listed_as_locked(a, treasure):
     client, child = a
-    ChallengeSpec.objects.filter(slug="treasure-cove-pathfinder").update(status=ContentStatus.DRAFT)
+    ChallengeSpec.objects.filter(
+        slug__startswith="treasure-cove-", slug__endswith="-pathfinder"
+    ).update(status=ContentStatus.DRAFT)
     [region] = client.get(f"{base(child)}regions/").json()["regions"]
     assert region["available"] is False and region["lockedReason"] == "NO_CHALLENGE_FOR_AGE_BAND"
 
@@ -116,7 +119,7 @@ def test_region_adventures_are_the_locations_adventures_for_the_age_band(a):
     entry = body["adventures"][slugs.index("repair-the-moonlight-bridge")]
     assert entry["status"] == "AVAILABLE" and entry["resume"] is None
     [quest] = body["quests"]
-    assert quest["questId"] == "treasure-rush-cove" and quest["status"] == "AVAILABLE"
+    assert quest["questId"] == "pips-missing-treasure" and quest["status"] == "AVAILABLE"
     assert quest["available"] is True and quest["prerequisites"] == []
 
 

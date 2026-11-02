@@ -25,6 +25,31 @@
   max-width: 60%;
 }
 
+.topRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.exitLink {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+}
+
+.exitLink:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
 .companionCue {
   display: flex;
   align-items: center;
@@ -67,6 +92,49 @@
   color: #fff;
   font-size: 0.85rem;
   font-weight: 600;
+}
+
+.actionPrompt {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 3.5rem;
+  padding: var(--space-2) var(--space-4);
+  border: 3px solid #f4d35e;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.actionPrompt:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+.actionKey {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-sm);
+  background: #f4d35e;
+  color: #1d1d1d;
+  font-family: inherit;
+  font-weight: 700;
+}
+
+.actionVerb {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.actionTarget {
+  font-size: 0.95rem;
+  opacity: 0.9;
 }
 
 .bottomRow {
