@@ -327,7 +327,7 @@ def unscoped_routes(urlpatterns):
 
 
 def test_no_administrator_api_routes_exist():
-    """Staff administration is Django Admin only (ADR-044): no `api/v1/admin/` route is served,
+    """Staff administration is Django Admin only (ADR-045): no `api/v1/admin/` route is served,
     so assets cannot be created, changed or deleted through the REST API."""
     from config import urls
 

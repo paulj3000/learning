@@ -8,8 +8,8 @@ Decision: ADR-043 (builds on ADR-024 A3 and ADR-040). Code: `lai/apps/users/rece
 |---|---|---|---|---|---|---|
 | Django guard (`auth_time`, session anchor, Cognito `GetUser`) | Yes | pytest | **No** (gate L1 to L6 below) | n/a | No | No |
 | `DELETE /api/v1/children/<id>/` (LAI-0602) | Yes | pytest | No | No | No | No |
-| ~~Asset administrator mutations (AM-14)~~ | Removed 2026-11-02 (ADR-044): assets are managed in Django Admin | n/a | n/a | n/a | n/a | n/a |
-| React reauthentication dialog (child deletion; the AM-15 asset pages were removed, ADR-044) | Yes | Vitest | No | **No** | No | No |
+| ~~Asset administrator mutations (AM-14)~~ | Removed 2026-11-02 (ADR-045): assets are managed in Django Admin | n/a | n/a | n/a | n/a | n/a |
+| React reauthentication dialog (child deletion; the AM-15 asset pages were removed, ADR-045) | Yes | Vitest | No | **No** | No | No |
 
 ## 1. Contract
 
@@ -88,7 +88,7 @@ id (tested). After a recent sign-in, another family's child and an unknown id ar
 |---|---|---|
 | `DELETE /api/v1/children/<id>/` | `IsProvisionedParent` | `RequiresRecentAuthentication`, then the child is resolved through the parent |
 
-The `/api/v1/admin/assets/` routes that were guarded here were removed by ADR-044; only child deletion is guarded today.
+The `/api/v1/admin/assets/` routes that were guarded here were removed by ADR-045; only child deletion is guarded today.
 
 Asset administration happens in Django Admin (staff session, Django permissions), so there is no
 asset endpoint to guard here. Account

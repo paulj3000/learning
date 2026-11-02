@@ -279,10 +279,10 @@ The admin preview (section 17) adds no variable. Its token lifetime is the const
 | AM-11 | Signed CloudFront delivery | Not needed for launch (section 8); later optimisation once LAI-1005's distribution exists |
 | AM-12 | Production S3 storage: bucket, IAM, CORS, image, runbook (sections 12 and 19) | Done as code and documentation; deploying it is an approval step |
 | AM-13 | Non-model asset kinds: textures, images and sprites, audio. Each family gets validation, a key directory under `assets/`, a matching IAM prefix and previews (section 21) | **Development done 2026-11-02** (unit-tested). Animation clips remain a property of models. Not checked in a browser or against AWS |
-| AM-14 | Administrator REST API (section 20) | **Superseded by ADR-044 (2026-11-02): removed.** Staff administer assets in Django Admin only |
-| AM-15 | React staff pages on that API (section 20) | **Superseded by ADR-044 (2026-11-02): removed**, together with the Amplify upload wizard and the admin "Game assets" hub |
+| AM-14 | Administrator REST API (section 20) | **Superseded by ADR-045 (2026-11-02): removed.** Staff administer assets in Django Admin only |
+| AM-15 | React staff pages on that API (section 20) | **Superseded by ADR-045 (2026-11-02): removed**, together with the Amplify upload wizard and the admin "Game assets" hub |
 | AM-16 | End-to-end publish and delivery verification on the deployed dev environment, now through Django Admin | **Not started, pending**: needs LAI-1002/1004 (dev platform), the asset bucket deployed, and a browser/manual pass. Nothing in this branch claims it |
-| AM-17 | Django Admin lifecycle completion under ADR-044: rollback, reactivation, stored-file verification, admin-history audit, image and audio previews (section 21) | **Development done 2026-11-02** (unit-tested) |
+| AM-17 | Django Admin lifecycle completion under ADR-045: rollback, reactivation, stored-file verification, admin-history audit, image and audio previews (section 21) | **Development done 2026-11-02** (unit-tested) |
 
 ## 15. Treasure Rush TR-10 (done 2026-10-30)
 
@@ -587,7 +587,7 @@ errors.
 
 ## 20. Administrator API and React pages (AM-14, AM-15): SUPERSEDED, removed
 
-> **Superseded 2026-11-02 by ADR-044.** The administrator API (`/api/v1/admin/assets/`,
+> **Superseded 2026-11-02 by ADR-045.** The administrator API (`/api/v1/admin/assets/`,
 > `lai/apps/assets/admin_api.py`) and the React staff pages described below no longer exist.
 > The section is kept as a record of what was built and why it was removed. Staff use Django
 > Admin (section 21). No route under `api/v1/admin/` is served, and a test fails if one appears.
@@ -640,7 +640,7 @@ decision of its own. The Amplify catalog admin's model picker (`features/admin/c
 reads Amplify `Asset` records; it goes with LAI-1301. AM-16 verifies publish and delivery on the
 deployed dev environment.
 
-## 21. Django Admin asset library (AM-13, AM-17; ADR-044)
+## 21. Django Admin asset library (AM-13, AM-17; ADR-045)
 
 **Django Admin owns staff authoring.** React owns gameplay and parent screens, and consumes
 published assets through the read-only resolver (section 7). There is no React staff asset page.

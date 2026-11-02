@@ -1022,12 +1022,12 @@ handling), a per-session anchor keyed by `origin_jti` so a refresh can never res
 Cognito `GetUser` call with the presented token so a revoked session fails. Answers:
 `403 recent_auth_required` (not 401, so clients do not refresh-and-retry), `401` for a revoked
 token, `503 recent_auth_unavailable` when the check cannot run (fails closed). Guarded today:
-`DELETE /api/v1/children/<id>/`. Asset mutations no longer exist as an API (ADR-044). React's
+`DELETE /api/v1/children/<id>/`. Asset mutations no longer exist as an API (ADR-045). React's
 `useSensitiveAction` (`react/src/features/auth/recentSignIn/`) re-authenticates with an Amplify
 Cognito sign-in for the same account, asks for explicit confirmation, and retries once.
 
 
-## Asset administration boundary (ADR-044, 2026-11-02)
+## Asset administration boundary (ADR-045, 2026-11-02)
 
 Django Admin owns staff content authoring and asset management; React owns child-facing gameplay
 and the parent experience. Assets are created, uploaded, versioned, published, rolled back and

@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Staff asset management lives in Django Admin only (ADR-044). React keeps
+ * Staff asset management lives in Django Admin only (ADR-045). React keeps
  * resolving and loading published assets; it has no pages, routes, nav
  * entries or API client for creating, uploading, publishing or deleting them.
  */

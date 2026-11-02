@@ -538,7 +538,7 @@ Acceptance:
 ### Phase 13 - Retire Amplify
 
 **LAI-1301 Remove Amplify from the frontend.** Depends: 1203 + stability window; for storage,
-also 0904 deployed, 1103d (photos migrated), AM-16 (assets on Django; AM-15 superseded by ADR-044), 1002. Risk M.
+also 0904 deployed, 1103d (photos migrated), AM-16 (assets on Django; AM-15 superseded by ADR-045), 1002. Risk M.
 Acceptance: `aws-amplify` data/storage code and `amplify_outputs.json` handling removed;
 Cognito configured by Vite env; tests green. Storage specifically (ADR-042 amendment, 2026-11-01):
 no Amplify Storage upload, delete or download-link call and no `aws-amplify/storage` import left

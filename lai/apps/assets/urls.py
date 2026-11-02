@@ -1,7 +1,7 @@
 """Asset routes: the child-scoped resolver and the signed file route (LAI-2200 AM-6).
 
 Read-only. Staff create, upload, publish, retire and delete assets in Django Admin only
-(ADR-044); there is deliberately no asset mutation route here.
+(ADR-045); there is deliberately no asset mutation route here.
 """
 
 from django.urls import path

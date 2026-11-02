@@ -11815,13 +11815,13 @@ Specification `docs/platform/RECENT_SIGN_IN.md`; decision ADR-043 (Proposed, spe
 
 ## Asset Library: Django Admin ownership, media families, lifecycle completion (2026-11-02, branch `feature/asset-manager`, not merged, not pushed, nothing deployed)
 
-Acceptance implemented: ADR-044 (Django Admin owns staff asset authoring; React consumes
+Acceptance implemented: ADR-045 (Django Admin owns staff asset authoring; React consumes
 published assets only); AM-13 (images and audio); AM-17 (lifecycle completion); AM-14 and AM-15
 removed. The product feature formerly called the Asset Manager is now the Asset Library.
 
 | Task | Status | Evidence | Not done |
 |---|---|---|---|
-| ADR-044 | Accepted (owner-directed) | `docs/DECISIONS.md`, `docs/ARCHITECTURE.md` | n/a |
+| ADR-045 | Accepted (owner-directed) | `docs/DECISIONS.md`, `docs/ARCHITECTURE.md` | n/a |
 | AM-13 non-model kinds | Development done | pytest `test_media_validation.py`, `test_media_library.py`; Vitest `mediaAssets.test.ts`, `djangoAssetResolver.test.ts`; infra Vitest policy test | Browser, live S3, deployed IAM |
 | AM-14 admin REST API | Superseded, removed | `test_no_administrator_api_routes_exist` | n/a |
 | AM-15 React staff pages | Superseded, removed | Vitest `assetLibraryRemoval.test.ts` | n/a |

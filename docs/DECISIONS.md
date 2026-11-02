@@ -64,8 +64,8 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-040 | Cognito is the sole authentication provider for application users in every environment; Django authorizes, and native Django authentication serves Django Admin staff only | Accepted | Main line (LAI-AUTH-ROLLBACK) | Owner-directed 2026-10-31. Supersedes ADR-038; restores ADR-024 items 1 and 2 everywhere; keeps ADR-034 (Django Admin) and ADR-039 (Django profile authority) |
 | ADR-041 | Islands, Places and 3D Areas: one optional 3D Area per Place, and Adventures launched from objects in it | Accepted | Feature branch (LAI-0806) | Owner-approved decisions A to E, 2026-10-31. Builds on ADR-032 and ADR-033; leaves LAI-0805 (spatial layout administration) open |
 | ADR-042 | Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset library owns the asset bucket, and the Amplify bucket stays untouched until retirement | Accepted | Feature branch (LAI-0904) | Owner-accepted 2026-10-31 for code and infrastructure definitions only; no deployment, migration or deletion approved. Amended 2026-11-01: Django is the control plane for both buckets; asset mutations through Django APIs, blocked until LAI-0209 (AM-14 to AM-16). Builds on ADR-035 (asset storage) and ADR-039 (Django profile authority) |
-| ADR-043 | Sensitive actions require a recent interactive Cognito sign-in, proven by the verified token's `auth_time`, a per-session anchor and a Cognito `GetUser` revocation check | Proposed | Feature branch (LAI-0209) | Asset-mutation scope retired 2026-11-02 by ADR-044 (child deletion remains). Implemented and unit-tested 2026-11-01 on `feature/lai-0209-recent-auth`; owner acceptance and the live Cognito gate pending. Specifies ADR-024 A3; lifts the `SensitiveActionBlocked` block on child deletion (LAI-0602) and asset mutations (ADR-042 item 2) |
-| ADR-044 | Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets; no React staff asset manager or administrator asset API | Accepted | Feature branch `feature/asset-manager` (AM-13, AM-17) | Owner-directed 2026-11-02 (development only; no deployment, AWS or browser acceptance). Supersedes ADR-042 amendment items 2 and 3 for assets and AM-14, AM-15; narrows ADR-043 scope; builds on ADR-035 and ADR-040 |
+| ADR-043 | Sensitive actions require a recent interactive Cognito sign-in, proven by the verified token's `auth_time`, a per-session anchor and a Cognito `GetUser` revocation check | Proposed | Feature branch (LAI-0209) | Asset-mutation scope retired 2026-11-02 by ADR-045 (child deletion remains). Implemented and unit-tested 2026-11-01 on `feature/lai-0209-recent-auth`; owner acceptance and the live Cognito gate pending. Specifies ADR-024 A3; lifts the `SensitiveActionBlocked` block on child deletion (LAI-0602) and asset mutations (ADR-042 item 2) |
+| ADR-045 | Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets; no React staff asset manager or administrator asset API | Accepted | Feature branch `feature/asset-manager` (AM-13, AM-17) | Owner-directed 2026-11-02 (development only; no deployment, AWS or browser acceptance). Supersedes ADR-042 amendment items 2 and 3 for assets and AM-14, AM-15; narrows ADR-043 scope; builds on ADR-035 and ADR-040 |
 
 ## ADR-001: Parent-owned accounts
 
@@ -3096,7 +3096,7 @@ needs from published game content.
 
 Details: `docs/platform/CHILD_PHOTO_STORAGE.md`.
 
-*Amended 2026-11-01 (owner-directed, AM-14 to AM-16); items 2 and 3 are superseded for staff asset administration by ADR-044 (2026-11-02): Django is the control plane for both
+*Amended 2026-11-01 (owner-directed, AM-14 to AM-16); items 2 and 3 are superseded for staff asset administration by ADR-045 (2026-11-02): Django is the control plane for both
 buckets.*
 
 1. **Django authorizes every asset and photo operation.** Photos through the owning parent
@@ -3189,7 +3189,7 @@ Admin's own asset actions.
 
 
 
-## ADR-044: Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets
+## ADR-045: Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets
 
 Status: Accepted 2026-11-02 (owner-directed; development only). Branch `feature/asset-manager`.
 Supersedes the ADR-042 amendment (2026-11-01) items 2 and 3 **for staff asset administration**, and
