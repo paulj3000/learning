@@ -1,3 +1,5 @@
+import { CASTLE_DOORS, arrivalIn, type CastleDoor } from '../../../castleLayout';
+import type { ScenerySpec } from '../../locationManifest';
 import { box, solid, type RoomVisuals } from './castleVisualKit';
 
 /**
@@ -32,6 +34,53 @@ const NORTH_BANNERS = [
   { id: 'b', minX: -2.4, maxX: -1.6 },
   { id: 'c', minX: 0.4, maxX: 1.2 },
 ] as const;
+
+/**
+ * The hub's door cues (SC-R03-02): a colour-coded plate above each archway
+ * leaving the Story Hall, so a child can tell the four doors apart without
+ * reading. A box cannot carry text; the words ("To the Character Gallery")
+ * come from the castle guide and the reticle. Each plate is derived from the
+ * canonical door's own gap (`castleLayout.ts`), so a cue cannot drift from
+ * the doorway it marks. Colours echo the destination room's palette.
+ */
+export const HUB_DOOR_CUES: readonly { doorId: string; color: number }[] = [
+  { doorId: 'arch-entry-hall', color: 0x2c4ea0 }, // royal blue, as the Entry Hall banners
+  { doorId: 'arch-gallery', color: 0x2f5d46 }, // deep green, as the Gallery walls
+  { doorId: 'arch-costume', color: 0x7a3f6a }, // plum, as the Costume Room
+  { doorId: 'arch-corridor', color: 0x6d7680 }, // cool grey, the way to the deep rooms
+];
+
+/** The lintel plate sits above the archway model (2.6 m) and under the 3 m ceiling. */
+export const CUE_MIN_Y = 2.62;
+export const CUE_MAX_Y = 2.92;
+const CUE_GOLD = 0xd8b45a;
+/** How far a plate stands off the wall's room-facing plane, nearest and furthest. */
+const CUE_NEAR = 0.09;
+const CUE_FAR = 0.15;
+/** A plate overhangs the doorway by this much each side. */
+const CUE_OVERHANG = 0.2;
+
+function cuePlates(door: CastleDoor, color: number): ScenerySpec[] {
+  const hall = arrivalIn(door, 'story-hall');
+  if (!hall) throw new Error(`Door "${door.id}" does not open onto the story hall`);
+  const crossesX = door.gap.maxX - door.gap.minX < door.gap.maxZ - door.gap.minZ;
+  // Which way the hall lies from the door: the plate hangs on the hall's face of the wall.
+  const toward = Math.sign(crossesX ? hall.x - door.centre.x : hall.z - door.centre.z);
+  const plane = (crossesX ? door.centre.x : door.centre.z) + toward * 0.25;
+  const near = Math.min(plane + toward * CUE_NEAR, plane + toward * CUE_FAR);
+  const far = Math.max(plane + toward * CUE_NEAR, plane + toward * CUE_FAR);
+  const [lo, hi] = crossesX
+    ? [door.gap.minZ - CUE_OVERHANG, door.gap.maxZ + CUE_OVERHANG]
+    : [door.gap.minX - CUE_OVERHANG, door.gap.maxX + CUE_OVERHANG];
+  const plate = (id: string, c: number, minY: number, maxY: number, grow: number) =>
+    crossesX
+      ? box(id, c, near, far, lo - grow, hi + grow, minY, maxY)
+      : box(id, c, lo - grow, hi + grow, near, far, minY, maxY);
+  return [
+    plate(`castle-door-cue-${door.id}`, color, CUE_MIN_Y, CUE_MAX_Y, 0),
+    plate(`castle-door-cue-${door.id}-edge`, CUE_GOLD, CUE_MIN_Y, CUE_MIN_Y + 0.04, 0.04),
+  ];
+}
 
 export const STORY_HALL_VISUALS: RoomVisuals = {
   look: {
@@ -125,6 +174,12 @@ export const STORY_HALL_VISUALS: RoomVisuals = {
     ),
     box('castle-hearth-fire', FIRE, -0.8, 0.8, -5.7, -5.45, 0.25, 0.75),
     box('castle-hearth-flame', FIRE_BRIGHT, -0.45, 0.45, -5.68, -5.5, 0.75, 1),
+    ...HUB_DOOR_CUES.flatMap((cue) =>
+      cuePlates(
+        CASTLE_DOORS.find((door) => door.id === cue.doorId)!,
+        cue.color,
+      ),
+    ),
     ...NORTH_BANNERS.flatMap((banner) => [
       box(
         `castle-hall-banner-${banner.id}-cloth`,

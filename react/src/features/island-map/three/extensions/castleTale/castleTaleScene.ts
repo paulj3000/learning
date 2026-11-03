@@ -1,5 +1,12 @@
 import { Box3, LoopOnce, LoopRepeat, Object3D, PointLight, Vector3 } from 'three';
-import { areRequirementsMet } from '../../../worldObjects';
+import { areRequirementsMet, type WorldInteractionContext } from '../../../worldObjects';
+import {
+  castleRoomAt,
+  planTravel,
+  type CastleRoomId,
+  type CastleTravelPlan,
+  type CastleTravelRefusal,
+} from '../../castleLayout';
 import { EASEL_CANVASES, resolveEaselCanvas } from '../../castleEaselCanvas';
 import { BINDING_SOCKET_LOCAL_X } from '../../storykeeperCastleRegion';
 import type { WorldExtension, WorldExtensionContext } from '../../runtime/extensionRegistry';
@@ -43,6 +50,18 @@ export interface CastleTaleSceneApi {
   showSecretDoorOpened(opened: boolean): void;
   showEaselPainting(heroOptionId: string | null, settingOptionId: string | null): void;
   showStoryTold(told: boolean): void;
+  /** The room the child is standing in, or `undefined` in a wall or outside the castle. */
+  currentRoomId(): CastleRoomId | undefined;
+  /**
+   * The accessible equivalent of walking to a room: places the child at that
+   * room's safe spot if the castle's rules allow it (`planTravel`) and the
+   * runtime agrees the spot is standable. The castle decides where and
+   * whether; the runtime only checks the ground.
+   */
+  goToRoom(
+    roomId: string,
+    worldState: WorldInteractionContext,
+  ): CastleTravelPlan | CastleTravelRefusal;
 }
 
 export type CastleQuillClip = 'Idle' | 'Talk' | 'Point' | 'ReactConcerned' | 'Celebrate';
@@ -525,6 +544,18 @@ export const castleTaleExtension: WorldExtension = {
       showStoryTold(told) {
         storyTold = told;
         applyStoryTold();
+      },
+      currentRoomId() {
+        const { x, z } = context.childPlacement();
+        return castleRoomAt(x, z)?.id;
+      },
+      goToRoom(roomId, worldState) {
+        const plan = planTravel(api.currentRoomId(), roomId, worldState);
+        if (!plan.ok) return plan;
+        // The castle says yes; the ground still has the last word.
+        return context.placeChild(plan.placement)
+          ? plan
+          : { ok: false, reason: 'blocked', message: 'You cannot get there yet.' };
       },
     };
 

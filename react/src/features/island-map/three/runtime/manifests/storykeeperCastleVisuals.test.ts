@@ -18,6 +18,8 @@ import {
   reachableCells,
   zoneIsEnterable,
 } from '../testing/castleReachability';
+import { CASTLE_DOORS } from '../../castleLayout';
+import { CUE_MAX_Y, CUE_MIN_Y, HUB_DOOR_CUES } from './castleRooms/storyHall';
 import { validateLocationManifest } from '../validateLocationManifest';
 import { RENDER_QUALITY_PRESETS, selectLightsForQuality } from '../visual/renderQuality';
 import { SOURCE_MANIFEST_REGISTRIES } from '../sourceManifestRegistries';
@@ -579,6 +581,80 @@ describe('the Illustration Studio', () => {
       expect(frame.area.maxX - frame.area.minX).toBeLessThan(0.2);
       // Above the table, so the pots and drawings never share space.
       expect(frame.minY).toBeGreaterThan(PAINT_TABLE.height + 0.3);
+    }
+  });
+});
+
+describe('the hub door cues (SC-R03-02)', () => {
+  const hubDoors = CASTLE_DOORS.filter((door) => door.between.includes('story-hall'));
+  const plateOf = (doorId: string) => {
+    const item = CASTLE_DECOR.find((candidate) => candidate.id === `castle-door-cue-${doorId}`);
+    if (item?.kind !== 'BOX') throw new Error(`no cue plate for ${doorId}`);
+    return item;
+  };
+
+  it('marks every door leaving the hub, and only those, so no door is left unmarked', () => {
+    expect(HUB_DOOR_CUES.map((cue) => cue.doorId).sort()).toEqual(
+      hubDoors.map((door) => door.id).sort(),
+    );
+  });
+
+  it('gives each door its own colour, so the four are told apart without reading', () => {
+    const colours = HUB_DOOR_CUES.map((cue) => cue.color);
+    expect(new Set(colours).size).toBe(colours.length);
+  });
+
+  it('hangs each plate above the archway model, under the ceiling, and across the whole doorway', () => {
+    for (const door of hubDoors) {
+      const plate = plateOf(door.id);
+      // The archway model is 2.6 m tall; the ceiling is 3 m.
+      expect(plate.minY).toBeGreaterThanOrEqual(2.6);
+      expect(plate.minY).toBe(CUE_MIN_Y);
+      expect(plate.maxY).toBeLessThanOrEqual(3);
+      expect(plate.maxY).toBe(CUE_MAX_Y);
+      const alongX = door.gap.maxX - door.gap.minX >= door.gap.maxZ - door.gap.minZ;
+      if (alongX) {
+        expect(plate.area.minX).toBeLessThanOrEqual(door.gap.minX);
+        expect(plate.area.maxX).toBeGreaterThanOrEqual(door.gap.maxX);
+      } else {
+        expect(plate.area.minZ).toBeLessThanOrEqual(door.gap.minZ);
+        expect(plate.area.maxZ).toBeGreaterThanOrEqual(door.gap.maxZ);
+      }
+    }
+  });
+
+  it('keeps every plate on the hub side of its wall, inside the room', () => {
+    const hall = ROOMS.find((room) => room.id === 'story-hall')!.floor;
+    for (const door of hubDoors) {
+      const plate = plateOf(door.id);
+      const cx = (plate.area.minX + plate.area.maxX) / 2;
+      const cz = (plate.area.minZ + plate.area.maxZ) / 2;
+      const inside = cx >= hall.minX && cx <= hall.maxX && cz >= hall.minZ && cz <= hall.maxZ;
+      expect(inside, `${door.id} plate is not in the story hall`).toBe(true);
+    }
+  });
+
+  it('never overlaps a banner', () => {
+    const banners = CASTLE_DECOR.filter((item) => item.id.startsWith('castle-hall-banner'));
+    for (const door of hubDoors) {
+      const plate = plateOf(door.id);
+      for (const banner of banners) {
+        if (banner.kind !== 'BOX') continue;
+        const overlaps =
+          plate.area.minX < banner.area.maxX &&
+          banner.area.minX < plate.area.maxX &&
+          plate.area.minZ < banner.area.maxZ &&
+          banner.area.minZ < plate.area.maxZ &&
+          plate.minY < banner.maxY &&
+          banner.minY < plate.maxY;
+        expect(overlaps, `${door.id} cue overlaps ${banner.id}`).toBe(false);
+      }
+    }
+  });
+
+  it('adds no collider: a lintel plate is out of reach', () => {
+    for (const piece of CASTLE_DECOR_COLLIDERS) {
+      expect(piece.rect.id.includes('door-cue')).toBe(false);
     }
   });
 });

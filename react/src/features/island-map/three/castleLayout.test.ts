@@ -16,6 +16,7 @@ import {
   nextDoorToward,
   openExits,
   otherSide,
+  planTravel,
   routeBetween,
   safePlacementFor,
   type CastleDoor,
@@ -278,5 +279,98 @@ describe('discovery and safe placement', () => {
     expect(safePlacementFor(undefined)).toEqual(entry);
     expect(safePlacementFor('a-room-from-a-newer-version')).toEqual(entry);
     expect(safePlacementFor('great-library')).toEqual(getCastleRoom('great-library')!.safeSpot);
+  });
+});
+
+describe('castle travel: the accessible equivalent of walking (SC-R03-02)', () => {
+  const LOCKED_CORRIDOR: CastleDoor[] = CASTLE_DOORS.map((d) =>
+    d.id === 'arch-corridor'
+      ? {
+          ...d,
+          lock: {
+            requirements: [{ type: 'WORLD_CHANGE_PRESENT', changeKey: 'A_KEY_TURNED' }],
+            hint: 'The way east is shut for now.',
+          },
+        }
+      : d,
+  );
+
+  it('puts the child at the room safe spot, facing into the room, with the doors a walker would pass', () => {
+    const plan = planTravel('entry-hall', 'great-library', NOTHING_YET);
+    expect(plan.ok).toBe(true);
+    if (!plan.ok) return;
+    expect(plan.room.id).toBe('great-library');
+    expect(plan.placement).toMatchObject(plan.room.safeSpot);
+    expect(plan.route.map((d) => d.id)).toEqual([
+      'arch-entry-hall',
+      'arch-corridor',
+      'arch-library',
+    ]);
+    // Facing the middle of the room: a step ahead brings them closer to it.
+    const centre = {
+      x: (plan.room.floor.minX + plan.room.floor.maxX) / 2,
+      z: (plan.room.floor.minZ + plan.room.floor.maxZ) / 2,
+    };
+    const before = Math.hypot(plan.placement.x - centre.x, plan.placement.z - centre.z);
+    const after = Math.hypot(
+      plan.placement.x + Math.sin(plan.placement.yaw) - centre.x,
+      plan.placement.z + Math.cos(plan.placement.yaw) - centre.z,
+    );
+    expect(after).toBeLessThan(before);
+  });
+
+  it('lets a child go from any room to any other, landing inside it on walkable floor', () => {
+    for (const from of CASTLE_ROOM_IDS) {
+      for (const to of CASTLE_ROOM_IDS) {
+        if (from === to) continue;
+        const plan = planTravel(from, to, NOTHING_YET);
+        expect(plan.ok, `${from} to ${to}`).toBe(true);
+        if (!plan.ok) continue;
+        expect(castleRoomAt(plan.placement.x, plan.placement.z)?.id).toBe(to);
+        expect(isWalkable(plan.placement.x, plan.placement.z)).toBe(true);
+      }
+    }
+  });
+
+  it('treats a child outside every room as being in the entry hall', () => {
+    const plan = planTravel(undefined, 'story-hall', NOTHING_YET);
+    expect(plan.ok && plan.route.map((d) => d.id)).toEqual(['arch-entry-hall']);
+  });
+
+  it('refuses a room that is not on the map, and the room you are already in', () => {
+    const unknown = planTravel('entry-hall', 'a-room-from-a-newer-version', NOTHING_YET);
+    expect(unknown).toMatchObject({ ok: false, reason: 'unknown-room' });
+    const here = planTravel('story-hall', 'story-hall', NOTHING_YET);
+    expect(here).toMatchObject({ ok: false, reason: 'already-there' });
+    expect(!here.ok && here.message).toBe('You are already in the story hall.');
+  });
+
+  it('is never a way around a locked door: it names the shut door and its own hint', () => {
+    const refused = planTravel('story-hall', 'great-library', NOTHING_YET, LOCKED_CORRIDOR);
+    expect(refused).toMatchObject({ ok: false, reason: 'locked' });
+    if (refused.ok || refused.reason !== 'locked') return;
+    expect(refused.door.id).toBe('arch-corridor');
+    expect(refused.message).toBe('The way east is shut for now.');
+    // Rooms that do not need that door are untouched.
+    expect(planTravel('story-hall', 'character-gallery', NOTHING_YET, LOCKED_CORRIDOR).ok).toBe(
+      true,
+    );
+    // And the door opens it again, by the same requirement vocabulary as everything else.
+    const withKey = { ...NOTHING_YET, worldChangeKeys: ['A_KEY_TURNED'] };
+    expect(planTravel('story-hall', 'great-library', withKey, LOCKED_CORRIDOR).ok).toBe(true);
+  });
+
+  it('says every refusal in words safe to read aloud, with no em dash', () => {
+    const refusals = [
+      planTravel('entry-hall', 'nowhere', NOTHING_YET),
+      planTravel('entry-hall', 'entry-hall', NOTHING_YET),
+      planTravel('story-hall', 'great-library', NOTHING_YET, LOCKED_CORRIDOR),
+    ];
+    for (const refusal of refusals) {
+      expect(refusal.ok).toBe(false);
+      if (refusal.ok) continue;
+      expect(refusal.message.length).toBeGreaterThan(0);
+      expect(refusal.message).not.toMatch(/\u2014|\u2013/);
+    }
   });
 });

@@ -496,8 +496,29 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       `@colyseus/node_modules/` so nothing else is shadowed); the shared
       `/home/pdimitriu/Coding/node_modules` was not touched. With it, the castle parity suite passes
       **without the stub** (44 tests) and `tsc --noEmit -p tsconfig.app.json` is **clean (exit 0)**.
-      A real production build is still to be re-run (next)
-- [ ] **SC-R03-02** Grand Hall navigation hub: door cues, labels, guidance, locked-door behaviour, return to hub
+      A **real production build** (no stub) then passed: `tsc -b` exit 0 and `vite build` exit 0
+      (output to a scratch folder). Commit `e772dae`
+- [x] **SC-R03-02** Grand Hall navigation hub (depends: SC-R03-01). DONE (development):
+      **Generic engine API** (reusable by any Three.js region, tested on Welcome Harbor, not the
+      castle): `FirstPersonController.canStandAt` and `teleportTo` (zeroes velocity, levels the
+      gaze, refuses solid ground), `LocationEngine.placeChild` and `childPlacement` (also on the
+      extension context), which refuse a non-finite spot, a spot outside the region bounds and a
+      spot inside any collider as it is now. **Castle rules** in `castleLayout.planTravel`: unknown
+      room, already there, and a locked door all refused with child-safe words (the locked refusal
+      names the shut door and carries its own hint); never a way around a lock. **Scene API**
+      `currentRoomId` and `goToRoom`. **`CastleGuide`**: the accessible equivalent of walking, real
+      buttons at least 44 px, a polite live region for arrivals and refusals, the walking route in
+      words door by door, a disabled locked entry with its hint, and a back-to-the-story-hall button
+      always offered away from the hub; Escape closes it. **Door cues**: a colour-coded lintel
+      plate above each of the four hub archways, derived from the canonical doors so they cannot
+      drift (distinct colours, above the 2.6 m archway, clear of the banners). Tests: 11 new
+      engine and controller, 6 planner, 13 guide, 6 cue and 3 view-integration; the whole runtime,
+      extension and castle group is **62 files, 806 tests** passing with the real SDK; typecheck
+      clean (exit 0); oxlint clean on the new files; Prettier clean. The parity suite's fake scene
+      needed the two new methods, which is what the 43 failures on the first run were. **Not done:**
+      aiming at a doorway in 3D to use it (the guide is the interactive equivalent), spoken or
+      3D-text door labels (a box cannot carry text), and persisted discovery (SC-R03-06).
+      Browser (owner): guide placement over the HUD on a tablet, tap sizes, cue colours
 - [ ] **SC-R03-03** Trophy Room (new room; display contract and empty state only, persistence is SC-R07)
 - [ ] **SC-R03-04** Observatory function in the Setting Tower (telescope, observing; deterministic)
 - [ ] **SC-R03-05** Secret Chamber behind the tapestry nook (reuses the pattern lock and secret door)

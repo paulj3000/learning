@@ -10,6 +10,7 @@ import { BINDING_LECTERN_ENTITY_ID } from '../../castleBindingLectern';
 import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry';
 import type { AdventureDefinition } from '../../../../adventures/engine/types';
 import { CastleTaleSession, type CastleChoiceState } from './CastleTaleSession';
+import { CastleGuide } from './CastleGuide';
 import { CastleSecretDoorStory } from './CastleSecretDoorStory';
 import { isCastleTaleScene, type CastleTaleSceneApi } from './castleTaleScene';
 import { isSecretDoorStoryForBand, taleAdventureForBand } from './castleTaleClaims';
@@ -82,6 +83,7 @@ export function CastleTaleCompanion({
   config,
   bus,
   sceneApi,
+  worldState,
   claimedInteraction,
   openInteraction,
   onCloseInteraction,
@@ -255,6 +257,7 @@ export function CastleTaleCompanion({
 
   return (
     <>
+      <CastleGuide scene={scene} worldState={worldState} />
       {taleActive && taleForBand ? (
         <CastleTaleSession
           childId={childId}

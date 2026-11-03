@@ -49,7 +49,12 @@ import {
 import type { ThreeEngineHandle } from '../engineHandle';
 import type { WorldEngineEventBus } from '../worldEngineEvents';
 import { SOURCE_WORLD_EXTENSIONS } from '../extensions';
-import type { LoadedModel, WorldExtensionMount, WorldExtensionRegistry } from './extensionRegistry';
+import type {
+  ChildPlacement,
+  LoadedModel,
+  WorldExtensionMount,
+  WorldExtensionRegistry,
+} from './extensionRegistry';
 import type {
   ModelAnchor,
   PlaceholderSize,
@@ -82,7 +87,7 @@ import {
 } from './visual/renderQuality';
 import { buildSurfaceGeometry } from './visual/surfaceGeometry';
 
-export type { LoadedModel } from './extensionRegistry';
+export type { ChildPlacement, LoadedModel } from './extensionRegistry';
 
 /**
  * The generic Three.js location runtime (`docs/engine/03_GENERIC_3D_WORLD_RUNTIME.md`,
@@ -167,6 +172,14 @@ export const DEFAULT_LOCATION_ENGINE_DEPS: LocationEngineDeps<WebGLRenderer> = {
 export interface LocationEngine extends ThreeEngineHandle {
   /** Raycasts from the screen centre and acts on whatever interactive entity is there. */
   interact(): void;
+  /**
+   * Moves the child to a spot they could stand on: inside the bounds and
+   * clear of every collider as it is now. `false`, and no move, otherwise.
+   * Generic: the accessible equivalent of walking, for any region.
+   */
+  placeChild(placement: ChildPlacement): boolean;
+  /** Where the child is and which way they face. */
+  childPlacement(): Required<ChildPlacement>;
   /** What a mounted extension returned as `api`, for its React half. `undefined` if none. */
   extensionApi(extensionId: string): unknown;
   /** Settles once every asynchronously loaded piece has been placed or has failed. Never rejects. */
@@ -358,6 +371,22 @@ export function createLocationEngine<R extends RendererLike>(
     if (index < 0) return false;
     colliders.splice(index, 1);
     return true;
+  }
+
+  function placeChild(placement: ChildPlacement): boolean {
+    if (disposed) return false;
+    if (!Number.isFinite(placement.x) || !Number.isFinite(placement.z)) return false;
+    if (
+      Math.abs(placement.x) > manifest.bounds.halfExtentX ||
+      Math.abs(placement.z) > manifest.bounds.halfExtentZ
+    ) {
+      return false;
+    }
+    return controller.teleportTo(placement.x, placement.z, placement.yaw);
+  }
+
+  function childPlacement(): Required<ChildPlacement> {
+    return { x: controller.position.x, z: controller.position.z, yaw: controller.yaw };
   }
 
   const focusTargets: FocusTarget[] = [];
@@ -1000,6 +1029,8 @@ export function createLocationEngine<R extends RendererLike>(
           return () => frameCallbacks.delete(callback);
         },
         now: () => deps.now(),
+        placeChild,
+        childPlacement,
         reducedMotion: options.reducedMotion === true,
       });
       extensionMounts.set(binding.extensionId, mounted ?? {});
@@ -1092,6 +1123,8 @@ export function createLocationEngine<R extends RendererLike>(
   return {
     dispose,
     interact,
+    placeChild,
+    childPlacement,
     extensionApi: (extensionId) => extensionMounts.get(extensionId)?.api,
     ready,
   };

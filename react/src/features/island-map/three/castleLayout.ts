@@ -1,4 +1,5 @@
 import { STORYKEEPER_CASTLE_CHECKPOINTS } from '../../discovery/checkpoints';
+import { yawTowards } from './runtime/sceneLayout';
 import {
   areRequirementsMet,
   type WorldInteractionContext,
@@ -373,4 +374,72 @@ export function discoveryState(
 export function safePlacementFor(roomId: string | undefined): { x: number; z: number } {
   const room = (roomId && getCastleRoom(roomId)) || getCastleRoom('entry-hall');
   return room!.safeSpot;
+}
+
+/** Why a trip to a room was refused. Every one carries words safe to read aloud to a child. */
+export type CastleTravelRefusal =
+  | { ok: false; reason: 'unknown-room'; message: string }
+  | { ok: false; reason: 'already-there'; message: string }
+  | { ok: false; reason: 'locked'; message: string; door: CastleDoor }
+  | { ok: false; reason: 'blocked'; message: string };
+
+export interface CastleTravelPlan {
+  ok: true;
+  room: CastleRoomNode;
+  /** Where the child is put, and which way they face: toward the middle of the room. */
+  placement: CastlePlacement;
+  /** The doors a walking child would pass, for guidance. */
+  route: readonly CastleDoor[];
+}
+
+/**
+ * The accessible equivalent of walking to a room (SC-R03-02): where to put a
+ * child who asked to go there, or why not. The rules are the castle's own,
+ * not the runtime's: the destination must be a real room, and there must be
+ * a path of **open** doors from where the child is, so a locked door is never
+ * a way around itself. `from` is the room they are in now; `undefined`
+ * (outside every room) counts as the entry hall. Discovery does not gate it:
+ * a child who cannot walk must still be able to discover the castle, and
+ * arriving is what marks a room discovered.
+ */
+export function planTravel(
+  from: CastleRoomId | undefined,
+  to: string,
+  context: WorldInteractionContext,
+  doors: readonly CastleDoor[] = CASTLE_DOORS,
+): CastleTravelPlan | CastleTravelRefusal {
+  const room = getCastleRoom(to);
+  if (!room) {
+    return { ok: false, reason: 'unknown-room', message: 'That room is not on the map.' };
+  }
+  const start = from ?? 'entry-hall';
+  if (start === room.id) {
+    return { ok: false, reason: 'already-there', message: `You are already in ${room.label}.` };
+  }
+  const route = routeBetween(start, room.id, context, doors);
+  if (!route) {
+    // Name the first shut door on the way, so the child learns what stands in the path.
+    const everyDoorOpen = doors.map((door) => ({ ...door, lock: undefined }));
+    const intended = routeBetween(start, room.id, context, everyDoorOpen) ?? [];
+    const shut = intended
+      .map((step) => doors.find((door) => door.id === step.id))
+      .find((door): door is CastleDoor => door !== undefined && !isDoorOpen(door, context));
+    return shut
+      ? {
+          ok: false,
+          reason: 'locked',
+          door: shut,
+          message: shut.lock?.hint ?? 'That way is shut for now.',
+        }
+      : { ok: false, reason: 'blocked', message: 'You cannot get there yet.' };
+  }
+  const centre = {
+    x: (room.floor.minX + room.floor.maxX) / 2,
+    z: (room.floor.minZ + room.floor.maxZ) / 2,
+  };
+  const facing =
+    Math.hypot(centre.x - room.safeSpot.x, centre.z - room.safeSpot.z) < 0.01
+      ? 0
+      : yawTowards(room.safeSpot, centre);
+  return { ok: true, room, placement: { ...room.safeSpot, yaw: facing }, route };
 }

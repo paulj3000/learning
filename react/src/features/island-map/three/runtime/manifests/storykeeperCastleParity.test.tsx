@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -37,6 +37,9 @@ const sceneSpies = vi.hoisted(() => ({
   showSecretDoorOpened: vi.fn(),
   showEaselPainting: vi.fn(),
   showStoryTold: vi.fn(),
+  // The castle guide (SC-R03-02) reads where the child is and asks the scene to take them.
+  currentRoomId: vi.fn<() => string | undefined>(() => 'entry-hall'),
+  goToRoom: vi.fn(),
 }));
 const engine = vi.hoisted(() => ({
   bus: null as WorldEngineEventBus | null,
@@ -739,6 +742,41 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
       expect(
         await screen.findByRole('dialog', { name: 'The last bookshelf, standing ajar' }),
       ).toBeInTheDocument();
+    });
+  });
+
+  describe('the castle guide (SC-R03-02)', () => {
+    it('is in the real view, collapsed, and opens to every room as a button', async () => {
+      await renderAndWait();
+      const toggle = await screen.findByRole('button', { name: /open the castle guide/i });
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      fireEvent.click(toggle);
+      expect(await screen.findByRole('button', { name: /go to the great library/i })).toBeEnabled();
+      expect(screen.getByRole('button', { name: /you are here: the entry hall/i })).toBeDisabled();
+    });
+
+    it('asks the scene to take the child there, with the world state the view read', async () => {
+      sceneSpies.goToRoom.mockImplementation((roomId: string) => ({
+        ok: true,
+        room: { id: roomId, label: 'the Setting Tower' },
+        placement: { x: 7.5, z: 7.5, yaw: 0 },
+        route: [],
+      }));
+      await renderAndWait();
+      fireEvent.click(await screen.findByRole('button', { name: /open the castle guide/i }));
+      fireEvent.click(await screen.findByRole('button', { name: /go to the setting tower/i }));
+      expect(sceneSpies.goToRoom).toHaveBeenCalledWith(
+        'setting-tower',
+        expect.objectContaining({ worldChangeKeys: expect.any(Array) }),
+      );
+      expect(await screen.findByText('You walked to the Setting Tower.')).toBeInTheDocument();
+    });
+
+    it('never answers a story step or starts a session: it only moves the child', async () => {
+      await renderAndWait();
+      fireEvent.click(await screen.findByRole('button', { name: /open the castle guide/i }));
+      expect(submitAnswerSpy).not.toHaveBeenCalled();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
   });
 
