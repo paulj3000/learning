@@ -1,6 +1,7 @@
 import type { WorldAction, WorldInteraction, WorldRequirement } from '../../worldObjects';
 import {
   LOCATION_MANIFEST_SCHEMA_VERSION,
+  SURFACE_PATTERNS,
   type CollectibleSpec,
   type ExtensionBinding,
   type GroundPoint,
@@ -212,6 +213,22 @@ export function validateLocationManifest(
       report('INVALID_RECT', path, `"${rect.id}" must have min < max on both axes`);
     }
   };
+  /** A rect used only as geometry (a surface face, an effect volume): may reuse a collider's id. */
+  const checkArea = (rect: RectZone, path: string) => {
+    if (!(rect.minX < rect.maxX && rect.minZ < rect.maxZ)) {
+      report('INVALID_RECT', path, `"${rect.id}" must have min < max on both axes`);
+    }
+  };
+  const checkColor = (color: number, path: string) => {
+    if (!(Number.isInteger(color) && color >= 0 && color <= 0xffffff)) {
+      report('INVALID_VALUE', path, 'must be a 24-bit RGB colour');
+    }
+  };
+  const checkUnit = (value: number | undefined, path: string) => {
+    if (value !== undefined && !(Number.isFinite(value) && value >= 0 && value <= 1)) {
+      report('INVALID_VALUE', path, 'must be between 0 and 1');
+    }
+  };
 
   const assetById = new Map(registries.assets.map((asset) => [asset.id, asset]));
   const checkAsset = (assetId: string, path: string, clip?: string) => {
@@ -410,7 +427,83 @@ export function validateLocationManifest(
     if (light.distance !== undefined && !(Number.isFinite(light.distance) && light.distance >= 0)) {
       report('INVALID_VALUE', `${path}.distance`, 'must be zero or more');
     }
+    if (light.priority !== undefined && !Number.isFinite(light.priority)) {
+      report('INVALID_VALUE', `${path}.priority`, 'must be a finite number');
+    }
     checkRequirements(light.requirements, `${path}.requirements`);
+  });
+
+  /*
+    The visual system (SC-R02-01): material presets, the surfaces that draw
+    with them, and atmosphere effects. All decorative, so every check here is
+    about the scene being drawable, never about gameplay.
+  */
+  const materialIds = new Set<string>();
+  manifest.materials?.forEach((material, index) => {
+    const path = `materials[${index}]`;
+    if (materialIds.has(material.id)) {
+      report('DUPLICATE_ID', `${path}.id`, `material "${material.id}" is listed twice`);
+    }
+    materialIds.add(material.id);
+    if (!(SURFACE_PATTERNS as readonly string[]).includes(material.pattern)) {
+      report('INVALID_VALUE', `${path}.pattern`, `unknown pattern "${material.pattern}"`);
+    }
+    checkColor(material.baseColor, `${path}.baseColor`);
+    if (material.accentColor !== undefined) checkColor(material.accentColor, `${path}.accentColor`);
+    if (material.emissive !== undefined) checkColor(material.emissive, `${path}.emissive`);
+    checkUnit(material.roughness, `${path}.roughness`);
+    checkUnit(material.metalness, `${path}.metalness`);
+    if (
+      material.emissiveIntensity !== undefined &&
+      !(Number.isFinite(material.emissiveIntensity) && material.emissiveIntensity >= 0)
+    ) {
+      report('INVALID_VALUE', `${path}.emissiveIntensity`, 'must be zero or more');
+    }
+    requirePositive(material.metersPerRepeat, `${path}.metersPerRepeat`, report);
+  });
+
+  manifest.surfaces?.forEach((surface, index) => {
+    const path = `surfaces[${index}]`;
+    claimSceneId(surface.id, `${path}.id`);
+    if (!materialIds.has(surface.materialId)) {
+      report('INVALID_VALUE', `${path}.materialId`, `no material "${surface.materialId}"`);
+    }
+    if (surface.faces.length === 0) {
+      report('INVALID_VALUE', `${path}.faces`, 'a surface needs at least one face');
+    }
+    surface.faces.forEach((face, faceIndex) => {
+      const facePath = `${path}.faces[${faceIndex}]`;
+      checkArea(face.area, `${facePath}.area`);
+      if (face.kind === 'WALL') {
+        if (!(Number.isFinite(face.minY) && Number.isFinite(face.maxY) && face.maxY > face.minY)) {
+          report('INVALID_VALUE', facePath, 'maxY must be above minY');
+        }
+      } else if (!Number.isFinite(face.y)) {
+        report('INVALID_VALUE', `${facePath}.y`, 'must be a finite number');
+      }
+    });
+    checkRequirements(surface.requirements, `${path}.requirements`);
+  });
+
+  manifest.effects?.forEach((effect, index) => {
+    const path = `effects[${index}]`;
+    claimSceneId(effect.id, `${path}.id`);
+    checkArea(effect.area, `${path}.area`);
+    checkColor(effect.color, `${path}.color`);
+    if (!(Number.isInteger(effect.count) && effect.count >= 0)) {
+      report('INVALID_VALUE', `${path}.count`, 'must be a whole number, zero or more');
+    }
+    if (!(
+      Number.isFinite(effect.minY) &&
+      Number.isFinite(effect.maxY) &&
+      effect.maxY > effect.minY
+    )) {
+      report('INVALID_VALUE', path, 'maxY must be above minY');
+    }
+    if (effect.size !== undefined) requirePositive(effect.size, `${path}.size`, report);
+    if (effect.driftSpeed !== undefined)
+      requirePositive(effect.driftSpeed, `${path}.driftSpeed`, report);
+    checkRequirements(effect.requirements, `${path}.requirements`);
   });
 
   manifest.ambient.forEach((ambient, index) => {

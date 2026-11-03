@@ -72,6 +72,15 @@ import {
 } from './sceneLayout';
 import { WorldTriggerTracker } from './worldTriggerTracker';
 import { installE2EProbe } from './e2eProbe';
+import { createMaterialLibrary } from './visual/materialLibrary';
+import { createMoteField, type MoteField } from './visual/motes';
+import {
+  DEFAULT_RENDER_QUALITY,
+  pixelRatioFor,
+  selectLightsForQuality,
+  type RenderQuality,
+} from './visual/renderQuality';
+import { buildSurfaceGeometry } from './visual/surfaceGeometry';
 
 export type { LoadedModel } from './extensionRegistry';
 
@@ -109,6 +118,8 @@ export interface RendererLike {
   setSize(width: number, height: number): void;
   render(scene: Scene, camera: Camera): void;
   dispose(): void;
+  /** Optional so test doubles need not implement it; `WebGLRenderer` does. */
+  setPixelRatio?(ratio: number): void;
 }
 
 export interface LocationEngineAssets {
@@ -167,6 +178,16 @@ export interface LocationEngineOptions {
   startCheckpointId?: string;
   /** What `requirements` on scenery and colliders are checked against. Defaults to no world state. */
   worldState?: WorldInteractionContext;
+  /**
+   * How much the scene may cost to draw (`visual/renderQuality.ts`).
+   * Appearance only: colliders, interactions and bindings are identical at
+   * every tier. Defaults to MEDIUM.
+   */
+  quality?: RenderQuality;
+  /** `prefers-reduced-motion`: decorative motion (motes) holds still. Defaults to false. */
+  reducedMotion?: boolean;
+  /** The device pixel ratio, capped by the tier. Defaults to `window.devicePixelRatio`. */
+  devicePixelRatio?: number;
 }
 
 /** The outdoor rig `sceneKit.createSceneBootstrap` defaults to; manifest lighting overrides per field. */
@@ -286,9 +307,13 @@ export function createLocationEngine<R extends RendererLike>(
     doorway that only glows once it is open is a light with a requirement
     rather than a line of code in a scene.
   */
+  const quality = options.quality ?? DEFAULT_RENDER_QUALITY;
   const placedLights = new Map<string, PointLight>();
-  for (const light of manifest.lights ?? []) {
-    if (!areRequirementsMet(light.requirements, worldState)) continue;
+  const gatedLights = (manifest.lights ?? []).filter((light) =>
+    areRequirementsMet(light.requirements, worldState),
+  );
+  // A lower tier keeps the lights that matter most (`priority`), never a different gameplay.
+  for (const light of selectLightsForQuality(gatedLights, quality)) {
     const point = new PointLight(
       light.color,
       light.intensity,
@@ -302,6 +327,13 @@ export function createLocationEngine<R extends RendererLike>(
   }
 
   const renderer = deps.createRenderer();
+  renderer.setPixelRatio?.(
+    pixelRatioFor(
+      options.devicePixelRatio ??
+        (typeof window === 'undefined' ? undefined : window.devicePixelRatio),
+      quality,
+    ),
+  );
   renderer.setSize(parent.clientWidth, parent.clientHeight);
   parent.appendChild(renderer.domElement);
 
@@ -712,6 +744,47 @@ export function createLocationEngine<R extends RendererLike>(
     .filter((item) => areRequirementsMet(item.requirements, worldState))
     .forEach(buildScenery);
 
+  /*
+    Built architecture (SC-R02-01): floors, walls and ceilings drawn with a
+    shared material preset and world-scaled UVs, one merged draw call per
+    surface. The library owns every preset material and texture; the
+    geometries are owned like any other the runtime builds. Each surface's
+    root is registered with the scenery roots, so an extension can find it.
+  */
+  const materialLibrary = createMaterialLibrary(manifest.materials ?? [], { quality });
+  for (const surface of manifest.surfaces ?? []) {
+    if (!areRequirementsMet(surface.requirements, worldState)) continue;
+    const root = new Group();
+    root.name = surface.id;
+    scene.add(root);
+    sceneryRoots.set(surface.id, root);
+    const metersPerRepeat = materialLibrary.spec(surface.materialId)?.metersPerRepeat ?? 1;
+    const geometry = buildSurfaceGeometry(surface.faces, metersPerRepeat);
+    ownedGeometries.push(geometry);
+    if (!geometry.getAttribute('position')) continue;
+    const mesh = new Mesh(geometry, materialLibrary.get(surface.materialId));
+    mesh.name = `surface:${surface.id}`;
+    root.add(mesh);
+  }
+
+  // Atmosphere: motes, capped by the tier and still under reduced motion.
+  const moteFields: MoteField[] = [];
+  for (const effect of manifest.effects ?? []) {
+    if (!areRequirementsMet(effect.requirements, worldState)) continue;
+    const field = createMoteField(effect, quality);
+    if (!field) continue;
+    field.setTime(0);
+    scene.add(field.points);
+    moteFields.push(field);
+    if (!options.reducedMotion) {
+      let seconds = 0;
+      frameCallbacks.add((deltaSeconds) => {
+        seconds += deltaSeconds;
+        field.setTime(seconds);
+      });
+    }
+  }
+
   // Ambient movers: decorative, never raycast-interactive, never emit events.
   for (const ambient of manifest.ambient) {
     const path = new CatmullRomCurve3(
@@ -993,6 +1066,8 @@ export function createLocationEngine<R extends RendererLike>(
     }
     for (const geometry of ownedGeometries) geometry.dispose();
     for (const material of ownedMaterials) material.dispose();
+    materialLibrary.dispose();
+    for (const field of moteFields) field.dispose();
     scene.clear();
     renderer.dispose();
     if (renderer.domElement.parentElement === parent) {

@@ -321,8 +321,15 @@ following task's commit.
 - [x] **SC-R01-05** Acceptance and test plan (depends: SC-R01-04). DONE:
       `docs/regions/storykeeper_castle_acceptance.md`: whole-castle criteria A-1 to A-21 and SC-R02
       criteria V-1 to V-12, each mapped to unit, browser, device or playtest; owner checklist for
-      SC-R02; SC-11 kept open as SC-R11. Docs only
-- [ ] **SC-R02-01** Reusable visual system in the generic location runtime (depends: SC-R01-03)
+      SC-R02; SC-11 kept open as SC-R11. Docs only. Commit `881bc57`
+- [x] **SC-R02-01** Reusable visual system in the generic location runtime (depends: SC-R01-03).
+      DONE (development): `runtime/visual/`: material presets with shared materials, deterministic
+      tileable procedural textures (8 patterns), runtime-built surfaces with world-scaled UVs, motes,
+      LOW/MEDIUM/HIGH quality tiers (texture size, light budget by `priority`, pixel-ratio cap, motes),
+      reduced motion, fallbacks, disposal; new optional manifest fields `materials`, `surfaces`,
+      `effects`, `LightSpec.priority`, validated. The view passes the tier and reduced-motion
+      preference. Tests: 60 new (visual), 101 three/region-play files (1276) pass; typecheck, build,
+      Prettier pass. Browser (owner): textures look right, no shimmer; LOW on a weak device
 - [ ] **SC-R02-02** Great Library visual overhaul (depends: SC-R02-01)
 - [ ] **SC-R02-03** Entry Hall visual overhaul (depends: SC-R02-01)
 - [ ] **SC-R02-04a-f** Story Hall, Character Gallery, Costume Room, Setting Tower, Illustration
