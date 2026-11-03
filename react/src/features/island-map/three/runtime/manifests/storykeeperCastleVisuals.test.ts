@@ -26,6 +26,8 @@ import {
   CASTLE_MATERIALS,
   CASTLE_SURFACES,
   FLOOR_SURFACE_Y,
+  INLAY_SURFACE_Y,
+  ENTRY_MURAL,
   ROOM_LOOKS,
   STORYBOOK_DAIS,
   TRIM_SURFACE_INSET,
@@ -45,9 +47,14 @@ const HALF = WALL_THICKNESS / 2;
 const FAR = 1e-9;
 
 const materialIdsOf = (look: RoomLook): string[] =>
-  [look.floor, look.walls, look.ceiling, look.wainscot?.materialId, look.trim].filter(
-    (id): id is string => id !== undefined,
-  );
+  [
+    look.floor,
+    look.walls,
+    look.ceiling,
+    look.wainscot?.materialId,
+    look.trim,
+    ...(look.inlays ?? []).map((inlay) => inlay.materialId),
+  ].filter((id): id is string => id !== undefined);
 
 const surfacesOf = (roomId: string): SurfaceSpec[] =>
   CASTLE_SURFACES.filter((surface) => surface.id.startsWith(`look:${roomId}:`));
@@ -111,7 +118,7 @@ describe('castle looks', () => {
     for (const look of ROOM_LOOKS) {
       const room = ROOMS.find((candidate) => candidate.id === look.roomId)!;
       const walls = surfacesOf(look.roomId).filter(
-        (surface) => !/:(floor|ceiling)$/.test(surface.id),
+        (surface) => !/:(floor|ceiling|inlay:.+)$/.test(surface.id),
       );
       expect(walls.length).toBeGreaterThan(0);
       for (const surface of walls) {
@@ -209,7 +216,7 @@ describe('castle decor', () => {
 
   it('puts the Storybook dais on the library floor, clear of every authored spot', () => {
     const library = ROOMS.find((room) => room.id === 'great-library')!.floor;
-    const [dais] = CASTLE_DECOR_COLLIDERS;
+    const dais = CASTLE_DECOR_COLLIDERS.find((c) => c.rect.id === 'collider:storybook-dais')!;
     expect(dais.rect.minX).toBeGreaterThan(library.minX + HALF);
     expect(dais.rect.maxX).toBeLessThan(library.maxX - HALF);
     expect(dais.rect.minZ).toBeGreaterThan(library.minZ + HALF);
@@ -228,16 +235,105 @@ describe('castle decor', () => {
     expect(STORYBOOK_DAIS.x).toBeCloseTo((dais.rect.minX + dais.rect.maxX) / 2);
   });
 
-  it('does not overlap any other collider', () => {
-    const [dais] = CASTLE_DECOR_COLLIDERS;
-    for (const other of MANIFEST.colliders) {
-      if (other.rect.id === dais.rect.id) continue;
-      const overlaps =
-        dais.rect.minX < other.rect.maxX &&
-        other.rect.minX < dais.rect.maxX &&
-        dais.rect.minZ < other.rect.maxZ &&
-        other.rect.minZ < dais.rect.maxZ;
-      expect(overlaps, `the dais overlaps ${other.rect.id}`).toBe(false);
+  it('keeps every solid piece inside one room, clear of every authored spot and zone centre', () => {
+    for (const piece of CASTLE_DECOR_COLLIDERS) {
+      const { rect } = piece;
+      const room = ROOMS.find(
+        (candidate) =>
+          rect.minX >= candidate.floor.minX + HALF &&
+          rect.maxX <= candidate.floor.maxX - HALF &&
+          rect.minZ >= candidate.floor.minZ + HALF &&
+          rect.maxZ <= candidate.floor.maxZ - HALF,
+      );
+      expect(room, `${rect.id} is not wholly inside a room's walls`).toBeDefined();
+      const inside = (x: number, z: number) =>
+        x >= rect.minX && x <= rect.maxX && z >= rect.minZ && z <= rect.maxZ;
+      for (const spot of [...FLOOR_SPOTS, ...WALL_MOUNTED_SPOTS]) {
+        expect(inside(spot.x, spot.z), `${spot.entityId} stands in ${rect.id}`).toBe(false);
+      }
+      for (const zone of ZONES) {
+        expect(
+          inside((zone.minX + zone.maxX) / 2, (zone.minZ + zone.maxZ) / 2),
+          `${zone.id} is centred on ${rect.id}`,
+        ).toBe(false);
+      }
+    }
+  });
+
+  it('never overlaps another collider', () => {
+    for (const piece of CASTLE_DECOR_COLLIDERS) {
+      for (const other of MANIFEST.colliders) {
+        if (other.rect.id === piece.rect.id) continue;
+        const overlaps =
+          piece.rect.minX < other.rect.maxX &&
+          other.rect.minX < piece.rect.maxX &&
+          piece.rect.minZ < other.rect.maxZ &&
+          other.rect.minZ < piece.rect.maxZ;
+        expect(overlaps, `${piece.rect.id} overlaps ${other.rect.id}`).toBe(false);
+      }
+    }
+  });
+
+  it('gives every collider decor a collider id that names a decor piece', () => {
+    const ids = CASTLE_DECOR_COLLIDERS.map((piece) => piece.rect.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const id of ids) expect(id.startsWith('collider:')).toBe(true);
+  });
+});
+
+describe('floor inlays', () => {
+  it('lie inside their own room, above the floor and below the carpets', () => {
+    for (const look of ROOM_LOOKS) {
+      const room = ROOMS.find((candidate) => candidate.id === look.roomId)!;
+      for (const inlay of look.inlays ?? []) {
+        expect(inlay.area.minX).toBeGreaterThanOrEqual(room.floor.minX + HALF);
+        expect(inlay.area.maxX).toBeLessThanOrEqual(room.floor.maxX - HALF);
+        expect(inlay.area.minZ).toBeGreaterThanOrEqual(room.floor.minZ + HALF);
+        expect(inlay.area.maxZ).toBeLessThanOrEqual(room.floor.maxZ - HALF);
+      }
+    }
+    // Floor 0.01, inlay 0.015, carpet 0.02: a strict order, so nothing shares a plane.
+    expect(INLAY_SURFACE_Y).toBeGreaterThan(FLOOR_SURFACE_Y);
+    expect(INLAY_SURFACE_Y).toBeLessThan(0.02);
+  });
+});
+
+describe('the Entry Hall', () => {
+  const entry = ROOMS.find((room) => room.id === 'entry-hall')!.floor;
+
+  it('keeps the carpet line to Keeper Quill clear of every column', () => {
+    const carpetHalfWidth = 0.75;
+    for (const piece of CASTLE_DECOR_COLLIDERS) {
+      if (piece.rect.maxX > entry.maxX || piece.rect.minX < entry.minX) continue;
+      expect(
+        piece.rect.minZ > carpetHalfWidth || piece.rect.maxZ < -carpetHalfWidth,
+        `${piece.rect.id} stands on the carpet`,
+      ).toBe(true);
+    }
+  });
+
+  it('hangs the mural on the north wall, inside the room and clear of both banners', () => {
+    expect(ENTRY_MURAL.x - ENTRY_MURAL.halfWidth).toBeGreaterThan(entry.minX + HALF);
+    expect(ENTRY_MURAL.x + ENTRY_MURAL.halfWidth).toBeLessThan(entry.maxX - HALF);
+    // In front of the wall surface (at maxZ - 0.25 - 0.02) and the trim, never inside the room's walkway.
+    expect(ENTRY_MURAL.z).toBeLessThan(entry.maxZ - HALF - WALL_SURFACE_INSET);
+    expect(ENTRY_MURAL.z).toBeGreaterThan(entry.maxZ - 1);
+    const banners = CASTLE_DECOR.filter((item) => item.id.startsWith('castle-entry-banner-n'));
+    expect(banners.length).toBeGreaterThan(0);
+    for (const banner of banners) {
+      if (banner.kind !== 'BOX') continue;
+      const clear =
+        banner.area.maxX < ENTRY_MURAL.x - ENTRY_MURAL.halfWidth - 0.2 ||
+        banner.area.minX > ENTRY_MURAL.x + ENTRY_MURAL.halfWidth + 0.2;
+      expect(clear, `${banner.id} overlaps the mural`).toBe(true);
+    }
+  });
+
+  it('keeps every banner and the mural off the arrival doorway wall and the archway', () => {
+    for (const item of CASTLE_DECOR) {
+      if (item.kind !== 'BOX' || !/banner|mural/.test(item.id)) continue;
+      expect(item.area.minX, item.id).toBeGreaterThan(entry.minX + HALF);
+      expect(item.area.maxX, item.id).toBeLessThan(entry.maxX - HALF);
     }
   });
 });

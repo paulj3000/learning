@@ -351,12 +351,22 @@ following task's commit.
       manifest colliders): every room, zone and authored spot is still reachable. Tests: 38 new and
       related (visuals, runtime, manifest) pass; castle engine, bindings, HUD equivalence, contracts
       and region suites pass (93); parity suite passes with the scratch stub (44); `tsc --noEmit -p
-    tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in castle files;
+  tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in castle files;
       Prettier passes. **Deferred, not done:** columns and chairs (the puzzle spots leave no safe
       floor), varied book art (needs kit or commissioned art, ADR-028 is Proposed), a dais glow
       light (SC-R02-06). Browser (owner): overall look, readability of the clues and rods against
-      the new walls, dais position
-- [ ] **SC-R02-03** Entry Hall visual overhaul (depends: SC-R02-01)
+      the new walls, dais position. Commit `4c792b4`
+- [x] **SC-R02-03** Entry Hall visual overhaul (depends: SC-R02-01). DONE (development): each
+      room's look now lives in its own module under `manifests/castleRooms/` (`greatLibrary.ts`
+      moved there unchanged, plus `entryHall.ts` and a shared `castleVisualKit.ts`); the core
+      aggregates them, so a room pass is one file and one line. Entry Hall: flagstone floor with a
+      blue and gold **medallion inlay** (new `inlays` field, 5 mm above the floor, under the 2 cm
+      carpet), warm ashlar, plaster ceiling, trim, four columns (solid, clear of the carpet line),
+      four blue and gold banners, a framed **blank mural** (`ENTRY_MURAL`, filled by SC-R04),
+      daylight motes. Tests: 44 (visuals, runtime, manifest) pass, including the walk through the
+      castle with the columns as colliders; typecheck has only the missing `@colyseus/sdk` error;
+      Prettier and oxlint clean. **Deferred:** a path-to-library floor inlay (wayfinding, SC-R03-06).
+      Browser (owner): first impression, carpet against the medallion, banner colours
 - [ ] **SC-R02-04a-f** Story Hall, Character Gallery, Costume Room, Setting Tower, Illustration
       Studio, East Corridor visual passes, one commit each (depends: SC-R02-01)
 - [ ] **SC-R02-05** Magical interaction feedback and reduced motion (depends: SC-R02-01)
