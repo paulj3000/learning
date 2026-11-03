@@ -1,5 +1,10 @@
 import { client } from '../../lib/data-client';
-import { currentDjangoAiApi, templateIdFor, type DjangoAiApi } from '../../api/ai/djangoAi';
+import {
+  currentDjangoAiApi,
+  templateIdFor,
+  type DjangoAiApi,
+  type TurnSpeechReference,
+} from '../../api/ai/djangoAi';
 import { CHATTY_PERSONA_VERSION } from '../../../../amplify/data/chattyPersona';
 import type { AgeBandValue } from '../child-profile/constants';
 import { FALLBACK_TURNS } from './fallback';
@@ -49,6 +54,8 @@ export interface RequestCompanionTurnInput {
 export interface CompanionTurnResult {
   turn: CompanionTurn;
   source: 'AI' | 'FALLBACK';
+  /** The server will speak exactly `turn.spokenText` if asked (SM-P8). Absent otherwise. */
+  speech?: TurnSpeechReference;
 }
 
 function authoredFallback(input: RequestCompanionTurnInput): CompanionTurn {
@@ -249,7 +256,11 @@ export async function requestDjangoCompanionTurn(
       allowedChoiceIds: input.allowedChoiceIds,
     });
     if (!result.valid) return { turn: authoredFallback(input), source: 'FALLBACK' };
-    return { turn: result.turn, source: response.source };
+    return {
+      turn: result.turn,
+      source: response.source,
+      ...(response.speech ? { speech: response.speech } : {}),
+    };
   } catch {
     return { turn: authoredFallback(input), source: 'FALLBACK' };
   }
