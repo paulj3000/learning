@@ -135,7 +135,25 @@ behaviour is covered through the parity suite, so this is a coverage-depth note,
 | Command | Result |
 | --- | --- |
 | `vitest run runtime/visual storykeeperCastleRegion castleRebootContracts manifests/storykeeperCastle` (two workers) | 9 files, 118 tests passed |
-| `vitest run src/features/island-map/three` (default workers) | **Did not complete.** First run: 6 files failed with `Timeout waiting for worker to respond`, 259 of 268 tests passed. Second run (3 workers) was killed at the 900 s limit with no summary. The machine has 8 GB of RAM and `/home` was briefly 100% full during this session. Treated as an environmental blocker, not a test failure. Larger suites are run in smaller batches |
+| `vitest run src/features/island-map/three` (default workers) | **Did not complete.** First run: 6 files failed, 259 of 268 tests passed. Second run (3 workers) was killed at the 900 s limit with no summary. Two environmental causes, neither a code defect (see below) |
+
+**Environmental blockers found (corrected after the first draft of this audit):**
+
+1. **`@colyseus/sdk` is not installed.** Dependencies resolve from a shared
+   `/home/pdimitriu/Coding/node_modules`, outside the repository, and that install predates the
+   `@colyseus/*` entries in this branch's lockfile. Any suite that imports
+   `src/features/multiplayer/colyseusTransport.ts` fails to load, including
+   `storykeeperCastleParity.test.tsx`, the castle's largest regression suite. `tsc --noEmit -p
+   tsconfig.app.json` reports exactly one error, that missing module, and none in castle files.
+   The shared directory was not modified. The parity suite is run with a **scratch Vitest config
+   that aliases `@colyseus/sdk` to a stub**, kept outside the repository. The castle never joins a
+   multiplayer room. That run is reported as "stubbed" wherever it is cited.
+2. **The machine is shared and loaded.** Load average was about 13 on 16 cores with 8 GB of RAM
+   because other sessions were running tests and a database. `/home` was briefly 100% full. Full
+   `three/` runs and `tsc -b` exceeded 10 minutes, so checks run in small batches and the typecheck
+   uses the app project alone.
+
+Parity suite with the stub: **1 file, 44 tests passed.**
 
 ## 6. Decisions the brief and the roadmap disagree on
 
