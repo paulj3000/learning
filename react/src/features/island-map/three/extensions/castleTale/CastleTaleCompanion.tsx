@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { SpeechCaption } from '../../../../../audio/speech';
 import { getActiveSession, listActionsForSessions } from '../../../../adventures/api';
 import { resolveAdventureForAgeBand } from '../../../../adventures/content';
 import { THE_STORYKEEPERS_TALE } from '../../../../adventures/content/theStorykeepersTale';
@@ -12,6 +14,8 @@ import {
 import { BINDING_LECTERN_ENTITY_ID } from '../../castleBindingLectern';
 import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry';
 import type { AdventureDefinition } from '../../../../adventures/engine/types';
+import speechStyles from './CastleSpeech.module.css';
+import { useCastleSpeech } from './useCastleSpeech';
 import { CastleTaleSession, type CastleChoiceState } from './CastleTaleSession';
 import { CastleSecretDoorStory } from './CastleSecretDoorStory';
 import { isCastleTaleScene, type CastleTaleSceneApi } from './castleTaleScene';
@@ -91,11 +95,15 @@ export function CastleTaleCompanion({
   setFocusLabel,
   limitReached,
   refreshWorld,
+  hudSlot,
 }: LocationCompanionProps) {
   const parsed = useMemo(() => tryParseCastleTaleConfig(config), [config]);
   const scene: CastleTaleSceneApi | null = isCastleTaleScene(sceneApi) ? sceneApi : null;
   const sceneRef = useRef<CastleTaleSceneApi | null>(scene);
   sceneRef.current = scene;
+
+  // Spoken dialogue (SM-P8-09): the castle opts in while it is mounted. See `useCastleSpeech`.
+  const { speech, speaker } = useCastleSpeech(childId, parsed?.quillEntityId, sceneRef);
 
   const [taleActive, setTaleActive] = useState(false);
   const [storyActive, setStoryActive] = useState(false);
@@ -264,8 +272,22 @@ export function CastleTaleCompanion({
 
   if (!parsed) return null;
 
+  const captions = (
+    <div className={speechStyles.captions}>
+      <SpeechCaption
+        state={speech.state}
+        speaker={speaker}
+        onReplay={() => void speech.replay()}
+        onStop={speech.stop}
+        onPause={speech.pause}
+        onResume={speech.resume}
+      />
+    </div>
+  );
+
   return (
     <>
+      {hudSlot ? createPortal(captions, hudSlot) : captions}
       {taleActive && taleForBand ? (
         <CastleTaleSession
           childId={childId}
