@@ -148,3 +148,10 @@ Treasure Rush is the first consumer (`react/src/features/region-play/audio/`,
   `manager.duck(channel)` configure and hold it. It is never saved as a setting.
 - Child mix: mounted once in `App.tsx` (`ChildAudioPreferencesSync`); add `<ManagerAudioControls />`
   to a game's settings panel (`docs/audio/CHILD_AUDIO_PREFERENCES.md`).
+
+## 12. Positional audio (SM-P7)
+
+`manager.play(id, { spatial: { position: [x, y, z], refDistance, maxDistance } })` places a sound;
+`manager.setListener(pose)` each frame. For objects and zones use `audio/world`: `createSpatialEmitters`
+(ranged loops, moving sources), `createAudioZones` (ambient beds with priority) and the structural
+Three.js bindings. Keep essential narration and feedback flat. See `docs/audio/SPATIAL_AUDIO.md`.

@@ -19,7 +19,7 @@ Treasure Rush is Treasure Cove, the `region-play` 3D area (`treasure-rush-cove`)
 | Entry and exit | The companion mounts for the visit and is remounted per child and region (`key`). Mount starts or resumes the session; unmount ends the visit. |
 | Scene load and disposal | Owned by the Three.js location view, not by sound. Sound follows the companion's lifetime. |
 | Zones | Four zones in `treasure_cove_layout.py`: `cove-zone-landing` (Pirate Landing), `cove-zone-grove` (Palm Tree Grove), `cove-zone-beach` (Shipwreck Beach), `cove-zone-ruins` (Ancient Treasure Ruins). The engine emits `PlayerEnteredZone` on the region bus when the child steps in (also on the first frame, at the spawn). There is **no exit event**. |
-| Lookout Point | Reached over a bridge laid after the first quest. It has **no zone**, so no event says the child is there. |
+| Lookout Point | Reached over a bridge laid after the first quest. At the time of this audit it had **no zone**; SM-P7 added `cove-zone-lookout` and zone exit events. |
 | Chests | Server-owned. The companion asks for a challenge, sends the answer, and the server says `correct`, `chestOpened`, rewards and quest updates. |
 | Pickups | Only the brass key is picked up (`collectPickup`); the server answers `pickedUp` and `newItems`. |
 | NPC | Pip. `talkToNpc` returns quest updates; `justCompleted` brings the finale. |
@@ -104,7 +104,7 @@ registry, asset resolver, channels, fades, unlock and diagnostics.
 | Shipwreck Beach (`cove-zone-beach`) | `ambient.treasure_rush.ocean` |
 | Ancient Treasure Ruins (`cove-zone-ruins`) | `ambient.treasure_rush.cave` |
 | Before any zone event (spawn is Pirate Landing) | `ambient.treasure_rush.ocean` |
-| Lookout Point | not mapped: no zone exists (see limitations). `ambient.treasure_rush.wind` is optional and unwired |
+| Lookout Point (`cove-zone-lookout`, SM-P7) | `ambient.treasure_rush.wind`; required cue number 16 |
 
 One bed at a time: entering a zone fades the old bed out (1.5 s) and the new one in. A zone that
 shares the current bed (Landing to Beach) or the same zone again changes nothing. Entering a zone
@@ -194,11 +194,11 @@ All cues are required for a full pass, except the optional ones.
 | 13 | `sfx.learning.retry` | `sfx-learning-retry` | sfx / sound | no | Wrong answer (soft, never a buzzer) |
 | 14 | `sfx.learning.complete` | `sfx-learning-complete` | sfx / sound | no | Rune puzzle solved |
 | 15 | `sfx.quest.complete` | `sfx-quest-complete` | sfx / sound | no | Quest finished |
-| opt | `ambient.treasure_rush.wind` | `ambient-treasure-rush-wind` | ambient / sound | yes | Lookout Point; unwired (no zone) |
+| 16 | `ambient.treasure_rush.wind` | `ambient-treasure-rush-wind` | ambient / sound | yes | Lookout Point (SM-P7) |
 | opt | `sfx.coin.collect`, `sfx.gem.collect`, `sfx.item.pickup` | `sfx-coin-collect`, `sfx-gem-collect`, `sfx-item-pickup` | sfx / sound | no | No mechanic yet; unwired |
 
 Status today: cues already available **none verified**; cues configured but missing audio **all
-15**; cues needing publication **all 15**; optional **4**. Run the seed with `--dry-run` for the
+16**; cues needing publication **all 16**; optional **3**. Run the seed with `--dry-run` for the
 live picture of your database.
 
 ## 8. Manual verification checklist (to be done by a person with sound)
@@ -246,8 +246,7 @@ Django: `apps/audio/tests/test_treasure_rush_seed.py`.
 - Not heard anywhere. Autoplay unlock, streaming, fades and mixing were not tested in a browser.
 - The child's volume and mute controls are the Sound button in the game (SM-P5, `docs/audio/CHILD_AUDIO_PREFERENCES.md`).
 - Crossfades use linear fades (SM-P6); ducking engages only if a voice cue is played, and none exists.
-- Lookout Point has no zone, so no wind bed; leaving a zone has no event. A Lookout zone is a
-  layout change (Django seed and TypeScript manifest) and was not made here.
+- Spatial audio (SM-P7): chest, reveal, key and gate are placed; see `docs/audio/SPATIAL_AUDIO.md`. The Lookout zone and zone exit events were added there.
 - No coin, gem or generic item-pickup mechanic exists, so those cues are not wired.
 - "Objective completed" and "challenge completed" share what the game exposes: the puzzle solve
   and the quest completion. No separate stage-advance moment is raised.

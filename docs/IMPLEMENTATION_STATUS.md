@@ -12216,3 +12216,22 @@ mechanic exists, so those cues are unwired; no true crossfade or ducking; no vol
 - A duplicate-sound defect in the existing finale and key effects (they re-ran when `react` changed identity) was found by the new tests and fixed with per-result guards.
 - **Environment, not this work:** `node_modules/@colyseus/sdk` is an empty directory (interrupted install). It breaks `tsc -b` (TS2307) and stops `RegionPlayCompanion.test.tsx` and `treasureCoveView.test.tsx` from loading. The companion tests were run through a temporary alias, now deleted. `lookoutPoint.engine.test.ts` timed out once under load and passed on re-run.
 - **Not run:** browser, Playwright, live playback, deployment. Nothing has been heard.
+
+
+## Sound Manager Phase 7: spatial audio (SM-P7) (2026-11-03, branch `feature/sound-manager`, not merged, not deployed)
+
+**Acceptance criteria.** Positional audio through the existing engine and context; reusable emitters
+and environmental zones; Lookout Point supported without changing gameplay; Treasure Rush placed
+sounds; Django-configurable spatial settings; clean lifecycle; silent or flat fallback.
+
+**Built.** `react/src/audio/spatial.ts`, panner and listener support in `AudioEngine.ts`, manager
+integration (`PlayOptions.spatial`, `setListener`, positional cap and culling), `audio/world/`
+(emitters, zones, Three.js bindings), `PlayerLeftZone` and the Lookout zone, Treasure Rush hook on the
+shared zones and emitters, Django cue spatial fields, `zone` assignment target and priority
+(migration `0004`), manifest extension. Detail: `docs/audio/SPATIAL_AUDIO.md`, ADR-048 (Proposed).
+
+**Not done / limits.** Nothing was heard. No occlusion, reverb or doppler. No waterfall or NPC
+dialogue emitter exists yet (no such cues). Existing databases need `seed_treasure_rush` and a
+region publish for the Lookout zone. Treasure Rush now needs 16 cues (wind added).
+
+**Checks.** See the end-of-batch delivery notes.

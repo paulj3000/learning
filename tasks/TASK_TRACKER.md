@@ -300,7 +300,18 @@ Vitest and fakes only; no real-browser audio check has been run.
   - [x] **SM-P6-04** Shared music states: exploration, puzzle, suspense, victory, narration, idle
   - [x] **SM-P6-05** Treasure Rush music moved onto the shared states (true crossfades, no gameplay change)
   - [x] **SM-P6-06** Tests and documentation
-- [ ] **SM-P7** Spatial audio for Three.js scenes on the shared `AudioContext` (depends: SM-P4)
+- [x] **SM-P7** Spatial audio for Three.js scenes on the shared `AudioContext` (depends: SM-P4). DEVELOPMENT DONE 2026-11-03 on `feature/sound-manager`; fake-engine tests only, not heard. ADR-048 (Proposed). Detail: `docs/audio/SPATIAL_AUDIO.md`
+  - [x] **SM-P7-01** Audit of context ownership, Three.js lifecycle, zones and object positions
+  - [x] **SM-P7-02** Positional playback through a panner on the one shared context (distance, rolloff, cones, moving sources, listener, cap, culling, flat fallback)
+  - [x] **SM-P7-03** Reusable range-aware `SpatialEmitters` and structural Three.js bindings (no `three` import)
+  - [x] **SM-P7-04** Reusable `AudioZones`: priority and overlap, crossfaded beds, fallback, Django zone assignments
+  - [x] **SM-P7-05** Lookout Point zone and `PlayerLeftZone` exit events (no navigation, geometry or progression change); `ambient.treasure_rush.wind` now required
+  - [x] **SM-P7-06** Treasure Rush: chest, reveal, key and gate heard from their objects; feedback, rewards, quest and music stay flat
+  - [x] **SM-P7-07** Django spatial settings on cues, `zone` assignment target and priority (migration `0004`), validated, backward-compatible manifest
+  - [x] **SM-P7-08** Positional voice cap, range culling, allocation-free frame path, no orphaned nodes, StrictMode-safe
+  - [x] **SM-P7-09** Tests (engine, manager, emitters, zones, Treasure Rush, Lookout engine, Django)
+  - [x] **SM-P7-10** Documentation and tracker
+  - [ ] **SM-P7-V** Audible verification of positions, falloff and the Lookout wind bed (owner, in a browser)
 - [ ] **SM-P8** Narration and companion voice, captions (depends: provider decision, SM-P6)
 - [ ] **TR-11** Second chest and quest chain (depends: TR-9)
 

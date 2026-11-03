@@ -69,6 +69,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-045 | Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets | Accepted | Feature branch `feature/asset-manager` (AM-13, AM-17) | Owner-directed 2026-11-02 (development only; no deployment, AWS or browser acceptance). Supersedes ADR-042 amendment items 2 and 3 for assets and AM-14, AM-15; narrows ADR-043 scope; builds on ADR-035 and ADR-040 |
 | ADR-046 | AI Question Studio is a staff-only Django app that drafts questions through the ADR-044 model client and serves published questions through the existing challenge and grading path | Accepted | Feature branch (features/studio) | Owner brief 2026-11-02 (Phase 28); accepted the same day ("proceed as proposed"). Builds on ADR-019, ADR-033, ADR-034, ADR-044. Not deployed |
 | ADR-047 | Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver | Proposed | Feature branch `feature/sound-manager` (SM-P2) | Development only, 2026-11-02; owner acceptance pending. Builds on ADR-035, ADR-041, ADR-045; records Sound Manager decisions SM-D1 to SM-D6 |
+| ADR-048 | Spatial audio is a panner on the Sound Manager's one AudioContext; emitters and zones are reusable and Three.js-free; Django configures distances and zone beds | Proposed | Feature branch `feature/sound-manager` (SM-P7) | Development only, 2026-11-03; owner acceptance pending. Builds on ADR-047 |
 
 ## ADR-001: Parent-owned accounts
 
@@ -3405,3 +3406,37 @@ A new version table for sound configuration (assets are already immutable).
 **Acceptance.** Remains Proposed until the owner accepts it. Development proceeded under the Phase 2
 brief; nothing is merged to `main` or deployed.
 
+
+
+## ADR-048: Spatial audio is a panner on the Sound Manager's one AudioContext; emitters and zones are reusable and Three.js-free; Django configures distances and zone beds
+
+**Status.** Proposed (2026-11-03, `feature/sound-manager`, SM-P7). Development only; not heard.
+
+**Context.** Treasure Rush and the Three.js worlds were silent in space. A positional layer must not
+create a second audio system, a second `AudioContext` or a second mix, and games must keep working
+when audio fails.
+
+**Decision.**
+
+1. **One engine, one context.** A positional voice is `source -> gain -> PannerNode -> channel`.
+   Master, channel, mute, reduced intensity, ducking, scopes and handles apply unchanged. We do not
+   use `THREE.AudioListener` or `PositionalAudio`, which would own a context or listener.
+2. **Plain data at the boundary.** Positions are `[x, y, z]` metres; Three.js is reached only through
+   structural adapters that read `matrixWorld`, so the audio package imports nothing from `three`.
+3. **Emitters read positions through functions** and hold no scene object; they are range-aware,
+   allocation-free per frame and removed with their source or scope.
+4. **Zones are a reusable resolver** (priority, recency, fallback) over the shared crossfading
+   director; games report enter and exit, the zones pick the bed. The Three.js engine gained a
+   `PlayerLeftZone` event for exits (additive).
+5. **Django owns staff settings.** Cue-level positional mode and distances, a `zone` assignment
+   target and a priority; all optional in the manifest, schema version unchanged.
+6. **Failure is silence or flat sound,** never an error: invalid options, unsupported engines and
+   exhausted voices degrade, with diagnostics.
+
+**Alternatives rejected.** Three.js `PositionalAudio` (second listener and context ownership).
+HRTF panning by default (cost, unverified by ear). Per-frame React state for positions (re-renders).
+A Django-administered spatial layout (ADR-033; layouts stay in TypeScript and the layout seed).
+
+**Consequences.** Positional audio costs one panner per placed sound and a capped voice count.
+Existing databases need `seed_treasure_rush` and a region publish to receive the Lookout zone.
+Acceptance remains with the owner after an audible check.
