@@ -258,6 +258,7 @@ class TestChildIsolation:
             "catalog",
             "question_studio",
             "regions",
+            "speech",  # voice profiles and speech lines: staff content, no child data (ADR-049)
             "users",
         }
 

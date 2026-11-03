@@ -11,6 +11,7 @@ family's child is the same 404 as a child that does not exist. There is no publi
 
 from django.http import HttpResponse
 from rest_framework import serializers
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -99,7 +100,7 @@ class SpeechFileView(APIView):
     """
 
     authentication_classes: list = []
-    permission_classes: list = []
+    permission_classes = [AllowAny]
 
     def get(self, request, token):
         clip = services.clip_for_token(token)
