@@ -426,8 +426,16 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       library stays the dimmest room (tested). Intensities are unchanged. Tests: 63 new and related
       plus 71 engine and visual-system pass; typecheck has only the missing `@colyseus/sdk` error;
       Prettier and oxlint clean. Browser (owner): exposure consistency room to room, the dais glow
-      against the dark library
-- [ ] **SC-R02-07** Asset Library integration and asset manifest doc (depends: SC-R02-02 to 04)
+      against the dark library. Commit `6e80d0a`
+- [x] **SC-R02-07** Asset manifest doc (depends: SC-R02-02 to 04). DONE:
+      `docs/regions/storykeeper_castle_asset_manifest.md`, with counts generated from the real
+      manifest (141 scenery of 160, 16 presets of 16, 38 surfaces, 102 BOX decor, 11 lights): every
+      logical id with its source and fallback (two imported KayKit pieces, the rest generated), the
+      twelve extension state-variant ids, the procedural art by room, and a missing-art table
+      (Quill, Ember and Storybook models, library columns, chairs and book art, gallery plinths, wall
+      height) with what blocks each. Flags the **SC-R03 budget headroom problem** (19 scenery and no
+      presets to spare). No asset manager, registry or loader added; every id resolves through the
+      existing registry and the Asset Library (ADR-030). Docs only; Prettier clean
 - [ ] **SC-R02-08** Performance and compatibility hardening (depends: SC-R02-02 to 06)
 - [ ] **SC-R02-09** Final development verification (depends: all SC-R02)
 - [ ] **SC-R03 to SC-R12** Not started; task lists in the reboot roadmap section 6. Gated items:
