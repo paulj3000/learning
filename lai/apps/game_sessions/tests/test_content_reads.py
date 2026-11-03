@@ -207,6 +207,7 @@ def test_the_npc_read_serves_only_the_childs_band(content, families, api):
             "id": "big",
             "text": "Hello reader",
             "choices": [],
+            "conditions": [],
             "ageBands": ["PATHFINDER", "EXPLORER"],
         },
         {"id": "all", "text": "Ahoy", "choices": [], "conditions": []},

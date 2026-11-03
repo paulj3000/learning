@@ -145,10 +145,10 @@ def test_publishing_a_story_validates_its_text_and_references(imported):
     story = Story.objects.get()
     body = copy.deepcopy(authoring.current_body(story))
     body["chapters"][0]["scenes"][0]["text"] = "Tell me your home address, pirate."
+    assert any("child-safety" in p for p in authoring.validate(story, body))
+    body["chapters"][0]["scenes"][0]["text"] = "Ahoy, pirate."
     body["chapters"][0]["scenes"][1]["templateSlug"] = "nowhere"
-    problems = authoring.validate(story, body)
-    assert any("child-safety" in p for p in problems)
-    assert any("unknown adventure 'nowhere'" in p for p in problems)
+    assert any("unknown adventure 'nowhere'" in p for p in authoring.validate(story, body))
 
 
 def test_stories_are_an_authorable_kind_with_an_editor(imported):

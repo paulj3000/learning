@@ -124,7 +124,14 @@ def kind_schema(kind: authoring.Kind, body: dict) -> tuple[dict, dict, bool]:
     """(root, body schema, inferred?) for a kind."""
     root = _root()
     if kind.schema_definition and kind.schema_definition in root["$defs"]:
-        return root, root["$defs"][kind.schema_definition], False
+        schema = root["$defs"][kind.schema_definition]
+        if kind.name == "adventure":  # steps are their own records, edited as such
+            schema = {
+                **schema,
+                "properties": {k: v for k, v in schema["properties"].items() if k != "steps"},
+                "required": [r for r in schema.get("required", []) if r != "steps"],
+            }
+        return root, schema, False
     return root, infer(body), True
 
 
@@ -601,7 +608,7 @@ def _read_union(ctx, variants, disc, post, base, parts, problems):
     rest = {**variant, "properties": {k: v for k, v in variant["properties"].items() if k != disc}}
     out = _read_object(ctx, rest, post, base if isinstance(base, dict) else {}, parts, problems)
     out = {k: v for k, v in out.items() if k in variant["properties"] or k == disc}
-    return {disc: chosen, **out}
+    return {**out, disc: chosen}
 
 
 def _read_json(post, parts, problems, required):
