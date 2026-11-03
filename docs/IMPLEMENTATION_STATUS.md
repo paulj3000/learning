@@ -12183,3 +12183,62 @@ passed 3 of 3. The same happened once earlier in the session.
 cost incurred), live S3 storage and S3 signed delivery, live Cognito tokens (ADR-024 A6), the
 Amplify Data screens (harbor map, adventure log, Amplify-session places; unchanged on this
 branch), and the owner's playtest of the TR-9 feel items.
+
+## Storykeeper Castle Reboot: SC-R01/02 verification, SC-R02, SC-R03-01 (branch `adventures/storybook`, 2026-11-03)
+
+Detail: `tasks/TASK_TRACKER.md` ("Storykeeper Castle Reboot"), the audit in
+`docs/regions/storykeeper_castle_verification_audit.md`, and the asset manifest in
+`docs/regions/storykeeper_castle_asset_manifest.md`. **No browser test was run (owner instruction).
+Nothing is merged to `main`. Nothing is deployed. No AWS service was called.**
+
+**What the audit found.** SC-R01-01 to 05 and SC-R02-01 were delivered. SC-R02-02 to 09 were not:
+the castle manifest declared no `materials`, `surfaces` or `effects`, so no room was re-dressed.
+ADR-028 is still **Proposed**. No duplicate Phaser, sound, asset-manager or content-backend code
+exists on the branch. It also found a real defect: the swaying secret tapestry ignored
+`prefers-reduced-motion`.
+
+**What was built.**
+
+- **SC-R02 (all eight rooms re-dressed, in development terms).** Each room's look is one module under
+  `three/runtime/manifests/castleRooms/`, aggregated by `storykeeperCastleVisuals.ts`: material
+  presets, textured floor, walls and ceiling, trim, floor inlays, solid-colour box decor with
+  colliders where solid, motes, lamp mood and priority. The kit pieces stay underneath as the
+  fallback. The three costume racks authored in Phase 14 and never placed are now placed. The
+  Storybook dais (empty) and the Entry Hall mural frame (blank) are in place for SC-R04.
+- **Lighting and budgets.** Warm and cool lamps by room, a dais glow, and light priorities so LOW keeps
+  the hearth, hub, library, doorway, dais and corridor. Ten static budget tests: 16 of 16 presets,
+  141 of 160 scenery, about 219 of 300 estimated draw calls, 11 of 14 lights, 1,558 runtime-built
+  triangles. **All provisional until SC-R11 measures a tablet.**
+- **Reduced motion.** `WorldExtensionContext.reducedMotion` (generic); `castle-tale` holds the
+  tapestry at a fixed slight lean instead of swaying. SC-R02-05 is **partial**: no new state-flip glow
+  was added.
+- **SC-R03-01 canonical layout.** `three/castleLayout.ts`, derived from the region (no second
+  router): stable room ids as a save contract, doors with landing points and yaws, optional locks
+  (none today), exits mirrored from the authored interactions, discovery state, routing around locks.
+  Not yet wired into any view.
+
+**Verification.**
+
+| Check | Result |
+|---|---|
+| Castle, runtime and manifest Vitest group (32 files) | 467 passed (with the stub below) |
+| New layout tests | 24 passed (21 layout, 3 against manifest colliders) |
+| `tsc --noEmit -p tsconfig.app.json` | One error, `Cannot find module '@colyseus/sdk'`, in a file this work did not touch. None in castle files |
+| Production `vite build` | Passed (with the stub; output to a scratch folder) |
+| Prettier, oxlint on changed files | Pass; oxlint warnings are in files this work did not touch |
+| Python, Ruff, Django | Not run: no Python code changed |
+
+**Environment limits, recorded honestly.** `@colyseus/sdk` is not installed in the shared
+`/home/pdimitriu/Coding/node_modules` that this checkout resolves from (the previous session traced
+the same symptom to an inode-full disk). The shared directory was not modified. The castle parity
+suite and the production build were run with a **scratch alias that stubs `@colyseus/sdk`**, kept
+outside the repository. The machine was shared and loaded (load average about 13), `/home` was
+briefly full, and full `three/` suites and `tsc -b` exceeded ten minutes, so checks were run in small
+batches and the typecheck used the app project alone with an incremental cache.
+
+**Not done, not claimed.** SC-R03-02 to 07 (hub navigation and the accessible go-to control, Trophy
+Room, Observatory function, Secret Chamber, map and discovery, navigation regression), all of SC-R04
+and SC-R05, and SC-R06 to 12. The hub's go-to control needs a generic engine position API that does
+not exist. Persisted room discovery needs an owner decision on where it lives. SC-R04 and SC-R05 need
+Django changes and a PostgreSQL test database. **No room is marked visually accepted**: every row
+awaits the owner's browser inspection, and none of the art is production art.

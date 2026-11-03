@@ -486,7 +486,7 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       layout tests and 3 manifest-collider tests (every safe spot, landing point and doorway is
       reachable with the solid decor in place) pass; typecheck has only the missing `@colyseus/sdk`
       error; Prettier and oxlint clean. **Not yet wired into any view:** the hub cues, guidance and
-      the map (SC-R03-02, SC-R03-06) read it. Browser: none needed
+      the map (SC-R03-02, SC-R03-06) read it. Browser: none needed. Commit `bc28e4f`
 - [ ] **SC-R03-02** Grand Hall navigation hub: door cues, labels, guidance, locked-door behaviour, return to hub
 - [ ] **SC-R03-03** Trophy Room (new room; display contract and empty state only, persistence is SC-R07)
 - [ ] **SC-R03-04** Observatory function in the Setting Tower (telescope, observing; deterministic)
