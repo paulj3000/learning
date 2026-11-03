@@ -26,6 +26,7 @@ from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 
 from apps.core.request_context import get_request_id
+from apps.speech.integration import approve_turn
 from apps.users.scoping import ChildScopedAPIView
 
 from .models import AIInteractionAudit, SafetyAction, SafetyEvent
@@ -41,8 +42,14 @@ def _check_size(request) -> None:
         raise ValidationError({"non_field_errors": "Request too large."})
 
 
-def _response(result) -> Response:
-    return Response({"turn": result.turn, "source": result.source, "requestId": get_request_id()})
+def _response(result, child=None, route: str = "", npc_id: str | None = None) -> Response:
+    body = {"turn": result.turn, "source": result.source, "requestId": get_request_id()}
+    # SM-P8-08: a validated turn may be spoken. The reference is made here, after every check; the
+    # app asks the speech API for audio by it. `None` (speech off, no voice) adds nothing.
+    speech = approve_turn(child, route, result.turn, npc_id) if child is not None else None
+    if speech:
+        body["speech"] = speech
+    return Response(body)
 
 
 class CompanionTurnView(ChildScopedAPIView):
@@ -51,7 +58,12 @@ class CompanionTurnView(ChildScopedAPIView):
         body = CompanionTurnRequest(data=request.data)
         body.is_valid(raise_exception=True)
         try:
-            return _response(request_companion_turn(self.child, body.validated_data))
+            return _response(
+                request_companion_turn(self.child, body.validated_data),
+                self.child,
+                "companion",
+                body.validated_data.get("npcId"),
+            )
         except ContextNotFound:
             raise NotFound from None
 
@@ -62,7 +74,9 @@ class TutorTurnView(ChildScopedAPIView):
         body = TutorTurnRequest(data=request.data)
         body.is_valid(raise_exception=True)
         try:
-            return _response(request_tutor_turn(self.child, body.validated_data))
+            return _response(
+                request_tutor_turn(self.child, body.validated_data), self.child, "tutor"
+            )
         except ContextNotFound:
             raise NotFound from None
         except SkillNotInStep:

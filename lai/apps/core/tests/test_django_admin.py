@@ -186,6 +186,7 @@ def test_no_child_owned_record_is_registered_and_child_profiles_are_read_only():
         "auth",
         "catalog",
         "regions",
+        "speech",
         "question_studio",
         "users",
     }
