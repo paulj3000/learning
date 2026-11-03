@@ -29,7 +29,8 @@ from django.utils import timezone
 
 from apps.adventures import engine
 from apps.catalog import authoring
-from apps.catalog.models import Adventure, AdventureStep, ContentRelease
+from apps.catalog.models import Adventure, AdventureStep, ContentRelease, RewardRule
+from apps.education.models import SkillEvidence
 from apps.game_sessions.models import (
     COMPLETE_STEP_ID,
     AdventureAction,
@@ -37,6 +38,8 @@ from apps.game_sessions.models import (
     Correctness,
     SessionStatus,
 )
+from apps.inventory.services import RewardGrant, grant_reward_rule
+from apps.progression.services import record_world_change
 
 
 class ProgressError(Exception):
@@ -294,6 +297,14 @@ def canonical_answer(answer: dict[str, Any]) -> str:
     return json.dumps(answer, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
+@dataclass(frozen=True)
+class Completion:
+    """What finishing the adventure changed on the island (LAI-0816). Empty on a replay."""
+
+    rewards: tuple[tuple[RewardRule, RewardGrant], ...] = ()
+    quests_completed: tuple[str, ...] = ()
+
+
 @dataclass
 class AnswerOutcome:
     correctness: str
@@ -303,6 +314,8 @@ class AnswerOutcome:
     attempt_number: int
     replayed: bool
     session: AdventureSession
+    world_change_keys: tuple[str, ...] = ()
+    completion: Completion | None = None
 
 
 def _outcome(action: AdventureAction, session: AdventureSession, replayed: bool) -> AnswerOutcome:
@@ -362,9 +375,76 @@ def submit_answer(
         request_id=request_id,
         at=at,
     )
+    outcome = _outcome(action, session, replayed=False)
+    _record_evidence(session, step, decision, at)
+    if decision["action"] == "ADVANCE":
+        outcome.world_change_keys = _apply_world_change_step(session, step)
     if next_step is not None and _ends_adventure(session, next_step):
         _complete(session, at)
-    return _outcome(action, session, replayed=False)
+        outcome.completion = _on_completion(session)
+    return outcome
+
+
+# --- Consequences of playing (LAI-0816) -----------------------------------------------------------
+# Python decides them, in the answer's own transaction, so a retry or a second tab can never
+# record or pay twice: evidence is one row per graded attempt (a replay returns before this),
+# world changes and reward rules are idempotent under their unique constraints.
+
+_GRADED = (engine.CORRECT, engine.INCORRECT, engine.PARTIAL)
+
+
+def _record_evidence(session, step: dict, decision: dict, at) -> None:
+    """One skill evidence row per learning objective of a graded step. Progress counters are
+    LAI-0603's; this only records what happened."""
+    if decision["correctness"] not in _GRADED:
+        return
+    for code in step.get("objectiveIds", []):
+        SkillEvidence.objects.create(
+            child=session.child,
+            adventure_session=session,
+            learning_objective_code=code,
+            evidence_type=step.get("type", "")[:32],
+            difficulty=session.adventure.skill_level,
+            result=_CORRECTNESS[decision["correctness"]],
+            support_level=min(int(decision["supportLevel"]), 32767),
+            observed_at=at,
+        )
+
+
+def _apply_world_change_step(session, step: dict) -> tuple[str, ...]:
+    """Continuing past a WORLD_CHANGE step records its consequence on the island, once."""
+    presentation = step.get("presentation", {})
+    payload = presentation.get("payload") if presentation.get("kind") == "world-change" else None
+    if not isinstance(payload, dict):
+        return ()
+    record_world_change(
+        session.child,
+        location_slug=payload["locationSlug"],
+        change_type=payload["changeType"],
+        change_key=payload["changeKey"],
+        source_session=session,
+    )
+    return (payload["changeKey"],)
+
+
+def _on_completion(session) -> Completion:
+    """Grant the configured reward once and move the child's quests forward."""
+    # Imported here: `apps.quests.services` imports this module's errors.
+    from apps.quests.services import grant_quest_completion_rewards, refresh_active_quests
+
+    child = session.child
+    rules = RewardRule.objects.filter(
+        trigger__type="ADVENTURE_COMPLETED", trigger__templateSlug=session.adventure.slug
+    ).order_by("rule_id")
+    rewards = tuple(
+        (rule, grant_reward_rule(child, rule, source_session=session)) for rule in rules
+    )
+    updates = refresh_active_quests(child, source_session=session)
+    quest_rewards = grant_quest_completion_rewards(child, updates, source_session=session)
+    return Completion(
+        rewards=(*rewards, *((r.rule, r.grant) for r in quest_rewards)),
+        quests_completed=tuple(u.progress.quest.slug for u in updates if u.result.just_completed),
+    )
 
 
 @transaction.atomic
@@ -387,3 +467,65 @@ def request_hint(child, session_id, *, step_id: str, from_level: int, now=None):
         session.last_activity_at = max(_now(now), session.last_activity_at)
         session.save(update_fields=["hint_levels", "last_activity_at"])
     return level, engine.hint_text(step, level)
+
+
+# --- Reading and starting (LAI-0816) ------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class StepView:
+    """What a client needs to show the child's current step, from the pinned content."""
+
+    session: AdventureSession
+    step: dict | None
+    """The current step without answers, hints or transitions; None once the session is over."""
+    step_revision: dict | None
+    adventure_revision: dict | None
+    done_step_ids: list[str]
+
+
+def _pinned_ref(session: AdventureSession, kind: str, record_key: str) -> dict | None:
+    revision = session.pinned_revisions.filter(kind=kind, record_key=record_key).first()
+    return None if revision is None else {"id": str(revision.pk), "number": revision.number}
+
+
+def read_current_step(child, session_id) -> StepView:
+    """Resume after a disconnection: the session, its current step as it started, and what is
+    done. Reads only; the answer and hint routes keep grading. A mid-session publication changes
+    nothing here, because the step comes from the revision the session pinned."""
+    from apps.adventures.public import public_step
+
+    try:
+        session = (
+            AdventureSession.objects.for_child(child).select_related("adventure").get(pk=session_id)
+        )
+    except AdventureSession.DoesNotExist:
+        raise ProgressNotFound from None
+    done = completed_step_ids(child, session_id)
+    adventure_ref = _pinned_ref(session, "adventure", session.adventure.slug)
+    if session.status != SessionStatus.ACTIVE:
+        # A finished session still shows its closing step (the authored COMPLETE text).
+        closing = (
+            session.pinned_revisions.filter(
+                kind="adventure-step", record_key=session.current_step_id
+            )
+            .values_list("body", flat=True)
+            .first()
+        )
+        if closing and closing.get("presentation", {}).get("kind") == "complete":
+            return StepView(
+                session,
+                public_step(closing),
+                _pinned_ref(session, "adventure-step", session.current_step_id),
+                adventure_ref,
+                done,
+            )
+        return StepView(session, None, None, adventure_ref, done)
+    body = _current_step_body(session)
+    return StepView(
+        session,
+        public_step(body),
+        _pinned_ref(session, "adventure-step", session.current_step_id),
+        adventure_ref,
+        done,
+    )

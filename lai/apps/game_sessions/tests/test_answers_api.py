@@ -374,7 +374,7 @@ class TestAuthorization:
 
 @pytest.mark.django_db
 class TestContentVersions:
-    """LAI-0813 (ADR-043 acceptance requirement 1): an active session keeps grading against the
+    """LAI-0813 (ADR-047 acceptance requirement 1): an active session keeps grading against the
     content it started with. Only a session with no pinned versions (started before pinning)
     keeps the earlier rule of refusing changed content."""
 
