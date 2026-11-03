@@ -268,6 +268,13 @@ class QuestionAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return _perm(request, "add_question")
 
+    def has_change_permission(self, request, obj=None):
+        # A published question is frozen (its correction is a new draft), so its page is
+        # view-only: no Save that would end in "Not saved" beside Django's "changed" message.
+        if obj is not None and obj.review_status == ReviewStatus.PUBLISHED:
+            return False
+        return _perm(request, "change_question")
+
     def has_delete_permission(self, request, obj=None):
         return False  # drafts are rejected, never deleted: the history stays
 
@@ -310,6 +317,7 @@ class QuestionAdmin(admin.ModelAdmin):
         "action_approve",
         "action_reject",
         "action_publish",
+        "action_correct",
         "action_regenerate",
     )
     ACTION_PERMS = {
@@ -318,6 +326,7 @@ class QuestionAdmin(admin.ModelAdmin):
         "action_approve": "approve_question",
         "action_reject": "approve_question",
         "action_publish": "publish_question",
+        "action_correct": "change_question",
         "action_regenerate": "add_generationbatch",
     }
 
@@ -378,6 +387,16 @@ class QuestionAdmin(admin.ModelAdmin):
     def action_publish(self, request, queryset):
         self._report(
             request, "published", *workflow.bulk(workflow.publish, list(queryset), request.user)
+        )
+
+    @admin.action(description="Start a correction of selected published questions")
+    def action_correct(self, request, queryset):
+        """A published question is read-only; its correction is a new draft that, once
+        published, supersedes the old revision (`workflow.start_correction`)."""
+        self._report(
+            request,
+            "copied into a correction draft",
+            *workflow.bulk(workflow.start_correction, list(queryset), request.user),
         )
 
     @admin.action(description="Regenerate: reject selected and queue replacements")

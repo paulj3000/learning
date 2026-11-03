@@ -285,10 +285,14 @@ function RegionPlayGame(props: LocationCompanionProps) {
     react,
   ]);
 
-  // TR-14: what the server said about a pickup and a talk made here.
+  // TR-14: what the server said about a pickup and a talk made here. Each outcome is revealed
+  // once: `react` and `refreshProgress` change with every new bootstrap, which re-runs these.
   const lastPickup = state.lastPickup;
+  const revealedPickup = useRef<PickupOutcome | null>(null);
   useEffect(() => {
-    if (lastPickup?.pickedUp && lastPickup.newItems.length > 0) {
+    if (!lastPickup || revealedPickup.current === lastPickup) return;
+    revealedPickup.current = lastPickup;
+    if (lastPickup.pickedUp && lastPickup.newItems.length > 0) {
       playCue('keyPickup');
       react('cheer');
       setFound(lastPickup);
@@ -296,8 +300,11 @@ function RegionPlayGame(props: LocationCompanionProps) {
     }
   }, [lastPickup, refreshProgress, react]);
   const lastTalk = state.lastTalk;
+  const revealedTalk = useRef<TalkOutcome | null>(null);
   useEffect(() => {
-    if (lastTalk?.questUpdates.some((update) => update.justCompleted)) {
+    if (!lastTalk || revealedTalk.current === lastTalk) return;
+    revealedTalk.current = lastTalk;
+    if (lastTalk.questUpdates.some((update) => update.justCompleted)) {
       playCue('celebrate');
       react('cheer');
       setFinale(lastTalk);

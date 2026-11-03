@@ -21,6 +21,7 @@
     "format:check": "prettier --check .",
     "test": "npm run test -w react",
     "test:e2e": "npm run test:e2e -w react",
+    "test:acceptance": "npm run test:acceptance -w react",
     "sandbox": "ampx sandbox",
     "mp:dev": "tsx server/multiplayer/index.ts",
     "ai:red-team": "tsx scripts/ai-red-team.ts",
@@ -92,5 +93,8 @@
     "typescript": "^5.9.3",
     "vite": "^8.2.1",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "semver": "7.8.5"
   }
 }

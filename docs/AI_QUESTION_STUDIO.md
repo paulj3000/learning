@@ -127,7 +127,7 @@ Storykeeper Castle and other step-based adventures run client-side on Amplify se
 Django catalog (LAI-0309, LAI-0603). The Studio does not integrate with them in this phase; the
 `QuestionPool` link is by `Adventure.slug` so they can adopt it later.
 
-## 7. Proposed ADR-046
+## 7. ADR-046 (proposed here; accepted by the owner 2026-11-02)
 
 "AI Question Studio is a staff-only Django app that drafts questions through the ADR-044 model
 client, stores them in a Django question bank with immutable published revisions, and serves

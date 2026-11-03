@@ -21,3 +21,6 @@ content/derived
 lai/apps/assets/static/assets/admin/asset-preview.js
 # Django templates: Prettier's HTML parser does not understand the template language
 lai/**/templates/**/*.html
+# generated: the Treasure Cove layout snapshot (python -m apps.regions.treasure_cove_layout from
+# lai/), written with json.dumps(indent=1); the frontend tests load it
+lai/apps/regions/treasure_cove_layout.json

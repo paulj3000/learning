@@ -194,3 +194,10 @@
   font-size: 0.85rem;
   color: var(--color-text-muted);
 }
+
+/* Phones: the toast sits above the stacked Hint and Backpack buttons instead of under them. */
+@media (max-width: 599px) {
+  .toast {
+    margin-bottom: 8.5rem;
+  }
+}

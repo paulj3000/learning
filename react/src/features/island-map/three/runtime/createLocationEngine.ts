@@ -71,6 +71,7 @@ import {
   type BoxBounds,
 } from './sceneLayout';
 import { WorldTriggerTracker } from './worldTriggerTracker';
+import { installE2EProbe } from './e2eProbe';
 
 export type { LoadedModel } from './extensionRegistry';
 
@@ -980,6 +981,7 @@ export function createLocationEngine<R extends RendererLike>(
   function dispose(): void {
     if (disposed) return;
     disposed = true;
+    uninstallProbe?.();
     deps.cancelFrame(frameHandle);
     controls.dispose();
     stopFitting();
@@ -997,6 +999,17 @@ export function createLocationEngine<R extends RendererLike>(
       parent.removeChild(renderer.domElement);
     }
   }
+
+  // Browser acceptance suites only (`vite --mode e2e`); compiled out of every other build.
+  const uninstallProbe =
+    import.meta.env.MODE === 'e2e'
+      ? installE2EProbe({
+          controller,
+          targets: focusTargets,
+          walkable,
+          focused: () => raycastFocus()?.entityId ?? null,
+        })
+      : null;
 
   const ready = Promise.all(pending).then(() => undefined);
 

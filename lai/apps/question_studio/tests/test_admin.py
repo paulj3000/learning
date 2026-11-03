@@ -280,3 +280,48 @@ def test_retire_action_needs_the_retire_permission(reviewer, publisher):
     )
     revision.refresh_from_db()
     assert revision.status == "RETIRED"
+
+
+def test_a_published_question_is_corrected_through_the_admin(author, reviewer, publisher):
+    """Found in browser acceptance: the correction workflow had no Admin entry point."""
+    from apps.question_studio import workflow
+
+    q = make_question()
+    validation.run_validation(q)
+    workflow.approve(q, reviewer)
+    first = workflow.publish(q, publisher)
+    response = post_action(login(author), "action_correct", q)
+    assert b"1 question(s) copied into a correction draft" in response.content
+    draft = q.replacements.get()
+    assert draft.review_status == ReviewStatus.DRAFT
+    # A second correction while one is open is refused, and an unpublished question has none.
+    response = post_action(login(author), "action_correct", q, draft)
+    assert response.content.count(b"Skipped") == 2
+    workflow.submit_for_review(draft, author)
+    workflow.approve(draft, reviewer)
+    second = workflow.publish(draft, publisher)
+    first.refresh_from_db()
+    assert first.status != "ACTIVE" and second.status == "ACTIVE"
+
+
+def test_the_correction_action_needs_change_permission(nobody):
+    q = make_question()
+    login(nobody).post(
+        url("question_changelist"), {"action": "action_correct", "_selected_action": [str(q.pk)]}
+    )
+    assert not q.replacements.exists()
+
+
+def test_a_published_question_page_is_view_only(reviewer, publisher):
+    from apps.question_studio import workflow
+
+    q = make_question()
+    validation.run_validation(q)
+    workflow.approve(q, reviewer)
+    workflow.publish(q, publisher)
+    client = login(publisher)
+    page = client.get(url("question_change", q.pk))
+    assert page.status_code == 200 and b'name="_save"' not in page.content
+    assert client.post(url("question_change", q.pk), {"stem": "Changed?"}).status_code == 403
+    q.refresh_from_db()
+    assert q.stem != "Changed?"

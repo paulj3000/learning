@@ -12103,3 +12103,83 @@ merged or deployed, and no AWS call was made.
 - **LAI-AQS-024 stays open** for live generation and the Admin browser pass only.
 - **ADR-033 exception confirmed** by the owner (2026-11-02). ADR-046 records a bounded exception to "content reaches Django only through
   the export" (ADR-033): the bank is authored in Django. Merge order is `features/ai` first.
+
+## POST-MERGE-05: pre-merge acceptance of `dev20261102` into `main` (2026-11-02)
+
+Scope: `origin/main` (`be529fe`) to `origin/dev20261102` (`753d246`, 29 commits): Phase 28 AI
+Question Studio (LAI-AQS-001 to 024), the Treasure Rush reboot (TR-12 to TR-20) and the Asset
+Library (AM-13, AM-17, ADR-045). Run from a worktree because `/Coding` had no free inodes for
+`node_modules`. No AWS call, no deployment, no real Bedrock, S3 or Cognito.
+
+**New: browser acceptance suites** (`npm run test:acceptance`; how they work:
+`docs/TESTING_STRATEGY.md`, "Browser acceptance suites"). 29 scenarios in Chromium, desktop and
+an iPad-sized touch viewport, against a disposable local Django on PostgreSQL with simulated
+Cognito tokens and the fake model:
+
+| Suite | Covers |
+|---|---|
+| `treasure-rush.spec.ts` | Dashboard launch; Pip's offer and acceptance (E key); Hint only on request; all four encounters in order with a wrong answer, the hidden grove chest, the key and the locked chest, a wrong rune stone and new numbers, the golden chest; out-of-order chest and stone refused kindly; the finale; the gate holding before it, the bridge walked after it, its sides holding; the spyglass replay (kind note, "Play again", inventory unchanged); backpack with unique keepsakes; reload keeps everything with no second celebration; keyboard walking and island bounds; tap and click on the one action prompt (no E badge on touch); touch-drag walking; full screen with Hint, Backpack and Exit, and leaving it; exit without any challenge |
+| `question-studio.spec.ts` | Anonymous sign-in redirect; 403 for staff without Studio rights (and asset-only staff); form validation (browser and server); a Grade 3 multiplication batch with curriculum fields; clean drafts already need review; duplicates blocked by validation; reviewer approves and rejects but cannot publish; publisher publishes immutable revisions; a correction draft (and a second one refused); retirement by publishers only; phone-width Admin; a pool serving published questions at the cove chest (graded by Django), and retiring them sending new sessions back to the authored challenge |
+| `asset-library.spec.ts` | 403 without asset rights; definition id validation and duplicates; GLB, PNG and WAV accepted by content, a disguised file, a model on an image asset and an oversized file refused; 3D, image and audio previews; editors cannot publish; publish, version 2, make default, roll back to version 1 (default flag checked), admin history; published versions undeletable even by a superuser; retire and reactivate; signed Django delivery without a bearer token, tampered token 404, another parent refused, default version not retirable alone, retired asset reported `retired`; a published GLB replacing the bundled model in Treasure Cove |
+| `integration.spec.ts` | One parent cannot read, play, resolve assets for or edit another family's child (API 403/404, app shows a calm error and no play UI), cannot list it, and no token is 401; the dashboard and an Adventure launched from the cove's signpost (ADR-041) |
+
+**Defects found and fixed** (each with a regression test):
+
+1. TR-14, new on this branch: after the beach chest opened, the key's "You found something!"
+   reveal came back on top of the chest's reward, and Pip's finale could do the same. The pickup
+   and talk effects re-ran whenever a new bootstrap changed the `react` callback. Fixed in
+   `RegionPlayCompanion.tsx` (each outcome revealed once); two Vitest regressions fail without it.
+2. Layout: the island layout centres its column, so the 3D stage shrank to its text (274 x 206 px at
+   1280 x 720) and TR-13's on-stage Hint, Backpack and Full screen buttons covered the action
+   prompt. The wrapper now takes the available width, capped so the 4:3 stage fits below the
+   header; phones get a portrait stage and the toast above the stacked buttons. Checked by
+   screenshots at desktop, tablet and 390 px. The shrinking predates the branch; the overlap is new.
+3. Studio: `workflow.start_correction` had no Django Admin entry point, although the Admin and
+   LAI-AQS-019 describe corrections. Added the "Start a correction of selected published
+   questions" action (`change_question`), with two pytest cases.
+4. Studio: a published question's page offered Save, which ended in "Not saved:
+   invalid_transition" beside Django's "changed successfully". Published questions are now
+   view-only in Admin (403 on POST), with a pytest case.
+5. Build: `npm ci` failed on every machine since `semver@7.8.6` was published (2026-11-02): the
+   bundled AWS CDK toolkit's `semver` edge re-resolves to the latest release. Pinned with a root
+   `overrides` (`semver` 7.8.5, published 2026-06-19) and the lockfile regenerated as of
+   2026-11-01. CI would have failed the same way on `main`.
+6. Docs: ADR-045's heading lacked its registry title's last clause (`npm run adr:check` failed);
+   `docs/AI_QUESTION_STUDIO.md` still called ADR-046 proposed. ADR ids are unique (044 Django AI,
+   045 Asset Library, 046 Question Studio); the Django AI decision and Django Admin as the only
+   staff asset interface are unchanged.
+7. Prettier failed on the generated `treasure_cove_layout.json`; it joins the other generated,
+   byte-exact files in `.prettierignore`.
+
+Observations, not fixed: a foreign child's cove says "Something went wrong loading this part of
+the island" where `docs/TREASURE_RUSH_LOCAL_DEV.md` says "isn't open yet"; Django's bulk delete of a
+published asset version shows its generic "Cannot delete" page rather than the "retire them
+instead" note (deletion is refused either way); a zone-entry toast can replace an action's toast
+because the HUD has one toast slot. The `@colyseus/sdk` and `tsx` problems were missing installs
+(the inode-full disk); with `npm ci` working, `tsx` scripts, `server/` typecheck and the Colyseus
+tests pass.
+
+**Final results** (after all fixes, worktree of `dev20261102`, PostgreSQL 16 in Docker on 5442):
+
+| Check | Command | Result |
+|---|---|---|
+| Ruff lint / format | `ruff check .`, `ruff format --check .` | pass / 432 files formatted |
+| Django checks | `manage.py check`, `makemigrations --check --dry-run` | no issues, no changes |
+| Migrations | 7 new migrations forward, reversed to `main`'s state, forward again on a disposable database | pass |
+| pytest (PostgreSQL required) | `LAI_REQUIRE_POSTGRES=1 pytest -q` | 1881 passed, 0 skipped |
+| Vitest | `vitest run --maxWorkers=2` | 318 files, 3403 tests passed |
+| TypeScript | `npm run typecheck` (+ `tsconfig.e2e.json`) | pass |
+| Prettier / oxlint | `prettier --check .`, `oxlint` | pass / 0 errors, 43 warnings (unchanged from `753d246`) |
+| ADR / admin preview / content / golden | `npm run adr:check`, `admin-preview:check`, `content:check`, `golden:check` | 46 decisions, all pass |
+| Production build | `npm run build` (no e2e probe or synthetic Cognito values in `dist`) | pass |
+| Smoke browser | `npm run test:e2e` | 7 passed |
+| Browser acceptance | `npm run test:acceptance` | 31 passed (28 desktop, 3 tablet), 1 skipped by design (touch is tablet-only) |
+
+The first full acceptance run lost one tablet test to Chromium's `ERR_NETWORK_CHANGED` (the host's
+network changed while Vite modules loaded: infrastructure, not the app); the tablet project rerun
+passed 3 of 3. The same happened once earlier in the session.
+
+**Pending, not claimed:** live Bedrock generation for the Studio (LAI-0705, LAI-AQS-024; no AWS
+cost incurred), live S3 storage and S3 signed delivery, live Cognito tokens (ADR-024 A6), the
+Amplify Data screens (harbor map, adventure log, Amplify-session places; unchanged on this
+branch), and the owner's playtest of the TR-9 feel items.

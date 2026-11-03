@@ -880,6 +880,72 @@ describe("Pip's Missing Treasure (TR-14)", () => {
     expect(onCloseInteraction).toHaveBeenCalled();
   });
 
+  // Found in browser acceptance: opening the beach chest re-rendered with a new bootstrap, and
+  // the key's reveal came back on top of the chest's reward.
+  it('reveals a pickup once, however often the scene or bootstrap changes afterwards', async () => {
+    const api = fakeApi({
+      getRegion: vi.fn(async () => pips()),
+      collectPickup: vi.fn(async () => ({
+        value: {
+          entityId: 'cove-brass-key',
+          pickedUp: true,
+          collected: true,
+          newItems: [keyItem],
+          rewardMessage: null,
+          questUpdates: [],
+          completionRewards: [],
+        },
+        created: true,
+      })),
+    });
+    const view = render(
+      <RegionPlayCompanion {...playing(api, { claimedInteraction: interaction(KEY) })} />,
+    );
+    await screen.findByRole('dialog', { name: 'You found something!' });
+    await userEvent.click(screen.getByRole('button', { name: 'Keep exploring' }));
+    expect(screen.queryByRole('dialog', { name: 'You found something!' })).toBeNull();
+    // A new scene handle makes every reaction callback new, as a new bootstrap does in play.
+    view.rerender(<RegionPlayCompanion {...playing(api, { sceneApi: fakeScene() })} />);
+    await act(async () => undefined);
+    expect(screen.queryByRole('dialog', { name: 'You found something!' })).toBeNull();
+  });
+
+  it('brings the finale once, however often the scene changes afterwards', async () => {
+    const api = fakeApi({
+      getRegion: vi.fn(async () => pips()),
+      talkToNpc: vi.fn(async () => ({
+        flagsSet: [],
+        questUpdates: [
+          {
+            questId: 'pips-missing-treasure',
+            status: 'COMPLETED' as const,
+            currentStageId: 'return-to-pip',
+            justCompleted: true,
+            newlyCompletedObjectiveIds: ['cove-return-to-pip'],
+          },
+        ],
+        completionRewards: [],
+      })),
+    });
+    // Closing gives the claim back, as the view does, so Pip is not talked to again.
+    const onCloseInteraction = vi.fn(() =>
+      view.rerender(<RegionPlayCompanion {...playing(api, { onCloseInteraction })} />),
+    );
+    const view = render(
+      <RegionPlayCompanion
+        {...playing(api, { claimedInteraction: interaction(PIP), onCloseInteraction })}
+      />,
+    );
+    await screen.findByRole('dialog', { name: 'You found all my treasure!' });
+    await userEvent.click(screen.getByRole('button', { name: 'Keep exploring' }));
+    expect(api.talkToNpc).toHaveBeenCalledTimes(1);
+    view.rerender(
+      <RegionPlayCompanion {...playing(api, { sceneApi: fakeScene(), onCloseInteraction })} />,
+    );
+    await act(async () => undefined);
+    expect(screen.queryByRole('dialog', { name: 'You found all my treasure!' })).toBeNull();
+  });
+
   it('says a chest needs its key, with Pip’s clue, and asks for no challenge', async () => {
     const api = fakeApi({
       getRegion: vi.fn(async () =>

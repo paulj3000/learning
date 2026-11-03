@@ -3253,7 +3253,7 @@ and safety rows (with LAI-0308, gate G9), admin review UI, and the cutover date.
 
 
 
-## ADR-045: Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets
+## ADR-045: Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets; no React staff asset manager or administrator asset API
 
 Status: Accepted 2026-11-02 (owner-directed; development only). Branch `feature/asset-manager`.
 Supersedes the ADR-042 amendment (2026-11-01) items 2 and 3 **for staff asset administration**, and

@@ -5,6 +5,15 @@ has been verified in a browser: the development checks were unit, API and typech
 (`docs/TREASURE_RUSH_ROADMAP.md` section 20). A tick here is what turns "pending owner
 playtesting" into a result. **TR-9 and final acceptance stay open until you record them.**
 
+**Automated since 2026-11-02 (POST-MERGE-05).** `npm run test:acceptance`
+(`react/e2e/acceptance/treasure-rush.spec.ts`) now plays the whole adventure in Chromium against a
+local Django, desktop and tablet: quest offer and acceptance, all four encounters in order with a
+wrong answer and a wrong stone, the early-chest and early-stone refusals, the key, the finale,
+the gate before it and the bridge after it (walked, sides holding), the spyglass replay with no
+reward, the backpack, persistence after a reload, keyboard, tap and touch-drag control, full
+screen, and exit. What it cannot judge is yours: how it feels, motion, frame rate on your tablet,
+tap sizes for the youngest band, timing, and sound. Leave the boxes for your own playthrough.
+
 Setup: `docs/TREASURE_RUSH_LOCAL_DEV.md` (local Django on PostgreSQL, `VITE_BACKEND=django`,
 `publish_treasure_rush`). An existing local cove gets layout v4 from `seed_treasure_rush` and a
 new migration (`regions.0004`) from `migrate`. Use one child per age band if you can: Sprouts
