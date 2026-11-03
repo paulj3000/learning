@@ -267,7 +267,13 @@ Vitest and fakes only; no real-browser audio check has been run.
   - [x] **SM-P2-08** Permissions (`Sound editors`, `Sound publishers`), read-only API, no new auth, audit through admin history and release records
   - [x] **SM-P2-09** Tests: Django `apps/audio` and React `src/audio`, `src/api/audio`
   - [x] **SM-P2-10** Documentation, tracker, ADR-047 (Proposed)
-- [ ] **SM-P3** Sound library reporting (unassigned and orphaned cues), tags and search, per-Island releases if needed (depends: SM-P2). The published-audio resolver and the manifest endpoint were delivered by SM-P2
+- [x] **SM-P3** Sound library reporting (unassigned and orphaned cues), tags and search, per-Island releases if needed (depends: SM-P2). DEVELOPMENT DONE 2026-11-03 for reporting, search and diagnostics; per-Island releases and cue tags deliberately NOT built (no need shown; releases stay library-wide, ADR-047). Sub-tasks are `SM-P3-R1` to `R6` (the batch brief's P3-01 to P3-06), so they do not clash with the Treasure Rush brief's `SM-P3-01` to `10` under SM-P4. Detail: `docs/audio/SOUND_LIBRARY_REPORTING.md`
+  - [x] **SM-P3-R1** Inventory (assets, cues, releases, last publication) from real tables
+  - [x] **SM-P3-R2** Per-game coverage with a strict readiness chain; Treasure Rush supported; coverage by Island, Place, 3D Area and Adventure
+  - [x] **SM-P3-R3** Diagnostics with remediation: missing, unpublished and retired audio, missing cues, invalid assignments, absent from manifest, orphans
+  - [x] **SM-P3-R4** Django Admin Library report page (read-only, filterable, searchable, accessible tables, existing permissions)
+  - [x] **SM-P3-R5** `manage.py audio_library_report` (read-only, deterministic, `--strict` exits 2)
+  - [x] **SM-P3-R6** Tests and staff documentation
 - [x] **SM-P4** Treasure Rush integration behind a scope (depends: SM-P2, TR-9; supersedes TR-D19). DEVELOPMENT DONE 2026-11-03 on `feature/sound-manager` as the Phase 3 brief, sub-tasks named `SM-P3-01` to `SM-P3-10` (the tracker's `SM-P3` stays the unrelated sound library reporting task). Unit-tested with the fake engine only; NOT heard in a browser and no audio asset is uploaded or published, so the cove is silent until staff publish a release. Detail: `docs/audio/TREASURE_RUSH_AUDIO.md`
   - [x] **SM-P3-01** Gameplay event audit and event-to-cue map (no coin, gem or generic pickup mechanic exists; Lookout Point has no zone)
   - [x] **SM-P3-02** Region manifest loaded through `useAudioManifest` and the Django audio source; failures leave a silent game

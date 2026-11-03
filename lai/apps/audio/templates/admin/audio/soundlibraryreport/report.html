@@ -1,0 +1,131 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div id="content-main">
+  <h1>{{ title }}</h1>
+  <p>
+    A read-only report on the real library. It changes nothing and publishes nothing. A cue counts
+    as <strong>ready</strong> only when its audio is published, the live release includes it, and the
+    game's manifest serves it.
+  </p>
+
+  <form method="get" aria-label="Report filters">
+    <label for="id_game">Game</label>
+    <select name="game" id="id_game">
+      {% for g in games %}<option value="{{ g.slug }}"{% if g.slug == game %} selected{% endif %}>{{ g.title }}</option>{% endfor %}
+    </select>
+    <label for="id_show">Show</label>
+    <select name="show" id="id_show">
+      <option value="all"{% if show == "all" %} selected{% endif %}>All cues</option>
+      <option value="blocked"{% if show == "blocked" %} selected{% endif %}>Not ready only</option>
+    </select>
+    <label for="id_severity">Problems</label>
+    <select name="severity" id="id_severity">
+      <option value="all"{% if severity == "all" %} selected{% endif %}>Errors and warnings</option>
+      <option value="error"{% if severity == "error" %} selected{% endif %}>Errors only</option>
+      <option value="warning"{% if severity == "warning" %} selected{% endif %}>Warnings only</option>
+    </select>
+    <label for="id_q">Search</label>
+    <input type="search" name="q" id="id_q" value="{{ q }}" size="24">
+    <input type="submit" value="Apply">
+  </form>
+
+  <h2>Library inventory</h2>
+  <table>
+    <caption>Audio files, sound cues and releases</caption>
+    <thead><tr><th scope="col">Item</th><th scope="col">Count</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Audio assets</th><td>{{ inventory.audio_assets }}</td></tr>
+      <tr><th scope="row">Published audio assets</th><td>{{ inventory.published_assets }}</td></tr>
+      <tr><th scope="row">Draft or unpublished audio assets</th><td>{{ inventory.draft_assets }}</td></tr>
+      <tr><th scope="row">Retired audio assets</th><td>{{ inventory.retired_assets }}</td></tr>
+      <tr><th scope="row">Sound cues</th><td>{{ inventory.cues }} ({{ inventory.enabled_cues }} enabled)</td></tr>
+      <tr><th scope="row">Cues in the live release (published)</th><td>{{ inventory.cues_in_live_release }}</td></tr>
+      <tr><th scope="row">Unassigned cues (not shared, no assignment)</th><td>{{ inventory.unassigned_cues }}</td></tr>
+      <tr><th scope="row">Cues whose audio is not published</th><td>{{ inventory.cues_with_blocked_audio }}</td></tr>
+      <tr><th scope="row">Sound releases</th><td>{{ inventory.releases }}</td></tr>
+      <tr><th scope="row">Live release</th><td>{% if inventory.live_release_number %}Release {{ inventory.live_release_number }}{% else %}None{% endif %}</td></tr>
+      <tr><th scope="row">Last published</th><td>{% if inventory.last_published_at %}{{ inventory.last_published_at }}{% else %}Never{% endif %}</td></tr>
+    </tbody>
+  </table>
+
+  <h2>{{ coverage.game.title }} sound coverage</h2>
+  <p role="status">
+    {% if not coverage.area_found %}
+      <strong>&#10007; The game's 3D Area is not in the database, so nothing can be served.</strong>
+    {% elif coverage.ready %}
+      <strong>&#10003; Ready: all {{ coverage.checks|length }} required cues can play.</strong>
+    {% else %}
+      <strong>&#10007; Not ready: {{ coverage.ready_count }} of {{ coverage.checks|length }} required cues can play.</strong>
+    {% endif %}
+  </p>
+  <table>
+    <caption>Required cues for {{ coverage.game.title }}</caption>
+    <thead>
+      <tr>
+        <th scope="col">Cue</th><th scope="col">Purpose</th><th scope="col">Audio asset</th>
+        <th scope="col">Cue</th><th scope="col">Assignment</th><th scope="col">Release</th>
+        <th scope="col">Manifest</th><th scope="col">Ready</th><th scope="col">What to do</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in checks %}
+      <tr>
+        <th scope="row">{{ c.cue_id }}</th>
+        <td>{{ c.purpose }}</td>
+        <td>{{ c.asset_id }}: {{ c.asset_status }}</td>
+        <td>{{ c.cue_status }}</td>
+        <td>{{ c.assignment_status }}</td>
+        <td>{{ c.release_status }}</td>
+        <td>{{ c.manifest_status }}</td>
+        <td>{% if c.ready %}&#10003; Ready{% else %}&#10007; Not ready{% endif %}</td>
+        <td>{% for fix in c.remediation %}{{ fix }} {% empty %}{% if not c.ready %}See the cue.{% endif %}{% endfor %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="9">No cues match these filters.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if optional %}
+  <table>
+    <caption>Optional cues (no current mechanic raises them; they never block readiness)</caption>
+    <thead><tr><th scope="col">Cue</th><th scope="col">Audio asset id</th><th scope="col">Cue</th><th scope="col">Ready</th></tr></thead>
+    <tbody>
+      {% for c in optional %}
+      <tr><th scope="row">{{ c.cue_id }}</th><td>{{ c.asset_id }}</td><td>{{ c.cue_status }}</td><td>{% if c.ready %}&#10003;{% else %}&mdash;{% endif %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  <h2>Coverage by Island, Place, 3D Area and Adventure</h2>
+  <table>
+    <caption>Sounds assigned and served for each part of the island</caption>
+    <thead><tr><th scope="col">Kind</th><th scope="col">Name</th><th scope="col">Assignments</th><th scope="col">Sounds served</th><th scope="col">Invalid assignments</th></tr></thead>
+    <tbody>
+      {% for s in scopes %}
+      <tr><td>{{ s.kind }}</td><th scope="row">{{ s.label }}</th><td>{{ s.assignments }}</td><td>{{ s.manifest_sounds }}</td><td>{% if s.problems %}&#10007; {{ s.problems }}{% else %}0{% endif %}</td></tr>
+      {% empty %}
+      <tr><td colspan="5">No islands, places or areas yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Problems and what to do</h2>
+  <table>
+    <caption>Diagnostics</caption>
+    <thead><tr><th scope="col">Level</th><th scope="col">Where</th><th scope="col">Problem</th><th scope="col">What to do</th></tr></thead>
+    <tbody>
+      {% for i in issues %}
+      <tr>
+        <td>{% if i.severity == "error" %}&#10007; Error{% else %}&#9888; Warning{% endif %}</td>
+        <th scope="row">{{ i.subject }}</th>
+        <td>{{ i.message }}</td>
+        <td>{{ i.remediation }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4">&#10003; Nothing to fix.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

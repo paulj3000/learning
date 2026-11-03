@@ -457,3 +457,15 @@ class ChildAudioSettings(ChildOwnedModel):
 
     def __str__(self) -> str:
         return f"Audio settings {self.pk}"
+
+
+class SoundLibraryReport(SoundCue):
+    """A proxy with no table of its own, so the readiness report has a place in Django Admin.
+
+    It stores nothing. The admin page (`admin.SoundLibraryReportAdmin`) renders `reporting.py`.
+    """
+
+    class Meta:
+        proxy = True
+        verbose_name = "library report"
+        verbose_name_plural = "library report"

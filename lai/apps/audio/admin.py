@@ -23,8 +23,8 @@ from django.utils.html import format_html, format_html_join
 from apps.assets import preview
 from apps.catalog.models import ContentAsset
 
-from . import services
-from .models import SoundAssignment, SoundCue, SoundRelease
+from . import reporting, services
+from .models import SoundAssignment, SoundCue, SoundLibraryReport, SoundRelease
 from .vocabulary import AUDIO_KIND
 
 
@@ -315,3 +315,70 @@ class SoundReleaseAdmin(admin.ModelAdmin):
         if not self.has_rollback_permission(request):
             actions.pop("roll_back", None)
         return actions
+
+
+@admin.register(SoundLibraryReport)
+class SoundLibraryReportAdmin(admin.ModelAdmin):
+    """The sound library's readiness report (SM-P3). Read-only: it changes and publishes nothing.
+
+    Allowed for anyone who may view sound cues (Sound editors and publishers, superusers). The
+    page is a plain, filterable HTML report over `reporting.py`; the same functions back
+    `manage.py audio_library_report`.
+    """
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.has_perm("audio.view_soundcue")
+
+    def has_module_permission(self, request):
+        return self.has_view_permission(request)
+
+    def changelist_view(self, request, extra_context=None):
+        if not self.has_view_permission(request):
+            raise PermissionDenied
+        game = request.GET.get("game", "treasure-rush")
+        if game not in reporting.GAMES:
+            game = "treasure-rush"
+        show = request.GET.get("show", "all")
+        severity = request.GET.get("severity", "all")
+        query = request.GET.get("q", "").strip().lower()
+
+        coverage = reporting.game_coverage(game)
+        checks = [
+            check
+            for check in coverage.checks
+            if (show != "blocked" or not check.ready)
+            and (not query or query in check.cue_id or query in check.asset_id)
+        ]
+        issues = [
+            issue
+            for issue in reporting.diagnostics(game).issues
+            if (severity == "all" or issue.severity == severity)
+            and (not query or query in issue.subject.lower() or query in issue.message.lower())
+        ]
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Sound library report",
+            "opts": self.model._meta,
+            "inventory": reporting.inventory(),
+            "coverage": coverage,
+            "checks": checks,
+            "optional": coverage.optional,
+            "scopes": reporting.scope_coverage(),
+            "issues": issues,
+            "games": reporting.GAMES.values(),
+            "game": game,
+            "show": show,
+            "severity": severity,
+            "q": request.GET.get("q", ""),
+            **(extra_context or {}),
+        }
+        return TemplateResponse(request, "admin/audio/soundlibraryreport/report.html", context)
