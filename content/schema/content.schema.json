@@ -1452,6 +1452,21 @@
           "items": {
             "additionalProperties": false,
             "properties": {
+              "adventureSlug": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "ageBands": {
+                "items": {
+                  "enum": [
+                    "SPROUT",
+                    "PATHFINDER",
+                    "EXPLORER"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
               "awardsRelationshipPoints": {
                 "type": "number"
               },
@@ -1517,12 +1532,20 @@
                 ],
                 "type": "object"
               },
+              "questId": {
+                "minLength": 1,
+                "type": "string"
+              },
               "setsMemoryFlags": {
                 "items": {
                   "minLength": 1,
                   "type": "string"
                 },
                 "type": "array"
+              },
+              "speaker": {
+                "minLength": 1,
+                "type": "string"
               },
               "text": {
                 "minLength": 1,

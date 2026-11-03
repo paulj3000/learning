@@ -294,6 +294,11 @@ LAI_AI_PRICE_TABLE_VERSION = os.environ.get("LAI_AI_PRICE_TABLE_VERSION", "").st
 # be switched off once every caller has a server-owned context; adventures (Amplify sessions)
 # and story scenes (no Django story catalog yet) still need it.
 LAI_AI_ALLOW_CLIENT_AUTHORED = env_bool("LAI_AI_ALLOW_CLIENT_AUTHORED", True)
+
+# Content authoring (ADR-047-Q1, LAI-0818). Off: one administrator with the publish permission
+# may publish what they drafted. On: a version must be submitted and approved by a different
+# administrator. The owner decides; the code never turns it on.
+LAI_CONTENT_INDEPENDENT_APPROVAL = env_bool("LAI_CONTENT_INDEPENDENT_APPROVAL", False)
 # No approved retention period yet (LAI-0707, LAI-0308 gate G9): unset means `ai_retention`
 # refuses to delete unless an operator passes --older-than-days explicitly.
 _retention = os.environ.get("LAI_AI_AUDIT_RETENTION_DAYS", "").strip()

@@ -1,4 +1,4 @@
-"""Per-record field derivation shared by the importer and Django Admin publishing (ADR-043).
+"""Per-record field derivation shared by the importer and Django Admin publishing (ADR-047).
 
 One function per record kind turns an export-shaped record into the catalog row's columns, so
 an import and an administrator's publish compute exactly the same columns from the same body.
@@ -112,6 +112,46 @@ def quest_fields(quest: Record, adventure_slugs, where: str, problems: list[str]
     }, list(dict.fromkeys(slug for slug in solved if slug in adventure_slugs))
 
 
+def story_scene_adventures(story: Record) -> list[str]:
+    return [
+        scene["templateSlug"]
+        for chapter in story.get("chapters", [])
+        for scene in chapter.get("scenes", [])
+        if scene.get("kind") == "ADVENTURE" and scene.get("templateSlug")
+    ]
+
+
+def story_fields(story: Record, adventure_slugs, where: str, problems: list[str]) -> tuple:
+    """Returns (fields, the known adventures its ADVENTURE scenes name, in order)."""
+    chapters = [c for c in story.get("chapters", []) if isinstance(c, dict)]
+    chapter_ids = [c.get("id") for c in chapters]
+    if len(set(chapter_ids)) != len(chapter_ids):
+        problems.append(f"{where}: chapter ids must be unique")
+    entry = text(story, "entryChapterId", where, problems)
+    if entry and entry not in chapter_ids:
+        problems.append(f"{where}: entry chapter {entry!r} is not one of its chapters")
+    for chapter in chapters:
+        following = chapter.get("nextChapterId")
+        if following and following not in chapter_ids:
+            problems.append(
+                f"{where}: chapter {chapter.get('id')!r} leads to unknown {following!r}"
+            )
+    scene_ids = [scene.get("id") for chapter in chapters for scene in chapter.get("scenes", [])]
+    if len(set(scene_ids)) != len(scene_ids):
+        problems.append(f"{where}: scene ids must be unique")
+    solved = story_scene_adventures(story)
+    for slug in solved:
+        if slug not in adventure_slugs:
+            problems.append(f"{where}: ADVENTURE scene names unknown adventure {slug!r}")
+    return {
+        "title": text(story, "title", where, problems),
+        "description": text(story, "description", where, problems, optional=True),
+        "supported_age_bands": texts(story, "supportedAgeBands", where, problems),
+        "entry_chapter_id": entry,
+        "source": story,
+    }, list(dict.fromkeys(slug for slug in solved if slug in adventure_slugs))
+
+
 def objective_fields(objective: Record, where: str, problems: list[str]) -> dict:
     return {
         "domain": text(objective, "domain", where, problems),
@@ -166,3 +206,60 @@ def reward_rule_fields(rule: Record, where: str, problems: list[str]) -> tuple[d
         "message": text(rule, "message", where, problems, optional=True),
         "source": rule,
     }, granted
+
+
+ALL_AGE_BANDS = ("SPROUT", "PATHFINDER", "EXPLORER")
+
+
+def npc_dialogue_problems(
+    npc: Record, covered_bands: tuple[str, ...], where: str, problems: list[str]
+) -> None:
+    """Age-band dialogue rules (LAI-0817), checked when an administrator publishes an NPC.
+
+    - node ids are unique and every choice leads to a node of this NPC;
+    - when any node targets age bands, each band in `covered_bands` must hear a conversation
+      opener that has no conditions (the safe fallback: no child meets silence);
+    - no node leaves a band with choices that all lead to lines that band never hears.
+    """
+    nodes = [n for n in npc.get("dialogue", []) if isinstance(n, dict)]
+    ids = [n.get("id") for n in nodes]
+    for node_id in sorted({i for i in ids if ids.count(i) > 1}, key=str):
+        problems.append(f"{where}: dialogue node id {node_id!r} is used more than once")
+    known = set(ids)
+    for node in nodes:
+        for choice in node.get("choices", []):
+            target = choice.get("nextNodeId")
+            if target and target not in known:
+                problems.append(
+                    f"{where}: choice {choice.get('id')!r} in node {node.get('id')!r} "
+                    f"leads to unknown node {target!r}"
+                )
+    if not any("ageBands" in n for n in nodes):
+        return
+
+    def hears(node: Record, band: str) -> bool:
+        return band in node.get("ageBands", ALL_AGE_BANDS)
+
+    for band in covered_bands:
+        openers = [
+            n
+            for n in nodes
+            if hears(n, band) and not n.get("followUpOnly") and not n.get("conditions")
+        ]
+        if not openers:
+            problems.append(
+                f"{where}: age band {band} has no conversation opener without conditions "
+                "(add a line for every band, or one with no age band)"
+            )
+        by_id = {n.get("id"): n for n in nodes}
+        for node in nodes:
+            choices = [c for c in node.get("choices", []) if c.get("nextNodeId") in by_id]
+            if (
+                hears(node, band)
+                and choices
+                and not any(hears(by_id[c["nextNodeId"]], band) for c in choices)
+            ):
+                problems.append(
+                    f"{where}: every choice in node {node.get('id')!r} leads to lines that "
+                    f"age band {band} never hears"
+                )

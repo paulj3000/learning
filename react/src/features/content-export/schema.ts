@@ -221,7 +221,7 @@ const defs: Record<string, Schema> = {
       setId: text,
       hidden: bool,
       cosmeticSlot: enumOf('HAT', 'BACKPACK', 'ACCESSORY', 'OUTFIT'),
-      // ADR-043 / Firepeak FP-10: a Discovery Journal entry's metadata (additive, optional).
+      // ADR-047 / Firepeak FP-10: a Discovery Journal entry's metadata (additive, optional).
       journal: obj(
         {
           subject: enumOf('EARTH_SCIENCE', 'MATHEMATICS', 'SPATIAL_REASONING', 'PROBLEM_SOLVING'),
@@ -286,6 +286,13 @@ const defs: Record<string, Schema> = {
           awardsRelationshipPoints: num,
           followUpOnly: bool,
           narration: obj({ allowedTopic: text, fallbackText: text }),
+          // LAI-0817: who says it, which age bands hear it (absent: every band), and the
+          // quest or adventure the line talks about. Django serves a node only to a child
+          // whose band it lists; the references are checked at publish, not conditions.
+          speaker: text,
+          ageBands: arr(enumOf('SPROUT', 'PATHFINDER', 'EXPLORER')),
+          questId: text,
+          adventureSlug: text,
         },
       ),
     ),

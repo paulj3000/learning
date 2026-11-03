@@ -7,5 +7,5 @@ class CatalogConfig(AppConfig):
     verbose_name = "Game content catalog"
 
     def ready(self):
-        # Registers the catalog's authorable kinds (ADR-043).
+        # Registers the catalog's authorable kinds (ADR-047).
         from . import authoring  # noqa: F401

@@ -1,0 +1,21 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p><a href="{{ change_url }}">Back to the version</a></p>
+<p>The words a child would read from this version, in order. Nothing is stored and no child data is used.</p>
+<form method="get">
+  <label for="band">Age band</label>
+  <select id="band" name="band">
+    <option value="">All bands</option>
+    {% for b in bands %}<option value="{{ b }}"{% if b == band %} selected{% endif %}>{{ b }}</option>{% endfor %}
+  </select>
+  <button type="submit">Show</button>
+</form>
+{% if lines %}
+<table>
+  <thead><tr><th scope="col">Where</th><th scope="col">Text</th></tr></thead>
+  <tbody>{% for path, text in lines %}<tr><td><code>{{ path }}</code></td><td>{{ text }}</td></tr>{% endfor %}</tbody>
+</table>
+{% else %}
+<p>This version has no child-facing text{% if band %} for {{ band }}{% endif %}.</p>
+{% endif %}
+{% endblock %}

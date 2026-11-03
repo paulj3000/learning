@@ -34,6 +34,7 @@ from apps.catalog.models import (
     NpcDefinition,
     Quest,
     RewardRule,
+    Story,
     World,
 )
 from apps.regions.models import WorldRegion
@@ -296,6 +297,30 @@ class QuestAdmin(AuthoredContentAdminMixin, CatalogModelAdmin):
     search_fields = ("slug", "title", "giver_npc_id")
     list_select_related = ("world",)
     readonly_display = ("in_latest_release",)
+
+
+@admin.register(Story)
+class StoryAdmin(AuthoredContentAdminMixin, CatalogModelAdmin):
+    has_catalog_fields = True
+    list_display = (
+        "slug",
+        "title",
+        "entry_chapter_id",
+        "active",
+        "sort_order",
+        "in_latest_release",
+    )
+    list_filter = ("active", InLatestReleaseFilter)
+    search_fields = ("slug", "title")
+    readonly_display = ("in_latest_release", "linked_adventures", "linked_quests")
+
+    @admin.display(description="Adventures in this story")
+    def linked_adventures(self, obj):
+        return ", ".join(obj.adventures.values_list("slug", flat=True)) or "none"
+
+    @admin.display(description="Quests that solve them")
+    def linked_quests(self, obj):
+        return ", ".join(obj.related_quests().values_list("slug", flat=True)) or "none"
 
 
 def _has_perm(request, name: str) -> bool:

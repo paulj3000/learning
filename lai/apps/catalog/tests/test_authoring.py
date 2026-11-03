@@ -1,4 +1,4 @@
-"""ADR-043: versioned content authoring (LAI-0810), authority-aware import (LAI-0811) and session
+"""ADR-047: versioned content authoring (LAI-0810), authority-aware import (LAI-0811) and session
 version pinning (LAI-0813)."""
 
 import copy
@@ -21,7 +21,7 @@ from apps.catalog.models import (
     RevisionStatus,
     World,
 )
-from apps.catalog.tests.helpers import base_collections, write_export
+from apps.catalog.tests.helpers import base_collections, publish_edit, staff_user, write_export
 from apps.game_sessions import services
 from apps.game_sessions.services import ContentVersionChanged
 
@@ -58,7 +58,10 @@ def imported(tmp_path):
 @pytest.fixture
 def editor(django_user_model):
     return django_user_model.objects.create(
-        cognito_sub=f"admin-{uuid.uuid4()}", admin_username="editor", is_staff=True
+        cognito_sub=f"admin-{uuid.uuid4()}",
+        admin_username="editor",
+        is_staff=True,
+        is_superuser=True,
     )
 
 
@@ -124,7 +127,7 @@ class TestAdminPublishing:
         body["stages"][0]["objectives"] = [
             {"id": "o1", "label": "Solve", "kind": "SOLVE", "adventureSlug": "tale"}
         ]
-        authoring.publish(authoring.create_draft(quest, body))
+        publish_edit(quest, body)
         assert [a.slug for a in quest.adventures.all()] == ["tale"]
 
     @pytest.mark.parametrize(
@@ -141,11 +144,11 @@ class TestAdminPublishing:
         self, imported, change, expected
     ):
         bay = Location.objects.get(slug="bay")
-        draft = authoring.create_draft(bay, edited(bay, **change))
+        draft = authoring.create_draft(bay, edited(bay, **change), user=staff_user())
         assert any(expected in problem for problem in draft.validation_report)
 
         with pytest.raises(authoring.PublishRefused) as refused:
-            authoring.publish(draft)
+            authoring.publish(draft, user=staff_user())
 
         assert any(expected in problem for problem in refused.value.problems)
         bay.refresh_from_db()
@@ -156,13 +159,13 @@ class TestAdminPublishing:
         quest = Quest.objects.get(slug="repair")
         body = edited(quest, giverNpcId="nobody")
         with pytest.raises(authoring.PublishRefused, match="unknown NPC"):
-            authoring.publish(authoring.create_draft(quest, body))
+            publish_edit(quest, body)
 
 
 class TestImportNeverOverwritesAdminEdits:
     def _take_over(self):
         bay = Location.objects.get(slug="bay")
-        authoring.publish(authoring.create_draft(bay, edited(bay, title="Sunny Bay")))
+        publish_edit(bay, edited(bay, title="Sunny Bay"))
         return bay
 
     def test_a_differing_export_is_a_conflict_kept_as_a_draft(self, imported, tmp_path):
@@ -194,7 +197,7 @@ class TestImportNeverOverwritesAdminEdits:
 
     def test_a_django_owned_quest_keeps_its_relations(self, imported, tmp_path):
         quest = Quest.objects.get(slug="repair")
-        authoring.publish(authoring.create_draft(quest, edited(quest, title="Mend it")))
+        publish_edit(quest, edited(quest, title="Mend it"))
         changed = collections_with_npc()
         changed["quests.json"]["quests"][0]["stages"][0]["objectives"][0]["adventureSlug"] = "tale"
         import_content(write_export(tmp_path / "v2", changed))
@@ -209,7 +212,9 @@ class TestImportNeverOverwritesAdminEdits:
         import_content(write_export(tmp_path / "v2", changed))
         bay = Location.objects.get(slug="bay")
 
-        authoring.publish(authoring.revisions_for(bay).get(status=RevisionStatus.DRAFT))
+        authoring.publish(
+            authoring.revisions_for(bay).get(status=RevisionStatus.DRAFT), user=staff_user()
+        )
 
         bay.refresh_from_db()
         assert bay.title == "Export Bay" and bay.authority == ContentAuthority.EXPORT
@@ -224,10 +229,10 @@ def report_release(report):
 class TestHistory:
     def test_rollback_publishes_an_old_body_as_a_new_version(self, imported):
         bay = Location.objects.get(slug="bay")
-        authoring.publish(authoring.create_draft(bay, edited(bay, title="Sunny Bay")))
+        publish_edit(bay, edited(bay, title="Sunny Bay"))
         first = authoring.revisions_for(bay).get(number=1)
 
-        restored = authoring.rollback(first)
+        restored = authoring.rollback(first, user=staff_user())
 
         bay.refresh_from_db()
         assert bay.title == "The Bay"
@@ -256,11 +261,11 @@ class TestHistory:
 
     def test_drafts_are_kept_when_discarded(self, imported):
         bay = Location.objects.get(slug="bay")
-        draft = authoring.create_draft(bay, edited(bay, title="Maybe"))
-        authoring.discard(draft)
+        draft = authoring.create_draft(bay, edited(bay, title="Maybe"), user=staff_user())
+        authoring.discard(draft, user=staff_user())
         assert ContentRevision.objects.get(pk=draft.pk).status == RevisionStatus.DISCARDED
         with pytest.raises(authoring.PublishRefused):
-            authoring.publish(draft)
+            authoring.publish(draft, user=staff_user())
 
     def test_one_published_version_per_record_is_a_database_rule(self, imported):
         from django.db import IntegrityError, transaction
@@ -286,7 +291,7 @@ class TestSessionPinning:
         step = AdventureStep.objects.get(adventure__slug="fix-bridge", step_id="count")
         body = copy.deepcopy(step.source)
         body["presentation"]["correctValue"] = value
-        authoring.publish(authoring.create_draft(step, body))
+        publish_edit(step, body)
 
     def _answer(self, child, session, value):
         return services.submit_answer(

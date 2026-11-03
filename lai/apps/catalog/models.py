@@ -86,7 +86,7 @@ class CatalogFields(models.Model):
 
 
 class ContentAuthority(models.TextChoices):
-    """Who owns a record's content (ADR-043 J).
+    """Who owns a record's content (ADR-047 J).
 
     `EXPORT`: every published revision came from the export (or a code seed); an import may
     publish a newer one. `DJANGO`: an administrator has published an edit; no import changes it.
@@ -98,6 +98,8 @@ class ContentAuthority(models.TextChoices):
 
 class RevisionStatus(models.TextChoices):
     DRAFT = "DRAFT", "Draft"
+    SUBMITTED = "SUBMITTED", "Submitted for approval"
+    REJECTED = "REJECTED", "Returned with a reason"
     PUBLISHED = "PUBLISHED", "Published"
     SUPERSEDED = "SUPERSEDED", "Superseded"
     DISCARDED = "DISCARDED", "Discarded"
@@ -111,16 +113,26 @@ class RevisionOrigin(models.TextChoices):
 
 
 class RevisionImmutable(ValueError):
-    """A published, superseded or discarded revision was about to change (ADR-043 E)."""
+    """A published, superseded or discarded revision was about to change (ADR-047 E)."""
 
 
 # Which status changes a revision may make. Anything else is refused by `save()`.
 _REVISION_TRANSITIONS = {
     RevisionStatus.DRAFT: {
         RevisionStatus.DRAFT,
+        RevisionStatus.SUBMITTED,
         RevisionStatus.PUBLISHED,
         RevisionStatus.DISCARDED,
     },
+    # Submitted: awaiting an approver. The body is frozen until it is withdrawn or returned.
+    RevisionStatus.SUBMITTED: {
+        RevisionStatus.SUBMITTED,
+        RevisionStatus.DRAFT,
+        RevisionStatus.PUBLISHED,
+        RevisionStatus.REJECTED,
+    },
+    # Returned with a reason: the author reopens it as a draft, or discards it.
+    RevisionStatus.REJECTED: {RevisionStatus.DRAFT, RevisionStatus.DISCARDED},
     RevisionStatus.PUBLISHED: {RevisionStatus.SUPERSEDED},
     RevisionStatus.SUPERSEDED: set(),
     RevisionStatus.DISCARDED: set(),
@@ -128,12 +140,12 @@ _REVISION_TRANSITIONS = {
 
 
 class ContentRevision(models.Model):
-    """One immutable version of one authorable record's content (ADR-043 C, LAI-0810).
+    """One immutable version of one authorable record's content (ADR-047 C, LAI-0810).
 
     `body` is the record in the export's own shape, so the export's JSON Schema and the
     importer's per-record checks validate it. Publishing (`apps.catalog.authoring`) copies it
     into the record's columns and `source`; nothing reads a revision body directly except the
-    authoring service and session pinning (LAI-0813). Never deleted (ADR-043-Q3).
+    authoring service and session pinning (LAI-0813). Never deleted (ADR-047-Q3).
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -175,6 +187,25 @@ class ContentRevision(models.Model):
         blank=True,
     )
     published_at = models.DateTimeField(null=True, blank=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="+",
+        null=True,
+        blank=True,
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="+",
+        null=True,
+        blank=True,
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.CharField(
+        max_length=300, blank=True, help_text="Why the approver returned this version."
+    )
 
     class Meta:
         ordering = ["kind", "record_key", "-number"]
@@ -183,6 +214,7 @@ class ContentRevision(models.Model):
         permissions = [
             ("edit_content_draft", "Can create and edit content drafts"),
             ("publish_content", "Can publish and roll back content"),
+            ("edit_content_json", "Can edit a content draft as raw JSON (debugging)"),
         ]
         constraints = [
             models.UniqueConstraint(
@@ -221,11 +253,11 @@ class ContentRevision(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise RevisionImmutable("Content versions are kept permanently (ADR-043-Q3).")
+        raise RevisionImmutable("Content versions are kept permanently (ADR-047-Q3).")
 
 
 class Authorable(models.Model):
-    """A record whose content is versioned and editable in Django Admin (ADR-043, LAI-0810)."""
+    """A record whose content is versioned and editable in Django Admin (ADR-047, LAI-0810)."""
 
     authority = models.CharField(
         max_length=8,
@@ -373,6 +405,62 @@ class Quest(Authorable, ImportedContent, CatalogFields):
 
     def __str__(self) -> str:
         return self.slug
+
+
+class Story(Authorable, ImportedContent, CatalogFields):
+    """A Storykeeper Castle story (`stories.json`), as an authorable catalog row (LAI-0309).
+
+    The chapters and scenes live in `source`; the row holds what other code queries. Its links
+    are derived, never typed twice: adventures from its ADVENTURE scenes, characters from its
+    speakers, learning objectives and quests through those adventures.
+    """
+
+    slug = models.SlugField(max_length=SLUG_LENGTH, unique=True)
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    supported_age_bands = ArrayField(models.CharField(max_length=16, choices=AgeBand.choices))
+    entry_chapter_id = models.CharField(max_length=SLUG_LENGTH)
+    adventures = models.ManyToManyField(
+        Adventure,
+        related_name="stories",
+        blank=True,
+        help_text="The adventures this story's ADVENTURE scenes name, derived on import.",
+    )
+
+    class Meta:
+        ordering = ["sort_order", "slug"]
+        verbose_name_plural = "stories"
+
+    def __str__(self) -> str:
+        return self.slug
+
+    def speakers(self) -> list[str]:
+        """Names that speak in the story's narrative scenes, in order of first appearance."""
+        found = (
+            scene.get("speaker")
+            for chapter in self.source.get("chapters", [])
+            for scene in chapter.get("scenes", [])
+        )
+        return list(dict.fromkeys(name for name in found if name))
+
+    def characters(self):
+        """NPC definitions whose display name is a speaker (a story may also use a narrator)."""
+        return NpcDefinition.objects.filter(display_name__in=self.speakers())
+
+    def learning_objectives(self):
+        """Objectives practised by the steps of the story's adventures."""
+        codes = {
+            code
+            for steps in AdventureStep.objects.filter(
+                adventure__in=self.adventures.all()
+            ).values_list("objective_ids", flat=True)
+            for code in steps
+        }
+        return LearningObjective.objects.filter(code__in=codes)
+
+    def related_quests(self):
+        """Quests that solve any of the story's adventures."""
+        return Quest.objects.filter(adventures__in=self.adventures.all()).distinct()
 
 
 class AssetOrigin(models.TextChoices):

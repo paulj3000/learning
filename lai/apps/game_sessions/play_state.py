@@ -19,9 +19,12 @@ from apps.quests import engine
 from apps.quests.models import QuestProgress
 from apps.quests.services import build_context
 from apps.regions.models import PlacementKind, TreasureChest, WorldRegion
+from apps.users.models import AgeBand
 
 from .adventure_launch import launch_points_for
 from .models import OPEN_STATUSES, AdventureSession, Correctness, PuzzleAttempt, SessionKind
+
+ALL_BANDS = tuple(AgeBand.values)
 
 RECENT_SESSIONS = 20
 
@@ -190,7 +193,7 @@ def child_progress(child) -> dict:
     }
 
 
-# --- ADR-043 content in the bootstrap (LAI-0812, LAI-0813) ---------------------------------------
+# --- ADR-047 content in the bootstrap (LAI-0812, LAI-0813) ---------------------------------------
 
 # NPC dialogue conditions the server can prove today. Nodes needing anything else (memory flags,
 # relationships, time of day) are left out rather than guessed (as in `apps.quests.engine`).
@@ -215,8 +218,15 @@ def npc_dialogue(child, session, npc) -> list[dict]:
     context = build_context(child)
     change_keys = set(context.world_change_keys)
     completed = set(context.completed_quest_ids)
+    band = child.age_band
+    audible = {
+        node["id"] for node in body.get("dialogue", []) if band in node.get("ageBands", ALL_BANDS)
+    }
+    for_other_bands = {node["id"] for node in body.get("dialogue", [])} - audible
     nodes = []
     for node in body.get("dialogue", []):
+        if node["id"] not in audible:  # LAI-0817: this line is for other age bands
+            continue
         conditions = node.get("conditions", [])
         if any(condition.get("type") not in _SERVER_CONDITIONS for condition in conditions):
             continue
@@ -234,7 +244,8 @@ def npc_dialogue(child, session, npc) -> list[dict]:
                         "nextNodeId": choice.get("nextNodeId"),
                     }
                     for choice in node.get("choices", [])
-                    if all(
+                    if choice.get("nextNodeId") not in for_other_bands
+                    and all(
                         _condition_holds(c, change_keys, completed)
                         for c in choice.get("conditions", [])
                     )
@@ -283,7 +294,7 @@ def puzzle_states(child, region: WorldRegion, session) -> list[dict]:
 
 
 def region_catalog(region: WorldRegion) -> dict:
-    """What the client validates a served 3D Area against (ADR-043 A: Django is authoritative).
+    """What the client validates a served 3D Area against (ADR-047 A: Django is authoritative).
 
     The Island, and every asset the layout names, with its kind, clips, and whether a model can
     be delivered now (a published version, or a bundled file). An asset that cannot be delivered

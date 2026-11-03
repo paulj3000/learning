@@ -22,11 +22,12 @@ from apps.catalog.models import (
     NpcDefinition,
     Quest,
     RewardRule,
+    Story,
     World,
 )
 from apps.catalog.tests.helpers import base_collections, write_export
 
-CATALOG_MODELS = (World, Location, Adventure, Quest, NpcDefinition)
+CATALOG_MODELS = (World, Location, Adventure, Quest, NpcDefinition, Story)
 READ_ONLY_MODELS = (
     AdventureStep,
     ContentAsset,
@@ -63,7 +64,7 @@ def model_admin(model):
 
 def test_every_catalog_model_is_registered_on_the_one_admin_site():
     catalog = {m for m in admin.site._registry if m._meta.app_label == "catalog"}
-    # ContentRevision: versioned content, drafts editable by content editors (ADR-043).
+    # ContentRevision: versioned content, drafts editable by content editors (ADR-047).
     assert catalog == {*CATALOG_MODELS, *READ_ONLY_MODELS, ContentRevision}
     assert LocationAsset not in admin.site._registry  # shown inline on its location
 

@@ -1,13 +1,15 @@
-"""Create or reset the content authoring Django groups (ADR-043-Q1, LAI-0801).
+"""Create or reset the content authoring Django groups (ADR-047-Q1, LAI-0801).
 
     python manage.py ensure_content_roles
 
 Idempotent, like `ensure_asset_roles`: each group ends with exactly these permissions. One
-administrator may be in both groups (ADR-043-Q1); the permissions stay separate so an approval
+administrator may be in both groups (ADR-047-Q1); the permissions stay separate so an approval
 step can be introduced later without a migration. Superusers need no group.
 
 - Content editors: start, edit and discard drafts; see every version.
 - Content publishers: everything editors can, plus publish drafts and restore earlier versions.
+- Content developers: everything editors can, plus edit a draft as raw JSON (debugging). The
+  default editor is the structured form; raw JSON is a separate permission (LAI-0801).
 """
 
 from django.contrib.auth.models import Group, Permission
@@ -18,7 +20,13 @@ EDITORS = "Content editors"
 PUBLISHERS = "Content publishers"
 EDITOR_PERMISSIONS = ("catalog.view_contentrevision", "catalog.edit_content_draft")
 PUBLISHER_PERMISSIONS = (*EDITOR_PERMISSIONS, "catalog.publish_content")
-ROLES = {EDITORS: EDITOR_PERMISSIONS, PUBLISHERS: PUBLISHER_PERMISSIONS}
+DEVELOPERS = "Content developers"
+DEVELOPER_PERMISSIONS = (*EDITOR_PERMISSIONS, "catalog.edit_content_json")
+ROLES = {
+    EDITORS: EDITOR_PERMISSIONS,
+    PUBLISHERS: PUBLISHER_PERMISSIONS,
+    DEVELOPERS: DEVELOPER_PERMISSIONS,
+}
 
 
 def _permission(name: str) -> Permission:
@@ -40,7 +48,7 @@ def ensure_content_roles() -> dict[str, int]:
 
 
 class Command(BaseCommand):
-    help = "Create or reset the Content editors and Content publishers groups (ADR-043)."
+    help = "Create or reset the Content editors, publishers and developers groups (ADR-047)."
 
     def handle(self, *args, **options):
         for group, count in ensure_content_roles().items():

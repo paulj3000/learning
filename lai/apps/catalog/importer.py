@@ -10,7 +10,7 @@ Three stages, so a bad export never reaches the database:
 3. `import_content` applies the plan in one transaction, under an advisory lock so two loads
    cannot interleave. Any error rolls the whole import back.
 
-Content authority (ADR-043, Accepted 2026-11-01): the export is the initial import and migration
+Content authority (ADR-047, Accepted 2026-11-01): the export is the initial import and migration
 path. A record that is still export-owned is updated from the export, and each change is recorded
 as a new published `IMPORT` revision. A record an administrator has published in Django Admin is
 Django-owned: the import never changes it. When the export differs, the release report lists it
@@ -44,6 +44,7 @@ from apps.catalog.models import (
     Quest,
     RevisionOrigin,
     RewardRule,
+    Story,
     World,
 )
 from apps.core import content_schema
@@ -84,7 +85,7 @@ class ImportReport:
     counts: dict[str, dict[str, int]] = field(default_factory=dict)
     skipped: list[str] = field(default_factory=list)
     conflicts: list[str] = field(default_factory=list)
-    """Django-owned records whose export differs; kept as drafts, never applied (ADR-043)."""
+    """Django-owned records whose export differs; kept as drafts, never applied (ADR-047)."""
     release_id: int | None = None
 
     def as_dict(self) -> dict[str, Any]:
@@ -195,6 +196,7 @@ class Plan:
     collectible_sets: list[dict[str, Any]] = field(default_factory=list)
     items: list[dict[str, Any]] = field(default_factory=list)
     reward_rules: list[dict[str, Any]] = field(default_factory=list)
+    stories: list[dict[str, Any]] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
 
 
@@ -355,6 +357,20 @@ def build_plan(bundle: ExportBundle) -> Plan:
 
     _plan_supporting_catalogs(c, plan, location_slugs, problems)
 
+    stories = c.get("stories", [])  # optional: older exports have none (LAI-0309)
+    _unique(stories, "slug", "story", problems)
+    for index, story in enumerate(stories):
+        where = f"story {story.get('slug')!r}"
+        fields, solved = records.story_fields(story, adventure_slugs, where, problems)
+        plan.stories.append(
+            {
+                "key": _text(story, "slug", where, problems),
+                "order": index,
+                "adventures": solved,
+                "fields": fields,
+            }
+        )
+
     if problems:
         raise ContentImportError(problems)
     return plan
@@ -428,7 +444,7 @@ def _plan_supporting_catalogs(c, plan: Plan, location_slugs: set[str], problems:
 def _counter() -> dict[str, int]:
     # `skipped`: Django-owned, and the export holds what Django already publishes.
     # `conflicts`: Django-owned, and the export differs; kept as a draft, never applied
-    # (ADR-043 J and Q2). Both are always zero for kinds that are not authorable (assets).
+    # (ADR-047 J and Q2). Both are always zero for kinds that are not authorable (assets).
     return {"created": 0, "updated": 0, "unchanged": 0, "skipped": 0, "conflicts": 0, "missing": 0}
 
 
@@ -443,6 +459,7 @@ AUTHORABLE_MODELS = (
     CollectibleSet,
     ItemDefinition,
     RewardRule,
+    Story,
 )
 
 
@@ -459,7 +476,7 @@ def _upsert(
     """Creates or updates one imported row; catalog fields apply only on creation.
 
     Returns (row, applied). `applied` is False for a Django-owned record, whose content and
-    relations the import must leave alone (ADR-043): its row only learns it was in this release.
+    relations the import must leave alone (ADR-047): its row only learns it was in this release.
     """
     authorable = model in AUTHORABLE_MODELS
     existing = model.objects.filter(**lookup).first()
@@ -516,6 +533,7 @@ def _apply(plan: Plan, release: ContentRelease, conflicts: list[str]) -> dict[st
             "collectible_sets",
             "items",
             "reward_rules",
+            "stories",
         )
     }
 
@@ -663,6 +681,19 @@ def _apply(plan: Plan, release: ContentRelease, conflicts: list[str]) -> dict[st
         if applied:
             rule.items.set([items[item_id] for item_id in r["items"]])
 
+    for r in plan.stories:
+        story, applied = _upsert(
+            Story,
+            {"slug": r["key"]},
+            r["fields"],
+            release,
+            counts["stories"],
+            catalog=_catalog(r["order"]),
+            conflicts=conflicts,
+        )
+        if applied:
+            story.adventures.set([adventures[slug] for slug in r["adventures"]])
+
     for name, model in (
         ("assets", ContentAsset),
         ("worlds", World),
@@ -676,6 +707,7 @@ def _apply(plan: Plan, release: ContentRelease, conflicts: list[str]) -> dict[st
         ("collectible_sets", CollectibleSet),
         ("items", ItemDefinition),
         ("reward_rules", RewardRule),
+        ("stories", Story),
     ):
         counts[name]["missing"] = model.objects.exclude(last_seen_release=release).count()
     return counts
