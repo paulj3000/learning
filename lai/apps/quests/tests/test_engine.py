@@ -92,10 +92,23 @@ def test_the_first_matching_branch_wins():
 
 
 def test_objectives_the_server_cannot_prove_are_never_credited():
-    stages = [{"id": "a", "objectives": [TALK]}]
-    result = advance_quest(stages, {}, start_state("a"), ctx())
+    help_npc = {"id": "help", "kind": "HELP_NPC", "npcId": "pirate-pip", "memoryFlag": "met"}
+    stages = [{"id": "a", "objectives": [help_npc]}]
+    context = QuestContext(npc_memory_flags=frozenset({("pirate-pip", "met")}))
+    result = advance_quest(stages, {}, start_state("a"), context)
     assert result.state.status == "ACTIVE"
     assert result.state.completed_objective_ids == ()
+
+
+def test_talk_to_is_credited_only_from_the_npc_memory_flag_the_server_set():
+    """TR-14: the server proves TALK_TO from `NpcRelationship.memory_flags`."""
+    stages = [{"id": "a", "objectives": [TALK]}]
+    assert advance_quest(stages, {}, start_state("a"), ctx()).state.status == "ACTIVE"
+    other = QuestContext(npc_memory_flags=frozenset({("pirate-pip", "other"), ("quill", "met")}))
+    assert advance_quest(stages, {}, start_state("a"), other).state.status == "ACTIVE"
+    met = QuestContext(npc_memory_flags=frozenset({("pirate-pip", "met")}))
+    result = advance_quest(stages, {}, start_state("a"), met)
+    assert result.just_completed and result.state.completed_objective_ids == ("talk",)
 
 
 def test_an_authored_cycle_does_not_hang():

@@ -163,6 +163,41 @@
       "displayName": "Golden Doubloon",
       "id": "golden-doubloon",
       "rarity": "UNCOMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "A round, shiny pearl that was hidden in the bushes of Palm Tree Grove.",
+      "displayName": "Palm Grove Pearl",
+      "id": "palm-grove-pearl",
+      "rarity": "UNCOMMON"
+    },
+    {
+      "category": "QUEST_ITEM",
+      "description": "A heavy key that washed up on Shipwreck Beach. What does it open?",
+      "displayName": "Old Brass Key",
+      "id": "old-brass-key",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "A little compass from the old ship. Its needle always finds north.",
+      "displayName": "Shipwreck Compass",
+      "id": "shipwreck-compass",
+      "rarity": "UNCOMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "A warm golden stone from the Ancient Treasure Ruins. It glows like the sun.",
+      "displayName": "Sunstone",
+      "id": "ruins-sunstone",
+      "rarity": "RARE"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For finding all of Pip's missing treasure in Treasure Cove.",
+      "displayName": "Treasure Cove Explorer Badge",
+      "id": "treasure-cove-explorer",
+      "rarity": "RARE"
     }
   ],
   "rewardRules": [
@@ -334,6 +369,61 @@
       "trigger": {
         "changeKey": "TREASURE_RUSH_COVE_CHEST_OPENED",
         "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "reward-treasure-cove-grove-chest",
+      "itemIds": [
+        "palm-grove-pearl"
+      ],
+      "message": "You found the hidden chest and a Palm Grove Pearl!",
+      "trigger": {
+        "changeKey": "TREASURE_COVE_GROVE_CHEST_OPENED",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "reward-treasure-cove-key",
+      "itemIds": [
+        "old-brass-key"
+      ],
+      "message": "You found an Old Brass Key! It is in your backpack.",
+      "trigger": {
+        "changeKey": "TREASURE_COVE_KEY_FOUND",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "reward-treasure-cove-beach-chest",
+      "itemIds": [
+        "shipwreck-compass"
+      ],
+      "message": "The key fits! You found a Shipwreck Compass!",
+      "trigger": {
+        "changeKey": "TREASURE_COVE_BEACH_CHEST_OPENED",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "reward-treasure-cove-final-chest",
+      "itemIds": [
+        "ruins-sunstone"
+      ],
+      "message": "The golden chest is open! You found the Sunstone!",
+      "trigger": {
+        "changeKey": "TREASURE_COVE_FINAL_CHEST_OPENED",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "reward-pips-missing-treasure-complete",
+      "itemIds": [
+        "treasure-cove-explorer"
+      ],
+      "message": "You are a Treasure Cove Explorer!",
+      "trigger": {
+        "questId": "pips-missing-treasure",
+        "type": "QUEST_COMPLETED"
       }
     }
   ],

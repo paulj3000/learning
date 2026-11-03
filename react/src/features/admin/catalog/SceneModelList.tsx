@@ -15,7 +15,7 @@ const KIND_LABELS: Record<AssetKind, string> = {
  * scene loads, derived from the island's location manifest (and what its
  * extensions declare) rather than a hand-kept list (engine Phase 10). Read-only
  * on purpose. These files ship with the app in `public/models/`, not in the
- * S3-backed asset manager, so there is nothing here an admin can change.
+ * S3-backed asset library, so there is nothing here an admin can change.
  */
 export function SceneModelList({
   islandSlug,
@@ -42,7 +42,7 @@ export function SceneModelList({
           <>
             <p className="text-sm text-muted-foreground">
               These models ship with the app in public/models. They are not managed by the model
-              asset manager.
+              asset library.
             </p>
             <Table aria-label={`Scene models on ${islandName}`}>
               <TableHeader>

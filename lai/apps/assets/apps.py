@@ -4,7 +4,7 @@ from django.apps import AppConfig
 class AssetsConfig(AppConfig):
     name = "apps.assets"
     label = "assets"
-    verbose_name = "Asset manager"
+    verbose_name = "Asset library"
 
     def ready(self):
         from . import signals  # noqa: F401  (delete guards)

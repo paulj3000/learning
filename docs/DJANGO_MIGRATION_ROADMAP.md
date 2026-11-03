@@ -59,6 +59,7 @@ checks").
 | 21 | Engine extraction into `game/` (Track B) | New. Needs LAI-0201; supersedes Phase 0's "defer `game/`" |
 | 22 | World conversions (Track B) | New. One task per Phaser world, eight in all |
 | 23 | Verification and Phaser retirement (Track B) | New. Parity, performance, Sprouts gate, removal, final check |
+| 28 | AI Question Studio | New, owner brief 2026-11-02. Staff-only Django Admin authoring of AI-drafted questions on the ADR-044 model client; see `docs/AI_QUESTION_STUDIO.md`. Phases 24 to 27 are unassigned |
 
 ## 3. Tasks
 
@@ -484,9 +485,9 @@ stack, `LaiAssetStorage-<env>`, which synthesizes for `dev` and `prod` with zero
 managed policy, bootstrapless). The shared environment config for later stacks is not built, so
 LAI-1001 stays open.*
 **LAI-1002 Network, RDS PostgreSQL, S3.** Depends: 1001. Risk M. Acceptance: private subnets,
-encrypted RDS, deletion protection on, backups on; no public DB. *The asset manager's S3 bucket
+encrypted RDS, deletion protection on, backups on; no public DB. *The asset library's S3 bucket
 and its Django policy are defined and synthesized (`infra/lib/assetStorageStack.ts`,
-`docs/ASSET_MANAGER.md` section 12), not deployed. Network and RDS are not started, so LAI-1002
+`docs/ASSET_LIBRARY.md` section 12), not deployed. Network and RDS are not started, so LAI-1002
 stays open. 2026-10-31 (ADR-042): the private child photo bucket `LaiChildPhotos-<env>` and its
 Django policy are defined and synthesized as a separate stack
 (`infra/lib/childPhotoStorageStack.ts`, `docs/platform/CHILD_PHOTO_STORAGE.md`), not deployed.
@@ -564,7 +565,7 @@ and read-write-frozen for a defined window (suggest 14 days).
 **LAI-1204 Retire legacy Amplify S3 storage (added 2026-10-31, ADR-042).** Risk H.
 **APPROVAL: explicit, final, before any deletion.**
 Depends:
-- the asset manager's Amplify import verified (`import_assets --from-amplify`, AM-8, run against
+- the asset library's Amplify import verified (`import_assets --from-amplify`, AM-8, run against
   production);
 - LAI-1103d;
 - LAI-1203 accepted;
@@ -588,7 +589,7 @@ Acceptance:
 ### Phase 13 - Retire Amplify
 
 **LAI-1301 Remove Amplify from the frontend.** Depends: 1203 + stability window; for storage,
-also 0904 deployed, 1103d (photos migrated), AM-15 and AM-16 (assets on Django), 1002. Risk M.
+also 0904 deployed, 1103d (photos migrated), AM-16 (assets on Django; AM-15 superseded by ADR-045), 1002. Risk M.
 Acceptance: `aws-amplify` data/storage code and `amplify_outputs.json` handling removed;
 Cognito configured by Vite env; tests green. Storage specifically (ADR-042 amendment, 2026-11-01):
 no Amplify Storage upload, delete or download-link call and no `aws-amplify/storage` import left
@@ -772,6 +773,19 @@ every route that renders a playable environment is served by the unified engine;
 island added as pure data (a `WorldDefinition` plus catalog rows, no new route or renderer)
 loads and plays; `ARCHITECTURE.md`, `ROADMAP.md`, `CLAUDE.md`, ADR-007 and ADR-008 notes
 final. Verification: full gate plus e2e.
+
+### Phase 28 - AI Question Studio
+
+Tasks `LAI-AQS-001` to `LAI-AQS-024`, grouped A to F (foundation, Bedrock generation, validation,
+Django Admin, adventure integration, testing). Scope, acceptance and dependencies are in
+`docs/AI_QUESTION_STUDIO.md`; statuses are in `tasks/TASK_TRACKER.md`. Generation, validation,
+approval and publishing are separate operations; no draft is ever child-visible. Live Bedrock
+verification reuses the LAI-0705 approval gate.
+
+Follow-ups `LAI-AQS-025` to `LAI-AQS-028` cover the open gates: live Bedrock verification
+(APPROVAL), a Django Admin browser pass, a task queue for long batches, and adoption by the
+Storykeeper Castle and other adventures. Not started.
+
 
 ## 4. Manual approval points (summary)
 

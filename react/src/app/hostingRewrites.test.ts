@@ -51,7 +51,7 @@ describe('Amplify Hosting SPA rewrite', () => {
     '/island/3f2a9c1e-0b7d-4c55-9a51-2d8e6f0b1c44/world/storykeeper-castle-3d',
     '/island/abc/locations/pirate-builder-bay/adventures/repair-the-moonlight-bridge',
     '/island/abc/stories/the.dragon',
-    '/admin/assets/models/new',
+    '/admin/adventures/new',
   ])('serves the app for the client route %s', (path) => {
     expect(spaFallback.test(path)).toBe(true);
   });

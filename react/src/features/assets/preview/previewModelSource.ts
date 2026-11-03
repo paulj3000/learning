@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 /**
  * Fetching and parsing a model for the Django Admin preview (LAI-2200 AM-10,
- * `docs/ASSET_MANAGER.md` section 17). The preview page is server-rendered by
+ * `docs/ASSET_LIBRARY.md` section 17). The preview page is server-rendered by
  * Django; this module only turns its staff-only file route into a parsed
  * scene, or into a `PreviewError` an administrator can read.
  *

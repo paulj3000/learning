@@ -209,7 +209,7 @@ def test_a_wrong_answer_is_recorded_and_opens_nothing(treasure):
     assert progress_counts(child) == {"world_changes": 0, "items": 0, "grants": 0, "evidence": 1}
 
 
-def test_the_right_answer_opens_the_chest_grants_the_keepsake_and_completes_the_quest(treasure):
+def test_the_right_answer_opens_the_chest_grants_the_keepsake_and_advances_the_quest(treasure):
     child = treasure.families.a1
     start_quest(child, treasure.quest)
     _, session, attempt = play(treasure, child)
@@ -225,9 +225,12 @@ def test_the_right_answer_opens_the_chest_grants_the_keepsake_and_completes_the_
     )
     assert change.source_session_id == str(session.pk)
     assert change.payload == {"regionId": "treasure-rush-cove", "entityId": "cove-chest"}
+    # The first of Pip's four treasures (TR-14): the quest goes on.
     [update] = outcome.quest_updates
-    assert update.result.just_completed
-    assert update.progress.status == QuestStatus.COMPLETED
+    assert not update.result.just_completed
+    assert update.progress.status == QuestStatus.ACTIVE
+    assert update.result.newly_completed_objective_ids == ("cove-landing-chest",)
+    assert outcome.completion_rewards == ()
     assert SkillEvidence.objects.get(challenge_attempt=attempt).result == EvidenceResult.CORRECT
     assert chest_is_open(child, treasure.chest)
 

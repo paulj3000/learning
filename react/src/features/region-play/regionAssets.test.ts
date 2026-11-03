@@ -30,7 +30,7 @@ import { buildRegionManifest } from './regionManifest';
 import { toRegionSceneModel } from './sceneModel';
 
 /**
- * TR-10: Treasure Cove's models come from the Django asset manager. The
+ * TR-10: Treasure Cove's models come from the Django asset library. The
  * engine, the region-play extension, the shared loader and the Django
  * resolver are the production code; only the HTTP client and the GLTF fetch
  * are fakes, so no browser is involved.
@@ -195,7 +195,7 @@ describe('regionAssetsFor', () => {
   });
 });
 
-describe('Treasure Cove with the Django asset manager (TR-10)', () => {
+describe('Treasure Cove with the Django asset library (TR-10)', () => {
   it('loads Pip and the chest from their published versions, in one request', async () => {
     const cove = visit({ 'npc-pip': DJANGO_PIP, 'treasure-chest': DJANGO_CHEST_V1 });
     await cove.harness.engine.ready;
@@ -264,7 +264,7 @@ describe('Treasure Cove with the Django asset manager (TR-10)', () => {
     );
   });
 
-  it('places the ground tiles from the asset manager too', async () => {
+  it('places the ground tiles from the asset library too', async () => {
     const cove = visit({ 'ground-tile': '/api/v1/asset-files/ground-v1/model.glb' });
     await cove.harness.engine.ready;
     expect(

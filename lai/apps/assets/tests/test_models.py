@@ -102,7 +102,7 @@ def test_a_published_version_cannot_change_or_be_deleted():
         (VersionStatus.DRAFT, VersionStatus.VALIDATED, True),
         (VersionStatus.DRAFT, VersionStatus.PUBLISHED, False),
         (VersionStatus.REJECTED, VersionStatus.PUBLISHED, False),
-        (VersionStatus.RETIRED, VersionStatus.PUBLISHED, False),
+        (VersionStatus.RETIRED, VersionStatus.PUBLISHED, True),
     ],
 )
 def test_only_allowed_status_transitions(start, target, allowed):

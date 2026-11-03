@@ -1,6 +1,6 @@
 """Where child profile photos live (LAI-0904, ADR-042; docs/platform/CHILD_PHOTO_STORAGE.md).
 
-A separate store from the asset manager (`apps/assets/storage.py`) on purpose: game assets are
+A separate store from the asset library (`apps/assets/storage.py`) on purpose: game assets are
 published content, a child's photo is personal data. They never share a bucket, a key prefix, a
 policy, a publication workflow or a CDN.
 

@@ -7,7 +7,9 @@ import type { PlayApi } from '../../../../../api/play/playApi';
 import type { AnswerOutcome, LaunchStart, Upserted } from '../../../../../api/play/types';
 import { buildRegionManifest } from '../../../../region-play/regionManifest';
 import { toRegionSceneModel } from '../../../../region-play/sceneModel';
+import { PLAY_COPY } from '../../../../region-play/regionPlayUi';
 import {
+  ATTEMPT_ID,
   CHILD_A,
   CHILD_B,
   bootstrapJson,
@@ -17,7 +19,9 @@ import {
   signpostJson,
   outcomeJson,
   progressJson,
+  pipsBootstrapJson,
   questJson,
+  SESSION_ID,
   sessionJson,
 } from '../../../../../test/playFixtures';
 import type { WorldInteraction } from '../../../worldObjects';
@@ -91,6 +95,8 @@ function fakeApi(overrides: Partial<PlayApi> = {}): PlayApi {
       read({ ...progressJson(), inventory: [] }, parse.playerProgress),
     ),
     startLaunchPoint: vi.fn(),
+    collectPickup: vi.fn(),
+    talkToNpc: vi.fn(async () => ({ flagsSet: [], questUpdates: [], completionRewards: [] })),
     ...overrides,
   };
 }
@@ -100,6 +106,14 @@ function fakeScene(open = false) {
   const scene: RegionPlaySceneApi & { setChestOpen: ReturnType<typeof vi.fn> } = {
     setChestOpen: vi.fn((id: string, value: boolean) => void drawn.set(id, value)),
     isChestOpen: (id: string) => drawn.get(id),
+    setChestLock: vi.fn(),
+    setPickupCollected: vi.fn(),
+    setRuneNumbers: vi.fn(),
+    setUnlocked: vi.fn((_unlocked: boolean) => true),
+    isUnlocked: () => false,
+    pressRune: vi.fn(),
+    flashRunes: vi.fn(),
+    reactNpc: vi.fn(),
   };
   return scene;
 }
@@ -550,6 +564,65 @@ describe('the backpack', () => {
   });
 });
 
+describe('objective and hint (TR-12)', () => {
+  it('puts the objective in the HUD from the server quest state, and gives the cue back on leaving', async () => {
+    const setQuestCue = vi.fn();
+    apis.set(CHILD_A, fakeApi());
+    const view = render(<RegionPlayCompanion {...props({ setQuestCue })} />);
+    await waitFor(() =>
+      expect(setQuestCue).toHaveBeenLastCalledWith('Talk to Pirate Pip to start an adventure'),
+    );
+    view.unmount();
+    expect(setQuestCue).toHaveBeenLastCalledWith(null);
+  });
+
+  it('shows the current stage, with a count only when it has more than one objective (TR-14)', async () => {
+    const setQuestCue = vi.fn();
+    apis.set(
+      CHILD_A,
+      fakeApi({
+        getRegion: vi.fn(async () =>
+          bootstrap({
+            quests: [questJson({ status: 'ACTIVE', currentStageId: 'open-the-chest' })],
+          }),
+        ),
+      }),
+    );
+    render(<RegionPlayCompanion {...props({ setQuestCue })} />);
+    await waitFor(() => expect(setQuestCue).toHaveBeenLastCalledWith('Open the treasure chest'));
+  });
+
+  it('shows a hint only when asked, and puts it away', async () => {
+    apis.set(CHILD_A, fakeApi());
+    render(<RegionPlayCompanion {...props()} />);
+    const hint = await screen.findByRole('button', { name: 'Hint' });
+    await waitFor(() => expect(hint).toHaveAttribute('aria-expanded', 'false'));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    await userEvent.click(hint);
+    expect(await screen.findByRole('status')).toHaveTextContent(/Walk up to Pirate Pip/);
+    await userEvent.click(screen.getByRole('button', { name: 'Got it' }));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('puts its controls in the stage slot when the view offers one, so they stay in full screen (TR-13)', async () => {
+    const slot = document.createElement('div');
+    document.body.append(slot);
+    apis.set(CHILD_A, fakeApi());
+    render(<RegionPlayCompanion {...props({ hudSlot: slot })} />);
+    const hint = await screen.findByRole('button', { name: 'Hint' });
+    expect(slot).toContainElement(hint);
+    expect(slot).toContainElement(screen.getByRole('button', { name: /Backpack/ }));
+    await userEvent.click(hint);
+    expect(slot).toContainElement(await screen.findByRole('status'));
+    slot.remove();
+  });
+
+  it('hides the hint button while a panel is open', async () => {
+    await atTheChest(fakeApi());
+    expect(screen.queryByRole('button', { name: 'Hint' })).not.toBeInTheDocument();
+  });
+});
+
 describe('switching children', () => {
   it('starts fresh for the new child, with nothing carried over', async () => {
     const apiA = fakeApi();
@@ -691,5 +764,511 @@ describe('beginning an adventure from the cove (ADR-041)', () => {
     );
     expect(api.startLaunchPoint).toHaveBeenCalledTimes(1);
     expect(navigate).toHaveBeenCalled();
+  });
+});
+
+describe("Pip's Missing Treasure (TR-14)", () => {
+  const PEDESTAL = `${REGION}:chest:cove-ruins-pedestal`;
+  const BEACH = `${REGION}:chest:cove-beach-chest`;
+  const KEY = `${REGION}:pickup:cove-brass-key`;
+  const STONE = (n: number) => `${REGION}:rune:cove-rune-stone-${n}`;
+  const pips = (chests: Record<string, Record<string, unknown>> = {}) =>
+    read(pipsBootstrapJson({ session: sessionJson() }, chests), parse.regionBootstrap);
+  const pipsConfig = buildRegionManifest(toRegionSceneModel(pips()), {
+    worldSlug: 'learning-adventure-island',
+  }).manifest.extensions[0].config;
+  const unlocked = { 'cove-ruins-pedestal': { locked: false, lockReason: null } };
+  const keyItem = {
+    itemId: 'old-brass-key',
+    displayName: 'Old Brass Key',
+    description: 'A heavy key.',
+    category: 'QUEST_ITEM' as const,
+    assetId: '',
+  };
+  const puzzle = (overrides = {}) =>
+    challenge({
+      targetEntityId: 'cove-ruins-pedestal',
+      challenge: {
+        skillId: 'addition-within-ten',
+        operation: 'ADD',
+        operands: [3, 4],
+        responseMode: 'CHOICE',
+        choices: [6, 7, 9],
+      },
+      ...overrides,
+    });
+
+  function playing(api: PlayApi, extra: Partial<LocationCompanionProps> = {}) {
+    apis.set(CHILD_A, api);
+    return props({ config: pipsConfig, ...extra });
+  }
+
+  it('tells the server each time the child talks to Pip, and nothing else', async () => {
+    const api = fakeApi({ getRegion: vi.fn(async () => pips()) });
+    const talk = interaction(PIP); // one visit: the view keeps the same claimed interaction
+    const view = render(<RegionPlayCompanion {...playing(api, { claimedInteraction: talk })} />);
+    await waitFor(() =>
+      expect(api.talkToNpc).toHaveBeenCalledWith(SESSION_ID, 'cove-pip', expect.any(AbortSignal)),
+    );
+    expect(await screen.findByText(/Follow the flowers in the grove!/)).toBeInTheDocument();
+    view.rerender(<RegionPlayCompanion {...playing(api, { claimedInteraction: talk })} />);
+    await act(async () => undefined);
+    expect(api.talkToNpc).toHaveBeenCalledTimes(1);
+  });
+
+  it('brings the finale when the server says returning to Pip completed the quest', async () => {
+    const api = fakeApi({
+      getRegion: vi.fn(async () => pips()),
+      talkToNpc: vi.fn(async () => ({
+        flagsSet: ['cove-treasure-returned'],
+        questUpdates: [
+          {
+            questId: 'pips-missing-treasure',
+            status: 'COMPLETED' as const,
+            currentStageId: 'return-to-pip',
+            justCompleted: true,
+            newlyCompletedObjectiveIds: ['cove-return-to-pip'],
+          },
+        ],
+        completionRewards: [
+          {
+            ruleId: 'reward-pips',
+            items: [
+              {
+                ...keyItem,
+                itemId: 'treasure-cove-explorer',
+                displayName: 'Treasure Cove Explorer Badge',
+                category: 'KEEPSAKE' as const,
+              },
+            ],
+            message: 'You are a Treasure Cove Explorer!',
+          },
+        ],
+      })),
+    });
+    render(<RegionPlayCompanion {...playing(api, { claimedInteraction: interaction(PIP) })} />);
+    const finale = await screen.findByRole('dialog', { name: 'You found all my treasure!' });
+    expect(finale).toHaveTextContent('Treasure Cove Explorer Badge');
+    expect(finale).toHaveTextContent('You are a Treasure Cove Explorer!');
+  });
+
+  it('picks the key up through the server and shows what was found', async () => {
+    const onCloseInteraction = vi.fn();
+    const api = fakeApi({
+      getRegion: vi.fn(async () => pips()),
+      collectPickup: vi.fn(async () => ({
+        value: {
+          entityId: 'cove-brass-key',
+          pickedUp: true,
+          collected: true,
+          newItems: [keyItem],
+          rewardMessage: 'It is in your backpack.',
+          questUpdates: [],
+          completionRewards: [],
+        },
+        created: true,
+      })),
+    });
+    render(
+      <RegionPlayCompanion
+        {...playing(api, { claimedInteraction: interaction(KEY), onCloseInteraction })}
+      />,
+    );
+    const reveal = await screen.findByRole('dialog', { name: 'You found something!' });
+    expect(reveal).toHaveTextContent('Old Brass Key');
+    expect(api.collectPickup).toHaveBeenCalledTimes(1);
+    expect(onCloseInteraction).toHaveBeenCalled();
+  });
+
+  // Found in browser acceptance: opening the beach chest re-rendered with a new bootstrap, and
+  // the key's reveal came back on top of the chest's reward.
+  it('reveals a pickup once, however often the scene or bootstrap changes afterwards', async () => {
+    const api = fakeApi({
+      getRegion: vi.fn(async () => pips()),
+      collectPickup: vi.fn(async () => ({
+        value: {
+          entityId: 'cove-brass-key',
+          pickedUp: true,
+          collected: true,
+          newItems: [keyItem],
+          rewardMessage: null,
+          questUpdates: [],
+          completionRewards: [],
+        },
+        created: true,
+      })),
+    });
+    const view = render(
+      <RegionPlayCompanion {...playing(api, { claimedInteraction: interaction(KEY) })} />,
+    );
+    await screen.findByRole('dialog', { name: 'You found something!' });
+    await userEvent.click(screen.getByRole('button', { name: 'Keep exploring' }));
+    expect(screen.queryByRole('dialog', { name: 'You found something!' })).toBeNull();
+    // A new scene handle makes every reaction callback new, as a new bootstrap does in play.
+    view.rerender(<RegionPlayCompanion {...playing(api, { sceneApi: fakeScene() })} />);
+    await act(async () => undefined);
+    expect(screen.queryByRole('dialog', { name: 'You found something!' })).toBeNull();
+  });
+
+  it('brings the finale once, however often the scene changes afterwards', async () => {
+    const api = fakeApi({
+      getRegion: vi.fn(async () => pips()),
+      talkToNpc: vi.fn(async () => ({
+        flagsSet: [],
+        questUpdates: [
+          {
+            questId: 'pips-missing-treasure',
+            status: 'COMPLETED' as const,
+            currentStageId: 'return-to-pip',
+            justCompleted: true,
+            newlyCompletedObjectiveIds: ['cove-return-to-pip'],
+          },
+        ],
+        completionRewards: [],
+      })),
+    });
+    // Closing gives the claim back, as the view does, so Pip is not talked to again.
+    const onCloseInteraction = vi.fn(() =>
+      view.rerender(<RegionPlayCompanion {...playing(api, { onCloseInteraction })} />),
+    );
+    const view = render(
+      <RegionPlayCompanion
+        {...playing(api, { claimedInteraction: interaction(PIP), onCloseInteraction })}
+      />,
+    );
+    await screen.findByRole('dialog', { name: 'You found all my treasure!' });
+    await userEvent.click(screen.getByRole('button', { name: 'Keep exploring' }));
+    expect(api.talkToNpc).toHaveBeenCalledTimes(1);
+    view.rerender(
+      <RegionPlayCompanion {...playing(api, { sceneApi: fakeScene(), onCloseInteraction })} />,
+    );
+    await act(async () => undefined);
+    expect(screen.queryByRole('dialog', { name: 'You found all my treasure!' })).toBeNull();
+  });
+
+  it('says a chest needs its key, with Pip’s clue, and asks for no challenge', async () => {
+    const api = fakeApi({
+      getRegion: vi.fn(async () =>
+        pips({ 'cove-beach-chest': { lockReason: 'ITEM' }, 'cove-grove-chest': { isOpen: true } }),
+      ),
+    });
+    render(<RegionPlayCompanion {...playing(api, { claimedInteraction: interaction(BEACH) })} />);
+    expect(await screen.findByText(PLAY_COPY.chestNeedsKey)).toBeInTheDocument();
+    expect(screen.getByText(/X in the sand/)).toBeInTheDocument();
+    expect(api.requestChestChallenge).not.toHaveBeenCalled();
+  });
+
+  it('puts the puzzle’s numbers on the stones and answers with the stone the child touches', async () => {
+    const scene = fakeScene();
+    const api = fakeApi({
+      getRegion: vi.fn(async () => pips(unlocked)),
+      requestChestChallenge: vi.fn(async () => puzzle()),
+      submitAnswer: vi.fn(async () => outcome(true, { chestOpened: true, newItems: [] })),
+    });
+    const view = render(
+      <RegionPlayCompanion
+        {...playing(api, { claimedInteraction: interaction(PEDESTAL), sceneApi: scene })}
+      />,
+    );
+    expect(await screen.findByText(PLAY_COPY.puzzleTouch)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(scene.setRuneNumbers).toHaveBeenLastCalledWith(
+        new Map([
+          ['cove-rune-stone-1', 6],
+          ['cove-rune-stone-2', 7],
+          ['cove-rune-stone-3', 9],
+        ]),
+      ),
+    );
+    view.rerender(
+      <RegionPlayCompanion {...playing(api, { claimedInteraction: null, sceneApi: scene })} />,
+    );
+    view.rerender(
+      <RegionPlayCompanion
+        {...playing(api, { claimedInteraction: interaction(STONE(2)), sceneApi: scene })}
+      />,
+    );
+    await waitFor(() => expect(api.submitAnswer).toHaveBeenCalledTimes(1));
+    expect(api.submitAnswer).toHaveBeenCalledWith(
+      ATTEMPT_ID,
+      { answer: 7, hintLevel: 0 },
+      expect.any(AbortSignal),
+    );
+  });
+
+  it('asks the child to read the pedestal first when no puzzle is out', async () => {
+    const showToast = vi.fn();
+    const api = fakeApi({ getRegion: vi.fn(async () => pips(unlocked)) });
+    render(
+      <RegionPlayCompanion
+        {...playing(api, { claimedInteraction: interaction(STONE(1)), showToast })}
+      />,
+    );
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith(PLAY_COPY.puzzleFirst));
+    expect(api.submitAnswer).not.toHaveBeenCalled();
+  });
+
+  it('after a wrong stone, says so and asks the server for new numbers', async () => {
+    const showToast = vi.fn();
+    const api = fakeApi({
+      getRegion: vi.fn(async () => pips(unlocked)),
+      requestChestChallenge: vi.fn(async () => puzzle()),
+      submitAnswer: vi.fn(async () => outcome(false)),
+    });
+    const view = render(
+      <RegionPlayCompanion
+        {...playing(api, { claimedInteraction: interaction(PEDESTAL), showToast })}
+      />,
+    );
+    await screen.findByText(PLAY_COPY.puzzleTouch);
+    view.rerender(
+      <RegionPlayCompanion {...playing(api, { claimedInteraction: null, showToast })} />,
+    );
+    view.rerender(
+      <RegionPlayCompanion
+        {...playing(api, { claimedInteraction: interaction(STONE(1)), showToast })}
+      />,
+    );
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith(PLAY_COPY.puzzleWrong));
+    await waitFor(() => expect(api.requestChestChallenge).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe('Lookout Point and the spyglass (TR-17, TR-20)', () => {
+  const SPYGLASS = `${REGION}:chest:cove-lookout-spyglass`;
+  const STONE = (n: number) => `${REGION}:rune:cove-rune-stone-${n}`;
+  const QUEST_COMPLETE = {
+    locationSlug: 'pirate-builder-bay',
+    changeType: 'UNLOCK',
+    changeKey: 'TREASURE_COVE_QUEST_COMPLETE',
+    payload: {},
+    createdAt: '2026-11-02T18:00:00.000000Z',
+  };
+  const unlockLayout = {
+    unlock: {
+      changeKey: 'TREASURE_COVE_QUEST_COMPLETE',
+      openColliders: ['cove-ruins-gate:collider'],
+      showWhenOpen: ['cove-bridge'],
+      hideWhenOpen: ['cove-broken-bridge'],
+      liftGates: ['cove-ruins-gate'],
+    },
+  };
+  const region = { ...bootstrapJson().region, scene: { layout: unlockLayout } };
+  const unlockedSpyglass = { 'cove-lookout-spyglass': { locked: false, lockReason: null } };
+
+  const lookout = (done: boolean, chests: Record<string, Record<string, unknown>> = {}) =>
+    read(
+      pipsBootstrapJson(
+        {
+          region,
+          session: sessionJson(),
+          worldChanges: done ? [QUEST_COMPLETE] : [],
+          ...(done
+            ? { quests: [questJson({ questId: 'pips-missing-treasure', status: 'COMPLETED' })] }
+            : {}),
+        },
+        done ? { ...unlockedSpyglass, ...chests } : chests,
+      ),
+      parse.regionBootstrap,
+    );
+  const lookoutConfig = buildRegionManifest(toRegionSceneModel(lookout(false)), {
+    worldSlug: 'learning-adventure-island',
+  }).manifest.extensions[0].config;
+
+  const spyglassChallenge = (overrides = {}) =>
+    challenge({
+      targetEntityId: 'cove-lookout-spyglass',
+      challenge: {
+        skillId: 'counting-sets',
+        operation: 'COUNT',
+        operands: [4],
+        responseMode: 'CHOICE',
+        choices: [3, 4, 5],
+      },
+      ...overrides,
+    });
+  const replayOutcome = (correct: boolean) =>
+    outcome(correct, {
+      chestOpened: false,
+      newItems: [],
+      rewardMessage: null,
+      questUpdates: [],
+    });
+
+  function visit(api: PlayApi, extra: Partial<LocationCompanionProps> = {}) {
+    apis.set(CHILD_A, api);
+    return props({ config: lookoutConfig, ...extra });
+  }
+
+  it('opens the gate and lays the bridge the moment the server reports the quest complete', async () => {
+    const scene = fakeScene();
+    const showToast = vi.fn();
+    let done = false;
+    const api = fakeApi({
+      getRegion: vi.fn(async () => lookout(done)),
+      talkToNpc: vi.fn(async () => {
+        done = true;
+        return {
+          flagsSet: ['cove-treasure-returned'],
+          questUpdates: [
+            {
+              questId: 'pips-missing-treasure',
+              status: 'COMPLETED' as const,
+              currentStageId: 'return-to-pip',
+              justCompleted: true,
+              newlyCompletedObjectiveIds: ['cove-return-to-pip'],
+            },
+          ],
+          completionRewards: [],
+        };
+      }),
+    });
+    render(
+      <RegionPlayCompanion
+        {...visit(api, { claimedInteraction: interaction(PIP), sceneApi: scene, showToast })}
+      />,
+    );
+    await waitFor(() => expect(scene.setUnlocked).toHaveBeenCalledWith(true));
+    expect(showToast).toHaveBeenCalledWith(PLAY_COPY.bridgeOpened);
+    expect(scene.reactNpc).toHaveBeenCalledWith('cove-pip', 'cheer');
+  });
+
+  it('leaves the way shut for a child who has not earned it', async () => {
+    const scene = fakeScene();
+    const api = fakeApi({ getRegion: vi.fn(async () => lookout(false)) });
+    render(<RegionPlayCompanion {...visit(api, { sceneApi: scene })} />);
+    await waitFor(() => expect(api.getRegion).toHaveBeenCalled());
+    await act(async () => undefined);
+    expect(scene.setUnlocked).not.toHaveBeenCalled();
+  });
+
+  it('says nothing on a later visit, when the cove was built open already', async () => {
+    const scene = fakeScene();
+    (scene.setUnlocked as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    const showToast = vi.fn();
+    const api = fakeApi({ getRegion: vi.fn(async () => lookout(true)) });
+    render(<RegionPlayCompanion {...visit(api, { sceneApi: scene, showToast })} />);
+    await waitFor(() => expect(scene.setUnlocked).toHaveBeenCalledWith(true));
+    expect(showToast).not.toHaveBeenCalledWith(PLAY_COPY.bridgeOpened);
+  });
+
+  it('ignores a same-named world change from another place', async () => {
+    const scene = fakeScene();
+    const api = fakeApi({
+      getRegion: vi.fn(async () =>
+        read(
+          pipsBootstrapJson({
+            region,
+            session: sessionJson(),
+            worldChanges: [{ ...QUEST_COMPLETE, locationSlug: 'wonderwild-forest' }],
+          }),
+          parse.regionBootstrap,
+        ),
+      ),
+    });
+    render(<RegionPlayCompanion {...visit(api, { sceneApi: scene })} />);
+    await waitFor(() => expect(api.getRegion).toHaveBeenCalled());
+    await act(async () => undefined);
+    expect(scene.setUnlocked).not.toHaveBeenCalled();
+  });
+
+  it('tells the child the spyglass is not ready yet, and asks the server for nothing', async () => {
+    const api = fakeApi({ getRegion: vi.fn(async () => lookout(false)) });
+    render(<RegionPlayCompanion {...visit(api, { claimedInteraction: interaction(SPYGLASS) })} />);
+    expect(await screen.findByText(PLAY_COPY.chestNotYet)).toBeInTheDocument();
+    expect(api.requestChestChallenge).not.toHaveBeenCalled();
+  });
+
+  it('asks a fresh question each time, thanks the child kindly, and never shows a chest or a reward', async () => {
+    const user = userEvent.setup();
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(spyglassChallenge())
+      .mockResolvedValueOnce(
+        spyglassChallenge({ attemptId: '22222222-2222-4222-8222-222222222222' }),
+      );
+    const api = fakeApi({
+      getRegion: vi.fn(async () => lookout(true)),
+      requestChestChallenge: request,
+      submitAnswer: vi.fn(async () => replayOutcome(true)),
+    });
+    render(<RegionPlayCompanion {...visit(api, { claimedInteraction: interaction(SPYGLASS) })} />);
+    await user.click(await screen.findByRole('button', { name: '4' }));
+    const done = await screen.findByRole('dialog', { name: PLAY_COPY.replayGreat });
+    expect(done).toHaveTextContent(PLAY_COPY.replayNote);
+    expect(screen.queryByText(PLAY_COPY.chestOpened)).not.toBeInTheDocument();
+    expect(screen.queryByText(PLAY_COPY.youFound)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: PLAY_COPY.replayAgain }));
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+    expect(request).toHaveBeenCalledWith(
+      SESSION_ID,
+      'cove-lookout-spyglass',
+      expect.any(AbortSignal),
+    );
+    expect(await screen.findByRole('button', { name: '4' })).toBeInTheDocument();
+  });
+
+  it('lets a wrong answer try again with a new question, and shows no thanks', async () => {
+    const user = userEvent.setup();
+    const request = vi.fn(async () => spyglassChallenge());
+    const api = fakeApi({
+      getRegion: vi.fn(async () => lookout(true)),
+      requestChestChallenge: request,
+      submitAnswer: vi.fn(async () => replayOutcome(false)),
+    });
+    render(<RegionPlayCompanion {...visit(api, { claimedInteraction: interaction(SPYGLASS) })} />);
+    await user.click(await screen.findByRole('button', { name: '3' }));
+    await user.click(await screen.findByRole('button', { name: PLAY_COPY.tryAgain }));
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole('dialog', { name: PLAY_COPY.replayGreat })).not.toBeInTheDocument();
+  });
+
+  it('makes Pip listen when talked to, and the stones show the verdict (TR-18, TR-16)', async () => {
+    const scene = fakeScene();
+    const api = fakeApi({
+      getRegion: vi.fn(async () =>
+        lookout(false, { 'cove-ruins-pedestal': { locked: false, lockReason: null } }),
+      ),
+      requestChestChallenge: vi.fn(async () =>
+        challenge({
+          targetEntityId: 'cove-ruins-pedestal',
+          challenge: {
+            skillId: 'addition-within-ten',
+            operation: 'ADD',
+            operands: [3, 4],
+            responseMode: 'CHOICE',
+            choices: [6, 7, 9],
+          },
+        }),
+      ),
+      submitAnswer: vi.fn(async () => outcome(true, { chestOpened: true, newItems: [] })),
+    });
+    const view = render(
+      <RegionPlayCompanion
+        {...visit(api, { claimedInteraction: interaction(PIP), sceneApi: scene })}
+      />,
+    );
+    await waitFor(() => expect(scene.reactNpc).toHaveBeenCalledWith('cove-pip', 'talk'));
+
+    view.rerender(
+      <RegionPlayCompanion
+        {...visit(api, {
+          claimedInteraction: interaction(`${REGION}:chest:cove-ruins-pedestal`),
+          sceneApi: scene,
+        })}
+      />,
+    );
+    await screen.findByText(PLAY_COPY.puzzleTouch);
+    view.rerender(
+      <RegionPlayCompanion {...visit(api, { claimedInteraction: null, sceneApi: scene })} />,
+    );
+    view.rerender(
+      <RegionPlayCompanion
+        {...visit(api, { claimedInteraction: interaction(STONE(2)), sceneApi: scene })}
+      />,
+    );
+    await waitFor(() => expect(scene.pressRune).toHaveBeenCalledWith('cove-rune-stone-2'));
+    await waitFor(() => expect(scene.flashRunes).toHaveBeenCalledWith(true));
   });
 });

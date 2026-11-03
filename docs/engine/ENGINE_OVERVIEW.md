@@ -175,7 +175,7 @@ Welcome Harbor, Wonderwild Forest and the test cove use no extensions.
 The database-backed `Asset`/`AssetVersion` path
 (`src/features/assets/assetService.ts`, `PUBLISHED_ASSET_RESOLVER`) exists but
 is deliberately not wired into children's scenes yet. `Asset` is Admins-only
-until the asset manager adds a published read path for parents.
+until the asset library adds a published read path for parents.
 
 ### Routing
 

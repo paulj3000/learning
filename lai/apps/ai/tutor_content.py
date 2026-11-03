@@ -297,6 +297,13 @@ SKILLS: tuple[Skill, ...] = (
         ("addition-within-ten",),
     ),
     Skill(
+        "multiplication-facts",
+        "Multiplication facts",
+        "Find the total of equal groups, such as 6 groups of 7.",
+        ("numeric", "visual", "word-problem"),
+        ("addition-within-ten",),
+    ),
+    Skill(
         "observation",
         "Careful observation of the natural world",
         "Look closely at something and say what you notice about it.",

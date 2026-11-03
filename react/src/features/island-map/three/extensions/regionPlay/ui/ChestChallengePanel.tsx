@@ -16,7 +16,9 @@ export type ChestPanelPhase =
   | { kind: 'answering'; challenge: IssuedChallenge; submitting: boolean }
   | { kind: 'wrong' }
   | { kind: 'open' }
-  | { kind: 'not-ready' };
+  | { kind: 'not-ready' }
+  /** TR-14: an earlier encounter first (`PROGRESS`), or a key (`ITEM`). `clue` is Pip's line. */
+  | { kind: 'locked'; reason: 'PROGRESS' | 'ITEM'; clue: string };
 
 export interface ChestChallengePanelProps {
   label: string;
@@ -27,6 +29,8 @@ export interface ChestChallengePanelProps {
   /** Asks the server for another challenge, after a wrong answer or a failed request. */
   onTryAgain(): void;
   onClose(): void;
+  /** TR-14: a puzzle, answered by touching objects in the world (or the buttons here). */
+  puzzle?: boolean;
 }
 
 /**
@@ -42,6 +46,7 @@ export function ChestChallengePanel({
   onSubmit,
   onTryAgain,
   onClose,
+  puzzle = false,
 }: ChestChallengePanelProps) {
   return (
     <GameDialog titleId="region-play-chest-title" title={label} onClose={onClose}>
@@ -54,6 +59,19 @@ export function ChestChallengePanel({
       {phase.kind === 'open' ? <p className={styles.speech}>{PLAY_COPY.chestOpen}</p> : null}
       {phase.kind === 'not-ready' ? (
         <p className={styles.speech}>{PLAY_COPY.chestNotReady}</p>
+      ) : null}
+      {phase.kind === 'locked' ? (
+        <>
+          <p className={styles.speech} role="status">
+            {phase.reason === 'ITEM' ? PLAY_COPY.chestNeedsKey : PLAY_COPY.chestNotYet}
+          </p>
+          {phase.reason === 'ITEM' && phase.clue ? (
+            <p className={styles.speech}>{phase.clue}</p>
+          ) : null}
+        </>
+      ) : null}
+      {phase.kind === 'answering' && puzzle ? (
+        <p className={styles.speech}>{PLAY_COPY.puzzleTouch}</p>
       ) : null}
       {phase.kind === 'answering' ? (
         <ChallengeForm

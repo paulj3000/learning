@@ -663,7 +663,7 @@ Treasure Rush's parallel Django models were consolidated into the canonical ones
 | World changes | `progression.WorldChange` | Append-only (`save()` refuses an edit), non-empty key; the source session is a string id, checked to be the same child's by the service |
 | Items, sets, reward rules, learning objectives, NPCs | `catalog.*` | Imported from the export; NPC dialogue, schedule and quest offers stay in `source` |
 | Island, IslandLocation, AdventureTemplate, QuestDefinition | `catalog.World`, `Location`, `Adventure`, `Quest` | Replaced; quest "published" is the catalog's `active` |
-| Region, spawn point, placements, chests | `regions.*` | Spatial; seed-authored (`treasure_rush_seed.py`) until LAI-0805 |
+| Region, spawn point, placements, chests | `regions.*` | Spatial; seed-authored (`treasure_rush_seed.py`) until LAI-0805. `TreasureChest.presentation` is `CHEST`, `HIDDEN`, `PUZZLE` or `REPLAY` (TR-20: repeatable, never opens, no reward rule, enforced by `clean()` and by the play service) |
 
 Child-owned rows that link to other child-owned rows declare `CHILD_LINKS`, and
 `core.ChildOwnedModel.save()` refuses a link to another child's record (from Treasure Rush).

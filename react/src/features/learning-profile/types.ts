@@ -129,6 +129,7 @@ export const SKILL_DOMAIN_MAP: Readonly<Record<string, LearningDomain>> = {
   'counting-sets': 'math',
   'addition-within-ten': 'math',
   'subtraction-within-ten': 'math',
+  'multiplication-facts': 'math',
   'comparing-lengths': 'math',
   measurement: 'math',
   // Logic

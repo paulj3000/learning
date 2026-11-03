@@ -1,4 +1,4 @@
-"""The asset version lifecycle (LAI-2200 AM-4; `docs/ASSET_MANAGER.md` sections 3 and 9).
+"""The asset version lifecycle (LAI-2200 AM-4; `docs/ASSET_LIBRARY.md` sections 3 and 9).
 
 Every state change goes through here, inside a transaction, with the asset row locked so two
 administrators cannot allocate the same version number or race a publication. Permission checks
@@ -20,7 +20,7 @@ from apps.catalog.models import AssetStatus, ContentAsset
 
 from .models import CONTENT_TYPES, AssetVersion, VersionStatus
 from .storage import KEY_PREFIX, StorageError, get_storage, object_key, sha256_of
-from .validation import Finding, ValidationResult, validate_model
+from .validation import Finding, ValidationResult, validate_upload
 
 logger = logging.getLogger("lai.assets")
 
@@ -49,17 +49,19 @@ def _locked(asset: ContentAsset) -> ContentAsset:
 
 
 def upload_version(asset: ContentAsset, upload: IO[bytes], *, original_filename: str, user=None):
-    """Checksum, validate and store a new version. Returns it `VALIDATED`, or raises.
+    """Checksum, validate and store a new version of any supported family (AM-13).
+
+    Returns it `VALIDATED`, or raises.
 
     A file that fails validation is never stored and makes no row: the admin sees the findings
     and nothing needs cleaning up. A storage or database failure leaves no row and no object.
     """
     sha256, size = sha256_of(upload)
-    result = validate_model(upload, size=size, definition=asset)
+    result = validate_upload(upload, size=size, definition=asset)
     if not result.passed:
         logger.info("asset upload rejected: %s %s", asset.asset_id, _codes(result))
         raise AssetActionRefused(
-            "invalid_model", "The model did not pass validation.", result.findings
+            "invalid_file", "The file did not pass validation.", result.findings
         )
 
     storage = get_storage()
@@ -145,7 +147,7 @@ def publish_version(version: AssetVersion, *, user=None) -> AssetVersion:
                 result = ValidationResult(format=version.format)
                 result.error("checksum_mismatch", "The stored file no longer matches its checksum.")
             else:
-                result = validate_model(stored, size=size, definition=asset)
+                result = validate_upload(stored, size=size, definition=asset)
         if not result.passed:
             version.status = VersionStatus.REJECTED
             version.validation_report = result.report()
@@ -164,7 +166,7 @@ def publish_version(version: AssetVersion, *, user=None) -> AssetVersion:
             logger.info("asset version published: %s v%s", asset.asset_id, version.number)
     if not result.passed:
         raise AssetActionRefused(
-            "invalid_model", "The stored model failed validation; it was rejected.", result.findings
+            "invalid_file", "The stored file failed validation; it was rejected.", result.findings
         )
     return version
 
@@ -210,6 +212,83 @@ def retire_version(version: AssetVersion, *, replacement: AssetVersion | None = 
         version.save(update_fields=["status", "retired_at"])
     logger.info("asset version retired: %s v%s", asset.asset_id, version.number)
     return version
+
+
+def republish_version(version: AssetVersion, *, user=None) -> AssetVersion:
+    """`RETIRED` back to `PUBLISHED` after re-reading the stored bytes (a rollback target).
+
+    The same checks as a first publication: the object must exist, match its recorded checksum
+    and size, and pass validation. A version whose bytes no longer verify stays `RETIRED`
+    (never rejected: it was valid when it shipped) and the administrator is told why.
+    """
+    with transaction.atomic():
+        asset = _locked(version.asset)
+        version = AssetVersion.objects.select_for_update().get(pk=version.pk)
+        if asset.status != AssetStatus.ACTIVE:
+            raise AssetActionRefused("asset_retired", "This asset is retired.")
+        if version.status != VersionStatus.RETIRED:
+            raise AssetActionRefused(
+                "not_retired", f"Only a retired version can be republished ({version.status})."
+            )
+        problem = _verify_bytes(version, asset)
+        if problem is not None:
+            raise AssetActionRefused("verification_failed", problem)
+        version.status = VersionStatus.PUBLISHED
+        version.retired_at = None
+        version.published_by = user
+        version.save(update_fields=["status", "retired_at", "published_by"])
+    logger.info("asset version republished: %s v%s", asset.asset_id, version.number)
+    return version
+
+
+def rollback_to_version(version: AssetVersion, *, user=None) -> ContentAsset:
+    """Make a previous valid version the live one, republishing it first when it was retired.
+
+    The version being replaced stays published unless an administrator retires it. Draft,
+    validated-but-never-published and rejected versions are not rollback targets: publish them
+    through the normal path.
+    """
+    version = AssetVersion.objects.get(pk=version.pk)  # the caller's copy may be stale
+    if version.status == VersionStatus.RETIRED:
+        version = republish_version(version, user=user)
+    elif version.status != VersionStatus.PUBLISHED:
+        raise AssetActionRefused(
+            "not_rollback_target",
+            "Only a version that was published before can be rolled back to.",
+        )
+    return set_default_version(version)
+
+
+def reactivate_asset(asset: ContentAsset) -> ContentAsset:
+    """`RETIRED` back to `ACTIVE`. Its versions keep their own states; nothing is republished."""
+    with transaction.atomic():
+        asset = _locked(asset)
+        if asset.status != AssetStatus.RETIRED:
+            raise AssetActionRefused("not_retired", "This asset is already active.")
+        asset.status = AssetStatus.ACTIVE
+        asset.save(update_fields=["status", "updated_at"])
+    logger.info("asset reactivated: %s", asset.asset_id)
+    return asset
+
+
+def verify_version(version: AssetVersion) -> str | None:
+    """Re-read the stored object. None when it is present and unchanged, else why not."""
+    return _verify_bytes(version, version.asset)
+
+
+def _verify_bytes(version: AssetVersion, asset: ContentAsset) -> str | None:
+    try:
+        stored = get_storage().open(version.storage_key)
+    except StorageError:
+        return "The stored file is missing or could not be read."
+    with stored:
+        sha256, size = sha256_of(stored)
+        if sha256 != version.sha256 or size != version.size_bytes:
+            return "The stored file no longer matches its recorded checksum."
+        result = validate_upload(stored, size=size, definition=asset)
+    if not result.passed:
+        return "The stored file no longer passes validation: " + _codes(result)
+    return None
 
 
 def retire_asset(asset: ContentAsset) -> ContentAsset:

@@ -945,7 +945,7 @@ which location uses which asset comes from the manifests.
 - `src/features/assets/assetService.ts`: the published-slug lookup is now
   `PUBLISHED_ASSET_RESOLVER`, and `resolveModelUrl` is built on it.
   **Deliberately not wired into the child's scene**: `Asset` is
-  Admins-only until the asset manager's Phase 5 adds a published-only read
+  Admins-only until the asset library's Phase 5 adds a published-only read
   path for parents (`docs/android/ASSET_MANAGEMENT.md`, open decision), so
   wiring it now would add a lookup that always fails to every scene load.
 - `WorldExtension.assetIds(config)` (new). `castle-tale` declares its state
@@ -1254,7 +1254,7 @@ both fixed:
   `npm install --package-lock-only` in a standalone copy of the repo and
   committing the result would bring the lockfile back in step.
 
-## Model Asset Manager — Phases 1-2 complete (foundation and upload)
+## Model Asset Library — Phases 1-2 complete (foundation and upload)
 
 Spec: `docs/android/ASSET_MANAGEMENT.md`. Decision: ADR-030.
 
@@ -2576,12 +2576,12 @@ the first release and bootstrap tasks, publishing the three models in Django Adm
 stay open until they pass on AWS. Nothing on AWS, the GitHub-hosted workflow run, OIDC, SSM,
 awslogs or RDS TLS has been exercised.
 
-## Treasure Rush - TR-7a and TR-10: Treasure Cove's models come from the Django asset manager; AWS storage defined, not deployed
+## Treasure Rush - TR-7a and TR-10: Treasure Cove's models come from the Django asset library; AWS storage defined, not deployed
 
 **Done (2026-10-30), merged into main.** With `VITE_BACKEND=django`, Treasure Cove resolves its
-models (`npc-pip`, `treasure-chest`, `ground-tile`) through the asset manager: a version an
+models (`npc-pip`, `treasure-chest`, `ground-tile`) through the asset library: a version an
 administrator publishes and makes the default in Django Admin is what the child sees on the next
-visit, with no React rebuild. Details: `docs/ASSET_MANAGER.md` sections 12, 15 and 19;
+visit, with no React rebuild. Details: `docs/ASSET_LIBRARY.md` sections 12, 15 and 19;
 `docs/TREASURE_RUSH_ROADMAP.md` section 16.
 
 - **TR-7a (generic engine).** A model that cannot be resolved or loaded leaves a sized primitive
@@ -11018,12 +11018,12 @@ may ship as its own release with static files on S3 behind CloudFront.
 - **Not done (needs approval):** the S3 bucket, CloudFront distribution, WAF rule, ALB and the
   rest of the hosting in `docs/DJANGO_TARGET_ARCHITECTURE.md` 11a.
 
-## LAI-2200: shared Django asset manager, foundation and admin preview (2026-10-25, ADR-035 Accepted)
+## LAI-2200: shared Django asset library, foundation and admin preview (2026-10-25, ADR-035 Accepted)
 
 Branch `feature/django-asset-manager`, from `origin/main` `f279299`. **Merged into `main` on
-2026-10-25** after merge verification (results: `docs/ASSET_MANAGER.md` section 18). It is not
+2026-10-25** after merge verification (results: `docs/ASSET_LIBRARY.md` section 18). It is not
 deployed as an asset service: there is no S3 bucket, IAM policy or CloudFront yet, and no scene uses
-the resolver. Detail: `docs/ASSET_MANAGER.md`.
+the resolver. Detail: `docs/ASSET_LIBRARY.md`.
 Subtasks AM-1 to AM-10 (ids of their own: LAI-2201 to 2208 are the Phase 22 world conversions).
 
 - **Done:**
@@ -11040,7 +11040,7 @@ Subtasks AM-1 to AM-10 (ids of their own: LAI-2201 to 2208 are the Phase 22 worl
   - AM-7: `djangoAssetResolver.ts` for the LAI-2106 loader, with bundled fallback.
   - AM-8: `import_assets` (bundled and Amplify sources, dry run, idempotent).
   - AM-9: acceptance and security tests, docs.
-  - AM-10: Django Admin 3D preview (`docs/ASSET_MANAGER.md` section 17). It has a preview page per
+  - AM-10: Django Admin 3D preview (`docs/ASSET_LIBRARY.md` section 17). It has a preview page per
     version, linked from the version list, the version page and the definition page (default and
     inline). The plain-TypeScript Three.js viewer (`react/src/features/assets/preview/`) supports
     GLB and self-contained glTF, orbit, pan, zoom, reset, fit, automatic framing, responsive
@@ -11068,7 +11068,7 @@ Subtasks AM-1 to AM-10 (ids of their own: LAI-2201 to 2208 are the Phase 22 worl
   all pass; Playwright e2e 7 passed. A browser check of the admin preview passed 24 of 24 in
   headless Chromium with software WebGL. The new `npm run admin-preview:check` passes and is in
   CI. Ruff and Prettier are clean for this work; three failures that `main` already had remain
-  (`docs/ASSET_MANAGER.md` section 18).
+  (`docs/ASSET_LIBRARY.md` section 18).
   Fixes made during verification: the preview checksum is now a 1 MB-chunk streaming check with
   a streamed response (bounded memory); the branch's Ruff and Prettier issues are fixed; and the
   generated bundle and Django templates are excluded from Prettier, the bundle also from oxlint.
@@ -11276,7 +11276,7 @@ manual AWS deployment was made. No AWS resource, deployed configuration or produ
   `AdminPasswordBackend` alone. `IsVerifiedPrincipal` accepts only a `VerifiedToken`.
 - **Django kept.** Cognito JWT verification (signature, issuer, expiry, `token_use`, client id),
   `sub` to `ParentAccount` mapping and `POST me/` onboarding, child scoping, Django Admin staff
-  sign-in and its admin-scoped cookies, the asset manager, Treasure Rush, rewards, inventory and
+  sign-in and its admin-scoped cookies, the asset library, Treasure Rush, rewards, inventory and
   progress, and everything from LAI-CHILD-001 (`PATCH me/`, `ParentRecord`, read-only audited
   admin, `import_amplify_profiles`).
 - **React removed.** `VITE_AUTH_PROVIDER` and `api/authMode.ts`, `api/session.ts`,
@@ -11465,13 +11465,44 @@ instruction. Not pushed.
 - **Deferred to merge.** Full Vitest and pytest, oxlint, Prettier, Ruff, build, Playwright and a
   real-browser look at the header on a tablet.
 
+## TR-12 Treasure Rush reboot, Stage A: child-friendly interaction and guidance (2026-10-31)
+
+First task of the owner's Treasure Rush gameplay reboot ("Pip's Missing Treasure"). Plan for the
+rest (TR-13 to TR-20, decisions TR-D22 and TR-D23): `docs/TREASURE_RUSH_ROADMAP.md` section 17.
+The brief as received stops partway through its section 7; later sections are not planned.
+
+- **Acceptance (brief, Stage A).** Interaction without precise aim; a context-sensitive prompt
+  that disappears out of range; keyboard, mouse and touch; highlighted and recognisable
+  interactables; a visible objective; a hint that does not interrupt; exit without arithmetic
+  that keeps progress (already done by LAI-0807).
+- **Built.** Behind a new manifest flag, `interactionAssist`, on for server-published regions
+  only: forgiving aim (nearest interactable within 3 m and 40 degrees when the centre ray misses),
+  a bobbing focus marker, and a tappable action prompt ("Open: Treasure chest") with the E key
+  cap shown only on a fine pointer. In the cove: a gold beacon over every closed chest, the HUD
+  objective from server quest state, and a Hint button.
+- **Files changed.** `runtime/locationManifest.ts`, `runtime/createLocationEngine.ts`,
+  `runtime/manifestBindings.ts`, `runtime/ThreeLocationWorldView.tsx`,
+  `runtime/viewExtensionRegistry.tsx`, `WorldHud.tsx` and `.module.css` (all under
+  `react/src/features/island-map/three/`); `extensions/regionPlay/regionPlayScene.ts`,
+  `RegionPlayCompanion.tsx`, `ui/RegionPlayPanels.module.css`;
+  `react/src/features/region-play/regionManifest.ts`, `regionPlayUi.ts`. No backend change.
+- **Tests (development checks).** New: 8 cove engine tests (aim with and without the flag,
+  behind, beside, out of reach, ray wins, marker, beacons), 2 prompt lookup, 4 HUD, 1 builder,
+  7 objective and hint rules, 4 companion. Vitest over `region-play`, `island-map/three/extensions`,
+  `island-map/three/runtime` (including every region parity suite) and the HUD: 590 passed.
+  `tsc -b` clean; Prettier clean on the touched files.
+- **Not done.** No browser or tablet run (TR-9); the 3 m and 40 degree values need a playtest.
+  Full suites, lint, Playwright and build are deferred to merge readiness. The backpack and
+  Hint buttons are `position: fixed` outside `WorldStage`, so in full-screen mode they are not
+  visible (true of the backpack before this change too).
+
 ## LAI-0904: Separate private child photo bucket and Django photo API (2026-10-31, branch only, not merged)
 
 - **Decision.** ADR-042, accepted by the owner for code and infrastructure definitions only:
   game assets and child photos use separate S3 buckets. No deployment, migration, deletion, merge
   or push was approved, and none was done.
 - **Reviewed and kept.**
-  - `LaiAssetStorage-<env>` and the asset manager (storage adapter, publication, resolver,
+  - `LaiAssetStorage-<env>` and the asset library (storage adapter, publication, resolver,
     Treasure Rush loading) are unchanged. The `LaiAssetStorage-prod` template is identical to
     `main`.
   - The Amplify bucket and everything under `amplify/` are unchanged.
@@ -11502,7 +11533,7 @@ instruction. Not pushed.
   - ADR-042 and `docs/platform/CHILD_PHOTO_STORAGE.md`.
   - Roadmap: LAI-0904 revised, LAI-0905 added, LAI-1002 and LAI-1103 updated, LAI-1204 added.
     LAI-1302 now depends on LAI-1204, because Amplify storage auto-deletes objects with its stack.
-  - AM-13 added. The tracker, IAM audit, EC2 runbook, `infra/README.md`, `ASSET_MANAGER.md`,
+  - AM-13 added. The tracker, IAM audit, EC2 runbook, `infra/README.md`, `ASSET_LIBRARY.md`,
     `ARCHITECTURE.md` and `DATA_MODEL.md` are updated.
 - **Tests (development checks, 2026-10-31).**
   - Vitest `infra/lib/`: 43 passed (11 new). `tsc -p infra/tsconfig.json` is clean, and
@@ -11758,6 +11789,97 @@ unpublished assets stay private; Amplify Storage stays unchanged until LAI-1301.
   clean, `adr:check`, `admin-preview:check`, `content:check` and `golden:check` pass, Playwright 7
   of 7.
 
+## TR-13 Treasure Rush reboot: the four-zone Treasure Cove (2026-11-01)
+
+Second reboot task (`docs/TREASURE_RUSH_ROADMAP.md` section 17, "TR-13 as built"). Branch
+`quest/tr.reboot`, which now includes a merge of `main` (`7fe30eb`, made by the owner).
+
+- **Acceptance.** Four recognisable, navigable, populated zones (Pirate Landing, Palm Tree
+  Grove, Shipwreck Beach, Ancient Treasure Ruins) in one continuous area, ready for TR-14's four
+  encounters; placeholders for missing models; environment animation; existing movement,
+  collision, camera and interaction kept; Backpack, Hint, objective, prompt and Exit available
+  in full screen; the asset audit in `docs/TREASURE_RUSH_ASSET_REQUIREMENTS.md`.
+- **Built.** A 72 x 88 m cove: 60 scenery entries (planes, 15 ruin walls, clusters of 18 bundled
+  assets, the shipwreck, archway and rune stones, a jungle scatter), 35 colliders, 4 zones with
+  enter messages, 4 ambient movers (gulls, butterflies), 2 point lights, and 53 procedural
+  placeholders (28 palms instanced in three draw calls, 10 torches, 8 pillars, 2 flags, tent,
+  campfire, rowboat, pedestal, gate). Lookout Point beyond a channel and a locked gate is
+  visible and unreachable until TR-17. Encounter spots for TR-14 to TR-17 are named in
+  `SPOTS` and tested to be open ground in the right zone.
+- **Decision TR-D24.** The layout travels as `WorldRegion.scene["layout"]` in manifest
+  vocabulary, authored in `lai/apps/regions/treasure_cove_layout.py`; the seed refreshes it on an
+  existing region only when `layoutVersion` is older, never touching title, copy, placements,
+  chests or status. A JSON snapshot beside it feeds the frontend tests; a Python test fails if
+  they drift.
+- **Full-screen correction.** TR-12's note that Backpack and Hint disappear in full screen was
+  wrong (they were inside the full-screen element). The real gaps, now fixed: the exit link was
+  hidden in full screen (now drawn on the stage), and the cove showed two backpacks (the HUD's
+  is left out when a companion owns one). Companion controls now sit in a slot inside the stage.
+- **Files created.** `lai/apps/regions/treasure_cove_layout.py`, `treasure_cove_layout.json`,
+  `tests/test_treasure_cove_layout.py`; `react/src/features/region-play/regionLayout.ts` and
+  test; `extensions/regionPlay/proceduralScenery.ts` and test,
+  `treasureCoveLayout.engine.test.ts`; `docs/TREASURE_RUSH_ASSET_REQUIREMENTS.md`.
+- **Files changed.** `lai/apps/regions/treasure_rush_seed.py`, `models.py` (docstring);
+  `region-play/regionManifest.ts`, `regionPlayConfig.ts`; `extensions/regionPlay/regionPlayScene.ts`,
+  `RegionPlayCompanion.tsx`, `regionPlayViewExtension.tsx`, `ui/RegionPlayPanels.module.css`;
+  `runtime/ThreeLocationWorldView.tsx`, `runtime/viewExtensionRegistry.tsx`; `WorldHud.tsx` and
+  `.module.css`; `IslandWorldView.module.css`; `test/playFixtures.ts`; tests beside each.
+- **Tests (development checks).** Python: `lai/apps/regions` 56 passed against the compose
+  PostgreSQL (`POSTGRES_PORT=5442 LAI_REQUIRE_POSTGRES=1`), 13 of them new; ruff clean on the
+  touched files. Vitest: `island-map`, `region-play` and `api/play`, 122 files, 1,344 passed,
+  about 32 of them new (layout reader 10, builder 2, cove on the engine 7, placeholders and config
+  8, HUD 3, companion 1, view 1). `tsc -b` clean; Prettier clean on the touched files.
+- **Not done.** No browser, tablet or WebGL look (TR-9): sizes, colours, readability of the
+  zones and the draw-call cost on a tablet are unverified. A deployed database needs
+  `manage.py seed_treasure_rush` to pick up the layout. Full suites, lint, Playwright and build
+  are deferred to merge readiness.
+
+## TR-14 Treasure Rush reboot: Pip's Missing Treasure (2026-11-01)
+
+Third reboot task (`docs/TREASURE_RUSH_ROADMAP.md` section 17, "TR-14 as built"). Branch
+`quest/tr.reboot`, on top of TR-13 (`c7e6ff3`).
+
+- **Acceptance.** Pip introduces the quest; four encounters that play differently (an open
+  chest, a hidden chest that appears in order, a key-locked chest with a server-recorded key, a
+  rune-stone puzzle graded by Django unlocking the golden chest); four keepsakes; progress
+  1 of 4 to 4 of 4; return to Pip completes the quest in Django with a completion reward and the
+  `TREASURE_COVE_QUEST_COMPLETE` signal for TR-17; keyboard, mouse and touch (the TR-12 prompt,
+  plus panel buttons as an alternative to touching stones); objective and hints accurate
+  throughout; progress persists across sessions; key and rewards idempotent.
+- **APIs.** `POST .../sessions/{id}/pickups/{entityId}/`, `POST .../sessions/{id}/npcs/{entityId}/talk/`,
+  `409 chest_locked`, additive bootstrap and outcome fields (`docs/PLAY_API.md`). Accepting a
+  quest now walks it forward. The native region list no longer counts puzzles as chests.
+- **Quest data.** `pips-missing-treasure` (stages `find-the-treasure`: four BUILD objectives;
+  `return-to-pip`: TALK_TO Pip), five items (Palm Grove Pearl, Old Brass Key, Shipwreck Compass,
+  Sunstone, Treasure Cove Explorer Badge) and five reward rules, in the content export; 15
+  challenge specs, three chests, the pedestal puzzle, three rune stones and the key in the seed
+  (`pips_treasure_seed.py`). An existing region moves its offered quest once
+  (`adventureVersion`); the one-chest quest stays in the catalog with its children's progress.
+- **Decisions.** TR-D22 (key as a pickup), TR-D23 (puzzle graded by Django), TR-D25 (TALK_TO
+  proven from `NpcRelationship.memory_flags`), recorded in the roadmap.
+- **Two TR-13 regressions fixed here.** A play API leak test matched the layout's scatter
+  `seed` (now checks the authored scene separately, with the same guarantees), and the layout
+  module printed a line (application code must not print).
+- **Content export with an unrelated uncommitted change present.** The earlier, uncommitted
+  "Treasure Rush quest owned by the home Island" fix also edits the export. TR-14's committed
+  export was generated from the committed export code (`quests.json`, `rewards.json`,
+  `manifest.json`; `islands.json` unchanged); the working tree's export was regenerated with
+  that fix in place, so it carries both. Only the record counts in `contentExport.test.ts`
+  were changed for TR-14.
+- **Tests (development checks).** Django, against the compose PostgreSQL: `regions`,
+  `game_sessions`, `quests`, `inventory`, `progression`, `core`, `catalog`, `education`: 626
+  passed, with one test deselected (`test_adventure_launch.py::test_quests_stay_island_owned_and_are_still_offered_in_the_3d_area`)
+  that fails only because of the uncommitted export fix above, which closes the gap it pins.
+  New: `test_pips_treasure.py` (22) and the engine's TALK_TO test. Ruff clean on the touched
+  files. Vitest over `island-map`, `region-play`, `api/play` and `content-export`: 125 files,
+  1,433 passed, including the new `pipsTreasure.test.ts` (12), `pipsTreasure.engine.test.ts`
+  (6), 7 companion tests and 5 API tests. `tsc -b`
+  clean; Prettier clean on the touched files.
+- **Not done.** No browser or tablet play (TR-9): pacing toward 10 to 15 minutes, readability
+  of the stone numbers, and the hidden chest's discoverability need a person. A deployed
+  database needs `migrate`, `load_content`, `seed_treasure_rush` and the publish step.
+  Full suites, lint, Playwright and build are deferred to merge readiness.
+
 ## LAI-0209 recent sign-in verification; child deletion and asset changes enabled (2026-11-01, branch `feature/lai-0209-recent-auth`, not merged, not pushed, nothing deployed)
 
 Specification `docs/platform/RECENT_SIGN_IN.md`; decision ADR-043 (Proposed, specifies ADR-024 A3).
@@ -11882,3 +12004,182 @@ deployed, and no Amplify resource was changed.
   ruff check and format, prettier, oxlint, `npm run adr:check`, `npm run build`, CDK synth of all
   five stacks, Playwright smoke 7 passed. Not run: live Bedrock, live red team, authenticated
   browser acceptance, deployed monitoring.
+
+
+## Asset Library: Django Admin ownership, media families, lifecycle completion (2026-11-02, branch `feature/asset-manager`, pushed, merged into `dev20261102` only, nothing deployed)
+
+Acceptance implemented: ADR-045 (Django Admin owns staff asset authoring; React consumes
+published assets only); AM-13 (images and audio); AM-17 (lifecycle completion); AM-14 and AM-15
+removed. The product feature formerly called the Asset Manager is now the Asset Library.
+
+| Task | Status | Evidence | Not done |
+|---|---|---|---|
+| ADR-045 | Accepted (owner-directed) | `docs/DECISIONS.md`, `docs/ARCHITECTURE.md` | n/a |
+| AM-13 non-model kinds | Development done | pytest `test_media_validation.py`, `test_media_library.py`; Vitest `mediaAssets.test.ts`, `djangoAssetResolver.test.ts`; infra Vitest policy test | Browser, live S3, deployed IAM |
+| AM-14 admin REST API | Superseded, removed | `test_no_administrator_api_routes_exist` | n/a |
+| AM-15 React staff pages | Superseded, removed | Vitest `assetLibraryRemoval.test.ts` | n/a |
+| AM-16 deployed verification | **Not started, pending** | n/a | Needs LAI-1002/1004, deployed bucket, browser and manual acceptance |
+| AM-17 lifecycle completion | Development done | pytest `test_media_library.py` | Browser pass of the admin screens |
+| LAI-0209 | Asset scope retired; child deletion guard unchanged | `docs/platform/RECENT_SIGN_IN.md` | Owner acceptance and live Cognito gate still open |
+
+**New:** `apps/assets/formats.py` (format and kind table), `validation_media.py` (PNG, JPEG, WebP,
+MP3, WAV, Ogg validators with no new dependency), migrations `assets/0002` and `catalog/0005`
+(formats, categories), `validate_upload`, per-family key directories and limits, rollback,
+republish, reactivate, verify, admin-history entries, image thumbnails and audio players in
+Django Admin through a hardened media route, resolver `family` and `media` fields, hardened
+file-route headers, infra IAM on the three key prefixes.
+
+**Removed:** `apps/assets/admin_api.py` and its routes; React staff asset pages, upload wizard,
+Amplify upload helpers, admin asset hub and nav entry, `djangoAssetAdmin` client.
+
+**Kept:** Three.js loaders, the Django resolver adapter, the bundled fallback, Treasure Rush
+loading, the Django Admin 3D preview bundle, the Amplify catalog model picker (until LAI-1301).
+
+**Risks and TODOs:** the Django Admin 3D preview bundle must still be rebuilt from
+`react/src/features/assets/preview/` if that source changes; Django Admin has no recent sign-in
+step; no browser, AWS or deployed checks were run (excluded by instruction); associations of
+specific adventure or quest fields to texture or sound ids are wired by the features that need
+them (docs section 21.9).
+
+## Treasure Rush reboot: TR-15 to TR-20, the bridge, Lookout Point and the replay (2026-11-02, branch `quest/tr.reboot`)
+
+**Status: development complete, unit and API verified, awaiting owner browser playtest. Browser
+tests were not run, per owner instruction. TR-9, browser acceptance and final approval are not
+done. Nothing is deployed and nothing was merged to main.**
+
+Details, decisions and the full verification table: `docs/TREASURE_RUSH_ROADMAP.md` sections 18
+to 20. Owner checklist: `docs/TREASURE_RUSH_PLAYTEST_CHECKLIST.md`.
+
+| Task | Development | Unit/API verified | Blocked or pending |
+|---|---|---|---|
+| TR-9 playtest | Not started (by instruction) | n/a | Browser journey, playtest per age band, owner |
+| TR-11 | Superseded by TR-14 (proposed) | n/a | Owner confirmation |
+| TR-15 key and pickups | Complete | Yes | `treasure-key` model (art), browser |
+| TR-16 ruins puzzle | Complete for touch-the-answer | Yes | Ordering and matching (TR-D27), pedestal art, sound |
+| TR-17 bridge and Lookout Point | Complete | Yes | Finished models (art), browser |
+| TR-18 living cove | Complete with `Talk` and `Wave` | Yes | `Cheer` and `Point` clips (art), browser |
+| TR-19 sound | Cue hook only | Yes | **Owner decision TR-D26** |
+| TR-20 replay | Complete | Yes | Browser |
+
+- **Files created:** `lai/apps/regions/activity.py`, `lai/apps/regions/migrations/0004_tr20_replay_presentation.py`, `lai/apps/game_sessions/tests/test_lookout_replay.py`, `react/.../regionPlay/{livingCove.ts, livingCove.test.ts, lookoutPoint.engine.test.ts, ui/ReplayDonePanel.tsx}`, `react/src/features/region-play/soundCues.ts` and test, `docs/TREASURE_RUSH_PLAYTEST_CHECKLIST.md`.
+- **Files changed:** the cove layout (v4) and its JSON snapshot, `regions` model, admin, seed and tests, `play.py`, `discovery.py`, the region-play config, layout reader, manifest builder, UI rules, scene extension, procedural shapes and companion, the API types and parser, and the docs and tracker.
+- **Verified (unit and API only):** Django 335 plus 575 passed with the stale expectations fixed and re-run; Vitest 1,532 of 1,534 (two baseline failures unrelated to this work); `tsc -b`, Prettier, Ruff, `manage.py check`, `makemigrations --check`, oxlint (0 errors) and `vite build` pass.
+- **Remaining risks:** nobody has seen the cove, so sizes, colours, frame rate on a tablet, the bridge's look and the pacing are unknown. A deployed environment needs `migrate`, `seed_treasure_rush` and `publish_treasure_rush`. Dependencies were installed without the lockfile because `npm ci` refused it, which is the likely cause of the two baseline Vitest failures.
+- **Environment note:** other Claude sessions shared this machine's PostgreSQL container; this work used its own test database name (`lai_trreboot`) to avoid collisions.
+
+## Phase 28 - AI Question Studio (2026-11-02)
+
+Branch `features/studio` from `features/ai` (`8764698`); ADR-046 accepted by the owner ("proceed
+as proposed"). Design, operation and limitations: `docs/AI_QUESTION_STUDIO.md`. Nothing was pushed,
+merged or deployed, and no AWS call was made.
+
+- **Implemented (LAI-AQS-001 to 023).** New `apps/question_studio`: question bank with immutable
+  revisions, staff-only generation through the ADR-044 model client in bounded chunks (retries,
+  quotas, kill switch, approved-model list, token and cost record), deterministic validation
+  (structure, arithmetic, contradictory keys, duplicates, safety), a Django Admin workflow
+  (generate, review and edit, approve, publish, bulk, retire, correct), question pools, and a
+  selector that serves published integer-answer questions to Treasure Rush through the existing
+  `ChallengeAttempt`, `grade_answer` and `SkillEvidence` path. Additive migrations:
+  `question_studio/0001`, `game_sessions/0005`. `Operation.MULTIPLY` added; React play client
+  gains a multiplication picture, hints and parser entry.
+- **Checks run (PostgreSQL 16 in Docker, Python 3.13 venv).**
+  `LAI_REQUIRE_POSTGRES=1 pytest apps/question_studio` from `lai/`: 125 passed.
+  `LAI_REQUIRE_POSTGRES=1 pytest` from `lai/`: 1389 passed. `pytest tests` from the root: 354
+  passed. `ruff check .` and `ruff format --check .`: clean. `manage.py check` and
+  `makemigrations --check`: clean. `npm run adr:check`: one failure that predates this work
+  (a reference to the LAI-0209 sign-in decision at the Phase 7 entry, defined only on `main`).
+- **Existing tests changed.** Two admin guard tests now list `question_studio`
+  (`core/tests/test_django_admin.py`, `game_sessions/tests/test_sessions.py`).
+- **Not verified.** Live Bedrock (LAI-0705 approval gate); a browser session in Django Admin (the
+  admin was exercised with the Django test client); deployment.
+- **Multiplication objective (follow-up, 2026-11-02).** Added `multiplication-facts` as a numeracy
+  learning objective and a one-skill Grade 3 slice (Explorers only) to the TypeScript curriculum;
+  regenerated `content/exported/*` and the golden vectors; mirrored the skill in
+  `ai/tutor_content.py`; updated the curriculum and export-count tests (a Pathfinder no longer sees
+  every skill). Checks: `pytest` from the root, 1747 passed; Vitest on curriculum, export, tutor,
+  director, learning profile, region play and the golden vectors, 274 passed; `content:check`,
+  `npm run typecheck` and prettier clean. A full Vitest run showed two slow parity and upload
+  tests timing out under load; both passed when run alone.
+- **LAI-AQS-024 stays open** for live generation and the Admin browser pass only.
+- **ADR-033 exception confirmed** by the owner (2026-11-02). ADR-046 records a bounded exception to "content reaches Django only through
+  the export" (ADR-033): the bank is authored in Django. Merge order is `features/ai` first.
+
+## POST-MERGE-05: pre-merge acceptance of `dev20261102` into `main` (2026-11-02)
+
+Scope: `origin/main` (`be529fe`) to `origin/dev20261102` (`753d246`, 29 commits): Phase 28 AI
+Question Studio (LAI-AQS-001 to 024), the Treasure Rush reboot (TR-12 to TR-20) and the Asset
+Library (AM-13, AM-17, ADR-045). Run from a worktree because `/Coding` had no free inodes for
+`node_modules`. No AWS call, no deployment, no real Bedrock, S3 or Cognito.
+
+**New: browser acceptance suites** (`npm run test:acceptance`; how they work:
+`docs/TESTING_STRATEGY.md`, "Browser acceptance suites"). 29 scenarios in Chromium, desktop and
+an iPad-sized touch viewport, against a disposable local Django on PostgreSQL with simulated
+Cognito tokens and the fake model:
+
+| Suite | Covers |
+|---|---|
+| `treasure-rush.spec.ts` | Dashboard launch; Pip's offer and acceptance (E key); Hint only on request; all four encounters in order with a wrong answer, the hidden grove chest, the key and the locked chest, a wrong rune stone and new numbers, the golden chest; out-of-order chest and stone refused kindly; the finale; the gate holding before it, the bridge walked after it, its sides holding; the spyglass replay (kind note, "Play again", inventory unchanged); backpack with unique keepsakes; reload keeps everything with no second celebration; keyboard walking and island bounds; tap and click on the one action prompt (no E badge on touch); touch-drag walking; full screen with Hint, Backpack and Exit, and leaving it; exit without any challenge |
+| `question-studio.spec.ts` | Anonymous sign-in redirect; 403 for staff without Studio rights (and asset-only staff); form validation (browser and server); a Grade 3 multiplication batch with curriculum fields; clean drafts already need review; duplicates blocked by validation; reviewer approves and rejects but cannot publish; publisher publishes immutable revisions; a correction draft (and a second one refused); retirement by publishers only; phone-width Admin; a pool serving published questions at the cove chest (graded by Django), and retiring them sending new sessions back to the authored challenge |
+| `asset-library.spec.ts` | 403 without asset rights; definition id validation and duplicates; GLB, PNG and WAV accepted by content, a disguised file, a model on an image asset and an oversized file refused; 3D, image and audio previews; editors cannot publish; publish, version 2, make default, roll back to version 1 (default flag checked), admin history; published versions undeletable even by a superuser; retire and reactivate; signed Django delivery without a bearer token, tampered token 404, another parent refused, default version not retirable alone, retired asset reported `retired`; a published GLB replacing the bundled model in Treasure Cove |
+| `integration.spec.ts` | One parent cannot read, play, resolve assets for or edit another family's child (API 403/404, app shows a calm error and no play UI), cannot list it, and no token is 401; the dashboard and an Adventure launched from the cove's signpost (ADR-041) |
+
+**Defects found and fixed** (each with a regression test):
+
+1. TR-14, new on this branch: after the beach chest opened, the key's "You found something!"
+   reveal came back on top of the chest's reward, and Pip's finale could do the same. The pickup
+   and talk effects re-ran whenever a new bootstrap changed the `react` callback. Fixed in
+   `RegionPlayCompanion.tsx` (each outcome revealed once); two Vitest regressions fail without it.
+2. Layout: the island layout centres its column, so the 3D stage shrank to its text (274 x 206 px at
+   1280 x 720) and TR-13's on-stage Hint, Backpack and Full screen buttons covered the action
+   prompt. The wrapper now takes the available width, capped so the 4:3 stage fits below the
+   header; phones get a portrait stage and the toast above the stacked buttons. Checked by
+   screenshots at desktop, tablet and 390 px. The shrinking predates the branch; the overlap is new.
+3. Studio: `workflow.start_correction` had no Django Admin entry point, although the Admin and
+   LAI-AQS-019 describe corrections. Added the "Start a correction of selected published
+   questions" action (`change_question`), with two pytest cases.
+4. Studio: a published question's page offered Save, which ended in "Not saved:
+   invalid_transition" beside Django's "changed successfully". Published questions are now
+   view-only in Admin (403 on POST), with a pytest case.
+5. Build: `npm ci` failed on every machine since `semver@7.8.6` was published (2026-11-02): the
+   bundled AWS CDK toolkit's `semver` edge re-resolves to the latest release. Pinned with a root
+   `overrides` (`semver` 7.8.5, published 2026-06-19) and the lockfile regenerated as of
+   2026-11-01. CI would have failed the same way on `main`.
+6. Docs: ADR-045's heading lacked its registry title's last clause (`npm run adr:check` failed);
+   `docs/AI_QUESTION_STUDIO.md` still called ADR-046 proposed. ADR ids are unique (044 Django AI,
+   045 Asset Library, 046 Question Studio); the Django AI decision and Django Admin as the only
+   staff asset interface are unchanged.
+7. Prettier failed on the generated `treasure_cove_layout.json`; it joins the other generated,
+   byte-exact files in `.prettierignore`.
+
+Observations, not fixed: a foreign child's cove says "Something went wrong loading this part of
+the island" where `docs/TREASURE_RUSH_LOCAL_DEV.md` says "isn't open yet"; Django's bulk delete of a
+published asset version shows its generic "Cannot delete" page rather than the "retire them
+instead" note (deletion is refused either way); a zone-entry toast can replace an action's toast
+because the HUD has one toast slot. The `@colyseus/sdk` and `tsx` problems were missing installs
+(the inode-full disk); with `npm ci` working, `tsx` scripts, `server/` typecheck and the Colyseus
+tests pass.
+
+**Final results** (after all fixes, worktree of `dev20261102`, PostgreSQL 16 in Docker on 5442):
+
+| Check | Command | Result |
+|---|---|---|
+| Ruff lint / format | `ruff check .`, `ruff format --check .` | pass / 432 files formatted |
+| Django checks | `manage.py check`, `makemigrations --check --dry-run` | no issues, no changes |
+| Migrations | 7 new migrations forward, reversed to `main`'s state, forward again on a disposable database | pass |
+| pytest (PostgreSQL required) | `LAI_REQUIRE_POSTGRES=1 pytest -q` | 1881 passed, 0 skipped |
+| Vitest | `vitest run --maxWorkers=2` | 318 files, 3403 tests passed |
+| TypeScript | `npm run typecheck` (+ `tsconfig.e2e.json`) | pass |
+| Prettier / oxlint | `prettier --check .`, `oxlint` | pass / 0 errors, 43 warnings (unchanged from `753d246`) |
+| ADR / admin preview / content / golden | `npm run adr:check`, `admin-preview:check`, `content:check`, `golden:check` | 46 decisions, all pass |
+| Production build | `npm run build` (no e2e probe or synthetic Cognito values in `dist`) | pass |
+| Smoke browser | `npm run test:e2e` | 7 passed |
+| Browser acceptance | `npm run test:acceptance` | 31 passed (28 desktop, 3 tablet), 1 skipped by design (touch is tablet-only) |
+
+The first full acceptance run lost one tablet test to Chromium's `ERR_NETWORK_CHANGED` (the host's
+network changed while Vite modules loaded: infrastructure, not the app); the tablet project rerun
+passed 3 of 3. The same happened once earlier in the session.
+
+**Pending, not claimed:** live Bedrock generation for the Studio (LAI-0705, LAI-AQS-024; no AWS
+cost incurred), live S3 storage and S3 signed delivery, live Cognito tokens (ADR-024 A6), the
+Amplify Data screens (harbor map, adventure log, Amplify-session places; unchanged on this
+branch), and the owner's playtest of the TR-9 feel items.

@@ -1,4 +1,4 @@
-"""Import existing models into the asset manager (LAI-2200 AM-8; `docs/ASSET_MANAGER.md` s. 11).
+"""Import existing models into the asset library (LAI-2200 AM-8; `docs/ASSET_LIBRARY.md` s. 11).
 
 Two sources, both idempotent (a file whose SHA-256 is already a version of the asset is skipped),
 both producing `VALIDATED` versions only (publishing stays an administrator's decision):
@@ -27,7 +27,7 @@ from apps.catalog.models import AssetCategory, AssetOrigin, AssetStatus, Content
 from . import services
 from .models import VersionStatus
 from .storage import sha256_of
-from .validation import validate_model
+from .validation import validate_upload
 
 ASSET_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
@@ -91,7 +91,7 @@ def _import_file(report, asset, path: Path, source: dict, *, dry_run: bool) -> N
             report.skipped.append({**source, "asset": asset.asset_id, "version": existing})
             return
         if dry_run:
-            result = validate_model(stream, size=size, definition=asset)
+            result = validate_upload(stream, size=size, definition=asset)
             if result.passed:
                 report.imported.append({**source, "asset": asset.asset_id, "version": None})
             else:

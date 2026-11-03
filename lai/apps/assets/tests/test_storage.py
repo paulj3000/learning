@@ -131,12 +131,12 @@ def test_s3_reads_lists_and_deletes(s3):
             "IsTruncated": True,
             "NextContinuationToken": "t1",
         },
-        {"Bucket": "lai-assets-test", "Prefix": "assets/models/"},
+        {"Bucket": "lai-assets-test", "Prefix": "assets/"},
     )
     stubber.add_response(
         "list_objects_v2",
         {"Contents": [], "IsTruncated": False},
-        {"Bucket": "lai-assets-test", "Prefix": "assets/models/", "ContinuationToken": "t1"},
+        {"Bucket": "lai-assets-test", "Prefix": "assets/", "ContinuationToken": "t1"},
     )
     assert [item.key for item in store.list()] == [KEY]
     stubber.add_response("delete_object", {}, {"Bucket": "lai-assets-test", "Key": KEY})

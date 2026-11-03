@@ -10,9 +10,12 @@
 {% endblock %}
 {% block content %}
 <div id="content-main">
-  <p>The file is checked when you upload it: format, size (at most {{ max_upload_bytes|filesizeformat }}),
-    structure, embedded resources, animation clips and bounds. A file that passes becomes a
-    <strong>validated</strong> version. Nobody sees it in a game until it is published.</p>
+  <p>The file is checked when you upload it: its real format (read from the bytes, not the file
+    name), size, structure and limits. Models are also checked for embedded resources, animation
+    clips and bounds; images for dimensions; audio for codec, channels and length. A file that
+    passes becomes a <strong>validated</strong> version. Nobody sees it in a game until it is
+    published. Size limits:
+    {% for label, limit in limits %}{{ label }} {{ limit|filesizeformat }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
   <form method="post" enctype="multipart/form-data" novalidate>
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="errornote">{{ form.non_field_errors|join:" " }}</div>{% endif %}

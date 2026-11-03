@@ -2,7 +2,8 @@
 
 - `GET /api/v1/children/<child_id>/assets/?ids=a,b@2`: resolve published assets for a child's
   scene. Child-scoped like every play route, so the caller is the parent of that child.
-- `GET /api/v1/asset-files/<token>/model.<format>`: the bytes of a published version, for
+- `GET /api/v1/asset-files/<token>/<model|image|audio>.<format>`: the bytes of a published
+  version, for
   `django` delivery. The signed token is the authorization (the loader sends no bearer token);
   publication is re-checked on every fetch.
 """
@@ -76,7 +77,7 @@ class AssetFileView(APIView):
             if _is_uuid(version_id)
             else None
         )
-        if version is None or filename != f"model.{version.format}":
+        if version is None or filename != version.file_name:
             return _not_found()  # retired, unpublished, unknown, or a mismatched name: alike
         etag = f'"{version.sha256}"'
         if request.headers.get("If-None-Match") == etag:
@@ -93,6 +94,10 @@ class AssetFileView(APIView):
         response["Content-Length"] = str(version.size_bytes)
         response["Cache-Control"] = f"private, max-age={remaining}, immutable"
         response["ETag"] = etag
+        # The bytes are data for a loader, never a page: no sniffing, no scripting, no framing.
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Content-Security-Policy"] = "default-src 'none'; sandbox"
+        response["Content-Disposition"] = f'inline; filename="{version.file_name}"'
         return response
 
 

@@ -1,4 +1,4 @@
-"""Immutable asset versions (LAI-2200, ADR-035; `docs/ASSET_MANAGER.md`).
+"""Immutable asset versions (LAI-2200, ADR-035; `docs/ASSET_LIBRARY.md`).
 
 The definition is `catalog.ContentAsset`; this module adds the binaries. A version is a stored
 file plus what validation found in it. Once published its bytes and metadata never change: a
@@ -6,7 +6,7 @@ replacement model is a new version with a new object key, so every URL and cache
 version stays valid for as long as the version is served.
 
 Lifecycle: DRAFT -> VALIDATED | REJECTED, VALIDATED -> PUBLISHED | REJECTED,
-PUBLISHED -> RETIRED.
+PUBLISHED -> RETIRED, RETIRED -> PUBLISHED (a rollback re-verifies the stored bytes first).
 Only `apps.assets.services` moves a version between states.
 """
 
@@ -17,6 +17,8 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.utils.timezone import now
 
+from . import formats
+
 
 class VersionStatus(models.TextChoices):
     DRAFT = "DRAFT", "Draft (uploaded, not validated)"
@@ -26,12 +28,23 @@ class VersionStatus(models.TextChoices):
     RETIRED = "RETIRED", "Retired"
 
 
-class ModelFormat(models.TextChoices):
-    GLB = "glb", "glTF binary (.glb)"
-    GLTF = "gltf", "glTF JSON, self-contained (.gltf)"
+class FileFormat(models.TextChoices):
+    """Every accepted format (AM-13): models, images and audio. See `formats.py`."""
+
+    GLB = "glb", formats.FORMATS["glb"].label
+    GLTF = "gltf", formats.FORMATS["gltf"].label
+    PNG = "png", formats.FORMATS["png"].label
+    JPEG = "jpeg", formats.FORMATS["jpeg"].label
+    WEBP = "webp", formats.FORMATS["webp"].label
+    MP3 = "mp3", formats.FORMATS["mp3"].label
+    WAV = "wav", formats.FORMATS["wav"].label
+    OGG = "ogg", formats.FORMATS["ogg"].label
 
 
-CONTENT_TYPES = {ModelFormat.GLB: "model/gltf-binary", ModelFormat.GLTF: "model/gltf+json"}
+# Kept so existing imports of the model-only name keep working.
+ModelFormat = FileFormat
+
+CONTENT_TYPES = {name: info.content_type for name, info in formats.FORMATS.items()}
 
 # Fields fixed from the moment a version is first published.
 IMMUTABLE_FIELDS = (
@@ -61,7 +74,8 @@ ALLOWED_TRANSITIONS = {
     VersionStatus.VALIDATED: {VersionStatus.PUBLISHED, VersionStatus.REJECTED},
     VersionStatus.REJECTED: set(),
     VersionStatus.PUBLISHED: {VersionStatus.RETIRED},
-    VersionStatus.RETIRED: set(),
+    # A rollback to a retired version republishes it after the bytes are re-verified.
+    VersionStatus.RETIRED: {VersionStatus.PUBLISHED},
 }
 
 
@@ -83,7 +97,7 @@ class AssetVersion(models.Model):
     content_type = models.CharField(max_length=64, editable=False)
     size_bytes = models.PositiveBigIntegerField(editable=False)
     sha256 = models.CharField(max_length=64, editable=False)
-    format = models.CharField(max_length=4, choices=ModelFormat.choices, editable=False)
+    format = models.CharField(max_length=4, choices=FileFormat.choices, editable=False)
     clips = ArrayField(models.CharField(max_length=64), default=list, blank=True, editable=False)
     dimensions = models.JSONField(
         null=True, blank=True, editable=False, help_text="Bounding box size in metres: x, y, z."
@@ -134,7 +148,7 @@ class AssetVersion(models.Model):
                 name="assets_version_status_valid",
             ),
             models.CheckConstraint(
-                condition=models.Q(format__in=ModelFormat.values),
+                condition=models.Q(format__in=FileFormat.values),
                 name="assets_version_format_valid",
             ),
             models.CheckConstraint(
@@ -204,6 +218,14 @@ class AssetVersion(models.Model):
         if self.was_published:
             raise ImmutableVersion("A published version is never deleted; retire it instead.")
         return super().delete(*args, **kwargs)
+
+    @property
+    def family(self) -> str:
+        return formats.family_of(self.format)
+
+    @property
+    def file_name(self) -> str:
+        return formats.file_name(self.format)
 
     @property
     def label(self) -> str:

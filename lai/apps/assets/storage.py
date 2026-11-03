@@ -1,4 +1,4 @@
-"""Where asset binaries live (LAI-2200 AM-4; `docs/ASSET_MANAGER.md` section 6).
+"""Where asset binaries live (LAI-2200 AM-4; `docs/ASSET_LIBRARY.md` section 6).
 
 `get_storage()` returns the configured `AssetStorage`:
 
@@ -29,7 +29,9 @@ from typing import IO, Protocol
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
-KEY_PREFIX = "assets/models/"
+from . import formats
+
+KEY_PREFIX = "assets/"  # everything the library stores; one key directory per family (formats.py)
 ASSET_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 CHUNK = 1024 * 1024
 
@@ -54,14 +56,17 @@ class StoredObject:
 
 
 def object_key(asset_id: str, version_id: uuid.UUID, file_format: str) -> str:
-    """The only way a key is made: `assets/models/<asset id>/<version uuid>/model.<format>`."""
+    """The only way a key is made: `assets/<family dir>/<asset id>/<version uuid>/<stem>.<format>`,
+    e.g. `assets/models/npc-pip/<uuid>/model.glb`, `assets/images/.../image.png`,
+    `assets/audio/.../audio.mp3`."""
     if not ASSET_ID.fullmatch(asset_id or ""):
         raise ValueError("An asset id must be lowercase words joined by hyphens.")
     if not isinstance(version_id, uuid.UUID):
         raise ValueError("A version id must be a UUID.")
-    if file_format not in ("glb", "gltf"):
-        raise ValueError("Unsupported model format.")
-    return f"{KEY_PREFIX}{asset_id}/{version_id}/model.{file_format}"
+    if file_format not in formats.FORMATS:
+        raise ValueError("Unsupported file format.")
+    directory = formats.KEY_DIRECTORY[formats.family_of(file_format)]
+    return f"{KEY_PREFIX}{directory}/{asset_id}/{version_id}/{formats.file_name(file_format)}"
 
 
 def sha256_of(stream: IO[bytes]) -> tuple[str, int]:
@@ -91,7 +96,14 @@ class AssetStorage(Protocol):
 
 
 def _check_key(key: str) -> None:
-    if not key.startswith(KEY_PREFIX) or ".." in key or key.startswith("/") or "\\" in key:
+    if (
+        not key.startswith(formats.KEY_PREFIXES)
+        or ".." in key
+        or key.startswith("/")
+        or "\\" in key
+        or "//" in key
+        or "\x00" in key
+    ):
         raise StorageError("Refusing a key outside the asset prefix.")
 
 
@@ -122,6 +134,7 @@ class MemoryAssetStorage:
             self.objects[key] = (data, content_type, datetime.now(UTC))
 
     def open(self, key):
+        _check_key(key)
         self._maybe_fail("open")
         try:
             return io.BytesIO(self.objects[key][0])
@@ -249,6 +262,7 @@ class S3AssetStorage:
     def open(self, key):
         from botocore.exceptions import BotoCoreError, ClientError
 
+        _check_key(key)
         try:
             body = self.client.get_object(Bucket=self.bucket, Key=key)["Body"]
         except (ClientError, BotoCoreError) as error:
@@ -271,6 +285,7 @@ class S3AssetStorage:
     def exists(self, key):
         from botocore.exceptions import ClientError
 
+        _check_key(key)
         try:
             self.client.head_object(Bucket=self.bucket, Key=key)
         except ClientError as error:

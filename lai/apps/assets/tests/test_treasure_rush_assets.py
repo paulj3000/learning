@@ -1,6 +1,6 @@
-"""TR-10: Treasure Cove's models managed through the asset manager, end to end at the API level.
+"""TR-10: Treasure Cove's models managed through the asset library, end to end at the API level.
 
-The staff workflow a deployment follows (docs/ASSET_MANAGER.md section 19): import the cove's
+The staff workflow a deployment follows (docs/ASSET_LIBRARY.md section 19): import the cove's
 bundled models as validated versions, publish them in Django Admin, and replace one by uploading,
 publishing and making a new version the default. The child-facing resolver is what the React
 scene asks (react/src/features/region-play/regionAssets.ts); no browser is involved.
@@ -118,7 +118,7 @@ def test_staff_publish_reaches_the_cove_and_a_new_default_replaces_it(
         "/admin/assets/assetversion/upload/",
         {
             "asset": chest.pk,
-            "model_file": SimpleUploadedFile("chest.glb", replacement),
+            "file": SimpleUploadedFile("chest.glb", replacement),
             "notes": "",
         },
     )

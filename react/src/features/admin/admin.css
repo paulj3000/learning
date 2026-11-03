@@ -30,7 +30,6 @@
 
 @source './';
 @source '../../routes/Admin*.tsx';
-@source '../assets/ModelUploadWizard.tsx';
 
 /**
  * shadcn/ui's semantic colour names, mapped onto the island's tokens rather

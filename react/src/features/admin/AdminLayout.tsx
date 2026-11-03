@@ -5,7 +5,7 @@ import { cn } from './ui/cn';
 interface AdminNavItem {
   to: string;
   label: string;
-  /** Match only this exact path, so "Families" is not active on /admin/assets. */
+  /** Match only this exact path, so "Families" is not active on nested admin pages. */
   end?: boolean;
 }
 
@@ -13,7 +13,6 @@ const ADMIN_NAV: AdminNavItem[] = [
   { to: '/admin', label: 'Families', end: true },
   { to: '/admin/islands', label: 'Islands' },
   { to: '/admin/adventures', label: 'Adventures' },
-  { to: '/admin/assets', label: 'Game assets' },
 ];
 
 /**

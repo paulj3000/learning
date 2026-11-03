@@ -66,7 +66,7 @@ MIDDLEWARE.insert(
 )
 STORAGES = MANIFEST_STATIC_STORAGES
 
-# Asset manager (LAI-2200): storage must be chosen explicitly; never local disk in production.
+# Asset library (LAI-2200): storage must be chosen explicitly; never local disk in production.
 LAI_ASSET_STORAGE = _required("LAI_ASSET_STORAGE")
 if LAI_ASSET_STORAGE != "s3":
     raise ImproperlyConfigured("LAI_ASSET_STORAGE must be s3 in production.")
