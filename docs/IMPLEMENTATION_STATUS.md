@@ -12242,3 +12242,56 @@ and SC-R05, and SC-R06 to 12. The hub's go-to control needs a generic engine pos
 not exist. Persisted room discovery needs an owner decision on where it lives. SC-R04 and SC-R05 need
 Django changes and a PostgreSQL test database. **No room is marked visually accepted**: every row
 awaits the owner's browser inspection, and none of the art is production art.
+
+## Storykeeper Castle Reboot: SC-R03 World expansion (branch `adventures/storybook`, 2026-11-03)
+
+Detail: `tasks/TASK_TRACKER.md`, `docs/DECISIONS.md` ADR-028 (now Accepted) and ADR-047,
+`docs/PLAY_API.md` ("Storykeeper Castle room discovery"), and
+`docs/regions/storykeeper_castle_asset_manifest.md`. **No browser test was run. Nothing is merged to
+`main`. Nothing is deployed. No AWS service was called.**
+
+**Built.** The castle went from eight rooms to ten and gained the navigation to match:
+
+- **Canonical layout** (`castleLayout.ts`), derived from the region with no second router: stable
+  room ids, doors with landing points, optional locks in the shared requirement vocabulary, exits,
+  discovery state, routing and travel planning.
+- **A generic engine position API** (`FirstPersonController.teleportTo`, `LocationEngine.placeChild`)
+  that refuses solid, out-of-bounds and non-finite spots, tested on Welcome Harbor, not the castle.
+- **The castle guide**: the accessible equivalent of walking (real buttons, a live region, the walking
+  route in words, locked entries with their reason, a back-to-hub button, the Trophy Room treasures as
+  text) and **the castle map** built from the layout.
+- **Trophy Room** (new, ninth room): six solid pedestals showing the child's real inventory through the
+  existing reward items, with four open pedestals reserved for SC-R07. No second reward store.
+- **Observatory** as the Setting Tower's second function: a telescope and a star chart, flavour only.
+- **Secret Chamber** (tenth room), behind the tapestry nook: hidden from every list and refused as "not
+  on the map" until the nook is found, physically sealed, opening live. New generic
+  `DISCOVERY_ABSENT` requirement.
+- **Django-persisted room discovery** (ADR-047): an ordinary `WorldChange` behind one child-scoped
+  endpoint, no new model or migration; a secret room gets the identical 404 an unknown room gets.
+- **Per-room scenery budgets**, replacing the single castle-wide cap.
+
+**Verification.**
+
+| Check | Result |
+|---|---|
+| Castle, runtime, extension and API Vitest (80 files) | 1130 passed, with the real `@colyseus/sdk`, no stub |
+| `tsc --noEmit -p tsconfig.app.json` | Clean |
+| `tsc -b` and `vite build` (the production build) | Both exit 0, no stub |
+| Django, PostgreSQL (game_sessions, regions, progression, users) | 640 passed |
+| Ruff, `manage.py check`, `makemigrations --check` | Clean, no issues, no changes |
+| `content:check`, `golden:check`, `adr:check` | Up to date, up to date, 47 decisions |
+| Prettier, oxlint on new and changed files | Pass, no new warnings |
+
+**Environment.** `@colyseus/sdk` was installed into this checkout's own `node_modules/@colyseus/` (the
+pinned 0.18.4; the shared directory was not touched). Django tests ran on a separate PostgreSQL
+container, `lai-storybook-pg` on `127.0.0.1:5455` with its own volume, using a sibling checkout's
+read-only virtualenv, with `POSTGRES_PORT=5455 LAI_REQUIRE_POSTGRES=1`.
+
+**Limits, all at the line.** Original-room scenery 160 of 160, material presets 16 of 16, MEDIUM lights
+14 of 14, estimated draw calls about 277 of 300. All provisional until a real tablet is profiled
+(SC-R11).
+
+**Not done, not claimed.** SC-R04 (the Great Storybook) and SC-R05 (characters), SC-R06 to 12. No room
+is visually accepted: every row awaits the owner's browser inspection, and none of the art is
+production art. Until the nook discovery write path moves to Django, a Django-mode server cannot
+persist a secret-room discovery (it works in the world and nothing leaks).

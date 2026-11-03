@@ -622,8 +622,31 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       until that write path moves to Django a Django-mode server will not see it and will not persist
       a secret-room discovery (the room still works and nothing leaks); the east corridor's tile is
       small on a phone (the list is the full-size equivalent). Browser (owner): the map's look and
-      tap sizes on a tablet, tile placement, the dashed and dotted states
-- [ ] **SC-R03-07** World navigation regression
+      tap sizes on a tablet, tile placement, the dashed and dotted states. Commit `82b63e7`
+- [x] **SC-R03-07** World navigation regression (depends: SC-R03-01 to 06). DONE (development;
+      **SC-R03 is complete**). `castleNavigationRegression.test.ts`, 27 tests that prove the pieces hold
+      **together**, in both worlds a child can be in (before and after finding the nook), in the real
+      runtime, with no browser: the **room graph** is exactly the nine open edges (eight without the
+      secret passage) with the story hall as the hub and the trophy room and secret chamber as dead
+      ends; **walking** on the real colliders reaches every visible room from the spawn, and from every
+      room to every other, enters every trigger zone and every authored castle interaction's zone,
+      and keeps the secret chamber cut off until found; the **accessible tour** takes a child to every
+      room and back, 90 trips in each world, without a single step, refuses the secret before it is
+      found without moving the child, and lands the child on standable ground at every door from
+      either side; **spawning and saves**: the five saved checkpoint ids older saves hold are
+      unchanged, a child with no save starts in the entry hall, each checkpoint spawns where it says,
+      a save from a newer version or another region falls back to the entrance, and no fallback is ever
+      a wall; **the persisted names** (discovery id, the first eight room ids) are pinned; and
+      **navigation never goes around a rule** (the planner and the runtime refuse and allow the same
+      things). The guide's **age-band parity** is proved for Sprouts, Pathfinders and Explorers: the
+      same rooms and the same request for every band (age gates stories, never corridors). Gates at
+      the phase boundary: castle, runtime, extension and API Vitest group **80 files, 1130 tests**;
+      `tsc --noEmit -p tsconfig.app.json` clean; **real `tsc -b` and `vite build` both exit 0 with no
+      stub**; `content:check` and `golden:check` up to date; `adr:check` passes (47 decisions);
+      Prettier and oxlint clean on new files; **Django 640 passed** (game_sessions, regions,
+      progression, users) on an isolated PostgreSQL container (port 5455), Ruff and
+      `makemigrations --check` clean. Browser (owner): the whole castle tour on a tablet, the guide
+      over the HUD, the map, the secret passage opening
 - [ ] **SC-R04 to SC-R12** Not started. Gated items: Sound Manager merge (SC-R06), narration
       provider and voice consent (SC-R06-03), new educational content (roadmap SC-R04-05), Phaser
       retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the

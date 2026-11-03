@@ -747,6 +747,42 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
     });
   });
 
+  describe.each(['SPROUT', 'PATHFINDER', 'EXPLORER'] as const)(
+    'the accessible way around, for a %s',
+    (band) => {
+      it('is there, and opens to every room, so no one has to steer in 3D', async () => {
+        await renderAndWait(band);
+        fireEvent.click(await screen.findByRole('button', { name: /open the castle guide/i }));
+        // The same rooms for every band: age gates the stories, never the corridors.
+        for (const label of [
+          'entry hall',
+          'story hall',
+          'Character Gallery',
+          'Great Library',
+          'Trophy Room',
+        ]) {
+          expect(
+            screen.getAllByRole('button', { name: new RegExp(label, 'i') }).length,
+          ).toBeGreaterThan(0);
+        }
+        expect(screen.queryByRole('button', { name: /secret chamber/i })).not.toBeInTheDocument();
+      });
+
+      it('takes the child there with the same request, whatever their band', async () => {
+        sceneSpies.goToRoom.mockImplementation((roomId: string) => ({
+          ok: true,
+          room: { id: roomId, label: 'the Great Library' },
+          placement: { x: 7, z: -6, yaw: 0 },
+          route: [],
+        }));
+        await renderAndWait(band);
+        fireEvent.click(await screen.findByRole('button', { name: /open the castle guide/i }));
+        fireEvent.click(await screen.findByRole('button', { name: /go to the great library/i }));
+        expect(sceneSpies.goToRoom).toHaveBeenCalledWith('great-library', expect.anything());
+      });
+    },
+  );
+
   describe('the castle guide (SC-R03-02)', () => {
     it('is in the real view, collapsed, and opens to every room as a button', async () => {
       await renderAndWait();
