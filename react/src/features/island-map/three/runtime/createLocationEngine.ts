@@ -971,6 +971,7 @@ export function createLocationEngine<R extends RendererLike>(
     for (const entityId of step.approachedEntityIds) bus.emit('NpcApproached', { entityId });
     if (step.focusChanged) bus.emit('InteractableFocused', step.focusChanged);
     for (const zoneId of step.enteredZoneIds) bus.emit('PlayerEnteredZone', { zoneId });
+    for (const zoneId of step.leftZoneIds ?? []) bus.emit('PlayerLeftZone', { zoneId });
 
     renderer.render(scene, camera);
     frameHandle = deps.requestFrame(frame);

@@ -6,21 +6,58 @@ import {
   useSoundScope,
   type AudioManifestSource,
 } from '../../../audio/react';
+import {
+  createAudioZones,
+  createCameraListener,
+  createSpatialEmitters,
+  zonesFromAssignments,
+  type PositionReader,
+  type WorldMatrixObject,
+  type ZoneSpec,
+} from '../../../audio/world';
 import type { WorldEngineEventBus } from '../../island-map/three/worldEngineEvents';
-import { setSoundSink, type SoundCue } from '../soundCues';
-import { createSoundSlot } from './soundSlot';
+import { setSoundSink, type SoundCue, type SoundPlace } from '../soundCues';
 import { createTreasureRushMusic } from './treasureRushMusic';
-import { CUE_SOUNDS, ENTRY_AMBIENCE, ambienceForZone } from './treasureRushSounds';
+import {
+  CUE_SOUNDS,
+  ENTRY_AMBIENCE,
+  ONE_SHOT_SPATIAL,
+  POSITIONAL_CUES,
+  ZONE_AMBIENCE,
+  ZONE_PRIORITY,
+} from './treasureRushSounds';
 
 export const AMBIENCE_FADE_MS = 1500;
 const SCOPE_NAME = 'treasure-rush';
+
+/** What the hook needs from the 3D scene, as plain functions (the scene half provides them). */
+export interface TreasureRushSceneAudio {
+  entityPositionReader(entityId: string): PositionReader | undefined;
+  unlockPositionReader(): PositionReader | undefined;
+  listenerSource(): WorldMatrixObject;
+  onFrame(callback: (deltaSeconds: number) => void): () => void;
+}
+
+/** Whether a scene API offers the audio methods (a stubbed or older scene may not). */
+export function hasSceneAudio(api: unknown): api is TreasureRushSceneAudio {
+  if (typeof api !== 'object' || api === null) return false;
+  const candidate = api as Partial<Record<keyof TreasureRushSceneAudio, unknown>>;
+  return (
+    typeof candidate.entityPositionReader === 'function' &&
+    typeof candidate.unlockPositionReader === 'function' &&
+    typeof candidate.listenerSource === 'function' &&
+    typeof candidate.onFrame === 'function'
+  );
+}
 
 export interface UseTreasureRushAudioOptions {
   childId: string;
   /** The region's id: the scope of the audio manifest. */
   regionId: string;
-  /** The region's event bus; zone entries change the ambience. */
+  /** The region's event bus; zone entries and exits change the ambience. */
   bus: WorldEngineEventBus;
+  /** The 3D scene's position readers, once it is up. Without it every sound is flat. */
+  scene?: TreasureRushSceneAudio | null;
   /**
    * Where the manifest comes from. Defaults to the Django API for this child; `null` (a build
    * without the API) means no manifest and a silent game. Tests pass their own.
@@ -33,22 +70,39 @@ export interface TreasureRushAudio {
   setPuzzleActive(active: boolean): void;
 }
 
+/** The built-in zone table, which staff zone assignments in the manifest override by zone id. */
+const BUILT_IN_ZONES: readonly ZoneSpec[] = Object.entries(ZONE_AMBIENCE).map(([id, cue]) => ({
+  id,
+  cue,
+  priority: ZONE_PRIORITY[id] ?? 0,
+}));
+
+export function mergeZones(fromManifest: readonly ZoneSpec[]): ZoneSpec[] {
+  const merged = new Map(BUILT_IN_ZONES.map((zone) => [zone.id, zone]));
+  for (const zone of fromManifest) merged.set(zone.id, { ...merged.get(zone.id), ...zone });
+  return [...merged.values()];
+}
+
 /**
- * Treasure Rush's sound (SM-P3). Mounted by the region-play companion for the whole visit.
+ * Treasure Rush's sound (SM-P3 to SM-P7). Mounted by the region-play companion for the whole visit.
  *
  * - Loads the region's published audio manifest into the shared Sound Manager. A manifest that
  *   cannot be loaded leaves the game silent; nothing here throws or waits for it.
  * - Plays every sound inside one scope (`treasure-rush`), so leaving the game stops all of it
  *   and cancels pending loads. Global and interface sounds are never in this scope.
+ * - Ambience follows the audio zones the child is in (enter and exit events from the engine) with
+ *   crossfades, through the shared `AudioZones`. Zone cues and priorities can be overridden by
+ *   zone assignments in Django.
+ * - A few one-shots (chest, key, the gate) are heard from where they happen, through the shared
+ *   emitters on the Sound Manager's one audio context. Correct and retry feedback, rewards, quest
+ *   completion, music and instructions stay flat on purpose.
  * - Registers the one sound sink `playCue` feeds, mapping each gameplay moment (already raised
  *   once per authoritative event by the companion) to its cues.
- * - Keeps the ambience bed in step with the zone the child last entered, and the music in step
- *   with the puzzle and the finale.
  *
  * It decides nothing about the game: it reacts to what the companion and the engine report.
  */
 export function useTreasureRushAudio(options: UseTreasureRushAudioOptions): TreasureRushAudio {
-  const { childId, regionId, bus } = options;
+  const { childId, regionId, bus, scene } = options;
   const manager = useSoundManager();
   const player = useSoundScope(SCOPE_NAME);
 
@@ -56,54 +110,98 @@ export function useTreasureRushAudio(options: UseTreasureRushAudioOptions): Trea
     () => (options.source === undefined ? djangoAudioSourceFor(childId) : options.source),
     [childId, options.source],
   );
-  const scope = useMemo(() => ({ type: 'region', id: regionId }) as const, [regionId]);
-  const manifest = useAudioManifest(derived, scope);
+  const manifestScope = useMemo(() => ({ type: 'region', id: regionId }) as const, [regionId]);
+  const manifest = useAudioManifest(derived, manifestScope);
 
-  const ambience = useMemo(() => createSoundSlot(player, { fadeMs: AMBIENCE_FADE_MS }), [player]);
+  const zones = useMemo(
+    () =>
+      createAudioZones({
+        player,
+        zones: BUILT_IN_ZONES,
+        defaultCue: ENTRY_AMBIENCE,
+        fadeMs: AMBIENCE_FADE_MS,
+        autoStart: false,
+      }),
+    [player],
+  );
   const music = useMemo(() => createTreasureRushMusic(player), [player]);
+  const emitters = useMemo(
+    () => createSpatialEmitters({ player, setListener: (pose) => manager.setListener(pose) }),
+    [player, manager],
+  );
 
   // The first tap anywhere unlocks the browser's audio; idempotent and removed on exit.
   useEffect(() => manager.installGestureUnlock(), [manager]);
 
-  // Own the slots for this visit. StrictMode runs this twice; the second run restores the state.
+  // Own the zones and music for this visit. StrictMode runs this twice; the second run restores.
   useEffect(() => {
-    ambience.activate();
-    ambience.set(ambience.wanted ?? ENTRY_AMBIENCE);
+    zones.activate();
     music.activate();
     return () => {
-      ambience.deactivate();
+      zones.deactivate();
       music.deactivate();
     };
-  }, [ambience, music]);
+  }, [zones, music]);
 
-  // Zones: the ambience follows the last zone entered. A zone with no ambience changes nothing.
-  useEffect(
-    () =>
-      bus.on('PlayerEnteredZone', ({ zoneId }) => {
-        const next = ambienceForZone(zoneId);
-        if (next) ambience.set(next);
-      }),
-    [bus, ambience],
-  );
+  // Zones: the engine reports entries and exits of the zones declared in the region's layout.
+  useEffect(() => {
+    const offEnter = bus.on('PlayerEnteredZone', ({ zoneId }) => zones.enter(zoneId));
+    const offLeave = bus.on('PlayerLeftZone', ({ zoneId }) => zones.exit(zoneId));
+    return () => {
+      offEnter();
+      offLeave();
+    };
+  }, [bus, zones]);
+
+  // Staff zone assignments from the manifest replace the built-in cues and priorities.
+  const { assignments } = manifest;
+  useEffect(() => {
+    zones.setZones(mergeZones(zonesFromAssignments(assignments)));
+  }, [zones, assignments]);
+
+  // Space: the listener follows the camera and moving sources follow their objects, once per
+  // frame, in the scene's own loop. Nothing here renders React.
+  useEffect(() => {
+    if (!scene) return undefined;
+    const listener = createCameraListener(scene.listenerSource());
+    const stop = scene.onFrame(() => {
+      emitters.setListener(listener.update());
+      emitters.update();
+    });
+    // Not disposed here: StrictMode re-runs this effect, and the scope owns the sounds anyway.
+    return stop;
+  }, [scene, emitters]);
 
   // Moments of play. One sink for the visit; the companion raises each moment once.
   useEffect(() => {
-    const previous = setSoundSink((cue: SoundCue) => {
+    const readerFor = (at?: SoundPlace): PositionReader | undefined => {
+      if (!scene || !at) return undefined;
+      if (at.unlock) return scene.unlockPositionReader();
+      return at.entityId ? scene.entityPositionReader(at.entityId) : undefined;
+    };
+    const previous = setSoundSink((cue: SoundCue, at?: SoundPlace) => {
       if (cue === 'questComplete') music.playVictory();
+      const read = readerFor(at);
+      const spot: [number, number, number] = [0, 0, 0];
+      const placed = read?.(spot) === true;
       for (const soundId of CUE_SOUNDS[cue]) {
-        void player.play(soundId).catch(() => undefined);
+        if (placed && POSITIONAL_CUES.has(soundId)) {
+          void emitters.playAt(soundId, [...spot], ONE_SHOT_SPATIAL).catch(() => undefined);
+        } else {
+          void player.play(soundId).catch(() => undefined);
+        }
       }
     });
     return () => void setSoundSink(previous);
-  }, [player, music]);
+  }, [player, music, emitters, scene]);
 
   // A manifest that arrives (or changes) after the game started gives waiting cues their audio.
   const { status, revision } = manifest;
   useEffect(() => {
     if (status !== 'ready') return;
-    ambience.reapply();
+    zones.retry();
     music.reapply();
-  }, [status, revision, ambience, music]);
+  }, [status, revision, zones, music]);
 
   return useMemo(
     () => ({ setPuzzleActive: (active: boolean) => music.setPuzzleActive(active) }),

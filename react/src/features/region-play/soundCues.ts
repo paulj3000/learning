@@ -22,7 +22,15 @@ export type SoundCue =
   | 'answerRetry'
   | 'questComplete';
 
-export type SoundSink = (cue: SoundCue) => void;
+/** Where a moment happened, when it happened somewhere in the scene (SM-P7). */
+export interface SoundPlace {
+  /** A scene entity (a chest, a pickup) by its entity id. */
+  entityId?: string;
+  /** The way to Lookout Point (the gate). */
+  unlock?: true;
+}
+
+export type SoundSink = (cue: SoundCue, at?: SoundPlace) => void;
 
 let sink: SoundSink | null = null;
 
@@ -34,9 +42,9 @@ export function setSoundSink(next: SoundSink | null): SoundSink | null {
 }
 
 /** Raises a cue. Silent, and harmless, when no sink is registered or the sink throws. */
-export function playCue(cue: SoundCue): void {
+export function playCue(cue: SoundCue, at?: SoundPlace): void {
   try {
-    sink?.(cue);
+    sink?.(cue, at);
   } catch {
     // Sound is decoration: a broken player must never interrupt play.
   }

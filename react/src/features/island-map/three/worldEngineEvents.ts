@@ -23,6 +23,8 @@ export type WorldStateKey = string;
 export type WorldEngineEventMap = {
   // Three.js -> domain
   PlayerEnteredZone: { zoneId: ZoneId };
+  /** SM-P7: the player stepped out of a zone they were in (audio zones need the exit). */
+  PlayerLeftZone: { zoneId: ZoneId };
   ObjectInteracted: { entityId: EntityId; interactionId: InteractionId };
   NpcApproached: { entityId: EntityId };
   CollectiblePickedUp: { entityId: EntityId };

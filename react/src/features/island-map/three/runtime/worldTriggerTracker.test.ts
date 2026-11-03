@@ -24,6 +24,25 @@ describe('WorldTriggerTracker', () => {
     expect(subject.step(at(1, 1), null).enteredZoneIds).toEqual(['pool']);
   });
 
+  it('reports leaving a zone once, only after being in it, and says nothing on a quiet frame (SM-P7)', () => {
+    const subject = tracker();
+    expect(subject.step(at(-5, -5), null).leftZoneIds).toBeUndefined();
+    expect(subject.step(at(1, 1), null).leftZoneIds).toBeUndefined();
+    expect(subject.step(at(1.5, 1), null).leftZoneIds).toBeUndefined();
+    expect(subject.step(at(-5, -5), null).leftZoneIds).toEqual(['pool']);
+    expect(subject.step(at(-6, -5), null).leftZoneIds).toBeUndefined();
+    // Leaving and re-entering is reported each time.
+    expect(subject.step(at(1, 1), null).enteredZoneIds).toEqual(['pool']);
+    expect(subject.step(at(9, 9), null).leftZoneIds).toEqual(['pool']);
+  });
+
+  it('keeps the shape of a quiet step unchanged for existing callers', () => {
+    expect(tracker().step(at(-5, -5), null)).toEqual({
+      approachedEntityIds: [],
+      enteredZoneIds: [],
+    });
+  });
+
   it('reports a zone the player starts inside on the first frame', () => {
     expect(tracker().step(at(1, 1), null).enteredZoneIds).toEqual(['pool']);
   });

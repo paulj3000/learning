@@ -65,13 +65,14 @@ def test_every_id_is_unique(layout):
     assert len(ids) == len(set(ids))
 
 
-def test_four_zones_inside_the_bounds_that_do_not_overlap(layout):
+def test_five_zones_inside_the_bounds_that_do_not_overlap(layout):
     zones = [zone["rect"] for zone in layout["zones"]]
     assert [zone["id"] for zone in zones] == [
         "cove-zone-landing",
         "cove-zone-grove",
         "cove-zone-beach",
         "cove-zone-ruins",
+        "cove-zone-lookout",  # SM-P7: a trigger volume only; the gate still holds the way
     ]
     for zone in zones:
         assert -BOUNDS["halfExtentX"] <= zone["minX"] < zone["maxX"] <= BOUNDS["halfExtentX"]

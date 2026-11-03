@@ -115,6 +115,10 @@ function fakeScene(open = false) {
     pressRune: vi.fn(),
     flashRunes: vi.fn(),
     reactNpc: vi.fn(),
+    entityPositionReader: vi.fn(() => undefined),
+    unlockPositionReader: vi.fn(() => undefined),
+    listenerSource: () => ({ matrixWorld: { elements: new Array(16).fill(0) } }),
+    onFrame: vi.fn(() => () => undefined),
   };
   return scene;
 }
@@ -465,6 +469,19 @@ describe('the chest', () => {
     view.rerender(<RegionPlayCompanion {...props({ claimedInteraction: interaction(CHEST) })} />);
     await act(async () => undefined);
     expect(heard).toEqual(['answerRetry']);
+  });
+
+  it('tells the sound where the chest is, so it can be heard from there (SM-P7)', async () => {
+    const api = fakeApi();
+    await atTheChest(api);
+    const places: Array<[SoundCue, unknown]> = [];
+    setSoundSink((cue, at) => places.push([cue, at]));
+    await userEvent.click(screen.getByRole('button', { name: '5' }));
+    await screen.findByRole('dialog', { name: 'Click! The chest is open!' });
+    const open = places.find(([cue]) => cue === 'chestOpen');
+    expect(open?.[1]).toEqual({ entityId: 'cove-chest' });
+    // Feedback stays flat: it is not given a place.
+    expect(places.find(([cue]) => cue === 'answerRight')?.[1]).toBeUndefined();
   });
 
   it('sounds the right answer and the open chest only after the server says yes, once (SM-P3-04, 06)', async () => {

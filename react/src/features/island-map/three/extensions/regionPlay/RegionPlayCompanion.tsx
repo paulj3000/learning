@@ -20,7 +20,10 @@ import {
 } from '../../../../region-play/regionPlayUi';
 import { adventurePath, useAdventureLaunch } from '../../../../region-play/useAdventureLaunch';
 import { usePlayerProgress } from '../../../../region-play/usePlayerProgress';
-import { useTreasureRushAudio } from '../../../../region-play/audio/useTreasureRushAudio';
+import {
+  hasSceneAudio,
+  useTreasureRushAudio,
+} from '../../../../region-play/audio/useTreasureRushAudio';
 import { playCue } from '../../../../region-play/soundCues';
 import { useRegionPlay } from '../../../../region-play/useRegionPlay';
 import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry';
@@ -88,7 +91,12 @@ function RegionPlayGame(props: LocationCompanionProps) {
     bus,
   } = props;
   // Sound (SM-P3): registered first so every moment below finds its player. Silent without audio.
-  const audio = useTreasureRushAudio({ childId, regionId, bus });
+  const audio = useTreasureRushAudio({
+    childId,
+    regionId,
+    bus,
+    scene: hasSceneAudio(sceneApi) ? sceneApi : null,
+  });
   const auth = useAuth();
   const onUnauthenticated = () => void auth.refresh();
   const parsed = useMemo(() => tryParseRegionPlayConfig(config), [config]);
@@ -184,7 +192,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
     if (!api?.setUnlocked || !unlockedByServer) return;
     // True only on the visit that completes the quest; a later visit is built open already.
     if (api.setUnlocked(true)) {
-      playCue('bridgeOpen');
+      playCue('bridgeOpen', { unlock: true });
       showToast(PLAY_COPY.bridgeOpened);
     }
   }, [unlockedByServer, sceneApi, showToast]);
@@ -288,7 +296,10 @@ function RegionPlayGame(props: LocationCompanionProps) {
     if (!shouldCelebrate(outcome, submittedAttempt.current, celebrated.current)) return;
     celebrated.current.add(outcome.attemptId);
     playCue('answerRight');
-    playCue(outcome.chestOpened ? 'chestOpen' : 'celebrate');
+    playCue(
+      outcome.chestOpened ? 'chestOpen' : 'celebrate',
+      target ? { entityId: target } : undefined,
+    );
     if (completedQuests(outcome, state.bootstrap?.quests ?? []).length > 0)
       playCue('questComplete');
     react('cheer');
@@ -315,7 +326,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
     if (lastPickup?.pickedUp && lastPickup.newItems.length > 0) {
       if (soundedPickup.current !== lastPickup) {
         soundedPickup.current = lastPickup;
-        playCue('keyPickup');
+        playCue('keyPickup', { entityId: lastPickup.entityId });
       }
       react('cheer');
       setFound(lastPickup);

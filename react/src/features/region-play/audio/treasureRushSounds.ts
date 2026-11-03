@@ -10,6 +10,7 @@ export const TR_SOUND = {
   ambientOcean: 'ambient.treasure_rush.ocean',
   ambientJungle: 'ambient.treasure_rush.jungle',
   ambientCave: 'ambient.treasure_rush.cave',
+  ambientWind: 'ambient.treasure_rush.wind',
   musicExplore: 'music.treasure_rush.explore',
   musicPuzzle: 'music.treasure_rush.puzzle',
   musicVictory: 'music.treasure_rush.victory',
@@ -24,12 +25,28 @@ export const TR_SOUND = {
   questComplete: 'sfx.quest.complete',
 } as const;
 
+/** Lookout Point, beyond the gate (SM-P7). */
+export const LOOKOUT_ZONE = 'cove-zone-lookout';
+
 /** The ambience each zone of Treasure Cove plays. Ids are the layout's zone rectangle ids. */
 export const ZONE_AMBIENCE: Readonly<Record<string, string>> = {
   'cove-zone-landing': TR_SOUND.ambientOcean,
   'cove-zone-grove': TR_SOUND.ambientJungle,
   'cove-zone-beach': TR_SOUND.ambientOcean,
   'cove-zone-ruins': TR_SOUND.ambientCave,
+  [LOOKOUT_ZONE]: TR_SOUND.ambientWind,
+};
+
+/**
+ * Which zone wins when zones overlap (the highest). The ruins' echo outranks the open sea, and the
+ * wind at Lookout Point outranks the shore. Staff can override these through zone assignments.
+ */
+export const ZONE_PRIORITY: Readonly<Record<string, number>> = {
+  'cove-zone-landing': 1,
+  'cove-zone-beach': 1,
+  'cove-zone-grove': 2,
+  'cove-zone-lookout': 2,
+  'cove-zone-ruins': 3,
 };
 
 /** The child arrives at Pirate Landing, so that is the ambience before any zone is entered. */
@@ -39,6 +56,21 @@ export const ENTRY_AMBIENCE = TR_SOUND.ambientOcean;
 export function ambienceForZone(zoneId: string): string | null {
   return ZONE_AMBIENCE[zoneId] ?? null;
 }
+
+/**
+ * Which cues of a moment are heard from where it happened (SM-P7). Everything else stays flat:
+ * correct and retry feedback, rewards, quest completion, music and instructions must be heard
+ * clearly wherever the child stands.
+ */
+export const POSITIONAL_CUES: ReadonlySet<string> = new Set([
+  TR_SOUND.chestOpen,
+  TR_SOUND.treasureReveal,
+  TR_SOUND.keyDiscover,
+  TR_SOUND.bridgeOpen,
+]);
+
+/** How far a one-shot in the cove carries (metres): clear nearby, gone across the cove. */
+export const ONE_SHOT_SPATIAL = { refDistance: 3, maxDistance: 40, rolloffFactor: 1 } as const;
 
 /**
  * What each moment of play sounds like, in order. A moment may play several cues together; the

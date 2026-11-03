@@ -18,7 +18,7 @@ describe('sound cues (TR-19, the moments only)', () => {
     const previous = setSoundSink(second);
     expect(previous).toBeTypeOf('function');
     playCue('celebrate');
-    expect(second).toHaveBeenCalledWith('celebrate');
+    expect(second).toHaveBeenCalledWith('celebrate', undefined);
     expect(heard).toHaveLength(2);
   });
 

@@ -10,7 +10,12 @@ import type { ManifestScope } from '../../../audio/manifest/manifestTypes';
 import { FakeEngine, type FakeVoice } from '../../../audio/testing/fakes';
 import { WorldEngineEventBus } from '../../island-map/three/worldEngineEvents';
 import { playCue, setSoundSink } from '../soundCues';
-import { useTreasureRushAudio, type TreasureRushAudio } from './useTreasureRushAudio';
+import {
+  hasSceneAudio,
+  useTreasureRushAudio,
+  type TreasureRushAudio,
+  type TreasureRushSceneAudio,
+} from './useTreasureRushAudio';
 import { CUE_SOUNDS, TR_SOUND, ZONE_AMBIENCE } from './treasureRushSounds';
 
 const REGION = 'treasure-rush-cove';
@@ -54,6 +59,7 @@ const LOOPING = new Set<string>([
   TR_SOUND.ambientOcean,
   TR_SOUND.ambientJungle,
   TR_SOUND.ambientCave,
+  TR_SOUND.ambientWind,
   TR_SOUND.musicExplore,
   TR_SOUND.musicPuzzle,
 ]);
@@ -82,18 +88,26 @@ function build(cues: readonly string[] = ALL_CUES) {
     fetchManifest,
     resolver: { resolve: async (id: string) => ({ id, url: `signed://${id}` }) },
   } as AudioManifestSource | null;
-  return { engine, manager, source, fetchManifest, bus: new WorldEngineEventBus() };
+  const scene = null as TreasureRushSceneAudio | null;
+  return { engine, manager, source, fetchManifest, scene, bus: new WorldEngineEventBus() };
 }
 
 interface HarnessProps {
   manager: SoundManager;
   source: AudioManifestSource | null;
   bus: WorldEngineEventBus;
+  scene?: TreasureRushSceneAudio | null;
   onAudio?: (audio: TreasureRushAudio) => void;
 }
 
-function Game({ source, bus, onAudio }: Omit<HarnessProps, 'manager'>) {
-  const audio = useTreasureRushAudio({ childId: 'child-1', regionId: REGION, bus, source });
+function Game({ source, bus, scene, onAudio }: Omit<HarnessProps, 'manager'>) {
+  const audio = useTreasureRushAudio({
+    childId: 'child-1',
+    regionId: REGION,
+    bus,
+    source,
+    scene,
+  });
   useEffect(() => {
     onAudio?.(audio);
   }, [audio, onAudio]);
@@ -176,20 +190,63 @@ describe('ambience by zone (SM-P3-03)', () => {
     expect(engine.heard().sort()).toEqual([TR_SOUND.ambientOcean, TR_SOUND.musicExplore].sort());
   });
 
+  /** The engine reports the entry and the exit of a move between zones, in that order. */
+  const move = (bus: WorldEngineEventBus, from: string, to: string) =>
+    act(() => {
+      bus.emit('PlayerEnteredZone', { zoneId: to });
+      bus.emit('PlayerLeftZone', { zoneId: from });
+    });
+
   it('changes the ambience as the child moves between zones, one bed at a time', async () => {
     const { engine, bus } = await mount();
-    act(() => bus.emit('PlayerEnteredZone', { zoneId: 'cove-zone-grove' }));
+    act(() => bus.emit('PlayerEnteredZone', { zoneId: 'cove-zone-landing' }));
+    move(bus, 'cove-zone-landing', 'cove-zone-grove');
     await flush();
     expect(engine.heard()).toContain(TR_SOUND.ambientJungle);
     expect(engine.heard()).not.toContain(TR_SOUND.ambientOcean);
-    act(() => bus.emit('PlayerEnteredZone', { zoneId: 'cove-zone-ruins' }));
+    move(bus, 'cove-zone-grove', 'cove-zone-ruins');
     await flush();
     expect(engine.heard()).toContain(TR_SOUND.ambientCave);
     expect(engine.heard()).not.toContain(TR_SOUND.ambientJungle);
-    act(() => bus.emit('PlayerEnteredZone', { zoneId: 'cove-zone-beach' }));
+    move(bus, 'cove-zone-ruins', 'cove-zone-beach');
     await flush();
     const beds = engine.heard().filter((c) => c.startsWith('ambient.'));
     expect(beds).toEqual([TR_SOUND.ambientOcean]);
+  });
+
+  it('plays the wind at Lookout Point and returns to the shore bed when the child leaves it (SM-P7)', async () => {
+    const { engine, bus } = await mount();
+    act(() => bus.emit('PlayerEnteredZone', { zoneId: 'cove-zone-ruins' }));
+    move(bus, 'cove-zone-ruins', 'cove-zone-lookout');
+    await flush();
+    expect(engine.heard().filter((c) => c.startsWith('ambient.'))).toEqual([TR_SOUND.ambientWind]);
+    act(() => bus.emit('PlayerLeftZone', { zoneId: 'cove-zone-lookout' }));
+    await flush();
+    // Leaving every zone falls back to the entry bed.
+    expect(engine.heard().filter((c) => c.startsWith('ambient.'))).toEqual([TR_SOUND.ambientOcean]);
+  });
+
+  it('lets a higher-priority zone win when zones overlap', async () => {
+    const { engine, bus } = await mount();
+    act(() => bus.emit('PlayerEnteredZone', { zoneId: 'cove-zone-grove' }));
+    act(() => bus.emit('PlayerEnteredZone', { zoneId: 'cove-zone-ruins' }));
+    await flush();
+    expect(engine.heard().filter((c) => c.startsWith('ambient.'))).toEqual([TR_SOUND.ambientCave]);
+  });
+
+  it('survives a rapid run of region transitions and ends on the right bed', async () => {
+    const { engine, bus } = await mount();
+    for (let i = 0; i < 5; i += 1) {
+      act(() => {
+        bus.emit('PlayerEnteredZone', { zoneId: 'cove-zone-grove' });
+        bus.emit('PlayerLeftZone', { zoneId: 'cove-zone-grove' });
+        bus.emit('PlayerEnteredZone', { zoneId: 'cove-zone-ruins' });
+        bus.emit('PlayerLeftZone', { zoneId: 'cove-zone-ruins' });
+      });
+    }
+    act(() => bus.emit('PlayerEnteredZone', { zoneId: 'cove-zone-lookout' }));
+    await flush();
+    expect(engine.heard().filter((c) => c.startsWith('ambient.'))).toEqual([TR_SOUND.ambientWind]);
   });
 
   it('does not restart a bed when the next zone shares it, or the same zone is re-entered', async () => {
@@ -473,5 +530,157 @@ describe('the game does not depend on the shared mount state', () => {
     playCue('keyPickup');
     await flush();
     expect(world.engine.started().filter((c) => c === TR_SOUND.keyDiscover)).toHaveLength(1);
+  });
+});
+
+/** A stand-in for the 3D scene's audio view: positions, a camera matrix and a frame loop. */
+function fakeScene() {
+  const frames = new Set<(delta: number) => void>();
+  const positions = new Map<string, [number, number, number]>();
+  const camera = {
+    matrixWorld: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] },
+  };
+  const reader = (position: [number, number, number]) => (out: [number, number, number]) => {
+    out[0] = position[0];
+    out[1] = position[1];
+    out[2] = position[2];
+    return true;
+  };
+  const api: TreasureRushSceneAudio = {
+    entityPositionReader: (id) => (positions.has(id) ? reader(positions.get(id)!) : undefined),
+    unlockPositionReader: () => reader([0, 0, -36]),
+    listenerSource: () => camera,
+    onFrame: (callback) => {
+      frames.add(callback);
+      return () => void frames.delete(callback);
+    },
+  };
+  return {
+    api,
+    positions,
+    camera,
+    frames,
+    tick: () => frames.forEach((callback) => callback(0.016)),
+  };
+}
+
+describe('spatial one-shots and the listener (SM-P7-06)', () => {
+  const withScene = async (cues: readonly string[] = ALL_CUES) => {
+    const scene = fakeScene();
+    scene.positions.set('cove-chest', [4, 0, 12]);
+    scene.positions.set('cove-brass-key', [-20, 0, 5]);
+    const mounted = await mount({ ...build(cues), scene: scene.api });
+    return { ...mounted, scene };
+  };
+  const spatialOf = (engine: RecordingEngine, cue: string) =>
+    engine.voices.find((v) => engine.cueOf.get(v) === cue)?.options.spatial;
+
+  it('hears the chest from the chest: the opening and the reveal are placed there', async () => {
+    const { engine } = await withScene();
+    playCue('chestOpen', { entityId: 'cove-chest' });
+    await flush();
+    expect(spatialOf(engine, TR_SOUND.chestOpen)?.position).toEqual([4, 0, 12]);
+    expect(spatialOf(engine, TR_SOUND.treasureReveal)?.position).toEqual([4, 0, 12]);
+    expect(spatialOf(engine, TR_SOUND.chestOpen)).toMatchObject({
+      refDistance: 3,
+      maxDistance: 40,
+    });
+  });
+
+  it('hears the key from the key, and the gate from the gate', async () => {
+    const { engine } = await withScene();
+    playCue('keyPickup', { entityId: 'cove-brass-key' });
+    playCue('bridgeOpen', { unlock: true });
+    await flush();
+    expect(spatialOf(engine, TR_SOUND.keyDiscover)?.position).toEqual([-20, 0, 5]);
+    expect(spatialOf(engine, TR_SOUND.bridgeOpen)?.position).toEqual([0, 0, -36]);
+  });
+
+  it('keeps feedback, rewards, quest completion and music flat, wherever they happened', async () => {
+    const { engine } = await withScene();
+    playCue('answerRight', { entityId: 'cove-chest' });
+    playCue('answerRetry', { entityId: 'cove-chest' });
+    playCue('celebrate', { entityId: 'cove-chest' });
+    playCue('stoneRight', { entityId: 'cove-chest' });
+    playCue('questComplete', { entityId: 'cove-chest' });
+    await flush();
+    for (const cue of [
+      TR_SOUND.learningCorrect,
+      TR_SOUND.learningRetry,
+      TR_SOUND.rewardCollect,
+      TR_SOUND.learningComplete,
+      TR_SOUND.questComplete,
+      TR_SOUND.musicVictory,
+      TR_SOUND.musicExplore,
+    ]) {
+      expect(spatialOf(engine, cue)).toBeUndefined();
+    }
+  });
+
+  it('plays flat when it does not know where something is (no scene, unknown entity)', async () => {
+    const withoutScene = await mount();
+    playCue('chestOpen', { entityId: 'cove-chest' });
+    await flush();
+    expect(spatialOf(withoutScene.engine, TR_SOUND.chestOpen)).toBeUndefined();
+    expect(withoutScene.engine.heard()).toContain(TR_SOUND.chestOpen);
+
+    const { engine } = await withScene();
+    playCue('chestOpen', { entityId: 'somewhere-else' });
+    await flush();
+    expect(spatialOf(engine, TR_SOUND.chestOpen)).toBeUndefined();
+  });
+
+  it('follows the camera: the listener is updated on every frame, not by React', async () => {
+    const { engine, scene } = await withScene();
+    expect(scene.frames.size).toBe(1);
+    scene.camera.matrixWorld.elements[12] = 7;
+    scene.tick();
+    expect(engine.listener?.position[0]).toBe(7);
+    const updates = engine.listenerUpdates;
+    scene.tick();
+    expect(engine.listenerUpdates).toBe(updates + 1);
+  });
+
+  it('stops following the camera when the game is left, and plays nothing after', async () => {
+    const { engine, scene, view } = await withScene();
+    view.unmount();
+    expect(scene.frames.size).toBe(0);
+    playCue('chestOpen', { entityId: 'cove-chest' });
+    await flush();
+    expect(engine.heard()).toEqual([]);
+  });
+
+  it('is safe under StrictMode: one frame subscription and one placed sound', async () => {
+    const scene = fakeScene();
+    scene.positions.set('cove-chest', [1, 0, 1]);
+    const { engine } = await mount({ ...build(), scene: scene.api }, true);
+    expect(scene.frames.size).toBe(1);
+    playCue('chestOpen', { entityId: 'cove-chest' });
+    await flush();
+    expect(engine.started().filter((c) => c === TR_SOUND.chestOpen)).toHaveLength(1);
+  });
+
+  it('keeps volume and mute for placed sounds', async () => {
+    const { engine, manager } = await withScene();
+    manager.muteChannel('sfx', true);
+    expect(engine.channelGains.get('sfx')).toBe(0);
+    manager.muteChannel('sfx', false);
+    expect(engine.channelGains.get('sfx')).toBeGreaterThan(0);
+  });
+
+  it('a sound that is missing is silent and never blocks the rest', async () => {
+    const { engine } = await withScene(ALL_CUES.filter((c) => c !== TR_SOUND.chestOpen));
+    playCue('chestOpen', { entityId: 'cove-chest' });
+    await flush();
+    expect(engine.heard()).not.toContain(TR_SOUND.chestOpen);
+    expect(engine.heard()).toContain(TR_SOUND.treasureReveal);
+  });
+});
+
+describe('scene audio detection', () => {
+  it('recognises a complete scene audio view and refuses a stub', () => {
+    expect(hasSceneAudio(fakeScene().api)).toBe(true);
+    expect(hasSceneAudio({ setChestOpen: () => undefined })).toBe(false);
+    expect(hasSceneAudio(null)).toBe(false);
   });
 });

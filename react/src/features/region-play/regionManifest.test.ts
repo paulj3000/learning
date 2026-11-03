@@ -83,13 +83,13 @@ describe('buildRegionManifest', () => {
     expect(figure?.action).toBe(REGION_ACTIONS.talk);
   });
 
-  it('builds the four-zone cove from its layout, and the engine’s validator accepts it (TR-13)', async () => {
+  it('builds the five-zone cove from its layout, and the engine’s validator accepts it (TR-13)', async () => {
     const region = { ...bootstrapJson().region, scene: await coveSceneJson() };
     const built = build({ region });
     expect(issues(built)).toEqual([]);
     const { manifest } = built;
     expect(manifest.bounds).toEqual({ halfExtentX: 36, halfExtentZ: 44, wallThickness: 1 });
-    expect(manifest.zones).toHaveLength(4);
+    expect(manifest.zones).toHaveLength(5); // landing, grove, beach, ruins, lookout (SM-P7)
     expect(manifest.colliders.length).toBeGreaterThan(20);
     expect(manifest.ambient).toHaveLength(4);
     expect(manifest.lights).toHaveLength(2);
