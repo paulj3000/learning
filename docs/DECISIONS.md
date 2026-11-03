@@ -3422,11 +3422,14 @@ cutover).
    failure means "not saved", never an error a child sees.** In a build without the Django API (the
    Amplify-only baseline) the map still works for the visit and nothing is saved.
 
-**Consequence to know.** The nook discovery is written through the Amplify client today. Until the
-discovery write path moves to Django, a Django-mode server will not see the nook on its `WorldState`
-and so will not persist a secret-room discovery. The secret room still works in the world (the client
-gates it on its own copy of the discovery) and is simply not saved on the server. Nothing breaks and
-nothing leaks.
+**Consequence, resolved by SC-R04-00 (2026-11-03).** The nook discovery used to be written only
+through the Amplify client, so in Django mode the server could not see it and a secret-room
+discovery was never persisted. Django now has the authoritative discovery record (`POST` and `GET
+children/{id}/discoveries/`, `docs/PLAY_API.md`) on the existing `WorldState.discovered_objects`, with
+no new model. In Django mode the client asks the server first and treats its answer as the
+authority; it merges the server's list into what it reads; and it tells the server about secrets
+found before Django mode. A build without the Django API, or a server failure, falls back to the
+Amplify path unchanged.
 
 **Not decided here.** Granting anything for exploring (nothing does), a Django-administered castle
 layout (LAI-0805), and moving the discovery write path to Django (the ADR-019 cutover).

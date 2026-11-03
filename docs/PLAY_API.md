@@ -366,6 +366,48 @@ a child sees.
 Child-scoped and bearer-only like every route here: another family's child and an unknown child
 give the identical `404`, and a parent or child id in the body or query is ignored.
 
+## Discoveries (SC-R04-00)
+
+The server's record of which secrets a child has found, and the authority for whether one opens.
+Implemented in `lai/apps/game_sessions/discovery_views.py` over `lai/apps/progression/discoveries.py`.
+
+Before this, Django had a `WorldState.discovered_objects` column and nothing that wrote it, so in
+Django mode a discovery lived only in the Amplify client's row and the server could prove nothing
+(the quest engine's own docstring: discoveries "evaluate as not yet complete, so the server never
+credits progress it cannot prove"). The Secret Chamber's access and the Great Storybook's page
+recovery both rest on this record.
+
+**No new model.** The record is the existing `WorldState.discovered_objects`. Definitions are the
+digest-verified content export's `discoveries` collection, read with `read_export`. A discovery's
+world change goes through the existing idempotent `record_world_change`, and its rewards through the
+existing `grant_reward_rule` for each `DISCOVERY` rule, one fire per rule.
+
+### `GET discoveries/`: what this child has found
+
+`{"discoveries": ["castle-tapestry-stair"]}`: ids in the content's own order; an id the export does
+not know is never listed.
+
+### `POST discoveries/`: find a secret
+
+Body (closed): `{"discoveryId": "castle-tapestry-stair"}`.
+
+| Result | Body | Meaning |
+| --- | --- | --- |
+| `201` | `{"discoveryId", "status": "FOUND_NOW", "rewardMessages": [...], "newItemIds": [...]}` | First find. The record, the world change and the rewards were written. |
+| `200` | `{"discoveryId", "status": "ALREADY_FOUND"}` | A replay. Nothing was written or granted. |
+| `200` | `{"discoveryId", "status": "LOCKED", "message": "..."}` | The requirements do not hold. Nothing was written. The message is the authored locked line. |
+| `404` | `not_found` | An id the export does not know. |
+
+The requirements the server evaluates are the ones the export's schema allows (`ALWAYS`,
+`WORLD_CHANGE_PRESENT`, `ITEM_OWNED`, `DISCOVERY_PRESENT`); any other type is treated as not met, so
+the server never opens a secret it cannot prove. The child's `WorldState` row is locked for the write:
+of two simultaneous finds exactly one is `FOUND_NOW`, and the world change and reward are written
+once (tested with four parallel transactions).
+
+Child-scoped and bearer-only like every route here. The client treats the server as the authority in
+Django mode and falls back to the Amplify path when the API is off or fails, so a child is never
+blocked by it (`react/src/features/discovery/api.ts`).
+
 ## Reuse by later regions
 
 Nothing here branches on Treasure Rush: a later region needs a `WorldRegion` with its

@@ -647,6 +647,29 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       progression, users) on an isolated PostgreSQL container (port 5455), Ruff and
       `makemigrations --check` clean. Browser (owner): the whole castle tour on a tablet, the guide
       over the HUD, the map, the secret passage opening
+- **SC-R04 The Great Storybook** (owner brief 2026-11-03: SC-R04-00 to 07, development only, no
+  SC-R05 until SC-R04 is complete)
+- [x] **SC-R04-00** Django discovery persistence (depends: SC-R03-06). DONE (development). The
+      defect: the tapestry nook discovery was written only through the Amplify client, and Django
+      had a `WorldState.discovered_objects` column that nothing wrote, so in Django mode the server
+      could prove no discovery (the Secret Chamber's access and the quest engine, which "evaluates
+      discoveries as not yet complete", both depended on it). **Fix, no new model and no
+      migration**: `progression/discoveries.py` records a discovery on the existing
+      `WorldState.discovered_objects`, validated against the digest-verified export's `discoveries`
+      collection, writing its world change through `record_world_change` and firing its reward rules
+      through `grant_reward_rule` (one fire per rule), all under a row lock; one child-scoped endpoint
+      `GET` and `POST children/{id}/discoveries/` (`FOUND_NOW` 201, `ALREADY_FOUND` and `LOCKED` 200,
+      unknown id 404, closed body). **Client**: in Django mode the server is asked first and is the
+      authority (a `LOCKED` answer keeps a secret shut and writes nothing to Amplify), its list is
+      merged into `getWorldState`, and a secret found before Django mode is told to the server;
+      with no Django API, or a failing server, the Amplify path is untouched. The Secret Chamber now
+      rests on a real server record (tested end to end through the two endpoints; the secret still
+      gets the identical 404 an unknown room gets). Tests: **Django 17** (the full child-scoped
+      checklist, idempotency, the world change and the book granted once, locked by item and by world
+      change against real content, ordering, and **four parallel finds** giving one `FOUND_NOW`),
+      **frontend 8 client and 12 behaviour**; discovery, API, island-map manifest, quests and rewards
+      suites pass (222 and 512); typecheck clean; Ruff, Prettier and oxlint clean. ADR-047's
+      consequence note is resolved. Browser: none needed. Commit recorded by the next task
 - [ ] **SC-R04 to SC-R12** Not started. Gated items: Sound Manager merge (SC-R06), narration
       provider and voice consent (SC-R06-03), new educational content (roadmap SC-R04-05), Phaser
       retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the
