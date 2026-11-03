@@ -295,4 +295,27 @@ following task's commit.
 - [x] **SC-R01-01** Current implementation audit (depends: none). DONE: audit with working, partial,
       missing and browser-only inventory; findings AUD-1 (band-blind claim in `castle-tale`) and
       AUD-2 (card route ignores band routing). Tests: baseline 37 castle/asset Vitest files (504)
-      and typecheck pass; docs only. Browser/device: none needed
+      and typecheck pass; docs only. Commits `229c359`, `d7389ab`. Browser/device: none needed
+- [x] **SC-R01-02** Consolidated reboot roadmap (depends: SC-R01-01). DONE:
+      `docs/regions/STORYKEEPER_CASTLE_REBOOT_ROADMAP.md`: Great Storybook premise, eight existing
+      rooms kept with the upgrade roadmap's functions merged in (Observatory into the Setting Tower,
+      Trophy Room into the Costume Room, Map Room into the corridor), Writing Room and Secret Chamber
+      as the only new spaces, Quest / Adventure / 3D Area boundaries, derived pages and ranks, band
+      table, SC-R02 to SC-R12 task breakdown, owner decisions. Docs only; adr:check passes
+- [ ] **SC-R01-03** ADR-028 art direction recommendation and asset conventions (depends: SC-R01-02)
+- [ ] **SC-R01-04** Gameplay and compatibility contracts with contract tests (depends: SC-R01-02)
+- [ ] **SC-R01-05** Acceptance and test plan (depends: SC-R01-04)
+- [ ] **SC-R02-01** Reusable visual system in the generic location runtime (depends: SC-R01-03)
+- [ ] **SC-R02-02** Great Library visual overhaul (depends: SC-R02-01)
+- [ ] **SC-R02-03** Entry Hall visual overhaul (depends: SC-R02-01)
+- [ ] **SC-R02-04a-f** Story Hall, Character Gallery, Costume Room, Setting Tower, Illustration
+      Studio, East Corridor visual passes, one commit each (depends: SC-R02-01)
+- [ ] **SC-R02-05** Magical interaction feedback and reduced motion (depends: SC-R02-01)
+- [ ] **SC-R02-06** Lighting moods and quality-tier light budgets (depends: SC-R02-01)
+- [ ] **SC-R02-07** Asset Library integration and asset manifest doc (depends: SC-R02-02 to 04)
+- [ ] **SC-R02-08** Performance and compatibility hardening (depends: SC-R02-02 to 06)
+- [ ] **SC-R02-09** Final development verification (depends: all SC-R02)
+- [ ] **SC-R03 to SC-R12** Not started; task lists in the reboot roadmap section 6. Gated items:
+      Sound Manager merge (SC-R06), narration provider and voice consent (SC-R06-03), new spaces and
+      content (SC-R03-02, SC-R04-05, SC-R05-03), Phaser retirement (SC-R10-03, ADR-020, LAI-2303),
+      owner playtest and real-tablet profiling (SC-R11, the SC-11 gate)

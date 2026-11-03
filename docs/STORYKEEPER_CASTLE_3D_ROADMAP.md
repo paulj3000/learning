@@ -1,5 +1,9 @@
 # Storykeeper Castle — First-Person Region Roadmap
 
+> **Superseded in scope (2026-11-02)** by
+> `docs/regions/STORYKEEPER_CASTLE_REBOOT_ROADMAP.md` (SC-R). SC-11's gate is carried there
+> as SC-R11 and stays open.
+
 **Status:** SC-0 through SC-6 are implemented, which **completes the
 critical vertical slice**. **SC-8 is now complete** and **SC-9 is complete
 except for beat 11's writing room**, both unblocked by ADR-027, which
