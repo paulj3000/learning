@@ -79,7 +79,7 @@ be painted.
 | Character Gallery | `characterGallery.ts` | `plaster-gallery` | Three plaques, runner inlay |
 | Costume Room | `costumeRoom.ts` | `carpet-costume`, `plaster-costume` | Three racks (solid, on the authored spots), mirror |
 | East Corridor | `eastCorridor.ts` | none (reuses) | Eight sconces, island map frame, runner inlay |
-| Setting Tower | `settingTower.ts` | `flagstone-tower`, `ashlar-tower` | Orrery (solid), compass medallion |
+| Setting Tower | `settingTower.ts` | `flagstone-tower`, `ashlar-tower` | Orrery, telescope (both solid), star chart with five gold stars, compass medallion |
 | Illustration Studio | `illustrationStudio.ts` | none (reuses) | Paint table (solid), four pots, three drawings |
 | Trophy Room | `trophyRoom.ts` | none (reuses) | Six pedestals (solid), item-gated treasures and empty plates, wall shelf |
 

@@ -63,7 +63,8 @@ export type CastleRoomRole =
   | 'choose-setting'
   | 'see-it-drawn'
   | 'secret-door-arc'
-  | 'trophies';
+  | 'trophies'
+  | 'observatory';
 
 export interface CastleRoomNode {
   id: CastleRoomId;
@@ -71,6 +72,11 @@ export interface CastleRoomNode {
   label: string;
   floor: RectZone;
   role: CastleRoomRole;
+  /**
+   * Every job the room does, the primary `role` first. The Setting Tower is also the Observatory (the
+   * reboot roadmap merges them), so it keeps its stable id and gains a second function.
+   */
+  functions: readonly CastleRoomRole[];
   /** What there is to do here, in one child-facing sentence, readable aloud. */
   destination: string;
   /** A spot a child can always be placed on: walkable, inside the room, clear of furniture. */
@@ -83,6 +89,8 @@ export interface CastleRoomNode {
 
 interface RoomMeta {
   role: CastleRoomRole;
+  /** Further jobs beyond the primary role. */
+  alsoServes?: readonly CastleRoomRole[];
   destination: string;
   safeSpot: { x: number; z: number };
   checkpointId?: string;
@@ -125,7 +133,8 @@ const ROOM_META: Readonly<Record<CastleRoomId, RoomMeta>> = {
   },
   'setting-tower': {
     role: 'choose-setting',
-    destination: 'Choose where your story happens.',
+    alsoServes: ['observatory'],
+    destination: 'Choose where your story happens, and look at the stars.',
     safeSpot: checkpointPosition('storykeeper-castle:tower'),
     checkpointId: 'storykeeper-castle:tower',
   },
@@ -155,6 +164,7 @@ export const CASTLE_ROOMS: readonly CastleRoomNode[] = CASTLE_ROOM_IDS.map((id) 
     label: room.label,
     floor: room.floor,
     ...ROOM_META[id],
+    functions: [ROOM_META[id].role, ...(ROOM_META[id].alsoServes ?? [])],
     initiallyDiscovered: id === 'entry-hall',
   };
 });

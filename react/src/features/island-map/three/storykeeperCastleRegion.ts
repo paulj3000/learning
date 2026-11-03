@@ -826,6 +826,14 @@ export const ZONES: readonly RectZone[] = [
   { id: 'trophy-slot-4', minX: 1.45, maxX: 2.0, minZ: -8.3, maxZ: -7.7 },
   { id: 'trophy-slot-5', minX: 1.45, maxX: 2.0, minZ: -7.6, maxZ: -7 },
   { id: 'trophy-slot-6', minX: 1.45, maxX: 2.0, minZ: -6.9, maxZ: -6.3 },
+  /*
+    The Observatory (SC-R03-04, the Setting Tower's second function): a walk-up
+    point just north of the telescope's stand (so its centre is open floor) and one at the star chart on
+    the west wall. Neither touches the arrival zone (z 6.6 to 8.4) or any of the
+    three window zones (x from 6.3), which are the room's `choose-setting` answer.
+  */
+  { id: 'observatory-telescope', minX: 5.4, maxX: 6.2, minZ: 6.08, maxZ: 6.55 },
+  { id: 'observatory-chart', minX: 5.4, maxX: 6.2, minZ: 8.6, maxZ: 9.6 },
 ];
 
 export function findZone(zoneId: string): RectZone | undefined {

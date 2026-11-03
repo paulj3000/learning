@@ -80,6 +80,15 @@ describe('castle layout identity (save compatibility)', () => {
     }
   });
 
+  it("lists the primary role first among each room's functions, and the tower is also the Observatory", () => {
+    for (const room of CASTLE_ROOMS) expect(room.functions[0]).toBe(room.role);
+    const tower = getCastleRoom('setting-tower')!;
+    expect(tower.role).toBe('choose-setting');
+    expect(tower.functions).toEqual(['choose-setting', 'observatory']);
+    // The Observatory is not a room of its own: no 'observatory' room id exists.
+    expect(CASTLE_ROOM_IDS as readonly string[]).not.toContain('observatory');
+  });
+
   it('writes child-facing text without em dashes, and every line readable aloud', () => {
     const lines = [
       ...CASTLE_ROOMS.flatMap((room) => [room.label, room.destination]),

@@ -542,8 +542,25 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       would have thrown); Prettier and oxlint clean. **Not done:** persistent artifacts (SC-R07);
       a treasure earned in this visit appears on the pedestal on the next entry to the room
       (requirements are read when the scene is built), while the guide list updates live.
-      Browser (owner): the room's look, pedestal height, the walk-up message
-- [ ] **SC-R03-04** Observatory function in the Setting Tower (telescope, observing; deterministic)
+      Browser (owner): the room's look, pedestal height, the walk-up message. Commit `5235f80`
+- [x] **SC-R03-04** Observatory function in the Setting Tower (depends: SC-R03-01, SC-R02-04d). DONE
+      (development): the Observatory is the **Setting Tower's second job**, not a duplicate room
+      (the roadmap merges them and the owner confirmed it): `setting-tower` keeps its stable id,
+      primary role (`choose-setting`), three story windows, window zones and arrival zone, all
+      asserted unchanged; `CastleRoomNode.functions` now records `['choose-setting',
+    'observatory']`, and there is no `observatory` room id. Added: a **big telescope** (solid stand,
+      tube above head height, never solid), a **star chart** on the west wall with five gold stars,
+      and two walk-up observing points (`castle-observatory-telescope`, `castle-observatory-chart`).
+      **Flavour only**: both are `SHOW_MESSAGE`, so looking can never grade, grant, record, start or
+      move anything and the outcome is always the same (deterministic). The chart message invites a
+      child to count but names no number, so no one can be told they counted wrong, and the chart
+      draws exactly as many stars as the constant says. No new graded educational content was
+      authored (still a separate owner decision). The test caught a first draft whose telescope
+      zone was centred inside the telescope's own stand; fixed. The sky is star-dust motes and the
+      three windows: a starry ceiling would need a seventeenth preset (16 of 16). Tests: 8 new
+      observatory plus the updated layout and contract suites; the whole runtime, extension and
+      castle group is **64 files, 837 tests** passing; typecheck clean; Prettier and oxlint clean.
+      Browser (owner): the telescope read, chart legibility, the cool mood
 - [ ] **SC-R03-05** Secret Chamber behind the tapestry nook (reuses the pattern lock and secret door)
 - [ ] **SC-R03-06** Castle map and room discovery
 - [ ] **SC-R03-07** World navigation regression
