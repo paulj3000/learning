@@ -391,10 +391,17 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       flat on the west wall. Tests: 51 (visuals, runtime, manifest) pass, including the walk
       through the castle with the racks solid; typecheck has only the missing `@colyseus/sdk` error;
       Prettier and oxlint clean. Racks remain decorative, with no interaction. **Deferred:** the Trophy
-      Room pedestals (SC-R03-03 and SC-R07). Browser (owner): the plum, the rack silhouettes
+      Room pedestals (SC-R03-03 and SC-R07). Browser (owner): the plum, the rack silhouettes. Commit `d336b12`
 - [ ] **SC-R02-04d** Setting Tower visual overhaul (depends: SC-R02-01)
 - [ ] **SC-R02-04e** Illustration Studio visual overhaul (depends: SC-R02-01)
-- [ ] **SC-R02-04f** East Corridor visual overhaul (depends: SC-R02-01)
+- [x] **SC-R02-04f** East Corridor visual overhaul (depends: SC-R02-01). DONE (development):
+      `castleRooms/eastCorridor.ts`: flagstone, dim grey ashlar, a 19 m crimson runner inlay, eight
+      brass sconces (four a side, each tested clear of every archway), a framed island map on the
+      west wall (`CORRIDOR_MAP`, which SC-R03-06 and SC-R04 will mark; flat, clear of the hub
+      archway and the sconces). No collider added, so the spine to the deep rooms is unchanged
+      (tested). Tests: 54 (visuals, runtime, manifest) pass; typecheck has only the missing
+      `@colyseus/sdk` error; Prettier and oxlint clean. The map shows no page marks yet (SC-R04).
+      Browser (owner): the dim mood, sconce read, map legibility
 - [ ] **SC-R02-05** Magical interaction feedback and reduced motion (depends: SC-R02-01)
 - [ ] **SC-R02-06** Lighting moods and quality-tier light budgets (depends: SC-R02-01)
 - [ ] **SC-R02-07** Asset Library integration and asset manifest doc (depends: SC-R02-02 to 04)

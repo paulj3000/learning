@@ -12,6 +12,7 @@ import type {
 import { rect, type RoomLook, type RoomVisuals } from './castleRooms/castleVisualKit';
 import { CHARACTER_GALLERY_VISUALS } from './castleRooms/characterGallery';
 import { COSTUME_ROOM_VISUALS } from './castleRooms/costumeRoom';
+import { EAST_CORRIDOR_VISUALS } from './castleRooms/eastCorridor';
 import { ENTRY_HALL_VISUALS } from './castleRooms/entryHall';
 import { GREAT_LIBRARY_VISUALS } from './castleRooms/greatLibrary';
 import { STORY_HALL_VISUALS } from './castleRooms/storyHall';
@@ -19,6 +20,7 @@ import { STORY_HALL_VISUALS } from './castleRooms/storyHall';
 export type { RoomLook, RoomVisuals } from './castleRooms/castleVisualKit';
 export { STORYBOOK_DAIS } from './castleRooms/greatLibrary';
 export { ENTRY_MURAL } from './castleRooms/entryHall';
+export { CORRIDOR_MAP } from './castleRooms/eastCorridor';
 
 /**
  * Storykeeper Castle's look (SC-R02): which material preset each room's
@@ -86,6 +88,7 @@ const ROOM_VISUALS: readonly RoomVisuals[] = [
   STORY_HALL_VISUALS,
   CHARACTER_GALLERY_VISUALS,
   COSTUME_ROOM_VISUALS,
+  EAST_CORRIDOR_VISUALS,
 ];
 
 export const ROOM_LOOKS: readonly RoomLook[] = ROOM_VISUALS.map((room) => room.look);

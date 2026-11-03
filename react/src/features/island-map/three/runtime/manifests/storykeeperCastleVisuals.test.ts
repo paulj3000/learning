@@ -27,6 +27,7 @@ import {
   CASTLE_EFFECTS,
   CASTLE_MATERIALS,
   CASTLE_SURFACES,
+  CORRIDOR_MAP,
   FLOOR_SURFACE_Y,
   INLAY_SURFACE_Y,
   ENTRY_MURAL,
@@ -444,6 +445,50 @@ describe('the Costume Room', () => {
     const costume = ROOMS.find((room) => room.id === 'costume-room')!.floor;
     expect(mirror.area.minX).toBeGreaterThan(costume.minX + HALF);
     expect(mirror.area.maxX - mirror.area.minX).toBeLessThan(0.2);
+  });
+});
+
+describe('the East Corridor', () => {
+  const corridorArches = ARCHWAYS.filter((arch) => arch.between.includes('east-corridor'));
+
+  it('hangs sconces on both walls, none inside an archway', () => {
+    const sconces = CASTLE_DECOR.filter((item) =>
+      /^castle-corridor-sconce-.*-bracket$/.test(item.id),
+    );
+    expect(sconces.filter((item) => item.id.includes('-w'))).toHaveLength(4);
+    expect(sconces.filter((item) => item.id.includes('-e'))).toHaveLength(4);
+    for (const item of sconces) {
+      if (item.kind !== 'BOX') continue;
+      for (const arch of corridorArches) {
+        const onThatWall =
+          Math.abs(item.area.minX - arch.gap.maxX) < 1 ||
+          Math.abs(item.area.maxX - arch.gap.minX) < 1;
+        const overlapsZ = item.area.minZ < arch.gap.maxZ && arch.gap.minZ < item.area.maxZ;
+        expect(onThatWall && overlapsZ, `${item.id} hangs in ${arch.id}`).toBe(false);
+      }
+    }
+  });
+
+  it('keeps the island map flat on the west wall, clear of the hub archway and every sconce', () => {
+    const hubArch = corridorArches.find((arch) => arch.between.includes('story-hall'))!;
+    expect(CORRIDOR_MAP.maxZ).toBeLessThan(hubArch.gap.minZ - 0.5);
+    const frame = CASTLE_DECOR.find((item) => item.id === 'castle-corridor-map-frame');
+    expect(frame?.kind).toBe('BOX');
+    if (frame?.kind !== 'BOX') return;
+    expect(frame.area.maxX - frame.area.minX).toBeLessThan(0.2);
+    for (const item of CASTLE_DECOR) {
+      if (item.kind !== 'BOX' || !item.id.includes('corridor-sconce-w')) continue;
+      const overlaps = item.area.minZ < CORRIDOR_MAP.maxZ && CORRIDOR_MAP.minZ < item.area.maxZ;
+      expect(overlaps, `${item.id} hangs over the map`).toBe(false);
+    }
+  });
+
+  it('adds nothing solid, so the corridor stays the spine to the deep rooms', () => {
+    const corridor = ROOMS.find((room) => room.id === 'east-corridor')!.floor;
+    const solidInCorridor = CASTLE_DECOR_COLLIDERS.filter(
+      (piece) => piece.rect.minX >= corridor.minX && piece.rect.maxX <= corridor.maxX,
+    );
+    expect(solidInCorridor).toEqual([]);
   });
 });
 
