@@ -369,6 +369,51 @@ above again, then starts or resumes the child's one ACTIVE session for that Adve
   With `null` the Place is still usable through its Adventures.
 - `autoSelectIslandId` is set when exactly one Island is available.
 
+## Published content reads and the step runner (LAI-0503, LAI-0816, ADR-047 K)
+
+All routes are under `/api/v1/children/{id}/`, child-scoped (another family's child is a 404),
+bearer only. Reads are `GET`, bounded (200 entries), and serve only **published, active content
+for the child's age band**; an unknown, unpublished, inactive or other-band record is a 404 with
+no way to tell which. Drafts, submitted and returned versions are never visible. Every entry
+carries `"revision": {"id": "<uuid>", "number": n}`, the published version it came from.
+
+| Route | Returns |
+|---|---|
+| `content/adventures/` | `{"adventures": [{slug, title, locationSlug, ageBands, skillDomain, revision}]}` |
+| `content/adventures/{slug}/` | the above plus `entryStepId` and `steps`: each `{id, type, objectiveIds, presentation, hasHints, revision}` with **no answers, no hint text, no transitions** (an ordering's items are shuffled the same way for everyone and never in the answer order; a matching splits into `left` and `right`) |
+| `content/quests/`, `content/quests/{id}/` | quests for the band; detail adds `entryStageId`, `stages`, `adventureSlugs` |
+| `content/items/` | non-hidden items (`id, displayName, description, category, rarity, setId`) |
+| `content/reward-rules/` | rules whose granted items are all visible: `id, message, itemIds, triggerType` |
+| `content/learning-objectives/` | `code, domain, title` |
+| `content/stories/`, `content/stories/{slug}/` | stories for the band; detail has chapters and scenes without the completion world change |
+| `content/npcs/`, `content/npcs/{id}/` | NPCs; detail adds `dialogue`: the nodes this child's band hears now (conditions evaluated for the child, authored text only) |
+
+**Step runner.** Django grades; the client sends what the child did.
+
+- `POST content/adventures/{slug}/start/`, body `{}`. Starts (201) or resumes (200) the child's
+  one ACTIVE session for a published adventure, pinned to the published versions. The response is
+  the step view below with `"created": true|false`.
+- `GET sessions/{sessionId}/step/` returns the step view, to resume after a disconnection:
+
+```json
+{"session": {"id": "...", "adventureSlug": "...", "status": "ACTIVE", "currentStepId": "count",
+             "hintLevel": 0, "...": "..."},
+ "step": {"id": "count", "type": "NUMBER_INPUT", "objectiveIds": ["count-10"],
+          "presentation": {"kind": "number-input", "prompt": "How many planks?"},
+          "hasHints": true},
+ "stepRevision": {"id": "...", "number": 1}, "adventureRevision": {"id": "...", "number": 3},
+ "doneStepIds": [], "hintLevel": 0}
+```
+
+  A finished session returns its authored closing step (`presentation.kind` is `complete`).
+  A publication during a visit changes nothing here: the step comes from the pinned version.
+- `POST sessions/{id}/answers/` and `.../hints/` are unchanged, and the answer response gains
+  `"worldChangeKeys": []` (the consequence of a WORLD_CHANGE step the child continued past) and
+  `"completion": null | {"rewards": [{ruleId, message, granted, newItemIds}], "questsCompleted": []}`.
+  In the answer's own transaction Django records skill evidence per graded objective, the world
+  change once, and on completion grants the configured `ADVENTURE_COMPLETED` reward rule once per
+  child and moves active quests forward. A replayed `requestId` records and grants nothing.
+
 ## Reuse by later regions
 
 Nothing here branches on Treasure Rush: a later region needs a `WorldRegion` with its

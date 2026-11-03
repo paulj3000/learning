@@ -365,3 +365,104 @@ editing TypeScript source code. Existing player progress and pinned sessions rem
 | Mid-session publish does not change grading | pytest (automated) |
 | The same flow in a real browser with a real sign-in | browser acceptance (PENDING until run) |
 | The same flow on a deployed environment | deployed acceptance (PENDING; needs LAI-1004 and gate A6) |
+
+
+## 14. P1 build status (2026-11-03, branch `feature/content-p1`)
+
+Built on `feature/content` at `9c322e1`. The status words follow `tasks/TASK_TRACKER.md`.
+Automated backend and frontend parts only; browser and deployed acceptance are PENDING.
+
+### 14.1 Publication safety (LAI-0818)
+
+- **Workflow.** A version moves `DRAFT` -> `SUBMITTED` -> `PUBLISHED`, or `SUBMITTED` ->
+  `REJECTED` (with a reason of up to 300 characters) -> `DRAFT` again. A submitted version's body
+  is frozen until it is withdrawn or returned. Rollback publishes an earlier body as a new
+  `ROLLBACK` version and is not sent for a second approval; it is still fully validated.
+- **Independent approval** is an owner-set option, `LAI_CONTENT_INDEPENDENT_APPROVAL`, off by
+  default (ADR-047-Q1 stands). When on, publishing needs a submitted version and a different
+  administrator, and the submitter cannot return their own version either.
+- **Screening.** Every child-facing string passes `apps.ai.content_safety` (the Question Studio
+  patterns: personal-information requests, secrecy, dependency, impersonation, contact details,
+  learning-judgment claims, web addresses), the em dash and markup rules, and per-age-band
+  length limits (Sprouts 160, Pathfinders 320, Explorers and unbanded text 600). Text under an
+  `ageBands` list is held to the shortest limit among its bands.
+- **Permissions are checked in the service**, not only in the admin: a direct call to
+  `authoring.create_draft`, `update_draft`, `submit`, `withdraw`, `reject`, `reopen`, `discard`,
+  `publish`, `rollback` or `set_active` by a person without the permission (or inactive, or not
+  staff, or no person at all) raises `NotPermitted`. There is no system bypass; the importer and
+  code seeds use `record_published`, which is separate and writes history only.
+- **Admin log.** Start, save, submit, return, reopen, publish, restore, discard, retire and
+  restore-from-retired each add a Django admin-log entry on the version. Entries hold the action
+  and the reason, never the content.
+- **Retirement.** `set_active(False)` on a record an open session pinned raises
+  `RetireNeedsConfirmation` naming the sessions (short ids, no child data); the same rule is a
+  form field on the record's own admin page. Confirming means typing exactly those ids.
+
+### 14.2 Structured editors (LAI-0801 stages 2 to 4)
+
+`authoring_forms.py` builds one form from each kind's JSON Schema (the one publishing validates
+against): text, number, checkbox, enum select, repeatable rows for lists of objects with add,
+remove and move, discriminated unions (a reward rule's trigger), reference selectors for items,
+NPCs, quests, adventures, Places, Islands and sets (a missing reference is flagged), and a JSON
+box only for a part the schema leaves free-form. A kind with no schema definition (3D Area copy,
+puzzles, challenge specs) is edited through the shape of its current body. Field-level errors sit
+on the field that has them. Raw JSON for the whole body needs `catalog.edit_content_json` (group
+"Content developers"). The editor, the preview (per age band) and "Use the exported version"
+(ADR-047 J, a confirm page then a draft that keeps the IMPORT origin) are admin pages.
+
+### 14.3 Age-band dialogue (LAI-0817)
+
+NPC dialogue nodes gain optional `speaker`, `ageBands`, `questId` and `adventureSlug`. Django
+serves a node only to a child whose band it lists (absent: every band) and drops a choice whose
+target the band never hears. Publishing refuses: duplicate node ids, a choice to an unknown node,
+a band with no conversation opener that has no conditions (the safe fallback), and a node whose
+choices all lead to lines its band never hears. **Not done:** moving Firepeak's `intro`,
+`completeMessage` and `scienceNote` out of puzzle parameters (FP-D9). The parameters are still
+required by the puzzle rules and the client reads them; moving them is a separate change to the
+puzzle parameter contract and the Firepeak seed, so it stays open under LAI-0817.
+
+### 14.4 Stories (LAI-0309)
+
+`catalog.Story` is an authorable row loaded from `stories.json` (kind `story`). Its adventures
+come from its ADVENTURE scenes; characters, learning objectives and quests are derived from them,
+never typed twice. Run `load_content --force` once on an existing database, because an export
+that is already the latest release is skipped. Progress ids stay plain strings and are never
+rewritten; `references.find_orphans` and `manage.py check_references` report any that name no
+record (counts only, no child data).
+
+### 14.5 Published content reads (LAI-0503)
+
+Child-scoped, read-only, bearer-only routes under `children/<id>/content/`: `adventures/`,
+`adventures/<slug>/` (steps without answers, hints or transitions), `quests/`, `quests/<id>/`,
+`items/`, `reward-rules/`, `learning-objectives/`, `stories/`, `stories/<slug>/`, `npcs/`,
+`npcs/<id>/` (band-filtered dialogue). Every response carries the published revision id and
+number. Only published, active content for the child's band is served; anything else is a 404.
+
+### 14.6 Step runner (LAI-0816)
+
+`POST content/adventures/<slug>/start/` starts or resumes a session pinned to the published
+revisions; `GET sessions/<id>/step/` resumes. Answers and hints keep their routes. In the answer's
+own transaction Django now records skill evidence per graded objective, records a WORLD_CHANGE
+step's consequence when the child continues past it, and on completion grants the configured
+`ADVENTURE_COMPLETED` reward rule (once per child) and moves active quests forward. The answer
+response gains `worldChangeKeys` and `completion`. In a Django build `AdventurePage` plays the
+adventure through `DjangoAdventureRunner`, which reuses `AdventureStepCard`. It shows authored
+text only: Chatty's AI bubble, coop and the tutor scaffold stay with the Amplify runner. Skill
+mastery counters (`SkillProgress`) remain LAI-0603's.
+
+### 14.7 Export and promotion (LAI-0814)
+
+- `manage.py check_content` re-validates every published body, checks each row against its
+  published version and that references point at exported records. Read-only.
+- `manage.py export_content --out DIR` runs the check, then writes the published versions in the
+  export format, sorted, with a manifest of records (kind, id, revision id and number, owner,
+  publish time, dependencies, checksum). Drafts are excluded unless `--include-drafts`
+  (a review environment; marked in the manifest). Assets created in Django belong to the Asset
+  Manager (ADR-045) and are not exported here; `wonderWallQuestions` are not held by Django.
+- Promote with `load_content --path DIR --dry-run`, read the conflict report, then without
+  `--dry-run`. `load_content` first verifies the manifest's record checksums and dependencies.
+  A target record an administrator edited is kept and listed; take the export on purpose with
+  "Use the exported version".
+- **Rollback.** An import is one transaction and history only grows. To undo a promotion, restore
+  the earlier version of each affected record in Django Admin (Restore), or re-import the previous
+  export directory; neither deletes anything.

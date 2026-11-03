@@ -3353,8 +3353,9 @@ text-stem question delivery to children, and live Bedrock acceptance (LAI-0705).
 *Drafted and accepted as ADR-043 on `feature/adr-043-django-content-authoring`; renumbered ADR-047
 when `main` was merged into the branch (2026-11-02), because `main` had already assigned ADR-043
 to the recent sign-in guard (LAI-0209). The living documents were renamed in the 2026-11-02
-audit; comments in `lai/` and `react/src` that say "ADR-043" for content authoring mean this
-decision until LAI-0819 renames them. The owner answers below keep their original labels
+audit; comments in `lai/` and `react/src` were renamed by LAI-0819 (2026-11-03). Three
+historical migrations keep "ADR-043" in their docstrings and stored notes: it means this
+decision there. The owner answers below keep their original labels
 (ADR-043-Q1 to Q4) as ADR-047-Q1 to Q4.*
 
 **Relationship to ADR-045 and ADR-046 (clarified 2026-11-02, no decision changed).**
@@ -3546,3 +3547,15 @@ approved.
 7. Puzzle mechanics stay in code. Their validated, age-specific parameters are editable in
    Django Admin, and the server's grading is authoritative.
 8. Treasure Rush, the quest engine and the step-adventure workflows keep working.
+
+**Implementation notes (2026-11-03, LAI-0818 and later P1 tasks; no decision changed).**
+- Decision D's "permission-gated through Django groups" is enforced in the authoring service as
+  well as the admin, so a direct service call cannot bypass it. Statuses `SUBMITTED` and
+  `REJECTED` were added to decision C's list for the review step. An optional independent
+  approval (`LAI_CONTENT_INDEPENDENT_APPROVAL`, off by default) stays an owner setting and does
+  not reverse ADR-047-Q1.
+- Raw JSON editing of a whole body is a third permission, `catalog.edit_content_json` (group
+  "Content developers"); the default editor is the structured form (decision B).
+- Decision K's revision ids are in the child-scoped content reads (`docs/PLAY_API.md`).
+- Decision L is `export_content` plus `load_content`; see
+  `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 14.7 for the promotion and rollback steps.
