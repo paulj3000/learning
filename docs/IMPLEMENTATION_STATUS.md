@@ -12190,3 +12190,29 @@ merged or deployed, and no AWS call was made.
 - **LAI-AQS-024 stays open** for live generation and the Admin browser pass only.
 - **ADR-033 exception confirmed** by the owner (2026-11-02). ADR-046 records a bounded exception to "content reaches Django only through
   the export" (ADR-033): the bank is authored in Django. Merge order is `features/ai` first.
+
+## Sound Manager Phase 3: Treasure Rush audio (SM-P4, brief ids SM-P3-01 to SM-P3-10) (2026-11-03, branch `feature/sound-manager`, not merged, not deployed)
+
+**Acceptance criteria.** Treasure Rush plays its ambience, music and effects through the shared Sound
+Manager from the published Django manifest, driven only by authoritative game results; leaving the
+game releases every sound; any audio failure leaves a fully working silent game. No new engine, no
+hardcoded filenames or urls, no gameplay change.
+
+**Built.** `region-play/audio/` (`treasureRushSounds.ts`, `soundSlot.ts`, `treasureRushMusic.ts`,
+`useTreasureRushAudio.ts`); three new moments in `soundCues.ts`; `RegionPlayCompanion` mounts the
+hook and raises the new moments; Django `apps/audio/treasure_rush_cues.py` and the idempotent
+`seed_treasure_rush_sound` command. Detail, event map, 15-cue content checklist and the manual
+verification steps: `docs/audio/TREASURE_RUSH_AUDIO.md`.
+
+**Not done / honest limits.** Nothing was heard: no browser, no live playback (prohibited for this
+task). No audio asset exists in the library, so every cue is "configured but missing audio" until
+uploaded, seeded and published. Lookout Point has no zone (no wind bed); no coin, gem or item pickup
+mechanic exists, so those cues are unwired; no true crossfade or ducking; no volume screen.
+
+**Tests and checks (run 2026-11-03).**
+
+- Django `apps/audio`: 107 passed (101 existing plus 6 for the seed command); `makemigrations --check` clean; `manage.py check` clean; ruff check and format clean.
+- React: 39 new hook tests in `region-play/audio`; 3 new moment tests in `RegionPlayCompanion.test.tsx` (55 pass in that file); `src/audio`, `src/api/audio` and `region-play` suites pass; `engineBoundary` 40 pass; oxlint shows no findings in the new files; prettier clean on changed source.
+- A duplicate-sound defect in the existing finale and key effects (they re-ran when `react` changed identity) was found by the new tests and fixed with per-result guards.
+- **Environment, not this work:** `node_modules/@colyseus/sdk` is an empty directory (interrupted install). It breaks `tsc -b` (TS2307) and stops `RegionPlayCompanion.test.tsx` and `treasureCoveView.test.tsx` from loading. The companion tests were run through a temporary alias, now deleted. `lookoutPoint.engine.test.ts` timed out once under load and passed on re-run.
+- **Not run:** browser, Playwright, live playback, deployment. Nothing has been heard.

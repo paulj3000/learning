@@ -125,3 +125,17 @@ await sync.load({ type: 'region', id: 'treasure-cove' });
 sync.trigger('on_open', 'chest', 'chest-001');
 sync.dispose(); // stops its sounds, removes its definitions
 ```
+
+## 10. A game that plays shared cues by id (Phase 3, Treasure Rush)
+
+Treasure Rush is the first consumer (`react/src/features/region-play/audio/`,
+`docs/audio/TREASURE_RUSH_AUDIO.md`). The pattern, reusable by the next game:
+
+- One hook (`useTreasureRushAudio`) loads the region manifest with `useAudioManifest` and plays
+  everything inside `useSoundScope('treasure-rush')`, so leaving the game stops it all.
+- Cues are **shared** in Django, so the game plays them by cue id and needs no per-target assignment.
+- `SoundSlot` keeps "one ambience bed" or "one music track": the same id is a no-op, a change fades,
+  a late load stops itself, and a failed cue is retried only when a new manifest arrives.
+- The game says WHEN (`playCue`, raised once per server-confirmed result); the hook decides the sound.
+- Common educational cue ids other games can reuse: `sfx.learning.correct`, `sfx.learning.retry`,
+  `sfx.learning.complete`, `sfx.quest.complete`.

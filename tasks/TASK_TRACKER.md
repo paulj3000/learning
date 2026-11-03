@@ -268,7 +268,18 @@ Vitest and fakes only; no real-browser audio check has been run.
   - [x] **SM-P2-09** Tests: Django `apps/audio` and React `src/audio`, `src/api/audio`
   - [x] **SM-P2-10** Documentation, tracker, ADR-047 (Proposed)
 - [ ] **SM-P3** Sound library reporting (unassigned and orphaned cues), tags and search, per-Island releases if needed (depends: SM-P2). The published-audio resolver and the manifest endpoint were delivered by SM-P2
-- [ ] **SM-P4** Treasure Rush integration behind a scope (depends: SM-P2, TR-9; supersedes TR-D19). Ready to start once a sound library is authored and published
+- [x] **SM-P4** Treasure Rush integration behind a scope (depends: SM-P2, TR-9; supersedes TR-D19). DEVELOPMENT DONE 2026-11-03 on `feature/sound-manager` as the Phase 3 brief, sub-tasks named `SM-P3-01` to `SM-P3-10` (the tracker's `SM-P3` stays the unrelated sound library reporting task). Unit-tested with the fake engine only; NOT heard in a browser and no audio asset is uploaded or published, so the cove is silent until staff publish a release. Detail: `docs/audio/TREASURE_RUSH_AUDIO.md`
+  - [x] **SM-P3-01** Gameplay event audit and event-to-cue map (no coin, gem or generic pickup mechanic exists; Lookout Point has no zone)
+  - [x] **SM-P3-02** Region manifest loaded through `useAudioManifest` and the Django audio source; failures leave a silent game
+  - [x] **SM-P3-03** Ambience by zone (`ocean`, `jungle`, `cave`), one bed at a time, no restarts; `wind` unwired (no Lookout zone)
+  - [x] **SM-P3-04** Chest, treasure reveal, key, reward and bridge effects from authoritative results
+  - [x] **SM-P3-05** Exploration, puzzle and victory music over one slot, fades, restore after victory
+  - [x] **SM-P3-06** Educational feedback: correct, soft retry, puzzle complete, quest complete, only after the server confirms
+  - [x] **SM-P3-07** `treasure-rush` scope cleanup, late-response guards, StrictMode, replay and rapid entry and exit
+  - [x] **SM-P3-08** Silent fallback for every failure mode; diagnostics only
+  - [x] **SM-P3-09** Tests: 39 hook tests, 3 companion tests, 6 Django seed tests (see status doc for runs)
+  - [x] **SM-P3-10** Docs, tracker, idempotent `seed_treasure_rush_sound` command, audio content checklist
+  - [ ] **SM-P4-V** Audible verification in a browser by the owner, after the 15 required audio files are uploaded, seeded and published (checklist in `docs/audio/TREASURE_RUSH_AUDIO.md` section 8)
 - [ ] **SM-P5** Persisted sound preferences per child profile, parent controls (depends: LAI-0301)
 - [ ] **SM-P6** Playlists, music transitions and ducking
 - [ ] **SM-P7** Spatial audio for Three.js scenes on the shared `AudioContext` (depends: SM-P4)

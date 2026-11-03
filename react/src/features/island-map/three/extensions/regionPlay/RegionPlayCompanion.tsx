@@ -20,6 +20,7 @@ import {
 } from '../../../../region-play/regionPlayUi';
 import { adventurePath, useAdventureLaunch } from '../../../../region-play/useAdventureLaunch';
 import { usePlayerProgress } from '../../../../region-play/usePlayerProgress';
+import { useTreasureRushAudio } from '../../../../region-play/audio/useTreasureRushAudio';
 import { playCue } from '../../../../region-play/soundCues';
 import { useRegionPlay } from '../../../../region-play/useRegionPlay';
 import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry';
@@ -83,7 +84,10 @@ function RegionPlayGame(props: LocationCompanionProps) {
     setQuestCue,
     hudSlot,
     showToast,
+    bus,
   } = props;
+  // Sound (SM-P3): registered first so every moment below finds its player. Silent without audio.
+  const audio = useTreasureRushAudio({ childId, regionId, bus });
   const auth = useAuth();
   const onUnauthenticated = () => void auth.refresh();
   const parsed = useMemo(() => tryParseRegionPlayConfig(config), [config]);
@@ -216,6 +220,9 @@ function RegionPlayGame(props: LocationCompanionProps) {
     [chests],
   );
   const outstanding = state.challenge;
+  const puzzleOut = Boolean(outstanding && puzzleIds.has(outstanding.targetEntityId));
+  const setPuzzleMusic = audio.setPuzzleActive;
+  useEffect(() => setPuzzleMusic(puzzleOut), [puzzleOut, setPuzzleMusic]);
   useEffect(() => {
     const api = sceneApi as RegionPlaySceneApi | null;
     if (!api?.setRuneNumbers) return;
@@ -265,17 +272,29 @@ function RegionPlayGame(props: LocationCompanionProps) {
         react('cheer');
         setReplayWon(target);
         void refreshProgress();
+      } else {
+        playCue('answerRetry');
       }
+      return;
+    }
+    if (!outcome.correct) {
+      // A wrong chest answer: a gentle "try again" sound, once for this attempt.
+      celebrated.current.add(outcome.attemptId);
+      playCue('answerRetry');
       return;
     }
     if (!shouldCelebrate(outcome, submittedAttempt.current, celebrated.current)) return;
     celebrated.current.add(outcome.attemptId);
+    playCue('answerRight');
     playCue(outcome.chestOpened ? 'chestOpen' : 'celebrate');
+    if (completedQuests(outcome, state.bootstrap?.quests ?? []).length > 0)
+      playCue('questComplete');
     react('cheer');
     setCelebration(outcome);
     void refreshProgress();
   }, [
     state.lastOutcome,
+    state.bootstrap?.quests,
     refreshProgress,
     puzzleIds,
     replayIds,
@@ -287,9 +306,15 @@ function RegionPlayGame(props: LocationCompanionProps) {
 
   // TR-14: what the server said about a pickup and a talk made here.
   const lastPickup = state.lastPickup;
+  /** The results already sounded, so a re-run of the effect below never sounds one twice. */
+  const soundedPickup = useRef<unknown>(null);
+  const soundedTalk = useRef<unknown>(null);
   useEffect(() => {
     if (lastPickup?.pickedUp && lastPickup.newItems.length > 0) {
-      playCue('keyPickup');
+      if (soundedPickup.current !== lastPickup) {
+        soundedPickup.current = lastPickup;
+        playCue('keyPickup');
+      }
       react('cheer');
       setFound(lastPickup);
       void refreshProgress();
@@ -298,7 +323,10 @@ function RegionPlayGame(props: LocationCompanionProps) {
   const lastTalk = state.lastTalk;
   useEffect(() => {
     if (lastTalk?.questUpdates.some((update) => update.justCompleted)) {
-      playCue('celebrate');
+      if (soundedTalk.current !== lastTalk) {
+        soundedTalk.current = lastTalk;
+        playCue('questComplete');
+      }
       react('cheer');
       setFinale(lastTalk);
       void refreshProgress();
