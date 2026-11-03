@@ -29,6 +29,17 @@ def _scope_place_id(assignment) -> int | None:
     return assignment.location_id
 
 
+def region_zone_ids(region) -> set[str]:
+    """The ids of the zones a 3D Area's layout declares (`scene.layout.zones[].rect.id`)."""
+    layout = (region.scene or {}).get("layout") if region else None
+    zones = layout.get("zones", []) if isinstance(layout, dict) else []
+    return {
+        zone["rect"]["id"]
+        for zone in zones
+        if isinstance(zone, dict) and isinstance(zone.get("rect"), dict) and zone["rect"].get("id")
+    }
+
+
 def assignment_problems(assignment) -> list[str]:
     """Why this assignment is invalid (empty when it is fine)."""
     problems: list[str] = []
@@ -62,6 +73,10 @@ def assignment_problems(assignment) -> list[str]:
     if target_type in AREA_ONLY_TARGETS:
         if not assignment.region_id:
             return [*problems, f"A {target_type} sound must be placed in a 3D Area."]
+        if target_type == TargetType.ZONE:
+            if target_id not in region_zone_ids(assignment.region):
+                problems.append(f"This 3D Area has no audio zone '{target_id}'.")
+            return problems
         model = TreasureChest if target_type == TargetType.CHEST else WorldObjectPlacement
         if not model.objects.filter(region_id=assignment.region_id, entity_id=target_id).exists():
             problems.append(f"This 3D Area has no {target_type} '{target_id}'.")

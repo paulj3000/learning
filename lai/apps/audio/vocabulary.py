@@ -44,6 +44,7 @@ class TargetType(models.TextChoices):
     OBJECT = "object", "Object in a 3D Area (prop, NPC placement, collectible, scenery)"
     CHEST = "chest", "Treasure chest in a 3D Area"
     REWARD = "reward", "Reward rule"
+    ZONE = "zone", "Audio zone in a 3D Area (an ambient bed for a part of the scene)"
 
 
 E = SoundEvent
@@ -57,10 +58,11 @@ EVENTS_BY_TARGET: dict[str, frozenset[str]] = {
         {E.ON_APPROACH, E.ON_INTERACT, E.ON_OPEN, E.ON_CLOSE, E.ON_SUCCESS, E.ON_RETRY}
     ),
     TargetType.REWARD: frozenset({E.ON_COLLECT}),
+    TargetType.ZONE: frozenset({E.ON_ENTER, E.ON_EXIT}),
 }
 
 # Object and chest ids are only unique inside one 3D Area, so these need an Area scope.
-AREA_ONLY_TARGETS = frozenset({TargetType.OBJECT, TargetType.CHEST})
+AREA_ONLY_TARGETS = frozenset({TargetType.OBJECT, TargetType.CHEST, TargetType.ZONE})
 
 
 class Scope(models.TextChoices):
@@ -86,6 +88,21 @@ CHANNEL_CATEGORIES: dict[str, frozenset[str]] = {
     Channel.SFX: frozenset({"sound", "other"}),
     Channel.UI: frozenset({"sound", "other"}),
 }
+
+
+class SpatialMode(models.TextChoices):
+    """Whether a cue is placed in the 3D scene (SM-P7). The game decides when it is `default`."""
+
+    DEFAULT = "default", "Game decides"
+    ON = "on", "Positional, with the distances below"
+    OFF = "off", "Never positional"
+
+
+class DistanceModel(models.TextChoices):
+    LINEAR = "linear", "Linear"
+    INVERSE = "inverse", "Inverse (natural)"
+    EXPONENTIAL = "exponential", "Exponential"
+
 
 AUDIO_KIND = "audio"
 SCHEMA_VERSION = 1

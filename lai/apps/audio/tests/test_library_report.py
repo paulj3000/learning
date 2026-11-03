@@ -199,9 +199,9 @@ def test_optional_cues_never_block_readiness(small_game, treasure):
 # --- the real Treasure Rush table ---------------------------------------------------------------
 
 
-def test_the_real_treasure_rush_requirements_are_the_fifteen_wired_cues():
+def test_the_real_treasure_rush_requirements_are_the_sixteen_wired_cues():
     required = reporting.GAMES["treasure-rush"].required
-    assert len(required) == 15
+    assert len(required) == 16
     assert all(spec.wired for spec in required)
     assert "sfx.coin.collect" in {s.cue_id for s in reporting.GAMES["treasure-rush"].optional}
 

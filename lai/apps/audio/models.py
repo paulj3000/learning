@@ -87,6 +87,45 @@ class SoundCue(models.Model):
     fade_out_ms = models.PositiveIntegerField(
         "fade out (ms)", default=0, validators=[MaxValueValidator(10_000)]
     )
+    # --- Spatial audio (SM-P7) ---
+    spatial_mode = models.CharField(
+        "positional audio",
+        max_length=8,
+        choices=vocab.SpatialMode.choices,
+        default=vocab.SpatialMode.DEFAULT,
+        help_text="Game decides: the game may place it in the scene. Positional: use the "
+        "distances below. Never positional: always plays flat, whatever the game asks.",
+    )
+    spatial_ref_distance = models.FloatField(
+        "full-volume distance (m)", null=True, blank=True, validators=[MinValueValidator(0.1)]
+    )
+    spatial_max_distance = models.FloatField(
+        "maximum distance (m)", null=True, blank=True, validators=[MinValueValidator(0.2)]
+    )
+    spatial_rolloff = models.FloatField(
+        "rolloff",
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0.0), MaxValueValidator(10.0)],
+    )
+    spatial_distance_model = models.CharField(
+        max_length=12, choices=vocab.DistanceModel.choices, blank=True
+    )
+    spatial_cone_inner = models.FloatField(
+        "inner cone angle",
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(360)],
+    )
+    spatial_cone_outer = models.FloatField(
+        "outer cone angle",
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(360)],
+    )
+    spatial_cone_outer_gain = models.FloatField(
+        "outside-cone volume", null=True, blank=True, validators=_UNIT
+    )
     shared = models.BooleanField(
         default=False,
         help_text="Include in every manifest, for sounds games trigger directly "
@@ -171,8 +210,55 @@ class SoundCue(models.Model):
                     f"This version is {version.get_status_display().lower()}. "
                     "Pin a published version."
                 )
+        errors.update(self.spatial_problems())
         if errors:
             raise ValidationError(errors)
+
+    def spatial_problems(self) -> dict[str, str]:
+        """Invalid positional settings, by field. Settings only make sense when positional is on."""
+        problems: dict[str, str] = {}
+        fields = {
+            "spatial_ref_distance": self.spatial_ref_distance,
+            "spatial_max_distance": self.spatial_max_distance,
+            "spatial_rolloff": self.spatial_rolloff,
+            "spatial_distance_model": self.spatial_distance_model or None,
+            "spatial_cone_inner": self.spatial_cone_inner,
+            "spatial_cone_outer": self.spatial_cone_outer,
+            "spatial_cone_outer_gain": self.spatial_cone_outer_gain,
+        }
+        if self.spatial_mode != vocab.SpatialMode.ON:
+            for name, value in fields.items():
+                if value is not None:
+                    problems[name] = (
+                        "Leave this empty unless positional audio is set to Positional."
+                    )
+            return problems
+        ref, mx = self.spatial_ref_distance, self.spatial_max_distance
+        if ref is not None and mx is not None and mx <= ref:
+            problems["spatial_max_distance"] = "Must be greater than the full-volume distance."
+        inner, outer = self.spatial_cone_inner, self.spatial_cone_outer
+        if inner is not None and outer is not None and outer < inner:
+            problems["spatial_cone_outer"] = "Must not be smaller than the inner cone angle."
+        if self.spatial_cone_outer_gain is not None and inner is None and outer is None:
+            problems["spatial_cone_outer_gain"] = "Set a cone angle first."
+        return problems
+
+    def spatial_manifest(self) -> dict | None:
+        """What a game reads about this cue's positional settings, or None when the game decides."""
+        if self.spatial_mode == vocab.SpatialMode.DEFAULT:
+            return None
+        if self.spatial_mode == vocab.SpatialMode.OFF:
+            return {"enabled": False}
+        pairs = (
+            ("refDistance", self.spatial_ref_distance),
+            ("maxDistance", self.spatial_max_distance),
+            ("rolloffFactor", self.spatial_rolloff),
+            ("distanceModel", self.spatial_distance_model or None),
+            ("coneInnerAngle", self.spatial_cone_inner),
+            ("coneOuterAngle", self.spatial_cone_outer),
+            ("coneOuterGain", self.spatial_cone_outer_gain),
+        )
+        return {"enabled": True, **{key: value for key, value in pairs if value is not None}}
 
 
 class SoundAssignment(models.Model):
@@ -223,6 +309,11 @@ class SoundAssignment(models.Model):
         "an ambient bed and an Area can start music for the same event.",
     )
     enabled = models.BooleanField(default=True)
+    priority = models.PositiveSmallIntegerField(
+        default=0,
+        validators=[MaxValueValidator(100)],
+        help_text="For audio zones that overlap: the highest priority decides the ambient bed.",
+    )
     note = models.CharField(max_length=200, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

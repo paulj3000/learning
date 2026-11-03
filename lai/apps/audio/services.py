@@ -133,6 +133,7 @@ def build_snapshot() -> dict:
                 "fadeInMs": cue.fade_in_ms,
                 "fadeOutMs": cue.fade_out_ms,
                 "shared": cue.shared,
+                "spatial": cue.spatial_manifest(),
             }
         )
     assignments = []
@@ -148,6 +149,7 @@ def build_snapshot() -> dict:
                 "event": assignment.event,
                 "channel": assignment.cue.channel,
                 "cueId": assignment.cue.cue_id,
+                "priority": assignment.priority,
             }
         )
     cues.sort(key=lambda item: item["id"])

@@ -71,7 +71,7 @@ TREASURE_RUSH_CUES: tuple[CueSpec, ...] = (
     _ambient("ocean", "Waves and gulls. Pirate Landing and Shipwreck Beach."),
     _ambient("jungle", "Birds and rustling palms. Palm Tree Grove."),
     _ambient("cave", "Low echoing air. The Ancient Treasure Ruins."),
-    _ambient("wind", "Open sky wind. Lookout Point (no zone raises it yet).", wired=False),
+    _ambient("wind", "Open sky wind. Lookout Point, beyond the gate."),
     _music("explore", "Calm looping exploration theme.", loop=True),
     _music("puzzle", "Gentle focused theme while a rune puzzle is out.", loop=True),
     _music("victory", "Short happy finale, played once after a quest is finished.", loop=False),

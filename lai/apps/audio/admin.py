@@ -84,6 +84,23 @@ class SoundCueAdmin(admin.ModelAdmin):
                 )
             },
         ),
+        (
+            "Positional audio (3D scenes)",
+            {
+                "description": "Leave on 'Game decides' for flat sound. Choose 'Positional' to set "
+                "how far the sound carries; the game still supplies where it is.",
+                "fields": (
+                    "spatial_mode",
+                    "spatial_ref_distance",
+                    "spatial_max_distance",
+                    "spatial_rolloff",
+                    "spatial_distance_model",
+                    "spatial_cone_inner",
+                    "spatial_cone_outer",
+                    "spatial_cone_outer_gain",
+                ),
+            },
+        ),
         ("History", {"fields": ("created_at", "updated_at")}),
     )
 
@@ -160,6 +177,7 @@ class SoundAssignmentAdmin(admin.ModelAdmin):
         "target_id",
         "event",
         "cue",
+        "priority",
         "enabled",
         "note",
     )

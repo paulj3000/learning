@@ -61,6 +61,7 @@ def cue_form(asset, **fields):
         "cooldown_ms": "0",
         "fade_in_ms": "0",
         "fade_out_ms": "0",
+        "spatial_mode": "default",
     }
     data.update(fields)
     return data
@@ -195,6 +196,7 @@ def test_an_editor_can_create_an_assignment_but_invalid_ones_are_refused(editor,
         "target_id": treasure.chest.entity_id,
         "event": "on_open",
         "cue": obj.pk,
+        "priority": "0",
         "enabled": "on",
         "note": "",
     }

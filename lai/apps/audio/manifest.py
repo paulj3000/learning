@@ -41,6 +41,9 @@ def _sound(cue: dict) -> dict:
     for key in ("cooldownMs", "fadeInMs", "fadeOutMs"):
         if cue[key]:
             sound[key] = cue[key]
+    # Added in SM-P7. Older releases have no key and older clients ignore it.
+    if cue.get("spatial"):
+        sound["spatial"] = cue["spatial"]
     return sound
 
 
@@ -90,6 +93,7 @@ def build_manifest(scope_kind: str, scope_id: str, chain: list[tuple[str, str | 
                 "targetType": item["targetType"],
                 "targetId": item["targetId"],
                 "soundId": item["cueId"],
+                **({"priority": item["priority"]} if item.get("priority") else {}),
             }
             for key, item in sorted(chosen.items())
             if item["cueId"] in served
