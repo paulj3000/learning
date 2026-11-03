@@ -669,7 +669,40 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       change against real content, ordering, and **four parallel finds** giving one `FOUND_NOW`),
       **frontend 8 client and 12 behaviour**; discovery, API, island-map manifest, quests and rewards
       suites pass (222 and 512); typecheck clean; Ruff, Prettier and oxlint clean. ADR-047's
-      consequence note is resolved. Browser: none needed. Commit recorded by the next task
+      consequence note is resolved. Browser: none needed. Commit `5ccaf44`
+- [x] **SC-R04-01** Great Storybook quest definition (depends: SC-R04-00). DONE (development).
+      **Premise**: the Great Storybook was damaged and its pages scattered through the castle; Keeper
+      Quill asks the child to bring them back. **Pages are derived, never stored** (SC-R01 contract
+      C-5): `features/great-storybook/pages.ts` is the one registry, five pages each naming a record the
+      castle's existing server-validated content already writes (a world change a finished adventure or
+      story records, or the nook discovery), with pure `storybookProgress` over it. **Three quests,
+      one per age band, each on its own page set** (`restore-the-great-storybook-sprouts`,
+      `-pathfinders`, `-explorers`, ids in `GREAT_STORYBOOK_QUEST_IDS`), added to the existing
+      `islandQuests.ts` so every existing validator applies: stage 1 meets Quill (`TALK_TO`), stage 2
+      brings back the pages (`BUILD` per required page; Sprouts and Pathfinders: the first story;
+      Explorers: three clues, the pattern lock, what was waiting). **The hidden nook page is an
+      optional bonus in every band**: requiring it would force a child to find the castle's one
+      unmarked secret to finish, and its journal line is deliberately vague (a test forbids naming
+      where). Completion records `GREAT_STORYBOOK_RESTORED`, sets Quill's `restoredTheStorybook`
+      memory flag and fires the `great-storybook-seal` reward (a Trophy Room keepsake) through one
+      `QUEST_COMPLETED` rule per quest, all through existing services. **Quill** offers the quests
+      and speaks the premise (`quill-the-damaged-book`) and the ending (`quill-storybook-restored`); his
+      existing nodes and choices are unchanged. **Pipeline**: `content:export` regenerates `quests.json`,
+      `npcs.json`, `rewards.json` and the manifest; the director golden vector regenerated;
+      `content:check` and `golden:check` pass; Django imports the new quests (catalog 94 tests).
+      **Server engine**: the Python quest engine now evaluates `DISCOVER` (the server records
+      discoveries since SC-R04-00). The existing island-quest validator was extended to accept a story's
+      completion world change as a `BUILD` source. Tests: **frontend 22 new** (registry, real-content
+      truth, an exhaustive truth table proving the quest completes **exactly when the book is whole**
+      across every combination of records, for each band, with and without meeting Quill) and the
+      quests, npc and rewards suites **240 pass**; **Django 14 new** (the quests import per band,
+      eligibility, a Pathfinder, Sprout and Explorer lifecycle, replay grants nothing, the bonus page
+      never blocks and never counts alone, a page cannot be satisfied by another record, sibling
+      scoping, plus **four parallel refreshes** completing once) and engine unit tests; quests and
+      catalog **94 pass**; typecheck clean; Ruff, Prettier and oxlint clean. **Limit, recorded**: the
+      Python engine does not apply a quest's `setsNpcMemoryFlags` on completion (a pre-existing port gap
+      that affects other quests too), so Quill's ending line follows the client engine for now.
+      Browser: none needed
 - [ ] **SC-R04 to SC-R12** Not started. Gated items: Sound Manager merge (SC-R06), narration
       provider and voice consent (SC-R06-03), new educational content (roadmap SC-R04-05), Phaser
       retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the

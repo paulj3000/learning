@@ -1,4 +1,6 @@
-import type { QuestDefinition } from '../types';
+import type { AgeBandValue } from '../../child-profile/constants';
+import { pagesForBand, type StorybookPage } from '../../great-storybook/pages';
+import type { QuestDefinition, QuestObjective } from '../types';
 
 /**
  * The island's authored quests (docs/ROADMAP.md Phase 25).
@@ -24,6 +26,122 @@ import type { QuestDefinition } from '../types';
  *    something skip repeating it, never to gate a reward behind a second
  *    condition.
  */
+/**
+ * The Great Storybook (SC-R04-01, reboot roadmap sections 1 and 4): Keeper Quill's
+ * castle quest. The Great Storybook has been damaged and its pages scattered
+ * through Storykeeper Castle; the child recovers them by doing what the castle
+ * already asks of them, and the book is restored.
+ *
+ * **One quest per age band, each on its own page set**, so the Storybook is whole
+ * when *that band's* required pages are back and a Sprout is never shown slots meant
+ * for an eight-year-old. The page sets, and what each page is restored by, come
+ * from `features/great-storybook/pages.ts`: this file only turns them into objectives,
+ * so the registry and the quest cannot disagree (a test also checks it).
+ *
+ * Every objective is one the quest engine already credits, on records the castle's
+ * existing content already writes: `BUILD` on the world change a finished adventure or
+ * story records, and `DISCOVER` on the nook. Nothing about the quest grades an answer or
+ * grants a page: a page is *derived* from those records.
+ *
+ * The hidden nook page is an optional bonus in every band. It is a vague, unspoilt
+ * line in the journal, never a location, so a child who has not found the castle's one
+ * unmarked secret is not told it is there.
+ */
+const GREAT_STORYBOOK_RESTORED = {
+  locationSlug: 'storykeeper-castle',
+  changeType: 'CREATE',
+  changeKey: 'GREAT_STORYBOOK_RESTORED',
+};
+
+function storybookObjective(page: StorybookPage): QuestObjective {
+  if (page.source.kind === 'DISCOVERY') {
+    return {
+      id: `storybook-${page.id}`,
+      kind: 'DISCOVER',
+      discoveryKey: page.source.discoveryId,
+      optional: true,
+      // Deliberately vague: this is the castle's one unmarked secret.
+      label: 'Is there one more page, hiding somewhere?',
+    };
+  }
+  return {
+    id: `storybook-${page.id}`,
+    kind: 'BUILD',
+    changeKey: page.source.changeKey,
+    label: `Bring back the page called "${page.title}"`,
+  };
+}
+
+function greatStorybookQuest(
+  band: AgeBandValue,
+  id: string,
+  summary: string,
+  journalNote: string,
+): QuestDefinition {
+  return {
+    id,
+    title: 'The Great Storybook',
+    summary,
+    giverNpcId: 'keeper-quill',
+    ageBands: [band],
+    prerequisites: [{ type: 'ALWAYS' }],
+    entryStageId: 'meet-quill',
+    stages: [
+      {
+        id: 'meet-quill',
+        title: 'Hear what happened to the book',
+        objectives: [
+          {
+            id: 'storybook-talk-to-quill',
+            kind: 'TALK_TO',
+            npcId: 'keeper-quill',
+            memoryFlag: 'metQuill',
+            label: 'Talk to Keeper Quill about the Great Storybook',
+          },
+        ],
+        nextStageId: 'bring-back-the-pages',
+      },
+      {
+        id: 'bring-back-the-pages',
+        title: 'Bring back the missing pages',
+        objectives: pagesForBand(band).map(storybookObjective),
+      },
+    ],
+    completion: {
+      journalNote,
+      worldChanges: [GREAT_STORYBOOK_RESTORED],
+      setsNpcMemoryFlags: [{ npcId: 'keeper-quill', flags: ['restoredTheStorybook'] }],
+    },
+  };
+}
+
+export const GREAT_STORYBOOK_QUEST_IDS = {
+  SPROUT: 'restore-the-great-storybook-sprouts',
+  PATHFINDER: 'restore-the-great-storybook-pathfinders',
+  EXPLORER: 'restore-the-great-storybook-explorers',
+} as const satisfies Record<AgeBandValue, string>;
+
+const GREAT_STORYBOOK_QUESTS: QuestDefinition[] = [
+  greatStorybookQuest(
+    'SPROUT',
+    GREAT_STORYBOOK_QUEST_IDS.SPROUT,
+    'The Great Storybook lost its pages. Help Keeper Quill bring them back.',
+    'The Great Storybook is whole again, and Keeper Quill is very happy.',
+  ),
+  greatStorybookQuest(
+    'PATHFINDER',
+    GREAT_STORYBOOK_QUEST_IDS.PATHFINDER,
+    'The Great Storybook lost its pages. Find them and bring them back to Keeper Quill.',
+    'You brought the pages back and restored the Great Storybook. Its first story is yours.',
+  ),
+  greatStorybookQuest(
+    'EXPLORER',
+    GREAT_STORYBOOK_QUEST_IDS.EXPLORER,
+    'Pages of the Great Storybook are scattered through the castle. Find them all and restore the book.',
+    'Every page is back. You solved the castle secrets and restored the Great Storybook.',
+  ),
+];
+
 export const ISLAND_QUESTS: QuestDefinition[] = [
   {
     id: 'repair-the-bridge',
@@ -351,4 +469,5 @@ export const ISLAND_QUESTS: QuestDefinition[] = [
       // mean nothing to the island.
     },
   },
+  ...GREAT_STORYBOOK_QUESTS,
 ];
