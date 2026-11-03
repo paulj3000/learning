@@ -10,7 +10,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 
-from apps.regions import castle_rooms
+from apps.regions import castle_rooms, great_storybook
 from apps.users.scoping import ChildScopedAPIView
 
 from .serializers import ClosedSerializer
@@ -36,3 +36,13 @@ class CastleRoomsView(ChildScopedAPIView):
         return Response(
             {"roomId": room_id, "newlyDiscovered": created}, status=201 if created else 200
         )
+
+
+class StorybookView(ChildScopedAPIView):
+    """GET this child's Great Storybook (SC-R04-02): pages derived from the server's records.
+
+    Read-only: asking grants, records and changes nothing. See `apps/regions/great_storybook.py`.
+    """
+
+    def get(self, request, child_id):
+        return Response(great_storybook.progress(self.child))

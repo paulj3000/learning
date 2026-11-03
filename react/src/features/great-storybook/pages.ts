@@ -148,16 +148,7 @@ export interface StorybookProgress {
   complete: boolean;
 }
 
-/**
- * Where a child's Storybook stands. Pure and total: the same state always gives
- * the same book, an empty state gives an empty book, and nothing is granted,
- * recorded or changed by asking.
- */
-export function storybookProgress(state: StorybookState, band: AgeBandValue): StorybookProgress {
-  const entries = pagesForBand(band).map((page) => ({
-    page,
-    restored: isPageRestored(page, state),
-  }));
+function summarize(band: AgeBandValue, entries: readonly StorybookEntry[]): StorybookProgress {
   const required = entries.filter((entry) => entry.page.required);
   const restoredRequired = required.filter((entry) => entry.restored).length;
   return {
@@ -168,4 +159,57 @@ export function storybookProgress(state: StorybookState, band: AgeBandValue): St
     restoredBonus: entries.filter((entry) => !entry.page.required && entry.restored).length,
     complete: required.length > 0 && restoredRequired === required.length,
   };
+}
+
+/**
+ * Where a child's Storybook stands. Pure and total: the same state always gives
+ * the same book, an empty state gives an empty book, and nothing is granted,
+ * recorded or changed by asking.
+ */
+export function storybookProgress(state: StorybookState, band: AgeBandValue): StorybookProgress {
+  return summarize(
+    band,
+    pagesForBand(band).map((page) => ({ page, restored: isPageRestored(page, state) })),
+  );
+}
+
+/**
+ * What a child is shown: every required page, and the hidden bonus page **only once it
+ * is found**. An empty slot for a secret the child has not found would be a signpost.
+ */
+export function visibleEntries(progress: StorybookProgress): readonly StorybookEntry[] {
+  return progress.entries.filter((entry) => entry.page.required || entry.restored);
+}
+
+/**
+ * The same book, also counting the pages the server reports restored. A union: each store
+ * only ever knows records that really exist, so a page either one holds is back. An id the
+ * registry does not know is ignored.
+ */
+export function withRestored(
+  progress: StorybookProgress,
+  restoredPageIds: ReadonlySet<string>,
+): StorybookProgress {
+  return summarize(
+    progress.band,
+    progress.entries.map((entry) => ({
+      page: entry.page,
+      restored: entry.restored || restoredPageIds.has(entry.page.id),
+    })),
+  );
+}
+
+/** The pages that are back in `after` and were not in `before`, in registry order. */
+export function newlyRestored(
+  before: ReadonlySet<string>,
+  after: StorybookProgress,
+): readonly StorybookPage[] {
+  return after.entries
+    .filter((entry) => entry.restored && !before.has(entry.page.id))
+    .map((entry) => entry.page);
+}
+
+/** The ids of the pages that are back. */
+export function restoredIds(progress: StorybookProgress): ReadonlySet<string> {
+  return new Set(progress.entries.filter((entry) => entry.restored).map((entry) => entry.page.id));
 }

@@ -366,6 +366,41 @@ a child sees.
 Child-scoped and bearer-only like every route here: another family's child and an unknown child
 give the identical `404`, and a parent or child id in the body or query is ignored.
 
+## The Great Storybook (SC-R04-02)
+
+The child's Great Storybook as the server derives it from its own records. Implemented in
+`lai/apps/game_sessions/castle_views.py` over `lai/apps/regions/great_storybook.py` and
+`great_storybook_pages.json`.
+
+**A page is derived, never stored.** Each page names a record the castle's existing,
+server-validated content already writes (a world change a finished adventure or story records, or
+the nook discovery), so there is no page table: a page is back exactly when its record exists, it
+cannot be recovered twice, and a different challenge's record cannot restore it.
+
+### `GET castle/storybook/`: this child's book
+
+Read-only: no INSERT, UPDATE or DELETE runs, asking twice is asking once, and nothing is granted,
+recorded or changed. The age band is the child's own, from their profile, and is never read from the
+request.
+
+```json
+{"band": "PATHFINDER",
+ "pages": [{"id": "page-first-story", "title": "The First Story", "required": true,
+            "restored": false, "roomId": "story-hall",
+            "text": "Tell a story with Keeper Quill in the Story Hall."}],
+ "restoredRequired": 0, "totalRequired": 1, "restoredBonus": 0, "complete": false,
+ "quest": {"questId": "restore-the-great-storybook-pathfinders", "status": "NOT_STARTED"}}
+```
+
+`text` is the page's own words: what it says once it is back, or where to look while it is missing
+(never how to solve it). Each band's book is whole when its **required** pages are back. The hidden
+nook page is a bonus in every band and is **listed only once it is restored**: a slot for a secret the
+child has not found would be a signpost, so nothing in this response names it before then. The quest
+`status` is `NOT_STARTED`, `ACTIVE` or `COMPLETED`.
+
+`great_storybook_pages.json` mirrors the client's `STORYBOOK_PAGES` and quest ids; a Vitest test fails
+if they differ.
+
 ## Discoveries (SC-R04-00)
 
 The server's record of which secrets a child has found, and the authority for whether one opens.

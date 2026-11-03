@@ -777,7 +777,11 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
         }));
         await renderAndWait(band);
         fireEvent.click(await screen.findByRole('button', { name: /open the castle guide/i }));
-        fireEvent.click(await screen.findByRole('button', { name: /go to the great library/i }));
+        await screen.findAllByRole('button', { name: /go to the great library/i });
+        // The room list's own button is the last: an Explorer's missing pages, all in the library,
+        // each offer a button that makes the very same request, and come first.
+        const buttons = screen.getAllByRole('button', { name: /go to the great library/i });
+        fireEvent.click(buttons[buttons.length - 1]);
         expect(sceneSpies.goToRoom).toHaveBeenCalledWith('great-library', expect.anything());
       });
     },
@@ -815,6 +819,65 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
       fireEvent.click(await screen.findByRole('button', { name: /open the castle guide/i }));
       expect(submitAnswerSpy).not.toHaveBeenCalled();
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('the Great Storybook (SC-R04-02)', () => {
+    const openGuide = async () =>
+      fireEvent.click(await screen.findByRole('button', { name: /open the castle guide/i }));
+
+    it("shows the child's book in the opened guide, with the page that is missing", async () => {
+      await renderAndWait('PATHFINDER');
+      await openGuide();
+      expect(
+        await screen.findByRole('heading', { name: 'The Great Storybook' }),
+      ).toBeInTheDocument();
+      expect(screen.getByText('0 of 1 missing pages are back.')).toBeInTheDocument();
+      expect(screen.getByText(/Missing\. Tell a story with Keeper Quill/)).toBeInTheDocument();
+    });
+
+    it('shows a child who finished the Tale long ago a whole book, and announces nothing', async () => {
+      vi.mocked(listAllWorldChanges).mockResolvedValue([
+        { changeKey: 'FIRST_STORY_TOLD' },
+      ] as never);
+      await renderAndWait('PATHFINDER');
+      await openGuide();
+      expect(await screen.findByText('The Great Storybook is whole again.')).toBeInTheDocument();
+      expect(screen.queryByText(/flew back into the book/i)).not.toBeInTheDocument();
+      expect(screen.queryByText('The Great Storybook is whole again!')).not.toBeInTheDocument();
+    });
+
+    it.each([
+      ['SPROUT', ['The First Story']],
+      ['PATHFINDER', ['The First Story']],
+      ['EXPLORER', ['Three Clues', 'The Pattern Lock', 'What Was Waiting']],
+    ] as const)('gives a %s only their own pages', async (band, titles) => {
+      await renderAndWait(band);
+      await openGuide();
+      for (const title of titles) expect(await screen.findByText(title)).toBeInTheDocument();
+      if (band === 'EXPLORER')
+        expect(screen.queryByText('The First Story')).not.toBeInTheDocument();
+      else expect(screen.queryByText('Three Clues')).not.toBeInTheDocument();
+    });
+
+    it('never shows a slot for the hidden page, or any word that gives it away', async () => {
+      await renderAndWait('EXPLORER');
+      await openGuide();
+      await screen.findByRole('heading', { name: 'The Great Storybook' });
+      expect(screen.queryByText('The Hidden Page')).not.toBeInTheDocument();
+      const book = screen.getByRole('heading', { name: 'The Great Storybook' }).closest('section')!;
+      expect(book.textContent ?? '').not.toMatch(/tapestry|nook|stair|hid(den|ing)/i);
+    });
+
+    it('shows the hidden page, as a bonus, once the nook has been found', async () => {
+      vi.mocked(getWorldState).mockResolvedValue({
+        discoveredIds: ['castle-tapestry-stair'],
+        metCharacterIds: [],
+      } as never);
+      await renderAndWait('PATHFINDER');
+      await openGuide();
+      expect(await screen.findByText('The Hidden Page')).toBeInTheDocument();
+      expect(screen.getByText('0 of 1 missing pages are back.')).toBeInTheDocument();
     });
   });
 

@@ -12,8 +12,12 @@ import { THE_CASTLES_SECRET_DOOR } from '../story/content/theCastlesSecretDoor';
 import {
   STORYBOOK_PAGES,
   isPageRestored,
+  newlyRestored,
   pagesForBand,
+  restoredIds,
   storybookProgress,
+  visibleEntries,
+  withRestored,
   type StorybookState,
 } from './pages';
 
@@ -192,5 +196,54 @@ describe('storybookProgress', () => {
       discoveryIds: Object.freeze([]),
     }) as StorybookState;
     expect(storybookProgress(state, 'PATHFINDER')).toEqual(storybookProgress(state, 'PATHFINDER'));
+  });
+});
+
+describe('what a child is shown, and merging the server', () => {
+  const found = { worldChangeKeys: [], discoveryIds: ['castle-tapestry-stair'] };
+
+  it('shows the required pages always, and the hidden bonus page only once it is found', () => {
+    for (const band of BANDS) {
+      const before = visibleEntries(storybookProgress(NOTHING, band)).map((e) => e.page.id);
+      expect(before).not.toContain('page-tapestry');
+      expect(before.length).toBe(pagesForBand(band).filter((p) => p.required).length);
+      const after = visibleEntries(storybookProgress(found, band)).map((e) => e.page.id);
+      expect(after).toContain('page-tapestry');
+    }
+  });
+
+  it('counts a page the server holds as back, without losing one only the client holds', () => {
+    const local = storybookProgress(
+      { worldChangeKeys: ['FIRST_STORY_TOLD'], discoveryIds: [] },
+      'PATHFINDER',
+    );
+    const merged = withRestored(local, new Set(['page-tapestry']));
+    expect(merged.entries.map((e) => [e.page.id, e.restored])).toEqual([
+      ['page-first-story', true],
+      ['page-tapestry', true],
+    ]);
+    expect(merged.complete).toBe(true);
+    const serverOnly = withRestored(
+      storybookProgress(NOTHING, 'PATHFINDER'),
+      new Set(['page-first-story']),
+    );
+    expect(serverOnly.complete).toBe(true);
+  });
+
+  it('ignores a server page id it does not know, and never mutates what it was given', () => {
+    const local = storybookProgress(NOTHING, 'SPROUT');
+    const merged = withRestored(local, new Set(['a-page-from-a-newer-version']));
+    expect(merged.restoredRequired).toBe(0);
+    expect(local.entries.every((entry) => !entry.restored)).toBe(true);
+  });
+
+  it('reports exactly the pages that came back since a moment ago, once', () => {
+    const before = restoredIds(storybookProgress(NOTHING, 'PATHFINDER'));
+    const after = storybookProgress(
+      { worldChangeKeys: ['FIRST_STORY_TOLD'], discoveryIds: [] },
+      'PATHFINDER',
+    );
+    expect(newlyRestored(before, after).map((p) => p.id)).toEqual(['page-first-story']);
+    expect(newlyRestored(restoredIds(after), after)).toEqual([]);
   });
 });

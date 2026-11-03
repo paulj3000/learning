@@ -11,6 +11,7 @@ import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry
 import type { AdventureDefinition } from '../../../../adventures/engine/types';
 import { CastleTaleSession, type CastleChoiceState } from './CastleTaleSession';
 import { SECRET_PASSAGE_DISCOVERY_ID } from '../../castleLayout';
+import { useGreatStorybook } from '../../../../great-storybook/useGreatStorybook';
 import { CastleGuide } from './CastleGuide';
 import { CastleSecretDoorStory } from './CastleSecretDoorStory';
 import { isCastleTaleScene, type CastleTaleSceneApi } from './castleTaleScene';
@@ -97,6 +98,24 @@ export function CastleTaleCompanion({
   const scene: CastleTaleSceneApi | null = isCastleTaleScene(sceneApi) ? sceneApi : null;
   const sceneRef = useRef<CastleTaleSceneApi | null>(scene);
   sceneRef.current = scene;
+
+  // The Great Storybook (SC-R04-02): derived from the records the castle already holds. Nothing
+  // here restores or grants a page; it only shows the book and the moment a page comes back.
+  const discoveryIds = useMemo(() => worldState.discoveryIds ?? [], [worldState.discoveryIds]);
+  const storybook = useGreatStorybook({
+    childId,
+    band: ageBand,
+    worldChangeKeys: worldState.worldChangeKeys,
+    discoveryIds,
+    onPageRestored: useCallback(
+      (page: { title: string }) => showToast(`A page flew back into the book: ${page.title}.`),
+      [showToast],
+    ),
+    onBookRestored: useCallback(
+      () => showToast('The Great Storybook is whole again!'),
+      [showToast],
+    ),
+  });
 
   const [taleActive, setTaleActive] = useState(false);
   const [storyActive, setStoryActive] = useState(false);
@@ -268,7 +287,7 @@ export function CastleTaleCompanion({
 
   return (
     <>
-      <CastleGuide scene={scene} worldState={worldState} childId={childId} />
+      <CastleGuide scene={scene} worldState={worldState} childId={childId} storybook={storybook} />
       {taleActive && taleForBand ? (
         <CastleTaleSession
           childId={childId}

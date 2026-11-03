@@ -24,6 +24,9 @@ urlpatterns = [
     path(f"{CHILD}islands/", native_views.IslandListView.as_view(), name="child-islands"),
     path(f"{CHILD}inventory/", native_views.InventoryView.as_view(), name="child-inventory"),
     path(f"{CHILD}castle/rooms/", castle_views.CastleRoomsView.as_view(), name="castle-rooms"),
+    path(
+        f"{CHILD}castle/storybook/", castle_views.StorybookView.as_view(), name="castle-storybook"
+    ),
     path(f"{CHILD}discoveries/", discovery_views.DiscoveriesView.as_view(), name="discoveries"),
     path(f"{CHILD}game-launches/", launch_views.GameLaunchView.as_view(), name="game-launches"),
     path("game-launches/redeem/", launch_views.GameLaunchRedeemView.as_view(), name="game-redeem"),

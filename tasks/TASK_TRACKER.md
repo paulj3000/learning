@@ -702,7 +702,33 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       catalog **94 pass**; typecheck clean; Ruff, Prettier and oxlint clean. **Limit, recorded**: the
       Python engine does not apply a quest's `setsNpcMemoryFlags` on completion (a pre-existing port gap
       that affects other quests too), so Quill's ending line follows the client engine for now.
-      Browser: none needed
+      Browser: none needed. Commit `512b1bc`
+- [x] **SC-R04-02** Missing-page discovery and recovery (depends: SC-R04-01). DONE (development).
+      **Recovery has no frontend write path to guard**: a page is derived from a record the existing
+      server-validated content writes, so it is back exactly when that record exists, cannot be
+      recovered twice (the records are idempotent), and cannot be satisfied by a different challenge
+      (each page names one record; tested). **Server**: `GET children/{id}/castle/storybook/`
+      (`regions/great_storybook.py` over `great_storybook_pages.json`, which mirrors the client
+      registry and quest ids, a Vitest test fails on drift): read-only (asserted: no INSERT, UPDATE or
+      DELETE), the child's own band from their profile, required pages always, the hidden bonus page
+      **listed only once it is found** and no word in the response names the secret before then, plus
+      the band quest's status. **Client**: typed `storybookApi`, pure `visibleEntries`,
+      `withRestored` (union with the server's pages) and `newlyRestored`, and `useGreatStorybook`: the
+      book from the records plus the server's, and `onPageRestored` and `onBookRestored` that fire
+      only for a page that came back **during the visit**, never on first load and never because the
+      server answered late (so a child who finished the Tale last month is not told it just
+      happened). **Child-facing**: a `StorybookSection` in the castle guide (accessible equivalent): how
+      many missing pages are back in words and a `<progress>`, each page's title with where to look or
+      what it says now it is back, a way to go to the right room, "you are in the right place" when
+      there; a page already back shows no button and nothing to grant; a toast "A page flew back into
+      the book" and "The Great Storybook is whole again!" at the moment. Tests: **Django 18** (the full
+      child-scoped checklist, read-only, derived from real records, a different record never restores
+      a page, each band sees only its own, an Explorer needs all three, the hidden page's secrecy and
+      sibling isolation, the quest status); **frontend** 5 client, 15 registry and contract, 10 hook,
+      9 section and 5 castle-view tests; the wider group is **90 files, 1195 tests**; typecheck
+      clean; Ruff, Prettier and oxlint clean. **Not here**: the 3D book (SC-R04-03), and Django
+      cannot yet prove pages whose records are written by adventures that complete on the Amplify
+      engine (SC-R04-04 records the boundary). Browser: none needed
 - [ ] **SC-R04 to SC-R12** Not started. Gated items: Sound Manager merge (SC-R06), narration
       provider and voice consent (SC-R06-03), new educational content (roadmap SC-R04-05), Phaser
       retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the

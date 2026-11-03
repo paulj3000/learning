@@ -13,7 +13,9 @@ import {
 } from '../../castleLayout';
 import { trophyDisplay } from '../../castleTrophies';
 import type { CastleRoomsApi } from '../../../../../api/play/castleRoomsApi';
+import type { GreatStorybook } from '../../../../great-storybook/useGreatStorybook';
 import { CastleMap } from './CastleMap';
+import { StorybookSection } from './StorybookSection';
 import { useCastleDiscovery } from './useCastleDiscovery';
 import type { CastleTaleSceneApi } from './castleTaleScene';
 import styles from './CastleGuide.module.css';
@@ -45,6 +47,8 @@ export interface CastleGuideProps {
   childId?: string;
   /** Where discoveries are saved. Omit for the configured Django API; pass `null` for none. */
   roomsApi?: CastleRoomsApi | null;
+  /** The child's Great Storybook (SC-R04-02), if the castle has computed it. */
+  storybook?: GreatStorybook;
 }
 
 /** "To the story hall, then To the east corridor": the doors a walking child would pass, in order. */
@@ -65,6 +69,7 @@ export function CastleGuide({
   pollMs = POLL_MS,
   childId = '',
   roomsApi,
+  storybook,
 }: CastleGuideProps) {
   const [open, setOpen] = useState(false);
   const [roomId, setRoomId] = useState<CastleRoomId | undefined>(undefined);
@@ -162,6 +167,17 @@ export function CastleGuide({
           <p className={styles.where}>
             {current ? `You are in ${current.label}.` : 'You are in the castle.'}
           </p>
+          {storybook ? (
+            <StorybookSection
+              storybook={storybook}
+              access={(page) => {
+                const plan = plans.find((entry) => entry.room.id === page)?.plan;
+                if (plan?.ok) return 'ok';
+                return !plan?.ok && plan?.reason === 'already-there' ? 'here' : 'no';
+              }}
+              onGo={go}
+            />
+          ) : null}
           {showBackToHub ? (
             <button
               type="button"
