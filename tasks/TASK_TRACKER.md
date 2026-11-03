@@ -374,8 +374,15 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       at y 2.0 so the **mantel carving at y 2.2 stays visible** (tested); the carpet line to Quill
       stays clear (tested hub-wide). Tests: 46 (visuals, runtime, manifest) pass; typecheck has only
       the missing `@colyseus/sdk` error; Prettier and oxlint clean. Browser (owner): warmth,
-      the hearth read, mantel legibility
-- [ ] **SC-R02-04b** Character Gallery visual overhaul (depends: SC-R02-01)
+      the hearth read, mantel legibility. Commit `98164d5`
+- [x] **SC-R02-04b** Character Gallery visual overhaul (depends: SC-R02-01). DONE (development):
+      `castleRooms/characterGallery.ts`: honey planks, deep green plaster, a crimson runner inlay
+      that stops short of the portrait zones, a brass plaque under each portrait (below the frames,
+      tested against `GALLERY_PORTRAIT_SPOTS`; the test caught a first draft that overlapped the
+      frame bottoms), gold dust motes. Adds nothing solid, so the portrait and arrival zones stay
+      open (tested). Tests: 48 (visuals, runtime, manifest) pass; typecheck has only the missing
+      `@colyseus/sdk` error; Prettier and oxlint clean. **Deferred:** plinths and rope barriers (they
+      would stand in the portrait zones). Browser (owner): green against the portraits, plaque legibility
 - [ ] **SC-R02-04c** Costume Room visual overhaul, including the unplaced costume racks (depends: SC-R02-01)
 - [ ] **SC-R02-04d** Setting Tower visual overhaul (depends: SC-R02-01)
 - [ ] **SC-R02-04e** Illustration Studio visual overhaul (depends: SC-R02-01)

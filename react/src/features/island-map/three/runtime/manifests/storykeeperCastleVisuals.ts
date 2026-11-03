@@ -10,6 +10,7 @@ import type {
   WallSide,
 } from '../locationManifest';
 import { rect, type RoomLook, type RoomVisuals } from './castleRooms/castleVisualKit';
+import { CHARACTER_GALLERY_VISUALS } from './castleRooms/characterGallery';
 import { ENTRY_HALL_VISUALS } from './castleRooms/entryHall';
 import { GREAT_LIBRARY_VISUALS } from './castleRooms/greatLibrary';
 import { STORY_HALL_VISUALS } from './castleRooms/storyHall';
@@ -82,6 +83,7 @@ const ROOM_VISUALS: readonly RoomVisuals[] = [
   GREAT_LIBRARY_VISUALS,
   ENTRY_HALL_VISUALS,
   STORY_HALL_VISUALS,
+  CHARACTER_GALLERY_VISUALS,
 ];
 
 export const ROOM_LOOKS: readonly RoomLook[] = ROOM_VISUALS.map((room) => room.look);

@@ -3,6 +3,7 @@ import {
   ALL_ENTITY_IDS,
   ARCHWAYS,
   FLOOR_SPOTS,
+  GALLERY_PORTRAIT_SPOTS,
   ROOMS,
   STORYKEEPER_CASTLE_REGION_CHECKPOINTS,
   WALL_MOUNTED_SPOTS,
@@ -374,6 +375,33 @@ describe('the Story Hall', () => {
         expect(sameWall && overlapsX, `${item.id} hangs in ${arch.id}`).toBe(false);
       }
     }
+  });
+});
+
+describe('the Character Gallery', () => {
+  it('puts a plaque under each portrait, on its x, and nowhere else', () => {
+    const plaques = CASTLE_DECOR.filter((item) => item.id.startsWith('castle-gallery-plaque-'));
+    expect(plaques).toHaveLength(GALLERY_PORTRAIT_SPOTS.length);
+    for (const portrait of GALLERY_PORTRAIT_SPOTS) {
+      const name = portrait.entityId.replace('gallery-portrait-', '');
+      const plaque = plaques.find((item) => item.id === `castle-gallery-plaque-${name}`);
+      expect(plaque?.kind, `no plaque for ${name}`).toBe('BOX');
+      if (plaque?.kind !== 'BOX') continue;
+      expect((plaque.area.minX + plaque.area.maxX) / 2).toBeCloseTo(portrait.x, 6);
+      // Below the portrait's own height, flat against the wall.
+      expect(plaque.maxY).toBeLessThan(portrait.y - 0.5);
+    }
+  });
+
+  it('adds nothing solid, so the portrait and arrival zones stay open floor', () => {
+    const gallery = ROOMS.find((room) => room.id === 'character-gallery')!.floor;
+    const solidInGallery = CASTLE_DECOR_COLLIDERS.filter(
+      (piece) =>
+        piece.rect.minZ >= gallery.minZ &&
+        piece.rect.maxZ <= gallery.maxZ &&
+        piece.rect.minX >= gallery.minX,
+    );
+    expect(solidInGallery).toEqual([]);
   });
 });
 
