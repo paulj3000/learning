@@ -50,11 +50,39 @@ export interface TutorTurnBody {
   contextSource?: AiContextSource;
 }
 
+/**
+ * A reference to speech the server approved for this turn (SM-P8-08). It names the already
+ * validated text; a client cannot make the server say anything else.
+ */
+export interface TurnSpeechReference {
+  utteranceId: string;
+  voiceProfile: string;
+}
+
 /** The raw `turn` object (still validated by the caller) and its source. */
 export interface DjangoTurnResponse {
   turn: Record<string, unknown>;
   source: AiTurnSource;
   requestId: string | null;
+  /** Present only when the server will speak this turn. Optional: older servers send none. */
+  speech?: TurnSpeechReference;
+}
+
+const UTTERANCE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const PROFILE_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+function readSpeech(value: unknown): TurnSpeechReference | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const { utteranceId, voiceProfile } = value as Record<string, unknown>;
+  if (
+    typeof utteranceId === 'string' &&
+    UTTERANCE_ID.test(utteranceId) &&
+    typeof voiceProfile === 'string' &&
+    PROFILE_ID.test(voiceProfile)
+  ) {
+    return { utteranceId, voiceProfile };
+  }
+  return undefined;
 }
 
 export interface DjangoAiApi {
@@ -120,10 +148,12 @@ function readTurnResponse(data: unknown): DjangoTurnResponse {
   ) {
     throw new ApiError('invalid_response', { code: 'ai_turn_shape' });
   }
+  const speech = readSpeech(body.speech);
   return {
     turn: turn as Record<string, unknown>,
     source,
     requestId: typeof body.requestId === 'string' ? body.requestId : null,
+    ...(speech ? { speech } : {}),
   };
 }
 

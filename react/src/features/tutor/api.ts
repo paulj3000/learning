@@ -1,5 +1,10 @@
 import { client } from '../../lib/data-client';
-import { currentDjangoAiApi, templateIdFor, type DjangoAiApi } from '../../api/ai/djangoAi';
+import {
+  currentDjangoAiApi,
+  templateIdFor,
+  type DjangoAiApi,
+  type TurnSpeechReference,
+} from '../../api/ai/djangoAi';
 import { normalizeEmotion, normalizeEnumValue } from '../companion/schema';
 import { TUTOR_PERSONA_VERSION } from '../../../../amplify/data/tutorPersona';
 import type { AgeBandValue } from '../child-profile/constants';
@@ -42,6 +47,8 @@ export interface RequestTutorTurnInput {
 export interface TutorTurnResult {
   turn: TutorTurn;
   source: 'AI' | 'FALLBACK';
+  /** The server will speak exactly `turn.spokenText` if asked (SM-P8). Absent otherwise. */
+  speech?: TurnSpeechReference;
 }
 
 function authoredFallback(input: RequestTutorTurnInput): TutorTurn {
@@ -309,7 +316,12 @@ export async function requestDjangoTutorTurn(
     });
     if (response.source === 'FALLBACK') {
       const turn = readDjangoFallbackTurn(response.turn);
-      return { turn: turn ?? authoredFallback(input), source: 'FALLBACK' };
+      if (!turn) return { turn: authoredFallback(input), source: 'FALLBACK' };
+      return {
+        turn,
+        source: 'FALLBACK',
+        ...(response.speech ? { speech: response.speech } : {}),
+      };
     }
     const context = buildTutorContext({
       ageBand: input.ageBand,
@@ -319,7 +331,11 @@ export async function requestDjangoTutorTurn(
     });
     const result = context ? validateTutorTurn(response.turn, context) : undefined;
     if (!result?.valid) return { turn: authoredFallback(input), source: 'FALLBACK' };
-    return { turn: result.turn, source: 'AI' };
+    return {
+      turn: result.turn,
+      source: 'AI',
+      ...(response.speech ? { speech: response.speech } : {}),
+    };
   } catch {
     return { turn: authoredFallback(input), source: 'FALLBACK' };
   }

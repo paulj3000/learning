@@ -1,3 +1,4 @@
+import { getSpeechBinding } from '../../audio/speech/speechBinding';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './NpcConversation.module.css';
@@ -106,6 +107,10 @@ export function NpcConversation({ childId, npcId, ageBand, onEnd }: NpcConversat
       setNode(next);
       setNarratedText(null);
       narratingNodeIdRef.current = next.id;
+      // SM-P8: a world that registered a speech binding has its characters talk. Anything still
+      // being said belongs to the previous line, so it stops first. Without a binding: no change.
+      const speech = getSpeechBinding();
+      speech?.stop();
       if (next.narration && aiEnabledRef.current) {
         // Fire-and-forget, exactly like the adventure runner's companion
         // calls: the conversation is already on screen in its authored form,
@@ -122,7 +127,12 @@ export function NpcConversation({ childId, npcId, ageBand, onEnd }: NpcConversat
         }).then((result) => {
           if (narratingNodeIdRef.current !== next.id) return;
           if (result.source === 'AI') setNarratedText(result.turn.spokenText);
+          // Spoken from the server's approved reference; the caption is the same words.
+          void speech?.speakTurn(result, { npcId });
         });
+      } else if (next.narration && speech) {
+        // AI re-voicing is off: the authored line itself is spoken (the catalog's narration text).
+        void speech.speakNpcNode(npcId, next.id, next.narration.fallbackText);
       }
       try {
         const result = await recordDialogueNode(childId, npcId, next);

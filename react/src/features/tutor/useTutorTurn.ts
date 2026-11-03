@@ -1,3 +1,4 @@
+import { getSpeechBinding } from '../../audio/speech/speechBinding';
 import { useCallback, useState } from 'react';
 import { requestTutorTurn } from './api';
 import type { RequestTutorTurnInput, TutorTurnResult } from './api';
@@ -28,6 +29,8 @@ export function useTutorTurn(): UseTutorTurn {
     setState({ status: 'loading' });
     try {
       const result = await requestTutorTurn(input);
+      // SM-P8: spoken only where a world registered a speech binding; otherwise no change.
+      void getSpeechBinding()?.speakTurn(result);
       setState({ status: 'ready', turn: result.turn, source: result.source });
       return result;
     } catch {

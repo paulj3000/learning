@@ -398,6 +398,11 @@ def test_the_game_cookie_is_accepted_only_by_the_game_runtime_routes():
         f"{child}attempts/<uuid:attempt_id>/answer/",
         f"{child}quests/<slug:quest_id>/accept/",
         f"{child}assets/",
+        # Sound Manager Phase 2 (ADR-047): the game WebView loads its audio manifest and then the
+        # audio files through `assets/`. Read-only, behind `GameRuntimeAccessMixin`.
+        f"{child}audio/manifests/islands/<slug:identifier>/",
+        f"{child}audio/manifests/places/<slug:identifier>/",
+        f"{child}audio/manifests/regions/<slug:identifier>/",
     }
 
 
