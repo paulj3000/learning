@@ -12,6 +12,7 @@ import type {
 import { rect, type RoomLook, type RoomVisuals } from './castleRooms/castleVisualKit';
 import { ENTRY_HALL_VISUALS } from './castleRooms/entryHall';
 import { GREAT_LIBRARY_VISUALS } from './castleRooms/greatLibrary';
+import { STORY_HALL_VISUALS } from './castleRooms/storyHall';
 
 export type { RoomLook, RoomVisuals } from './castleRooms/castleVisualKit';
 export { STORYBOOK_DAIS } from './castleRooms/greatLibrary';
@@ -77,7 +78,11 @@ const SHARED_MATERIALS: readonly MaterialPresetSpec[] = [
 ];
 
 /** Every room that has had its visual pass, in castle order (the Library first, as SC-R02-02 came first). */
-const ROOM_VISUALS: readonly RoomVisuals[] = [GREAT_LIBRARY_VISUALS, ENTRY_HALL_VISUALS];
+const ROOM_VISUALS: readonly RoomVisuals[] = [
+  GREAT_LIBRARY_VISUALS,
+  ENTRY_HALL_VISUALS,
+  STORY_HALL_VISUALS,
+];
 
 export const ROOM_LOOKS: readonly RoomLook[] = ROOM_VISUALS.map((room) => room.look);
 

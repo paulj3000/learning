@@ -56,6 +56,11 @@ const materialIdsOf = (look: RoomLook): string[] =>
     ...(look.inlays ?? []).map((inlay) => inlay.materialId),
   ].filter((id): id is string => id !== undefined);
 
+/** Authored spots a solid piece of decor *is*, rather than hides: the hearth is the hearth. */
+const IS_THE_SPOT: Readonly<Record<string, readonly string[]>> = {
+  'collider:hearth': ['hall-hearth', 'hall-hearth-mantel'],
+};
+
 const surfacesOf = (roomId: string): SurfaceSpec[] =>
   CASTLE_SURFACES.filter((surface) => surface.id.startsWith(`look:${roomId}:`));
 
@@ -249,6 +254,7 @@ describe('castle decor', () => {
       const inside = (x: number, z: number) =>
         x >= rect.minX && x <= rect.maxX && z >= rect.minZ && z <= rect.maxZ;
       for (const spot of [...FLOOR_SPOTS, ...WALL_MOUNTED_SPOTS]) {
+        if ((IS_THE_SPOT[rect.id] ?? []).includes(spot.entityId)) continue;
         expect(inside(spot.x, spot.z), `${spot.entityId} stands in ${rect.id}`).toBe(false);
       }
       for (const zone of ZONES) {
@@ -301,10 +307,10 @@ describe('floor inlays', () => {
 describe('the Entry Hall', () => {
   const entry = ROOMS.find((room) => room.id === 'entry-hall')!.floor;
 
-  it('keeps the carpet line to Keeper Quill clear of every column', () => {
+  it('keeps the carpet line from the doors to the hub clear of every solid piece', () => {
     const carpetHalfWidth = 0.75;
     for (const piece of CASTLE_DECOR_COLLIDERS) {
-      if (piece.rect.maxX > entry.maxX || piece.rect.minX < entry.minX) continue;
+      if (piece.rect.minX > 2.5) continue; // the carpet runs from the doors to x = 2
       expect(
         piece.rect.minZ > carpetHalfWidth || piece.rect.maxZ < -carpetHalfWidth,
         `${piece.rect.id} stands on the carpet`,
@@ -331,9 +337,42 @@ describe('the Entry Hall', () => {
 
   it('keeps every banner and the mural off the arrival doorway wall and the archway', () => {
     for (const item of CASTLE_DECOR) {
-      if (item.kind !== 'BOX' || !/banner|mural/.test(item.id)) continue;
+      if (item.kind !== 'BOX' || !/^castle-entry-(banner|mural)/.test(item.id)) continue;
       expect(item.area.minX, item.id).toBeGreaterThan(entry.minX + HALF);
       expect(item.area.maxX, item.id).toBeLessThan(entry.maxX - HALF);
+    }
+  });
+});
+
+describe('the Story Hall', () => {
+  const hall = ROOMS.find((room) => room.id === 'story-hall')!.floor;
+
+  it('leaves the mantel carving visible: nothing covers it above the jambs', () => {
+    const mantel = WALL_MOUNTED_SPOTS.find((spot) => spot.entityId === 'hall-hearth-mantel')!;
+    for (const item of CASTLE_DECOR) {
+      if (item.kind !== 'BOX') continue;
+      const covers =
+        mantel.x >= item.area.minX &&
+        mantel.x <= item.area.maxX &&
+        mantel.z >= item.area.minZ &&
+        mantel.z <= item.area.maxZ;
+      if (covers) expect(item.maxY, `${item.id} hides the mantel`).toBeLessThan(mantel.y - 0.1);
+    }
+  });
+
+  it('hangs its banners clear of the gallery and costume archways', () => {
+    const arches = ARCHWAYS.filter((arch) => arch.between.includes('story-hall'));
+    for (const item of CASTLE_DECOR) {
+      if (item.kind !== 'BOX' || !item.id.startsWith('castle-hall-banner')) continue;
+      expect(item.area.minX, item.id).toBeGreaterThan(hall.minX + HALF);
+      expect(item.area.maxX, item.id).toBeLessThan(hall.maxX - HALF);
+      for (const arch of arches) {
+        const sameWall =
+          Math.abs(item.area.minZ - arch.gap.minZ) < 1 ||
+          Math.abs(item.area.maxZ - arch.gap.maxZ) < 1;
+        const overlapsX = item.area.minX < arch.gap.maxX && arch.gap.minX < item.area.maxX;
+        expect(sameWall && overlapsX, `${item.id} hangs in ${arch.id}`).toBe(false);
+      }
     }
   });
 });

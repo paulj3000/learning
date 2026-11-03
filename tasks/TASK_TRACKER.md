@@ -351,7 +351,7 @@ following task's commit.
       manifest colliders): every room, zone and authored spot is still reachable. Tests: 38 new and
       related (visuals, runtime, manifest) pass; castle engine, bindings, HUD equivalence, contracts
       and region suites pass (93); parity suite passes with the scratch stub (44); `tsc --noEmit -p
-  tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in castle files;
+tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in castle files;
       Prettier passes. **Deferred, not done:** columns and chairs (the puzzle spots leave no safe
       floor), varied book art (needs kit or commissioned art, ADR-028 is Proposed), a dais glow
       light (SC-R02-06). Browser (owner): overall look, readability of the clues and rods against
@@ -366,9 +366,20 @@ following task's commit.
       daylight motes. Tests: 44 (visuals, runtime, manifest) pass, including the walk through the
       castle with the columns as colliders; typecheck has only the missing `@colyseus/sdk` error;
       Prettier and oxlint clean. **Deferred:** a path-to-library floor inlay (wayfinding, SC-R03-06).
-      Browser (owner): first impression, carpet against the medallion, banner colours
-- [ ] **SC-R02-04a-f** Story Hall, Character Gallery, Costume Room, Setting Tower, Illustration
-      Studio, East Corridor visual passes, one commit each (depends: SC-R02-01)
+      Browser (owner): first impression, carpet against the medallion, banner colours. Commit `216ad7d`
+- [x] **SC-R02-04a** Story Hall visual overhaul (depends: SC-R02-01). DONE (development):
+      `castleRooms/storyHall.ts`: honey planks, warm plaster over an ashlar wainscot (the first
+      room to use `wainscot`), crimson rug inlay before the hearth, a stone hearth surround with fire
+      and flame (solid), three crimson and gold banners on the north wall, ember motes. The jambs stop
+      at y 2.0 so the **mantel carving at y 2.2 stays visible** (tested); the carpet line to Quill
+      stays clear (tested hub-wide). Tests: 46 (visuals, runtime, manifest) pass; typecheck has only
+      the missing `@colyseus/sdk` error; Prettier and oxlint clean. Browser (owner): warmth,
+      the hearth read, mantel legibility
+- [ ] **SC-R02-04b** Character Gallery visual overhaul (depends: SC-R02-01)
+- [ ] **SC-R02-04c** Costume Room visual overhaul, including the unplaced costume racks (depends: SC-R02-01)
+- [ ] **SC-R02-04d** Setting Tower visual overhaul (depends: SC-R02-01)
+- [ ] **SC-R02-04e** Illustration Studio visual overhaul (depends: SC-R02-01)
+- [ ] **SC-R02-04f** East Corridor visual overhaul (depends: SC-R02-01)
 - [ ] **SC-R02-05** Magical interaction feedback and reduced motion (depends: SC-R02-01)
 - [ ] **SC-R02-06** Lighting moods and quality-tier light budgets (depends: SC-R02-01)
 - [ ] **SC-R02-07** Asset Library integration and asset manifest doc (depends: SC-R02-02 to 04)
