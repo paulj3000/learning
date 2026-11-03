@@ -5,6 +5,10 @@ import {
   STORYKEEPER_CASTLE_REGION_ID,
 } from '../../../../discovery/checkpoints';
 import { CASTLE_CHOICE_BINDINGS } from '../../castleChoiceBindings';
+import { CASTLE_CHAMBER_INTERACTIONS } from '../../castleChamber';
+import { SECRET_PASSAGE_DISCOVERY_ID } from '../../castleLayout';
+import { CASTLE_OBSERVATORY_INTERACTIONS } from '../../castleObservatory';
+import { CASTLE_TROPHY_INTERACTIONS } from '../../castleTrophies';
 import { WALL_HEIGHT } from '../../sceneKit';
 import {
   ARCHWAYS,
@@ -42,6 +46,17 @@ import {
   type WallMountedSpot,
 } from '../../storykeeperCastleRegion';
 import { facingIntoRoom, wallPanelPlacements } from '../sceneLayout';
+import {
+  CASTLE_DECOR,
+  CASTLE_DECOR_COLLIDERS,
+  CASTLE_EFFECTS,
+  CASTLE_EXTRA_LIGHTS,
+  CASTLE_MATERIALS,
+  CASTLE_SURFACES,
+  DOORWAY_LIGHT_PRIORITY,
+  HEARTH_LIGHT_PRIORITY,
+  castleRoomMood,
+} from './storykeeperCastleVisuals';
 import {
   LOCATION_MANIFEST_SCHEMA_VERSION,
   type ClusterPosition,
@@ -119,6 +134,18 @@ const ROOM_LIGHT_INTENSITY: Readonly<Record<string, number>> = {
   'illustration-studio': 5,
   'great-library': 2.4,
 };
+
+const SECRET_ARCHWAY_ID = 'arch-secret';
+/** The standard archway's opening is 2 m; the secret passage is 1.5 m. */
+const SECRET_ARCHWAY_WIDTH_SCALE = 0.75;
+
+/** An archway model standing in its gap, turned to run along the wall it cuts. */
+const archwayPlacement = (archway: (typeof ARCHWAYS)[number]) => ({
+  x: (archway.gap.minX + archway.gap.maxX) / 2,
+  z: (archway.gap.minZ + archway.gap.maxZ) / 2,
+  rotationY:
+    archway.gap.maxX - archway.gap.minX >= archway.gap.maxZ - archway.gap.minZ ? 0 : -Math.PI / 2,
+});
 
 const roomFloor = (id: string): RectZone => {
   const room = ROOMS.find((candidate) => candidate.id === id);
@@ -266,6 +293,8 @@ const COLLIDERS: readonly ColliderSpec[] = [
   ...LIBRARY_READING_TABLE_SPOTS.map((spot) =>
     propCollider(`collider:${spot.entityId}`, spot, READING_TABLE_HALF, 0),
   ),
+  // Solid decor the visual pass added (the Storybook dais); see `storykeeperCastleVisuals.ts`.
+  ...CASTLE_DECOR_COLLIDERS,
 ];
 
 const LIGHTS: readonly LightSpec[] = [
@@ -280,9 +309,11 @@ const LIGHTS: readonly LightSpec[] = [
       y: WALL_HEIGHT - 0.4,
       z: (room.floor.minZ + room.floor.maxZ) / 2,
     },
-    color: 0xffffff,
+    // Colour and priority are the room's mood (`castleRoomMood`, art direction section 5).
+    color: castleRoomMood(room.id).color,
     intensity: ROOM_LIGHT_INTENSITY[room.id] ?? 3,
     decay: 1.6,
+    priority: castleRoomMood(room.id).priority,
   })),
   {
     id: 'light:doorway',
@@ -291,6 +322,7 @@ const LIGHTS: readonly LightSpec[] = [
     color: 0xdfeaff,
     intensity: 6,
     decay: 1.8,
+    priority: DOORWAY_LIGHT_PRIORITY,
   },
   {
     id: 'light:hearth',
@@ -299,7 +331,10 @@ const LIGHTS: readonly LightSpec[] = [
     color: 0xff9c3a,
     intensity: 9,
     decay: 1.7,
+    priority: HEARTH_LIGHT_PRIORITY,
   },
+  // Lights a room's look adds (the Storybook dais glow).
+  ...CASTLE_EXTRA_LIGHTS,
 ];
 
 const SCENERY: readonly ScenerySpec[] = [
@@ -325,13 +360,24 @@ const SCENERY: readonly ScenerySpec[] = [
     kind: 'LOD_PLACEMENTS',
     id: 'archways',
     assetId: 'archway',
-    positions: ARCHWAYS.map((archway) => ({
-      x: (archway.gap.minX + archway.gap.maxX) / 2,
-      z: (archway.gap.minZ + archway.gap.maxZ) / 2,
-      rotationY:
-        archway.gap.maxX - archway.gap.minX >= archway.gap.maxZ - archway.gap.minZ
-          ? 0
-          : -Math.PI / 2,
+    // Every archway but the secret one, which is built only once the nook is found (below).
+    positions: ARCHWAYS.filter((archway) => archway.id !== SECRET_ARCHWAY_ID).map(archwayPlacement),
+  },
+  /*
+    The secret passage's archway, behind the swaying tapestry. Built only once
+    the nook has been found, so a child who has not found it sees a plain
+    wall, and narrowed to the passage's 1.5 m (the standard archway is sized for
+    the castle's 2 m gaps). The wall fill that hides the gap until then is in
+    `storykeeperCastleVisuals.ts`.
+  */
+  {
+    kind: 'LOD_PLACEMENTS',
+    id: 'archway-secret',
+    assetId: 'archway',
+    requirements: [{ type: 'DISCOVERY_PRESENT', discoveryId: SECRET_PASSAGE_DISCOVERY_ID }],
+    positions: ARCHWAYS.filter((archway) => archway.id === SECRET_ARCHWAY_ID).map((archway) => ({
+      ...archwayPlacement(archway),
+      scale: { x: SECRET_ARCHWAY_WIDTH_SCALE },
     })),
   },
   /*
@@ -346,6 +392,8 @@ const SCENERY: readonly ScenerySpec[] = [
     assetId: 'carpet',
     positions: carpetPositions({ x: -14.5, z: 0 }, { x: -5, z: 0 }),
   },
+  // Procedural decor from the visual pass (SC-R02): dais, beams, candles. Never interactive.
+  ...CASTLE_DECOR,
   // The doors themselves, so the way out is a thing you can see from inside.
   {
     kind: 'LOD_PLACEMENTS',
@@ -580,6 +628,10 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
   buildings: [],
   scenery: SCENERY,
   lights: LIGHTS,
+  // The visual pass (SC-R02): presets, the surfaces that wear them, and atmosphere.
+  materials: CASTLE_MATERIALS,
+  surfaces: CASTLE_SURFACES,
+  effects: CASTLE_EFFECTS,
 
   npcs: [
     {
@@ -615,7 +667,12 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
 
   // The castle's authored interactions, unchanged: their own requirements
   // are what the per-region view used to branch on.
-  interactions: STORYKEEPER_CASTLE_INTERACTIONS,
+  interactions: [
+    ...STORYKEEPER_CASTLE_INTERACTIONS,
+    ...CASTLE_TROPHY_INTERACTIONS,
+    ...CASTLE_OBSERVATORY_INTERACTIONS,
+    ...CASTLE_CHAMBER_INTERACTIONS,
+  ],
 
   /*
     Phase 8's binding table, moved here from `castleChoiceBindings.ts` as
@@ -694,6 +751,10 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
     'castle-costume-room',
     'castle-great-library',
     'castle-illustration-studio',
+    // Walk-up descriptions of the Trophy Room pedestals; the accessible list in the guide is where they are read.
+    ...CASTLE_TROPHY_INTERACTIONS.map((interaction) => interaction.id),
+    // The Secret Chamber's lines: never listed, and gated on the nook besides.
+    ...CASTLE_CHAMBER_INTERACTIONS.map((interaction) => interaction.id),
   ],
 
   noReticleBands: ['SPROUT'],

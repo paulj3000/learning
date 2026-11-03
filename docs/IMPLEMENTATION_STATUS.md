@@ -12119,8 +12119,8 @@ and load it into the Phase 1 Sound Manager. No React staff screen, no second ass
 - React: manifest parser, `createManifestSync`, `api/audio` Django source over the shared client and
   asset resolver, `useAudioManifest`; additive Phase 1 changes (cue cooldown, concurrency and fades,
   owned definitions, resolver swap, stable cache key, expired-url retry).
-- ADR-047 (Proposed). Registry rows for ADR-046 (Reserved, AI Question Studio on `dev20261102`) and
-  ADR-047. Docs: `docs/audio/PHASE_2_ASSET_INTEGRATION.md`, usage guide, `ASSET_LIBRARY.md` section 22,
+- ADR-050 (Proposed). Registry rows for ADR-046 (Reserved, AI Question Studio on `dev20261102`) and
+  ADR-050. Docs: `docs/audio/PHASE_2_ASSET_INTEGRATION.md`, usage guide, `ASSET_LIBRARY.md` section 22,
   `DATA_MODEL.md`.
 
 **Tests (all run 2026-11-02, fake browser audio, no Playwright, no browser).**
@@ -12151,7 +12151,7 @@ Cognito sign-in. Treasure Rush and Storykeeper's Castle are not wired to the man
 - ADR-045's registry title did not match its heading (arrived with the merge); aligned so `adr:check`
   passes.
 
-**Open.** Owner acceptance of ADR-047; browser and audible verification; sound authoring and a first
+**Open.** Owner acceptance of ADR-050; browser and audible verification; sound authoring and a first
 published release; Treasure Rush integration (SM-P4); whether to publish per Island rather than
 library-wide.
 ## Phase 28 - AI Question Studio (2026-11-02)
@@ -12337,3 +12337,114 @@ Utterance-level captions only.
 lands.
 
 **Checks.** See the end-of-batch delivery notes.
+## Storykeeper Castle Reboot: SC-R01/02 verification, SC-R02, SC-R03-01 (branch `adventures/storybook`, 2026-11-03)
+
+Detail: `tasks/TASK_TRACKER.md` ("Storykeeper Castle Reboot"), the audit in
+`docs/regions/storykeeper_castle_verification_audit.md`, and the asset manifest in
+`docs/regions/storykeeper_castle_asset_manifest.md`. **No browser test was run (owner instruction).
+Nothing is merged to `main`. Nothing is deployed. No AWS service was called.**
+
+**What the audit found.** SC-R01-01 to 05 and SC-R02-01 were delivered. SC-R02-02 to 09 were not:
+the castle manifest declared no `materials`, `surfaces` or `effects`, so no room was re-dressed.
+ADR-028 is still **Proposed**. No duplicate Phaser, sound, asset-manager or content-backend code
+exists on the branch. It also found a real defect: the swaying secret tapestry ignored
+`prefers-reduced-motion`.
+
+**What was built.**
+
+- **SC-R02 (all eight rooms re-dressed, in development terms).** Each room's look is one module under
+  `three/runtime/manifests/castleRooms/`, aggregated by `storykeeperCastleVisuals.ts`: material
+  presets, textured floor, walls and ceiling, trim, floor inlays, solid-colour box decor with
+  colliders where solid, motes, lamp mood and priority. The kit pieces stay underneath as the
+  fallback. The three costume racks authored in Phase 14 and never placed are now placed. The
+  Storybook dais (empty) and the Entry Hall mural frame (blank) are in place for SC-R04.
+- **Lighting and budgets.** Warm and cool lamps by room, a dais glow, and light priorities so LOW keeps
+  the hearth, hub, library, doorway, dais and corridor. Ten static budget tests: 16 of 16 presets,
+  141 of 160 scenery, about 219 of 300 estimated draw calls, 11 of 14 lights, 1,558 runtime-built
+  triangles. **All provisional until SC-R11 measures a tablet.**
+- **Reduced motion.** `WorldExtensionContext.reducedMotion` (generic); `castle-tale` holds the
+  tapestry at a fixed slight lean instead of swaying. SC-R02-05 is **partial**: no new state-flip glow
+  was added.
+- **SC-R03-01 canonical layout.** `three/castleLayout.ts`, derived from the region (no second
+  router): stable room ids as a save contract, doors with landing points and yaws, optional locks
+  (none today), exits mirrored from the authored interactions, discovery state, routing around locks.
+  Not yet wired into any view.
+
+**Verification.**
+
+| Check | Result |
+|---|---|
+| Castle, runtime and manifest Vitest group (32 files) | 467 passed (with the stub below) |
+| New layout tests | 24 passed (21 layout, 3 against manifest colliders) |
+| `tsc --noEmit -p tsconfig.app.json` | One error, `Cannot find module '@colyseus/sdk'`, in a file this work did not touch. None in castle files |
+| Production `vite build` | Passed (with the stub; output to a scratch folder) |
+| Prettier, oxlint on changed files | Pass; oxlint warnings are in files this work did not touch |
+| Python, Ruff, Django | Not run: no Python code changed |
+
+**Environment limits, recorded honestly.** `@colyseus/sdk` is not installed in the shared
+`/home/pdimitriu/Coding/node_modules` that this checkout resolves from (the previous session traced
+the same symptom to an inode-full disk). The shared directory was not modified. The castle parity
+suite and the production build were run with a **scratch alias that stubs `@colyseus/sdk`**, kept
+outside the repository. The machine was shared and loaded (load average about 13), `/home` was
+briefly full, and full `three/` suites and `tsc -b` exceeded ten minutes, so checks were run in small
+batches and the typecheck used the app project alone with an incremental cache.
+
+**Not done, not claimed.** SC-R03-02 to 07 (hub navigation and the accessible go-to control, Trophy
+Room, Observatory function, Secret Chamber, map and discovery, navigation regression), all of SC-R04
+and SC-R05, and SC-R06 to 12. The hub's go-to control needs a generic engine position API that does
+not exist. Persisted room discovery needs an owner decision on where it lives. SC-R04 and SC-R05 need
+Django changes and a PostgreSQL test database. **No room is marked visually accepted**: every row
+awaits the owner's browser inspection, and none of the art is production art.
+
+## Storykeeper Castle Reboot: SC-R03 World expansion (branch `adventures/storybook`, 2026-11-03)
+
+Detail: `tasks/TASK_TRACKER.md`, `docs/DECISIONS.md` ADR-028 (now Accepted) and ADR-047,
+`docs/PLAY_API.md` ("Storykeeper Castle room discovery"), and
+`docs/regions/storykeeper_castle_asset_manifest.md`. **No browser test was run. Nothing is merged to
+`main`. Nothing is deployed. No AWS service was called.**
+
+**Built.** The castle went from eight rooms to ten and gained the navigation to match:
+
+- **Canonical layout** (`castleLayout.ts`), derived from the region with no second router: stable
+  room ids, doors with landing points, optional locks in the shared requirement vocabulary, exits,
+  discovery state, routing and travel planning.
+- **A generic engine position API** (`FirstPersonController.teleportTo`, `LocationEngine.placeChild`)
+  that refuses solid, out-of-bounds and non-finite spots, tested on Welcome Harbor, not the castle.
+- **The castle guide**: the accessible equivalent of walking (real buttons, a live region, the walking
+  route in words, locked entries with their reason, a back-to-hub button, the Trophy Room treasures as
+  text) and **the castle map** built from the layout.
+- **Trophy Room** (new, ninth room): six solid pedestals showing the child's real inventory through the
+  existing reward items, with four open pedestals reserved for SC-R07. No second reward store.
+- **Observatory** as the Setting Tower's second function: a telescope and a star chart, flavour only.
+- **Secret Chamber** (tenth room), behind the tapestry nook: hidden from every list and refused as "not
+  on the map" until the nook is found, physically sealed, opening live. New generic
+  `DISCOVERY_ABSENT` requirement.
+- **Django-persisted room discovery** (ADR-047): an ordinary `WorldChange` behind one child-scoped
+  endpoint, no new model or migration; a secret room gets the identical 404 an unknown room gets.
+- **Per-room scenery budgets**, replacing the single castle-wide cap.
+
+**Verification.**
+
+| Check | Result |
+|---|---|
+| Castle, runtime, extension and API Vitest (80 files) | 1130 passed, with the real `@colyseus/sdk`, no stub |
+| `tsc --noEmit -p tsconfig.app.json` | Clean |
+| `tsc -b` and `vite build` (the production build) | Both exit 0, no stub |
+| Django, PostgreSQL (game_sessions, regions, progression, users) | 640 passed |
+| Ruff, `manage.py check`, `makemigrations --check` | Clean, no issues, no changes |
+| `content:check`, `golden:check`, `adr:check` | Up to date, up to date, 47 decisions |
+| Prettier, oxlint on new and changed files | Pass, no new warnings |
+
+**Environment.** `@colyseus/sdk` was installed into this checkout's own `node_modules/@colyseus/` (the
+pinned 0.18.4; the shared directory was not touched). Django tests ran on a separate PostgreSQL
+container, `lai-storybook-pg` on `127.0.0.1:5455` with its own volume, using a sibling checkout's
+read-only virtualenv, with `POSTGRES_PORT=5455 LAI_REQUIRE_POSTGRES=1`.
+
+**Limits, all at the line.** Original-room scenery 160 of 160, material presets 16 of 16, MEDIUM lights
+14 of 14, estimated draw calls about 277 of 300. All provisional until a real tablet is profiled
+(SC-R11).
+
+**Not done, not claimed.** SC-R04 (the Great Storybook) and SC-R05 (characters), SC-R06 to 12. No room
+is visually accepted: every row awaits the owner's browser inspection, and none of the art is
+production art. Until the nook discovery write path moves to Django, a Django-mode server cannot
+persist a secret-room discovery (it works in the world and nothing leaks).

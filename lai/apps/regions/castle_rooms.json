@@ -1,0 +1,20 @@
+{
+  "$comment": "The rooms of Storykeeper Castle the server will record a child discovering (SC-R03-06). The ids are a save-compatibility contract shared with react/src/features/island-map/three/castleLayout.ts (CASTLE_ROOM_IDS); a Vitest test fails if the two lists differ. Rooms are only ever appended. A secret room is recorded only once the discovery it names is on the child's world state, so the server never confirms a secret exists to a child who has not found it.",
+  "locationSlug": "storykeeper-castle",
+  "changeType": "ROOM_DISCOVERED",
+  "rooms": [
+    "entry-hall",
+    "story-hall",
+    "character-gallery",
+    "costume-room",
+    "east-corridor",
+    "setting-tower",
+    "illustration-studio",
+    "great-library",
+    "trophy-room",
+    "secret-chamber"
+  ],
+  "secretRooms": {
+    "secret-chamber": "castle-tapestry-stair"
+  }
+}

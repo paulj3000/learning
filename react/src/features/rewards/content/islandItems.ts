@@ -153,6 +153,15 @@ export const ISLAND_ITEMS: ItemDefinition[] = [
     rarity: 'UNCOMMON',
     cosmeticSlot: 'ACCESSORY',
   },
+  // SC-R04-06: the keepsake for restoring the Great Storybook, shown on a Trophy Room pedestal.
+  {
+    id: 'great-storybook-seal',
+    displayName: "The Great Storybook's Seal",
+    description:
+      'A golden seal pressed into the Great Storybook the day you helped bring its pages home.',
+    category: 'KEEPSAKE',
+    rarity: 'RARE',
+  },
 ];
 
 export const ISLAND_COLLECTIBLE_SETS: CollectibleSet[] = [
@@ -266,6 +275,20 @@ export const ISLAND_REWARD_TABLE: RewardTable = [
     itemIds: ['singing-shell'],
     message: 'A shell you have never seen before is sitting on the tide pool rock. Listen to it.',
   },
+  // SC-R04-06: one rule per band's Great Storybook quest, all granting the one seal. Each rule
+  // fires once per child, and a child has only their own band's quest, so the seal is given once.
+  ...(
+    [
+      'restore-the-great-storybook-sprouts',
+      'restore-the-great-storybook-pathfinders',
+      'restore-the-great-storybook-explorers',
+    ] as const
+  ).map((questId) => ({
+    id: `reward-${questId}`,
+    trigger: { type: 'QUEST_COMPLETED' as const, questId },
+    itemIds: ['great-storybook-seal'],
+    message: 'The Great Storybook is whole again. A golden seal glows on its cover, just for you.',
+  })),
 ];
 
 export function findItem(itemId: string): ItemDefinition | null {

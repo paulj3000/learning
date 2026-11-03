@@ -1,5 +1,9 @@
 # Storykeeper Castle — AI, 3D World, Voice, and Gameplay Upgrade Roadmap
 
+> **Consolidated (2026-11-02)** into `docs/regions/STORYKEEPER_CASTLE_REBOOT_ROADMAP.md`,
+> which maps this roadmap's nine rooms onto the existing castle. This document stays as the
+> design reference for sections 7 to 38.
+
 ## 1. Objective
 
 Transform Storykeeper Castle from a mostly static 3D walkthrough into the narrative heart of Learning Adventure Island.

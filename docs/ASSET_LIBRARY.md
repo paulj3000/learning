@@ -807,7 +807,7 @@ Deploying the asset bucket and policy; hosting Django (LAI-1004); live S3 upload
 delivery; a browser pass of the admin upload, preview and game load; manual acceptance. These are
 AM-16 and stay open.
 
-## 22. Sound cues over audio assets (Sound Manager Phase 2, ADR-047)
+## 22. Sound cues over audio assets (Sound Manager Phase 2, ADR-050)
 
 Audio files stay here: upload, validation, versions, publishing, retirement and signed delivery are
 unchanged. The `audio` app adds a configuration layer over published audio assets: `SoundCue`

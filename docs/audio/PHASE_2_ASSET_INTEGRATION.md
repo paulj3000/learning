@@ -1,7 +1,7 @@
 # Sound Manager Phase 2: Django sound library and published manifests (SM-P2)
 
 Status: development complete and unit-tested on `feature/sound-manager` (2026-11-02). Not verified
-in a browser, with audible output, against AWS, or on a deployed Django. Decision record: ADR-047
+in a browser, with audible output, against AWS, or on a deployed Django. Decision record: ADR-050
 (Proposed).
 
 Phase 1 (`react/src/audio/`) built the playback engine. Phase 2 makes Django the authority for

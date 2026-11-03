@@ -339,6 +339,222 @@
     },
     {
       "ageBands": [
+        "SPROUT"
+      ],
+      "completion": {
+        "journalNote": "The Great Storybook is whole again, and Keeper Quill is very happy.",
+        "setsNpcMemoryFlags": [
+          {
+            "flags": [
+              "restoredTheStorybook"
+            ],
+            "npcId": "keeper-quill"
+          }
+        ],
+        "worldChanges": [
+          {
+            "changeKey": "GREAT_STORYBOOK_RESTORED",
+            "changeType": "CREATE",
+            "locationSlug": "storykeeper-castle"
+          }
+        ]
+      },
+      "entryStageId": "meet-quill",
+      "giverNpcId": "keeper-quill",
+      "id": "restore-the-great-storybook-sprouts",
+      "prerequisites": [
+        {
+          "type": "ALWAYS"
+        }
+      ],
+      "stages": [
+        {
+          "id": "meet-quill",
+          "nextStageId": "bring-back-the-pages",
+          "objectives": [
+            {
+              "id": "storybook-talk-to-quill",
+              "kind": "TALK_TO",
+              "label": "Talk to Keeper Quill about the Great Storybook",
+              "memoryFlag": "metQuill",
+              "npcId": "keeper-quill"
+            }
+          ],
+          "title": "Hear what happened to the book"
+        },
+        {
+          "id": "bring-back-the-pages",
+          "objectives": [
+            {
+              "changeKey": "FIRST_STORY_TOLD",
+              "id": "storybook-page-first-story",
+              "kind": "BUILD",
+              "label": "Bring back the page called \"The First Story\""
+            },
+            {
+              "discoveryKey": "castle-tapestry-stair",
+              "id": "storybook-page-tapestry",
+              "kind": "DISCOVER",
+              "label": "Is there one more page, hiding somewhere?",
+              "optional": true
+            }
+          ],
+          "title": "Bring back the missing pages"
+        }
+      ],
+      "summary": "The Great Storybook lost its pages. Help Keeper Quill bring them back.",
+      "title": "The Great Storybook"
+    },
+    {
+      "ageBands": [
+        "PATHFINDER"
+      ],
+      "completion": {
+        "journalNote": "You brought the pages back and restored the Great Storybook. Its first story is yours.",
+        "setsNpcMemoryFlags": [
+          {
+            "flags": [
+              "restoredTheStorybook"
+            ],
+            "npcId": "keeper-quill"
+          }
+        ],
+        "worldChanges": [
+          {
+            "changeKey": "GREAT_STORYBOOK_RESTORED",
+            "changeType": "CREATE",
+            "locationSlug": "storykeeper-castle"
+          }
+        ]
+      },
+      "entryStageId": "meet-quill",
+      "giverNpcId": "keeper-quill",
+      "id": "restore-the-great-storybook-pathfinders",
+      "prerequisites": [
+        {
+          "type": "ALWAYS"
+        }
+      ],
+      "stages": [
+        {
+          "id": "meet-quill",
+          "nextStageId": "bring-back-the-pages",
+          "objectives": [
+            {
+              "id": "storybook-talk-to-quill",
+              "kind": "TALK_TO",
+              "label": "Talk to Keeper Quill about the Great Storybook",
+              "memoryFlag": "metQuill",
+              "npcId": "keeper-quill"
+            }
+          ],
+          "title": "Hear what happened to the book"
+        },
+        {
+          "id": "bring-back-the-pages",
+          "objectives": [
+            {
+              "changeKey": "FIRST_STORY_TOLD",
+              "id": "storybook-page-first-story",
+              "kind": "BUILD",
+              "label": "Bring back the page called \"The First Story\""
+            },
+            {
+              "discoveryKey": "castle-tapestry-stair",
+              "id": "storybook-page-tapestry",
+              "kind": "DISCOVER",
+              "label": "Is there one more page, hiding somewhere?",
+              "optional": true
+            }
+          ],
+          "title": "Bring back the missing pages"
+        }
+      ],
+      "summary": "The Great Storybook lost its pages. Find them and bring them back to Keeper Quill.",
+      "title": "The Great Storybook"
+    },
+    {
+      "ageBands": [
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "Every page is back. You solved the castle secrets and restored the Great Storybook.",
+        "setsNpcMemoryFlags": [
+          {
+            "flags": [
+              "restoredTheStorybook"
+            ],
+            "npcId": "keeper-quill"
+          }
+        ],
+        "worldChanges": [
+          {
+            "changeKey": "GREAT_STORYBOOK_RESTORED",
+            "changeType": "CREATE",
+            "locationSlug": "storykeeper-castle"
+          }
+        ]
+      },
+      "entryStageId": "meet-quill",
+      "giverNpcId": "keeper-quill",
+      "id": "restore-the-great-storybook-explorers",
+      "prerequisites": [
+        {
+          "type": "ALWAYS"
+        }
+      ],
+      "stages": [
+        {
+          "id": "meet-quill",
+          "nextStageId": "bring-back-the-pages",
+          "objectives": [
+            {
+              "id": "storybook-talk-to-quill",
+              "kind": "TALK_TO",
+              "label": "Talk to Keeper Quill about the Great Storybook",
+              "memoryFlag": "metQuill",
+              "npcId": "keeper-quill"
+            }
+          ],
+          "title": "Hear what happened to the book"
+        },
+        {
+          "id": "bring-back-the-pages",
+          "objectives": [
+            {
+              "changeKey": "SECRET_DOOR_CLUES_COLLECTED",
+              "id": "storybook-page-three-clues",
+              "kind": "BUILD",
+              "label": "Bring back the page called \"Three Clues\""
+            },
+            {
+              "changeKey": "CASTLE_SECRET_DOOR_OPENED",
+              "id": "storybook-page-pattern-lock",
+              "kind": "BUILD",
+              "label": "Bring back the page called \"The Pattern Lock\""
+            },
+            {
+              "changeKey": "THE_CASTLES_SECRET_DOOR_COMPLETE",
+              "id": "storybook-page-what-was-waiting",
+              "kind": "BUILD",
+              "label": "Bring back the page called \"What Was Waiting\""
+            },
+            {
+              "discoveryKey": "castle-tapestry-stair",
+              "id": "storybook-page-tapestry",
+              "kind": "DISCOVER",
+              "label": "Is there one more page, hiding somewhere?",
+              "optional": true
+            }
+          ],
+          "title": "Bring back the missing pages"
+        }
+      ],
+      "summary": "Pages of the Great Storybook are scattered through the castle. Find them all and restore the book.",
+      "title": "The Great Storybook"
+    },
+    {
+      "ageBands": [
         "SPROUT",
         "PATHFINDER",
         "EXPLORER"

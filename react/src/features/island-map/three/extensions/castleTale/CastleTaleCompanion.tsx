@@ -2,10 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { SpeechCaption } from '../../../../../audio/speech';
 import { getActiveSession, listActionsForSessions } from '../../../../adventures/api';
-import { resolveAdventureForAgeBand } from '../../../../adventures/content';
 import { THE_STORYKEEPERS_TALE } from '../../../../adventures/content/theStorykeepersTale';
-import { isStoryForAgeBand } from '../../../../story/engine/eligibility';
-import { THE_CASTLES_SECRET_DOOR } from '../../../../story/content/theCastlesSecretDoor';
 import {
   resolveCastleChoiceBinding,
   resolveCastleChoiceEntity,
@@ -17,8 +14,13 @@ import type { AdventureDefinition } from '../../../../adventures/engine/types';
 import speechStyles from './CastleSpeech.module.css';
 import { useCastleSpeech } from './useCastleSpeech';
 import { CastleTaleSession, type CastleChoiceState } from './CastleTaleSession';
+import { SECRET_PASSAGE_DISCOVERY_ID } from '../../castleLayout';
+import { toSceneState } from '../../../../great-storybook/scene';
+import { useGreatStorybook } from '../../../../great-storybook/useGreatStorybook';
+import { CastleGuide } from './CastleGuide';
 import { CastleSecretDoorStory } from './CastleSecretDoorStory';
 import { isCastleTaleScene, type CastleTaleSceneApi } from './castleTaleScene';
+import { isSecretDoorStoryForBand, taleAdventureForBand } from './castleTaleClaims';
 import { tryParseCastleTaleConfig } from './castleTaleConfig';
 
 /**
@@ -88,6 +90,7 @@ export function CastleTaleCompanion({
   config,
   bus,
   sceneApi,
+  worldState,
   claimedInteraction,
   openInteraction,
   onCloseInteraction,
@@ -104,23 +107,37 @@ export function CastleTaleCompanion({
 
   // Spoken dialogue (SM-P8-09): the castle opts in while it is mounted. See `useCastleSpeech`.
   const { speech, speaker } = useCastleSpeech(childId, parsed?.quillEntityId, sceneRef);
+  // The Great Storybook (SC-R04-02): derived from the records the castle already holds. Nothing
+  // here restores or grants a page; it only shows the book and the moment a page comes back.
+  const discoveryIds = useMemo(() => worldState.discoveryIds ?? [], [worldState.discoveryIds]);
+  const storybook = useGreatStorybook({
+    childId,
+    band: ageBand,
+    worldChangeKeys: worldState.worldChangeKeys,
+    discoveryIds,
+    onPageRestored: useCallback(
+      (page: { title: string }) => showToast(`A page flew back into the book: ${page.title}.`),
+      [showToast],
+    ),
+    onBookRestored: useCallback(
+      () => showToast('The Great Storybook is whole again!'),
+      [showToast],
+    ),
+  });
+
+  // The 3D book is drawn from the same derived progress as the card: one source, two views.
+  const sceneState = useMemo(() => toSceneState(storybook.progress), [storybook.progress]);
+  useEffect(() => {
+    scene?.showStorybook(sceneState);
+  }, [scene, sceneState]);
 
   const [taleActive, setTaleActive] = useState(false);
   const [storyActive, setStoryActive] = useState(false);
   const [restoredChoices, setRestoredChoices] = useState<CastleChoiceState>(NO_CHOICES);
 
   /** Which adventure this child's band gets here (SC-10), asked rather than assumed. */
-  const taleForBand = useMemo(
-    () =>
-      resolveAdventureForAgeBand(
-        THE_STORYKEEPERS_TALE.locationSlug,
-        THE_STORYKEEPERS_TALE.slug,
-        ageBand,
-      ),
-    [ageBand],
-  );
-  /** ADR-027: the Story Engine's own gate, asked rather than restated here. */
-  const storyForBand = isStoryForAgeBand(THE_CASTLES_SECRET_DOOR, ageBand);
+  const taleForBand = useMemo(() => taleAdventureForBand(ageBand), [ageBand]);
+  const storyForBand = isSecretDoorStoryForBand(ageBand);
 
   /*
     A session left open from an earlier visit resumes in the room the child
@@ -196,6 +213,16 @@ export function CastleTaleCompanion({
       scene.showEaselPainting(restoredChoices.heroOptionId, restoredChoices.settingOptionId);
     }
   }, [scene, restoredChoices]);
+
+  /*
+    The tapestry nook, found: the passage behind it opens in the room, now. A
+    child who found it on an earlier visit never sees it sealed, because the
+    build leaves the seal out; this is for finding it mid-visit. Idempotent.
+  */
+  const nookFound = worldState.discoveryIds?.includes(SECRET_PASSAGE_DISCOVERY_ID) ?? false;
+  useEffect(() => {
+    if (scene && nookFound) scene.showSecretPassageOpened(true);
+  }, [scene, nookFound]);
 
   /** The two interactions this extension claims, and what opening them means. */
   useEffect(() => {
@@ -288,6 +315,7 @@ export function CastleTaleCompanion({
   return (
     <>
       {hudSlot ? createPortal(captions, hudSlot) : captions}
+      <CastleGuide scene={scene} worldState={worldState} childId={childId} storybook={storybook} />
       {taleActive && taleForBand ? (
         <CastleTaleSession
           childId={childId}

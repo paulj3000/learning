@@ -49,7 +49,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-025 | Exceptions are logged as type and location, never as message | Accepted | Django migration line |  |
 | ADR-026 | Multiplayer runs on a separate authoritative room server over WebSocket; the engine only renders it | Accepted | Main line (Storykeeper Castle / engine) | Integrated from `origin/main`; number unchanged |
 | ADR-027 | A story chapter may be played inside a 3D region; the Story Engine keeps sole ownership of progress | Accepted | Storykeeper Castle line | Renumbered from ADR-019 |
-| ADR-028 | Where the castle's art comes from | Proposed | Storykeeper Castle line | Renumbered from ADR-020 |
+| ADR-028 | Where the castle's art comes from | Accepted | Storykeeper Castle line | Renumbered from ADR-020. Accepted by the owner 2026-11-03: the "Recommended decision, 2026-11-02" (hybrid sourcing plus runtime procedural surfaces) is the decision. Procedural art is interim, not production art |
 | ADR-029 | Phaser 2D views are phased out; new regions are authored in Three.js only | Accepted | Storykeeper Castle line | Renumbered from ADR-021. Related to ADR-020, not a duplicate |
 | ADR-030 | Uploaded models live in S3 behind Admins-only Asset records; the bundled manifest stays the runtime fallback | Accepted | Storykeeper Castle line | Renumbered from ADR-022 |
 | ADR-031 | Islands and Adventures are an admin catalog overlaid on source-controlled content; Superusers are Admins with one extra group | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-024 on `origin/main`. To be superseded when LAI-0801/0802 move catalog editing to Django (ADR-019 sub-decision 8). Treasure Rush's TR-D3 (admin-authored content as authoritative, which would have changed it) was not adopted (ADR-033) |
@@ -68,9 +68,10 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-044 | Django serves Chatty's companion and tutor turns through Bedrock Converse with a child-safety Guardrail; Amplify AI routes stay until client cutover | Accepted | Feature branch (features/ai) | Owner-directed 2026-11-01 (Phase 7 brief: LAI-0306, LAI-0701 to LAI-0704). Accepts ADR-019 sub-decision 9 for code and infrastructure definitions only; live Bedrock, Guardrail deployment and the React cutover stay gated (LAI-0705, LAI-0706, G7) |
 | ADR-045 | Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets | Accepted | Feature branch `feature/asset-manager` (AM-13, AM-17) | Owner-directed 2026-11-02 (development only; no deployment, AWS or browser acceptance). Supersedes ADR-042 amendment items 2 and 3 for assets and AM-14, AM-15; narrows ADR-043 scope; builds on ADR-035 and ADR-040 |
 | ADR-046 | AI Question Studio is a staff-only Django app that drafts questions through the ADR-044 model client and serves published questions through the existing challenge and grading path | Accepted | Feature branch (features/studio) | Owner brief 2026-11-02 (Phase 28); accepted the same day ("proceed as proposed"). Builds on ADR-019, ADR-033, ADR-034, ADR-044. Not deployed |
-| ADR-047 | Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver | Proposed | Feature branch `feature/sound-manager` (SM-P2) | Development only, 2026-11-02; owner acceptance pending. Builds on ADR-035, ADR-041, ADR-045; records Sound Manager decisions SM-D1 to SM-D6 |
-| ADR-048 | Spatial audio is a panner on the Sound Manager's one AudioContext; emitters and zones are reusable and Three.js-free; Django configures distances and zone beds | Proposed | Feature branch `feature/sound-manager` (SM-P7) | Development only, 2026-11-03; owner acceptance pending. Builds on ADR-047 |
-| ADR-049 | Django owns speech synthesis through Amazon Polly behind a fake-able client; games speak only server-approved references; React plays through the Sound Manager's voice channel | Proposed | Feature branch `feature/sound-manager` (SM-P8) | Development only, 2026-11-03; owner acceptance and live verification pending. Builds on ADR-044, ADR-045, ADR-047, ADR-048 |
+| ADR-047 | Castle room discovery is a `WorldChange` behind a child-scoped Django endpoint, with no new model, and a secret room is refused exactly like a room that does not exist | Accepted | Storykeeper Castle line | Owner decision 2026-11-03: discovery persists in Django, scoped to the child; React displays and caches. SC-R03-06 |
+| ADR-048 | Spatial audio is a panner on the Sound Manager's one AudioContext; emitters and zones are reusable and Three.js-free; Django configures distances and zone beds | Proposed | Feature branch `feature/sound-manager` (SM-P7) | Development only, 2026-11-03; owner acceptance pending. Builds on ADR-050 |
+| ADR-049 | Django owns speech synthesis through Amazon Polly behind a fake-able client; games speak only server-approved references; React plays through the Sound Manager's voice channel | Proposed | Feature branch `feature/sound-manager` (SM-P8) | Development only, 2026-11-03; owner acceptance and live verification pending. Builds on ADR-044, ADR-045, ADR-050, ADR-048 |
+| ADR-050 | Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver | Proposed | Feature branch `feature/sound-manager` (SM-P2) | Development only, 2026-11-02; owner acceptance pending. Builds on ADR-035, ADR-041, ADR-045; records Sound Manager decisions SM-D1 to SM-D6 |
 
 ## ADR-001: Parent-owned accounts
 
@@ -1652,7 +1653,9 @@ authors it there.
 
 > Renumbered in the post-merge reconciliation (was ADR-020; the incoming Storykeeper Castle / Wonderwild / Clockwork line collided with the Django migration ADR-019 to ADR-022). Text and status are unchanged.
 
-Status: Proposed
+Status: Accepted (owner, 2026-11-03). The "Recommended decision, 2026-11-02" section near the end of
+this ADR is the decision. The earlier "Proposed decision" (vertex colours first, then CC0 scenery,
+wholesale replacement deferred) is the history it refines, not a competing choice
 
 `docs/regions/storykeeper_castle.md` asks for "stylized fantasy, low-poly to
 moderate-poly, warm and colorful, exaggerated silhouettes, slightly magical,
@@ -1836,6 +1839,54 @@ None of these numbers exist yet, and the decision is better made with them:
    this ("avoid mixing highly realistic assets with cartoon assets").
 4. The sourcing question in the paragraph above, which is the one that
    actually determines whether the castle becomes showable.
+
+
+### Decision, accepted 2026-11-03 (recommended 2026-11-02 in SC-R01-03)
+
+Recorded for the owner by the Storykeeper Castle Reboot
+(`docs/regions/STORYKEEPER_CASTLE_REBOOT_ROADMAP.md`) and **accepted by the owner on
+2026-11-03**, after checking that its wording matches what the owner adopted: a stylized,
+textured, child-friendly castle, with the current procedural scenery as interim art.
+The full conventions, budgets and ledger rules are in
+`docs/regions/storykeeper_castle_art_direction.md`.
+
+**Art direction: "Stylized Fantasy Storybook 3D".** Vibrant, welcoming colour;
+consistent materials; low-poly, stylized geometry with enough detail to feel
+finished; warm light with magical highlights; a distinct personality per room;
+child-friendly rounded shapes; clear silhouettes on interactive objects;
+rendering light enough for tablets.
+
+**Hybrid sourcing, in order of preference per asset:**
+
+1. **Licensed environment kits** for architecture and scenery, where the
+   licence allows redistribution in an app bundle (prefer CC0). KayKit
+   Dungeon Remastered is the named candidate. Two of its pieces are already
+   in use; the rest are not in the repository and must be acquired and
+   recorded in `docs/ASSET_LICENCES.md` before use. Its 4 m walls against the
+   castle's 3 m `WALL_HEIGHT` are a separate owner decision.
+2. **Commissioned assets** for Keeper Quill, Ember, the Great Storybook and
+   iconic landmark props. These are unpriced, a budget decision.
+3. **Procedural geometry** (the generator) for every gameplay-bearing asset
+   whose exact state the puzzle depends on. This keeps option C's identical
+   vertices and the "no gameplay-bearing import" rule above.
+4. **Procedural surface textures generated in code at runtime** for floors,
+   walls, ceilings and trim. This is a variant of option C: deterministic
+   seeded pixel patterns uploaded as `DataTexture`s, with no image file, no
+   decode, no licence, and no change to the jsdom test strategy. The
+   surfaces get world-scaled UVs so a texel is the same size in every room.
+   It lifts every surface the child walks past without waiting for (1) or
+   (2), and any surface can later be switched to a licensed texture through
+   the same material preset.
+5. **Asset Library-managed, versioned binaries** (ADR-035, ADR-045) for
+   anything imported, addressed by logical id. Bundled `manifest.ts` stays
+   the fallback.
+6. **Shared materials**: one material per preset per scene. No per-object
+   material copies.
+
+**Limit, restated honestly.** Items 3 and 4 make a coherent, stylized,
+textured castle. They are not commissioned art. Characters and landmarks stay
+generated placeholders until (2) is funded, and the reboot's visual tasks
+record that as partial rather than done.
 
 
 ## ADR-029: Phaser 2D views are phased out; new regions are authored in Three.js only
@@ -3340,7 +3391,53 @@ The owner confirmed this exception on 2026-11-02.
 **Not decided here.** A task queue for long batches, a Django curriculum for grades above 2,
 text-stem question delivery to children, and live Bedrock acceptance (LAI-0705).
 
-## ADR-047: Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver
+## ADR-047: Castle room discovery is a `WorldChange` behind a child-scoped Django endpoint, with no new model, and a secret room is refused exactly like a room that does not exist
+
+Status: Accepted (owner, 2026-11-03: "store discovery persistently in Django/Postgres, scoped to
+the child; keep React responsible only for displaying and caching the state"). Builds on ADR-033
+(one Django backbone) and ADR-019 (Python owns the rules). Contract: `docs/PLAY_API.md`, "Storykeeper
+Castle room discovery".
+
+**Context.** The castle map (SC-R03-06) needs to show which rooms a child has explored, across
+sessions and devices. The castle's layout is still a TypeScript manifest (ADR-033, LAI-0805), but the
+fact that a child has been somewhere is the child's own durable progress, and it must not live only in
+the browser. The rest of the app still reads world state through Amplify (the deployed baseline until
+cutover).
+
+**Decision.**
+
+1. A discovery is an ordinary `WorldChange` on the canonical progression backbone:
+   `location_slug` `storykeeper-castle`, `change_type` `ROOM_DISCOVERED`, `change_key`
+   `castle-room:<roomId>`, written by the existing idempotent `record_world_change`. **No new model,
+   migration or table.** A world change is already durable, child-scoped, unique per child and key, and
+   append-only, and ADR-033 forbids a second progress model for one feature.
+2. One child-scoped, bearer-only endpoint, `GET` and `POST children/{id}/castle/rooms/`
+   (`lai/apps/game_sessions/castle_views.py`). The body is closed and carries only a room id; the
+   server decides which ids it accepts, from `lai/apps/regions/castle_rooms.json`, which the client's
+   `CASTLE_ROOM_IDS` shares and a Vitest test keeps in step.
+3. **A secret room is refused exactly like a room that does not exist.** A room that names a secret
+   (today `secret-chamber`, behind the tapestry nook) is recorded only once the discovery it depends on
+   is on the child's `WorldState`. Before that, the server answers with the identical `404 not_found`
+   an unknown room gets, and the list never names it, so the endpoint cannot be used to learn that a
+   secret exists.
+4. React only displays and caches. It reads the saved list once, marks each room entered for the visit,
+   and records each new room once. **Any refusal, a missing Django API in the build, or a network
+   failure means "not saved", never an error a child sees.** In a build without the Django API (the
+   Amplify-only baseline) the map still works for the visit and nothing is saved.
+
+**Consequence, resolved by SC-R04-00 (2026-11-03).** The nook discovery used to be written only
+through the Amplify client, so in Django mode the server could not see it and a secret-room
+discovery was never persisted. Django now has the authoritative discovery record (`POST` and `GET
+children/{id}/discoveries/`, `docs/PLAY_API.md`) on the existing `WorldState.discovered_objects`, with
+no new model. In Django mode the client asks the server first and treats its answer as the
+authority; it merges the server's list into what it reads; and it tells the server about secrets
+found before Django mode. A build without the Django API, or a server failure, falls back to the
+Amplify path unchanged.
+
+**Not decided here.** Granting anything for exploring (nothing does), a Django-administered castle
+layout (LAI-0805), and moving the discovery write path to Django (the ADR-019 cutover).
+
+## ADR-050: Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver
 
 Status: Proposed 2026-11-02 (development only; needs owner acceptance). Branch
 `feature/sound-manager` (SM-P2). Builds on ADR-035 (versioned, privately stored, signed assets),
@@ -3464,7 +3561,7 @@ server did not approve, must not need a browser credential, and must not make pl
 4. **Dedicated cache and store.** Cache key over text, voice, engine, language, rate, cache version
    and (for a child's AI text) the child. One synthesis per key under a database lock. Expiring
    objects, signed expiring delivery, purge on child deletion. Generated speech never enters the
-   Sound Library automatically (ADR-047 stays the home of reusable audio).
+   Sound Library automatically (ADR-050 stays the home of reusable audio).
 5. **Operational limits and honest cost.** Per-child and global daily caps, a process concurrency
    gate, a kill switch, counts only in metrics, and a cost estimate that is labelled an estimate.
 6. **React plays, it does not synthesize.** Clips play as temporary `voice` sounds in a scope, so

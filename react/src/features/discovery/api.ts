@@ -22,6 +22,7 @@
  * their own children's exploration record, and Admins read only.
  */
 import { client } from '../../lib/data-client';
+import { discoveriesApiFor, type RecordedDiscovery } from '../../api/play/discoveriesApi';
 import type { Schema } from '../../../../amplify/data/resource';
 import { listAllWorldChanges, recordWorldChangeOnce } from '../adventures/api';
 import { getInventory, grantRewards } from '../rewards/api';
@@ -59,7 +60,55 @@ async function findRow(childProfileId: string): Promise<ChildWorldStateRow | und
 /** This child's exploration record, or an empty one if they have never found anything. */
 export async function getWorldState(childProfileId: string): Promise<WorldStateSnapshot> {
   const row = await findRow(childProfileId);
-  return row ? toSnapshot(row) : EMPTY_WORLD_STATE;
+  const snapshot = row ? toSnapshot(row) : EMPTY_WORLD_STATE;
+  return withServerDiscoveries(childProfileId, snapshot);
+}
+
+/**
+ * In Django mode the server's record of what a child has found is merged in,
+ * so a discovery it holds is never lost to an Amplify write that failed (SC-R04-00).
+ * A union, in the content's order: Django is authoritative for what it holds, and
+ * the Amplify row still carries everything found before Django mode. A failed read
+ * leaves the Amplify snapshot as it was, and a build without the Django API never
+ * gets here.
+ */
+async function withServerDiscoveries(
+  childProfileId: string,
+  snapshot: WorldStateSnapshot,
+): Promise<WorldStateSnapshot> {
+  const server = discoveriesApiFor(childProfileId);
+  if (!server) return snapshot;
+  try {
+    const known = parseKnownIds(await server.list(), ISLAND_DISCOVERY_IDS);
+    const merged = ISLAND_DISCOVERY_IDS.filter(
+      (id) => snapshot.discoveredIds.includes(id) || known.includes(id),
+    );
+    return merged.length === snapshot.discoveredIds.length &&
+      merged.every((id) => snapshot.discoveredIds.includes(id))
+      ? snapshot
+      : { ...snapshot, discoveredIds: merged };
+  } catch {
+    return snapshot;
+  }
+}
+
+/**
+ * Asks the server whether this find stands, and records it there. `undefined`
+ * means there is no server answer (no Django API in this build, or it failed),
+ * which is never a reason to stop a child finding something: the Amplify path
+ * carries on exactly as it did before Django mode.
+ */
+async function askServer(
+  childProfileId: string,
+  discoveryId: string,
+): Promise<RecordedDiscovery | undefined> {
+  const server = discoveriesApiFor(childProfileId);
+  if (!server) return undefined;
+  try {
+    return await server.record(discoveryId);
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -145,8 +194,29 @@ export async function recordDiscovery(
 ): Promise<DiscoveryResult> {
   const resolvedContext = context ?? (await buildDiscoveryContext(childProfileId));
   const outcome = resolveDiscovery(definition, resolvedContext);
+  if (outcome.status === 'ALREADY_FOUND') {
+    // Found before Django mode, or by an Amplify write the server never saw: tell the server, so
+    // it holds the record too. Idempotent, and nothing here waits on it or changes what is shown.
+    void askServer(childProfileId, definition.id);
+  }
   if (outcome.status !== 'FOUND_NOW') {
     return { outcome, rewardMessages: [], newItemIds: [] };
+  }
+
+  // In Django mode the server is the authority. If it says the secret does not open for this
+  // child, it stays shut, whatever the client's copy of the state said. Any other answer, or
+  // none, carries on: the writes below are idempotent, so the two records only ever agree.
+  const authority = await askServer(childProfileId, definition.id);
+  if (authority?.status === 'LOCKED') {
+    return {
+      outcome: {
+        ...outcome,
+        status: 'LOCKED',
+        message: authority.message ?? definition.lockedMessage,
+      },
+      rewardMessages: [],
+      newItemIds: [],
+    };
   }
 
   const row = await findRow(childProfileId);

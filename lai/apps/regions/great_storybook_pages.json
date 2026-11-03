@@ -1,0 +1,92 @@
+{
+  "$comment": "The Great Storybook's pages and quests (SC-R04-02), as the server needs them. A page is derived from a record the castle's content already writes; it is never stored. This file mirrors react/src/features/great-storybook/pages.ts (STORYBOOK_PAGES) and GREAT_STORYBOOK_QUEST_IDS, which are authored there; a Vitest test fails if they differ.",
+  "quests": {
+    "SPROUT": "restore-the-great-storybook-sprouts",
+    "PATHFINDER": "restore-the-great-storybook-pathfinders",
+    "EXPLORER": "restore-the-great-storybook-explorers"
+  },
+  "pages": [
+    {
+      "id": "page-first-story",
+      "title": "The First Story",
+      "bands": [
+        "SPROUT",
+        "PATHFINDER"
+      ],
+      "required": true,
+      "source": {
+        "kind": "WORLD_CHANGE",
+        "changeKey": "FIRST_STORY_TOLD",
+        "locationSlug": "storykeeper-castle"
+      },
+      "roomId": "story-hall",
+      "hint": "Tell a story with Keeper Quill in the Story Hall.",
+      "restoredText": "The story you told has flown back into the book."
+    },
+    {
+      "id": "page-three-clues",
+      "title": "Three Clues",
+      "bands": [
+        "EXPLORER"
+      ],
+      "required": true,
+      "source": {
+        "kind": "WORLD_CHANGE",
+        "changeKey": "SECRET_DOOR_CLUES_COLLECTED",
+        "locationSlug": "castle-secret-passage"
+      },
+      "roomId": "great-library",
+      "hint": "Look for clues in the Great Library.",
+      "restoredText": "The three clues you found are written on this page."
+    },
+    {
+      "id": "page-pattern-lock",
+      "title": "The Pattern Lock",
+      "bands": [
+        "EXPLORER"
+      ],
+      "required": true,
+      "source": {
+        "kind": "WORLD_CHANGE",
+        "changeKey": "CASTLE_SECRET_DOOR_OPENED",
+        "locationSlug": "castle-secret-passage"
+      },
+      "roomId": "great-library",
+      "hint": "There is a door with no handle in the Great Library.",
+      "restoredText": "The pattern you worked out opened the door, and this page came back."
+    },
+    {
+      "id": "page-what-was-waiting",
+      "title": "What Was Waiting",
+      "bands": [
+        "EXPLORER"
+      ],
+      "required": true,
+      "source": {
+        "kind": "WORLD_CHANGE",
+        "changeKey": "THE_CASTLES_SECRET_DOOR_COMPLETE",
+        "locationSlug": "castle-secret-passage"
+      },
+      "roomId": "great-library",
+      "hint": "Finish what you started at the secret door.",
+      "restoredText": "You found what was waiting, and the last page settled into place."
+    },
+    {
+      "id": "page-tapestry",
+      "title": "The Hidden Page",
+      "bands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "required": false,
+      "source": {
+        "kind": "DISCOVERY",
+        "discoveryId": "castle-tapestry-stair"
+      },
+      "roomId": "story-hall",
+      "hint": "One page is hiding. Explorers might find it.",
+      "restoredText": "You found a page that was hiding, and it is back in the book."
+    }
+  ]
+}

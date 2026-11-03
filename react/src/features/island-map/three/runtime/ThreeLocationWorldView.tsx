@@ -44,6 +44,8 @@ import { CalmStop } from '../../../session/CalmStop';
 import { useSessionClock } from '../../../session/useSessionClock';
 import type { LocationViewExtensionRegistry } from './viewExtensionRegistry';
 import { SOURCE_VIEW_EXTENSIONS } from '../extensions/viewExtensions';
+import { chooseRenderQuality, deviceHintsFromNavigator } from './visual/renderQuality';
+import { prefersReducedMotion } from '../../../../lib/motionPreference';
 
 /**
  * The one React view for any manifest-driven 3D location
@@ -416,7 +418,12 @@ export function ThreeLocationWorldView({
               parent,
               bus,
               manifest,
-              { startCheckpointId, worldState: snapshot.context },
+              {
+                startCheckpointId,
+                worldState: snapshot.context,
+                quality: chooseRenderQuality(deviceHintsFromNavigator()),
+                reducedMotion: prefersReducedMotion(),
+              },
               { ...DEFAULT_LOCATION_ENGINE_DEPS, assets },
             )
           }
