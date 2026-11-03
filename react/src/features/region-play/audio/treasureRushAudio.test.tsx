@@ -6,6 +6,7 @@ import { resetSharedSoundManager } from '../../../audio/sharedSoundManager';
 import { SoundProvider, type AudioManifestSource } from '../../../audio/react';
 import type { LoadedSound, VoiceEndReason, VoiceOptions } from '../../../audio/AudioEngine';
 import type { SoundManager } from '../../../audio/AudioTypes';
+import type { ManifestScope } from '../../../audio/manifest/manifestTypes';
 import { FakeEngine, type FakeVoice } from '../../../audio/testing/fakes';
 import { WorldEngineEventBus } from '../../island-map/three/worldEngineEvents';
 import { playCue, setSoundSink } from '../soundCues';
@@ -76,11 +77,11 @@ function manifestOf(cues: readonly string[], revision = 'r1') {
 function build(cues: readonly string[] = ALL_CUES) {
   const engine = new RecordingEngine();
   const manager = createSoundManager({ engine });
-  const fetchManifest = vi.fn(async () => manifestOf(cues));
-  const source: AudioManifestSource = {
+  const fetchManifest = vi.fn(async (_scope: ManifestScope) => manifestOf(cues));
+  const source = {
     fetchManifest,
-    resolver: { resolve: async (id) => ({ id, url: `signed://${id}` }) },
-  };
+    resolver: { resolve: async (id: string) => ({ id, url: `signed://${id}` }) },
+  } as AudioManifestSource | null;
   return { engine, manager, source, fetchManifest, bus: new WorldEngineEventBus() };
 }
 
@@ -154,9 +155,12 @@ describe('manifest integration (SM-P3-02)', () => {
 
   it('plays the cues that were waiting once a late manifest arrives', async () => {
     const world = build();
-    let release!: (value: unknown) => void;
+    let release!: (value: ReturnType<typeof manifestOf>) => void;
     world.fetchManifest.mockImplementation(
-      () => new Promise((resolve) => (release = resolve)) as Promise<ReturnType<typeof manifestOf>>,
+      () =>
+        new Promise<ReturnType<typeof manifestOf>>((resolve) => {
+          release = resolve;
+        }),
     );
     const { engine } = await mount(world);
     expect(engine.heard()).toEqual([]);
@@ -316,9 +320,12 @@ describe('lifecycle and cleanup (SM-P3-07)', () => {
 
   it('never starts audio from a manifest that arrives after the game was left', async () => {
     const world = build();
-    let release!: (value: unknown) => void;
+    let release!: (value: ReturnType<typeof manifestOf>) => void;
     world.fetchManifest.mockImplementation(
-      () => new Promise((resolve) => (release = resolve)) as Promise<ReturnType<typeof manifestOf>>,
+      () =>
+        new Promise<ReturnType<typeof manifestOf>>((resolve) => {
+          release = resolve;
+        }),
     );
     const { engine, view } = await mount(world);
     view.unmount();
