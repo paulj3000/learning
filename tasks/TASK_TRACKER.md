@@ -312,7 +312,18 @@ Vitest and fakes only; no real-browser audio check has been run.
   - [x] **SM-P7-09** Tests (engine, manager, emitters, zones, Treasure Rush, Lookout engine, Django)
   - [x] **SM-P7-10** Documentation and tracker
   - [ ] **SM-P7-V** Audible verification of positions, falloff and the Lookout wind bed (owner, in a browser)
-- [ ] **SM-P8** Narration and companion voice, captions (depends: provider decision, SM-P6)
+- [x] **SM-P8** Narration and companion voice, captions (depends: provider decision, SM-P6). DEVELOPMENT DONE 2026-11-03 on `feature/sound-manager` with a FAKE Polly client; nothing heard, no live AWS or Bedrock call. ADR-049 (Proposed). Detail: `docs/audio/AMAZON_POLLY_INTEGRATION.md`
+  - [x] **SM-P8-01** Audit of the AI service, dialogue, Storykeeper, audio engine and AWS configuration
+  - [x] **SM-P8-02** Django `apps.speech` Polly service: fake client, timeouts, bounded retries, safe errors, length limits, SSML only where supported
+  - [x] **SM-P8-03** Admin-managed voice profiles with an explicit voice / engine / language table, starter profiles, authored speech lines, Speech editors group
+  - [x] **SM-P8-04** Authorized speech API by reference (utterance, line, npcNode), child-scoped, rate-limited, safe failures
+  - [x] **SM-P8-05** Dedicated speech cache and store, advisory-locked single synthesis, signed expiring delivery, expiry cleanup, child purge, usage and estimated-cost counters
+  - [x] **SM-P8-06** React `SpeechPlayer` on the voice channel: queue, interrupt, pause, resume, skip, replay, cancel, scope cleanup
+  - [x] **SM-P8-07** Captions and controls (`SpeechCaption`), text-only fallback, utterance-level only
+  - [x] **SM-P8-08** Bedrock to Polly: validated turns become short-lived approved utterances; nothing unvalidated is spoken
+  - [x] **SM-P8-09** Storykeeper's Castle: Keeper Quill's lines spoken from his position, story narration flat; `adventures/storybook` NOT merged
+  - [x] **SM-P8-10** Chatty and tutor adapters through an opt-in speech binding; documentation
+  - [ ] **SM-P8-LIVE** Live verification gate (OPEN): real Polly request, audible voice quality, voice / engine table against current AWS docs, speech bucket and IAM, presigned delivery, Bedrock end to end, cost against the bill (checklist in the Polly doc, section 11)
 - [ ] **TR-11** Second chest and quest chain (depends: TR-9)
 
 ## Phase 28 — AI Question Studio (branch `features/studio`, ADR-046 Accepted)

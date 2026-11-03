@@ -12235,3 +12235,25 @@ dialogue emitter exists yet (no such cues). Existing databases need `seed_treasu
 region publish for the Lookout zone. Treasure Rush now needs 16 cues (wind added).
 
 **Checks.** See the end-of-batch delivery notes.
+
+
+## Sound Manager Phase 8: dynamic speech with Amazon Polly (SM-P8) (2026-11-03, branch `feature/sound-manager`, not merged, not deployed)
+
+**Acceptance criteria.** Django synthesizes speech from server-approved text through Polly (fake in
+development), staff manage voices in Django Admin, speech is cached and delivered through
+authorized expiring URLs, React plays it on the voice channel with captions and controls, Bedrock
+turns are spoken only after validation, Storykeeper's Castle is the first Polly-enabled adventure,
+and text always remains available.
+
+**Built.** `lai/apps/speech` (voices, fake and real Polly client, store, service, API, admin,
+commands, migration `0001`), the AI integration (`speech` reference on validated turns, character
+voices), `react/src/audio/speech/` (player, hook, caption, adapters, binding), `api/speech`, the
+castle hook (`useCastleSpeech`) and the opt-in bindings in `NpcConversation`, `useCompanionTurn`
+and `useTutorTurn`. Detail: `docs/audio/AMAZON_POLLY_INTEGRATION.md`, ADR-049 (Proposed).
+
+**Not done / limits.** No real Polly, Bedrock or AWS call; nothing heard; **SM-P8-LIVE is open**.
+Utterance-level captions only.
+`adventures/storybook` was not merged; expect a mechanical conflict in the castle companion when it
+lands.
+
+**Checks.** See the end-of-batch delivery notes.

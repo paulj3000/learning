@@ -70,6 +70,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-046 | AI Question Studio is a staff-only Django app that drafts questions through the ADR-044 model client and serves published questions through the existing challenge and grading path | Accepted | Feature branch (features/studio) | Owner brief 2026-11-02 (Phase 28); accepted the same day ("proceed as proposed"). Builds on ADR-019, ADR-033, ADR-034, ADR-044. Not deployed |
 | ADR-047 | Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver | Proposed | Feature branch `feature/sound-manager` (SM-P2) | Development only, 2026-11-02; owner acceptance pending. Builds on ADR-035, ADR-041, ADR-045; records Sound Manager decisions SM-D1 to SM-D6 |
 | ADR-048 | Spatial audio is a panner on the Sound Manager's one AudioContext; emitters and zones are reusable and Three.js-free; Django configures distances and zone beds | Proposed | Feature branch `feature/sound-manager` (SM-P7) | Development only, 2026-11-03; owner acceptance pending. Builds on ADR-047 |
+| ADR-049 | Django owns speech synthesis through Amazon Polly behind a fake-able client; games speak only server-approved references; React plays through the Sound Manager's voice channel | Proposed | Feature branch `feature/sound-manager` (SM-P8) | Development only, 2026-11-03; owner acceptance and live verification pending. Builds on ADR-044, ADR-045, ADR-047, ADR-048 |
 
 ## ADR-001: Parent-owned accounts
 
@@ -3440,3 +3441,47 @@ A Django-administered spatial layout (ADR-033; layouts stay in TypeScript and th
 **Consequences.** Positional audio costs one panner per placed sound and a capped voice count.
 Existing databases need `seed_treasure_rush` and a region publish to receive the Lookout zone.
 Acceptance remains with the owner after an audible check.
+
+
+## ADR-049: Django owns speech synthesis through Amazon Polly behind a fake-able client; games speak only server-approved references; React plays through the Sound Manager's voice channel
+
+**Status.** Proposed (2026-11-03, `feature/sound-manager`, SM-P8). Development only; a fake Polly
+client, a fake engine and an in-memory store are all that has run. Live verification is open.
+
+**Context.** Characters should be able to speak: Keeper Quill, Chatty, the tutor. Speech is text
+leaving the system for a third party and audio reaching a child, so it must never speak anything the
+server did not approve, must not need a browser credential, and must not make play depend on it.
+
+**Decision.**
+
+1. **Django synthesizes.** A small `PollyClient` interface with a deterministic fake and a lazy
+   `boto3` client. `disabled` is the default; nothing enables live synthesis by itself.
+2. **References, not text.** The API accepts a reference to an `ApprovedUtterance` (made from a
+   validated AI turn, per child, short-lived), an enabled staff `SpeechLine`, or an authored NPC
+   narration node. The text is re-checked with the AI output rules at request time.
+3. **Voices are staff configuration** in Django Admin, limited to an explicit voice / language /
+   engine table. Admin shows no text, keys or child ids for generated clips.
+4. **Dedicated cache and store.** Cache key over text, voice, engine, language, rate, cache version
+   and (for a child's AI text) the child. One synthesis per key under a database lock. Expiring
+   objects, signed expiring delivery, purge on child deletion. Generated speech never enters the
+   Sound Library automatically (ADR-047 stays the home of reusable audio).
+5. **Operational limits and honest cost.** Per-child and global daily caps, a process concurrency
+   gate, a kill switch, counts only in metrics, and a cost estimate that is labelled an estimate.
+6. **React plays, it does not synthesize.** Clips play as temporary `voice` sounds in a scope, so
+   child volume and mute, music ducking, spatial placement and cleanup are the Sound Manager's.
+   Captions come first and do not depend on audio.
+7. **Opt-in per world** through a speech binding; Keeper Quill's conversational lines may be
+   positional (ADR-048), while narration and instructions are flat.
+
+**Alternatives rejected.** Letting the browser call Polly (credentials, unrestricted text). An
+open text-to-speech endpoint (abuse, cost, unsafe content). Speaking raw model output (bypasses the
+guardrails). Browser speech synthesis (inconsistent voices, no server approval). Promoting every
+utterance to the Asset Library (unbounded storage of children's dialogue). Word-level timing (no
+timing data exists from this path).
+
+**Consequences.** Speech works only where a world registers a binding and staff enable a voice.
+Everything degrades to text. Cost depends on characters synthesized; the estimate must be checked
+against the AWS bill. The voice table needs checking against current Polly documentation before
+production. Not heard; no live AWS call was made.
+
+**Acceptance.** Remains Proposed until the owner accepts it and the live verification gate passes.

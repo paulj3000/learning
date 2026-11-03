@@ -155,3 +155,13 @@ Treasure Rush is the first consumer (`react/src/features/region-play/audio/`,
 `manager.setListener(pose)` each frame. For objects and zones use `audio/world`: `createSpatialEmitters`
 (ranged loops, moving sources), `createAudioZones` (ambient beds with priority) and the structural
 Three.js bindings. Keep essential narration and feedback flat. See `docs/audio/SPATIAL_AUDIO.md`.
+
+## 13. Spoken dialogue (SM-P8)
+
+`useSpeech({ childId })` gives `state`, `speak`, `stop`, `skip`, `pause`, `resume`, `replay`, plus
+`<SpeechCaption />` for the words and controls. Speak by reference, never by text:
+`speakLine(speech, 'line-id', fallbackText)`, `speakNpcNode`, `speakCompanionTurn`,
+`speakTutorTurn`. A world opts in by registering a `SpeechBinding` while mounted (see
+`useCastleSpeech`); shared dialogue components speak only when one exists. Keep narration and
+instructions flat; pass `position` only for a character's conversational line. See
+`docs/audio/AMAZON_POLLY_INTEGRATION.md`.
