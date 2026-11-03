@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ALL_ENTITY_IDS,
   ARCHWAYS,
+  COSTUME_RACK_SPOTS,
   FLOOR_SPOTS,
   GALLERY_PORTRAIT_SPOTS,
   ROOMS,
@@ -60,6 +61,9 @@ const materialIdsOf = (look: RoomLook): string[] =>
 /** Authored spots a solid piece of decor *is*, rather than hides: the hearth is the hearth. */
 const IS_THE_SPOT: Readonly<Record<string, readonly string[]>> = {
   'collider:hearth': ['hall-hearth', 'hall-hearth-mantel'],
+  'collider:costume-rack-a': ['costume-rack-a'],
+  'collider:costume-rack-b': ['costume-rack-b'],
+  'collider:costume-rack-c': ['costume-rack-c'],
 };
 
 const surfacesOf = (roomId: string): SurfaceSpec[] =>
@@ -402,6 +406,44 @@ describe('the Character Gallery', () => {
         piece.rect.minX >= gallery.minX,
     );
     expect(solidInGallery).toEqual([]);
+  });
+});
+
+describe('the Costume Room', () => {
+  it('stands exactly one solid rack on each rack spot the region authored and never placed', () => {
+    for (const spot of COSTUME_RACK_SPOTS) {
+      const letter = spot.entityId.replace('costume-rack-', '');
+      const piece = CASTLE_DECOR_COLLIDERS.find(
+        (c) => c.rect.id === `collider:costume-rack-${letter}`,
+      );
+      expect(piece, `no rack on ${spot.entityId}`).toBeDefined();
+      if (!piece) continue;
+      expect((piece.rect.minX + piece.rect.maxX) / 2).toBeCloseTo(spot.x, 6);
+      expect((piece.rect.minZ + piece.rect.maxZ) / 2).toBeCloseTo(spot.z, 6);
+    }
+    expect(
+      CASTLE_DECOR_COLLIDERS.filter((c) => c.rect.id.startsWith('collider:costume-rack-')),
+    ).toHaveLength(COSTUME_RACK_SPOTS.length);
+  });
+
+  it('keeps a walkway between the racks and in front of them', () => {
+    const racks = CASTLE_DECOR_COLLIDERS.filter((c) =>
+      c.rect.id.startsWith('collider:costume-rack-'),
+    );
+    const sorted = [...racks].sort((a, b) => a.rect.minX - b.rect.minX);
+    for (let i = 1; i < sorted.length; i += 1) {
+      // A child (roughly 0.5 m across) can pass between neighbours.
+      expect(sorted[i].rect.minX - sorted[i - 1].rect.maxX).toBeGreaterThanOrEqual(0.5);
+    }
+  });
+
+  it('hangs the mirror on the west wall, flat and clear of the racks', () => {
+    const mirror = CASTLE_DECOR.find((item) => item.id === 'castle-mirror-frame');
+    expect(mirror?.kind).toBe('BOX');
+    if (mirror?.kind !== 'BOX') return;
+    const costume = ROOMS.find((room) => room.id === 'costume-room')!.floor;
+    expect(mirror.area.minX).toBeGreaterThan(costume.minX + HALF);
+    expect(mirror.area.maxX - mirror.area.minX).toBeLessThan(0.2);
   });
 });
 

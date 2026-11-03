@@ -382,8 +382,16 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       frame bottoms), gold dust motes. Adds nothing solid, so the portrait and arrival zones stay
       open (tested). Tests: 48 (visuals, runtime, manifest) pass; typecheck has only the missing
       `@colyseus/sdk` error; Prettier and oxlint clean. **Deferred:** plinths and rope barriers (they
-      would stand in the portrait zones). Browser (owner): green against the portraits, plaque legibility
-- [ ] **SC-R02-04c** Costume Room visual overhaul, including the unplaced costume racks (depends: SC-R02-01)
+      would stand in the portrait zones). Browser (owner): green against the portraits, plaque legibility. Commit `ccf39cb`
+- [x] **SC-R02-04c** Costume Room visual overhaul, including the unplaced costume racks (depends:
+      SC-R02-01). DONE (development): `castleRooms/costumeRoom.ts`: plum carpet and plaster, **the
+      three `COSTUME_RACK_SPOTS` racks the region authored in Phase 14 and never placed are now
+      stood up**, each solid on its authored spot with posts, brass bar and coloured garments (tested
+      against the region's spots, with a 0.5 m walkway between neighbours), and a brass-framed mirror
+      flat on the west wall. Tests: 51 (visuals, runtime, manifest) pass, including the walk
+      through the castle with the racks solid; typecheck has only the missing `@colyseus/sdk` error;
+      Prettier and oxlint clean. Racks remain decorative, with no interaction. **Deferred:** the Trophy
+      Room pedestals (SC-R03-03 and SC-R07). Browser (owner): the plum, the rack silhouettes
 - [ ] **SC-R02-04d** Setting Tower visual overhaul (depends: SC-R02-01)
 - [ ] **SC-R02-04e** Illustration Studio visual overhaul (depends: SC-R02-01)
 - [ ] **SC-R02-04f** East Corridor visual overhaul (depends: SC-R02-01)
