@@ -416,7 +416,19 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       (tested). Tests: 54 (visuals, runtime, manifest) pass; typecheck has only the missing
       `@colyseus/sdk` error; Prettier and oxlint clean. The map shows no page marks yet (SC-R04).
       Browser (owner): the dim mood, sconce read, map legibility. Commit `78d9e76`
-- [ ] **SC-R02-05** Magical interaction feedback and reduced motion (depends: SC-R02-01)
+- [~] **SC-R02-05** Magical interaction feedback and reduced motion (depends: SC-R02-01).
+  **PARTIAL (development).** Done: the audit found that the castle's swaying secret tapestry
+  ignored `prefers-reduced-motion` (only the motes honoured it). `WorldExtensionContext` now
+  exposes `reducedMotion` (generic, no region branching) and `castle-tale` holds the tapestry at a
+  fixed 0.02 rad lean instead of swaying, so the nook's only visual hint survives without
+  movement. Tests: sways by default and stays within 0.036 rad; holds exactly one lean under
+  reduced motion; a walk ends in the same place either way (3 new; with the castle engine,
+  engine-runtime and contract suites, 61 pass; parity with the stub, 44 pass); typecheck has only
+  the missing `@colyseus/sdk` error. **Not done:** new state-flip glow or light pulses. The
+  existing `-lit` portrait and window variants and the plate and rod seating are the castle's
+  state feedback and are unchanged; extra pulses were not added. Quill's authored idle and
+  gesture clips are character animation and are not suppressed. Browser (owner): reduced-motion
+  feel; whether more glow is wanted
 - [x] **SC-R02-06** Lighting moods and quality-tier light budgets (depends: SC-R02-01). DONE
       (development): each room look carries a `mood` (lamp colour from the art direction palette, and
       a `priority`); the manifest's room lamps wear them, so the previously all-white lamps are warm
@@ -445,7 +457,7 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       6,000 (surfaces 334, BOX decor 1,224), manifest 91 KB of 250 KB, unique texture seeds. A failing
       budget means decide, not edit the number. Tests: 10 pass; typecheck has only the missing
       `@colyseus/sdk` error; Prettier and oxlint clean. Real frame rate stays with SC-R11 (owner, real
-      tablet)
+      tablet). Commit `f5615c7`
 - [ ] **SC-R02-09** Final development verification (depends: all SC-R02)
 - [ ] **SC-R03 to SC-R12** Not started; task lists in the reboot roadmap section 6. Gated items:
       Sound Manager merge (SC-R06), narration provider and voice consent (SC-R06-03), new spaces and

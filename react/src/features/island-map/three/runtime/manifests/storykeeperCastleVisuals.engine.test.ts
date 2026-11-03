@@ -107,3 +107,50 @@ describe('the castle look on the generic runtime', () => {
     for (const spy of spies) expect(spy).toHaveBeenCalled();
   });
 });
+
+describe('reduced motion in the castle (SC-R02-05)', () => {
+  const tapestryOf = (harness: ReturnType<typeof castle>) => {
+    const root = harness.scene().getObjectByName('tapestry:castle-tapestry-stair');
+    if (!root) throw new Error('the secret tapestry is not in the scene');
+    return root;
+  };
+
+  it('sways the secret tapestry by default: the draught is the only mark of the nook', () => {
+    const harness = castle({ quality: 'MEDIUM' });
+    const tapestry = tapestryOf(harness);
+    const seen = new Set<number>();
+    for (let frame = 0; frame < 20; frame += 1) {
+      harness.runFrames(1, 100);
+      seen.add(Math.round(tapestry.rotation.y * 1e6));
+    }
+    expect(seen.size).toBeGreaterThan(5);
+    // Small enough to read as a draught rather than a signpost.
+    for (const value of seen) expect(Math.abs(value / 1e6)).toBeLessThanOrEqual(0.036);
+  });
+
+  it('holds the tapestry at one fixed lean under reduced motion, still a hint', () => {
+    const harness = castle({ quality: 'MEDIUM', reducedMotion: true });
+    const tapestry = tapestryOf(harness);
+    const leans = new Set<number>();
+    for (let frame = 0; frame < 20; frame += 1) {
+      harness.runFrames(1, 100);
+      leans.add(Math.round(tapestry.rotation.y * 1e9));
+    }
+    expect(leans.size).toBe(1);
+    // Not hanging dead straight: the lean is the still equivalent of the sway.
+    expect(tapestry.rotation.y).toBeCloseTo(0.02, 6);
+  });
+
+  it('lets reduced motion change only how things move, never where the child can go', () => {
+    const endOfWalk = (reducedMotion: boolean) => {
+      const harness = castle({ quality: 'MEDIUM', reducedMotion });
+      harness.setDrive((controller, delta) => {
+        controller.position.x += 2 * delta;
+        controller.position.z -= 1 * delta;
+      });
+      harness.runFrames(60, 16);
+      return harness.camera().position.toArray();
+    };
+    expect(endOfWalk(true)).toEqual(endOfWalk(false));
+  });
+});

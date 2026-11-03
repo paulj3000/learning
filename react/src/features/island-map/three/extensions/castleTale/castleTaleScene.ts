@@ -73,6 +73,12 @@ const CANVAS_FLATTEN = 0.02;
 
 const TAPESTRY_SWAY_RADIANS = 0.035;
 const TAPESTRY_SWAY_PERIOD_SECONDS = 4;
+/**
+ * The still equivalent of the sway under reduced motion: the tapestry hangs
+ * at a fixed slight lean, as if the draught had left it askew. Same size as
+ * the sway's swing, so it is the same hint and no louder.
+ */
+const TAPESTRY_STILL_LEAN_RADIANS = 0.02;
 const DOORWAY_GLOW_COLOR = 0xffc98a;
 const DOORWAY_GLOW_INTENSITY = 7;
 /** How far in front of the eyes a picked-up plate is carried, and how far below them. */
@@ -476,10 +482,14 @@ export const castleTaleExtension: WorldExtension = {
     const swayingTapestry = context.sceneryRoot(config.swayingTapestrySceneryId);
     const swayRest = swayingTapestry?.rotation.y ?? 0;
     let elapsedSeconds = 0;
+    // Reduced motion: no sway. The tapestry holds a fixed lean instead, so the hint survives without movement.
+    if (context.reducedMotion && swayingTapestry) {
+      swayingTapestry.rotation.y = swayRest + TAPESTRY_STILL_LEAN_RADIANS;
+    }
     unsubscribes.push(
       context.onFrame((deltaSeconds) => {
         elapsedSeconds += deltaSeconds;
-        if (swayingTapestry) {
+        if (swayingTapestry && !context.reducedMotion) {
           swayingTapestry.rotation.y =
             swayRest +
             Math.sin((elapsedSeconds / TAPESTRY_SWAY_PERIOD_SECONDS) * Math.PI * 2) *

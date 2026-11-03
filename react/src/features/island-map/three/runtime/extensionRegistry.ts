@@ -83,6 +83,13 @@ export interface WorldExtensionContext {
   onFrame(callback: (deltaSeconds: number) => void): () => void;
   /** The runtime's monotonic clock, in milliseconds. */
   now(): number;
+  /**
+   * `prefers-reduced-motion`: purely decorative movement must hold still, and
+   * anything that carried meaning by moving needs a still equivalent. State
+   * changes that are the child's own feedback (a plate seating) are not
+   * decoration and stay.
+   */
+  readonly reducedMotion: boolean;
 }
 
 /** One NPC's mixer and the clips its asset authors. */

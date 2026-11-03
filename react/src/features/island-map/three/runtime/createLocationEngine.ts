@@ -1000,6 +1000,7 @@ export function createLocationEngine<R extends RendererLike>(
           return () => frameCallbacks.delete(callback);
         },
         now: () => deps.now(),
+        reducedMotion: options.reducedMotion === true,
       });
       extensionMounts.set(binding.extensionId, mounted ?? {});
     } catch (error) {
