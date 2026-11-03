@@ -103,10 +103,10 @@ describe('preservation of the existing content', () => {
       learningObjectives: 19,
       wonderWallQuestions: 4,
       stories: 5,
-      quests: 8,
-      items: 25,
+      quests: 11, // + the three Great Storybook quests (SC-R04)
+      items: 26, // + the Great Storybook seal
       collectibleSets: 1,
-      rewardRules: 20,
+      rewardRules: 23, // + one seal rule per band's Great Storybook quest
       npcs: 6,
       discoveries: 6,
       checkpoints: 30,

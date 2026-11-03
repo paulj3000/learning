@@ -53,6 +53,10 @@ export const HOME_ISLAND_PACK: WorldContentPack = {
     'sort-the-workshop',
     'the-quiet-places',
     'light-the-harbor',
+    // SC-R04: one Great Storybook quest per age band.
+    'restore-the-great-storybook-sprouts',
+    'restore-the-great-storybook-pathfinders',
+    'restore-the-great-storybook-explorers',
   ],
   itemIds: [
     'spiral-shell',
@@ -71,6 +75,7 @@ export const HOME_ISLAND_PACK: WorldContentPack = {
     'blank-page-storybook',
     'explorer-backpack',
     'star-lantern',
+    'great-storybook-seal',
   ],
   collectibleSetIds: ['harbor-shells'],
   npcIds: [
