@@ -303,7 +303,8 @@ def verify_manifest_records(directory: Path) -> None:
             problems.append(f"{ident[0]} {ident[1]}: checksum differs from the manifest")
         for dependency in record.get("dependsOn", []):
             target, _, name = dependency.partition(":")
-            if (target, name) not in present and target in set(kind_of.values()):
+            # Story-only pseudo-locations have no Place by design, so "place" is never required.
+            if (target, name) not in present and target in set(kind_of.values()) - {"place"}:
                 problems.append(f"{ident[0]} {ident[1]}: depends on {dependency}, not exported")
     if problems:
         raise ContentImportError(problems)

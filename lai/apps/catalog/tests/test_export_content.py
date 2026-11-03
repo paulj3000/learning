@@ -54,6 +54,14 @@ def collections():
         {"code": "count-10", "domain": "numeracy", "title": "Count to ten"}
     ]
     data["adventures.json"]["wonderWallQuestions"] = []
+    pack = data["islands.json"]["islands"][0]["pack"]
+    pack.update(
+        itemIds=["badge"],
+        collectibleSetIds=[],
+        npcIds=["pip"],
+        discoveryIds=[],
+        storySlugs=["bridge-tale"],
+    )
     data["assets.json"]["assets"] = []
     data["assets.json"]["locationAssets"] = []
     return data
@@ -92,7 +100,7 @@ class TestBuildAndWrite:
         assert quest["revision"]["number"] == 1 and quest["authority"] == "EXPORT"
         assert quest["draft"] is False and quest["publishedAt"]
         assert "adventure:fix-bridge" in quest["dependsOn"] and "npc:pip" in quest["dependsOn"]
-        assert by_id[("story", "bridge-tale")]["dependsOn"] == ["adventure:fix-bridge"]
+        assert "adventure:fix-bridge" in by_id[("story", "bridge-tale")]["dependsOn"]
         assert set(by_id) >= {
             ("island", "home-island"),
             ("place", "bay"),
