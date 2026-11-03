@@ -1,4 +1,4 @@
-"""Puzzle kinds: parameter rules and server-side graders (ADR-043 F, LAI-0812).
+"""Puzzle kinds: parameter rules and server-side graders (ADR-047 F, LAI-0812).
 
 The mechanics are code; their parameters are authored content, edited in Django Admin as
 versioned revisions of an `AreaPuzzle`. Each kind defines:

@@ -13,7 +13,7 @@ import styles from './RegionPlayPanels.module.css';
 import area from './AreaPuzzlePanels.module.css';
 
 /**
- * The React panels for 3D Area puzzles (ADR-043 F, Firepeak FP-5 to FP-10). Every one is a plain
+ * The React panels for 3D Area puzzles (ADR-047 F, Firepeak FP-5 to FP-10). Every one is a plain
  * set of large buttons, so a child can do the whole puzzle by keyboard, touch or switch access as
  * well as in the 3D scene. Text comes from Django content (the puzzle's band parameters); these
  * components add only interface words. Nothing here grades: `onSubmit` sends the child's answer

@@ -5,11 +5,11 @@ import type { CollectibleSet, ItemDefinition, RewardTable } from '../rewards/typ
 import { HOME_WORLD_SLUG } from '../worlds/slugs';
 
 /**
- * Firepeak Volcano's initial content (docs/FIREPEAK_VOLCANO_ROADMAP.md, ADR-043).
+ * Firepeak Volcano's initial content (docs/FIREPEAK_VOLCANO_ROADMAP.md, ADR-047).
  *
  * Export-only, like `treasureRushContent.ts`: nothing here is loaded by the Amplify app, so it
  * changes nothing a child sees in an Amplify build. It reaches Django through the one content
- * import (`manage.py load_content`). After that import, Django is authoritative (ADR-043):
+ * import (`manage.py load_content`). After that import, Django is authoritative (ADR-047):
  * administrators edit these records in Django Admin as versioned content, and a later import
  * never overwrites a record they have published.
  *

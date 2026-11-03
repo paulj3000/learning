@@ -41,7 +41,7 @@ export const HUB_REGION_SLUG = 'welcome-harbor';
  */
 export const regionsWithoutInteractionTable: readonly string[] = [
   CLOCKWORK_HARBOR_REGION_ID,
-  // Firepeak Volcano's 3D Area is served by Django (ADR-043): its NPC interactions are built
+  // Firepeak Volcano's 3D Area is served by Django (ADR-047): its NPC interactions are built
   // from the area's placements (`regionManifest.ts`), not from a source interaction table.
   'firepeak-volcano',
 ];

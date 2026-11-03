@@ -1,11 +1,11 @@
 """Firepeak Volcano's 3D Area and the first parameters of its puzzles (FP-2, FP-4 to FP-8).
 
-Two kinds of content, kept apart as ADR-043 requires:
+Two kinds of content, kept apart as ADR-047 requires:
 
-- **Layout** (code, ADR-033 item 4 and ADR-043 H; LAI-0805 decides later authoring): the 3D Area,
+- **Layout** (code, ADR-033 item 4 and ADR-047 H; LAI-0805 decides later authoring): the 3D Area,
   spawn point, placements, colliders, effects (lava, steam, glow, checkpoints, stand-ins), and
   which mechanic each puzzle uses and which placements it binds.
-- **Authored content** (Django-authoritative once seeded, ADR-043): the 3D Area's copy and each
+- **Authored content** (Django-authoritative once seeded, ADR-047): the 3D Area's copy and each
   puzzle's per-age-band parameters, recorded as their first published versions (origin SEED).
   Administrators edit them in Django Admin; re-running this seed never overwrites anything.
 

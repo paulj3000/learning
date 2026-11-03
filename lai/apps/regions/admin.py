@@ -291,7 +291,7 @@ class LaunchPointAdmin(admin.ModelAdmin):
 
 @admin.register(AreaPuzzle)
 class AreaPuzzleAdmin(AuthoredContentAdminMixin, admin.ModelAdmin):
-    """3D Area puzzles (ADR-043 F). Which mechanic and which objects are seed-authored; the
+    """3D Area puzzles (ADR-047 F). Which mechanic and which objects are seed-authored; the
     parameters are edited as content versions ("Edit content"), never in these fields."""
 
     list_display = ("puzzle_id", "region", "kind", "title", "status", "authority")

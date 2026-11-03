@@ -14,7 +14,7 @@ import type { WorldExtensionContext } from '../../runtime/extensionRegistry';
 import type { Owned } from './areaStandIns';
 
 /**
- * How 3D Area puzzles look (ADR-043 F, Firepeak FP-5 to FP-8). It draws, it never decides: the
+ * How 3D Area puzzles look (ADR-047 F, Firepeak FP-5 to FP-8). It draws, it never decides: the
  * React companion owns the child's arrangement and valve turns (and the server grades them), and
  * hands this module what to show. Only the crystal's discovery animation runs on its own clock.
  *

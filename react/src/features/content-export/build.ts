@@ -71,7 +71,7 @@ const INTERACTION_TABLES: ReadonlyArray<readonly [string, keyof typeof worldObje
 type PackBody = IslandEntry['pack'];
 
 /**
- * Export-only additions to a world's content pack (Firepeak, ADR-043): the Amplify app loads its
+ * Export-only additions to a world's content pack (Firepeak, ADR-047): the Amplify app loads its
  * packs unchanged, and the export lists the export-only Place and its content in its Island.
  */
 function withExportOnly(worldSlug: string, pack: PackBody): PackBody {

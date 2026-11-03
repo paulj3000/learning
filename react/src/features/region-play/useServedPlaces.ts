@@ -3,7 +3,7 @@ import { getIslandsFor, type IslandsView } from '../../api/play/islandsApi';
 import { ISLAND_LOCATIONS } from '../island/locations';
 
 /**
- * Places that exist only in Django (ADR-043: Django is authoritative for published content), with
+ * Places that exist only in Django (ADR-047: Django is authoritative for published content), with
  * a published 3D Area for this child, on the home Island. Firepeak Volcano is the first. The
  * source-controlled Places keep their own cards and pages; these get a card that goes straight
  * to their 3D Area, since they have no source Place page.

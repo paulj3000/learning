@@ -625,7 +625,7 @@ def change_session_status(child, session_id, action: str) -> AdventureSession:
         return session
 
 
-# --- 3D Area puzzles (ADR-043 F, LAI-0812) -------------------------------------------------------
+# --- 3D Area puzzles (ADR-047 F, LAI-0812) -------------------------------------------------------
 
 PUZZLE_CHANGE_TYPE = "PUZZLE_SOLVED"
 

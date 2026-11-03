@@ -1,7 +1,7 @@
 /**
  * The Firepeak Volcano region bootstrap as the Django serializer produces it for a Pathfinder
  * (mirrors `lai/apps/regions/firepeak_seed.py`, trimmed to what the client tests need). Shared by
- * the manifest, scene and companion tests for the area puzzles (ADR-043, Firepeak FP-12).
+ * the manifest, scene and companion tests for the area puzzles (ADR-047, Firepeak FP-12).
  */
 
 export const FIREPEAK = 'firepeak-volcano';

@@ -25,7 +25,7 @@ export interface PipDialogProps {
   launchError?: string | null;
   onLaunch?(launchId: string): void;
   /**
-   * The NPC's own authored lines (ADR-043), when the server sends them: the first one that is
+   * The NPC's own authored lines (ADR-047), when the server sends them: the first one that is
    * not a follow-up is how they greet the child, and its choices can lead to follow-ups.
    * Without them the built-in Treasure Rush lines are used, as before.
    */

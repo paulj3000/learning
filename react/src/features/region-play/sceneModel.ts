@@ -72,11 +72,11 @@ export interface RegionSceneModel {
   worldChangeKeys: ReadonlySet<string>;
   /** Quests to show beside NPCs (offers and progress), by giver NPC id. */
   questsByGiver: ReadonlyMap<string, readonly QuestEntry[]>;
-  /** This 3D Area's puzzles for the child's band (ADR-043 F). */
+  /** This 3D Area's puzzles for the child's band (ADR-047 F). */
   puzzles: readonly PuzzleState[];
   /**
    * Asset ids a model can be delivered for now; the rest are drawn as stand-ins (FP-3). `null`
-   * when the server sent no catalog (before ADR-043): every model is then tried as before.
+   * when the server sent no catalog (before ADR-047): every model is then tried as before.
    */
   deliverableAssetIds: ReadonlySet<string> | null;
 }

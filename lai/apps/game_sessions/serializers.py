@@ -253,7 +253,7 @@ class ChallengeResponseSerializer(serializers.Serializer):
 
 
 def puzzle_state(entry) -> dict:
-    """A 3D Area puzzle for the child's age band (ADR-043 F, LAI-0812)."""
+    """A 3D Area puzzle for the child's age band (ADR-047 F, LAI-0812)."""
     puzzle, body = entry["puzzle"], entry["body"]
     return {
         "puzzleId": puzzle.puzzle_id,
@@ -270,7 +270,7 @@ def puzzle_state(entry) -> dict:
 def _region(state) -> dict:
     data = RegionSerializer(state["region"]).data
     content = state.get("region_content")
-    if content:  # ADR-043: the authored copy, as this visit started with it
+    if content:  # ADR-047: the authored copy, as this visit started with it
         data["title"] = content["title"]
         data["scene"] = {
             **data["scene"],

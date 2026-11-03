@@ -273,7 +273,7 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
         npcId: null,
       });
     } else if (puzzleEntities.has(entity.entityId) || returnEntities.has(entity.entityId)) {
-      // ADR-043 F: a puzzle object (or the safe way back). The extension draws it and the
+      // ADR-047 F: a puzzle object (or the safe way back). The extension draws it and the
       // play API decides what using it means; nothing here grades or moves anything.
       const kind = puzzleEntities.has(entity.entityId) ? 'puzzle' : 'return';
       const interactionId = `${regionId}:${kind}:${entity.entityId}`;

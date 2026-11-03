@@ -1,4 +1,4 @@
-"""Golden-vector parity for 3D Area puzzles (ADR-043 F, LAI-0812).
+"""Golden-vector parity for 3D Area puzzles (ADR-047 F, LAI-0812).
 
 Every case in `area-puzzles.json` was produced by the client rules
 (`react/src/features/region-play/areaPuzzles.ts`). The server graders in

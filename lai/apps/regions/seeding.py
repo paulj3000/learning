@@ -1,4 +1,4 @@
-"""Helpers for code seeds that create authored rows (ADR-043, LAI-0812).
+"""Helpers for code seeds that create authored rows (ADR-047, LAI-0812).
 
 A seed owns layout and identity (which 3D Area, which mechanic, which placements). Content a
 seed supplies for an authorable row is checked with the same rules an administrator's publish

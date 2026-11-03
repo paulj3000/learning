@@ -11,6 +11,7 @@ from django.test import override_settings
 from apps.catalog import authoring
 from apps.catalog.importer import import_content
 from apps.catalog.models import AssetOrigin, ContentAsset
+from apps.catalog.tests.helpers import publish_edit
 from apps.core.content_status import ContentStatus
 from apps.inventory.models import GrantedRule, InventoryItem
 from apps.progression.models import WorldChange
@@ -103,7 +104,7 @@ class TestSeed:
         puzzle = AreaPuzzle.objects.get(puzzle_id="firepeak-telescope")
         body = authoring.current_body(puzzle)
         body["title"] = "Use the big telescope"
-        authoring.publish(authoring.create_draft(puzzle, body))
+        publish_edit(puzzle, body)
 
         assert seed_firepeak() == []
 
@@ -311,7 +312,7 @@ class TestAdminEditsDuringAVisit:
         puzzle = AreaPuzzle.objects.get(puzzle_id="firepeak-telescope")
         body = authoring.current_body(puzzle)
         body["ageBands"]["PATHFINDER"]["intro"] = "Peek through the telescope!"
-        authoring.publish(authoring.create_draft(puzzle, body))
+        publish_edit(puzzle, body)
 
         during = bootstrap(client, child).json()["puzzles"][0]["parameters"]["intro"]
         sibling = firepeak.a2

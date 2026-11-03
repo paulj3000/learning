@@ -103,7 +103,7 @@ describe('preservation of the existing content', () => {
     );
   });
 
-  it('adds Firepeak Volcano to the export only, never to the app registries (ADR-043)', async () => {
+  it('adds Firepeak Volcano to the export only, never to the app registries (ADR-047)', async () => {
     expect(ISLAND_LOCATIONS.some((location) => location.slug === 'firepeak-volcano')).toBe(false);
     expect(ALL_NPCS.some((npc) => npc.id === 'professor-ember')).toBe(false);
     expect(QUEST_DEFINITIONS.some((quest) => quest.id === 'the-volcano-awakens')).toBe(false);

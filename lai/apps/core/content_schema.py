@@ -75,7 +75,7 @@ def validate_file(file_name: str, data: object, schema: dict | None = None) -> N
 
 
 def validate_record(definition: str, data: object, schema: dict | None = None) -> None:
-    """Validate one record against `$defs/<definition>` (ADR-043: a revision body is one export
+    """Validate one record against `$defs/<definition>` (ADR-047: a revision body is one export
     record). Raises `ContentSchemaError` naming the definition."""
     root = schema if schema is not None else _load_schema(str(schema_path()))
     if definition not in root.get("$defs", {}):

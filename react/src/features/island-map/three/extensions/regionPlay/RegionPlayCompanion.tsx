@@ -424,7 +424,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
 
   const errorMessage = playErrorMessage(state.error);
 
-  // ADR-043 F: puzzle objects and the way back are the puzzle layer's; everything else is here.
+  // ADR-047 F: puzzle objects and the way back are the puzzle layer's; everything else is here.
   const areaEvent = event?.kind === 'puzzle' || event?.kind === 'return' ? event : null;
   const currentStage = state.bootstrap ? currentPuzzle(state.bootstrap.puzzles) : undefined;
   const stageParams = currentStage

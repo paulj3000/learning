@@ -10,7 +10,7 @@ import { AreaPuzzleLayer } from './AreaPuzzleLayer';
 import type { AreaEffectsEvents } from './areaEffectsScene';
 import type { RegionPlaySceneApi } from './regionPlayScene';
 
-/** The puzzle layer (ADR-043 F, Firepeak FP-5 to FP-8): moves stay local, the server grades. */
+/** The puzzle layer (ADR-047 F, Firepeak FP-5 to FP-8): moves stay local, the server grades. */
 
 function bootstrap(solved: string[] = []): RegionBootstrap {
   return read(firepeakBootstrapJson({ solved, session: true }), parse.regionBootstrap);

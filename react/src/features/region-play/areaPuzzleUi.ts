@@ -8,7 +8,7 @@ import type {
 import type { PlatformParams, Stone } from './areaPuzzles';
 
 /**
- * The rules behind the 3D Area puzzle UI (ADR-043 F, Firepeak FP-5 to FP-10), apart from React.
+ * The rules behind the 3D Area puzzle UI (ADR-047 F, Firepeak FP-5 to FP-10), apart from React.
  * Nothing here grades or rewards: the server does. These only decide what to show.
  */
 

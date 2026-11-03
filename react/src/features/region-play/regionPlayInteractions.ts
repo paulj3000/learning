@@ -31,13 +31,13 @@ export type RegionPlayInteractionEvent =
       quests: readonly QuestEntry[];
       /** Adventures this NPC can start for the child (ADR-041), already filtered by the server. */
       launches: readonly LaunchPoint[];
-      /** Authored dialogue whose conditions hold now (ADR-043). */
+      /** Authored dialogue whose conditions hold now (ADR-047). */
       dialogue: readonly DialogueNodeView[];
       /** A "come back and show me" puzzle bound to this NPC (Firepeak stage 5), if any. */
       returnPuzzle: PuzzleState | null;
     }
   | {
-      /** An object a 3D Area puzzle uses (ADR-043 F). */
+      /** An object a 3D Area puzzle uses (ADR-047 F). */
       kind: 'puzzle';
       entityId: string;
       label: string;

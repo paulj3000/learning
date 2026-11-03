@@ -1,4 +1,4 @@
-"""Challenge specs in Django Admin (ADR-043 B). Content only: no child record is registered.
+"""Challenge specs in Django Admin (ADR-047 B). Content only: no child record is registered.
 
 Parameters are edited as content versions ("Edit content"); publication of the slot itself
 stays a status the publish commands and region publishing check.

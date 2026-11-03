@@ -261,7 +261,7 @@ def seed_treasure_rush() -> list[str]:
         created.append(f"WorldRegion {region} adventure v{ADVENTURE_VERSION}")
     if not region.offered_quests.exists():
         region.offered_quests.add(quest)
-    # ADR-043: seed-authored content rows get their first published version.
+    # ADR-047: seed-authored content rows get their first published version.
     for row in [region, *specs.values()]:
         record_seed_revision(row)
     return created

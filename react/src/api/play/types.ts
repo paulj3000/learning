@@ -62,7 +62,7 @@ export interface NpcPlacement extends PlacedEntity {
   npcId: string;
   displayName: string;
   interactionId: string;
-  /** Authored dialogue whose conditions hold for this child now, in authored order (ADR-043). */
+  /** Authored dialogue whose conditions hold for this child now, in authored order (ADR-047). */
   dialogue: DialogueNodeView[];
 }
 
@@ -85,7 +85,7 @@ export type PuzzleKind =
   'OBSERVE_FEATURES' | 'PLACE_PLATFORMS' | 'VALVE_SEQUENCE' | 'COLLECT_OBJECT' | 'RETURN_TO_NPC';
 
 /**
- * A 3D Area puzzle for this child's age band (ADR-043 F, LAI-0812). `parameters` is the kind's
+ * A 3D Area puzzle for this child's age band (ADR-047 F, LAI-0812). `parameters` is the kind's
  * own shape, read by `region-play/areaPuzzles.ts`; the server grades every solution.
  */
 export interface PuzzleState {
@@ -102,7 +102,7 @@ export interface PuzzleState {
   parameters: JsonObject;
 }
 
-/** What a served 3D Area names, so the client validates it against Django (ADR-043 A). */
+/** What a served 3D Area names, so the client validates it against Django (ADR-047 A). */
 export interface RegionCatalog {
   worldSlug: string;
   assets: CatalogAsset[];
@@ -230,7 +230,7 @@ export interface RegionBootstrap {
   worldChanges: WorldChange[];
   /** Objects here that start one of this Place's Adventures, for this child (ADR-041). */
   launchPoints: LaunchPoint[];
-  /** This 3D Area's puzzles for the child's age band (ADR-043, LAI-0812). */
+  /** This 3D Area's puzzles for the child's age band (ADR-047, LAI-0812). */
   puzzles: PuzzleState[];
   catalog: RegionCatalog;
 }

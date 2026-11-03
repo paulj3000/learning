@@ -1732,7 +1732,7 @@ function directorContentSuite(): GoldenSuite {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 3D Area puzzles: the client's local rules and the server graders (ADR-043 F, LAI-0812)
+// 3D Area puzzles: the client's local rules and the server graders (ADR-047 F, LAI-0812)
 
 const STONES: Stone[] = [
   { id: 'small', label: 'Small', size: 1 },

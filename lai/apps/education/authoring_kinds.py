@@ -1,4 +1,4 @@
-"""`ChallengeSpec` as an authorable kind (ADR-043 B). Registered from `EducationConfig.ready`.
+"""`ChallengeSpec` as an authorable kind (ADR-047 B). Registered from `EducationConfig.ready`.
 
 Its parameters are checked by the model's own `clean()` (TR-1 `validate_parameters`), the same
 rule a seed or admin save runs. A `ChallengeAttempt` snapshots the parameters it was issued

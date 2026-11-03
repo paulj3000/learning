@@ -29,7 +29,7 @@ class WorldRegion(Authorable, models.Model):
     the spatial `layout`), in the manifest's own field names; TR-7 validates the assembled
     manifest on the client too.
 
-    ADR-043: the title and the non-spatial part of `scene` (`copy`, `environment`) are authored
+    ADR-047: the title and the non-spatial part of `scene` (`copy`, `environment`) are authored
     content ("area-copy" revisions); `bounds`, `layout` and everything spatial stay seed-owned.
     """
 
@@ -512,7 +512,7 @@ class AdventureLaunchPoint(models.Model):
 
 
 class PuzzleKind(models.TextChoices):
-    """The closed registry of puzzle mechanics (ADR-043 F). A new kind is a code change: its
+    """The closed registry of puzzle mechanics (ADR-047 F). A new kind is a code change: its
     parameter schema and grader live in `apps.regions.puzzles`, its scene in the client."""
 
     OBSERVE_FEATURES = "OBSERVE_FEATURES", "Observe features (look at each one)"
@@ -523,7 +523,7 @@ class PuzzleKind(models.TextChoices):
 
 
 class AreaPuzzle(Authorable, models.Model):
-    """A spatial puzzle in a 3D Area: the generalisation of `TreasureChest` (ADR-043, LAI-0812).
+    """A spatial puzzle in a 3D Area: the generalisation of `TreasureChest` (ADR-047, LAI-0812).
 
     Two owners, kept apart:
 
@@ -553,7 +553,7 @@ class AreaPuzzle(Authorable, models.Model):
     status = models.CharField(
         max_length=16, choices=ContentStatus.choices, default=ContentStatus.DRAFT
     )
-    # --- Copied from the published revision (ADR-043) ---
+    # --- Copied from the published revision (ADR-047) ---
     title = models.CharField(max_length=120, blank=True)
     parameters = models.JSONField(
         default=dict, blank=True, help_text="Per age band, validated by the kind's schema."

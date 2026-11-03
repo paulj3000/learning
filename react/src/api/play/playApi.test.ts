@@ -35,7 +35,7 @@ function sent(fetch: ReturnType<typeof setup>['fetch'], index = 0) {
 
 const child = `/api/v1/children/${CHILD_A}/`;
 
-describe('3D Area puzzles in the play API (ADR-043, LAI-0812)', () => {
+describe('3D Area puzzles in the play API (ADR-047, LAI-0812)', () => {
   it('reads a bootstrap from before puzzles existed as having none', async () => {
     const { api } = setup(jsonResponse(200, bootstrapJson()));
     const region = await api.getRegion('treasure-rush-cove');

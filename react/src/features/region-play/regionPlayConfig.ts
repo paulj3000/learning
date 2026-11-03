@@ -37,7 +37,7 @@ export interface RegionPlayInteractionConfig {
   /**
    * `launch`: an object that starts one of the Place's Adventures (ADR-041). `pickup` and
    * `rune`: a collectible to pick up and a puzzle answer to touch (TR-14).
-   * `puzzle`: an object a 3D Area puzzle uses (ADR-043 F). `return`: a safe way back (FP-D10).
+   * `puzzle`: an object a 3D Area puzzle uses (ADR-047 F). `return`: a safe way back (FP-D10).
    */
   kind: 'npc' | 'chest' | 'launch' | 'pickup' | 'rune' | 'puzzle' | 'return';
   entityId: string;
@@ -529,7 +529,7 @@ export function tryParseRegionPlayConfig(config: JsonRecord): RegionPlayConfig |
   });
   const interactions = list(config.interactions, interaction);
   if (!chests || !figures || !interactions) return null;
-  // Added for ADR-043 / Firepeak; absent in a config built before them.
+  // Added for ADR-047 / Firepeak; absent in a config built before them.
   const drawnEntities = config.drawn === undefined ? [] : list(config.drawn, drawn);
   const puzzles =
     config.puzzles === undefined

@@ -70,9 +70,9 @@ export interface RegionPlaySceneApi {
   setChestOpen(entityId: string, open: boolean): void;
   /** Whether a chest is drawn open, or undefined for an unknown chest. */
   isChestOpen(entityId: string): boolean | undefined;
-  /** Lava, steam, checkpoints, openings and the way back (ADR-043, Firepeak). */
+  /** Lava, steam, checkpoints, openings and the way back (ADR-047, Firepeak). */
   effects: AreaEffectsApi;
-  /** How puzzle objects are shown (ADR-043 F). */
+  /** How puzzle objects are shown (ADR-047 F). */
   puzzles: AreaPuzzleApi;
   /**
    * TR-14: why a chest is locked now, from server state. A `HIDDEN` chest locked by progress is
@@ -412,7 +412,7 @@ export const regionPlaySceneExtension: WorldExtension = {
       }
     });
 
-    // ADR-043 / Firepeak: stand-ins and puzzle objects, environment effects, puzzle visuals.
+    // ADR-047 / Firepeak: stand-ins and puzzle objects, environment effects, puzzle visuals.
     const owned: Owned = { geometries, materials };
     for (const drawn of config.drawn) {
       const root = context.entityRoot(drawn.entityId);

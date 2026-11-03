@@ -110,7 +110,7 @@ class AdventureSession(ChildOwnedModel):
     started_at = models.DateTimeField()
     last_activity_at = models.DateTimeField()
     completed_at = models.DateTimeField(null=True, blank=True)
-    # LAI-0813 (ADR-043 acceptance requirement 1): the published content versions this session
+    # LAI-0813 (ADR-047 acceptance requirement 1): the published content versions this session
     # started with. Dialogue, puzzle settings and grading during the session read these, so a
     # publish in Django Admin cannot change a visit already under way. Set once, never moved.
     pinned_revisions = models.ManyToManyField(
@@ -511,7 +511,7 @@ class GameBrowserSession(ChildOwnedModel):
 
 
 class PuzzleAttempt(ChildOwnedModel):
-    """One submitted solution to a 3D Area puzzle (ADR-043 F, LAI-0812): a typed event, like
+    """One submitted solution to a 3D Area puzzle (ADR-047 F, LAI-0812): a typed event, like
     `ChallengeAttempt`. It records the content version it was graded against (the session's
     pinned revision), so history explains itself after any later publish. Correctness is only
     ever computed by the server (`apps.regions.puzzles.grade`).

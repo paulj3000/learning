@@ -22,7 +22,7 @@ import { resolveRegionPlayInteraction } from './regionPlayInteractions';
 import { toRegionSceneModel } from './sceneModel';
 import { servedPlaces } from './useServedPlaces';
 
-/** Firepeak Volcano on the client (ADR-043, FP-3 to FP-12): manifest, config, rules, copy. */
+/** Firepeak Volcano on the client (ADR-047, FP-3 to FP-12): manifest, config, rules, copy. */
 
 function bootstrap(options: Parameters<typeof firepeakBootstrapJson>[0] = {}) {
   return read(firepeakBootstrapJson(options), parse.regionBootstrap);

@@ -134,7 +134,7 @@ export function WelcomeHarbor() {
               <p className={styles.cardTagline}>{location.tagline}</p>
             </Link>
           ))}
-        {/* Places authored in Django (ADR-043), such as Firepeak Volcano: straight to their 3D Area. */}
+        {/* Places authored in Django (ADR-047), such as Firepeak Volcano: straight to their 3D Area. */}
         {servedPlaces.map((place) => (
           <Link
             className={styles.card}

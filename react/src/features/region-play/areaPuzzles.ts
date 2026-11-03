@@ -2,7 +2,7 @@ import type { JsonObject, JsonValue } from '../../api/parse';
 import type { PuzzleKind } from '../../api/play/types';
 
 /**
- * The client half of 3D Area puzzles (ADR-043 F, LAI-0812): typed parameters and the same rules
+ * The client half of 3D Area puzzles (ADR-047 F, LAI-0812): typed parameters and the same rules
  * the server grades with (`lai/apps/regions/puzzles.py`), for instant, local feedback only. The
  * server is the only judge: nothing here records progress or grants anything. The two halves are
  * kept in step by the `area-puzzles` golden vectors (`tests/golden/area-puzzles.json`).

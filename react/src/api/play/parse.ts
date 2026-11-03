@@ -259,7 +259,7 @@ export function regionBootstrap(r: Reader): RegionBootstrap {
     // Added by ADR-041; a server from before it sends none.
     launchPoints:
       r.field('launchPoints').value === undefined ? [] : r.field('launchPoints').array(launchPoint),
-    // Added by ADR-043 (LAI-0812, FP-2); a server from before it sends none.
+    // Added by ADR-047 (LAI-0812, FP-2); a server from before it sends none.
     puzzles: optional(r, 'puzzles', (v) => v.array(puzzleState), []),
     catalog: optional(r, 'catalog', regionCatalog, { worldSlug: '', assets: [] }),
   };

@@ -1,7 +1,7 @@
-"""The regions app's authorable kinds (ADR-043): a 3D Area's copy and its puzzles.
+"""The regions app's authorable kinds (ADR-047): a 3D Area's copy and its puzzles.
 
 Registered from `RegionsConfig.ready`. Positions, spawn points and placements are not here:
-they stay seed-authored (ADR-043 H, LAI-0805).
+they stay seed-authored (ADR-047 H, LAI-0805).
 """
 
 from apps.catalog.authoring import Kind, register

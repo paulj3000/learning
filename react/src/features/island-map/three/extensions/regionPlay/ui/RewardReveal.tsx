@@ -16,11 +16,11 @@ export interface RewardRevealProps {
   /** Quests the server says this completed. */
   completed: readonly QuestEntry[];
   onClose(): void;
-  /** Defaults to "Click! The chest is open!". A puzzle names its own moment (ADR-043 F). */
+  /** Defaults to "Click! The chest is open!". A puzzle names its own moment (ADR-047 F). */
   title?: string;
   /**
    * A line before the items, such as Pip's thanks at the finale or a puzzle's authored
-   * `completeMessage` (ADR-043 F).
+   * `completeMessage` (ADR-047 F).
    */
   lead?: string | null;
 }

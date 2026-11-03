@@ -43,7 +43,7 @@ export interface RegionManifestRepositoryOptions {
 
 /**
  * The registries a served 3D Area is validated against: the bundled ones plus what the server
- * says it names (ADR-043 A, Django is authoritative for published content). A Place, NPC or
+ * says it names (ADR-047 A, Django is authoritative for published content). A Place, NPC or
  * asset that exists only in Django (Firepeak) is therefore known, while every reference is still
  * checked; nothing the server did not declare is accepted.
  */

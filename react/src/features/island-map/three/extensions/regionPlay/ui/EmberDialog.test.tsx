@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { PipDialog } from './PipDialog';
 
-/** An NPC speaking Django-authored lines (ADR-043, Firepeak FP-4 and stage 5). */
+/** An NPC speaking Django-authored lines (ADR-047, Firepeak FP-4 and stage 5). */
 
 const dialogue = [
   {

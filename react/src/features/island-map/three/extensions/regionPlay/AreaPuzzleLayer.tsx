@@ -23,7 +23,7 @@ import { RewardReveal } from './ui/RewardReveal';
 import area from './ui/AreaPuzzlePanels.module.css';
 
 /**
- * The React side of 3D Area puzzles (ADR-043 F, Firepeak FP-5 to FP-10), inside `region-play`'s
+ * The React side of 3D Area puzzles (ADR-047 F, Firepeak FP-5 to FP-10), inside `region-play`'s
  * companion so one visit has one session and one bootstrap.
  *
  * - Holds the child's moves while they work (features looked at, stones carried and placed,

@@ -1,4 +1,4 @@
-"""3D Area puzzles (ADR-043 F, LAI-0812): parameter rules, graders, the solve route, stage order,
+"""3D Area puzzles (ADR-047 F, LAI-0812): parameter rules, graders, the solve route, stage order,
 idempotent rewards, child scoping, and session pinning (LAI-0813)."""
 
 import copy
@@ -7,6 +7,7 @@ import json
 import pytest
 
 from apps.catalog import authoring
+from apps.catalog.tests.helpers import publish_edit
 from apps.core.content_status import ContentStatus
 from apps.game_sessions.models import PuzzleAttempt
 from apps.inventory.models import GrantedRule
@@ -291,7 +292,7 @@ class TestSolveRoute:
         body["ageBands"]["PATHFINDER"]["features"].append(
             {"id": "lava", "label": "Lava", "explanation": "Melted rock."}
         )
-        authoring.publish(authoring.create_draft(telescope, body))
+        publish_edit(telescope, body)
 
         # This visit still needs only the two features it started with...
         visit = client.get(f"{base(child)}regions/{REGION}/").json()
@@ -318,7 +319,7 @@ class TestAuthoring:
         body = authoring.current_body(telescope)
         body["ageBands"]["PATHFINDER"]["features"] = []
         with pytest.raises(authoring.PublishRefused, match="features"):
-            authoring.publish(authoring.create_draft(telescope, body))
+            publish_edit(telescope, body)
 
     def test_the_mechanic_and_a_shared_change_key_cannot_change(self, area):
         _, telescope, _ = area
