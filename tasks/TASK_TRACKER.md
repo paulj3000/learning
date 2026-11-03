@@ -301,8 +301,14 @@ following task's commit.
       rooms kept with the upgrade roadmap's functions merged in (Observatory into the Setting Tower,
       Trophy Room into the Costume Room, Map Room into the corridor), Writing Room and Secret Chamber
       as the only new spaces, Quest / Adventure / 3D Area boundaries, derived pages and ranks, band
-      table, SC-R02 to SC-R12 task breakdown, owner decisions. Docs only; adr:check passes
-- [ ] **SC-R01-03** ADR-028 art direction recommendation and asset conventions (depends: SC-R01-02)
+      table, SC-R02 to SC-R12 task breakdown, owner decisions. Docs only; adr:check passes. Commit
+      `e698b4d`
+- [x] **SC-R01-03** ADR-028 art direction recommendation and asset conventions (depends: SC-R01-02).
+      DONE: "Recommended decision, 2026-11-02" added to ADR-028, **status left Proposed** (owner
+      acceptance pending); `docs/regions/storykeeper_castle_art_direction.md` with style, sourcing and
+      ledger rules, material and naming conventions, room palettes, provisional LOW/MEDIUM/HIGH
+      budgets, import rules, fallbacks. Docs only; adr:check passes. Owner: accept ADR-028; fund
+      commissioned Quill, Ember and Storybook art; decide KayKit wall height
 - [ ] **SC-R01-04** Gameplay and compatibility contracts with contract tests (depends: SC-R01-02)
 - [ ] **SC-R01-05** Acceptance and test plan (depends: SC-R01-04)
 - [ ] **SC-R02-01** Reusable visual system in the generic location runtime (depends: SC-R01-03)

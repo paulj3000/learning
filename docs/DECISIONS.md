@@ -49,7 +49,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-025 | Exceptions are logged as type and location, never as message | Accepted | Django migration line |  |
 | ADR-026 | Multiplayer runs on a separate authoritative room server over WebSocket; the engine only renders it | Accepted | Main line (Storykeeper Castle / engine) | Integrated from `origin/main`; number unchanged |
 | ADR-027 | A story chapter may be played inside a 3D region; the Story Engine keeps sole ownership of progress | Accepted | Storykeeper Castle line | Renumbered from ADR-019 |
-| ADR-028 | Where the castle's art comes from | Proposed | Storykeeper Castle line | Renumbered from ADR-020 |
+| ADR-028 | Where the castle's art comes from | Proposed | Storykeeper Castle line | Renumbered from ADR-020. Recommended decision recorded 2026-11-02 (SC-R01-03, hybrid sourcing plus runtime procedural surfaces); owner acceptance pending |
 | ADR-029 | Phaser 2D views are phased out; new regions are authored in Three.js only | Accepted | Storykeeper Castle line | Renumbered from ADR-021. Related to ADR-020, not a duplicate |
 | ADR-030 | Uploaded models live in S3 behind Admins-only Asset records; the bundled manifest stays the runtime fallback | Accepted | Storykeeper Castle line | Renumbered from ADR-022 |
 | ADR-031 | Islands and Adventures are an admin catalog overlaid on source-controlled content; Superusers are Admins with one extra group | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-024 on `origin/main`. To be superseded when LAI-0801/0802 move catalog editing to Django (ADR-019 sub-decision 8). Treasure Rush's TR-D3 (admin-authored content as authoritative, which would have changed it) was not adopted (ADR-033) |
@@ -1833,6 +1833,53 @@ None of these numbers exist yet, and the decision is better made with them:
    this ("avoid mixing highly realistic assets with cartoon assets").
 4. The sourcing question in the paragraph above, which is the one that
    actually determines whether the castle becomes showable.
+
+
+### Recommended decision, 2026-11-02 (SC-R01-03; still Proposed)
+
+Recorded for the owner by the Storykeeper Castle Reboot
+(`docs/regions/STORYKEEPER_CASTLE_REBOOT_ROADMAP.md`). **This is a recommendation,
+not an acceptance.** The status above stays Proposed until the owner accepts it.
+The full conventions, budgets and ledger rules are in
+`docs/regions/storykeeper_castle_art_direction.md`.
+
+**Art direction: "Stylized Fantasy Storybook 3D".** Vibrant, welcoming colour;
+consistent materials; low-poly, stylized geometry with enough detail to feel
+finished; warm light with magical highlights; a distinct personality per room;
+child-friendly rounded shapes; clear silhouettes on interactive objects;
+rendering light enough for tablets.
+
+**Hybrid sourcing, in order of preference per asset:**
+
+1. **Licensed environment kits** for architecture and scenery, where the
+   licence allows redistribution in an app bundle (prefer CC0). KayKit
+   Dungeon Remastered is the named candidate. Two of its pieces are already
+   in use; the rest are not in the repository and must be acquired and
+   recorded in `docs/ASSET_LICENCES.md` before use. Its 4 m walls against the
+   castle's 3 m `WALL_HEIGHT` are a separate owner decision.
+2. **Commissioned assets** for Keeper Quill, Ember, the Great Storybook and
+   iconic landmark props. These are unpriced, a budget decision.
+3. **Procedural geometry** (the generator) for every gameplay-bearing asset
+   whose exact state the puzzle depends on. This keeps option C's identical
+   vertices and the "no gameplay-bearing import" rule above.
+4. **Procedural surface textures generated in code at runtime** for floors,
+   walls, ceilings and trim. This is a variant of option C: deterministic
+   seeded pixel patterns uploaded as `DataTexture`s, with no image file, no
+   decode, no licence, and no change to the jsdom test strategy. The
+   surfaces get world-scaled UVs so a texel is the same size in every room.
+   It lifts every surface the child walks past without waiting for (1) or
+   (2), and any surface can later be switched to a licensed texture through
+   the same material preset.
+5. **Asset Library-managed, versioned binaries** (ADR-035, ADR-045) for
+   anything imported, addressed by logical id. Bundled `manifest.ts` stays
+   the fallback.
+6. **Shared materials**: one material per preset per scene. No per-object
+   material copies.
+
+**Limit, restated honestly.** Items 3 and 4 make a coherent, stylized,
+textured castle. They are not commissioned art. Characters and landmarks stay
+generated placeholders until (2) is funded, and the reboot's visual tasks
+record that as partial rather than done.
 
 
 ## ADR-029: Phaser 2D views are phased out; new regions are authored in Three.js only
