@@ -330,6 +330,14 @@ following task's commit.
       `effects`, `LightSpec.priority`, validated. The view passes the tier and reduced-motion
       preference. Tests: 60 new (visual), 101 three/region-play files (1276) pass; typecheck, build,
       Prettier pass. Browser (owner): textures look right, no shimmer; LOW on a weak device
+- [x] **SC-R01/02-AUDIT** Verification audit of SC-R01 and SC-R02 against code, tests and Git
+      (depends: SC-R02-01). DONE: `docs/regions/storykeeper_castle_verification_audit.md`. Verified:
+      SC-R01-01 to 05 delivered (ADR-028 still **Proposed**); SC-R02-01 delivered; **SC-R02-02 to 09
+      not implemented** (no room re-dressed, the castle manifest declares no `materials`, `surfaces`
+      or `effects`). No duplicate Phaser, sound, asset-manager or content-backend code. Maps the
+      owner brief's SC-R02-02..10 onto this tracker's ids. Tests: 9 files, 118 pass (visual, region,
+      contracts, manifest). The full `three/` suite did not complete on this machine (worker
+      timeouts, 8 GB RAM; environmental). Browser: none run
 - [ ] **SC-R02-02** Great Library visual overhaul (depends: SC-R02-01)
 - [ ] **SC-R02-03** Entry Hall visual overhaul (depends: SC-R02-01)
 - [ ] **SC-R02-04a-f** Story Hall, Character Gallery, Costume Room, Setting Tower, Illustration
