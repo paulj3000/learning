@@ -42,6 +42,7 @@ const sceneSpies = vi.hoisted(() => ({
   goToRoom: vi.fn(),
   // The secret passage opens in the room the moment the tapestry nook is found (SC-R03-05).
   showSecretPassageOpened: vi.fn(),
+  showStorybook: vi.fn(),
 }));
 const engine = vi.hoisted(() => ({
   bus: null as WorldEngineEventBus | null,

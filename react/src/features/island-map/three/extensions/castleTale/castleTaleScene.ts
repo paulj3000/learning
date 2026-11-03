@@ -1,4 +1,10 @@
-import { Box3, LoopOnce, LoopRepeat, Object3D, PointLight, Vector3 } from 'three';
+import { Box3, Color, LoopOnce, LoopRepeat, Mesh, Object3D, PointLight, Vector3 } from 'three';
+import type { StorybookSceneState } from '../../../../great-storybook/scene';
+import {
+  STORYBOOK_PART_IDS,
+  STORYBOOK_COLOURS,
+} from '../../runtime/manifests/castleRooms/greatLibrary';
+import { ENTRY_MURAL_PARCHMENT } from '../../runtime/manifests/castleRooms/entryHall';
 import { areRequirementsMet, type WorldInteractionContext } from '../../../worldObjects';
 import {
   SECRET_PASSAGE_SEAL_ID,
@@ -61,6 +67,12 @@ export interface CastleTaleSceneApi {
    * on an earlier visit, so this is only for finding it mid-visit.
    */
   showSecretPassageOpened(opened: boolean): void;
+  /**
+   * Draws the Great Storybook from the records (SC-R04-03): cover torn or whole, pages
+   * back, one slot per required page and the bonus slot once found. Idempotent, and it
+   * decides nothing. A closed, empty book is what the scene shows until this is called.
+   */
+  showStorybook(state: StorybookSceneState): void;
   /** The room the child is standing in, or `undefined` in a wall or outside the castle. */
   currentRoomId(): CastleRoomId | undefined;
   /**
@@ -529,8 +541,63 @@ export const castleTaleExtension: WorldExtension = {
       }),
     );
 
+    // The Great Storybook: parts are manifest scenery, found by id. Closed and empty until told.
+    const paint = (root: Object3D | undefined, colour: number) => {
+      root?.traverse((node) => {
+        const material = node instanceof Mesh ? node.material : undefined;
+        if (material && !Array.isArray(material) && 'color' in material) {
+          (material.color as Color).setHex(colour);
+        }
+      });
+    };
+    const slotRoots = STORYBOOK_PART_IDS.slots.map((id) => context.sceneryRoot(id));
+    let shownSlots: boolean[] | undefined;
+    let pulseUntil = 0;
+    const pulsing = new Set<number>();
+    const PULSE_SECONDS = 1.2;
+    const setStorybook = (state: StorybookSceneState) => {
+      const pagesBack = state.required.some(Boolean) || state.bonusFound;
+      const pages = context.sceneryRoot(STORYBOOK_PART_IDS.pages);
+      if (pages) pages.visible = pagesBack;
+      paint(
+        context.sceneryRoot(STORYBOOK_PART_IDS.cover),
+        state.complete ? STORYBOOK_COLOURS.coverWhole : STORYBOOK_COLOURS.coverTorn,
+      );
+      paint(
+        context.sceneryRoot(ENTRY_MURAL_PARCHMENT.id),
+        state.complete ? ENTRY_MURAL_PARCHMENT.whole : ENTRY_MURAL_PARCHMENT.blank,
+      );
+      const bonusIndex = STORYBOOK_PART_IDS.slots.length - 1;
+      const back = slotRoots.map((_, i) =>
+        i === bonusIndex ? state.bonusFound : (state.required[i] ?? false),
+      );
+      slotRoots.forEach((root, i) => {
+        if (!root) return;
+        const exists = i === bonusIndex ? state.bonusFound : i < state.required.length;
+        root.visible = exists;
+        paint(root, back[i] ? STORYBOOK_COLOURS.slotBack : STORYBOOK_COLOURS.slotMissing);
+        if (shownSlots && back[i] && !shownSlots[i] && !context.reducedMotion) {
+          pulsing.add(i);
+          pulseUntil = elapsedSeconds + PULSE_SECONDS;
+        }
+      });
+      shownSlots = back;
+    };
+    unsubscribes.push(
+      context.onFrame(() => {
+        if (pulsing.size === 0) return;
+        const left = pulseUntil - elapsedSeconds;
+        const scale = left > 0 ? 1 + 0.25 * Math.sin((1 - left / PULSE_SECONDS) * Math.PI) : 1;
+        for (const i of pulsing) slotRoots[i]?.scale.setScalar(scale);
+        if (left <= 0) pulsing.clear();
+      }),
+    );
+    setStorybook({ required: [], bonusFound: false, complete: false });
+    shownSlots = undefined; // the first push from the records primes it, so a returning child sees no pulse
+
     const api: CastleTaleSceneApi = {
       ready,
+      showStorybook: setStorybook,
       showChosenHero(entityId) {
         chosenHeroEntityId = entityId;
         applyVariants(portraitVariants, entityId);

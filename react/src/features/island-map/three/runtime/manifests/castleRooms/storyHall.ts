@@ -17,7 +17,6 @@ import { box, solid, type RoomVisuals } from './castleVisualKit';
 const STONE = 0x8c7f6e;
 const STONE_LIGHT = 0xa39580;
 const FIRE = 0xff9c3a;
-const FIRE_BRIGHT = 0xffcf6a;
 const CRIMSON = 0x8e1f2f;
 const GOLD = 0xd8b45a;
 
@@ -172,8 +171,8 @@ export const STORY_HALL_VISUALS: RoomVisuals = {
       0.25,
       JAMB_TOP,
     ),
-    box('castle-hearth-fire', FIRE, -0.8, 0.8, -5.7, -5.45, 0.25, 0.75),
-    box('castle-hearth-flame', FIRE_BRIGHT, -0.45, 0.45, -5.68, -5.5, 0.75, 1),
+    // One fire: the flame it used to be topped with is folded in, to pay for the Great Storybook's parts.
+    box('castle-hearth-fire', FIRE, -0.8, 0.8, -5.7, -5.45, 0.25, 0.95),
     ...HUB_DOOR_CUES.flatMap((cue) =>
       cuePlates(
         CASTLE_DOORS.find((door) => door.id === cue.doorId)!,

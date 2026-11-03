@@ -11,6 +11,7 @@ import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry
 import type { AdventureDefinition } from '../../../../adventures/engine/types';
 import { CastleTaleSession, type CastleChoiceState } from './CastleTaleSession';
 import { SECRET_PASSAGE_DISCOVERY_ID } from '../../castleLayout';
+import { toSceneState } from '../../../../great-storybook/scene';
 import { useGreatStorybook } from '../../../../great-storybook/useGreatStorybook';
 import { CastleGuide } from './CastleGuide';
 import { CastleSecretDoorStory } from './CastleSecretDoorStory';
@@ -116,6 +117,12 @@ export function CastleTaleCompanion({
       [showToast],
     ),
   });
+
+  // The 3D book is drawn from the same derived progress as the card: one source, two views.
+  const sceneState = useMemo(() => toSceneState(storybook.progress), [storybook.progress]);
+  useEffect(() => {
+    scene?.showStorybook(sceneState);
+  }, [scene, sceneState]);
 
   const [taleActive, setTaleActive] = useState(false);
   const [storyActive, setStoryActive] = useState(false);

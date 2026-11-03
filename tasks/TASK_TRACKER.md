@@ -729,7 +729,20 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       clean; Ruff, Prettier and oxlint clean. **Not here**: the 3D book (SC-R04-03), and Django
       cannot yet prove pages whose records are written by adventures that complete on the Amplify
       engine (SC-R04-04 records the boundary). Browser: none needed
-- [ ] **SC-R04 to SC-R12** Not started. Gated items: Sound Manager merge (SC-R06), narration
+- [x] **SC-R04-03** 3D Great Storybook and restoration (depends: SC-R04-02). DONE (development).
+      **No new budget used**: the original-room scenery pool stays exactly 160 of 160 because the
+      Library's dais, beams and candles were merged to make room for the book (cover, pages block and
+      four page slots, all existing `BOX` decor); no new preset, light or surface. The hearth flame in
+      the Story Hall was merged into the fire. **Scene**: `showStorybook(state)` on the castle-tale
+      scene API, drawn from the pure `toSceneState(progress)` (the same derived progress as the card, so
+      card and 3D cannot disagree): closed torn book at mount, pages block once any page is back, one
+      slot per required page (Sprout and Pathfinder 1, Explorer 3), the bonus slot only once found,
+      cover and the Entry Hall mural turn gold when whole, a page that comes back mid-visit pulses its
+      slot (never for a book already restored on arrival, never under reduced motion). Idempotent,
+      decides nothing. Tests: 7 engine, 5 state and capacity; the `three/` and book groups are
+      **108 files, 1398 tests**; typecheck, Prettier and oxlint (no errors) clean, production vite build
+      passes. Browser: none run
+- [ ] **SC-R04-04 to SC-R12** Not started. Gated items: Sound Manager merge (SC-R06), narration
       provider and voice consent (SC-R06-03), new educational content (roadmap SC-R04-05), Phaser
       retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the
       SC-11 gate)

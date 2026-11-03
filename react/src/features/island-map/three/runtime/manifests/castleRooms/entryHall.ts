@@ -69,6 +69,17 @@ const banner = (id: string, side: 'n' | 's', minX: number, maxX: number) => {
   ];
 };
 
+/**
+ * The blank mural's parchment (SC-R04-03): the Great Storybook's restoration shows here too. Its
+ * id and colours are shared with the castle-tale scene, which warms it to gold once the book is
+ * whole. No new scenery: the frame and parchment are the ones SC-R02-03 built.
+ */
+export const ENTRY_MURAL_PARCHMENT = {
+  id: 'castle-entry-mural-parchment',
+  blank: PARCHMENT,
+  whole: 0xf2d680,
+} as const;
+
 export const ENTRY_HALL_VISUALS: RoomVisuals = {
   look: {
     roomId: 'entry-hall',
@@ -144,7 +155,7 @@ export const ENTRY_HALL_VISUALS: RoomVisuals = {
       ENTRY_MURAL.maxY + 0.15,
     ),
     box(
-      'castle-entry-mural-parchment',
+      ENTRY_MURAL_PARCHMENT.id,
       PARCHMENT,
       ENTRY_MURAL.x - ENTRY_MURAL.halfWidth,
       ENTRY_MURAL.x + ENTRY_MURAL.halfWidth,

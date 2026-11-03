@@ -29,7 +29,7 @@ import { STORY_HALL_VISUALS } from './castleRooms/storyHall';
 import { TROPHY_ROOM_VISUALS } from './castleRooms/trophyRoom';
 
 export type { RoomLook, RoomVisuals } from './castleRooms/castleVisualKit';
-export { STORYBOOK_DAIS } from './castleRooms/greatLibrary';
+export { STORYBOOK_DAIS, STORYBOOK_PART_IDS, STORYBOOK_COLOURS } from './castleRooms/greatLibrary';
 export { ENTRY_MURAL } from './castleRooms/entryHall';
 export { CORRIDOR_MAP } from './castleRooms/eastCorridor';
 export { TOWER_ORRERY } from './castleRooms/settingTower';

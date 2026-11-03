@@ -84,7 +84,7 @@ be painted.
 
 | Room | Module | Presets it adds | Notable decor |
 | --- | --- | --- | --- |
-| Great Library | `greatLibrary.ts` | `planks-library`, `ashlar-library` | Storybook dais (solid), three ceiling beams, two candles, dais glow light |
+| Great Library | `greatLibrary.ts` | `planks-library`, `ashlar-library` | Storybook dais (solid) carrying the Great Storybook (cover, pages block, four page slots; SC-R04-03), one ceiling beam, candles, dais glow light |
 | Entry Hall | `entryHall.ts` | `flagstone-entry`, `ashlar-entry`, `plaster-entry`, `tiles-entry-inlay` | Four columns (solid), four banners, blank mural frame, medallion inlay |
 | Story Hall | `storyHall.ts` | `planks-honey`, `ashlar-hall`, `plaster-hall`, `carpet-hall-rug` | Hearth surround (solid), fire, three banners, rug inlay |
 | Character Gallery | `characterGallery.ts` | `plaster-gallery` | Three plaques, runner inlay |

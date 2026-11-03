@@ -6,6 +6,8 @@ import {
 } from '../../extensions/castleTale/castleTaleScene';
 import { mount, standAt, walk } from '../testing/engineHarness';
 import { RENDER_QUALITY_PRESETS } from '../visual/renderQuality';
+import { ENTRY_MURAL_PARCHMENT } from './castleRooms/entryHall';
+import { STORYBOOK_COLOURS, STORYBOOK_PART_IDS } from './castleRooms/greatLibrary';
 import { STORYKEEPER_CASTLE_MANIFEST as MANIFEST } from './storykeeperCastle';
 import { CASTLE_MATERIALS, CASTLE_SURFACES } from './storykeeperCastleVisuals';
 
@@ -271,5 +273,92 @@ describe('the secret passage in the real runtime (SC-R03-05)', () => {
       h.scene().getObjectByName('archway-secret') !== undefined;
     expect(has(castle({ quality: 'MEDIUM' }))).toBe(false);
     expect(has(castle({ quality: 'MEDIUM', worldState: FOUND }))).toBe(true);
+  });
+});
+
+describe('the Great Storybook in the castle (SC-R04-03)', () => {
+  const openBook = (options: Partial<Parameters<typeof mount>[0]> = {}) => {
+    const harness = castle({ quality: 'MEDIUM', ...options });
+    const api = harness.engine.extensionApi('castle-tale');
+    if (!isCastleTaleScene(api)) throw new Error('castle-tale did not mount');
+    const part = (id: string) => harness.scene().getObjectByName(id);
+    const colour = (id: string) => {
+      let hex = -1;
+      part(id)?.traverse((o) => {
+        if (o instanceof Mesh && o.material instanceof MeshStandardMaterial)
+          hex = o.material.color.getHex();
+      });
+      return hex;
+    };
+    return { harness, api, part, colour };
+  };
+  const NONE = { required: [], bonusFound: false, complete: false } as const;
+
+  it('starts as a closed, torn book with no pages or slots showing', () => {
+    const { part, colour } = openBook();
+    expect(part(STORYBOOK_PART_IDS.cover)?.visible).toBe(true);
+    expect(colour(STORYBOOK_PART_IDS.cover)).toBe(STORYBOOK_COLOURS.coverTorn);
+    expect(part(STORYBOOK_PART_IDS.pages)?.visible).toBe(false);
+    for (const id of STORYBOOK_PART_IDS.slots) expect(part(id)?.visible).toBe(false);
+  });
+
+  it('shows one slot per required page, lit only for the pages that are back', () => {
+    const { api, part, colour } = openBook();
+    api.showStorybook({ required: [true, false, false], bonusFound: false, complete: false });
+    const [one, two, three, bonus] = STORYBOOK_PART_IDS.slots;
+    expect([one, two, three].map((id) => part(id)?.visible)).toEqual([true, true, true]);
+    expect(part(bonus)?.visible).toBe(false);
+    expect(colour(one)).toBe(STORYBOOK_COLOURS.slotBack);
+    expect(colour(two)).toBe(STORYBOOK_COLOURS.slotMissing);
+    expect(part(STORYBOOK_PART_IDS.pages)?.visible).toBe(true);
+  });
+
+  it('shows the bonus slot only once found, and a Sprout book only one required slot', () => {
+    const { api, part } = openBook();
+    api.showStorybook({ required: [false], bonusFound: true, complete: false });
+    const slots = STORYBOOK_PART_IDS.slots;
+    expect(slots.map((id) => part(id)?.visible)).toEqual([true, false, false, true]);
+  });
+
+  it('turns the cover and the entry mural gold when the book is whole, and back if told otherwise', () => {
+    const { api, colour } = openBook();
+    api.showStorybook({ required: [true], bonusFound: false, complete: true });
+    expect(colour(STORYBOOK_PART_IDS.cover)).toBe(STORYBOOK_COLOURS.coverWhole);
+    expect(colour(ENTRY_MURAL_PARCHMENT.id)).toBe(ENTRY_MURAL_PARCHMENT.whole);
+    api.showStorybook(NONE);
+    expect(colour(STORYBOOK_PART_IDS.cover)).toBe(STORYBOOK_COLOURS.coverTorn);
+    expect(colour(ENTRY_MURAL_PARCHMENT.id)).toBe(ENTRY_MURAL_PARCHMENT.blank);
+  });
+
+  it('is idempotent', () => {
+    const { api, part } = openBook();
+    const state = { required: [true, true], bonusFound: false, complete: false };
+    api.showStorybook(state);
+    api.showStorybook(state);
+    expect(part(STORYBOOK_PART_IDS.slots[1])?.visible).toBe(true);
+  });
+
+  it('pulses a slot that comes back mid-visit, settles to scale 1, and never pulses under reduced motion', () => {
+    const live = openBook();
+    live.api.showStorybook({ required: [false], bonusFound: false, complete: false });
+    live.api.showStorybook({ required: [true], bonusFound: false, complete: true });
+    live.harness.runFrames(3);
+    const slot = live.part(STORYBOOK_PART_IDS.slots[0]);
+    expect(slot?.scale.x).toBeGreaterThan(1);
+    live.harness.runFrames(200);
+    expect(slot?.scale.x).toBe(1);
+
+    const still = openBook({ reducedMotion: true });
+    still.api.showStorybook({ required: [false], bonusFound: false, complete: false });
+    still.api.showStorybook({ required: [true], bonusFound: false, complete: true });
+    still.harness.runFrames(3);
+    expect(still.part(STORYBOOK_PART_IDS.slots[0])?.scale.x).toBe(1);
+  });
+
+  it('does not pulse for a book that was already restored when the child arrived', () => {
+    const { harness, api, part } = openBook();
+    api.showStorybook({ required: [true], bonusFound: false, complete: true });
+    harness.runFrames(3);
+    expect(part(STORYBOOK_PART_IDS.slots[0])?.scale.x).toBe(1);
   });
 });
