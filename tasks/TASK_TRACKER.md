@@ -428,7 +428,7 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
   existing `-lit` portrait and window variants and the plate and rod seating are the castle's
   state feedback and are unchanged; extra pulses were not added. Quill's authored idle and
   gesture clips are character animation and are not suppressed. Browser (owner): reduced-motion
-  feel; whether more glow is wanted
+  feel; whether more glow is wanted. Commit `249e98a`
 - [x] **SC-R02-06** Lighting moods and quality-tier light budgets (depends: SC-R02-01). DONE
       (development): each room look carries a `mood` (lamp colour from the art direction palette, and
       a `priority`); the manifest's room lamps wear them, so the previously all-white lamps are warm
@@ -458,7 +458,16 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       budget means decide, not edit the number. Tests: 10 pass; typecheck has only the missing
       `@colyseus/sdk` error; Prettier and oxlint clean. Real frame rate stays with SC-R11 (owner, real
       tablet). Commit `f5615c7`
-- [ ] **SC-R02-09** Final development verification (depends: all SC-R02)
+- [x] **SC-R02-09** Final development verification (depends: all SC-R02). DONE (development; SC-R02-05
+      stays partial). Gate run: 32 files, **467 tests pass** (every region manifest, the castle parity
+      suite **with the scratch `@colyseus/sdk` stub**, the visual system, contracts, bindings, HUD
+      equivalence, region geometry, castle kit); `tsc --noEmit -p tsconfig.app.json` has one error,
+      the missing `@colyseus/sdk` module, none in castle files; **production `vite build` succeeds**
+      (also with the stub; output to a scratch folder); Prettier and oxlint clean on changed files.
+      `docs/regions/storykeeper_castle_verification_audit.md` section 8 records each room's
+      before and after, the repair commits, and the owner checklist. Nothing is marked visually
+      accepted. Still owed by the owner: a browser look at all eight rooms, LOW tier, reduced motion,
+      ADR-028 acceptance
 - [ ] **SC-R03 to SC-R12** Not started; task lists in the reboot roadmap section 6. Gated items:
       Sound Manager merge (SC-R06), narration provider and voice consent (SC-R06-03), new spaces and
       content (SC-R03-02, SC-R04-05, SC-R05-03), Phaser retirement (SC-R10-03, ADR-020, LAI-2303),

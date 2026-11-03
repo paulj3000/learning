@@ -171,3 +171,44 @@ Parity suite with the stub: **1 file, 44 tests passed.**
 - Missing assets: none referenced as existing that do not. Commissioned Quill, Ember and Storybook
   art are unfunded, and the kit-wall height decision is open (roadmap section 7).
 - Repair commits: see the tracker; SC-R02-02 to 09 follow this audit.
+
+## 8. Repairs and post-repair status (SC-R02, completed 2026-11-03)
+
+The gap found in section 4.2 was repaired in order. **"Implemented and unit-tested" means the
+room's data, walkability, budgets and runtime build are covered by Vitest. It does not mean the room
+looks right.** Every row still needs the owner's browser inspection, and none of the art is
+production art: floors, walls and ceilings are deterministic procedural presets, and decor is
+solid-colour boxes. ADR-028 is still Proposed.
+
+| Task | Room or area | Previously | Now | Repair commit | Not done |
+| --- | --- | --- | --- | --- | --- |
+| SC-R02-02 | Great Library | Not implemented | Implemented, unit-tested, awaiting visual acceptance | `4c792b4` | Columns, chairs, varied book art, no safe floor or no art |
+| SC-R02-03 | Entry Hall | Not implemented | Same | `216ad7d` | Path-to-library inlay (SC-R03) |
+| SC-R02-04a | Story Hall | Not implemented | Same | `98164d5` | Stage dais |
+| SC-R02-04b | Character Gallery | Not implemented | Same | `ccf39cb` | Plinths and rope barriers (would stand in the portrait zones) |
+| SC-R02-04c | Costume Room | Not implemented | Same, and the three unplaced racks are now placed | `d336b12` | Trophy pedestals (SC-R03, SC-R07) |
+| SC-R02-04f | East Corridor | Not implemented | Same | `78d9e76` | Page marks on the map (SC-R04) |
+| SC-R02-04d | Setting Tower | Not implemented | Same | `86b5b7a` | Telescope and observing (SC-R03) |
+| SC-R02-04e | Illustration Studio | Not implemented | Same | `9de8c0c` | Stools |
+| SC-R02-06 | Lighting moods and budgets | Not implemented | Implemented, unit-tested | `6e80d0a` | Measured exposure |
+| SC-R02-07 | Asset manifest | Not implemented | Delivered (docs) | `21cf1aa` | None |
+| SC-R02-08 | Static budgets | Not implemented | Implemented, unit-tested; all numbers provisional | `f5615c7` | Real frame rate (SC-R11) |
+| SC-R02-05 | Interaction feedback, reduced motion | Not implemented | **Partial**: a real reduced-motion defect was fixed (the secret tapestry ignored it) | `249e98a` | New state-flip glow was not added |
+
+Checks 1 to 8 of section 4.2 now hold for every room except as listed under "Not done". In
+particular: scene components exist (check 1), presets and textures apply (2), interactions and
+colliders are unchanged and the castle is still fully walkable with the new solid decor (3 and 4,
+tested through `testing/castleReachability.ts`), disposal is covered by the runtime test (5), no
+new asset path was introduced (6), a failed texture falls back to a flat preset colour and the kit
+pieces remain underneath (7).
+
+### Owner acceptance still owed for SC-R02
+
+- Open each of the eight rooms in a browser: palette, readability of interactive props against the
+  new walls (the library clues and rods, the portraits, the windows, the easel), and the dais.
+- Check the mantel carving (Story Hall) is legible above the new hearth jambs.
+- Confirm no flicker where a surface stands 1 to 4 cm in front of a kit panel.
+- Reduced motion on: the secret tapestry hangs still and slightly askew.
+- A weak device (LOW tier): textures flat, no motes, six or fewer lamps lost, hearth and hub kept.
+- Decide whether more state-flip glow is wanted (SC-R02-05).
+
