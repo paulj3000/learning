@@ -301,4 +301,109 @@ describe('CastleGuide', () => {
       expect(screen.getByRole('button', { name: /go to the secret chamber/i })).toBeInTheDocument();
     });
   });
+
+  describe('the castle map and what the child has explored (SC-R03-06)', () => {
+    const fakeRooms = (saved: string[] = []) => {
+      const list = vi.fn().mockResolvedValue(saved);
+      const record = vi
+        .fn()
+        .mockImplementation((roomId: string) => Promise.resolve({ roomId, newlyDiscovered: true }));
+      return { api: { list, record }, list, record };
+    };
+
+    it('draws the map in the open guide, with the room the child is in marked', async () => {
+      const rooms = fakeRooms();
+      render(
+        <CastleGuide
+          scene={fakeScene('story-hall').api}
+          worldState={NOTHING}
+          childId="c"
+          roomsApi={rooms.api}
+        />,
+      );
+      open();
+      const map = screen.getByRole('group', { name: 'Castle map' });
+      expect(
+        within(map).getByRole('button', { name: /the story hall\. You are here\./ }),
+      ).toHaveAttribute('aria-current', 'location');
+    });
+
+    it('records the room the child is in, once the saved list is known', async () => {
+      const rooms = fakeRooms();
+      render(
+        <CastleGuide
+          scene={fakeScene('story-hall').api}
+          worldState={NOTHING}
+          childId="c"
+          roomsApi={rooms.api}
+        />,
+      );
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(rooms.record).toHaveBeenCalledWith('story-hall');
+    });
+
+    it('reads a room the server saved as explored, in the map and the list', async () => {
+      const rooms = fakeRooms(['entry-hall', 'story-hall', 'great-library']);
+      render(
+        <CastleGuide
+          scene={fakeScene('story-hall').api}
+          worldState={NOTHING}
+          childId="c"
+          roomsApi={rooms.api}
+        />,
+      );
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      open();
+      const map = screen.getByRole('group', { name: 'Castle map' });
+      expect(
+        within(map).getByRole('button', { name: /the Great Library\. Explored\./ }),
+      ).toBeInTheDocument();
+      expect(
+        within(map).getByRole('button', { name: /the Setting Tower\. Not explored yet\./ }),
+      ).toBeInTheDocument();
+      // The list says it in words too, only for rooms not yet explored.
+      const tower = screen.getByRole('button', { name: /go to the setting tower/i });
+      expect(within(tower).getByText(/^Not explored yet\. Walking:/)).toBeInTheDocument();
+      const library = screen.getByRole('button', { name: /go to the great library/i });
+      expect(within(library).queryByText(/not explored yet/i)).toBeNull();
+    });
+
+    it('marks the visit and saves nothing when there is no child', async () => {
+      const rooms = fakeRooms();
+      render(
+        <CastleGuide
+          scene={fakeScene('story-hall').api}
+          worldState={NOTHING}
+          roomsApi={rooms.api}
+        />,
+      );
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(rooms.list).not.toHaveBeenCalled();
+      expect(rooms.record).not.toHaveBeenCalled();
+      open();
+      expect(
+        screen.getByRole('button', { name: /the story hall\. You are here\./ }),
+      ).toBeInTheDocument();
+    });
+
+    it('keeps the way back to the hub on the map as well as in the list', () => {
+      render(
+        <CastleGuide scene={fakeScene('great-library').api} worldState={NOTHING} roomsApi={null} />,
+      );
+      open();
+      const map = screen.getByRole('group', { name: 'Castle map' });
+      expect(
+        within(map).getByRole('button', { name: /the story hall\. Not explored yet\./ }),
+      ).toBeEnabled();
+      expect(screen.getByRole('button', { name: /back to the story hall/i })).toBeEnabled();
+    });
+  });
 });

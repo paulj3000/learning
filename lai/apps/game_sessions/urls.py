@@ -9,7 +9,7 @@ LAI-0601's answers and hints come first: Treasure Rush's lifecycle route
 
 from django.urls import path
 
-from . import launch_views, native_views, play_views
+from . import castle_views, launch_views, native_views, play_views
 from .views import AnswersView, HintsView
 
 CHILD = "children/<uuid:child_id>/"
@@ -23,6 +23,7 @@ urlpatterns = [
     path(f"{CHILD}regions/", native_views.RegionListView.as_view(), name="child-regions"),
     path(f"{CHILD}islands/", native_views.IslandListView.as_view(), name="child-islands"),
     path(f"{CHILD}inventory/", native_views.InventoryView.as_view(), name="child-inventory"),
+    path(f"{CHILD}castle/rooms/", castle_views.CastleRoomsView.as_view(), name="castle-rooms"),
     path(f"{CHILD}game-launches/", launch_views.GameLaunchView.as_view(), name="game-launches"),
     path("game-launches/redeem/", launch_views.GameLaunchRedeemView.as_view(), name="game-redeem"),
     path("game-launches/revoke/", launch_views.GameLaunchRevokeView.as_view(), name="game-revoke"),

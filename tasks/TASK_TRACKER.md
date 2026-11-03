@@ -548,7 +548,7 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       (the roadmap merges them and the owner confirmed it): `setting-tower` keeps its stable id,
       primary role (`choose-setting`), three story windows, window zones and arrival zone, all
       asserted unchanged; `CastleRoomNode.functions` now records `['choose-setting',
-  'observatory']`, and there is no `observatory` room id. Added: a **big telescope** (solid stand,
+'observatory']`, and there is no `observatory` room id. Added: a **big telescope** (solid stand,
       tube above head height, never solid), a **star chart** on the west wall with five gold stars,
       and two walk-up observing points (`castle-observatory-telescope`, `castle-observatory-chart`).
       **Flavour only**: both are `SHOW_MESSAGE`, so looking can never grade, grant, record, start or
@@ -590,8 +590,39 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       draw calls about 277 of 300. **Not done:** chamber content and puzzles (SC-R08), a starry
       ceiling (needs a 17th preset). Browser (owner): that the hall wall looks seamless where the
       gap is filled, the tapestry hides the passage, the chamber mood and lantern, the opening
-      feel
-- [ ] **SC-R03-06** Castle map and room discovery
+      feel. Commit `489497a`
+- [x] **SC-R03-06** Castle map and room discovery, **persisted in Django** (depends: SC-R03-01, -02,
+      -05). DONE (development). Per the owner's decision, discovery persists in Django/Postgres, scoped
+      to the child, and React only displays and caches (**ADR-047**). **Django**: a discovery is an
+      ordinary `WorldChange` (`ROOM_DISCOVERED`, key `castle-room:<id>`) written by the existing
+      idempotent `record_world_change`, so **no new model, no migration**; one child-scoped,
+      bearer-only endpoint `GET` and `POST children/{id}/castle/rooms/` with a closed body, the room ids
+      in `castle_rooms.json` (shared with the client's `CASTLE_ROOM_IDS`, a Vitest test fails if they
+      drift), `201` first time and `200` after. **A secret stays secret**: `secret-chamber` is recorded
+      only once the nook discovery is on the child's `WorldState`, and before that it gets the
+      byte-identical `404 not_found` an unknown room gets, and is never listed. **React**: a typed
+      client (`api/play/castleRoomsApi.ts`, `disabled` without the Django API), a
+      `useCastleDiscovery` hook (reads the saved list once, marks each room for the visit, records
+      each new room once and only after the list is known; **any refusal, no API or a network failure
+      means "not saved", never an error a child sees**), and the map: `CastleMap` built from the
+      canonical layout (`castleMapGeometry.ts`, north up), a real button per visible room, the current
+      room marked with `aria-current` and a thick filled tile, unexplored rooms dashed with a question
+      mark, locked or unreachable rooms disabled with the reason in their name, the secret chamber
+      simply absent until found, and a legend in words; the guide's list also says "Not explored
+      yet." and keeps the always-offered way back to the hub. Tests, **Django** (PostgreSQL, isolated
+      container): 16 new endpoint tests covering the whole child-scoped checklist (own children,
+      foreign and unknown identical 404, 401 and 403, no INSERT on a foreign write, ids in body and
+      query ignored, sibling isolation, Admins gain nothing, no nickname or foreign id in errors) plus
+      idempotency, order, closed bodies, the secret rules and the id file; with the structural
+      tenant-isolation guards, native API and regions suites **126 passed**; Ruff check and format
+      clean; `manage.py check` and `makemigrations --check` clean. **Frontend**: 8 client, 9 hook, 4
+      contract, 5 geometry, 10 map and 5 guide tests; the whole runtime, extension, API and castle
+      group is **77 files, 1069 tests**; typecheck clean; Prettier and oxlint clean (no new
+      warnings). **Honest limits**: the nook discovery is written through the Amplify client today, so
+      until that write path moves to Django a Django-mode server will not see it and will not persist
+      a secret-room discovery (the room still works and nothing leaks); the east corridor's tile is
+      small on a phone (the list is the full-size equivalent). Browser (owner): the map's look and
+      tap sizes on a tablet, tile placement, the dashed and dotted states
 - [ ] **SC-R03-07** World navigation regression
 - [ ] **SC-R04 to SC-R12** Not started. Gated items: Sound Manager merge (SC-R06), narration
       provider and voice consent (SC-R06-03), new educational content (roadmap SC-R04-05), Phaser

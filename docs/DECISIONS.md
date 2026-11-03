@@ -68,6 +68,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-044 | Django serves Chatty's companion and tutor turns through Bedrock Converse with a child-safety Guardrail; Amplify AI routes stay until client cutover | Accepted | Feature branch (features/ai) | Owner-directed 2026-11-01 (Phase 7 brief: LAI-0306, LAI-0701 to LAI-0704). Accepts ADR-019 sub-decision 9 for code and infrastructure definitions only; live Bedrock, Guardrail deployment and the React cutover stay gated (LAI-0705, LAI-0706, G7) |
 | ADR-045 | Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets; no React staff asset manager or administrator asset API | Accepted | Feature branch `feature/asset-manager` (AM-13, AM-17) | Owner-directed 2026-11-02 (development only; no deployment, AWS or browser acceptance). Supersedes ADR-042 amendment items 2 and 3 for assets and AM-14, AM-15; narrows ADR-043 scope; builds on ADR-035 and ADR-040 |
 | ADR-046 | AI Question Studio is a staff-only Django app that drafts questions through the ADR-044 model client and serves published questions through the existing challenge and grading path | Accepted | Feature branch (features/studio) | Owner brief 2026-11-02 (Phase 28); accepted the same day ("proceed as proposed"). Builds on ADR-019, ADR-033, ADR-034, ADR-044. Not deployed |
+| ADR-047 | Castle room discovery is a `WorldChange` behind a child-scoped Django endpoint, with no new model, and a secret room is refused exactly like a room that does not exist | Accepted | Storykeeper Castle line | Owner decision 2026-11-03: discovery persists in Django, scoped to the child; React displays and caches. SC-R03-06 |
 
 ## ADR-001: Parent-owned accounts
 
@@ -3386,3 +3387,47 @@ The owner confirmed this exception on 2026-11-02.
 
 **Not decided here.** A task queue for long batches, a Django curriculum for grades above 2,
 text-stem question delivery to children, and live Bedrock acceptance (LAI-0705).
+
+## ADR-047: Castle room discovery is a `WorldChange` behind a child-scoped Django endpoint, with no new model, and a secret room is refused exactly like a room that does not exist
+
+Status: Accepted (owner, 2026-11-03: "store discovery persistently in Django/Postgres, scoped to
+the child; keep React responsible only for displaying and caching the state"). Builds on ADR-033
+(one Django backbone) and ADR-019 (Python owns the rules). Contract: `docs/PLAY_API.md`, "Storykeeper
+Castle room discovery".
+
+**Context.** The castle map (SC-R03-06) needs to show which rooms a child has explored, across
+sessions and devices. The castle's layout is still a TypeScript manifest (ADR-033, LAI-0805), but the
+fact that a child has been somewhere is the child's own durable progress, and it must not live only in
+the browser. The rest of the app still reads world state through Amplify (the deployed baseline until
+cutover).
+
+**Decision.**
+
+1. A discovery is an ordinary `WorldChange` on the canonical progression backbone:
+   `location_slug` `storykeeper-castle`, `change_type` `ROOM_DISCOVERED`, `change_key`
+   `castle-room:<roomId>`, written by the existing idempotent `record_world_change`. **No new model,
+   migration or table.** A world change is already durable, child-scoped, unique per child and key, and
+   append-only, and ADR-033 forbids a second progress model for one feature.
+2. One child-scoped, bearer-only endpoint, `GET` and `POST children/{id}/castle/rooms/`
+   (`lai/apps/game_sessions/castle_views.py`). The body is closed and carries only a room id; the
+   server decides which ids it accepts, from `lai/apps/regions/castle_rooms.json`, which the client's
+   `CASTLE_ROOM_IDS` shares and a Vitest test keeps in step.
+3. **A secret room is refused exactly like a room that does not exist.** A room that names a secret
+   (today `secret-chamber`, behind the tapestry nook) is recorded only once the discovery it depends on
+   is on the child's `WorldState`. Before that, the server answers with the identical `404 not_found`
+   an unknown room gets, and the list never names it, so the endpoint cannot be used to learn that a
+   secret exists.
+4. React only displays and caches. It reads the saved list once, marks each room entered for the visit,
+   and records each new room once. **Any refusal, a missing Django API in the build, or a network
+   failure means "not saved", never an error a child sees.** In a build without the Django API (the
+   Amplify-only baseline) the map still works for the visit and nothing is saved.
+
+**Consequence to know.** The nook discovery is written through the Amplify client today. Until the
+discovery write path moves to Django, a Django-mode server will not see the nook on its `WorldState`
+and so will not persist a secret-room discovery. The secret room still works in the world (the client
+gates it on its own copy of the discovery) and is simply not saved on the server. Nothing breaks and
+nothing leaks.
+
+**Not decided here.** Granting anything for exploring (nothing does), a Django-administered castle
+layout (LAI-0805), and moving the discovery write path to Django (the ADR-019 cutover).
+

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { WorldInteractionContext } from '../../../worldObjects';
 import {
   CASTLE_DOORS,
+  discoveryState,
   doorLabel,
   getCastleRoom,
   otherSide,
@@ -11,6 +12,9 @@ import {
   type CastleRoomId,
 } from '../../castleLayout';
 import { trophyDisplay } from '../../castleTrophies';
+import type { CastleRoomsApi } from '../../../../../api/play/castleRoomsApi';
+import { CastleMap } from './CastleMap';
+import { useCastleDiscovery } from './useCastleDiscovery';
 import type { CastleTaleSceneApi } from './castleTaleScene';
 import styles from './CastleGuide.module.css';
 
@@ -37,6 +41,10 @@ export interface CastleGuideProps {
   doors?: readonly CastleDoor[];
   /** How often the room the child stands in is re-read, in milliseconds. */
   pollMs?: number;
+  /** The child, for saving which rooms they have explored. Without it nothing is saved. */
+  childId?: string;
+  /** Where discoveries are saved. Omit for the configured Django API; pass `null` for none. */
+  roomsApi?: CastleRoomsApi | null;
 }
 
 /** "To the story hall, then To the east corridor": the doors a walking child would pass, in order. */
@@ -55,11 +63,16 @@ export function CastleGuide({
   worldState,
   doors = CASTLE_DOORS,
   pollMs = POLL_MS,
+  childId = '',
+  roomsApi,
 }: CastleGuideProps) {
   const [open, setOpen] = useState(false);
   const [roomId, setRoomId] = useState<CastleRoomId | undefined>(undefined);
   const [message, setMessage] = useState('');
   const panelId = useId();
+  // Explored rooms: saved by the server, merged with this visit. Django is the record.
+  const { discovered } = useCastleDiscovery({ childId, roomId, api: childId ? roomsApi : null });
+  const discovery = useMemo(() => discoveryState(discovered), [discovered]);
   const lastAnnounced = useRef<CastleRoomId | undefined>(undefined);
 
   // Escape closes the guide, only while it is open, so it never steals the key from anything else.
@@ -159,15 +172,39 @@ export function CastleGuide({
               <span className={styles.note}>Keeper Quill is waiting there.</span>
             </button>
           ) : null}
+          <CastleMap
+            rooms={plans.map((entry) => entry.room)}
+            currentRoomId={roomId}
+            discovery={discovery}
+            access={(room) => {
+              const plan = plans.find((entry) => entry.room.id === room.id)?.plan;
+              return !plan || plan.ok
+                ? { ok: true }
+                : {
+                    ok: false,
+                    reason:
+                      plan.reason === 'locked'
+                        ? 'locked'
+                        : plan.reason === 'already-there'
+                          ? 'already-there'
+                          : 'blocked',
+                    message: plan.message,
+                  };
+            }}
+            onGo={go}
+          />
           <ul className={styles.list}>
             {plans.map(({ room, plan }) => {
               const here = !plan.ok && plan.reason === 'already-there';
               const locked = !plan.ok && plan.reason === 'locked';
-              const note = plan.ok
+              const explored = discovery[room.id] === 'discovered';
+              const walking = plan.ok
                 ? `Walking: ${routeInWords(plan.route, roomId ?? 'entry-hall')}`
                 : locked
                   ? plan.message
                   : room.destination;
+              // Say it in words too: the map's dashed outline and question mark are not the only cue.
+              const note = plan.ok && !explored ? `Not explored yet. ${walking}` : walking;
               const noteId = `${panelId}-${room.id}`;
               return (
                 <li key={room.id}>

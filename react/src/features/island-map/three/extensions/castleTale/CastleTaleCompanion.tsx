@@ -268,7 +268,7 @@ export function CastleTaleCompanion({
 
   return (
     <>
-      <CastleGuide scene={scene} worldState={worldState} />
+      <CastleGuide scene={scene} worldState={worldState} childId={childId} />
       {taleActive && taleForBand ? (
         <CastleTaleSession
           childId={childId}

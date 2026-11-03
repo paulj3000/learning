@@ -327,6 +327,45 @@ above again, then starts or resumes the child's one ACTIVE session for that Adve
   With `null` the Place is still usable through its Adventures.
 - `autoSelectIslandId` is set when exactly one Island is available.
 
+## Storykeeper Castle room discovery (SC-R03-06)
+
+Which rooms of the castle a child has been in, so the castle map can show what is explored. It is
+not a play route: the castle's layout is a TypeScript manifest (ADR-033), and this endpoint only
+records and returns a durable, child-scoped fact. Implemented in
+`lai/apps/game_sessions/castle_views.py` over `lai/apps/regions/castle_rooms.py`.
+
+A discovery is an ordinary `WorldChange` (`locationSlug` `storykeeper-castle`, `changeType`
+`ROOM_DISCOVERED`, `changeKey` `castle-room:<roomId>`), written through the existing idempotent
+`record_world_change`. There is **no new model**, and nothing here grants a reward or advances a
+quest.
+
+### `GET castle/rooms/`: the rooms this child has discovered
+
+```json
+{"rooms": ["entry-hall", "story-hall"]}
+```
+
+Room ids in the castle's own order, whatever order they were found. A secret room is never listed
+unless the child has made the discovery it depends on.
+
+### `POST castle/rooms/`: record that the child has been in a room
+
+Body (closed; an undeclared field is `400 validation_error`): `{"roomId": "story-hall"}`.
+`201 {"roomId": "story-hall", "newlyDiscovered": true}` the first time, `200` with
+`"newlyDiscovered": false` after. Idempotent and safe under concurrency.
+
+The server decides which ids it accepts (`castle_rooms.json`, shared with the client's
+`CASTLE_ROOM_IDS`, and a test fails if the two differ). An unknown room is `404 not_found`.
+
+**A secret stays secret.** A secret room (today only `secret-chamber`) is recorded only once the
+discovery it names (`castle-tapestry-stair`) is on the child's world state. Before that, asking to
+record it gives **exactly** the `404 not_found` that an unknown room gives, so the endpoint cannot be
+used to learn that a secret exists. The client treats any refusal as "not saved", never as an error
+a child sees.
+
+Child-scoped and bearer-only like every route here: another family's child and an unknown child
+give the identical `404`, and a parent or child id in the body or query is ignored.
+
 ## Reuse by later regions
 
 Nothing here branches on Treasure Rush: a later region needs a `WorldRegion` with its
