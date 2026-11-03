@@ -98,7 +98,7 @@ child action -> existing AI turn route -> validation + guardrails -> TurnResult
 - Captions, replay, skip, pause and music ducking come from `SpeechCaption`, the voice channel and the Sound Manager.
 - Story progression, rewards and objectives are untouched.
 
-**Branch note.** `origin/adventures/storybook` is 33 commits ahead and reworks the castle (new layout, rooms, map; it also changes `CastleTaleCompanion.tsx`, `castleTaleScene.ts` and `storykeeperCastleRegion.ts`). It was **not merged**. The castle integration here is small and additive: `useCastleSpeech.ts` (new), a `quillPositionReader` on the castle scene API, a hook call and a caption in `CastleTaleCompanion`. When that branch lands, expect a mechanical conflict in `CastleTaleCompanion.tsx` and `castleTaleScene.ts`; the resolution is to keep both sets of changes.
+**Branch note.** `origin/adventures/storybook` is 33 commits ahead and reworks the castle (new layout, rooms, map; it also changes `CastleTaleCompanion.tsx`, `castleTaleScene.ts` and `storykeeperCastleRegion.ts`). It was **not merged**. The castle integration here is small and additive: `useCastleSpeech.tsx` (new), a `quillPositionReader` on the castle scene API, a hook call and a caption in `CastleTaleCompanion`. When that branch lands, expect a mechanical conflict in `CastleTaleCompanion.tsx` and `castleTaleScene.ts`; the resolution is to keep both sets of changes.
 
 ## 9. Chatty and the tutor (SM-P8-10)
 
