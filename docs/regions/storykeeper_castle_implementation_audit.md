@@ -230,7 +230,7 @@ artifacts in the existing inventory catalog.
 - `three/assets/mediaAssets.ts` `resolveSound` returns a URL only, and
   nothing outside tests calls it.
 - The **Sound Manager** referenced by the reboot brief exists only on the
-  unmerged `origin/feature/sound-manager`, and ADR-047 is still Proposed.
+  unmerged `origin/feature/sound-manager`, and its ADR is still Proposed there.
   SC-R06 depends on that merge.
 - `WorldEngineEventMap` has no sound events.
 
@@ -348,7 +348,7 @@ Gaps:
 - The Phaser Writing Room moves to a Three.js room (SC-R10).
 
 **Blocked on something outside this branch:**
-- Sound (Sound Manager merge, ADR-047).
+- Sound (Sound Manager merge and its proposed ADR).
 - Polly and voice consent (decision pending).
 - A castle `WorldRegion` and Django story progress (LAI-0309, LAI-0603,
   LAI-0709).
