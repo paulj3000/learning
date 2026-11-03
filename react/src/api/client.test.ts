@@ -63,7 +63,8 @@ describe('createApiClient', () => {
       jsonResponse(404, errorJson('not_found')),
     ]);
     const { data } = await client.request('GET', 'c/', { responseType: 'blob' });
-    expect(data).toBeInstanceOf(Blob);
+    // Not toBeInstanceOf(Blob): on Node 22 the Blob comes from Node, not from jsdom's global.
+    expect(Object.prototype.toString.call(data)).toBe('[object Blob]');
     expect((data as Blob).size).toBe(3);
     const error = await failure(client.request('GET', 'c/', { responseType: 'blob' }));
     expect(error.kind).toBe('not_found');

@@ -9,12 +9,14 @@ import type {
   AnswerSubmission,
   IssuedChallenge,
   LaunchStart,
+  PickupOutcome,
   PlayerProgress,
   PlaySession,
   PuzzleOutcome,
   QuestEntry,
   RegionBootstrap,
   SessionAction,
+  TalkOutcome,
   Upserted,
 } from './types';
 
@@ -57,6 +59,14 @@ export interface PlayApi {
     submission: JsonObject,
     signal?: AbortSignal,
   ): Promise<PuzzleOutcome>;
+  /** Pick up a collectible (TR-14). `created` is false when it was already picked up. */
+  collectPickup(
+    sessionId: string,
+    entityId: string,
+    signal?: AbortSignal,
+  ): Promise<Upserted<PickupOutcome>>;
+  /** Tell the server the child talked to an NPC here (TR-14). */
+  talkToNpc(sessionId: string, entityId: string, signal?: AbortSignal): Promise<TalkOutcome>;
   /** Start or resume the Adventure an object in the 3D Area offers (ADR-041). */
   startLaunchPoint(
     regionId: string,
@@ -139,6 +149,22 @@ export function createPlayApi(client: ApiClient, childId: string): PlayApi {
       );
       return result.value;
     },
+    collectPickup: async (sessionId, entityId, signal) =>
+      post(
+        `sessions/${segment(sessionId)}/pickups/${segment(entityId)}/`,
+        parse.pickupOutcome,
+        {},
+        signal,
+      ),
+    async talkToNpc(sessionId, entityId, signal) {
+      const result = await post(
+        `sessions/${segment(sessionId)}/npcs/${segment(entityId)}/talk/`,
+        parse.talkOutcome,
+        {},
+        signal,
+      );
+      return result.value;
+    },
     startLaunchPoint: async (regionId, launchId, signal) =>
       post(
         `regions/${segment(regionId)}/launch-points/${segment(launchId)}/start/`,
@@ -170,6 +196,8 @@ export function playApiFor(childId: string, config: DjangoApiConfig = DJANGO_API
       getProgress: disabled,
       solvePuzzle: disabled,
       startLaunchPoint: disabled,
+      collectPickup: disabled,
+      talkToNpc: disabled,
     };
   }
   return createPlayApi(

@@ -24,6 +24,7 @@ class Operation(StrEnum):
     COUNT = "COUNT"
     ADD = "ADD"
     SUBTRACT = "SUBTRACT"
+    MULTIPLY = "MULTIPLY"  # served only from published Question Studio revisions (ADR-046)
 
 
 class ResponseMode(StrEnum):

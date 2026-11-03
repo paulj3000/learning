@@ -25,11 +25,12 @@ class WorldRegion(Authorable, models.Model):
     and `region_id` keep their names. A Place has at most one 3D Area (database constraint
     `regions_one_area_per_place`) and is valid with none.
 
-    `scene` holds what is not yet modelled as rows (bounds, environment, copy), in the
-    manifest's own field names; TR-7 validates the assembled manifest on the client too.
+    `scene` holds what is not yet modelled as rows (bounds, environment, copy, and since TR-13
+    the spatial `layout`), in the manifest's own field names; TR-7 validates the assembled
+    manifest on the client too.
 
     ADR-043: the title and the non-spatial part of `scene` (`copy`, `environment`) are authored
-    content ("area-copy" revisions); `bounds` and everything spatial stay seed-owned.
+    content ("area-copy" revisions); `bounds`, `layout` and everything spatial stay seed-owned.
     """
 
     region_id = models.SlugField(
@@ -180,6 +181,22 @@ class WorldObjectPlacement(Placed):
         related_name="placements",
     )
     interaction_id = models.CharField(max_length=80, blank=True)
+    # TR-14: a collectible the child picks up through the play API. Picking it up records
+    # `pickup_change_key` once and fires `pickup_reward_rule` (the item it puts in the backpack).
+    pickup_change_key = models.CharField(
+        max_length=80,
+        blank=True,
+        help_text="Collectibles only. Recorded once when the child picks it up, e.g. "
+        "TREASURE_COVE_KEY_FOUND. Blank: not a pickup.",
+    )
+    pickup_reward_rule = models.ForeignKey(
+        "catalog.RewardRule",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        help_text="What picking it up grants, usually the item itself.",
+    )
 
     class Meta:
         ordering = ["region", "entity_id"]
@@ -201,8 +218,25 @@ class WorldObjectPlacement(Placed):
             validate_asset_ref(self.asset_id, *_PLACEMENT_ASSET_KINDS.get(self.kind, ()))
         except ValidationError as error:
             errors["asset_id"] = error
+        if self.pickup_change_key and self.kind != PlacementKind.COLLECTIBLE:
+            errors["pickup_change_key"] = "Only a collectible can be picked up."
+        if self.pickup_reward_rule_id and not self.pickup_change_key:
+            errors["pickup_reward_rule"] = "A pickup reward needs a pickup change key."
         if errors:
             raise ValidationError(errors)
+
+    @property
+    def is_pickup(self) -> bool:
+        return self.kind == PlacementKind.COLLECTIBLE and bool(self.pickup_change_key)
+
+
+class ChestPresentation(models.TextChoices):
+    """How a chest appears (TR-14). Presentation only, except REPLAY (TR-20): that is a rule."""
+
+    CHEST = "CHEST", "Treasure chest"
+    HIDDEN = "HIDDEN", "Hidden chest (appears once the child may open it)"
+    PUZZLE = "PUZZLE", "Puzzle (answered by touching the answer objects)"
+    REPLAY = "REPLAY", "Replay activity (repeatable; never opens, grants nothing permanent)"
 
 
 class TreasureChest(Placed):
@@ -210,6 +244,21 @@ class TreasureChest(Placed):
 
     A band with no challenge cannot open this chest (the client shows it as not for now).
     Opening it records `world_change_key` and grants `reward_rule` (TR-5).
+
+    TR-14 adds what a multi-encounter adventure needs, all checked by the play services:
+
+    - **Requirements.** `required_world_change_key` (an earlier encounter, so encounters run in
+      order) and `required_item` (a key in the backpack). Until both hold, the chest is locked
+      and no challenge is issued.
+    - **Presentation.** A `HIDDEN` chest is not drawn until it may be opened; a `PUZZLE` is a
+      challenge answered by touching objects in the world (`answer_entity_ids`, one per choice,
+      in choice order) rather than buttons, and draws no chest of its own.
+    - **`clue`.** What Pip says to send the child here, and the hint when it is next.
+
+    TR-20 adds `REPLAY`: a small activity the child may repeat once the adventure is done. It
+    issues a fresh challenge every time and records skill evidence, but never opens, never
+    records `world_change_key`, and has no reward rule, so a replay can never award a second
+    permanent reward. It must be locked behind an earlier encounter (`clean()` enforces both).
     """
 
     region = models.ForeignKey(WorldRegion, on_delete=models.CASCADE, related_name="chests")
@@ -249,9 +298,40 @@ class TreasureChest(Placed):
         unique=True,
         help_text="Recorded once when the chest opens, e.g. TREASURE_RUSH_COVE_CHEST_OPENED.",
     )
+    presentation = models.CharField(
+        max_length=8, choices=ChestPresentation.choices, default=ChestPresentation.CHEST
+    )
+    sort_order = models.PositiveSmallIntegerField(
+        default=0, help_text="The order the encounters come in; hints point at the first one left."
+    )
+    required_world_change_key = models.CharField(
+        max_length=80,
+        blank=True,
+        help_text="Locked until the child has this world change here (an earlier chest's key).",
+    )
+    required_item = models.ForeignKey(
+        "catalog.ItemDefinition",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        help_text="Locked until this item is in the child's backpack (a key).",
+    )
+    answer_entity_ids = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Puzzles only: the entity ids of the objects the child touches to answer, one "
+        "per choice, in choice order.",
+    )
+    clue = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Child-facing. What Pip says to send the child here, e.g. 'Follow the flowers "
+        "in the grove.'",
+    )
 
     class Meta:
-        ordering = ["region", "entity_id"]
+        ordering = ["region", "sort_order", "entity_id"]
         constraints = [
             models.UniqueConstraint(
                 fields=["region", "entity_id"], name="regions_chest_entity_unique"
@@ -280,6 +360,43 @@ class TreasureChest(Placed):
                 errors[field] = f"This challenge is for {spec.age_band}, not {band}."
         if not any(getattr(self, f"{field}_id") for field in self.BAND_FIELDS.values()):
             errors["__all__"] = "A chest needs a challenge for at least one age band."
+        answers = self.answer_entity_ids
+        if self.presentation == ChestPresentation.PUZZLE:
+            if not (
+                isinstance(answers, list)
+                and answers
+                and all(isinstance(a, str) and a for a in answers)
+                and len(set(answers)) == len(answers)
+            ):
+                errors["answer_entity_ids"] = "A puzzle needs a list of distinct entity ids."
+            else:
+                if self.region_id:
+                    placed = set(self.region.placements.values_list("entity_id", flat=True))
+                    missing = [a for a in answers if a not in placed]
+                    if missing:
+                        errors["answer_entity_ids"] = f"Not placed in this region: {missing}."
+                for field in self.BAND_FIELDS.values():
+                    spec = getattr(self, field)
+                    if spec is not None and (
+                        spec.response_mode != "CHOICE" or spec.choice_count != len(answers)
+                    ):
+                        errors[field] = (
+                            f"A puzzle answered by {len(answers)} objects needs a CHOICE "
+                            f"challenge with {len(answers)} choices."
+                        )
+        elif answers:
+            errors["answer_entity_ids"] = "Only a puzzle has answer objects."
+        if self.presentation == ChestPresentation.REPLAY:
+            if self.reward_rule_id:
+                errors["reward_rule"] = "A replay activity grants nothing permanent."
+            if not self.required_world_change_key:
+                errors["required_world_change_key"] = (
+                    "A replay activity needs the encounter it repeats (the quest's completion)."
+                )
+        if self.required_world_change_key and self.required_world_change_key == (
+            self.world_change_key
+        ):
+            errors["required_world_change_key"] = "A chest cannot require its own opening."
         if errors:
             raise ValidationError(errors)
 

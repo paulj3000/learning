@@ -20,3 +20,13 @@
   height: 100%;
   border-radius: 0;
 }
+
+/*
+  Phones (portrait): a 4:3 stage is too short for the HUD, so the action prompt, Hint, Backpack
+  and Full screen buttons overlap. A portrait stage keeps them apart. Full screen is unaffected.
+*/
+@media (max-width: 599px) {
+  .container {
+    aspect-ratio: 3 / 4;
+  }
+}

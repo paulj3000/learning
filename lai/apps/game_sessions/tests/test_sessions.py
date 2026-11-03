@@ -247,8 +247,20 @@ class TestChildIsolation:
         exposed = {model._meta.app_label for model in admin.site._registry}
         # users: the admin-accounts proxy; assets: versions (binaries, no child data); auth: groups;
         # regions: 3D Areas, launch points and puzzles (content, no child data; ADR-041, ADR-043);
-        # education: challenge specs only (content; ADR-043). No progress model is registered.
-        assert exposed == {"assets", "auth", "catalog", "education", "regions", "users"}
+        # education: challenge specs only (content; ADR-043).
+        # ai: audit metadata only, permission-gated and audited (LAI-0707, ADR-044 item 9)
+        # question_studio: staff-authored question content and its review history (ADR-046);
+        # it holds no child data, and published revisions are read-only
+        assert exposed == {
+            "ai",
+            "assets",
+            "auth",
+            "catalog",
+            "education",
+            "question_studio",
+            "regions",
+            "users",
+        }
 
 
 @pytest.mark.django_db

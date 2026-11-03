@@ -11,6 +11,7 @@ from golden_vectors import ROOT, SCHEMA_VERSION, cases, load_suite, snake_case, 
 
 EXPECTED_SUITES = [
     "adventure-engine",
+    "ai-safety",
     "area-puzzles",
     "director",
     "director-content",

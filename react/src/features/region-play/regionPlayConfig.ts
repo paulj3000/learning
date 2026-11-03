@@ -11,15 +11,35 @@ export interface RegionPlayChestConfig {
   isOpen: boolean;
   scale: number;
   placeholder: { width: number; height: number; depth: number };
+  /**
+   * TR-14. A `PUZZLE` draws no chest; a `HIDDEN` chest is not drawn while locked by progress.
+   * TR-20: a `REPLAY` activity (the Lookout spyglass) draws no chest and never opens.
+   */
+  presentation?: 'CHEST' | 'HIDDEN' | 'PUZZLE' | 'REPLAY';
+  /** Why it is locked at build time; the companion updates it from server state after. */
+  lockReason?: 'PROGRESS' | 'ITEM' | null;
+}
+
+/** A collectible the child picks up through the play API (TR-14), drawn by the extension. */
+export interface RegionPlayPickupConfig {
+  entityId: string;
+}
+
+/** An object that answers a puzzle by being touched (TR-14): choice `index` of `puzzleEntityId`. */
+export interface RegionPlayRuneConfig {
+  entityId: string;
+  puzzleEntityId: string;
+  index: number;
 }
 
 export interface RegionPlayInteractionConfig {
   interactionId: string;
   /**
-   * `launch`: an object that starts one of the Place's Adventures (ADR-041).
+   * `launch`: an object that starts one of the Place's Adventures (ADR-041). `pickup` and
+   * `rune`: a collectible to pick up and a puzzle answer to touch (TR-14).
    * `puzzle`: an object a 3D Area puzzle uses (ADR-043 F). `return`: a safe way back (FP-D10).
    */
-  kind: 'npc' | 'chest' | 'launch' | 'puzzle' | 'return';
+  kind: 'npc' | 'chest' | 'launch' | 'pickup' | 'rune' | 'puzzle' | 'return';
   entityId: string;
   npcId: string | null;
 }
@@ -113,6 +133,78 @@ export interface RegionPlayPuzzleConfig {
 }
 
 /** The `region-play` binding's `config`: plain JSON, read back by both extension halves. */
+/**
+ * The procedural placeholders the scene extension draws from primitives
+ * (TR-13), for scenery the bundled catalogue has no model for yet. Each is
+ * listed with the asset that should replace it in
+ * `docs/TREASURE_RUSH_ASSET_REQUIREMENTS.md`.
+ */
+export const PROCEDURAL_SHAPES = [
+  'PALM',
+  'TENT',
+  'CAMPFIRE',
+  'TORCH',
+  'FLAG',
+  'ROWBOAT',
+  'PILLAR',
+  'PEDESTAL',
+  'GATE',
+  // TR-17 and TR-20: the way to Lookout Point and what stands there.
+  'BROKEN_PLANKS',
+  'BRIDGE',
+  'LANTERNS',
+  'SPYGLASS',
+] as const;
+export type ProceduralShape = (typeof PROCEDURAL_SHAPES)[number];
+
+export interface RegionPlayProceduralConfig {
+  id: string;
+  shape: ProceduralShape;
+  x: number;
+  z: number;
+  rotationY?: number;
+  /** Overall height in metres, for shapes that vary (palms, flags, pillars). */
+  height?: number;
+  /** 24-bit tint for the main surface (a flag's cloth, a tent's canvas), where it has one. */
+  color?: number;
+}
+
+/**
+ * What the quest's completion opens (TR-17): the world change Django records, and the pieces
+ * of the scene that change with it. The scene only draws it; whether the child may use what is
+ * beyond (the Lookout spyglass) is Django's, through the chest's lock.
+ */
+export interface RegionPlayUnlockConfig {
+  /** The world change that opens the way, e.g. `TREASURE_COVE_QUEST_COMPLETE`. */
+  changeKey: string;
+  /** Whether the child already has it, at build time; the companion tells the scene later. */
+  unlocked: boolean;
+  /** Collider ids taken out when it opens (the gate, the closed channel). */
+  openColliders: string[];
+  /** Procedural ids shown only once it is open (the bridge). */
+  showWhenOpen: string[];
+  /** Procedural ids hidden once it is open (the sinking planks). */
+  hideWhenOpen: string[];
+  /** Procedural gates whose bars lift when it opens. */
+  liftGates: string[];
+}
+
+/** A drifting cloud of lights (TR-18), around `x`, `z`. Decoration only. */
+export interface RegionPlayFirefliesConfig {
+  id: string;
+  x: number;
+  z: number;
+  radius: number;
+  height: number;
+  count: number;
+}
+
+/** The living-cove extras (TR-18): scenery ids that shimmer, and the fireflies. */
+export interface RegionPlayAmbienceConfig {
+  water: string[];
+  fireflies: RegionPlayFirefliesConfig[];
+}
+
 export interface RegionPlayConfig {
   chests: RegionPlayChestConfig[];
   /** NPCs without a model, drawn as placeholder figures. */
@@ -124,6 +216,15 @@ export interface RegionPlayConfig {
   effects: RegionPlayEffects;
   /** The child's world change keys in this Place when the scene was built (Django's). */
   changeKeys: string[];
+  /** Scenery drawn from primitives (TR-13). Absent in configs built before it. */
+  procedural?: RegionPlayProceduralConfig[];
+  /** TR-14. Absent in configs built before it. */
+  pickups?: RegionPlayPickupConfig[];
+  runes?: RegionPlayRuneConfig[];
+  /** TR-17. Absent in configs built before it. */
+  unlock?: RegionPlayUnlockConfig;
+  /** TR-18. Absent in configs built before it. */
+  ambience?: RegionPlayAmbienceConfig;
 }
 
 /**
@@ -188,10 +289,18 @@ function chest(item: JsonRecord): RegionPlayChestConfig | undefined {
     isOpen: item.isOpen,
     scale,
     placeholder: { width, height, depth },
+    ...(item.presentation === 'HIDDEN' ||
+    item.presentation === 'PUZZLE' ||
+    item.presentation === 'REPLAY'
+      ? { presentation: item.presentation }
+      : {}),
+    ...(item.lockReason === 'PROGRESS' || item.lockReason === 'ITEM'
+      ? { lockReason: item.lockReason }
+      : {}),
   };
 }
 
-const INTERACTION_KINDS = ['npc', 'chest', 'launch', 'puzzle', 'return'] as const;
+const INTERACTION_KINDS = ['npc', 'chest', 'launch', 'pickup', 'rune', 'puzzle', 'return'] as const;
 
 function interaction(item: JsonRecord): RegionPlayInteractionConfig | undefined {
   const interactionId = text(item.interactionId);
@@ -315,6 +424,102 @@ export function parseEffects(value: JsonValue | undefined): RegionPlayEffects {
   };
 }
 
+function proceduralEntry(item: JsonRecord): RegionPlayProceduralConfig | undefined {
+  const id = text(item.id);
+  const shape = item.shape;
+  const x = num(item.x);
+  const z = num(item.z);
+  if (!id || x === undefined || z === undefined) return undefined;
+  if (typeof shape !== 'string' || !(PROCEDURAL_SHAPES as readonly string[]).includes(shape)) {
+    return undefined;
+  }
+  const rotationY = num(item.rotationY);
+  const height = num(item.height);
+  const color = num(item.color);
+  return {
+    id,
+    shape: shape as ProceduralShape,
+    x,
+    z,
+    ...(rotationY !== undefined ? { rotationY } : {}),
+    ...(height !== undefined && height > 0 ? { height } : {}),
+    ...(color !== undefined && Number.isInteger(color) && color >= 0 && color <= 0xffffff
+      ? { color }
+      : {}),
+  };
+}
+
+function textList(value: JsonValue | undefined): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const out: string[] = [];
+  for (const item of value) {
+    const entry = text(item);
+    if (entry === undefined) return undefined;
+    out.push(entry);
+  }
+  return out;
+}
+
+function unlockConfig(value: JsonValue | undefined): RegionPlayUnlockConfig | null | undefined {
+  if (value === undefined) return undefined;
+  const fields = record(value);
+  if (!fields) return null;
+  const changeKey = text(fields.changeKey);
+  const openColliders = textList(fields.openColliders);
+  const showWhenOpen = textList(fields.showWhenOpen);
+  const hideWhenOpen = textList(fields.hideWhenOpen);
+  const liftGates = textList(fields.liftGates);
+  if (
+    !changeKey ||
+    typeof fields.unlocked !== 'boolean' ||
+    !openColliders ||
+    !showWhenOpen ||
+    !hideWhenOpen ||
+    !liftGates
+  ) {
+    return null;
+  }
+  return {
+    changeKey,
+    unlocked: fields.unlocked,
+    openColliders,
+    showWhenOpen,
+    hideWhenOpen,
+    liftGates,
+  };
+}
+
+function ambienceConfig(value: JsonValue | undefined): RegionPlayAmbienceConfig | null | undefined {
+  if (value === undefined) return undefined;
+  const fields = record(value);
+  if (!fields) return null;
+  const water = textList(fields.water);
+  const fireflies = list(fields.fireflies, (item) => {
+    const id = text(item.id);
+    const x = num(item.x);
+    const z = num(item.z);
+    const radius = num(item.radius);
+    const height = num(item.height);
+    const count = num(item.count);
+    return id &&
+      x !== undefined &&
+      z !== undefined &&
+      radius !== undefined &&
+      radius > 0 &&
+      height !== undefined &&
+      count !== undefined &&
+      Number.isInteger(count) &&
+      count > 0 &&
+      count <= MAX_FIREFLIES
+      ? { id, x, z, radius, height, count }
+      : undefined;
+  });
+  return water && fireflies ? { water, fireflies } : null;
+}
+
+/** A cloud is one draw call, but a typo of a million should not reach the GPU. */
+export const MAX_FIREFLIES = 200;
+
 export function tryParseRegionPlayConfig(config: JsonRecord): RegionPlayConfig | null {
   const chests = list(config.chests, chest);
   const figures = list(config.figures, (item) => {
@@ -342,7 +547,30 @@ export function tryParseRegionPlayConfig(config: JsonRecord): RegionPlayConfig |
   const changeKeys = Array.isArray(config.changeKeys)
     ? config.changeKeys.filter((key): key is string => typeof key === 'string')
     : [];
-  if (!drawnEntities || !puzzles) return null;
+  const procedural =
+    config.procedural === undefined ? [] : list(config.procedural, proceduralEntry);
+  const pickups =
+    config.pickups === undefined
+      ? []
+      : list(config.pickups, (item) => {
+          const entityId = text(item.entityId);
+          return entityId ? { entityId } : undefined;
+        });
+  const runes =
+    config.runes === undefined
+      ? []
+      : list(config.runes, (item) => {
+          const entityId = text(item.entityId);
+          const puzzleEntityId = text(item.puzzleEntityId);
+          const index = num(item.index);
+          return entityId && puzzleEntityId && index !== undefined && Number.isInteger(index)
+            ? { entityId, puzzleEntityId, index }
+            : undefined;
+        });
+  const unlock = unlockConfig(config.unlock);
+  const ambience = ambienceConfig(config.ambience);
+  if (!procedural || !pickups || !runes || !drawnEntities || !puzzles) return null;
+  if (unlock === null || ambience === null) return null;
   return {
     chests,
     figures,
@@ -351,5 +579,10 @@ export function tryParseRegionPlayConfig(config: JsonRecord): RegionPlayConfig |
     puzzles,
     effects: parseEffects(config.effects),
     changeKeys,
+    procedural,
+    pickups,
+    runes,
+    ...(unlock ? { unlock } : {}),
+    ...(ambience ? { ambience } : {}),
   };
 }

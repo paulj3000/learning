@@ -165,5 +165,6 @@ export function asRevealOutcome(outcome: PuzzleOutcome): AnswerOutcome {
     newItems: outcome.newItems,
     rewardMessage: outcome.rewardMessage,
     questUpdates: outcome.questUpdates,
+    completionRewards: [],
   };
 }

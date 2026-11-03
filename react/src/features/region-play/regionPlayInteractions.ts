@@ -63,8 +63,27 @@ export type RegionPlayInteractionEvent =
       isOpen: boolean;
       /** False when no published challenge exists for this child's age band. */
       challengeAvailable: boolean;
-      /** Whether a challenge can be asked for right now (open session, closed chest, available). */
+      /**
+       * Whether a challenge can be asked for right now (open session, closed, unlocked chest
+       * with a challenge for this child).
+       */
       canRequestChallenge: boolean;
+      /** TR-14: a puzzle is answered by touching objects; a locked chest says why. */
+      presentation: ChestState['presentation'];
+      lockReason: ChestState['lockReason'];
+    }
+  | {
+      /** A collectible to pick up through the play API (TR-14). */
+      kind: 'pickup';
+      entityId: string;
+      label: string;
+    }
+  | {
+      /** A puzzle answer object (TR-14): touching it answers `puzzleEntityId` with choice `index`. */
+      kind: 'rune';
+      entityId: string;
+      puzzleEntityId: string;
+      index: number;
     };
 
 export function resolveRegionPlayInteraction(
@@ -89,7 +108,27 @@ export function resolveRegionPlayInteraction(
       label: chest.label,
       isOpen: chest.isOpen,
       challengeAvailable: chest.challengeAvailable,
-      canRequestChallenge: sessionOpen && !chest.isOpen && chest.challengeAvailable,
+      canRequestChallenge:
+        sessionOpen && !chest.isOpen && chest.challengeAvailable && chest.lockReason === null,
+      presentation: chest.presentation,
+      lockReason: chest.isOpen ? null : chest.lockReason,
+    };
+  }
+
+  if (binding.kind === 'pickup') {
+    const placed = bootstrap.objects.find((o) => o.entityId === binding.entityId);
+    if (!placed || !placed.pickup || placed.collected) return null;
+    return { kind: 'pickup', entityId: placed.entityId, label: placed.label };
+  }
+
+  if (binding.kind === 'rune') {
+    const rune = config.runes?.find((candidate) => candidate.entityId === binding.entityId);
+    if (!rune) return null;
+    return {
+      kind: 'rune',
+      entityId: rune.entityId,
+      puzzleEntityId: rune.puzzleEntityId,
+      index: rune.index,
     };
   }
 

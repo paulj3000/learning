@@ -363,10 +363,10 @@ emitted after it joined. Callers that pass no observer behave exactly as
 before. The location engine does not pass an observer yet, so no scene shows
 per-asset progress today; a loading screen is a later task.
 
-## Uploaded models (Model Asset Manager)
+## Uploaded models (Model Asset Library)
 
-> **Django asset manager (LAI-2200).** The server-side successor is described in
-> `docs/ASSET_MANAGER.md`: Django Admin upload, server-side validation (the same GLB rules below,
+> **Django asset library (LAI-2200).** The server-side successor is described in
+> `docs/ASSET_LIBRARY.md`: Django Admin upload, server-side validation (the same GLB rules below,
 > plus self-contained `.gltf`, embedded-only resources, no Draco or meshopt, bounds and clip
 > checks), immutable published versions, and a resolver the loader can use
 > (`react/src/api/assets/djangoAssetResolver.ts`). Clip names must still come from the vocabulary

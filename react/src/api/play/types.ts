@@ -17,7 +17,7 @@ export type SessionAction = 'pause' | 'resume' | 'complete' | 'abandon';
 export type QuestStatus = 'AVAILABLE' | 'ACTIVE' | 'COMPLETED';
 export type PlacementKind = 'PROP' | 'COLLECTIBLE' | 'SCENERY';
 export type ItemCategory = 'COLLECTIBLE' | 'COSMETIC' | 'QUEST_ITEM' | 'KEEPSAKE';
-export type ChallengeOperation = 'COUNT' | 'ADD' | 'SUBTRACT';
+export type ChallengeOperation = 'COUNT' | 'ADD' | 'SUBTRACT' | 'MULTIPLY';
 export type ResponseMode = 'CHOICE' | 'NUMBER_INPUT';
 export type AnswerFeedback = 'CORRECT' | 'TRY_AGAIN';
 
@@ -119,11 +119,30 @@ export interface CatalogAsset {
 export interface ObjectPlacement extends PlacedEntity {
   kind: PlacementKind;
   interactionId: string;
+  /** TR-14: a collectible the child picks up through the play API (a key). */
+  pickup: boolean;
+  /** TR-14: whether this child has picked it up. */
+  collected: boolean;
 }
+
+/** How a chest appears (TR-14). `HIDDEN` is not drawn until it may be opened. */
+export type ChestPresentation = 'CHEST' | 'HIDDEN' | 'PUZZLE' | 'REPLAY';
+/** Why a chest is locked for this child: an earlier encounter, or an item they lack. */
+export type ChestLockReason = 'PROGRESS' | 'ITEM';
 
 export interface ChestState extends PlacedEntity {
   openClip: string;
   isOpen: boolean;
+  /** TR-14 (absent from older servers: `CHEST`, order 0, unlocked). */
+  presentation: ChestPresentation;
+  sortOrder: number;
+  locked: boolean;
+  lockReason: ChestLockReason | null;
+  requiredItemId: string | null;
+  /** A puzzle's answer objects, one per choice, in choice order. */
+  answerEntityIds: string[];
+  /** Pip's line that sends the child here. */
+  clue: string;
   /** False when no published challenge exists for this child's age band. */
   challengeAvailable: boolean;
 }
@@ -288,6 +307,32 @@ export interface AnswerOutcome {
   newItems: ItemView[];
   rewardMessage: string | null;
   questUpdates: QuestUpdate[];
+  /** Rewards for finishing a quest with this answer (TR-14). */
+  completionRewards: CompletionReward[];
+}
+
+export interface CompletionReward {
+  ruleId: string;
+  items: ItemView[];
+  message: string;
+}
+
+/** Picking up a collectible (TR-14). `pickedUp` is false on a repeat. */
+export interface PickupOutcome {
+  entityId: string;
+  pickedUp: boolean;
+  collected: boolean;
+  newItems: ItemView[];
+  rewardMessage: string | null;
+  questUpdates: QuestUpdate[];
+  completionRewards: CompletionReward[];
+}
+
+/** Talking to an NPC in the region (TR-14): may complete a quest's TALK_TO objective. */
+export interface TalkOutcome {
+  flagsSet: string[];
+  questUpdates: QuestUpdate[];
+  completionRewards: CompletionReward[];
 }
 
 /** `POST .../puzzles/<id>/solve/`: graded on the server (LAI-0812). */

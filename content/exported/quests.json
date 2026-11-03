@@ -524,6 +524,79 @@
     },
     {
       "ageBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You found all four of Pip's missing treasures in Treasure Cove.",
+        "worldChanges": [
+          {
+            "changeKey": "TREASURE_COVE_QUEST_COMPLETE",
+            "changeType": "UNLOCK",
+            "locationSlug": "pirate-builder-bay"
+          }
+        ]
+      },
+      "entryStageId": "find-the-treasure",
+      "giverNpcId": "pirate-pip",
+      "id": "pips-missing-treasure",
+      "prerequisites": [
+        {
+          "type": "ALWAYS"
+        }
+      ],
+      "stages": [
+        {
+          "id": "find-the-treasure",
+          "nextStageId": "return-to-pip",
+          "objectives": [
+            {
+              "changeKey": "TREASURE_RUSH_COVE_CHEST_OPENED",
+              "id": "cove-landing-chest",
+              "kind": "BUILD",
+              "label": "Open the chest at Pirate Landing"
+            },
+            {
+              "changeKey": "TREASURE_COVE_GROVE_CHEST_OPENED",
+              "id": "cove-grove-chest",
+              "kind": "BUILD",
+              "label": "Find the hidden chest in Palm Tree Grove"
+            },
+            {
+              "changeKey": "TREASURE_COVE_BEACH_CHEST_OPENED",
+              "id": "cove-beach-chest",
+              "kind": "BUILD",
+              "label": "Unlock the chest on Shipwreck Beach"
+            },
+            {
+              "changeKey": "TREASURE_COVE_FINAL_CHEST_OPENED",
+              "id": "cove-final-chest",
+              "kind": "BUILD",
+              "label": "Open the golden chest in the ruins"
+            }
+          ],
+          "title": "Find Pip's treasures"
+        },
+        {
+          "id": "return-to-pip",
+          "objectives": [
+            {
+              "id": "cove-return-to-pip",
+              "kind": "TALK_TO",
+              "label": "Talk to Pip at Pirate Landing",
+              "memoryFlag": "cove-treasure-returned",
+              "npcId": "pirate-pip"
+            }
+          ],
+          "title": "Bring the treasure back to Pip"
+        }
+      ],
+      "summary": "Pip lost four treasures around the cove. Find them all and bring them back to Pip!",
+      "title": "Pip's Missing Treasure"
+    },
+    {
+      "ageBands": [
         "PATHFINDER",
         "EXPLORER"
       ],

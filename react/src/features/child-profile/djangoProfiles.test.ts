@@ -3,6 +3,7 @@ import { createApiClient, type ApiClient } from '../../api/client';
 import { ApiError } from '../../api/errors';
 import { createDjangoProfileStore, parseChild, PROFILE_MESSAGES } from './djangoProfiles';
 import type { ChildProfileInput } from './profileTypes';
+import { isRecentAuthRequired } from '../auth/recentSignIn/recentSignIn';
 
 const WIRE_CHILD = {
   id: 'c1',
@@ -126,12 +127,31 @@ describe('Django profile store', () => {
       failing(new ApiError('invalid_request', { status: 400, code: 'validation_error' })),
     );
     await expect(invalid.updateChildProfile('c1', INPUT)).rejects.toThrow(PROFILE_MESSAGES.invalid);
-    const blocked = createDjangoProfileStore(
-      failing(new ApiError('forbidden', { status: 403, code: 'sensitive_action_unavailable' })),
+    const stale = createDjangoProfileStore(
+      failing(new ApiError('forbidden', { status: 403, code: 'recent_auth_required' })),
     );
-    await expect(blocked.deleteChildProfileData('c1')).rejects.toThrow(
-      PROFILE_MESSAGES.deletionUnavailable,
+    const staleError = await stale.deleteChildProfileData('c1').catch((e: unknown) => e);
+    expect(staleError).toMatchObject({
+      message: PROFILE_MESSAGES.recentSignInRequired,
+      code: 'recent_auth_required',
+    });
+    expect(isRecentAuthRequired(staleError)).toBe(true);
+    const unavailable = createDjangoProfileStore(
+      failing(new ApiError('unavailable', { status: 503, code: 'recent_auth_unavailable' })),
     );
+    await expect(unavailable.deleteChildProfileData('c1')).rejects.toThrow(
+      PROFILE_MESSAGES.recentSignInUnavailable,
+    );
+    const incomplete = createDjangoProfileStore(
+      failing(new ApiError('unavailable', { status: 503, code: 'child_deletion_incomplete' })),
+    );
+    await expect(incomplete.deleteChildProfileData('c1')).rejects.toThrow(
+      PROFILE_MESSAGES.deletionIncomplete,
+    );
+    const gone = createDjangoProfileStore(
+      failing(new ApiError('not_found', { status: 404, code: 'not_found' })),
+    );
+    await expect(gone.deleteChildProfileData('c1')).resolves.toBeUndefined();
     const offline = createDjangoProfileStore(failing(new ApiError('network')));
     await expect(offline.listChildProfiles()).rejects.toThrow('Could not load the child profiles.');
   });

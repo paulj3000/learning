@@ -892,7 +892,7 @@ Next, in order:
 2. Launch points for the other Places once they have 3D Areas.
 3. LAI-0805's layout ADR.
 
-## Model Asset Manager (docs/android/ASSET_MANAGEMENT.md)
+## Model Asset Library (docs/android/ASSET_MANAGEMENT.md)
 
 An admin-only system for uploading, validating, previewing, publishing,
 and versioning 3D models in S3, so game content refers to logical asset

@@ -9,7 +9,7 @@ import {
 } from './assetStorageStack';
 
 /**
- * The asset manager's AWS storage, synthesized in memory and asserted on the
+ * The asset library's AWS storage, synthesized in memory and asserted on the
  * CloudFormation it produces. No AWS call is made.
  */
 
@@ -103,7 +103,11 @@ describe('AssetStorageStack', { timeout: 30_000 }, () => {
     const objectStatement = statements.find((statement) =>
       [statement.Action].flat().includes('s3:GetObject'),
     );
-    expect(JSON.stringify(objectStatement?.Resource)).toContain('/assets/models/*');
+    const resources = JSON.stringify(objectStatement?.Resource);
+    for (const prefix of ['models', 'images', 'audio']) {
+      expect(resources).toContain(`/assets/${prefix}/*`);
+    }
+    expect(resources).not.toContain('/assets/*');
   });
 
   it('attaches the policy to the Django workload role when one is named', () => {

@@ -13,6 +13,7 @@ before touching AWS.
 - [x] **POST-MERGE-02** Integrate `origin/main` (eab0817) into the Django migration branch, locally. DONE: ADR-023 to ADR-032 reconciled, ported to the `react/` layout, all checks green; see `docs/IMPLEMENTATION_STATUS.md`. Not pushed. Starts no roadmap task.
 - [x] **POST-MERGE-03** Reconcile the Storykeeper Castle and Treasure Rush Django backbones on `integration/post-merge-03` (not a roadmap task). DONE locally: one app set on the canonical LAI-0304/0305/0601 models, Treasure Rush adapted onto it, region layouts seed-authored until LAI-0805 (ADR-033); see `docs/IMPLEMENTATION_STATUS.md`. Not pushed or merged
 - [x] **POST-MERGE-04** Merge verification of `integration/post-merge-03` (not a roadmap task). DONE locally: all merge-time gates pass; browser gameplay not verifiable here (needs a real Cognito sign-in); see `docs/IMPLEMENTATION_STATUS.md`. Not merged or pushed
+- [x] **POST-MERGE-05** Pre-merge acceptance of `dev20261102` (Phase 28 AQS-001 to 024, TR-12 to TR-20, AM-13, AM-17) into `main` (not a roadmap task). DONE: every local gate and the new browser acceptance suites (`npm run test:acceptance`) pass; defects found and fixed: duplicate pickup/finale reveal, collapsed 3D stage with overlapping HUD, no Admin path to Studio corrections, saveable published questions, out-of-sync lockfile; see `docs/IMPLEMENTATION_STATUS.md`. Still pending and not closed by this: owner playtest (TR-9 feel items), live Bedrock (LAI-0705, AQS-024), live S3, live Cognito (ADR-024 A6), Amplify Data screens
 - [x] **LAI-0002** Record ADR-020 (Three.js exclusive) and plan Track B (docs only, this change set)
 
 ## Phase 1 — Governance and baseline
@@ -32,7 +33,7 @@ before touching AWS.
 - [x] **LAI-0205** DRF conventions (depends: 0204). DONE locally: error contract, exception handler, request IDs, access log, deny by default. Two roadmap criteria deliberately not done here: cursor pagination (moves to the first list endpoint, LAI-0502) and OpenAPI generation (LAI-0207)
 - [x] **LAI-0208** Privacy review of server-side logging (application layer) (depends: 0205). DONE locally (ADR-025). Deployed logging remains open as gate G10 (LAI-0210)
 - [ ] **LAI-0210** Deployed logging verification: server and proxy access logs, load balancer, CDN, CloudWatch, PostgreSQL server logs, monitoring (gate G10). Required before production; needs the infrastructure to exist (depends: 1004)
-- [ ] **LAI-0209** Revocation-aware verification and recent-authentication check for sensitive actions (ADR-024 A3). Specify, implement, test. Blocks account/child deletion (0602), consent changes (0308), and privileged admin mutations (0404) (depends: 0402)
+- [ ] **LAI-0209** Revocation-aware verification and recent-authentication check for sensitive actions (ADR-024 A3). Specify, implement, test. Asset-mutation scope retired 2026-11-02 (ADR-045); still blocks account/child deletion (0602), consent changes (0308), and privileged admin mutations (0404; the asset administrator API, AM-14) (depends: 0402). 2026-11-01 on `feature/lai-0209-recent-auth`: specified (`docs/platform/RECENT_SIGN_IN.md`, ADR-043 proposed), implemented and unit-tested (pytest, Vitest): `RequiresRecentAuthentication` (Cognito `auth_time` within 300 s, `origin_jti` session anchor so refresh cannot reset it, Cognito `GetUser` revocation check failing closed; `403 recent_auth_required`), React re-authentication dialog. Open: owner acceptance of ADR-043, live Cognito gate L1 to L6, browser verification, merge. Account deletion and consent changes still use `SensitiveActionBlocked`
 - [ ] **LAI-0207** Committed OpenAPI schema generation (split from LAI-0205; needs a recorded dependency decision for PyYAML and uritemplate) (depends: 0205)
 - [x] **LAI-0206** Python CI job (carries LAI-0202's deferred CI criterion). DONE locally; REMOTE VERIFICATION PENDING until the first GitHub-hosted run succeeds (depends: 0204)
 
@@ -45,7 +46,7 @@ before touching AWS.
 - [x] **LAI-0303** Golden vectors (depends: 0302). DONE locally: `tests/golden/*.json` (6 suites), Vitest stale check, pytest format check; no Python rules yet (Phase 6)
 - [x] **LAI-0304** Catalog models and loader (depends: 0302, 0301). DONE locally: `lai/apps/catalog` (World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset, ContentRelease), `manage.py load_content`, export schema 3 `locationAssets`; catalog admin built but not mounted (LAI-0404). Item and learning-objective models not built
 - [x] **LAI-0305** Progress models (depends: 0301, 0304). DONE locally: apps `game_sessions`, `education`, `progression`, `inventory`, `quests` (14 models, 5 migrations), persistence services for sessions, quests and world changes; no endpoints
-- [ ] **LAI-0306** Audit models (depends: 0301)
+- [x] **LAI-0306** Audit models (depends: 0301). DONE on `features/ai` 2026-11-01 (unmerged): `apps.ai` `AIInteractionAudit` and `SafetyEvent`, the Amplify fields plus provider, context source, Guardrail, failure category, tokens and request id; no free-text columns (docs/AI_SERVICE.md section 7)
 - [ ] **LAI-0309** Remaining catalog models: items, reward rules, learning objectives, stories, NPCs (depends: 0304). PARTIAL via POST-MERGE-03: items, collectible sets, reward rules, learning objectives and NPCs are catalog rows (inventory now references items and rules by foreign key). Remaining: stories, and validated references from `SkillEvidence`/`SkillProgress` objective codes, `StoryProgress.story_slug` and `NpcRelationship.npc_id`
 
 ## Phase 4 — Cognito integration and authorization
@@ -70,7 +71,7 @@ before touching AWS.
 ## Phase 6 — Authoritative progression, inventory, mastery
 
 - [x] **LAI-0601** Python adventure engine + answers endpoint (depends: 0303, 0305, 0403). DONE locally: `apps/adventures/engine.py` (golden parity), answers and hints endpoints, G6 verified for them; React still calls the Amplify Lambda until the frontend API layer (LAI-0501) switches it
-- [ ] **LAI-0602** Profile writes and deletion (depends: 0502). 2026-10-31 on `feature/lai-0905-photo-clients`: child deletion service `lai/apps/users/deletion.py` (photo objects first via `delete_all_child_photos`, child kept on storage failure, idempotent retry), pytest only. 2026-11-01 safety review: partial storage failure, storage-ok-then-database-failure and concurrent-purge cases tested; a spurious refusal when a concurrent purge removed a row first was fixed. Route still blocked until LAI-0209
+- [ ] **LAI-0602** Profile writes and deletion (depends: 0502). 2026-10-31 on `feature/lai-0905-photo-clients`: child deletion service `lai/apps/users/deletion.py` (photo objects first via `delete_all_child_photos`, child kept on storage failure, idempotent retry), pytest only. 2026-11-01 safety review: partial storage failure, storage-ok-then-database-failure and concurrent-purge cases tested; a spurious refusal when a concurrent purge removed a row first was fixed. Route still blocked until LAI-0209. 2026-11-01 on `feature/lai-0209-recent-auth`: `DELETE /api/v1/children/<id>/` enabled behind the recent sign-in guard; React dashboard re-authenticates and confirms; pytest and Vitest. Open: live Cognito gate, browser verification, merge
 - [ ] **LAI-0603** Mastery writes (depends: 0601)
 - [ ] **LAI-0604** Rewards and inventory writes (depends: 0603)
 - [ ] **LAI-0605** Quests, NPC, discovery, world state writes (depends: 0604)
@@ -79,9 +80,20 @@ before touching AWS.
 
 ## Phase 7 — AI service
 
-- [ ] **LAI-0701** AI domain without Bedrock (depends: 0306)
-- [ ] **LAI-0702** Companion turn via Bedrock (depends: 0701, 0403)
-- [ ] **LAI-0703** Tutor turn and red-team re-point (depends: 0702)
+Status ladder (docs/AI_SERVICE.md section 10): 1 implemented, 2 verified with the fake provider,
+3 live Bedrock verified, 4 React cutover, 5 Amplify AI retired. On `features/ai` (2026-11-01,
+unmerged, not pushed): levels 1 and 2 reached; 3 to 5 not started.
+
+- [x] **LAI-0701** AI domain without Bedrock (depends: 0306). DONE (implemented, fake-verified): personas verbatim and versioned, contracts and validators with `ai-safety` golden-vector parity, authored fallbacks, `FakeModelClient`, settings. Merge verification deferred
+- [ ] **LAI-0702** Companion turn via Bedrock (depends: 0701, 0403). IMPLEMENTED and fake-verified: `POST .../ai/companion-turns/`, `BedrockModelClient` (Converse, structured text output, Guardrail), server audit. **Open: the APPROVAL live smoke** (LAI-0705); not accepted until a human runs it
+- [ ] **LAI-0703** Tutor turn and red-team re-point (depends: 0702). IMPLEMENTED and fake-verified: `POST .../ai/tutor-turns/`, server-built tutor context; `scripts/ai-red-team.ts --target django` (Amplify target unchanged). **Open: a live red-team run against Django** (LAI-0705)
+- [ ] **LAI-0704** Bedrock Guardrails and child AI safety policy (depends: 0702, 0703). IMPLEMENTED and fake-verified: `LaiAiGuardrail-<env>` CDK stack (synthesized, not deployed) and `lai-django-ai-<env>` policy, input screening, Django output policy, fail-closed settings, server safety events (ADR-044). **Open: Guardrail deployment and live block verification** (LAI-0705)
+- [ ] **LAI-0705** Live Bedrock and Guardrail verification in dev (depends: 0702, 0703, 0704). **APPROVAL: AWS credentials, Bedrock cost, IAM change, deploy** (docs/AI_SERVICE.md section 9). IMPLEMENTED (level 3): `manage.py ai_live_check` (audit-row scoring, bounded warm-up, Guardrail probe), IAM policy checked against the AWS documented pattern, Gate A plan and cost bound written. **BLOCKED for live acceptance:** AWS CLI access denied in this session, Gate A approval, model access, test identities
+- [ ] **LAI-0706** React cutover of companion and tutor turns to Django behind `VITE_BACKEND` (depends: 0705, 0501). IMPLEMENTED and Vitest-verified (level 4): `react/src/api/ai/djangoAi.ts`, Django paths in `companion/api.ts` and `tutor/api.ts` (no browser audit writes), `templateId` from every caller, parent dashboard safety events and history clearing on Django (`GET .../ai/safety-events/`, `DELETE .../ai/history/`). Amplify path unchanged for builds without the Django API. **Open:** Django-enabled dev deploy and browser acceptance (Gate B)
+- [ ] **LAI-0707** Safety review views, review workflow and retention for `SafetyEvent` / `AIInteractionAudit` (depends: 0306, 0404; retention with 0308). IMPLEMENTED and tested (level 4): permission-gated audited Django Admin (review status the only editable field), `manage.py ai_retention` (dry run default, refuses without a period, keeps open events), indexes. **Open:** an approved retention period (LAI-0308 / G9) before any `--apply` in a deployed environment
+- [ ] **LAI-0708** AI operations: shared rate-limit store, `ai.turn` metric filters and alarms, Bedrock budget kept (depends: 0705). IMPLEMENTED and tested (level 4): PostgreSQL counters (child minute/day, family day, session day, concurrency, global ceiling; 12-thread race test), runtime kill switch, bounded retries, request-size cap, configured-price cost estimate, 10 metric filters and 7 alarms in `LaiAiGuardrail-<env>` (synthesized). **Open:** deploy and live alarm check; the Amplify $50 budget may not see Marketplace-billed Claude spend (verify)
+- [ ] **LAI-0709** Server-built context for NPC and story turns and server mastery status; retire `CLIENT_AUTHORED` (depends: 0603, 0605, 0607). PARTIAL (level 3): NPC narration is server-owned (`DJANGO_CATALOG`); `LAI_AI_ALLOW_CLIENT_AUTHORED` switch added. **BLOCKED:** React adventures still run on Amplify sessions; no Django story catalog (LAI-0309); server mastery (LAI-0603). `CLIENT_AUTHORED` must stay on
+- [ ] **LAI-0710** Retire Amplify `generateCompanionTurn` / `generateTutorTurn` and their IAM grants (depends: 0706). **APPROVAL** (Phase 13). Dependency audit and rollback plan written (docs/AI_SERVICE.md section 11); **nothing removed**: needs 0705, 0706 and 0709 acceptance and explicit retirement approval
 
 ## Phase 8 — Admin
 
@@ -140,7 +152,11 @@ Implementation and verification are reported separately; "implemented" never mea
 
 ## Phase 13 — Retire Amplify
 
-- [ ] **LAI-1301** Remove Amplify from the frontend (depends: 1203 + stability window)
+- [ ] **LAI-1301** Remove Amplify from the frontend (depends: 1203 + stability window; storage parts also 0904 deployed, 1103d photos migrated, AM-16 assets on Django (AM-15 superseded by ADR-045), 1002). Acceptance (ADR-042 amendment), after production cutover and verified migration:
+  - No Amplify Storage uploads, deletes or download-link generation remain (`features/child-profile/avatarPhoto.ts`, `features/child-profile/deletion.ts`, `features/assets/modelUpload.ts`, `features/assets/assetService.ts`), and no `aws-amplify/storage` import remains anywhere in `react/`.
+  - The Amplify branches of the profile store and asset pages (`amplifyProfiles.ts`, `routes/AdminModelAssets.tsx`, `routes/AdminNewModelAsset.tsx`, `features/admin/catalogApi.ts` model picker) are gone.
+  - The browser-side storage grants are removed: `amplify/storage/resource.ts` access rules for `child-photos/{entity_id}/*` and `assets/*`, and the Cognito identity pool role permissions they generate; obsolete storage configuration in `amplify_outputs.json` and Vite env is gone.
+  - React and Android are checked to hold no reference to the legacy bucket; assets and photos are confirmed migrated. The legacy bucket itself is LAI-1204 (approval) and is never changed here.
 - [ ] **LAI-1302** Detach Cognito, then delete Amplify stacks (depends: 1301, 0405, 1204: Amplify storage auto-deletes its objects with the stack)
 - [ ] **LAI-1303** Remove `amplify/`, `amplify.yml`, dev dependencies; supersede ADR-010 (depends: see roadmap)
 
@@ -180,10 +196,10 @@ Implementation and verification are reported separately; "implemented" never mea
 - [ ] **LAI-2304** Phaser dependency removal (APPROVAL) (depends: 2201 to 2208, 2301, 2302, 2303)
 - [ ] **LAI-2305** Final Three.js-only verification (depends: 2304)
 
-# LAI-2200 Shared Django Asset Manager (`docs/ASSET_MANAGER.md`, ADR-035)
+# LAI-2200 Shared Django Asset Library (`docs/ASSET_LIBRARY.md`, ADR-035)
 
 Platform workstream. AM-1 to AM-10 (the foundation and admin preview) were merged into `main` on
-2026-10-25 after merge verification (`docs/ASSET_MANAGER.md` section 18). It is not deployed as an
+2026-10-25 after merge verification (`docs/ASSET_LIBRARY.md` section 18). It is not deployed as an
 asset service until AM-11 and LAI-1002 provide the infrastructure. Subtasks use their own ids
 (AM-n) because LAI-2201 to LAI-2208 are the Phase 22 world conversions.
 
@@ -198,7 +214,11 @@ asset service until AM-11 and LAI-1002 provide the infrastructure. Subtasks use 
 - [x] **AM-9** Security and integration tests, documentation (depends: AM-5 to AM-8)
 - [x] **AM-10** Admin 3D model preview (depends: AM-5). Unit-tested and browser-checked (headless Chromium, software WebGL)
 - [ ] **AM-11** Signed CloudFront delivery (APPROVAL: AWS) (depends: AM-6, LAI-1002, LAI-1005)
-- [ ] **AM-13** Non-model asset kinds (textures, images and sprites, audio, animation clips): validation, key families and matching IAM prefixes in `LaiAssetStorage-<env>` (depends: AM-4; ADR-042 keeps them in the asset bucket, never the photo bucket)
+- [x] **AM-13** Non-model asset kinds (textures, images and sprites, audio): validation by content, key families `assets/images/` and `assets/audio/` with matching IAM prefixes, Django Admin previews, resolver `family` and `media` fields, Three.js texture and sound helpers (depends: AM-4; ADR-042, ADR-045). DEVELOPMENT DONE 2026-11-02 on `feature/asset-manager`, unit-tested (pytest `test_media_validation.py`, `test_media_library.py`; Vitest `mediaAssets.test.ts`). Not checked in a browser; the asset bucket and IAM policy are synthesized, not deployed (AM-16).
+- [x] **AM-14** SUPERSEDED 2026-11-02 by ADR-045: the administrator asset REST API was removed. Staff use Django Admin. History: built 2026-11-01 on `feature/lai-django-asset-storage`.
+- [x] **AM-15** SUPERSEDED 2026-11-02 by ADR-045: the React staff asset pages, Amplify upload wizard and admin asset hub were removed. Reusable loaders and the Django resolver adapter stay.
+- [ ] **AM-16** End-to-end asset publishing and delivery verification on the deployed dev environment: upload, validate, publish, resolve in a child scene (Treasure Cove), retire stops new fetches, nothing public (depends: AM-14, AM-15, LAI-0209, LAI-1002 asset bucket deployed, LAI-1004 Django on dev). 2026-11-01: the LAI-0209 code dependency is implemented on its branch; still blocked by deployment (LAI-1002, LAI-1004) and LAI-0209's live acceptance
+- [x] **AM-17** Django Admin lifecycle completion (ADR-045): rollback (republishing a retired version after re-verification), asset reactivation, stored-file verification, admin-history audit entries, image thumbnails and audio players, hardened media route. DEVELOPMENT DONE 2026-11-02, unit-tested; not browser-verified.
 
 # Treasure Rush (`docs/TREASURE_RUSH_ROADMAP.md`)
 
@@ -219,9 +239,57 @@ LAI-0805's ADR; TR-D5 is still Proposed.
 - [x] **TR-7** Treasure Rush region (depends: TR-6, TR-D2, TR-D4, TR-D14, TR-D15). Treasure Cove on the existing Three.js engine via the `region-play` extension. Not verified in a browser
 - [x] **TR-8** Challenge and quest-complete UI (depends: TR-7). DONE locally: Pip dialogue and quest acceptance, chest challenge with hints and retry, reward reveal and chest-opening animation, backpack from progress; no audio (no Polly system exists, TR-D19)
 - [x] **TR-8a** Make it runnable locally (depends: TR-8). DONE locally: automatic Django account setup via `POST /me`, correct 403 messages, dev-only `publish_treasure_rush`, `docs/TREASURE_RUSH_LOCAL_DEV.md`
-- [ ] **TR-9** End-to-end and playtest (depends: TR-8a; real families also need LAI-0502, LAI-0602, gate G9, ADR-024 A6. Locally, the child mirror step in `docs/TREASURE_RUSH_LOCAL_DEV.md` stands in for LAI-0602)
+- [ ] **TR-9** End-to-end and playtest (depends: TR-8a; real families also need LAI-0502, LAI-0602, gate G9, ADR-024 A6. Locally, the child mirror step in `docs/TREASURE_RUSH_LOCAL_DEV.md` stands in for LAI-0602). Browser automation of the whole cove done 2026-11-02 (POST-MERGE-05, `react/e2e/acceptance/treasure-rush.spec.ts`); still open for the owner's playtest of the feel items in `docs/TREASURE_RUSH_PLAYTEST_CHECKLIST.md`
 - [ ] **TR-10** Integrate LAI-2106 shared asset management (depends: LAI-2106, TR-7a)
+- [ ] **TR-11** Second chest and quest chain (depends: TR-9). Superseded in substance by TR-14 (evidence in the roadmap, section 19); NOT closed: the owner confirms
+- [ ] **TR-12** Reboot Stage A: child-friendly interaction and guidance (`docs/TREASURE_RUSH_ROADMAP.md` section 17). Implemented: forgiving aim, focus marker, tappable action prompt with the E key only on fine pointers, closed-chest beacons, HUD objective and on-request hint, all behind `interactionAssist` (on for Django regions only). Targeted tests and typecheck pass; not played in a browser (TR-9); merge gates not run
+- [ ] **TR-13** Treasure Cove four-zone layout (depends: none). Implemented on `quest/tr.reboot`: Pirate Landing, Palm Tree Grove, Shipwreck Beach, Ancient Treasure Ruins and an unreachable Lookout Point, carried as `scene.layout` (TR-D24) from `treasure_cove_layout.py`; procedural placeholders and ambient animation; stage control slot and in-stage exit. Asset list: `docs/TREASURE_RUSH_ASSET_REQUIREMENTS.md`. Targeted vitest and the regions pytest suite (Postgres) pass; not looked at in a browser; merge gates not run
+- [ ] **TR-14** Four chests and "Pip's Missing Treasure" quest (depends: TR-13; owner ordered it before TR-9). Implemented on `quest/tr.reboot`: four encounters (open, hidden, key-locked, rune-stone puzzle then golden chest), key pickup, Pip finale with completion reward and `TREASURE_COVE_QUEST_COMPLETE`; migration `regions.0003`; two play routes. Django gameplay suites and targeted vitest pass; not played in a browser (TR-9); merge gates not run
+- [ ] **TR-15** Locked chest and key pickup (depends: TR-14). Development complete, unit/API verified: pickups proven in a second region, counts-only admin view of who reached each pickup and chest (`apps/regions/activity.py`). Left: a finished `treasure-key` model (art); pending browser acceptance and owner playtest
+- [ ] **TR-16** Ruins environmental puzzle (depends: TR-14). Development complete for "touch the answer", unit verified: stones sink and flash with the server verdict. Left: ordering and matching kinds (TR-D27, proposed), pedestal model (art), sound (TR-19); pending browser acceptance
+- [ ] **TR-17** Completion, persistent bridge unlock, achievement (depends: TR-14). Development complete, unit/API verified: gate lifts, bridge laid, Lookout Point reachable and walkable both ways, unlock persists across visits, the spyglass beyond is locked by Django until the quest completes. Engine walking tests on real collision code. Pending browser acceptance and owner playtest
+- [ ] **TR-18** Living cove: ambient animation and Pip animation (depends: TR-13; animated Pip asset). Development complete with the existing Pip clips (`Talk`, `Wave`; a hop for a figure with no model), shimmering water, fireflies; reduced motion respected. Left: Pip `Cheer` and `Point` clips (art); pending browser acceptance
+- [ ] **TR-19** Sound effects with mute. BLOCKED on owner decision TR-D26 (where the setting lives; recommendation in the roadmap, section 19). Done and independent of it: `soundCues.ts` raises named cues, silent until a player registers
+- [ ] **TR-20** Replayable activity after completion (depends: TR-17). Development complete, unit/API verified: the Lookout spyglass, a `REPLAY` chest that never opens, grants nothing permanent, and records skill evidence. Pending browser acceptance and owner playtest
 - [ ] **TR-11** Second chest and quest chain (depends: TR-9)
+
+## Phase 28 — AI Question Studio (branch `features/studio`, ADR-046 Accepted)
+
+Detail: `docs/AI_QUESTION_STUDIO.md`.
+
+- [x] **LAI-AQS-001** Existing architecture audit (depends: docs/AI_QUESTION_STUDIO.md sections 1 to 3). DONE locally: architecture assessment written; no code
+- [x] **LAI-AQS-002** Question types and curriculum taxonomy. DONE locally: `taxonomy.py` (subjects, grades to age bands, topics, difficulties, question type registry); tests in test_validation
+- [x] **LAI-AQS-003** Database models. DONE locally: `question_studio` models and migration 0001 (ADR-046 accepted); `ChallengeAttempt` gains `source` and `bank_revision_id` (game_sessions 0005, additive)
+- [x] **LAI-AQS-004** Generation and publishing contracts. DONE locally: `contracts.py` (request, output schema, untrusted item parsing); immutable `QuestionRevision` enforced in the model
+- [x] **LAI-AQS-005** Bedrock generation service. DONE locally, fake-verified: `generation.py` reuses the ADR-044 `ModelClient`; Bedrock studio client differs only by timeout. Live Bedrock not run (LAI-0705 gate)
+- [x] **LAI-AQS-006** Versioned prompt templates. DONE locally: `prompts.py` `studio-q-v1`; untrusted notes sent as a Guardrail-screened part; prompt, schema and model recorded per batch and question
+- [x] **LAI-AQS-007** Batch question generation. DONE locally: chunked batches (5 per call, 25 per batch by default), partial success, `thread`/`manual`/`inline` run modes, `manage.py studio_run_batch`
+- [x] **LAI-AQS-008** Reliability and cost controls. DONE locally: bounded retries by failure category, tokens and configured-price cost on the batch, `StudioLimits` quotas, ADR-044 kill switch, approved-model list
+- [x] **LAI-AQS-009** Draft storage and provenance. DONE locally: drafts only, provenance on every question, review events; nothing publishes automatically
+- [x] **LAI-AQS-010** Structural validation. DONE locally: `validation.check_structure`
+- [x] **LAI-AQS-011** Answer verification. DONE locally: `validation.check_answer` (arithmetic, contradictory keys, unverifiable flagged)
+- [x] **LAI-AQS-012** Duplicate detection. DONE locally: exact and normalised hashes, bounded word-trigram near-duplicate warning, no model calls
+- [x] **LAI-AQS-013** Educational quality and safety. DONE locally: grade, skill, reading length, answer range, hint leak, ADR-044 safety patterns; heuristics only
+- [x] **LAI-AQS-014** Validation reports. DONE locally: `ValidationFinding` runs, PASS/WARNING/FAIL, revalidation, publish blocked by blocking findings
+- [x] **LAI-AQS-015** Generation interface (Django Admin). DONE locally: Generate Questions form in Django Admin, batch status feedback. Verified with the Django test client, not a browser
+- [x] **LAI-AQS-016** Question review and editing. DONE locally: review page with choices, key, hint, explanation, report and history; edits revalidate
+- [x] **LAI-AQS-017** Approval workflow. DONE locally: Draft, Needs review, Approved, Rejected, Published; separate approve and publish permissions; reviewer, time and events recorded
+- [x] **LAI-AQS-018** Bulk review operations. DONE locally: bulk approve, reject, revalidate, submit, publish, regenerate with per-question refusal reporting
+- [x] **LAI-AQS-019** Publishing and version management. DONE locally: immutable revisions, partial unique active revision, supersede-on-correction, retire, row-lock plus constraint against concurrent publish (two-thread test)
+- [x] **LAI-AQS-020** Question-to-adventure integration. DONE locally for integer-answer questions: `QuestionPool` per region and chest; drafts, rejected and retired never served. Real data needs a catalog objective: `multiplication-facts` (Grade 3) is now in the curriculum export
+- [x] **LAI-AQS-021** Question selection. DONE locally: subject, grade and band, topic, skill, difficulty and adventure filters; no repeat within a session; falls back to the authored challenge
+- [x] **LAI-AQS-022** Grading and mastery integration. DONE locally: `grade_answer` and `SkillEvidence` unchanged; attempt snapshots the revision; no model call at runtime. React multiplication picture added and verified (Vitest, typecheck)
+- [x] **LAI-AQS-023** Automated testing. DONE locally: 125 Studio tests plus two updated guard tests; full Python suite 1389 + 354 passed (see IMPLEMENTATION_STATUS)
+- [ ] **LAI-AQS-024** End-to-end acceptance (depends: 015 to 023; live Bedrock needs LAI-0705 approval). IN PROGRESS: workflow verified end to end with the fake model; OPEN: live Bedrock (LAI-0705 approval) and a Django Admin browser pass
+
+### Phase 28 follow-ups (open gates, not started)
+
+- [ ] **LAI-AQS-025** Live Bedrock verification of Studio generation (depends: 024 code, LAI-0705). **APPROVAL: AWS credentials, Bedrock cost, Guardrail.** Run one small batch (5 questions, one chunk) under the real instance role with `LAI_AI_PROVIDER=bedrock`, then score it from the stored rows, not from a 200: batch status, model id, token counts, estimated cost, and per-question validation results. Confirm the Guardrail applies, the output schema is accepted by structured output, the 60 second timeout is enough for a chunk, and a deliberate Guardrail probe stores nothing. Record the real cost per question and set the price settings. Closes half of LAI-AQS-024.
+- [ ] **LAI-AQS-026** Django Admin browser acceptance pass (depends: 024 code). Walk the whole flow in a real browser as separate author, reviewer and publisher accounts: generate, follow batch status, review and edit, approve, publish, correct, retire, and a bulk action with mixed results. Check permission denials, read-only published pages, mobile-width layout of the review page, and that a `thread` run mode batch finishes. Capture findings in `docs/IMPLEMENTATION_STATUS.md`. Closes the other half of LAI-AQS-024.
+- [ ] **LAI-AQS-027** Task queue decision and implementation for long batches (depends: none; ADR needed). The `thread` run mode can strand a batch on a worker restart (reclaimed after 15 minutes only if someone runs it again). Decide between a polling worker running `studio_run_batch` as its own service, SQS with a worker, or a library queue, record it in an ADR, then implement with a heartbeat, safe retry of a chunk, and a visible "stalled" state in Admin. **APPROVAL if it needs new AWS infrastructure.** Acceptance: killing the worker mid-batch loses at most the chunk in flight and the batch completes on restart; tests prove it.
+- [ ] **LAI-AQS-028** Storykeeper Castle and other adventures adopt the question bank (depends: LAI-0309, LAI-0603, LAI-0709; ADR needed). Those adventures run on Amplify sessions with no Django story catalog, so the bank cannot serve them yet. Once their steps exist in Django, add a pool keyed by adventure, serve through the same snapshot and grading path, keep the authored fallback, and extend the question types served (text stems, short answer, division) with a grader for each.
+
+`LAI-AQS-024` closes when LAI-AQS-025 and LAI-AQS-026 are done.
 
 # Firepeak Volcano (`docs/FIREPEAK_VOLCANO_ROADMAP.md`)
 

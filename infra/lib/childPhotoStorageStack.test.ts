@@ -182,7 +182,7 @@ describe('ChildPhotoStorageStack', { timeout: 30_000 }, () => {
     expect(() => synth({ allowedOrigins: ['http://learning.example.com'] })).toThrow();
   });
 
-  it('is a different bucket and policy from the asset manager', () => {
+  it('is a different bucket and policy from the asset library', () => {
     const app = new App();
     const assetStack = new AssetStorageStack(app, 'Assets', {
       envName: 'prod',

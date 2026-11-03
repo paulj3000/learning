@@ -37,13 +37,31 @@ class IsProvisionedParent(IsVerifiedPrincipal):
         return isinstance(user, ParentAccount) and user.is_active
 
 
-class SensitiveActionBlocked(BasePermission):
-    """Denies everything (ADR-024 A3, LAI-0209).
+class RequiresRecentAuthentication(BasePermission):
+    """A sensitive action: the parent must have signed in recently (LAI-0209, ADR-043).
 
-    Account and child deletion, consent changes, and privileged administrative mutations need
-    recent authentication plus a revocation-aware check that does not exist yet. A view that
-    performs one of them must declare this class until LAI-0209 replaces it, so the endpoint
-    cannot work by accident.
+    List it **after** the permissions that decide whether the caller may do the action at all
+    (for example `IsProvisionedParent`, `IsAssetAdministrator`): DRF checks them in order, so a
+    caller without the right is refused as unauthorized and is never invited to sign in again,
+    and recent sign-in never grants a right. Object-level checks (a child resolved through its
+    parent) still run afterwards and still answer 404 for another family's child.
+    See `apps.users.recent_auth` for the evidence and the answers.
+    """
+
+    def has_permission(self, request, view):
+        from .recent_auth import require_recent_authentication
+
+        require_recent_authentication(request)
+        return True
+
+
+class SensitiveActionBlocked(BasePermission):
+    """Denies everything (ADR-024 A3).
+
+    For a sensitive action whose own specification is not done yet (account deletion, consent
+    changes). Child deletion and the asset administrator's changes use
+    `RequiresRecentAuthentication` (LAI-0209); a new sensitive endpoint declares this class
+    until its specification says which guard applies, so it cannot work by accident.
     """
 
     def has_permission(self, request, view):

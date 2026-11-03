@@ -56,15 +56,19 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-032 | Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-025 on `origin/main` |
 | ADR-033 | One Django backbone: Treasure Rush runs on the canonical catalog and progress models; play-region layouts are seed-authored until LAI-0805 | Accepted | Integration (POST-MERGE-03) | Items 3 and 4 amended by ADR-043 (2026-11-01): the export is the initial and migration path, not the only one; challenge specs and region copy become admin-authorable; layout stays seed-authored |
 | ADR-034 | Django Admin is enabled with local staff sign-in, separate from Cognito; it ships as a gunicorn and WhiteNoise container | Accepted | Main line (LAI-0404) | Amends ADR-024 A4 for Django Admin only; resolves TR-D5 |
-| ADR-035 | The shared asset manager versions binaries on the canonical ContentAsset identity, with private storage and signed delivery | Accepted | Feature branch (LAI-2200) | Accepted 2026-10-25. Amends ADR-034 item 3 (Django permissions and groups); builds on ADR-030 and ADR-033. Amended by AM-10 (staff-only admin preview route) |
+| ADR-035 | The shared asset library versions binaries on the canonical ContentAsset identity, with private storage and signed delivery | Accepted | Feature branch (LAI-2200) | Accepted 2026-10-25. Amends ADR-034 item 3 (Django permissions and groups); builds on ADR-030 and ADR-033. Amended by AM-10 (staff-only admin preview route) |
 | ADR-036 | Native Android uses the Django API with Cognito bearer tokens; the game-only WebView uses a ticket-redeemed, child- and region-scoped game session cookie | Proposed | Feature branch (LAI-ANDROID-API-001) | Implemented 2026-10-25 at the Django API boundary; owner acceptance pending. Builds on ADR-024 and ADR-033; does not change ADR-034 |
 | ADR-037 | The Django backend is released to one EC2 instance per environment from GitHub Actions through ECR and SSM, with GitHub OIDC and no stored AWS keys | Accepted | Feature branch (feature/aws-ec2-auto-deployment) | Owner-directed 2026-10-30 (LAI-1003, LAI-1004, LAI-1006). Repository side only: provisioning and every deploy stay owner-approved (ADR-019 G1, G7). Prod on EC2 is the initial step; ECS Fargate (LAI-1007) stays the production candidate |
 | ADR-038 | Environment-selectable API authentication: Cognito in AWS, local Django sign-in for development, one Django user and authorization model | Superseded by ADR-040 | Main line (merged 2026-10-31, `beebb6a`) | Superseded 2026-10-31 by ADR-040 (LAI-AUTH-ROLLBACK, owner-directed). Owner-directed 2026-10-30 (LAI-AUTH-DUAL). Amends ADR-024 Accepted items 1 and 2 for `AUTH_PROVIDER=django` only; builds on ADR-034 (the admin session stays separate). AWS environments are unchanged |
 | ADR-039 | Django is the authority for parent and child profiles in every build with the Django API; Amplify profiles only until the controlled import and cutover; read-only audited Django Admin inspection | Accepted | Main line (merged 2026-10-31) | Owner-directed 2026-10-31 (LAI-CHILD-001). Amends ADR-034 and ADR-024 A4 for read-only, permission-gated, audited profile inspection in Django Admin only. Hard deletion stays blocked by LAI-0209. No production data is moved |
 | ADR-040 | Cognito is the sole authentication provider for application users in every environment; Django authorizes, and native Django authentication serves Django Admin staff only | Accepted | Main line (LAI-AUTH-ROLLBACK) | Owner-directed 2026-10-31. Supersedes ADR-038; restores ADR-024 items 1 and 2 everywhere; keeps ADR-034 (Django Admin) and ADR-039 (Django profile authority) |
-| ADR-041 | Islands, Places and 3D Areas: one optional 3D Area per Place, and Adventures launched from objects in it | Accepted | Feature branch (LAI-0806) | Owner-approved decisions A to E, 2026-10-31. Builds on ADR-032 and ADR-033; leaves LAI-0805 (spatial layout administration) open Decision E amended by ADR-043 (2026-11-01): puzzle parameters and 3D Area copy become admin-authorable; positions stay seed-authored |
-| ADR-042 | Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset manager owns the asset bucket, and the Amplify bucket stays untouched until retirement | Accepted | Feature branch (LAI-0904) | Owner-accepted 2026-10-31 for code and infrastructure definitions only; no deployment, migration or deletion approved. Builds on ADR-035 (asset storage) and ADR-039 (Django profile authority) |
-| ADR-043 | Django Admin is the authoritative content authoring system; the TypeScript export stays the initial import and migration path and never silently overwrites administrator edits | Accepted | Feature branch (feature/adr-043-django-content-authoring) | Owner-accepted 2026-11-01 with answers Q1 to Q4 and eight acceptance requirements (session pinning mandatory; LAI-0815 deferred). Carries out ADR-019 sub-decision 8's cutover and amends ADR-033 items 3 and 4 and ADR-041 E. Impact: `docs/platform/DJANGO_CONTENT_AUTHORING.md` |
+| ADR-041 | Islands, Places and 3D Areas: one optional 3D Area per Place, and Adventures launched from objects in it | Accepted | Feature branch (LAI-0806) | Owner-approved decisions A to E, 2026-10-31. Builds on ADR-032 and ADR-033; leaves LAI-0805 (spatial layout administration) open |
+| ADR-042 | Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset library owns the asset bucket, and the Amplify bucket stays untouched until retirement | Accepted | Feature branch (LAI-0904) | Owner-accepted 2026-10-31 for code and infrastructure definitions only; no deployment, migration or deletion approved. Amended 2026-11-01: Django is the control plane for both buckets; asset mutations through Django APIs, blocked until LAI-0209 (AM-14 to AM-16). Builds on ADR-035 (asset storage) and ADR-039 (Django profile authority) |
+| ADR-043 | Sensitive actions require a recent interactive Cognito sign-in, proven by the verified token's `auth_time`, a per-session anchor and a Cognito `GetUser` revocation check | Proposed | Feature branch (LAI-0209) | Asset-mutation scope retired 2026-11-02 by ADR-045 (child deletion remains). Implemented and unit-tested 2026-11-01 on `feature/lai-0209-recent-auth`; owner acceptance and the live Cognito gate pending. Specifies ADR-024 A3; lifts the `SensitiveActionBlocked` block on child deletion (LAI-0602) and asset mutations (ADR-042 item 2) |
+| ADR-044 | Django serves Chatty's companion and tutor turns through Bedrock Converse with a child-safety Guardrail; Amplify AI routes stay until client cutover | Accepted | Feature branch (features/ai) | Owner-directed 2026-11-01 (Phase 7 brief: LAI-0306, LAI-0701 to LAI-0704). Accepts ADR-019 sub-decision 9 for code and infrastructure definitions only; live Bedrock, Guardrail deployment and the React cutover stay gated (LAI-0705, LAI-0706, G7) |
+| ADR-045 | Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets; no React staff asset manager or administrator asset API | Accepted | Feature branch `feature/asset-manager` (AM-13, AM-17) | Owner-directed 2026-11-02 (development only; no deployment, AWS or browser acceptance). Supersedes ADR-042 amendment items 2 and 3 for assets and AM-14, AM-15; narrows ADR-043 scope; builds on ADR-035 and ADR-040 |
+| ADR-046 | AI Question Studio is a staff-only Django app that drafts questions through the ADR-044 model client and serves published questions through the existing challenge and grading path | Accepted | Feature branch (features/studio) | Owner brief 2026-11-02 (Phase 28); accepted the same day ("proceed as proposed"). Builds on ADR-019, ADR-033, ADR-034, ADR-044. Not deployed |
+| ADR-047 | Django Admin is the authoritative content authoring system; the TypeScript export stays the initial import and migration path and never silently overwrites administrator edits | Accepted | Feature branch (feature/adr-043-django-content-authoring) | Owner-accepted 2026-11-01 with answers Q1 to Q4 and eight acceptance requirements (session pinning mandatory; LAI-0815 deferred). Carries out ADR-019 sub-decision 8's cutover and amends ADR-033 items 3 and 4 and ADR-041 E. Impact: `docs/platform/DJANGO_CONTENT_AUTHORING.md` |
 
 ## ADR-001: Parent-owned accounts
 
@@ -1057,7 +1061,7 @@ content should be data rows, not infrastructure.
 | 6 | ~~Retain Three.js and Phaser engines unchanged~~ | **Superseded by ADR-020** (Accepted) | Three.js is the only gameplay renderer; Phaser is retired after conversion |
 | 7 | ~~Separate engine from platform concerns; `game/` extraction deferred~~ | **Superseded by ADR-020** (Accepted) | `game/` is a first-class package; the engine boundary is a requirement, not a deferral |
 | 8 | Authoritative rules reimplemented in Python with shared golden vectors; content exported to versioned JSON | **Accepted** (owner, 2026-10-24) | Gate G4 resolved: Python is authoritative, no Node rules service; Django becomes the content authority with versioned JSON as the interchange. See "Amendment: sub-decision 8 and gate G4" below |
-| 9 | Bedrock called from Django (boto3), replacing Amplify AI Kit routes | Proposed | Personas, limits, validation, fallbacks, audit preserved |
+| 9 | Bedrock called from Django (boto3), replacing Amplify AI Kit routes | **Accepted** (owner, 2026-11-01; ADR-044) | Personas, limits, validation, fallbacks, audit preserved. Code only: live Bedrock (LAI-0705), cutover (LAI-0706) and Amplify retirement (LAI-0710) stay gated |
 | 10 | EC2 + Docker for development; ECS Fargate as production candidate | Proposed | No Kubernetes, microservices, queues |
 | 11 | Django Channels + Redis only if a measured need appears | Proposed | Co-op needs only slot claims and low-rate state |
 | 12 | Incremental Amplify retirement, with Cognito detached first | Proposed | Phases 12-13 in the roadmap |
@@ -1427,6 +1431,9 @@ recent authentication plus a revocation-aware check, must fail closed if that ch
 and **must not be exposed** until that mechanism is separately specified, implemented, and tested
 (tracked as LAI-0209). LAI-0402 therefore ships a permission class, `SensitiveActionBlocked`, that
 denies every request; any such endpoint must declare it until LAI-0209 replaces it.
+*Specified and implemented 2026-11-01 (LAI-0209, ADR-043, proposed):* child deletion and the
+asset administrator's mutations use `RequiresRecentAuthentication`; `SensitiveActionBlocked`
+remains for sensitive actions whose own specification is not done (account deletion, consent).
 
 **A4, administration: approved.** Administrative authority is derived on every relevant request
 from the `cognito:groups` claim of a cryptographically verified access token. No Django superuser
@@ -1906,7 +1913,7 @@ Status: Accepted (2026-09-27), covering Phases 1-2 of
 `docs/android/ASSET_MANAGEMENT.md`
 
 ADR-014 said the content manifest would be "designed, not built, until it
-has something to protect". The Model Asset Manager is that something:
+has something to protect". The Model Asset Library is that something:
 administrators now need to bring in GLB models from outside the
 generate/import scripts (commissioned characters, AI modeling tools,
 packs too large to commit), and those models need a home that is not the
@@ -2329,7 +2336,7 @@ integration cleanup). Three rules:
    and the module-level functions every scene calls are one loader bound to
    `BUNDLED_ASSET_RESOLVER`. `assetService.ts`'s published-slug lookup is
    the second resolver, `PUBLISHED_ASSET_RESOLVER`. It is **not** handed to
-   the child's scene. `Asset` is Admins-only until the asset manager's
+   the child's scene. `Asset` is Admins-only until the asset library's
    publishing phase gives parents a published-only read path (ADR-030), and
    before then it would add a lookup that always fails to every scene load.
    When that path exists, switching is one line in `assetLoader.ts`.
@@ -2608,13 +2615,13 @@ last active superuser; there is no MFA on the Django login yet. Hosting is still
 (Phase 10, APPROVAL), see `docs/DJANGO_TARGET_ARCHITECTURE.md`, "Django Admin hosting".
 
 
-## ADR-035: The shared asset manager versions binaries on the canonical ContentAsset identity, with private storage and signed delivery
+## ADR-035: The shared asset library versions binaries on the canonical ContentAsset identity, with private storage and signed delivery
 
 Status: Accepted 2026-10-25 (proposed and implemented on `feature/django-asset-manager` for
 LAI-2200 the same day; accepted after the implementation was reviewed against it, before merge).
-Detail: `docs/ASSET_MANAGER.md`.
+Detail: `docs/ASSET_LIBRARY.md`.
 
-**Context.** LAI-2200 asks for a reusable asset manager: definitions, immutable versions,
+**Context.** LAI-2200 asks for a reusable asset library: definitions, immutable versions,
 publication, S3 storage, Django Admin upload, a child-facing resolver and an import path.
 `catalog.ContentAsset` already is the platform's asset identity, keyed by the bundled manifest id
 and the Amplify `Asset.slug` (ADR-030), and CLAUDE.md section 20 (ADR-033) forbids a second
@@ -2666,7 +2673,7 @@ Items 6 to 8: the resolver statuses, the two delivery modes and the bundled fall
 of this decision is still open. The following stay as separate follow-up work and do not reopen
 it: the production delivery mode (`django` or `s3`, chosen when LAI-1002 provisions the bucket),
 signed CloudFront URLs (AM-11), licence and source fields, and an `AdventureAsset` join model
-(`docs/ASSET_MANAGER.md` section 16).
+(`docs/ASSET_LIBRARY.md` section 16).
 
 **Amendment: admin preview (AM-10, 2026-10-25).** Item 7 (delivery) stays as it is, for gameplay
 and published versions only. Staff inspect any validated, published or retired version through a
@@ -2676,7 +2683,7 @@ account. The token is sent in a request header, never in a URL. The route serves
 re-checking their SHA-256, and always streams them through Django, so no presigned URL is issued
 for a preview. Draft and rejected versions are never served. The viewer is a Three.js bundle
 (ADR-020: Three.js is the only renderer) committed as an admin static file, because the Django
-image has no Node build step. No dependency was added. Detail: `docs/ASSET_MANAGER.md` section 17.
+image has no Node build step. No dependency was added. Detail: `docs/ASSET_LIBRARY.md` section 17.
 
 
 ## ADR-036: Native Android uses the Django API with Cognito bearer tokens; the game-only WebView uses a ticket-redeemed, child- and region-scoped game session cookie
@@ -2753,7 +2760,7 @@ release path. LAI-1003 (ECR and image build), LAI-1004 (dev EC2 and Docker deplo
 step and a tested rollback) and LAI-1006 (monitoring) were open. The owner asked for a merge to
 `main` to release Django automatically: test, build, push to ECR, deploy to EC2 through SSM,
 migrate safely, verify health, and fail with logs and a reliable rollback. The React app stays on
-Amplify Hosting; the asset manager keeps its S3 storage (ADR-035).
+Amplify Hosting; the asset library keeps its S3 storage (ADR-035).
 
 **Decision.**
 1. **One image, promoted by digest.** GitHub Actions builds `lai/Dockerfile` once per commit of
@@ -3051,14 +3058,14 @@ settings, as versioned revisions. Positions, spawn points and placements stay se
   session and opens the Adventure page, but steps played there are not recorded in Django. A
   Django step-adventure client is follow-up work (LAI-0806 notes).
 
-## ADR-042: Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset manager owns the asset bucket, and the Amplify bucket stays untouched until retirement
+## ADR-042: Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset library owns the asset bucket, and the Amplify bucket stays untouched until retirement
 
 Status: Accepted 2026-10-31 by the owner for implementation in code and infrastructure
 definitions (LAI-0904, `feature/lai-0904-child-photo-storage`). Deployment, data migration,
 bucket deletion, merging and pushing were not approved.
 
 **Context.** Amplify keeps child profile photos and admin-uploaded models in one bucket
-(`amplify/storage/resource.ts`), separated only by path rules. The Django asset manager already
+(`amplify/storage/resource.ts`), separated only by path rules. The Django asset library already
 has its own private bucket, `LaiAssetStorage-<env>` (ADR-035). LAI-0904 needed a home for photos
 on Django. A child's photograph is personal data with different access, caching and retention
 needs from published game content.
@@ -3069,7 +3076,7 @@ needs from published game content.
   CDK stack beside `LaiAssetStorage-<env>`. Neither Django policy reaches the other bucket's
   prefix, and production settings refuse a photo bucket equal to the asset bucket.
 - **Ownership.** The child profile subsystem (`lai/apps/users`: `ChildPhoto`, `photos.py`,
-  `photo_storage.py`, `photo_validation.py`) owns photos. The asset manager's publication,
+  `photo_storage.py`, `photo_validation.py`) owns photos. The asset library's publication,
   versioning and delivery workflow is never used for them.
 - **Photo bucket controls.** All Block Public Access settings, ACLs disabled, TLS 1.2 or newer
   only, SSE-S3, versioning, no CDN, no CORS by default, retained on stack deletion. Lifecycle:
@@ -3102,7 +3109,251 @@ needs from published game content.
 
 Details: `docs/platform/CHILD_PHOTO_STORAGE.md`.
 
-## ADR-043: Django Admin is the authoritative content authoring system; the TypeScript export stays the initial import and migration path and never silently overwrites administrator edits
+*Amended 2026-11-01 (owner-directed, AM-14 to AM-16); items 2 and 3 are superseded for staff asset administration by ADR-045 (2026-11-02): Django is the control plane for both
+buckets.*
+
+1. **Django authorizes every asset and photo operation.** Photos through the owning parent
+   (unchanged). Assets through the Cognito `Admins` group of the verified access token, per
+   request (ADR-024 A4; no API permission reads `is_staff`, ADR-034 item 4).
+2. **Upload, deletion and publication are Django APIs.** Assets: `/api/v1/admin/assets/`
+   (`lai/apps/assets/admin_api.py`) over the existing lifecycle services, the same rules Django
+   Admin applies. Photos: `/api/v1/children/<id>/photo/`. Asset mutations are privileged
+   administrative mutations, so they stay blocked (`SensitiveActionBlocked`) until LAI-0209's
+   recent-authentication check exists (ADR-024 A3); reads work now.
+3. **No client holds bucket credentials** or performs authenticated bucket operations: React and
+   Android never upload to, list, delete from or sign for a bucket, after cutover. Until then
+   item 7 applies.
+4. **Private photo downloads may use short-lived presigned HTTPS URLs** (300 s by default),
+   minted by Django only after authorizing that request. The response carrying the URL is
+   `Cache-Control: private, no-store`; a client re-requests the URL when it fails or expires and
+   never sends its bearer token to S3. Django byte-serving stays the `api` delivery mode for
+   stores without presigning; switching photos to it needs a demonstrated security or operational
+   reason.
+5. **Published game assets may use CDN delivery** (AM-11, once LAI-1005's distribution exists).
+   Today they use `django` delivery (ADR-035, docs/ASSET_LIBRARY.md section 8).
+6. **Unpublished assets stay private:** never resolved, never given a delivery URL, never on a
+   CDN. Photos are never published at all.
+7. **Amplify Storage stays as it is until cutover.** The production build without the Django API
+   keeps its Amplify photo and asset paths. LAI-1301 removes them after the migration (LAI-1103 for
+   photos) and production cutover, together with the browser-side storage IAM grants.
+
+**Django-controlled access and direct S3 downloads are different things.** Control is Django
+deciding, per request and with its own credentials, whether an operation may happen: every
+upload, delete, publish and every URL issued. A presigned download is the one place a client
+then talks to S3 directly, and only to read the single object Django named, until that URL
+expires. Revoking access stops new URLs at once but cannot recall one already issued, which is
+why photo URLs live 300 s and why retired assets keep `django` delivery (re-checked on every
+fetch).
+
+## ADR-043: Sensitive actions require a recent interactive Cognito sign-in, proven by the verified token's `auth_time`, a per-session anchor and a Cognito `GetUser` revocation check
+
+Status: **Proposed.** Implemented and unit-tested on `feature/lai-0209-recent-auth` (2026-11-01);
+owner acceptance, the live Cognito gate and browser verification are pending. Nothing deployed;
+no Cognito resource or setting changed. Specification: `docs/platform/RECENT_SIGN_IN.md`.
+
+**Context.** ADR-024 A3 required recent authentication plus a revocation-aware check, failing
+closed, before account or child deletion, consent changes and privileged administrative
+mutations, and blocked them (`SensitiveActionBlocked`) until LAI-0209 specified one. Child
+deletion (LAI-0602) and the asset administrator API (AM-14) were built and waiting.
+
+**Question checked first: does the Cognito flow give reliable evidence of recent interactive
+sign-in?** AWS documents the access token's `auth_time` as the time the user completed
+authentication, `iat` as the issue time, and `origin_jti` as the identifier tied to the refresh
+token (checked by revocation). It does not state outright that a refreshed token keeps the
+original `auth_time`. So `auth_time` is used, but not trusted alone, and the refresh case is a
+live acceptance gate.
+
+**Decisions.**
+
+1. **Django decides, from the verified access token only.** Evidence: integer `auth_time` and
+   `iat`, and `origin_jti`. `auth_time` must be at most `LAI_RECENT_AUTH_MAX_AGE_SECONDS` old
+   (default 300; 60 to 900). Skew: `auth_time` up to 30 s ahead counts as now, more is refused;
+   `iat` before `auth_time - 30 s` is refused; the window is never widened. Client-supplied
+   timestamps are never read.
+2. **A refresh never counts as a sign-in.** `AuthSessionAnchor` stores the first `auth_time` seen
+   per account and `origin_jti` digest (SHA-256; no token data), recorded by `POST /api/v1/me/`
+   after sign-in and by the first sensitive request. A later token from the same session with a
+   different `auth_time` is refused. Anchors are pruned after 35 days.
+3. **Revocation-aware, fail closed.** Cognito `GetUser` with the presented token (unsigned,
+   token-authorized; no IAM permission; 3 s / 5 s timeouts, no retry). Revoked: 401. Different
+   `sub`: 401. Unreachable, throttled, or the token lacks `aws.cognito.signin.user.admin`: 503
+   `recent_auth_unavailable`.
+4. **Status contract.** Stale or missing evidence is `403 recent_auth_required`, never 401, so
+   clients do not refresh-and-retry or sign out. Authorization runs before recency (a
+   non-administrator gets `permission_denied`), and recency runs before the child lookup (no
+   existence leak). Another family's child is 404.
+5. **One reusable permission, `RequiresRecentAuthentication`,** listed after the endpoint's own
+   permissions. It now guards `DELETE /api/v1/children/<id>/` and every asset administrator
+   mutation (create, upload, publish, default, retire, delete). `SensitiveActionBlocked` stays
+   for sensitive actions not yet specified (account deletion, consent changes).
+6. **Re-authentication is a real Cognito sign-in,** not a second authentication system and not
+   a Django-held password: React signs the current session out and signs in again with Amplify
+   (SRP) as the same account, asks for explicit confirmation, then retries the request once. No
+   step-up token is minted: the fresh access token is itself the evidence.
+7. **Django Admin is unchanged** (ADR-034, ADR-040): its staff session neither uses nor bypasses
+   the guard.
+
+**Consequences.** Child deletion and asset changes work through the API for a parent or
+administrator who signed in within five minutes. Every sensitive request costs one Cognito call.
+Android hosted-UI clients must request `aws.cognito.signin.user.admin` and use `prompt=login` to
+re-authenticate. Open: the live Cognito gate (L1 to L6 in the specification), gate A6 (token
+revocation setting), browser verification of the dialog, and a recent-sign-in step for Django
+Admin's own asset actions.
+
+## ADR-044: Django serves Chatty's companion and tutor turns through Bedrock Converse with a child-safety Guardrail; Amplify AI routes stay until client cutover
+
+Status: Accepted (owner-directed 2026-11-01, Phase 7 brief; code and infrastructure definitions
+only). Builds on ADR-019 sub-decision 9, ADR-024 (Cognito tokens), ADR-033 (one backbone) and
+ADR-025 (privacy-safe logging). Details: `docs/AI_SERVICE.md`.
+
+**Context.** Chatty's companion and tutor turns run as Amplify AI Kit generation routes, with
+validation, fallback and audit writes in the browser. Django is to become the authoritative AI
+backend for the web client and a future Android client, without breaking the working routes.
+
+**Decision.**
+
+1. A new canonical app, `lai/apps/ai`, owns the AI domain: versioned personas copied verbatim from
+   Amplify, the response contracts and validators (proved equal to the TypeScript by the
+   `ai-safety` golden vectors), authored fallbacks, a provider interface with a deterministic fake
+   and a Bedrock client, one shared pipeline, and the `AIInteractionAudit` / `SafetyEvent` models
+   (LAI-0306).
+2. Two child-scoped endpoints, `.../ai/companion-turns/` and `.../ai/tutor-turns/`, return the
+   React `{turn, source}` shapes. Every failure is a 200 with authored content.
+3. Bedrock is called through Converse with the US geographic inference profile for Claude Haiku
+   4.5 (`us.anthropic.claude-haiku-4-5-20251001-v1:0`; source us-west-1). Structured output uses
+   `outputConfig.textFormat`, never tool use, because Guardrails do not assess tool-call
+   arguments on Converse.
+4. A dedicated Guardrail (`LaiAiGuardrail-<env>`) is mandatory for Bedrock: missing configuration
+   fails closed (production refuses to start; elsewhere the turn falls back). PII is BLOCKED, the
+   trace is off, and every intervention is a block. Untrusted client text is wrapped in
+   `guardContent`.
+5. Defence in depth stays in application code: server-derived age band and limits, input
+   screening of client text, contract validation, a stricter Django output policy (boundary
+   language and learning judgments on both routes), per-child rate limiting, and server-written
+   audit rows and safety events with closed vocabularies only.
+6. The AI never writes gameplay state. The endpoints write only `ai_*` rows.
+7. Context comes from Django when the session runs on Django (`DJANGO_SESSION`); otherwise the
+   client's authored fields are accepted as bounded, screened, untrusted input
+   (`CLIENT_AUTHORED`), recorded on every audit row, until LAI-0709 removes that path.
+8. Amplify `generateCompanionTurn` and `generateTutorTurn`, their IAM grants and the React
+   integrations stay unchanged until LAI-0706 is accepted and LAI-0710 is approved.
+
+**Consequences.** Two backends can serve AI turns during the transition; audit rows from both
+share field names and route names. The Django model id differs from Amplify's (`us.` versus
+`global.`). The rate limit is per process until a shared cache exists (LAI-0708). Known
+prerequisites stay sparse until server mastery (LAI-0603).
+
+**Amendment (owner-directed Phase 7 completion brief, 2026-11-01; code only).**
+
+9. AI audit metadata is the second sanctioned exception to "no child-owned record in Django
+   Admin" (after ADR-039's profile view): `AIInteractionAudit` and `SafetyEvent`, gated by their
+   own view permissions, audited on every read, child UUID only, with a safety event's review
+   status the only editable field.
+10. Limits are enforced server-side in PostgreSQL counters shared by every process, with a
+    runtime kill switch (`AIServiceControl`) and a global daily ceiling as the application's
+    own cost cap. Redis is not introduced.
+11. A third context source, `DJANGO_CATALOG`, voices published NPC dialogue from Django rows
+    alone. `CLIENT_AUTHORED` stays available behind `LAI_AI_ALLOW_CLIENT_AUTHORED` until
+    adventures run on Django sessions and stories are in the Django catalog.
+12. The `ai.turn` log line is a positional, versioned schema (`v1`) read by CloudWatch metric
+    filters in `LaiAiGuardrail-<env>`.
+
+**Not decided here.** Live invocation and its cost, the Guardrail deployment, retention of audit
+and safety rows (with LAI-0308, gate G9), admin review UI, and the cutover date.
+
+
+
+
+## ADR-045: Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets; no React staff asset manager or administrator asset API
+
+Status: Accepted 2026-11-02 (owner-directed; development only). Branch `feature/asset-manager`.
+Supersedes the ADR-042 amendment (2026-11-01) items 2 and 3 **for staff asset administration**, and
+tasks AM-14 and AM-15. Builds on ADR-035 (versioned assets, private storage, signed delivery) and
+ADR-040 (Django Admin staff authenticate with Django's own login; parents and children use
+Cognito). The "Asset Manager" is now called the **Asset Library** (docs/ASSET_LIBRARY.md).
+
+**Context.** The 2026-11-01 amendment made React the staff asset UI over a Cognito-`Admins`
+administrator REST API, with Django Admin as a second path to the same services. Two staff
+interfaces meant two permission models (Cognito group and Django permissions), two sets of
+validation messages, an upload path through the browser to a mutation API, and a recent sign-in
+guard only on one of them. Django Admin already had upload, validation, publish, retire, previews
+and group-based roles (AM-5, AM-10).
+
+**Decision.**
+
+| Component | Responsibility |
+|---|---|
+| Django Admin | Asset creation, upload, metadata, versioning, publish, rollback, retirement, deletion of unpublished versions, administrative assignments |
+| Django models and services (`apps/assets`) | Validation, lifecycle rules, storage integration, version authority |
+| Django REST API | Read-only delivery of published asset metadata and file URLs (`/children/<id>/assets/`, signed file route) |
+| S3 | Binary storage for models, images, textures and audio, private, keys made only by the server |
+| React and Three.js | Resolve ids through Django and render published assets |
+| React parent interface | Parent and child management, progress |
+
+1. There is **no React staff asset manager** and **no administrator asset REST API**. They were
+   removed (AM-14, AM-15): the routes, nav entries, Amplify upload wizard, "Game assets" hub, the
+   `djangoAssetAdmin` client and their tests. A test asserts no `api/v1/admin/` route exists and
+   that no source imports the removed modules.
+2. Staff authorization is Django's: `is_staff` plus model permissions via the groups from
+   `ensure_asset_roles`, checked server-side on every admin view and action. Unauthenticated users
+   and parents or children (Cognito principals) cannot reach it.
+3. Non-model assets (textures, images, sprites, audio) are first-class (AM-13): validated by
+   content, stored under `assets/<models|images|audio>/`, previewed in Django Admin and delivered
+   through the same resolver. The kind of a definition decides the accepted family.
+4. Publishing is authoritative in Django; React never picks a version because a file exists.
+5. LAI-0209 (recent sign-in) no longer applies to asset mutations because no Cognito-token asset
+   mutation exists. It still guards child deletion and future sensitive parent actions. A
+   recent-sign-in step for Django Admin is not implemented and not claimed.
+6. Reusable non-administrative code is kept: the Three.js loaders and cache, the Django resolver
+   adapter, texture and audio helpers, the bundled-manifest fallback, Treasure Rush loading, and the
+   Django Admin 3D preview bundle (built from `react/src/features/assets/preview/`).
+7. The Amplify `Asset`/`AssetVersion` records and the Amplify-backed catalog model picker are
+   untouched until LAI-1301.
+
+**Consequences.** One staff surface, one permission model, one audit trail (admin history).
+Administration needs Django hosted (LAI-1004); until then assets are managed by running Django
+Admin locally against the configured storage. Open: the asset bucket and policy deployment, a
+browser pass of the admin screens, live S3 verification (AM-16), and optional admin-side
+re-authentication.
+## ADR-046: AI Question Studio is a staff-only Django app that drafts questions through the ADR-044 model client and serves published questions through the existing challenge and grading path
+
+Status: Accepted (owner brief 2026-11-02, Phase 28; accepted the same day with "proceed as proposed"). Builds on ADR-019 (Python owns
+learning rules), ADR-033 (one Django backbone), ADR-034 (Django Admin) and ADR-044 (Django AI
+service). Details: `docs/AI_QUESTION_STUDIO.md`.
+
+**Context.** Treasure Rush challenges are parameterised integer generators, not stored questions,
+and there is no question bank, no Django grade taxonomy, and no staff-scoped AI path. Staff need
+to author larger, varied question sets with AI help without any unapproved text reaching a child.
+
+**Decision.**
+
+1. A new Django app, `lai/apps/question_studio`, owns the question bank: questions, immutable
+   published revisions, generation batches, validation reports and review events.
+2. Generation reuses the ADR-044 `ModelClient` and settings. Studio batches record model, prompt
+   version, tokens and estimated cost on the batch; they do not write child-keyed
+   `AIInteractionAudit` rows.
+3. Generation, validation, approval and publishing are separate staff operations behind Django
+   permissions. Bedrock never grades a child's answer; Django does.
+4. Published integer-answer questions are served to Treasure Rush as `MathChallenge` snapshots
+   through the existing `ChallengeAttempt` path, with an additive `MULTIPLY` operation and a
+   nullable bank revision reference. An empty pool falls back to `ChallengeSpec` generation.
+
+**Relation to ADR-033.** The question bank is content authored in Django Admin and kept in
+PostgreSQL, not imported from the content export. That is a deliberate, bounded exception: it is
+not catalog content, it adds no second catalog, loader or progress model, and it reuses
+`ChallengeAttempt`, `grade_answer` and `SkillEvidence`. `LearningObjective` rows still arrive only
+through the export, so a question can be served only for a skill the export already holds.
+The owner confirmed this exception on 2026-11-02.
+
+**Not decided here.** A task queue for long batches, a Django curriculum for grades above 2,
+text-stem question delivery to children, and live Bedrock acceptance (LAI-0705).
+
+## ADR-047: Django Admin is the authoritative content authoring system; the TypeScript export stays the initial import and migration path and never silently overwrites administrator edits
+
+*Drafted and accepted as ADR-043 on `feature/adr-043-django-content-authoring`; renumbered ADR-047
+when `main` was merged into the branch (2026-11-02), because `main` had already assigned ADR-043
+to the recent sign-in guard (LAI-0209). References to "ADR-043" in this branch's content-authoring
+code and documents mean this decision until they are renamed.*
 
 Status: Accepted 2026-11-01 by the owner, with the answers to the four open questions and the
 acceptance requirements recorded at the end of this section. Impact assessment and build

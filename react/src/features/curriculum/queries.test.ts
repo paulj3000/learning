@@ -24,7 +24,7 @@ describe('curriculum queries', () => {
       listGrades('mathematics')
         .map((grade) => grade.id)
         .sort(),
-    ).toEqual(['grade-1-2', 'math-early-years']);
+    ).toEqual(['grade-1-2', 'grade-3', 'math-early-years']);
     expect(listGrades('science').map((grade) => grade.id)).toEqual(['early-science']);
     expect(listDomains('grade-1-2').every((domain) => domain.gradeId === 'grade-1-2')).toBe(true);
     expect(listSkills('early-number')).toEqual([
@@ -63,13 +63,21 @@ describe('curriculum queries', () => {
     const explorer = listSkillsByAgeBand('EXPLORER').map((skill) => skill.id);
     expect(explorer).toContain('measurement');
     expect(explorer).toContain('comparing-lengths');
+    // Grade 3 is Explorer only (ADR-046): multiplication facts reach no one younger.
+    expect(explorer).toContain('multiplication-facts');
+    expect(sprout).not.toContain('multiplication-facts');
 
-    // A Pathfinder is served by both, so it sees everything the seed holds.
+    // A Pathfinder is served by both earlier grades, so it sees everything except grade 3.
     expect(
       listSkillsByAgeBand('PATHFINDER')
         .map((skill) => skill.id)
         .sort(),
-    ).toEqual([...SKILLS].map((skill) => skill.id).sort());
+    ).toEqual(
+      [...SKILLS]
+        .map((skill) => skill.id)
+        .filter((id) => id !== 'multiplication-facts')
+        .sort(),
+    );
   });
 
   it('resolves prerequisite skill ids into skill objects', () => {

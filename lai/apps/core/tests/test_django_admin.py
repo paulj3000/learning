@@ -165,20 +165,28 @@ def test_a_superuser_flag_without_staff_is_rejected_by_the_database():
 def test_no_child_owned_record_is_registered_and_child_profiles_are_read_only():
     """Gameplay and other child-owned rows stay off the admin; `ChildProfile` is registered only
     as the read-only, audited inspection view (LAI-CHILD-001, ADR-039)."""
+    from apps.ai.models import AIInteractionAudit, SafetyEvent
+
     registered = set(admin.site._registry)
     child_models = {model for model in apps.get_models() if issubclass(model, ChildOwnedModel)}
     assert child_models, "the check must find the child-owned models"
-    assert not registered & child_models
+    # The one exception: AI audit metadata, permission-gated and audited (LAI-0707, ADR-044).
+    assert registered & child_models == {AIInteractionAudit, SafetyEvent}
+    for model in (AIInteractionAudit, SafetyEvent):
+        assert "nickname" not in admin.site._registry[model].fields
     model_admin = admin.site._registry[ChildProfile]
     assert "nickname" not in model_admin.fields and "interests" not in model_admin.fields
     # Only these apps have anything in the admin (regions: 3D Areas, launch points and puzzles,
-    # ADR-041 and ADR-043; education: challenge specs only, content with no child data, ADR-043).
+    # ADR-041 and ADR-043; education: challenge specs only, content with no child data, ADR-043;
+    # question_studio: staff-authored questions and their review history, no child data, ADR-046).
     assert {model._meta.app_label for model in registered} == {
+        "ai",
         "assets",
         "auth",
         "catalog",
         "education",
         "regions",
+        "question_studio",
         "users",
     }
     education = {m.__name__ for m in registered if m._meta.app_label == "education"}

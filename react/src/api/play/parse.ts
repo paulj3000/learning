@@ -2,10 +2,8 @@ import type { Reader } from '../parse';
 import type {
   AnswerOutcome,
   ChestState,
+  CompletionReward,
   DialogueNodeView,
-  PuzzleOutcome,
-  PuzzleState,
-  RegionCatalog,
   InventoryEntry,
   IssuedChallenge,
   ItemView,
@@ -13,12 +11,18 @@ import type {
   LaunchStart,
   NpcPlacement,
   ObjectPlacement,
+  PickupOutcome,
   PlacedEntity,
   PlayerProgress,
   PlaySession,
+  PuzzleOutcome,
+  PuzzleState,
   QuestEntry,
+  QuestUpdate,
   RegionBootstrap,
+  RegionCatalog,
   SpawnPoint,
+  TalkOutcome,
   WorldChange,
 } from './types';
 
@@ -114,6 +118,8 @@ function object(r: Reader): ObjectPlacement {
     ...placed(r),
     kind: r.field('kind').oneOf(['PROP', 'COLLECTIBLE', 'SCENERY'] as const),
     interactionId: r.field('interactionId').string(),
+    pickup: optional(r, 'pickup', (v) => v.boolean(), false),
+    collected: optional(r, 'collected', (v) => v.boolean(), false),
   };
 }
 
@@ -123,6 +129,23 @@ function chest(r: Reader): ChestState {
     openClip: r.field('openClip').string(),
     isOpen: r.field('isOpen').boolean(),
     challengeAvailable: r.field('challengeAvailable').boolean(),
+    presentation: optional(
+      r,
+      'presentation',
+      (v) => v.oneOf(['CHEST', 'HIDDEN', 'PUZZLE', 'REPLAY'] as const),
+      'CHEST',
+    ),
+    sortOrder: optional(r, 'sortOrder', (v) => v.integer(), 0),
+    locked: optional(r, 'locked', (v) => v.boolean(), false),
+    lockReason: optional(
+      r,
+      'lockReason',
+      (v) => v.nullable((reason) => reason.oneOf(['PROGRESS', 'ITEM'] as const)),
+      null,
+    ),
+    requiredItemId: optional(r, 'requiredItemId', (v) => v.nullable((id) => id.string()), null),
+    answerEntityIds: optional(r, 'answerEntityIds', (v) => v.array((id) => id.string()), []),
+    clue: optional(r, 'clue', (v) => v.string(), ''),
   };
 }
 
@@ -256,16 +279,6 @@ export function puzzleOutcome(r: Reader): PuzzleOutcome {
   };
 }
 
-function questUpdate(r: Reader) {
-  return {
-    questId: r.field('questId').string(),
-    status: r.field('status').oneOf(QUEST_STATUSES),
-    currentStageId: r.field('currentStageId').string(),
-    justCompleted: r.field('justCompleted').boolean(),
-    newlyCompletedObjectiveIds: r.field('newlyCompletedObjectiveIds').array((v) => v.string()),
-  };
-}
-
 const LAUNCH_OBJECT_KINDS = ['NPC', 'CHEST', 'DOOR', 'SIGN', 'OTHER'] as const;
 
 export function launchPoint(r: Reader): LaunchPoint {
@@ -306,7 +319,9 @@ export function issuedChallenge(r: Reader): IssuedChallenge {
     issuedAt: r.field('issuedAt').string(),
     challenge: {
       skillId: challenge.field('skillId').string(),
-      operation: challenge.field('operation').oneOf(['COUNT', 'ADD', 'SUBTRACT'] as const),
+      operation: challenge
+        .field('operation')
+        .oneOf(['COUNT', 'ADD', 'SUBTRACT', 'MULTIPLY'] as const),
       operands: challenge.field('operands').array((v) => v.integer()),
       responseMode: challenge.field('responseMode').oneOf(['CHOICE', 'NUMBER_INPUT'] as const),
       choices: challenge.field('choices').array((v) => v.integer()),
@@ -324,6 +339,45 @@ export function answerOutcome(r: Reader): AnswerOutcome {
     newItems: r.field('newItems').array(item),
     rewardMessage: r.field('rewardMessage').nullable((v) => v.string()),
     questUpdates: r.field('questUpdates').array(questUpdate),
+    completionRewards: optional(r, 'completionRewards', (v) => v.array(completionReward), []),
+  };
+}
+
+function questUpdate(update: Reader): QuestUpdate {
+  return {
+    questId: update.field('questId').string(),
+    status: update.field('status').oneOf(QUEST_STATUSES),
+    currentStageId: update.field('currentStageId').string(),
+    justCompleted: update.field('justCompleted').boolean(),
+    newlyCompletedObjectiveIds: update.field('newlyCompletedObjectiveIds').array((v) => v.string()),
+  };
+}
+
+function completionReward(r: Reader): CompletionReward {
+  return {
+    ruleId: r.field('ruleId').string(),
+    items: r.field('items').array(item),
+    message: r.field('message').string(),
+  };
+}
+
+export function pickupOutcome(r: Reader): PickupOutcome {
+  return {
+    entityId: r.field('entityId').string(),
+    pickedUp: r.field('pickedUp').boolean(),
+    collected: r.field('collected').boolean(),
+    newItems: r.field('newItems').array(item),
+    rewardMessage: r.field('rewardMessage').nullable((v) => v.string()),
+    questUpdates: r.field('questUpdates').array(questUpdate),
+    completionRewards: r.field('completionRewards').array(completionReward),
+  };
+}
+
+export function talkOutcome(r: Reader): TalkOutcome {
+  return {
+    flagsSet: r.field('flagsSet').array((v) => v.string()),
+    questUpdates: r.field('questUpdates').array(questUpdate),
+    completionRewards: r.field('completionRewards').array(completionReward),
   };
 }
 

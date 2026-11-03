@@ -17,6 +17,8 @@ export interface PipDialogProps {
   error: string | null;
   onAccept(questId: string): void;
   onClose(): void;
+  /** TR-14: where the next treasure is, in Pip's words (the server's clue). */
+  clue?: string | null;
   /** Adventures this NPC can begin (ADR-041); absent or empty shows nothing extra. */
   launches?: readonly LaunchPoint[];
   launchStarting?: string | null;
@@ -49,6 +51,7 @@ export function PipDialog({
   error,
   onAccept,
   onClose,
+  clue = null,
   launches = [],
   launchStarting = null,
   launchError = null,
@@ -131,6 +134,11 @@ export function PipDialog({
             {justAccepted ? `${PLAY_COPY.questAccepted} ` : ''}
             {stageLine ?? PLAY_COPY.pipActive}
           </p>
+          {clue ? (
+            <p className={styles.speech}>
+              {PLAY_COPY.pipClue} {clue}
+            </p>
+          ) : null}
           <QuestSteps quest={quest} />
           <div className={styles.actions}>
             <button type="button" className={styles.primary} onClick={onClose}>

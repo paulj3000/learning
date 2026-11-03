@@ -65,6 +65,7 @@ export function useStoryChapterRunner(
   useEffect(() => {
     if (scene?.kind === 'NARRATIVE' && scene.aiNarrated) {
       void requestCompanion({
+        templateId: `story:${chapter.id}`,
         childProfileId,
         ageBand,
         intent: 'NARRATE',

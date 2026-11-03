@@ -37,6 +37,14 @@ function fakeScene() {
       discover: vi.fn(async () => undefined),
       setVisible: vi.fn(),
     },
+    setChestLock: vi.fn(),
+    setPickupCollected: vi.fn(),
+    setRuneNumbers: vi.fn(),
+    setUnlocked: vi.fn((_unlocked: boolean) => true),
+    isUnlocked: () => false,
+    pressRune: vi.fn(),
+    flashRunes: vi.fn(),
+    reactNpc: vi.fn(),
   } satisfies RegionPlaySceneApi;
   return { scene, listeners };
 }

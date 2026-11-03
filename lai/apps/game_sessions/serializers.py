@@ -83,6 +83,14 @@ class ObjectSerializer(PlacedSerializer):
     interactionId = serializers.CharField(source="interaction_id")
 
 
+def object_entry(entry) -> dict:
+    """A placement, and for a pickup (TR-14) whether this child has picked it up."""
+    placement = entry["placement"]
+    data = ObjectSerializer(placement).data
+    data.update({"pickup": placement.is_pickup, "collected": entry["collected"]})
+    return data
+
+
 class NpcPlacementSerializer(PlacedSerializer):
     npcId = serializers.CharField(source="npc.npc_id")
     displayName = serializers.CharField(source="npc.display_name")
@@ -104,6 +112,14 @@ class ChestStateSerializer(serializers.Serializer):
                 "openClip": chest.open_clip,
                 "isOpen": entry["is_open"],
                 "challengeAvailable": entry["challenge_available"],
+                # TR-14: encounter order, presentation, and why it is locked for this child.
+                "presentation": chest.presentation,
+                "sortOrder": chest.sort_order,
+                "locked": entry.get("lock_reason") is not None,
+                "lockReason": entry.get("lock_reason"),
+                "requiredItemId": chest.required_item.item_id if chest.required_item_id else None,
+                "answerEntityIds": list(chest.answer_entity_ids or []),
+                "clue": chest.clue,
             }
         )
         return data
@@ -276,7 +292,7 @@ class BootstrapSerializer(serializers.Serializer):
             "npcs": npcs,
             "puzzles": [puzzle_state(entry) for entry in state.get("puzzles", [])],
             "catalog": state.get("catalog", {"worldSlug": "", "assets": []}),
-            "objects": ObjectSerializer(state["objects"], many=True).data,
+            "objects": [object_entry(entry) for entry in state["objects"]],
             "chests": [ChestStateSerializer().to_representation(c) for c in state["chests"]],
             "quests": [QuestEntrySerializer().to_representation(q) for q in state["quests"]],
             "session": SessionSerializer(state["session"]).data if state["session"] else None,
@@ -339,17 +355,68 @@ class OutcomeSerializer(serializers.Serializer):
                 item for item in self.context.get("items", []) if item["itemId"] in new_items
             ],
             "rewardMessage": self.context.get("reward_message") if new_items else None,
-            "questUpdates": [
-                {
-                    "questId": update.progress.quest.slug,
-                    "status": update.progress.status,
-                    "currentStageId": update.progress.current_stage_id,
-                    "justCompleted": update.result.just_completed,
-                    "newlyCompletedObjectiveIds": list(update.result.newly_completed_objective_ids),
-                }
-                for update in outcome.quest_updates
-                if update.result.changed
-            ],
+            "questUpdates": quest_updates_data(outcome.quest_updates),
+            "completionRewards": completion_rewards_data(outcome.completion_rewards),
+        }
+
+
+def quest_updates_data(updates) -> list[dict]:
+    return [
+        {
+            "questId": update.progress.quest.slug,
+            "status": update.progress.status,
+            "currentStageId": update.progress.current_stage_id,
+            "justCompleted": update.result.just_completed,
+            "newlyCompletedObjectiveIds": list(update.result.newly_completed_objective_ids),
+        }
+        for update in updates
+        if update.result.changed
+    ]
+
+
+def completion_rewards_data(rewards) -> list[dict]:
+    """Rewards for finishing a quest (TR-14), only those granted by this request."""
+    out = []
+    for reward in rewards:
+        if not reward.grant.granted:
+            continue
+        new = set(reward.grant.new_item_ids)
+        out.append(
+            {
+                "ruleId": reward.rule.rule_id,
+                "items": ItemSerializer(
+                    [i for i in reward.rule.items.order_by("item_id") if i.item_id in new],
+                    many=True,
+                ).data,
+                "message": reward.rule.message,
+            }
+        )
+    return out
+
+
+class PickupSerializer(serializers.Serializer):
+    def to_representation(self, outcome):
+        reward = outcome.reward
+        rule = outcome.placement.pickup_reward_rule
+        new = set(reward.new_item_ids) if reward else set()
+        items = [i for i in rule.items.order_by("item_id") if i.item_id in new] if rule else []
+        return {
+            "entityId": outcome.placement.entity_id,
+            "pickedUp": outcome.picked_up,
+            "collected": True,
+            "newItems": ItemSerializer(items, many=True).data,
+            "rewardMessage": rule.message if rule and new else None,
+            "questUpdates": quest_updates_data(outcome.quest_updates),
+            "completionRewards": completion_rewards_data(outcome.completion_rewards),
+        }
+
+
+class TalkSerializer(serializers.Serializer):
+    def to_representation(self, outcome):
+        return {
+            "flagsSet": list(outcome.flags_set),
+            "questUpdates": quest_updates_data(outcome.quest_updates),
+            "completionRewards": completion_rewards_data(outcome.completion_rewards),
         }
 
 

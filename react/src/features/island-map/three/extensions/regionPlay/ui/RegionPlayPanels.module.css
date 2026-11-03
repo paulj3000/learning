@@ -364,3 +364,102 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* Objective hint (TR-12): asked for, never pushed. Sits above the backpack button. */
+.hintButton {
+  position: fixed;
+  right: var(--space-4);
+  bottom: calc(var(--space-4) + 4.25rem);
+  z-index: 19;
+  min-height: 3.5rem;
+  padding: var(--space-2) var(--space-6);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-sun);
+  color: var(--color-text);
+  box-shadow: var(--lip-accent);
+  font: inherit;
+  font-size: var(--font-size-large);
+  font-weight: var(--font-weight-strong);
+  cursor: pointer;
+}
+
+.hintButton:focus-visible,
+.hintClose:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+.hintBubble {
+  position: fixed;
+  right: var(--space-4);
+  bottom: calc(var(--space-4) + 8.5rem);
+  z-index: 19;
+  max-width: min(22rem, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-raised);
+  font-size: var(--font-size-large);
+}
+
+.hintBubble p {
+  margin: 0 0 var(--space-2);
+}
+
+.hintClose {
+  min-height: 2.75rem;
+  padding: var(--space-1) var(--space-4);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  font: inherit;
+  font-weight: var(--font-weight-strong);
+  cursor: pointer;
+}
+
+/* The same controls placed in the stage's control slot (TR-13): laid out by the slot, not fixed. */
+.stageHintButton,
+.stageBackpackButton {
+  min-height: 3.25rem;
+  padding: var(--space-2) var(--space-5, 1.25rem);
+  border: none;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--lip-accent);
+  font: inherit;
+  font-size: var(--font-size-large);
+  font-weight: var(--font-weight-strong);
+  cursor: pointer;
+}
+
+.stageHintButton {
+  background: var(--color-sun);
+  color: var(--color-text);
+}
+
+.stageBackpackButton {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.stageHintButton:focus-visible,
+.stageBackpackButton:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+.stageHintBubble {
+  max-width: min(22rem, 100%);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-raised);
+  font-size: var(--font-size-large);
+}
+
+.stageHintBubble p {
+  margin: 0 0 var(--space-2);
+}

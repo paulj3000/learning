@@ -9,7 +9,6 @@ function renderAt(path: string) {
       <Routes>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<p>Families page</p>} />
-          <Route path="assets/models" element={<p>Models page</p>} />
           <Route path="islands/:islandId" element={<p>Island page</p>} />
         </Route>
       </Routes>
@@ -26,17 +25,6 @@ describe('AdminLayout', () => {
     expect(container.firstElementChild).toHaveClass('admin-root');
   });
 
-  it('marks only the matching section as current, including on nested pages', () => {
-    renderAt('/admin/assets/models');
-    const nav = screen.getByRole('navigation', { name: 'Admin sections' });
-    expect(within(nav).getByRole('link', { name: 'Game assets' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
-    expect(within(nav).getByRole('link', { name: 'Families' })).not.toHaveAttribute('aria-current');
-    expect(screen.getByText('Models page')).toBeInTheDocument();
-  });
-
   it('links to Islands and Adventures, and marks Islands current on an island page', () => {
     renderAt('/admin/islands/island-1');
     const nav = screen.getByRole('navigation', { name: 'Admin sections' });
@@ -50,14 +38,14 @@ describe('AdminLayout', () => {
     );
   });
 
-  it('links to Families, Islands, Adventures, and Game assets', () => {
+  it('links to Families, Islands, and Adventures only (assets are managed in Django Admin)', () => {
     renderAt('/admin');
     const nav = screen.getByRole('navigation', { name: 'Admin sections' });
     expect(
       within(nav)
         .getAllByRole('link')
         .map((link) => link.getAttribute('href')),
-    ).toEqual(['/admin', '/admin/islands', '/admin/adventures', '/admin/assets']);
+    ).toEqual(['/admin', '/admin/islands', '/admin/adventures']);
   });
 
   it('links back to the parent dashboard', () => {

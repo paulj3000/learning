@@ -146,12 +146,13 @@ def test_the_full_child_lifecycle_works(signed_in):
     assert client.get(CHILDREN).json()["children"][0]["active"] is False  # kept, not removed
 
 
-def test_hard_deletion_stays_blocked_until_lai_0209(signed_in):
+def test_hard_deletion_works_after_a_recent_sign_in(signed_in):
+    """LAI-0602 behind LAI-0209: the fixture's token is a recent sign-in (see test_recent_auth)."""
     client, account = signed_in
     child_id = client.post(CHILDREN, NEW_CHILD).json()["id"]
     response = client.delete(detail(child_id))
-    assert response.status_code == 403 and code_of(response) == "sensitive_action_unavailable"
-    assert ChildProfile.objects.filter(pk=child_id, parent=account).exists()
+    assert response.status_code == 204
+    assert not ChildProfile.objects.filter(pk=child_id, parent=account).exists()
 
 
 def test_child_settings_are_validated_against_the_age_band(signed_in):

@@ -44,6 +44,37 @@ Critical paths:
 8. Session limit produces a calm stopping point.
 9. Parent deletes or deactivates a child profile.
 
+## Browser acceptance suites (POST-MERGE-05)
+
+`npm run test:acceptance` (config `react/playwright.acceptance.config.ts`, specs in
+`react/e2e/acceptance/`) drives the real app and Django Admin in Chromium, desktop and an
+iPad-sized touch viewport (`@tablet`), against a disposable local stack. It is a merge-readiness
+gate for changes to Treasure Rush, the AI Question Studio or the Asset Library; `npm run test:e2e`
+stays the backend-free smoke check.
+
+- `tests/e2e/django_server.py` drops and recreates the loopback database `lai_e2e`, migrates,
+  loads content, seeds and publishes Treasure Cove, creates synthetic staff (Studio author,
+  reviewer, publisher; asset editor and publisher; no-permission staff; a superuser) and runs
+  `runserver`. Settings: `LAI_AI_PROVIDER=fake`, inline Studio runs, in-memory asset storage,
+  Django delivery. It refuses a non-loopback database, a database not named `lai_e2e*`, or
+  `DEBUG` off.
+- Cognito is simulated, not bypassed: a fresh RSA key per run stands in for the pool's signing
+  key (the server swaps its JWKS cache in-process; no production code reads anything new), the
+  tests sign access and ID tokens with it, and Amplify reads them from its own storage keys.
+  `react/e2e/acceptance/support/start-vite.mjs` writes a synthetic, marked `amplify_outputs.json`
+  for the run, refuses to replace a real one and removes it on exit.
+- `vite --mode e2e` installs `window.__laiE2E` (`createLocationEngine` via `e2eProbe.ts`; other
+  builds compile it out): where the player stands, what has focus, and "stand in front of this
+  entity". Tests still press E or tap the prompt; every outcome is the server's.
+- Every test fails on an uncaught exception, an unexpected console error, or a failed or 5xx
+  `/api/v1/` request (`support/fixtures.ts`). Answers are worked out from the issued challenge
+  as a child would (`pictureAnswer`), and Django grades them.
+
+Needs Docker PostgreSQL (`POSTGRES_PORT` if not 5432), `.venv`, and Playwright's Chromium. One
+worker; about six minutes. Not covered here, and recorded as pending wherever it applies: live
+Cognito, live Bedrock, S3 storage and S3 signed delivery, and the Amplify Data screens (harbor
+map, adventure log, Amplify-session places), which need an Amplify sandbox.
+
 ## AI evaluation suite
 
 Maintain fixed test cases by age band covering:
@@ -138,8 +169,8 @@ exceptions applies.
 
 Run the comprehensive gates for the changed code: `make check` (Ruff, Ruff format, Django
 check, migration check, pytest against PostgreSQL, ADR check, typecheck, oxlint, Prettier,
-the full Vitest suite, production build), `npm run test:e2e` and any browser or WebGL checks
-relevant to the change, `npm run content:check`, architecture and ADR validation (governance
+the full Vitest suite, production build), `npm run test:e2e`, `npm run test:acceptance` and any
+other browser or WebGL checks relevant to the change, `npm run content:check`, architecture and ADR validation (governance
 rule 4 in `docs/DECISIONS.md`), the deferred checks recorded by each task being merged, and
 regression testing. Report failures and fix the relevant ones before recommending the merge.
 

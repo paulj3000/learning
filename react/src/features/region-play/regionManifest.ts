@@ -24,6 +24,7 @@ import {
   type RegionPlayInteractionConfig,
   type StandInShape,
 } from './regionPlayConfig';
+import { readRegionLayout, RegionLayoutError, type RegionLayout } from './regionLayout';
 import type { RegionSceneModel, SceneEntity } from './sceneModel';
 
 // The extension id and config types live in `regionPlayConfig.ts`, which the Three.js scene
@@ -79,6 +80,21 @@ export const DEFAULT_REGION_COPY = {
   altNavLabel: 'Go back to the harbor',
 } as const;
 
+/**
+ * Action prompt verbs (TR-12). Every server-published region runs with
+ * `interactionAssist`, so a chest says "Open" and Pip says "Talk" whether or
+ * not the child is aiming exactly at them. Child-facing and localizable.
+ */
+export const REGION_ACTIONS = {
+  talk: 'Talk',
+  open: 'Open',
+  look: 'Look',
+  // TR-14
+  read: 'Read',
+  pickUp: 'Pick up',
+  touch: 'Touch',
+} as const;
+
 export interface BuiltRegion {
   manifest: ThreeLocationManifest;
   /** The region's checkpoints for the World State catalogue (`publishRegionCheckpoints`). */
@@ -118,9 +134,20 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
   };
 
   const bounds = readBounds(model.scene.bounds);
+  let layout: RegionLayout;
+  try {
+    layout = readRegionLayout(model.scene.layout);
+  } catch (error) {
+    if (error instanceof RegionLayoutError) throw new RegionBuildError(error.path, error.detail);
+    throw error;
+  }
   const npcs: NpcPlacementSpec[] = [];
   const props: PropSpec[] = [];
-  const scenery: ScenerySpec[] = [ground(regionId, bounds, model.scene.groundAssetId)];
+  // The admin's layout (TR-13) lies on the grass the region always gets.
+  const scenery: ScenerySpec[] = [
+    ground(regionId, bounds, model.scene.groundAssetId),
+    ...layout.scenery,
+  ];
   const interactions: WorldInteraction[] = [];
   const rawEffects = isObject(model.scene.effects) ? model.scene.effects : undefined;
   const effects = parseEffects(rawEffects);
@@ -145,15 +172,28 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
           : effects.backdrop,
     },
     changeKeys: [...model.worldChangeKeys],
+    procedural: layout.procedural,
+    pickups: [],
+    runes: [],
+    // TR-17: what the quest's completion opens, and whether this child has already earned it.
+    ...(layout.unlock
+      ? {
+          unlock: {
+            ...layout.unlock,
+            unlocked: model.worldChangeKeys.has(layout.unlock.changeKey),
+          },
+        }
+      : {}),
+    ...(layout.ambience ? { ambience: layout.ambience } : {}),
   };
   const standIns = readStandIns(rawEffects);
   const puzzleEntities = new Set(model.puzzles.flatMap((puzzle) => puzzle.entityIds));
   const returnEntities = new Set(effects.returns.map((entry) => entry.entityId));
 
   /** An entity the extension draws: a stand-in now, the model once it can be delivered. */
-  const drawnEntity = (entity: SceneEntity, interactionId?: string): void => {
+  const drawnEntity = (entity: SceneEntity, interactionId?: string, action?: string): void => {
     const standIn = standIns.get(entity.entityId);
-    props.push(drawnProp(entity, interactionId));
+    props.push(drawnProp(entity, interactionId, action));
     config.drawn.push({
       entityId: entity.entityId,
       shape: standIn?.shape ?? 'BOX',
@@ -177,13 +217,14 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
           position: { x: entity.position.x, z: entity.position.z },
           yaw: entity.rotationY,
           label: entity.label,
+          action: REGION_ACTIONS.talk,
           ...(clips.includes('Idle') ? { idleClip: 'Idle' } : {}),
           placeholderColor: NPC_PLACEHOLDER_COLOR,
           ...placeholderSize(entity, entity.scale),
           interactionId,
         });
       } else {
-        props.push(drawnProp(entity, interactionId));
+        props.push(drawnProp(entity, interactionId, REGION_ACTIONS.talk));
         config.figures.push({ entityId: entity.entityId, height: entity.placeholder.height });
       }
       interactions.push({
@@ -197,7 +238,14 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
       config.interactions.push({ interactionId, kind: 'npc', entityId: entity.entityId, npcId });
     } else if (entity.role === 'chest') {
       const interactionId = `${regionId}:chest:${entity.entityId}`;
-      props.push(drawnProp(entity, interactionId));
+      // A puzzle's pedestal is read, not opened (TR-14); a spyglass is looked through (TR-20).
+      const action =
+        entity.presentation === 'PUZZLE'
+          ? REGION_ACTIONS.read
+          : entity.presentation === 'REPLAY'
+            ? REGION_ACTIONS.look
+            : REGION_ACTIONS.open;
+      props.push(drawnProp(entity, interactionId, action));
       interactions.push({
         id: interactionId,
         type: 'OBJECT',
@@ -213,6 +261,10 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
         isOpen: entity.isOpen === true,
         scale: entity.scale,
         placeholder: { ...entity.placeholder },
+        ...(entity.presentation && entity.presentation !== 'CHEST'
+          ? { presentation: entity.presentation }
+          : {}),
+        ...(entity.lockReason ? { lockReason: entity.lockReason } : {}),
       });
       config.interactions.push({
         interactionId,
@@ -225,7 +277,11 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
       // play API decides what using it means; nothing here grades or moves anything.
       const kind = puzzleEntities.has(entity.entityId) ? 'puzzle' : 'return';
       const interactionId = `${regionId}:${kind}:${entity.entityId}`;
-      drawnEntity(entity, interactionId);
+      drawnEntity(
+        entity,
+        interactionId,
+        kind === 'puzzle' ? REGION_ACTIONS.touch : REGION_ACTIONS.look,
+      );
       interactions.push({
         id: interactionId,
         type: 'OBJECT',
@@ -235,6 +291,46 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
         action: { kind: 'SHOW_MESSAGE', message: entity.label },
       });
       config.interactions.push({ interactionId, kind, entityId: entity.entityId, npcId: null });
+    } else if (entity.pickup) {
+      // TR-14: a collectible picked up through the play API. Once picked up it is not drawn
+      // again; until then the extension draws it (a key has no catalogue model yet).
+      if (entity.collected) continue;
+      const interactionId = `${regionId}:pickup:${entity.entityId}`;
+      props.push(drawnProp(entity, interactionId, REGION_ACTIONS.pickUp));
+      interactions.push({
+        id: interactionId,
+        type: 'OBJECT',
+        trigger: 'TAP',
+        title: entity.label,
+        targetId: entity.entityId,
+        action: { kind: 'SHOW_MESSAGE', message: entity.label },
+      });
+      config.pickups?.push({ entityId: entity.entityId });
+      config.interactions.push({
+        interactionId,
+        kind: 'pickup',
+        entityId: entity.entityId,
+        npcId: null,
+      });
+    } else if (entity.puzzleAnswer) {
+      // TR-14: a rune stone the child touches to answer a puzzle; the extension draws it.
+      const interactionId = `${regionId}:rune:${entity.entityId}`;
+      props.push(drawnProp(entity, interactionId, REGION_ACTIONS.touch));
+      interactions.push({
+        id: interactionId,
+        type: 'OBJECT',
+        trigger: 'TAP',
+        title: entity.label,
+        targetId: entity.entityId,
+        action: { kind: 'SHOW_MESSAGE', message: entity.label },
+      });
+      config.runes?.push({ entityId: entity.entityId, ...entity.puzzleAnswer });
+      config.interactions.push({
+        interactionId,
+        kind: 'rune',
+        entityId: entity.entityId,
+        npcId: null,
+      });
     } else if (entity.launchesAdventure) {
       // ADR-041: an object that starts one of this Place's Adventures. With a model it is an
       // interactive prop; without one it stays a placeholder box and is reached from the
@@ -242,7 +338,7 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
       const interactionId = `${regionId}:launch:${entity.entityId}`;
       if (entity.assetId) {
         props.push({
-          ...drawnProp(entity, interactionId),
+          ...drawnProp(entity, interactionId, REGION_ACTIONS.look),
           assetId: entity.assetId,
           ...placeholderSize(entity, entity.scale),
         });
@@ -274,6 +370,7 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     }
   }
 
+  const lights = [...layout.lights, ...readLights(rawEffects?.lights)];
   const manifest: ThreeLocationManifest = {
     schemaVersion: LOCATION_MANIFEST_SCHEMA_VERSION,
     regionId,
@@ -284,17 +381,18 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     bounds,
     environment: readEnvironment(model.scene.environment),
     checkpoints: { ids: [spawn.id], triggerHalfSize: CHECKPOINT_TRIGGER_HALF_SIZE },
-    colliders: readColliders(model.scene.colliders),
-    lights: readLights(rawEffects?.lights),
+    colliders: [...layout.colliders, ...readColliders(model.scene.colliders)],
     buildings: [],
     scenery,
     npcs,
     props,
     collectibles: [],
-    zones: [],
-    ambient: [],
+    zones: layout.zones,
+    ...(lights.length > 0 ? { lights } : {}),
+    ambient: layout.ambient,
     interactions,
     adventureBindings: [],
+    interactionAssist: true,
     extensions: [
       { extensionId: REGION_PLAY_EXTENSION_ID, config: config as unknown as JsonObject },
     ],
@@ -303,13 +401,14 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
   return { manifest, checkpoints: [spawn] };
 }
 
-function drawnProp(entity: SceneEntity, interactionId?: string): PropSpec {
+function drawnProp(entity: SceneEntity, interactionId?: string, action?: string): PropSpec {
   return {
     entityId: entity.entityId,
     position: { x: entity.position.x, z: entity.position.z },
     ...(entity.position.elevation ? { elevation: entity.position.elevation } : {}),
     rotationY: entity.rotationY,
     label: entity.label,
+    ...(action ? { action } : {}),
     ...(interactionId ? { interactionId } : {}),
   };
 }

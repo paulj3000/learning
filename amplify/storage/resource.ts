@@ -41,7 +41,7 @@ import { defineStorage } from '@aws-amplify/backend';
  *
  *
  * `assets/*` is the second, unrelated store: game art (GLB models today,
- * later textures, audio, thumbnails) managed by the Model Asset Manager
+ * later textures, audio, thumbnails) managed by the Model Asset Library
  * (docs/android/ASSET_MANAGEMENT.md, ADR-030). Only the Cognito `Admins`
  * group may read, write, or delete it. It holds no child data at all, and
  * it is deliberately not readable by parents yet: children keep loading the

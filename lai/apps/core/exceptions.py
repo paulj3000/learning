@@ -36,6 +36,10 @@ _CODED = {
     "account_not_provisioned": "Account setup is required.",
     "sensitive_action_unavailable": "This action is not available.",
     "authentication_unavailable": "Authentication is temporarily unavailable.",
+    # Recent sign-in verification (LAI-0209)
+    "recent_auth_required": "Please confirm your sign-in to continue.",
+    "recent_auth_unavailable": "Sign-in confirmation is temporarily unavailable.",
+    "child_deletion_incomplete": "The profile could not be fully deleted yet. Please try again.",
     # Adventure answers (LAI-0601)
     "answer_invalid": "That answer could not be understood.",
     "session_not_active": "This adventure is no longer active.",
@@ -51,6 +55,8 @@ _CODED = {
     "quest_unavailable": "This quest is not available.",
     # 3D Area puzzles (ADR-043, LAI-0812)
     "puzzle_locked": "Finish the earlier part of the adventure first.",
+    # Pip's Missing Treasure (TR-14)
+    "chest_locked": "This chest is still locked.",
     # Native Android API (LAI-ANDROID-API-001)
     "child_profile_limit_reached": "No more child profiles can be added.",
     "child_inactive": "This child profile is turned off.",
@@ -62,6 +68,8 @@ _CODED = {
     "photo_too_large": "That photo file is too large.",
     "photo_type_unsupported": "Only JPEG photos are accepted.",
     "photo_storage_unavailable": "Photos are not available right now. Please try again later.",
+    # Asset library administrator API (AM-14)
+    "asset_too_large": "That file is larger than the upload limit.",
 }
 _PASSTHROUGH_HEADERS = {"Allow", "WWW-Authenticate", "Retry-After"}
 

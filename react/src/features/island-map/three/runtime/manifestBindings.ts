@@ -72,6 +72,37 @@ export function focusLabel(
   );
 }
 
+/** The verb an action prompt uses when the manifest names none (`interactionAssist`). */
+export const DEFAULT_FOCUS_ACTIONS = {
+  NPC: 'Talk',
+  PROP: 'Look',
+  COLLECTIBLE: 'Pick up',
+} as const;
+
+/**
+ * The action prompt for a focused entity under `interactionAssist`: what it
+ * is and what interacting does, kept apart so neither is built by joining
+ * words (localizable). Covers collectibles, which `focusLabel` leaves out.
+ */
+export function focusPrompt(
+  manifest: ThreeLocationManifest,
+  entityId: string | null,
+): { label: string; action: string } | null {
+  if (entityId === null) return null;
+  const npc = findNpcByEntityId(manifest, entityId);
+  if (npc) return { label: npc.label, action: npc.action ?? DEFAULT_FOCUS_ACTIONS.NPC };
+  const prop = manifest.props.find((candidate) => candidate.entityId === entityId);
+  if (prop) return { label: prop.label, action: prop.action ?? DEFAULT_FOCUS_ACTIONS.PROP };
+  const collectible = findCollectibleByEntityId(manifest, entityId);
+  if (collectible) {
+    return {
+      label: collectible.label,
+      action: collectible.action ?? DEFAULT_FOCUS_ACTIONS.COLLECTIBLE,
+    };
+  }
+  return null;
+}
+
 /** The interaction an interacted entity is bound to, if it is bound and currently available. */
 export function interactionForEntity(
   manifest: ThreeLocationManifest,

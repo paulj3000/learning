@@ -1,5 +1,5 @@
 {
-  "contentDigest": "5a4e5624cfec7adc62b8823a7231ddab72b39b7dc6ca509b689a5e6b8f45c5ba",
+  "contentDigest": "deed491b4aff86748f314c8d1f549ab77631698e0a602f9efa612544a7f3fa14",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -22,11 +22,11 @@
     {
       "counts": {
         "adventures": 24,
-        "learningObjectives": 18,
+        "learningObjectives": 19,
         "wonderWallQuestions": 4
       },
       "path": "adventures.json",
-      "sha256": "9d7f66fdf4b15e605a2dd12c506cdb1d48a0878a325703ea0837e9aa2d23a38a"
+      "sha256": "3401d680016b41699f1d42e477496e40c74bcd242ef39f9c1d9befdcdf11aec1"
     },
     {
       "counts": {
@@ -37,19 +37,19 @@
     },
     {
       "counts": {
-        "quests": 8
+        "quests": 9
       },
       "path": "quests.json",
-      "sha256": "a1b050b8946c42f3195809174df6b02b5ea48f5f66033256437823f4f84e5fc2"
+      "sha256": "2c524074348feb9c5bc19382788be3619e21a7e7d0f4611d8e3a27e45ca3a890"
     },
     {
       "counts": {
         "collectibleSets": 2,
-        "items": 27,
-        "rewardRules": 18
+        "items": 32,
+        "rewardRules": 23
       },
       "path": "rewards.json",
-      "sha256": "3e2373b9dabef1bc3d87328e9fac15f105e718c86112bc54b1664832577133d6"
+      "sha256": "5c58c03b23df8baec0555fbd7ec89426675644d8f9c05261101ee418d636f7d8"
     },
     {
       "counts": {
@@ -75,13 +75,13 @@
     },
     {
       "counts": {
-        "domains": 6,
-        "grades": 3,
-        "skills": 10,
+        "domains": 7,
+        "grades": 4,
+        "skills": 11,
         "subjects": 2
       },
       "path": "curriculum.json",
-      "sha256": "691c5b2aedf71940cb2e66e5b027141e50f16c57103f968e92ea7b04fc3d66f5"
+      "sha256": "2be5fe01881d0bd5cfe9c0e61a1b51489174c132d2b73d48a7ffebd6fd076e93"
     },
     {
       "counts": {

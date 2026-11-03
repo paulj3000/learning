@@ -1,4 +1,4 @@
-"""Create or reset the asset manager's Django groups (LAI-2200 AM-5, ADR-035).
+"""Create or reset the asset library's Django groups (LAI-2200 AM-5, ADR-035).
 
     python manage.py ensure_asset_roles
 

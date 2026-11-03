@@ -245,3 +245,115 @@ describe('playApiFor', () => {
     });
   });
 });
+
+describe("Pip's Missing Treasure requests (TR-14)", () => {
+  const empty = { flagsSet: [], questUpdates: [], completionRewards: [] };
+  const key = {
+    itemId: 'old-brass-key',
+    displayName: 'Old Brass Key',
+    description: 'A heavy key.',
+    category: 'QUEST_ITEM',
+    assetId: '',
+  };
+
+  it('reads chest locks, presentations, clues and pickups, and defaults them for an older server', async () => {
+    const { pipsBootstrapJson } = await import('../../test/playFixtures');
+    const { api } = setup(
+      jsonResponse(200, pipsBootstrapJson()),
+      jsonResponse(200, bootstrapJson()),
+    );
+    const region = await api.getRegion('treasure-rush-cove');
+    const beach = region.chests.find((c) => c.entityId === 'cove-beach-chest');
+    expect(beach).toMatchObject({
+      locked: true,
+      lockReason: 'PROGRESS',
+      requiredItemId: 'old-brass-key',
+    });
+    const pedestal = region.chests.find((c) => c.entityId === 'cove-ruins-pedestal');
+    expect(pedestal?.presentation).toBe('PUZZLE');
+    expect(pedestal?.answerEntityIds).toHaveLength(3);
+    expect(region.objects[0]).toMatchObject({ pickup: true, collected: false });
+
+    const older = await api.getRegion('treasure-rush-cove');
+    expect(older.chests[0]).toMatchObject({
+      presentation: 'CHEST',
+      sortOrder: 0,
+      locked: false,
+      lockReason: null,
+      requiredItemId: null,
+      answerEntityIds: [],
+      clue: '',
+    });
+    expect(older.objects[0]).toMatchObject({ pickup: false, collected: false });
+  });
+
+  it('picks up through the session and tells a new pickup from a repeat', async () => {
+    const body = {
+      entityId: 'cove-brass-key',
+      pickedUp: true,
+      collected: true,
+      newItems: [key],
+      rewardMessage: 'You found an Old Brass Key!',
+      questUpdates: [],
+      completionRewards: [],
+    };
+    const { api, fetch } = setup(
+      jsonResponse(201, body),
+      jsonResponse(200, { ...body, pickedUp: false, newItems: [], rewardMessage: null }),
+    );
+    const first = await api.collectPickup(SESSION_ID, 'cove-brass-key');
+    expect(sent(fetch)).toEqual({
+      url: `${child}sessions/${SESSION_ID}/pickups/cove-brass-key/`,
+      method: 'POST',
+      body: {},
+    });
+    expect(first.created).toBe(true);
+    expect(first.value.newItems[0]?.itemId).toBe('old-brass-key');
+    const again = await api.collectPickup(SESSION_ID, 'cove-brass-key');
+    expect(again.created).toBe(false);
+    expect(again.value.pickedUp).toBe(false);
+  });
+
+  it('tells the server about talking to an NPC and reads the quest it completed', async () => {
+    const done = {
+      flagsSet: ['cove-treasure-returned'],
+      questUpdates: [
+        {
+          questId: 'pips-missing-treasure',
+          status: 'COMPLETED',
+          currentStageId: 'return-to-pip',
+          justCompleted: true,
+          newlyCompletedObjectiveIds: ['cove-return-to-pip'],
+        },
+      ],
+      completionRewards: [
+        {
+          ruleId: 'reward-pips',
+          items: [{ ...key, itemId: 'treasure-cove-explorer', category: 'KEEPSAKE' }],
+          message: 'Explorer!',
+        },
+      ],
+    };
+    const { api, fetch } = setup(jsonResponse(200, done), jsonResponse(200, empty));
+    const outcome = await api.talkToNpc(SESSION_ID, 'cove-pip');
+    expect(sent(fetch).url).toBe(`${child}sessions/${SESSION_ID}/npcs/cove-pip/talk/`);
+    expect(outcome.questUpdates[0]?.justCompleted).toBe(true);
+    expect(outcome.completionRewards[0]?.items[0]?.itemId).toBe('treasure-cove-explorer');
+    expect(await api.talkToNpc(SESSION_ID, 'cove-pip')).toEqual(empty);
+  });
+
+  it('reads the completion rewards an answer earned, and none from an older server', async () => {
+    const { api } = setup(
+      jsonResponse(200, { ...outcomeJson(true), completionRewards: [] }),
+      jsonResponse(200, outcomeJson(true)),
+    );
+    expect((await api.submitAnswer(ATTEMPT_ID, { answer: 5 })).completionRewards).toEqual([]);
+    expect((await api.submitAnswer(ATTEMPT_ID, { answer: 5 })).completionRewards).toEqual([]);
+  });
+
+  it('refuses the new routes when the build has no Django API', async () => {
+    const api = playApiFor(CHILD_A, { enabled: false });
+    await expect(api.collectPickup(SESSION_ID, 'k')).rejects.toBeInstanceOf(ApiError);
+    await expect(api.talkToNpc(SESSION_ID, 'p')).rejects.toBeInstanceOf(ApiError);
+  });
+});

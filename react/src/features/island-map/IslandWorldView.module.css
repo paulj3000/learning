@@ -2,6 +2,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  /*
+    The island layout centres its column, which would shrink this wrapper to the width of its
+    text and the 4:3 stage with it (a 274 px stage at 1280 x 720, its HUD buttons on top of the
+    action prompt). Take the width available, up to the width at which the whole stage still
+    fits below the header (about 220 px of chrome), never narrower than a phone, never over 960.
+  */
+  width: min(100%, 960px, max(320px, calc((100dvh - 220px) * 4 / 3)));
 }
 
 .instructions {
@@ -104,6 +111,7 @@
 */
 .wrapper:fullscreen {
   box-sizing: border-box;
+  width: 100%;
   height: 100%;
   padding: var(--space-3);
   gap: var(--space-3);
@@ -121,4 +129,21 @@
   min-height: 0;
   max-height: 45vh;
   overflow: auto;
+}
+
+/* Companion controls on the stage (TR-13): bottom right, above the HUD, kept in full screen. */
+.stageControls {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+  max-width: calc(100% - 2 * var(--space-3));
+  pointer-events: none;
+}
+
+.stageControls > * {
+  pointer-events: auto;
 }

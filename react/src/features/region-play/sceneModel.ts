@@ -49,6 +49,14 @@ export interface SceneEntity {
   objectKind?: ObjectPlacement['kind'];
   /** Whether this NPC or object starts an Adventure for this child (ADR-041). */
   launchesAdventure?: boolean;
+  /** Chests only (TR-14): how it appears, and why it is locked for this child now. */
+  presentation?: ChestState['presentation'];
+  lockReason?: ChestState['lockReason'];
+  /** Objects only (TR-14): a pickup, and whether this child has picked it up. */
+  pickup?: boolean;
+  collected?: boolean;
+  /** Objects only (TR-14): which puzzle this object answers, and which choice it stands for. */
+  puzzleAnswer?: { puzzleEntityId: string; index: number };
 }
 
 export interface RegionSceneModel {
@@ -99,6 +107,7 @@ function object(entity: ObjectPlacement): SceneEntity {
     ...base(entity, 'object'),
     interactionId: entity.interactionId || null,
     objectKind: entity.kind,
+    ...(entity.pickup ? { pickup: true, collected: entity.collected } : {}),
   };
 }
 
@@ -109,12 +118,22 @@ function chest(entity: ChestState): SceneEntity {
     isOpen: entity.isOpen,
     interactive: entity.challengeAvailable && !entity.isOpen,
     openClip: entity.openClip || undefined,
+    presentation: entity.presentation,
+    lockReason: entity.lockReason,
   };
 }
 
 export function toRegionSceneModel(bootstrap: RegionBootstrap): RegionSceneModel {
   const location = bootstrap.region.locationSlug;
   const launching = new Set(bootstrap.launchPoints.map((point) => point.entityId));
+  // TR-14: the objects a puzzle is answered with, by entity id.
+  const answers = new Map<string, { puzzleEntityId: string; index: number }>();
+  for (const puzzle of bootstrap.chests) {
+    if (puzzle.presentation !== 'PUZZLE') continue;
+    puzzle.answerEntityIds.forEach((entityId, index) =>
+      answers.set(entityId, { puzzleEntityId: puzzle.entityId, index }),
+    );
+  }
   const questsByGiver = new Map<string, QuestEntry[]>();
   for (const quest of bootstrap.quests) {
     if (!quest.giverNpcId) continue;
@@ -131,11 +150,13 @@ export function toRegionSceneModel(bootstrap: RegionBootstrap): RegionSceneModel
       ...bootstrap.npcs.map(npc),
       ...bootstrap.objects.map(object),
       ...bootstrap.chests.map(chest),
-    ].map((entity) =>
-      launching.has(entity.entityId) && entity.role !== 'chest'
-        ? { ...entity, launchesAdventure: true }
-        : entity,
-    ),
+    ].map((entity) => {
+      const answer = entity.role === 'object' ? answers.get(entity.entityId) : undefined;
+      const withAnswer = answer ? { ...entity, puzzleAnswer: answer } : entity;
+      return launching.has(entity.entityId) && entity.role !== 'chest'
+        ? { ...withAnswer, launchesAdventure: true }
+        : withAnswer;
+    }),
     worldChangeKeys: new Set(
       bootstrap.worldChanges.filter((c) => c.locationSlug === location).map((c) => c.changeKey),
     ),

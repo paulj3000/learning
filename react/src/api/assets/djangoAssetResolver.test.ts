@@ -47,6 +47,8 @@ describe('createDjangoAssetResolver', () => {
       id: 'npc-pip',
       url: '/api/v1/asset-files/token-npc-pip/model.glb',
       source: 'PUBLISHED',
+      family: 'model',
+      format: 'glb',
     });
   });
 
@@ -239,7 +241,7 @@ describe('reportAssetResolutionIssue', () => {
       error: new ApiError('forbidden', { status: 403, code: 'secret-detail' }),
     });
     expect(warn).toHaveBeenCalledWith(
-      '[assets] the asset manager request failed (forbidden 403); using bundled models for: npc-pip, treasure-chest',
+      '[assets] the asset library request failed (forbidden 403); using bundled models for: npc-pip, treasure-chest',
     );
   });
 
@@ -247,7 +249,83 @@ describe('reportAssetResolutionIssue', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     reportAssetResolutionIssue({ kind: 'not-published', id: 'npc-pip', status: 'unavailable' });
     expect(warn).toHaveBeenCalledWith(
-      '[assets] "npc-pip" is unavailable in the asset manager (expected until it is published); using the bundled model',
+      '[assets] "npc-pip" is unavailable in the asset library (expected until it is published); using the bundled model',
     );
+  });
+});
+
+describe('createDjangoAssetResolver: images and audio (AM-13)', () => {
+  const image = {
+    ref: 'sand-texture',
+    id: 'sand-texture',
+    status: 'resolved',
+    kind: 'texture',
+    family: 'image',
+    format: 'png',
+    url: 'https://assets.example/sand.png?sig=1',
+    urlExpiresAt: LATER,
+    cache: { key: 'sand-texture@v1', immutable: true, ttl: 300 },
+    media: { width: 256, height: 128 },
+    clips: [],
+    dimensions: null,
+  };
+  const audio = {
+    ref: 'wave-loop',
+    id: 'wave-loop',
+    status: 'resolved',
+    kind: 'audio',
+    family: 'audio',
+    format: 'ogg',
+    url: '/api/v1/asset-files/tok/audio.ogg',
+    urlExpiresAt: LATER,
+    cache: { key: 'wave-loop@v2', immutable: true, ttl: 300 },
+    media: { durationSeconds: 3.5, sampleRate: 44100, channels: 2 },
+  };
+  const make = (entry: Record<string, unknown>, issues: AssetResolutionIssue[] = []) => {
+    const { client } = fakeClient(() => ({ assets: [entry] }));
+    return createDjangoAssetResolver({
+      client,
+      childId: 'c',
+      now: () => NOW,
+      onIssue: (i) => issues.push(i),
+      fallback: BUNDLED_ASSET_RESOLVER,
+    });
+  };
+
+  it('resolves an image with its cache key and dimensions', async () => {
+    await expect(make(image).resolve('sand-texture', 'image')).resolves.toMatchObject({
+      source: 'PUBLISHED',
+      family: 'image',
+      format: 'png',
+      cacheKey: 'sand-texture@v1',
+      media: { width: 256, height: 128 },
+    });
+  });
+
+  it('resolves audio with its duration and prefixes a same-origin path', async () => {
+    const resolver = createDjangoAssetResolver({
+      client: fakeClient(() => ({ assets: [audio] })).client,
+      childId: 'c',
+      baseUrl: 'https://lai.example',
+      now: () => NOW,
+    });
+    await expect(resolver.resolve('wave-loop', 'audio')).resolves.toMatchObject({
+      url: 'https://lai.example/api/v1/asset-files/tok/audio.ogg',
+      media: { durationSeconds: 3.5, sampleRate: 44100, channels: 2 },
+    });
+  });
+
+  it('never hands an image or sound to a caller that needs a model', async () => {
+    const issues: AssetResolutionIssue[] = [];
+    await expect(make(image, issues).resolve('sand-texture')).rejects.toThrow();
+    expect(issues[0]).toMatchObject({ kind: 'not-published', id: 'sand-texture' });
+  });
+
+  it.each([
+    ['unknown family', { ...image, family: 'video' }],
+    ['format of another family', { ...image, format: 'mp3' }],
+    ['kind of another family', { ...image, kind: 'prop' }],
+  ])('refuses an answer with an %s', async (_name, entry) => {
+    await expect(make(entry).resolve('sand-texture', 'image')).rejects.toThrow();
   });
 });

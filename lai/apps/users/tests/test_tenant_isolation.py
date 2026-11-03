@@ -326,6 +326,19 @@ def unscoped_routes(urlpatterns):
     return bad
 
 
+def test_no_administrator_api_routes_exist():
+    """Staff administration is Django Admin only (ADR-045): no `api/v1/admin/` route is served,
+    so assets cannot be created, changed or deleted through the REST API."""
+    from config import urls
+
+    assert [r for r, _cb in walk(urls.urlpatterns) if r.startswith("api/v1/admin/")] == []
+
+
+def test_the_removed_asset_administrator_api_answers_not_found(families, api):
+    assert api(families.a).post("/api/v1/admin/assets/", {}, format="json").status_code == 404
+    assert api().get("/api/v1/admin/assets/").status_code == 404
+
+
 def test_every_real_route_is_public_parent_scoped_or_child_scoped():
     from config import urls
 
@@ -380,6 +393,9 @@ def test_the_game_cookie_is_accepted_only_by_the_game_runtime_routes():
         f"{child}sessions/<uuid:session_id>/<slug:action>/",
         f"{child}sessions/<uuid:session_id>/chests/<slug:entity_id>/challenge/",
         f"{child}sessions/<uuid:session_id>/puzzles/<slug:puzzle_id>/solve/",
+        # TR-14: picking up and talking, both behind `GameRuntimeAccessMixin`.
+        f"{child}sessions/<uuid:session_id>/pickups/<slug:entity_id>/",
+        f"{child}sessions/<uuid:session_id>/npcs/<slug:entity_id>/talk/",
         f"{child}attempts/<uuid:attempt_id>/answer/",
         f"{child}quests/<slug:quest_id>/accept/",
         f"{child}assets/",

@@ -47,12 +47,17 @@ export interface RegionPlayControls {
   submitAnswer: (submission: AnswerSubmission) => Promise<void>;
   /** One attempt at a 3D Area puzzle; the server grades it, then the region is re-read. */
   solvePuzzle: (puzzleId: string, submission: JsonObject) => Promise<PuzzleOutcome | undefined>;
+  /** Pick up a collectible (TR-14); the region is re-read after. */
+  collectPickup: (entityId: string) => Promise<void>;
+  /** Tell the server the child talked to an NPC (TR-14); the region is re-read after. */
+  talkToNpc: (entityId: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
 
 const REFRESH_ON_CONFLICT = new Set([
   'attempt_already_answered',
   'chest_already_open',
+  'chest_locked',
   'session_not_open',
   'content_unavailable',
   'puzzle_locked',
@@ -229,6 +234,38 @@ export function useRegionPlay(
     [api, run, reload],
   );
 
+  const collectPickup = useCallback(
+    async (entityId: string) => {
+      const session = stateRef.current.session;
+      if (!session) return;
+      const startedScope = scopeRef.current;
+      const result = await run(
+        'collectPickup',
+        (signal) => api.collectPickup(session.sessionId, entityId, signal),
+        (picked, at) => [{ scope: at, type: 'pickedUp', outcome: picked.value }],
+      );
+      if (result) await reload(startedScope);
+    },
+    [api, run, reload],
+  );
+
+  const talkToNpc = useCallback(
+    async (entityId: string) => {
+      const session = stateRef.current.session;
+      if (!session) return;
+      const startedScope = scopeRef.current;
+      const result = await run(
+        'talkToNpc',
+        (signal) => api.talkToNpc(session.sessionId, entityId, signal),
+        (outcome, at) => [{ scope: at, type: 'talked', outcome }],
+        // Talking never blocks: Pip's dialogue is usable while it is on its way.
+        { exclusive: false },
+      );
+      if (result && result.questUpdates.length > 0) await reload(startedScope);
+    },
+    [api, run, reload],
+  );
+
   const refresh = useCallback(async () => {
     await run(
       'refresh',
@@ -246,6 +283,8 @@ export function useRegionPlay(
     requestChallenge,
     submitAnswer,
     solvePuzzle,
+    collectPickup,
+    talkToNpc,
     refresh,
   };
 }

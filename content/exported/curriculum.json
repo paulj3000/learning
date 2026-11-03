@@ -21,6 +21,11 @@
       "title": "Measurement and Data"
     },
     {
+      "gradeId": "grade-3",
+      "id": "multiplication-and-division",
+      "title": "Multiplication and Division"
+    },
+    {
       "gradeId": "early-science",
       "id": "observing-and-sorting",
       "title": "Observing and Sorting"
@@ -49,6 +54,14 @@
       "id": "grade-1-2",
       "subjectId": "mathematics",
       "title": "Grade 1-2"
+    },
+    {
+      "ageBands": [
+        "EXPLORER"
+      ],
+      "id": "grade-3",
+      "subjectId": "mathematics",
+      "title": "Grade 3"
     },
     {
       "ageBands": [
@@ -143,6 +156,21 @@
         "word-problem"
       ],
       "title": "Subtraction within ten"
+    },
+    {
+      "description": "Find the total of equal groups, such as 6 groups of 7.",
+      "difficulty": 3,
+      "domainId": "multiplication-and-division",
+      "id": "multiplication-facts",
+      "prerequisiteSkillIds": [
+        "addition-within-ten"
+      ],
+      "representations": [
+        "numeric",
+        "visual",
+        "word-problem"
+      ],
+      "title": "Multiplication facts"
     },
     {
       "description": "Look closely at something and say what you notice about it.",

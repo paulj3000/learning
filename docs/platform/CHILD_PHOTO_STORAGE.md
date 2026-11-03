@@ -9,7 +9,7 @@ commits; not merged, not pushed):
 | LAI-0904 Django photo API (`lai/apps/users`) | Done | pytest with the in-memory store, full Django stack | Not released to any environment with S3 | Open: never run against a real bucket |
 | LAI-0905 React client | Done | Vitest component and client tests | Ships with the next React build that uses the Django API | Open: browser check needs a test Cognito pool (gate A6) and the dev bucket |
 | LAI-0905 Android contract | Documented (`docs/android/ANDROID_API_CONTRACT.md`) | n/a | n/a | Open: no Android client exists in this repository |
-| LAI-0602 photo cleanup on child deletion (`lai/apps/users/deletion.py`) | Service done | pytest | n/a | Open: the API route stays blocked until LAI-0209 |
+| LAI-0602 photo cleanup on child deletion (`lai/apps/users/deletion.py`) | Service done; API route enabled behind the recent sign-in guard (LAI-0209 branch) | pytest | n/a | Open: LAI-0209 live gate and merge |
 | LAI-1103 Amplify photo migration | Designed (section 10) | none | none | Not started: its inputs (LAI-1101 export, bucket read access) do not exist |
 | LAI-1204 legacy Amplify storage retirement | Planned (section 11) | none | none | Nothing deleted, nothing changed |
 
@@ -21,10 +21,10 @@ LAI-1204, AM-13 (`docs/DJANGO_MIGRATION_ROADMAP.md`, `tasks/TASK_TRACKER.md`).
 Game assets and child photos live in **separate S3 buckets**, owned by different Django
 subsystems, with different policies for access, publication, caching and retention.
 
-- `LaiAssetStorage-<env>` keeps the asset manager's published content (ADR-035). Unchanged by
+- `LaiAssetStorage-<env>` keeps the asset library's published content (ADR-035). Unchanged by
   this work.
 - `LaiChildPhotos-<env>` is new. It holds parent-uploaded child profile photos, which are a child's
-  personal data. The child profile subsystem (`lai/apps/users`) owns it. The asset manager never
+  personal data. The child profile subsystem (`lai/apps/users`) owns it. The asset library never
   reads or writes it.
 - The existing Amplify bucket (`learningAdventureIslandMedia`, `amplify/storage/resource.ts`)
   stays exactly as it is until migration and cutover are verified (section 9).
@@ -41,7 +41,7 @@ Existing Amplify S3 bucket (legacy, unchanged, still serving the Amplify app)
         |                                   lai-assets-<env>-<account>-<region>
         |                                              |
         |                                              v
-        |                                   Django asset manager (apps/assets)
+        |                                   Django asset library (apps/assets)
         |                                   published versions, resolver API, Three.js loader
         |
         +-- child-photos/<identity id>/*  -->  LAI-1103 photo migration (designed, not built)
@@ -58,7 +58,7 @@ Existing Amplify S3 bucket (legacy, unchanged, still serving the Amplify app)
 | | Asset bucket | Child photo bucket | Legacy Amplify bucket |
 |---|---|---|---|
 | Stack | `LaiAssetStorage-<env>` (`infra/lib/assetStorageStack.ts`) | `LaiChildPhotos-<env>` (`infra/lib/childPhotoStorageStack.ts`) | Amplify Gen 2 (`amplify/storage/resource.ts`) |
-| Owner in Django | `apps/assets` (asset manager) | `apps/users` (child profiles) | none |
+| Owner in Django | `apps/assets` (asset library) | `apps/users` (child profiles) | none |
 | Content | Published game content: GLB/glTF today; textures, images, audio and animations when AM-13 adds them | One current photo per child profile | Child photos and admin-uploaded models |
 | Key layout | `assets/models/<asset id>/<version uuid>/model.<glb\|gltf>` | `children/<child uuid>/<photo uuid>` | `child-photos/<identity pool id>/<uuid>.jpg`, `assets/models/...` |
 | Who decides access | Publication state (draft, published, retired) | The owning parent, checked on every request | Cognito identity pool rules |
@@ -109,6 +109,14 @@ the same `404 not_found`. A photo's storage key is never sent to a client.
 `urlExpiresAt`, which suits an `<img>` element. With the local or in-memory stores, `delivery` is
 `api`: `url` is the content route, which needs the bearer token. Native clients can always use the
 content route.
+
+`GET` and `PUT` answer with `Cache-Control: private, no-store` (since 2026-11-01): the body carries
+a URL Django authorized for that request, so no browser or proxy keeps it. Each `GET` authorizes
+the parent again before minting a URL. A client never stores the URL: React asks again when the
+image fails to load (an expired signature) and never sends its bearer token to S3
+(`ChildAvatar.tsx`, `djangoPhotos.ts`). Byte-serving through Django instead of presigned URLs is
+kept for stores that cannot presign; switching S3 to it needs a demonstrated reason (ADR-042
+amendment, item 4).
 
 **What the server accepts.** One JPEG, as the clients already produce. React draws a 256 px
 square through a canvas (`react/src/features/child-profile/avatarPhoto.ts`); Android must do the
@@ -284,7 +292,7 @@ under `amplify/`.
 | `react/src/features/child-profile/avatarPhoto.ts` (`uploadData`, `getUrl`, `remove`) | Upload, show and delete photos in Amplify builds only. Django builds use `djangoPhotos.ts` (LAI-0905) | LAI-1301 |
 | `react/src/features/child-profile/deletion.ts` | Deletes the photo when a child is deleted (Amplify) | LAI-0602 calling `photos.delete_all_child_photos` |
 | `react/src/features/child-profile/amplifyProfiles.ts` (`photoWrite: 'before-save'`, `getChildPhotoUrl`) | The Amplify store's photo path; `ChildAvatar` and the form reach it through `ProfileStore` (LAI-0905) | LAI-1301 |
-| `react/src/features/assets/assetService.ts`, `modelUpload.ts`, `config.ts` | Amplify admin model upload and signed reads under `assets/*` (ADR-030) | Django asset manager (ADR-035); data via `import_assets --from-amplify` |
+| `react/src/features/assets/assetService.ts`, `modelUpload.ts`, `config.ts` | Amplify admin model upload and signed reads under `assets/*` (ADR-030) | Django asset library (ADR-035); data via `import_assets --from-amplify` |
 | `lai/apps/users/amplify_import.py` | Counts profiles whose photo stays in Amplify | LAI-1103 |
 | Android | Uses the Django API only (ADR-036); no Amplify Storage reference was found in the repository | n/a |
 

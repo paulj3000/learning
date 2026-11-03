@@ -72,7 +72,7 @@ def test_upload_once_publish_and_reuse_everywhere(api, families, cognito, storag
     data = glb_bytes(clips=("Activate",), half_size=(0.1, 0.02, 0.1))
     uploaded = editor.post(
         "/admin/assets/assetversion/upload/",
-        {"asset": doubloon.pk, "model_file": SimpleUploadedFile("coin.glb", data), "notes": ""},
+        {"asset": doubloon.pk, "file": SimpleUploadedFile("coin.glb", data), "notes": ""},
     )
     assert uploaded.status_code == 302
     version = AssetVersion.objects.get(asset=doubloon)

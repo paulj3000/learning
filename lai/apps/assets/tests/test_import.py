@@ -76,7 +76,7 @@ def test_missing_invalid_unsafe_and_clip_breaking_files_are_unresolved(release, 
     assert reasons["gone"]["reason"] == "file_missing"
     assert reasons["escape"]["reason"] == "unsafe_path"
     unresolved_paths = {item["path"]: item for item in report.unresolved}
-    assert unresolved_paths["/models/broken.glb"]["reason"] == "invalid_model"
+    assert unresolved_paths["/models/broken.glb"]["reason"] == "invalid_file"
     assert "missing_clip" in unresolved_paths["/models/npc-pip.gltf"]["codes"]
     assert not AssetVersion.objects.exists()
 

@@ -51,7 +51,7 @@ strips EXIF metadata and the deletion guarantees, is specified in
 `docs/DATA_MODEL.md` under "Child profile photos".
 
 The second prefix, `assets/*`, holds admin-uploaded game assets for the
-Model Asset Manager (ADR-030): Admins group only, one object per version
+Model Asset Library (ADR-030): Admins group only, one object per version
 (`assets/models/<folder>/<assetId>/v<n>/model.glb`), each referenced by an
 `Asset`/`AssetVersion` record rather than by path. Runtime resolution goes
 through `src/features/assets/assetService.ts`, which falls back to the
@@ -59,7 +59,7 @@ bundled `public/models/` file whenever no published S3 asset can be
 resolved, so children's regions keep working offline.
 
 **Django target (ADR-042).** The Django platform splits these two stores into separate private
-buckets: `LaiAssetStorage-<env>` for game assets (the Django asset manager, ADR-035) and
+buckets: `LaiAssetStorage-<env>` for game assets (the Django asset library, ADR-035) and
 `LaiChildPhotos-<env>` for child photos (the child profile subsystem; no publication, no CDN,
 7-day version retention). The Amplify bucket above stays unchanged until LAI-1204 retires it.
 See `docs/platform/CHILD_PHOTO_STORAGE.md`.
@@ -635,7 +635,8 @@ credentials authenticate the API in any environment, local development included 
 "Cognito-only API authentication" below). Today the Amplify SDK keeps tokens in `localStorage` (readable by page JavaScript);
 that, onboarding, revocation latency, and the admin design are open gates in ADR-024. Owner decisions of 2026-10-18 approved
 explicit `POST /api/v1/me/` onboarding, PyJWT/RS256 verification with a bounded JWKS cache, and
-claim-derived administration; sensitive actions stay blocked until LAI-0209.
+claim-derived administration. Sensitive actions (child deletion, asset administrator changes) require a recent
+interactive Cognito sign-in checked by Django (LAI-0209, ADR-043; see "Recent sign-in verification" below).
 **Implemented in LAI-0402:** `apps/users/authentication.py` (verifier and DRF authenticator),
 `jwks.py` (bounded key cache), `permissions.py` (`IsProvisionedParent` as the API-wide default,
 `IsVerifiedPrincipal` for onboarding, `SensitiveActionBlocked`), `views.py` (`/api/v1/me/`). Errors:
@@ -679,7 +680,7 @@ where profiles live; the backend does.
 React --(Cognito JWT)--> Django REST API
          me/            GET, POST (onboarding), PATCH (displayName, timezone)
          children/      GET list, POST create (cap 3)
-         children/<id>/ GET, PATCH (settings, active, aiEnabled); DELETE 403 until LAI-0209
+         children/<id>/ GET, PATCH (settings, active, aiEnabled); DELETE (recent sign-in, LAI-0209)
          children/<id>/... play, progress, rewards (Treasure Rush)
 ```
 
@@ -688,7 +689,8 @@ React --(Cognito JWT)--> Django REST API
   cutover) uses `amplifyProfiles.ts`, removed by LAI-1301. Screens use the hand-owned shapes in
   `profileTypes.ts`. The Amplify `Admins` pages keep their own Amplify reads (`features/admin`).
 - Archival policy: `PATCH {"active": false}` keeps the profile, progress and rewards. Hard
-  deletion waits for LAI-0209 / LAI-0602.
+  deletion is `DELETE /api/v1/children/<id>/` (LAI-0602), which needs a recent sign-in
+  (LAI-0209): 204, or `403 recent_auth_required`, `404`, `503 child_deletion_incomplete`.
 - Existing Amplify profiles: `manage.py import_amplify_profiles`, dry run first, ids preserved,
   owner from the recorded Cognito sub only (`docs/platform/AMPLIFY_PROFILE_IMPORT.md`).
 - Django Admin: `ParentRecord` and `ChildProfile` are read-only for staff with
@@ -845,10 +847,10 @@ Cognito-backed admin sign-in is the upgrade path, TR-D5 option a). No throttling
 logins in the application (add WAF rate limiting at the load balancer, or a lockout, before exposure). There is no Django deployment yet;
 hosting and approvals are in `docs/DJANGO_TARGET_ARCHITECTURE.md`, "Django Admin hosting".
 
-## Shared asset manager (LAI-2200, ADR-035)
+## Shared asset library (LAI-2200, ADR-035)
 
 Upload a 3D model once, publish an immutable version, and every island, region, adventure or quest
-uses it by its stable asset id. Detail and the full contract: `docs/ASSET_MANAGER.md`.
+uses it by its stable asset id. Detail and the full contract: `docs/ASSET_LIBRARY.md`.
 
 - **Definition** is `catalog.ContentAsset` (one identity; CLAUDE.md section 20), now creatable in
   Django. **Versions** are `assets.AssetVersion`: immutable once published, unique per asset,
@@ -870,7 +872,7 @@ uses it by its stable asset id. Detail and the full contract: `docs/ASSET_MANAGE
   for validated, published and retired versions. The file comes from a separate admin route that
   needs a staff session and a short-lived token sent in a header, so the gameplay route stays
   published-only. The viewer source is `react/src/features/assets/preview/`, bundled into the
-  `assets` app's static files (`docs/ASSET_MANAGER.md` section 17).
+  `assets` app's static files (`docs/ASSET_LIBRARY.md` section 17).
 
 ## Child progress (LAI-0305)
 
@@ -932,12 +934,14 @@ adapted onto it:
 | `core` | API conventions, privacy logging, `ChildOwnedModel` (with the cross-child link check), `content_schema` validator, `ContentStatus` |
 | `users` | `ParentAccount`, `ChildProfile`, Cognito authentication, child scoping |
 | `catalog` | Imported, then Django-authored content (ADR-043): ContentRevision (versions, publish, rollback; `authoring.py`), World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset, LearningObjective, NpcDefinition, CollectibleSet, ItemDefinition, RewardRule, ContentRelease; the one importer (`load_content`); asset references (`asset_refs.py`); the catalog admin (mounted by LAI-0404); ContentAsset is also the asset definition (LAI-2200) |
-| `assets` | Asset manager (LAI-2200, ADR-035): AssetVersion, validation, storage, publication services, the published-asset resolver and delivery routes, the import and audit commands. No identity of its own: versions attach to `catalog.ContentAsset` |
+| `assets` | Asset library (LAI-2200, ADR-035): AssetVersion, validation, storage, publication services, the published-asset resolver and delivery routes, the import and audit commands. No identity of its own: versions attach to `catalog.ContentAsset` |
 | `regions` | Seed-authored play regions: WorldRegion (with optional age bands), SpawnPoint, WorldObjectPlacement, TreasureChest, AreaPuzzle (ADR-043 F: seed-owned mechanic and objects, admin-authored parameters) and the puzzle graders (`puzzles.py`); `seed_treasure_rush`, `seed_firepeak` |
 | `adventures` | The Python adventure engine (pure module, LAI-0601) |
 | `game_sessions` | AdventureSession (ADVENTURE or REGION, with pinned content versions, LAI-0813), AdventureAction, ChallengeAttempt, PuzzleAttempt, CoopSession; answers and hints (LAI-0601); region play (TR-5); native home, discovery and inventory reads, game launch tickets and the game session cookie (LAI-ANDROID-API-001, ADR-036) |
 | `education` | SkillEvidence, SkillProgress, StoryArtifact, ChallengeSpec; Treasure Rush challenge generation and grading (`challenges.py`) |
 | `progression`, `inventory`, `quests` | World changes and state, story and NPC progress; items owned and rules granted; quest progress, with the server-side quest engine (`quests/engine.py`) |
+| `ai` | Chatty's companion and tutor turns (Phase 7, ADR-044, `docs/AI_SERVICE.md`): personas, contracts, provider interface (fake, Bedrock Converse with the child-safety Guardrail), the shared turn pipeline, `AIInteractionAudit` and `SafetyEvent`. Reads catalog, session, skill and quest rows; writes only its own rows |
+| `question_studio` | AI Question Studio (Phase 28, ADR-046, `docs/AI_QUESTION_STUDIO.md`): staff-authored question bank (Question, immutable QuestionRevision, GenerationBatch, ValidationFinding, ReviewEvent, QuestionPool, StudioLimits), generation through the `ai` model client, deterministic validation, the approval and publishing workflow in Django Admin, and the selector that serves published integer-answer questions to Treasure Rush through `ChallengeAttempt`. Authored in Django, not exported: see the ADR-046 note on ADR-033. Holds no child data |
 
 **Temporary source-of-truth boundary for spatial data.** Location manifests for the shipped 3D
 regions stay in TypeScript (`runtime/manifests/*.ts`, ADR-032). The Treasure Cove layout is
@@ -1017,3 +1021,28 @@ yet.
 ## Content export contract (post-merge note)
 
 The content export is at `schemaVersion: 3` (version 2 added adventure skill metadata and `START_STORY`; version 3 adds `locationAssets`). It reads the `ALL_NPCS` registry, not a single region's cast. Details: `docs/DATA_MODEL.md`. ADR numbers 027 to 030 are the Storykeeper Castle / Wonderwild / Clockwork decisions (formerly 019 to 022 on that line).
+
+## Recent sign-in verification
+
+Specification: `docs/platform/RECENT_SIGN_IN.md` (LAI-0209, ADR-043). A sensitive API action
+needs, besides a valid Cognito access token and the endpoint's own authorization, proof that the
+parent completed an interactive Cognito sign-in in the last `LAI_RECENT_AUTH_MAX_AGE_SECONDS`
+(300 by default). Django checks it in `RequiresRecentAuthentication`
+(`lai/apps/users/recent_auth.py`): the verified token's `auth_time` (with conservative skew
+handling), a per-session anchor keyed by `origin_jti` so a refresh can never reset it, and a
+Cognito `GetUser` call with the presented token so a revoked session fails. Answers:
+`403 recent_auth_required` (not 401, so clients do not refresh-and-retry), `401` for a revoked
+token, `503 recent_auth_unavailable` when the check cannot run (fails closed). Guarded today:
+`DELETE /api/v1/children/<id>/`. Asset mutations no longer exist as an API (ADR-045). React's
+`useSensitiveAction` (`react/src/features/auth/recentSignIn/`) re-authenticates with an Amplify
+Cognito sign-in for the same account, asks for explicit confirmation, and retries once.
+
+
+## Asset administration boundary (ADR-045, 2026-11-02)
+
+Django Admin owns staff content authoring and asset management; React owns child-facing gameplay
+and the parent experience. Assets are created, uploaded, versioned, published, rolled back and
+retired in Django Admin; binaries live in private S3 under `assets/<models|images|audio>/`; the
+only asset API is the read-only, child-scoped resolver plus the signed file route; React and
+Three.js consume published assets by stable id. There is no React staff asset manager. Details:
+`docs/ASSET_LIBRARY.md` section 21.

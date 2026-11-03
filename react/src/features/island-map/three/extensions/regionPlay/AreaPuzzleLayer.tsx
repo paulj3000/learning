@@ -212,7 +212,7 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
         outcome={asRevealOutcome(reveal.outcome)}
         completed={completedQuests(asRevealOutcome(reveal.outcome), bootstrap.quests)}
         title={reveal.title}
-        message={reveal.message}
+        lead={reveal.message}
         onClose={() => {
           setReveal(null);
           props.onClose();

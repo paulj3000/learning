@@ -603,6 +603,14 @@ for, never any part of what was said.
 
 Sensitive content should be redacted or stored separately with strict retention only when genuinely necessary for review.
 
+### Django (LAI-0306, `lai/apps/ai/models.py`)
+
+Both models keep the Amplify fields and add server-known metadata: `provider`, `context_source`
+(`CLIENT_AUTHORED` or `DJANGO_SESSION`), Guardrail id, version and action, `failure_category`,
+token counts and `request_id`. `validation_status` adds `BLOCKED_INPUT`, `BLOCKED_GUARDRAIL` and
+`RATE_LIMITED`; `SafetyEvent.action_taken` is a fixed code instead of free text and links its
+audit row. No column holds prompt text, model text or child input. Retention: LAI-0707.
+
 
 ## Proposed relational mapping (not in effect)
 
@@ -655,7 +663,7 @@ Treasure Rush's parallel Django models were consolidated into the canonical ones
 | World changes | `progression.WorldChange` | Append-only (`save()` refuses an edit), non-empty key; the source session is a string id, checked to be the same child's by the service |
 | Items, sets, reward rules, learning objectives, NPCs | `catalog.*` | Imported from the export; NPC dialogue, schedule and quest offers stay in `source` |
 | Island, IslandLocation, AdventureTemplate, QuestDefinition | `catalog.World`, `Location`, `Adventure`, `Quest` | Replaced; quest "published" is the catalog's `active` |
-| Region, spawn point, placements, chests | `regions.*` | Spatial; seed-authored (`treasure_rush_seed.py`) until LAI-0805 |
+| Region, spawn point, placements, chests | `regions.*` | Spatial; seed-authored (`treasure_rush_seed.py`) until LAI-0805. `TreasureChest.presentation` is `CHEST`, `HIDDEN`, `PUZZLE` or `REPLAY` (TR-20: repeatable, never opens, no reward rule, enforced by `clean()` and by the play service) |
 
 Child-owned rows that link to other child-owned rows declare `CHILD_LINKS`, and
 `core.ChildOwnedModel.save()` refuses a link to another child's record (from Treasure Rush).

@@ -237,6 +237,89 @@ Items (`progress.inventory[].item`, reward `newItems[]`) gain `setId` and `journ
   - `409 content_unavailable`: no parameters for this age band, or the 3D Area is not published.
 - **Game runtime cookie:** accepted for the cookie's own region only (ADR-036).
 
+## Pip's Missing Treasure (TR-14): locks, pickups, puzzles, talking
+
+All additive: a client from before TR-14 keeps working, and the TypeScript reader defaults
+every new field when an older server leaves it out.
+
+**Region bootstrap, chests.** Each chest also carries `presentation` (`CHEST`, `HIDDEN`: not
+drawn until it may be opened, or `PUZZLE`: answered by touching objects, no chest drawn),
+`sortOrder` (the encounter order; the list comes sorted by it), `locked` and `lockReason`
+(`null`, `PROGRESS`: an earlier encounter first, or `ITEM`: a key the child lacks),
+`requiredItemId`, `answerEntityIds` (a puzzle's answer objects, one per choice, in choice order)
+and `clue` (Pip's line that sends the child there; child-facing).
+
+**Region bootstrap, objects.** Each object also carries `pickup` (a collectible picked up
+through the API) and `collected` (this child has picked it up).
+
+**Challenges for a locked chest** are `409 chest_locked`: nothing is issued or recorded. A
+puzzle's challenge is an ordinary `CHOICE` challenge whose choices go on its answer objects,
+graded by `POST attempts/{attemptId}/answer/` like any other.
+
+**Answer outcome.** Adds `completionRewards`: `[{ruleId, items, message}]`, the rewards for a
+quest this answer completed (reward rules triggered by `QUEST_COMPLETED`), only those granted now.
+
+### `POST sessions/{sessionId}/pickups/{entityId}/`: pick something up
+
+Empty body. Records the placement's pickup world change and fires its reward rule (the item),
+once each, then walks the child's quests forward. `201` picked up now, `200` already picked up
+(nothing new: `pickedUp: false`, `newItems: []`). A placement that is not a pickup, or another
+child's session, is `404`; a closed session is `409 session_not_open`.
+
+```json
+{"entityId": "cove-brass-key", "pickedUp": true, "collected": true,
+ "newItems": [{"itemId": "old-brass-key", "category": "QUEST_ITEM", "...": "..."}],
+ "rewardMessage": "You found an Old Brass Key! It is in your backpack.",
+ "questUpdates": [], "completionRewards": []}
+```
+
+### `POST sessions/{sessionId}/npcs/{entityId}/talk/`: the child talked to an NPC
+
+Empty body; always `200`. For every active quest whose *current* stage has a `TALK_TO`
+objective naming this NPC, sets that memory flag on the child's `NpcRelationship`, walks the
+quests forward, and fires the rewards of any quest just completed. Talking too early changes
+nothing (`{"flagsSet": [], "questUpdates": [], "completionRewards": []}`), and so does talking
+again after the quest is done. Not an NPC here: `404`.
+
+```json
+{"flagsSet": ["cove-treasure-returned"],
+ "questUpdates": [{"questId": "pips-missing-treasure", "status": "COMPLETED",
+                   "currentStageId": "return-to-pip", "justCompleted": true,
+                   "newlyCompletedObjectiveIds": ["cove-return-to-pip"]}],
+ "completionRewards": [{"ruleId": "reward-pips-missing-treasure-complete",
+                        "items": [{"itemId": "treasure-cove-explorer", "...": "..."}],
+                        "message": "You are a Treasure Cove Explorer!"}]}
+```
+
+**Accepting a quest** now also walks it forward at once, so a chest opened before accepting
+counts immediately.
+
+## Lookout Point and the replay activity (TR-17, TR-20)
+
+Additive again. A chest's `presentation` may now also be **`REPLAY`** (the Lookout spyglass). A
+replay is an ordinary entry in the bootstrap's `chests`, with these differences, all decided by
+the server:
+
+- It is **never open**: `isOpen` stays `false` and it is not counted in `chestsTotal` or
+  `chestsOpened` (the region list, the native API and the quest all keep reporting the real
+  chests).
+- It is **locked behind an earlier encounter** (`required_world_change_key`, here the quest's
+  completion, `TREASURE_COVE_QUEST_COMPLETE`): `lockReason: "PROGRESS"` and `409 chest_locked`
+  on `POST .../chests/{entityId}/challenge/` until the child has it. The unlock persists, like
+  any world change, and is the same one `worldChanges` already reports, which is how the client
+  knows to lay the bridge.
+- **`POST .../chests/{entityId}/challenge/` issues a new challenge every time** once an attempt has
+  been answered (there is no `chest_already_open`). Asking while one is outstanding returns that
+  one (`200`), as for any chest.
+- **`POST attempts/{attemptId}/answer/`** grades as usual and records the attempt and its skill
+  evidence, then stops: a right answer returns `chestOpened: false`, `newItems: []`,
+  `rewardMessage: null`, `questUpdates: []` and `completionRewards: []`. Nothing permanent is
+  written, so repeating the activity cannot award anything twice. A wrong answer is the usual
+  `correct: false, canRetry: true`; a replayed answer is `409 attempt_already_answered`.
+
+A client built before TR-20 sees an unknown `presentation`; the TypeScript reader of this
+repository accepts `REPLAY` and refuses nothing else.
+
 ## Islands, Places and Adventure launch points (LAI-0806, ADR-041)
 
 **Region bootstrap: `launchPoints` (additive).** The objects in this 3D Area that start one of its

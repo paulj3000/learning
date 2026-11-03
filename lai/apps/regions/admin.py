@@ -23,6 +23,7 @@ from apps.catalog.authoring_admin import AuthoredContentAdminMixin
 from apps.catalog.models import Adventure
 from apps.core.content_status import ContentStatus
 
+from .activity import encounter_activity
 from .models import AdventureLaunchPoint, AreaPuzzle, WorldRegion
 from .publishing import area_problems, launch_point_problems
 
@@ -118,6 +119,7 @@ class AreaAdmin(AuthoredContentAdminMixin, admin.ModelAdmin):
         "offered_quests",
         "scene",
         "layout",
+        "encounters",
         "updated_at",
     )
     fields = readonly_fields
@@ -150,6 +152,21 @@ class AreaAdmin(AuthoredContentAdminMixin, admin.ModelAdmin):
         ]
         if not rows:
             return "Nothing placed yet."
+        return format_html_join("\n", "<div>{}: <code>{}</code> {} ({})</div>", rows)
+
+    @admin.display(description="Encounters and how many children reached each (counts only)")
+    def encounters(self, obj):
+        rows = [
+            (
+                row.kind,
+                row.entity_id,
+                row.label,
+                "repeatable, records nothing" if row.children is None else row.children,
+            )
+            for row in encounter_activity(obj)
+        ]
+        if not rows:
+            return "No pickups or chests."
         return format_html_join("\n", "<div>{}: <code>{}</code> {} ({})</div>", rows)
 
     def has_module_permission(self, request):

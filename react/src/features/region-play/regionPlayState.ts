@@ -3,10 +3,12 @@ import type {
   AnswerOutcome,
   IssuedChallenge,
   ItemView,
+  PickupOutcome,
   PlaySession,
   PuzzleOutcome,
   QuestEntry,
   RegionBootstrap,
+  TalkOutcome,
 } from '../../api/play/types';
 
 /**
@@ -33,6 +35,8 @@ export type PlayActionName =
   | 'requestChallenge'
   | 'submitAnswer'
   | 'solvePuzzle'
+  | 'collectPickup'
+  | 'talkToNpc'
   | 'refresh';
 
 export interface RegionPlayState {
@@ -45,6 +49,9 @@ export interface RegionPlayState {
   lastOutcome: AnswerOutcome | null;
   /** The server's answer to the last puzzle submission in this visit (LAI-0812). */
   lastPuzzleOutcome: { puzzleId: string; outcome: PuzzleOutcome } | null;
+  /** The server's answer to the last pickup and the last talk (TR-14), as returned. */
+  lastPickup: PickupOutcome | null;
+  lastTalk: TalkOutcome | null;
   /** Items newly granted during this visit, from server outcomes only. */
   rewards: ItemView[];
   /** The action in flight, so a UI can disable controls and a double tap sends nothing. */
@@ -64,6 +71,8 @@ export type RegionPlayAction = { scope: string } & (
   | { type: 'challengeIssued'; challenge: IssuedChallenge }
   | { type: 'answerAccepted'; outcome: AnswerOutcome }
   | { type: 'puzzleGraded'; puzzleId: string; outcome: PuzzleOutcome }
+  | { type: 'pickedUp'; outcome: PickupOutcome }
+  | { type: 'talked'; outcome: TalkOutcome }
   | { type: 'challengeCleared' }
 );
 
@@ -80,6 +89,8 @@ export function initialRegionPlayState(scope: string): RegionPlayState {
     challenge: null,
     lastOutcome: null,
     lastPuzzleOutcome: null,
+    lastPickup: null,
+    lastTalk: null,
     rewards: [],
     busy: null,
     error: null,
@@ -145,29 +156,57 @@ export function regionPlayReducer(
     }
     case 'challengeIssued':
       return { ...state, busy: null, challenge: action.challenge };
-    case 'answerAccepted': {
-      const known = new Set(state.rewards.map((item) => item.itemId));
-      const fresh = action.outcome.newItems.filter((item) => !known.has(item.itemId));
+    case 'answerAccepted':
       return {
         ...state,
         busy: null,
         // Answered either way: a retry asks the server for the next attempt.
         challenge: null,
         lastOutcome: action.outcome,
-        rewards: [...state.rewards, ...fresh],
+        rewards: withRewards(state.rewards, [
+          ...action.outcome.newItems,
+          ...action.outcome.completionRewards.flatMap((reward) => reward.items),
+        ]),
       };
-    }
-    case 'puzzleGraded': {
-      const known = new Set(state.rewards.map((item) => item.itemId));
-      const fresh = action.outcome.newItems.filter((item) => !known.has(item.itemId));
+    case 'pickedUp':
+      return {
+        ...state,
+        busy: null,
+        lastPickup: action.outcome,
+        rewards: withRewards(state.rewards, [
+          ...action.outcome.newItems,
+          ...action.outcome.completionRewards.flatMap((reward) => reward.items),
+        ]),
+      };
+    case 'talked':
+      return {
+        ...state,
+        busy: null,
+        lastTalk: action.outcome,
+        rewards: withRewards(
+          state.rewards,
+          action.outcome.completionRewards.flatMap((reward) => reward.items),
+        ),
+      };
+    case 'puzzleGraded':
       return {
         ...state,
         busy: null,
         lastPuzzleOutcome: { puzzleId: action.puzzleId, outcome: action.outcome },
-        rewards: [...state.rewards, ...fresh],
+        rewards: withRewards(state.rewards, action.outcome.newItems),
       };
-    }
     case 'challengeCleared':
       return { ...state, busy: null, challenge: null };
   }
+}
+
+/** Adds items the server granted, once each by id. */
+function withRewards(rewards: ItemView[], granted: readonly ItemView[]): ItemView[] {
+  const known = new Set(rewards.map((item) => item.itemId));
+  const fresh = granted.filter((item) => {
+    if (known.has(item.itemId)) return false;
+    known.add(item.itemId);
+    return true;
+  });
+  return fresh.length > 0 ? [...rewards, ...fresh] : rewards;
 }

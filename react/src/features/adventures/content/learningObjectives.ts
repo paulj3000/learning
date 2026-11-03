@@ -57,4 +57,5 @@ export const LEARNING_OBJECTIVES: LearningObjective[] = [
   { code: 'classification', domain: 'science', title: 'Sorting things by what they are' },
   { code: 'subtraction-within-ten', domain: 'numeracy', title: 'Subtraction within ten' },
   { code: 'vocabulary', domain: 'literacy', title: 'Learning and using new words' },
+  { code: 'multiplication-facts', domain: 'numeracy', title: 'Multiplication facts' },
 ];

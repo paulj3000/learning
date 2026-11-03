@@ -34,9 +34,6 @@ import { StoryPage } from '../routes/StoryPage';
 import { AdventureLibraryPage } from '../routes/AdventureLibraryPage';
 import { AdminDashboard } from '../routes/AdminDashboard';
 import { AdminChildProgress } from '../routes/AdminChildProgress';
-import { AdminAssets } from '../routes/AdminAssets';
-import { AdminModelAssets } from '../routes/AdminModelAssets';
-import { AdminNewModelAsset } from '../routes/AdminNewModelAsset';
 import { AdminIslands } from '../routes/AdminIslands';
 import { AdminIslandForm } from '../routes/AdminIslandForm';
 import { AdminIslandDetail } from '../routes/AdminIslandDetail';
@@ -398,9 +395,6 @@ export function AppRoutes() {
       >
         <Route index element={<AdminDashboard />} />
         <Route path="children/:childId" element={<AdminChildProgress />} />
-        <Route path="assets" element={<AdminAssets />} />
-        <Route path="assets/models" element={<AdminModelAssets />} />
-        <Route path="assets/models/new" element={<AdminNewModelAsset />} />
         {/* Islands & Adventures catalog (docs/ISLAND_ADVENTURE_MANAGEMENT.md, ADR-031). */}
         <Route path="islands" element={<AdminIslands />} />
         <Route path="islands/new" element={<AdminIslandForm />} />

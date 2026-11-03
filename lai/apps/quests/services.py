@@ -16,10 +16,11 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.catalog import authoring
-from apps.catalog.models import Quest
+from apps.catalog.models import Quest, RewardRule
 from apps.game_sessions.models import AdventureSession, SessionKind, SessionStatus
 from apps.game_sessions.services import InvalidTransition, ProgressNotFound
-from apps.inventory.services import owned_item_ids
+from apps.inventory.services import RewardGrant, grant_reward_rule, owned_item_ids
+from apps.progression.models import NpcRelationship
 from apps.progression.services import record_world_change, world_change_keys
 from apps.quests import engine
 from apps.quests.models import QuestProgress, QuestStatus
@@ -36,7 +37,15 @@ def build_context(child) -> engine.QuestContext:
     completed_adventures = AdventureSession.objects.for_child(child).filter(
         kind=SessionKind.ADVENTURE, status=SessionStatus.COMPLETED
     )
+    memory = NpcRelationship.objects.for_child(child).values_list("npc_id", "memory_flags")
     return engine.QuestContext(
+        npc_memory_flags=frozenset(
+            (npc_id, flag)
+            for npc_id, flags in memory
+            if isinstance(flags, dict)
+            for flag, held in flags.items()
+            if held is True
+        ),
         world_change_keys=frozenset(world_change_keys(child)),
         owned_item_ids=frozenset(owned_item_ids(child)),
         completed_adventure_slugs=frozenset(
@@ -179,3 +188,34 @@ def refresh_quest(progress: QuestProgress, *, source_session=None) -> QuestUpdat
 def refresh_active_quests(child, *, source_session=None) -> list[QuestUpdate]:
     active = QuestProgress.objects.for_child(child).filter(status=QuestStatus.ACTIVE).order_by("pk")
     return [refresh_quest(progress, source_session=source_session) for progress in active]
+
+
+@dataclass(frozen=True)
+class CompletionReward:
+    rule: RewardRule
+    grant: RewardGrant
+
+
+def grant_quest_completion_rewards(
+    child, updates, *, source_session=None
+) -> list[CompletionReward]:
+    """Fire the reward rules whose trigger is `QUEST_COMPLETED` for each quest just completed.
+
+    The trigger vocabulary is the client's (`{"type": "QUEST_COMPLETED", "questId": ...}`); each
+    rule fires once per child (`grant_reward_rule`), so a replay grants nothing. Call inside the
+    transaction that completed the quest.
+    """
+    rewards = []
+    for update in updates:
+        if not update.result.just_completed:
+            continue
+        rules = RewardRule.objects.filter(
+            trigger__type="QUEST_COMPLETED", trigger__questId=update.progress.quest.slug
+        ).order_by("rule_id")
+        for rule in rules:
+            rewards.append(
+                CompletionReward(
+                    rule=rule, grant=grant_reward_rule(child, rule, source_session=source_session)
+                )
+            )
+    return rewards

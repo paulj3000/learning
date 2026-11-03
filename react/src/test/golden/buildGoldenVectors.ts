@@ -39,6 +39,29 @@ import {
 import { resolveRewards, rewardedItemIds } from '../../features/rewards/rewardTable';
 import type { RewardTable, RewardTrigger } from '../../features/rewards/types';
 import { isWorldUnlocked } from '../../features/worlds/travel';
+import {
+  claimsLearningJudgment,
+  containsUrl,
+  requestsPersonalInformation,
+} from '../../lib/ai/contentSafety';
+import { FALLBACK_TURNS } from '../../features/companion/fallback';
+import { MAX_SPOKEN_LENGTH_BY_AGE_BAND } from '../../features/companion/limits';
+import {
+  normalizeEmotion,
+  validateCompanionTurn,
+  type CompanionTurnValidationContext,
+} from '../../features/companion/schema';
+import { allowedVocabularyForSkill } from '../../features/tutor/content/vocabulary';
+import {
+  buildTutorContext,
+  isTutorableSkill,
+  type TutorContextInput,
+} from '../../features/tutor/context';
+import { FALLBACK_TUTOR_TURNS, TUTOR_REDIRECT_TURN } from '../../features/tutor/fallback';
+import { disallowedCurriculumTerms, validateTutorTurn } from '../../features/tutor/schema';
+import { strategyForHintLevel } from '../../features/tutor/strategy';
+import type { TutorContext } from '../../features/tutor/types';
+import { SKILLS } from '../../features/curriculum/content/index';
 import { WORLD_DEFINITIONS } from '../../features/worlds/worlds';
 
 /**
@@ -1836,6 +1859,472 @@ function areaPuzzlesSuite(): GoldenSuite {
   };
 }
 
+// ---------------------------------------------------------------------------------------------
+// AI safety: companion and tutor output validation, tutor context, fallbacks (LAI-0701)
+
+const TEXT_CASES: CaseInput<{ text: string }>[] = [
+  { name: 'plain island line', input: { text: "Let's count the planks together!" } },
+  { name: 'https url', input: { text: 'Visit https://example.test for more.' } },
+  { name: 'www prefix', input: { text: 'Go to www.island for help.' } },
+  { name: 'bare domain', input: { text: 'Look at parrots.com today.' } },
+  { name: 'domain-like word without tld', input: { text: 'The ship.deck is wet.' } },
+  { name: 'asks for a name', input: { text: 'What is your name, explorer?' } },
+  { name: 'asks for real full name', input: { text: 'Tell me your real full name.' } },
+  { name: 'home address', input: { text: 'What is your home address?' } },
+  { name: 'where do live', input: { text: 'Where do you live, friend?' } },
+  { name: 'send a photo', input: { text: 'Can you send me a photo?' } },
+  { name: 'school name', input: { text: "What's your school's name?" } },
+  { name: 'password', input: { text: 'Tell me the PASSWORD.' } },
+  { name: 'mastery claim', input: { text: 'You have mastered counting!' } },
+  { name: 'contracted mastery claim', input: { text: "You've now mastered it." } },
+  { name: 'passed', input: { text: 'You passed the test.' } },
+  { name: 'level number', input: { text: 'This is level 2 work.' } },
+  { name: 'next lesson', input: { text: 'Next lesson is multiplication.' } },
+  { name: 'homework', input: { text: 'Here is some homework.' } },
+  { name: 'ready for', input: { text: "You're not ready for that." } },
+  { name: 'unicode long s does not fold to s', input: { text: 'paſsword' } },
+  { name: 'kelvin sign does not fold to k', input: { text: 'you have Known it' } },
+];
+
+const EMOTION_CASES: CaseInput<{ value: unknown }>[] = [
+  { name: 'exact uppercase', input: { value: 'CURIOUS' } },
+  { name: 'lowercase', input: { value: 'calm' } },
+  { name: 'synonym playful', input: { value: 'playful' } },
+  {
+    name: 'compound warm and curious resolves by category order',
+    input: { value: 'warm and curious' },
+  },
+  { name: 'wondering', input: { value: 'wondering' } },
+  { name: 'unknown word', input: { value: 'grumpy' } },
+  { name: 'not a string', input: { value: 3 } },
+  { name: 'null', input: { value: null } },
+];
+
+const OK_TURN = {
+  spokenText: 'Count each plank, one at a time.',
+  emotion: 'ENCOURAGING',
+  intent: 'HINT',
+  safetyDisposition: 'ALLOW',
+};
+const HINT_CONTEXT: CompanionTurnValidationContext = { expectedIntent: 'HINT', maxLength: 120 };
+
+const COMPANION_CASES: CaseInput<{ raw: unknown; context: CompanionTurnValidationContext }>[] = [
+  { name: 'valid hint', input: { raw: OK_TURN, context: HINT_CONTEXT } },
+  { name: 'not an object', input: { raw: 'hello', context: HINT_CONTEXT } },
+  { name: 'null', input: { raw: null, context: HINT_CONTEXT } },
+  { name: 'an array counts as an object', input: { raw: [], context: HINT_CONTEXT } },
+  {
+    name: 'blank spokenText',
+    input: { raw: { ...OK_TURN, spokenText: '  ' }, context: HINT_CONTEXT },
+  },
+  {
+    name: 'BOM-only spokenText is blank',
+    input: { raw: { ...OK_TURN, spokenText: '﻿' }, context: HINT_CONTEXT },
+  },
+  {
+    name: 'spokenText not a string',
+    input: { raw: { ...OK_TURN, spokenText: 7 }, context: HINT_CONTEXT },
+  },
+  {
+    name: 'lowercase enums normalise',
+    input: {
+      raw: { ...OK_TURN, emotion: 'curious', intent: 'hint', safetyDisposition: 'allow' },
+      context: HINT_CONTEXT,
+    },
+  },
+  {
+    name: 'emotion synonym',
+    input: { raw: { ...OK_TURN, emotion: 'proud' }, context: HINT_CONTEXT },
+  },
+  {
+    name: 'unknown emotion',
+    input: { raw: { ...OK_TURN, emotion: 'grumpy' }, context: HINT_CONTEXT },
+  },
+  {
+    name: 'unknown intent',
+    input: { raw: { ...OK_TURN, intent: 'GRADE' }, context: HINT_CONTEXT },
+  },
+  {
+    name: 'unknown disposition',
+    input: { raw: { ...OK_TURN, safetyDisposition: 'MAYBE' }, context: HINT_CONTEXT },
+  },
+  {
+    name: 'wrong intent',
+    input: { raw: { ...OK_TURN, intent: 'CELEBRATE' }, context: HINT_CONTEXT },
+  },
+  {
+    name: 'escalation to REDIRECT is always allowed',
+    input: {
+      raw: { ...OK_TURN, intent: 'REDIRECT', safetyDisposition: 'REDIRECT' },
+      context: HINT_CONTEXT,
+    },
+  },
+  {
+    name: 'STOP disposition is a valid turn',
+    input: { raw: { ...OK_TURN, safetyDisposition: 'STOP' }, context: HINT_CONTEXT },
+  },
+  {
+    name: 'exactly at max length',
+    input: { raw: { ...OK_TURN, spokenText: 'a'.repeat(120) }, context: HINT_CONTEXT },
+  },
+  {
+    name: 'one over max length',
+    input: { raw: { ...OK_TURN, spokenText: 'a'.repeat(121) }, context: HINT_CONTEXT },
+  },
+  {
+    name: 'emoji count as two UTF-16 units',
+    input: {
+      raw: { ...OK_TURN, spokenText: `${'a'.repeat(118)}\u{1F99C}` },
+      context: HINT_CONTEXT,
+    },
+  },
+  {
+    name: 'emoji pushes past the limit',
+    input: {
+      raw: { ...OK_TURN, spokenText: `${'a'.repeat(119)}\u{1F99C}` },
+      context: HINT_CONTEXT,
+    },
+  },
+  {
+    name: 'url',
+    input: { raw: { ...OK_TURN, spokenText: 'See www.parrot.io now' }, context: HINT_CONTEXT },
+  },
+  {
+    name: 'personal information',
+    input: { raw: { ...OK_TURN, spokenText: 'What is your phone number?' }, context: HINT_CONTEXT },
+  },
+  {
+    name: 'allowed choices',
+    input: {
+      raw: { ...OK_TURN, intent: 'ASK', choices: [{ id: 'knight', label: 'Knight' }] },
+      context: { expectedIntent: 'ASK', maxLength: 200, allowedChoiceIds: ['knight', 'wizard'] },
+    },
+  },
+  {
+    name: 'invented choice id',
+    input: {
+      raw: { ...OK_TURN, intent: 'ASK', choices: [{ id: 'dragon', label: 'Dragon' }] },
+      context: { expectedIntent: 'ASK', maxLength: 200, allowedChoiceIds: ['knight'] },
+    },
+  },
+  {
+    name: 'choices offered when none allowed',
+    input: { raw: { ...OK_TURN, choices: [{ id: 'a', label: 'A' }] }, context: HINT_CONTEXT },
+  },
+  {
+    name: 'choices offered with an empty allow-list',
+    input: { raw: { ...OK_TURN, choices: [] }, context: { ...HINT_CONTEXT, allowedChoiceIds: [] } },
+  },
+  {
+    name: 'malformed choices',
+    input: {
+      raw: { ...OK_TURN, choices: [{ id: 1 }] },
+      context: { ...HINT_CONTEXT, allowedChoiceIds: ['a'] },
+    },
+  },
+  {
+    name: 'null choices are absent',
+    input: { raw: { ...OK_TURN, choices: null }, context: HINT_CONTEXT },
+  },
+  {
+    name: 'gameplay fields from the model are dropped',
+    input: {
+      raw: { ...OK_TURN, reward: 100, masteryStatus: 'MASTERED', nextStepId: 'complete' },
+      context: HINT_CONTEXT,
+    },
+  },
+];
+
+function tutorContext(overrides: Partial<TutorContext> = {}): TutorContext {
+  const context = buildTutorContext({
+    ageBand: 'PATHFINDER',
+    skillId: 'counting-sets',
+    hintLevel: 3,
+  });
+  if (!context) throw new Error('counting-sets must be tutorable');
+  return { ...context, ...overrides };
+}
+
+const OK_TUTOR = {
+  spokenText: 'Point to each one as you count.',
+  strategy: 'GIVE_HINT',
+  emotion: 'ENCOURAGING',
+  safetyDisposition: 'ALLOW',
+};
+
+const TUTOR_CASES: CaseInput<{ raw: unknown; context: TutorContext }>[] = [
+  { name: 'valid hint', input: { raw: OK_TUTOR, context: tutorContext() } },
+  { name: 'not an object', input: { raw: 42, context: tutorContext() } },
+  { name: 'blank text', input: { raw: { ...OK_TUTOR, spokenText: '' }, context: tutorContext() } },
+  {
+    name: 'unknown strategy',
+    input: { raw: { ...OK_TUTOR, strategy: 'ASSESS' }, context: tutorContext() },
+  },
+  {
+    name: 'different strategy',
+    input: { raw: { ...OK_TUTOR, strategy: 'EXPLAIN' }, context: tutorContext() },
+  },
+  {
+    name: 'lowercase strategy',
+    input: { raw: { ...OK_TUTOR, strategy: 'give_hint' }, context: tutorContext() },
+  },
+  {
+    name: 'unknown emotion',
+    input: { raw: { ...OK_TUTOR, emotion: 'sad' }, context: tutorContext() },
+  },
+  {
+    name: 'unknown disposition',
+    input: { raw: { ...OK_TUTOR, safetyDisposition: 'no' }, context: tutorContext() },
+  },
+  {
+    name: 'too long',
+    input: { raw: { ...OK_TUTOR, spokenText: 'b'.repeat(201) }, context: tutorContext() },
+  },
+  {
+    name: 'url',
+    input: { raw: { ...OK_TUTOR, spokenText: 'Try https://x.test' }, context: tutorContext() },
+  },
+  {
+    name: 'personal info',
+    input: { raw: { ...OK_TUTOR, spokenText: 'Where do you live?' }, context: tutorContext() },
+  },
+  {
+    name: 'mastery judgment',
+    input: { raw: { ...OK_TUTOR, spokenText: 'You mastered this!' }, context: tutorContext() },
+  },
+  {
+    name: 'curriculum term outside the skill',
+    input: {
+      raw: { ...OK_TUTOR, spokenText: 'Now multiply the planks.' },
+      context: tutorContext(),
+    },
+  },
+  {
+    name: 'several stray terms listed in term order',
+    input: {
+      raw: { ...OK_TUTOR, spokenText: 'Subtract, then add, then divide.' },
+      context: tutorContext(),
+    },
+  },
+  {
+    name: 'allowed curriculum term',
+    input: {
+      raw: { ...OK_TUTOR, spokenText: 'Count them one at a time.' },
+      context: tutorContext(),
+    },
+  },
+  {
+    name: 'country does not trip count',
+    input: {
+      raw: { ...OK_TUTOR, spokenText: 'A whole country of parrots!' },
+      context: tutorContext({ allowedVocabulary: [] }),
+    },
+  },
+  {
+    name: 'representation on switch',
+    input: {
+      raw: { ...OK_TUTOR, strategy: 'SWITCH_REPRESENTATION', representation: 'VISUAL' },
+      context: tutorContext({ strategy: 'SWITCH_REPRESENTATION' }),
+    },
+  },
+  {
+    name: 'representation not authored for skill',
+    input: {
+      raw: { ...OK_TUTOR, strategy: 'SWITCH_REPRESENTATION', representation: 'numeric' },
+      context: tutorContext({ strategy: 'SWITCH_REPRESENTATION' }),
+    },
+  },
+  {
+    name: 'unknown representation',
+    input: {
+      raw: { ...OK_TUTOR, strategy: 'SWITCH_REPRESENTATION', representation: 'hologram' },
+      context: tutorContext({ strategy: 'SWITCH_REPRESENTATION' }),
+    },
+  },
+  {
+    name: 'representation on a non-switch turn',
+    input: { raw: { ...OK_TUTOR, representation: 'visual' }, context: tutorContext() },
+  },
+  {
+    name: 'representation not a string',
+    input: { raw: { ...OK_TUTOR, representation: 5 }, context: tutorContext() },
+  },
+  {
+    name: 'empty representation is absent',
+    input: { raw: { ...OK_TUTOR, representation: '' }, context: tutorContext() },
+  },
+  {
+    name: 'gameplay fields from the model are dropped',
+    input: { raw: { ...OK_TUTOR, coins: 50, correct: true }, context: tutorContext() },
+  },
+];
+
+const HINT_LEVEL_CASES: CaseInput<{ hintLevel: number }>[] = [
+  -2, 0, 1, 1.5, 2, 2.49, 3, 4, 5, 6, 99,
+].map((hintLevel) => ({ name: `level ${hintLevel}`, input: { hintLevel } }));
+
+const SKILL_IDS = [...SKILLS.map((skill) => skill.id), 'not-a-skill'];
+
+const VOCABULARY_CASES: CaseInput<{ skillId: string }>[] = SKILL_IDS.map((skillId) => ({
+  name: skillId,
+  input: { skillId },
+}));
+
+const BANDS: AgeBandValue[] = ['SPROUT', 'PATHFINDER', 'EXPLORER'];
+const CONTEXT_CASES: CaseInput<{ input: TutorContextInput }>[] = [
+  ...SKILL_IDS.flatMap((skillId) =>
+    [1, 4].map((hintLevel, index) => ({
+      name: `${skillId} level ${hintLevel}`,
+      input: { input: { ageBand: BANDS[index % 3], skillId, hintLevel } },
+    })),
+  ),
+  {
+    name: 'known and unknown prerequisites, quest copy, authored text',
+    input: {
+      input: {
+        ageBand: 'EXPLORER',
+        skillId: 'subtraction-within-ten',
+        hintLevel: 5,
+        masterySummaries: [
+          { skillId: 'addition-within-ten', status: 'MASTERED' },
+          { skillId: 'counting-sets', status: 'PROFICIENT' },
+        ],
+        questTitle: 'The Lighthouse Lamps',
+        questStageTitle: 'Light the first lamp',
+        authoredBaseText: 'Take away 3 of the 7 shells.',
+      },
+    },
+  },
+  {
+    name: 'a developing prerequisite is not known',
+    input: {
+      input: {
+        ageBand: 'SPROUT',
+        skillId: 'classification',
+        hintLevel: 2,
+        masterySummaries: [{ skillId: 'observation', status: 'DEVELOPING' }],
+      },
+    },
+  },
+];
+
+const STRAY_CASES: CaseInput<{ text: string; allowedVocabulary: string[] }>[] = [
+  { name: 'none allowed', input: { text: 'Add and count', allowedVocabulary: [] } },
+  {
+    name: 'case-insensitive allow',
+    input: { text: 'ADD then Count', allowedVocabulary: ['add', 'COUNT'] },
+  },
+  { name: 'address does not trip add', input: { text: 'An address', allowedVocabulary: [] } },
+  {
+    name: 'multi-word term',
+    input: { text: 'Learn your times table and place value', allowedVocabulary: [] },
+  },
+];
+
+function aiSafetySuite(): GoldenSuite {
+  return {
+    schemaVersion: GOLDEN_SCHEMA_VERSION,
+    suite: 'ai-safety',
+    description:
+      'Companion and tutor output validation, tutor context assembly, strategy selection, and authored fallbacks.',
+    sources: [
+      'react/src/lib/ai/contentSafety.ts',
+      'react/src/features/companion/schema.ts',
+      'react/src/features/companion/fallback.ts',
+      'react/src/features/companion/limits.ts',
+      'react/src/features/tutor/schema.ts',
+      'react/src/features/tutor/context.ts',
+      'react/src/features/tutor/strategy.ts',
+      'react/src/features/tutor/fallback.ts',
+      'react/src/features/tutor/content/vocabulary.ts',
+    ],
+    notes: [
+      'Lengths are UTF-16 code units (String.prototype.length): an emoji counts as 2.',
+      'trim() uses the ECMAScript whitespace set, which includes U+FEFF.',
+      'Regular expressions are non-unicode /i: ASCII case folding only, ASCII word boundaries.',
+      'An array passes isRecord, so [] is rejected for a missing spokenText, not as a non-object.',
+      'strategyForHintLevel rounds with Math.round (halves toward +infinity) before clamping to 1..5.',
+      'validateCompanionTurn returns choice objects as given; these vectors carry only {id, label} choices (the Django port returns exactly those two fields).',
+      'Unknown fields on a model response (rewards, mastery, next step) never appear in a validated turn.',
+    ],
+    functions: {
+      containsUrl: vectors('contains_url', ['text'], TEXT_CASES, ({ text }) => containsUrl(text)),
+      requestsPersonalInformation: vectors(
+        'requests_personal_information',
+        ['text'],
+        TEXT_CASES,
+        ({ text }) => requestsPersonalInformation(text),
+      ),
+      claimsLearningJudgment: vectors(
+        'claims_learning_judgment',
+        ['text'],
+        TEXT_CASES,
+        ({ text }) => claimsLearningJudgment(text),
+      ),
+      normalizeEmotion: vectors('normalize_emotion', ['value'], EMOTION_CASES, ({ value }) =>
+        normalizeEmotion(value),
+      ),
+      validateCompanionTurn: vectors(
+        'validate_companion_turn',
+        ['raw', 'context'],
+        COMPANION_CASES,
+        ({ raw, context }) => validateCompanionTurn(raw, context),
+      ),
+      validateTutorTurn: vectors(
+        'validate_tutor_turn',
+        ['raw', 'context'],
+        TUTOR_CASES,
+        ({ raw, context }) => validateTutorTurn(raw, context),
+      ),
+      disallowedCurriculumTerms: vectors(
+        'disallowed_curriculum_terms',
+        ['text', 'allowedVocabulary'],
+        STRAY_CASES,
+        ({ text, allowedVocabulary }) => disallowedCurriculumTerms(text, allowedVocabulary),
+      ),
+      strategyForHintLevel: vectors(
+        'strategy_for_hint_level',
+        ['hintLevel'],
+        HINT_LEVEL_CASES,
+        ({ hintLevel }) => strategyForHintLevel(hintLevel),
+      ),
+      allowedVocabularyForSkill: vectors(
+        'allowed_vocabulary_for_skill',
+        ['skillId'],
+        VOCABULARY_CASES,
+        ({ skillId }) => allowedVocabularyForSkill(skillId),
+      ),
+      isTutorableSkill: vectors(
+        'is_tutorable_skill',
+        ['skillId'],
+        VOCABULARY_CASES,
+        ({ skillId }) => isTutorableSkill(skillId),
+      ),
+      buildTutorContext: vectors('build_tutor_context', ['input'], CONTEXT_CASES, ({ input }) =>
+        buildTutorContext(input),
+      ),
+      maxSpokenLengthByAgeBand: vectors(
+        'max_spoken_length_by_age_band',
+        [],
+        [{ name: 'table', input: {} }],
+        () => MAX_SPOKEN_LENGTH_BY_AGE_BAND,
+      ),
+      companionFallbackTurns: vectors(
+        'companion_fallback_turns',
+        [],
+        [{ name: 'table', input: {} }],
+        () => FALLBACK_TURNS,
+      ),
+      tutorFallbackTurns: vectors(
+        'tutor_fallback_turns',
+        [],
+        [{ name: 'table', input: {} }],
+        () => ({ ...FALLBACK_TUTOR_TURNS, REDIRECT: TUTOR_REDIRECT_TURN }),
+      ),
+    },
+  };
+}
+
 export function buildGoldenSuites(): GoldenSuite[] {
   return [
     adventureEngineSuite(),
@@ -1845,6 +2334,7 @@ export function buildGoldenSuites(): GoldenSuite[] {
     directorSuite(),
     directorContentSuite(),
     areaPuzzlesSuite(),
+    aiSafetySuite(),
   ];
 }
 

@@ -19,6 +19,12 @@
     <section class="lai-asset-preview-viewer" aria-label="{% translate '3D model preview' %}">
       {% if refusal %}
       <div class="errornote" role="alert">{{ refusal.message }}</div>
+      {% elif version.family == "image" %}
+      <div class="lai-asset-preview-stage">
+        <img src="{{ media_url }}" alt="{% blocktranslate with label=version.label %}Image {{ label }}{% endblocktranslate %}" style="max-width:100%;height:auto;background:#eee">
+      </div>
+      {% elif version.family == "audio" %}
+      <audio controls preload="metadata" src="{{ media_url }}">{% translate 'Your browser cannot play this audio.' %}</audio>
       {% else %}
       <div class="lai-asset-preview"
            data-asset-preview
@@ -38,7 +44,7 @@
         <p class="lai-asset-preview-status" data-preview-status role="status" aria-live="polite">{% translate 'Loading the model...' %}</p>
         <p class="help">{% translate 'Drag to rotate. Right-drag or Shift-drag to pan. Scroll or pinch to zoom.' %}</p>
       </div>
-      <noscript><div class="errornote">{% translate 'The preview needs JavaScript.' %}</div></noscript>
+      {% if version.family == "model" %}<noscript><div class="errornote">{% translate 'The preview needs JavaScript.' %}</div></noscript>{% endif %}
       {% endif %}
     </section>
     <section class="module lai-asset-preview-facts" aria-labelledby="lai-asset-preview-facts">
@@ -51,5 +57,5 @@
     </section>
   </div>
 </div>
-{% if not refusal %}<script type="module" src="{% static 'assets/admin/asset-preview.js' %}"></script>{% endif %}
+{% if not refusal and version.family == "model" %}<script type="module" src="{% static 'assets/admin/asset-preview.js' %}"></script>{% endif %}
 {% endblock %}

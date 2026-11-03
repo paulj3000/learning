@@ -181,7 +181,12 @@ def test_expired_tampered_and_misnamed_urls_are_404(api, world, monkeypatch):
     f = world["families"]
     url = entries(resolve(api, f.a, f.a1, "npc-pip"))["npc-pip"]["url"]
     assert Client().get(url.replace("model.glb", "model.gltf")).status_code == 404
-    assert Client().get(url[:-15] + "x" + url[-14:]).status_code == 404
+    # Flip one signature character to a different one; replacing it with a fixed letter was a
+    # no-op whenever the signature already had that letter there (about 1 run in 64).
+    flipped = "y" if url[-15] == "x" else "x"
+    tampered = url[:-15] + flipped + url[-14:]
+    assert tampered != url
+    assert Client().get(tampered).status_code == 404
     monkeypatch.setattr(delivery.time, "time", lambda: 10**10)
     assert Client().get(url).status_code == 404
 

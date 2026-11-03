@@ -66,7 +66,7 @@ MIDDLEWARE.insert(
 )
 STORAGES = MANIFEST_STATIC_STORAGES
 
-# Asset manager (LAI-2200): storage must be chosen explicitly; never local disk in production.
+# Asset library (LAI-2200): storage must be chosen explicitly; never local disk in production.
 LAI_ASSET_STORAGE = _required("LAI_ASSET_STORAGE")
 if LAI_ASSET_STORAGE != "s3":
     raise ImproperlyConfigured("LAI_ASSET_STORAGE must be s3 in production.")
@@ -94,3 +94,18 @@ if not COGNITO_ALLOWED_CLIENT_IDS:
     raise ImproperlyConfigured("COGNITO_ALLOWED_CLIENT_IDS must list the allowed app client ids.")
 if not COGNITO_USER_POOL_ID.startswith(COGNITO_REGION + "_"):
     raise ImproperlyConfigured("COGNITO_USER_POOL_ID must belong to COGNITO_REGION.")
+
+# AI (Phase 7, LAI-0704; docs/AI_SERVICE.md): fail closed. Unset means `disabled` (authored
+# fallback content only), so a release that reaches an environment before the Guardrail stack
+# still starts. The fake model is a development tool and never runs here. Bedrock without a
+# region, model or Guardrail refuses to start rather than call the model unguarded.
+LAI_AI_PROVIDER = os.environ.get("LAI_AI_PROVIDER", "disabled").strip()
+if LAI_AI_PROVIDER not in {"bedrock", "disabled"}:
+    raise ImproperlyConfigured("LAI_AI_PROVIDER must be bedrock or disabled in production.")
+if LAI_AI_PROVIDER == "bedrock":
+    LAI_AI_BEDROCK_REGION = _required("LAI_AI_BEDROCK_REGION")
+    LAI_AI_MODEL_ID = _required("LAI_AI_MODEL_ID")
+    LAI_AI_GUARDRAIL_ID = _required("LAI_AI_GUARDRAIL_ID")
+    LAI_AI_GUARDRAIL_VERSION = _required("LAI_AI_GUARDRAIL_VERSION")
+    if LAI_AI_GUARDRAIL_VERSION.upper() == "DRAFT":
+        raise ImproperlyConfigured("LAI_AI_GUARDRAIL_VERSION must be a published version.")

@@ -50,8 +50,22 @@ def cognito_network(cognito_key):
 
 
 @pytest.fixture
-def cognito(settings, monkeypatch, cognito_key, cognito_network):
-    """Configures a fake pool and routes key fetches to a local fake. Returns the key pair."""
+def cognito_revocation(monkeypatch):
+    """The fake Cognito `GetUser` used by the recent sign-in guard (LAI-0209)."""
+    from apps.users import recent_auth
+    from apps.users.tests.helpers import FakeRevocationCheck
+
+    check = FakeRevocationCheck()
+    monkeypatch.setattr(recent_auth, "get_revocation_check", lambda: check)
+    return check
+
+
+@pytest.fixture
+def cognito(settings, monkeypatch, cognito_key, cognito_network, cognito_revocation):
+    """Configures a fake pool and routes key fetches to a local fake. Returns the key pair.
+
+    Also replaces Cognito `GetUser` with `cognito_revocation`, so nothing contacts AWS.
+    """
     from apps.users import authentication
     from apps.users.jwks import JwksCache
     from apps.users.tests.helpers import CLIENT_ID, ISSUER, POOL_ID, REGION
@@ -185,7 +199,8 @@ def treasure(families):
     from apps.core.content_status import ContentStatus
     from apps.education.models import ChallengeSpec
     from apps.regions.models import WorldRegion
-    from apps.regions.treasure_rush_seed import QUEST_ID, REGION_ID, seed_treasure_rush
+    from apps.regions.pips_treasure_seed import PIPS_QUEST_ID
+    from apps.regions.treasure_rush_seed import CHEST_ID, REGION_ID, seed_treasure_rush
 
     import_content()
     seed_treasure_rush()
@@ -198,6 +213,7 @@ def treasure(families):
     return SimpleNamespace(
         families=families,
         region=region,
-        chest=region.chests.get(),
-        quest=Quest.objects.get(slug=QUEST_ID),
+        # The first of Pip's four chests (TR-14), and the quest the cove offers.
+        chest=region.chests.get(entity_id=CHEST_ID),
+        quest=Quest.objects.get(slug=PIPS_QUEST_ID),
     )

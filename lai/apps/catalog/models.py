@@ -28,7 +28,7 @@ and `last_seen_release` shows it was not in the latest release.
 
 Spatial data (positions, spawn points, trigger zones) is not modelled here (LAI-0805). Asset
 bytes and versions are not modelled here either: `ContentAsset` is the asset definition, keyed by
-the same id as the bundled manifest and the Amplify `Asset.slug` (ADR-030), and the asset manager
+the same id as the bundled manifest and the Amplify `Asset.slug` (ADR-030), and the asset library
 (`apps.assets`, LAI-2200, ADR-035) attaches immutable versions to it.
 """
 
@@ -397,11 +397,26 @@ class AssetCategory(models.TextChoices):
     SCENERY = "scenery", "Scenery and environment"
     VEHICLE = "vehicle", "Vehicle"
     EQUIPMENT = "equipment", "Equipment and wearable"
+    TEXTURE = "texture", "Texture"
+    IMAGE = "image", "Image and sprite"
+    SOUND = "sound", "Sound effect"
+    MUSIC = "music", "Music and voice"
     OTHER = "other", "Other"
 
 
-# The engine's runtime kinds (`manifest.ts` `AssetKind`, `asset_refs.AssetKind`).
-ASSET_KINDS = ("character", "prop", "collectible", "kit-piece")
+# Runtime kinds. The first four are the engine's model kinds (`manifest.ts` `AssetKind`,
+# `asset_refs.AssetKind`); texture, image, sprite and audio are the non-model kinds (AM-13). The
+# kind decides which family of file a definition accepts (`apps.assets.formats.KIND_FAMILY`).
+ASSET_KINDS = (
+    "character",
+    "prop",
+    "collectible",
+    "kit-piece",
+    "texture",
+    "image",
+    "sprite",
+    "audio",
+)
 
 # Which browsing categories make sense for each runtime kind (validation, ADR-035).
 KIND_CATEGORIES = {
@@ -409,6 +424,10 @@ KIND_CATEGORIES = {
     "prop": {"prop", "building", "scenery", "vehicle", "equipment", "other"},
     "collectible": {"collectible", "equipment", "prop", "other"},
     "kit-piece": {"building", "scenery", "prop", "other"},
+    "texture": {"texture", "scenery", "other"},
+    "image": {"image", "other"},
+    "sprite": {"image", "other"},
+    "audio": {"sound", "music", "other"},
 }
 
 

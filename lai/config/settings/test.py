@@ -16,13 +16,16 @@ SECRET_KEY = "test-only-not-a-secret"  # noqa: S105
 ALLOWED_HOSTS = ["testserver", "localhost"]
 # Admin login tests hash synthetic passwords; the slow production hasher adds nothing here.
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
-# The asset manager never touches disk or AWS in tests (LAI-2200).
+# The asset library never touches disk or AWS in tests (LAI-2200).
 LAI_ASSET_STORAGE = "memory"
 LAI_ASSET_DELIVERY = "django"
 # Child photos likewise (LAI-0904): an in-process store per configuration.
 LAI_CHILD_PHOTO_STORAGE = "memory"
+# The AI pipeline never calls Bedrock in tests: the deterministic fake, scripted per test.
+LAI_AI_PROVIDER = "fake"
 
 if os.environ.get("POSTGRES_HOST", "127.0.0.1") not in LOOPBACK_HOSTS:
     raise RuntimeError("Test settings only connect to a loopback PostgreSQL.")
 
 DATABASES = {"default": compose_database()}
+LAI_STUDIO_RUN_MODE = "manual"
