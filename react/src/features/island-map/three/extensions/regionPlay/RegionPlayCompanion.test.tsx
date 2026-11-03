@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApiError } from '../../../../../api/errors';
 import { read } from '../../../../../api/parse';
@@ -648,6 +648,24 @@ describe('objective and hint (TR-12)', () => {
     expect(slot).toContainElement(screen.getByRole('button', { name: /Backpack/ }));
     await userEvent.click(hint);
     expect(slot).toContainElement(await screen.findByRole('status'));
+    slot.remove();
+  });
+
+  it('puts the Sound button in the stage slot, opens the mix controls and closes them (SM-P5)', async () => {
+    const slot = document.createElement('div');
+    document.body.append(slot);
+    apis.set(CHILD_A, fakeApi());
+    render(<RegionPlayCompanion {...props({ hudSlot: slot })} />);
+    const sound = await screen.findByRole('button', { name: 'Sound' });
+    expect(slot).toContainElement(sound);
+    await userEvent.click(sound);
+    const panel = await screen.findByRole('dialog', { name: 'Sound' });
+    expect(within(panel).getByRole('slider', { name: 'Music' })).toBeInTheDocument();
+    expect(within(panel).getByRole('slider', { name: 'Everything' })).toBeInTheDocument();
+    // The game controls give way while it is open, and return when it closes.
+    expect(screen.queryByRole('button', { name: 'Hint' })).not.toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole('button', { name: 'Close' }));
+    expect(await screen.findByRole('button', { name: 'Hint' })).toBeInTheDocument();
     slot.remove();
   });
 

@@ -365,6 +365,30 @@
   white-space: nowrap;
 }
 
+/* Sound settings (SM-P5): bottom left when the controls are not on the stage. */
+.soundButton {
+  position: fixed;
+  left: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 19;
+  min-height: 3.5rem;
+  padding: var(--space-2) var(--space-6);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-sun);
+  color: var(--color-text);
+  box-shadow: var(--lip-accent);
+  font: inherit;
+  font-size: var(--font-size-large);
+  font-weight: var(--font-weight-strong);
+  cursor: pointer;
+}
+
+.soundButton:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
 /* Objective hint (TR-12): asked for, never pushed. Sits above the backpack button. */
 .hintButton {
   position: fixed;

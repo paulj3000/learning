@@ -31,6 +31,7 @@ import { LaunchDialog } from './ui/LaunchDialog';
 import { PipDialog } from './ui/PipDialog';
 import { ReplayDonePanel } from './ui/ReplayDonePanel';
 import { RewardReveal } from './ui/RewardReveal';
+import { SoundPanel } from './ui/SoundPanel';
 import styles from './ui/RegionPlayPanels.module.css';
 
 /**
@@ -108,6 +109,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
   const launcher = useAdventureLaunch(childId, regionId);
 
   const [backpackOpen, setBackpackOpen] = useState(false);
+  const [soundOpen, setSoundOpen] = useState(false);
   const [hintOpen, setHintOpen] = useState(false);
   const [celebration, setCelebration] = useState<AnswerOutcome | null>(null);
   const [found, setFound] = useState<PickupOutcome | null>(null);
@@ -541,6 +543,8 @@ function RegionPlayGame(props: LocationCompanionProps) {
         puzzle={event.presentation === 'PUZZLE'}
       />
     );
+  } else if (soundOpen) {
+    panel = <SoundPanel onClose={() => setSoundOpen(false)} />;
   } else if (backpackOpen) {
     panel = <BackpackPanel progress={progress} onClose={() => setBackpackOpen(false)} />;
   }
@@ -565,6 +569,13 @@ function RegionPlayGame(props: LocationCompanionProps) {
         onClick={() => setHintOpen((open) => !open)}
       >
         {PLAY_COPY.hint}
+      </button>
+      <button
+        type="button"
+        className={onStage ? styles.stageHintButton : styles.soundButton}
+        onClick={() => setSoundOpen(true)}
+      >
+        {PLAY_COPY.sound}
       </button>
       <button
         type="button"

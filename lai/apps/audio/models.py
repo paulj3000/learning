@@ -18,7 +18,11 @@ from django.core.validators import MaxValueValidator, MinValueValidator, RegexVa
 from django.db import models
 from django.utils.timezone import now
 
+from apps.core.models import ChildOwnedModel
+
 from . import vocabulary as vocab
+
+_UNIT = [MinValueValidator(0.0), MaxValueValidator(1.0)]
 
 
 class SoundCue(models.Model):
@@ -399,3 +403,57 @@ class SoundRelease(models.Model):
 
     def __str__(self) -> str:
         return f"Release {self.number} ({self.get_status_display().lower()})"
+
+
+class ChildAudioSettings(ChildOwnedModel):
+    """One child's saved audio mix (SM-P5): the Sound Manager's master and five channel settings.
+
+    The mix is a preference, so a mute never overwrites a remembered volume (they are separate
+    columns). Defaults equal the React Sound Manager's calm defaults
+    (`react/src/audio/AudioChannels.ts`). At most one row per child; no row means defaults.
+    Rows belong to the child and go with the child (`ChildOwnedModel`). Nothing here is free
+    text, and no sound is stored: staff configure sound in the sound library, not here.
+    """
+
+    master_volume = models.FloatField(default=1.0, validators=_UNIT)
+    master_muted = models.BooleanField(default=False)
+    music_volume = models.FloatField(default=0.5, validators=_UNIT)
+    music_muted = models.BooleanField(default=False)
+    ambient_volume = models.FloatField(default=0.5, validators=_UNIT)
+    ambient_muted = models.BooleanField(default=False)
+    sfx_volume = models.FloatField(default=0.8, validators=_UNIT)
+    sfx_muted = models.BooleanField(default=False)
+    voice_volume = models.FloatField(default=1.0, validators=_UNIT)
+    voice_muted = models.BooleanField(default=False)
+    ui_volume = models.FloatField(default=0.7, validators=_UNIT)
+    ui_muted = models.BooleanField(default=False)
+    reduced_intensity = models.BooleanField(
+        default=False, help_text="Music and ambience play at half level."
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "child audio settings"
+        verbose_name_plural = "child audio settings"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["child"], name="audio_childaudiosettings_one_per_child"
+            ),
+            *[
+                models.CheckConstraint(
+                    condition=models.Q(**{f"{name}__gte": 0.0, f"{name}__lte": 1.0}),
+                    name=f"audio_childaudiosettings_{name}_range",
+                )
+                for name in (
+                    "master_volume",
+                    "music_volume",
+                    "ambient_volume",
+                    "sfx_volume",
+                    "voice_volume",
+                    "ui_volume",
+                )
+            ],
+        ]
+
+    def __str__(self) -> str:
+        return f"Audio settings {self.pk}"

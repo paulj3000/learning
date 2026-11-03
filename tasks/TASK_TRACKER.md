@@ -280,7 +280,13 @@ Vitest and fakes only; no real-browser audio check has been run.
   - [x] **SM-P3-09** Tests: 39 hook tests, 3 companion tests, 6 Django seed tests (see status doc for runs)
   - [x] **SM-P3-10** Docs, tracker, idempotent `seed_treasure_rush_sound` command, audio content checklist
   - [ ] **SM-P4-V** Audible verification in a browser by the owner, after the 15 required audio files are uploaded, seeded and published (checklist in `docs/audio/TREASURE_RUSH_AUDIO.md` section 8)
-- [ ] **SM-P5** Persisted sound preferences per child profile, parent controls (depends: LAI-0301)
+- [x] **SM-P5** Persisted sound preferences per child profile, parent controls (depends: LAI-0301). DEVELOPMENT DONE 2026-11-03 on `feature/sound-manager`; unit-tested only, not used in a browser. Detail: `docs/audio/CHILD_AUDIO_PREFERENCES.md`
+  - [x] **SM-P5-01** Audit of child settings, tenancy and the Sound Manager's settings hooks
+  - [x] **SM-P5-02** `ChildAudioSettings` (migration `0002`), child-scoped `GET|PATCH children/<id>/audio/settings/`, reduced-intensity mix mode, React client and per-child sync
+  - [x] **SM-P5-03** Reusable `AudioMixControls`, Sound button and panel in Treasure Rush (stage slot, full screen)
+  - [x] **SM-P5-04** Parent controls on the child's edit page
+  - [x] **SM-P5-05** Live apply without restart, no reset on scene disposal, per-child switching, StrictMode and stale-response safety
+  - [x] **SM-P5-06** Tests and documentation
 - [ ] **SM-P6** Playlists, music transitions and ducking
 - [ ] **SM-P7** Spatial audio for Three.js scenes on the shared `AudioContext` (depends: SM-P4)
 - [ ] **SM-P8** Narration and companion voice, captions (depends: provider decision, SM-P6)

@@ -58,7 +58,7 @@ export function createDefaultSettings(): SoundSettings {
   for (const channel of AUDIO_CHANNELS) {
     channels[channel.id] = { volume: channel.defaultVolume, muted: false };
   }
-  return { masterVolume: 1, masterMuted: false, channels };
+  return { masterVolume: 1, masterMuted: false, reducedIntensity: false, channels };
 }
 
 /**
@@ -66,9 +66,15 @@ export function createDefaultSettings(): SoundSettings {
  * downstream of every channel, so it is not folded in here. Muting a channel
  * sends its gain to zero; the stored `volume` is untouched.
  */
+/** Reduced-intensity mode halves the channels that fill the background. */
+export const REDUCED_INTENSITY_FACTOR = 0.5;
+const REDUCED_CHANNELS: ReadonlySet<AudioChannel> = new Set<AudioChannel>(['music', 'ambient']);
+
 export function effectiveChannelGain(settings: SoundSettings, channel: AudioChannel): number {
   const channelSettings = settings.channels[channel];
-  return channelSettings.muted ? 0 : channelSettings.volume;
+  if (channelSettings.muted) return 0;
+  const calmer = settings.reducedIntensity && REDUCED_CHANNELS.has(channel);
+  return calmer ? channelSettings.volume * REDUCED_INTENSITY_FACTOR : channelSettings.volume;
 }
 
 export function effectiveMasterGain(settings: SoundSettings): number {

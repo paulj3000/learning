@@ -154,6 +154,9 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
       if (volume !== undefined) draft.masterVolume = volume;
     }
     if (patch.masterMuted !== undefined) draft.masterMuted = Boolean(patch.masterMuted);
+    if (patch.reducedIntensity !== undefined) {
+      draft.reducedIntensity = Boolean(patch.reducedIntensity);
+    }
     for (const channel of CHANNEL_IDS) {
       const channelPatch = patch.channels?.[channel];
       if (!channelPatch) continue;

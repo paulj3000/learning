@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import styles from './ParentDashboard.module.css';
+import { ParentAudioSettings } from '../features/child-profile/ParentAudioSettings';
 import { ChildProfileForm } from '../features/child-profile/ChildProfileForm';
 import { getChildProfile, updateChildProfile } from '../features/child-profile/api';
 import type { ChildProfile, ChildProfileInput } from '../features/child-profile/api';
@@ -80,6 +81,9 @@ export function ChildProfileEdit() {
             onSubmit={handleSubmit}
             onSaved={() => navigate('/home')}
           />
+        ) : null}
+        {loadState === 'ready' && childProfile && childId ? (
+          <ParentAudioSettings childId={childId} />
         ) : null}
       </main>
     </div>

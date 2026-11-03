@@ -96,12 +96,15 @@ export interface ChannelSettings {
 export interface SoundSettings {
   masterVolume: number;
   masterMuted: boolean;
+  /** Calmer mix for sensitive listeners: music and ambience play at half level. Never changes a saved volume. */
+  reducedIntensity: boolean;
   channels: Record<AudioChannel, ChannelSettings>;
 }
 
 export interface SoundSettingsPatch {
   masterVolume?: number;
   masterMuted?: boolean;
+  reducedIntensity?: boolean;
   channels?: Partial<Record<AudioChannel, Partial<ChannelSettings>>>;
 }
 
