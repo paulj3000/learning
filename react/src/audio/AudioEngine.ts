@@ -60,7 +60,8 @@ export interface AudioEngine {
     onEnded: (reason: VoiceEndReason) => void,
   ): EngineVoice;
   setMasterGain(gain: number): void;
-  setChannelGain(channel: AudioChannel, gain: number): void;
+  /** `rampMs` overrides the short default smoothing (used for ducking attack and release). */
+  setChannelGain(channel: AudioChannel, gain: number, rampMs?: number): void;
   /** The shared context, for a future Three.js `AudioListener`. `null` until created or when unavailable. */
   getContext(): AudioContext | null;
   dispose(): void;
@@ -583,10 +584,12 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
       if (master && context) rampTo(master.gain, context, gain, GAIN_SMOOTHING_S * 1000);
     },
 
-    setChannelGain(channel, gain) {
+    setChannelGain(channel, gain, rampMs) {
       channelGains.set(channel, gain);
       const node = channelNodes.get(channel);
-      if (node && context) rampTo(node.gain, context, gain, GAIN_SMOOTHING_S * 1000);
+      if (node && context) {
+        rampTo(node.gain, context, gain, rampMs ?? GAIN_SMOOTHING_S * 1000);
+      }
     },
 
     getContext() {

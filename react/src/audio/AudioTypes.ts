@@ -46,6 +46,31 @@ export interface PlayOptions {
   fadeInMs?: number;
 }
 
+/** How voices lower other channels while they speak (SM-P6). A mix adjustment, never a saved setting. */
+export interface DuckingConfig {
+  enabled: boolean;
+  /** Channels whose sounds trigger ducking. */
+  triggers: readonly AudioChannel[];
+  /** Channels that are lowered. */
+  targets: readonly AudioChannel[];
+  /** The fraction of its current level a ducked channel plays at (0.3 is 30 percent). */
+  level: number;
+  attackMs: number;
+  releaseMs: number;
+}
+
+export interface DuckOptions {
+  level?: number;
+  attackMs?: number;
+  releaseMs?: number;
+}
+
+/** One hold on a channel's ducking. The channel returns to normal when every hold is released. */
+export interface DuckHandle {
+  readonly active: boolean;
+  release(releaseMs?: number): void;
+}
+
 export interface StopOptions {
   fadeOutMs?: number;
 }
@@ -176,6 +201,16 @@ export interface SoundManager extends SoundPlayer {
   reportIssue(code: AudioErrorCode, message: string, soundId?: string): void;
 
   createScope(name?: string): SoundScope;
+
+  /**
+   * Temporarily lowers `channel` to a fraction of its level until the returned hold is released.
+   * Holds stack by taking the lowest level, so overlapping holds restore only when all are
+   * released. Muting and volume still apply on top, and the saved volume is never changed.
+   */
+  duck(channel: AudioChannel, options?: DuckOptions): DuckHandle;
+  /** Changes how voices duck other channels (defaults: voice lowers music to 30 percent). */
+  setDucking(config: Partial<DuckingConfig>): void;
+  getDucking(): DuckingConfig;
 
   /** Resume the audio context. Call from a user gesture. Resolves to whether audio is now running. */
   unlock(): Promise<boolean>;

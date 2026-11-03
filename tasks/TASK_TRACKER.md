@@ -287,7 +287,13 @@ Vitest and fakes only; no real-browser audio check has been run.
   - [x] **SM-P5-04** Parent controls on the child's edit page
   - [x] **SM-P5-05** Live apply without restart, no reset on scene disposal, per-child switching, StrictMode and stale-response safety
   - [x] **SM-P5-06** Tests and documentation
-- [ ] **SM-P6** Playlists, music transitions and ducking
+- [x] **SM-P6** Playlists, music transitions and ducking. DEVELOPMENT DONE 2026-11-03 on `feature/sound-manager`; fake-engine tests only, not heard. Detail: `docs/audio/MUSIC_MIXING.md`
+  - [x] **SM-P6-01** `MusicDirector`: gap-free overlapping crossfades, rapid-request cancellation, no duplicates or orphaned handles, streaming
+  - [x] **SM-P6-02** Manager ducking: automatic voice ducking to 30 percent, stacking holds, restore on end, interrupt, disposal or failure, never a saved setting
+  - [x] **SM-P6-03** Data-driven playlists: sequential, shuffle (injectable random), loop-all, repeat-one, one-shot
+  - [x] **SM-P6-04** Shared music states: exploration, puzzle, suspense, victory, narration, idle
+  - [x] **SM-P6-05** Treasure Rush music moved onto the shared states (true crossfades, no gameplay change)
+  - [x] **SM-P6-06** Tests and documentation
 - [ ] **SM-P7** Spatial audio for Three.js scenes on the shared `AudioContext` (depends: SM-P4)
 - [ ] **SM-P8** Narration and companion voice, captions (depends: provider decision, SM-P6)
 - [ ] **TR-11** Second chest and quest chain (depends: TR-9)

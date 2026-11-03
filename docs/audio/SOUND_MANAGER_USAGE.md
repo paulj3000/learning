@@ -139,3 +139,12 @@ Treasure Rush is the first consumer (`react/src/features/region-play/audio/`,
 - The game says WHEN (`playCue`, raised once per server-confirmed result); the hook decides the sound.
 - Common educational cue ids other games can reuse: `sfx.learning.correct`, `sfx.learning.retry`,
   `sfx.learning.complete`, `sfx.quest.complete`.
+
+## 11. Music, ducking and preferences (SM-P5, SM-P6)
+
+- Music: `createMusicStates({ player: scope, states, returnTo })` for named states with gap-free
+  crossfades, or `createMusicDirector` and playlists directly (`docs/audio/MUSIC_MIXING.md`).
+- Ducking: voices lower music to 30 percent automatically; `manager.setDucking(...)` and
+  `manager.duck(channel)` configure and hold it. It is never saved as a setting.
+- Child mix: mounted once in `App.tsx` (`ChildAudioPreferencesSync`); add `<ManagerAudioControls />`
+  to a game's settings panel (`docs/audio/CHILD_AUDIO_PREFERENCES.md`).

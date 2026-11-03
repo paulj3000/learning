@@ -70,6 +70,8 @@ export class FakeEngine implements AudioEngine {
   disposed = false;
   masterGain = 1;
   channelGains = new Map<AudioChannel, number>();
+  /** Every channel gain change with the ramp it asked for, oldest first. */
+  gainLog: Array<{ channel: AudioChannel; gain: number; rampMs: number | undefined }> = [];
   private listeners = new Set<() => void>();
 
   onStateChange(listener: () => void): () => void {
@@ -123,8 +125,9 @@ export class FakeEngine implements AudioEngine {
   setMasterGain(gain: number): void {
     this.masterGain = gain;
   }
-  setChannelGain(channel: AudioChannel, gain: number): void {
+  setChannelGain(channel: AudioChannel, gain: number, rampMs?: number): void {
     this.channelGains.set(channel, gain);
+    this.gainLog.push({ channel, gain, rampMs });
   }
   getContext(): AudioContext | null {
     return null;

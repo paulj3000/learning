@@ -4,6 +4,7 @@ import {
   clampPlaybackRate,
   clampVolume,
   createDefaultSettings,
+  DEFAULT_DUCKING,
   effectiveChannelGain,
   effectiveMasterGain,
   getChannelConfig,
@@ -17,6 +18,10 @@ import {
   type AudioDiagnosticSink,
   type AudioErrorCode,
   type AudioStatus,
+  type AudioChannel,
+  type DuckHandle,
+  type DuckingConfig,
+  type DuckOptions,
   type EndReason,
   type GestureTarget,
   type PlayOptions,
@@ -132,11 +137,58 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
     }
   }
 
+  // ---- ducking (a temporary multiplier on a channel, never a setting) ---------------------
+
+  interface DuckHold {
+    channel: AudioChannel;
+    level: number;
+    releaseMs: number;
+  }
+  const holds = new Set<DuckHold>();
+  let ducking: DuckingConfig = {
+    ...DEFAULT_DUCKING,
+    triggers: [...DEFAULT_DUCKING.triggers],
+    targets: [...DEFAULT_DUCKING.targets],
+  };
+
+  function duckLevel(channel: AudioChannel): number {
+    let level = 1;
+    for (const hold of holds) if (hold.channel === channel) level = Math.min(level, hold.level);
+    return level;
+  }
+
+  function pushChannel(channel: AudioChannel, rampMs?: number): void {
+    engine.setChannelGain(
+      channel,
+      effectiveChannelGain(settings, channel) * duckLevel(channel),
+      rampMs,
+    );
+  }
+
   function pushGains(): void {
     engine.setMasterGain(effectiveMasterGain(settings));
-    for (const channel of CHANNEL_IDS) {
-      engine.setChannelGain(channel, effectiveChannelGain(settings, channel));
-    }
+    for (const channel of CHANNEL_IDS) pushChannel(channel);
+  }
+
+  function acquireDuck(channel: AudioChannel, duckOptions: DuckOptions = {}): DuckHandle {
+    const level = clampVolume(duckOptions.level ?? ducking.level) ?? ducking.level;
+    const hold: DuckHold = {
+      channel,
+      level,
+      releaseMs: nonNegative(duckOptions.releaseMs ?? ducking.releaseMs),
+    };
+    if (disposed || !CHANNEL_IDS.includes(channel)) return { active: false, release() {} };
+    holds.add(hold);
+    pushChannel(channel, nonNegative(duckOptions.attackMs ?? ducking.attackMs));
+    return {
+      get active() {
+        return holds.has(hold);
+      },
+      release(releaseMs) {
+        if (!holds.delete(hold) || disposed) return;
+        pushChannel(channel, releaseMs === undefined ? hold.releaseMs : nonNegative(releaseMs));
+      },
+    };
   }
 
   function updateSettings(change: (draft: SoundSettings) => void): void {
@@ -395,6 +447,7 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
         report(code, 'the browser could not start this sound', soundId);
         return null;
       }
+      duckFor(definition.channel, handle);
       return handle;
     } catch (cause) {
       if (cause instanceof AudioError && cause.code === 'aborted') return null;
@@ -404,6 +457,18 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
     } finally {
       lifecycle.removeLoad(loadId);
     }
+  }
+
+  /** While a trigger channel's sound plays (any way it ends), the target channels are ducked. */
+  function duckFor(channel: AudioChannel, handle: SoundHandle): void {
+    if (!ducking.enabled || !ducking.triggers.includes(channel)) return;
+    const taken = ducking.targets
+      .filter((target) => target !== channel)
+      .map((target) => acquireDuck(target));
+    if (taken.length === 0) return;
+    void handle.whenEnded().then(() => {
+      for (const hold of taken) hold.release();
+    });
   }
 
   function makePlayer(scopeId: string, isScopeOpen: () => boolean) {
@@ -460,6 +525,24 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
       resolver = next;
     },
     reportIssue: report,
+
+    duck: acquireDuck,
+    setDucking(config) {
+      ducking = {
+        ...ducking,
+        ...config,
+        triggers: [...(config.triggers ?? ducking.triggers)],
+        targets: [...(config.targets ?? ducking.targets)],
+        level: clampVolume(config.level ?? ducking.level) ?? ducking.level,
+        attackMs: nonNegative(config.attackMs ?? ducking.attackMs),
+        releaseMs: nonNegative(config.releaseMs ?? ducking.releaseMs),
+      };
+    },
+    getDucking: () => ({
+      ...ducking,
+      triggers: [...ducking.triggers],
+      targets: [...ducking.targets],
+    }),
 
     createScope(name) {
       const id = `${name ?? 'scope'}#${(nextScope += 1)}`;
@@ -557,6 +640,7 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
       if (disposed) return;
       lifecycle.endMatching({}, 'disposed', 0);
       disposed = true;
+      holds.clear();
       for (const uninstall of [...gestureInstalls.values()]) uninstall();
       stopEngineListener();
       try {

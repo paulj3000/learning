@@ -1,18 +1,19 @@
 import type { SoundPlayer } from '../../../audio';
-import { createSoundSlot, type SoundSlot } from './soundSlot';
+import { createMusicStates } from '../../../audio/music';
 import { MUSIC_CUES } from './treasureRushSounds';
 
 /**
  * Treasure Rush's music: calm exploration, a gentler puzzle theme while a rune puzzle is out, and
- * a one-time victory. This is a small state holder over one `SoundSlot`, not a playlist engine.
- * Changes fade out the old track and fade in the new one (the Sound Manager has no true
- * crossfade or ducking yet; see docs/audio/TREASURE_RUSH_AUDIO.md).
+ * a one-time victory. It is a thin mapping onto the shared `MusicStates` (SM-P6), which does the
+ * work: true overlapping crossfades, one stream at a time, no duplicates, and cleanup with the
+ * scope. This file only says which cue each state is and when the game is in it.
  */
 export interface TreasureRushMusic {
   /** Whether a rune puzzle is out; chooses between the puzzle and exploration themes. */
   setPuzzleActive(active: boolean): void;
   /** Plays the victory theme once, then returns to the exploration or puzzle theme. */
   playVictory(): void;
+  /** Tries the wanted music again if it is not playing (a new manifest arrived). */
   reapply(): void;
   activate(): void;
   deactivate(): void;
@@ -25,44 +26,52 @@ export const MUSIC_FADE_MS = 1200;
 export function createTreasureRushMusic(player: SoundPlayer): TreasureRushMusic {
   let puzzle = false;
   let victory = false;
+  let activated = false;
 
-  const base = () => (puzzle ? MUSIC_CUES.puzzle : MUSIC_CUES.explore);
-  const settle = () => slot.set(victory ? MUSIC_CUES.victory : base());
-  const backToBase = () => {
-    victory = false;
-    settle();
-  };
-
-  const slot: SoundSlot = createSoundSlot(player, {
-    fadeMs: MUSIC_FADE_MS,
-    // The victory theme ending, or having no audio to play, hands the room back to its music.
-    onEnded: (id) => {
-      if (id === MUSIC_CUES.victory) backToBase();
+  const base = () => (puzzle ? 'puzzle' : 'exploration');
+  const states = createMusicStates({
+    player,
+    crossfadeMs: MUSIC_FADE_MS,
+    states: {
+      exploration: { sound: MUSIC_CUES.explore },
+      puzzle: { sound: MUSIC_CUES.puzzle },
+      victory: { sound: MUSIC_CUES.victory },
     },
-    onUnavailable: (id) => {
-      if (id === MUSIC_CUES.victory) backToBase();
+    // The victory theme ending, or having no audio to play, hands the room back to its music.
+    returnTo(finished) {
+      if (finished !== 'victory') return null;
+      victory = false;
+      return base();
     },
   });
+
+  const settle = () => {
+    if (activated) void states.setState(victory ? 'victory' : base());
+  };
 
   return {
     setPuzzleActive(active) {
       if (puzzle === active) return;
       puzzle = active;
-      settle();
+      if (!victory) settle();
     },
     playVictory() {
       if (victory) return;
       victory = true;
       settle();
     },
-    reapply: () => slot.reapply(),
+    reapply: () => void states.retry(),
     activate() {
-      slot.activate();
-      settle();
+      activated = true;
+      void states.activate().then((resumed) => {
+        if (!resumed && !states.director.wanted) settle();
+      });
     },
-    deactivate: () => slot.deactivate(),
+    deactivate() {
+      states.deactivate();
+    },
     get wanted() {
-      return slot.wanted;
+      return states.director.wanted?.sound ?? null;
     },
   };
 }

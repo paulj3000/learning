@@ -1,4 +1,4 @@
-import type { AudioChannel, ChannelSettings, SoundSettings } from './AudioTypes';
+import type { AudioChannel, ChannelSettings, DuckingConfig, SoundSettings } from './AudioTypes';
 
 /**
  * The five mixer channels. `priority` is only the default for voice-limit
@@ -52,6 +52,16 @@ export function clampPlaybackRate(value: number): number | undefined {
   if (!Number.isFinite(value)) return undefined;
   return Math.min(MAX_PLAYBACK_RATE, Math.max(MIN_PLAYBACK_RATE, value));
 }
+
+/** Spoken voices lower the music to 30 percent while they play. */
+export const DEFAULT_DUCKING: DuckingConfig = {
+  enabled: true,
+  triggers: ['voice'],
+  targets: ['music'],
+  level: 0.3,
+  attackMs: 250,
+  releaseMs: 700,
+};
 
 export function createDefaultSettings(): SoundSettings {
   const channels = {} as Record<AudioChannel, ChannelSettings>;

@@ -120,8 +120,8 @@ zone is entered or the game is left. No spatial audio.
 | Victory | `music.treasure_rush.victory` | no | Once, when a quest is completed; then back to explore (or puzzle) when it ends, or at once if it has no audio |
 
 Treasure discovery, the replay and ordinary chest questions keep the exploration music; they have
-their own effects. Changes fade the old track out and the new one in (1.2 s); the manager has no
-real crossfade or ducking, so the tracks briefly overlap during the fades. Music stops when the
+their own effects. Changes are true crossfades (SM-P6, `docs/audio/MUSIC_MIXING.md`): the new track fades in over 1.2 s and the
+old one fades out over the same time once the new one is audible. Music stops when the
 visit ends.
 
 ## 5. Cleanup and fallback (SM-P3-07, SM-P3-08)
@@ -244,8 +244,8 @@ Django: `apps/audio/tests/test_treasure_rush_seed.py`.
 ## 10. Known limitations
 
 - Not heard anywhere. Autoplay unlock, streaming, fades and mixing were not tested in a browser.
-- No volume or mute screen exists; settings are the manager's (SM-P5).
-- No true crossfade or ducking (SM-P6); tracks overlap during the fades.
+- The child's volume and mute controls are the Sound button in the game (SM-P5, `docs/audio/CHILD_AUDIO_PREFERENCES.md`).
+- Crossfades use linear fades (SM-P6); ducking engages only if a voice cue is played, and none exists.
 - Lookout Point has no zone, so no wind bed; leaving a zone has no event. A Lookout zone is a
   layout change (Django seed and TypeScript manifest) and was not made here.
 - No coin, gem or generic item-pickup mechanic exists, so those cues are not wired.
