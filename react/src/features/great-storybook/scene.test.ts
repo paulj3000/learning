@@ -62,3 +62,29 @@ describe('toSceneState', () => {
     expect(toSceneState(progress)).toEqual(toSceneState(progress));
   });
 });
+
+describe('the card and the 3D book are one state', () => {
+  const KEYS = [
+    'FIRST_STORY_TOLD',
+    'SECRET_DOOR_CLUES_COLLECTED',
+    'CASTLE_SECRET_DOOR_OPENED',
+    'THE_CASTLES_SECRET_DOOR_COMPLETE',
+  ];
+  const DISCOVERIES = [[], ['castle-tapestry-stair']];
+  it('agrees on every page, the bonus and wholeness for every band and every history', () => {
+    for (const band of BANDS) {
+      for (let mask = 0; mask < 1 << KEYS.length; mask += 1) {
+        for (const discoveryIds of DISCOVERIES) {
+          const worldChangeKeys = KEYS.filter((_, i) => mask & (1 << i));
+          const progress = storybookProgress({ worldChangeKeys, discoveryIds }, band);
+          const scene = toSceneState(progress);
+          const card = progress.entries.filter((e) => e.page.required).map((e) => e.restored);
+          expect(scene.required, `${band} ${mask}`).toEqual(card);
+          expect(scene.complete).toBe(progress.complete);
+          expect(scene.bonusFound).toBe(progress.restoredBonus > 0);
+          expect(scene.required.filter(Boolean).length).toBe(progress.restoredRequired);
+        }
+      }
+    }
+  });
+});

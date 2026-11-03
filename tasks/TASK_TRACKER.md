@@ -742,7 +742,33 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       decides nothing. Tests: 7 engine, 5 state and capacity; the `three/` and book groups are
       **108 files, 1398 tests**; typecheck, Prettier and oxlint (no errors) clean, production vite build
       passes. Browser: none run
-- [ ] **SC-R04-04 to SC-R12** Not started. Gated items: Sound Manager merge (SC-R06), narration
+- [x] **SC-R04-04** Integrate the existing castle adventures (depends: SC-R04-03). DONE (development).
+      **Mapping, as authored (read from the content, not assumed)**: `page-first-story` (Sprout,
+      Pathfinder) is written by `the-storykeepers-tale` step `story-written` and `quills-picture-story`
+      step `picture-story-made` (`FIRST_STORY_TOLD`); `page-three-clues` (Explorer) by
+      `secret-door-chapter-1-three-clues` step `clues-collected`; `page-pattern-lock` by
+      `secret-door-chapter-2-pattern-lock` step `door-opened` (`CASTLE_SECRET_DOOR_OPENED`);
+      `page-what-was-waiting` by the story `the-castles-secret-door` completion
+      (`THE_CASTLES_SECRET_DOOR_COMPLETE`); the bonus `page-tapestry` by discovery
+      `castle-tapestry-stair`. **No second mapping table**: `great-storybook/adventureMapping.ts` joins
+      each page's named record to the authored adventures and stories (`producersOf`), used by tests;
+      a new castle adventure that writes a page's record is picked up with no edit, and a page whose
+      record nothing writes for its band fails a test. **Qualification**: a page is back only when its
+      record exists, and a test proves each record is written only after a step the child must answer
+      (`reachableWithoutAnswering`), so opening, viewing or failing an adventure awards nothing.
+      **Historical**: pages are derived, so a child who finished before the Storybook existed has the
+      page with no replay and no migration; Django tests prove an old record (kept row, original
+      timestamp) completes the quest once with one seal, repeated reconciliation changes and grants
+      nothing, partial history restores only what it proves, retired or unrelated keys are ignored, and
+      a sibling's history never counts. **Card and 3D**: both read the one derived progress; a test
+      checks every band against every combination of records. **Retries and failures**: unchanged
+      from SC-R04-02 (a failing server read leaves the records' answer, a page is shown only when a
+      record confirms it; records and rewards are idempotent and row-locked). Tests: 14 mapping and
+      history, 1 parity (frontend); 8 Django. **Boundary, unchanged**: Django proves pages only from
+      records it holds, so Amplify-run adventure completions reach the quest when they are synced
+      (SC-R04-06 / the Amplify to Django sync). Owner acceptance: play the Tale and each secret-door
+      chapter and watch the page return in both card and 3D. Browser: none run
+- [ ] **SC-R04-05 to SC-R12** Not started. Gated items: Sound Manager merge (SC-R06), narration
       provider and voice consent (SC-R06-03), new educational content (roadmap SC-R04-05), Phaser
       retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the
       SC-11 gate)
