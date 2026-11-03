@@ -49,7 +49,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-025 | Exceptions are logged as type and location, never as message | Accepted | Django migration line |  |
 | ADR-026 | Multiplayer runs on a separate authoritative room server over WebSocket; the engine only renders it | Accepted | Main line (Storykeeper Castle / engine) | Integrated from `origin/main`; number unchanged |
 | ADR-027 | A story chapter may be played inside a 3D region; the Story Engine keeps sole ownership of progress | Accepted | Storykeeper Castle line | Renumbered from ADR-019 |
-| ADR-028 | Where the castle's art comes from | Proposed | Storykeeper Castle line | Renumbered from ADR-020. Recommended decision recorded 2026-11-02 (SC-R01-03, hybrid sourcing plus runtime procedural surfaces); owner acceptance pending |
+| ADR-028 | Where the castle's art comes from | Accepted | Storykeeper Castle line | Renumbered from ADR-020. Accepted by the owner 2026-11-03: the "Recommended decision, 2026-11-02" (hybrid sourcing plus runtime procedural surfaces) is the decision. Procedural art is interim, not production art |
 | ADR-029 | Phaser 2D views are phased out; new regions are authored in Three.js only | Accepted | Storykeeper Castle line | Renumbered from ADR-021. Related to ADR-020, not a duplicate |
 | ADR-030 | Uploaded models live in S3 behind Admins-only Asset records; the bundled manifest stays the runtime fallback | Accepted | Storykeeper Castle line | Renumbered from ADR-022 |
 | ADR-031 | Islands and Adventures are an admin catalog overlaid on source-controlled content; Superusers are Admins with one extra group | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-024 on `origin/main`. To be superseded when LAI-0801/0802 move catalog editing to Django (ADR-019 sub-decision 8). Treasure Rush's TR-D3 (admin-authored content as authoritative, which would have changed it) was not adopted (ADR-033) |
@@ -1649,7 +1649,9 @@ authors it there.
 
 > Renumbered in the post-merge reconciliation (was ADR-020; the incoming Storykeeper Castle / Wonderwild / Clockwork line collided with the Django migration ADR-019 to ADR-022). Text and status are unchanged.
 
-Status: Proposed
+Status: Accepted (owner, 2026-11-03). The "Recommended decision, 2026-11-02" section near the end of
+this ADR is the decision. The earlier "Proposed decision" (vertex colours first, then CC0 scenery,
+wholesale replacement deferred) is the history it refines, not a competing choice
 
 `docs/regions/storykeeper_castle.md` asks for "stylized fantasy, low-poly to
 moderate-poly, warm and colorful, exaggerated silhouettes, slightly magical,
@@ -1835,11 +1837,12 @@ None of these numbers exist yet, and the decision is better made with them:
    actually determines whether the castle becomes showable.
 
 
-### Recommended decision, 2026-11-02 (SC-R01-03; still Proposed)
+### Decision, accepted 2026-11-03 (recommended 2026-11-02 in SC-R01-03)
 
 Recorded for the owner by the Storykeeper Castle Reboot
-(`docs/regions/STORYKEEPER_CASTLE_REBOOT_ROADMAP.md`). **This is a recommendation,
-not an acceptance.** The status above stays Proposed until the owner accepts it.
+(`docs/regions/STORYKEEPER_CASTLE_REBOOT_ROADMAP.md`) and **accepted by the owner on
+2026-11-03**, after checking that its wording matches what the owner adopted: a stylized,
+textured, child-friendly castle, with the current procedural scenery as interim art.
 The full conventions, budgets and ledger rules are in
 `docs/regions/storykeeper_castle_art_direction.md`.
 

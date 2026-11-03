@@ -47,7 +47,7 @@ dais, the page display, and later NPC lines.
 | Every 3D route has a HUD equivalent | SC preamble, explorable-world roadmap section 42 | Kept, executable test |
 | No vertical traversal | SC preamble | Kept: every new space is ground floor |
 | ADR-008 Sprouts gate; card route not retired before the playtest | SC-11 | Kept as SC-R11 |
-| Gameplay-bearing geometry stays generated | ADR-028 (Proposed) | Kept |
+| Gameplay-bearing geometry stays generated | ADR-028 (Accepted 2026-11-03) | Kept |
 | AI proposes, engine validates; no AI-invented actions | Upgrade roadmap section 11-12 | Kept for SC-R09 |
 | Amazon Polly with S3 caching | Upgrade roadmap section 17-22 | **Not adopted yet**: needs a provider decision and a voice-consent review (SC-R06 is gated) |
 | Nine-room floor plan | Upgrade roadmap section 6 | **Not adopted**: its functions are mapped onto the eight existing rooms plus two new spaces (section 2) |

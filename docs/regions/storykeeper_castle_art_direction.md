@@ -1,11 +1,11 @@
 # Storykeeper Castle — Art Direction and Asset Conventions (SC-R01-03)
 
-**Status:** the recommendation behind ADR-028's "Recommended decision,
-2026-11-02". ADR-028 is still **Proposed**. Everything here that depends on
-acceptance is marked. Island-wide conventions live in
+**Status:** the conventions behind ADR-028's decision, **accepted by the owner on
+2026-11-03**. Procedural surfaces and boxes are interim art, not production art.
+Anything marked as depending on acceptance is now in force. Island-wide conventions live in
 `docs/THREE_WORLD_ASSET_CONVENTIONS.md`, and this document adds only what
-the castle needs beyond them. Where the two disagree, that file wins until
-ADR-028 is accepted.
+the castle needs beyond them. Where the two disagree, that file wins
+until this document is merged into it.
 
 ## 1. Style: Stylized Fantasy Storybook 3D
 

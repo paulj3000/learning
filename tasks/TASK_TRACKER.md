@@ -487,6 +487,16 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       reachable with the solid decor in place) pass; typecheck has only the missing `@colyseus/sdk`
       error; Prettier and oxlint clean. **Not yet wired into any view:** the hub cues, guidance and
       the map (SC-R03-02, SC-R03-06) read it. Browser: none needed. Commit `bc28e4f`
+- [x] **ADR-028 accepted** (owner, 2026-11-03). Status changed to Accepted in `docs/DECISIONS.md`
+      after checking the wording against the owner's adopted direction; `npm run adr:check` passes
+      (46 decisions). Living docs updated (art direction, roadmap, asset manifest). Earlier tracker
+      and audit entries keep their original wording as history. Production art remains unfunded.
+- [x] **ENV-1** Repaired `@colyseus/sdk` (owner-approved): the pinned 0.18.4 installed into this
+      checkout's own ignored `node_modules/@colyseus/` (its private deps nested in
+      `@colyseus/node_modules/` so nothing else is shadowed); the shared
+      `/home/pdimitriu/Coding/node_modules` was not touched. With it, the castle parity suite passes
+      **without the stub** (44 tests) and `tsc --noEmit -p tsconfig.app.json` is **clean (exit 0)**.
+      A real production build is still to be re-run (next)
 - [ ] **SC-R03-02** Grand Hall navigation hub: door cues, labels, guidance, locked-door behaviour, return to hub
 - [ ] **SC-R03-03** Trophy Room (new room; display contract and empty state only, persistence is SC-R07)
 - [ ] **SC-R03-04** Observatory function in the Setting Tower (telescope, observing; deterministic)

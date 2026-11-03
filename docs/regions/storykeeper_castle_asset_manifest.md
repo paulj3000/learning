@@ -1,7 +1,8 @@
 # Storykeeper Castle: Asset Manifest (SC-R02-07)
 
-**Status:** reflects the repository as of SC-R02-06. ADR-028 (where the castle's art comes from) is
-still **Proposed**, so nothing here is a production-art claim. The counts below were generated from
+**Status:** reflects the repository as of SC-R02-06. ADR-028 (where the castle's art comes from) was
+**accepted on 2026-11-03**, and it makes the current procedural art interim, so nothing here is a
+production-art claim. The counts below were generated from
 `STORYKEEPER_CASTLE_MANIFEST`, not typed by hand.
 
 This document records what the castle actually draws, where each thing comes from, and what is
@@ -87,11 +88,11 @@ Nothing below is referenced as if it exists.
 
 | Missing | Needed for | Source plan | Blocked by |
 | --- | --- | --- | --- |
-| Final Keeper Quill model and clips | SC-R05-01 | Commissioned (ADR-028). The stand-in and its clip names (`Idle`, `Talk`, `Point`) are the contract | Owner funding and ADR-028 acceptance |
+| Final Keeper Quill model and clips | SC-R05-01 | Commissioned (ADR-028). The stand-in and its clip names (`Idle`, `Talk`, `Point`) are the contract | Owner funding (ADR-028 is accepted) |
 | Ember the dragon model | SC-R05-02 | Commissioned, or the existing `ember-dragon` NPC asset if the Asset Library has one | Same |
 | The Great Storybook (book, pages, restoration art) | SC-R04-03 | Procedural first (boxes and flat page quads); commissioned later | Same |
 | Columns and chairs in the Library | SC-R02-02 deferral | Kit or commissioned art. The puzzle spots leave no safe floor | Needs a layout decision |
-| Varied library book art | SC-R02-02 deferral | Kit or commissioned | ADR-028 |
+| Varied library book art | SC-R02-02 deferral | Kit or commissioned | Owner funding or kit acquisition |
 | Plinths and rope barriers in the Gallery | SC-R02-04b deferral | Would stand in the portrait zones | Layout decision |
 | KayKit wall height (3 m kit against 4 m) | Imported walls | Owner decision (roadmap section 7) | Owner |
 | Sound beds and cues | SC-R06 | Shared Sound Manager | Its merge and ADR |
