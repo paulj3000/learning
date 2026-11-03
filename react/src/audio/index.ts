@@ -30,6 +30,14 @@ export {
 } from './AudioChannels';
 export { LifecycleRegistry } from './AudioLifecycle';
 export {
+  DEFAULT_SPATIAL,
+  MAX_SPATIAL_VOICES,
+  distanceBetween,
+  isVec3,
+  resolveSpatial,
+  spatialDefaultsProblem,
+} from './spatial';
+export {
   AudioError,
   type AudioChannel,
   type AudioDiagnostic,
@@ -37,6 +45,12 @@ export {
   type AudioErrorCode,
   type AudioStatus,
   type ChannelSettings,
+  type DistanceModel,
+  type ListenerPose,
+  type SpatialDefaults,
+  type SpatialOptions,
+  type SpatialParams,
+  type Vec3,
   type DuckHandle,
   type DuckingConfig,
   type DuckOptions,

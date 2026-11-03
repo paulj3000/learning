@@ -44,6 +44,8 @@ export interface ManifestSync {
   load(scope: ManifestScope): Promise<LoadResult>;
   /** Fetches the current scope again; sounds whose revision changed are replaced. */
   refresh(): Promise<LoadResult>;
+  /** Every assignment of the current manifest (for zones, which read their cues from it). */
+  assignments(): readonly ManifestAssignment[];
   /** The sound assigned to an event on a target, or `null`. */
   soundFor(event: string, targetType: string, targetId?: string): string | null;
   /** Plays the assigned sound, if any, owned by the current scope. Resolves `null` otherwise. */
@@ -178,6 +180,7 @@ export function createManifestSync(options: ManifestSyncOptions): ManifestSync {
       if (!scope) return Promise.resolve({ status: 'failed', revision: null });
       return start(scope);
     },
+    assignments: () => [...assignments.values()].flat(),
     soundFor(event, targetType, targetId = '') {
       const found = assignments.get(keyOf(event, targetType, targetId));
       return found?.[0]?.soundId ?? null;

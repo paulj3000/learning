@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createManifestSync, type ManifestSync } from '../manifest/AudioManifestSync';
-import type { ManifestScope } from '../manifest/manifestTypes';
+import type { ManifestAssignment, ManifestScope } from '../manifest/manifestTypes';
 import type { PlayOptions, SoundAssetResolver, SoundHandle } from '../AudioTypes';
 import { useSoundManager } from './hooks';
 
@@ -14,6 +14,8 @@ export type ManifestState = 'idle' | 'loading' | 'ready' | 'failed';
 export interface UseAudioManifest {
   status: ManifestState;
   revision: string | null;
+  /** The manifest's assignments (empty until it loads), for games that read zones from it. */
+  assignments: readonly ManifestAssignment[];
   /** Plays the sound assigned to an event, if the manifest has one. Resolves `null` otherwise. */
   trigger(
     event: string,
@@ -29,6 +31,7 @@ interface Outcome {
   key: string;
   status: 'ready' | 'failed';
   revision: string | null;
+  assignments: readonly ManifestAssignment[];
 }
 
 /**
@@ -39,6 +42,8 @@ interface Outcome {
  *
  * Pass a stable `source` (memoize it per child). `null` source or scope means "no manifest".
  */
+const NO_ASSIGNMENTS: readonly ManifestAssignment[] = [];
+
 export function useAudioManifest(
   source: AudioManifestSource | null,
   scope: ManifestScope | null,
@@ -66,6 +71,7 @@ export function useAudioManifest(
         key: loadKey,
         status: result.status === 'failed' ? 'failed' : 'ready',
         revision: result.revision,
+        assignments: sync.assignments(),
       });
     });
     return () => {
@@ -87,7 +93,14 @@ export function useAudioManifest(
     void sync.refresh().then((result) => {
       if (result.status === 'loaded' || result.status === 'unchanged') {
         setOutcome((previous) =>
-          previous ? { ...previous, status: 'ready', revision: result.revision } : previous,
+          previous
+            ? {
+                ...previous,
+                status: 'ready',
+                revision: result.revision,
+                assignments: sync.assignments(),
+              }
+            : previous,
         );
       }
     });
@@ -96,5 +109,11 @@ export function useAudioManifest(
   const active = source !== null && scope !== null;
   const settled = outcome !== null && outcome.key === key;
   const status: ManifestState = !active ? 'idle' : settled ? outcome.status : 'loading';
-  return { status, revision: settled ? outcome.revision : null, trigger, refresh };
+  return {
+    status,
+    revision: settled ? outcome.revision : null,
+    assignments: settled ? outcome.assignments : NO_ASSIGNMENTS,
+    trigger,
+    refresh,
+  };
 }

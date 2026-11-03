@@ -19,6 +19,8 @@ export interface ManifestAssignment {
   targetType: string;
   targetId: string;
   soundId: string;
+  /** Overlap order for zone assignments: the highest wins. Absent means 0. */
+  priority?: number;
 }
 
 export interface AudioManifest {

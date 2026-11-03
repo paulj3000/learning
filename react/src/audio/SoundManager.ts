@@ -12,6 +12,7 @@ import {
 } from './AudioChannels';
 import { LifecycleRegistry } from './AudioLifecycle';
 import { AudioRegistry } from './AudioRegistry';
+import { resolveSpatial, distanceBetween, MAX_SPATIAL_VOICES } from './spatial';
 import {
   AudioError,
   type AudioDiagnostic,
@@ -20,6 +21,9 @@ import {
   type AudioStatus,
   type AudioChannel,
   type DuckHandle,
+  type ListenerPose,
+  type SpatialParams,
+  type Vec3,
   type DuckingConfig,
   type DuckOptions,
   type EndReason,
@@ -244,11 +248,19 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
 
   // ---- playback -------------------------------------------------------------------------
 
+  /** Positional sounds that are playing, with where they last were (for culling and the cap). */
+  interface SpatialInfo {
+    position: Vec3;
+  }
+  const spatialLive = new Map<SoundHandle, SpatialInfo>();
+  let listenerPose: ListenerPose | null = null;
+
   function makeHandle(
     definition: SoundDefinition,
     scopeId: string,
     voiceFor: (end: (reason: EndReason) => void) => EngineVoice,
     priority: number,
+    spatialInfo?: SpatialInfo,
   ): SoundHandle {
     const instanceId = `snd-${(nextInstance += 1)}`;
     let state: SoundHandle['state'] = 'playing';
@@ -325,6 +337,15 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
         const clamped = clampPlaybackRate(rate);
         if (clamped === undefined) return;
         guard((active) => active.setPlaybackRate(clamped));
+      },
+      setPosition(x, y, z) {
+        if (!spatialInfo || !Number.isFinite(x + y + z)) return;
+        spatialInfo.position = [x, y, z];
+        guard((active) => active.setPosition?.(x, y, z));
+      },
+      setOrientation(x, y, z) {
+        if (!spatialInfo || !Number.isFinite(x + y + z)) return;
+        guard((active) => active.setOrientation?.(x, y, z));
       },
       whenEnded: () => ended,
     };
@@ -423,6 +444,35 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
       const volume = clampVolume(playOptions.volume ?? definition.defaultVolume ?? 1) ?? 1;
       const playbackRate = clampPlaybackRate(playOptions.playbackRate ?? 1) ?? 1;
 
+      // Positional playback (SM-P7). Anything that cannot be placed still plays, plainly.
+      let spatial: SpatialParams | undefined;
+      const placed = resolveSpatial(definition.spatial, playOptions.spatial);
+      if (placed.kind === 'invalid') {
+        report('invalid-spatial', placed.reason, soundId);
+      } else if (placed.kind === 'spatial' && engine.supportsSpatial) {
+        const { params } = placed;
+        // A one-shot beyond its range would be inaudible: do not start it at all.
+        if (
+          !loop &&
+          listenerPose &&
+          distanceBetween(listenerPose.position, params.position) > params.maxDistance
+        ) {
+          return null;
+        }
+        if (spatialLive.size >= MAX_SPATIAL_VOICES) {
+          const farthest = farthestSpatial();
+          const mine = listenerPose
+            ? distanceBetween(listenerPose.position, params.position)
+            : Infinity;
+          if (!farthest || farthest.distance <= mine) {
+            report('voice-limit', 'too many positional sounds are playing', soundId);
+            return null;
+          }
+          farthest.handle.stop({ fadeOutMs: STEAL_FADE_MS });
+        }
+        spatial = params;
+      }
+
       let handle: SoundHandle;
       try {
         handle = makeHandle(
@@ -437,15 +487,21 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
                 volume,
                 playbackRate,
                 fadeInMs: nonNegative(playOptions.fadeInMs ?? definition.fadeInMs),
+                ...(spatial ? { spatial } : {}),
               },
               (reason) => end(reason),
             ),
           priority,
+          spatial ? { position: spatial.position } : undefined,
         );
       } catch (cause) {
         const code = cause instanceof AudioError ? cause.code : 'playback-failed';
         report(code, 'the browser could not start this sound', soundId);
         return null;
+      }
+      if (spatial) {
+        spatialLive.set(handle, { position: spatial.position });
+        void handle.whenEnded().then(() => spatialLive.delete(handle));
       }
       duckFor(definition.channel, handle);
       return handle;
@@ -457,6 +513,15 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
     } finally {
       lifecycle.removeLoad(loadId);
     }
+  }
+
+  function farthestSpatial(): { handle: SoundHandle; distance: number } | null {
+    let best: { handle: SoundHandle; distance: number } | null = null;
+    for (const [handle, info] of spatialLive) {
+      const distance = listenerPose ? distanceBetween(listenerPose.position, info.position) : 0;
+      if (!best || distance > best.distance) best = { handle, distance };
+    }
+    return best;
   }
 
   /** While a trigger channel's sound plays (any way it ends), the target channels are ducked. */
@@ -526,6 +591,16 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
     },
     reportIssue: report,
 
+    setListener(pose) {
+      if (disposed) return;
+      listenerPose = pose;
+      engine.setListener?.(pose);
+    },
+    getSpatialStats: () => ({
+      supported: engine.supportsSpatial === true,
+      active: spatialLive.size,
+      limit: MAX_SPATIAL_VOICES,
+    }),
     duck: acquireDuck,
     setDucking(config) {
       ducking = {
@@ -641,6 +716,7 @@ export function createSoundManager(options: SoundManagerOptions = {}): SoundMana
       lifecycle.endMatching({}, 'disposed', 0);
       disposed = true;
       holds.clear();
+      spatialLive.clear();
       for (const uninstall of [...gestureInstalls.values()]) uninstall();
       stopEngineListener();
       try {

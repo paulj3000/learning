@@ -7,7 +7,7 @@ import type {
   VoiceEndReason,
   VoiceOptions,
 } from '../AudioEngine';
-import { AudioError, type AudioChannel } from '../AudioTypes';
+import { AudioError, type AudioChannel, type ListenerPose } from '../AudioTypes';
 
 /** A scriptable engine for manager tests. No browser APIs. */
 export class FakeVoice implements EngineVoice {
@@ -25,6 +25,16 @@ export class FakeVoice implements EngineVoice {
     this.onEnded = onEnded;
     this.volume = options.volume;
     this.rate = options.playbackRate;
+    if (options.spatial) {
+      this.position = [...options.spatial.position];
+      this.setPosition = (x, y, z) => {
+        this.position = [x, y, z];
+        this.positionLog.push([x, y, z]);
+      };
+      this.setOrientation = (x, y, z) => {
+        this.orientation = [x, y, z];
+      };
+    }
   }
 
   pause(): void {
@@ -44,6 +54,12 @@ export class FakeVoice implements EngineVoice {
   setPlaybackRate(rate: number): void {
     this.rate = rate;
   }
+  position: [number, number, number] | undefined;
+  positionLog: Array<[number, number, number]> = [];
+  orientation: [number, number, number] | undefined;
+  /** Present only for a positional voice, like the real engine. */
+  setPosition?: (x: number, y: number, z: number) => void;
+  setOrientation?: (x: number, y: number, z: number) => void;
   /** Simulates the sound reaching its end (or the browser failing it). */
   finish(reason: VoiceEndReason = 'finished'): void {
     this.onEnded(reason);
@@ -69,6 +85,9 @@ export class FakeEngine implements AudioEngine {
   unlockCalls = 0;
   disposed = false;
   masterGain = 1;
+  supportsSpatial = true;
+  listener: ListenerPose | undefined;
+  listenerUpdates = 0;
   channelGains = new Map<AudioChannel, number>();
   /** Every channel gain change with the ramp it asked for, oldest first. */
   gainLog: Array<{ channel: AudioChannel; gain: number; rampMs: number | undefined }> = [];
@@ -124,6 +143,10 @@ export class FakeEngine implements AudioEngine {
 
   setMasterGain(gain: number): void {
     this.masterGain = gain;
+  }
+  setListener(pose: ListenerPose): void {
+    this.listener = pose;
+    this.listenerUpdates += 1;
   }
   setChannelGain(channel: AudioChannel, gain: number, rampMs?: number): void {
     this.channelGains.set(channel, gain);
@@ -198,7 +221,43 @@ export class FakeSource extends FakeNode {
   }
 }
 
+export class FakePanner extends FakeNode {
+  panningModel = '';
+  distanceModel = '';
+  refDistance = 1;
+  maxDistance = 10000;
+  rolloffFactor = 1;
+  coneInnerAngle = 360;
+  coneOuterAngle = 360;
+  coneOuterGain = 0;
+  positionX = new FakeParam(0);
+  positionY = new FakeParam(0);
+  positionZ = new FakeParam(0);
+  orientationX = new FakeParam(0);
+  orientationY = new FakeParam(0);
+  orientationZ = new FakeParam(0);
+}
+
+export class FakeListener {
+  positionX = new FakeParam(0);
+  positionY = new FakeParam(0);
+  positionZ = new FakeParam(0);
+  forwardX = new FakeParam(0);
+  forwardY = new FakeParam(0);
+  forwardZ = new FakeParam(-1);
+  upX = new FakeParam(0);
+  upY = new FakeParam(1);
+  upZ = new FakeParam(0);
+}
+
 export class FakeContext {
+  panners: FakePanner[] = [];
+  listener = new FakeListener();
+  createPanner(): FakePanner {
+    const panner = new FakePanner();
+    this.panners.push(panner);
+    return panner;
+  }
   state: 'suspended' | 'running' | 'closed' | 'interrupted' = 'suspended';
   currentTime = 0;
   destination = new FakeNode();

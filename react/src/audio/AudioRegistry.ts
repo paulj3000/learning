@@ -1,3 +1,4 @@
+import { spatialDefaultsProblem } from './spatial';
 import { isAudioChannel } from './AudioChannels';
 import type { SoundDefinition } from './AudioTypes';
 
@@ -102,5 +103,7 @@ export function validateDefinition(definition: SoundDefinition): string | undefi
       return `${definition.id}: ${name} must be a finite number of at least ${min}`;
     }
   }
+  const spatialProblem = spatialDefaultsProblem(definition.spatial);
+  if (spatialProblem) return `${definition.id}: spatial ${spatialProblem}`;
   return undefined;
 }

@@ -1,5 +1,5 @@
 import { AUDIO_CHANNELS } from './AudioChannels';
-import { AudioError, type AudioChannel } from './AudioTypes';
+import { AudioError, type AudioChannel, type ListenerPose, type SpatialParams } from './AudioTypes';
 
 /**
  * The playback engine abstraction. The manager owns policy (ids, scopes,
@@ -28,6 +28,8 @@ export interface LoadOptions {
 }
 
 export interface VoiceOptions {
+  /** Place the voice in the scene: it gets a panner between its gain and its channel. */
+  spatial?: SpatialParams;
   channel: AudioChannel;
   loop: boolean;
   volume: number;
@@ -44,9 +46,16 @@ export interface EngineVoice {
   stop(fadeOutMs: number): void;
   setVolume(volume: number, fadeMs: number): void;
   setPlaybackRate(rate: number): void;
+  /** Present on a positional voice. */
+  setPosition?(x: number, y: number, z: number): void;
+  setOrientation?(x: number, y: number, z: number): void;
 }
 
 export interface AudioEngine {
+  /** Whether this engine can place sounds in space (a real Web Audio context can). */
+  readonly supportsSpatial?: boolean;
+  /** Moves the listener. Cheap and allocation-free; safe to call every frame. */
+  setListener?(pose: ListenerPose): void;
   readonly state: EngineState;
   onStateChange(listener: () => void): () => void;
   /** Tries to resume the context. Resolves to whether it is running. Never rejects. */
@@ -107,6 +116,44 @@ function abortError(): AudioError {
 }
 
 /** Ramps a param to `target`, replacing any ramp already in flight (this is what makes fades cancellable). */
+/**
+ * A positional stage between a voice's gain and its channel (SM-P7). It lives on the engine's one
+ * shared context and is disconnected with the voice, so it adds no second context and no extra
+ * channel mix: the channel and master gains still apply downstream.
+ */
+function createPositional(ctx: AudioContext, params: SpatialParams) {
+  const panner = ctx.createPanner();
+  panner.panningModel = 'equalpower';
+  panner.distanceModel = params.distanceModel;
+  panner.refDistance = params.refDistance;
+  panner.maxDistance = params.maxDistance;
+  panner.rolloffFactor = params.rolloffFactor;
+  panner.coneInnerAngle = params.coneInnerAngle;
+  panner.coneOuterAngle = params.coneOuterAngle;
+  panner.coneOuterGain = params.coneOuterGain;
+  const setPosition = (x: number, y: number, z: number): void => {
+    if (panner.positionX) {
+      panner.positionX.value = x;
+      panner.positionY.value = y;
+      panner.positionZ.value = z;
+    } else {
+      panner.setPosition(x, y, z);
+    }
+  };
+  const setOrientation = (x: number, y: number, z: number): void => {
+    if (panner.orientationX) {
+      panner.orientationX.value = x;
+      panner.orientationY.value = y;
+      panner.orientationZ.value = z;
+    } else {
+      panner.setOrientation(x, y, z);
+    }
+  };
+  setPosition(...params.position);
+  if (params.orientation) setOrientation(...params.orientation);
+  return { panner, setPosition, setOrientation };
+}
+
 function rampTo(
   param: AudioParam,
   context: BaseAudioContext,
@@ -328,7 +375,13 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
     onEnded: (reason: VoiceEndReason) => void,
   ): EngineVoice {
     const gain = ctx.createGain();
-    gain.connect(channelNode);
+    const positional = voiceOptions.spatial ? createPositional(ctx, voiceOptions.spatial) : null;
+    if (positional) {
+      gain.connect(positional.panner);
+      positional.panner.connect(channelNode);
+    } else {
+      gain.connect(channelNode);
+    }
     let rate = voiceOptions.playbackRate;
     let source: AudioBufferSourceNode | null = null;
     let offset = 0; // seconds into the buffer when `startedAt` was recorded
@@ -357,6 +410,7 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
         source = null;
       }
       gain.disconnect();
+      positional?.panner.disconnect();
     };
 
     const begin = (fromOffset: number): void => {
@@ -425,6 +479,12 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
         }
         rate = next;
       },
+      setPosition: positional
+        ? (x, y, z) => !released && positional.setPosition(x, y, z)
+        : undefined,
+      setOrientation: positional
+        ? (x, y, z) => !released && positional.setOrientation(x, y, z)
+        : undefined,
     };
 
     liveVoices.add(voice);
@@ -455,8 +515,14 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
 
     const gain = ctx.createGain();
     const mediaSource = ctx.createMediaElementSource(element);
+    const positional = voiceOptions.spatial ? createPositional(ctx, voiceOptions.spatial) : null;
     mediaSource.connect(gain);
-    gain.connect(channelNode);
+    if (positional) {
+      gain.connect(positional.panner);
+      positional.panner.connect(channelNode);
+    } else {
+      gain.connect(channelNode);
+    }
 
     let released = false;
     let stopTimer: ReturnType<typeof setTimeout> | undefined;
@@ -473,6 +539,7 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
       element.load?.();
       mediaSource.disconnect();
       gain.disconnect();
+      positional?.panner.disconnect();
     };
 
     element.onended = () => {
@@ -509,6 +576,12 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
       setPlaybackRate(next) {
         if (!released) element.playbackRate = next;
       },
+      setPosition: positional
+        ? (x, y, z) => !released && positional.setPosition(x, y, z)
+        : undefined,
+      setOrientation: positional
+        ? (x, y, z) => !released && positional.setOrientation(x, y, z)
+        : undefined,
     };
 
     liveVoices.add(voice);
@@ -577,6 +650,30 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
       const buffer = loadedBuffers.get(sound);
       if (!buffer) throw new AudioError('playback-failed', 'sound was not loaded by this engine');
       return bufferVoice(ctx, buffer, voiceOptions, channelNode, onEnded);
+    },
+
+    supportsSpatial: true,
+
+    setListener(pose) {
+      const listener = context?.listener;
+      if (!listener || closed) return;
+      const [px, py, pz] = pose.position;
+      const [fx, fy, fz] = pose.forward;
+      const [ux, uy, uz] = pose.up ?? [0, 1, 0];
+      if (listener.positionX) {
+        listener.positionX.value = px;
+        listener.positionY.value = py;
+        listener.positionZ.value = pz;
+        listener.forwardX.value = fx;
+        listener.forwardY.value = fy;
+        listener.forwardZ.value = fz;
+        listener.upX.value = ux;
+        listener.upY.value = uy;
+        listener.upZ.value = uz;
+      } else {
+        listener.setPosition(px, py, pz);
+        listener.setOrientation(fx, fy, fz, ux, uy, uz);
+      }
     },
 
     setMasterGain(gain) {

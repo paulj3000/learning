@@ -14,6 +14,56 @@
 
 export type AudioChannel = 'music' | 'ambient' | 'sfx' | 'voice' | 'ui';
 
+/** A point or direction in the scene, in metres: `[x, y, z]`. Plain data, no Three.js types. */
+export type Vec3 = readonly [number, number, number];
+
+export type DistanceModel = 'linear' | 'inverse' | 'exponential';
+
+/**
+ * How a sound spreads in space (SM-P7). On a `SoundDefinition` these are the staff-set defaults
+ * from Django; `enabled: false` forbids positional playback of that sound. Distances are metres.
+ */
+export interface SpatialDefaults {
+  enabled?: boolean;
+  /** Distance at which the sound is at full volume. */
+  refDistance?: number;
+  /** Beyond this the sound stops getting quieter (and one-shots are not started). */
+  maxDistance?: number;
+  rolloffFactor?: number;
+  distanceModel?: DistanceModel;
+  /** Directional sound: full volume inside the inner cone, `coneOuterGain` outside the outer one. */
+  coneInnerAngle?: number;
+  coneOuterAngle?: number;
+  coneOuterGain?: number;
+}
+
+/** Play-time spatial options: a position, plus optional overrides of the defaults. */
+export interface SpatialOptions extends SpatialDefaults {
+  position: Vec3;
+  /** The direction a directional sound faces. */
+  orientation?: Vec3;
+}
+
+/** The fully resolved parameters the engine receives. */
+export interface SpatialParams {
+  position: Vec3;
+  refDistance: number;
+  maxDistance: number;
+  rolloffFactor: number;
+  distanceModel: DistanceModel;
+  orientation: Vec3 | undefined;
+  coneInnerAngle: number;
+  coneOuterAngle: number;
+  coneOuterGain: number;
+}
+
+/** Where the listener (the camera) is and which way it faces. */
+export interface ListenerPose {
+  position: Vec3;
+  forward: Vec3;
+  up?: Vec3;
+}
+
 export interface SoundDefinition {
   /** Stable, dotted id such as `ui.button.click`. The only thing games ever name. */
   id: string;
@@ -37,9 +87,13 @@ export interface SoundDefinition {
   fadeInMs?: number;
   /** Used when `stop` is called without `fadeOutMs`. */
   fadeOutMs?: number;
+  /** Positional defaults from the sound library (SM-P7). */
+  spatial?: SpatialDefaults;
 }
 
 export interface PlayOptions {
+  /** Place the sound in the scene. Ignored when the sound's staff settings forbid it. */
+  spatial?: SpatialOptions;
   volume?: number;
   loop?: boolean;
   playbackRate?: number;
@@ -92,6 +146,10 @@ export interface SoundHandle {
   /** Sets this instance's own gain (0..1). Does not touch the channel or master volume. */
   setVolume(volume: number, fadeMs?: number): void;
   setPlaybackRate(rate: number): void;
+  /** Moves a positional sound. Does nothing for a plain one. */
+  setPosition(x: number, y: number, z: number): void;
+  /** Turns a directional sound. Does nothing for a plain one. */
+  setOrientation(x: number, y: number, z: number): void;
   /** Resolves once, when the instance ends for any reason. Never rejects. */
   whenEnded(): Promise<EndReason>;
 }
@@ -146,6 +204,7 @@ export type AudioErrorCode =
   | 'locked'
   | 'playback-failed'
   | 'voice-limit'
+  | 'invalid-spatial'
   | 'invalid-manifest'
   | 'manifest-failed'
   | 'aborted'
@@ -201,6 +260,11 @@ export interface SoundManager extends SoundPlayer {
   reportIssue(code: AudioErrorCode, message: string, soundId?: string): void;
 
   createScope(name?: string): SoundScope;
+
+  /** Tells positional sounds where the listener (the camera) is. Cheap; call it every frame. */
+  setListener(pose: ListenerPose): void;
+  /** How many positional sounds are playing and whether this engine can place sounds at all. */
+  getSpatialStats(): { supported: boolean; active: number; limit: number };
 
   /**
    * Temporarily lowers `channel` to a fraction of its level until the returned hold is released.

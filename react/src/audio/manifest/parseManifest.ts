@@ -1,5 +1,11 @@
 import { CHANNEL_IDS, clampVolume } from '../AudioChannels';
-import { AudioError, type AudioChannel, type SoundDefinition } from '../AudioTypes';
+import {
+  AudioError,
+  type AudioChannel,
+  type SoundDefinition,
+  type SpatialDefaults,
+} from '../AudioTypes';
+import { spatialDefaultsProblem } from '../spatial';
 import type {
   ManifestAssignment,
   ManifestScope,
@@ -55,6 +61,34 @@ function optionalCount(value: unknown, min: number, max: number): number | undef
   return value;
 }
 
+const DISTANCE_MODELS = ['linear', 'inverse', 'exponential'] as const;
+
+/** The optional positional settings of a sound. A bad block is ignored, never the sound. */
+function readSpatial(value: unknown): SpatialDefaults | undefined {
+  if (!isRecord(value)) return undefined;
+  const spatial: SpatialDefaults = {};
+  if (typeof value.enabled === 'boolean') spatial.enabled = value.enabled;
+  for (const key of ['refDistance', 'maxDistance', 'rolloffFactor'] as const) {
+    if (value[key] !== undefined) {
+      if (typeof value[key] !== 'number') return undefined;
+      spatial[key] = value[key] as number;
+    }
+  }
+  if (value.distanceModel !== undefined) {
+    if (!DISTANCE_MODELS.includes(value.distanceModel as (typeof DISTANCE_MODELS)[number])) {
+      return undefined;
+    }
+    spatial.distanceModel = value.distanceModel as SpatialDefaults['distanceModel'];
+  }
+  for (const key of ['coneInnerAngle', 'coneOuterAngle', 'coneOuterGain'] as const) {
+    if (value[key] !== undefined) {
+      if (typeof value[key] !== 'number') return undefined;
+      spatial[key] = value[key] as number;
+    }
+  }
+  return spatialDefaultsProblem(spatial) ? undefined : spatial;
+}
+
 /** A sound, or the reason it was skipped. */
 function readSound(value: unknown): SoundDefinition | string {
   if (!isRecord(value)) return 'not an object';
@@ -93,6 +127,8 @@ function readSound(value: unknown): SoundDefinition | string {
   if (cooldownMs !== undefined && cooldownMs !== null) definition.cooldownMs = cooldownMs;
   if (fadeInMs !== undefined && fadeInMs !== null) definition.fadeInMs = fadeInMs;
   if (fadeOutMs !== undefined && fadeOutMs !== null) definition.fadeOutMs = fadeOutMs;
+  const spatial = readSpatial(value.spatial);
+  if (spatial) definition.spatial = spatial;
   return definition;
 }
 
@@ -103,7 +139,12 @@ function readAssignment(value: unknown, soundIds: ReadonlySet<string>): Manifest
   if (typeof targetType !== 'string' || !WORD.test(targetType)) return null;
   if (typeof targetId !== 'string' || (targetId !== '' && !SLUG.test(targetId))) return null;
   if (typeof soundId !== 'string' || !soundIds.has(soundId)) return null;
-  return { event, targetType, targetId, soundId };
+  const assignment: ManifestAssignment = { event, targetType, targetId, soundId };
+  // A zone's priority, for overlapping zones. Optional, so older manifests still read.
+  if (Number.isInteger(value.priority) && (value.priority as number) >= 0) {
+    assignment.priority = Math.min(100, value.priority as number);
+  }
+  return assignment;
 }
 
 export function parseAudioManifest(raw: unknown): ParsedManifest {
