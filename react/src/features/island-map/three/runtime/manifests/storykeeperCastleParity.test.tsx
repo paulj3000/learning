@@ -40,6 +40,8 @@ const sceneSpies = vi.hoisted(() => ({
   // The castle guide (SC-R03-02) reads where the child is and asks the scene to take them.
   currentRoomId: vi.fn<() => string | undefined>(() => 'entry-hall'),
   goToRoom: vi.fn(),
+  // The secret passage opens in the room the moment the tapestry nook is found (SC-R03-05).
+  showSecretPassageOpened: vi.fn(),
 }));
 const engine = vi.hoisted(() => ({
   bus: null as WorldEngineEventBus | null,
@@ -777,6 +779,24 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
       fireEvent.click(await screen.findByRole('button', { name: /open the castle guide/i }));
       expect(submitAnswerSpy).not.toHaveBeenCalled();
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('the secret passage (SC-R03-05)', () => {
+    it('opens in the room when the child has found the tapestry nook', async () => {
+      vi.mocked(getWorldState).mockResolvedValue({
+        discoveredIds: ['castle-tapestry-stair'],
+        metCharacterIds: [],
+      } as never);
+      await renderAndWait();
+      await waitFor(() => expect(sceneSpies.showSecretPassageOpened).toHaveBeenCalledWith(true));
+    });
+
+    it('stays sealed, and says nothing, for a child who has not found it', async () => {
+      await renderAndWait();
+      expect(sceneSpies.showSecretPassageOpened).not.toHaveBeenCalled();
+      fireEvent.click(await screen.findByRole('button', { name: /open the castle guide/i }));
+      expect(screen.queryByText(/secret chamber/i)).not.toBeInTheDocument();
     });
   });
 

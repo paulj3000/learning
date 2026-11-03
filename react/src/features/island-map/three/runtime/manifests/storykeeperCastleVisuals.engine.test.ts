@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Mesh, MeshStandardMaterial, Points, type Texture } from 'three';
-import { castleTaleExtension } from '../../extensions/castleTale/castleTaleScene';
-import { mount } from '../testing/engineHarness';
+import {
+  castleTaleExtension,
+  isCastleTaleScene,
+} from '../../extensions/castleTale/castleTaleScene';
+import { mount, standAt, walk } from '../testing/engineHarness';
 import { RENDER_QUALITY_PRESETS } from '../visual/renderQuality';
 import { STORYKEEPER_CASTLE_MANIFEST as MANIFEST } from './storykeeperCastle';
 import { CASTLE_MATERIALS, CASTLE_SURFACES } from './storykeeperCastleVisuals';
@@ -191,5 +194,82 @@ describe('the Trophy Room shows what the child owns (SC-R03-03)', () => {
   it('keeps an open pedestal showing its empty plate whatever the child owns', () => {
     const harness = owning('storykeepers-quill', 'blank-page-storybook');
     for (const n of [3, 4, 5, 6]) expect(has(harness, `castle-trophy-plate-${n}`)).toBe(true);
+  });
+});
+
+describe('the secret passage in the real runtime (SC-R03-05)', () => {
+  const FOUND = { worldChangeKeys: [], ownedItemIds: [], discoveryIds: ['castle-tapestry-stair'] };
+  const WEST = -Math.PI / 2;
+
+  /** Stands the child in the hall beside the nook, facing the passage, and walks west for two seconds. */
+  function walkIntoTheWall(harness: ReturnType<typeof castle>): number {
+    harness.setDrive(standAt(-8, -5, WEST));
+    harness.runFrames(1);
+    harness.setDrive(walk(WEST));
+    harness.runFrames(125, 16);
+    return harness.camera().position.x;
+  }
+
+  const meshNames = (harness: ReturnType<typeof castle>) => {
+    const names: string[] = [];
+    harness.scene().traverse((object) => {
+      if (object.name.startsWith('surface:look:story-hall:secret-seal:')) names.push(object.name);
+    });
+    return names;
+  };
+
+  it('stops a child at the wall while the nook has not been found, however long they push', () => {
+    const x = walkIntoTheWall(castle({ quality: 'MEDIUM' }));
+    expect(x).toBeGreaterThan(-8.75);
+  });
+
+  it('lets a child through to the chamber once the nook has been found', () => {
+    const x = walkIntoTheWall(castle({ quality: 'MEDIUM', worldState: FOUND }));
+    expect(x).toBeLessThan(-9.5);
+  });
+
+  it('covers the gap with the wall fill while it is secret, and builds none once found', () => {
+    expect(meshNames(castle({ quality: 'MEDIUM' })).sort()).toEqual(
+      [
+        'surface:look:story-hall:secret-seal:trim',
+        'surface:look:story-hall:secret-seal:wainscot',
+        'surface:look:story-hall:secret-seal:walls',
+      ].sort(),
+    );
+    expect(meshNames(castle({ quality: 'MEDIUM', worldState: FOUND }))).toEqual([]);
+  });
+
+  it('opens live when the nook is found mid-visit: the seal goes and the fill is hidden', () => {
+    const harness = castle({ quality: 'MEDIUM' });
+    const api = harness.engine.extensionApi('castle-tale');
+    if (!isCastleTaleScene(api)) throw new Error('castle-tale did not mount');
+    expect(walkIntoTheWall(harness)).toBeGreaterThan(-8.75);
+
+    api.showSecretPassageOpened(true);
+    harness.scene().traverse((object) => {
+      if (object.name.startsWith('surface:look:story-hall:secret-seal:')) {
+        // The mesh sits in a root group that castle-tale hides.
+        expect(object.parent?.visible ?? true).toBe(false);
+      }
+    });
+    expect(walkIntoTheWall(harness)).toBeLessThan(-9.5);
+  });
+
+  it('is idempotent: opening twice, or opening something already open, changes nothing and throws nothing', () => {
+    const harness = castle({ quality: 'MEDIUM', worldState: FOUND });
+    const api = harness.engine.extensionApi('castle-tale');
+    if (!isCastleTaleScene(api)) throw new Error('castle-tale did not mount');
+    expect(() => {
+      api.showSecretPassageOpened(true);
+      api.showSecretPassageOpened(true);
+      api.showSecretPassageOpened(false);
+    }).not.toThrow();
+  });
+
+  it('builds the secret archway only for a child who has found the nook', () => {
+    const has = (h: ReturnType<typeof castle>) =>
+      h.scene().getObjectByName('archway-secret') !== undefined;
+    expect(has(castle({ quality: 'MEDIUM' }))).toBe(false);
+    expect(has(castle({ quality: 'MEDIUM', worldState: FOUND }))).toBe(true);
   });
 });

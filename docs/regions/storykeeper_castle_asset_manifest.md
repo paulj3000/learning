@@ -14,21 +14,32 @@ location manifest (`materials`, `surfaces`, `effects`, `BOX` scenery).
 
 | Field | Count | Budget (art direction section 7) |
 | --- | --- | --- |
-| Scenery items, whole castle | 164 (149 in the original eight rooms, 15 in the Trophy Room) | 160 baseline for the original eight rooms, plus 20 for the Trophy Room and 24 reserved for the Secret Chamber (per-room allowances, below) |
+| Scenery items, whole castle | 184: **160 in the original eight rooms (exactly at their 160 baseline)**, 15 in the Trophy Room (of 20), 9 in the Secret Chamber (of 24) | 160 baseline for the original eight rooms, plus 20 and 24 for the two later rooms |
 | Material presets | 16 | 16 (**at the limit**) |
-| Runtime surfaces (one draw call each) | 42 | included in the draw-call estimate (SC-R02-08) |
-| Mote emitters | 6 | at most 40 particles each at MEDIUM |
-| Placed lights | 12 | 14 at MEDIUM, 8 at LOW, 20 at HIGH |
-| `BOX` decor items | 125 | included in the scenery count |
-| Colliders | 87 | none stated |
-| Zones | 23 | none stated |
+| Runtime surfaces (one draw call each) | 50 | included in the draw-call estimate (SC-R02-08) |
+| Mote emitters | 7 | at most 40 particles each at MEDIUM |
+| Placed lights | 14 | 14 at MEDIUM (**at the limit**), 8 at LOW, 20 at HIGH |
+| `BOX` decor items | 144 | included in the scenery count |
+| Colliders | 98 | none stated |
+| Zones | 29 | none stated |
 | Props, NPCs | 16, 1 | none stated |
 
 **Per-room scenery allowances (SC-R03-03).** The 160 stays as the baseline for the original eight
 rooms and is not raised. Each room added later gets its own allowance, decided when the room is
 designed, so a new area cannot eat the old rooms' headroom: Trophy Room 20 (uses 15), Secret Chamber
-24 (reserved, counted once the room exists). The castle-wide limit is the sum for the rooms it has.
-**Material presets are still 16 of 16, so every new room reuses presets.** The Trophy Room adds none.
+24 (uses 9).
+
+**Where the limits stand after SC-R03-05, all at or near their limit:**
+
+| Limit | Now | Headroom |
+| --- | --- | --- |
+| Original eight rooms, scenery | 160 of 160 | **none**: any new decor there must merge items or trade one away |
+| Material presets | 16 of 16 | **none**: every new room reuses presets |
+| Placed lights, MEDIUM | 14 of 14 | **none**: a new lamp needs one removed, or the tier budget raised on measured evidence |
+| Estimated draw calls | about 277 of 300 | about 23 |
+
+These are provisional budgets (SC-R11-01 measures a real tablet), so the honest options for any
+later room are reuse and merging, not raising a number to fit.
 
 ## 2. Logical asset ids the castle uses
 
@@ -82,6 +93,7 @@ be painted.
 | Setting Tower | `settingTower.ts` | `flagstone-tower`, `ashlar-tower` | Orrery, telescope (both solid), star chart with five gold stars, compass medallion |
 | Illustration Studio | `illustrationStudio.ts` | none (reuses) | Paint table (solid), four pots, three drawings |
 | Trophy Room | `trophyRoom.ts` | none (reuses) | Six pedestals (solid), item-gated treasures and empty plates, wall shelf |
+| Secret Chamber | `secretChamber.ts` | none (reuses) | Three crystals (solid bases), sealed round door, gold arrow inlay, lantern and its light, the passage seal (a gated collider plus three gated wall-fill surfaces) |
 
 Shared: `trim-dark-wood`. Total 16 presets.
 

@@ -548,7 +548,7 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       (the roadmap merges them and the owner confirmed it): `setting-tower` keeps its stable id,
       primary role (`choose-setting`), three story windows, window zones and arrival zone, all
       asserted unchanged; `CastleRoomNode.functions` now records `['choose-setting',
-    'observatory']`, and there is no `observatory` room id. Added: a **big telescope** (solid stand,
+  'observatory']`, and there is no `observatory` room id. Added: a **big telescope** (solid stand,
       tube above head height, never solid), a **star chart** on the west wall with five gold stars,
       and two walk-up observing points (`castle-observatory-telescope`, `castle-observatory-chart`).
       **Flavour only**: both are `SHOW_MESSAGE`, so looking can never grade, grant, record, start or
@@ -560,8 +560,37 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       three windows: a starry ceiling would need a seventeenth preset (16 of 16). Tests: 8 new
       observatory plus the updated layout and contract suites; the whole runtime, extension and
       castle group is **64 files, 837 tests** passing; typecheck clean; Prettier and oxlint clean.
-      Browser (owner): the telescope read, chart legibility, the cool mood
-- [ ] **SC-R03-05** Secret Chamber behind the tapestry nook (reuses the pattern lock and secret door)
+      Browser (owner): the telescope read, chart legibility, the cool mood. Commit `72c49b0`
+- [x] **SC-R03-05** Secret Chamber behind the tapestry nook (depends: SC-R03-01, -02, -04). DONE
+      (development). **The castle's one secret room, and it stays secret**: the tenth room id
+      (`secret-chamber`, appended), 7 m by 6 m, west of the Story Hall's south-west corner, reached only
+      through the 1.5 m passage `arch-secret` that the swaying tapestry hangs over. **Hidden until the
+      nook is found** (`DISCOVERY_PRESENT castle-tapestry-stair`): the guide does not list it (not
+      even greyed out), `planTravel` refuses it as "not on the map" in the very words used for a room
+      that does not exist (never "locked", which would say there is something to find), no list
+      names it, and none of its content is available or listed. **Physically sealed**: a solid
+      collider fills the passage and three gated wall-fill surfaces cover the gap on the hall's face
+      (the derived walls leave a literal hole there, which behind a tapestry would be a signpost),
+      the secret archway is built only once found and is narrowed to 1.5 m, and a bright cue plate
+      is deliberately **not** hung over it. **Opens live**: when the nook is found mid-visit the
+      castle-tale scene removes the seal and hides the fill (same pattern as the library door),
+      idempotent; a child who found it on an earlier visit never sees it sealed. New generic
+      requirement `DISCOVERY_ABSENT` (the mirror of `DISCOVERY_PRESENT`, 2 switch cases, tested as
+      its exact complement). Chamber: three glowing crystals, a sealed round door that is a
+      **promise, not a puzzle** (the pattern lock and secret door stay in the Library and are not
+      duplicated), a gold arrow on the floor and a warm lantern (priority high enough to survive
+      LOW) pointing the way out, and the guide's always-offered back-to-hub. Four **flavour-only**
+      walk-up lines (nothing grades, grants, records or opens). Tests: 7 hidden-room layout, 7
+      chamber interactions, 6 seal and passage, 6 runtime (a child is **physically stopped at the
+      wall until found**, passes after, and the live opening works), 3 requirement, 5 guide and
+      parity, plus the updated reachability helper (it now evaluates gated colliders with a world
+      state); the whole runtime, extension and castle group is **66 files, 905 tests** passing;
+      parity 49; typecheck clean; Prettier and oxlint clean. **Limits, all now at the line:** the
+      original rooms 160 of 160 scenery, presets 16 of 16, lights **14 of 14** at MEDIUM, estimated
+      draw calls about 277 of 300. **Not done:** chamber content and puzzles (SC-R08), a starry
+      ceiling (needs a 17th preset). Browser (owner): that the hall wall looks seamless where the
+      gap is filled, the tapestry hides the passage, the chamber mood and lantern, the opening
+      feel
 - [ ] **SC-R03-06** Castle map and room discovery
 - [ ] **SC-R03-07** World navigation regression
 - [ ] **SC-R04 to SC-R12** Not started. Gated items: Sound Manager merge (SC-R06), narration

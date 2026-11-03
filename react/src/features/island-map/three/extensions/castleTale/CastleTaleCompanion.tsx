@@ -10,6 +10,7 @@ import { BINDING_LECTERN_ENTITY_ID } from '../../castleBindingLectern';
 import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry';
 import type { AdventureDefinition } from '../../../../adventures/engine/types';
 import { CastleTaleSession, type CastleChoiceState } from './CastleTaleSession';
+import { SECRET_PASSAGE_DISCOVERY_ID } from '../../castleLayout';
 import { CastleGuide } from './CastleGuide';
 import { CastleSecretDoorStory } from './CastleSecretDoorStory';
 import { isCastleTaleScene, type CastleTaleSceneApi } from './castleTaleScene';
@@ -179,6 +180,16 @@ export function CastleTaleCompanion({
       scene.showEaselPainting(restoredChoices.heroOptionId, restoredChoices.settingOptionId);
     }
   }, [scene, restoredChoices]);
+
+  /*
+    The tapestry nook, found: the passage behind it opens in the room, now. A
+    child who found it on an earlier visit never sees it sealed, because the
+    build leaves the seal out; this is for finding it mid-visit. Idempotent.
+  */
+  const nookFound = worldState.discoveryIds?.includes(SECRET_PASSAGE_DISCOVERY_ID) ?? false;
+  useEffect(() => {
+    if (scene && nookFound) scene.showSecretPassageOpened(true);
+  }, [scene, nookFound]);
 
   /** The two interactions this extension claims, and what opening them means. */
   useEffect(() => {

@@ -1,3 +1,4 @@
+import { areRequirementsMet, type WorldInteractionContext } from '../../../worldObjects';
 import type { ThreeLocationManifest } from '../locationManifest';
 import { ROOMS } from '../../storykeeperCastleRegion';
 
@@ -23,16 +24,30 @@ const keyOf = (cell: Cell) =>
   `${Math.round(cell.x / REACHABILITY_STEP)}:${Math.round(cell.z / REACHABILITY_STEP)}`;
 const snap = (value: number) => Math.round(value / REACHABILITY_STEP) * REACHABILITY_STEP;
 
-/** Whether a child could stand here: on some room's floor and outside every collider. */
-export function isManifestWalkable(manifest: ThreeLocationManifest, x: number, z: number): boolean {
+/** What the world is like for a child who has found nothing. Gated colliders are checked against this by default. */
+const NOTHING_YET: WorldInteractionContext = { worldChangeKeys: [] };
+
+/**
+ * Whether a child could stand here: on some room's floor and outside every
+ * collider that exists in `context` (a gated collider, like the secret
+ * passage's seal, only counts while its requirements hold).
+ */
+export function isManifestWalkable(
+  manifest: ThreeLocationManifest,
+  x: number,
+  z: number,
+  context: WorldInteractionContext = NOTHING_YET,
+): boolean {
   const onFloor = ROOMS.some(
     (room) =>
       x >= room.floor.minX && x <= room.floor.maxX && z >= room.floor.minZ && z <= room.floor.maxZ,
   );
   if (!onFloor) return false;
+  // A collider that only holds under a requirement is present or not exactly as the engine decides
+  // when it builds the scene, with the same `areRequirementsMet` and the same world state.
   return !manifest.colliders.some(
     (collider) =>
-      // A collider that only holds under a requirement is checked at its strictest: present.
+      areRequirementsMet(collider.requirements, context) &&
       x >= collider.rect.minX &&
       x <= collider.rect.maxX &&
       z >= collider.rect.minZ &&
@@ -41,9 +56,13 @@ export function isManifestWalkable(manifest: ThreeLocationManifest, x: number, z
 }
 
 /** Every grid cell reachable on foot from `start`, as keys for `isReached`. */
-export function reachableCells(manifest: ThreeLocationManifest, start: Cell): Set<string> {
+export function reachableCells(
+  manifest: ThreeLocationManifest,
+  start: Cell,
+  context: WorldInteractionContext = NOTHING_YET,
+): Set<string> {
   const origin = { x: snap(start.x), z: snap(start.z) };
-  if (!isManifestWalkable(manifest, origin.x, origin.z)) return new Set();
+  if (!isManifestWalkable(manifest, origin.x, origin.z, context)) return new Set();
   const seen = new Set<string>([keyOf(origin)]);
   const queue: Cell[] = [origin];
   while (queue.length > 0) {
@@ -56,7 +75,7 @@ export function reachableCells(manifest: ThreeLocationManifest, start: Cell): Se
     ] as const) {
       const next = { x: cell.x + dx, z: cell.z + dz };
       const key = keyOf(next);
-      if (seen.has(key) || !isManifestWalkable(manifest, next.x, next.z)) continue;
+      if (seen.has(key) || !isManifestWalkable(manifest, next.x, next.z, context)) continue;
       seen.add(key);
       queue.push(next);
     }

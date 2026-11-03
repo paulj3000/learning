@@ -726,6 +726,7 @@ function checkRequirement(
 ): void {
   switch (requirement.type) {
     case 'DISCOVERY_PRESENT':
+    case 'DISCOVERY_ABSENT':
       if (!registries.discoveryIds.includes(requirement.discoveryId)) {
         report(
           'UNKNOWN_DISCOVERY',

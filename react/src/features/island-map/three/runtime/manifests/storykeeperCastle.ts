@@ -5,6 +5,8 @@ import {
   STORYKEEPER_CASTLE_REGION_ID,
 } from '../../../../discovery/checkpoints';
 import { CASTLE_CHOICE_BINDINGS } from '../../castleChoiceBindings';
+import { CASTLE_CHAMBER_INTERACTIONS } from '../../castleChamber';
+import { SECRET_PASSAGE_DISCOVERY_ID } from '../../castleLayout';
 import { CASTLE_OBSERVATORY_INTERACTIONS } from '../../castleObservatory';
 import { CASTLE_TROPHY_INTERACTIONS } from '../../castleTrophies';
 import { WALL_HEIGHT } from '../../sceneKit';
@@ -132,6 +134,18 @@ const ROOM_LIGHT_INTENSITY: Readonly<Record<string, number>> = {
   'illustration-studio': 5,
   'great-library': 2.4,
 };
+
+const SECRET_ARCHWAY_ID = 'arch-secret';
+/** The standard archway's opening is 2 m; the secret passage is 1.5 m. */
+const SECRET_ARCHWAY_WIDTH_SCALE = 0.75;
+
+/** An archway model standing in its gap, turned to run along the wall it cuts. */
+const archwayPlacement = (archway: (typeof ARCHWAYS)[number]) => ({
+  x: (archway.gap.minX + archway.gap.maxX) / 2,
+  z: (archway.gap.minZ + archway.gap.maxZ) / 2,
+  rotationY:
+    archway.gap.maxX - archway.gap.minX >= archway.gap.maxZ - archway.gap.minZ ? 0 : -Math.PI / 2,
+});
 
 const roomFloor = (id: string): RectZone => {
   const room = ROOMS.find((candidate) => candidate.id === id);
@@ -346,13 +360,24 @@ const SCENERY: readonly ScenerySpec[] = [
     kind: 'LOD_PLACEMENTS',
     id: 'archways',
     assetId: 'archway',
-    positions: ARCHWAYS.map((archway) => ({
-      x: (archway.gap.minX + archway.gap.maxX) / 2,
-      z: (archway.gap.minZ + archway.gap.maxZ) / 2,
-      rotationY:
-        archway.gap.maxX - archway.gap.minX >= archway.gap.maxZ - archway.gap.minZ
-          ? 0
-          : -Math.PI / 2,
+    // Every archway but the secret one, which is built only once the nook is found (below).
+    positions: ARCHWAYS.filter((archway) => archway.id !== SECRET_ARCHWAY_ID).map(archwayPlacement),
+  },
+  /*
+    The secret passage's archway, behind the swaying tapestry. Built only once
+    the nook has been found, so a child who has not found it sees a plain
+    wall, and narrowed to the passage's 1.5 m (the standard archway is sized for
+    the castle's 2 m gaps). The wall fill that hides the gap until then is in
+    `storykeeperCastleVisuals.ts`.
+  */
+  {
+    kind: 'LOD_PLACEMENTS',
+    id: 'archway-secret',
+    assetId: 'archway',
+    requirements: [{ type: 'DISCOVERY_PRESENT', discoveryId: SECRET_PASSAGE_DISCOVERY_ID }],
+    positions: ARCHWAYS.filter((archway) => archway.id === SECRET_ARCHWAY_ID).map((archway) => ({
+      ...archwayPlacement(archway),
+      scale: { x: SECRET_ARCHWAY_WIDTH_SCALE },
     })),
   },
   /*
@@ -646,6 +671,7 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
     ...STORYKEEPER_CASTLE_INTERACTIONS,
     ...CASTLE_TROPHY_INTERACTIONS,
     ...CASTLE_OBSERVATORY_INTERACTIONS,
+    ...CASTLE_CHAMBER_INTERACTIONS,
   ],
 
   /*
@@ -727,6 +753,8 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
     'castle-illustration-studio',
     // Walk-up descriptions of the Trophy Room pedestals; the accessible list in the guide is where they are read.
     ...CASTLE_TROPHY_INTERACTIONS.map((interaction) => interaction.id),
+    // The Secret Chamber's lines: never listed, and gated on the nook besides.
+    ...CASTLE_CHAMBER_INTERACTIONS.map((interaction) => interaction.id),
   ],
 
   noReticleBands: ['SPROUT'],

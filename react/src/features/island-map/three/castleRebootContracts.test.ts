@@ -13,6 +13,7 @@ import {
   taleAdventureForBand,
 } from './extensions/castleTale/castleTaleClaims';
 import { castleTaleViewExtension } from './extensions/castleTale/castleTaleViewExtension';
+import { CASTLE_CHAMBER_INTERACTIONS } from './castleChamber';
 import { CASTLE_OBSERVATORY_INTERACTIONS } from './castleObservatory';
 import { CASTLE_TROPHY_INTERACTIONS } from './castleTrophies';
 import { STORYKEEPER_CASTLE_MANIFEST } from './runtime/manifests/storykeeperCastle';
@@ -119,7 +120,7 @@ describe('Storykeeper Castle reboot contracts', () => {
     expect(actual).toEqual(FROZEN_INTERACTIONS);
     // The inherited interactions come first and unchanged. Anything after them is a declared
     // addition (the Trophy Room's walk-up descriptions, SC-R03-03, and the Observatory's
-    // observing points, SC-R03-04), never an edit.
+    // observing points, SC-R03-04, and the Secret Chamber's, SC-R03-05), never an edit.
     const carried = STORYKEEPER_CASTLE_MANIFEST.interactions;
     expect(carried.slice(0, STORYKEEPER_CASTLE_INTERACTIONS.length)).toEqual(
       STORYKEEPER_CASTLE_INTERACTIONS,
@@ -127,6 +128,7 @@ describe('Storykeeper Castle reboot contracts', () => {
     expect(carried.slice(STORYKEEPER_CASTLE_INTERACTIONS.length)).toEqual([
       ...CASTLE_TROPHY_INTERACTIONS,
       ...CASTLE_OBSERVATORY_INTERACTIONS,
+      ...CASTLE_CHAMBER_INTERACTIONS,
     ]);
   });
 

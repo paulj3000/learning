@@ -2,11 +2,11 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { WorldInteractionContext } from '../../../worldObjects';
 import {
   CASTLE_DOORS,
-  CASTLE_ROOMS,
   doorLabel,
   getCastleRoom,
   otherSide,
   planTravel,
+  visibleCastleRooms,
   type CastleDoor,
   type CastleRoomId,
 } from '../../castleLayout';
@@ -116,7 +116,8 @@ export function CastleGuide({
 
   const plans = useMemo(
     () =>
-      CASTLE_ROOMS.map((room) => ({
+      // Only rooms a child may know about: a secret not yet found is not offered, not even greyed out.
+      visibleCastleRooms(worldState).map((room) => ({
         room,
         plan: planTravel(roomId, room.id, worldState, doors),
       })),

@@ -19,6 +19,8 @@ import {
   zoneIsEnterable,
 } from '../testing/castleReachability';
 import { CASTLE_DOORS } from '../../castleLayout';
+import { areRequirementsMet } from '../../../worldObjects';
+import { SECRET_PASSAGE_SEAL_ID, SECRET_SEAL_SURFACE_IDS } from './castleRooms/secretChamber';
 import { CUE_MAX_Y, CUE_MIN_Y, HUB_DOOR_CUES } from './castleRooms/storyHall';
 import { validateLocationManifest } from '../validateLocationManifest';
 import { RENDER_QUALITY_PRESETS, selectLightsForQuality } from '../visual/renderQuality';
@@ -74,6 +76,9 @@ const IS_THE_SPOT: Readonly<Record<string, readonly string[]>> = {
   'collider:costume-rack-c': ['costume-rack-c'],
   ...Object.fromEntries(
     [1, 2, 3, 4, 5, 6].map((n) => [`collider:trophy-pedestal-${n}`, [`trophy-pedestal-${n}`]]),
+  ),
+  ...Object.fromEntries(
+    [1, 2, 3].map((n) => [`collider:chamber-crystal-${n}`, [`chamber-crystal-${n}`]]),
   ),
 };
 
@@ -178,6 +183,8 @@ describe('castle looks', () => {
   it('never textures over an archway', () => {
     for (const look of ROOM_LOOKS) {
       for (const surface of surfacesOf(look.roomId)) {
+        // The secret passage's wall fill covers its archway on purpose, until the nook is found.
+        if (surface.id.includes(':secret-seal:')) continue;
         for (const face of surface.faces) {
           if (face.kind !== 'WALL') continue;
           for (const archway of ARCHWAYS) {
@@ -259,6 +266,9 @@ describe('castle decor', () => {
   it('keeps every solid piece inside one room, clear of every authored spot and zone centre', () => {
     for (const piece of CASTLE_DECOR_COLLIDERS) {
       const { rect } = piece;
+      // The passage seal fills a doorway, which lives in the wall band between two rooms by
+      // definition. It has its own tests (the Secret Chamber, below).
+      if (rect.id === SECRET_PASSAGE_SEAL_ID) continue;
       const room = ROOMS.find(
         (candidate) =>
           rect.minX >= candidate.floor.minX + HALF &&
@@ -589,7 +599,8 @@ describe('the Illustration Studio', () => {
 });
 
 describe('the hub door cues (SC-R03-02)', () => {
-  const hubDoors = CASTLE_DOORS.filter((door) => door.between.includes('story-hall'));
+  // Doors leaving the hub that a child can see. The secret passage is locked and gets no cue.
+  const hubDoors = CASTLE_DOORS.filter((door) => door.between.includes('story-hall') && !door.lock);
   const plateOf = (doorId: string) => {
     const item = CASTLE_DECOR.find((candidate) => candidate.id === `castle-door-cue-${doorId}`);
     if (item?.kind !== 'BOX') throw new Error(`no cue plate for ${doorId}`);
@@ -655,6 +666,15 @@ describe('the hub door cues (SC-R03-02)', () => {
     }
   });
 
+  it('puts no cue over the secret passage: a bright plate over a hidden door would be a signpost', () => {
+    const secret = CASTLE_DOORS.find((door) => door.id === 'arch-secret')!;
+    expect(secret.lock).toBeDefined();
+    expect(HUB_DOOR_CUES.map((cue) => cue.doorId)).not.toContain('arch-secret');
+    expect(CASTLE_DECOR.some((item) => item.id.includes('castle-door-cue-arch-secret'))).toBe(
+      false,
+    );
+  });
+
   it('adds no collider: a lintel plate is out of reach', () => {
     for (const piece of CASTLE_DECOR_COLLIDERS) {
       expect(piece.rect.id.includes('door-cue')).toBe(false);
@@ -662,8 +682,104 @@ describe('the hub door cues (SC-R03-02)', () => {
   });
 });
 
+describe('the secret passage is sealed until the nook is found (SC-R03-05)', () => {
+  const gap = ARCHWAYS.find((arch) => arch.id === 'arch-secret')!.gap;
+  const NOOK = { type: 'DISCOVERY_ABSENT', discoveryId: 'castle-tapestry-stair' } as const;
+
+  it('fills exactly the passage with a solid collider that exists only while the nook is unfound', () => {
+    const seal = MANIFEST.colliders.find((c) => c.rect.id === SECRET_PASSAGE_SEAL_ID);
+    expect(seal).toBeDefined();
+    expect(seal!.rect).toMatchObject({
+      minX: gap.minX,
+      maxX: gap.maxX,
+      minZ: gap.minZ,
+      maxZ: gap.maxZ,
+    });
+    expect(seal!.requirements).toEqual([NOOK]);
+    expect(seal!.maxY).toBeGreaterThanOrEqual(3);
+  });
+
+  it("hides the gap in the hall wall behind three gated surfaces in the hall's own materials", () => {
+    const fills = (MANIFEST.surfaces ?? []).filter((surface) =>
+      SECRET_SEAL_SURFACE_IDS.some((id) => id === surface.id),
+    );
+    expect(fills.map((surface) => surface.id).sort()).toEqual([...SECRET_SEAL_SURFACE_IDS].sort());
+    for (const fill of fills) {
+      expect(fill.requirements).toEqual([NOOK]);
+      for (const face of fill.faces) {
+        if (face.kind !== 'WALL') continue;
+        expect(face.sides).toEqual(['east']);
+        // Covers the whole gap along the wall, on the hall's side of it.
+        expect(face.area.minZ).toBeLessThanOrEqual(gap.minZ);
+        expect(face.area.maxZ).toBeGreaterThanOrEqual(gap.maxZ);
+        expect(face.area.maxX).toBeGreaterThan(gap.maxX);
+      }
+    }
+    const materials = fills.map((surface) => surface.materialId).sort();
+    expect(materials).toEqual(['ashlar-hall', 'plaster-hall', 'trim-dark-wood']);
+  });
+
+  it('builds the secret archway only once the nook is found, and not in the shared archway list', () => {
+    const shared = MANIFEST.scenery.find((item) => item.id === 'archways');
+    const secret = MANIFEST.scenery.find((item) => item.id === 'archway-secret');
+    expect(shared?.kind === 'LOD_PLACEMENTS' && shared.positions).toHaveLength(ARCHWAYS.length - 1);
+    expect(secret?.kind).toBe('LOD_PLACEMENTS');
+    expect(secret?.requirements).toEqual([
+      { type: 'DISCOVERY_PRESENT', discoveryId: 'castle-tapestry-stair' },
+    ]);
+    // Narrowed to the 1.5 m passage: the standard archway fits the castle's 2 m gaps.
+    expect(secret?.kind === 'LOD_PLACEMENTS' && secret.positions[0].scale?.x).toBeLessThan(1);
+  });
+
+  it('is complementary: exactly one of the seal and the open passage is ever built', () => {
+    const seal = MANIFEST.colliders.find((c) => c.rect.id === SECRET_PASSAGE_SEAL_ID)!;
+    const archway = MANIFEST.scenery.find((item) => item.id === 'archway-secret')!;
+    for (const discoveryIds of [[], ['castle-tapestry-stair']]) {
+      const context = { worldChangeKeys: [], ownedItemIds: [], discoveryIds };
+      expect(areRequirementsMet(seal.requirements, context)).toBe(
+        !areRequirementsMet(archway.requirements, context),
+      );
+    }
+  });
+
+  it('keeps the chamber decor inside the chamber and within its scenery allowance', () => {
+    const chamber = ROOMS.find((room) => room.id === 'secret-chamber')!.floor;
+    const decor = CASTLE_DECOR.filter((item) => item.id.startsWith('castle-chamber-'));
+    expect(decor.length).toBeGreaterThan(0);
+    expect(decor.length).toBeLessThanOrEqual(24);
+    for (const item of decor) {
+      if (item.kind !== 'BOX') continue;
+      expect(item.area.minX, item.id).toBeGreaterThanOrEqual(chamber.minX);
+      expect(item.area.maxX, item.id).toBeLessThanOrEqual(chamber.maxX);
+      expect(item.area.minZ, item.id).toBeGreaterThanOrEqual(chamber.minZ);
+      expect(item.area.maxZ, item.id).toBeLessThanOrEqual(chamber.maxZ);
+    }
+  });
+
+  it('lights the way out: a warm lantern by the passage, and a gold arrow on the floor toward it', () => {
+    const lantern = (MANIFEST.lights ?? []).find((light) => light.id === 'light:chamber-lantern');
+    expect(lantern).toBeDefined();
+    // It stays when a weak device drops lamps: priority high enough to survive LOW.
+    expect(selectLightsForQuality(MANIFEST.lights ?? [], 'LOW').map((l) => l.id)).toContain(
+      'light:chamber-lantern',
+    );
+    const look = ROOM_LOOKS.find((entry) => entry.roomId === 'secret-chamber')!;
+    const arrow = look.inlays?.find((inlay) => inlay.id === 'way-out');
+    expect(arrow).toBeDefined();
+    // The arrow ends at the passage, along its line.
+    expect(arrow!.area.maxX).toBeGreaterThan(-10.2);
+    expect(arrow!.area.minZ).toBeLessThanOrEqual(-5);
+    expect(arrow!.area.maxZ).toBeGreaterThanOrEqual(-5);
+  });
+});
+
 describe('the castle is still walkable with its decor', () => {
-  const reached = reachableCells(MANIFEST, STORYKEEPER_CASTLE_REGION_CHECKPOINTS[0]);
+  // The castle as a child who has found the nook sees it: the secret passage open. The sealed
+  // state has its own tests (castleLayoutManifest.test.ts).
+  const reached = reachableCells(MANIFEST, STORYKEEPER_CASTLE_REGION_CHECKPOINTS[0], {
+    worldChangeKeys: [],
+    discoveryIds: ['castle-tapestry-stair'],
+  });
 
   it('spawns the child somewhere they can walk from', () => {
     expect(reached.size).toBeGreaterThan(100);
@@ -734,8 +850,8 @@ describe('castle lighting moods (SC-R02-06)', () => {
   });
 
   it('puts the Storybook glow over the dais, violet-gold, so it reads as magic', () => {
-    expect(CASTLE_EXTRA_LIGHTS).toHaveLength(1);
-    const glow = CASTLE_EXTRA_LIGHTS[0];
+    const glow = CASTLE_EXTRA_LIGHTS.find((light) => light.id === 'light:storybook-dais')!;
+    expect(glow).toBeDefined();
     expect(glow.position.x).toBeCloseTo(STORYBOOK_DAIS.x, 6);
     expect(glow.position.z).toBeCloseTo(STORYBOOK_DAIS.z, 6);
     expect(glow.color).not.toBe(castleRoomMood('great-library').color);

@@ -12,13 +12,17 @@ import {
   discoveryState,
   doorLabel,
   getCastleRoom,
+  isCastleRoomVisible,
   isDoorOpen,
+  doorsOf,
   nextDoorToward,
   openExits,
   otherSide,
   planTravel,
   routeBetween,
   safePlacementFor,
+  SECRET_PASSAGE_DISCOVERY_ID,
+  visibleCastleRooms,
   type CastleDoor,
 } from './castleLayout';
 import { ARCHWAYS, ROOMS, ZONES, isInsideRect, isWalkable } from './storykeeperCastleRegion';
@@ -36,6 +40,12 @@ const NOTHING_YET: WorldInteractionContext = {
   discoveryIds: [],
 };
 
+/** A child who has found the tapestry nook: the secret passage is open and the chamber is on the map. */
+const FOUND_NOOK: WorldInteractionContext = {
+  ...NOTHING_YET,
+  discoveryIds: ['castle-tapestry-stair'],
+};
+
 const door = (id: string): CastleDoor => CASTLE_DOORS.find((candidate) => candidate.id === id)!;
 
 describe('castle layout identity (save compatibility)', () => {
@@ -51,8 +61,9 @@ describe('castle layout identity (save compatibility)', () => {
       'illustration-studio',
       'great-library',
     ]);
-    // Rooms added since are appended: the Trophy Room (SC-R03-03).
-    expect(CASTLE_ROOM_IDS.slice(8)).toEqual(['trophy-room']);
+    // Rooms added since are appended, in the order they were built: the Trophy Room (SC-R03-03),
+    // then the Secret Chamber (SC-R03-05).
+    expect(CASTLE_ROOM_IDS.slice(8)).toEqual(['trophy-room', 'secret-chamber']);
     expect(CASTLE_ROOMS.map((room) => room.id)).toEqual([...CASTLE_ROOM_IDS]);
     expect(ROOMS.map((room) => room.id).sort()).toEqual([...CASTLE_ROOM_IDS].sort());
   });
@@ -147,10 +158,16 @@ describe('castle doors', () => {
     expect(otherSide(door('arch-gallery'), 'character-gallery')).toBe('story-hall');
   });
 
-  it('locks nothing today: the castle is open by design, so every door is open', () => {
+  it('locks only the secret passage: the castle is open by design everywhere else', () => {
     for (const d of CASTLE_DOORS) {
-      expect(d.lock).toBeUndefined();
-      expect(isDoorOpen(d, NOTHING_YET)).toBe(true);
+      if (d.id === 'arch-secret') {
+        expect(d.lock).toBeDefined();
+        expect(isDoorOpen(d, NOTHING_YET)).toBe(false);
+        expect(isDoorOpen(d, FOUND_NOOK)).toBe(true);
+      } else {
+        expect(d.lock, d.id).toBeUndefined();
+        expect(isDoorOpen(d, NOTHING_YET), d.id).toBe(true);
+      }
     }
   });
 });
@@ -158,30 +175,28 @@ describe('castle doors', () => {
 describe('castle routes', () => {
   it('reaches every room from the entry hall by open doors alone', () => {
     for (const room of CASTLE_ROOMS) {
-      expect(routeBetween('entry-hall', room.id, NOTHING_YET), room.id).not.toBeNull();
+      expect(routeBetween('entry-hall', room.id, FOUND_NOOK), room.id).not.toBeNull();
     }
   });
 
   it('makes the story hall the hub and the library the deepest room, as designed', () => {
     const doorsTo = (id: Parameters<typeof routeBetween>[1]) =>
-      routeBetween('entry-hall', id, NOTHING_YET)!.length;
+      routeBetween('entry-hall', id, FOUND_NOOK)!.length;
     expect(doorsTo('story-hall')).toBe(1);
     expect(doorsTo('character-gallery')).toBe(2);
     expect(doorsTo('costume-room')).toBe(2);
     expect(doorsTo('east-corridor')).toBe(2);
     const deepest = Math.max(...CASTLE_ROOMS.map((room) => doorsTo(room.id)));
     expect(doorsTo('great-library')).toBe(deepest);
-    const route = routeBetween('entry-hall', 'great-library', NOTHING_YET)!;
+    const route = routeBetween('entry-hall', 'great-library', FOUND_NOOK)!;
     expect(route.map((d) => d.id)).toEqual(['arch-entry-hall', 'arch-corridor', 'arch-library']);
   });
 
   it('is symmetric and is empty when already there', () => {
-    expect(routeBetween('story-hall', 'story-hall', NOTHING_YET)).toEqual([]);
+    expect(routeBetween('story-hall', 'story-hall', FOUND_NOOK)).toEqual([]);
     for (const a of CASTLE_ROOM_IDS) {
       for (const b of CASTLE_ROOM_IDS) {
-        expect(routeBetween(a, b, NOTHING_YET)!.length).toBe(
-          routeBetween(b, a, NOTHING_YET)!.length,
-        );
+        expect(routeBetween(a, b, FOUND_NOOK)!.length).toBe(routeBetween(b, a, FOUND_NOOK)!.length);
       }
     }
   });
@@ -249,7 +264,7 @@ describe('castle content reachability', () => {
       const room = castleRoomAt((zone.minX + zone.maxX) / 2, (zone.minZ + zone.maxZ) / 2);
       expect(room, `zone ${zone.id} is outside every room`).toBeDefined();
       expect(
-        routeBetween('entry-hall', room!.id, NOTHING_YET),
+        routeBetween('entry-hall', room!.id, FOUND_NOOK),
         `${zone.id} is unreachable`,
       ).not.toBeNull();
     }
@@ -335,7 +350,7 @@ describe('castle travel: the accessible equivalent of walking (SC-R03-02)', () =
     for (const from of CASTLE_ROOM_IDS) {
       for (const to of CASTLE_ROOM_IDS) {
         if (from === to) continue;
-        const plan = planTravel(from, to, NOTHING_YET);
+        const plan = planTravel(from, to, FOUND_NOOK);
         expect(plan.ok, `${from} to ${to}`).toBe(true);
         if (!plan.ok) continue;
         expect(castleRoomAt(plan.placement.x, plan.placement.z)?.id).toBe(to);
@@ -384,5 +399,49 @@ describe('castle travel: the accessible equivalent of walking (SC-R03-02)', () =
       expect(refusal.message.length).toBeGreaterThan(0);
       expect(refusal.message).not.toMatch(/\u2014|\u2013/);
     }
+  });
+});
+
+describe('the secret chamber stays secret until the nook is found (SC-R03-05)', () => {
+  const chamber = () => getCastleRoom('secret-chamber')!;
+
+  it('is not on the map: not visible, and not offered, until the nook is found', () => {
+    expect(isCastleRoomVisible(chamber(), NOTHING_YET)).toBe(false);
+    expect(visibleCastleRooms(NOTHING_YET).map((room) => room.id)).not.toContain('secret-chamber');
+    expect(isCastleRoomVisible(chamber(), FOUND_NOOK)).toBe(true);
+    expect(visibleCastleRooms(FOUND_NOOK).map((room) => room.id)).toContain('secret-chamber');
+    // Every other room is always visible.
+    expect(visibleCastleRooms(NOTHING_YET)).toHaveLength(CASTLE_ROOMS.length - 1);
+  });
+
+  it('is refused as "not on the map", never as "locked", and in the very words for a room that does not exist', () => {
+    const hidden = planTravel('story-hall', 'secret-chamber', NOTHING_YET);
+    const nonexistent = planTravel('story-hall', 'no-such-room', NOTHING_YET);
+    expect(hidden).toMatchObject({ ok: false, reason: 'unknown-room' });
+    // A child cannot tell the two apart, so asking for it reveals nothing.
+    expect(hidden).toEqual(nonexistent);
+  });
+
+  it('is reachable by the open passage once found, from the hub and from anywhere', () => {
+    const plan = planTravel('story-hall', 'secret-chamber', FOUND_NOOK);
+    expect(plan.ok && plan.route.map((d) => d.id)).toEqual(['arch-secret']);
+    expect(planTravel('entry-hall', 'secret-chamber', FOUND_NOOK).ok).toBe(true);
+  });
+
+  it('has exactly one way in, the passage behind the tapestry, and it is shut until found', () => {
+    expect(doorsOf('secret-chamber').map((d) => d.id)).toEqual(['arch-secret']);
+    expect(routeBetween('entry-hall', 'secret-chamber', NOTHING_YET)).toBeNull();
+    expect(routeBetween('entry-hall', 'secret-chamber', FOUND_NOOK)).not.toBeNull();
+  });
+
+  it('uses the one requirement for the room and its door, so they can never disagree', () => {
+    expect(chamber().hiddenUntil).toEqual(door('arch-secret').lock?.requirements);
+    expect(chamber().hiddenUntil).toEqual([
+      { type: 'DISCOVERY_PRESENT', discoveryId: SECRET_PASSAGE_DISCOVERY_ID },
+    ]);
+  });
+
+  it('opens the secret passage on the discovery the tapestry nook records, and nothing else', () => {
+    expect(SECRET_PASSAGE_DISCOVERY_ID).toBe('castle-tapestry-stair');
   });
 });

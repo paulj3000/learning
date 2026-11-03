@@ -49,6 +49,8 @@ export const CASTLE_ROOM_IDS = [
   'great-library',
   // Added by SC-R03-03. Appended, never inserted: the first eight keep their order.
   'trophy-room',
+  // Added by SC-R03-05: the castle's one secret room. Hidden until the tapestry nook is found.
+  'secret-chamber',
 ] as const;
 
 export type CastleRoomId = (typeof CASTLE_ROOM_IDS)[number];
@@ -64,7 +66,8 @@ export type CastleRoomRole =
   | 'see-it-drawn'
   | 'secret-door-arc'
   | 'trophies'
-  | 'observatory';
+  | 'observatory'
+  | 'secret';
 
 export interface CastleRoomNode {
   id: CastleRoomId;
@@ -85,16 +88,27 @@ export interface CastleRoomNode {
   checkpointId?: string;
   /** Known from the first step in. Only the entry hall. */
   initiallyDiscovered: boolean;
+  /**
+   * The room does not exist as far as a child can tell until these hold: the
+   * guide does not list it, the planner treats it as not on the map (never as
+   * "locked", which would give the secret away), and no HUD names it. Empty
+   * for every ordinary room.
+   */
+  hiddenUntil: readonly WorldRequirement[];
 }
 
 interface RoomMeta {
   role: CastleRoomRole;
+  hiddenUntil?: readonly WorldRequirement[];
   /** Further jobs beyond the primary role. */
   alsoServes?: readonly CastleRoomRole[];
   destination: string;
   safeSpot: { x: number; z: number };
   checkpointId?: string;
 }
+
+/** The discovery (`discovery/content`, the tapestry nook) that opens the secret passage. */
+export const SECRET_PASSAGE_DISCOVERY_ID = 'castle-tapestry-stair';
 
 const checkpointPosition = (id: string): { x: number; z: number } => {
   const checkpoint = STORYKEEPER_CASTLE_CHECKPOINTS.find((candidate) => candidate.id === id);
@@ -143,6 +157,12 @@ const ROOM_META: Readonly<Record<CastleRoomId, RoomMeta>> = {
     destination: 'See your story drawn.',
     safeSpot: { x: 6.2, z: 1 },
   },
+  'secret-chamber': {
+    role: 'secret',
+    hiddenUntil: [{ type: 'DISCOVERY_PRESENT', discoveryId: SECRET_PASSAGE_DISCOVERY_ID }],
+    destination: 'Look at the glowing crystals.',
+    safeSpot: { x: -11.5, z: -6.5 },
+  },
   'trophy-room': {
     role: 'trophies',
     destination: 'See the treasures you have earned.',
@@ -166,11 +186,25 @@ export const CASTLE_ROOMS: readonly CastleRoomNode[] = CASTLE_ROOM_IDS.map((id) 
     ...ROOM_META[id],
     functions: [ROOM_META[id].role, ...(ROOM_META[id].alsoServes ?? [])],
     initiallyDiscovered: id === 'entry-hall',
+    hiddenUntil: ROOM_META[id].hiddenUntil ?? [],
   };
 });
 
 export function getCastleRoom(id: string): CastleRoomNode | undefined {
   return CASTLE_ROOMS.find((room) => room.id === id);
+}
+
+/** Whether a child can know this room exists yet. Ordinary rooms always can. */
+export function isCastleRoomVisible(
+  room: CastleRoomNode,
+  context: WorldInteractionContext,
+): boolean {
+  return areRequirementsMet(room.hiddenUntil, context);
+}
+
+/** The rooms a child may be told about now: every room except a secret not yet found. */
+export function visibleCastleRooms(context: WorldInteractionContext): readonly CastleRoomNode[] {
+  return CASTLE_ROOMS.filter((room) => isCastleRoomVisible(room, context));
 }
 
 /** The room a point is standing in, or `undefined` in a wall or outside the castle. */
@@ -208,6 +242,20 @@ export interface CastleDoor {
   lock?: CastleDoorLock;
 }
 
+/**
+ * Locks by door id. Only the secret passage is locked: the castle is open by
+ * design everywhere else. The lock uses the same requirement as the room's
+ * `hiddenUntil`, so the room and its door can never disagree. Its hint is
+ * never shown to a child (the room is hidden, so the planner never gets as
+ * far as naming the door); it exists because every lock must have one.
+ */
+const DOOR_LOCKS: Readonly<Record<string, CastleDoorLock>> = {
+  'arch-secret': {
+    requirements: [{ type: 'DISCOVERY_PRESENT', discoveryId: SECRET_PASSAGE_DISCOVERY_ID }],
+    hint: 'The way is hidden for now.',
+  },
+};
+
 function buildDoor(archway: ArchwayDefinition): CastleDoor {
   const { gap } = archway;
   const centre = { x: (gap.minX + gap.maxX) / 2, z: (gap.minZ + gap.maxZ) / 2 };
@@ -227,6 +275,7 @@ function buildDoor(archway: ArchwayDefinition): CastleDoor {
   const towardsA = crossesX ? -Math.PI / 2 : Math.PI;
   return {
     id: archway.id,
+    ...(DOOR_LOCKS[archway.id] ? { lock: DOOR_LOCKS[archway.id] } : {}),
     between: [roomOfA.id, roomOfB.id],
     gap,
     centre,
@@ -427,7 +476,8 @@ export function planTravel(
   doors: readonly CastleDoor[] = CASTLE_DOORS,
 ): CastleTravelPlan | CastleTravelRefusal {
   const room = getCastleRoom(to);
-  if (!room) {
+  // A secret not yet found is not on the map. Not "locked": that would say there is something to find.
+  if (!room || !isCastleRoomVisible(room, context)) {
     return { ok: false, reason: 'unknown-room', message: 'That room is not on the map.' };
   }
   const start = from ?? 'entry-hall';

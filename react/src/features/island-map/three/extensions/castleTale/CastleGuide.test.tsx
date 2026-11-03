@@ -4,6 +4,8 @@ import type { WorldInteractionContext } from '../../../worldObjects';
 import {
   CASTLE_DOORS,
   CASTLE_ROOMS,
+  SECRET_PASSAGE_DISCOVERY_ID,
+  visibleCastleRooms,
   getCastleRoom,
   planTravel,
   type CastleDoor,
@@ -95,7 +97,7 @@ describe('CastleGuide', () => {
     render(<CastleGuide scene={fakeScene('story-hall').api} worldState={NOTHING} />);
     open();
     expect(screen.getByText('You are in the story hall.')).toBeInTheDocument();
-    for (const room of CASTLE_ROOMS) {
+    for (const room of visibleCastleRooms(NOTHING)) {
       const name = room.id === 'story-hall' ? `You are here: ${room.label}` : `Go to ${room.label}`;
       const button = screen.getByRole('button', { name: new RegExp(name, 'i') });
       expect(button.tagName).toBe('BUTTON');
@@ -204,7 +206,7 @@ describe('CastleGuide', () => {
     open();
     // The first list is the rooms; the treasures are a second, separate list.
     expect(within(screen.getAllByRole('list')[0]).getAllByRole('listitem')).toHaveLength(
-      CASTLE_ROOMS.length,
+      visibleCastleRooms(NOTHING).length,
     );
     expect(getCastleRoom('great-library')?.label).toBe('the Great Library');
   });
@@ -265,6 +267,38 @@ describe('CastleGuide', () => {
       expect(screen.queryByText(/a feather pen from keeper quill/i)).toBeNull();
       rerender(<CastleGuide scene={scene.api} worldState={owning('storykeepers-quill')} />);
       expect(screen.getByText(/a feather pen from keeper quill/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('the secret chamber (SC-R03-05)', () => {
+    const FOUND: WorldInteractionContext = {
+      ...NOTHING,
+      discoveryIds: [SECRET_PASSAGE_DISCOVERY_ID],
+    };
+
+    it('is not offered, not even greyed out, and not named anywhere, until the nook is found', () => {
+      render(<CastleGuide scene={fakeScene('story-hall').api} worldState={NOTHING} />);
+      open();
+      expect(screen.queryByRole('button', { name: /secret chamber/i })).toBeNull();
+      expect(document.body.textContent ?? '').not.toMatch(/secret chamber|crystal|hidden/i);
+      expect(CASTLE_ROOMS.some((room) => room.id === 'secret-chamber')).toBe(true);
+    });
+
+    it('is offered once the nook is found, with the walk through the passage in words', () => {
+      render(<CastleGuide scene={fakeScene('story-hall').api} worldState={FOUND} />);
+      open();
+      const chamber = screen.getByRole('button', { name: /go to the secret chamber/i });
+      expect(chamber).toBeEnabled();
+      expect(within(chamber).getByText(/walking: to the secret chamber/i)).toBeInTheDocument();
+    });
+
+    it('appears the moment the nook is found, without reopening the guide', () => {
+      const scene = fakeScene('story-hall');
+      const { rerender } = render(<CastleGuide scene={scene.api} worldState={NOTHING} />);
+      open();
+      expect(screen.queryByRole('button', { name: /secret chamber/i })).toBeNull();
+      rerender(<CastleGuide scene={scene.api} worldState={FOUND} />);
+      expect(screen.getByRole('button', { name: /go to the secret chamber/i })).toBeInTheDocument();
     });
   });
 });

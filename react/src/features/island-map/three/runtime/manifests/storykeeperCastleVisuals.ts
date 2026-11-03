@@ -1,5 +1,11 @@
 import { WALL_HEIGHT } from '../../sceneKit';
-import { ROOMS, WALL_SEGMENTS, WALL_THICKNESS, type RoomSide } from '../../storykeeperCastleRegion';
+import {
+  ARCHWAYS,
+  ROOMS,
+  WALL_SEGMENTS,
+  WALL_THICKNESS,
+  type RoomSide,
+} from '../../storykeeperCastleRegion';
 import type {
   ColliderSpec,
   EffectSpec,
@@ -18,6 +24,7 @@ import { ENTRY_HALL_VISUALS } from './castleRooms/entryHall';
 import { GREAT_LIBRARY_VISUALS } from './castleRooms/greatLibrary';
 import { ILLUSTRATION_STUDIO_VISUALS } from './castleRooms/illustrationStudio';
 import { SETTING_TOWER_VISUALS } from './castleRooms/settingTower';
+import { SECRET_CHAMBER_VISUALS, SECRET_SEAL_SURFACE_IDS } from './castleRooms/secretChamber';
 import { STORY_HALL_VISUALS } from './castleRooms/storyHall';
 import { TROPHY_ROOM_VISUALS } from './castleRooms/trophyRoom';
 
@@ -98,6 +105,7 @@ const ROOM_VISUALS: readonly RoomVisuals[] = [
   SETTING_TOWER_VISUALS,
   ILLUSTRATION_STUDIO_VISUALS,
   TROPHY_ROOM_VISUALS,
+  SECRET_CHAMBER_VISUALS,
 ];
 
 export const ROOM_LOOKS: readonly RoomLook[] = ROOM_VISUALS.map((room) => room.look);
@@ -128,6 +136,12 @@ const FACING: Readonly<Record<RoomSide, WallSide>> = {
   north: 'south',
   west: 'east',
   east: 'west',
+};
+
+const archwayById = (id: string) => {
+  const archway = ARCHWAYS.find((candidate) => candidate.id === id);
+  if (!archway) throw new Error(`Storykeeper Castle has no archway "${id}"`);
+  return archway;
 };
 
 const roomById = (roomId: string) => {
@@ -294,7 +308,68 @@ function lookEffects(look: RoomLook): EffectSpec[] {
   ];
 }
 
-export const CASTLE_SURFACES: readonly SurfaceSpec[] = ROOM_LOOKS.flatMap(lookSurfaces);
+/**
+ * The wall fill that hides the secret passage while it is secret. The
+ * derived walls leave a gap where an archway is, and the secret's gap is
+ * behind the tapestry: left open it would be a 1.5 m hole in the Story Hall's
+ * wall, which is a signpost. Three gated surfaces, in the Story Hall's own
+ * materials (the wainscot, the plaster above it, and the trim), cover it on
+ * the hall's face, and exist only while `DISCOVERY_ABSENT`. castle-tale hides
+ * them the moment the nook is found, and they are not built again.
+ */
+// `SECRET_SEAL_SURFACE_IDS` is declared with the chamber (`castleRooms/secretChamber.ts`).
+
+function secretSealSurfaces(): SurfaceSpec[] {
+  const gap = archwayById('arch-secret').gap;
+  const hall = roomById('story-hall');
+  const seal: SurfaceSpec['requirements'] = [
+    { type: 'DISCOVERY_ABSENT', discoveryId: 'castle-tapestry-stair' },
+  ];
+  // The hall's west wall, seen from inside the hall, faces east (+x): the quad is drawn at maxX.
+  const face = (id: string, inset: number, minY: number, maxY: number): SurfaceFace => {
+    const plane = hall.floor.minX + WALL_HALF + inset;
+    return {
+      kind: 'WALL',
+      area: rect(id, plane - FACE_DEPTH, plane, gap.minZ, gap.maxZ),
+      minY,
+      maxY,
+      sides: ['east'],
+    };
+  };
+  return [
+    {
+      id: SECRET_SEAL_SURFACE_IDS[0],
+      materialId: 'ashlar-hall',
+      requirements: seal,
+      faces: [face(`${SECRET_SEAL_SURFACE_IDS[0]}:face`, WALL_SURFACE_INSET, 0, 1)],
+    },
+    {
+      id: SECRET_SEAL_SURFACE_IDS[1],
+      materialId: 'plaster-hall',
+      requirements: seal,
+      faces: [face(`${SECRET_SEAL_SURFACE_IDS[1]}:face`, WALL_SURFACE_INSET, 1, WALL_HEIGHT)],
+    },
+    {
+      id: SECRET_SEAL_SURFACE_IDS[2],
+      materialId: 'trim-dark-wood',
+      requirements: seal,
+      faces: [
+        face(`${SECRET_SEAL_SURFACE_IDS[2]}:baseboard`, TRIM_SURFACE_INSET, 0, BASEBOARD_HEIGHT),
+        face(
+          `${SECRET_SEAL_SURFACE_IDS[2]}:cornice`,
+          TRIM_SURFACE_INSET,
+          WALL_HEIGHT - CORNICE_HEIGHT,
+          WALL_HEIGHT,
+        ),
+      ],
+    },
+  ];
+}
+
+export const CASTLE_SURFACES: readonly SurfaceSpec[] = [
+  ...ROOM_LOOKS.flatMap(lookSurfaces),
+  ...secretSealSurfaces(),
+];
 export const CASTLE_EFFECTS: readonly EffectSpec[] = ROOM_LOOKS.flatMap(lookEffects);
 
 /** Decor with no domain meaning: never raycast, never a collider (those are `CASTLE_DECOR_COLLIDERS`). */

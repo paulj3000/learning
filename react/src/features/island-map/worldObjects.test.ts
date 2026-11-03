@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  areRequirementsMet,
   findInteraction,
   isInteractionAvailable,
   PIRATE_BUILDER_BAY_INTERACTIONS,
@@ -7,6 +8,7 @@ import {
   WELCOME_HARBOR_INTERACTIONS,
   WONDERWILD_FOREST_INTERACTIONS,
   type WorldInteraction,
+  type WorldRequirement,
 } from './worldObjects';
 
 describe('isInteractionAvailable', () => {
@@ -398,6 +400,36 @@ describe('Phase 26 requirements', () => {
         worldChangeKeys: [],
       }),
     ).toBe(false);
+  });
+});
+
+describe('DISCOVERY_ABSENT (SC-R03-05)', () => {
+  const absent: WorldRequirement[] = [
+    { type: 'DISCOVERY_ABSENT', discoveryId: 'castle-tapestry-stair' },
+  ];
+  const present: WorldRequirement[] = [
+    { type: 'DISCOVERY_PRESENT', discoveryId: 'castle-tapestry-stair' },
+  ];
+  const base = { worldChangeKeys: [], ownedItemIds: [] };
+
+  it('holds until the discovery is made, and stops holding once it is', () => {
+    expect(areRequirementsMet(absent, { ...base, discoveryIds: [] })).toBe(true);
+    expect(areRequirementsMet(absent, { ...base, discoveryIds: ['castle-tapestry-stair'] })).toBe(
+      false,
+    );
+    expect(areRequirementsMet(absent, { ...base, discoveryIds: ['some-other-secret'] })).toBe(true);
+  });
+
+  it('treats a world state with no discoveries field as nothing discovered', () => {
+    expect(areRequirementsMet(absent, { worldChangeKeys: [] })).toBe(true);
+    expect(areRequirementsMet(present, { worldChangeKeys: [] })).toBe(false);
+  });
+
+  it('is the exact complement of DISCOVERY_PRESENT, so exactly one of a pair is ever built', () => {
+    for (const discoveryIds of [[], ['castle-tapestry-stair'], ['x', 'castle-tapestry-stair']]) {
+      const context = { ...base, discoveryIds };
+      expect(areRequirementsMet(absent, context)).toBe(!areRequirementsMet(present, context));
+    }
   });
 });
 

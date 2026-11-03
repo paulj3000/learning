@@ -1,6 +1,10 @@
 import { Box3, LoopOnce, LoopRepeat, Object3D, PointLight, Vector3 } from 'three';
 import { areRequirementsMet, type WorldInteractionContext } from '../../../worldObjects';
 import {
+  SECRET_PASSAGE_SEAL_ID,
+  SECRET_SEAL_SURFACE_IDS,
+} from '../../runtime/manifests/castleRooms/secretChamber';
+import {
   castleRoomAt,
   planTravel,
   type CastleRoomId,
@@ -50,6 +54,13 @@ export interface CastleTaleSceneApi {
   showSecretDoorOpened(opened: boolean): void;
   showEaselPainting(heroOptionId: string | null, settingOptionId: string | null): void;
   showStoryTold(told: boolean): void;
+  /**
+   * Opens the secret passage behind the tapestry once the nook has been found:
+   * takes the seal out of the way and hides the wall fill that covered the gap.
+   * Idempotent. The build already leaves both out for a child who found the nook
+   * on an earlier visit, so this is only for finding it mid-visit.
+   */
+  showSecretPassageOpened(opened: boolean): void;
   /** The room the child is standing in, or `undefined` in a wall or outside the castle. */
   currentRoomId(): CastleRoomId | undefined;
   /**
@@ -544,6 +555,14 @@ export const castleTaleExtension: WorldExtension = {
       showStoryTold(told) {
         storyTold = told;
         applyStoryTold();
+      },
+      showSecretPassageOpened(opened) {
+        if (!opened) return;
+        context.removeCollider(SECRET_PASSAGE_SEAL_ID);
+        for (const id of SECRET_SEAL_SURFACE_IDS) {
+          const fill = context.sceneryRoot(id);
+          if (fill) fill.visible = false;
+        }
       },
       currentRoomId() {
         const { x, z } = context.childPlacement();
