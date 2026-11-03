@@ -337,8 +337,25 @@ following task's commit.
       or `effects`). No duplicate Phaser, sound, asset-manager or content-backend code. Maps the
       owner brief's SC-R02-02..10 onto this tracker's ids. Tests: 9 files, 118 pass (visual, region,
       contracts, manifest). The full `three/` suite did not complete on this machine (worker
-      timeouts, 8 GB RAM; environmental). Browser: none run
-- [ ] **SC-R02-02** Great Library visual overhaul (depends: SC-R02-01)
+      timeouts, 8 GB RAM; environmental). Browser: none run. Commits `42bac2b`, `2e52c87` (the second
+      corrects the test-environment finding: `@colyseus/sdk` missing from the shared `node_modules`,
+      so the parity suite is run with a scratch stub; it passes, 44 tests)
+- [x] **SC-R02-02** Great Library visual overhaul (depends: SC-R02-01). DONE (development):
+      `runtime/manifests/storykeeperCastleVisuals.ts`, a data layer over the SC-R02-01 visual
+      system: three presets (`planks-library`, `ashlar-library`, `trim-dark-wood`), one `RoomLook`
+      (textured floor, ceiling, ashlar walls, baseboard and cornice, candle-dust motes), and
+      procedural `BOX` decor: the empty **Storybook dais** (`STORYBOOK_DAIS`, solid, for SC-R04),
+      three ceiling beams, two table candles. The kit floor, walls and ceiling stay underneath as the
+      fallback; surfaces stand 1 to 4 cm in front of them. New `testing/castleReachability.ts`
+      walks the castle **with the manifest's own colliders** (the region flood fill cannot see
+      manifest colliders): every room, zone and authored spot is still reachable. Tests: 38 new and
+      related (visuals, runtime, manifest) pass; castle engine, bindings, HUD equivalence, contracts
+      and region suites pass (93); parity suite passes with the scratch stub (44); `tsc --noEmit -p
+    tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in castle files;
+      Prettier passes. **Deferred, not done:** columns and chairs (the puzzle spots leave no safe
+      floor), varied book art (needs kit or commissioned art, ADR-028 is Proposed), a dais glow
+      light (SC-R02-06). Browser (owner): overall look, readability of the clues and rods against
+      the new walls, dais position
 - [ ] **SC-R02-03** Entry Hall visual overhaul (depends: SC-R02-01)
 - [ ] **SC-R02-04a-f** Story Hall, Character Gallery, Costume Room, Setting Tower, Illustration
       Studio, East Corridor visual passes, one commit each (depends: SC-R02-01)

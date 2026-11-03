@@ -43,6 +43,13 @@ import {
 } from '../../storykeeperCastleRegion';
 import { facingIntoRoom, wallPanelPlacements } from '../sceneLayout';
 import {
+  CASTLE_DECOR,
+  CASTLE_DECOR_COLLIDERS,
+  CASTLE_EFFECTS,
+  CASTLE_MATERIALS,
+  CASTLE_SURFACES,
+} from './storykeeperCastleVisuals';
+import {
   LOCATION_MANIFEST_SCHEMA_VERSION,
   type ClusterPosition,
   type ColliderSpec,
@@ -266,6 +273,8 @@ const COLLIDERS: readonly ColliderSpec[] = [
   ...LIBRARY_READING_TABLE_SPOTS.map((spot) =>
     propCollider(`collider:${spot.entityId}`, spot, READING_TABLE_HALF, 0),
   ),
+  // Solid decor the visual pass added (the Storybook dais); see `storykeeperCastleVisuals.ts`.
+  ...CASTLE_DECOR_COLLIDERS,
 ];
 
 const LIGHTS: readonly LightSpec[] = [
@@ -346,6 +355,8 @@ const SCENERY: readonly ScenerySpec[] = [
     assetId: 'carpet',
     positions: carpetPositions({ x: -14.5, z: 0 }, { x: -5, z: 0 }),
   },
+  // Procedural decor from the visual pass (SC-R02): dais, beams, candles. Never interactive.
+  ...CASTLE_DECOR,
   // The doors themselves, so the way out is a thing you can see from inside.
   {
     kind: 'LOD_PLACEMENTS',
@@ -580,6 +591,10 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
   buildings: [],
   scenery: SCENERY,
   lights: LIGHTS,
+  // The visual pass (SC-R02): presets, the surfaces that wear them, and atmosphere.
+  materials: CASTLE_MATERIALS,
+  surfaces: CASTLE_SURFACES,
+  effects: CASTLE_EFFECTS,
 
   npcs: [
     {

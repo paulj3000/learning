@@ -1,0 +1,323 @@
+import { describe, expect, it } from 'vitest';
+import {
+  ALL_ENTITY_IDS,
+  ARCHWAYS,
+  FLOOR_SPOTS,
+  ROOMS,
+  STORYKEEPER_CASTLE_REGION_CHECKPOINTS,
+  WALL_MOUNTED_SPOTS,
+  WALL_SEGMENTS,
+  WALL_THICKNESS,
+  ZONES,
+} from '../../storykeeperCastleRegion';
+import type { ScenerySpec, SurfaceSpec } from '../locationManifest';
+import {
+  hasReachableCellNear,
+  reachableCells,
+  zoneIsEnterable,
+} from '../testing/castleReachability';
+import { validateLocationManifest } from '../validateLocationManifest';
+import { SOURCE_MANIFEST_REGISTRIES } from '../sourceManifestRegistries';
+import { STORYKEEPER_CASTLE_MANIFEST as MANIFEST } from './storykeeperCastle';
+import {
+  CASTLE_DECOR,
+  CASTLE_DECOR_COLLIDERS,
+  CASTLE_EFFECTS,
+  CASTLE_MATERIALS,
+  CASTLE_SURFACES,
+  FLOOR_SURFACE_Y,
+  ROOM_LOOKS,
+  STORYBOOK_DAIS,
+  TRIM_SURFACE_INSET,
+  WALL_SURFACE_INSET,
+  type RoomLook,
+} from './storykeeperCastleVisuals';
+
+/**
+ * The castle's look is data over the generic visual system, so what is worth
+ * testing here is the data: that every preset is declared and worn, that a
+ * wall surface never shares a plane with the kit panel under it or covers a
+ * doorway, that solid decor never walls anything in, and that the budgets
+ * the art direction promised (section 7) hold as the castle grows.
+ */
+
+const HALF = WALL_THICKNESS / 2;
+const FAR = 1e-9;
+
+const materialIdsOf = (look: RoomLook): string[] =>
+  [look.floor, look.walls, look.ceiling, look.wainscot?.materialId, look.trim].filter(
+    (id): id is string => id !== undefined,
+  );
+
+const surfacesOf = (roomId: string): SurfaceSpec[] =>
+  CASTLE_SURFACES.filter((surface) => surface.id.startsWith(`look:${roomId}:`));
+
+describe('castle materials', () => {
+  it('declares every preset a look wears, and none that nobody wears', () => {
+    const worn = new Set(ROOM_LOOKS.flatMap(materialIdsOf));
+    const declared = CASTLE_MATERIALS.map((preset) => preset.id);
+    expect(new Set(declared).size).toBe(declared.length);
+    expect([...worn].sort()).toEqual([...declared].sort());
+  });
+
+  it('stays inside the art direction budget of sixteen presets', () => {
+    expect(CASTLE_MATERIALS.length).toBeLessThanOrEqual(16);
+  });
+
+  it('names a preset for what it is, never for where a file came from', () => {
+    for (const preset of CASTLE_MATERIALS) expect(preset.id).toMatch(/^[a-z]+(-[a-z]+)+$/);
+  });
+});
+
+describe('castle looks', () => {
+  it('only dresses rooms the castle has, once each', () => {
+    const roomIds = ROOM_LOOKS.map((look) => look.roomId);
+    expect(new Set(roomIds).size).toBe(roomIds.length);
+    for (const id of roomIds) expect(ROOMS.map((room) => room.id)).toContain(id);
+  });
+
+  it('gives a dressed room a floor, a ceiling and walls in declared materials', () => {
+    const declared = new Set(CASTLE_MATERIALS.map((preset) => preset.id));
+    for (const look of ROOM_LOOKS) {
+      const kinds = surfacesOf(look.roomId).map((surface) => surface.id.split(':')[2]);
+      expect(kinds).toEqual(expect.arrayContaining(['floor', 'ceiling', 'walls']));
+      for (const surface of surfacesOf(look.roomId)) {
+        expect(declared.has(surface.materialId), `${surface.id} -> ${surface.materialId}`).toBe(
+          true,
+        );
+        expect(surface.faces.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('lays each floor and ceiling over exactly its room, clear of the kit tile', () => {
+    for (const look of ROOM_LOOKS) {
+      const room = ROOMS.find((candidate) => candidate.id === look.roomId)!;
+      const [floor] = surfacesOf(look.roomId).find((s) => s.id.endsWith(':floor'))!.faces;
+      expect(floor).toMatchObject({ kind: 'FLOOR', y: FLOOR_SURFACE_Y });
+      expect(floor.area).toMatchObject({
+        minX: room.floor.minX,
+        maxX: room.floor.maxX,
+        minZ: room.floor.minZ,
+        maxZ: room.floor.maxZ,
+      });
+      // The imported floor tile's top is y = 0: the surface must be above it, but only just.
+      expect(FLOOR_SURFACE_Y).toBeGreaterThan(0);
+      expect(FLOOR_SURFACE_Y).toBeLessThan(0.02);
+    }
+  });
+
+  it('stands every wall surface in front of the kit panel, facing into its room', () => {
+    for (const look of ROOM_LOOKS) {
+      const room = ROOMS.find((candidate) => candidate.id === look.roomId)!;
+      const walls = surfacesOf(look.roomId).filter(
+        (surface) => !/:(floor|ceiling)$/.test(surface.id),
+      );
+      expect(walls.length).toBeGreaterThan(0);
+      for (const surface of walls) {
+        for (const face of surface.faces) {
+          if (face.kind !== 'WALL') continue;
+          const a = face.area;
+          const inset = surface.id.endsWith(':trim') ? TRIM_SURFACE_INSET : WALL_SURFACE_INSET;
+          const side = face.sides?.[0];
+          // Each face is one visible plane; its kit panel is `inset` metres behind it. A quad
+          // facing north (+z) is drawn at `maxZ` and belongs to the room's SOUTH wall, and so on.
+          if (side === 'north') expect(a.maxZ).toBeCloseTo(room.floor.minZ + HALF + inset, 9);
+          if (side === 'south') expect(a.minZ).toBeCloseTo(room.floor.maxZ - HALF - inset, 9);
+          if (side === 'east') expect(a.maxX).toBeCloseTo(room.floor.minX + HALF + inset, 9);
+          if (side === 'west') expect(a.minX).toBeCloseTo(room.floor.maxX - HALF - inset, 9);
+          expect(face.sides).toHaveLength(1);
+          // Inside the room's inner corners, so a run never creeps into the next wall.
+          expect(a.minX).toBeGreaterThanOrEqual(room.floor.minX + HALF - FAR);
+          expect(a.maxX).toBeLessThanOrEqual(room.floor.maxX - HALF + FAR);
+          expect(a.minZ).toBeGreaterThanOrEqual(room.floor.minZ + HALF - FAR);
+          expect(a.maxZ).toBeLessThanOrEqual(room.floor.maxZ - HALF + FAR);
+        }
+      }
+    }
+  });
+
+  it('draws one wall run per derived wall segment, so the castle keeps its doorways', () => {
+    for (const look of ROOM_LOOKS) {
+      const segments = WALL_SEGMENTS.filter((wall) => wall.id.split(':')[1] === look.roomId);
+      const walls = surfacesOf(look.roomId).find((surface) => surface.id.endsWith(':walls'))!;
+      // A segment can be shorter than one corner margin and drop out, never the other way round.
+      expect(walls.faces.length).toBeLessThanOrEqual(segments.length);
+      expect(walls.faces.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('never textures over an archway', () => {
+    for (const look of ROOM_LOOKS) {
+      for (const surface of surfacesOf(look.roomId)) {
+        for (const face of surface.faces) {
+          if (face.kind !== 'WALL') continue;
+          for (const archway of ARCHWAYS) {
+            const gap = archway.gap;
+            const a = face.area;
+            const side = face.sides?.[0];
+            const alongZ = side === 'east' || side === 'west'; // a wall on a west or east edge
+            const planeCentre = alongZ ? (gap.minX + gap.maxX) / 2 : (gap.minZ + gap.maxZ) / 2;
+            const plane =
+              side === 'north'
+                ? a.maxZ
+                : side === 'south'
+                  ? a.minZ
+                  : side === 'east'
+                    ? a.maxX
+                    : a.minX;
+            if (Math.abs(plane - planeCentre) > 0.5) continue; // another wall entirely
+            const from = alongZ ? Math.max(a.minZ, gap.minZ) : Math.max(a.minX, gap.minX);
+            const to = alongZ ? Math.min(a.maxZ, gap.maxZ) : Math.min(a.maxX, gap.maxX);
+            expect(to - from, `${face.area.id} covers ${archway.id}`).toBeLessThanOrEqual(1e-6);
+          }
+        }
+      }
+    }
+  });
+});
+
+describe('castle effects', () => {
+  it('keeps every mote volume inside its own room', () => {
+    for (const effect of CASTLE_EFFECTS) {
+      const room = ROOMS.find((candidate) => effect.id === `motes:${candidate.id}`)!;
+      expect(room, effect.id).toBeDefined();
+      expect(effect.area.minX).toBeGreaterThanOrEqual(room.floor.minX);
+      expect(effect.area.maxX).toBeLessThanOrEqual(room.floor.maxX);
+      expect(effect.area.minZ).toBeGreaterThanOrEqual(room.floor.minZ);
+      expect(effect.area.maxZ).toBeLessThanOrEqual(room.floor.maxZ);
+      expect(effect.minY).toBeGreaterThanOrEqual(0);
+      expect(effect.maxY).toBeLessThanOrEqual(3);
+      // The MEDIUM tier caps an emitter at 40; asking for more is wasted.
+      expect(effect.count).toBeLessThanOrEqual(80);
+    }
+  });
+});
+
+describe('castle decor', () => {
+  it('is only ever solid-colour boxes, so it can carry no interaction', () => {
+    for (const item of CASTLE_DECOR) expect(item.kind).toBe('BOX');
+  });
+
+  it('never reuses a gameplay entity id, or any other scene id', () => {
+    const decorIds = CASTLE_DECOR.map((item) => item.id);
+    expect(new Set(decorIds).size).toBe(decorIds.length);
+    for (const id of decorIds) expect(ALL_ENTITY_IDS).not.toContain(id);
+    const sceneIds = MANIFEST.scenery.map((item) => item.id);
+    expect(new Set(sceneIds).size).toBe(sceneIds.length);
+  });
+
+  it('puts the Storybook dais on the library floor, clear of every authored spot', () => {
+    const library = ROOMS.find((room) => room.id === 'great-library')!.floor;
+    const [dais] = CASTLE_DECOR_COLLIDERS;
+    expect(dais.rect.minX).toBeGreaterThan(library.minX + HALF);
+    expect(dais.rect.maxX).toBeLessThan(library.maxX - HALF);
+    expect(dais.rect.minZ).toBeGreaterThan(library.minZ + HALF);
+    expect(dais.rect.maxZ).toBeLessThan(library.maxZ - HALF);
+    const inside = (x: number, z: number) =>
+      x >= dais.rect.minX && x <= dais.rect.maxX && z >= dais.rect.minZ && z <= dais.rect.maxZ;
+    for (const spot of [...FLOOR_SPOTS, ...WALL_MOUNTED_SPOTS]) {
+      expect(inside(spot.x, spot.z), `${spot.entityId} stands in the dais`).toBe(false);
+    }
+    for (const zone of ZONES) {
+      expect(
+        inside((zone.minX + zone.maxX) / 2, (zone.minZ + zone.maxZ) / 2),
+        `${zone.id} is centred on the dais`,
+      ).toBe(false);
+    }
+    expect(STORYBOOK_DAIS.x).toBeCloseTo((dais.rect.minX + dais.rect.maxX) / 2);
+  });
+
+  it('does not overlap any other collider', () => {
+    const [dais] = CASTLE_DECOR_COLLIDERS;
+    for (const other of MANIFEST.colliders) {
+      if (other.rect.id === dais.rect.id) continue;
+      const overlaps =
+        dais.rect.minX < other.rect.maxX &&
+        other.rect.minX < dais.rect.maxX &&
+        dais.rect.minZ < other.rect.maxZ &&
+        other.rect.minZ < dais.rect.maxZ;
+      expect(overlaps, `the dais overlaps ${other.rect.id}`).toBe(false);
+    }
+  });
+});
+
+describe('the castle is still walkable with its decor', () => {
+  const reached = reachableCells(MANIFEST, STORYKEEPER_CASTLE_REGION_CHECKPOINTS[0]);
+
+  it('spawns the child somewhere they can walk from', () => {
+    expect(reached.size).toBeGreaterThan(100);
+  });
+
+  it('still reaches every room', () => {
+    for (const room of ROOMS) {
+      expect(zoneIsEnterable(reached, room.floor), `${room.id} is cut off`).toBe(true);
+    }
+  });
+
+  it('still lets the child enter every trigger zone', () => {
+    for (const zone of ZONES) {
+      expect(zoneIsEnterable(reached, zone), `zone ${zone.id} cannot be entered`).toBe(true);
+    }
+  });
+
+  it('still lets the child stand in front of everything they aim at', () => {
+    for (const spot of FLOOR_SPOTS) {
+      expect(
+        hasReachableCellNear(reached, spot.x, spot.z, 1.5),
+        `nobody can get near ${spot.entityId}`,
+      ).toBe(true);
+    }
+    for (const spot of WALL_MOUNTED_SPOTS) {
+      expect(
+        hasReachableCellNear(reached, spot.x, spot.z, 1.5),
+        `nobody can get near ${spot.entityId}`,
+      ).toBe(true);
+    }
+  });
+});
+
+describe('castle budgets (art direction section 7)', () => {
+  const anchorOf = (item: ScenerySpec): { x: number; z: number } => {
+    switch (item.kind) {
+      case 'MODEL':
+        return item.position;
+      case 'BOX':
+        return {
+          x: (item.area.minX + item.area.maxX) / 2,
+          z: (item.area.minZ + item.area.maxZ) / 2,
+        };
+      case 'CLUSTER':
+      case 'LOD_PLACEMENTS':
+        return item.positions[0] ?? { x: Number.NaN, z: Number.NaN };
+      default:
+        return { x: Number.NaN, z: Number.NaN };
+    }
+  };
+
+  it('keeps the whole castle at or under 160 scenery items', () => {
+    expect(MANIFEST.scenery.length).toBeLessThanOrEqual(160);
+  });
+
+  it('keeps the Great Library at or under 48 scenery items', () => {
+    const library = ROOMS.find((room) => room.id === 'great-library')!.floor;
+    const inLibrary = MANIFEST.scenery.filter((item) => {
+      const { x, z } = anchorOf(item);
+      return x >= library.minX && x <= library.maxX && z >= library.minZ && z <= library.maxZ;
+    });
+    expect(inLibrary.length).toBeGreaterThan(10);
+    expect(inLibrary.length).toBeLessThanOrEqual(48);
+  });
+});
+
+describe('the manifest carrying the look', () => {
+  it('still validates against the real content registries', () => {
+    expect(validateLocationManifest(MANIFEST, SOURCE_MANIFEST_REGISTRIES)).toEqual([]);
+  });
+
+  it('declares exactly the look it is built from', () => {
+    expect(MANIFEST.materials).toBe(CASTLE_MATERIALS);
+    expect(MANIFEST.surfaces).toBe(CASTLE_SURFACES);
+    expect(MANIFEST.effects).toBe(CASTLE_EFFECTS);
+  });
+});
