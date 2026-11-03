@@ -141,14 +141,14 @@ A page is a pure function of existing records:
 
 | Page | Restored by | Bands |
 | --- | --- | --- |
-| `page-first-story` | `FIRST_STORY_TOLD` (written by the Tale **and** the Picture Story) | Sprouts, Pathfinders, Explorers |
+| `page-first-story` | `FIRST_STORY_TOLD` (written by the Tale **and** the Picture Story) | Sprouts, Pathfinders (no Explorer mission writes it; SC-R01-04 contract C-5 found this) |
 | `page-three-clues` | `SECRET_DOOR_CLUES_COLLECTED` | Explorers |
 | `page-pattern-lock` | `CASTLE_SECRET_DOOR_OPENED` | Explorers |
 | `page-what-was-waiting` | `THE_CASTLES_SECRET_DOOR_COMPLETE` | Explorers |
 | `page-tapestry` (hidden) | discovery `castle-tapestry-stair` | All bands |
 
-Each band's quest completes on **its own page set**. A Sprout's Storybook is
-whole at two pages; it never shows ten empty slots meant for an eight-year-old.
+Each band's quest completes on **its own page set**: Sprouts and Pathfinders two
+pages today, Explorers four. A Sprout's Storybook is whole at two pages; it never shows ten empty slots meant for an eight-year-old.
 New pages arrive with new adventures (SC-R04 adds at least one Pathfinder
 mission so the band has more than one page), and each new page names an
 existing or new world change, never a page-specific store.
@@ -191,7 +191,7 @@ own migration. Because pages are derived, the cutover carries no page data.
 | --- | --- | --- | --- |
 | Castle route | Card route stays primary until SC-R11's playtest; 3D offered | 3D or card | 3D or card |
 | Mission | Quill's Picture Story | The Storykeeper's Tale (+ SC-R04 mission) | The Castle's Secret Door (3 chapters) |
-| Pages | 2 (first story, tapestry) | 2 now, more with SC-R04 | 5 |
+| Pages | 2 (first story, tapestry) | 2 now, more with SC-R04 | 4 (three arc pages, tapestry) |
 | Reading | Narrated, picture-first | Narrated text | More text |
 | Puzzles | Stand-at choices only; no reticle | Choices, ordering | Clues, counting, patterns, measurement |
 | Secrets | Tapestry nook (walk-in) | same | same + SC-R08 |

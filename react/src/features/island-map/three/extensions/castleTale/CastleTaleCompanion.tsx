@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getActiveSession, listActionsForSessions } from '../../../../adventures/api';
-import { resolveAdventureForAgeBand } from '../../../../adventures/content';
 import { THE_STORYKEEPERS_TALE } from '../../../../adventures/content/theStorykeepersTale';
-import { isStoryForAgeBand } from '../../../../story/engine/eligibility';
-import { THE_CASTLES_SECRET_DOOR } from '../../../../story/content/theCastlesSecretDoor';
 import {
   resolveCastleChoiceBinding,
   resolveCastleChoiceEntity,
@@ -15,6 +12,7 @@ import type { AdventureDefinition } from '../../../../adventures/engine/types';
 import { CastleTaleSession, type CastleChoiceState } from './CastleTaleSession';
 import { CastleSecretDoorStory } from './CastleSecretDoorStory';
 import { isCastleTaleScene, type CastleTaleSceneApi } from './castleTaleScene';
+import { isSecretDoorStoryForBand, taleAdventureForBand } from './castleTaleClaims';
 import { tryParseCastleTaleConfig } from './castleTaleConfig';
 
 /**
@@ -102,17 +100,8 @@ export function CastleTaleCompanion({
   const [restoredChoices, setRestoredChoices] = useState<CastleChoiceState>(NO_CHOICES);
 
   /** Which adventure this child's band gets here (SC-10), asked rather than assumed. */
-  const taleForBand = useMemo(
-    () =>
-      resolveAdventureForAgeBand(
-        THE_STORYKEEPERS_TALE.locationSlug,
-        THE_STORYKEEPERS_TALE.slug,
-        ageBand,
-      ),
-    [ageBand],
-  );
-  /** ADR-027: the Story Engine's own gate, asked rather than restated here. */
-  const storyForBand = isStoryForAgeBand(THE_CASTLES_SECRET_DOOR, ageBand);
+  const taleForBand = useMemo(() => taleAdventureForBand(ageBand), [ageBand]);
+  const storyForBand = isSecretDoorStoryForBand(ageBand);
 
   /*
     A session left open from an earlier visit resumes in the room the child

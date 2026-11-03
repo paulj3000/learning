@@ -308,8 +308,15 @@ following task's commit.
       acceptance pending); `docs/regions/storykeeper_castle_art_direction.md` with style, sourcing and
       ledger rules, material and naming conventions, room palettes, provisional LOW/MEDIUM/HIGH
       budgets, import rules, fallbacks. Docs only; adr:check passes. Owner: accept ADR-028; fund
-      commissioned Quill, Ember and Storybook art; decide KayKit wall height
-- [ ] **SC-R01-04** Gameplay and compatibility contracts with contract tests (depends: SC-R01-02)
+      commissioned Quill, Ember and Storybook art; decide KayKit wall height. Commit `aeaa3d2`
+- [x] **SC-R01-04** Gameplay and compatibility contracts with contract tests (depends: SC-R01-02).
+      DONE: `docs/regions/storykeeper_castle_contracts.md` (C-1 to C-11);
+      `castleRebootContracts.test.ts` (13 tests: frozen interactions, band-aware claims, one mission
+      per band, bindings against content, planned page sources, quest model). Fixes AUD-1:
+      `castleTaleClaims.ts` makes `castle-tale` claim only for bands it hosts. The page-source
+      contract corrected the roadmap (no Explorer mission writes `FIRST_STORY_TOLD`). Tests: 29 castle
+      and extension Vitest files (406) pass; typecheck and build pass. Browser: the Explorer story
+      hall and Sprout secret door now open the generic panel; confirm in a browser (owner)
 - [ ] **SC-R01-05** Acceptance and test plan (depends: SC-R01-04)
 - [ ] **SC-R02-01** Reusable visual system in the generic location runtime (depends: SC-R01-03)
 - [ ] **SC-R02-02** Great Library visual overhaul (depends: SC-R02-01)

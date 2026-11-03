@@ -1,5 +1,6 @@
 import type { LocationViewExtension } from '../../runtime/viewExtensionRegistry';
 import { CastleTaleCompanion } from './CastleTaleCompanion';
+import { castleTaleClaims } from './castleTaleClaims';
 import { tryParseCastleTaleConfig } from './castleTaleConfig';
 
 /**
@@ -16,12 +17,10 @@ import { tryParseCastleTaleConfig } from './castleTaleConfig';
  */
 export const castleTaleViewExtension: LocationViewExtension = {
   id: 'castle-tale',
-  claimsInteraction(interaction, { config }) {
+  claimsInteraction(interaction, { ageBand, config }) {
     const parsed = tryParseCastleTaleConfig(config);
     if (!parsed) return false;
-    return (
-      interaction.id === parsed.taleInteractionId || interaction.id === parsed.storyInteractionId
-    );
+    return castleTaleClaims(interaction.id, parsed, ageBand);
   },
   Companion: CastleTaleCompanion,
 };
