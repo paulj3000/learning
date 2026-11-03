@@ -1,5 +1,6 @@
 import type {
   ColliderSpec,
+  LightSpec,
   MaterialPresetSpec,
   RectZone,
   ScenerySpec,
@@ -32,6 +33,13 @@ export interface RoomLook {
   trim?: string;
   /** Patches of floor in another material. */
   inlays?: readonly RoomInlay[];
+  /**
+   * The room's lamp: its colour (art direction, section 5) and the `priority`
+   * that decides whether a weaker device keeps it (`visual/renderQuality.ts`).
+   * Intensity stays authored in the manifest, since "the library is the
+   * darkest room" is a statement about story.
+   */
+  mood?: { color: number; priority: number };
   /** Drifting dust or magic, capped by the render-quality tier. */
   motes?: { color: number; count: number; minY: number; maxY: number; size?: number; seed: number };
 }
@@ -42,6 +50,8 @@ export interface RoomVisuals {
   materials: readonly MaterialPresetSpec[];
   /** Decor with no domain meaning: solid-colour boxes, never raycast. */
   decor: readonly ScenerySpec[];
+  /** Extra placed lights this room adds (a glowing dais). Counted against the tier's light budget. */
+  lights?: readonly LightSpec[];
   /** Colliders for the decor that is solid. */
   colliders: readonly ColliderSpec[];
 }

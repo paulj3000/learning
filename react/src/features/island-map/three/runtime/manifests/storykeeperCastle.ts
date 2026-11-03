@@ -46,8 +46,12 @@ import {
   CASTLE_DECOR,
   CASTLE_DECOR_COLLIDERS,
   CASTLE_EFFECTS,
+  CASTLE_EXTRA_LIGHTS,
   CASTLE_MATERIALS,
   CASTLE_SURFACES,
+  DOORWAY_LIGHT_PRIORITY,
+  HEARTH_LIGHT_PRIORITY,
+  castleRoomMood,
 } from './storykeeperCastleVisuals';
 import {
   LOCATION_MANIFEST_SCHEMA_VERSION,
@@ -289,9 +293,11 @@ const LIGHTS: readonly LightSpec[] = [
       y: WALL_HEIGHT - 0.4,
       z: (room.floor.minZ + room.floor.maxZ) / 2,
     },
-    color: 0xffffff,
+    // Colour and priority are the room's mood (`castleRoomMood`, art direction section 5).
+    color: castleRoomMood(room.id).color,
     intensity: ROOM_LIGHT_INTENSITY[room.id] ?? 3,
     decay: 1.6,
+    priority: castleRoomMood(room.id).priority,
   })),
   {
     id: 'light:doorway',
@@ -300,6 +306,7 @@ const LIGHTS: readonly LightSpec[] = [
     color: 0xdfeaff,
     intensity: 6,
     decay: 1.8,
+    priority: DOORWAY_LIGHT_PRIORITY,
   },
   {
     id: 'light:hearth',
@@ -308,7 +315,10 @@ const LIGHTS: readonly LightSpec[] = [
     color: 0xff9c3a,
     intensity: 9,
     decay: 1.7,
+    priority: HEARTH_LIGHT_PRIORITY,
   },
+  // Lights a room's look adds (the Storybook dais glow).
+  ...CASTLE_EXTRA_LIGHTS,
 ];
 
 const SCENERY: readonly ScenerySpec[] = [

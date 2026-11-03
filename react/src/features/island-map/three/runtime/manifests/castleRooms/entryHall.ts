@@ -76,6 +76,7 @@ export const ENTRY_HALL_VISUALS: RoomVisuals = {
     walls: 'ashlar-entry',
     ceiling: 'plaster-entry',
     trim: 'trim-dark-wood',
+    mood: { color: 0xfff0d6, priority: 4 },
     // A medallion where the child arrives. It lies under the carpet, which stays 1 cm above it.
     inlays: [
       {

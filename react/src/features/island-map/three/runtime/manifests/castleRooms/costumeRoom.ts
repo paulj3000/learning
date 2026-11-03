@@ -77,6 +77,7 @@ export const COSTUME_ROOM_VISUALS: RoomVisuals = {
     walls: 'plaster-costume',
     ceiling: 'plaster-hall',
     trim: 'trim-dark-wood',
+    mood: { color: 0xffd6b0, priority: 2 },
   },
   materials: [
     {

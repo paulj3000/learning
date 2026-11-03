@@ -45,6 +45,7 @@ export const GREAT_LIBRARY_VISUALS: RoomVisuals = {
     walls: 'ashlar-library',
     ceiling: 'planks-library',
     trim: 'trim-dark-wood',
+    mood: { color: 0xffd9a0, priority: 8 },
     motes: { color: 0xffe9a8, count: 40, minY: 0.4, maxY: 2.8, size: 0.045, seed: 7 },
   },
   materials: [
@@ -124,6 +125,18 @@ export const GREAT_LIBRARY_VISUALS: RoomVisuals = {
         TABLE_TOP + 0.19,
       ),
     ]),
+  ],
+  // The Storybook's glow: the focal point of the darkest room. Violet-gold, so it reads as magic, not as a lamp.
+  lights: [
+    {
+      id: 'light:storybook-dais',
+      kind: 'POINT',
+      position: { x: STORYBOOK_DAIS.x, y: 1.4, z: STORYBOOK_DAIS.z },
+      color: 0xd9c6ff,
+      intensity: 3,
+      decay: 1.8,
+      priority: 6,
+    },
   ],
   // The dais is solid, so the child walks around it. A low step is still a wall to a first-person controller.
   colliders: [

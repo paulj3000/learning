@@ -3,6 +3,7 @@ import { ROOMS, WALL_SEGMENTS, WALL_THICKNESS, type RoomSide } from '../../story
 import type {
   ColliderSpec,
   EffectSpec,
+  LightSpec,
   MaterialPresetSpec,
   ScenerySpec,
   SurfaceFace,
@@ -103,6 +104,22 @@ export const CASTLE_MATERIALS: readonly MaterialPresetSpec[] = [
   ...SHARED_MATERIALS,
   ...ROOM_VISUALS.flatMap((room) => room.materials),
 ];
+
+/** A room's lamp colour and priority; a room without a look keeps the plain default. */
+export function castleRoomMood(roomId: string): { color: number; priority: number } {
+  return (
+    ROOM_LOOKS.find((look) => look.roomId === roomId)?.mood ?? { color: 0xffffff, priority: 0 }
+  );
+}
+
+/** Lights rooms add beyond their own lamp (the Storybook's glow). */
+export const CASTLE_EXTRA_LIGHTS: readonly LightSpec[] = ROOM_VISUALS.flatMap(
+  (room) => room.lights ?? [],
+);
+
+/** The priorities of the castle's two shared lights, so a weak device always keeps the hub's fire and the way in. */
+export const HEARTH_LIGHT_PRIORITY = 10;
+export const DOORWAY_LIGHT_PRIORITY = 7;
 
 const FACING: Readonly<Record<RoomSide, WallSide>> = {
   south: 'north',

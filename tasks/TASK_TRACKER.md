@@ -407,7 +407,7 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       east wall above it. The table keeps more than a metre from the easel and out of the easel zone
       (tested). Tests: 59 (visuals, runtime, manifest) pass; typecheck has only the missing
       `@colyseus/sdk` error; Prettier and oxlint clean. All eight rooms now have a look (SC-R02-02,
-      03, 04a-f). Browser (owner): brightness, the easel against the cream walls
+      03, 04a-f). Browser (owner): brightness, the easel against the cream walls. Commit `9de8c0c`
 - [x] **SC-R02-04f** East Corridor visual overhaul (depends: SC-R02-01). DONE (development):
       `castleRooms/eastCorridor.ts`: flagstone, dim grey ashlar, a 19 m crimson runner inlay, eight
       brass sconces (four a side, each tested clear of every archway), a framed island map on the
@@ -417,7 +417,16 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       `@colyseus/sdk` error; Prettier and oxlint clean. The map shows no page marks yet (SC-R04).
       Browser (owner): the dim mood, sconce read, map legibility. Commit `78d9e76`
 - [ ] **SC-R02-05** Magical interaction feedback and reduced motion (depends: SC-R02-01)
-- [ ] **SC-R02-06** Lighting moods and quality-tier light budgets (depends: SC-R02-01)
+- [x] **SC-R02-06** Lighting moods and quality-tier light budgets (depends: SC-R02-01). DONE
+      (development): each room look carries a `mood` (lamp colour from the art direction palette, and
+      a `priority`); the manifest's room lamps wear them, so the previously all-white lamps are warm
+      or cool. A new `RoomVisuals.lights` hook adds the **Storybook dais glow** (violet-gold, priority
+      6). The hearth (10) and doorway (7) are prioritised, so LOW keeps the hearth, hub, library,
+      doorway, dais and corridor (tested). 11 lights, under the MEDIUM budget of 14 (tested). The
+      library stays the dimmest room (tested). Intensities are unchanged. Tests: 63 new and related
+      plus 71 engine and visual-system pass; typecheck has only the missing `@colyseus/sdk` error;
+      Prettier and oxlint clean. Browser (owner): exposure consistency room to room, the dais glow
+      against the dark library
 - [ ] **SC-R02-07** Asset Library integration and asset manifest doc (depends: SC-R02-02 to 04)
 - [ ] **SC-R02-08** Performance and compatibility hardening (depends: SC-R02-02 to 06)
 - [ ] **SC-R02-09** Final development verification (depends: all SC-R02)

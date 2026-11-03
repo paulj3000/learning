@@ -28,6 +28,7 @@ export const SETTING_TOWER_VISUALS: RoomVisuals = {
     walls: 'ashlar-tower',
     ceiling: 'plaster-entry',
     trim: 'trim-dark-wood',
+    mood: { color: 0xcfe0ff, priority: 3 },
     // A compass medallion under the room's centre.
     inlays: [
       {

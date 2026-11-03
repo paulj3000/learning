@@ -19,15 +19,18 @@ import {
   zoneIsEnterable,
 } from '../testing/castleReachability';
 import { validateLocationManifest } from '../validateLocationManifest';
+import { RENDER_QUALITY_PRESETS, selectLightsForQuality } from '../visual/renderQuality';
 import { SOURCE_MANIFEST_REGISTRIES } from '../sourceManifestRegistries';
 import { STORYKEEPER_CASTLE_MANIFEST as MANIFEST } from './storykeeperCastle';
 import {
   CASTLE_DECOR,
   CASTLE_DECOR_COLLIDERS,
   CASTLE_EFFECTS,
+  CASTLE_EXTRA_LIGHTS,
   CASTLE_MATERIALS,
   CASTLE_SURFACES,
   CORRIDOR_MAP,
+  castleRoomMood,
   FLOOR_SURFACE_Y,
   PAINT_TABLE,
   INLAY_SURFACE_Y,
@@ -612,6 +615,56 @@ describe('the castle is still walkable with its decor', () => {
         `nobody can get near ${spot.entityId}`,
       ).toBe(true);
     }
+  });
+});
+
+describe('castle lighting moods (SC-R02-06)', () => {
+  const lights = MANIFEST.lights ?? [];
+
+  it('gives every dressed room a warm or cool lamp of its own, never plain white', () => {
+    for (const look of ROOM_LOOKS) {
+      expect(look.mood, `${look.roomId} has no mood`).toBeDefined();
+      expect(look.mood!.color).not.toBe(0xffffff);
+      expect(Number.isInteger(look.mood!.priority)).toBe(true);
+      const lamp = lights.find((light) => light.id === `light:${look.roomId}`);
+      expect(lamp?.color).toBe(look.mood!.color);
+      expect(lamp?.priority).toBe(look.mood!.priority);
+    }
+    expect(castleRoomMood('no-such-room')).toEqual({ color: 0xffffff, priority: 0 });
+  });
+
+  it('keeps the castle at or under the MEDIUM light budget, so a tablet loses none', () => {
+    expect(lights.length).toBeLessThanOrEqual(RENDER_QUALITY_PRESETS.MEDIUM.maxPlacedLights);
+    expect(selectLightsForQuality(lights, 'MEDIUM')).toHaveLength(lights.length);
+    expect(new Set(lights.map((light) => light.id)).size).toBe(lights.length);
+  });
+
+  it('keeps the hub fire, the hub, the library, the doorway and the Storybook at LOW', () => {
+    const kept = selectLightsForQuality(lights, 'LOW').map((light) => light.id);
+    expect(kept).toHaveLength(RENDER_QUALITY_PRESETS.LOW.maxPlacedLights);
+    for (const id of [
+      'light:hearth',
+      'light:story-hall',
+      'light:great-library',
+      'light:doorway',
+      'light:storybook-dais',
+      'light:east-corridor',
+    ]) {
+      expect(kept, `${id} was dropped at LOW`).toContain(id);
+    }
+  });
+
+  it('puts the Storybook glow over the dais, violet-gold, so it reads as magic', () => {
+    expect(CASTLE_EXTRA_LIGHTS).toHaveLength(1);
+    const glow = CASTLE_EXTRA_LIGHTS[0];
+    expect(glow.position.x).toBeCloseTo(STORYBOOK_DAIS.x, 6);
+    expect(glow.position.z).toBeCloseTo(STORYBOOK_DAIS.z, 6);
+    expect(glow.color).not.toBe(castleRoomMood('great-library').color);
+    // The library is still the dimmest room: the glow is a focal accent, not a second lamp.
+    const library = lights.find((light) => light.id === 'light:great-library')!;
+    const hall = lights.find((light) => light.id === 'light:story-hall')!;
+    expect(library.intensity).toBeLessThan(hall.intensity);
+    expect(glow.intensity).toBeLessThan(hall.intensity);
   });
 });
 

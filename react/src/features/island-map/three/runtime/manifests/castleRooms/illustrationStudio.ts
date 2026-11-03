@@ -27,6 +27,7 @@ export const ILLUSTRATION_STUDIO_VISUALS: RoomVisuals = {
     walls: 'plaster-entry',
     ceiling: 'plaster-entry',
     trim: 'trim-dark-wood',
+    mood: { color: 0xfff8ee, priority: 3 },
   },
   materials: [],
   decor: [

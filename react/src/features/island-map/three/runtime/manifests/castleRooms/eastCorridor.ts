@@ -40,6 +40,7 @@ export const EAST_CORRIDOR_VISUALS: RoomVisuals = {
     walls: 'ashlar-library',
     ceiling: 'plaster-entry',
     trim: 'trim-dark-wood',
+    mood: { color: 0xffcf9a, priority: 5 },
     // A runner the whole length, one metre wide, down the middle.
     inlays: [
       {

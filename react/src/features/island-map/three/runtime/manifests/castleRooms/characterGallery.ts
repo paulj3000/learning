@@ -24,6 +24,7 @@ export const CHARACTER_GALLERY_VISUALS: RoomVisuals = {
     walls: 'plaster-gallery',
     ceiling: 'plaster-hall',
     trim: 'trim-dark-wood',
+    mood: { color: 0xffe6bf, priority: 3 },
     // A crimson runner from the archway toward the portraits, stopping short of their zones.
     inlays: [
       {

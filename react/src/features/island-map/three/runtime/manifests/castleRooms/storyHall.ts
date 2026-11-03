@@ -41,6 +41,7 @@ export const STORY_HALL_VISUALS: RoomVisuals = {
     ceiling: 'plaster-hall',
     wainscot: { materialId: 'ashlar-hall', height: 1 },
     trim: 'trim-dark-wood',
+    mood: { color: 0xffe2b8, priority: 9 },
     // A crimson rug before the hearth.
     inlays: [
       {
