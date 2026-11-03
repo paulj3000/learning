@@ -65,6 +65,7 @@ export interface CastleTaleSceneApi {
    * returns false once he has left the scene; `undefined` if the scene has no Quill.
    */
   quillPositionReader(): ((out: [number, number, number]) => boolean) | undefined;
+  /**
    * Opens the secret passage behind the tapestry once the nook has been found:
    * takes the seal out of the way and hides the wall fill that covered the gap.
    * Idempotent. The build already leaves both out for a child who found the nook
