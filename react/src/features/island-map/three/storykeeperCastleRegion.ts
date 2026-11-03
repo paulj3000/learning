@@ -142,6 +142,18 @@ export const ROOMS: readonly RoomDefinition[] = [
     label: 'the Great Library',
     floor: { id: 'great-library:floor', minX: 5, maxX: 15, minZ: -10, maxZ: -2 },
   },
+  /*
+    The Trophy Room (SC-R03-03): a small room east of the Costume Room, where
+    what the child has earned stands on pedestals. 4 m by 4 m, ground floor,
+    reached only through the Costume Room, so it sits one door past the
+    dress-up and is never in the way of the hub. It abuts the Story Hall's
+    south wall and the east corridor's west wall without a door to either.
+  */
+  {
+    id: 'trophy-room',
+    label: 'the Trophy Room',
+    floor: { id: 'trophy-room:floor', minX: -1, maxX: 3, minZ: -10, maxZ: -6 },
+  },
 ];
 
 export interface ArchwayDefinition {
@@ -153,7 +165,7 @@ export interface ArchwayDefinition {
 }
 
 /**
- * Seven archways, each 2m wide - wide enough that a child dragging a look
+ * Eight archways, each 2m wide - wide enough that a child dragging a look
  * control across a doorway does not clip its frame, and the one dimension
  * in this file that should not be narrowed for looks.
  */
@@ -192,6 +204,11 @@ export const ARCHWAYS: readonly ArchwayDefinition[] = [
     id: 'arch-library',
     between: ['east-corridor', 'great-library'],
     gap: { id: 'arch-library:gap', minX: 4.75, maxX: 5.25, minZ: -7, maxZ: -5 },
+  },
+  {
+    id: 'arch-trophy',
+    between: ['costume-room', 'trophy-room'],
+    gap: { id: 'arch-trophy:gap', minX: -1.25, maxX: -0.75, minZ: -9, maxZ: -7 },
   },
 ];
 
@@ -717,6 +734,26 @@ export const CASTLE_DOORS_SPOT: WallMountedSpot = {
   z: 0,
 };
 
+// --- The Trophy Room (SC-R03-03) -------------------------------------------
+
+/** A pedestal's half width, and how far in front of it the walk-up zone reaches. */
+export const TROPHY_PEDESTAL_HALF = 0.22;
+
+/**
+ * Six pedestals: three along the south wall facing north, three along the
+ * east wall facing west. The middle of the room is left open, and so is the
+ * line from the doorway (x = -1, z = -9 to -7) to the room's safe spot.
+ * `trophyDisplay` (`castleTrophies.ts`) decides which item stands on which.
+ */
+export const TROPHY_PEDESTAL_SPOTS: readonly EntitySpot[] = [
+  { entityId: 'trophy-pedestal-1', x: 0.2, z: -9.3 },
+  { entityId: 'trophy-pedestal-2', x: 0.95, z: -9.3 },
+  { entityId: 'trophy-pedestal-3', x: 1.7, z: -9.3 },
+  { entityId: 'trophy-pedestal-4', x: 2.3, z: -8 },
+  { entityId: 'trophy-pedestal-5', x: 2.3, z: -7.3 },
+  { entityId: 'trophy-pedestal-6', x: 2.3, z: -6.6 },
+];
+
 // --- Trigger zones ---------------------------------------------------------
 
 /**
@@ -776,6 +813,19 @@ export const ZONES: readonly RectZone[] = [
   { id: 'castle-illustration-studio', minX: 6.5, maxX: 8.5, minZ: 0, maxZ: 2 },
   { id: 'castle-great-library', minX: 5.5, maxX: 8, minZ: -7, maxZ: -5 },
   { id: 'castle-last-bookshelf', minX: 11.8, maxX: 13.4, minZ: -9.2, maxZ: -7.8 },
+
+  /*
+    The Trophy Room: one walk-up zone in front of each pedestal, so looking at
+    a treasure is standing beside it, like every other choice in this castle.
+    South-wall zones are 0.7 m wide, a hair apart; east-wall zones are 0.6 m
+    deep and 0.6 m wide. None touches another.
+  */
+  { id: 'trophy-slot-1', minX: -0.15, maxX: 0.55, minZ: -9, maxZ: -8.4 },
+  { id: 'trophy-slot-2', minX: 0.6, maxX: 1.3, minZ: -9, maxZ: -8.4 },
+  { id: 'trophy-slot-3', minX: 1.35, maxX: 2.05, minZ: -9, maxZ: -8.4 },
+  { id: 'trophy-slot-4', minX: 1.45, maxX: 2.0, minZ: -8.3, maxZ: -7.7 },
+  { id: 'trophy-slot-5', minX: 1.45, maxX: 2.0, minZ: -7.6, maxZ: -7 },
+  { id: 'trophy-slot-6', minX: 1.45, maxX: 2.0, minZ: -6.9, maxZ: -6.3 },
 ];
 
 export function findZone(zoneId: string): RectZone | undefined {
@@ -801,6 +851,7 @@ export const FLOOR_SPOTS: readonly EntitySpot[] = [
   LAST_BOOKSHELF_SPOT,
   LOCK_ROD_RACK_SPOT,
   ...LOCK_ROD_SPOTS,
+  ...TROPHY_PEDESTAL_SPOTS,
 ];
 
 /** Every wall-mounted spot this region authors, in one list. */

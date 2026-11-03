@@ -9,6 +9,7 @@ import {
   type CastleDoor,
   type CastleRoomId,
 } from '../../castleLayout';
+import { OPEN_PEDESTAL_TEXT, trophyDisplay } from '../../castleTrophies';
 import { CastleGuide } from './CastleGuide';
 import type { CastleTaleSceneApi } from './castleTaleScene';
 
@@ -201,7 +202,69 @@ describe('CastleGuide', () => {
   it('lists the destinations from the canonical layout, so it can never drift from the map', () => {
     render(<CastleGuide scene={fakeScene('entry-hall').api} worldState={NOTHING} />);
     open();
-    expect(screen.getAllByRole('listitem')).toHaveLength(CASTLE_ROOMS.length);
+    // The first list is the rooms; the treasures are a second, separate list.
+    expect(within(screen.getAllByRole('list')[0]).getAllByRole('listitem')).toHaveLength(
+      CASTLE_ROOMS.length,
+    );
     expect(getCastleRoom('great-library')?.label).toBe('the Great Library');
+  });
+
+  describe('your treasures (the Trophy Room as text)', () => {
+    const owning = (...ids: string[]): WorldInteractionContext => ({
+      ...NOTHING,
+      ownedItemIds: ids,
+    });
+
+    it('lists each castle treasure, empty and waiting for a child who owns nothing', () => {
+      render(<CastleGuide scene={fakeScene('story-hall').api} worldState={NOTHING} />);
+      open();
+      const list = screen.getByRole('region', { name: /your treasures/i });
+      for (const entry of trophyDisplay([]).filter((e) => e.state === 'waiting')) {
+        expect(within(list).getByText(entry.text)).toBeInTheDocument();
+      }
+    });
+
+    it('shows an owned treasure by name with its words, from the same display the room uses', () => {
+      render(
+        <CastleGuide
+          scene={fakeScene('story-hall').api}
+          worldState={owning('storykeepers-quill')}
+        />,
+      );
+      open();
+      const owned = trophyDisplay(['storykeepers-quill']).find((e) => e.state === 'on-display')!;
+      expect(screen.getByText(owned.text)).toBeInTheDocument();
+      expect(owned.text).toContain("Storykeeper's Quill");
+    });
+
+    it('says how many pedestals are still open, once, not as four identical lines', () => {
+      render(<CastleGuide scene={fakeScene('story-hall').api} worldState={NOTHING} />);
+      open();
+      const open4 = trophyDisplay([]).filter((e) => e.state === 'open').length;
+      expect(
+        screen.getByText(new RegExp(`${open4} more pedestals in the Trophy Room are waiting`)),
+      ).toBeInTheDocument();
+      expect(screen.queryAllByText(OPEN_PEDESTAL_TEXT)).toHaveLength(0);
+    });
+
+    it('still opens when the inventory has not loaded, and shows every pedestal empty', () => {
+      const unloaded = {
+        worldChangeKeys: [],
+        discoveryIds: [],
+      } as unknown as WorldInteractionContext;
+      render(<CastleGuide scene={fakeScene('story-hall').api} worldState={unloaded} />);
+      open();
+      expect(screen.getByRole('region', { name: /your treasures/i })).toBeInTheDocument();
+      expect(screen.queryByText(/a feather pen from keeper quill/i)).toBeNull();
+    });
+
+    it('updates as soon as the child owns something, with no reload', () => {
+      const scene = fakeScene('story-hall');
+      const { rerender } = render(<CastleGuide scene={scene.api} worldState={NOTHING} />);
+      open();
+      expect(screen.queryByText(/a feather pen from keeper quill/i)).toBeNull();
+      rerender(<CastleGuide scene={scene.api} worldState={owning('storykeepers-quill')} />);
+      expect(screen.getByText(/a feather pen from keeper quill/i)).toBeInTheDocument();
+    });
   });
 });

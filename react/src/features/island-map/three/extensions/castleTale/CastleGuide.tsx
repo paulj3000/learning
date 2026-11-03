@@ -10,6 +10,7 @@ import {
   type CastleDoor,
   type CastleRoomId,
 } from '../../castleLayout';
+import { trophyDisplay } from '../../castleTrophies';
 import type { CastleTaleSceneApi } from './castleTaleScene';
 import styles from './CastleGuide.module.css';
 
@@ -104,6 +105,15 @@ export function CastleGuide({
     [scene, worldState],
   );
 
+  // The Trophy Room's treasures as text: the accessible equivalent of looking at the pedestals.
+  const treasures = useMemo(
+    // An inventory that has not loaded is an empty one: the guide still opens.
+    () => trophyDisplay(worldState.ownedItemIds ?? []),
+    [worldState.ownedItemIds],
+  );
+  const shownTreasures = treasures.filter((entry) => entry.state !== 'open');
+  const openPedestals = treasures.length - shownTreasures.length;
+
   const plans = useMemo(
     () =>
       CASTLE_ROOMS.map((room) => ({
@@ -176,6 +186,22 @@ export function CastleGuide({
               );
             })}
           </ul>
+          <section aria-labelledby={`${panelId}-treasures`}>
+            <h3 id={`${panelId}-treasures`} className={styles.title}>
+              Your treasures
+            </h3>
+            <ul className={styles.list}>
+              {shownTreasures.map((entry) => (
+                <li key={entry.slot.id}>{entry.text}</li>
+              ))}
+            </ul>
+            {openPedestals > 0 ? (
+              <p>
+                {openPedestals} more pedestals in the Trophy Room are waiting for treasures you will
+                earn.
+              </p>
+            ) : null}
+          </section>
         </div>
       ) : null}
     </section>

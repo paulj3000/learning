@@ -19,6 +19,7 @@ import { GREAT_LIBRARY_VISUALS } from './castleRooms/greatLibrary';
 import { ILLUSTRATION_STUDIO_VISUALS } from './castleRooms/illustrationStudio';
 import { SETTING_TOWER_VISUALS } from './castleRooms/settingTower';
 import { STORY_HALL_VISUALS } from './castleRooms/storyHall';
+import { TROPHY_ROOM_VISUALS } from './castleRooms/trophyRoom';
 
 export type { RoomLook, RoomVisuals } from './castleRooms/castleVisualKit';
 export { STORYBOOK_DAIS } from './castleRooms/greatLibrary';
@@ -96,6 +97,7 @@ const ROOM_VISUALS: readonly RoomVisuals[] = [
   EAST_CORRIDOR_VISUALS,
   SETTING_TOWER_VISUALS,
   ILLUSTRATION_STUDIO_VISUALS,
+  TROPHY_ROOM_VISUALS,
 ];
 
 export const ROOM_LOOKS: readonly RoomLook[] = ROOM_VISUALS.map((room) => room.look);

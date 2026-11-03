@@ -39,8 +39,9 @@ const NOTHING_YET: WorldInteractionContext = {
 const door = (id: string): CastleDoor => CASTLE_DOORS.find((candidate) => candidate.id === id)!;
 
 describe('castle layout identity (save compatibility)', () => {
-  it('keeps the eight stable room ids, in order, and invents no room the region lacks', () => {
-    expect(CASTLE_ROOM_IDS).toEqual([
+  it('keeps the first eight stable room ids in order, appends later rooms, and invents none the region lacks', () => {
+    // The eight rooms every earlier save knows. Never renamed, never reordered.
+    expect(CASTLE_ROOM_IDS.slice(0, 8)).toEqual([
       'entry-hall',
       'story-hall',
       'character-gallery',
@@ -50,6 +51,8 @@ describe('castle layout identity (save compatibility)', () => {
       'illustration-studio',
       'great-library',
     ]);
+    // Rooms added since are appended: the Trophy Room (SC-R03-03).
+    expect(CASTLE_ROOM_IDS.slice(8)).toEqual(['trophy-room']);
     expect(CASTLE_ROOMS.map((room) => room.id)).toEqual([...CASTLE_ROOM_IDS]);
     expect(ROOMS.map((room) => room.id).sort()).toEqual([...CASTLE_ROOM_IDS].sort());
   });

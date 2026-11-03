@@ -47,6 +47,8 @@ export const CASTLE_ROOM_IDS = [
   'setting-tower',
   'illustration-studio',
   'great-library',
+  // Added by SC-R03-03. Appended, never inserted: the first eight keep their order.
+  'trophy-room',
 ] as const;
 
 export type CastleRoomId = (typeof CASTLE_ROOM_IDS)[number];
@@ -60,7 +62,8 @@ export type CastleRoomRole =
   | 'wayfinding'
   | 'choose-setting'
   | 'see-it-drawn'
-  | 'secret-door-arc';
+  | 'secret-door-arc'
+  | 'trophies';
 
 export interface CastleRoomNode {
   id: CastleRoomId;
@@ -130,6 +133,11 @@ const ROOM_META: Readonly<Record<CastleRoomId, RoomMeta>> = {
     role: 'see-it-drawn',
     destination: 'See your story drawn.',
     safeSpot: { x: 6.2, z: 1 },
+  },
+  'trophy-room': {
+    role: 'trophies',
+    destination: 'See the treasures you have earned.',
+    safeSpot: { x: 1, z: -8 },
   },
   'great-library': {
     role: 'secret-door-arc',

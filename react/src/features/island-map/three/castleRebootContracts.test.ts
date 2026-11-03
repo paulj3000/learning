@@ -13,6 +13,7 @@ import {
   taleAdventureForBand,
 } from './extensions/castleTale/castleTaleClaims';
 import { castleTaleViewExtension } from './extensions/castleTale/castleTaleViewExtension';
+import { CASTLE_TROPHY_INTERACTIONS } from './castleTrophies';
 import { STORYKEEPER_CASTLE_MANIFEST } from './runtime/manifests/storykeeperCastle';
 
 /**
@@ -115,7 +116,15 @@ describe('Storykeeper Castle reboot contracts', () => {
           .join(',')}`,
     );
     expect(actual).toEqual(FROZEN_INTERACTIONS);
-    expect(STORYKEEPER_CASTLE_MANIFEST.interactions).toBe(STORYKEEPER_CASTLE_INTERACTIONS);
+    // The inherited interactions come first and unchanged. Anything after them is a declared
+    // addition (the Trophy Room's walk-up descriptions, SC-R03-03), never an edit.
+    const carried = STORYKEEPER_CASTLE_MANIFEST.interactions;
+    expect(carried.slice(0, STORYKEEPER_CASTLE_INTERACTIONS.length)).toEqual(
+      STORYKEEPER_CASTLE_INTERACTIONS,
+    );
+    expect(carried.slice(STORYKEEPER_CASTLE_INTERACTIONS.length)).toEqual(
+      CASTLE_TROPHY_INTERACTIONS,
+    );
   });
 
   it('C-1: keeps the tapestry secret hidden from every list', () => {

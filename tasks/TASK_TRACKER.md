@@ -518,8 +518,31 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       needed the two new methods, which is what the 43 failures on the first run were. **Not done:**
       aiming at a doorway in 3D to use it (the guide is the interactive equivalent), spoken or
       3D-text door labels (a box cannot carry text), and persisted discovery (SC-R03-06).
-      Browser (owner): guide placement over the HUD on a tablet, tap sizes, cue colours
-- [ ] **SC-R03-03** Trophy Room (new room; display contract and empty state only, persistence is SC-R07)
+      Browser (owner): guide placement over the HUD on a tablet, tap sizes, cue colours. Commit `8128896`
+- [x] **SC-R03-03** Trophy Room (depends: SC-R03-01, SC-R03-02). DONE (development): a **new room**
+      (the brief overrides the roadmap's merge into the Costume Room), 4 m by 4 m, east of the Costume
+      Room and joined by a new archway `arch-trophy` (the ninth room id, **appended** so the first
+      eight keep their order; the layout, guide and routing pick it up with no second router).
+      Six solid pedestals with a walk-up zone in front of each (the castle's no-aiming rule). **No
+      second reward store**: `castleTrophies.ts` is a pure display rule over the existing inventory
+      (`ownedItemIds`) and the existing item catalog. Two pedestals are reserved for the existing
+      castle items (`storykeepers-quill`, `blank-page-storybook`, both proven to be granted by a
+      reward rule), **four are open** and read as an honest empty state ("An empty pedestal. A treasure
+      you earn will be kept here one day."), ready for SC-R07 to bind items. Walk-up lines are
+      `SHOW_MESSAGE` only (tested: nothing grants, records or moves). 3D: item-gated treasure and
+      empty plate per pedestal using the castle's own `ITEM_OWNED` and `ITEM_ABSENT` requirements.
+      Accessible list: **Your treasures** in the guide, from the same `trophyDisplay`, live as the
+      inventory changes. **Per-room scenery budgets** replace the single castle-wide 160 (the original
+      eight rooms keep 160, not raised; Trophy 20, using 15; Secret Chamber 24 reserved); presets
+      still 16 of 16, so the room reuses presets. The frozen-interactions contract now says the
+      inherited 12 come first and unchanged, and only the declared trophy lines follow. Tests: 13
+      trophy-contract, 4 runtime (item gating), 5 guide, plus the updated layout, budgets and contract
+      suites; the whole runtime, extension and castle group is **63 files, 823 tests** passing
+      with the real SDK; parity 47; typecheck clean (it caught a real bug: an unloaded inventory
+      would have thrown); Prettier and oxlint clean. **Not done:** persistent artifacts (SC-R07);
+      a treasure earned in this visit appears on the pedestal on the next entry to the room
+      (requirements are read when the scene is built), while the guide list updates live.
+      Browser (owner): the room's look, pedestal height, the walk-up message
 - [ ] **SC-R03-04** Observatory function in the Setting Tower (telescope, observing; deterministic)
 - [ ] **SC-R03-05** Secret Chamber behind the tapestry nook (reuses the pattern lock and secret door)
 - [ ] **SC-R03-06** Castle map and room discovery

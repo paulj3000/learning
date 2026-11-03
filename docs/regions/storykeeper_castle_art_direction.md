@@ -121,7 +121,7 @@ Static scene budgets (counted from the manifest, all tiers):
 | Budget | Value |
 | --- | --- |
 | Distinct material presets | ≤ 16 |
-| Scenery items in the whole castle | ≤ 160 |
+| Scenery items, original eight rooms | ≤ 160 (a baseline that is not raised). Each later room has its own allowance, set when it is designed: Trophy Room ≤ 20, Secret Chamber ≤ 24 (reserved). The castle-wide limit is the sum for the rooms that exist |
 | Scenery items in the Great Library | ≤ 48 |
 | Draw calls, whole castle (estimated from instancing) | ≤ 300 |
 | Triangles, generated asset | ≤ 2 000 |

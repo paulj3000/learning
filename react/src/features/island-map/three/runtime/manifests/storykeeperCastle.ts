@@ -5,6 +5,7 @@ import {
   STORYKEEPER_CASTLE_REGION_ID,
 } from '../../../../discovery/checkpoints';
 import { CASTLE_CHOICE_BINDINGS } from '../../castleChoiceBindings';
+import { CASTLE_TROPHY_INTERACTIONS } from '../../castleTrophies';
 import { WALL_HEIGHT } from '../../sceneKit';
 import {
   ARCHWAYS,
@@ -640,7 +641,7 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
 
   // The castle's authored interactions, unchanged: their own requirements
   // are what the per-region view used to branch on.
-  interactions: STORYKEEPER_CASTLE_INTERACTIONS,
+  interactions: [...STORYKEEPER_CASTLE_INTERACTIONS, ...CASTLE_TROPHY_INTERACTIONS],
 
   /*
     Phase 8's binding table, moved here from `castleChoiceBindings.ts` as
@@ -719,6 +720,8 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
     'castle-costume-room',
     'castle-great-library',
     'castle-illustration-studio',
+    // Walk-up descriptions of the Trophy Room pedestals; the accessible list in the guide is where they are read.
+    ...CASTLE_TROPHY_INTERACTIONS.map((interaction) => interaction.id),
   ],
 
   noReticleBands: ['SPROUT'],

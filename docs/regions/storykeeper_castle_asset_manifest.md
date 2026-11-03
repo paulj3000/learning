@@ -14,19 +14,21 @@ location manifest (`materials`, `surfaces`, `effects`, `BOX` scenery).
 
 | Field | Count | Budget (art direction section 7) |
 | --- | --- | --- |
-| Scenery items, whole castle | 141 | 160 |
+| Scenery items, whole castle | 164 (149 in the original eight rooms, 15 in the Trophy Room) | 160 baseline for the original eight rooms, plus 20 for the Trophy Room and 24 reserved for the Secret Chamber (per-room allowances, below) |
 | Material presets | 16 | 16 (**at the limit**) |
-| Runtime surfaces (one draw call each) | 38 | included in the draw-call estimate (SC-R02-08) |
-| Mote emitters | 5 | at most 40 particles each at MEDIUM |
-| Placed lights | 11 | 14 at MEDIUM, 8 at LOW, 20 at HIGH |
-| `BOX` decor items | 102 | included in the scenery count |
-| Colliders | 75 | none stated |
-| Zones | 17 | none stated |
+| Runtime surfaces (one draw call each) | 42 | included in the draw-call estimate (SC-R02-08) |
+| Mote emitters | 6 | at most 40 particles each at MEDIUM |
+| Placed lights | 12 | 14 at MEDIUM, 8 at LOW, 20 at HIGH |
+| `BOX` decor items | 125 | included in the scenery count |
+| Colliders | 87 | none stated |
+| Zones | 23 | none stated |
 | Props, NPCs | 16, 1 | none stated |
 
-**Headroom warning for SC-R03.** The castle has 19 scenery items and 0 material presets to spare. A
-new room cannot be dressed the way the existing eight were without either reusing presets and
-merging decor, or the owner raising a provisional budget. SC-R03 plans for this.
+**Per-room scenery allowances (SC-R03-03).** The 160 stays as the baseline for the original eight
+rooms and is not raised. Each room added later gets its own allowance, decided when the room is
+designed, so a new area cannot eat the old rooms' headroom: Trophy Room 20 (uses 15), Secret Chamber
+24 (reserved, counted once the room exists). The castle-wide limit is the sum for the rooms it has.
+**Material presets are still 16 of 16, so every new room reuses presets.** The Trophy Room adds none.
 
 ## 2. Logical asset ids the castle uses
 
@@ -79,6 +81,7 @@ be painted.
 | East Corridor | `eastCorridor.ts` | none (reuses) | Eight sconces, island map frame, runner inlay |
 | Setting Tower | `settingTower.ts` | `flagstone-tower`, `ashlar-tower` | Orrery (solid), compass medallion |
 | Illustration Studio | `illustrationStudio.ts` | none (reuses) | Paint table (solid), four pots, three drawings |
+| Trophy Room | `trophyRoom.ts` | none (reuses) | Six pedestals (solid), item-gated treasures and empty plates, wall shelf |
 
 Shared: `trim-dark-wood`. Total 16 presets.
 

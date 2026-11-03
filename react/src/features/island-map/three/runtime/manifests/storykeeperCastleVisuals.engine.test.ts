@@ -154,3 +154,42 @@ describe('reduced motion in the castle (SC-R02-05)', () => {
     expect(endOfWalk(true)).toEqual(endOfWalk(false));
   });
 });
+
+describe('the Trophy Room shows what the child owns (SC-R03-03)', () => {
+  const owning = (...ownedItemIds: string[]) =>
+    castle({
+      quality: 'MEDIUM',
+      worldState: { worldChangeKeys: [], ownedItemIds, discoveryIds: [] },
+    });
+  const has = (harness: ReturnType<typeof castle>, name: string) =>
+    harness.scene().getObjectByName(name) !== undefined;
+
+  it('stands the owned quill on its pedestal and takes the empty plate away', () => {
+    const harness = owning('storykeepers-quill');
+    expect(has(harness, 'castle-trophy-quill')).toBe(true);
+    expect(has(harness, 'castle-trophy-plate-1')).toBe(false);
+    // The book is not owned, so its pedestal still shows the empty plate.
+    expect(has(harness, 'castle-trophy-book')).toBe(false);
+    expect(has(harness, 'castle-trophy-plate-2')).toBe(true);
+  });
+
+  it('shows every empty plate and no treasure for a child who owns nothing', () => {
+    const harness = owning();
+    expect(has(harness, 'castle-trophy-quill')).toBe(false);
+    expect(has(harness, 'castle-trophy-book')).toBe(false);
+    for (const n of [1, 2, 3, 4, 5, 6]) expect(has(harness, `castle-trophy-plate-${n}`)).toBe(true);
+  });
+
+  it('always builds the six pedestals, owned or not, so the room never looks broken', () => {
+    for (const harness of [owning(), owning('storykeepers-quill', 'blank-page-storybook')]) {
+      for (const n of [1, 2, 3, 4, 5, 6]) {
+        expect(has(harness, `castle-trophy-pedestal-${n}`)).toBe(true);
+      }
+    }
+  });
+
+  it('keeps an open pedestal showing its empty plate whatever the child owns', () => {
+    const harness = owning('storykeepers-quill', 'blank-page-storybook');
+    for (const n of [3, 4, 5, 6]) expect(has(harness, `castle-trophy-plate-${n}`)).toBe(true);
+  });
+});
