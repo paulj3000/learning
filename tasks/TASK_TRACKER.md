@@ -467,8 +467,33 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       `docs/regions/storykeeper_castle_verification_audit.md` section 8 records each room's
       before and after, the repair commits, and the owner checklist. Nothing is marked visually
       accepted. Still owed by the owner: a browser look at all eight rooms, LOW tier, reduced motion,
-      ADR-028 acceptance
-- [ ] **SC-R03 to SC-R12** Not started; task lists in the reboot roadmap section 6. Gated items:
-      Sound Manager merge (SC-R06), narration provider and voice consent (SC-R06-03), new spaces and
-      content (SC-R03-02, SC-R04-05, SC-R05-03), Phaser retirement (SC-R10-03, ADR-020, LAI-2303),
-      owner playtest and real-tablet profiling (SC-R11, the SC-11 gate)
+      ADR-028 acceptance. Commit `5a92d9b`
+- **SC-R03 World expansion** (owner brief of 2026-11-03; its numbering supersedes the roadmap's
+  SC-R03-01 to 03, which are folded in: the Writing Room shell and wayfinding are SC-R03-06 and a
+  later shell task). Decisions recorded in the roadmap section 6: the **Observatory is the Setting
+  Tower** (the roadmap merges them; the brief allows that), the **Trophy Room is a new room**
+  (the brief overrides the roadmap's merge into the Costume Room), the **Secret Chamber is a new
+  space** (the brief is the approval the roadmap asked for).
+- [x] **SC-R03-01** Canonical world layout (depends: SC-R02-09). DONE (development):
+      `three/castleLayout.ts`, one typed layer **derived** from `ROOMS`, `ARCHWAYS` and `ZONES` (no
+      second router): the eight stable room ids as a save-compatibility contract (tested), a
+      narrative role, destination sentence and safe spot per room, one door per archway with a
+      landing point a metre inside each side and a yaw facing into the room, door labels read from
+      either side, optional door locks in the same `WorldRequirement` vocabulary (**none locked
+      today**; the castle is open by design), the two exits (harbor, Writing Room) mirrored from the
+      authored interactions and kept in step by a test, discovery state, `routeBetween` and
+      `nextDoorToward` around locks, and `safePlacementFor` that never returns a wall. Tests: 21 pure
+      layout tests and 3 manifest-collider tests (every safe spot, landing point and doorway is
+      reachable with the solid decor in place) pass; typecheck has only the missing `@colyseus/sdk`
+      error; Prettier and oxlint clean. **Not yet wired into any view:** the hub cues, guidance and
+      the map (SC-R03-02, SC-R03-06) read it. Browser: none needed
+- [ ] **SC-R03-02** Grand Hall navigation hub: door cues, labels, guidance, locked-door behaviour, return to hub
+- [ ] **SC-R03-03** Trophy Room (new room; display contract and empty state only, persistence is SC-R07)
+- [ ] **SC-R03-04** Observatory function in the Setting Tower (telescope, observing; deterministic)
+- [ ] **SC-R03-05** Secret Chamber behind the tapestry nook (reuses the pattern lock and secret door)
+- [ ] **SC-R03-06** Castle map and room discovery
+- [ ] **SC-R03-07** World navigation regression
+- [ ] **SC-R04 to SC-R12** Not started. Gated items: Sound Manager merge (SC-R06), narration
+      provider and voice consent (SC-R06-03), new educational content (roadmap SC-R04-05), Phaser
+      retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the
+      SC-11 gate)

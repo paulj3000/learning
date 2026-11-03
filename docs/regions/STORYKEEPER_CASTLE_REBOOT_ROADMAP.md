@@ -231,6 +231,13 @@ or device can confirm; it is never marked done on this branch.
 
 ### SC-R03 — World expansion
 
+> **Owner brief of 2026-11-03 renumbers this phase** as SC-R03-01 (canonical layout), -02 (Grand Hall
+> hub), -03 (Trophy Room), -04 (Observatory), -05 (Secret Chamber), -06 (map and discovery) and -07
+> (navigation regression). It folds in the three tasks below. Decisions it settled: the Observatory
+> stays the Setting Tower (merged, as section 2 says); the **Trophy Room is a new room**, overriding
+> the merge into the Costume Room; the Secret Chamber is approved as a new space. Progress is in
+> `tasks/TASK_TRACKER.md`.
+
 | Task | Deliverable |
 | --- | --- |
 | SC-R03-01 | Grow region bounds and add the Writing Room shell behind the secret door (no gameplay change; the door still navigates until SC-R10) |
