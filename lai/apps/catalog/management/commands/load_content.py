@@ -4,6 +4,7 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 
+from apps.catalog import export
 from apps.catalog.importer import DEFAULT_EXPORT_DIR, ContentImportError, import_content
 
 
@@ -12,7 +13,7 @@ class Command(BaseCommand):
         "Import content/exported into the catalog. Idempotent: an export that is already the "
         "latest release is skipped. Validates everything before writing; any error leaves the "
         "database unchanged. Never deletes; never touches active or sort_order on existing "
-        "rows, and never changes a record an administrator has published (ADR-043)."
+        "rows, and never changes a record an administrator has published (ADR-047)."
     )
 
     def add_arguments(self, parser):
@@ -33,6 +34,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, path: Path, dry_run: bool, force: bool, **options):
         try:
+            export.verify_manifest_records(path)  # promotion integrity (LAI-0814)
             report = import_content(path, dry_run=dry_run, force=force)
         except ContentImportError as error:
             for problem in error.problems:
