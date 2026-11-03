@@ -316,8 +316,12 @@ following task's commit.
       `castleTaleClaims.ts` makes `castle-tale` claim only for bands it hosts. The page-source
       contract corrected the roadmap (no Explorer mission writes `FIRST_STORY_TOLD`). Tests: 29 castle
       and extension Vitest files (406) pass; typecheck and build pass. Browser: the Explorer story
-      hall and Sprout secret door now open the generic panel; confirm in a browser (owner)
-- [ ] **SC-R01-05** Acceptance and test plan (depends: SC-R01-04)
+      hall and Sprout secret door now open the generic panel; confirm in a browser (owner). Commit
+      `e193f79`
+- [x] **SC-R01-05** Acceptance and test plan (depends: SC-R01-04). DONE:
+      `docs/regions/storykeeper_castle_acceptance.md`: whole-castle criteria A-1 to A-21 and SC-R02
+      criteria V-1 to V-12, each mapped to unit, browser, device or playtest; owner checklist for
+      SC-R02; SC-11 kept open as SC-R11. Docs only
 - [ ] **SC-R02-01** Reusable visual system in the generic location runtime (depends: SC-R01-03)
 - [ ] **SC-R02-02** Great Library visual overhaul (depends: SC-R02-01)
 - [ ] **SC-R02-03** Entry Hall visual overhaul (depends: SC-R02-01)
