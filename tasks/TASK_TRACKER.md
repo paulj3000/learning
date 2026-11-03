@@ -400,8 +400,14 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       SC-R03-04), cool star-dust motes. The orrery overlaps none of the arrival or window zones, and
       nothing stands near a window (both tested). Tests: 57 (visuals, runtime, manifest) pass;
       typecheck has only the missing `@colyseus/sdk` error; Prettier and oxlint clean. Browser
-      (owner): the cool mood against the window views, orrery read
-- [ ] **SC-R02-04e** Illustration Studio visual overhaul (depends: SC-R02-01)
+      (owner): the cool mood against the window views, orrery read. Commit `86b5b7a`
+- [x] **SC-R02-04e** Illustration Studio visual overhaul (depends: SC-R02-01). DONE (development):
+      `castleRooms/illustrationStudio.ts`: honey planks, cream plaster (both reused presets), a solid
+      paint table in the south-east corner with four paint pots, three framed drawings flat on the
+      east wall above it. The table keeps more than a metre from the easel and out of the easel zone
+      (tested). Tests: 59 (visuals, runtime, manifest) pass; typecheck has only the missing
+      `@colyseus/sdk` error; Prettier and oxlint clean. All eight rooms now have a look (SC-R02-02,
+      03, 04a-f). Browser (owner): brightness, the easel against the cream walls
 - [x] **SC-R02-04f** East Corridor visual overhaul (depends: SC-R02-01). DONE (development):
       `castleRooms/eastCorridor.ts`: flagstone, dim grey ashlar, a 19 m crimson runner inlay, eight
       brass sconces (four a side, each tested clear of every archway), a framed island map on the

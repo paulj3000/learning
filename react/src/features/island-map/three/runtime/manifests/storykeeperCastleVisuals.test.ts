@@ -29,6 +29,7 @@ import {
   CASTLE_SURFACES,
   CORRIDOR_MAP,
   FLOOR_SURFACE_Y,
+  PAINT_TABLE,
   INLAY_SURFACE_Y,
   ENTRY_MURAL,
   ROOM_LOOKS,
@@ -537,6 +538,44 @@ describe('the Setting Tower', () => {
         );
         expect(near, `${item.id} stands at ${spot.entityId}`).toBeGreaterThan(1);
       }
+    }
+  });
+});
+
+describe('the Illustration Studio', () => {
+  it('keeps the paint table clear of the easel, its spot and its zone', () => {
+    const easelZone = ZONES.find((zone) => zone.id === 'castle-illustration-studio')!;
+    const table = {
+      minX: PAINT_TABLE.x - PAINT_TABLE.halfX,
+      maxX: PAINT_TABLE.x + PAINT_TABLE.halfX,
+      minZ: PAINT_TABLE.z - PAINT_TABLE.halfZ,
+      maxZ: PAINT_TABLE.z + PAINT_TABLE.halfZ,
+    };
+    const overlapsZone =
+      table.minX < easelZone.maxX &&
+      easelZone.minX < table.maxX &&
+      table.minZ < easelZone.maxZ &&
+      easelZone.minZ < table.maxZ;
+    expect(overlapsZone, 'the table stands in the easel zone').toBe(false);
+    const easel = FLOOR_SPOTS.find((spot) => spot.entityId === 'studio-easel')!;
+    // The child stands in front of the easel; leave at least a metre of floor between it and the table.
+    expect(table.minX - easel.x).toBeGreaterThan(1);
+  });
+
+  it('sets four paint pots on the table top and hangs three drawings flat on the east wall', () => {
+    const pots = CASTLE_DECOR.filter((item) => item.id.startsWith('castle-paint-pot-'));
+    expect(pots).toHaveLength(4);
+    for (const pot of pots) {
+      if (pot.kind !== 'BOX') continue;
+      expect(pot.minY).toBeCloseTo(PAINT_TABLE.height, 6);
+    }
+    const frames = CASTLE_DECOR.filter((item) => /^castle-drawing-\d-frame$/.test(item.id));
+    expect(frames).toHaveLength(3);
+    for (const frame of frames) {
+      if (frame.kind !== 'BOX') continue;
+      expect(frame.area.maxX - frame.area.minX).toBeLessThan(0.2);
+      // Above the table, so the pots and drawings never share space.
+      expect(frame.minY).toBeGreaterThan(PAINT_TABLE.height + 0.3);
     }
   });
 });
