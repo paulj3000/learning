@@ -33,6 +33,7 @@ import {
   ENTRY_MURAL,
   ROOM_LOOKS,
   STORYBOOK_DAIS,
+  TOWER_ORRERY,
   TRIM_SURFACE_INSET,
   WALL_SURFACE_INSET,
   type RoomLook,
@@ -404,7 +405,8 @@ describe('the Character Gallery', () => {
       (piece) =>
         piece.rect.minZ >= gallery.minZ &&
         piece.rect.maxZ <= gallery.maxZ &&
-        piece.rect.minX >= gallery.minX,
+        piece.rect.minX >= gallery.minX &&
+        piece.rect.maxX <= gallery.maxX,
     );
     expect(solidInGallery).toEqual([]);
   });
@@ -489,6 +491,53 @@ describe('the East Corridor', () => {
       (piece) => piece.rect.minX >= corridor.minX && piece.rect.maxX <= corridor.maxX,
     );
     expect(solidInCorridor).toEqual([]);
+  });
+});
+
+describe('the Setting Tower', () => {
+  const windowZones = ZONES.filter(
+    (zone) => zone.id.startsWith('tower-window-') || zone.id === 'castle-setting-tower',
+  );
+
+  it('stands the orrery clear of the arrival zone and all three window zones', () => {
+    expect(windowZones).toHaveLength(4);
+    const orrery = {
+      minX: TOWER_ORRERY.x - TOWER_ORRERY.half,
+      maxX: TOWER_ORRERY.x + TOWER_ORRERY.half,
+      minZ: TOWER_ORRERY.z - TOWER_ORRERY.half,
+      maxZ: TOWER_ORRERY.z + TOWER_ORRERY.half,
+    };
+    for (const zone of windowZones) {
+      const overlaps =
+        orrery.minX < zone.maxX &&
+        zone.minX < orrery.maxX &&
+        orrery.minZ < zone.maxZ &&
+        zone.minZ < orrery.maxZ;
+      expect(overlaps, `the orrery overlaps ${zone.id}`).toBe(false);
+    }
+  });
+
+  it('lays a compass medallion over the room centre, never under the orrery', () => {
+    const tower = ROOM_LOOKS.find((look) => look.roomId === 'setting-tower')!;
+    const compass = tower.inlays?.find((inlay) => inlay.id === 'compass');
+    expect(compass).toBeDefined();
+    if (!compass) return;
+    expect((compass.area.minX + compass.area.maxX) / 2).toBeCloseTo(7.5, 6);
+    expect((compass.area.minZ + compass.area.maxZ) / 2).toBeCloseTo(7.5, 6);
+    expect(compass.area.maxX).toBeLessThan(TOWER_ORRERY.x - TOWER_ORRERY.half);
+  });
+
+  it('puts nothing in front of a window', () => {
+    for (const spot of WALL_MOUNTED_SPOTS.filter((s) => s.entityId.startsWith('tower-window-'))) {
+      for (const item of CASTLE_DECOR) {
+        if (item.kind !== 'BOX') continue;
+        const near = Math.hypot(
+          (item.area.minX + item.area.maxX) / 2 - spot.x,
+          (item.area.minZ + item.area.maxZ) / 2 - spot.z,
+        );
+        expect(near, `${item.id} stands at ${spot.entityId}`).toBeGreaterThan(1);
+      }
+    }
   });
 });
 

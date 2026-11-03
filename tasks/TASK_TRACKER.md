@@ -392,7 +392,15 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       through the castle with the racks solid; typecheck has only the missing `@colyseus/sdk` error;
       Prettier and oxlint clean. Racks remain decorative, with no interaction. **Deferred:** the Trophy
       Room pedestals (SC-R03-03 and SC-R07). Browser (owner): the plum, the rack silhouettes. Commit `d336b12`
-- [ ] **SC-R02-04d** Setting Tower visual overhaul (depends: SC-R02-01)
+- [x] **SC-R02-04d** Setting Tower visual overhaul (depends: SC-R02-01). DONE (development):
+      `castleRooms/settingTower.ts`: cool grey flagstone and ashlar (two new presets, taking the
+      castle to the 16-preset budget), a blue and gold compass medallion at the room centre (reusing
+      the Entry Hall's tile preset), a brass **orrery** in the north-east corner (the Observatory's
+      first instrument, the roadmap having merged the two; the telescope and observing arrive in
+      SC-R03-04), cool star-dust motes. The orrery overlaps none of the arrival or window zones, and
+      nothing stands near a window (both tested). Tests: 57 (visuals, runtime, manifest) pass;
+      typecheck has only the missing `@colyseus/sdk` error; Prettier and oxlint clean. Browser
+      (owner): the cool mood against the window views, orrery read
 - [ ] **SC-R02-04e** Illustration Studio visual overhaul (depends: SC-R02-01)
 - [x] **SC-R02-04f** East Corridor visual overhaul (depends: SC-R02-01). DONE (development):
       `castleRooms/eastCorridor.ts`: flagstone, dim grey ashlar, a 19 m crimson runner inlay, eight
@@ -401,7 +409,7 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       archway and the sconces). No collider added, so the spine to the deep rooms is unchanged
       (tested). Tests: 54 (visuals, runtime, manifest) pass; typecheck has only the missing
       `@colyseus/sdk` error; Prettier and oxlint clean. The map shows no page marks yet (SC-R04).
-      Browser (owner): the dim mood, sconce read, map legibility
+      Browser (owner): the dim mood, sconce read, map legibility. Commit `78d9e76`
 - [ ] **SC-R02-05** Magical interaction feedback and reduced motion (depends: SC-R02-01)
 - [ ] **SC-R02-06** Lighting moods and quality-tier light budgets (depends: SC-R02-01)
 - [ ] **SC-R02-07** Asset Library integration and asset manifest doc (depends: SC-R02-02 to 04)
