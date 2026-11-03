@@ -12317,3 +12317,22 @@ passed 3 of 3. The same happened once earlier in the session.
 cost incurred), live S3 storage and S3 signed delivery, live Cognito tokens (ADR-024 A6), the
 Amplify Data screens (harbor map, adventure log, Amplify-session places; unchanged on this
 branch), and the owner's playtest of the TR-9 feel items.
+
+## Content authoring task audit (2026-11-02, branch `feature/content`, docs only)
+
+- **Request.** Audit the tracker for the remaining Django content authoring work after `main`
+  was merged into the branch (`59c788b`). Planning only; no application code changed.
+- **Verified against code:** LAI-0810 to LAI-0813 DEVELOPMENT COMPLETE; LAI-0801 stage 1
+  complete, later stages open; LAI-0503 and LAI-0309 PARTIAL; LAI-0814 NOT STARTED; LAI-0815 and
+  LAI-0805 DEFERRED; LAI-0802 revised by ADR-045 and ADR-047. Gaps against ADR-047 recorded
+  (admin log, retirement guard, per-band copy limits, "Use the exported version", revision ids
+  in responses, `check_content`).
+- **New tasks:** LAI-0816 (Django step adventure runner), LAI-0817 (age-band NPC dialogue),
+  LAI-0818 (publication safety, P1), LAI-0819 (ADR reference cleanup, P0), LAI-0820 (branch
+  integration gates, P0), LAI-0821 (milestone acceptance).
+- **Documents:** content-authoring references renamed ADR-047 in CLAUDE.md, ARCHITECTURE,
+  DECISIONS, PLAY_API, the Firepeak roadmap and the content authoring document; ADR-047 now
+  states its relationship to ADR-045 and ADR-046. History entries above keep their wording.
+- **Plan:** `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 13 (verified state, ordered P1
+  list with dependencies, conflicts, milestone definition of done).
+

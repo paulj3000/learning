@@ -195,7 +195,7 @@ nothing is recorded.
 `sessions` is the 20 most recent. `practice` is counts per learning objective, for gameplay
 pacing; it is not a mastery level or a label (docs/DATA_MODEL.md, "SkillProgress").
 
-## 3D Area puzzles, authored content and the catalog (ADR-043, LAI-0812, Firepeak)
+## 3D Area puzzles, authored content and the catalog (ADR-047, LAI-0812, Firepeak)
 
 Additive changes to the region bootstrap. A client written before them ignores the new keys,
 and a server from before them sends none (the client treats them as empty).

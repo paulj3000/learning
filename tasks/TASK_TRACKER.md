@@ -47,7 +47,7 @@ before touching AWS.
 - [x] **LAI-0304** Catalog models and loader (depends: 0302, 0301). DONE locally: `lai/apps/catalog` (World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset, ContentRelease), `manage.py load_content`, export schema 3 `locationAssets`; catalog admin built but not mounted (LAI-0404). Item and learning-objective models not built
 - [x] **LAI-0305** Progress models (depends: 0301, 0304). DONE locally: apps `game_sessions`, `education`, `progression`, `inventory`, `quests` (14 models, 5 migrations), persistence services for sessions, quests and world changes; no endpoints
 - [x] **LAI-0306** Audit models (depends: 0301). DONE on `features/ai` 2026-11-01 (unmerged): `apps.ai` `AIInteractionAudit` and `SafetyEvent`, the Amplify fields plus provider, context source, Guardrail, failure category, tokens and request id; no free-text columns (docs/AI_SERVICE.md section 7)
-- [ ] **LAI-0309** Remaining catalog models: items, reward rules, learning objectives, stories, NPCs (depends: 0304). PARTIAL via POST-MERGE-03: items, collectible sets, reward rules, learning objectives and NPCs are catalog rows (inventory now references items and rules by foreign key). Remaining: stories, and validated references from `SkillEvidence`/`SkillProgress` objective codes, `StoryProgress.story_slug` and `NpcRelationship.npc_id`
+- [ ] **LAI-0309** Remaining catalog models: items, reward rules, learning objectives, stories, NPCs (depends: 0304). **P1 for content authoring (ADR-047); see the content-authoring plan below.** Audit 2026-11-02: PARTIAL, confirmed in code (no `Story` catalog model; `stories.json` is exported but not loaded; `StoryProgress.story_slug`, `NpcRelationship.npc_id` and objective codes are unvalidated strings). PARTIAL via POST-MERGE-03: items, collectible sets, reward rules, learning objectives and NPCs are catalog rows (inventory now references items and rules by foreign key). Remaining: stories, and validated references from `SkillEvidence`/`SkillProgress` objective codes, `StoryProgress.story_slug` and `NpcRelationship.npc_id`
 
 ## Phase 4 — Cognito integration and authorization
 
@@ -64,7 +64,7 @@ before touching AWS.
 
 - [ ] **LAI-0501** Frontend API layer, Amplify-backed (depends: 0201)
 - [ ] **LAI-0502** Profiles read endpoints + client (depends: 0403, 0501)
-- [ ] **LAI-0503** Catalog read endpoints + client (depends: 0304, 0501)
+- [ ] **LAI-0503** Catalog read endpoints + client (depends: 0304, 0501). **P1 for content authoring (ADR-047 K).** Audit 2026-11-02: PARTIAL. Existing child-scoped reads already cover islands (`child-islands`), Places and 3D Areas (`child-regions`, `play-region` bootstrap with NPC dialogue, puzzles, quests and catalog assets), Place adventures (`child-region-adventures`), inventory and progress. Missing: published adventure and step reads without answers, quest, item, reward and learning-objective reads, story reads (after 0309), and the published revision ids that ADR-047 K requires in responses. Dependency on 0501 is satisfied for Django builds by `react/src/api/`
 - [ ] **LAI-0504** Progress read endpoints + client (depends: 0305, 0403)
 - [ ] **LAI-0505** Parent dashboard and admin read endpoints (depends: 0504)
 
@@ -97,22 +97,51 @@ unmerged, not pushed): levels 1 and 2 reached; 3 to 5 not started.
 
 ## Phase 8 — Admin
 
-- [ ] **LAI-0801** Django admin for catalogs (depends: 0304, 0404). Widened by ADR-043 into staged authoring editors. Stage 1 IMPLEMENTED (draft, publish, discard, restore as JSON drafts with validation; `ensure_content_roles`); structured editors per kind are later stages
-- [ ] **LAI-0802** React admin views on Django (depends: 0505, 0404)
-- [ ] **LAI-0805** Spatial layout administration in Django Admin (depends: 0801, 0304, 2103, and a spatial-content ADR first)
-- [x] **LAI-0806** Island / Place / 3D Area hierarchy and Adventure launch points (ADR-041; depends: 0304, 0601, POST-MERGE-03). DONE: labels, one 3D Area per Place, `AdventureLaunchPoint` with Django Admin, launch API, islands API, React launch and return flow; all suites green at merge (`docs/IMPLEMENTATION_STATUS.md`). Open follow-up: a Django-backed step-adventure client (the runner is still Amplify-backed in Django builds)
+- [ ] **LAI-0801** Django admin for catalogs (depends: 0304, 0404). Widened by ADR-047 (formerly numbered ADR-043 on the branch) into staged authoring editors. **P1.** Stage 1 DEVELOPMENT COMPLETE (draft, publish, discard, restore as JSON drafts with validation; `ensure_content_roles`; pytest `test_authoring_admin.py`). Remaining stages: see the content-authoring plan below. PARTIAL
+- [ ] **LAI-0802** React admin views on Django (depends: 0505, 0404). **REVISED 2026-11-02 (audit):** ADR-045 (assets) and ADR-047 (content) put all staff authoring in Django Admin, so this task no longer covers any staff content or asset authoring page. What remains of it, if anything (for example a read-only safety-review queue), needs an owner decision before it is reactivated. Not started; not reactivated
+- [ ] **LAI-0805** Spatial layout administration in Django Admin (depends: 0801, 0304, 2103, and a spatial-content ADR first). **DEFERRED** (audit 2026-11-02): ADR-047 H keeps 3D layouts seed-authored in code; not reactivated by content authoring
+- [x] **LAI-0806** Island / Place / 3D Area hierarchy and Adventure launch points (ADR-041; depends: 0304, 0601, POST-MERGE-03). DONE: labels, one 3D Area per Place, `AdventureLaunchPoint` with Django Admin, launch API, islands API, React launch and return flow; all suites green at merge (`docs/IMPLEMENTATION_STATUS.md`). Open follow-up: a Django-backed step-adventure client (the runner is still Amplify-backed in Django builds), now tracked as **LAI-0816**
 - [ ] **LAI-0807** Ungated child exit from Islands, Places, 3D Areas and Adventures (owner request 2026-10-31). Implemented on `feature/lai-ungated-island-exit`: a "Leave island" link in `IslandLayout` goes straight to the sailing dock with no arithmetic question; the separate adult exit to the parent space keeps `ParentGate` (owner decision). Targeted unit tests and typecheck pass; merge gates (full suites, lint, Prettier, Playwright) not yet run
 
-### ADR-043 content authoring (Accepted 2026-11-01; `docs/platform/DJANGO_CONTENT_AUTHORING.md`)
+### ADR-047 content authoring (Accepted 2026-11-01 as ADR-043; renumbered ADR-047; `docs/platform/DJANGO_CONTENT_AUTHORING.md`)
 
 Implementation and verification are reported separately; "implemented" never means accepted.
+Audited 2026-11-02 against `feature/content` (`59c788b`); the plan, dependency graph and
+milestone definition of done are in `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 13.
 
-- [ ] **LAI-0810** ContentRevision model, migrations, revision service, kind registry (depends: ADR-043). IMPLEMENTED on `feature/adr-043-django-content-authoring`; pytest only
-- [ ] **LAI-0811** Authority-aware importer and conflict report (depends: 0810). IMPLEMENTED; pytest only. Report shape gains `skipped` and `conflicts` counts and a `conflicts` list (documented change)
-- [ ] **LAI-0812** `AreaPuzzle`, puzzle-kind registry with Python graders, solve route (depends: 0810). IMPLEMENTED; pytest only
-- [ ] **LAI-0813** Session version pinning (depends: 0810; required before Admin publication may affect active sessions, ADR-043 requirement 1). IMPLEMENTED for step adventures, region copy, puzzles, NPC dialogue, offered quests and chest challenge specs; pytest only. Reward rules resolve at grant time (documented)
-- [ ] **LAI-0814** `export_content` and environment promotion of administrator edits (ADR-043 L) (depends: 0811). NOT STARTED
+Status words used in this section (they refine the tracker's TODO / IN_PROGRESS / BLOCKED / DONE):
+NOT STARTED; PARTIAL (some acceptance criteria built); DEVELOPMENT COMPLETE (all development
+acceptance criteria built and the relevant automated checks pass); VERIFIED (merge-gate suites
+pass on the integration branch); ACCEPTED (browser and, where required, deployed acceptance
+passed); BLOCKED; DEFERRED. A box is ticked only at ACCEPTED. Priorities: P0 blocks the branch
+merge; P1 is required for the content-authoring milestone; P2 can follow it.
+
+Built (foundation):
+- [ ] **LAI-0810** ContentRevision model, migrations, revision service, kind registry (depends: ADR-047). DEVELOPMENT COMPLETE (pytest `catalog/tests/test_authoring.py`; full pytest 1972 passed on `feature/content` after the main merge). Audit gaps against ADR-047, moved to the tasks that own them: `manage.py check_content` (impact assessment section 10) not built (LAI-0814); publish, rollback and discard are recorded on the revision but not in the Django admin log (ADR-047 D; LAI-0818); "Use the exported version" admin action not built (ADR-047 J; LAI-0801); retiring a record used by an open session has no named-session confirmation (ADR-047 E; LAI-0818); copy length is one 600-character limit, not per age band (ADR-047 D; LAI-0818)
+- [ ] **LAI-0811** Authority-aware importer and conflict report (depends: 0810). DEVELOPMENT COMPLETE; pytest. Report shape gains `skipped` and `conflicts` counts and a `conflicts` list (documented change)
+- [ ] **LAI-0812** `AreaPuzzle`, puzzle-kind registry with Python graders, solve route (depends: 0810). DEVELOPMENT COMPLETE; pytest, `area-puzzles` golden vectors on both sides, Vitest. Browser acceptance through FP-13 only (owner playtest 2026-11-01)
+- [ ] **LAI-0813** Session version pinning (depends: 0810; required before Admin publication may affect active sessions, ADR-047 requirement 1). DEVELOPMENT COMPLETE for step adventures, region copy, puzzles, NPC dialogue, offered quests and chest challenge specs; pytest. Reward rules resolve at grant time (documented). After the main merge a published Question Studio question is chosen before the pinned chest spec (ADR-046); covered by the merged pytest suite
+
+P0, before `feature/content` merges into `main`:
+- [ ] **LAI-0819** ADR-047 reference cleanup (depends: none). Documents: DONE in the 2026-11-02 audit (living documents now say ADR-047 for content authoring; ADR-043 stays the recent sign-in guard; history entries in IMPLEMENTATION_STATUS keep their wording). Remaining: comments and docstrings in `lai/` and `react/src` that say "ADR-043" for content authoring (code files, so not touched by the docs-only audit); a sentence in ADR-047 relating it to ADR-045 (Django Admin owns assets) and ADR-046 (Question Studio keeps its own review lifecycle and its published questions take precedence for chest challenges). PARTIAL
+- [ ] **LAI-0820** Branch integration of `feature/content` (depends: 0819, and every P1 task intended for the merge). Gates and their state on 2026-11-02: full pytest PASSED (1972, PostgreSQL); targeted Vitest PASSED (417); TypeScript typecheck PASSED; Ruff PASSED; Prettier on changed files PASSED; `makemigrations --check` PASSED; `content:check` PASSED; `golden:check` PASSED; full Vitest NOT RUN; repository-wide Prettier and oxlint NOT RUN; production build NOT RUN; Docker image NOT RUN; ADR check NOT RUN; browser acceptance (`test:acceptance`) NOT RUN and must not be marked passed until executed. Review Firepeak (FP-n) and content authoring (LAI-081n) as separate workstreams although they share the branch. NOT STARTED as a gate run
+
+P1, the remaining content-authoring work (ordered; see the dependency graph in the plan):
+- [ ] **LAI-0818** (P1 order 1) Child-facing publication safety (depends: 0810 done, 0801 stage 1 done). **P1** because today one administrator can publish child-facing text that only passes em-dash, length and markup checks, with no content-safety screening and no admin-log entry, so unreviewed child-facing content can reach children. Scope: reuse `apps.ai.content_safety` (the patterns Question Studio already applies, no model call) in `authoring.validate`; a submit-for-approval step and rejection with a reason on `ContentRevision`; an optional independent-approval setting (ADR-047-Q1 lets one administrator edit and publish, so independent approval stays a setting, off unless the owner turns it on); Django admin-log entries for submit, reject, publish, discard and restore; per-age-band copy limits; the open-session confirmation before retirement; service-level permission checks so a direct service call cannot publish without the permission; tests for every bypass. NOT STARTED
+- [ ] **LAI-0801** (P1 order 2) remaining stages (depends: stage 1, 0818 for the approval states). Structured editors instead of raw JSON for Islands, Places, Adventures, Adventure steps, Quests and objectives, NPCs and dialogue, challenge specs, 3D Area puzzles, items, collectible sets, reward rules and learning objectives; reference selectors; field-level errors; draft preview; submit, publish, discard, restore and retire; raw JSON kept behind a separate permission for debugging; "Use the exported version". PARTIAL (stage 1 only)
+- [ ] **LAI-0817** (P1 order 3) Age-band NPC dialogue authoring (depends: 0810, 0801 structured editor for NPCs). Structured dialogue nodes with ordering, speaker, text, choices, conditions, quest and adventure references and `ageBands` targeting; validation and publishing; runtime delivery filtered by the child's band with a safe fallback; move Firepeak's band-specific lines out of puzzle parameters (FP-D9) without changing what a child sees. NOT STARTED
+- [ ] **LAI-0309** (P1 order 4) remaining part: Story catalog rows loaded from `stories.json`, a `story` revision kind, links to characters, learning objectives, adventures and quests, and validated references from `StoryProgress.story_slug`, `NpcRelationship.npc_id` and objective codes without rewriting existing progress rows; Storykeeper Castle keeps working. PARTIAL (see the Phase 3 entry)
+- [ ] **LAI-0503** (P1 order 5) published content reads (see the Phase 5 entry; depends: 0810, 0309 for stories, 0817 for band dialogue). PARTIAL
+- [ ] **LAI-0816** (P1 order 6) Django-backed step adventure runner (follow-up of LAI-0806; depends: 0601, 0813, 0503 adventure reads; uses 0603 to 0605 services where they exist). Discover and launch a published adventure, create or resume a pinned session, load the current step, grade in Python, record skill evidence, advance, complete, grant the configured reward once, return to the 3D Area; resume after disconnection and mid-session publication; React integration on the existing runner, not a new engine. NOT STARTED (the Django answer and hint endpoints exist; completion records no evidence, world change or reward, and React still runs step adventures on Amplify)
+- [ ] **LAI-0814** (P1 order 7) `export_content` and environment promotion (ADR-047 L; depends: 0811, 0309 for stories). Deterministic export of published revisions in the existing export format with revision metadata, a manifest with ids, versions, dependencies and checksums, reference validation before export, drafts excluded by default, `check_content`; promotion through `load_content` (dry run, conflict report, ownership rules, integrity check, repeatable, rollback procedure). NOT STARTED
+- [ ] **LAI-0821** (P1 order 8) Content-authoring milestone acceptance (depends: all of the above). The definition of done in the plan, section 13.4: automated backend and frontend parts DEVELOPMENT COMPLETE when they pass; browser and deployed acceptance stay PENDING until run. NOT STARTED
+
+Deferred and excluded (not reactivated by this plan):
 - [ ] **LAI-0815** Read-only audited child-progress inspection in Django Admin. **DEFERRED** by the owner (2026-11-01) pending its own authorization and privacy decision; child-owned records stay out of Django Admin
+- LAI-0805 (3D layout authoring): DEFERRED, ADR-047 H. LAI-0802 (React staff pages): REVISED by ADR-045 and ADR-047, see its entry.
+- Firepeak's missing GLB models (FP-3, FP-13): separate asset and game acceptance work, not content authoring.
+- Question Studio live Bedrock acceptance (LAI-AQS-025, LAI-0705): separate Phase 28 and Phase 7 work.
+- Sound Manager (`origin/feature/sound-manager`, TR-19): separate subsystem; content authoring must not author sound cues until that subsystem defines them.
 
 ## Phase 9 — Realtime (co-op) and storage
 
@@ -294,10 +323,10 @@ Detail: `docs/AI_QUESTION_STUDIO.md`.
 # Firepeak Volcano (`docs/FIREPEAK_VOLCANO_ROADMAP.md`)
 
 Feature roadmap with its own ids, like TR-n and SC-n. Owner-directed 2026-11-01 (FP-D1); ages
-Pathfinders and Explorers (FP-D2). Built on ADR-043. Implementation and verification statuses
+Pathfinders and Explorers (FP-D2). Built on ADR-047 (content authoring; accepted as ADR-043 before renumbering). Implementation and verification statuses
 are kept separately in the roadmap's section 5 and `docs/IMPLEMENTATION_STATUS.md`.
 
-- [x] **FP-1** Architecture audit and adventure specification (ADR-043 accepted by the owner)
+- [x] **FP-1** Architecture audit and adventure specification (ADR-047, then numbered ADR-043, accepted by the owner)
 - [ ] **FP-2** Firepeak Place and 3D Area configuration (depends: LAI-0810, LAI-0812). IMPLEMENTED; pytest and Vitest only
 - [ ] **FP-3** Asset manifest and placeholder environment (depends: FP-2). IMPLEMENTED (`docs/regions/firepeak_assets.md`; 11 GLBs missing, stand-ins drawn); engine harness only, not seen in a browser
 - [ ] **FP-4** Base Camp and Professor Ember (depends: FP-2). IMPLEMENTED; not browser-verified

@@ -372,7 +372,7 @@ ADR-033 (POST-MERGE-03): every feature, Treasure Rush included, uses the canonic
 (`docs/ARCHITECTURE.md`, "Consolidated Django backbone"). Do not add a second catalog, content
 loader, child-owned base, or progress model for one feature; extend the canonical one. Content
 first reaches Django through the export and `manage.py load_content`; after import Django is
-authoritative and administrators edit it through versioned revisions (ADR-043), which an import
+authoritative and administrators edit it through versioned revisions (ADR-047), which an import
 never silently overwrites. Spatial layouts are not
 Django-administered until LAI-0805's ADR: shipped regions keep their TypeScript manifests and
 Treasure Cove's layout stays in `lai/apps/regions/treasure_rush_seed.py`.

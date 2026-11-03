@@ -1,11 +1,14 @@
-# Django content authoring: ADR-043 impact assessment
+# Django content authoring: ADR-047 impact assessment
 
-Status: **ADR-043 accepted by the owner, 2026-11-01** (answers Q1 to Q4 and eight acceptance
+*ADR-047 was accepted on 2026-11-01 under the number ADR-043 and renumbered when `main` was merged
+(ADR-043 on `main` is the recent sign-in guard, LAI-0209).*
+
+Status: **ADR-047 accepted by the owner, 2026-11-01** (answers Q1 to Q4 and eight acceptance
 requirements, recorded in the ADR). Implementation in progress on
 `feature/adr-043-django-content-authoring`; see section 12 for what is built and how it is
 verified. Not merged, pushed or deployed.
 
-This assessment covers what ADR-043 would change in the codebase as it is today. Every claim was
+This assessment covers what ADR-047 would change in the codebase as it is today. Every claim was
 checked against the code on 2026-11-01. Task ids that already exist are reused. New ids are
 proposed in section 9 and are not added to the tracker until the ADR is accepted.
 
@@ -134,7 +137,7 @@ no production data migration.
 
 ## 5. Importer and content workflows
 
-| Workflow | Today | With ADR-043 |
+| Workflow | Today | With ADR-047 |
 |---|---|---|
 | `npm run content:export` | Generates `content/exported/*.json` | Unchanged |
 | `npm run content:check` | Export is current | Unchanged |
@@ -161,7 +164,7 @@ no production data migration.
 | 3D Areas | Publish/retire; layout read-only | Plus a copy and environment draft editor. Layout stays read-only |
 | 3D Area puzzles (new) | none | Parameter editor generated from each puzzle kind's schema, per age band. Positions read-only |
 | Content revisions (new) | none | History, side-by-side difference against the current version and the latest export, "Use the exported version" |
-| Child progress | Not registered (test guard) | **Not part of ADR-043.** The request's "inspect child progress" would need an ADR-039-style read-only, audited view. Proposed as its own task |
+| Child progress | Not registered (test guard) | **Not part of ADR-047.** The request's "inspect child progress" would need an ADR-039-style read-only, audited view. Proposed as its own task |
 
 Permissions: new Django permissions `change_draft` and `publish` per kind, granted through two
 groups (Content editors, Content publishers). Superusers have both. See open question 1.
@@ -210,7 +213,7 @@ the authorization matrix (LAI-0403).
 
 | Id | Task | Depends |
 |---|---|---|
-| LAI-0810 | ContentRevision model, migrations, revision service, `check_content` | ADR-043 accepted |
+| LAI-0810 | ContentRevision model, migrations, revision service, `check_content` | ADR-047 accepted |
 | LAI-0811 | Authority-aware importer and release report | 0810 |
 | LAI-0801 (existing, widened) | Admin draft, publish and rollback editors, staged: plain fields, then challenge specs, then quests and dialogue | 0810, 0404 |
 | LAI-0812 | `AreaPuzzle`, puzzle-kind registry and Python graders, solve route | 0810 |
@@ -233,7 +236,7 @@ Recorded here so nothing is lost before the Firepeak roadmap is written after ac
 - **FP-D2 (owner-decided).** Age bands:
   - Pathfinders (5 to 6) and Explorers (7 to 8). Sprouts are excluded for now.
   - Band-specific dialogue, hints, explanations and puzzle difficulty come through Django
-    content (ADR-043 G).
+    content (ADR-047 G).
   - Pathfinders get more visual guidance, simpler puzzles and shorter text. Explorers get
     harder puzzles and more independence.
   - One shared Three.js environment and set of mechanics.
@@ -268,3 +271,97 @@ happened unless it is listed.
 - NPC dialogue has no age-band field in the export schema, so band-specific lines live in
   puzzle parameters (FP-D9).
 - The Amplify build still reads TypeScript content.
+
+## 13. Remaining work plan (audit 2026-11-02)
+
+Audited on `feature/content` at `59c788b` (the merge of `main` into the content authoring
+branch). Statuses use the vocabulary defined in `tasks/TASK_TRACKER.md`, section "ADR-047
+content authoring". Nothing below is implemented by this audit.
+
+### 13.1 Verified state of the existing tasks
+
+| Task | Status | Evidence in code | Gap |
+|---|---|---|---|
+| LAI-0302 export | DONE | `scripts/export-content.ts`, `content:check` | none for authoring |
+| LAI-0304 catalog and loader | DONE | `apps/catalog`, `load_content` | none |
+| LAI-0309 remaining catalog | PARTIAL | items, sets, rules, objectives, NPCs are rows | no `Story` model; `stories.json` not loaded; progress ids unvalidated |
+| LAI-0404 admin gating | Django Admin part DONE | ADR-034, `test_django_admin.py` | API `IsAdmin` not needed by authoring |
+| LAI-0801 authoring editors | PARTIAL | stage 1 `authoring_admin.py` (JSON drafts) | structured editors, preview, approval, exported-version action |
+| LAI-0806 launch points | DONE | `AdventureLaunchPoint`, launch route | step runner follow-up, now LAI-0816 |
+| LAI-0810 revisions | DEVELOPMENT COMPLETE | `ContentRevision`, `authoring.py` | `check_content`, admin log, retire guard, per-band limits (moved to 0814, 0818) |
+| LAI-0811 import ownership | DEVELOPMENT COMPLETE | `importer.py`, conflicts report | none |
+| LAI-0812 puzzles | DEVELOPMENT COMPLETE | `regions/puzzles.py`, solve route | none |
+| LAI-0813 pinning | DEVELOPMENT COMPLETE | `AdventureSession.pinned_revisions` | none |
+| LAI-0503 content reads | PARTIAL | islands, regions, bootstrap, region adventures, inventory, progress | adventure, step, quest, item, objective and story reads; revision ids (ADR-047 K) |
+| LAI-0814 export and promotion | NOT STARTED | no `export_content`, no `check_content` | all |
+| LAI-0815 child progress in Admin | DEFERRED | none | owner privacy decision |
+
+Related findings:
+- **Step adventures.** Django has answer and hint endpoints (`session-answers`, `session-hints`)
+  and an engine with golden parity, but completing a session records no skill evidence, world
+  change or reward, and no React code calls those endpoints: React still runs step adventures
+  on Amplify. LAI-0816 closes this.
+- **NPC dialogue.** Dialogue nodes are served from the pinned NPC revision with server-checked
+  conditions, but have no age-band field; Firepeak keeps band-specific lines in puzzle
+  parameters (FP-D9). LAI-0817 closes this.
+- **Publication safety.** Separate edit and publish permissions exist and every publish records
+  who and when on the revision. Missing: content-safety screening (Question Studio already uses
+  `apps.ai.content_safety` without a model call), a review step with rejection reasons, Django
+  admin-log entries, and service-level permission checks. Because ADR-047-Q1 lets one
+  administrator edit and publish, child-facing text can reach children with no second reader
+  and no safety screen. LAI-0818 is therefore **P1**; independent approval stays an owner-set
+  option, not a reversal of ADR-047-Q1.
+
+### 13.2 Ordered P1 list
+
+| Order | Task | Hard dependencies | Soft dependencies |
+|---|---|---|---|
+| 0 (P0) | LAI-0819 ADR reference cleanup (code comments) | none | none |
+| 1 | LAI-0818 publication safety | 0810, 0801 stage 1 (satisfied) | none |
+| 2 | LAI-0801 remaining stages, structured editors | 0818 (approval states the editors show) | 0817 and 0309 add kinds the editors cover |
+| 3 | LAI-0817 age-band NPC dialogue | 0810 (satisfied) | 0801 NPC editor |
+| 4 | LAI-0309 story catalog | 0304 (satisfied), 0810 | 0801 story editor |
+| 5 | LAI-0503 published content reads | 0810 (satisfied) | 0309 (story reads), 0817 (band dialogue) |
+| 6 | LAI-0816 Django step adventure runner | 0601, 0813 (satisfied), 0503 adventure reads | 0603, 0604, 0605 services |
+| 7 | LAI-0814 export and promotion | 0811 (satisfied) | 0309, 0817 (so new kinds export too) |
+| 8 | LAI-0821 milestone acceptance | all of the above | browser and deployed environments |
+| P0 | LAI-0820 branch integration gates | 0819 and the P1 tasks chosen for the merge | none |
+
+Independent lanes: LAI-0818 and LAI-0814 touch different code (publishing service and admin
+versus a new command), so they can run in parallel; LAI-0309 and LAI-0817 are independent of
+each other; LAI-0816 waits for the adventure reads of LAI-0503. External and deferred
+dependencies: live Cognito (ADR-024 A6) and a hosted Django (LAI-1004) for deployed acceptance;
+LAI-0815 and LAI-0805 stay deferred.
+
+### 13.3 Architectural conflicts recorded
+
+1. ADR number collision: the content-authoring decision and the recent sign-in guard were both
+   ADR-043. Resolved by renumbering content authoring to ADR-047; code comments remain (LAI-0819).
+2. ADR-047 D promises admin-log entries and per-age-band copy limits, and E promises a
+   named-session confirmation before retirement; the implementation has none of these. Not a
+   decision conflict: tracked as LAI-0818 work.
+3. ADR-047 J promises a "Use the exported version" admin action; not built. Tracked under LAI-0801.
+4. ADR-047 K promises published revision ids in responses; not built. Tracked under LAI-0503.
+5. LAI-0802's acceptance (React admin views) conflicts with ADR-045 and ADR-047. Revised, not
+   reactivated; any remaining scope needs an owner decision.
+6. The impact assessment (section 10) listed `check_content` under LAI-0810; it was not built.
+   Moved to LAI-0814.
+
+### 13.4 Milestone definition of done (LAI-0821)
+
+A staff author can create a complete educational adventure in Django Admin, validate and submit
+it, have an authorized publisher approve it, publish it, export and promote the approved
+content, and play the adventure through the Django-backed React/Three.js experience without
+editing TypeScript source code. Existing player progress and pinned sessions remain valid.
+
+| Step | Checked by |
+|---|---|
+| Create, validate, submit, approve and publish in Django Admin | pytest with the Django test client (automated) |
+| Permission bypass attempts refused (admin views and services) | pytest (automated) |
+| Export, then promote into a second database with dry run and conflict report | pytest round trip (automated) |
+| Child reads the published adventure; no drafts visible | pytest API tests (automated) |
+| Step grading, skill evidence, reward granted once, completion | pytest service and API tests (automated) |
+| React runner calls the Django endpoints and renders the steps | Vitest with a mocked API (automated) |
+| Mid-session publish does not change grading | pytest (automated) |
+| The same flow in a real browser with a real sign-in | browser acceptance (PENDING until run) |
+| The same flow on a deployed environment | deployed acceptance (PENDING; needs LAI-1004 and gate A6) |

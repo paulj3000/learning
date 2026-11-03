@@ -1,7 +1,7 @@
 # Firepeak Volcano: The Volcano Awakens
 
 Status: **in progress on `feature/adr-043-django-content-authoring`, 2026-11-01.** Owner-directed
-(FP-D1). Built on ADR-043 (Django content authoring, Accepted 2026-11-01). Nothing is merged,
+(FP-D1). Built on ADR-047 (Django content authoring, Accepted 2026-11-01). Nothing is merged,
 pushed or deployed. Implementation status and verification status are tracked separately in
 section 5; a row is not "accepted" until its verification column says so.
 
@@ -13,7 +13,7 @@ child uses a telescope, repairs a lava crossing, redirects steam with valves, di
 first Heart Crystal fragment, and brings it back. Earth science first, with spatial reasoning and
 cause and effect; no unrelated arithmetic.
 
-It is built entirely on the canonical backbone (ADR-033) and ADR-043:
+It is built entirely on the canonical backbone (ADR-033) and ADR-047:
 
 | Need | Reused | Added (platform-wide, not Firepeak-only) |
 |---|---|---|
@@ -87,7 +87,7 @@ on that task rather than copying it.
 
 | Id | Task | Depends | Implementation | Verification |
 |---|---|---|---|---|
-| FP-1 | Architecture audit and specification (this document, ADR-043) | none | DONE | Owner accepted ADR-043, 2026-11-01 |
+| FP-1 | Architecture audit and specification (this document, ADR-047) | none | DONE | Owner accepted ADR-047, 2026-11-01 |
 | FP-2 | Place and 3D Area configuration: export content, seed, dev publish command | LAI-0810, LAI-0812 | IMPLEMENTED (`firepeakContent.ts`, `firepeak_seed.py`, `seed_firepeak`, `publish_firepeak`, `WorldRegion.age_bands`) | pytest (`regions/tests/test_firepeak.py`), Vitest (`contentExport.test.ts`) |
 | FP-3 | Asset manifest and placeholder environment (`docs/regions/firepeak_assets.md`) | FP-2 | IMPLEMENTED: eleven asset definitions without versions, shaped stand-ins, lava shader, steam, backdrop | Vitest and engine harness (`firepeakRegion.test.ts`, `firepeakEffects.engine.test.ts`). Not seen in a browser |
 | FP-4 | Base Camp and Professor Ember | FP-2 | IMPLEMENTED: layout, Ember's authored dialogue and stage lines | pytest, Vitest (`EmberDialog.test.tsx`). Not browser-verified |
