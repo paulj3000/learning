@@ -435,8 +435,17 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       (Quill, Ember and Storybook models, library columns, chairs and book art, gallery plinths, wall
       height) with what blocks each. Flags the **SC-R03 budget headroom problem** (19 scenery and no
       presets to spare). No asset manager, registry or loader added; every id resolves through the
-      existing registry and the Asset Library (ADR-030). Docs only; Prettier clean
-- [ ] **SC-R02-08** Performance and compatibility hardening (depends: SC-R02-02 to 06)
+      existing registry and the Asset Library (ADR-030). Docs only; Prettier clean. Commit `21cf1aa`
+- [x] **SC-R02-08** Static performance budgets as tests (depends: SC-R02-02 to 06). DONE
+      (development): `storykeeperCastleBudgets.test.ts`, 10 tests counted from the manifest, **all
+      provisional until SC-R11-01 measures a tablet**: presets 16 of 16, scenery 141 of 160, estimated
+      draw calls **219** of 300 (one per surface, emitter, cluster, placed model, prop and NPC, plus
+      the extension's 12 variants; an estimate, not a measurement), lights 11 of 14 at MEDIUM, motes
+      140 at MEDIUM, procedural texture memory under 8 MB at HIGH, runtime-built triangles **1,558** of
+      6,000 (surfaces 334, BOX decor 1,224), manifest 91 KB of 250 KB, unique texture seeds. A failing
+      budget means decide, not edit the number. Tests: 10 pass; typecheck has only the missing
+      `@colyseus/sdk` error; Prettier and oxlint clean. Real frame rate stays with SC-R11 (owner, real
+      tablet)
 - [ ] **SC-R02-09** Final development verification (depends: all SC-R02)
 - [ ] **SC-R03 to SC-R12** Not started; task lists in the reboot roadmap section 6. Gated items:
       Sound Manager merge (SC-R06), narration provider and voice consent (SC-R06-03), new spaces and
