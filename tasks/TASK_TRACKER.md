@@ -280,3 +280,19 @@ Detail: `docs/AI_QUESTION_STUDIO.md`.
 - [ ] **LAI-AQS-028** Storykeeper Castle and other adventures adopt the question bank (depends: LAI-0309, LAI-0603, LAI-0709; ADR needed). Those adventures run on Amplify sessions with no Django story catalog, so the bank cannot serve them yet. Once their steps exist in Django, add a pool keyed by adventure, serve through the same snapshot and grading path, keep the authored fallback, and extend the question types served (text stems, short answer, division) with a grader for each.
 
 `LAI-AQS-024` closes when LAI-AQS-025 and LAI-AQS-026 are done.
+
+# Storykeeper Castle Reboot (branch `adventures/storybook`)
+
+Feature roadmap with its own ids (SC-Rnn-nn), consolidating
+`docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` and `docs/regions/storykeeper_castle.md`. Detail:
+`docs/regions/STORYKEEPER_CASTLE_REBOOT_ROADMAP.md`; baseline audit:
+`docs/regions/storykeeper_castle_implementation_audit.md`. Development status is kept separate from
+browser/device acceptance: **no browser tests are run on this branch (owner instruction)**, so
+every visual task's browser acceptance stays open for the owner. SC-11 (Sprouts playtest,
+real-tablet profiling) stays open and is carried as SC-R11. Commit references are recorded by the
+following task's commit.
+
+- [x] **SC-R01-01** Current implementation audit (depends: none). DONE: audit with working, partial,
+      missing and browser-only inventory; findings AUD-1 (band-blind claim in `castle-tale`) and
+      AUD-2 (card route ignores band routing). Tests: baseline 37 castle/asset Vitest files (504)
+      and typecheck pass; docs only. Browser/device: none needed
