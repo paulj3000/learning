@@ -49,9 +49,11 @@ It is built entirely on the canonical backbone (ADR-033) and ADR-047:
 - **FP-D8.** "Secrets of the Crystal Caverns" does not exist. Completing the quest records the
   world change `FIREPEAK_VOLCANO_AWAKENED`, which a future quest can use as its prerequisite. No
   launch is shown for content that does not exist.
-- **FP-D9.** Ember's general dialogue is NPC content. Stage-specific, age-specific lines are each
+- **FP-D9.** Ember's general dialogue is NPC content. Stage-specific, age-specific lines were each
   puzzle's band parameters (`intro`, `completeMessage`, `scienceNote`), because the NPC dialogue
-  schema has no age-band field.
+  schema had no age-band field. Since LAI-0817 (2026-11-03) they are Ember's dialogue: banded
+  `puzzleLine` nodes that the bootstrap adds to each puzzle's served parameters, so play is
+  unchanged (`docs/platform/DJANGO_CONTENT_AUTHORING.md` section 14.3).
 - **FP-D10.** Falling into lava returns the child to the last safe checkpoint they reached, after
   a short fade. Nothing earned is lost.
 
@@ -144,7 +146,8 @@ under "3D Area puzzles" and use "Edit content (start a draft)", then publish it.
   the engine harness (no WebGL), not seen. Performance on Android WebView is unmeasured (FP-13).
 - Every Firepeak model is a stand-in until its GLB is published (`docs/regions/firepeak_assets.md`).
 - First-person only (FP-D3). There is no third-person camera.
-- Professor Ember's general dialogue is not age-banded (FP-D9).
+- Professor Ember's general conversation is not age-banded; her puzzle lines are (FP-D9,
+  LAI-0817).
 - "Secrets of the Crystal Caverns" does not exist. Completion records eligibility only (FP-D8).
 - A Sprouts child still sees the Firepeak Place card, with no 3D Area and no adventure (Places
   carry no age bands).

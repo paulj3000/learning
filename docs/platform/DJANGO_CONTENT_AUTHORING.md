@@ -269,7 +269,7 @@ happened unless it is listed.
   LAI-0801 stages.
 - Administrator edits do not move between environments yet (LAI-0814).
 - NPC dialogue has no age-band field in the export schema, so band-specific lines live in
-  puzzle parameters (FP-D9).
+  puzzle parameters (FP-D9). (Resolved by LAI-0817 on 2026-11-03; see section 14.3.)
 - The Amplify build still reads TypeScript content.
 
 ## 13. Remaining work plan (audit 2026-11-02)
@@ -416,10 +416,30 @@ NPC dialogue nodes gain optional `speaker`, `ageBands`, `questId` and `adventure
 serves a node only to a child whose band it lists (absent: every band) and drops a choice whose
 target the band never hears. Publishing refuses: duplicate node ids, a choice to an unknown node,
 a band with no conversation opener that has no conditions (the safe fallback), and a node whose
-choices all lead to lines its band never hears. **Not done:** moving Firepeak's `intro`,
-`completeMessage` and `scienceNote` out of puzzle parameters (FP-D9). The parameters are still
-required by the puzzle rules and the client reads them; moving them is a separate change to the
-puzzle parameter contract and the Firepeak seed, so it stays open under LAI-0817.
+choices all lead to lines its band never hears.
+
+**Puzzle lines (FP-D9, done 2026-11-03).** What is said in a 3D Area puzzle's panel (its `intro`,
+`completeMessage` and `scienceNote`) is NPC dialogue: a node with
+`puzzleLine: {puzzleId, part}` and, when it differs by band, `ageBands`. Firepeak's 19 lines are
+Professor Ember's (two carry `speaker: "Narrator"`), authored in
+`react/src/features/content-export/firepeakContent.ts` and exported like any NPC.
+- **Publishing** refuses a puzzle line that is not follow-up only, has choices or conditions, is
+  a choice's target, has a part other than those three, or is a second line for the same puzzle,
+  part and band. Puzzle lines are not conversation openers and never count for the opener rule.
+  Whether the named puzzle exists is not checked (Ember is imported before the seed creates the
+  puzzles).
+- **Puzzle parameters** no longer accept the three keys; a new revision that carries one is
+  refused with "is NPC dialogue now". The Firepeak seed no longer writes them.
+- **Serving.** The 3D Area bootstrap reads the lines from the NPCs placed in the area, from the
+  version the visit pinned, for the child's band, and adds them to each puzzle's served
+  `parameters`. The client and the puzzle payload are unchanged, so play is unchanged. Puzzle
+  lines are never served in conversation.
+- **Fallbacks.** A visit pinned to versions from before the move keeps the lines its puzzle
+  revision carried. A puzzle with no intro anywhere opens with its authored title.
+- Tests: `catalog/tests/test_age_band_dialogue.py` (`TestPuzzleLines`),
+  `regions/tests/test_firepeak.py` (`TestPuzzleLinesAreDialogue`, edits during a visit),
+  `regions/tests/test_puzzles.py`, `catalog/tests/test_export_content.py` (dialogue round trip),
+  `catalog/tests/test_authoring_forms.py` (every real exported record round-trips the editor).
 
 ### 14.4 Stories (LAI-0309)
 
@@ -463,6 +483,12 @@ mastery counters (`SkillProgress`) remain LAI-0603's.
   `--dry-run`. `load_content` first verifies the manifest's record checksums and dependencies.
   A target record an administrator edited is kept and listed; take the export on purpose with
   "Use the exported version".
+- **Places with no record.** Only the export's documented ambiguities may name a slug that has no
+  Place: an adventure's `locationSlug` and a story's `completionWorldChange.locationSlug`
+  (story-only pseudo-locations), and an NPC whose home is the hub (`welcome-harbor`). These are
+  warnings in `check_content` and are accepted by the manifest check. Any other reference to a
+  missing Place is an error in both (`export.unrecorded_place_dependencies`, narrowed on
+  2026-11-03 from a rule that exempted every Place reference).
 - **Rollback.** An import is one transaction and history only grows. To undo a promotion, restore
   the earlier version of each affected record in Django Admin (Restore), or re-import the previous
   export directory; neither deletes anything.

@@ -12336,3 +12336,45 @@ branch), and the owner's playtest of the TR-9 feel items.
 - **Plan:** `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 13 (verified state, ordered P1
   list with dependencies, conflicts, milestone definition of done).
 
+
+## LAI-0820 merge-readiness verification and LAI-0817 completion (2026-11-03, branch `feature/content`)
+
+- **Request.** Final non-browser merge-readiness verification of `feature/content` for ADR-047
+  content authoring, finishing LAI-0817 if work remained. No merge, no deployment, no browser
+  tests.
+- **Acceptance criteria implemented.** LAI-0817: "Firepeak's band lines leave puzzle parameters
+  without changing play" (`docs/DJANGO_MIGRATION_ROADMAP.md`). LAI-0820: every non-browser merge
+  gate in `docs/TESTING_STRATEGY.md` run and recorded.
+- **LAI-0817 (FP-D9).** Firepeak's `intro`, `completeMessage` and `scienceNote` are 19 banded
+  `puzzleLine` nodes in Professor Ember's exported dialogue. Puzzle rules refuse the old keys and
+  the seed no longer writes them. The bootstrap adds the child's band lines, from the pinned NPC
+  version, to each puzzle's served parameters, so the client and payload are unchanged. Details:
+  `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 14.3.
+- **Defect fixed.** `c1ecea4` made the manifest integrity check skip every `place:` dependency.
+  Now only an adventure's `locationSlug`, a story's `completionWorldChange.locationSlug` and an NPC
+  in the hub may name no Place, in both `verify_manifest_records` and `check_content`
+  (section 14.7). A regression test fails against the old rule (mutation-checked by hand).
+- **Defect fixed.** `tests/golden/director-content.json` digest regenerated after the content
+  change (vectors unchanged).
+- **Editor.** A new test round-trips every record of the committed export through the structured
+  editor unchanged (over 100 records, including Ember's puzzle lines).
+- **Environment.** Fresh `.venv` (`make py-install`) and `npm ci`: the checkout's `node_modules`
+  was a broken symlink, and this branch's lockfile differs from `main`'s. PostgreSQL 16 from
+  `make up` on port 8432. The baseline ran in a separate worktree at `c1ecea4` with its own
+  database.
+
+| Gate | Command | Result |
+|---|---|---|
+| pytest baseline at `c1ecea4` | `make py-test-db` | 2133 passed |
+| pytest (PostgreSQL required) | `make py-test-db` | 2154 passed, 0 failed, 0 skipped |
+| Vitest | `npm test` | 3471 passed, 1 failed (stale golden digest, fixed; `src/test/golden` rerun 6 of 6) |
+| Ruff lint / format | `make py-lint`, `make py-format-check` | pass / 483 files formatted |
+| Django checks | `make django-check`, `make migrate-check` | no issues, no changes |
+| TypeScript | `npm run typecheck` | pass |
+| oxlint / Prettier | `npm run lint`, `npm run format:check` | 0 errors (warnings only) / pass after formatting `tasks/TASK_TRACKER.md` |
+| Production build | `npm run build` | pass |
+| ADR / admin preview / content / golden | `adr:check`, `admin-preview:check`, `content:check`, `golden:check` | 47 decisions; pass; up to date; up to date after regeneration |
+
+**Pending, not claimed:** `test:e2e`, `test:acceptance` and other browser or WebGL checks (not
+run, by instruction), Docker image build (not requested), deployed verification, owner
+acceptance (LAI-0821).
