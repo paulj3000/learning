@@ -21,11 +21,8 @@ from uuid import UUID
 
 from apps.adventures import engine
 from apps.catalog.models import AdventureStep, NpcDefinition
-from apps.education.models import SkillProgress
 from apps.game_sessions.models import AdventureSession, SessionKind
 from apps.quests.models import QuestProgress, QuestStatus
-
-from ..tutor_content import KNOWN_STATUSES, list_prerequisites
 
 
 class ContextNotFound(Exception):
@@ -92,18 +89,15 @@ def load_session_step(child, session_id, step_id: str) -> SessionStep:
 
 
 def prerequisite_mastery(child, skill_id: str) -> list[dict]:
-    """`[{skillId, status}]` for this skill's prerequisites the child has reached; statuses only.
+    """`[{skillId, status}]` for this skill's prerequisites the child currently knows.
 
-    `SkillProgress.recent_level` is the server's status column. Until LAI-0603 computes it on
-    the server it is usually empty, which only means fewer "known" titles (never more).
+    Statuses only, from `SkillProgress` (computed by `education.mastery` from server-graded
+    evidence, with review decay applied at read time). A skill with no progress row is simply
+    not listed: fewer "known" titles, never more.
     """
-    prerequisite_ids = [skill.id for skill in list_prerequisites(skill_id)]
-    if not prerequisite_ids:
-        return []
-    rows = SkillProgress.objects.for_child(child).filter(
-        learning_objective_code__in=prerequisite_ids, recent_level__in=KNOWN_STATUSES
-    )
-    return [{"skillId": r.learning_objective_code, "status": r.recent_level} for r in rows]
+    from . import learner
+
+    return learner.known_prerequisites(child, skill_id)
 
 
 def active_quest_copy(child) -> tuple[str | None, str | None]:

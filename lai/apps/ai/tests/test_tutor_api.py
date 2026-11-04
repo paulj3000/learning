@@ -97,6 +97,7 @@ def test_the_context_is_only_authored_copy(families, api, fake_model):
         "hintLevel",
         "questTitle",
         "questStageTitle",
+        "learnerProfile",
     }
     # Client text is untrusted content, not part of the trusted context.
     assert fake.requests[0].content[1].untrusted

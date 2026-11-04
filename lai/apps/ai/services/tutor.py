@@ -11,6 +11,7 @@ from ..models import ContextSource, RouteName
 from ..prompts import TUTOR_PERSONA
 from ..tutor_content import build_tutor_context, is_tutorable_skill, strategy_for_hint_level
 from . import context as ctx
+from . import learner
 from .pipeline import TurnResult, TurnSpec, run_turn
 
 REPLY_FIELDS = (
@@ -67,6 +68,10 @@ def request_tutor_turn(child, data: dict) -> TurnResult:
     )
     context_dict = context.as_dict()
     trusted = {"adventureTemplateId": template_id, **context_dict}
+    # Mastery summary from authoritative Django records (LAI-0603); None on any read failure.
+    learner_profile = learner.build_learner_context(child, skill_id)
+    if learner_profile is not None:
+        trusted["learnerProfile"] = learner_profile
     # The validator sees the same context the TypeScript one would, authored text included.
     validation_context = {**context_dict, "authoredBaseText": authored_base_text}
 

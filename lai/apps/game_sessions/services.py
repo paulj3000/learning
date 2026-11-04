@@ -29,6 +29,7 @@ from django.utils import timezone
 
 from apps.adventures import engine
 from apps.catalog.models import Adventure, AdventureStep, ContentRelease
+from apps.education.services import record_step_evidence
 from apps.game_sessions.models import (
     COMPLETE_STEP_ID,
     AdventureAction,
@@ -337,6 +338,14 @@ def submit_answer(
         normalized_answer=answer_text,
         hint_level=decision["supportLevel"],
         request_id=request_id,
+        at=at,
+    )
+    # The engine's own grade, never a client value, becomes skill evidence (LAI-0603).
+    record_step_evidence(
+        session,
+        step,
+        correctness=action.correctness,
+        support_level=decision["supportLevel"],
         at=at,
     )
     if next_step is not None and _ends_adventure(session, next_step):
