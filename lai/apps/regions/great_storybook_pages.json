@@ -9,10 +9,7 @@
     {
       "id": "page-first-story",
       "title": "The First Story",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER"],
       "required": true,
       "source": {
         "kind": "WORLD_CHANGE",
@@ -26,9 +23,7 @@
     {
       "id": "page-three-clues",
       "title": "Three Clues",
-      "bands": [
-        "EXPLORER"
-      ],
+      "bands": ["EXPLORER"],
       "required": true,
       "source": {
         "kind": "WORLD_CHANGE",
@@ -42,9 +37,7 @@
     {
       "id": "page-pattern-lock",
       "title": "The Pattern Lock",
-      "bands": [
-        "EXPLORER"
-      ],
+      "bands": ["EXPLORER"],
       "required": true,
       "source": {
         "kind": "WORLD_CHANGE",
@@ -58,9 +51,7 @@
     {
       "id": "page-what-was-waiting",
       "title": "What Was Waiting",
-      "bands": [
-        "EXPLORER"
-      ],
+      "bands": ["EXPLORER"],
       "required": true,
       "source": {
         "kind": "WORLD_CHANGE",
@@ -74,11 +65,7 @@
     {
       "id": "page-tapestry",
       "title": "The Hidden Page",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "required": false,
       "source": {
         "kind": "DISCOVERY",
