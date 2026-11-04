@@ -16,6 +16,7 @@ from apps.catalog.models import (
     ContentAuthority,
     ContentRevision,
     Location,
+    NpcDefinition,
     RevisionOrigin,
     RevisionStatus,
     Story,
@@ -262,6 +263,36 @@ class TestPromotion:
         assert again.status == "unchanged"
 
     @pytest.mark.django_db(transaction=True)
+    def test_age_band_dialogue_and_puzzle_lines_survive_the_round_trip(self, imported):
+        # LAI-0817: banded lines, speakers and puzzle lines (FP-D9) reach the other environment
+        # exactly as published, in authored order.
+        pip = NpcDefinition.objects.get(npc_id="pip")
+        body = copy.deepcopy(authoring.current_body(pip))
+        body["dialogue"] = [
+            {"id": "hello", "conditions": [], "text": "Ahoy!", "choices": []},
+            {
+                "id": "look-exp",
+                "conditions": [],
+                "text": "Find three clues.",
+                "choices": [],
+                "followUpOnly": True,
+                "ageBands": ["EXPLORER"],
+                "speaker": "Narrator",
+                "puzzleLine": {"puzzleId": "cove-look", "part": "intro"},
+            },
+        ]
+        publish_edit(pip, body)
+        export.write_export(export.build_export(), imported / "out")
+
+        call_command("flush", interactive=False, verbosity=0)
+        ContentType.objects.clear_cache()
+        export.verify_manifest_records(imported / "out")
+        assert import_content(imported / "out").status == "imported"
+
+        received = authoring.current_body(NpcDefinition.objects.get(npc_id="pip"))
+        assert received["dialogue"] == body["dialogue"]
+
+    @pytest.mark.django_db(transaction=True)
     def test_a_record_edited_in_the_target_is_reported_not_overwritten(self, imported):
         bay = Location.objects.get(slug="bay")
         body = copy.deepcopy(authoring.current_body(bay))
@@ -305,6 +336,35 @@ class TestPromotion:
             "npc pip: listed in the manifest but not in the files" in p
             for p in error.value.problems
         )
+
+    def test_a_missing_place_still_fails_except_where_the_export_allows_one(self, imported):
+        # c1ecea4 let every `place:` reference go unchecked. Only an adventure's or a story's
+        # pseudo-location and an NPC in the hub may name no Place; the NPC living in "bay" may not.
+        export.write_export(export.build_export(), imported / "out")
+        path = imported / "out" / "locations.json"
+        data = json.loads(path.read_text())
+        data["locations"] = [loc for loc in data["locations"] if loc["slug"] != "bay"]
+        path.write_text(json.dumps(data))
+        manifest = manifest_of(imported / "out")
+        manifest["records"] = [r for r in manifest["records"] if r["id"] != "bay"]
+        (imported / "out" / "manifest.json").write_text(json.dumps(manifest))
+
+        with pytest.raises(ContentImportError) as error:
+            export.verify_manifest_records(imported / "out")
+
+        missing = [p for p in error.value.problems if "place:bay" in p]
+        assert "npc pip: depends on place:bay, not exported" in missing
+        assert not any(p.startswith(("adventure ", "story ")) for p in missing)
+
+    def test_only_documented_fields_may_name_a_place_with_no_record(self):
+        allowed = export.unrecorded_place_dependencies
+        assert allowed("adventure", {"locationSlug": "ember-mountain"}) == {"place:ember-mountain"}
+        story = {"completionWorldChange": {"locationSlug": "fossil-ridge"}}
+        assert allowed("story", story) == {"place:fossil-ridge"}
+        assert allowed("npc", {"homeLocationSlug": "welcome-harbor"}) == {"place:welcome-harbor"}
+        assert allowed("npc", {"homeLocationSlug": "bay"}) == set()
+        assert allowed("quest", {"stages": [{"locationSlug": "ember-mountain"}]}) == set()
+        assert allowed("story", {"locationSlug": "fossil-ridge"}) == set()
 
     def test_the_typescript_export_has_no_records_list_and_verifies_trivially(self, imported):
         export.verify_manifest_records(imported / "v1")

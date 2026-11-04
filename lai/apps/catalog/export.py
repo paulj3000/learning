@@ -119,6 +119,29 @@ def dependencies(kind: str, body: dict) -> list[str]:
     return sorted(found)
 
 
+# The hub region has scenes and NPCs but no Place (`HUB_REGION_SLUG` in the TypeScript integrity
+# check, and the importer's location assets).
+HUB_REGION_SLUG = "welcome-harbor"
+
+
+def unrecorded_place_dependencies(kind: str, body: dict) -> set[str]:
+    """The `place:` references this body may make to a slug with no Place, and only those.
+
+    They are the TypeScript export's documented ambiguities: an adventure's `locationSlug` and a
+    story's `completionWorldChange.locationSlug` may name a story-only pseudo-location, and an
+    NPC may live in the hub region. Any other reference to a missing Place is an error.
+    """
+    slug = None
+    if kind == "adventure":
+        slug = body.get("locationSlug")
+    elif kind == "story":
+        change = body.get("completionWorldChange")
+        slug = change.get("locationSlug") if isinstance(change, dict) else None
+    elif kind == "npc" and body.get("homeLocationSlug") == HUB_REGION_SLUG:
+        slug = HUB_REGION_SLUG
+    return {f"place:{slug}"} if isinstance(slug, str) and slug else set()
+
+
 # --- Building ------------------------------------------------------------------------------------
 
 
@@ -133,6 +156,8 @@ class ExportedRecord:
     draft: bool
     depends_on: list[str]
     sha256: str
+    # Not in the manifest: references that may name no Place (`unrecorded_place_dependencies`).
+    may_be_unrecorded: frozenset[str] = field(default_factory=frozenset)
 
     def as_dict(self) -> dict:
         return {
@@ -203,6 +228,9 @@ def build_export(*, include_drafts: bool = False) -> ExportPlan:
                     draft=draft,
                     depends_on=dependencies(kind_name, revision.body),
                     sha256=body_checksum(body),
+                    may_be_unrecorded=frozenset(
+                        unrecorded_place_dependencies(kind_name, revision.body)
+                    ),
                 )
             )
     # Assets from the export (Django-created assets belong to the Asset Manager, ADR-045).
@@ -301,10 +329,12 @@ def verify_manifest_records(directory: Path) -> None:
             problems.append(f"{ident[0]} {ident[1]}: listed in the manifest but not in the files")
         elif body_checksum(body) != record.get("sha256"):
             problems.append(f"{ident[0]} {ident[1]}: checksum differs from the manifest")
+        allowed = unrecorded_place_dependencies(ident[0], body) if isinstance(body, dict) else set()
         for dependency in record.get("dependsOn", []):
             target, _, name = dependency.partition(":")
-            # Story-only pseudo-locations have no Place by design, so "place" is never required.
-            if (target, name) not in present and target in set(kind_of.values()) - {"place"}:
+            if dependency in allowed:
+                continue  # a story-only pseudo-location or the hub: no Place by design
+            if (target, name) not in present and target in set(kind_of.values()):
                 problems.append(f"{ident[0]} {ident[1]}: depends on {dependency}, not exported")
     if problems:
         raise ContentImportError(problems)
@@ -349,8 +379,9 @@ def check_content(*, schema_files: bool = True) -> CheckReport:
             if dependency in exported_keys:
                 continue
             message = f"{record.kind} {record.key}: depends on {dependency}, which is not exported"
-            # Story-only pseudo-locations have no Place by design (the export's known ambiguity).
-            (report.warnings if dependency.startswith("place:") else report.errors).append(message)
+            # Only the documented story-only pseudo-locations and the hub are warnings.
+            unrecorded = dependency in record.may_be_unrecorded
+            (report.warnings if unrecorded else report.errors).append(message)
     if schema_files:
         for file_name, collections in plan.collections.items():
             try:
