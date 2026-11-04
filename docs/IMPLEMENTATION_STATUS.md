@@ -12448,3 +12448,50 @@ read-only virtualenv, with `POSTGRES_PORT=5455 LAI_REQUIRE_POSTGRES=1`.
 is visually accepted: every row awaits the owner's browser inspection, and none of the art is
 production art. Until the nook discovery write path moves to Django, a Django-mode server cannot
 persist a secret-room discovery (it works in the world and nothing leaks).
+
+
+## Bedrock readiness: LAI-0603, LAI-0709, AI reliability, live-test tooling (2026-11-04, branch `feature/ai-bedrock-readiness`, based on `origin/dev20261103`)
+
+**Status: development complete for what is feasible without AWS. Nothing was run against AWS,
+nothing was deployed, no browser test was run. LAI-0705, LAI-0710 and Guardrail validation are
+NOT accepted.** Owner workflow: `docs/AI_BEDROCK_ACCEPTANCE.md`. Design notes: `docs/AI_SERVICE.md`
+section 12.
+
+- **Acceptance criteria implemented.** LAI-0603: Python mastery rules at golden-vector parity,
+  server-graded evidence writes `SkillProgress` (Treasure Rush and Django adventure answers),
+  tutor `learnerProfile` built only from Django records with a safe fallback. LAI-0709 (partial):
+  NPC narration carries NPC identity, Island/Place/3D Area, the child's own relationship and
+  quest; optional eligibility enforcement; session turns refuse content republished after the
+  session started. Reliability: one shared Bedrock client, optional first-call timeout, retry
+  classification, `content_filtered`/`tool_use`/non-object replies. Tooling: `ai_live_check
+  --dry-run` and `--confirm-paid-calls`, `--npc`, `--timeout-probe`; `studio_run_batch
+  --dry-run`/`--confirm-paid-calls`; read-only `studio_batch_report`.
+- **Created.** `apps/education/mastery.py`, `apps/ai/services/{learner,npc}.py`,
+  `studio_batch_report.py`, tests (`test_mastery*.py`, `test_learner_context.py`,
+  `test_npc_narration_context.py`, `test_bedrock_reliability.py`,
+  `test_red_team_narration_mastery.py`, `question_studio/tests/test_readiness.py`),
+  `docs/AI_BEDROCK_ACCEPTANCE.md`.
+- **Changed.** `education/services.py`, `game_sessions/services.py` (`step_is_pinned`),
+  `ai/services/{context,companion,tutor}.py`, `ai/providers/*`, `ai_live_check.py`,
+  `studio_run_batch.py`, `config/settings/base.py`, the AI test catalog fixture, docs and tracker.
+- **Defects found and fixed.** A Bedrock client was built for every turn (pool and warm state
+  lost); a progress-store read error produced a 500 instead of degrading; AI session turns were
+  not pinned to the session's adventure version; `SkillProgress.recent_level` was never computed
+  on the server.
+- **Checks run.** PostgreSQL 16 in Docker, `pytest` on: `lai/apps/ai`, `lai/apps/education`,
+  `lai/apps/question_studio`, `lai/apps/speech`, `tests/` (golden), and the game_sessions answers,
+  sessions, chest, play, lookout, pips and concurrency tests: all passed (889 + 441 + 32 across
+  the batches; the last batch alone 889 passed). `ruff check`, `ruff format --check`, `manage.py
+  check`, `makemigrations --check`: clean. `npm run golden:check`, `npm run content:check`:
+  clean. `npx vitest run infra/lib/aiGuardrailStack.test.ts` (static synth): 9 passed. React AI
+  Vitest (`src/api/ai`, `features/{companion,tutor,npc}`): 238 passed (one run under heavy
+  machine load reported 15 unhandled timer errors that did not recur; no React file changed).
+- **Not run.** Full pytest (regions, quests, assets, users, catalog, etc. outside the above),
+  full Vitest, `npm run typecheck`, `npm run build`, Playwright, any AWS call. Merge
+  verification still owes these.
+- **Not done / blockers.** Live Bedrock acceptance and Guardrail effectiveness (owner, approval);
+  Marketplace billing coverage unverified; story scenes and Amplify-session adventures still
+  `CLIENT_AUTHORED` (no Django story catalog, LAI-0309/0607); NPC state still in Amplify
+  (LAI-0605), so eligibility enforcement is off; React adventures write no Django evidence until
+  LAI-0501; Firepeak/ADR-043 content is on an unmerged branch and was not recreated; retention
+  periods need owner approval (follow-up LAI-0711); Amplify routes untouched (LAI-0710).
