@@ -56,6 +56,7 @@
           "blank-page-storybook",
           "explorer-backpack",
           "star-lantern",
+          "great-storybook-seal",
           "heart-crystal-fragment-1",
           "volcano-explorer-badge",
           "journal-volcano-crater",
@@ -90,6 +91,9 @@
           "sort-the-workshop",
           "the-quiet-places",
           "light-the-harbor",
+          "restore-the-great-storybook-sprouts",
+          "restore-the-great-storybook-pathfinders",
+          "restore-the-great-storybook-explorers",
           "the-volcano-awakens"
         ],
         "storySlugs": [

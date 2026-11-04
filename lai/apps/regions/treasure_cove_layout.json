@@ -3015,6 +3015,16 @@
     "minX": -14,
     "minZ": -36
    }
+  },
+  {
+   "enterMessage": "Lookout Point. The whole sea is out there!",
+   "rect": {
+    "id": "cove-zone-lookout",
+    "maxX": 36,
+    "maxZ": -40.4,
+    "minX": -36,
+    "minZ": -44
+   }
   }
  ]
 }

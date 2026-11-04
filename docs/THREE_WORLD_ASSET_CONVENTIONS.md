@@ -330,6 +330,40 @@ material and texture wired onto the mesh. What it does not prove: that the
 PNG bytes decode to a valid image. jsdom cannot rasterise one at any level
 of effort, so that check belongs to a browser (Playwright) run.
 
+## Runtime-built surfaces, material presets and quality tiers (SC-R02-01)
+
+Generic location-runtime support added by the Storykeeper Castle Reboot
+(`docs/regions/storykeeper_castle_art_direction.md`; ADR-028's recommended
+decision, still Proposed). Code: `src/features/island-map/three/runtime/visual/`.
+
+- **Material presets** (`ThreeLocationManifest.materials`): id, procedural
+  pattern (`PLAIN`, `FLAGSTONE`, `ASHLAR`, `PLANKS`, `PLASTER`, `CARPET`,
+  `PANELS`, `TILES`), base and accent sRGB colours, roughness, metalness,
+  optional emissive, metres per repeat, and seed. `materialLibrary.ts` makes
+  one `MeshStandardMaterial` and at most one texture per preset per scene,
+  and disposes both on unmount.
+- **Procedural textures** (`surfacePatterns.ts`) are painted in code into
+  RGBA bytes and uploaded as a `DataTexture`. There is no image file, no
+  decode and no licence, so jsdom tests run them for real. Every pattern
+  tiles seamlessly (tested).
+- **Surfaces** (`ThreeLocationManifest.surfaces`): floors, ceilings and wall
+  boxes built by `surfaceGeometry.ts` into one merged, single-sided,
+  correctly wound geometry with **world-scaled UVs** (1 UV = `metersPerRepeat`
+  metres), so a texel is the same size in every room. Surfaces are never
+  colliders and never interactive. Collision stays the authored rects.
+- **Effects** (`ThreeLocationManifest.effects`): `MOTES`, one `Points` draw
+  call per effect, seeded homes, drift as a pure function of time. They hold
+  still under reduced motion.
+- **Quality tiers** (`renderQuality.ts`): LOW, MEDIUM (default) and HIGH set
+  texture size, the placed-light budget (lights carry an optional
+  `priority`), the pixel-ratio cap and the mote count. LOW is chosen
+  automatically on small devices (at most 4 cores or 4 GB); HIGH never is.
+  Tiers change appearance only, which is tested by walking the same path at
+  every tier.
+- **Fallbacks**: an unknown preset draws neutral flat colour, and a texture
+  that cannot be painted draws the preset's flat base colour. Validation
+  reports both in tests.
+
 ## Runtime loading, cloning and the cache (LAI-2106)
 
 Every asset reaches a scene through `assets/assetLoader.ts`, and every

@@ -391,3 +391,12 @@ pass (Gate B), adventures running on Django sessions, a Django story catalog (LA
 mastery (LAI-0603), an approved retention period (LAI-0308 / G9), and explicit retirement
 approval for LAI-0710.
 
+
+
+## Speech (SM-P8)
+
+A validated companion or tutor turn may carry `speech: { utteranceId, voiceProfile }`: a reference
+to short-lived, server-approved text that the app can ask the speech API to speak
+(`docs/audio/AMAZON_POLLY_INTEGRATION.md`). It is created after the pipeline, never calls Polly,
+never sees unvalidated output, is skipped for `STOP` dispositions and for children with AI turned
+off, and cannot fail the turn. The field is additive; older clients ignore it.

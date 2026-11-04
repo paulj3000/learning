@@ -148,6 +148,13 @@
       "rarity": "UNCOMMON"
     },
     {
+      "category": "KEEPSAKE",
+      "description": "A golden seal pressed into the Great Storybook the day you helped bring its pages home.",
+      "displayName": "The Great Storybook's Seal",
+      "id": "great-storybook-seal",
+      "rarity": "RARE"
+    },
+    {
       "category": "COLLECTIBLE",
       "description": "A thin, pale shell that glows faintly when you hold it up to a light.",
       "displayName": "Lantern Shell",
@@ -430,6 +437,39 @@
       "message": "A shell you have never seen before is sitting on the tide pool rock. Listen to it.",
       "trigger": {
         "questId": "the-quiet-places",
+        "type": "QUEST_COMPLETED"
+      }
+    },
+    {
+      "id": "reward-restore-the-great-storybook-sprouts",
+      "itemIds": [
+        "great-storybook-seal"
+      ],
+      "message": "The Great Storybook is whole again. A golden seal glows on its cover, just for you.",
+      "trigger": {
+        "questId": "restore-the-great-storybook-sprouts",
+        "type": "QUEST_COMPLETED"
+      }
+    },
+    {
+      "id": "reward-restore-the-great-storybook-pathfinders",
+      "itemIds": [
+        "great-storybook-seal"
+      ],
+      "message": "The Great Storybook is whole again. A golden seal glows on its cover, just for you.",
+      "trigger": {
+        "questId": "restore-the-great-storybook-pathfinders",
+        "type": "QUEST_COMPLETED"
+      }
+    },
+    {
+      "id": "reward-restore-the-great-storybook-explorers",
+      "itemIds": [
+        "great-storybook-seal"
+      ],
+      "message": "The Great Storybook is whole again. A golden seal glows on its cover, just for you.",
+      "trigger": {
+        "questId": "restore-the-great-storybook-explorers",
         "type": "QUEST_COMPLETED"
       }
     },

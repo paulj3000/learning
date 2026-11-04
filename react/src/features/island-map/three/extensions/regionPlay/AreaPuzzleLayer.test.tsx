@@ -45,6 +45,10 @@ function fakeScene() {
     pressRune: vi.fn(),
     flashRunes: vi.fn(),
     reactNpc: vi.fn(),
+    entityPositionReader: vi.fn(() => undefined),
+    unlockPositionReader: vi.fn(() => undefined),
+    listenerSource: () => ({ matrixWorld: { elements: new Array(16).fill(0) } }),
+    onFrame: vi.fn(() => () => undefined),
   } satisfies RegionPlaySceneApi;
   return { scene, listeners };
 }

@@ -20,7 +20,7 @@ from apps.catalog.models import Quest, RewardRule
 from apps.game_sessions.models import AdventureSession, SessionKind, SessionStatus
 from apps.game_sessions.services import InvalidTransition, ProgressNotFound
 from apps.inventory.services import RewardGrant, grant_reward_rule, owned_item_ids
-from apps.progression.models import NpcRelationship
+from apps.progression.models import NpcRelationship, WorldState
 from apps.progression.services import record_world_change, world_change_keys
 from apps.quests import engine
 from apps.quests.models import QuestProgress, QuestStatus
@@ -38,7 +38,9 @@ def build_context(child) -> engine.QuestContext:
         kind=SessionKind.ADVENTURE, status=SessionStatus.COMPLETED
     )
     memory = NpcRelationship.objects.for_child(child).values_list("npc_id", "memory_flags")
+    world_state = WorldState.objects.for_child(child).first()
     return engine.QuestContext(
+        discovery_ids=frozenset(world_state.discovered_objects if world_state else ()),
         npc_memory_flags=frozenset(
             (npc_id, flag)
             for npc_id, flags in memory

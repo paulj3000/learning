@@ -1,10 +1,11 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApiError } from '../../../../../api/errors';
 import { read } from '../../../../../api/parse';
 import * as parse from '../../../../../api/play/parse';
 import type { PlayApi } from '../../../../../api/play/playApi';
 import type { AnswerOutcome, LaunchStart, Upserted } from '../../../../../api/play/types';
+import { setSoundSink, type SoundCue } from '../../../../region-play/soundCues';
 import { buildRegionManifest } from '../../../../region-play/regionManifest';
 import { toRegionSceneModel } from '../../../../region-play/sceneModel';
 import { PLAY_COPY } from '../../../../region-play/regionPlayUi';
@@ -128,6 +129,10 @@ function fakeScene(open = false) {
     pressRune: vi.fn(),
     flashRunes: vi.fn(),
     reactNpc: vi.fn(),
+    entityPositionReader: vi.fn(() => undefined),
+    unlockPositionReader: vi.fn(() => undefined),
+    listenerSource: () => ({ matrixWorld: { elements: new Array(16).fill(0) } }),
+    onFrame: vi.fn(() => () => undefined),
   };
   return scene;
 }
@@ -176,6 +181,15 @@ async function atTheChest(api: PlayApi, extra: Partial<LocationCompanionProps> =
   );
   await screen.findByRole('button', { name: '5' });
   return view;
+}
+
+afterEach(() => setSoundSink(null));
+
+/** Replaces the game's own sound sink with one that writes down the moments it is given (SM-P3). */
+function listen(): SoundCue[] {
+  const heard: SoundCue[] = [];
+  setSoundSink((cue) => heard.push(cue));
+  return heard;
 }
 
 beforeEach(() => {
@@ -460,6 +474,43 @@ describe('the chest', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('sounds a gentle retry once for a wrong answer, and nothing else (SM-P3-06)', async () => {
+    const api = fakeApi({ submitAnswer: vi.fn(async () => outcome(false)) });
+    const view = await atTheChest(api);
+    const heard = listen();
+    await userEvent.click(screen.getByRole('button', { name: '4' }));
+    await screen.findByText('Not quite. The lock is still shut. Let us try another one!');
+    view.rerender(<RegionPlayCompanion {...props({ claimedInteraction: interaction(CHEST) })} />);
+    await act(async () => undefined);
+    expect(heard).toEqual(['answerRetry']);
+  });
+
+  it('tells the sound where the chest is, so it can be heard from there (SM-P7)', async () => {
+    const api = fakeApi();
+    await atTheChest(api);
+    const places: Array<[SoundCue, unknown]> = [];
+    setSoundSink((cue, at) => places.push([cue, at]));
+    await userEvent.click(screen.getByRole('button', { name: '5' }));
+    await screen.findByRole('dialog', { name: 'Click! The chest is open!' });
+    const open = places.find(([cue]) => cue === 'chestOpen');
+    expect(open?.[1]).toEqual({ entityId: 'cove-chest' });
+    // Feedback stays flat: it is not given a place.
+    expect(places.find(([cue]) => cue === 'answerRight')?.[1]).toBeUndefined();
+  });
+
+  it('sounds the right answer and the open chest only after the server says yes, once (SM-P3-04, 06)', async () => {
+    const api = fakeApi();
+    const view = await atTheChest(api);
+    const heard = listen();
+    expect(heard).toEqual([]);
+    await userEvent.click(screen.getByRole('button', { name: '5' }));
+    await screen.findByRole('dialog', { name: 'Click! The chest is open!' });
+    view.rerender(<RegionPlayCompanion {...props({ claimedInteraction: interaction(CHEST) })} />);
+    await act(async () => undefined);
+    // The default server answer also finishes the quest, so that moment follows, once.
+    expect(heard).toEqual(['answerRight', 'chestOpen', 'questComplete']);
+  });
+
   it('shows nothing celebratory when the server refuses a replay', async () => {
     const api = fakeApi({
       submitAnswer: vi.fn(async () => {
@@ -630,6 +681,24 @@ describe('objective and hint (TR-12)', () => {
     expect(slot).toContainElement(screen.getByRole('button', { name: /Backpack/ }));
     await userEvent.click(hint);
     expect(slot).toContainElement(await screen.findByRole('status'));
+    slot.remove();
+  });
+
+  it('puts the Sound button in the stage slot, opens the mix controls and closes them (SM-P5)', async () => {
+    const slot = document.createElement('div');
+    document.body.append(slot);
+    apis.set(CHILD_A, fakeApi());
+    render(<RegionPlayCompanion {...props({ hudSlot: slot })} />);
+    const sound = await screen.findByRole('button', { name: 'Sound' });
+    expect(slot).toContainElement(sound);
+    await userEvent.click(sound);
+    const panel = await screen.findByRole('dialog', { name: 'Sound' });
+    expect(within(panel).getByRole('slider', { name: 'Music' })).toBeInTheDocument();
+    expect(within(panel).getByRole('slider', { name: 'Everything' })).toBeInTheDocument();
+    // The game controls give way while it is open, and return when it closes.
+    expect(screen.queryByRole('button', { name: 'Hint' })).not.toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole('button', { name: 'Close' }));
+    expect(await screen.findByRole('button', { name: 'Hint' })).toBeInTheDocument();
     slot.remove();
   });
 
@@ -868,6 +937,32 @@ describe("Pip's Missing Treasure (TR-14)", () => {
     const finale = await screen.findByRole('dialog', { name: 'You found all my treasure!' });
     expect(finale).toHaveTextContent('Treasure Cove Explorer Badge');
     expect(finale).toHaveTextContent('You are a Treasure Cove Explorer!');
+  });
+
+  it('sounds the quest-complete moment once for the finale (SM-P3-06)', async () => {
+    const api = fakeApi({
+      getRegion: vi.fn(async () => pips()),
+      talkToNpc: vi.fn(async () => ({
+        flagsSet: [],
+        questUpdates: [
+          {
+            questId: 'pips-missing-treasure',
+            status: 'COMPLETED' as const,
+            currentStageId: 'return-to-pip',
+            justCompleted: true,
+            newlyCompletedObjectiveIds: [],
+          },
+        ],
+        completionRewards: [],
+      })),
+    });
+    const claimed = interaction(PIP);
+    const view = render(<RegionPlayCompanion {...playing(api, { claimedInteraction: claimed })} />);
+    const heard = listen();
+    await screen.findByRole('dialog', { name: 'You found all my treasure!' });
+    view.rerender(<RegionPlayCompanion {...playing(api, { claimedInteraction: claimed })} />);
+    await act(async () => undefined);
+    expect(heard).toEqual(['questComplete']);
   });
 
   it('picks the key up through the server and shows what was found', async () => {

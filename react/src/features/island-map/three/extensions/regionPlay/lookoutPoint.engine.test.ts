@@ -12,6 +12,7 @@ import {
   FACE_NORTH,
   FACE_SOUTH,
   mount,
+  named,
   standingBox,
   walk,
   type Drive,
@@ -168,6 +169,41 @@ describe('opening the way, live (the quest just completed)', () => {
     place(harness, 0, -42, FACE_SOUTH);
     go(harness, FACE_SOUTH, 600, 1);
     expect(Math.abs(where(harness).x)).toBeLessThan(36);
+  });
+});
+
+describe('Lookout Point audio zone (SM-P7)', () => {
+  const zones = (harness: Cove, name: 'PlayerEnteredZone' | 'PlayerLeftZone') =>
+    named(harness.events, name).map((detail) => (detail as { zoneId: string }).zoneId);
+
+  it('is never entered while the gate holds, so the audio cannot play wind early', async () => {
+    const { harness } = await cove();
+    place(harness, 0, -33);
+    go(harness, FACE_SOUTH, 300);
+    expect(zones(harness, 'PlayerEnteredZone')).not.toContain('cove-zone-lookout');
+  });
+
+  it('is entered on the far side of the bridge, and the ruins are left on the way', async () => {
+    const { harness, api } = await cove();
+    api.setUnlocked(true);
+    harness.runFrames(120, 16);
+    place(harness, 0, -33);
+    go(harness, FACE_SOUTH, 400);
+    expect(zones(harness, 'PlayerEnteredZone')).toContain('cove-zone-lookout');
+    expect(zones(harness, 'PlayerLeftZone')).toContain('cove-zone-ruins');
+    // Walking back leaves the Lookout again.
+    go(harness, FACE_NORTH, 400);
+    expect(zones(harness, 'PlayerLeftZone')).toContain('cove-zone-lookout');
+  });
+
+  it('reports each zone once per visit, not once per frame', async () => {
+    const { harness, api } = await cove();
+    api.setUnlocked(true);
+    harness.runFrames(120, 16);
+    place(harness, 0, -33);
+    go(harness, FACE_SOUTH, 400);
+    const entries = zones(harness, 'PlayerEnteredZone').filter((id) => id === 'cove-zone-lookout');
+    expect(entries).toHaveLength(1);
   });
 });
 

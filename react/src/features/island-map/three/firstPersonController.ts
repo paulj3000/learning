@@ -120,6 +120,31 @@ export class FirstPersonController {
     }
   }
 
+  /**
+   * Whether a point on the ground is clear of every collider: somewhere the
+   * child could be placed. Reads the live collider list, so a collider an
+   * extension added, or removed because a bridge was mended, counts as it is
+   * now.
+   */
+  canStandAt(x: number, z: number): boolean {
+    return !this.collidesAt(new Vector3(x, this.position.y, z));
+  }
+
+  /**
+   * Places the child at (`x`, `z`) facing `yaw`, standing still and looking
+   * level, if they could stand there. Returns `false` and moves nothing when
+   * the spot is solid. Leftover walking speed is dropped, so a placement
+   * never carries the child on through a wall.
+   */
+  teleportTo(x: number, z: number, yaw: number = this.yaw): boolean {
+    if (!this.canStandAt(x, z)) return false;
+    this.position.set(x, this.position.y, z);
+    this.yaw = yaw;
+    this.pitch = 0;
+    this.velocity.set(0, 0, 0);
+    return true;
+  }
+
   private collidesAt(point: Vector3): boolean {
     return this.colliders.some((box) => box.containsPoint(point));
   }

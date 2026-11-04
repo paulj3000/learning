@@ -254,11 +254,13 @@ class TestChildIsolation:
         assert exposed == {
             "ai",
             "assets",
+            "audio",
             "auth",
             "catalog",
             "education",
             "question_studio",
             "regions",
+            "speech",  # voice profiles and speech lines: staff content, no child data (ADR-049)
             "users",
         }
 

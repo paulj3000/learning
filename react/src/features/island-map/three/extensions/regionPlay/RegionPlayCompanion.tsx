@@ -23,6 +23,10 @@ import {
 } from '../../../../region-play/regionPlayUi';
 import { adventurePath, useAdventureLaunch } from '../../../../region-play/useAdventureLaunch';
 import { usePlayerProgress } from '../../../../region-play/usePlayerProgress';
+import {
+  hasSceneAudio,
+  useTreasureRushAudio,
+} from '../../../../region-play/audio/useTreasureRushAudio';
 import { playCue } from '../../../../region-play/soundCues';
 import { useRegionPlay } from '../../../../region-play/useRegionPlay';
 import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry';
@@ -34,6 +38,7 @@ import { LaunchDialog } from './ui/LaunchDialog';
 import { PipDialog } from './ui/PipDialog';
 import { ReplayDonePanel } from './ui/ReplayDonePanel';
 import { RewardReveal } from './ui/RewardReveal';
+import { SoundPanel } from './ui/SoundPanel';
 import styles from './ui/RegionPlayPanels.module.css';
 
 /**
@@ -87,7 +92,15 @@ function RegionPlayGame(props: LocationCompanionProps) {
     setQuestCue,
     hudSlot,
     showToast,
+    bus,
   } = props;
+  // Sound (SM-P3): registered first so every moment below finds its player. Silent without audio.
+  const audio = useTreasureRushAudio({
+    childId,
+    regionId,
+    bus,
+    scene: hasSceneAudio(sceneApi) ? sceneApi : null,
+  });
   const auth = useAuth();
   const onUnauthenticated = () => void auth.refresh();
   const parsed = useMemo(() => tryParseRegionPlayConfig(config), [config]);
@@ -109,6 +122,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
   const launcher = useAdventureLaunch(childId, regionId);
 
   const [backpackOpen, setBackpackOpen] = useState(false);
+  const [soundOpen, setSoundOpen] = useState(false);
   const [hintOpen, setHintOpen] = useState(false);
   const [celebration, setCelebration] = useState<AnswerOutcome | null>(null);
   const [returned, setReturned] = useState<{
@@ -188,7 +202,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
     if (!api?.setUnlocked || !unlockedByServer) return;
     // True only on the visit that completes the quest; a later visit is built open already.
     if (api.setUnlocked(true)) {
-      playCue('bridgeOpen');
+      playCue('bridgeOpen', { unlock: true });
       showToast(PLAY_COPY.bridgeOpened);
     }
   }, [unlockedByServer, sceneApi, showToast]);
@@ -226,6 +240,9 @@ function RegionPlayGame(props: LocationCompanionProps) {
     [chests],
   );
   const outstanding = state.challenge;
+  const puzzleOut = Boolean(outstanding && puzzleIds.has(outstanding.targetEntityId));
+  const setPuzzleMusic = audio.setPuzzleActive;
+  useEffect(() => setPuzzleMusic(puzzleOut), [puzzleOut, setPuzzleMusic]);
   useEffect(() => {
     const api = sceneApi as RegionPlaySceneApi | null;
     if (!api?.setRuneNumbers) return;
@@ -275,17 +292,32 @@ function RegionPlayGame(props: LocationCompanionProps) {
         react('cheer');
         setReplayWon(target);
         void refreshProgress();
+      } else {
+        playCue('answerRetry');
       }
+      return;
+    }
+    if (!outcome.correct) {
+      // A wrong chest answer: a gentle "try again" sound, once for this attempt.
+      celebrated.current.add(outcome.attemptId);
+      playCue('answerRetry');
       return;
     }
     if (!shouldCelebrate(outcome, submittedAttempt.current, celebrated.current)) return;
     celebrated.current.add(outcome.attemptId);
-    playCue(outcome.chestOpened ? 'chestOpen' : 'celebrate');
+    playCue('answerRight');
+    playCue(
+      outcome.chestOpened ? 'chestOpen' : 'celebrate',
+      target ? { entityId: target } : undefined,
+    );
+    if (completedQuests(outcome, state.bootstrap?.quests ?? []).length > 0)
+      playCue('questComplete');
     react('cheer');
     setCelebration(outcome);
     void refreshProgress();
   }, [
     state.lastOutcome,
+    state.bootstrap?.quests,
     refreshProgress,
     puzzleIds,
     replayIds,
@@ -303,7 +335,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
     if (!lastPickup || revealedPickup.current === lastPickup) return;
     revealedPickup.current = lastPickup;
     if (lastPickup.pickedUp && lastPickup.newItems.length > 0) {
-      playCue('keyPickup');
+      playCue('keyPickup', { entityId: lastPickup.entityId });
       react('cheer');
       setFound(lastPickup);
       void refreshProgress();
@@ -315,7 +347,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
     if (!lastTalk || revealedTalk.current === lastTalk) return;
     revealedTalk.current = lastTalk;
     if (lastTalk.questUpdates.some((update) => update.justCompleted)) {
-      playCue('celebrate');
+      playCue('questComplete');
       react('cheer');
       setFinale(lastTalk);
       void refreshProgress();
@@ -575,6 +607,8 @@ function RegionPlayGame(props: LocationCompanionProps) {
         puzzle={event.presentation === 'PUZZLE'}
       />
     );
+  } else if (soundOpen) {
+    panel = <SoundPanel onClose={() => setSoundOpen(false)} />;
   } else if (backpackOpen) {
     panel = <BackpackPanel progress={progress} onClose={() => setBackpackOpen(false)} />;
   }
@@ -599,6 +633,13 @@ function RegionPlayGame(props: LocationCompanionProps) {
         onClick={() => setHintOpen((open) => !open)}
       >
         {PLAY_COPY.hint}
+      </button>
+      <button
+        type="button"
+        className={onStage ? styles.stageHintButton : styles.soundButton}
+        onClick={() => setSoundOpen(true)}
+      >
+        {PLAY_COPY.sound}
       </button>
       <button
         type="button"

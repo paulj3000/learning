@@ -132,6 +132,24 @@
           "awardsRelationshipPoints": 2,
           "choices": [
             {
+              "id": "quill-storybook-restored-bye",
+              "label": "It was a lot of fun!"
+            }
+          ],
+          "conditions": [
+            {
+              "equals": true,
+              "flag": "restoredTheStorybook",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "id": "quill-storybook-restored",
+          "text": "The Great Storybook is whole again, and every page remembers you. Thank you, my friend."
+        },
+        {
+          "awardsRelationshipPoints": 2,
+          "choices": [
+            {
               "id": "quill-new-story",
               "label": "Yes, a new story!"
             },
@@ -149,6 +167,33 @@
           ],
           "id": "quill-returning-author",
           "text": "The story you made is on my shelf now. Shall we start a new one?"
+        },
+        {
+          "awardsRelationshipPoints": 1,
+          "choices": [
+            {
+              "id": "quill-help-with-pages",
+              "label": "Yes, I will help!"
+            },
+            {
+              "id": "quill-pages-later",
+              "label": "Maybe later."
+            }
+          ],
+          "conditions": [
+            {
+              "equals": true,
+              "flag": "metQuill",
+              "type": "MEMORY_FLAG"
+            },
+            {
+              "equals": false,
+              "flag": "restoredTheStorybook",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "id": "quill-the-damaged-book",
+          "text": "Oh dear. The Great Storybook was torn, and its pages flew all over the castle. Will you help me bring them back?"
         },
         {
           "awardsRelationshipPoints": 1,
@@ -187,6 +232,39 @@
           ],
           "questId": "tell-a-story-together",
           "summary": "Build a story with Keeper Quill, one choice at a time."
+        },
+        {
+          "conditions": [
+            {
+              "equals": false,
+              "flag": "restoredTheStorybook",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "questId": "restore-the-great-storybook-sprouts",
+          "summary": "The Great Storybook lost its pages. Help Keeper Quill bring them back."
+        },
+        {
+          "conditions": [
+            {
+              "equals": false,
+              "flag": "restoredTheStorybook",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "questId": "restore-the-great-storybook-pathfinders",
+          "summary": "The Great Storybook lost its pages. Find them and bring them back to Keeper Quill."
+        },
+        {
+          "conditions": [
+            {
+              "equals": false,
+              "flag": "restoredTheStorybook",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "questId": "restore-the-great-storybook-explorers",
+          "summary": "Pages of the Great Storybook are scattered through the castle. Find them all and restore the book."
         }
       ],
       "role": "Storykeeper Castle librarian. Invites children to build a story together.",

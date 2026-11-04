@@ -129,3 +129,38 @@ def test_collect_counts_distinct_owned_items():
         advance_quest(stages, {}, start_state("a"), ctx(items={"x", "z"})).state.status
         == "COMPLETED"
     )
+
+
+def test_a_discover_objective_is_complete_only_for_a_discovery_the_server_holds():
+    stages = [{"id": "s", "objectives": [{"id": "d", "kind": "DISCOVER", "discoveryKey": "nook"}]}]
+    state = start_state("s")
+    none = advance_quest(stages, {}, state, QuestContext())
+    assert none.state.status == "ACTIVE" and not none.just_completed
+    other = advance_quest(stages, {}, state, QuestContext(discovery_ids=frozenset({"elsewhere"})))
+    assert other.state.status == "ACTIVE"
+    found = advance_quest(stages, {}, state, QuestContext(discovery_ids=frozenset({"nook"})))
+    assert found.state.status == "COMPLETED" and found.state.completed_objective_ids == ("d",)
+
+
+def test_an_optional_discover_objective_is_recorded_but_never_blocks():
+    stages = [
+        {
+            "id": "s",
+            "objectives": [
+                {"id": "build", "kind": "BUILD", "changeKey": "DONE"},
+                {"id": "bonus", "kind": "DISCOVER", "discoveryKey": "nook", "optional": True},
+            ],
+        }
+    ]
+    state = start_state("s")
+    without = advance_quest(stages, {}, state, ctx(changes={"DONE"}))
+    assert (
+        without.state.status == "COMPLETED" and "bonus" not in without.state.completed_objective_ids
+    )
+    with_it = advance_quest(
+        stages,
+        {},
+        state,
+        QuestContext(world_change_keys=frozenset({"DONE"}), discovery_ids=frozenset({"nook"})),
+    )
+    assert with_it.state.status == "COMPLETED" and "bonus" in with_it.state.completed_objective_ids

@@ -12139,6 +12139,33 @@ deployed, and no Amplify resource was changed.
   five stacks, Playwright smoke 7 passed. Not run: live Bedrock, live red team, authenticated
   browser acceptance, deployed monitoring.
 
+## Sound Manager Phase 1: foundation (SM-001 to SM-010) (2026-11-02, branch `feature/sound-manager`, not merged, not deployed)
+
+**Acceptance criteria.** A shared, tested audio foundation that any game can use, with no change to
+existing games.
+
+**Built.** `react/src/audio/`: typed contracts, a registry of stable sound ids, five channels with
+independent volume and mute plus master, an `AudioEngine` abstraction with a Web Audio
+implementation (buffered and streamed voices, shared fetches, byte-capped LRU cache, scheduled fades),
+a `SoundManager` with scopes, per-instance handles, pause and resume, voice limit with priority
+stealing, cancellable loads, gesture unlock, and a diagnostics ring; React bindings in
+`react/src/audio/react/` (`SoundProvider`, `useSound`, `useSoundScope`, `useSoundSettings`,
+`useAudioStatus`). No new dependency. Docs: `docs/audio/` (audit, architecture, usage guide).
+
+**Audit result.** The application had no audio at all, so nothing was migrated and no game code was
+touched.
+
+**Tests.** `react/src/audio`: 94 Vitest tests (manager, engine against fake Web Audio, React
+lifecycle including StrictMode). No browser tests were run, by instruction.
+
+**Not verified.** Audible output, real decoding, browser autoplay behavior and iOS Safari quirks need
+a real browser and device. Stream-voice fades use a timer rather than the audio clock.
+
+**Open.** The lifecycle of future phases (SM-P2 to SM-P8 in the tracker) is not started. A formal ADR
+number for decisions SM-D1 to SM-D6 is to be assigned at merge. `tsc -b` reports one error in
+`features/multiplayer/colyseusTransport.ts` (`@colyseus/sdk` not installed in this environment),
+unrelated to this change.
+
 
 ## Asset Library: Django Admin ownership, media families, lifecycle completion (2026-11-02, branch `feature/asset-manager`, pushed, merged into `dev20261102` only, nothing deployed)
 
@@ -12201,6 +12228,66 @@ to 20. Owner checklist: `docs/TREASURE_RUSH_PLAYTEST_CHECKLIST.md`.
 - **Remaining risks:** nobody has seen the cove, so sizes, colours, frame rate on a tablet, the bridge's look and the pacing are unknown. A deployed environment needs `migrate`, `seed_treasure_rush` and `publish_treasure_rush`. Dependencies were installed without the lockfile because `npm ci` refused it, which is the likely cause of the two baseline Vitest failures.
 - **Environment note:** other Claude sessions shared this machine's PostgreSQL container; this work used its own test database name (`lai_trreboot`) to avoid collisions.
 
+
+## Sound Manager Phase 2: Django sound library and published manifests (SM-P2) (2026-11-02, branch `feature/sound-manager`, not merged, not pushed to main, not deployed)
+
+**Acceptance criteria.** Staff configure sounds in Django Admin over audio assets already managed by
+the Asset Library; publishing freezes the configuration; games read a published, read-only manifest
+and load it into the Phase 1 Sound Manager. No React staff screen, no second asset library.
+
+**Branch finding.** `main` has no audio support in its Asset Library; it lives on
+`origin/feature/asset-manager` (AM-13, AM-17, ADR-045). That branch was merged into
+`feature/sound-manager` (merge `ded1135`) so Phase 2 extends the real library. Landing order is in
+`docs/audio/PHASE_2_ASSET_INTEGRATION.md` section 14.
+
+**Built.**
+
+- Django `apps.audio` (migration `0001_initial`): `SoundCue`, `SoundAssignment`, `SoundRelease`; closed
+  event and target vocabulary validated against real Island, Place, 3D Area, Adventure, Quest, NPC,
+  object, chest and reward rows; per-channel deepest-scope-wins resolution; atomic validated publish
+  to immutable releases pinning exact asset versions; rollback as a new release; retirement handling.
+- Django Admin: cue, assignment and release screens, audio preview (Asset Library player), publish
+  page, rollback action, roles `Sound editors` and `Sound publishers` (`ensure_sound_roles`).
+- API: `GET /api/v1/children/<id>/audio/manifests/{islands,places,regions}/<id>/`, child-scoped,
+  published only, revision and ETag, no urls.
+- React: manifest parser, `createManifestSync`, `api/audio` Django source over the shared client and
+  asset resolver, `useAudioManifest`; additive Phase 1 changes (cue cooldown, concurrency and fades,
+  owned definitions, resolver swap, stable cache key, expired-url retry).
+- ADR-050 (Proposed). Registry rows for ADR-046 (Reserved, AI Question Studio on `dev20261102`) and
+  ADR-050. Docs: `docs/audio/PHASE_2_ASSET_INTEGRATION.md`, usage guide, `ASSET_LIBRARY.md` section 22,
+  `DATA_MODEL.md`.
+
+**Tests (all run 2026-11-02, fake browser audio, no Playwright, no browser).**
+
+- Django `apps/audio`: 101 tests. Targeted run of `audio`, `users`, `core`, `assets`, `regions` and
+  `game_sessions/test_sessions`: 931 passed.
+- Django full suite (`lai` and `tests`, 1850 tests, 6 workers): 1848 passed, 2 failed. One failure was mine
+  (the game-cookie route list did not yet include the manifest routes) and is fixed and re-run green;
+  the other is inherited (below).
+- React `src/audio`: 180 passed (the original 94 Phase 1 tests are unchanged and pass; 2 more engine
+  tests were added to that file); `src/api/audio`: 12 passed.
+- `tsc -b`, `oxlint` and Prettier on every touched path, Ruff check and format, `adr:check` and
+  `makemigrations --check`: clean.
+
+**Not run / not verified.** Playwright and any browser; audible output; AWS; a deployed Django; a real
+Cognito sign-in. Treasure Rush and Storykeeper's Castle are not wired to the manifest.
+
+**Existing failures, unrelated to audio.**
+
+- Full Vitest: 3352 passed, 9 failed tests in 16 files. 13 files fail to import `@colyseus/*`, and 3
+  fail because `tsx` is not linked in `node_modules`: both packages are declared and locked but not
+  installed here. `npm install --dry-run` shows it would add them; the real install hung on the
+  network and was stopped, so this was not confirmed fixed. No source file was changed to hide it.
+- `tests/golden/director-content.json` is stale against `content/exported/manifest.json`
+  (pytest `test_content_bound_suite_matches_the_content_export` and the Vitest golden check). Already
+  true on `origin/feature/asset-manager` itself; regenerating needs `npm run golden:generate`
+  (`tsx`).
+- ADR-045's registry title did not match its heading (arrived with the merge); aligned so `adr:check`
+  passes.
+
+**Open.** Owner acceptance of ADR-050; browser and audible verification; sound authoring and a first
+published release; Treasure Rush integration (SM-P4); whether to publish per Island rather than
+library-wide.
 ## Phase 28 - AI Question Studio (2026-11-02)
 
 Branch `features/studio` from `features/ai` (`8764698`); ADR-046 accepted by the owner ("proceed
@@ -12378,3 +12465,189 @@ branch), and the owner's playtest of the TR-9 feel items.
 **Pending, not claimed:** `test:e2e`, `test:acceptance` and other browser or WebGL checks (not
 run, by instruction), Docker image build (not requested), deployed verification, owner
 acceptance (LAI-0821).
+
+## Sound Manager Phase 3: Treasure Rush audio (SM-P4, brief ids SM-P3-01 to SM-P3-10) (2026-11-03, branch `feature/sound-manager`, not merged, not deployed)
+
+**Acceptance criteria.** Treasure Rush plays its ambience, music and effects through the shared Sound
+Manager from the published Django manifest, driven only by authoritative game results; leaving the
+game releases every sound; any audio failure leaves a fully working silent game. No new engine, no
+hardcoded filenames or urls, no gameplay change.
+
+**Built.** `region-play/audio/` (`treasureRushSounds.ts`, `soundSlot.ts`, `treasureRushMusic.ts`,
+`useTreasureRushAudio.ts`); three new moments in `soundCues.ts`; `RegionPlayCompanion` mounts the
+hook and raises the new moments; Django `apps/audio/treasure_rush_cues.py` and the idempotent
+`seed_treasure_rush_sound` command. Detail, event map, 15-cue content checklist and the manual
+verification steps: `docs/audio/TREASURE_RUSH_AUDIO.md`.
+
+**Not done / honest limits.** Nothing was heard: no browser, no live playback (prohibited for this
+task). No audio asset exists in the library, so every cue is "configured but missing audio" until
+uploaded, seeded and published. Lookout Point has no zone (no wind bed); no coin, gem or item pickup
+mechanic exists, so those cues are unwired; no true crossfade or ducking; no volume screen.
+
+**Tests and checks (run 2026-11-03).**
+
+- Django `apps/audio`: 107 passed (101 existing plus 6 for the seed command); `makemigrations --check` clean; `manage.py check` clean; ruff check and format clean.
+- React: 39 new hook tests in `region-play/audio`; 3 new moment tests in `RegionPlayCompanion.test.tsx` (55 pass in that file); `src/audio`, `src/api/audio` and `region-play` suites pass; `engineBoundary` 40 pass; oxlint shows no findings in the new files; prettier clean on changed source.
+- A duplicate-sound defect in the existing finale and key effects (they re-ran when `react` changed identity) was found by the new tests and fixed with per-result guards.
+- **Environment, not this work:** `node_modules/@colyseus/sdk` is an empty directory (interrupted install). It breaks `tsc -b` (TS2307) and stops `RegionPlayCompanion.test.tsx` and `treasureCoveView.test.tsx` from loading. The companion tests were run through a temporary alias, now deleted. `lookoutPoint.engine.test.ts` timed out once under load and passed on re-run.
+- **Not run:** browser, Playwright, live playback, deployment. Nothing has been heard.
+
+
+## Sound Manager Phase 7: spatial audio (SM-P7) (2026-11-03, branch `feature/sound-manager`, not merged, not deployed)
+
+**Acceptance criteria.** Positional audio through the existing engine and context; reusable emitters
+and environmental zones; Lookout Point supported without changing gameplay; Treasure Rush placed
+sounds; Django-configurable spatial settings; clean lifecycle; silent or flat fallback.
+
+**Built.** `react/src/audio/spatial.ts`, panner and listener support in `AudioEngine.ts`, manager
+integration (`PlayOptions.spatial`, `setListener`, positional cap and culling), `audio/world/`
+(emitters, zones, Three.js bindings), `PlayerLeftZone` and the Lookout zone, Treasure Rush hook on the
+shared zones and emitters, Django cue spatial fields, `zone` assignment target and priority
+(migration `0004`), manifest extension. Detail: `docs/audio/SPATIAL_AUDIO.md`, ADR-048 (Proposed).
+
+**Not done / limits.** Nothing was heard. No occlusion, reverb or doppler. No waterfall or NPC
+dialogue emitter exists yet (no such cues). Existing databases need `seed_treasure_rush` and a
+region publish for the Lookout zone. Treasure Rush now needs 16 cues (wind added).
+
+**Checks.** See the end-of-batch delivery notes.
+
+
+## Sound Manager Phase 8: dynamic speech with Amazon Polly (SM-P8) (2026-11-03, branch `feature/sound-manager`, not merged, not deployed)
+
+**Acceptance criteria.** Django synthesizes speech from server-approved text through Polly (fake in
+development), staff manage voices in Django Admin, speech is cached and delivered through
+authorized expiring URLs, React plays it on the voice channel with captions and controls, Bedrock
+turns are spoken only after validation, Storykeeper's Castle is the first Polly-enabled adventure,
+and text always remains available.
+
+**Built.** `lai/apps/speech` (voices, fake and real Polly client, store, service, API, admin,
+commands, migration `0001`), the AI integration (`speech` reference on validated turns, character
+voices), `react/src/audio/speech/` (player, hook, caption, adapters, binding), `api/speech`, the
+castle hook (`useCastleSpeech`) and the opt-in bindings in `NpcConversation`, `useCompanionTurn`
+and `useTutorTurn`. Detail: `docs/audio/AMAZON_POLLY_INTEGRATION.md`, ADR-049 (Proposed).
+
+**Not done / limits.** No real Polly, Bedrock or AWS call; nothing heard; **SM-P8-LIVE is open**.
+Utterance-level captions only.
+`adventures/storybook` was not merged; expect a mechanical conflict in the castle companion when it
+lands.
+
+**Checks.** See the end-of-batch delivery notes.
+## Storykeeper Castle Reboot: SC-R01/02 verification, SC-R02, SC-R03-01 (branch `adventures/storybook`, 2026-11-03)
+
+Detail: `tasks/TASK_TRACKER.md` ("Storykeeper Castle Reboot"), the audit in
+`docs/regions/storykeeper_castle_verification_audit.md`, and the asset manifest in
+`docs/regions/storykeeper_castle_asset_manifest.md`. **No browser test was run (owner instruction).
+Nothing is merged to `main`. Nothing is deployed. No AWS service was called.**
+
+**What the audit found.** SC-R01-01 to 05 and SC-R02-01 were delivered. SC-R02-02 to 09 were not:
+the castle manifest declared no `materials`, `surfaces` or `effects`, so no room was re-dressed.
+ADR-028 is still **Proposed**. No duplicate Phaser, sound, asset-manager or content-backend code
+exists on the branch. It also found a real defect: the swaying secret tapestry ignored
+`prefers-reduced-motion`.
+
+**What was built.**
+
+- **SC-R02 (all eight rooms re-dressed, in development terms).** Each room's look is one module under
+  `three/runtime/manifests/castleRooms/`, aggregated by `storykeeperCastleVisuals.ts`: material
+  presets, textured floor, walls and ceiling, trim, floor inlays, solid-colour box decor with
+  colliders where solid, motes, lamp mood and priority. The kit pieces stay underneath as the
+  fallback. The three costume racks authored in Phase 14 and never placed are now placed. The
+  Storybook dais (empty) and the Entry Hall mural frame (blank) are in place for SC-R04.
+- **Lighting and budgets.** Warm and cool lamps by room, a dais glow, and light priorities so LOW keeps
+  the hearth, hub, library, doorway, dais and corridor. Ten static budget tests: 16 of 16 presets,
+  141 of 160 scenery, about 219 of 300 estimated draw calls, 11 of 14 lights, 1,558 runtime-built
+  triangles. **All provisional until SC-R11 measures a tablet.**
+- **Reduced motion.** `WorldExtensionContext.reducedMotion` (generic); `castle-tale` holds the
+  tapestry at a fixed slight lean instead of swaying. SC-R02-05 is **partial**: no new state-flip glow
+  was added.
+- **SC-R03-01 canonical layout.** `three/castleLayout.ts`, derived from the region (no second
+  router): stable room ids as a save contract, doors with landing points and yaws, optional locks
+  (none today), exits mirrored from the authored interactions, discovery state, routing around locks.
+  Not yet wired into any view.
+
+**Verification.**
+
+| Check | Result |
+|---|---|
+| Castle, runtime and manifest Vitest group (32 files) | 467 passed (with the stub below) |
+| New layout tests | 24 passed (21 layout, 3 against manifest colliders) |
+| `tsc --noEmit -p tsconfig.app.json` | One error, `Cannot find module '@colyseus/sdk'`, in a file this work did not touch. None in castle files |
+| Production `vite build` | Passed (with the stub; output to a scratch folder) |
+| Prettier, oxlint on changed files | Pass; oxlint warnings are in files this work did not touch |
+| Python, Ruff, Django | Not run: no Python code changed |
+
+**Environment limits, recorded honestly.** `@colyseus/sdk` is not installed in the shared
+`/home/pdimitriu/Coding/node_modules` that this checkout resolves from (the previous session traced
+the same symptom to an inode-full disk). The shared directory was not modified. The castle parity
+suite and the production build were run with a **scratch alias that stubs `@colyseus/sdk`**, kept
+outside the repository. The machine was shared and loaded (load average about 13), `/home` was
+briefly full, and full `three/` suites and `tsc -b` exceeded ten minutes, so checks were run in small
+batches and the typecheck used the app project alone with an incremental cache.
+
+**Not done, not claimed.** SC-R03-02 to 07 (hub navigation and the accessible go-to control, Trophy
+Room, Observatory function, Secret Chamber, map and discovery, navigation regression), all of SC-R04
+and SC-R05, and SC-R06 to 12. The hub's go-to control needs a generic engine position API that does
+not exist. Persisted room discovery needs an owner decision on where it lives. SC-R04 and SC-R05 need
+Django changes and a PostgreSQL test database. **No room is marked visually accepted**: every row
+awaits the owner's browser inspection, and none of the art is production art.
+
+## Storykeeper Castle Reboot: SC-R03 World expansion (branch `adventures/storybook`, 2026-11-03)
+
+Detail: `tasks/TASK_TRACKER.md`, `docs/DECISIONS.md` ADR-028 (now Accepted) and ADR-051,
+`docs/PLAY_API.md` ("Storykeeper Castle room discovery"), and
+`docs/regions/storykeeper_castle_asset_manifest.md`. **No browser test was run. Nothing is merged to
+`main`. Nothing is deployed. No AWS service was called.**
+
+**Built.** The castle went from eight rooms to ten and gained the navigation to match:
+
+- **Canonical layout** (`castleLayout.ts`), derived from the region with no second router: stable
+  room ids, doors with landing points, optional locks in the shared requirement vocabulary, exits,
+  discovery state, routing and travel planning.
+- **A generic engine position API** (`FirstPersonController.teleportTo`, `LocationEngine.placeChild`)
+  that refuses solid, out-of-bounds and non-finite spots, tested on Welcome Harbor, not the castle.
+- **The castle guide**: the accessible equivalent of walking (real buttons, a live region, the walking
+  route in words, locked entries with their reason, a back-to-hub button, the Trophy Room treasures as
+  text) and **the castle map** built from the layout.
+- **Trophy Room** (new, ninth room): six solid pedestals showing the child's real inventory through the
+  existing reward items, with four open pedestals reserved for SC-R07. No second reward store.
+- **Observatory** as the Setting Tower's second function: a telescope and a star chart, flavour only.
+- **Secret Chamber** (tenth room), behind the tapestry nook: hidden from every list and refused as "not
+  on the map" until the nook is found, physically sealed, opening live. New generic
+  `DISCOVERY_ABSENT` requirement.
+- **Django-persisted room discovery** (ADR-051): an ordinary `WorldChange` behind one child-scoped
+  endpoint, no new model or migration; a secret room gets the identical 404 an unknown room gets.
+- **Per-room scenery budgets**, replacing the single castle-wide cap.
+
+**Verification.**
+
+| Check | Result |
+|---|---|
+| Castle, runtime, extension and API Vitest (80 files) | 1130 passed, with the real `@colyseus/sdk`, no stub |
+| `tsc --noEmit -p tsconfig.app.json` | Clean |
+| `tsc -b` and `vite build` (the production build) | Both exit 0, no stub |
+| Django, PostgreSQL (game_sessions, regions, progression, users) | 640 passed |
+| Ruff, `manage.py check`, `makemigrations --check` | Clean, no issues, no changes |
+| `content:check`, `golden:check`, `adr:check` | Up to date, up to date, 47 decisions |
+| Prettier, oxlint on new and changed files | Pass, no new warnings |
+
+**Environment.** `@colyseus/sdk` was installed into this checkout's own `node_modules/@colyseus/` (the
+pinned 0.18.4; the shared directory was not touched). Django tests ran on a separate PostgreSQL
+container, `lai-storybook-pg` on `127.0.0.1:5455` with its own volume, using a sibling checkout's
+read-only virtualenv, with `POSTGRES_PORT=5455 LAI_REQUIRE_POSTGRES=1`.
+
+**Limits, all at the line.** Original-room scenery 160 of 160, material presets 16 of 16, MEDIUM lights
+14 of 14, estimated draw calls about 277 of 300. All provisional until a real tablet is profiled
+(SC-R11).
+
+**Not done, not claimed.** SC-R04 (the Great Storybook) and SC-R05 (characters), SC-R06 to 12. No room
+is visually accepted: every row awaits the owner's browser inspection, and none of the art is
+production art. Until the nook discovery write path moves to Django, a Django-mode server cannot
+persist a secret-room discovery (it works in the world and nothing leaks).
+
+## Integration of content authoring with dev20261103 (2026-11-04)
+
+- **Request.** Merge `origin/feature/content` (ADR-047) with `origin/dev20261103` (Sound Manager, Storykeeper SC-R02 to SC-R04) without losing either side, then push `dev20261103`.
+- **Conflicts.** 11: `urls.py`, two backend tests, the export test counts, four docs, and the regenerated `islands.json`, `manifest.json` and `director-content.json`. ADR numbering collided on ADR-047; the Castle room-discovery ADR is now **ADR-051** (next free number 052).
+- **Fix.** `AreaPuzzleLayer.test.tsx` scene mock gained `entityPositionReader`, `unlockPositionReader`, `listenerSource` and `onFrame`.
+- **Verified (non-browser).** pytest on PostgreSQL 2483 passed, 0 skipped; Vitest 4382 passed; Ruff, oxlint, Prettier, typecheck, build, `content:check`, `golden:check`, `adr:check`, Django check and migration check clean.
+- **Not done.** Browser acceptance, deployed verification and LAI-0821 stay pending.

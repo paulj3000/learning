@@ -1,10 +1,12 @@
 # Numbered migration tracker
 
-Two tracks. **Track A** (Phases 1 to 13): Django backend migration, ADR-019, **Proposed**.
+Two tracks. **Track A** (Phases 1 to 13): Django backend migration, ADR-019, **Accepted in part**.
 **Track B** (Phases 20 to 23): Phaser to unified Three.js engine, ADR-020, **Accepted**. Source
 of detail: `docs/DJANGO_MIGRATION_ROADMAP.md`; Track B inventory and matrix:
-`docs/THREEJS_ENGINE_CONVERSION.md`. Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / CANCELED (kept as history, struck through). All Track A tasks
-are TODO until ADR-019 is accepted. Track B docs-only tasks (LAI-2001 to 2003) do not wait for
+`docs/THREEJS_ENGINE_CONVERSION.md`. Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / CANCELED (kept as history, struck through). ADR-019's
+direction is approved; its open gates (G1 to G10, G4 resolved) still apply. A Track A task proceeds
+when its own dependencies and the gates it touches are satisfied (owner, 2026-10-24; CLAUDE.md
+section 18). Track B docs-only tasks (LAI-2001 to 2003) do not wait for
 it; Track B code tasks wait for LAI-0201. A task marked in the roadmap as APPROVAL must stop and ask
 before touching AWS.
 
@@ -127,6 +129,7 @@ P0, before `feature/content` merges into `main`:
 
 - [x] **LAI-0819** ADR-047 reference cleanup (depends: none). DONE on `feature/content-p1` (2026-11-03). Documents were renamed in the 2026-11-02 audit. Code comments and docstrings in `lai/` and `react/src` that meant content authoring now say ADR-047 (63 files, comment text only; no behaviour changed). Kept as ADR-043 on purpose: the recent sign-in guard (LAI-0209: `users/recent_auth.py`, `permissions.py`, `deletion.py`, `models.py`, `config/settings/base.py`, `recentSignIn.ts`) and three historical migrations whose docstrings and stored `NOTE` strings are already in deployed history (`catalog/0006`, `education/0007`, `regions/0004`). ADR-047 relates itself to ADR-045 and ADR-046 (done in the audit). `adr:check` passes
 - [ ] **LAI-0820** Branch integration of `feature/content` (depends: 0819, and every P1 task intended for the merge). DEVELOPMENT CHECKS COMPLETE (non-browser merge gates, 2026-11-03, on `feature/content` after the LAI-0817 and integrity fixes; local PostgreSQL 16 via `make up`). Baseline at `c1ecea4`, in a separate worktree and database: full pytest 2133 passed. Final: `make py-test-db` 2154 passed, 0 failed, 0 skipped (includes export/import round trip `test_export_content.py`, published content authorization `test_content_reads.py` and `test_tenant_isolation.py`, session pinning `TestContentVersions`, `test_step_runner.py`, `test_firepeak.py`); full Vitest (`npm test`) 325 files, 3471 passed and 1 failed, the failure being the stale `director-content.json` digest from the content change, regenerated, then `src/test/golden` 6 of 6 passed; `make py-lint` (Ruff) passed; `make py-format-check` passed (483 files); `make django-check` no issues; `make migrate-check` no changes; `npm run typecheck` passed; `npm run lint` (oxlint) 0 errors, warnings only; `npm run format:check` passed after formatting this file (the only file it flagged, blank lines before lists); `npm run build` passed; `content:check` up to date (13 files); `golden:check` up to date (8 files) after regeneration; `adr:check` 47 decisions; `admin-preview:check` passed. Defects found and fixed: the manifest integrity exception from `c1ecea4` skipped every Place reference (now only documented pseudo-locations and the hub; mutation-checked), and the golden digest. NOT RUN, by instruction: `test:e2e`, `test:acceptance` and other browser or WebGL checks (PENDING; must not be marked passed until executed), deployed verification (PENDING). NOT RUN, not requested: Docker image build. Review Firepeak (FP-n) and content authoring (LAI-081n) as separate workstreams although they share the branch
+  - **Integration into `dev20261103` (2026-11-04, branch `integration/content-dev20261103`).** `origin/dev20261103` (Sound Manager SM-P1 to SM-P8, Storykeeper SC-R02 to SC-R04) merged into `feature/content` at `bc04a48`; 11 conflicts resolved. The Castle room-discovery ADR, which collided on ADR-047, is renumbered ADR-051; ADR-047 stays Django Content Authoring. Export and golden vectors regenerated; one test mock fixed (`RegionPlaySceneApi` gained four members). Non-browser gates on the merged tree: pytest against PostgreSQL 2483 passed, 0 skipped; Vitest 4382 passed (389 files); Ruff, oxlint, Prettier, typecheck, build, content:check, golden:check, adr:check, Django check and makemigrations --check clean. Browser and deployed acceptance and LAI-0821 remain PENDING.
 
 P1, the remaining content-authoring work (ordered; see the dependency graph in the plan):
 
@@ -284,6 +287,91 @@ LAI-0805's ADR; TR-D5 is still Proposed.
 - [ ] **TR-18** Living cove: ambient animation and Pip animation (depends: TR-13; animated Pip asset). Development complete with the existing Pip clips (`Talk`, `Wave`; a hop for a figure with no model), shimmering water, fireflies; reduced motion respected. Left: Pip `Cheer` and `Point` clips (art); pending browser acceptance
 - [ ] **TR-19** Sound effects with mute. BLOCKED on owner decision TR-D26 (where the setting lives; recommendation in the roadmap, section 19). Done and independent of it: `soundCues.ts` raises named cues, silent until a player registers
 - [ ] **TR-20** Replayable activity after completion (depends: TR-17). Development complete, unit/API verified: the Lookout spyglass, a `REPLAY` chest that never opens, grants nothing permanent, and records skill evidence. Pending browser acceptance and owner playtest
+
+# Sound Manager (`docs/audio/SOUND_MANAGER_ARCHITECTURE.md`)
+
+Feature roadmap with its own ids, like TR-n. Phase 1 (foundation) is SM-001 to SM-010 on
+`feature/sound-manager`. Nothing here changes Treasure Rush or Storykeeper Castle. Verified with
+Vitest and fakes only; no real-browser audio check has been run.
+
+- [x] **SM-001** Audit existing audio. DONE: there is none; `docs/audio/SOUND_MANAGER_AUDIT.md`
+- [x] **SM-002** Architecture and decisions SM-D1 to SM-D6 (no ADR number minted; assign at merge). DONE: `docs/audio/SOUND_MANAGER_ARCHITECTURE.md`
+- [x] **SM-003** Shared TypeScript contracts (`AudioTypes.ts`). DONE
+- [x] **SM-004** Central `SoundManager` over an `AudioEngine` abstraction with a Web Audio engine. DONE, unit-tested; audible output unverified
+- [x] **SM-005** Five channels, per-channel and master volume and mute (`AudioChannels.ts`). DONE; ducking not built by design
+- [x] **SM-006** Lifecycle: scopes, instance tracking, pending-load cancellation, bounded buffer cache. DONE
+- [x] **SM-007** Browser unlock: gesture listeners, suspended and interrupted contexts, no permission screen. DONE; real Safari and Chrome autoplay behavior unverified
+- [x] **SM-008** Error handling, silent fallback and diagnostics ring. DONE
+- [x] **SM-009** React integration (`SoundProvider`, `useSound`, `useSoundScope`, `useSoundSettings`, `useAudioStatus`), StrictMode-safe. DONE; no game wired in
+- [x] **SM-010** Tests and developer guide (`docs/audio/SOUND_MANAGER_USAGE.md`). DONE: 94 Vitest tests in `react/src/audio`
+- [x] **SM-P2** Django sound library, cue definitions, publishing and manifest API; React manifest adapter (depends: AM-13, ADR-045). DONE 2026-11-02 on `feature/sound-manager` (unit-tested; ADR-050 Proposed, owner acceptance pending; not heard in a browser, nothing deployed). Needs `origin/feature/asset-manager`, merged into this branch because `main` has no audio support. Sub-tasks:
+  - [x] **SM-P2-01** Audit of the Asset Library's audio support and gap analysis (`docs/audio/PHASE_2_ASSET_INTEGRATION.md`). Finding: audio exists only on `feature/asset-manager`
+  - [x] **SM-P2-02** `SoundCue` (stable id, channel, asset reference, mix settings), `apps/audio`, migration `0001`
+  - [x] **SM-P2-03** Django Admin: cues (preview, filter, search, status, enable and disable), assignments, releases, publish page, rollback action
+  - [x] **SM-P2-04** `SoundAssignment` over Island, Place and 3D Area with a closed event and target vocabulary, validated against real rows; deepest scope wins per channel
+  - [x] **SM-P2-05** Immutable `SoundRelease` snapshots pinning exact asset versions; atomic publish; draft isolation; retirement handling; rollback
+  - [x] **SM-P2-06** Read-only child-scoped manifest API for Islands, Places and 3D Areas (revision, ETag, no urls)
+  - [x] **SM-P2-07** React: manifest parser and sync, Django audio source, `useAudioManifest`, expired-url recovery, owned definitions
+  - [x] **SM-P2-08** Permissions (`Sound editors`, `Sound publishers`), read-only API, no new auth, audit through admin history and release records
+  - [x] **SM-P2-09** Tests: Django `apps/audio` and React `src/audio`, `src/api/audio`
+  - [x] **SM-P2-10** Documentation, tracker, ADR-050 (Proposed)
+- [x] **SM-P3** Sound library reporting (unassigned and orphaned cues), tags and search, per-Island releases if needed (depends: SM-P2). DEVELOPMENT DONE 2026-11-03 for reporting, search and diagnostics; per-Island releases and cue tags deliberately NOT built (no need shown; releases stay library-wide, ADR-050). Sub-tasks are `SM-P3-R1` to `R6` (the batch brief's P3-01 to P3-06), so they do not clash with the Treasure Rush brief's `SM-P3-01` to `10` under SM-P4. Detail: `docs/audio/SOUND_LIBRARY_REPORTING.md`
+  - [x] **SM-P3-R1** Inventory (assets, cues, releases, last publication) from real tables
+  - [x] **SM-P3-R2** Per-game coverage with a strict readiness chain; Treasure Rush supported; coverage by Island, Place, 3D Area and Adventure
+  - [x] **SM-P3-R3** Diagnostics with remediation: missing, unpublished and retired audio, missing cues, invalid assignments, absent from manifest, orphans
+  - [x] **SM-P3-R4** Django Admin Library report page (read-only, filterable, searchable, accessible tables, existing permissions)
+  - [x] **SM-P3-R5** `manage.py audio_library_report` (read-only, deterministic, `--strict` exits 2)
+  - [x] **SM-P3-R6** Tests and staff documentation
+- [x] **SM-P4** Treasure Rush integration behind a scope (depends: SM-P2, TR-9; supersedes TR-D19). DEVELOPMENT DONE 2026-11-03 on `feature/sound-manager` as the Phase 3 brief, sub-tasks named `SM-P3-01` to `SM-P3-10` (the tracker's `SM-P3` stays the unrelated sound library reporting task). Unit-tested with the fake engine only; NOT heard in a browser and no audio asset is uploaded or published, so the cove is silent until staff publish a release. Detail: `docs/audio/TREASURE_RUSH_AUDIO.md`
+  - [x] **SM-P3-01** Gameplay event audit and event-to-cue map (no coin, gem or generic pickup mechanic exists; Lookout Point has no zone)
+  - [x] **SM-P3-02** Region manifest loaded through `useAudioManifest` and the Django audio source; failures leave a silent game
+  - [x] **SM-P3-03** Ambience by zone (`ocean`, `jungle`, `cave`), one bed at a time, no restarts; `wind` unwired (no Lookout zone)
+  - [x] **SM-P3-04** Chest, treasure reveal, key, reward and bridge effects from authoritative results
+  - [x] **SM-P3-05** Exploration, puzzle and victory music over one slot, fades, restore after victory
+  - [x] **SM-P3-06** Educational feedback: correct, soft retry, puzzle complete, quest complete, only after the server confirms
+  - [x] **SM-P3-07** `treasure-rush` scope cleanup, late-response guards, StrictMode, replay and rapid entry and exit
+  - [x] **SM-P3-08** Silent fallback for every failure mode; diagnostics only
+  - [x] **SM-P3-09** Tests: 39 hook tests, 3 companion tests, 6 Django seed tests (see status doc for runs)
+  - [x] **SM-P3-10** Docs, tracker, idempotent `seed_treasure_rush_sound` command, audio content checklist
+  - [ ] **SM-P4-V** Audible verification in a browser by the owner, after the 15 required audio files are uploaded, seeded and published (checklist in `docs/audio/TREASURE_RUSH_AUDIO.md` section 8)
+- [x] **SM-P5** Persisted sound preferences per child profile, parent controls (depends: LAI-0301). DEVELOPMENT DONE 2026-11-03 on `feature/sound-manager`; unit-tested only, not used in a browser. Detail: `docs/audio/CHILD_AUDIO_PREFERENCES.md`
+  - [x] **SM-P5-01** Audit of child settings, tenancy and the Sound Manager's settings hooks
+  - [x] **SM-P5-02** `ChildAudioSettings` (migration `0002`), child-scoped `GET|PATCH children/<id>/audio/settings/`, reduced-intensity mix mode, React client and per-child sync
+  - [x] **SM-P5-03** Reusable `AudioMixControls`, Sound button and panel in Treasure Rush (stage slot, full screen)
+  - [x] **SM-P5-04** Parent controls on the child's edit page
+  - [x] **SM-P5-05** Live apply without restart, no reset on scene disposal, per-child switching, StrictMode and stale-response safety
+  - [x] **SM-P5-06** Tests and documentation
+- [x] **SM-P6** Playlists, music transitions and ducking. DEVELOPMENT DONE 2026-11-03 on `feature/sound-manager`; fake-engine tests only, not heard. Detail: `docs/audio/MUSIC_MIXING.md`
+  - [x] **SM-P6-01** `MusicDirector`: gap-free overlapping crossfades, rapid-request cancellation, no duplicates or orphaned handles, streaming
+  - [x] **SM-P6-02** Manager ducking: automatic voice ducking to 30 percent, stacking holds, restore on end, interrupt, disposal or failure, never a saved setting
+  - [x] **SM-P6-03** Data-driven playlists: sequential, shuffle (injectable random), loop-all, repeat-one, one-shot
+  - [x] **SM-P6-04** Shared music states: exploration, puzzle, suspense, victory, narration, idle
+  - [x] **SM-P6-05** Treasure Rush music moved onto the shared states (true crossfades, no gameplay change)
+  - [x] **SM-P6-06** Tests and documentation
+- [x] **SM-P7** Spatial audio for Three.js scenes on the shared `AudioContext` (depends: SM-P4). DEVELOPMENT DONE 2026-11-03 on `feature/sound-manager`; fake-engine tests only, not heard. ADR-048 (Proposed). Detail: `docs/audio/SPATIAL_AUDIO.md`
+  - [x] **SM-P7-01** Audit of context ownership, Three.js lifecycle, zones and object positions
+  - [x] **SM-P7-02** Positional playback through a panner on the one shared context (distance, rolloff, cones, moving sources, listener, cap, culling, flat fallback)
+  - [x] **SM-P7-03** Reusable range-aware `SpatialEmitters` and structural Three.js bindings (no `three` import)
+  - [x] **SM-P7-04** Reusable `AudioZones`: priority and overlap, crossfaded beds, fallback, Django zone assignments
+  - [x] **SM-P7-05** Lookout Point zone and `PlayerLeftZone` exit events (no navigation, geometry or progression change); `ambient.treasure_rush.wind` now required
+  - [x] **SM-P7-06** Treasure Rush: chest, reveal, key and gate heard from their objects; feedback, rewards, quest and music stay flat
+  - [x] **SM-P7-07** Django spatial settings on cues, `zone` assignment target and priority (migration `0004`), validated, backward-compatible manifest
+  - [x] **SM-P7-08** Positional voice cap, range culling, allocation-free frame path, no orphaned nodes, StrictMode-safe
+  - [x] **SM-P7-09** Tests (engine, manager, emitters, zones, Treasure Rush, Lookout engine, Django)
+  - [x] **SM-P7-10** Documentation and tracker
+  - [ ] **SM-P7-V** Audible verification of positions, falloff and the Lookout wind bed (owner, in a browser)
+- [x] **SM-P8** Narration and companion voice, captions (depends: provider decision, SM-P6). DEVELOPMENT DONE 2026-11-03 on `feature/sound-manager` with a FAKE Polly client; nothing heard, no live AWS or Bedrock call. ADR-049 (Proposed). Detail: `docs/audio/AMAZON_POLLY_INTEGRATION.md`
+  - [x] **SM-P8-01** Audit of the AI service, dialogue, Storykeeper, audio engine and AWS configuration
+  - [x] **SM-P8-02** Django `apps.speech` Polly service: fake client, timeouts, bounded retries, safe errors, length limits, SSML only where supported
+  - [x] **SM-P8-03** Admin-managed voice profiles with an explicit voice / engine / language table, starter profiles, authored speech lines, Speech editors group
+  - [x] **SM-P8-04** Authorized speech API by reference (utterance, line, npcNode), child-scoped, rate-limited, safe failures
+  - [x] **SM-P8-05** Dedicated speech cache and store, advisory-locked single synthesis, signed expiring delivery, expiry cleanup, child purge, usage and estimated-cost counters
+  - [x] **SM-P8-06** React `SpeechPlayer` on the voice channel: queue, interrupt, pause, resume, skip, replay, cancel, scope cleanup
+  - [x] **SM-P8-07** Captions and controls (`SpeechCaption`), text-only fallback, utterance-level only
+  - [x] **SM-P8-08** Bedrock to Polly: validated turns become short-lived approved utterances; nothing unvalidated is spoken
+  - [x] **SM-P8-09** Storykeeper's Castle: Keeper Quill's lines spoken from his position, story narration flat; `adventures/storybook` NOT merged
+  - [x] **SM-P8-10** Chatty and tutor adapters through an opt-in speech binding; documentation
+  - [ ] **SM-P8-LIVE** Live verification gate (OPEN): real Polly request, audible voice quality, voice / engine table against current AWS docs, speech bucket and IAM, presigned delivery, Bedrock end to end, cost against the bill (checklist in the Polly doc, section 11)
 - [ ] **TR-11** Second chest and quest chain (depends: TR-9)
 
 ## Phase 28 — AI Question Studio (branch `features/studio`, ADR-046 Accepted)
@@ -313,12 +401,12 @@ Detail: `docs/AI_QUESTION_STUDIO.md`.
 - [x] **LAI-AQS-021** Question selection. DONE locally: subject, grade and band, topic, skill, difficulty and adventure filters; no repeat within a session; falls back to the authored challenge
 - [x] **LAI-AQS-022** Grading and mastery integration. DONE locally: `grade_answer` and `SkillEvidence` unchanged; attempt snapshots the revision; no model call at runtime. React multiplication picture added and verified (Vitest, typecheck)
 - [x] **LAI-AQS-023** Automated testing. DONE locally: 125 Studio tests plus two updated guard tests; full Python suite 1389 + 354 passed (see IMPLEMENTATION_STATUS)
-- [ ] **LAI-AQS-024** End-to-end acceptance (depends: 015 to 023; live Bedrock needs LAI-0705 approval). IN PROGRESS: workflow verified end to end with the fake model; OPEN: live Bedrock (LAI-0705 approval) and a Django Admin browser pass
+- [ ] **LAI-AQS-024** End-to-end acceptance (depends: 015 to 023; live Bedrock needs LAI-0705 approval). IN PROGRESS: workflow verified end to end with the fake model, and most of the Admin browser pass done 2026-11-02 (POST-MERGE-05, `react/e2e/acceptance/question-studio.spec.ts`); OPEN: live Bedrock (LAI-AQS-025) and the rest of LAI-AQS-026
 
 ### Phase 28 follow-ups (open gates, not started)
 
 - [ ] **LAI-AQS-025** Live Bedrock verification of Studio generation (depends: 024 code, LAI-0705). **APPROVAL: AWS credentials, Bedrock cost, Guardrail.** Run one small batch (5 questions, one chunk) under the real instance role with `LAI_AI_PROVIDER=bedrock`, then score it from the stored rows, not from a 200: batch status, model id, token counts, estimated cost, and per-question validation results. Confirm the Guardrail applies, the output schema is accepted by structured output, the 60 second timeout is enough for a chunk, and a deliberate Guardrail probe stores nothing. Record the real cost per question and set the price settings. Closes half of LAI-AQS-024.
-- [ ] **LAI-AQS-026** Django Admin browser acceptance pass (depends: 024 code). Walk the whole flow in a real browser as separate author, reviewer and publisher accounts: generate, follow batch status, review and edit, approve, publish, correct, retire, and a bulk action with mixed results. Check permission denials, read-only published pages, mobile-width layout of the review page, and that a `thread` run mode batch finishes. Capture findings in `docs/IMPLEMENTATION_STATUS.md`. Closes the other half of LAI-AQS-024.
+- [ ] **LAI-AQS-026** Django Admin browser acceptance pass (depends: 024 code). Walk the whole flow in a real browser as separate author, reviewer and publisher accounts: generate, follow batch status, review and edit, approve, publish, correct, retire, and a bulk action with mixed results. Check permission denials, read-only published pages, mobile-width layout of the review page, and that a `thread` run mode batch finishes. Capture findings in `docs/IMPLEMENTATION_STATUS.md`. Closes the other half of LAI-AQS-024. **Progress 2026-11-02 (POST-MERGE-05, automated, fake model, `inline` run mode):** done in Chromium: generate with form validation, batch page, approve, reject, publish, correction (and a second one refused), retire, a bulk action with mixed results, permission denials per role, read-only published pages, the question list at phone width, and a pool serving published questions to Treasure Rush. Still to do: edit a draft in the browser, the review (change) page at phone width, and a `thread` run mode batch finishing.
 - [ ] **LAI-AQS-027** Task queue decision and implementation for long batches (depends: none; ADR needed). The `thread` run mode can strand a batch on a worker restart (reclaimed after 15 minutes only if someone runs it again). Decide between a polling worker running `studio_run_batch` as its own service, SQS with a worker, or a library queue, record it in an ADR, then implement with a heartbeat, safe retry of a chunk, and a visible "stalled" state in Admin. **APPROVAL if it needs new AWS infrastructure.** Acceptance: killing the worker mid-batch loses at most the chunk in flight and the batch completes on restart; tests prove it.
 - [ ] **LAI-AQS-028** Storykeeper Castle and other adventures adopt the question bank (depends: LAI-0309, LAI-0603, LAI-0709; ADR needed). Those adventures run on Amplify sessions with no Django story catalog, so the bank cannot serve them yet. Once their steps exist in Django, add a pool keyed by adventure, serve through the same snapshot and grading path, keep the authored fallback, and extend the question types served (text stems, short answer, division) with a grader for each.
 
@@ -343,3 +431,495 @@ are kept separately in the roadmap's section 5 and `docs/IMPLEMENTATION_STATUS.m
 - [ ] **FP-11** Django Admin authoring and publishing (depends: LAI-0801 stage 1). IMPLEMENTED; pytest
 - [ ] **FP-12** Unit and integration acceptance (depends: FP-2 to FP-11). Development checks pass (see IMPLEMENTATION_STATUS); merge-gate checks not run
 - [ ] **FP-13** Browser playtesting and performance verification (depends: FP-12; needs a Cognito test sign-in, ADR-024 A6). manual owner playtest PASSED 2026-11-01 (whole adventure, local browser, real Cognito sign-in, reported by the owner); automated Playwright scenarios and Android performance still open
+
+# Storykeeper Castle Reboot (branch `adventures/storybook`)
+
+Feature roadmap with its own ids (SC-Rnn-nn), consolidating
+`docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` and `docs/regions/storykeeper_castle.md`. Detail:
+`docs/regions/STORYKEEPER_CASTLE_REBOOT_ROADMAP.md`; baseline audit:
+`docs/regions/storykeeper_castle_implementation_audit.md`. Development status is kept separate from
+browser/device acceptance: **no browser tests are run on this branch (owner instruction)**, so
+every visual task's browser acceptance stays open for the owner. SC-11 (Sprouts playtest,
+real-tablet profiling) stays open and is carried as SC-R11. Commit references are recorded by the
+following task's commit.
+
+- [x] **SC-R01-01** Current implementation audit (depends: none). DONE: audit with working, partial,
+      missing and browser-only inventory; findings AUD-1 (band-blind claim in `castle-tale`) and
+      AUD-2 (card route ignores band routing). Tests: baseline 37 castle/asset Vitest files (504)
+      and typecheck pass; docs only. Commits `229c359`, `d7389ab`. Browser/device: none needed
+- [x] **SC-R01-02** Consolidated reboot roadmap (depends: SC-R01-01). DONE:
+      `docs/regions/STORYKEEPER_CASTLE_REBOOT_ROADMAP.md`: Great Storybook premise, eight existing
+      rooms kept with the upgrade roadmap's functions merged in (Observatory into the Setting Tower,
+      Trophy Room into the Costume Room, Map Room into the corridor), Writing Room and Secret Chamber
+      as the only new spaces, Quest / Adventure / 3D Area boundaries, derived pages and ranks, band
+      table, SC-R02 to SC-R12 task breakdown, owner decisions. Docs only; adr:check passes. Commit
+      `e698b4d`
+- [x] **SC-R01-03** ADR-028 art direction recommendation and asset conventions (depends: SC-R01-02).
+      DONE: "Recommended decision, 2026-11-02" added to ADR-028, **status left Proposed** (owner
+      acceptance pending); `docs/regions/storykeeper_castle_art_direction.md` with style, sourcing and
+      ledger rules, material and naming conventions, room palettes, provisional LOW/MEDIUM/HIGH
+      budgets, import rules, fallbacks. Docs only; adr:check passes. Owner: accept ADR-028; fund
+      commissioned Quill, Ember and Storybook art; decide KayKit wall height. Commit `aeaa3d2`
+- [x] **SC-R01-04** Gameplay and compatibility contracts with contract tests (depends: SC-R01-02).
+      DONE: `docs/regions/storykeeper_castle_contracts.md` (C-1 to C-11);
+      `castleRebootContracts.test.ts` (13 tests: frozen interactions, band-aware claims, one mission
+      per band, bindings against content, planned page sources, quest model). Fixes AUD-1:
+      `castleTaleClaims.ts` makes `castle-tale` claim only for bands it hosts. The page-source
+      contract corrected the roadmap (no Explorer mission writes `FIRST_STORY_TOLD`). Tests: 29 castle
+      and extension Vitest files (406) pass; typecheck and build pass. Browser: the Explorer story
+      hall and Sprout secret door now open the generic panel; confirm in a browser (owner). Commit
+      `e193f79`
+- [x] **SC-R01-05** Acceptance and test plan (depends: SC-R01-04). DONE:
+      `docs/regions/storykeeper_castle_acceptance.md`: whole-castle criteria A-1 to A-21 and SC-R02
+      criteria V-1 to V-12, each mapped to unit, browser, device or playtest; owner checklist for
+      SC-R02; SC-11 kept open as SC-R11. Docs only. Commit `881bc57`
+- [x] **SC-R02-01** Reusable visual system in the generic location runtime (depends: SC-R01-03).
+      DONE (development): `runtime/visual/`: material presets with shared materials, deterministic
+      tileable procedural textures (8 patterns), runtime-built surfaces with world-scaled UVs, motes,
+      LOW/MEDIUM/HIGH quality tiers (texture size, light budget by `priority`, pixel-ratio cap, motes),
+      reduced motion, fallbacks, disposal; new optional manifest fields `materials`, `surfaces`,
+      `effects`, `LightSpec.priority`, validated. The view passes the tier and reduced-motion
+      preference. Tests: 60 new (visual), 101 three/region-play files (1276) pass; typecheck, build,
+      Prettier pass. Browser (owner): textures look right, no shimmer; LOW on a weak device
+- [x] **SC-R01/02-AUDIT** Verification audit of SC-R01 and SC-R02 against code, tests and Git
+      (depends: SC-R02-01). DONE: `docs/regions/storykeeper_castle_verification_audit.md`. Verified:
+      SC-R01-01 to 05 delivered (ADR-028 still **Proposed**); SC-R02-01 delivered; **SC-R02-02 to 09
+      not implemented** (no room re-dressed, the castle manifest declares no `materials`, `surfaces`
+      or `effects`). No duplicate Phaser, sound, asset-manager or content-backend code. Maps the
+      owner brief's SC-R02-02..10 onto this tracker's ids. Tests: 9 files, 118 pass (visual, region,
+      contracts, manifest). The full `three/` suite did not complete on this machine (worker
+      timeouts, 8 GB RAM; environmental). Browser: none run. Commits `42bac2b`, `2e52c87` (the second
+      corrects the test-environment finding: `@colyseus/sdk` missing from the shared `node_modules`,
+      so the parity suite is run with a scratch stub; it passes, 44 tests)
+- [x] **SC-R02-02** Great Library visual overhaul (depends: SC-R02-01). DONE (development):
+      `runtime/manifests/storykeeperCastleVisuals.ts`, a data layer over the SC-R02-01 visual
+      system: three presets (`planks-library`, `ashlar-library`, `trim-dark-wood`), one `RoomLook`
+      (textured floor, ceiling, ashlar walls, baseboard and cornice, candle-dust motes), and
+      procedural `BOX` decor: the empty **Storybook dais** (`STORYBOOK_DAIS`, solid, for SC-R04),
+      three ceiling beams, two table candles. The kit floor, walls and ceiling stay underneath as the
+      fallback; surfaces stand 1 to 4 cm in front of them. New `testing/castleReachability.ts`
+      walks the castle **with the manifest's own colliders** (the region flood fill cannot see
+      manifest colliders): every room, zone and authored spot is still reachable. Tests: 38 new and
+      related (visuals, runtime, manifest) pass; castle engine, bindings, HUD equivalence, contracts
+      and region suites pass (93); parity suite passes with the scratch stub (44); `tsc --noEmit -p
+tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in castle files;
+      Prettier passes. **Deferred, not done:** columns and chairs (the puzzle spots leave no safe
+      floor), varied book art (needs kit or commissioned art, ADR-028 is Proposed), a dais glow
+      light (SC-R02-06). Browser (owner): overall look, readability of the clues and rods against
+      the new walls, dais position. Commit `4c792b4`
+- [x] **SC-R02-03** Entry Hall visual overhaul (depends: SC-R02-01). DONE (development): each
+      room's look now lives in its own module under `manifests/castleRooms/` (`greatLibrary.ts`
+      moved there unchanged, plus `entryHall.ts` and a shared `castleVisualKit.ts`); the core
+      aggregates them, so a room pass is one file and one line. Entry Hall: flagstone floor with a
+      blue and gold **medallion inlay** (new `inlays` field, 5 mm above the floor, under the 2 cm
+      carpet), warm ashlar, plaster ceiling, trim, four columns (solid, clear of the carpet line),
+      four blue and gold banners, a framed **blank mural** (`ENTRY_MURAL`, filled by SC-R04),
+      daylight motes. Tests: 44 (visuals, runtime, manifest) pass, including the walk through the
+      castle with the columns as colliders; typecheck has only the missing `@colyseus/sdk` error;
+      Prettier and oxlint clean. **Deferred:** a path-to-library floor inlay (wayfinding, SC-R03-06).
+      Browser (owner): first impression, carpet against the medallion, banner colours. Commit `216ad7d`
+- [x] **SC-R02-04a** Story Hall visual overhaul (depends: SC-R02-01). DONE (development):
+      `castleRooms/storyHall.ts`: honey planks, warm plaster over an ashlar wainscot (the first
+      room to use `wainscot`), crimson rug inlay before the hearth, a stone hearth surround with fire
+      and flame (solid), three crimson and gold banners on the north wall, ember motes. The jambs stop
+      at y 2.0 so the **mantel carving at y 2.2 stays visible** (tested); the carpet line to Quill
+      stays clear (tested hub-wide). Tests: 46 (visuals, runtime, manifest) pass; typecheck has only
+      the missing `@colyseus/sdk` error; Prettier and oxlint clean. Browser (owner): warmth,
+      the hearth read, mantel legibility. Commit `98164d5`
+- [x] **SC-R02-04b** Character Gallery visual overhaul (depends: SC-R02-01). DONE (development):
+      `castleRooms/characterGallery.ts`: honey planks, deep green plaster, a crimson runner inlay
+      that stops short of the portrait zones, a brass plaque under each portrait (below the frames,
+      tested against `GALLERY_PORTRAIT_SPOTS`; the test caught a first draft that overlapped the
+      frame bottoms), gold dust motes. Adds nothing solid, so the portrait and arrival zones stay
+      open (tested). Tests: 48 (visuals, runtime, manifest) pass; typecheck has only the missing
+      `@colyseus/sdk` error; Prettier and oxlint clean. **Deferred:** plinths and rope barriers (they
+      would stand in the portrait zones). Browser (owner): green against the portraits, plaque legibility. Commit `ccf39cb`
+- [x] **SC-R02-04c** Costume Room visual overhaul, including the unplaced costume racks (depends:
+      SC-R02-01). DONE (development): `castleRooms/costumeRoom.ts`: plum carpet and plaster, **the
+      three `COSTUME_RACK_SPOTS` racks the region authored in Phase 14 and never placed are now
+      stood up**, each solid on its authored spot with posts, brass bar and coloured garments (tested
+      against the region's spots, with a 0.5 m walkway between neighbours), and a brass-framed mirror
+      flat on the west wall. Tests: 51 (visuals, runtime, manifest) pass, including the walk
+      through the castle with the racks solid; typecheck has only the missing `@colyseus/sdk` error;
+      Prettier and oxlint clean. Racks remain decorative, with no interaction. **Deferred:** the Trophy
+      Room pedestals (SC-R03-03 and SC-R07). Browser (owner): the plum, the rack silhouettes. Commit `d336b12`
+- [x] **SC-R02-04d** Setting Tower visual overhaul (depends: SC-R02-01). DONE (development):
+      `castleRooms/settingTower.ts`: cool grey flagstone and ashlar (two new presets, taking the
+      castle to the 16-preset budget), a blue and gold compass medallion at the room centre (reusing
+      the Entry Hall's tile preset), a brass **orrery** in the north-east corner (the Observatory's
+      first instrument, the roadmap having merged the two; the telescope and observing arrive in
+      SC-R03-04), cool star-dust motes. The orrery overlaps none of the arrival or window zones, and
+      nothing stands near a window (both tested). Tests: 57 (visuals, runtime, manifest) pass;
+      typecheck has only the missing `@colyseus/sdk` error; Prettier and oxlint clean. Browser
+      (owner): the cool mood against the window views, orrery read. Commit `86b5b7a`
+- [x] **SC-R02-04e** Illustration Studio visual overhaul (depends: SC-R02-01). DONE (development):
+      `castleRooms/illustrationStudio.ts`: honey planks, cream plaster (both reused presets), a solid
+      paint table in the south-east corner with four paint pots, three framed drawings flat on the
+      east wall above it. The table keeps more than a metre from the easel and out of the easel zone
+      (tested). Tests: 59 (visuals, runtime, manifest) pass; typecheck has only the missing
+      `@colyseus/sdk` error; Prettier and oxlint clean. All eight rooms now have a look (SC-R02-02,
+      03, 04a-f). Browser (owner): brightness, the easel against the cream walls. Commit `9de8c0c`
+- [x] **SC-R02-04f** East Corridor visual overhaul (depends: SC-R02-01). DONE (development):
+      `castleRooms/eastCorridor.ts`: flagstone, dim grey ashlar, a 19 m crimson runner inlay, eight
+      brass sconces (four a side, each tested clear of every archway), a framed island map on the
+      west wall (`CORRIDOR_MAP`, which SC-R03-06 and SC-R04 will mark; flat, clear of the hub
+      archway and the sconces). No collider added, so the spine to the deep rooms is unchanged
+      (tested). Tests: 54 (visuals, runtime, manifest) pass; typecheck has only the missing
+      `@colyseus/sdk` error; Prettier and oxlint clean. The map shows no page marks yet (SC-R04).
+      Browser (owner): the dim mood, sconce read, map legibility. Commit `78d9e76`
+- [~] **SC-R02-05** Magical interaction feedback and reduced motion (depends: SC-R02-01).
+  **PARTIAL (development).** Done: the audit found that the castle's swaying secret tapestry
+  ignored `prefers-reduced-motion` (only the motes honoured it). `WorldExtensionContext` now
+  exposes `reducedMotion` (generic, no region branching) and `castle-tale` holds the tapestry at a
+  fixed 0.02 rad lean instead of swaying, so the nook's only visual hint survives without
+  movement. Tests: sways by default and stays within 0.036 rad; holds exactly one lean under
+  reduced motion; a walk ends in the same place either way (3 new; with the castle engine,
+  engine-runtime and contract suites, 61 pass; parity with the stub, 44 pass); typecheck has only
+  the missing `@colyseus/sdk` error. **Not done:** new state-flip glow or light pulses. The
+  existing `-lit` portrait and window variants and the plate and rod seating are the castle's
+  state feedback and are unchanged; extra pulses were not added. Quill's authored idle and
+  gesture clips are character animation and are not suppressed. Browser (owner): reduced-motion
+  feel; whether more glow is wanted. Commit `249e98a`
+- [x] **SC-R02-06** Lighting moods and quality-tier light budgets (depends: SC-R02-01). DONE
+      (development): each room look carries a `mood` (lamp colour from the art direction palette, and
+      a `priority`); the manifest's room lamps wear them, so the previously all-white lamps are warm
+      or cool. A new `RoomVisuals.lights` hook adds the **Storybook dais glow** (violet-gold, priority
+      6). The hearth (10) and doorway (7) are prioritised, so LOW keeps the hearth, hub, library,
+      doorway, dais and corridor (tested). 11 lights, under the MEDIUM budget of 14 (tested). The
+      library stays the dimmest room (tested). Intensities are unchanged. Tests: 63 new and related
+      plus 71 engine and visual-system pass; typecheck has only the missing `@colyseus/sdk` error;
+      Prettier and oxlint clean. Browser (owner): exposure consistency room to room, the dais glow
+      against the dark library. Commit `6e80d0a`
+- [x] **SC-R02-07** Asset manifest doc (depends: SC-R02-02 to 04). DONE:
+      `docs/regions/storykeeper_castle_asset_manifest.md`, with counts generated from the real
+      manifest (141 scenery of 160, 16 presets of 16, 38 surfaces, 102 BOX decor, 11 lights): every
+      logical id with its source and fallback (two imported KayKit pieces, the rest generated), the
+      twelve extension state-variant ids, the procedural art by room, and a missing-art table
+      (Quill, Ember and Storybook models, library columns, chairs and book art, gallery plinths, wall
+      height) with what blocks each. Flags the **SC-R03 budget headroom problem** (19 scenery and no
+      presets to spare). No asset manager, registry or loader added; every id resolves through the
+      existing registry and the Asset Library (ADR-030). Docs only; Prettier clean. Commit `21cf1aa`
+- [x] **SC-R02-08** Static performance budgets as tests (depends: SC-R02-02 to 06). DONE
+      (development): `storykeeperCastleBudgets.test.ts`, 10 tests counted from the manifest, **all
+      provisional until SC-R11-01 measures a tablet**: presets 16 of 16, scenery 141 of 160, estimated
+      draw calls **219** of 300 (one per surface, emitter, cluster, placed model, prop and NPC, plus
+      the extension's 12 variants; an estimate, not a measurement), lights 11 of 14 at MEDIUM, motes
+      140 at MEDIUM, procedural texture memory under 8 MB at HIGH, runtime-built triangles **1,558** of
+      6,000 (surfaces 334, BOX decor 1,224), manifest 91 KB of 250 KB, unique texture seeds. A failing
+      budget means decide, not edit the number. Tests: 10 pass; typecheck has only the missing
+      `@colyseus/sdk` error; Prettier and oxlint clean. Real frame rate stays with SC-R11 (owner, real
+      tablet). Commit `f5615c7`
+- [x] **SC-R02-09** Final development verification (depends: all SC-R02). DONE (development; SC-R02-05
+      stays partial). Gate run: 32 files, **467 tests pass** (every region manifest, the castle parity
+      suite **with the scratch `@colyseus/sdk` stub**, the visual system, contracts, bindings, HUD
+      equivalence, region geometry, castle kit); `tsc --noEmit -p tsconfig.app.json` has one error,
+      the missing `@colyseus/sdk` module, none in castle files; **production `vite build` succeeds**
+      (also with the stub; output to a scratch folder); Prettier and oxlint clean on changed files.
+      `docs/regions/storykeeper_castle_verification_audit.md` section 8 records each room's
+      before and after, the repair commits, and the owner checklist. Nothing is marked visually
+      accepted. Still owed by the owner: a browser look at all eight rooms, LOW tier, reduced motion,
+      ADR-028 acceptance. Commit `5a92d9b`
+- **SC-R03 World expansion** (owner brief of 2026-11-03; its numbering supersedes the roadmap's
+  SC-R03-01 to 03, which are folded in: the Writing Room shell and wayfinding are SC-R03-06 and a
+  later shell task). Decisions recorded in the roadmap section 6: the **Observatory is the Setting
+  Tower** (the roadmap merges them; the brief allows that), the **Trophy Room is a new room**
+  (the brief overrides the roadmap's merge into the Costume Room), the **Secret Chamber is a new
+  space** (the brief is the approval the roadmap asked for).
+- [x] **SC-R03-01** Canonical world layout (depends: SC-R02-09). DONE (development):
+      `three/castleLayout.ts`, one typed layer **derived** from `ROOMS`, `ARCHWAYS` and `ZONES` (no
+      second router): the eight stable room ids as a save-compatibility contract (tested), a
+      narrative role, destination sentence and safe spot per room, one door per archway with a
+      landing point a metre inside each side and a yaw facing into the room, door labels read from
+      either side, optional door locks in the same `WorldRequirement` vocabulary (**none locked
+      today**; the castle is open by design), the two exits (harbor, Writing Room) mirrored from the
+      authored interactions and kept in step by a test, discovery state, `routeBetween` and
+      `nextDoorToward` around locks, and `safePlacementFor` that never returns a wall. Tests: 21 pure
+      layout tests and 3 manifest-collider tests (every safe spot, landing point and doorway is
+      reachable with the solid decor in place) pass; typecheck has only the missing `@colyseus/sdk`
+      error; Prettier and oxlint clean. **Not yet wired into any view:** the hub cues, guidance and
+      the map (SC-R03-02, SC-R03-06) read it. Browser: none needed. Commit `bc28e4f`
+- [x] **ADR-028 accepted** (owner, 2026-11-03). Status changed to Accepted in `docs/DECISIONS.md`
+      after checking the wording against the owner's adopted direction; `npm run adr:check` passes
+      (46 decisions). Living docs updated (art direction, roadmap, asset manifest). Earlier tracker
+      and audit entries keep their original wording as history. Production art remains unfunded.
+- [x] **ENV-1** Repaired `@colyseus/sdk` (owner-approved): the pinned 0.18.4 installed into this
+      checkout's own ignored `node_modules/@colyseus/` (its private deps nested in
+      `@colyseus/node_modules/` so nothing else is shadowed); the shared
+      `/home/pdimitriu/Coding/node_modules` was not touched. With it, the castle parity suite passes
+      **without the stub** (44 tests) and `tsc --noEmit -p tsconfig.app.json` is **clean (exit 0)**.
+      A **real production build** (no stub) then passed: `tsc -b` exit 0 and `vite build` exit 0
+      (output to a scratch folder). Commit `e772dae`
+- [x] **SC-R03-02** Grand Hall navigation hub (depends: SC-R03-01). DONE (development):
+      **Generic engine API** (reusable by any Three.js region, tested on Welcome Harbor, not the
+      castle): `FirstPersonController.canStandAt` and `teleportTo` (zeroes velocity, levels the
+      gaze, refuses solid ground), `LocationEngine.placeChild` and `childPlacement` (also on the
+      extension context), which refuse a non-finite spot, a spot outside the region bounds and a
+      spot inside any collider as it is now. **Castle rules** in `castleLayout.planTravel`: unknown
+      room, already there, and a locked door all refused with child-safe words (the locked refusal
+      names the shut door and carries its own hint); never a way around a lock. **Scene API**
+      `currentRoomId` and `goToRoom`. **`CastleGuide`**: the accessible equivalent of walking, real
+      buttons at least 44 px, a polite live region for arrivals and refusals, the walking route in
+      words door by door, a disabled locked entry with its hint, and a back-to-the-story-hall button
+      always offered away from the hub; Escape closes it. **Door cues**: a colour-coded lintel
+      plate above each of the four hub archways, derived from the canonical doors so they cannot
+      drift (distinct colours, above the 2.6 m archway, clear of the banners). Tests: 11 new
+      engine and controller, 6 planner, 13 guide, 6 cue and 3 view-integration; the whole runtime,
+      extension and castle group is **62 files, 806 tests** passing with the real SDK; typecheck
+      clean (exit 0); oxlint clean on the new files; Prettier clean. The parity suite's fake scene
+      needed the two new methods, which is what the 43 failures on the first run were. **Not done:**
+      aiming at a doorway in 3D to use it (the guide is the interactive equivalent), spoken or
+      3D-text door labels (a box cannot carry text), and persisted discovery (SC-R03-06).
+      Browser (owner): guide placement over the HUD on a tablet, tap sizes, cue colours. Commit `8128896`
+- [x] **SC-R03-03** Trophy Room (depends: SC-R03-01, SC-R03-02). DONE (development): a **new room**
+      (the brief overrides the roadmap's merge into the Costume Room), 4 m by 4 m, east of the Costume
+      Room and joined by a new archway `arch-trophy` (the ninth room id, **appended** so the first
+      eight keep their order; the layout, guide and routing pick it up with no second router).
+      Six solid pedestals with a walk-up zone in front of each (the castle's no-aiming rule). **No
+      second reward store**: `castleTrophies.ts` is a pure display rule over the existing inventory
+      (`ownedItemIds`) and the existing item catalog. Two pedestals are reserved for the existing
+      castle items (`storykeepers-quill`, `blank-page-storybook`, both proven to be granted by a
+      reward rule), **four are open** and read as an honest empty state ("An empty pedestal. A treasure
+      you earn will be kept here one day."), ready for SC-R07 to bind items. Walk-up lines are
+      `SHOW_MESSAGE` only (tested: nothing grants, records or moves). 3D: item-gated treasure and
+      empty plate per pedestal using the castle's own `ITEM_OWNED` and `ITEM_ABSENT` requirements.
+      Accessible list: **Your treasures** in the guide, from the same `trophyDisplay`, live as the
+      inventory changes. **Per-room scenery budgets** replace the single castle-wide 160 (the original
+      eight rooms keep 160, not raised; Trophy 20, using 15; Secret Chamber 24 reserved); presets
+      still 16 of 16, so the room reuses presets. The frozen-interactions contract now says the
+      inherited 12 come first and unchanged, and only the declared trophy lines follow. Tests: 13
+      trophy-contract, 4 runtime (item gating), 5 guide, plus the updated layout, budgets and contract
+      suites; the whole runtime, extension and castle group is **63 files, 823 tests** passing
+      with the real SDK; parity 47; typecheck clean (it caught a real bug: an unloaded inventory
+      would have thrown); Prettier and oxlint clean. **Not done:** persistent artifacts (SC-R07);
+      a treasure earned in this visit appears on the pedestal on the next entry to the room
+      (requirements are read when the scene is built), while the guide list updates live.
+      Browser (owner): the room's look, pedestal height, the walk-up message. Commit `5235f80`
+- [x] **SC-R03-04** Observatory function in the Setting Tower (depends: SC-R03-01, SC-R02-04d). DONE
+      (development): the Observatory is the **Setting Tower's second job**, not a duplicate room
+      (the roadmap merges them and the owner confirmed it): `setting-tower` keeps its stable id,
+      primary role (`choose-setting`), three story windows, window zones and arrival zone, all
+      asserted unchanged; `CastleRoomNode.functions` now records `['choose-setting',
+'observatory']`, and there is no `observatory` room id. Added: a **big telescope** (solid stand,
+      tube above head height, never solid), a **star chart** on the west wall with five gold stars,
+      and two walk-up observing points (`castle-observatory-telescope`, `castle-observatory-chart`).
+      **Flavour only**: both are `SHOW_MESSAGE`, so looking can never grade, grant, record, start or
+      move anything and the outcome is always the same (deterministic). The chart message invites a
+      child to count but names no number, so no one can be told they counted wrong, and the chart
+      draws exactly as many stars as the constant says. No new graded educational content was
+      authored (still a separate owner decision). The test caught a first draft whose telescope
+      zone was centred inside the telescope's own stand; fixed. The sky is star-dust motes and the
+      three windows: a starry ceiling would need a seventeenth preset (16 of 16). Tests: 8 new
+      observatory plus the updated layout and contract suites; the whole runtime, extension and
+      castle group is **64 files, 837 tests** passing; typecheck clean; Prettier and oxlint clean.
+      Browser (owner): the telescope read, chart legibility, the cool mood. Commit `72c49b0`
+- [x] **SC-R03-05** Secret Chamber behind the tapestry nook (depends: SC-R03-01, -02, -04). DONE
+      (development). **The castle's one secret room, and it stays secret**: the tenth room id
+      (`secret-chamber`, appended), 7 m by 6 m, west of the Story Hall's south-west corner, reached only
+      through the 1.5 m passage `arch-secret` that the swaying tapestry hangs over. **Hidden until the
+      nook is found** (`DISCOVERY_PRESENT castle-tapestry-stair`): the guide does not list it (not
+      even greyed out), `planTravel` refuses it as "not on the map" in the very words used for a room
+      that does not exist (never "locked", which would say there is something to find), no list
+      names it, and none of its content is available or listed. **Physically sealed**: a solid
+      collider fills the passage and three gated wall-fill surfaces cover the gap on the hall's face
+      (the derived walls leave a literal hole there, which behind a tapestry would be a signpost),
+      the secret archway is built only once found and is narrowed to 1.5 m, and a bright cue plate
+      is deliberately **not** hung over it. **Opens live**: when the nook is found mid-visit the
+      castle-tale scene removes the seal and hides the fill (same pattern as the library door),
+      idempotent; a child who found it on an earlier visit never sees it sealed. New generic
+      requirement `DISCOVERY_ABSENT` (the mirror of `DISCOVERY_PRESENT`, 2 switch cases, tested as
+      its exact complement). Chamber: three glowing crystals, a sealed round door that is a
+      **promise, not a puzzle** (the pattern lock and secret door stay in the Library and are not
+      duplicated), a gold arrow on the floor and a warm lantern (priority high enough to survive
+      LOW) pointing the way out, and the guide's always-offered back-to-hub. Four **flavour-only**
+      walk-up lines (nothing grades, grants, records or opens). Tests: 7 hidden-room layout, 7
+      chamber interactions, 6 seal and passage, 6 runtime (a child is **physically stopped at the
+      wall until found**, passes after, and the live opening works), 3 requirement, 5 guide and
+      parity, plus the updated reachability helper (it now evaluates gated colliders with a world
+      state); the whole runtime, extension and castle group is **66 files, 905 tests** passing;
+      parity 49; typecheck clean; Prettier and oxlint clean. **Limits, all now at the line:** the
+      original rooms 160 of 160 scenery, presets 16 of 16, lights **14 of 14** at MEDIUM, estimated
+      draw calls about 277 of 300. **Not done:** chamber content and puzzles (SC-R08), a starry
+      ceiling (needs a 17th preset). Browser (owner): that the hall wall looks seamless where the
+      gap is filled, the tapestry hides the passage, the chamber mood and lantern, the opening
+      feel. Commit `489497a`
+- [x] **SC-R03-06** Castle map and room discovery, **persisted in Django** (depends: SC-R03-01, -02,
+      -05). DONE (development). Per the owner's decision, discovery persists in Django/Postgres, scoped
+      to the child, and React only displays and caches (**ADR-051**). **Django**: a discovery is an
+      ordinary `WorldChange` (`ROOM_DISCOVERED`, key `castle-room:<id>`) written by the existing
+      idempotent `record_world_change`, so **no new model, no migration**; one child-scoped,
+      bearer-only endpoint `GET` and `POST children/{id}/castle/rooms/` with a closed body, the room ids
+      in `castle_rooms.json` (shared with the client's `CASTLE_ROOM_IDS`, a Vitest test fails if they
+      drift), `201` first time and `200` after. **A secret stays secret**: `secret-chamber` is recorded
+      only once the nook discovery is on the child's `WorldState`, and before that it gets the
+      byte-identical `404 not_found` an unknown room gets, and is never listed. **React**: a typed
+      client (`api/play/castleRoomsApi.ts`, `disabled` without the Django API), a
+      `useCastleDiscovery` hook (reads the saved list once, marks each room for the visit, records
+      each new room once and only after the list is known; **any refusal, no API or a network failure
+      means "not saved", never an error a child sees**), and the map: `CastleMap` built from the
+      canonical layout (`castleMapGeometry.ts`, north up), a real button per visible room, the current
+      room marked with `aria-current` and a thick filled tile, unexplored rooms dashed with a question
+      mark, locked or unreachable rooms disabled with the reason in their name, the secret chamber
+      simply absent until found, and a legend in words; the guide's list also says "Not explored
+      yet." and keeps the always-offered way back to the hub. Tests, **Django** (PostgreSQL, isolated
+      container): 16 new endpoint tests covering the whole child-scoped checklist (own children,
+      foreign and unknown identical 404, 401 and 403, no INSERT on a foreign write, ids in body and
+      query ignored, sibling isolation, Admins gain nothing, no nickname or foreign id in errors) plus
+      idempotency, order, closed bodies, the secret rules and the id file; with the structural
+      tenant-isolation guards, native API and regions suites **126 passed**; Ruff check and format
+      clean; `manage.py check` and `makemigrations --check` clean. **Frontend**: 8 client, 9 hook, 4
+      contract, 5 geometry, 10 map and 5 guide tests; the whole runtime, extension, API and castle
+      group is **77 files, 1069 tests**; typecheck clean; Prettier and oxlint clean (no new
+      warnings). **Honest limits**: the nook discovery is written through the Amplify client today, so
+      until that write path moves to Django a Django-mode server will not see it and will not persist
+      a secret-room discovery (the room still works and nothing leaks); the east corridor's tile is
+      small on a phone (the list is the full-size equivalent). Browser (owner): the map's look and
+      tap sizes on a tablet, tile placement, the dashed and dotted states. Commit `82b63e7`
+- [x] **SC-R03-07** World navigation regression (depends: SC-R03-01 to 06). DONE (development;
+      **SC-R03 is complete**). `castleNavigationRegression.test.ts`, 27 tests that prove the pieces hold
+      **together**, in both worlds a child can be in (before and after finding the nook), in the real
+      runtime, with no browser: the **room graph** is exactly the nine open edges (eight without the
+      secret passage) with the story hall as the hub and the trophy room and secret chamber as dead
+      ends; **walking** on the real colliders reaches every visible room from the spawn, and from every
+      room to every other, enters every trigger zone and every authored castle interaction's zone,
+      and keeps the secret chamber cut off until found; the **accessible tour** takes a child to every
+      room and back, 90 trips in each world, without a single step, refuses the secret before it is
+      found without moving the child, and lands the child on standable ground at every door from
+      either side; **spawning and saves**: the five saved checkpoint ids older saves hold are
+      unchanged, a child with no save starts in the entry hall, each checkpoint spawns where it says,
+      a save from a newer version or another region falls back to the entrance, and no fallback is ever
+      a wall; **the persisted names** (discovery id, the first eight room ids) are pinned; and
+      **navigation never goes around a rule** (the planner and the runtime refuse and allow the same
+      things). The guide's **age-band parity** is proved for Sprouts, Pathfinders and Explorers: the
+      same rooms and the same request for every band (age gates stories, never corridors). Gates at
+      the phase boundary: castle, runtime, extension and API Vitest group **80 files, 1130 tests**;
+      `tsc --noEmit -p tsconfig.app.json` clean; **real `tsc -b` and `vite build` both exit 0 with no
+      stub**; `content:check` and `golden:check` up to date; `adr:check` passes (47 decisions);
+      Prettier and oxlint clean on new files; **Django 640 passed** (game_sessions, regions,
+      progression, users) on an isolated PostgreSQL container (port 5455), Ruff and
+      `makemigrations --check` clean. Browser (owner): the whole castle tour on a tablet, the guide
+      over the HUD, the map, the secret passage opening
+- **SC-R04 The Great Storybook** (owner brief 2026-11-03: SC-R04-00 to 07, development only, no
+  SC-R05 until SC-R04 is complete)
+- [x] **SC-R04-00** Django discovery persistence (depends: SC-R03-06). DONE (development). The
+      defect: the tapestry nook discovery was written only through the Amplify client, and Django
+      had a `WorldState.discovered_objects` column that nothing wrote, so in Django mode the server
+      could prove no discovery (the Secret Chamber's access and the quest engine, which "evaluates
+      discoveries as not yet complete", both depended on it). **Fix, no new model and no
+      migration**: `progression/discoveries.py` records a discovery on the existing
+      `WorldState.discovered_objects`, validated against the digest-verified export's `discoveries`
+      collection, writing its world change through `record_world_change` and firing its reward rules
+      through `grant_reward_rule` (one fire per rule), all under a row lock; one child-scoped endpoint
+      `GET` and `POST children/{id}/discoveries/` (`FOUND_NOW` 201, `ALREADY_FOUND` and `LOCKED` 200,
+      unknown id 404, closed body). **Client**: in Django mode the server is asked first and is the
+      authority (a `LOCKED` answer keeps a secret shut and writes nothing to Amplify), its list is
+      merged into `getWorldState`, and a secret found before Django mode is told to the server;
+      with no Django API, or a failing server, the Amplify path is untouched. The Secret Chamber now
+      rests on a real server record (tested end to end through the two endpoints; the secret still
+      gets the identical 404 an unknown room gets). Tests: **Django 17** (the full child-scoped
+      checklist, idempotency, the world change and the book granted once, locked by item and by world
+      change against real content, ordering, and **four parallel finds** giving one `FOUND_NOW`),
+      **frontend 8 client and 12 behaviour**; discovery, API, island-map manifest, quests and rewards
+      suites pass (222 and 512); typecheck clean; Ruff, Prettier and oxlint clean. ADR-051's
+      consequence note is resolved. Browser: none needed. Commit `5ccaf44`
+- [x] **SC-R04-01** Great Storybook quest definition (depends: SC-R04-00). DONE (development).
+      **Premise**: the Great Storybook was damaged and its pages scattered through the castle; Keeper
+      Quill asks the child to bring them back. **Pages are derived, never stored** (SC-R01 contract
+      C-5): `features/great-storybook/pages.ts` is the one registry, five pages each naming a record the
+      castle's existing server-validated content already writes (a world change a finished adventure or
+      story records, or the nook discovery), with pure `storybookProgress` over it. **Three quests,
+      one per age band, each on its own page set** (`restore-the-great-storybook-sprouts`,
+      `-pathfinders`, `-explorers`, ids in `GREAT_STORYBOOK_QUEST_IDS`), added to the existing
+      `islandQuests.ts` so every existing validator applies: stage 1 meets Quill (`TALK_TO`), stage 2
+      brings back the pages (`BUILD` per required page; Sprouts and Pathfinders: the first story;
+      Explorers: three clues, the pattern lock, what was waiting). **The hidden nook page is an
+      optional bonus in every band**: requiring it would force a child to find the castle's one
+      unmarked secret to finish, and its journal line is deliberately vague (a test forbids naming
+      where). Completion records `GREAT_STORYBOOK_RESTORED`, sets Quill's `restoredTheStorybook`
+      memory flag and fires the `great-storybook-seal` reward (a Trophy Room keepsake) through one
+      `QUEST_COMPLETED` rule per quest, all through existing services. **Quill** offers the quests
+      and speaks the premise (`quill-the-damaged-book`) and the ending (`quill-storybook-restored`); his
+      existing nodes and choices are unchanged. **Pipeline**: `content:export` regenerates `quests.json`,
+      `npcs.json`, `rewards.json` and the manifest; the director golden vector regenerated;
+      `content:check` and `golden:check` pass; Django imports the new quests (catalog 94 tests).
+      **Server engine**: the Python quest engine now evaluates `DISCOVER` (the server records
+      discoveries since SC-R04-00). The existing island-quest validator was extended to accept a story's
+      completion world change as a `BUILD` source. Tests: **frontend 22 new** (registry, real-content
+      truth, an exhaustive truth table proving the quest completes **exactly when the book is whole**
+      across every combination of records, for each band, with and without meeting Quill) and the
+      quests, npc and rewards suites **240 pass**; **Django 14 new** (the quests import per band,
+      eligibility, a Pathfinder, Sprout and Explorer lifecycle, replay grants nothing, the bonus page
+      never blocks and never counts alone, a page cannot be satisfied by another record, sibling
+      scoping, plus **four parallel refreshes** completing once) and engine unit tests; quests and
+      catalog **94 pass**; typecheck clean; Ruff, Prettier and oxlint clean. **Limit, recorded**: the
+      Python engine does not apply a quest's `setsNpcMemoryFlags` on completion (a pre-existing port gap
+      that affects other quests too), so Quill's ending line follows the client engine for now.
+      Browser: none needed. Commit `512b1bc`
+- [x] **SC-R04-02** Missing-page discovery and recovery (depends: SC-R04-01). DONE (development).
+      **Recovery has no frontend write path to guard**: a page is derived from a record the existing
+      server-validated content writes, so it is back exactly when that record exists, cannot be
+      recovered twice (the records are idempotent), and cannot be satisfied by a different challenge
+      (each page names one record; tested). **Server**: `GET children/{id}/castle/storybook/`
+      (`regions/great_storybook.py` over `great_storybook_pages.json`, which mirrors the client
+      registry and quest ids, a Vitest test fails on drift): read-only (asserted: no INSERT, UPDATE or
+      DELETE), the child's own band from their profile, required pages always, the hidden bonus page
+      **listed only once it is found** and no word in the response names the secret before then, plus
+      the band quest's status. **Client**: typed `storybookApi`, pure `visibleEntries`,
+      `withRestored` (union with the server's pages) and `newlyRestored`, and `useGreatStorybook`: the
+      book from the records plus the server's, and `onPageRestored` and `onBookRestored` that fire
+      only for a page that came back **during the visit**, never on first load and never because the
+      server answered late (so a child who finished the Tale last month is not told it just
+      happened). **Child-facing**: a `StorybookSection` in the castle guide (accessible equivalent): how
+      many missing pages are back in words and a `<progress>`, each page's title with where to look or
+      what it says now it is back, a way to go to the right room, "you are in the right place" when
+      there; a page already back shows no button and nothing to grant; a toast "A page flew back into
+      the book" and "The Great Storybook is whole again!" at the moment. Tests: **Django 18** (the full
+      child-scoped checklist, read-only, derived from real records, a different record never restores
+      a page, each band sees only its own, an Explorer needs all three, the hidden page's secrecy and
+      sibling isolation, the quest status); **frontend** 5 client, 15 registry and contract, 10 hook,
+      9 section and 5 castle-view tests; the wider group is **90 files, 1195 tests**; typecheck
+      clean; Ruff, Prettier and oxlint clean. **Not here**: the 3D book (SC-R04-03), and Django
+      cannot yet prove pages whose records are written by adventures that complete on the Amplify
+      engine (SC-R04-04 records the boundary). Browser: none needed
+- [x] **SC-R04-03** 3D Great Storybook and restoration (depends: SC-R04-02). DONE (development).
+      **No new budget used**: the original-room scenery pool stays exactly 160 of 160 because the
+      Library's dais, beams and candles were merged to make room for the book (cover, pages block and
+      four page slots, all existing `BOX` decor); no new preset, light or surface. The hearth flame in
+      the Story Hall was merged into the fire. **Scene**: `showStorybook(state)` on the castle-tale
+      scene API, drawn from the pure `toSceneState(progress)` (the same derived progress as the card, so
+      card and 3D cannot disagree): closed torn book at mount, pages block once any page is back, one
+      slot per required page (Sprout and Pathfinder 1, Explorer 3), the bonus slot only once found,
+      cover and the Entry Hall mural turn gold when whole, a page that comes back mid-visit pulses its
+      slot (never for a book already restored on arrival, never under reduced motion). Idempotent,
+      decides nothing. Tests: 7 engine, 5 state and capacity; the `three/` and book groups are
+      **108 files, 1398 tests**; typecheck, Prettier and oxlint (no errors) clean, production vite build
+      passes. Browser: none run
+- [x] **SC-R04-04** Integrate the existing castle adventures (depends: SC-R04-03). DONE (development).
+      **Mapping, as authored (read from the content, not assumed)**: `page-first-story` (Sprout,
+      Pathfinder) is written by `the-storykeepers-tale` step `story-written` and `quills-picture-story`
+      step `picture-story-made` (`FIRST_STORY_TOLD`); `page-three-clues` (Explorer) by
+      `secret-door-chapter-1-three-clues` step `clues-collected`; `page-pattern-lock` by
+      `secret-door-chapter-2-pattern-lock` step `door-opened` (`CASTLE_SECRET_DOOR_OPENED`);
+      `page-what-was-waiting` by the story `the-castles-secret-door` completion
+      (`THE_CASTLES_SECRET_DOOR_COMPLETE`); the bonus `page-tapestry` by discovery
+      `castle-tapestry-stair`. **No second mapping table**: `great-storybook/adventureMapping.ts` joins
+      each page's named record to the authored adventures and stories (`producersOf`), used by tests;
+      a new castle adventure that writes a page's record is picked up with no edit, and a page whose
+      record nothing writes for its band fails a test. **Qualification**: a page is back only when its
+      record exists, and a test proves each record is written only after a step the child must answer
+      (`reachableWithoutAnswering`), so opening, viewing or failing an adventure awards nothing.
+      **Historical**: pages are derived, so a child who finished before the Storybook existed has the
+      page with no replay and no migration; Django tests prove an old record (kept row, original
+      timestamp) completes the quest once with one seal, repeated reconciliation changes and grants
+      nothing, partial history restores only what it proves, retired or unrelated keys are ignored, and
+      a sibling's history never counts. **Card and 3D**: both read the one derived progress; a test
+      checks every band against every combination of records. **Retries and failures**: unchanged
+      from SC-R04-02 (a failing server read leaves the records' answer, a page is shown only when a
+      record confirms it; records and rewards are idempotent and row-locked). Tests: 14 mapping and
+      history, 1 parity (frontend); 8 Django. **Boundary, unchanged**: Django proves pages only from
+      records it holds, so Amplify-run adventure completions reach the quest when they are synced
+      (SC-R04-06 / the Amplify to Django sync). Owner acceptance: play the Tale and each secret-door
+      chapter and watch the page return in both card and 3D. Browser: none run
+- [ ] **SC-R04-05 to SC-R12** Not started. Gated items: Sound Manager merge (SC-R06), narration
+      provider and voice consent (SC-R06-03), new educational content (roadmap SC-R04-05), Phaser
+      retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the
+      SC-11 gate)

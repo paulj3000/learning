@@ -1,5 +1,5 @@
 {
-  "contentDigest": "70467dd8f86162d730127eef81e55eab92c221acf77258607606268ca3eff1fa",
+  "contentDigest": "e504bb1c4f3ca6ad795ee01489cf6fc2cb94fdf116c74f4e849613c4ca1fde1e",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -10,7 +10,7 @@
         "islands": 2
       },
       "path": "islands.json",
-      "sha256": "2a7948da615974aaf63020d260a43b4bbd616be5d6f79d25b909388ebffea876"
+      "sha256": "e713618bdec5b875c50ee572390b26fd2579dee0a71c55e4cfb3e086aca5695a"
     },
     {
       "counts": {
@@ -37,26 +37,26 @@
     },
     {
       "counts": {
-        "quests": 9
+        "quests": 12
       },
       "path": "quests.json",
-      "sha256": "2c524074348feb9c5bc19382788be3619e21a7e7d0f4611d8e3a27e45ca3a890"
+      "sha256": "74866b4b6a2d5694b52a815a1344009923d8611e10c3fd7791beb995197db4c6"
     },
     {
       "counts": {
         "collectibleSets": 2,
-        "items": 32,
-        "rewardRules": 23
+        "items": 33,
+        "rewardRules": 26
       },
       "path": "rewards.json",
-      "sha256": "5c58c03b23df8baec0555fbd7ec89426675644d8f9c05261101ee418d636f7d8"
+      "sha256": "8dac6d52b1e427b537fd4c2cbe04f10f81146e678fa2389e97ca01c70972f0de"
     },
     {
       "counts": {
         "npcs": 7
       },
       "path": "npcs.json",
-      "sha256": "4e301cdcf98b8a5279787dc0164fc567a0dc8f92154f42e539000d00ee798108"
+      "sha256": "1fb2b05269ee575fecfb631ff3bd3de4f27d76b94b83ffbebf0fb049dcaa25a9"
     },
     {
       "counts": {

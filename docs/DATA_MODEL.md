@@ -1009,3 +1009,16 @@ There is one row per object and Adventure (`regions_launch_point_once_per_object
 object can offer several Adventures and an Adventure can have several objects. The row holds no
 position: the placement's layout stays in code (LAI-0805).
 
+
+## SoundCue, SoundAssignment and SoundRelease (Django, Sound Manager Phase 2, ADR-050)
+
+App `apps.audio`, migration `0001_initial`. No child data.
+
+- `SoundCue`: `cue_id` (unique, `<channel>.<words>`), `name`, `channel`, `asset` (PROTECT to
+  `catalog.ContentAsset`, kind `audio`), optional `pinned_version` (PROTECT to `assets.AssetVersion`),
+  `volume`, `loop`, `stream`, `priority`, `max_concurrent`, `cooldown_ms`, `fade_in_ms`,
+  `fade_out_ms`, `shared`, `enabled`. The channel cannot change after creation.
+- `SoundAssignment`: scope (`world`, `location`, `region`; at most one), `target_type`, `target_id`,
+  `event`, `cue`, `channel` (copied from the cue). Unique per scope, target, event and channel.
+- `SoundRelease`: `number`, `status` (`LIVE` or `SUPERSEDED`, one `LIVE`), `revision`, `snapshot`
+  (JSON), `note`, `rolled_back_from`, `published_by`, `published_at`. Immutable; never deleted.

@@ -297,10 +297,14 @@ def walk(patterns, prefix=""):
 # The asset-file route is a capability URL: a signed, expiring token for one published version,
 # re-checked on every fetch (LAI-2200, ADR-035; apps/assets/tests/test_resolver_api.py).
 # The readiness probe returns fixed words only (ADR-037; apps/core/tests/test_readiness.py).
+# The speech-file route is the same kind of capability URL (SM-P8, ADR-049): a signed token issued
+# only by the child-scoped speech API, valid for 15 minutes, naming one generated clip
+# (apps/speech/tests/test_speech_api.py::TestDelivery).
 PUBLIC = {
     "api/v1/health/",
     "api/v1/health/ready/",
     "api/v1/asset-files/<str:token>/<str:filename>",
+    "api/v1/speech-files/<str:token>/speech.mp3",
 }
 # Parent-scoped: the owner is `request.user`, the route names no child (LAI-ANDROID-API-001).
 PARENT_SCOPED = {
@@ -399,6 +403,11 @@ def test_the_game_cookie_is_accepted_only_by_the_game_runtime_routes():
         f"{child}attempts/<uuid:attempt_id>/answer/",
         f"{child}quests/<slug:quest_id>/accept/",
         f"{child}assets/",
+        # Sound Manager Phase 2 (ADR-050): the game WebView loads its audio manifest and then the
+        # audio files through `assets/`. Read-only, behind `GameRuntimeAccessMixin`.
+        f"{child}audio/manifests/islands/<slug:identifier>/",
+        f"{child}audio/manifests/places/<slug:identifier>/",
+        f"{child}audio/manifests/regions/<slug:identifier>/",
     }
 
 

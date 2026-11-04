@@ -7,11 +7,12 @@ authored cycle.
 
 Only objectives and conditions the server can prove are evaluated here: BUILD (world change),
 FIND and CRAFT (item owned), COLLECT (items owned), SOLVE (a completed adventure session),
-TALK_TO (an NPC memory flag the server set, TR-14), and the conditions ALWAYS, QUEST_COMPLETED,
-WORLD_CHANGE, ITEM_OWNED, OBJECTIVE_COMPLETED. The rest (relationships, skill status,
-discoveries, location unlocks, HELP_NPC and DELIVER) live in engines not yet ported to Django
-and evaluate as not yet complete, so the server never credits progress it cannot prove. Each
-arrives with its engine's own port.
+TALK_TO (an NPC memory flag the server set, TR-14), DISCOVER (a discovery on the child's world
+state, which the server records since SC-R04-00), and the conditions ALWAYS, QUEST_COMPLETED,
+WORLD_CHANGE, ITEM_OWNED, OBJECTIVE_COMPLETED. The rest (relationships, skill status, location
+unlocks, HELP_NPC and DELIVER) live in engines not yet ported to Django and evaluate as not yet
+complete, so the server never credits progress it cannot prove. Each arrives with its engine's own
+port.
 """
 
 from dataclasses import dataclass, field
@@ -25,6 +26,8 @@ class QuestContext:
     completed_quest_ids: frozenset[str] = frozenset()
     # (npc id, flag) pairs set on the child's `NpcRelationship.memory_flags` (TR-14).
     npc_memory_flags: frozenset[tuple[str, str]] = frozenset()
+    # Discovery ids on the child's `WorldState` (SC-R04-00): what the server has recorded as found.
+    discovery_ids: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -59,6 +62,8 @@ def objective_complete(objective: dict, context: QuestContext) -> bool:
         return objective.get("adventureSlug") in context.completed_adventure_slugs
     if kind == "TALK_TO":
         return (objective.get("npcId"), objective.get("memoryFlag")) in context.npc_memory_flags
+    if kind == "DISCOVER":
+        return objective.get("discoveryKey") in context.discovery_ids
     return False
 
 

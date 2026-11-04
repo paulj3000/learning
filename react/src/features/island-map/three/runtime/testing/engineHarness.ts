@@ -16,6 +16,7 @@ import {
 import { createWorldExtensionRegistry, type WorldExtension } from '../extensionRegistry';
 import { WELCOME_HARBOR_MANIFEST } from '../manifests/welcomeHarbor';
 import type { ThreeLocationManifest } from '../locationManifest';
+import type { RenderQuality } from '../visual/renderQuality';
 import type { FirstPersonController } from '../../firstPersonController';
 import type { WorldInteractionContext } from '../../../worldObjects';
 import { WorldEngineEventBus, type WorldEngineEventMap } from '../../worldEngineEvents';
@@ -72,6 +73,8 @@ export function mount(
     extensions?: readonly WorldExtension[];
     parent?: HTMLDivElement;
     worldState?: WorldInteractionContext;
+    quality?: RenderQuality;
+    reducedMotion?: boolean;
   } = {},
 ): Harness {
   const parent = options.parent ?? document.createElement('div');
@@ -126,6 +129,7 @@ export function mount(
     'NpcApproached',
     'InteractableFocused',
     'PlayerEnteredZone',
+    'PlayerLeftZone',
     'ObjectInteracted',
     'CollectiblePickedUp',
     'BuildActionRequested',
@@ -137,7 +141,12 @@ export function mount(
     parent,
     bus,
     options.manifest ?? WELCOME_HARBOR_MANIFEST,
-    { startCheckpointId: options.startCheckpointId, worldState: options.worldState },
+    {
+      startCheckpointId: options.startCheckpointId,
+      worldState: options.worldState,
+      quality: options.quality,
+      reducedMotion: options.reducedMotion,
+    },
     deps,
   );
 

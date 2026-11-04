@@ -96,6 +96,31 @@ export interface RegionPlaySceneApi {
   flashRunes(correct: boolean): void;
   /** TR-18: Pip reacts. `talk` while listening, `cheer` for a find. */
   reactNpc(entityId: string, reaction: 'talk' | 'cheer'): void;
+  /**
+   * SM-P7: where things are, for sound. A reader writes the thing's world position into `out`
+   * and returns false once it is gone. They hold the object only through this closure and are
+   * dropped by the audio when it is disposed. `undefined` for an unknown entity.
+   */
+  entityPositionReader(entityId: string): ((out: [number, number, number]) => boolean) | undefined;
+  /** SM-P7: where the way to Lookout Point is shut and opens (the first lifted gate). */
+  unlockPositionReader(): ((out: [number, number, number]) => boolean) | undefined;
+  /** SM-P7: the camera, as a world-matrix object, for the audio listener. */
+  listenerSource(): { matrixWorld: { elements: ArrayLike<number> } };
+  /** SM-P7: runs `callback` on every rendered frame; returns the stop function. */
+  onFrame(callback: (deltaSeconds: number) => void): () => void;
+}
+
+/** SM-P7: reads an object's world position, and reports false once it has left the scene. */
+function worldPositionReader(object: Object3D): (out: [number, number, number]) => boolean {
+  return (out) => {
+    if (object.parent === null) return false;
+    object.updateWorldMatrix(true, false);
+    const e = object.matrixWorld.elements;
+    out[0] = e[12] as number;
+    out[1] = e[13] as number;
+    out[2] = e[14] as number;
+    return true;
+  };
 }
 
 /** Names, so tests and debugging can find them (TR-14). */
@@ -473,6 +498,17 @@ export const regionPlaySceneExtension: WorldExtension = {
         if (!root || still || bounces.has(entityId)) return;
         bounces.set(entityId, { t: 0, base: root.position.y });
       },
+      entityPositionReader(entityId) {
+        const root = context.entityRoot(entityId);
+        return root ? worldPositionReader(root) : undefined;
+      },
+      unlockPositionReader() {
+        const id = unlock?.liftGates[0];
+        const gate = id ? procedural.rootOf(id) : undefined;
+        return gate ? worldPositionReader(gate) : undefined;
+      },
+      listenerSource: () => context.camera,
+      onFrame: (callback) => context.onFrame(callback),
       setRuneNumbers(numbers) {
         for (const [entityId, rune] of runes) {
           const number = numbers?.get(entityId);
