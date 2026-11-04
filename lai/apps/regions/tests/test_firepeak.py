@@ -10,7 +10,7 @@ from django.test import override_settings
 
 from apps.catalog import authoring
 from apps.catalog.importer import import_content
-from apps.catalog.models import AssetOrigin, ContentAsset
+from apps.catalog.models import AssetOrigin, ContentAsset, NpcDefinition
 from apps.catalog.tests.helpers import publish_edit
 from apps.core.content_status import ContentStatus
 from apps.inventory.models import GrantedRule, InventoryItem
@@ -305,14 +305,115 @@ class TestResume:
         assert states["firepeak-telescope"]["solved"] and not states["firepeak-crossing"]["locked"]
 
 
+def ember():
+    return NpcDefinition.objects.get(npc_id=firepeak_seed.NPC_ID)
+
+
+def edit_line(node_id, text):
+    """Publish a new version of Professor Ember with one dialogue line changed."""
+    npc = ember()
+    body = authoring.current_body(npc)
+    for node in body["dialogue"]:
+        if node["id"] == node_id:
+            node["text"] = text
+    publish_edit(npc, body)
+
+
+def parameters(client, child):
+    return {p["puzzleId"]: p["parameters"] for p in bootstrap(client, child).json()["puzzles"]}
+
+
+class TestPuzzleLinesAreDialogue:
+    """LAI-0817 (FP-D9): each band's puzzle lines are Ember's dialogue, served as before."""
+
+    SERVED = {
+        "PATHFINDER": {
+            "firepeak-telescope": {
+                "intro": "Look through my telescope. Can you find the crater, the lava, and "
+                "the steam?",
+                "completeMessage": "You found all three! Now let us go look closer.",
+            },
+            "firepeak-heart-crystal": {
+                "scienceNote": "Crystals grow slowly as hot rock cools. This one also glows "
+                "with island magic.",
+            },
+        },
+        "EXPLORER": {
+            "firepeak-telescope": {
+                "intro": "Firepeak is waking up! Look through my telescope and find three "
+                "clues: the crater, the lava flow, and a steam vent.",
+                "completeMessage": "Great observing! The steam and lava tell us magma is "
+                "moving. Let us cross the lava river and look closer.",
+            },
+            "firepeak-heart-crystal": {
+                "scienceNote": "Real crystals grow when hot, mineral-rich liquid cools slowly "
+                "and its tiny parts line up in a pattern. This one also glows with island "
+                "magic.",
+            },
+        },
+    }
+
+    def test_the_puzzle_bodies_no_longer_carry_lines(self, firepeak):
+        for puzzle in AreaPuzzle.objects.filter(region__region_id=REGION_ID):
+            for params in authoring.current_body(puzzle)["ageBands"].values():
+                assert not {"intro", "completeMessage", "scienceNote"} & set(params)
+
+    @pytest.mark.parametrize("band", ["PATHFINDER", "EXPLORER"])
+    def test_each_band_is_served_its_own_lines(self, firepeak, api, band):
+        child = firepeak.a1
+        child.age_band = band
+        child.save(update_fields=["age_band"])
+        served = parameters(api(firepeak.a), child)
+        for puzzle_id, lines in self.SERVED[band].items():
+            for part, text in lines.items():
+                assert served[puzzle_id][part] == text
+        # Every puzzle opens with an authored line for every band; shared lines reach both.
+        assert all(params["intro"] for params in served.values())
+        assert served["firepeak-crossing"]["scienceNote"] == (
+            "Basalt is a dark rock that forms when lava cools quickly."
+        )
+
+    def test_puzzle_lines_are_never_said_in_conversation(self, firepeak, api):
+        npcs = bootstrap(api(firepeak.a), firepeak.a1).json()["npcs"]
+        node_ids = {node["nodeId"] for npc in npcs for node in npc["dialogue"]}
+        assert "ember-greeting" in node_ids
+        assert not any("-intro-" in i or "-scienceNote-" in i for i in node_ids)
+
+    def test_a_visit_pinned_before_the_move_keeps_its_own_lines(self, firepeak, api):
+        # A visit that pinned versions from before LAI-0817: the puzzle still carries its lines
+        # and Ember has none. With no dialogue line replacing one, it plays as it started.
+        from apps.game_sessions.models import AdventureSession
+
+        client, child = api(firepeak.a), firepeak.a1
+        session = AdventureSession.objects.get(pk=start(client, child))
+        npc = ember()
+        old_npc = authoring.current_body(npc)
+        old_npc["dialogue"] = [n for n in old_npc["dialogue"] if "puzzleLine" not in n]
+        crossing = AreaPuzzle.objects.get(puzzle_id="firepeak-crossing")
+        old_crossing = authoring.current_body(crossing)
+        old_crossing["ageBands"]["PATHFINDER"]["intro"] = "An intro from the old parameters."
+        for row, body in ((npc, old_npc), (crossing, old_crossing)):
+            # Recorded directly, as revisions published before the move were.
+            revision = authoring.record_published(row, body, origin="SEED")
+            session.pinned_revisions.remove(
+                *session.pinned_revisions.filter(
+                    content_type=revision.content_type, object_id=revision.object_id
+                )
+            )
+            session.pinned_revisions.add(revision)
+
+        served = parameters(client, child)
+
+        assert served["firepeak-crossing"]["intro"] == "An intro from the old parameters."
+        # No line and no old copy: the puzzle opens with its authored title, never silence.
+        assert served["firepeak-telescope"]["intro"] == "Look through the telescope"
+
+
 class TestAdminEditsDuringAVisit:
     def test_an_edit_reaches_new_visits_only(self, firepeak, api):
         client, child = api(firepeak.a), firepeak.a1
         start(client, child)
-        puzzle = AreaPuzzle.objects.get(puzzle_id="firepeak-telescope")
-        body = authoring.current_body(puzzle)
-        body["ageBands"]["PATHFINDER"]["intro"] = "Peek through the telescope!"
-        publish_edit(puzzle, body)
+        edit_line("ember-telescope-intro-pathfinder", "Peek through the telescope!")
 
         during = bootstrap(client, child).json()["puzzles"][0]["parameters"]["intro"]
         sibling = firepeak.a2

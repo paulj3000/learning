@@ -1,5 +1,5 @@
 import type { IslandLocation } from '../island/locations';
-import type { NpcDefinition } from '../npc/types';
+import type { DialogueNode, NpcDefinition } from '../npc/types';
 import type { QuestDefinition } from '../quests/types';
 import type { CollectibleSet, ItemDefinition, RewardTable } from '../rewards/types';
 import { HOME_WORLD_SLUG } from '../worlds/slugs';
@@ -49,6 +49,146 @@ export const FIREPEAK_LOCATIONS: readonly IslandLocation[] = [
   },
 ];
 
+type PuzzlePart = NonNullable<DialogueNode['puzzleLine']>['part'];
+type Band = (typeof BANDS)[number];
+
+/**
+ * LAI-0817 (FP-D9): what is said in a Firepeak puzzle's panel. These lines were the puzzles'
+ * band parameters until NPC dialogue had age bands; Django now adds them to the parameters it
+ * serves, so play is unchanged. `band` absent means every band hears the line.
+ */
+function puzzleLine(
+  puzzleId: string,
+  part: PuzzlePart,
+  text: string,
+  band?: Band,
+  speaker?: string,
+): DialogueNode {
+  const suffix = band ? band.toLowerCase() : 'all';
+  return {
+    id: `ember-${puzzleId.replace(/^firepeak-/, '')}-${part}-${suffix}`,
+    conditions: [],
+    followUpOnly: true,
+    text,
+    choices: [],
+    puzzleLine: { puzzleId, part },
+    ...(band ? { ageBands: [band] } : {}),
+    ...(speaker ? { speaker } : {}),
+  };
+}
+
+const FIREPEAK_PUZZLE_LINES: readonly DialogueNode[] = [
+  puzzleLine(
+    'firepeak-telescope',
+    'intro',
+    'Look through my telescope. Can you find the crater, the lava, and the steam?',
+    'PATHFINDER',
+  ),
+  puzzleLine(
+    'firepeak-telescope',
+    'intro',
+    'Firepeak is waking up! Look through my telescope and find three clues: the crater, the lava flow, and a steam vent.',
+    'EXPLORER',
+  ),
+  puzzleLine(
+    'firepeak-telescope',
+    'completeMessage',
+    'You found all three! Now let us go look closer.',
+    'PATHFINDER',
+  ),
+  puzzleLine(
+    'firepeak-telescope',
+    'completeMessage',
+    'Great observing! The steam and lava tell us magma is moving. Let us cross the lava river and look closer.',
+    'EXPLORER',
+  ),
+  puzzleLine(
+    'firepeak-telescope',
+    'scienceNote',
+    'Scientists watch volcanoes from a safe distance with telescopes and cameras.',
+  ),
+  puzzleLine(
+    'firepeak-crossing',
+    'intro',
+    'Fill each gap with the stone that fits. The glowing outline shows the size.',
+    'PATHFINDER',
+  ),
+  puzzleLine(
+    'firepeak-crossing',
+    'intro',
+    'The old stone bridge fell into the lava. Each gap needs a stone exactly as long as the gap. Look at the gaps and choose wisely.',
+    'EXPLORER',
+  ),
+  puzzleLine(
+    'firepeak-crossing',
+    'completeMessage',
+    'The crossing is safe now. Walk across the stones!',
+  ),
+  puzzleLine(
+    'firepeak-crossing',
+    'scienceNote',
+    'Basalt is a dark rock that forms when lava cools quickly.',
+  ),
+  puzzleLine(
+    'firepeak-steam',
+    'intro',
+    'Turn the valves to send the steam out of the passage and up into the sky.',
+    'PATHFINDER',
+  ),
+  puzzleLine(
+    'firepeak-steam',
+    'intro',
+    'Hot steam is blocking the passage. Each valve moves steam from one pipe to another. Follow the steam to the sky vent.',
+    'EXPLORER',
+  ),
+  puzzleLine(
+    'firepeak-steam',
+    'completeMessage',
+    'Whoosh! The steam goes up the sky vent and the passage opens.',
+  ),
+  puzzleLine(
+    'firepeak-steam',
+    'scienceNote',
+    'Steam is water heated until it turns into a gas. It pushes hard when it is trapped.',
+  ),
+  puzzleLine(
+    'firepeak-heart-crystal',
+    'intro',
+    'Something is glowing on the old pedestal. Go and look!',
+  ),
+  puzzleLine(
+    'firepeak-heart-crystal',
+    'scienceNote',
+    'Crystals grow slowly as hot rock cools. This one also glows with island magic.',
+    'PATHFINDER',
+  ),
+  puzzleLine(
+    'firepeak-heart-crystal',
+    'scienceNote',
+    'Real crystals grow when hot, mineral-rich liquid cools slowly and its tiny parts line up in a pattern. This one also glows with island magic.',
+    'EXPLORER',
+  ),
+  puzzleLine(
+    'firepeak-heart-crystal',
+    'completeMessage',
+    'Take it back to Professor Ember. The rope lift will carry you.',
+    undefined,
+    'Narrator',
+  ),
+  puzzleLine(
+    'firepeak-return',
+    'intro',
+    'Show Professor Ember the crystal fragment.',
+    undefined,
+    'Narrator',
+  ),
+  puzzleLine(
+    'firepeak-return',
+    'completeMessage',
+    'Thank you, explorer! You have earned the Volcano Explorer Badge. There are more crystal secrets deeper in the mountain, for another day.',
+  ),
+];
+
 export const FIREPEAK_NPCS: readonly NpcDefinition[] = [
   {
     id: FIREPEAK_NPC_ID,
@@ -90,6 +230,7 @@ export const FIREPEAK_NPCS: readonly NpcDefinition[] = [
         text: 'Deep below us there is hot melted rock called magma. When it moves, the ground shakes and steam comes out.',
         choices: [{ id: 'ember-why-bye', label: 'Let us take a look!' }],
       },
+      ...FIREPEAK_PUZZLE_LINES,
     ],
     questOffers: [
       {

@@ -210,3 +210,82 @@ def test_the_pure_rule_checks_only_what_it_is_given():
     problems: list[str] = []
     records.npc_dialogue_problems({"dialogue": []}, BANDS, "npc 'x'", problems)
     assert problems == []
+
+
+def puzzle_line(node_id, text, part="intro", *, bands=None, puzzle="cove-look"):
+    node = line(node_id, text, bands=bands, follow_up=True)
+    node["puzzleLine"] = {"puzzleId": puzzle, "part": part}
+    return node
+
+
+class TestPuzzleLines:
+    """LAI-0817 (FP-D9): what an NPC says in a 3D Area puzzle's panel."""
+
+    def test_banded_puzzle_lines_publish_and_do_not_count_as_openers(self, pip, staff):
+        nodes = [
+            line("hello", "Ahoy!"),
+            puzzle_line("look-path", "Look up.", bands=["PATHFINDER"]),
+            puzzle_line("look-exp", "Find three clues.", bands=["EXPLORER"]),
+            puzzle_line("look-done", "Well spotted!", "completeMessage"),
+        ]
+        body = with_dialogue(pip, nodes)
+        assert authoring.validate(pip, body) == []
+        authoring.publish(authoring.create_draft(pip, body, user=staff), user=staff)
+        # Banded puzzle lines alone never satisfy (or break) the conversation opener rule.
+        problems = authoring.validate(pip, with_dialogue(pip, nodes[1:]))
+        assert problems == []
+
+    def test_puzzle_lines_are_not_served_in_conversation(self, pip, families):
+        nodes = [line("hello", "Ahoy!"), puzzle_line("look", "Look up.")]
+        pip.source = with_dialogue(pip, nodes)
+        child = families.a1
+        for band in BANDS:
+            assert served_ids(child, band, pip) == ["hello"]
+
+    def test_two_lines_for_the_same_band_puzzle_and_part_are_refused(self, pip):
+        nodes = [
+            line("hello", "Ahoy!"),
+            puzzle_line("a", "Look up.", bands=["PATHFINDER", "EXPLORER"]),
+            puzzle_line("b", "Look down.", bands=["EXPLORER"]),
+            puzzle_line("c", "Done!", "completeMessage", bands=["EXPLORER"]),
+        ]
+        problems = authoring.validate(pip, with_dialogue(pip, nodes))
+        assert problems == [
+            "npc 'pip': age band EXPLORER hears two intro lines for puzzle 'cove-look' "
+            "('a' and 'b')"
+        ]
+
+    def test_a_puzzle_line_must_be_a_bare_follow_up(self, pip):
+        chatty = puzzle_line("a", "Look up.")
+        chatty["choices"] = [{"id": "ok", "label": "OK"}]
+        opener = puzzle_line("b", "Done!", "completeMessage")
+        del opener["followUpOnly"]
+        problems = authoring.validate(pip, with_dialogue(pip, [line("hi", "Hi"), chatty, opener]))
+        assert sum("must be follow-up only" in p for p in problems) == 2
+
+    def test_a_choice_cannot_lead_to_a_puzzle_line(self, pip):
+        nodes = [
+            line("hi", "Hi", choices=[{"id": "go", "label": "Go", "nextNodeId": "a"}]),
+            puzzle_line("a", "Look up."),
+        ]
+        problems = authoring.validate(pip, with_dialogue(pip, nodes))
+        assert any("leads to puzzle line 'a'" in p for p in problems)
+
+    @pytest.mark.parametrize(
+        "puzzle_line_value",
+        [
+            {"puzzleId": "cove-look", "part": "hints"},
+            {"puzzleId": "Not A Slug", "part": "intro"},
+            {"puzzleId": "cove-look"},
+        ],
+    )
+    def test_a_malformed_puzzle_line_is_refused(self, pip, puzzle_line_value):
+        node = puzzle_line("a", "Look up.")
+        node["puzzleLine"] = puzzle_line_value
+        assert authoring.validate(pip, with_dialogue(pip, [line("hi", "Hi"), node]))
+
+    def test_the_pure_rule_reports_each_problem(self):
+        problems: list[str] = []
+        bad = {"id": "x", "text": "t", "followUpOnly": True, "puzzleLine": {"part": "intro"}}
+        records.puzzle_line_problems([bad], "npc 'x'", problems)
+        assert problems == ["npc 'x': puzzle line 'x' needs exactly puzzleId and part"]

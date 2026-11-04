@@ -679,6 +679,247 @@
           "followUpOnly": true,
           "id": "ember-why-rumble",
           "text": "Deep below us there is hot melted rock called magma. When it moves, the ground shakes and steam comes out."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-telescope-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "firepeak-telescope"
+          },
+          "text": "Look through my telescope. Can you find the crater, the lava, and the steam?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-telescope-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "firepeak-telescope"
+          },
+          "text": "Firepeak is waking up! Look through my telescope and find three clues: the crater, the lava flow, and a steam vent."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-telescope-completeMessage-pathfinder",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "firepeak-telescope"
+          },
+          "text": "You found all three! Now let us go look closer."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-telescope-completeMessage-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "firepeak-telescope"
+          },
+          "text": "Great observing! The steam and lava tell us magma is moving. Let us cross the lava river and look closer."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-telescope-scienceNote-all",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "firepeak-telescope"
+          },
+          "text": "Scientists watch volcanoes from a safe distance with telescopes and cameras."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-crossing-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "firepeak-crossing"
+          },
+          "text": "Fill each gap with the stone that fits. The glowing outline shows the size."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-crossing-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "firepeak-crossing"
+          },
+          "text": "The old stone bridge fell into the lava. Each gap needs a stone exactly as long as the gap. Look at the gaps and choose wisely."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-crossing-completeMessage-all",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "firepeak-crossing"
+          },
+          "text": "The crossing is safe now. Walk across the stones!"
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-crossing-scienceNote-all",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "firepeak-crossing"
+          },
+          "text": "Basalt is a dark rock that forms when lava cools quickly."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-steam-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "firepeak-steam"
+          },
+          "text": "Turn the valves to send the steam out of the passage and up into the sky."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-steam-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "firepeak-steam"
+          },
+          "text": "Hot steam is blocking the passage. Each valve moves steam from one pipe to another. Follow the steam to the sky vent."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-steam-completeMessage-all",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "firepeak-steam"
+          },
+          "text": "Whoosh! The steam goes up the sky vent and the passage opens."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-steam-scienceNote-all",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "firepeak-steam"
+          },
+          "text": "Steam is water heated until it turns into a gas. It pushes hard when it is trapped."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-heart-crystal-intro-all",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "firepeak-heart-crystal"
+          },
+          "text": "Something is glowing on the old pedestal. Go and look!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-heart-crystal-scienceNote-pathfinder",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "firepeak-heart-crystal"
+          },
+          "text": "Crystals grow slowly as hot rock cools. This one also glows with island magic."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-heart-crystal-scienceNote-explorer",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "firepeak-heart-crystal"
+          },
+          "text": "Real crystals grow when hot, mineral-rich liquid cools slowly and its tiny parts line up in a pattern. This one also glows with island magic."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-heart-crystal-completeMessage-all",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "firepeak-heart-crystal"
+          },
+          "speaker": "Narrator",
+          "text": "Take it back to Professor Ember. The rope lift will carry you."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-return-intro-all",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "firepeak-return"
+          },
+          "speaker": "Narrator",
+          "text": "Show Professor Ember the crystal fragment."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ember-return-completeMessage-all",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "firepeak-return"
+          },
+          "text": "Thank you, explorer! You have earned the Volcano Explorer Badge. There are more crystal secrets deeper in the mountain, for another day."
         }
       ],
       "displayName": "Professor Ember",

@@ -18,9 +18,14 @@ Body shape (one revision):
     {"puzzleId", "kind", "title", "requiresChangeKeys": [...], "worldChangeKey",
      "rewardRuleId": str | null, "ageBands": {"PATHFINDER": {...}, "EXPLORER": {...}}}
 
-Each band's parameters share `intro` (required), `hints` (0 to 4, shown when the child asks,
-and offered after `hintAfterAttempts` tries), `completeMessage`, and `scienceNote` (optional,
-an accurate explanation for the child's band). Adding a band later is adding a key.
+Each band's parameters share `hints` (0 to 4, shown when the child asks, and offered after
+`hintAfterAttempts` tries). Adding a band later is adding a key.
+
+What a character says about a puzzle (`intro`, `completeMessage`, `scienceNote`) is not a
+parameter: it is NPC dialogue, a node with `puzzleLine` and `ageBands` (LAI-0817, FP-D9). The
+3D Area bootstrap adds those lines to the parameters it serves (`play_state.puzzle_states`), so
+the client reads them where it always has. `MOVED_TO_DIALOGUE` names them; a new revision that
+still carries one is refused.
 """
 
 import re
@@ -78,10 +83,16 @@ def _int(item: dict, key: str, low: int, high: int, problems: list[str], where: 
         problems.append(f"{where}.{key}: must be a whole number from {low} to {high}")
 
 
+# LAI-0817 (FP-D9): these lines are NPC dialogue now, not puzzle parameters.
+MOVED_TO_DIALOGUE = ("intro", "completeMessage", "scienceNote")
+
+
 def _common(params: dict, problems: list[str], where: str, allowed: set[str]) -> None:
-    _text(params, "intro", problems, where)
-    _text(params, "completeMessage", problems, where, optional=True)
-    _text(params, "scienceNote", problems, where, optional=True)
+    for key in MOVED_TO_DIALOGUE:
+        if key in params:
+            problems.append(
+                f"{where}.{key}: is NPC dialogue now (a node with puzzleLine), not a parameter"
+            )
     hints = params.get("hints", [])
     if not isinstance(hints, list) or len(hints) > MAX_HINTS:
         problems.append(f"{where}.hints: must be a list of at most {MAX_HINTS} hints")
@@ -89,17 +100,7 @@ def _common(params: dict, problems: list[str], where: str, allowed: set[str]) ->
         problems.append(f"{where}.hints: every hint must be non-empty text")
     if "hintAfterAttempts" in params:
         _int(params, "hintAfterAttempts", 1, 5, problems, where)
-    unknown = (
-        set(params)
-        - allowed
-        - {
-            "intro",
-            "completeMessage",
-            "scienceNote",
-            "hints",
-            "hintAfterAttempts",
-        }
-    )
+    unknown = set(params) - allowed - set(MOVED_TO_DIALOGUE) - {"hints", "hintAfterAttempts"}
     if unknown:
         problems.append(f"{where}: unknown settings {', '.join(sorted(unknown))}")
 

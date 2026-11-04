@@ -7,6 +7,9 @@ Two kinds of content, kept apart as ADR-047 requires:
   which mechanic each puzzle uses and which placements it binds.
 - **Authored content** (Django-authoritative once seeded, ADR-047): the 3D Area's copy and each
   puzzle's per-age-band parameters, recorded as their first published versions (origin SEED).
+  What Professor Ember (or the narrator) says in each puzzle's panel, its intro, completion
+  message and science note, is Ember's age-banded dialogue in the export (`puzzleLine` nodes,
+  LAI-0817, FP-D9), not a parameter here.
   Administrators edit them in Django Admin; re-running this seed never overwrites anything.
 
 Everything non-spatial (the Place, Professor Ember, the quest, items and reward rules) is catalog
@@ -254,12 +257,6 @@ def _scene() -> dict:
 def _observe(band: str) -> dict:
     explorer = band == "EXPLORER"
     return {
-        "intro": (
-            "Firepeak is waking up! Look through my telescope and find three clues: the crater, "
-            "the lava flow, and a steam vent."
-            if explorer
-            else "Look through my telescope. Can you find the crater, the lava, and the steam?"
-        ),
         "features": [
             {
                 "id": "crater",
@@ -292,15 +289,6 @@ def _observe(band: str) -> dict:
             },
         ],
         "hints": ["Look at the very top of the mountain first."],
-        "completeMessage": (
-            "Great observing! The steam and lava tell us magma is moving. Let us cross the "
-            "lava river and look closer."
-            if explorer
-            else "You found all three! Now let us go look closer."
-        ),
-        "scienceNote": (
-            "Scientists watch volcanoes from a safe distance with telescopes and cameras."
-        ),
     }
 
 
@@ -313,12 +301,6 @@ def _platforms(band: str) -> dict:
     # Pathfinders: gaps in size order, with outlines. Explorers: mixed order, no outlines.
     gaps = (2, 3, 1) if explorer else (1, 2, 3)
     return {
-        "intro": (
-            "The old stone bridge fell into the lava. Each gap needs a stone exactly as long as "
-            "the gap. Look at the gaps and choose wisely."
-            if explorer
-            else "Fill each gap with the stone that fits. The glowing outline shows the size."
-        ),
         "stones": [{"id": i, "label": label, "size": size} for i, label, size in stones],
         "slots": [
             {"id": slot, "label": label, "gap": gap}
@@ -333,8 +315,6 @@ def _platforms(band: str) -> dict:
             if explorer
             else ["Match the outline to the stone with the same size."]
         ),
-        "completeMessage": "The crossing is safe now. Walk across the stones!",
-        "scienceNote": "Basalt is a dark rock that forms when lava cools quickly.",
     }
 
 
@@ -344,12 +324,6 @@ def _valves(band: str) -> dict:
     # Cause and effect: steam moves from channel to channel; a valve whose channel is empty does
     # nothing. Pathfinders see the steam's path; Explorers read the pipe labels.
     return {
-        "intro": (
-            "Hot steam is blocking the passage. Each valve moves steam from one pipe to another. "
-            "Follow the steam to the sky vent."
-            if explorer
-            else "Turn the valves to send the steam out of the passage and up into the sky."
-        ),
         "channels": [
             {"id": "passage", "label": "Passage"},
             {"id": "copper-pipe", "label": "Copper pipe"},
@@ -373,36 +347,18 @@ def _valves(band: str) -> dict:
             if explorer
             else ["Turn the valve next to the steam first."]
         ),
-        "completeMessage": "Whoosh! The steam goes up the sky vent and the passage opens.",
-        "scienceNote": (
-            "Steam is water heated until it turns into a gas. It pushes hard when it is trapped."
-        ),
     }
 
 
 def _crystal(band: str) -> dict:
-    explorer = band == "EXPLORER"
     return {
-        "intro": "Something is glowing on the old pedestal. Go and look!",
         "discoveryMessage": "You found the first Heart Crystal fragment!",
-        "scienceNote": (
-            "Real crystals grow when hot, mineral-rich liquid cools slowly and its tiny parts "
-            "line up in a pattern. This one also glows with island magic."
-            if explorer
-            else "Crystals grow slowly as hot rock cools. This one also glows with island magic."
-        ),
-        "completeMessage": "Take it back to Professor Ember. The rope lift will carry you.",
     }
 
 
 def _return(band: str) -> dict:
     return {
-        "intro": "Show Professor Ember the crystal fragment.",
         "npcEntityId": EMBER_ENTITY,
-        "completeMessage": (
-            "Thank you, explorer! You have earned the Volcano Explorer Badge. There are more "
-            "crystal secrets deeper in the mountain, for another day."
-        ),
     }
 
 

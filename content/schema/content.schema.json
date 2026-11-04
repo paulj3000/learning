@@ -1532,6 +1532,28 @@
                 ],
                 "type": "object"
               },
+              "puzzleLine": {
+                "additionalProperties": false,
+                "properties": {
+                  "part": {
+                    "enum": [
+                      "intro",
+                      "completeMessage",
+                      "scienceNote"
+                    ],
+                    "type": "string"
+                  },
+                  "puzzleId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "puzzleId",
+                  "part"
+                ],
+                "type": "object"
+              },
               "questId": {
                 "minLength": 1,
                 "type": "string"

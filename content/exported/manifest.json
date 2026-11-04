@@ -1,5 +1,5 @@
 {
-  "contentDigest": "deed491b4aff86748f314c8d1f549ab77631698e0a602f9efa612544a7f3fa14",
+  "contentDigest": "70467dd8f86162d730127eef81e55eab92c221acf77258607606268ca3eff1fa",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -56,7 +56,7 @@
         "npcs": 7
       },
       "path": "npcs.json",
-      "sha256": "afdcb41d5a3255cf10c9779021e89fa2b68d5bdf2cfb9712aa551b398dd532aa"
+      "sha256": "4e301cdcf98b8a5279787dc0164fc567a0dc8f92154f42e539000d00ee798108"
     },
     {
       "counts": {

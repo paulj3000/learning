@@ -9,6 +9,7 @@ Relationships that need other rows (a location's world, a quest's adventures) ar
 keys; the caller resolves them.
 """
 
+import re
 from typing import Any
 
 Record = dict[str, Any]
@@ -211,6 +212,60 @@ def reward_rule_fields(rule: Record, where: str, problems: list[str]) -> tuple[d
 ALL_AGE_BANDS = ("SPROUT", "PATHFINDER", "EXPLORER")
 
 
+PUZZLE_LINE_PARTS = ("intro", "completeMessage", "scienceNote")
+_PUZZLE_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
+def puzzle_line_problems(nodes: list[Record], where: str, problems: list[str]) -> None:
+    """What a character says in a 3D Area puzzle's panel (LAI-0817, FP-D9).
+
+    The puzzle is a `regions.AreaPuzzle` keyed by its id; the 3D Area bootstrap adds the line to
+    that puzzle's parameters for the bands that hear it. Whether the puzzle exists is not checked
+    here: Firepeak's NPC is imported before its seed creates the puzzles.
+    """
+    heard: dict[tuple[str, str, str], str] = {}
+    for node in nodes:
+        line = node.get("puzzleLine")
+        if line is None:
+            continue
+        node_id = node.get("id")
+        if not isinstance(line, dict) or set(line) != {"puzzleId", "part"}:
+            problems.append(f"{where}: puzzle line {node_id!r} needs exactly puzzleId and part")
+            continue
+        puzzle_id, part = line["puzzleId"], line["part"]
+        if not isinstance(puzzle_id, str) or not _PUZZLE_ID.match(puzzle_id):
+            problems.append(f"{where}: puzzle line {node_id!r} needs a puzzle id slug")
+            continue
+        if part not in PUZZLE_LINE_PARTS:
+            problems.append(
+                f"{where}: puzzle line {node_id!r} part must be one of "
+                f"{', '.join(PUZZLE_LINE_PARTS)}"
+            )
+            continue
+        if node.get("choices") or node.get("conditions") or not node.get("followUpOnly"):
+            problems.append(
+                f"{where}: puzzle line {node_id!r} must be follow-up only, with no choices or "
+                "conditions"
+            )
+        for band in node.get("ageBands", ALL_AGE_BANDS):
+            key = (puzzle_id, part, band)
+            if key in heard:
+                problems.append(
+                    f"{where}: age band {band} hears two {part} lines for puzzle {puzzle_id!r} "
+                    f"({heard[key]!r} and {node_id!r})"
+                )
+            else:
+                heard[key] = node_id
+    lines = {n.get("id") for n in nodes if "puzzleLine" in n}
+    for node in nodes:
+        for choice in node.get("choices", []):
+            if choice.get("nextNodeId") in lines:
+                problems.append(
+                    f"{where}: choice {choice.get('id')!r} leads to puzzle line "
+                    f"{choice['nextNodeId']!r}, which is never said in conversation"
+                )
+
+
 def npc_dialogue_problems(
     npc: Record, covered_bands: tuple[str, ...], where: str, problems: list[str]
 ) -> None:
@@ -219,12 +274,16 @@ def npc_dialogue_problems(
     - node ids are unique and every choice leads to a node of this NPC;
     - when any node targets age bands, each band in `covered_bands` must hear a conversation
       opener that has no conditions (the safe fallback: no child meets silence);
-    - no node leaves a band with choices that all lead to lines that band never hears.
+    - no node leaves a band with choices that all lead to lines that band never hears;
+    - a puzzle line (`puzzleLine`, FP-D9) names a puzzle and one of its parts, is follow-up only
+      with no choices or conditions, is never a choice's target, and no band hears two lines
+      for the same puzzle and part.
     """
     nodes = [n for n in npc.get("dialogue", []) if isinstance(n, dict)]
     ids = [n.get("id") for n in nodes]
     for node_id in sorted({i for i in ids if ids.count(i) > 1}, key=str):
         problems.append(f"{where}: dialogue node id {node_id!r} is used more than once")
+    puzzle_line_problems(nodes, where, problems)
     known = set(ids)
     for node in nodes:
         for choice in node.get("choices", []):
@@ -234,6 +293,7 @@ def npc_dialogue_problems(
                     f"{where}: choice {choice.get('id')!r} in node {node.get('id')!r} "
                     f"leads to unknown node {target!r}"
                 )
+    nodes = [n for n in nodes if "puzzleLine" not in n]  # puzzle panels, not conversation
     if not any("ageBands" in n for n in nodes):
         return
 

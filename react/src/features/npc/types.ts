@@ -141,6 +141,12 @@ export interface DialogueNode {
   /** LAI-0817: an adventure this line talks about. A reference checked at publish. */
   adventureSlug?: string;
   /**
+   * LAI-0817 (FP-D9): a line said in a 3D Area puzzle's panel (its intro, completion message or
+   * science note), never in conversation. Django adds it to that puzzle's parameters for the
+   * age bands that hear it. Such a node is follow-up only, with no choices or conditions.
+   */
+  puzzleLine?: { puzzleId: string; part: 'intro' | 'completeMessage' | 'scienceNote' };
+  /**
    * Opt-in marker that this authored line may be re-narrated by Chatty
    * (Phase 27's AI Tutor Engine). Absent means "authored text only, never
    * sent to a model" — the safe default, so adding an NPC does not silently

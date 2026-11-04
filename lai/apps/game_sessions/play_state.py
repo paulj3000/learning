@@ -134,7 +134,9 @@ def region_bootstrap(child, region: WorldRegion) -> dict:
         "region": region,
         "catalog": region_catalog(region),
         "region_content": region_content,
-        "puzzles": puzzle_states(child, region, session),
+        "puzzles": puzzle_states(
+            child, region, session, puzzle_lines(child, session, [p.npc for p in npcs])
+        ),
         "npc_dialogue": {
             placement.entity_id: npc_dialogue(child, session, placement.npc) for placement in npcs
         },
@@ -227,6 +229,8 @@ def npc_dialogue(child, session, npc) -> list[dict]:
     for node in body.get("dialogue", []):
         if node["id"] not in audible:  # LAI-0817: this line is for other age bands
             continue
+        if "puzzleLine" in node:  # said in a puzzle panel, never in conversation (FP-D9)
+            continue
         conditions = node.get("conditions", [])
         if any(condition.get("type") not in _SERVER_CONDITIONS for condition in conditions):
             continue
@@ -255,12 +259,50 @@ def npc_dialogue(child, session, npc) -> list[dict]:
     return nodes
 
 
-def puzzle_states(child, region: WorldRegion, session) -> list[dict]:
+# LAI-0817 (FP-D9): what an NPC says about a puzzle, served inside the puzzle's parameters.
+PUZZLE_LINE_PARTS = ("intro", "completeMessage", "scienceNote")
+
+
+def puzzle_lines(child, session, npcs) -> dict[str, dict[str, str]]:
+    """`{puzzleId: {part: text}}` from the dialogue of the NPCs placed in this 3D Area.
+
+    Only nodes with a `puzzleLine` that the child's age band hears, from the NPC version the open
+    visit pinned (or the published one before a visit starts). The first line in authored order
+    wins; publishing refuses two for the same puzzle, part and band.
+    """
+    band = child.age_band
+    lines: dict[str, dict[str, str]] = {}
+    for npc in npcs:
+        for node in authoring.body_for(session, npc).get("dialogue", []):
+            line = node.get("puzzleLine")
+            if not isinstance(line, dict) or band not in node.get("ageBands", ALL_BANDS):
+                continue
+            if line.get("part") in PUZZLE_LINE_PARTS and isinstance(node.get("text"), str):
+                lines.setdefault(line.get("puzzleId"), {}).setdefault(line["part"], node["text"])
+    return lines
+
+
+def _with_lines(params: dict, title: str, lines: dict[str, str]) -> dict:
+    """The band parameters with the NPC's lines added. A revision pinned before the move keeps
+    its own copies when no line replaces them, so an open visit plays as it started. A puzzle
+    with no intro anywhere opens with its authored title (the safe fallback), never silence.
+    """
+    served = {**params, **lines}
+    if not isinstance(served.get("intro"), str) or not served["intro"].strip():
+        served["intro"] = title
+    return served
+
+
+def puzzle_states(
+    child, region: WorldRegion, session, lines: dict[str, dict[str, str]] | None = None
+) -> list[dict]:
     """Published puzzles that have parameters for the child's age band, with this child's state.
 
     Parameters come from the version the open visit pinned (or the published one before a visit
-    starts). Every kind is fully described by its parameters, so nothing secret is sent.
+    starts), with the puzzle's NPC lines from `lines` (`puzzle_lines`). Every kind is fully
+    described by its parameters, so nothing secret is sent.
     """
+    lines = lines or {}
     from .play import puzzle_is_locked, puzzle_is_solved
 
     states = []
@@ -272,6 +314,7 @@ def puzzle_states(child, region: WorldRegion, session) -> list[dict]:
         params = body.get("ageBands", {}).get(child.age_band)
         if params is None:
             continue
+        params = _with_lines(params, body.get("title", ""), lines.get(puzzle.puzzle_id, {}))
         solved = puzzle_is_solved(child, puzzle, body)
         failed = (
             PuzzleAttempt.objects.filter(

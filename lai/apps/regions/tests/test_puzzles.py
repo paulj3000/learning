@@ -19,7 +19,6 @@ from apps.regions.seeding import SeedContentInvalid, seed_puzzle
 REGION = "treasure-rush-cove"
 
 OBSERVE = {
-    "intro": "Look through the telescope.",
     "features": [
         {"id": "crater", "label": "Crater", "explanation": "The bowl at the top."},
         {"id": "vent", "label": "Steam vent", "explanation": "A crack that lets out steam."},
@@ -27,7 +26,6 @@ OBSERVE = {
     "hints": ["Turn the telescope slowly."],
 }
 PLATFORMS = {
-    "intro": "Fill each gap with a stone that fits.",
     "stones": [
         {"id": "small", "label": "Small stone", "size": 1},
         {"id": "big", "label": "Big stone", "size": 3},
@@ -40,7 +38,6 @@ PLATFORMS = {
     "showOutlines": True,
 }
 VALVES = {
-    "intro": "Send the steam out through the vent.",
     "channels": [
         {"id": "passage", "label": "Passage"},
         {"id": "pipe", "label": "Copper pipe"},
@@ -66,11 +63,21 @@ class TestRules:
             (PuzzleKind.OBSERVE_FEATURES, OBSERVE),
             (PuzzleKind.PLACE_PLATFORMS, PLATFORMS),
             (PuzzleKind.VALVE_SEQUENCE, VALVES),
-            (PuzzleKind.COLLECT_OBJECT, {"intro": "Look.", "discoveryMessage": "Found it."}),
+            (PuzzleKind.COLLECT_OBJECT, {"discoveryMessage": "Found it."}),
         ],
     )
     def test_valid_parameters_have_no_problems(self, kind, params):
         assert puzzles.RULES[kind].band_problems(params, "$") == []
+
+    @pytest.mark.parametrize("key", ["intro", "completeMessage", "scienceNote"])
+    def test_lines_moved_to_npc_dialogue_are_refused_as_parameters(self, key):
+        # LAI-0817 (FP-D9): what a character says is a `puzzleLine` dialogue node now.
+        problems = puzzles.RULES[PuzzleKind.OBSERVE_FEATURES].band_problems(
+            {**OBSERVE, key: "Look closely."}, "$"
+        )
+        assert problems == [
+            f"$.{key}: is NPC dialogue now (a node with puzzleLine), not a parameter"
+        ]
 
     def test_an_unsolvable_platform_puzzle_is_refused(self):
         params = copy.deepcopy(PLATFORMS)
@@ -204,7 +211,8 @@ class TestSolveRoute:
         client, child = api(treasure.families.a), treasure.families.a1
         body = client.get(f"{base(child)}regions/{REGION}/").json()
         states = {p["puzzleId"]: p for p in body["puzzles"]}
-        assert states["look"]["parameters"] == OBSERVE
+        # No NPC here says a line for it, so the puzzle opens with its title (LAI-0817 fallback).
+        assert states["look"]["parameters"] == {**OBSERVE, "intro": "Look"}
         assert states["look"]["locked"] is False and states["look"]["solved"] is False
         assert states["valves"]["locked"] is True
         assert states["valves"]["entityIds"] == ["red", "blue", "green"]
@@ -335,6 +343,6 @@ class TestAuthoring:
                 puzzle_id="bad",
                 kind=PuzzleKind.OBSERVE_FEATURES,
                 entity_ids=[],
-                body=puzzle_body("bad", PuzzleKind.OBSERVE_FEATURES, "BAD", {"intro": ""}),
+                body=puzzle_body("bad", PuzzleKind.OBSERVE_FEATURES, "BAD", {"features": []}),
             )
         assert not AreaPuzzle.objects.filter(puzzle_id="bad").exists()
