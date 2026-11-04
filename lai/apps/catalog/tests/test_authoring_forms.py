@@ -303,3 +303,26 @@ def test_every_authorable_kind_renders_and_round_trips_its_current_body(imported
             checked += 1
     assert checked >= 3
     assert Quest.objects.exists() and NpcDefinition.objects.exists()
+
+
+def test_every_record_of_the_real_export_round_trips_unchanged():
+    """LAI-0820: the committed export, not only test data, survives the editor unchanged.
+
+    This covers what the small fixtures do not: Firepeak's banded puzzle lines (LAI-0817),
+    stories, reward-rule unions and every adventure with its steps.
+    """
+    import_content()
+    failures, checked = [], 0
+    for kind in authoring.kinds().values():
+        for row in kind.model.objects.all():
+            body = authoring.current_body(row)
+            if not body:
+                continue  # a row with no authored body yet (seed-created, nothing to edit)
+            rows, _ = authoring_forms.rows_for(kind, body)
+            if authoring_forms.read_body(kind, post_of(rows), body) != body:
+                failures.append(f"{kind.name} {kind.key_of(row)}")
+            checked += 1
+    assert failures == []
+    ember = NpcDefinition.objects.get(npc_id="professor-ember")
+    assert sum("puzzleLine" in n for n in authoring.current_body(ember)["dialogue"]) == 19
+    assert checked > 100
