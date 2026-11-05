@@ -12365,3 +12365,20 @@ Development ports moved to PostgreSQL 5442, Django 8010, Vite 5183 (`18e9cec`).
   `makemigrations --check` clean, Vitest contracts 7 passed, `tsc -b` clean, Ruff clean,
   `adr:check` passed (50 decisions).
 
+**Treasure Rush integration (LAI-NPC-010, 015, 016, 018): DEVELOPMENT COMPLETE** on
+`feature/npc-manager-treasure` (owner browser acceptance pending; no browser, WebGL or AWS run).
+- Reusable NPC scene host `react/src/features/npc-manager/host/` (`useNpcSceneHost`, hint client,
+  trigger queue); Treasure Cove wires it in `RegionPlayCompanion` and `regionPlayScene`
+  (`npcHostScene`, `setNpcProxy`), with `isBlocked` added to the extension context.
+- Exactly one Pip: the managed Pip replaces the manifest Pip and `PipDialog` when served; on no
+  release, Django off or a load failure the legacy Pip stays (documented in
+  `docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md` section 7).
+- Pip authored as content: `lai/apps/npcs/pip_content.py`, `manage.py seed_npc_pip [--publish]
+  [--hybrid-hints]` (create-only, validates, rerun `unchanged`). Content export unchanged.
+- Play outcomes reach NPC triggers and reactions through `useRegionPlay({onOutcome})`; rewards,
+  quests, save and resume unchanged. NPC sound moments use staff NPC assignments in the audio
+  manifest; voice through `useNpcVoice`.
+- Evidence: pytest `apps/npcs apps/regions apps/game_sessions apps/quests` 611 passed (Pip seed
+  13); Vitest npc-manager, region-play, island-map, audio 177 files / 2143 tests passed; `tsc -b`
+  clean; Prettier and Ruff clean on changed files; `makemigrations --check` clean.
+

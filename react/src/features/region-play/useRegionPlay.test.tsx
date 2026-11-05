@@ -253,3 +253,40 @@ describe('usePlayerProgress', () => {
     expect(hook.result.current.progress?.inventory).toHaveLength(1); // still child B's
   });
 });
+
+describe('useRegionPlay outcomes (LAI-NPC-016)', () => {
+  it('reports each play outcome once, without changing what is sent or stored', async () => {
+    const api = fakeApi({ getRegion: vi.fn(async () => bootstrap({ session: sessionJson() })) });
+    const createApi = vi.fn(() => api);
+    const onOutcome = vi.fn();
+    const hook = renderHook(() => useRegionPlay(CHILD_A, REGION, { createApi, onOutcome }));
+    await waitFor(() => expect(hook.result.current.state.status).toBe('ready'));
+    await act(() => hook.result.current.startSession());
+    await act(() => hook.result.current.requestChallenge('cove-chest'));
+    await act(() => hook.result.current.submitAnswer({ answer: 5, hintLevel: 0 }));
+    await act(() => hook.result.current.talkToNpc('cove-pip'));
+    await act(() => hook.result.current.changeSession('pause'));
+    expect(onOutcome.mock.calls.map(([outcome]) => outcome.kind)).toEqual([
+      'session_upserted',
+      'challenge_issued',
+      'answer',
+      'talk',
+      'session_changed',
+    ]);
+    expect(api.submitAnswer).toHaveBeenCalledTimes(1);
+    expect(hook.result.current.state.lastOutcome?.correct).toBe(true);
+  });
+
+  it('a throwing observer never breaks play', async () => {
+    const api = fakeApi();
+    const createApi = vi.fn(() => api);
+    const onOutcome = vi.fn(() => {
+      throw new Error('observer');
+    });
+    const hook = renderHook(() => useRegionPlay(CHILD_A, REGION, { createApi, onOutcome }));
+    await waitFor(() => expect(hook.result.current.state.status).toBe('ready'));
+    await act(() => hook.result.current.startSession());
+    expect(hook.result.current.state.session?.sessionId).toBeTruthy();
+    expect(hook.result.current.state.error).toBeNull();
+  });
+});

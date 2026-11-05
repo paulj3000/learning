@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { djangoAudioSourceFor } from '../../../api/audio/audioManifestApi';
 import {
   useAudioManifest,
@@ -21,6 +21,7 @@ import { createTreasureRushMusic } from './treasureRushMusic';
 import {
   CUE_SOUNDS,
   ENTRY_AMBIENCE,
+  NPC_CUE_EVENTS,
   ONE_SHOT_SPATIAL,
   POSITIONAL_CUES,
   ZONE_AMBIENCE,
@@ -172,6 +173,10 @@ export function useTreasureRushAudio(options: UseTreasureRushAudioOptions): Trea
     return stop;
   }, [scene, emitters]);
 
+  // NPC moments read the staff's NPC assignments; a ref, so a new manifest keeps the one sink.
+  const assignmentsRef = useRef(assignments);
+  assignmentsRef.current = assignments;
+
   // Moments of play. One sink for the visit; the companion raises each moment once.
   useEffect(() => {
     const readerFor = (at?: SoundPlace): PositionReader | undefined => {
@@ -181,6 +186,19 @@ export function useTreasureRushAudio(options: UseTreasureRushAudioOptions): Trea
     };
     const previous = setSoundSink((cue: SoundCue, at?: SoundPlace) => {
       if (cue === 'questComplete') music.playVictory();
+      const npcEvent = NPC_CUE_EVENTS[cue];
+      if (npcEvent) {
+        for (const assignment of assignmentsRef.current) {
+          if (
+            assignment.targetType === 'npc' &&
+            assignment.targetId === at?.npcId &&
+            assignment.event === npcEvent
+          ) {
+            void player.play(assignment.soundId).catch(() => undefined);
+          }
+        }
+        return;
+      }
       const read = readerFor(at);
       const spot: [number, number, number] = [0, 0, 0];
       const placed = read?.(spot) === true;

@@ -326,4 +326,38 @@ describe('child-friendly interaction in Treasure Cove (TR-12)', () => {
       false,
     );
   });
+
+  it('hands a manifest NPC over to the NPC Manager and back (LAI-NPC-010)', () => {
+    const { harness, api } = cove();
+    harness.runFrames(1);
+    const pip = harness.scene().getObjectByName('Pirate Pip') as Object3D;
+    let at = { x: 5, z: 2 };
+    api().setNpcProxy?.('cove-pip', () => at);
+    expect(pip.visible).toBe(false);
+    expect(api().isNpcProxied?.('cove-pip')).toBe(true);
+    expect([pip.position.x, pip.position.z]).toEqual([5, 2]);
+    at = { x: 6, z: 1 };
+    harness.runFrames(1);
+    expect([pip.position.x, pip.position.z]).toEqual([6, 1]);
+    api().setNpcProxy?.('cove-pip', null);
+    expect(pip.visible).toBe(true);
+    expect(pip.position.toArray()).toEqual([3, 0, 6]);
+    expect(api().isNpcProxied?.('cove-pip')).toBe(false);
+  });
+
+  it('gives the NPC scene host the scene, the frame loop, the child and the colliders', () => {
+    const { harness, api } = cove();
+    harness.runFrames(1);
+    const host = api().npcHostScene?.();
+    expect(host?.parent).toBe(harness.scene());
+    expect(host?.playerPose()).toEqual({ x: 0, z: 10 });
+    const frames: number[] = [];
+    const stop = host?.onFrame((delta) => frames.push(delta));
+    harness.runFrames(2);
+    stop?.();
+    harness.runFrames(2);
+    expect(frames).toHaveLength(2);
+    expect(host?.isBlocked?.(0, 10)).toBe(false);
+    expect(host?.isBlocked?.(18.5, 0)).toBe(true); // the region's boundary wall
+  });
 });

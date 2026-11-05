@@ -684,3 +684,36 @@ describe('scene audio detection', () => {
     expect(hasSceneAudio(null)).toBe(false);
   });
 });
+
+describe('NPC moments (LAI-NPC-015)', () => {
+  const PIP_HELLO = 'sfx.npc.pip_hello';
+  function withNpcAssignment() {
+    const world = build();
+    const manifest = manifestOf([...ALL_CUES, PIP_HELLO]);
+    manifest.assignments = [
+      { event: 'on_approach', targetType: 'npc', targetId: 'pirate-pip', soundId: PIP_HELLO },
+    ] as never;
+    world.fetchManifest.mockImplementation(async () => manifest);
+    return world;
+  }
+
+  it("plays the sound staff assigned to that NPC's event, once", async () => {
+    const { engine } = await mount(withNpcAssignment());
+    const before = engine.heard().length;
+    playCue('npcGreet', { npcId: 'pirate-pip' });
+    await flush();
+    const played = engine.heard().slice(before);
+    expect(played).toHaveLength(1);
+    expect(played[0]).toContain('pip-hello');
+  });
+
+  it('is silent for another NPC, another event, or no assignment', async () => {
+    const { engine } = await mount(withNpcAssignment());
+    const before = engine.heard().length;
+    playCue('npcGreet', { npcId: 'keeper-quill' });
+    playCue('npcTalk', { npcId: 'pirate-pip' });
+    playCue('npcGreet');
+    await flush();
+    expect(engine.heard().slice(before)).toEqual([]);
+  });
+});

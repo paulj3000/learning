@@ -901,6 +901,10 @@ export function createLocationEngine<R extends RendererLike>(
         config: binding.config,
         addCollider: (box) => colliders.push(box),
         removeCollider,
+        isBlocked: (x, z) =>
+          colliders.some(
+            (box) => x >= box.min.x && x <= box.max.x && z >= box.min.z && z <= box.max.z,
+          ),
         sceneryRoot: (id) => sceneryRoots.get(id),
         entityRoot: (entityId) => entityRoots.get(entityId),
         worldState,
