@@ -6,7 +6,7 @@
  * - `interrupt(progress)` works from any state except `interrupted` itself: it remembers the
  *   prior state and the caller's progress snapshot (waypoint index, step index, remaining pause,
  *   ...). `resume()` restores that exact state and hands the snapshot back. `interrupted` is left
- *   only through `resume()`, never through `transition`.
+ *   only through `resume()` (restore) or `reset()` (cancel), never through `transition`.
  * - Every state change queues an `npc.behavior_changed` event; `drain()` hands them over once.
  * - `dispose()` stops everything: later calls are no-ops and nothing more is emitted.
  */
@@ -48,6 +48,11 @@ export interface BehaviorMachine<P> {
   interrupt(progress: P): boolean;
   /** Leaves `interrupted` for the remembered state; returns the remembered progress, or null. */
   resume(): P | null;
+  /**
+   * Cancellation: enters `to` from any state (`interrupted` included), forgetting a remembered
+   * interruption. Emits only when the state changes. False when disposed or unchanged.
+   */
+  reset(to: BehaviorState): boolean;
   /** The state `resume()` would restore, or null when not interrupted. */
   interruptedFrom(): BehaviorState | null;
   /** Queues a non-state event (e.g. `npc.waypoint_reached`) for the next `drain`. */
@@ -94,6 +99,13 @@ export function createBehaviorMachine<P>(
       remembered = null;
       enter(state);
       return progress;
+    },
+    reset(to) {
+      if (disposed) return false;
+      remembered = null;
+      if (to === current) return false;
+      enter(to);
+      return true;
     },
     interruptedFrom: () => (current === 'interrupted' && remembered ? remembered.state : null),
     emit(event) {

@@ -25,6 +25,12 @@
  * - scripted: runs `steps` (`moveTo`, `play`, `wait`, `face`), looping when `loop`.
  *   `play` is reported through the frame's extra `animation` field (see NpcBehaviorFrame).
  *
+ * Parameters are parsed defensively by `resolveBehavior` (`./parameters.ts`). Reduced motion
+ * (`reducedMotion: true`): wander and patrol stand still (see REDUCED_MOTION_STILL).
+ * Interruption keeps progress for `resume`; `cancel` drops it and restarts the behaviour.
+ * No timers, listeners or per-frame allocations beyond the returned frame object: everything is
+ * driven by `update(dt)`, so `dispose` leaves nothing behind.
+ *
  * `npc.waypoint_reached {index}` fires on arrival at a patrol or guide waypoint (its index) and at
  * a scripted `moveTo` (its step index). A point that cannot be reached (blocked both ways or
  * taking far longer than its straight-line time) is skipped without that event.
@@ -39,8 +45,7 @@ import type {
   Locomotion,
   PlayerPose,
 } from '../contracts/engine';
-import type { BehaviorSpec } from '../contracts/types';
-import type { AdventureEvent, AnimationState } from '../contracts/vocabulary';
+import type { AnimationState } from '../contracts/vocabulary';
 import { createBehaviorMachine } from './behaviorMachine';
 import { advanceToward, createMoveResult, type MoveContext } from './collision';
 import {
@@ -55,6 +60,7 @@ import {
   WANDER_TARGET_ATTEMPTS,
 } from './constants';
 import { angleDelta, clampToCircle, distance, turnToward, yawTowards } from './geometry';
+import { resolveBehavior, type BehaviorKind, type ResolvedBehavior } from './parameters';
 
 /**
  * A `BehaviorFrame` plus the scripted `play` animation started this frame (null otherwise).
@@ -67,49 +73,33 @@ export interface NpcBehaviorFrame extends BehaviorFrame {
 
 export interface NpcBehaviorController extends BehaviorController {
   update(deltaSeconds: number, player: PlayerPose | null): NpcBehaviorFrame;
+  /**
+   * Cancellation (LAI-NPC-020): abandons an interruption or a reaction without restoring it and
+   * restarts the behaviour from its beginning (first waypoint, first step, a new wander target)
+   * where the NPC now stands. Emits `npc.behavior_changed` `idle` when the state changes.
+   */
+  cancel(): void;
 }
 
-/** Defaults mirror `runtime_parameters` in `behaviors.py`, for a spec published before them. */
-const DEFAULTS = {
-  boundsRadius: 15,
-  speed: 1,
-  radius: 3,
-  pauseSeconds: [1, 3] as const,
-  stopDistance: 2,
-  giveUpDistance: 25,
-  waitForPlayerDistance: 4,
-};
-
-type Kind = 'stationary' | 'reactive' | 'wander' | 'patrol' | 'follow' | 'guide' | 'scripted';
-
-interface Point {
-  x: number;
-  z: number;
-  pause: number;
+/**
+ * Contract args plus the reduced-motion preference. The host reads it once (for example with
+ * `lib/motionPreference.prefersReducedMotion()`) and passes it in; this module never touches
+ * `window`. Contract v1's `BehaviorControllerArgs` has no field for it (reported as a needed
+ * contract change); the factory typed as the contract ignores it (default false).
+ */
+export interface NpcBehaviorControllerArgs extends BehaviorControllerArgs {
+  reducedMotion?: boolean;
 }
 
-type Step =
-  | { action: 'moveTo'; x: number; z: number }
-  | { action: 'play'; state: AnimationState }
-  | { action: 'wait'; seconds: number }
-  | { action: 'face'; yaw: number };
+type Resolved = ResolvedBehavior;
+type Kind = BehaviorKind;
 
-interface Resolved {
-  kind: Kind;
-  boundsRadius: number;
-  speed: number;
-  facePlayer: boolean;
-  radius: number;
-  pauseMin: number;
-  pauseMax: number;
-  loop: boolean;
-  points: Point[];
-  steps: Step[];
-  stopDistance: number;
-  giveUpDistance: number;
-  waitForPlayerDistance: number;
-  reactions: Partial<Record<AdventureEvent, AnimationState>>;
-}
+/**
+ * Under reduced motion these types stand still at home facing `home.yaw` (no ambient walking,
+ * no waypoint events); their reactions still play. Follow, guide and scripted keep moving: they
+ * are purposeful (leading the child, an authored beat), not decorative.
+ */
+export const REDUCED_MOTION_STILL: readonly Kind[] = ['wander', 'patrol'];
 
 /** Everything that changes as the behaviour runs; snapshotted by `interrupt`. */
 interface Progress {
@@ -135,55 +125,6 @@ interface Progress {
   homeUnreachable: boolean;
 }
 
-const KINDS: readonly Kind[] = [
-  'stationary',
-  'reactive',
-  'wander',
-  'patrol',
-  'follow',
-  'guide',
-  'scripted',
-];
-
-function positive(value: number | undefined, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
-}
-
-function resolve(spec: BehaviorSpec | null, homeX: number, homeZ: number): Resolved {
-  const p = spec?.parameters;
-  const kind: Kind = spec && KINDS.includes(spec.type as Kind) ? (spec.type as Kind) : 'stationary';
-  const boundsRadius = positive(p?.boundsRadius, DEFAULTS.boundsRadius);
-  const inBounds = (x: number, z: number) =>
-    clampToCircle({ x: homeX + x, z: homeZ + z }, homeX, homeZ, boundsRadius);
-  const pause = p?.pauseSeconds ?? DEFAULTS.pauseSeconds;
-  const pauseMin = Math.max(0, Math.min(pause[0], pause[1]));
-  const pauseMax = Math.max(pauseMin, pause[0], pause[1]);
-  const giveUpDistance = positive(p?.giveUpDistance, DEFAULTS.giveUpDistance);
-  return {
-    kind,
-    boundsRadius,
-    speed: positive(p?.speed, DEFAULTS.speed),
-    facePlayer: spec !== null && kind === 'stationary' && p?.facePlayer !== false,
-    radius: Math.min(positive(p?.radius, DEFAULTS.radius), boundsRadius),
-    pauseMin,
-    pauseMax,
-    loop: p?.loop !== false,
-    points: (p?.waypoints ?? []).map((w) => {
-      const at = inBounds(w.x, w.z);
-      return { x: at.x, z: at.z, pause: Math.max(0, w.pauseSeconds ?? 0) };
-    }),
-    steps: (p?.steps ?? []).map((step): Step => {
-      if (step.action !== 'moveTo') return step;
-      const at = inBounds(step.x, step.z);
-      return { action: 'moveTo', x: at.x, z: at.z };
-    }),
-    stopDistance: Math.min(positive(p?.stopDistance, DEFAULTS.stopDistance), giveUpDistance),
-    giveUpDistance,
-    waitForPlayerDistance: positive(p?.waitForPlayerDistance, DEFAULTS.waitForPlayerDistance),
-    reactions: p?.reactions ?? {},
-  };
-}
-
 /** Upper bound on zero-time phase changes in one frame (arrivals, step changes). */
 function phaseLimit(r: Resolved): number {
   return 8 + 2 * Math.max(r.points.length, r.steps.length);
@@ -194,10 +135,14 @@ export function locomotionFor(moved: number, speed: number): Locomotion {
   return speed > RUN_SPEED_THRESHOLD ? 'run' : 'walk';
 }
 
-export function createBehaviorController(args: BehaviorControllerArgs): NpcBehaviorController {
+export function createBehaviorController(args: NpcBehaviorControllerArgs): NpcBehaviorController {
   const { placementKey, home } = args;
   const random = args.random ?? Math.random;
-  const r = resolve(args.spec, home.x, home.z);
+  const r = resolveBehavior(args.spec, home.x, home.z);
+  if (args.reducedMotion && REDUCED_MOTION_STILL.includes(r.kind)) {
+    r.kind = 'stationary';
+    r.facePlayer = false;
+  }
   const machine = createBehaviorMachine<Progress>(placementKey);
   const ctx: MoveContext = {
     homeX: home.x,
@@ -663,6 +608,22 @@ export function createBehaviorController(args: BehaviorControllerArgs): NpcBehav
         go('reacting');
       }
       return reaction;
+    },
+    cancel() {
+      if (disposed) return;
+      machine.reset('idle');
+      p.index = 0;
+      p.direction = 1;
+      p.pauseRemaining = 0;
+      p.reactRemaining = 0;
+      p.reactReturn = 'idle';
+      p.targetX = p.x;
+      p.targetZ = p.z;
+      p.legTime = 0;
+      p.legBudget = 0;
+      p.done = false;
+      p.stepStarted = false;
+      p.homeUnreachable = false;
     },
     state,
     dispose() {

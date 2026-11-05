@@ -105,4 +105,19 @@ describe('behaviour state machine (LAI-NPC-020)', () => {
     expect(machine.drain()).toEqual([]);
     expect(machine.state()).toBe('moving');
   });
+
+  it('reset cancels an interruption without restoring it', () => {
+    const machine = machineIn('moving');
+    machine.interrupt({ index: 3, pauseRemaining: 1 });
+    expect(machine.reset('idle')).toBe(true);
+    expect(machine.state()).toBe('idle');
+    expect(machine.interruptedFrom()).toBeNull();
+    expect(machine.resume()).toBeNull();
+    expect(
+      machine.drain().map((e) => (e.type === 'npc.behavior_changed' ? e.state : e.type)),
+    ).toEqual(['interrupted', 'idle']);
+    expect(machine.reset('idle')).toBe(false);
+    machine.dispose();
+    expect(machine.reset('moving')).toBe(false);
+  });
 });

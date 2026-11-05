@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type {
   BehaviorControllerArgs,
   BehaviorControllerFactory,
@@ -581,5 +581,153 @@ describe('collision and boundaries (LAI-NPC-024)', () => {
     const { frames } = run(c, 20);
     for (const f of frames) expect(isBlocked(f.x)).toBe(false);
     expect(new Set(frames.map((f) => f.x.toFixed(2))).size).toBeGreaterThan(10);
+  });
+});
+
+describe('cancellation (LAI-NPC-020)', () => {
+  const patrolSpec = spec('patrol', {
+    speed: 2,
+    reactions: { 'treasure.found': 'celebrate' },
+    waypoints: [
+      { x: 4, z: 0 },
+      { x: 4, z: 4 },
+    ],
+  });
+
+  it('cancelling an interruption drops the remembered progress and restarts the route', () => {
+    const c = controller(patrolSpec);
+    run(c, 2.5); // past waypoint 0, heading for waypoint 1
+    c.interrupt('dialogue');
+    c.cancel();
+    expect(c.state()).toBe('idle');
+    c.resume(); // nothing left to resume
+    expect(c.state()).toBe('idle');
+    expect(states(c.update(0, null).events)).toEqual(['interrupted', 'idle']);
+    const after = run(c, 3);
+    expect(states(after.events)[0]).toBe('moving');
+    expect(reachedIndexes(after.events)[0]).toBe(0); // back to the first waypoint
+  });
+
+  it('cancelling a reaction ends it at once', () => {
+    const c = controller(patrolSpec);
+    run(c, 0.5);
+    c.react('treasure.found');
+    c.cancel();
+    expect(c.state()).toBe('idle');
+    const next = c.update(1 / 60, null);
+    expect(states(next.events)).toEqual(['reacting', 'idle', 'moving']);
+  });
+
+  it('is a no-op after dispose', () => {
+    const c = controller(patrolSpec);
+    run(c, 0.5);
+    c.dispose();
+    c.cancel();
+    expect(c.state()).toBe('moving');
+    expect(c.update(1, null).events).toEqual([]);
+  });
+});
+
+describe('reduced motion', () => {
+  it('wander and patrol stand still at home facing home.yaw, with reactions intact', () => {
+    for (const s of [
+      spec('wander', { radius: 4, speed: 1, reactions: { 'treasure.found': 'celebrate' } }),
+      spec('patrol', {
+        speed: 2,
+        reactions: { 'treasure.found': 'celebrate' },
+        waypoints: [
+          { x: 4, z: 0 },
+          { x: 0, z: 4 },
+        ],
+      }),
+    ]) {
+      const c = createBehaviorController({
+        placementKey: 'spot',
+        spec: s,
+        home: HOME,
+        reducedMotion: true,
+        random: seeded(3),
+      });
+      const { frames, events } = run(c, 10, 1 / 30, { x: HOME.x + 1, z: HOME.z });
+      for (const f of frames) {
+        expect(f).toMatchObject({ x: HOME.x, z: HOME.z, yaw: HOME.yaw, locomotion: 'idle' });
+      }
+      expect(reachedIndexes(events)).toEqual([]);
+      expect(c.react('treasure.found')).toBe('celebrate');
+    }
+  });
+
+  it('follow, guide and scripted still move (purposeful, not decorative)', () => {
+    const c = createBehaviorController({
+      placementKey: 'spot',
+      spec: spec('follow', { stopDistance: 1, speed: 1 }),
+      home: HOME,
+      reducedMotion: true,
+    });
+    const { last } = run(c, 1, 1 / 60, { x: HOME.x + 6, z: HOME.z });
+    expect(last.x).toBeGreaterThan(HOME.x);
+  });
+});
+
+describe('animation-state synchronisation', () => {
+  it('requests walk while travelling, idle while paused, and run above the threshold', () => {
+    const slow = controller(
+      spec('patrol', {
+        speed: 2,
+        waypoints: [
+          { x: 2, z: 0, pauseSeconds: 1 },
+          { x: 0, z: 0, pauseSeconds: 1 },
+        ],
+      }),
+    );
+    const { frames } = run(slow, 2.5, 0.1);
+    const sequence = frames.map((f) => f.locomotion).filter((l, i, a) => i === 0 || a[i - 1] !== l);
+    expect(sequence).toEqual(['walk', 'idle', 'walk']);
+    const fast = controller(spec('wander', { radius: 5, speed: RUN_SPEED_THRESHOLD + 1 }), {
+      random: seeded(9),
+    });
+    expect(fast.update(0.1, null).locomotion).toBe('run');
+  });
+
+  it('reports a scripted play state once, on the frame it starts', () => {
+    const c = controller(
+      spec('scripted', {
+        steps: [
+          { action: 'play', state: 'point' },
+          { action: 'wait', seconds: 1 },
+        ],
+      }),
+    );
+    const first = c.update(0.1, null);
+    expect(first.animation).toBe('point');
+    expect(c.update(0.1, null).animation).toBeNull();
+  });
+
+  it('frames from an interrupted or reacting controller request idle locomotion', () => {
+    const c = controller(
+      spec('wander', { radius: 5, speed: 1, reactions: { 'answer.correct': 'jump' } }),
+      { random: seeded(4) },
+    );
+    run(c, 0.5);
+    expect(c.react('answer.correct')).toBe('jump');
+    expect(c.update(0.1, null).locomotion).toBe('idle');
+    c.interrupt('dialogue');
+    expect(c.update(0.1, null).locomotion).toBe('idle');
+  });
+});
+
+describe('cleanup', () => {
+  it('schedules no timers and holds nothing after dispose', () => {
+    vi.useFakeTimers();
+    try {
+      const c = controller(spec('wander', { radius: 3, speed: 1 }), { random: seeded(1) });
+      run(c, 2);
+      c.interrupt('dialogue');
+      c.dispose();
+      expect(vi.getTimerCount()).toBe(0);
+      expect(c.update(0.1, null).events).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
