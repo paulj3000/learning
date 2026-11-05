@@ -123,7 +123,7 @@ class InteractionActionView(_InteractionView):
                 self.child,
                 release,
                 character,
-                conversation_id,
+                str(conversation_id),  # the route's uuid converter yields a UUID
                 action,
                 body.validated_data.get("choiceKey"),
             )

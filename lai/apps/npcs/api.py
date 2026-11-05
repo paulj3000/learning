@@ -13,7 +13,11 @@ from rest_framework import exceptions
 
 from apps.catalog.models import Location
 from apps.game_sessions import play_state
-from apps.game_sessions.runtime_auth import GameRuntimeAccessMixin, GameRuntimeGrant
+from apps.game_sessions.runtime_auth import (
+    GameRuntimeAccessMixin,
+    GameRuntimeGrant,
+    GameSessionCookieAuthentication,
+)
 from apps.users.scoping import ChildScopedAPIView
 
 from . import published
@@ -80,6 +84,29 @@ class NpcScopedView(GameRuntimeAccessMixin, ChildScopedAPIView):
             if not any(p["npcId"] == npc_id for p in here):
                 raise npc_error("npc_not_found", 404)
         return character
+
+
+def bearer_only(view_cls: type[NpcScopedView]) -> type[NpcScopedView]:
+    """The same view without the game runtime cookie: for routes outside a 3D Area.
+
+    The game cookie is region-scoped (contract section 7, rule 2), so Place and catalog routes
+    authenticate with the parent's bearer token only, exactly like any other child-scoped view.
+    `NpcScopedView.initial` still refuses a cookie defensively. Only the cookie authentication
+    class is removed: without it no request can carry a `GameRuntimeGrant`, so the inherited
+    `IsProvisionedParentOrGameRuntime` permission reduces to the provisioned-parent check.
+    """
+    return type(
+        f"BearerOnly{view_cls.__name__}",
+        (view_cls,),
+        {
+            "__module__": view_cls.__module__,
+            "authentication_classes": [
+                cls
+                for cls in view_cls.authentication_classes
+                if cls is not GameSessionCookieAuthentication
+            ],
+        },
+    )
 
 
 class NotImplementedYet(exceptions.APIException):

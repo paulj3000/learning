@@ -333,8 +333,9 @@ def test_game_cookie_reaches_only_its_own_area(cove, api):
     assert [p["placementKey"] for p in own.json()["placements"]] == ["cove-spot"]
     assert runtime.get(area_url(child, "second-cove")).status_code == 404
     assert parent.get(area_url(child, "second-cove")).status_code == 200  # bearer can
-    assert runtime.get(place_url(child, cove.region.location.slug)).status_code == 404
-    assert runtime.get(f"{base(child)}npcs/").status_code == 404
+    # Place routes do not accept the game cookie at all, so it does not authenticate there.
+    assert runtime.get(place_url(child, cove.region.location.slug)).status_code in (401, 403)
+    assert runtime.get(f"{base(child)}npcs/").status_code in (401, 403)  # bearer-only
     assert runtime.get(area_url(cove.families.a2)).status_code == 404  # its own child only
 
 

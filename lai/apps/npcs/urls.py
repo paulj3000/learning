@@ -7,50 +7,51 @@ region-scoped cookie as well as the parent's bearer token) and a Place without a
 (`places/<place_slug>`, bearer only).
 """
 
-from django.urls import path, re_path
+from django.urls import path
 
 from . import views_ai, views_dialogue, views_runtime
+from .api import bearer_only
 
 CHILD = "children/<uuid:child_id>/"
 AREA = CHILD + "regions/<slug:region_id>/npcs/"
 PLACE = CHILD + "places/<slug:place_slug>/npcs/"
-UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+CONVERSATION = "<slug:npc_id>/interactions/<uuid:conversation_id>/"
+ACTIONS = ("choose", "advance", "end")
 
 
 def _interaction_routes(prefix: str, scope: str) -> list:
-    regex_prefix = (
-        r"^children/(?P<child_id>"
-        + UUID
-        + r")/"
-        + (r"regions/(?P<region_id>[-a-zA-Z0-9_]+)/npcs/" if scope == "area" else "")
-        + (r"places/(?P<place_slug>[-a-zA-Z0-9_]+)/npcs/" if scope == "place" else "")
-        + r"(?P<npc_id>[-a-zA-Z0-9_]+)/interactions/(?P<conversation_id>"
-        + UUID
-        + r")/"
-    )
+    """Start, choose/advance/end and hint. Place routes are bearer-only (no game cookie)."""
+
+    def view(cls):
+        return (cls if scope == "area" else bearer_only(cls)).as_view()
+
     return [
         path(
             prefix + "<slug:npc_id>/interactions/",
-            views_dialogue.InteractionStartView.as_view(),
+            view(views_dialogue.InteractionStartView),
             name=f"npc-{scope}-interaction-start",
         ),
-        re_path(
-            regex_prefix + r"(?P<action>choose|advance|end)/$",
-            views_dialogue.InteractionActionView.as_view(),
-            name=f"npc-{scope}-interaction-action",
+        *(
+            path(
+                prefix + CONVERSATION + f"{action}/",
+                view(views_dialogue.InteractionActionView),
+                {"action": action},
+                name=f"npc-{scope}-interaction-{action}",
+            )
+            for action in ACTIONS
         ),
-        re_path(
-            regex_prefix + r"hint/$",
-            views_ai.InteractionHintView.as_view(),
+        path(
+            prefix + CONVERSATION + "hint/",
+            view(views_ai.InteractionHintView),
             name=f"npc-{scope}-interaction-hint",
         ),
     ]
 
 
 urlpatterns = [
-    path(CHILD + "npcs/", views_runtime.NpcCatalogView.as_view(), name="npc-catalog"),
+    path(CHILD + "npcs/", bearer_only(views_runtime.NpcCatalogView).as_view(), name="npc-catalog"),
     path(AREA, views_runtime.AreaNpcsView.as_view(), name="npc-area"),
-    path(PLACE, views_runtime.PlaceNpcsView.as_view(), name="npc-place"),
+    path(PLACE, bearer_only(views_runtime.PlaceNpcsView).as_view(), name="npc-place"),
     *_interaction_routes(AREA, "area"),
     *_interaction_routes(PLACE, "place"),
 ]

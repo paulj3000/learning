@@ -256,6 +256,7 @@ class TestChildIsolation:
             "audio",
             "auth",
             "catalog",
+            "npcs",  # NPC Manager content and releases; conversation state unregistered (ADR-050)
             "question_studio",
             "regions",
             "speech",  # voice profiles and speech lines: staff content, no child data (ADR-049)

@@ -185,6 +185,7 @@ def test_no_child_owned_record_is_registered_and_child_profiles_are_read_only():
         "audio",
         "auth",
         "catalog",
+        "npcs",  # NPC Manager (ADR-050); conversation state stays unregistered (child-owned)
         "regions",
         "speech",
         "question_studio",

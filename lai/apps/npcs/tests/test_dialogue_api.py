@@ -350,7 +350,8 @@ def test_game_cookie_reaches_only_its_own_area(treasure, api, staff):
     assert post(parent, area, {"trigger": "on_interact"}).status_code == 200
     place_slug = treasure.region.location.slug
     place = f"/api/v1/children/{child.pk}/places/{place_slug}/npcs/{NPC}/interactions/"
-    assert runtime.post(place, {"trigger": "on_interact"}).status_code == 404
+    # Place routes are bearer-only: the game cookie does not authenticate there at all.
+    assert runtime.post(place, {"trigger": "on_interact"}).status_code in (401, 403)
     sibling = f"/api/v1/children/{families.a2.pk}/regions/{region}/npcs/{NPC}/interactions/"
     assert runtime.post(sibling, {"trigger": "on_interact"}).status_code == 404
     other_area = f"/api/v1/children/{child.pk}/regions/second-cove/npcs/{NPC}/interactions/"

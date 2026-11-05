@@ -407,6 +407,15 @@ def test_the_game_cookie_is_accepted_only_by_the_game_runtime_routes():
         f"{child}audio/manifests/islands/<slug:identifier>/",
         f"{child}audio/manifests/places/<slug:identifier>/",
         f"{child}audio/manifests/regions/<slug:identifier>/",
+        # NPC Manager (ADR-050, contract section 7 rule 2): 3D Area NPC routes only, behind
+        # `GameRuntimeAccessMixin`; Place and catalog NPC routes are bearer-only.
+        f"{child}regions/<slug:region_id>/npcs/",
+        f"{child}regions/<slug:region_id>/npcs/<slug:npc_id>/interactions/",
+        *(
+            f"{child}regions/<slug:region_id>/npcs/<slug:npc_id>/interactions/"
+            f"<uuid:conversation_id>/{action}/"
+            for action in ("choose", "advance", "end", "hint")
+        ),
     }
 
 
