@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SoundSettings } from '../../../audio/AudioTypes';
-import { useSoundManager, useSoundScope } from '../../../audio/react/hooks';
+import { useSoundManager, useSoundScope, useSoundSettings } from '../../../audio/react/hooks';
 import { createSpeechPlayer, type SpeechSource } from '../../../audio/speech/SpeechPlayer';
 import { speechApiFor } from '../../../api/speech/speechApi';
 import type { NpcCommand } from '../contracts/engine';
@@ -42,6 +42,13 @@ export interface UseNpcVoice {
   state: NpcVoiceState;
   play(node: RuntimeNode | null, options?: PlayOptions): Promise<NpcVoiceOutcome>;
   interrupt(options?: { clear?: boolean }): void;
+  /**
+   * True while the child would not hear the voice channel (master or voice muted or at zero).
+   * Follows the Sound Manager live, so a "hear it again" control can hide while muted.
+   */
+  silent: boolean;
+  /** False when there is no speech source at all (`source: null`): captions only. */
+  speechAvailable: boolean;
 }
 
 const IDLE_STATE: NpcVoiceState = {
@@ -77,6 +84,8 @@ export function useNpcVoice(options: UseNpcVoiceOptions): UseNpcVoice {
     resolve: (outcome: NpcVoiceOutcome) => void;
   } | null>(null);
   const [state, setState] = useState<NpcVoiceState>(IDLE_STATE);
+  const silent = voiceIsSilent(useSoundSettings());
+  const speechAvailable = source !== null;
 
   useEffect(() => {
     const player = createSpeechPlayer({ manager, player: scope, source });
@@ -126,5 +135,8 @@ export function useNpcVoice(options: UseNpcVoiceOptions): UseNpcVoice {
     else if (interruptOptions?.clear) setState(IDLE_STATE);
   }, []);
 
-  return useMemo(() => ({ state, play, interrupt }), [state, play, interrupt]);
+  return useMemo(
+    () => ({ state, play, interrupt, silent, speechAvailable }),
+    [state, play, interrupt, silent, speechAvailable],
+  );
 }
