@@ -14,9 +14,9 @@ Admin accounts page (superusers only). Superusers need no group.
 - NPC publishers: everything editors can, plus publish a release (`publish_npcrelease`) and roll
   back or retire one (`rollback_npcrelease`).
 
-Behaviour profiles (workstream D) and personas (workstream F) add their permissions to these
-groups in their own tasks; only `view_npcbehaviorprofile` is granted here so a placement form can
-show the profile it links.
+Editors also author behaviour profiles (LAI-NPC-019) and draft personas (LAI-NPC-031); approving
+or retiring a persona needs `publish_npcrelease`, so only publishers can do it. Voice profiles stay
+with the speech app's own roles; editors may view them to pick one.
 """
 
 from django.contrib.auth.models import Group, Permission
@@ -26,6 +26,8 @@ from django.db import transaction
 EDITORS = "NPC editors"
 PUBLISHERS = "NPC publishers"
 
+# Versioned or shared rows: authored and changed, never deleted (retired or superseded instead).
+_PROFILES = ("npcbehaviorprofile", "npcpersona")
 _AUTHORING = (
     "npcmodelvariant",
     "npcvariantasset",
@@ -41,8 +43,9 @@ EDITOR_PERMISSIONS = (
     "npcs.change_npccharacter",
     *(f"npcs.{action}_{model}" for model in _AUTHORING for action in ("view", "add", "change")),
     *(f"npcs.delete_{model}" for model in _AUTHORING),
+    *(f"npcs.{action}_{model}" for model in _PROFILES for action in ("view", "add", "change")),
     "npcs.view_npcrelease",
-    "npcs.view_npcbehaviorprofile",
+    "speech.view_voiceprofile",
     # Read-only asset library access: pick assets and open the existing previews.
     "catalog.view_contentasset",
     "assets.view_assetversion",
