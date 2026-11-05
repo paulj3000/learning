@@ -10,6 +10,7 @@ import { createNpcAnimator, type NpcAnimator } from '../animation/npcAnimator';
 import type {
   BehaviorController,
   BehaviorControllerFactory,
+  BehaviorFrame,
   InputMethod,
   NpcCommand,
   NpcEngineEvent,
@@ -43,6 +44,12 @@ export interface LoadedNpcModel {
   /** A clone this NPC may own and place (`cloneAssetScene`); its geometry is shared. */
   scene: Object3D;
   animations: readonly AnimationClip[];
+  /**
+   * Called exactly once when the runtime is done with this clone (the NPC was removed or the
+   * runtime disposed, or the model arrived too late to show). The loader disposes what the clone
+   * owns and returns its lease on the shared source. Optional (LAI-NPC-037).
+   */
+  release?: () => void;
 }
 
 export type NpcModelLoader = (ref: NpcAssetRef, signal: AbortSignal) => Promise<LoadedNpcModel>;
@@ -83,6 +90,17 @@ export interface NpcRuntimeOptions {
   loadTimeoutMs?: number;
   /** Beyond this distance from the player, animation and behaviour update at a lower rate. */
   farDistance?: number;
+  /**
+   * Seconds between reduced-rate updates (far NPCs; animation of hidden or off-screen ones).
+   * Movement is not slowed: the time is accumulated and applied in steps of at most
+   * `MAX_STEP_SECONDS`. Default 0.1.
+   */
+  reducedUpdateSeconds?: number;
+  /**
+   * The host's culling answer (e.g. a frustum test it already runs). False: this NPC's
+   * animation mixer updates at the reduced rate. Behaviour and proximity are unaffected.
+   */
+  isOnScreen?: (root: Object3D, placementKey: string) => boolean;
 }
 
 /** `NpcRuntime` plus the host-facing input helpers. */
@@ -102,7 +120,9 @@ export interface NpcSceneRuntime extends NpcRuntime {
 export const PLACEMENT_KEY = 'npcPlacementKey';
 const DEFAULT_TIMEOUT_MS = 20_000;
 const DEFAULT_FAR_DISTANCE = 30;
-const FAR_UPDATE_SECONDS = 0.1;
+export const DEFAULT_REDUCED_UPDATE_SECONDS = 0.1;
+/** The largest step handed to a behaviour controller (they clamp longer frames). */
+export const MAX_STEP_SECONDS = 0.25;
 
 interface Entry {
   spawn: NpcSpawn;
@@ -112,6 +132,10 @@ interface Entry {
   root: Group;
   placeholder: Mesh | null;
   model: Object3D | null;
+  /** The loaded model's `release`, called once when the model goes. */
+  release: (() => void) | null;
+  /** The spawn as data, to tell an unchanged placement on a later `mount`. */
+  signature: string;
   animator: NpcAnimator;
   behavior: BehaviorController;
   abort: AbortController;
@@ -121,7 +145,10 @@ interface Entry {
   interrupted: boolean;
   face: 'player' | { yaw: number } | null;
   yaw: number;
+  /** Behaviour time not yet applied (reduced rate). */
   pendingDelta: number;
+  /** Animation time not yet applied (reduced rate). */
+  animDelta: number;
   disposed: boolean;
 }
 
@@ -133,15 +160,24 @@ export function createNpcRuntime(options: NpcRuntimeOptions): NpcSceneRuntime {
   const style = { ...DEFAULT_PLACEHOLDER, ...options.placeholder };
   const timeoutMs = options.loadTimeoutMs ?? DEFAULT_TIMEOUT_MS;
   const farDistance = options.farDistance ?? DEFAULT_FAR_DISTANCE;
+  const reducedSeconds = Math.max(
+    0,
+    options.reducedUpdateSeconds ?? DEFAULT_REDUCED_UPDATE_SECONDS,
+  );
+  const isOnScreen = options.isOnScreen;
   const listeners = new Set<(event: NpcEngineEvent) => void>();
-  const entries = new Map<string, Entry>();
+  // Snapshot for `emit`, rebuilt on (un)subscribe rather than copied per event.
+  let listenerList: readonly ((event: NpcEngineEvent) => void)[] = [];
+  let entries = new Map<string, Entry>();
+  // The update order; replaced (never mutated) on mount, so a frame in progress is unaffected.
+  let order: readonly Entry[] = [];
   let disposed = false;
   // Owned by this runtime and shared by every placeholder; disposed with the runtime.
   let placeholderGeometry: BoxGeometry | null = null;
   let placeholderMaterial: MeshStandardMaterial | null = null;
 
   function emit(event: NpcEngineEvent): void {
-    for (const listener of [...listeners]) {
+    for (const listener of listenerList) {
       try {
         listener(event);
       } catch (error) {
@@ -189,7 +225,7 @@ export function createNpcRuntime(options: NpcRuntimeOptions): NpcSceneRuntime {
     });
   }
 
-  function createEntry(spawn: NpcSpawn): Entry {
+  function createEntry(spawn: NpcSpawn, signature: string): Entry {
     const { placement, character } = spawn;
     const variant = variantOf(spawn);
     const root = new Group();
@@ -226,6 +262,8 @@ export function createNpcRuntime(options: NpcRuntimeOptions): NpcSceneRuntime {
       root,
       placeholder,
       model: null,
+      release: null,
+      signature,
       animator: newAnimator(placement.placementKey, variant, placeholder, []),
       behavior,
       abort: new AbortController(),
@@ -236,6 +274,7 @@ export function createNpcRuntime(options: NpcRuntimeOptions): NpcSceneRuntime {
       face: null,
       yaw: placement.rotationY,
       pendingDelta: 0,
+      animDelta: 0,
       disposed: false,
     };
     applyYaw(entry);
@@ -256,8 +295,12 @@ export function createNpcRuntime(options: NpcRuntimeOptions): NpcSceneRuntime {
   }
 
   function showModel(entry: Entry, loaded: LoadedNpcModel): void {
-    if (entry.disposed || disposed || entry.abort.signal.aborted) return;
+    if (entry.disposed || disposed || entry.abort.signal.aborted) {
+      releaseModel(loaded);
+      return;
+    }
     clearTimer(entry);
+    entry.release = loaded.release ? () => releaseModel(loaded) : null;
     const previous = entry.animator.snapshot();
     entry.animator.dispose();
     if (entry.placeholder) entry.root.remove(entry.placeholder);
@@ -290,6 +333,7 @@ export function createNpcRuntime(options: NpcRuntimeOptions): NpcSceneRuntime {
     pending.then(
       (loaded) => {
         if (!loaded || !isObject3D(loaded.scene)) {
+          if (loaded) releaseModel(loaded);
           failLoad(entry, 'invalid_model');
           return;
         }
@@ -311,7 +355,11 @@ export function createNpcRuntime(options: NpcRuntimeOptions): NpcSceneRuntime {
     entry.behavior.dispose();
     entry.root.removeFromParent();
     // The model clone shares the asset cache's geometry, materials and textures: never
-    // disposed here. The placeholder's geometry and material belong to the runtime.
+    // disposed here; `release` lets the loader dispose what the clone owns and return its
+    // lease. The placeholder's geometry and material belong to the runtime.
+    const release = entry.release;
+    entry.release = null;
+    release?.();
     entry.model = null;
     entry.placeholder = null;
   }
@@ -322,13 +370,12 @@ export function createNpcRuntime(options: NpcRuntimeOptions): NpcSceneRuntime {
     emit({ type: 'npc.left', placementKey: entry.key, npcId: entry.npcId });
   }
 
-  function updateProximity(entry: Entry, player: PlayerPose | null): void {
+  function updateProximity(entry: Entry, player: PlayerPose | null, distance: number): void {
     if (!player || !entry.visible) {
       leave(entry);
       return;
     }
     const radius = entry.spawn.placement.interactionRadius;
-    const distance = Math.hypot(player.x - entry.root.position.x, player.z - entry.root.position.z);
     if (!entry.near && distance <= radius) {
       entry.near = true;
       emit({ type: 'npc.approached', placementKey: entry.key, npcId: entry.npcId });
@@ -354,16 +401,9 @@ export function createNpcRuntime(options: NpcRuntimeOptions): NpcSceneRuntime {
     entry.yaw = options.reducedMotion() ? target : turnToward(entry.yaw, target, TURN_SPEED * dt);
   }
 
-  function updateEntry(entry: Entry, deltaSeconds: number, player: PlayerPose | null): void {
-    updateProximity(entry, player);
-    const far =
-      player !== null &&
-      Math.hypot(player.x - entry.root.position.x, player.z - entry.root.position.z) > farDistance;
-    entry.pendingDelta += deltaSeconds;
-    if (far && entry.pendingDelta < FAR_UPDATE_SECONDS) return;
-    const dt = entry.pendingDelta;
-    entry.pendingDelta = 0;
-    let frame;
+  /** One behaviour step of at most `MAX_STEP_SECONDS`. False when the runtime went away. */
+  function stepBehavior(entry: Entry, dt: number, player: PlayerPose | null): boolean {
+    let frame: BehaviorFrame;
     try {
       frame = entry.behavior.update(dt, player);
     } catch (error) {
@@ -380,8 +420,51 @@ export function createNpcRuntime(options: NpcRuntimeOptions): NpcSceneRuntime {
     updateFacing(entry, frame.yaw, dt, player);
     applyYaw(entry);
     entry.animator.setBase(frame.locomotion);
-    entry.animator.update(dt);
-    for (const event of frame.events) emit(event);
+    if (frame.animation) {
+      entry.animator.play(frame.animation, { priority: ANIMATION_PRIORITY.scripted });
+    }
+    const events = frame.events;
+    for (let i = 0; i < events.length; i += 1) {
+      emit(events[i]);
+      if (entry.disposed || disposed) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Per frame, without allocation or scene traversal: proximity every frame; behaviour every
+   * frame, or for a far NPC every `reducedSeconds` with the accumulated time split into steps
+   * the controller accepts (so it covers the same ground); the mixer every frame, or at the
+   * reduced rate when the NPC is far, hidden or off screen.
+   */
+  function updateEntry(entry: Entry, dt: number, player: PlayerPose | null): void {
+    let distance = Infinity;
+    if (player) {
+      const dx = player.x - entry.root.position.x;
+      const dz = player.z - entry.root.position.z;
+      distance = Math.sqrt(dx * dx + dz * dz);
+    }
+    updateProximity(entry, player, distance);
+    if (entry.disposed || disposed) return;
+    const far = player !== null && distance > farDistance;
+    entry.pendingDelta += dt;
+    if (!far || entry.pendingDelta >= reducedSeconds) {
+      let remaining = entry.pendingDelta;
+      entry.pendingDelta = 0;
+      do {
+        const step = remaining > MAX_STEP_SECONDS ? MAX_STEP_SECONDS : remaining;
+        remaining -= step;
+        if (!stepBehavior(entry, step, player)) return;
+      } while (remaining > 1e-9);
+    }
+    entry.animDelta += dt;
+    const throttled =
+      far || !entry.visible || (isOnScreen !== undefined && !isOnScreen(entry.root, entry.key));
+    if (!throttled || entry.animDelta >= reducedSeconds) {
+      const animDt = entry.animDelta;
+      entry.animDelta = 0;
+      entry.animator.update(animDt);
+    }
   }
 
   function targets(placementKey?: string): Entry[] {
@@ -434,30 +517,49 @@ export function createNpcRuntime(options: NpcRuntimeOptions): NpcSceneRuntime {
   return {
     mount(spawns) {
       if (disposed) return;
-      for (const entry of entries.values()) {
-        leave(entry);
-        disposeEntry(entry);
-      }
-      entries.clear();
+      // Incremental (LAI-NPC-037): an unchanged placement keeps its root, model, animation and
+      // behaviour; a changed or removed one is disposed; a new one is created and loaded.
+      const next = new Map<string, Entry>();
       const fresh: Entry[] = [];
       for (const spawn of spawns) {
         const key = spawn.placement.placementKey;
-        if (entries.has(key)) {
+        if (next.has(key)) {
           console.warn(`duplicate npc placement ${key} ignored`);
           continue;
         }
-        const entry = createEntry(spawn);
-        entries.set(key, entry);
-        options.parent.add(entry.root);
+        const signature = JSON.stringify(spawn);
+        const existing = entries.get(key);
+        if (existing && !existing.disposed && existing.signature === signature) {
+          existing.spawn = spawn;
+          next.set(key, existing);
+          continue;
+        }
+        const entry = createEntry(spawn, signature);
+        next.set(key, entry);
         fresh.push(entry);
       }
+      const previous = entries;
+      entries = next;
+      order = [...next.values()];
+      for (const [key, entry] of previous) {
+        if (next.get(key) === entry) continue;
+        leave(entry);
+        disposeEntry(entry);
+        if (disposed) return;
+      }
+      for (const entry of fresh) options.parent.add(entry.root);
       for (const entry of fresh) load(entry);
     },
 
     update(deltaSeconds, player) {
       if (disposed) return;
-      const dt = Number.isFinite(deltaSeconds) ? Math.max(0, Math.min(deltaSeconds, 0.25)) : 0;
-      for (const entry of [...entries.values()]) {
+      const dt = Number.isFinite(deltaSeconds)
+        ? Math.max(0, Math.min(deltaSeconds, MAX_STEP_SECONDS))
+        : 0;
+      const list = order;
+      for (let i = 0; i < list.length; i += 1) {
+        if (disposed) return;
+        const entry = list[i];
         if (!entry.disposed) updateEntry(entry, dt, player);
       }
     },
@@ -467,8 +569,9 @@ export function createNpcRuntime(options: NpcRuntimeOptions): NpcSceneRuntime {
     subscribe(listener) {
       if (disposed) return () => undefined;
       listeners.add(listener);
+      listenerList = [...listeners];
       return () => {
-        listeners.delete(listener);
+        if (listeners.delete(listener)) listenerList = [...listeners];
       };
     },
 
@@ -499,16 +602,27 @@ export function createNpcRuntime(options: NpcRuntimeOptions): NpcSceneRuntime {
 
     dispose() {
       if (disposed) return;
+      disposed = true;
       for (const entry of entries.values()) disposeEntry(entry);
       entries.clear();
-      disposed = true;
+      order = [];
       listeners.clear();
+      listenerList = [];
       placeholderGeometry?.dispose();
       placeholderMaterial?.dispose();
       placeholderGeometry = null;
       placeholderMaterial = null;
     },
   };
+}
+
+/** A loader's `release`, guarded: a throwing loader never breaks disposal. */
+function releaseModel(loaded: LoadedNpcModel): void {
+  try {
+    loaded.release?.();
+  } catch (error) {
+    console.warn('npc model release failed', error);
+  }
 }
 
 function isObject3D(value: unknown): value is Object3D {
