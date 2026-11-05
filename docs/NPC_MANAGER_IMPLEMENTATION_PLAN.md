@@ -89,3 +89,47 @@ Gates: foundation gate (migrations from a fresh database, model and publishing t
 workstream gate (its tests, typecheck when TypeScript changed, Ruff on changed Python), the
 Treasure Rush integration gate (no duplicate Pip or rewards), and final regression (full Python
 and Vitest suites, typecheck, build, Ruff, Prettier, `adr:check`; no Playwright).
+
+## 7. Treasure Rush integration (LAI-NPC-010, 015, 016, 018)
+
+**Pip as content.** `lai/apps/npcs/pip_content.py` holds Pip's character, `classic` variant
+(`npc-pip`, animation map limited to the model's clips Idle/Talk/Wave), the stationary
+`pip-landing` behaviour with reactions, the `cove-pip` placement on Treasure Cove's legacy Pip
+spot, and twelve dialogues migrated from `PLAY_COPY`/`PipDialog` (greet, mission with
+`OFFER_QUEST`, hints, find, quest and adventure completion, return visit, a condition-free
+fallback). No voice profile exists for Pip in the speech seeds, so his lines are captions until
+staff add one. Seed and publish locally:
+
+```bash
+cd lai
+python manage.py load_content
+python manage.py seed_treasure_rush
+python manage.py seed_npc_pip --publish          # create-only; a rerun reports unchanged
+python manage.py seed_npc_pip --hybrid-hints     # optional, first run only: persona + AI hints
+```
+
+**Scene host.** `react/src/features/npc-manager/host/useNpcSceneHost.tsx` is world-agnostic: a
+world passes `{childId, scope, scene: NpcHostScene, reducedMotion, suspended, onInteract,
+onQuestOffer, onSound}` and renders the returned `prompt` and `panel`; it calls `notifyPlay` with
+play outcomes and reads `managedNpcIds`, `interact(npcId)` and `positionOf(npcId)`.
+Storykeeper's Castle can reuse it unchanged (scope `{kind: 'place'}` or its Area).
+
+**One Pip, with a fallback.** When the host serves `pirate-pip` for `treasure-rush-cove`, the
+manifest Pip is handed over (`RegionPlaySceneApi.setNpcProxy`: hidden, its focusable root follows
+the managed Pip so focus, taps and the "Things to do here" list still reach him) and `PipDialog`
+is not used. When it serves nothing (`404 no_active_release`, a retired release, Django off, any
+load failure), the legacy Pip and `PipDialog` keep working unchanged. A managed Pip whose model
+fails to load stands as the runtime placeholder.
+
+**Play outcomes.** `useRegionPlay` reports every outcome (`onOutcome`, observation only);
+the companion forwards them, plus new world changes, to `notifyPlay`. The calm stop's session
+completion is not treated as the adventure's completion. Ambient lines wait while any other panel
+is open and only the most important trigger of an outcome is asked for (`host/triggerQueue.ts`).
+Talking to the managed Pip still makes the play API's `talk` call first (it may finish the quest),
+and `OFFER_QUEST` accepts through the existing `POST quests/<id>/accept/` flow.
+
+**Sound.** Voice through `useNpcVoice` (voice channel, captions always, mute and interruption
+honoured, disposed on unmount). NPC moments (`npcGreet`, `npcInteract`, `npcTalk`, `npcLeave`)
+play whatever staff assigned to that NPC's `on_approach`, `on_interact`, `on_dialogue_start` or
+`on_exit` event in the region's audio manifest; silent without an assignment.
+

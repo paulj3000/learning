@@ -383,15 +383,15 @@ AWS (Bedrock, Polly) has been called.
 | LAI-NPC-007 | Runtime API: published catalog and placement endpoints, authorization, filtering | 006, 034 | B Runtime | NOT STARTED | feature/npc-manager | - | - |
 | LAI-NPC-008 | NPC renderer (Three.js): resolver URLs, transform, loading, fallbacks, cleanup | 007 | B Runtime | NOT STARTED | feature/npc-manager | - | - |
 | LAI-NPC-009 | Animation controller: AnimationMixer, 11 states, clip mapping, crossfade, loop/one-shot, priorities, fallback | 008 | B Runtime | NOT STARTED | feature/npc-manager | - | - |
-| LAI-NPC-010 | Pirate Pip integration as a managed NPC | 005, 007, 008, 009, 012 | Integration | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-010 | Pirate Pip integration as a managed NPC | 005, 007, 008, 009, 012 | Integration | DEVELOPMENT COMPLETE | feature/npc-manager-treasure | host + legacy fallback; Vitest host 24, Treasure Rush NPC 13, engine +2; tsc clean | Owner browser acceptance (checklist 'Pip from the NPC Manager') |
 | LAI-NPC-011 | Dialogue models: dialogue, node, choice (text, emotion, animation, audio, age band, conditions, branching) | 002, 034 | C Dialogue | NOT STARTED | feature/npc-manager | - | - |
 | LAI-NPC-012 | Dialogue trees: paths, conditional choices, valid transitions, no unauthorized gameplay actions | 011 | C Dialogue | NOT STARTED | feature/npc-manager | - | - |
 | LAI-NPC-013 | Interaction trigger registry mapped to existing gameplay events | 012 | C Dialogue | NOT STARTED | feature/npc-manager | - | - |
 | LAI-NPC-014 | Interaction UI: prompts, dialogue display, keyboard, pointer, touch, captions, focus | 008 | B Runtime | NOT STARTED | feature/npc-manager | - | - |
-| LAI-NPC-015 | Sound Manager integration: dialogue and reaction cues, captions, mute, interruption, cleanup, channels | 014, 029 | Integration | NOT STARTED | feature/npc-manager | - | - |
-| LAI-NPC-016 | Adventure events: NPC reactions on Treasure Rush's existing lifecycle (no second reward engine) | 013, 023 | Integration | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-015 | Sound Manager integration: dialogue and reaction cues, captions, mute, interruption, cleanup, channels | 014, 029 | Integration | DEVELOPMENT COMPLETE | feature/npc-manager-treasure | useNpcVoice in host; NPC manifest cues; Vitest audio 54 | Pip voice profile (none seeded); owner listening check |
+| LAI-NPC-016 | Adventure events: NPC reactions on Treasure Rush's existing lifecycle (no second reward engine) | 013, 023 | Integration | DEVELOPMENT COMPLETE | feature/npc-manager-treasure | useRegionPlay onOutcome -> notifyPlay; one reward per outcome tested | Owner browser acceptance |
 | LAI-NPC-017 | Child NPC state: conversation cursor, last interaction, validated local flags; progress read from existing engine | 012 | C Dialogue | NOT STARTED | feature/npc-manager | - | - |
-| LAI-NPC-018 | Treasure Rush dialogue migration: Pip greets, explains, hints, reacts, celebrates, recognizes return | 010, 012, 013 | Integration | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-018 | Treasure Rush dialogue migration: Pip greets, explains, hints, reacts, celebrates, recognizes return | 010, 012, 013 | Integration | DEVELOPMENT COMPLETE | feature/npc-manager-treasure | seed_npc_pip; pytest pip seed 13, npcs/regions/game_sessions/quests 611 passed | Owner wording review; owner browser acceptance |
 | LAI-NPC-019 | Behavior profiles: stationary, wander, patrol, follow, guide, reactive, scripted | 006 | D Behavior | NOT STARTED | feature/npc-manager | - | - |
 | LAI-NPC-020 | Behavior state machine: transitions, interruption, cancellation, restoration | 019 | D Behavior | NOT STARTED | feature/npc-manager | - | - |
 | LAI-NPC-021 | Waypoint movement: waypoints, speed, rotation, arrival events | 020 | D Behavior | NOT STARTED | feature/npc-manager | - | - |
