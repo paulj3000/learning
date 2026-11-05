@@ -138,7 +138,7 @@ trigger; the server only selects dialogue for it and never writes progress becau
 | `on_correct_answer` / `on_incorrect_answer` | `POST attempts/<id>/answer/` `correct` |
 | `on_treasure_found` | answer outcome with a reward, or `pickups/` with new items |
 | `on_quest_complete` | any outcome with `questUpdates[].justCompleted` |
-| `on_adventure_complete` | world change `TREASURE_COVE_QUEST_COMPLETE` (or the adventure's completion change) / session `complete` |
+| `on_adventure_complete` | world change `TREASURE_COVE_QUEST_COMPLETE` (or the adventure's completion change) / session `complete` after the adventure was finished. A calm stop (session time limit) also ends the session as `complete` but is **not** `on_adventure_complete`, so an NPC never celebrates a time-out |
 
 **Adventure events** (`ADVENTURE_EVENTS`) drive engine reactions only (`react` command); the
 client emits them from server outcomes it already has. **Dialogue events** (`DIALOGUE_EVENTS`)
@@ -272,3 +272,4 @@ integrator; it does not add migrations to `npcs`.
 | 1 | 2026-11-05 | Initial freeze (foundation commit). |
 | 1 | 2026-11-05 | Before any workstream started: `admin.py` split into `admin_characters` (A), `admin_behavior` (D), `admin_persona` (F); `BehaviorController` interface added to `engine.ts` (D implements, B consumes). |
 | 1.1 | 2026-11-05 | Integrator, after wave 1 (additive, backward compatible): `BehaviorControllerArgs.reducedMotion?`, `BehaviorFrame.animation?` (scripted `play`), `BehaviorController.cancel()`; interaction routes use `path()` converters (`<uuid:conversation_id>`; `choose`, `advance`, `end`, `hint` as fixed segments); Place and catalog NPC routes are bearer-only (`api.bearer_only`), so the game cookie gets 401/403 there instead of 404; `SpeechReference` gains `npcDialogueNode`; publish and rollback schedule speech pre-generation after commit; `npcs/management/` added to workstream A. |
+| 1.1 | 2026-11-05 | Clarified (no code change): a calm-stop session completion is not `on_adventure_complete` (Treasure Rush integration). |
