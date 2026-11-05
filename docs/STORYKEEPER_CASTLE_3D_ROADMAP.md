@@ -1496,3 +1496,12 @@ drawn. Only the manifest and generator plumbing has to land first.
 4. **`bookshelf` is the one plausible LOD candidate** (~16 placements in
    the densest room). Add LOD only if SC-11's profiling on a target tablet
    asks for it.
+
+
+## Spoken dialogue (SM-P8)
+
+Keeper Quill's conversation lines are spoken from his position (spatial, ADR-048) and Chatty's
+story narration is flat, through `useCastleSpeech` and the shared speech binding. Captions,
+replay, skip and pause are available. Story progression, rewards and objectives are unchanged.
+`origin/adventures/storybook` reworks the castle and was not merged here; see section 8 of
+`docs/audio/AMAZON_POLLY_INTEGRATION.md` for the touch points.

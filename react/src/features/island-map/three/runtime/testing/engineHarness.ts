@@ -126,6 +126,7 @@ export function mount(
     'NpcApproached',
     'InteractableFocused',
     'PlayerEnteredZone',
+    'PlayerLeftZone',
     'ObjectInteracted',
     'CollectiblePickedUp',
     'BuildActionRequested',

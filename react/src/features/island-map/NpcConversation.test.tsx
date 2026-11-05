@@ -10,8 +10,9 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NpcConversation } from './NpcConversation';
+import { setSpeechBinding, type SpeechBinding } from '../../audio/speech/speechBinding';
 import { EMPTY_QUEST_CONTEXT, type QuestState } from '../quests/types';
 import type { DialogueNode } from '../npc/types';
 
@@ -318,5 +319,69 @@ describe('NpcConversation narration', () => {
     renderConversation('bolt');
 
     expect(await screen.findByRole('button', { name: 'Hello, Bolt!' })).toBeInTheDocument();
+  });
+});
+
+describe('NpcConversation speech (SM-P8)', () => {
+  const binding = () =>
+    ({
+      speakTurn: vi.fn(async () => undefined),
+      speakNpcNode: vi.fn(async () => undefined),
+      stop: vi.fn(),
+    }) satisfies SpeechBinding;
+
+  afterEach(() => void setSpeechBinding(null));
+
+  it('speaks a re-voiced line from the server reference, placed at the character', async () => {
+    const speech = binding();
+    setSpeechBinding(speech);
+    getChildProfileMock.mockResolvedValue(childProfile(true));
+    const result = {
+      turn: {
+        spokenText: 'Mind the springs! Bolt fixes everything in this workshop.',
+        emotion: 'CHEERFUL' as const,
+        intent: 'NARRATE' as const,
+        safetyDisposition: 'ALLOW' as const,
+      },
+      source: 'AI' as const,
+      speech: { utteranceId: '8f1b7c0e-6f0e-4b9e-9d3f-0a7a1b2c3d4e', voiceProfile: 'chatty' },
+    };
+    requestCompanionTurnMock.mockResolvedValue(result);
+    renderConversation('bolt');
+    await screen.findByText('Mind the springs! Bolt fixes everything in this workshop.');
+    await waitFor(() => expect(speech.speakTurn).toHaveBeenCalledWith(result, { npcId: 'bolt' }));
+    expect(speech.stop).toHaveBeenCalled(); // anything from the previous line ended first
+  });
+
+  it('speaks the authored narration when AI re-voicing is off', async () => {
+    const speech = binding();
+    setSpeechBinding(speech);
+    getChildProfileMock.mockResolvedValue(childProfile(false));
+    renderConversation('bolt');
+    await screen.findByText(/springs everywhere/);
+    await waitFor(() => expect(speech.speakNpcNode).toHaveBeenCalledTimes(1));
+    expect(speech.speakNpcNode).toHaveBeenCalledWith(
+      'bolt',
+      expect.any(String),
+      'Careful where you step, there are springs everywhere. I am Bolt. I fix things.',
+    );
+    expect(requestCompanionTurnMock).not.toHaveBeenCalled();
+  });
+
+  it('says nothing for a line with no approved narration, and stops the last one', async () => {
+    const speech = binding();
+    setSpeechBinding(speech);
+    getChildProfileMock.mockResolvedValue(childProfile(true));
+    renderConversation('pirate-pip');
+    await screen.findByText(/Ahoy! I am Pip/);
+    expect(speech.speakTurn).not.toHaveBeenCalled();
+    expect(speech.speakNpcNode).not.toHaveBeenCalled();
+    expect(speech.stop).toHaveBeenCalled();
+  });
+
+  it('does nothing different in a world that registered no speech binding', async () => {
+    getChildProfileMock.mockResolvedValue(childProfile(false));
+    renderConversation('bolt');
+    expect(await screen.findByText(/springs everywhere/)).toBeInTheDocument();
   });
 });

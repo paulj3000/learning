@@ -240,6 +240,91 @@ LAI-0805's ADR; TR-D5 is still Proposed.
 - [ ] **TR-18** Living cove: ambient animation and Pip animation (depends: TR-13; animated Pip asset). Development complete with the existing Pip clips (`Talk`, `Wave`; a hop for a figure with no model), shimmering water, fireflies; reduced motion respected. Left: Pip `Cheer` and `Point` clips (art); pending browser acceptance
 - [ ] **TR-19** Sound effects with mute. BLOCKED on owner decision TR-D26 (where the setting lives; recommendation in the roadmap, section 19). Done and independent of it: `soundCues.ts` raises named cues, silent until a player registers
 - [ ] **TR-20** Replayable activity after completion (depends: TR-17). Development complete, unit/API verified: the Lookout spyglass, a `REPLAY` chest that never opens, grants nothing permanent, and records skill evidence. Pending browser acceptance and owner playtest
+
+# Sound Manager (`docs/audio/SOUND_MANAGER_ARCHITECTURE.md`)
+
+Feature roadmap with its own ids, like TR-n. Phase 1 (foundation) is SM-001 to SM-010 on
+`feature/sound-manager`. Nothing here changes Treasure Rush or Storykeeper Castle. Verified with
+Vitest and fakes only; no real-browser audio check has been run.
+
+- [x] **SM-001** Audit existing audio. DONE: there is none; `docs/audio/SOUND_MANAGER_AUDIT.md`
+- [x] **SM-002** Architecture and decisions SM-D1 to SM-D6 (no ADR number minted; assign at merge). DONE: `docs/audio/SOUND_MANAGER_ARCHITECTURE.md`
+- [x] **SM-003** Shared TypeScript contracts (`AudioTypes.ts`). DONE
+- [x] **SM-004** Central `SoundManager` over an `AudioEngine` abstraction with a Web Audio engine. DONE, unit-tested; audible output unverified
+- [x] **SM-005** Five channels, per-channel and master volume and mute (`AudioChannels.ts`). DONE; ducking not built by design
+- [x] **SM-006** Lifecycle: scopes, instance tracking, pending-load cancellation, bounded buffer cache. DONE
+- [x] **SM-007** Browser unlock: gesture listeners, suspended and interrupted contexts, no permission screen. DONE; real Safari and Chrome autoplay behavior unverified
+- [x] **SM-008** Error handling, silent fallback and diagnostics ring. DONE
+- [x] **SM-009** React integration (`SoundProvider`, `useSound`, `useSoundScope`, `useSoundSettings`, `useAudioStatus`), StrictMode-safe. DONE; no game wired in
+- [x] **SM-010** Tests and developer guide (`docs/audio/SOUND_MANAGER_USAGE.md`). DONE: 94 Vitest tests in `react/src/audio`
+- [x] **SM-P2** Django sound library, cue definitions, publishing and manifest API; React manifest adapter (depends: AM-13, ADR-045). DONE 2026-11-02 on `feature/sound-manager` (unit-tested; ADR-047 Proposed, owner acceptance pending; not heard in a browser, nothing deployed). Needs `origin/feature/asset-manager`, merged into this branch because `main` has no audio support. Sub-tasks:
+  - [x] **SM-P2-01** Audit of the Asset Library's audio support and gap analysis (`docs/audio/PHASE_2_ASSET_INTEGRATION.md`). Finding: audio exists only on `feature/asset-manager`
+  - [x] **SM-P2-02** `SoundCue` (stable id, channel, asset reference, mix settings), `apps/audio`, migration `0001`
+  - [x] **SM-P2-03** Django Admin: cues (preview, filter, search, status, enable and disable), assignments, releases, publish page, rollback action
+  - [x] **SM-P2-04** `SoundAssignment` over Island, Place and 3D Area with a closed event and target vocabulary, validated against real rows; deepest scope wins per channel
+  - [x] **SM-P2-05** Immutable `SoundRelease` snapshots pinning exact asset versions; atomic publish; draft isolation; retirement handling; rollback
+  - [x] **SM-P2-06** Read-only child-scoped manifest API for Islands, Places and 3D Areas (revision, ETag, no urls)
+  - [x] **SM-P2-07** React: manifest parser and sync, Django audio source, `useAudioManifest`, expired-url recovery, owned definitions
+  - [x] **SM-P2-08** Permissions (`Sound editors`, `Sound publishers`), read-only API, no new auth, audit through admin history and release records
+  - [x] **SM-P2-09** Tests: Django `apps/audio` and React `src/audio`, `src/api/audio`
+  - [x] **SM-P2-10** Documentation, tracker, ADR-047 (Proposed)
+- [x] **SM-P3** Sound library reporting (unassigned and orphaned cues), tags and search, per-Island releases if needed (depends: SM-P2). DEVELOPMENT DONE 2026-11-03 for reporting, search and diagnostics; per-Island releases and cue tags deliberately NOT built (no need shown; releases stay library-wide, ADR-047). Sub-tasks are `SM-P3-R1` to `R6` (the batch brief's P3-01 to P3-06), so they do not clash with the Treasure Rush brief's `SM-P3-01` to `10` under SM-P4. Detail: `docs/audio/SOUND_LIBRARY_REPORTING.md`
+  - [x] **SM-P3-R1** Inventory (assets, cues, releases, last publication) from real tables
+  - [x] **SM-P3-R2** Per-game coverage with a strict readiness chain; Treasure Rush supported; coverage by Island, Place, 3D Area and Adventure
+  - [x] **SM-P3-R3** Diagnostics with remediation: missing, unpublished and retired audio, missing cues, invalid assignments, absent from manifest, orphans
+  - [x] **SM-P3-R4** Django Admin Library report page (read-only, filterable, searchable, accessible tables, existing permissions)
+  - [x] **SM-P3-R5** `manage.py audio_library_report` (read-only, deterministic, `--strict` exits 2)
+  - [x] **SM-P3-R6** Tests and staff documentation
+- [x] **SM-P4** Treasure Rush integration behind a scope (depends: SM-P2, TR-9; supersedes TR-D19). DEVELOPMENT DONE 2026-11-03 on `feature/sound-manager` as the Phase 3 brief, sub-tasks named `SM-P3-01` to `SM-P3-10` (the tracker's `SM-P3` stays the unrelated sound library reporting task). Unit-tested with the fake engine only; NOT heard in a browser and no audio asset is uploaded or published, so the cove is silent until staff publish a release. Detail: `docs/audio/TREASURE_RUSH_AUDIO.md`
+  - [x] **SM-P3-01** Gameplay event audit and event-to-cue map (no coin, gem or generic pickup mechanic exists; Lookout Point has no zone)
+  - [x] **SM-P3-02** Region manifest loaded through `useAudioManifest` and the Django audio source; failures leave a silent game
+  - [x] **SM-P3-03** Ambience by zone (`ocean`, `jungle`, `cave`), one bed at a time, no restarts; `wind` unwired (no Lookout zone)
+  - [x] **SM-P3-04** Chest, treasure reveal, key, reward and bridge effects from authoritative results
+  - [x] **SM-P3-05** Exploration, puzzle and victory music over one slot, fades, restore after victory
+  - [x] **SM-P3-06** Educational feedback: correct, soft retry, puzzle complete, quest complete, only after the server confirms
+  - [x] **SM-P3-07** `treasure-rush` scope cleanup, late-response guards, StrictMode, replay and rapid entry and exit
+  - [x] **SM-P3-08** Silent fallback for every failure mode; diagnostics only
+  - [x] **SM-P3-09** Tests: 39 hook tests, 3 companion tests, 6 Django seed tests (see status doc for runs)
+  - [x] **SM-P3-10** Docs, tracker, idempotent `seed_treasure_rush_sound` command, audio content checklist
+  - [ ] **SM-P4-V** Audible verification in a browser by the owner, after the 15 required audio files are uploaded, seeded and published (checklist in `docs/audio/TREASURE_RUSH_AUDIO.md` section 8)
+- [x] **SM-P5** Persisted sound preferences per child profile, parent controls (depends: LAI-0301). DEVELOPMENT DONE 2026-11-03 on `feature/sound-manager`; unit-tested only, not used in a browser. Detail: `docs/audio/CHILD_AUDIO_PREFERENCES.md`
+  - [x] **SM-P5-01** Audit of child settings, tenancy and the Sound Manager's settings hooks
+  - [x] **SM-P5-02** `ChildAudioSettings` (migration `0002`), child-scoped `GET|PATCH children/<id>/audio/settings/`, reduced-intensity mix mode, React client and per-child sync
+  - [x] **SM-P5-03** Reusable `AudioMixControls`, Sound button and panel in Treasure Rush (stage slot, full screen)
+  - [x] **SM-P5-04** Parent controls on the child's edit page
+  - [x] **SM-P5-05** Live apply without restart, no reset on scene disposal, per-child switching, StrictMode and stale-response safety
+  - [x] **SM-P5-06** Tests and documentation
+- [x] **SM-P6** Playlists, music transitions and ducking. DEVELOPMENT DONE 2026-11-03 on `feature/sound-manager`; fake-engine tests only, not heard. Detail: `docs/audio/MUSIC_MIXING.md`
+  - [x] **SM-P6-01** `MusicDirector`: gap-free overlapping crossfades, rapid-request cancellation, no duplicates or orphaned handles, streaming
+  - [x] **SM-P6-02** Manager ducking: automatic voice ducking to 30 percent, stacking holds, restore on end, interrupt, disposal or failure, never a saved setting
+  - [x] **SM-P6-03** Data-driven playlists: sequential, shuffle (injectable random), loop-all, repeat-one, one-shot
+  - [x] **SM-P6-04** Shared music states: exploration, puzzle, suspense, victory, narration, idle
+  - [x] **SM-P6-05** Treasure Rush music moved onto the shared states (true crossfades, no gameplay change)
+  - [x] **SM-P6-06** Tests and documentation
+- [x] **SM-P7** Spatial audio for Three.js scenes on the shared `AudioContext` (depends: SM-P4). DEVELOPMENT DONE 2026-11-03 on `feature/sound-manager`; fake-engine tests only, not heard. ADR-048 (Proposed). Detail: `docs/audio/SPATIAL_AUDIO.md`
+  - [x] **SM-P7-01** Audit of context ownership, Three.js lifecycle, zones and object positions
+  - [x] **SM-P7-02** Positional playback through a panner on the one shared context (distance, rolloff, cones, moving sources, listener, cap, culling, flat fallback)
+  - [x] **SM-P7-03** Reusable range-aware `SpatialEmitters` and structural Three.js bindings (no `three` import)
+  - [x] **SM-P7-04** Reusable `AudioZones`: priority and overlap, crossfaded beds, fallback, Django zone assignments
+  - [x] **SM-P7-05** Lookout Point zone and `PlayerLeftZone` exit events (no navigation, geometry or progression change); `ambient.treasure_rush.wind` now required
+  - [x] **SM-P7-06** Treasure Rush: chest, reveal, key and gate heard from their objects; feedback, rewards, quest and music stay flat
+  - [x] **SM-P7-07** Django spatial settings on cues, `zone` assignment target and priority (migration `0004`), validated, backward-compatible manifest
+  - [x] **SM-P7-08** Positional voice cap, range culling, allocation-free frame path, no orphaned nodes, StrictMode-safe
+  - [x] **SM-P7-09** Tests (engine, manager, emitters, zones, Treasure Rush, Lookout engine, Django)
+  - [x] **SM-P7-10** Documentation and tracker
+  - [ ] **SM-P7-V** Audible verification of positions, falloff and the Lookout wind bed (owner, in a browser)
+- [x] **SM-P8** Narration and companion voice, captions (depends: provider decision, SM-P6). DEVELOPMENT DONE 2026-11-03 on `feature/sound-manager` with a FAKE Polly client; nothing heard, no live AWS or Bedrock call. ADR-049 (Proposed). Detail: `docs/audio/AMAZON_POLLY_INTEGRATION.md`
+  - [x] **SM-P8-01** Audit of the AI service, dialogue, Storykeeper, audio engine and AWS configuration
+  - [x] **SM-P8-02** Django `apps.speech` Polly service: fake client, timeouts, bounded retries, safe errors, length limits, SSML only where supported
+  - [x] **SM-P8-03** Admin-managed voice profiles with an explicit voice / engine / language table, starter profiles, authored speech lines, Speech editors group
+  - [x] **SM-P8-04** Authorized speech API by reference (utterance, line, npcNode), child-scoped, rate-limited, safe failures
+  - [x] **SM-P8-05** Dedicated speech cache and store, advisory-locked single synthesis, signed expiring delivery, expiry cleanup, child purge, usage and estimated-cost counters
+  - [x] **SM-P8-06** React `SpeechPlayer` on the voice channel: queue, interrupt, pause, resume, skip, replay, cancel, scope cleanup
+  - [x] **SM-P8-07** Captions and controls (`SpeechCaption`), text-only fallback, utterance-level only
+  - [x] **SM-P8-08** Bedrock to Polly: validated turns become short-lived approved utterances; nothing unvalidated is spoken
+  - [x] **SM-P8-09** Storykeeper's Castle: Keeper Quill's lines spoken from his position, story narration flat; `adventures/storybook` NOT merged
+  - [x] **SM-P8-10** Chatty and tutor adapters through an opt-in speech binding; documentation
+  - [ ] **SM-P8-LIVE** Live verification gate (OPEN): real Polly request, audible voice quality, voice / engine table against current AWS docs, speech bucket and IAM, presigned delivery, Bedrock end to end, cost against the bill (checklist in the Polly doc, section 11)
 - [ ] **TR-11** Second chest and quest chain (depends: TR-9)
 
 ## Phase 28 — AI Question Studio (branch `features/studio`, ADR-046 Accepted)

@@ -1,0 +1,51 @@
+.caption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-raised);
+  max-width: min(34rem, 100%);
+}
+
+.text {
+  margin: 0;
+  font-size: var(--font-size-large);
+  line-height: 1.4;
+}
+
+.speaker {
+  font-weight: var(--font-weight-strong);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--font-size-small, 0.9rem);
+  opacity: 0.8;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.button {
+  min-height: 3rem;
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-sun);
+  color: var(--color-text);
+  box-shadow: var(--lip-accent);
+  font: inherit;
+  font-weight: var(--font-weight-strong);
+  cursor: pointer;
+}
+
+.button:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}

@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { getSpeechBinding } from '../../audio/speech/speechBinding';
 import { requestCompanionTurn } from './api';
 import type { RequestCompanionTurnInput, CompanionTurnResult } from './api';
 import type { CompanionTurn } from './schema';
@@ -30,6 +31,8 @@ export function useCompanionTurn(): UseCompanionTurn {
     setState({ status: 'loading' });
     try {
       const result = await requestCompanionTurn(input);
+      // SM-P8: spoken only where a world registered a speech binding; otherwise no change.
+      void getSpeechBinding()?.speakTurn(result);
       setState({ status: 'ready', turn: result.turn, source: result.source });
       return result;
     } catch {

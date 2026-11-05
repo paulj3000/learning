@@ -18,7 +18,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 
 **Format recommendation.** Keep this single file plus the registry table. Individually named ADR files would force moving about 4,500 lines and rewriting links for no collision benefit the check does not already give. Revisit only if the log passes roughly 50 decisions.
 
-**Next free identifier number: 041.**
+**Next free identifier number: 048.**
 
 | ID | Title | Status | Origin | Notes |
 |---|---|---|---|---|
@@ -66,8 +66,11 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-042 | Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset library owns the asset bucket, and the Amplify bucket stays untouched until retirement | Accepted | Feature branch (LAI-0904) | Owner-accepted 2026-10-31 for code and infrastructure definitions only; no deployment, migration or deletion approved. Amended 2026-11-01: Django is the control plane for both buckets; asset mutations through Django APIs, blocked until LAI-0209 (AM-14 to AM-16). Builds on ADR-035 (asset storage) and ADR-039 (Django profile authority) |
 | ADR-043 | Sensitive actions require a recent interactive Cognito sign-in, proven by the verified token's `auth_time`, a per-session anchor and a Cognito `GetUser` revocation check | Proposed | Feature branch (LAI-0209) | Asset-mutation scope retired 2026-11-02 by ADR-045 (child deletion remains). Implemented and unit-tested 2026-11-01 on `feature/lai-0209-recent-auth`; owner acceptance and the live Cognito gate pending. Specifies ADR-024 A3; lifts the `SensitiveActionBlocked` block on child deletion (LAI-0602) and asset mutations (ADR-042 item 2) |
 | ADR-044 | Django serves Chatty's companion and tutor turns through Bedrock Converse with a child-safety Guardrail; Amplify AI routes stay until client cutover | Accepted | Feature branch (features/ai) | Owner-directed 2026-11-01 (Phase 7 brief: LAI-0306, LAI-0701 to LAI-0704). Accepts ADR-019 sub-decision 9 for code and infrastructure definitions only; live Bedrock, Guardrail deployment and the React cutover stay gated (LAI-0705, LAI-0706, G7) |
-| ADR-045 | Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets; no React staff asset manager or administrator asset API | Accepted | Feature branch `feature/asset-manager` (AM-13, AM-17) | Owner-directed 2026-11-02 (development only; no deployment, AWS or browser acceptance). Supersedes ADR-042 amendment items 2 and 3 for assets and AM-14, AM-15; narrows ADR-043 scope; builds on ADR-035 and ADR-040 |
+| ADR-045 | Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets | Accepted | Feature branch `feature/asset-manager` (AM-13, AM-17) | Owner-directed 2026-11-02 (development only; no deployment, AWS or browser acceptance). Supersedes ADR-042 amendment items 2 and 3 for assets and AM-14, AM-15; narrows ADR-043 scope; builds on ADR-035 and ADR-040 |
 | ADR-046 | AI Question Studio is a staff-only Django app that drafts questions through the ADR-044 model client and serves published questions through the existing challenge and grading path | Accepted | Feature branch (features/studio) | Owner brief 2026-11-02 (Phase 28); accepted the same day ("proceed as proposed"). Builds on ADR-019, ADR-033, ADR-034, ADR-044. Not deployed |
+| ADR-047 | Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver | Proposed | Feature branch `feature/sound-manager` (SM-P2) | Development only, 2026-11-02; owner acceptance pending. Builds on ADR-035, ADR-041, ADR-045; records Sound Manager decisions SM-D1 to SM-D6 |
+| ADR-048 | Spatial audio is a panner on the Sound Manager's one AudioContext; emitters and zones are reusable and Three.js-free; Django configures distances and zone beds | Proposed | Feature branch `feature/sound-manager` (SM-P7) | Development only, 2026-11-03; owner acceptance pending. Builds on ADR-047 |
+| ADR-049 | Django owns speech synthesis through Amazon Polly behind a fake-able client; games speak only server-approved references; React plays through the Sound Manager's voice channel | Proposed | Feature branch `feature/sound-manager` (SM-P8) | Development only, 2026-11-03; owner acceptance and live verification pending. Builds on ADR-044, ADR-045, ADR-047, ADR-048 |
 
 ## ADR-001: Parent-owned accounts
 
@@ -3336,3 +3339,149 @@ The owner confirmed this exception on 2026-11-02.
 
 **Not decided here.** A task queue for long batches, a Django curriculum for grades above 2,
 text-stem question delivery to children, and live Bedrock acceptance (LAI-0705).
+
+## ADR-047: Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver
+
+Status: Proposed 2026-11-02 (development only; needs owner acceptance). Branch
+`feature/sound-manager` (SM-P2). Builds on ADR-035 (versioned, privately stored, signed assets),
+ADR-041 (Island, Place and 3D Area), ADR-045 (Django Admin owns staff authoring; React only consumes
+published content) and ADR-020 (the game engine emits typed events and does not call backends).
+Also records the Phase 1 Sound Manager decisions SM-D1 to SM-D6 (`docs/audio/SOUND_MANAGER_ARCHITECTURE.md`)
+as one decision. Details: `docs/audio/PHASE_2_ASSET_INTEGRATION.md`.
+
+**Context.** Phase 1 shipped a React playback engine with sounds named by stable ids and no way to
+say which sounds exist, how loud they are, or where they play. Asset files already have a complete
+Django lifecycle (upload, validation, immutable versions, publish, retire, rollback, signed
+delivery) but games name files, not sounds. Without a decision, each game would carry its own sound
+table in TypeScript, edited by developers and deployed with the app.
+
+**Decision.**
+
+1. **Django is authoritative.** Which sounds exist, their mix settings and where they play are Django
+   data edited in Django Admin by staff with Django permissions. React has no staff screen and no
+   write endpoint (ADR-045). Games read only published data.
+2. **Sound cues are separate from audio files.** A `SoundCue` is a logical, stable name
+   (`sfx.chest.open`) plus playback settings that points at a `catalog.ContentAsset` of kind `audio`.
+   The binary, its versions, validation, storage and delivery stay entirely in the Asset Library.
+   Cue identity is never an object key, so a file can be replaced without renaming the sound, and a
+   sound can be renamed in the registry only by making a new cue.
+3. **Assignments use the existing hierarchy and identities.** A `SoundAssignment` attaches a cue to
+   a closed set of events on a target (scope, adventure, quest, NPC, object, chest, reward) inside
+   an Island, Place or 3D Area scope, using real foreign keys for scope and existing content ids for
+   targets. The vocabulary is a table in code; nothing is evaluated. For the same target, event and
+   channel the deepest scope replaces a more general one.
+4. **Publishing is an immutable release.** Cues and assignments are a working copy. Publishing
+   validates all of it and freezes it into one `SoundRelease` that pins each cue to an exact
+   `AssetVersion`. Exactly one release is live; creating one is atomic; rollback re-publishes an
+   earlier snapshot as a new release. Asset versions are already immutable, so no second version
+   system is introduced.
+5. **A read-only manifest reaches React.** `GET /children/<id>/audio/manifests/{islands,places,regions}/<id>/`
+   returns the sounds and assignments for a scope from the live release only, with a content
+   `revision` and no url. Each sound names its audio as `asset-id@version`; the client resolves that
+   through the existing child-scoped asset resolver, which issues fresh signed urls. Authorization is
+   the existing child scoping.
+6. **React adapts, it does not own.** A framework-free manifest sync registers the definitions into
+   the Phase 1 Sound Manager under its own owner and resolves audio through the shared Django
+   resolver. The engine, channels and lifecycle are unchanged.
+7. **Playback decisions made in Phase 1 stand:** Web Audio for mixing, streamed elements for long
+   audio, no third-party audio library, one shared manager per page, scopes for per-game cleanup.
+
+**Alternatives rejected.** Putting playback settings on the asset (couples a reusable file to one use
+and cannot name a sound separately from its file). A React sound editor (ADR-045). Storing a sound
+table in TypeScript (needs a deploy for every change). Serving signed urls inside the manifest
+(expire inside caches). Per-cue publish state (a live cue could change under a child between edits).
+A new version table for sound configuration (assets are already immutable).
+
+**Consequences.**
+
+- Adding a sound needs no deploy: upload and publish the file, add a cue and an assignment, publish a
+  release. A child sees it on the next manifest load.
+- A retired asset silently removes its sound from the live manifest and blocks the next publish until
+  fixed; the game continues without it.
+- Publishing is library-wide. Per-Island releases remain possible later.
+- Backward compatible: one new app and migration, no existing table changed, Phase 1 contracts only
+  extended with optional fields. A build without the Django API has no manifest and plays only
+  sounds the application registers itself.
+- Not verified audibly or in a browser; live AWS and a deployed Django are untouched.
+
+**Acceptance.** Remains Proposed until the owner accepts it. Development proceeded under the Phase 2
+brief; nothing is merged to `main` or deployed.
+
+
+
+## ADR-048: Spatial audio is a panner on the Sound Manager's one AudioContext; emitters and zones are reusable and Three.js-free; Django configures distances and zone beds
+
+**Status.** Proposed (2026-11-03, `feature/sound-manager`, SM-P7). Development only; not heard.
+
+**Context.** Treasure Rush and the Three.js worlds were silent in space. A positional layer must not
+create a second audio system, a second `AudioContext` or a second mix, and games must keep working
+when audio fails.
+
+**Decision.**
+
+1. **One engine, one context.** A positional voice is `source -> gain -> PannerNode -> channel`.
+   Master, channel, mute, reduced intensity, ducking, scopes and handles apply unchanged. We do not
+   use `THREE.AudioListener` or `PositionalAudio`, which would own a context or listener.
+2. **Plain data at the boundary.** Positions are `[x, y, z]` metres; Three.js is reached only through
+   structural adapters that read `matrixWorld`, so the audio package imports nothing from `three`.
+3. **Emitters read positions through functions** and hold no scene object; they are range-aware,
+   allocation-free per frame and removed with their source or scope.
+4. **Zones are a reusable resolver** (priority, recency, fallback) over the shared crossfading
+   director; games report enter and exit, the zones pick the bed. The Three.js engine gained a
+   `PlayerLeftZone` event for exits (additive).
+5. **Django owns staff settings.** Cue-level positional mode and distances, a `zone` assignment
+   target and a priority; all optional in the manifest, schema version unchanged.
+6. **Failure is silence or flat sound,** never an error: invalid options, unsupported engines and
+   exhausted voices degrade, with diagnostics.
+
+**Alternatives rejected.** Three.js `PositionalAudio` (second listener and context ownership).
+HRTF panning by default (cost, unverified by ear). Per-frame React state for positions (re-renders).
+A Django-administered spatial layout (ADR-033; layouts stay in TypeScript and the layout seed).
+
+**Consequences.** Positional audio costs one panner per placed sound and a capped voice count.
+Existing databases need `seed_treasure_rush` and a region publish to receive the Lookout zone.
+Acceptance remains with the owner after an audible check.
+
+
+## ADR-049: Django owns speech synthesis through Amazon Polly behind a fake-able client; games speak only server-approved references; React plays through the Sound Manager's voice channel
+
+**Status.** Proposed (2026-11-03, `feature/sound-manager`, SM-P8). Development only; a fake Polly
+client, a fake engine and an in-memory store are all that has run. Live verification is open.
+
+**Context.** Characters should be able to speak: Keeper Quill, Chatty, the tutor. Speech is text
+leaving the system for a third party and audio reaching a child, so it must never speak anything the
+server did not approve, must not need a browser credential, and must not make play depend on it.
+
+**Decision.**
+
+1. **Django synthesizes.** A small `PollyClient` interface with a deterministic fake and a lazy
+   `boto3` client. `disabled` is the default; nothing enables live synthesis by itself.
+2. **References, not text.** The API accepts a reference to an `ApprovedUtterance` (made from a
+   validated AI turn, per child, short-lived), an enabled staff `SpeechLine`, or an authored NPC
+   narration node. The text is re-checked with the AI output rules at request time.
+3. **Voices are staff configuration** in Django Admin, limited to an explicit voice / language /
+   engine table. Admin shows no text, keys or child ids for generated clips.
+4. **Dedicated cache and store.** Cache key over text, voice, engine, language, rate, cache version
+   and (for a child's AI text) the child. One synthesis per key under a database lock. Expiring
+   objects, signed expiring delivery, purge on child deletion. Generated speech never enters the
+   Sound Library automatically (ADR-047 stays the home of reusable audio).
+5. **Operational limits and honest cost.** Per-child and global daily caps, a process concurrency
+   gate, a kill switch, counts only in metrics, and a cost estimate that is labelled an estimate.
+6. **React plays, it does not synthesize.** Clips play as temporary `voice` sounds in a scope, so
+   child volume and mute, music ducking, spatial placement and cleanup are the Sound Manager's.
+   Captions come first and do not depend on audio.
+7. **Opt-in per world** through a speech binding; Keeper Quill's conversational lines may be
+   positional (ADR-048), while narration and instructions are flat.
+
+**Alternatives rejected.** Letting the browser call Polly (credentials, unrestricted text). An
+open text-to-speech endpoint (abuse, cost, unsafe content). Speaking raw model output (bypasses the
+guardrails). Browser speech synthesis (inconsistent voices, no server approval). Promoting every
+utterance to the Asset Library (unbounded storage of children's dialogue). Word-level timing (no
+timing data exists from this path).
+
+**Consequences.** Speech works only where a world registers a binding and staff enable a voice.
+Everything degrades to text. Cost depends on characters synthesized; the estimate must be checked
+against the AWS bill. The voice table needs checking against current Polly documentation before
+production. Not heard; no live AWS call was made.
+
+**Acceptance.** Remains Proposed until the owner accepts it and the live verification gate passes.

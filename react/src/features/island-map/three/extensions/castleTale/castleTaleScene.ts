@@ -43,6 +43,11 @@ export interface CastleTaleSceneApi {
   showSecretDoorOpened(opened: boolean): void;
   showEaselPainting(heroOptionId: string | null, settingOptionId: string | null): void;
   showStoryTold(told: boolean): void;
+  /**
+   * SM-P8: where Keeper Quill stands, for his voice. Writes his world position into `out` and
+   * returns false once he has left the scene; `undefined` if the scene has no Quill.
+   */
+  quillPositionReader(): ((out: [number, number, number]) => boolean) | undefined;
 }
 
 export type CastleQuillClip = 'Idle' | 'Talk' | 'Point' | 'ReactConcerned' | 'Celebrate';
@@ -491,6 +496,19 @@ export const castleTaleExtension: WorldExtension = {
 
     const api: CastleTaleSceneApi = {
       ready,
+      quillPositionReader() {
+        const root = quillRoot;
+        if (!root) return undefined;
+        return (out) => {
+          if (root.parent === null) return false;
+          root.updateWorldMatrix(true, false);
+          const e = root.matrixWorld.elements;
+          out[0] = e[12] as number;
+          out[1] = e[13] as number;
+          out[2] = e[14] as number;
+          return true;
+        };
+      },
       showChosenHero(entityId) {
         chosenHeroEntityId = entityId;
         applyVariants(portraitVariants, entityId);
