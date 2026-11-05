@@ -50,6 +50,10 @@ describe('engine boundary: what is an engine file', () => {
     expect(isEngineFile('features/island-map/tilemap.ts')).toBe(true);
     expect(isEngineFile('features/island-map/pirateBuilderBayZones.ts')).toBe(true);
     expect(isEngineFile('features/island-map/storykeeperCastleDecor.ts')).toBe(true);
+    expect(isEngineFile('features/npc-manager/engine/createNpcRuntime.ts')).toBe(true);
+    expect(isEngineFile('features/npc-manager/animation/npcAnimator.ts')).toBe(true);
+    expect(isEngineFile('features/npc-manager/behavior/behaviorController.ts')).toBe(true);
+    expect(isEngineFile('features/npc-manager/ui/npcUiCopy.ts')).toBe(false);
   });
 
   it('leaves React hosts, tests and the rest of the app alone', () => {
