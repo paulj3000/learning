@@ -7,7 +7,7 @@
  */
 
 import type { AdventureEvent, AnimationState } from './vocabulary';
-import type { RuntimeCharacter, RuntimePlacement } from './types';
+import type { BehaviorSpec, RuntimeCharacter, RuntimePlacement } from './types';
 
 export type InputMethod = 'pointer' | 'keyboard' | 'touch';
 
@@ -67,6 +67,48 @@ export interface PlayerPose {
   x: number;
   z: number;
 }
+
+/**
+ * Behaviour controller (LAI-NPC-019 to 024; implemented in `../behavior/`, consumed by the
+ * runtime in `../engine/`). Pure logic: no Three.js objects, no React, no network. The runtime
+ * calls `update` once per frame and applies the frame to the NPC's root and animator.
+ */
+export type Locomotion = 'idle' | 'walk' | 'run';
+
+export interface BehaviorFrame {
+  /** World position on the ground plane and facing (radians), after boundaries. */
+  x: number;
+  z: number;
+  yaw: number;
+  locomotion: Locomotion;
+  /** `npc.waypoint_reached` and `npc.behavior_changed` events produced this frame. */
+  events: NpcEngineEvent[];
+}
+
+export interface BehaviorController {
+  update(deltaSeconds: number, player: PlayerPose | null): BehaviorFrame;
+  /** Stop moving (a conversation or a scripted beat) and remember where to resume. */
+  interrupt(reason: 'dialogue' | 'scripted'): void;
+  /** Continue from where `interrupt` stopped. */
+  resume(): void;
+  /** The animation state configured for this adventure event (reaction), or null. */
+  react(event: AdventureEvent): AnimationState | null;
+  state(): BehaviorState;
+  dispose(): void;
+}
+
+export interface BehaviorControllerArgs {
+  placementKey: string;
+  /** null: stationary, facing `home.yaw`. */
+  spec: BehaviorSpec | null;
+  home: { x: number; z: number; yaw: number };
+  /** Existing scene collision (e.g. the location's colliders); true when blocked. */
+  isBlocked?: (x: number, z: number) => boolean;
+  /** Injected for deterministic tests (wander). Default Math.random. */
+  random?: () => number;
+}
+
+export type BehaviorControllerFactory = (args: BehaviorControllerArgs) => BehaviorController;
 
 /**
  * Lifecycle (LAI-NPC-008, -037):

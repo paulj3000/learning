@@ -249,17 +249,17 @@ Publishing may pre-generate clips for every node of a voiced character (fake cli
 ## 8. File ownership for parallel work
 
 Foundation-owned (integrator only): `lai/apps/npcs/{models,vocabulary,conditions,behaviors,
-published,api,urls}.py`, `publishing/`, `validation/__init__.py`, `tests/helpers.py`,
+published,api,urls,admin}.py`, `publishing/`, `validation/__init__.py`, `tests/helpers.py`,
 `migrations/0001_*`, `react/src/features/npc-manager/contracts/`, this document.
 
 | Workstream | Owns |
 |---|---|
-| A Admin and assets | `npcs/admin.py`, `npcs/admin_*.py`, `npcs/templates/`, `npcs/validation/assets.py`, `npcs/dependencies.py`, hooks in `apps/assets/services.py` retire paths |
+| A Admin and assets | `npcs/admin_characters.py`, `npcs/apps.py` (`ready()` hooks), `npcs/templates/`, `npcs/validation/assets.py`, `npcs/dependencies.py`, hooks in `apps/assets/services.py` retire paths |
 | B Runtime | `npcs/views_runtime.py`, `npcs/runtime.py`, `npcs/serializers_runtime.py`, `react/src/features/npc-manager/{api,engine,animation,ui}/` |
 | C Dialogue | `npcs/views_dialogue.py`, `npcs/dialogue.py`, `npcs/triggers.py`, `npcs/state.py`, `npcs/validation/dialogue.py`, `react/src/features/npc-manager/dialogue/` |
-| D Behaviour | `npcs/validation/behavior.py`, `npcs/preview_behavior.py`, `react/src/features/npc-manager/behavior/` |
+| D Behaviour | `npcs/admin_behavior.py`, `npcs/validation/behavior.py`, `npcs/preview_behavior.py`, `react/src/features/npc-manager/behavior/` |
 | E Voice | `apps/speech/` NPC additions, `npcs/speech.py`, `npcs/validation/voice.py`, `react/src/features/npc-manager/voice/` |
-| F AI | `npcs/views_ai.py`, `npcs/ai.py`, `npcs/validation/persona.py`, the NPC route in `apps/ai/` |
+| F AI | `npcs/admin_persona.py`, `npcs/views_ai.py`, `npcs/ai.py`, `npcs/validation/persona.py`, the NPC route in `apps/ai/` |
 
 Each workstream adds tests only under its own names (`lai/apps/npcs/tests/test_<area>_*.py`,
 co-located `*.test.ts`). A workstream that needs a schema or contract change stops and asks the
@@ -270,3 +270,4 @@ integrator; it does not add migrations to `npcs`.
 | Version | Date | Change |
 |---|---|---|
 | 1 | 2026-11-05 | Initial freeze (foundation commit). |
+| 1 | 2026-11-05 | Before any workstream started: `admin.py` split into `admin_characters` (A), `admin_behavior` (D), `admin_persona` (F); `BehaviorController` interface added to `engine.ts` (D implements, B consumes). |
