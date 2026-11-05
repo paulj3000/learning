@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { Group } from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../../api/errors';
-import { resetSharedSoundManager } from '../../../audio/sharedSoundManager';
+import { getSharedSoundManager, resetSharedSoundManager } from '../../../audio/sharedSoundManager';
 import type { AnswerOutcome } from '../../../api/play/types';
 import { emptyScene, type NpcApi } from '../api/npcApi';
 import { behaviorControllerFactory } from '../behavior';
@@ -17,6 +17,7 @@ import type {
 } from '../contracts/types';
 import type { AdventureEvent } from '../contracts/vocabulary';
 import type { NpcDialogueApi } from '../dialogue/npcDialogueApi';
+import type { SpeechSource } from '../../../audio/speech/SpeechPlayer';
 import type { NpcHintApi } from './npcHintApi';
 import {
   useNpcSceneHost,
@@ -191,6 +192,7 @@ interface Setup {
   api?: NpcApi;
   dialogueApi?: ReturnType<typeof fakeDialogueApi>;
   hintApi?: NpcHintApi;
+  speechSource?: SpeechSource | null;
   props?: Partial<UseNpcSceneHostOptions>;
 }
 
@@ -210,7 +212,7 @@ function setup(options: Setup = {}) {
     hintApi,
     loadModel: async () => ({ scene: new Group(), animations: [] }),
     behaviorFactory: behavior.factory,
-    speechSource: null,
+    speechSource: options.speechSource ?? null,
   };
   const host: { current: NpcSceneHost | null } = { current: null };
   function Probe(props: Partial<UseNpcSceneHostOptions>) {
@@ -540,5 +542,184 @@ describe('NPC scene host: play outcomes', () => {
     await flush();
     const triggers = dialogueApi.start.mock.calls.map(([, request]) => request.trigger);
     expect(triggers[0]).toBe('on_return_visit');
+  });
+});
+
+describe('NPC scene host: accessibility (LAI-NPC-038)', () => {
+  const SPOKEN = node('ahoy', 'Ahoy!', {
+    speech: {
+      kind: 'npcDialogueNode',
+      npcId: 'pirate-pip',
+      release: 1,
+      dialogueKey: 'mission-offer',
+      nodeKey: 'ahoy',
+    },
+  });
+  const speech = (): SpeechSource => ({
+    request: vi.fn(async () => ({
+      url: 'https://s.test/a.mp3',
+      expiresInSeconds: 900,
+      text: 'Ahoy!',
+      voiceProfile: 'pip',
+      cached: false,
+    })),
+  });
+
+  it('returns focus to the Talk prompt when the conversation closes', async () => {
+    const user = userEvent.setup();
+    const { world } = setup();
+    await flush();
+    world.moveTo({ x: 3, z: 7 });
+    await user.click(screen.getByRole('button', { name: 'Talk to Pirate Pip' }));
+    await flush();
+    expect(screen.getByRole('button', { name: 'Continue' })).toHaveFocus();
+    await user.keyboard('{Escape}');
+    await flush();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Talk to Pirate Pip' })).toHaveFocus();
+  });
+
+  it('returns focus to focusReturnTarget when the prompt is gone', async () => {
+    const user = userEvent.setup();
+    const canvas = document.createElement('canvas');
+    canvas.tabIndex = 0;
+    document.body.appendChild(canvas);
+    try {
+      const { host } = setup({ props: { focusReturnTarget: () => canvas } });
+      await flush();
+      act(() => void host.current?.interact('pirate-pip'));
+      await flush();
+      expect(screen.getByRole('button', { name: 'Continue' })).toHaveFocus();
+      await user.click(screen.getByRole('button', { name: 'Close' }));
+      await flush();
+      expect(canvas).toHaveFocus();
+    } finally {
+      canvas.remove();
+    }
+  });
+
+  it('muted: shows the caption only, with no replay button and no speech request', async () => {
+    getSharedSoundManager().setMuted(true);
+    const source = speech();
+    const { host } = setup({ dialogueApi: fakeDialogueApi(reply(SPOKEN)), speechSource: source });
+    await flush();
+    act(() => void host.current?.interact('pirate-pip'));
+    await flush();
+    expect(screen.getByText('Ahoy!')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Hear it again' })).toBeNull();
+    expect(source.request).not.toHaveBeenCalled();
+    // Unmuting brings the replay control back at once.
+    act(() => getSharedSoundManager().setMuted(false));
+    expect(screen.getByRole('button', { name: 'Hear it again' })).toBeVisible();
+  });
+
+  it('offers "Hear it again" for a voiced line and replays it', async () => {
+    const user = userEvent.setup();
+    const source = speech();
+    const { host } = setup({ dialogueApi: fakeDialogueApi(reply(SPOKEN)), speechSource: source });
+    await flush();
+    act(() => void host.current?.interact('pirate-pip'));
+    await flush();
+    const replay = screen.getByRole('button', { name: 'Hear it again' });
+    const before = vi.mocked(source.request).mock.calls.length;
+    await user.click(replay);
+    await flush();
+    expect(vi.mocked(source.request).mock.calls.length).toBeGreaterThan(before);
+    expect(screen.getByText('Ahoy!')).toBeVisible();
+  });
+
+  it('hides "Hear it again" with no speech source or an unvoiced line', async () => {
+    const { host } = setup({ dialogueApi: fakeDialogueApi(reply(SPOKEN)) });
+    await flush();
+    act(() => void host.current?.interact('pirate-pip'));
+    await flush();
+    expect(screen.getByText('Ahoy!')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Hear it again' })).toBeNull();
+  });
+
+  it('takes localized prompt and panel copy', async () => {
+    const { world } = setup({
+      props: {
+        copy: { prompt: { talkTo: (name) => `Sprich mit ${name}` }, dialogue: { close: 'Zu' } },
+      },
+    });
+    await flush();
+    world.moveTo({ x: 3, z: 7 });
+    await userEvent.click(screen.getByRole('button', { name: 'Sprich mit Pirate Pip' }));
+    await flush();
+    expect(screen.getByRole('button', { name: 'Zu' })).toBeVisible();
+  });
+
+  describe('reduced motion', () => {
+    let reduce = false;
+    const listeners = new Set<() => void>();
+    const original = window.matchMedia;
+    function stubMatchMedia(initial: boolean) {
+      reduce = initial;
+      window.matchMedia = ((query: string) => ({
+        get matches() {
+          return query.includes('reduced-motion') && reduce;
+        },
+        media: query,
+        addEventListener: (_: string, cb: () => void) => listeners.add(cb),
+        removeEventListener: (_: string, cb: () => void) => listeners.delete(cb),
+      })) as unknown as typeof window.matchMedia;
+    }
+    afterEach(() => {
+      window.matchMedia = original;
+      listeners.clear();
+    });
+
+    function reducedArgs() {
+      const seen: boolean[] = [];
+      const factory: BehaviorControllerFactory = (args) => {
+        seen.push(Boolean(args.reducedMotion));
+        return behaviorControllerFactory(args);
+      };
+      return { seen, factory };
+    }
+
+    const depsWith = (behaviorFactory: BehaviorControllerFactory) => ({
+      api: { getCatalog: vi.fn(), getAreaNpcs: vi.fn(async () => SCENE), getPlaceNpcs: vi.fn() },
+      dialogueApi: fakeDialogueApi(),
+      hintApi: { hint: vi.fn() },
+      loadModel: async () => ({ scene: new Group(), animations: [] }),
+      behaviorFactory,
+      speechSource: null,
+    });
+
+    it('passes the option to the runtime (wander and patrol stand still)', async () => {
+      const { seen, factory } = reducedArgs();
+      setup({ props: { reducedMotion: true, deps: depsWith(factory) } });
+      await flush();
+      expect(seen).toEqual([true]);
+    });
+
+    it('follows the system preference even when the world passes false, and re-reads changes', async () => {
+      stubMatchMedia(true);
+      const { seen, factory } = reducedArgs();
+      const { world, host } = setup({ props: { reducedMotion: false, deps: depsWith(factory) } });
+      await flush();
+      expect(seen).toEqual([true]);
+
+      // Live: with reduced motion the NPC turns to face the child in one frame.
+      const root = () => world.parent.children.find((c) => c.name === 'npc:cove-pip')!;
+      act(() => void host.current?.interact('pirate-pip'));
+      await flush();
+      world.moveTo({ x: 6, z: 6 });
+      const snapped = root().rotation.y;
+      for (let i = 0; i < 60; i += 1) world.moveTo({ x: 6, z: 6 });
+      expect(root().rotation.y).toBeCloseTo(snapped, 5);
+
+      // The system preference turns off: turning becomes gradual again, without a remount.
+      act(() => {
+        reduce = false;
+        for (const cb of [...listeners]) cb();
+      });
+      world.moveTo({ x: 0, z: 6 });
+      const firstFrame = root().rotation.y;
+      for (let i = 0; i < 60; i += 1) world.moveTo({ x: 0, z: 6 });
+      expect(root().rotation.y).not.toBeCloseTo(firstFrame, 3);
+    });
   });
 });

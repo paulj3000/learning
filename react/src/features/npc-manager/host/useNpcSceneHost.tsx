@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import type { SpeechSource } from '../../../audio/speech/SpeechPlayer';
 import { isApiError } from '../../../api/errors';
 import { npcApiFor, type NpcApi } from '../api/npcApi';
@@ -29,7 +37,8 @@ import {
 } from '../engine/createNpcRuntime';
 import { NpcDialoguePanel } from '../ui/NpcDialoguePanel';
 import { NpcInteractionPrompt } from '../ui/NpcInteractionPrompt';
-import { talkToLabel } from '../ui/npcUiCopy';
+import { NPC_PROMPT_COPY, type NpcDialogueCopy, type NpcPromptCopy } from '../ui/npcUiCopy';
+import { isNpcSpeechRef } from '../voice/npcVoiceCoordinator';
 import { useNpcVoice } from '../voice/useNpcVoice';
 import { npcHintApiFor, type NpcHintApi } from './npcHintApi';
 import { bestPlayTrigger, createTriggerQueue } from './triggerQueue';
@@ -60,6 +69,12 @@ export type { NpcHostScene } from './types';
  *
  * World-agnostic on purpose: Storykeeper's Castle can use it unchanged with its own scene.
  * React lives here, never in `engine/` or `behavior/` (ADR-020).
+ *
+ * Accessibility (LAI-NPC-038, `docs/NPC_MANAGER_ACCESSIBILITY.md`): captions always show; a
+ * "Hear it again" button appears only when the line has a voice the child can hear (it hides
+ * while the Sound Manager's master or voice channel is muted or at zero); focus goes back to the
+ * Talk prompt (or `focusReturnTarget`) when a conversation closes; and the runtime's reduced
+ * motion follows `reducedMotion` OR the system's `prefers-reduced-motion`, re-read live.
  */
 
 /** The Sound Manager's NPC events (Django `audio` `TargetType.NPC`). */
@@ -94,6 +109,13 @@ export interface UseNpcSceneHostOptions {
   onSound?(moment: NpcSoundMoment, npcId: string, placementKey: string): void;
   /** Optional keyboard shortcut for the Talk prompt. Off by default. */
   promptHotkey?: string | null;
+  /**
+   * Where keyboard focus goes when a conversation closes and the Talk prompt is not shown (the
+   * child walked away), for example the world's canvas or its main HUD button. Optional.
+   */
+  focusReturnTarget?(): HTMLElement | null;
+  /** Localized copy for the prompt and the panel; English defaults (`ui/npcUiCopy.ts`). */
+  copy?: { prompt?: NpcPromptCopy; dialogue?: Partial<NpcDialogueCopy> };
   deps?: NpcSceneHostDeps;
 }
 
@@ -127,6 +149,32 @@ interface Foreground extends Talking {
 
 const EMPTY_IDS: ReadonlySet<string> = new Set();
 
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+
+function reducedMotionQuery(): MediaQueryList | null {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia(REDUCED_MOTION_QUERY)
+    : null;
+}
+
+function subscribeReducedMotion(onChange: () => void): () => void {
+  const query = reducedMotionQuery();
+  if (!query) return () => undefined;
+  if (typeof query.addEventListener === 'function') {
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }
+  query.addListener?.(onChange);
+  return () => query.removeListener?.(onChange);
+}
+
+const systemPrefersReducedMotion = () => reducedMotionQuery()?.matches ?? false;
+
+/** The system's `prefers-reduced-motion`, re-read whenever it changes. */
+function useSystemReducedMotion(): boolean {
+  return useSyncExternalStore(subscribeReducedMotion, systemPrefersReducedMotion, () => false);
+}
+
 function scopeKey(scope: DialogueScope): string {
   return scope.kind === 'area' ? `area:${scope.regionId}` : `place:${scope.placeSlug}`;
 }
@@ -136,6 +184,12 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
   const key = scopeKey(options.scope);
   const latest = useRef(options);
   latest.current = options;
+  // Read by the runtime every frame (turning, procedural placeholder motion), so a change applies
+  // at once; wander and patrol pick still-or-moving when an NPC is mounted.
+  const systemReducedMotion = useSystemReducedMotion();
+  const reducedMotionRef = useRef(false);
+  reducedMotionRef.current = options.reducedMotion || systemReducedMotion;
+  const promptRef = useRef<HTMLButtonElement>(null);
 
   // Collaborators, once per child and scope (the dialogue hook needs a stable api).
   const stableScope = useMemo<DialogueScope>(
@@ -316,7 +370,7 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
     const runtime = createNpcRuntime({
       parent: scene.parent,
       loadModel,
-      reducedMotion: () => latest.current.reducedMotion,
+      reducedMotion: () => reducedMotionRef.current,
       behaviorFactory,
       ...(scene.isBlocked ? { isBlocked: (x: number, z: number) => scene.isBlocked!(x, z) } : {}),
     });
@@ -485,6 +539,12 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
     Boolean(foreground && (foreground.pending || view.status === 'loading' || isError));
   const panelVisible = conversationOpen && !suspended;
 
+  const copy = options.copy;
+  const returnFocusTo = useCallback((): HTMLElement | null => {
+    if (latest.current.suspended) return null; // the other panel owns focus now
+    return promptRef.current ?? latest.current.focusReturnTarget?.() ?? null;
+  }, []);
+
   let panel: ReactNode = null;
   if (panelVisible) {
     const npcId = view.npcId ?? foreground?.npcId ?? null;
@@ -496,6 +556,14 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
           ? hint.text
           : ((voice.state.nodeKey === node.nodeKey ? voice.state.caption : null) ?? node.text)
         : null;
+    // "Hear it again": only for a voiced line the child can hear, and not over a hint's words.
+    const showingHint = Boolean(node && hint && hint.nodeKey === node.nodeKey);
+    const replayNode =
+      node && !isError && !showingHint && isNpcSpeechRef(node.speech) && voice.speechAvailable
+        ? node
+        : null;
+    const onReplay =
+      replayNode && !voice.silent ? () => void voiceRef.current.play(replayNode) : undefined;
     panel = (
       <NpcDialoguePanel
         speakerName={nameOf(npcId)}
@@ -509,6 +577,10 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
           else close();
         }}
         onClose={close}
+        onReplay={onReplay}
+        replayDisabled={voice.state.nodeKey === node?.nodeKey && voice.state.phase === 'loading'}
+        returnFocusTo={returnFocusTo}
+        copy={copy?.dialogue}
       />
     );
   }
@@ -520,7 +592,8 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
     if (placement) {
       prompt = (
         <NpcInteractionPrompt
-          label={talkToLabel(nameOf(placement.npcId))}
+          label={(copy?.prompt ?? NPC_PROMPT_COPY).talkTo(nameOf(placement.npcId))}
+          buttonRef={promptRef}
           hotkey={options.promptHotkey ?? null}
           onInteract={(via) => runtimeRef.current?.requestInteract(placementKey, via)}
         />

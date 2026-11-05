@@ -111,6 +111,37 @@ describe('useNpcVoice', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Ahoy!');
   });
 
+  it('reports silent live from the Sound Manager, and speechAvailable from the source (LAI-NPC-038)', async () => {
+    const w = world();
+    render(w.wrap());
+    await tick();
+    expect(w.voice().silent).toBe(false);
+    expect(w.voice().speechAvailable).toBe(true);
+    act(() => w.manager.setMuted(true));
+    expect(w.voice().silent).toBe(true);
+    act(() => w.manager.setMuted(false));
+    act(() => w.manager.setChannelVolume('voice', 0));
+    expect(w.voice().silent).toBe(true);
+    act(() => w.manager.setChannelVolume('voice', 1));
+    expect(w.voice().silent).toBe(false);
+  });
+
+  it('a null source is captions only: speechAvailable is false', async () => {
+    const engine = new FakeEngine();
+    const manager = createSoundManager({ engine });
+    let voice!: UseNpcVoice;
+    render(
+      <SoundProvider manager={manager} unlockOnGesture={false}>
+        <Probe source={null} send={vi.fn()} onReady={(v) => (voice = v)} />
+      </SoundProvider>,
+    );
+    await tick();
+    expect(voice.speechAvailable).toBe(false);
+    act(() => void voice.play(NODE));
+    await tick();
+    expect(screen.getByRole('status')).toHaveTextContent('Ahoy!');
+  });
+
   it('unmounting stops the voice and the talk animation', async () => {
     const w = world();
     const view = render(w.wrap());

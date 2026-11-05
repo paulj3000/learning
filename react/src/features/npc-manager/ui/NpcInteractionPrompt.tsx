@@ -1,6 +1,7 @@
-import { useEffect, useRef, type PointerEvent } from 'react';
+import { useEffect, useRef, type PointerEvent, type Ref } from 'react';
 import type { InputMethod } from '../contracts/engine';
 import styles from './NpcInteraction.module.css';
+import { NpcTalkIcon } from './NpcIcons';
 
 export interface NpcInteractionPromptProps {
   /** The full, localized label, e.g. `talkToLabel('Pirate Pip')` ("Talk to Pirate Pip"). */
@@ -14,6 +15,8 @@ export interface NpcInteractionPromptProps {
    */
   hotkey?: string | null;
   className?: string;
+  /** The underlying button, so a host can return focus to it after a conversation. */
+  buttonRef?: Ref<HTMLButtonElement>;
 }
 
 /**
@@ -21,12 +24,17 @@ export interface NpcInteractionPromptProps {
  * pointer, touch (at least 48 px tall), and Enter/Space when focused all work; the optional
  * `hotkey` adds a keyboard shortcut for first-person play. Presentational: the host decides when
  * to show it (between `npc.approached` and `npc.left`) and forwards `onInteract` to the runtime.
+ *
+ * Accessibility (LAI-NPC-038): a speech-bubble icon sits next to the text for pre-readers (the
+ * text alone is the accessible name), the target is at least 56 px tall for ages 3 to 4, there is
+ * no hover-only affordance, and a single tap activates it (`touch-action: manipulation`).
  */
 export function NpcInteractionPrompt({
   label,
   onInteract,
   hotkey = null,
   className,
+  buttonRef,
 }: NpcInteractionPromptProps) {
   const lastPointer = useRef<InputMethod | null>(null);
   const onInteractRef = useRef(onInteract);
@@ -54,6 +62,7 @@ export function NpcInteractionPrompt({
 
   return (
     <button
+      ref={buttonRef}
       type="button"
       className={[styles.prompt, className].filter(Boolean).join(' ')}
       onPointerDown={onPointerDown}
@@ -65,6 +74,7 @@ export function NpcInteractionPrompt({
       }}
       aria-keyshortcuts={hotkey ? hotkey.toUpperCase() : undefined}
     >
+      <NpcTalkIcon className={styles.icon} />
       <span>{label}</span>
       {hotkey ? (
         <span className={styles.key} aria-hidden="true">

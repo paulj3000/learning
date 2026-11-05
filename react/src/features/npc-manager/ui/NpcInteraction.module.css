@@ -2,7 +2,17 @@
   NPC Manager interaction UI (LAI-NPC-014). Follows Treasure Rush's in-world panels
   (RegionPlayPanels.module.css): a bottom sheet over the stage on a tablet, a card on wider
   screens, paper surfaces and chunky lip buttons from the island's tokens.
+
+  Accessibility (LAI-NPC-038, docs/NPC_MANAGER_ACCESSIBILITY.md): every control is at least
+  --npc-target (3.5rem, 56 px at the default font size), above the 48 px minimum, for the
+  youngest players; no hover-only styling; one tap activates (touch-action: manipulation);
+  transitions are off under prefers-reduced-motion.
 */
+
+.prompt,
+.panel {
+  --npc-target: 3.5rem;
+}
 
 .prompt {
   position: fixed;
@@ -10,8 +20,8 @@
   bottom: var(--space-6);
   transform: translateX(-50%);
   z-index: 15;
-  min-width: 3rem;
-  min-height: 3rem;
+  min-width: var(--npc-target);
+  min-height: var(--npc-target);
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -46,7 +56,24 @@
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-body);
+}
+
+.icon {
+  flex: none;
+}
+
+/* Read by screen readers, not shown (the speaker's name before each announced line). */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .panel {
@@ -126,7 +153,11 @@
 .button,
 .primary,
 .choice {
-  min-height: 3rem;
+  min-width: var(--npc-target);
+  min-height: var(--npc-target);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   padding: var(--space-2) var(--space-6);
   border: none;
   border-radius: var(--radius-pill);
@@ -181,5 +212,16 @@
   .primary,
   .choice {
     transition: none;
+  }
+
+  /* Keep the press feedback a colour cue only: no movement. */
+  .prompt:active {
+    transform: translateX(-50%);
+  }
+
+  .button:active:not(:disabled),
+  .primary:active:not(:disabled),
+  .choice:active:not(:disabled) {
+    transform: none;
   }
 }
