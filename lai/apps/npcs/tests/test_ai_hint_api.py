@@ -507,6 +507,6 @@ def test_game_cookie_reaches_the_hint_only_on_its_area(treasure, api, staff, fak
     assert allowed.status_code == 200 and allowed.json()["hint"]["source"] == "AI"
     place_slug = treasure.region.location.slug
     place = f"/api/v1/children/{child.pk}/places/{place_slug}/npcs/{NPC}/interactions/"
-    assert runtime.post(f"{place}{conversation}/hint/", {}).status_code == 404
+    assert runtime.post(f"{place}{conversation}/hint/", {}).status_code in (401, 403)  # bearer-only
     sibling = f"/api/v1/children/{families.a2.pk}/regions/{region}/npcs/{NPC}/interactions/"
     assert runtime.post(f"{sibling}{conversation}/hint/", {}).status_code == 404
