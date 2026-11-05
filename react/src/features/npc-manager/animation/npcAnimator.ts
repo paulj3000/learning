@@ -110,12 +110,26 @@ export function createNpcAnimator(options: NpcAnimatorOptions): NpcAnimator {
     return clips.find((clip) => clip.name === name) ?? null;
   }
 
-  function resolveClip(state: AnimationState): AnimationClip | null {
-    for (const candidate of [state, ...ANIMATION_FALLBACKS[state], 'idle' as const]) {
+  // Resolved once per state: clips and the map never change for an animator (LAI-NPC-037).
+  const resolved = new Map<AnimationState, AnimationClip | null>();
+
+  function lookupClip(state: AnimationState): AnimationClip | null {
+    const own = clipNamed(animationMap[state]);
+    if (own) return own;
+    for (const candidate of ANIMATION_FALLBACKS[state]) {
       const clip = clipNamed(animationMap[candidate]);
       if (clip) return clip;
     }
-    return null;
+    return clipNamed(animationMap.idle);
+  }
+
+  function resolveClip(state: AnimationState): AnimationClip | null {
+    let clip = resolved.get(state);
+    if (clip === undefined) {
+      clip = lookupClip(state);
+      resolved.set(state, clip);
+    }
+    return clip;
   }
 
   function configure(action: AnimationAction, loop: boolean): void {
@@ -258,7 +272,10 @@ export function createNpcAnimator(options: NpcAnimatorOptions): NpcAnimator {
       disposed = true;
       mixer.removeEventListener('finished', onMixerFinished);
       mixer.stopAllAction();
+      // Drop every action and binding this mixer cached (clips are shared, the caches are not).
+      for (const clip of clips) mixer.uncacheClip(clip);
       mixer.uncacheRoot(root);
+      resolved.clear();
       root.position.y = restY;
       overlay = null;
       active = null;

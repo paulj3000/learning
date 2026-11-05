@@ -16,6 +16,8 @@ import type {
  */
 
 export const FACE_PLAYER_DISTANCE = 5;
+/** Frozen so a consumer that mutates a frame's events fails loudly instead of leaking. */
+const NO_EVENTS = Object.freeze([]) as unknown as NpcEngineEvent[];
 /** Radians per second. */
 export const TURN_SPEED = 4;
 
@@ -44,6 +46,8 @@ export function createStationaryBehavior(args: BehaviorControllerArgs): Behavior
   let yaw = home.yaw;
   let state: BehaviorState = 'idle';
   let pending: NpcEngineEvent[] = [];
+  // Reused every frame (no per-frame allocation, LAI-NPC-037); valid until the next `update`.
+  const frame: BehaviorFrame = { x: home.x, z: home.z, yaw, locomotion: 'idle', events: NO_EVENTS };
 
   function setState(next: BehaviorState): void {
     if (next === state) return;
@@ -63,9 +67,14 @@ export function createStationaryBehavior(args: BehaviorControllerArgs): Behavior
         }
         yaw = turnToward(yaw, target, TURN_SPEED * Math.max(0, deltaSeconds));
       }
-      const events = pending;
-      pending = [];
-      return { x: home.x, z: home.z, yaw, locomotion: 'idle', events };
+      if (pending.length > 0) {
+        frame.events = pending;
+        pending = [];
+      } else {
+        frame.events = NO_EVENTS;
+      }
+      frame.yaw = yaw;
+      return frame;
     },
     interrupt() {
       setState('interrupted');
