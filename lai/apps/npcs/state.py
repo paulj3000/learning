@@ -58,10 +58,12 @@ def _locked_state(child, npc_id: str) -> NpcConversationState:
     return state
 
 
-def _context(child, npc_id: str, state: NpcConversationState):
+def _context(child, npc_id: str, state: NpcConversationState, *, in_conversation=False):
     # Visits counted by this state win; before the first counted conversation, an existing
-    # NpcRelationship (the child met this NPC through play) makes it a return visit.
-    prior = state.visit_count or None
+    # NpcRelationship (the child met this NPC through play) makes it a return visit. Inside an
+    # open conversation the current visit is not a prior one, so FIRST_VISIT and RETURN_VISIT
+    # read the same on every node of one conversation.
+    prior = (state.visit_count - (1 if in_conversation else 0)) or None
     return conditions.context_for(child, npc_id, local_flags=state.local_flags, prior_visits=prior)
 
 
@@ -159,7 +161,7 @@ def _close(state: NpcConversationState) -> None:
 
 
 def _apply(child, release, state, current, node, action, choice_key) -> Conversation:
-    ctx = _context(child, state.npc_id, state)
+    ctx = _context(child, state.npc_id, state, in_conversation=True)
     if action == "end":
         step = dialogue.Step(node=None, local_flags=dict(ctx.local_flags))
     elif action == "advance":

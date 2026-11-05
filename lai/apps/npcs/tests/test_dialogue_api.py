@@ -12,6 +12,7 @@ from django.utils.timezone import now
 
 from apps.catalog.models import Quest
 from apps.inventory.models import InventoryItem
+from apps.npcs import triggers
 from apps.npcs.models import (
     NpcCharacter,
     NpcConversationState,
@@ -116,13 +117,26 @@ def act(client, child, conversation_id, action, body=None):
     return post(client, f"{place_url(child)}{conversation_id}/{action}/", body)
 
 
+#: Apps that own authoritative progress. No interaction route may write any of their rows.
+PROGRESS_APPS = ("progression", "quests", "inventory", "game_sessions", "rewards", "mastery")
+
+
 def progress_counts(child):
-    return (
-        NpcRelationship.objects.filter(child=child).count(),
-        WorldChange.objects.filter(child=child).count(),
-        QuestProgress.objects.filter(child=child).count(),
-        InventoryItem.objects.filter(child=child).count(),
-    )
+    """Row counts for every child-owned model of the progress apps (plus a total of all rows)."""
+    from django.apps import apps as django_apps
+
+    counts = {
+        "relationships": NpcRelationship.objects.filter(child=child).count(),
+        "world_changes": WorldChange.objects.filter(child=child).count(),
+        "quests": QuestProgress.objects.filter(child=child).count(),
+        "inventory": InventoryItem.objects.filter(child=child).count(),
+    }
+    for config in django_apps.get_app_configs():
+        if config.label not in PROGRESS_APPS:
+            continue
+        for model in config.get_models():
+            counts[model._meta.label] = model.objects.count()
+    return counts
 
 
 # --- start ---------------------------------------------------------------------------------------
@@ -306,10 +320,20 @@ def test_no_active_release_is_404(pip, a):
 
 
 def test_game_cookie_reaches_only_its_own_area(treasure, api, staff):
+    from apps.catalog.models import Location
+    from apps.core.content_status import ContentStatus
     from apps.game_sessions.tests.test_game_launch import open_runtime
+    from apps.regions.models import WorldRegion
 
+    second = WorldRegion.objects.create(
+        region_id="second-cove",
+        location=Location.objects.get(slug="wonderwild-forest"),
+        title="Second Cove",
+        status=ContentStatus.PUBLISHED,
+    )
     character = make_character(NPC)
     make_placement(character, "cove-pip", region=treasure.region)
+    make_placement(character, "second-pip", region=second)  # placed in both Areas
     make_dialogue(character)
     publish(staff)
     families = treasure.families
@@ -329,8 +353,11 @@ def test_game_cookie_reaches_only_its_own_area(treasure, api, staff):
     assert runtime.post(place, {"trigger": "on_interact"}).status_code == 404
     sibling = f"/api/v1/children/{families.a2.pk}/regions/{region}/npcs/{NPC}/interactions/"
     assert runtime.post(sibling, {"trigger": "on_interact"}).status_code == 404
-    other_area = f"/api/v1/children/{child.pk}/regions/some-other-area/npcs/{NPC}/interactions/"
+    other_area = f"/api/v1/children/{child.pk}/regions/second-cove/npcs/{NPC}/interactions/"
+    assert post(parent, other_area, {"trigger": "on_interact"}).status_code == 200  # bearer can
     assert runtime.post(other_area, {"trigger": "on_interact"}).status_code == 404
+    unknown = f"/api/v1/children/{child.pk}/regions/some-other-area/npcs/{NPC}/interactions/"
+    assert runtime.post(unknown, {"trigger": "on_interact"}).status_code == 404
 
 
 # --- age bands, conditions, once per child -------------------------------------------------------
@@ -409,6 +436,35 @@ def test_once_per_child_and_visit_conditions(staff, a, families, api):
     assert start(client, child).json()["dialogueKey"] == "welcome-back"
     # A sibling has their own state.
     assert start(client, families.a2).json()["dialogueKey"] == "first-hello"
+
+
+def test_visit_conditions_hold_steady_within_one_conversation(staff, a):
+    """The visit a conversation belongs to is not a prior visit while it is open."""
+    character = make_character(NPC)
+    make_placement(character)
+    build(
+        character,
+        "talk",
+        {
+            "hello": {"text": "Hello.", "next": "first"},
+            "first": {
+                "text": "First time here?",
+                "conds": [{"type": "FIRST_VISIT"}],
+                "next": "again",
+            },
+            "again": {"text": "Back again!", "conds": [{"type": "RETURN_VISIT"}]},
+        },
+    )
+    publish(staff)
+    client, child = a
+    first = start(client, child).json()
+    moved = act(client, child, first["conversationId"], "advance").json()
+    assert moved["node"]["nodeKey"] == "first"
+    assert act(client, child, first["conversationId"], "advance").json()["ended"]
+    second = start(client, child).json()
+    assert (
+        act(client, child, second["conversationId"], "advance").json()["node"]["nodeKey"] == "again"
+    )
 
 
 def test_an_existing_relationship_makes_a_return_visit(staff, a):
@@ -531,9 +587,12 @@ def test_no_interaction_writes_progress(actions, a):
         body = start(client, child).json()
         act(client, child, body["conversationId"], "choose", {"choiceKey": key})
         act(client, child, body["conversationId"], "advance")
-    start(client, child, "on_correct_answer")
-    start(client, child, "on_quest_complete")
+    for trigger in triggers.TRIGGER_SOURCES:
+        body = start(client, child, trigger).json()
+        if body["conversationId"]:
+            act(client, child, body["conversationId"], "end")
     assert progress_counts(child) == before
+    assert len(before) > 4  # the generic sweep found the progress apps' models
 
 
 def test_voiced_characters_get_a_speech_reference(pip, staff, a):
