@@ -20,7 +20,8 @@ import { WorldEngineEventBus } from '../../worldEngineEvents';
 import { CastleTaleCompanion } from './CastleTaleCompanion';
 import { castleTaleViewExtension } from './castleTaleViewExtension';
 import { managedCastleNpcFor, resetCastleNpcHandover } from './castleNpcHandover';
-import type { CastleTaleSceneApi } from './castleTaleScene';
+import type { CastleQuillClip, CastleTaleSceneApi } from './castleTaleScene';
+import { QUILL_CLIP_STATES } from './useCastleNpcs';
 
 /**
  * Storykeeper's Castle with the NPC Manager (LAI-NPC-039): the castle mounts the shared NPC scene
@@ -229,8 +230,12 @@ function fakeScene() {
       },
     ),
     isNpcProxied: (entityId: string) => proxied.has(entityId),
+    setQuillGestureSink: vi.fn((sink: ((clip: CastleQuillClip, yaw: number) => void) | null) => {
+      gesture.sink = sink;
+    }),
   } satisfies CastleTaleSceneApi;
-  return { scene, parent, proxied, stops };
+  const gesture: { sink: ((clip: CastleQuillClip, yaw: number) => void) | null } = { sink: null };
+  return { scene, parent, proxied, stops, gesture };
 }
 
 /** The view's part: claims go through `castle-tale`'s own `claimsInteraction`, like the view. */
@@ -363,6 +368,27 @@ describe('the castle mounts the shared NPC host for its Place', () => {
     expect(dialogueApi.start).not.toHaveBeenCalled();
     expect(progress.recordLegacyMeeting).not.toHaveBeenCalled();
     warn.mockRestore();
+  });
+
+  it("forwards the castle's scripted Quill gestures to the managed Quill, and stops on leaving", async () => {
+    const { scene, parent, gesture } = fakeScene();
+    const visit = render(<Visit sceneApi={scene} />);
+    await settle();
+    expect(gesture.sink).toBeTypeOf('function');
+    const root = parent.children.find((c) => c.name === 'npc:castle-quill');
+    expect(root).toBeDefined();
+    act(() => gesture.sink?.('Point', 1.25)); // the hint rung pointing at the mantel
+    act(() => gesture.sink?.('Idle', 0));
+    expect(QUILL_CLIP_STATES).toEqual({
+      Idle: 'idle',
+      Talk: 'talk',
+      Point: 'point',
+      ReactConcerned: 'sad',
+      Celebrate: 'celebrate',
+    });
+    visit.unmount();
+    expect(scene.setQuillGestureSink).toHaveBeenLastCalledWith(null);
+    expect(gesture.sink).toBeNull();
   });
 
   it('gives the manifest Quill back and stops the host when the child leaves the castle', async () => {

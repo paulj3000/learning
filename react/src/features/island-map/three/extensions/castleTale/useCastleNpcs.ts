@@ -10,7 +10,18 @@ import {
 import type { WorldInteraction } from '../../../worldObjects';
 import { handOverCastleNpcs, managedCastleNpcFor } from './castleNpcHandover';
 import { acceptLegacyQuest, recordLegacyMeeting } from './castleNpcProgress';
-import type { CastleTaleSceneApi } from './castleTaleScene';
+import type { AnimationState } from '../../../../npc-manager/contracts/vocabulary';
+import type { CastleQuillClip, CastleTaleSceneApi } from './castleTaleScene';
+
+/** The castle's scripted Quill clips as NPC Manager animation states (contract section 6). */
+export const QUILL_CLIP_STATES: Readonly<Record<CastleQuillClip, AnimationState>> = {
+  Idle: 'idle',
+  Talk: 'talk',
+  Point: 'point',
+  ReactConcerned: 'sad',
+  Celebrate: 'celebrate',
+};
+const QUILL_NPC_ID = 'keeper-quill';
 
 /** The castle is a Place in Django (no 3D Area), so the host asks the Place route. */
 export const CASTLE_PLACE_SLUG = 'storykeeper-castle';
@@ -92,9 +103,17 @@ export function useCastleNpcs(options: UseCastleNpcsOptions): CastleNpcs {
     for (const { entityId, npcId } of served) {
       scene?.setNpcProxy?.(entityId, () => hostRef.current.positionOf(npcId));
     }
+    // The castle's own gestures (hint pointing, concern, celebration) reach the managed Quill.
+    const quillServed = served.some((handover) => handover.npcId === QUILL_NPC_ID);
+    if (quillServed) {
+      scene?.setQuillGestureSink?.((clip, facingYaw) => {
+        hostRef.current.animate(QUILL_NPC_ID, QUILL_CLIP_STATES[clip], { facingYaw });
+      });
+    }
     return () => {
       release();
       for (const { entityId } of served) scene?.setNpcProxy?.(entityId, null);
+      if (quillServed) scene?.setQuillGestureSink?.(null);
     };
   }, [scene, handovers, managedNpcIds]);
 

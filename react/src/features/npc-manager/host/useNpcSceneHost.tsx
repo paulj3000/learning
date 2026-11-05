@@ -20,7 +20,7 @@ import type {
   NpcSpawn,
 } from '../contracts/engine';
 import type { NpcSceneResponse, RuntimeCharacter } from '../contracts/types';
-import { ANIMATION_PRIORITY } from '../contracts/vocabulary';
+import { ANIMATION_PRIORITY, type AnimationState } from '../contracts/vocabulary';
 import type { DialogueEvent } from '../dialogue/dialogueController';
 import { DIALOGUE_COPY } from '../dialogue/dialogueCopy';
 import {
@@ -129,6 +129,12 @@ export interface NpcSceneHost {
   notifyPlay(outcome: PlayOutcome): void;
   /** Where a managed NPC stands now, or null. */
   positionOf(npcId: string): { x: number; z: number } | null;
+  /**
+   * A world's own scripted gesture for a managed NPC (for example Quill pointing at the
+   * mantel), at the scripted priority band; `idle` releases it back to the behaviour's base
+   * state. `facingYaw` turns the NPC first. False when the NPC is not managed here.
+   */
+  animate(npcId: string, state: AnimationState, options?: { facingYaw?: number }): boolean;
   /** True while a conversation is open or starting. */
   conversationOpen: boolean;
   /** The Talk prompt, or null. Render it on the stage. */
@@ -489,6 +495,33 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
     [placementOf],
   );
 
+  const animate = useCallback(
+    (npcId: string, state: AnimationState, options?: { facingYaw?: number }) => {
+      const placementKey = placementOf(npcId);
+      const runtime = runtimeRef.current;
+      if (!placementKey || !runtime) return false;
+      if (options?.facingYaw !== undefined) {
+        runtime.send({ type: 'face', placementKey, target: { yaw: options.facingYaw } });
+      }
+      if (state === 'idle') {
+        runtime.send({
+          type: 'stop_animation',
+          placementKey,
+          priority: ANIMATION_PRIORITY.scripted,
+        });
+      } else {
+        runtime.send({
+          type: 'animate',
+          placementKey,
+          state,
+          priority: ANIMATION_PRIORITY.scripted,
+        });
+      }
+      return true;
+    },
+    [placementOf],
+  );
+
   const managedNpcIds = useMemo<ReadonlySet<string>>(
     () => (ready && sceneData ? new Set(sceneData.placements.map((p) => p.npcId)) : EMPTY_IDS),
     [ready, sceneData],
@@ -607,6 +640,7 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
     interact,
     notifyPlay,
     positionOf,
+    animate,
     conversationOpen,
     prompt,
     panel,

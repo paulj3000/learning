@@ -65,6 +65,11 @@ export interface CastleTaleSceneApi {
   setNpcProxy?(entityId: string, follow: (() => { x: number; z: number } | null) | null): void;
   /** LAI-NPC-039: whether a manifest NPC is handed over (hidden). */
   isNpcProxied?(entityId: string): boolean;
+  /**
+   * While the NPC Manager serves Quill, his scripted gestures are forwarded here too (the
+   * manifest Quill is hidden), with the yaw he should face. Null stops forwarding.
+   */
+  setQuillGestureSink?(sink: ((clip: CastleQuillClip, facingYaw: number) => void) | null): void;
 }
 
 export type CastleQuillClip = 'Idle' | 'Talk' | 'Point' | 'ReactConcerned' | 'Celebrate';
@@ -240,7 +245,10 @@ export const castleTaleExtension: WorldExtension = {
       ),
     };
 
+    let quillGestureSink: ((clip: CastleQuillClip, facingYaw: number) => void) | null = null;
+
     function playQuillClip(clip: CastleQuillClip, facing?: CastleQuillFacing): void {
+      quillGestureSink?.(clip, quillFacingYaw[facing ?? (clip === 'Point' ? 'gallery' : 'entry')]);
       const animator = context.npcAnimator(config.quillEntityId);
       const authored = animator?.clips.find((candidate) => candidate.name === clip);
       if (!animator || !authored) return;
@@ -580,6 +588,9 @@ export const castleTaleExtension: WorldExtension = {
         root.position.z = current.home.z;
       },
       isNpcProxied: (entityId) => proxies.has(entityId),
+      setQuillGestureSink(sink) {
+        quillGestureSink = sink;
+      },
       resetBindingPlates: (active) => platePuzzle.reset(active),
       resetLibraryClues: () => cluePuzzle.reset(),
       resetPatternLockRods: () => rodPuzzle.reset(),
