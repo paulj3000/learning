@@ -75,6 +75,9 @@ api.<domain> --HTTPS--> ALB (ACM certificate, TLS policy RECOMMENDED_TLS, HTTP -
                       backups 7 / 14 days, snapshot on delete, master secret in Secrets Manager)
 ```
 
+The compose project also runs `studio-worker`, the AI Question Studio background worker (no
+port, same image and settings as `django`; ADR-052, `docs/platform/STUDIO_WORKER_RUNBOOK.md`).
+
 No NAT gateway: the instance has a public address so it can reach ECR, SSM, CloudWatch, Secrets
 Manager, S3 and Cognito's JWKS endpoint, but nothing reaches it except the ALB.
 

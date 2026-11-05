@@ -12183,3 +12183,78 @@ passed 3 of 3. The same happened once earlier in the session.
 cost incurred), live S3 storage and S3 signed delivery, live Cognito tokens (ADR-024 A6), the
 Amplify Data screens (harbor map, adventure log, Amplify-session places; unchanged on this
 branch), and the owner's playtest of the TR-9 feel items.
+
+## LAI-AQS-027: AI Question Studio background queue (2026-11-05)
+
+Branch `feature/ai-studio-queue` from `main` (`5222b69`). ADR-052 **Proposed**. Design:
+`docs/AI_QUESTION_STUDIO.md` section 14; operations: `docs/platform/STUDIO_WORKER_RUNBOOK.md`.
+Nothing was pushed, merged or deployed, and no AWS call was made.
+
+- **Implemented.** A PostgreSQL-backed job queue for Studio generation batches
+  (`lai/apps/question_studio/jobs.py`). `GenerationBatch` is the durable job record (frozen
+  request fields, status moves limited to `BATCH_TRANSITIONS`, lease, heartbeat, claim, recovery,
+  retry and cancel fields); new `GenerationChunk` rows are the work items (status, attempts and
+  budget, backoff time, claim token, tokens, sanitized error); new `StudioWorker` rows record worker
+  check-ins. Claiming uses an advisory transaction lock plus `SELECT ... FOR UPDATE SKIP LOCKED`
+  with a running-batch cap across workers; leases are renewed at each step and by a heartbeat
+  thread during a model call; every write is fenced by the lease token; a chunk's questions and
+  counters commit in one transaction under a unique (chunk, position) slot, so a crash loses at
+  most the chunk in flight and nothing is stored twice. Retryable failures back off
+  exponentially; staff can retry only the failed chunks of a finished batch, or cancel
+  cooperatively. `manage.py studio_worker` (graceful SIGTERM, `--once`, `--concurrency`,
+  `--max-batches`, heartbeat file) and `studio_worker_health`; `studio_run_batch` now uses the same
+  claim path. The `studio-worker` service in `deploy/ec2/docker-compose.yml` (same image, network,
+  log group and instance role; no port). Django Admin: display states (Stalled, Waiting to retry,
+  Waiting for a worker, Cancelling), chunk inline, lease and heartbeat details, 10 s refresh while
+  active, Cancel and Retry failed chunks (button and bulk action, with permissions), one-time form
+  key against duplicate submits, read-only Studio workers list.
+- **Decisions.** PostgreSQL polling worker as its own compose service (ADR-052); SQS (new AWS
+  infrastructure, still needs database idempotency) and library queues (Redis, or a new dependency
+  without fencing or per-chunk idempotency) rejected for now. Statuses renamed `COMPLETED` to
+  `SUCCEEDED` and `PARTIAL` to `PARTIALLY_FAILED`, `CANCELLED` added (migration
+  `question_studio/0002_job_queue`, reversible; `CANCELLED` maps back to `FAILED`). Production
+  defaults `LAI_STUDIO_RUN_MODE` to `worker` and refuses `thread` and `inline`; `thread`, `inline`
+  and `manual` are kept and go through the same claim and lease. `LAI_STUDIO_MAX_ATTEMPTS` is now
+  each chunk's attempt budget, raised by a staff retry. New permissions `cancel_generationbatch`
+  and `retry_generationbatch`. Queue logs (`lai.studio.queue`) carry ids, counts, statuses and
+  failure categories only (ADR-025).
+- **Files created:** `lai/apps/question_studio/jobs.py`,
+  `lai/apps/question_studio/migrations/0002_job_queue.py`, the `studio_worker` and
+  `studio_worker_health` management commands, `worker.py`, the Admin template
+  `generationbatch/change_form.html`, tests `test_queue.py` (38), `test_worker.py` (12) and
+  `test_admin_queue.py` (22), `docs/platform/STUDIO_WORKER_RUNBOOK.md`.
+- **Files changed:** `question_studio` `models.py`, `generation.py`, `admin.py`, `forms.py`,
+  `generate.html`, `studio_run_batch`, tests (`test_generation.py`, `test_admin.py`,
+  `core/tests/test_settings.py`),
+  `lai/config/settings/base.py` and `production.py` (`LAI_STUDIO_*` queue settings with startup
+  validation), `deploy/ec2/docker-compose.yml`, `docs/DECISIONS.md` (ADR-052 and registry row),
+  `docs/AI_QUESTION_STUDIO.md` (sections 5, 8 to 10, 12 to 14),
+  `docs/platform/DJANGO_EC2_DEPLOYMENT.md` (link), `tasks/TASK_TRACKER.md`.
+
+- **Verified (2026-11-05, local PostgreSQL 16, fake model only).** Full Python suite
+  `LAI_REQUIRE_POSTGRES=1 pytest -q`: 1961 passed. Question Studio suite: 200 passed (128 existing,
+  72 new), plus core settings and game_sessions regressions (507 passed in the focused run).
+  `ruff check` and `ruff format --check`: clean. `manage.py makemigrations --check`: no changes.
+  `manage.py check`: no issues. `tests/deploy`: 65 passed. `docker compose config` on
+  `deploy/ec2/docker-compose.yml` (dummy values): valid, services django, proxy, studio-worker.
+  `scripts/check-adrs.ts`: passed (47 decisions). The acceptance case is a test:
+  `test_a_killed_worker_loses_only_the_chunk_in_flight_and_the_batch_completes` kills a worker
+  mid-batch (an exception that escapes like SIGKILL), lets the lease expire, and a second worker
+  completes the batch with 15 distinct drafts and only the lost chunk re-run. Concurrency, fencing,
+  migration forward and back, and log privacy also have tests.
+- **Found and fixed while building.** The old `thread` run mode stored questions outside a
+  transaction, where `run_validation`'s `select_for_update` raises `TransactionManagementError`
+  (Django refuses it in autocommit mode). By reading the old code, not by running it: a
+  production `thread` batch would have kept one unvalidated draft and ended FAILED with category
+  INTERNAL. Tests never showed this because pytest wraps each test in a transaction.
+  `test_a_batch_runs_outside_any_transaction_as_the_thread_mode_does` now runs the new path with
+  real commits. Reclaiming a stale batch also re-ran every chunk and duplicated drafts.
+
+- **Not verified.** Live Bedrock under the worker (LAI-AQS-025, LAI-0705 approval gate); a real
+  worker kill and restart on an EC2 instance (SIGKILL and SIGTERM) and the container health check
+  there; the worker's memory on the instance; a browser pass of the new Admin pages (batch list and
+  detail, Cancel, Retry failed chunks, Studio workers; LAI-AQS-026); any deployment.
+- **Status.** Development complete, owner acceptance pending: ADR-052 acceptance, an approved
+  release that deploys the `studio-worker` service, and a kill test on a real instance
+  (`docs/platform/STUDIO_WORKER_RUNBOOK.md` section 9). LAI-AQS-027 stays open in the tracker until
+  then.

@@ -60,6 +60,58 @@ services:
         mode: non-blocking
         max-buffer-size: 4m
 
+  # AI Question Studio background worker (LAI-AQS-027, ADR-052,
+  # docs/platform/STUDIO_WORKER_RUNBOOK.md). Same image, settings and instance role as `django`;
+  # no port, no new AWS resource. It drains queued generation batches from PostgreSQL. On stop it
+  # lets the chunk in flight commit and hands its batch back; a hard kill loses at most that chunk,
+  # and another run takes the batch over when its lease expires.
+  studio-worker:
+    image: ${LAI_IMAGE:?set by the deploy script}
+    restart: unless-stopped
+    command: ['python', 'manage.py', 'studio_worker']
+    env_file:
+      - path: ${LAI_RUNTIME_DIR:?}/django.env
+        format: raw
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      LAI_RELEASE_SHA: ${LAI_GIT_SHA:?}
+      LAI_STUDIO_WORKER_HEALTH_FILE: /tmp/lai-studio-worker.alive
+    volumes:
+      - ${LAI_CERTS_DIR:?}:/etc/lai/certs:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    # A chunk call can take the 60 s studio timeout times the adapter's attempts; SIGTERM lets it
+    # finish and commit before the container is killed.
+    stop_grace_period: 150s
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        # Alive when the worker loop touched its file in the last 5 minutes (one lease). No Django.
+        - "import os, sys, time; sys.exit(0 if time.time() - os.path.getmtime('/tmp/lai-studio-worker.alive') < 300 else 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      db:
+        condition: service_healthy
+        required: false
+    networks: [app]
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION:?}
+        awslogs-group: ${LAI_APP_LOG_GROUP:?}
+        awslogs-create-group: 'false'
+        awslogs-stream: studio-worker-${LAI_GIT_SHA:?}
+        mode: non-blocking
+        max-buffer-size: 4m
+
   proxy:
     image: public.ecr.aws/nginx/nginx:1.28-alpine
     restart: unless-stopped

@@ -109,3 +109,10 @@ if LAI_AI_PROVIDER == "bedrock":
     LAI_AI_GUARDRAIL_VERSION = _required("LAI_AI_GUARDRAIL_VERSION")
     if LAI_AI_GUARDRAIL_VERSION.upper() == "DRAFT":
         raise ImproperlyConfigured("LAI_AI_GUARDRAIL_VERSION must be a published version.")
+
+# AI Question Studio queue (LAI-AQS-027, ADR-052). A batch never runs on a thread of a web
+# request here: a gunicorn restart would strand it. `worker` queues it for the `studio-worker`
+# service (deploy/ec2/docker-compose.yml); `manual` leaves it for `manage.py studio_run_batch`.
+LAI_STUDIO_RUN_MODE = os.environ.get("LAI_STUDIO_RUN_MODE", "worker").strip()
+if LAI_STUDIO_RUN_MODE not in {"worker", "manual"}:
+    raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE must be worker or manual in production.")

@@ -1,0 +1,22 @@
+{% extends "admin/change_form.html" %}
+{% block extrahead %}{{ block.super }}
+{% if studio_auto_refresh %}<meta http-equiv="refresh" content="{{ studio_refresh_seconds }}">{% endif %}
+{% endblock %}
+{% block object-tools %}{{ block.super }}
+{% if studio_can_cancel or studio_can_retry %}
+<div class="studio-queue-controls" role="group" aria-label="Batch controls">
+  {% if studio_can_cancel %}
+  <form method="post" action="{{ studio_cancel_url }}" style="display:inline">
+    {% csrf_token %}
+    <button type="submit" class="button">Cancel this batch</button>
+  </form>
+  {% endif %}
+  {% if studio_can_retry %}
+  <form method="post" action="{{ studio_retry_url }}" style="display:inline">
+    {% csrf_token %}
+    <button type="submit" class="button default">Retry failed chunks</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

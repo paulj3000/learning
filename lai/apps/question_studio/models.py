@@ -43,9 +43,44 @@ class Severity(models.TextChoices):
 class BatchStatus(models.TextChoices):
     QUEUED = "QUEUED", "Queued"
     RUNNING = "RUNNING", "Running"
-    COMPLETED = "COMPLETED", "Completed"
-    PARTIAL = "PARTIAL", "Partly completed"
+    SUCCEEDED = "SUCCEEDED", "Succeeded"
+    PARTIALLY_FAILED = "PARTIALLY_FAILED", "Partially failed"
     FAILED = "FAILED", "Failed"
+    CANCELLED = "CANCELLED", "Cancelled"
+
+
+TERMINAL_BATCH_STATUSES = frozenset(
+    {
+        BatchStatus.SUCCEEDED,
+        BatchStatus.PARTIALLY_FAILED,
+        BatchStatus.FAILED,
+        BatchStatus.CANCELLED,
+    }
+)
+
+# The only status moves a batch may make (LAI-AQS-027, ADR-052). A failed or partially failed
+# batch goes back to QUEUED only through a staff retry of its failed chunks; SUCCEEDED and
+# CANCELLED are final.
+BATCH_TRANSITIONS: dict[str, frozenset[str]] = {
+    BatchStatus.QUEUED: frozenset({BatchStatus.RUNNING, BatchStatus.CANCELLED}),
+    BatchStatus.RUNNING: frozenset(TERMINAL_BATCH_STATUSES),
+    BatchStatus.PARTIALLY_FAILED: frozenset({BatchStatus.QUEUED}),
+    BatchStatus.FAILED: frozenset({BatchStatus.QUEUED}),
+    BatchStatus.SUCCEEDED: frozenset(),
+    BatchStatus.CANCELLED: frozenset(),
+}
+
+
+class InvalidBatchTransition(ValueError):
+    pass
+
+
+class ChunkStatus(models.TextChoices):
+    PENDING = "PENDING", "Pending"
+    RUNNING = "RUNNING", "Running"
+    SUCCEEDED = "SUCCEEDED", "Succeeded"
+    FAILED = "FAILED", "Failed"
+    CANCELLED = "CANCELLED", "Cancelled"
 
 
 class StudioLimits(models.Model):
@@ -74,7 +109,35 @@ class StudioLimits(models.Model):
 
 
 class GenerationBatch(models.Model):
-    """One generation request and what it cost. Provenance for every question it produced."""
+    """One generation request and what it cost. Provenance for every question it produced.
+
+    Also the durable job record of the background queue (LAI-AQS-027, ADR-052): the request
+    fields are frozen once stored, the status only moves along `BATCH_TRANSITIONS`, and a worker
+    owns a RUNNING batch only while its lease (`lease_token`, `lease_expires_at`) is current.
+    The work itself is split into `GenerationChunk` rows.
+    """
+
+    # The request as submitted. A retry or a recovered run uses exactly these values.
+    FROZEN = (
+        "requested_by_id",
+        "subject",
+        "grade",
+        "topic",
+        "skill_code",
+        "difficulty",
+        "question_type",
+        "requested_count",
+        "include_hints",
+        "include_explanations",
+        "world_id",
+        "location_id",
+        "adventure_id",
+        "notes",
+        "prompt_version",
+        "schema_version",
+        "submission_key",
+        "created_at",
+    )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     requested_by = models.ForeignKey(
@@ -104,7 +167,10 @@ class GenerationBatch(models.Model):
         max_length=200, blank=True, help_text="Staff text. Sent to the model as untrusted input."
     )
     status = models.CharField(
-        max_length=12, choices=BatchStatus.choices, default=BatchStatus.QUEUED
+        max_length=16, choices=BatchStatus.choices, default=BatchStatus.QUEUED
+    )
+    submission_key = models.UUIDField(
+        null=True, blank=True, editable=False, help_text="One per Generate form; stops resubmits."
     )
     prompt_version = models.CharField(max_length=40)
     schema_version = models.PositiveSmallIntegerField()
@@ -117,6 +183,26 @@ class GenerationBatch(models.Model):
     output_tokens = models.PositiveIntegerField(default=0)
     cost_microusd = models.PositiveBigIntegerField(null=True, blank=True)
     failure_category = models.CharField(max_length=40, blank=True)
+    last_error = models.CharField(
+        max_length=200, blank=True, help_text="A fixed, sanitized message; never model output."
+    )
+    # Queue state (LAI-AQS-027). A worker holds a RUNNING batch while `lease_expires_at` is in the
+    # future; `lease_owner` blank with a future expiry means waiting for a chunk's retry backoff.
+    lease_token = models.UUIDField(null=True, blank=True, editable=False)
+    lease_owner = models.CharField(max_length=120, blank=True)
+    lease_expires_at = models.DateTimeField(null=True, blank=True)
+    heartbeat_at = models.DateTimeField(null=True, blank=True)
+    claim_count = models.PositiveIntegerField(default=0)
+    recovered_count = models.PositiveIntegerField(
+        default=0, help_text="Times a stalled run was taken over after its worker stopped."
+    )
+    retry_count = models.PositiveSmallIntegerField(
+        default=0, help_text="Staff retries of failed chunks."
+    )
+    cancel_requested_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
     created_at = models.DateTimeField(default=now)
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
@@ -124,15 +210,130 @@ class GenerationBatch(models.Model):
     class Meta:
         ordering = ["-created_at"]
         verbose_name_plural = "generation batches"
-        indexes = [models.Index(fields=["requested_by", "created_at"])]
+        permissions = [
+            ("cancel_generationbatch", "Can cancel queued or running generation batches"),
+            ("retry_generationbatch", "Can retry the failed chunks of a generation batch"),
+        ]
+        indexes = [
+            models.Index(fields=["requested_by", "created_at"]),
+            models.Index(fields=["status", "lease_expires_at"], name="studio_batch_claim_idx"),
+        ]
         constraints = [
             models.CheckConstraint(
                 condition=Q(requested_count__gte=1), name="studio_batch_count_positive"
-            )
+            ),
+            models.CheckConstraint(
+                condition=Q(status__in=BatchStatus.values), name="studio_batch_status_valid"
+            ),
+            models.UniqueConstraint(
+                fields=["requested_by", "submission_key"],
+                condition=Q(submission_key__isnull=False),
+                name="studio_batch_one_per_submission",
+            ),
         ]
 
     def __str__(self) -> str:
         return f"{self.topic} grade {self.grade} x{self.requested_count} ({self.status})"
+
+    @classmethod
+    def from_db(cls, db, field_names, values, **kwargs):
+        instance = super().from_db(db, field_names, values, **kwargs)
+        instance._stored = {
+            n: instance.__dict__[n] for n in (*cls.FROZEN, "status") if n in instance.__dict__
+        }
+        return instance
+
+    def save(self, *args, **kwargs):
+        stored = getattr(self, "_stored", None)
+        if stored is not None:
+            changed = [n for n in self.FROZEN if n in stored and getattr(self, n) != stored[n]]
+            if changed:
+                raise ValidationError(f"A batch's request cannot change ({', '.join(changed)}).")
+            before = stored.get("status")
+            if before is not None and before != self.status:
+                if self.status not in BATCH_TRANSITIONS.get(before, frozenset()):
+                    raise InvalidBatchTransition(f"{before} -> {self.status}")
+        super().save(*args, **kwargs)
+        self._stored = {n: getattr(self, n) for n in (*self.FROZEN, "status")}
+
+    @property
+    def is_terminal(self) -> bool:
+        return self.status in TERMINAL_BATCH_STATUSES
+
+
+class GenerationChunk(models.Model):
+    """One bounded model call's worth of a batch: the unit the worker runs, retries and records.
+
+    A chunk's questions, its SUCCEEDED status and the batch counters commit in one transaction,
+    and each question carries its (chunk, position) under a unique constraint, so a restarted or
+    retried chunk can never store its questions twice.
+    """
+
+    batch = models.ForeignKey(GenerationBatch, on_delete=models.CASCADE, related_name="chunks")
+    index = models.PositiveSmallIntegerField()
+    size = models.PositiveSmallIntegerField()
+    status = models.CharField(
+        max_length=10, choices=ChunkStatus.choices, default=ChunkStatus.PENDING
+    )
+    attempts = models.PositiveSmallIntegerField(default=0)
+    max_attempts = models.PositiveSmallIntegerField(
+        default=1, help_text="Attempt budget; a staff retry raises it."
+    )
+    next_attempt_at = models.DateTimeField(null=True, blank=True)
+    claim_token = models.UUIDField(null=True, blank=True, editable=False)
+    produced_count = models.PositiveSmallIntegerField(default=0)
+    input_tokens = models.PositiveIntegerField(default=0)
+    output_tokens = models.PositiveIntegerField(default=0)
+    failure_category = models.CharField(max_length=40, blank=True)
+    last_error = models.CharField(max_length=200, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["batch", "index"]
+        constraints = [
+            models.UniqueConstraint(fields=["batch", "index"], name="studio_chunk_index"),
+            models.CheckConstraint(condition=Q(size__gte=1), name="studio_chunk_size_positive"),
+        ]
+        indexes = [models.Index(fields=["batch", "status"])]
+
+    def __str__(self) -> str:
+        return f"chunk {self.index} ({self.status})"
+
+
+class WorkerState(models.TextChoices):
+    RUNNING = "RUNNING", "Running"
+    STOPPED = "STOPPED", "Stopped"
+
+
+class StudioWorker(models.Model):
+    """A `studio_worker` process's check-in, for health diagnostics in Admin (LAI-AQS-027).
+
+    Holds no prompt, no model output and no personal data: a generated id, host name, process
+    id, timestamps and counters.
+    """
+
+    worker_id = models.CharField(max_length=120, unique=True)
+    hostname = models.CharField(max_length=120, blank=True)
+    pid = models.PositiveIntegerField(null=True, blank=True)
+    state = models.CharField(
+        max_length=10, choices=WorkerState.choices, default=WorkerState.RUNNING
+    )
+    concurrency = models.PositiveSmallIntegerField(default=1)
+    current_batch = models.ForeignKey(
+        GenerationBatch, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    batches_processed = models.PositiveIntegerField(default=0)
+    chunks_processed = models.PositiveIntegerField(default=0)
+    started_at = models.DateTimeField(default=now)
+    last_seen_at = models.DateTimeField(default=now)
+    stopped_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-last_seen_at"]
+
+    def __str__(self) -> str:
+        return self.worker_id
 
 
 class Question(models.Model):
@@ -142,6 +343,17 @@ class Question(models.Model):
     batch = models.ForeignKey(
         GenerationBatch, null=True, blank=True, on_delete=models.SET_NULL, related_name="questions"
     )
+    # The chunk slot this draft came from (LAI-AQS-027). Unique, so a chunk that is run again
+    # after a crash or a retry cannot store the same slot twice.
+    chunk = models.ForeignKey(
+        GenerationChunk,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="questions",
+        editable=False,
+    )
+    chunk_position = models.PositiveSmallIntegerField(null=True, blank=True, editable=False)
     replaces = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="replacements"
     )
@@ -199,6 +411,13 @@ class Question(models.Model):
         indexes = [
             models.Index(fields=["review_status", "validation_status"]),
             models.Index(fields=["subject", "grade", "topic"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["chunk", "chunk_position"],
+                condition=Q(chunk__isnull=False),
+                name="studio_question_once_per_chunk_slot",
+            )
         ]
 
     def __str__(self) -> str:

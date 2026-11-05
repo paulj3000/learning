@@ -405,6 +405,9 @@ if any(not origin.startswith("https://") for origin in LAI_GAME_ALLOWED_ORIGINS)
 # runs a queued batch on a background thread, `manual` leaves it for `manage.py studio_run_batch`,
 # `inline` runs it in the request (tests only).
 LAI_STUDIO_RUN_MODE = os.environ.get("LAI_STUDIO_RUN_MODE", "thread").strip()
+# `worker` (LAI-AQS-027, ADR-052): the request only queues; `manage.py studio_worker` runs it.
+if LAI_STUDIO_RUN_MODE not in {"thread", "manual", "inline", "worker"}:
+    raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE must be thread, manual, inline or worker.")
 # Questions per model call. A batch is split into chunks so each call is bounded and a failed
 # chunk costs only itself (partial success).
 LAI_STUDIO_CHUNK_SIZE = int(os.environ.get("LAI_STUDIO_CHUNK_SIZE", "5"))
@@ -417,3 +420,35 @@ LAI_STUDIO_TIMEOUT_SECONDS = float(os.environ.get("LAI_STUDIO_TIMEOUT_SECONDS", 
 # model is refused, never silently substituted.
 LAI_STUDIO_APPROVED_MODEL_IDS = env_list("LAI_STUDIO_APPROVED_MODEL_IDS")
 LAI_STUDIO_MODEL_ID = os.environ.get("LAI_STUDIO_MODEL_ID", "").strip()
+# Background queue (LAI-AQS-027, ADR-052, docs/AI_QUESTION_STUDIO.md section 14). A worker owns a
+# running batch while its lease is current and renews it every heartbeat; a lease that runs out
+# (the worker died) lets another worker take the batch over. The lease must outlast one model call
+# including the adapter's own retries, so it is checked against the timeout below.
+LAI_STUDIO_LEASE_SECONDS = int(os.environ.get("LAI_STUDIO_LEASE_SECONDS", "300"))
+LAI_STUDIO_HEARTBEAT_SECONDS = int(os.environ.get("LAI_STUDIO_HEARTBEAT_SECONDS", "30"))
+LAI_STUDIO_WORKER_POLL_SECONDS = float(os.environ.get("LAI_STUDIO_WORKER_POLL_SECONDS", "5"))
+# Batches processed at once by one worker process (threads), and across every worker.
+LAI_STUDIO_WORKER_CONCURRENCY = int(os.environ.get("LAI_STUDIO_WORKER_CONCURRENCY", "1"))
+LAI_STUDIO_MAX_RUNNING_BATCHES = int(os.environ.get("LAI_STUDIO_MAX_RUNNING_BATCHES", "2"))
+# A failed chunk call waits base * 2^(attempt - 1) seconds, capped, before its next attempt.
+LAI_STUDIO_RETRY_BACKOFF_SECONDS = float(os.environ.get("LAI_STUDIO_RETRY_BACKOFF_SECONDS", "30"))
+LAI_STUDIO_RETRY_BACKOFF_MAX_SECONDS = float(
+    os.environ.get("LAI_STUDIO_RETRY_BACKOFF_MAX_SECONDS", "900")
+)
+# Staff retries of one batch's failed chunks.
+LAI_STUDIO_MAX_BATCH_RETRIES = int(os.environ.get("LAI_STUDIO_MAX_BATCH_RETRIES", "3"))
+# The container health check reads this file's age (the worker touches it every loop).
+LAI_STUDIO_WORKER_HEALTH_FILE = os.environ.get(
+    "LAI_STUDIO_WORKER_HEALTH_FILE",
+    "/tmp/lai-studio-worker.alive",  # noqa: S108
+).strip()
+if not 1 <= LAI_STUDIO_WORKER_CONCURRENCY <= 8:
+    raise ImproperlyConfigured("LAI_STUDIO_WORKER_CONCURRENCY must be 1 to 8.")
+if not 1 <= LAI_STUDIO_MAX_RUNNING_BATCHES <= 20:
+    raise ImproperlyConfigured("LAI_STUDIO_MAX_RUNNING_BATCHES must be 1 to 20.")
+if not 5 <= LAI_STUDIO_HEARTBEAT_SECONDS * 3 <= LAI_STUDIO_LEASE_SECONDS:
+    raise ImproperlyConfigured("LAI_STUDIO_LEASE_SECONDS must be at least 3 heartbeats.")
+if LAI_STUDIO_LEASE_SECONDS < 2 * LAI_STUDIO_TIMEOUT_SECONDS:
+    raise ImproperlyConfigured("LAI_STUDIO_LEASE_SECONDS must be at least twice the timeout.")
+if not 0 <= LAI_STUDIO_MAX_BATCH_RETRIES <= 10:
+    raise ImproperlyConfigured("LAI_STUDIO_MAX_BATCH_RETRIES must be 0 to 10.")

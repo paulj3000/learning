@@ -68,6 +68,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-044 | Django serves Chatty's companion and tutor turns through Bedrock Converse with a child-safety Guardrail; Amplify AI routes stay until client cutover | Accepted | Feature branch (features/ai) | Owner-directed 2026-11-01 (Phase 7 brief: LAI-0306, LAI-0701 to LAI-0704). Accepts ADR-019 sub-decision 9 for code and infrastructure definitions only; live Bedrock, Guardrail deployment and the React cutover stay gated (LAI-0705, LAI-0706, G7) |
 | ADR-045 | Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets; no React staff asset manager or administrator asset API | Accepted | Feature branch `feature/asset-manager` (AM-13, AM-17) | Owner-directed 2026-11-02 (development only; no deployment, AWS or browser acceptance). Supersedes ADR-042 amendment items 2 and 3 for assets and AM-14, AM-15; narrows ADR-043 scope; builds on ADR-035 and ADR-040 |
 | ADR-046 | AI Question Studio is a staff-only Django app that drafts questions through the ADR-044 model client and serves published questions through the existing challenge and grading path | Accepted | Feature branch (features/studio) | Owner brief 2026-11-02 (Phase 28); accepted the same day ("proceed as proposed"). Builds on ADR-019, ADR-033, ADR-034, ADR-044. Not deployed |
+| ADR-052 | AI Question Studio batches run on a PostgreSQL-backed job queue drained by a separate Django worker process; no new AWS infrastructure or dependency | Proposed | Feature branch (feature/ai-studio-queue, LAI-AQS-027) | Development complete 2026-11-05; owner acceptance pending. Numbered 052, not 047, because 047 to 051 are in use on unmerged branches (rules 2 and 7); those numbers get registry rows when their decisions merge. Builds on ADR-046, ADR-037, ADR-044, ADR-025. Not deployed |
 
 ## ADR-001: Parent-owned accounts
 
@@ -3336,3 +3337,106 @@ The owner confirmed this exception on 2026-11-02.
 
 **Not decided here.** A task queue for long batches, a Django curriculum for grades above 2,
 text-stem question delivery to children, and live Bedrock acceptance (LAI-0705).
+
+## ADR-052: AI Question Studio batches run on a PostgreSQL-backed job queue drained by a separate Django worker process; no new AWS infrastructure or dependency
+
+Status: Proposed (development complete on feature/ai-studio-queue, 2026-11-05; owner acceptance
+pending). LAI-AQS-027. Builds on ADR-046 (the Studio), ADR-037 (one EC2 instance per environment,
+compose release), ADR-044 (the Bedrock model client and instance role) and ADR-025 (exceptions
+logged as type and location only). Details and operations: `docs/AI_QUESTION_STUDIO.md` section
+14 and `docs/platform/STUDIO_WORKER_RUNBOOK.md`. Numbered 052 because 047 to 051 are in use on
+branches not yet merged (registry rule 2).
+
+**Context.** ADR-046 left "a task queue for long batches" undecided. Batches ran on a daemon
+thread inside the web process (`LAI_STUDIO_RUN_MODE=thread`). A gunicorn restart, a deploy or an
+out-of-memory kill stranded the batch as RUNNING, and nothing picked it up unless someone ran
+`studio_run_batch` again after 15 minutes. Reclaiming it re-ran every chunk from the start, so
+chunks that had already stored questions stored them again as duplicate drafts, and the tokens
+were paid twice. There was no queue in the repository. Django 6.1's `django.tasks` framework
+defines the task API but ships only immediate and dummy backends, no production database backend.
+
+**Options considered.**
+
+- **(a) PostgreSQL as the queue, polled by a Django management command running as its own compose
+  service (chosen).** The database is already there, already backed up and already reached with
+  TLS. Every guarantee the Studio needs (one owner per batch, no duplicate drafts, crash recovery)
+  has to hold in the database anyway, because questions are stored there. One extra process on
+  the existing instance, no new AWS resource, no new dependency.
+- **(b) Amazon SQS plus a worker.** New AWS infrastructure (an APPROVAL item under ADR-019 G7):
+  a queue and a dead-letter queue, IAM changes, a stack change and some cost. SQS delivery is at
+  least once, so the worker would still need the same database idempotency and fencing as (a).
+  Batches are at most 25 questions (five model calls), so there is no throughput need that SQS
+  would meet and PostgreSQL would not.
+- **(c) A library queue.** Celery and RQ need Redis or another broker: new infrastructure, as in
+  (b). The `django-tasks` database backend, Procrastinate and django-q2 would add a Python
+  dependency (CLAUDE.md forbids introducing one silently, and each would need its own dependency
+  decision) and none gives lease fencing or per-chunk idempotency out of the box, so the Studio
+  code in (a) would still be needed on top.
+
+**Decision.**
+
+1. **The job record is `GenerationBatch`.** Its request fields are frozen once stored; a retry or
+   a recovered run uses exactly the submitted values. The work is split into `GenerationChunk`
+   rows (at most `LAI_STUDIO_CHUNK_SIZE` questions each), the unit of attempt, retry and failure.
+2. **Claiming** takes one PostgreSQL advisory transaction lock, then
+   `SELECT ... FOR UPDATE SKIP LOCKED` on the oldest claimable batch (QUEUED, or RUNNING with an
+   expired lease). Two workers never take the same batch, and the running-batch cap
+   (`LAI_STUDIO_MAX_RUNNING_BATCHES`) holds across every worker.
+3. **Leases and heartbeats.** A claim stamps a new `lease_token`, an owner and an expiry
+   (`LAI_STUDIO_LEASE_SECONDS`, default 300). The owner renews it at every step and from a
+   heartbeat thread every `LAI_STUDIO_HEARTBEAT_SECONDS` during a model call. When a worker dies,
+   its lease runs out and the next claim takes the batch over ("recovered"), returning the chunk
+   in flight to the pending queue with its attempt counted.
+4. **Fencing.** Every write a worker makes re-reads the row-locked batch and checks its lease
+   token (and the chunk's claim token). A worker that lost its lease (paused, partitioned or
+   overtaken) commits nothing.
+5. **Idempotent per-chunk commit.** A chunk's questions, its SUCCEEDED status and the batch
+   counters commit in one transaction, and each question holds a unique (chunk, position) slot
+   (constraint `studio_question_once_per_chunk_slot`). A crash before the commit loses only that
+   chunk's model call; a crash after it loses nothing; no path stores a slot twice.
+6. **Retries and backoff.** A retryable failure (timeout, throttling, unavailable, bad shape, cut
+   off) returns the chunk to PENDING after `base * 2^(attempt - 1)` seconds, capped, until its
+   attempt budget (`LAI_STUDIO_MAX_ATTEMPTS`) is spent. A worker parks a batch whose remaining
+   chunks are all waiting instead of sleeping on it. A configuration, access, Guardrail or
+   internal failure stops the batch's remaining chunks.
+7. **Staff retry** (permission `retry_generationbatch`) re-queues only a finished batch's FAILED
+   chunks, raising each one's attempt budget, at most `LAI_STUDIO_MAX_BATCH_RETRIES` times.
+   SUCCEEDED chunks and their questions are never re-run.
+8. **Cooperative cancel** (permission `cancel_generationbatch`): a queued or ownerless batch is
+   cancelled at once; a running owner sees the request before its next chunk. Questions already
+   stored stay as drafts.
+9. **State machine.** QUEUED to RUNNING or CANCELLED; RUNNING to SUCCEEDED, PARTIALLY_FAILED,
+   FAILED or CANCELLED; FAILED and PARTIALLY_FAILED back to QUEUED only by a staff retry;
+   SUCCEEDED and CANCELLED are final. `COMPLETED` and `PARTIAL` are renamed by a reversible
+   migration (`question_studio/0002`).
+10. **Run modes.** `worker` (new) only queues; `manage.py studio_worker` runs it. Production
+    defaults to `worker` and refuses `thread` and `inline` (it accepts `worker` and `manual`).
+    `thread` (development), `inline` (tests) and `manual` (`studio_run_batch`) are kept and go
+    through the same claim and lease, so a batch an in-process run abandons is recovered by a
+    worker.
+11. **Deployment shape.** A `studio-worker` service in `deploy/ec2/docker-compose.yml`: the
+    Django image and environment, no published port, the same hardening as `django`, a 150 s stop
+    grace period and a heartbeat-file health check. Same instance, instance role (already allowed
+    to call Bedrock for ADR-044), log group and database. No new AWS resource and no new Python or
+    npm dependency.
+12. **Logging** (`lai.studio.queue`) carries ids, counts, statuses and failure categories only;
+    never prompts, staff notes, model output, exception messages or child data (ADR-025). Staff
+    see fixed, sanitized messages per failure category.
+
+**Consequences.** A worker restart, deploy or instance loss costs at most the chunk in flight (its
+model call and tokens), never a committed question, and the batch finishes without anyone acting.
+Admin shows a real state (Stalled, Waiting to retry, Waiting for a worker, Cancelling) and the
+worker's check-ins. The instance runs one more Python process (roughly 100 to 150 MB of memory).
+Polling costs one small indexed query per worker every `LAI_STUDIO_WORKER_POLL_SECONDS` while idle.
+Throughput is bounded on purpose (one batch per worker thread, two running batches overall by
+default).
+
+**Revisit when** Studio volume grows past what one instance's worker drains in reasonable time,
+the backend moves to several instances or to ECS Fargate (LAI-1007) where a database poller per
+task is wasteful, or another feature needs a general job queue. Moving to SQS (or a library
+queue) then changes only how a worker learns there is work; the job record, chunk rows, lease
+fencing and per-chunk idempotency carry over unchanged.
+
+**Not decided here.** Live Bedrock acceptance (LAI-AQS-025), the deploy of the `studio-worker`
+service to any environment (an owner-approved release), and a general-purpose job queue for other
+features.

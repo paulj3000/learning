@@ -1,6 +1,8 @@
 """The Generate Questions form (LAI-AQS-015). Choice sets come from the taxonomy, so staff can
 only request values the Studio understands; free text is limited to short notes."""
 
+import uuid
+
 from django import forms
 
 from apps.catalog.models import Adventure, Location, World
@@ -43,6 +45,10 @@ class GenerateQuestionsForm(forms.Form):
         label="Notes for the writer",
         help_text="Optional topic hint. Sent to the model as untrusted text.",
     )
+
+    # One fresh key per rendered form, so a double click or a browser resubmit of the same page
+    # returns the batch the first submit made instead of queuing a second (LAI-AQS-027).
+    submission_key = forms.UUIDField(widget=forms.HiddenInput, initial=uuid.uuid4)
 
     def clean(self):
         data = super().clean()

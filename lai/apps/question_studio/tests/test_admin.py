@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 from django.test import Client
 from django.urls import reverse
@@ -26,6 +28,7 @@ FORM = {
     "include_hints": "on",
     "include_explanations": "on",
     "notes": "",
+    "submission_key": str(uuid.uuid4()),  # LAI-AQS-027: one per rendered form
 }
 
 
@@ -58,7 +61,7 @@ def test_authorised_staff_generate_through_the_form(author, settings):
     response = client.post(url("generationbatch_add"), FORM)
     batch = GenerationBatch.objects.get()
     assert response.status_code == 302 and str(batch.pk) in response["Location"]
-    assert batch.requested_by == author and batch.status == BatchStatus.COMPLETED
+    assert batch.requested_by == author and batch.status == BatchStatus.SUCCEEDED
     assert Question.objects.filter(batch=batch).count() == 10
     detail = client.get(url("generationbatch_change", batch.pk))
     assert detail.status_code == 200 and b"Review the 10 questions" in detail.content

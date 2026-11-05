@@ -2,7 +2,7 @@ import pytest
 
 from apps.ai.providers.base import ProviderError, ProviderTimeout
 from apps.ai.providers.fake import GUARDRAIL_BLOCK, FakeModelClient
-from apps.question_studio import contracts, generation, prompts
+from apps.question_studio import contracts, generation, jobs, prompts
 from apps.question_studio.models import (
     BatchStatus,
     GenerationBatch,
@@ -24,7 +24,7 @@ def run(user, **overrides):
 
 def test_generates_25_valid_drafts_in_chunks(author, fake):
     batch = run(author, count=25)
-    assert batch.status == BatchStatus.COMPLETED
+    assert batch.status == BatchStatus.SUCCEEDED
     assert batch.produced_count == 25 and batch.chunks_done == 5 and len(fake.requests) == 5
     questions = Question.objects.filter(batch=batch)
     assert questions.count() == 25
@@ -72,7 +72,7 @@ def test_invalid_drafts_are_stored_with_failures(author):
     client = FakeModelClient([{"questions": [bad, "not even an object"]}])
     batch = generation.create_batch(author, params(count=2))
     done = generation.run_batch(batch.pk, client=client)
-    assert done.status == BatchStatus.COMPLETED and done.produced_count == 2
+    assert done.status == BatchStatus.SUCCEEDED and done.produced_count == 2
     drafts = list(Question.objects.filter(batch=done))
     assert {q.validation_status for q in drafts} == {ValidationStatus.FAIL}
     assert all(q.review_status == ReviewStatus.DRAFT for q in drafts)
@@ -82,7 +82,7 @@ def test_timeout_is_retried_then_succeeds(author):
     client = FakeModelClient([ProviderTimeout()])
     batch = generation.create_batch(author, params(count=2))
     done = generation.run_batch(batch.pk, client=client)
-    assert done.status == BatchStatus.COMPLETED and done.attempts == 2 and len(client.requests) == 2
+    assert done.status == BatchStatus.SUCCEEDED and done.attempts == 2 and len(client.requests) == 2
 
 
 def test_retries_are_bounded(author, settings):
@@ -103,7 +103,7 @@ def test_partial_success_when_one_chunk_fails(author, settings):
     client = FakeModelClient([first, ProviderError("THROTTLED")])
     batch = generation.create_batch(author, params(count=10))
     done = generation.run_batch(batch.pk, client=client)
-    assert done.status == BatchStatus.PARTIAL
+    assert done.status == BatchStatus.PARTIALLY_FAILED
     assert (
         done.produced_count == 5
         and done.requested_count == 10
@@ -146,11 +146,11 @@ def test_extra_items_are_dropped(author):
 def test_a_finished_batch_is_not_run_twice(author, fake):
     batch = run(author, count=2)
     again = generation.run_batch(batch.pk)
-    assert again.status == BatchStatus.COMPLETED and len(fake.requests) == 1
+    assert again.status == BatchStatus.SUCCEEDED and len(fake.requests) == 1
 
 
 def test_internal_errors_never_leave_a_batch_running(author, monkeypatch):
-    monkeypatch.setattr(generation, "_store", lambda *a, **k: 1 / 0)
+    monkeypatch.setattr(jobs, "store_question", lambda *a, **k: 1 / 0)
     batch = generation.create_batch(author, params(count=2))
     done = generation.run_batch(batch.pk, client=FakeModelClient())
     assert done.status == BatchStatus.FAILED and done.failure_category == "INTERNAL"
@@ -259,7 +259,7 @@ def test_daily_token_quota_stops_a_running_batch(author, fake):
     limits.max_tokens_per_day = 120  # each fake call uses 10 in + some out
     limits.save()
     done = run(author, count=25)
-    assert done.failure_category == "TOKEN_QUOTA" and done.status == BatchStatus.PARTIAL
+    assert done.failure_category == "TOKEN_QUOTA" and done.status == BatchStatus.PARTIALLY_FAILED
     assert done.chunks_done < 5
 
 
@@ -281,7 +281,7 @@ def test_start_batch_modes(author, fake, settings):
     settings.LAI_STUDIO_RUN_MODE = "inline"
     generation.start_batch(queued)
     queued.refresh_from_db()
-    assert queued.status == BatchStatus.COMPLETED
+    assert queued.status == BatchStatus.SUCCEEDED
 
 
 def test_run_batch_command_runs_queued_batches(author, fake, capsys):
@@ -289,7 +289,7 @@ def test_run_batch_command_runs_queued_batches(author, fake, capsys):
 
     batch = generation.create_batch(author, params(count=2))
     call_command("studio_run_batch")
-    assert f"{batch.pk} COMPLETED produced=2/2" in capsys.readouterr().out
+    assert f"{batch.pk} SUCCEEDED produced=2/2" in capsys.readouterr().out
 
 
 def test_bedrock_studio_client_reuses_the_adr_044_adapter(settings):

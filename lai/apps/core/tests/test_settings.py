@@ -319,3 +319,34 @@ def test_postgres_16_connection_and_framework_migrations():
 @pytest.mark.django_db
 def test_no_pending_model_changes():
     call_command("makemigrations", "--check", "--dry-run", verbosity=0)
+
+
+# --- AI Question Studio queue (LAI-AQS-027, ADR-052) -----------------------------------------
+
+
+def test_production_queues_studio_batches_for_the_worker_by_default(monkeypatch):
+    _prod_env(monkeypatch, LAI_STUDIO_RUN_MODE=None)
+    assert _load("config.settings.production").LAI_STUDIO_RUN_MODE == "worker"
+
+
+@pytest.mark.parametrize("mode", ["thread", "inline"])
+def test_production_never_runs_studio_batches_on_a_request_thread(monkeypatch, mode):
+    _prod_env(monkeypatch, LAI_STUDIO_RUN_MODE=mode)
+    with pytest.raises(ImproperlyConfigured, match="LAI_STUDIO_RUN_MODE"):
+        _load("config.settings.production")
+
+
+@pytest.mark.parametrize(
+    "name, value",
+    [
+        ("LAI_STUDIO_RUN_MODE", "celery"),
+        ("LAI_STUDIO_WORKER_CONCURRENCY", "0"),
+        ("LAI_STUDIO_MAX_RUNNING_BATCHES", "50"),
+        ("LAI_STUDIO_LEASE_SECONDS", "60"),  # under three heartbeats and twice the timeout
+        ("LAI_STUDIO_MAX_BATCH_RETRIES", "99"),
+    ],
+)
+def test_studio_queue_settings_are_bounded(monkeypatch, name, value):
+    monkeypatch.setenv(name, value)
+    with pytest.raises(ImproperlyConfigured, match=name):
+        _load("config.settings.base")

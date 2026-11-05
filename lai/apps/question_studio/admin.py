@@ -7,27 +7,36 @@ Admin actions are offered only to users who hold the matching permission.
 """
 
 import logging
+from datetime import timedelta
 
 from django.contrib import admin, messages
 from django.contrib.admin.options import ActionLocation
-from django.http import HttpResponseRedirect
+from django.core.exceptions import PermissionDenied
+from django.http import HttpResponseNotAllowed, HttpResponseRedirect
+from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
-from django.urls import reverse
+from django.urls import path, reverse
 from django.utils.html import format_html
+from django.utils.timezone import now
 
-from . import contracts, generation, regeneration, validation, workflow
+from . import contracts, generation, jobs, regeneration, validation, workflow
 from .forms import GenerateQuestionsForm
 from .models import (
     BatchStatus,
+    ChunkStatus,
     GenerationBatch,
+    GenerationChunk,
     Question,
     QuestionPool,
     QuestionRevision,
     ReviewEvent,
     ReviewStatus,
     StudioLimits,
+    StudioWorker,
     ValidationFinding,
+    WorkerState,
 )
+from .worker import WORKER_ALIVE_SECONDS
 
 audit_logger = logging.getLogger("lai.admin_audit")
 
@@ -37,27 +46,179 @@ def _perm(request, codename: str) -> bool:
     return bool(user.is_active and user.is_staff and user.has_perm(f"question_studio.{codename}"))
 
 
+# --- generation batches and the background queue (LAI-AQS-015, LAI-AQS-027) ----------------
+
+WORKER_ALIVE_WINDOW = timedelta(seconds=WORKER_ALIVE_SECONDS)
+AUTO_REFRESH_SECONDS = 10
+_FIXED_ERROR_MESSAGES = frozenset({*jobs.ERROR_MESSAGES.values(), jobs.error_message("UNKNOWN")})
+
+
+def _safe_error(stored: str, category: str) -> str:
+    """The stored error, but only if it is one of the queue's fixed messages; otherwise the fixed
+    message for its category. Provider or model text can never be shown this way."""
+    if stored in _FIXED_ERROR_MESSAGES:
+        return stored
+    return jobs.error_message(category)
+
+
+def worker_is_alive(worker: StudioWorker, at=None) -> bool:
+    at = at or now()
+    return worker.state == WorkerState.RUNNING and worker.last_seen_at >= at - WORKER_ALIVE_WINDOW
+
+
+def any_worker_alive(at=None) -> bool:
+    at = at or now()
+    return StudioWorker.objects.filter(
+        state=WorkerState.RUNNING, last_seen_at__gte=at - WORKER_ALIVE_WINDOW
+    ).exists()
+
+
+def _progress(batch: GenerationBatch) -> str:
+    return (
+        f"{batch.produced_count} of {batch.requested_count} questions, "
+        f"{batch.chunks_done} of {batch.chunks_total} chunks"
+    )
+
+
+class ChunkInline(admin.TabularInline):
+    """A batch's chunks, read-only, for anyone who may view the batch."""
+
+    model = GenerationChunk
+    extra = 0
+    can_delete = False
+    fields = (
+        "index",
+        "size",
+        "status",
+        "attempts_display",
+        "next_attempt_at",
+        "produced_count",
+        "input_tokens",
+        "output_tokens",
+        "failure_category",
+        "error_display",
+        "started_at",
+        "finished_at",
+    )
+    readonly_fields = fields
+    verbose_name_plural = "Chunks"
+
+    def has_view_permission(self, request, obj=None):
+        return _perm(request, "view_generationbatch")
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    @admin.display(description="attempts")
+    def attempts_display(self, obj):
+        return f"{obj.attempts} of {obj.max_attempts}"
+
+    @admin.display(description="last error")
+    def error_display(self, obj):
+        return _safe_error(obj.last_error, obj.failure_category)
+
+
 @admin.register(GenerationBatch)
 class GenerationBatchAdmin(admin.ModelAdmin):
     list_display = (
         "created_at",
-        "status",
+        "state",
+        "progress",
         "subject",
         "grade",
         "topic",
         "question_type",
-        "produced_count",
-        "requested_count",
+        "requested_by",
         "total_tokens",
         "cost_microusd",
         "failure_category",
+        "finished_at",
     )
     list_filter = ("status", "subject", "grade")
+    list_select_related = ("requested_by",)
     ordering = ("-created_at",)
     list_per_page = 50
+    inlines = [ChunkInline]
+    fieldsets = (
+        (
+            "Progress",
+            {
+                "fields": (
+                    "state",
+                    "status",
+                    "progress",
+                    "failure_category",
+                    "error_display",
+                    "review_link",
+                )
+            },
+        ),
+        (
+            "Request",
+            {
+                "fields": (
+                    "requested_by",
+                    "subject",
+                    "grade",
+                    "topic",
+                    "skill_code",
+                    "difficulty",
+                    "question_type",
+                    "requested_count",
+                    "include_hints",
+                    "include_explanations",
+                    "world",
+                    "location",
+                    "adventure",
+                    "notes",
+                )
+            },
+        ),
+        (
+            "Queue",
+            {
+                "fields": (
+                    "retry_count",
+                    "claim_count",
+                    "recovered_count",
+                    "lease_owner",
+                    "lease_expires_at",
+                    "heartbeat_at",
+                    "cancel_requested_at",
+                    "cancelled_by",
+                )
+            },
+        ),
+        (
+            "Usage and provenance",
+            {
+                "fields": (
+                    "model_id",
+                    "prompt_version",
+                    "schema_version",
+                    "attempts",
+                    "input_tokens",
+                    "output_tokens",
+                    "cost_microusd",
+                    "created_at",
+                    "started_at",
+                    "finished_at",
+                )
+            },
+        ),
+    )
 
     def has_module_permission(self, request):
         return _perm(request, "view_generationbatch") or _perm(request, "add_generationbatch")
+
+    def has_view_permission(self, request, obj=None):
+        return _perm(request, "view_generationbatch")
 
     def has_add_permission(self, request):
         return _perm(request, "add_generationbatch")
@@ -68,12 +229,24 @@ class GenerationBatchAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
+    def get_readonly_fields(self, request, obj=None):
+        return [field for _name, options in self.fieldsets for field in options["fields"]]
+
+    @admin.display(description="state", ordering="status")
+    def state(self, obj):
+        return jobs.display_state(obj)
+
+    @admin.display(description="progress")
+    def progress(self, obj):
+        return _progress(obj)
+
     @admin.display(description="tokens")
     def total_tokens(self, obj):
         return obj.input_tokens + obj.output_tokens
 
-    def get_readonly_fields(self, request, obj=None):
-        return [*(f.name for f in self.model._meta.fields), "review_link"]
+    @admin.display(description="last error")
+    def error_display(self, obj):
+        return _safe_error(obj.last_error, obj.failure_category)
 
     @admin.display(description="Questions")
     def review_link(self, obj):
@@ -84,16 +257,23 @@ class GenerationBatchAdmin(admin.ModelAdmin):
             obj.produced_count,
         )
 
+    # --- the Generate Questions page ---------------------------------------------------------
+
     def add_view(self, request, form_url="", extra_context=None):
         """The Generate Questions page."""
         if not self.has_add_permission(request):
-            from django.core.exceptions import PermissionDenied
-
             raise PermissionDenied
         form = GenerateQuestionsForm(request.POST or None)
         if request.method == "POST" and form.is_valid():
             try:
-                batch = generation.create_batch(request.user, form.params())
+                batch = generation.create_batch(
+                    request.user, form.params(), submission_key=form.cleaned_data["submission_key"]
+                )
+            except generation.DuplicateSubmission as duplicate:
+                messages.info(
+                    request, "This request was already submitted; showing the batch it created."
+                )
+                return HttpResponseRedirect(self._change_url(duplicate.batch.pk))
             except generation.StudioError as error:
                 form.add_error(None, str(error) or error.code)
             except contracts.InvalidGenerationRequest as error:
@@ -103,12 +283,10 @@ class GenerationBatchAdmin(admin.ModelAdmin):
                 audit_logger.info("studio_generate staff=%s batch=%s", request.user.pk, batch.pk)
                 messages.success(
                     request,
-                    f"Generation {batch.get_status_display().lower()}. Questions appear as drafts "
-                    "when it finishes; refresh this page to follow progress.",
+                    "Generation queued. Questions appear as drafts as each part finishes. "
+                    "You can close this page and come back later.",
                 )
-                return HttpResponseRedirect(
-                    reverse("admin:question_studio_generationbatch_change", args=[batch.pk])
-                )
+                return HttpResponseRedirect(self._change_url(batch.pk))
         context = {
             **self.admin_site.each_context(request),
             "form": form,
@@ -119,25 +297,233 @@ class GenerationBatchAdmin(admin.ModelAdmin):
             request, "admin/question_studio/generationbatch/generate.html", context
         )
 
+    @staticmethod
+    def _change_url(pk) -> str:
+        return reverse("admin:question_studio_generationbatch_change", args=[pk])
+
+    # --- the batch page ----------------------------------------------------------------------
+
     def change_view(self, request, object_id, form_url="", extra_context=None):
         batch = GenerationBatch.objects.filter(pk=object_id).first()
         extra = dict(extra_context or {})
-        if batch is not None:
-            if batch.status in (BatchStatus.QUEUED, BatchStatus.RUNNING):
-                messages.info(request, f"This batch is {batch.status.lower()}; refresh to update.")
-            elif batch.status == BatchStatus.PARTIAL:
+        if batch is not None and self.has_view_permission(request, batch):
+            self._status_messages(request, batch)
+            active = not batch.is_terminal
+            extra.update(
+                studio_auto_refresh=active,
+                studio_refresh_seconds=AUTO_REFRESH_SECONDS,
+                studio_can_cancel=active and _perm(request, "cancel_generationbatch"),
+                studio_can_retry=(
+                    batch.status in (BatchStatus.FAILED, BatchStatus.PARTIALLY_FAILED)
+                    and batch.chunks.filter(status=ChunkStatus.FAILED).exists()
+                    and _perm(request, "retry_generationbatch")
+                ),
+                studio_cancel_url=reverse(
+                    "admin:question_studio_generationbatch_cancel", args=[batch.pk]
+                ),
+                studio_retry_url=reverse(
+                    "admin:question_studio_generationbatch_retry", args=[batch.pk]
+                ),
+            )
+        return super().change_view(request, object_id, form_url, extra)
+
+    def _status_messages(self, request, batch: GenerationBatch) -> None:
+        state = jobs.display_state(batch)
+        if not batch.is_terminal:
+            messages.info(
+                request,
+                f"This batch is {state.lower()} ({_progress(batch)}). This page refreshes "
+                f"every {AUTO_REFRESH_SECONDS} seconds until it finishes.",
+            )
+            if state == "Stalled":
                 messages.warning(
                     request,
-                    (
-                        f"Partly completed ({batch.produced_count} of {batch.requested_count}); "
-                        f"reason: {batch.failure_category or 'fewer questions returned'}."
-                    ),
+                    "No worker has renewed this batch's lease; it will be taken over when a "
+                    "worker is running.",
                 )
-            elif batch.status == BatchStatus.FAILED:
-                messages.error(
-                    request, f"Generation failed: {batch.failure_category or 'unknown'}."
+            waiting = batch.status == BatchStatus.QUEUED or state == "Waiting for a worker"
+            if waiting and not any_worker_alive():
+                messages.info(
+                    request,
+                    "No background worker has checked in recently; queued batches wait until "
+                    "one runs.",
                 )
-        return super().change_view(request, object_id, form_url, extra)
+        elif batch.status == BatchStatus.PARTIALLY_FAILED:
+            messages.warning(
+                request,
+                (
+                    f"Partly completed ({batch.produced_count} of {batch.requested_count}); "
+                    f"reason: {batch.failure_category or 'fewer questions returned'}."
+                ),
+            )
+        elif batch.status == BatchStatus.FAILED:
+            messages.error(request, f"Generation failed: {batch.failure_category or 'unknown'}.")
+        elif batch.status == BatchStatus.CANCELLED:
+            messages.info(
+                request,
+                f"This batch was cancelled ({_progress(batch)}). Questions already stored stay "
+                "as drafts.",
+            )
+
+    # --- cancel and retry --------------------------------------------------------------------
+
+    def get_urls(self):
+        info = f"{self.opts.app_label}_{self.opts.model_name}"
+        return [
+            path(
+                "<uuid:object_id>/cancel/",
+                self.admin_site.admin_view(self.cancel_view),
+                name=f"{info}_cancel",
+            ),
+            path(
+                "<uuid:object_id>/retry/",
+                self.admin_site.admin_view(self.retry_view),
+                name=f"{info}_retry",
+            ),
+            *super().get_urls(),
+        ]
+
+    def _queue_view(self, request, object_id, codename: str, verb: str, operation):
+        if request.method != "POST":
+            return HttpResponseNotAllowed(["POST"])
+        if not _perm(request, codename):
+            audit_logger.info(
+                "studio_%s staff=%s batch=%s outcome=refused:not_permitted",
+                verb,
+                request.user.pk,
+                object_id,
+            )
+            raise PermissionDenied
+        batch = get_object_or_404(GenerationBatch, pk=object_id)
+        try:
+            outcome, message = operation(request, batch)
+        except jobs.QueueError as error:
+            messages.error(request, str(error) or error.code)
+            outcome = f"refused:{error.code}"
+        else:
+            messages.success(request, message)
+        audit_logger.info(
+            "studio_%s staff=%s batch=%s outcome=%s", verb, request.user.pk, batch.pk, outcome
+        )
+        return HttpResponseRedirect(self._change_url(batch.pk))
+
+    def cancel_view(self, request, object_id):
+        return self._queue_view(request, object_id, "cancel_generationbatch", "cancel", _cancel)
+
+    def retry_view(self, request, object_id):
+        return self._queue_view(request, object_id, "retry_generationbatch", "retry", _retry)
+
+    # --- bulk actions ------------------------------------------------------------------------
+
+    actions = ("action_cancel", "action_retry")
+    ACTION_PERMS = {
+        "action_cancel": "cancel_generationbatch",
+        "action_retry": "retry_generationbatch",
+    }
+
+    def get_actions(self, request, action_location=ActionLocation.CHANGE_LIST):
+        actions = super().get_actions(request, action_location)
+        return {
+            n: a
+            for n, a in actions.items()
+            if n in self.ACTION_PERMS and _perm(request, self.ACTION_PERMS[n])
+        }
+
+    def _bulk(self, request, queryset, verb: str, operation):
+        done, refused = 0, []
+        for batch in queryset:
+            try:
+                operation(request, batch)
+            except jobs.QueueError as error:
+                refused.append((batch, str(error) or error.code))
+            else:
+                done += 1
+        if done:
+            self.message_user(request, f"{done} batch(es): {verb}.", messages.SUCCESS)
+        for batch, reason in refused[:10]:
+            self.message_user(
+                request, f"Skipped {batch.topic} grade {batch.grade}: {reason}", messages.WARNING
+            )
+        if len(refused) > 10:
+            self.message_user(request, f"{len(refused) - 10} more skipped.", messages.WARNING)
+        audit_logger.info(
+            "studio_bulk verb=%s staff=%s done=%s refused=%s",
+            verb,
+            request.user.pk,
+            done,
+            len(refused),
+        )
+
+    @admin.action(description="Cancel selected batches")
+    def action_cancel(self, request, queryset):
+        if not _perm(request, "cancel_generationbatch"):
+            raise PermissionDenied
+        self._bulk(request, queryset, "cancel requested", _cancel)
+
+    @admin.action(description="Retry failed chunks of selected batches")
+    def action_retry(self, request, queryset):
+        if not _perm(request, "retry_generationbatch"):
+            raise PermissionDenied
+        self._bulk(request, queryset, "failed chunks queued again", _retry)
+
+
+def _cancel(request, batch: GenerationBatch) -> tuple[str, str]:
+    """Returns (audit outcome, staff message)."""
+    if jobs.request_cancel(batch.pk, request.user) == "cancelled":
+        return "cancelled", "Batch cancelled. Questions already stored stay as drafts."
+    return "cancelling", "Cancel requested. The worker stops before the next part of this batch."
+
+
+def _retry(request, batch: GenerationBatch) -> tuple[str, str]:
+    """Returns (audit outcome, staff message). Inline and thread modes run the batch now."""
+    count = jobs.retry_failed(batch.pk, request.user)
+    generation.start_batch(GenerationBatch.objects.get(pk=batch.pk))
+    return f"queued:{count}", f"{count} failed chunk(s) queued again."
+
+
+@admin.register(StudioWorker)
+class StudioWorkerAdmin(admin.ModelAdmin):
+    """Background worker check-ins, for health diagnostics. Read-only."""
+
+    list_display = (
+        "worker_id",
+        "hostname",
+        "pid",
+        "state",
+        "alive",
+        "concurrency",
+        "current_batch",
+        "batches_processed",
+        "chunks_processed",
+        "started_at",
+        "last_seen_at",
+        "stopped_at",
+    )
+    list_filter = ("state",)
+    ordering = ("-last_seen_at",)
+    actions = None
+
+    def has_module_permission(self, request):
+        return _perm(request, "view_studioworker")
+
+    def has_view_permission(self, request, obj=None):
+        return _perm(request, "view_studioworker")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        return [*(f.name for f in self.model._meta.fields), "alive"]
+
+    @admin.display(description="alive", boolean=True)
+    def alive(self, obj):
+        return worker_is_alive(obj)
 
 
 class _ReadOnlyInline(admin.TabularInline):

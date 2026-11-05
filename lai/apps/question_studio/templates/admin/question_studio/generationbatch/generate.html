@@ -5,6 +5,8 @@
 {% block content %}
 <p>Questions are written by the AI as <strong>drafts</strong>. Nothing reaches a child until a
 reviewer approves it and a publisher publishes it.</p>
+<p>Generation runs in the background. After you submit, you can close the page and come back
+later; the batch page shows its progress.</p>
 <form method="post">
   {% csrf_token %}
   <table>{{ form.as_table }}</table>
