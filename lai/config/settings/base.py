@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "apps.regions",
     "apps.audio",
     "apps.speech",
+    "apps.npcs",
     "apps.game_sessions",
     "apps.education",
     "apps.progression",

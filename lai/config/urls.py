@@ -19,6 +19,7 @@ urlpatterns = [
     path("api/v1/", include("apps.audio.urls")),
     path("api/v1/", include("apps.speech.urls")),
     path("api/v1/", include("apps.ai.urls")),
+    path("api/v1/", include("apps.npcs.urls")),
     path(settings.ADMIN_URL_PATH, admin.site.urls),
 ]
 

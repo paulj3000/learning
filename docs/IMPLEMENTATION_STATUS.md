@@ -12337,3 +12337,31 @@ Utterance-level captions only.
 lands.
 
 **Checks.** See the end-of-batch delivery notes.
+
+## NPC Manager (Phase 30, `feature/npc-manager`, ADR-050) — in progress
+
+Plan: `docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md`; contracts: `docs/NPC_MANAGER_CONTRACTS.md`;
+tracker: `tasks/TASK_TRACKER.md` Phase 30.
+
+**Base.** `origin/feature/sound-manager` merged first (owner decision, `c2393ad`); merge fixes for
+the ADR-045 registry title (`33cdede`) and the public speech-file route test (`fe9c905`).
+Development ports moved to PostgreSQL 5442, Django 8010, Vite 5183 (`18e9cec`).
+
+**Foundation (LAI-NPC-001, 002, 006, 034): DEVELOPMENT COMPLETE.**
+- `catalog.NpcDefinition.origin` (`EXPORT`/`DJANGO`); the content import refuses to claim a
+  Django-authored NPC (`catalog/0006_npc_definition_origin`).
+- New app `apps.npcs` with every NPC table in one migration (`npcs/0001_npc_manager_foundation`):
+  characters, variants and variant assets, placements (Island, Place, 3D Area, hierarchy
+  validated), behaviour profiles (per-type parameter schema), dialogue, nodes, choices, personas,
+  immutable releases and their asset dependencies, and child-owned conversation state.
+- Shared condition language (`conditions.py`), vocabularies mirrored in TypeScript
+  (`react/src/features/npc-manager/contracts/`), runtime parsers, engine contract.
+- Publishing: validate, publish (one ACTIVE release, advisory lock, nothing written on failure),
+  rollback (only SUPERSEDED releases whose assets are still live), retire; children read only the
+  ACTIVE snapshot (`published.py`), with personas and dialogue trees server-only.
+- API routes and shared scoped view base (child ownership, game cookie limited to 3D Area routes);
+  workstream views answer 501 until implemented.
+- Evidence: pytest `lai/apps/npcs` 21 passed, catalog/core regression 106 passed in the gate run,
+  `makemigrations --check` clean, Vitest contracts 7 passed, `tsc -b` clean, Ruff clean,
+  `adr:check` passed (50 decisions).
+

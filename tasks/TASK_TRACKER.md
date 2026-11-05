@@ -364,3 +364,53 @@ Detail: `docs/AI_QUESTION_STUDIO.md`.
 - [ ] **LAI-AQS-028** Storykeeper Castle and other adventures adopt the question bank (depends: LAI-0309, LAI-0603, LAI-0709; ADR needed). Those adventures run on Amplify sessions with no Django story catalog, so the bank cannot serve them yet. Once their steps exist in Django, add a pool keyed by adventure, serve through the same snapshot and grading path, keep the authored fallback, and extend the question types served (text stems, short answer, division) with a grader for each.
 
 `LAI-AQS-024` closes when LAI-AQS-025 and LAI-AQS-026 are done.
+
+## Phase 30 — NPC Manager (branch `feature/npc-manager`, ADR-050 Accepted)
+
+Plan: `docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md`. Contracts: `docs/NPC_MANAGER_CONTRACTS.md`.
+Statuses: NOT STARTED, IN PROGRESS, DEVELOPMENT COMPLETE, BLOCKED, ACCEPTED. ACCEPTED needs the
+owner's browser acceptance; passing unit tests alone is DEVELOPMENT COMPLETE at most. No live
+AWS (Bedrock, Polly) has been called.
+
+| Task | Description | Depends | Workstream | Status | Branch / commit | Test evidence | Remaining acceptance |
+|---|---|---|---|---|---|---|---|
+| LAI-NPC-001 | Architecture: NPC Manager ADR (ADR-050) and frozen contracts | - | Foundation | DEVELOPMENT COMPLETE | feature/npc-manager (foundation) | pytest `lai/apps/npcs` 21 passed; catalog regression passed; Vitest contracts 7 passed; tsc clean | Owner review of ADR-050 text |
+| LAI-NPC-002 | Character registry: `apps.npcs`, `NpcCharacter` on canonical `NpcDefinition` (roles, personality, age bands, status, audit) | 001 | Foundation | DEVELOPMENT COMPLETE | feature/npc-manager (foundation) | pytest `lai/apps/npcs` 21 passed; catalog regression passed; Vitest contracts 7 passed; tsc clean | Admin authoring (LAI-NPC-005); owner browser acceptance |
+| LAI-NPC-003 | Asset Library integration: variant/portrait/texture/audio/accessory references, signed delivery reuse, no broken or unpublished refs | 034 | A Admin | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-004 | Model variants: skins, scale, offsets, animation mapping, availability | 003 | A Admin | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-005 | Django Admin: characters, assets, variants, animation maps, placements, preview, draft and publish controls | 002, 004, 006, 034 | A Admin | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-006 | Placement foundation: `NpcPlacement` (Island, Place, 3D Area, transform, radius, spawn conditions, active), hierarchy validation | 002 | Foundation | DEVELOPMENT COMPLETE | feature/npc-manager (foundation) | pytest `lai/apps/npcs` 21 passed; catalog regression passed; Vitest contracts 7 passed; tsc clean | Admin authoring (LAI-NPC-005); owner browser acceptance |
+| LAI-NPC-007 | Runtime API: published catalog and placement endpoints, authorization, filtering | 006, 034 | B Runtime | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-008 | NPC renderer (Three.js): resolver URLs, transform, loading, fallbacks, cleanup | 007 | B Runtime | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-009 | Animation controller: AnimationMixer, 11 states, clip mapping, crossfade, loop/one-shot, priorities, fallback | 008 | B Runtime | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-010 | Pirate Pip integration as a managed NPC | 005, 007, 008, 009, 012 | Integration | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-011 | Dialogue models: dialogue, node, choice (text, emotion, animation, audio, age band, conditions, branching) | 002, 034 | C Dialogue | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-012 | Dialogue trees: paths, conditional choices, valid transitions, no unauthorized gameplay actions | 011 | C Dialogue | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-013 | Interaction trigger registry mapped to existing gameplay events | 012 | C Dialogue | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-014 | Interaction UI: prompts, dialogue display, keyboard, pointer, touch, captions, focus | 008 | B Runtime | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-015 | Sound Manager integration: dialogue and reaction cues, captions, mute, interruption, cleanup, channels | 014, 029 | Integration | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-016 | Adventure events: NPC reactions on Treasure Rush's existing lifecycle (no second reward engine) | 013, 023 | Integration | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-017 | Child NPC state: conversation cursor, last interaction, validated local flags; progress read from existing engine | 012 | C Dialogue | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-018 | Treasure Rush dialogue migration: Pip greets, explains, hints, reacts, celebrates, recognizes return | 010, 012, 013 | Integration | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-019 | Behavior profiles: stationary, wander, patrol, follow, guide, reactive, scripted | 006 | D Behavior | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-020 | Behavior state machine: transitions, interruption, cancellation, restoration | 019 | D Behavior | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-021 | Waypoint movement: waypoints, speed, rotation, arrival events | 020 | D Behavior | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-022 | Follow behavior with stop distance | 020 | D Behavior | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-023 | Reactive animations from published adventure events | 020 | D Behavior | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-024 | Collision and boundaries using existing scene facilities | 021, 022 | D Behavior | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-025 | Behavior validation and preview | 019, 005 | D Behavior | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-026 | Voice profiles (reuse `speech.VoiceProfile`, ADR-049) | 002 | E Voice | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-027 | Amazon Polly adapter (reuse ADR-049 client; fake for tests) | 026 | E Voice | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-028 | Speech caching and publish-time generation for authored dialogue | 027, 034, 011 | E Voice | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-029 | Speech synchronization: captions, playback, talk animation, interruption, completion | 028, 014, 009 | E Voice | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-030 | Bedrock integration through the existing AI service; authored, hybrid, AI modes | 011, 034 | F AI | IN PROGRESS | feature/npc-manager | - | - |
+| LAI-NPC-031 | Versioned NPC personas | 030 | F AI | IN PROGRESS | feature/npc-manager | - | - |
+| LAI-NPC-032 | Hybrid dialogue: AI hints and lines without changing gameplay state | 031, 012 | F AI | IN PROGRESS | feature/npc-manager | - | - |
+| LAI-NPC-033 | AI safety: screening, validation, Guardrails, timeouts, fallbacks, ownership, rate limits | 032 | F AI | IN PROGRESS | feature/npc-manager | - | - |
+| LAI-NPC-034 | Publishing foundation: immutable releases, validation, activation, retirement, rollback, transactional | 002, 006 | Foundation | DEVELOPMENT COMPLETE | feature/npc-manager (foundation) | pytest `lai/apps/npcs` 21 passed; catalog regression passed; Vitest contracts 7 passed; tsc clean | Admin publish controls (LAI-NPC-005); owner browser acceptance |
+| LAI-NPC-035 | Configuration validation: assets, dialogue refs, animation maps, placement, release deps | 003, 004, 034 | A Admin | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-036 | Asset dependency protection and reporting | 003, 034 | A Admin | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-037 | Performance: model cache, animation efficiency, distance-aware updates, disposal, measurements | 008, 009, 021 | Production | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-038 | Accessibility: captions, keyboard, touch, focus, reduced motion, mute/volume, prompts | 014, 029 | Production | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-039 | Storykeeper's Castle: Keeper Quill through the NPC Manager | 007, 008, 012 | Production | NOT STARTED | feature/npc-manager | - | - |
+| LAI-NPC-040 | Acceptance test suite (automated) and written browser scenarios | all | Production | NOT STARTED | feature/npc-manager | - | - |

@@ -427,9 +427,30 @@ class LearningObjective(ImportedContent):
 
 
 class NpcDefinition(ImportedContent, CatalogFields):
-    """A character (`npcs.json`). Dialogue, schedule and quest offers stay in `source`."""
+    """A character (`npcs.json`). Dialogue, schedule and quest offers stay in `source`.
+
+    The canonical NPC identity (ADR-033). `npc_id` is the stable slug every system uses. Rows come
+    from the export (`EXPORT`) or, since the NPC Manager (ADR-050), from Django Admin (`DJANGO`):
+    the import never creates, updates or claims a `DJANGO` row. Django-authored NPC configuration
+    (variants, dialogue, behaviours, personas) lives in `apps.npcs`, keyed to this row.
+    """
 
     npc_id = models.SlugField(max_length=SLUG_LENGTH, unique=True)
+    # Overrides of `ImportedContent`: an NPC made in Django has no export record (ADR-050).
+    source = models.JSONField(
+        default=dict, blank=True, help_text="The record exactly as the export carried it."
+    )
+    last_seen_release = models.ForeignKey(
+        ContentRelease,
+        on_delete=models.PROTECT,
+        related_name="+",
+        editable=False,
+        null=True,
+        blank=True,
+    )
+    origin = models.CharField(
+        max_length=8, choices=AssetOrigin.choices, default=AssetOrigin.EXPORT, editable=False
+    )
     display_name = models.CharField(max_length=80)
     role = models.CharField(max_length=200, blank=True)
     home_location = models.ForeignKey(
@@ -445,6 +466,17 @@ class NpcDefinition(ImportedContent, CatalogFields):
 
     class Meta:
         ordering = ["sort_order", "npc_id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(origin=AssetOrigin.EXPORT)
+                | models.Q(last_seen_release__isnull=False),
+                name="catalog_npcdefinition_export_rows_have_a_release",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(origin__in=AssetOrigin.values),
+                name="catalog_npcdefinition_origin_valid",
+            ),
+        ]
 
     def __str__(self) -> str:
         return self.npc_id

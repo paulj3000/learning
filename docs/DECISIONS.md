@@ -18,7 +18,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 
 **Format recommendation.** Keep this single file plus the registry table. Individually named ADR files would force moving about 4,500 lines and rewriting links for no collision benefit the check does not already give. Revisit only if the log passes roughly 50 decisions.
 
-**Next free identifier number: 048.**
+**Next free identifier number: 051.**
 
 | ID | Title | Status | Origin | Notes |
 |---|---|---|---|---|
@@ -71,6 +71,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-047 | Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver | Proposed | Feature branch `feature/sound-manager` (SM-P2) | Development only, 2026-11-02; owner acceptance pending. Builds on ADR-035, ADR-041, ADR-045; records Sound Manager decisions SM-D1 to SM-D6 |
 | ADR-048 | Spatial audio is a panner on the Sound Manager's one AudioContext; emitters and zones are reusable and Three.js-free; Django configures distances and zone beds | Proposed | Feature branch `feature/sound-manager` (SM-P7) | Development only, 2026-11-03; owner acceptance pending. Builds on ADR-047 |
 | ADR-049 | Django owns speech synthesis through Amazon Polly behind a fake-able client; games speak only server-approved references; React plays through the Sound Manager's voice channel | Proposed | Feature branch `feature/sound-manager` (SM-P8) | Development only, 2026-11-03; owner acceptance and live verification pending. Builds on ADR-044, ADR-045, ADR-047, ADR-048 |
+| ADR-050 | The NPC Manager extends the canonical NPC identity with Django-authored, versioned NPC releases; NPC placement is an owner-approved exception to LAI-0805 | Accepted | `feature/npc-manager` (LAI-NPC-001) | Owner decisions 2026-11-05: extend NpcDefinition, NPC-only placement exception, build on the sound-manager merge. Amends ADR-033 items 1 and 4 and CLAUDE.md section 20 for NPC content only; builds on ADR-035, ADR-044, ADR-047, ADR-049 |
 
 ## ADR-001: Parent-owned accounts
 
@@ -3485,3 +3486,72 @@ against the AWS bill. The voice table needs checking against current Polly docum
 production. Not heard; no live AWS call was made.
 
 **Acceptance.** Remains Proposed until the owner accepts it and the live verification gate passes.
+
+
+## ADR-050: The NPC Manager extends the canonical NPC identity with Django-authored, versioned NPC releases; NPC placement is an owner-approved exception to LAI-0805
+
+Status: Accepted (project owner, 2026-11-05, LAI-NPC-001). Development only: nothing is deployed,
+no live Bedrock or Polly call has been made, and browser acceptance is the owner's.
+
+**Context.** Characters (Pirate Pip, Keeper Quill) are spread across the content export
+(`npcs.json` into `catalog.NpcDefinition`), the Treasure Rush seed (`WorldObjectPlacement`),
+hard-coded React copy (`PLAY_COPY`, `PipDialog`), client-side dialogue (`features/npc`, Amplify
+state) and per-world rendering code. Staff cannot author a character's look, dialogue or
+behaviour, and every new world re-implements NPC loading, animation and talk. ADR-033 forbids a
+second catalog and defers spatial layout administration to LAI-0805; CLAUDE.md section 20 says
+content reaches Django only through the export. The owner asked for a full NPC Manager and, when
+asked about these conflicts, decided (2026-11-05):
+
+- **A. Extend, do not duplicate, the NPC identity.** `catalog.NpcDefinition` stays the one NPC
+  identity; its `npc_id` is the stable slug.
+- **B. NPC-only placement exception to LAI-0805.** Staff place NPCs with numeric fields in Django
+  Admin, validated against Island, Place and 3D Area. No visual layout editor.
+- **C. Build on `feature/sound-manager`.** Its Sound Manager, captions and Polly speech app
+  (ADR-047, ADR-048, ADR-049) are merged into `feature/npc-manager` and reused.
+
+**Decision.**
+
+1. **Identity.** `catalog.NpcDefinition` gains `origin` (`EXPORT` or `DJANGO`, as ContentAsset).
+   The content import never creates, updates or claims a `DJANGO` row and fails on an id
+   collision. A new app `apps.npcs` holds only what the export does not carry, keyed one-to-one
+   to the definition: `NpcCharacter` (role, personality, age bands, status, dialogue mode, voice),
+   `NpcModelVariant` and `NpcVariantAsset`, `NpcPlacement`, `NpcBehaviorProfile`, `NpcDialogue` /
+   `NpcDialogueNode` / `NpcDialogueChoice`, `NpcPersona`, `NpcRelease` / `NpcReleaseAsset`, and
+   the child-owned `NpcConversationState`.
+2. **Django content authority for NPCs (amends ADR-033 item 1 and CLAUDE.md section 20 for NPC
+   content only).** NPC configuration is authored in Django Admin and published as immutable,
+   versioned releases. Export NPC records keep flowing through `load_content`; their dialogue
+   in `source` is not served by the NPC Manager.
+3. **Publishing.** Only READY characters enter a release. `publish` validates (structure,
+   assets, dialogue, behaviour, voice, persona) and writes nothing on failure; one release is
+   ACTIVE (partial unique constraint plus an advisory lock); rollback reactivates a SUPERSEDED
+   release whose assets are still live; retirement is permanent. Children are served only the
+   ACTIVE snapshot. Releases are never edited or deleted.
+4. **Placement (exception to LAI-0805 and ADR-041 E, NPCs only).** `NpcPlacement` references an
+   Island, a Place and optionally its 3D Area, with numeric position, rotation, scale,
+   interaction radius and spawn conditions; hierarchy consistency is validated. Seed-authored
+   region layouts (ADR-033 item 4) are unchanged for every other object. LAI-0805 stays open.
+5. **Assets.** Variants and lines reference `ContentAsset` rows; a release freezes each
+   reference to a published version (or a bundled path) and records it in `NpcReleaseAsset`
+   (PROTECT). Retiring an asset or version that an ACTIVE or rollback-able release depends on is
+   refused with a dependency report.
+6. **Runtime.** Three.js only (ADR-020). One reusable engine module renders, animates and moves
+   NPCs from typed spawns and commands and emits typed events; it never calls the network,
+   validates answers, awards progress or calls AI.
+7. **Dialogue and gameplay.** The server selects and advances dialogue from the ACTIVE release,
+   evaluating conditions against authoritative progress. Choice actions are a closed,
+   non-rewarding set. Progress, rewards, quest completion and world changes remain with the
+   existing play services; `NpcConversationState` holds only the conversation cursor and
+   NPC-local flags.
+8. **Voice.** Characters speak through ADR-049: a `speech.VoiceProfile`, server-approved
+   references only (a new `npcDialogueNode` kind resolved from the ACTIVE release), the existing
+   cache and fake client. Captions always show; audio is optional.
+9. **AI.** Hybrid hints use the existing ADR-044 pipeline (`run_turn`), a versioned, staff
+   approved `NpcPersona`, server-built context, no child free text, authored fallbacks; output is
+   untrusted and never changes gameplay state.
+
+**Consequences.** One NPC system for Treasure Rush and Storykeeper's Castle. Staff can change a
+character without a deploy. Two more places hold NPC truth until the content authoring cutover
+(the export record and the NPC Manager release); the NPC Manager wins at runtime for characters
+it publishes. The `feature/sound-manager` work (ADR-047 to ADR-049, still Proposed) becomes a
+dependency of this branch. Contract details: `docs/NPC_MANAGER_CONTRACTS.md`.
