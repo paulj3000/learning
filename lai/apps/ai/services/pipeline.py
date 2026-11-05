@@ -49,9 +49,10 @@ from .safety import screen_untrusted_text
 
 @dataclass
 class TurnSpec:
-    """Everything route-specific. Built by `companion.py` or `tutor.py`, never by a client."""
+    """Everything route-specific. Built by `companion.py`, `tutor.py` or `npc_hint.py`, never by a
+    client."""
 
-    route: str  # "companion" or "tutor"
+    route: str  # "companion", "tutor" or "npc" (LAI-NPC-030)
     route_name: str
     persona: Persona
     output_schema: dict

@@ -238,3 +238,59 @@ TUTOR_OUTPUT_SCHEMA = {
     "required": ["spokenText", "strategy", "representation", "emotion", "safetyDisposition"],
     "additionalProperties": False,
 }
+
+
+# --- NPC hybrid hint (LAI-NPC-032), Django only ------------------------------------------------
+
+NPC_HINT_OUTPUT_SCHEMA_VERSION = 1
+
+NPC_HINT_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "spokenText": {"type": "string", "description": "The character's hint, read aloud."},
+        "safetyDisposition": {"type": "string", "enum": list(DISPOSITIONS)},
+    },
+    "required": ["spokenText", "safetyDisposition"],
+    "additionalProperties": False,
+}
+
+_EM_DASH = "—"
+
+
+def validate_npc_hint(raw: object, *, max_length: int) -> Valid | Invalid:
+    """An NPC hint is `{spokenText, safetyDisposition}`; anything else in `raw` is dropped.
+
+    Stricter than the companion port: no em dash (child copy rule), and no line that claims a
+    reward, unlock or mastery (an NPC never changes gameplay state, so it may not say it did).
+    `boundary_violations` still runs after this, in the pipeline.
+    """
+    from .services.safety import _MASTERY_OR_REWARD
+
+    if not isinstance(raw, dict):
+        return Invalid("Response was not an object.")
+    spoken_text = raw.get("spokenText")
+    if _is_blank(spoken_text):
+        return Invalid("spokenText was missing or empty.")
+    disposition = normalize_enum_value(raw.get("safetyDisposition"), DISPOSITIONS)
+    if not disposition:
+        return Invalid("safetyDisposition was missing or not a known value.")
+    spoken_text = js_trim(spoken_text)
+    if js_length(spoken_text) > max_length:
+        return Invalid("spokenText exceeded the age band length limit.")
+    if contains_url(spoken_text):
+        return Invalid("spokenText contained a URL.")
+    if requests_personal_information(spoken_text):
+        return Invalid("spokenText requested personal information.")
+    if _EM_DASH in spoken_text:
+        return Invalid("spokenText contained an em dash.")
+    if _MASTERY_OR_REWARD.search(spoken_text) or _NPC_GAMEPLAY_CLAIM.search(spoken_text):
+        return Invalid("spokenText claimed a reward, an unlock or a result.")
+    return Valid({"spokenText": spoken_text, "safetyDisposition": disposition})
+
+
+# Lines a character could use to pretend the game state changed ("here is your treasure").
+_NPC_GAMEPLAY_CLAIM = js_regex(
+    r"\b(i('ve| have)? (just )?(gave|give|given|unlocked|unlock|opened|awarded))\b"
+    r"|\b(here('s| is| are) (your|some|a) (treasure|coins?|gems?|stars?|points?|prize|reward"
+    r"|key))\b|\byou (won|win|earned|unlocked|got it right|got it wrong|are right|are wrong)\b"
+)
