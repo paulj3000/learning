@@ -99,7 +99,15 @@ def publish(user, *, notes: str = "") -> NpcRelease:
         release.save()
         _record_assets(release, result.built)
         _activate(release, user)
+        _after_activation(release)
         return release
+
+
+def _after_activation(release: NpcRelease) -> None:
+    """Speech pre-generation (LAI-NPC-028) once the activation commits; never blocks publishing."""
+    from ..speech import schedule_pregeneration
+
+    schedule_pregeneration(release)
 
 
 def _record_assets(release: NpcRelease, built: Built) -> None:
@@ -136,6 +144,7 @@ def rollback(release: NpcRelease, user) -> NpcRelease:
         if problems:
             raise PublishError("invalid", problems)
         _activate(release, user)
+        _after_activation(release)
         return release
 
 

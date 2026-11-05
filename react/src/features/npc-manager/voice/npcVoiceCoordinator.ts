@@ -111,20 +111,15 @@ export function isNpcSpeechRef(value: unknown): value is NpcSpeechRef {
   );
 }
 
-/**
- * The speech-player reference for a node's speech. The speech player forwards references to the
- * server unchanged; its `SpeechReference` union (audio/speech, outside this workstream) does not
- * list `npcDialogueNode` yet, hence the one cast here (see the workstream report).
- */
+/** The speech-player reference for a node's speech (forwarded to the server unchanged). */
 export function toSpeechReference(ref: NpcSpeechRef): SpeechReference {
-  const reference = {
-    kind: ref.kind,
+  return {
+    kind: 'npcDialogueNode',
     npcId: ref.npcId,
     release: ref.release,
     dialogueKey: ref.dialogueKey,
     nodeKey: ref.nodeKey,
   };
-  return reference as unknown as SpeechReference;
 }
 
 interface Turn {
