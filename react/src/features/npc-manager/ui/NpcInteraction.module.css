@@ -1,0 +1,185 @@
+/*
+  NPC Manager interaction UI (LAI-NPC-014). Follows Treasure Rush's in-world panels
+  (RegionPlayPanels.module.css): a bottom sheet over the stage on a tablet, a card on wider
+  screens, paper surfaces and chunky lip buttons from the island's tokens.
+*/
+
+.prompt {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-6);
+  transform: translateX(-50%);
+  z-index: 15;
+  min-width: 3rem;
+  min-height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  border: 3px solid var(--color-accent);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  box-shadow: var(--lip-primary);
+  font: inherit;
+  font-size: var(--font-size-large);
+  font-weight: var(--font-weight-strong);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform var(--transition-press);
+}
+
+.prompt:active {
+  transform: translateX(-50%) translateY(var(--press-travel));
+}
+
+.prompt:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+.key {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-size-base);
+}
+
+.panel {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-4);
+  transform: translateX(-50%);
+  z-index: 20;
+  width: min(34rem, calc(100% - var(--space-8)));
+  max-height: min(70vh, 40rem);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-raised);
+  border: 3px solid var(--color-accent);
+}
+
+.panel:focus {
+  outline: none;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.portrait {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--color-surface-sunk);
+  flex: none;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-display);
+}
+
+.speech {
+  margin: 0;
+  font-size: var(--font-size-large);
+  line-height: var(--line-height-base);
+}
+
+.status {
+  margin: 0;
+  font-size: var(--font-size-large);
+}
+
+.error {
+  margin: 0;
+  color: var(--color-danger);
+  font-weight: var(--font-weight-strong);
+}
+
+.choices,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.choices {
+  flex-direction: column;
+}
+
+.button,
+.primary,
+.choice {
+  min-height: 3rem;
+  padding: var(--space-2) var(--space-6);
+  border: none;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: var(--font-size-large);
+  font-weight: var(--font-weight-strong);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform var(--transition-press);
+}
+
+.button {
+  background: var(--color-surface-sunk);
+  color: var(--color-text);
+  box-shadow: var(--lip-surface);
+}
+
+.primary,
+.choice {
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  box-shadow: var(--lip-primary);
+}
+
+.choice {
+  text-align: left;
+}
+
+.button:active:not(:disabled),
+.primary:active:not(:disabled),
+.choice:active:not(:disabled) {
+  transform: translateY(var(--press-travel));
+}
+
+.button:disabled,
+.primary:disabled,
+.choice:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.button:focus-visible,
+.primary:focus-visible,
+.choice:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prompt,
+  .button,
+  .primary,
+  .choice {
+    transition: none;
+  }
+}
