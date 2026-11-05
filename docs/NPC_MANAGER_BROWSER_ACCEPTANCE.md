@@ -5,8 +5,8 @@ browser). Part B is the owner's step-by-step browser checklist: **nothing in Par
 by an agent**. A tick is the owner's result. Live Polly and live Bedrock steps need the owner's
 explicit approval before anyone runs them, because they call AWS.
 
-Storykeeper's Castle (Keeper Quill, LAI-NPC-039) is integrated separately. Its rows are marked
-**pending castle merge**; the integrator fills in section B13 and the matrix rows after merging.
+Storykeeper's Castle (Keeper Quill, LAI-NPC-039) was merged after this document was first written;
+section B13 and the "Storykeeper's Castle events" matrix row cover it.
 
 ## Part A. Automated coverage matrix
 
@@ -46,7 +46,7 @@ New in LAI-NPC-040 (cross-cutting, full flow):
 | Sound | React `host/useNpcSceneHost.test.tsx` ("reports the Sound Manager NPC moments"), `voice/useNpcVoice.test.tsx` (mute, volume), `regionPlay/RegionPlayCompanion.npc.test.tsx`; **React acceptance** (muted: no speech request) |
 | Movement | React `behavior/behaviorMachine.test.ts`, `collision.test.ts`, `createBehaviorController.test.ts`, `parameters.test.ts`, `isolation.test.ts`, `engine/npcRuntimePerformance.test.ts` (far NPC route); Django `test_behavior_validation.py`, `test_behavior_preview.py` |
 | Treasure Rush events | React `dialogue/triggers.test.ts`, `host/triggerQueue.test.ts`, `regionPlay/RegionPlayCompanion.npc.test.tsx` (exactly one Pip, rewards unchanged, calm stop); Django `test_treasure_pip_seed.py`, **`test_acceptance_flow.py`** (every Pip trigger, `on_adventure_complete` only after the world change); **React acceptance** (treasure reaction plus line) |
-| Storykeeper's Castle events | **Pending castle merge** (LAI-NPC-039 is not on this branch). Integrator adds the castle tests here. |
+| Storykeeper's Castle events | `lai/apps/npcs/tests/test_castle_quill_seed.py` (seed idempotent, validates, Pip and Quill in one release, each scope serves only its NPC); `react/src/features/island-map/three/extensions/castleTale/CastleTaleCompanion.npc.test.tsx` (Place scope, exactly one Quill, conversation through the host, quest accept through the castle flow, tale start/resume/complete signals, mid-tale tap ignored, fallback with no release / Django off / load failure, scripted gestures forwarded, disposal on leaving); `castleNpcProgress.test.ts`; `runtime/manifests/storykeeperCastle.engine.test.ts` (handover) |
 | Child authorization | `npcs/tests/test_runtime_api.py`, `test_dialogue_api.py`, `test_ai_hint_api.py` (another family 404, 401, game cookie scope), `speech/tests/test_npc_dialogue_node.py`; **`test_acceptance_flow.py`** (other family 404 at every lifecycle step, cookie Area-only) |
 | AI safety | `npcs/tests/test_ai_hint_api.py` (invalid output, boundary violations, guardrail, kill switch, parent switch, rate limit, no free text), `ai/tests/test_npc_hint_contract.py`, `test_ai_persona.py`; **`test_acceptance_flow.py`** (fake model, AI disabled fallback, authored Pip refuses without a model call) |
 | Polly fallback | `speech/tests/test_npc_dialogue_node.py` (speech disabled), `speech/tests/test_speech_api.py` (Polly failure 503, not poisoned), `npcs/tests/test_voice_pregenerate.py` (failures never raise); React `voice/npcVoiceCoordinator.test.ts`, `voice/useNpcVoice.test.tsx` (captions always); **`test_acceptance_flow.py::test_speech_disabled_or_a_polly_error_is_a_safe_refusal_and_captions_stay`** |
@@ -78,13 +78,15 @@ make py-install                      # once
 make up                              # PostgreSQL 16 on 127.0.0.1:5442
 make migrate
 cd lai
-../.venv/bin/python manage.py load_content
-../.venv/bin/python manage.py seed_treasure_rush
-../.venv/bin/python manage.py publish_treasure_rush
-../.venv/bin/python manage.py ensure_npc_roles
-../.venv/bin/python manage.py ensure_asset_roles
-../.venv/bin/python manage.py seed_npc_pip --publish
-../.venv/bin/python manage.py create_admin_account <you> --superuser   # once; asks for a password
+/Coding/ENV/bin/python manage.py load_content
+/Coding/ENV/bin/python manage.py seed_treasure_rush
+/Coding/ENV/bin/python manage.py publish_treasure_rush
+/Coding/ENV/bin/python manage.py ensure_npc_roles
+/Coding/ENV/bin/python manage.py ensure_asset_roles
+/Coding/ENV/bin/python manage.py seed_speech_voices      # optional: gives Quill his voice profile
+/Coding/ENV/bin/python manage.py seed_npc_pip
+/Coding/ENV/bin/python manage.py seed_npc_quill --publish  # one release with Pip and Quill
+/Coding/ENV/bin/python manage.py create_admin_account <you> --superuser   # once; asks for a password
 export COGNITO_REGION=... COGNITO_USER_POOL_ID=... COGNITO_ALLOWED_CLIENT_IDS=...
 cd .. && make runserver              # http://127.0.0.1:8010
 # second shell; react/.env.local has VITE_BACKEND=django
@@ -96,7 +98,7 @@ says otherwise.
 
 | # | Action | Expected | Result |
 |---|---|---|---|
-| 1.1 | Run the commands above | Each finishes without error; `seed_npc_pip --publish` prints "NPC release 1 is ACTIVE" (a rerun prints "unchanged") | [ ] |
+| 1.1 | Run the commands above | Each finishes without error; `seed_npc_quill --publish` prints that NPC release 1 is ACTIVE, carrying Pip and Quill (a rerun of either seed prints "unchanged") | [ ] |
 | 1.2 | `curl http://127.0.0.1:8010/api/v1/health/` | 200 | [ ] |
 | 1.3 | Open `http://127.0.0.1:5183`, sign in as the test parent, create a Pathfinder child | Dashboard lists the child | [ ] |
 
@@ -218,14 +220,30 @@ Open `/island/<childId>/explore/treasure-rush-cove` as a new child.
 Write the results, the date, the device and anything surprising in
 `docs/IMPLEMENTATION_STATUS.md` under LAI-NPC-040.
 
-### B13. Storykeeper's Castle with Keeper Quill (PENDING CASTLE MERGE)
+### B13. Storykeeper's Castle with Keeper Quill
 
-> Placeholder. The integrator fills this section in after merging LAI-NPC-039 (Keeper Quill) into
-> the integration branch: setup commands (seed and publish Quill), Quill's placement and
-> greeting, castle triggers and story events, the castle fallback when no release is active,
-> voice and captions, accessibility, and the matching rows in the Part A matrix
-> ("Storykeeper's Castle events") with the castle test files.
+Setup: B1 already seeds Quill (`seed_npc_quill --publish`). The castle has no 3D Area in Django, so
+Quill is a Place-level placement (`castle-quill`, Place `storykeeper-castle`) served by
+`GET children/<child>/places/storykeeper-castle/npcs/`.
 
 | # | Action | Expected | Result |
 |---|---|---|---|
-| 13.1 | _to be written after the castle merge_ | | [ ] |
+| 13.1 | Open Storykeeper's Castle as a child | Exactly one Keeper Quill stands in the entry hall where he always stood, facing the entry; no second Quill appears after loading | [ ] |
+| 13.2 | Walk up to Quill | The "Talk to Keeper Quill" prompt appears with a speech-bubble icon; walking away hides it | [ ] |
+| 13.3 | Talk to Quill on a first visit | His published greeting (first meeting) shows in the panel with captions, offering the "Tell a story together" quest | [ ] |
+| 13.4 | Accept the quest | The castle's existing quest flow starts the quest once (check the quest log); no duplicate quest | [ ] |
+| 13.5 | As a Sprouts (3 to 4) child, talk to Quill | The Sprout greeting shows (short, readable aloud) | [ ] |
+| 13.6 | Start the tale in the story hall; tap Quill mid-tale | The tale proceeds exactly as before; the tap is ignored calmly, no hidden conversation opens | [ ] |
+| 13.7 | Use the hint ladder to rung 3 and get a plate order wrong | Quill points at the mantel, and shows concern after the wrong order (castle gestures reach the managed Quill) | [ ] |
+| 13.8 | Finish the tale | Quill celebrates; afterwards his "The story you made is on my shelf now." line plays | [ ] |
+| 13.9 | Leave and come back | Quill says his return-visit line | [ ] |
+| 13.10 | Voice: with `seed_speech_voices` run and speech disabled (default) | Captions always show; no audio, no error. Live Polly only with owner approval | [ ] |
+| 13.11 | Retire the active NPC release in Django Admin and reload the castle | The legacy Quill and his old conversation work exactly as before (fallback); nothing breaks | [ ] |
+| 13.12 | Republish; stop Django (`Ctrl+C` on runserver) and reload the castle | Legacy Quill fallback again; no error screen | [ ] |
+| 13.13 | Keyboard and screen reader in the castle | Same as B10: prompt reachable, Escape closes, focus returns, lines announced once | [ ] |
+| 13.14 | Treasure Cove after seeding both | Pip still behaves as in B4 to B6; one release serves both characters in their own scopes | [ ] |
+
+Known limits (not defects): Quill's dialogue conditions cannot see the castle's Amplify quest
+state, so the quest offer appears once per child rather than "until the quest is started"; the
+castle's wrong answers come from the Adventure Engine, not the play API, so they do not trigger
+`on_incorrect_answer` lines (Quill still shows concern through the forwarded gesture).

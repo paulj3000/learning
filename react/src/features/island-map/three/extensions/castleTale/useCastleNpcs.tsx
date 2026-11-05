@@ -65,7 +65,7 @@ export interface CastleNpcs {
  *   failed load) nothing is handed over or claimed: the legacy Quill is unchanged.
  * - **Progression kept.** Talking first records what the legacy conversation recorded, and an
  *   `OFFER_QUEST` choice accepts through the castle's existing quest flow
- *   (`castleNpcProgress.ts`).
+ *   (`castleNpcProgress.tsx`).
  * - **Adventure signals.** The tale starting, resuming and completing become the host's play
  *   outcomes (`notifyPlay`), so Quill reacts and the published lines for those triggers play
  *   once nothing else is on screen. Observation only: the Adventure Engine still decides all.

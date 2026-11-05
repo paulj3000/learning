@@ -165,7 +165,7 @@ python manage.py seed_npc_quill --publish      # one release with every READY ch
 
 **Wiring (castle files only, the host unchanged).** `castleTaleScene.ts` gains the same optional
 `npcHostScene` / `setNpcProxy` / `isNpcProxied` members as Treasure Cove's scene.
-`useCastleNpcs.ts` mounts `useNpcSceneHost` for the Place; while it serves `keeper-quill`, the
+`useCastleNpcs.tsx` mounts `useNpcSceneHost` for the Place; while it serves `keeper-quill`, the
 manifest Quill is handed over (hidden, its root following the managed Quill, so focus, taps and
 his positional voice still reach him) and `castle-tale` claims his `TALK_TO`
 (`castleNpcHandover.ts`), so the host's conversation opens instead of the generic panel's
@@ -175,7 +175,7 @@ handed over or claimed and the legacy Quill is unchanged.
 **Progression kept.** Talking to the managed Quill first records the opening node the legacy
 conversation would have shown (`recordDialogueNode`: `metQuill`, friendship), and his
 `OFFER_QUEST` accepts through the castle's existing quest flow (`startQuest` +
-`syncQuestProgress`), only for the giver and the quest's bands (`castleNpcProgress.ts`). The tale,
+`syncQuestProgress`), only for the giver and the quest's bands (`castleNpcProgress.tsx`). The tale,
 the secret door story, their sessions, hints and world changes are untouched. The tale starting
 or resuming and completing are passed to `notifyPlay` as play outcomes; Quill's lines wait while
 the tale or story card (or another panel) is open, and a tap on Quill mid-tale is let go.
@@ -188,3 +188,7 @@ through behaviour reactions. Forwarding them needs a host API (for example
 forwarded (the castle's answers are Adventure Engine results, not play API outcomes). Quill's
 dialogue conditions cannot read the castle's Amplify quest or world-change state, so the quest
 offer is once per child rather than "until started".
+
+The castle host hook and progress module are `.tsx` files: under `island-map/three/`, `.ts` files are
+engine modules that may not import React or API clients (ADR-020, `src/test/engineBoundary.ts`),
+the same convention as the castle speech hook.
