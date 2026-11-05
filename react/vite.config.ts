@@ -8,7 +8,12 @@ export default defineConfig(({ mode }) => ({
   // Tailwind only compiles CSS that imports it: src/features/admin/admin.css (ADR-023).
   plugins: [react(), tailwindcss()],
   // `vite dev` only: forwards /api to a local Django when VITE_BACKEND=django (TR-D14).
-  server: { proxy: djangoDevProxy(loadEnv(mode, process.cwd(), '')) },
+  // Port 5183 by default (owner, 2026-11-05; 5173 is used by other checkouts); VITE_DEV_PORT overrides.
+  server: {
+    port: Number(loadEnv(mode, process.cwd(), '').VITE_DEV_PORT) || 5183,
+    strictPort: true,
+    proxy: djangoDevProxy(loadEnv(mode, process.cwd(), '')),
+  },
   test: {
     environment: 'jsdom',
     globals: true,
