@@ -73,6 +73,9 @@ export function createStationaryBehavior(args: BehaviorControllerArgs): Behavior
     resume() {
       setState('idle');
     },
+    cancel() {
+      setState('idle');
+    },
     react(event) {
       return spec?.parameters.reactions?.[event] ?? null;
     },

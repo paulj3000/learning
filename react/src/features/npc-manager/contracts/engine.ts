@@ -83,6 +83,8 @@ export interface BehaviorFrame {
   locomotion: Locomotion;
   /** `npc.waypoint_reached` and `npc.behavior_changed` events produced this frame. */
   events: NpcEngineEvent[];
+  /** A scripted `play` step's animation state, on the frame it starts; otherwise null/absent. */
+  animation?: AnimationState | null;
 }
 
 export interface BehaviorController {
@@ -91,6 +93,8 @@ export interface BehaviorController {
   interrupt(reason: 'dialogue' | 'scripted'): void;
   /** Continue from where `interrupt` stopped. */
   resume(): void;
+  /** Drop any interruption or reaction and restart the behaviour from its beginning. */
+  cancel(): void;
   /** The animation state configured for this adventure event (reaction), or null. */
   react(event: AdventureEvent): AnimationState | null;
   state(): BehaviorState;
@@ -106,6 +110,8 @@ export interface BehaviorControllerArgs {
   isBlocked?: (x: number, z: number) => boolean;
   /** Injected for deterministic tests (wander). Default Math.random. */
   random?: () => number;
+  /** The child's reduced-motion preference (wander and patrol stand still; see behavior/). */
+  reducedMotion?: boolean;
 }
 
 export type BehaviorControllerFactory = (args: BehaviorControllerArgs) => BehaviorController;

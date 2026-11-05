@@ -290,6 +290,7 @@ describe('commands', () => {
       update: vi.fn(() => ({ ...frame, events: [...frame.events] })),
       interrupt: vi.fn(),
       resume: vi.fn(),
+      cancel: vi.fn(),
       react: vi.fn(() => 'wave' as const),
       state: vi.fn(() => 'idle' as const),
       dispose: vi.fn(),

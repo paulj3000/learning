@@ -209,6 +209,7 @@ export function createNpcRuntime(options: NpcRuntimeOptions): NpcSceneRuntime {
       spec: placement.behavior,
       home,
       isBlocked: options.isBlocked,
+      reducedMotion: options.reducedMotion(),
     };
     let behavior: BehaviorController;
     try {

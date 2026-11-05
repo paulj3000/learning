@@ -254,7 +254,7 @@ published,api,urls,admin}.py`, `publishing/`, `validation/__init__.py`, `tests/h
 
 | Workstream | Owns |
 |---|---|
-| A Admin and assets | `npcs/admin_characters.py`, `npcs/apps.py` (`ready()` hooks), `npcs/templates/`, `npcs/validation/assets.py`, `npcs/dependencies.py`, hooks in `apps/assets/services.py` retire paths |
+| A Admin and assets | `npcs/admin_characters.py`, `npcs/apps.py` (`ready()` hooks), `npcs/management/` (except E's command), `npcs/templates/`, `npcs/validation/assets.py`, `npcs/dependencies.py`, hooks in `apps/assets/services.py` retire paths |
 | B Runtime | `npcs/views_runtime.py`, `npcs/runtime.py`, `npcs/serializers_runtime.py`, `react/src/features/npc-manager/{api,engine,animation,ui}/` |
 | C Dialogue | `npcs/views_dialogue.py`, `npcs/dialogue.py`, `npcs/triggers.py`, `npcs/state.py`, `npcs/validation/dialogue.py`, `react/src/features/npc-manager/dialogue/` |
 | D Behaviour | `npcs/admin_behavior.py`, `npcs/validation/behavior.py`, `npcs/preview_behavior.py`, `react/src/features/npc-manager/behavior/` |
@@ -271,3 +271,4 @@ integrator; it does not add migrations to `npcs`.
 |---|---|---|
 | 1 | 2026-11-05 | Initial freeze (foundation commit). |
 | 1 | 2026-11-05 | Before any workstream started: `admin.py` split into `admin_characters` (A), `admin_behavior` (D), `admin_persona` (F); `BehaviorController` interface added to `engine.ts` (D implements, B consumes). |
+| 1.1 | 2026-11-05 | Integrator, after wave 1 (additive, backward compatible): `BehaviorControllerArgs.reducedMotion?`, `BehaviorFrame.animation?` (scripted `play`), `BehaviorController.cancel()`; interaction routes use `path()` converters (`<uuid:conversation_id>`; `choose`, `advance`, `end`, `hint` as fixed segments); Place and catalog NPC routes are bearer-only (`api.bearer_only`), so the game cookie gets 401/403 there instead of 404; `SpeechReference` gains `npcDialogueNode`; publish and rollback schedule speech pre-generation after commit; `npcs/management/` added to workstream A. |
