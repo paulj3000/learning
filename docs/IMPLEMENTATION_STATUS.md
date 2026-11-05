@@ -12338,7 +12338,7 @@ lands.
 
 **Checks.** See the end-of-batch delivery notes.
 
-## NPC Manager (Phase 30, `feature/npc-manager`, ADR-050) — in progress
+## NPC Manager (Phase 30, `feature/npc-manager`, ADR-050) — development complete, owner acceptance pending
 
 Plan: `docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md`; contracts: `docs/NPC_MANAGER_CONTRACTS.md`;
 tracker: `tasks/TASK_TRACKER.md` Phase 30.
@@ -12381,4 +12381,68 @@ Development ports moved to PostgreSQL 5442, Django 8010, Vite 5183 (`18e9cec`).
 - Evidence: pytest `apps/npcs apps/regions apps/game_sessions apps/quests` 611 passed (Pip seed
   13); Vitest npc-manager, region-play, island-map, audio 177 files / 2143 tests passed; `tsc -b`
   clean; Prettier and Ruff clean on changed files; `makemigrations --check` clean.
+
+**Workstreams merged into `feature/npc-manager` (all DEVELOPMENT COMPLETE, none ACCEPTED).**
+Six parallel workstreams ran in isolated worktrees against the frozen contracts, then were merged
+in dependency order by the integrator with targeted tests after each merge.
+- A, Admin and Asset Library (LAI-NPC-003, 004, 005, 035, 036; `b1b0030`): Django Admin authoring
+  of characters, variants, extras, placements and dialogue trees; validate, publish, roll back,
+  retire actions gated by permissions; animation maps checked against the asset version's clips;
+  the Asset Library gains a retirement veto so an asset or version used by the active or a
+  rollback-candidate release cannot be retired; dependency report (admin and
+  `npc_asset_dependencies`); `ensure_npc_roles` groups (editors, publishers).
+- B, Three.js runtime (LAI-NPC-007, 008, 009, 014; `fd5ca4b`, `7b1079d`): runtime read API,
+  typed React client, `createNpcRuntime` (resolver URLs, placeholders, proximity, disposal),
+  `createNpcAnimator` (11 states, fallbacks, priorities, 0.2 s crossfades), prompt and panel UI.
+- C, Dialogue (LAI-NPC-011, 012, 013, 017; `11e47bd`, `b71e9de`): server dialogue engine, the
+  11-trigger registry mapped to existing play signals, child-owned conversation state that never
+  writes progress; React dialogue controller and trigger mapping.
+- D, Behaviour (LAI-NPC-019 to 025; `57d5367`, `57813a5`): deterministic behaviour controller
+  (stationary, wander, patrol, follow, guide, reactive, scripted), interruption, cancellation,
+  waypoints, boundaries, reactions, reduced motion; Django validation and admin preview.
+- E, Voice (LAI-NPC-026 to 029; `d3c15d9`): reuses `speech.VoiceProfile` and the ADR-049 Polly
+  adapter; `npcDialogueNode` speech references resolved only from the active release; publish and
+  rollback pre-generate clips after commit (`87d24d4`); React voice coordinator with captions
+  always shown. Fake Polly only.
+- F, AI (LAI-NPC-030 to 033; `ae19110`): `POST .../interactions/<id>/hint/` through the one
+  `run_turn` pipeline (route `generateNpcHint`, `ai/0005`), versioned personas with validation,
+  authored fallbacks on every failure, no gameplay writes. Fake model only.
+- Integrator fixes: `path()` interaction routes and bearer-only Place and catalog routes so the
+  tenant-isolation checker and game-cookie rules hold (contract 1.1); behaviour contract
+  additions (`reducedMotion`, scripted `animation`, `cancel()`); app-wide engine boundary covers
+  `npc-manager/{engine,animation,behavior}`; persona and behaviour permissions in the NPC roles.
+
+**Production and cross-island (DEVELOPMENT COMPLETE).**
+- LAI-NPC-037 performance (`1bd91b1`): shared model cache (one load per asset version, LRU of 12
+  unused), incremental `mount()`, reduced-rate updates for far or off-screen NPCs without slowing
+  movement, no per-frame allocation, traversal or loads. Unit-measured with fakes: 20 NPCs about
+  0.035 ms per engine update. Device profiling pending (`docs/NPC_MANAGER_PERFORMANCE.md`).
+- LAI-NPC-038 accessibility (`b62308d`): modal dialog with focus trap and focus return, live
+  region announcing each line once, 56 px targets, icon plus text prompt, "Hear it again" replay,
+  muted means text only, live reduced-motion preference (`docs/NPC_MANAGER_ACCESSIBILITY.md`).
+- LAI-NPC-039 Storykeeper's Castle (`361c1ff`, `67b3d07`, `9a6bd85`): Keeper Quill seeded by
+  `seed_npc_quill` as a Place-level placement and served through the same host; exactly one
+  Quill, legacy fallback, castle progression unchanged, castle gestures forwarded through the
+  host's additive `animate()`. Host hook and progress module are `.tsx` (engine boundary).
+- LAI-NPC-040 acceptance (`ac71c9a`): Django full-flow test (seed, publish, converse, republish,
+  rollback, retire, isolation, cookie scope, speech refusal, AI fallback, asset guard) and a React
+  host scenario; owner browser checklist and coverage matrix in
+  `docs/NPC_MANAGER_BROWSER_ACCEPTANCE.md` (Part B not run by any agent).
+
+**Final regression on `feature/npc-manager` (2026-11-05).** Full pytest (PostgreSQL, `LAI_REQUIRE_POSTGRES=1`) 2131 passed, 0 failed. Vitest full suite: 377 files, 4235 tests, 4226 passed, 9 failed
+before the castle `.tsx` fix; after it the engine boundary passes and the 8 remaining failures
+(`src/test/adrCheck.test.ts` 7, `contentExport.test.ts` 1) are infrastructure: they spawn
+`<repo>/node_modules/.bin/tsx`, which this machine's shared toolchain (`/Coding/node_modules`)
+does not provide; the commands they wrap pass directly (`npm run adr:check`: 50 decisions;
+`npm run content:check`: up to date). `npm run typecheck` clean; `npm run build` succeeded; Ruff
+check and format clean (465 files); Prettier clean; oxlint exit 0 (warnings only, matching
+existing `role` patterns); migrations apply to a fresh database and `makemigrations --check` is
+clean. Not run: Playwright or any browser/WebGL check, live Polly, live Bedrock, deployment.
+
+**Open for owner acceptance.** Browser checklist (`docs/NPC_MANAGER_BROWSER_ACCEPTANCE.md` Part
+B, including B13 castle); live Polly and Bedrock checks need explicit approval; review of Pip's
+and Quill's migrated lines; device performance profiling; manual screen reader and switch access.
+Known limits: variant extras (accessories) are validated and published but not rendered; Pip has
+no voice profile; AI hint speech is null; Quill's conditions cannot see the castle's Amplify quest
+state; a disabled-provider AI hint writes no audit row (contract silent; AI owner to decide).
 
