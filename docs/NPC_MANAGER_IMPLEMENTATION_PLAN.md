@@ -133,3 +133,58 @@ honoured, disposed on unmount). NPC moments (`npcGreet`, `npcInteract`, `npcTalk
 play whatever staff assigned to that NPC's `on_approach`, `on_interact`, `on_dialogue_start` or
 `on_exit` event in the region's audio manifest; silent without an assignment.
 
+
+## 8. Storykeeper's Castle integration (LAI-NPC-039)
+
+**Scope.** The castle has no 3D Area in Django (no `regions.WorldRegion`); it is the Place
+`storykeeper-castle`. Keeper Quill is therefore a Place-level placement (`area: null`) and the
+client uses the host's `{kind: 'place', placeSlug: 'storykeeper-castle'}` scope. The Great
+Storybook stays out of scope (unmerged branch).
+
+**Quill as content.** `lai/apps/npcs/quill_content.py` (reusing Pip's `Dialogue`/`Node`/`Choice`
+specs) holds Quill's character on the canonical `keeper-quill` NpcDefinition (role
+`STORYTELLER`, authored mode), the `storykeeper` variant (`npc-quill`, animation map limited to
+the model's clips: idle, talk, wave, point, celebrate, and `sad` -> `ReactConcerned`), the
+stationary `quill-story-hall` behaviour (faces the child; wave on tale start/resume, celebrate on
+completion), the `castle-quill` placement on the manifest spot (x -4.5, z 0, facing the entry
+hall), the existing `keeper-quill` voice profile from `seed_speech_voices` when present, and six
+dialogues migrated from Quill's current lines: the first meeting with the
+`tell-a-story-together` offer (`OFFER_QUEST`, Pathfinders and Explorers), a Sprout greeting, what
+every story needs, a return visit, the "story told" line on `on_adventure_complete`, and a
+condition-free fallback. `seed_npc_quill` has `seed_npc_pip`'s guarantees (create-only, staff edits
+survive, validates, rerun `unchanged`). Releases are global, so publishing carries Pip too:
+
+```bash
+cd lai
+python manage.py load_content
+python manage.py seed_speech_voices            # optional, so Quill keeps his voice
+python manage.py seed_treasure_rush            # only if Pip is wanted in the same release
+python manage.py seed_npc_pip                  # optional, idem
+python manage.py seed_npc_quill --publish      # one release with every READY character
+```
+
+**Wiring (castle files only, the host unchanged).** `castleTaleScene.ts` gains the same optional
+`npcHostScene` / `setNpcProxy` / `isNpcProxied` members as Treasure Cove's scene.
+`useCastleNpcs.ts` mounts `useNpcSceneHost` for the Place; while it serves `keeper-quill`, the
+manifest Quill is handed over (hidden, its root following the managed Quill, so focus, taps and
+his positional voice still reach him) and `castle-tale` claims his `TALK_TO`
+(`castleNpcHandover.ts`), so the host's conversation opens instead of the generic panel's
+`NpcConversation`. Exactly one Quill. With no release, Django off or any load failure nothing is
+handed over or claimed and the legacy Quill is unchanged.
+
+**Progression kept.** Talking to the managed Quill first records the opening node the legacy
+conversation would have shown (`recordDialogueNode`: `metQuill`, friendship), and his
+`OFFER_QUEST` accepts through the castle's existing quest flow (`startQuest` +
+`syncQuestProgress`), only for the giver and the quest's bands (`castleNpcProgress.ts`). The tale,
+the secret door story, their sessions, hints and world changes are untouched. The tale starting
+or resuming and completing are passed to `notifyPlay` as play outcomes; Quill's lines wait while
+the tale or story card (or another panel) is open, and a tap on Quill mid-tale is let go.
+
+**Deferred.** The castle's own gestures (`playQuillClip`: Talk/Point after a chat, pointing at the
+mantel on hint rung 3, the calm-stop look at the nook, concern after a wrong plate order) still
+target the manifest Quill, which is hidden while handed over; the managed Quill only reacts
+through behaviour reactions. Forwarding them needs a host API (for example
+`animate(npcId, state, facing?)`), owned by the host workstream. Wrong-answer reactions are not
+forwarded (the castle's answers are Adventure Engine results, not play API outcomes). Quill's
+dialogue conditions cannot read the castle's Amplify quest or world-change state, so the quest
+offer is once per child rather than "until started".

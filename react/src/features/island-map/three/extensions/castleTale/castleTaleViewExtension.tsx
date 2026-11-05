@@ -1,6 +1,7 @@
 import type { LocationViewExtension } from '../../runtime/viewExtensionRegistry';
 import { CastleTaleCompanion } from './CastleTaleCompanion';
 import { tryParseCastleTaleConfig } from './castleTaleConfig';
+import { managedCastleNpcFor } from './castleNpcHandover';
 
 /**
  * `castle-tale`'s React half. It claims the two interactions whose meaning
@@ -20,7 +21,9 @@ export const castleTaleViewExtension: LocationViewExtension = {
     const parsed = tryParseCastleTaleConfig(config);
     if (!parsed) return false;
     return (
-      interaction.id === parsed.taleInteractionId || interaction.id === parsed.storyInteractionId
+      interaction.id === parsed.taleInteractionId ||
+      interaction.id === parsed.storyInteractionId ||
+      managedCastleNpcFor(interaction) !== null
     );
   },
   Companion: CastleTaleCompanion,

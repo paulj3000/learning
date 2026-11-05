@@ -20,6 +20,7 @@ import { CastleTaleSession, type CastleChoiceState } from './CastleTaleSession';
 import { CastleSecretDoorStory } from './CastleSecretDoorStory';
 import { isCastleTaleScene, type CastleTaleSceneApi } from './castleTaleScene';
 import { tryParseCastleTaleConfig } from './castleTaleConfig';
+import { useCastleNpcs, type CastleNpcHandover } from './useCastleNpcs';
 
 /**
  * Storykeeper Castle's React half: the companion the generic view mounts for
@@ -44,6 +45,13 @@ import { tryParseCastleTaleConfig } from './castleTaleConfig';
  * ways of answering go through its single `submitAnswer` - looking at a
  * portrait, or pressing the same option on the card. They cannot drift,
  * because there is one session, one submit and one `AdventureStepCard`.
+ *
+ * Keeper Quill on the NPC Manager (LAI-NPC-039): `useCastleNpcs` mounts the shared NPC scene
+ * host for the castle's Place. When it serves Quill, the manifest Quill is handed over and his
+ * talk opens the published conversation; the tale starting, resuming and completing are passed
+ * on as play outcomes. When it serves nothing, the legacy Quill and his conversation are
+ * exactly as before. The gestures below still go to the manifest Quill, which is hidden while
+ * handed over (see `docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md` section 8).
  */
 const CHOOSE_HERO_STEP_ID = 'choose-hero';
 const CHOOSE_SETTING_STEP_ID = 'choose-setting';
@@ -108,6 +116,9 @@ export function CastleTaleCompanion({
   const [taleActive, setTaleActive] = useState(false);
   const [storyActive, setStoryActive] = useState(false);
   const [restoredChoices, setRestoredChoices] = useState<CastleChoiceState>(NO_CHOICES);
+  /** Whether the tale and the story have finished here (their cards then stop holding Quill). */
+  const [taleDone, setTaleDone] = useState(false);
+  const [storyDone, setStoryDone] = useState(false);
 
   /** Which adventure this child's band gets here (SC-10), asked rather than assumed. */
   const taleForBand = useMemo(
@@ -121,6 +132,10 @@ export function CastleTaleCompanion({
   );
   /** ADR-027: the Story Engine's own gate, asked rather than restated here. */
   const storyForBand = isStoryForAgeBand(THE_CASTLES_SECRET_DOOR, ageBand);
+
+  // Set below once the NPC host exists; read by the resume effect, which runs first.
+  const taleStartedRef = useRef<((resumed: boolean) => void) | null>(null);
+  const taleActiveRef = useRef(false);
 
   /*
     A session left open from an earlier visit resumes in the room the child
@@ -168,7 +183,9 @@ export function CastleTaleCompanion({
           settingOptionId,
           easelPainted,
         });
+        taleActiveRef.current = true;
         setTaleActive(true);
+        taleStartedRef.current?.(true);
       } catch {
         // A failed read leaves the castle explorable, which is the calmer
         // answer for a child who just wants to walk around.
@@ -201,6 +218,8 @@ export function CastleTaleCompanion({
   useEffect(() => {
     if (!parsed || !claimedInteraction) return;
     if (claimedInteraction.id === parsed.taleInteractionId && taleForBand) {
+      if (!taleActiveRef.current) taleStartedRef.current?.(false);
+      taleActiveRef.current = true;
       setTaleActive(true);
       onCloseInteraction();
     }
@@ -266,12 +285,44 @@ export function CastleTaleCompanion({
     if (stepId === CHOOSE_SETTING_STEP_ID) sceneRef.current?.showChosenSetting(entityId);
   }, []);
 
-  const handleComplete = useCallback(() => {
+  // --- Keeper Quill on the NPC Manager (LAI-NPC-039) ---------------------------------------
+  const quillEntityId = parsed?.quillEntityId;
+  const handovers = useMemo<readonly CastleNpcHandover[]>(
+    // The manifest Quill's entity id is also his NPC id (`KEEPER_QUILL_ID`).
+    () => (quillEntityId ? [{ entityId: quillEntityId, npcId: quillEntityId }] : []),
+    [quillEntityId],
+  );
+  const openElsewhere =
+    openInteraction !== null &&
+    claimedInteraction === null &&
+    openInteraction.id !== TALK_TO_QUILL_INTERACTION_ID;
+  const npcs = useCastleNpcs({
+    childId,
+    ageBand,
+    scene,
+    handovers,
+    claimedInteraction,
+    onCloseInteraction,
+    suspended: (taleActive && !taleDone) || (storyActive && !storyDone) || openElsewhere,
+  });
+  const { notifyTaleStarted, notifyTaleCompleted } = npcs;
+  const taleSlug = taleForBand?.slug ?? THE_STORYKEEPERS_TALE.slug;
+  taleStartedRef.current = (resumed) => notifyTaleStarted(resumed, taleSlug);
+
+  const handleTaleComplete = useCallback(() => {
+    setTaleDone(true);
+    notifyTaleCompleted(taleSlug);
+    void refreshWorld();
+  }, [refreshWorld, notifyTaleCompleted, taleSlug]);
+
+  const handleStoryComplete = useCallback(() => {
+    setStoryDone(true);
     void refreshWorld();
   }, [refreshWorld]);
 
   if (!parsed) return null;
 
+  const npcStage = npcs.host.panel ?? npcs.host.prompt;
   const captions = (
     <div className={speechStyles.captions}>
       <SpeechCaption
@@ -288,6 +339,7 @@ export function CastleTaleCompanion({
   return (
     <>
       {hudSlot ? createPortal(captions, hudSlot) : captions}
+      {npcStage ? (hudSlot ? createPortal(npcStage, hudSlot) : npcStage) : null}
       {taleActive && taleForBand ? (
         <CastleTaleSession
           childId={childId}
@@ -298,7 +350,7 @@ export function CastleTaleCompanion({
           definition={taleForBand}
           restoredChoices={restoredChoices}
           onChoice={reflectChoice}
-          onComplete={handleComplete}
+          onComplete={handleTaleComplete}
           backToMapHref={`/island/${childId}/locations/storykeeper-castle`}
         />
       ) : null}
@@ -309,7 +361,7 @@ export function CastleTaleCompanion({
           aiEnabled={aiEnabled}
           bus={bus}
           scene={sceneRef}
-          onComplete={handleComplete}
+          onComplete={handleStoryComplete}
           backToMapHref={`/island/${childId}/locations/storykeeper-castle`}
         />
       ) : null}
