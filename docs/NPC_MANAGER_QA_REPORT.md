@@ -121,6 +121,20 @@ Waving to these takes.
 Bulk renaming and retargeting stay with the separately planned Lambda animation-processing
 project; nothing here starts that work.
 
+**Resolved 2026-11-07: the pirate is Pip's `pirate` variant.** The owner sent the pirate as one
+file per Mixamo motion. Its four usable motions were merged onto the one skinned mesh as `Idle`,
+`Walk`, `Wave` and `Point` (`content/models/npc-pip-pirate.glb`, 3.3 MB; validator: no
+findings). Left out: Shooting (not suitable for the age range), the two talking takes (phone and
+seated), Sitting Idle, Looking Around and T-pose (outside the clip vocabulary). There is still no
+`Talk` clip, so talk falls back to idle. Apply it with
+`manage.py add_pip_pirate_variant [--use-in-cove] [--publish]`: it creates the Django-authored
+asset `npc-pip-pirate`, uploads and publishes the file through the Asset Library services, and
+adds the `pirate` variant (scale 1.25, map idle/walk/wave/point). `classic` and the shared
+`npc-pip` placeholder are unchanged, and `classic` stays the default. `--use-in-cove` points the
+Treasure Cove placement at the pirate (switch back in Admin by clearing the placement's variant).
+Checked in Chromium against a local stack: the pirate loads (not the placeholder), faces the
+child, stands at Pip's height and plays Wave on arrival and Idle at rest.
+
 **Added in this pass.** A `generic_clip_name` upload warning for exporter default take names
 (`mixamo.com`, `|LayerN(.00n)`, `ArmatureAction`, `Action.00n`, `Take 001`) with the fix above;
 regression tests at every layer: `lai/apps/assets/tests/test_validation.py` (Mixamo and other
