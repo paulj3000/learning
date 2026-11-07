@@ -13,16 +13,16 @@ stack's fake AI provider, speech disabled and in-memory asset storage. **No live
 
 | Area | Result |
 |---|---|
-| Backend tests (pytest, full suite) | PASS: see section 8 |
-| Frontend tests (Vitest, full suite) | PASS: see section 8 |
+| Backend tests (pytest, full suite) | PASS: 2503 passed |
+| Frontend tests (Vitest, full suite) | PASS: 4242 passed in 377 files |
 | Django Admin browser QA | PASS (12 browser tests, desktop and 390 px mobile width) |
-| Treasure Rush integration | PASS (8 browser tests) plus the existing full-quest suite with managed Pip |
+| Treasure Rush integration | PASS for the NPC Manager's own 8 browser tests; the pre-existing Treasure Rush suite FAILS 3 tests with the managed Pip (F-B, section 8) |
 | Storykeeper's Castle integration | PASS with documented limits (7 browser tests); tale, quest log and backpack need Amplify, not available locally |
 | Animation QA | PASS (browser, Admin, asset validation and AnimationMixer tests); the owner's Mixamo pirate file was not available to inspect (section 4) |
 | Polly live QA | BLOCKED (no approved test environment or spending limit; fake-client regression PASS) |
 | Bedrock live QA | BLOCKED (same; fake-model regression PASS) |
 | Accessibility | PASS for automated checks; MANUAL REQUIRED for screen readers, switch access and tablets |
-| Merge readiness | see section 8 |
+| Merge readiness | NOT READY: every static gate and unit suite passes, but 6 pre-existing browser tests fail because of two NPC Manager behaviours that need an owner decision (F-A, F-B, section 8) |
 
 Four defects were found and fixed with regression tests (section 6). None of the four documented
 limitations is a release blocker (section 7).
@@ -57,6 +57,7 @@ NPCs until a spec publishes.
 
 The existing `treasure-rush.spec.ts` (the whole of Pip's Missing Treasure) now runs after the NPC
 specs, that is **with the managed Pip**, which makes it a parity check of the legacy experience.
+It fails in three places (F-B, section 8).
 
 Screenshots (a selection, full set in `react/test-results/npc-qa/` after a run) are in
 `docs/qa/npc-manager/`:
@@ -219,7 +220,49 @@ Also found, not fixed (owner or other owners to decide):
 
 ## 8. Merge-readiness gates
 
-See the "Gate results" table appended below for the final numbers on the QA branch head.
+Gate results on the QA branch head (all run in this container on 2026-11-07):
+
+| Gate | Command | Result |
+|---|---|---|
+| Django tests | `LAI_REQUIRE_POSTGRES=1 pytest -q` | PASS, 2503 passed (2489 before this pass; +14 QA tests) |
+| Migration consistency | `manage.py makemigrations --check --dry-run`; `manage.py check` | PASS, no changes; no issues |
+| Fresh-database migrate | every e2e run drops and migrates `lai_e2e` from zero | PASS |
+| Vitest | `vitest run` (react) | PASS, 4242 passed in 377 files (4235 before; +7 QA tests) |
+| TypeScript | `npm run typecheck` (react, amplify, scripts, server, infra) | PASS |
+| Ruff | `ruff check .`; `ruff format --check .` | PASS |
+| Prettier | `prettier --check .` | PASS |
+| oxlint | `npm run lint` | PASS (exit 0; existing warnings only) |
+| ADR check | `npm run adr:check` | PASS, 50 decisions, 50 registry rows |
+| Production build | `npm run build` | PASS (existing chunk-size warning) |
+| Admin preview bundle | `npm run admin-preview:check` | PASS, fresh |
+| NPC browser specs | `test:acceptance -- npc-` (32 tests) | PASS, 32 passed (within the full run too) |
+| Full browser acceptance | `npm run test:acceptance` (desktop and tablet projects, 64 tests) | **FAIL: 56 passed, 6 failed, 1 skipped (touch test, desktop only), 1 did not run (serial follow-on of a failure)** |
+
+**The six browser failures.** None of these suites had been run on `feature/npc-manager` before
+(the plan ruled browser runs out). All six trace to two NPC Manager behaviours:
+
+- **F-A, no active release is reported as an error (2 tests: `asset-library.spec.ts` "a published
+  model replaces the bundled one", `integration.spec.ts`).** With no ACTIVE NPC release, every
+  Treasure Cove visit calls `GET .../regions/treasure-rush-cove/npcs/`, gets the contract's
+  `404 no_active_release`, and the browser logs "Failed to load resource". The game behaves
+  correctly (legacy Pip), but the harness's console and network guard treats any `/api` 404 as a
+  failure, and every environment without a release (production included, today) will log this on
+  every visit. Options for the owner: accept it and teach the harness that this 404 is normal, or
+  change contract 1.1 so "no release" is `200` with no placements.
+- **F-B, Pip's unprompted lines open a modal panel (4 tests: `treasure-rush.spec.ts` x3 and
+  `question-studio.spec.ts` "a pool serves published questions to Treasure Rush").** On arrival
+  (first-visit greeting) and on every resumed visit (welcome back, now that QA-D3 raises it) the
+  managed Pip opens the same modal dialogue panel used for a conversation. It covers "Full screen",
+  hides the HUD's "Hint" and takes focus until the child presses Close or Continue
+  (`docs/qa/npc-manager/fb-greeting-blocks-fullscreen.png`, `fb-welcome-back-modal.png`). The
+  legacy Pip never spoke unprompted. Checklist B4.1 and B4.11 ask for the greeting and the
+  welcome back, but nothing asks for them to block the HUD. Options for the owner: keep the modal
+  lines and update the legacy suite to close them; or show ambient lines as a non-modal caption or
+  speech bubble (a UX change to the host), which keeps the legacy flows working unchanged. Either
+  way, this is the one item standing between the branch and READY.
+
+QA did not change either behaviour or the pre-existing suites, because both choices change what a
+child experiences.
 
 **Migrations.** `makemigrations --check` is clean; every e2e run migrates a fresh PostgreSQL from
 zero. One migration chain change on this branch: `catalog/0006_npc_definition_origin` and
@@ -248,16 +291,18 @@ work only). After the owner's acceptance, `feature/npc-manager` merges to `main`
 
 ## 9. Remaining owner actions
 
-1. Review and merge the QA pull request into `feature/npc-manager`.
-2. Physical-device checks: VoiceOver (iPad) and TalkBack (Android tablet) reading the dialog and
+1. Decide F-A and F-B (section 8), the only items keeping merge readiness at NOT READY; then the
+   full browser suite should be rerun.
+2. Review and merge the QA pull request into `feature/npc-manager`.
+3. Physical-device checks: VoiceOver (iPad) and TalkBack (Android tablet) reading the dialog and
    lines once; switch access; touch targets for ages 3 to 4; frame rate and memory on the
    reference tablet (Part B sections 9 and 10).
-3. Amplify-backed castle checks not possible locally: tale start/resume, mid-tale tap, gestures,
+4. Amplify-backed castle checks not possible locally: tale start/resume, mid-tale tap, gestures,
    completion line, quest log after accepting (B13.4, B13.6 to B13.9).
-4. Approve (or not) a live test environment with a spending limit, then live Polly (B7.3) and live
+5. Approve (or not) a live test environment with a spending limit, then live Polly (B7.3) and live
    Bedrock with Guardrail (B8.5).
-5. Decide Pip's voice and whether it is a Sprout launch requirement (section 5).
-6. Decide O1 (one prompt) and the merge order against `dev20261103` (section 8).
-7. Re-export the Mixamo pirate as in section 4 if it is still wanted.
-8. Accept or reject in Part B of `docs/NPC_MANAGER_BROWSER_ACCEPTANCE.md`; approve the merge of
+6. Decide Pip's voice and whether it is a Sprout launch requirement (section 5).
+7. Decide O1 (one prompt) and the merge order against `dev20261103` (section 8).
+8. Re-export the Mixamo pirate as in section 4 if it is still wanted.
+9. Accept or reject in Part B of `docs/NPC_MANAGER_BROWSER_ACCEPTANCE.md`; approve the merge of
    `feature/npc-manager` into `main`.
