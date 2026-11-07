@@ -25,6 +25,8 @@ export interface E2EProbe {
    * about it (`NPC_DIAGNOSTICS` in features/npc-manager/engine/createNpcRuntime.ts).
    */
   npcs(): E2ENpc[];
+  /** Tilts the view (radians, negative looks down), as dragging to look would. */
+  look(pitch: number): void;
   /** Whether a manifest entity is drawn (false while the NPC Manager has taken it over). */
   entityVisible(entityId: string): boolean | null;
 }
@@ -149,6 +151,9 @@ export function installE2EProbe(deps: E2EProbeDeps): () => void {
         });
       });
       return found;
+    },
+    look(pitch) {
+      deps.controller.pitch = pitch;
     },
     entityVisible(entityId) {
       const target = deps.targets.find((candidate) => candidate.entityId === entityId);

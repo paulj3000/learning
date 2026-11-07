@@ -16,7 +16,7 @@ import { areaNpcs, shot, type RuntimeRead } from './support/npc';
 /**
  * Treasure Rush with Pirate Pip served by the NPC Manager (docs/NPC_MANAGER_QA_REPORT.md,
  * Phase 4), in a real browser with software WebGL against the e2e Django. Runs after
- * npc-manager-admin.spec.ts, which leaves NPC release 3 (Pip and Quill) ACTIVE.
+ * npc-1-admin.spec.ts, which leaves NPC release 3 (Pip and Quill) ACTIVE.
  *
  * What a child sees and does is driven through the UI (prompt, panel, keyboard); the e2e probe
  * only stands the player somewhere and reports what the scene draws (`npcs()`), which managed NPC
