@@ -216,7 +216,9 @@ def _check_limits(child, characters: int) -> None:
     today = SpeechDailyTotal.objects.filter(day=now().date()).first()
     already = today.characters_synthesized if today else 0
     if already + characters > settings.LAI_SPEECH_GLOBAL_DAILY_CHARS:
-        raise SpeechError("speech_unavailable", "Speech is resting. Please read along.")
+        raise SpeechError(
+            "speech_unavailable", "Speech is resting. Please read along.", reason="global_cap"
+        )
 
 
 # --- cache ----------------------------------------------------------------------------------------
@@ -258,13 +260,15 @@ def _synthesize(resolved: Resolved, client: PollyClient | None = None) -> bytes:
     profile = resolved.profile
     problem = voices.voice_problem(profile.polly_voice_id, profile.language_code, profile.engine)
     if problem:
-        raise SpeechError("speech_unavailable", "This voice is not available.")
+        raise SpeechError(
+            "speech_unavailable", "This voice is not available.", reason="invalid_voice"
+        )
     text, text_type = voices.build_request_text(
         resolved.text, profile.engine, profile.speaking_rate_percent
     )
     gate = _semaphore()
     if not gate.acquire(blocking=False):
-        raise SpeechError("speech_unavailable", "Speech is busy. Please read along.")
+        raise SpeechError("speech_unavailable", "Speech is busy. Please read along.", reason="busy")
     try:
         return (client or get_polly_client()).synthesize(
             text=text,
@@ -298,13 +302,27 @@ def clip_for_token(token: str) -> SpeechClip | None:
 
 
 def read_clip(clip: SpeechClip) -> bytes:
-    return get_speech_storage().read(clip.storage_key)
+    """The clip's bytes. A missing object invalidates the row, so the next request re-makes it."""
+    try:
+        return get_speech_storage().read(clip.storage_key)
+    except SpeechStorageError:
+        # The object is gone (a lifecycle rule, a manual delete, a failed write): drop the row so
+        # the cache does not keep pointing at nothing. The caller answers 404 and the child's
+        # app keeps the caption; asking again synthesizes a fresh clip.
+        SpeechClip.objects.filter(pk=clip.pk).delete()
+        logger.warning("speech object missing; cache entry invalidated")
+        raise
 
 
 def _url_for(clip: SpeechClip) -> str:
     ttl = settings.LAI_SPEECH_URL_TTL_SECONDS
     if settings.LAI_SPEECH_DELIVERY == "s3":
-        presigned = get_speech_storage().presigned_url(clip.storage_key, expires_in=ttl)
+        try:
+            presigned = get_speech_storage().presigned_url(clip.storage_key, expires_in=ttl)
+        except SpeechStorageError:
+            # Signing failed (credentials, clock): the Django route still serves the same clip.
+            logger.warning("speech presign failed; serving through django")
+            presigned = None
         if presigned:
             return presigned
     return f"/api/v1/speech-files/{delivery_token(clip)}/speech.mp3"
@@ -327,9 +345,18 @@ def speak(child, reference: dict) -> SpeechResult:
         logger.warning("speech refused by output rules: %s", resolved.reference.split(":")[0])
         raise SpeechError("speech_rejected", "That line cannot be spoken.", status=422)
     characters = len(resolved.text)
+    kind = resolved.reference.split(":")[0]
     try:
-        return _serve(child, resolved, characters)
+        result = _serve(child, resolved, characters)
     except SpeechError as error:
+        # Kind, profile, code and reason only: never the text, the child or an AWS message.
+        logger.warning(
+            "speech failed kind=%s profile=%s code=%s reason=%s",
+            kind,
+            resolved.profile.profile_id,
+            error.code,
+            error.reason,
+        )
         # Counted outside the transaction that failed, so the count survives the rollback.
         if error.code in {"speech_unavailable", "speech_rejected"}:
             try:
@@ -341,14 +368,24 @@ def speak(child, reference: dict) -> SpeechResult:
     except DatabaseError:
         logger.exception("speech counters failed")
         raise SpeechError("speech_unavailable", "Speech could not be made right now.") from None
+    logger.info(
+        "speech served kind=%s profile=%s cached=%s chars=%d",
+        kind,
+        resolved.profile.profile_id,
+        result.cached,
+        characters,
+    )
+    return result
 
 
 def _store_clip(key: str, resolved: Resolved, audio: bytes, *, owner_child_id=None) -> SpeechClip:
-    path = storage_key(key)
+    path = storage_key(key, resolved.scope)
     try:
         get_speech_storage().put(path, audio)
     except SpeechStorageError:
-        raise SpeechError("speech_unavailable", "Speech could not be saved.") from None
+        raise SpeechError(
+            "speech_unavailable", "Speech could not be saved.", reason="storage"
+        ) from None
     expires = (
         None
         if resolved.scope == ClipScope.AUTHORED
