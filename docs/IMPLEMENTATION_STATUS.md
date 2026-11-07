@@ -12543,3 +12543,30 @@ were recorded before the owner configured AWS. Full report: `docs/AI_BEDROCK_CHA
   default scoped to `runserver` only. `pytest tests/repo`: 7 passed; ruff clean.
 - Not verified here: resolving real credentials from a configured `learning-dev` profile (no AWS
   config in this container); that is standard boto3 named-profile behavior.
+
+## AM-11 Django side and AM-16 acceptance tooling (2026-11-07, branch `ccr-c3809215-w908lq`, not deployed)
+
+Owner direction: prepare AM-11 and AM-16 in the repository only; deploy nothing.
+
+- **AM-11 (signed CloudFront delivery), Django side.** New delivery mode
+  `LAI_ASSET_DELIVERY=cloudfront`: canned-policy signed URLs for
+  `https://<distribution>/<storage key>`, same half-TTL windows as the other modes. Settings are
+  validated at start-up (S3 storage required, bare host, `K...` key id, key present); the private
+  key is base64 PEM on one line (env files refuse newlines), RSA of at least 2048 bits, parsed once
+  and never echoed. Off by default; production stays `django`. No new dependency (`botocore`,
+  `cryptography` were already pinned). Docs: `docs/ASSET_LIBRARY.md` 8.1, including what LAI-1005
+  must define (key group, OAC, bucket-policy statement limited to the asset prefixes, behaviours,
+  CORS) and that retirement does not revoke issued CloudFront URLs.
+- **AM-16 tooling.** `scripts/aws/verify-asset-delivery.py` (standard library, read-only, token
+  only from `LAI_VERIFY_ACCESS_TOKEN`, signed URLs redacted) checks the resolver's auth, privacy
+  and isolation, each delivered file's bytes against its published SHA-256 and size, tampering,
+  anonymous bucket/CDN access, and revocation after retirement. Runbook:
+  `docs/platform/ASSET_DELIVERY_DEV_ACCEPTANCE.md` (upload GLB/PNG/audio, publish, Treasure Cove
+  browser pass, retire, private access, then the CloudFront rerun), with the AM-13 to AM-15
+  reconciliation.
+- **Tests.** `lai/apps/assets/tests/test_cloudfront_delivery.py` (7), new cases in
+  `lai/apps/core/tests/test_settings.py` (9), `tests/deploy/test_verify_asset_delivery.py` (19,
+  against a loopback fake API). Run against a local PostgreSQL.
+- **Not done:** no AWS resource created or changed; AM-16 not run; AM-11's distribution not
+  defined (LAI-1005). Both stay open.
+

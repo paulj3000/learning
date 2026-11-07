@@ -212,12 +212,36 @@ LAI_ASSET_URL_TTL_SECONDS = int(os.environ.get("LAI_ASSET_URL_TTL_SECONDS", "360
 LAI_ASSET_MAX_UPLOAD_BYTES = int(os.environ.get("LAI_ASSET_MAX_UPLOAD_BYTES", "52428800"))  # 50 MB
 if LAI_ASSET_STORAGE not in {"s3", "local", "memory"}:
     raise ImproperlyConfigured("LAI_ASSET_STORAGE must be s3, local or memory.")
-if LAI_ASSET_DELIVERY not in {"django", "s3"}:
-    raise ImproperlyConfigured("LAI_ASSET_DELIVERY must be django or s3.")
+if LAI_ASSET_DELIVERY not in {"django", "s3", "cloudfront"}:
+    raise ImproperlyConfigured("LAI_ASSET_DELIVERY must be django, s3 or cloudfront.")
+# Signed CloudFront delivery (AM-11; docs/ASSET_LIBRARY.md section 8.1). Off unless chosen. The
+# private key arrives base64-encoded on one line because runtime env files refuse newlines; it is
+# a secret (an SSM SecureString in a deployed environment), never a file in the image.
+LAI_ASSET_CLOUDFRONT_DOMAIN = os.environ.get("LAI_ASSET_CLOUDFRONT_DOMAIN", "").strip()
+LAI_ASSET_CLOUDFRONT_KEY_PAIR_ID = os.environ.get("LAI_ASSET_CLOUDFRONT_KEY_PAIR_ID", "").strip()
+LAI_ASSET_CLOUDFRONT_PRIVATE_KEY_B64 = os.environ.get(
+    "LAI_ASSET_CLOUDFRONT_PRIVATE_KEY_B64", ""
+).strip()
+if LAI_ASSET_DELIVERY == "cloudfront":
+    if not re.fullmatch(
+        r"[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+",
+        LAI_ASSET_CLOUDFRONT_DOMAIN,
+    ):
+        raise ImproperlyConfigured(
+            "LAI_ASSET_CLOUDFRONT_DOMAIN must be a bare lowercase host name (no scheme or path)."
+        )
+    if not re.fullmatch(r"K[A-Z0-9]{5,}", LAI_ASSET_CLOUDFRONT_KEY_PAIR_ID):
+        raise ImproperlyConfigured(
+            "LAI_ASSET_CLOUDFRONT_KEY_PAIR_ID must be a CloudFront public key id (K...)."
+        )
+    if not LAI_ASSET_CLOUDFRONT_PRIVATE_KEY_B64:
+        raise ImproperlyConfigured("LAI_ASSET_CLOUDFRONT_PRIVATE_KEY_B64 must be set.")
 if not 60 <= LAI_ASSET_URL_TTL_SECONDS <= 43200:
     raise ImproperlyConfigured("LAI_ASSET_URL_TTL_SECONDS must be between 60 and 43200.")
 if LAI_ASSET_DELIVERY == "s3" and LAI_ASSET_STORAGE != "s3":
     raise ImproperlyConfigured("LAI_ASSET_DELIVERY=s3 needs LAI_ASSET_STORAGE=s3.")
+if LAI_ASSET_DELIVERY == "cloudfront" and LAI_ASSET_STORAGE != "s3":
+    raise ImproperlyConfigured("LAI_ASSET_DELIVERY=cloudfront needs LAI_ASSET_STORAGE=s3.")
 
 # --- Spoken dialogue (SM-P8, ADR-049) -------------------------------------------------------
 # Off unless an environment turns it on: `disabled` answers every speech request with 503, `fake`

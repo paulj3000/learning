@@ -9,18 +9,29 @@ URLs are issued only by the resolver, and only for published versions.
   still published and its asset active, so retiring stops new fetches at once.
 - `s3`: a presigned GET for the private object. Valid until it expires; retiring stops new URLs
   but cannot revoke one already issued.
+- `cloudfront` (AM-11): a CloudFront URL signed with a canned policy (expiry only) by the key
+  pair the distribution's trusted key group holds. The distribution reads the private bucket
+  through origin access control. Like `s3`, retiring stops new URLs, not issued ones.
 
 Both use windows of half the TTL: inside a window the same version gets the same URL (and at
 least half the TTL of life), so browser HTTP caches hit across scenes and requests.
 """
 
+import base64
+import binascii
+import functools
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from urllib.parse import quote
 
+from botocore.signers import CloudFrontSigner
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from django.conf import settings
 from django.core import signing
 from django.core.cache import cache
+from django.core.exceptions import ImproperlyConfigured
 from django.urls import reverse
 
 from .storage import get_storage
@@ -53,6 +64,8 @@ def window(now: float | None = None) -> tuple[int, int]:
 def deliver(version, *, now: float | None = None) -> Delivery:
     mode = settings.LAI_ASSET_DELIVERY
     start, expires = window(now)
+    if mode == "cloudfront":
+        return Delivery(cloudfront_url(version.storage_key, expires), expires)
     if mode == "s3":
         cache_key = f"lai-asset-url:{version.version_id}:{start}"
         url = cache.get(cache_key)
@@ -65,6 +78,42 @@ def deliver(version, *, now: float | None = None) -> Delivery:
         return Delivery(url, expires)
     token = signing.dumps({"v": str(version.version_id), "e": expires}, salt=SALT)
     return Delivery(reverse("asset-file", args=[token, version.file_name]), expires)
+
+
+@functools.lru_cache(maxsize=4)
+def _cloudfront_signer(key_pair_id: str, private_key_b64: str) -> CloudFrontSigner:
+    """A signer for the configured key pair; the key is parsed once per process."""
+    try:
+        pem = base64.b64decode(private_key_b64, validate=True)
+        key = serialization.load_pem_private_key(pem, password=None)
+    except (binascii.Error, ValueError, TypeError):
+        # Never echo the value: it is the private key.
+        raise ImproperlyConfigured(
+            "LAI_ASSET_CLOUDFRONT_PRIVATE_KEY_B64 is not a base64-encoded PEM private key."
+        ) from None
+    if not isinstance(key, rsa.RSAPrivateKey) or key.key_size < 2048:
+        raise ImproperlyConfigured(
+            "LAI_ASSET_CLOUDFRONT_PRIVATE_KEY_B64 must be an RSA key of at least 2048 bits."
+        )
+
+    def rsa_signer(message: bytes) -> bytes:
+        # CloudFront canned-policy signatures are RSA-SHA1 (PKCS#1 v1.5).
+        return key.sign(message, padding.PKCS1v15(), hashes.SHA1())  # noqa: S303
+
+    return CloudFrontSigner(key_pair_id, rsa_signer)
+
+
+def cloudfront_url(storage_key: str, expires: int) -> str:
+    """`https://<distribution>/<key>?Expires=..&Signature=..&Key-Pair-Id=..` for one object.
+
+    Deterministic for a given key and expiry, so one window yields one URL and browser caches
+    hit, as in the other modes.
+    """
+    signer = _cloudfront_signer(
+        settings.LAI_ASSET_CLOUDFRONT_KEY_PAIR_ID, settings.LAI_ASSET_CLOUDFRONT_PRIVATE_KEY_B64
+    )
+    url = f"https://{settings.LAI_ASSET_CLOUDFRONT_DOMAIN}/{quote(storage_key, safe='/')}"
+    return signer.generate_presigned_url(url, date_less_than=datetime.fromtimestamp(expires, UTC))
 
 
 class InvalidToken(Exception):

@@ -204,6 +204,54 @@ def test_asset_settings_reject_unsafe_values(monkeypatch, name, value):
     _load("config.settings.base")  # leave the default loaded
 
 
+CLOUDFRONT_ENV = {
+    "LAI_ASSET_DELIVERY": "cloudfront",
+    "LAI_ASSET_CLOUDFRONT_DOMAIN": "d111111abcdef8.cloudfront.net",
+    "LAI_ASSET_CLOUDFRONT_KEY_PAIR_ID": "K2JCJMDEHXQW5F",
+    "LAI_ASSET_CLOUDFRONT_PRIVATE_KEY_B64": "c2VjcmV0",
+}
+
+
+def test_production_accepts_complete_cloudfront_delivery(monkeypatch):
+    """AM-11: off unless chosen; when chosen, domain, key id and key are all explicit."""
+    _prod_env(monkeypatch, **CLOUDFRONT_ENV)
+    _load("config.settings.base")  # production star-imports base, so reload it first
+    loaded = _load("config.settings.production")
+    assert loaded.LAI_ASSET_DELIVERY == "cloudfront"
+    assert loaded.LAI_ASSET_CLOUDFRONT_DOMAIN == "d111111abcdef8.cloudfront.net"
+    for name in CLOUDFRONT_ENV:
+        monkeypatch.delenv(name)
+    assert _load("config.settings.base").LAI_ASSET_DELIVERY == "django"  # leave the default loaded
+
+
+@pytest.mark.parametrize(
+    "name, value",
+    [
+        ("LAI_ASSET_CLOUDFRONT_DOMAIN", None),
+        ("LAI_ASSET_CLOUDFRONT_DOMAIN", "https://d111111abcdef8.cloudfront.net"),
+        ("LAI_ASSET_CLOUDFRONT_DOMAIN", "d111111abcdef8.cloudfront.net/assets"),
+        ("LAI_ASSET_CLOUDFRONT_DOMAIN", "localhost"),
+        ("LAI_ASSET_CLOUDFRONT_KEY_PAIR_ID", None),
+        ("LAI_ASSET_CLOUDFRONT_KEY_PAIR_ID", "APKAEXAMPLE"),
+        ("LAI_ASSET_CLOUDFRONT_PRIVATE_KEY_B64", None),
+        ("LAI_ASSET_STORAGE", "local"),
+    ],
+)
+def test_cloudfront_delivery_refuses_incomplete_settings(monkeypatch, name, value):
+    for key, setting in CLOUDFRONT_ENV.items():
+        monkeypatch.setenv(key, setting)
+    monkeypatch.setenv("LAI_ASSET_STORAGE", "s3")
+    if value is None:
+        monkeypatch.delenv(name)
+    else:
+        monkeypatch.setenv(name, value)
+    with pytest.raises(ImproperlyConfigured, match="LAI_ASSET_"):
+        _load("config.settings.base")
+    for key in [*CLOUDFRONT_ENV, "LAI_ASSET_STORAGE"]:
+        monkeypatch.delenv(key, raising=False)
+    _load("config.settings.base")  # leave the default loaded
+
+
 def test_production_child_photos_default_to_off_never_local(monkeypatch):
     """LAI-0904, ADR-042: S3 or disabled; unset is disabled so an early release still starts."""
     _prod_env(monkeypatch, LAI_CHILD_PHOTO_STORAGE=None)

@@ -6,7 +6,9 @@ resolve through the asset library, so a version published in Django Admin reache
 no React rebuild (section 15). **AWS storage is defined but not deployed:** `infra/` synthesizes
 the private bucket and the Django role policy (section 12); deploying it, and hosting Django at
 all (LAI-1004), are approval steps nobody has taken. Signed CloudFront delivery (AM-11) is not
-needed for launch (section 8). The admin preview was checked in headless Chromium with software
+needed for launch: its Django side exists and is off by default (section 8.1, 2026-11-07); the
+distribution is LAI-1005's. AM-16's deployed check has a script and runbook ready
+(`docs/platform/ASSET_DELIVERY_DEV_ACCEPTANCE.md`) and has not been run. The admin preview was checked in headless Chromium with software
 WebGL. The child app's Django path, TR-10 included, has not been checked in a browser.
 Decision record: ADR-035 in `docs/DECISIONS.md` (Accepted 2026-10-25).
 
@@ -174,7 +176,50 @@ Switch to `LAI_ASSET_DELIVERY=s3` (presigned URLs straight from the bucket) only
 traffic becomes material; deploy the stack with `allowedOrigins` first. **CloudFront is not
 added:** nothing in the repository serves assets through a distribution yet, and presigned S3
 URLs already give private, short-lived, cacheable delivery. Signed CloudFront URLs (AM-11) stay a
-later optimisation for when LAI-1005's distribution exists.
+later optimisation for when LAI-1005's distribution exists (section 8.1).
+
+### 8.1 Signed CloudFront delivery (AM-11, Django side done 2026-11-07, not deployed)
+
+`LAI_ASSET_DELIVERY=cloudfront` makes the resolver return
+`https://<distribution>/<storage key>?Expires=..&Signature=..&Key-Pair-Id=..`: a canned-policy
+(expiry only) URL signed RSA-SHA1 with the private key of a CloudFront public key that the
+distribution's trusted key group holds (`apps/assets/delivery.py`, `cloudfront_url`). Same
+half-TTL windows as the other modes, so one version gets one URL per window and browser caches
+hit. Unit-tested without AWS (`test_cloudfront_delivery.py`): signatures are verified against the
+public key with the documented policy format, a signature does not cover another object, and a
+bad or weak key fails closed without echoing it.
+
+What it changes compared with `django` delivery, which stays the production choice:
+
+| | `django` (production today) | `cloudfront` |
+|---|---|---|
+| Who serves the bytes | Django, from the private bucket | CloudFront edge, from the private bucket via origin access control |
+| Retiring a version | Stops issued URLs at once | Stops new URLs only; issued ones work until `Expires` (at most `LAI_ASSET_URL_TTL_SECONDS`). Lower the TTL if that window matters |
+| Browser origin | Same origin, no CORS, no CSP entry | Cross-origin: CORS on the distribution, `connect-src` (and `media-src` for audio) for its host |
+
+Settings (validated at start-up, `config/settings/base.py`): `LAI_ASSET_STORAGE=s3` (required),
+`LAI_ASSET_CLOUDFRONT_DOMAIN` (bare host, e.g. `d111111abcdef8.cloudfront.net` or a custom
+`assets.<domain>`), `LAI_ASSET_CLOUDFRONT_KEY_PAIR_ID` (the CloudFront public key id, `K...`),
+`LAI_ASSET_CLOUDFRONT_PRIVATE_KEY_B64` (the PEM private key, base64 on one line because
+`render-env.sh` refuses multi-line values; RSA, at least 2048 bits). The key is a secret: an SSM
+SecureString under `/lai/<env>/django/`, never in the image, the repository or the React build.
+React needs nothing: the adapter already accepts `https:` URLs (section 10).
+
+What LAI-1005 (or an AM-11 stack after it) must define, and AWS approval must allow, before the
+setting is turned on anywhere:
+
+1. A CloudFront public key and a key group containing it; keep the private key only in SSM.
+2. The asset bucket as an origin with **origin access control**, and a statement in the asset
+   bucket policy allowing `s3:GetObject` to `cloudfront.amazonaws.com` on `assets/models/*`,
+   `assets/images/*` and `assets/audio/*` only, conditioned on `AWS:SourceArn` = that
+   distribution. The child photo bucket is never an origin (ADR-042).
+3. Behaviours for `/assets/models/*`, `/assets/images/*`, `/assets/audio/*`: HTTPS only, GET and
+   HEAD, **trusted key group required**, a cache policy that leaves query strings out of the cache
+   key (they are signatures; the object at a key never changes), and a response-headers policy
+   with CORS `GET` from the app origins only. Every other path denied.
+4. The app CSP, once one exists, lists the distribution host.
+
+Rollback: unset `LAI_ASSET_DELIVERY` (back to `django`) and restart. Nothing is migrated.
 
 ## 9. Consistency rules
 
@@ -248,7 +293,8 @@ live AWS call: `infra/lib/assetStorageStack.test.ts` asserts on the synthesized 
 |---|---|---|
 | `LAI_ASSET_STORAGE` | `local` (local), `memory` (test), required in production | `s3`, `local` or `memory` |
 | `LAI_ASSET_BUCKET`, `LAI_ASSET_REGION` | none | Required for `s3`; never hard-coded |
-| `LAI_ASSET_DELIVERY` | `django` | `django` or `s3` |
+| `LAI_ASSET_DELIVERY` | `django` | `django`, `s3` or `cloudfront` (section 8.1) |
+| `LAI_ASSET_CLOUDFRONT_DOMAIN`, `LAI_ASSET_CLOUDFRONT_KEY_PAIR_ID`, `LAI_ASSET_CLOUDFRONT_PRIVATE_KEY_B64` | none | Required for `cloudfront` only; the key is a secret (section 8.1) |
 | `LAI_ASSET_URL_TTL_SECONDS` | 3600 | Delivery URL lifetime (60 to 43200) |
 | `LAI_ASSET_MAX_UPLOAD_BYTES` | 52428800 | Upload limit (also the largest file the admin preview shows) |
 
@@ -276,12 +322,12 @@ The admin preview (section 17) adds no variable. Its token lifetime is the const
 | AM-8 | Existing asset import tooling | Done |
 | AM-9 | Security and integration tests, documentation | Done |
 | AM-10 | Admin 3D model preview (section 17) | Done (unit-tested; not checked in a browser) |
-| AM-11 | Signed CloudFront delivery | Not needed for launch (section 8); later optimisation once LAI-1005's distribution exists |
+| AM-11 | Signed CloudFront delivery | **Django side done 2026-11-07** (section 8.1, unit-tested, off by default). Open: the distribution, key group and bucket-policy statement (LAI-1005, APPROVAL: AWS) and a deployed check (`verify-asset-delivery.py --expect-delivery cloudfront`). Not needed for launch |
 | AM-12 | Production S3 storage: bucket, IAM, CORS, image, runbook (sections 12 and 19) | Done as code and documentation; deploying it is an approval step |
 | AM-13 | Non-model asset kinds: textures, images and sprites, audio. Each family gets validation, a key directory under `assets/`, a matching IAM prefix and previews (section 21) | **Development done 2026-11-02** (unit-tested). Animation clips remain a property of models. Not checked in a browser or against AWS |
 | AM-14 | Administrator REST API (section 20) | **Superseded by ADR-045 (2026-11-02): removed.** Staff administer assets in Django Admin only |
 | AM-15 | React staff pages on that API (section 20) | **Superseded by ADR-045 (2026-11-02): removed**, together with the Amplify upload wizard and the admin "Game assets" hub |
-| AM-16 | End-to-end publish and delivery verification on the deployed dev environment, now through Django Admin | **Not started, pending**: needs LAI-1002/1004 (dev platform), the asset bucket deployed, and a browser/manual pass. Nothing in this branch claims it |
+| AM-16 | End-to-end publish and delivery verification on the deployed dev environment, now through Django Admin | **Tooling ready 2026-11-07, verification not run**: runbook `docs/platform/ASSET_DELIVERY_DEV_ACCEPTANCE.md` and checker `scripts/aws/verify-asset-delivery.py` (tested against a fake API). Still needs LAI-1002/1004 deployed (approval), then the owner's run and browser pass |
 | AM-17 | Django Admin lifecycle completion under ADR-045: rollback, reactivation, stored-file verification, admin-history audit, image and audio previews (section 21) | **Development done 2026-11-02** (unit-tested) |
 
 ## 15. Treasure Rush TR-10 (done 2026-10-30)
