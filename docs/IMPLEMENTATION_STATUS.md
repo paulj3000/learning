@@ -12183,3 +12183,17 @@ passed 3 of 3. The same happened once earlier in the session.
 cost incurred), live S3 storage and S3 signed delivery, live Cognito tokens (ADR-024 A6), the
 Amplify Data screens (harbor map, adventure log, Amplify-session places; unchanged on this
 branch), and the owner's playtest of the TR-9 feel items.
+
+## Dev environment: `make runserver` uses AWS profile `learning-dev` (2026-11-07, Trello GiiJtE1W)
+
+- `Makefile`: `runserver` exports `AWS_PROFILE ?= learning-dev` as a target-specific variable, so
+  the Django dev server and its autoreloader child resolve AWS credentials through that named
+  profile. `make runserver AWS_PROFILE=other` overrides it; a value exported in the shell wins.
+  Other targets, tests and deployed environments are unaffected. No credentials are committed and
+  the profile is not created; it must exist in the developer's AWS config (documented in
+  `README.md`). Existing arguments and working directory (`lai/`, `manage.py runserver`) unchanged.
+- Tests: `tests/repo/test_makefile_runserver.py` runs `make runserver` with `PY` pointed at a stub
+  that echoes its environment: default profile, command-line override, shell value kept, and the
+  default scoped to `runserver` only. `pytest tests/repo`: 7 passed; ruff clean.
+- Not verified here: resolving real credentials from a configured `learning-dev` profile (no AWS
+  config in this container); that is standard boto3 named-profile behavior.
