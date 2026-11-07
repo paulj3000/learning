@@ -12,7 +12,7 @@ Date: 2026-11-07. QA branch: `qa/ai-bedrock-chatty-acceptance-20261107` (from
 |---|---|
 | Branch audit | PASS. Trello's counts confirmed; integration branch identified |
 | Django backend (fake provider) | PASS after two safety fixes (D-1, D-2) |
-| Real AWS Bedrock | **BLOCKED**: the available IAM user is denied `bedrock:InvokeModel`; no Guardrail, no Django deployment |
+| Real AWS Bedrock | **PARTIAL**: model access confirmed by a direct Converse probe (re-check below); no Guardrail, no Django deployment, so no Django-path scenario has run |
 | Guardrail validation | **BLOCKED**: synthesized only, not deployed; no live intervention evidence |
 | Application safety regression | PASS after fixes; one reproducible child-safety defect class found and fixed (D-1) |
 | Chatty browser acceptance | PARTIAL PASS: Django AI path in a real browser passes; Chatty's own screens need Amplify Data (Gate B) |
@@ -95,7 +95,29 @@ fail on the previous code (24 for D-1, 11 for D-2); island-copy guards pass on b
 D-1 matters now because the Guardrail, whose denied topics would also cover these lines, is not
 deployed. Until it is, Django's validators are the only enforced output check on the Django path.
 
-## 3. Real AWS Bedrock acceptance: BLOCKED
+## 3. Real AWS Bedrock acceptance: BLOCKED (model access now works)
+
+### Re-check after owner credential update (2026-11-07, later the same day)
+
+The owner updated the session IAM user (`learning-dev`). Same free read-only calls, plus the
+same single runtime probe:
+
+| Check | Before | After |
+|---|---|---|
+| `GetInferenceProfile` `us.anthropic.claude-haiku-4-5-20251001-v1:0` | `AccessDeniedException` | **ACTIVE** in us-west-1 (routes to us-east-1, us-east-2, us-west-1, us-west-2), us-east-1 and us-west-2 |
+| `Converse` probe (us-west-1, 5 max tokens, "Reply with the single word: ok", no Guardrail, no child data) | `AccessDeniedException` | **PASS**: reply `ok`, `end_turn`, 14 input / 4 output tokens, 488 ms |
+| `ListGuardrails` | denied | still denied |
+| `LaiAiGuardrail-*` / `LaiDjangoEc2-*` stacks (us-west-1) | none | still none |
+| `/lai/*` SSM (`GetParametersByPath`) | none found | denied |
+
+Step 1 (model access) is done, and step 4 is partly done (invoke works; no Guardrail
+permissions). The six scenarios and the Django red team were **not** run: Django fails closed
+without a Guardrail id and version, and running them directly against the model would not be
+Guardrail evidence. Remaining: deploy `LaiAiGuardrail-dev`, grant the test user
+`bedrock:ApplyGuardrail` plus `GetGuardrail`/`ListGuardrails`, then steps 5 to 7 below.
+
+The findings table that follows is the original QA run, kept as recorded.
+
 
 Everything below came from free, read-only calls with the credentials provided to this session
 (an IAM user, long-term key, account `00******9914`), except one runtime probe. No credentials
