@@ -12775,3 +12775,31 @@ were recorded before the owner configured AWS. Full report: `docs/AI_BEDROCK_CHA
 - **Not covered.** A signed-in run against a real Cognito account and backend (the child route
   needs one); owner acceptance on a tablet. Django-served Islands (`GET /children/<id>/islands/`)
   are not used here yet.
+
+## Merge `main` into `dev20261103` (2026-11-07)
+
+- **Why.** `main` moved (PR #3 AI / Bedrock / Chatty acceptance, PR #5 Island Explorer, `make
+  runserver` profile); `dev20261103` was 20 ahead / 21 behind. None of its ADR-047 content
+  authoring or Firepeak commits are on `main` (`git cherry`: 18 of 18 unique).
+- **Conflicts (6).** `game_sessions/services.py`, `config/settings/base.py`, `WelcomeHarbor.tsx`,
+  the roadmap, this file and the tracker.
+  - Skill evidence: both sides wrote it on each graded answer. It is now written once, by
+    `education.services.record_step_evidence` (which also applies mastery, LAI-0603), from the
+    step body the session is graded on (pinned revision, LAI-0813). It records `difficulty` as
+    the step runner did, and skips objective codes the catalog does not declare (main's rule).
+  - `step_is_pinned` keeps main's version-and-release rule and, for a pinned session, also
+    requires the catalog step to hold the pinned body, so AI context never narrates content
+    the session is not graded on. Consequence: after a republish, AI hints for that step fall
+    back to the authored copy until the child starts a new session (as on `main`).
+  - Welcome Harbor: the Island Explorer replaces the home-Places grid; Django-served Places
+    (Firepeak Volcano) join the home island's places through a new `servedPlaces` input of
+    `buildIslandExplorer` (test added). Settings keep both new flags.
+- **Checks run (local PostgreSQL 16).** Full pytest: 2718 passed, 5 failed at the merge seam;
+  after the fix `ai`, `game_sessions`, `education`, `catalog` 1009 passed. Vitest 4399 passed;
+  typecheck, oxlint, Prettier, Ruff (check and format), Django check, migration check,
+  `adr:check`, `admin-preview:check`, `content:check`, `golden:check`, build: clean.
+  Playwright acceptance 35 passed, 1 skipped (touch drag on the desktop project, by design);
+  e2e smoke 7 passed, the 11 Firepeak scenarios are `test.fixme` (not written). Chromium was the
+  container's preinstalled build (`executablePath`), not the pinned Playwright build.
+- **Not done.** Owner browser QA (Firepeak FP-13, Storykeeper Castle, Django Admin authoring,
+  the Island Explorer with Firepeak), deployed verification, LAI-0821 acceptance, merge to main.
