@@ -252,9 +252,9 @@ QA commits on `qa/ai-bedrock-chatty-acceptance-20261107`:
 - `ab8da67` fix(ai): Django output policy (D-1)
 - `258ae9e` fix(ai): input screen (D-2)
 - `d3ea039` test(e2e): Chatty browser acceptance
-- this report and the tracker and status updates (see the PR for the final SHA)
+- `24984e4` docs: this report, tracker and implementation status
 
-PR: PR_LINK
+PR (draft, not merged): https://github.com/paulj3000/learning/pull/3
 
 ## 10. Recommendation
 
