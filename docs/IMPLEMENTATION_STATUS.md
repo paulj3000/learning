@@ -12543,3 +12543,33 @@ were recorded before the owner configured AWS. Full report: `docs/AI_BEDROCK_CHA
   default scoped to `runserver` only. `pytest tests/repo`: 7 passed; ruff clean.
 - Not verified here: resolving real credentials from a configured `learning-dev` profile (no AWS
   config in this container); that is standard boto3 named-profile behavior.
+
+## LAI-0808: Island Explorer on the child homepage (2026-11-07, branch `ccr-e637a676-n40y0h`)
+
+- **Why rebuilt.** The Trello card "[Subproject] Island Explorer / Homepage" pointed at LAI-0808 /
+  commit `73fd152`. Neither exists on any branch or PR in `paulj3000/learning`; the work was never
+  pushed. The owner asked for a rebuild (2026-11-07).
+- **Acceptance.** `/island/:childId` lists every Island the child's age band can see, from the
+  same rules as the sailing dock (`listTravelDestinations`). The current Island comes first with
+  its Places (secret Places hidden until opened, admin-deactivated Places never shown). An open
+  Island links to `/island/:childId/worlds/:slug`. A locked Island shows "Not open yet" and its
+  authored hint, is never a link or button, and names no skill or score; a world with no hint
+  gets one fallback line. Tablet-first, one column on phones, no horizontal scroll.
+- **Built.** Pure view model `react/src/features/worlds/islandExplorer.ts`; presentational
+  `react/src/features/island/IslandExplorer.tsx` with a CSS module; `WelcomeHarbor` uses it in
+  place of its home-Places grid and drops the now-redundant "Sail to another island" link (the
+  sailing dock stays reachable through "Leave island"). Computed from the world changes the page
+  already loads: no new request, no new failure mode.
+- **Tests.** New `islandExplorer.test.ts` (ordering, locked hint and fallback, opening per age
+  band including the Explorer tide gate, secret and deactivated Places, no other Island's
+  Places) and `WelcomeHarbor.test.tsx` (home first, locked card has no link or button, sailing
+  and Place navigation, age band, admin-hidden Place, error state).
+- **Checks run.** Full Vitest 384 files / 4329 tests pass; `npm run typecheck` clean; oxlint exit
+  0 with no findings in changed files; `prettier --check .` clean; `npm run build` passes; Playwright
+  smoke 7/7 (run with `executablePath: /opt/pw-browsers/chromium` because the container's
+  pre-installed browser differs from the pinned Playwright build). Browser harness at 375, 820 and
+  1280 px, locked and open states: no horizontal overflow, every link at least 44 px, no console
+  errors, keyboard focus reaches the first Place.
+- **Not covered.** A signed-in run against a real Cognito account and backend (the child route
+  needs one); owner acceptance on a tablet. Django-served Islands (`GET /children/<id>/islands/`)
+  are not used here yet.
