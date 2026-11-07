@@ -101,6 +101,10 @@ def edit(question: Question, user, changes: dict, note: str = "") -> Question:
     question = _locked(question)
     if question.review_status == ReviewStatus.PUBLISHED:
         raise InvalidTransition("A published question is frozen; start a correction instead.")
+    if question.review_status == ReviewStatus.REJECTED and question.revisions.exists():
+        # Retired or superseded: it was withdrawn from play. Editing it back to DRAFT would let
+        # it be republished beside its correction (QA-AQS-D1); write a new question instead.
+        raise InvalidTransition("A retired or superseded question is frozen.")
     before = question.review_status
     changed = []
     for name, value in changes.items():
