@@ -22,13 +22,14 @@ function failure(layout: JsonValue): RegionLayoutError {
 }
 
 describe('readRegionLayout (TR-13)', () => {
-  it('reads Treasure Cove’s real layout: scenery, colliders, four zones, movers, lights, placeholders', async () => {
+  it('reads Treasure Cove’s real layout: scenery, colliders, five zones, movers, lights, placeholders', async () => {
     const layout = readRegionLayout((await coveSceneJson()).layout as JsonValue);
     expect(layout.zones.map((zone) => zone.rect.id)).toEqual([
       'cove-zone-landing',
       'cove-zone-grove',
       'cove-zone-beach',
       'cove-zone-ruins',
+      'cove-zone-lookout',
     ]);
     expect(layout.scenery.length).toBeGreaterThan(40);
     expect(new Set(layout.scenery.map((item) => item.kind))).toEqual(

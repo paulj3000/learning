@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -37,6 +37,12 @@ const sceneSpies = vi.hoisted(() => ({
   showSecretDoorOpened: vi.fn(),
   showEaselPainting: vi.fn(),
   showStoryTold: vi.fn(),
+  // The castle guide (SC-R03-02) reads where the child is and asks the scene to take them.
+  currentRoomId: vi.fn<() => string | undefined>(() => 'entry-hall'),
+  goToRoom: vi.fn(),
+  // The secret passage opens in the room the moment the tapestry nook is found (SC-R03-05).
+  showSecretPassageOpened: vi.fn(),
+  showStorybook: vi.fn(),
 }));
 const engine = vi.hoisted(() => ({
   bus: null as WorldEngineEventBus | null,
@@ -739,6 +745,158 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
       expect(
         await screen.findByRole('dialog', { name: 'The last bookshelf, standing ajar' }),
       ).toBeInTheDocument();
+    });
+  });
+
+  describe.each(['SPROUT', 'PATHFINDER', 'EXPLORER'] as const)(
+    'the accessible way around, for a %s',
+    (band) => {
+      it('is there, and opens to every room, so no one has to steer in 3D', async () => {
+        await renderAndWait(band);
+        fireEvent.click(await screen.findByRole('button', { name: /open the castle guide/i }));
+        // The same rooms for every band: age gates the stories, never the corridors.
+        for (const label of [
+          'entry hall',
+          'story hall',
+          'Character Gallery',
+          'Great Library',
+          'Trophy Room',
+        ]) {
+          expect(
+            screen.getAllByRole('button', { name: new RegExp(label, 'i') }).length,
+          ).toBeGreaterThan(0);
+        }
+        expect(screen.queryByRole('button', { name: /secret chamber/i })).not.toBeInTheDocument();
+      });
+
+      it('takes the child there with the same request, whatever their band', async () => {
+        sceneSpies.goToRoom.mockImplementation((roomId: string) => ({
+          ok: true,
+          room: { id: roomId, label: 'the Great Library' },
+          placement: { x: 7, z: -6, yaw: 0 },
+          route: [],
+        }));
+        await renderAndWait(band);
+        fireEvent.click(await screen.findByRole('button', { name: /open the castle guide/i }));
+        await screen.findAllByRole('button', { name: /go to the great library/i });
+        // The room list's own button is the last: an Explorer's missing pages, all in the library,
+        // each offer a button that makes the very same request, and come first.
+        const buttons = screen.getAllByRole('button', { name: /go to the great library/i });
+        fireEvent.click(buttons[buttons.length - 1]);
+        expect(sceneSpies.goToRoom).toHaveBeenCalledWith('great-library', expect.anything());
+      });
+    },
+  );
+
+  describe('the castle guide (SC-R03-02)', () => {
+    it('is in the real view, collapsed, and opens to every room as a button', async () => {
+      await renderAndWait();
+      const toggle = await screen.findByRole('button', { name: /open the castle guide/i });
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      fireEvent.click(toggle);
+      expect(await screen.findByRole('button', { name: /go to the great library/i })).toBeEnabled();
+      expect(screen.getByRole('button', { name: /you are here: the entry hall/i })).toBeDisabled();
+    });
+
+    it('asks the scene to take the child there, with the world state the view read', async () => {
+      sceneSpies.goToRoom.mockImplementation((roomId: string) => ({
+        ok: true,
+        room: { id: roomId, label: 'the Setting Tower' },
+        placement: { x: 7.5, z: 7.5, yaw: 0 },
+        route: [],
+      }));
+      await renderAndWait();
+      fireEvent.click(await screen.findByRole('button', { name: /open the castle guide/i }));
+      fireEvent.click(await screen.findByRole('button', { name: /go to the setting tower/i }));
+      expect(sceneSpies.goToRoom).toHaveBeenCalledWith(
+        'setting-tower',
+        expect.objectContaining({ worldChangeKeys: expect.any(Array) }),
+      );
+      expect(await screen.findByText('You walked to the Setting Tower.')).toBeInTheDocument();
+    });
+
+    it('never answers a story step or starts a session: it only moves the child', async () => {
+      await renderAndWait();
+      fireEvent.click(await screen.findByRole('button', { name: /open the castle guide/i }));
+      expect(submitAnswerSpy).not.toHaveBeenCalled();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('the Great Storybook (SC-R04-02)', () => {
+    const openGuide = async () =>
+      fireEvent.click(await screen.findByRole('button', { name: /open the castle guide/i }));
+
+    it("shows the child's book in the opened guide, with the page that is missing", async () => {
+      await renderAndWait('PATHFINDER');
+      await openGuide();
+      expect(
+        await screen.findByRole('heading', { name: 'The Great Storybook' }),
+      ).toBeInTheDocument();
+      expect(screen.getByText('0 of 1 missing pages are back.')).toBeInTheDocument();
+      expect(screen.getByText(/Missing\. Tell a story with Keeper Quill/)).toBeInTheDocument();
+    });
+
+    it('shows a child who finished the Tale long ago a whole book, and announces nothing', async () => {
+      vi.mocked(listAllWorldChanges).mockResolvedValue([
+        { changeKey: 'FIRST_STORY_TOLD' },
+      ] as never);
+      await renderAndWait('PATHFINDER');
+      await openGuide();
+      expect(await screen.findByText('The Great Storybook is whole again.')).toBeInTheDocument();
+      expect(screen.queryByText(/flew back into the book/i)).not.toBeInTheDocument();
+      expect(screen.queryByText('The Great Storybook is whole again!')).not.toBeInTheDocument();
+    });
+
+    it.each([
+      ['SPROUT', ['The First Story']],
+      ['PATHFINDER', ['The First Story']],
+      ['EXPLORER', ['Three Clues', 'The Pattern Lock', 'What Was Waiting']],
+    ] as const)('gives a %s only their own pages', async (band, titles) => {
+      await renderAndWait(band);
+      await openGuide();
+      for (const title of titles) expect(await screen.findByText(title)).toBeInTheDocument();
+      if (band === 'EXPLORER')
+        expect(screen.queryByText('The First Story')).not.toBeInTheDocument();
+      else expect(screen.queryByText('Three Clues')).not.toBeInTheDocument();
+    });
+
+    it('never shows a slot for the hidden page, or any word that gives it away', async () => {
+      await renderAndWait('EXPLORER');
+      await openGuide();
+      await screen.findByRole('heading', { name: 'The Great Storybook' });
+      expect(screen.queryByText('The Hidden Page')).not.toBeInTheDocument();
+      const book = screen.getByRole('heading', { name: 'The Great Storybook' }).closest('section')!;
+      expect(book.textContent ?? '').not.toMatch(/tapestry|nook|stair|hid(den|ing)/i);
+    });
+
+    it('shows the hidden page, as a bonus, once the nook has been found', async () => {
+      vi.mocked(getWorldState).mockResolvedValue({
+        discoveredIds: ['castle-tapestry-stair'],
+        metCharacterIds: [],
+      } as never);
+      await renderAndWait('PATHFINDER');
+      await openGuide();
+      expect(await screen.findByText('The Hidden Page')).toBeInTheDocument();
+      expect(screen.getByText('0 of 1 missing pages are back.')).toBeInTheDocument();
+    });
+  });
+
+  describe('the secret passage (SC-R03-05)', () => {
+    it('opens in the room when the child has found the tapestry nook', async () => {
+      vi.mocked(getWorldState).mockResolvedValue({
+        discoveredIds: ['castle-tapestry-stair'],
+        metCharacterIds: [],
+      } as never);
+      await renderAndWait();
+      await waitFor(() => expect(sceneSpies.showSecretPassageOpened).toHaveBeenCalledWith(true));
+    });
+
+    it('stays sealed, and says nothing, for a child who has not found it', async () => {
+      await renderAndWait();
+      expect(sceneSpies.showSecretPassageOpened).not.toHaveBeenCalled();
+      fireEvent.click(await screen.findByRole('button', { name: /open the castle guide/i }));
+      expect(screen.queryByText(/secret chamber/i)).not.toBeInTheDocument();
     });
   });
 

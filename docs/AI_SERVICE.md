@@ -165,6 +165,8 @@ SQL write).
 | `LAI_AI_TEMPERATURE` | 0.4 | 0 to 1 |
 | `LAI_AI_TIMEOUT_SECONDS` | 10 | 1 to 60; read timeout |
 | `LAI_AI_MAX_ATTEMPTS` | 2 | 1 to 3; botocore standard retries, never more |
+| `LAI_AI_FIRST_CALL_TIMEOUT_SECONDS` | unset | optional longer read timeout for only the first request per schema per process (grammar compilation); between the normal timeout and 60; set only from live evidence (section 12) |
+| `LAI_AI_NPC_ENFORCE_ELIGIBILITY` | `false` | limit NPC narration to dialogue nodes the child's Django records make eligible; leave off until LAI-0605 puts NPC state in Django (section 12) |
 | `LAI_AI_MAX_REQUEST_BYTES` | 8192 | larger bodies are 400 before parsing |
 | `LAI_AI_CHILD_TURNS_PER_MINUTE` / `_PER_DAY` | 12 / 300 | model calls, shared across processes |
 | `LAI_AI_FAMILY_TURNS_PER_DAY` | 750 | all of one parent's children |
@@ -274,7 +276,11 @@ are configured and Bedrock reported usage; otherwise null. Never a billed amount
 
 ## 9. Live verification and Approval Gate A (LAI-0705; not done)
 
-**Tooling.** `manage.py ai_live_check --parent-sub <sub> --child <uuid> [--warm-up] [--guardrail-probe]`, run on
+**Runbook:** `docs/AI_BEDROCK_ACCEPTANCE.md` is the step-by-step owner workflow, including the free
+`ai_live_check --dry-run`, the explicit `--confirm-paid-calls` opt-in and the Studio five-question
+batch. This section keeps the design and the Gate A approval list.
+
+**Tooling.** `manage.py ai_live_check --confirm-paid-calls --parent-sub <sub> --child <uuid> [--warm-up] [--guardrail-probe] [--npc] [--timeout-probe]`, run on
 the deployed host (SSM), so it uses the real EC2 role, settings and Guardrail. It scores each
 check from the audit row the pipeline wrote, not from an HTTP 200: `source=AI`, `VALID`,
 `provider=bedrock`, Guardrail applied (`NONE`), the configured model, the Guardrail id and
@@ -332,7 +338,8 @@ Levels: (1) not started, (2) in progress, (3) implemented, (4) fake-model/local 
 | LAI-0706 React cutover | 4 | a Django-enabled dev deploy and a browser pass (Gate B) |
 | LAI-0707 audit, admin, retention | 4 | an approved retention period (LAI-0308 / G9) |
 | LAI-0708 limits, cost, monitoring | 4 (synthesized) | Gate A/D deploy; live alarm check |
-| LAI-0709 server-owned context | 3 partial (NPC done) | adventures on Django sessions; a Django story catalog (LAI-0309); mastery (LAI-0603) |
+| LAI-0603 mastery writes (tutor context) | 4 (Python rules at golden-vector parity; tutor reads Django records) | merge; an authenticated browser pass; adventures still on Amplify sessions write no Django evidence |
+| LAI-0709 server-owned context | 3 partial (NPC identity, place and child state done, session pinning enforced) | adventures on Django sessions; a Django story catalog (LAI-0309); NPC state in Django (LAI-0605) |
 | LAI-0710 Amplify AI retirement | 2 (audit only) | 0705, 0706, 0709 acceptance and explicit retirement approval |
 
 ## 11. Context ownership, retirement plan and rollback
@@ -341,15 +348,16 @@ Levels: (1) not started, (2) in progress, (3) implemented, (4) fake-model/local 
 
 | Caller | Route | Context today (Django build) | Fields from the browser | Server-owned path |
 |---|---|---|---|---|
-| NPC re-voicing (`NpcConversation.tsx`) | companion NARRATE | **DJANGO_CATALOG** | `npcId`, `nodeId` (identifiers) | done |
+| NPC re-voicing (`NpcConversation.tsx`) | companion NARRATE | **DJANGO_CATALOG**: authored node, NPC name and role, Island, Place and published 3D Area, this child's relationship level and active quest | `npcId`, `nodeId` (identifiers) | done |
 | Adventure celebrate / narrate / hint (`useAdventureSession.ts`) | companion | CLIENT_AUTHORED | step summary, authored step text or hint (published content, assembled by the browser) | DJANGO_SESSION exists, but React's adventure sessions still run on Amplify (`submitAdventureAnswer`) |
 | Story choice narration (`useAdventureSession.ts`, creative choice) | companion NARRATE | CLIENT_AUTHORED | the chosen authored option label inside the summary | same as above |
 | Story chapter scenes (`useStoryChapterRunner.ts`) | companion NARRATE | CLIENT_AUTHORED | scene id, resolved authored scene text | blocked: no Django story catalog (`stories.json` is not imported; LAI-0309) |
 | Tutor hint ladder (`useAdventureSession.ts`) | tutor | CLIENT_AUTHORED, with skill, mastery titles and quest copy from Django | skill id, hint level (0 to 5), authored hint text | DJANGO_SESSION exists; same Amplify-session blocker |
 
 Always server-side, whatever the source: the child, its age band and length limit, the AI
-switch, prompts, strategy (from the hint level), vocabulary and curriculum copy, mastery titles
-(statuses only; sparse until LAI-0603), quest copy, validation, audit. Never accepted from the
+switch, prompts, strategy (from the hint level), vocabulary and curriculum copy, the tutor's
+`learnerProfile` (closed labels and curriculum titles from `SkillProgress`, section 12), quest
+copy, validation, audit. Never accepted from the
 browser: grades, mastery, rewards, choice ids beyond the step's own (DJANGO_SESSION).
 `LAI_AI_ALLOW_CLIENT_AUTHORED=false` turns the compatibility path off; it must stay on until
 the two blockers above are cleared and accepted.
@@ -391,3 +399,104 @@ pass (Gate B), adventures running on Django sessions, a Django story catalog (LA
 mastery (LAI-0603), an approved retention period (LAI-0308 / G9), and explicit retirement
 approval for LAI-0710.
 
+
+## 12. Bedrock readiness additions (branch `feature/ai-bedrock-readiness`, 2026-11-04)
+
+Nothing here was run against AWS. See `docs/AI_BEDROCK_ACCEPTANCE.md` for the owner's workflow.
+
+### Mastery in the tutor prompt (LAI-0603)
+
+`apps/education/mastery.py` ports `nextSkillProgressCounts`, `computeSkillStatus`,
+`computeErrorPattern` and `applyReviewDecay` against `tests/golden/mastery.json` (48 cases,
+`tests/golden/test_mastery_python.py`). `SkillProgress` is now written by the server from
+server-graded evidence: Treasure Rush challenge attempts (`record_attempt_evidence`) and Django
+adventure step answers (`record_step_evidence`, called inside `submit_answer`). A replayed request
+counts once; an objective the catalog lacks is skipped, not fatal; a client-claimed grade is
+ignored because the engine's grade is the only input.
+
+`apps/ai/services/learner.py` builds a `learnerProfile` block for tutor prompts from those rows
+only: `skillLevel` (NEW, PRACTISING, CONFIDENT), `needsExtraPractice`, `recentSupport`
+(NONE, INDEPENDENT, MIXED, NEEDED_HINTS), and curriculum titles for unmet prerequisites,
+completed skills and skills needing practice (at most 5 each). No counts, ids, timestamps,
+nickname or raw statuses. Review decay applies at read time and never rewrites a row. Any
+database error returns no profile and the turn continues with its previous context and authored
+fallback. The AI routes never write `SkillProgress`, `SkillEvidence` or any progress row (tested
+against hostile model replies in `test_red_team_narration_mastery.py`). The child's age band comes
+from the profile; there is no separate grade field on `ChildProfile`.
+
+### NPC narration and session pinning (LAI-0709)
+
+For `DJANGO_CATALOG` turns the prompt now also carries, all read from Django: the NPC's name and
+role, the Island, Place and published 3D Area titles of its home, this child's relationship level
+and whether they have met, and the child's active quest title and stage. `NpcRelationship`,
+`WorldState` and `QuestProgress` are read through `for_child`, so another child's state cannot
+appear. `LAI_AI_NPC_ENFORCE_ELIGIBILITY` (off) additionally refuses a dialogue node whose
+conditions the child's Django records do not meet; `TIME_OF_DAY` and unknown condition types
+count as not met. It stays off because React's NPC state is still in Amplify, so enforcing
+would refuse narration a child has unlocked.
+
+`DJANGO_SESSION` turns now use the same pinning rule as grading (`step_is_pinned`): if the
+adventure was republished after the session started, the turn is a 404 and the client keeps its
+authored copy, so the model never narrates different content than the session is graded on.
+
+Still `CLIENT_AUTHORED` and still blocked: adventure turns from Amplify sessions and Storykeeper
+Castle story scenes (no Django story catalog; LAI-0309, LAI-0607), Firepeak and the other
+ADR-043 content (branch `feature/adr-043-django-content-authoring` is not in `dev20261103`).
+
+### Reliability (LAI-0702)
+
+- One Bedrock client per configuration per process (`get_model_client` was building a new boto3
+  client for every turn, losing the connection pool and any warm state).
+- `LAI_AI_FIRST_CALL_TIMEOUT_SECONDS` (unset): the first request per schema per client gets a
+  longer read timeout and a single attempt; later requests use the normal timeout. The normal
+  timeout is not raised. `ai_live_check --warm-up` reports the real first-call latency to decide.
+- `ProviderError.retryable` classifies transient failures (throttle, unavailable, timeout) from
+  permanent ones (access, configuration, rejected, truncated, malformed).
+- A `content_filtered` stop is treated as a block; a `tool_use` stop (no tools are offered) and a
+  non-object JSON reply are malformed; none can reach a child.
+- Tests: `test_bedrock_reliability.py` (stubbed runtime and scripted fake) covers each category
+  without leaking the message.
+
+### Retention (LAI-0707; no change, recommendation for owner approval)
+
+*Today:* nothing runs on a schedule and nothing is deleted. `manage.py ai_retention` reports (dry
+run, default) or with `--apply` deletes `ai_*` rows older than `--older-than-days` or
+`LAI_AI_AUDIT_RETENTION_DAYS`; it refuses with neither; open safety events and the audit rows they
+link to are kept unless `--include-open`; parents can already clear their child's AI history on
+demand (`DELETE .../ai/history/`). Audit rows hold metadata only (no prompt or reply text).
+
+*Recommended policy to approve* (not activated; the periods are the owner's decision, LAI-0308 /
+G9): audit metadata 90 days; reviewed safety events 12 months; open events kept until reviewed;
+parent-initiated clearing unchanged and immediate; a scheduled run only after the first manual
+`--apply` has been checked in a non-production environment. Today one setting covers both kinds
+of row; separate periods and a scheduled job are the follow-up task LAI-0711.
+
+### Amplify routing and retirement prerequisites (LAI-0710; nothing removed)
+
+| Caller | Django build (`VITE_BACKEND=django`) | Other builds |
+|---|---|---|
+| Companion and tutor turns, NPC narration | Django `/ai/*` | Amplify `generateCompanionTurn`, `generateTutorTurn` |
+| Parent AI history, safety events, clearing | Django | Amplify models |
+| Adventure sessions, hints, answers | Amplify (Django sessions exist but React does not use them) | Amplify |
+| Story scenes, creative choices | Django route with CLIENT_AUTHORED context | Amplify |
+
+Legacy callers still on Amplify AI: the build without `VITE_BACKEND=django` (today's deployed
+build), `scripts/live-smoke.ts`, `scripts/ai-red-team.ts --target amplify`, the persona files
+`amplify/data/{chattyPersona,tutorPersona}.ts`, and the Amplify `AIInteractionAudit` and
+`SafetyEvent` models (rows exist there until the Phase 11 import).
+
+Prerequisites before any route is removed: live Bedrock acceptance of the Django routes
+(LAI-0705, owner-run, recorded); a Django-enabled deploy with a browser pass (Gate B); adventures
+on Django sessions and a Django story catalog so `CLIENT_AUTHORED` can be switched off (LAI-0709);
+the Amplify audit rows imported or retired by an approved decision; a replacement for the Amplify
+Bedrock budget that sees Marketplace-billed Claude spend; and explicit retirement approval. The
+Amplify path stays until all of these hold.
+
+
+## Speech (SM-P8)
+
+A validated companion or tutor turn may carry `speech: { utteranceId, voiceProfile }`: a reference
+to short-lived, server-approved text that the app can ask the speech API to speak
+(`docs/audio/AMAZON_POLLY_INTEGRATION.md`). It is created after the pipeline, never calls Polly,
+never sees unvalidated output, is skipped for `STOP` dispositions and for children with AI turned
+off, and cannot fail the turn. The field is additive; older clients ignore it.

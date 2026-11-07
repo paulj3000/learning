@@ -20,7 +20,14 @@ export type WorldRequirement =
    */
   | { type: 'ITEM_ABSENT'; itemId: string }
   /** Phase 26: the spot only exists once another secret has been found. */
-  | { type: 'DISCOVERY_PRESENT'; discoveryId: string };
+  | { type: 'DISCOVERY_PRESENT'; discoveryId: string }
+  /**
+   * The mirror of `DISCOVERY_PRESENT`, as `ITEM_ABSENT` mirrors `ITEM_OWNED`
+   * and `WORLD_CHANGE_ABSENT` mirrors `WORLD_CHANGE_PRESENT`. It is what lets
+   * a secret have a "before": a wall that is solid until the passage behind
+   * it has been found, exactly one of the wall and the open passage ever built.
+   */
+  | { type: 'DISCOVERY_ABSENT'; discoveryId: string };
 
 export type WorldAction =
   | { kind: 'NAVIGATE'; to: string }
@@ -120,6 +127,8 @@ function evaluateRequirement(
       return !(context.ownedItemIds ?? []).includes(requirement.itemId);
     case 'DISCOVERY_PRESENT':
       return (context.discoveryIds ?? []).includes(requirement.discoveryId);
+    case 'DISCOVERY_ABSENT':
+      return !(context.discoveryIds ?? []).includes(requirement.discoveryId);
   }
 }
 

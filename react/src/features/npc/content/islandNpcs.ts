@@ -114,6 +114,14 @@ export const ISLAND_NPCS: NpcDefinition[] = [
     ],
     dialogue: [
       {
+        // SC-R04-01: the Great Storybook is whole. Said once its quest is finished, before anything else.
+        id: 'quill-storybook-restored',
+        conditions: [{ type: 'MEMORY_FLAG', flag: 'restoredTheStorybook', equals: true }],
+        text: 'The Great Storybook is whole again, and every page remembers you. Thank you, my friend.',
+        choices: [{ id: 'quill-storybook-restored-bye', label: 'It was a lot of fun!' }],
+        awardsRelationshipPoints: 2,
+      },
+      {
         id: 'quill-returning-author',
         conditions: [{ type: 'MEMORY_FLAG', flag: 'finishedAStory', equals: true }],
         text: 'The story you made is on my shelf now. Shall we start a new one?',
@@ -122,6 +130,21 @@ export const ISLAND_NPCS: NpcDefinition[] = [
           { id: 'quill-just-visiting', label: 'I am just visiting.' },
         ],
         awardsRelationshipPoints: 2,
+      },
+      {
+        // SC-R04-01: the premise, for a child who has met Quill but not yet restored the book.
+        // The greeting below, and everything before this node, is unchanged.
+        id: 'quill-the-damaged-book',
+        conditions: [
+          { type: 'MEMORY_FLAG', flag: 'metQuill', equals: true },
+          { type: 'MEMORY_FLAG', flag: 'restoredTheStorybook', equals: false },
+        ],
+        text: 'Oh dear. The Great Storybook was torn, and its pages flew all over the castle. Will you help me bring them back?',
+        choices: [
+          { id: 'quill-help-with-pages', label: 'Yes, I will help!' },
+          { id: 'quill-pages-later', label: 'Maybe later.' },
+        ],
+        awardsRelationshipPoints: 1,
       },
       {
         id: 'quill-greeting',
@@ -143,6 +166,28 @@ export const ISLAND_NPCS: NpcDefinition[] = [
         summary: 'Build a story with Keeper Quill, one choice at a time.',
         conditions: [{ type: 'ALWAYS' }],
       },
+      // SC-R04-01: one Great Storybook quest per age band; the quest engine offers only the
+      // child's own band's. The offer is open once Quill has been met, so it follows the greeting.
+      ...(
+        [
+          [
+            'restore-the-great-storybook-sprouts',
+            'The Great Storybook lost its pages. Help Keeper Quill bring them back.',
+          ],
+          [
+            'restore-the-great-storybook-pathfinders',
+            'The Great Storybook lost its pages. Find them and bring them back to Keeper Quill.',
+          ],
+          [
+            'restore-the-great-storybook-explorers',
+            'Pages of the Great Storybook are scattered through the castle. Find them all and restore the book.',
+          ],
+        ] as const
+      ).map(([questId, summary]) => ({
+        questId,
+        summary,
+        conditions: [{ type: 'MEMORY_FLAG' as const, flag: 'restoredTheStorybook', equals: false }],
+      })),
     ],
   },
   {

@@ -50,4 +50,11 @@ def delete_child_profile(parent: ParentAccount, child_id) -> None:
             logger.warning("child deletion deferred: a photo was added during deletion")
             raise ChildDeletionIncomplete
         locked.delete()
+    try:
+        # Generated speech for this child expires on its own; this just removes it sooner.
+        from apps.speech.services import purge_child
+
+        purge_child(child.pk)
+    except Exception:  # noqa: BLE001 - never block a deletion that already succeeded
+        logger.warning("child deletion: speech cleanup deferred to expiry")
     logger.info("child profile deleted")

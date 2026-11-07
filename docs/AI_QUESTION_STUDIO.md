@@ -221,6 +221,30 @@ then add an enabled **Question pool** naming the region (for example `treasure-r
 chest entity (`cove-chest`), with a minimum pool size. Disabling the pool restores the authored
 challenge at once. Already issued attempts keep their snapshot.
 
+### Live five-question batch (LAI-AQS-025 readiness, 2026-11-04)
+
+Tooling for the owner-run test; the steps are in `docs/AI_BEDROCK_ACCEPTANCE.md` section 3. No batch
+was run against Bedrock.
+
+- `studio_run_batch --dry-run` is free: the model, whether it is approved, the token quota, the kill
+  switch and, per queued batch, the worst-case number of model calls (chunks x
+  `LAI_STUDIO_MAX_ATTEMPTS` x `LAI_AI_MAX_ATTEMPTS`). With Bedrock the command refuses to run a
+  batch without `--confirm-paid-calls`; the fake provider needs no flag.
+- Set `LAI_STUDIO_RUN_MODE=manual` for the test so the Admin Generate button only queues a batch.
+- `studio_batch_report --id <uuid> [--show-text]` is read-only: status, failure category, model,
+  chunks, attempts, tokens, estimated cost, estimated cost per question, per-question review
+  status and validation findings (check and severity), and the count published (must be 0). The
+  cost counts only calls that returned usage; a timed-out or blocked call may be billed and is not
+  in it.
+- Review confirmed in code and tests: the model must be on the approved list (refused, never
+  substituted); batches are chunked and bounded (retry on timeout, throttle, unavailable, bad
+  shape, never on access or configuration); quotas and the kill switch stop a running batch;
+  arithmetic, contradictory-key, duplicate and child-safety checks are deterministic; generated
+  rows are drafts, and approval and publishing are separate, permissioned, recorded steps; a
+  published question is served through the existing `ChallengeAttempt`, `grade_answer` and
+  `SkillEvidence` path, so Python grades it and records evidence (which now also updates
+  `SkillProgress`, LAI-0603). No defect was found in these paths in this pass.
+
 ## 11. Verification
 
 See the status table and `docs/IMPLEMENTATION_STATUS.md` for the exact commands and results.

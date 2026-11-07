@@ -6,6 +6,7 @@ import { ALL_NPCS } from '../../npc/content';
 import { reachableMemoryFlags } from '../../npc/dialogue';
 import { ALL_ITEMS } from '../../rewards/content';
 import { ADVENTURE_TEMPLATES } from '../../adventures/content';
+import { STORY_DEFINITIONS } from '../../story/content';
 import { ISLAND_LOCATIONS } from '../../island/locations';
 import { ISLAND_DISCOVERY_IDS } from '../../discovery/content';
 import type { QuestDefinition } from '../types';
@@ -30,6 +31,13 @@ const ADVENTURE_WORLD_CHANGE_KEYS = new Set(
       .map((step) => step.presentation)
       .filter((presentation) => presentation.kind === 'world-change')
       .map((presentation) => presentation.payload.changeKey),
+  ),
+);
+
+/** Every world-change key a finished Story Engine arc records (ADR-027), e.g. the secret door's. */
+const STORY_WORLD_CHANGE_KEYS = new Set(
+  STORY_DEFINITIONS.flatMap((story) =>
+    story.completionWorldChange ? [story.completionWorldChange.changeKey] : [],
   ),
 );
 
@@ -173,6 +181,7 @@ describe('island quest content', () => {
           case 'BUILD':
             expect(
               ADVENTURE_WORLD_CHANGE_KEYS.has(objective.changeKey) ||
+                STORY_WORLD_CHANGE_KEYS.has(objective.changeKey) ||
                 QUEST_WORLD_CHANGE_KEYS.has(objective.changeKey),
               `${where}: world change`,
             ).toBe(true);

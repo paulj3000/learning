@@ -1,0 +1,29 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div id="content-main">
+  <h1>{{ title }}</h1>
+  {% if problems %}
+    <p><strong>This cannot be published yet. Fix these first:</strong></p>
+    <ul>{% for problem in problems %}<li>{{ problem }}</li>{% endfor %}</ul>
+  {% else %}
+    <p>
+      This publishes {{ cue_count }} sound cue(s) and {{ assignment_count }} assignment(s)
+      as release {{ next_number }}. It goes live for every game at once. The audio version of
+      each cue is fixed at the version shown in the cue list today.
+    </p>
+  {% endif %}
+  {% if warnings %}
+    <p><strong>Worth a look:</strong></p>
+    <ul>{% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <p>
+      <label for="id_note">Note (optional)</label>
+      <input type="text" name="note" id="id_note" maxlength="300" size="60">
+    </p>
+    {% if not problems %}<input type="submit" value="Publish release {{ next_number }}" class="default">{% endif %}
+    <a href="{% url 'admin:audio_soundrelease_changelist' %}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

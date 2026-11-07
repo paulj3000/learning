@@ -34,6 +34,8 @@ INSTALLED_APPS = [
     "apps.catalog",
     "apps.assets",
     "apps.regions",
+    "apps.audio",
+    "apps.speech",
     "apps.game_sessions",
     "apps.education",
     "apps.progression",
@@ -217,6 +219,48 @@ if not 60 <= LAI_ASSET_URL_TTL_SECONDS <= 43200:
 if LAI_ASSET_DELIVERY == "s3" and LAI_ASSET_STORAGE != "s3":
     raise ImproperlyConfigured("LAI_ASSET_DELIVERY=s3 needs LAI_ASSET_STORAGE=s3.")
 
+# --- Spoken dialogue (SM-P8, ADR-049) -------------------------------------------------------
+# Off unless an environment turns it on: `disabled` answers every speech request with 503, `fake`
+# makes deterministic placeholder bytes (tests and local development), `polly` calls Amazon Polly.
+# No setting here ever reaches a browser, and nothing enables live synthesis by itself.
+LAI_SPEECH_PROVIDER = os.environ.get("LAI_SPEECH_PROVIDER", "disabled").strip()
+LAI_SPEECH_AWS_REGION = os.environ.get("LAI_SPEECH_AWS_REGION", "").strip()
+LAI_SPEECH_STORAGE = os.environ.get("LAI_SPEECH_STORAGE", "local").strip()
+LAI_SPEECH_BUCKET = os.environ.get("LAI_SPEECH_BUCKET", "").strip()
+LAI_SPEECH_LOCAL_ROOT = BASE_DIR / ".speech-storage"
+LAI_SPEECH_DELIVERY = os.environ.get("LAI_SPEECH_DELIVERY", "django").strip()
+LAI_SPEECH_MAX_CHARS = int(os.environ.get("LAI_SPEECH_MAX_CHARS", "600"))
+LAI_SPEECH_CHILD_DAILY_REQUESTS = int(os.environ.get("LAI_SPEECH_CHILD_DAILY_REQUESTS", "300"))
+LAI_SPEECH_CHILD_DAILY_CHARS = int(os.environ.get("LAI_SPEECH_CHILD_DAILY_CHARS", "20000"))
+LAI_SPEECH_GLOBAL_DAILY_CHARS = int(os.environ.get("LAI_SPEECH_GLOBAL_DAILY_CHARS", "500000"))
+LAI_SPEECH_MAX_CONCURRENT = int(os.environ.get("LAI_SPEECH_MAX_CONCURRENT", "4"))
+LAI_SPEECH_CLIP_TTL_HOURS = int(os.environ.get("LAI_SPEECH_CLIP_TTL_HOURS", "24"))
+LAI_SPEECH_UTTERANCE_TTL_MINUTES = int(os.environ.get("LAI_SPEECH_UTTERANCE_TTL_MINUTES", "60"))
+LAI_SPEECH_URL_TTL_SECONDS = int(os.environ.get("LAI_SPEECH_URL_TTL_SECONDS", "900"))
+LAI_SPEECH_TIMEOUT_SECONDS = float(os.environ.get("LAI_SPEECH_TIMEOUT_SECONDS", "5"))
+LAI_SPEECH_RETRIES = int(os.environ.get("LAI_SPEECH_RETRIES", "2"))
+# Bump to make every cached clip stale (a voice or SSML change that must not be served from cache).
+LAI_SPEECH_CACHE_VERSION = os.environ.get("LAI_SPEECH_CACHE_VERSION", "1").strip()
+# An ESTIMATE only (characters x price), never a bill. Empty means no estimate is made.
+_speech_price = os.environ.get("LAI_SPEECH_PRICE_PER_MCHAR_USD", "").strip()
+LAI_SPEECH_PRICE_PER_MCHAR_USD = float(_speech_price) if _speech_price else None
+if LAI_SPEECH_PROVIDER not in {"disabled", "fake", "polly"}:
+    raise ImproperlyConfigured("LAI_SPEECH_PROVIDER must be disabled, fake or polly.")
+if LAI_SPEECH_STORAGE not in {"s3", "local", "memory"}:
+    raise ImproperlyConfigured("LAI_SPEECH_STORAGE must be s3, local or memory.")
+if LAI_SPEECH_DELIVERY not in {"django", "s3"}:
+    raise ImproperlyConfigured("LAI_SPEECH_DELIVERY must be django or s3.")
+if LAI_SPEECH_DELIVERY == "s3" and LAI_SPEECH_STORAGE != "s3":
+    raise ImproperlyConfigured("LAI_SPEECH_DELIVERY=s3 needs LAI_SPEECH_STORAGE=s3.")
+if not 1 <= LAI_SPEECH_MAX_CHARS <= 3000:
+    raise ImproperlyConfigured("LAI_SPEECH_MAX_CHARS must be between 1 and 3000.")
+if not 60 <= LAI_SPEECH_URL_TTL_SECONDS <= 3600:
+    raise ImproperlyConfigured("LAI_SPEECH_URL_TTL_SECONDS must be between 60 and 3600.")
+if LAI_SPEECH_PROVIDER == "polly" and not LAI_SPEECH_AWS_REGION:
+    raise ImproperlyConfigured("LAI_SPEECH_PROVIDER=polly needs LAI_SPEECH_AWS_REGION.")
+if LAI_SPEECH_STORAGE == "s3" and not LAI_SPEECH_BUCKET:
+    raise ImproperlyConfigured("LAI_SPEECH_STORAGE=s3 needs LAI_SPEECH_BUCKET.")
+
 # --- Child profile photos (LAI-0904, ADR-042; docs/platform/CHILD_PHOTO_STORAGE.md) ---------
 # A separate store from the asset library: never the asset bucket, never published, never a CDN.
 # `disabled` answers every photo request with 503 `photo_storage_unavailable`.
@@ -271,6 +315,11 @@ LAI_AI_STRUCTURED_OUTPUT = env_bool("LAI_AI_STRUCTURED_OUTPUT", True)
 LAI_AI_MAX_OUTPUT_TOKENS = int(os.environ.get("LAI_AI_MAX_OUTPUT_TOKENS", "300"))
 LAI_AI_TEMPERATURE = float(os.environ.get("LAI_AI_TEMPERATURE", "0.4"))
 LAI_AI_TIMEOUT_SECONDS = float(os.environ.get("LAI_AI_TIMEOUT_SECONDS", "10"))
+# Optional longer read timeout for only the first request per structured-output schema in a
+# process (Bedrock compiles the grammar then). Unset leaves the normal timeout everywhere. Set it
+# only from live evidence (`ai_live_check --warm-up` reports first-call latency), never blindly.
+_first_call = os.environ.get("LAI_AI_FIRST_CALL_TIMEOUT_SECONDS", "").strip()
+LAI_AI_FIRST_CALL_TIMEOUT_SECONDS = float(_first_call) if _first_call else None
 # Shared limits on model calls (LAI-0708, apps/ai/services/usage.py): PostgreSQL counters, so
 # they hold across workers and instances. A denied turn gets authored content, never a model call.
 LAI_AI_CHILD_TURNS_PER_MINUTE = int(os.environ.get("LAI_AI_CHILD_TURNS_PER_MINUTE", "12"))
@@ -294,6 +343,11 @@ LAI_AI_PRICE_TABLE_VERSION = os.environ.get("LAI_AI_PRICE_TABLE_VERSION", "").st
 # be switched off once every caller has a server-owned context; adventures (Amplify sessions)
 # and story scenes (no Django story catalog yet) still need it.
 LAI_AI_ALLOW_CLIENT_AUTHORED = env_bool("LAI_AI_ALLOW_CLIENT_AUTHORED", True)
+# NPC narration may be limited to dialogue nodes the child is eligible for, judged from Django
+# records (relationship, memory flags, world changes, quests). Off until Django holds NPC state
+# for children (LAI-0605); React NPC state still lives in Amplify, so enforcing now would refuse
+# narration a child has legitimately unlocked. The check is built and tested either way.
+LAI_AI_NPC_ENFORCE_ELIGIBILITY = env_bool("LAI_AI_NPC_ENFORCE_ELIGIBILITY", False)
 # No approved retention period yet (LAI-0707, LAI-0308 gate G9): unset means `ai_retention`
 # refuses to delete unless an operator passes --older-than-days explicitly.
 _retention = os.environ.get("LAI_AI_AUDIT_RETENTION_DAYS", "").strip()
@@ -306,6 +360,12 @@ if not 0.0 <= LAI_AI_TEMPERATURE <= 1.0:
     raise ImproperlyConfigured("LAI_AI_TEMPERATURE must be between 0 and 1.")
 if not 1 <= LAI_AI_TIMEOUT_SECONDS <= 60:
     raise ImproperlyConfigured("LAI_AI_TIMEOUT_SECONDS must be between 1 and 60.")
+if LAI_AI_FIRST_CALL_TIMEOUT_SECONDS is not None and not (
+    LAI_AI_TIMEOUT_SECONDS <= LAI_AI_FIRST_CALL_TIMEOUT_SECONDS <= 60
+):
+    raise ImproperlyConfigured(
+        "LAI_AI_FIRST_CALL_TIMEOUT_SECONDS must be between LAI_AI_TIMEOUT_SECONDS and 60."
+    )
 for _name, _low, _high in (
     ("LAI_AI_CHILD_TURNS_PER_MINUTE", 1, 120),
     ("LAI_AI_CHILD_TURNS_PER_DAY", 1, 5000),

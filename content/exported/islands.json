@@ -54,7 +54,8 @@
           "glowworm-crystal",
           "blank-page-storybook",
           "explorer-backpack",
-          "star-lantern"
+          "star-lantern",
+          "great-storybook-seal"
         ],
         "locationSlugs": [
           "pirate-builder-bay",
@@ -79,7 +80,10 @@
           "tell-a-story-together",
           "sort-the-workshop",
           "the-quiet-places",
-          "light-the-harbor"
+          "light-the-harbor",
+          "restore-the-great-storybook-sprouts",
+          "restore-the-great-storybook-pathfinders",
+          "restore-the-great-storybook-explorers"
         ],
         "storySlugs": [
           "dragon-of-ember-mountain",

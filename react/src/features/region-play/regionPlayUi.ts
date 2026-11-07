@@ -42,6 +42,9 @@ export const PLAY_COPY = {
   chestOpened: 'Click! The chest is open!',
   youFound: 'You found',
   questComplete: 'Quest complete!',
+  // Sound (SM-P5)
+  sound: 'Sound',
+  soundTitle: 'Sound',
   // Backpack
   backpack: 'Backpack',
   backpackTitle: 'My backpack',

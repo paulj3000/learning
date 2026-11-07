@@ -84,6 +84,8 @@ export interface ProceduralScenery {
    * for an id that is not a gate. `tick` must run for an animated lift.
    */
   liftGate(id: string, instant: boolean): boolean;
+  /** The root object of a drawn figure by its layout id, or undefined (SM-P7: sound positions). */
+  rootOf(id: string): Object3D | undefined;
   dispose(): void;
 }
 
@@ -176,6 +178,7 @@ export function buildProceduralScenery(
       const group = groups.get(id);
       if (group) group.visible = visible;
     },
+    rootOf: (id) => groups.get(id),
     liftGate(id, instant) {
       const bars = groups.get(id)?.getObjectByName(GATE_BARS_NAME);
       if (!bars) return false;

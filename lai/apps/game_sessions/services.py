@@ -29,6 +29,7 @@ from django.utils import timezone
 
 from apps.adventures import engine
 from apps.catalog.models import Adventure, AdventureStep, ContentRelease
+from apps.education.services import record_step_evidence
 from apps.game_sessions.models import (
     COMPLETE_STEP_ID,
     AdventureAction,
@@ -92,6 +93,20 @@ def _locked_session(child, session_id) -> AdventureSession:
         raise ProgressNotFound from None
 
 
+def step_is_pinned(session: AdventureSession, step: AdventureStep) -> bool:
+    """True when `step` is the content this session started with (immutable revision pinning).
+
+    The catalog keeps one version of each adventure, so a session is pinned to the adventure
+    version it started on and to the release that still carries the step. Grading and AI
+    context both refuse anything else, so neither can narrate or grade different content.
+    """
+    adventure = session.adventure
+    return (
+        adventure.version == session.template_version
+        and step.last_seen_release_id == adventure.last_seen_release_id
+    )
+
+
 def _current_step_record(session: AdventureSession) -> AdventureStep:
     """The catalog step the session is on, only if it is the content the session started with.
 
@@ -99,13 +114,10 @@ def _current_step_record(session: AdventureSession) -> AdventureStep:
     changed, or whose step was not part of the adventure's latest import, cannot be evaluated
     safely, so it is refused rather than graded against different content.
     """
-    adventure = session.adventure
-    if adventure.version != session.template_version:
-        raise ContentVersionChanged
     step = AdventureStep.objects.filter(
-        adventure=adventure, step_id=session.current_step_id
+        adventure=session.adventure, step_id=session.current_step_id
     ).first()
-    if step is None or step.last_seen_release_id != adventure.last_seen_release_id:
+    if step is None or not step_is_pinned(session, step):
         raise ContentVersionChanged
     return step
 
@@ -337,6 +349,14 @@ def submit_answer(
         normalized_answer=answer_text,
         hint_level=decision["supportLevel"],
         request_id=request_id,
+        at=at,
+    )
+    # The engine's own grade, never a client value, becomes skill evidence (LAI-0603).
+    record_step_evidence(
+        session,
+        step,
+        correctness=action.correctness,
+        support_level=decision["supportLevel"],
         at=at,
     )
     if next_step is not None and _ends_adventure(session, next_step):

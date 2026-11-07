@@ -21,6 +21,8 @@ export interface TriggerStep {
   focusChanged?: { entityId: string | null };
   /** `PlayerEnteredZone` ids, in `TriggerVolume` order. */
   enteredZoneIds: string[];
+  /** `PlayerLeftZone` ids (SM-P7). Present only when the player left a zone this frame. */
+  leftZoneIds?: string[];
 }
 
 export class WorldTriggerTracker {
@@ -61,16 +63,24 @@ export class WorldTriggerTracker {
     }
 
     const enteredZoneIds: string[] = [];
+    let leftZoneIds: string[] | undefined;
     for (const volume of this.volumes) {
       const inside = boxContains(volume.box, position);
-      if (inside && !this.insideZone.get(volume.id)) {
+      const was = this.insideZone.get(volume.id) === true;
+      if (inside && !was) {
         enteredZoneIds.push(volume.id);
+      } else if (!inside && was) {
+        (leftZoneIds ??= []).push(volume.id);
       }
       this.insideZone.set(volume.id, inside);
     }
 
-    return focusChanged
-      ? { approachedEntityIds, focusChanged, enteredZoneIds }
-      : { approachedEntityIds, enteredZoneIds };
+    // Optional fields appear only when they have something to say, so a quiet frame is unchanged.
+    return {
+      approachedEntityIds,
+      ...(focusChanged ? { focusChanged } : {}),
+      enteredZoneIds,
+      ...(leftZoneIds ? { leftZoneIds } : {}),
+    };
   }
 }

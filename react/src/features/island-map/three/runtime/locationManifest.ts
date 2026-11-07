@@ -431,7 +431,109 @@ export interface LightSpec {
   /** Where the light falls to nothing. 0 means never (three's default). */
   distance?: number;
   decay?: number;
+  /**
+   * Which lights a lower render-quality tier keeps when it can afford fewer
+   * than the manifest places (`visual/renderQuality.ts`). Higher survives;
+   * ties keep authored order. Absent is 0. Never changes gameplay.
+   */
+  priority?: number;
   /** Present only while these hold, evaluated when the scene is built. */
+  requirements?: readonly WorldRequirement[];
+}
+
+/**
+ * The procedural patterns a material preset can paint
+ * (`visual/surfacePatterns.ts`). Generated in code from a seed: no image
+ * file, no licence, nothing to decode (ADR-028's recommended decision).
+ */
+export const SURFACE_PATTERNS = [
+  'PLAIN',
+  'FLAGSTONE',
+  'ASHLAR',
+  'PLANKS',
+  'PLASTER',
+  'CARPET',
+  'PANELS',
+  'TILES',
+] as const;
+export type SurfacePattern = (typeof SURFACE_PATTERNS)[number];
+
+/**
+ * A named material every surface using it shares: one material and one
+ * texture per preset per scene, however many rooms use it
+ * (`docs/regions/storykeeper_castle_art_direction.md` section 4).
+ */
+export interface MaterialPresetSpec {
+  id: string;
+  pattern: SurfacePattern;
+  /** 24-bit sRGB. The pattern's main colour, and the whole colour when the tier drops textures. */
+  baseColor: number;
+  /** 24-bit sRGB. Mortar, grain, weave: the pattern's second colour. Defaults to a darker base. */
+  accentColor?: number;
+  roughness?: number;
+  metalness?: number;
+  /** 24-bit sRGB glow, for magical surfaces only. */
+  emissive?: number;
+  emissiveIntensity?: number;
+  /** World metres one repeat of the pattern covers, so a texel is one size in every room. */
+  metersPerRepeat: number;
+  /** Any integer. The same seed always paints the same pattern. Defaults to 1. */
+  seed?: number;
+}
+
+/** One face of a built surface, in world metres. */
+export type SurfaceFace =
+  | {
+      /** A horizontal rectangle at `y`: facing up for a floor, down for a ceiling. */
+      kind: 'FLOOR' | 'CEILING';
+      area: RectZone;
+      y: number;
+    }
+  | {
+      /** The vertical sides of a box over `area` from `minY` to `maxY`. All four unless `sides` says. */
+      kind: 'WALL';
+      area: RectZone;
+      minY: number;
+      maxY: number;
+      sides?: readonly WallSide[];
+    };
+
+/**
+ * Architecture the runtime builds itself rather than loading: floors, walls
+ * and ceilings drawn with a material preset and world-scaled UVs, merged
+ * into one draw call per surface. Decorative only, never raycast-interactive,
+ * and never a collider: collision stays the authored rects
+ * (`docs/THREE_WORLD_ASSET_CONVENTIONS.md`, "Collider proxy").
+ */
+export interface SurfaceSpec {
+  id: string;
+  materialId: string;
+  faces: readonly SurfaceFace[];
+  /** Present only while these hold, evaluated when the scene is built. */
+  requirements?: readonly WorldRequirement[];
+}
+
+/**
+ * Atmosphere: drifting motes of dust or magic in a volume. Decorative,
+ * never interactive. The particle count is capped by the render-quality
+ * tier (none at LOW), and the motes hold still under reduced motion.
+ */
+export interface EffectSpec {
+  kind: 'MOTES';
+  id: string;
+  area: RectZone;
+  minY: number;
+  maxY: number;
+  /** 24-bit sRGB. */
+  color: number;
+  /** Before the tier's cap. */
+  count: number;
+  /** Point size in metres. Defaults to 0.05. */
+  size?: number;
+  /** Metres per second of drift. Defaults to 0.08. */
+  driftSpeed?: number;
+  /** Any integer, for the starting positions. Defaults to 1. */
+  seed?: number;
   requirements?: readonly WorldRequirement[];
 }
 
@@ -539,6 +641,12 @@ export interface ThreeLocationManifest {
   zones: readonly ZoneSpec[];
   /** Placed lights, for a region the sun does not reach. */
   lights?: readonly LightSpec[];
+  /** Material presets that `surfaces` name. */
+  materials?: readonly MaterialPresetSpec[];
+  /** Runtime-built textured architecture (floors, walls, ceilings, trim). */
+  surfaces?: readonly SurfaceSpec[];
+  /** Decorative atmosphere (motes). */
+  effects?: readonly EffectSpec[];
   ambient: readonly AmbientSpec[];
   /** Reuses the existing interaction vocabulary verbatim; see `worldObjects.ts`. */
   interactions: readonly WorldInteraction[];

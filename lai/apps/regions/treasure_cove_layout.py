@@ -623,6 +623,13 @@ def cove_layout() -> dict:
             "rect": _rect("cove-zone-ruins", -14, 14, -36, -16),
             "enterMessage": "The Ancient Treasure Ruins. Something is glowing.",
         },
+        # SM-P7: the sand and plaza at Lookout Point, beyond the gate. Reaching it still needs the
+        # bridge (TR-17); this volume only lets the audio know the child is there. No geometry,
+        # collider or route changes.
+        {
+            "rect": _rect("cove-zone-lookout", -36, 36, -44, -40.4),
+            "enterMessage": "Lookout Point. The whole sea is out there!",
+        },
     ]
 
     def loop(cx, cz, radius, y, count=6):

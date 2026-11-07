@@ -28,13 +28,14 @@ def request_companion_turn(child, data: dict) -> TurnResult:
     allowed_choice_ids = data.get("allowedChoiceIds") or None
 
     if data["contextSource"] == ContextSource.DJANGO_CATALOG:
-        narration = ctx.load_npc_narration(data["npcId"], data["nodeId"])
+        narration = ctx.load_npc_narration(data["npcId"], data["nodeId"], child=child)
         authored_base_text = narration.fallback_text
         allowed_choice_ids = None
         trusted = {
             "adventureTemplateId": narration.template_id,
             "stepSummary": narration.allowed_topic,
             "authoredBaseText": authored_base_text,
+            **narration.extra,
         }
         untrusted = {}
         session_id, step_id = "", data["nodeId"]

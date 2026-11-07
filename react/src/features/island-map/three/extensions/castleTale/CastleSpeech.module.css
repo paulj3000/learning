@@ -1,0 +1,12 @@
+/* Where the castle's spoken-dialogue caption sits: low on the stage, clear of the controls. */
+.captions {
+  position: fixed;
+  left: var(--space-4);
+  bottom: calc(var(--space-4) + 4.5rem);
+  z-index: 18;
+  max-width: min(34rem, calc(100vw - 2 * var(--space-4)));
+}
+
+.captions:empty {
+  display: none;
+}

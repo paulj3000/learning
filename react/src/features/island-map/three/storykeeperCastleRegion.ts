@@ -142,6 +142,32 @@ export const ROOMS: readonly RoomDefinition[] = [
     label: 'the Great Library',
     floor: { id: 'great-library:floor', minX: 5, maxX: 15, minZ: -10, maxZ: -2 },
   },
+  /*
+    The Trophy Room (SC-R03-03): a small room east of the Costume Room, where
+    what the child has earned stands on pedestals. 4 m by 4 m, ground floor,
+    reached only through the Costume Room, so it sits one door past the
+    dress-up and is never in the way of the hub. It abuts the Story Hall's
+    south wall and the east corridor's west wall without a door to either.
+  */
+  {
+    id: 'trophy-room',
+    label: 'the Trophy Room',
+    floor: { id: 'trophy-room:floor', minX: -1, maxX: 3, minZ: -10, maxZ: -6 },
+  },
+  /*
+    The Secret Chamber (SC-R03-05): a low stone room behind the tapestry nook,
+    west of the Story Hall's south-west corner. It is **the castle's one
+    secret room**, so it must not be findable by looking: until the nook has
+    been found, nothing lists it, the guide does not offer it, and its
+    passage is a solid wall (`castleLayout.ts`, `secretChamber.ts`). Ground
+    floor, a 7 m by 6 m room that touches no other room except through its one
+    passage.
+  */
+  {
+    id: 'secret-chamber',
+    label: 'the Secret Chamber',
+    floor: { id: 'secret-chamber:floor', minX: -16, maxX: -9, minZ: -10, maxZ: -4 },
+  },
 ];
 
 export interface ArchwayDefinition {
@@ -153,7 +179,7 @@ export interface ArchwayDefinition {
 }
 
 /**
- * Seven archways, each 2m wide - wide enough that a child dragging a look
+ * Nine archways, each 2m wide except the secret passage - wide enough that a child dragging a look
  * control across a doorway does not clip its frame, and the one dimension
  * in this file that should not be narrowed for looks.
  */
@@ -192,6 +218,23 @@ export const ARCHWAYS: readonly ArchwayDefinition[] = [
     id: 'arch-library',
     between: ['east-corridor', 'great-library'],
     gap: { id: 'arch-library:gap', minX: 4.75, maxX: 5.25, minZ: -7, maxZ: -5 },
+  },
+  {
+    id: 'arch-trophy',
+    between: ['costume-room', 'trophy-room'],
+    gap: { id: 'arch-trophy:gap', minX: -1.25, maxX: -0.75, minZ: -9, maxZ: -7 },
+  },
+  /*
+    The secret passage, behind the swaying tapestry (`castle-tapestry-stair`
+    hangs at z = -5.2 on this very wall). 1.5 m wide, narrower than the
+    others, so it reads as a hidden way and not a doorway. It exists in the
+    geometry always (the layout needs one source of truth) but is **sealed**
+    in the world until the nook is found.
+  */
+  {
+    id: 'arch-secret',
+    between: ['story-hall', 'secret-chamber'],
+    gap: { id: 'arch-secret:gap', minX: -9.25, maxX: -8.75, minZ: -5.75, maxZ: -4.25 },
   },
 ];
 
@@ -717,6 +760,38 @@ export const CASTLE_DOORS_SPOT: WallMountedSpot = {
   z: 0,
 };
 
+// --- The Trophy Room (SC-R03-03) -------------------------------------------
+
+/** A pedestal's half width, and how far in front of it the walk-up zone reaches. */
+export const TROPHY_PEDESTAL_HALF = 0.22;
+
+/**
+ * Six pedestals: three along the south wall facing north, three along the
+ * east wall facing west. The middle of the room is left open, and so is the
+ * line from the doorway (x = -1, z = -9 to -7) to the room's safe spot.
+ * `trophyDisplay` (`castleTrophies.ts`) decides which item stands on which.
+ */
+export const TROPHY_PEDESTAL_SPOTS: readonly EntitySpot[] = [
+  { entityId: 'trophy-pedestal-1', x: 0.2, z: -9.3 },
+  { entityId: 'trophy-pedestal-2', x: 0.95, z: -9.3 },
+  { entityId: 'trophy-pedestal-3', x: 1.7, z: -9.3 },
+  { entityId: 'trophy-pedestal-4', x: 2.3, z: -8 },
+  { entityId: 'trophy-pedestal-5', x: 2.3, z: -7.3 },
+  { entityId: 'trophy-pedestal-6', x: 2.3, z: -6.6 },
+];
+
+// --- The Secret Chamber (SC-R03-05) ----------------------------------------
+
+/** Half the footprint of a crystal's stone base. */
+export const CHAMBER_CRYSTAL_HALF = 0.3;
+
+/** Three crystals along the west wall, each with a walk-up zone to its east. Decorative and flavour only. */
+export const CHAMBER_CRYSTAL_SPOTS: readonly EntitySpot[] = [
+  { entityId: 'chamber-crystal-1', x: -15.2, z: -9 },
+  { entityId: 'chamber-crystal-2', x: -15.2, z: -7.3 },
+  { entityId: 'chamber-crystal-3', x: -15.2, z: -5.6 },
+];
+
 // --- Trigger zones ---------------------------------------------------------
 
 /**
@@ -776,6 +851,38 @@ export const ZONES: readonly RectZone[] = [
   { id: 'castle-illustration-studio', minX: 6.5, maxX: 8.5, minZ: 0, maxZ: 2 },
   { id: 'castle-great-library', minX: 5.5, maxX: 8, minZ: -7, maxZ: -5 },
   { id: 'castle-last-bookshelf', minX: 11.8, maxX: 13.4, minZ: -9.2, maxZ: -7.8 },
+
+  /*
+    The Trophy Room: one walk-up zone in front of each pedestal, so looking at
+    a treasure is standing beside it, like every other choice in this castle.
+    South-wall zones are 0.7 m wide, a hair apart; east-wall zones are 0.6 m
+    deep and 0.6 m wide. None touches another.
+  */
+  { id: 'trophy-slot-1', minX: -0.15, maxX: 0.55, minZ: -9, maxZ: -8.4 },
+  { id: 'trophy-slot-2', minX: 0.6, maxX: 1.3, minZ: -9, maxZ: -8.4 },
+  { id: 'trophy-slot-3', minX: 1.35, maxX: 2.05, minZ: -9, maxZ: -8.4 },
+  { id: 'trophy-slot-4', minX: 1.45, maxX: 2.0, minZ: -8.3, maxZ: -7.7 },
+  { id: 'trophy-slot-5', minX: 1.45, maxX: 2.0, minZ: -7.6, maxZ: -7 },
+  { id: 'trophy-slot-6', minX: 1.45, maxX: 2.0, minZ: -6.9, maxZ: -6.3 },
+  /*
+    The Observatory (SC-R03-04, the Setting Tower's second function): a walk-up
+    point just north of the telescope's stand (so its centre is open floor) and one at the star chart on
+    the west wall. Neither touches the arrival zone (z 6.6 to 8.4) or any of the
+    three window zones (x from 6.3), which are the room's `choose-setting` answer.
+  */
+  { id: 'observatory-telescope', minX: 5.4, maxX: 6.2, minZ: 6.08, maxZ: 6.55 },
+  { id: 'observatory-chart', minX: 5.4, maxX: 6.2, minZ: 8.6, maxZ: 9.6 },
+
+  /*
+    The Secret Chamber: a walk-up zone east of each crystal, and one before
+    the sealed round door on the south wall. Their interactions are gated on
+    the nook having been found, so none of this exists to a child who has
+    not found it.
+  */
+  { id: 'chamber-glow-1', minX: -14.7, maxX: -14, minZ: -9.55, maxZ: -8.45 },
+  { id: 'chamber-glow-2', minX: -14.7, maxX: -14, minZ: -7.85, maxZ: -6.75 },
+  { id: 'chamber-glow-3', minX: -14.7, maxX: -14, minZ: -6.15, maxZ: -5.05 },
+  { id: 'chamber-door', minX: -13.2, maxX: -11.8, minZ: -9.6, maxZ: -8.9 },
 ];
 
 export function findZone(zoneId: string): RectZone | undefined {
@@ -801,6 +908,8 @@ export const FLOOR_SPOTS: readonly EntitySpot[] = [
   LAST_BOOKSHELF_SPOT,
   LOCK_ROD_RACK_SPOT,
   ...LOCK_ROD_SPOTS,
+  ...TROPHY_PEDESTAL_SPOTS,
+  ...CHAMBER_CRYSTAL_SPOTS,
 ];
 
 /** Every wall-mounted spot this region authors, in one list. */

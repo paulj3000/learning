@@ -250,7 +250,17 @@ class TestChildIsolation:
         # ai: audit metadata only, permission-gated and audited (LAI-0707, ADR-044 item 9)
         # question_studio: staff-authored question content and its review history (ADR-046);
         # it holds no child data, and published revisions are read-only
-        assert exposed == {"ai", "assets", "auth", "catalog", "question_studio", "regions", "users"}
+        assert exposed == {
+            "ai",
+            "assets",
+            "audio",
+            "auth",
+            "catalog",
+            "question_studio",
+            "regions",
+            "speech",  # voice profiles and speech lines: staff content, no child data (ADR-049)
+            "users",
+        }
 
 
 @pytest.mark.django_db

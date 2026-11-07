@@ -49,7 +49,12 @@ import {
 import type { ThreeEngineHandle } from '../engineHandle';
 import type { WorldEngineEventBus } from '../worldEngineEvents';
 import { SOURCE_WORLD_EXTENSIONS } from '../extensions';
-import type { LoadedModel, WorldExtensionMount, WorldExtensionRegistry } from './extensionRegistry';
+import type {
+  ChildPlacement,
+  LoadedModel,
+  WorldExtensionMount,
+  WorldExtensionRegistry,
+} from './extensionRegistry';
 import type {
   ModelAnchor,
   PlaceholderSize,
@@ -72,8 +77,17 @@ import {
 } from './sceneLayout';
 import { WorldTriggerTracker } from './worldTriggerTracker';
 import { installE2EProbe } from './e2eProbe';
+import { createMaterialLibrary } from './visual/materialLibrary';
+import { createMoteField, type MoteField } from './visual/motes';
+import {
+  DEFAULT_RENDER_QUALITY,
+  pixelRatioFor,
+  selectLightsForQuality,
+  type RenderQuality,
+} from './visual/renderQuality';
+import { buildSurfaceGeometry } from './visual/surfaceGeometry';
 
-export type { LoadedModel } from './extensionRegistry';
+export type { ChildPlacement, LoadedModel } from './extensionRegistry';
 
 /**
  * The generic Three.js location runtime (`docs/engine/03_GENERIC_3D_WORLD_RUNTIME.md`,
@@ -109,6 +123,8 @@ export interface RendererLike {
   setSize(width: number, height: number): void;
   render(scene: Scene, camera: Camera): void;
   dispose(): void;
+  /** Optional so test doubles need not implement it; `WebGLRenderer` does. */
+  setPixelRatio?(ratio: number): void;
 }
 
 export interface LocationEngineAssets {
@@ -156,6 +172,14 @@ export const DEFAULT_LOCATION_ENGINE_DEPS: LocationEngineDeps<WebGLRenderer> = {
 export interface LocationEngine extends ThreeEngineHandle {
   /** Raycasts from the screen centre and acts on whatever interactive entity is there. */
   interact(): void;
+  /**
+   * Moves the child to a spot they could stand on: inside the bounds and
+   * clear of every collider as it is now. `false`, and no move, otherwise.
+   * Generic: the accessible equivalent of walking, for any region.
+   */
+  placeChild(placement: ChildPlacement): boolean;
+  /** Where the child is and which way they face. */
+  childPlacement(): Required<ChildPlacement>;
   /** What a mounted extension returned as `api`, for its React half. `undefined` if none. */
   extensionApi(extensionId: string): unknown;
   /** Settles once every asynchronously loaded piece has been placed or has failed. Never rejects. */
@@ -167,6 +191,16 @@ export interface LocationEngineOptions {
   startCheckpointId?: string;
   /** What `requirements` on scenery and colliders are checked against. Defaults to no world state. */
   worldState?: WorldInteractionContext;
+  /**
+   * How much the scene may cost to draw (`visual/renderQuality.ts`).
+   * Appearance only: colliders, interactions and bindings are identical at
+   * every tier. Defaults to MEDIUM.
+   */
+  quality?: RenderQuality;
+  /** `prefers-reduced-motion`: decorative motion (motes) holds still. Defaults to false. */
+  reducedMotion?: boolean;
+  /** The device pixel ratio, capped by the tier. Defaults to `window.devicePixelRatio`. */
+  devicePixelRatio?: number;
 }
 
 /** The outdoor rig `sceneKit.createSceneBootstrap` defaults to; manifest lighting overrides per field. */
@@ -286,9 +320,13 @@ export function createLocationEngine<R extends RendererLike>(
     doorway that only glows once it is open is a light with a requirement
     rather than a line of code in a scene.
   */
+  const quality = options.quality ?? DEFAULT_RENDER_QUALITY;
   const placedLights = new Map<string, PointLight>();
-  for (const light of manifest.lights ?? []) {
-    if (!areRequirementsMet(light.requirements, worldState)) continue;
+  const gatedLights = (manifest.lights ?? []).filter((light) =>
+    areRequirementsMet(light.requirements, worldState),
+  );
+  // A lower tier keeps the lights that matter most (`priority`), never a different gameplay.
+  for (const light of selectLightsForQuality(gatedLights, quality)) {
     const point = new PointLight(
       light.color,
       light.intensity,
@@ -302,6 +340,13 @@ export function createLocationEngine<R extends RendererLike>(
   }
 
   const renderer = deps.createRenderer();
+  renderer.setPixelRatio?.(
+    pixelRatioFor(
+      options.devicePixelRatio ??
+        (typeof window === 'undefined' ? undefined : window.devicePixelRatio),
+      quality,
+    ),
+  );
   renderer.setSize(parent.clientWidth, parent.clientHeight);
   parent.appendChild(renderer.domElement);
 
@@ -326,6 +371,22 @@ export function createLocationEngine<R extends RendererLike>(
     if (index < 0) return false;
     colliders.splice(index, 1);
     return true;
+  }
+
+  function placeChild(placement: ChildPlacement): boolean {
+    if (disposed) return false;
+    if (!Number.isFinite(placement.x) || !Number.isFinite(placement.z)) return false;
+    if (
+      Math.abs(placement.x) > manifest.bounds.halfExtentX ||
+      Math.abs(placement.z) > manifest.bounds.halfExtentZ
+    ) {
+      return false;
+    }
+    return controller.teleportTo(placement.x, placement.z, placement.yaw);
+  }
+
+  function childPlacement(): Required<ChildPlacement> {
+    return { x: controller.position.x, z: controller.position.z, yaw: controller.yaw };
   }
 
   const focusTargets: FocusTarget[] = [];
@@ -712,6 +773,47 @@ export function createLocationEngine<R extends RendererLike>(
     .filter((item) => areRequirementsMet(item.requirements, worldState))
     .forEach(buildScenery);
 
+  /*
+    Built architecture (SC-R02-01): floors, walls and ceilings drawn with a
+    shared material preset and world-scaled UVs, one merged draw call per
+    surface. The library owns every preset material and texture; the
+    geometries are owned like any other the runtime builds. Each surface's
+    root is registered with the scenery roots, so an extension can find it.
+  */
+  const materialLibrary = createMaterialLibrary(manifest.materials ?? [], { quality });
+  for (const surface of manifest.surfaces ?? []) {
+    if (!areRequirementsMet(surface.requirements, worldState)) continue;
+    const root = new Group();
+    root.name = surface.id;
+    scene.add(root);
+    sceneryRoots.set(surface.id, root);
+    const metersPerRepeat = materialLibrary.spec(surface.materialId)?.metersPerRepeat ?? 1;
+    const geometry = buildSurfaceGeometry(surface.faces, metersPerRepeat);
+    ownedGeometries.push(geometry);
+    if (!geometry.getAttribute('position')) continue;
+    const mesh = new Mesh(geometry, materialLibrary.get(surface.materialId));
+    mesh.name = `surface:${surface.id}`;
+    root.add(mesh);
+  }
+
+  // Atmosphere: motes, capped by the tier and still under reduced motion.
+  const moteFields: MoteField[] = [];
+  for (const effect of manifest.effects ?? []) {
+    if (!areRequirementsMet(effect.requirements, worldState)) continue;
+    const field = createMoteField(effect, quality);
+    if (!field) continue;
+    field.setTime(0);
+    scene.add(field.points);
+    moteFields.push(field);
+    if (!options.reducedMotion) {
+      let seconds = 0;
+      frameCallbacks.add((deltaSeconds) => {
+        seconds += deltaSeconds;
+        field.setTime(seconds);
+      });
+    }
+  }
+
   // Ambient movers: decorative, never raycast-interactive, never emit events.
   for (const ambient of manifest.ambient) {
     const path = new CatmullRomCurve3(
@@ -927,6 +1029,9 @@ export function createLocationEngine<R extends RendererLike>(
           return () => frameCallbacks.delete(callback);
         },
         now: () => deps.now(),
+        placeChild,
+        childPlacement,
+        reducedMotion: options.reducedMotion === true,
       });
       extensionMounts.set(binding.extensionId, mounted ?? {});
     } catch (error) {
@@ -972,6 +1077,7 @@ export function createLocationEngine<R extends RendererLike>(
     for (const entityId of step.approachedEntityIds) bus.emit('NpcApproached', { entityId });
     if (step.focusChanged) bus.emit('InteractableFocused', step.focusChanged);
     for (const zoneId of step.enteredZoneIds) bus.emit('PlayerEnteredZone', { zoneId });
+    for (const zoneId of step.leftZoneIds ?? []) bus.emit('PlayerLeftZone', { zoneId });
 
     renderer.render(scene, camera);
     frameHandle = deps.requestFrame(frame);
@@ -993,6 +1099,8 @@ export function createLocationEngine<R extends RendererLike>(
     }
     for (const geometry of ownedGeometries) geometry.dispose();
     for (const material of ownedMaterials) material.dispose();
+    materialLibrary.dispose();
+    for (const field of moteFields) field.dispose();
     scene.clear();
     renderer.dispose();
     if (renderer.domElement.parentElement === parent) {
@@ -1016,6 +1124,8 @@ export function createLocationEngine<R extends RendererLike>(
   return {
     dispose,
     interact,
+    placeChild,
+    childPlacement,
     extensionApi: (extensionId) => extensionMounts.get(extensionId)?.api,
     ready,
   };
