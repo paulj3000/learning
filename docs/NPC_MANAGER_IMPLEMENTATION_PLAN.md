@@ -97,8 +97,9 @@ and Vitest suites, typecheck, build, Ruff, Prettier, `adr:check`; no Playwright)
 `pip-landing` behaviour with reactions, the `cove-pip` placement on Treasure Cove's legacy Pip
 spot, and twelve dialogues migrated from `PLAY_COPY`/`PipDialog` (greet, mission with
 `OFFER_QUEST`, hints, find, quest and adventure completion, return visit, a condition-free
-fallback). No voice profile exists for Pip in the speech seeds, so his lines are captions until
-staff add one. Seed and publish locally:
+fallback). Since SM-P8-LIVE, `seed_speech_voices` creates a `pirate-pip` voice profile (Justin, neural):
+run it before `seed_npc_pip` and a new Pip is voiced; an existing voiceless Pip gets it with
+`seed_npc_pip --attach-voice` (never replacing a voice staff chose). Seed and publish locally:
 
 ```bash
 cd lai

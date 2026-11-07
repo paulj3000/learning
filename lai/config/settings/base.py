@@ -226,6 +226,7 @@ if LAI_ASSET_DELIVERY == "s3" and LAI_ASSET_STORAGE != "s3":
 # No setting here ever reaches a browser, and nothing enables live synthesis by itself.
 LAI_SPEECH_PROVIDER = os.environ.get("LAI_SPEECH_PROVIDER", "disabled").strip()
 LAI_SPEECH_AWS_REGION = os.environ.get("LAI_SPEECH_AWS_REGION", "").strip()
+LAI_SPEECH_S3_REGION = os.environ.get("LAI_SPEECH_S3_REGION", LAI_SPEECH_AWS_REGION).strip()
 LAI_SPEECH_STORAGE = os.environ.get("LAI_SPEECH_STORAGE", "local").strip()
 LAI_SPEECH_BUCKET = os.environ.get("LAI_SPEECH_BUCKET", "").strip()
 LAI_SPEECH_LOCAL_ROOT = BASE_DIR / ".speech-storage"
