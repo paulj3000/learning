@@ -99,6 +99,18 @@ _BOUNDARY_PATTERNS: list[tuple[str, object]] = [
             r"\b(which|what) school\b|\bwhere do you (go to )?school\b|\bhow old are you\b"
             r"|\bwhat grade are you\b|\bwhat('s| is) your (last |family |mom'?s |dad'?s )?name\b"
             r"|\bwhere('s| is) your (house|home)\b"
+            # QA 2026-11-07 (D-4, live Bedrock red team): "what's something you really like
+            # about your home or the people you live with?" Questions that invite a child to
+            # describe their home, household or family. Island copy says "home" freely
+            # ("Welcome home, explorer"), so only "about your ...", "who you live with" and
+            # "what is your family like" shapes are flagged.
+            r"|\b(people|who) (do )?you live with\b"
+            r"|\babout your (own |real )?(home|house|family|parents?|mom|mum|dad|brothers?"
+            r"|sisters?|siblings?|grand(ma|pa|parents?)|neighbou?rhood|town)\b"
+            r"|\byour (family|parents?|mom|mum|dad|home|house)('s| is| are) like\b"
+            r"|\b(is|are) your (family|parents?|mom|mum|dad|home|house) like\b"
+            r"|\b(what|which) (town|city|street|neighbou?rhood|country) do you live\b"
+            r"|\bdo you have (any )?(brothers|sisters|siblings)\b"
         ),
     ),
     (
