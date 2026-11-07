@@ -57,6 +57,7 @@ const IDLE_STATE: NpcVoiceState = {
   phase: 'idle',
   talking: false,
   textOnly: false,
+  refused: false,
 };
 
 /**

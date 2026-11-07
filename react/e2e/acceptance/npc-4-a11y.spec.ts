@@ -142,7 +142,7 @@ test.describe('NPC Manager accessibility and comfort', () => {
     const { dialog } = await openPip(page);
     const moving = await dialog.evaluate(
       (root) =>
-        [root, ...root.querySelectorAll('*')].filter((el) => {
+        [root, ...Array.from(root.querySelectorAll('*'))].filter((el) => {
           const style = getComputedStyle(el);
           const seconds = (value: string) =>
             Math.max(...value.split(',').map((part) => parseFloat(part) || 0));

@@ -596,8 +596,16 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
         : null;
     // "Hear it again": only for a voiced line the child can hear, and not over a hint's words.
     const showingHint = Boolean(node && hint && hint.nodeKey === node.nodeKey);
+    // Not once this line's audio was refused (speech disabled, Polly down): replaying would only
+    // fail again, and the caption is already there (QA-D4, checklist B7.1 and B13.10).
+    const refused = Boolean(node && voice.state.nodeKey === node.nodeKey && voice.state.refused);
     const replayNode =
-      node && !isError && !showingHint && isNpcSpeechRef(node.speech) && voice.speechAvailable
+      node &&
+      !isError &&
+      !showingHint &&
+      !refused &&
+      isNpcSpeechRef(node.speech) &&
+      voice.speechAvailable
         ? node
         : null;
     const onReplay =

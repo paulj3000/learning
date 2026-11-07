@@ -670,6 +670,22 @@ describe('NPC scene host: accessibility (LAI-NPC-038)', () => {
     expect(screen.queryByRole('button', { name: 'Hear it again' })).toBeNull();
   });
 
+  it('hides "Hear it again" once the line\'s speech is refused, keeping the caption (QA-D4)', async () => {
+    const refusing: SpeechSource = {
+      request: vi.fn(async () => {
+        throw new ApiError('unavailable', { status: 503, code: 'speech_unavailable' });
+      }),
+    };
+    const { host } = setup({ dialogueApi: fakeDialogueApi(reply(SPOKEN)), speechSource: refusing });
+    await flush();
+    act(() => void host.current?.interact('pirate-pip'));
+    await flush();
+    await flush();
+    expect(vi.mocked(refusing.request)).toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Pirate Pip' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Hear it again' })).toBeNull();
+  });
+
   it('takes localized prompt and panel copy', async () => {
     const { world } = setup({
       props: {

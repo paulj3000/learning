@@ -128,6 +128,8 @@ test.describe.serial("Storykeeper's Castle: Keeper Quill from the NPC Manager", 
       .poll(async () => (await npcs(page))[0]?.animation?.overlay?.state ?? null)
       .toBe('talk');
     await expect(dialog(page).getByRole('button', { name: 'Yes, I will help!' })).toBeVisible();
+    // QA-D4: speech is disabled, so the refused line offers no "Hear it again".
+    await expect(dialog(page).getByRole('button', { name: 'Hear it again' })).toHaveCount(0);
     await shot(page, 'castle-02-quest-offer');
     await dialog(page).getByRole('button', { name: 'I am just visiting.' }).click();
     await expect(dialog(page)).toHaveCount(0);
