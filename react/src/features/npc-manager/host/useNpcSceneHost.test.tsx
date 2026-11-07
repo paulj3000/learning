@@ -19,6 +19,7 @@ import type { AdventureEvent } from '../contracts/vocabulary';
 import type { NpcDialogueApi } from '../dialogue/npcDialogueApi';
 import type { SpeechSource } from '../../../audio/speech/SpeechPlayer';
 import type { NpcHintApi } from './npcHintApi';
+import { NPC_DIAGNOSTICS, type NpcDiagnostics } from '../engine/createNpcRuntime';
 import {
   useNpcSceneHost,
   type NpcHostScene,
@@ -360,6 +361,38 @@ describe('NPC scene host: prompt and conversation', () => {
     );
   });
 
+  it('a captions-only talk line plays the talk loop, and closing returns to idle (QA-D2)', async () => {
+    const talkLine = node('ask', 'Will you help me?', { animationState: 'talk', speech: null });
+    const dialogueApi = fakeDialogueApi(
+      reply(talkLine, [{ choiceKey: 'later', label: 'Maybe later', action: 'END' }]),
+    );
+    dialogueApi.start.mockImplementation(async (_npc, request) =>
+      request.trigger === 'on_interact'
+        ? reply(talkLine, [{ choiceKey: 'later', label: 'Maybe later', action: 'END' }])
+        : NONE,
+    );
+    const { world } = setup({ dialogueApi });
+    await flush();
+    const diagnostics = () =>
+      (npcRoots(world.parent)[0]!.userData[NPC_DIAGNOSTICS] as () => NpcDiagnostics)();
+    world.moveTo({ x: 3, z: 7 });
+    await userEvent.click(screen.getByRole('button', { name: 'Talk to Pirate Pip' }));
+    await flush();
+    expect(screen.getByText('Will you help me?')).toBeTruthy();
+    expect(diagnostics().animation.overlay).toEqual(
+      expect.objectContaining({ state: 'talk', mode: 'loop' }),
+    );
+    // Still talking a little later: a loop, not a one-shot that ends while the caption shows.
+    world.moveTo({ x: 3, z: 7 });
+    world.moveTo({ x: 3, z: 7 });
+    expect(diagnostics().animation.overlay?.state).toBe('talk');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await flush();
+    world.moveTo({ x: 3, z: 7 });
+    expect(diagnostics().animation.overlay).toBeNull();
+  });
+
   it('a conversation that ends by itself resumes the behaviour and closes the panel', async () => {
     const { world, host, behavior, dialogueApi } = setup();
     await flush();
@@ -634,6 +667,22 @@ describe('NPC scene host: accessibility (LAI-NPC-038)', () => {
     act(() => void host.current?.interact('pirate-pip'));
     await flush();
     expect(screen.getByText('Ahoy!')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Hear it again' })).toBeNull();
+  });
+
+  it('hides "Hear it again" once the line\'s speech is refused, keeping the caption (QA-D4)', async () => {
+    const refusing: SpeechSource = {
+      request: vi.fn(async () => {
+        throw new ApiError('unavailable', { status: 503, code: 'speech_unavailable' });
+      }),
+    };
+    const { host } = setup({ dialogueApi: fakeDialogueApi(reply(SPOKEN)), speechSource: refusing });
+    await flush();
+    act(() => void host.current?.interact('pirate-pip'));
+    await flush();
+    await flush();
+    expect(vi.mocked(refusing.request)).toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Pirate Pip' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Hear it again' })).toBeNull();
   });
 

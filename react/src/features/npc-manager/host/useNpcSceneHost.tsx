@@ -268,11 +268,16 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
         case 'dialogue.node_entered':
           setHint(null);
           void voiceRef.current.play(event.node);
-          if (placementKey && event.node.animationState && event.node.animationState !== 'talk') {
+          if (placementKey && event.node.animationState) {
+            // A talk line loops its talk clip from the moment the caption shows (QA-D2): without
+            // this a captions-only line (no voice profile, speech off, muted, or a failed
+            // request) never animated. When a voice does play, the voice coordinator sends the
+            // same loop and stops it when the audio ends.
             send({
               type: 'animate',
               placementKey,
               state: event.node.animationState,
+              ...(event.node.animationState === 'talk' ? { mode: 'loop' as const } : {}),
               priority: ANIMATION_PRIORITY.dialogue,
             });
           }
@@ -591,8 +596,16 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
         : null;
     // "Hear it again": only for a voiced line the child can hear, and not over a hint's words.
     const showingHint = Boolean(node && hint && hint.nodeKey === node.nodeKey);
+    // Not once this line's audio was refused (speech disabled, Polly down): replaying would only
+    // fail again, and the caption is already there (QA-D4, checklist B7.1 and B13.10).
+    const refused = Boolean(node && voice.state.nodeKey === node.nodeKey && voice.state.refused);
     const replayNode =
-      node && !isError && !showingHint && isNpcSpeechRef(node.speech) && voice.speechAvailable
+      node &&
+      !isError &&
+      !showingHint &&
+      !refused &&
+      isNpcSpeechRef(node.speech) &&
+      voice.speechAvailable
         ? node
         : null;
     const onReplay =

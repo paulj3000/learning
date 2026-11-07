@@ -540,9 +540,10 @@ class VariantAssetInline(admin.TabularInline):
     autocomplete_fields = ("asset",)
     fields = ("role", "asset", "attach_point", "sort_order")
     verbose_name = "extra asset"
+    # The runtime does not draw extras yet (NPC QA limitation 4): say so where staff add them.
     verbose_name_plural = (
         "extra assets (texture: texture or image; accessory: prop or character; portrait: image "
-        "or sprite; audio: audio)"
+        "or sprite; audio: audio). Checked and published, but not shown in the game yet"
     )
 
 
@@ -742,7 +743,17 @@ class DialogueChoiceInline(admin.TabularInline):
     model = NpcDialogueChoice
     fk_name = "node"
     extra = 0
-    fields = ("choice_key", "label", "next_node", "action", "action_value", "conditions")
+    # `sort_order` is the order a child sees the choices in (QA-D1): without it every choice
+    # authored here was saved as 0 and served alphabetically by key.
+    fields = (
+        "choice_key",
+        "label",
+        "next_node",
+        "action",
+        "action_value",
+        "conditions",
+        "sort_order",
+    )
 
     def get_formset(self, request, obj=None, **kwargs):
         dialogue = obj.dialogue if obj is not None else None

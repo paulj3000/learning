@@ -118,6 +118,18 @@ export interface NpcSceneRuntime extends NpcRuntime {
 }
 
 export const PLACEMENT_KEY = 'npcPlacementKey';
+/**
+ * `root.userData[NPC_DIAGNOSTICS]` reads the NPC's id, whether it still stands as the placeholder,
+ * and its animator snapshot. Read-only, for the browser acceptance probe
+ * (`island-map/three/runtime/e2eProbe.ts`); nothing in the game reads it.
+ */
+export const NPC_DIAGNOSTICS = 'npcDiagnostics';
+
+export interface NpcDiagnostics {
+  npcId: string;
+  placeholder: boolean;
+  animation: ReturnType<NpcAnimator['snapshot']>;
+}
 const DEFAULT_TIMEOUT_MS = 20_000;
 const DEFAULT_FAR_DISTANCE = 30;
 export const DEFAULT_REDUCED_UPDATE_SECONDS = 0.1;
@@ -278,6 +290,11 @@ export function createNpcRuntime(options: NpcRuntimeOptions): NpcSceneRuntime {
       disposed: false,
     };
     applyYaw(entry);
+    root.userData[NPC_DIAGNOSTICS] = (): NpcDiagnostics => ({
+      npcId: entry.npcId,
+      placeholder: entry.model === null,
+      animation: entry.animator.snapshot(),
+    });
     return entry;
   }
 

@@ -41,6 +41,12 @@ export interface NpcVoiceState {
   talking: boolean;
   /** No audio for the current caption (no voice, muted, speech off, failed). */
   textOnly: boolean;
+  /**
+   * The server would not give this line's audio (speech disabled, Polly down): asking again would
+   * fail the same way. Not set when audio arrived but could not play (autoplay blocked), where a
+   * tap to hear it again is exactly what helps (QA-D4).
+   */
+  refused: boolean;
 }
 
 export type NpcVoiceEvent =
@@ -91,6 +97,7 @@ const IDLE: NpcVoiceState = {
   phase: 'idle',
   talking: false,
   textOnly: false,
+  refused: false,
 };
 
 /** Is this a well-formed `npcDialogueNode` reference? (The server checks it again.) */
@@ -236,7 +243,8 @@ export function createNpcVoiceCoordinator(
       case 'failed':
         active.failed = true;
         stopTalk();
-        set({ textOnly: true });
+        // `canReplay` is false only when no clip came back at all.
+        set({ textOnly: true, refused: !speech.canReplay });
         break;
       case 'idle':
         stopTalk();
@@ -285,6 +293,7 @@ export function createNpcVoiceCoordinator(
           phase: spoken ? 'loading' : 'done',
           talking: false,
           textOnly: !spoken,
+          refused: false,
         });
         emit({ type: 'voice.started', nodeKey: node.nodeKey, spoken });
         if (!spoken || !reference) {

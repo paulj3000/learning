@@ -12446,3 +12446,21 @@ Known limits: variant extras (accessories) are validated and published but not r
 no voice profile; AI hint speech is null; Quill's conditions cannot see the castle's Amplify quest
 state; a disabled-provider AI hint writes no audit row (contract silent; AI owner to decide).
 
+
+### NPC Manager QA pass (2026-11-07, `qa/npc-manager-acceptance`): OWNER QA readiness, not acceptance
+
+Full report: `docs/NPC_MANAGER_QA_REPORT.md`. First real-browser run of the NPC Manager (Chromium
+with software WebGL, local Django and PostgreSQL, fake AI, speech disabled, no AWS): 32 new
+Playwright tests across Django Admin, Treasure Rush, Storykeeper's Castle and accessibility, plus
+the existing Treasure Rush suite now running with the managed Pip.
+
+Fixed with regression tests: QA-D1 choice order in Django Admin; QA-D2 captions-only talk lines
+never animated; QA-D3 Treasure Cove's return visit never raised `on_return_visit`; QA-D4 "Hear it
+again" offered after the server refused a line's speech. Added: `generic_clip_name` upload warning
+for default Mixamo/Blender take names; Admin notice that variant extras are not drawn yet; an
+e2e-only NPC diagnostics hook; `@axe-core/playwright` (test-only).
+
+Not verified (owner): screen readers, switch access and tablets; the castle's Amplify-backed tale
+and quest log; live Polly and Bedrock (no approved environment, BLOCKED); the owner's Mixamo
+pirate file (not in the repository). The four known limitations are classified in the report;
+none blocks release.

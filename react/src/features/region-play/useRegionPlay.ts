@@ -157,7 +157,18 @@ export function useRegionPlay(
     dispatch({ scope, type: 'reset' });
     dispatch({ scope, type: 'started', action: 'load' });
     api.getRegion(regionId, controller.signal).then(
-      (bootstrap) => dispatch({ scope, type: 'loaded', bootstrap }),
+      (bootstrap) => {
+        dispatch({ scope, type: 'loaded', bootstrap });
+        // Entering with the session still open is a resume, exactly as a start that returned
+        // the existing session (`created: false`) would be; no start call is made in that case,
+        // so observers would otherwise never hear of the return visit (QA-D3).
+        if (bootstrap.session) {
+          report(scope, {
+            kind: 'session_upserted',
+            result: { value: bootstrap.session, created: false },
+          });
+        }
+      },
       (caught: unknown) => {
         const error = isApiError(caught) ? caught : new ApiError('invalid_response');
         if (error.kind === 'aborted' || controller.signal.aborted) return;
@@ -166,7 +177,7 @@ export function useRegionPlay(
       },
     );
     return () => controller.abort();
-  }, [api, regionId, scope]);
+  }, [api, regionId, scope, report]);
 
   const startSession = useCallback(async () => {
     await run(
