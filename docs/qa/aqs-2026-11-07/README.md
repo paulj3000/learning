@@ -8,13 +8,14 @@ branch `qa/aqs-acceptance-20261107`, not merged. Final owner acceptance is the o
 | Gate | Status | Basis |
 |---|---|---|
 | LAI-AQS-001 to 023 (implementation) | **PASS** (re-verified, 3 defects fixed) | 164 Studio tests, full Python suite, browser suite |
-| **LAI-AQS-025** live Bedrock | **BLOCKED** | No AWS credentials in the QA environment (STS rejects the placeholder keys with `InvalidClientTokenId`; no network secrets configured); `LAI_AI_GUARDRAIL_ID`, the price settings and the region are unset; the task needs owner approval for cost and must run on the deployed host under the instance role. No Bedrock call was made. **Not replaced by mocks.** |
+| **LAI-AQS-025** live Bedrock | **PASS after fix D4** (follow-up run, same day) | See `AQS-025-live-bedrock.md`. Credentials provided later. Live `ai_live_check` and three real 5-question batches (Grade K, 1, 3) pass; the Guardrail probe stores nothing. QA-AQS-D4 (high): before the fix, the Guardrail's prompt-attack filter blocked every Studio batch. Owner still to confirm the price, judge quality, and rerun under the instance role. |
 | **LAI-AQS-026** Admin browser pass | **PASS** (automated, Chromium) | 38 passed, 0 failed (+1 thread-mode pass); one layout defect found and fixed (D3) |
-| LAI-AQS-024 (closes when 025 and 026 do) | **OPEN** | blocked by 025 |
+| LAI-AQS-024 (closes when 025 and 026 do) | **READY FOR OWNER SIGN-OFF** | 025 and 026 pass in QA; owner acceptance pending |
 | LAI-AQS-027 task queue | Not in scope; reported separately below | |
 
-**Recommendation: NOT READY** for final acceptance, solely because live Bedrock (AQS-025) has not
-run. Everything that can be verified without AWS passes after the fixes below.
+**Recommendation (updated after the AQS-025 run): READY for owner acceptance** once the owner
+confirms the price and judges question quality. Fix D4 is required: without it, live generation
+fails every batch. The first run was NOT READY only because AQS-025 could not run.
 
 ## Test results
 

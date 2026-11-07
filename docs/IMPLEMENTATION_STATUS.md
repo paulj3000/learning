@@ -12209,3 +12209,26 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
 - **Open, owner decisions:** bank questions follow grade ranges rather than the authored band
   limits; editing a never-published rejected question returns it to DRAFT without approval
   permission; see the report.
+
+## Owner QA: AI Question Studio live Bedrock, LAI-AQS-025 (2026-11-07, follow-up)
+
+- **Run:** real Bedrock in `us-west-1` with Guardrail `lai-child-safety-dev` v1 and Haiku 4.5
+  (US profile), as IAM user `learning-dev` from the QA container (not the instance role).
+  Report: `docs/qa/aqs-2026-11-07/AQS-025-live-bedrock.md`.
+- **QA-AQS-D4 (high), fixed:** the Guardrail's PROMPT_ATTACK filter blocked our own
+  instructions. Every Studio batch failed `GUARDRAIL`, and so did every DJANGO_CATALOG or
+  DJANGO_SESSION companion turn (they had no `guardContent`, so Bedrock assessed the whole
+  message). A client-context companion turn was blocked on our own preamble inside the guarded
+  block. New `ContentPart.screened` wraps server data in `guardContent` and keeps instructions
+  outside it (`pipeline._content`, `prompts.build_content`, `PROMPT_VERSION` `studio-q-v2`).
+  Two regression tests fail on the old code.
+- **After the fix:**
+  - `ai_live_check --guardrail-probe` passes.
+  - Grade 1, 3 and K batches each produced 5/5 on one attempt, in 5 to 10 s per chunk
+    (limit 60 s).
+  - The Guardrail probe batch stored 0 questions.
+  - 13 of 15 answer keys were verified by code. All drafts are NEEDS_REVIEW.
+  - About $0.0008 to $0.0010 per question at list price (to be confirmed for Bedrock).
+- **Owner:** confirm the price settings, judge question quality (the Grade K batch has an
+  unanswerable item and K-level multiplication), and rerun under the instance role.
+

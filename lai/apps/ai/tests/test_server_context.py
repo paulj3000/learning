@@ -32,8 +32,10 @@ def post(api, parent, child, body):
 
 
 def sent(fake):
-    (part,) = fake.requests[0].content
-    return part, json.loads(part.text.split("\n", 1)[1].split("\n\nReply")[0])
+    content = fake.requests[0].content
+    assert len(content) == 3 and not any(p.untrusted for p in content)
+    part = content[1]
+    return part, json.loads(part.text)
 
 
 def test_npc_narration_comes_from_the_published_catalog(families, api, fake_model, real_catalog):

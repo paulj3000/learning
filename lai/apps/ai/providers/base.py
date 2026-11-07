@@ -17,10 +17,19 @@ from typing import Protocol
 @dataclass(frozen=True, slots=True)
 class ContentPart:
     """One block of the user message. `untrusted` text came from a client and is wrapped for
-    the Guardrail's input checks (Bedrock `guardContent`); server-authored text is not."""
+    the Guardrail's input checks (Bedrock `guardContent`). `screened` text is server-authored
+    data (a context JSON, validated parameters) that is also wrapped, so that every request
+    carries a `guardContent` block: without one, Bedrock assesses the whole message and the
+    prompt-attack filter blocks our own instructions (QA-AQS-D4). Server-authored
+    instructions are neither."""
 
     text: str
     untrusted: bool = False
+    screened: bool = False
+
+    @property
+    def guarded(self) -> bool:
+        return self.untrusted or self.screened
 
 
 @dataclass(frozen=True, slots=True)

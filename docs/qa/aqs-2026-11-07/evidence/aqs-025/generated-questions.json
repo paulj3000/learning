@@ -1,0 +1,472 @@
+[
+ {
+  "batch": "6472f857",
+  "grade": "1",
+  "topic": "addition",
+  "diff": "EASY",
+  "type": "MULTIPLE_CHOICE",
+  "stem": "What is 2 + 1?",
+  "choices": [
+   {
+    "id": "A",
+    "text": "2"
+   },
+   {
+    "id": "B",
+    "text": "3"
+   },
+   {
+    "id": "C",
+    "text": "4"
+   }
+  ],
+  "answer": "B",
+  "op": "ADD",
+  "operands": [
+   2,
+   1
+  ],
+  "hint": "Count on your fingers starting from 2.",
+  "expl": "When you add 2 and 1 together, you get 3.",
+  "validation": "WARNING",
+  "review": "NEEDS_REVIEW",
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "prompt": "studio-q-v2",
+  "findings": null
+ },
+ {
+  "batch": "6472f857",
+  "grade": "1",
+  "topic": "addition",
+  "diff": "EASY",
+  "type": "MULTIPLE_CHOICE",
+  "stem": "If you have 3 apples and your friend gives you 2 more apples, how many apples do you have now?",
+  "choices": [
+   {
+    "id": "A",
+    "text": "4"
+   },
+   {
+    "id": "B",
+    "text": "5"
+   },
+   {
+    "id": "C",
+    "text": "6"
+   }
+  ],
+  "answer": "B",
+  "op": "ADD",
+  "operands": [
+   3,
+   2
+  ],
+  "hint": "Start with 3 and count up 2 more.",
+  "expl": "3 apples plus 2 more apples equals 5 apples.",
+  "validation": "WARNING",
+  "review": "NEEDS_REVIEW",
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "prompt": "studio-q-v2",
+  "findings": null
+ },
+ {
+  "batch": "6472f857",
+  "grade": "1",
+  "topic": "addition",
+  "diff": "EASY",
+  "type": "MULTIPLE_CHOICE",
+  "stem": "What is 1 + 4?",
+  "choices": [
+   {
+    "id": "A",
+    "text": "3"
+   },
+   {
+    "id": "B",
+    "text": "4"
+   },
+   {
+    "id": "C",
+    "text": "5"
+   },
+   {
+    "id": "D",
+    "text": "6"
+   }
+  ],
+  "answer": "C",
+  "op": "ADD",
+  "operands": [
+   1,
+   4
+  ],
+  "hint": "Think about counting: 1, 2, 3, 4, 5.",
+  "expl": "When you add 1 and 4 together, you get 5.",
+  "validation": "WARNING",
+  "review": "NEEDS_REVIEW",
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "prompt": "studio-q-v2",
+  "findings": null
+ },
+ {
+  "batch": "6472f857",
+  "grade": "1",
+  "topic": "addition",
+  "diff": "EASY",
+  "type": "MULTIPLE_CHOICE",
+  "stem": "There are 2 red balls and 3 blue balls in a box. How many balls are there in total?",
+  "choices": [
+   {
+    "id": "A",
+    "text": "4"
+   },
+   {
+    "id": "B",
+    "text": "5"
+   },
+   {
+    "id": "C",
+    "text": "6"
+   }
+  ],
+  "answer": "B",
+  "op": "ADD",
+  "operands": [
+   2,
+   3
+  ],
+  "hint": "Put the red balls and blue balls together and count them all.",
+  "expl": "2 red balls plus 3 blue balls equals 5 balls in total.",
+  "validation": "WARNING",
+  "review": "NEEDS_REVIEW",
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "prompt": "studio-q-v2",
+  "findings": null
+ },
+ {
+  "batch": "6472f857",
+  "grade": "1",
+  "topic": "addition",
+  "diff": "EASY",
+  "type": "MULTIPLE_CHOICE",
+  "stem": "What is 4 + 1?",
+  "choices": [
+   {
+    "id": "A",
+    "text": "4"
+   },
+   {
+    "id": "B",
+    "text": "5"
+   },
+   {
+    "id": "C",
+    "text": "6"
+   },
+   {
+    "id": "D",
+    "text": "7"
+   }
+  ],
+  "answer": "B",
+  "op": "ADD",
+  "operands": [
+   4,
+   1
+  ],
+  "hint": "Start at 4 and add one more.",
+  "expl": "When you add 4 and 1 together, you get 5.",
+  "validation": "WARNING",
+  "review": "NEEDS_REVIEW",
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "prompt": "studio-q-v2",
+  "findings": null
+ },
+ {
+  "batch": "a454a1f3",
+  "grade": "3",
+  "topic": "multiplication",
+  "diff": "MEDIUM",
+  "type": "NUMERIC",
+  "stem": "What is 6 \u00d7 7?",
+  "choices": [],
+  "answer": "42",
+  "op": "MULTIPLY",
+  "operands": [
+   6,
+   7
+  ],
+  "hint": "Think about 6 groups of 7, or count by 7s six times.",
+  "expl": "When you multiply 6 and 7, you get 42 because 7 + 7 + 7 + 7 + 7 + 7 = 42.",
+  "validation": "WARNING",
+  "review": "NEEDS_REVIEW",
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "prompt": "studio-q-v2",
+  "findings": null
+ },
+ {
+  "batch": "a454a1f3",
+  "grade": "3",
+  "topic": "multiplication",
+  "diff": "MEDIUM",
+  "type": "NUMERIC",
+  "stem": "What is 8 \u00d7 5?",
+  "choices": [],
+  "answer": "40",
+  "op": "MULTIPLY",
+  "operands": [
+   8,
+   5
+  ],
+  "hint": "Count by 5s eight times, or think about 8 groups of 5.",
+  "expl": "Multiplying 8 and 5 gives 40 because 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 = 40.",
+  "validation": "WARNING",
+  "review": "NEEDS_REVIEW",
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "prompt": "studio-q-v2",
+  "findings": null
+ },
+ {
+  "batch": "a454a1f3",
+  "grade": "3",
+  "topic": "multiplication",
+  "diff": "MEDIUM",
+  "type": "NUMERIC",
+  "stem": "What is 9 \u00d7 4?",
+  "choices": [],
+  "answer": "36",
+  "op": "MULTIPLY",
+  "operands": [
+   9,
+   4
+  ],
+  "hint": "Think about 9 groups of 4, or skip count by 4s nine times.",
+  "expl": "When you multiply 9 and 4, you get 36 because you have 9 groups with 4 in each group.",
+  "validation": "WARNING",
+  "review": "NEEDS_REVIEW",
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "prompt": "studio-q-v2",
+  "findings": null
+ },
+ {
+  "batch": "a454a1f3",
+  "grade": "3",
+  "topic": "multiplication",
+  "diff": "MEDIUM",
+  "type": "NUMERIC",
+  "stem": "What is 7 \u00d7 8?",
+  "choices": [],
+  "answer": "56",
+  "op": "MULTIPLY",
+  "operands": [
+   7,
+   8
+  ],
+  "hint": "Count by 8s seven times, or think about 7 rows of 8.",
+  "expl": "Multiplying 7 and 8 equals 56 because 8 + 8 + 8 + 8 + 8 + 8 + 8 = 56.",
+  "validation": "WARNING",
+  "review": "NEEDS_REVIEW",
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "prompt": "studio-q-v2",
+  "findings": null
+ },
+ {
+  "batch": "a454a1f3",
+  "grade": "3",
+  "topic": "multiplication",
+  "diff": "MEDIUM",
+  "type": "NUMERIC",
+  "stem": "What is 6 \u00d7 9?",
+  "choices": [],
+  "answer": "54",
+  "op": "MULTIPLY",
+  "operands": [
+   6,
+   9
+  ],
+  "hint": "Think about 6 groups of 9, or count by 9s six times.",
+  "expl": "When you multiply 6 and 9, you get 54 because you combine 6 groups of 9 items each.",
+  "validation": "WARNING",
+  "review": "NEEDS_REVIEW",
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "prompt": "studio-q-v2",
+  "findings": null
+ },
+ {
+  "batch": "bb9c60df",
+  "grade": "K",
+  "topic": "counting",
+  "diff": "EASY",
+  "type": "MULTIPLE_CHOICE",
+  "stem": "How many shells are in the bucket?",
+  "choices": [
+   {
+    "id": "A",
+    "text": "2"
+   },
+   {
+    "id": "B",
+    "text": "3"
+   },
+   {
+    "id": "C",
+    "text": "5"
+   }
+  ],
+  "answer": "B",
+  "op": "",
+  "operands": [],
+  "hint": "Count the shells one by one.",
+  "expl": "There are 3 shells in the bucket when you count them carefully.",
+  "validation": "WARNING",
+  "review": "NEEDS_REVIEW",
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "prompt": "studio-q-v2",
+  "findings": null
+ },
+ {
+  "batch": "bb9c60df",
+  "grade": "K",
+  "topic": "counting",
+  "diff": "EASY",
+  "type": "MULTIPLE_CHOICE",
+  "stem": "If you find 2 shells on the beach and then find 1 more shell, how many shells do you have altogether?",
+  "choices": [
+   {
+    "id": "A",
+    "text": "1"
+   },
+   {
+    "id": "B",
+    "text": "2"
+   },
+   {
+    "id": "C",
+    "text": "3"
+   }
+  ],
+  "answer": "C",
+  "op": "ADD",
+  "operands": [
+   2,
+   1
+  ],
+  "hint": "Start with 2 and add 1 more.",
+  "expl": "2 shells plus 1 more shell equals 3 shells total.",
+  "validation": "WARNING",
+  "review": "NEEDS_REVIEW",
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "prompt": "studio-q-v2",
+  "findings": null
+ },
+ {
+  "batch": "bb9c60df",
+  "grade": "K",
+  "topic": "counting",
+  "diff": "MEDIUM",
+  "type": "MULTIPLE_CHOICE",
+  "stem": "There are 4 parrots sitting in a tree. 1 parrot flies away. How many parrots are still in the tree?",
+  "choices": [
+   {
+    "id": "A",
+    "text": "2"
+   },
+   {
+    "id": "B",
+    "text": "3"
+   },
+   {
+    "id": "C",
+    "text": "4"
+   },
+   {
+    "id": "D",
+    "text": "5"
+   }
+  ],
+  "answer": "B",
+  "op": "SUBTRACT",
+  "operands": [
+   4,
+   1
+  ],
+  "hint": "You start with 4 and take away 1.",
+  "expl": "When 1 parrot leaves, you have 4 minus 1, which equals 3 parrots left.",
+  "validation": "WARNING",
+  "review": "NEEDS_REVIEW",
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "prompt": "studio-q-v2",
+  "findings": null
+ },
+ {
+  "batch": "bb9c60df",
+  "grade": "K",
+  "topic": "counting",
+  "diff": "MEDIUM",
+  "type": "MULTIPLE_CHOICE",
+  "stem": "You count the treasure chests on the island: one, two, three, four, five. Which number comes next?",
+  "choices": [
+   {
+    "id": "A",
+    "text": "4"
+   },
+   {
+    "id": "B",
+    "text": "5"
+   },
+   {
+    "id": "C",
+    "text": "6"
+   },
+   {
+    "id": "D",
+    "text": "7"
+   }
+  ],
+  "answer": "C",
+  "op": "",
+  "operands": [],
+  "hint": "Think about what number comes after 5 when you count.",
+  "expl": "The number 6 comes after 5 in the counting sequence.",
+  "validation": "WARNING",
+  "review": "NEEDS_REVIEW",
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "prompt": "studio-q-v2",
+  "findings": null
+ },
+ {
+  "batch": "bb9c60df",
+  "grade": "K",
+  "topic": "counting",
+  "diff": "HARD",
+  "type": "MULTIPLE_CHOICE",
+  "stem": "There are 3 groups of parrots with 2 parrots in each group. How many parrots are there in all?",
+  "choices": [
+   {
+    "id": "A",
+    "text": "5"
+   },
+   {
+    "id": "B",
+    "text": "6"
+   },
+   {
+    "id": "C",
+    "text": "8"
+   }
+  ],
+  "answer": "B",
+  "op": "MULTIPLY",
+  "operands": [
+   3,
+   2
+  ],
+  "hint": "Count 2 parrots, then 2 more, then 2 more again.",
+  "expl": "3 groups with 2 parrots each means 3 times 2, which equals 6 parrots total.",
+  "validation": "WARNING",
+  "review": "NEEDS_REVIEW",
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "prompt": "studio-q-v2",
+  "findings": null
+ }
+]

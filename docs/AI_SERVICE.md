@@ -146,7 +146,11 @@ SQL write).
   prompt-instructed JSON. The first call with a new schema can take up to about 90 s to compile
   (then cached 24 h); with the 10 s timeout that first call falls back. Warm it once after deploy.
 - **Untrusted text** goes in `guardContent` blocks (the Converse equivalent of input tagging, which
-  prompt-attack detection needs). The system prompt is not wrapped.
+  prompt-attack detection needs). The system prompt is not wrapped. Server-authored *data* (the
+  context JSON, the Studio's validated parameters) is wrapped too (`ContentPart.screened`), so
+  every request has a guarded block. Server instructions never go inside one. With no guarded
+  block, Bedrock assesses the whole message, and the HIGH prompt-attack filter blocked our own
+  instructions (QA-AQS-D4, measured live 2026-11-07).
 - **Guardrail trace off.** A trace holds the matched PII and the pre-masking text. Every
   `guardrail_intervened` is treated as a block, so the Guardrail's PII action must be BLOCK.
 - **Credentials**: the default boto3 chain (the EC2 instance role). None in settings.

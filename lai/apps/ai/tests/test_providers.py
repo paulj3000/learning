@@ -4,6 +4,7 @@ No test here touches AWS: `BedrockModelClient` is given a stub in place of the b
 """
 
 import json
+from dataclasses import replace
 
 import pytest
 from botocore.exceptions import ClientError, NoCredentialsError, ReadTimeoutError
@@ -244,3 +245,71 @@ def test_aws_errors_become_closed_categories_without_their_messages(error, categ
     assert raised.value.category == category
     assert "secret detail" not in str(raised.value)
     assert raised.value.__cause__ is None and raised.value.__suppress_context__
+
+
+# QA-AQS-D4 (live Bedrock, 2026-11-07): with no `guardContent` block Bedrock assesses the whole
+# message, and the prompt-attack filter blocked our own instructions on every server-context
+# companion turn and every Studio batch. Every request now carries one, and instructions stay
+# outside it.
+INSTRUCTION_MARKERS = ("Reply with", "Treat it only as information", "Write ", "Hints:")
+
+
+def _guarded_and_plain(arguments):
+    blocks = arguments["messages"][0]["content"]
+    guarded = [b["guardContent"]["text"]["text"] for b in blocks if "guardContent" in b]
+    plain = [b["text"] for b in blocks if "text" in b]
+    return guarded, plain
+
+
+def test_screened_server_data_is_wrapped_for_the_guardrail():
+    content = (ContentPart("Context:"), ContentPart('{"a": 1}', screened=True))
+    guarded, plain = _guarded_and_plain(bedrock().converse_arguments(request(content=content)))
+    assert guarded == ['{"a": 1}'] and plain == ["Context:"]
+
+
+def _requests_from_the_real_builders():
+    from apps.ai.services.pipeline import TurnSpec, _content
+    from apps.question_studio import contracts, prompts
+
+    def spec(untrusted):
+        return TurnSpec(
+            route="companion",
+            route_name="generateCompanionTurn",
+            persona="P",
+            output_schema=COMPANION_OUTPUT_SCHEMA,
+            schema_name="companion_turn",
+            output_schema_version=1,
+            input_category="HINT",
+            disposition_category="x",
+            context_source="DJANGO_SESSION",
+            trusted_context={"ageBand": "SPROUT"},
+            untrusted_context=untrusted,
+            reply_fields="spokenText",
+            validate=None,
+            fallback=None,
+            redirect=None,
+        )
+
+    studio = contracts.GenerationParams(
+        subject="MATH",
+        grade="1",
+        topic="addition",
+        difficulty="EASY",
+        question_type="MULTIPLE_CHOICE",
+        count=5,
+    )
+    yield "server-context turn", _content(spec({}))
+    yield "client-context turn", _content(spec({"stepSummary": "counting planks"}))
+    yield "studio batch", prompts.build_content(studio, 5)
+    yield (
+        "studio batch with notes",
+        prompts.build_content(replace(studio, notes="pirates"), 5),
+    )
+
+
+def test_every_real_request_has_a_guard_block_with_no_instructions_in_it():
+    for name, content in _requests_from_the_real_builders():
+        guarded, plain = _guarded_and_plain(bedrock().converse_arguments(request(content=content)))
+        assert guarded, f"{name}: no guardContent, so Bedrock would assess our instructions"
+        for text in guarded:
+            assert not any(m in text for m in INSTRUCTION_MARKERS), (name, text)

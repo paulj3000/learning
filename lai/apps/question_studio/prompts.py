@@ -12,7 +12,7 @@ from apps.ai.providers.base import ContentPart
 from . import taxonomy
 from .contracts import GenerationParams
 
-PROMPT_VERSION = "studio-q-v1"
+PROMPT_VERSION = "studio-q-v2"
 
 SYSTEM_PROMPT = (
     "You write practice questions for a children's learning game. Output only the requested "
@@ -49,9 +49,11 @@ def build_content(
         if params.difficulty == taxonomy.MIXED
         else params.difficulty
     )
+    # The validated parameters go in a `screened` part so the request always carries a
+    # Guardrail-tagged block; the instructions stay outside it (QA-AQS-D4: with no tag at all,
+    # Bedrock's prompt-attack filter blocked every batch on these instructions).
+    scope = f"Subject: {params.subject}. Grade: {params.grade}. Topic: {params.topic}."
     lines = [
-        f"Write {count} questions.",
-        f"Subject: {params.subject}. Grade: {params.grade}. Topic: {params.topic}.",
         f"Difficulty: {difficulty}. Question type: {params.question_type}.",
         _TYPE_RULES[params.question_type],
         "Set each question's difficulty to EASY, MEDIUM or HARD.",
@@ -75,7 +77,11 @@ def build_content(
         lines.append(f"Learning objective code: {params.skill_code}.")
     if island or adventure:
         lines.append(f"Setting for flavour only: {island} {adventure}".strip() + ".")
-    parts = [ContentPart("\n".join(lines))]
+    parts = [
+        ContentPart(f"Write {count} questions for this scope:"),
+        ContentPart(scope, screened=True),
+        ContentPart("\n".join(lines)),
+    ]
     if params.notes:
         parts.append(ContentPart(f"Staff notes: {params.notes}", untrusted=True))
     return tuple(parts)

@@ -40,8 +40,7 @@ def post(client, child, body=TUTOR):
 
 
 def sent_context(fake, index=0):
-    text = fake.requests[index].content[0].text
-    return json.loads(text.split("\n", 1)[1].split("\n\nReply")[0])
+    return json.loads(fake.requests[index].content[1].text)
 
 
 def test_own_children_get_a_validated_turn(families, api, fake_model):
@@ -99,7 +98,7 @@ def test_the_context_is_only_authored_copy(families, api, fake_model):
         "questStageTitle",
     }
     # Client text is untrusted content, not part of the trusted context.
-    assert fake.requests[0].content[1].untrusted
+    assert fake.requests[0].content[3].untrusted
     everything = "".join(part.text for part in fake.requests[0].content)
     assert "Zinnia-A1" not in everything and str(families.a1.pk) not in everything
 
@@ -118,7 +117,7 @@ def test_known_prerequisites_come_from_django_progress_as_titles_only(families, 
     post(api(families.a), families.a1, {**TUTOR, "skillId": "addition-within-ten"})
     context = sent_context(fake)
     assert context["knownPrerequisiteTitles"] == ["Counting sets of objects"]
-    text = fake.requests[0].content[0].text
+    text = fake.requests[0].content[1].text
     assert "MASTERED" not in text and "12" not in text  # no statuses or counts
 
 
@@ -232,7 +231,7 @@ def test_a_django_session_supplies_hint_level_and_text(
     context = sent_context(fake)
     assert context["hintLevel"] == 1 and context["strategy"] == "ENCOURAGE"
     assert context["authoredBaseText"] == "Look again"
-    assert len(fake.requests[0].content) == 1
+    assert not any(part.untrusted for part in fake.requests[0].content)
 
 
 def test_a_django_session_rejects_a_skill_the_step_does_not_teach(

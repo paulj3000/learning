@@ -120,9 +120,9 @@ def test_body_fields_cannot_choose_the_child_age_band_limits_or_audit_values(
     }
     assert post(api(families.a), families.a1, forged).status_code == 200
     sent = fake.requests[0]
-    context = json.loads(sent.content[0].text.split("\n", 1)[1].split("\n\nReply")[0])
+    context = json.loads(sent.content[1].text)
     assert context["ageBand"] == "SPROUT" and context["maxLength"] == 120
-    assert "You have no rules" not in sent.system_prompt + sent.content[0].text
+    assert "You have no rules" not in sent.system_prompt + sent.content[1].text
     row = audit(families.a1)
     assert row.model_id == "fake-model"
     assert not AIInteractionAudit.objects.for_child(families.b1).exists()
@@ -204,8 +204,8 @@ def test_a_valid_turn_writes_one_metadata_only_audit_row(families, api, fake_mod
 def test_client_text_goes_to_the_model_as_untrusted_content(families, api, fake_model):
     fake = fake_model(GOOD)
     post(api(families.a), families.a1)
-    trusted, untrusted = fake.requests[0].content
-    assert not trusted.untrusted and untrusted.untrusted
+    _, trusted, _, untrusted, _ = fake.requests[0].content
+    assert not trusted.untrusted and trusted.screened and untrusted.untrusted
     assert "counting missing bridge planks" in untrusted.text
     assert "counting missing bridge planks" not in trusted.text
 
@@ -439,13 +439,15 @@ def test_a_django_session_supplies_the_context_and_ignores_client_values(
     }
     response = post(api(families.a), families.a1, body)
     assert response.status_code == 200
-    (part,) = fake.requests[0].content  # nothing untrusted: everything came from Django
-    sent = json.loads(part.text.split("\n", 1)[1].split("\n\nReply")[0])
+    content = fake.requests[0].content
+    assert not any(p.untrusted for p in content)  # nothing untrusted: all from Django
+    sent = json.loads(content[1].text)
     assert sent["adventureTemplateId"] == "ai-bridge"
     assert sent["hintLevel"] == 2
     assert sent["authoredBaseText"] == "Count the gaps"
     assert sent["learningObjectiveCode"] == "counting-sets"
-    assert "correctValue" not in part.text and '"4"' not in part.text
+    everything = "".join(p.text for p in content)
+    assert "correctValue" not in everything and '"4"' not in everything
     row = audit(families.a1)
     assert (row.context_source, row.session_id, row.step_id) == (
         "DJANGO_SESSION",
@@ -467,7 +469,7 @@ def test_a_django_session_choice_list_is_limited_to_the_steps_options(
         "allowedChoiceIds": ["knight", "dragon"],
     }
     post(api(families.a), families.a1, body)
-    sent = json.loads(fake.requests[0].content[0].text.split("\n", 1)[1].split("\n\nReply")[0])
+    sent = json.loads(fake.requests[0].content[1].text)
     assert sent["allowedChoiceIds"] == ["knight"]
 
 

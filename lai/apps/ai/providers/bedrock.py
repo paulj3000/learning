@@ -10,7 +10,10 @@ Design choices, each forced by how Bedrock behaves (docs/AI_SERVICE.md section 4
 * **Untrusted text in `guardContent`.** Client-supplied fields are wrapped so the Guardrail's
   input checks, prompt-attack detection included, assess exactly them. Once any `guardContent`
   block is present, other message text is not assessed by most policies; that text is
-  server-authored. The system prompt is not wrapped: it is ours, and the prompt-attack filter
+  server-authored instructions. Server-authored *data* is wrapped too (`screened`), so a request
+  with no client text still carries a `guardContent` block: with none, Bedrock assesses the
+  whole message and the prompt-attack filter blocks our own instructions (QA-AQS-D4, measured
+  live 2026-11-07). The system prompt is not wrapped: it is ours, and the prompt-attack filter
   would flag its own instructions.
 * **Trace off.** A Guardrail trace carries the matched values (PII included) and the
   pre-masking model text. Nothing here needs it: any `guardrail_intervened` stop is treated as
@@ -125,7 +128,7 @@ class BedrockModelClient:
         """The exact Converse keyword arguments. Public so tests can inspect them offline."""
         content = []
         for part in request.content:
-            if part.untrusted:
+            if part.guarded:
                 content.append({"guardContent": {"text": {"text": part.text}}})
             else:
                 content.append({"text": part.text})
