@@ -168,7 +168,7 @@ test.describe.serial('AI Question Studio in Django Admin', () => {
     await expect(messages(page)).toContainText('5 question(s) published');
     await expect(messages(page)).toContainText('Skipped'); // the rejected one
     await page.goto(adminUrl(`${STUDIO}questionrevision/`));
-    await expect(page.getByRole('row').filter({ hasText: 'What is' })).toHaveCount(5);
+    await expect(page.getByRole('row').filter({ hasText: /What is \d x \d\?/ })).toHaveCount(5);
     // A published question is read-only: no field to edit, no save.
     await page.goto(batchQuestions(firstBatch));
     await page.getByRole('link', { name: 'What is 2 x 3?' }).click();

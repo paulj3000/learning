@@ -268,10 +268,20 @@ class QuestionAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return _perm(request, "add_question")
 
+    @staticmethod
+    def _frozen(obj) -> bool:
+        """Published, or withdrawn after publishing (retired or superseded): never editable."""
+        if obj is None:
+            return False
+        if obj.review_status == ReviewStatus.PUBLISHED:
+            return True
+        return obj.review_status == ReviewStatus.REJECTED and obj.revisions.exists()
+
     def has_change_permission(self, request, obj=None):
         # A published question is frozen (its correction is a new draft), so its page is
         # view-only: no Save that would end in "Not saved" beside Django's "changed" message.
-        if obj is not None and obj.review_status == ReviewStatus.PUBLISHED:
+        # The same holds once it is retired or superseded (QA-AQS-D1).
+        if self._frozen(obj):
             return False
         return _perm(request, "change_question")
 
@@ -283,7 +293,7 @@ class QuestionAdmin(admin.ModelAdmin):
         return obj.stem[:70]
 
     def get_readonly_fields(self, request, obj=None):
-        if obj is not None and obj.review_status == ReviewStatus.PUBLISHED:
+        if self._frozen(obj):
             return [f.name for f in self.model._meta.fields]
         fixed = list(self.STATUS_FIELDS)
         if obj is not None:
