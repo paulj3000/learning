@@ -1,0 +1,25 @@
+/* Generate Questions form (LAI-AQS-015). Django renders it as a plain table, so a long select
+   option (an adventure title) widened the page past a 390px phone (QA-AQS-D3). */
+.studio-generate table {
+  width: 100%;
+}
+.studio-generate select,
+.studio-generate input[type='text'],
+.studio-generate input[type='number'] {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+@media (max-width: 767px) {
+  .studio-generate table,
+  .studio-generate tbody,
+  .studio-generate tr,
+  .studio-generate th,
+  .studio-generate td {
+    display: block;
+    width: auto;
+  }
+  .studio-generate th {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+}

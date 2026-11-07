@@ -12573,3 +12573,55 @@ were recorded before the owner configured AWS. Full report: `docs/AI_BEDROCK_CHA
 - **Not covered.** A signed-in run against a real Cognito account and backend (the child route
   needs one); owner acceptance on a tablet. Django-served Islands (`GET /children/<id>/islands/`)
   are not used here yet.
+## Owner QA: AI Question Studio automated acceptance (2026-11-07)
+
+Branch `qa/aqs-acceptance-20261107` from `main` `5222b690`; not merged. Full report, coverage
+matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
+
+- **LAI-AQS-026: PASS (automated, Chromium).** New `react/e2e/acceptance/question-studio-qa.spec.ts`
+  walks author, reviewer and publisher accounts through generate, edit and revalidate, a mixed bulk
+  approval, reject, publish, the published-revision query, Treasure Rush eligibility (an Explorer
+  gets the bank question; after retiring, the authored fallback), the retired page staying
+  read-only, permission denials, the generate, list and review pages at 390px, and a `thread`
+  run-mode batch finishing (`LAI_E2E_STUDIO_RUN_MODE=thread`, new opt-in in
+  `tests/e2e/django_server.py`). Browser acceptance: 38 passed, 0 failed, 2 skipped by design;
+  thread run 1 passed; no console errors, uncaught exceptions, failed requests or 5xx.
+- **LAI-AQS-025: BLOCKED.** No AWS credentials, Guardrail id or price settings in the QA
+  environment; no Bedrock call was made and none was simulated as a pass.
+- **Defects fixed:** QA-AQS-D1 (a retired or superseded question could be edited back to DRAFT
+  and republished, leaving two ACTIVE revisions; `workflow.edit` now refuses and the Admin page is
+  view-only), QA-AQS-D2 (a Grade K question beyond its number range, approvable past a warning, was
+  served to Sprouts; `selection.to_challenge` now enforces the grade range), QA-AQS-D3 (the
+  Generate Questions page scrolled sideways at 390px; small Admin stylesheet).
+- **Tests:** 36 new in `lai/apps/question_studio/tests/test_qa_acceptance.py` (Studio app 164
+  passed). Full Python suite (PostgreSQL required): 1881 passed before the fixes, 1917 passed, 0 failed after.
+- **Open, owner decisions:** bank questions follow grade ranges rather than the authored band
+  limits; editing a never-published rejected question returns it to DRAFT without approval
+  permission; see the report.
+
+## Owner QA: AI Question Studio live Bedrock, LAI-AQS-025 (2026-11-07, follow-up)
+
+- **Run:** real Bedrock in `us-west-1` with Guardrail `lai-child-safety-dev` v1 and Haiku 4.5
+  (US profile), as IAM user `learning-dev` from the QA container (not the instance role).
+  Report: `docs/qa/aqs-2026-11-07/AQS-025-live-bedrock.md`.
+- **QA-AQS-D4 (high), fixed:** the Guardrail's PROMPT_ATTACK filter blocked our own
+  instructions. Every Studio batch failed `GUARDRAIL`, and so did every DJANGO_CATALOG or
+  DJANGO_SESSION companion turn (they had no `guardContent`, so Bedrock assessed the whole
+  message). A client-context companion turn was blocked on our own preamble inside the guarded
+  block. The AI/Bedrock QA fixed the same defect on main (`ContentPart.guarded`,
+  `test_guardrail_content_layout.py`). At the merge, this branch's equivalent `screened` fix
+  was dropped in favour of main's. Live results were re-verified on the merged code.
+- **After the fix:**
+  - `ai_live_check --guardrail-probe` passes.
+  - Grade 1, 3 and K batches each produced 5/5 on one attempt, in 5 to 10 s per chunk
+    (limit 60 s).
+  - The Guardrail probe batch stored 0 questions.
+  - 13 of 15 answer keys were verified by code. All drafts are NEEDS_REVIEW.
+  - About $0.0008 to $0.0010 per question at list price (to be confirmed for Bedrock).
+- **Owner:** confirm the price settings, judge question quality (the Grade K batch has an
+  unanswerable item and K-level multiplication), and rerun under the instance role.
+- **Merged to main and owner-accepted 2026-11-07.** LAI-AQS-024, 025 and 026 are closed. The
+  after-merge live run passed: companion, tutor and Guardrail probe; Grade 1 and Grade 2 reading
+  batches 5/5; probe batch stored nothing. Carried forward: the price confirmation, a rerun
+  under the instance role, and the two validation suggestions in the report.
+

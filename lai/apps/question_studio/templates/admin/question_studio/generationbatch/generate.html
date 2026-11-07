@@ -1,11 +1,13 @@
 {% extends "admin/base_site.html" %}
+{% load static %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'question_studio/admin/generate.css' %}">{% endblock %}
 {% block breadcrumbs %}
 <div class="breadcrumbs"><a href="{% url 'admin:index' %}">Home</a> &rsaquo; AI Question Studio &rsaquo; Generate questions</div>
 {% endblock %}
 {% block content %}
 <p>Questions are written by the AI as <strong>drafts</strong>. Nothing reaches a child until a
 reviewer approves it and a publisher publishes it.</p>
-<form method="post">
+<form method="post" class="studio-generate">
   {% csrf_token %}
   <table>{{ form.as_table }}</table>
   <p><input type="submit" value="Generate Questions" class="default"></p>

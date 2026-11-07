@@ -1,0 +1,48 @@
+2026-11-07 16:04:24,575 INFO lai.ai [req=-] ai.turn v1 generateCompanionTurn AI VALID ALLOW - NONE bedrock CLIENT_AUTHORED 2782 1485 56 1765 ok
+2026-11-07 16:04:26,469 INFO lai.ai [req=-] ai.turn v1 generateTutorTurn AI VALID ALLOW - NONE bedrock CLIENT_AUTHORED 1880 2026 62 2336 ok
+2026-11-07 16:04:27,110 INFO lai.ai [req=-] ai.turn v1 generateCompanionTurn FALLBACK BLOCKED_GUARDRAIL REDIRECT - INTERVENED bedrock CLIENT_AUTHORED 627 0 0 0 ok
+{
+  "provider": "bedrock",
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "guardrailConfigured": true,
+  "checks": [
+    {
+      "check": "companion",
+      "passed": true,
+      "problems": [],
+      "latencyMs": 2782,
+      "inputTokens": 1485,
+      "outputTokens": 56
+    },
+    {
+      "check": "tutor",
+      "passed": true,
+      "problems": [],
+      "latencyMs": 1880,
+      "inputTokens": 2026,
+      "outputTokens": 62
+    },
+    {
+      "check": "npc-narration",
+      "passed": false,
+      "problems": [
+        "catalog content not loaded"
+      ]
+    },
+    {
+      "check": "guardrail-probe",
+      "passed": true,
+      "problems": []
+    }
+  ],
+  "passed": false,
+  "firstCallLatencyMs": null,
+  "usage": {
+    "auditedTurns": 3,
+    "inputTokens": 3511,
+    "outputTokens": 118,
+    "estimatedCostUsd": 0.004101,
+    "estimateNote": "An estimate from configured prices, never a bill."
+  }
+}
+CommandError: Live AI check failed.
