@@ -27,11 +27,15 @@ async function readyPip(page: Page) {
       timeout: 30_000,
     })
     .toBe(1);
-  // Let an ambient first-visit greeting arrive, then close it.
+  // Let an ambient first-visit greeting arrive (a non-modal bubble since F-B), then close it.
   await page.waitForTimeout(800);
-  const open = page.getByRole('dialog', { name: 'Pirate Pip' });
-  if (await open.count()) await open.getByRole('button', { name: 'Close' }).click();
-  await expect(open).toHaveCount(0);
+  for (const open of [
+    page.getByRole('dialog', { name: 'Pirate Pip' }),
+    page.getByRole('region', { name: 'Pirate Pip' }),
+  ]) {
+    if (await open.count()) await open.getByRole('button', { name: 'Close' }).click();
+    await expect(open).toHaveCount(0);
+  }
 }
 
 async function openPip(page: Page) {
@@ -62,6 +66,22 @@ test.describe('NPC Manager accessibility and comfort', () => {
     });
     await signInAs(page, parent);
     await enterCove(page, childId);
+    // The first-visit greeting bubble (F-B): no violations, 56 px targets, focus left alone.
+    const greeting = page.getByRole('region', { name: 'Pirate Pip' });
+    await expect(greeting).toBeVisible({ timeout: 30_000 });
+    const bubbleScan = await new AxeBuilder({ page })
+      .include('[data-npc-ambient]')
+      .withTags(WCAG)
+      .analyze();
+    saveAxe('pip-ambient', bubbleScan);
+    expect(bubbleScan.violations, JSON.stringify(bubbleScan.violations, null, 1)).toEqual([]);
+    for (const name of ['Continue', 'Close']) {
+      const box = (await greeting.getByRole('button', { name }).boundingBox())!;
+      expect(box.height, name).toBeGreaterThanOrEqual(56);
+    }
+    expect(
+      await page.evaluate(() => Boolean(document.activeElement?.closest('[data-npc-ambient]'))),
+    ).toBe(false);
     await readyPip(page);
     await page.evaluate(() => window.__laiE2E!.standFacing('cove-pip', 1.6));
     const prompt = page.getByRole('button', { name: 'Talk to Pirate Pip' });

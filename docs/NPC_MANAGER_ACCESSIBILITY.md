@@ -23,6 +23,18 @@ on a tablet.
 Fixed in passing: the prompt's hotkey badge used an undefined `--font-size-base` token; it now uses
 `--font-size-body`.
 
+**Unprompted lines (QA finding F-B, owner decision 2026-11-07).** A line the child did not ask for
+(spawn greeting, welcome back, a reaction to a find) is no longer the modal panel. It is
+`NpcAmbientLine`: a labelled `region` (not a dialog) whose line sits in one atomic
+`aria-live="polite"` region with the speaker's name, so it is announced once without moving focus.
+It never traps Tab or Escape and never hides the world's HUD (it renders in the HUD column on the
+stage, beside Hint and Backpack, away from Full screen). Buttons: Continue (or "Talk to Pip" when
+the line has choices, which moves the same conversation into the modal panel) and Close, both
+56 px. No dismissal timer: the bubble stays until the child closes or continues it, or a newer
+play line (a find, a finished quest) replaces it; a spawn greeting waits its turn. Hidden while
+another panel is open, like the panel. Only a conversation the child starts (Talk, E, or "Talk to
+Pip" on a bubble) is modal.
+
 ## 2. Additive API (backward compatible)
 
 - `NpcDialoguePanel`: `onReplay?`, `replayDisabled?`, `returnFocusTo?`; copy key `replay`.

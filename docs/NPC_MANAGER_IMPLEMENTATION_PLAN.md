@@ -117,7 +117,7 @@ Storykeeper's Castle can reuse it unchanged (scope `{kind: 'place'}` or its Area
 **One Pip, with a fallback.** When the host serves `pirate-pip` for `treasure-rush-cove`, the
 manifest Pip is handed over (`RegionPlaySceneApi.setNpcProxy`: hidden, its focusable root follows
 the managed Pip so focus, taps and the "Things to do here" list still reach him) and `PipDialog`
-is not used. When it serves nothing (`404 no_active_release`, a retired release, Django off, any
+is not used. When it serves nothing (no active release: `200` with `release: 0`, a retired release, Django off, any
 load failure), the legacy Pip and `PipDialog` keep working unchanged. A managed Pip whose model
 fails to load stands as the runtime placeholder.
 

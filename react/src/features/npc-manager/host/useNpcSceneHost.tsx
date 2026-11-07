@@ -35,6 +35,7 @@ import {
   type NpcModelLoader,
   type NpcSceneRuntime,
 } from '../engine/createNpcRuntime';
+import { NpcAmbientLine } from '../ui/NpcAmbientLine';
 import { NpcDialoguePanel } from '../ui/NpcDialoguePanel';
 import { NpcInteractionPrompt } from '../ui/NpcInteractionPrompt';
 import { NPC_PROMPT_COPY, type NpcDialogueCopy, type NpcPromptCopy } from '../ui/npcUiCopy';
@@ -59,11 +60,16 @@ export type { NpcHostScene } from './types';
  * Play outcomes the world already has go in through `notifyPlay` (`signalsFromPlay`): every
  * adventure event becomes a `react` command, and the outcome's most important trigger waits in
  * a queue (`./triggerQueue.ts`) until nothing else is on screen (`suspended` false, no open
- * conversation). It never decides an outcome: rewards, quests and progress stay with the world's
+ * conversation; a newer play line may replace an unprompted line already showing).
+ *
+ * Unprompted lines (spawn greetings, welcome back, reactions: anything the child did not ask
+ * for) are `ambient`: a small non-modal speech bubble (`NpcAmbientLine`) that never takes focus
+ * or hides the world's HUD (QA finding F-B). Only a conversation the child starts (Talk, or
+ * "Talk to Pip" on a bubble whose line has choices) opens the modal `panel`. It never decides an outcome: rewards, quests and progress stay with the world's
  * play services. An `OFFER_QUEST` choice hands the quest id to `onQuestOffer` (the world's own
  * accept flow); a `REQUEST_HINT` choice asks the hint route and shows its words.
  *
- * No release (`404 no_active_release`), Django off, or any load failure leaves the scope with no
+ * No release (`200` with `release: 0`), Django off, or any load failure leaves the scope with no
  * managed NPCs (`status` `empty` or `failed`), never an error screen: the world keeps whatever it
  * had (Treasure Cove keeps its legacy Pip). Everything is disposed on unmount or scope change.
  *
@@ -114,6 +120,11 @@ export interface UseNpcSceneHostOptions {
    * child walked away), for example the world's canvas or its main HUD button. Optional.
    */
   focusReturnTarget?(): HTMLElement | null;
+  /**
+   * Where the unprompted-line bubble goes: `inline` when the world renders `ambient` in its
+   * on-stage HUD column, `floating` (default) to fix it to the top right of the page.
+   */
+  ambientLayout?: 'inline' | 'floating';
   /** Localized copy for the prompt and the panel; English defaults (`ui/npcUiCopy.ts`). */
   copy?: { prompt?: NpcPromptCopy; dialogue?: Partial<NpcDialogueCopy> };
   deps?: NpcSceneHostDeps;
@@ -135,12 +146,19 @@ export interface NpcSceneHost {
    * state. `facingYaw` turns the NPC first. False when the NPC is not managed here.
    */
   animate(npcId: string, state: AnimationState, options?: { facingYaw?: number }): boolean;
-  /** True while a conversation is open or starting. */
+  /** True while a conversation the child opened is open or starting (the modal panel). */
   conversationOpen: boolean;
+  /** True while an unprompted line is showing in the non-modal bubble. */
+  ambientOpen: boolean;
   /** The Talk prompt, or null. Render it on the stage. */
   prompt: ReactNode;
-  /** The dialogue panel, or null. */
+  /** The modal dialogue panel, or null. Only for conversations the child opened. */
   panel: ReactNode;
+  /**
+   * The unprompted-line bubble, or null. Non-modal: render it alongside the world's HUD
+   * controls (never instead of them).
+   */
+  ambient: ReactNode;
 }
 
 interface Talking {
@@ -452,11 +470,14 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
     latest.current.onQuestOffer?.(offer.questId, view.npcId);
   }, [view.questOffer, view.npcId, view.conversationId]);
 
-  // Ambient conversations: one at a time, only when nothing else is on screen.
+  // Ambient conversations: one at a time, only when nothing else is on screen. A waiting play
+  // line (a find, a finished quest) replaces an unprompted line already showing, so an ignored
+  // bubble never holds back newer news; a spawn greeting waits its turn.
   const ready = status === 'ready';
   useEffect(() => {
     if (!ready || suspended || foreground) return;
-    if (view.status === 'loading' || view.status === 'showing') return;
+    if (view.status === 'loading') return;
+    if (view.status === 'showing' && !queue.hasPlay()) return;
     if (!sceneData) return;
     const next = queue.take();
     if (!next) return;
@@ -572,9 +593,13 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
     (npcId && (characters[npcId] as RuntimeCharacter | undefined)?.displayName) || '';
 
   const isError = view.status === 'error' && !errorDismissed;
-  const conversationOpen =
-    view.status === 'showing' ||
-    Boolean(foreground && (foreground.pending || view.status === 'loading' || isError));
+  // A conversation the child opened is modal; an unprompted one (no foreground) is a bubble,
+  // and a failed unprompted one shows nothing at all.
+  const conversationOpen = Boolean(
+    foreground &&
+    (foreground.pending || view.status === 'loading' || view.status === 'showing' || isError),
+  );
+  const ambientOpen = !foreground && view.status === 'showing' && view.node !== null;
   const panelVisible = conversationOpen && !suspended;
 
   const copy = options.copy;
@@ -631,6 +656,34 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
     );
   }
 
+  let ambient: ReactNode = null;
+  if (ambientOpen && !suspended && view.status === 'showing' && view.node) {
+    const node = view.node;
+    const who = talkingRef.current;
+    const text = (voice.state.nodeKey === node.nodeKey ? voice.state.caption : null) ?? node.text;
+    ambient = (
+      <NpcAmbientLine
+        key={node.nodeKey}
+        speakerName={nameOf(view.npcId)}
+        text={text}
+        talkLabel={
+          view.choices.length > 0
+            ? (copy?.prompt ?? NPC_PROMPT_COPY).talkTo(nameOf(view.npcId))
+            : null
+        }
+        busy={view.busy}
+        layout={options.ambientLayout ?? 'floating'}
+        copy={copy?.dialogue}
+        onContinue={() => void controllerRef.current.advance()}
+        onTalk={() => {
+          // The child chose to answer: the same conversation moves into the modal panel.
+          if (who) setForeground({ ...who, pending: false });
+        }}
+        onClose={close}
+      />
+    );
+  }
+
   let prompt: ReactNode = null;
   if (ready && !suspended && !conversationOpen && near.length > 0) {
     const placementKey = near[near.length - 1];
@@ -655,7 +708,9 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
     positionOf,
     animate,
     conversationOpen,
+    ambientOpen,
     prompt,
     panel,
+    ambient,
   };
 }

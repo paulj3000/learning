@@ -613,3 +613,29 @@ def test_voiced_characters_get_a_speech_reference(pip, staff, a):
         "dialogueKey": "hello",
         "nodeKey": "greet",
     }
+
+
+def test_end_is_idempotent_for_a_conversation_already_over(released, a, staff):
+    """A best-effort end that races the client's next start is a 200, not a logged 404/409."""
+    client, child = a
+    first = start(client, child).json()["conversationId"]
+    ended = act(client, child, first, "end")
+    assert ended.status_code == 200 and ended.json()["ended"] is True
+    again = act(client, child, first, "end")  # already ended
+    assert again.status_code == 200
+    body = again.json()
+    assert body["ended"] is True and body["node"] is None and body["conversationId"] == first
+    # Replaced by a newer conversation: ending the old one leaves the new one open.
+    newer = start(client, child).json()["conversationId"]
+    stale = act(client, child, first, "end")
+    assert stale.status_code == 200 and stale.json()["ended"] is True
+    assert str(NpcConversationState.objects.get(child=child).conversation_id) == newer
+    assert NpcConversationState.objects.get(child=child).node_key != ""
+    # choose and advance still refuse a conversation that is over.
+    assert code(act(client, child, first, "advance")) == "conversation_not_found"
+    # A conversation from an older release: end is a 200, the cursor closes.
+    NpcDialogueNode.objects.filter(node_key="greet").update(text="Ahoy, matey!")
+    publish(staff)
+    old_release = act(client, child, newer, "end")
+    assert old_release.status_code == 200 and old_release.json()["ended"] is True
+    assert NpcConversationState.objects.get(child=child).node_key == ""

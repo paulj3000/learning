@@ -232,6 +232,7 @@ function setup(options: Setup = {}) {
         <p data-testid="status">{value.status}</p>
         {value.prompt}
         {value.panel}
+        {value.ambient}
       </>
     );
   }
@@ -575,6 +576,106 @@ describe('NPC scene host: play outcomes', () => {
     await flush();
     const triggers = dialogueApi.start.mock.calls.map(([, request]) => request.trigger);
     expect(triggers[0]).toBe('on_return_visit');
+  });
+});
+
+describe('NPC scene host: unprompted lines are a non-modal bubble (QA F-B)', () => {
+  const GREETING = reply(node('hello', 'Ahoy there, shipmate!'));
+  const OFFER = reply(node('offer', 'Want to hunt for treasure?'), [
+    { choiceKey: 'yes', label: 'Yes please', action: 'NONE' },
+  ]);
+  const FOUND = reply(node('found', 'You found treasure!'));
+
+  function ambientApi(byTrigger: Record<string, InteractionResponse>) {
+    const api = fakeDialogueApi();
+    api.start.mockImplementation(async (_npc, request) => byTrigger[request.trigger] ?? NONE);
+    return api;
+  }
+
+  it('shows a greeting without a dialog, without taking focus, and keeps the Talk prompt', async () => {
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    outside.focus();
+    const { host, world } = setup({ dialogueApi: ambientApi({ on_spawn: GREETING }) });
+    await flush();
+    expect(screen.getByText('Ahoy there, shipmate!')).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('region', { name: 'Pirate Pip' })).toBeVisible();
+    expect(outside).toHaveFocus();
+    expect(host.current?.conversationOpen).toBe(false);
+    expect(host.current?.ambientOpen).toBe(true);
+    world.moveTo({ x: 3, z: 7 });
+    expect(screen.getByRole('button', { name: 'Talk to Pirate Pip' })).toBeVisible();
+    outside.remove();
+  });
+
+  it('Close ends the unprompted conversation and removes the bubble', async () => {
+    const dialogueApi = ambientApi({ on_spawn: GREETING });
+    const { host } = setup({ dialogueApi });
+    await flush();
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await flush();
+    expect(screen.queryByText('Ahoy there, shipmate!')).toBeNull();
+    expect(dialogueApi.end).toHaveBeenCalledWith('pirate-pip', CONVERSATION);
+    expect(host.current?.ambientOpen).toBe(false);
+  });
+
+  it('a line with choices offers "Talk to Pirate Pip", which opens the modal panel', async () => {
+    setup({ dialogueApi: ambientApi({ on_spawn: OFFER }) });
+    await flush();
+    expect(screen.queryByRole('button', { name: 'Yes please' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Talk to Pirate Pip' }));
+    await flush();
+    const dialog = screen.getByRole('dialog', { name: 'Pirate Pip' });
+    expect(dialog).toHaveTextContent('Want to hunt for treasure?');
+    expect(screen.getByRole('button', { name: 'Yes please' })).toHaveFocus();
+    expect(screen.queryByRole('region', { name: 'Pirate Pip' })).toBeNull();
+  });
+
+  it('is hidden while another panel is open', async () => {
+    const { Probe, view } = setup({ dialogueApi: ambientApi({ on_spawn: GREETING }) });
+    await flush();
+    view.rerender(<Probe suspended />);
+    expect(screen.queryByText('Ahoy there, shipmate!')).toBeNull();
+  });
+
+  it('a newer play line replaces a bubble the child ignored; a spawn greeting does not', async () => {
+    const dialogueApi = ambientApi({ on_spawn: GREETING, on_treasure_found: FOUND });
+    const { host } = setup({ dialogueApi });
+    await flush();
+    expect(screen.getByText('Ahoy there, shipmate!')).toBeVisible();
+    act(() =>
+      host.current?.notifyPlay({
+        kind: 'answer',
+        outcome: {
+          attemptId: 'att-1',
+          correct: true,
+          feedback: {} as AnswerOutcome['feedback'],
+          canRetry: false,
+          chestOpened: true,
+          newItems: [],
+          rewardMessage: null,
+          questUpdates: [],
+          completionRewards: [],
+        },
+      }),
+    );
+    await flush();
+    expect(screen.queryByText('Ahoy there, shipmate!')).toBeNull();
+    expect(screen.getByText('You found treasure!')).toBeVisible();
+    const triggers = dialogueApi.start.mock.calls.map(([, request]) => request.trigger);
+    expect(triggers).toEqual(['on_spawn', 'on_treasure_found']);
+  });
+
+  it('a conversation the child starts is still the modal panel', async () => {
+    const { world } = setup({ dialogueApi: ambientApi({ on_interact: GREETING }) });
+    await flush();
+    world.moveTo({ x: 3, z: 7 });
+    await userEvent.click(screen.getByRole('button', { name: 'Talk to Pirate Pip' }));
+    await flush();
+    expect(screen.getByRole('dialog', { name: 'Pirate Pip' })).toHaveTextContent(
+      'Ahoy there, shipmate!',
+    );
   });
 });
 

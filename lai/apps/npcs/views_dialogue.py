@@ -77,6 +77,21 @@ def interaction_body(conversation: state.Conversation, character: dict) -> dict:
     }
 
 
+def _already_over(release, npc_id: str, conversation_id: str) -> dict:
+    """The `end` answer for a conversation that is no longer open."""
+    return {
+        "contractVersion": CONTRACT_VERSION,
+        "release": release.number,
+        "npcId": npc_id,
+        "conversationId": conversation_id,
+        "dialogueKey": None,
+        "node": None,
+        "choices": [],
+        "ended": True,
+        "questOffer": None,
+    }
+
+
 class _InteractionView(NpcScopedView):
     def _character_and_release(self, npc_id: str):
         """The character and the release it came from (one release, even across a publish)."""
@@ -127,9 +142,14 @@ class InteractionActionView(_InteractionView):
                 action,
                 body.validated_data.get("choiceKey"),
             )
-        except state.ConversationNotFound:
-            raise npc_error("conversation_not_found", 404) from None
-        except state.ConversationEnded:
+        except (state.ConversationNotFound, state.ConversationEnded) as error:
+            if action == "end":
+                # Ending is idempotent: a conversation that is already over (ended, replaced by
+                # a newer one, or from an older release) is simply over. A client's best-effort
+                # end can race its next start; that is not an error the browser should log.
+                return Response(_already_over(release, npc_id, str(conversation_id)))
+            if isinstance(error, state.ConversationNotFound):
+                raise npc_error("conversation_not_found", 404) from None
             raise npc_error("conversation_ended", 409) from None
         except dialogue.InvalidChoice:
             raise npc_error("invalid_choice", 409) from None

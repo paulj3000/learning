@@ -229,19 +229,35 @@ def test_drafts_are_never_served(families, parent_a, staff):
     assert parent_a.get(place_url(families.a1)).json() == first
 
 
-def test_no_active_release_and_retired_release_are_404(families, parent_a, staff):
+def _assert_nothing_published(parent_a, child):
+    catalog = parent_a.get(f"{base(child)}npcs/")
+    assert catalog.status_code == 200
+    assert catalog.json() == {"contractVersion": 1, "release": 0, "characters": []}
+    scene = parent_a.get(place_url(child))
+    assert scene.status_code == 200
+    body = scene.json()
+    assert body["release"] == 0 and body["characters"] == {} and body["placements"] == []
+    assert body["scope"]["area"] is None
+
+
+def test_no_active_release_and_retired_release_are_empty_200(families, parent_a, staff):
+    """QA F-A: "nothing published" is a normal state, not a 404 the browser logs as a failure."""
     child = families.a1
     make_place()
-    for url in (f"{base(child)}npcs/", place_url(child)):
-        response = parent_a.get(url)
-        assert response.status_code == 404 and code(response) == "no_active_release"
+    _assert_nothing_published(parent_a, child)
     make_placement(make_character())
     release = publish(staff)
-    assert parent_a.get(place_url(child)).status_code == 200
+    assert parent_a.get(place_url(child)).json()["release"] == release.number
     retire(release, staff)
-    for url in (f"{base(child)}npcs/", place_url(child)):
-        response = parent_a.get(url)
-        assert response.status_code == 404 and code(response) == "no_active_release"
+    _assert_nothing_published(parent_a, child)
+
+
+def test_no_active_release_still_checks_child_and_scope(families, parent_a):
+    """The empty answer never bypasses scoping: a foreign child or unknown Place is still 404."""
+    make_place()
+    assert parent_a.get(place_url(families.b1)).status_code == 404
+    unknown = parent_a.get(place_url(families.a1, "nowhere"))
+    assert unknown.status_code == 404 and code(unknown) == "place_not_found"
 
 
 def test_unknown_place_is_404(families, parent_a, staff):

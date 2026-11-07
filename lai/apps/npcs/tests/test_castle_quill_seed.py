@@ -232,5 +232,5 @@ def test_the_place_serves_one_quill_and_talking_writes_no_progress(castle, api):
 def test_no_release_means_no_managed_quill(castle, api):
     run()  # seeded but not published
     response = api(castle.families.a).get(place(castle.families.a1))
-    assert response.status_code == 404
-    assert response.json()["error"]["code"] == "no_active_release"
+    assert response.status_code == 200
+    assert response.json()["release"] == 0 and response.json()["placements"] == []

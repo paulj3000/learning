@@ -11,9 +11,9 @@ import { CONTRACT_VERSION } from '../contracts/vocabulary';
  * one child. Responses are parsed with `contracts/parse.ts`; a response that does not match the
  * contract is an `ApiError('invalid_response')`.
  *
- * "No NPCs here" is not an error: when nothing is published (`404 no_active_release`, including
- * a retired active release) the call resolves to an empty scene or catalog with `release: 0`,
- * so a world simply shows no NPCs. Every other failure (signed out, foreign child, unknown
+ * "No NPCs here" is not an error: when nothing is published (including a retired active release)
+ * the server answers `200` with `release: 0` and nothing in it (QA F-A), so a world simply shows
+ * no NPCs. An older server's `404 no_active_release` still resolves to the same empty answer. Every other failure (signed out, foreign child, unknown
  * Place or Area, offline) still rejects with the client's `ApiError`; a host shows no NPCs for
  * those too, but can tell them apart.
  */

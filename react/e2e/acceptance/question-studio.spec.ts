@@ -247,7 +247,9 @@ test.describe.serial('AI Question Studio in Django Admin', () => {
     await approach(page, 'cove-pip');
     await page.keyboard.press('e');
     await page.getByRole('button', { name: 'Yes, I will help!' }).click();
-    await page.getByRole('button', { name: 'Keep exploring' }).click();
+    // The legacy Pip closes with "Keep exploring"; the managed Pip (NPC release active) says
+    // his thank-you line, which Continue ends.
+    await page.getByRole('button', { name: /^(Keep exploring|Continue)$/ }).click();
     const issuedPromise = challengeResponse(page);
     await (await approach(page, 'cove-chest')).click();
     const issued = await issuedFrom(await issuedPromise);

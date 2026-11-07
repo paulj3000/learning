@@ -102,6 +102,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
     onCloseInteraction,
     setQuestCue,
     hudSlot,
+    speechSlot,
     showToast,
     bus,
   } = props;
@@ -416,6 +417,9 @@ function RegionPlayGame(props: LocationCompanionProps) {
     onInteract: onNpcInteract,
     onQuestOffer,
     onSound: onNpcSound,
+    // Unprompted lines sit at the top of the stage, so they stay in full screen and never
+    // cover the HUD or the reticle's action prompt (F-B).
+    ambientLayout: speechSlot ? 'inline' : 'floating',
   });
   const { managedNpcIds, notifyPlay } = npcHost;
   managedRef.current = managedNpcIds;
@@ -678,6 +682,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
   const itemCount = progress.progress?.inventory.length ?? 0;
   // On the stage when the view offers a slot (so they stay in full screen), fixed to the page otherwise.
   const onStage = Boolean(hudSlot);
+  const ambient = panel ? null : npcHost.ambient;
   const hudControls = panel ? null : (
     <>
       {npcHost.prompt}
@@ -721,6 +726,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
     <>
       {panel}
       {hudControls && hudSlot ? createPortal(hudControls, hudSlot) : hudControls}
+      {ambient && speechSlot ? createPortal(ambient, speechSlot) : ambient}
     </>
   );
 }
