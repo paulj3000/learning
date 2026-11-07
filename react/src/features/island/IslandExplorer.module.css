@@ -1,0 +1,114 @@
+/* LAI-0808: tablet-first, single column on phones, no horizontal scroll. */
+.explorer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 60rem;
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--font-size-heading);
+}
+
+.islands,
+.places {
+  display: grid;
+  /* min(100%, ...) keeps a card from overflowing a narrow phone. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  min-width: 0;
+}
+
+.hereItem {
+  composes: item;
+  grid-column: 1 / -1;
+}
+
+.card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-6);
+  text-align: left;
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.hereCard {
+  composes: card;
+  border-color: var(--color-primary);
+  border-width: 2px;
+}
+
+.openCard {
+  composes: card;
+  /* Large touch target for young children (docs/UX_AND_ACCESSIBILITY.md). */
+  min-height: 3rem;
+}
+
+.lockedCard {
+  composes: card;
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.placeCard {
+  composes: card;
+  height: 100%;
+  padding: var(--space-4);
+  min-height: 3rem;
+}
+
+.openCard:hover,
+.placeCard:hover {
+  border-color: var(--color-primary);
+}
+
+.openCard:focus-visible,
+.placeCard:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-large);
+  font-weight: 700;
+}
+
+.tagline {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.badge {
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.action {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.placesHeading {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-large);
+}
