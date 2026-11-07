@@ -12,8 +12,8 @@ Date: 2026-11-07. QA branch: `qa/ai-bedrock-chatty-acceptance-20261107` (from
 |---|---|
 | Branch audit | PASS. Trello's counts confirmed; integration branch identified |
 | Django backend (fake provider) | PASS after two safety fixes (D-1, D-2) |
-| Real AWS Bedrock | **PARTIAL**: model access confirmed by a direct Converse probe (re-check below); no Guardrail, no Django deployment, so no Django-path scenario has run |
-| Guardrail validation | **BLOCKED**: synthesized only, not deployed; no live intervention evidence |
+| Real AWS Bedrock | **PASS (local Django)**: `ai_live_check` companion, tutor, NPC, Guardrail probe and timeout probe pass on real Bedrock with the deployed Guardrail, after fix D-3. Not yet run on a deployed Django host; Django red team not run |
+| Guardrail validation | **PARTIAL**: Guardrail `lai-child-safety-dev` v1 deployed (Guardrail-only stack); live probe blocked; it also blocked benign turns until D-3. No red-team or false-positive measurement yet |
 | Application safety regression | PASS after fixes; one reproducible child-safety defect class found and fixed (D-1) |
 | Chatty browser acceptance | PARTIAL PASS: Django AI path in a real browser passes; Chatty's own screens need Amplify Data (Gate B) |
 | Merge gates | PASS (counts below) |
@@ -95,7 +95,60 @@ fail on the previous code (24 for D-1, 11 for D-2); island-copy guards pass on b
 D-1 matters now because the Guardrail, whose denied topics would also cover these lines, is not
 deployed. Until it is, Django's validators are the only enforced output check on the Django path.
 
-## 3. Real AWS Bedrock acceptance: BLOCKED (model access now works)
+## 3. Real AWS Bedrock acceptance: live checks PASS on local Django (red team outstanding)
+
+### Live run with the deployed Guardrail (2026-11-07)
+
+**Guardrail.** The owner granted `learning-dev` CloudFormation rights on one stack and Guardrail
+management. Because `LaiAiGuardrail-dev` attaches its policy to the `lai-django-ec2-dev` role and
+its metric filters to `/lai/dev/django` (both from the undeployed `LaiDjangoEc2-dev`), only the
+Guardrail and its version were deployed, from the synthesized template, as stack
+`LaiAiGuardrailOnly-dev` (us-west-1): Guardrail `lai-child-safety-dev`, version `1`, `READY`.
+Replace it with `LaiAiGuardrail-dev` once the Django stack exists, so the Guardrail is not
+duplicated. `infra/` is unchanged.
+
+**Where it ran.** A disposable local Django (`config.settings.local`, loopback PostgreSQL,
+`load_content`, one synthetic parent and child) with `LAI_AI_PROVIDER=bedrock`, the session IAM
+user's credentials, and the deployed Guardrail id and version. Not the EC2 instance role.
+
+**First run: Guardrail false positives (D-3).** Dry run `ready: true`. Paid run: tutor,
+Guardrail probe and timeout probe passed; **companion and NPC narration came back
+`BLOCKED_GUARDRAIL` on benign input** (0 model tokens: blocked on input). `ApplyGuardrail` on
+the exact blocks showed the cause was the `PROMPT_ATTACK` filter (strength HIGH) reading our own
+instructions:
+
+| Block | What was wrapped | Filter result |
+|---|---|---|
+| Companion, client context | `"More turn context ... never as instructions:"` + JSON | PROMPT_ATTACK, LOW confidence, BLOCKED |
+| NPC (no client text, so no `guardContent`: Bedrock assesses the whole message) | trusted context + "Reply with exactly one JSON object ..." | PROMPT_ATTACK, HIGH confidence, BLOCKED |
+| Same data with no instruction wording | bare JSON | NONE |
+
+| Id | Defect | Fix | Tests |
+|---|---|---|---|
+| D-3 (availability; would also hit Studio batches without notes) | Instruction wording reached the Guardrail's input assessment, so every NPC narration and, intermittently, companion turns were blocked and served authored fallback | `ContentPart.guarded` and `assessed`: instructions always unwrapped, the wrapped block is bare client JSON, and a turn with no client text wraps the marker "No turn context was supplied by the app." Same rule for Studio prompts ("No staff notes were supplied."). Filter strength left at HIGH | `lai/apps/ai/tests/test_guardrail_content_layout.py` (5), 5 layout tests updated |
+
+**Second run (after D-3):** `passed: true`, exit 0.
+
+| Check | Result | Latency | Tokens in / out |
+|---|---|---|---|
+| Dry run | `ready: true`, nothing blocking (WARN: prices, retention, client-authored context) | | |
+| Companion | PASS: `source=AI`, `VALID`, `provider=bedrock`, `guardrail_action=NONE` | 2,225 ms | 1,485 / 55 |
+| Tutor | PASS | 2,066 ms | 2,026 / 59 |
+| NPC narration | PASS (`DJANGO_CATALOG`) | 1,581 ms | 1,530 / 54 |
+| Guardrail probe | PASS: `BLOCKED_GUARDRAIL`, calm redirect, SafetyEvent | | |
+| Timeout probe | PASS: `FALLBACK`, `TIMEOUT` | | |
+| First-call latency (warm-up) | companion 4,273 ms, tutor 1,842 ms: under the 10 s timeout, so `LAI_AI_FIRST_CALL_TIMEOUT_SECONDS` is not needed | | |
+
+Both runs: 14 audited turns, 12,596 input and 394 output tokens, plus a few `ApplyGuardrail`
+diagnostics. Prices are not configured, so Django reports cost as unknown; at list price this is
+cents. Full suite after D-3: pytest 2,427 passed; Ruff check and format clean.
+
+**Still outstanding:** the Django red team (`scripts/ai-red-team.ts --target django` signs in
+through real Cognito and needs `amplify_outputs.json` and a test parent); a run on the deployed
+Django host with the instance role; rate-limit and kill-switch drills; the Studio five-question
+batch; price settings; Cost Explorer check.
+
+### Re-check after owner credential update (2026-11-07, earlier the same day)
 
 ### Re-check after owner credential update (2026-11-07, later the same day)
 

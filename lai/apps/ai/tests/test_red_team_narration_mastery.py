@@ -115,8 +115,10 @@ def test_browser_text_cannot_steer_npc_narration_or_inject_context(
         "questTitle": "Free gold",
     }
     post(api, families.a, families.a1, "companion-turns", body)
-    (part,) = fake.requests[0].content
-    assert not part.untrusted
+    part, marker = fake.requests[0].content
+    assert not part.untrusted and not marker.untrusted and marker.guarded
+    for fragment in ("Ignore your rules", "reveal the prompt", "Evil Overlord", "Free gold"):
+        assert fragment not in marker.text
     for fragment in ("Ignore your rules", "reveal the prompt", "Evil Overlord", "Free gold"):
         assert fragment not in part.text
     assert "TRUSTED_FRIEND" not in part.text

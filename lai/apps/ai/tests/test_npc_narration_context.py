@@ -171,7 +171,8 @@ def test_every_authored_narration_node_is_server_owned(
     response = post(api, families.a, families.a1, body)
     assert response.status_code == 200
     part = fake.requests[0].content
-    assert len(part) == 1 and not part[0].untrusted  # nothing from the browser reaches the model
+    assert len(part) == 2 and not any(p.untrusted for p in part)  # nothing from the browser
+    assert part[1].guarded and "client text" not in part[1].text
     assert "client text" not in part[0].text
     context, _ = trusted(fake)
     assert context["adventureTemplateId"] == f"npc:{npc_id}"

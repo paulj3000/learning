@@ -17,10 +17,22 @@ from typing import Protocol
 @dataclass(frozen=True, slots=True)
 class ContentPart:
     """One block of the user message. `untrusted` text came from a client and is wrapped for
-    the Guardrail's input checks (Bedrock `guardContent`); server-authored text is not."""
+    the Guardrail's input checks (Bedrock `guardContent`); server-authored text is not.
+
+    `guarded` marks server-authored text that is wrapped anyway. Bedrock assesses the whole
+    message when no block is wrapped, and the Guardrail's prompt-attack filter then flags our
+    own instructions ("Reply with exactly one JSON object...") and blocks the turn. A turn
+    with nothing from a client therefore carries one short guarded marker. Never put
+    instructions in a wrapped block."""
 
     text: str
     untrusted: bool = False
+    guarded: bool = False
+
+    @property
+    def assessed(self) -> bool:
+        """Sent as Bedrock `guardContent`, so the Guardrail's input checks assess it."""
+        return self.untrusted or self.guarded
 
 
 @dataclass(frozen=True, slots=True)

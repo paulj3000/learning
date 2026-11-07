@@ -150,7 +150,7 @@ class BedrockModelClient:
         """The exact Converse keyword arguments. Public so tests can inspect them offline."""
         content = []
         for part in request.content:
-            if part.untrusted:
+            if part.assessed:
                 content.append({"guardContent": {"text": {"text": part.text}}})
             else:
                 content.append({"text": part.text})

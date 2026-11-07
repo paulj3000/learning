@@ -233,7 +233,8 @@ def test_a_django_session_supplies_hint_level_and_text(
     context = sent_context(fake)
     assert context["hintLevel"] == 1 and context["strategy"] == "ENCOURAGE"
     assert context["authoredBaseText"] == "Look again"
-    assert len(fake.requests[0].content) == 1
+    _, marker = fake.requests[0].content
+    assert marker.guarded and not marker.untrusted  # the client text went nowhere
 
 
 def test_a_django_session_rejects_a_skill_the_step_does_not_teach(
