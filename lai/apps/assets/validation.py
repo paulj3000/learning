@@ -37,6 +37,13 @@ CLIP_VOCABULARY = frozenset(
     "Idle Walk Talk Wave Point Celebrate ReactHappy ReactConcerned Open Close Activate".split()
 )
 
+# Default take names that describe no motion: Mixamo's FBX take (`mixamo.com`, which Blender
+# imports as `Armature|mixamo.com|Layer0`, then `.001`, `.002` for the next ones) and Blender's
+# own unnamed actions (`ArmatureAction`, `Action.001`). NPC QA, docs/NPC_MANAGER_QA_REPORT.md.
+GENERIC_TAKE_NAME = re.compile(
+    r"mixamo\.com|\|Layer\d+(\.\d+)?$|^(Armature)?Action(\.\d+)?$|^Take \d+$", re.IGNORECASE
+)
+
 # Extensions three.js's GLTFLoader handles with no extra decoder (the app configures none).
 SUPPORTED_EXTENSIONS = frozenset(
     {
@@ -689,6 +696,15 @@ def _check_animations(result, document, definition) -> list[str]:
             result.warn(
                 "unknown_clip",
                 f'"{name}" is not in the clip vocabulary, so the game will not play it by name.',
+                path,
+            )
+        if GENERIC_TAKE_NAME.search(name):
+            result.warn(
+                "generic_clip_name",
+                f'"{name}" is an exporter\'s default take name: it does not say what the motion '
+                "is, and nothing here will guess. Rename each action in Blender to what it shows "
+                "(Idle, Walk, Talk, Wave, ...) and export again, or map this exact name to a "
+                "state yourself only if you have watched it.",
                 path,
             )
         names.append(name)

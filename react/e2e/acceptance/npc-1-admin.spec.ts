@@ -77,6 +77,9 @@ test.describe.serial('NPC Manager in Django Admin', () => {
     const body = page.locator('#content');
     for (const clip of MIXAMO_CLIPS) await expect(body).toContainText(clip);
     await expect(body).toContainText(/not in the clip vocabulary/);
+    // QA: a default take name is called out with the fix (rename in Blender, export again).
+    await expect(body).toContainText(/exporter's default take name/);
+    await expect(body).toContainText(/Rename each action in Blender/);
     await shot(page, 'admin-02-mixamo-version-findings');
 
     await adminLogin(page, 'e2e-npc-publisher');

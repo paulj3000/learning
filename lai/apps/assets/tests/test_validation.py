@@ -197,6 +197,34 @@ def test_duplicate_clip_names_fail_and_unknown_ones_warn():
     assert result.clips == ["Idle", "Moonwalk"]
 
 
+MIXAMO_TAKES = ("Armature|mixamo.com|Layer0", "Armature|mixamo.com|Layer0.001")
+
+
+def test_mixamo_take_names_are_kept_verbatim_and_flagged_never_renamed():
+    """NPC QA: a raw Mixamo export names every take `Armature|mixamo.com|Layer0(.00n)`. The
+    upload passes (a model with unclear names is still a model) but each take is warned about,
+    and the recorded clips are exactly the file's names: nothing is mapped to Idle or Walk."""
+    result = check(glb_bytes(clips=MIXAMO_TAKES))
+    assert result.passed
+    assert result.clips == list(MIXAMO_TAKES)
+    warned = [f for f in result.report() if f["code"] == "generic_clip_name"]
+    assert [f["path"] for f in warned] == ["animations[0]", "animations[1]"]
+    assert all(f["severity"] == "warning" and "Blender" in f["message"] for f in warned)
+    # Two takes that were never renamed at all collide, and that is an error.
+    duplicate = check(glb_bytes(clips=(MIXAMO_TAKES[0], MIXAMO_TAKES[0])))
+    assert "duplicate_clip" in codes(duplicate) and not duplicate.passed
+
+
+@pytest.mark.parametrize("name", ["ArmatureAction", "Action.002", "Take 001", "Rig|Layer3"])
+def test_other_default_take_names_are_flagged(name):
+    assert "generic_clip_name" in codes(check(glb_bytes(clips=(name,))))
+
+
+@pytest.mark.parametrize("name", ["Idle", "Walk", "Talk", "Wave", "Moonwalk", "Waving"])
+def test_descriptive_names_are_not_called_generic(name):
+    assert "generic_clip_name" not in codes(check(glb_bytes(clips=(name,))))
+
+
 def test_a_new_version_must_keep_every_clip_existing_references_use():
     pip = definition(clips=["Idle", "Talk"])
     result = check(glb_bytes(clips=("Idle",)), pip)

@@ -540,9 +540,10 @@ class VariantAssetInline(admin.TabularInline):
     autocomplete_fields = ("asset",)
     fields = ("role", "asset", "attach_point", "sort_order")
     verbose_name = "extra asset"
+    # The runtime does not draw extras yet (NPC QA limitation 4): say so where staff add them.
     verbose_name_plural = (
         "extra assets (texture: texture or image; accessory: prop or character; portrait: image "
-        "or sprite; audio: audio)"
+        "or sprite; audio: audio). Checked and published, but not shown in the game yet"
     )
 
 

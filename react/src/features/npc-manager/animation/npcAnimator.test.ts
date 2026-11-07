@@ -241,3 +241,70 @@ describe('dispose', () => {
     expect(animator.snapshot()).toMatchObject({ overlay: null, clip: null });
   });
 });
+
+describe('a raw Mixamo export (NPC Manager QA)', () => {
+  // What a Mixamo FBX converted in Blender without renaming carries: no clip says what it is.
+  const MIXAMO = [
+    clip('Armature|mixamo.com|Layer0', 2),
+    clip('Armature|mixamo.com|Layer0.001', 1.2),
+    clip('Armature|mixamo.com|Layer0.002', 0.8),
+  ];
+  const STATES = [
+    'idle',
+    'walk',
+    'run',
+    'talk',
+    'wave',
+    'point',
+    'celebrate',
+    'think',
+    'sad',
+    'laugh',
+    'jump',
+  ] as const;
+
+  it('with no map, no take is ever chosen by name: procedural motion, no crash', () => {
+    const { animator, onFinished } = setup({ clips: MIXAMO, animationMap: {} });
+    for (const state of STATES) expect(animator.resolveClip(state)).toBeNull();
+    for (const state of STATES) {
+      expect(() => animator.play(state, { priority: ANIMATION_PRIORITY.reaction })).not.toThrow();
+      run(animator, 0.1);
+    }
+    expect(animator.snapshot().clip).toBeNull();
+    // One-shots still finish on time, so dialogue and reactions never wait for a missing clip.
+    animator.play('wave', { priority: ANIMATION_PRIORITY.reaction });
+    run(animator, PROCEDURAL_ONE_SHOT_SECONDS + 0.1);
+    expect(onFinished).toHaveBeenCalledWith('wave');
+    expect(animator.snapshot().overlay).toBeNull();
+    animator.dispose();
+  });
+
+  it('a reviewed map of one exact take: every other state falls back to it, never to another take', () => {
+    const { animator, onFinished } = setup({
+      clips: MIXAMO,
+      animationMap: { idle: 'Armature|mixamo.com|Layer0' },
+    });
+    for (const state of STATES) {
+      expect(animator.resolveClip(state)?.name, state).toBe('Armature|mixamo.com|Layer0');
+    }
+    expect(animator.snapshot().clip).toBe('Armature|mixamo.com|Layer0');
+    // Switching states while only idle exists keeps playing idle, and a one-shot completes.
+    animator.setBase('walk');
+    run(animator, CROSSFADE_SECONDS * 2);
+    expect(animator.snapshot().clip).toBe('Armature|mixamo.com|Layer0');
+    animator.play('celebrate', { priority: ANIMATION_PRIORITY.reaction });
+    run(animator, 2.5);
+    expect(onFinished).toHaveBeenCalledWith('celebrate');
+    animator.dispose();
+    expect(() => animator.update(1)).not.toThrow();
+  });
+
+  it('a map naming a take that is not in this export is ignored, not guessed', () => {
+    const { animator } = setup({
+      clips: MIXAMO,
+      animationMap: { idle: 'Armature|mixamo.com|Layer0', talk: 'Talking' },
+    });
+    expect(animator.resolveClip('talk')?.name).toBe('Armature|mixamo.com|Layer0');
+    expect(animator.resolveClip('talk')?.name).not.toBe('Armature|mixamo.com|Layer0.001');
+  });
+});

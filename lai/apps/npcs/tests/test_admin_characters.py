@@ -343,6 +343,8 @@ def test_variant_page_lists_clips_and_links_the_asset_preview():
     text = client.get(f"{VARIANTS}{bundled.variants.get().pk}/change/").content.decode()
     assert "bundled-look-model (bundled): Idle, Talk, Wave" in text
     assert "Bundled with the game (no stored version to preview)." in text
+    # NPC QA limitation 4: extras are validated and published but not drawn yet; staff are told.
+    assert "Checked and published, but not shown in the game yet" in text
 
 
 # --- placements ----------------------------------------------------------------------------------
@@ -523,3 +525,60 @@ def test_dialogue_choices_keep_the_order_staff_give_them(editor):
     assert response.status_code == 302, response.content.decode()[:3000]
     served = NpcDialogueChoice.objects.filter(node=node).values_list("choice_key", flat=True)
     assert list(served) == ["more", "later"]
+
+
+# --- Mixamo exports (NPC Manager QA, docs/NPC_MANAGER_QA_REPORT.md) -------------------------------
+
+MIXAMO_TAKES = ["Armature|mixamo.com|Layer0", "Armature|mixamo.com|Layer0.001"]
+
+
+def _mixamo_model(asset_id: str):
+    asset = make_definition(asset_id)
+    version = make_version(asset, 1, status=VersionStatus.PUBLISHED, clips=MIXAMO_TAKES)
+    asset.default_version = version
+    asset.save()
+    return asset
+
+
+def test_a_mixamo_model_never_gets_semantic_states_by_guesswork(editor):
+    """Idle/Talk/Wave are refused for a model whose takes are the default Mixamo names, and the
+    refusal lists those names so staff see what the export produced. Nothing maps them for staff."""
+    character = make_character("pirate-mixamo", with_variant=False)
+    model = _mixamo_model("pirate-mixamo-glb")
+    text = _variant_post(
+        editor,
+        character,
+        model_asset=model.pk,
+        animation_map='{"idle": "Idle", "talk": "Talk", "wave": "Wave"}',
+    ).content.decode()
+    assert "These clips are not in pirate-mixamo-glb" in text
+    assert "Armature|mixamo.com|Layer0, Armature|mixamo.com|Layer0.001" in text
+    assert not NpcModelVariant.objects.filter(character=character).exists()
+
+    # No map at all is allowed (the NPC stands with procedural motion) and stays empty.
+    response = _variant_post(editor, character, model_asset=model.pk, animation_map="{}")
+    assert response.status_code == 302, response.content.decode()[:3000]
+    assert NpcModelVariant.objects.get(character=character).animation_map == {}
+
+
+def test_staff_may_map_an_exact_take_name_they_have_checked(editor):
+    """A take name is accepted only verbatim, as staff typed it: the explicit, reviewed choice."""
+    character = make_character("pirate-checked", with_variant=False)
+    model = _mixamo_model("pirate-checked-glb")
+    response = _variant_post(
+        editor,
+        character,
+        model_asset=model.pk,
+        animation_map='{"idle": "Armature|mixamo.com|Layer0"}',
+    )
+    assert response.status_code == 302, response.content.decode()[:3000]
+    variant = NpcModelVariant.objects.get(character=character)
+    assert variant.animation_map == {"idle": "Armature|mixamo.com|Layer0"}
+    # A near miss (the Layer0 take with the wrong suffix) is still refused.
+    text = _variant_post(
+        editor,
+        make_character("pirate-near-miss", with_variant=False),
+        model_asset=model.pk,
+        animation_map='{"idle": "Armature|mixamo.com|Layer0.002"}',
+    ).content.decode()
+    assert "These clips are not in pirate-checked-glb" in text
