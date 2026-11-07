@@ -12498,8 +12498,9 @@ section 12.
 
 ## AI / Bedrock / Chatty final acceptance QA (2026-11-07, branch `qa/ai-bedrock-chatty-acceptance-20261107`)
 
-**Status: BLOCKED — NEEDS AWS CONFIGURATION. Not merged, not deployed, no AWS resource changed.**
-Full report: `docs/AI_BEDROCK_CHATTY_QA_REPORT.md`.
+**Status (updated later 2026-11-07): live Bedrock and Guardrail checks and the Django red team
+pass on a local Django; not yet run on a deployed Django host.** The first-pass findings below
+were recorded before the owner configured AWS. Full report: `docs/AI_BEDROCK_CHATTY_QA_REPORT.md`.
 
 - **Branch audit.** `features/ai` is an ancestor of `main` (0 ahead, 38 behind).
   `feature/ai-bedrock-readiness` is 71 ahead and 0 behind, and fast-forwards. Its 71 commits
@@ -12518,6 +12519,27 @@ Full report: `docs/AI_BEDROCK_CHATTY_QA_REPORT.md`.
 - **Live AWS.** Session IAM user: one 5-token Converse probe returned AccessDeniedException; all
   Bedrock reads are denied; no Guardrail, Django host or `/lai/*` SSM exists in the account. No
   live evidence was recorded; LAI-0705 and Guardrail validation are still NOT accepted.
+- **Live follow-up (same day).** Owner granted Bedrock access; Guardrail `lai-child-safety-dev`
+  v1 deployed as the Guardrail-only stack `LaiAiGuardrailOnly-dev` (us-west-1). `ai_live_check`
+  (companion, tutor, NPC, Guardrail probe, timeout probe) passes after D-3 (instruction wording
+  in Guardrail-assessed blocks tripped the prompt-attack filter). The Django red team with real
+  Cognito sign-in passes 29/29 after D-4 (a home-and-family question reached the child).
+  Outstanding: deployed-host run, rate-limit and kill-switch drills, Studio batch, prices, Cost
+  Explorer.
 - **Deferred to the owner:** the AWS steps in the report's section 3, the live runbook
   (`docs/AI_BEDROCK_ACCEPTANCE.md`), the Gate B browser pass, real Cognito sign-in, and acceptance
   of the bundled Sound Manager and Storybook work.
+
+## Dev environment: `make runserver` uses AWS profile `learning-dev` (2026-11-07, Trello GiiJtE1W)
+
+- `Makefile`: `runserver` exports `AWS_PROFILE ?= learning-dev` as a target-specific variable, so
+  the Django dev server and its autoreloader child resolve AWS credentials through that named
+  profile. `make runserver AWS_PROFILE=other` overrides it; a value exported in the shell wins.
+  Other targets, tests and deployed environments are unaffected. No credentials are committed and
+  the profile is not created; it must exist in the developer's AWS config (documented in
+  `README.md`). Existing arguments and working directory (`lai/`, `manage.py runserver`) unchanged.
+- Tests: `tests/repo/test_makefile_runserver.py` runs `make runserver` with `PY` pointed at a stub
+  that echoes its environment: default profile, command-line override, shell value kept, and the
+  default scoped to `runserver` only. `pytest tests/repo`: 7 passed; ruff clean.
+- Not verified here: resolving real credentials from a configured `learning-dev` profile (no AWS
+  config in this container); that is standard boto3 named-profile behavior.
