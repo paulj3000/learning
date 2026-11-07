@@ -414,3 +414,22 @@ AWS (Bedrock, Polly) has been called.
 | LAI-NPC-038 | Accessibility: captions, keyboard, touch, focus, reduced motion, mute/volume, prompts                                                | 014, 029                | Production  | DEVELOPMENT COMPLETE | feature/npc-manager-a11y b62308d, merged 583da11                                        | Vitest npc-manager + regionPlay 478 passed (30 new a11y tests: dialog focus trap, focus return, live region, 56 px targets, replay, mute text-only, live reduced motion) | Owner manual: VoiceOver/TalkBack on tablets, switch access, target size for ages 3 to 4 (docs/NPC_MANAGER_ACCESSIBILITY.md section 4); no axe scanner installed |
 | LAI-NPC-039 | Storykeeper's Castle: Keeper Quill through the NPC Manager                                                                           | 007, 008, 012           | Production  | DEVELOPMENT COMPLETE | feature/npc-manager-castle 361c1ff, merged; gestures 67b3d07; boundary fix 9a6bd85      | pytest test_castle_quill_seed 13 passed (Pip and Quill in one release); Vitest castle integration 10, castleNpcProgress 7; engineBoundary passed                         | Owner browser acceptance (checklist B13); Quill conditions cannot see the castle's Amplify quest state; castle wrong answers do not raise on_incorrect_answer   |
 | LAI-NPC-040 | Acceptance test suite (automated) and written browser scenarios                                                                      | all                     | Production  | DEVELOPMENT COMPLETE | feature/npc-manager-acceptance ac71c9a, merged                                          | pytest test_acceptance_flow 14 passed; Vitest npcManager.acceptance 1 scenario; coverage matrix in docs/NPC_MANAGER_BROWSER_ACCEPTANCE.md Part A                         | Owner runs Part B browser checklist (not run by any agent); live Polly and Bedrock steps need owner approval                                                    |
+
+### Phase 30 QA (OWNER QA readiness, 2026-11-07, branch `qa/npc-manager-acceptance`)
+
+Report: `docs/NPC_MANAGER_QA_REPORT.md`. Automated browser acceptance against a real Chromium,
+Django and PostgreSQL: `react/e2e/acceptance/npc-1-admin`, `npc-2-treasure`, `npc-3-castle`,
+`npc-4-a11y` (32 tests). Status of every LAI-NPC task stays DEVELOPMENT COMPLETE until the owner
+accepts; nothing is ACCEPTED by this pass.
+
+| Task | Description | Status | Evidence | Remaining |
+| ---- | ----------- | ------ | -------- | --------- |
+| QA-NPC-01 | Django Admin browser QA (authoring, GLB upload, variants, placements, dialogue, behaviour, validate, publish, rollback, retire, dependency guard, permissions, ownership, mobile width) | DONE | `npc-1-admin.spec.ts` 12 passed | Owner review |
+| QA-NPC-02 | Treasure Rush browser QA with managed Pip (one Pip, reach, dialogue, keyboard, quest, reactions, rewards once, return visit, legacy fallback, placeholder) | DONE | `npc-2-treasure.spec.ts` 8 passed; `treasure-rush.spec.ts` run with managed Pip | Owner tablet playtest |
+| QA-NPC-03 | Storykeeper's Castle browser QA with managed Quill | DONE with limits | `npc-3-castle.spec.ts` 7 passed | Amplify-backed tale and quest log (B13.4, B13.6 to B13.9) |
+| QA-NPC-04 | Animation and GLB QA (Mixamo take names, maps, AnimationMixer) | DONE | asset, Admin and animator regression tests; `generic_clip_name` warning | Re-export the owner's Mixamo pirate (report section 4) |
+| QA-NPC-05 | Accessibility (axe, semantics, reduced motion, mute) and repeated-use performance | DONE (automated) | `npc-4-a11y.spec.ts` 5 passed; axe 0 violations in NPC UI | VoiceOver/TalkBack, switch access, tablet profiling |
+| QA-NPC-06 | Polly and Bedrock | Fake clients PASS; live BLOCKED | pytest npcs/speech/ai/assets 891 passed | Approved test environment and spending limit |
+| QA-NPC-07 | Defects QA-D1 to QA-D4 (choice order, captions-only talk animation, return visit, replay after refused speech) | FIXED | regression tests fail without each fix | None |
+| QA-NPC-08 | Limitations 1 to 4 classified (none a release blocker) | DONE | report section 7 | Owner decisions: Pip's voice, one talk prompt (O1), merge order vs `dev20261103` |
+| QA-NPC-09 | Merge gates on the QA branch | see report section 8 | report "Gate results" | Owner merge approval |
