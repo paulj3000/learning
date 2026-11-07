@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import styles from './WelcomeHarbor.module.css';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { CompanionIntro } from '../features/island/CompanionIntro';
@@ -18,6 +18,7 @@ import { isIslandAvailable } from '../features/catalog/availability';
 import { loadCatalogSnapshot } from '../features/catalog/availabilityApi';
 import { locationWorldPath } from '../features/island-map/three/runtime/locationWorldPath';
 import { WELCOME_HARBOR_REGION_ID } from '../features/discovery/checkpoints';
+import { isLeftIslandState, LEAVE_ISLAND_COPY } from '../features/portal/exit';
 import type { CompanionProfile } from '../features/island/api';
 import type { ChildProfile } from '../features/child-profile/api';
 
@@ -25,6 +26,8 @@ type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
 export function WelcomeHarbor() {
   const { childId } = useParams<{ childId: string }>();
+  /** AP-04: arrived from "Leave island", so say calmly that nothing was lost. */
+  const leftIsland = isLeftIslandState(useLocation().state);
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
   const [companionProfile, setCompanionProfile] = useState<CompanionProfile | null>(null);
@@ -110,6 +113,11 @@ export function WelcomeHarbor() {
           />
           <h1 className={styles.heading}>Welcome back, {childProfile.nickname}!</h1>
         </div>
+        {leftIsland ? (
+          <p className={styles.event} role="status">
+            {LEAVE_ISLAND_COPY.welcomeBack}
+          </p>
+        ) : null}
         <p className={styles.event}>{getTodaysEvent(new Date())}</p>
         <p className={styles.event}>{getSeasonalIslandNote(new Date())}</p>
       </div>

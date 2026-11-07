@@ -12625,3 +12625,54 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   batches 5/5; probe batch stored nothing. Carried forward: the price confirmation, a rerun
   under the instance role, and the two validation suggestions in the report.
 
+
+## Adventure Portal AP-01 and AP-04: design system, shells, and leaving an island (2026-11-07, branch `feature/adventure-portal`)
+
+Trello: "[Subproject] Adventure Portal & Learning Dashboard", cards AP-01 and AP-04. Development
+complete and unit-tested; **not yet seen in a browser or on a device** (Playwright and the
+merge-readiness gates are deferred to integration, as the brief directs).
+
+**AP-01: Tailwind design system and responsive shell** (ADR-051, Proposed)
+
+- `react/src/features/portal/portal.css`: a second Tailwind 4 entry, reference-only theme with
+  the ocean, tropical, treasure, coral and purple families; no reset; no `:root` variables.
+- `react/src/features/portal/ui/`: `PortalButton` (real `<button type="button">`, `asChild` for
+  links, 48px/56px touch targets, focus ring kept), `PortalCard`, `ProgressIndicator`
+  (`progressbar` with "2 of 5 steps" in words, never a percentage or score).
+- `react/src/features/portal/shell/ChildShell.tsx`: one `<nav aria-label="Island">` that is a
+  bottom bar on phones and a sidebar from `md`; Island Explorer, Sailing dock, Adventure log,
+  Quest journal, Library; `aria-current="page"`; exits in the top bar. `IslandLayout` now renders
+  through it, so every child-mode screen gets the shell; page content keeps its CSS Modules.
+- `react/src/features/portal/shell/ParentShell.tsx`: a distinct "Parent space" top bar, adopted by
+  `ParentDashboard`. Other parent pages still use their own headers (follow-up).
+
+**AP-04: Adventure routing and return-to-hub flow**
+
+- `exit/adventureRoutes.ts`: one typed `portalPath` for every portal destination; the hub is the
+  Island Explorer at `/island/:childId`.
+- `exit/exitCoordinator.ts` (pure) and `exit/IslandExitContext.tsx`: "Leave island" flushes
+  registered saves (never rejects, abandons a slow save after 2.5s so a child is never stuck),
+  then navigates to the Island Explorer with `{ leftIsland: true }`, where a status line says the
+  adventure is saved. **No arithmetic, quiz or other challenge** is on this path. The adult exit
+  to the parent space keeps its `ParentGate`, unchanged.
+- "Confirm where needed": only while a 3D encounter is open, a two-button "Leave the island now?"
+  dialog (focus on "Keep playing"; Escape stays). Nothing to answer.
+- `ThreeLocationWorldView` tracks its fire-and-forget writes (checkpoint, character met,
+  collectible world change) so leaving waits for one still in flight.
+- `WorldStage` shows "Leave island" inside full screen, where the top bar is hidden.
+- Changed: "Leave island" was a link to the Sailing Dock; it is now a button to the Island
+  Explorer, and it is offered on the Sailing Dock too (hidden only on the Explorer itself).
+- Educational challenges inside adventures are untouched.
+
+**Tests run (unit, Vitest):** `src/features/portal`, `src/features/island`, `src/features/island-map`,
+`src/features/region-play`, `src/routes`, `src/app` (all pass; counts in the Trello comment).
+`tsc -b` clean. `npm run adr:check` passes.
+
+**Deferred to integration / remaining risks**
+
+- Playwright, lint, full suite and build not run (brief: until ready for integration).
+- Not viewed in a browser: the bottom bar's fit at 320px with five labels, the sidebar beside 3D
+  canvases at `md`, and full-screen leave placement need visual checks.
+- Phaser world pages and card adventures save per step already and register no exit participant;
+  they leave immediately. Story sessions likewise.
+- ADR-051 awaits owner acceptance.

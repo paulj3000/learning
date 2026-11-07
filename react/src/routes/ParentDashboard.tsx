@@ -13,6 +13,7 @@ import type { ChildProfile, ParentProfile } from '../features/child-profile/api'
 import { listAllWorldChanges } from '../features/adventures/api';
 import { listAllRegions } from '../features/island/regionOverview';
 import { listDashboardSections } from '../features/parent-dashboard/dashboardSections';
+import { ParentShell } from '../features/portal/shell';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
@@ -99,103 +100,98 @@ export function ParentDashboard() {
   const sections = selectedChild ? listDashboardSections(selectedChild.id) : [];
 
   return (
-    <div className={styles.page}>
-      <header className={styles.header}>
-        <div className={styles.headerLeft}>
-          <p className={styles.brand}>Learning Adventure Island</p>
-          {loadState === 'ready' ? (
-            <ChildSwitcher
-              childProfiles={childProfiles}
-              selectedChildId={selectedChildId}
-              onSelect={setSelectedChildId}
-            />
-          ) : null}
-        </div>
-        <UserMenu />
-      </header>
-      <main className={styles.main} id="main-content">
-        {loadState === 'loading' ? <p>Loading your family&apos;s island...</p> : null}
-        {loadState === 'error' ? (
-          <p className={styles.error} role="alert">
-            {error}
-          </p>
-        ) : null}
-        {loadState === 'ready' ? (
-          <div className={styles.dashboardContent}>
-            <h1 className={styles.pageTitle}>
-              {selectedChild
-                ? `${selectedChild.nickname}'s dashboard`
-                : `Welcome, ${parentProfile?.displayName || 'parent'}`}
-            </h1>
+    // AP-01: the parent space's own shell, distinct from the child's.
+    <ParentShell
+      mainClassName={styles.main}
+      context={
+        loadState === 'ready' ? (
+          <ChildSwitcher
+            childProfiles={childProfiles}
+            selectedChildId={selectedChildId}
+            onSelect={setSelectedChildId}
+          />
+        ) : null
+      }
+      actions={<UserMenu />}
+    >
+      {loadState === 'loading' ? <p>Loading your family&apos;s island...</p> : null}
+      {loadState === 'error' ? (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      ) : null}
+      {loadState === 'ready' ? (
+        <div className={styles.dashboardContent}>
+          <h1 className={styles.pageTitle}>
+            {selectedChild
+              ? `${selectedChild.nickname}'s dashboard`
+              : `Welcome, ${parentProfile?.displayName || 'parent'}`}
+          </h1>
 
-            {selectedChild ? (
-              <ChildProfileSummary
-                childProfile={selectedChild}
-                onToggleActive={handleToggleActive}
-              />
-            ) : (
-              <p className={styles.hint}>
-                Add a child profile to start exploring the island together.
-              </p>
-            )}
+          {selectedChild ? (
+            <ChildProfileSummary childProfile={selectedChild} onToggleActive={handleToggleActive} />
+          ) : (
+            <p className={styles.hint}>
+              Add a child profile to start exploring the island together.
+            </p>
+          )}
 
-            <section className={styles.section} aria-labelledby="regions-heading">
-              <h2 className={styles.heading} id="regions-heading">
-                Island places
+          <section className={styles.section} aria-labelledby="regions-heading">
+            <h2 className={styles.heading} id="regions-heading">
+              Island places
+            </h2>
+            <p className={styles.hint}>
+              Everywhere on the island, including the places that are still secret.
+            </p>
+            <ul className={styles.list}>
+              {regions.map((region) => (
+                <li className={styles.row} key={`${region.worldSlug}/${region.slug}`}>
+                  <div className={styles.rowText}>
+                    {selectedChild && region.unlocked ? (
+                      <Link
+                        className={styles.rowTitleLink}
+                        to={`/island/${selectedChild.id}/locations/${region.slug}`}
+                      >
+                        {region.title}
+                      </Link>
+                    ) : (
+                      <p className={styles.rowTitle}>{region.title}</p>
+                    )}
+                    <p className={styles.rowMeta}>{region.tagline}</p>
+                  </div>
+                  <p className={styles.rowStatus}>
+                    {region.unlocked ? region.worldTitle : 'Not discovered yet'}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {selectedChild ? (
+            <section className={styles.section} aria-labelledby="sections-heading">
+              <h2 className={styles.heading} id="sections-heading">
+                Dashboard sections
               </h2>
               <p className={styles.hint}>
-                Everywhere on the island, including the places that are still secret.
+                Everything we can show you about {selectedChild.nickname}. These will become pages
+                of their own.
               </p>
               <ul className={styles.list}>
-                {regions.map((region) => (
-                  <li className={styles.row} key={`${region.worldSlug}/${region.slug}`}>
+                {sections.map((section) => (
+                  <li className={styles.row} key={section.id}>
                     <div className={styles.rowText}>
-                      {selectedChild && region.unlocked ? (
-                        <Link
-                          className={styles.rowTitleLink}
-                          to={`/island/${selectedChild.id}/locations/${region.slug}`}
-                        >
-                          {region.title}
-                        </Link>
-                      ) : (
-                        <p className={styles.rowTitle}>{region.title}</p>
-                      )}
-                      <p className={styles.rowMeta}>{region.tagline}</p>
+                      <Link className={styles.rowTitleLink} to={section.to}>
+                        {section.title}
+                      </Link>
+                      <p className={styles.rowMeta}>{section.description}</p>
                     </div>
-                    <p className={styles.rowStatus}>
-                      {region.unlocked ? region.worldTitle : 'Not discovered yet'}
-                    </p>
                   </li>
                 ))}
               </ul>
             </section>
-
-            {selectedChild ? (
-              <section className={styles.section} aria-labelledby="sections-heading">
-                <h2 className={styles.heading} id="sections-heading">
-                  Dashboard sections
-                </h2>
-                <p className={styles.hint}>
-                  Everything we can show you about {selectedChild.nickname}. These will become pages
-                  of their own.
-                </p>
-                <ul className={styles.list}>
-                  {sections.map((section) => (
-                    <li className={styles.row} key={section.id}>
-                      <div className={styles.rowText}>
-                        <Link className={styles.rowTitleLink} to={section.to}>
-                          {section.title}
-                        </Link>
-                        <p className={styles.rowMeta}>{section.description}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-          </div>
-        ) : null}
-      </main>
-    </div>
+          ) : null}
+        </div>
+      ) : null}
+    </ParentShell>
   );
 }

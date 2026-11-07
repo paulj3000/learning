@@ -91,3 +91,50 @@ describe('WorldStage', () => {
     expect(document.exitFullscreen).toHaveBeenCalled();
   });
 });
+
+describe('WorldStage leave button (AP-04)', () => {
+  it('offers "Leave island" inside full screen, where the top bar is hidden', async () => {
+    const { IslandExitProvider } = await import('../../portal/exit');
+    const { MemoryRouter, Route, Routes } = await import('react-router-dom');
+    setFullscreenEnabled(true);
+    render(
+      <MemoryRouter initialEntries={['/island/child-1/explore/forest']}>
+        <Routes>
+          <Route path="/island/:childId" element={<p>Island Explorer page</p>} />
+          <Route
+            path="*"
+            element={
+              <IslandExitProvider childId="child-1">
+                <div data-testid="wrapper">
+                  <WorldStage>
+                    <span>canvas</span>
+                  </WorldStage>
+                </div>
+              </IslandExitProvider>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Leave island' })).not.toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Full screen' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Leave island' }));
+    });
+
+    expect(await screen.findByText('Island Explorer page')).toBeInTheDocument();
+    expect(document.exitFullscreen).toHaveBeenCalled();
+  });
+
+  it('shows no leave button outside child mode, even in full screen', async () => {
+    setFullscreenEnabled(true);
+    renderInWrapper();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Full screen' }));
+    });
+    expect(screen.queryByRole('button', { name: 'Leave island' })).not.toBeInTheDocument();
+  });
+});
