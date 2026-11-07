@@ -12495,3 +12495,29 @@ section 12.
   (LAI-0605), so eligibility enforcement is off; React adventures write no Django evidence until
   LAI-0501; Firepeak/ADR-043 content is on an unmerged branch and was not recreated; retention
   periods need owner approval (follow-up LAI-0711); Amplify routes untouched (LAI-0710).
+
+## AI / Bedrock / Chatty final acceptance QA (2026-11-07, branch `qa/ai-bedrock-chatty-acceptance-20261107`)
+
+**Status: BLOCKED — NEEDS AWS CONFIGURATION. Not merged, not deployed, no AWS resource changed.**
+Full report: `docs/AI_BEDROCK_CHATTY_QA_REPORT.md`.
+
+- **Branch audit.** `features/ai` is an ancestor of `main` (0 ahead, 38 behind).
+  `feature/ai-bedrock-readiness` is 71 ahead and 0 behind, and fast-forwards. Its 71 commits
+  include the Sound Manager (SM-P1 to SM-P8) and Storykeeper Storybook (SC-R01 to SC-R04)
+  subprojects as well as 5 AI commits.
+- **Defects fixed.** D-1 (child safety): the Django output policy served secrecy ("keep it a
+  secret from your mom"), guilt ("I'll be so sad if you leave"), claims of being a person or kid,
+  and school, age or home questions as AI turns; fixed in `content_safety.boundary_violations`
+  (`ab8da67`). D-2: the input screen was bypassed by whitespace padding and missed common
+  injection and private-detail phrasings (`258ae9e`). 49 regression tests; 35 fail on the old code.
+  No new hits in 33,585 / 30,429 authored strings.
+- **Browser.** New `react/e2e/acceptance/chatty-ai.spec.ts` (5 tests, fake provider): multi-turn
+  companion and tutor turns through the app's own client in a real browser, screened-input
+  fallback, parent safety history and clearing, cross-family 404s, Django Admin kill switch,
+  three viewport sizes. Chatty's own screens still need Amplify Data (Gate B).
+- **Live AWS.** Session IAM user: one 5-token Converse probe returned AccessDeniedException; all
+  Bedrock reads are denied; no Guardrail, Django host or `/lai/*` SSM exists in the account. No
+  live evidence was recorded; LAI-0705 and Guardrail validation are still NOT accepted.
+- **Deferred to the owner:** the AWS steps in the report's section 3, the live runbook
+  (`docs/AI_BEDROCK_ACCEPTANCE.md`), the Gate B browser pass, real Cognito sign-in, and acceptance
+  of the bundled Sound Manager and Storybook work.
