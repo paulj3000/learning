@@ -91,6 +91,10 @@ def runner_collections():
             ],
         },
     ]
+    # Evidence is written only for objectives the catalog declares (LAI-0603).
+    data["adventures.json"]["learningObjectives"] = [
+        {"code": "count-10", "domain": "numeracy", "title": "Counting to ten"}
+    ]
     data["quests.json"]["quests"][0]["stages"][0]["objectives"][0]["adventureSlug"] = "mend-bridge"
     data["rewards.json"] = {
         "collectibleSets": [],

@@ -104,22 +104,20 @@ def step_is_pinned(session: AdventureSession, step: AdventureStep) -> bool:
     context both refuse anything else, so neither can narrate or grade different content.
 
     A session that pinned its revisions (ADR-047, LAI-0813) is graded from the pinned body, so
-    the catalog step matches only while it still holds exactly that body. A session started
-    before pinning existed keeps the version-and-release rule.
+    the catalog step must also still hold exactly that body: the AI context reads the catalog
+    step, and must never narrate other content than the session is graded on.
     """
-    if session.pinned_revisions.exists():
-        pinned = (
-            session.pinned_revisions.filter(kind="adventure-step", record_key=step.step_id)
-            .values_list("body", flat=True)
-            .first()
-        )
-        if pinned is not None:
-            return pinned == authoring.current_body(step)
     adventure = session.adventure
-    return (
-        adventure.version == session.template_version
-        and step.last_seen_release_id == adventure.last_seen_release_id
+    if adventure.version != session.template_version:
+        return False
+    if step.last_seen_release_id != adventure.last_seen_release_id:
+        return False
+    pinned = (
+        session.pinned_revisions.filter(kind="adventure-step", record_key=step.step_id)
+        .values_list("body", flat=True)
+        .first()
     )
+    return pinned is None or pinned == authoring.current_body(step)
 
 
 def _current_step_body(session: AdventureSession) -> dict:
