@@ -1,10 +1,12 @@
 # Numbered migration tracker
 
-Two tracks. **Track A** (Phases 1 to 13): Django backend migration, ADR-019, **Proposed**.
+Two tracks. **Track A** (Phases 1 to 13): Django backend migration, ADR-019, **Accepted in part**.
 **Track B** (Phases 20 to 23): Phaser to unified Three.js engine, ADR-020, **Accepted**. Source
 of detail: `docs/DJANGO_MIGRATION_ROADMAP.md`; Track B inventory and matrix:
-`docs/THREEJS_ENGINE_CONVERSION.md`. Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / CANCELED (kept as history, struck through). All Track A tasks
-are TODO until ADR-019 is accepted. Track B docs-only tasks (LAI-2001 to 2003) do not wait for
+`docs/THREEJS_ENGINE_CONVERSION.md`. Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / CANCELED (kept as history, struck through). ADR-019's
+direction is approved; its open gates (G1 to G10, G4 resolved) still apply. A Track A task proceeds
+when its own dependencies and the gates it touches are satisfied (owner, 2026-10-24; CLAUDE.md
+section 18). Track B docs-only tasks (LAI-2001 to 2003) do not wait for
 it; Track B code tasks wait for LAI-0201. A task marked in the roadmap as APPROVAL must stop and ask
 before touching AWS.
 
@@ -240,7 +242,6 @@ LAI-0805's ADR; TR-D5 is still Proposed.
 - [ ] **TR-18** Living cove: ambient animation and Pip animation (depends: TR-13; animated Pip asset). Development complete with the existing Pip clips (`Talk`, `Wave`; a hop for a figure with no model), shimmering water, fireflies; reduced motion respected. Left: Pip `Cheer` and `Point` clips (art); pending browser acceptance
 - [ ] **TR-19** Sound effects with mute. BLOCKED on owner decision TR-D26 (where the setting lives; recommendation in the roadmap, section 19). Done and independent of it: `soundCues.ts` raises named cues, silent until a player registers
 - [ ] **TR-20** Replayable activity after completion (depends: TR-17). Development complete, unit/API verified: the Lookout spyglass, a `REPLAY` chest that never opens, grants nothing permanent, and records skill evidence. Pending browser acceptance and owner playtest
-- [ ] **TR-11** Second chest and quest chain (depends: TR-9)
 
 ## Phase 28 — AI Question Studio (branch `features/studio`, ADR-046 Accepted)
 
@@ -269,12 +270,12 @@ Detail: `docs/AI_QUESTION_STUDIO.md`.
 - [x] **LAI-AQS-021** Question selection. DONE locally: subject, grade and band, topic, skill, difficulty and adventure filters; no repeat within a session; falls back to the authored challenge
 - [x] **LAI-AQS-022** Grading and mastery integration. DONE locally: `grade_answer` and `SkillEvidence` unchanged; attempt snapshots the revision; no model call at runtime. React multiplication picture added and verified (Vitest, typecheck)
 - [x] **LAI-AQS-023** Automated testing. DONE locally: 125 Studio tests plus two updated guard tests; full Python suite 1389 + 354 passed (see IMPLEMENTATION_STATUS)
-- [ ] **LAI-AQS-024** End-to-end acceptance (depends: 015 to 023; live Bedrock needs LAI-0705 approval). IN PROGRESS: workflow verified end to end with the fake model; OPEN: live Bedrock (LAI-0705 approval) and a Django Admin browser pass
+- [ ] **LAI-AQS-024** End-to-end acceptance (depends: 015 to 023; live Bedrock needs LAI-0705 approval). IN PROGRESS: workflow verified end to end with the fake model, and most of the Admin browser pass done 2026-11-02 (POST-MERGE-05, `react/e2e/acceptance/question-studio.spec.ts`); OPEN: live Bedrock (LAI-AQS-025) and the rest of LAI-AQS-026
 
 ### Phase 28 follow-ups (open gates, not started)
 
 - [ ] **LAI-AQS-025** Live Bedrock verification of Studio generation (depends: 024 code, LAI-0705). **APPROVAL: AWS credentials, Bedrock cost, Guardrail.** Run one small batch (5 questions, one chunk) under the real instance role with `LAI_AI_PROVIDER=bedrock`, then score it from the stored rows, not from a 200: batch status, model id, token counts, estimated cost, and per-question validation results. Confirm the Guardrail applies, the output schema is accepted by structured output, the 60 second timeout is enough for a chunk, and a deliberate Guardrail probe stores nothing. Record the real cost per question and set the price settings. Closes half of LAI-AQS-024.
-- [ ] **LAI-AQS-026** Django Admin browser acceptance pass (depends: 024 code). Walk the whole flow in a real browser as separate author, reviewer and publisher accounts: generate, follow batch status, review and edit, approve, publish, correct, retire, and a bulk action with mixed results. Check permission denials, read-only published pages, mobile-width layout of the review page, and that a `thread` run mode batch finishes. Capture findings in `docs/IMPLEMENTATION_STATUS.md`. Closes the other half of LAI-AQS-024.
+- [ ] **LAI-AQS-026** Django Admin browser acceptance pass (depends: 024 code). Walk the whole flow in a real browser as separate author, reviewer and publisher accounts: generate, follow batch status, review and edit, approve, publish, correct, retire, and a bulk action with mixed results. Check permission denials, read-only published pages, mobile-width layout of the review page, and that a `thread` run mode batch finishes. Capture findings in `docs/IMPLEMENTATION_STATUS.md`. Closes the other half of LAI-AQS-024. **Progress 2026-11-02 (POST-MERGE-05, automated, fake model, `inline` run mode):** done in Chromium: generate with form validation, batch page, approve, reject, publish, correction (and a second one refused), retire, a bulk action with mixed results, permission denials per role, read-only published pages, the question list at phone width, and a pool serving published questions to Treasure Rush. Still to do: edit a draft in the browser, the review (change) page at phone width, and a `thread` run mode batch finishing.
 - [ ] **LAI-AQS-027** Task queue decision and implementation for long batches (depends: none; ADR needed). The `thread` run mode can strand a batch on a worker restart (reclaimed after 15 minutes only if someone runs it again). Decide between a polling worker running `studio_run_batch` as its own service, SQS with a worker, or a library queue, record it in an ADR, then implement with a heartbeat, safe retry of a chunk, and a visible "stalled" state in Admin. **APPROVAL if it needs new AWS infrastructure.** Acceptance: killing the worker mid-batch loses at most the chunk in flight and the batch completes on restart; tests prove it.
 - [ ] **LAI-AQS-028** Storykeeper Castle and other adventures adopt the question bank (depends: LAI-0309, LAI-0603, LAI-0709; ADR needed). Those adventures run on Amplify sessions with no Django story catalog, so the bank cannot serve them yet. Once their steps exist in Django, add a pool keyed by adventure, serve through the same snapshot and grading path, keep the authored fallback, and extend the question types served (text stems, short answer, division) with a grader for each.
 
