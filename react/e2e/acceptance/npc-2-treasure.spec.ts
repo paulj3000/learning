@@ -29,6 +29,8 @@ const pips = async (page: Page) => (await npcs(page)).filter((n) => n.npcId === 
 
 const PIP = 'Pirate Pip';
 const dialog = (page: Page) => page.getByRole('dialog', { name: PIP });
+/** An unprompted line: the non-modal speech bubble (QA F-B), never a dialog. */
+const bubble = (page: Page) => page.getByRole('region', { name: PIP });
 
 /** Waits until the managed Pip has loaded his model and stands visible. */
 async function managedPip(page: Page): Promise<Npc> {
@@ -43,13 +45,14 @@ async function managedPip(page: Page): Promise<Npc> {
   return (await pips(page))[0]!;
 }
 
-/** Closes Pip's panel through its own Close button (or the last line's Continue). */
+/** Closes Pip's panel or unprompted-line bubble through its own Close button. */
 async function closePip(page: Page) {
-  const panel = dialog(page);
   // An ambient line (greeting, welcome back) may still be arriving; give it a moment.
   await page.waitForTimeout(800);
-  if (await panel.count()) await panel.getByRole('button', { name: 'Close' }).click();
-  await expect(panel).toHaveCount(0);
+  for (const open of [dialog(page), bubble(page)]) {
+    if (await open.count()) await open.getByRole('button', { name: 'Close' }).click();
+    await expect(open).toHaveCount(0);
+  }
 }
 
 async function inventory(page: Page, parent: Parent, childId: string) {
@@ -94,9 +97,14 @@ test.describe.serial('Treasure Rush: Pirate Pip from the NPC Manager', () => {
     expect(pip.x).toBeCloseTo(placement.position.x, 1);
     expect(pip.z).toBeCloseTo(placement.position.z, 1);
 
-    // First visit: the on_spawn greeting, once, as a panel with captions.
-    await expect(dialog(page)).toBeVisible();
-    await expect(dialog(page)).toContainText('Ahoy, friend! Welcome to Pirate Landing.');
+    // First visit: the on_spawn greeting, once, as a non-modal bubble with captions (F-B):
+    // no dialog, no focus taken, and the HUD (Hint, Full screen) stays usable.
+    await expect(bubble(page)).toContainText('Ahoy, friend! Welcome to Pirate Landing.');
+    await expect(dialog(page)).toHaveCount(0);
+    expect(
+      await page.evaluate(() => Boolean(document.activeElement?.closest('[data-npc-ambient]'))),
+    ).toBe(false);
+    await expect(page.getByRole('button', { name: 'Hint', exact: true })).toBeVisible();
     await shot(page, 'cove-01-first-greeting');
     await closePip(page);
     expect((await pips(page)).length).toBe(1);
@@ -214,7 +222,8 @@ test.describe.serial('Treasure Rush: Pirate Pip from the NPC Manager', () => {
     await expect(page.getByText('You found', { exact: true })).toBeVisible();
     await expect(dialog(page)).toHaveCount(0);
     await page.getByRole('button', { name: /^(Close|Keep exploring|Got it)$/ }).click();
-    await expect(dialog(page)).toBeVisible();
+    await expect(bubble(page)).toBeVisible();
+    await expect(dialog(page)).toHaveCount(0);
     await shot(page, 'cove-05-pip-reacts-to-treasure');
     await closePip(page);
     await expect(page.getByText("Find Pip's treasures: 1 of 4")).toBeVisible();
@@ -247,7 +256,8 @@ test.describe.serial('Treasure Rush: Pirate Pip from the NPC Manager', () => {
     await managedPip(page);
     await expect(page.getByText("Find Pip's treasures: 1 of 4")).toBeVisible();
     // QA-D3: the return visit is recognised on a normal resume (the session is still open).
-    await expect(dialog(page)).toContainText('Ahoy again, friend! Welcome back');
+    await expect(bubble(page)).toContainText('Ahoy again, friend! Welcome back');
+    await expect(dialog(page)).toHaveCount(0);
     await shot(page, 'cove-08-welcome-back');
     await closePip(page);
     // Leave and come back five times: never two Pips, and the scene is rebuilt cleanly.

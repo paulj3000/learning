@@ -10,7 +10,9 @@
 */
 
 .prompt,
-.panel {
+.panel,
+.ambient,
+.ambientInline {
   --npc-target: 3.5rem;
 }
 
@@ -224,4 +226,62 @@
   .choice:active:not(:disabled) {
     transform: none;
   }
+}
+
+/*
+  An unprompted line (QA F-B): a small, non-modal speech bubble. `ambientInline` is one compact
+  row in a world's stage speech slot (top centre, clear of the reticle's action prompt, the HUD
+  column and Full screen); `ambient` is fixed to the top right when there is no stage slot.
+*/
+.ambient,
+.ambientInline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: min(22rem, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 3px solid var(--color-accent);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-raised);
+}
+
+.ambientInline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  max-width: 100%;
+  padding: var(--space-2) var(--space-3);
+}
+
+.ambientBody {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.ambientActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.ambient {
+  position: fixed;
+  top: var(--space-4);
+  right: var(--space-4);
+  z-index: 18;
+}
+
+.ambientTitle {
+  margin: 0;
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-large);
+  font-weight: var(--font-weight-display);
+}
+
+.ambientSpeech {
+  margin: 0;
+  font-size: var(--font-size-large);
+  line-height: var(--line-height-base);
 }

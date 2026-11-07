@@ -51,6 +51,8 @@ export interface TriggerQueue {
   /** Offers a play trigger; returns whether it is now waiting. */
   offerPlay(trigger: Trigger): boolean;
   offerSpawn(npcId: string, placementKey: string): void;
+  /** True while a play trigger is waiting (it may replace an unprompted line on screen). */
+  hasPlay(): boolean;
   /** The next conversation to start, removing it from the queue. */
   take(): QueuedTrigger | null;
   size(): number;
@@ -81,6 +83,7 @@ export function createTriggerQueue(now: () => number = () => Date.now()): Trigge
       }
       return spawns.shift() ?? null;
     },
+    hasPlay: () => play !== null,
     size: () => (play ? 1 : 0) + spawns.length,
     clear() {
       play = null;

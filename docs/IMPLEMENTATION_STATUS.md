@@ -12343,6 +12343,20 @@ lands.
 Plan: `docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md`; contracts: `docs/NPC_MANAGER_CONTRACTS.md`;
 tracker: `tasks/TASK_TRACKER.md` Phase 30.
 
+**QA findings F-A and F-B: fixed, owner review pending (2026-11-07, `fix/npc-qa-fa-fb`).** With no
+active release the runtime reads answer `200` with `release: 0` (no browser error on every
+visit); unprompted NPC lines (greeting, welcome back, reactions) show as a non-modal speech bubble
+in a new top-centre stage `speechSlot` and never cover the HUD; only a conversation the child
+starts is modal; `end` is idempotent and the client no longer races it. Full browser acceptance
+63 passed, 0 failed; pytest 2505, Vitest 4255. Details: `docs/NPC_MANAGER_QA_REPORT.md` 8a.
+
+**Pirate Pip variant (2026-11-07): development complete, owner review pending.** The owner's
+rigged pirate is `content/models/npc-pip-pirate.glb` (clips Idle, Walk, Wave, Point; no Talk yet).
+`manage.py add_pip_pirate_variant [--use-in-cove] [--publish]` registers it as the asset
+`npc-pip-pirate` through the Asset Library services and adds Pip's `pirate` variant; `classic`
+stays the default. Tests: `lai/apps/npcs/tests/test_pip_pirate_variant.py` (6). Not yet run on any
+deployed environment.
+
 **Base.** `origin/feature/sound-manager` merged first (owner decision, `c2393ad`); merge fixes for
 the ADR-045 registry title (`33cdede`) and the public speech-file route test (`fe9c905`).
 Development ports moved to PostgreSQL 5442, Django 8010, Vite 5183 (`18e9cec`).

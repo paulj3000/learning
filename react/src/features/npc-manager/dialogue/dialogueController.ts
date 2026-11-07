@@ -192,7 +192,8 @@ export function createDialogueController(api: NpcDialogueApi): DialogueControlle
     show(response, started);
   }
 
-  function interrupt(): void {
+  /** `endOnServer` false: the caller's next request replaces the server cursor anyway. */
+  function interrupt(endOnServer = true): void {
     if (!isOpen() || view.npcId === null) return;
     const npcId = view.npcId;
     const conversationId = view.conversationId;
@@ -201,7 +202,7 @@ export function createDialogueController(api: NpcDialogueApi): DialogueControlle
     inFlight = null;
     set({ ...IDLE_VIEW, status: 'ended', npcId, conversationId, endReason: 'completed' });
     emit({ type: 'dialogue.interrupted', npcId, conversationId });
-    if (conversationId !== null) {
+    if (conversationId !== null && endOnServer) {
       api.end(npcId, conversationId).catch(() => undefined); // best effort
     }
   }
@@ -222,9 +223,11 @@ export function createDialogueController(api: NpcDialogueApi): DialogueControlle
     },
     async start(npcId, trigger, placementKey) {
       if (view.busy) return;
-      // An open conversation (this NPC or another) is interrupted first and ended on the
-      // server best-effort; a late answer to that end is a harmless conversation_not_found.
-      interrupt();
+      // An open conversation is interrupted first. With another NPC it is also ended on the
+      // server (best effort). With the same NPC it is not: the server keeps one cursor per child
+      // and NPC, so this start replaces it, and a racing `end` would only come back
+      // 404 conversation_not_found or 409 conversation_ended (a browser console error).
+      interrupt(view.npcId !== npcId);
       set({ ...IDLE_VIEW, status: 'loading', npcId, busy: true });
       const request = placementKey === undefined ? { trigger } : { trigger, placementKey };
       await run((signal) => api.start(npcId, request, signal), true);
@@ -258,7 +261,7 @@ export function createDialogueController(api: NpcDialogueApi): DialogueControlle
       set({ busy: true });
       await run((signal) => api.end(npcId, conversationId, signal), false);
     },
-    interrupt,
+    interrupt: () => interrupt(),
     dispose() {
       interrupt();
       viewListeners.clear();

@@ -164,6 +164,8 @@ export function ThreeLocationWorldView({
   const [companionQuestCue, setCompanionQuestCue] = useState<string | null>(null);
   /** Where companions put their own controls, inside the stage (TR-13). */
   const [hudSlot, setHudSlot] = useState<HTMLDivElement | null>(null);
+  /** Where companions put a character's unprompted line, top centre of the stage (NPC F-B). */
+  const [speechSlot, setSpeechSlot] = useState<HTMLDivElement | null>(null);
   /** The action prompt's verb, under `interactionAssist` only. */
   const [focusedAction, setFocusedAction] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -441,6 +443,7 @@ export function ThreeLocationWorldView({
           showBackpack={!companionOwnsBackpack}
         />
         <div ref={setHudSlot} className={styles.stageControls} />
+        <div ref={setSpeechSlot} className={styles.stageSpeech} />
         {openExtension ? (
           <openExtension.Overlay
             childId={childId}
@@ -470,6 +473,7 @@ export function ThreeLocationWorldView({
           setFocusLabel={setFocusedLabel}
           setQuestCue={setCompanionQuestCue}
           hudSlot={hudSlot}
+          speechSlot={speechSlot}
           limitReached={limitReached}
           refreshWorld={refreshWorld}
         />

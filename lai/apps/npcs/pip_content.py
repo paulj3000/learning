@@ -46,6 +46,19 @@ INTERACTION_RADIUS = 2.5
 #: other state falls back through `ANIMATION_FALLBACKS` (celebrate -> wave, think -> idle).
 ANIMATION_MAP = {"idle": "Idle", "talk": "Talk", "wave": "Wave"}
 
+#: The owner's rigged pirate (2026-11-07): a second Pip variant on its own Django-authored asset,
+#: so the shared `npc-pip` placeholder other worlds use is unchanged. One Mixamo character with
+#: four actions renamed from the clip vocabulary (re-export of the QA report's section 4).
+#: `add_pip_pirate_variant` uploads `PIRATE_MODEL_FILE` through the Asset Library services.
+PIRATE_ASSET_ID = "npc-pip-pirate"
+PIRATE_VARIANT_KEY = "pirate"
+PIRATE_MODEL_FILE = "content/models/npc-pip-pirate.glb"
+PIRATE_CLIPS = ("Idle", "Walk", "Wave", "Point")
+#: No Talk clip yet: talk falls back through `ANIMATION_FALLBACKS` (talk -> idle).
+PIRATE_ANIMATION_MAP = {"idle": "Idle", "walk": "Walk", "wave": "Wave", "point": "Point"}
+#: The model stands 0.94 m; the classic Pip is about 1.2 m with his hat.
+PIRATE_SCALE = 1.25
+
 ROLE = NpcRole.QUEST_GIVER
 PERSONALITY = {
     "traits": ["cheerful", "kind", "curious"],

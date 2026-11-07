@@ -41,6 +41,8 @@ export interface UseCastleNpcsOptions {
   onCloseInteraction(): void;
   /** Another panel (the tale, the story, a generic panel) is on screen. */
   suspended: boolean;
+  /** True when the unprompted-line bubble renders in the stage's `speechSlot`. */
+  onStage?: boolean;
   /** Tests only. */
   deps?: NpcSceneHostDeps;
 }
@@ -89,6 +91,7 @@ export function useCastleNpcs(options: UseCastleNpcsOptions): CastleNpcs {
     suspended: options.suspended,
     onInteract,
     onQuestOffer,
+    ambientLayout: options.onStage ? 'inline' : 'floating',
     ...(options.deps ? { deps: options.deps } : {}),
   });
   const hostRef = useRef(host);

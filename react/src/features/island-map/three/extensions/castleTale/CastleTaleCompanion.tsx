@@ -104,6 +104,7 @@ export function CastleTaleCompanion({
   limitReached,
   refreshWorld,
   hudSlot,
+  speechSlot,
 }: LocationCompanionProps) {
   const parsed = useMemo(() => tryParseCastleTaleConfig(config), [config]);
   const scene: CastleTaleSceneApi | null = isCastleTaleScene(sceneApi) ? sceneApi : null;
@@ -304,6 +305,7 @@ export function CastleTaleCompanion({
     claimedInteraction,
     onCloseInteraction,
     suspended: (taleActive && !taleDone) || (storyActive && !storyDone) || openElsewhere,
+    onStage: Boolean(speechSlot),
   });
   const { notifyTaleStarted, notifyTaleCompleted } = npcs;
   const taleSlug = taleForBand?.slug ?? THE_STORYKEEPERS_TALE.slug;
@@ -323,6 +325,8 @@ export function CastleTaleCompanion({
   if (!parsed) return null;
 
   const npcStage = npcs.host.panel ?? npcs.host.prompt;
+  // An unprompted line (F-B) sits at the top of the stage, never instead of the prompt.
+  const npcAmbient = npcs.host.panel ? null : npcs.host.ambient;
   const captions = (
     <div className={speechStyles.captions}>
       <SpeechCaption
@@ -340,6 +344,7 @@ export function CastleTaleCompanion({
     <>
       {hudSlot ? createPortal(captions, hudSlot) : captions}
       {npcStage ? (hudSlot ? createPortal(npcStage, hudSlot) : npcStage) : null}
+      {npcAmbient ? (speechSlot ? createPortal(npcAmbient, speechSlot) : npcAmbient) : null}
       {taleActive && taleForBand ? (
         <CastleTaleSession
           childId={childId}

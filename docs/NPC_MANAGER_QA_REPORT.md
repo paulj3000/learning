@@ -16,13 +16,13 @@ stack's fake AI provider, speech disabled and in-memory asset storage. **No live
 | Backend tests (pytest, full suite) | PASS: 2503 passed |
 | Frontend tests (Vitest, full suite) | PASS: 4242 passed in 377 files |
 | Django Admin browser QA | PASS (12 browser tests, desktop and 390 px mobile width) |
-| Treasure Rush integration | PASS for the NPC Manager's own 8 browser tests; the pre-existing Treasure Rush suite FAILS 3 tests with the managed Pip (F-B, section 8) |
+| Treasure Rush integration | PASS: the NPC Manager's own 8 browser tests and the pre-existing Treasure Rush suite with the managed Pip (F-B fixed, section 8a) |
 | Storykeeper's Castle integration | PASS with documented limits (7 browser tests); tale, quest log and backpack need Amplify, not available locally |
 | Animation QA | PASS (browser, Admin, asset validation and AnimationMixer tests); the owner's Mixamo pirate file was not available to inspect (section 4) |
 | Polly live QA | BLOCKED (no approved test environment or spending limit; fake-client regression PASS) |
 | Bedrock live QA | BLOCKED (same; fake-model regression PASS) |
 | Accessibility | PASS for automated checks; MANUAL REQUIRED for screen readers, switch access and tablets |
-| Merge readiness | NOT READY: every static gate and unit suite passes, but 6 pre-existing browser tests fail because of two NPC Manager behaviours that need an owner decision (F-A, F-B, section 8) |
+| Merge readiness | READY FOR OWNER REVIEW after F-A and F-B (section 8a): every gate and the full browser suite pass (63 passed, 0 failed). Owner acceptance, manual accessibility and live AWS remain |
 
 Four defects were found and fixed with regression tests (section 6). None of the four documented
 limitations is a release blocker (section 7).
@@ -120,6 +120,20 @@ Waving to these takes.
 
 Bulk renaming and retargeting stay with the separately planned Lambda animation-processing
 project; nothing here starts that work.
+
+**Resolved 2026-11-07: the pirate is Pip's `pirate` variant.** The owner sent the pirate as one
+file per Mixamo motion. Its four usable motions were merged onto the one skinned mesh as `Idle`,
+`Walk`, `Wave` and `Point` (`content/models/npc-pip-pirate.glb`, 3.3 MB; validator: no
+findings). Left out: Shooting (not suitable for the age range), the two talking takes (phone and
+seated), Sitting Idle, Looking Around and T-pose (outside the clip vocabulary). There is still no
+`Talk` clip, so talk falls back to idle. Apply it with
+`manage.py add_pip_pirate_variant [--use-in-cove] [--publish]`: it creates the Django-authored
+asset `npc-pip-pirate`, uploads and publishes the file through the Asset Library services, and
+adds the `pirate` variant (scale 1.25, map idle/walk/wave/point). `classic` and the shared
+`npc-pip` placeholder are unchanged, and `classic` stays the default. `--use-in-cove` points the
+Treasure Cove placement at the pirate (switch back in Admin by clearing the placement's variant).
+Checked in Chromium against a local stack: the pirate loads (not the placeholder), faces the
+child, stands at Pip's height and plays Wave on arrival and Idle at rest.
 
 **Added in this pass.** A `generic_clip_name` upload warning for exporter default take names
 (`mixamo.com`, `|LayerN(.00n)`, `ArmatureAction`, `Action.00n`, `Take 001`) with the fix above;
@@ -289,10 +303,47 @@ zero. One migration chain change on this branch: `catalog/0006_npc_definition_or
 **Pull request target.** `feature/npc-manager` (the QA branch was cut from it; the diff is the QA
 work only). After the owner's acceptance, `feature/npc-manager` merges to `main` cleanly.
 
+## 8a. F-A and F-B resolved (owner decision 2026-11-07, branch `fix/npc-qa-fa-fb`)
+
+The owner accepted both recommendations. Changes, each with regression tests:
+
+- **F-A: "nothing published" is a normal empty answer.** The three runtime reads (catalog, 3D Area,
+  Place) answer `200` with `release: 0` and nothing in them when there is no ACTIVE release
+  (never published, or retired), instead of `404 no_active_release`. Child and scope checks still
+  run first. Clients already treated both the same (legacy Pip and legacy Quill stay); the client
+  still accepts the old 404. Interaction, speech and hint routes keep `404 no_active_release`.
+  Contract `docs/NPC_MANAGER_CONTRACTS.md` 5.1 updated. Tests: `test_runtime_api.py`
+  (`..._are_empty_200`, scoping still applies), seed and acceptance-flow tests, `npc-1-admin`
+  (retire answers 200 with `release: 0`).
+- **F-B: unprompted lines are a non-modal speech bubble.** A line the child did not ask for
+  (spawn greeting, welcome back, reactions) renders as `NpcAmbientLine` (`host.ambient`), not the
+  modal panel: a labelled region with one polite live line, no focus move, no key trap, Continue
+  (or "Talk to Pip" when the line has choices, which moves the same conversation into the modal
+  panel) and Close, 56 px targets, no timer. It sits in a new stage `speechSlot` (top centre,
+  below the quest cue and exit link), so it stays in full screen and never covers Hint, Backpack,
+  Full screen or the reticle's action prompt. A newer play line replaces an ignored bubble; a
+  spawn greeting waits. Only a conversation the child starts is modal (`host.panel`,
+  `conversationOpen`). Treasure Cove and Storykeeper's Castle both render it. Accessibility doc
+  updated. Tests: host (6 new), `NpcAmbientLine.test.tsx` (5), acceptance test step 7,
+  `npc-2-treasure` and `npc-4-a11y` (bubble, axe 0 violations on the bubble, focus untouched).
+- **Found while rerunning the full suite:** a best-effort `end` raced the client's next `start`
+  for the same NPC (`404 conversation_not_found` or `409 conversation_ended` in the browser
+  console). The client no longer sends that `end` when the next conversation is with the same NPC
+  (the server keeps one cursor per child and NPC), and the server's `end` is idempotent for a
+  conversation that is already over (`200`, `ended: true`); `choose` and `advance` still refuse.
+  Tests: `dialogueController.test.ts` (2), `test_dialogue_api.py`
+  (`test_end_is_idempotent_for_a_conversation_already_over`).
+- **Legacy suites with the managed Pip.** `treasure-rush.spec.ts` and `question-studio.spec.ts`
+  assumed the legacy `PipDialog` ("Quest accepted!", "Keep exploring"). Once the NPC specs
+  publish release 3 the managed Pip answers instead, so those steps accept either Pip's ending,
+  and `closePanel` also closes the managed Pip's conversation that waits behind the finale panel.
+
+**Full browser acceptance after the fixes: PASS, 63 passed, 1 skipped (touch test, desktop
+only), 0 failed** (desktop and tablet projects, fresh `lai_e2e` database).
+
 ## 9. Remaining owner actions
 
-1. Decide F-A and F-B (section 8), the only items keeping merge readiness at NOT READY; then the
-   full browser suite should be rerun.
+1. ~~Decide F-A and F-B~~ Decided and fixed (section 8a); the full browser suite passes.
 2. Review and merge the QA pull request into `feature/npc-manager`.
 3. Physical-device checks: VoiceOver (iPad) and TalkBack (Android tablet) reading the dialog and
    lines once; switch access; touch targets for ages 3 to 4; frame rate and memory on the

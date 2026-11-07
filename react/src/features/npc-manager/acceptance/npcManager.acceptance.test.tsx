@@ -396,6 +396,7 @@ describe('NPC Manager acceptance: Treasure Cove with managed Pip (fakes only)', 
           <p data-testid="status">{value.status}</p>
           {value.prompt}
           {value.panel}
+          {value.ambient}
         </>
       );
     }
@@ -481,6 +482,10 @@ describe('NPC Manager acceptance: Treasure Cove with managed Pip (fakes only)', 
       .filter((t) => t !== 'on_spawn' && t !== 'on_interact');
     expect(playTriggers).toEqual(['on_treasure_found']); // one line for the best trigger
     expect(screen.getByText(FOUND_TEXT)).toBeVisible();
+    // Unprompted, so a non-modal bubble (F-B): no dialog, focus stays where the child left it.
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(host.current?.conversationOpen).toBe(false);
+    expect(host.current?.ambientOpen).toBe(true);
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await flush();
     expect(screen.queryByRole('dialog')).toBeNull();

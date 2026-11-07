@@ -87,6 +87,27 @@ def catalog(release: published.PublishedRelease, child) -> dict:
     }
 
 
+def empty_catalog() -> dict:
+    """The catalog when nothing is published: `release: 0`, no characters (contract 5.1)."""
+    return {"contractVersion": 1, "release": 0, "characters": []}
+
+
+def empty_scene(scope: Scope) -> dict:
+    """The Area or Place scene when nothing is published: `release: 0`, no placements.
+
+    "Nothing published" is the normal state of every environment before its first release and
+    after a retirement, so it is a 200, not an error: browsers log every 4xx as a failed
+    resource, and the client already treats it as "show no managed NPCs" (QA finding F-A).
+    """
+    return {
+        "contractVersion": 1,
+        "release": 0,
+        "scope": {"place": scope.place, "area": scope.area},
+        "characters": {},
+        "placements": [],
+    }
+
+
 def scene(release: published.PublishedRelease, child, scope: Scope) -> dict:
     """The Area or Place route: spawnable placements in `scope` and exactly the characters
     they place."""

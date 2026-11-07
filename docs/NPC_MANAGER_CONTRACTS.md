@@ -162,7 +162,14 @@ token resolves `child_id` (another family's child is 404). The game runtime cook
   this child. `variant` is resolved: the placement's variant if available to this child, else the
   first available variant by order, else the default. `behavior` is inlined as
   `{key, type, parameters}` or null. `characters` holds exactly the characters placed.
-- No active release: `404 no_active_release` (clients show no NPCs, never an error screen).
+- No active release (never published, or the active release retired): these three reads answer
+  `200` with `release: 0` and nothing in them (`characters: []` for the catalog;
+  `characters: {}, placements: []` for a scene, `scope` as requested). Clients show no managed
+  NPCs, never an error screen. Child and scope checks still apply first (another family's child,
+  an unknown Place or Area: 404). Changed from `404 no_active_release` after QA finding F-A,
+  because browsers log every 4xx as a failed resource on every visit; clients still accept the
+  old 404 as the same empty answer. Interaction, speech and hint routes keep
+  `404 no_active_release`.
 - RuntimeCharacter = snapshot character minus server-only keys and minus each variant's
   `availability` and `isDefault`.
 
@@ -184,9 +191,12 @@ eligible for the child, else `404 npc_not_found`.
   `409 invalid_choice`. Applies the choice action (section 7), then moves to `next` or ends.
 - `POST interactions/<conversation_id>/advance/` body `{}`: for a node without choices; moves to
   `next` or ends. A node with choices refuses (`409 invalid_choice`).
-- `POST interactions/<conversation_id>/end/` body `{}`: ends; `ended: true`.
-- A conversation id that is not this child's current one: `404 conversation_not_found`; one that
-  already ended: `409 conversation_ended`. A conversation started on an older release is ended
+- `POST interactions/<conversation_id>/end/` body `{}`: ends; `ended: true`. Idempotent: ending a
+  conversation that is already over (ended, replaced by a newer one, or started on an older
+  release) is `200` with `node: null, ended: true` (QA finding F-A follow-up: a client's
+  best-effort end can race its next start).
+- For `choose` and `advance`: a conversation id that is not this child's current one:
+  `404 conversation_not_found`; one that already ended: `409 conversation_ended`. A conversation started on an older release is ended
   when the release changes (`409 conversation_ended`).
 - InteractionResponse: `{contractVersion, release, npcId, conversationId, dialogueKey,
   node: RuntimeNode | null, choices: [{choiceKey, label, action}], ended, questOffer}`.

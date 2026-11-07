@@ -261,6 +261,28 @@ describe('NPC dialogue controller', () => {
     expect(types()).toContain('dialogue.interrupted');
   });
 
+  it('a new conversation with the same NPC replaces the cursor without a racing end', async () => {
+    const { api, controller, types } = setup();
+    api.start.mockResolvedValueOnce(response('hello'));
+    api.start.mockResolvedValueOnce(response('ask', [OK], { dialogueKey: 'offer' }));
+    await controller.start('pirate-pip', 'on_spawn');
+    await controller.start('pirate-pip', 'on_interact');
+    // The server keeps one cursor per child and NPC; ending the old one would only race the
+    // new start (404 conversation_not_found or 409 conversation_ended).
+    expect(api.end).not.toHaveBeenCalled();
+    expect(types()).toContain('dialogue.interrupted');
+    expect(controller.getView()).toMatchObject({ node: { nodeKey: 'ask' } });
+  });
+
+  it('interrupt() on its own still ends on the server', async () => {
+    const { api, controller } = setup();
+    api.start.mockResolvedValueOnce(response('hello'));
+    api.end.mockResolvedValueOnce(response(null));
+    await controller.start('pirate-pip', 'on_spawn');
+    controller.interrupt();
+    expect(api.end).toHaveBeenCalledWith('pirate-pip', CONVERSATION);
+  });
+
   it('ends on request and notifies subscribers; dispose drops every listener', async () => {
     const { api, controller } = setup();
     const views: string[] = [];
