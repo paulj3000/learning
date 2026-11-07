@@ -32,7 +32,8 @@ def post(api, parent, child, body):
 
 
 def sent(fake):
-    (part,) = fake.requests[0].content
+    part, marker = fake.requests[0].content
+    assert marker.guarded and not marker.untrusted
     return part, json.loads(part.text.split("\n", 1)[1].split("\n\nReply")[0])
 
 

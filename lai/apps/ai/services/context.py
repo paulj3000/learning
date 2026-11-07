@@ -16,16 +16,16 @@ Only authored copy and statuses reach a prompt: no nickname, no interests, no co
 beyond the adventure template id.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from uuid import UUID
+
+from django.conf import settings
 
 from apps.adventures import engine
 from apps.catalog.models import AdventureStep, NpcDefinition
-from apps.education.models import SkillProgress
 from apps.game_sessions.models import AdventureSession, SessionKind
+from apps.game_sessions.services import step_is_pinned
 from apps.quests.models import QuestProgress, QuestStatus
-
-from ..tutor_content import KNOWN_STATUSES, list_prerequisites
 
 
 class ContextNotFound(Exception):
@@ -81,6 +81,10 @@ def load_session_step(child, session_id, step_id: str) -> SessionStep:
         step = AdventureStep.objects.get(adventure=session.adventure, step_id=step_id)
     except (AdventureSession.DoesNotExist, AdventureStep.DoesNotExist, ValueError):
         raise ContextNotFound from None
+    if not step_is_pinned(session, step):
+        # The adventure was republished after this session started: never narrate or hint with
+        # different content than the session is graded on. The client keeps its authored copy.
+        raise ContextNotFound
     return SessionStep(
         template_id=session.adventure.slug,
         session_id=str(session.pk),
@@ -92,18 +96,15 @@ def load_session_step(child, session_id, step_id: str) -> SessionStep:
 
 
 def prerequisite_mastery(child, skill_id: str) -> list[dict]:
-    """`[{skillId, status}]` for this skill's prerequisites the child has reached; statuses only.
+    """`[{skillId, status}]` for this skill's prerequisites the child currently knows.
 
-    `SkillProgress.recent_level` is the server's status column. Until LAI-0603 computes it on
-    the server it is usually empty, which only means fewer "known" titles (never more).
+    Statuses only, from `SkillProgress` (computed by `education.mastery` from server-graded
+    evidence, with review decay applied at read time). A skill with no progress row is simply
+    not listed: fewer "known" titles, never more.
     """
-    prerequisite_ids = [skill.id for skill in list_prerequisites(skill_id)]
-    if not prerequisite_ids:
-        return []
-    rows = SkillProgress.objects.for_child(child).filter(
-        learning_objective_code__in=prerequisite_ids, recent_level__in=KNOWN_STATUSES
-    )
-    return [{"skillId": r.learning_objective_code, "status": r.recent_level} for r in rows]
+    from . import learner
+
+    return learner.known_prerequisites(child, skill_id)
 
 
 def active_quest_copy(child) -> tuple[str | None, str | None]:
@@ -134,23 +135,59 @@ class NpcNarration:
     template_id: str
     allowed_topic: str
     fallback_text: str
+    # Authored, published, child-scoped context (apps/ai/services/npc.py); closed labels and
+    # titles only. `{}` entries are omitted from the prompt.
+    extra: dict = field(default_factory=dict)
 
 
-def load_npc_narration(npc_id: str, node_id: str) -> NpcNarration:
+def load_npc_narration(npc_id: str, node_id: str, child=None) -> NpcNarration:
     """The authored narration hint of one dialogue node of an active NPC, or ContextNotFound.
 
     Published catalog content only (`NpcDefinition.active`); a node without a `narration` hint
     was never authored for AI re-voicing and is not found here (the opt-in default of
-    `DialogueNode.narration` in react/src/features/npc/types.ts).
+    `DialogueNode.narration` in react/src/features/npc/types.ts). With
+    `LAI_AI_NPC_ENFORCE_ELIGIBILITY` a node whose conditions this child does not meet is not
+    found either. Without a `child` (the speech route, which only voices the authored line)
+    there is no child-specific context and no eligibility check. The prompt also gets the NPC's
+    identity, its Island, Place and 3D Area, this child's own relationship level and active
+    quest, all read here, never from the request.
     """
-    npc = NpcDefinition.objects.filter(npc_id=npc_id, active=True).first()
+    from . import npc as npc_context
+
+    npc = (
+        NpcDefinition.objects.filter(npc_id=npc_id, active=True)
+        .select_related("home_location__world")
+        .first()
+    )
     dialogue = npc.source.get("dialogue") if npc and isinstance(npc.source, dict) else None
     for node in dialogue or []:
         if not isinstance(node, dict) or node.get("id") != node_id:
             continue
         narration = node.get("narration")
-        if isinstance(narration, dict):
-            topic, text = narration.get("allowedTopic"), narration.get("fallbackText")
-            if isinstance(topic, str) and topic.strip() and isinstance(text, str) and text.strip():
-                return NpcNarration(f"npc:{npc.npc_id}", topic, text)
+        if not isinstance(narration, dict):
+            continue
+        topic, text = narration.get("allowedTopic"), narration.get("fallbackText")
+        if not (
+            isinstance(topic, str) and topic.strip() and isinstance(text, str) and text.strip()
+        ):
+            continue
+        extra = {
+            "characterName": npc.display_name,
+            "characterRole": npc.role or None,
+            **npc_context.place_context(npc),
+        }
+        if child is not None:
+            state = npc_context.child_npc_state(child, npc.npc_id)
+            if settings.LAI_AI_NPC_ENFORCE_ELIGIBILITY and not npc_context.node_is_eligible(
+                node, state
+            ):
+                raise ContextNotFound
+            quest_title, quest_stage_title = active_quest_copy(child)
+            extra |= {
+                "relationshipLevel": state.relationship_level,
+                "hasMetBefore": state.has_met,
+                "questTitle": quest_title,
+                "questStageTitle": quest_stage_title,
+            }
+        return NpcNarration(f"npc:{npc.npc_id}", topic, text, extra)
     raise ContextNotFound

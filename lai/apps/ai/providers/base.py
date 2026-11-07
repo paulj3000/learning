@@ -17,10 +17,22 @@ from typing import Protocol
 @dataclass(frozen=True, slots=True)
 class ContentPart:
     """One block of the user message. `untrusted` text came from a client and is wrapped for
-    the Guardrail's input checks (Bedrock `guardContent`); server-authored text is not."""
+    the Guardrail's input checks (Bedrock `guardContent`); server-authored text is not.
+
+    `guarded` marks server-authored text that is wrapped anyway. Bedrock assesses the whole
+    message when no block is wrapped, and the Guardrail's prompt-attack filter then flags our
+    own instructions ("Reply with exactly one JSON object...") and blocks the turn. A turn
+    with nothing from a client therefore carries one short guarded marker. Never put
+    instructions in a wrapped block."""
 
     text: str
     untrusted: bool = False
+    guarded: bool = False
+
+    @property
+    def assessed(self) -> bool:
+        """Sent as Bedrock `guardContent`, so the Guardrail's input checks assess it."""
+        return self.untrusted or self.guarded
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +62,13 @@ class ModelResponse:
     latency_ms: int | None = None
 
 
+# Failure categories where trying the same request again can succeed. Everything else (access,
+# configuration, a rejected or truncated request, a reply that is not our schema) will fail the
+# same way, so a retry would only add latency and cost. Used by the Studio's chunk retry; the
+# live turn path never retries beyond the SDK's bounded attempts (a child is waiting).
+RETRYABLE_CATEGORIES = frozenset({"THROTTLED", "UNAVAILABLE", "TIMEOUT"})
+
+
 class ProviderError(Exception):
     """A model call failed. `category` is a `FailureCategory` value; the message is never shown
     to a child and never logged (ADR-025 logs exception types only)."""
@@ -60,6 +79,10 @@ class ProviderError(Exception):
         super().__init__(category or self.category)
         if category:
             self.category = category
+
+    @property
+    def retryable(self) -> bool:
+        return self.category in RETRYABLE_CATEGORIES
 
 
 class ProviderTimeout(ProviderError):

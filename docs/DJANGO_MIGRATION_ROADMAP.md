@@ -446,6 +446,15 @@ dependency graph: `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 13; status
 - **LAI-0821 Content-authoring milestone acceptance.** Acceptance: section 13.4 of the content
   authoring document.
 
+**LAI-0808 Island Explorer on the child homepage.** Depends: 0806, Phase 29 travel. Risk L.
+Acceptance: `/island/:childId` lists every Island the child's age band can see, from the same
+rules as the sailing dock; the current Island comes first with its open, catalog-active Places;
+an open Island links to its hub; a locked Island shows its authored hint, is never a link or
+button, and names no skill or score; tablet-first layout with no horizontal scroll at phone
+width; no new request or failure mode on the homepage. Not in scope: Django-served Islands
+(`GET /children/<id>/islands/`) on this page, which stays on the Phase 29 registry until the
+step-adventure client moves to Django.
+
 ### Phase 9 - Realtime (co-op) and storage
 
 **LAI-0901 Atomic co-op slot claim.** Depends: 0305, 0403. Risk M. Acceptance: transactional

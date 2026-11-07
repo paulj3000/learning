@@ -3,8 +3,11 @@ import { Link, useParams } from 'react-router-dom';
 import styles from './WelcomeHarbor.module.css';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { CompanionIntro } from '../features/island/CompanionIntro';
-import { isLocationUnlocked, listLocationsInWorld } from '../features/island/locations';
+import { IslandExplorer } from '../features/island/IslandExplorer';
+import { listLocationsInWorld } from '../features/island/locations';
 import { getHomeWorld } from '../features/worlds/worlds';
+import { listTravelDestinations } from '../features/worlds/travel';
+import { buildIslandExplorer } from '../features/worlds/islandExplorer';
 import { getTodaysEvent } from '../features/island/events';
 import { getSeasonalIslandNote } from '../features/island/seasons';
 import { getOrCreateCompanionProfile, getCompanionProfile } from '../features/island/api';
@@ -113,48 +116,39 @@ export function WelcomeHarbor() {
         <p className={styles.event}>{getSeasonalIslandNote(new Date())}</p>
       </div>
 
-      <h2 className={styles.mapHeading}>Where to next?</h2>
-      <div className={styles.grid}>
-        {/*
-          Phase 29: the harbor map shows the home island's own locations.
-          Before worlds existed this was every location there was; now a
-          second island's places are reached by sailing there, not by
-          appearing on this island's map.
-        */}
-        {listLocationsInWorld(getHomeWorld().slug)
-          .filter((location) => isLocationUnlocked(location, worldChangeKeys))
-          .filter((location) => !hiddenSlugs.includes(location.slug))
-          .map((location) => (
-            <Link
-              className={styles.card}
-              key={location.slug}
-              to={`/island/${childId}/locations/${location.slug}`}
-            >
-              <p className={styles.cardTitle}>{location.title}</p>
-              <p className={styles.cardTagline}>{location.tagline}</p>
-            </Link>
-          ))}
-        {/* Places authored in Django (ADR-047), such as Firepeak Volcano: straight to their 3D Area. */}
-        {servedPlaces.map((place) => (
-          <Link
-            className={styles.card}
-            key={place.placeId}
-            to={locationWorldPath(childId, place.regionId)}
-          >
-            <p className={styles.cardTitle}>{place.title}</p>
-            <p className={styles.cardTagline}>{place.tagline}</p>
-          </Link>
-        ))}
-      </div>
+      {/*
+        LAI-0808: the Island Explorer. Every island this child could see,
+        from the same rules the Sailing Dock uses: the island they are on
+        with its places, open islands one tap away, locked islands shown
+        with their hint and never as a link. Computed from the world
+        changes already loaded above, so it adds no request and no new
+        failure mode to the homepage.
+      */}
+      <IslandExplorer
+        islands={buildIslandExplorer({
+          childId,
+          destinations: listTravelDestinations({
+            worldChangeKeys,
+            ageBand: childProfile.ageBand,
+          }),
+          currentIslandLocations: listLocationsInWorld(getHomeWorld().slug),
+          worldChangeKeys,
+          hiddenLocationSlugs: hiddenSlugs,
+          // Places authored in Django (ADR-047), such as Firepeak Volcano: straight to their 3D Area.
+          servedPlaces: servedPlaces.map((place) => ({
+            slug: place.placeId,
+            title: place.title,
+            tagline: place.tagline,
+            href: locationWorldPath(childId, place.regionId),
+          })),
+        })}
+      />
 
       <Link className={styles.logLink} to={`/island/${childId}/log`}>
         See your adventure log
       </Link>
       <Link className={styles.logLink} to={`/island/${childId}/quests`}>
         Open your quest journal (new!)
-      </Link>
-      <Link className={styles.logLink} to={`/island/${childId}/travel`}>
-        Sail to another island (new!)
       </Link>
       <Link className={styles.logLink} to={`/island/${childId}/world`}>
         Try walking around the island (new!)

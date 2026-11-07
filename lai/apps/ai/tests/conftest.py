@@ -82,6 +82,9 @@ def ai_catalog(db, tmp_path):
             "steps": AI_STEPS,
         }
     ]
+    collections["adventures.json"]["learningObjectives"] = [
+        {"code": "counting-sets", "domain": "numeracy", "title": "Counting sets of objects"}
+    ]
     collections["islands.json"]["islands"][0]["pack"]["adventureSlugs"] = ["ai-bridge"]
     collections["quests.json"]["quests"][0]["stages"][0]["objectives"][0]["adventureSlug"] = (
         "ai-bridge"

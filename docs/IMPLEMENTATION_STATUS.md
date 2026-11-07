@@ -12651,3 +12651,127 @@ persist a secret-room discovery (it works in the world and nothing leaks).
 - **Fix.** `AreaPuzzleLayer.test.tsx` scene mock gained `entityPositionReader`, `unlockPositionReader`, `listenerSource` and `onFrame`.
 - **Verified (non-browser).** pytest on PostgreSQL 2483 passed, 0 skipped; Vitest 4382 passed; Ruff, oxlint, Prettier, typecheck, build, `content:check`, `golden:check`, `adr:check`, Django check and migration check clean.
 - **Not done.** Browser acceptance, deployed verification and LAI-0821 stay pending.
+
+## Bedrock readiness: LAI-0603, LAI-0709, AI reliability, live-test tooling (2026-11-04, branch `feature/ai-bedrock-readiness`, based on `origin/dev20261103`)
+
+**Status: development complete for what is feasible without AWS. Nothing was run against AWS,
+nothing was deployed, no browser test was run. LAI-0705, LAI-0710 and Guardrail validation are
+NOT accepted.** Owner workflow: `docs/AI_BEDROCK_ACCEPTANCE.md`. Design notes: `docs/AI_SERVICE.md`
+section 12.
+
+- **Acceptance criteria implemented.** LAI-0603: Python mastery rules at golden-vector parity,
+  server-graded evidence writes `SkillProgress` (Treasure Rush and Django adventure answers),
+  tutor `learnerProfile` built only from Django records with a safe fallback. LAI-0709 (partial):
+  NPC narration carries NPC identity, Island/Place/3D Area, the child's own relationship and
+  quest; optional eligibility enforcement; session turns refuse content republished after the
+  session started. Reliability: one shared Bedrock client, optional first-call timeout, retry
+  classification, `content_filtered`/`tool_use`/non-object replies. Tooling: `ai_live_check
+  --dry-run` and `--confirm-paid-calls`, `--npc`, `--timeout-probe`; `studio_run_batch
+  --dry-run`/`--confirm-paid-calls`; read-only `studio_batch_report`.
+- **Created.** `apps/education/mastery.py`, `apps/ai/services/{learner,npc}.py`,
+  `studio_batch_report.py`, tests (`test_mastery*.py`, `test_learner_context.py`,
+  `test_npc_narration_context.py`, `test_bedrock_reliability.py`,
+  `test_red_team_narration_mastery.py`, `question_studio/tests/test_readiness.py`),
+  `docs/AI_BEDROCK_ACCEPTANCE.md`.
+- **Changed.** `education/services.py`, `game_sessions/services.py` (`step_is_pinned`),
+  `ai/services/{context,companion,tutor}.py`, `ai/providers/*`, `ai_live_check.py`,
+  `studio_run_batch.py`, `config/settings/base.py`, the AI test catalog fixture, docs and tracker.
+- **Defects found and fixed.** A Bedrock client was built for every turn (pool and warm state
+  lost); a progress-store read error produced a 500 instead of degrading; AI session turns were
+  not pinned to the session's adventure version; `SkillProgress.recent_level` was never computed
+  on the server.
+- **Checks run.** PostgreSQL 16 in Docker, `pytest` on: `lai/apps/ai`, `lai/apps/education`,
+  `lai/apps/question_studio`, `lai/apps/speech`, `tests/` (golden), and the game_sessions answers,
+  sessions, chest, play, lookout, pips and concurrency tests: all passed (889 + 441 + 32 across
+  the batches; the last batch alone 889 passed). `ruff check`, `ruff format --check`, `manage.py
+  check`, `makemigrations --check`: clean. `npm run golden:check`, `npm run content:check`:
+  clean. `npx vitest run infra/lib/aiGuardrailStack.test.ts` (static synth): 9 passed. React AI
+  Vitest (`src/api/ai`, `features/{companion,tutor,npc}`): 238 passed (one run under heavy
+  machine load reported 15 unhandled timer errors that did not recur; no React file changed).
+- **Not run.** Full pytest (regions, quests, assets, users, catalog, etc. outside the above),
+  full Vitest, `npm run typecheck`, `npm run build`, Playwright, any AWS call. Merge
+  verification still owes these.
+- **Not done / blockers.** Live Bedrock acceptance and Guardrail effectiveness (owner, approval);
+  Marketplace billing coverage unverified; story scenes and Amplify-session adventures still
+  `CLIENT_AUTHORED` (no Django story catalog, LAI-0309/0607); NPC state still in Amplify
+  (LAI-0605), so eligibility enforcement is off; React adventures write no Django evidence until
+  LAI-0501; Firepeak/ADR-043 content is on an unmerged branch and was not recreated; retention
+  periods need owner approval (follow-up LAI-0711); Amplify routes untouched (LAI-0710).
+
+## AI / Bedrock / Chatty final acceptance QA (2026-11-07, branch `qa/ai-bedrock-chatty-acceptance-20261107`)
+
+**Status (updated later 2026-11-07): live Bedrock and Guardrail checks and the Django red team
+pass on a local Django; not yet run on a deployed Django host.** The first-pass findings below
+were recorded before the owner configured AWS. Full report: `docs/AI_BEDROCK_CHATTY_QA_REPORT.md`.
+
+- **Branch audit.** `features/ai` is an ancestor of `main` (0 ahead, 38 behind).
+  `feature/ai-bedrock-readiness` is 71 ahead and 0 behind, and fast-forwards. Its 71 commits
+  include the Sound Manager (SM-P1 to SM-P8) and Storykeeper Storybook (SC-R01 to SC-R04)
+  subprojects as well as 5 AI commits.
+- **Defects fixed.** D-1 (child safety): the Django output policy served secrecy ("keep it a
+  secret from your mom"), guilt ("I'll be so sad if you leave"), claims of being a person or kid,
+  and school, age or home questions as AI turns; fixed in `content_safety.boundary_violations`
+  (`ab8da67`). D-2: the input screen was bypassed by whitespace padding and missed common
+  injection and private-detail phrasings (`258ae9e`). 49 regression tests; 35 fail on the old code.
+  No new hits in 33,585 / 30,429 authored strings.
+- **Browser.** New `react/e2e/acceptance/chatty-ai.spec.ts` (5 tests, fake provider): multi-turn
+  companion and tutor turns through the app's own client in a real browser, screened-input
+  fallback, parent safety history and clearing, cross-family 404s, Django Admin kill switch,
+  three viewport sizes. Chatty's own screens still need Amplify Data (Gate B).
+- **Live AWS.** Session IAM user: one 5-token Converse probe returned AccessDeniedException; all
+  Bedrock reads are denied; no Guardrail, Django host or `/lai/*` SSM exists in the account. No
+  live evidence was recorded; LAI-0705 and Guardrail validation are still NOT accepted.
+- **Live follow-up (same day).** Owner granted Bedrock access; Guardrail `lai-child-safety-dev`
+  v1 deployed as the Guardrail-only stack `LaiAiGuardrailOnly-dev` (us-west-1). `ai_live_check`
+  (companion, tutor, NPC, Guardrail probe, timeout probe) passes after D-3 (instruction wording
+  in Guardrail-assessed blocks tripped the prompt-attack filter). The Django red team with real
+  Cognito sign-in passes 29/29 after D-4 (a home-and-family question reached the child).
+  Outstanding: deployed-host run, rate-limit and kill-switch drills, Studio batch, prices, Cost
+  Explorer.
+- **Deferred to the owner:** the AWS steps in the report's section 3, the live runbook
+  (`docs/AI_BEDROCK_ACCEPTANCE.md`), the Gate B browser pass, real Cognito sign-in, and acceptance
+  of the bundled Sound Manager and Storybook work.
+
+## Dev environment: `make runserver` uses AWS profile `learning-dev` (2026-11-07, Trello GiiJtE1W)
+
+- `Makefile`: `runserver` exports `AWS_PROFILE ?= learning-dev` as a target-specific variable, so
+  the Django dev server and its autoreloader child resolve AWS credentials through that named
+  profile. `make runserver AWS_PROFILE=other` overrides it; a value exported in the shell wins.
+  Other targets, tests and deployed environments are unaffected. No credentials are committed and
+  the profile is not created; it must exist in the developer's AWS config (documented in
+  `README.md`). Existing arguments and working directory (`lai/`, `manage.py runserver`) unchanged.
+- Tests: `tests/repo/test_makefile_runserver.py` runs `make runserver` with `PY` pointed at a stub
+  that echoes its environment: default profile, command-line override, shell value kept, and the
+  default scoped to `runserver` only. `pytest tests/repo`: 7 passed; ruff clean.
+- Not verified here: resolving real credentials from a configured `learning-dev` profile (no AWS
+  config in this container); that is standard boto3 named-profile behavior.
+
+## LAI-0808: Island Explorer on the child homepage (2026-11-07, branch `ccr-e637a676-n40y0h`)
+
+- **Why rebuilt.** The Trello card "[Subproject] Island Explorer / Homepage" pointed at LAI-0808 /
+  commit `73fd152`. Neither exists on any branch or PR in `paulj3000/learning`; the work was never
+  pushed. The owner asked for a rebuild (2026-11-07).
+- **Acceptance.** `/island/:childId` lists every Island the child's age band can see, from the
+  same rules as the sailing dock (`listTravelDestinations`). The current Island comes first with
+  its Places (secret Places hidden until opened, admin-deactivated Places never shown). An open
+  Island links to `/island/:childId/worlds/:slug`. A locked Island shows "Not open yet" and its
+  authored hint, is never a link or button, and names no skill or score; a world with no hint
+  gets one fallback line. Tablet-first, one column on phones, no horizontal scroll.
+- **Built.** Pure view model `react/src/features/worlds/islandExplorer.ts`; presentational
+  `react/src/features/island/IslandExplorer.tsx` with a CSS module; `WelcomeHarbor` uses it in
+  place of its home-Places grid and drops the now-redundant "Sail to another island" link (the
+  sailing dock stays reachable through "Leave island"). Computed from the world changes the page
+  already loads: no new request, no new failure mode.
+- **Tests.** New `islandExplorer.test.ts` (ordering, locked hint and fallback, opening per age
+  band including the Explorer tide gate, secret and deactivated Places, no other Island's
+  Places) and `WelcomeHarbor.test.tsx` (home first, locked card has no link or button, sailing
+  and Place navigation, age band, admin-hidden Place, error state).
+- **Checks run.** Full Vitest 384 files / 4329 tests pass; `npm run typecheck` clean; oxlint exit
+  0 with no findings in changed files; `prettier --check .` clean; `npm run build` passes; Playwright
+  smoke 7/7 (run with `executablePath: /opt/pw-browsers/chromium` because the container's
+  pre-installed browser differs from the pinned Playwright build). Browser harness at 375, 820 and
+  1280 px, locked and open states: no horizontal overflow, every link at least 44 px, no console
+  errors, keyboard focus reaches the first Place.
+- **Not covered.** A signed-in run against a real Cognito account and backend (the child route
+  needs one); owner acceptance on a tablet. Django-served Islands (`GET /children/<id>/islands/`)
+  are not used here yet.

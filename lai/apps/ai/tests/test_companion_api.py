@@ -439,7 +439,8 @@ def test_a_django_session_supplies_the_context_and_ignores_client_values(
     }
     response = post(api(families.a), families.a1, body)
     assert response.status_code == 200
-    (part,) = fake.requests[0].content  # nothing untrusted: everything came from Django
+    part, marker = fake.requests[0].content  # nothing untrusted: everything came from Django
+    assert not part.untrusted and not marker.untrusted and marker.guarded
     sent = json.loads(part.text.split("\n", 1)[1].split("\n\nReply")[0])
     assert sent["adventureTemplateId"] == "ai-bridge"
     assert sent["hintLevel"] == 2

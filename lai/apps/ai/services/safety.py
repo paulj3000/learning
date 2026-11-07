@@ -11,8 +11,14 @@ a pirate story legitimately mentions swords and storms. Those are the Guardrail'
 output validators' job.
 """
 
+import re
+
 from ..content_safety import contains_url, requests_personal_information
 from ..jscompat import js_regex
+
+# Runs of whitespace (tabs, newlines, doubled spaces) collapse to one space before screening, so
+# padding cannot split a phrase the patterns match ("ignore  previous\tinstructions", QA D-2).
+_WHITESPACE = re.compile(r"\s+")
 
 _PROMPT_INJECTION = js_regex(
     r"\b(ignore|disregard|forget|override) (all |any |the |your )*(previous|prior|above|earlier"
@@ -22,6 +28,17 @@ _PROMPT_INJECTION = js_regex(
     r"|\bpretend (you are|to be|you're)\b|\b(developer|debug|god|jailbreak) mode\b|\bjailbreak\b"
     r"|\bwith no (rules|restrictions|limits)\b|\breveal (your|the) "
     r"|\bnew instructions\b|\bdo anything now\b|<\s*/?\s*(system|assistant|user)\s*>"
+    # QA D-2 (2026-11-07): phrasings the screen missed.
+    r"|\b(ignore|disregard) (all |any |the |your )*(instructions|rules|directions)"
+    r"( above| before)?\b|\b(disregard|ignore) (all |any |the |your )*(prior|previous) directions\b"
+    r"|\bforget everything\b|\bsystem message\b"
+    r"|\brepeat (the|everything|all)( of the)? (text|words|instructions) (above|before)\b"
+)
+# QA D-2: a tampered client asking the model to collect private details.
+_ASK_FOR_PRIVATE_DETAILS = js_regex(
+    r"\b(ask|tell|get) (the |this )?(child|kid|player|them|him|her)\b.{0,40}"
+    r"\b(address|school|photo|picture|selfie|phone|e-?mail|password|full name|last name"
+    r"|where (they|she|he) lives?)\b"
 )
 _CONTACT_DETAILS = js_regex(
     r"[\w.+-]+@[\w-]+\.[\w.]+|\b\d{3}[-. )]\s?\d{3}[-. ]\d{4}\b|\b\d{1,5} [a-z]+ (street|st|road"
@@ -42,12 +59,16 @@ _MASTERY_OR_REWARD = js_regex(
 def screen_untrusted_text(fields: dict[str, str | None]) -> list[str]:
     """Categories found across the given fields (empty when clean). Never returns the text."""
     found: list[str] = []
-    for value in fields.values():
-        if not value:
+    for raw in fields.values():
+        if not raw:
             continue
+        value = _WHITESPACE.sub(" ", raw)
         for category, hit in (
             ("prompt-injection", _PROMPT_INJECTION.search(value)),
-            ("personal-information", requests_personal_information(value)),
+            (
+                "personal-information",
+                requests_personal_information(value) or _ASK_FOR_PRIVATE_DETAILS.search(value),
+            ),
             ("contact-details", _CONTACT_DETAILS.search(value)),
             ("link", contains_url(value)),
             ("secrecy", _SECRECY.search(value)),

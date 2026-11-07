@@ -30,7 +30,7 @@ from django.utils import timezone
 from apps.adventures import engine
 from apps.catalog import authoring
 from apps.catalog.models import Adventure, AdventureStep, ContentRelease, RewardRule
-from apps.education.models import SkillEvidence
+from apps.education.services import record_step_evidence
 from apps.game_sessions.models import (
     COMPLETE_STEP_ID,
     AdventureAction,
@@ -96,6 +96,32 @@ def _locked_session(child, session_id) -> AdventureSession:
         raise ProgressNotFound from None
 
 
+def step_is_pinned(session: AdventureSession, step: AdventureStep) -> bool:
+    """True when `step` is the content this session started with (immutable revision pinning).
+
+    The catalog keeps one version of each adventure, so a session is pinned to the adventure
+    version it started on and to the release that still carries the step. Grading and AI
+    context both refuse anything else, so neither can narrate or grade different content.
+
+    A session that pinned its revisions (ADR-047, LAI-0813) is graded from the pinned body, so
+    the catalog step matches only while it still holds exactly that body. A session started
+    before pinning existed keeps the version-and-release rule.
+    """
+    if session.pinned_revisions.exists():
+        pinned = (
+            session.pinned_revisions.filter(kind="adventure-step", record_key=step.step_id)
+            .values_list("body", flat=True)
+            .first()
+        )
+        if pinned is not None:
+            return pinned == authoring.current_body(step)
+    adventure = session.adventure
+    return (
+        adventure.version == session.template_version
+        and step.last_seen_release_id == adventure.last_seen_release_id
+    )
+
+
 def _current_step_body(session: AdventureSession) -> dict:
     """The authored step the session is on, as the session started with it (LAI-0813).
 
@@ -124,13 +150,10 @@ def _current_step_record(session: AdventureSession) -> AdventureStep:
     changed, or whose step was not part of the adventure's latest import, cannot be evaluated
     safely, so it is refused rather than graded against different content.
     """
-    adventure = session.adventure
-    if adventure.version != session.template_version:
-        raise ContentVersionChanged
     step = AdventureStep.objects.filter(
-        adventure=adventure, step_id=session.current_step_id
+        adventure=session.adventure, step_id=session.current_step_id
     ).first()
-    if step is None or step.last_seen_release_id != adventure.last_seen_release_id:
+    if step is None or not step_is_pinned(session, step):
         raise ContentVersionChanged
     return step
 
@@ -376,7 +399,15 @@ def submit_answer(
         at=at,
     )
     outcome = _outcome(action, session, replayed=False)
-    _record_evidence(session, step, decision, at)
+    # The engine's own grade, never a client value, becomes skill evidence and mastery (LAI-0603),
+    # from the step body the session is graded on (pinned, LAI-0813).
+    record_step_evidence(
+        session,
+        step,
+        correctness=action.correctness,
+        support_level=decision["supportLevel"],
+        at=at,
+    )
     if decision["action"] == "ADVANCE":
         outcome.world_change_keys = _apply_world_change_step(session, step)
     if next_step is not None and _ends_adventure(session, next_step):
@@ -387,28 +418,9 @@ def submit_answer(
 
 # --- Consequences of playing (LAI-0816) -----------------------------------------------------------
 # Python decides them, in the answer's own transaction, so a retry or a second tab can never
-# record or pay twice: evidence is one row per graded attempt (a replay returns before this),
+# record or pay twice: evidence is one row per graded attempt (a replay returns before this,
+# `education.services.record_step_evidence` writes it),
 # world changes and reward rules are idempotent under their unique constraints.
-
-_GRADED = (engine.CORRECT, engine.INCORRECT, engine.PARTIAL)
-
-
-def _record_evidence(session, step: dict, decision: dict, at) -> None:
-    """One skill evidence row per learning objective of a graded step. Progress counters are
-    LAI-0603's; this only records what happened."""
-    if decision["correctness"] not in _GRADED:
-        return
-    for code in step.get("objectiveIds", []):
-        SkillEvidence.objects.create(
-            child=session.child,
-            adventure_session=session,
-            learning_objective_code=code,
-            evidence_type=step.get("type", "")[:32],
-            difficulty=session.adventure.skill_level,
-            result=_CORRECTNESS[decision["correctness"]],
-            support_level=min(int(decision["supportLevel"]), 32767),
-            observed_at=at,
-        )
 
 
 def _apply_world_change_step(session, step: dict) -> tuple[str, ...]:

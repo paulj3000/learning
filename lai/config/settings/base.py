@@ -315,6 +315,11 @@ LAI_AI_STRUCTURED_OUTPUT = env_bool("LAI_AI_STRUCTURED_OUTPUT", True)
 LAI_AI_MAX_OUTPUT_TOKENS = int(os.environ.get("LAI_AI_MAX_OUTPUT_TOKENS", "300"))
 LAI_AI_TEMPERATURE = float(os.environ.get("LAI_AI_TEMPERATURE", "0.4"))
 LAI_AI_TIMEOUT_SECONDS = float(os.environ.get("LAI_AI_TIMEOUT_SECONDS", "10"))
+# Optional longer read timeout for only the first request per structured-output schema in a
+# process (Bedrock compiles the grammar then). Unset leaves the normal timeout everywhere. Set it
+# only from live evidence (`ai_live_check --warm-up` reports first-call latency), never blindly.
+_first_call = os.environ.get("LAI_AI_FIRST_CALL_TIMEOUT_SECONDS", "").strip()
+LAI_AI_FIRST_CALL_TIMEOUT_SECONDS = float(_first_call) if _first_call else None
 # Shared limits on model calls (LAI-0708, apps/ai/services/usage.py): PostgreSQL counters, so
 # they hold across workers and instances. A denied turn gets authored content, never a model call.
 LAI_AI_CHILD_TURNS_PER_MINUTE = int(os.environ.get("LAI_AI_CHILD_TURNS_PER_MINUTE", "12"))
@@ -343,6 +348,12 @@ LAI_AI_ALLOW_CLIENT_AUTHORED = env_bool("LAI_AI_ALLOW_CLIENT_AUTHORED", True)
 # may publish what they drafted. On: a version must be submitted and approved by a different
 # administrator. The owner decides; the code never turns it on.
 LAI_CONTENT_INDEPENDENT_APPROVAL = env_bool("LAI_CONTENT_INDEPENDENT_APPROVAL", False)
+
+# NPC narration may be limited to dialogue nodes the child is eligible for, judged from Django
+# records (relationship, memory flags, world changes, quests). Off until Django holds NPC state
+# for children (LAI-0605); React NPC state still lives in Amplify, so enforcing now would refuse
+# narration a child has legitimately unlocked. The check is built and tested either way.
+LAI_AI_NPC_ENFORCE_ELIGIBILITY = env_bool("LAI_AI_NPC_ENFORCE_ELIGIBILITY", False)
 # No approved retention period yet (LAI-0707, LAI-0308 gate G9): unset means `ai_retention`
 # refuses to delete unless an operator passes --older-than-days explicitly.
 _retention = os.environ.get("LAI_AI_AUDIT_RETENTION_DAYS", "").strip()
@@ -355,6 +366,12 @@ if not 0.0 <= LAI_AI_TEMPERATURE <= 1.0:
     raise ImproperlyConfigured("LAI_AI_TEMPERATURE must be between 0 and 1.")
 if not 1 <= LAI_AI_TIMEOUT_SECONDS <= 60:
     raise ImproperlyConfigured("LAI_AI_TIMEOUT_SECONDS must be between 1 and 60.")
+if LAI_AI_FIRST_CALL_TIMEOUT_SECONDS is not None and not (
+    LAI_AI_TIMEOUT_SECONDS <= LAI_AI_FIRST_CALL_TIMEOUT_SECONDS <= 60
+):
+    raise ImproperlyConfigured(
+        "LAI_AI_FIRST_CALL_TIMEOUT_SECONDS must be between LAI_AI_TIMEOUT_SECONDS and 60."
+    )
 for _name, _low, _high in (
     ("LAI_AI_CHILD_TURNS_PER_MINUTE", 1, 120),
     ("LAI_AI_CHILD_TURNS_PER_DAY", 1, 5000),
