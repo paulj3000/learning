@@ -267,6 +267,7 @@ describe('useRegionPlay outcomes (LAI-NPC-016)', () => {
     await act(() => hook.result.current.talkToNpc('cove-pip'));
     await act(() => hook.result.current.changeSession('pause'));
     expect(onOutcome.mock.calls.map(([outcome]) => outcome.kind)).toEqual([
+      'session_upserted', // entering with the session open is a resume (QA-D3)
       'session_upserted',
       'challenge_issued',
       'answer',
@@ -275,6 +276,33 @@ describe('useRegionPlay outcomes (LAI-NPC-016)', () => {
     ]);
     expect(api.submitAnswer).toHaveBeenCalledTimes(1);
     expect(hook.result.current.state.lastOutcome?.correct).toBe(true);
+  });
+
+  it('entering with the session still open reports a resume, once (QA-D3)', async () => {
+    const api = fakeApi({ getRegion: vi.fn(async () => bootstrap({ session: sessionJson() })) });
+    const onOutcome = vi.fn();
+    const hook = renderHook(() =>
+      useRegionPlay(CHILD_A, REGION, { createApi: () => api, onOutcome }),
+    );
+    await waitFor(() => expect(hook.result.current.state.status).toBe('ready'));
+    expect(onOutcome).toHaveBeenCalledTimes(1);
+    const [[outcome]] = onOutcome.mock.calls as [
+      [{ kind: string; result: { created: boolean; value: unknown } }],
+    ];
+    expect(outcome.kind).toBe('session_upserted');
+    expect(outcome.result.created).toBe(false);
+    expect(outcome.result.value).toEqual(hook.result.current.state.session);
+    expect(api.startSession).not.toHaveBeenCalled();
+  });
+
+  it('entering with no open session reports nothing until a session starts', async () => {
+    const api = fakeApi({ getRegion: vi.fn(async () => bootstrap({ session: null })) });
+    const onOutcome = vi.fn();
+    const hook = renderHook(() =>
+      useRegionPlay(CHILD_A, REGION, { createApi: () => api, onOutcome }),
+    );
+    await waitFor(() => expect(hook.result.current.state.status).toBe('ready'));
+    expect(onOutcome).not.toHaveBeenCalled();
   });
 
   it('a throwing observer never breaks play', async () => {

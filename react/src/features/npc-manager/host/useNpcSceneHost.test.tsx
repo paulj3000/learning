@@ -19,6 +19,7 @@ import type { AdventureEvent } from '../contracts/vocabulary';
 import type { NpcDialogueApi } from '../dialogue/npcDialogueApi';
 import type { SpeechSource } from '../../../audio/speech/SpeechPlayer';
 import type { NpcHintApi } from './npcHintApi';
+import { NPC_DIAGNOSTICS, type NpcDiagnostics } from '../engine/createNpcRuntime';
 import {
   useNpcSceneHost,
   type NpcHostScene,
@@ -358,6 +359,38 @@ describe('NPC scene host: prompt and conversation', () => {
     expect(behavior.calls.lastIndexOf('resume')).toBeGreaterThan(
       behavior.calls.lastIndexOf('interrupt'),
     );
+  });
+
+  it('a captions-only talk line plays the talk loop, and closing returns to idle (QA-D2)', async () => {
+    const talkLine = node('ask', 'Will you help me?', { animationState: 'talk', speech: null });
+    const dialogueApi = fakeDialogueApi(
+      reply(talkLine, [{ choiceKey: 'later', label: 'Maybe later', action: 'END' }]),
+    );
+    dialogueApi.start.mockImplementation(async (_npc, request) =>
+      request.trigger === 'on_interact'
+        ? reply(talkLine, [{ choiceKey: 'later', label: 'Maybe later', action: 'END' }])
+        : NONE,
+    );
+    const { world } = setup({ dialogueApi });
+    await flush();
+    const diagnostics = () =>
+      (npcRoots(world.parent)[0]!.userData[NPC_DIAGNOSTICS] as () => NpcDiagnostics)();
+    world.moveTo({ x: 3, z: 7 });
+    await userEvent.click(screen.getByRole('button', { name: 'Talk to Pirate Pip' }));
+    await flush();
+    expect(screen.getByText('Will you help me?')).toBeTruthy();
+    expect(diagnostics().animation.overlay).toEqual(
+      expect.objectContaining({ state: 'talk', mode: 'loop' }),
+    );
+    // Still talking a little later: a loop, not a one-shot that ends while the caption shows.
+    world.moveTo({ x: 3, z: 7 });
+    world.moveTo({ x: 3, z: 7 });
+    expect(diagnostics().animation.overlay?.state).toBe('talk');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await flush();
+    world.moveTo({ x: 3, z: 7 });
+    expect(diagnostics().animation.overlay).toBeNull();
   });
 
   it('a conversation that ends by itself resumes the behaviour and closes the panel', async () => {

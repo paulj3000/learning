@@ -742,7 +742,17 @@ class DialogueChoiceInline(admin.TabularInline):
     model = NpcDialogueChoice
     fk_name = "node"
     extra = 0
-    fields = ("choice_key", "label", "next_node", "action", "action_value", "conditions")
+    # `sort_order` is the order a child sees the choices in (QA-D1): without it every choice
+    # authored here was saved as 0 and served alphabetically by key.
+    fields = (
+        "choice_key",
+        "label",
+        "next_node",
+        "action",
+        "action_value",
+        "conditions",
+        "sort_order",
+    )
 
     def get_formset(self, request, obj=None, **kwargs):
         dialogue = obj.dialogue if obj is not None else None

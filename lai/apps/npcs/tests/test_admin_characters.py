@@ -473,3 +473,53 @@ def test_dialogue_node_audio_must_be_an_audio_asset(editor):
     assert editor.post(url, data).status_code == 302
     node.refresh_from_db()
     assert node.audio_asset.asset_id == "real-line"
+
+
+def test_dialogue_choices_keep_the_order_staff_give_them(editor):
+    """QA-D1: the choice inline carries `sort_order`, so "Tell me more" can come before "Maybe
+    later" even though its key sorts after it."""
+    from apps.npcs.models import NpcDialogueChoice
+
+    character = make_character("chooser")
+    dialogue = make_dialogue(character)
+    # The goodbye node has no choices yet; the second choice leads back to the greeting.
+    node = dialogue.nodes.get(node_key="bye")
+    greet = dialogue.nodes.get(node_key="greet")
+    url = f"/admin/npcs/npcdialoguenode/{node.pk}/change/"
+    assert 'name="choices-__prefix__-sort_order"' in editor.get(url).content.decode()
+    data = {
+        "dialogue": dialogue.pk,
+        "node_key": node.node_key,
+        "sort_order": str(node.sort_order),
+        "text": node.text,
+        "emotion": node.emotion,
+        "animation_state": node.animation_state,
+        "audio_asset": "",
+        "next_node": "",
+        "allowed_topic": "",
+        "age_bands": "",
+        "conditions": "[]",
+        "choices-TOTAL_FORMS": "2",
+        "choices-INITIAL_FORMS": "0",
+        "choices-MIN_NUM_FORMS": "0",
+        "choices-MAX_NUM_FORMS": "1000",
+    }
+    for i, (key, label, order, action, next_node) in enumerate(
+        [("more", "Tell me more", "0", "NONE", greet.pk), ("later", "Maybe later", "1", "END", "")]
+    ):
+        data.update(
+            {
+                f"choices-{i}-node": node.pk,
+                f"choices-{i}-choice_key": key,
+                f"choices-{i}-label": label,
+                f"choices-{i}-next_node": next_node,
+                f"choices-{i}-action": action,
+                f"choices-{i}-action_value": "",
+                f"choices-{i}-conditions": "[]",
+                f"choices-{i}-sort_order": order,
+            }
+        )
+    response = editor.post(url, data)
+    assert response.status_code == 302, response.content.decode()[:3000]
+    served = NpcDialogueChoice.objects.filter(node=node).values_list("choice_key", flat=True)
+    assert list(served) == ["more", "later"]

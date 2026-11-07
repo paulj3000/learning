@@ -268,11 +268,16 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
         case 'dialogue.node_entered':
           setHint(null);
           void voiceRef.current.play(event.node);
-          if (placementKey && event.node.animationState && event.node.animationState !== 'talk') {
+          if (placementKey && event.node.animationState) {
+            // A talk line loops its talk clip from the moment the caption shows (QA-D2): without
+            // this a captions-only line (no voice profile, speech off, muted, or a failed
+            // request) never animated. When a voice does play, the voice coordinator sends the
+            // same loop and stops it when the audio ends.
             send({
               type: 'animate',
               placementKey,
               state: event.node.animationState,
+              ...(event.node.animationState === 'talk' ? { mode: 'loop' as const } : {}),
               priority: ANIMATION_PRIORITY.dialogue,
             });
           }

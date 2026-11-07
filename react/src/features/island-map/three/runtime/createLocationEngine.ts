@@ -1013,6 +1013,7 @@ export function createLocationEngine<R extends RendererLike>(
           targets: focusTargets,
           walkable,
           focused: () => raycastFocus()?.entityId ?? null,
+          scene,
         })
       : null;
 
