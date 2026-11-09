@@ -12660,3 +12660,24 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   `claude/lai-infra-001-pr-kwauv3`; the Prettier check deferred there passed on 2026-11-09.
 - Checks: docs only, so no unit tests or typecheck apply. `prettier --check` passes on the changed
   files.
+
+## LAI-INFRA-003 target domains, hosting and security (2026-11-09, branch `claude/lai-infra-001-pr-kwauv3`, proposed changeset, nothing deployed)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| LAI-INFRA-003 | `docs/infrastructure/domains-and-hosting.md`; CDK, nginx and release-script changeset | **None** (no AWS access; nothing deployed or changed in DNS) | Open: owner review, name choice per environment, Route 53 question (U10), approved rollout (doc section 7) |
+
+- Owner decision (2026-11-09): **same-origin API.** `lai.` CloudFront sends `/api/*` to the ALB,
+  and Django keeps no CORS (TR-D14). `api.` and `ladm.` share the ALB with one us-west-1
+  certificate. The React site is a new `LaiFrontend-<env>` stack in us-east-1 (private S3 with OAC,
+  narrow SPA rewrite, `/game/` entry for Android).
+- Host isolation: the ALB forwards only the API and admin hosts (otherwise a 404). nginx serves
+  `/api/` only on the API host, and the admin but never `/api/` on the admin host. CSRF trusts the
+  admin host only.
+- Found and fixed while testing: nginx's own redirect would have been absolute with port 8080
+  (`absolute_redirect off`). The Android game page must use `lai.` (one origin with the API), not
+  `api.`.
+- Checks: infra vitest 62 passed. `tests/deploy` passed, including the new real-nginx host test.
+  `npm run typecheck` and lint are clean. Prettier and ruff are clean on the changed files. All six
+  stacks synthesize with no assets. Not run: Django suite (no Django code changed), `cfn-lint`
+  (deferred to LAI-INFRA-005), shellcheck (not installed).

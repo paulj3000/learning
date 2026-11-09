@@ -80,6 +80,7 @@ class Box:
                     "LAI_PARAM_PREFIX=/lai/test/django",
                     "LAI_RELEASE_PARAM=/lai/test/deploy/last-release",
                     "LAI_API_HOST=api.example.test",
+                    "LAI_ADMIN_HOST=ladm.example.test",
                     f"LAI_DB_MODE={db_mode}",
                     "LAI_DB_SECRET_ARN=arn:aws:secretsmanager:us-west-1:123456789012:secret:db",
                     "LAI_DB_INSTANCE_ID=lai-django-test",
