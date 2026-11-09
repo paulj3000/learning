@@ -101,12 +101,9 @@ without downtime, once the new certificate validates.
 
 ## 6. Not covered here
 
-- **The release pipeline for the site.** Uploading the build, `Cache-Control`
-  (`index.html` no-cache, `assets/*` immutable) and invalidating `/index.html` belong to
-  LAI-INFRA-004.
-- **The site build's Amplify config.** The build must embed the `main` branch's
-  `amplify_outputs.json` (`ampx generate outputs --branch main --app-id <id>`) so sign-in uses the
-  same Cognito pool. Also LAI-INFRA-004.
+- **The release pipeline for the site** (upload, `Cache-Control`, invalidation, and the build's
+  `amplify_outputs.json` from the `main` backend) is designed and built, switched off, in
+  LAI-INFRA-004: `docs/infrastructure/deployment-design.md`.
 - **CloudFront WAF.** Optional: a `CLOUDFRONT`-scope Web ACL must live in us-east-1. The admin is
   not behind CloudFront, and the ALB rate rule covers the admin login.
 - **Locking the ALB to CloudFront.** Not possible while `api.` is also called directly (the

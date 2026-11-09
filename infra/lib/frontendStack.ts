@@ -9,6 +9,7 @@ import {
 } from 'aws-cdk-lib';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
@@ -16,6 +17,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import type { Construct } from 'constructs';
 import type { AssetEnvironment } from './assetStorageStack';
 import { HOST_NAME_PATTERN } from './djangoEc2Stack';
+import { githubOidcProviderArn, githubPrincipal, isGithubRepository } from './githubOidc';
 
 /**
  * The React site on S3 and CloudFront (LAI-INFRA-003, LAI-1005; docs/infrastructure/domains-and-hosting.md).
@@ -28,8 +30,9 @@ import { HOST_NAME_PATTERN } from './djangoEc2Stack';
  *   HTML, so a broken release fails loudly.
  * - Deployed in us-east-1: CloudFront only accepts certificates from that region.
  *
- * Creates no Lambda, IAM role or file asset, so it deploys bootstrapless like the other stacks.
- * Uploading the build and invalidating `/index.html` is the release pipeline's job (LAI-INFRA-004).
+ * Creates no Lambda or file asset, so it deploys bootstrapless like the other stacks. Its one IAM
+ * role lets the `site-<env>` GitHub Environment publish the build (LAI-INFRA-004,
+ * .github/workflows/deploy-site.yml, scripts/aws/publish-site.sh).
  */
 
 export const FRONTEND_REGION = 'us-east-1';
@@ -57,6 +60,10 @@ export interface FrontendStackProps extends StackProps {
   envName: AssetEnvironment;
   /** A Route 53 zone for the site and certificate validation; otherwise DNS is manual. */
   hostedZone?: { id: string; name: string };
+  /** `owner/repo` whose `site-<env>` GitHub Environment may publish (LAI-INFRA-004). */
+  githubRepository: string;
+  /** Where the Amplify Gen 2 backend (and its Cognito pool) lives. Default us-west-1. */
+  amplifyRegion?: string;
 }
 
 export class FrontendStack extends Stack {
@@ -66,6 +73,10 @@ export class FrontendStack extends Stack {
   constructor(scope: Construct, id: string, props: FrontendStackProps) {
     super(scope, id, { terminationProtection: props.envName === 'prod', ...props });
     const env = props.envName;
+    if (!isGithubRepository(props.githubRepository)) {
+      throw new Error(`githubRepository must be owner/repo, got "${props.githubRepository}"`);
+    }
+    const amplifyRegion = props.amplifyRegion ?? 'us-west-1';
     Tags.of(this).add('Project', 'learning-adventure-island');
     Tags.of(this).add('Component', 'frontend');
     Tags.of(this).add('Environment', env);
@@ -80,6 +91,13 @@ export class FrontendStack extends Stack {
       description:
         'The Django API host (LaiDjangoEc2 ApiDomainName); CloudFront sends /api/* there',
       allowedPattern: HOST_NAME_PATTERN,
+    }).valueAsString;
+    const amplifyAppId = new CfnParameter(this, 'AmplifyAppId', {
+      type: 'String',
+      description:
+        'The Amplify Hosting app whose main-branch backend holds the Cognito pool; the site build ' +
+        'reads its amplify_outputs.json (aws amplify list-apps)',
+      allowedPattern: '^d[a-z0-9]{5,}$',
     }).valueAsString;
 
     this.bucket = new s3.Bucket(this, 'WebBucket', {
@@ -182,6 +200,74 @@ export class FrontendStack extends Stack {
       new route53.AaaaRecord(this, 'SiteAliasIpv6', { zone, recordName: siteDomain, target });
     }
 
+    // --- Release role (LAI-INFRA-004): GitHub OIDC, the site-<env> GitHub Environment only ----
+    // Publishes the build and invalidates the shells. No delete: old hashed files stay for open
+    // tabs and rollbacks (scripts/aws/publish-site.sh). Reads the Amplify main backend's outputs
+    // so the build signs in against the same Cognito pool.
+    const partition = Stack.of(this).partition;
+    const account = Stack.of(this).account;
+    const deployRole = new iam.Role(this, 'GithubSiteDeployRole', {
+      roleName: `lai-github-site-deploy-${env}`,
+      description: `GitHub Actions (${props.githubRepository}, environment site-${env}) publishes the React site`,
+      assumedBy: githubPrincipal(
+        githubOidcProviderArn(),
+        `repo:${props.githubRepository}:environment:site-${env}`,
+      ),
+      maxSessionDuration: Duration.hours(1),
+    });
+    deployRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'ListSiteBucket',
+        actions: ['s3:ListBucket'],
+        resources: [this.bucket.bucketArn],
+      }),
+    );
+    deployRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'WriteSiteObjects',
+        actions: ['s3:GetObject', 's3:PutObject'],
+        resources: [this.bucket.arnForObjects('*')],
+      }),
+    );
+    deployRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'InvalidateSite',
+        actions: ['cloudfront:CreateInvalidation', 'cloudfront:GetInvalidation'],
+        resources: [
+          `arn:${partition}:cloudfront::${account}:distribution/${this.distribution.distributionId}`,
+        ],
+      }),
+    );
+    // Read-only, the main branch only. The exact set `ampx generate outputs` needs is confirmed on
+    // the first gated run (docs/infrastructure/deployment-design.md section 9); add only what an
+    // AccessDenied names.
+    deployRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'ReadAmplifyMainBackend',
+        actions: ['amplify:GetApp', 'amplify:GetBranch'],
+        resources: [
+          `arn:${partition}:amplify:${amplifyRegion}:${account}:apps/${amplifyAppId}`,
+          `arn:${partition}:amplify:${amplifyRegion}:${account}:apps/${amplifyAppId}/branches/main`,
+        ],
+      }),
+    );
+    deployRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'ReadAmplifyMainStacks',
+        actions: ['cloudformation:DescribeStacks', 'cloudformation:ListStackResources'],
+        resources: [
+          `arn:${partition}:cloudformation:${amplifyRegion}:${account}:stack/amplify-${amplifyAppId}-main-branch-*/*`,
+        ],
+      }),
+    );
+    deployRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'ReadAmplifyMainArtifacts',
+        actions: ['s3:GetObject'],
+        resources: [`arn:${partition}:s3:::amplify-${amplifyAppId}-main-*/*`],
+      }),
+    );
+
     const output = (outputId: string, value: string, description: string) =>
       new CfnOutput(this, outputId, { value, description });
     output('WebBucketName', this.bucket.bucketName, 'Upload the React build here');
@@ -193,5 +279,10 @@ export class FrontendStack extends Stack {
     );
     output('SiteCertificateArn', certificate.certificateArn, 'us-east-1 certificate');
     output('SiteUrl', `https://${siteDomain}`, 'The React site');
+    output(
+      'SiteDeployRoleArn',
+      deployRole.roleArn,
+      'site-<env> environment: LAI_SITE_DEPLOY_ROLE_ARN',
+    );
   }
 }

@@ -1,0 +1,192 @@
+# React site release to S3 and CloudFront (LAI-INFRA-004, docs/infrastructure/deployment-design.md).
+#
+#   push to main (frontend paths) -> wait for this commit's Django release, if it has one
+#     -> dev (automatic) -> prod (GitHub Environment approval; push only when
+#        LAI_PROD_AUTO_DEPLOY is 'true', otherwise a manual dispatch)
+#   workflow_dispatch: release a commit of main to dev or prod, or roll an environment back to an
+#   earlier published release (no rebuild).
+#
+# The same system as deploy-django-ec2.yml: GitHub Actions with OIDC, no stored keys. Each site
+# deploy role (LaiFrontend-<env>) trusts only its own GitHub Environment (site-dev, site-prod).
+# Until the repository variable LAI_SITE_DEPLOY_ENABLED is 'true' nothing here runs, so Amplify
+# Hosting stays the only frontend publisher until the owner switches this on.
+name: Deploy site (CloudFront)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'react/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/aws/publish-site.sh'
+      - '.github/actions/site-release/**'
+      - '.github/workflows/deploy-site.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [dev, prod]
+        default: dev
+      action:
+        description: release this commit of main, or roll back to an earlier published release
+        type: choice
+        options: [deploy, rollback]
+        default: deploy
+      rollback_to:
+        description: 'rollback only: full commit SHA of an earlier published release'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  # A commit that changes both the API and the site ships the API first: the site waits for that
+  # commit's Django release (deploy-django-ec2.yml) and stops if it failed. A site-only commit
+  # has no Django run and goes straight on.
+  backend:
+    name: Wait for this commit's Django release
+    if: >-
+      vars.LAI_SITE_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || inputs.action == 'deploy')
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      actions: read
+    steps:
+      - name: Wait
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          BEFORE: ${{ github.event.before }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          # Did this push change a path deploy-django-ec2.yml releases? Then its run must appear
+          # and succeed; otherwise (and for a manual dispatch) a run is waited for only if one exists.
+          expect=false
+          if [ "$EVENT" = push ] && [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
+            files=$(gh api "repos/$REPO/compare/$BEFORE...$SHA" --jq '.files[].filename')
+            if grep -qE '^(lai/|content/|react/public/models/|scripts/aws/|deploy/ec2/|tests/deploy/|requirements(-dev)?\.txt$|pyproject\.toml$|\.dockerignore$|\.github/workflows/deploy-django-ec2\.yml$)' <<<"$files"; then
+              expect=true
+            fi
+          fi
+          echo "this commit changes the backend: $expect"
+          for _ in $(seq 1 140); do
+            run=$(gh run list -R "$REPO" --workflow deploy-django-ec2.yml --commit "$SHA" \
+              --event push --limit 1 --json status,conclusion,url --jq '.[0] // empty')
+            if [ -z "$run" ]; then
+              if [ "$expect" = false ]; then echo "no Django release for $SHA; the site goes on its own"; exit 0; fi
+              sleep 30
+              continue
+            fi
+            status=$(jq -r .status <<<"$run")
+            conclusion=$(jq -r .conclusion <<<"$run")
+            if [ "$status" = completed ]; then
+              if [ "$conclusion" = success ]; then echo "Django release done"; exit 0; fi
+              echo "::error::the Django release for $SHA ended $conclusion ($(jq -r .url <<<"$run")); not publishing a site that may need it"
+              exit 1
+            fi
+            sleep 30
+          done
+          echo "::error::timed out waiting for the Django release"
+          exit 1
+
+  deploy-dev:
+    name: Release the site to dev
+    needs: backend
+    if: github.event_name == 'push' || inputs.environment == 'dev'
+    runs-on: ubuntu-latest
+    environment:
+      name: site-dev
+      url: ${{ vars.LAI_SITE_URL }}
+    concurrency:
+      group: deploy-site-dev
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: ./.github/actions/site-release
+        with:
+          target: dev
+          git-sha: ${{ github.sha }}
+          role-arn: ${{ vars.LAI_SITE_DEPLOY_ROLE_ARN }}
+          amplify-app-id: ${{ vars.LAI_AMPLIFY_APP_ID }}
+          bucket: ${{ vars.LAI_SITE_BUCKET }}
+          distribution-id: ${{ vars.LAI_SITE_DISTRIBUTION_ID }}
+          site-url: ${{ vars.LAI_SITE_URL }}
+
+  deploy-prod:
+    name: Release the site to prod
+    needs: [backend, deploy-dev]
+    # Manual dispatch from main, or a push when automatic prod releases are switched on and dev
+    # succeeded. Either way the site-prod GitHub Environment's required reviewers must approve.
+    if: >-
+      always() && needs.backend.result == 'success' && (
+        (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod') ||
+        (github.event_name == 'push' && vars.LAI_PROD_AUTO_DEPLOY == 'true' && needs.deploy-dev.result == 'success')
+      )
+    runs-on: ubuntu-latest
+    environment:
+      name: site-prod
+      url: ${{ vars.LAI_SITE_URL }}
+    concurrency:
+      group: deploy-site-prod
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: ./.github/actions/site-release
+        with:
+          target: prod
+          git-sha: ${{ github.sha }}
+          role-arn: ${{ vars.LAI_SITE_DEPLOY_ROLE_ARN }}
+          amplify-app-id: ${{ vars.LAI_AMPLIFY_APP_ID }}
+          bucket: ${{ vars.LAI_SITE_BUCKET }}
+          distribution-id: ${{ vars.LAI_SITE_DISTRIBUTION_ID }}
+          site-url: ${{ vars.LAI_SITE_URL }}
+
+  rollback:
+    name: Roll the site back in ${{ inputs.environment }}
+    if: >-
+      vars.LAI_SITE_DEPLOY_ENABLED == 'true' && github.event_name == 'workflow_dispatch' &&
+      inputs.action == 'rollback'
+    runs-on: ubuntu-latest
+    environment:
+      name: site-${{ inputs.environment }}
+      url: ${{ vars.LAI_SITE_URL }}
+    concurrency:
+      group: deploy-site-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.LAI_SITE_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+          role-session-name: lai-site-rollback-${{ github.run_id }}
+
+      - name: Restore the release's shells and invalidate
+        env:
+          BUCKET: ${{ vars.LAI_SITE_BUCKET }}
+          DISTRIBUTION: ${{ vars.LAI_SITE_DISTRIBUTION_ID }}
+          TO: ${{ inputs.rollback_to }}
+        run: scripts/aws/publish-site.sh rollback "$BUCKET" "$DISTRIBUTION" "$TO"

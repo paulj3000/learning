@@ -12,6 +12,8 @@
 #   LAI_ADMIN_DOMAIN           required: the Django Admin host, e.g. ladm.example.com
 #   LAI_SITE_DOMAIN            optional: the React site host, e.g. lai.example.com; deploys
 #                              LaiFrontend-<env> in us-east-1 (CloudFront) when set or already deployed
+#   LAI_AMPLIFY_APP_ID         required with LAI_SITE_DOMAIN: the Amplify app whose main backend the
+#                              site build reads (aws amplify list-apps)
 #   LAI_COGNITO_USER_POOL_ID   required: the existing Amplify user pool
 #   LAI_COGNITO_CLIENT_IDS     required: comma-separated app client ids
 #   LAI_INSTANCE_TYPE          default t3.medium
@@ -100,8 +102,10 @@ deploy_stack "$ec2_stack" \
 site_stack="LaiFrontend-$env_name"
 site_domain=${LAI_SITE_DOMAIN:-$(existing "$site_stack" SiteDomainName us-east-1)}
 if [ -n "$site_domain" ]; then
+    amplify_app=${LAI_AMPLIFY_APP_ID:-$(existing "$site_stack" AmplifyAppId us-east-1)}
+    [ -n "$amplify_app" ] || { echo "missing LAI_AMPLIFY_APP_ID (see the header of $0)" >&2; exit 2; }
     STACK_REGION=us-east-1 deploy_stack "$site_stack" \
-        "SiteDomainName=$site_domain" "ApiDomainName=$api_domain"
+        "SiteDomainName=$site_domain" "ApiDomainName=$api_domain" "AmplifyAppId=$amplify_app"
 elif [ -z "$only" ] || [ "$only" = "$site_stack" ]; then
     echo "== $site_stack skipped (set LAI_SITE_DOMAIN to create it)"
 fi

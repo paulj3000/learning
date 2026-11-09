@@ -126,6 +126,7 @@ new AiGuardrailStack(app, `LaiAiGuardrail-${envName}`, {
 // CloudFront certificates must live in us-east-1, so the whole site stack does (LAI-INFRA-003).
 new FrontendStack(app, `LaiFrontend-${envName}`, {
   envName: envName as AssetEnvironment,
+  githubRepository,
   hostedZone: hostedZoneId ? { id: hostedZoneId, name: hostedZoneName } : undefined,
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: FRONTEND_REGION },
   synthesizer: synthesizer(),
