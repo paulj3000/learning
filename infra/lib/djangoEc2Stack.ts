@@ -125,6 +125,16 @@ export class DjangoEc2Stack extends Stack {
   readonly deployRole: iam.Role;
   readonly instanceRole: iam.Role;
 
+  /**
+   * The first two Availability Zones as CloudFormation resolves them at deploy time
+   * (`Fn::GetAZs`). Without this, a synth for a concrete account and region that skips CDK's
+   * context lookup (scripts/aws/provision.sh synthesizes with plain `tsx`) gets the placeholders
+   * `dummy1a`/`dummy1b` and the subnets fail to create (found by cfn-lint W3010, LAI-INFRA-005).
+   */
+  override get availabilityZones(): string[] {
+    return [Fn.select(0, Fn.getAzs()), Fn.select(1, Fn.getAzs())];
+  }
+
   constructor(scope: Construct, id: string, props: DjangoEc2StackProps) {
     const prod = props.envName === 'prod';
     super(scope, id, { terminationProtection: prod, ...props });

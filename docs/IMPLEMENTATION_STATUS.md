@@ -12705,3 +12705,33 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   - `npm run typecheck` and lint are clean.
   - Prettier and ruff are clean on changed files.
 - Not run: a real AWS or GitHub Actions run (gated off by design).
+
+## LAI-INFRA-005 reconciliation and validation (2026-11-09, branch `claude/lai-infra-001-pr-kwauv3`, owner review, nothing deployed)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| LAI-INFRA-005 | `docs/infrastructure/reconciliation-report.md`; ownership matrix updated; one verified-safe definition fix; cross-stack reference test | **None** (no AWS access) | Open: owner review; blocker B1 (`lai-dev-complete.yaml`); approval requests in report section 6 |
+
+- Validation evidence is in report section 2:
+  - YAML (9 files) and JSON (51 files): no duplicate keys.
+  - 12 synthesized templates (dev and prod).
+  - `cfn-lint` 1.60.0.
+  - `actionlint`.
+  - Region, naming, tag and secret scans.
+- **Fixed:** `cfn-lint` W3010 showed `LaiDjangoEc2` subnets in the placeholder AZs
+  `dummy1a`/`dummy1b`, because `provision.sh` synthesizes with a concrete account and no context
+  lookup. The first `provision.sh dev` would have failed. The stack now takes its AZs from
+  `Fn::GetAZs`, and a test fails without the fix.
+- **Added:** `infra/lib/crossStackReferences.test.ts` (18 cases). It checks that every by-name
+  reference between stacks (policies, roles, log group, topic, buckets, ECR, OIDC provider)
+  resolves to a created resource, that physical names are unique and `lai`-prefixed, that every
+  stack carries the project tag, and that each stack is in its intended region.
+- **Open:**
+  - B1 `lai-dev-complete.yaml`.
+  - C9: a test credential committed in `.claude/settings.json`.
+  - C10: `cfn-lint` W3691 on the PostgreSQL major-only version (unverified).
+  - The other items are in report section 5.
+- Checks:
+  - Infra vitest: 82 passed.
+  - `tests/deploy`: 81 passed.
+  - Typecheck, lint, Prettier, ruff and `actionlint` are clean.
