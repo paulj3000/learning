@@ -12641,3 +12641,22 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
 - `lai-dev-complete.yaml` is not in the repository or its history; requested from the owner.
 - Checks: docs only, so no unit tests or typecheck apply. Prettier not run (`npm ci` could not
   reach the registry); deferred to merge verification.
+
+## LAI-INFRA-002 resource ownership and duplicate stack audit (2026-11-09, branch `claude/lai-infra-001-pr-kwauv3`, docs only, nothing deployed)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| LAI-INFRA-002 | `docs/infrastructure/resource-ownership.md` | **Not possible in this session** (AWS CLI calls refused by the session's permission settings) | Open: owner decisions D1 to D6, read-only checks in section 8, and the `lai-dev-complete.yaml` comparison (blocker B1) |
+
+- One proposed owner per resource for VPC, EC2, ALB, RDS (Single-AZ), Cognito, S3 (assets, child
+  photos, Amplify, frontend, admin static), CloudFront, ACM, Route 53, WAF, Lambda, SQS, IAM,
+  SSM, ECR, Guardrail, monitoring and pipelines, built on the LAI-INFRA-001 inventory.
+- Risks recorded: fixed physical names make a second definition fail, while unnamed resources
+  (VPC, EC2, ALB, CloudFront) duplicate silently; `RETAIN` resources block redeploys until
+  imported; cross-stack links are by name, so deletion order is not enforced.
+- `lai-dev-complete.yaml` is still missing. It is treated as owning nothing; section 5 lists the
+  comparison to run once it arrives. Its contents are known only from the DevOps card.
+- LAI-INFRA-001 correction: the PR for this entry and the previous one used branch
+  `claude/lai-infra-001-pr-kwauv3`; the Prettier check deferred there passed on 2026-11-09.
+- Checks: docs only, so no unit tests or typecheck apply. `prettier --check` passes on the changed
+  files.
