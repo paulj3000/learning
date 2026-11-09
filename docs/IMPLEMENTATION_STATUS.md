@@ -12625,3 +12625,19 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   batches 5/5; probe batch stored nothing. Carried forward: the price confirmation, a rerun
   under the instance role, and the two validation suggestions in the report.
 
+
+## LAI-INFRA-001 infrastructure inventory (2026-11-09, branch `infra/lai-infra-001-inventory`, docs only, nothing deployed)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| LAI-INFRA-001 | `docs/infrastructure/inventory.md` | **Not possible in this session** (no AWS CLI; AWS and package-registry endpoints refused; GitHub Actions API refused) | Open: owner review, read-only checks in section 8, and `lai-dev-complete.yaml` (blocker B1) |
+
+- Inventories the 5 CDK stacks (`infra/`), the Amplify Gen 2 backend (22 models, not 17 as in
+  `docs/CURRENT_AWS_RESOURCE_INVENTORY.md`), Amplify Hosting config, `deploy-django-ec2.yml`, the
+  EC2 Compose/nginx runtime and the scripts that deploy them, with region, environment, deployed
+  vs. proposed and ownership questions U1 to U10.
+- Deployed state is taken from the owner's 2026-11-01 CLI record (no `Lai*` stack in
+  `008331939914`/`us-west-1`) and the 2026-11-07 QA report (out-of-band `LaiAiGuardrailOnly-dev`).
+- `lai-dev-complete.yaml` is not in the repository or its history; requested from the owner.
+- Checks: docs only, so no unit tests or typecheck apply. Prettier not run (`npm ci` could not
+  reach the registry); deferred to merge verification.
