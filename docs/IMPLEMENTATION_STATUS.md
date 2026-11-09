@@ -12892,3 +12892,19 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   `claude/lai-infra-001-pr-kwauv3`; the Prettier check deferred there passed on 2026-11-09.
 - Checks: docs only, so no unit tests or typecheck apply. `prettier --check` passes on the changed
   files.
+
+## Merge `main` into the `dev20261103` integration (2026-11-09, branch `claude/jolly-ride-92xktb`)
+
+- **What.** `origin/dev20261103` plus `main`'s LAI-INFRA-001 and LAI-INFRA-002 docs (PRs 7 and 8).
+  One conflict, this file (both sides appended a section; both kept). No code changed.
+- **Checks run (local PostgreSQL 16, Node 22, Python 3.13).** Full `make py-test-db`: 2759
+  passed, 0 failed, 0 skipped (closes the gap left on 2026-11-07, when only `ai`,
+  `game_sessions`, `education` and `catalog` were re-run after the seam fix). Ruff check and
+  format, Django check, migration check: clean. `adr:check`, `admin-preview:check`,
+  `content:check`, `golden:check`, typecheck, oxlint (warnings only), Prettier, build: clean.
+  Vitest 4399 passed. Playwright acceptance 43 passed, 2 skipped (touch drag on the desktop
+  project; `@thread` run mode), run against the container's preinstalled Chromium build 1243
+  because the pinned Playwright expects build 1234.
+- **Not run.** e2e smoke (`test:e2e`; the 11 Firepeak scenarios are still `test.fixme`).
+- **Not done.** Owner browser QA (Firepeak FP-13, Storykeeper Castle, Django Admin authoring,
+  the Island Explorer with Firepeak), deployed verification, LAI-0821 acceptance, merge to main.
