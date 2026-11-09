@@ -82,10 +82,13 @@ URL routing is Django's own (`lai/config/urls.py`): `/api/v1/*` (including asset
 `/api/v1/`), the admin at `DJANGO_ADMIN_URL_PATH` (default `/admin/`), admin static files at
 `/static/` (WhiteNoise, from the image), and the probes `/api/v1/health/` (liveness, no
 database) and `/api/v1/health/ready/` (database plus pending migrations; 503 when not ready).
-Django keeps its host, CSRF, session-cookie and authentication checks: nginx passes the real
-`Host`, and only the two probe paths get the API host name (load balancer checks arrive with the
-instance IP). Admin CSRF works because `DJANGO_CSRF_TRUSTED_ORIGINS=https://api.<domain>` and the
-ALB's `X-Forwarded-Proto` is trusted (`DJANGO_TRUST_PROXY_SSL_HEADER=true`, gunicorn trusts
+Two host names share the load balancer (LAI-INFRA-003, `docs/infrastructure/domains-and-hosting.md`):
+the API host serves `/api/` only, and the admin host serves the admin and `/static/` but never
+`/api/`. The ALB forwards only those two hosts (anything else gets a 404 from the ALB) and nginx
+enforces the paths per host. Django keeps its host, CSRF, session-cookie and authentication checks:
+nginx passes the real `Host`, and only the two probe paths get the API host name (load balancer
+checks arrive with the instance IP). Admin CSRF works because
+`DJANGO_CSRF_TRUSTED_ORIGINS=https://<admin host>` and the ALB's `X-Forwarded-Proto` is trusted (`DJANGO_TRUST_PROXY_SSL_HEADER=true`, gunicorn trusts
 forwarded headers only from the compose network `172.30.10.0/24`).
 
 **Static files vs models.** Admin static files are baked into the image (collected at build time).
@@ -94,8 +97,9 @@ and survive every release and rollback. Child profile photos are in a separate p
 (`LAI_CHILD_PHOTO_STORAGE=s3`, ADR-042), never in the asset bucket or a container.
 
 **Browser access.** Django has no CORS on purpose. The React app reaches it same-origin through
-the Amplify Hosting 200 proxy rewrite (`docs/platform/AMPLIFY_HOSTING.md` section 7) until
-LAI-1005's CloudFront. The admin is used directly at `https://api.<domain>/admin/`.
+the Amplify Hosting 200 proxy rewrite (`docs/platform/AMPLIFY_HOSTING.md` section 7) until the
+`LaiFrontend-<env>` CloudFront distribution (LAI-1005, LAI-INFRA-003) routes `/api/*` to the API
+host. The admin is used at `https://<admin host>/admin/`.
 
 ## 4. Configuration reference
 
@@ -123,7 +127,7 @@ for dev), `LAI_DB_MULTI_AZ`, `LAI_CREATE_OIDC_PROVIDER` (`false` if the account 
 alias record).
 
 CloudFormation parameters of `LaiDjangoEc2-<env>` (set by `provision.sh`): `ApiDomainName`,
-`AmiId` (Amazon Linux 2023 x86_64, pinned so updates never replace the instance by surprise),
+`AdminDomainName` (both on one certificate), `AmiId` (Amazon Linux 2023 x86_64, pinned so updates never replace the instance by surprise),
 `InstanceType` (default `t3.medium`), `CognitoUserPoolId`, `CognitoAllowedClientIds`,
 `AlarmEmail` (optional).
 
@@ -131,7 +135,7 @@ CloudFormation parameters of `LaiDjangoEc2-<env>` (set by `provision.sh`): `ApiD
 
 | Parameter | Type | Written by |
 |---|---|---|
-| `django/DJANGO_ALLOWED_HOSTS`, `django/DJANGO_CSRF_TRUSTED_ORIGINS` | String | stack (from `ApiDomainName`) |
+| `django/DJANGO_ALLOWED_HOSTS` (both hosts), `django/DJANGO_CSRF_TRUSTED_ORIGINS` (admin host) | String | stack (from `ApiDomainName`, `AdminDomainName`) |
 | `django/COGNITO_REGION`, `django/COGNITO_USER_POOL_ID`, `django/COGNITO_ALLOWED_CLIENT_IDS` | String | stack |
 | `django/LAI_ASSET_STORAGE` (`s3`), `django/LAI_ASSET_BUCKET`, `django/LAI_ASSET_REGION` | String | stack (the `LaiAssetStorage-<env>` bucket name) |
 | `django/LAI_CHILD_PHOTO_STORAGE` (`s3`), `django/LAI_CHILD_PHOTOS_BUCKET`, `django/LAI_CHILD_PHOTOS_REGION` | String | stack (the `LaiChildPhotos-<env>` bucket name). Without them production runs with photos `disabled` |
@@ -176,6 +180,8 @@ All commands run from the repository root with AWS CLI v2 credentials for the ta
 ```bash
 export AWS_REGION=us-west-1
 export LAI_API_DOMAIN=api.example.com
+export LAI_ADMIN_DOMAIN=ladm.example.com
+# export LAI_SITE_DOMAIN=lai.example.com         # also deploys LaiFrontend-dev (us-east-1)
 export LAI_COGNITO_USER_POOL_ID=us-west-1_XXXXXXXXX
 export LAI_COGNITO_CLIENT_IDS=xxxxxxxxxxxxxxxxxxxxxxxxxx
 export LAI_ALARM_EMAIL=you@example.com          # optional
@@ -184,8 +190,8 @@ scripts/aws/provision.sh dev                      # change sets only; review the
 scripts/aws/provision.sh dev --execute            # apply
 ```
 
-It deploys, in order, `LaiAssetStorage-dev`, `LaiChildPhotos-dev`, `LaiDjangoRelease` and
-`LaiDjangoEc2-dev`. Both storage stacks come before the EC2 stack, whose instance role attaches
+It deploys, in order, `LaiAssetStorage-dev`, `LaiChildPhotos-dev`, `LaiDjangoRelease`,
+`LaiDjangoEc2-dev` and, when `LAI_SITE_DOMAIN` is set, `LaiFrontend-dev` in us-east-1. Both storage stacks come before the EC2 stack, whose instance role attaches
 their policies by name. On an environment provisioned before 2026-10-31, the `LaiDjangoEc2` change
 set must show only an in-place `Modify` of the instance role and three added SSM parameters
 (`docs/platform/CHILD_PHOTO_STORAGE.md` section 8).
@@ -282,7 +288,7 @@ Bootstrap tasks are never run by a deploy. `migrate` is also available as a task
 
 ### 5.10 Publish the Treasure Rush models (Django Admin)
 
-Sign in at `https://api.<domain>/admin/` with the account from 5.9, then follow
+Sign in at `https://<admin host>/admin/` with the account from 5.9, then follow
 `docs/ASSET_LIBRARY.md` section 19.2: **Asset library, Asset versions**, select the imported
 `npc-pip`, `treasure-chest` and `ground-tile` versions, action **Publish selected versions**. The
 first published version of each becomes its default. Publishing the region itself is still the

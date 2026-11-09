@@ -17,7 +17,7 @@ if [ "${1:-}" = --history ]; then history=${2:-10}; fi
 [[ $history =~ ^[0-9]{1,3}$ ]] || { echo "usage: $0 [--history N]" >&2; exit "$E_USAGE"; }
 
 load_conf
-echo "== environment: $LAI_ENV ($AWS_REGION), API host $LAI_API_HOST, database mode $LAI_DB_MODE"
+echo "== environment: $LAI_ENV ($AWS_REGION), API host $LAI_API_HOST, admin host ${LAI_ADMIN_HOST:-}, database mode $LAI_DB_MODE"
 echo "== current release"
 jq . <<<"$(current_record)"
 echo "== last $history release events"

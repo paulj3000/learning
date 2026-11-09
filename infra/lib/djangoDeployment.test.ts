@@ -194,6 +194,7 @@ describe('DjangoEc2Stack', { timeout: 60_000 }, () => {
     });
     template.hasResourceProperties('AWS::CertificateManager::Certificate', {
       DomainName: { Ref: 'ApiDomainName' },
+      SubjectAlternativeNames: [{ Ref: 'AdminDomainName' }],
       ValidationMethod: 'DNS',
     });
     template.hasResourceProperties('AWS::ElasticLoadBalancingV2::TargetGroup', {
@@ -339,6 +340,41 @@ describe('DjangoEc2Stack', { timeout: 60_000 }, () => {
     expect(params).not.toContain('parameter/lai/dev');
   });
 
+  it('forwards only the API and admin hosts; any other Host gets a 404 from the ALB', () => {
+    template.hasResourceProperties('AWS::ElasticLoadBalancingV2::Listener', {
+      Port: 443,
+      DefaultActions: [
+        Match.objectLike({
+          Type: 'fixed-response',
+          FixedResponseConfig: Match.objectLike({ StatusCode: '404' }),
+        }),
+      ],
+    });
+    template.resourceCountIs('AWS::ElasticLoadBalancingV2::ListenerRule', 1);
+    template.hasResourceProperties('AWS::ElasticLoadBalancingV2::ListenerRule', {
+      Conditions: [
+        {
+          Field: 'host-header',
+          HostHeaderConfig: { Values: [{ Ref: 'ApiDomainName' }, { Ref: 'AdminDomainName' }] },
+        },
+      ],
+      Actions: [Match.objectLike({ Type: 'forward' })],
+    });
+  });
+
+  it('lets Django accept both hosts and trusts CSRF from the admin host only', () => {
+    const settings = Object.values(template.findResources('AWS::SSM::Parameter')) as Resource[];
+    const value = (name: string) =>
+      JSON.stringify(
+        settings.find((resource) => resource.Properties.Name === `/lai/prod/django/${name}`)!
+          .Properties.Value,
+      );
+    expect(value('DJANGO_ALLOWED_HOSTS')).toContain('ApiDomainName');
+    expect(value('DJANGO_ALLOWED_HOSTS')).toContain('AdminDomainName');
+    expect(value('DJANGO_CSRF_TRUSTED_ORIGINS')).toContain('AdminDomainName');
+    expect(value('DJANGO_CSRF_TRUSTED_ORIGINS')).not.toContain('ApiDomainName');
+  });
+
   it('writes the plain runtime settings to SSM and never a secret', () => {
     const names = resources(template, 'AWS::SSM::Parameter').map(
       (resource) => resource.Properties.Name as string,
@@ -402,9 +438,14 @@ describe('DjangoEc2Stack', { timeout: 60_000 }, () => {
     dev.resourceCountIs('AWS::EC2::VolumeAttachment', 1);
   });
 
-  it('uses a Route 53 zone for validation and the alias when one is given', () => {
+  it('uses a Route 53 zone for validation and the API and admin aliases when one is given', () => {
     const zoned = ec2Stack({ hostedZone: { id: 'Z123', name: 'example.com' } }).template;
-    zoned.resourceCountIs('AWS::Route53::RecordSet', 1);
+    const names = (Object.values(zoned.findResources('AWS::Route53::RecordSet')) as Resource[]).map(
+      (record) => JSON.stringify(record.Properties.Name),
+    );
+    expect(names).toHaveLength(2);
+    expect(names.some((name) => name.includes('ApiDomainName'))).toBe(true);
+    expect(names.some((name) => name.includes('AdminDomainName'))).toBe(true);
   });
 });
 
