@@ -15,7 +15,12 @@ import {
 const env = { account: '123456789012', region: FRONTEND_REGION };
 
 function frontend(hostedZone?: { id: string; name: string }) {
-  const stack = new FrontendStack(new App(), 'Test', { envName: 'prod', env, hostedZone });
+  const stack = new FrontendStack(new App(), 'Test', {
+    envName: 'prod',
+    env,
+    hostedZone,
+    githubRepository: 'paulj3000/learning',
+  });
   return Template.fromStack(stack);
 }
 
@@ -129,9 +134,45 @@ describe('FrontendStack', () => {
     });
   });
 
-  it('creates no Lambda, role or file asset', () => {
+  it('lets only the site-<env> GitHub Environment publish, with no delete right', () => {
+    template.resourceCountIs('AWS::IAM::Role', 1);
+    template.hasResourceProperties('AWS::IAM::Role', {
+      RoleName: 'lai-github-site-deploy-prod',
+      AssumeRolePolicyDocument: Match.objectLike({
+        Statement: [
+          Match.objectLike({
+            Action: 'sts:AssumeRoleWithWebIdentity',
+            Condition: {
+              StringEquals: {
+                'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
+                'token.actions.githubusercontent.com:sub':
+                  'repo:paulj3000/learning:environment:site-prod',
+              },
+            },
+          }),
+        ],
+      }),
+    });
+    const [policy] = Object.values(template.findResources('AWS::IAM::Policy')) as Resource[];
+    const statements = (
+      policy.Properties.PolicyDocument as {
+        Statement: Array<{ Sid: string; Action: string | string[]; Resource: unknown }>;
+      }
+    ).Statement;
+    const actions = statements.flatMap((statement) =>
+      Array.isArray(statement.Action) ? statement.Action : [statement.Action],
+    );
+    expect(actions).toContain('s3:PutObject');
+    expect(actions).toContain('cloudfront:CreateInvalidation');
+    expect(actions.filter((action) => /Delete|\*/.test(action))).toEqual([]);
+    const amplify = JSON.stringify(statements.filter((s) => s.Sid.startsWith('ReadAmplify')));
+    expect(amplify).toContain('AmplifyAppId');
+    expect(amplify).toContain('-main-');
+    expect(amplify).toContain('us-west-1');
+  });
+
+  it('creates no Lambda or file asset', () => {
     template.resourceCountIs('AWS::Lambda::Function', 0);
-    template.resourceCountIs('AWS::IAM::Role', 0);
     template.resourceCountIs('AWS::Route53::RecordSet', 0); // no zone given
   });
 

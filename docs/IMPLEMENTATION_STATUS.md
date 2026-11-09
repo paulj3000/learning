@@ -12681,3 +12681,27 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   `npm run typecheck` and lint are clean. Prettier and ruff are clean on the changed files. All six
   stacks synthesize with no assets. Not run: Django suite (no Django code changed), `cfn-lint`
   (deferred to LAI-INFRA-005), shellcheck (not installed).
+
+## LAI-INFRA-004 deployment automation ownership (2026-11-09, branch `claude/lai-infra-001-pr-kwauv3`, design plus gated code, nothing switched on)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| LAI-INFRA-004 | `docs/infrastructure/deployment-design.md`; `deploy-site.yml`, `site-release` action, `publish-site.sh`, site deploy role | **None** (no AWS access; the workflow is gated off by `LAI_SITE_DEPLOY_ENABLED`) | Open: owner review, first gated dev run (confirms the `ampx generate outputs` IAM set), choosing (a) or (b) for the Amplify backend pipeline after acceptance |
+
+- Owner decisions (2026-11-09):
+  - GitHub Actions with OIDC is the only release system; CodePipeline/CodeBuild is not adopted.
+  - This PR ships the design and gated code.
+- How it works:
+  - Backend and frontend ship from the same `main` commit. The site waits for that commit's Django
+    release when the push touched backend paths, and stops if that release failed.
+  - Site rollback restores `_releases/<sha>/` shells, with no rebuild.
+  - Hashed assets are never deleted. Only the shells are invalidated.
+  - The site role has no S3 delete right and trusts only `environment:site-<env>`.
+- Checks:
+  - Infra vitest: 63 passed.
+  - `tests/deploy`: all passed, including 8 publish-script tests (fake `aws`) and 4 workflow guard
+    tests.
+  - `actionlint` is clean on both deploy workflows.
+  - `npm run typecheck` and lint are clean.
+  - Prettier and ruff are clean on changed files.
+- Not run: a real AWS or GitHub Actions run (gated off by design).
