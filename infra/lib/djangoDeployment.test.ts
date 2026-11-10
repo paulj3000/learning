@@ -438,6 +438,21 @@ describe('DjangoEc2Stack', { timeout: 60_000 }, () => {
     dev.resourceCountIs('AWS::EC2::VolumeAttachment', 1);
   });
 
+  it('places subnets in the Availability Zones CloudFormation resolves, never placeholders', () => {
+    // A concrete account and region with no context lookup is how provision.sh synthesizes.
+    const json = JSON.stringify(template.toJSON());
+    expect(json).not.toContain('dummy1');
+    const subnets = resources(template, 'AWS::EC2::Subnet');
+    expect(subnets).toHaveLength(4);
+    for (const subnet of subnets) {
+      expect(JSON.stringify(subnet.Properties.AvailabilityZone)).toContain('Fn::GetAZs');
+    }
+    const zones = new Set(
+      subnets.map((subnet) => JSON.stringify(subnet.Properties.AvailabilityZone)),
+    );
+    expect(zones.size).toBe(2);
+  });
+
   it('uses a Route 53 zone for validation and the API and admin aliases when one is given', () => {
     const zoned = ec2Stack({ hostedZone: { id: 'Z123', name: 'example.com' } }).template;
     const names = (Object.values(zoned.findResources('AWS::Route53::RecordSet')) as Resource[]).map(
