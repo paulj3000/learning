@@ -13016,7 +13016,7 @@ Trello: "[Subproject] Adventure Portal & Learning Dashboard", cards AP-01 and AP
 complete and unit-tested; **not yet seen in a browser or on a device** (Playwright and the
 merge-readiness gates are deferred to integration, as the brief directs).
 
-**AP-01: Tailwind design system and responsive shell** (ADR-051, Proposed)
+**AP-01: Tailwind design system and responsive shell** (ADR-052, Proposed)
 
 - `react/src/features/portal/portal.css`: a second Tailwind 4 entry, reference-only theme with
   the ocean, tropical, treasure, coral and purple families; no reset; no `:root` variables.
@@ -13059,7 +13059,7 @@ merge-readiness gates are deferred to integration, as the brief directs).
   canvases at `md`, and full-screen leave placement need visual checks.
 - Phaser world pages and card adventures save per step already and register no exit participant;
   they leave immediately. Story sessions likewise.
-- ADR-051 awaits owner acceptance.
+- ADR-052 awaits owner acceptance.
 
 ### AP-01 follow-up: the portal theme on the child homepage (2026-11-10, branch `feature/adventure-portal`)
 
@@ -13091,7 +13091,7 @@ headless Chromium at 1280px and 390px through a local harness with the API modul
 
 Still open: merge to `main` and a release (owner approval); AP-02 (XP/level, missions, rewards
 from Django) and AP-03 (Django-published island discovery) are not implemented; Playwright, lint,
-full suite at integration; ADR-051 acceptance.
+full suite at integration; ADR-052 acceptance.
 
 ### Merge `main` into `feature/adventure-portal` (2026-11-10)
 
@@ -13104,3 +13104,23 @@ full suite at integration; ADR-051 acceptance.
   `RegionPlayCompanion.test.tsx` "sends a double-tapped answer once", passed 3 of 3 runs in isolation;
   that file and its component are identical to `main`, so it is a load-sensitive timing test, not a merge
   regression.
+
+### Adventure Portal merge-readiness checks (2026-11-10, branch `feature/adventure-portal`)
+
+- Fixed: the merge left two ADR-051s (`main`'s Accepted Castle room discovery and the portal's
+  Proposed Tailwind decision). The portal decision is renumbered **ADR-052** (registry, heading,
+  `portal.css`, `portalCss.test.ts`, `vite.config.ts`, the portal status lines). Prettier fix to
+  `WelcomeHarbor.tsx`.
+- `npm run lint` (oxlint): 0 errors; warnings only, all pre-existing rule categories.
+- `npm run format:check`, `npm run adr:check` (52 decisions), `npm run admin-preview:check`,
+  `npm run typecheck`: pass.
+- Full Vitest: 399 files, 4519 tests, all pass.
+- `npm run build`: passes.
+- `npm run test:e2e` (Playwright, Chromium): 7 passed, 11 skipped (Firepeak specs are `test.fixme`
+  on `main` by design). Run with the container's preinstalled Chromium via a temporary,
+  uncommitted config (`executablePath`), because the pinned Playwright's browser build is absent.
+- Not run: `npm run test:acceptance` and the Python/Django gates (`make check`). The acceptance
+  suite needs Django, PostgreSQL and a real Cognito parent; this branch changes no Python.
+- Visibility note: the child homepage loads its companion and world changes from Amplify Data.
+  A local run with `VITE_BACKEND=django` and no Amplify sandbox shows only the plain
+  "Something went wrong loading the island." text, so the portal design never renders there.

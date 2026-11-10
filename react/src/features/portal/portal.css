@@ -1,6 +1,6 @@
 /**
  * Tailwind CSS for the Adventure Portal: the child shell, the parent shell
- * and the shared portal components (AP-01, docs/DECISIONS.md ADR-051, which
+ * and the shared portal components (AP-01, docs/DECISIONS.md ADR-052, which
  * extends ADR-023's admin-only boundary to these files).
  *
  * It follows the same three rules as src/features/admin/admin.css, so

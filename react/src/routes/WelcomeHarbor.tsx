@@ -132,7 +132,10 @@ export function WelcomeHarbor() {
           </div>
         </div>
         {leftIsland ? (
-          <p className="m-0 rounded-2xl bg-tropical-50 px-4 py-3 font-semibold text-ink" role="status">
+          <p
+            className="m-0 rounded-2xl bg-tropical-50 px-4 py-3 font-semibold text-ink"
+            role="status"
+          >
             {LEAVE_ISLAND_COPY.welcomeBack}
           </p>
         ) : null}

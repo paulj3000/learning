@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { PROGRESS_FILL } from './ui/variants';
 
 /**
- * ADR-051's promise, checked mechanically (mirrors adminCss.test.ts):
+ * ADR-052's promise, checked mechanically (mirrors adminCss.test.ts):
  * importing portal.css cannot restyle any page that does not use its classes,
  * and every colour pair the portal components use passes WCAG AA.
  */
@@ -64,7 +64,7 @@ function stripBlocks(css: string, prefix: string): string {
   return result;
 }
 
-describe('portal.css (ADR-051)', () => {
+describe('portal.css (ADR-052)', () => {
   it('declares no custom property outside Tailwind’s private --tw-* names', async () => {
     const css = await buildPortalCss();
     const declared = [...css.matchAll(/(?:^|[;{\s])(--[\w-]+)\s*:/g)].map((match) => match[1]);

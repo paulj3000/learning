@@ -73,7 +73,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-048 | Spatial audio is a panner on the Sound Manager's one AudioContext; emitters and zones are reusable and Three.js-free; Django configures distances and zone beds | Proposed | Feature branch `feature/sound-manager` (SM-P7) | Development only, 2026-11-03; owner acceptance pending. Builds on ADR-050 |
 | ADR-049 | Django owns speech synthesis through Amazon Polly behind a fake-able client; games speak only server-approved references; React plays through the Sound Manager's voice channel | Proposed | Feature branch `feature/sound-manager` (SM-P8) | Development only, 2026-11-03; owner acceptance and live verification pending. Builds on ADR-044, ADR-045, ADR-050, ADR-048 |
 | ADR-050 | Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver | Proposed | Feature branch `feature/sound-manager` (SM-P2) | Development only, 2026-11-02; owner acceptance pending. Builds on ADR-035, ADR-041, ADR-045; records Sound Manager decisions SM-D1 to SM-D6 |
-| ADR-051 | The Adventure Portal's child and parent shells use Tailwind CSS 4 with a reference-only portal theme; page content stays on CSS Modules | Proposed | Feature branch `feature/adventure-portal` (AP-01, AP-04) | Owner-directed 2026-11-07 (Trello AP-01 names Tailwind 4). Amends ADR-023's route boundary; owner acceptance pending |
+| ADR-052 | The Adventure Portal's child and parent shells use Tailwind CSS 4 with a reference-only portal theme; page content stays on CSS Modules | Proposed | Feature branch `feature/adventure-portal` (AP-01, AP-04) | Owner-directed 2026-11-07 (Trello AP-01 names Tailwind 4). Amends ADR-023's route boundary; owner acceptance pending |
 
 ## ADR-001: Parent-owned accounts
 
@@ -3806,7 +3806,7 @@ production. Not heard; no live AWS call was made.
 
 **Acceptance.** Remains Proposed until the owner accepts it and the live verification gate passes.
 
-## ADR-051: The Adventure Portal's child and parent shells use Tailwind CSS 4 with a reference-only portal theme; page content stays on CSS Modules
+## ADR-052: The Adventure Portal's child and parent shells use Tailwind CSS 4 with a reference-only portal theme; page content stays on CSS Modules
 
 Status: Proposed (2026-11-07)
 
