@@ -20,7 +20,15 @@ export interface PlaceSummary {
   title: string;
   tagline: string;
   adventureCount: number;
+  /** AP-03: the child has started an adventure here or entered its 3D Area. */
+  explored: boolean;
   area: PlaceArea | null;
+}
+
+/** AP-03: how far along this child is on an Island, in Places explored (never a score). */
+export interface IslandProgress {
+  placesExplored: number;
+  placesTotal: number;
 }
 
 export interface IslandSummary {
@@ -28,6 +36,13 @@ export interface IslandSummary {
   title: string;
   tagline: string;
   isHome: boolean;
+  /** AP-03 discovery details. Defaults apply when an older server leaves them out. */
+  ageBands: string[];
+  subjects: string[];
+  thumbnailAssetId: string | null;
+  unlocked: boolean;
+  lockedHint: string | null;
+  progress: IslandProgress | null;
   places: PlaceSummary[];
 }
 
@@ -45,6 +60,11 @@ function area(r: Reader): PlaceArea {
   };
 }
 
+/** Reads a field the AP-03 server added, or `fallback` when an older server left it out. */
+function added<T>(r: Reader, name: string, read: (field: Reader) => T, fallback: T): T {
+  return name in r.object() ? read(r.field(name)) : fallback;
+}
+
 export function islandsView(r: Reader): IslandsView {
   return {
     islands: r.field('islands').array((island) => ({
@@ -52,11 +72,31 @@ export function islandsView(r: Reader): IslandsView {
       title: island.field('title').string(),
       tagline: island.field('tagline').string(),
       isHome: island.field('isHome').boolean(),
+      ageBands: added(island, 'ageBands', (f) => f.array((band) => band.string()), []),
+      subjects: added(island, 'subjects', (f) => f.array((subject) => subject.string()), []),
+      thumbnailAssetId: added(
+        island,
+        'thumbnailAssetId',
+        (f) => f.nullable((v) => v.string()),
+        null,
+      ),
+      unlocked: added(island, 'unlocked', (f) => f.boolean(), true),
+      lockedHint: added(island, 'lockedHint', (f) => f.nullable((v) => v.string()), null),
+      progress: added(
+        island,
+        'progress',
+        (f) => ({
+          placesExplored: f.field('placesExplored').integer(),
+          placesTotal: f.field('placesTotal').integer(),
+        }),
+        null,
+      ),
       places: island.field('places').array((place) => ({
         placeId: place.field('placeId').string(),
         title: place.field('title').string(),
         tagline: place.field('tagline').string(),
         adventureCount: place.field('adventureCount').integer(),
+        explored: added(place, 'explored', (f) => f.boolean(), false),
         area: place.field('area').nullable(area),
       })),
     })),

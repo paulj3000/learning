@@ -8,6 +8,8 @@ export interface ProgressIndicatorProps {
   max: number;
   tone?: ProgressTone;
   className?: string;
+  /** What is counted, plural: "steps" (the default) or "places explored". */
+  unit?: string;
 }
 
 /** Clamps to [0, max] and rounds, so a bad count never draws a broken bar. */
@@ -29,10 +31,11 @@ export function ProgressIndicator({
   max,
   tone = 'tropical',
   className,
+  unit = 'steps',
 }: ProgressIndicatorProps) {
   const normalized = normalizeProgress(value, max);
   const fraction = normalized.max === 0 ? 0 : normalized.value / normalized.max;
-  const text = `${normalized.value} of ${normalized.max} steps`;
+  const text = `${normalized.value} of ${normalized.max} ${unit}`;
   return (
     <div className={cn('flex flex-col gap-1', className)}>
       <div className="flex items-baseline justify-between gap-2 text-sm text-ink">

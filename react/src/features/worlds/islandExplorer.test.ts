@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { listLocationsInWorld } from '../island/locations';
-import { buildIslandExplorer, DEFAULT_LOCKED_HINT } from './islandExplorer';
+import {
+  buildIslandExplorer,
+  buildIslandExplorerFromServer,
+  DEFAULT_LOCKED_HINT,
+} from './islandExplorer';
+import type { IslandsView } from '../../api/play/islandsApi';
 import { listTravelDestinations } from './travel';
 import { getHomeWorld, getWorld } from './worlds';
 import { CREATURE_CARE_COVE_SLUG } from './slugs';
@@ -135,5 +140,145 @@ describe('buildIslandExplorer (LAI-0808)', () => {
     });
     expect(island.lockedHint).toBe(DEFAULT_LOCKED_HINT);
     expect(DEFAULT_LOCKED_HINT).not.toMatch(/—/);
+  });
+});
+
+describe('buildIslandExplorerFromServer (AP-03)', () => {
+  const area = (regionId: string, available = true) => ({ regionId, title: regionId, available });
+  const place = (
+    placeId: string,
+    options: { area?: ReturnType<typeof area> | null; explored?: boolean } = {},
+  ) => ({
+    placeId,
+    title: placeId,
+    tagline: `${placeId} tagline`,
+    adventureCount: 1,
+    explored: options.explored ?? false,
+    area: options.area ?? null,
+  });
+  const island = (
+    islandId: string,
+    overrides: Partial<IslandsView['islands'][number]> = {},
+  ): IslandsView['islands'][number] => ({
+    islandId,
+    title: islandId,
+    tagline: `${islandId} tagline`,
+    isHome: false,
+    ageBands: ['SPROUT', 'PATHFINDER', 'EXPLORER'],
+    subjects: ['Counting'],
+    thumbnailAssetId: null,
+    unlocked: true,
+    lockedHint: null,
+    progress: { placesExplored: 0, placesTotal: 0 },
+    places: [],
+    ...overrides,
+  });
+  const view = (...islands: IslandsView['islands']): IslandsView => ({
+    islands,
+    autoSelectIslandId: null,
+  });
+
+  it('links source Places to their page and offers a published 3D Area beside them', () => {
+    const [here] = buildIslandExplorerFromServer(
+      CHILD,
+      view(
+        island('learning-adventure-island', {
+          isHome: true,
+          places: [
+            place('pirate-builder-bay', {
+              area: { regionId: 'treasure-rush-cove', title: 'Treasure Cove', available: true },
+              explored: true,
+            }),
+            place('storykeeper-castle'),
+          ],
+        }),
+      ),
+    );
+    expect(here.status).toBe('HERE');
+    expect(here.places).toEqual([
+      {
+        slug: 'pirate-builder-bay',
+        title: 'pirate-builder-bay',
+        tagline: 'pirate-builder-bay tagline',
+        explored: true,
+        href: `/island/${CHILD}/locations/pirate-builder-bay`,
+        area: { title: 'Treasure Cove', href: `/island/${CHILD}/explore/treasure-rush-cove` },
+      },
+      {
+        slug: 'storykeeper-castle',
+        title: 'storykeeper-castle',
+        tagline: 'storykeeper-castle tagline',
+        explored: false,
+        href: `/island/${CHILD}/locations/storykeeper-castle`,
+        area: undefined,
+      },
+    ]);
+  });
+
+  it('sends a Django-only Place straight to its 3D Area and leaves out one with nowhere to go', () => {
+    const [here] = buildIslandExplorerFromServer(
+      CHILD,
+      view(
+        island('learning-adventure-island', {
+          isHome: true,
+          places: [
+            place('firepeak-volcano', { area: area('firepeak-volcano') }),
+            place('not-built-yet'),
+            place('area-unavailable', { area: area('somewhere', false) }),
+          ],
+        }),
+      ),
+    );
+    expect(here.places.map((p) => [p.slug, p.href])).toEqual([
+      ['firepeak-volcano', `/island/${CHILD}/explore/firepeak-volcano`],
+    ]);
+  });
+
+  it('shows a closed Island with its hint, or the calm default, and never a link', () => {
+    const islands = buildIslandExplorerFromServer(
+      CHILD,
+      view(
+        island('learning-adventure-island', { isHome: true }),
+        island('creature-care-cove', { unlocked: false, lockedHint: 'Help Pip first.' }),
+        island('quiet-isle', { unlocked: false }),
+      ),
+    );
+    expect(islands[1]).toMatchObject({ status: 'LOCKED', lockedHint: 'Help Pip first.' });
+    expect(islands[2]).toMatchObject({ status: 'LOCKED', lockedHint: DEFAULT_LOCKED_HINT });
+    expect(islands[1].href).toBeUndefined();
+  });
+
+  it('links an open Island to its hub and orders here, open, locked', () => {
+    const islands = buildIslandExplorerFromServer(
+      CHILD,
+      view(
+        island('locked-isle', { unlocked: false }),
+        island('creature-care-cove'),
+        island('learning-adventure-island', { isHome: true }),
+      ),
+    );
+    expect(islands.map((i) => [i.slug, i.status])).toEqual([
+      ['learning-adventure-island', 'HERE'],
+      ['creature-care-cove', 'OPEN'],
+      ['locked-isle', 'LOCKED'],
+    ]);
+    expect(islands[1].href).toBe(`/island/${CHILD}/worlds/creature-care-cove`);
+  });
+
+  it('carries subjects, age bands and places explored from the server', () => {
+    const [here] = buildIslandExplorerFromServer(
+      CHILD,
+      view(
+        island('learning-adventure-island', {
+          isHome: true,
+          subjects: ['Counting', 'Vocabulary'],
+          ageBands: ['PATHFINDER'],
+          progress: { placesExplored: 2, placesTotal: 5 },
+        }),
+      ),
+    );
+    expect(here.subjects).toEqual(['Counting', 'Vocabulary']);
+    expect(here.ageBands).toEqual(['PATHFINDER']);
+    expect(here.progress).toEqual({ explored: 2, total: 5 });
   });
 });

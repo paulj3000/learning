@@ -243,6 +243,7 @@ describe('Places served by Django on the harbor map', () => {
     title: placeId,
     tagline: '',
     adventureCount: 0,
+    explored: false,
     area: area ? { ...area, title: placeId } : null,
   });
 
@@ -255,6 +256,12 @@ describe('Places served by Django on the harbor map', () => {
           title: 'Home',
           tagline: '',
           isHome: true,
+          ageBands: [],
+          subjects: [],
+          thumbnailAssetId: null,
+          unlocked: true,
+          lockedHint: null,
+          progress: null,
           places: [
             place('firepeak-volcano', { regionId: 'firepeak-volcano', available: true }),
             place('pirate-builder-bay', { regionId: 'treasure-rush-cove', available: true }),
@@ -266,6 +273,12 @@ describe('Places served by Django on the harbor map', () => {
           title: 'Cove',
           tagline: '',
           isHome: false,
+          ageBands: [],
+          subjects: [],
+          thumbnailAssetId: null,
+          unlocked: true,
+          lockedHint: null,
+          progress: null,
           places: [place('elsewhere', { regionId: 'elsewhere', available: true })],
         },
       ],

@@ -225,17 +225,50 @@ class PlaceEntry:
     place: object  # catalog.Location
     area: RegionEntry | None  # its published 3D Area for this child, if any (at most one)
     adventure_count: int
+    explored: bool = False  # the child has started an adventure here or entered its 3D Area
 
 
 @dataclass(frozen=True)
 class IslandEntry:
     island: object  # catalog.World
     places: list[PlaceEntry]
+    unlocked: bool = True
+    locked_hint: str | None = None
+
+
+def place_unlocked(place, change_keys: set[str]) -> bool:
+    """A secret Place (its authored `unlockRequirement`) stays hidden until its world change
+    exists for this child, matching the harbor map's rule (AP-03)."""
+    requirement = (place.source or {}).get("unlockRequirement")
+    if not isinstance(requirement, dict):
+        return True
+    key = requirement.get("changeKey")
+    return not isinstance(key, str) or not key or key in change_keys
+
+
+def island_unlock(island, change_keys: set[str]) -> tuple[bool, str | None]:
+    """Whether the child can sail to this Island yet (AP-03).
+
+    The rule is the Island's own `travelRequirement`, as authored (the exported record, or an
+    administrator's published edit, ADR-047): open once any one of its world changes exists.
+    The home Island and an Island without a rule are always open. The hint is authored copy.
+    """
+    requirement = (island.source or {}).get("travelRequirement")
+    if island.is_home or not isinstance(requirement, dict):
+        return True, None
+    keys = requirement.get("anyOfChangeKeys")
+    if not isinstance(keys, list) or not keys:
+        return True, None
+    if any(isinstance(key, str) and key in change_keys for key in keys):
+        return True, None
+    hint = requirement.get("lockedHint")
+    return False, hint if isinstance(hint, str) and hint else None
 
 
 def child_islands(child) -> list[IslandEntry]:
     """Island > Place > 3D Area for this child (ADR-041). Inactive Islands and Places, other age
-    bands and unpublished 3D Areas are left out; a Place without a 3D Area is still listed."""
+    bands, unpublished 3D Areas and secret Places not yet unlocked are left out; a Place without
+    a 3D Area is still listed. Each Island says whether it is open to this child (AP-03)."""
     islands = [
         world
         for world in World.objects.filter(active=True).order_by("sort_order", "slug")[:MAX_ISLANDS]
@@ -243,15 +276,29 @@ def child_islands(child) -> list[IslandEntry]:
     ]
     regions = {r.location_id: r for r in visible_regions(child)}
     areas = {e.region.location_id: e for e in region_entries(child, list(regions.values()))}
+    # Places the child has started something in: a step adventure there, or its 3D Area.
+    adventured = set(
+        AdventureSession.objects.for_child(child)
+        .filter(adventure__isnull=False)
+        .values_list("adventure__location_id", flat=True)
+    )
+    change_keys = set(WorldChange.objects.for_child(child).values_list("change_key", flat=True))
     result = []
     for island in islands:
         places = []
         for place in island.locations.filter(active=True).order_by("sort_order", "slug")[
             :MAX_PLACES
         ]:
+            if not place_unlocked(place, change_keys):
+                continue
             count = Adventure.objects.filter(
                 location=place, active=True, age_bands__contains=[child.age_band]
             ).count()
-            places.append(PlaceEntry(place, areas.get(place.pk), count))
-        result.append(IslandEntry(island, places))
+            area = areas.get(place.pk)
+            explored = place.pk in adventured or (
+                area is not None and area.status != "NOT_STARTED"
+            )
+            places.append(PlaceEntry(place, area, count, explored))
+        unlocked, hint = island_unlock(island, change_keys)
+        result.append(IslandEntry(island, places, unlocked, hint))
     return result

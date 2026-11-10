@@ -13180,3 +13180,60 @@ only exit shown. The owner chose to remove the check entirely.
   AP-04 moved to Complete and marked done.
 - Not merged to `main` or deployed: the merge of `feature/adventure-portal` (AP-01 and AP-04)
   waits for the owner's go-ahead.
+
+## Adventure Portal AP-03 and AP-02: Island Explorer discovery and child home dashboard (2026-11-10, branch `feature/adventure-portal-home`)
+
+Trello AP-03 and AP-02. Branched from `feature/adventure-portal` (AP-01 and AP-04, accepted), so
+those can merge on their own.
+
+**Data source.** Both read Django, as the cards require, when the build has the Django API
+(`VITE_BACKEND=django`). Every hosted Amplify build has no Django API until the ADR-019 cutover:
+there the homepage stays exactly as before (source-controlled Island Explorer, Amplify companion
+and world changes, no dashboard).
+
+**AP-03: Island Explorer discovery**
+- Django `GET /children/<id>/islands/` (ADR-041) now also returns, per Island: `ageBands`,
+  `subjects` (up to 6 Place skills), `thumbnailAssetId` (null today, ADR-030), `unlocked` and
+  `lockedHint` (from the Island's authored `travelRequirement` and this child's world changes),
+  and `progress` (`placesExplored` of `placesTotal`). Each Place has `explored`. Secret Places
+  (authored `unlockRequirement`) are now left out until unlocked, matching the harbor map.
+  Documented in `docs/PLAY_API.md`.
+- React: `islandsApi` reads the new fields (defaults for an older server).
+  `buildIslandExplorerFromServer` turns the published catalog into the explorer, with no second
+  hard-coded list. The home Island's Places link to their page, and a published 3D Area (Treasure
+  Cove) is offered beside its Place. A Django-only Place (Firepeak Volcano) links to its 3D Area.
+  An open Island links to its hub; a closed one shows its hint. Storykeeper Castle is a Place.
+- `IslandExplorer` shows an age range, subject chips, "N of M places explored" and an
+  "Explored" mark per Place, and a drawn picture tile, since there are no thumbnails yet.
+- `ProgressIndicator` takes a `unit` ("steps" by default).
+
+**AP-02: Child home dashboard**
+- `homeApi` reads Django `GET /children/<id>/home/`.
+- `ChildHomeDashboard`, between the welcome and the explorer:
+  - featured "Continue your adventure" (an open session first, then the last place played, then
+    the server's next suggestion; `pickFeatured`) with chests opened and a link into the 3D Area;
+  - quests going and finished, with the quest journal link;
+  - treasures found and the newest three;
+  - adventures finished and island changes, with the adventure log link.
+- Loading, empty and error states. The dashboard and the islands load and fail independently of
+  each other and of the page.
+- **Not shown:** XP and level (no real source exists; the card says avoid invented metrics) and
+  daily missions (AP-06, Backlog). Treasures stand in for the rewards summary until AP-07.
+- In Django mode the companion step is skipped: Django has no companion record and Chatty is the
+  only companion.
+
+**Tests**
+- pytest (PostgreSQL), `test_adventure_launch.py`: discovery details; an Island opens once its
+  world change exists; another child's change does not open it; a secret Place stays hidden until
+  unlocked; entering a 3D Area or starting a Place adventure marks the Place explored.
+- Vitest: `islandsApi.test.ts`, `homeApi.test.ts`, `featured.test.ts`,
+  `ChildHomeDashboard.test.tsx`, `IslandExplorer.test.tsx`, `islandExplorer.test.ts` (server
+  builder), `WelcomeHarbor.django.test.tsx` (Django mode: dashboard and islands, no Amplify reads,
+  each part failing alone), existing `WelcomeHarbor.test.tsx` unchanged (Amplify mode).
+- Viewed in Chromium at 1280px and 390px through a local harness with stubbed Django responses.
+
+**Open**
+- Owner QA; a run against a real Django with the Treasure Cove seed (`npm run test:acceptance`).
+- Island thumbnails need catalog illustrations (ADR-030). An open non-home Island links to the
+  existing world hub, which knows only source-controlled Islands.
+- The hosted (Amplify) site shows neither card until it uses the Django API.

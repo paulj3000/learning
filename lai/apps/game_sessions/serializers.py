@@ -537,6 +537,19 @@ class RedeemRequest(ClosedSerializer):
     ticket = serializers.CharField(min_length=20, max_length=128, trim_whitespace=False)
 
 
+MAX_ISLAND_SUBJECTS = 6
+
+
+def island_subjects(entry) -> list[str]:
+    """What an Island teaches: its Places' authored skills, first seen first, without repeats."""
+    subjects: list[str] = []
+    for place in entry.places:
+        for skill in place.place.skills or []:
+            if skill not in subjects:
+                subjects.append(skill)
+    return subjects[:MAX_ISLAND_SUBJECTS]
+
+
 def island_entry(entry) -> dict:
     island = entry.island
     return {
@@ -544,12 +557,23 @@ def island_entry(entry) -> dict:
         "title": island.title,
         "tagline": island.tagline,
         "isHome": island.is_home,
+        # AP-03 discovery: who it is for, what it teaches, whether it is open, how far along.
+        "ageBands": list(island.supported_age_bands),
+        "subjects": island_subjects(entry),
+        "thumbnailAssetId": None,  # no catalog row carries an illustration yet (ADR-030)
+        "unlocked": entry.unlocked,
+        "lockedHint": entry.locked_hint,
+        "progress": {
+            "placesExplored": sum(place.explored for place in entry.places),
+            "placesTotal": len(entry.places),
+        },
         "places": [
             {
                 "placeId": place.place.slug,
                 "title": place.place.title,
                 "tagline": place.place.tagline,
                 "adventureCount": place.adventure_count,
+                "explored": place.explored,
                 # null: no published 3D Area yet; the Place's adventures are still available.
                 "area": region_entry(place.area) if place.area else None,
             }

@@ -138,6 +138,12 @@ const TEXT_PAIRS: Array<[string, string]> = [
   ['ocean-900', 'sand'],
   ['ocean-900', 'ocean-50'],
   ['ink-muted', 'sand'],
+  // AP-02/AP-03: links on the dashboard cards, the 3D Area link, chips on paper.
+  ['ocean-900', 'coral-50'],
+  ['ocean-900', 'purple-50'],
+  ['ocean-900', 'tropical-50'],
+  ['ocean-900', 'treasure-50'],
+  ['ink', 'coral-50'],
 ];
 
 describe('portal palette contrast (WCAG 2.1 AA)', () => {

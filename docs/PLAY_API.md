@@ -368,6 +368,17 @@ above again, then starts or resumes the child's one ACTIVE session for that Adve
 - `area` is the Place's published 3D Area (a region entry, as in `GET regions/`), or `null`.
   With `null` the Place is still usable through its Adventures.
 - `autoSelectIslandId` is set when exactly one Island is available.
+- **AP-03 discovery details** on each Island:
+  - `ageBands`: the Island's supported age bands.
+  - `subjects`: up to 6 skills its Places teach, as authored, first seen first, no repeats.
+  - `thumbnailAssetId`: always `null` today; no catalog row carries an illustration (ADR-030).
+  - `unlocked` and `lockedHint`: from the Island's authored `travelRequirement`. An Island opens
+    once any of its `anyOfChangeKeys` exists as a world change for this child. The home Island
+    and an Island without a rule are always open. `lockedHint` is the authored hint, or `null`.
+  - `progress`: `{placesExplored, placesTotal}` over the Places listed. A Place is `explored`
+    when the child has started one of its Adventures or entered its 3D Area. Never a score.
+- A secret Place (an authored `unlockRequirement`) is left out until its `changeKey` exists as a
+  world change for this child, matching the harbor map.
 
 ## Published content reads and the step runner (LAI-0503, LAI-0816, ADR-047 K)
 
