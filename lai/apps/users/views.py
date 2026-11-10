@@ -1,13 +1,16 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.http import HttpResponse
 from django.urls import reverse
-from rest_framework import exceptions
+from django.utils import timezone
+from rest_framework import exceptions, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import deletion, photos, recent_auth, services
 from .authentication import UnprovisionedParent
+from .models import COMPANION_DISPLAY_NAMES, CompanionType
 from .permissions import IsProvisionedParent, IsVerifiedPrincipal, RequiresRecentAuthentication
 from .photo_storage import PhotoObjectMissing, PhotoStorageError
 from .photo_validation import PhotoRejected
@@ -31,6 +34,12 @@ class MeView(APIView):
     PATCH (LAI-CHILD-001) changes the parent's own `displayName` and `timezone`, nothing else:
     the body is closed, so ownership, the identity mapping and admin flags can never be written.
 
+    DELETE (AMP-03) deletes the account and every child's data (`deletion.delete_parent_account`).
+    Like child deletion it is a sensitive action: a recent sign-in is required. 204 when done;
+    503 `account_deletion_incomplete` when photo storage could not be cleaned up (safe to retry);
+    409 `staff_account_not_deletable` for a Django Admin staff account. The client then deletes
+    the Cognito user itself, while its token is still valid.
+
     All three return `{"id", "displayName", "timezone", "django_admin"}`. `django_admin` says
     whether this account is active Django Admin staff (LAI-0404, ADR-034). The React app POSTs
     once after every sign-in, which creates the account the first time and reads the flag in the
@@ -40,11 +49,22 @@ class MeView(APIView):
     """
 
     def get_permissions(self):
+        if self.request.method == "DELETE":
+            return [IsProvisionedParent(), RequiresRecentAuthentication()]
         permission = IsVerifiedPrincipal if self.request.method == "POST" else IsProvisionedParent
         return [permission()]
 
     def get(self, request):
         return Response(_account_body(request.user))
+
+    def delete(self, request):
+        try:
+            deletion.delete_parent_account(request.user)
+        except deletion.StaffAccountNotDeletable:
+            raise StaffAccountNotDeletable from None
+        except deletion.ChildDeletionIncomplete:
+            raise AccountDeletionIncomplete from None
+        return Response(status=204)
 
     def patch(self, request):
         body = ParentProfileWrite(data=request.data, partial=True)
@@ -65,6 +85,18 @@ class MeView(APIView):
         # first token and remembers its `auth_time` (LAI-0209: a refresh cannot move it).
         recent_auth.record_session_anchor(account, request.auth)
         return Response(_account_body(account), status=201 if created else 200)
+
+
+class AccountDeletionIncomplete(exceptions.APIException):
+    status_code = 503
+    default_code = "account_deletion_incomplete"
+    default_detail = "The account could not be fully deleted yet. Please try again."
+
+
+class StaffAccountNotDeletable(exceptions.APIException):
+    status_code = 409
+    default_code = "staff_account_not_deletable"
+    default_detail = "This account is managed in the administration site."
 
 
 def _account_body(account):
@@ -294,3 +326,58 @@ class ChildPhotoContentView(ChildScopedAPIView):
         response["X-Content-Type-Options"] = "nosniff"
         response["Content-Disposition"] = 'inline; filename="photo.jpg"'
         return response
+
+
+# --- Companion choice (AMP-03; replaces Amplify `CompanionProfile`) -----------------------------
+
+
+class CompanionWrite(serializers.Serializer):
+    companionType = serializers.ChoiceField(choices=CompanionType.values)
+
+    def validate(self, attrs):
+        unknown = set(self.initial_data) - set(self.fields)
+        if unknown:
+            raise serializers.ValidationError(
+                {name: ["This field is not accepted."] for name in sorted(unknown)},
+                code="unknown_field",
+            )
+        return attrs
+
+
+def _companion_body(child) -> dict:
+    if not child.companion_type:
+        return {"companion": None}
+    return {
+        "companion": {
+            "companionType": child.companion_type,
+            "displayName": COMPANION_DISPLAY_NAMES[CompanionType(child.companion_type)],
+            "chosenAt": child.companion_chosen_at.isoformat(),
+        }
+    }
+
+
+class ChildCompanionView(ChildScopedAPIView):
+    """GET the companion a child chose (`{"companion": null}` before they choose); PUT chooses.
+
+    Idempotent: choosing the companion the child already has changes nothing (200); the first
+    choice answers 201. Only an authored companion type is accepted, never a name.
+    """
+
+    def get(self, request, child_id):
+        return Response(_companion_body(self.child))
+
+    def put(self, request, child_id):
+        body = CompanionWrite(data=request.data)
+        body.is_valid(raise_exception=True)
+        chosen = body.validated_data["companionType"]
+        with transaction.atomic():
+            try:
+                child = services.lock_owned_child_profile(request.user, self.child.pk)
+            except services.ChildProfileNotFound:
+                raise exceptions.NotFound from None
+            created = not child.companion_type
+            if child.companion_type != chosen:
+                child.companion_type = chosen
+                child.companion_chosen_at = timezone.now()
+                child.save(update_fields=["companion_type", "companion_chosen_at", "updated_at"])
+        return Response(_companion_body(child), status=201 if created else 200)
