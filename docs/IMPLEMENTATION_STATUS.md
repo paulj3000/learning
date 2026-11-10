@@ -13009,3 +13009,14 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   - `tests/deploy`: all passed.
   - Prettier and ruff are clean.
   - No AWS call was made.
+
+## LAI-0821 content-authoring milestone accepted (2026-11-10, branch `claude/jolly-ride-92xktb`)
+
+- **What.** The owner confirmed browser acceptance (Django Admin authoring flows, Firepeak,
+  Storykeeper Castle, the Island Explorer with Firepeak) and deployed acceptance (hosted Django,
+  live Cognito), then authorized the merge of `dev20261103` into `main` (PR #12, merge commit
+  `e82a188`). CI was green on the merged head (`b3490ba`); the local merge-gate results are in the
+  2026-11-09 section above.
+- **Tracker.** LAI-0821 marked done. Docs only; no code changed, so no tests apply.
+- **Still open.** The 11 Firepeak Playwright scenarios remain `test.fixme` (FP-13). The merged
+  branches `dev20261103` and `claude/jolly-ride-92xktb` are still on GitHub for the owner to delete.
