@@ -27,9 +27,16 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils.timezone import now
 
-from apps.catalog.models import ContentRelease
+from apps.catalog import authoring
+from apps.catalog.models import ContentRelease, RewardRule
 from apps.core.content_status import ContentStatus
-from apps.education.challenges import Correctness, generate_challenge, grade_answer
+from apps.education.challenges import (
+    ChallengeParameters,
+    Correctness,
+    ResponseMode,
+    generate_challenge,
+    grade_answer,
+)
 from apps.education.services import record_attempt_evidence
 from apps.inventory.services import RewardGrant, grant_reward_rule, owned_item_ids
 from apps.progression.models import NpcRelationship, RelationshipLevel, WorldChange
@@ -42,7 +49,9 @@ from apps.quests.services import (
     grant_quest_completion_rewards,
     refresh_active_quests,
 )
+from apps.regions import puzzles
 from apps.regions.models import (
+    AreaPuzzle,
     ChestPresentation,
     TreasureChest,
     WorldObjectPlacement,
@@ -54,6 +63,7 @@ from .models import (
     AdventureSession,
     AttemptStatus,
     ChallengeAttempt,
+    PuzzleAttempt,
     SessionKind,
     SessionStatus,
 )
@@ -117,7 +127,7 @@ def start_or_resume_region_session(child, region: WorldRegion) -> tuple[Adventur
     At most one open session per child and region (a partial unique constraint), so two
     concurrent starts end with one session. A paused session is resumed.
     """
-    if not child.active:
+    if not child.active or not region.supports_band(child.age_band):
         raise ContentUnavailable
     _require_published_region(region)
     lookup = {"child": child, "kind": SessionKind.REGION, "region_id": region.region_id}
@@ -144,6 +154,7 @@ def start_or_resume_region_session(child, region: WorldRegion) -> tuple[Adventur
                         **lookup,
                     )
                     created = True
+                    pin_region_content(session, region)
             except IntegrityError:
                 session = AdventureSession.objects.select_for_update().get(
                     status__in=OPEN_STATUSES, **lookup
@@ -152,6 +163,22 @@ def start_or_resume_region_session(child, region: WorldRegion) -> tuple[Adventur
         session.last_activity_at = now()
         session.save(update_fields=["status", "last_activity_at"])
         return session, created
+
+
+def pin_region_content(session: AdventureSession, region: WorldRegion) -> None:
+    """LAI-0813: the content versions a region visit starts with. The 3D Area's copy, its
+    puzzles, the NPCs placed in it, the quests it offers and its chests' challenge specs."""
+    npcs = [p.npc for p in region.placements.select_related("npc") if p.npc_id is not None]
+    specs = [
+        spec
+        for chest in region.chests.all()
+        for spec in (chest.sprout_challenge, chest.pathfinder_challenge, chest.explorer_challenge)
+        if spec is not None
+    ]
+    authoring.pin(
+        session,
+        [region, *region.puzzles.all(), *npcs, *region.offered_quests.all(), *specs],
+    )
 
 
 def end_session(session: AdventureSession, status: str = SessionStatus.COMPLETED) -> None:
@@ -251,7 +278,16 @@ def issue_chest_challenge(
         if spec is None or spec.status != ContentStatus.PUBLISHED:
             raise ContentUnavailable
         seed = secrets.randbelow(SEED_LIMIT) if seed is None else seed
-        challenge = generate_challenge(spec.parameters(), child.age_band, seed)
+        # LAI-0813: the spec as this visit started with it.
+        pinned = authoring.body_for(session, spec)
+        parameters = ChallengeParameters(
+            skill_id=pinned["skillId"],
+            min_value=pinned["minValue"],
+            max_value=pinned["maxValue"],
+            response_mode=ResponseMode(pinned["responseMode"]),
+            choice_count=pinned["choiceCount"],
+        )
+        challenge = generate_challenge(parameters, child.age_band, seed)
         attempt = ChallengeAttempt.objects.create(
             child=child,
             session=session,
@@ -261,11 +297,11 @@ def issue_chest_challenge(
             challenge_spec=spec,
             challenge_spec_slug=spec.slug,
             age_band=child.age_band,
-            skill_id=spec.skill_id,
-            min_value=spec.min_value,
-            max_value=spec.max_value,
-            response_mode=spec.response_mode,
-            choice_count=spec.choice_count,
+            skill_id=parameters.skill_id,
+            min_value=parameters.min_value,
+            max_value=parameters.max_value,
+            response_mode=parameters.response_mode.value,
+            choice_count=parameters.choice_count,
             seed=seed,
             operation=challenge.operation,
             operands=list(challenge.operands),
@@ -587,3 +623,151 @@ def change_session_status(child, session_id, action: str) -> AdventureSession:
         )
         session.save(update_fields=["status", "last_activity_at", "completed_at"])
         return session
+
+
+# --- 3D Area puzzles (ADR-047 F, LAI-0812) -------------------------------------------------------
+
+PUZZLE_CHANGE_TYPE = "PUZZLE_SOLVED"
+
+
+class PuzzleNotFound(PlayError):
+    code = "not_found"
+
+
+class PuzzleLocked(PlayError):
+    """An earlier stage is not done yet (its change key is missing)."""
+
+    code = "puzzle_locked"
+
+
+class InvalidSubmission(PlayError):
+    code = "invalid_submission"
+
+
+def puzzle_body(session: AdventureSession | None, puzzle: AreaPuzzle) -> dict:
+    """The puzzle as this visit started with it (LAI-0813), or as published."""
+    return authoring.body_for(session, puzzle)
+
+
+def puzzle_is_solved(child, puzzle: AreaPuzzle, body: dict) -> bool:
+    return (
+        WorldChange.objects.for_child(child)
+        .filter(location_slug=puzzle.region.location.slug, change_key=body["worldChangeKey"])
+        .exists()
+    )
+
+
+def puzzle_is_locked(child, puzzle: AreaPuzzle, body: dict) -> bool:
+    required = set(body.get("requiresChangeKeys", []))
+    if not required:
+        return False
+    have = set(
+        WorldChange.objects.for_child(child)
+        .filter(location_slug=puzzle.region.location.slug, change_key__in=required)
+        .values_list("change_key", flat=True)
+    )
+    return not required <= have
+
+
+@dataclass(frozen=True)
+class PuzzleOutcome:
+    attempt: PuzzleAttempt | None
+    correct: bool
+    solved_now: bool = False
+    """True only on the submission that solved it; a repeat of a solved puzzle is not."""
+    already_solved: bool = False
+    failed_attempts: int = 0
+    reward: RewardGrant | None = None
+    quest_updates: tuple[QuestUpdate, ...] = ()
+
+
+def solve_puzzle(child, session_id, puzzle_id: str, submission: object) -> PuzzleOutcome:
+    """Grade one submission and apply everything solving it earns, in one transaction.
+
+    The server is the only judge: the submission is graded with `puzzles.grade` against the
+    revision this session pinned. The stage order (`requiresChangeKeys`) is enforced here. A
+    puzzle already solved records nothing new and grants nothing again (resume and retry safe).
+    Rewards resolve against the reward rule's current published version at grant time.
+    """
+    with transaction.atomic():
+        session = get_child_session(child, session_id, lock=True)
+        if not session.is_open or session.kind != SessionKind.REGION:
+            raise SessionNotOpen
+        region = (
+            WorldRegion.objects.select_related("location")
+            .filter(region_id=session.region_id)
+            .first()
+        )
+        if region is None:
+            raise ContentUnavailable
+        _require_published_region(region)
+        puzzle = region.puzzles.filter(puzzle_id=puzzle_id).first()
+        if puzzle is None or puzzle.status != ContentStatus.PUBLISHED:
+            raise PuzzleNotFound
+        body = puzzle_body(session, puzzle)
+        params = body.get("ageBands", {}).get(child.age_band)
+        if params is None:
+            raise ContentUnavailable
+        if puzzle_is_solved(child, puzzle, body):
+            return PuzzleOutcome(attempt=None, correct=True, already_solved=True)
+        if puzzle_is_locked(child, puzzle, body):
+            raise PuzzleLocked
+        try:
+            correct = puzzles.grade(puzzle.kind, params, submission)
+        except puzzles.InvalidSubmission:
+            raise InvalidSubmission from None
+
+        previous = PuzzleAttempt.objects.filter(session=session, puzzle_key=puzzle_id)
+        attempts_before = previous.count()
+        failed_before = previous.filter(correct=False).count()
+        at = now()
+        attempt = PuzzleAttempt.objects.create(
+            child=child,
+            session=session,
+            region_id=region.region_id,
+            puzzle_key=puzzle_id,
+            area_puzzle=puzzle,
+            revision=_pinned_revision(session, puzzle),
+            age_band=child.age_band,
+            submission=submission,
+            correct=correct,
+            attempt_number=attempts_before + 1,
+            submitted_at=at,
+        )
+        session.last_activity_at = at
+        session.save(update_fields=["last_activity_at"])
+        if not correct:
+            return PuzzleOutcome(
+                attempt=attempt,
+                correct=False,
+                failed_attempts=failed_before + 1,
+            )
+
+        _, recorded = record_world_change(
+            child,
+            location_slug=region.location.slug,
+            change_type=PUZZLE_CHANGE_TYPE,
+            change_key=body["worldChangeKey"],
+            payload={"regionId": region.region_id, "puzzleId": puzzle_id},
+            source_session=session,
+        )
+        rule_id = body.get("rewardRuleId")
+        rule = RewardRule.objects.filter(rule_id=rule_id).first() if rule_id else None
+        reward = grant_reward_rule(child, rule, source_session=session) if rule else None
+        quest_updates = tuple(refresh_active_quests(child, source_session=session))
+        return PuzzleOutcome(
+            attempt=attempt,
+            correct=True,
+            solved_now=recorded,
+            reward=reward,
+            quest_updates=quest_updates,
+        )
+
+
+def _pinned_revision(session: AdventureSession, puzzle: AreaPuzzle):
+    pinned = session.pinned_revisions.filter(kind="area-puzzle", object_id=str(puzzle.pk)).first()
+    if pinned is not None:
+        return pinned
+    if puzzle.published_revision is None:
+        raise ContentUnavailable
+    return puzzle.published_revision

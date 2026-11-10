@@ -12,13 +12,14 @@ from django.urls import path
 from . import (
     adventure_views,
     castle_views,
+    content_views,
     coop_views,
     discovery_views,
     launch_views,
     native_views,
     play_views,
 )
-from .views import AnswersView, HintsView
+from .views import AdventureStartView, AnswersView, HintsView, StepView
 
 CHILD = "children/<uuid:child_id>/"
 
@@ -40,6 +41,12 @@ urlpatterns = [
         name="adventure-actions",
     ),
     path(f"{CHILD}availability/", adventure_views.AvailabilityView.as_view(), name="availability"),
+    path(f"{CHILD}sessions/<uuid:session_id>/step/", StepView.as_view(), name="session-step"),
+    path(
+        f"{CHILD}content/adventures/<slug:slug>/start/",
+        AdventureStartView.as_view(),
+        name="content-adventure-start",
+    ),
     path(f"{CHILD}home/", native_views.ChildHomeView.as_view(), name="child-home"),
     path(f"{CHILD}regions/", native_views.RegionListView.as_view(), name="child-regions"),
     path(f"{CHILD}islands/", native_views.IslandListView.as_view(), name="child-islands"),
@@ -84,6 +91,11 @@ urlpatterns = [
         name="play-chest-challenge",
     ),
     path(
+        f"{CHILD}sessions/<uuid:session_id>/puzzles/<slug:puzzle_id>/solve/",
+        play_views.PuzzleSolveView.as_view(),
+        name="play-puzzle-solve",
+    ),
+    path(
         f"{CHILD}sessions/<uuid:session_id>/pickups/<slug:entity_id>/",
         play_views.PickupView.as_view(),
         name="play-pickup",
@@ -125,5 +137,45 @@ urlpatterns = [
         f"{CHILD}coop-sessions/<uuid:coop_id>/complete/",
         coop_views.CoopCompleteView.as_view(),
         name="coop-session-complete",
+    ),
+    # LAI-0503: published content reads (no answers; revision ids in every response)
+    path(
+        f"{CHILD}content/adventures/",
+        content_views.AdventureListView.as_view(),
+        name="content-adventures",
+    ),
+    path(
+        f"{CHILD}content/adventures/<slug:slug>/",
+        content_views.AdventureDetailView.as_view(),
+        name="content-adventure",
+    ),
+    path(f"{CHILD}content/quests/", content_views.QuestListView.as_view(), name="content-quests"),
+    path(
+        f"{CHILD}content/quests/<slug:slug>/",
+        content_views.QuestDetailView.as_view(),
+        name="content-quest",
+    ),
+    path(f"{CHILD}content/items/", content_views.ItemListView.as_view(), name="content-items"),
+    path(
+        f"{CHILD}content/reward-rules/",
+        content_views.RewardRuleListView.as_view(),
+        name="content-reward-rules",
+    ),
+    path(
+        f"{CHILD}content/learning-objectives/",
+        content_views.ObjectiveListView.as_view(),
+        name="content-learning-objectives",
+    ),
+    path(f"{CHILD}content/stories/", content_views.StoryListView.as_view(), name="content-stories"),
+    path(
+        f"{CHILD}content/stories/<slug:slug>/",
+        content_views.StoryDetailView.as_view(),
+        name="content-story",
+    ),
+    path(f"{CHILD}content/npcs/", content_views.NpcListView.as_view(), name="content-npcs"),
+    path(
+        f"{CHILD}content/npcs/<slug:slug>/",
+        content_views.NpcDetailView.as_view(),
+        name="content-npc",
     ),
 ]

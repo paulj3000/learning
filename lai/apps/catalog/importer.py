@@ -10,10 +10,14 @@ Three stages, so a bad export never reaches the database:
 3. `import_content` applies the plan in one transaction, under an advisory lock so two loads
    cannot interleave. Any error rolls the whole import back.
 
-Until the content authoring cutover (ADR-019 sub-decision 8 amendment) the export is
-authoritative for content fields. Catalog fields (`active`, `sort_order`) are set only when a
-row is created. Nothing is deleted: a record a newer export lacks keeps its row, and its
-`last_seen_release` shows it is not in the latest release.
+Content authority (ADR-047, Accepted 2026-11-01): the export is the initial import and migration
+path. A record that is still export-owned is updated from the export, and each change is recorded
+as a new published `IMPORT` revision. A record an administrator has published in Django Admin is
+Django-owned: the import never changes it. When the export differs, the release report lists it
+under `conflicts` and the exported body is kept as a draft for an administrator to review.
+Catalog fields (`active`, `sort_order`) are set only when a row is created. Nothing is deleted: a
+record a newer export lacks keeps its row, and its `last_seen_release` shows it is not in the
+latest release.
 """
 
 import hashlib
@@ -30,6 +34,7 @@ from apps.catalog.models import (
     AdventureStep,
     CollectibleSet,
     ContentAsset,
+    ContentAuthority,
     ContentRelease,
     ItemDefinition,
     LearningObjective,
@@ -37,10 +42,14 @@ from apps.catalog.models import (
     LocationAsset,
     NpcDefinition,
     Quest,
+    RevisionOrigin,
     RewardRule,
+    Story,
     World,
 )
 from apps.core import content_schema
+
+from . import authoring, records
 
 # Schema 3 adds `locationAssets`; a schema 2 export imports with no asset associations.
 SUPPORTED_SCHEMA_VERSIONS = (2, 3)
@@ -75,6 +84,8 @@ class ImportReport:
     schema_version: int
     counts: dict[str, dict[str, int]] = field(default_factory=dict)
     skipped: list[str] = field(default_factory=list)
+    conflicts: list[str] = field(default_factory=list)
+    """Django-owned records whose export differs; kept as drafts, never applied (ADR-047)."""
     release_id: int | None = None
 
     def as_dict(self) -> dict[str, Any]:
@@ -84,6 +95,7 @@ class ImportReport:
             "schema_version": self.schema_version,
             "counts": self.counts,
             "skipped": self.skipped,
+            "conflicts": self.conflicts,
         }
 
 
@@ -184,32 +196,17 @@ class Plan:
     collectible_sets: list[dict[str, Any]] = field(default_factory=list)
     items: list[dict[str, Any]] = field(default_factory=list)
     reward_rules: list[dict[str, Any]] = field(default_factory=list)
+    stories: list[dict[str, Any]] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
 
 
-def _text(
-    record: dict[str, Any], key: str, where: str, problems: list[str], *, optional=False
-) -> str:
-    value = record.get(key)
-    if value is None and optional:
-        return ""
-    if not isinstance(value, str) or (not optional and not value):
-        problems.append(f"{where}: `{key}` must be a non-empty string")
-        return ""
-    return value
+_text = records.text
+_texts = records.texts
 
 
-def _texts(record: dict[str, Any], key: str, where: str, problems: list[str]) -> list[str]:
-    value = record.get(key, [])
-    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
-        problems.append(f"{where}: `{key}` must be a list of strings")
-        return []
-    return value
-
-
-def _unique(records: list[dict[str, Any]], key: str, kind: str, problems: list[str]) -> set[str]:
+def _unique(records_: list[dict[str, Any]], key: str, kind: str, problems: list[str]) -> set[str]:
     seen: set[str] = set()
-    for record in records:
+    for record in records_:
         value = record.get(key)
         if value in seen:
             problems.append(f"{kind}: duplicate {key} {value!r}")
@@ -262,21 +259,13 @@ def build_plan(bundle: ExportBundle) -> Plan:
             {
                 "key": _text(world, "slug", where, problems),
                 "order": index,
-                "fields": {
-                    "title": _text(world, "title", where, problems),
-                    "tagline": _text(world, "tagline", where, problems, optional=True),
-                    "description": _text(world, "description", where, problems, optional=True),
-                    "is_home": bool(world.get("isHome", False)),
-                    "supported_age_bands": _texts(world, "supportedAgeBands", where, problems),
-                    "pack_version": int(world.get("pack", {}).get("version", 0)),
-                    "source": world,
-                },
+                "fields": records.world_fields(world, where, problems),
             }
         )
 
     for index, location in enumerate(locations):
         where = f"location {location.get('slug')!r}"
-        world_slug = _text(location, "worldSlug", where, problems)
+        fields, world_slug = records.location_fields(location, where, problems)
         if world_slug and world_slug not in world_slugs:
             problems.append(f"{where}: unknown world {world_slug!r}")
         plan.locations.append(
@@ -284,13 +273,7 @@ def build_plan(bundle: ExportBundle) -> Plan:
                 "key": _text(location, "slug", where, problems),
                 "order": index,
                 "world": world_slug,
-                "fields": {
-                    "title": _text(location, "title", where, problems),
-                    "tagline": _text(location, "tagline", where, problems, optional=True),
-                    "description": _text(location, "description", where, problems, optional=True),
-                    "skills": _texts(location, "skills", where, problems),
-                    "source": location,
-                },
+                "fields": fields,
             }
         )
 
@@ -302,11 +285,8 @@ def build_plan(bundle: ExportBundle) -> Plan:
             problems.append(f"{where}: no steps")
             steps = []
         step_ids = _unique(steps, "id", f"{where} step", problems)
-        entry = _text(adventure, "entryStepId", where, problems)
-        if entry and entry not in step_ids:
-            problems.append(f"{where}: entry step {entry!r} is not one of its steps")
-        location_slug = _text(adventure, "locationSlug", where, problems)
-        level = adventure.get("skillLevel")
+        fields = records.adventure_fields(adventure, step_ids, where, problems)
+        location_slug = fields["location_slug"]
         plan.adventures.append(
             {
                 "key": _text(adventure, "slug", where, problems),
@@ -314,16 +294,7 @@ def build_plan(bundle: ExportBundle) -> Plan:
                 "world": adventure_world.get(slug),
                 # A story-only pseudo-location has no Location record; the slug is kept as text.
                 "location": location_slug if location_slug in location_slugs else None,
-                "fields": {
-                    "title": _text(adventure, "title", where, problems),
-                    "version": int(adventure.get("version", 0)),
-                    "location_slug": location_slug,
-                    "age_bands": _texts(adventure, "ageBands", where, problems),
-                    "entry_step_id": entry,
-                    "skill_domain": adventure.get("skillDomain") or "",
-                    "skill_level": level if isinstance(level, int) else None,
-                    "source": {key: value for key, value in adventure.items() if key != "steps"},
-                },
+                "fields": fields,
             }
         )
         for position, step in enumerate(steps):
@@ -332,46 +303,20 @@ def build_plan(bundle: ExportBundle) -> Plan:
                 {
                     "adventure": slug,
                     "key": _text(step, "id", step_where, problems),
-                    "fields": {
-                        "position": position,
-                        "step_type": _text(step, "type", step_where, problems),
-                        "objective_ids": _texts(step, "objectiveIds", step_where, problems),
-                        "source": step,
-                    },
+                    "fields": records.step_fields(step, position, step_where, problems),
                 }
             )
 
     for index, quest in enumerate(quests):
         where = f"quest {quest.get('id')!r}"
-        solved = [
-            objective.get("adventureSlug")
-            for stage in quest.get("stages", [])
-            for objective in stage.get("objectives", [])
-            if objective.get("kind") == "SOLVE"
-        ]
-        for slug in solved:
-            if slug not in adventure_slugs:
-                problems.append(f"{where}: SOLVE names unknown adventure {slug!r}")
-        stage_ids = {stage.get("id") for stage in quest.get("stages", [])}
-        if quest.get("entryStageId") not in stage_ids:
-            problems.append(
-                f"{where}: entry stage {quest.get('entryStageId')!r} is not one of its stages"
-            )
+        fields, solved = records.quest_fields(quest, adventure_slugs, where, problems)
         plan.quests.append(
             {
                 "key": _text(quest, "id", where, problems),
                 "order": index,
                 "world": quest_world.get(quest.get("id")),
-                "adventures": list(
-                    dict.fromkeys(slug for slug in solved if slug in adventure_slugs)
-                ),
-                "fields": {
-                    "title": _text(quest, "title", where, problems),
-                    "summary": _text(quest, "summary", where, problems, optional=True),
-                    "giver_npc_id": quest.get("giverNpcId") or "",
-                    "age_bands": _texts(quest, "ageBands", where, problems),
-                    "source": quest,
-                },
+                "adventures": solved,
+                "fields": fields,
             }
         )
 
@@ -412,6 +357,20 @@ def build_plan(bundle: ExportBundle) -> Plan:
 
     _plan_supporting_catalogs(c, plan, location_slugs, problems)
 
+    stories = c.get("stories", [])  # optional: older exports have none (LAI-0309)
+    _unique(stories, "slug", "story", problems)
+    for index, story in enumerate(stories):
+        where = f"story {story.get('slug')!r}"
+        fields, solved = records.story_fields(story, adventure_slugs, where, problems)
+        plan.stories.append(
+            {
+                "key": _text(story, "slug", where, problems),
+                "order": index,
+                "adventures": solved,
+                "fields": fields,
+            }
+        )
+
     if problems:
         raise ContentImportError(problems)
     return plan
@@ -426,11 +385,7 @@ def _plan_supporting_catalogs(c, plan: Plan, location_slugs: set[str], problems:
         plan.learning_objectives.append(
             {
                 "key": _text(objective, "code", where, problems),
-                "fields": {
-                    "domain": _text(objective, "domain", where, problems),
-                    "title": _text(objective, "title", where, problems),
-                    "source": objective,
-                },
+                "fields": records.objective_fields(objective, where, problems),
             }
         )
 
@@ -438,19 +393,13 @@ def _plan_supporting_catalogs(c, plan: Plan, location_slugs: set[str], problems:
     _unique(npcs, "id", "npc", problems)
     for index, npc in enumerate(npcs):
         where = f"npc {npc.get('id')!r}"
-        home = _text(npc, "homeLocationSlug", where, problems)
+        fields, home = records.npc_fields(npc, where, problems)
         plan.npcs.append(
             {
                 "key": _text(npc, "id", where, problems),
                 "order": index,
                 "home": home if home in location_slugs else None,
-                "fields": {
-                    "display_name": _text(npc, "displayName", where, problems),
-                    "role": _text(npc, "role", where, problems, optional=True),
-                    "home_location_slug": home,
-                    "interaction_id": _text(npc, "interactionId", where, problems, optional=True),
-                    "source": npc,
-                },
+                "fields": fields,
             }
         )
 
@@ -460,60 +409,32 @@ def _plan_supporting_catalogs(c, plan: Plan, location_slugs: set[str], problems:
     _unique(rules, "id", "reward rule", problems)
     for collectible_set in sets:
         where = f"collectible set {collectible_set.get('id')!r}"
-        completion = collectible_set.get("completionItemId")
+        fields, completion = records.collectible_set_fields(collectible_set, where, problems)
         if completion is not None and completion not in item_ids:
             problems.append(f"{where}: unknown completion item {completion!r}")
         plan.collectible_sets.append(
             {
                 "key": _text(collectible_set, "id", where, problems),
                 "completion_item": completion,
-                "fields": {
-                    "display_name": _text(collectible_set, "displayName", where, problems),
-                    "completion_message": _text(
-                        collectible_set, "completionMessage", where, problems, optional=True
-                    ),
-                    "source": collectible_set,
-                },
+                "fields": fields,
             }
         )
     for item in items:
         where = f"item {item.get('id')!r}"
-        set_id = item.get("setId")
+        fields, set_id = records.item_fields(item, where, problems)
         if set_id is not None and set_id not in set_ids:
             problems.append(f"{where}: unknown collectible set {set_id!r}")
         plan.items.append(
-            {
-                "key": _text(item, "id", where, problems),
-                "set": set_id,
-                "fields": {
-                    "display_name": _text(item, "displayName", where, problems),
-                    "description": _text(item, "description", where, problems, optional=True),
-                    "category": _text(item, "category", where, problems),
-                    "rarity": _text(item, "rarity", where, problems),
-                    "cosmetic_slot": item.get("cosmeticSlot") or "",
-                    "hidden": bool(item.get("hidden", False)),
-                    "source": item,
-                },
-            }
+            {"key": _text(item, "id", where, problems), "set": set_id, "fields": fields}
         )
     for rule in rules:
         where = f"reward rule {rule.get('id')!r}"
-        granted = _texts(rule, "itemIds", where, problems)
+        fields, granted = records.reward_rule_fields(rule, where, problems)
         for item_id in granted:
             if item_id not in item_ids:
                 problems.append(f"{where}: unknown item {item_id!r}")
-        if not isinstance(rule.get("trigger"), dict):
-            problems.append(f"{where}: `trigger` must be an object")
         plan.reward_rules.append(
-            {
-                "key": _text(rule, "id", where, problems),
-                "items": granted,
-                "fields": {
-                    "trigger": rule.get("trigger"),
-                    "message": _text(rule, "message", where, problems, optional=True),
-                    "source": rule,
-                },
-            }
+            {"key": _text(rule, "id", where, problems), "items": granted, "fields": fields}
         )
 
 
@@ -521,32 +442,82 @@ def _plan_supporting_catalogs(c, plan: Plan, location_slugs: set[str], problems:
 
 
 def _counter() -> dict[str, int]:
-    return {"created": 0, "updated": 0, "unchanged": 0, "missing": 0}
+    # `skipped`: Django-owned, and the export holds what Django already publishes.
+    # `conflicts`: Django-owned, and the export differs; kept as a draft, never applied
+    # (ADR-047 J and Q2). Both are always zero for kinds that are not authorable (assets).
+    return {"created": 0, "updated": 0, "unchanged": 0, "skipped": 0, "conflicts": 0, "missing": 0}
+
+
+AUTHORABLE_MODELS = (
+    World,
+    Location,
+    Adventure,
+    AdventureStep,
+    Quest,
+    LearningObjective,
+    NpcDefinition,
+    CollectibleSet,
+    ItemDefinition,
+    RewardRule,
+    Story,
+)
 
 
 def _upsert(
-    model, lookup: dict[str, Any], fields: dict[str, Any], release, counts, *, catalog=None
+    model,
+    lookup: dict[str, Any],
+    fields: dict[str, Any],
+    release,
+    counts,
+    *,
+    catalog=None,
+    conflicts: list[str] | None = None,
 ):
-    """Creates or updates one imported row; catalog fields apply only on creation."""
+    """Creates or updates one imported row; catalog fields apply only on creation.
+
+    Returns (row, applied). `applied` is False for a Django-owned record, whose content and
+    relations the import must leave alone (ADR-047): its row only learns it was in this release.
+    """
+    authorable = model in AUTHORABLE_MODELS
     existing = model.objects.filter(**lookup).first()
     if existing is None:
         row = model.objects.create(**lookup, **fields, **(catalog or {}), last_seen_release=release)
         counts["created"] += 1
-        return row
+        if authorable:
+            authoring.record_published(
+                row, fields["source"], origin=RevisionOrigin.IMPORT, release=release
+            )
+        return row, True
+    if authorable and existing.authority == ContentAuthority.DJANGO:
+        existing.last_seen_release = release
+        existing.save(update_fields=["last_seen_release"])
+        if fields["source"] == existing.source:
+            counts["skipped"] += 1
+        else:
+            counts["conflicts"] += 1
+            authoring.record_import_draft(existing, fields["source"], release)
+            if conflicts is not None:
+                kind = authoring.kind_for(existing)
+                conflicts.append(f"{kind.name} {kind.key_of(existing)}")
+        return existing, False
     changed = [name for name, value in fields.items() if getattr(existing, name) != value]
     for name in changed:
         setattr(existing, name, fields[name])
     existing.last_seen_release = release
     existing.save(update_fields=[*changed, "last_seen_release"])
     counts["updated" if changed else "unchanged"] += 1
-    return existing
+    if authorable and (changed or existing.published_revision_id is None):
+        authoring.record_published(
+            existing, fields["source"], origin=RevisionOrigin.IMPORT, release=release
+        )
+    return existing, True
 
 
 def _catalog(order: int) -> dict[str, Any]:
     return {"active": True, "sort_order": order * SORT_ORDER_STEP}
 
 
-def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
+def _apply(plan: Plan, release: ContentRelease, conflicts: list[str]) -> dict[str, dict[str, int]]:
     counts = {
         name: _counter()
         for name in (
@@ -562,12 +533,13 @@ def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
             "collectible_sets",
             "items",
             "reward_rules",
+            "stories",
         )
     }
 
     assets: dict[str, ContentAsset] = {}
     for record in plan.assets:
-        assets[record["key"]] = _upsert(
+        assets[record["key"]], _ = _upsert(
             ContentAsset, {"asset_id": record["key"]}, record["fields"], release, counts["assets"]
         )
     for record in plan.assets:  # second pass: low-detail links need both rows to exist
@@ -585,7 +557,8 @@ def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
             release,
             counts["worlds"],
             catalog=_catalog(r["order"]),
-        )
+            conflicts=conflicts,
+        )[0]
         for r in plan.worlds
     }
     locations = {
@@ -596,7 +569,8 @@ def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
             release,
             counts["locations"],
             catalog=_catalog(r["order"]),
-        )
+            conflicts=conflicts,
+        )[0]
         for r in plan.locations
     }
     adventures = {}
@@ -606,13 +580,14 @@ def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
             "world": worlds.get(r["world"]),
             "location": locations.get(r["location"]),
         }
-        adventures[r["key"]] = _upsert(
+        adventures[r["key"]], _ = _upsert(
             Adventure,
             {"slug": r["key"]},
             fields,
             release,
             counts["adventures"],
             catalog=_catalog(r["order"]),
+            conflicts=conflicts,
         )
     for r in plan.steps:
         _upsert(
@@ -621,17 +596,20 @@ def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
             r["fields"],
             release,
             counts["steps"],
+            conflicts=conflicts,
         )
     for r in plan.quests:
-        quest = _upsert(
+        quest, applied = _upsert(
             Quest,
             {"slug": r["key"]},
             {**r["fields"], "world": worlds.get(r["world"])},
             release,
             counts["quests"],
             catalog=_catalog(r["order"]),
+            conflicts=conflicts,
         )
-        quest.adventures.set([adventures[slug] for slug in r["adventures"]])
+        if applied:
+            quest.adventures.set([adventures[slug] for slug in r["adventures"]])
     for r in plan.location_assets:
         _upsert(
             LocationAsset,
@@ -648,6 +626,7 @@ def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
             r["fields"],
             release,
             counts["learning_objectives"],
+            conflicts=conflicts,
         )
     for r in plan.npcs:
         _upsert(
@@ -657,13 +636,20 @@ def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
             release,
             counts["npcs"],
             catalog=_catalog(r["order"]),
+            conflicts=conflicts,
         )
-    sets = {
-        r["key"]: _upsert(
-            CollectibleSet, {"set_id": r["key"]}, r["fields"], release, counts["collectible_sets"]
+    sets, applied_sets = {}, set()
+    for r in plan.collectible_sets:
+        sets[r["key"]], applied = _upsert(
+            CollectibleSet,
+            {"set_id": r["key"]},
+            r["fields"],
+            release,
+            counts["collectible_sets"],
+            conflicts=conflicts,
         )
-        for r in plan.collectible_sets
-    }
+        if applied:
+            applied_sets.add(r["key"])
     items = {
         r["key"]: _upsert(
             ItemDefinition,
@@ -671,20 +657,42 @@ def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
             {**r["fields"], "collectible_set": sets.get(r["set"])},
             release,
             counts["items"],
-        )
+            conflicts=conflicts,
+        )[0]
         for r in plan.items
     }
     for r in plan.collectible_sets:  # second pass: the completion item needs the item rows
+        if r["key"] not in applied_sets:
+            continue
         collectible_set = sets[r["key"]]
         completion = items.get(r["completion_item"]) if r["completion_item"] else None
         if collectible_set.completion_item_id != (completion.pk if completion else None):
             collectible_set.completion_item = completion
             collectible_set.save(update_fields=["completion_item"])
     for r in plan.reward_rules:
-        rule = _upsert(
-            RewardRule, {"rule_id": r["key"]}, r["fields"], release, counts["reward_rules"]
+        rule, applied = _upsert(
+            RewardRule,
+            {"rule_id": r["key"]},
+            r["fields"],
+            release,
+            counts["reward_rules"],
+            conflicts=conflicts,
         )
-        rule.items.set([items[item_id] for item_id in r["items"]])
+        if applied:
+            rule.items.set([items[item_id] for item_id in r["items"]])
+
+    for r in plan.stories:
+        story, applied = _upsert(
+            Story,
+            {"slug": r["key"]},
+            r["fields"],
+            release,
+            counts["stories"],
+            catalog=_catalog(r["order"]),
+            conflicts=conflicts,
+        )
+        if applied:
+            story.adventures.set([adventures[slug] for slug in r["adventures"]])
 
     for name, model in (
         ("assets", ContentAsset),
@@ -699,6 +707,7 @@ def _apply(plan: Plan, release: ContentRelease) -> dict[str, dict[str, int]]:
         ("collectible_sets", CollectibleSet),
         ("items", ItemDefinition),
         ("reward_rules", RewardRule),
+        ("stories", Story),
     ):
         counts[name]["missing"] = model.objects.exclude(last_seen_release=release).count()
     return counts
@@ -731,7 +740,7 @@ def import_content(
             files=bundle.files,
             report={},
         )
-        report.counts = _apply(plan, release)
+        report.counts = _apply(plan, release, report.conflicts)
         release.report = {**report.as_dict(), "schema_validated": bundle.schema_validated}
         release.save(update_fields=["report"])
         report.release_id = release.pk

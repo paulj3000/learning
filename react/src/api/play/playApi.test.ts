@@ -15,6 +15,7 @@ import {
   questJson,
   sessionJson,
 } from '../../test/playFixtures';
+import { firepeakBootstrapJson, puzzleOutcomeJson } from '../../test/firepeakFixtures';
 
 function setup(...responses: Response[]) {
   const fetch = vi.fn<typeof globalThis.fetch>();
@@ -33,6 +34,48 @@ function sent(fetch: ReturnType<typeof setup>['fetch'], index = 0) {
 }
 
 const child = `/api/v1/children/${CHILD_A}/`;
+
+describe('3D Area puzzles in the play API (ADR-047, LAI-0812)', () => {
+  it('reads a bootstrap from before puzzles existed as having none', async () => {
+    const { api } = setup(jsonResponse(200, bootstrapJson()));
+    const region = await api.getRegion('treasure-rush-cove');
+    expect(region.puzzles).toEqual([]);
+    expect(region.catalog).toEqual({ worldSlug: '', assets: [] });
+    expect(region.npcs[0].dialogue).toEqual([]);
+  });
+
+  it('reads Firepeak’s puzzles, dialogue and catalog', async () => {
+    const { api } = setup(jsonResponse(200, firepeakBootstrapJson()));
+    const region = await api.getRegion('firepeak-volcano');
+    expect(region.puzzles.map((p) => p.kind)).toEqual([
+      'OBSERVE_FEATURES',
+      'PLACE_PLATFORMS',
+      'VALVE_SEQUENCE',
+      'COLLECT_OBJECT',
+      'RETURN_TO_NPC',
+    ]);
+    expect(region.npcs[0].dialogue[0].nodeId).toBe('ember-greeting');
+    expect(region.catalog.worldSlug).toBe('learning-adventure-island');
+  });
+
+  it('sends exactly the submission and reads the graded outcome', async () => {
+    const { api, fetch } = setup(
+      jsonResponse(200, puzzleOutcomeJson({ correct: false, feedback: 'TRY_AGAIN' })),
+    );
+    const outcome = await api.solvePuzzle(SESSION_ID, 'firepeak-steam', { sequence: ['a'] });
+    expect(sent(fetch)).toEqual({
+      url: `${child}sessions/${SESSION_ID}/puzzles/firepeak-steam/solve/`,
+      method: 'POST',
+      body: { submission: { sequence: ['a'] } },
+    });
+    expect(outcome.correct).toBe(false);
+  });
+
+  it('refuses a malformed outcome rather than guessing', async () => {
+    const { api } = setup(jsonResponse(200, { correct: 'yes' }));
+    await expect(api.solvePuzzle(SESSION_ID, 'p', {})).rejects.toBeInstanceOf(ApiError);
+  });
+});
 
 describe('play API requests', () => {
   it('reads the region bootstrap', async () => {

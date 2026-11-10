@@ -52,6 +52,12 @@ export interface IslandExplorerInput {
   worldChangeKeys: readonly string[];
   /** Place slugs an admin has deactivated (ADR-031). */
   hiddenLocationSlugs: readonly string[];
+  /**
+   * Places on the island the child is on that exist only in Django (ADR-047), such as Firepeak
+   * Volcano, already filtered by the server for this child. Listed after the source Places, with
+   * the link the caller built (straight to their 3D Area).
+   */
+  servedPlaces?: readonly ExplorerPlace[];
 }
 
 /** Shown when a locked world authored no hint. Readable aloud; names no skill or score. */
@@ -65,6 +71,7 @@ export function buildIslandExplorer({
   currentIslandLocations,
   worldChangeKeys,
   hiddenLocationSlugs,
+  servedPlaces = [],
 }: IslandExplorerInput): ExplorerIsland[] {
   const islands = destinations.map(({ world, isUnlocked, lockedHint, isCurrent }) => {
     const base = { slug: world.slug, title: world.title, tagline: world.tagline };
@@ -78,6 +85,8 @@ export function buildIslandExplorer({
           tagline: location.tagline,
           href: `/island/${childId}/locations/${location.slug}`,
         }));
+      const sourceSlugs = new Set(places.map((place) => place.slug));
+      places.push(...servedPlaces.filter((place) => !sourceSlugs.has(place.slug)));
       return { ...base, status: 'HERE' as const, places };
     }
     if (!isUnlocked) {

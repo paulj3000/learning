@@ -80,12 +80,22 @@ vi.mock('../../api/play/playApi', async (importOriginal) => ({
 
 const REGION = 'treasure-rush-cove';
 
+/** Like the server: once a session is started, the region bootstrap reports it as open. */
 function fakeApi(getRegion?: PlayApi['getRegion']): PlayApi {
+  let started = false;
   return {
     getRegion:
       getRegion ??
-      vi.fn(async () => read(bootstrapJson({ quests: [questJson()] }), parse.regionBootstrap)),
-    startSession: vi.fn(async () => ({ value: read(sessionJson(), parse.session), created: true })),
+      vi.fn(async () =>
+        read(
+          bootstrapJson({ quests: [questJson()], session: started ? sessionJson() : null }),
+          parse.regionBootstrap,
+        ),
+      ),
+    startSession: vi.fn(async () => {
+      started = true;
+      return { value: read(sessionJson(), parse.session), created: true };
+    }),
     getSession: vi.fn(),
     changeSession: vi.fn(),
     acceptQuest: vi.fn(),
@@ -95,6 +105,7 @@ function fakeApi(getRegion?: PlayApi['getRegion']): PlayApi {
     })),
     submitAnswer: vi.fn(),
     getProgress: vi.fn(),
+    solvePuzzle: vi.fn(),
     startLaunchPoint: vi.fn(),
     collectPickup: vi.fn(),
     talkToNpc: vi.fn(async () => ({ flagsSet: [], questUpdates: [], completionRewards: [] })),

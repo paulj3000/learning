@@ -195,6 +195,48 @@ nothing is recorded.
 `sessions` is the 20 most recent. `practice` is counts per learning objective, for gameplay
 pacing; it is not a mastery level or a label (docs/DATA_MODEL.md, "SkillProgress").
 
+## 3D Area puzzles, authored content and the catalog (ADR-047, LAI-0812, Firepeak)
+
+Additive changes to the region bootstrap. A client written before them ignores the new keys,
+and a server from before them sends none (the client treats them as empty).
+
+| Key | Shape | Notes |
+|---|---|---|
+| `puzzles[]` | `{puzzleId, kind, title, entityIds[], solved, locked, failedAttempts, parameters}` | Published puzzles that have parameters for the child's age band. `parameters` is the kind's own shape, for this band only. `locked` means an earlier stage's change key is missing. |
+| `npcs[].dialogue[]` | `{nodeId, text, followUpOnly, choices[{choiceId, label, nextNodeId}]}` | Authored nodes whose conditions the server can prove now (`ALWAYS`, `WORLD_CHANGE`, `QUEST_COMPLETED`). Others are left out, never guessed. |
+| `catalog` | `{worldSlug, assets[{assetId, kind, clips[], deliverable}]}` | What the layout names, so the client validates a served 3D Area against Django. `deliverable` is false until a version is published or a bundled file exists. |
+| `region.title`, `region.scene.copy`, `region.scene.environment` | as before | Read from the version this visit pinned (LAI-0813). |
+
+Items (`progress.inventory[].item`, reward `newItems[]`) gain `setId` and `journal`:
+- `journal` is `{subject, questId, illustrationAssetId}`, or null.
+- These are the Discovery Journal entries (FP-10).
+
+### `POST sessions/{sessionId}/puzzles/{puzzleId}/solve/`: one attempt at a puzzle
+
+- **Body:** `{"submission": {...}}`, and nothing else.
+- **Submission shape by kind:**
+
+  | Kind | Submission |
+  |---|---|
+  | `OBSERVE_FEATURES` | `{"observed": [featureId...]}` |
+  | `PLACE_PLATFORMS` | `{"placements": {slotId: stoneId}}` |
+  | `VALVE_SEQUENCE` | `{"sequence": [valveId...]}` |
+  | `COLLECT_OBJECT`, `RETURN_TO_NPC` | `{}` |
+
+- **Response:** `200` with
+  `{attemptId, correct, feedback, solvedNow, alreadySolved, failedAttempts, newItems, rewardMessage, questUpdates}`.
+- **Grading:** the server grades against the puzzle version the session pinned. A correct
+  answer records the puzzle's world change (`PUZZLE_SOLVED`), grants its reward rule once, and
+  advances active quests, all in one transaction.
+- **Replays:** an already-solved puzzle answers `alreadySolved: true` and grants nothing.
+- **Errors:**
+  - `400 invalid_submission`: a malformed submission; nothing is recorded.
+  - `404`: an unknown or unpublished puzzle, or another child's session.
+  - `409 puzzle_locked`: an earlier stage is not done yet.
+  - `409 session_not_open`.
+  - `409 content_unavailable`: no parameters for this age band, or the 3D Area is not published.
+- **Game runtime cookie:** accepted for the cookie's own region only (ADR-036).
+
 ## Pip's Missing Treasure (TR-14): locks, pickups, puzzles, talking
 
 All additive: a client from before TR-14 keeps working, and the TypeScript reader defaults
@@ -326,6 +368,51 @@ above again, then starts or resumes the child's one ACTIVE session for that Adve
 - `area` is the Place's published 3D Area (a region entry, as in `GET regions/`), or `null`.
   With `null` the Place is still usable through its Adventures.
 - `autoSelectIslandId` is set when exactly one Island is available.
+
+## Published content reads and the step runner (LAI-0503, LAI-0816, ADR-047 K)
+
+All routes are under `/api/v1/children/{id}/`, child-scoped (another family's child is a 404),
+bearer only. Reads are `GET`, bounded (200 entries), and serve only **published, active content
+for the child's age band**; an unknown, unpublished, inactive or other-band record is a 404 with
+no way to tell which. Drafts, submitted and returned versions are never visible. Every entry
+carries `"revision": {"id": "<uuid>", "number": n}`, the published version it came from.
+
+| Route | Returns |
+|---|---|
+| `content/adventures/` | `{"adventures": [{slug, title, locationSlug, ageBands, skillDomain, revision}]}` |
+| `content/adventures/{slug}/` | the above plus `entryStepId` and `steps`: each `{id, type, objectiveIds, presentation, hasHints, revision}` with **no answers, no hint text, no transitions** (an ordering's items are shuffled the same way for everyone and never in the answer order; a matching splits into `left` and `right`) |
+| `content/quests/`, `content/quests/{id}/` | quests for the band; detail adds `entryStageId`, `stages`, `adventureSlugs` |
+| `content/items/` | non-hidden items (`id, displayName, description, category, rarity, setId`) |
+| `content/reward-rules/` | rules whose granted items are all visible: `id, message, itemIds, triggerType` |
+| `content/learning-objectives/` | `code, domain, title` |
+| `content/stories/`, `content/stories/{slug}/` | stories for the band; detail has chapters and scenes without the completion world change |
+| `content/npcs/`, `content/npcs/{id}/` | NPCs; detail adds `dialogue`: the nodes this child's band hears now (conditions evaluated for the child, authored text only) |
+
+**Step runner.** Django grades; the client sends what the child did.
+
+- `POST content/adventures/{slug}/start/`, body `{}`. Starts (201) or resumes (200) the child's
+  one ACTIVE session for a published adventure, pinned to the published versions. The response is
+  the step view below with `"created": true|false`.
+- `GET sessions/{sessionId}/step/` returns the step view, to resume after a disconnection:
+
+```json
+{"session": {"id": "...", "adventureSlug": "...", "status": "ACTIVE", "currentStepId": "count",
+             "hintLevel": 0, "...": "..."},
+ "step": {"id": "count", "type": "NUMBER_INPUT", "objectiveIds": ["count-10"],
+          "presentation": {"kind": "number-input", "prompt": "How many planks?"},
+          "hasHints": true},
+ "stepRevision": {"id": "...", "number": 1}, "adventureRevision": {"id": "...", "number": 3},
+ "doneStepIds": [], "hintLevel": 0}
+```
+
+  A finished session returns its authored closing step (`presentation.kind` is `complete`).
+  A publication during a visit changes nothing here: the step comes from the pinned version.
+- `POST sessions/{id}/answers/` and `.../hints/` are unchanged, and the answer response gains
+  `"worldChangeKeys": []` (the consequence of a WORLD_CHANGE step the child continued past) and
+  `"completion": null | {"rewards": [{ruleId, message, granted, newItemIds}], "questsCompleted": []}`.
+  In the answer's own transaction Django records skill evidence per graded objective, the world
+  change once, and on completion grants the configured `ADVENTURE_COMPLETED` reward rule once per
+  child and moves active quests forward. A replayed `requestId` records and grants nothing.
 
 ## Storykeeper Castle room discovery (SC-R03-06)
 
