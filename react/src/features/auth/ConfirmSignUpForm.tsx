@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { autoSignIn, confirmSignUp, resendSignUpCode } from 'aws-amplify/auth';
+import { cognitoAuth } from '../../lib/cognito';
 import styles from './AuthForm.module.css';
 import { describeAuthError } from './errors';
 import { validateConfirmationCode, validateEmail } from './validators';
@@ -36,14 +36,21 @@ export function ConfirmSignUpForm() {
 
     setIsSubmitting(true);
     try {
-      const { nextStep } = await confirmSignUp({
-        username: email.trim(),
-        confirmationCode: code.trim(),
-      });
-      if (nextStep.signUpStep === 'COMPLETE_AUTO_SIGN_IN') {
-        await autoSignIn();
+      const auth = cognitoAuth();
+      await auth.confirmSignUp({ email: email.trim(), code: code.trim() });
+      // Signed in straight away when the password was given on this page's sign-up;
+      // otherwise (a reload, another device) the parent signs in once.
+      let signedIn = false;
+      try {
+        signedIn = await auth.autoSignIn(email.trim());
+      } catch {
+        signedIn = false;
       }
-      navigate('/home', { replace: true });
+      if (signedIn) {
+        navigate('/home', { replace: true });
+      } else {
+        navigate('/sign-in', { replace: true, state: { confirmed: true } });
+      }
     } catch (error) {
       setFormError(describeAuthError(error));
     } finally {
@@ -61,7 +68,7 @@ export function ConfirmSignUpForm() {
     }
     setIsResending(true);
     try {
-      await resendSignUpCode({ username: email.trim() });
+      await cognitoAuth().resendSignUpCode(email.trim());
       setNotice('A new confirmation code is on its way to your inbox.');
     } catch (error) {
       setFormError(describeAuthError(error));

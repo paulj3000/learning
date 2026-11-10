@@ -1,4 +1,4 @@
-import { getAmplifyIdentity } from '../../../../multiplayer/amplifyIdentity';
+import { getCognitoIdentity } from '../../../../multiplayer/cognitoIdentity';
 import { createColyseusTransport } from '../../../../multiplayer/colyseusTransport';
 import { MULTIPLAYER_CONFIG } from '../../../../multiplayer/config';
 import {
@@ -20,7 +20,7 @@ function buildClientFactory(): (() => MultiplayerClient) | null {
   return () =>
     createMultiplayerClient({
       transport: createColyseusTransport(config.serverUrl),
-      getIdentity: getAmplifyIdentity,
+      getIdentity: getCognitoIdentity,
     });
 }
 

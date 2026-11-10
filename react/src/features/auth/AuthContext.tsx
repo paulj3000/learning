@@ -1,7 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { fetchAuthSession, getCurrentUser, signOut as amplifySignOut } from 'aws-amplify/auth';
-import { Hub } from 'aws-amplify/utils';
-import { isAmplifyConfigured } from '../../lib/amplify-config';
+import { cognitoAuth, isCognitoConfigured } from '../../lib/cognito';
 import { isReauthenticating, onReauthenticationEnd } from './recentSignIn/recentSignIn';
 
 export type AuthStatus = 'unconfigured' | 'loading' | 'authenticated' | 'unauthenticated';
@@ -11,9 +9,9 @@ interface AuthContextValue {
   userId: string | null;
   /**
    * Whether the signed-in user belongs to the Cognito `Admins` group
-   * (amplify/auth/resource.ts). Read from the ID token's `cognito:groups`
-   * claim rather than a separate call, since `fetchAuthSession` already
-   * has to run once per sign-in to get a fresh token. Always `false` while
+   * (created with the user pool; granted out of band, `scripts/grant-admin.ts`). Read from the ID token's `cognito:groups`
+   * claim rather than a separate call, since the session is already read
+   * once per sign-in to get a fresh token. Always `false` while
    * unauthenticated/unconfigured — `RequireAdmin` (src/features/auth/RequireAdmin.tsx)
    * is what actually gates the admin section, this is just the signal it reads.
    */
@@ -22,7 +20,7 @@ interface AuthContextValue {
    * Whether the signed-in admin is also in `Superusers` (ADR-031), which is
    * what unlocks destructive admin actions such as deleting an adventure.
    * Only ever `true` alongside `isAdmin`; the backend enforces the same rule
-   * on its own (`allow.group('Superusers')` in amplify/data/resource.ts).
+   * on its own (Django checks the same group claim).
    */
   isSuperuser: boolean;
   refresh: () => Promise<void>;
@@ -44,24 +42,25 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>(
-    isAmplifyConfigured ? 'loading' : 'unconfigured',
+    isCognitoConfigured ? 'loading' : 'unconfigured',
   );
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperuser, setIsSuperuser] = useState(false);
 
   async function refresh(options: { quiet?: boolean } = {}): Promise<void> {
-    if (!isAmplifyConfigured) {
+    if (!isCognitoConfigured) {
       setStatus('unconfigured');
       return;
     }
     // Quiet keeps the current screen mounted while the session is re-read.
     if (!options.quiet) setStatus('loading');
     try {
-      const user = await getCurrentUser();
+      const auth = cognitoAuth();
+      const user = await auth.getCurrentUser();
       setUserId(user.userId);
-      const session = await fetchAuthSession();
-      const groups = session.tokens?.idToken?.payload['cognito:groups'];
+      const tokens = await auth.getTokens();
+      const groups = tokens?.idClaims?.['cognito:groups'];
       const access = adminAccessFromGroups(groups);
       setIsAdmin(access.isAdmin);
       setIsSuperuser(access.isSuperuser);
@@ -76,12 +75,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refresh();
-    if (!isAmplifyConfigured) return;
-    const stopListening = Hub.listen('auth', ({ payload }) => {
+    if (!isCognitoConfigured) return;
+    const stopListening = cognitoAuth().onEvent((event) => {
       // A recent sign-in verification (LAI-0209) signs out and in again on
       // purpose; the page stays as it is and the session is read once it ends.
       if (isReauthenticating()) return;
-      if (payload.event === 'signedIn' || payload.event === 'signedOut') {
+      if (event === 'signedIn' || event === 'signedOut') {
         void refresh();
       }
     });
@@ -93,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signOut(): Promise<void> {
-    await amplifySignOut();
+    if (isCognitoConfigured) await cognitoAuth().signOut();
     await refresh();
   }
 

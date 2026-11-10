@@ -1,8 +1,4 @@
-import {
-  confirmUserAttribute,
-  updatePassword as amplifyUpdatePassword,
-  updateUserAttributes,
-} from 'aws-amplify/auth';
+import { cognitoAuth } from '../../lib/cognito';
 
 export interface EmailChangeResult {
   needsConfirmation: boolean;
@@ -13,17 +9,13 @@ export interface EmailChangeResult {
  * takes effect; call `confirmEmailChange` with that code to complete it.
  */
 export async function changeEmail(newEmail: string): Promise<EmailChangeResult> {
-  const output = await updateUserAttributes({
-    userAttributes: { email: newEmail },
-  });
-  const step = output.email?.nextStep.updateAttributeStep;
-  return { needsConfirmation: step === 'CONFIRM_ATTRIBUTE_WITH_CODE' };
+  return { needsConfirmation: await cognitoAuth().updateEmail(newEmail) };
 }
 
 export async function confirmEmailChange(confirmationCode: string): Promise<void> {
-  await confirmUserAttribute({ userAttributeKey: 'email', confirmationCode });
+  await cognitoAuth().confirmEmail(confirmationCode);
 }
 
 export async function changePassword(oldPassword: string, newPassword: string): Promise<void> {
-  await amplifyUpdatePassword({ oldPassword, newPassword });
+  await cognitoAuth().changePassword(oldPassword, newPassword);
 }

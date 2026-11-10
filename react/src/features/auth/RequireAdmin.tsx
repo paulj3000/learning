@@ -26,8 +26,8 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
         <div className={styles.card}>
           <h1 className={styles.heading}>The island is not connected yet</h1>
           <p className={styles.lead}>
-            The admin section needs a running Amplify backend. Run <code>npm run sandbox</code>{' '}
-            locally to enable sign-in.
+            The admin section needs sign-in settings. Set <code>VITE_COGNITO_USER_POOL_ID</code> and{' '}
+            <code>VITE_COGNITO_CLIENT_ID</code> to enable sign-in.
           </p>
         </div>
       </div>

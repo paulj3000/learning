@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import styles from './Home.module.css';
-import { isAmplifyConfigured } from '../lib/amplify-config';
+import { isCognitoConfigured } from '../lib/cognito';
 
 export function Home() {
   return (
@@ -15,7 +15,7 @@ export function Home() {
           Learning Adventure Island is a guided, AI-powered adventure world for children ages 3 to
           8. Create a parent account to set up child profiles and get started.
         </p>
-        {isAmplifyConfigured ? (
+        {isCognitoConfigured ? (
           <div className={styles.actions}>
             <Link className={styles.primaryAction} to="/sign-up">
               Create a parent account
@@ -26,8 +26,8 @@ export function Home() {
           </div>
         ) : (
           <p className={styles.notice}>
-            Parent accounts need a running Amplify backend. Run <code>npm run sandbox</code> locally
-            to enable sign-up and sign-in.
+            Parent accounts need sign-in settings. Set <code>VITE_COGNITO_USER_POOL_ID</code> and{' '}
+            <code>VITE_COGNITO_CLIENT_ID</code> to enable sign-up and sign-in.
           </p>
         )}
       </main>

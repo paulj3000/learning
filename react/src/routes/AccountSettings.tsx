@@ -1,6 +1,6 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { fetchUserAttributes } from 'aws-amplify/auth';
+import { cognitoAuth } from '../lib/cognito';
 import parentStyles from './ParentDashboard.module.css';
 import formStyles from '../features/auth/AuthForm.module.css';
 import styles from './AccountSettings.module.css';
@@ -68,7 +68,7 @@ export function AccountSettings() {
       try {
         const [profile, attributes] = await Promise.all([
           getOrCreateParentProfile(),
-          fetchUserAttributes(),
+          cognitoAuth().fetchUserAttributes(),
         ]);
         if (cancelled) return;
         setParentProfile(profile);

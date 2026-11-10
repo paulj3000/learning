@@ -10,6 +10,9 @@ const FRIENDLY_MESSAGES: Record<string, string> = {
   LimitExceededException: 'Too many attempts. Please wait a moment and try again.',
   InvalidParameterException: 'Please check the information you entered and try again.',
   AliasExistsException: 'That email address is already in use by another account.',
+  TooManyRequestsException: 'Too many attempts. Please wait a moment and try again.',
+  NetworkError: 'We could not reach the sign-in service. Check your connection and try again.',
+  AuthUnconfiguredException: 'Sign-in is not set up for this version of the app.',
 };
 
 export function describeAuthError(error: unknown): string {
