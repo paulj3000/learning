@@ -23,10 +23,10 @@ const MIN_UPTIME_BEFORE_RECONNECT_MS = 1000;
  */
 export function createColyseusTransport(serverUrl: string): MultiplayerTransport {
   return {
-    async join(options, idToken, handlers) {
+    async join(options, accessToken, handlers) {
       const { Client } = await import('@colyseus/sdk');
       const client = new Client(serverUrl);
-      client.auth.token = idToken;
+      client.auth.token = accessToken;
 
       let room;
       try {
