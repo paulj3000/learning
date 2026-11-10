@@ -13321,3 +13321,15 @@ in `main` (verified: zero commits ahead of `origin/main`).
 - **Not established by this:** deployed or live AWS acceptance; real-family use still depends on
   LAI-0502, LAI-0602, gate G9 and ADR-024 A6.
 - **Tests run:** none; documentation-only change.
+
+## LAI-0821 content-authoring milestone accepted (2026-11-10; recorded on `main` 2026-11-11, branch `docs/lai-0821-accepted`)
+
+- **What.** The owner confirmed browser acceptance (Django Admin authoring flows, Firepeak,
+  Storykeeper Castle, the Island Explorer with Firepeak) and deployed acceptance (hosted Django,
+  live Cognito), then authorized the merge of `dev20261103` into `main` (PR #12, merge commit
+  `e82a188`). CI was green on the merged head (`b3490ba`); the local merge-gate results are in the
+  2026-11-09 section above.
+- **Tracker.** LAI-0821 marked done. Docs only; no code changed, so no tests apply.
+- **Still open.** The 11 Firepeak Playwright scenarios remain `test.fixme` (FP-13). Merged
+  branches still on GitHub (`dev20261103`, `claude/jolly-ride-92xktb` and others) are for the owner
+  to delete.
