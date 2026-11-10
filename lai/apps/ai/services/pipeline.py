@@ -139,6 +139,8 @@ def run_turn(child, spec: TurnSpec) -> TurnResult:
     audit.latency_ms = int((time.monotonic() - started) * 1000)
     audited = auditing.record(child, audit, safety)
     auditing.emit_metric(audit, source=source, audited=audited)
+    if safety is not None:
+        auditing.emit_safety_metric(audit, safety, audited=audited)
     return TurnResult(turn, source)
 
 

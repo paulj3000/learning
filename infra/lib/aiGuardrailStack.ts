@@ -155,13 +155,44 @@ export function turnPattern(where: Partial<Record<TurnField, string>> = {}): str
   return `[${AI_TURN_FIELDS.map((field) => fixed[field] ?? field).join(', ')}]`;
 }
 
+/**
+ * The `ai.safety v1` line (lai/apps/ai/services/auditing.py `emit_safety_metric`, AMP-05): one
+ * per SafetyEvent, closed vocabulary only. It replaces the Amplify `operational-metrics` stream
+ * consumer's `SafetyEventCount` by severity. Change it only together with `emit_safety_metric`.
+ */
+export const AI_SAFETY_FIELDS = [
+  'date',
+  'time',
+  'level',
+  'logger',
+  'req',
+  'event',
+  'version',
+  'route',
+  'severity',
+  'source',
+  'audit',
+] as const;
+type SafetyField = (typeof AI_SAFETY_FIELDS)[number];
+
+export function safetyPattern(where: Partial<Record<SafetyField, string>> = {}): string {
+  const fixed: Partial<Record<SafetyField, string>> = {
+    logger: 'logger="lai.ai"',
+    event: 'event="ai.safety"',
+    version: 'version="v1"',
+    ...where,
+  };
+  return `[${AI_SAFETY_FIELDS.map((field) => fixed[field] ?? field).join(', ')}]`;
+}
+
 export interface AiGuardrailStackProps extends StackProps {
   envName: AssetEnvironment;
   /** The Django workload role, when it is not the EC2 instance role `lai-django-ec2-<env>`. */
   djangoRoleArn?: string;
   /**
-   * Alarm thresholds (LAI-0708), sized for the pilot. Every alarm goes to the Django stack's
-   * `lai-django-alarms-<env>` topic; none pages on a single event.
+   * Alarm thresholds (LAI-0708, AMP-05), sized for the pilot. Every alarm goes to the Django
+   * stack's `lai-django-alarms-<env>` topic. None pages on a single event, except a HIGH
+   * severity SafetyEvent, as the Amplify `HighSeveritySafetyEventAlarm` did.
    */
   alarms?: Partial<typeof DEFAULT_AI_ALARMS>;
 }
@@ -182,6 +213,13 @@ export const DEFAULT_AI_ALARMS = {
   outputTokensPerDay: 2_000_000,
   /** Rate-limited or kill-switched turns in 15 minutes. */
   rateLimitedPer15Min: 100,
+  /**
+   * Model output that failed schema or content validation in 15 minutes (AMP-05; was the
+   * Amplify `AiValidationFailureAlarm`). Every such turn already fell back to authored content.
+   */
+  validationFailuresPer15Min: 5,
+  /** HIGH severity SafetyEvents in 5 minutes (AMP-05; was `HighSeveritySafetyEventAlarm`). */
+  highSeveritySafetyEventsPer5Min: 1,
 };
 
 export class AiGuardrailStack extends Stack {
@@ -343,6 +381,39 @@ export class AiGuardrailStack extends Stack {
     metric('InputTokens', {}, '$inputTokens', 'Sum', Duration.hours(1));
     const outputTokens = metric('OutputTokens', {}, '$outputTokens', 'Sum', Duration.days(1));
     metric('EstimatedCostMicroUsd', {}, '$costMicroUsd', 'Sum', Duration.days(1));
+    const validationFailures = metric(
+      'ValidationFailures',
+      { status: 'status="INVALID*"' },
+      '1',
+      'Sum',
+      m15,
+    );
+    // SafetyEvents (AMP-05): the Django side of the Amplify SafetyEventCount by severity.
+    const safetyMetric = (
+      name: string,
+      where: Partial<Record<SafetyField, string>>,
+      period: Duration,
+    ) => {
+      new logs.MetricFilter(this, `${name}Filter`, {
+        logGroup,
+        filterPattern: logs.FilterPattern.literal(safetyPattern(where)),
+        metricNamespace: AI_METRICS_NAMESPACE,
+        metricName: name,
+        metricValue: '1',
+      });
+      return new cloudwatch.Metric({
+        namespace: AI_METRICS_NAMESPACE,
+        metricName: name,
+        statistic: 'Sum',
+        period,
+      });
+    };
+    safetyMetric('SafetyEvents', {}, Duration.hours(1));
+    const highSeverity = safetyMetric(
+      'HighSeveritySafetyEvents',
+      { severity: 'severity="HIGH"' },
+      Duration.minutes(5),
+    );
 
     const notify = new cwActions.SnsAction(topic);
     const gte = cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD;
@@ -409,6 +480,20 @@ export class AiGuardrailStack extends Stack {
       'Django AI: many turns are being rate limited or kill-switched',
       rateLimited,
       thresholds.rateLimitedPer15Min,
+    );
+    alarm(
+      'ValidationFailures',
+      'Django AI: model output is failing validation (a Bedrock behaviour change or a prompt or ' +
+        'schema regression); every failed turn already fell back to authored content',
+      validationFailures,
+      thresholds.validationFailuresPer15Min,
+    );
+    alarm(
+      'HighSeveritySafetyEvent',
+      'Django AI: a HIGH severity SafetyEvent was recorded; review it in Django Admin now ' +
+        '(docs/AI_AND_CHILD_SAFETY.md human review)',
+      highSeverity,
+      thresholds.highSeveritySafetyEventsPer5Min,
     );
   }
 }

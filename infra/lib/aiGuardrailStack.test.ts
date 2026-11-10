@@ -6,6 +6,7 @@ import {
   AI_INFERENCE_PROFILE_ID,
   AI_METRICS_NAMESPACE,
   turnPattern,
+  safetyPattern,
   AiGuardrailStack,
   DENIED_TOPICS,
   US_PROFILE_DESTINATIONS,
@@ -140,14 +141,22 @@ describe('AiGuardrailStack', { timeout: 30_000 }, () => {
         'ProviderErrors',
         'RateLimited',
         'Turns',
+        'ValidationFailures',
+        'SafetyEvents',
+        'HighSeveritySafetyEvents',
       ].sort(),
     );
-    for (const filter of Object.values(byName)) {
+    const safety = new Set(['SafetyEvents', 'HighSeveritySafetyEvents']);
+    for (const [name, filter] of Object.entries(byName)) {
       expect(filter.LogGroupName).toBe('/lai/dev/django');
       expect(filter.MetricTransformations[0].MetricNamespace).toBe(AI_METRICS_NAMESPACE);
-      expect(filter.FilterPattern).toContain('event="ai.turn", version="v1"');
+      expect(filter.FilterPattern).toContain(
+        safety.has(name) ? 'event="ai.safety", version="v1"' : 'event="ai.turn", version="v1"',
+      );
     }
     expect(byName.ProviderErrors.FilterPattern).toContain('status="ERROR"');
+    expect(byName.ValidationFailures.FilterPattern).toContain('status="INVALID*"');
+    expect(byName.HighSeveritySafetyEvents.FilterPattern).toContain('severity="HIGH"');
     expect(byName.LatencyMs.MetricTransformations[0].MetricValue).toBe('$latency');
   });
 
@@ -157,6 +166,20 @@ describe('AiGuardrailStack', { timeout: 30_000 }, () => {
     expect(fields).toHaveLength(5 + 15);
     expect(fields.slice(5, 9)).toEqual(['event="ai.turn"', 'version="v1"', 'route', 'source']);
     expect(fields.at(-1)).toBe('audit');
+  });
+
+  it('matches the ai.safety v1 line emitted by Django (emit_safety_metric, AMP-05)', () => {
+    // date time level logger [req] then `ai.safety v1 <route> <severity> <source> <ok|failed>`.
+    const fields = safetyPattern().slice(1, -1).split(', ');
+    expect(fields).toHaveLength(5 + 6);
+    expect(fields.slice(5)).toEqual([
+      'event="ai.safety"',
+      'version="v1"',
+      'route',
+      'severity',
+      'source',
+      'audit',
+    ]);
   });
 
   it('alarms on the Django alarm topic without paging on single events', () => {
@@ -178,6 +201,8 @@ describe('AiGuardrailStack', { timeout: 30_000 }, () => {
         'lai-django-ai-dev-provider-errors',
         'lai-django-ai-dev-rate-limited',
         'lai-django-ai-dev-turn-spike',
+        'lai-django-ai-dev-validation-failures',
+        'lai-django-ai-dev-high-severity-safety-event',
       ].sort(),
     );
     for (const alarm of alarms) {
