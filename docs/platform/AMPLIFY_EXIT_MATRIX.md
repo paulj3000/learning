@@ -64,6 +64,7 @@ the read-only commands for the owner.
 | `amplify.yml` (`ampx pipeline-deploy` and the frontend build) | root | `deploy-site.yml` (gated, LAI-INFRA-004); backend deploy until AMP-08 | AMP-06 |
 | `customHttp.yml`, `amplify-hosting/custom-rules.json` | root | `LaiFrontend` response headers policy and SPA rewrite (LAI-INFRA-003) | AMP-06 |
 | `amplify_outputs.json` (generated, gitignored) | read by `react/src/lib/amplify-config.ts` | None needed once AMP-02 configures Cognito directly. **Until then the site release depends on `ampx generate outputs`** (`.github/actions/site-release`) | AMP-02, AMP-06 |
+| `server/multiplayer` (room server, ADR-026) | read `amplify_outputs.json` for Cognito ids and the AppSync URL; checked child ownership with the parent's ID token against AppSync `getChildProfile` | Env-only config (`MP_USER_POOL_ID`, `MP_USER_POOL_CLIENT_ID`, `MP_DJANGO_API_BASE`); access token verified and forwarded to Django `children/<id>/` (**done**, `docs/multiplayer/MULTIPLAYER_SERVER.md`) | AMP-03, AMP-07 |
 | `scripts/live-smoke.ts` | Amplify sign-in plus Data | Django smoke (`scripts/aws/verify-dev.sh` covers the API side) | AMP-07 |
 | `scripts/ai-red-team.ts` | Amplify sign-in; `--target django` already supported | Keep the Django target; replace the sign-in in AMP-02 | AMP-02 |
 | `.github/workflows/ci.yml` | No Amplify step | n/a | n/a |

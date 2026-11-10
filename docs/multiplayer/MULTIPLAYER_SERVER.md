@@ -2,7 +2,7 @@
 
 _Roadmap Phase 1 (`../MATH_MAYHEM_MULTIPLAYER_ROADMAP.md`). Decision: ADR-026 in `../DECISIONS.md`._
 
-A small Node.js process, separate from the web app and from Amplify, that
+A small Node.js process, separate from the web app and from the Django API, that
 seats children of **one family** in a shared, in-memory room per region and
 tells each of them who else is there. Phase 1 has presence only: no
 movement, no avatars in the 3D scene, and no way to send anything to
@@ -22,11 +22,21 @@ another child.
 | `server/multiplayer/roomServer.ts` | Colyseus wiring: transport, origin check, CORS, room registration |
 | `server/multiplayer/islandRoom.ts` | Thin Colyseus room over `roomRules.ts` |
 | `server/multiplayer/auth.ts` | Seat authorization (token, household, child ownership) |
+| `server/multiplayer/cognitoVerifier.ts` | Cognito access-token verification (`aws-jwt-verify`) |
+| `server/multiplayer/djangoChildProfiles.ts` | Child ownership lookup through the Django API, as the parent |
+| `src/features/multiplayer/cognitoIdentity.ts` | The parent's access token and `sub` for a join, from the Cognito session |
 
 ## Running it locally
 
-1. Have a deployed sandbox (`npm run sandbox`), so `amplify_outputs.json` exists.
-2. Start the room server: `npm run mp:dev` (listens on port 2567).
+1. Run the Django API locally (it must verify the same Cognito user pool
+   and app client as the web app) and have a parent with child profiles in it.
+2. Start the room server with its three required variables (listens on port 2567):
+
+   ```bash
+   MP_USER_POOL_ID=<pool id> MP_USER_POOL_CLIENT_ID=<web app client id> \
+   MP_DJANGO_API_BASE=http://localhost:8000 npm run mp:dev
+   ```
+
 3. Create `.env.development.local` (gitignored) for the web app:
 
    ```bash
@@ -66,14 +76,17 @@ No shipped manifest binds `multiplayer-presence` yet. Without
 |---|---|---|
 | `MP_PORT` | `2567` | |
 | `MP_ALLOWED_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Exact origins. **Required in production**, and each must be `https://` |
-| `MP_USER_POOL_ID` | from `amplify_outputs.json` | Cognito user pool |
-| `MP_USER_POOL_CLIENT_ID` | from `amplify_outputs.json` | The web client's app client; the ID token's audience |
-| `MP_APPSYNC_URL` | from `amplify_outputs.json` | Used to read the child profile as the parent |
-| `NODE_ENV` | | `production` enables the strict origin rules |
+| `MP_USER_POOL_ID` | **required** | Cognito user pool |
+| `MP_USER_POOL_CLIENT_ID` | **required** | The web app's Cognito app client; the access token's `client_id`. Django must list it in `COGNITO_ALLOWED_CLIENT_IDS` |
+| `MP_DJANGO_API_BASE` | **required** | Origin of the Django API, e.g. `https://api.example.org` (no `/api/v1`). `https://` in production; `http://` is accepted only outside production |
+| `NODE_ENV` | | `production` enables the strict origin and API URL rules |
 
-The server needs **no AWS credentials**. It verifies tokens against the
-pool's public keys and reads the child profile from AppSync with the
-parent's own token.
+The server reads no files: there is no `amplify_outputs.json` fallback. A
+missing variable stops start-up with an error that names every missing one.
+
+The server needs **no AWS credentials and no database access**. It
+verifies tokens against the pool's public keys and reads the child profile
+from the Django API with the parent's own token.
 
 ### Web app (Vite)
 
@@ -91,11 +104,16 @@ roadmap Phase 3 a parent setting will be a third requirement.
 
 **Who may sit in a room.** On every new seat the server:
 
-1. verifies the Cognito ID token (signature, issuer, audience, `token_use: id`, expiry) with `aws-jwt-verify`;
+1. verifies the Cognito **access** token (signature, issuer, `client_id`, `token_use: access`, expiry) with `aws-jwt-verify`;
 2. recomputes the household key from the token's `sub` and requires it to match the room's;
-3. fetches the child profile from AppSync **with the caller's token**, so
-   `ChildProfile`'s owner rule must allow it, and checks `ownerSub` (or the
-   `owner` field for older rows) against the token's `sub`.
+3. calls `GET {MP_DJANGO_API_BASE}/api/v1/children/<id>/` **with the caller's
+   token** (`Authorization: Bearer`). Django returns the child only to its
+   owning parent, so its child scoping is the ownership check. 401, 403 and
+   404 refuse the seat as "not your child"; any other status, a malformed
+   body, a redirect or a 5 second timeout refuses it as a failed lookup. The
+   server keeps only `id` (which must equal the requested id) and
+   `avatarKey`; the nickname and other fields in the response are dropped
+   and never stored or logged.
 
 Any failure is the same opaque refusal (`AUTH_FAILED`, 525). The reason is
 logged server-side without the child id.
@@ -120,9 +138,9 @@ authorizes a seat.
 the load balancer (ADR-026 part A) and the browser uses `wss://`. A
 production web build refuses a `ws://` URL.
 
-**Token expiry.** Cognito ID tokens last one hour. Every 30 seconds the
-room closes seats whose token has expired, with close code 4401. The client
-rejoins once with a fresh token from Amplify. A second expiry in a row
+**Token expiry.** Cognito access tokens last one hour by default. Every 30
+seconds the room closes seats whose token has expired, with close code 4401.
+The client rejoins once with a fresh token from the Cognito session. A second expiry in a row
 leaves the child single-player with a "Try again" button.
 
 **Token in the URL.** The Colyseus SDK sends the token as an
@@ -166,9 +184,14 @@ must therefore not log query strings. Recorded as a deployment requirement.
 - **Not deployed.** Hosting (ECS Fargate behind an ALB with TLS) is a later
   step and carries an always-on cost (ADR-026).
 - **Not yet verified with a real signed-in parent.** The automated tests
-  cover real WebSockets and the real SDK with fake Cognito and AppSync. The
-  real process refuses forged and missing tokens against the live pool. The
-  two-browser check above needs a person with a parent account.
+  cover real WebSockets and the real SDK with a fake Cognito verifier and a
+  fake Django lookup. The access-token and Django path (AMP-03) has not yet
+  run against a live pool and a live Django API. The two-browser check above
+  needs a person with a parent account whose children are in Django.
+- **The lookup returns more than it needs.** `GET children/<id>/` carries
+  the nickname and profile settings to the room server, which discards
+  them. A narrower Django route returning only `id` and `avatarKey` would
+  remove that exposure.
 
 ## Tests
 
@@ -177,6 +200,7 @@ must therefore not log query strings. Recorded as a deployment requirement.
 | `src/features/multiplayer/*.test.ts` | Protocol validation, room rules, config, household key, client state machine, copy, dev repository |
 | `.../multiplayerPresence/MultiplayerPresencePanel.test.tsx` | Panel states, retry, leave on unmount |
 | `server/multiplayer/auth.test.ts` | Every authorization rejection path |
-| `server/multiplayer/appSyncChildProfiles.test.ts` | Lookup with the caller's token, minimal fields, error handling |
+| `server/multiplayer/djangoChildProfiles.test.ts` | Django lookup with the caller's bearer token, kept fields, 401/403/404 versus failures |
+| `src/features/multiplayer/cognitoIdentity.test.ts` | The client sends the access token and its `sub`, never the ID token |
 | `server/multiplayer/config.test.ts` | Server configuration and origin matching |
 | `server/multiplayer/roomServer.integration.test.ts` | Real server and SDK: two players in one room, leaving, refusals, per-family rooms, seat replacement, drop and reconnect, token expiry, origin 403, logs without ids |

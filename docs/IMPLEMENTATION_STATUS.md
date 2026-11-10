@@ -12782,3 +12782,22 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   - co-op routes and realtime.
 - Only parent and child profiles have a DynamoDB importer.
 - Checks: docs only (Prettier clean). No code or resource changed.
+
+## AMP-03 / AMP-07 Multiplayer room server off Amplify (2026-11-10)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| AMP-03 / AMP-07 (room server slice) | `server/multiplayer` reads no `amplify_outputs.json` and no AppSync; ownership through Django `GET /api/v1/children/<id>/` | **None**: not run against a live Cognito pool or Django API | Open until the owner sets the three env vars and runs the two-browser check |
+
+- Config: `MP_USER_POOL_ID`, `MP_USER_POOL_CLIENT_ID` and `MP_DJANGO_API_BASE` are required
+  (https only in production). A missing one stops start-up naming every missing variable.
+- Token: the client sends the Cognito **access** token (`cognitoIdentity.ts`); the server verifies
+  it (`token_use: access`, `client_id`) and forwards it as a bearer token to Django, which returns
+  the child only to its owner. 401, 403 and 404 refuse as `NOT_YOUR_CHILD`; other statuses,
+  malformed bodies, redirects and timeouts as `LOOKUP_FAILED`.
+- `ChildProfileRecord` is now `{ id, avatarKey }`; the `ownerSub` / `owner` check is gone because
+  Django enforces ownership. `MultiplayerIdentity.idToken` is renamed `accessToken`.
+- Risk: the Django route returns the nickname and settings to the room server, which discards
+  them; a narrower route would remove that exposure.
+- Checks: multiplayer server and client Vitest suites, `tsc --noEmit -p server/tsconfig.json`,
+  `tsc -b` in `react/`. ADR-026 gains an amendment.
