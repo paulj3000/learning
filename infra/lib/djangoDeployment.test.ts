@@ -417,6 +417,19 @@ describe('DjangoEc2Stack', { timeout: 60_000 }, () => {
     template.hasResource('AWS::SNS::Subscription', { Condition: 'HasAlarmEmail' });
   });
 
+  it('lets AWS Budgets publish to the alarm topic, from this account only (AMP-05)', () => {
+    const [policy] = resources(template, 'AWS::SNS::TopicPolicy');
+    const document = policy.Properties.PolicyDocument as {
+      Statement: { Sid?: string; Principal: unknown; Action: unknown; Condition: unknown }[];
+    };
+    const statements = document.Statement;
+    const budgets = statements.find((s) => s.Sid === 'AllowBudgetsPublish');
+    expect(budgets).toBeDefined();
+    expect(budgets?.Principal).toEqual({ Service: 'budgets.amazonaws.com' });
+    expect(budgets?.Action).toBe('sns:Publish');
+    expect(JSON.stringify(budgets?.Condition)).toContain('aws:SourceAccount');
+  });
+
   it('retains its log groups with a retention', () => {
     for (const group of resources(template, 'AWS::Logs::LogGroup')) {
       expect(group.Properties.RetentionInDays).toBeGreaterThan(0);

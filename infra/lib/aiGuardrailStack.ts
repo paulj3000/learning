@@ -1,5 +1,6 @@
 import { CfnOutput, Duration, Stack, Tags, type StackProps } from 'aws-cdk-lib';
 import * as bedrock from 'aws-cdk-lib/aws-bedrock';
+import * as budgets from 'aws-cdk-lib/aws-budgets';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as cwActions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as iam from 'aws-cdk-lib/aws-iam';
@@ -195,7 +196,15 @@ export interface AiGuardrailStackProps extends StackProps {
    * severity SafetyEvent, as the Amplify `HighSeveritySafetyEventAlarm` did.
    */
   alarms?: Partial<typeof DEFAULT_AI_ALARMS>;
+  /**
+   * Monthly Amazon Bedrock cost budget in USD (AMP-05; was the Amplify
+   * `BedrockMonthlyCostBudget`, default 50). Bedrock cost is account-wide, so while the Amplify
+   * budget still exists both notify; AMP-08 removes the Amplify one.
+   */
+  monthlyBedrockBudgetUsd?: number;
 }
+
+export const DEFAULT_MONTHLY_BEDROCK_BUDGET_USD = 50;
 
 export const DEFAULT_AI_ALARMS = {
   /** Provider failures (timeouts, throttling, access denied) in 15 minutes. */
@@ -305,6 +314,10 @@ export class AiGuardrailStack extends Stack {
     });
 
     this.addMonitoring(props.envName, { ...DEFAULT_AI_ALARMS, ...props.alarms });
+    this.addBedrockBudget(
+      props.envName,
+      props.monthlyBedrockBudgetUsd ?? DEFAULT_MONTHLY_BEDROCK_BUDGET_USD,
+    );
 
     new CfnOutput(this, 'GuardrailId', {
       value: this.guardrail.attrGuardrailId,
@@ -317,6 +330,33 @@ export class AiGuardrailStack extends Stack {
     new CfnOutput(this, 'ModelId', {
       value: AI_INFERENCE_PROFILE_ID,
       description: 'SSM /lai/<env>/django/LAI_AI_MODEL_ID',
+    });
+  }
+
+  /**
+   * Actual spend above 80% and forecast above 100% of the monthly Bedrock budget notify the
+   * Django alarm topic, which trusts `budgets.amazonaws.com` (LaiDjangoEc2, AMP-05).
+   */
+  private addBedrockBudget(env: string, monthlyUsd: number): void {
+    const topicArn = `arn:${Stack.of(this).partition}:sns:${Stack.of(this).region}:${Stack.of(this).account}:lai-django-alarms-${env}`;
+    const notify = (notificationType: string, threshold: number) => ({
+      notification: {
+        notificationType,
+        comparisonOperator: 'GREATER_THAN',
+        threshold,
+        thresholdType: 'PERCENTAGE',
+      },
+      subscribers: [{ subscriptionType: 'SNS', address: topicArn }],
+    });
+    new budgets.CfnBudget(this, 'BedrockMonthlyCostBudget', {
+      budget: {
+        budgetName: `lai-bedrock-monthly-${env}`,
+        budgetType: 'COST',
+        timeUnit: 'MONTHLY',
+        budgetLimit: { amount: monthlyUsd, unit: 'USD' },
+        costFilters: { Service: ['Amazon Bedrock'] },
+      },
+      notificationsWithSubscribers: [notify('ACTUAL', 80), notify('FORECASTED', 100)],
     });
   }
 

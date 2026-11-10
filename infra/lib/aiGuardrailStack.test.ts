@@ -168,6 +168,31 @@ describe('AiGuardrailStack', { timeout: 30_000 }, () => {
     expect(fields.at(-1)).toBe('audit');
   });
 
+  it('keeps a monthly Bedrock cost budget on the Django alarm topic (AMP-05)', () => {
+    const template = synth();
+    template.resourceCountIs('AWS::Budgets::Budget', 1);
+    template.hasResourceProperties('AWS::Budgets::Budget', {
+      Budget: Match.objectLike({
+        BudgetName: 'lai-bedrock-monthly-dev',
+        BudgetType: 'COST',
+        TimeUnit: 'MONTHLY',
+        BudgetLimit: { Amount: 50, Unit: 'USD' },
+        CostFilters: { Service: ['Amazon Bedrock'] },
+      }),
+      NotificationsWithSubscribers: [
+        Match.objectLike({
+          Notification: Match.objectLike({ NotificationType: 'ACTUAL', Threshold: 80 }),
+          Subscribers: [Match.objectLike({ SubscriptionType: 'SNS' })],
+        }),
+        Match.objectLike({
+          Notification: Match.objectLike({ NotificationType: 'FORECASTED', Threshold: 100 }),
+        }),
+      ],
+    });
+    const [budget] = Object.values(template.findResources('AWS::Budgets::Budget'));
+    expect(JSON.stringify(budget)).toContain('lai-django-alarms-dev');
+  });
+
   it('matches the ai.safety v1 line emitted by Django (emit_safety_metric, AMP-05)', () => {
     // date time level logger [req] then `ai.safety v1 <route> <severity> <source> <ok|failed>`.
     const fields = safetyPattern().slice(1, -1).split(', ');
