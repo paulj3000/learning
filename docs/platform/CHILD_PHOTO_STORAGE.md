@@ -10,7 +10,7 @@ commits; not merged, not pushed):
 | LAI-0905 React client | Done | Vitest component and client tests | Ships with the next React build that uses the Django API | Open: browser check needs a test Cognito pool (gate A6) and the dev bucket |
 | LAI-0905 Android contract | Documented (`docs/android/ANDROID_API_CONTRACT.md`) | n/a | n/a | Open: no Android client exists in this repository |
 | LAI-0602 photo cleanup on child deletion (`lai/apps/users/deletion.py`) | Service done; API route enabled behind the recent sign-in guard (LAI-0209 branch) | pytest | n/a | Open: LAI-0209 live gate and merge |
-| LAI-1103 Amplify photo migration | Designed (section 10) | none | none | Not started: its inputs (LAI-1101 export, bucket read access) do not exist |
+| LAI-1103 Amplify photo migration | Built in AMP-04: `manage.py migrate_amplify_child_photos` (runbook `AMPLIFY_STORAGE_CUTOVER.md`) | pytest with a stubbed read-only S3 client | none | Open: owner runs the inventory and copy (needs the LAI-1101 export, bucket read access and gate G9) |
 | LAI-1204 legacy Amplify storage retirement | Planned (section 11) | none | none | Nothing deleted, nothing changed |
 
 Decision: ADR-042 (`docs/DECISIONS.md`). Tasks: LAI-0904, LAI-0905, LAI-1002, LAI-1103,
@@ -289,11 +289,11 @@ under `amplify/`.
 |---|---|---|
 | `amplify/storage/resource.ts`, `amplify/backend.ts` (`storage`) | Defines the bucket and its access rules | LAI-1302 / LAI-1303, after LAI-1204 |
 | `amplify/data/resource.ts` (`ChildProfile.avatarPhotoKey`) | Path of the child's photo in the bucket | `users.ChildPhoto`; the value is input to LAI-1103 |
-| `react/src/features/child-profile/avatarPhoto.ts` (`uploadData`, `getUrl`, `remove`) | Upload, show and delete photos in Amplify builds only. Django builds use `djangoPhotos.ts` (LAI-0905) | LAI-1301 |
-| `react/src/features/child-profile/deletion.ts` | Deletes the photo when a child is deleted (Amplify) | LAI-0602 calling `photos.delete_all_child_photos` |
-| `react/src/features/child-profile/amplifyProfiles.ts` (`photoWrite: 'before-save'`, `getChildPhotoUrl`) | The Amplify store's photo path; `ChildAvatar` and the form reach it through `ProfileStore` (LAI-0905) | LAI-1301 |
-| `react/src/features/assets/assetService.ts`, `modelUpload.ts`, `config.ts` | Amplify admin model upload and signed reads under `assets/*` (ADR-030) | Django asset library (ADR-035); data via `import_assets --from-amplify` |
-| `lai/apps/users/amplify_import.py` | Counts profiles whose photo stays in Amplify | LAI-1103 |
+| `react/src/features/child-profile/avatarPhoto.ts` | **Removed in AMP-04**: no Amplify Storage call; Django builds use `djangoPhotos.ts` (LAI-0905), Amplify builds offer no photo | Done (AMP-04) |
+| `react/src/features/child-profile/deletion.ts` | Deletes the legacy photo when an Amplify build deletes a child (the only Amplify Storage call left after AMP-04, delete only) | LAI-0602 calling `photos.delete_all_child_photos`; removed with `deletion.ts` (AMP-03, LAI-1301) |
+| `react/src/features/child-profile/amplifyProfiles.ts` | **AMP-04**: `supportsPhotos: false`, no photo URL; `photoWrite` removed from `ProfileStore` | LAI-1301 |
+| `react/src/features/assets/assetService.ts` | **AMP-04**: Django asset resolver only; no Amplify read of `assets/*` remains | Django asset library (ADR-035); objects via `migrate_amplify_asset_objects` |
+| `lai/apps/users/amplify_import.py` | Counts profiles whose photo stays in Amplify | `migrate_amplify_child_photos` (AMP-04) copies them |
 | Android | Uses the Django API only (ADR-036); no Amplify Storage reference was found in the repository | n/a |
 
 **Hazard for Phase 13.** Amplify Gen 2 adds an auto-delete-objects custom resource to its
@@ -301,7 +301,13 @@ storage bucket (`docs/IAM_ROLE_AUDIT.md` section 3). Deleting the Amplify stack 
 the bucket. LAI-1302 must not run before LAI-1204 has confirmed migration, integrity and
 retention, and the roadmap now makes LAI-1302 depend on LAI-1204.
 
-## 10. LAI-1103: photo migration design (not built, not run)
+## 10. LAI-1103: photo migration design
+
+Built in AMP-04 as `manage.py migrate_amplify_child_photos`; the operating runbook and the
+outcome names actually used are in `AMPLIFY_STORAGE_CUTOVER.md`. Differences from this design:
+photo ids are fresh UUIDs from the upload pipeline (idempotency comes from comparing the cleaned
+SHA-256 with the child's current photo, not from `uuid5` keys), and boto3's own retry policy
+handles transient S3 errors.
 
 Moves existing Amplify photos into `LaiChildPhotos-<env>` and `users.ChildPhoto`. It never
 modifies or deletes an Amplify object.

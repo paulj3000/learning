@@ -42,6 +42,16 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## AMP-04 Amplify Storage to Django S3 (2026-11-10) — code and tests done; live inventory, copy and acceptance NOT run
+
+React resolves assets and child photos through Django only (`features/assets/assetService.ts`,
+`features/child-profile/avatarPhoto.ts`); Amplify builds no longer show or upload photos. The one
+Amplify Storage call left is the delete-only legacy photo removal in `child-profile/deletion.ts`
+(goes with AMP-03). New commands `migrate_amplify_child_photos` and
+`migrate_amplify_asset_objects` inventory, copy (through the Django pipelines), verify by SHA-256
+and roll back, never touching the source bucket. Runbook and the owner's open steps:
+`docs/platform/AMPLIFY_STORAGE_CUTOVER.md`.
+
 ## Current phase
 
 **Phases 0-32 are implemented**, plus two follow-ups: "Curriculum band
