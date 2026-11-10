@@ -12983,3 +12983,29 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   - Infra vitest: 82 passed.
   - `tests/deploy`: 81 passed.
   - Typecheck, lint, Prettier, ruff and `actionlint` are clean.
+
+## LAI-1002/1004 AWS dev infrastructure acceptance: runbook and read-only checks (2026-11-10, branch `claude/lai-infra-001-pr-kwauv3`, nothing deployed, not accepted)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| LAI-1002/1004 | `docs/infrastructure/dev-acceptance.md`; `scripts/aws/verify-dev.sh` (read-only) | **Not possible from Claude.** `.claude/settings.json` denies `Bash(aws:*)`, and the owner chose to keep that rule (2026-11-10) | Open: the owner runs the steps in sections 2 and 3, then the script; acceptance needs 0 FAIL with the token checks (section 4) |
+
+- `verify-dev.sh` checks 25 items:
+  - identity and the dev stacks;
+  - EC2 with IMDSv2 and the SSM agent;
+  - target health and the ALB's unknown-host 404;
+  - RDS: Single-AZ, private, encrypted, deletion protected;
+  - the 12 SSM setting names (values never decrypted);
+  - both buckets (private, versioned, encrypted, distinct);
+  - the Cognito pool and JWKS;
+  - API and admin host isolation over HTTPS;
+  - with a test parent's access token: `POST /me`, the child list and child home (progress);
+  - optionally, the CloudFront site.
+- It uses only `describe`, `get`, `list` and `head` AWS operations; a test enforces this.
+- Found while writing it: Django accepts Cognito **access** tokens only (`token_use=access`), so the
+  script and runbook ask for an access token.
+- Checks:
+  - `tests/deploy/test_verify_dev.py`: 9 passed (fake `aws` and `curl`).
+  - `tests/deploy`: all passed.
+  - Prettier and ruff are clean.
+  - No AWS call was made.

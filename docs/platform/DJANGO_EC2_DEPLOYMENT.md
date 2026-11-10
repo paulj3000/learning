@@ -204,10 +204,11 @@ Without a Route 53 zone the EC2 stack waits on the ACM certificate. Open **Certi
 provider. The stack continues once ACM says "Issued" (usually minutes; CloudFormation gives up
 after several hours, then rerun `--execute`). With `LAI_HOSTED_ZONE_ID`/`NAME` this is automatic.
 
-### 5.4 DNS for the API host (your DNS provider)
+### 5.4 DNS for the API and admin hosts (your DNS provider)
 
-Point `api.<domain>` at the `LoadBalancerDnsName` output (a CNAME, or an alias record in Route 53;
-created automatically with a hosted zone).
+Point both the API host and the admin host at the `LoadBalancerDnsName` output (CNAMEs, or alias
+records in Route 53; created automatically with a hosted zone). After the first release, run the
+read-only acceptance checks: `scripts/aws/verify-dev.sh dev` (`docs/infrastructure/dev-acceptance.md`).
 
 ```bash
 aws cloudformation describe-stacks --stack-name LaiDjangoEc2-dev --query 'Stacks[0].Outputs' --output table
