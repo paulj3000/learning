@@ -395,7 +395,8 @@ def test_the_command_applies_only_with_apply_and_rejects_a_bad_file(families, tm
 
 
 def test_import_lookups_are_not_exposed_by_any_view():
-    """The cross-family lookups are for the import only."""
+    """The cross-family lookups are for the import only (and the AMP-04 photo migration, a
+    management command that maps an exported child to its Django row the same way)."""
     from pathlib import Path
 
     apps_root = Path(services.__file__).resolve().parent.parent
@@ -403,7 +404,7 @@ def test_import_lookups_are_not_exposed_by_any_view():
         str(path)
         for path in apps_root.rglob("*.py")
         if "tests" not in path.parts
-        and path.name not in {"services.py", "amplify_import.py"}
+        and path.name not in {"services.py", "amplify_import.py", "amplify_photo_migration.py"}
         and (
             "child_profile_for_import" in path.read_text()
             or "import_child_profile" in path.read_text()

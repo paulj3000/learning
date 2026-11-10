@@ -1,7 +1,7 @@
 /**
- * Parent-facing photo messages, shared by the Amplify client (avatarPhoto.ts) and the Django
- * photo client (djangoPhotos.ts, LAI-0905). Kept free of any backend import so the Django build
- * path does not need Amplify Storage for its copy.
+ * Parent-facing photo messages, shared by the browser-side checks (avatarPhoto.ts), the Django
+ * photo client (djangoPhotos.ts, LAI-0905) and the legacy photo delete in deletion.ts. Kept free
+ * of any backend import.
  */
 export const PHOTO_TYPE_MESSAGE = 'Choose a JPEG, PNG, or WebP image.';
 export const PHOTO_SIZE_MESSAGE = 'Choose an image smaller than 8 MB.';

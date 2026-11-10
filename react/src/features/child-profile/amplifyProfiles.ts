@@ -3,7 +3,6 @@ import { client } from '../../lib/data-client';
 import type { Schema } from '../../../../amplify/data/resource';
 import type { AgeBandValue, ReadingModeValue } from './constants';
 import { deleteAccountAndAllData, deleteChildProfileData } from './deletion';
-import { getChildPhotoUrl } from './avatarPhoto';
 import type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore } from './profileTypes';
 
 type AmplifyChildProfile = Schema['ChildProfile']['type'];
@@ -138,12 +137,15 @@ async function setChildProfileAIEnabled(id: string, aiEnabled: boolean): Promise
 
 export const amplifyProfileStore: ProfileStore = {
   source: 'amplify',
-  supportsPhotos: true,
-  photoWrite: 'before-save',
-  getChildPhotoUrl,
+  // AMP-04: photos live in Django only. An Amplify build offers no photo field and shows the
+  // authored avatar character; an existing `avatarPhotoKey` is kept on the row (the form sends it
+  // back unchanged) so `migrate_amplify_child_photos` can still map it to the child.
+  supportsPhotos: false,
+  async getChildPhotoUrl() {
+    return null;
+  },
   async applyChildPhotoSelection() {
-    // Amplify photos are written before the profile save (`persistPhotoSelection`).
-    throw new Error('Amplify profile photos are saved with the profile.');
+    throw new Error('Profile photos need the Django API.');
   },
   getOrCreateParentProfile,
   updateParentProfileDisplayName,

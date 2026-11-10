@@ -2,7 +2,6 @@ import { client } from '../../lib/data-client';
 import type { Schema } from '../../../../amplify/data/resource';
 import { ADVENTURE_TEMPLATES, getAdventureTemplate } from '../adventures/content';
 import { ISLAND_LOCATIONS } from '../island/locations';
-import { getAsset, listModelAssets } from '../assets/assetService';
 import type { Asset, AssetCategory } from '../assets/types';
 import { deleteBlockReason } from '../catalog/deleteGuard';
 import { planCatalogImport } from '../catalog/importPlan';
@@ -292,6 +291,38 @@ export interface AdventureModelEntry {
   assignment: AdventureModel;
   /** `null` when the asset record was removed after being assigned. */
   asset: Asset | null;
+}
+
+/**
+ * Every Amplify `Asset` record of type `MODEL_3D`, following pagination. Admin catalog only: this
+ * reads the legacy Amplify asset records the catalog's model assignments point at, and goes with
+ * the rest of this file when the React admin pages are retired (AMP-03). The child runtime never
+ * reads Amplify assets (AMP-04: `features/assets/assetService.ts` is Django only).
+ */
+async function listModelAssets(): Promise<Asset[]> {
+  const assets: Asset[] = [];
+  let nextToken: string | null | undefined;
+  do {
+    const {
+      data,
+      errors,
+      nextToken: next,
+    } = await client.models.Asset.list({ filter: { assetType: { eq: 'MODEL_3D' } }, nextToken });
+    if (errors?.length) throw failed('load the model list');
+    assets.push(...data);
+    nextToken = next;
+  } while (nextToken);
+  return assets;
+}
+
+/** One Amplify `Asset` record, or null when it is gone or the lookup is refused. */
+async function getAsset(id: string): Promise<Asset | null> {
+  try {
+    const { data } = await client.models.Asset.get({ id });
+    return data ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** The existing S3-backed `Asset` records this adventure uses (section 16). */

@@ -7,8 +7,8 @@ import { describe, expect, it } from 'vitest';
  * Phase 10): code names an asset by id and an `AssetResolver` decides where
  * its file lives. The bundled catalogue (`manifest.ts`) is the one file
  * allowed to know a `public/models/` path, and nothing in `src/` may name a
- * storage host at all; signed S3 urls come from `assetService.ts` at run
- * time, never from a literal.
+ * storage host at all; signed S3 urls come from the Django asset resolver
+ * (`api/assets/djangoAssetResolver.ts`) at run time, never from a literal.
  */
 const SRC_DIR = resolve(process.cwd(), 'src');
 const CATALOGUE = 'features/island-map/three/assets/manifest.ts';
