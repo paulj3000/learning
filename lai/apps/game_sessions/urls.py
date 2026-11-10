@@ -9,7 +9,14 @@ LAI-0601's answers and hints come first: Treasure Rush's lifecycle route
 
 from django.urls import path
 
-from . import castle_views, discovery_views, launch_views, native_views, play_views
+from . import (
+    castle_views,
+    coop_views,
+    discovery_views,
+    launch_views,
+    native_views,
+    play_views,
+)
 from .views import AnswersView, HintsView
 
 CHILD = "children/<uuid:child_id>/"
@@ -83,4 +90,26 @@ urlpatterns = [
         name="play-quest-accept",
     ),
     path(f"{CHILD}progress/", play_views.ProgressView.as_view(), name="play-progress"),
+    # Household co-op (AMP-05, ADR-006): replaces the Amplify CoopSession model and claimCoopSlot.
+    path(f"{CHILD}coop-sessions/", coop_views.CoopSessionListView.as_view(), name="coop-sessions"),
+    path(
+        f"{CHILD}coop-sessions/<uuid:coop_id>/",
+        coop_views.CoopSessionView.as_view(),
+        name="coop-session",
+    ),
+    path(
+        f"{CHILD}coop-sessions/<uuid:coop_id>/slots/",
+        coop_views.CoopSlotView.as_view(),
+        name="coop-session-slots",
+    ),
+    path(
+        f"{CHILD}coop-sessions/<uuid:coop_id>/presence/",
+        coop_views.CoopPresenceView.as_view(),
+        name="coop-session-presence",
+    ),
+    path(
+        f"{CHILD}coop-sessions/<uuid:coop_id>/complete/",
+        coop_views.CoopCompleteView.as_view(),
+        name="coop-session-complete",
+    ),
 ]

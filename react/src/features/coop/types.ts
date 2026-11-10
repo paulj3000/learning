@@ -20,8 +20,8 @@ export function isCoopEligibleStepType(type: AdventureStepType): boolean {
 }
 
 /**
- * `CoopSession.sharedState`'s shape (amplify/data/resource.ts). `slots` is
- * written only by the atomic `claimCoopSlot` mutation; `presence` is a
+ * `CoopSession.sharedState`'s shape (`lai/apps/game_sessions/coop.py`). `slots`
+ * is written only by Django's atomic slot claim; `presence` is a
  * best-effort, last-write-wins join/leave signal (docs/DECISIONS.md
  * ADR-006 explicitly excludes continuous cursor-level presence from v1).
  */
@@ -32,7 +32,7 @@ export interface CoopSharedState {
 
 const EMPTY_SHARED_STATE: CoopSharedState = { slots: {}, presence: [] };
 
-/** `CoopSession.sharedState` is untyped JSON on the wire; parse defensively rather than trusting the shape. */
+/** `CoopSession.sharedState` is untyped JSON (an AWSJSON string in rows imported from Amplify); parse defensively. */
 export function parseCoopSharedState(value: unknown): CoopSharedState {
   const decoded = decodeAwsJson(value);
   if (typeof decoded !== 'object' || decoded === null) return EMPTY_SHARED_STATE;

@@ -66,6 +66,11 @@ _CODED = {
     "photo_too_large": "That photo file is too large.",
     "photo_type_unsupported": "Only JPEG photos are accepted.",
     "photo_storage_unavailable": "Photos are not available right now. Please try again later.",
+    # Household co-op (AMP-05)
+    "partner_invalid": "Choose another one of your children to play with.",
+    "adventure_invalid": "This adventure cannot be shared by these children.",
+    "slot_invalid": "That step cannot be shared.",
+    "coop_session_not_active": "This shared adventure is no longer active.",
     # Asset library administrator API (AM-14)
     "asset_too_large": "That file is larger than the upload limit.",
 }

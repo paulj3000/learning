@@ -161,10 +161,11 @@ describe('requestCompanionTurn with the Django backend (LAI-0706)', () => {
     expect(result.source).toBe('FALLBACK');
   });
 
-  it('uses the Amplify route when the build has no Django API', async () => {
-    generateCompanionTurn.mockResolvedValueOnce({ data: null, errors: [{ message: 'x' }] });
-    await requestCompanionTurn(INPUT);
-    expect(generateCompanionTurn).toHaveBeenCalledOnce();
+  it('uses the authored fallback, never an Amplify route, when the build has no Django API', async () => {
+    const result = await requestCompanionTurn(INPUT);
+    expect(result).toMatchObject({ source: 'FALLBACK', turn: { spokenText: 'Count the gaps.' } });
+    expect(generateCompanionTurn).not.toHaveBeenCalled();
+    expect(createAudit).not.toHaveBeenCalled();
   });
 
   it('sends only the NPC and node ids for an NPC narration (DJANGO_CATALOG)', async () => {
