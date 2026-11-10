@@ -1,4 +1,4 @@
-"""Skill progress reads, saved stories (AMP-03) and the Director (AMP-05). Child-scoped, bearer-only (LAI-0403).
+"""Skill progress, saved stories (AMP-03) and the Director (AMP-05). Child-scoped, bearer-only.
 
 GET    children/{id}/skill-progress/              the child's derived mastery rows
 GET    children/{id}/story-artifacts/             the child's saved stories, newest first

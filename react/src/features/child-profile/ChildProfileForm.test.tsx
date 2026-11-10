@@ -2,26 +2,13 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const {
-  uploadData,
-  remove,
-  getUrl,
-  prepareIconBlob,
-  applyChildPhotoSelection,
-  updateChildProfile,
-  getChildPhotoUrl,
-} = vi.hoisted(() => ({
-  uploadData: vi.fn(),
-  remove: vi.fn(),
-  getUrl: vi.fn(),
-  prepareIconBlob: vi.fn(),
-  applyChildPhotoSelection: vi.fn(),
-  updateChildProfile: vi.fn(),
-  getChildPhotoUrl: vi.fn(),
-}));
-
-// Spies only: nothing in the form may reach Amplify Storage (AMP-04).
-vi.mock('aws-amplify/storage', () => ({ uploadData, remove, getUrl }));
+const { prepareIconBlob, applyChildPhotoSelection, updateChildProfile, getChildPhotoUrl } =
+  vi.hoisted(() => ({
+    prepareIconBlob: vi.fn(),
+    applyChildPhotoSelection: vi.fn(),
+    updateChildProfile: vi.fn(),
+    getChildPhotoUrl: vi.fn(),
+  }));
 
 // Only the canvas re-encode is stubbed - jsdom has no image decoder. The
 // validation and save-then-photo ordering under test stay real.
@@ -126,8 +113,6 @@ describe('ChildProfileForm photo icon in a build without the Django API (AMP-04)
       expect.objectContaining({ avatarPhotoKey: 'child-photos/identity-1/old.jpg' }),
     );
     expect(applyChildPhotoSelection).not.toHaveBeenCalled();
-    expect(uploadData).not.toHaveBeenCalled();
-    expect(remove).not.toHaveBeenCalled();
   });
 
   it('offers no photo upload where photos are turned off', async () => {
@@ -142,7 +127,6 @@ describe('ChildProfileForm photo icon in a build without the Django API (AMP-04)
     await user.click(screen.getByRole('button', { name: /create profile/i }));
 
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ avatarPhotoKey: null }));
-    expect(uploadData).not.toHaveBeenCalled();
   });
 });
 
@@ -214,7 +198,6 @@ describe('ChildProfileForm photo icon with the Django photo API (LAI-0905)', () 
       kind: 'replace',
       icon: expect.any(Blob),
     });
-    expect(uploadData).not.toHaveBeenCalled();
   });
 
   it('removes the photo of the saved child', async () => {
@@ -235,7 +218,6 @@ describe('ChildProfileForm photo icon with the Django photo API (LAI-0905)', () 
     await waitFor(() =>
       expect(applyChildPhotoSelection).toHaveBeenCalledWith('c1', { kind: 'remove' }),
     );
-    expect(remove).not.toHaveBeenCalled();
   });
 
   it('makes no photo call when the photo is unchanged', async () => {

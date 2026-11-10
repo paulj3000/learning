@@ -60,9 +60,9 @@ stays the backend-free smoke check.
   `DEBUG` off.
 - Cognito is simulated, not bypassed: a fresh RSA key per run stands in for the pool's signing
   key (the server swaps its JWKS cache in-process; no production code reads anything new), the
-  tests sign access and ID tokens with it, and Amplify reads them from its own storage keys.
-  `react/e2e/acceptance/support/start-vite.mjs` writes a synthetic, marked `amplify_outputs.json`
-  for the run, refuses to replace a real one and removes it on exit.
+  tests sign access and ID tokens with it, and the app's Cognito client (`react/src/lib/cognito`,
+  AMP-02) reads them from the same storage keys Amplify used.
+  `react/e2e/acceptance/support/start-vite.mjs` passes the e2e pool as `VITE_COGNITO_*`.
 - `vite --mode e2e` installs `window.__laiE2E` (`createLocationEngine` via `e2eProbe.ts`; other
   builds compile it out): where the player stands, what has focus, and "stand in front of this
   entity". Tests still press E or tap the prompt; every outcome is the server's.

@@ -12872,3 +12872,16 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   isolation, core, ai) and vitest (director, coop, companion, tutor, adventures, routes, api,
   infra AI guardrail, Django deployment and cross-stack), `tsc -b` in react,
   `tsc --noEmit -p infra/tsconfig.json`; ruff and Prettier on the changed files.
+
+## AMP-02, AMP-06, AMP-07, AMP-08 Amplify exit (2026-11-10, branch `ccr-a0f9421a-g0ifoe`)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| AMP-02 | `react/src/lib/cognito` (SRP sign-in, refresh, sign-out, account calls); every auth screen, the Django token, deletion, multiplayer and scripts switched | Open: browser and live-pool acceptance | Not complete |
+| AMP-06 | Site release and `LaiFrontend` need no Amplify read; Cognito ids from repository variables | Open: change set, variables, DNS, smoke | Not complete |
+| AMP-07 | `aws-amplify`, Amplify client config and sandbox script removed; backend definition kept until AMP-08 | n/a | Not complete (stage 6 removal) |
+| AMP-08 | `docs/platform/AMPLIFY_DECOMMISSION.md` staged runbook | Every stage needs owner approval | Not complete |
+
+Summary and checks: `docs/platform/AMPLIFY_EXIT_STATUS.md` (typecheck, build, Vitest 4311 passed,
+pytest 2638 passed against PostgreSQL 16, ruff, Prettier). Merging the branch is the frontend
+cutover; see its merge gate.

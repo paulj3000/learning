@@ -1,5 +1,10 @@
 # Amplify Hosting for the React app
 
+> **Historical (AMP-07, 2026-11-10).** The app no longer reads `amplify_outputs.json` or calls any
+> Amplify service. The React site is released by `deploy-site.yml` to S3 and CloudFront with
+> `VITE_COGNITO_*` and `VITE_BACKEND=django`. This page describes the Amplify Hosting app that
+> still serves the live site until the cutover in `AMPLIFY_DECOMMISSION.md` stage 4.
+
 Status: repository configuration complete (2026-10-25). Nothing has been deployed, pushed, or
 changed in AWS. Section 9 lists the console steps, all of which need owner approval.
 

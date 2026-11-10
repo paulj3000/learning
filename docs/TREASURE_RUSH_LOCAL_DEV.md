@@ -18,8 +18,8 @@ Django child. Treasure Rush runs entirely on Django.
 ## Prerequisites
 
 - Docker (for PostgreSQL 16), Python 3.12+, Node 22+.
-- An Amplify sandbox or dev environment you can sign in to with a **test** parent account.
-  `amplify_outputs.json` from it is in the main checkout's root.
+- A Cognito user pool you can sign in to with a **test** parent account, its id and its web app
+  client id (the app takes them as `VITE_COGNITO_USER_POOL_ID` and `VITE_COGNITO_CLIENT_ID`).
 
 ## 1. Python environment and database
 
@@ -50,14 +50,14 @@ what changed.
 
 ## 3. Cognito settings for Django, and an optional admin
 
-Django verifies the app's Cognito **access** tokens (ADR-024, ADR-040). Take the three values from
-`amplify_outputs.json` (`auth.aws_region`, `auth.user_pool_id`, `auth.user_pool_client_id`) and
-export them in the shell that runs Django (template: `lai/.env.example`):
+Django verifies the app's Cognito **access** tokens (ADR-024, ADR-040). Use the same pool as the
+app: the region (the pool id's prefix), the pool id and the web client id. Export them in the shell
+that runs Django (template: `lai/.env.example`):
 
 ```bash
-export COGNITO_REGION=<auth.aws_region>
-export COGNITO_USER_POOL_ID=<auth.user_pool_id>
-export COGNITO_ALLOWED_CLIENT_IDS=<auth.user_pool_client_id>
+export COGNITO_REGION=<region, e.g. us-west-1>
+export COGNITO_USER_POOL_ID=<pool id>
+export COGNITO_ALLOWED_CLIENT_IDS=<web client id>
 ```
 
 Without all three every API request is rejected (fail closed). ADR-024 gate A6 (verification

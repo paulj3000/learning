@@ -2,21 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CompanionTurnBody, DjangoAiApi } from '../../api/ai/djangoAi';
 import { ApiError } from '../../api/errors';
 
-const { generateCompanionTurn, createAudit, createSafetyEvent, current } = vi.hoisted(() => ({
-  generateCompanionTurn: vi.fn(),
-  createAudit: vi.fn(),
-  createSafetyEvent: vi.fn(),
+const { current } = vi.hoisted(() => ({
   current: { api: null as DjangoAiApi | null },
-}));
-
-vi.mock('../../lib/data-client', () => ({
-  client: {
-    generations: { generateCompanionTurn },
-    models: {
-      AIInteractionAudit: { create: createAudit },
-      SafetyEvent: { create: createSafetyEvent },
-    },
-  },
 }));
 
 vi.mock('../../api/ai/djangoAi', async (importOriginal) => {
@@ -50,9 +37,6 @@ function djangoApi(result: unknown) {
 
 describe('requestCompanionTurn with the Django backend (LAI-0706)', () => {
   beforeEach(() => {
-    generateCompanionTurn.mockReset();
-    createAudit.mockReset();
-    createSafetyEvent.mockReset();
     current.api = null;
   });
 
@@ -88,9 +72,6 @@ describe('requestCompanionTurn with the Django backend (LAI-0706)', () => {
       sessionId: 'session-1',
       stepId: 'count-planks',
     });
-    expect(generateCompanionTurn).not.toHaveBeenCalled();
-    expect(createAudit).not.toHaveBeenCalled();
-    expect(createSafetyEvent).not.toHaveBeenCalled();
   });
 
   it('never sends the age band, a length limit, or a prompt', async () => {
@@ -164,8 +145,6 @@ describe('requestCompanionTurn with the Django backend (LAI-0706)', () => {
   it('uses the authored fallback, never an Amplify route, when the build has no Django API', async () => {
     const result = await requestCompanionTurn(INPUT);
     expect(result).toMatchObject({ source: 'FALLBACK', turn: { spokenText: 'Count the gaps.' } });
-    expect(generateCompanionTurn).not.toHaveBeenCalled();
-    expect(createAudit).not.toHaveBeenCalled();
   });
 
   it('sends only the NPC and node ids for an NPC narration (DJANGO_CATALOG)', async () => {

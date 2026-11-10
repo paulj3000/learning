@@ -1,6 +1,6 @@
 # Learning Adventure Island
 
-AI-powered learning adventures for children ages 3–8, built with React, TypeScript, and AWS Amplify Gen 2.
+AI-powered learning adventures for children ages 3–8, built with React, TypeScript, and a Django backend on AWS (Amazon Cognito for parent sign-in).
 
 This repository currently contains the product and engineering specification Claude should use to build the project from an empty source tree.
 
@@ -30,26 +30,23 @@ npm install
 npm run dev
 ```
 
-This runs the frontend only, against the Phase 0 application shell. No backend
-resources are defined yet (see `amplify/backend.ts`).
+This runs the frontend only. For sign-in and data it needs the Cognito settings and a Django API
+(below).
 
-### Amplify sandbox
+### Sign-in settings for the React app
 
-The Amplify Gen 2 backend is scaffolded but currently defines no resources.
-Once later phases add auth, data, storage, or functions, start a personal
-cloud sandbox with:
+The app signs parents in to an Amazon Cognito user pool directly (`react/src/lib/cognito`,
+AMP-02). Set the pool and its public web client at build or dev time:
 
 ```bash
-npm run sandbox
+VITE_COGNITO_USER_POOL_ID=us-west-1_xxxxxxxxx VITE_COGNITO_CLIENT_ID=xxxxxxxx \
+  VITE_BACKEND=django npm run dev
 ```
 
-This requires AWS credentials on your machine (for example via `aws configure`
-or an SSO profile) with permission to deploy Amplify/CloudFormation resources
-in your account. `npx ampx sandbox` provisions temporary, per-developer AWS
-resources and writes `amplify_outputs.json` to the repo root; that file is
-gitignored and must never be committed, since it can contain
-environment-specific endpoint and identifier values. Do not commit `.env`
-files either.
+Neither value is a secret. Without them the app runs but shows sign-in as not set up. There is no
+`amplify_outputs.json` any more. The `amplify/` folder still defines the deployed Amplify backend
+(the Cognito pool, legacy tables and storage) until it is decommissioned
+(`docs/platform/AMPLIFY_DECOMMISSION.md`); the app does not use it. Do not commit `.env` files.
 
 ### Python tooling (for the future Django backend in `lai/`)
 
@@ -102,8 +99,8 @@ so the `Makefile` reads it and passes the values on:
   (`docs/platform/DJANGO_EC2_DEPLOYMENT.md`, section 4.3).
 
 Sign-in is Amazon Cognito in every environment, local development included (ADR-040): the React
-app signs in with Amplify Auth, and a local Django needs the `COGNITO_*` values of a test pool
-(an Amplify sandbox). Django Admin keeps its own staff sign-in. Step by step, including Treasure
+app signs in to the pool directly (`VITE_COGNITO_*` above), and a local Django needs the
+`COGNITO_*` values of the same test pool. Django Admin keeps its own staff sign-in. Step by step, including Treasure
 Rush: `docs/TREASURE_RUSH_LOCAL_DEV.md`.
 
 ### Available scripts
@@ -116,7 +113,7 @@ stay at the root. Older docs that say `src/features/...` now mean `react/src/fea
 npm run dev          # start the Vite dev server
 npm run build         # typecheck and build for production
 npm run preview       # preview the production build locally
-npm run typecheck     # typecheck app, node config, e2e, and amplify backend
+npm run typecheck     # typecheck app, scripts, server, infra and the legacy amplify backend
 npm run lint           # run oxlint
 npm run format         # format with Prettier
 npm run format:check   # check formatting without writing
@@ -124,7 +121,6 @@ npm run test            # run Vitest unit/component tests
 npm run test:e2e        # run Playwright end-to-end tests
 npm run content:export  # write content/ (versioned JSON export of the game content)
 npm run content:check   # fail if content/ is out of date
-npm run sandbox          # start a personal Amplify cloud sandbox
 ```
 
 ## Game engine direction (accepted)
@@ -135,6 +131,7 @@ code today and nothing has been removed yet.
 
 ## Backend migration (proposed)
 
-A migration from Amplify Gen 2 to Django is under assessment, not in progress. See
-`docs/DJANGO_MIGRATION_ASSESSMENT.md` and ADR-019 in `docs/DECISIONS.md`. Until ADR-019 is
-accepted, everything above describes how the project works.
+The move from Amplify Gen 2 to Django (ADR-019) is in its exit phase: the app no longer calls
+Amplify Auth, Data, Storage or Functions (AMP-02 to AMP-07, `docs/platform/AMPLIFY_EXIT_STATUS.md`).
+The live AWS cutover and decommission follow `docs/platform/AMPLIFY_DECOMMISSION.md`, step by step
+with owner approval.
