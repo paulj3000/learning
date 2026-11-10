@@ -1,176 +1,185 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ApiClient } from '../../api/client';
+import { ApiError } from '../../api/errors';
 
-const {
-  createCoopSession,
-  getCoopSession,
-  updateCoopSession,
-  claimCoopSlotMutation,
-  onUpdate,
-  subscribe,
-} = vi.hoisted(() => ({
-  createCoopSession: vi.fn(),
-  getCoopSession: vi.fn(),
-  updateCoopSession: vi.fn(),
-  claimCoopSlotMutation: vi.fn(),
-  onUpdate: vi.fn(),
-  subscribe: vi.fn(),
-}));
-
-vi.mock('../../lib/data-client', () => ({
-  client: {
-    models: {
-      CoopSession: {
-        create: createCoopSession,
-        get: getCoopSession,
-        update: updateCoopSession,
-        onUpdate,
-      },
-    },
-    mutations: {
-      claimCoopSlot: claimCoopSlotMutation,
-    },
-  },
-}));
+vi.mock('../../api/auth', () => ({ getAccessToken: vi.fn(async () => 'token') }));
 
 import {
   claimCoopSlot,
   completeCoopSession,
+  getCoopSession,
   setCoopPresence,
   slotClaimedBy,
   startCoopSession,
   subscribeToCoopSession,
 } from './api';
-import type { CoopSession } from './api';
 
-function baseSession(overrides: Partial<CoopSession> = {}): CoopSession {
+function wireSession(overrides: Record<string, unknown> = {}) {
   return {
     id: 'coop-1',
-    hostParentProfileId: 'parent-sub-1',
     templateSlug: 'repair-the-moonlight-bridge',
     templateVersion: 1,
     participantChildProfileIds: ['child-a', 'child-b'],
     status: 'ACTIVE',
     sharedState: { slots: {}, presence: [] },
-    startedAt: '2026-01-01T00:00:00.000Z',
+    startedAt: '2026-01-01T00:00:00+00:00',
+    lastActivityAt: '2026-01-01T00:00:00+00:00',
     completedAt: null,
-    lastActivityAt: '2026-01-01T00:00:00.000Z',
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
     ...overrides,
-  } as CoopSession;
+  };
 }
 
-describe('coop api', () => {
-  beforeEach(() => {
-    createCoopSession.mockReset();
-    getCoopSession.mockReset();
-    updateCoopSession.mockReset();
-    claimCoopSlotMutation.mockReset();
-    onUpdate.mockReset();
-    subscribe.mockReset();
-  });
+function fakeClient(...responses: unknown[]) {
+  const request = vi.fn();
+  for (const data of responses) request.mockResolvedValueOnce({ status: 200, data });
+  return { client: { request } as unknown as ApiClient, request };
+}
 
-  it('starts a coop session with both participants, an ACTIVE status, and empty shared state', async () => {
-    createCoopSession.mockResolvedValueOnce({ data: baseSession(), errors: undefined });
-
-    await startCoopSession('repair-the-moonlight-bridge', 1, ['child-a', 'child-b']);
-
-    expect(createCoopSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        templateSlug: 'repair-the-moonlight-bridge',
-        templateVersion: 1,
-        participantChildProfileIds: ['child-a', 'child-b'],
-        status: 'ACTIVE',
-        // A JSON-encoded string, not an object: `sharedState` is `a.json()`
-        // and AppSync rejects a raw object outright (src/lib/awsJson.ts).
-        sharedState: JSON.stringify({ slots: {}, presence: [] }),
-      }),
+describe('coop api (Django, AMP-05)', () => {
+  it('starts a session through the host child, naming only the partner and adventure', async () => {
+    const { client, request } = fakeClient(wireSession());
+    const session = await startCoopSession(
+      'repair-the-moonlight-bridge',
+      ['child-a', 'child-b'],
+      client,
     );
+    expect(request).toHaveBeenCalledWith('POST', 'children/child-a/coop-sessions/', {
+      body: { adventureSlug: 'repair-the-moonlight-bridge', partnerChildId: 'child-b' },
+    });
+    expect(session.status).toBe('ACTIVE');
+    expect(session.sharedState).toEqual({ slots: {}, presence: [] });
   });
 
-  it('throws a plain-language error when starting a session fails', async () => {
-    createCoopSession.mockResolvedValueOnce({ data: null, errors: [{ message: 'boom' }] });
-    await expect(
-      startCoopSession('repair-the-moonlight-bridge', 1, ['child-a', 'child-b']),
-    ).rejects.toThrow('boom');
-  });
-
-  it('claims a coop slot via the claimCoopSlot mutation, not a plain model update', async () => {
-    const claimed = baseSession({
-      sharedState: { slots: { 'count-planks': 'child-a' }, presence: [] },
+  it('claims a slot on the child-scoped route and reads the resulting state', async () => {
+    const { client, request } = fakeClient({
+      outcome: 'claimed',
+      session: wireSession({ sharedState: { slots: { 'count-planks': 'child-a' }, presence: [] } }),
     });
-    claimCoopSlotMutation.mockResolvedValueOnce({ data: claimed, errors: undefined });
-
-    const result = await claimCoopSlot('coop-1', 'count-planks', 'child-a');
-
-    expect(claimCoopSlotMutation).toHaveBeenCalledWith({
-      coopSessionId: 'coop-1',
-      slotKey: 'count-planks',
-      childProfileId: 'child-a',
+    const result = await claimCoopSlot('coop-1', 'count-planks', 'child-a', client);
+    expect(request).toHaveBeenCalledWith('POST', 'children/child-a/coop-sessions/coop-1/slots/', {
+      body: { slotKey: 'count-planks' },
     });
-    expect(updateCoopSession).not.toHaveBeenCalled();
     expect(slotClaimedBy(result, 'count-planks')).toBe('child-a');
     expect(slotClaimedBy(result, 'order-planks')).toBeNull();
   });
 
-  it('adds a childProfileId to presence on join without disturbing existing slots', async () => {
-    const existing = baseSession({
-      sharedState: { slots: { 'count-planks': 'child-a' }, presence: ['child-a'] },
+  it('treats a slot the partner already holds as current state, not an error', async () => {
+    const { client } = fakeClient({
+      outcome: 'held_by_partner',
+      session: wireSession({ sharedState: { slots: { 'count-planks': 'child-b' }, presence: [] } }),
     });
-    getCoopSession.mockResolvedValueOnce({ data: existing });
-    updateCoopSession.mockResolvedValueOnce({ data: existing, errors: undefined });
+    const result = await claimCoopSlot('coop-1', 'count-planks', 'child-a', client);
+    expect(slotClaimedBy(result, 'count-planks')).toBe('child-b');
+  });
 
-    await setCoopPresence('coop-1', 'child-b', true);
-
-    expect(updateCoopSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 'coop-1',
-        sharedState: JSON.stringify({
-          slots: { 'count-planks': 'child-a' },
-          presence: ['child-a', 'child-b'],
-        }),
-      }),
+  it('sends join and leave as a single flag for the acting child', async () => {
+    const { client, request } = fakeClient(wireSession(), wireSession());
+    await setCoopPresence('coop-1', 'child-b', true, client);
+    await setCoopPresence('coop-1', 'child-b', false, client);
+    expect(request).toHaveBeenNthCalledWith(
+      1,
+      'POST',
+      'children/child-b/coop-sessions/coop-1/presence/',
+      { body: { present: true } },
+    );
+    expect(request).toHaveBeenNthCalledWith(
+      2,
+      'POST',
+      'children/child-b/coop-sessions/coop-1/presence/',
+      { body: { present: false } },
     );
   });
 
-  it('removes a childProfileId from presence on leave', async () => {
-    const existing = baseSession({ sharedState: { slots: {}, presence: ['child-a', 'child-b'] } });
-    getCoopSession.mockResolvedValueOnce({ data: existing });
-    updateCoopSession.mockResolvedValueOnce({ data: existing, errors: undefined });
-
-    await setCoopPresence('coop-1', 'child-b', false);
-
-    expect(updateCoopSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sharedState: JSON.stringify({ slots: {}, presence: ['child-a'] }),
-      }),
+  it('completes through the acting child', async () => {
+    const { client, request } = fakeClient(
+      wireSession({ status: 'COMPLETED', completedAt: '2026-01-01T00:10:00+00:00' }),
     );
+    const done = await completeCoopSession('coop-1', 'child-a', client);
+    expect(request).toHaveBeenCalledWith('POST', 'children/child-a/coop-sessions/coop-1/complete/');
+    expect(done.completedAt).toBe('2026-01-01T00:10:00+00:00');
   });
 
-  it('marks a coop session COMPLETED with a completedAt timestamp', async () => {
-    updateCoopSession.mockResolvedValueOnce({
-      data: baseSession({ status: 'COMPLETED' }),
-      errors: undefined,
+  it('refuses empty ids before any request and malformed responses after', async () => {
+    const { client, request } = fakeClient({ id: 'coop-1' });
+    await expect(getCoopSession('', 'coop-1', client)).rejects.toMatchObject({
+      kind: 'invalid_request',
     });
-
-    await completeCoopSession('coop-1');
-
-    expect(updateCoopSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 'coop-1',
-        status: 'COMPLETED',
-        completedAt: expect.any(String),
-      }),
-    );
+    await expect(claimCoopSlot('coop-1', '', 'child-a', client)).rejects.toMatchObject({
+      kind: 'invalid_request',
+    });
+    expect(request).not.toHaveBeenCalled();
+    await expect(getCoopSession('child-a', 'coop-1', client)).rejects.toBeInstanceOf(ApiError);
   });
 
-  it('subscribes to onUpdate filtered by id and returns an unsubscribe function', () => {
-    onUpdate.mockReturnValue({ subscribe });
-    subscribe.mockReturnValue({ unsubscribe: vi.fn() });
+  it('reads a malformed shared state as empty rather than trusting it', async () => {
+    const { client } = fakeClient(wireSession({ sharedState: 'not json' }));
+    const session = await getCoopSession('child-a', 'coop-1', client);
+    expect(session.sharedState).toEqual({ slots: {}, presence: [] });
+  });
 
-    const unsubscribe = subscribeToCoopSession('coop-1', () => undefined);
+  it('fails as disabled, without a request, in a build without the Django API', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    await expect(getCoopSession('child-a', 'coop-1')).rejects.toMatchObject({ kind: 'disabled' });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+});
 
-    expect(onUpdate).toHaveBeenCalledWith({ filter: { id: { eq: 'coop-1' } } });
-    expect(typeof unsubscribe).toBe('function');
+describe('subscribeToCoopSession (polling replaces the AppSync subscription)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('polls the GET route at the interval and stops on unsubscribe', async () => {
+    const request = vi.fn().mockResolvedValue({ status: 200, data: wireSession() });
+    const client = { request } as unknown as ApiClient;
+    const onChange = vi.fn();
+
+    const stop = subscribeToCoopSession('coop-1', 'child-a', onChange, {
+      intervalMs: 1000,
+      client,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledWith('GET', 'children/child-a/coop-sessions/coop-1/');
+    expect(onChange).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(2500);
+    expect(request).toHaveBeenCalledTimes(3);
+
+    stop();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(request).toHaveBeenCalledTimes(3);
+    expect(onChange).toHaveBeenCalledTimes(3);
+  });
+
+  it('keeps polling after a failed request and never calls back after stopping', async () => {
+    let resolveSlow: (value: unknown) => void = () => undefined;
+    const request = vi
+      .fn()
+      .mockRejectedValueOnce(new ApiError('network'))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSlow = resolve;
+          }),
+      );
+    const client = { request } as unknown as ApiClient;
+    const onChange = vi.fn();
+
+    const stop = subscribeToCoopSession('coop-1', 'child-a', onChange, {
+      intervalMs: 1000,
+      client,
+    });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(request).toHaveBeenCalledTimes(2);
+    stop();
+    resolveSlow({ status: 200, data: wireSession() });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(request).toHaveBeenCalledTimes(2);
   });
 });

@@ -1,88 +1,56 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { DjangoAiApi } from '../../api/ai/djangoAi';
 
-const { generateCompanionTurn, createAudit, createSafetyEvent } = vi.hoisted(() => ({
-  generateCompanionTurn: vi.fn(),
-  createAudit: vi.fn(),
-  createSafetyEvent: vi.fn(),
-}));
+const { current } = vi.hoisted(() => ({ current: { api: null as DjangoAiApi | null } }));
 
-vi.mock('../../lib/data-client', () => ({
-  client: {
-    generations: { generateCompanionTurn },
-    models: {
-      AIInteractionAudit: { create: createAudit },
-      SafetyEvent: { create: createSafetyEvent },
-    },
-  },
-}));
+vi.mock('../../api/ai/djangoAi', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../api/ai/djangoAi')>();
+  return { ...original, currentDjangoAiApi: () => current.api };
+});
 
 import { requestCompanionTurn } from './api';
+import { FALLBACK_TURNS } from './fallback';
 
-describe('requestCompanionTurn', () => {
+const INPUT = {
+  childProfileId: 'child-1',
+  ageBand: 'PATHFINDER' as const,
+  intent: 'HINT' as const,
+  stepSummary: 'counting missing planks',
+  authoredBaseText: 'Count the planks again.',
+};
+
+describe('requestCompanionTurn (AMP-05: Django only)', () => {
   beforeEach(() => {
-    generateCompanionTurn.mockReset();
-    createAudit.mockReset();
-    createSafetyEvent.mockReset();
+    current.api = null;
   });
 
-  it('never calls the AI route or writes an audit row when aiEnabled is false', async () => {
-    const result = await requestCompanionTurn({
-      childProfileId: 'child-1',
-      ageBand: 'PATHFINDER',
-      intent: 'HINT',
-      stepSummary: 'counting missing planks',
-      authoredBaseText: 'Count the planks again.',
-      aiEnabled: false,
+  it('returns the authored line, without any network call, when AI is off', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const companionTurn = vi.fn();
+    current.api = { companionTurn, tutorTurn: vi.fn() };
+    const result = await requestCompanionTurn({ ...INPUT, aiEnabled: false });
+    expect(result).toEqual({
+      turn: { ...FALLBACK_TURNS.HINT, spokenText: 'Count the planks again.' },
+      source: 'FALLBACK',
     });
-
-    expect(result.source).toBe('FALLBACK');
-    expect(result.turn.spokenText).toBe('Count the planks again.');
-    expect(generateCompanionTurn).not.toHaveBeenCalled();
-    expect(createAudit).not.toHaveBeenCalled();
-    expect(createSafetyEvent).not.toHaveBeenCalled();
+    expect(companionTurn).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 
-  it('calls the AI route as normal when aiEnabled is omitted', async () => {
-    generateCompanionTurn.mockResolvedValueOnce({
-      data: {
-        spokenText: 'Great counting!',
-        emotion: 'CHEERFUL',
-        intent: 'CELEBRATE',
-        safetyDisposition: 'ALLOW',
-      },
-      errors: undefined,
-    });
-    createAudit.mockResolvedValueOnce({});
-
-    const result = await requestCompanionTurn({
-      childProfileId: 'child-1',
-      ageBand: 'PATHFINDER',
-      intent: 'CELEBRATE',
-      stepSummary: 'counting missing planks',
-    });
-
-    expect(generateCompanionTurn).toHaveBeenCalledTimes(1);
-    expect(createAudit).toHaveBeenCalledTimes(1);
-    expect(result.source).toBe('AI');
-    expect(result.turn.spokenText).toBe('Great counting!');
+  it('returns the authored line, without any network call, in a build without Django', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const result = await requestCompanionTurn({ ...INPUT, intent: 'CELEBRATE' });
+    expect(result).toEqual({ turn: FALLBACK_TURNS.CELEBRATE, source: 'FALLBACK' });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 
-  it('calls the AI route as normal when aiEnabled is explicitly true', async () => {
-    generateCompanionTurn.mockResolvedValueOnce({
-      data: null,
-      errors: [{ message: 'boom' }],
-    });
-    createAudit.mockResolvedValueOnce({});
-
-    const result = await requestCompanionTurn({
-      childProfileId: 'child-1',
-      ageBand: 'PATHFINDER',
-      intent: 'CELEBRATE',
-      stepSummary: 'counting missing planks',
-      aiEnabled: true,
-    });
-
-    expect(generateCompanionTurn).toHaveBeenCalledTimes(1);
-    expect(result.source).toBe('FALLBACK');
+  it('has no Amplify AI Kit route, data client or browser audit left', () => {
+    const source = readFileSync(join(process.cwd(), 'src/features/companion/api.ts'), 'utf8');
+    expect(source).not.toMatch(/lib\/data-client|aws-amplify|amplify\/data/);
+    expect(source).not.toMatch(/generations\.|AIInteractionAudit|SafetyEvent\.create/);
   });
 });

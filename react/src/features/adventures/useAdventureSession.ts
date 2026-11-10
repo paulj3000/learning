@@ -437,7 +437,7 @@ export function useAdventureSession(
             // Idempotent (always sets status/completedAt regardless of
             // current value), so it is safe for both participants' clients
             // to call this independently as each reaches this step.
-            await completeCoopSession(coopSessionId).catch(() => undefined);
+            await completeCoopSession(coopSessionId, childProfileId).catch(() => undefined);
           }
           if (storyScenes.length > 0) {
             await saveStoryArtifact(

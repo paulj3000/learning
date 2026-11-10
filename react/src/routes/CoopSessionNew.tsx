@@ -71,15 +71,11 @@ export function CoopSessionNew() {
     setStarting(true);
     setError(null);
     try {
-      const session = await startCoopSession(COOP_TEMPLATE.slug, COOP_TEMPLATE.version, [
-        childAId,
-        childBId,
-      ]);
+      const session = await startCoopSession(COOP_TEMPLATE.slug, [childAId, childBId]);
       setLaunchedSession(session);
-    } catch (startError) {
-      setError(
-        startError instanceof Error ? startError.message : 'Could not start a shared adventure.',
-      );
+    } catch {
+      // A Django API error carries a code, not parent-facing copy.
+      setError('Could not start a shared adventure. Please try again.');
     } finally {
       setStarting(false);
     }
