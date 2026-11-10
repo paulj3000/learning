@@ -41,12 +41,27 @@ Each stage lists what to run, what evidence to keep on the AMP-08 card, and how 
 
 ### Stage 0. Read-only inventory (no change)
 
-- Run section 6 of `AMPLIFY_EXIT_MATRIX.md` (AppSync API id, the 22 table item counts, Cognito
-  user count, photo object count) and `scripts/aws/verify-dev.sh`.
-- List the Amplify stacks and their resources:
-  `aws cloudformation list-stacks --region us-west-1 --query "StackSummaries[?starts_with(StackName,'amplify-')].[StackName,StackStatus]"`
-  then `aws cloudformation list-stack-resources --stack-name <each>`.
-- Fill section 4 (the retain/delete table) with the real names.
+Run `scripts/aws/amplify-inventory.sh [--app-id <amplify app id>] [--days 7]` with credentials for
+the account (read-only; `tests/deploy/test_amplify_inventory.py` enforces that it only calls
+describe, get and list operations, and never reads table items, user attributes or object keys).
+It prints, in `us-west-1` unless `AWS_REGION` says otherwise:
+
+1. the caller identity;
+2. the Amplify Hosting app, its branches and domains, and whether `LAI_SKIP_BACKEND_DEPLOY` is
+   set on `main`;
+3. every `amplify-*` stack and its resources;
+4. each Cognito user pool (estimated users, deletion protection, groups, client ids) and the
+   identity pools;
+5. each AppSync API with its request count over the window, and its DynamoDB tables with item
+   counts, deletion protection and point-in-time recovery;
+6. each `amplify-*` bucket, versioning, and object counts and bytes per prefix (`child-photos/`,
+   `assets/` and the Amplify access-level prefixes);
+7. each Amplify Lambda function and its invocations over the window;
+8. the alert topics, budgets and dashboards;
+9. a draft of the section 4 table.
+
+Also run `scripts/aws/verify-dev.sh` for the Django side. Paste both outputs on the AMP-08 card,
+then fill section 4 with the real names.
 
 Evidence: the counts and the stack/resource list. Rollback: none needed.
 
