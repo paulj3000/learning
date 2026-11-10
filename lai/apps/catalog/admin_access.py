@@ -14,7 +14,8 @@ from enum import StrEnum
 
 from django.http import HttpRequest
 
-# Flipped by the cutover task (ADR-019 sub-decision 8 amendment), never by configuration.
+# ADR-047 (2026-11-01) is the authoring cutover, but it keeps deletion closed: content is edited
+# through versions and nothing is deleted (ADR-047-Q3). Never flipped by configuration.
 CONTENT_AUTHORING_CUTOVER = False
 
 

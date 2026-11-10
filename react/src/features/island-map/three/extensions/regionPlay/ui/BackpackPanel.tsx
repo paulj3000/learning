@@ -4,6 +4,7 @@ import {
   playErrorMessage,
   questStatusLabel,
 } from '../../../../../region-play/regionPlayUi';
+import { JournalList } from './AreaPuzzlePanels';
 import { GameDialog } from './GameDialog';
 import styles from './RegionPlayPanels.module.css';
 
@@ -49,6 +50,9 @@ export function BackpackPanel({ progress, onClose }: BackpackPanelProps) {
               ))}
             </ul>
           )}
+          {data.inventory.some((entry) => entry.item.journal) ? (
+            <JournalList inventory={data.inventory} />
+          ) : null}
           {data.quests.length > 0 ? (
             <>
               <h3 className={styles.speech}>{PLAY_COPY.myQuests}</h3>

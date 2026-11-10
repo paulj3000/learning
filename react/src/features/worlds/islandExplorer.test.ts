@@ -103,6 +103,27 @@ describe('buildIslandExplorer (LAI-0808)', () => {
     ]);
   });
 
+  it('lists Django-served places on the home island after its source places (ADR-047)', () => {
+    const firepeak = {
+      slug: 'firepeak-volcano',
+      title: 'Firepeak Volcano',
+      tagline: 'A warm mountain',
+      href: `/island/${CHILD}/world/firepeak-volcano`,
+    };
+    const [here, ...others] = buildIslandExplorer({
+      childId: CHILD,
+      destinations: listTravelDestinations({ worldChangeKeys: [], ageBand: 'PATHFINDER' }),
+      currentIslandLocations: homeLocations,
+      worldChangeKeys: [],
+      hiddenLocationSlugs: [],
+      servedPlaces: [firepeak, { ...firepeak, slug: 'pirate-builder-bay', href: '/dup' }],
+    });
+    expect(here.places.at(-1)).toEqual(firepeak);
+    expect(here.places.filter((place) => place.slug === 'pirate-builder-bay')).toHaveLength(1);
+    expect(here.places.find((place) => place.slug === 'pirate-builder-bay')?.href).not.toBe('/dup');
+    expect(others.every((island) => island.places.length === 0)).toBe(true);
+  });
+
   it('gives a locked world with no authored hint a calm fallback line', () => {
     const home = getHomeWorld();
     const [island] = buildIslandExplorer({

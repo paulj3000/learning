@@ -810,6 +810,98 @@
       ],
       "summary": "Pip lost four treasures around the cove. Find them all and bring them back to Pip!",
       "title": "Pip's Missing Treasure"
+    },
+    {
+      "ageBands": [
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You helped Professor Ember explore Firepeak and found a Heart Crystal fragment.",
+        "worldChanges": [
+          {
+            "changeKey": "FIREPEAK_VOLCANO_AWAKENED",
+            "changeType": "UNLOCK",
+            "locationSlug": "firepeak-volcano"
+          }
+        ]
+      },
+      "entryStageId": "meet-professor-ember",
+      "giverNpcId": "professor-ember",
+      "id": "the-volcano-awakens",
+      "prerequisites": [
+        {
+          "type": "ALWAYS"
+        }
+      ],
+      "stages": [
+        {
+          "id": "meet-professor-ember",
+          "nextStageId": "repair-the-crossing",
+          "objectives": [
+            {
+              "changeKey": "FIREPEAK_FEATURES_OBSERVED",
+              "id": "meet-professor-ember-done",
+              "kind": "BUILD",
+              "label": "Find the crater, the lava flow and the steam vent"
+            }
+          ],
+          "title": "Look through the telescope"
+        },
+        {
+          "id": "repair-the-crossing",
+          "nextStageId": "redirect-the-steam",
+          "objectives": [
+            {
+              "changeKey": "FIREPEAK_CROSSING_REPAIRED",
+              "id": "repair-the-crossing-done",
+              "kind": "BUILD",
+              "label": "Put a stone that fits into each gap"
+            }
+          ],
+          "title": "Repair the lava crossing"
+        },
+        {
+          "id": "redirect-the-steam",
+          "nextStageId": "discover-the-crystal",
+          "objectives": [
+            {
+              "changeKey": "FIREPEAK_STEAM_REDIRECTED",
+              "id": "redirect-the-steam-done",
+              "kind": "BUILD",
+              "label": "Send the steam out through the sky vent"
+            }
+          ],
+          "title": "Redirect the steam"
+        },
+        {
+          "id": "discover-the-crystal",
+          "nextStageId": "return-to-ember",
+          "objectives": [
+            {
+              "changeKey": "FIREPEAK_HEART_CRYSTAL_FOUND",
+              "id": "discover-the-crystal-done",
+              "kind": "BUILD",
+              "label": "Find the glowing crystal in the cavern"
+            }
+          ],
+          "title": "Discover the Heart Crystal"
+        },
+        {
+          "id": "return-to-ember",
+          "objectives": [
+            {
+              "changeKey": "FIREPEAK_REPORTED_TO_EMBER",
+              "id": "return-to-ember-done",
+              "kind": "BUILD",
+              "label": "Show Professor Ember what you found"
+            }
+          ],
+          "title": "Return to Professor Ember"
+        }
+      ],
+      "summary": "Help Professor Ember find out why Firepeak is waking up.",
+      "title": "The Volcano Awakens"
     }
   ],
   "schemaVersion": 3

@@ -1,0 +1,8 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p>Start a draft of <strong>{{ record }}</strong> from the version the content export last supplied.</p>
+<p>This replaces nothing yet. The draft is checked and published like any other, and publishing it hands this record back to the export. Children keep seeing the current published version until then.</p>
+<form method="post">{% csrf_token %}
+  <input type="submit" class="default" value="Start the draft from the export">
+</form>
+{% endblock %}

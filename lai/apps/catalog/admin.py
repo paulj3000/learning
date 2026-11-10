@@ -19,6 +19,7 @@ from django.db.models import BooleanField, Count, ExpressionWrapper, Q, Subquery
 from apps.assets import preview as asset_preview
 from apps.assets.models import AssetVersion
 from apps.catalog import admin_access
+from apps.catalog.authoring_admin import AuthoredContentAdminMixin
 from apps.catalog.models import (
     Adventure,
     AdventureStep,
@@ -33,6 +34,7 @@ from apps.catalog.models import (
     NpcDefinition,
     Quest,
     RewardRule,
+    Story,
     World,
 )
 from apps.regions.models import WorldRegion
@@ -159,7 +161,7 @@ class LocationAssetInline(ReadOnlyInline):
 
 
 @admin.register(World)
-class WorldAdmin(CatalogModelAdmin):
+class WorldAdmin(AuthoredContentAdminMixin, CatalogModelAdmin):
     has_catalog_fields = True
     list_display = (
         "slug",
@@ -187,7 +189,7 @@ class WorldAdmin(CatalogModelAdmin):
 
 
 @admin.register(Location)
-class LocationAdmin(CatalogModelAdmin):
+class LocationAdmin(AuthoredContentAdminMixin, CatalogModelAdmin):
     has_catalog_fields = True
     list_display = (
         "slug",
@@ -231,7 +233,7 @@ class LocationAdmin(CatalogModelAdmin):
 
 
 @admin.register(Adventure)
-class AdventureAdmin(CatalogModelAdmin):
+class AdventureAdmin(AuthoredContentAdminMixin, CatalogModelAdmin):
     has_catalog_fields = True
     list_display = (
         "slug",
@@ -272,7 +274,7 @@ class AdventureAdmin(CatalogModelAdmin):
 
 
 @admin.register(AdventureStep)
-class AdventureStepAdmin(CatalogModelAdmin):
+class AdventureStepAdmin(AuthoredContentAdminMixin, CatalogModelAdmin):
     list_display = ("adventure", "position", "step_id", "step_type", "in_latest_release")
     list_filter = ("step_type", "adventure__world", InLatestReleaseFilter)
     search_fields = ("step_id", "adventure__slug")
@@ -280,7 +282,7 @@ class AdventureStepAdmin(CatalogModelAdmin):
 
 
 @admin.register(Quest)
-class QuestAdmin(CatalogModelAdmin):
+class QuestAdmin(AuthoredContentAdminMixin, CatalogModelAdmin):
     has_catalog_fields = True
     list_display = (
         "slug",
@@ -295,6 +297,30 @@ class QuestAdmin(CatalogModelAdmin):
     search_fields = ("slug", "title", "giver_npc_id")
     list_select_related = ("world",)
     readonly_display = ("in_latest_release",)
+
+
+@admin.register(Story)
+class StoryAdmin(AuthoredContentAdminMixin, CatalogModelAdmin):
+    has_catalog_fields = True
+    list_display = (
+        "slug",
+        "title",
+        "entry_chapter_id",
+        "active",
+        "sort_order",
+        "in_latest_release",
+    )
+    list_filter = ("active", InLatestReleaseFilter)
+    search_fields = ("slug", "title")
+    readonly_display = ("in_latest_release", "linked_adventures", "linked_quests")
+
+    @admin.display(description="Adventures in this story")
+    def linked_adventures(self, obj):
+        return ", ".join(obj.adventures.values_list("slug", flat=True)) or "none"
+
+    @admin.display(description="Quests that solve them")
+    def linked_quests(self, obj):
+        return ", ".join(obj.related_quests().values_list("slug", flat=True)) or "none"
 
 
 def _has_perm(request, name: str) -> bool:
@@ -464,14 +490,14 @@ class ContentReleaseAdmin(CatalogModelAdmin):
 
 
 @admin.register(LearningObjective)
-class LearningObjectiveAdmin(CatalogModelAdmin):
+class LearningObjectiveAdmin(AuthoredContentAdminMixin, CatalogModelAdmin):
     list_display = ("code", "domain", "title", "in_latest_release")
     list_filter = ("domain", InLatestReleaseFilter)
     search_fields = ("code", "title")
 
 
 @admin.register(NpcDefinition)
-class NpcDefinitionAdmin(CatalogModelAdmin):
+class NpcDefinitionAdmin(AuthoredContentAdminMixin, CatalogModelAdmin):
     has_catalog_fields = True
     list_display = (
         "npc_id",
@@ -488,7 +514,7 @@ class NpcDefinitionAdmin(CatalogModelAdmin):
 
 
 @admin.register(CollectibleSet)
-class CollectibleSetAdmin(CatalogModelAdmin):
+class CollectibleSetAdmin(AuthoredContentAdminMixin, CatalogModelAdmin):
     list_display = ("set_id", "display_name", "completion_item", "in_latest_release")
     list_filter = (InLatestReleaseFilter,)
     search_fields = ("set_id", "display_name")
@@ -496,7 +522,7 @@ class CollectibleSetAdmin(CatalogModelAdmin):
 
 
 @admin.register(ItemDefinition)
-class ItemDefinitionAdmin(CatalogModelAdmin):
+class ItemDefinitionAdmin(AuthoredContentAdminMixin, CatalogModelAdmin):
     list_display = (
         "item_id",
         "display_name",
@@ -512,7 +538,7 @@ class ItemDefinitionAdmin(CatalogModelAdmin):
 
 
 @admin.register(RewardRule)
-class RewardRuleAdmin(CatalogModelAdmin):
+class RewardRuleAdmin(AuthoredContentAdminMixin, CatalogModelAdmin):
     list_display = ("rule_id", "message", "in_latest_release")
     list_filter = (InLatestReleaseFilter,)
     search_fields = ("rule_id",)

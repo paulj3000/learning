@@ -174,6 +174,8 @@ describe('what the state keeps (TR-14)', () => {
     description: '',
     category: 'QUEST_ITEM' as const,
     assetId: '',
+    setId: null,
+    journal: null,
   };
   const badge = { ...key, itemId: 'treasure-cove-explorer', category: 'KEEPSAKE' as const };
 

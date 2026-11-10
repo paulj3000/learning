@@ -176,7 +176,8 @@ def test_no_child_owned_record_is_registered_and_child_profiles_are_read_only():
         assert "nickname" not in admin.site._registry[model].fields
     model_admin = admin.site._registry[ChildProfile]
     assert "nickname" not in model_admin.fields and "interests" not in model_admin.fields
-    # Only these apps have anything in the admin (regions: 3D Areas and launch points, ADR-041;
+    # Only these apps have anything in the admin (regions: 3D Areas, launch points and puzzles,
+    # ADR-041 and ADR-047; education: challenge specs only, content with no child data, ADR-047;
     # audio: sound cues, assignments and releases, ADR-050, none of it child data).
     # question_studio: staff-authored questions and their review history, no child data, ADR-046).
     assert {model._meta.app_label for model in registered} == {
@@ -185,11 +186,14 @@ def test_no_child_owned_record_is_registered_and_child_profiles_are_read_only():
         "audio",
         "auth",
         "catalog",
+        "education",
         "regions",
         "speech",
         "question_studio",
         "users",
     }
+    education = {m.__name__ for m in registered if m._meta.app_label == "education"}
+    assert education == {"ChallengeSpec"}
 
 
 def test_an_admin_session_never_authenticates_the_api():

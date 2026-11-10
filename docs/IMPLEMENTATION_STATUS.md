@@ -11735,6 +11735,140 @@ Branch `feature/lai-0905-photo-clients`.
 - **Not done (approval or access needed):** change-set review, dev deployment, Django dev
   release and `users.0005` migration, live S3 integration, Cognito browser acceptance.
 
+## ADR-043: Django content authoring, draft and impact assessment (2026-11-01, branch only, not merged)
+
+- **Request.** The owner asked for Firepeak Volcano, "The Volcano Awakens", with dialogue, stages,
+  hints, puzzle parameters and rewards editable in Django Admin. Asked how to reconcile that with
+  ADR-033, the owner directed a platform-wide ADR-043 that makes Django Admin the authoritative
+  content system, keeps the export and `load_content` for initial imports, and is not implemented
+  until accepted.
+- **What was found.** The architecture audit is recorded in
+  `docs/platform/DJANGO_CONTENT_AUTHORING.md` sections 2 and 11. The importer overwrites content
+  fields on every import, catalog admin is read-only apart from `active` and `sort_order`, and
+  no Firepeak, journal or badge content exists.
+- **Change.** Documentation only:
+  - ADR-043 added as Proposed, with its registry row; the registry's next-free number is
+    corrected from 041 to 044.
+  - New impact assessment `docs/platform/DJANGO_CONTENT_AUTHORING.md`.
+  - Owner decisions FP-D1 to FP-D4 for Firepeak recorded there.
+- **Checks.** `npm run adr:check` passed (43 decisions, 43 registry rows). No code changed, so no
+  unit tests or typecheck were run.
+- **Open.**
+  - ADR-043 acceptance and its four open questions.
+  - The Firepeak roadmap and tracker rows (FP-n, LAI-0810 to 0815) are added after acceptance.
+
+## ADR-043 foundation and Firepeak Volcano, The Volcano Awakens (2026-11-01, branch `feature/adr-043-django-content-authoring`, not merged or pushed)
+
+- **Request.** The owner accepted ADR-043 with answers Q1 to Q4 and eight requirements, and
+  asked for the following, in order:
+  1. The shared content-authoring foundation, with session version pinning.
+  2. Firepeak Volcano's first adventure, for Pathfinders and Explorers only.
+- **What was found.**
+  - The importer overwrote content on every import, and catalog admin was read-only.
+  - The engine had no third-person camera, shaders, particles, reduced-motion handling or
+    fall respawn.
+  - The client validated served regions only against bundled TypeScript registries.
+  - A Place known only to Django had no entry point in the app.
+- **Change, platform:**
+  - LAI-0810: `ContentRevision`.
+  - LAI-0811: authority-aware import with a conflict report.
+  - LAI-0812: `AreaPuzzle`, the graders, `PuzzleAttempt` and the solve route.
+  - LAI-0813: session pinning.
+  - LAI-0801 stage 1: Django Admin versions and the content roles.
+  - The client validates a served 3D Area against the server's declared `catalog`.
+  - The engine gains `playerPosition` and `teleportPlayer` for extensions.
+  - Shaped stand-ins replace missing models; a published GLB replaces them with no code change.
+  - Golden vectors `area-puzzles` keep the TypeScript and Python puzzle rules identical.
+- **Change, Firepeak:**
+  - Export-only content: the Place, Ember, the quest, items and journal entries.
+  - `firepeak_seed.py` layout and five puzzles, as Pathfinder and Explorer parameters.
+  - `WorldRegion.age_bands`.
+  - The `region-play` scene: lava shader with respawn, steam, backdrop, checkpoints, openings,
+    the rope lift, and puzzle visuals including the crystal discovery animation.
+  - The companion: telescope, crossing, valve and discovery panels, Ember's dialogue and
+    return action, and the Discovery Journal in the backpack.
+  - Harbor-map cards for Places that exist only in Django.
+  - `docs/FIREPEAK_VOLCANO_ROADMAP.md`, `docs/regions/firepeak_assets.md`, `docs/PLAY_API.md`,
+    `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 12.
+- **Documented behaviour changes:**
+  - The `load_content` counts gain `skipped` and `conflicts`.
+  - A pinned session is graded from its own content version rather than refused after a change
+    (`TestContentVersions` rewritten).
+  - The region bootstrap gains `puzzles`, `catalog` and NPC `dialogue` (additive).
+  - Items gain `setId` and `journal`.
+  - Pip in Treasure Cove now greets with his authored dialogue.
+  - The hook re-reads the region once after starting a session, so what the child sees matches
+    the pinned content.
+  - Admin registration guards now allow `education.ChallengeSpec`, `ContentRevision` and
+    `AreaPuzzle` (content only; no child-owned record).
+- **Tests (development checks):**
+  - **Python:** The full suite (`pytest -q lai tests`, PostgreSQL 16) gave 1291 passed and 10 errors; the errors were one fixture in `regions/tests/test_puzzles.py` that predated the puzzle-object check. After the fix, `regions/tests` and `test_play_api.py` pass (121), including the new test that accepting a quest late keeps earlier work. `makemigrations --check` reports no changes.
+  - **TypeScript:** `npx tsc -b` passes. The full Vitest suite (`npx vitest run --maxWorkers=2`)
+    passed 3283 tests in 308 files. Every later edit was re-run in its affected suite
+    (region-play, the regionPlay extension, the play API, golden vectors).
+  - **Flake:** one existing timing-sensitive test ("sends a double-tapped answer once")
+    failed once while the Python suite loaded the CPU, then passed three reruns.
+  - **Other checks:** `npm run content:check`, `npm run golden:check` and `npm run adr:check`
+    pass. Prettier passes on every changed file. oxlint on the changed directories exits 0
+    (warnings only, of the kinds already present in the region-play panels). Ruff check and
+    Ruff format pass.
+- **Deferred to merge verification:**
+  - `make check` in full: Django and migration checks on a clean database, the full oxlint and
+    Prettier runs, and `npm run build`.
+  - The Docker image.
+  - Playwright. `react/e2e/firepeak.spec.ts` holds the eleven scenarios as pending
+    (`test.fixme`) tests; none has run.
+  - Browser and WebGL checks, and performance on Android WebView.
+- **Not verified:** Firepeak has not been seen in a browser. The real-Cognito sign-in (ADR-024
+  A6) is still open.
+- **Open:**
+  - Eleven GLBs are missing.
+  - LAI-0814 (moving edits between environments).
+  - LAI-0815, deferred by the owner.
+  - LAI-0503 catalog reads.
+  - Structured admin editors (later LAI-0801 stages).
+  - Age-banded NPC dialogue (FP-D9).
+  - A third-person camera is out of scope (FP-D3).
+  - "Secrets of the Crystal Caverns" content (FP-D8).
+
+## FP-13: owner playtest of The Volcano Awakens (2026-11-01, branch `feature/adr-043-django-content-authoring`)
+
+- **What was run:** the owner played Firepeak Volcano end to end in a local browser.
+  - Setup: Django on this branch with PostgreSQL 16 in docker on port 7432; the React app with
+    `VITE_BACKEND=django`; a real Cognito sign-in against pool `us-west-1_3LU3RSjuH` (us-west-1).
+  - Covered: Professor Ember, the telescope, the lava crossing (including the lava respawn), the
+    valves, the crystal, the rope lift, the return to Ember, and resume after leaving.
+- **Result:** reported by the owner as "it all worked". This is the first browser run of
+  Firepeak, and the first real-Cognito sign-in through this branch's Django API (relevant to
+  ADR-024 gate A6, which is recorded for the gate's owner to close).
+- **Still open:**
+  - The automated Playwright scenarios (`react/e2e/firepeak.spec.ts`, still pending).
+  - Android WebView performance (LAI-2302, approval).
+  - The merge-gate checks.
+  - The 11 GLB models.
+
+## Merge verification of `feature/adr-043-django-content-authoring` (2026-11-01, not merged or pushed)
+
+- **`make check`, Python half:** passes. Ruff, Ruff format, `manage.py check`,
+  `makemigrations --check`, pytest on PostgreSQL 16 (1302 passed) and the ADR check.
+- **`make js-check`:** passes with `VITE_BACKEND` unset, as in CI. That covers typecheck, oxlint
+  (warnings only), Prettier, Vitest (3284 passed in 308 files) and the production build.
+  - Prettier first flagged two Firepeak files; they were formatted, and the content export check
+    still passes.
+  - With the developer's local `react/.env.local` (`VITE_BACKEND=django`), 4 tests in
+    `IslandLocationPage.test.tsx` and `ChildProfileForm.test.tsx` fail. They pass with the flag
+    unset (24/24), and CI has no such file.
+- **Playwright smoke** (`npx playwright test`): 7 passed, 11 skipped (the pending Firepeak
+  scenarios).
+  - This holds without the local `amplify_outputs.json`. With it, the three "no backend
+    configured" guard tests fail, as expected, because the app is configured. CI has no such file.
+- **Docker image** (`docker build -f lai/Dockerfile .`): **not verified.** `pip install` inside
+  the build cannot resolve PyPI on this machine, even with `--network=host`, while the host
+  resolves it. This is local Docker DNS, not a change on this branch; the Dockerfile and
+  `requirements.txt` are unchanged here.
+- **Open before merge:** the Docker image on a machine with working Docker DNS (or in CI), and
+  the owner's decision to merge.
+
 ## Django-controlled S3: asset administrator API, React asset pages, photo URL caching (2026-11-01, branch `feature/lai-django-asset-storage`, not merged, not pushed, nothing deployed)
 
 ADR-042 amended (owner-directed): Django is the control plane for the asset and photo buckets;
@@ -12271,6 +12405,67 @@ cost incurred), live S3 storage and S3 signed delivery, live Cognito tokens (ADR
 Amplify Data screens (harbor map, adventure log, Amplify-session places; unchanged on this
 branch), and the owner's playtest of the TR-9 feel items.
 
+## Content authoring task audit (2026-11-02, branch `feature/content`, docs only)
+
+- **Request.** Audit the tracker for the remaining Django content authoring work after `main`
+  was merged into the branch (`59c788b`). Planning only; no application code changed.
+- **Verified against code:** LAI-0810 to LAI-0813 DEVELOPMENT COMPLETE; LAI-0801 stage 1
+  complete, later stages open; LAI-0503 and LAI-0309 PARTIAL; LAI-0814 NOT STARTED; LAI-0815 and
+  LAI-0805 DEFERRED; LAI-0802 revised by ADR-045 and ADR-047. Gaps against ADR-047 recorded
+  (admin log, retirement guard, per-band copy limits, "Use the exported version", revision ids
+  in responses, `check_content`).
+- **New tasks:** LAI-0816 (Django step adventure runner), LAI-0817 (age-band NPC dialogue),
+  LAI-0818 (publication safety, P1), LAI-0819 (ADR reference cleanup, P0), LAI-0820 (branch
+  integration gates, P0), LAI-0821 (milestone acceptance).
+- **Documents:** content-authoring references renamed ADR-047 in CLAUDE.md, ARCHITECTURE,
+  DECISIONS, PLAY_API, the Firepeak roadmap and the content authoring document; ADR-047 now
+  states its relationship to ADR-045 and ADR-046. History entries above keep their wording.
+- **Plan:** `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 13 (verified state, ordered P1
+  list with dependencies, conflicts, milestone definition of done).
+
+
+## LAI-0820 merge-readiness verification and LAI-0817 completion (2026-11-03, branch `feature/content`)
+
+- **Request.** Final non-browser merge-readiness verification of `feature/content` for ADR-047
+  content authoring, finishing LAI-0817 if work remained. No merge, no deployment, no browser
+  tests.
+- **Acceptance criteria implemented.** LAI-0817: "Firepeak's band lines leave puzzle parameters
+  without changing play" (`docs/DJANGO_MIGRATION_ROADMAP.md`). LAI-0820: every non-browser merge
+  gate in `docs/TESTING_STRATEGY.md` run and recorded.
+- **LAI-0817 (FP-D9).** Firepeak's `intro`, `completeMessage` and `scienceNote` are 19 banded
+  `puzzleLine` nodes in Professor Ember's exported dialogue. Puzzle rules refuse the old keys and
+  the seed no longer writes them. The bootstrap adds the child's band lines, from the pinned NPC
+  version, to each puzzle's served parameters, so the client and payload are unchanged. Details:
+  `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 14.3.
+- **Defect fixed.** `c1ecea4` made the manifest integrity check skip every `place:` dependency.
+  Now only an adventure's `locationSlug`, a story's `completionWorldChange.locationSlug` and an NPC
+  in the hub may name no Place, in both `verify_manifest_records` and `check_content`
+  (section 14.7). A regression test fails against the old rule (mutation-checked by hand).
+- **Defect fixed.** `tests/golden/director-content.json` digest regenerated after the content
+  change (vectors unchanged).
+- **Editor.** A new test round-trips every record of the committed export through the structured
+  editor unchanged (over 100 records, including Ember's puzzle lines).
+- **Environment.** Fresh `.venv` (`make py-install`) and `npm ci`: the checkout's `node_modules`
+  was a broken symlink, and this branch's lockfile differs from `main`'s. PostgreSQL 16 from
+  `make up` on port 8432. The baseline ran in a separate worktree at `c1ecea4` with its own
+  database.
+
+| Gate | Command | Result |
+|---|---|---|
+| pytest baseline at `c1ecea4` | `make py-test-db` | 2133 passed |
+| pytest (PostgreSQL required) | `make py-test-db` | 2154 passed, 0 failed, 0 skipped |
+| Vitest | `npm test` | 3471 passed, 1 failed (stale golden digest, fixed; `src/test/golden` rerun 6 of 6) |
+| Ruff lint / format | `make py-lint`, `make py-format-check` | pass / 483 files formatted |
+| Django checks | `make django-check`, `make migrate-check` | no issues, no changes |
+| TypeScript | `npm run typecheck` | pass |
+| oxlint / Prettier | `npm run lint`, `npm run format:check` | 0 errors (warnings only) / pass after formatting `tasks/TASK_TRACKER.md` |
+| Production build | `npm run build` | pass |
+| ADR / admin preview / content / golden | `adr:check`, `admin-preview:check`, `content:check`, `golden:check` | 47 decisions; pass; up to date; up to date after regeneration |
+
+**Pending, not claimed:** `test:e2e`, `test:acceptance` and other browser or WebGL checks (not
+run, by instruction), Docker image build (not requested), deployed verification, owner
+acceptance (LAI-0821).
+
 ## Sound Manager Phase 3: Treasure Rush audio (SM-P4, brief ids SM-P3-01 to SM-P3-10) (2026-11-03, branch `feature/sound-manager`, not merged, not deployed)
 
 **Acceptance criteria.** Treasure Rush plays its ambience, music and effects through the shared Sound
@@ -12398,7 +12593,7 @@ awaits the owner's browser inspection, and none of the art is production art.
 
 ## Storykeeper Castle Reboot: SC-R03 World expansion (branch `adventures/storybook`, 2026-11-03)
 
-Detail: `tasks/TASK_TRACKER.md`, `docs/DECISIONS.md` ADR-028 (now Accepted) and ADR-047,
+Detail: `tasks/TASK_TRACKER.md`, `docs/DECISIONS.md` ADR-028 (now Accepted) and ADR-051,
 `docs/PLAY_API.md` ("Storykeeper Castle room discovery"), and
 `docs/regions/storykeeper_castle_asset_manifest.md`. **No browser test was run. Nothing is merged to
 `main`. Nothing is deployed. No AWS service was called.**
@@ -12419,7 +12614,7 @@ Detail: `tasks/TASK_TRACKER.md`, `docs/DECISIONS.md` ADR-028 (now Accepted) and 
 - **Secret Chamber** (tenth room), behind the tapestry nook: hidden from every list and refused as "not
   on the map" until the nook is found, physically sealed, opening live. New generic
   `DISCOVERY_ABSENT` requirement.
-- **Django-persisted room discovery** (ADR-047): an ordinary `WorldChange` behind one child-scoped
+- **Django-persisted room discovery** (ADR-051): an ordinary `WorldChange` behind one child-scoped
   endpoint, no new model or migration; a secret room gets the identical 404 an unknown room gets.
 - **Per-room scenery budgets**, replacing the single castle-wide cap.
 
@@ -12449,6 +12644,13 @@ is visually accepted: every row awaits the owner's browser inspection, and none 
 production art. Until the nook discovery write path moves to Django, a Django-mode server cannot
 persist a secret-room discovery (it works in the world and nothing leaks).
 
+## Integration of content authoring with dev20261103 (2026-11-04)
+
+- **Request.** Merge `origin/feature/content` (ADR-047) with `origin/dev20261103` (Sound Manager, Storykeeper SC-R02 to SC-R04) without losing either side, then push `dev20261103`.
+- **Conflicts.** 11: `urls.py`, two backend tests, the export test counts, four docs, and the regenerated `islands.json`, `manifest.json` and `director-content.json`. ADR numbering collided on ADR-047; the Castle room-discovery ADR is now **ADR-051** (next free number 052).
+- **Fix.** `AreaPuzzleLayer.test.tsx` scene mock gained `entityPositionReader`, `unlockPositionReader`, `listenerSource` and `onFrame`.
+- **Verified (non-browser).** pytest on PostgreSQL 2483 passed, 0 skipped; Vitest 4382 passed; Ruff, oxlint, Prettier, typecheck, build, `content:check`, `golden:check`, `adr:check`, Django check and migration check clean.
+- **Not done.** Browser acceptance, deployed verification and LAI-0821 stay pending.
 
 ## Bedrock readiness: LAI-0603, LAI-0709, AI reliability, live-test tooling (2026-11-04, branch `feature/ai-bedrock-readiness`, based on `origin/dev20261103`)
 
@@ -12625,6 +12827,36 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   batches 5/5; probe batch stored nothing. Carried forward: the price confirmation, a rerun
   under the instance role, and the two validation suggestions in the report.
 
+## Merge `main` into `dev20261103` (2026-11-07)
+
+- **Why.** `main` moved (PR #3 AI / Bedrock / Chatty acceptance, PR #5 Island Explorer, `make
+  runserver` profile); `dev20261103` was 20 ahead / 21 behind. None of its ADR-047 content
+  authoring or Firepeak commits are on `main` (`git cherry`: 18 of 18 unique).
+- **Conflicts (6).** `game_sessions/services.py`, `config/settings/base.py`, `WelcomeHarbor.tsx`,
+  the roadmap, this file and the tracker.
+  - Skill evidence: both sides wrote it on each graded answer. It is now written once, by
+    `education.services.record_step_evidence` (which also applies mastery, LAI-0603), from the
+    step body the session is graded on (pinned revision, LAI-0813). It records `difficulty` as
+    the step runner did, and skips objective codes the catalog does not declare (main's rule).
+  - `step_is_pinned` keeps main's version-and-release rule and, for a pinned session, also
+    requires the catalog step to hold the pinned body, so AI context never narrates content
+    the session is not graded on. Consequence: after a republish, AI hints for that step fall
+    back to the authored copy until the child starts a new session (as on `main`).
+  - Welcome Harbor: the Island Explorer replaces the home-Places grid; Django-served Places
+    (Firepeak Volcano) join the home island's places through a new `servedPlaces` input of
+    `buildIslandExplorer` (test added). Settings keep both new flags.
+- **Checks run (local PostgreSQL 16).** Full pytest: 2718 passed, 5 failed at the merge seam;
+  after the fix `ai`, `game_sessions`, `education`, `catalog` 1009 passed. Vitest 4399 passed;
+  typecheck, oxlint, Prettier, Ruff (check and format), Django check, migration check,
+  `adr:check`, `admin-preview:check`, `content:check`, `golden:check`, build: clean.
+  Playwright acceptance 35 passed, 1 skipped (touch drag on the desktop project, by design);
+  e2e smoke 7 passed, the 11 Firepeak scenarios are `test.fixme` (not written). Chromium was the
+  container's preinstalled build (`executablePath`), not the pinned Playwright build.
+- **Second merge (same day).** `main` then gained PR #6 (LAI-0808 closed) and the AI Question
+  Studio owner acceptance (`qa/aqs-acceptance-20261107`); docs-only conflicts. After it:
+  `question_studio` pytest 171 passed, Ruff clean, Playwright acceptance 43 passed, 2 skipped.
+- **Not done.** Owner browser QA (Firepeak FP-13, Storykeeper Castle, Django Admin authoring,
+  the Island Explorer with Firepeak), deployed verification, LAI-0821 acceptance, merge to main.
 
 ## LAI-INFRA-001 infrastructure inventory (2026-11-09, branch `infra/lai-infra-001-inventory`, docs only, nothing deployed)
 
@@ -12660,6 +12892,22 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   `claude/lai-infra-001-pr-kwauv3`; the Prettier check deferred there passed on 2026-11-09.
 - Checks: docs only, so no unit tests or typecheck apply. `prettier --check` passes on the changed
   files.
+
+## Merge `main` into the `dev20261103` integration (2026-11-09, branch `claude/jolly-ride-92xktb`)
+
+- **What.** `origin/dev20261103` plus `main`'s LAI-INFRA-001 and LAI-INFRA-002 docs (PRs 7 and 8).
+  One conflict, this file (both sides appended a section; both kept). No code changed.
+- **Checks run (local PostgreSQL 16, Node 22, Python 3.13).** Full `make py-test-db`: 2759
+  passed, 0 failed, 0 skipped (closes the gap left on 2026-11-07, when only `ai`,
+  `game_sessions`, `education` and `catalog` were re-run after the seam fix). Ruff check and
+  format, Django check, migration check: clean. `adr:check`, `admin-preview:check`,
+  `content:check`, `golden:check`, typecheck, oxlint (warnings only), Prettier, build: clean.
+  Vitest 4399 passed. Playwright acceptance 43 passed, 2 skipped (touch drag on the desktop
+  project; `@thread` run mode), run against the container's preinstalled Chromium build 1243
+  because the pinned Playwright expects build 1234.
+- **Not run.** e2e smoke (`test:e2e`; the 11 Firepeak scenarios are still `test.fixme`).
+- **Not done.** Owner browser QA (Firepeak FP-13, Storykeeper Castle, Django Admin authoring,
+  the Island Explorer with Firepeak), deployed verification, LAI-0821 acceptance, merge to main.
 
 ## LAI-INFRA-003 target domains, hosting and security (2026-11-09, branch `claude/lai-infra-001-pr-kwauv3`, proposed changeset, nothing deployed)
 
