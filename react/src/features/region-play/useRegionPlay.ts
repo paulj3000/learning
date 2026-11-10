@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { ApiError, isApiError } from '../../api/errors';
 import { playApiFor, type PlayApi } from '../../api/play/playApi';
-import type { AnswerSubmission, SessionAction } from '../../api/play/types';
+import type { JsonObject } from '../../api/parse';
+import type { AnswerSubmission, PuzzleOutcome, SessionAction } from '../../api/play/types';
 import {
   initialRegionPlayState,
   regionPlayReducer,
@@ -44,6 +45,8 @@ export interface RegionPlayControls {
   acceptQuest: (questId: string) => Promise<void>;
   requestChallenge: (chestEntityId: string) => Promise<void>;
   submitAnswer: (submission: AnswerSubmission) => Promise<void>;
+  /** One attempt at a 3D Area puzzle; the server grades it, then the region is re-read. */
+  solvePuzzle: (puzzleId: string, submission: JsonObject) => Promise<PuzzleOutcome | undefined>;
   /** Pick up a collectible (TR-14); the region is re-read after. */
   collectPickup: (entityId: string) => Promise<void>;
   /** Tell the server the child talked to an NPC (TR-14); the region is re-read after. */
@@ -57,6 +60,7 @@ const REFRESH_ON_CONFLICT = new Set([
   'chest_locked',
   'session_not_open',
   'content_unavailable',
+  'puzzle_locked',
 ]);
 
 export function useRegionPlay(
@@ -151,12 +155,16 @@ export function useRegionPlay(
   }, [api, regionId, scope]);
 
   const startSession = useCallback(async () => {
-    await run(
+    const startedScope = scopeRef.current;
+    const result = await run(
       'startSession',
       (signal) => api.startSession(regionId, signal),
-      (result, at) => [{ scope: at, type: 'sessionChanged', session: result.value }],
+      (started, at) => [{ scope: at, type: 'sessionChanged', session: started.value }],
     );
-  }, [api, regionId, run]);
+    // A new visit pins the content it starts with (LAI-0813): read it back, so what the child
+    // sees is exactly what the server grades against.
+    if (result?.created) await reload(startedScope);
+  }, [api, regionId, run, reload]);
 
   const changeSession = useCallback(
     async (action: SessionAction) => {
@@ -210,6 +218,22 @@ export function useRegionPlay(
     [api, run, reload],
   );
 
+  const solvePuzzle = useCallback(
+    async (puzzleId: string, submission: JsonObject) => {
+      const session = stateRef.current.session;
+      if (!session) return undefined;
+      const startedScope = scopeRef.current;
+      const outcome = await run(
+        'solvePuzzle',
+        (signal) => api.solvePuzzle(session.sessionId, puzzleId, submission, signal),
+        (result, at) => [{ scope: at, type: 'puzzleGraded', puzzleId, outcome: result }],
+      );
+      if (outcome) await reload(startedScope);
+      return outcome;
+    },
+    [api, run, reload],
+  );
+
   const collectPickup = useCallback(
     async (entityId: string) => {
       const session = stateRef.current.session;
@@ -258,6 +282,7 @@ export function useRegionPlay(
     acceptQuest,
     requestChallenge,
     submitAnswer,
+    solvePuzzle,
     collectPickup,
     talkToNpc,
     refresh,

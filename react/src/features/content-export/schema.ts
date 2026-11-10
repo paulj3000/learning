@@ -217,7 +217,19 @@ const defs: Record<string, Schema> = {
       category: enumOf('COLLECTIBLE', 'COSMETIC', 'QUEST_ITEM', 'KEEPSAKE'),
       rarity: enumOf('COMMON', 'UNCOMMON', 'RARE'),
     },
-    { setId: text, hidden: bool, cosmeticSlot: enumOf('HAT', 'BACKPACK', 'ACCESSORY', 'OUTFIT') },
+    {
+      setId: text,
+      hidden: bool,
+      cosmeticSlot: enumOf('HAT', 'BACKPACK', 'ACCESSORY', 'OUTFIT'),
+      // ADR-047 / Firepeak FP-10: a Discovery Journal entry's metadata (additive, optional).
+      journal: obj(
+        {
+          subject: enumOf('EARTH_SCIENCE', 'MATHEMATICS', 'SPATIAL_REASONING', 'PROBLEM_SOLVING'),
+          questId: text,
+        },
+        { illustrationAssetId: text },
+      ),
+    },
   ),
   collectibleSet: obj(
     { id: text, displayName: text, completionMessage: text, itemIds: texts },
@@ -274,6 +286,19 @@ const defs: Record<string, Schema> = {
           awardsRelationshipPoints: num,
           followUpOnly: bool,
           narration: obj({ allowedTopic: text, fallbackText: text }),
+          // LAI-0817: who says it, which age bands hear it (absent: every band), and the
+          // quest or adventure the line talks about. Django serves a node only to a child
+          // whose band it lists; the references are checked at publish, not conditions.
+          speaker: text,
+          ageBands: arr(enumOf('SPROUT', 'PATHFINDER', 'EXPLORER')),
+          questId: text,
+          adventureSlug: text,
+          // LAI-0817 (FP-D9): a line said in a 3D Area puzzle's panel, never in conversation.
+          // The bootstrap adds it to that puzzle's parameters for the bands that hear it.
+          puzzleLine: obj({
+            puzzleId: text,
+            part: enumOf('intro', 'completeMessage', 'scienceNote'),
+          }),
         },
       ),
     ),

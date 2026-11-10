@@ -1,4 +1,5 @@
-import type { LaunchPoint, QuestEntry } from '../../../../../../api/play/types';
+import { useState } from 'react';
+import type { DialogueNodeView, LaunchPoint, QuestEntry } from '../../../../../../api/play/types';
 import { PLAY_COPY } from '../../../../../region-play/regionPlayUi';
 import { AdventureLaunchChoices } from './AdventureLaunchChoices';
 import { GameDialog } from './GameDialog';
@@ -23,6 +24,16 @@ export interface PipDialogProps {
   launchStarting?: string | null;
   launchError?: string | null;
   onLaunch?(launchId: string): void;
+  /**
+   * The NPC's own authored lines (ADR-047), when the server sends them: the first one that is
+   * not a follow-up is how they greet the child, and its choices can lead to follow-ups.
+   * Without them the built-in Treasure Rush lines are used, as before.
+   */
+  dialogue?: readonly DialogueNodeView[];
+  /** What to do next in the quest, in this NPC's words (the current stage's authored intro). */
+  stageLine?: string | null;
+  /** A "come back and show me" stage this NPC completes (Firepeak stage 5). */
+  returnAction?: { label: string; busy: boolean; onReturn(): void } | null;
 }
 
 /**
@@ -45,15 +56,55 @@ export function PipDialog({
   launchStarting = null,
   launchError = null,
   onLaunch,
+  dialogue = [],
+  stageLine = null,
+  returnAction = null,
 }: PipDialogProps) {
   const quest =
     quests.find((q) => q.status === 'AVAILABLE') ??
     quests.find((q) => q.status === 'ACTIVE') ??
     quests[0];
+  const greeting = dialogue.find((node) => !node.followUpOnly) ?? null;
+  const [nodeId, setNodeId] = useState<string | null>(null);
+  const node = dialogue.find((candidate) => candidate.nodeId === nodeId) ?? greeting;
 
   return (
     <GameDialog titleId="region-play-npc-title" title={name} onClose={onClose}>
-      {!quest ? <p className={styles.speech}>{PLAY_COPY.pipNoQuest}</p> : null}
+      {node ? (
+        <>
+          <p className={styles.speech}>{node.text}</p>
+          {node.choices.some((choice) => choice.nextNodeId) ? (
+            <div className={styles.actions}>
+              {node.choices
+                .filter((choice) => choice.nextNodeId)
+                .map((choice) => (
+                  <button
+                    key={choice.choiceId}
+                    type="button"
+                    className={styles.button}
+                    onClick={() => setNodeId(choice.nextNodeId)}
+                  >
+                    {choice.label}
+                  </button>
+                ))}
+            </div>
+          ) : null}
+        </>
+      ) : null}
+      {!quest && !node ? <p className={styles.speech}>{PLAY_COPY.pipNoQuest}</p> : null}
+      {returnAction ? (
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.primary}
+            disabled={returnAction.busy}
+            aria-busy={returnAction.busy}
+            onClick={returnAction.onReturn}
+          >
+            {returnAction.label}
+          </button>
+        </div>
+      ) : null}
 
       {quest?.status === 'AVAILABLE' ? (
         <>
@@ -81,7 +132,7 @@ export function PipDialog({
         <>
           <p className={styles.speech} role="status">
             {justAccepted ? `${PLAY_COPY.questAccepted} ` : ''}
-            {PLAY_COPY.pipActive}
+            {stageLine ?? PLAY_COPY.pipActive}
           </p>
           {clue ? (
             <p className={styles.speech}>
@@ -99,7 +150,9 @@ export function PipDialog({
 
       {quest?.status === 'COMPLETED' ? (
         <>
-          <p className={styles.speech}>{PLAY_COPY.pipCompleted}</p>
+          <p className={styles.speech}>
+            {greeting ? `${PLAY_COPY.questComplete} ${quest.title}` : PLAY_COPY.pipCompleted}
+          </p>
           <QuestSteps quest={quest} />
           <div className={styles.actions}>
             <button type="button" className={styles.primary} onClick={onClose}>

@@ -2,7 +2,7 @@ import { getAccessToken } from '../auth';
 import { createApiClient, type ApiClient } from '../client';
 import { DJANGO_API_CONFIG, type DjangoApiConfig } from '../config';
 import { ApiError } from '../errors';
-import { read, type Reader } from '../parse';
+import { read, type JsonObject, type Reader } from '../parse';
 import * as parse from './parse';
 import type {
   AnswerOutcome,
@@ -12,6 +12,7 @@ import type {
   PickupOutcome,
   PlayerProgress,
   PlaySession,
+  PuzzleOutcome,
   QuestEntry,
   RegionBootstrap,
   SessionAction,
@@ -51,6 +52,13 @@ export interface PlayApi {
     signal?: AbortSignal,
   ): Promise<AnswerOutcome>;
   getProgress(signal?: AbortSignal): Promise<PlayerProgress>;
+  /** Submit one attempt at a 3D Area puzzle; the server grades it (LAI-0812). */
+  solvePuzzle(
+    sessionId: string,
+    puzzleId: string,
+    submission: JsonObject,
+    signal?: AbortSignal,
+  ): Promise<PuzzleOutcome>;
   /** Pick up a collectible (TR-14). `created` is false when it was already picked up. */
   collectPickup(
     sessionId: string,
@@ -131,6 +139,16 @@ export function createPlayApi(client: ApiClient, childId: string): PlayApi {
       return result.value;
     },
     getProgress: async (signal) => get('progress/', parse.playerProgress, signal),
+    async solvePuzzle(sessionId, puzzleId, submission, signal) {
+      // Exactly the accepted field: the submission's shape is the puzzle kind's own.
+      const result = await post(
+        `sessions/${segment(sessionId)}/puzzles/${segment(puzzleId)}/solve/`,
+        parse.puzzleOutcome,
+        { submission },
+        signal,
+      );
+      return result.value;
+    },
     collectPickup: async (sessionId, entityId, signal) =>
       post(
         `sessions/${segment(sessionId)}/pickups/${segment(entityId)}/`,
@@ -176,6 +194,7 @@ export function playApiFor(childId: string, config: DjangoApiConfig = DJANGO_API
       requestChestChallenge: disabled,
       submitAnswer: disabled,
       getProgress: disabled,
+      solvePuzzle: disabled,
       startLaunchPoint: disabled,
       collectPickup: disabled,
       talkToNpc: disabled,

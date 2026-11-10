@@ -74,6 +74,18 @@ def validate_file(file_name: str, data: object, schema: dict | None = None) -> N
         raise ContentSchemaError(file_name, errors)
 
 
+def validate_record(definition: str, data: object, schema: dict | None = None) -> None:
+    """Validate one record against `$defs/<definition>` (ADR-047: a revision body is one export
+    record). Raises `ContentSchemaError` naming the definition."""
+    root = schema if schema is not None else _load_schema(str(schema_path()))
+    if definition not in root.get("$defs", {}):
+        raise ContentSchemaError(definition, ["$: no schema definition"])
+    errors: list[str] = []
+    _validate(data, {"$ref": f"#/$defs/{definition}"}, root, "$", errors)
+    if errors:
+        raise ContentSchemaError(definition, errors)
+
+
 def _resolve(ref: str, root: dict) -> dict:
     if not ref.startswith("#/"):
         raise UnsupportedKeyword(f"non-local $ref {ref}")

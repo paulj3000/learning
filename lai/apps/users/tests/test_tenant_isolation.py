@@ -396,6 +396,7 @@ def test_the_game_cookie_is_accepted_only_by_the_game_runtime_routes():
         f"{child}sessions/<uuid:session_id>/",
         f"{child}sessions/<uuid:session_id>/<slug:action>/",
         f"{child}sessions/<uuid:session_id>/chests/<slug:entity_id>/challenge/",
+        f"{child}sessions/<uuid:session_id>/puzzles/<slug:puzzle_id>/solve/",
         # TR-14: picking up and talking, both behind `GameRuntimeAccessMixin`.
         f"{child}sessions/<uuid:session_id>/pickups/<slug:entity_id>/",
         f"{child}sessions/<uuid:session_id>/npcs/<slug:entity_id>/talk/",

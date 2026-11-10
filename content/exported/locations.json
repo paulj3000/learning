@@ -138,6 +138,20 @@
       "tagline": "A quiet place to sit and watch the water.",
       "title": "The Lantern Tide Pools",
       "worldSlug": "creature-care-cove"
+    },
+    {
+      "decoration": "Steam curls from the mountain. Professor Ember waits at the base camp.",
+      "description": "A sleepy volcano that has started to rumble. Look closely, build a safe path, follow the steam, and learn how volcanoes and crystals form.",
+      "skills": [
+        "Earth science",
+        "Spatial reasoning",
+        "Cause and effect",
+        "Problem solving"
+      ],
+      "slug": "firepeak-volcano",
+      "tagline": "Explore a waking volcano with Professor Ember.",
+      "title": "Firepeak Volcano",
+      "worldSlug": "learning-adventure-island"
     }
   ],
   "schemaVersion": 3

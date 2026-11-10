@@ -26,6 +26,15 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { toJsonValue } from './canonical';
 import {
+  FIREPEAK_COLLECTIBLE_SETS,
+  FIREPEAK_ITEMS,
+  FIREPEAK_LOCATIONS,
+  FIREPEAK_NPCS,
+  FIREPEAK_PACK_ADDITIONS,
+  FIREPEAK_QUESTS,
+  FIREPEAK_REWARD_RULES,
+} from './firepeakContent';
+import {
   TREASURE_RUSH_ITEMS,
   TREASURE_RUSH_QUESTS,
   TREASURE_RUSH_REWARD_RULES,
@@ -59,13 +68,31 @@ const INTERACTION_TABLES: ReadonlyArray<readonly [string, keyof typeof worldObje
   ['bolts-workshop', 'BOLTS_WORKSHOP_INTERACTIONS'],
 ];
 
+type PackBody = IslandEntry['pack'];
+
+/**
+ * Export-only additions to a world's content pack (Firepeak, ADR-047): the Amplify app loads its
+ * packs unchanged, and the export lists the export-only Place and its content in its Island.
+ */
+function withExportOnly(worldSlug: string, pack: PackBody): PackBody {
+  if (worldSlug !== FIREPEAK_PACK_ADDITIONS.worldSlug) return pack;
+  return {
+    ...pack,
+    locationSlugs: [...pack.locationSlugs, ...FIREPEAK_PACK_ADDITIONS.locationSlugs],
+    questIds: [...pack.questIds, ...FIREPEAK_PACK_ADDITIONS.questIds],
+    npcIds: [...pack.npcIds, ...FIREPEAK_PACK_ADDITIONS.npcIds],
+    itemIds: [...pack.itemIds, ...FIREPEAK_PACK_ADDITIONS.itemIds],
+    collectibleSetIds: [...pack.collectibleSetIds, ...FIREPEAK_PACK_ADDITIONS.collectibleSetIds],
+  };
+}
+
 export async function buildContentPackage(): Promise<ContentPackage> {
   const packs = await loadAllWorldContentPacks();
   const islands: IslandEntry[] = WORLD_DEFINITIONS.map((world) => {
     const pack = packs.find((candidate) => candidate.worldSlug === world.slug);
     if (!pack) throw new Error(`World "${world.slug}" has no content pack.`);
     const { worldSlug: _worldSlug, ...rest } = pack;
-    return { ...world, pack: rest };
+    return { ...world, pack: withExportOnly(world.slug, rest) };
   });
   const interactions: RegionInteractions[] = INTERACTION_TABLES.map(([regionSlug, exportName]) => ({
     regionSlug,
@@ -76,16 +103,16 @@ export async function buildContentPackage(): Promise<ContentPackage> {
 
   const pkg: ContentPackage = {
     islands,
-    locations: [...ISLAND_LOCATIONS],
+    locations: [...ISLAND_LOCATIONS, ...FIREPEAK_LOCATIONS],
     adventures: [...ADVENTURE_TEMPLATES],
     learningObjectives: [...LEARNING_OBJECTIVES],
     wonderWallQuestions: [...WONDER_WALL_QUESTIONS],
     stories: [...STORY_DEFINITIONS],
-    quests: [...QUEST_DEFINITIONS, ...TREASURE_RUSH_QUESTS],
-    items: [...ALL_ITEMS, ...TREASURE_RUSH_ITEMS],
-    collectibleSets: [...ALL_COLLECTIBLE_SETS],
-    rewardRules: [...ALL_REWARD_RULES, ...TREASURE_RUSH_REWARD_RULES],
-    npcs: [...ALL_NPCS],
+    quests: [...QUEST_DEFINITIONS, ...TREASURE_RUSH_QUESTS, ...FIREPEAK_QUESTS],
+    items: [...ALL_ITEMS, ...TREASURE_RUSH_ITEMS, ...FIREPEAK_ITEMS],
+    collectibleSets: [...ALL_COLLECTIBLE_SETS, ...FIREPEAK_COLLECTIBLE_SETS],
+    rewardRules: [...ALL_REWARD_RULES, ...TREASURE_RUSH_REWARD_RULES, ...FIREPEAK_REWARD_RULES],
+    npcs: [...ALL_NPCS, ...FIREPEAK_NPCS],
     discoveries: [...DISCOVERY_DEFINITIONS],
     checkpoints: [...ALL_CHECKPOINTS],
     interactions,

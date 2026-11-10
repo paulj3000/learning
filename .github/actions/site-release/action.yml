@@ -1,0 +1,86 @@
+# One environment's React site release for .github/workflows/deploy-site.yml (LAI-INFRA-004,
+# docs/infrastructure/deployment-design.md). The calling job owns the GitHub Environment
+# (site-dev / site-prod), whose OIDC subject is the only one the site deploy role trusts. Needs
+# the repository checked out at the commit being released.
+name: React site release
+description: Build the site against the Amplify main backend, publish it to S3, invalidate, smoke test.
+
+inputs:
+  target:
+    description: dev or prod
+    required: true
+  git-sha:
+    description: Full commit SHA being released
+    required: true
+  role-arn:
+    description: The environment's site deploy role (vars.LAI_SITE_DEPLOY_ROLE_ARN)
+    required: true
+  amplify-app-id:
+    description: The Amplify app whose main-branch backend holds the Cognito pool
+    required: true
+  amplify-region:
+    description: Region of the Amplify app
+    required: false
+    default: us-west-1
+  bucket:
+    description: LaiFrontend-<env> output WebBucketName
+    required: true
+  distribution-id:
+    description: LaiFrontend-<env> output DistributionId
+    required: true
+  site-url:
+    description: https:// origin of the site, for the smoke test
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: npm
+
+    - name: Install
+      shell: bash
+      run: npm ci --no-audit --no-fund
+
+    - uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.role-arn }}
+        aws-region: ${{ inputs.amplify-region }}
+        role-session-name: lai-site-${{ inputs.target }}-${{ github.run_id }}
+
+    # The same Cognito pool and config the Amplify Hosting build uses (read-only).
+    - name: Amplify main backend outputs
+      shell: bash
+      env:
+        APP_ID: ${{ inputs.amplify-app-id }}
+      run: |
+        npx ampx generate outputs --branch main --app-id "$APP_ID"
+        test -f amplify_outputs.json
+
+    - name: Build (Django backend, same-origin /api/)
+      shell: bash
+      env:
+        VITE_BACKEND: django
+        VITE_DJANGO_API_BASE: ''
+      run: npm run build
+
+    - name: Publish to S3 and invalidate the shells
+      shell: bash
+      env:
+        AWS_REGION: us-east-1
+        BUCKET: ${{ inputs.bucket }}
+        DISTRIBUTION: ${{ inputs.distribution-id }}
+        GIT_SHA: ${{ inputs.git-sha }}
+      run: scripts/aws/publish-site.sh publish react/dist "$BUCKET" "$DISTRIBUTION" "$GIT_SHA"
+
+    - name: Smoke test (shell and /api/ through CloudFront)
+      shell: bash
+      env:
+        SITE_URL: ${{ inputs.site-url }}
+      run: |
+        curl -fsS --max-time 20 "$SITE_URL/" | grep -q 'id="root"'
+        curl -fsS --max-time 20 "$SITE_URL/children/smoke-test" | grep -q 'id="root"'
+        curl -fsS --max-time 20 -o /dev/null "$SITE_URL/api/v1/health/"
+        echo "site and /api/ answer at $SITE_URL"

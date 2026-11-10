@@ -16,6 +16,7 @@ import { listAllWorldChanges } from '../features/adventures/api';
 import { isIslandAvailable } from '../features/catalog/availability';
 import { loadCatalogSnapshot } from '../features/catalog/availabilityApi';
 import { locationWorldPath } from '../features/island-map/three/runtime/locationWorldPath';
+import { useServedPlaces } from '../features/region-play/useServedPlaces';
 import { WELCOME_HARBOR_REGION_ID } from '../features/discovery/checkpoints';
 import { isLeftIslandState, LEAVE_ISLAND_COPY } from '../features/portal/exit';
 import { PortalButton } from '../features/portal/ui';
@@ -28,6 +29,7 @@ export function WelcomeHarbor() {
   const { childId } = useParams<{ childId: string }>();
   /** AP-04: arrived from "Leave island", so say calmly that nothing was lost. */
   const leftIsland = isLeftIslandState(useLocation().state);
+  const servedPlaces = useServedPlaces(childId);
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
   const [companionProfile, setCompanionProfile] = useState<CompanionProfile | null>(null);
@@ -164,6 +166,13 @@ export function WelcomeHarbor() {
           currentIslandLocations: listLocationsInWorld(getHomeWorld().slug),
           worldChangeKeys,
           hiddenLocationSlugs: hiddenSlugs,
+          // Places authored in Django (ADR-047), such as Firepeak Volcano: straight to their 3D Area.
+          servedPlaces: servedPlaces.map((place) => ({
+            slug: place.placeId,
+            title: place.title,
+            tagline: place.tagline,
+            href: locationWorldPath(childId, place.regionId),
+          })),
         })}
       />
 
