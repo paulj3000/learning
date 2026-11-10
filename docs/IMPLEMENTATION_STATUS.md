@@ -13124,3 +13124,26 @@ full suite at integration; ADR-052 acceptance.
 - Visibility note: the child homepage loads its companion and world changes from Amplify Data.
   A local run with `VITE_BACKEND=django` and no Amplify sandbox shows only the plain
   "Something went wrong loading the island." text, so the portal design never renders there.
+
+### AP-01 full theme redress (2026-11-10, branch `feature/adventure-portal`)
+
+Owner feedback: the portal theme must redress the whole app, not one page. The old and portal
+palettes shared the same page, card, text and focus colours, so the earlier work read as
+"nothing different" outside the child homepage.
+
+- `src/styles/tokens.css` now carries the portal palette (ocean primary, tropical accent and
+  success, coral danger, treasure warning, ocean-50 page, portal fills, rounder radii). Every CSS
+  Module reads these tokens, so every page changes. `tokens.test.ts` (WCAG AA) passes unchanged.
+- `ParentShell` on every parent page: account settings, child profile new and edit, child
+  activity, story keepsakes and play together join the dashboard. Each page's title moved into the
+  page; "Back to dashboard" is the shell's top-bar action.
+- Landing page (`Home`) rebuilt with portal components: ocean header and hero, treasure call to
+  action, three pillar cards from CLAUDE.md section 4. `Home.module.css` deleted.
+- `ChildShell` background follows the new page colour.
+- ADR-052 amended: the portal palette is the app's theme through tokens.css.
+- Not themed: 34 hard-coded colours in CSS Modules, mostly the 3D HUD and puzzle panels; the 3D
+  worlds' own scene colours; the admin section (ADR-023, its own Tailwind theme).
+
+Checks: oxlint 0 errors; Prettier; ADR check; typecheck; full Vitest 399 files / 4519 tests;
+build; Playwright 7 passed, 11 skipped (`test.fixme`). Viewed in Chromium: landing, sign-in,
+child homepage and add-child pages (the last two through a local harness with API stubs).

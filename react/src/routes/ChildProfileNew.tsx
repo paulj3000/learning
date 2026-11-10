@@ -1,3 +1,5 @@
+import { ParentShell } from '../features/portal/shell';
+import { PortalButton } from '../features/portal/ui';
 import { Link, useNavigate } from 'react-router-dom';
 import styles from './ParentDashboard.module.css';
 import { ChildProfileForm } from '../features/child-profile/ChildProfileForm';
@@ -13,18 +15,22 @@ export function ChildProfileNew() {
   }
 
   return (
-    <div className={styles.page}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>Add a child profile</h1>
-        <Link to="/home">Back to dashboard</Link>
-      </header>
-      <main className={styles.main} id="main-content">
+    <ParentShell
+      mainClassName={styles.main}
+      actions={
+        <PortalButton asChild tone="quiet">
+          <Link to="/home">Back to dashboard</Link>
+        </PortalButton>
+      }
+    >
+      <div className={styles.parentPage}>
+        <h1 className={styles.parentPageTitle}>Add a child profile</h1>
         <ChildProfileForm
           submitLabel="Create profile"
           onSubmit={handleSubmit}
           onSaved={() => navigate('/home')}
         />
-      </main>
-    </div>
+      </div>
+    </ParentShell>
   );
 }

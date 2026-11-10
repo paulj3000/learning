@@ -73,7 +73,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-048 | Spatial audio is a panner on the Sound Manager's one AudioContext; emitters and zones are reusable and Three.js-free; Django configures distances and zone beds | Proposed | Feature branch `feature/sound-manager` (SM-P7) | Development only, 2026-11-03; owner acceptance pending. Builds on ADR-050 |
 | ADR-049 | Django owns speech synthesis through Amazon Polly behind a fake-able client; games speak only server-approved references; React plays through the Sound Manager's voice channel | Proposed | Feature branch `feature/sound-manager` (SM-P8) | Development only, 2026-11-03; owner acceptance and live verification pending. Builds on ADR-044, ADR-045, ADR-050, ADR-048 |
 | ADR-050 | Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver | Proposed | Feature branch `feature/sound-manager` (SM-P2) | Development only, 2026-11-02; owner acceptance pending. Builds on ADR-035, ADR-041, ADR-045; records Sound Manager decisions SM-D1 to SM-D6 |
-| ADR-052 | The Adventure Portal's child and parent shells use Tailwind CSS 4 with a reference-only portal theme; page content stays on CSS Modules | Proposed | Feature branch `feature/adventure-portal` (AP-01, AP-04) | Owner-directed 2026-11-07 (Trello AP-01 names Tailwind 4). Amends ADR-023's route boundary; owner acceptance pending |
+| ADR-052 | The Adventure Portal palette is the whole app's theme through tokens.css; the shells, homepage and landing page use Tailwind CSS 4 with a reference-only portal theme | Proposed | Feature branch `feature/adventure-portal` (AP-01, AP-04) | Owner-directed 2026-11-07 (Trello AP-01 names Tailwind 4). Amends ADR-023's route boundary; owner acceptance pending |
 
 ## ADR-001: Parent-owned accounts
 
@@ -3806,9 +3806,9 @@ production. Not heard; no live AWS call was made.
 
 **Acceptance.** Remains Proposed until the owner accepts it and the live verification gate passes.
 
-## ADR-052: The Adventure Portal's child and parent shells use Tailwind CSS 4 with a reference-only portal theme; page content stays on CSS Modules
+## ADR-052: The Adventure Portal palette is the whole app's theme through tokens.css; the shells, homepage and landing page use Tailwind CSS 4 with a reference-only portal theme
 
-Status: Proposed (2026-11-07)
+Status: Proposed (2026-11-07; scope widened 2026-11-10)
 
 **Context.** ADR-023 limits Tailwind to `/admin/*`; everything else is CSS
 Modules. The Adventure Portal & Learning Dashboard subproject (Trello AP-01)
@@ -3830,16 +3830,29 @@ child sidebar with mobile bottom navigation; and a distinct parent shell.
 - The components live in `src/features/portal/ui/` (`PortalButton`,
   `PortalCard`, `ProgressIndicator`) with their own `cn`; ADR-023 still bars
   child and parent code from `features/admin/ui`.
-- The boundary is now: the shells (`ChildShell` inside `IslandLayout`,
-  `ParentShell` on the parent dashboard) and anything under
-  `src/features/portal/` are Tailwind; the content of existing child and
-  parent pages stays on CSS Modules until a later card restyles it.
+- **The portal palette is the app's theme (amended 2026-11-10, owner: "a full
+  theme redress, not just one sub page").** `src/styles/tokens.css` carries the
+  portal hexes: ocean-700 primary, tropical-700 accent and success, coral-700
+  danger, treasure-800 warning, an ocean-50 page, portal fills, rounder radii.
+  Every CSS Module reads the tokens, so every page (landing, auth, parent,
+  child, adventures, 3D HUDs that use tokens) takes the theme at once.
+  `tokens.test.ts` still checks every pair at WCAG AA.
+- Tailwind is used where pages are rebuilt with portal components: the shells
+  (`ChildShell` inside `IslandLayout`; `ParentShell` on every parent page:
+  dashboard, account settings, child profile new and edit, child activity,
+  story keepsakes, play together), the child homepage (`WelcomeHarbor`,
+  `IslandExplorer`) and the landing page (`Home`). Other page content stays on
+  CSS Modules and gets the theme through the tokens.
+- `portalCss.test.ts` also fails if any file that uses the portal components or
+  palette is missing from `portal.css`'s `@source` list.
 - `portalCss.test.ts` compiles the file and fails on any non `--tw-*`
   custom property, any element selector, or any component text/background
   pair below WCAG AA (4.5:1), or a progress fill below 3:1.
 
 **Consequences.** Three styling surfaces (CSS Modules, admin Tailwind,
-portal Tailwind) until the portal restyles page content. A portal file
+portal Tailwind), sharing one palette: the token hexes and the portal names
+must stay in step. The 34 hard-coded colours in CSS Modules (mostly 3D HUD
+panels) do not follow the tokens. A portal file
 outside the `@source` paths silently gets no utilities; the comment at the
 top of `portal.css` says so.
 

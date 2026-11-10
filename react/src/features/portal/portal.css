@@ -27,8 +27,15 @@
 @source './';
 @source '../island/IslandLayout.tsx';
 @source '../island/IslandExplorer.tsx';
+@source '../../routes/Home.tsx';
 @source '../../routes/WelcomeHarbor.tsx';
 @source '../../routes/ParentDashboard.tsx';
+@source '../../routes/AccountSettings.tsx';
+@source '../../routes/ChildDashboard.tsx';
+@source '../../routes/ChildProfileEdit.tsx';
+@source '../../routes/ChildProfileNew.tsx';
+@source '../../routes/CoopSessionNew.tsx';
+@source '../../routes/StoryKeepsakes.tsx';
 
 @theme reference inline {
   --color-ocean-50: #eaf6fc;
