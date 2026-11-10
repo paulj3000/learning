@@ -35,7 +35,7 @@ function baseProps(chapter: StoryChapter) {
     childProfileId: 'child-1',
     ageBand: 'PATHFINDER' as const,
     aiEnabled: false,
-    storyProgressId: 'progress-1',
+    storyId: 'dragon-of-ember-mountain',
     chapter,
     flags: {},
     backToStoryHref: '/island/child-1/stories/dragon-of-ember-mountain',
@@ -117,9 +117,11 @@ describe('StoryChapterRunner', () => {
 
     await user.click(await screen.findByRole('button', { name: /continue/i }));
 
-    expect(recordStoryReflectionEvidenceMock).toHaveBeenCalledWith('child-1', 'progress-1', [
-      'empathy',
-    ]);
+    expect(recordStoryReflectionEvidenceMock).toHaveBeenCalledWith(
+      'child-1',
+      'dragon-of-ember-mountain',
+      'scene-1',
+    );
     expect(props.onChapterComplete).toHaveBeenCalledTimes(1);
   });
 

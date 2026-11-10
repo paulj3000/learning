@@ -1,91 +1,51 @@
-import { client } from '../../lib/data-client';
-import type { Schema } from '../../../../amplify/data/resource';
-import type { Correctness } from '../adventures/engine/types';
-import { nextSkillProgressCounts } from './counters';
-import { computeErrorPattern } from './errorPattern';
-import { computeSkillStatus } from './status';
-import type { SkillProgressCounts } from './types';
+import { childPath, djangoClient } from '../../api/djangoClient';
+import { read, type Reader } from '../../api/parse';
+import type { ErrorPattern, SkillStatus } from './types';
 
-export type SkillProgress = Schema['SkillProgress']['type'];
+/**
+ * Skill progress, read from Django (`GET children/<id>/skill-progress/`, AMP-03).
+ *
+ * Mastery is server-side only: Django derives every row from evidence it graded itself
+ * (`apps/education/mastery.py`, a port of `counters.ts`, `status.ts` and `errorPattern.ts`
+ * pinned by the golden vectors), so the client has no way to write mastery numbers. The pure
+ * modules here stay for read-time rules (`resolveSkillStatuses`, review decay) and the tests.
+ */
+export interface SkillProgress {
+  childProfileId: string;
+  learningObjectiveCode: string;
+  exposureCount: number;
+  independentSuccessCount: number;
+  supportedSuccessCount: number;
+  consecutiveIndependentCorrect: number;
+  recentLevel: SkillStatus | null;
+  errorPattern: ErrorPattern | null;
+  lastPracticedAt: string | null;
+}
+
+const SKILL_STATUSES = ['LOCKED', 'INTRODUCED', 'DEVELOPING', 'PROFICIENT', 'MASTERED'] as const;
+const ERROR_PATTERNS = ['NONE', 'NEEDS_SUPPORT', 'INCONSISTENT', 'STALLED'] as const;
+
+function readSkill(r: Reader, childProfileId: string): SkillProgress {
+  return {
+    childProfileId,
+    learningObjectiveCode: r.field('learningObjectiveCode').string(),
+    exposureCount: r.field('exposureCount').integer(),
+    independentSuccessCount: r.field('independentSuccessCount').integer(),
+    supportedSuccessCount: r.field('supportedSuccessCount').integer(),
+    consecutiveIndependentCorrect: r.field('consecutiveIndependentCorrect').integer(),
+    recentLevel: r.field('recentLevel').nullable((v) => v.oneOf(SKILL_STATUSES)),
+    errorPattern: r.field('errorPattern').nullable((v) => v.oneOf(ERROR_PATTERNS)),
+    lastPracticedAt: r.field('lastPracticedAt').nullable((v) => v.string()),
+  };
+}
 
 /** One row per (child, skill) the child has ever practiced (parent dashboard), newest first. */
 export async function listSkillProgress(childProfileId: string): Promise<SkillProgress[]> {
-  const { data } = await client.models.SkillProgress.list();
-  return data
-    .filter((row: SkillProgress) => row.childProfileId === childProfileId)
-    .sort((a: SkillProgress, b: SkillProgress) =>
-      (b.lastPracticedAt ?? '').localeCompare(a.lastPracticedAt ?? ''),
-    );
-}
-
-/**
- * One compact row per (child, skill), incremented rather than replaced, so
- * progress accumulates across sessions (DATA_MODEL.md SkillProgress: "Do
- * not label children with fixed ability judgments").
- *
- * A success only counts as independent when both the result is `correct`
- * and no hint was used (`supportLevel === 0`) — an incorrect/partial/
- * not_applicable result never increments either success counter, only
- * `exposureCount`. `prerequisitesSatisfied` is not a parameter here: a row
- * being written at all means `exposureCount` is about to be >= 1, and
- * `computeSkillStatus`'s `LOCKED` branch only ever applies at
- * `exposureCount === 0`, so a single skill's own write can never resolve
- * to `LOCKED` regardless of curriculum prerequisites — see
- * `resolveSkillStatuses` for the graph-aware read path that does compute
- * `LOCKED` for skills with no evidence at all.
- */
-export async function upsertSkillProgress(
-  childProfileId: string,
-  learningObjectiveCode: string,
-  correctness: Correctness,
-  supportLevel: number,
-): Promise<void> {
-  const { data: existingRows } = await client.models.SkillProgress.list();
-  const existing = existingRows.find(
-    (row: SkillProgress) =>
-      row.childProfileId === childProfileId && row.learningObjectiveCode === learningObjectiveCode,
+  const response = await djangoClient().request(
+    'GET',
+    childPath(childProfileId, 'skill-progress/'),
   );
-  const now = new Date().toISOString();
-
-  const counts: SkillProgressCounts = nextSkillProgressCounts(
-    existing,
-    correctness,
-    supportLevel,
-    now,
+  return read(response.data, (r) =>
+    r.field('skills').array((skill) => readSkill(skill, childProfileId)),
   );
-
-  const recentLevel = computeSkillStatus(counts, true);
-  const errorPattern = computeErrorPattern(counts);
-
-  if (!existing) {
-    const { errors } = await client.models.SkillProgress.create({
-      childProfileId,
-      learningObjectiveCode,
-      exposureCount: counts.exposureCount,
-      independentSuccessCount: counts.independentSuccessCount,
-      supportedSuccessCount: counts.supportedSuccessCount,
-      consecutiveIndependentCorrect: counts.consecutiveIndependentCorrect,
-      recentLevel,
-      errorPattern,
-      lastPracticedAt: now,
-    });
-    if (errors?.length) {
-      throw new Error(errors[0]?.message ?? 'Could not record skill progress.');
-    }
-    return;
-  }
-
-  const { errors } = await client.models.SkillProgress.update({
-    id: existing.id,
-    exposureCount: counts.exposureCount,
-    independentSuccessCount: counts.independentSuccessCount,
-    supportedSuccessCount: counts.supportedSuccessCount,
-    consecutiveIndependentCorrect: counts.consecutiveIndependentCorrect,
-    recentLevel,
-    errorPattern,
-    lastPracticedAt: now,
-  });
-  if (errors?.length) {
-    throw new Error(errors[0]?.message ?? 'Could not record skill progress.');
-  }
 }

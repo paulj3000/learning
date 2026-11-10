@@ -1,9 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ApiClient } from '../../api/client';
 
-vi.mock('../../lib/data-client', () => ({ client: { models: {} } }));
-
-import { aiHistoryStoreFor, createDjangoAiHistoryStore, readSafetyEvent } from './api';
+import { aiHistoryStore, createDjangoAiHistoryStore, readSafetyEvent } from './api';
 
 const EVENT = {
   id: 'e1',
@@ -42,8 +40,12 @@ describe('Django AI history store (LAI-0706)', () => {
     expect(request).toHaveBeenCalledWith('DELETE', 'children/c1/ai/history/');
   });
 
-  it('uses the Django store only in a Django build', () => {
-    expect(aiHistoryStoreFor({ enabled: true, baseUrl: '' })).toBeDefined();
+  it('always reads from Django: there is no Amplify store any more (AMP-03)', async () => {
+    const request = vi.fn(async () => ({ status: 200, data: { results: [] } }));
+    expect(
+      await aiHistoryStore({ request } as unknown as ApiClient).listSafetyEvents('c1'),
+    ).toEqual([]);
+    expect(request).toHaveBeenCalledWith('GET', 'children/c1/ai/safety-events/');
     expect(readSafetyEvent(null)).toBeUndefined();
   });
 });

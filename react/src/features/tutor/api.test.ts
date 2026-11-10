@@ -15,10 +15,15 @@ vi.mock('../../lib/data-client', () => ({
     models: {
       AIInteractionAudit: { create: createAudit },
       SafetyEvent: { create: createSafetyEvent },
-      SkillProgress: { list: listSkillProgress },
-      ChildQuestState: { list: listQuestState },
     },
   },
+}));
+// Mastery and quest state are Django reads since AMP-03; these adapters keep the fixtures below.
+vi.mock('../mastery/api', () => ({
+  listSkillProgress: async () => ((await listSkillProgress()) as { data: unknown[] }).data,
+}));
+vi.mock('../quests/api', () => ({
+  listQuestStates: async () => ((await listQuestState()) as { data: unknown[] }).data,
 }));
 
 import { requestTutorTurn } from './api';

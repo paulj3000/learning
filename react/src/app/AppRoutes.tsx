@@ -32,14 +32,7 @@ import { TravelDeck } from '../routes/TravelDeck';
 import { WorldHubPage } from '../routes/WorldHubPage';
 import { StoryPage } from '../routes/StoryPage';
 import { AdventureLibraryPage } from '../routes/AdventureLibraryPage';
-import { AdminDashboard } from '../routes/AdminDashboard';
-import { AdminChildProgress } from '../routes/AdminChildProgress';
-import { AdminIslands } from '../routes/AdminIslands';
-import { AdminIslandForm } from '../routes/AdminIslandForm';
-import { AdminIslandDetail } from '../routes/AdminIslandDetail';
-import { AdminAdventures } from '../routes/AdminAdventures';
-import { AdminAdventureForm } from '../routes/AdminAdventureForm';
-import { AdminAdventureDetail } from '../routes/AdminAdventureDetail';
+import { AdminMoved } from '../routes/AdminMoved';
 import { RequireParent } from '../features/auth/RequireParent';
 import { RequireGuest } from '../features/auth/RequireGuest';
 import { RequireAdmin } from '../features/auth/RequireAdmin';
@@ -393,18 +386,9 @@ export function AppRoutes() {
           </RequireAdmin>
         }
       >
-        <Route index element={<AdminDashboard />} />
-        <Route path="children/:childId" element={<AdminChildProgress />} />
-        {/* Islands & Adventures catalog (docs/ISLAND_ADVENTURE_MANAGEMENT.md, ADR-031). */}
-        <Route path="islands" element={<AdminIslands />} />
-        <Route path="islands/new" element={<AdminIslandForm />} />
-        <Route path="islands/:islandId" element={<AdminIslandDetail />} />
-        <Route path="islands/:islandId/edit" element={<AdminIslandForm />} />
-        <Route path="islands/:islandId/adventures/new" element={<AdminAdventureForm />} />
-        <Route path="adventures" element={<AdminAdventures />} />
-        <Route path="adventures/new" element={<AdminAdventureForm />} />
-        <Route path="adventures/:adventureId" element={<AdminAdventureDetail />} />
-        <Route path="adventures/:adventureId/edit" element={<AdminAdventureForm />} />
+        {/* The React admin pages are retired (AMP-03): Django Admin (ADR-034, ADR-043). */}
+        <Route index element={<AdminMoved />} />
+        <Route path="*" element={<AdminMoved />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

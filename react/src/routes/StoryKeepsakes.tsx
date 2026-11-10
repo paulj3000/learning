@@ -68,7 +68,8 @@ export function StoryKeepsakes() {
   }, [childId]);
 
   async function handleDelete(id: string) {
-    await deleteStoryArtifact(id);
+    if (!childId) return;
+    await deleteStoryArtifact(childId, id);
     setStories((current) => current.filter((story) => story.id !== id));
     setPendingDeleteId(null);
   }

@@ -1,35 +1,50 @@
-import { client } from '../../lib/data-client';
-import type { Schema } from '../../../../amplify/data/resource';
-
-export type CompanionProfile = Schema['CompanionProfile']['type'];
+import { childPath, djangoClient } from '../../api/djangoClient';
+import { read } from '../../api/parse';
 
 /**
- * Owner authorization scopes `.list()` to the caller's own records, so
- * filtering by childProfileId client-side (rather than relying on a second
- * query) is enough to find this child's companion, if any.
+ * The companion a child chose at Welcome Harbor, on Django (`children/<id>/companion/`, AMP-03).
+ * One choice per child; only an authored companion type is ever sent, never a name.
  */
-export async function getCompanionProfile(
-  childProfileId: string,
-): Promise<CompanionProfile | null> {
-  const { data } = await client.models.CompanionProfile.list();
-  return (
-    data.find((companion: CompanionProfile) => companion.childProfileId === childProfileId) ?? null
+export type CompanionType = 'CHATTY_PARROT';
+
+export interface CompanionProfile {
+  childProfileId: string;
+  companionType: CompanionType;
+  /** Authored by the server for the type ("Chatty"). */
+  displayName: string;
+  chosenAt: string;
+}
+
+const COMPANION_TYPES = ['CHATTY_PARROT'] as const;
+
+function readCompanion(data: unknown, childProfileId: string): CompanionProfile | null {
+  return read(data, (r) =>
+    r.field('companion').nullable((c) => ({
+      childProfileId,
+      companionType: c.field('companionType').oneOf(COMPANION_TYPES),
+      displayName: c.field('displayName').string(),
+      chosenAt: c.field('chosenAt').string(),
+    })),
   );
 }
 
+/** This child's companion, or null before they choose one. */
+export async function getCompanionProfile(
+  childProfileId: string,
+): Promise<CompanionProfile | null> {
+  const response = await djangoClient().request('GET', childPath(childProfileId, 'companion/'));
+  return readCompanion(response.data, childProfileId);
+}
+
+/** Chooses Chatty for this child. Idempotent: choosing again keeps the first choice's time. */
 export async function getOrCreateCompanionProfile(
   childProfileId: string,
+  companionType: CompanionType = 'CHATTY_PARROT',
 ): Promise<CompanionProfile> {
-  const existing = await getCompanionProfile(childProfileId);
-  if (existing) return existing;
-
-  const { data: created, errors } = await client.models.CompanionProfile.create({
-    childProfileId,
-    companionType: 'CHATTY_PARROT',
-    displayName: 'Chatty',
+  const response = await djangoClient().request('PUT', childPath(childProfileId, 'companion/'), {
+    body: { companionType },
   });
-  if (!created) {
-    throw new Error(errors?.[0]?.message ?? 'Could not create a companion profile.');
-  }
-  return created;
+  const companion = readCompanion(response.data, childProfileId);
+  if (!companion) throw new Error('Could not choose a companion.');
+  return companion;
 }

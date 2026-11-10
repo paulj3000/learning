@@ -1,123 +1,59 @@
 /**
- * Discovery persistence (docs/ROADMAP.md Phase 26).
+ * Discovery persistence (docs/ROADMAP.md Phase 26), on Django (AMP-03).
  *
- * The only impure module in `src/features/discovery/`. Every decision about
- * whether a secret opens is made by `discovery.ts` first, so the rules stay
- * unit-testable without a backend - the same split
- * `src/features/quests/` and `src/features/rewards/` already use.
+ * The only impure module in `src/features/discovery/`. The server is the authority for whether a
+ * secret opens and what finding it owes (`POST children/<id>/discoveries/`, SC-R04-00): it
+ * records the find, the authored world change and the reward rules, each once, from the content
+ * export. `discovery.ts` still resolves the outcome locally first, so a secret that is plainly
+ * found or plainly locked costs no write, and the child sees the authored copy at once.
  *
- * This is also where the Discovery Engine touches its neighbours, and it
- * only ever does so through their own public APIs: `recordWorldChangeOnce`
- * (Adventure Engine), `grantRewards` (Reward Engine), and `startQuest` /
- * `syncQuestProgress` (Quest Engine). It never writes another engine's table
- * directly, per docs/ARCHITECTURE.md's engine boundaries.
+ * The rest of the exploration record is `children/<id>/world-state/`: the characters a child has
+ * met and the last checkpoint they crossed, each an authored id the server checks.
  *
- * The Quest Engine is reached through a dynamic `import()` rather than a
- * static one, for the same reason `grantQuestRewards` reaches rewards that
- * way: `src/features/quests/api.ts` imports `getWorldState` from here to
- * fill `QuestContext.discoveryKeys`, so a static import in both directions
- * would be a module cycle.
- *
- * Authorization is the model's own `allow.owner()`: a parent reaches only
- * their own children's exploration record, and Admins read only.
+ * The Quest Engine is reached through a dynamic `import()` rather than a static one:
+ * `src/features/quests/api.ts` imports `getWorldState` from here to fill
+ * `QuestContext.discoveryKeys`, so a static import in both directions would be a module cycle.
  */
-import { client } from '../../lib/data-client';
-import { discoveriesApiFor, type RecordedDiscovery } from '../../api/play/discoveriesApi';
-import type { Schema } from '../../../../amplify/data/resource';
-import { listAllWorldChanges, recordWorldChangeOnce } from '../adventures/api';
-import { getInventory, grantRewards } from '../rewards/api';
-import { ALL_COLLECTIBLE_SETS, ALL_ITEMS, ALL_REWARD_RULES } from '../rewards/content';
+import { childPath, djangoClient } from '../../api/djangoClient';
+import { read } from '../../api/parse';
+import { recordDiscoveryOnServer } from '../../api/play/discoveriesApi';
+import { listAllWorldChanges } from '../adventures/api';
+import { getInventory } from '../rewards/api';
 import { ISLAND_NPCS } from '../npc/content';
 import { KNOWN_CHECKPOINT_IDS } from './checkpoints';
 import { ISLAND_DISCOVERIES, ISLAND_DISCOVERY_IDS } from './content';
-import { addDiscoveredId, parseKnownId, parseKnownIds, resolveDiscovery } from './discovery';
+import { parseKnownId, parseKnownIds, resolveDiscovery } from './discovery';
 import type {
   DiscoveryContext,
   DiscoveryDefinition,
   DiscoveryId,
   WorldStateSnapshot,
 } from './types';
-import { EMPTY_WORLD_STATE } from './types';
 import type { DiscoveryOutcome } from './discovery';
-
-export type ChildWorldStateRow = Schema['ChildWorldState']['type'];
 
 const KNOWN_NPC_IDS: readonly string[] = ISLAND_NPCS.map((npc) => npc.id);
 
-function toSnapshot(row: ChildWorldStateRow): WorldStateSnapshot {
-  return {
-    discoveredIds: parseKnownIds(row.discoveredObjects, ISLAND_DISCOVERY_IDS),
-    metCharacterIds: parseKnownIds(row.discoveredCharacters, KNOWN_NPC_IDS),
-    lastCheckpointId: parseKnownId(row.lastCheckpointId, KNOWN_CHECKPOINT_IDS),
-  };
+function worldStatePath(childProfileId: string): string {
+  return childPath(childProfileId, 'world-state/');
 }
 
-async function findRow(childProfileId: string): Promise<ChildWorldStateRow | undefined> {
-  const { data } = await client.models.ChildWorldState.list();
-  return data.find((row: ChildWorldStateRow) => row.childProfileId === childProfileId);
+function readSnapshot(data: unknown): WorldStateSnapshot {
+  return read(data, (r) => ({
+    discoveredIds: parseKnownIds(r.field('discoveredIds').value, ISLAND_DISCOVERY_IDS),
+    metCharacterIds: parseKnownIds(r.field('metCharacterIds').value, KNOWN_NPC_IDS),
+    lastCheckpointId: parseKnownId(r.field('lastCheckpointId').value, KNOWN_CHECKPOINT_IDS),
+  }));
 }
 
 /** This child's exploration record, or an empty one if they have never found anything. */
 export async function getWorldState(childProfileId: string): Promise<WorldStateSnapshot> {
-  const row = await findRow(childProfileId);
-  const snapshot = row ? toSnapshot(row) : EMPTY_WORLD_STATE;
-  return withServerDiscoveries(childProfileId, snapshot);
-}
-
-/**
- * In Django mode the server's record of what a child has found is merged in,
- * so a discovery it holds is never lost to an Amplify write that failed (SC-R04-00).
- * A union, in the content's order: Django is authoritative for what it holds, and
- * the Amplify row still carries everything found before Django mode. A failed read
- * leaves the Amplify snapshot as it was, and a build without the Django API never
- * gets here.
- */
-async function withServerDiscoveries(
-  childProfileId: string,
-  snapshot: WorldStateSnapshot,
-): Promise<WorldStateSnapshot> {
-  const server = discoveriesApiFor(childProfileId);
-  if (!server) return snapshot;
-  try {
-    const known = parseKnownIds(await server.list(), ISLAND_DISCOVERY_IDS);
-    const merged = ISLAND_DISCOVERY_IDS.filter(
-      (id) => snapshot.discoveredIds.includes(id) || known.includes(id),
-    );
-    return merged.length === snapshot.discoveredIds.length &&
-      merged.every((id) => snapshot.discoveredIds.includes(id))
-      ? snapshot
-      : { ...snapshot, discoveredIds: merged };
-  } catch {
-    return snapshot;
-  }
-}
-
-/**
- * Asks the server whether this find stands, and records it there. `undefined`
- * means there is no server answer (no Django API in this build, or it failed),
- * which is never a reason to stop a child finding something: the Amplify path
- * carries on exactly as it did before Django mode.
- */
-async function askServer(
-  childProfileId: string,
-  discoveryId: string,
-): Promise<RecordedDiscovery | undefined> {
-  const server = discoveriesApiFor(childProfileId);
-  if (!server) return undefined;
-  try {
-    return await server.record(discoveryId);
-  } catch {
-    return undefined;
-  }
+  const response = await djangoClient().request('GET', worldStatePath(childProfileId));
+  return readSnapshot(response.data);
 }
 
 /**
  * Assembles the snapshot the pure discovery functions read: what the island
  * already recorded, what is in the backpack, and what has already been found.
- *
- * Three reads against engines that already own their data, and no new
- * bookkeeping anywhere else in the app - the same shape as
- * `buildQuestContext`.
  */
 export async function buildDiscoveryContext(childProfileId: string): Promise<DiscoveryContext> {
   const [worldChanges, inventory, worldState] = await Promise.all([
@@ -133,25 +69,6 @@ export async function buildDiscoveryContext(childProfileId: string): Promise<Dis
   };
 }
 
-async function writeIds(
-  childProfileId: string,
-  row: ChildWorldStateRow | undefined,
-  snapshot: WorldStateSnapshot,
-): Promise<void> {
-  const now = new Date().toISOString();
-  const fields = {
-    discoveredObjects: [...snapshot.discoveredIds],
-    discoveredCharacters: [...snapshot.metCharacterIds],
-    lastCheckpointId: snapshot.lastCheckpointId ?? null,
-    updatedAt: now,
-  };
-  if (row) {
-    await client.models.ChildWorldState.update({ id: row.id, ...fields });
-  } else {
-    await client.models.ChildWorldState.create({ childProfileId, ...fields });
-  }
-}
-
 export interface DiscoveryResult {
   outcome: DiscoveryOutcome;
   /** Authored celebration lines from any reward rule this discovery fired. */
@@ -163,29 +80,13 @@ export interface DiscoveryResult {
 }
 
 /**
- * Records a discovery for this child, and fires everything finding it owes.
+ * Records a discovery for this child, and starts or advances the quest it gives out.
  *
- * Safe to call every time a child walks into the zone: a secret that is
- * already found writes nothing, grants nothing a second time, and returns
- * the same `revealMessage` - so a scene can call this unconditionally rather
- * than tracking elsewhere whether this is a repeat visit. A locked secret
- * writes nothing either; it just returns the authored `lockedMessage`.
- *
- * Order of side effects matters and is deliberate, matching
- * `syncQuestProgress`:
- * 1. the discovery row first, because it is what makes the secret *found*
- *    and everything below is a consequence of that;
- * 2. the world change next, because it is what the island shows;
- * 3. rewards next, since `grantRewards` is idempotent per rule;
- * 4. the quest last, because a quest is the only one of these that reads the
- *    others - "The Quiet Places" projects itself against the discovery row
- *    written in step 1.
- *
- * Every step after the first is individually failure-tolerant: a secret that
- * was found stays found even if a reward write fails, because the
- * alternative is a child watching a place they found go back to being
- * hidden. `grantRewards` being idempotent per rule means the missed grant is
- * picked up the next time anything calls it.
+ * Safe to call every time a child walks into the zone: a secret that is already found writes
+ * nothing and returns the same `revealMessage`; a locked one returns the authored
+ * `lockedMessage`. Otherwise the server decides: if it says the secret does not open for this
+ * child, it stays shut, whatever the client's copy of the state said, and if it was already
+ * found there, nothing is granted again.
  */
 export async function recordDiscovery(
   childProfileId: string,
@@ -194,82 +95,39 @@ export async function recordDiscovery(
 ): Promise<DiscoveryResult> {
   const resolvedContext = context ?? (await buildDiscoveryContext(childProfileId));
   const outcome = resolveDiscovery(definition, resolvedContext);
-  if (outcome.status === 'ALREADY_FOUND') {
-    // Found before Django mode, or by an Amplify write the server never saw: tell the server, so
-    // it holds the record too. Idempotent, and nothing here waits on it or changes what is shown.
-    void askServer(childProfileId, definition.id);
-  }
   if (outcome.status !== 'FOUND_NOW') {
     return { outcome, rewardMessages: [], newItemIds: [] };
   }
 
-  // In Django mode the server is the authority. If it says the secret does not open for this
-  // child, it stays shut, whatever the client's copy of the state said. Any other answer, or
-  // none, carries on: the writes below are idempotent, so the two records only ever agree.
-  const authority = await askServer(childProfileId, definition.id);
-  if (authority?.status === 'LOCKED') {
+  const recorded = await recordDiscoveryOnServer(djangoClient(), childProfileId, definition.id);
+  if (recorded.status === 'LOCKED') {
     return {
       outcome: {
         ...outcome,
         status: 'LOCKED',
-        message: authority.message ?? definition.lockedMessage,
+        message: recorded.message ?? definition.lockedMessage,
       },
       rewardMessages: [],
       newItemIds: [],
     };
   }
-
-  const row = await findRow(childProfileId);
-  const current = row ? toSnapshot(row) : EMPTY_WORLD_STATE;
-  await writeIds(childProfileId, row, {
-    ...current,
-    discoveredIds: addDiscoveredId(current.discoveredIds, definition.id),
-  });
-
-  if (definition.worldChange) {
-    await recordWorldChangeOnce(
-      childProfileId,
-      definition.worldChange.locationSlug,
-      definition.worldChange.changeType,
-      definition.worldChange.changeKey,
-      // Discoveries have no adventure session behind them. The discovery id
-      // is the honest provenance, and it keeps the column's "what caused
-      // this" meaning intact - the same convention `syncQuestProgress` uses
-      // with `quest:<id>`.
-      `discovery:${definition.id}`,
-    ).catch(() => undefined);
-  }
-
-  let rewardMessages: readonly string[] = [];
-  let newItemIds: readonly string[] = [];
-  try {
-    const granted = await grantRewards(
-      childProfileId,
-      { type: 'DISCOVERY', discoveryKey: definition.id },
-      ALL_REWARD_RULES,
-      ALL_COLLECTIBLE_SETS,
-      ALL_ITEMS,
-    );
-    rewardMessages = granted.messages;
-    newItemIds = granted.newItemIds;
-  } catch {
-    rewardMessages = [];
-    newItemIds = [];
+  if (recorded.status === 'ALREADY_FOUND') {
+    return { outcome: { ...outcome, status: 'ALREADY_FOUND' }, rewardMessages: [], newItemIds: [] };
   }
 
   const startedQuestId = await startOrAdvanceQuest(childProfileId, definition.startsQuestId);
-
-  return { outcome, rewardMessages, newItemIds, startedQuestId };
+  return {
+    outcome,
+    rewardMessages: recorded.rewardMessages,
+    newItemIds: recorded.newItemIds,
+    startedQuestId,
+  };
 }
 
 /**
  * Starts the quest this discovery gives out, then reprojects every active
  * quest so a `DISCOVER` objective the child just satisfied ticks over
  * immediately rather than waiting for the journal to be opened.
- *
- * `syncQuestProgress` runs even when no quest was started, because a
- * discovery can complete an objective in a quest that is already running -
- * which is the normal case for every secret after the first.
  */
 async function startOrAdvanceQuest(
   childProfileId: string,
@@ -283,9 +141,8 @@ async function startOrAdvanceQuest(
     if (questId) {
       const definition = getQuestDefinition(questId);
       if (definition) {
-        // Checked before starting, so a second visit to the tide pool does
-        // not re-announce a quest the child is already on. `startQuest`
-        // itself is idempotent and would return the existing row either way.
+        // Checked before starting, so a second visit does not re-announce a quest the child is
+        // already on. `startQuest` itself is idempotent.
         const alreadyRunning = (await listQuestStates(childProfileId)).some(
           (state) => state.questId === questId,
         );
@@ -302,40 +159,25 @@ async function startOrAdvanceQuest(
 }
 
 /**
- * Records that this child has met a character in the world.
- *
- * Distinct from `ChildNpcState`, which the NPC engine writes when a
- * *dialogue* happens: this is the flat "walked up and said hello" record the
- * explorable scenes produce, and today the scenes are the only thing a child
- * can actually reach. Cheap and idempotent - an already-met character writes
- * nothing.
+ * Records that this child has met a character in the world. Cheap and idempotent: an unknown id
+ * is dropped here, and the server ignores a character already met.
  */
 export async function recordCharacterMet(childProfileId: string, npcId: string): Promise<void> {
   if (!KNOWN_NPC_IDS.includes(npcId)) return;
-  const row = await findRow(childProfileId);
-  const current = row ? toSnapshot(row) : EMPTY_WORLD_STATE;
-  if (current.metCharacterIds.includes(npcId)) return;
-  await writeIds(childProfileId, row, {
-    ...current,
-    metCharacterIds: [...current.metCharacterIds, npcId],
+  await djangoClient().request('PATCH', worldStatePath(childProfileId), {
+    body: { metCharacterId: npcId },
   });
 }
 
 /**
- * Records the last authored checkpoint (`checkpoints.ts`) a child crossed in
- * a 3D explorable region (docs/ROADMAP.md Phase 32). Safe to call every
- * time the scene detects the child inside a checkpoint's trigger volume:
- * an unknown id is dropped (`saveCheckpoint` never trusts a raw
- * coordinate, only an authored id, same closed-vocabulary contract as
- * `recordCharacterMet`), and re-saving the checkpoint the child is already
- * at writes nothing.
+ * Records the last authored checkpoint (`checkpoints.ts`) a child crossed in a 3D explorable
+ * region (docs/ROADMAP.md Phase 32). Only an authored id is ever sent, never a coordinate.
  */
 export async function saveCheckpoint(childProfileId: string, checkpointId: string): Promise<void> {
   if (!KNOWN_CHECKPOINT_IDS.includes(checkpointId)) return;
-  const row = await findRow(childProfileId);
-  const current = row ? toSnapshot(row) : EMPTY_WORLD_STATE;
-  if (current.lastCheckpointId === checkpointId) return;
-  await writeIds(childProfileId, row, { ...current, lastCheckpointId: checkpointId });
+  await djangoClient().request('PATCH', worldStatePath(childProfileId), {
+    body: { lastCheckpointId: checkpointId },
+  });
 }
 
 /** Looks up an authored discovery by the id a `DISCOVER` world action names. */
@@ -349,9 +191,5 @@ export function getDiscoveryDefinition(discoveryId: DiscoveryId): DiscoveryDefin
  * child found is not taken back as a mechanic.
  */
 export async function clearWorldState(childProfileId: string): Promise<void> {
-  const { data } = await client.models.ChildWorldState.list();
-  const rows = data.filter((row: ChildWorldStateRow) => row.childProfileId === childProfileId);
-  await Promise.all(
-    rows.map((row: ChildWorldStateRow) => client.models.ChildWorldState.delete({ id: row.id })),
-  );
+  await djangoClient().request('DELETE', worldStatePath(childProfileId));
 }

@@ -6,6 +6,7 @@ import {
   type AgeBandValue,
   type ReadingModeValue,
 } from './constants';
+import { deleteAccountAndAllData as deleteAccount, type DeleteCognitoUser } from './deletion';
 import { createDjangoPhotoClient, type DjangoPhotoClient } from './djangoPhotos';
 import { PROFILE_MESSAGES, ProfileRequestError } from './profileErrors';
 import type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore } from './profileTypes';
@@ -20,9 +21,10 @@ import type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore } fro
  * the profile is saved first, then the photo is uploaded or removed (`photoWrite: 'after-save'`).
  * A child's `avatarPhotoKey` is its own id when Django reports `hasPhoto`, and null otherwise.
  *
- * Not available from Django yet, so this store says so instead of pretending:
- * - hard deletion of a child or the account (blocked server-side until LAI-0209): a parent can
- *   deactivate a child instead, which keeps the record and its progress.
+ * Deletion: a child is `DELETE children/<id>/` (LAI-0602); the whole account is `DELETE me/`
+ * followed by the Cognito user (`deletion.ts`, AMP-03), which needs the injected
+ * `deleteCognitoUser`. Without one, account deletion says it is unavailable instead of
+ * pretending. Both need a recent sign-in (LAI-0209).
  */
 
 export { PROFILE_MESSAGES, ProfileRequestError };
@@ -32,6 +34,7 @@ const READING_MODES = new Set<string>(READING_MODE_OPTIONS.map((option) => optio
 export function createDjangoProfileStore(
   client: ApiClient,
   photos: DjangoPhotoClient = createDjangoPhotoClient(client),
+  deleteCognitoUser?: DeleteCognitoUser,
 ): ProfileStore {
   async function call(
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
@@ -114,9 +117,12 @@ export function createDjangoProfileStore(
       }
     },
     async deleteAccountAndAllData() {
-      throw new ProfileRequestError(PROFILE_MESSAGES.accountDeletionUnavailable, {
-        code: 'sensitive_action_unavailable',
-      });
+      if (!deleteCognitoUser) {
+        throw new ProfileRequestError(PROFILE_MESSAGES.accountDeletionUnavailable, {
+          code: 'sensitive_action_unavailable',
+        });
+      }
+      await deleteAccount(client, deleteCognitoUser);
     },
   };
 }

@@ -98,7 +98,11 @@ vi.mock('../../../../story/useStoryProgress', () => ({
     useStoryProgressSpy(childProfileId, story.slug);
     return {
       loadState: 'ready',
-      progress: { id: 'story-progress-1', currentChapterId: storyChapterId },
+      progress: {
+        id: 'story-progress-1',
+        storyId: 'the-castles-secret-door',
+        currentChapterId: storyChapterId,
+      },
       chapter: storyChapterId ? { id: storyChapterId, title: 'Three Clues', scenes: [] } : null,
       flags: {},
       setFlag: vi.fn(),
@@ -109,16 +113,16 @@ vi.mock('../../../../story/useStoryProgress', () => ({
 
 vi.mock('../../../../story/StoryChapterRunner', () => ({
   StoryChapterRunner: ({
-    storyProgressId,
+    storyId,
     chapter,
     renderAdventure,
   }: {
-    storyProgressId: string;
+    storyId: string;
     chapter: { id: string };
     renderAdventure?: (props: Record<string, unknown>) => React.ReactNode;
   }) => (
     <div data-testid="story-chapter-runner">
-      {storyProgressId}:{chapter.id}
+      {storyId}:{chapter.id}
       {renderAdventure?.({
         childProfileId: 'child-1',
         definition: SECRET_DOOR_CHAPTER_2_PATTERN_LOCK,
@@ -683,7 +687,7 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
       await renderAndWait('EXPLORER');
       await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'castle-last-bookshelf' }));
       expect(await screen.findByTestId('story-chapter-runner')).toHaveTextContent(
-        'story-progress-1:three-clues',
+        'the-castles-secret-door:three-clues',
       );
       expect(useStoryProgressSpy).toHaveBeenCalledWith('child-1', 'the-castles-secret-door');
     });

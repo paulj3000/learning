@@ -53,7 +53,7 @@ export function IslandLocationPage() {
         const [child, changes, catalog] = await Promise.all([
           getChildProfile(childId),
           listAllWorldChanges(childId),
-          loadCatalogSnapshot(),
+          loadCatalogSnapshot(childId),
         ]);
         if (cancelled) return;
         if (!child) {

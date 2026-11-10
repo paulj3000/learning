@@ -110,11 +110,19 @@ describe('ChildProfileForm', () => {
   });
 });
 
+// The Amplify Storage photo path (`before-save`, AMP-04 retires it) is no longer the default
+// store's (AMP-03: profiles are Django only), so these tests ask for it explicitly.
 describe('ChildProfileForm photo icon', () => {
   it('saves a profile with no photo when the parent does not choose one', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
-    render(<ChildProfileForm submitLabel="Create profile" onSubmit={onSubmit} />);
+    render(
+      <ChildProfileForm
+        submitLabel="Create profile"
+        photoWrite="before-save"
+        onSubmit={onSubmit}
+      />,
+    );
 
     await user.type(screen.getByLabelText(/nickname/i), 'Robin');
     await user.click(screen.getByRole('button', { name: /create profile/i }));
@@ -141,7 +149,13 @@ describe('ChildProfileForm photo icon', () => {
   it('uploads a chosen photo and saves the profile with its stored path', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
-    render(<ChildProfileForm submitLabel="Create profile" onSubmit={onSubmit} />);
+    render(
+      <ChildProfileForm
+        submitLabel="Create profile"
+        photoWrite="before-save"
+        onSubmit={onSubmit}
+      />,
+    );
 
     await user.type(screen.getByLabelText(/nickname/i), 'Robin');
     await user.upload(screen.getByLabelText(/choose a photo/i), IMAGE_FILE);
@@ -158,7 +172,13 @@ describe('ChildProfileForm photo icon', () => {
   it('rejects an oversized photo, and prepares or uploads nothing', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
-    render(<ChildProfileForm submitLabel="Create profile" onSubmit={onSubmit} />);
+    render(
+      <ChildProfileForm
+        submitLabel="Create profile"
+        photoWrite="before-save"
+        onSubmit={onSubmit}
+      />,
+    );
 
     // A real 9 MB file would just slow the suite down; only `size` is read.
     const oversized = new File(['x'], 'huge.jpg', { type: 'image/jpeg' });
@@ -179,7 +199,13 @@ describe('ChildProfileForm photo icon', () => {
    */
   it('only offers the image types the browser can decode', () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
-    render(<ChildProfileForm submitLabel="Create profile" onSubmit={onSubmit} />);
+    render(
+      <ChildProfileForm
+        submitLabel="Create profile"
+        photoWrite="before-save"
+        onSubmit={onSubmit}
+      />,
+    );
 
     expect(screen.getByLabelText(/choose a photo/i)).toHaveAttribute(
       'accept',
@@ -193,6 +219,7 @@ describe('ChildProfileForm photo icon', () => {
     render(
       <ChildProfileForm
         submitLabel="Save changes"
+        photoWrite="before-save"
         initialValue={{
           nickname: 'Robin',
           avatarPhotoKey: 'child-photos/identity-1/old.jpg',
@@ -214,7 +241,13 @@ describe('ChildProfileForm photo icon', () => {
     uploadData.mockImplementation(() => ({ result: Promise.reject(new Error('AccessDenied')) }));
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
-    render(<ChildProfileForm submitLabel="Create profile" onSubmit={onSubmit} />);
+    render(
+      <ChildProfileForm
+        submitLabel="Create profile"
+        photoWrite="before-save"
+        onSubmit={onSubmit}
+      />,
+    );
 
     await user.type(screen.getByLabelText(/nickname/i), 'Robin');
     await user.upload(screen.getByLabelText(/choose a photo/i), IMAGE_FILE);
