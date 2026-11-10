@@ -54,6 +54,9 @@ export type DjangoEnvironment = 'dev' | 'prod';
 export type DatabaseMode = 'rds' | 'container';
 
 export const PROXY_PORT = 8080;
+/** A lower-case DNS host name with at least two labels. */
+export const HOST_NAME_PATTERN =
+  '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$';
 export const READINESS_PATH = '/api/v1/health/ready/';
 export const METRICS_NAMESPACE = 'LearningAdventureIsland/EC2';
 export const IMAGE_URI_PATTERN =
@@ -143,7 +146,15 @@ export class DjangoEc2Stack extends Stack {
     const apiDomain = new CfnParameter(this, 'ApiDomainName', {
       type: 'String',
       description: 'The API host name, for example api.example.com (DNS need not exist yet)',
-      allowedPattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$',
+      allowedPattern: HOST_NAME_PATTERN,
+    }).valueAsString;
+    // LAI-INFRA-003: the Django Admin has its own host on the same load balancer. The API host
+    // serves only /api/ and the admin host never serves /api/ (nginx and the listener rule).
+    const adminDomain = new CfnParameter(this, 'AdminDomainName', {
+      type: 'String',
+      description:
+        'The Django Admin host name, for example ladm.example.com (DNS need not exist yet)',
+      allowedPattern: HOST_NAME_PATTERN,
     }).valueAsString;
     const amiId = new CfnParameter(this, 'AmiId', {
       type: 'AWS::EC2::Image::Id',
@@ -364,8 +375,10 @@ export class DjangoEc2Stack extends Stack {
 
     // --- Runtime settings (plain values; secrets are SecureStrings an operator writes) ----------
     const settings: Record<string, string> = {
-      DJANGO_ALLOWED_HOSTS: apiDomain,
-      DJANGO_CSRF_TRUSTED_ORIGINS: `https://${apiDomain}`,
+      // Both hosts reach Django; nginx decides which paths each may use (LAI-INFRA-003).
+      DJANGO_ALLOWED_HOSTS: `${apiDomain},${adminDomain}`,
+      // Only the admin host serves a form that POSTs with a CSRF token; the API is bearer-only.
+      DJANGO_CSRF_TRUSTED_ORIGINS: `https://${adminDomain}`,
       COGNITO_REGION: Fn.select(0, Fn.split('_', cognitoPoolId)),
       COGNITO_USER_POOL_ID: cognitoPoolId,
       COGNITO_ALLOWED_CLIENT_IDS: cognitoClientIds,
@@ -393,6 +406,7 @@ export class DjangoEc2Stack extends Stack {
       AWS_REGION: Aws.REGION,
       LAI_ECR_REPOSITORY_URI: repository.repositoryUri,
       LAI_API_HOST: apiDomain,
+      LAI_ADMIN_HOST: adminDomain,
       LAI_DB_MODE: databaseMode,
       LAI_DB_SECRET_ARN: database?.secret?.secretArn ?? '',
       LAI_DB_INSTANCE_ID: database?.instanceIdentifier ?? '',
@@ -451,8 +465,11 @@ export class DjangoEc2Stack extends Stack {
           zoneName: props.hostedZone.name,
         })
       : undefined;
+    // One certificate for both hosts. Adding the admin name replaced the API-only certificate
+    // (a new ARN, validated again); nothing is deployed yet, so nothing is lost.
     const certificate = new acm.Certificate(this, 'ApiCertificate', {
       domainName: apiDomain,
+      subjectAlternativeNames: [adminDomain],
       // Without a Route 53 zone, ACM shows a CNAME to add at the DNS provider; the stack waits.
       validation: zone
         ? acm.CertificateValidation.fromDns(zone)
@@ -482,13 +499,23 @@ export class DjangoEc2Stack extends Stack {
         unhealthyThresholdCount: 3,
       },
     });
-    alb.addListener('Https', {
+    // Only the two known host names reach the instance. Anything else (the ALB's own DNS name,
+    // a raw IP, a spoofed Host) gets a plain 404 from the load balancer itself.
+    const https = alb.addListener('Https', {
       port: 443,
       protocol: elbv2.ApplicationProtocol.HTTPS,
       certificates: [certificate],
       sslPolicy: elbv2.SslPolicy.RECOMMENDED_TLS,
-      defaultTargetGroups: [targetGroup],
+      defaultAction: elbv2.ListenerAction.fixedResponse(404, {
+        contentType: 'text/plain',
+        messageBody: 'Not found',
+      }),
       open: false,
+    });
+    https.addTargetGroups('KnownHosts', {
+      priority: 10,
+      conditions: [elbv2.ListenerCondition.hostHeaders([apiDomain, adminDomain])],
+      targetGroups: [targetGroup],
     });
     alb.addListener('Http', {
       port: 80,
@@ -504,6 +531,11 @@ export class DjangoEc2Stack extends Stack {
       new route53.ARecord(this, 'ApiAlias', {
         zone,
         recordName: apiDomain,
+        target: route53.RecordTarget.fromAlias(new route53Targets.LoadBalancerTarget(alb)),
+      });
+      new route53.ARecord(this, 'AdminAlias', {
+        zone,
+        recordName: adminDomain,
         target: route53.RecordTarget.fromAlias(new route53Targets.LoadBalancerTarget(alb)),
       });
     }
@@ -830,8 +862,9 @@ export class DjangoEc2Stack extends Stack {
     output(
       'LoadBalancerDnsName',
       alb.loadBalancerDnsName,
-      'CNAME api.<domain> to this if Route 53 is not used',
+      'CNAME the API and admin hosts to this if Route 53 is not used',
     );
+    output('AdminBaseUrl', `https://${adminDomain}/admin/`, 'The Django Admin sign-in page');
     output('ApiBaseUrl', `https://${apiDomain}`, 'GitHub environment variable LAI_API_BASE_URL');
     output(
       'DeployRoleArn',

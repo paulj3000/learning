@@ -12908,3 +12908,48 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
 - **Not run.** e2e smoke (`test:e2e`; the 11 Firepeak scenarios are still `test.fixme`).
 - **Not done.** Owner browser QA (Firepeak FP-13, Storykeeper Castle, Django Admin authoring,
   the Island Explorer with Firepeak), deployed verification, LAI-0821 acceptance, merge to main.
+
+## LAI-INFRA-003 target domains, hosting and security (2026-11-09, branch `claude/lai-infra-001-pr-kwauv3`, proposed changeset, nothing deployed)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| LAI-INFRA-003 | `docs/infrastructure/domains-and-hosting.md`; CDK, nginx and release-script changeset | **None** (no AWS access; nothing deployed or changed in DNS) | Open: owner review, name choice per environment, Route 53 question (U10), approved rollout (doc section 7) |
+
+- Owner decision (2026-11-09): **same-origin API.** `lai.` CloudFront sends `/api/*` to the ALB,
+  and Django keeps no CORS (TR-D14). `api.` and `ladm.` share the ALB with one us-west-1
+  certificate. The React site is a new `LaiFrontend-<env>` stack in us-east-1 (private S3 with OAC,
+  narrow SPA rewrite, `/game/` entry for Android).
+- Host isolation: the ALB forwards only the API and admin hosts (otherwise a 404). nginx serves
+  `/api/` only on the API host, and the admin but never `/api/` on the admin host. CSRF trusts the
+  admin host only.
+- Found and fixed while testing: nginx's own redirect would have been absolute with port 8080
+  (`absolute_redirect off`). The Android game page must use `lai.` (one origin with the API), not
+  `api.`.
+- Checks: infra vitest 62 passed. `tests/deploy` passed, including the new real-nginx host test.
+  `npm run typecheck` and lint are clean. Prettier and ruff are clean on the changed files. All six
+  stacks synthesize with no assets. Not run: Django suite (no Django code changed), `cfn-lint`
+  (deferred to LAI-INFRA-005), shellcheck (not installed).
+
+## LAI-INFRA-004 deployment automation ownership (2026-11-09, branch `claude/lai-infra-001-pr-kwauv3`, design plus gated code, nothing switched on)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| LAI-INFRA-004 | `docs/infrastructure/deployment-design.md`; `deploy-site.yml`, `site-release` action, `publish-site.sh`, site deploy role | **None** (no AWS access; the workflow is gated off by `LAI_SITE_DEPLOY_ENABLED`) | Open: owner review, first gated dev run (confirms the `ampx generate outputs` IAM set), choosing (a) or (b) for the Amplify backend pipeline after acceptance |
+
+- Owner decisions (2026-11-09):
+  - GitHub Actions with OIDC is the only release system; CodePipeline/CodeBuild is not adopted.
+  - This PR ships the design and gated code.
+- How it works:
+  - Backend and frontend ship from the same `main` commit. The site waits for that commit's Django
+    release when the push touched backend paths, and stops if that release failed.
+  - Site rollback restores `_releases/<sha>/` shells, with no rebuild.
+  - Hashed assets are never deleted. Only the shells are invalidated.
+  - The site role has no S3 delete right and trusts only `environment:site-<env>`.
+- Checks:
+  - Infra vitest: 63 passed.
+  - `tests/deploy`: all passed, including 8 publish-script tests (fake `aws`) and 4 workflow guard
+    tests.
+  - `actionlint` is clean on both deploy workflows.
+  - `npm run typecheck` and lint are clean.
+  - Prettier and ruff are clean on changed files.
+- Not run: a real AWS or GitHub Actions run (gated off by design).
