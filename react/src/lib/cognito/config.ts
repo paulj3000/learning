@@ -32,7 +32,3 @@ export function readCognitoConfig(env: CognitoEnv): CognitoConfig | null {
   if (!match?.[1] || !CLIENT_ID.test(clientId)) return null;
   return { region: match[1], userPoolId, clientId };
 }
-
-export const COGNITO_CONFIG: CognitoConfig | null = readCognitoConfig(
-  import.meta.env as CognitoEnv,
-);

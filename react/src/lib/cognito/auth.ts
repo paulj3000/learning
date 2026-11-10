@@ -25,6 +25,16 @@ export interface KeyValueStorage {
   removeItem(key: string): void;
 }
 
+/** In-memory storage for when `localStorage` is unavailable (private mode, tests, scripts). */
+export function memoryStorage(): KeyValueStorage {
+  const values = new Map<string, string>();
+  return {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => void values.set(key, value),
+    removeItem: (key) => void values.delete(key),
+  };
+}
+
 export type JwtClaims = Record<string, unknown>;
 
 export interface SessionTokens {

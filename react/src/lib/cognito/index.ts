@@ -1,5 +1,5 @@
-import { createCognitoAuth, type CognitoAuth, type KeyValueStorage } from './auth';
-import { COGNITO_CONFIG } from './config';
+import { createCognitoAuth, memoryStorage, type CognitoAuth, type KeyValueStorage } from './auth';
+import { readCognitoConfig, type CognitoConfig, type CognitoEnv } from './config';
 
 export { CognitoError } from './service';
 export type {
@@ -11,15 +11,12 @@ export type {
   SignInStep,
 } from './auth';
 
-/** In-memory storage for when `localStorage` is unavailable (private mode, tests). */
-export function memoryStorage(): KeyValueStorage {
-  const values = new Map<string, string>();
-  return {
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => void values.set(key, value),
-    removeItem: (key) => void values.delete(key),
-  };
-}
+export { memoryStorage };
+
+/** This build's pool and client (`VITE_COGNITO_*`, see config.ts). */
+export const COGNITO_CONFIG: CognitoConfig | null = readCognitoConfig(
+  import.meta.env as CognitoEnv,
+);
 
 function browserStorage(): KeyValueStorage {
   try {

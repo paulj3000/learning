@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createCognitoAuth, decodeJwtClaims, type AuthEvent } from './auth';
+import { createCognitoAuth, decodeJwtClaims, memoryStorage, type AuthEvent } from './auth';
 import { readCognitoConfig } from './config';
-import { memoryStorage } from './index';
 import {
   SRP_G,
   SRP_N,
@@ -62,7 +61,8 @@ function fakeCognito(clock: { now: number }) {
   }
 
   const fetch = async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const target = String((init?.headers as Record<string, string>)['X-Amz-Target']).split('.')[1]!;
+    const headers = (init?.headers ?? {}) as Record<string, string>;
+    const target = String(headers['X-Amz-Target']).split('.')[1]!;
     const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
     calls.push({ target, body });
     const ok = (data: object) => new Response(JSON.stringify(data), { status: 200 });
