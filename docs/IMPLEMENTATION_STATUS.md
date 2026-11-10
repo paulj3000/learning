@@ -13173,3 +13173,10 @@ only exit shown. The owner chose to remove the check entirely.
 - Tests: the adult exit from every child screen and from the Island Explorer reaches the parent
   space with no question; during an encounter it confirms with plain buttons, then goes.
   Checked in Chromium through the local harness.
+
+### AP-04 owner acceptance (2026-11-10)
+
+- The owner accepted AP-04 after checking "Leave island" and the question-free adult exit. Trello
+  AP-04 moved to Complete and marked done.
+- Not merged to `main` or deployed: the merge of `feature/adventure-portal` (AP-01 and AP-04)
+  waits for the owner's go-ahead.
