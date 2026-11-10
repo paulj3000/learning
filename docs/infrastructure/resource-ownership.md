@@ -1,7 +1,9 @@
 # Resource ownership and duplicate stack audit (LAI-INFRA-002)
 
 Date: 2026-11-09. Trello: [LAI-INFRA-002](https://trello.com/c/MmdQrT6I). Base: `main` at
-`f2aece6` (LAI-INFRA-001 merged). Docs only: no AWS resource, workflow or definition was changed.
+`f2aece6` (LAI-INFRA-001 merged). Matrix rows updated by LAI-INFRA-005 (2026-11-09, `main` at
+`02820d1`) for the LAI-INFRA-003 and LAI-INFRA-004 outcomes; `reconciliation-report.md` has the
+validation. Docs only: no AWS resource, workflow or definition was changed.
 
 Input: `docs/infrastructure/inventory.md` (LAI-INFRA-001); evidence labels are the same
 (**[repo]**, **[owner-cli 2026-11-01]**, **[qa 2026-11-07]**, **[inferred]**), plus **[card]** for
@@ -52,8 +54,8 @@ repository and records leave one candidate; **Proposed** means a choice this aud
 | RDS PostgreSQL 16, Single-AZ, parameter group | `LaiDjangoEc2-<env>` (`instanceIdentifier: lai-django-<env>`, `rds` mode); YAML **[card]** | No | `LaiDjangoEc2-<env>` | Fixed identifier: a second stack with the same identifier fails. A YAML database with another identifier is a silent duplicate. Switching `container` to `rds` mode creates a new database (no data move) | Owner (D1) |
 | RDS secret | `LaiDjangoEc2-<env>` (`lai/<env>/django/database`) | No | `LaiDjangoEc2-<env>` | Fixed name | Evidence |
 | EBS data volume (`container` mode) | `LaiDjangoEc2-<env>`, dev only | No | `LaiDjangoEc2-<env>` | `SNAPSHOT` on removal | Evidence |
-| CloudFront distribution | YAML (frontend) **[card]**; no CDK or Amplify definition **[repo]**; LAI-1005 and AM-11 planned | No (none recorded) | **New CDK stack**, one per env, in this repository (proposed `LaiFrontend-<env>`) | The YAML is the only existing definition. Adopting it as-is would leave the frontend outside the CDK app | Owner (D2) |
-| Frontend S3 bucket | YAML **[card]**; Amplify Hosting today (managed, not a bucket in the account) | No (Amplify Hosting serves `react/dist`, [inferred]) | Same new CDK stack as CloudFront | Must not reuse `lai-assets-<env>-*` or the photo bucket | Owner (D2) |
+| CloudFront distribution | **`LaiFrontend-<env>`** (`infra/lib/frontendStack.ts`, LAI-INFRA-003); the YAML **[card]** also defines one | No | **`LaiFrontend-<env>`** (us-east-1) | Deploying the YAML's frontend as well would create a second distribution silently (no fixed name) | Defined (INFRA-003); deploy needs approval |
+| Frontend S3 bucket | **`LaiFrontend-<env>`**: `lai-web-<env>-<account>-us-east-1`, private, OAC; the YAML **[card]** | No (Amplify Hosting serves `react/dist`, [inferred]) | **`LaiFrontend-<env>`** | Fixed name, `RETAIN` | Defined (INFRA-003) |
 | WAF Web ACL (admin login rate) | `LaiDjangoEc2-<env>` (regional, on the ALB) | No | `LaiDjangoEc2-<env>` | A CloudFront-scoped ACL would have to be a separate `CLOUDFRONT` scope ACL in us-east-1 | Evidence |
 
 ### 3.2 Identity, certificates, DNS
@@ -62,10 +64,10 @@ repository and records leave one candidate; **Proposed** means a choice this aud
 |---|---|---|---|---|---|
 | Cognito user pool, groups `Admins`, `Superusers`, app client | Amplify `main` branch backend (`amplify/auth/resource.ts`); Django only takes its id (`CognitoUserPoolId` parameter) | Yes [inferred] | **Amplify `main` backend**, until a planned detach | Changing `defineAuth` login options can make Amplify **replace the pool** and lose every parent account. Deleting the Amplify stack deletes the pool unless it is retained or detached first. Sandboxes have their own pools: Django must point at the `main` pool | Evidence; detach plan is Owner (D5) |
 | Cognito identity pool and its roles | Amplify | Yes [inferred] | Amplify; retire with Amplify Storage/Data | Not used by Django | Evidence |
-| ACM certificate, API host (us-west-1) | `LaiDjangoEc2-<env>` (`ApiCertificate`, `ApiDomainName`) | No | `LaiDjangoEc2-<env>` | Adding the admin host (INFRA-003) changes the domain list, which **replaces** the certificate; DNS validation must be redone | Evidence |
-| ACM certificate, frontend (us-east-1) | YAML **[card]** | No | The new frontend stack (D2), deployed in **us-east-1** or with a cross-region reference | A us-west-1 stack cannot create a CloudFront certificate | Owner (D2) |
+| ACM certificate, API and admin hosts (us-west-1) | `LaiDjangoEc2-<env>` (`ApiCertificate`: `ApiDomainName` plus `AdminDomainName`, LAI-INFRA-003) | No | `LaiDjangoEc2-<env>` | Changing either name replaces the certificate; DNS validation must be redone | Evidence |
+| ACM certificate, frontend (us-east-1) | **`LaiFrontend-<env>`** (`SiteCertificate`); the YAML **[card]** | No | **`LaiFrontend-<env>`** (stack in us-east-1) | n/a | Defined (INFRA-003) |
 | Route 53 hosted zone | None in IaC [repo] | Unknown (U10) | **Outside IaC**: owner-managed, referenced by id | Creating a zone in IaC for a domain that already has one splits DNS | Owner (D6) |
-| Route 53 records | `LaiDjangoEc2-<env>` `ApiAlias`, only if a zone id is given; otherwise manual | No | `LaiDjangoEc2-<env>` for the API alias when a zone is given; frontend stack for its alias | Manual records and stack records for the same name conflict | Owner (D6) |
+| Route 53 records | `LaiDjangoEc2-<env>` `ApiAlias` and `AdminAlias`, `LaiFrontend-<env>` `SiteAlias` (A and AAAA), only if a zone is given; otherwise manual | No | The stack that owns each target | Manual records and stack records for the same name conflict | Owner (D6) |
 
 ### 3.3 Storage
 
@@ -74,7 +76,7 @@ repository and records leave one candidate; **Proposed** means a choice this aud
 | Asset library bucket | `LaiAssetStorage-<env>` (`lai-assets-<env>-<account>-<region>`, `RETAIN`) | No | `LaiAssetStorage-<env>` | Fixed name; `RETAIN`, so a deleted stack leaves the bucket and a redeploy then fails until it is imported | Evidence |
 | Child photo bucket (Django) | `LaiChildPhotos-<env>` (`lai-child-photos-<env>-...`, `RETAIN`) | No | `LaiChildPhotos-<env>` (ADR-042) | As above. Never behind a CDN | Evidence |
 | Amplify Storage bucket `learningAdventureIslandMedia` | Amplify `main` backend | Yes [inferred] | Amplify, **frozen** until migration and retirement (ADR-042) | Second home for child photos and admin models; data must be migrated (identity-pool keys to child ids) before retirement | Evidence |
-| Admin static bucket `lai-admin-static-<env>` | Only named by `scripts/release-admin-static.sh` (LAI-0404); no IaC | No | **None needed today**: the image serves admin static through WhiteNoise. If the admin gets its own CloudFront (ADR-034 item 8), the frontend stack (D2) owns it | Script writes to a bucket no stack creates | Owner (D2) |
+| Admin static bucket `lai-admin-static-<env>` | Only named by `scripts/release-admin-static.sh` (LAI-0404); no IaC | No | **None.** The admin host serves its static files through WhiteNoise from the image (LAI-INFRA-003); no CloudFront for the admin | The script writes to a bucket no stack creates: retire or keep unused | Owner (decide to retire the script) |
 | ECR repository `lai/django` | `LaiDjangoRelease` (account-wide, `RETAIN`) | No | `LaiDjangoRelease` | Fixed name; `RETAIN` | Evidence |
 
 ### 3.4 Functions, queues, AI
@@ -93,6 +95,7 @@ repository and records leave one candidate; **Proposed** means a choice this aud
 |---|---|---|---|---|---|
 | GitHub OIDC provider | `LaiDjangoRelease` when `createOidcProvider` is not `false` | Unknown (U2) | **Whoever already has it**: if it exists, keep it outside the stack and deploy with `LAI_CREATE_OIDC_PROVIDER=false`; if not, `LaiDjangoRelease` | One per account; creating a second fails. `RETAIN`, so it outlives the stack | Owner (D4), after a read-only check |
 | Roles `lai-github-image-publisher`, `lai-django-ec2-<env>`, `lai-github-deploy-<env>` | `LaiDjangoRelease`, `LaiDjangoEc2-<env>` | No | Those stacks | Fixed role names | Evidence |
+| Role `lai-github-site-deploy-<env>` | `LaiFrontend-<env>` (LAI-INFRA-004) | No | `LaiFrontend-<env>` | Fixed name; trusts the account's GitHub OIDC provider (created by `LaiDjangoRelease`) | Defined |
 | Managed policies `lai-django-{asset-storage,child-photos,ai}-<env>` | `LaiAssetStorage`, `LaiChildPhotos`, `LaiAiGuardrail` | No (`ai` not deployed either: the trimmed stack held only the Guardrail) | Those stacks | Fixed names; attached by **name**, not export | Evidence |
 | Amplify-generated roles (about 40 per environment) | Amplify | Yes [inferred] | Amplify | Quota pressure only (`docs/IAM_ROLE_AUDIT.md`) | Evidence |
 | SSM parameters `/lai/<env>/django/*` (11 String) | `LaiDjangoEc2-<env>` | No | `LaiDjangoEc2-<env>` | Fixed names | Evidence |
@@ -108,8 +111,9 @@ repository and records leave one candidate; **Proposed** means a choice this aud
 | Pipeline | Deploys | Proposed owner | Duplicate / risk | Status |
 |---|---|---|---|---|
 | `deploy-django-ec2.yml` (GitHub OIDC, ECR, SSM) | Django image to `LaiDjangoEc2-<env>` | **The only backend pipeline** | A CodePipeline/CodeBuild backend pipeline (DevOps card) would double-deploy; INFRA-004 decides | Proposed; INFRA-004 |
-| Amplify Hosting build (`amplify.yml`) | Amplify backend and React build on every `main` build | Amplify, until the frontend moves (D2) | Once a CloudFront frontend exists, both would publish React from `main`; one must stop | Owner (D2), INFRA-004 |
-| `scripts/aws/provision.sh` | Infrastructure stacks 1 to 4 (change sets by default) | Operator, with owner approval | `LaiAiGuardrail-<env>` is not in it; the frontend stack (D2) will need adding | Proposed |
+| `deploy-site.yml` (GitHub OIDC, S3, CloudFront; LAI-INFRA-004) | React build to `LaiFrontend-<env>` | **The only CloudFront site pipeline**; off until `LAI_SITE_DEPLOY_ENABLED` | Same system as the backend; no CodePipeline (owner, 2026-11-09) | Defined, gated |
+| Amplify Hosting build (`amplify.yml`) | Amplify backend and React build on every `main` build | Amplify for the Gen 2 backend; frontend publishing is transitional | While `deploy-site.yml` is on, both publish React to **different hosts** (intended, temporary). After acceptance: option (a) or (b) in `deployment-design.md` section 7 | Owner (INFRA-004) |
+| `scripts/aws/provision.sh` | Infrastructure stacks 1 to 4, plus `LaiFrontend-<env>` in us-east-1 when `LAI_SITE_DOMAIN` is set (change sets by default) | Operator, with owner approval | `LaiAiGuardrail-<env>` is still not in it (deployed by hand per `docs/AI_SERVICE.md`) | Evidence |
 | `lai-dev-complete.yaml` | Unknown | None until supplied (section 5) | A second, unreviewed path to EC2/RDS/VPC | Owner (D1) |
 
 ## 4. Duplicate creation and replacement risks
@@ -171,7 +175,7 @@ its status is unknown. When the file arrives:
 | # | Decision | Recommendation |
 |---|---|---|
 | D1 | Which definition owns the dev VPC, EC2 and RDS | `LaiDjangoEc2-dev`. Treat `lai-dev-complete.yaml` as reference only; port anything it has that CDK lacks |
-| D2 | Who owns the CloudFront frontend, its bucket, us-east-1 certificate and the admin static bucket | A new CDK stack in `infra/` (proposed `LaiFrontend-<env>`); INFRA-003 designs it |
+| D2 | Who owns the CloudFront frontend, its bucket, us-east-1 certificate and the admin static bucket | **Done:** `LaiFrontend-<env>` (LAI-INFRA-003, merged). Admin static stays in the image; no admin CloudFront |
 | D3 | Guardrail cut-over | After `LaiDjangoEc2-dev` exists: delete `LaiAiGuardrailOnly-dev`, deploy `LaiAiGuardrail-dev`, update SSM (as AI-FU-2 already plans) |
 | D4 | GitHub OIDC provider | Run the read-only check (`aws iam list-open-id-connect-providers`). If present, deploy `LaiDjangoRelease` with `LAI_CREATE_OIDC_PROVIDER=false` |
 | D5 | Cognito long-term owner | Keep in Amplify until cutover; then detach with a `RETAIN` policy and import into a CDK stack, approved separately |
