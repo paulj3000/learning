@@ -65,7 +65,7 @@ interface StoryChapterRunnerProps {
   childProfileId: string;
   ageBand: AgeBandValue;
   aiEnabled: boolean;
-  storyProgressId: string;
+  storyId: string;
   chapter: StoryChapter;
   flags: Record<string, string>;
   backToStoryHref: string;
@@ -96,7 +96,7 @@ export function StoryChapterRunner({
   childProfileId,
   ageBand,
   aiEnabled,
-  storyProgressId,
+  storyId,
   chapter,
   flags,
   backToStoryHref,
@@ -119,7 +119,7 @@ export function StoryChapterRunner({
     childProfileId,
     ageBand,
     aiEnabled,
-    storyProgressId,
+    storyId,
     chapter,
     flags,
     onFlag,

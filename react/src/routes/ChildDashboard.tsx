@@ -232,7 +232,10 @@ export function ChildDashboard() {
         // treatment as the Phase 28 suggestion below: an `AdventureAction`
         // fetch failing must cost this page only its own two sections, not
         // the rest of the dashboard.
-        void listActionsForSessions(sessionRows.map((session) => session.id))
+        void listActionsForSessions(
+          childId,
+          sessionRows.map((session) => session.id),
+        )
           .then((actionRows) => {
             if (cancelled) return;
             setActions(actionRows);
@@ -551,7 +554,7 @@ export function ChildDashboard() {
               ) : (
                 <ul className={styles.list}>
                   {skillProgress.map((row) => (
-                    <li className={styles.card} key={row.id}>
+                    <li className={styles.card} key={row.learningObjectiveCode}>
                       <p className={styles.cardTitle}>
                         {objectiveTitle(row.learningObjectiveCode)}
                       </p>

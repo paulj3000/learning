@@ -1,5 +1,5 @@
 /**
- * Quest persistence and progression (docs/ROADMAP.md Phase 25).
+ * Quest persistence and progression (docs/ROADMAP.md Phase 25), on Django (AMP-03).
  *
  * The only impure module in `src/features/quests/`. Every decision about
  * whether an objective is done, which stage follows, and whether a quest is
@@ -7,67 +7,54 @@
  * without a backend - the same split `src/features/npc/` and
  * `src/features/rewards/` already use.
  *
- * This module is also where the Quest Engine touches its neighbours, and it
- * only ever does so through their own public APIs: `recordWorldChangeOnce`
- * (Adventure Engine), `setNpcMemoryFlagsForQuest` (NPC System),
- * `grantRewards` (Reward Engine), and `getWorldState` (Discovery Engine,
- * Phase 26). It never writes another engine's table directly, per
- * docs/ARCHITECTURE.md's engine boundaries.
+ * The projected state is saved with `PUT children/<id>/quests/<quest>/`, a validated write: the
+ * server accepts only the quest's own stage and objective ids, completed lists that only grow,
+ * and never a change to a finished quest. What a stage or the quest's completion owes is decided
+ * there from the catalog quest, never sent from here: the authored world changes, the
+ * completion's NPC memory flags, and the `QUEST_COMPLETED` rewards, each once. Starting a quest is
+ * `quests/<quest>/accept/`, which checks the age band and prerequisites.
  *
- * Authorization is the model's own `allow.owner()`: a parent reaches only
- * their own children's quest state, and Admins read only.
+ * Every route is child-scoped on the server: a parent reaches only their own children.
  */
-import { client } from '../../lib/data-client';
-import type { Schema } from '../../../../amplify/data/resource';
-import { listSessions, listAllWorldChanges, recordWorldChangeOnce } from '../adventures/api';
-import { listNpcStates, setNpcMemoryFlagsForQuest } from '../npc/api';
+import { childPath, djangoClient } from '../../api/djangoClient';
+import { read, type Reader } from '../../api/parse';
+import { listSessions, listAllWorldChanges } from '../adventures/api';
+import { listNpcStates } from '../npc/api';
 import { relationshipLevelForPoints } from '../npc/relationship';
 import type { RelationshipLevel } from '../npc/types';
 import type { SkillStatus } from '../mastery/types';
 import { listSkillProgress } from '../mastery/api';
 import { getInventory } from '../rewards/api';
 import { getWorldState } from '../discovery/api';
-import { advanceQuest, startQuest as startQuestState } from './quest';
+import { advanceQuest } from './quest';
 import { QUEST_DEFINITIONS } from './content';
 import type { QuestContext, QuestDefinition, QuestId, QuestState } from './types';
 
-export type ChildQuestStateRow = Schema['ChildQuestState']['type'];
-
-function toState(row: ChildQuestStateRow): QuestState {
+function readState(r: Reader): QuestState {
+  const completedAt = r.field('completedAt').nullable((v) => v.string());
   return {
-    questId: row.questId,
-    status: row.status ?? 'ACTIVE',
-    currentStageId: row.currentStageId,
-    completedStageIds: (row.completedStageIds ?? []).filter(
-      (id): id is string => typeof id === 'string',
-    ),
-    completedObjectiveIds: (row.completedObjectiveIds ?? []).filter(
-      (id): id is string => typeof id === 'string',
-    ),
-    startedAt: row.startedAt,
-    completedAt: row.completedAt ?? undefined,
+    questId: r.field('questId').string(),
+    status: r.field('status').oneOf(['ACTIVE', 'COMPLETED'] as const),
+    currentStageId: r.field('currentStageId').string(),
+    completedStageIds: r.field('completedStageIds').array((id) => id.string()),
+    completedObjectiveIds: r.field('completedObjectiveIds').array((id) => id.string()),
+    startedAt: r.field('startedAt').string(),
+    ...(completedAt ? { completedAt } : {}),
   };
-}
-
-async function listRows(childProfileId: string): Promise<ChildQuestStateRow[]> {
-  const { data } = await client.models.ChildQuestState.list();
-  return data.filter((row: ChildQuestStateRow) => row.childProfileId === childProfileId);
 }
 
 /** Every quest this child has started or finished. */
 export async function listQuestStates(childProfileId: string): Promise<QuestState[]> {
-  const rows = await listRows(childProfileId);
-  return rows.map(toState);
+  const response = await djangoClient().request('GET', childPath(childProfileId, 'quests/'));
+  return read(response.data, (r) => r.field('quests').array(readState));
 }
 
 /**
  * Assembles the snapshot the pure quest functions read.
  *
- * This is the whole integration surface of the Quest Engine: six reads
- * against engines that already own their data, and no new bookkeeping
- * anywhere else in the app. Adding a further primitive later means adding a
- * field here, not threading a new event through every call site - Phase 26
- * added `discoveryKeys` by adding exactly one read and one line.
+ * This is the whole integration surface of the Quest Engine: reads against
+ * engines that already own their data, and no new bookkeeping anywhere else
+ * in the app.
  */
 export async function buildQuestContext(childProfileId: string): Promise<QuestContext> {
   const [sessions, worldChanges, npcStates, skillProgress, inventory, questStates, worldState] =
@@ -104,18 +91,12 @@ export async function buildQuestContext(childProfileId: string): Promise<QuestCo
       .map((session) => session.templateSlug),
     worldChangeKeys: worldChanges.map((change) => change.changeKey),
     // A child has "been" somewhere if the island recorded a change there.
-    // Deliberately not a new visited-locations table: the World Engine does
-    // not persist footsteps today, and inventing a row per room entered
-    // would collect more about a child than the feature needs
-    // (CLAUDE.md section 13, least data).
+    // Deliberately not a new visited-locations table (CLAUDE.md section 13, least data).
     visitedLocationSlugs: [...new Set(worldChanges.map((change) => change.locationSlug))],
     ownedItemIds: inventory.ownedItemIds,
     npcMemoryFlags,
     relationshipLevels,
     skillStatuses,
-    // Phase 26. Was hard-coded empty from Phase 25 until a discovery system
-    // existed to fill it, which is exactly why `DISCOVER` was authorable but
-    // dormant (types.ts).
     discoveryKeys: worldState.discoveredIds,
     completedQuestIds: questStates
       .filter((state) => state.status === 'COMPLETED')
@@ -123,31 +104,24 @@ export async function buildQuestContext(childProfileId: string): Promise<QuestCo
   };
 }
 
-/** Starts a quest for this child. Idempotent: an already-started quest is returned as-is. */
+/**
+ * Starts a quest for this child. Idempotent: an already-started quest is returned as-is. The
+ * server checks the age band and the quest's prerequisites (refused: `quest_unavailable`).
+ */
 export async function startQuest(
   childProfileId: string,
   definition: QuestDefinition,
 ): Promise<QuestState> {
-  const rows = await listRows(childProfileId);
-  const existing = rows.find((row) => row.questId === definition.id);
-  if (existing) return toState(existing);
-
-  const now = new Date().toISOString();
-  const state = startQuestState(definition, now);
-  const { data, errors } = await client.models.ChildQuestState.create({
-    childProfileId,
-    questId: state.questId,
-    status: state.status,
-    currentStageId: state.currentStageId,
-    completedStageIds: [...state.completedStageIds],
-    completedObjectiveIds: [...state.completedObjectiveIds],
-    startedAt: state.startedAt,
-    lastUpdatedAt: now,
-  });
-  if (!data) {
-    throw new Error(errors?.[0]?.message ?? 'Could not start that quest.');
-  }
-  return toState(data);
+  await djangoClient().request(
+    'POST',
+    childPath(childProfileId, `quests/${encodeURIComponent(definition.id)}/accept/`),
+    { body: {} },
+  );
+  const started = (await listQuestStates(childProfileId)).find(
+    (state) => state.questId === definition.id,
+  );
+  if (!started) throw new Error('Could not start that quest.');
+  return started;
 }
 
 export interface QuestProgressResult {
@@ -160,122 +134,60 @@ export interface QuestProgressResult {
 }
 
 /**
- * Recomputes every active quest against the world, persists whatever moved,
- * and fires the side effects a finished quest owes.
+ * Recomputes every active quest against the world and saves whatever moved.
  *
  * Safe to call after any gameplay event, and cheap when nothing changed: a
  * quest whose projection is identical to its stored row is skipped without a
- * write. That is what lets the adventure-completion path call it
- * unconditionally rather than knowing which quests an adventure belongs to.
- *
- * Order of side effects on completion matters and is deliberate:
- * 1. world changes first, because they are what the island shows;
- * 2. NPC memory flags next, so a character stops asking for something the
- *    child just did;
- * 3. rewards last, since `grantRewards` is idempotent per rule and can be
- *    safely retried, while a half-applied world change cannot.
- *
- * Every side effect is individually failure-tolerant: a quest that finished
- * stays finished even if a reward write fails, because the alternative is a
- * child watching a completed quest revert.
+ * write. The server applies what each newly completed stage and a completion
+ * owe (world changes, NPC memory flags, rewards), once, and reports the
+ * reward lines to celebrate with.
  */
 export async function syncQuestProgress(
   childProfileId: string,
   definitions: readonly QuestDefinition[] = QUEST_DEFINITIONS,
   context?: QuestContext,
 ): Promise<QuestProgressResult[]> {
-  const rows = await listRows(childProfileId);
-  const active = rows.filter((row) => (row.status ?? 'ACTIVE') === 'ACTIVE');
+  const states = await listQuestStates(childProfileId);
+  const active = states.filter((state) => state.status === 'ACTIVE');
   if (active.length === 0) return [];
 
   const resolvedContext = context ?? (await buildQuestContext(childProfileId));
   const results: QuestProgressResult[] = [];
 
-  for (const row of active) {
-    const definition = definitions.find((candidate) => candidate.id === row.questId);
+  for (const current of active) {
+    const definition = definitions.find((candidate) => candidate.id === current.questId);
     if (!definition) continue;
 
-    const outcome = advanceQuest(definition, toState(row), resolvedContext);
+    const outcome = advanceQuest(definition, current, resolvedContext);
     if (!outcome.changed) continue;
 
-    const now = new Date().toISOString();
-    const nextState: QuestState = {
-      ...outcome.state,
-      completedAt: outcome.justCompleted ? now : outcome.state.completedAt,
-    };
-
-    await client.models.ChildQuestState.update({
-      id: row.id,
-      status: nextState.status,
-      currentStageId: nextState.currentStageId,
-      completedStageIds: [...nextState.completedStageIds],
-      completedObjectiveIds: [...nextState.completedObjectiveIds],
-      lastUpdatedAt: now,
-      completedAt: nextState.completedAt,
-    });
-
-    for (const change of outcome.worldChanges) {
-      await recordWorldChangeOnce(
-        childProfileId,
-        change.locationSlug,
-        change.changeType,
-        change.changeKey,
-        // Quest-driven changes have no adventure session behind them. The
-        // quest id is the honest provenance, and it keeps the column's
-        // "what caused this" meaning intact rather than inventing a fake
-        // session id.
-        `quest:${definition.id}`,
-      ).catch(() => undefined);
-    }
-
-    let rewardMessages: readonly string[] = [];
-    if (outcome.justCompleted) {
-      for (const entry of definition.completion.setsNpcMemoryFlags ?? []) {
-        await setNpcMemoryFlagsForQuest(childProfileId, entry.npcId, entry.flags).catch(
-          () => undefined,
-        );
-      }
-      rewardMessages = await grantQuestRewards(childProfileId, definition.id);
-    }
+    const response = await djangoClient().request(
+      'PUT',
+      childPath(childProfileId, `quests/${encodeURIComponent(definition.id)}/`),
+      {
+        body: {
+          status: outcome.state.status,
+          currentStageId: outcome.state.currentStageId,
+          completedStageIds: [...outcome.state.completedStageIds],
+          completedObjectiveIds: [...outcome.state.completedObjectiveIds],
+        },
+      },
+    );
+    const saved = read(response.data, (r) => ({
+      state: readState(r.field('quest')),
+      rewardMessages: r.field('rewardMessages').array((m) => m.string()),
+    }));
 
     results.push({
       questId: definition.id,
-      state: nextState,
+      state: saved.state,
       justCompleted: outcome.justCompleted,
       newlyCompletedObjectiveIds: outcome.newlyCompletedObjectiveIds,
-      rewardMessages,
+      rewardMessages: saved.rewardMessages,
     });
   }
 
   return results;
-}
-
-/**
- * Fires the Reward Engine's `QUEST_COMPLETED` trigger - the seam Phase 24
- * defined and left dormant because no quest could complete yet.
- *
- * Imported lazily so that `src/features/quests/` does not pull the reward
- * content pack into every bundle that only wants to read a journal, and so a
- * reward-side failure cannot prevent a quest from being recorded as done.
- */
-async function grantQuestRewards(
-  childProfileId: string,
-  questId: QuestId,
-): Promise<readonly string[]> {
-  try {
-    const [{ grantRewards }, { ALL_REWARD_RULES, ALL_COLLECTIBLE_SETS, ALL_ITEMS }] =
-      await Promise.all([import('../rewards/api'), import('../rewards/content')]);
-    const result = await grantRewards(
-      childProfileId,
-      { type: 'QUEST_COMPLETED', questId },
-      ALL_REWARD_RULES,
-      ALL_COLLECTIBLE_SETS,
-      ALL_ITEMS,
-    );
-    return result.messages;
-  } catch {
-    return [];
-  }
 }
 
 /**
@@ -284,8 +196,5 @@ async function grantQuestRewards(
  * not taken away as a mechanic.
  */
 export async function clearQuestStates(childProfileId: string): Promise<void> {
-  const rows = await listRows(childProfileId);
-  await Promise.all(
-    rows.map((row: ChildQuestStateRow) => client.models.ChildQuestState.delete({ id: row.id })),
-  );
+  await djangoClient().request('DELETE', childPath(childProfileId, 'quests/'));
 }

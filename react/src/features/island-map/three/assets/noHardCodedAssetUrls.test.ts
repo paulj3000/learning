@@ -25,6 +25,11 @@ function sourceFiles(directory: string): string[] {
 const BUNDLED_PATH = /['"`]\/(models|textures|audio)\//;
 /** A storage or CDN host written into code. */
 const STORAGE_HOST = /amazonaws\.com|cloudfront\.net|amplifyapp\.com/;
+/**
+ * The Cognito user pool API endpoint (`lib/cognito/service.ts`, AMP-02) is an AWS host but not a
+ * storage host: it serves sign-in, never an asset. Only that exact templated form is exempt.
+ */
+const COGNITO_API_HOST = /cognito-idp\.\$\{[^}]+\}\.amazonaws\.com/g;
 
 describe('asset urls', () => {
   const files = sourceFiles(SRC_DIR).filter((path) => !path.includes(`${join('src', 'test')}`));
@@ -43,7 +48,7 @@ describe('asset urls', () => {
 
   it('never name a storage host', () => {
     const leaks = files
-      .filter((path) => STORAGE_HOST.test(readFileSync(path, 'utf8')))
+      .filter((path) => STORAGE_HOST.test(readFileSync(path, 'utf8').replace(COGNITO_API_HOST, '')))
       .map((path) => relative(SRC_DIR, path));
     expect(leaks).toEqual([]);
   });

@@ -10,6 +10,7 @@ LAI-0601's answers and hints come first: Treasure Rush's lifecycle route
 from django.urls import path
 
 from . import (
+    adventure_views,
     castle_views,
     coop_views,
     discovery_views,
@@ -26,6 +27,19 @@ urlpatterns = [
         f"{CHILD}sessions/<uuid:session_id>/answers/", AnswersView.as_view(), name="session-answers"
     ),
     path(f"{CHILD}sessions/<uuid:session_id>/hints/", HintsView.as_view(), name="session-hints"),
+    # AMP-03: step-based adventures outside a 3D Area (`adventure_views.py`).
+    path(f"{CHILD}sessions/", adventure_views.SessionListView.as_view(), name="child-sessions"),
+    path(
+        f"{CHILD}adventures/<slug:adventure_slug>/session/",
+        adventure_views.AdventureSessionView.as_view(),
+        name="adventure-session",
+    ),
+    path(
+        f"{CHILD}adventure-actions/",
+        adventure_views.AdventureActionListView.as_view(),
+        name="adventure-actions",
+    ),
+    path(f"{CHILD}availability/", adventure_views.AvailabilityView.as_view(), name="availability"),
     path(f"{CHILD}home/", native_views.ChildHomeView.as_view(), name="child-home"),
     path(f"{CHILD}regions/", native_views.RegionListView.as_view(), name="child-regions"),
     path(f"{CHILD}islands/", native_views.IslandListView.as_view(), name="child-islands"),

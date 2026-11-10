@@ -1,211 +1,245 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../../api/errors';
+import { fakeDjangoClient, type FakeDjangoClient } from '../../test/fakeDjangoClient';
 
-const { list, create, submitAdventureAnswerMutation, islandList, adventureList } = vi.hoisted(
-  () => ({
-    list: vi.fn(),
-    create: vi.fn(),
-    submitAdventureAnswerMutation: vi.fn(),
-    islandList: vi.fn(),
-    adventureList: vi.fn(),
-  }),
-);
-
-vi.mock('../../lib/data-client', () => ({
-  client: {
-    models: {
-      AdventureSession: { list, create },
-      Island: { list: islandList },
-      Adventure: { list: adventureList },
-    },
-    mutations: {
-      submitAdventureAnswer: submitAdventureAnswerMutation,
-    },
-  },
+const holder = vi.hoisted(() => ({ client: null as FakeDjangoClient | null }));
+vi.mock('../../api/djangoClient', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/djangoClient')>()),
+  djangoClient: () => holder.client,
 }));
 
-import { resumeOrStartSession, submitAdventureAnswer } from './api';
+import {
+  deleteStoryArtifact,
+  getActiveSession,
+  listActionsForSessions,
+  listAllWorldChanges,
+  listSessions,
+  listStoryArtifacts,
+  recordWorldChangeOnce,
+  requestAdventureHint,
+  resumeOrStartSession,
+  saveStoryArtifact,
+  submitAdventureAnswer,
+} from './api';
 import { REPAIR_THE_MOONLIGHT_BRIDGE } from './content';
 import { AdventureUnavailableError } from '../catalog/availabilityApi';
 
+const SESSION = {
+  id: 's1',
+  adventureSlug: REPAIR_THE_MOONLIGHT_BRIDGE.slug,
+  templateVersion: 1,
+  status: 'ACTIVE',
+  currentStepId: 'count',
+  hintLevel: 0,
+  startedAt: '2026-11-01T10:00:00+00:00',
+  lastActivityAt: '2026-11-01T10:00:00+00:00',
+  completedAt: null,
+  locationSlug: 'pirate-builder-bay',
+};
+const START = `children/child-1/adventures/${REPAIR_THE_MOONLIGHT_BRIDGE.slug}/session/`;
+
+let api: FakeDjangoClient;
 beforeEach(() => {
-  islandList.mockReset().mockResolvedValue({ data: [] });
-  adventureList.mockReset().mockResolvedValue({ data: [] });
+  api = fakeDjangoClient();
+  holder.client = api;
 });
 
-describe('resumeOrStartSession and the admin catalog (ADR-031)', () => {
-  beforeEach(() => {
-    list.mockReset();
-    create.mockReset();
-  });
-
-  const PIRATE_BAY = { id: 'island-1', slug: 'pirate-builder-bay', active: true };
-  const BRIDGE = { slug: REPAIR_THE_MOONLIGHT_BRIDGE.slug, islandId: 'island-1', active: true };
-
-  it.each([
-    ['the adventure is inactive', { ...PIRATE_BAY }, { ...BRIDGE, active: false }],
-    ['its island is inactive', { ...PIRATE_BAY, active: false }, { ...BRIDGE }],
-    ['its island is inactive and it has no row of its own', { ...PIRATE_BAY, active: false }, null],
-  ])(
-    'refuses to start or resume when %s, leaving sessions untouched',
-    async (_, islandRow, adventureRow) => {
-      islandList.mockResolvedValue({ data: [islandRow] });
-      adventureList.mockResolvedValue({ data: adventureRow ? [adventureRow] : [] });
-
-      await expect(
-        resumeOrStartSession('child-1', REPAIR_THE_MOONLIGHT_BRIDGE),
-      ).rejects.toBeInstanceOf(AdventureUnavailableError);
-      expect(list).not.toHaveBeenCalled();
-      expect(create).not.toHaveBeenCalled();
-    },
-  );
-
-  it('starts normally when both the island and the adventure are active', async () => {
-    islandList.mockResolvedValue({ data: [PIRATE_BAY] });
-    adventureList.mockResolvedValue({ data: [BRIDGE] });
-    list.mockResolvedValueOnce({ data: [] });
-    create.mockResolvedValueOnce({ data: { id: 'session-3' }, errors: undefined });
-
-    await expect(resumeOrStartSession('child-1', REPAIR_THE_MOONLIGHT_BRIDGE)).resolves.toEqual({
-      id: 'session-3',
-    });
-  });
-
-  it('reads only the availability fields, never the admin-only audit fields', async () => {
-    list.mockResolvedValueOnce({ data: [] });
-    create.mockResolvedValueOnce({ data: { id: 'session-4' }, errors: undefined });
-    await resumeOrStartSession('child-1', REPAIR_THE_MOONLIGHT_BRIDGE);
-    expect(islandList).toHaveBeenCalledWith(
-      expect.objectContaining({ selectionSet: ['id', 'slug', 'active'] }),
-    );
-    expect(adventureList).toHaveBeenCalledWith(
-      expect.objectContaining({ selectionSet: ['slug', 'islandId', 'active'] }),
-    );
-  });
-
-  it('fails open when the catalog cannot be read', async () => {
-    islandList.mockRejectedValue(new Error('network'));
-    list.mockResolvedValueOnce({ data: [] });
-    create.mockResolvedValueOnce({ data: { id: 'session-5' }, errors: undefined });
-    await expect(resumeOrStartSession('child-1', REPAIR_THE_MOONLIGHT_BRIDGE)).resolves.toEqual({
-      id: 'session-5',
-    });
-  });
-});
-
-describe('resumeOrStartSession', () => {
-  beforeEach(() => {
-    list.mockReset();
-    create.mockReset();
-  });
-
-  it('reuses an existing active session for this child and template instead of creating a new one', async () => {
-    const active = {
-      id: 'session-1',
+describe('resumeOrStartSession (AMP-03)', () => {
+  it('asks the server to start or resume, sending no state of its own', async () => {
+    api.on('POST', START, SESSION);
+    const session = await resumeOrStartSession('child-1', REPAIR_THE_MOONLIGHT_BRIDGE);
+    expect(session).toMatchObject({
+      id: 's1',
       childProfileId: 'child-1',
       templateSlug: REPAIR_THE_MOONLIGHT_BRIDGE.slug,
+      currentStepId: 'count',
       status: 'ACTIVE',
-    };
-    list.mockResolvedValueOnce({ data: [active] });
-
-    const result = await resumeOrStartSession('child-1', REPAIR_THE_MOONLIGHT_BRIDGE);
-
-    expect(result).toBe(active);
-    expect(create).not.toHaveBeenCalled();
+    });
+    expect(api.calls).toEqual([{ method: 'POST', path: START, body: {} }]);
   });
 
-  it('starts a new session at the definition entry step when none is active', async () => {
-    list.mockResolvedValueOnce({ data: [] });
-    const created = { id: 'session-2', currentStepId: REPAIR_THE_MOONLIGHT_BRIDGE.entryStepId };
-    create.mockResolvedValueOnce({ data: created, errors: undefined });
+  it.each([
+    ['taken out of play', new ApiError('conflict', { status: 409, code: 'content_unavailable' })],
+    ['not in the catalog', new ApiError('not_found', { status: 404, code: 'not_found' })],
+  ])('turns an adventure %s into the calm AdventureUnavailableError', async (_, error) => {
+    api.on('POST', START, () => {
+      throw error;
+    });
+    await expect(
+      resumeOrStartSession('child-1', REPAIR_THE_MOONLIGHT_BRIDGE),
+    ).rejects.toBeInstanceOf(AdventureUnavailableError);
+  });
 
-    const result = await resumeOrStartSession('child-1', REPAIR_THE_MOONLIGHT_BRIDGE);
-
-    expect(result).toBe(created);
-    expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        childProfileId: 'child-1',
-        templateSlug: REPAIR_THE_MOONLIGHT_BRIDGE.slug,
-        templateVersion: REPAIR_THE_MOONLIGHT_BRIDGE.version,
-        currentStepId: REPAIR_THE_MOONLIGHT_BRIDGE.entryStepId,
-        status: 'ACTIVE',
-      }),
+  it('lets any other failure through unchanged', async () => {
+    api.on('POST', START, () => {
+      throw new ApiError('network');
+    });
+    await expect(resumeOrStartSession('child-1', REPAIR_THE_MOONLIGHT_BRIDGE)).rejects.toThrow(
+      ApiError,
     );
   });
 
-  it('ignores another child or template active session when deciding whether to start a new one', async () => {
-    list.mockResolvedValueOnce({
-      data: [
-        { id: 'other', childProfileId: 'child-2', templateSlug: 'other-slug', status: 'ACTIVE' },
-      ],
-    });
-    create.mockResolvedValueOnce({ data: { id: 'session-3' }, errors: undefined });
-
-    await resumeOrStartSession('child-1', REPAIR_THE_MOONLIGHT_BRIDGE);
-
-    expect(create).toHaveBeenCalledTimes(1);
+  it('reads the active session, or null', async () => {
+    api.on('GET', START, { session: null });
+    expect(await getActiveSession('child-1', REPAIR_THE_MOONLIGHT_BRIDGE.slug)).toBeNull();
+    api.on('GET', START, { session: SESSION });
+    expect((await getActiveSession('child-1', REPAIR_THE_MOONLIGHT_BRIDGE.slug))?.id).toBe('s1');
   });
 });
 
-describe('submitAdventureAnswer', () => {
-  beforeEach(() => {
-    submitAdventureAnswerMutation.mockReset();
-  });
+describe('submitAdventureAnswer (ADR-012 on Django)', () => {
+  const ANSWERS = 'children/child-1/sessions/s1/answers/';
 
-  it('sends the raw answer object, not an encoded string', async () => {
-    submitAdventureAnswerMutation.mockResolvedValueOnce({
-      data: { correctness: 'CORRECT', supportLevel: 0, action: 'ADVANCE', nextStepId: 'step-2' },
-      errors: undefined,
-    });
-
-    await submitAdventureAnswer('session-1', { kind: 'number-input', value: 4 }, 0);
-
-    expect(submitAdventureAnswerMutation).toHaveBeenCalledWith({
-      sessionId: 'session-1',
-      answer: { kind: 'number-input', value: 4 },
-      hintLevel: 0,
-    });
-  });
-
-  it('maps a server ADVANCE result to the lowercase Correctness type', async () => {
-    submitAdventureAnswerMutation.mockResolvedValueOnce({
-      data: { correctness: 'PARTIAL', supportLevel: 1, action: 'ADVANCE', nextStepId: 'step-3' },
-      errors: undefined,
-    });
-
-    const result = await submitAdventureAnswer('session-1', { kind: 'reflection' }, 1);
-
-    expect(result).toEqual({
-      correctness: 'partial',
+  it('sends only what the child did, with a request id, and reads the server verdict', async () => {
+    api.on('POST', ANSWERS, {
+      correctness: 'CORRECT',
       supportLevel: 1,
       action: 'ADVANCE',
-      nextStepId: 'step-3',
+      nextStepId: 'done',
+      attemptNumber: 1,
+      replayed: false,
+      session: { ...SESSION, currentStepId: 'done' },
     });
-  });
-
-  it('drops nextStepId when the server says to retry', async () => {
-    submitAdventureAnswerMutation.mockResolvedValueOnce({
-      data: { correctness: 'INCORRECT', supportLevel: 1, action: 'RETRY', nextStepId: 'step-1' },
-      errors: undefined,
-    });
-
-    const result = await submitAdventureAnswer('session-1', { kind: 'number-input', value: 1 }, 0);
-
-    expect(result).toEqual({
-      correctness: 'incorrect',
+    const result = await submitAdventureAnswer(
+      'child-1',
+      's1',
+      'count',
+      { kind: 'number-input', value: 3 },
+      'req-1',
+    );
+    expect(result).toMatchObject({
+      correctness: 'correct',
       supportLevel: 1,
-      action: 'RETRY',
-      nextStepId: null,
+      action: 'ADVANCE',
+      nextStepId: 'done',
+      session: { currentStepId: 'done' },
+    });
+    expect(api.calls[0]?.body).toEqual({
+      stepId: 'count',
+      answer: { kind: 'number-input', value: 3 },
+      requestId: 'req-1',
     });
   });
 
-  it('throws when the mutation returns no data', async () => {
-    submitAdventureAnswerMutation.mockResolvedValueOnce({
-      data: null,
-      errors: [{ message: 'Not authorized for this adventure.' }],
+  it('a retry has no next step, whatever the server echoes', async () => {
+    api.on('POST', ANSWERS, {
+      correctness: 'INCORRECT',
+      supportLevel: 0,
+      action: 'RETRY',
+      nextStepId: 'ignored',
+      session: SESSION,
     });
+    const result = await submitAdventureAnswer('child-1', 's1', 'count', {
+      kind: 'number-input',
+      value: 2,
+    });
+    expect(result.correctness).toBe('incorrect');
+    expect(result.nextStepId).toBeNull();
+    expect(typeof api.calls[0]?.body?.requestId).toBe('string');
+  });
 
+  it('rejects a response that does not match the contract', async () => {
+    api.on('POST', ANSWERS, { correctness: 'MAYBE', action: 'ADVANCE', session: SESSION });
     await expect(
-      submitAdventureAnswer('session-1', { kind: 'number-input', value: 1 }, 0),
-    ).rejects.toThrow('Not authorized for this adventure.');
+      submitAdventureAnswer('child-1', 's1', 'count', { kind: 'number-input', value: 3 }),
+    ).rejects.toMatchObject({ kind: 'invalid_response' });
+  });
+
+  it('asks the server for the next hint from the level the child saw', async () => {
+    api.on('POST', 'children/child-1/sessions/s1/hints/', { hintLevel: 2, hintText: 'x' });
+    expect(await requestAdventureHint('child-1', 's1', 'count', 1)).toBe(2);
+    expect(api.calls[0]?.body).toEqual({ stepId: 'count', fromLevel: 1 });
+  });
+});
+
+describe('sessions, actions and world changes', () => {
+  it('lists the child sessions and their actions', async () => {
+    api.on('GET', 'children/child-1/sessions/', { sessions: [SESSION] });
+    api.on('GET', 'children/child-1/adventure-actions/', {
+      actions: [
+        {
+          id: 'a1',
+          sessionId: 's1',
+          stepId: 'count',
+          actionType: 'ANSWER',
+          correctness: 'CORRECT',
+          normalizedAnswer: '3',
+          hintLevel: 0,
+          attemptNumber: 1,
+          nextStepId: 'done',
+          createdAt: '2026-11-01T10:00:00+00:00',
+        },
+        {
+          id: 'a2',
+          sessionId: 'other',
+          stepId: 'x',
+          actionType: 'ANSWER',
+          correctness: 'INCORRECT',
+          normalizedAnswer: null,
+          hintLevel: 0,
+          attemptNumber: 1,
+          nextStepId: null,
+          createdAt: '2026-11-01T10:00:00+00:00',
+        },
+      ],
+    });
+    expect((await listSessions('child-1')).map((s) => s.id)).toEqual(['s1']);
+    const actions = await listActionsForSessions('child-1', ['s1']);
+    expect(actions.map((a) => [a.id, a.normalizedAnswer])).toEqual([['a1', '3']]);
+    expect(await listActionsForSessions('child-1', [])).toEqual([]);
+  });
+
+  it('records a world change with its provenance and reads them back', async () => {
+    const change = {
+      id: 'w1',
+      locationSlug: 'bay',
+      changeType: 'REPAIR',
+      changeKey: 'BRIDGE',
+      sourceSessionId: 'quest:q1',
+      createdAt: '2026-11-01T10:00:00+00:00',
+    };
+    api.on('POST', 'children/child-1/world-changes/', change);
+    api.on('GET', 'children/child-1/world-changes/', { worldChanges: [change] });
+    await recordWorldChangeOnce('child-1', 'bay', 'REPAIR', 'BRIDGE', 'quest:q1');
+    expect(api.calls[0]?.body).toEqual({
+      locationSlug: 'bay',
+      changeType: 'REPAIR',
+      changeKey: 'BRIDGE',
+      sourceSessionId: 'quest:q1',
+    });
+    expect(await listAllWorldChanges('child-1')).toEqual([
+      { ...change, childProfileId: 'child-1' },
+    ]);
+  });
+});
+
+describe('story artifacts', () => {
+  const ARTIFACT = {
+    id: 'st1',
+    sessionId: 's1',
+    templateSlug: 'tale',
+    title: 'The Tale',
+    scenes: [{ stepId: 'a', text: 'Once', source: 'AI' }, { bogus: true }],
+    createdAt: '2026-11-01T10:00:00+00:00',
+  };
+
+  it('saves the beats against the session and drops malformed saved scenes on read', async () => {
+    api.on('POST', 'children/child-1/story-artifacts/', ARTIFACT);
+    api.on('GET', 'children/child-1/story-artifacts/', { artifacts: [ARTIFACT] });
+    const saved = await saveStoryArtifact('child-1', 's1', [
+      { stepId: 'a', text: 'Once', source: 'AI' },
+    ]);
+    expect(api.calls[0]?.body).toEqual({
+      sessionId: 's1',
+      scenes: [{ stepId: 'a', text: 'Once', source: 'AI' }],
+    });
+    expect(saved.scenes).toEqual([{ stepId: 'a', text: 'Once', source: 'AI' }]);
+    expect((await listStoryArtifacts('child-1'))[0]?.title).toBe('The Tale');
+  });
+
+  it('deletes one story, and a story already gone counts as deleted', async () => {
+    api.on('DELETE', 'children/child-1/story-artifacts/st1/', null);
+    await deleteStoryArtifact('child-1', 'st1');
+    await expect(deleteStoryArtifact('child-1', 'gone')).resolves.toBeUndefined();
   });
 });

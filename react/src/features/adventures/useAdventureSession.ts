@@ -1,20 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getHintText, getNextStepId, getStep, nextHintLevel } from './engine';
+import { getHintText, getStep, nextHintLevel } from './engine';
 import type { AdventureDefinition, AdventureStep, Correctness } from './engine/types';
 import type { StepAnswer } from './engine/validators';
 import {
-  advanceSession,
-  completeSession,
-  recordAction,
-  recordSkillEvidence,
-  recordWorldChangeOnce,
+  requestAdventureHint,
   resumeOrStartSession,
   saveStoryArtifact,
   submitAdventureAnswer,
   type AdventureSession,
   type StoryScene,
 } from './api';
-import { upsertSkillProgress } from '../mastery/api';
 import { AdventureUnavailableError } from '../catalog/availabilityApi';
 import { syncQuestProgress } from '../quests/api';
 import { useCompanionTurn } from '../companion/useCompanionTurn';
@@ -25,7 +20,6 @@ import { toCompanionTurnState } from '../tutor/presentation';
 import { representationAidForTurn } from '../tutor/scaffold';
 import type { RepresentationAid } from '../tutor/content/representationAids';
 import type { AgeBandValue } from '../child-profile/constants';
-import { ensureChildProfileOwnerSub } from '../child-profile/api';
 import { claimCoopSlot, completeCoopSession } from '../coop/api';
 import { useCoopPresence } from '../coop/useCoopPresence';
 import { isCoopEligibleStepType, type CoopSharedState } from '../coop/types';
@@ -34,24 +28,6 @@ type LoadState = 'loading' | 'ready' | 'error';
 
 interface StepProgress {
   hintLevel: number;
-  attemptNumber: number;
-}
-
-function normalizeAnswer(answer: StepAnswer): string | undefined {
-  switch (answer.kind) {
-    case 'number-input':
-      return String(answer.value);
-    case 'choice':
-    case 'short-response':
-    case 'creative-choice':
-      return answer.optionId;
-    case 'ordering':
-      return answer.order.join(',');
-    case 'matching':
-      return answer.pairs.map((pair) => `${pair.leftId}:${pair.rightId}`).join(',');
-    default:
-      return undefined;
-  }
 }
 
 export interface AdventureSessionState {
@@ -93,12 +69,13 @@ export interface AdventureSessionState {
 
 /**
  * Orchestrates one child's play-through of one adventure: loads or creates
- * the session, validates answers, escalates the hint ladder, and drives
- * every transition through the deterministic engine (CLAUDE.md section 7 —
- * no AI decides correctness or transitions). Keeps that logic out of
- * components entirely (CLAUDE.md section 13). Also requests AI-phrased
- * companion dialogue for hints and celebrations (Phase 4) — this only ever
- * varies presentation; it never influences what `getNextStepId` decides.
+ * the session, sends each answer and hint request to the server, and shows
+ * what the server decided (CLAUDE.md section 7: no AI decides correctness or
+ * transitions; ADR-012: the server grades, records the attempt and its skill
+ * evidence, advances the session, records a WORLD_CHANGE step's world change
+ * and completes the session). Keeps that logic out of components entirely
+ * (CLAUDE.md section 13). Also requests AI-phrased companion dialogue for
+ * hints and celebrations (Phase 4), which only ever varies presentation.
  */
 export function useAdventureSession(
   childProfileId: string,
@@ -115,6 +92,7 @@ export function useAdventureSession(
   const [progressByStep, setProgressByStep] = useState<Record<string, StepProgress>>({});
   const [storyScenes, setStoryScenes] = useState<StoryScene[]>([]);
   const autoAdvancedStepRef = useRef<string | null>(null);
+  const questSyncedSessionRef = useRef<string | null>(null);
   const { state: companionTurn, request: requestCompanion } = useCompanionTurn();
   const { state: tutorTurn, request: requestTutor } = useTutorTurn();
   /**
@@ -133,16 +111,13 @@ export function useAdventureSession(
 
     async function load() {
       try {
-        // `submitAdventureAnswer` (docs/DECISIONS.md ADR-012) needs
-        // `ChildProfile.ownerSub` set to re-verify session ownership; a
-        // profile created before that field existed gets it backfilled here,
-        // once, before this child can submit an answer.
-        const [active] = await Promise.all([
-          resumeOrStartSession(childProfileId, definition),
-          ensureChildProfileOwnerSub(childProfileId),
-        ]);
+        const active = await resumeOrStartSession(childProfileId, definition);
         if (cancelled) return;
         setSession(active);
+        // The server remembers the hint level it gave on the current step.
+        setProgressByStep(
+          active.hintLevel > 0 ? { [active.currentStepId]: { hintLevel: active.hintLevel } } : {},
+        );
         setLoadState('ready');
       } catch (loadError) {
         if (cancelled) return;
@@ -162,78 +137,32 @@ export function useAdventureSession(
   const currentProgress = currentStep ? progressByStep[currentStep.id] : undefined;
   const hintLevel = currentProgress?.hintLevel ?? 0;
 
-  const advance = useCallback(
-    async (nextStepId: string) => {
-      if (!session) return;
-      const updated = await advanceSession(session.id, nextStepId);
-      setSession(updated);
-    },
-    [session],
-  );
-
-  const recordEvidenceForStep = useCallback(
-    async (
-      step: AdventureStep,
-      sessionId: string,
-      correctness: Correctness,
-      supportLevel: number,
-    ) => {
-      for (const objectiveId of step.objectiveIds) {
-        await recordSkillEvidence({
-          childProfileId,
-          sessionId,
-          learningObjectiveCode: objectiveId,
-          evidenceType: step.type,
-          result: correctness,
-          supportLevel,
-        });
-        await upsertSkillProgress(childProfileId, objectiveId, correctness, supportLevel);
-      }
-    },
-    [childProfileId],
-  );
-
   const submitAnswer = useCallback(
     async (answer: StepAnswer): Promise<Correctness | null> => {
       if (!session || !currentStep) return null;
       setSubmitting(true);
       setError(null);
       try {
-        const priorHintLevel = currentProgress?.hintLevel ?? 0;
-        const attemptNumber = (currentProgress?.attemptNumber ?? 0) + 1;
-
-        // The server, not this code, decides correctness and (when the
-        // answer advances the session) writes the session's new
-        // `currentStepId` itself (docs/DECISIONS.md ADR-012) — this replaces
-        // both the local `validateStepAnswer`/`getNextStepId` calls and the
-        // `advanceSession()` write that used to follow them.
-        const { correctness, supportLevel, action, nextStepId } = await submitAdventureAnswer(
+        // The server, not this code, decides correctness, records the attempt
+        // and its skill evidence, and (when the answer advances) moves the
+        // session on itself (docs/DECISIONS.md ADR-012). The hint level it
+        // grades with is its own record of the hints it gave on this step.
+        const result = await submitAdventureAnswer(
+          childProfileId,
           session.id,
+          currentStep.id,
           answer,
-          priorHintLevel,
         );
+        const { correctness, supportLevel, action } = result;
 
         setProgressByStep((prev) => ({
           ...prev,
-          [currentStep.id]: { hintLevel: supportLevel, attemptNumber },
+          [currentStep.id]: { hintLevel: supportLevel },
         }));
 
-        await recordAction({
-          sessionId: session.id,
-          stepId: currentStep.id,
-          actionType: currentStep.type,
-          normalizedAnswer: normalizeAnswer(answer),
-          correctness,
-          hintLevel: supportLevel,
-          attemptNumber,
-        });
-
         if (action === 'RETRY') {
+          setSession(result.session);
           return correctness;
-        }
-
-        if (correctness !== 'not_applicable') {
-          await recordEvidenceForStep(currentStep, session.id, correctness, supportLevel);
         }
         if (correctness === 'correct') {
           setLastSpeaker('companion');
@@ -307,17 +236,9 @@ export function useAdventureSession(
             aiEnabled,
           });
         }
-        // The Lambda already wrote this session's new `currentStepId`; a
-        // second client-side write would be redundant at best and, if this
-        // code ever computed a different value, would silently clobber the
-        // server's own verdict. Patch local state to match instead.
-        if (nextStepId) {
-          setSession((prev) =>
-            prev
-              ? { ...prev, currentStepId: nextStepId, lastActivityAt: new Date().toISOString() }
-              : prev,
-          );
-        }
+        // The server already moved the session on (and completed it when the
+        // next step ends the adventure); show its state rather than a guess.
+        setSession(result.session);
         return correctness;
       } catch {
         setError('Something went wrong. Let’s try that again.');
@@ -329,8 +250,6 @@ export function useAdventureSession(
     [
       session,
       currentStep,
-      currentProgress,
-      recordEvidenceForStep,
       requestCompanion,
       childProfileId,
       ageBand,
@@ -342,14 +261,19 @@ export function useAdventureSession(
 
   const requestHint = useCallback(() => {
     if (!currentStep) return;
-    const newLevel = nextHintLevel(progressByStep[currentStep.id]?.hintLevel ?? 0);
-    setProgressByStep((prev) => ({
-      ...prev,
-      [currentStep.id]: {
-        hintLevel: newLevel,
-        attemptNumber: prev[currentStep.id]?.attemptNumber ?? 0,
-      },
-    }));
+    const fromLevel = progressByStep[currentStep.id]?.hintLevel ?? 0;
+    const newLevel = nextHintLevel(fromLevel);
+    const stepId = currentStep.id;
+    setProgressByStep((prev) => ({ ...prev, [stepId]: { hintLevel: newLevel } }));
+    if (session) {
+      // The server keeps the hint ladder it grades with (compare-and-set on
+      // `fromLevel`, so a retry cannot escalate twice); adopt its level.
+      void requestAdventureHint(childProfileId, session.id, stepId, fromLevel)
+        .then((level) => {
+          setProgressByStep((prev) => ({ ...prev, [stepId]: { hintLevel: level } }));
+        })
+        .catch(() => undefined);
+    }
     const authoredHintText = getHintText(currentStep, newLevel);
     if (!authoredHintText || !session) return;
     const skillId = currentStep.objectiveIds[0];
@@ -404,92 +328,60 @@ export function useAdventureSession(
   useEffect(() => {
     if (!session || !currentStep) return;
     if (autoAdvancedStepRef.current === currentStep.id) return;
+    if (session.status !== 'ACTIVE') return;
 
     if (currentStep.type === 'WORLD_CHANGE' && currentStep.presentation.kind === 'world-change') {
       autoAdvancedStepRef.current = currentStep.id;
-      const { payload } = currentStep.presentation;
+      const stepId = currentStep.id;
       void (async () => {
         try {
           if (coopSessionId) {
             // A shared-construction WORLD_CHANGE step is itself
             // coop-eligible (docs/ADVENTURE_ENGINE.md). Claiming it here
             // records which child actually finished the shared build for
-            // presence purposes; the WorldChange write just below still
-            // happens independently for *this* child regardless of who
-            // claimed the step, since DATA_MODEL.md is explicit that a
-            // CoopSession must never become the record of who learned
-            // what — each participant's own client writes its own
-            // WorldChange when it reaches this step, giving "one
-            // WorldChange per participating child" for free rather than
-            // needing a special dual-write path here.
-            await claimCoopSlot(coopSessionId, currentStep.id, childProfileId).catch(
-              () => undefined,
-            );
-          }
-          await recordWorldChangeOnce(
-            childProfileId,
-            payload.locationSlug,
-            payload.changeType,
-            payload.changeKey,
-            session.id,
-          );
-          if (coopSessionId) {
-            // Idempotent (always sets status/completedAt regardless of
-            // current value), so it is safe for both participants' clients
-            // to call this independently as each reaches this step.
-            await completeCoopSession(coopSessionId, childProfileId).catch(() => undefined);
+            // presence purposes; each participant's own session records its
+            // own world change on the server, giving "one WorldChange per
+            // participating child" without a dual-write path.
+            await claimCoopSlot(coopSessionId, stepId, childProfileId).catch(() => undefined);
           }
           if (storyScenes.length > 0) {
-            await saveStoryArtifact(
-              childProfileId,
-              session.id,
-              definition.slug,
-              definition.title,
-              storyScenes,
-            );
+            // One story per session on the server, so a retry cannot duplicate it.
+            await saveStoryArtifact(childProfileId, session.id, storyScenes);
           }
-          await advance(getNextStepId(currentStep, 'not_applicable'));
+          // Leaving the step is an ungraded answer: the server records the
+          // step's authored world change (once) and moves the session on.
+          const result = await submitAdventureAnswer(childProfileId, session.id, stepId, {
+            kind: 'world-change',
+          });
+          if (coopSessionId) {
+            // Idempotent, so it is safe for both participants' clients to
+            // call this independently as each reaches this step.
+            await completeCoopSession(coopSessionId, childProfileId).catch(() => undefined);
+          }
+          setSession(result.session);
         } catch {
           setError('Something went wrong saving your progress on the island.');
         }
       })();
-      return;
     }
+  }, [session, currentStep, childProfileId, storyScenes, coopSessionId]);
 
-    if (currentStep.type === 'COMPLETE' && session.status !== 'COMPLETED') {
-      autoAdvancedStepRef.current = currentStep.id;
-      void (async () => {
-        try {
-          const updated = await completeSession(session.id);
-          setSession(updated);
-        } catch {
-          setError('Something went wrong finishing the adventure.');
-          return;
-        }
-        // Phase 25: finishing an adventure can finish a stage of a quest
-        // that composes it. `syncQuestProgress` recomputes every active
-        // quest from world state, so this call site does not need to know
-        // which quests (if any) name this adventure - and a child with no
-        // quests started pays one list read and stops.
-        //
-        // Deliberately after the session write and deliberately swallowed:
-        // the adventure is already complete and celebrated by this point,
-        // and a quest that could not be advanced now will advance the next
-        // time anything reads it, because quest progress is derived rather
-        // than reported (src/features/quests/types.ts).
-        await syncQuestProgress(childProfileId).catch(() => undefined);
-      })();
-    }
-  }, [
-    session,
-    currentStep,
-    childProfileId,
-    advance,
-    storyScenes,
-    definition.slug,
-    definition.title,
-    coopSessionId,
-  ]);
+  useEffect(() => {
+    if (!session || session.status !== 'COMPLETED') return;
+    if (questSyncedSessionRef.current === session.id) return;
+    questSyncedSessionRef.current = session.id;
+    // Phase 25: finishing an adventure can finish a stage of a quest that
+    // composes it. `syncQuestProgress` recomputes every active quest from
+    // world state, so this call site does not need to know which quests (if
+    // any) name this adventure. The server completed the session itself when
+    // the last answer moved it to a COMPLETE step.
+    //
+    // Deliberately swallowed: the adventure is already complete and
+    // celebrated, and a quest that could not be advanced now will advance the
+    // next time anything reads it, because quest progress is derived rather
+    // than reported (src/features/quests/types.ts).
+    void syncQuestProgress(childProfileId).catch(() => undefined);
+  }, [session, childProfileId]);
 
   // The rule itself is pure and lives in the tutor module
   // (`representationAidForTurn`); `tutorStepId` is what keeps a scaffold

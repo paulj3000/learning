@@ -1,143 +1,125 @@
-import { client } from '../../lib/data-client';
-import { decodeAwsJson, encodeAwsJson } from '../../lib/awsJson';
-import { listSessions, recordSkillEvidence, recordWorldChangeOnce } from '../adventures/api';
-import type { WorldChangePayload } from '../adventures/engine/types';
-import { upsertSkillProgress } from '../mastery/api';
-import type { Schema } from '../../../../amplify/data/resource';
+import { childPath, djangoClient } from '../../api/djangoClient';
+import { read, type Reader } from '../../api/parse';
+import { listSessions } from '../adventures/api';
 
-export type ChildStoryProgress = Schema['ChildStoryProgress']['type'];
+/**
+ * Story progress on Django (`children/<id>/stories/...`, AMP-03).
+ *
+ * The client says what the child did; the server decides what it changes, from the content
+ * export's own story definitions (`apps/progression/stories.py`): the entry chapter, which flag
+ * values a choice offers, which chapter is next, whether a chapter's embedded adventures are
+ * done, the completion world change, and the reflection evidence. Each write is idempotent.
+ */
+export interface ChildStoryProgress {
+  id: string;
+  childProfileId: string;
+  storyId: string;
+  currentChapterId: string;
+  completedChapterIds: string[];
+  /** Bounded, authored flags only (never free-form child text). */
+  storyFlags: Record<string, string>;
+  startedAt: string;
+  lastPlayedAt: string;
+  completedAt: string | null;
+}
 
-/** `storyFlags` is untyped JSON on the wire; parse defensively rather than trusting the shape, same precedent as `parseStoryScenes` in adventures/api.ts. */
+/** `storyFlags` from the server; parse defensively rather than trusting the shape. */
 export function parseStoryFlags(flags: unknown): Record<string, string> {
-  const decoded = decodeAwsJson(flags);
-  if (typeof decoded !== 'object' || decoded === null) return {};
+  if (typeof flags !== 'object' || flags === null || Array.isArray(flags)) return {};
   const result: Record<string, string> = {};
-  for (const [key, value] of Object.entries(decoded as Record<string, unknown>)) {
-    if (typeof value === 'string') {
-      result[key] = value;
-    }
+  for (const [key, value] of Object.entries(flags as Record<string, unknown>)) {
+    if (typeof value === 'string') result[key] = value;
   }
   return result;
 }
 
-function completedChapterIdsOf(progress: ChildStoryProgress): string[] {
-  return (progress.completedChapterIds ?? []).filter((id): id is string => typeof id === 'string');
+function readProgress(r: Reader, childProfileId: string): ChildStoryProgress {
+  return {
+    id: r.field('id').string(),
+    childProfileId,
+    storyId: r.field('storyId').string(),
+    currentChapterId: r.field('currentChapterId').string(),
+    completedChapterIds: r.field('completedChapterIds').array((id) => id.string()),
+    storyFlags: parseStoryFlags(r.field('storyFlags').value),
+    startedAt: r.field('startedAt').string(),
+    lastPlayedAt: r.field('lastPlayedAt').string(),
+    completedAt: r.field('completedAt').nullable((v) => v.string()),
+  };
 }
 
-/**
- * Owner authorization scopes `.list()` to the caller's own records, same
- * pattern as `getActiveSession` in adventures/api.ts.
- */
+function storyPath(childProfileId: string, storyId: string, rest: string): string {
+  return childPath(childProfileId, `stories/${encodeURIComponent(storyId)}/${rest}`);
+}
+
+async function write(
+  childProfileId: string,
+  path: string,
+  body: Record<string, unknown> = {},
+): Promise<ChildStoryProgress> {
+  const response = await djangoClient().request('POST', path, { body });
+  return read(response.data, (r) => readProgress(r, childProfileId));
+}
+
+/** Every story this child has started (the Adventure Library's "keep going" or "finished"). */
+export async function listStoryProgress(childProfileId: string): Promise<ChildStoryProgress[]> {
+  const response = await djangoClient().request('GET', childPath(childProfileId, 'stories/'));
+  return read(response.data, (r) =>
+    r.field('stories').array((row) => readProgress(row, childProfileId)),
+  );
+}
+
 export async function getStoryProgress(
   childProfileId: string,
   storyId: string,
 ): Promise<ChildStoryProgress | null> {
-  const { data } = await client.models.ChildStoryProgress.list();
-  return (
-    data.find(
-      (row: ChildStoryProgress) => row.childProfileId === childProfileId && row.storyId === storyId,
-    ) ?? null
-  );
+  const rows = await listStoryProgress(childProfileId);
+  return rows.find((row) => row.storyId === storyId) ?? null;
 }
 
-/**
- * Every story this child has started, used by the Adventure Library to mark
- * a card "keep going" or "finished" (docs/ROADMAP.md Phase 15). Owner
- * authorization scopes `.list()` to the caller's own records, so the
- * `childProfileId` filter is a within-family narrowing, not the security
- * boundary, same as `getStoryProgress` above.
- */
-export async function listStoryProgress(childProfileId: string): Promise<ChildStoryProgress[]> {
-  const { data } = await client.models.ChildStoryProgress.list();
-  return data.filter((row: ChildStoryProgress) => row.childProfileId === childProfileId);
-}
-
-export async function startOrResumeStoryProgress(
+/** Starts this story at its authored entry chapter, or resumes it. */
+export function startOrResumeStoryProgress(
   childProfileId: string,
   storyId: string,
-  entryChapterId: string,
 ): Promise<ChildStoryProgress> {
-  const existing = await getStoryProgress(childProfileId, storyId);
-  if (existing) return existing;
-
-  const now = new Date().toISOString();
-  const { data, errors } = await client.models.ChildStoryProgress.create({
-    childProfileId,
-    storyId,
-    currentChapterId: entryChapterId,
-    completedChapterIds: [],
-    storyFlags: encodeAwsJson({}),
-    startedAt: now,
-    lastPlayedAt: now,
-  });
-  if (!data) {
-    throw new Error(errors?.[0]?.message ?? 'Could not start that story.');
-  }
-  return data;
+  return write(childProfileId, storyPath(childProfileId, storyId, 'start/'));
 }
 
-/** Merges one bounded, curated choice into `storyFlags` (docs/DATA_MODEL.md: "bounded, authored flags only, never free-form child text"). */
-export async function setStoryFlag(
+/** Records one authored choice (`flagKey` set to an offered `flagValue`). */
+export function setStoryFlag(
   progress: ChildStoryProgress,
   flagKey: string,
   flagValue: string,
 ): Promise<ChildStoryProgress> {
-  const flags = { ...parseStoryFlags(progress.storyFlags), [flagKey]: flagValue };
-  const { data, errors } = await client.models.ChildStoryProgress.update({
-    id: progress.id,
-    storyFlags: encodeAwsJson(flags),
-    lastPlayedAt: new Date().toISOString(),
-  });
-  if (!data) {
-    throw new Error(errors?.[0]?.message ?? 'Could not save your choice.');
-  }
-  return data;
-}
-
-export async function advanceChapter(
-  progress: ChildStoryProgress,
-  completedChapterId: string,
-  nextChapterId: string,
-): Promise<ChildStoryProgress> {
-  const { data, errors } = await client.models.ChildStoryProgress.update({
-    id: progress.id,
-    currentChapterId: nextChapterId,
-    completedChapterIds: [...completedChapterIdsOf(progress), completedChapterId],
-    lastPlayedAt: new Date().toISOString(),
-  });
-  if (!data) {
-    throw new Error(errors?.[0]?.message ?? 'Could not continue the story.');
-  }
-  return data;
-}
-
-/** Marks the final chapter complete and records the story's own completion world change (in addition to whatever its chapters' embedded adventures already recorded for themselves). */
-export async function completeStory(
-  progress: ChildStoryProgress,
-  completedChapterId: string,
-  completionWorldChange: WorldChangePayload,
-): Promise<ChildStoryProgress> {
-  const now = new Date().toISOString();
-  await recordWorldChangeOnce(
+  return write(
     progress.childProfileId,
-    completionWorldChange.locationSlug,
-    completionWorldChange.changeType,
-    completionWorldChange.changeKey,
-    progress.id,
+    storyPath(progress.childProfileId, progress.storyId, 'flags/'),
+    {
+      flagKey,
+      flagValue,
+    },
   );
-  const { data, errors } = await client.models.ChildStoryProgress.update({
-    id: progress.id,
-    completedChapterIds: [...completedChapterIdsOf(progress), completedChapterId],
-    completedAt: now,
-    lastPlayedAt: now,
-  });
-  if (!data) {
-    throw new Error(errors?.[0]?.message ?? 'Could not finish the story.');
-  }
-  return data;
 }
 
-/** Whether this child has a COMPLETED `AdventureSession` for `templateSlug` — how the Story Engine knows an embedded ADVENTURE scene is done, without polling. */
+/**
+ * Finishes the current chapter. The server moves to the authored next chapter, or completes the
+ * story and records its completion world change when this was the last one. A chapter whose
+ * embedded adventures are not all completed is refused.
+ */
+export function completeChapter(
+  progress: ChildStoryProgress,
+  chapterId: string,
+): Promise<ChildStoryProgress> {
+  return write(
+    progress.childProfileId,
+    storyPath(
+      progress.childProfileId,
+      progress.storyId,
+      `chapters/${encodeURIComponent(chapterId)}/complete/`,
+    ),
+  );
+}
+
+/** Whether this child has a COMPLETED session for `templateSlug` (an embedded ADVENTURE scene). */
 export async function isAdventureSessionComplete(
   childProfileId: string,
   templateSlug: string,
@@ -149,25 +131,15 @@ export async function isAdventureSessionComplete(
 }
 
 /**
- * A story-level REFLECTION scene has no `AdventureSession` of its own, so
- * `sessionId` here is a synthetic, non-identifying label
- * (`story:<progressId>`) rather than a real session id — fine, since
- * `SkillEvidence.sessionId` is a plain string, not a foreign key.
+ * A story-level REFLECTION scene. The server records not-applicable evidence for the scene's own
+ * authored objectives, once per story play and objective.
  */
 export async function recordStoryReflectionEvidence(
   childProfileId: string,
-  storyProgressId: string,
-  objectiveIds: string[],
+  storyId: string,
+  sceneId: string,
 ): Promise<void> {
-  for (const objectiveId of objectiveIds) {
-    await recordSkillEvidence({
-      childProfileId,
-      sessionId: `story:${storyProgressId}`,
-      learningObjectiveCode: objectiveId,
-      evidenceType: 'REFLECTION',
-      result: 'not_applicable',
-      supportLevel: 0,
-    });
-    await upsertSkillProgress(childProfileId, objectiveId, 'not_applicable', 0);
-  }
+  await djangoClient().request('POST', storyPath(childProfileId, storyId, 'reflections/'), {
+    body: { sceneId },
+  });
 }

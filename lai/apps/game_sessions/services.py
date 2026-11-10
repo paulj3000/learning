@@ -359,9 +359,40 @@ def submit_answer(
         support_level=decision["supportLevel"],
         at=at,
     )
+    if next_step is not None:
+        _record_step_world_change(session, step, at)
     if next_step is not None and _ends_adventure(session, next_step):
         _complete(session, at)
     return _outcome(action, session, replayed=False)
+
+
+def _record_step_world_change(session: AdventureSession, step: AdventureStep, at) -> None:
+    """Leaving an authored WORLD_CHANGE step records its world change (AMP-03), once.
+
+    The change is the step's own authored payload, never a client value; recording is
+    idempotent (`record_world_change`), so a replayed or repeated adventure changes nothing.
+    """
+    presentation = (step.source or {}).get("presentation") or {}
+    payload = presentation.get("payload") if presentation.get("kind") == "world-change" else None
+    if not isinstance(payload, dict):
+        return
+    location, change_type, key = (
+        payload.get("locationSlug"),
+        payload.get("changeType"),
+        payload.get("changeKey"),
+    )
+    if not all(isinstance(value, str) and value for value in (location, change_type, key)):
+        return
+    from apps.progression.services import record_world_change
+
+    record_world_change(
+        session.child,
+        location_slug=location,
+        change_type=change_type,
+        change_key=key,
+        source_session=session,
+        now=at,
+    )
 
 
 @transaction.atomic

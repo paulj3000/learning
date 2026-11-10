@@ -1,7 +1,9 @@
+import { cognitoAuth } from '../../lib/cognito';
 import { getAccessToken } from '../../api/auth';
 import { createApiClient } from '../../api/client';
 import { DJANGO_API_CONFIG, type DjangoApiConfig } from '../../api/config';
-import { amplifyProfileStore } from './amplifyProfiles';
+import { djangoBaseUrl } from '../../api/djangoClient';
+import type { DeleteCognitoUser } from './deletion';
 import { createDjangoProfileStore } from './djangoProfiles';
 import type {
   ChildProfile,
@@ -16,18 +18,25 @@ export type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore };
 /**
  * Parent and child profiles (LAI-CHILD-001, ADR-039). Every screen calls these functions.
  *
- * The store follows the build's *backend*: a build with the Django API (`VITE_BACKEND=django`)
- * keeps every profile in Django. The parent always signs in with Cognito (ADR-040); the Cognito
- * access token identifies the parent, and Django authorizes access and owns the data.
+ * Django keeps every profile (AMP-03: the Amplify Data store is gone). The parent always signs
+ * in with Cognito (ADR-040); the Cognito access token identifies the parent, and Django
+ * authorizes access and owns the data. A build without `VITE_BACKEND=django` calls Django on the
+ * same origin, the deployed shape.
  *
- * A build without the Django API (today's production build) still uses Amplify Data, because
- * that is where its families' profiles are until the controlled import and cutover (Phase 11/12;
- * docs/platform/AMPLIFY_PROFILE_IMPORT.md). That branch goes with LAI-1301.
+ * `deleteCognitoUser` is the one auth call this module needs: account deletion removes the
+ * Cognito user after Django has deleted the account. It is injected here, the single place the
+ * auth layer's deleter is named (AMP-02 swaps the Amplify Auth call for its own Cognito client).
  */
-export function profileStoreFor(config: DjangoApiConfig = DJANGO_API_CONFIG): ProfileStore {
-  if (!config.enabled) return amplifyProfileStore;
+const deleteCognitoUser: DeleteCognitoUser = () => cognitoAuth().deleteUser();
+
+export function profileStoreFor(
+  config: DjangoApiConfig = DJANGO_API_CONFIG,
+  deleteUserFromCognito: DeleteCognitoUser = deleteCognitoUser,
+): ProfileStore {
   return createDjangoProfileStore(
-    createApiClient({ baseUrl: config.baseUrl, getAccessToken, provisionAccount: true }),
+    createApiClient({ baseUrl: djangoBaseUrl(config), getAccessToken, provisionAccount: true }),
+    undefined,
+    deleteUserFromCognito,
   );
 }
 
@@ -63,8 +72,8 @@ export const setChildProfileAIEnabled = (id: string, aiEnabled: boolean) =>
   current().setChildProfileAIEnabled(id, aiEnabled);
 export const ensureChildProfileOwnerSub = (childProfileId: string) =>
   current().ensureChildProfileOwnerSub(childProfileId);
-/** Every stored record for one child. Unavailable from Django until LAI-0209. */
+/** Every stored record for one child (`DELETE children/<id>/`, recent sign-in required). */
 export const deleteChildProfileData = (childProfileId: string) =>
   current().deleteChildProfileData(childProfileId);
-/** The account and every child's data. Unavailable from Django until LAI-0209. */
+/** The account, every child's data, then the Cognito user (`deletion.ts`). */
 export const deleteAccountAndAllData = () => current().deleteAccountAndAllData();

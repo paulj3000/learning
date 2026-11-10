@@ -64,7 +64,7 @@ export function WorldHubPage() {
 
         const [changes, catalog] = await Promise.all([
           listAllWorldChanges(childId).catch(() => []),
-          loadCatalogSnapshot(),
+          loadCatalogSnapshot(childId),
         ]);
         if (cancelled) return;
         const keys = changes.map((change) => change.changeKey);

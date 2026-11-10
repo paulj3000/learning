@@ -15,11 +15,14 @@ urlpatterns = [
     path("api/v1/", include("apps.core.urls")),
     path("api/v1/", include("apps.users.urls")),
     path("api/v1/", include("apps.game_sessions.urls")),
+    path("api/v1/", include("apps.progression.urls")),
+    path("api/v1/", include("apps.education.urls")),
+    path("api/v1/", include("apps.inventory.urls")),
+    path("api/v1/", include("apps.quests.urls")),
     path("api/v1/", include("apps.assets.urls")),
     path("api/v1/", include("apps.audio.urls")),
     path("api/v1/", include("apps.speech.urls")),
     path("api/v1/", include("apps.ai.urls")),
-    path("api/v1/", include("apps.education.urls")),
     path(settings.ADMIN_URL_PATH, admin.site.urls),
 ]
 

@@ -1,21 +1,80 @@
-import { client } from '../../lib/data-client';
-import { decodeAwsJson, encodeAwsJson } from '../../lib/awsJson';
+import { childPath, djangoClient } from '../../api/djangoClient';
+import { ApiError, isApiError } from '../../api/errors';
+import { read, type Reader } from '../../api/parse';
 import type { Correctness, AdventureDefinition } from './engine/types';
 import type { StepAnswer } from './engine/validators';
-import type { Schema } from '../../../../amplify/data/resource';
-import { assertAdventureAvailable } from '../catalog/availabilityApi';
+import { AdventureUnavailableError } from '../catalog/availabilityApi';
 
-export type AdventureSession = Schema['AdventureSession']['type'];
-export type AdventureAction = Schema['AdventureAction']['type'];
-export type WorldChange = Schema['WorldChange']['type'];
-export type SkillProgress = Schema['SkillProgress']['type'];
-export type StoryArtifact = Schema['StoryArtifact']['type'];
+export type { SkillProgress } from '../mastery/api';
+
+/**
+ * Classic step-based adventures on the Django API (AMP-03; docs/PLAY_API.md "Classic
+ * adventures"). Every route is child-scoped: the server resolves the child through the signed-in
+ * parent, so another family's child or session is a 404.
+ *
+ * The server is the authority for everything that decides progress (ADR-012, ADR-019): it grades
+ * each answer, records the attempt and the skill evidence, escalates the hint ladder, advances
+ * the session, records the world change a WORLD_CHANGE step owes, and completes the session. This
+ * module only reports what the child did and reads the results.
+ */
+
+export type SessionStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ABANDONED' | 'SAFETY_STOPPED';
+export type SchemaCorrectness = 'CORRECT' | 'INCORRECT' | 'PARTIAL' | 'NOT_APPLICABLE';
+
+export interface AdventureSession {
+  id: string;
+  childProfileId: string;
+  templateSlug: string;
+  templateVersion: number;
+  locationSlug: string;
+  status: SessionStatus;
+  currentStepId: string;
+  /** The hint level the server has given on the current step. */
+  hintLevel: number;
+  startedAt: string;
+  lastActivityAt: string;
+  completedAt: string | null;
+}
+
+/** One recorded attempt at one step (the parent dashboard's independent-vs-hinted report). */
+export interface AdventureAction {
+  id: string;
+  sessionId: string;
+  stepId: string;
+  actionType: string;
+  correctness: SchemaCorrectness;
+  /** The answer's short form (an option id, a number, an order), or null. Never free text. */
+  normalizedAnswer: string | null;
+  hintLevel: number;
+  attemptNumber: number;
+  createdAt: string;
+}
+
+export interface WorldChange {
+  id: string;
+  childProfileId: string;
+  locationSlug: string;
+  changeType: string;
+  changeKey: string;
+  sourceSessionId: string;
+  createdAt: string;
+}
 
 /** One AI-narrated (or authored-fallback) beat of a Storykeeper Castle story. */
 export interface StoryScene {
   stepId: string;
   text: string;
   source: 'AI' | 'FALLBACK';
+}
+
+export interface StoryArtifact {
+  id: string;
+  childProfileId: string;
+  sessionId: string;
+  templateSlug: string;
+  title: string;
+  scenes: StoryScene[];
+  createdAt: string;
 }
 
 function isStoryScene(value: unknown): value is StoryScene {
@@ -28,25 +87,65 @@ function isStoryScene(value: unknown): value is StoryScene {
   );
 }
 
-/** `StoryArtifact.scenes` is untyped JSON on the wire; this is our own prior write, but parse defensively rather than trusting the shape. */
+/** Saved scenes are server data; parse them defensively rather than trusting the shape. */
 export function parseStoryScenes(scenes: unknown): StoryScene[] {
-  const decoded = decodeAwsJson(scenes);
-  return Array.isArray(decoded) ? decoded.filter(isStoryScene) : [];
+  return Array.isArray(scenes) ? scenes.filter(isStoryScene) : [];
 }
 
-const CORRECTNESS_TO_SCHEMA: Record<Correctness, Schema['Correctness']['type']> = {
-  correct: 'CORRECT',
-  incorrect: 'INCORRECT',
-  partial: 'PARTIAL',
-  not_applicable: 'NOT_APPLICABLE',
-};
+const SESSION_STATUSES = ['ACTIVE', 'PAUSED', 'COMPLETED', 'ABANDONED', 'SAFETY_STOPPED'] as const;
+const CORRECTNESS_VALUES = ['CORRECT', 'INCORRECT', 'PARTIAL', 'NOT_APPLICABLE'] as const;
 
-const SCHEMA_TO_CORRECTNESS: Record<string, Correctness> = {
+const SCHEMA_TO_CORRECTNESS: Record<SchemaCorrectness, Correctness> = {
   CORRECT: 'correct',
   INCORRECT: 'incorrect',
   PARTIAL: 'partial',
   NOT_APPLICABLE: 'not_applicable',
 };
+
+function nullableString(r: Reader): string | null {
+  return r.nullable((v) => v.string());
+}
+
+export function readSession(r: Reader, childProfileId: string): AdventureSession {
+  return {
+    id: r.field('id').string(),
+    childProfileId,
+    templateSlug: r.field('adventureSlug').string(),
+    templateVersion: r.field('templateVersion').integer(),
+    locationSlug:
+      r.field('locationSlug').value === undefined ? '' : r.field('locationSlug').string(),
+    status: r.field('status').oneOf(SESSION_STATUSES),
+    currentStepId: r.field('currentStepId').string(),
+    hintLevel: r.field('hintLevel').integer(),
+    startedAt: r.field('startedAt').string(),
+    lastActivityAt: r.field('lastActivityAt').string(),
+    completedAt: nullableString(r.field('completedAt')),
+  };
+}
+
+function readWorldChange(r: Reader, childProfileId: string): WorldChange {
+  return {
+    id: r.field('id').string(),
+    childProfileId,
+    locationSlug: r.field('locationSlug').string(),
+    changeType: r.field('changeType').string(),
+    changeKey: r.field('changeKey').string(),
+    sourceSessionId: r.field('sourceSessionId').string(),
+    createdAt: r.field('createdAt').string(),
+  };
+}
+
+function readArtifact(r: Reader, childProfileId: string): StoryArtifact {
+  return {
+    id: r.field('id').string(),
+    childProfileId,
+    sessionId: r.field('sessionId').string(),
+    templateSlug: r.field('templateSlug').string(),
+    title: r.field('title').string(),
+    scenes: parseStoryScenes(r.field('scenes').value),
+    createdAt: r.field('createdAt').string(),
+  };
+}
 
 export interface AdventureAnswerResult {
   correctness: Correctness;
@@ -54,225 +153,168 @@ export interface AdventureAnswerResult {
   action: 'RETRY' | 'ADVANCE';
   /** Set only when `action` is `'ADVANCE'`. */
   nextStepId: string | null;
+  /** The session as the server left it (its step, status and completion). */
+  session: AdventureSession;
+}
+
+function newRequestId(): string {
+  return globalThis.crypto.randomUUID();
 }
 
 /**
- * The adventure engine's first server-authoritative mutation
- * (docs/DECISIONS.md ADR-012): the Lambda behind this, not the caller,
- * decides `correctness` and — when the answer advances the session —
- * writes the session's new `currentStepId` itself. `useAdventureSession`
- * calls this instead of running `validateStepAnswer`/`getNextStepId`
- * locally and writing `AdventureSession` directly; see that hook for the
- * full flow this replaces.
- *
- * `answer` is passed as a plain object, not `encodeAwsJson(answer)`.
- * Unlike every `a.json()` *model field* in this schema (`src/lib/awsJson.ts`'s
- * doc comment), the generated argument type for this mutation is a plain
- * JSON-value union rather than `string` — confirmed by `tsc` itself
- * rejecting the encoded form here with a type error; see the matching note
- * in `amplify/functions/submit-adventure-answer/handler.ts`.
+ * Sends what the child did on the current step; the server grades it (ADR-012), records the
+ * attempt and its skill evidence, and, when it advances, moves the session on itself.
+ * `requestId` makes a retried request safe: the server returns the stored outcome.
  */
 export async function submitAdventureAnswer(
+  childProfileId: string,
   sessionId: string,
+  stepId: string,
   answer: StepAnswer,
-  hintLevel: number,
+  requestId: string = newRequestId(),
 ): Promise<AdventureAnswerResult> {
-  const { data, errors } = await client.mutations.submitAdventureAnswer({
-    sessionId,
-    answer,
-    hintLevel,
+  const response = await djangoClient().request(
+    'POST',
+    childPath(childProfileId, `sessions/${encodeURIComponent(sessionId)}/answers/`),
+    { body: { stepId, answer: { ...answer }, requestId } },
+  );
+  return read(response.data, (r) => {
+    const correctness = SCHEMA_TO_CORRECTNESS[r.field('correctness').oneOf(CORRECTNESS_VALUES)];
+    const action = r.field('action').oneOf(['RETRY', 'ADVANCE'] as const);
+    return {
+      correctness,
+      supportLevel: r.field('supportLevel').integer(),
+      action,
+      nextStepId: action === 'ADVANCE' ? nullableString(r.field('nextStepId')) : null,
+      session: readSession(r.field('session'), childProfileId),
+    };
   });
-  if (!data) {
-    throw new Error(errors?.[0]?.message ?? 'Could not check that answer.');
-  }
-  const correctness = SCHEMA_TO_CORRECTNESS[data.correctness];
-  if (!correctness) {
-    throw new Error('Could not understand the result of that answer.');
-  }
-  const action = data.action === 'RETRY' ? 'RETRY' : 'ADVANCE';
-  return {
-    correctness,
-    supportLevel: data.supportLevel,
-    action,
-    nextStepId: action === 'ADVANCE' ? (data.nextStepId ?? null) : null,
-  };
 }
 
 /**
- * Owner authorization scopes `.list()` to the caller's own records, so
- * filtering client-side (same pattern as island/api.ts's CompanionProfile
- * lookup) is enough to find this child's session for this template.
+ * Asks the server for the next rung of the current step's hint ladder. `fromLevel` is the level
+ * the child saw, so a retried request cannot escalate twice. Returns the server's level, which is
+ * also the support level the next answer is graded with.
  */
+export async function requestAdventureHint(
+  childProfileId: string,
+  sessionId: string,
+  stepId: string,
+  fromLevel: number,
+): Promise<number> {
+  const response = await djangoClient().request(
+    'POST',
+    childPath(childProfileId, `sessions/${encodeURIComponent(sessionId)}/hints/`),
+    { body: { stepId, fromLevel } },
+  );
+  return read(response.data, (r) => r.field('hintLevel').integer());
+}
+
+function adventurePath(childProfileId: string, templateSlug: string): string {
+  return childPath(childProfileId, `adventures/${encodeURIComponent(templateSlug)}/session/`);
+}
+
+/** This child's ACTIVE session for one adventure, or null. */
 export async function getActiveSession(
   childProfileId: string,
   templateSlug: string,
 ): Promise<AdventureSession | null> {
-  const { data } = await client.models.AdventureSession.list();
-  return (
-    data.find(
-      (session: AdventureSession) =>
-        session.childProfileId === childProfileId &&
-        session.templateSlug === templateSlug &&
-        session.status === 'ACTIVE',
-    ) ?? null
-  );
-}
-
-export async function startSession(
-  childProfileId: string,
-  templateSlug: string,
-  templateVersion: number,
-  entryStepId: string,
-): Promise<AdventureSession> {
-  const now = new Date().toISOString();
-  const { data, errors } = await client.models.AdventureSession.create({
-    childProfileId,
-    templateSlug,
-    templateVersion,
-    status: 'ACTIVE',
-    currentStepId: entryStepId,
-    startedAt: now,
-    lastActivityAt: now,
-  });
-  if (!data) {
-    throw new Error(errors?.[0]?.message ?? 'Could not start the adventure.');
+  try {
+    const response = await djangoClient().request(
+      'GET',
+      adventurePath(childProfileId, templateSlug),
+    );
+    return read(response.data, (r) =>
+      r.field('session').nullable((s) => readSession(s, childProfileId)),
+    );
+  } catch (error) {
+    if (isApiError(error) && error.kind === 'not_found') return null;
+    throw error;
   }
-  return data;
 }
 
 /**
- * Resumes this child's active session for `definition`, or starts a new
- * one. Shared by `useAdventureSession` (on mounting an adventure route) and
- * the world engine's `START_ADVENTURE` interactions (docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md
- * section 8's "World checks requirements -> Adventure Engine starts"), so
- * approaching an adventure object in the world and opening the adventure
- * route directly both create at most one active session.
+ * Resumes this child's active session for `definition`, or starts a new one, on the server.
+ * Shared by `useAdventureSession` and the world's `START_ADVENTURE` interactions, so a child has
+ * at most one active session per adventure (the database enforces it too).
  *
- * Also the one place every route goes through to play an adventure, so it
- * is where the admin catalog's active flags are enforced for children
- * (docs/ISLAND_ADVENTURE_MANAGEMENT.md section 17): an adventure, or one on
- * an island, that an admin deactivated throws `AdventureUnavailableError`
- * instead of starting or resuming. An existing session is left untouched,
- * so the child's progress is still there if the adventure is reactivated.
+ * Whether the adventure may be played is the server's decision (ADR-031): an adventure, or one on
+ * a place or island, that was taken out of play answers `content_unavailable`, which becomes the
+ * calm `AdventureUnavailableError`. An existing session is left untouched.
  */
 export async function resumeOrStartSession(
   childProfileId: string,
   definition: AdventureDefinition,
 ): Promise<AdventureSession> {
-  await assertAdventureAvailable(definition);
-  const existing = await getActiveSession(childProfileId, definition.slug);
-  return (
-    existing ??
-    (await startSession(
-      childProfileId,
-      definition.slug,
-      definition.version,
-      definition.entryStepId,
-    ))
+  try {
+    const response = await djangoClient().request(
+      'POST',
+      adventurePath(childProfileId, definition.slug),
+      { body: {} },
+    );
+    return read(response.data, (r) => readSession(r, childProfileId));
+  } catch (error) {
+    if (isApiError(error) && (error.code === 'content_unavailable' || error.kind === 'not_found')) {
+      throw new AdventureUnavailableError();
+    }
+    throw error;
+  }
+}
+
+/** Every adventure session this child has, newest activity first. */
+export async function listSessions(childProfileId: string): Promise<AdventureSession[]> {
+  const response = await djangoClient().request('GET', childPath(childProfileId, 'sessions/'));
+  return read(response.data, (r) =>
+    r.field('sessions').array((s) => readSession(s, childProfileId)),
   );
 }
 
-export async function advanceSession(
-  sessionId: string,
-  nextStepId: string,
-): Promise<AdventureSession> {
-  const { data, errors } = await client.models.AdventureSession.update({
-    id: sessionId,
-    currentStepId: nextStepId,
-    lastActivityAt: new Date().toISOString(),
-  });
-  if (!data) {
-    throw new Error(errors?.[0]?.message ?? 'Could not continue the adventure.');
-  }
-  return data;
+/**
+ * The recorded attempts for these sessions (the parent dashboard's independent-vs-hinted
+ * report). The server returns the child's attempts; this keeps those of the named sessions.
+ */
+export async function listActionsForSessions(
+  childProfileId: string,
+  sessionIds: readonly string[],
+): Promise<AdventureAction[]> {
+  if (sessionIds.length === 0) return [];
+  const ids = new Set(sessionIds);
+  const response = await djangoClient().request(
+    'GET',
+    childPath(childProfileId, 'adventure-actions/'),
+  );
+  const actions = read(response.data, (r) =>
+    r.field('actions').array((a): AdventureAction => ({
+      id: a.field('id').string(),
+      sessionId: a.field('sessionId').string(),
+      stepId: a.field('stepId').string(),
+      actionType: a.field('actionType').string(),
+      correctness: a.field('correctness').oneOf(CORRECTNESS_VALUES),
+      normalizedAnswer: a.field('normalizedAnswer').nullable((v) => v.string()),
+      hintLevel: a.field('hintLevel').integer(),
+      attemptNumber: a.field('attemptNumber').integer(),
+      createdAt: a.field('createdAt').string(),
+    })),
+  );
+  return actions.filter((action) => ids.has(action.sessionId));
 }
 
-export async function completeSession(sessionId: string): Promise<AdventureSession> {
-  const now = new Date().toISOString();
-  const { data, errors } = await client.models.AdventureSession.update({
-    id: sessionId,
-    status: 'COMPLETED',
-    completedAt: now,
-    lastActivityAt: now,
-  });
-  if (!data) {
-    throw new Error(errors?.[0]?.message ?? 'Could not finish the adventure.');
-  }
-  return data;
-}
+// --- World changes -----------------------------------------------------------------------------
 
-export interface RecordActionInput {
-  sessionId: string;
-  stepId: string;
-  actionType: string;
-  normalizedAnswer?: string;
-  correctness: Correctness;
-  hintLevel: number;
-  attemptNumber: number;
-  /** Phase 22 Interaction Engine "duration capture" deliverable — see `src/features/interaction/evidence.ts`. */
-  durationMs?: number;
-}
-
-export async function recordAction(input: RecordActionInput): Promise<void> {
-  const { errors } = await client.models.AdventureAction.create({
-    sessionId: input.sessionId,
-    stepId: input.stepId,
-    actionType: input.actionType,
-    normalizedAnswer: input.normalizedAnswer,
-    correctness: CORRECTNESS_TO_SCHEMA[input.correctness],
-    hintLevel: input.hintLevel,
-    attemptNumber: input.attemptNumber,
-    durationMs: input.durationMs,
-  });
-  if (errors?.length) {
-    throw new Error(errors[0]?.message ?? 'Could not record that action.');
-  }
-}
-
-export interface RecordSkillEvidenceInput {
-  childProfileId: string;
-  sessionId: string;
-  learningObjectiveCode: string;
-  evidenceType: string;
-  result: Correctness;
-  supportLevel: number;
-  /** Phase 22 Interaction Engine "duration capture" deliverable — see `src/features/interaction/evidence.ts`. */
-  durationMs?: number;
-}
-
-export async function recordSkillEvidence(input: RecordSkillEvidenceInput): Promise<void> {
-  const { errors } = await client.models.SkillEvidence.create({
-    childProfileId: input.childProfileId,
-    sessionId: input.sessionId,
-    learningObjectiveCode: input.learningObjectiveCode,
-    evidenceType: input.evidenceType,
-    result: CORRECTNESS_TO_SCHEMA[input.result],
-    supportLevel: input.supportLevel,
-    durationMs: input.durationMs,
-    observedAt: new Date().toISOString(),
-  });
-  if (errors?.length) {
-    throw new Error(errors[0]?.message ?? 'Could not record that skill evidence.');
-  }
+/** Every world change across every location, newest first (parent dashboard, world views). */
+export async function listAllWorldChanges(childProfileId: string): Promise<WorldChange[]> {
+  const response = await djangoClient().request('GET', childPath(childProfileId, 'world-changes/'));
+  return read(response.data, (r) =>
+    r.field('worldChanges').array((c) => readWorldChange(c, childProfileId)),
+  );
 }
 
 export async function listWorldChanges(
   childProfileId: string,
   locationSlug: string,
 ): Promise<WorldChange[]> {
-  const { data } = await client.models.WorldChange.list();
-  return data.filter(
-    (change: WorldChange) =>
-      change.childProfileId === childProfileId && change.locationSlug === locationSlug,
-  );
-}
-
-/** Every world change across every location, newest first (parent dashboard). */
-export async function listAllWorldChanges(childProfileId: string): Promise<WorldChange[]> {
-  const { data } = await client.models.WorldChange.list();
-  return data
-    .filter((change: WorldChange) => change.childProfileId === childProfileId)
-    .sort((a: WorldChange, b: WorldChange) => b.createdAt.localeCompare(a.createdAt));
+  const changes = await listAllWorldChanges(childProfileId);
+  return changes.filter((change) => change.locationSlug === locationSlug);
 }
 
 export async function hasWorldChange(
@@ -284,7 +326,14 @@ export async function hasWorldChange(
   return changes.some((change) => change.changeKey === changeKey);
 }
 
-/** Idempotent by `changeKey`: replaying the same adventure never duplicates a world change. */
+/**
+ * Records a world change the island's own runtime decided (a world action, a trial). Idempotent
+ * on the server by (location, change key): replaying never duplicates a change. `sourceSessionId`
+ * is the child's own session id, or a provenance label such as `quest:<id>`.
+ *
+ * Adventures, stories, quests and discoveries do not call this: the server records the changes
+ * those owe when it accepts the step, chapter, quest state or discovery.
+ */
 export async function recordWorldChangeOnce(
   childProfileId: string,
   locationSlug: string,
@@ -292,86 +341,58 @@ export async function recordWorldChangeOnce(
   changeKey: string,
   sourceSessionId: string,
 ): Promise<void> {
-  const alreadyExists = await hasWorldChange(childProfileId, locationSlug, changeKey);
-  if (alreadyExists) return;
-
-  const { errors } = await client.models.WorldChange.create({
-    childProfileId,
-    locationSlug,
-    changeType,
-    changeKey,
-    sourceSessionId,
-    createdAt: new Date().toISOString(),
+  await djangoClient().request('POST', childPath(childProfileId, 'world-changes/'), {
+    body: { locationSlug, changeType, changeKey, sourceSessionId },
   });
-  if (errors?.length) {
-    throw new Error(errors[0]?.message ?? 'Could not save that change to the island.');
-  }
 }
 
-export async function listSessions(childProfileId: string): Promise<AdventureSession[]> {
-  const { data } = await client.models.AdventureSession.list();
-  return data
-    .filter((session: AdventureSession) => session.childProfileId === childProfileId)
-    .sort((a: AdventureSession, b: AdventureSession) =>
-      b.lastActivityAt.localeCompare(a.lastActivityAt),
-    );
-}
+// --- Saved stories (Storykeeper Castle keepsakes) ------------------------------------------------
 
 /**
- * `AdventureAction` carries no `childProfileId` of its own (only
- * `sessionId`, per `amplify/data/resource.ts`), so a child's own actions are
- * reached through their own sessions rather than a direct owner-scoped
- * filter, same indirection `listWorldChanges` already accepts for that
- * model's owner scoping. Used by the Phase 30 parent dashboard to report
- * independent-vs-hinted solving per adventure
- * (`src/features/parent-dashboard/adventureSupport.ts`).
- */
-export async function listActionsForSessions(
-  sessionIds: readonly string[],
-): Promise<AdventureAction[]> {
-  if (sessionIds.length === 0) return [];
-  const ids = new Set(sessionIds);
-  const { data } = await client.models.AdventureAction.list();
-  return data.filter((action: AdventureAction) => ids.has(action.sessionId));
-}
-
-/**
- * Saves one Storykeeper Castle play-through's assembled story
- * (docs/ROADMAP.md Phase 5). Unlike `recordWorldChangeOnce`, this is not
- * deduplicated by key: each play-through is a distinct new story the child
- * created, not a repeatable world state.
+ * Saves one Storykeeper Castle play-through's narrated beats. The server takes the title from the
+ * catalog and keeps one story per session, so saving again returns the story already saved.
  */
 export async function saveStoryArtifact(
   childProfileId: string,
   sessionId: string,
-  templateSlug: string,
-  title: string,
-  scenes: StoryScene[],
-): Promise<void> {
-  const { errors } = await client.models.StoryArtifact.create({
-    childProfileId,
-    sessionId,
-    templateSlug,
-    title,
-    scenes: encodeAwsJson(scenes),
-    createdAt: new Date().toISOString(),
-  });
-  if (errors?.length) {
-    throw new Error(errors[0]?.message ?? 'Could not save your story.');
-  }
+  scenes: readonly StoryScene[],
+): Promise<StoryArtifact> {
+  const response = await djangoClient().request(
+    'POST',
+    childPath(childProfileId, 'story-artifacts/'),
+    {
+      body: {
+        sessionId,
+        scenes: scenes.map((scene) => ({
+          stepId: scene.stepId,
+          text: scene.text,
+          source: scene.source,
+        })),
+      },
+    },
+  );
+  return read(response.data, (r) => readArtifact(r, childProfileId));
 }
 
 export async function listStoryArtifacts(childProfileId: string): Promise<StoryArtifact[]> {
-  const { data } = await client.models.StoryArtifact.list();
-  return data
-    .filter((artifact: StoryArtifact) => artifact.childProfileId === childProfileId)
-    .sort((a: StoryArtifact, b: StoryArtifact) => b.createdAt.localeCompare(a.createdAt));
+  const response = await djangoClient().request(
+    'GET',
+    childPath(childProfileId, 'story-artifacts/'),
+  );
+  return read(response.data, (r) =>
+    r.field('artifacts').array((a) => readArtifact(a, childProfileId)),
+  );
 }
 
 /** Parent-controlled retention: a parent may permanently delete a saved story. */
-export async function deleteStoryArtifact(id: string): Promise<void> {
-  const { errors } = await client.models.StoryArtifact.delete({ id });
-  if (errors?.length) {
-    throw new Error(errors[0]?.message ?? 'Could not delete that story.');
+export async function deleteStoryArtifact(childProfileId: string, id: string): Promise<void> {
+  try {
+    await djangoClient().request(
+      'DELETE',
+      childPath(childProfileId, `story-artifacts/${encodeURIComponent(id)}/`),
+    );
+  } catch (error) {
+    if (isApiError(error) && error.kind === 'not_found') return; // already gone
+    throw error instanceof ApiError ? new Error('Could not delete that story.') : error;
   }
 }
