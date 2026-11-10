@@ -12676,3 +12676,35 @@ merge-readiness gates are deferred to integration, as the brief directs).
 - Phaser world pages and card adventures save per step already and register no exit participant;
   they leave immediately. Story sessions likewise.
 - ADR-051 awaits owner acceptance.
+
+### AP-01 follow-up: the portal theme on the child homepage (2026-11-10, branch `feature/adventure-portal`)
+
+Why the theme was not visible: the 2026-11-07 commit (`0f924af`) added the tokens, the components
+and the `ChildShell`/`ParentShell` chrome, but the child homepage (`/island/:childId`,
+`WelcomeHarbor`) still drew its content with CSS Modules: `PortalCard` and `ProgressIndicator`
+were used by no page, and only the sidebar/bottom bar changed. The commit is also on an unmerged
+branch, and both frontend release paths (Amplify Hosting auto-build and `deploy-site.yml`)
+publish `main` only, so none of it is deployed.
+
+Changed:
+- `WelcomeHarbor`: ocean hero (avatar, "Welcome back", today's event and the seasonal note as
+  treasure/ocean callouts, the "Your adventure is saved." status in tropical), and the extra links
+  as a "More to explore" grid of `PortalButton` links in each portal tone.
+- `IslandExplorer`: the "You are here" island is an ocean `PortalCard` with places in rotating
+  tropical/coral/purple/treasure cards; open islands are treasure cards with a "Sail here" pill;
+  locked islands are a dashed plain card. Same links, text and structure as LAI-0808.
+- Both files added to `portal.css`'s `@source` list; their CSS Modules deleted.
+- `portalCss.test.ts`: new check that every file using the portal components or palette is
+  covered by an `@source` entry (with `source(none)`, an unlisted file silently gets no styles),
+  and contrast pairs for the homepage headings.
+- `WelcomeHarbor.test.tsx`: the homepage renders the hero, explorer card and buttons with portal
+  classes inside the child shell.
+
+Checks: Vitest `src/routes/WelcomeHarbor.test.tsx`, `src/features/portal`, `src/features/island`
+(152 files, 1767 tests pass); `tsc -b` clean; `vite build` emits the homepage utilities. Viewed in
+headless Chromium at 1280px and 390px through a local harness with the API modules stubbed
+(Amplify Data is not available offline): hero, cards and buttons render in the portal colours.
+
+Still open: merge to `main` and a release (owner approval); AP-02 (XP/level, missions, rewards
+from Django) and AP-03 (Django-published island discovery) are not implemented; Playwright, lint,
+full suite at integration; ADR-051 acceptance.

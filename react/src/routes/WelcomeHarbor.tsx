@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import styles from './WelcomeHarbor.module.css';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { CompanionIntro } from '../features/island/CompanionIntro';
 import { IslandExplorer } from '../features/island/IslandExplorer';
@@ -19,6 +18,7 @@ import { loadCatalogSnapshot } from '../features/catalog/availabilityApi';
 import { locationWorldPath } from '../features/island-map/three/runtime/locationWorldPath';
 import { WELCOME_HARBOR_REGION_ID } from '../features/discovery/checkpoints';
 import { isLeftIslandState, LEAVE_ISLAND_COPY } from '../features/portal/exit';
+import { PortalButton } from '../features/portal/ui';
 import type { CompanionProfile } from '../features/island/api';
 import type { ChildProfile } from '../features/child-profile/api';
 
@@ -103,24 +103,48 @@ export function WelcomeHarbor() {
 
   return (
     <IslandLayout childId={childId}>
-      <div className={styles.intro}>
-        <div className={styles.greeting}>
+      {/*
+        AP-01: the welcome is the Adventure Portal's hero, in the portal's
+        ocean and treasure colours (portal.css), so the new theme is what a
+        child sees first on their homepage.
+      */}
+      <section
+        aria-labelledby="welcome-heading"
+        data-portal="welcome-hero"
+        className="flex w-full max-w-5xl flex-col gap-4 rounded-3xl border-b-4 border-ocean-900 bg-ocean-700 p-6 text-white shadow-sm md:p-8"
+      >
+        <div className="flex flex-wrap items-center gap-4">
           {/* Decorative: the nickname is right there in the heading. */}
-          <ChildAvatar
-            avatarKey={childProfile.avatarKey}
-            photoKey={childProfile.avatarPhotoKey}
-            size="large"
-          />
-          <h1 className={styles.heading}>Welcome back, {childProfile.nickname}!</h1>
+          <span className="rounded-full border-4 border-treasure-300 bg-paper">
+            <ChildAvatar
+              avatarKey={childProfile.avatarKey}
+              photoKey={childProfile.avatarPhotoKey}
+              size="large"
+            />
+          </span>
+          <div className="flex min-w-0 flex-col gap-1">
+            <p className="m-0 text-lg font-semibold text-white">Adventure Island</p>
+            <h1 id="welcome-heading" className="m-0 font-display text-3xl text-white md:text-4xl">
+              Welcome back, {childProfile.nickname}!
+            </h1>
+          </div>
         </div>
         {leftIsland ? (
-          <p className={styles.event} role="status">
+          <p className="m-0 rounded-2xl bg-tropical-50 px-4 py-3 font-semibold text-ink" role="status">
             {LEAVE_ISLAND_COPY.welcomeBack}
           </p>
         ) : null}
-        <p className={styles.event}>{getTodaysEvent(new Date())}</p>
-        <p className={styles.event}>{getSeasonalIslandNote(new Date())}</p>
-      </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <p className="m-0 rounded-2xl bg-treasure-50 px-4 py-3 text-ink">
+            <span aria-hidden="true">☀️ </span>
+            {getTodaysEvent(new Date())}
+          </p>
+          <p className="m-0 rounded-2xl bg-ocean-50 px-4 py-3 text-ink">
+            <span aria-hidden="true">🌊 </span>
+            {getSeasonalIslandNote(new Date())}
+          </p>
+        </div>
+      </section>
 
       {/*
         LAI-0808: the Island Explorer. Every island this child could see,
@@ -143,46 +167,72 @@ export function WelcomeHarbor() {
         })}
       />
 
-      <Link className={styles.logLink} to={`/island/${childId}/log`}>
-        See your adventure log
-      </Link>
-      <Link className={styles.logLink} to={`/island/${childId}/quests`}>
-        Open your quest journal (new!)
-      </Link>
-      <Link className={styles.logLink} to={`/island/${childId}/world`}>
-        Try walking around the island (new!)
-      </Link>
-      {/*
-        Phase 15 replaced the single hardcoded "read The Dragon of Ember
-        Mountain" link with the Adventure Library, which age-gates and
-        interest-ranks every arc including that one. The harbor no longer
-        needs to know which stories exist.
-      */}
-      <Link className={styles.logLink} to={`/island/${childId}/library`}>
-        Open the adventure library (new!)
-      </Link>
-      {/*
-        Phase 31: an early, intentionally rough look at the Three.js
-        first-person world the island is migrating toward (ADR-008 in
-        docs/DECISIONS.md), not a finished location, so it is not listed
-        as an `IslandLocation` card above.
-      */}
-      <Link className={styles.logLink} to={`/island/${childId}/world/three-sandbox`}>
-        Peek at an early 3D preview (new!)
-      </Link>
-      {/*
-        Phase 32: Welcome Harbor rebuilt as a real first-person region
-        (docs/ROADMAP.md Phase 32). Kept as an auxiliary link rather than
-        replacing the harbor's own card-based hub or the Phase 9 walking
-        route above: ADR-008's Sprouts (ages 3-4) accessibility playtest has
-        not run yet, so first-person navigation is not this band's primary
-        route until it does (docs/IMPLEMENTATION_STATUS.md "Known
-        limitations (Phase 32)"). Older bands can already use it as a real
-        alternative way to explore.
-      */}
-      <Link className={styles.logLink} to={locationWorldPath(childId, WELCOME_HARBOR_REGION_ID)}>
-        Explore the harbor in 3D (new!)
-      </Link>
+      <section
+        aria-labelledby="more-to-explore-heading"
+        className="flex w-full max-w-5xl flex-col gap-4"
+      >
+        <h2 id="more-to-explore-heading" className="m-0 font-display text-2xl text-ocean-900">
+          More to explore
+        </h2>
+        <ul className="m-0 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
+          <li className="flex">
+            <PortalButton asChild tone="ocean" size="lg" block>
+              <Link to={`/island/${childId}/log`}>See your adventure log</Link>
+            </PortalButton>
+          </li>
+          <li className="flex">
+            <PortalButton asChild tone="coral" size="lg" block>
+              <Link to={`/island/${childId}/quests`}>Open your quest journal (new!)</Link>
+            </PortalButton>
+          </li>
+          <li className="flex">
+            <PortalButton asChild tone="tropical" size="lg" block>
+              <Link to={`/island/${childId}/world`}>Try walking around the island (new!)</Link>
+            </PortalButton>
+          </li>
+          {/*
+            Phase 15 replaced the single hardcoded "read The Dragon of Ember
+            Mountain" link with the Adventure Library, which age-gates and
+            interest-ranks every arc including that one. The harbor no longer
+            needs to know which stories exist.
+          */}
+          <li className="flex">
+            <PortalButton asChild tone="purple" size="lg" block>
+              <Link to={`/island/${childId}/library`}>Open the adventure library (new!)</Link>
+            </PortalButton>
+          </li>
+          {/*
+            Phase 31: an early, intentionally rough look at the Three.js
+            first-person world the island is migrating toward (ADR-008 in
+            docs/DECISIONS.md), not a finished location, so it is not listed
+            as an `IslandLocation` card above.
+          */}
+          <li className="flex">
+            <PortalButton asChild tone="quiet" size="lg" block>
+              <Link to={`/island/${childId}/world/three-sandbox`}>
+                Peek at an early 3D preview (new!)
+              </Link>
+            </PortalButton>
+          </li>
+          {/*
+            Phase 32: Welcome Harbor rebuilt as a real first-person region
+            (docs/ROADMAP.md Phase 32). Kept as an auxiliary link rather than
+            replacing the harbor's own card-based hub or the Phase 9 walking
+            route above: ADR-008's Sprouts (ages 3-4) accessibility playtest has
+            not run yet, so first-person navigation is not this band's primary
+            route until it does (docs/IMPLEMENTATION_STATUS.md "Known
+            limitations (Phase 32)"). Older bands can already use it as a real
+            alternative way to explore.
+          */}
+          <li className="flex">
+            <PortalButton asChild tone="treasure" size="lg" block>
+              <Link to={locationWorldPath(childId, WELCOME_HARBOR_REGION_ID)}>
+                Explore the harbor in 3D (new!)
+              </Link>
+            </PortalButton>
+          </li>
+        </ul>
+      </section>
     </IslandLayout>
   );
 }

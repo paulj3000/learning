@@ -124,6 +124,25 @@ describe('WelcomeHarbor Island Explorer (LAI-0808)', () => {
     expect(screen.queryByText(/Your adventure is saved/)).not.toBeInTheDocument();
   });
 
+  it('draws the homepage with the Adventure Portal theme inside the child shell (AP-01)', async () => {
+    renderHome();
+    const hero = await screen.findByRole('region', { name: 'Welcome back, Robin!' });
+    expect(hero).toHaveAttribute('data-portal', 'welcome-hero');
+    expect(hero).toHaveClass('bg-ocean-700', 'text-white');
+    expect(hero.closest('[data-shell="child"]')).not.toBeNull();
+    expect(screen.getByRole('navigation', { name: 'Island' })).toBeInTheDocument();
+
+    const here = within(screen.getByRole('region', { name: 'Where to next?' }))
+      .getByText('You are here')
+      .closest('[data-slot="portal-card"]');
+    expect(here).toHaveClass('bg-ocean-50');
+
+    const library = screen.getByRole('link', { name: 'Open the adventure library (new!)' });
+    expect(library).toHaveAttribute('href', '/island/child-1/library');
+    expect(library).toHaveAttribute('data-slot', 'portal-button');
+    expect(library).toHaveClass('bg-purple-700', 'min-h-14');
+  });
+
   it('shows a calm error when the island cannot load', async () => {
     listAllWorldChanges.mockRejectedValue(new Error('offline'));
     renderHome();

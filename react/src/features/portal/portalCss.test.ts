@@ -1,7 +1,7 @@
 // @vitest-environment node
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { compile } from 'tailwindcss';
 import { describe, expect, it } from 'vitest';
 import { PROGRESS_FILL } from './ui/variants';
@@ -133,6 +133,11 @@ const TEXT_PAIRS: Array<[string, string]> = [
   ['ocean-900', 'paper'],
   ['ocean-700', 'white'],
   ['ink-muted', 'paper'],
+  // The child homepage (WelcomeHarbor, IslandExplorer): headings on the sand page and the
+  // ocean "you are here" card, and the dark-on-pale badge for a locked island.
+  ['ocean-900', 'sand'],
+  ['ocean-900', 'ocean-50'],
+  ['ink-muted', 'sand'],
 ];
 
 describe('portal palette contrast (WCAG 2.1 AA)', () => {
@@ -151,5 +156,39 @@ describe('portal palette contrast (WCAG 2.1 AA)', () => {
     for (const family of ['ocean', 'tropical', 'treasure', 'coral', 'purple']) {
       expect([...PALETTE.keys()].some((name) => name.startsWith(`${family}-`))).toBe(true);
     }
+  });
+});
+
+/**
+ * `source(none)` means a file outside the `@source` list gets no portal
+ * classes at all: it renders unstyled, and nothing fails. That is how a theme
+ * can be "done" yet invisible, so every file that draws with the portal must
+ * be listed.
+ */
+describe('portal.css sources', () => {
+  const SRC = join(process.cwd(), 'src');
+  const sources = [...PORTAL_CSS.matchAll(/@source\s+'([^']+)'/g)].map((match) =>
+    resolve(PORTAL_DIR, match[1]),
+  );
+  const covered = (file: string) =>
+    sources.some((source) => file === source || file.startsWith(source + sep));
+
+  function sourceFiles(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) return entry.name === 'admin' ? [] : sourceFiles(path);
+      return /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [path] : [];
+    });
+  }
+
+  const PORTAL_USE =
+    /from '[^']*portal\/(ui|shell)'|\b(?:bg|text|border)-(?:ocean|tropical|treasure|coral|purple)-\d/;
+
+  it('lists every file that uses the portal components or palette', () => {
+    const users = sourceFiles(SRC).filter((file) => PORTAL_USE.test(readFileSync(file, 'utf8')));
+    expect(users.map((file) => relative(SRC, file))).toEqual(
+      expect.arrayContaining(['routes/WelcomeHarbor.tsx', 'features/island/IslandExplorer.tsx']),
+    );
+    expect(users.filter((file) => !covered(file)).map((file) => relative(SRC, file))).toEqual([]);
   });
 });

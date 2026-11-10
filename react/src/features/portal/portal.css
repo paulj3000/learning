@@ -26,6 +26,8 @@
 
 @source './';
 @source '../island/IslandLayout.tsx';
+@source '../island/IslandExplorer.tsx';
+@source '../../routes/WelcomeHarbor.tsx';
 @source '../../routes/ParentDashboard.tsx';
 
 @theme reference inline {
