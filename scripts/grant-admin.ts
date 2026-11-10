@@ -3,14 +3,12 @@
  * what unlocks the read-only admin section (`/admin`).
  *
  * There is deliberately no in-app way to do this: CLAUDE.md section 10
- * requires admin access to be group-based and explicitly authorized, so
- * `amplify/auth/resource.ts` documents the grant as an out-of-band operator
- * action. This script is that action, wrapped so the user-pool id and region
- * come from `amplify_outputs.json` instead of being pasted by hand — sandbox
- * pools are torn down and recreated, so the id changes and a stale one
- * silently targets a pool that no longer exists.
+ * requires admin access to be group-based and explicitly authorized, so the
+ * grant is an out-of-band operator action. This script is that action. The
+ * pool comes from `COGNITO_USER_POOL_ID` (the region is its prefix), the
+ * same value the site build uses as `VITE_COGNITO_USER_POOL_ID` (AMP-02).
  *
- *   npx tsx scripts/grant-admin.ts you@example.com
+ *   COGNITO_USER_POOL_ID=us-west-1_AbC123 npx tsx scripts/grant-admin.ts you@example.com
  *   npx tsx scripts/grant-admin.ts you@example.com --revoke
  *   npx tsx scripts/grant-admin.ts you@example.com --superuser
  *   npx tsx scripts/grant-admin.ts you@example.com --superuser --revoke
@@ -28,13 +26,10 @@
  * sign-in and does not change under a token already held.
  */
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
+import { readCognitoConfig } from '../react/src/lib/cognito/config';
 
 const ADMINS = 'Admins';
 const SUPERUSERS = 'Superusers';
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const args = process.argv.slice(2);
 const revoke = args.includes('--revoke');
@@ -46,21 +41,16 @@ if (!email) {
   process.exit(2);
 }
 
-const outputsPath = resolve(__dirname, '../amplify_outputs.json');
-let userPoolId: string;
-let region: string;
-try {
-  const outputs = JSON.parse(readFileSync(outputsPath, 'utf-8'));
-  userPoolId = outputs.auth?.user_pool_id;
-  region = outputs.auth?.aws_region;
-} catch {
-  console.error(`Could not read ${outputsPath}. Run \`npm run sandbox\` first.`);
+// The client id is not needed here; any valid placeholder satisfies the shared parser.
+const pool = readCognitoConfig({
+  VITE_COGNITO_USER_POOL_ID: process.env.COGNITO_USER_POOL_ID,
+  VITE_COGNITO_CLIENT_ID: 'unused',
+});
+if (!pool) {
+  console.error('Set COGNITO_USER_POOL_ID to the parent user pool id, e.g. us-west-1_AbC123.');
   process.exit(1);
 }
-if (!userPoolId || !region) {
-  console.error('amplify_outputs.json has no auth.user_pool_id / auth.aws_region.');
-  process.exit(1);
-}
+const { userPoolId, region } = pool;
 
 /** Runs the AWS CLI, surfacing its stderr rather than a bare exit code. */
 function aws(cliArgs: string[]): string {
