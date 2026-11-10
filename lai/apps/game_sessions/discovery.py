@@ -295,9 +295,7 @@ def child_islands(child) -> list[IslandEntry]:
                 location=place, active=True, age_bands__contains=[child.age_band]
             ).count()
             area = areas.get(place.pk)
-            explored = place.pk in adventured or (
-                area is not None and area.status != "NOT_STARTED"
-            )
+            explored = place.pk in adventured or (area is not None and area.status != "NOT_STARTED")
             places.append(PlaceEntry(place, area, count, explored))
         unlocked, hint = island_unlock(island, change_keys)
         result.append(IslandEntry(island, places, unlocked, hint))

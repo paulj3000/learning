@@ -13,9 +13,9 @@ from apps.catalog.models import Adventure, Location, Quest, World
 from apps.core.content_status import ContentStatus
 from apps.game_sessions import services
 from apps.game_sessions.models import AdventureSession, SessionKind, SessionStatus
+from apps.progression.models import WorldChange
 from apps.regions.models import AdventureLaunchPoint, LaunchObjectKind, WorldRegion
 from apps.regions.treasure_rush_seed import SIGNPOST_ID
-from apps.progression.models import WorldChange
 from apps.users.models import ChildProfile
 
 pytestmark = [pytest.mark.postgres, pytest.mark.django_db]

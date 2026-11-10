@@ -13232,6 +13232,14 @@ and world changes, no dashboard).
   each part failing alone), existing `WelcomeHarbor.test.tsx` unchanged (Amplify mode).
 - Viewed in Chromium at 1280px and 390px through a local harness with stubbed Django responses.
 
+**Check results**
+- pytest on PostgreSQL 16 (`LAI_REQUIRE_POSTGRES=1`):
+  - `test_adventure_launch.py` and `test_native_api.py`: 47 passed, 6 of them new.
+  - `test_tenant_isolation.py`: 32 passed.
+- ruff check and ruff format: clean.
+- Vitest, focused: 203 files, 2364 tests pass.
+- Typecheck, oxlint (0 errors), Prettier, ADR check: pass.
+
 **Open**
 - Owner QA; a run against a real Django with the Treasure Cove seed (`npm run test:acceptance`).
 - Island thumbnails need catalog illustrations (ADR-030). An open non-home Island links to the
