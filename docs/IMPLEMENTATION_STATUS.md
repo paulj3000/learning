@@ -12761,3 +12761,24 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   - `tests/deploy`: all passed.
   - Prettier and ruff are clean.
   - No AWS call was made.
+
+## AMP-01 Amplify dependency audit and Django parity matrix (2026-11-10, branch `claude/lai-infra-001-pr-kwauv3`, read-only audit)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| AMP-01 | `docs/platform/AMPLIFY_EXIT_MATRIX.md` | **None** (no AWS access). Live DynamoDB, AppSync and Cognito counts are owner commands (section 6) | Open: the owner runs the section 6 counts; the gap list feeds AMP-02 to AMP-08 |
+
+- Scope: `main` (`89d1172`), `dev20261103` and its live integration branch
+  (`claude/jolly-ride-92xktb`), and all 31 remote branches.
+- Inventory: 22 React and script files import Amplify. Auth is fully Amplify (12 source files).
+  All 22 Amplify Data models are called. 12 capabilities already switch to Django; 18 modules or
+  module groups do not.
+- Branch findings: no branch removes Amplify usage beyond `main`. The integration adds the Django
+  step runner and 14 content and step routes (G2).
+- Gaps with no Django equivalent:
+  - parent account deletion;
+  - companion choice storage;
+  - the director's "next learning activity";
+  - co-op routes and realtime.
+- Only parent and child profiles have a DynamoDB importer.
+- Checks: docs only (Prettier clean). No code or resource changed.
