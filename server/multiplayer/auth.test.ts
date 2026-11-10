@@ -12,12 +12,10 @@ const SUB = 'parent-sub-1';
 async function setup(overrides: Partial<PlayerAuthDeps> = {}) {
   const profile: ChildProfileRecord = {
     id: 'child-a',
-    ownerSub: SUB,
-    owner: `${SUB}::parent@example.org`,
     avatarKey: 'OWL',
   };
   const deps: PlayerAuthDeps = {
-    verifyIdToken: async (token) => {
+    verifyAccessToken: async (token) => {
       if (token !== 'good-token') throw new Error('bad signature');
       return { sub: SUB, expiresAt: 1_000_000 };
     },
@@ -66,10 +64,10 @@ describe('createPlayerAuthenticator', () => {
   });
 
   it('refuses malformed options before touching the token', async () => {
-    const verifyIdToken = vi.fn();
-    const { authenticate } = await setup({ verifyIdToken });
+    const verifyAccessToken = vi.fn();
+    const { authenticate } = await setup({ verifyAccessToken });
     expect(await rejection(authenticate('good-token', { regionId: 'x' }))).toBe('BAD_OPTIONS');
-    expect(verifyIdToken).not.toHaveBeenCalled();
+    expect(verifyAccessToken).not.toHaveBeenCalled();
   });
 
   it("refuses another family's household key", async () => {
@@ -80,35 +78,25 @@ describe('createPlayerAuthenticator', () => {
     ).toBe('NOT_YOUR_HOUSEHOLD');
   });
 
-  it('refuses a child AppSync will not return to this parent', async () => {
+  it('refuses a child Django will not return to this parent', async () => {
     const { authenticate, options } = await setup();
     expect(
       await rejection(authenticate('good-token', { ...options, childProfileId: 'child-z' })),
     ).toBe('NOT_YOUR_CHILD');
   });
 
-  it('refuses a returned row whose ownerSub is someone else', async () => {
+  it('refuses a returned row for a different child than the one asked for', async () => {
     const { authenticate, options } = await setup({
-      fetchOwnChildProfile: async (_t, id) => ({
-        id,
-        ownerSub: 'intruder',
-        owner: null,
-        avatarKey: null,
-      }),
+      fetchOwnChildProfile: async () => ({ id: 'child-other', avatarKey: 'FOX' }),
     });
     expect(await rejection(authenticate('good-token', options))).toBe('NOT_YOUR_CHILD');
   });
 
-  it('falls back to the owner field for rows written before ownerSub', async () => {
-    const { authenticate, options } = await setup({
-      fetchOwnChildProfile: async (_t, id) => ({
-        id,
-        ownerSub: null,
-        owner: `${SUB}::p`,
-        avatarKey: 'FOX',
-      }),
-    });
-    await expect(authenticate('good-token', options)).resolves.toMatchObject({ avatarKey: 'FOX' });
+  it('forwards the verified token itself to the ownership lookup', async () => {
+    const fetchOwnChildProfile = vi.fn(async (_t: string, id: string) => ({ id, avatarKey: null }));
+    const { authenticate, options } = await setup({ fetchOwnChildProfile });
+    await authenticate('good-token', options);
+    expect(fetchOwnChildProfile).toHaveBeenCalledWith('good-token', 'child-a');
   });
 
   it('reports a failed lookup distinctly, and still refuses', async () => {
@@ -122,12 +110,7 @@ describe('createPlayerAuthenticator', () => {
 
   it('never forwards a non-authored avatar key', async () => {
     const { authenticate, options } = await setup({
-      fetchOwnChildProfile: async (_t, id) => ({
-        id,
-        ownerSub: SUB,
-        owner: null,
-        avatarKey: 'free text',
-      }),
+      fetchOwnChildProfile: async (_t, id) => ({ id, avatarKey: 'free text' }),
     });
     await expect(authenticate('good-token', options)).resolves.toMatchObject({ avatarKey: null });
   });

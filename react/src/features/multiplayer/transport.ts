@@ -38,7 +38,7 @@ export interface MultiplayerTransport {
   /** Rejects with `MultiplayerJoinError`. */
   join(
     options: IslandJoinOptions,
-    idToken: string,
+    accessToken: string,
     handlers: TransportRoomHandlers,
   ): Promise<TransportRoom>;
 }
