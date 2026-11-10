@@ -443,6 +443,47 @@ Child-scoped and bearer-only like every route here. The client treats the server
 Django mode and falls back to the Amplify path when the API is off or fails, so a child is never
 blocked by it (`react/src/features/discovery/api.ts`).
 
+## Per-child state outside region play (AMP-03)
+
+The routes that replaced Amplify Data for the classic adventures and the per-child state writers
+(`react/src/features/{adventures,story,quests,rewards,npc,discovery,mastery,island,catalog}/api.ts`).
+All are under `children/{childId}/`, child-scoped and bearer-only (`ChildScopedAPIView`): another
+family's child, or a nested record of another child, is `404 not_found`, and nothing is written.
+Request bodies are closed. The React side calls them through `react/src/api/djangoClient.ts`.
+Every model is a canonical one (ADR-033): no new table except two columns on `ChildProfile`.
+
+| Route | App | What it does |
+| --- | --- | --- |
+| `GET sessions/` | game_sessions | The child's step-adventure sessions, newest activity first |
+| `GET`, `POST adventures/{slug}/session/` | game_sessions | The ACTIVE session or `null`; start (201) or resume (200). `409 content_unavailable` when the adventure, its Place or its Island is out of play |
+| `GET adventure-actions/` | game_sessions | The child's recorded attempts (the parent dashboard's independent-vs-hinted report) |
+| `GET availability/` | game_sessions | Release flags only: `{"places": [{slug, active}], "adventures": [{slug, placeSlug, active}]}` (ADR-031); inactive rows are listed, not hidden |
+| `GET`, `POST world-changes/` | progression | Every world change; record one, once (201 new, 200 already there). Keys are format-checked; a `sourceSessionId` is the child's own session or a `quest:`/`discovery:`/`story:`/`world:` label; at most 1000 per child |
+| `GET`, `PATCH`, `DELETE world-state/` | progression | Discoveries (read only; written by `discoveries/`), characters met (an NPC the catalog has), the last checkpoint (`<region>:<spot>`) |
+| `GET stories/`, `POST stories/{slug}/start/`, `.../flags/`, `.../chapters/{id}/complete/`, `.../reflections/` | progression | Story progress from the export's story definitions: entry chapter, authored flag values only, the current chapter only and only after its embedded adventures are completed, the completion world change, reflection evidence once per story and objective |
+| `GET`, `DELETE npcs/`, `POST npcs/{npcId}/dialogue/` | progression | NPC relationships; a shown dialogue node's authored flags and first-time points, the level derived from points |
+| `GET skill-progress/` | education | Mastery rows, derived on the server from graded evidence. There is no write |
+| `GET`, `POST story-artifacts/`, `DELETE story-artifacts/{id}/` | education | Saved stories: one per session, steps of that session's adventure only, text at most 600 characters that passes the AI output boundary checks, title from the catalog |
+| `GET`, `DELETE rewards/` | inventory | `{"ownedItemIds", "grantedRuleIds"}`. There is no grant route: rewards are granted by the server code that decided they were earned |
+| `GET`, `DELETE quests/`, `PUT quests/{slug}/` | quests | Quest states; a validated save of the client-projected state (`save_quest_state`). On completion the server applies the quest's own stage and completion world changes, NPC memory flags and `QUEST_COMPLETED` rewards, once |
+| `GET`, `PUT companion/` | users | The companion choice (`CHATTY_PARROT`); the display name is authored on the server |
+
+Two behaviours moved to the server with this:
+
+- Answering a WORLD_CHANGE step (`{"kind": "world-change"}` on `sessions/{id}/answers/`) records the
+  step's authored world change, once. Reaching a COMPLETE step completes the session in the same
+  request, so the client no longer writes a session, an attempt, evidence or mastery at all.
+- `DELETE me/` (users) deletes the parent account: each child exactly as `DELETE children/{id}/`
+  does, then the account. It needs a recent sign-in. `503 account_deletion_incomplete` keeps the
+  account when photo storage could not be cleaned up (safe to retry); `409
+  staff_account_not_deletable` refuses a Django Admin staff account. The client deletes the
+  Cognito user afterwards (`react/src/features/child-profile/deletion.ts`).
+
+Tests: `lai/apps/game_sessions/tests/test_classic_adventure_api.py`,
+`lai/apps/progression/tests/test_child_state_api.py`,
+`lai/apps/education/tests/test_story_artifacts_api.py`,
+`lai/apps/quests/tests/test_quest_state_api.py`, `lai/apps/users/tests/test_account_deletion.py`.
+
 ## Reuse by later regions
 
 Nothing here branches on Treasure Rush: a later region needs a `WorldRegion` with its

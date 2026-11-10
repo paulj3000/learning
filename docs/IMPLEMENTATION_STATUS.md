@@ -417,6 +417,44 @@ keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
 
+## AMP-03: Amplify Data to Django REST for per-child state — code complete, unit and API tested; NOT deployed or seen in a browser
+
+Trello AMP-03, from the AMP-01 audit (`docs/platform/AMPLIFY_EXIT_MATRIX.md` sections 3.2 and 4,
+gaps G2, G3, G4, G5 and G10). The React modules below no longer import `lib/data-client` or the
+Amplify schema; they call Django through `react/src/api/djangoClient.ts` (same origin unless
+`VITE_BACKEND=django` names one). The routes are listed in `docs/PLAY_API.md`, "Per-child state
+outside region play (AMP-03)".
+
+- **Classic adventures** (`adventures/api.ts`, `useAdventureSession.ts`): start or resume,
+  answers, hints, sessions, attempts, world changes and saved stories on Django. The server
+  grades, records the attempt and its evidence, advances, records a WORLD_CHANGE step's world
+  change, and completes the session; the client writes none of those any more. The hint ladder
+  is the server's (`hints/`), so the support level an answer is graded with is no longer a client
+  value. The dev20261103 step runner (`sessions/<id>/step/`, `content/adventures/<slug>/start/`)
+  overlaps `adventures/<slug>/session/`: reconcile when that branch merges.
+- **Per-child state writers**: stories, quests (validated save; completion effects on the
+  server), NPC dialogue, discoveries (server authority; the Amplify merge path is gone), the
+  backpack (read and parent clear only), mastery (read only; derived on the server).
+- **Companion choice**: two columns on `ChildProfile` (`companion_type`, `companion_chosen_at`).
+- **Availability**: `children/<id>/availability/`, release flags only. The existing `islands/` and
+  `regions/<id>/adventures/` routes hide inactive content, so they cannot tell "out of play" from
+  "not in the catalog"; starting an adventure is checked on the server either way.
+- **AI history** (`parent-dashboard/api.ts`): Django only; the Amplify branch is deleted.
+- **Account deletion**: `DELETE me/` (recent sign-in) deletes every child as child deletion does,
+  then the account; the client then deletes the Cognito user through an injected deleter
+  (`child-profile/deletion.ts`). `amplifyProfiles.ts` is deleted; profiles are Django only.
+- **React admin retired**: the Families, child progress, Islands and Adventures pages, their
+  catalog components, `admin/api.ts`, `admin/catalogApi.ts` and the catalog form, import-plan and
+  delete-guard rules are deleted. Every `/admin/*` address shows one page pointing to Django
+  Admin (ADR-034, ADR-043). The owner still has to confirm Django Admin covers the reviews these
+  pages offered (AMP-01 G10).
+
+Remaining, not done here: co-op, director, companion and tutor AI modules (AMP-05), assets and
+avatar photos (AMP-04), auth (AMP-02), an importer for existing DynamoDB progress rows (G8), and
+deleting `lib/data-client.ts` and `amplify/` once every module has moved. Quest objectives the
+server cannot prove are still accepted from the client's projection (a validated write, as on
+Amplify); an NPC dialogue node's conditions are not re-checked on the server.
+
 ## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 10, 16 (3D regions) and 17 complete; every 3D region runs on the generic route; NOT yet seen by a person or on a device
 
 Roadmap: `docs/engine/` (README, then `10_IMPLEMENTATION_PHASES.md`).
