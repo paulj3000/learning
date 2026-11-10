@@ -73,7 +73,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-048 | Spatial audio is a panner on the Sound Manager's one AudioContext; emitters and zones are reusable and Three.js-free; Django configures distances and zone beds | Proposed | Feature branch `feature/sound-manager` (SM-P7) | Development only, 2026-11-03; owner acceptance pending. Builds on ADR-050 |
 | ADR-049 | Django owns speech synthesis through Amazon Polly behind a fake-able client; games speak only server-approved references; React plays through the Sound Manager's voice channel | Proposed | Feature branch `feature/sound-manager` (SM-P8) | Development only, 2026-11-03; owner acceptance and live verification pending. Builds on ADR-044, ADR-045, ADR-050, ADR-048 |
 | ADR-050 | Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver | Proposed | Feature branch `feature/sound-manager` (SM-P2) | Development only, 2026-11-02; owner acceptance pending. Builds on ADR-035, ADR-041, ADR-045; records Sound Manager decisions SM-D1 to SM-D6 |
-| ADR-052 | The Adventure Portal palette is the whole app's theme through tokens.css; the shells, homepage and landing page use Tailwind CSS 4 with a reference-only portal theme | Proposed | Feature branch `feature/adventure-portal` (AP-01, AP-04) | Owner-directed 2026-11-07 (Trello AP-01 names Tailwind 4). Amends ADR-023's route boundary; owner acceptance pending |
+| ADR-052 | The Adventure Portal palette is the whole app's theme through tokens.css; the shells, homepage and landing page use Tailwind CSS 4 with a reference-only portal theme | Accepted | Feature branch `feature/adventure-portal` (AP-01, AP-04) | Owner-directed 2026-11-07 (Trello AP-01 names Tailwind 4); scope widened to the whole app 2026-11-10; owner-accepted 2026-11-10 with AP-01. Amends ADR-023's route boundary. Not merged or deployed |
 
 ## ADR-001: Parent-owned accounts
 
@@ -3808,7 +3808,7 @@ production. Not heard; no live AWS call was made.
 
 ## ADR-052: The Adventure Portal palette is the whole app's theme through tokens.css; the shells, homepage and landing page use Tailwind CSS 4 with a reference-only portal theme
 
-Status: Proposed (2026-11-07; scope widened 2026-11-10)
+Status: Accepted (proposed 2026-11-07; scope widened and owner-accepted 2026-11-10)
 
 **Context.** ADR-023 limits Tailwind to `/admin/*`; everything else is CSS
 Modules. The Adventure Portal & Learning Dashboard subproject (Trello AP-01)
@@ -3856,4 +3856,4 @@ panels) do not follow the tokens. A portal file
 outside the `@source` paths silently gets no utilities; the comment at the
 top of `portal.css` says so.
 
-**Acceptance.** Proposed until the owner accepts it with AP-01.
+**Acceptance.** Owner-accepted 2026-11-10 with AP-01, after reviewing the app-wide redress ("AP-01 is done"). Not yet merged to `main` or deployed.

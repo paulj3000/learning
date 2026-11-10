@@ -13147,3 +13147,11 @@ palettes shared the same page, card, text and focus colours, so the earlier work
 Checks: oxlint 0 errors; Prettier; ADR check; typecheck; full Vitest 399 files / 4519 tests;
 build; Playwright 7 passed, 11 skipped (`test.fixme`). Viewed in Chromium: landing, sign-in,
 child homepage and add-child pages (the last two through a local harness with API stubs).
+
+### AP-01 owner acceptance (2026-11-10)
+
+- The owner accepted AP-01 ("AP-01 is done") and ADR-052, which is now **Accepted**.
+- Trello AP-01 moved to Ready to Merge. It is not merged to `main` or deployed; merging waits for
+  the owner's go-ahead (a merge to `main` releases through Amplify).
+- AP-04 stays in Development Complete pending its browser check (leaving from a 3D world, during an
+  encounter and in full screen, on phone and desktop).
