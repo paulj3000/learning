@@ -5,6 +5,7 @@ export {
   useIslandExit,
   useExitParticipant,
   type IslandExit,
+  type IslandExitDestination,
 } from './IslandExitContext';
 export { LeaveIslandConfirm } from './LeaveIslandConfirm';
 export { LeaveIslandButton } from './LeaveIslandButton';

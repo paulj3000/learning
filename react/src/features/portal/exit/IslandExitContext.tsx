@@ -13,9 +13,19 @@ import { createExitCoordinator, type ExitParticipant } from './exitCoordinator';
 import { islandExplorerPath, type LeftIslandState } from './adventureRoutes';
 import { LeaveIslandConfirm } from './LeaveIslandConfirm';
 
+/**
+ * Where an exit goes: the child's Island Explorer ("Leave island"), or the
+ * parent space (the adult exit, which has no check since the owner's
+ * 2026-11-10 decision).
+ */
+export type IslandExitDestination = 'island-explorer' | 'parent-space';
+
 export interface IslandExit {
-  /** Start leaving: confirm if something is mid-way, then save and go to the Island Explorer. */
-  requestLeave(): void;
+  /**
+   * Start leaving: confirm if something is mid-way, then save and go to the
+   * destination (the Island Explorer unless told otherwise).
+   */
+  requestLeave(destination?: IslandExitDestination): void;
   /** True between the tap and the navigation, while saves flush. */
   isLeaving: boolean;
   /** For participants: register with `useExitParticipant` instead of calling this. */
@@ -38,7 +48,8 @@ interface IslandExitProviderProps {
  *
  * Leaving is navigation, never a learning check: there is no arithmetic,
  * quiz or other challenge anywhere on this path. The adult exit to the
- * parent space is a different promise and keeps its `ParentGate`.
+ * parent space uses the same path (save, confirm only mid-encounter) and,
+ * by the owner's decision of 2026-11-10, has no check either.
  */
 export function IslandExitProvider({ childId, children, saveTimeoutMs }: IslandExitProviderProps) {
   const navigate = useNavigate();
@@ -46,6 +57,7 @@ export function IslandExitProvider({ childId, children, saveTimeoutMs }: IslandE
   const [confirming, setConfirming] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const leavingRef = useRef(false);
+  const destinationRef = useRef<IslandExitDestination>('island-explorer');
 
   const leaveNow = useCallback(async () => {
     if (leavingRef.current) return;
@@ -54,18 +66,26 @@ export function IslandExitProvider({ childId, children, saveTimeoutMs }: IslandE
     setIsLeaving(true);
     // Never rejects and never hangs (see exitCoordinator.ts).
     await coordinator.saveAll({ timeoutMs: saveTimeoutMs });
+    if (destinationRef.current === 'parent-space') {
+      navigate('/home');
+      return;
+    }
     const state: LeftIslandState = { leftIsland: true };
     navigate(islandExplorerPath(childId), { state });
   }, [childId, coordinator, navigate, saveTimeoutMs]);
 
-  const requestLeave = useCallback(() => {
-    if (leavingRef.current) return;
-    if (coordinator.needsConfirm()) {
-      setConfirming(true);
-      return;
-    }
-    void leaveNow();
-  }, [coordinator, leaveNow]);
+  const requestLeave = useCallback(
+    (destination: IslandExitDestination = 'island-explorer') => {
+      if (leavingRef.current) return;
+      destinationRef.current = destination;
+      if (coordinator.needsConfirm()) {
+        setConfirming(true);
+        return;
+      }
+      void leaveNow();
+    },
+    [coordinator, leaveNow],
+  );
 
   const value = useMemo<IslandExit>(
     () => ({ requestLeave, isLeaving, register: coordinator.register }),

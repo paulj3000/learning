@@ -19,7 +19,7 @@ export function LeaveIslandButton({ tone = 'coral', ...props }: LeaveIslandButto
       data-leave-island=""
       disabled={exit.isLeaving}
       aria-busy={exit.isLeaving || undefined}
-      onClick={exit.requestLeave}
+      onClick={() => exit.requestLeave()}
       {...props}
     >
       {exit.isLeaving ? LEAVE_ISLAND_COPY.leaving : LEAVE_ISLAND_COPY.leave}

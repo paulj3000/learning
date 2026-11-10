@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
@@ -81,13 +81,48 @@ describe('IslandLayout exits', () => {
     expect(screen.queryByRole('button', { name: LEAVE_ISLAND_LABEL })).not.toBeInTheDocument();
   });
 
-  it('keeps the parent gate on the separate adult exit to the parent space', async () => {
-    renderAt(CHILD_SCREENS[1]);
+  it.each(CHILD_SCREENS)(
+    'the adult exit from %s opens the parent space without any question',
+    async (path) => {
+      renderAt(path);
+
+      await userEvent.click(screen.getByRole('button', { name: /exit to parent space/i }));
+
+      expect(await screen.findByText('Parent space')).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expectNoChallenge();
+    },
+  );
+
+  it('the adult exit from the Island Explorer opens the parent space without any question', async () => {
+    render(
+      <MemoryRouter initialEntries={[`/island/${CHILD_ID}`]}>
+        <Routes>
+          <Route path="/home" element={<p>Parent space</p>} />
+          <Route
+            path="/island/:childId"
+            element={<IslandLayout childId={CHILD_ID}>{<p>Island Explorer page</p>}</IslandLayout>}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
 
     await userEvent.click(screen.getByRole('button', { name: /exit to parent space/i }));
 
-    expect(screen.getByRole('dialog', { name: 'Return to parent space?' })).toBeInTheDocument();
-    expect(screen.queryByText('Parent space')).not.toBeInTheDocument();
+    expect(await screen.findByText('Parent space')).toBeInTheDocument();
+    expectNoChallenge();
+  });
+
+  it('the adult exit during an encounter confirms with plain buttons, then opens the parent space', async () => {
+    renderAt(CHILD_SCREENS[3], <OpenEncounter />);
+
+    await userEvent.click(screen.getByRole('button', { name: /exit to parent space/i }));
+    const confirm = screen.getByRole('dialog', { name: 'Leave the island now?' });
+    expectNoChallenge();
+
+    await userEvent.click(within(confirm).getByRole('button', { name: LEAVE_ISLAND_LABEL }));
+
+    expect(await screen.findByText('Parent space')).toBeInTheDocument();
   });
 
   it('renders inside the child shell navigation', () => {

@@ -13155,3 +13155,21 @@ child homepage and add-child pages (the last two through a local harness with AP
   the owner's go-ahead (a merge to `main` releases through Amplify).
 - AP-04 stays in Development Complete pending its browser check (leaving from a 3D world, during an
   encounter and in full screen, on phone and desktop).
+
+### AP-04: no arithmetic on the adult exit either (2026-11-10, branch `feature/adventure-portal`)
+
+Owner report: "when I click 'leave island', I still get the arithmetic question". "Leave island"
+itself never asked one. The question came from "Adults: exit to parent space", whose `ParentGate`
+dialog said "Answer this quick check to leave the island", and on the Island Explorer that is the
+only exit shown. The owner chose to remove the check entirely.
+
+- `IslandLayout`: the adult exit has no `ParentGate`. It uses the AP-04 exit path
+  (`requestLeave('parent-space')`): saves in flight flush, a plain confirm appears only during an
+  encounter, then it opens `/home`.
+- `IslandExitProvider.requestLeave` takes an optional destination (`island-explorer` by default).
+- `ParentGate` remains only on deactivating or reactivating a profile in the parent dashboard.
+- `docs/THREAT_MODEL.md` records the accepted risk: one tap from child mode reaches the parent
+  pages on a signed-in device.
+- Tests: the adult exit from every child screen and from the Island Explorer reaches the parent
+  space with no question; during an encounter it confirms with plain buttons, then goes.
+  Checked in Chromium through the local harness.
