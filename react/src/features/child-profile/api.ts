@@ -42,14 +42,9 @@ export function profilePhotosSupported(): boolean {
   return current().supportsPhotos;
 }
 
-/** How this build's store writes a photo around a profile save (see `ProfileStore.photoWrite`). */
-export function profilePhotoWrite(): ProfileStore['photoWrite'] {
-  return current().photoWrite;
-}
-
 /** A displayable URL for `ChildProfile.avatarPhotoKey`, or null. Never throws. */
 export const getChildPhotoUrl = (photoKey: string) => current().getChildPhotoUrl(photoKey);
-/** Upload or remove a saved child's photo (`after-save` stores only). */
+/** Upload or remove a saved child's photo (Django builds only; AMP-04). */
 export const applyChildPhotoSelection = (childId: string, selection: PhotoSelection) =>
   current().applyChildPhotoSelection(childId, selection);
 

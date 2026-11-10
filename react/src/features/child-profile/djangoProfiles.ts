@@ -17,7 +17,7 @@ import type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore } fro
  * ownership: another family's child is a 404, which reads as "no such child" (null).
  *
  * Profile photos are a child sub-resource (`children/<id>/photo/`, LAI-0905, djangoPhotos.ts):
- * the profile is saved first, then the photo is uploaded or removed (`photoWrite: 'after-save'`).
+ * the profile is saved first, then the photo is uploaded or removed (`applyChildPhotoSelection`).
  * A child's `avatarPhotoKey` is its own id when Django reports `hasPhoto`, and null otherwise.
  *
  * Not available from Django yet, so this store says so instead of pretending:
@@ -54,7 +54,6 @@ export function createDjangoProfileStore(
   return {
     source: 'django',
     supportsPhotos: true,
-    photoWrite: 'after-save',
     getChildPhotoUrl(photoKey) {
       return photos.getDisplayUrl(photoKey);
     },

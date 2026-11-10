@@ -1,6 +1,7 @@
 import { deleteUser } from 'aws-amplify/auth';
+import { remove } from 'aws-amplify/storage';
 import { client } from '../../lib/data-client';
-import { removeChildPhoto } from './avatarPhoto';
+import { PHOTO_REMOVE_MESSAGE } from './photoMessages';
 import type { Schema } from '../../../../amplify/data/resource';
 
 type AdventureSession = Schema['AdventureSession']['type'];
@@ -132,12 +133,27 @@ export async function deleteChildProfileData(childProfileId: string): Promise<vo
 
   const { data: childProfile } = await client.models.ChildProfile.get({ id: childProfileId });
   if (childProfile?.avatarPhotoKey) {
-    await removeChildPhoto(childProfile.avatarPhotoKey);
+    await removeLegacyAmplifyPhoto(childProfile.avatarPhotoKey);
   }
 
   const { errors } = await client.models.ChildProfile.delete({ id: childProfileId });
   if (errors?.length) {
     throw new Error(errors[0]?.message ?? 'Could not delete this child profile.');
+  }
+}
+
+/**
+ * Deletes a photo an Amplify build stored before AMP-04. This is the last Amplify Storage call in
+ * the app, and it is a delete only: a child deleted in an Amplify build must not leave its photo
+ * behind in the legacy bucket with no record pointing at it. New photos are never written to
+ * Amplify Storage (avatarPhoto.ts, `djangoPhotos.ts`). It goes with this file when Amplify Data
+ * is retired (AMP-03, LAI-1301). S3 deletes are idempotent, so a missing object is not an error.
+ */
+async function removeLegacyAmplifyPhoto(path: string): Promise<void> {
+  try {
+    await remove({ path });
+  } catch {
+    throw new Error(PHOTO_REMOVE_MESSAGE);
   }
 }
 

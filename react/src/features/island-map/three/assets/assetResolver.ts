@@ -17,9 +17,8 @@ import { getAssetManifestEntry } from './manifest';
  * (`src/api/assets/djangoAssetResolver.ts`, LAI-2200) answers with the
  * published version of an id and falls back to this one; regions served by
  * the play API (Treasure Cove) load through it (TR-10,
- * `features/region-play/regionAssets.ts`). The Amplify one
- * (`src/features/assets/assetService.ts`) is admin tooling only and is not
- * wired into the child runtime.
+ * `features/region-play/regionAssets.ts`). There is no Amplify resolver any
+ * more (AMP-04): `src/features/assets/assetService.ts` wraps the Django one.
  */
 
 export type ResolvedAssetSource = 'BUNDLED' | 'PUBLISHED';
