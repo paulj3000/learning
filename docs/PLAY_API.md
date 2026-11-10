@@ -443,6 +443,33 @@ Child-scoped and bearer-only like every route here. The client treats the server
 Django mode and falls back to the Amplify path when the API is off or fails, so a child is never
 blocked by it (`react/src/features/discovery/api.ts`).
 
+## Next learning activity (AMP-05)
+
+### `GET next-learning-activity/`: the Director's suggestions
+
+Read-only. Up to three adventures, best first, with adult-facing reasons:
+`{"suggestions": [{"adventureSlug", "title", "score", "reasons": [{"kind", "skillId", "status",
+"weight", "storyId", "penalty"}]}], "hasPersonalizedSignal": bool}`. `kind` is one of
+`PRACTISES_SKILL`, `CONTINUES_STORY`, `ALREADY_COMPLETED`, `PLAYED_RECENTLY`,
+`NO_SKILLS_NEEDED`; unused fields are null. Only adventures for the child's band, at an
+island the child can reach (or a story-only place), are candidates. Rules:
+`lai/apps/education/director.py`. A child surface shows the order, never a reason.
+
+## Household co-op (AMP-05, ADR-006)
+
+The child in the path is the one acting. A session another family hosts, or one this child is
+not in, is `404 not_found`. Session shape: `{"id", "templateSlug", "templateVersion",
+"participantChildProfileIds", "status", "sharedState": {"slots": {stepId: childId},
+"presence": [childId]}, "startedAt", "lastActivityAt", "completedAt"}`.
+
+| Route | Body | Answer |
+|---|---|---|
+| `POST coop-sessions/` | `{"adventureSlug", "partnerChildId"}` | `201` session; `400 partner_invalid` or `adventure_invalid` |
+| `GET coop-sessions/{coopId}/` | | session; clients poll this (2 s) instead of a subscription |
+| `POST coop-sessions/{coopId}/slots/` | `{"slotKey"}` (a co-op-eligible step id) | `{"outcome": "claimed" \| "already_held" \| "held_by_partner", "session"}`; `400 slot_invalid`; `409 coop_session_not_active` |
+| `POST coop-sessions/{coopId}/presence/` | `{"present": bool}` | session |
+| `POST coop-sessions/{coopId}/complete/` | | session (idempotent); `409 coop_session_not_active` if abandoned |
+
 ## Reuse by later regions
 
 Nothing here branches on Treasure Rush: a later region needs a `WorldRegion` with its

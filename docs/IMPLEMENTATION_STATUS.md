@@ -12782,3 +12782,26 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   - co-op routes and realtime.
 - Only parent and child profiles have a DynamoDB importer.
 - Checks: docs only (Prettier clean). No code or resource changed.
+
+## AMP-05 Amplify functions and AI runtime exit (2026-11-10, branch `worktree-agent-a311a41f33ad917d3`, not deployed)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| AMP-05 | `docs/platform/AMPLIFY_FUNCTIONS_EXIT.md`; Director and co-op Django routes; React director, co-op, companion and tutor off Amplify; safety and validation metrics, alarms and Bedrock budget in CDK | **None** (no deploy, no AWS call) | Open: owner actions in the exit doc, section 5 (merge ordering with `VITE_BACKEND=django`, co-op decision confirmation, CDK deploy approval, live metric checks) |
+
+- Director (G6): `GET children/<id>/next-learning-activity/`, a port of the Lambda on the
+  canonical catalog, `WorldChange`, `AdventureSession` and `SkillProgress` rows.
+- Co-op (G7): child-scoped create, get, claim, presence and complete routes on
+  `CoopSession`/`CoopParticipant`, first claim wins under a row lock; polling replaces the
+  AppSync subscription (Django, not the room server, per ADR-026; owner to confirm).
+- Companion and tutor: the Amplify AI Kit branch and browser audit writes are gone; without
+  Django a turn is the authored fallback with no network call.
+- Adventure answers: `AnswersView` parity confirmed by `test_answers_api.py`; React wiring stays
+  with AMP-03.
+- Metrics (G11, Django half): `ai.safety v1` line; `ValidationFailures`, `SafetyEvents`,
+  `HighSeveritySafetyEvents` filters; two alarms; `lai-bedrock-monthly-<env>` budget and the
+  alarm topic's Budgets publish permission.
+- Checks run: pytest (education director, game_sessions co-op and answers, users tenant
+  isolation, core, ai) and vitest (director, coop, companion, tutor, adventures, routes, api,
+  infra AI guardrail, Django deployment and cross-stack), `tsc -b` in react,
+  `tsc --noEmit -p infra/tsconfig.json`; ruff and Prettier on the changed files.

@@ -222,6 +222,11 @@ EstimatedCostMicroUsd). Seven alarms on the existing `lai-django-alarms-<env>` t
 data not breaching: provider errors (10 per 15 min), fallback rate (50% over 30 min once 20
 turns ran), Guardrail blocks (25 per hour), request spike (3000 per hour), average latency
 (6 s over 15 min), output tokens (2M per day), rate-limited turns (100 per 15 min).
+AMP-05 adds the `ValidationFailures` filter (`ai.turn` status `INVALID*`), an `ai.safety v1
+<route> <severity> <source> <ok|failed>` line per SafetyEvent with `SafetyEvents` and
+`HighSeveritySafetyEvents` filters, two alarms (validation failures 5 per 15 min, any HIGH
+severity SafetyEvent in 5 min) and a `lai-bedrock-monthly-<env>` budget, replacing the Amplify
+`operational-metrics` alarms (`docs/platform/AMPLIFY_FUNCTIONS_EXIT.md`).
 
 **Budget finding.** The Amplify stack's $50 budget filters `Service: Amazon Bedrock`. The Haiku
 4.5 model card says Claude usage is billed through AWS Marketplace "under the model provider
@@ -368,8 +373,8 @@ the two blockers above are cleared and accepted.
 |---|---|---|
 | `amplify/data/resource.ts` `generateCompanionTurn`, `generateTutorTurn`, `CompanionTurn`, `TutorTurn`, `TutorStrategy` | live AppSync routes | after LAI-0706 acceptance and approval |
 | `amplify/backend.ts` `grantBedrockInvoke` (two IAM role patches), the validation-failure alarm, the Bedrock budget | live IAM and monitoring | with the routes; replace the budget first (section 6 finding) |
-| `amplify/data/chattyPersona.ts`, `tutorPersona.ts` | prompts; also imported by `react/src/features/{companion,tutor}/api.ts` for audit versions and read by `lai/apps/ai/tests/test_prompts.py` | move the prompt source of truth to Django, then delete |
-| `react/src/features/companion/api.ts`, `tutor/api.ts` Amplify branch, browser audit writes | client code for builds without `VITE_BACKEND=django` (today's deployed build) | when every deployed build sets `VITE_BACKEND=django` |
+| `amplify/data/chattyPersona.ts`, `tutorPersona.ts` | prompts; read by `lai/apps/ai/tests/test_prompts.py` (React no longer imports them since AMP-05) | move the prompt source of truth to Django, then delete |
+| `react/src/features/companion/api.ts`, `tutor/api.ts` Amplify branch, browser audit writes | client code for builds without `VITE_BACKEND=django` (today's deployed build) | **Removed in AMP-05**: such a build now gets the authored fallback |
 | `amplify/data/resource.ts` `AIInteractionAudit`, `SafetyEvent` models, `parent-dashboard/api.ts` and `child-profile/deletion.ts` Amplify paths | live data and parent controls | after the Phase 11 data migration (rows exist in Amplify) |
 | `scripts/live-smoke.ts`, `scripts/ai-red-team.ts --target amplify` | operator scripts | with the routes |
 | `lai/apps/ai` route names `generateCompanionTurn`/`generateTutorTurn` | audit vocabulary kept for continuity | keep |

@@ -115,10 +115,10 @@ the read-only commands for the owner.
 | Function | Django replacement | Status |
 |---|---|---|
 | `submit-adventure-answer` | `sessions/<id>/answers/` (`AnswersView`, `test_answers_api`); step runner on `dev20261103` | Replaced server-side; React wiring is in AMP-03 |
-| `claim-coop-slot` | None (model only) | **Gap** |
-| `get-next-learning-activity` | None | **Gap** |
-| `operational-metrics` (DynamoDB stream to CloudWatch EMF) | Django privacy-filtered logs; the `LaiAiGuardrail` AI metric filters | Partial: no SafetyEvent or AppSync-equivalent alarms on Django yet (U6) |
-| AI Kit generation routes | `ai/companion-turns/`, `ai/tutor-turns/` | Replaced (3.1) |
+| `claim-coop-slot` | `children/<id>/coop-sessions/<id>/slots/` and the other co-op routes (AMP-05, `docs/platform/AMPLIFY_FUNCTIONS_EXIT.md`) | Replaced on the branch; React switched; not deployed |
+| `get-next-learning-activity` | `children/<id>/next-learning-activity/` (AMP-05, `education/director.py`) | Replaced on the branch; React switched; not deployed |
+| `operational-metrics` (DynamoDB stream to CloudWatch EMF) | Django privacy-filtered logs; the `LaiAiGuardrail` AI metric filters | AMP-05 adds the `ai.safety v1` line, SafetyEvent and validation-failure filters and alarms, and the Bedrock budget (synthesized, not deployed); the dashboard is AMP-08 |
+| AI Kit generation routes | `ai/companion-turns/`, `ai/tutor-turns/` | Replaced (3.1); AMP-05 removed the React Amplify branch |
 
 ## 4. Prioritized gap list
 
@@ -129,12 +129,12 @@ the read-only commands for the owner.
 | G3 | Parent account deletion has no Django route | Privacy and right-to-delete | AMP-03 (with G9 / LAI-0308) |
 | G4 | Per-child state writers (story, quests, rewards, NPC, discovery, mastery) outside region play | Data would split between DynamoDB and PostgreSQL | AMP-03 |
 | G5 | Companion choice has no Django model | Small; needed for onboarding parity | AMP-03 |
-| G6 | Director "next learning activity" has no Django service | Adaptive learning | AMP-05 |
-| G7 | Co-op: no route, no realtime replacement | Feature-scoped; needs a decision (Django polling vs. the room server) | AMP-05 (owner decision) |
+| G6 | Director "next learning activity" has no Django service | Adaptive learning | AMP-05 (done on the branch, not deployed) |
+| G7 | Co-op: no route, no realtime replacement | Feature-scoped; needs a decision (Django polling vs. the room server) | AMP-05: Django routes plus polling, per ADR-026 (owner to confirm) |
 | G8 | Data importers for everything except profiles | Needed only if DynamoDB holds real family data (section 6) | AMP-03, AMP-08 |
 | G9 | Amplify Storage objects (photos, models) | Migration with checksums | AMP-04 |
 | G10 | React admin pages vs Django Admin | Retire after owner confirmation | AMP-03 |
-| G11 | Metrics and alarms parity | Before Amplify monitoring is removed | AMP-05, AMP-08 |
+| G11 | Metrics and alarms parity | Before Amplify monitoring is removed | AMP-05 (alarms and budget synthesized), AMP-08 (dashboard, removal) |
 
 ## 5. Resources that must be preserved (until their card says otherwise)
 
