@@ -9,9 +9,10 @@ Scope: the remaining live AI/Polly gates for the NPC Manager (Trello "[Subprojec
 the reconciled branch. **Every live Bedrock gate passes** against the real `lai-child-safety-dev`
 Guardrail (version 1) in us-west-1: companion, tutor, NPC narration, the NPC Manager persona hint,
 the Guardrail probe, the timeout probe, child ownership and authored fallbacks (11 Bedrock calls,
-13,201 input and 460 output tokens). **Live Polly fails on IAM**: the `learning-dev` user lacks
-`polly:SynthesizeSpeech`, and us-west-1 offers no neural voices (use us-west-2 for speech). No
-infrastructure was created or changed.
+13,201 input and 460 output tokens). **Live Polly passes in us-west-2** once the owner granted
+`polly:SynthesizeSpeech`: synthesis, cache (memory), failure fallback and Pip's own voice line.
+us-west-1 offers no neural voices, so speech runs in us-west-2. Still open: the S3 bucket steps
+and the audible browser check. No infrastructure was created or changed by Claude.
 
 ## 1. Pull requests and dependencies
 
@@ -74,17 +75,17 @@ action. NOT RUN = deliberately not run (reason given).
 |---|---|---|---|
 | L0 | `learning-dev` credentials | **PASS** (2026-11-11) | `sts get-caller-identity`: IAM user `learning-dev`, account `008331939914`. Enabled by replacing the repo's blanket `aws` deny with read-only allow rules (owner decision). |
 | L1 | Bedrock and Guardrail configuration | **PASS** | Guardrail `lai-child-safety-dev` (`gf7ct9fgtbjf`), version `1` READY in us-west-1; policies match `infra/lib/aiGuardrailStack.ts` (5 content filters HIGH/HIGH, prompt attack HIGH input, 4 denied topics, profanity, PII BLOCK; v1 also blocks `US_INDIVIDUAL_TAX_IDENTIFICATION_NUMBER`, stricter than the repo, no NAME/AGE). Inference profile `us.anthropic.claude-haiku-4-5-20251001-v1:0` ACTIVE (us-east-1/2, us-west-1/2). `ai_live_check --dry-run`: ready, 0 blockers, 0 AWS calls. |
-| L2 | Polly live audio (B7.3, SM-P8-LIVE-07) | **FAIL (IAM)** | `speech_live_smoke` us-west-1: region FAIL (Justin neural not offered; us-west-1 has standard voices only), synthesis `AccessDeniedException`. us-west-2: region PASS (Justin neural), synthesis `AccessDeniedException`. `learning-dev` can call `polly:DescribeVoices` but lacks `polly:SynthesizeSpeech`. Nothing was synthesized or billed. |
-| L3 | Polly cache (two requests, one synthesis; S3 read-back; presigned URL) | **BLOCKED** | Needs L2 (IAM) and, for S3, the speech bucket. |
+| L2 | Polly live audio (B7.3 server side, SM-P8-LIVE-07) | **PASS** (us-west-2, after the owner granted `polly:SynthesizeSpeech`) | `speech_live_smoke --profile pirate-pip`: region PASS (Justin neural), synthesis PASS (28.7 KB MP3, 273 ms), sample saved for listening. Earlier the same day: us-west-1 region FAIL (no neural voices), and `AccessDeniedException` in both regions before the permission was added. |
+| L3 | Polly cache | **PASS** (memory store) / **BLOCKED** (S3) | Second request served from cache with one Polly call; stored bytes read back. The S3 store and presigned-URL steps need the speech bucket. |
 | L4 | Captions and mute with real audio (runbook section 9) | **BLOCKED** | Owner browser check after L2. |
-| L5 | Polly failure fallback | **FAIL (IAM)** / PASS (table) | AWS step not verified (the identity is refused before voice validation); the no-AWS table refusal PASSES in both regions. |
-| L6 | NPC voice behaviour live (Pip heard in Justin's voice) | **BLOCKED** | Needs L2. Pip's `pirate-pip` voice is attached and published locally (NPC release 1). |
+| L5 | Polly failure fallback | **PASS** | AWS refused an invalid voice, mapped to `speech_unavailable (invalid_voice)`, captions remain; a voice outside the table is refused before any AWS call. |
+| L6 | NPC voice behaviour live (server side) | **PASS** | NPC release 1 carries Pip's `pirate-pip` voice; a Pip `on_interact` node carries an `npcDialogueNode` speech reference; `speak` synthesized it in Justin neural (36.6 KB, 0.9 s), the second request was a cache hit, and a missing node is refused (`not_found`). Hearing it in the browser from Pip's position is L4. |
 | L7 | Bedrock persona behaviour (B8.5) | **PASS** | `ai_live_check --npc-manager-hint`: route `generateNpcHint`, `source=AI`, `VALID`, `provider=bedrock`, Guardrail `NONE`, `DJANGO_CATALOG`, 1138 in / 43 out tokens, 2.4 s. Companion, tutor and NPC narration also PASS (Guardrail `NONE`, tokens reported). |
 | L8 | Bedrock safety and Guardrail | **PASS** | `--guardrail-probe`: `BLOCKED_GUARDRAIL`, Guardrail `INTERVENED`, calm redirect line, one `SafetyEvent`. |
 | L9 | Bedrock timeout | **PASS** | `--timeout-probe` (rerun after the first run's own 12-turn cap refused it as `RATE_LIMITED`): `FALLBACK`, failure `TIMEOUT`, authored line, 312 ms. |
 | L10 | Child ownership on the live path | **PASS** | A child of another parent: `No such child.`, refused before any model call (audit rows 16 before, 16 after). |
 | L11 | Authored fallback on the live path | **PASS** | Served for the Guardrail block (L8), the timeout (L9) and the rate limit; never an error. |
-| L12 | Spend recorded against the bill | **PASS (estimate)** / owner check | 11 Bedrock calls, 13,201 input and 460 output tokens in total (plus Guardrail text units); no prices configured, so Django reports cost as unknown. Owner: compare with Cost Explorer for 2026-11-11. Polly: 0 characters billed. |
+| L12 | Spend recorded against the bill | **PASS (estimate)** / owner check | 11 Bedrock calls, 13,201 input and 460 output tokens in total (plus Guardrail text units); no prices configured, so Django reports cost as unknown. Owner: compare with Cost Explorer for 2026-11-11. Polly: 368 characters synthesized in us-west-2 (smoke 2 x 111 SSML characters, Pip line 146). |
 
 ## 4. Region result
 
@@ -102,9 +103,7 @@ Done on 2026-11-11: `aws` read-only access (allow rules in `.claude/settings.jso
 Bedrock spend (owner approved), and the Guardrail (`lai-child-safety-dev`, version 1).
 
 Still needed:
-1. **Grant `learning-dev` Polly synthesis** (IAM change in account 008331939914): add
-   `polly:SynthesizeSpeech` (Resource `*`) to the user `learning-dev`, then rerun the us-west-2
-   smoke command below (about 65 characters, well under USD 0.01).
+1. ~~Grant `learning-dev` Polly synthesis~~ Done by the owner; smoke test PASS.
 2. Create the private speech bucket in us-west-2 for the S3 cache and presigned-URL steps
    (infrastructure: owner approval).
 3. Choose PR #4 or PR #18 (section 7).
