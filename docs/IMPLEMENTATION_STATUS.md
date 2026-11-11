@@ -13337,3 +13337,18 @@ and world changes, no dashboard).
 - Island thumbnails need catalog illustrations (ADR-030). An open non-home Island links to the
   existing world hub, which knows only source-controlled Islands.
 - The hosted (Amplify) site shows neither card until it uses the Django API.
+## Treasure Rush QA closed for now (2026-11-11, Trello WTQR3qTS)
+
+**Status: owner-reported QA acceptance of Treasure Rush as merged in `main`; no code change.**
+The owner declared Treasure Rush QA complete for now and will expand Treasure Rush later.
+All Treasure Rush code (`quest/tr.reboot`, `feature/treasure-rush-slice`) was already contained
+in `main` (verified: zero commits ahead of `origin/main`).
+
+- **Accepted (owner-reported, local):** TR-9 playtest; TR-12, TR-13, TR-14, TR-17 and TR-20.
+  TR-11 closed as superseded by TR-14.
+- **Accepted with items deferred to a later expansion:** TR-15 (`treasure-key` model), TR-16
+  (ordering and matching kinds, TR-D27; pedestal model), TR-18 (Pip `Cheer` and `Point` clips).
+- **Still open, deferred:** TR-19 sound with mute (owner decision TR-D26), TR-10 (LAI-2106).
+- **Not established by this:** deployed or live AWS acceptance; real-family use still depends on
+  LAI-0502, LAI-0602, gate G9 and ADR-024 A6.
+- **Tests run:** none; documentation-only change.
