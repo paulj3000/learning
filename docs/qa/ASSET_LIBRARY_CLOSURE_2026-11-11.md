@@ -5,7 +5,8 @@ Trello parent: "[Subproject] Asset Library" (z61Oe83W, list Owner QA). Remaining
 Asset Library local QA + Treasure Rush integration" (Cv2g9zI2).
 
 Reviewed on `main` at `b7b7309163aa7c7d16656a64da29824a942f597b` (2026-11-11). Nothing was
-deployed, no AWS call was made, and no Trello card was changed.
+deployed and no AWS call was made. Trello changes were made afterwards, on the owner's explicit
+instruction (section 7).
 
 ## 1. Merge verification
 
@@ -102,7 +103,7 @@ approval.
 Depends on AM-6, LAI-1002 and LAI-1005; APPROVAL: AWS. Optimisation only. Django-signed delivery
 is the launch path.
 
-## 6. Trello reconciliation recommendations (owner action; nothing changed)
+## 6. Trello reconciliation recommendations (as first written; see section 7 for what was done)
 
 1. **Move "[Subproject] Asset Library" (z61Oe83W) to Complete**: the core implementation is fully
    in `main`, `feature/asset-manager` has no unique commits, and no core blocker remains. Append to
@@ -114,3 +115,30 @@ is the launch path.
    can close without AM-11, and moving it from Ready for Development to a blocked state until
    LAI-1002/1004 are accepted, since nothing in it can start before then.
 3. Leave Cv2g9zI2 (QA accepted) as is.
+
+## 7. Addendum: later `main` and Trello actions (2026-11-11)
+
+**`main` moved on.** Before the PR, `main` (`46adcd909400c27641b630339f64ded6d8e00d52`, NPC Manager
+merge) was merged into this branch with no conflicts. The NPC Manager changed asset code after
+`b7b7309`, in two additive ways (`b1b0030`, `10cd6c8`):
+
+- `apps/assets/services.py`: a retirement guard hook. Other apps may refuse to retire an asset or
+  version a live release still uses (the NPC Manager does, LAI-NPC-036). With no guard objecting,
+  retirement behaves as before.
+- `apps/assets/validation.py`: a `generic_clip_name` **warning** for exporter default take names
+  (Mixamo, Blender). A warning, not a refusal.
+
+Neither contradicts the accepted QA-01 to QA-07, so QA is not reopened. Rechecked on the merged
+branch: pytest `lai/apps/assets`, `lai/apps/audio`, `lai/apps/npcs` **752 passed**; Vitest asset
+resolver, media, region-play and removal tests **418 passed (31 files)**; typecheck, Ruff on
+`apps/assets` and the migration check pass. The full suites in section 4 were not rerun on the
+merged branch; CI on the pull request runs them.
+
+**Trello, done on the owner's explicit instruction:**
+
+- z61Oe83W "[Subproject] Asset Library" moved to Complete.
+- BgiQDaKv renamed "[AM-16] Asset delivery dev acceptance"; its description now states the
+  reconciled dependencies and the acceptance steps. It stays in Ready for Development.
+- AM-11 split to a new card, lad28LVA "[AM-11] Signed CloudFront asset delivery (deferred)", in
+  Backlog.
+- Cv2g9zI2 unchanged.
