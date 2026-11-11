@@ -76,7 +76,7 @@ action. NOT RUN = deliberately not run (reason given).
 | L0 | `learning-dev` credentials | **PASS** (2026-11-11) | `sts get-caller-identity`: IAM user `learning-dev`, account `008331939914`. Enabled by replacing the repo's blanket `aws` deny with read-only allow rules (owner decision). |
 | L1 | Bedrock and Guardrail configuration | **PASS** | Guardrail `lai-child-safety-dev` (`gf7ct9fgtbjf`), version `1` READY in us-west-1; policies match `infra/lib/aiGuardrailStack.ts` (5 content filters HIGH/HIGH, prompt attack HIGH input, 4 denied topics, profanity, PII BLOCK; v1 also blocks `US_INDIVIDUAL_TAX_IDENTIFICATION_NUMBER`, stricter than the repo, no NAME/AGE). Inference profile `us.anthropic.claude-haiku-4-5-20251001-v1:0` ACTIVE (us-east-1/2, us-west-1/2). `ai_live_check --dry-run`: ready, 0 blockers, 0 AWS calls. |
 | L2 | Polly live audio (B7.3 server side, SM-P8-LIVE-07) | **PASS** (us-west-2, after the owner granted `polly:SynthesizeSpeech`) | `speech_live_smoke --profile pirate-pip`: region PASS (Justin neural), synthesis PASS (28.7 KB MP3, 273 ms), sample saved for listening. Earlier the same day: us-west-1 region FAIL (no neural voices), and `AccessDeniedException` in both regions before the permission was added. |
-| L3 | Polly cache | **PASS** (memory store) / **FAIL** (S3) | Memory: second request served from cache with one Polly call; bytes read back. S3 (bucket `learning-adventure-island-dev-speech`, us-west-2, `LAI_SPEECH_DELIVERY=s3`): synthesis PASS, cache step `speech_unavailable (storage)`. Most likely `learning-dev` lacks `s3:PutObject`/`GetObject`/`DeleteObject` on `speech/*` (runbook section 3); not confirmed, because a direct S3 diagnostic was refused by the session's safety check. |
+| L3 | Polly cache | **PASS** (memory and S3) / presigned fetch: owner check | S3 bucket `learning-adventure-island-dev-speech` (us-west-2) after the owner granted `s3:PutObject`/`GetObject`/`DeleteObject` on `speech/*`: cache (one Polly call for two requests), S3 read-back (28,700 bytes) and URL signing PASS; the sample is removed afterwards. Fetching the presigned URL from the cloud container answers `403 SignatureDoesNotMatch`: the container holds placeholder keys and its proxy re-signs SDK requests with the real credentials, but cannot re-sign a URL signed inside the container. Not a product defect; verify once on the owner's machine or the deployed host (command in section 5, without `--skip-url-fetch`). |
 | L4 | Captions and mute with real audio (runbook section 9) | **PASS (audible, owner)** / owner check | The owner heard Pip's voice in the browser (2026-11-11). Captions, mute and music ducking remain on the owner's checklist (B7.3, runbook section 9). |
 | L5 | Polly failure fallback | **PASS** | AWS refused an invalid voice, mapped to `speech_unavailable (invalid_voice)`, captions remain; a voice outside the table is refused before any AWS call. |
 | L6 | NPC voice behaviour live (server side) | **PASS** | NPC release 1 carries Pip's `pirate-pip` voice; a Pip `on_interact` node carries an `npcDialogueNode` speech reference; `speak` synthesized it in Justin neural (36.6 KB, 0.9 s), the second request was a cache hit, and a missing node is refused (`not_found`). Hearing it in the browser from Pip's position is L4. |
@@ -104,8 +104,9 @@ Bedrock spend (owner approved), and the Guardrail (`lai-child-safety-dev`, versi
 
 Still needed:
 1. ~~Grant `learning-dev` Polly synthesis~~ Done by the owner; smoke test PASS.
-2. Create the private speech bucket in us-west-2 for the S3 cache and presigned-URL steps
-   (infrastructure: owner approval).
+2. ~~Create the speech bucket~~ Done: `learning-adventure-island-dev-speech` (us-west-2); S3
+   steps PASS. Run the S3 smoke command once from your own machine (real credentials) to confirm
+   the presigned-URL fetch, and add the `speech/child/` 2-day lifecycle rule.
 3. Choose PR #4 or PR #18 (section 7).
 
 Outstanding infrastructure (not created by Claude):
@@ -145,7 +146,7 @@ cd lai && AWS_PROFILE=learning-dev LAI_SPEECH_PROVIDER=polly LAI_SPEECH_AWS_REGI
 ```
 
 ```bash
-cd lai && AWS_PROFILE=learning-dev LAI_SPEECH_PROVIDER=polly LAI_SPEECH_AWS_REGION=us-west-2 LAI_SPEECH_STORAGE=s3 LAI_SPEECH_BUCKET=<speech-bucket> LAI_SPEECH_DELIVERY=s3 LAI_SPEECH_GLOBAL_DAILY_CHARS=500 python manage.py speech_live_smoke --confirm-live-aws --profile pirate-pip
+cd lai && AWS_PROFILE=learning-dev LAI_SPEECH_PROVIDER=polly LAI_SPEECH_AWS_REGION=us-west-2 LAI_SPEECH_STORAGE=s3 LAI_SPEECH_BUCKET=learning-adventure-island-dev-speech LAI_SPEECH_DELIVERY=s3 LAI_SPEECH_GLOBAL_DAILY_CHARS=500 python manage.py speech_live_smoke --confirm-live-aws --profile pirate-pip
 ```
 
 Bedrock (paid, at most 9 calls). Preferred on the deployed host (`docs/AI_BEDROCK_ACCEPTANCE.md`
