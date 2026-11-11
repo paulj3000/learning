@@ -6,12 +6,11 @@ import {
   INTEREST_OPTIONS,
   MAX_INTERESTS,
   READING_MODE_OPTIONS,
-  SESSION_MINUTES_RANGE,
   type AgeBandValue,
   type AvatarValue,
   type ReadingModeValue,
 } from './constants';
-import { validateInterests, validateNickname, validateSessionMinutes } from './validators';
+import { validateInterests, validateNickname } from './validators';
 import { ChildPhotoField } from './ChildPhotoField';
 import { persistPhotoSelection, type PhotoSelection } from './avatarPhoto';
 import {
@@ -43,7 +42,6 @@ interface ChildProfileFormProps {
 interface FieldErrors {
   nickname?: string;
   interests?: string;
-  sessionMinutes?: string;
 }
 
 export function ChildProfileForm({
@@ -62,9 +60,6 @@ export function ChildProfileForm({
   const [interests, setInterests] = useState<string[]>(initialValue?.interests ?? []);
   const [readingMode, setReadingMode] = useState<ReadingModeValue>(
     initialValue?.readingMode ?? 'VOICE_FIRST',
-  );
-  const [sessionMinutes, setSessionMinutes] = useState(
-    initialValue?.sessionMinutes ?? SESSION_MINUTES_RANGE.SPROUT.min,
   );
   const [photoSelection, setPhotoSelection] = useState<PhotoSelection>({ kind: 'unchanged' });
   const existingPhotoKey = initialValue?.avatarPhotoKey ?? null;
@@ -93,10 +88,9 @@ export function ChildProfileForm({
     const errors: FieldErrors = {
       nickname: validateNickname(nickname) ?? undefined,
       interests: validateInterests(interests) ?? undefined,
-      sessionMinutes: validateSessionMinutes(sessionMinutes, ageBand) ?? undefined,
     };
     setFieldErrors(errors);
-    if (errors.nickname || errors.interests || errors.sessionMinutes) return;
+    if (errors.nickname || errors.interests) return;
 
     setIsSubmitting(true);
     const input: ChildProfileInput = {
@@ -106,7 +100,6 @@ export function ChildProfileForm({
       avatarPhotoKey: existingPhotoKey,
       interests,
       readingMode,
-      sessionMinutes,
     };
     try {
       if (photosEnabled && photoWrite === 'after-save') {
@@ -149,8 +142,6 @@ export function ChildProfileForm({
     }
   }
 
-  const range = SESSION_MINUTES_RANGE[ageBand];
-
   return (
     <form className={styles.form} onSubmit={handleSubmit} noValidate>
       {formError ? (
@@ -181,11 +172,9 @@ export function ChildProfileForm({
           id="ageBand"
           className={styles.select}
           value={ageBand}
-          onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-            const nextAgeBand = event.target.value as AgeBandValue;
-            setAgeBand(nextAgeBand);
-            setSessionMinutes(SESSION_MINUTES_RANGE[nextAgeBand].min);
-          }}
+          onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+            setAgeBand(event.target.value as AgeBandValue)
+          }
         >
           {AGE_BAND_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -263,28 +252,6 @@ export function ChildProfileForm({
         </select>
       </div>
 
-      <div className={styles.field}>
-        <label className={styles.label} htmlFor="sessionMinutes">
-          Session length (minutes)
-        </label>
-        <input
-          id="sessionMinutes"
-          className={styles.input}
-          type="number"
-          min={range.min}
-          max={range.max}
-          value={sessionMinutes}
-          onChange={(event: ChangeEvent<HTMLInputElement>) =>
-            setSessionMinutes(Number(event.target.value))
-          }
-        />
-        <p className={styles.hint}>
-          Recommended {range.min}-{range.max} minutes for this age band.
-        </p>
-        {fieldErrors.sessionMinutes ? (
-          <p className={styles.fieldError}>{fieldErrors.sessionMinutes}</p>
-        ) : null}
-      </div>
 
       <button className={styles.button} type="submit" disabled={isSubmitting}>
         {isSubmitting ? 'Saving...' : submitLabel}

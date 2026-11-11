@@ -42,6 +42,36 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## No child play-time limits (ADR-053) — removed end to end; unit-tested, NOT yet owner-QA'd or merged
+
+Trello: "[LAI] Remove child gameplay time limits and forced session cutoffs" (2026-11-11). This
+supersedes "The calm stop — MVP scope item 11" below, which is kept as history.
+
+- **Removed (React):** `react/src/features/session/` (session clock, `useSessionClock`,
+  `CalmStop`); the island-wide stop note in `IslandLayout`; the region stop note and the
+  `limitReached` extension prop in `ThreeLocationWorldView` / `viewExtensionRegistry`;
+  `RegionPlayCompanion`'s session completion when time passed (the one real cutoff); Keeper
+  Quill's "look at the nook" stop cue in `CastleTaleCompanion`; Storykeeper Castle's
+  `copy.calmStop`; `LocationCopy.calmStop` (legacy content is ignored by `regionManifest.ts`).
+- **Removed (parent):** the "Session length" field on the child profile form and the "Session
+  time" row on the child dashboard; `validateSessionMinutes`; `sessionMinutes` from the
+  hand-owned profile types and play settings. Amplify builds still write
+  `RETIRED_SESSION_MINUTES` on create, only because the deployed schema requires it (no Amplify
+  resource change).
+- **Django:** `sessionMinutes` is no longer returned (profile, game runtime launch, native home
+  `restrictions`), no longer required or validated, and ignored if sent; the Amplify import
+  ignores it. `ChildProfile.full_clean` fills the retired column to fit the kept per-band DB
+  check, so no migration was needed. Admin no longer shows it.
+- **Kept on purpose:** Cognito auth and token refresh, the 1-hour Android game-launch cookie
+  (`LAI_GAME_SESSION_TTL_SECONDS`, a credential with a documented relaunch path), network
+  timeouts, the `active` and `aiEnabled` parental switches, and passive usage records.
+- **Tests:** extended-play regressions in `IslandLayout.test.tsx` (6 hours on every child-mode
+  depth), `RegionPlayCompanion.test.tsx` (session never completed over 1 to 8 hours) and
+  `storykeeperCastleParity.test.tsx`; Django tests for create/edit without the field, a legacy
+  value accepted and ignored, band changes, the import, and the launch/home payloads.
+- **Deferred to merge readiness:** Playwright, lint/format, full suites, build. Dropping the
+  `session_minutes` column needs a separate approved migration.
+
 ## Current phase
 
 **Phases 0-32 are implemented**, plus two follow-ups: "Curriculum band

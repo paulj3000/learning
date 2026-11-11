@@ -43,7 +43,11 @@ class ReadingMode(models.TextChoices):
     INDEPENDENT = "INDEPENDENT", "Independent"
 
 
-# CLAUDE.md section 3 and react/src/features/child-profile/constants.ts SESSION_MINUTES_RANGE.
+# Retired (card "Remove child gameplay time limits and forced session cutoffs"): children have no
+# play-time limit, countdown or forced stop, and parents no longer set one. The column and its
+# per-band check constraint stay only because dropping them is a destructive migration; the value
+# is filled in automatically (`ChildProfile.full_clean`), never accepted from a request and never
+# read by gameplay. Matches react/src/features/child-profile/constants.ts RETIRED_SESSION_MINUTES.
 SESSION_MINUTES_RANGE = {
     AgeBand.SPROUT: (5, 8),
     AgeBand.PATHFINDER: (8, 12),
@@ -201,6 +205,7 @@ class ChildProfile(models.Model):
         models.CharField(max_length=32), size=MAX_INTERESTS, blank=True, default=list
     )
     reading_mode = models.CharField(max_length=16, choices=ReadingMode.choices)
+    # Retired, never enforced: see SESSION_MINUTES_RANGE. Kept in range by `full_clean`.
     session_minutes = models.PositiveSmallIntegerField()
     active = models.BooleanField(default=True)
     # Parent kill switch: when false no child data goes to the AI model at all.
@@ -236,19 +241,25 @@ class ChildProfile(models.Model):
         ]
         indexes = [models.Index(fields=["parent", "created_at"], name="users_child_parent_created")]
 
-    def clean(self):
-        errors = {}
-        if not (self.nickname or "").strip():
-            errors["nickname"] = ValidationError("Enter a nickname.", code="blank_nickname")
+    def full_clean(self, *args, **kwargs):
+        self.fill_retired_session_minutes()
+        super().full_clean(*args, **kwargs)
+
+    def fill_retired_session_minutes(self) -> None:
+        """Keep the retired `session_minutes` column valid for the age band, silently.
+
+        It is not a setting any more, so it can never make a save fail: a missing value, or one a
+        changed age band left out of range, becomes the band's lowest value.
+        """
         bounds = SESSION_MINUTES_RANGE.get(self.age_band)
         if bounds and not bounds[0] <= (self.session_minutes or 0) <= bounds[1]:
-            errors["session_minutes"] = ValidationError(
-                "Choose between %(low)s and %(high)s minutes for this age band.",
-                code="session_minutes_out_of_range",
-                params={"low": bounds[0], "high": bounds[1]},
+            self.session_minutes = bounds[0]
+
+    def clean(self):
+        if not (self.nickname or "").strip():
+            raise ValidationError(
+                {"nickname": ValidationError("Enter a nickname.", code="blank_nickname")}
             )
-        if errors:
-            raise ValidationError(errors)
 
     def __str__(self) -> str:
         return str(self.id)

@@ -89,7 +89,6 @@ def update_child_profile(parent: ParentAccount, child_id, **fields) -> ChildProf
         "avatar_key",
         "interests",
         "reading_mode",
-        "session_minutes",
         "active",
         "ai_enabled",
     }

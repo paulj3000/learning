@@ -116,7 +116,7 @@ Never starts a quest.
 | COMPLETED, ABANDONED, SAFETY_STOPPED | 409 | 409 | no-op if same, else 409 | no-op if same, else 409 |
 
 `resume` also refuses (`409 content_unavailable`) when the region has since been unpublished.
-The calm stop (CLAUDE.md section 11) should `complete` the session.
+Nothing completes a session because of play time (ADR-053): there is no time limit.
 
 ### `POST quests/{questId}/accept/`: accept a quest
 

@@ -172,11 +172,6 @@ def test_creation_locks_the_parent_row_to_make_the_limit_race_safe(parent_a):
         ({"reading_mode": "SHOUTING"}, "reading_mode"),
         ({"avatar_key": ""}, "avatar_key"),
         ({"interests": ["a"] * 6}, "interests"),
-        ({"age_band": "SPROUT", "session_minutes": 9}, "session_minutes"),
-        ({"age_band": "SPROUT", "session_minutes": 4}, "session_minutes"),
-        ({"age_band": "PATHFINDER", "session_minutes": 13}, "session_minutes"),
-        ({"age_band": "EXPLORER", "session_minutes": 9}, "session_minutes"),
-        ({"age_band": "EXPLORER", "session_minutes": 19}, "session_minutes"),
     ],
 )
 def test_invalid_profiles_are_rejected_by_validation(parent_a, overrides, field):
@@ -201,6 +196,23 @@ def test_database_constraints_hold_even_when_validation_is_bypassed(parent_a, ov
     values = {**VALID, **overrides}
     with pytest.raises(IntegrityError), transaction.atomic():
         ChildProfile.objects.bulk_create([ChildProfile(parent=parent_a, **values)])
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"age_band": "SPROUT", "session_minutes": 9},
+        {"age_band": "SPROUT", "session_minutes": 4},
+        {"age_band": "PATHFINDER", "session_minutes": 13},
+        {"age_band": "EXPLORER", "session_minutes": 9},
+        {"age_band": "EXPLORER", "session_minutes": None},
+    ],
+)
+def test_the_retired_session_length_never_fails_validation(parent_a, overrides):
+    """There is no play-time limit any more: the column is filled to fit the band, silently."""
+    created = child(parent_a, **overrides)
+    low = {"SPROUT": 5, "PATHFINDER": 8, "EXPLORER": 10}[overrides["age_band"]]
+    assert created.session_minutes == low
 
 
 def test_every_age_band_accepts_its_boundaries(parent_a):

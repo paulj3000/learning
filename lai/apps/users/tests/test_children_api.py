@@ -27,7 +27,6 @@ NEW = {
     "avatarKey": "OWL",
     "interests": ["Space", "Ocean"],
     "readingMode": "VOICE_FIRST",
-    "sessionMinutes": 6,
 }
 PROFILE_KEYS = {
     "id",
@@ -37,7 +36,6 @@ PROFILE_KEYS = {
     "hasPhoto",
     "interests",
     "readingMode",
-    "sessionMinutes",
     "active",
     "aiEnabled",
     "createdAt",
@@ -86,7 +84,8 @@ def test_reading_own_child_returns_the_profile_without_the_photo_path(families, 
     body = api(families.a).get(detail(families.a1)).json()
     assert body["id"] == str(families.a1.pk) and body["nickname"] == "Zinnia-A1"
     assert body["hasPhoto"] is True and key not in json.dumps(body)
-    assert body["ageBand"] == "PATHFINDER" and body["sessionMinutes"] == 10
+    assert body["ageBand"] == "PATHFINDER"
+    assert "sessionMinutes" not in body  # the retired play-time limit is never shown
 
 
 @pytest.mark.parametrize("method", ["get", "patch"])
@@ -175,7 +174,6 @@ def test_the_three_profile_cap_is_enforced(families, api):
         ({"interests": ["Space"] * 2}, "interests"),
         ({"interests": ["Not-an-interest"]}, "interests"),
         ({"interests": ["Animals", "Space", "Ocean", "Art", "Music", "Nature"]}, "interests"),
-        ({"sessionMinutes": 12}, "sessionMinutes"),  # outside the Sprout range 5-8
     ],
 )
 def test_create_validation_uses_the_existing_rules(families, api, change, field):
@@ -196,22 +194,43 @@ def test_a_required_field_is_required(families, api):
 
 def test_a_parent_updates_their_own_child(families, api):
     response = patch(
-        api(families.a),
-        detail(families.a1),
-        {"nickname": "Zinnia", "aiEnabled": False, "sessionMinutes": 12},
+        api(families.a), detail(families.a1), {"nickname": "Zinnia", "aiEnabled": False}
     )
     assert response.status_code == 200, response.json()
     families.a1.refresh_from_db()
     assert families.a1.nickname == "Zinnia" and families.a1.ai_enabled is False
-    assert families.a1.session_minutes == 12
 
 
-def test_changing_the_age_band_revalidates_the_session_length(families, api):
+# --- the retired play-time limit (card: remove child gameplay time limits) --------------------
+
+
+def test_a_child_is_created_without_any_session_length(families, api):
+    response = post(api(families.a), CHILDREN, NEW)
+    assert response.status_code == 201, response.json()
+    assert "sessionMinutes" not in response.json()
+    created = ChildProfile.objects.get(pk=response.json()["id"])
+    assert 5 <= created.session_minutes <= 8  # the retired column stays valid on its own
+
+
+def test_a_legacy_session_length_is_accepted_and_ignored(families, api):
+    """A client built before the change still sends it; it never fails a save or sets a limit."""
+    created = post(api(families.a), CHILDREN, {**NEW, "sessionMinutes": 99})
+    assert created.status_code == 201, created.json()
+    child_id = created.json()["id"]
+    assert ChildProfile.objects.get(pk=child_id).session_minutes == 5
+    edited = patch(api(families.a), f"{CHILDREN}{child_id}/", {"nickname": "B", "sessionMinutes": 1})
+    assert edited.status_code == 200 and "sessionMinutes" not in edited.json()
+    assert ChildProfile.objects.get(pk=child_id).session_minutes == 5
+    # On its own it is not a change at all.
+    alone = patch(api(families.a), f"{CHILDREN}{child_id}/", {"sessionMinutes": 7})
+    assert alone.status_code == 400
+
+
+def test_changing_the_age_band_never_needs_a_session_length(families, api):
     response = patch(api(families.a), detail(families.a1), {"ageBand": "SPROUT"})
-    assert response.status_code == 400
-    assert "sessionMinutes" in response.json()["error"]["details"]
-    ok = patch(api(families.a), detail(families.a1), {"ageBand": "SPROUT", "sessionMinutes": 7})
-    assert ok.status_code == 200 and ok.json()["ageBand"] == "SPROUT"
+    assert response.status_code == 200, response.json()
+    families.a1.refresh_from_db()
+    assert families.a1.age_band == "SPROUT" and 5 <= families.a1.session_minutes <= 8
 
 
 def test_an_update_cannot_move_a_child_or_touch_server_fields(families, api):

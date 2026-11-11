@@ -13,11 +13,16 @@ export const AGE_BAND_OPTIONS = (Object.keys(AGE_BAND_LABELS) as AgeBandValue[])
   label: AGE_BAND_LABELS[value],
 }));
 
-/** Recommended session length per age band, from CLAUDE.md section 3. */
-export const SESSION_MINUTES_RANGE: Record<AgeBandValue, { min: number; max: number }> = {
-  SPROUT: { min: 5, max: 8 },
-  PATHFINDER: { min: 8, max: 12 },
-  EXPLORER: { min: 10, max: 18 },
+/**
+ * Retired per-visit session length (LAI card "Remove child gameplay time limits"). Children have
+ * no play-time limit, countdown or forced stop, and parents no longer set one. The value exists
+ * only because the deployed Amplify `ChildProfile.sessionMinutes` field is still required; it is
+ * written on create and never read. Django stores its own retired value server-side.
+ */
+export const RETIRED_SESSION_MINUTES: Record<AgeBandValue, number> = {
+  SPROUT: 5,
+  PATHFINDER: 8,
+  EXPLORER: 10,
 };
 
 export const READING_MODE_OPTIONS = [

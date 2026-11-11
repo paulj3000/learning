@@ -96,7 +96,6 @@ export function CastleTaleCompanion({
   onCloseInteraction,
   showToast,
   setFocusLabel,
-  limitReached,
   refreshWorld,
   hudSlot,
 }: LocationCompanionProps) {
@@ -253,17 +252,6 @@ export function CastleTaleCompanion({
       sceneRef.current?.playQuillClip('Point');
     }
   }, [talkingToQuill]);
-
-  /*
-    Beat 13's calm stop, in the room: Quill stops writing and looks toward
-    the nook. Once, when the time passes, and never mid-sentence.
-  */
-  const hasGesturedAtNookRef = useRef(false);
-  useEffect(() => {
-    if (!scene || !limitReached || hasGesturedAtNookRef.current) return;
-    hasGesturedAtNookRef.current = true;
-    scene.playQuillClip('Point', 'nook');
-  }, [scene, limitReached]);
 
   /*
     What the reticle says, and what the HUD says about what is in the child's

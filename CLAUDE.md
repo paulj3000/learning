@@ -229,7 +229,8 @@ The first usable product must include:
 8. At least one persistent world change after an adventure.
 9. Adventure log showing completed missions and creations.
 10. Parent dashboard summarizing activity by skill, not raw chat transcripts.
-11. Session time controls and a calm stopping point.
+11. No play-time limits: children are never counted down, nudged to stop, or cut off for time
+    (ADR-053 retired the session-time control and calm stop).
 12. Safety logging, AI fallback behavior, and admin review scaffolding.
 13. Responsive tablet-first layout.
 14. Automated tests for authorization, adventure state transitions, age adaptation, and AI validation.

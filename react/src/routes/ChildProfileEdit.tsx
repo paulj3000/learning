@@ -82,7 +82,6 @@ export function ChildProfileEdit() {
                 Boolean(interest),
               ),
               readingMode: childProfile.readingMode,
-              sessionMinutes: childProfile.sessionMinutes,
             }}
             onSubmit={handleSubmit}
             onSaved={() => navigate('/home')}

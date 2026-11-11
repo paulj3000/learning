@@ -39,7 +39,6 @@ COMPARED_FIELDS = (
     "avatar_key",
     "interests",
     "reading_mode",
-    "session_minutes",
     "active",
     "ai_enabled",
 )
@@ -262,7 +261,7 @@ def _child_fields(item) -> tuple[dict, str]:
         if isinstance(interests, list)
         else interests,
         "readingMode": item.get("readingMode"),
-        "sessionMinutes": item.get("sessionMinutes"),
+        # Amplify's `sessionMinutes` is not imported: the play-time limit is retired.
         "active": item.get("active") is not False,
         "aiEnabled": item.get("aiEnabled") is not False,
     }

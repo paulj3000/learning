@@ -40,7 +40,7 @@ interface ChildShellProps {
   /** Classes for `<main>`, so existing pages keep their own layout. */
   mainClassName?: string;
   children: ReactNode;
-  /** Rendered after `<main>`: overlays such as the calm stop. */
+  /** Rendered after `<main>`: overlays. */
   overlays?: ReactNode;
 }
 

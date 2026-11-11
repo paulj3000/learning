@@ -3857,3 +3857,36 @@ outside the `@source` paths silently gets no utilities; the comment at the
 top of `portal.css` says so.
 
 **Acceptance.** Owner-accepted 2026-11-10 with AP-01, after reviewing the app-wide redress ("AP-01 is done"). Not yet merged to `main` or deployed.
+
+## ADR-053: No platform-imposed play-time limits; the session-time control and calm stop are retired
+
+Status: Accepted (owner, 2026-11-11; Trello "[LAI] Remove child gameplay time limits and forced
+session cutoffs")
+
+**Context.** MVP scope item 11 asked for "session time controls and a calm stopping point".
+`ChildProfile.sessionMinutes` was a required, per-band-validated parent setting; a client-side
+session clock (`react/src/features/session/`) showed a "good place to stop" note once it passed,
+Storykeeper Castle staged the stop in the room, and Treasure Rush's region companion
+**completed the child's session** when it passed. The owner decided that the platform must not
+stop, count down, or nudge a child off the island for elapsed play time.
+
+**Decision.**
+- No playtime enforcement anywhere: no countdown, no stop note, no lockout, no cooldown, and no
+  session completion triggered by elapsed time. The session clock, `CalmStop`, the region
+  `copy.calmStop` hook and the `limitReached` extension prop are deleted.
+- Parents no longer see or set a session length (profile form and dashboard row removed), so no
+  stale setting claims enforcement.
+- Django retires `session_minutes` without a destructive migration: the column and its per-band
+  check constraint stay, `ChildProfile.full_clean` fills an in-range value silently, the API no
+  longer returns `sessionMinutes` (profile, game runtime launch, native home `restrictions`), and
+  a request that still sends it is accepted and the value ignored. Amplify builds write the
+  band's lowest value on create only because the deployed schema requires the field.
+- Legacy region content may still carry `scene.copy.calmStop`; the authoring kinds still accept
+  it and the client ignores it.
+- Unchanged: Cognito authentication, token expiry and refresh, game-session cookie expiry
+  (`expiresAt`), network timeouts, parental `active` and `aiEnabled` switches, and passive
+  usage records (completed sessions, progress).
+
+**Consequences.** CLAUDE.md section 11 item 11 and the threat model's engagement entry are
+updated. A native client that required `sessionMinutes` in a response must treat it as absent.
+Dropping the column is left to a later, approved migration.

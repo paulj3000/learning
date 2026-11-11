@@ -29,9 +29,6 @@ vi.mock('../features/child-profile/api', () => ({
 vi.mock('../api/assets/djangoAssetResolver', () => ({
   djangoAssetResolverFor: () => ({ resolve: mocks.resolve }),
 }));
-vi.mock('../features/session/useSessionClock', () => ({
-  useSessionClock: () => ({ elapsedMinutes: 0, limitMinutes: null, limitReached: false }),
-}));
 
 import { RealmExplorerPage } from './RealmExplorerPage';
 import { RealmDetailPage } from './RealmDetailPage';

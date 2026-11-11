@@ -516,12 +516,10 @@ function text(value: JsonValue | undefined, fallback: string): string {
 
 function readCopy(value: JsonValue | undefined): LocationCopy {
   const copy = isObject(value) ? value : {};
-  const calmStop =
-    typeof copy.calmStop === 'string' && copy.calmStop.trim() ? copy.calmStop : undefined;
+  // A legacy `copy.calmStop` (the retired play-time stop) is ignored: nothing stops a child.
   return {
     loading: text(copy.loading, DEFAULT_REGION_COPY.loading),
     instructions: text(copy.instructions, DEFAULT_REGION_COPY.instructions),
-    ...(calmStop ? { calmStop } : {}),
     altNav: { label: text(copy.altNavLabel, DEFAULT_REGION_COPY.altNavLabel), to: '' },
   };
 }

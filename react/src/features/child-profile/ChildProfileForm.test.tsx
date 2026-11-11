@@ -48,7 +48,6 @@ const SAVED_CHILD: ChildProfile = {
   avatarPhotoKey: null,
   interests: [],
   readingMode: 'VOICE_FIRST',
-  sessionMinutes: 5,
   active: true,
   aiEnabled: true,
   createdAt: null,

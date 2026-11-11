@@ -1,8 +1,6 @@
 import type { ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import styles from './IslandLayout.module.css';
-import { CalmStop } from '../session/CalmStop';
-import { useSessionClock } from '../session/useSessionClock';
 import { ChildShell } from '../portal/shell';
 import { PortalButton } from '../portal/ui';
 import {
@@ -38,15 +36,11 @@ export const LEAVE_ISLAND_LABEL = LEAVE_ISLAND_COPY.leave;
  * confirm, with two plain buttons, when an encounter is open. Unmounting the
  * route tears down any 3D scene.
  *
- * It is also where the session clock lives, for the same reason: it wraps
- * every child-mode screen, so there is exactly one clock and it survives
- * walking from the map into an adventure and back. A region that stages the
- * stop in its own world (Storykeeper Castle does) reads the same clock
- * rather than starting a second one.
+ * There is no session clock here or anywhere: a child is never stopped,
+ * counted down, or nudged to leave because of how long they have played.
  */
 export function IslandLayout({ childId, children, profile }: IslandLayoutProps) {
   const { pathname } = useLocation();
-  const { limitReached } = useSessionClock(childId);
   const onHub = isPortalHubPath(pathname, childId);
 
   return (
@@ -61,7 +55,6 @@ export function IslandLayout({ childId, children, profile }: IslandLayoutProps) 
             <ParentSpaceButton />
           </>
         }
-        overlays={<CalmStop limitReached={limitReached} />}
       >
         {children}
       </ChildShell>

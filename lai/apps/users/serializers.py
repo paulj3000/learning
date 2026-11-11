@@ -44,7 +44,6 @@ WRITABLE_FIELDS = {
     "avatarKey": "avatar_key",
     "interests": "interests",
     "readingMode": "reading_mode",
-    "sessionMinutes": "session_minutes",
     "active": "active",
     "aiEnabled": "ai_enabled",
 }
@@ -62,7 +61,9 @@ class ChildProfileWrite(serializers.Serializer):
         required=False,
     )
     readingMode = serializers.ChoiceField(choices=ReadingMode.values)
-    sessionMinutes = serializers.IntegerField(min_value=1, max_value=60)
+    # Retired: there is no play-time limit. Still accepted so a client built before the change
+    # keeps working, but any value is ignored (`model_fields` drops it) and never validated.
+    sessionMinutes = serializers.JSONField(required=False, write_only=True)
     active = serializers.BooleanField(required=False)
     aiEnabled = serializers.BooleanField(required=False)
 
@@ -78,12 +79,16 @@ class ChildProfileWrite(serializers.Serializer):
                 {name: ["This field is not accepted."] for name in sorted(unknown)},
                 code="unknown_field",
             )
-        if self.partial and not attrs:
+        if self.partial and not set(attrs) & set(WRITABLE_FIELDS):
             raise serializers.ValidationError("Change at least one field.", code="empty")
         return attrs
 
     def model_fields(self) -> dict:
-        return {WRITABLE_FIELDS[key]: value for key, value in self.validated_data.items()}
+        return {
+            WRITABLE_FIELDS[key]: value
+            for key, value in self.validated_data.items()
+            if key in WRITABLE_FIELDS
+        }
 
 
 def model_errors(
@@ -112,7 +117,6 @@ class ChildProfileSerializer(serializers.Serializer):
     hasPhoto = serializers.SerializerMethodField()
     interests = serializers.ListField(child=serializers.CharField())
     readingMode = serializers.CharField(source="reading_mode")
-    sessionMinutes = serializers.IntegerField(source="session_minutes")
     active = serializers.BooleanField()
     aiEnabled = serializers.BooleanField(source="ai_enabled")
     createdAt = serializers.DateTimeField(source="created_at")

@@ -182,7 +182,7 @@ def pin_region_content(session: AdventureSession, region: WorldRegion) -> None:
 
 
 def end_session(session: AdventureSession, status: str = SessionStatus.COMPLETED) -> None:
-    """Close an open session (the calm stop, a finished visit, or a safety stop)."""
+    """Close an open session (a finished visit or a safety stop; never because of play time)."""
     if status in OPEN_STATUSES:
         raise ValueError("Use start_or_resume_region_session to open a session.")
     with transaction.atomic():
