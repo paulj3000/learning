@@ -14,6 +14,7 @@ from apps.ai.models import AIInteractionAudit, SafetyEvent
 from apps.ai.providers import override_model_client
 from apps.ai.providers.base import InvalidModelResponse, ProviderError, ProviderTimeout
 from apps.ai.providers.fake import GUARDRAIL_BLOCK, FakeModelClient
+from apps.ai.services.pipeline import NO_CLIENT_CONTEXT
 from apps.npcs import published
 from apps.npcs.models import NpcConversationState, NpcDialogueNode, NpcPersona, PersonaStatus
 from apps.npcs.publishing import publish
@@ -186,8 +187,12 @@ def test_success_answers_an_ai_hint_and_writes_only_an_audit_row(hybrid, a, fake
     # The model saw server-built context only: persona, topic, authored line, band and limit.
     (request,) = model.requests
     assert request.route == "npc" and request.schema_name == "npc_hint"
-    assert len(request.content) == 1 and not request.content[0].untrusted
-    sent = request.content[0].text
+    # Main's pipeline (D-3) always ends with the one Guardrail-assessed part; an NPC hint has no
+    # client text, so that part is the fixed placeholder and nothing untrusted is sent.
+    context, guarded = request.content
+    assert not context.untrusted and not context.guarded
+    assert guarded.text == NO_CLIENT_CONTEXT and guarded.guarded and not guarded.untrusted
+    sent = context.text
     for expected in (
         PERSONA_PROMPT,
         TOPIC,

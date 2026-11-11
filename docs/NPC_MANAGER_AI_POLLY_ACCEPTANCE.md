@@ -1,0 +1,190 @@
+# NPC Manager: AI and Polly acceptance gates (2026-11-11)
+
+Scope: the remaining live AI/Polly gates for the NPC Manager (Trello "[Subproject] NPC Manager",
+`docs/NPC_MANAGER_BROWSER_ACCEPTANCE.md` B7 and B8, `docs/audio/POLLY_DEPLOYMENT_RUNBOOK.md`,
+`docs/AI_BEDROCK_ACCEPTANCE.md`). Branch: `integration/npc-manager-main` (PR #4 stack + PR #1 +
+`main` at `0b4a2fba`). Nothing was merged to `main`, deployed, or changed in AWS.
+
+**Headline.** Every fake-client gate passes on the reconciled branch. Every live gate is
+**BLOCKED**: this session's permissions refuse the `aws` CLI, so the `learning-dev` credentials
+could not be verified, and the Guardrail id and version are not available outside the deployed
+host's SSM parameters. No AWS call of any kind was made; spend was USD 0.
+
+## 1. Pull requests and dependencies
+
+| PR | Head -> base | State | Notes |
+|---|---|---|---|
+| #2 | `qa/npc-manager-acceptance` -> `feature/npc-manager` | open | QA pass, four fixes, browser specs. Base of #4 and #18. |
+| #4 | `fix/npc-qa-fa-fb` -> `qa/npc-manager-acceptance` | open | F-A, F-B, legacy-spec updates, idempotent `end` + no racing `end`, pirate Pip variant. |
+| #18 | `fix/npc-manager-fa-fb` -> `qa/npc-manager-acceptance` | open | A second, independent fix of F-A, F-B and the legacy specs ("F-C"). **Conflicts with #4 in 15 files: only one can merge.** Keeps the racing best-effort `end` (intermittent `404`/`409` console errors seen in the #4 reruns). |
+| #1 | `feature/sm-p8-live-polly` -> `feature/npc-manager` | open | SM-P8-LIVE: real Polly path, S3 store, Pirate Pip voice profile, `speech_live_smoke`, runbook. Conflicts with the #2 stack only in `docs/IMPLEMENTATION_STATUS.md`. |
+
+All NPC branches fork from `5f6c26f5` and were 128 commits behind `main`; each conflicts with
+`main` in the same 13 files (the `dev20261103` overlap predicted in the QA report, now on `main`).
+`main` contains only the original SM-P8 speech service, so PR #1 duplicates nothing.
+
+## 2. Reconciliation with `main` (`integration/npc-manager-main`)
+
+- Merged PR #4's stack, then PR #1, then `main`. 13 conflicts resolved:
+  - `catalog.NpcDefinition` keeps both `main`'s `Authorable` (ADR-047 content authority) and the
+    NPC `origin` field; both import guards kept. Merge migration `catalog/0010_merge_npc_manager`
+    (no model changes; `makemigrations --check` clean).
+  - **ADR renumbering:** `main` gave ADR-050 to sound cues. The NPC Manager is now **ADR-053**;
+    30 NPC-side references were renumbered line by line; next free number 054; `adr:check` passes
+    (53 decisions).
+  - Treasure Rush and Castle code: unions of both sides (content pinning reload, castle rooms,
+    storybook, guide, NPC stage and speech slot). NPC test fakes gained `main`'s new interface
+    members.
+- Two tests changed to `main`'s contracts: the NPC hint request now ends with `main`'s guarded
+  placeholder part (fix D-3), and `make runserver` binds the owner's dev port 8010.
+- Follow-up (not a blocker): a managed NPC's panel has no launch or puzzle-return actions, which
+  `main`'s `PipDialog` gained. Treasure Cove's Pip uses neither today.
+
+## 3. Gate results
+
+PASS = verified with evidence here. FAIL = ran and failed. BLOCKED = cannot run without an owner
+action. NOT RUN = deliberately not run (reason given).
+
+### Repository and fake-client gates
+
+| # | Gate | Result | Evidence |
+|---|---|---|---|
+| R1 | PR inventory and dependencies | PASS | Section 1 |
+| R2 | Reconcile NPC Manager QA fixes with latest `main` | PASS | Section 2; typecheck, Ruff, Prettier, `adr:check`, `makemigrations --check` clean |
+| R3 | Full Django suite (fake AI, fake/disabled speech, PostgreSQL 16) | PASS | 3265 passed, 4 skipped, 0 failed; the first run found 2 merge-contract failures, both fixed |
+| R4 | Full Vitest suite | PASS | 5013 passed, 439 files |
+| U1 | Polly client over botocore Stubber: MP3 checks, error classes, retries only on transient errors, IAM/voice/input never retried | PASS | `speech/tests/test_polly_client.py` (33) |
+| U2 | S3 speech store: region, SigV4, `speech/shared` vs `speech/child` keys, presign failure | PASS | `test_speech_storage.py` (19) |
+| U3 | API end to end on the real client: synthesis, cache hit, child authorization, throttling, timeout, IAM denial, invalid voice, malformed input, storage failure, presign fallback, Pip seed to publish to heard | PASS | `test_live_path.py` (23) |
+| U4 | Smoke command logic (live test itself skipped) | PASS | `test_live_smoke.py` (10 + 1 skipped by design) |
+| U5 | NPC voice: profiles, validation, `npcDialogueNode` references, pre-generation | PASS | `test_voice_validation.py` (9), `test_npc_dialogue_node.py` (19), `test_voice_pregenerate.py` (13) |
+| U6 | Captions, mute, failure fallback in the browser player (fake fetch) | PASS | Vitest `audio/speech` + `npc-manager/voice` + host: 123 tests, incl. `pollyLive.test.ts` |
+| U7 | NPC Bedrock hint, fake model: persona, safety boundaries (humanity, secrecy, dependency), Guardrail intervention, redirect/stop, timeout, invalid output, kill switch, parent switch, rate limit, provider disabled, child ownership (another family 404, unauthenticated), authored fallback, no client text, no progress writes | PASS | `npcs/tests/test_ai_hint_api.py` (35), `test_ai_persona.py` (44), `ai/tests/test_npc_hint_contract.py` (20) |
+| U8 | Bedrock client reliability (timeouts, retries, first-call timeout) | PASS | `ai/tests/test_bedrock_reliability.py` (43) |
+| U9 | Live-check command, incl. the new `--npc-manager-hint` (rehearsed on the fake model) | PASS | `ai/tests/test_live_check_command.py` (21) |
+| B7.1, B7.4 | Captions only when speech disabled; mute gives text only | PASS (browser, QA pass 2026-11-07) | `npc-4-a11y.spec.ts`, `npc-3-castle.spec.ts` |
+| B7.2, B8.2 to 8.4 | Fake speech provider; fake/disabled AI and the parent switch in the browser | NOT RUN in a browser this pass | Covered by U3, U6 and U7; the owner checklist steps remain |
+
+### AWS and live gates
+
+| # | Gate | Result | Evidence and reason |
+|---|---|---|---|
+| L0 | `learning-dev` credentials (us-west-1) | **BLOCKED** | `~/.aws/config` has `[profile learning-dev]`, `region = us-west-1`, `credential_process` reading two environment variables (both present). This session's permission settings refuse the `aws` CLI, so `sts get-caller-identity` was not run. Not worked around. |
+| L1 | Bedrock and Guardrail configuration | **BLOCKED** | `ai_live_check --dry-run` (0 AWS calls) with `LAI_AI_PROVIDER=bedrock`, `LAI_AI_BEDROCK_REGION=us-west-1`: provider, region, model id (`us.anthropic.claude-haiku-4-5-20251001-v1:0`), timeouts, limits, kill switch PASS; **Guardrail id and version FAIL (not set here; they live in SSM `/lai/<env>/django/...`)**; prices and retention WARN. |
+| L2 | Polly live audio (B7.3, SM-P8-LIVE-07) | **BLOCKED** | Needs L0 and approval. Last attempt (PR #1, 2026-11-07, us-east-1): FAIL `UnrecognizedClientException` / `access_denied`. |
+| L3 | Polly cache (two requests, one synthesis; S3 read-back; presigned URL) | **BLOCKED** | Needs L0, approval and (for S3) the speech bucket. |
+| L4 | Captions and mute with real audio (runbook section 9) | **BLOCKED** | Owner browser check after L2. |
+| L5 | Polly failure fallback (invalid voice refused by AWS, mapped to a safe error) | **BLOCKED** | Part of `speech_live_smoke`. The table-only fallback step needs no AWS and passed in PR #1. |
+| L6 | NPC voice behaviour live (Pip heard in Justin's voice from his position) | **BLOCKED** | Needs L2 plus the `pirate-pip` voice attached and published. |
+| L7 | Bedrock persona behaviour (B8.5) | **BLOCKED** | `ai_live_check --npc-manager-hint` (new). Needs L0, L1 and approval. |
+| L8 | Bedrock safety and Guardrail | **BLOCKED** | `--guardrail-probe`. Needs L1. |
+| L9 | Bedrock timeout | **BLOCKED** | `--timeout-probe`. |
+| L10 | Child ownership on the live path | NOT RUN (live) | Proved with fakes (U7); `ai_live_check` itself resolves the child only through its parent. No live value in repeating it. |
+| L11 | Authored fallback on the live path | **BLOCKED** | Proved live only indirectly (timeout probe returns the authored line). |
+| L12 | Spend recorded against the bill | **BLOCKED** | After L2 and L7. |
+
+## 4. Region risk
+
+You asked for `us-west-1`. The Bedrock setup already defaults to `us-west-1` with a US
+cross-region inference profile. Polly's runbook recommends `us-east-1` or `us-west-2` for the
+full English neural voice set; whether `us-west-1` offers Justin (neural) is exactly what the
+smoke test's `region` step reports. If it reports FAIL, choose `us-west-2` for speech
+(`LAI_SPEECH_AWS_REGION`) and keep Bedrock in `us-west-1`: they are independent settings.
+
+## 5. Owner actions
+
+Approvals needed:
+1. Allow this session (or a local shell) to run the `aws` CLI with `learning-dev`, or run the
+   commands below yourself.
+2. Approve the live spend: Polly about 65 characters (well under USD 0.01); Bedrock at most 9
+   calls with `LAI_AI_MAX_OUTPUT_TOKENS=150` (about USD 0.03 on Claude Haiku 4.5; confirm current
+   pricing). The caps below enforce it.
+3. Provide or create the Guardrail (`LaiAiGuardrail-<env>` stack outputs) and the speech bucket.
+   Creating either is infrastructure: owner approval.
+4. Choose PR #4 or PR #18 (section 7).
+
+Outstanding infrastructure (not created by Claude):
+- **IAM (speech):** `polly:SynthesizeSpeech`, `polly:DescribeVoices` (smoke only) on `*`;
+  `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject` on `arn:aws:s3:::<speech-bucket>/speech/*`
+  (runbook section 3).
+- **IAM (AI):** the `lai-django-ai-<env>` policy (InvokeModel on the profile and its destination
+  models, ApplyGuardrail on the Guardrail; `infra/lib/aiGuardrailStack.ts`).
+- **S3:** private speech bucket, Block Public Access, lifecycle expiring `speech/child/` after 2
+  days, CORS only with `LAI_SPEECH_DELIVERY=s3`.
+- **Voice profile:** `seed_speech_voices` then `seed_npc_pip --attach-voice` and a publish, so the
+  release snapshot carries Pip's `pirate-pip` voice.
+- **Deployed host:** SSM `LAI_SPEECH_*` and `LAI_AI_*` values; runtime role with the policies
+  above; the paid AI run is meant to run there (real instance role and Guardrail).
+- **Model access:** Claude Haiku 4.5 access in the account (use-case form, Marketplace).
+
+### Exact commands (owner-run)
+
+Free, read-only checks (no spend):
+
+```bash
+aws sts get-caller-identity --profile learning-dev --region us-west-1
+aws polly describe-voices --profile learning-dev --region us-west-1 --engine neural --language-code en-US --query 'Voices[].Id'
+aws bedrock get-inference-profile --profile learning-dev --region us-west-1 --inference-profile-identifier us.anthropic.claude-haiku-4-5-20251001-v1:0 --query 'status'
+aws bedrock get-guardrail --profile learning-dev --region us-west-1 --guardrail-identifier <guardrail-id> --guardrail-version <n> --query 'status'
+```
+
+Polly smoke (paid, about 65 characters; memory storage needs no bucket, S3 variant after the
+bucket exists). From the repository root:
+
+```bash
+cd lai && export AWS_PROFILE=learning-dev DJANGO_SETTINGS_MODULE=config.settings.local && python manage.py migrate && python manage.py seed_speech_voices
+```
+
+```bash
+cd lai && AWS_PROFILE=learning-dev LAI_SPEECH_PROVIDER=polly LAI_SPEECH_AWS_REGION=us-west-1 LAI_SPEECH_STORAGE=memory LAI_SPEECH_GLOBAL_DAILY_CHARS=500 python manage.py speech_live_smoke --confirm-live-aws --profile pirate-pip --save-mp3 /tmp/pip.mp3
+```
+
+```bash
+cd lai && AWS_PROFILE=learning-dev LAI_SPEECH_PROVIDER=polly LAI_SPEECH_AWS_REGION=us-west-1 LAI_SPEECH_STORAGE=s3 LAI_SPEECH_BUCKET=<speech-bucket> LAI_SPEECH_DELIVERY=s3 LAI_SPEECH_GLOBAL_DAILY_CHARS=500 python manage.py speech_live_smoke --confirm-live-aws --profile pirate-pip
+```
+
+Bedrock (paid, at most 9 calls). Preferred on the deployed host (`docs/AI_BEDROCK_ACCEPTANCE.md`
+section 2). For a local run with `learning-dev`, first a synthetic test family and a hybrid Pip
+on a fresh local database:
+
+```bash
+cd lai && python manage.py shell -c "from apps.users.models import ParentAccount; from apps.users import services; p = ParentAccount.objects.get_or_create_for_cognito('dev-acceptance-parent'); c = services.create_child_profile(p, nickname='Tester', age_band='PATHFINDER', avatar_key='FOX', reading_mode='READ_ALONG', session_minutes=10, interests=[]); print(c.pk)"
+```
+
+```bash
+cd lai && python manage.py load_content && python manage.py seed_treasure_rush && python manage.py seed_npc_pip --hybrid-hints --publish
+```
+
+```bash
+cd lai && AWS_PROFILE=learning-dev LAI_AI_PROVIDER=bedrock LAI_AI_BEDROCK_REGION=us-west-1 LAI_AI_GUARDRAIL_ID=<guardrail-id> LAI_AI_GUARDRAIL_VERSION=<n> python manage.py ai_live_check --dry-run
+```
+
+```bash
+cd lai && AWS_PROFILE=learning-dev LAI_AI_PROVIDER=bedrock LAI_AI_BEDROCK_REGION=us-west-1 LAI_AI_GUARDRAIL_ID=<guardrail-id> LAI_AI_GUARDRAIL_VERSION=<n> LAI_AI_MAX_OUTPUT_TOKENS=150 LAI_AI_GLOBAL_TURNS_PER_DAY=12 LAI_AI_CHILD_TURNS_PER_DAY=12 python manage.py ai_live_check --confirm-paid-calls --parent-sub dev-acceptance-parent --child <child-uuid> --warm-up --npc --npc-manager-hint --guardrail-probe --timeout-probe
+```
+
+Only a full PASS of each command is evidence for its gate. The outputs print outcomes, codes,
+sizes, latencies and token counts; never text, child data or credentials. Then the audible
+browser checks in runbook section 9 and checklist B7.3 and B8.5.
+
+## 6. Final suite results on `integration/npc-manager-main`
+
+| Gate | Result |
+| --- | --- |
+| pytest, full repository (PostgreSQL 16, fake AI, fake/disabled speech) | PASS: 3265 passed, 4 skipped (opt-in live Polly test, 3 nginx-only), 0 failed |
+| Vitest, full | PASS: 5013 passed, 439 files |
+| `npm run typecheck`, Ruff check and format, Prettier, `adr:check` (53 decisions), `makemigrations --check` | PASS |
+| `ai_live_check --dry-run` (us-west-1, 0 AWS calls) | Not ready: Guardrail id and version not set (L1) |
+| Browser acceptance (Playwright) | NOT RUN on this branch (last green run: PR #4, 63 passed, 0 failed, before the `main` merge) |
+
+## 7. Recommended merge order (owner approval at every step)
+
+1. **Choose between #4 and #18** (they conflict). Recommendation: **#4**. It is a superset (the
+   same F-A/F-B/legacy-spec fixes plus the idempotent `end`, no racing `end`, and the pirate
+   variant) and was rerun green. Close #18, or port anything from it you prefer.
+2. Merge **#2** into `feature/npc-manager`, then **#4** (retarget to `feature/npc-manager` once #2
+   is in).
+3. Merge **#1** into `feature/npc-manager` (one docs conflict, resolved on the integration branch).
+4. Merge `feature/npc-manager` into `main` **through `integration/npc-manager-main`** (it carries
+   the 13 conflict resolutions, the ADR-053 renumbering and the catalog merge migration), only
+   after owner acceptance and the live gates above.

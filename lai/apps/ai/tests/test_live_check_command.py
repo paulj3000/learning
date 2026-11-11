@@ -233,3 +233,72 @@ def test_the_timeout_probe_expects_a_timeout_fallback(families, fake_model, monk
     summary = run(families.a1, "--allow-fake", "--timeout-probe")
     probe = next(c for c in summary["checks"] if c["check"] == "timeout-probe")
     assert probe["passed"] is True
+
+
+# --- NPC Manager hint (LAI-NPC-030 to 033) --------------------------------------------------------
+
+NPC_HINT_OK = {"spokenText": "Count each coin slowly, one by one.", "safetyDisposition": "ALLOW"}
+COMPANION_OK = {
+    "spokenText": "Count each gap.",
+    "emotion": "CALM",
+    "intent": "HINT",
+    "choices": None,
+    "safetyDisposition": "ALLOW",
+}
+TUTOR_OK = {
+    "spokenText": "Point to each gap.",
+    "strategy": "GIVE_HINT",
+    "representation": None,
+    "emotion": "CALM",
+    "safetyDisposition": "ALLOW",
+}
+
+
+def test_dry_run_refuses_the_npc_manager_hint_flag(bedrock_configured, no_aws):
+    with pytest.raises(CommandError, match="cannot be combined"):
+        call_command("ai_live_check", "--dry-run", "--npc-manager-hint")
+
+
+def test_npc_manager_hint_rehearsal_reads_the_npc_hint_audit_row(treasure, fake_model):
+    from apps.npcs.models import NpcConversationState
+
+    call_command("seed_npc_pip", "--hybrid-hints", "--publish", stdout=None)
+    fake_model(COMPANION_OK, TUTOR_OK, NPC_HINT_OK)
+    child = treasure.families.a1
+    summary = run(child, "--allow-fake", "--npc-manager-hint")
+    checks = {c["check"]: c for c in summary["checks"]}
+    assert checks["npc-manager-hint"]["passed"] is True, checks["npc-manager-hint"]
+    assert summary["passed"] is True
+    # The conversation it opened is closed again, and nothing else was written.
+    assert NpcConversationState.objects.get(child=child, npc_id="pirate-pip").node_key == ""
+    text = json.dumps(summary)
+    assert "Count each coin" not in text and str(child.pk) not in text
+
+
+def test_npc_manager_hint_fails_when_the_model_falls_back(treasure, fake_model):
+    call_command("seed_npc_pip", "--hybrid-hints", "--publish", stdout=None)
+    fake_model(COMPANION_OK, TUTOR_OK, ProviderTimeout())
+    with pytest.raises(CommandError, match="failed"):
+        run(treasure.families.a1, "--allow-fake", "--npc-manager-hint")
+
+
+def test_npc_manager_hint_needs_an_active_hybrid_release(treasure, fake_model):
+    from io import StringIO
+
+    call_command("seed_npc_pip", stdout=StringIO())  # seeded, not published
+    fake_model(COMPANION_OK, TUTOR_OK)
+    child = treasure.families.a1
+    out = StringIO()
+    with pytest.raises(CommandError, match="failed"):
+        call_command(
+            "ai_live_check",
+            "--parent-sub",
+            child.parent.cognito_sub,
+            "--child",
+            str(child.pk),
+            "--allow-fake",
+            "--npc-manager-hint",
+            stdout=out,
+        )
+    checks = {c["check"]: c for c in json.loads(out.getvalue())["checks"]}
+    assert checks["npc-manager-hint"]["problems"] == ["no ACTIVE NPC release"]
