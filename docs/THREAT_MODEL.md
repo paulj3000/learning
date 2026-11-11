@@ -121,6 +121,12 @@ children's app - not a general chat product).
   (`docs/UX_AND_ACCESSIBILITY.md`, `ParentGate.tsx`) on profile switching
   and sensitive actions - a UX control, not a cryptographic one, matching
   the product's actual threat (sibling mix-ups, not attackers).
+- **A child opens the parent space from child mode.** Accepted risk (owner
+  decision 2026-11-10, AP-04): the adult exit ("Adults: exit to parent
+  space") no longer has the arithmetic `ParentGate`, so one tap from any
+  child screen reaches `/home` and the parent pages (profiles, settings,
+  session limits). The parent must still be signed in on the device.
+  Deactivating or reactivating a profile keeps its `ParentGate`.
 
 ### Tampering
 

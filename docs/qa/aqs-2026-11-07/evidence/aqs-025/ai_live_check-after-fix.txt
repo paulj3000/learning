@@ -1,0 +1,32 @@
+2026-11-07 05:32:32,729 INFO lai.ai [req=-] ai.turn v1 generateCompanionTurn AI VALID ALLOW - NONE bedrock CLIENT_AUTHORED 2899 1478 56 1758 ok
+2026-11-07 05:32:35,130 INFO lai.ai [req=-] ai.turn v1 generateTutorTurn AI VALID ALLOW - NONE bedrock CLIENT_AUTHORED 2393 1953 44 2173 ok
+2026-11-07 05:32:36,158 INFO lai.ai [req=-] ai.turn v1 generateCompanionTurn FALLBACK BLOCKED_GUARDRAIL REDIRECT - INTERVENED bedrock CLIENT_AUTHORED 1020 0 0 0 ok
+{
+  "provider": "bedrock",
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "guardrailConfigured": true,
+  "checks": [
+    {
+      "check": "companion",
+      "passed": true,
+      "problems": [],
+      "latencyMs": 2899,
+      "inputTokens": 1478,
+      "outputTokens": 56
+    },
+    {
+      "check": "tutor",
+      "passed": true,
+      "problems": [],
+      "latencyMs": 2393,
+      "inputTokens": 1953,
+      "outputTokens": 44
+    },
+    {
+      "check": "guardrail-probe",
+      "passed": true,
+      "problems": []
+    }
+  ],
+  "passed": true
+}

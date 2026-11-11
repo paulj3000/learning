@@ -19,11 +19,12 @@ from django.contrib import admin, messages
 from django.utils.html import format_html_join
 
 from apps.catalog import admin_access
+from apps.catalog.authoring_admin import AuthoredContentAdminMixin
 from apps.catalog.models import Adventure
 from apps.core.content_status import ContentStatus
 
 from .activity import encounter_activity
-from .models import AdventureLaunchPoint, WorldRegion
+from .models import AdventureLaunchPoint, AreaPuzzle, WorldRegion
 from .publishing import area_problems, launch_point_problems
 
 
@@ -102,7 +103,7 @@ class LaunchPointInline(admin.TabularInline):
 
 
 @admin.register(WorldRegion)
-class AreaAdmin(admin.ModelAdmin):
+class AreaAdmin(AuthoredContentAdminMixin, admin.ModelAdmin):
     list_display = ("region_id", "title", "place", "island", "status", "launch_point_count")
     list_filter = ("status", "location__world")
     search_fields = ("region_id", "title", "location__slug")
@@ -286,3 +287,63 @@ class LaunchPointAdmin(admin.ModelAdmin):
     def retire_points(self, request, queryset):
         count = queryset.exclude(status=ContentStatus.RETIRED).update(status=ContentStatus.RETIRED)
         self.message_user(request, f"{count} launch point(s) retired.", messages.SUCCESS)
+
+
+@admin.register(AreaPuzzle)
+class AreaPuzzleAdmin(AuthoredContentAdminMixin, admin.ModelAdmin):
+    """3D Area puzzles (ADR-047 F). Which mechanic and which objects are seed-authored; the
+    parameters are edited as content versions ("Edit content"), never in these fields."""
+
+    list_display = ("puzzle_id", "region", "kind", "title", "status", "authority")
+    list_filter = ("status", "kind", "region")
+    search_fields = ("puzzle_id", "title", "region__region_id")
+    actions = ["publish_puzzles", "retire_puzzles"]
+    readonly_fields = (
+        "region",
+        "puzzle_id",
+        "kind",
+        "entity_ids",
+        "sort_order",
+        "status",
+        "title",
+        "parameters",
+        "requires_change_keys",
+        "world_change_key",
+        "reward_rule",
+        "authority",
+        "updated_at",
+    )
+    fields = readonly_fields
+
+    def has_module_permission(self, request):
+        return admin_access.can_view(request)
+
+    def has_view_permission(self, request, obj=None):
+        return admin_access.can_view(request)
+
+    def has_change_permission(self, request, obj=None):
+        return admin_access.can_edit_catalog_fields(request)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    @admin.action(description="Publish the selected puzzles (children can play them)")
+    def publish_puzzles(self, request, queryset):
+        for puzzle in queryset:
+            if puzzle.published_revision_id is None:
+                self.message_user(
+                    request, f"{puzzle.puzzle_id} has no published content.", messages.ERROR
+                )
+                continue
+            if puzzle.status != ContentStatus.PUBLISHED:
+                puzzle.status = ContentStatus.PUBLISHED
+                puzzle.save(update_fields=["status", "updated_at"])
+            self.message_user(request, f"{puzzle.puzzle_id} is published.", messages.SUCCESS)
+
+    @admin.action(description="Retire the selected puzzles (children stop seeing them)")
+    def retire_puzzles(self, request, queryset):
+        count = queryset.exclude(status=ContentStatus.RETIRED).update(status=ContentStatus.RETIRED)
+        self.message_user(request, f"{count} puzzle(s) retired.", messages.SUCCESS)

@@ -77,7 +77,7 @@ load_conf() {
     . "$LAI_CONF"
     local name
     for name in LAI_ENV AWS_REGION LAI_ECR_REPOSITORY_URI LAI_PARAM_PREFIX LAI_DB_MODE LAI_API_HOST \
-        LAI_APP_LOG_GROUP; do
+        LAI_ADMIN_HOST LAI_APP_LOG_GROUP; do
         [ -n "${!name:-}" ] || die "$E_CONFIG" "$name is not set in $LAI_CONF"
     done
     case "$LAI_ENV" in dev | prod) ;; *) die "$E_CONFIG" "LAI_ENV must be dev or prod" ;; esac
@@ -157,6 +157,7 @@ LAI_GIT_SHA=$git_sha
 LAI_ENV=$LAI_ENV
 AWS_REGION=$AWS_REGION
 LAI_API_HOST=$LAI_API_HOST
+LAI_ADMIN_HOST=$LAI_ADMIN_HOST
 LAI_APP_LOG_GROUP=$LAI_APP_LOG_GROUP
 LAI_RUNTIME_DIR=$LAI_RUNTIME_DIR
 LAI_DATA_DIR=$LAI_DATA_DIR

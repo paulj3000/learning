@@ -32,6 +32,8 @@ the same id as the bundled manifest and the Amplify `Asset.slug` (ADR-030), and 
 (`apps.assets`, LAI-2200, ADR-035) attaches immutable versions to it.
 """
 
+import uuid
+
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
@@ -83,7 +85,200 @@ class CatalogFields(models.Model):
         abstract = True
 
 
-class World(ImportedContent, CatalogFields):
+class ContentAuthority(models.TextChoices):
+    """Who owns a record's content (ADR-047 J).
+
+    `EXPORT`: every published revision came from the export (or a code seed); an import may
+    publish a newer one. `DJANGO`: an administrator has published an edit; no import changes it.
+    """
+
+    EXPORT = "EXPORT", "Export-owned"
+    DJANGO = "DJANGO", "Django-owned (edited in Admin)"
+
+
+class RevisionStatus(models.TextChoices):
+    DRAFT = "DRAFT", "Draft"
+    SUBMITTED = "SUBMITTED", "Submitted for approval"
+    REJECTED = "REJECTED", "Returned with a reason"
+    PUBLISHED = "PUBLISHED", "Published"
+    SUPERSEDED = "SUPERSEDED", "Superseded"
+    DISCARDED = "DISCARDED", "Discarded"
+
+
+class RevisionOrigin(models.TextChoices):
+    IMPORT = "IMPORT", "Content import"
+    SEED = "SEED", "Code seed"
+    ADMIN = "ADMIN", "Django Admin"
+    ROLLBACK = "ROLLBACK", "Rollback"
+
+
+class RevisionImmutable(ValueError):
+    """A published, superseded or discarded revision was about to change (ADR-047 E)."""
+
+
+# Which status changes a revision may make. Anything else is refused by `save()`.
+_REVISION_TRANSITIONS = {
+    RevisionStatus.DRAFT: {
+        RevisionStatus.DRAFT,
+        RevisionStatus.SUBMITTED,
+        RevisionStatus.PUBLISHED,
+        RevisionStatus.DISCARDED,
+    },
+    # Submitted: awaiting an approver. The body is frozen until it is withdrawn or returned.
+    RevisionStatus.SUBMITTED: {
+        RevisionStatus.SUBMITTED,
+        RevisionStatus.DRAFT,
+        RevisionStatus.PUBLISHED,
+        RevisionStatus.REJECTED,
+    },
+    # Returned with a reason: the author reopens it as a draft, or discards it.
+    RevisionStatus.REJECTED: {RevisionStatus.DRAFT, RevisionStatus.DISCARDED},
+    RevisionStatus.PUBLISHED: {RevisionStatus.SUPERSEDED},
+    RevisionStatus.SUPERSEDED: set(),
+    RevisionStatus.DISCARDED: set(),
+}
+
+
+class ContentRevision(models.Model):
+    """One immutable version of one authorable record's content (ADR-047 C, LAI-0810).
+
+    `body` is the record in the export's own shape, so the export's JSON Schema and the
+    importer's per-record checks validate it. Publishing (`apps.catalog.authoring`) copies it
+    into the record's columns and `source`; nothing reads a revision body directly except the
+    authoring service and session pinning (LAI-0813). Never deleted (ADR-047-Q3).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    kind = models.CharField(max_length=32)
+    content_type = models.ForeignKey(
+        "contenttypes.ContentType", on_delete=models.PROTECT, related_name="+"
+    )
+    object_id = models.CharField(max_length=64)
+    record_key = models.CharField(
+        max_length=SLUG_LENGTH, help_text="The record's stable content id, for people reading."
+    )
+    number = models.PositiveIntegerField()
+    body = models.JSONField()
+    status = models.CharField(
+        max_length=12, choices=RevisionStatus.choices, default=RevisionStatus.DRAFT
+    )
+    origin = models.CharField(max_length=8, choices=RevisionOrigin.choices)
+    based_on = models.ForeignKey(
+        "self", on_delete=models.PROTECT, related_name="+", null=True, blank=True
+    )
+    content_release = models.ForeignKey(
+        ContentRelease, on_delete=models.PROTECT, related_name="+", null=True, blank=True
+    )
+    note = models.CharField(max_length=300, blank=True, help_text="Why this version exists.")
+    validation_report = models.JSONField(default=list, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="+",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(default=now)
+    published_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="+",
+        null=True,
+        blank=True,
+    )
+    published_at = models.DateTimeField(null=True, blank=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="+",
+        null=True,
+        blank=True,
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="+",
+        null=True,
+        blank=True,
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.CharField(
+        max_length=300, blank=True, help_text="Why the approver returned this version."
+    )
+
+    class Meta:
+        ordering = ["kind", "record_key", "-number"]
+        verbose_name = "content version"
+        verbose_name_plural = "content versions"
+        permissions = [
+            ("edit_content_draft", "Can create and edit content drafts"),
+            ("publish_content", "Can publish and roll back content"),
+            ("edit_content_json", "Can edit a content draft as raw JSON (debugging)"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["content_type", "object_id", "number"], name="content_revision_number"
+            ),
+            models.UniqueConstraint(
+                fields=["content_type", "object_id"],
+                condition=models.Q(status=RevisionStatus.PUBLISHED),
+                name="content_revision_one_published",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status__in=RevisionStatus.values),
+                name="content_revision_status_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(origin__in=RevisionOrigin.values),
+                name="content_revision_origin_valid",
+            ),
+        ]
+        indexes = [models.Index(fields=["content_type", "object_id", "status"])]
+
+    def __str__(self) -> str:
+        return f"{self.kind} {self.record_key} v{self.number}"
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            stored = ContentRevision.objects.filter(pk=self.pk).values("status", "body").first()
+            if stored is not None:
+                before = stored["status"]
+                if self.status not in _REVISION_TRANSITIONS.get(before, set()):
+                    raise RevisionImmutable(
+                        f"A {before.lower()} version cannot become {self.status}."
+                    )
+                if before != RevisionStatus.DRAFT and stored["body"] != self.body:
+                    raise RevisionImmutable("Only a draft's content can change.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise RevisionImmutable("Content versions are kept permanently (ADR-047-Q3).")
+
+
+class Authorable(models.Model):
+    """A record whose content is versioned and editable in Django Admin (ADR-047, LAI-0810)."""
+
+    authority = models.CharField(
+        max_length=8,
+        choices=ContentAuthority.choices,
+        default=ContentAuthority.EXPORT,
+        editable=False,
+    )
+    published_revision = models.ForeignKey(
+        ContentRevision,
+        on_delete=models.PROTECT,
+        related_name="+",
+        null=True,
+        blank=True,
+        editable=False,
+    )
+
+    class Meta:
+        abstract = True
+
+
+class World(Authorable, ImportedContent, CatalogFields):
     """A themed world or island grouping: the export's `islands.json`."""
 
     slug = models.SlugField(max_length=SLUG_LENGTH, unique=True)
@@ -103,7 +298,7 @@ class World(ImportedContent, CatalogFields):
         return self.slug
 
 
-class Location(ImportedContent, CatalogFields):
+class Location(Authorable, ImportedContent, CatalogFields):
     """An explorable region inside a world: the export's `locations.json`."""
 
     slug = models.SlugField(max_length=SLUG_LENGTH, unique=True)
@@ -124,7 +319,7 @@ class Location(ImportedContent, CatalogFields):
         return self.slug
 
 
-class Adventure(ImportedContent, CatalogFields):
+class Adventure(Authorable, ImportedContent, CatalogFields):
     slug = models.SlugField(max_length=SLUG_LENGTH, unique=True)
     title = models.CharField(max_length=200)
     version = models.PositiveIntegerField()
@@ -164,7 +359,7 @@ class Adventure(ImportedContent, CatalogFields):
         return self.slug
 
 
-class AdventureStep(ImportedContent):
+class AdventureStep(Authorable, ImportedContent):
     """One step. Step ids are unique within an adventure only, so the key is the pair."""
 
     adventure = models.ForeignKey(Adventure, on_delete=models.CASCADE, related_name="steps")
@@ -183,7 +378,7 @@ class AdventureStep(ImportedContent):
         return f"{self.adventure_id}:{self.step_id}"
 
 
-class Quest(ImportedContent, CatalogFields):
+class Quest(Authorable, ImportedContent, CatalogFields):
     slug = models.SlugField(max_length=SLUG_LENGTH, unique=True)
     title = models.CharField(max_length=200)
     summary = models.TextField(blank=True)
@@ -210,6 +405,62 @@ class Quest(ImportedContent, CatalogFields):
 
     def __str__(self) -> str:
         return self.slug
+
+
+class Story(Authorable, ImportedContent, CatalogFields):
+    """A Storykeeper Castle story (`stories.json`), as an authorable catalog row (LAI-0309).
+
+    The chapters and scenes live in `source`; the row holds what other code queries. Its links
+    are derived, never typed twice: adventures from its ADVENTURE scenes, characters from its
+    speakers, learning objectives and quests through those adventures.
+    """
+
+    slug = models.SlugField(max_length=SLUG_LENGTH, unique=True)
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    supported_age_bands = ArrayField(models.CharField(max_length=16, choices=AgeBand.choices))
+    entry_chapter_id = models.CharField(max_length=SLUG_LENGTH)
+    adventures = models.ManyToManyField(
+        Adventure,
+        related_name="stories",
+        blank=True,
+        help_text="The adventures this story's ADVENTURE scenes name, derived on import.",
+    )
+
+    class Meta:
+        ordering = ["sort_order", "slug"]
+        verbose_name_plural = "stories"
+
+    def __str__(self) -> str:
+        return self.slug
+
+    def speakers(self) -> list[str]:
+        """Names that speak in the story's narrative scenes, in order of first appearance."""
+        found = (
+            scene.get("speaker")
+            for chapter in self.source.get("chapters", [])
+            for scene in chapter.get("scenes", [])
+        )
+        return list(dict.fromkeys(name for name in found if name))
+
+    def characters(self):
+        """NPC definitions whose display name is a speaker (a story may also use a narrator)."""
+        return NpcDefinition.objects.filter(display_name__in=self.speakers())
+
+    def learning_objectives(self):
+        """Objectives practised by the steps of the story's adventures."""
+        codes = {
+            code
+            for steps in AdventureStep.objects.filter(
+                adventure__in=self.adventures.all()
+            ).values_list("objective_ids", flat=True)
+            for code in steps
+        }
+        return LearningObjective.objects.filter(code__in=codes)
+
+    def related_quests(self):
+        """Quests that solve any of the story's adventures."""
+        return Quest.objects.filter(adventures__in=self.adventures.all()).distinct()
 
 
 class AssetOrigin(models.TextChoices):
@@ -254,6 +505,9 @@ ASSET_KINDS = (
     "sprite",
     "audio",
 )
+
+# The kinds an Island or Place picture (`artAssetId`, AP-03) may name: a single still image.
+ART_ASSET_KINDS = ("image",)
 
 # Which browsing categories make sense for each runtime kind (validation, ADR-035).
 KIND_CATEGORIES = {
@@ -412,7 +666,7 @@ class LocationAsset(models.Model):
 # --- Catalog rows that Treasure Rush needed first (POST-MERGE-03; was proposed as LAI-0309) ---
 
 
-class LearningObjective(ImportedContent):
+class LearningObjective(Authorable, ImportedContent):
     """A learning objective (`adventures.json` `learningObjectives`). Referenced by code."""
 
     code = models.SlugField(max_length=SLUG_LENGTH, unique=True)
@@ -426,7 +680,7 @@ class LearningObjective(ImportedContent):
         return self.code
 
 
-class NpcDefinition(ImportedContent, CatalogFields):
+class NpcDefinition(Authorable, ImportedContent, CatalogFields):
     """A character (`npcs.json`). Dialogue, schedule and quest offers stay in `source`."""
 
     npc_id = models.SlugField(max_length=SLUG_LENGTH, unique=True)
@@ -450,7 +704,7 @@ class NpcDefinition(ImportedContent, CatalogFields):
         return self.npc_id
 
 
-class CollectibleSet(ImportedContent):
+class CollectibleSet(Authorable, ImportedContent):
     set_id = models.SlugField(max_length=SLUG_LENGTH, unique=True)
     display_name = models.CharField(max_length=120)
     completion_item = models.ForeignKey(
@@ -465,7 +719,7 @@ class CollectibleSet(ImportedContent):
         return self.set_id
 
 
-class ItemDefinition(ImportedContent):
+class ItemDefinition(Authorable, ImportedContent):
     """An earnable item (`rewards.json` `items`). No currency or drop-rate fields (ADR-011)."""
 
     item_id = models.SlugField(max_length=SLUG_LENGTH, unique=True)
@@ -486,7 +740,7 @@ class ItemDefinition(ImportedContent):
         return self.item_id
 
 
-class RewardRule(ImportedContent):
+class RewardRule(Authorable, ImportedContent):
     """What a trigger grants (`rewards.json` `rewardRules`); resolved without randomness."""
 
     rule_id = models.SlugField(max_length=SLUG_LENGTH, unique=True)

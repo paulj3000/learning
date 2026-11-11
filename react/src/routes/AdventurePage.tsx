@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { AdventureRunner } from '../features/adventures/AdventureRunner';
+import { DjangoAdventureRunner } from '../features/adventures/DjangoAdventureRunner';
+import { DJANGO_API_CONFIG } from '../api/config';
 import { getAdventureTemplate } from '../features/adventures/content';
 import { getChildProfile } from '../features/child-profile/api';
 import type { ChildProfile } from '../features/child-profile/api';
@@ -50,6 +52,21 @@ export function AdventurePage() {
 
   if (!childId || !locationSlug) {
     return null;
+  }
+
+  // LAI-0816: a Django build plays the published adventure through the Django step runner. The
+  // adventure may exist only in Django (authored in Admin), so no local definition is needed.
+  if (DJANGO_API_CONFIG.enabled && templateSlug) {
+    return (
+      <IslandLayout childId={childId}>
+        <DjangoAdventureRunner
+          childId={childId}
+          adventureSlug={templateSlug}
+          backToMapHref={returnTo ?? `/island/${childId}/locations/${locationSlug}`}
+          backToMapLabel={returnTo ? BACK_TO_AREA_LABEL : undefined}
+        />
+      </IslandLayout>
+    );
   }
 
   const definition = templateSlug ? getAdventureTemplate(templateSlug) : undefined;

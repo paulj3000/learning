@@ -343,6 +343,12 @@ LAI_AI_PRICE_TABLE_VERSION = os.environ.get("LAI_AI_PRICE_TABLE_VERSION", "").st
 # be switched off once every caller has a server-owned context; adventures (Amplify sessions)
 # and story scenes (no Django story catalog yet) still need it.
 LAI_AI_ALLOW_CLIENT_AUTHORED = env_bool("LAI_AI_ALLOW_CLIENT_AUTHORED", True)
+
+# Content authoring (ADR-047-Q1, LAI-0818). Off: one administrator with the publish permission
+# may publish what they drafted. On: a version must be submitted and approved by a different
+# administrator. The owner decides; the code never turns it on.
+LAI_CONTENT_INDEPENDENT_APPROVAL = env_bool("LAI_CONTENT_INDEPENDENT_APPROVAL", False)
+
 # NPC narration may be limited to dialogue nodes the child is eligible for, judged from Django
 # records (relationship, memory flags, world changes, quests). Off until Django holds NPC state
 # for children (LAI-0605); React NPC state still lives in Amplify, so enforcing now would refuse

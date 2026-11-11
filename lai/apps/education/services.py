@@ -56,32 +56,36 @@ def record_attempt_evidence(attempt) -> tuple[SkillEvidence, bool]:
         return evidence, created
 
 
-def record_step_evidence(session, step, *, correctness: str, support_level: int, at) -> int:
+def record_step_evidence(session, step: dict, *, correctness: str, support_level: int, at) -> int:
     """Evidence for one server-graded adventure step answer, one row per step objective.
 
-    Called by `game_sessions.services.submit_answer` inside its transaction, after the engine
-    has decided `correctness` (the client never supplies it). A step with no objectives, or a
+    `step` is the authored step body the session is graded on (its pinned revision, ADR-047
+    LAI-0813, or the catalog source for a session started before pinning). Called by
+    `game_sessions.services.submit_answer` inside its transaction, after the engine has decided
+    `correctness` (the client never supplies it). A step with no objectives, or a
     `NOT_APPLICABLE` result (a narrative step), is not evidence. An objective code the catalog
     does not hold is skipped rather than failing the child's answer: that is a content gap for
     staff, and the answer itself is already recorded. Replays never reach this function
     (`submit_answer` returns the stored outcome first). Returns the number of rows written.
     """
-    if correctness == EvidenceResult.NOT_APPLICABLE or not step.objective_ids:
+    objective_ids = [code for code in step.get("objectiveIds") or [] if isinstance(code, str)]
+    if correctness == EvidenceResult.NOT_APPLICABLE or not objective_ids:
         return 0
     known = set(
-        LearningObjective.objects.filter(code__in=step.objective_ids).values_list("code", flat=True)
+        LearningObjective.objects.filter(code__in=objective_ids).values_list("code", flat=True)
     )
     written = 0
-    for code in dict.fromkeys(step.objective_ids):
+    for code in dict.fromkeys(objective_ids):
         if code not in known:
             continue
         evidence = SkillEvidence.objects.create(
             child=session.child,
             adventure_session=session,
             learning_objective_code=code,
-            evidence_type=str((step.source or {}).get("type") or "STEP"),
+            evidence_type=str(step.get("type") or "STEP")[:32],
+            difficulty=session.adventure.skill_level,
             result=correctness,
-            support_level=max(int(support_level), 0),
+            support_level=min(max(int(support_level), 0), 32767),
             observed_at=at,
         )
         apply_evidence(evidence)

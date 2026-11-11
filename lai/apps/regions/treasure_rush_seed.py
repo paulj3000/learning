@@ -55,6 +55,7 @@ from .pips_treasure_seed import (
     seed_pips_treasure,
     upgrade_pips_treasure,
 )
+from .seeding import record_seed_revision
 from .treasure_cove_layout import BOUNDS, LAYOUT_VERSION, cove_layout
 
 REGION_ID = "treasure-rush-cove"
@@ -260,4 +261,7 @@ def seed_treasure_rush() -> list[str]:
         created.append(f"WorldRegion {region} adventure v{ADVENTURE_VERSION}")
     if not region.offered_quests.exists():
         region.offered_quests.add(quest)
+    # ADR-047: seed-authored content rows get their first published version.
+    for row in [region, *specs.values()]:
+        record_seed_revision(row)
     return created

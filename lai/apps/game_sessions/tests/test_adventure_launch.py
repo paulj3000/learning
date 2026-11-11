@@ -7,11 +7,13 @@ import json
 import uuid
 
 import pytest
+from django.utils import timezone
 
 from apps.catalog.models import Adventure, Location, Quest, World
 from apps.core.content_status import ContentStatus
 from apps.game_sessions import services
 from apps.game_sessions.models import AdventureSession, SessionKind, SessionStatus
+from apps.progression.models import WorldChange
 from apps.regions.models import AdventureLaunchPoint, LaunchObjectKind, WorldRegion
 from apps.regions.treasure_rush_seed import SIGNPOST_ID
 from apps.users.models import ChildProfile
@@ -78,9 +80,13 @@ def test_unpublished_launch_points_are_not_offered_or_startable(a, status):
 
 
 def test_the_existing_bootstrap_contract_is_unchanged_apart_from_the_new_key(a):
+    """Additive keys only: `launchPoints` (ADR-041), `puzzles`, `catalog` and each NPC's
+    `dialogue` (ADR-047, LAI-0812, FP-2)."""
     client, child = a
     body = client.get(f"{base(child)}regions/{REGION}/").json()
     assert set(body) == {
+        "puzzles",
+        "catalog",
         "region",
         "spawn",
         "npcs",
@@ -269,6 +275,110 @@ def test_inactive_islands_places_and_unpublished_areas_are_hidden(a):
     World.objects.filter(slug="learning-adventure-island").update(active=False)
     ids = {i["islandId"] for i in client.get(f"{base(child)}islands/").json()["islands"]}
     assert "learning-adventure-island" not in ids
+
+
+def test_islands_carry_discovery_details(a):
+    """AP-03: age bands, subjects, lock status and progress for each Island."""
+    client, child = a
+    islands = {i["islandId"]: i for i in client.get(f"{base(child)}islands/").json()["islands"]}
+    home = islands["learning-adventure-island"]
+    assert child.age_band in home["ageBands"]
+    assert "Counting" in home["subjects"] and len(home["subjects"]) <= 6
+    assert len(home["subjects"]) == len(set(home["subjects"]))
+    assert home["thumbnailAssetId"] is None
+    assert home["unlocked"] is True and home["lockedHint"] is None
+    assert home["progress"] == {"placesExplored": 0, "placesTotal": len(home["places"])}
+    assert all(place["explored"] is False for place in home["places"])
+    # Storykeeper Castle is a Place; Treasure Cove is Pirate Builder Bay's 3D Area.
+    places = {p["placeId"]: p for p in home["places"]}
+    assert "storykeeper-castle" in places
+    assert places["pirate-builder-bay"]["area"]["title"] == "Treasure Cove"
+
+
+def test_an_island_opens_once_its_travel_world_change_exists(a):
+    client, child = a
+    cove = next(
+        i
+        for i in client.get(f"{base(child)}islands/").json()["islands"]
+        if i["islandId"] == "creature-care-cove"
+    )
+    assert cove["unlocked"] is False
+    assert "Pip" in cove["lockedHint"]
+    WorldChange.objects.create(
+        child=child,
+        location_slug="pirate-builder-bay",
+        change_type="REPAIR",
+        change_key="BRIDGE_REPAIRED",
+        created_at=timezone.now(),
+    )
+    cove = next(
+        i
+        for i in client.get(f"{base(child)}islands/").json()["islands"]
+        if i["islandId"] == "creature-care-cove"
+    )
+    assert cove["unlocked"] is True and cove["lockedHint"] is None
+
+
+def test_another_childs_world_change_does_not_open_an_island(a, treasure):
+    client, child = a
+    WorldChange.objects.create(
+        child=treasure.families.b1,
+        location_slug="pirate-builder-bay",
+        change_type="REPAIR",
+        change_key="BRIDGE_REPAIRED",
+        created_at=timezone.now(),
+    )
+    cove = next(
+        i
+        for i in client.get(f"{base(child)}islands/").json()["islands"]
+        if i["islandId"] == "creature-care-cove"
+    )
+    assert cove["unlocked"] is False
+
+
+def test_a_secret_place_is_hidden_until_its_world_change_exists(a):
+    client, child = a
+
+    def home_places():
+        islands = client.get(f"{base(child)}islands/").json()["islands"]
+        home = next(i for i in islands if i["islandId"] == "learning-adventure-island")
+        return {p["placeId"] for p in home["places"]}
+
+    assert "castle-writing-room" not in home_places()
+    WorldChange.objects.create(
+        child=child,
+        location_slug="storykeeper-castle",
+        change_type="UNLOCK",
+        change_key="THE_CASTLES_SECRET_DOOR_COMPLETE",
+        created_at=timezone.now(),
+    )
+    assert "castle-writing-room" in home_places()
+
+
+def test_entering_a_3d_area_marks_its_place_explored(a):
+    client, child = a
+    post(client, f"{base(child)}regions/{REGION}/session/")
+    home = next(
+        i
+        for i in client.get(f"{base(child)}islands/").json()["islands"]
+        if i["islandId"] == "learning-adventure-island"
+    )
+    places = {p["placeId"]: p for p in home["places"]}
+    assert places["pirate-builder-bay"]["explored"] is True
+    assert places["wonderwild-forest"]["explored"] is False
+    assert home["progress"]["placesExplored"] == 1
+
+
+def test_starting_a_place_adventure_marks_its_place_explored(a):
+    client, child = a
+    assert start(client, child).status_code in (200, 201)
+    home = next(
+        i
+        for i in client.get(f"{base(child)}islands/").json()["islands"]
+        if i["islandId"] == "learning-adventure-island"
+    )
+    places = {p["placeId"]: p for p in home["places"]}
+    assert places["pirate-builder-bay"]["explored"] is True
 
 
 def test_islands_are_child_scoped(treasure, api):

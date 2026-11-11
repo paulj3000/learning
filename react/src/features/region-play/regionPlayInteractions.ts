@@ -1,7 +1,9 @@
 import type {
   ChestState,
+  DialogueNodeView,
   LaunchPoint,
   NpcPlacement,
+  PuzzleState,
   QuestEntry,
   RegionBootstrap,
 } from '../../api/play/types';
@@ -29,6 +31,23 @@ export type RegionPlayInteractionEvent =
       quests: readonly QuestEntry[];
       /** Adventures this NPC can start for the child (ADR-041), already filtered by the server. */
       launches: readonly LaunchPoint[];
+      /** Authored dialogue whose conditions hold now (ADR-047). */
+      dialogue: readonly DialogueNodeView[];
+      /** A "come back and show me" puzzle bound to this NPC (Firepeak stage 5), if any. */
+      returnPuzzle: PuzzleState | null;
+    }
+  | {
+      /** An object a 3D Area puzzle uses (ADR-047 F). */
+      kind: 'puzzle';
+      entityId: string;
+      label: string;
+      puzzle: PuzzleState;
+    }
+  | {
+      /** A safe way back (a rope lift), open once its key exists (FP-D10). */
+      kind: 'return';
+      entityId: string;
+      label: string;
     }
   | {
       /** An object that starts one of this Place's Adventures (a sign, a door, ADR-041). */
@@ -113,6 +132,17 @@ export function resolveRegionPlayInteraction(
     };
   }
 
+  if (binding.kind === 'puzzle') {
+    const placed = bootstrap.objects.find((o) => o.entityId === binding.entityId);
+    const puzzle = bootstrap.puzzles.find((p) => p.entityIds.includes(binding.entityId));
+    if (!placed || !puzzle) return null;
+    return { kind: 'puzzle', entityId: placed.entityId, label: placed.label, puzzle };
+  }
+  if (binding.kind === 'return') {
+    const placed = bootstrap.objects.find((o) => o.entityId === binding.entityId);
+    return placed ? { kind: 'return', entityId: placed.entityId, label: placed.label } : null;
+  }
+
   const launches = launchesFor(bootstrap, binding.entityId);
   if (binding.kind === 'launch') {
     const placed = bootstrap.objects.find((o) => o.entityId === binding.entityId);
@@ -129,6 +159,11 @@ export function resolveRegionPlayInteraction(
     label: npc.displayName || npc.label,
     quests: bootstrap.quests.filter((quest) => quest.giverNpcId === npc.npcId),
     launches,
+    dialogue: npc.dialogue,
+    returnPuzzle:
+      bootstrap.puzzles.find(
+        (puzzle) => puzzle.kind === 'RETURN_TO_NPC' && puzzle.entityIds.includes(npc.entityId),
+      ) ?? null,
   };
 }
 

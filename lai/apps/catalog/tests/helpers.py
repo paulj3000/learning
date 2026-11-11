@@ -177,3 +177,21 @@ def write_export(directory: Path, collections=None, *, schema_version: int = 3) 
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
     )
     return directory
+
+
+def staff_user():
+    """A superuser-level staff account for tests that need a permitted publisher."""
+    from apps.users.models import ParentAccount
+
+    return ParentAccount.objects.get_or_create(
+        cognito_sub="django-admin-only:content-test",
+        defaults={"admin_username": "content-test", "is_staff": True, "is_superuser": True},
+    )[0]
+
+
+def publish_edit(row, body, *, note=""):
+    """Draft and publish `body` for `row` as the test staff account."""
+    from apps.catalog import authoring
+
+    user = staff_user()
+    return authoring.publish(authoring.create_draft(row, body, user=user, note=note), user=user)

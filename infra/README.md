@@ -4,12 +4,13 @@ The CDK app for the Django platform's AWS resources (`docs/DJANGO_MIGRATION_ROAD
 LAI-1001 layout). It is separate from `amplify/`, which keeps deploying the Amplify Gen 2 backend
 on its own pipeline; nothing here is deployed by a push.
 
-| Stack                   | Scope       | What                                                                                   | Doc                                        |
-| ----------------------- | ----------- | -------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `LaiAssetStorage-<env>` | environment | The asset library's private S3 bucket and the Django role policy                       | `docs/ASSET_LIBRARY.md` sections 12 and 19 |
-| `LaiChildPhotos-<env>`  | environment | The private child photo bucket (separate from assets, ADR-042) and its Django policy   | `docs/platform/CHILD_PHOTO_STORAGE.md`     |
-| `LaiDjangoRelease`      | account     | ECR `lai/django`, the GitHub OIDC provider, the image publisher role                   | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`   |
-| `LaiDjangoEc2-<env>`    | environment | VPC, ALB (ACM, WAF), EC2, RDS, SSM settings and release documents, deploy role, alarms | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`   |
+| Stack                   | Scope       | What                                                                                   | Doc                                          |
+| ----------------------- | ----------- | -------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `LaiAssetStorage-<env>` | environment | The asset library's private S3 bucket and the Django role policy                       | `docs/ASSET_LIBRARY.md` sections 12 and 19   |
+| `LaiChildPhotos-<env>`  | environment | The private child photo bucket (separate from assets, ADR-042) and its Django policy   | `docs/platform/CHILD_PHOTO_STORAGE.md`       |
+| `LaiDjangoRelease`      | account     | ECR `lai/django`, the GitHub OIDC provider, the image publisher role                   | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`     |
+| `LaiDjangoEc2-<env>`    | environment | VPC, ALB (ACM, WAF), EC2, RDS, SSM settings and release documents, deploy role, alarms | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`     |
+| `LaiFrontend-<env>`     | environment | React site in us-east-1: private S3, CloudFront (OAC), `/api/*` to the API host        | `docs/infrastructure/domains-and-hosting.md` |
 
 The EC2 release pipeline (ADR-037) is provisioned with `scripts/aws/provision.sh <env>`, which
 creates change sets and applies them only with `--execute`; its settings and parameters are in

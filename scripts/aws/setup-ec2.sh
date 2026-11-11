@@ -4,7 +4,7 @@
 # after a change (it never touches releases, the runtime configuration, history or data).
 #
 # Settings come from the environment (the stack sets them in front of this script):
-#   LAI_ENV, AWS_REGION, LAI_ECR_REPOSITORY_URI, LAI_API_HOST, LAI_DB_MODE (rds|container),
+#   LAI_ENV, AWS_REGION, LAI_ECR_REPOSITORY_URI, LAI_API_HOST, LAI_ADMIN_HOST, LAI_DB_MODE (rds|container),
 #   LAI_DB_SECRET_ARN, LAI_DB_INSTANCE_ID, LAI_PREMIGRATION_SNAPSHOT, LAI_DATA_VOLUME_ID (container
 #   mode only), LAI_APP_LOG_GROUP, LAI_DEPLOY_LOG_GROUP.
 # Installs: Docker Engine (AL2023 package), the Docker Compose plugin (pinned, checksum verified),
@@ -22,7 +22,7 @@ METRICS_NAMESPACE=LearningAdventureIsland/EC2
 
 say() { printf '%s [setup-ec2] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 
-for name in LAI_ENV AWS_REGION LAI_ECR_REPOSITORY_URI LAI_API_HOST LAI_DB_MODE LAI_APP_LOG_GROUP \
+for name in LAI_ENV AWS_REGION LAI_ECR_REPOSITORY_URI LAI_API_HOST LAI_ADMIN_HOST LAI_DB_MODE LAI_APP_LOG_GROUP \
     LAI_DEPLOY_LOG_GROUP; do
     [ -n "${!name:-}" ] || { say "ERROR: $name is not set"; exit 2; }
 done
@@ -71,6 +71,7 @@ LAI_ECR_REPOSITORY_URI=$LAI_ECR_REPOSITORY_URI
 LAI_PARAM_PREFIX=/lai/$LAI_ENV/django
 LAI_RELEASE_PARAM=/lai/$LAI_ENV/deploy/last-release
 LAI_API_HOST=$LAI_API_HOST
+LAI_ADMIN_HOST=$LAI_ADMIN_HOST
 LAI_DB_MODE=$LAI_DB_MODE
 LAI_DB_SECRET_ARN=${LAI_DB_SECRET_ARN:-}
 LAI_DB_INSTANCE_ID=${LAI_DB_INSTANCE_ID:-}

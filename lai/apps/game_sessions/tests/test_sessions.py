@@ -246,7 +246,8 @@ class TestChildIsolation:
     def test_no_progress_model_is_exposed_on_the_admin(self):
         exposed = {model._meta.app_label for model in admin.site._registry}
         # users: the admin-accounts proxy; assets: versions (binaries, no child data); auth: groups;
-        # regions: 3D Areas and their launch points (content, no child data; ADR-041);
+        # regions: 3D Areas, launch points and puzzles (content, no child data; ADR-041, ADR-047);
+        # education: challenge specs only (content; ADR-047).
         # ai: audit metadata only, permission-gated and audited (LAI-0707, ADR-044 item 9)
         # question_studio: staff-authored question content and its review history (ADR-046);
         # it holds no child data, and published revisions are read-only
@@ -256,6 +257,7 @@ class TestChildIsolation:
             "audio",
             "auth",
             "catalog",
+            "education",
             "question_studio",
             "regions",
             "speech",  # voice profiles and speech lines: staff content, no child data (ADR-049)

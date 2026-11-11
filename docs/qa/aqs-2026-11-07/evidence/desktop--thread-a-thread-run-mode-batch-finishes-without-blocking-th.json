@@ -1,0 +1,6 @@
+{
+  "test": "@thread a thread run-mode batch finishes without blocking the request",
+  "project": "desktop",
+  "problems": [],
+  "notes": []
+}
