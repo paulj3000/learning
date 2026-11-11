@@ -127,7 +127,7 @@ def test_browser_text_cannot_steer_npc_narration_or_inject_context(
 def test_overlong_narration_for_a_young_band_is_withheld(families, api, fake_model, real_catalog):
     from apps.users.models import ChildProfile
 
-    ChildProfile.objects.filter(pk=families.a1.pk).update(age_band="SPROUT", session_minutes=6)
+    ChildProfile.objects.filter(pk=families.a1.pk).update(age_band="SPROUT")
     fake_model(companion_turn(spokenText="Splash! " * 80))
     body = post(api, families.a, families.a1, "companion-turns", NPC).json()
     assert body["source"] == "FALLBACK"

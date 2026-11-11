@@ -167,7 +167,6 @@ function props(overrides: Partial<LocationCompanionProps> = {}): LocationCompani
     onCloseInteraction: vi.fn(),
     showToast: vi.fn(),
     setFocusLabel: vi.fn(),
-    limitReached: false,
     refreshWorld: vi.fn(async () => undefined),
     ...overrides,
   };
@@ -233,19 +232,21 @@ describe('entering the cove', () => {
     expect(untouched.setChestOpen).not.toHaveBeenCalled();
   });
 
-  it('completes the session at the calm stop', async () => {
+  it('never ends the session because of play time, however long the visit runs', async () => {
     const api = fakeApi();
     apis.set(CHILD_A, api);
     const view = render(<RegionPlayCompanion {...props()} />);
     await waitFor(() => expect(api.startSession).toHaveBeenCalled());
-    view.rerender(<RegionPlayCompanion {...props({ limitReached: true })} />);
-    await waitFor(() =>
-      expect(api.changeSession).toHaveBeenCalledWith(
-        expect.any(String),
-        'complete',
-        expect.any(AbortSignal),
-      ),
-    );
+    // Hours of continuous play: the companion re-renders, the session stays open.
+    const realNow = Date.now();
+    const now = vi.spyOn(Date, 'now');
+    for (const hours of [1, 3, 8]) {
+      now.mockReturnValue(realNow + hours * 60 * 60 * 1000);
+      view.rerender(<RegionPlayCompanion {...props()} />);
+    }
+    now.mockRestore();
+    expect(api.changeSession).not.toHaveBeenCalled();
+    expect(api.startSession).toHaveBeenCalledTimes(1);
   });
 });
 

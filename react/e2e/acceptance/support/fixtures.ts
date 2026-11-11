@@ -114,8 +114,6 @@ export function api(request: APIRequestContext, parent: Parent) {
 }
 
 export type AgeBand = 'SPROUT' | 'PATHFINDER' | 'EXPLORER';
-// Defaults inside each band's allowed range (CLAUDE.md section 3).
-const SESSION_MINUTES: Record<AgeBand, number> = { SPROUT: 6, PATHFINDER: 10, EXPLORER: 15 };
 const READING_MODE: Record<AgeBand, string> = {
   SPROUT: 'VOICE_FIRST',
   PATHFINDER: 'READ_ALONG',
@@ -126,7 +124,7 @@ const READING_MODE: Record<AgeBand, string> = {
 export async function parentWithChild(
   request: APIRequestContext,
   label: string,
-  child: { nickname: string; ageBand: AgeBand; sessionMinutes?: number },
+  child: { nickname: string; ageBand: AgeBand },
 ): Promise<{ parent: Parent; childId: string }> {
   const parent = mintParent(label);
   const client = api(request, parent);
@@ -134,7 +132,6 @@ export async function parentWithChild(
   const created = await client.post('children/', {
     avatarKey: 'OTTER',
     readingMode: READING_MODE[child.ageBand],
-    sessionMinutes: SESSION_MINUTES[child.ageBand],
     ...child,
   });
   expect(created.status(), await created.text()).toBe(201);

@@ -83,8 +83,6 @@ export interface LocationCompanionProps {
    * the stage has mounted; absent for a view that offers none.
    */
   hudSlot?: HTMLElement | null;
-  /** Whether the session's time is up, for a region that stages a calm stop in the room. */
-  limitReached: boolean;
   /** Re-reads world changes, inventory and discoveries. */
   refreshWorld(): Promise<void>;
 }

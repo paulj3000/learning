@@ -31,6 +31,9 @@ Produced by the read-only DynamoDB export (LAI-1101). Plain JSON, Amplify attrib
 The export contains child data: keep it on an encrypted, access-controlled machine, never in the
 repository, and delete it after the cutover.
 
+`sessionMinutes` is not imported: there is no play-time limit (ADR-053) and Django has no such
+column.
+
 ## How each record is resolved
 
 **Owner.** The child's `ownerSub`, else the Cognito sub from its `ParentProfile.owner`. If both

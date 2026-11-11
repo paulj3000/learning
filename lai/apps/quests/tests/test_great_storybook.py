@@ -25,13 +25,8 @@ EXPLORERS = "restore-the-great-storybook-explorers"
 SEAL = "great-storybook-seal"
 
 
-#: A session length the profile's own constraint accepts for each band (Sprouts: 5 to 8 minutes).
-MINUTES = {"SPROUT": 6, "PATHFINDER": 10, "EXPLORER": 12}
-
-
 def band(child, value):
     child.age_band = value
-    child.session_minutes = MINUTES[value]
     child.save()
     return child
 

@@ -696,22 +696,6 @@ export function ChildDashboard() {
 
               <div className={styles.controlRow}>
                 <div>
-                  <p className={styles.controlLabel}>Session time</p>
-                  <p className={styles.hint}>
-                    {childProfile.sessionMinutes} minutes per visit (
-                    {AGE_BAND_LABELS[childProfile.ageBand]})
-                  </p>
-                </div>
-                <Link
-                  className={styles.buttonSecondary}
-                  to={`/home/children/${childProfile.id}/edit`}
-                >
-                  Change
-                </Link>
-              </div>
-
-              <div className={styles.controlRow}>
-                <div>
                   <p className={styles.controlLabel}>AI interaction history</p>
                   <p className={styles.hint}>
                     {historyCleared

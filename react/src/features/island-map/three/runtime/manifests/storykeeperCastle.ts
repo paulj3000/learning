@@ -769,8 +769,6 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
       found: 'You found {checkpoint}.',
       returning: 'You are back at {checkpoint}.',
     },
-    calmStop:
-      'Keeper Quill closes the book and looks over at the cushions in the corner. It is a good place to sit for a while.',
     altNav: {
       label: 'Prefer not to walk in 3D? Use the location page instead',
       to: 'locations/storykeeper-castle',

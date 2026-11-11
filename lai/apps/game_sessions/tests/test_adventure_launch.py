@@ -66,7 +66,7 @@ def test_the_bootstrap_lists_only_the_launch_points_for_the_childs_age_band(a):
 
 def test_other_age_bands_see_their_own_bridge_adventure(a):
     client, child = a
-    ChildProfile.objects.filter(pk=child.pk).update(age_band="SPROUT", session_minutes=6)
+    ChildProfile.objects.filter(pk=child.pk).update(age_band="SPROUT")
     [entry] = client.get(f"{base(child)}regions/{REGION}/").json()["launchPoints"]
     assert entry["adventure"]["adventureId"] == "three-planks-for-the-bridge"
 

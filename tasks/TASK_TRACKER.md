@@ -17,6 +17,7 @@ before touching AWS.
 - [x] **POST-MERGE-04** Merge verification of `integration/post-merge-03` (not a roadmap task). DONE locally: all merge-time gates pass; browser gameplay not verifiable here (needs a real Cognito sign-in); see `docs/IMPLEMENTATION_STATUS.md`. Not merged or pushed
 - [x] **POST-MERGE-05** Pre-merge acceptance of `dev20261102` (Phase 28 AQS-001 to 024, TR-12 to TR-20, AM-13, AM-17) into `main` (not a roadmap task). DONE: every local gate and the new browser acceptance suites (`npm run test:acceptance`) pass; defects found and fixed: duplicate pickup/finale reveal, collapsed 3D stage with overlapping HUD, no Admin path to Studio corrections, saveable published questions, out-of-sync lockfile; see `docs/IMPLEMENTATION_STATUS.md`. Still pending and not closed by this: owner playtest (TR-9 feel items), live Bedrock (LAI-0705, AQS-024), live S3, live Cognito (ADR-024 A6), Amplify Data screens
 - [x] **LAI-0002** Record ADR-020 (Three.js exclusive) and plan Track B (docs only, this change set)
+- [x] **ADR-053** Remove child gameplay time limits and forced session cutoffs (Trello card 123; not a roadmap task). DONE 2026-11-11 and merged to `main`: session clock, calm stop and the Treasure Rush time-based session end removed; parent session-length control removed; `ChildProfile.session_minutes` dropped (`users.0007`). All merge gates passed. Amplify `sessionMinutes` field kept until the Django cutover (owner); migration not yet run on a deployed database
 
 ## Phase 1 — Governance and baseline
 
