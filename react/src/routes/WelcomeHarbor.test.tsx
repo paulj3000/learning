@@ -18,9 +18,6 @@ vi.mock('../features/island/api', () => ({
 }));
 vi.mock('../features/adventures/api', () => ({ listAllWorldChanges }));
 vi.mock('../features/catalog/availabilityApi', () => ({ loadCatalogSnapshot }));
-vi.mock('../features/session/useSessionClock', () => ({
-  useSessionClock: () => ({ elapsedMinutes: 0, limitMinutes: null, limitReached: false }),
-}));
 
 import { WelcomeHarbor } from './WelcomeHarbor';
 

@@ -70,7 +70,7 @@ _CODED = {
     "photo_storage_unavailable": "Photos are not available right now. Please try again later.",
     # Asset library administrator API (AM-14)
     "asset_too_large": "That file is larger than the upload limit.",
-    # NPC Manager (ADR-053). Child-facing where a child can see them: calm, no blame.
+    # NPC Manager (ADR-054). Child-facing where a child can see them: calm, no blame.
     "npc_not_found": "That character is not here right now.",
     "no_active_release": "The island characters are resting right now.",
     "place_not_found": "That place is not open right now.",

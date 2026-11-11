@@ -81,11 +81,15 @@ describe('createChildProfile', () => {
       avatarPhotoKey: null,
       interests: [],
       readingMode: 'READ_ALONG',
-      sessionMinutes: 10,
     });
 
+    // The retired session length is still written, only because the deployed schema requires it.
     expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ parentProfileId: 'parent-1', ownerSub: 'sub-1' }),
+      expect.objectContaining({
+        parentProfileId: 'parent-1',
+        ownerSub: 'sub-1',
+        sessionMinutes: 8,
+      }),
     );
   });
 });
@@ -114,7 +118,6 @@ describe('fromAmplifyChild', () => {
       avatarPhotoKey: null,
       interests: ['Space'],
       readingMode: 'VOICE_FIRST',
-      sessionMinutes: 6,
       active: true,
       aiEnabled: true,
       createdAt: '2026-01-01T00:00:00Z',

@@ -523,7 +523,6 @@ class HomeSerializer(serializers.Serializer):
             ).data,
             "restrictions": {
                 "active": child.active,
-                "sessionMinutes": child.session_minutes,
                 "aiEnabled": child.ai_enabled,
                 "readingMode": child.reading_mode,
             },

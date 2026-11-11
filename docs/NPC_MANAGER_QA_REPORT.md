@@ -30,7 +30,7 @@ limitations is a release blocker (section 7).
 ## 2. What was inspected
 
 `tasks/TASK_TRACKER.md` Phase 30, `docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md`,
-`docs/NPC_MANAGER_CONTRACTS.md`, `docs/NPC_MANAGER_BROWSER_ACCEPTANCE.md`, ADR-053, the e2e
+`docs/NPC_MANAGER_CONTRACTS.md`, `docs/NPC_MANAGER_BROWSER_ACCEPTANCE.md`, ADR-054, the e2e
 acceptance harness (`tests/e2e/django_server.py`, `react/e2e/acceptance/`). Existing automated
 acceptance: `lai/apps/npcs/tests/test_acceptance_flow.py` and
 `react/src/features/npc-manager/acceptance/npcManager.acceptance.test.tsx`, both with fakes and
@@ -172,7 +172,7 @@ live PASS. The live Polly smoke belongs to the separate Sound Manager live Polly
 Bedrock check pairs with LAI-0705 / LAI-AQS-025.
 
 **Pip's voice profile.** Recommendation: **captions-only is acceptable for this merge**, and a
-published voice profile is **not** a release requirement for OWNER QA. Reasons: ADR-053 item 8
+published voice profile is **not** a release requirement for OWNER QA. Reasons: ADR-054 item 8
 makes audio optional and captions mandatory; no environment has live Polly, so a profile would not
 change what any child hears today (Quill, who has one, is also captions-only); and after QA-D2
 Pip's talk lines animate without audio. Before a child-facing launch to Sprouts (ages 3 to 4,
@@ -285,7 +285,7 @@ zero. One migration chain change on this branch: `catalog/0006_npc_definition_or
 **Merge conflicts.** `git merge-tree` against current heads:
 
 - into `main` (`5222b69`): **clean**. Note that it also brings all of `feature/sound-manager`
-  (ADR-048 to ADR-050, still Proposed), an owner-approved dependency (ADR-053 decision C).
+  (ADR-048 to ADR-050, still Proposed), an owner-approved dependency (ADR-054 decision C).
 - with `feature/sound-manager` (`d5d694a`): clean (already contained).
 - with `dev20261103` / `integration/content-dev20261103` (`bf324fa`): **13 conflicting files**:
   `docs/DECISIONS.md`, `docs/IMPLEMENTATION_STATUS.md`, `tasks/TASK_TRACKER.md`,

@@ -52,9 +52,9 @@ import styles from './ui/RegionPlayPanels.module.css';
  * The React half of `region-play`, mounted for the whole visit (TR-7, with
  * the TR-8 game UI).
  *
- * - Starts or resumes the child's session once the region is loaded and
- *   completes it at the calm stop. It never accepts a quest: Pip offers it
- *   and the child chooses (TR-D11).
+ * - Starts or resumes the child's session once the region is loaded. It
+ *   never ends the session because of play time (there is no time limit),
+ *   and it never accepts a quest: Pip offers it and the child chooses (TR-D11).
  * - Keeps the chests in the scene matching the server, so a chest opens in
  *   the cove only after the play API says so.
  * - Opens Pip's dialogue or the chest's lock for a claimed interaction,
@@ -102,7 +102,6 @@ function RegionPlayGame(props: LocationCompanionProps) {
     config,
     sceneApi,
     claimedInteraction,
-    limitReached,
     onCloseInteraction,
     setQuestCue,
     hudSlot,
@@ -128,7 +127,6 @@ function RegionPlayGame(props: LocationCompanionProps) {
   const {
     state,
     startSession,
-    changeSession,
     acceptQuest,
     requestChallenge,
     submitAnswer,
@@ -168,12 +166,6 @@ function RegionPlayGame(props: LocationCompanionProps) {
     startedOnce.current = true;
     void startSession();
   }, [startSession, state.session, state.status]);
-
-  // The calm stop ends the session; the room stays as it is.
-  const sessionStatus = state.session?.status;
-  useEffect(() => {
-    if (limitReached && sessionStatus) void changeSession('complete');
-  }, [changeSession, limitReached, sessionStatus]);
 
   // The objective, from the server's quests: the HUD cue now, the hint when asked.
   const bootstrap = state.bootstrap;

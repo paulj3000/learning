@@ -1,5 +1,5 @@
 /**
- * NPC voice synchronization (LAI-NPC-029, ADR-049, ADR-053 section 8). Pure logic: no React, no
+ * NPC voice synchronization (LAI-NPC-029, ADR-049, ADR-054 section 8). Pure logic: no React, no
  * network, no Three.js. It joins three things the NPC Manager already has:
  *
  * - the speech player (`audio/speech`), which asks Django for speech by reference

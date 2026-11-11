@@ -1,5 +1,5 @@
 /**
- * NPC Manager closed vocabularies (ADR-053, contract version 1).
+ * NPC Manager closed vocabularies (ADR-054, contract version 1).
  *
  * Mirror of `lai/apps/npcs/vocabulary.py`; `lai/apps/npcs/tests/test_contract_mirror.py`
  * fails when the two drift. Never rename a value; add one only through a recorded contract

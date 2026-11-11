@@ -1,6 +1,6 @@
 # NPC Manager implementation plan (LAI-NPC-001 to LAI-NPC-040)
 
-Branch: `feature/npc-manager` (from `main` at `5222b69`). Decision: ADR-053. Frozen contracts:
+Branch: `feature/npc-manager` (from `main` at `5222b69`). Decision: ADR-054. Frozen contracts:
 `docs/NPC_MANAGER_CONTRACTS.md`. Tracker: `tasks/TASK_TRACKER.md`, Phase 30.
 
 Scope rules from the owner's brief: no merge to `main`, no AWS deployment, no browser or

@@ -18,7 +18,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 
 **Format recommendation.** Keep this single file plus the registry table. Individually named ADR files would force moving about 4,500 lines and rewriting links for no collision benefit the check does not already give. Revisit only if the log passes roughly 50 decisions.
 
-**Next free identifier number: 054.**
+**Next free identifier number: 055.**
 
 | ID | Title | Status | Origin | Notes |
 |---|---|---|---|---|
@@ -74,7 +74,8 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-049 | Django owns speech synthesis through Amazon Polly behind a fake-able client; games speak only server-approved references; React plays through the Sound Manager's voice channel | Proposed | Feature branch `feature/sound-manager` (SM-P8) | Development only, 2026-11-03; owner acceptance and live verification pending. Builds on ADR-044, ADR-045, ADR-050, ADR-048 |
 | ADR-050 | Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver | Proposed | Feature branch `feature/sound-manager` (SM-P2) | Development only, 2026-11-02; owner acceptance pending. Builds on ADR-035, ADR-041, ADR-045; records Sound Manager decisions SM-D1 to SM-D6 |
 | ADR-052 | The Adventure Portal palette is the whole app's theme through tokens.css; the shells, homepage and landing page use Tailwind CSS 4 with a reference-only portal theme | Accepted | Feature branch `feature/adventure-portal` (AP-01, AP-04) | Owner-directed 2026-11-07 (Trello AP-01 names Tailwind 4); scope widened to the whole app 2026-11-10; owner-accepted 2026-11-10 with AP-01. Amends ADR-023's route boundary. Not merged or deployed |
-| ADR-053 | The NPC Manager extends the canonical NPC identity with Django-authored, versioned NPC releases; NPC placement is an owner-approved exception to LAI-0805 | Accepted | `feature/npc-manager` (LAI-NPC-001) | Owner decisions 2026-11-05: extend NpcDefinition, NPC-only placement exception, build on the sound-manager merge. Amends ADR-033 items 1 and 4 and CLAUDE.md section 20 for NPC content only; builds on ADR-035, ADR-044, ADR-049, ADR-050 |
+| ADR-053 | No platform-imposed play-time limits; the session-time control and calm stop are retired | Accepted | Branch `claude/festive-faraday-fjechb` (Trello card 123) | Owner-directed 2026-11-11 (Trello "[LAI] Remove child gameplay time limits and forced session cutoffs"); drops `ChildProfile.session_minutes` (migration `users.0007`). Amends CLAUDE.md section 11 item 11. Amplify field kept until the Django cutover |
+| ADR-054 | The NPC Manager extends the canonical NPC identity with Django-authored, versioned NPC releases; NPC placement is an owner-approved exception to LAI-0805 | Accepted | `feature/npc-manager` (LAI-NPC-001) | Owner decisions 2026-11-05: extend NpcDefinition, NPC-only placement exception, build on the sound-manager merge. Amends ADR-033 items 1 and 4 and CLAUDE.md section 20 for NPC content only; builds on ADR-035, ADR-044, ADR-049, ADR-050 |
 
 ## ADR-001: Parent-owned accounts
 
@@ -3859,7 +3860,42 @@ top of `portal.css` says so.
 
 **Acceptance.** Owner-accepted 2026-11-10 with AP-01, after reviewing the app-wide redress ("AP-01 is done"). Not yet merged to `main` or deployed.
 
-## ADR-053: The NPC Manager extends the canonical NPC identity with Django-authored, versioned NPC releases; NPC placement is an owner-approved exception to LAI-0805
+## ADR-053: No platform-imposed play-time limits; the session-time control and calm stop are retired
+
+Status: Accepted (owner, 2026-11-11; Trello "[LAI] Remove child gameplay time limits and forced
+session cutoffs")
+
+**Context.** MVP scope item 11 asked for "session time controls and a calm stopping point".
+`ChildProfile.sessionMinutes` was a required, per-band-validated parent setting; a client-side
+session clock (`react/src/features/session/`) showed a "good place to stop" note once it passed,
+Storykeeper Castle staged the stop in the room, and Treasure Rush's region companion
+**completed the child's session** when it passed. The owner decided that the platform must not
+stop, count down, or nudge a child off the island for elapsed play time.
+
+**Decision.**
+- No playtime enforcement anywhere: no countdown, no stop note, no lockout, no cooldown, and no
+  session completion triggered by elapsed time. The session clock, `CalmStop`, the region
+  `copy.calmStop` hook and the `limitReached` extension prop are deleted.
+- Parents no longer see or set a session length (profile form and dashboard row removed), so no
+  stale setting claims enforcement.
+- Django drops `ChildProfile.session_minutes` and its per-band check constraint (migration
+  `users.0007_remove_childprofile_session_minutes`, owner-approved 2026-11-11). The API no longer
+  returns `sessionMinutes` (profile, game runtime launch, native home `restrictions`), and the
+  closed request bodies refuse it like any unknown field. The Amplify import ignores it. Amplify
+  builds still write the band's lowest value on create, only because the deployed Amplify schema
+  requires the field. Owner decision (2026-11-11): the Amplify field stays until the Django
+  cutover retires the Amplify profile store; it is not changed separately.
+- Legacy region content may still carry `scene.copy.calmStop`; the authoring kinds still accept
+  it and the client ignores it.
+- Unchanged: Cognito authentication, token expiry and refresh, game-session cookie expiry
+  (`expiresAt`), network timeouts, parental `active` and `aiEnabled` switches, and passive
+  usage records (completed sessions, progress).
+
+**Consequences.** CLAUDE.md section 11 item 11 and the threat model's engagement entry are
+updated. The migration is not reversible with data (rolling it back re-adds a required column
+with no value for existing rows); the owner accepted this.
+
+## ADR-054: The NPC Manager extends the canonical NPC identity with Django-authored, versioned NPC releases; NPC placement is an owner-approved exception to LAI-0805
 
 Status: Accepted (project owner, 2026-11-05, LAI-NPC-001). Development only: nothing is deployed,
 no live Bedrock or Polly call has been made, and browser acceptance is the owner's.

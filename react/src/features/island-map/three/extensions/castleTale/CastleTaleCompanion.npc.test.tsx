@@ -282,7 +282,6 @@ function Visit(props: { sceneApi: CastleTaleSceneApi }) {
     onCloseInteraction: () => setClaimed(null),
     showToast: vi.fn(),
     setFocusLabel: vi.fn(),
-    limitReached: false,
     refreshWorld: vi.fn(async () => undefined),
   };
   return (

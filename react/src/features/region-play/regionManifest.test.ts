@@ -299,10 +299,9 @@ describe('buildRegionManifest', () => {
     }).manifest;
     expect(authored.bounds.halfExtentX).toBe(10);
     expect(authored.environment.backgroundColor).toBe(0x123456);
-    expect(authored.copy).toMatchObject({
-      loading: 'Sailing to Treasure Cove.',
-      calmStop: 'Time to rest.',
-    });
+    expect(authored.copy).toMatchObject({ loading: 'Sailing to Treasure Cove.' });
+    // Legacy content may still carry the retired play-time stop; it never reaches the child.
+    expect(authored.copy).not.toHaveProperty('calmStop');
   });
 
   it('is reported by the validator when the server names an asset the catalogue lacks', () => {

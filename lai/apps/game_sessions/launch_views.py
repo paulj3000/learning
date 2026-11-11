@@ -157,7 +157,6 @@ class GameRuntimeSessionView(APIView):
                     "regionId": session.region_id,
                     "ageBand": child.age_band,
                     "readingMode": child.reading_mode,
-                    "sessionMinutes": child.session_minutes,
                     "aiEnabled": child.ai_enabled,
                     "expiresAt": _iso(session.expires_at),
                     "csrfHeader": "X-LAI-Game-CSRF",

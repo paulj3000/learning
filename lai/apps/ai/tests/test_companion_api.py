@@ -105,7 +105,6 @@ def test_body_fields_cannot_choose_the_child_age_band_limits_or_audit_values(
 ):
     fake = fake_model(GOOD)
     families.a1.age_band = "SPROUT"
-    families.a1.session_minutes = 6
     families.a1.save()
     forged = {
         **HINT,

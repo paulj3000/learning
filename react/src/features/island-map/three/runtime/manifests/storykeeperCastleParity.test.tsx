@@ -55,7 +55,6 @@ let currentStep: AdventureStep | null = null;
 let sessionStatus: string | null = null;
 let hintLevel = 0;
 let storyChapterId: string | null = 'three-clues';
-let sessionLimitReached = false;
 
 vi.mock('../createLocationEngine', () => ({
   DEFAULT_LOCATION_ENGINE_DEPS: {},
@@ -129,14 +128,6 @@ vi.mock('../../../../story/StoryChapterRunner', () => ({
       })}
     </div>
   ),
-}));
-
-vi.mock('../../../../session/useSessionClock', () => ({
-  useSessionClock: () => ({
-    elapsedMinutes: sessionLimitReached ? 12 : 1,
-    limitMinutes: 12,
-    limitReached: sessionLimitReached,
-  }),
 }));
 
 vi.mock('../../../NpcConversation', () => ({
@@ -236,7 +227,6 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
     sessionStatus = null;
     hintLevel = 0;
     storyChapterId = 'three-clues';
-    sessionLimitReached = false;
     submitAnswerSpy.mockResolvedValue('correct');
     vi.mocked(getWorldState).mockResolvedValue({ discoveredIds: [], metCharacterIds: [] } as never);
     vi.mocked(saveCheckpoint).mockResolvedValue(undefined);
@@ -900,7 +890,7 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
     });
   });
 
-  describe('the nook, and the calm stop', () => {
+  describe('the nook, and no time stop', () => {
     it('finds the nook when the child wanders into the corner', async () => {
       await renderAndWait();
       await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'castle-tapestry-stair' }));
@@ -914,23 +904,21 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
       expect(screen.queryByText('A tapestry that moves')).not.toBeInTheDocument();
     });
 
-    it('says nothing about stopping before the parent-set time has passed', async () => {
-      await renderAndWait();
-      expect(screen.queryByText(/good place to sit/i)).not.toBeInTheDocument();
-      expect(sceneSpies.playQuillClip).not.toHaveBeenCalledWith('Point', 'nook');
-    });
-
-    it('has Quill look toward the nook once the time has passed, and takes nothing away', async () => {
-      sessionLimitReached = true;
-      await renderAndWait();
-      await waitFor(() => expect(sceneSpies.playQuillClip).toHaveBeenCalledWith('Point', 'nook'));
-      expect(await screen.findByText(/good place to sit/i)).toBeInTheDocument();
-      // Nothing closes: the way out and the list are still there.
-      expect(
-        screen.getByRole('link', {
-          name: 'Prefer not to walk in 3D? Use the location page instead',
-        }),
-      ).toBeInTheDocument();
+    it('never nudges the child to stop, however long they have been playing', async () => {
+      const realNow = Date.now();
+      const now = vi.spyOn(Date, 'now').mockReturnValue(realNow + 6 * 60 * 60 * 1000);
+      try {
+        await renderAndWait();
+        expect(screen.queryByText(/good place to (sit|stop)/i)).not.toBeInTheDocument();
+        expect(sceneSpies.playQuillClip).not.toHaveBeenCalledWith('Point', 'nook');
+        expect(
+          screen.getByRole('link', {
+            name: 'Prefer not to walk in 3D? Use the location page instead',
+          }),
+        ).toBeInTheDocument();
+      } finally {
+        now.mockRestore();
+      }
     });
   });
 });

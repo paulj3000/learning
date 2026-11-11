@@ -288,7 +288,7 @@ function interaction(id: string): WorldInteraction {
 
 /** The view's part: a claimed interaction stays open until the companion closes it. */
 const claim: { open: ((id: string | null) => void) | null } = { open: null };
-function Visit(props: { sceneApi: RegionPlaySceneApi; limitReached?: boolean }) {
+function Visit(props: { sceneApi: RegionPlaySceneApi }) {
   const [claimed, setClaimed] = useState<WorldInteraction | null>(null);
   claim.open = (id) => setClaimed(id ? interaction(id) : null);
   const companionProps: LocationCompanionProps = {
@@ -305,7 +305,6 @@ function Visit(props: { sceneApi: RegionPlaySceneApi; limitReached?: boolean }) 
     onCloseInteraction: () => setClaimed(null),
     showToast: vi.fn(),
     setFocusLabel: vi.fn(),
-    limitReached: props.limitReached ?? false,
     refreshWorld: vi.fn(async () => undefined),
   };
   return <RegionPlayCompanion {...companionProps} />;
@@ -526,19 +525,5 @@ describe('play outcomes become NPC triggers, with rewards unchanged', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Close' }));
     await settle();
     await waitFor(() => expect(triggers()).toContain('on_quest_complete'));
-  });
-
-  it('the calm stop completes the session but is not the adventure completing', async () => {
-    const { scene } = fakeScene();
-    const view = render(<Visit sceneApi={scene} />);
-    await settle();
-    view.rerender(<Visit sceneApi={scene} limitReached />);
-    await settle();
-    expect(playApi.changeSession).toHaveBeenCalledWith(
-      SESSION_ID,
-      'complete',
-      expect.any(AbortSignal),
-    );
-    expect(triggers()).not.toContain('on_adventure_complete');
   });
 });

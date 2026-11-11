@@ -42,6 +42,41 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## No child play-time limits (ADR-053) — complete and merged to `main` (2026-11-11); migration not yet run on a deployed database
+
+Trello: "[LAI] Remove child gameplay time limits and forced session cutoffs" (2026-11-11). This
+supersedes "The calm stop — MVP scope item 11" below, which is kept as history.
+
+- **Removed (React):** `react/src/features/session/` (session clock, `useSessionClock`,
+  `CalmStop`); the island-wide stop note in `IslandLayout`; the region stop note and the
+  `limitReached` extension prop in `ThreeLocationWorldView` / `viewExtensionRegistry`;
+  `RegionPlayCompanion`'s session completion when time passed (the one real cutoff); Keeper
+  Quill's "look at the nook" stop cue in `CastleTaleCompanion`; Storykeeper Castle's
+  `copy.calmStop`; `LocationCopy.calmStop` (legacy content is ignored by `regionManifest.ts`).
+- **Removed (parent):** the "Session length" field on the child profile form and the "Session
+  time" row on the child dashboard; `validateSessionMinutes`; `sessionMinutes` from the
+  hand-owned profile types and play settings. Amplify builds still write
+  `RETIRED_SESSION_MINUTES` on create, only because the deployed schema requires it (no Amplify
+  resource change).
+- **Django:** the `session_minutes` column and its per-band check constraint are dropped
+  (`users.0007_remove_childprofile_session_minutes`, owner-approved). `sessionMinutes` is no
+  longer returned (profile, game runtime launch, native home `restrictions`) and is refused in
+  request bodies; the Amplify import ignores it. Admin no longer shows it.
+- **Kept on purpose:** Cognito auth and token refresh, the 1-hour Android game-launch cookie
+  (`LAI_GAME_SESSION_TTL_SECONDS`, a credential with a documented relaunch path), network
+  timeouts, the `active` and `aiEnabled` parental switches, and passive usage records.
+- **Tests:** extended-play regressions in `IslandLayout.test.tsx` (6 hours on every child-mode
+  depth), `RegionPlayCompanion.test.tsx` (session never completed over 1 to 8 hours) and
+  `storykeeperCastleParity.test.tsx`; Django tests for create/edit without the field, a legacy
+  value accepted and ignored, band changes, the import, and the launch/home payloads.
+- **Merge gates (2026-11-11), all passed:** Ruff and Ruff format, Django check, migration
+  check, ADR check, admin-preview check, typecheck, oxlint, Prettier, `content:check`; full
+  pytest on PostgreSQL 16 (2796 passed, 3 skipped); full Vitest (407 files, 4587 tests);
+  production build; Playwright smoke (7 passed, 11 skipped) and acceptance (55 passed, 2
+  skipped). Playwright ran against the container's preinstalled Chromium. The migration
+  runs on the next Django deploy (not deployed here). The Amplify `sessionMinutes` field stays until
+  the Django cutover (owner decision, 2026-11-11).
+
 ## Current phase
 
 **Phases 0-32 are implemented**, plus two follow-ups: "Curriculum band
@@ -12533,7 +12568,7 @@ lands.
 
 **Checks.** See the end-of-batch delivery notes.
 
-## NPC Manager (Phase 30, `feature/npc-manager`, ADR-053) — development complete, owner acceptance pending
+## NPC Manager (Phase 30, `feature/npc-manager`, ADR-054) — development complete, owner acceptance pending
 
 Plan: `docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md`; contracts: `docs/NPC_MANAGER_CONTRACTS.md`;
 tracker: `tasks/TASK_TRACKER.md` Phase 30.
@@ -13204,6 +13239,21 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   - Prettier and ruff are clean.
   - No AWS call was made.
 
+## LAI-0821 content-authoring milestone accepted (2026-11-10, branch `claude/jolly-ride-92xktb`)
+
+- **What.** The owner confirmed browser acceptance (Django Admin authoring flows, Firepeak,
+  Storykeeper Castle, the Island Explorer with Firepeak) and deployed acceptance (hosted Django,
+  live Cognito), then authorized the merge of `dev20261103` into `main` (PR #12, merge commit
+  `e82a188`). CI was green on the merged head (`b3490ba`); the local merge-gate results are in the
+  2026-11-09 section above.
+- **Tracker.** LAI-0821 marked done. Ticked as ACCEPTED with it (the tracker ticks a box only at
+  ACCEPTED): LAI-0801 (both entries), LAI-0309 (both), LAI-0503 (both), LAI-0810 to LAI-0814,
+  LAI-0816 to LAI-0818, LAI-0820 and FP-12. FP-13 stays open (automated Playwright scenarios and
+  Android performance). FP-2 to FP-11 are unchanged. Docs only; no code changed, so no tests
+  apply.
+- **Still open.** The 11 Firepeak Playwright scenarios remain `test.fixme` (FP-13). The merged
+  branches `dev20261103` and `claude/jolly-ride-92xktb` are still on GitHub for the owner to delete.
+
 ## Adventure Portal AP-01 and AP-04: design system, shells, and leaving an island (2026-11-07, branch `feature/adventure-portal`)
 
 Trello: "[Subproject] Adventure Portal & Learning Dashboard", cards AP-01 and AP-04. Development
@@ -13515,3 +13565,24 @@ in `main` (verified: zero commits ahead of `origin/main`).
 - **Not established by this:** deployed or live AWS acceptance; real-family use still depends on
   LAI-0502, LAI-0602, gate G9 and ADR-024 A6.
 - **Tests run:** none; documentation-only change.
+
+## AMP-01 Amplify dependency audit and Django parity matrix (2026-11-10, branch `claude/lai-infra-001-pr-kwauv3`, read-only audit)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| AMP-01 | `docs/platform/AMPLIFY_EXIT_MATRIX.md` | **None** (no AWS access); live DynamoDB, AppSync and Cognito data not read | Open: owner review; the gap list feeds AMP-02 to AMP-08 |
+
+- Scope: `main` (`89d1172`, re-checked at `8e3af01` on 2026-11-11), `dev20261103` and its live
+  integration branch (`claude/jolly-ride-92xktb`), and all 31 remote branches.
+- Inventory: 22 React and script files import Amplify. Auth is fully Amplify (12 source files).
+  All 22 Amplify Data models are called. 15 capabilities already switch to Django; 18 modules or
+  module groups do not.
+- Branch findings: no branch removes Amplify usage beyond `main`. The integration's Django step
+  runner and 14 content and step routes merged into `main` with PR #12 (G2 is now wiring only).
+- Gaps with no Django equivalent:
+  - parent account deletion;
+  - companion choice storage;
+  - the director's "next learning activity";
+  - co-op routes and realtime.
+- Only parent and child profiles have a DynamoDB importer.
+- Checks: docs only (Prettier clean). No code or resource changed.

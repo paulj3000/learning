@@ -20,7 +20,6 @@ from apps.users.tests.helpers import access_claims
 pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
 
 NOOK = "castle-tapestry-stair"
-MINUTES = {"SPROUT": 6, "PATHFINDER": 10, "EXPLORER": 12}
 
 
 def url(child) -> str:
@@ -29,7 +28,6 @@ def url(child) -> str:
 
 def band(child, value):
     child.age_band = value
-    child.session_minutes = MINUTES[value]
     child.save()
     return child
 

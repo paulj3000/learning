@@ -1,4 +1,4 @@
-"""LAI-NPC-028: the `npcDialogueNode` speech reference (ADR-053 section 8, contract 5.4)."""
+"""LAI-NPC-028: the `npcDialogueNode` speech reference (ADR-054 section 8, contract 5.4)."""
 
 import json
 

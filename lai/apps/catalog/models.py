@@ -684,13 +684,13 @@ class NpcDefinition(Authorable, ImportedContent, CatalogFields):
     """A character (`npcs.json`). Dialogue, schedule and quest offers stay in `source`.
 
     The canonical NPC identity (ADR-033). `npc_id` is the stable slug every system uses. Rows come
-    from the export (`EXPORT`) or, since the NPC Manager (ADR-053), from Django Admin (`DJANGO`):
+    from the export (`EXPORT`) or, since the NPC Manager (ADR-054), from Django Admin (`DJANGO`):
     the import never creates, updates or claims a `DJANGO` row. Django-authored NPC configuration
     (variants, dialogue, behaviours, personas) lives in `apps.npcs`, keyed to this row.
     """
 
     npc_id = models.SlugField(max_length=SLUG_LENGTH, unique=True)
-    # Overrides of `ImportedContent`: an NPC made in Django has no export record (ADR-053).
+    # Overrides of `ImportedContent`: an NPC made in Django has no export record (ADR-054).
     source = models.JSONField(
         default=dict, blank=True, help_text="The record exactly as the export carried it."
     )

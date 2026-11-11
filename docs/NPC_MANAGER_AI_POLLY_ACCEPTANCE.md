@@ -33,9 +33,9 @@ All NPC branches fork from `5f6c26f5` and were 128 commits behind `main`; each c
   - `catalog.NpcDefinition` keeps both `main`'s `Authorable` (ADR-047 content authority) and the
     NPC `origin` field; both import guards kept. Merge migration `catalog/0010_merge_npc_manager`
     (no model changes; `makemigrations --check` clean).
-  - **ADR renumbering:** `main` gave ADR-050 to sound cues. The NPC Manager is now **ADR-053**;
-    30 NPC-side references were renumbered line by line; next free number 054; `adr:check` passes
-    (53 decisions).
+  - **ADR renumbering:** `main` gave ADR-050 to sound cues and later ADR-053 to retiring play-time
+    limits. The NPC Manager is now **ADR-054**; its references were renumbered line by line (only
+    lines the NPC side added); next free number 055; `adr:check` passes (54 decisions).
   - Treasure Rush and Castle code: unions of both sides (content pinning reload, castle rooms,
     storybook, guide, NPC stage and speech slot). NPC test fakes gained `main`'s new interface
     members.
@@ -154,7 +154,7 @@ section 2). For a local run with `learning-dev`, first a synthetic test family a
 on a fresh local database:
 
 ```bash
-cd lai && python manage.py shell -c "from apps.users.models import ParentAccount; from apps.users import services; p = ParentAccount.objects.get_or_create_for_cognito('dev-acceptance-parent'); c = services.create_child_profile(p, nickname='Tester', age_band='PATHFINDER', avatar_key='FOX', reading_mode='READ_ALONG', session_minutes=10, interests=[]); print(c.pk)"
+cd lai && python manage.py shell -c "from apps.users.models import ParentAccount; from apps.users import services; p = ParentAccount.objects.get_or_create_for_cognito('dev-acceptance-parent'); c = services.create_child_profile(p, nickname='Tester', age_band='PATHFINDER', avatar_key='FOX', reading_mode='READ_ALONG', interests=[]); print(c.pk)"
 ```
 
 ```bash
@@ -192,5 +192,5 @@ browser checks in runbook section 9 and checklist B7.3 and B8.5.
    is in).
 3. Merge **#1** into `feature/npc-manager` (one docs conflict, resolved on the integration branch).
 4. Merge `feature/npc-manager` into `main` **through `integration/npc-manager-main`** (it carries
-   the 13 conflict resolutions, the ADR-053 renumbering and the catalog merge migration), only
+   the 13 conflict resolutions, the ADR-054 renumbering and the catalog merge migration), only
    after owner acceptance and the live gates above.

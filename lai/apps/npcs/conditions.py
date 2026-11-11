@@ -1,4 +1,4 @@
-"""Conditions shared by spawn rules, variant availability, dialogue and choices (ADR-053).
+"""Conditions shared by spawn rules, variant availability, dialogue and choices (ADR-054).
 
 A condition list is a JSON list of objects; every condition must hold (AND). An empty list always
 holds. Conditions only *read* authoritative progress (world changes, quest progress, the NPC

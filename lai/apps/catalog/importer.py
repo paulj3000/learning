@@ -715,7 +715,7 @@ def _apply(plan: Plan, release: ContentRelease, conflicts: list[str]) -> dict[st
 
 
 def _refuse_django_owned_npcs(plan: Plan) -> None:
-    """An export NPC id that a Django-authored NPC already owns fails the import (ADR-053).
+    """An export NPC id that a Django-authored NPC already owns fails the import (ADR-054).
 
     Without this the import would overwrite a staff-authored character or claim it as its own.
     """

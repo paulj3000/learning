@@ -1,7 +1,7 @@
 # NPC Manager shared contracts (version 1, frozen)
 
 Status: **frozen for parallel development** on `feature/npc-manager` (2026-11-05). Decision:
-ADR-053. Plan and task graph: `docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md`.
+ADR-054. Plan and task graph: `docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md`.
 
 A change to anything in this document is a contract change: it is made on the integration branch
 `feature/npc-manager` by the integrator, recorded in section 9, and announced to every running

@@ -396,7 +396,7 @@ def test_age_bands_filter_dialogues_nodes_and_choices(staff, families, api):
     publish(staff)
     client = api(families.a)
     sprout = families.a1
-    ChildProfile.objects.filter(pk=sprout.pk).update(age_band="SPROUT", session_minutes=5)
+    ChildProfile.objects.filter(pk=sprout.pk).update(age_band="SPROUT")
     pathfinder = families.a2
     s = start(client, ChildProfile.objects.get(pk=sprout.pk)).json()
     assert s["dialogueKey"] == "talk" and s["node"]["nodeKey"] == "little"

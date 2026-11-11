@@ -1,4 +1,4 @@
-"""Create or reset the NPC Manager's Django groups (LAI-NPC-005, ADR-053).
+"""Create or reset the NPC Manager's Django groups (LAI-NPC-005, ADR-054).
 
     python manage.py ensure_npc_roles
 

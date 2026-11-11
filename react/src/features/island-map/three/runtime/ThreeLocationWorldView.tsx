@@ -40,8 +40,6 @@ import {
   zoneEnterMessage,
 } from './manifestBindings';
 import { WorldActionPanel } from './WorldActionPanel';
-import { CalmStop } from '../../../session/CalmStop';
-import { useSessionClock } from '../../../session/useSessionClock';
 import type { LocationViewExtensionRegistry } from './viewExtensionRegistry';
 import { SOURCE_VIEW_EXTENSIONS } from '../extensions/viewExtensions';
 import { chooseRenderQuality, deviceHintsFromNavigator } from './visual/renderQuality';
@@ -178,13 +176,6 @@ export function ThreeLocationWorldView({
     extensionId: string;
     interaction: WorldInteraction;
   } | null>(null);
-
-  /*
-    The island's own session clock, not a second one: a region presents the
-    calm stopping point, it does not own the time (ADR-027 applied to time).
-    Only a region that authors `copy.calmStop` shows anything.
-  */
-  const { limitReached } = useSessionClock(childId);
 
   /*
     AP-04: "Leave island" waits for these (briefly, never forever) so a
@@ -496,15 +487,9 @@ export function ThreeLocationWorldView({
           setQuestCue={setCompanionQuestCue}
           hudSlot={hudSlot}
           speechSlot={speechSlot}
-          limitReached={limitReached}
           refreshWorld={refreshWorld}
         />
       ))}
-      {manifest.copy.calmStop ? (
-        <CalmStop limitReached={limitReached}>
-          <p>{manifest.copy.calmStop}</p>
-        </CalmStop>
-      ) : null}
       {openInteraction ? (
         <WorldActionPanel
           childId={childId}
