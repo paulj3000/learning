@@ -60,6 +60,7 @@ def setup(tmp_path: Path, *, fail_backup: bool = False) -> dict:
         f"ParentProfile-{API}-NONE": ["p1", "p2"],
         f"ChildProfile-{API}-NONE": ["c1"],
         f"AIInteractionAudit-{API}-NONE": ["a1"],
+        f"SafetyEvent-{API}-NONE": ["e1"],
         f"AdventureSession-{OTHER}-NONE": ["x1"],
     }
     state = tmp_path / "state.json"
@@ -95,7 +96,7 @@ def test_dry_run_counts_and_changes_nothing(tmp_path):
     result = run(ctx, API)
     assert result.returncode == 0, result.stdout
     assert f"items AdventureSession-{API}-NONE: 30" in result.stdout
-    assert "32 items would be deleted; nothing was changed" in result.stdout
+    assert "33 items would be deleted; nothing was changed" in result.stdout
     after = state(ctx)
     assert len(after["tables"][f"AdventureSession-{API}-NONE"]) == 30
     assert after["backups"] == []
@@ -112,18 +113,20 @@ def test_confirmed_run_backs_up_then_deletes_history_only(tmp_path):
     assert after[f"WorldChange-{API}-NONE"] == []
     assert after[f"ParentProfile-{API}-NONE"] == ["p1", "p2"]
     assert after[f"ChildProfile-{API}-NONE"] == ["c1"]
-    assert after[f"AIInteractionAudit-{API}-NONE"] == ["a1"]
+    assert after[f"AIInteractionAudit-{API}-NONE"] == []  # owner decision: wiped too
+    assert after[f"SafetyEvent-{API}-NONE"] == ["e1"]
     assert after[f"AdventureSession-{OTHER}-NONE"] == ["x1"]  # another backend is untouched
     assert set(state(ctx)["backups"]) == {
         f"AdventureSession-{API}-NONE",
         f"WorldChange-{API}-NONE",
         f"SkillProgress-{API}-NONE",
+        f"AIInteractionAudit-{API}-NONE",
     }
     calls = [line.split()[1] for line in ctx["log"].read_text().splitlines()]
     assert calls.index("batch-write-item") > max(
         i for i, op in enumerate(calls) if op == "create-backup"
     )
-    assert "deleted 32 items; tables still holding items: none" in result.stdout
+    assert "deleted 33 items; tables still holding items: none" in result.stdout
 
 
 def test_a_failed_backup_stops_before_any_delete(tmp_path):
