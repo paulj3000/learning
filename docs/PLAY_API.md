@@ -368,6 +368,32 @@ above again, then starts or resumes the child's one ACTIVE session for that Adve
 - `area` is the Place's published 3D Area (a region entry, as in `GET regions/`), or `null`.
   With `null` the Place is still usable through its Adventures.
 - `autoSelectIslandId` is set when exactly one Island is available.
+- **AP-03 discovery details** on each Island:
+  - `ageBands`: the Island's supported age bands.
+  - `subjects`: up to 6 skills its Places teach, as authored, first seen first, no repeats.
+  - `description`: the Island's authored description (may be empty).
+  - `subjectAreas` (AP-03 Realm Explorer filters): some of `MATH`, `READING`, `SCIENCE`,
+    `CREATIVITY`, in that order. An authored `subjectAreas` on the Island record wins; otherwise
+    the union of its Places' subject areas.
+  - `thumbnailAssetId`: the authored `artAssetId` when it names an active `image` asset whose
+    default version is published; otherwise `null` (the client draws a fallback). The client
+    resolves it through `GET /children/{id}/assets/` like any other asset (ADR-030, LAI-2200).
+  - `unlocked` and `lockedHint`: from the Island's authored `travelRequirement`. An Island opens
+    once any of its `anyOfChangeKeys` exists as a world change for this child. The home Island
+    and an Island without a rule are always open. `lockedHint` is the authored hint, or `null`.
+  - `progress`: `{placesExplored, placesTotal}` over the Places listed. A Place is `explored`
+    when the child has started one of its Adventures or entered its 3D Area. Never a score.
+- A secret Place (an authored `unlockRequirement`) is left out until its `changeKey` exists as a
+  world change for this child, matching the harbor map.
+- **AP-03 Place details**: `description`, `skills` (as authored), `subjectAreas` and
+  `thumbnailAssetId` (same rules as the Island's). A Place's derived subject areas are the
+  `LearningObjective.domain`s of what it teaches this child: the `objectiveIds` of its active
+  Adventures' steps for the child's age band, and its 3D Area's published chest challenges
+  (`skill_id`). `numeracy` is MATH, `literacy` READING, `science` SCIENCE, `creativity`
+  CREATIVITY; other domains are not filterable. An authored `subjectAreas` replaces the
+  derived list (Firepeak's puzzles carry no objective, so its record states `["SCIENCE"]`).
+- A Place's `area` also carries `status` and `resume` (an open session), which the Realm
+  Explorer uses for "Continue". All additions are additive; older clients ignore them.
 
 ## Published content reads and the step runner (LAI-0503, LAI-0816, ADR-047 K)
 

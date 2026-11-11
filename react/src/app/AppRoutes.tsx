@@ -30,6 +30,8 @@ import { AdventureLog } from '../routes/AdventureLog';
 import { QuestJournal } from '../routes/QuestJournal';
 import { TravelDeck } from '../routes/TravelDeck';
 import { WorldHubPage } from '../routes/WorldHubPage';
+import { RealmExplorerPage } from '../routes/RealmExplorerPage';
+import { RealmDetailPage } from '../routes/RealmDetailPage';
 import { StoryPage } from '../routes/StoryPage';
 import { AdventureLibraryPage } from '../routes/AdventureLibraryPage';
 import { AdminMoved } from '../routes/AdminMoved';
@@ -307,6 +309,27 @@ export function AppRoutes() {
       <Route
         path="/island/:childId/world/clockwork-harbor"
         element={<LegacyLocationWorldRedirect regionId={CLOCKWORK_HARBOR_REGION_ID} />}
+      />
+      {/*
+        AP-03 Realm Explorer: the published catalog as discovery cards, and
+        each Realm's preview. "Leave island" returns to the Explorer (AP-04).
+        Card pages only; no Three.js is loaded until a 3D route is opened.
+      */}
+      <Route
+        path="/island/:childId/realms"
+        element={
+          <RequireParent>
+            <RealmExplorerPage />
+          </RequireParent>
+        }
+      />
+      <Route
+        path="/island/:childId/realms/:realmId"
+        element={
+          <RequireParent>
+            <RealmDetailPage />
+          </RequireParent>
+        }
       />
       <Route
         path="/island/:childId/travel"

@@ -5,7 +5,8 @@ import tailwindcss from '@tailwindcss/vite';
 import { djangoDevProxy } from './src/api/devProxy.ts';
 
 export default defineConfig(({ mode }) => ({
-  // Tailwind only compiles CSS that imports it: src/features/admin/admin.css (ADR-023).
+  // Tailwind only compiles CSS that imports it: src/features/admin/admin.css (ADR-023)
+  // and src/features/portal/portal.css (ADR-052).
   plugins: [react(), tailwindcss()],
   // `vite dev` only: forwards /api to a local Django when VITE_BACKEND=django (TR-D14).
   server: { proxy: djangoDevProxy(loadEnv(mode, process.cwd(), '')) },

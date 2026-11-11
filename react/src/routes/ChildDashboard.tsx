@@ -1,3 +1,5 @@
+import { ParentShell } from '../features/portal/shell';
+import { PortalButton } from '../features/portal/ui';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import parentStyles from './ParentDashboard.module.css';
@@ -399,14 +401,18 @@ export function ChildDashboard() {
     : [];
 
   return (
-    <div className={parentStyles.page}>
-      <header className={parentStyles.header}>
-        <h1 className={parentStyles.title}>
+    <ParentShell
+      mainClassName={parentStyles.main}
+      actions={
+        <PortalButton asChild tone="quiet">
+          <Link to="/home">Back to dashboard</Link>
+        </PortalButton>
+      }
+    >
+      <div className={parentStyles.parentPage}>
+        <h1 className={parentStyles.parentPageTitle}>
           {childProfile ? `${childProfile.nickname}'s activity` : 'Activity and controls'}
         </h1>
-        <Link to="/home">Back to dashboard</Link>
-      </header>
-      <main className={parentStyles.main} id="main-content">
         {loadState === 'loading' ? <p>Loading activity...</p> : null}
         {loadState === 'not-found' ? (
           <p role="alert">We could not find that child profile.</p>
@@ -794,8 +800,8 @@ export function ChildDashboard() {
             </section>
           </div>
         ) : null}
-      </main>
+      </div>
       {sensitive.dialog}
-    </div>
+    </ParentShell>
   );
 }

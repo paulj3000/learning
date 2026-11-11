@@ -1,3 +1,5 @@
+import { ParentShell } from '../features/portal/shell';
+import { PortalButton } from '../features/portal/ui';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './ParentDashboard.module.css';
@@ -86,12 +88,16 @@ export function CoopSessionNew() {
   }
 
   return (
-    <div className={styles.page}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>Play together</h1>
-        <Link to="/home">Back to dashboard</Link>
-      </header>
-      <main className={styles.main} id="main-content">
+    <ParentShell
+      mainClassName={styles.main}
+      actions={
+        <PortalButton asChild tone="quiet">
+          <Link to="/home">Back to dashboard</Link>
+        </PortalButton>
+      }
+    >
+      <div className={styles.parentPage}>
+        <h1 className={styles.parentPageTitle}>Play together</h1>
         <div className={styles.content}>
           {loadState === 'loading' ? <p>Loading your children's profiles...</p> : null}
           {loadState === 'error' ? (
@@ -175,7 +181,7 @@ export function CoopSessionNew() {
             </div>
           ) : null}
         </div>
-      </main>
-    </div>
+      </div>
+    </ParentShell>
   );
 }

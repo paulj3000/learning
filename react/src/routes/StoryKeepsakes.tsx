@@ -1,3 +1,5 @@
+import { ParentShell } from '../features/portal/shell';
+import { PortalButton } from '../features/portal/ui';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import parentStyles from './ParentDashboard.module.css';
@@ -75,14 +77,18 @@ export function StoryKeepsakes() {
   }
 
   return (
-    <div className={parentStyles.page}>
-      <header className={parentStyles.header}>
-        <h1 className={parentStyles.title}>
+    <ParentShell
+      mainClassName={parentStyles.main}
+      actions={
+        <PortalButton asChild tone="quiet">
+          <Link to="/home">Back to dashboard</Link>
+        </PortalButton>
+      }
+    >
+      <div className={parentStyles.parentPage}>
+        <h1 className={parentStyles.parentPageTitle}>
           {childProfile ? `${childProfile.nickname}'s story keepsakes` : 'Story keepsakes'}
         </h1>
-        <Link to="/home">Back to dashboard</Link>
-      </header>
-      <main className={parentStyles.main} id="main-content">
         {loadState === 'loading' ? <p>Loading saved stories...</p> : null}
         {loadState === 'not-found' ? (
           <p role="alert">We could not find that child profile.</p>
@@ -145,7 +151,7 @@ export function StoryKeepsakes() {
             })}
           </ul>
         ) : null}
-      </main>
-    </div>
+      </div>
+    </ParentShell>
   );
 }
