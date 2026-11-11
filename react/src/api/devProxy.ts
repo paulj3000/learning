@@ -7,13 +7,13 @@
  *
  * - On only when `VITE_BACKEND=django`, so a build that has not opted in
  *   behaves exactly as before.
- * - `DJANGO_DEV_PROXY_TARGET` (default `http://127.0.0.1:8000`, Django's
+ * - `DJANGO_DEV_PROXY_TARGET` (default `http://127.0.0.1:8010`, Django's
  *   `runserver`). Deliberately not `VITE_`-prefixed: it is server config,
  *   not something the app should see. Only a loopback `http(s)` origin is
  *   accepted, so a typo can never send a parent's token elsewhere.
  */
 
-export const DEFAULT_DJANGO_DEV_TARGET = 'http://127.0.0.1:8000';
+export const DEFAULT_DJANGO_DEV_TARGET = 'http://127.0.0.1:8010';
 const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]']);
 
 export interface DevProxyEnv {

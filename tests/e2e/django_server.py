@@ -6,7 +6,9 @@ Never deployed and never imported by `lai/`. It refuses to run unless the databa
 loopback docker-compose PostgreSQL and its name starts with `lai_e2e`, because it drops and
 recreates that database on every start so each run begins from the same state:
 
-1. migrate, `load_content`, `seed_treasure_rush`, `publish_treasure_rush`, `ensure_asset_roles`;
+1. migrate, `load_content`, `seed_treasure_rush`, `publish_treasure_rush`, `ensure_asset_roles`,
+   then the NPC Manager roles and Pip and Quill as unpublished drafts (`ensure_npc_roles`,
+   `seed_speech_voices`, `seed_npc_pip`, `seed_npc_quill`);
 2. synthetic staff accounts and the Studio groups suggested in docs/AI_QUESTION_STUDIO.md
    section 10 (passwords are synthetic, local, and printed nowhere but this file);
 3. a locally generated RSA key stands in for Cognito's signing key: the JWKS cache for the
@@ -79,6 +81,9 @@ STAFF = {
     "e2e-asset-editor": (False, ("Asset editors",)),
     "e2e-asset-publisher": (False, ("Asset publishers",)),
     "e2e-no-perms": (False, ()),
+    # NPC Manager QA (docs/NPC_MANAGER_QA_REPORT.md): groups from `ensure_npc_roles`.
+    "e2e-npc-editor": (False, ("NPC editors", "Asset editors")),
+    "e2e-npc-publisher": (False, ("NPC publishers", "Asset publishers")),
 }
 
 
@@ -159,6 +164,12 @@ def seed() -> None:
     call_command("seed_treasure_rush", verbosity=0)
     call_command("publish_treasure_rush", verbosity=0)
     call_command("ensure_asset_roles", verbosity=0)
+    # NPC Manager content as READY drafts with no release: until a spec publishes one, every
+    # world serves its legacy NPCs, so the suites written before the NPC Manager are unaffected.
+    call_command("ensure_npc_roles", verbosity=0)
+    call_command("seed_speech_voices", verbosity=0)
+    call_command("seed_npc_pip", verbosity=0)
+    call_command("seed_npc_quill", verbosity=0)
     for name, codenames in STUDIO_GROUPS.items():
         group, _ = Group.objects.get_or_create(name=name)
         group.permissions.set(

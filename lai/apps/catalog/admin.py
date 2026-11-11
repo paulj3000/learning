@@ -449,12 +449,16 @@ class ContentAssetAdmin(CatalogModelAdmin):
 
     @admin.action(description="Retire selected assets", permissions=["retire"])
     def retire_assets(self, request, queryset):
-        from apps.assets.services import retire_asset
+        from apps.assets.services import AssetActionRefused, retire_asset
 
         count = 0
         for asset in queryset:
             used = asset.location_links.count()
-            retire_asset(asset)
+            try:
+                retire_asset(asset)
+            except AssetActionRefused as refused:  # a retirement guard objected (LAI-NPC-036)
+                self.message_user(request, f"{asset.asset_id}: {refused.message}", messages.ERROR)
+                continue
             self.log_change(request, asset, "Retired the asset.")
             count += 1
             if used:
@@ -464,7 +468,8 @@ class ContentAssetAdmin(CatalogModelAdmin):
                     "to their bundled art until it is reactivated.",
                     messages.WARNING,
                 )
-        self.message_user(request, f"Retired {count} asset(s).", messages.SUCCESS)
+        if count:
+            self.message_user(request, f"Retired {count} asset(s).", messages.SUCCESS)
 
     @admin.action(description="Reactivate selected retired assets", permissions=["retire"])
     def reactivate_assets(self, request, queryset):

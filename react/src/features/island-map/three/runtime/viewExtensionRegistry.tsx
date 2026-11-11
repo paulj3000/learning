@@ -83,6 +83,12 @@ export interface LocationCompanionProps {
    * the stage has mounted; absent for a view that offers none.
    */
   hudSlot?: HTMLElement | null;
+  /**
+   * A place at the top centre of the 3D stage for a character's unprompted line (an NPC
+   * greeting), clear of the reticle's action prompt and of the HUD column. Same lifetime as
+   * `hudSlot`.
+   */
+  speechSlot?: HTMLElement | null;
   /** Re-reads world changes, inventory and discoveries. */
   refreshWorld(): Promise<void>;
 }

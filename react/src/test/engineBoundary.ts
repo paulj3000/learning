@@ -62,9 +62,17 @@ const GEOMETRY_MODULE =
   /^features\/island-map\/(gridGeometry|tilemap|zones|decor|[a-zA-Z]+(Tilemap|Zones|Decor))\.ts$/;
 
 /** Is `path` (relative to `root`, posix separators) an engine file? */
+/** NPC Manager engine modules (docs/NPC_MANAGER_CONTRACTS.md section 6, ADR-020). */
+const NPC_ENGINE_DIRS = [
+  'features/npc-manager/engine/',
+  'features/npc-manager/animation/',
+  'features/npc-manager/behavior/',
+];
+
 export function isEngineFile(path: string): boolean {
   if (!path.endsWith('.ts') || path.endsWith('.test.ts')) return false;
   return (
+    NPC_ENGINE_DIRS.some((dir) => path.startsWith(dir)) ||
     path.startsWith(`${ISLAND_MAP}/three/`) ||
     path.startsWith(`${ISLAND_MAP}/scenes/`) ||
     GEOMETRY_MODULE.test(path)

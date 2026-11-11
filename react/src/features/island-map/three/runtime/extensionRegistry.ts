@@ -43,6 +43,11 @@ export interface WorldExtensionContext {
   addCollider(box: Box3): void;
   /** Removes a manifest collider by its `rect.id` (a bridge once it is mended). True if one was removed. */
   removeCollider(id: string): boolean;
+  /**
+   * Whether a point on the ground (x, z) is inside a live collider, for things that move by
+   * themselves and must keep out of walls (NPC Manager behaviours, LAI-NPC-010).
+   */
+  isBlocked(x: number, z: number): boolean;
   /** The root object of a scenery item by its manifest id, or `undefined` if its requirements left it out. */
   sceneryRoot(id: string): Object3D | undefined;
   /**

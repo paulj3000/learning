@@ -212,6 +212,31 @@ describe('Storykeeper Castle on the generic runtime: the room answers steps', ()
     expect(quill?.rotation.y).toBeCloseTo(-Math.PI / 2);
   });
 
+  it('hands Keeper Quill over to the NPC Manager and gives him back (LAI-NPC-039)', async () => {
+    const harness = castle({ startCheckpointId: 'storykeeper-castle:story-hall' });
+    await ready(harness);
+    harness.runFrames(1);
+    const quill = harness.scene().getObjectByName('Keeper Quill');
+    const api = sceneApi(harness);
+    const host = api.npcHostScene?.();
+    expect(host?.parent).toBe(harness.scene());
+    expect(host?.playerPose()).not.toBeNull();
+    let managedAt = { x: -4, z: 1 };
+    api.setNpcProxy?.('keeper-quill', () => managedAt);
+    expect(api.isNpcProxied?.('keeper-quill')).toBe(true);
+    // Hidden, but still there to focus, and on the managed Quill's spot.
+    expect(quill?.visible).toBe(false);
+    expect(quill?.position.x).toBeCloseTo(-4);
+    managedAt = { x: -4.2, z: 0.5 };
+    harness.runFrames(1);
+    expect(quill?.position.z).toBeCloseTo(0.5);
+    api.setNpcProxy?.('keeper-quill', null);
+    expect(api.isNpcProxied?.('keeper-quill')).toBe(false);
+    expect(quill?.visible).toBe(true);
+    expect(quill?.position.x).toBeCloseTo(KEEPER_QUILL_SPOT.x);
+    expect(quill?.position.z).toBeCloseTo(KEEPER_QUILL_SPOT.z);
+  });
+
   it('disposes everything the extension added', async () => {
     const harness = castle();
     await ready(harness);

@@ -10,7 +10,7 @@ what would limit cost. It never imports boto3, never builds a Bedrock client, ne
 credentials, and refuses to be combined with any paid flag. Run it first, anywhere.
 
     python manage.py ai_live_check --confirm-paid-calls --parent-sub <cognito sub> --child <uuid> \
-        [--warm-up] [--guardrail-probe] [--npc] [--timeout-probe]
+        [--warm-up] [--guardrail-probe] [--npc] [--timeout-probe] [--npc-manager-hint]
 
 **Paid run.** Run it **on the deployed Django host** (for example through the SSM release
 document), so the call uses the real EC2 instance role, the real settings and the deployed
@@ -26,6 +26,11 @@ line proves nothing):
   `provider=bedrock`, `guardrail_action=NONE`, the configured model id, the Guardrail id and
   version, and token counts reported by Bedrock (the NPC check also needs
   `context_source=DJANGO_CATALOG`, so the published catalog must be loaded);
+* NPC Manager hint (`--npc-manager-hint`, LAI-NPC-030 to 033): the ACTIVE NPC release's Pirate
+  Pip, in `HYBRID` mode with an approved persona for the child's age band (`seed_npc_pip
+  --hybrid-hints --publish`), answers his wrong-answer "Help me" node through the shared pipeline:
+  the same audit-row checks on route `generateNpcHint`, with `context_source=DJANGO_CATALOG`. It
+  starts and ends one Pip conversation for the test child and writes no progress. One more call.
 * guardrail probe: an input the Django screen lets through (no injection words, no contact
   details) but the Guardrail must block, which must come back BLOCKED_GUARDRAIL with a calm
   redirect and a SafetyEvent;
@@ -114,6 +119,11 @@ class Command(BaseCommand):
         parser.add_argument("--warm-up", action="store_true")
         parser.add_argument("--guardrail-probe", action="store_true")
         parser.add_argument("--npc", action="store_true", help="Also check NPC narration.")
+        parser.add_argument(
+            "--npc-manager-hint",
+            action="store_true",
+            help="Also check an NPC Manager AI hint (Pirate Pip, HYBRID, ACTIVE NPC release).",
+        )
         parser.add_argument("--timeout-probe", action="store_true")
         parser.add_argument(
             "--allow-fake",
@@ -133,9 +143,17 @@ class Command(BaseCommand):
         npc,
         timeout_probe,
         allow_fake,
+        npc_manager_hint=False,
         **options,
     ):
-        paid_flags = warm_up or guardrail_probe or npc or timeout_probe or confirm_paid_calls
+        paid_flags = (
+            warm_up
+            or guardrail_probe
+            or npc
+            or timeout_probe
+            or npc_manager_hint
+            or confirm_paid_calls
+        )
         if dry_run:
             if paid_flags or parent_sub or child:
                 raise CommandError("--dry-run cannot be combined with any other option.")
@@ -175,6 +193,8 @@ class Command(BaseCommand):
             results.append(
                 self._check("npc-narration", profile, request_companion_turn, NPC, expect_provider)
             )
+        if npc_manager_hint:
+            results.append(self._npc_manager_hint(profile, expect_provider))
         if guardrail_probe:
             results.append(self._probe(profile))
         if timeout_probe:
@@ -307,7 +327,7 @@ class Command(BaseCommand):
             "items": items,
             "paidRun": (
                 "ai_live_check --confirm-paid-calls --parent-sub <sub> --child <uuid> "
-                "--warm-up --guardrail-probe --npc --timeout-probe"
+                "--warm-up --guardrail-probe --npc --timeout-probe --npc-manager-hint"
             ),
         }
         self.stdout.write(json.dumps(report, indent=2))
@@ -377,9 +397,14 @@ class Command(BaseCommand):
             return {"check": name, "passed": False, "problems": ["catalog content not loaded"]}
         route = "generateTutorTurn" if name == "tutor" else "generateCompanionTurn"
         row = self._latest_audit(profile, route)
+        catalog = data.get("contextSource") == "DJANGO_CATALOG"
+        return self._evaluate(name, result.source, row, expect_provider, catalog=catalog)
+
+    def _evaluate(self, name, source, row, expect_provider, *, catalog):
+        """PASS only when the audit row proves a real, validated, guarded model answer."""
         problems = []
-        if result.source != "AI":
-            problems.append(f"source={result.source}")
+        if source != "AI":
+            problems.append(f"source={source}")
         if row is None:
             problems.append("no audit row")
         else:
@@ -396,9 +421,7 @@ class Command(BaseCommand):
                     problems.append("no guardrail on the audit row")
                 if not row.input_tokens or not row.output_tokens:
                     problems.append("no token usage reported")
-            if data.get("contextSource") == "DJANGO_CATALOG" and row.context_source != (
-                "DJANGO_CATALOG"
-            ):
+            if catalog and row.context_source != "DJANGO_CATALOG":
                 problems.append(f"context={row.context_source}")
             if row.failure_category:
                 problems.append(f"failure={row.failure_category}")
@@ -410,6 +433,45 @@ class Command(BaseCommand):
             "inputTokens": row.input_tokens if row else None,
             "outputTokens": row.output_tokens if row else None,
         }
+
+    def _npc_manager_hint(self, profile, expect_provider):
+        """Pirate Pip's wrong-answer "Help me" hint from the ACTIVE NPC release (one call)."""
+        from apps.npcs import ai as npc_ai
+        from apps.npcs import pip_content as pip
+        from apps.npcs import published, state
+
+        name = "npc-manager-hint"
+
+        def refused(problem):
+            return {"check": name, "passed": False, "problems": [problem]}
+
+        try:
+            release = published.current()
+        except published.NoActiveRelease:
+            return refused("no ACTIVE NPC release")
+        character = release.characters.get(pip.NPC_ID)
+        if character is None:
+            return refused("pirate-pip is not in the ACTIVE NPC release")
+        if character.get("dialogueMode") not in ("HYBRID", "AI"):
+            return refused("pirate-pip is not HYBRID (seed_npc_pip --hybrid-hints --publish)")
+        started = state.start(profile, release, character, "on_incorrect_answer")
+        if started.conversation_id is None:
+            return refused("no wrong-answer dialogue for this child")
+        conversation_id = str(started.conversation_id)
+        try:
+            at_hint = state.act(profile, release, character, conversation_id, "choose", "help-me")
+            if not (at_hint.node or {}).get("allowAiHint"):
+                return refused("the help-me node does not allow an AI hint")
+            hint = npc_ai.request_hint(profile, release, character, conversation_id)
+        except (state.ConversationNotFound, state.ConversationEnded, npc_ai.HintUnavailable) as e:
+            return refused(f"conversation: {type(e).__name__}")
+        finally:
+            try:
+                state.act(profile, release, character, conversation_id, "end")
+            except (state.ConversationNotFound, state.ConversationEnded):
+                pass
+        row = self._latest_audit(profile, "generateNpcHint")
+        return self._evaluate(name, hint.source, row, expect_provider, catalog=True)
 
     def _probe(self, profile):
         before = SafetyEvent.objects.for_child(profile).count()

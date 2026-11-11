@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "apps.regions",
     "apps.audio",
     "apps.speech",
+    "apps.npcs",
     "apps.game_sessions",
     "apps.education",
     "apps.progression",
@@ -225,6 +226,7 @@ if LAI_ASSET_DELIVERY == "s3" and LAI_ASSET_STORAGE != "s3":
 # No setting here ever reaches a browser, and nothing enables live synthesis by itself.
 LAI_SPEECH_PROVIDER = os.environ.get("LAI_SPEECH_PROVIDER", "disabled").strip()
 LAI_SPEECH_AWS_REGION = os.environ.get("LAI_SPEECH_AWS_REGION", "").strip()
+LAI_SPEECH_S3_REGION = os.environ.get("LAI_SPEECH_S3_REGION", LAI_SPEECH_AWS_REGION).strip()
 LAI_SPEECH_STORAGE = os.environ.get("LAI_SPEECH_STORAGE", "local").strip()
 LAI_SPEECH_BUCKET = os.environ.get("LAI_SPEECH_BUCKET", "").strip()
 LAI_SPEECH_LOCAL_ROOT = BASE_DIR / ".speech-storage"
@@ -426,7 +428,7 @@ def compose_database() -> dict:
     user = os.environ.get("POSTGRES_USER", "lai")
     password = os.environ.get("POSTGRES_PASSWORD", "local-dev-only-password")
     name = os.environ.get("POSTGRES_DB", "lai")
-    port = os.environ.get("POSTGRES_PORT", "5432")
+    port = os.environ.get("POSTGRES_PORT", "5442")
     return database_from_url(f"postgresql://{user}:{password}@127.0.0.1:{port}/{name}")
 
 

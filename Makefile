@@ -2,6 +2,10 @@
 # (so CI needs no developer-specific paths). Node commands delegate to the root npm scripts.
 PY ?= $(shell test -x $(CURDIR)/.venv/bin/python && echo $(CURDIR)/.venv/bin/python || echo python3)
 
+# Development ports (owner, 2026-11-05): PostgreSQL 5442 (compose and Django default; override
+# with POSTGRES_PORT), Django runserver 8010 (DJANGO_DEV_PORT), Vite 5183 (VITE_DEV_PORT).
+DJANGO_DEV_PORT ?= 8010
+
 # Local settings come from the untracked .env at the repository root (template: .env.sample),
 # as in FinTwin. Compose reads .env itself but Django does not (no dotenv package), so the values
 # are passed from here. A value already in the shell wins. Write `NAME=value`, unquoted; the last
@@ -9,7 +13,7 @@ PY ?= $(shell test -x $(CURDIR)/.venv/bin/python && echo $(CURDIR)/.venv/bin/pyt
 ENV_FILE ?= .env
 dotenv = $(subst #,\#,$(subst $$,$$$$,$(shell sed -n 's/^$(1)=//p' $(ENV_FILE) 2>/dev/null | tail -n 1 | tr -d '\r')))
 
-# The compose database settings reach every target (e.g. POSTGRES_PORT when 5432 is taken).
+# The compose database settings reach every target (e.g. POSTGRES_PORT to move off the 5442 default).
 $(foreach v,POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD POSTGRES_PORT,\
   $(if $(call dotenv,$(v)),$(eval export $(v) ?= $(call dotenv,$(v)))))
 
@@ -34,7 +38,7 @@ $(foreach v,$(DJANGO_ENV_VARS),\
 help:
 	@echo "py-install | py-lint | py-format-check | py-format | py-test | py-check"
 	@echo "js-check (typecheck, lint, format:check, test, build) | check (py-check + js-check)"
-	@echo "up | down (local PostgreSQL 16 via docker compose; set POSTGRES_PORT if 5432 is taken)"
+	@echo "up | down (local PostgreSQL 16 via docker compose; default port 5442; set POSTGRES_PORT to change it)"
 	@echo "django-check | migrate-check | migrate | runserver | py-test-db (fails if PostgreSQL is down)"
 
 py-install:
@@ -74,7 +78,7 @@ migrate:
 # Exported, so the autoreloader's child process inherits it. Deployed servers never use make.
 runserver: export AWS_PROFILE ?= learning-dev
 runserver:
-	cd lai && $(PY) manage.py runserver
+	cd lai && $(PY) manage.py runserver 127.0.0.1:$(DJANGO_DEV_PORT)
 
 # No Python type checker yet. Decision deferred to LAI-0204, when Django exists and a checker
 # with Django stubs can be chosen (see docs/IMPLEMENTATION_STATUS.md, LAI-0202).

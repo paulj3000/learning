@@ -58,6 +58,20 @@ new migration (`regions.0004`) from `migrate`. Use one child per age band if you
 - [ ] After: each look asks a new counting question for your age; a right answer thanks you and offers "Play again".
 - [ ] It never opens like a chest, shows no reward, and the backpack does not change.
 
+## Pip from the NPC Manager (LAI-NPC-010, -015, -016, -018)
+
+Set up: `seed_npc_pip --publish` (see `docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md`, section 7).
+
+- [ ] There is exactly one Pip at his camp at Pirate Landing; he turns to face you as you come close.
+- [ ] Walking up shows "Talk to Pirate Pip"; tapping it, tapping Pip, or choosing him from the list all open the same conversation.
+- [ ] First visit: Pip greets you once. Later visits: he says welcome back instead.
+- [ ] Pip asks for help; "Yes, I will help!" starts Pip's Missing Treasure (the HUD shows it); "Maybe later" does not.
+- [ ] Pip's lines never cover a chest panel or a reward reveal; after you close one, he may say one line (a find, a hint, the finale).
+- [ ] Rewards, keys, the finale and the bridge are exactly as without the NPC Manager: nothing twice.
+- [ ] With the NPC release retired (or Django off) the old Pip and his old panel are back and the adventure still works.
+- [ ] Captions show for every line; with sound muted nothing plays, and closing the panel stops Pip's voice.
+- [ ] With reduced motion on, Pip does not hop or wander.
+
 ## Feel (write down what you notice)
 
 - [ ] The cove takes about 10 to 15 minutes at your pace. How long did it take? _____

@@ -1,0 +1,53 @@
+{% extends "admin/base_site.html" %}
+{% comment %}
+Behaviour profile preview (LAI-NPC-025, workstream D). Read-only. `svg` is built server-side by
+apps.npcs.preview_behavior.svg_plot, which escapes every interpolated value.
+{% endcomment %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Home</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; <a href="{% url 'admin:npcs_npcbehaviorprofile_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; <a href="{{ change_url }}">{{ profile.key }}</a>
+  &rsaquo; Preview
+</div>
+{% endblock %}
+{% block content %}
+<div id="content-main">
+  <h1>{{ title }}</h1>
+  <p>
+    <strong>{{ profile.display_name }}</strong> ({{ profile.get_behavior_type_display }}).
+    Waypoints and moveTo steps are offsets from each placement, so this one plot holds for every
+    placement that uses the profile.
+  </p>
+  {% if problems %}
+    <p><strong>A release using this profile would be refused. Fix these first:</strong></p>
+    <ul class="errorlist">{% for problem in problems %}<li>{{ problem }}</li>{% endfor %}</ul>
+  {% else %}
+    <p>No problems found: this profile can be published as authored.</p>
+  {% endif %}
+  <figure style="margin:1em 0">
+    {{ svg|safe }}
+    <figcaption>Top-down view: +x to the right, +z down the page. Dashed circle: boundsRadius.</figcaption>
+  </figure>
+  {% if rows %}
+    <table>
+      <caption>Points in order (metres from the placement)</caption>
+      <thead><tr><th scope="col">#</th><th scope="col">Point</th></tr></thead>
+      <tbody>{% for order, text in rows %}<tr><td>{{ order }}</td><td>{{ text }}</td></tr>{% endfor %}</tbody>
+    </table>
+  {% endif %}
+  {% if reduced_motion_note %}<p>{{ reduced_motion_note }}</p>{% endif %}
+  <h2>Placements using this profile</h2>
+  {% if placements %}
+    <ul>{% for placement in placements %}<li>{{ placement }}</li>{% endfor %}</ul>
+  {% else %}
+    <p>None yet.</p>
+  {% endif %}
+  {% if published_parameters %}
+    <h2>Published parameters (defaults filled)</h2>
+    <pre>{{ published_json }}</pre>
+  {% endif %}
+  <p><a href="{{ change_url }}">Back to the profile</a></p>
+</div>
+{% endblock %}

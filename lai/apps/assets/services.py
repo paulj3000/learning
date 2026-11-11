@@ -9,6 +9,7 @@ Logs carry asset ids, version numbers and outcome codes only (ADR-025).
 
 import logging
 import uuid
+from collections.abc import Callable
 from datetime import timedelta
 from typing import IO
 
@@ -42,6 +43,26 @@ class AssetActionRefused(Exception):
         self.findings = findings or []
         # Structured facts a client can act on (the existing version of a duplicate upload).
         self.details = details or {}
+
+
+#: Callables `guard(asset, version)` consulted, inside the retirement transaction and with the
+#: asset row locked, before an asset (`version=None`) or one of its versions is retired. A guard
+#: refuses by raising `AssetActionRefused`; returning means "no objection". Other apps register
+#: here from their `AppConfig.ready()` (the NPC Manager refuses to retire what a live NPC release
+#: uses, LAI-NPC-036), so this module never imports them.
+RetirementGuard = Callable[[ContentAsset, AssetVersion | None], None]
+RETIREMENT_GUARDS: list[RetirementGuard] = []
+
+
+def register_retirement_guard(guard: RetirementGuard) -> None:
+    """Add `guard` once (re-registering, e.g. on a second `ready()`, is a no-op)."""
+    if guard not in RETIREMENT_GUARDS:
+        RETIREMENT_GUARDS.append(guard)
+
+
+def _check_retirement_guards(asset: ContentAsset, version: AssetVersion | None) -> None:
+    for guard in RETIREMENT_GUARDS:
+        guard(asset, version)
 
 
 def _locked(asset: ContentAsset) -> ContentAsset:
@@ -193,6 +214,7 @@ def retire_version(version: AssetVersion, *, replacement: AssetVersion | None = 
         version = AssetVersion.objects.select_for_update().get(pk=version.pk)
         if version.status != VersionStatus.PUBLISHED:
             raise AssetActionRefused("not_published", "Only a published version can be retired.")
+        _check_retirement_guards(asset, version)
         if asset.default_version_id == version.pk:
             if replacement is None:
                 raise AssetActionRefused(
@@ -292,9 +314,13 @@ def _verify_bytes(version: AssetVersion, asset: ContentAsset) -> str | None:
 
 
 def retire_asset(asset: ContentAsset) -> ContentAsset:
-    """Nothing of a retired asset resolves; its versions and files are kept."""
+    """Nothing of a retired asset resolves; its versions and files are kept.
+
+    Raises `AssetActionRefused` when a registered retirement guard objects.
+    """
     with transaction.atomic():
         asset = _locked(asset)
+        _check_retirement_guards(asset, None)
         asset.status = AssetStatus.RETIRED
         asset.save(update_fields=["status", "updated_at"])
     logger.info("asset retired: %s", asset.asset_id)
