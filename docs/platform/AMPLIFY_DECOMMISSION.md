@@ -169,12 +169,12 @@ Source: `scripts/aws/amplify-inventory.sh` and `scripts/aws/verify-dev.sh`, run 
 other projects' Amplify apps (pjsgreek, pjsstocks, naughtychess, wildrydes-site, myscyfi) and
 developer sandboxes; only the rows below belong to this app.
 
-**The production backend** is Amplify Hosting app `d30vskv2ivdal9` ("learning adventure
+**The `main` branch backend** (unused, see the findings) is Amplify Hosting app `d30vskv2ivdal9` ("learning adventure
 island"), branch `main`, root stack `amplify-d30vskv2ivdal9-main-branch-ede190a103`.
 
 | Resource | Real name / id | Measured | Proposed decision | Before deletion |
 |---|---|---|---|---|
-| Cognito user pool | `us-west-1_GPc9YEEqu` (groups `Admins`, `Superusers`), web client `47bvht0ddlu2l7hl4hectbt1lo` | **0 estimated users**; deletion protection off | **Owner decision (D1 below)**: retain and import, or let Django use a CDK-owned pool | If retained: stage 3 `DeletionPolicy: Retain` and turn on deletion protection |
+| Cognito user pool | `us-west-1_GPc9YEEqu` (groups `Admins`, `Superusers`), web client `47bvht0ddlu2l7hl4hectbt1lo` | **0 estimated users**; deletion protection off | Delete with the stack: unused (D1 keeps the sandbox pool `us-west-1_3LU3RSjuH`) | Stage 6 |
 | Cognito identity pool | `us-west-1:2fc2262a-b81d-4101-9d17-70f31bf5655b` | n/a | Delete with the stack | Nothing to copy (see Storage) |
 | 22 DynamoDB tables | `<Model>-vhinkkredfavbb5jfzypzkry6e-NONE` | **0 items in every table**; deletion protection off; PITR off | Delete with the stack; one on-demand backup each first (cheap) | Confirm 0 with `scan --select COUNT` on `ParentProfile` and `ChildProfile` (ItemCount lags up to 6 h) |
 | AppSync API | `vhinkkredfavbb5jfzypzkry6e` | **0 requests in 7 days** | Delete with the stack | Stage 5 window |
@@ -187,32 +187,58 @@ island"), branch `main`, root stack `amplify-d30vskv2ivdal9-main-branch-ede190a1
 
 ### Stage 0 findings
 
-1. **No family data in the production backend.** The `main` user pool has 0 users and all 22
-   tables have 0 items; AppSync served 0 requests in 7 days. Gap G8 (importers beyond profiles)
-   is **not needed**, and stage 2 has nothing to copy from DynamoDB. Confirm the two profile
-   tables with an exact count before relying on this.
-2. **The data that exists is in developer sandboxes**, not `main`: sandbox
-   `learningadventureislandroot-pdimitriu-sandbox-93eee1e2ac` (pool `us-west-1_FuPf8rRor`,
-   1 user; API `6mcik4j4uzejbfvjqggtlkm65y`, 80 requests; `ParentProfile` 2,
-   `ChildProfile` 1, `ChildWorldState` 1, `CompanionProfile` 1) and the sandbox owning pool
-   `us-west-1_3LU3RSjuH` (1 user), which local Django QA used. These are test accounts; owner
-   decision D2.
-3. **Django is not deployed.** `verify-dev.sh` found no `LaiAssetStorage-dev`,
+**Correction (owner, 2026-11-11): the pool in use is `us-west-1_3LU3RSjuH`.** It belongs to the
+developer sandbox `amplify-learningadventureisland-pdimitriu-sandbox-d82df21cc1`, not to the
+`main` branch backend. That sandbox, not `main`, is the backend with real use and data:
+
+| Sandbox resource | Real name / id | Measured |
+|---|---|---|
+| Cognito user pool | `us-west-1_3LU3RSjuH` (groups `Admins`, `Superusers`), client `1nv9h1a00pe3t2u6c7hg3krq7r` | 1 estimated user; **deletion protection off** |
+| Identity pool | `us-west-1:b2e34e5a-33cf-4ffc-9125-78b948ef0fe5` | n/a |
+| AppSync API | `msc2dcivzjeklbumcf5de5pfyy` | **810 requests in 7 days** |
+| Tables `<Model>-msc2dcivzjeklbumcf5de5pfyy-NONE` | 22 | ParentProfile 2, ChildProfile 3, CompanionProfile 4, AdventureSession 18, AdventureAction 51, SkillEvidence 29, SkillProgress 14, WorldChange 15, ChildQuestState 6, ChildWorldState 4, ChildInventory 3, ChildNpcState 2, ChildStoryProgress 2, AIInteractionAudit 22; the rest 0 |
+| Media bucket | `amplify-learningadventure-learningadventureislandm-lbvh0ewlhlx2` | Unknown (rerun the inventory) |
+
+What this changes:
+
+1. **The sandbox is the thing to protect, and it is the most fragile.** A sandbox stack is
+   deleted, pool and tables included, by `npx ampx sandbox delete`, and its resources use the
+   default `DeletionPolicy: Delete`. Until its data is in Django: never run `ampx sandbox delete`
+   or let a sandbox session tear it down, and turn on the pool's deletion protection from the
+   Cognito console (Overview, Deletion protection). Do not use `aws cognito-idp
+   update-user-pool` for this: it resets every attribute the call leaves out.
+2. **D1 is answered: the Django site keeps `us-west-1_3LU3RSjuH`** (your account, its groups and
+   password). Stage 3's `RETAIN` lines apply to this sandbox's auth stack, deployed with
+   `npx ampx sandbox --once` from this repository, before any later CDK import.
+3. **G8 is needed after all, if this data should survive.** Profiles import with
+   `import_amplify_profiles`; sessions, actions, skill evidence and progress, world changes,
+   quests, inventory, NPC, story and world state have no importer yet. The alternative is to
+   import profiles only and let the children's progress start again in Django.
+4. **The `main` branch backend is unused**: pool `us-west-1_GPc9YEEqu` (0 users), API
+   `vhinkkredfavbb5jfzypzkry6e` (0 requests), 22 tables with 0 items. It can be deleted with the
+   Amplify Hosting app at stage 6 with no data step, after an exact `scan --select COUNT` on its
+   two profile tables.
+5. **The other learning sandbox** `amplify-learningadventureislandroot-pdimitriu-sandbox-93eee1e2ac`
+   (pool `us-west-1_FuPf8rRor`, 2 parent and 1 child profiles, API
+   `6mcik4j4uzejbfvjqggtlkm65y`) is older test data; owner decision D2.
+6. **Django is not deployed.** `verify-dev.sh` found no `LaiAssetStorage-dev`,
    `LaiChildPhotos-dev`, `LaiDjangoRelease` or `LaiDjangoEc2-dev`, and `LaiAiGuardrailOnly-dev`
    still exists. Stages 2 and 4 wait for the LAI-1002/1004 deployment.
-4. **Stage 1 state unknown.** The first run read the wrong Hosting app's branch (now fixed), so
-   whether `LAI_SKIP_BACKEND_DEPLOY` is set on `main` is not known.
-5. **Two non-Amplify pools look related**: `us-west-1_UVZeN8Cie` ("learningadventureisland",
-   2 users, deletion protection on) and `us-west-1_vi1lvKQs2` ("learning_dev", 0 users). Their
-   owner and purpose are not in the repository; owner decision D3.
+7. **Stage 1 state unknown**: the first run read the wrong Hosting app's branch (now fixed).
+   Stage 1 matters less now: the `main` backend holds nothing; what must not change is the
+   sandbox, which only a developer's `ampx sandbox` command deploys.
+8. **Two non-Amplify pools** `us-west-1_UVZeN8Cie` ("learningadventureisland", 2 users,
+   deletion protection on) and `us-west-1_vi1lvKQs2` ("learning_dev", 0 users): purpose not in
+   the repository; owner decision D3.
 
 ### Owner decisions from stage 0
 
-| # | Decision | Options |
+| # | Decision | Status |
 |---|---|---|
-| D1 | Which pool the Django site signs parents in with | (a) keep the Amplify `main` pool `us-west-1_GPc9YEEqu` (stage 3 retain, later CDK import, INFRA-002 D5); (b) since it has 0 users, use a pool owned by CDK from the start and skip the retain/import steps entirely. (b) is simpler; either keeps the app code unchanged (`VITE_COGNITO_*`) |
-| D2 | Sandbox test data | Discard with the sandboxes (`npx ampx sandbox delete`), or import the test parents with `import_amplify_profiles` for QA continuity |
-| D3 | `us-west-1_UVZeN8Cie` and `us-west-1_vi1lvKQs2` | Say what they are for; if one is meant as the Django pool, it answers D1 |
+| D1 | Which pool the Django site signs parents in with | **Answered 2026-11-11: `us-west-1_3LU3RSjuH`** (sandbox `d82df21cc1`). Protect it as in finding 1 |
+| D2 | Older sandbox `93eee1e2ac` (pool `us-west-1_FuPf8rRor`) | Discard with that sandbox, or import its test parents |
+| D3 | `us-west-1_UVZeN8Cie` and `us-west-1_vi1lvKQs2` | Say what they are for |
+| D4 | Progress history in sandbox `d82df21cc1` | Build the G8 importers and carry it into Django, or import profiles only |
 
 ## 5. Owner signoff
 
