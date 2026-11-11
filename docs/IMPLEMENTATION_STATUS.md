@@ -42,6 +42,13 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## `make createsuper` (local Django Admin superuser) — added 2026-11-11; dry-run checked only
+
+`make createsuper` asks for a username, then runs `manage.py create_admin_account <username>
+--superuser`, which asks for the password twice and validates it. It receives the `.env`
+Django settings like `make migrate`. Django's `createsuperuser` stays disabled. Checked with
+`make -n createsuper`; not yet run against a live database (needs `make up` and `make migrate`).
+
 ## No child play-time limits (ADR-053) — complete and merged to `main` (2026-11-11); migration not yet run on a deployed database
 
 Trello: "[LAI] Remove child gameplay time limits and forced session cutoffs" (2026-11-11). This
