@@ -13185,7 +13185,8 @@ only exit shown. The owner chose to remove the check entirely.
 
 Trello AP-03. Supersedes the inline Island Explorer of the first AP-03 commit (`c1d4d74`) in
 builds with the Django API. Amplify builds are unchanged (Home keeps the source explorer;
-`/realms` redirects there). Status: **ready for Owner QA, not accepted, not merged.**
+`/realms` redirects there). Status: **accepted by the owner (2026-11-11), not yet merged.** The
+owner reviewed it running locally; AP-02 (below) was accepted the same day.
 
 **Decisions (owner to confirm in QA).**
 - A Realm is an Island (catalog `World`, ADR-041). Treasure Cove, Storykeeper Castle and
@@ -13243,7 +13244,8 @@ now use variants admin.css never emits (`min-[80rem]:`, `max-md:hidden`).
 ## Adventure Portal AP-03 and AP-02: Island Explorer discovery and child home dashboard (2026-11-10, branch `feature/adventure-portal-home`)
 
 Trello AP-03 and AP-02. Branched from `feature/adventure-portal` (AP-01 and AP-04, accepted), so
-those can merge on their own.
+those can merge on their own. **AP-02 accepted by the owner 2026-11-11** (AP-03 as redesigned
+above, also accepted). Not yet merged.
 
 **Data source.** Both read Django, as the cards require, when the build has the Django API
 (`VITE_BACKEND=django`). Every hosted Amplify build has no Django API until the ADR-019 cutover:
