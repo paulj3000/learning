@@ -264,6 +264,31 @@ Gate results on the QA branch head (all run in this container on 2026-11-07):
 QA did not change either behaviour or the pre-existing suites, because both choices change what a
 child experiences.
 
+**Owner decision and fix (2026-11-11, branch `fix/npc-manager-fa-fb`).** The owner chose the
+second option for both:
+
+- F-A: the read routes (catalog, 3D Area, Place) answer `200` with an empty result and
+  `release: 0` when no release is ACTIVE (contract 5.1 updated). Child and scope checks still run
+  first; interaction routes keep `404 no_active_release`. Both F-A tests now pass.
+- F-B: lines the child did not start (greeting, welcome back, reactions) are a non-modal speech
+  bubble (`host.bubble`, a labelled region placed clear of Full screen and Hint) that never
+  takes, traps or restores focus and is never dismissed by a timer. The Talk prompt stays beside
+  it; talking opens the modal panel as before.
+
+Rerun (desktop, 2026-11-11): **56 passed, 2 failed, 1 did not run** (was 56 passed, 6 failed).
+`asset-library`, `integration` and the first two `treasure-rush` tests now pass. The two that still
+fail, `treasure-rush.spec.ts` "the quest" and `question-studio.spec.ts` "a pool serves published
+questions", used to fail earlier (at the modal greeting). They now get past it and stop at a
+different step, which is **F-C**:
+
+- **F-C, the quest-accept confirmation differs.** With the legacy Pip, accepting shows a
+  "Quest accepted!" status and a "Keep exploring" button in Pip's panel. The managed Pip accepts
+  the quest through the same flow (the HUD shows "Find Pip's treasures: 0 of 4"), then says his
+  authored line "Thank you, friend! The treasure is waiting for you." with Continue and Close.
+  The 1 test that did not run is the next test in the same serial `treasure-rush` file. Options
+  for the owner: update the two legacy specs to the managed flow, or add a "Quest accepted!"
+  confirmation to the managed Pip's accept (host or authored content).
+
 **Migrations.** `makemigrations --check` is clean; every e2e run migrates a fresh PostgreSQL from
 zero. One migration chain change on this branch: `catalog/0006_npc_definition_origin` and
 `npcs/0001_npc_manager_foundation`.

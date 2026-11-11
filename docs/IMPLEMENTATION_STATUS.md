@@ -12464,3 +12464,9 @@ Not verified (owner): screen readers, switch access and tablets; the castle's Am
 and quest log; live Polly and Bedrock (no approved environment, BLOCKED); the owner's Mixamo
 pirate file (not in the repository). The four known limitations are classified in the report;
 none blocks release.
+
+F-A and F-B fixed on `fix/npc-manager-fa-fb` (2026-11-11): runtime reads answer an empty `200`
+when nothing is published; unprompted NPC lines are a non-modal bubble that leaves the HUD
+usable. Browser rerun: 56 passed, 2 failed, 1 did not run; the 2 remaining failures are F-C
+(the managed Pip's quest-accept confirmation differs from the legacy panel), which needs an owner
+decision. Merge readiness stays NOT READY until F-C is decided and the suite reruns green.
