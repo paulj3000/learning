@@ -3881,7 +3881,8 @@ stop, count down, or nudge a child off the island for elapsed play time.
   returns `sessionMinutes` (profile, game runtime launch, native home `restrictions`), and the
   closed request bodies refuse it like any unknown field. The Amplify import ignores it. Amplify
   builds still write the band's lowest value on create, only because the deployed Amplify schema
-  requires the field; removing it there is an Amplify resource change for separate approval.
+  requires the field. Owner decision (2026-11-11): the Amplify field stays until the Django
+  cutover retires the Amplify profile store; it is not changed separately.
 - Legacy region content may still carry `scene.copy.calmStop`; the authoring kinds still accept
   it and the client ignores it.
 - Unchanged: Cognito authentication, token expiry and refresh, game-session cookie expiry
@@ -3889,5 +3890,5 @@ stop, count down, or nudge a child off the island for elapsed play time.
   usage records (completed sessions, progress).
 
 **Consequences.** CLAUDE.md section 11 item 11 and the threat model's engagement entry are
-updated. The migration is not reversible with data: rolling it back re-adds a required column
-with no value for existing rows.
+updated. The migration is not reversible with data (rolling it back re-adds a required column
+with no value for existing rows); the owner accepted this.

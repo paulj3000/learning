@@ -70,8 +70,8 @@ supersedes "The calm stop — MVP scope item 11" below, which is kept as history
   `storykeeperCastleParity.test.tsx`; Django tests for create/edit without the field, a legacy
   value accepted and ignored, band changes, the import, and the launch/home payloads.
 - **Deferred to merge readiness:** Playwright, lint/format, full suites, build. The migration
-  runs on the next Django deploy (not deployed here). The Amplify `sessionMinutes` field remains
-  until an approved Amplify schema change.
+  runs on the next Django deploy (not deployed here). The Amplify `sessionMinutes` field stays until
+  the Django cutover (owner decision, 2026-11-11).
 
 ## Current phase
 
