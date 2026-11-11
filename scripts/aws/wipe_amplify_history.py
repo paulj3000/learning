@@ -2,8 +2,8 @@
 """Wipe the play history from one Amplify Data backend's DynamoDB tables (AMP-08, decision D4).
 
 Owner decision 2026-11-11: the children's play history in the Amplify sandbox is not carried into
-Django, and is wiped, together with the AI interaction audit. Profiles are kept (they are what
-`import_amplify_profiles` imports), and so are companion choices and safety events.
+Django, and is wiped, together with the AI interaction audit and safety events. Profiles are kept
+(they are what `import_amplify_profiles` imports), and so are companion choices.
 Runbook: docs/platform/AMPLIFY_DECOMMISSION.md, section 4, D4.
 
     scripts/aws/wipe_amplify_history.py <appsync api id>                      # dry run: counts only
@@ -39,14 +39,14 @@ HISTORY_MODELS = (
     "ChildStoryProgress",
     "StoryArtifact",
     "CoopSession",
-    # Owner decision 2026-11-11: the AI interaction audit goes with the history.
+    # Owner decision 2026-11-11: the AI interaction audit and safety events go with the history.
     "AIInteractionAudit",
+    "SafetyEvent",
 )
 KEPT_MODELS = (
     "ParentProfile",
     "ChildProfile",
     "CompanionProfile",
-    "SafetyEvent",
 )
 API_ID = re.compile(r"^[a-z0-9]{26}$")
 BATCH = 25
