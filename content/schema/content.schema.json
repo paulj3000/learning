@@ -1036,6 +1036,10 @@
           ],
           "type": "object"
         },
+        "artAssetId": {
+          "minLength": 1,
+          "type": "string"
+        },
         "description": {
           "minLength": 1,
           "type": "string"
@@ -1122,6 +1126,18 @@
         "slug": {
           "minLength": 1,
           "type": "string"
+        },
+        "subjectAreas": {
+          "items": {
+            "enum": [
+              "MATH",
+              "READING",
+              "SCIENCE",
+              "CREATIVITY"
+            ],
+            "type": "string"
+          },
+          "type": "array"
         },
         "supportedAgeBands": {
           "items": {
@@ -1292,6 +1308,10 @@
     "location": {
       "additionalProperties": false,
       "properties": {
+        "artAssetId": {
+          "minLength": 1,
+          "type": "string"
+        },
         "decoration": {
           "minLength": 1,
           "type": "string"
@@ -1310,6 +1330,18 @@
         "slug": {
           "minLength": 1,
           "type": "string"
+        },
+        "subjectAreas": {
+          "items": {
+            "enum": [
+              "MATH",
+              "READING",
+              "SCIENCE",
+              "CREATIVITY"
+            ],
+            "type": "string"
+          },
+          "type": "array"
         },
         "tagline": {
           "minLength": 1,

@@ -3,8 +3,9 @@ import type { AgeBandValue } from './constants';
 import type { ChildProfile } from './profileTypes';
 
 /**
- * The few child settings a play screen needs: the age band, the parent's AI switch and the
- * session limit. Null when the child does not exist or is not this parent's.
+ * The few child settings a play screen needs: the age band and the parent's AI switch.
+ * There is no session limit: children are never stopped for play time. Null when the child
+ * does not exist or is not this parent's.
  *
  * Read through the profile store (api.ts), so it comes from Django in every build with the
  * Django API (LAI-CHILD-001).
@@ -12,7 +13,6 @@ import type { ChildProfile } from './profileTypes';
 export interface ChildPlaySettings {
   ageBand: AgeBandValue;
   aiEnabled: boolean;
-  sessionMinutes: number | null;
 }
 
 export async function getChildPlaySettings(
@@ -25,6 +25,5 @@ export async function getChildPlaySettings(
   return {
     ageBand: child.ageBand,
     aiEnabled: child.aiEnabled,
-    sessionMinutes: child.sessionMinutes,
   };
 }

@@ -64,7 +64,6 @@ vi.mock('../adventures/api', () => ({
 vi.mock('../rewards/api', () => ({ getInventory: vi.fn(async () => ({ ownedItemIds: [] })) }));
 vi.mock('../quests/api', () => ({ listQuestStates: vi.fn(async () => []) }));
 vi.mock('../island/api', () => ({ getCompanionProfile: vi.fn(async () => null) }));
-vi.mock('../session/useSessionClock', () => ({ useSessionClock: () => ({ limitReached: false }) }));
 vi.mock('../auth/AuthContext', () => ({ useAuth: () => ({ refresh: vi.fn() }) }));
 vi.mock('../island-map/NpcConversation', () => ({
   NpcConversation: ({ npcId }: { npcId: string }) => (

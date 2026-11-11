@@ -42,7 +42,6 @@ const ROBIN = {
   avatarKey: 'FOX',
   interests: [],
   readingMode: 'VOICE_FIRST',
-  sessionMinutes: 6,
   active: true,
   parentProfileId: 'parent-1',
 };

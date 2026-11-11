@@ -1,88 +1,86 @@
 /**
- * Design tokens for Learning Adventure Island.
+ * Design tokens for Learning Adventure Island: the Adventure Portal theme
+ * (Trello AP-01, docs/DECISIONS.md ADR-052).
  *
- * The visual direction is a warm, chunky, storybook-game look: a cream page
- * rather than a clinical white one, deep forest green as the structural
- * colour, a single hot orange reserved for "do this next", and buttons with
- * a solid darker lip along the bottom edge so they read as physically
- * pressable to a five-year-old. Bright secondary colours (sun, lime, sky,
- * grape) exist for celebration and wayfinding, never for body text.
+ * The whole app reads these, so this file is the theme. The palette is the
+ * portal's five families, the same hexes `src/features/portal/portal.css`
+ * gives Tailwind: ocean blue for structure and "do this next", tropical
+ * green for the calm secondary action and success, coral for danger,
+ * treasure gold for warnings and celebration, purple for wayfinding. The
+ * page is a light ocean wash; cards are warm paper. Buttons keep the solid
+ * darker lip along the bottom edge so they read as pressable to a
+ * five-year-old.
  *
  * **Every colour pair below is contrast-tested, not eyeballed.**
- * `tokens.test.ts` parses this file and asserts the WCAG ratios, which
- * closes the gap `docs/ACCESSIBILITY_AUDIT.md` recorded as "no automated
- * contrast scan - the numbers were computed by hand from the token hexes".
- * The tokens are the one place those numbers can be checked mechanically,
- * because the rest of the app reads them rather than restating them.
+ * `tokens.test.ts` parses this file and asserts the WCAG ratios. The tokens
+ * are the one place those numbers can be checked mechanically, because the
+ * rest of the app reads them rather than restating them.
  *
- * A note on the warm background, since it is the change that touches
- * everything: on cream (#f7e9db) a colour needs to be slightly darker than
- * it would on white to clear the same threshold. The primary orange here is
- * one step down the ramp from the brightest one for exactly that reason -
- * the brighter orange reaches 3.4:1 on cream and fails AA for text.
+ * Before AP-01 the look was a cream page with a hot orange primary and a
+ * forest green accent; that palette is in git history.
  */
 
 :root {
   /* --- Surfaces ------------------------------------------------------- */
-  /** The page. Warm cream, the single most defining choice in this palette. */
-  --color-background: #f7e9db;
-  /** Cards, panels, inputs: a warm near-white that reads as paper on the cream. */
+  /** The page: a light ocean wash (portal ocean-50). */
+  --color-background: #eaf6fc;
+  /** Cards, panels, inputs: warm paper on the ocean wash. */
   --color-surface: #fefdfb;
   /** A deep surface for HUDs, world views, and anything overlaying the 3D canvas. */
-  --color-surface-deep: #102323;
+  --color-surface-deep: #06344f;
   /** Slightly sunk areas inside a surface: table stripes, wells, disabled fields. */
-  --color-surface-sunk: #f3ece3;
+  --color-surface-sunk: #ddeef7;
 
   /* --- Text ----------------------------------------------------------- */
-  /** 14.0:1 on background, 16.4:1 on surface. */
+  /** 15.2:1 on background, 16.4:1 on surface. */
   --color-text: #1a1e26;
-  /** 7.2:1 on background, 8.4:1 on surface - comfortably past AA for body text. */
+  /** 7.8:1 on background, 8.4:1 on surface: comfortably past AA for body text. */
   --color-text-muted: #4d4c4b;
   /** For text on --color-surface-deep and on any filled brand colour. */
   --color-text-on-deep: #fefdfb;
 
   /* --- Actions -------------------------------------------------------- */
   /**
-   * The one "do this next" colour, used sparingly. 4.6:1 on the cream
-   * background and 5.5:1 behind white label text, so it works both as a
-   * link colour and as a filled button.
+   * The one "do this next" colour: portal ocean-700. 6.8:1 on the page
+   * and 7.5:1 behind white label text, so it works both as a link colour
+   * and as a filled button.
    */
-  --color-primary: #c03a00;
+  --color-primary: #0b5a85;
   --color-primary-contrast: #ffffff;
-  /** The lip and the pressed state: the same orange, two steps darker. */
-  --color-primary-deep: #843005;
+  /** The lip and the pressed state: ocean-900. */
+  --color-primary-deep: #06344f;
 
-  /** Structural, calm, and the secondary button: deep forest green. */
-  --color-accent: #214949;
+  /** The calm secondary button: tropical green (portal tropical-700). */
+  --color-accent: #1b6b37;
   --color-accent-contrast: #fefdfb;
-  --color-accent-deep: #102323;
+  --color-accent-deep: #0f4421;
 
   /* --- Status --------------------------------------------------------- */
-  --color-warning: #755e00;
-  --color-danger: #932641;
-  --color-success: #396810;
+  --color-warning: #6b4e00;
+  --color-danger: #b3362b;
+  --color-success: #1b6b37;
   /**
    * Deliberately a different hue from every action colour, so a keyboard
-   * focus ring is never mistaken for a hover or a selected state. 7.1:1 on
+   * focus ring is never mistaken for a hover or a selected state. 7.7:1 on
    * the background, well past WCAG 1.4.11's 3:1 for non-text.
    */
   --color-focus-ring: #4139b4;
-  /** 4.4:1 on the background: an input's edge is visible without shouting. */
-  --color-border: #6d6c6a;
+  /** 5.0:1 on the background: an input's edge is visible without shouting. */
+  --color-border: #5d6b78;
   /** A hairline between rows and sections, where a full border would be noise. */
-  --color-border-subtle: #e4d8ca;
+  --color-border-subtle: #cce9f6;
 
   /* --- Playful accents ------------------------------------------------ */
   /**
    * Celebration, badges, map pins, progress. **Fills and shapes only** -
-   * none of these clears 4.5:1 on cream, so none may carry body text. Put
+   * none of these clears 4.5:1 on the page, so none may carry body text. Put
    * --color-text on them instead, which every one of them passes.
    */
-  --color-sun: #ffc900;
-  --color-lime: #95c13d;
-  --color-sky: #29bcd7;
-  --color-grape: #bfafef;
-  --color-blossom: #fe96be;
+  --color-sun: #ffd75e;
+  --color-lime: #8fd19e;
+  --color-sky: #6cc3e8;
+  --color-grape: #c9b8f5;
+  --color-blossom: #ffb3aa;
 
   /* --- Spacing -------------------------------------------------------- */
   --space-1: 0.25rem;
@@ -116,10 +114,10 @@
   --letter-spacing-display: -0.01em;
 
   /* --- Shape ---------------------------------------------------------- */
-  --radius-sm: 0.5rem;
-  --radius-md: 0.875rem;
-  --radius-lg: 1.25rem;
-  --radius-xl: 1.75rem;
+  --radius-sm: 0.625rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-xl: 2rem;
   --radius-pill: 999px;
 
   /* --- Depth ---------------------------------------------------------- */

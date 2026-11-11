@@ -585,13 +585,6 @@ export interface LocationCopy {
    * exclusive wherever two would contradict each other.
    */
   thingsToDoNotes?: readonly StatusLine[];
-  /**
-   * What the region says when the session's time is up (`CalmStop`). A
-   * region that authors it gets the island's calm stopping point staged
-   * where the child is standing; one that does not is unchanged. Nothing
-   * closes and nothing is taken away either way (pillar 7).
-   */
-  calmStop?: string;
   /** Shown when the child's progress could not be read, instead of failing silently. */
   progressUnavailable?: string;
   /**

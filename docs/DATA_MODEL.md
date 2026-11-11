@@ -50,7 +50,8 @@ Authorization: owner only; admin read only when explicitly required.
   their `avatarKey` character (the default)
 - `interests`: string array from curated values
 - `readingMode`: `VOICE_FIRST | READ_ALONG | INDEPENDENT`
-- `sessionMinutes`
+- `sessionMinutes`: retired (ADR-053). Still required by the deployed Amplify schema, written
+  with the band's lowest value on create, never read or shown.
 - `active`
 - `ownerSub` optional: the parent's raw Cognito `sub`, mirrored here so
   `submitAdventureAnswer` (Phase 37, docs/DECISIONS.md ADR-012) can
@@ -630,7 +631,7 @@ authoritative for the Amplify schema until cutover.
 | `ChildProfile.ownerSub` | dropped | Ownership is the foreign key |
 | `nickname` | `nickname` (1 to 30, not blank) | |
 | `ageBand`, `readingMode` | `age_band`, `reading_mode` (choices plus DB check) | |
-| `sessionMinutes` | `session_minutes` | DB check ties the range to the age band (5-8, 8-12, 10-18) |
+| `sessionMinutes` | dropped | ADR-053: no play-time limit. Column and per-band check removed by `users.0007`; the API refuses the field |
 | `avatarKey`, `avatarPhotoKey` | `avatar_key`, `avatar_photo_key` | Photo path null becomes `""` |
 | `interests` | `interests` (array, up to 5) | |
 | `active`, `aiEnabled` | `active`, `ai_enabled` | |

@@ -156,7 +156,6 @@ class TestBootstrap:
     def test_sprouts_cannot_see_or_start_firepeak(self, firepeak, api):
         child = firepeak.a2
         child.age_band = "SPROUT"
-        child.session_minutes = 6  # within the Sprouts range
         child.save()
         client = api(firepeak.a)
         assert bootstrap(client, child).status_code == 404

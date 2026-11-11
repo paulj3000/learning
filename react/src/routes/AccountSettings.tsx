@@ -1,3 +1,5 @@
+import { ParentShell } from '../features/portal/shell';
+import { PortalButton } from '../features/portal/ui';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchUserAttributes } from 'aws-amplify/auth';
@@ -206,12 +208,16 @@ export function AccountSettings() {
   }
 
   return (
-    <div className={parentStyles.page}>
-      <header className={parentStyles.header}>
-        <h1 className={parentStyles.title}>Account settings</h1>
-        <Link to="/home">Back to dashboard</Link>
-      </header>
-      <main className={parentStyles.main} id="main-content">
+    <ParentShell
+      mainClassName={parentStyles.main}
+      actions={
+        <PortalButton asChild tone="quiet">
+          <Link to="/home">Back to dashboard</Link>
+        </PortalButton>
+      }
+    >
+      <div className={parentStyles.parentPage}>
+        <h1 className={parentStyles.parentPageTitle}>Account settings</h1>
         {loadState === 'loading' ? <p>Loading your account...</p> : null}
         {loadState === 'error' ? (
           <p className={parentStyles.error} role="alert">
@@ -447,7 +453,7 @@ export function AccountSettings() {
             </section>
           </div>
         ) : null}
-      </main>
-    </div>
+      </div>
+    </ParentShell>
   );
 }

@@ -506,6 +506,9 @@ ASSET_KINDS = (
     "audio",
 )
 
+# The kinds an Island or Place picture (`artAssetId`, AP-03) may name: a single still image.
+ART_ASSET_KINDS = ("image",)
+
 # Which browsing categories make sense for each runtime kind (validation, ADR-035).
 KIND_CATEGORIES = {
     "character": {"character", "npc", "creature"},

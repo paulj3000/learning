@@ -1,75 +1,77 @@
-import { useState, type ReactNode } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import styles from './IslandLayout.module.css';
-import { ParentGate } from '../child-profile/ParentGate';
-import { CalmStop } from '../session/CalmStop';
-import { useSessionClock } from '../session/useSessionClock';
+import { ChildShell } from '../portal/shell';
+import { PortalButton } from '../portal/ui';
+import {
+  IslandExitProvider,
+  LeaveIslandButton,
+  LEAVE_ISLAND_COPY,
+  isPortalHubPath,
+  useIslandExit,
+} from '../portal/exit';
 
 interface IslandLayoutProps {
   childId: string;
   children: ReactNode;
+  /** The child's picture and nickname for the top bar, when the page has them (AP-03). */
+  profile?: ReactNode;
 }
 
-export const LEAVE_ISLAND_LABEL = 'Leave island';
+export const LEAVE_ISLAND_LABEL = LEAVE_ISLAND_COPY.leave;
 
 /**
- * Shared chrome for every child-mode screen: consistent map/log navigation,
- * a child exit, and a parent-gated exit (docs/UX_AND_ACCESSIBILITY.md "Use
+ * Shared chrome for every child-mode screen: consistent navigation, a child
+ * exit, and a parent-gated exit (docs/UX_AND_ACCESSIBILITY.md "Use
  * consistent placement for companion, progress path, help, and exit").
+ * Since AP-01 the chrome is the Adventure Portal's `ChildShell`: a bottom bar
+ * on phones, a sidebar from tablet up.
  *
- * The two exits are different promises. "Leave island" is the child's own
- * way back to the sailing dock (the island selection screen) and never asks
- * a question: leaving an Island, Place, 3D Area or Adventure is navigation,
- * not a learning check. Progress is already saved as each step happens, and
- * unmounting the route tears down any 3D scene. The adult exit goes to the
- * parent space, whose profile and settings pages have no gate of their own,
- * so it keeps the `ParentGate` (docs/THREAT_MODEL.md, Spoofing).
+ * Neither exit asks a question (AP-04). "Leave island" is the child's own way
+ * back to the Realm Explorer (AP-03): leaving an Island, Place, 3D Area or Adventure
+ * is navigation, not a learning check. The adult exit goes to the parent
+ * space; by the owner's decision of 2026-11-10 it has no arithmetic check
+ * either (docs/THREAT_MODEL.md, Spoofing, records the accepted risk). Both
+ * first flush any save still in flight (`IslandExitProvider`) and only
+ * confirm, with two plain buttons, when an encounter is open. Unmounting the
+ * route tears down any 3D scene.
  *
- * It is also where the session clock lives, for the same reason: it wraps
- * every child-mode screen, so there is exactly one clock and it survives
- * walking from the map into an adventure and back. A region that stages the
- * stop in its own world (Storykeeper Castle does) reads the same clock
- * rather than starting a second one.
+ * There is no session clock here or anywhere: a child is never stopped,
+ * counted down, or nudged to leave because of how long they have played.
  */
-export function IslandLayout({ childId, children }: IslandLayoutProps) {
-  const navigate = useNavigate();
+export function IslandLayout({ childId, children, profile }: IslandLayoutProps) {
   const { pathname } = useLocation();
-  const travelPath = `/island/${childId}/travel`;
-  const [showGate, setShowGate] = useState(false);
-  const { limitReached } = useSessionClock(childId);
+  const onHub = isPortalHubPath(pathname, childId);
 
   return (
-    <div className={styles.page}>
-      <header className={styles.header}>
-        <nav className={styles.nav} aria-label="Island">
-          <Link className={styles.navLink} to={`/island/${childId}`}>
-            Harbor map
-          </Link>
-          <Link className={styles.navLink} to={`/island/${childId}/log`}>
-            Adventure log
-          </Link>
-        </nav>
-        {pathname === travelPath ? null : (
-          <Link className={styles.leave} to={travelPath}>
-            {LEAVE_ISLAND_LABEL}
-          </Link>
-        )}
-        <button className={styles.exit} type="button" onClick={() => setShowGate(true)}>
-          Adults: exit to parent space
-        </button>
-      </header>
-      <main className={styles.main} id="main-content">
+    <IslandExitProvider childId={childId}>
+      <ChildShell
+        childId={childId}
+        mainClassName={styles.main}
+        profile={profile}
+        actions={
+          <>
+            {onHub ? null : <LeaveIslandButton />}
+            <ParentSpaceButton />
+          </>
+        }
+      >
         {children}
-      </main>
-      <CalmStop limitReached={limitReached} />
-      {showGate ? (
-        <ParentGate
-          title="Return to parent space?"
-          description="Answer this quick check to leave the island and manage profiles."
-          onCancel={() => setShowGate(false)}
-          onSuccess={() => navigate('/home')}
-        />
-      ) : null}
-    </div>
+      </ChildShell>
+    </IslandExitProvider>
+  );
+}
+
+/** The adult exit: saves like "Leave island", then opens the parent space. No check. */
+function ParentSpaceButton() {
+  const exit = useIslandExit();
+  return (
+    <PortalButton
+      tone="quiet"
+      disabled={exit?.isLeaving}
+      onClick={() => exit?.requestLeave('parent-space')}
+    >
+      Adults: exit to parent space
+    </PortalButton>
   );
 }

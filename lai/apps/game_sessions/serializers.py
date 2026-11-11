@@ -421,8 +421,9 @@ class TalkSerializer(serializers.Serializer):
 
 
 # --- Native discovery, home and inventory (LAI-ANDROID-API-001) -----------------------------
-# Contract: docs/android/ANDROID_API_CONTRACT.md. Thumbnails are asset ids or null (ADR-030):
-# no catalog row carries an illustration yet, so every `thumbnailAssetId` is null today.
+# Contract: docs/android/ANDROID_API_CONTRACT.md. Thumbnails are asset ids or null (ADR-030).
+# Regions and adventures carry no illustration yet, so theirs is null; Islands and Places carry
+# an authored, published `artAssetId` (AP-03, see `island_entry`).
 
 
 def _iso(value):
@@ -522,7 +523,6 @@ class HomeSerializer(serializers.Serializer):
             ).data,
             "restrictions": {
                 "active": child.active,
-                "sessionMinutes": child.session_minutes,
                 "aiEnabled": child.ai_enabled,
                 "readingMode": child.reading_mode,
             },
@@ -537,6 +537,19 @@ class RedeemRequest(ClosedSerializer):
     ticket = serializers.CharField(min_length=20, max_length=128, trim_whitespace=False)
 
 
+MAX_ISLAND_SUBJECTS = 6
+
+
+def island_subjects(entry) -> list[str]:
+    """What an Island teaches: its Places' authored skills, first seen first, without repeats."""
+    subjects: list[str] = []
+    for place in entry.places:
+        for skill in place.place.skills or []:
+            if skill not in subjects:
+                subjects.append(skill)
+    return subjects[:MAX_ISLAND_SUBJECTS]
+
+
 def island_entry(entry) -> dict:
     island = entry.island
     return {
@@ -544,12 +557,32 @@ def island_entry(entry) -> dict:
         "title": island.title,
         "tagline": island.tagline,
         "isHome": island.is_home,
+        "description": island.description,
+        # AP-03 discovery: who it is for, what it teaches, whether it is open, how far along.
+        "ageBands": list(island.supported_age_bands),
+        "subjects": island_subjects(entry),
+        # The Realm Explorer's filters: MATH, READING, SCIENCE, CREATIVITY (discovery.py).
+        "subjectAreas": list(entry.subject_areas),
+        # An authored `artAssetId` whose image is published, else null (draw the fallback). The
+        # client resolves it through the child-scoped asset resolver (ADR-030, LAI-2200).
+        "thumbnailAssetId": entry.art_asset_id,
+        "unlocked": entry.unlocked,
+        "lockedHint": entry.locked_hint,
+        "progress": {
+            "placesExplored": sum(place.explored for place in entry.places),
+            "placesTotal": len(entry.places),
+        },
         "places": [
             {
                 "placeId": place.place.slug,
                 "title": place.place.title,
                 "tagline": place.place.tagline,
+                "description": place.place.description,
+                "skills": list(place.place.skills or []),
+                "subjectAreas": list(place.subject_areas),
+                "thumbnailAssetId": place.art_asset_id,
                 "adventureCount": place.adventure_count,
+                "explored": place.explored,
                 # null: no published 3D Area yet; the Place's adventures are still available.
                 "area": region_entry(place.area) if place.area else None,
             }

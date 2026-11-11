@@ -20,3 +20,12 @@
   border: 2px solid rgba(255, 255, 255, 0.85);
   cursor: pointer;
 }
+
+/* AP-04: the child's "Leave island" while full screen hides the top bar. */
+.leaveSlot {
+  position: absolute;
+  /* Stacked above the full-screen toggle, clear of the HUD's backpack (bottom right). */
+  left: var(--space-3);
+  bottom: calc(var(--space-3) + 3.5rem);
+  z-index: 2;
+}

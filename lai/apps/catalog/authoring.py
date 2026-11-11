@@ -34,9 +34,11 @@ from apps.core import content_schema
 
 from . import records
 from .models import (
+    ART_ASSET_KINDS,
     Adventure,
     AdventureStep,
     CollectibleSet,
+    ContentAsset,
     ContentAuthority,
     ContentRelease,
     ContentRevision,
@@ -678,7 +680,23 @@ def _source(row) -> dict:
     return dict(row.source)
 
 
+def _check_art(body: dict, problems: list[str]) -> None:
+    """An optional `artAssetId` must name an image definition in the asset library (AP-03;
+    ADR-047 decision D, "asset ids to `ContentAsset` of the right kind"). Whether it
+    has a published version is a delivery question: until it does, children see the drawn
+    fallback, so publishing the record is not blocked on the asset."""
+    asset_id = body.get("artAssetId")
+    if asset_id is None:
+        return
+    asset = ContentAsset.objects.filter(asset_id=asset_id).first()
+    if asset is None:
+        problems.append(f"$.artAssetId: unknown asset {asset_id!r}")
+    elif asset.kind not in ART_ASSET_KINDS:
+        problems.append(f"$.artAssetId: {asset_id!r} is a {asset.kind}, not an image")
+
+
 def _apply_world(row: World, body: dict, problems: list[str]):
+    _check_art(body, problems)
     return _save(row, records.world_fields(body, f"island {row.slug!r}", problems))
 
 
@@ -687,6 +705,7 @@ def _apply_location(row: Location, body: dict, problems: list[str]):
     world = World.objects.filter(slug=world_slug).first()
     if world is None:
         problems.append(f"$.worldSlug: unknown island {world_slug!r}")
+    _check_art(body, problems)
     return _save(row, {**fields, "world": world})
 
 
