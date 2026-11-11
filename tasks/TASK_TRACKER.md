@@ -426,7 +426,12 @@ Detail: `docs/AI_QUESTION_STUDIO.md`.
 
 `LAI-AQS-024` closes when LAI-AQS-025 and LAI-AQS-026 are done.
 
-## Phase 30 — NPC Manager (branch `feature/npc-manager`, ADR-054 Accepted)
+## Phase 30 — NPC Manager (branch `feature/npc-manager`, ADR-054 Accepted) — ACCEPTED 2026-11-11
+
+Owner acceptance and merge approval 2026-11-11, merged to `main` through
+https://github.com/paulj3000/learning/pull/22. Live AI/Polly evidence:
+`docs/NPC_MANAGER_AI_POLLY_ACCEPTANCE.md`. Deployment to the dev host is a separate,
+owner-approved step.
 
 Plan: `docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md`. Contracts: `docs/NPC_MANAGER_CONTRACTS.md`.
 Statuses: NOT STARTED, IN PROGRESS, DEVELOPMENT COMPLETE, BLOCKED, ACCEPTED. ACCEPTED needs the

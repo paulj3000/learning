@@ -173,6 +173,15 @@ Only a full PASS of each command is evidence for its gate. The outputs print out
 sizes, latencies and token counts; never text, child data or credentials. Then the audible
 browser checks in runbook section 9 and checklist B7.3 and B8.5.
 
+## 5a. Owner acceptance (2026-11-11)
+
+The owner accepted the NPC Manager and approved the merge to `main` through
+https://github.com/paulj3000/learning/pull/22, choosing PR #4 (PR #18 closed). Lifecycle rule
+`speech/child/` (2 days) added by the owner. The captions-and-mute spot check during real audio
+was not separately recorded; captions and mute are covered by automated tests (U6, B7.1, B7.4).
+Deployment to the dev host remains a separate owner-approved step (SSM values and runtime-role
+permissions in section 5).
+
 ## 6. Final suite results on `integration/npc-manager-main`
 
 | Gate | Result |

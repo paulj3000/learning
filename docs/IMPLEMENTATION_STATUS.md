@@ -12568,7 +12568,17 @@ lands.
 
 **Checks.** See the end-of-batch delivery notes.
 
-## NPC Manager (Phase 30, `feature/npc-manager`, ADR-054) — development complete, owner acceptance pending
+## NPC Manager (Phase 30, `feature/npc-manager`, ADR-054) — ACCEPTED by the owner 2026-11-11, merged to `main`
+
+**Owner acceptance (2026-11-11).** The owner accepted the NPC Manager and approved the merge of
+https://github.com/paulj3000/learning/pull/22 (PR #2 QA, PR #4 F-A/F-B fixes and pirate variant,
+PR #1 SM-P8-LIVE Polly, reconciled with `main`). PR #18 was closed in favour of PR #4. Live gates
+(`docs/NPC_MANAGER_AI_POLLY_ACCEPTANCE.md`): Bedrock in us-west-1 with Guardrail
+`lai-child-safety-dev` v1 and Polly in us-west-2 with S3 bucket
+`learning-adventure-island-dev-speech` all PASS; the owner heard Pip in the browser and added the
+`speech/child/` lifecycle rule. Not deployed: the deployed host still needs its SSM values
+(Guardrail id and version, `LAI_SPEECH_AWS_REGION=us-west-2`, the speech bucket) and runtime-role
+permissions.
 
 Plan: `docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md`; contracts: `docs/NPC_MANAGER_CONTRACTS.md`;
 tracker: `tasks/TASK_TRACKER.md` Phase 30.
