@@ -66,4 +66,81 @@ describe('islandsView (ADR-041, AP-03)', () => {
       ),
     ).toThrow();
   });
+
+  it('reads the Realm Explorer fields: subject areas, pictures, descriptions and resume', () => {
+    const view = islandsView(
+      new Reader({
+        islands: [
+          {
+            islandId: 'learning-adventure-island',
+            title: 'Learning Adventure Island',
+            tagline: 'Home',
+            description: 'The island where you started.',
+            isHome: true,
+            subjectAreas: ['SCIENCE', 'MATH', 'HISTORY'],
+            thumbnailAssetId: 'realm-home-art',
+            places: [
+              {
+                ...place,
+                description: 'Build with Pip.',
+                skills: ['Counting'],
+                subjectAreas: ['MATH'],
+                thumbnailAssetId: 'place-bay-art',
+                area: {
+                  regionId: 'treasure-rush-cove',
+                  title: 'Treasure Cove',
+                  available: true,
+                  status: 'IN_PROGRESS',
+                  resume: { sessionId: 's-1', status: 'ACTIVE', lastActivityAt: null },
+                },
+              },
+            ],
+          },
+        ],
+        autoSelectIslandId: null,
+      }),
+    );
+    const [island] = view.islands;
+    // Display order, and a value this client does not know is ignored.
+    expect(island.subjectAreas).toEqual(['MATH', 'SCIENCE']);
+    expect(island).toMatchObject({
+      description: 'The island where you started.',
+      thumbnailAssetId: 'realm-home-art',
+    });
+    expect(island.places[0]).toMatchObject({
+      description: 'Build with Pip.',
+      skills: ['Counting'],
+      subjectAreas: ['MATH'],
+      thumbnailAssetId: 'place-bay-art',
+      area: { status: 'IN_PROGRESS', resumeSessionId: 's-1' },
+    });
+  });
+
+  it('defaults the Realm Explorer fields for an older server', () => {
+    const view = islandsView(
+      new Reader({
+        islands: [
+          {
+            islandId: 'i',
+            title: 'I',
+            tagline: '',
+            isHome: true,
+            places: [
+              { ...place, area: { regionId: 'r', title: 'R', available: true, status: 'ODD' } },
+            ],
+          },
+        ],
+        autoSelectIslandId: null,
+      }),
+    );
+    const [island] = view.islands;
+    expect(island).toMatchObject({ description: '', subjectAreas: [] });
+    expect(island.places[0]).toMatchObject({
+      description: '',
+      skills: [],
+      subjectAreas: [],
+      thumbnailAssetId: null,
+      area: { status: 'NOT_STARTED', resumeSessionId: null },
+    });
+  });
 });

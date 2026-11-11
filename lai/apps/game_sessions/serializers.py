@@ -421,8 +421,9 @@ class TalkSerializer(serializers.Serializer):
 
 
 # --- Native discovery, home and inventory (LAI-ANDROID-API-001) -----------------------------
-# Contract: docs/android/ANDROID_API_CONTRACT.md. Thumbnails are asset ids or null (ADR-030):
-# no catalog row carries an illustration yet, so every `thumbnailAssetId` is null today.
+# Contract: docs/android/ANDROID_API_CONTRACT.md. Thumbnails are asset ids or null (ADR-030).
+# Regions and adventures carry no illustration yet, so theirs is null; Islands and Places carry
+# an authored, published `artAssetId` (AP-03, see `island_entry`).
 
 
 def _iso(value):
@@ -557,10 +558,15 @@ def island_entry(entry) -> dict:
         "title": island.title,
         "tagline": island.tagline,
         "isHome": island.is_home,
+        "description": island.description,
         # AP-03 discovery: who it is for, what it teaches, whether it is open, how far along.
         "ageBands": list(island.supported_age_bands),
         "subjects": island_subjects(entry),
-        "thumbnailAssetId": None,  # no catalog row carries an illustration yet (ADR-030)
+        # The Realm Explorer's filters: MATH, READING, SCIENCE, CREATIVITY (discovery.py).
+        "subjectAreas": list(entry.subject_areas),
+        # An authored `artAssetId` whose image is published, else null (draw the fallback). The
+        # client resolves it through the child-scoped asset resolver (ADR-030, LAI-2200).
+        "thumbnailAssetId": entry.art_asset_id,
         "unlocked": entry.unlocked,
         "lockedHint": entry.locked_hint,
         "progress": {
@@ -572,6 +578,10 @@ def island_entry(entry) -> dict:
                 "placeId": place.place.slug,
                 "title": place.place.title,
                 "tagline": place.place.tagline,
+                "description": place.place.description,
+                "skills": list(place.place.skills or []),
+                "subjectAreas": list(place.subject_areas),
+                "thumbnailAssetId": place.art_asset_id,
                 "adventureCount": place.adventure_count,
                 "explored": place.explored,
                 # null: no published 3D Area yet; the Place's adventures are still available.

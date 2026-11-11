@@ -100,7 +100,7 @@ describe('WorldStage leave button (AP-04)', () => {
     render(
       <MemoryRouter initialEntries={['/island/child-1/explore/forest']}>
         <Routes>
-          <Route path="/island/:childId" element={<p>Island Explorer page</p>} />
+          <Route path="/island/:childId/realms" element={<p>Realm Explorer page</p>} />
           <Route
             path="*"
             element={
@@ -125,7 +125,7 @@ describe('WorldStage leave button (AP-04)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Leave island' }));
     });
 
-    expect(await screen.findByText('Island Explorer page')).toBeInTheDocument();
+    expect(await screen.findByText('Realm Explorer page')).toBeInTheDocument();
     expect(document.exitFullscreen).toHaveBeenCalled();
   });
 

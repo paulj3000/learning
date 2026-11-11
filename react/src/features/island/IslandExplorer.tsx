@@ -43,8 +43,9 @@ export function ageRangeLabel(bands: readonly string[] | undefined): string | nu
  * The Island Explorer on the child's homepage (LAI-0808, AP-03), drawn with
  * the Adventure Portal design system (AP-01).
  *
- * Presentational only: `buildIslandExplorer` (or, with the Django API,
- * `buildIslandExplorerFromServer`) decides what is here, open, and locked.
+ * Presentational only: `buildIslandExplorer` decides what is here, open, and
+ * locked. Builds without the Django API show it on Home; with the Django API
+ * the Realm Explorer (`features/realms`, AP-03) replaces it.
  * Links are real links; a locked island is plain text, never a button that
  * refuses (CLAUDE.md sections 4 and 13). Progress counts places explored,
  * never points or a score (pillar 7).

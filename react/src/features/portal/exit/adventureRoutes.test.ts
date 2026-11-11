@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { locationWorldPath } from '../../island-map/three/runtime/locationWorldPath';
 import {
-  isIslandExplorerPath,
   isLeftIslandState,
-  islandExplorerPath,
+  isPortalHubPath,
   portalPath,
+  realmExplorerPath,
 } from './adventureRoutes';
 
 const CHILD = 'child-1';
@@ -12,6 +12,11 @@ const CHILD = 'child-1';
 describe('portalPath', () => {
   it.each([
     [{ kind: 'island-explorer' } as const, '/island/child-1'],
+    [{ kind: 'realm-explorer' } as const, '/island/child-1/realms'],
+    [
+      { kind: 'realm', realmSlug: 'creature-care-cove' } as const,
+      '/island/child-1/realms/creature-care-cove',
+    ],
     [{ kind: 'sailing-dock' } as const, '/island/child-1/travel'],
     [
       { kind: 'island', worldSlug: 'creature-care-cove' } as const,
@@ -49,16 +54,23 @@ describe('portalPath', () => {
   });
 });
 
-describe('the Island Explorer hub', () => {
-  it('is the child homepage', () => {
-    expect(islandExplorerPath(CHILD)).toBe('/island/child-1');
+describe('the Realm Explorer hub (AP-03, AP-04)', () => {
+  it('is where "Leave island" returns', () => {
+    expect(realmExplorerPath(CHILD)).toBe('/island/child-1/realms');
   });
 
-  it('recognises itself, with or without a trailing slash, and nothing deeper', () => {
-    expect(isIslandExplorerPath('/island/child-1', CHILD)).toBe(true);
-    expect(isIslandExplorerPath('/island/child-1/', CHILD)).toBe(true);
-    expect(isIslandExplorerPath('/island/child-1/travel', CHILD)).toBe(false);
-    expect(isIslandExplorerPath('/island/child-2', CHILD)).toBe(false);
+  it('counts Home, the Realm Explorer and a Realm preview as hubs, and nothing else', () => {
+    expect(isPortalHubPath('/island/child-1', CHILD)).toBe(true);
+    expect(isPortalHubPath('/island/child-1/', CHILD)).toBe(true);
+    expect(isPortalHubPath('/island/child-1/realms', CHILD)).toBe(true);
+    expect(isPortalHubPath('/island/child-1/realms/', CHILD)).toBe(true);
+    expect(isPortalHubPath('/island/child-1/realms/creature-care-cove', CHILD)).toBe(true);
+    expect(isPortalHubPath('/island/child-1/realmsx', CHILD)).toBe(false);
+    expect(isPortalHubPath('/island/child-1/travel', CHILD)).toBe(false);
+    expect(isPortalHubPath('/island/child-1/worlds/creature-care-cove', CHILD)).toBe(false);
+    expect(isPortalHubPath('/island/child-1/explore/wonderwild-forest', CHILD)).toBe(false);
+    expect(isPortalHubPath('/island/child-2', CHILD)).toBe(false);
+    expect(isPortalHubPath('/island/child-2/realms', CHILD)).toBe(false);
   });
 
   it('recognises the arrival state from "Leave island" only', () => {

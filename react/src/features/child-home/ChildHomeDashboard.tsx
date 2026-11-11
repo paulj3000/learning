@@ -36,7 +36,7 @@ export function ChildHomeDashboard({ childId, state }: ChildHomeDashboardProps) 
   if (state.status === 'error') {
     return (
       <p className="m-0 w-full max-w-5xl rounded-2xl bg-coral-50 px-4 py-3 text-ink" role="alert">
-        We could not load your adventure summary right now. You can still choose a place below.
+        We could not load your adventure summary right now. You can still explore the Realms below.
       </p>
     );
   }

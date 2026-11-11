@@ -9,13 +9,15 @@ import {
   IslandExitProvider,
   LeaveIslandButton,
   LEAVE_ISLAND_COPY,
-  isIslandExplorerPath,
+  isPortalHubPath,
   useIslandExit,
 } from '../portal/exit';
 
 interface IslandLayoutProps {
   childId: string;
   children: ReactNode;
+  /** The child's picture and nickname for the top bar, when the page has them (AP-03). */
+  profile?: ReactNode;
 }
 
 export const LEAVE_ISLAND_LABEL = LEAVE_ISLAND_COPY.leave;
@@ -28,7 +30,7 @@ export const LEAVE_ISLAND_LABEL = LEAVE_ISLAND_COPY.leave;
  * on phones, a sidebar from tablet up.
  *
  * Neither exit asks a question (AP-04). "Leave island" is the child's own way
- * back to the Island Explorer: leaving an Island, Place, 3D Area or Adventure
+ * back to the Realm Explorer (AP-03): leaving an Island, Place, 3D Area or Adventure
  * is navigation, not a learning check. The adult exit goes to the parent
  * space; by the owner's decision of 2026-11-10 it has no arithmetic check
  * either (docs/THREAT_MODEL.md, Spoofing, records the accepted risk). Both
@@ -42,19 +44,20 @@ export const LEAVE_ISLAND_LABEL = LEAVE_ISLAND_COPY.leave;
  * stop in its own world (Storykeeper Castle does) reads the same clock
  * rather than starting a second one.
  */
-export function IslandLayout({ childId, children }: IslandLayoutProps) {
+export function IslandLayout({ childId, children, profile }: IslandLayoutProps) {
   const { pathname } = useLocation();
   const { limitReached } = useSessionClock(childId);
-  const onExplorer = isIslandExplorerPath(pathname, childId);
+  const onHub = isPortalHubPath(pathname, childId);
 
   return (
     <IslandExitProvider childId={childId}>
       <ChildShell
         childId={childId}
         mainClassName={styles.main}
+        profile={profile}
         actions={
           <>
-            {onExplorer ? null : <LeaveIslandButton className="mr-auto" />}
+            {onHub ? null : <LeaveIslandButton />}
             <ParentSpaceButton />
           </>
         }

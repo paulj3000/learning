@@ -6,11 +6,7 @@ import { IslandExplorer } from '../features/island/IslandExplorer';
 import { listLocationsInWorld } from '../features/island/locations';
 import { getHomeWorld } from '../features/worlds/worlds';
 import { listTravelDestinations } from '../features/worlds/travel';
-import {
-  buildIslandExplorer,
-  buildIslandExplorerFromServer,
-  type ExplorerIsland,
-} from '../features/worlds/islandExplorer';
+import { buildIslandExplorer } from '../features/worlds/islandExplorer';
 import { getTodaysEvent } from '../features/island/events';
 import { getSeasonalIslandNote } from '../features/island/seasons';
 import { getOrCreateCompanionProfile, getCompanionProfile } from '../features/island/api';
@@ -21,11 +17,10 @@ import { isIslandAvailable } from '../features/catalog/availability';
 import { loadCatalogSnapshot } from '../features/catalog/availabilityApi';
 import { locationWorldPath } from '../features/island-map/three/runtime/locationWorldPath';
 import { DJANGO_API_CONFIG } from '../api/config';
-import { getIslandsFor } from '../api/play/islandsApi';
 import { getChildHomeFor } from '../api/play/homeApi';
 import { ChildHomeDashboard, type ChildHomeState } from '../features/child-home/ChildHomeDashboard';
 import { WELCOME_HARBOR_REGION_ID } from '../features/discovery/checkpoints';
-import { isLeftIslandState, LEAVE_ISLAND_COPY } from '../features/portal/exit';
+import { isLeftIslandState, LEAVE_ISLAND_COPY, realmExplorerPath } from '../features/portal/exit';
 import { PortalButton } from '../features/portal/ui';
 import type { CompanionProfile } from '../features/island/api';
 import type { ChildProfile } from '../features/child-profile/api';
@@ -33,16 +28,12 @@ import type { ChildProfile } from '../features/child-profile/api';
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
 /**
- * Where the homepage reads from. With the Django API (`VITE_BACKEND=django`) everything comes
- * from Django: the published Island catalog for the Island Explorer (AP-03) and the home summary
- * for the dashboard (AP-02). A build without it (every hosted Amplify build until the ADR-019
- * cutover) keeps the source-controlled explorer and has no dashboard, exactly as before.
+ * Where the homepage reads from. With the Django API (`VITE_BACKEND=django`) the dashboard comes
+ * from Django's home summary (AP-02) and the Realms live on their own page, the Realm Explorer
+ * (AP-03), which Home links to. A build without it (every hosted Amplify build until the ADR-019
+ * cutover) keeps the source-controlled Island Explorer here and has no dashboard, as before.
  */
-type HomeSource =
-  { kind: 'amplify' } | { kind: 'django'; islands: IslandsState; home: ChildHomeState };
-
-type IslandsState =
-  { status: 'loading' } | { status: 'error' } | { status: 'ready'; islands: ExplorerIsland[] };
+type HomeSource = { kind: 'amplify' } | { kind: 'django'; home: ChildHomeState };
 
 export function WelcomeHarbor() {
   const { childId } = useParams<{ childId: string }>();
@@ -97,20 +88,12 @@ export function WelcomeHarbor() {
     }
 
     /**
-     * Django mode: the child profile decides the page; the Island catalog and the home summary
-     * each fail on their own, so one slow or broken read never blanks the whole homepage. There
-     * is no companion record in Django yet, and Chatty is the only companion, so the companion
-     * step is not shown here.
+     * Django mode: the child profile decides the page; the home summary fails on its own, so a
+     * slow or broken read never blanks the whole homepage. There is no companion record in
+     * Django yet, and Chatty is the only companion, so the companion step is not shown here.
      */
     async function loadFromDjango(id: string) {
-      setSource({ kind: 'django', islands: { status: 'loading' }, home: { status: 'loading' } });
-      const islands = getIslandsFor(id).then(
-        (view): IslandsState => ({
-          status: 'ready',
-          islands: buildIslandExplorerFromServer(id, view),
-        }),
-        (): IslandsState => ({ status: 'error' }),
-      );
+      setSource({ kind: 'django', home: { status: 'loading' } });
       const home = getChildHomeFor(id).then(
         (summary): ChildHomeState => ({ status: 'ready', home: summary }),
         (): ChildHomeState => ({ status: 'error' }),
@@ -128,8 +111,8 @@ export function WelcomeHarbor() {
         if (!cancelled) setLoadState('error');
         return;
       }
-      const [explorer, summary] = await Promise.all([islands, home]);
-      if (!cancelled) setSource({ kind: 'django', islands: explorer, home: summary });
+      const summary = await home;
+      if (!cancelled) setSource({ kind: 'django', home: summary });
     }
 
     void load();
@@ -213,36 +196,31 @@ export function WelcomeHarbor() {
       </section>
 
       {/*
-        AP-02 dashboard, then the Island Explorer (LAI-0808, AP-03): the
-        island they are on with its places, open islands one tap away,
-        locked islands shown with their hint and never as a link. With the
-        Django API both come from Django (the published catalog and the
-        home summary). Without it, the explorer is computed from the same
-        rules the Sailing Dock uses and the world changes loaded above.
+        AP-02 dashboard, then the way to the Realms. With the Django API
+        the Realms have their own page, the Realm Explorer (AP-03), built
+        from the published catalog. Without it, the Island Explorer stays
+        here, computed from the same rules the Sailing Dock uses and the
+        world changes loaded above.
       */}
       {source.kind === 'django' ? (
-        <ChildHomeDashboard childId={childId} state={source.home} />
-      ) : null}
-
-      {source.kind === 'django' ? (
-        source.islands.status === 'loading' ? (
-          <p className="m-0 w-full max-w-5xl text-ink" role="status">
-            Finding your islands...
-          </p>
-        ) : source.islands.status === 'error' ? (
-          <p
-            className="m-0 w-full max-w-5xl rounded-2xl bg-coral-50 px-4 py-3 text-ink"
-            role="alert"
+        <>
+          <ChildHomeDashboard childId={childId} state={source.home} />
+          <section
+            aria-labelledby="realms-teaser-heading"
+            data-portal="realms-teaser"
+            className="flex w-full max-w-5xl flex-col gap-3 rounded-3xl border-2 border-treasure-100 bg-treasure-50 p-6 text-ink shadow-sm md:flex-row md:items-center md:justify-between"
           >
-            We could not load the islands right now. Please try again in a moment.
-          </p>
-        ) : source.islands.islands.length === 0 ? (
-          <p className="m-0 w-full max-w-5xl text-ink">
-            New islands are on their way. Come back soon.
-          </p>
-        ) : (
-          <IslandExplorer islands={source.islands.islands} />
-        )
+            <div className="flex min-w-0 flex-col gap-1">
+              <h2 id="realms-teaser-heading" className="m-0 font-display text-2xl text-ocean-900">
+                <span aria-hidden="true">🧭 </span>Realm Explorer
+              </h2>
+              <p className="m-0">Choose a Realm to learn, play, and go on an adventure!</p>
+            </div>
+            <PortalButton asChild tone="ocean" size="lg">
+              <Link to={realmExplorerPath(childId)}>Explore the Realms</Link>
+            </PortalButton>
+          </section>
+        </>
       ) : (
         <IslandExplorer
           islands={buildIslandExplorer({

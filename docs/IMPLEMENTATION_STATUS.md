@@ -13181,6 +13181,65 @@ only exit shown. The owner chose to remove the check entirely.
 - Not merged to `main` or deployed: the merge of `feature/adventure-portal` (AP-01 and AP-04)
   waits for the owner's go-ahead.
 
+## Adventure Portal AP-03 redesign: Realm Explorer (2026-11-11, branch `feature/adventure-portal-home`)
+
+Trello AP-03. Supersedes the inline Island Explorer of the first AP-03 commit (`c1d4d74`) in
+builds with the Django API. Amplify builds are unchanged (Home keeps the source explorer;
+`/realms` redirects there). Status: **ready for Owner QA, not accepted, not merged.**
+
+**Decisions (owner to confirm in QA).**
+- A Realm is an Island (catalog `World`, ADR-041). Treasure Cove, Storykeeper Castle and
+  Firepeak are Places/3D Areas, so they appear on the Realm preview, not as Realm cards. No
+  Django rows were added or renamed; API and model names keep "Island".
+- The preview is a page (`/island/:childId/realms/:realmId`) rather than a panel: own URL,
+  back button, and the shell's "Realms" stays current.
+- Nav is Home, Realms, Quests, Treasures. Treasures opens the adventure log (there is no
+  separate treasure page); the library stays on Home; the sailing dock is no longer in the nav.
+- "Leave island" (AP-04) now returns to the Realm Explorer; it is hidden on Home and the Realm
+  pages. Copy unchanged ("Leave island").
+- Places in another Realm are shown for discovery but entered through that Realm's hub, which
+  records the arrival.
+
+**Django.** No migration. `discovery.child_islands` adds subject areas (from published
+`LearningObjective.domain`s, or an authored `subjectAreas`) and published art (an authored
+`artAssetId` naming an active image whose default version is published). The island and place
+schemas gain optional `artAssetId` and `subjectAreas`; publishing an Island or Place revision
+checks that `artAssetId` names an `image` asset (ADR-047 D). Firepeak's export record states
+`subjectAreas: ["SCIENCE"]`. Contract: `docs/PLAY_API.md`.
+
+**React.** `src/features/realms/` (catalog model, filters, themes, SVG illustrations, picture,
+cards, hero, filters UI, data hook with a 30 s cache), `routes/RealmExplorerPage.tsx`,
+`routes/RealmDetailPage.tsx`, shell header with branding and child badge, Home links to the
+Realms. Pictures go through the existing child-scoped asset resolver (one batched request);
+drawn fallbacks never show a broken image. No Three.js on the card pages.
+
+**Fixed along the way.** `admin.css` loads after `portal.css`, so its identically named
+utilities (`.hidden`, `.md:grid-cols-2`) overrode portal breakpoints: the sidebar brand was
+hidden at every size since AP-01, and a 3-column grid fell back to 2. Realm grids and the brand
+now use variants admin.css never emits (`min-[80rem]:`, `max-md:hidden`).
+
+**Tests.**
+- pytest (PostgreSQL): `test_realm_explorer.py` 14 new; focused regression (islands/launch,
+  native API, catalog authoring, importer, export, publication safety) 165 passed.
+- Vitest (`--maxWorkers=2`, affected paths): 199 files, 2288 passed. `npm run typecheck` clean.
+  `npm run content:check` up to date.
+- Browser acceptance (`e2e/acceptance/realm-explorer.spec.ts`, local seeded Django, desktop
+  project): 12 passed. Layout at 1920, 768, 360 and 320 px (no horizontal overflow, column
+  count, nav not covering content, 48px targets), filters without reload, locked Realm,
+  keyboard and focus ring, reduced motion, preview and back-with-filter, Treasure Cove 3D launch
+  and question-free "Leave island" back to Realms, Django progress, picture and fallback (only
+  the picture delivery is stubbed). Screenshots reviewed by eye.
+
+**Deferred to merge verification / known gaps.**
+- Full Vitest and pytest suites, oxlint/Prettier on the whole tree, `npm run build`, the other
+  acceptance specs, the tablet project.
+- `contentExport.test.ts` "trusted build-time boundary" fails locally on a clean checkout too
+  (`node_modules/.bin/tsx` missing): environment, not this change.
+- No Realm or Place carries art yet; an administrator uploads an image in the asset library,
+  publishes it, then publishes an Island/Place revision with `artAssetId`.
+- Firepeak's `subjectAreas` reaches an existing database only after `load_content` and, if the
+  record is Django-authoritative, publishing the import draft.
+
 ## Adventure Portal AP-03 and AP-02: Island Explorer discovery and child home dashboard (2026-11-10, branch `feature/adventure-portal-home`)
 
 Trello AP-03 and AP-02. Branched from `feature/adventure-portal` (AP-01 and AP-04, accepted), so

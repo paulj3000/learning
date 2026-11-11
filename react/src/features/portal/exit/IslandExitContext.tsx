@@ -10,11 +10,11 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createExitCoordinator, type ExitParticipant } from './exitCoordinator';
-import { islandExplorerPath, type LeftIslandState } from './adventureRoutes';
+import { realmExplorerPath, type LeftIslandState } from './adventureRoutes';
 import { LeaveIslandConfirm } from './LeaveIslandConfirm';
 
 /**
- * Where an exit goes: the child's Island Explorer ("Leave island"), or the
+ * Where an exit goes: the child's Realm Explorer ("Leave island", AP-03), or the
  * parent space (the adult exit, which has no check since the owner's
  * 2026-11-10 decision).
  */
@@ -23,7 +23,7 @@ export type IslandExitDestination = 'island-explorer' | 'parent-space';
 export interface IslandExit {
   /**
    * Start leaving: confirm if something is mid-way, then save and go to the
-   * destination (the Island Explorer unless told otherwise).
+   * destination (the Realm Explorer unless told otherwise).
    */
   requestLeave(destination?: IslandExitDestination): void;
   /** True between the tap and the navigation, while saves flush. */
@@ -71,7 +71,7 @@ export function IslandExitProvider({ childId, children, saveTimeoutMs }: IslandE
       return;
     }
     const state: LeftIslandState = { leftIsland: true };
-    navigate(islandExplorerPath(childId), { state });
+    navigate(realmExplorerPath(childId), { state });
   }, [childId, coordinator, navigate, saveTimeoutMs]);
 
   const requestLeave = useCallback(

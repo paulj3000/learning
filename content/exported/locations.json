@@ -149,6 +149,9 @@
         "Problem solving"
       ],
       "slug": "firepeak-volcano",
+      "subjectAreas": [
+        "SCIENCE"
+      ],
       "tagline": "Explore a waking volcano with Professor Ember.",
       "title": "Firepeak Volcano",
       "worldSlug": "learning-adventure-island"

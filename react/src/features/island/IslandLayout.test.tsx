@@ -29,7 +29,7 @@ function renderAt(path: string, content = <p>Somewhere on the island</p>) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path={`/island/${CHILD_ID}`} element={<p>Island Explorer page</p>} />
+        <Route path={`/island/${CHILD_ID}/realms`} element={<p>Realm Explorer page</p>} />
         <Route path="/home" element={<p>Parent space</p>} />
         <Route path="*" element={<IslandLayout childId={CHILD_ID}>{content}</IslandLayout>} />
       </Routes>
@@ -45,13 +45,13 @@ function expectNoChallenge() {
 
 describe('IslandLayout exits', () => {
   it.each(CHILD_SCREENS)(
-    'leaves from %s straight to the Island Explorer without any question',
+    'leaves from %s straight to the Realm Explorer without any question',
     async (path) => {
       renderAt(path);
 
       await userEvent.click(screen.getByRole('button', { name: LEAVE_ISLAND_LABEL }));
 
-      expect(await screen.findByText('Island Explorer page')).toBeInTheDocument();
+      expect(await screen.findByText('Realm Explorer page')).toBeInTheDocument();
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expectNoChallenge();
     },
@@ -66,19 +66,24 @@ describe('IslandLayout exits', () => {
     expectNoChallenge();
     const leaveButtons = screen.getAllByRole('button', { name: LEAVE_ISLAND_LABEL });
     await userEvent.click(leaveButtons[leaveButtons.length - 1]);
-    expect(await screen.findByText('Island Explorer page')).toBeInTheDocument();
+    expect(await screen.findByText('Realm Explorer page')).toBeInTheDocument();
   });
 
-  it('does not offer Leave island on the Island Explorer itself', () => {
+  it.each([
+    `/island/${CHILD_ID}`,
+    `/island/${CHILD_ID}/realms`,
+    `/island/${CHILD_ID}/realms/creature-care-cove`,
+  ])('does not offer Leave island on %s (Home and the Realm pages)', (path) => {
     render(
-      <MemoryRouter initialEntries={[`/island/${CHILD_ID}`]}>
+      <MemoryRouter initialEntries={[path]}>
         <IslandLayout childId={CHILD_ID}>
-          <p>Island Explorer page</p>
+          <p>Hub page</p>
         </IslandLayout>
       </MemoryRouter>,
     );
 
     expect(screen.queryByRole('button', { name: LEAVE_ISLAND_LABEL })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /exit to parent space/i })).toBeInTheDocument();
   });
 
   it.each(CHILD_SCREENS)(
@@ -94,7 +99,7 @@ describe('IslandLayout exits', () => {
     },
   );
 
-  it('the adult exit from the Island Explorer opens the parent space without any question', async () => {
+  it('the adult exit from Home opens the parent space without any question', async () => {
     render(
       <MemoryRouter initialEntries={[`/island/${CHILD_ID}`]}>
         <Routes>
@@ -129,9 +134,9 @@ describe('IslandLayout exits', () => {
     renderAt(CHILD_SCREENS[1]);
 
     expect(screen.getByRole('navigation', { name: 'Island' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Adventure log' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Realms' })).toHaveAttribute(
       'href',
-      `/island/${CHILD_ID}/log`,
+      `/island/${CHILD_ID}/realms`,
     );
     expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
   });

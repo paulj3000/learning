@@ -27,6 +27,9 @@
 @source './';
 @source '../island/IslandLayout.tsx';
 @source '../island/IslandExplorer.tsx';
+@source '../realms/';
+@source '../../routes/RealmExplorerPage.tsx';
+@source '../../routes/RealmDetailPage.tsx';
 @source '../child-home/';
 @source '../../routes/Home.tsx';
 @source '../../routes/WelcomeHarbor.tsx';

@@ -23,7 +23,7 @@ function renderIsland(island: ReactNode, saveTimeoutMs?: number) {
   return render(
     <MemoryRouter initialEntries={[`/island/${CHILD}/explore/wonderwild-forest`]}>
       <Routes>
-        <Route path="/island/:childId" element={<Explorer />} />
+        <Route path="/island/:childId/realms" element={<Explorer />} />
         <Route
           path="*"
           element={

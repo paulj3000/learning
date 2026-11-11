@@ -3,12 +3,18 @@
  * spells these URLs for the portal, so a card, the shell and the exit can
  * never disagree about what "back to the hub" means.
  *
- * The hub is the Island Explorer (LAI-0808), which lives on the child's
- * homepage at `/island/:childId`. Pure: no React, no router.
+ * The hub is the Realm Explorer (AP-03) at `/island/:childId/realms`: every
+ * "Leave island" returns there. "Realm" is the child-facing word for an
+ * Island (catalog `World`); URLs below `/realms` use it, while API routes and
+ * the older `/worlds/` hub keep the Island names until the naming migration.
+ * The child's homepage (`island-explorer`, kept for its existing callers) is
+ * Home. Pure: no React, no router.
  */
 
 export type PortalDestination =
   | { kind: 'island-explorer' }
+  | { kind: 'realm-explorer' }
+  | { kind: 'realm'; realmSlug: string }
   | { kind: 'sailing-dock' }
   | { kind: 'island'; worldSlug: string }
   | { kind: 'place'; locationSlug: string }
@@ -27,6 +33,10 @@ export function portalPath(childId: string, destination: PortalDestination): str
   switch (destination.kind) {
     case 'island-explorer':
       return root;
+    case 'realm-explorer':
+      return `${root}/realms`;
+    case 'realm':
+      return `${root}/realms/${seg(destination.realmSlug)}`;
     case 'sailing-dock':
       return `${root}/travel`;
     case 'island':
@@ -47,15 +57,20 @@ export function portalPath(childId: string, destination: PortalDestination): str
   }
 }
 
-/** The hub every "Leave island" returns to. */
-export function islandExplorerPath(childId: string): string {
-  return portalPath(childId, { kind: 'island-explorer' });
+/** The hub every "Leave island" returns to: the Realm Explorer (AP-03, AP-04). */
+export function realmExplorerPath(childId: string): string {
+  return portalPath(childId, { kind: 'realm-explorer' });
 }
 
-/** True on the Island Explorer itself, where "Leave island" has nowhere to go. */
-export function isIslandExplorerPath(pathname: string, childId: string): boolean {
+/**
+ * True where there is no Realm to leave: Home, the Realm Explorer and a Realm's
+ * preview page. These are browsing pages, so "Leave island" is not offered there.
+ */
+export function isPortalHubPath(pathname: string, childId: string): boolean {
   const trimmed = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
-  return trimmed === islandExplorerPath(childId);
+  const home = portalPath(childId, { kind: 'island-explorer' });
+  const realms = realmExplorerPath(childId);
+  return trimmed === home || trimmed === realms || trimmed.startsWith(`${realms}/`);
 }
 
 /** Router state set on arrival from "Leave island", so the hub can say so calmly. */

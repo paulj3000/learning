@@ -133,7 +133,7 @@ beforeEach(() => {
 });
 
 describe('WelcomeHarbor with the Django API (AP-02, AP-03)', () => {
-  it('draws the dashboard and the published islands, and never reads Amplify', async () => {
+  it('draws the dashboard and the way to the Realm Explorer, and never reads Amplify', async () => {
     renderHome();
     expect(
       await screen.findByRole('heading', { name: 'Continue your adventure' }),
@@ -143,40 +143,28 @@ describe('WelcomeHarbor with the Django API (AP-02, AP-03)', () => {
       '/island/child-1/explore/treasure-rush-cove',
     );
 
-    const explorer = screen.getByRole('region', { name: 'Where to next?' });
-    expect(within(explorer).getByRole('link', { name: /Storykeeper Castle/ })).toBeInTheDocument();
-    expect(
-      within(explorer).getByRole('link', { name: /Explore Treasure Cove in 3D/ }),
-    ).toBeInTheDocument();
-    expect(within(explorer).getByText('Help Pip at Pirate Builder Bay.')).toBeInTheDocument();
-    expect(within(explorer).getByRole('progressbar', { name: 'Explored' })).toHaveAttribute(
-      'aria-valuetext',
-      '1 of 2 places explored',
+    const teaser = screen.getByRole('region', { name: /Realm Explorer/ });
+    expect(within(teaser).getByRole('link', { name: 'Explore the Realms' })).toHaveAttribute(
+      'href',
+      '/island/child-1/realms',
     );
+    // The Realms have their own page now; Home neither lists them nor reads the catalog.
+    expect(screen.queryByRole('region', { name: 'Where to next?' })).not.toBeInTheDocument();
+    expect(mocks.getIslandsFor).not.toHaveBeenCalled();
 
-    expect(mocks.getIslandsFor).toHaveBeenCalledWith('child-1');
     expect(mocks.getChildHomeFor).toHaveBeenCalledWith('child-1');
     expect(mocks.getCompanionProfile).not.toHaveBeenCalled();
     expect(mocks.listAllWorldChanges).not.toHaveBeenCalled();
     expect(mocks.loadCatalogSnapshot).not.toHaveBeenCalled();
   });
 
-  it('keeps the islands when the home summary fails, and says so calmly', async () => {
+  it('keeps the way to the Realms when the home summary fails, and says so calmly', async () => {
     mocks.getChildHomeFor.mockRejectedValue(new Error('offline'));
     renderHome();
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'You can still choose a place below.',
+      'You can still explore the Realms below.',
     );
-    expect(screen.getByRole('region', { name: 'Where to next?' })).toBeInTheDocument();
-  });
-
-  it('keeps the dashboard when the islands fail, and says so calmly', async () => {
-    mocks.getIslandsFor.mockRejectedValue(new Error('offline'));
-    renderHome();
-    expect(
-      await screen.findByRole('heading', { name: 'Continue your adventure' }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent('We could not load the islands right now.');
+    expect(screen.getByRole('link', { name: 'Explore the Realms' })).toBeInTheDocument();
   });
 
   it('shows the calm error when the child profile itself cannot load', async () => {

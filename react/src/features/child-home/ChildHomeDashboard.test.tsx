@@ -122,7 +122,7 @@ describe('ChildHomeDashboard (AP-02)', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Getting your adventures ready...');
     unmount();
     renderDashboard({ status: 'error' });
-    expect(screen.getByRole('alert')).toHaveTextContent('You can still choose a place below.');
+    expect(screen.getByRole('alert')).toHaveTextContent('You can still explore the Realms below.');
   });
 
   it('counts in words a child can hear', () => {

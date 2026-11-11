@@ -1,13 +1,18 @@
+import type React from 'react';
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { CHILD_NAV_ITEMS, ChildShell } from './ChildShell';
 import { ParentShell } from './ParentShell';
 
-function renderChildShell(path: string) {
+function renderChildShell(path: string, profile?: React.ReactNode) {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <ChildShell childId="child-1" actions={<button type="button">Leave island</button>}>
+      <ChildShell
+        childId="child-1"
+        actions={<button type="button">Leave island</button>}
+        profile={profile}
+      >
         <p>Page</p>
       </ChildShell>
     </MemoryRouter>,
@@ -35,13 +40,34 @@ describe('ChildShell', () => {
 
   it('marks the current page and hides the pictures from screen readers', () => {
     renderChildShell('/island/child-1/log');
-    expect(screen.getByRole('link', { name: 'Adventure log' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
-    expect(screen.getByRole('link', { name: 'Island Explorer' })).not.toHaveAttribute(
-      'aria-current',
-    );
+    expect(screen.getByRole('link', { name: 'Treasures' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('offers Home, Realms, Quests and Treasures (AP-03)', () => {
+    renderChildShell('/island/child-1');
+    const nav = screen.getByRole('navigation', { name: 'Island' });
+    expect(
+      within(nav)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['🏠Home', '🧭Realms', '🗺️Quests', '💎Treasures']);
+  });
+
+  it.each(['/island/child-1/realms', '/island/child-1/realms/creature-care-cove'])(
+    'keeps Realms current on %s, and only Realms',
+    (path) => {
+      renderChildShell(path);
+      expect(screen.getByRole('link', { name: 'Realms' })).toHaveAttribute('aria-current', 'page');
+      expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+    },
+  );
+
+  it('shows the branding and, when given, the child in the top bar', () => {
+    renderChildShell('/island/child-1', <span>Mia</span>);
+    const banner = screen.getByRole('banner');
+    expect(within(banner).getByText('Learning Adventure Island')).toBeInTheDocument();
+    expect(within(banner).getByText('Mia')).toBeInTheDocument();
   });
 
   it('gives each nav item a 56px touch target', () => {
@@ -63,13 +89,18 @@ describe('ChildShell', () => {
 
   it('links point at the child’s own routes', () => {
     renderChildShell('/island/child-1');
-    expect(screen.getByRole('link', { name: 'Island Explorer' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/island/child-1');
+    expect(screen.getByRole('link', { name: 'Realms' })).toHaveAttribute(
       'href',
-      '/island/child-1',
+      '/island/child-1/realms',
     );
-    expect(screen.getByRole('link', { name: 'Sailing dock' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Quests' })).toHaveAttribute(
       'href',
-      '/island/child-1/travel',
+      '/island/child-1/quests',
+    );
+    expect(screen.getByRole('link', { name: 'Treasures' })).toHaveAttribute(
+      'href',
+      '/island/child-1/log',
     );
   });
 });

@@ -18,10 +18,8 @@
  *
  * Pure: no React, no network. The page passes in what it already loaded.
  */
-import type { IslandsView } from '../../api/play/islandsApi';
 import type { IslandLocation } from '../island/locations';
-import { ISLAND_LOCATIONS, isLocationUnlocked } from '../island/locations';
-import { locationWorldPath } from '../island-map/three/runtime/locationWorldPath';
+import { isLocationUnlocked } from '../island/locations';
 import type { TravelDestination } from './types';
 
 export type ExplorerIslandStatus = 'HERE' | 'OPEN' | 'LOCKED';
@@ -132,74 +130,4 @@ function byStatus(islands: ExplorerIsland[]): ExplorerIsland[] {
       (a, b) => STATUS_ORDER[a.island.status] - STATUS_ORDER[b.island.status] || a.index - b.index,
     )
     .map(({ island }) => island);
-}
-
-/**
- * AP-03: the Island Explorer from Django's published catalog
- * (`GET /children/<id>/islands/`, ADR-041), so the homepage lists what an administrator has
- * published rather than a second, hard-coded list. The server has already applied every rule:
- * active Islands and Places, this child's age band, secret Places still hidden, and whether each
- * Island is open. This only shapes the answer into links.
- *
- * - The home Island is HERE, with its Places. A Place with a source page links to it, and its
- *   published 3D Area (Treasure Cove) is offered beside it; a Place that exists only in Django
- *   (Firepeak Volcano) links straight to its 3D Area. A Place with neither is left out.
- * - Another open Island links to its hub; a closed one shows its authored hint.
- */
-export function buildIslandExplorerFromServer(
-  childId: string,
-  view: IslandsView,
-): ExplorerIsland[] {
-  const sourcePages = new Set(ISLAND_LOCATIONS.map((location) => location.slug));
-  const islands = view.islands.map((island): ExplorerIsland => {
-    const details = {
-      slug: island.islandId,
-      title: island.title,
-      tagline: island.tagline,
-      subjects: island.subjects,
-      ageBands: island.ageBands,
-      ...(island.progress
-        ? {
-            progress: {
-              explored: island.progress.placesExplored,
-              total: island.progress.placesTotal,
-            },
-          }
-        : {}),
-    };
-    if (island.isHome) {
-      const places = island.places.flatMap((place): ExplorerPlace[] => {
-        const area =
-          place.area?.available === true
-            ? { title: place.area.title, href: locationWorldPath(childId, place.area.regionId) }
-            : undefined;
-        const common = {
-          slug: place.placeId,
-          title: place.title,
-          tagline: place.tagline,
-          explored: place.explored,
-        };
-        if (sourcePages.has(place.placeId)) {
-          return [{ ...common, href: `/island/${childId}/locations/${place.placeId}`, area }];
-        }
-        return area ? [{ ...common, href: area.href }] : [];
-      });
-      return { ...details, status: 'HERE', places };
-    }
-    if (!island.unlocked) {
-      return {
-        ...details,
-        status: 'LOCKED',
-        lockedHint: island.lockedHint ?? DEFAULT_LOCKED_HINT,
-        places: [],
-      };
-    }
-    return {
-      ...details,
-      status: 'OPEN',
-      href: `/island/${childId}/worlds/${island.islandId}`,
-      places: [],
-    };
-  });
-  return byStatus(islands);
 }

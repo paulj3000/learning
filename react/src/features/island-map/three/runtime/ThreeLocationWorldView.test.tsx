@@ -288,7 +288,7 @@ describe('ThreeLocationWorldView', () => {
     return render(
       <MemoryRouter initialEntries={[`/island/child-1/explore/${regionId}`]}>
         <Routes>
-          <Route path="/island/:childId" element={<p>Island Explorer page</p>} />
+          <Route path="/island/:childId/realms" element={<p>Realm Explorer page</p>} />
           <Route
             path="*"
             element={
@@ -318,10 +318,10 @@ describe('ThreeLocationWorldView', () => {
     await emit('PlayerEnteredZone', { zoneId: 'welcome-harbor:lookout' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Leave island' }));
-    expect(screen.queryByText('Island Explorer page')).not.toBeInTheDocument();
+    expect(screen.queryByText('Realm Explorer page')).not.toBeInTheDocument();
 
     await act(async () => finishSave());
-    expect(await screen.findByText('Island Explorer page')).toBeInTheDocument();
+    expect(await screen.findByText('Realm Explorer page')).toBeInTheDocument();
     expect(engine.dispose).toHaveBeenCalled();
   });
 
@@ -338,7 +338,7 @@ describe('ThreeLocationWorldView', () => {
 
     const leave = screen.getAllByRole('button', { name: 'Leave island' });
     await userEvent.click(leave[leave.length - 1]);
-    expect(await screen.findByText('Island Explorer page')).toBeInTheDocument();
+    expect(await screen.findByText('Realm Explorer page')).toBeInTheDocument();
   });
 
   it('shows the authored toast on entering a building', async () => {
