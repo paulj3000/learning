@@ -116,12 +116,19 @@ class S3SpeechStorage:
             from botocore.config import Config
 
             timeout = settings.LAI_SPEECH_TIMEOUT_SECONDS
-            # An explicit region and SigV4, so presigned URLs are valid in every region.
+            region = settings.LAI_SPEECH_S3_REGION or None
+            # An explicit region, its regional endpoint and SigV4, so presigned URLs are valid in
+            # every region. Without the endpoint, botocore signs for the global host
+            # `<bucket>.s3.amazonaws.com`; outside us-east-1 (and always for a new bucket) S3
+            # redirects that host to the regional one, and the redirected request fails with
+            # `SignatureDoesNotMatch` because the signature covers the original host.
             self._client = boto3.client(
                 "s3",
-                region_name=settings.LAI_SPEECH_S3_REGION or None,
+                region_name=region,
+                endpoint_url=f"https://s3.{region}.amazonaws.com" if region else None,
                 config=Config(
                     signature_version="s3v4",
+                    s3={"addressing_style": "virtual"},
                     connect_timeout=timeout,
                     read_timeout=timeout,
                     retries={"max_attempts": 3, "mode": "standard"},

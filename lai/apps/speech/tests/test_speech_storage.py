@@ -129,3 +129,23 @@ class TestS3:
         assert client.meta.region_name == "ap-southeast-2"
         assert client.meta.config.signature_version == "s3v4"
         reset_speech_storage_cache()
+
+    def test_presigned_urls_use_the_regional_host(self, settings, monkeypatch):
+        """Signed for `<bucket>.s3.<region>.amazonaws.com`, never the global `s3.amazonaws.com`:
+        S3 redirects the global host outside us-east-1, and the redirected request fails with
+        SignatureDoesNotMatch because the signature covers the original host (2026-11-11)."""
+        from urllib.parse import urlsplit
+
+        monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+        monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+        settings.LAI_SPEECH_STORAGE = "s3"
+        settings.LAI_SPEECH_BUCKET = "speech-bucket"
+        settings.LAI_SPEECH_S3_REGION = "us-west-2"
+        reset_speech_storage_cache()
+        try:
+            url = get_speech_storage().presigned_url(SHARED, expires_in=60)
+        finally:
+            reset_speech_storage_cache()
+        parts = urlsplit(url)
+        assert parts.netloc == "speech-bucket.s3.us-west-2.amazonaws.com"
+        assert parts.path == f"/{SHARED}"
