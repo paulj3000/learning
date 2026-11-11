@@ -289,6 +289,12 @@ different step, which is **F-C**:
   for the owner: update the two legacy specs to the managed flow, or add a "Quest accepted!"
   confirmation to the managed Pip's accept (host or authored content).
 
+**F-C resolved (owner decision 2026-11-11: update the tests).** `treasure-rush.spec.ts` (quest
+accept and the finale, where the managed Pip answers the child's tap after the finale panel) and
+`question-studio.spec.ts` now follow the managed Pip's flow. Final desktop rerun: **59 passed,
+0 failed, 1 skipped** (the `@tablet` touch-drag test, which runs only in the tablet project).
+The tablet project was not rerun.
+
 **Migrations.** `makemigrations --check` is clean; every e2e run migrates a fresh PostgreSQL from
 zero. One migration chain change on this branch: `catalog/0006_npc_definition_origin` and
 `npcs/0001_npc_manager_foundation`.

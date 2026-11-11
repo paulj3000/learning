@@ -12468,5 +12468,7 @@ none blocks release.
 F-A and F-B fixed on `fix/npc-manager-fa-fb` (2026-11-11): runtime reads answer an empty `200`
 when nothing is published; unprompted NPC lines are a non-modal bubble that leaves the HUD
 usable. Browser rerun: 56 passed, 2 failed, 1 did not run; the 2 remaining failures are F-C
-(the managed Pip's quest-accept confirmation differs from the legacy panel), which needs an owner
-decision. Merge readiness stays NOT READY until F-C is decided and the suite reruns green.
+(the managed Pip's quest-accept confirmation differs from the legacy panel). Owner decision: the
+legacy specs were updated to the managed flow. Final desktop browser run: 59 passed, 0 failed,
+1 skipped (@tablet only). Remaining before merge: tablet project rerun, manual accessibility,
+live Polly/Bedrock (blocked on an approved environment) and owner merge approval.
