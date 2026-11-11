@@ -13371,3 +13371,24 @@ in `main` (verified: zero commits ahead of `origin/main`).
 - **Not established by this:** deployed or live AWS acceptance; real-family use still depends on
   LAI-0502, LAI-0602, gate G9 and ADR-024 A6.
 - **Tests run:** none; documentation-only change.
+
+## AMP-01 Amplify dependency audit and Django parity matrix (2026-11-10, branch `claude/lai-infra-001-pr-kwauv3`, read-only audit)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| AMP-01 | `docs/platform/AMPLIFY_EXIT_MATRIX.md` | **None** (no AWS access); live DynamoDB, AppSync and Cognito data not read | Open: owner review; the gap list feeds AMP-02 to AMP-08 |
+
+- Scope: `main` (`89d1172`, re-checked at `8e3af01` on 2026-11-11), `dev20261103` and its live
+  integration branch (`claude/jolly-ride-92xktb`), and all 31 remote branches.
+- Inventory: 22 React and script files import Amplify. Auth is fully Amplify (12 source files).
+  All 22 Amplify Data models are called. 15 capabilities already switch to Django; 18 modules or
+  module groups do not.
+- Branch findings: no branch removes Amplify usage beyond `main`. The integration's Django step
+  runner and 14 content and step routes merged into `main` with PR #12 (G2 is now wiring only).
+- Gaps with no Django equivalent:
+  - parent account deletion;
+  - companion choice storage;
+  - the director's "next learning activity";
+  - co-op routes and realtime.
+- Only parent and child profiles have a DynamoDB importer.
+- Checks: docs only (Prettier clean). No code or resource changed.
