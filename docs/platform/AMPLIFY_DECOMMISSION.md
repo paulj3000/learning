@@ -237,7 +237,7 @@ What this changes:
 | D1 | Which pool the Django site signs parents in with | **Answered 2026-11-11: `us-west-1_3LU3RSjuH`** (sandbox `d82df21cc1`). Protect it as in finding 1 |
 | D2 | Older sandbox `93eee1e2ac` (pool `us-west-1_FuPf8rRor`) | Discard with that sandbox, or import its test parents |
 | D3 | `us-west-1_UVZeN8Cie` and `us-west-1_vi1lvKQs2` | Say what they are for |
-| D4 | Progress history in sandbox `d82df21cc1` | **Answered 2026-11-11: not carried over.** Only profiles are imported (`import_amplify_profiles`); the children start fresh in Django. G8 importers are not built. The history stays in the sandbox tables until the sandbox is deleted at stage 6, after the profile import is verified; nothing is deleted before then |
+| D4 | Progress history in sandbox `d82df21cc1` | **Answered 2026-11-11: not carried over.** Only profiles are imported (`import_amplify_profiles`); the children start fresh in Django. G8 importers are not built. The owner then asked for the history to be wiped now: `scripts/aws/wipe_amplify_history.py msc2dcivzjeklbumcf5de5pfyy` (dry run), then with `--confirm-delete msc2dcivzjeklbumcf5de5pfyy`. It backs up each of the 12 history tables first, then deletes their items; profiles, companion choices and the AI audit and safety records are kept |
 
 ## 5. Owner signoff
 
