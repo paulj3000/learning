@@ -108,9 +108,12 @@ test.describe.serial("Pip's Missing Treasure, start to finish", () => {
       const dialog = page.getByRole('dialog', { name: 'Pirate Pip' });
       await expect(dialog.getByText('Will you help me?')).toBeVisible();
       await dialog.getByRole('button', { name: 'Yes, I will help!' }).click();
-      await expect(dialog.getByRole('status')).toContainText('Quest accepted!');
-      await dialog.getByRole('button', { name: 'Keep exploring' }).click();
+      // The managed Pip (NPC Manager) accepts through the same quest flow and thanks the child
+      // with his authored line, instead of the legacy "Quest accepted!" panel (F-C).
       await expect(page.getByText("Find Pip's treasures: 0 of 4")).toBeVisible();
+      await expect(dialog).toContainText('Thank you, friend!');
+      await dialog.getByRole('button', { name: 'Close' }).click();
+      await expect(dialog).toHaveCount(0);
     });
 
     await test.step('Hint names the next step only when asked', async () => {

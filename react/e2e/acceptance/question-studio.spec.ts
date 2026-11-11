@@ -247,7 +247,11 @@ test.describe.serial('AI Question Studio in Django Admin', () => {
     await approach(page, 'cove-pip');
     await page.keyboard.press('e');
     await page.getByRole('button', { name: 'Yes, I will help!' }).click();
-    await page.getByRole('button', { name: 'Keep exploring' }).click();
+    // The managed Pip thanks the child instead of the legacy "Keep exploring" panel (F-C).
+    await expect(page.getByText("Find Pip's treasures: 0 of 4")).toBeVisible();
+    const pip = page.getByRole('dialog', { name: 'Pirate Pip' });
+    await pip.getByRole('button', { name: 'Close' }).click();
+    await expect(pip).toHaveCount(0);
     const issuedPromise = challengeResponse(page);
     await (await approach(page, 'cove-chest')).click();
     const issued = await issuedFrom(await issuedPromise);
