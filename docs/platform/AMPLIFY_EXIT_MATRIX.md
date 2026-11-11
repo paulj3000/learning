@@ -10,7 +10,7 @@ Baselines compared:
 | `main` | `89d1172` | Baseline |
 | `dev20261103` | `96aa587` | 24 ahead, 10 behind |
 | `claude/jolly-ride-92xktb` | `804aaea` | The live `dev20261103` integration kept merged with `main` (28 ahead, 0 behind) |
-| Every other remote branch (31 in all) | | Most are 0 ahead (fully merged). The ones ahead are listed in section 7 |
+| Every other remote branch (31 in all) | | Most are 0 ahead (fully merged). The ones ahead are listed in section 6 |
 
 Coordinates with `docs/infrastructure/inventory.md` (LAI-INFRA-001) and
 `resource-ownership.md` (LAI-INFRA-002) and does not repeat them. Those cover AWS resources;
@@ -18,8 +18,7 @@ this covers code.
 
 Evidence is from `git grep` over each ref (call sites, imports, routes). "Django path" means a
 React code path that `VITE_BACKEND=django` (`react/src/api/config.ts`) switches to. **No live
-DynamoDB, AppSync or Cognito data was read**: the session cannot run AWS commands. Section 6 lists
-the read-only commands for the owner.
+DynamoDB, AppSync or Cognito data was read**: the session cannot run AWS commands.
 
 ## 1. Summary
 
@@ -49,8 +48,7 @@ the read-only commands for the owner.
   → AMP-06 and AMP-07.
 - **Data migration:** only parent and child profiles have an importer
   (`import_amplify_profiles`). Progress, sessions, world state, NPC, quest, inventory, story and AI
-  audit records have none. Whether any real family data exists in DynamoDB is **unknown**
-  (section 6).
+  audit records have none. Whether any real family data exists in DynamoDB is **unknown**.
 
 ## 2. Packages, build and CI
 
@@ -131,7 +129,7 @@ the read-only commands for the owner.
 | G5 | Companion choice has no Django model | Small; needed for onboarding parity | AMP-03 |
 | G6 | Director "next learning activity" has no Django service | Adaptive learning | AMP-05 |
 | G7 | Co-op: no route, no realtime replacement | Feature-scoped; needs a decision (Django polling vs. the room server) | AMP-05 (owner decision) |
-| G8 | Data importers for everything except profiles | Needed only if DynamoDB holds real family data (section 6) | AMP-03, AMP-08 |
+| G8 | Data importers for everything except profiles | Needed only if DynamoDB holds real family data (unknown) | AMP-03, AMP-08 |
 | G9 | Amplify Storage objects (photos, models) | Migration with checksums | AMP-04 |
 | G10 | React admin pages vs Django Admin | Retire after owner confirmation | AMP-03 |
 | G11 | Metrics and alarms parity | Before Amplify monitoring is removed | AMP-05, AMP-08 |
@@ -148,26 +146,7 @@ the read-only commands for the owner.
 | `OperationalAlertsTopic`, Bedrock budget, dashboard | The only alerting for Amplify traffic | AMP-08 |
 | Amplify Hosting app (`main`) | Serves the live site and deploys the Gen 2 backend | AMP-06 cutover accepted, AMP-08 |
 
-## 6. Live inventory (owner, read-only)
-
-None of these change anything. Use `us-west-1`. Amplify Gen 2 names each table
-`<Model>-<AppSync API id>-NONE`, so take the `main` backend's API id from the first command.
-
-```bash
-aws appsync list-graphql-apis --region us-west-1 --query "graphqlApis[].[name,apiId,tags]"
-aws dynamodb list-tables --region us-west-1 --query "TableNames[?contains(@, '<apiId>')]"
-for t in $(aws dynamodb list-tables --region us-west-1 --query "TableNames[?contains(@, '<apiId>')]" --output text); do
-  echo "$t $(aws dynamodb describe-table --region us-west-1 --table-name "$t" --query Table.ItemCount)"
-done
-aws cognito-idp describe-user-pool --region us-west-1 --user-pool-id <poolId> --query UserPool.EstimatedNumberOfUsers
-aws s3 ls s3://<amplify-storage-bucket>/child-photos/ --recursive --summarize | tail -2
-```
-
-Paste the counts on the AMP-01 card. Non-zero counts in progress tables decide whether G8 is
-needed before AMP-08. `ItemCount` is refreshed about every 6 hours. For an exact figure on a small
-table, `aws dynamodb scan --table-name <t> --select COUNT` reads every item (read cost only).
-
-## 7. Branch comparison
+## 6. Branch comparison
 
 | Branch | Ahead of `main` | Amplify call inventory vs `main` |
 |---|---|---|

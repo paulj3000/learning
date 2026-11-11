@@ -12766,7 +12766,7 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
 
 | Task | Deliverable | Live verification | Final |
 |---|---|---|---|
-| AMP-01 | `docs/platform/AMPLIFY_EXIT_MATRIX.md` | **None** (no AWS access). Live DynamoDB, AppSync and Cognito counts are owner commands (section 6) | Open: the owner runs the section 6 counts; the gap list feeds AMP-02 to AMP-08 |
+| AMP-01 | `docs/platform/AMPLIFY_EXIT_MATRIX.md` | **None** (no AWS access); live DynamoDB, AppSync and Cognito data not read | Open: owner review; the gap list feeds AMP-02 to AMP-08 |
 
 - Scope: `main` (`89d1172`), `dev20261103` and its live integration branch
   (`claude/jolly-ride-92xktb`), and all 31 remote branches.
