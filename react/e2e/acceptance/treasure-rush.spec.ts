@@ -188,7 +188,12 @@ test.describe.serial("Pip's Missing Treasure, start to finish", () => {
       await approach(page, 'cove-pip');
       await page.keyboard.press('e');
       await expect(page.getByRole('heading', { name: 'You found all my treasure!' })).toBeVisible();
-      await closePanel(page);
+      await page.getByRole('button', { name: /^(Close|Keep exploring|Got it)$/ }).click();
+      // Then the managed Pip answers the child's own tap with his authored line (F-C).
+      const pip = page.getByRole('dialog', { name: 'Pirate Pip' });
+      await expect(pip).toContainText('You found the treasure!');
+      await pip.getByRole('button', { name: 'Close' }).click();
+      await expect(page.getByRole('button', { name: 'Hint' })).toBeVisible();
       await expect(
         page.getByText('The gate is open and the bridge is mended! Walk across to Lookout Point.'),
       ).toBeVisible();
