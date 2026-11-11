@@ -27,7 +27,7 @@ From the repository root:
 
 ```bash
 make py-install     # creates .venv and installs requirements-dev.txt
-make up             # PostgreSQL 16 on 127.0.0.1:5432 (set POSTGRES_PORT if 5432 is taken)
+make up             # PostgreSQL 16 on 127.0.0.1:5442 (set POSTGRES_PORT to change it)
 make migrate
 ```
 
@@ -78,8 +78,8 @@ Staff can inspect parents and children read-only in Django Admin
 ## 4. Start Django
 
 ```bash
-make runserver      # http://127.0.0.1:8000, settings config.settings.local
-curl http://127.0.0.1:8000/api/v1/health/
+make runserver      # http://127.0.0.1:8010, settings config.settings.local
+curl http://127.0.0.1:8010/api/v1/health/
 ```
 
 ## 5. Frontend environment
@@ -90,7 +90,7 @@ Create `react/.env.local` (Vite reads env files from `react/`; it is gitignored)
 ```bash
 VITE_BACKEND=django
 # Optional; this is the default. Must be a loopback origin.
-DJANGO_DEV_PROXY_TARGET=http://127.0.0.1:8000
+DJANGO_DEV_PROXY_TARGET=http://127.0.0.1:8010
 ```
 
 Leave `VITE_DJANGO_API_BASE` unset: the app calls `/api/...` on the Vite origin and Vite
@@ -127,7 +127,7 @@ in the shell, or `make down && docker volume rm <project>_lai_pgdata` and repeat
 Every request needs a Cognito **access** token for the test parent (not the ID token):
 
 ```bash
-base=http://127.0.0.1:8000/api/v1
+base=http://127.0.0.1:8010/api/v1
 read -rs TOKEN    # paste the access token
 curl -s -H "Authorization: Bearer $TOKEN" $base/children/    # the parent's children, ids included
 ```
@@ -146,7 +146,7 @@ cd lai
 ```
 
 The import stores the files under `lai/.asset-storage/` as validated, unpublished versions. Then
-open `http://127.0.0.1:8000/admin/`, go to **Asset library, Asset versions**, select the three
+open `http://127.0.0.1:8010/admin/`, go to **Asset library, Asset versions**, select the three
 versions and run **Publish selected versions**. Leave the cove and enter it again: the models
 now come from `/api/v1/asset-files/...` (the browser's network panel shows it).
 

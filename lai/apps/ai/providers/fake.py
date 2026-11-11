@@ -80,6 +80,11 @@ def default_output(request: ModelRequest) -> dict:
     hints = request.fake_hints
     if hints.get("studio"):
         return studio_output(hints)
+    if request.route == "npc":
+        return {
+            "spokenText": "Look closely and count them one by one.",
+            "safetyDisposition": "ALLOW",
+        }
     if request.route == "tutor":
         return {
             "spokenText": "Let's try it together, one step at a time.",

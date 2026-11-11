@@ -68,11 +68,11 @@ make py-format-check   # ruff format --check (make py-format to fix)
 make py-test           # pytest (tests/)
 make py-check          # all three
 make check             # Python checks, then typecheck, lint, format, tests, build
-make up                # local PostgreSQL 16 via docker compose (POSTGRES_PORT=5433 make up if 5432 is taken)
+make up                # local PostgreSQL 16 via docker compose on 127.0.0.1:5442 (POSTGRES_PORT overrides)
 make django-check      # manage.py check (no database needed)
 make migrate-check     # makemigrations --check
 make migrate           # apply framework migrations (needs make up)
-make runserver         # Django dev server; GET http://127.0.0.1:8000/api/v1/health/
+make runserver         # Django dev server on 8010 (DJANGO_DEV_PORT); GET http://127.0.0.1:8010/api/v1/health/
 make py-test-db        # like py-test, but PostgreSQL tests fail instead of skipping
 ```
 

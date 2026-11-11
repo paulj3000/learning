@@ -1,0 +1,20 @@
+{% extends "admin/change_form.html" %}
+{% block object-tools-items %}
+  {% if show_rollback %}
+  <li>
+    <form method="post" action="{% url 'admin:npcs_npcrelease_rollback' original.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="button">Roll back to this release</button>
+    </form>
+  </li>
+  {% endif %}
+  {% if show_retire %}
+  <li>
+    <form method="post" action="{% url 'admin:npcs_npcrelease_retire' original.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="button">Retire this release{% if is_active %} (children will see no NPCs){% endif %}</button>
+    </form>
+  </li>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

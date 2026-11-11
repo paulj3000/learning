@@ -2,9 +2,12 @@
 
     python manage.py seed_speech_voices
 
-Creates `keeper-quill`, `chatty`, `narrator` and `tutor` if they do not exist, using allowed
-voices only. Existing profiles are left exactly as staff configured them. It does not turn speech
-on: `LAI_SPEECH_PROVIDER` does that, per environment.
+Creates `keeper-quill`, `chatty`, `pirate-pip`, `narrator` and `tutor` if they do not exist,
+using allowed voices only. Pirate Pip (SM-P8-LIVE) uses Justin, a young en-US voice with both the
+standard and neural engines, at a slightly brisk rate; the profile id matches the NPC id so
+`seed_npc_pip` and the `npcNode` speech reference find it. Existing profiles are left exactly as
+staff configured them. It does not turn speech on: `LAI_SPEECH_PROVIDER` does that, per
+environment.
 """
 
 from django.core.management.base import BaseCommand
@@ -14,6 +17,7 @@ from apps.speech.models import VoiceProfile
 STARTERS = (
     ("keeper-quill", "Keeper Quill", "Matthew", "neural", 95, "keeper-quill"),
     ("chatty", "Chatty the Parrot", "Ivy", "neural", 105, "chatty"),
+    ("pirate-pip", "Pirate Pip", "Justin", "neural", 105, "pirate-pip"),
     ("narrator", "Narrator", "Joanna", "neural", 95, ""),
     ("tutor", "Tutor", "Kevin", "neural", 100, ""),
 )

@@ -23,6 +23,8 @@ class RouteName(models.TextChoices):
     # The Amplify route names, kept so audit rows from both backends compare directly.
     COMPANION = "generateCompanionTurn"
     TUTOR = "generateTutorTurn"
+    # Django only (LAI-NPC-030/032): a hybrid hint voiced by a published NPC persona.
+    NPC_HINT = "generateNpcHint"
 
 
 class ValidationStatus(models.TextChoices):
